@@ -5,6 +5,8 @@
 
 import { z } from "zod";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
+import { LOCALES } from "./i18n/registry.ts";
+import { RESTRICTION_TAGS } from "./targets.ts";
 import type { MealAnalysis, Profile } from "./types.ts";
 
 const VerdictSchema = z.enum(["good", "warn", "bad"]);
@@ -109,6 +111,12 @@ function buildUserText(profile: Profile): string {
   const declared = profile.restrictions.length ? profile.restrictions.join(", ") : "none";
   lines.push(`Declared restrictions: ${declared}.`);
   lines.push("Do NOT set verdicts for dimensions the user did not declare (weight always applies).");
+  // The only user-visible text the model produces. Without this the output language is
+  // unspecified, and food names would land in a reply whose chrome is in another language.
+  lines.push(
+    `Write items[].name and notes in ${LOCALES[profile.lang].llmName}. ` +
+      "All numeric fields stay numeric — never spell a number out as words.",
+  );
   lines.push("Return JSON only.");
   return lines.join("\n");
 }
@@ -165,6 +173,54 @@ export async function analyzeMeal(
   const raw = await provider.chat(req);
   return parseAnalysis(raw);
 }
+
+// ---------- restriction classification (the keyword pass's fallback) ----------
+
+/** Free-text restrictions are short; anything past this is noise or an injection attempt. */
+const RESTRICTION_INPUT_CAP = 200;
+
+const RestrictionsSchema = z.object({
+  tags: z.array(z.string()).default([]),
+});
+
+/**
+ * Free text -> restriction tags, for input the keyword pass in `targets.ts` could not match
+ * (typically because it is in a language nobody wrote keywords for).
+ *
+ * NEVER throws: a failure here must not block onboarding, so every error path yields `[]` and
+ * the user simply keeps the keyword result. Called at most once per user.
+ */
+export async function classifyRestrictions(
+  text: string,
+  provider: LLMProvider,
+  lang: Profile["lang"],
+): Promise<string[]> {
+  const vocabulary = RESTRICTION_TAGS.join(", ");
+  const userText = [
+    "Classify a user's free-text dietary/health restrictions into tags.",
+    `Allowed tags (use NOTHING else): ${vocabulary}.`,
+    // A hint, not an assertion — a user may well write in a language other than their interface.
+    `The text may be in ${LOCALES[lang].llmName}, but could be in any language.`,
+    'Respond with ONLY {"tags": [...]}. Use an empty array if nothing matches.',
+    "",
+    `Text: ${text.slice(0, RESTRICTION_INPUT_CAP)}`,
+  ].join("\n");
+
+  try {
+    const raw = await provider.chat({ system: SYSTEM_CLASSIFY, userText });
+    const parsed = RestrictionsSchema.safeParse(tolerantJson(raw));
+    if (!parsed.success) return [];
+    // Validate against the vocabulary the rest of the app can actually act on.
+    return parsed.data.tags.filter((tag) => RESTRICTION_TAGS.includes(tag));
+  } catch (e) {
+    console.error(`[eait] restriction classification failed: ${(e as any)?.message}`);
+    return [];
+  }
+}
+
+const SYSTEM_CLASSIFY =
+  "You map free-text dietary and health restrictions onto a fixed tag vocabulary. " +
+  "Respond with ONLY a single JSON object — no prose, no markdown fences.";
 
 /**
  * Correction path: a text reply corrects a prior estimate. The image is already gone (ephemeral),

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { analyzeCorrection, analyzeMeal, MealAnalysisSchema } from "./analyzer.ts";
+import { analyzeCorrection, analyzeMeal, classifyRestrictions, MealAnalysisSchema } from "./analyzer.ts";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import type { MealAnalysis, Profile } from "./types.ts";
 
@@ -120,5 +120,69 @@ describe("MealAnalysisSchema", () => {
     expect(parsed.kcal).toBe(0);
     expect(parsed.items).toEqual([]);
     expect(parsed.verdicts).toEqual({});
+  });
+});
+
+describe("output language", () => {
+  test("the prompt names the user's language, so items and notes come back localized", async () => {
+    for (const [lang, llmName] of [["ru", "Russian"], ["de", "German"], ["en", "English"]] as const) {
+      const provider = new FakeProvider(() => validJson);
+      await analyzeMeal(bytes, { ...profile, lang }, provider);
+      expect(provider.lastRequest?.userText).toContain(llmName);
+    }
+  });
+
+  test("the correction path inherits the language instruction", async () => {
+    const provider = new FakeProvider(() => validJson);
+    const prior = MealAnalysisSchema.parse(JSON.parse(validJson));
+    await analyzeCorrection(prior, "no oil", { ...profile, lang: "de" }, provider);
+    expect(provider.lastRequest?.userText).toContain("German");
+  });
+
+  test("numeric fields are explicitly excluded from localization", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal(bytes, { ...profile, lang: "de" }, provider);
+    // guards against a model that "helpfully" returns "dreihundert" for kcal
+    expect(provider.lastRequest?.userText).toMatch(/numeric/i);
+  });
+});
+
+describe("classifyRestrictions", () => {
+  const tags = (v: string[]) => JSON.stringify({ tags: v });
+
+  test("maps free text in any language onto the known tag vocabulary", async () => {
+    const provider = new FakeProvider(() => tags(["kidneys", "lowsugar"]));
+    const out = await classifyRestrictions("Nieren, kein Zucker", provider, "de");
+    expect(out).toEqual(["kidneys", "lowsugar"]);
+  });
+
+  test("drops tags outside the vocabulary the rest of the app understands", async () => {
+    // targetsFor and the analyzer prompt only know these four; an invented dimension
+    // would be stored but never acted on, which is worse than dropping it.
+    const provider = new FakeProvider(() => tags(["kidneys", "gluten", "astrology"]));
+    expect(await classifyRestrictions("...", provider, "en")).toEqual(["kidneys"]);
+  });
+
+  test("returns an empty list rather than throwing when the model returns junk", async () => {
+    const provider = new FakeProvider(() => "not json at all");
+    expect(await classifyRestrictions("...", provider, "en")).toEqual([]);
+  });
+
+  test("returns an empty list when the provider itself fails", async () => {
+    const provider: LLMProvider = { chat: async () => { throw new Error("network"); } };
+    expect(await classifyRestrictions("...", provider, "en")).toEqual([]);
+  });
+
+  test("truncates long input before it reaches the model", async () => {
+    const provider = new FakeProvider(() => tags([]));
+    await classifyRestrictions("x".repeat(5000), provider, "en");
+    expect(provider.lastRequest!.userText.length).toBeLessThan(600);
+  });
+
+  test("passes the user's locale as a hint without asserting the input is in it", async () => {
+    const provider = new FakeProvider(() => tags([]));
+    await classifyRestrictions("...", provider, "de");
+    expect(provider.lastRequest?.userText).toContain("German");
+    expect(provider.lastRequest?.userText).toMatch(/may be|might be|likely/i);
   });
 });

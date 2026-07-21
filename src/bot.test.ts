@@ -231,3 +231,69 @@ test("no locale leaks a raw key through any bot card", async () => {
     expect(statsCard(deps, lang)).not.toMatch(/\b(me|meal|errors|stats)\.[a-zA-Z.]+/);
   }
 });
+
+// ---------- restriction classification fallback ----------
+
+/** A provider that records whether it was consulted at all. */
+function countingProvider(out: string) {
+  let calls = 0;
+  return { p: { chat: async () => { calls++; return out; } } as LLMProvider, calls: () => calls };
+}
+
+async function toRestrictionsStep(deps: BotDeps, id: number, language_code?: string) {
+  await processOnboarding(deps, { id, language_code }, { type: "command", command: "start" }, noop);
+  await processOnboarding(deps, { id }, { type: "callback", data: "consent_agree" }, noop);
+  await processOnboarding(deps, { id }, { type: "callback", data: "goal_lose" }, noop);
+}
+
+test("a keyword match short-circuits — the classifier is never consulted", async () => {
+  const db = tmpDb();
+  const { p, calls } = countingProvider(JSON.stringify({ tags: ["vegan"] }));
+  const deps: BotDeps = { db, provider: p, config: cfg };
+  await toRestrictionsStep(deps, 200);
+  await processOnboarding(deps, { id: 200 }, { type: "text", text: "почки" }, noop);
+  expect(getUser(db, 200)?.restrictions).toEqual(["kidneys"]);
+  expect(calls()).toBe(0);
+});
+
+test("a keyword miss falls back to the classifier — German text still yields tags", async () => {
+  const db = tmpDb();
+  const { p, calls } = countingProvider(JSON.stringify({ tags: ["kidneys", "lowsugar"] }));
+  const deps: BotDeps = { db, provider: p, config: cfg };
+  await toRestrictionsStep(deps, 201, "de");
+  await processOnboarding(deps, { id: 201 }, { type: "text", text: "Nieren, kein Zucker" }, noop);
+  expect(getUser(db, 201)?.restrictions).toEqual(["kidneys", "lowsugar"]);
+  expect(calls()).toBe(1);
+  expect(getUser(db, 201)?.state).toBe("active");
+});
+
+test("a classifier failure leaves restrictions empty but still completes onboarding", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: { chat: async () => { throw new Error("down"); } }, config: cfg };
+  await toRestrictionsStep(deps, 202, "de");
+  const { msgs, send } = collector();
+  await processOnboarding(deps, { id: 202 }, { type: "text", text: "Nieren" }, send);
+  expect(getUser(db, 202)?.restrictions).toEqual([]);
+  expect(getUser(db, 202)?.state).toBe("active");
+  expect(msgs[0]).toBe(translatorFor("de")("onboarding.done"));
+});
+
+test("the classifier is not consulted for non-restriction steps", async () => {
+  const db = tmpDb();
+  const { p, calls } = countingProvider(JSON.stringify({ tags: ["vegan"] }));
+  const deps: BotDeps = { db, provider: p, config: cfg };
+  // text typed during consent is a nudge, not a restriction declaration
+  await processOnboarding(deps, { id: 203 }, { type: "command", command: "start" }, noop);
+  await processOnboarding(deps, { id: 203 }, { type: "text", text: "hello there" }, noop);
+  expect(calls()).toBe(0);
+});
+
+test("skipping restrictions never consults the classifier", async () => {
+  const db = tmpDb();
+  const { p, calls } = countingProvider(JSON.stringify({ tags: ["vegan"] }));
+  const deps: BotDeps = { db, provider: p, config: cfg };
+  await toRestrictionsStep(deps, 204);
+  await processOnboarding(deps, { id: 204 }, { type: "callback", data: "restrictions_skip" }, noop);
+  expect(getUser(db, 204)?.restrictions).toEqual([]);
+  expect(calls()).toBe(0);
+});

@@ -25,7 +25,14 @@ const RESTRICTION_MAP: Array<{ tag: string; keywords: string[] }> = [
   { tag: "lowsugar", keywords: ["сахар", "sugar"] },
 ];
 
-/** Free text -> tags. Unknown words are dropped (LLM fallback deferred, spec §18 minor). */
+/**
+ * The complete restriction vocabulary. Anything outside it is meaningless to `targetsFor` and
+ * to the analyzer prompt, so the LLM classifier validates against this exact list — one source
+ * of truth, no drift between the keyword pass and the fallback.
+ */
+export const RESTRICTION_TAGS = RESTRICTION_MAP.map((r) => r.tag);
+
+/** Free text -> tags. Unknown words are dropped; `classifyRestrictions` is the LLM fallback. */
 export function parseRestrictions(text: string): string[] {
   const hay = text.toLowerCase();
   const tags: string[] = [];

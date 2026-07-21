@@ -15,7 +15,7 @@ import {
   insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals, countMealsToday,
   deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang, type UserRow,
 } from "./db.ts";
-import { analyzeMeal, analyzeCorrection } from "./analyzer.ts";
+import { analyzeMeal, analyzeCorrection, classifyRestrictions } from "./analyzer.ts";
 import { targetsFor } from "./targets.ts";
 import { formatReply } from "./reply.ts";
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "./onboarding.ts";
@@ -91,9 +91,35 @@ export async function processOnboarding(
   const u = getUser(deps.db, from.id);
   const t = translatorForUser(u);
   const r = step(u ? { state: u.state, goal: u.goal } : undefined, input, t);
+  await applyRestrictionFallback(deps, u, input, r);
   applyOnboarding(deps.db, from.id, r);
   await send(r.reply, r.buttons);
 }
+
+/**
+ * The keyword pass in `targets.ts` only knows the languages someone wrote keywords for, so a
+ * German user typing "Nieren, kein Zucker" silently loses their kidney verdict and sodium cap.
+ * When it matches nothing, ask the model instead.
+ *
+ * This lives here, not in `onboarding.ts`, because `step()` is a pure no-I/O state machine and
+ * must stay one. Mutates `r.patch` in place before it is persisted.
+ */
+async function applyRestrictionFallback(
+  deps: BotDeps,
+  u: UserRow | undefined,
+  input: OnboardingInput,
+  r: OnboardingResult,
+): Promise<void> {
+  // Only the free-text restrictions step: a `restrictions_skip` tap also yields [], and an
+  // explicit skip must never be second-guessed by the model.
+  if (input.type !== "text" || !input.text.trim()) return;
+  if (r.patch?.restrictions === undefined || r.patch.restrictions.length > 0) return;
+
+  const tags = await classifyRestrictions(input.text, deps.provider, translatorLangOf(u));
+  if (tags.length) r.patch.restrictions = tags;
+}
+
+const translatorLangOf = (u: UserRow | undefined): Lang => (u ? profileOf(u).lang : DEFAULT_LANG);
 
 /** /lang — a picker built from the registry, so a new locale appears with no code change. */
 export async function processLangPrompt(
