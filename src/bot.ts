@@ -101,10 +101,12 @@ export async function processPhoto(
   try {
     const bytes = await getBytes(); // in-memory only; never written to disk
     analysis = await analyzeMeal(bytes, prof, provider);
-  } catch {
+  } catch (e) {
+    console.error(`[eait] analyze failed user=${from.id}: ${(e as any)?.message}`);
     await send("Не смог разобрать 🤔 пришли фото ещё раз.");
     return;
   }
+  console.log(`[eait] photo user=${from.id} isFood=${analysis.isFood} kcal=${analysis.kcal} items=${analysis.items.length}`);
   if (!analysis.isFood) {
     await send("Это не похоже на еду 🤔");
     return;
@@ -113,6 +115,7 @@ export async function processPhoto(
   insertMeal(db, {
     id, user_id: from.id, ts: new Date().toISOString(), date, analysis, model: config.llmModel,
   });
+  console.log(`[eait] meal stored ${id} user=${from.id}`);
   const totals = dailyTotals(db, from.id, date);
   const sent = await send(
     formatReply(analysis, totals, targetsFor(prof), prof.lang) +
