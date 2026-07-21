@@ -305,7 +305,10 @@ export async function processCorrection(
   let updated: MealAnalysis;
   try {
     updated = await analyzeCorrection(mealToAnalysis(meal), text, prof, provider);
-  } catch {
+  } catch (e) {
+    // Log like processPhoto does — otherwise a model outage and a parse bug look identical
+    // from the operator's side: the user gets a message, the logs get nothing.
+    console.error(`[eait] correction failed user=${from.id} meal=${meal.id}: ${(e as any)?.message}`);
     await send(t("errors.correctionFailed"));
     return true;
   }
@@ -343,6 +346,22 @@ export function meCard(deps: BotDeps, userId: number): string | null {
       proteinTarget: targets.protein_g,
     })
   );
+}
+
+/**
+ * The language to render /stats in. The admin may never have run /start (nothing requires them
+ * to onboard before running an admin command), so there is no row to read a language from —
+ * fall back to the default rather than dereferencing an absent user.
+ */
+export function adminLangFor(
+  deps: BotDeps,
+  userId: number,
+  languageCode?: string | null,
+): Lang {
+  const u = getUser(deps.db, userId);
+  // No row: fall back to their Telegram client language rather than the default, matching
+  // how /help treats a pre-onboarding user.
+  return u ? profileOf(u).lang : resolveLang(languageCode);
 }
 
 /** Admin-only. Takes an explicit lang because it is rendered for whoever ran /stats. */
@@ -440,9 +459,7 @@ export function createBot(deps: BotDeps): Bot {
       await ctx.reply(tFor(ctx)("errors.adminOnly"));
       return;
     }
-    // The admin may never have run /start, so there is no row to assume here.
-    const u = getUser(db, ctx.from.id);
-    await ctx.reply(statsCard(deps, u ? profileOf(u).lang : resolveLang(ctx.from.language_code)));
+    await ctx.reply(statsCard(deps, adminLangFor(deps, ctx.from.id, ctx.from.language_code)));
   });
 
   bot.on("callback_query:data", async (ctx) => {
@@ -480,7 +497,14 @@ export function createBot(deps: BotDeps): Bot {
       async () => {
         const file = await ctx.api.getFile(largest.file_id);
         const url = `https://api.telegram.org/file/bot${config.telegramBotToken}/${file.file_path}`;
-        const res = await fetch(url);
+        // Time-box the download: sequentialize() is per-user, so a hung fetch would stall
+        // everything else that user sends until the process restarts.
+        const res = await fetch(url, { signal: AbortSignal.timeout(config.llmTimeoutMs) });
+        // Without this, a non-2xx body (an expired file_path returns a JSON error) would be
+        // base64'd and sent to the model as if it were a photo, and the user would be told
+        // their meal "isn't food" — a download failure reported as a wrong diagnosis.
+        // The status is thrown, never the URL: that carries the bot token.
+        if (!res.ok) throw new Error(`telegram file download failed: ${res.status}`);
         return new Uint8Array(await res.arrayBuffer());
       },
       sendVia(ctx),
@@ -549,6 +573,29 @@ export async function registerCommands(bot: Bot, config: Config): Promise<void> 
   }
 }
 
+/**
+ * Telegram error codes that mean "this will never work", as opposed to the 409 poller hand-off
+ * and the network blips the supervisor exists to ride out. 401 is a revoked or wrong token;
+ * 404 is what the API returns for a token that was never valid.
+ */
+const FATAL_TELEGRAM_CODES = new Set([401, 404]);
+
+export function isFatalTelegramError(err: unknown): boolean {
+  const code = (err as { error_code?: unknown })?.error_code;
+  return typeof code === "number" && FATAL_TELEGRAM_CODES.has(code);
+}
+
+/** grammy puts the useful text in `description` but drops `error_code` — "Not Found" alone is
+ *  weak signal for "your bot token is wrong", so keep both. */
+export function describeError(err: unknown): string {
+  const e = err as { error_code?: unknown; description?: unknown } | undefined;
+  if (e?.description) {
+    return e.error_code === undefined ? String(e.description) : `${e.error_code} ${e.description}`;
+  }
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
+
 export function startBot(config: Config): { db: Database; stop: () => Promise<void> } {
   // Validate config before touching the filesystem: createProvider throws on an unknown
   // LLM_PROVIDER, and doing it first means that failure can't strand an open sqlite handle.
@@ -578,19 +625,37 @@ export function startBot(config: Config): { db: Database; stop: () => Promise<vo
         break; // stopped cleanly
       } catch (err) {
         if (stopping) break;
-        console.error(`[eait] runner error, retry in 15s: ${(err as any)?.description ?? err}`);
+        // A wrong or revoked token is not transient: retrying it every 15s forever looks
+        // identical to a network blip in the log, so say what it is and stop.
+        if (isFatalTelegramError(err)) {
+          console.error(`[eait] fatal Telegram error, not retrying: ${describeError(err)}`);
+          console.error("[eait] check TELEGRAM_BOT_TOKEN — the bot cannot authenticate.");
+          stopping = true;
+          db.close();
+          process.exitCode = 1;
+          break;
+        }
+        console.error(`[eait] runner error, retry in 15s: ${describeError(err)}`);
         await new Promise((r) => setTimeout(r, 15000));
         if (stopping) break;
         handle = run(bot);
       }
     }
   };
-  void supervise();
+  // The recovery path itself must not become an unhandled rejection — `void supervise()` would
+  // otherwise let a throw from `run(bot)` escape with nothing to catch it.
+  void supervise().catch((err) => {
+    console.error(`[eait] supervisor failed: ${describeError(err)}`);
+    process.exitCode = 1;
+  });
 
   const stop = async () => {
     stopping = true;
-    if (handle.isRunning()) await handle.stop();
-    db.close();
+    try {
+      if (handle.isRunning()) await handle.stop();
+    } finally {
+      db.close(); // must run even if stopping the runner rejects, or the db handle leaks
+    }
   };
   process.once("SIGTERM", stop);
   process.once("SIGINT", stop);

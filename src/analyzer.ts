@@ -209,7 +209,13 @@ export async function classifyRestrictions(
   try {
     const raw = await provider.chat({ system: SYSTEM_CLASSIFY, userText });
     const parsed = RestrictionsSchema.safeParse(tolerantJson(raw));
-    if (!parsed.success) return [];
+    // Never-throwing is deliberate (see the docstring), but staying silent is not: this path
+    // only runs when the keyword pass already matched nothing, so the user ends up with no
+    // restrictions at all — no kidney verdict, no sodium cap — and nothing says why.
+    if (!parsed.success) {
+      console.error("[eait] restriction classification returned an unusable shape");
+      return [];
+    }
     // Validate against the vocabulary the rest of the app can actually act on.
     return parsed.data.tags.filter(isRestrictionTag);
   } catch (e) {

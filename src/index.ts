@@ -8,7 +8,10 @@ import { startBot } from "./tg_bot/bot.ts";
 try {
   const config = loadConfig(process.env);
   startBot(config);
-  console.log(`eait started · model=${config.llmModel} · db=${config.dbPath}`);
+  // "starting", not "started": startBot returns as soon as polling is scheduled, before the
+  // first getUpdates round-trip. Claiming success here would print a reassuring line even
+  // when the token is wrong and the supervisor is about to give up.
+  console.log(`eait starting · model=${config.llmModel} · db=${config.dbPath}`);
 } catch (e) {
   console.error(`[eait] startup failed: ${(e as Error)?.message ?? e}`);
   process.exit(1);

@@ -7,6 +7,7 @@ import {
   processOnboarding, processPhoto, processCorrection, meCard, statsCard, profileOf,
   processLangPrompt, processLangChoice, buildCommands, processSettingsOpen,
   processSettingsCallback, helpText, commandRegistrations, isAllowed,
+  createBot, startBot, adminLangFor, isFatalTelegramError, describeError,
   type BotDeps, type Send, type Edit,
 } from "./bot.ts";
 import { DEFAULT_LANG, LANGS, translatorFor } from "../i18n/index.ts";
@@ -544,4 +545,57 @@ test("the cap message points at self-hosting rather than just refusing", () => {
     expect(msg.trim()).not.toBe("");
     expect(msg).not.toMatch(/errors\./);
   }
+});
+
+// --- createBot: the docs claim this is constructable with no live token. Prove it. ---
+
+test("createBot builds without a live token, given botInfo and an API transformer", () => {
+  const db = tmpDb();
+  const bot = createBot({ db, provider: fakeProvider("{}"), config: cfg });
+  // botInfo + a transformer are what let grammy skip getMe and never reach the network.
+  bot.botInfo = {
+    id: 1, is_bot: true, first_name: "eait", username: "eait_bot",
+    can_join_groups: false, can_read_all_group_messages: false, supports_inline_queries: false,
+    can_connect_to_business: false, has_main_web_app: false, has_topics_enabled: false,
+    allows_users_to_create_topics: false, can_manage_bots: false,
+    supports_join_request_queries: false,
+  };
+  let calledApi = false;
+  bot.api.config.use(async () => {
+    calledApi = true;
+    return { ok: true, result: true as any };
+  });
+  expect(bot.isInited()).toBe(true);
+  expect(calledApi).toBe(false); // constructing must not touch Telegram
+  db.close();
+});
+
+// --- /stats: admin who never ran /start ---
+
+test("statsCard renders for an admin with no user row", () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider("{}"), config: cfg };
+  // The handler previously did profileOf(getUser(db, id)!) — undefined for an admin who never
+  // sent /start, which threw inside the handler and left them with no reply at all.
+  expect(() => statsCard(deps, DEFAULT_LANG)).not.toThrow();
+  expect(adminLangFor(deps, cfg.adminUserId!)).toBe(DEFAULT_LANG);
+  db.close();
+});
+
+// --- supervisor error classification ---
+
+test("isFatalTelegramError flags credential failures, not transient ones", () => {
+  expect(isFatalTelegramError({ error_code: 401, description: "Unauthorized" })).toBe(true);
+  expect(isFatalTelegramError({ error_code: 404, description: "Not Found" })).toBe(true);
+  // 409 is the poller hand-off the supervisor exists to ride out.
+  expect(isFatalTelegramError({ error_code: 409, description: "Conflict" })).toBe(false);
+  expect(isFatalTelegramError({ error_code: 429, description: "Too Many Requests" })).toBe(false);
+  expect(isFatalTelegramError(new Error("network blip"))).toBe(false);
+  expect(isFatalTelegramError(undefined)).toBe(false);
+});
+
+test("describeError keeps the error_code that 'Not Found' alone hides", () => {
+  expect(describeError({ error_code: 404, description: "Not Found" })).toBe("404 Not Found");
+  expect(describeError(new Error("boom"))).toContain("boom");
+  expect(describeError("plain")).toBe("plain");
 });
