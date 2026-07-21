@@ -46,4 +46,7 @@ jobs:
       - name: gitleaks (secret history scan)
         uses: gitleaks/gitleaks-action@v3
         env:
+          # v3 refuses to scan a pull_request event without this and exits before scanning
+          # anything — the job fails in a way that looks like a finding but is a missing token.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"

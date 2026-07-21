@@ -11,4 +11,4 @@ Dev/ops helpers — not part of the bot runtime. Run with `bun run scripts/<name
 
 - `.github/workflows/security.yml` — on push/PR/weekly: `repo-safety` (security-scan + tests + `bun audit`) and `secret-scan` (gitleaks over full history).
 - `.github/dependabot.yml` — weekly bun (runtime deps) + GitHub-Actions updates.
-- `.githooks/pre-commit` — local gate; enable with `git config core.hooksPath .githooks`.
+- `.githooks/pre-commit` — local gate running **both** CI secret checks (`security-scan.ts` + `gitleaks git --staged`), so a leak is caught before it enters the history rather than after. The two are complementary: the custom scanner knows this repo's personal-data rules, gitleaks knows the vendor token formats. Enable with `git config core.hooksPath .githooks`. If gitleaks is not installed the hook says so and continues — CI still enforces it.

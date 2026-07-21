@@ -72,7 +72,8 @@ is safe.
 
 CI enforces `bun run security` (secret and personal-data scanning),
 [gitleaks](https://github.com/gitleaks/gitleaks) over full history, `bun audit`, and
-[Dependabot](.github/dependabot.yml). Local gate: `git config core.hooksPath .githooks`.
+[Dependabot](.github/dependabot.yml). Local gate: `git config core.hooksPath .githooks` — it runs both of those secret checks
+(`bun run security` plus gitleaks over the staged diff) before a commit is written.
 
 ## Status
 
