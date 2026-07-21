@@ -1,6 +1,7 @@
 # src/
 
-All bot logic lives here. Tests are co-located (`*.test.ts`, run with `bun test`).
+All bot logic lives here: domain code at this level, the Telegram adapter in `tg_bot/`.
+Tests are co-located (`*.test.ts`, run with `bun test`).
 
 ## Key files
 
@@ -15,8 +16,8 @@ All bot logic lives here. Tests are co-located (`*.test.ts`, run with `bun test`
 - `onboarding.ts` — pure state machine `step(user, input, t)`.
 - `settings.ts` — pure state machine for `/settings` (`settingsRoot`, `settingsStep`).
 - `reply.ts` — `formatReply(meal, totals, targets, t)`.
-- `bot.ts` — grammy glue: `createBot(deps)` (testable) + `startBot(config)`.
 - `i18n/` — locale registry, `resolveLang`, `translatorFor`, and the JSON catalogs.
+- `tg_bot/bot.ts` — grammy glue: `createBot(deps)` (testable) + `startBot(config)`. See `tg_bot/README.md`.
 
 ## Adding a language
 

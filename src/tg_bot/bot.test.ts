@@ -2,16 +2,16 @@ import { test, expect } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openDb, getUser, mealByReply, countMealsToday, mealCountToday, berlinDate, type UserRow } from "./db.ts";
+import { openDb, getUser, mealByReply, countMealsToday, mealCountToday, berlinDate, type UserRow } from "../db.ts";
 import {
   processOnboarding, processPhoto, processCorrection, meCard, statsCard, profileOf,
   processLangPrompt, processLangChoice, buildCommands, processSettingsOpen,
   processSettingsCallback, helpText, commandRegistrations, isAllowed,
   type BotDeps, type Send, type Edit,
 } from "./bot.ts";
-import { DEFAULT_LANG, LANGS, translatorFor } from "./i18n/index.ts";
-import type { Config } from "./config.ts";
-import type { LLMProvider } from "./llm/provider.ts";
+import { DEFAULT_LANG, LANGS, translatorFor } from "../i18n/index.ts";
+import type { Config } from "../config.ts";
+import type { LLMProvider } from "../llm/provider.ts";
 
 const cfg: Config = {
   telegramBotToken: "x", openrouterApiKey: "x", llmProvider: "openrouter", llmModel: "test",

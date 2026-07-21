@@ -1,6 +1,8 @@
 # AGENTS.md — src/
 
-All bot logic. Focused files, co-located tests. See the root `AGENTS.md` for project-wide invariants.
+Domain logic — transport-agnostic. Focused files, co-located tests. The Telegram layer lives in
+`src/tg_bot/` (its own `AGENTS.md`); nothing here may import from it. See the root `AGENTS.md`
+for project-wide invariants.
 
 ## Invariants that bite here
 
@@ -8,23 +10,20 @@ All bot logic. Focused files, co-located tests. See the root `AGENTS.md` for pro
 - **The analyzer owns the prompt and the zod parse.** `llm/` is transport only — no prompt strings, no meal-schema knowledge in the provider.
 - **Images are ephemeral.** The photo handler downloads to a temp file under `PHOTO_DIR`, reads bytes, and deletes the file in a `finally` — always, even on analysis error. No photo path is stored.
 - **Dates** use `Europe/Berlin` (`berlinDate` in `db.ts`), not UTC.
-- **Routing precedence** in `bot.ts`: command > active-onboarding-state input > reply-to-meal (correction) > nudge.
-- **Idempotency:** `update_id` dedupe middleware; callbacks guard on expected state and always `answerCallbackQuery`.
-- **No user-facing string literals** outside `i18n/locales/*.json`. `bot.ts`, `reply.ts`, and `onboarding.ts` render only via a translator passed in from the caller.
-- **`translatorFor(lang)`, never `i18n.changeLanguage()`.** The runner serves users concurrently (`sequentialize` is per-user), so a global language switch can render one user's locale into another's in-flight reply.
-- **`onboarding.step()` and `settingsStep()` stay pure.** `t` is a value passed in, not I/O. The LLM restriction fallback lives in `bot.ts` for exactly this reason.
+- **No user-facing string literals** outside `i18n/locales/*.json`. `reply.ts`, `onboarding.ts`, and `settings.ts` render only via a translator passed in from the caller.
+- **`translatorFor(lang)`, never `i18n.changeLanguage()`.** Users are served concurrently, so a global language switch can render one user's locale into another's in-flight reply.
+- **`onboarding.step()` and `settingsStep()` stay pure.** `t` is a value passed in, not I/O. The LLM restriction fallback lives in `tg_bot/bot.ts` for exactly this reason.
 - **Callback data is namespaced.** Settings owns `st:`, onboarding owns the bare `consent_*`/`goal_*`/`restrictions_*` names, `/delete` owns `delete_*`. Never reuse a prefix across machines — the receiving machine's state guards would reject the taps silently.
 - **Copy is plain text.** Nothing sets `parse_mode`, so markdown in a catalog value renders as literal characters at the user (a test enforces this).
-- **Settings callbacks edit, they don't send.** Use `Edit`, or a four-tap toggle session leaves four messages behind.
-- `createBot(deps)` must be constructable/testable with an injected db + fake provider and **no live token** (pass `botInfo` + an API transformer in tests).
 
 ## Where to add things
 
 - New domain rule → its own file (like `targets.ts`), re-exported types from `types.ts` (defined once, consumed unchanged).
 - New LLM backend → a new file under `llm/` implementing `LLMProvider`; wire it by `LLM_PROVIDER` in `config.ts`.
+- New command, callback, or handler → `src/tg_bot/` (see `src/tg_bot/AGENTS.md`).
 - New user-facing copy → a key in **every** `i18n/locales/*.json`; the parity test fails until they all have it.
 - New language → see "Adding a language" in `src/README.md`. One JSON file + one `registry.ts` line.
 
 ## Verify
 
-`bun test` (or a single file, e.g. `bun test src/bot.test.ts`).
+`bun test` (or a single file, e.g. `bun test src/db.test.ts`).

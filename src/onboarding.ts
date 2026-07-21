@@ -3,7 +3,7 @@
 // Guards make every transition idempotent (a stale button tap resumes, it never resets progress).
 //
 // Copy comes from the caller's translator, so this file stays language-agnostic AND stays pure:
-// `t` is a value passed in, not I/O. The LLM restriction fallback deliberately lives in bot.ts
+// `t` is a value passed in, not I/O. The LLM restriction fallback deliberately lives in tg_bot/bot.ts
 // for the same reason — see processOnboarding.
 
 import type { TFunction } from "i18next";

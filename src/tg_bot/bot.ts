@@ -7,22 +7,22 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { run, sequentialize } from "@grammyjs/runner";
 import type { Database } from "bun:sqlite";
-import type { Config } from "./config.ts";
-import type { LLMProvider } from "./llm/provider.ts";
-import { OpenRouterProvider } from "./llm/openrouter.ts";
+import type { Config } from "../config.ts";
+import type { LLMProvider } from "../llm/provider.ts";
+import { OpenRouterProvider } from "../llm/openrouter.ts";
 import {
   openDb, berlinDate, upsertUser, getUser, setConsent, setProfile, setUserState,
   insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals, countMealsToday,
   deleteUser, userCount, mealCount, mealCountToday, seenUpdate, markUpdate, setLang, type UserRow,
-} from "./db.ts";
-import { analyzeMeal, analyzeCorrection, classifyRestrictions } from "./analyzer.ts";
-import { targetsFor, isRestrictionTag } from "./targets.ts";
-import { formatReply } from "./reply.ts";
-import { settingsRoot, settingsStep } from "./settings.ts";
-import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "./onboarding.ts";
-import { DEFAULT_LANG, LANGS, LOCALES, isLang, resolveLang, translatorFor } from "./i18n/index.ts";
+} from "../db.ts";
+import { analyzeMeal, analyzeCorrection, classifyRestrictions } from "../analyzer.ts";
+import { targetsFor, isRestrictionTag } from "../targets.ts";
+import { formatReply } from "../reply.ts";
+import { settingsRoot, settingsStep } from "../settings.ts";
+import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "../onboarding.ts";
+import { DEFAULT_LANG, LANGS, LOCALES, isLang, resolveLang, translatorFor } from "../i18n/index.ts";
 import type { TFunction } from "i18next";
-import type { Lang, MealAnalysis, MealRecord, Profile } from "./types.ts";
+import type { Lang, MealAnalysis, MealRecord, Profile } from "../types.ts";
 
 export interface BotDeps {
   db: Database;

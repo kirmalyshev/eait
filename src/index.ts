@@ -1,6 +1,6 @@
 // Entrypoint: env → config → db → bot (long-polling via @grammyjs/runner).
 import { loadConfig } from "./config.ts";
-import { startBot } from "./bot.ts";
+import { startBot } from "./tg_bot/bot.ts";
 
 const config = loadConfig(process.env);
 startBot(config);
