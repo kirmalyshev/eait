@@ -21,8 +21,14 @@ bun run start                 # start the bot (long-polling)
 ```
 
 - **Stack:** TS/bun, [grammy](https://grammy.dev) + `@grammyjs/runner`, `bun:sqlite` (builtin), `zod`, [i18next](https://www.i18next.com).
-- **LLM:** OpenRouter (default model `openai/gpt-5.2`) behind a swappable `LLMProvider`.
+- **LLM:** OpenRouter (default model `x-ai/grok-4.5`, must be vision-capable) behind a swappable `LLMProvider`.
 - **Layout:** all logic under `src/`; no source in the repo root. See `AGENTS.md`.
+
+## Self-hosting
+
+Running your own instance: **[docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)** — credentials, access control, deployment on macOS and Linux, and what it costs.
+
+> Set `ALLOWED_USER_IDS` before exposing a bot. Without it anyone who finds the handle can use it, and every photo is a billed vision call on your key.
 
 ## Security
 
