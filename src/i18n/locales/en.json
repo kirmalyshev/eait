@@ -1,6 +1,41 @@
 {
   "errors": {
-    "notOnboarded": "Send /start first."
+    "notOnboarded": "Send /start first.",
+    "dailyCap": "You've hit today's photo limit — come back tomorrow.",
+    "analyzeFailed": "Couldn't read that 🤔 send the photo again.",
+    "notFood": "That doesn't look like food 🤔",
+    "correctionFailed": "Couldn't apply that correction — try phrasing it differently.",
+    "adminOnly": "Admin-only command."
+  },
+  "lang": {
+    "prompt": "Choose a language:",
+    "changed": "Language switched to English."
+  },
+  "me": {
+    "profileLine": "Profile: goal — {{goal}}; restrictions — {{restrictions}}",
+    "todayLine": "Today: {{kcal}} / {{kcalTarget}} kcal · P {{protein}} / {{proteinTarget}} g",
+    "noRestrictions": "none",
+    "goal": {
+      "lose": "lose weight",
+      "maintain": "maintain",
+      "gain": "gain weight"
+    }
+  },
+  "stats": {
+    "card": "{{users}} · {{meals}}",
+    "users_one": "{{count}} user",
+    "users_other": "{{count}} users",
+    "meals_one": "{{count}} meal",
+    "meals_other": "{{count}} meals"
+  },
+  "delete": {
+    "prompt": "Delete all your data?",
+    "done": "All your data has been deleted. /start to begin again.",
+    "cancelled": "Cancelled.",
+    "button": {
+      "confirm": "Yes, delete",
+      "cancel": "Cancel"
+    }
   },
   "onboarding": {
     "consent": "Hi! I analyse photos of your food and count calories and macros against your goal.\n\nWhat you should know:\n• I process food photos and your profile (goal, restrictions).\n• Estimates are approximate — this is not medical advice.\n• Photos are not stored: I analyse them and delete them immediately.\n• /delete erases all your data.\n\nDo you agree to this data being processed?",
@@ -31,6 +66,8 @@
       "kidneys": "Kidneys"
     },
     "notesLine": "📝 {{notes}}",
+    "correctionHint": "↩️ Not right? Reply to this message with a correction.",
+    "updatedPrefix": "Updated:",
     "totalKcal": "Today: {{now}} / {{target}} kcal",
     "totalProtein": "Protein: {{now}} / {{target}} g",
     "totalSatfat": "Saturated fat: {{now}} / {{target}} g",

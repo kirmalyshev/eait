@@ -13,13 +13,14 @@ import { OpenRouterProvider } from "./llm/openrouter.ts";
 import {
   openDb, berlinDate, upsertUser, getUser, setConsent, setProfile, setUserState,
   insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals, countMealsToday,
-  deleteUser, userCount, mealCount, seenUpdate, markUpdate, type UserRow,
+  deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang, type UserRow,
 } from "./db.ts";
 import { analyzeMeal, analyzeCorrection } from "./analyzer.ts";
 import { targetsFor } from "./targets.ts";
 import { formatReply } from "./reply.ts";
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "./onboarding.ts";
-import { DEFAULT_LANG, translatorFor } from "./i18n/index.ts";
+import { DEFAULT_LANG, LOCALES, isLang, resolveLang, translatorFor } from "./i18n/index.ts";
+import type { TFunction } from "i18next";
 import type { Lang, MealAnalysis, MealRecord, Profile } from "./types.ts";
 
 export interface BotDeps {
@@ -40,10 +41,17 @@ export type Send = (text: string, buttons?: InlineButton[][]) => Promise<Sent | 
 export function profileOf(u: UserRow): Profile {
   return {
     telegram_id: u.telegram_id,
-    lang: (u.lang === "en" ? "en" : "ru") as Lang,
+    // Validate against the registry rather than coercing: a stored value can predate a locale
+    // being renamed or removed, and an unvalidated one would render raw keys at the user.
+    lang: isLang(u.lang) ? u.lang : DEFAULT_LANG,
     goal: u.goal,
     restrictions: u.restrictions,
   };
+}
+
+/** The translator for a user, or the default one if they have no row yet. */
+function translatorForUser(u: UserRow | undefined): TFunction {
+  return translatorFor(u ? profileOf(u).lang : DEFAULT_LANG);
 }
 
 export function mealToAnalysis(m: MealRecord): MealAnalysis {
@@ -69,16 +77,48 @@ export function applyOnboarding(db: Database, telegram_id: number, r: Onboarding
 
 export async function processOnboarding(
   deps: BotDeps,
-  from: { id: number; username?: string | null },
+  from: { id: number; username?: string | null; language_code?: string | null },
   input: OnboardingInput,
   send: Send,
 ): Promise<void> {
-  upsertUser(deps.db, { telegram_id: from.id, username: from.username ?? null });
+  // Language is seeded at first contact so the consent screen already arrives localized.
+  // upsertUser only writes `lang` on INSERT, so a later /start never undoes a /lang change.
+  upsertUser(deps.db, {
+    telegram_id: from.id,
+    username: from.username ?? null,
+    lang: resolveLang(from.language_code),
+  });
   const u = getUser(deps.db, from.id);
-  const t = translatorFor(u ? profileOf(u).lang : DEFAULT_LANG);
+  const t = translatorForUser(u);
   const r = step(u ? { state: u.state, goal: u.goal } : undefined, input, t);
   applyOnboarding(deps.db, from.id, r);
   await send(r.reply, r.buttons);
+}
+
+/** /lang — a picker built from the registry, so a new locale appears with no code change. */
+export async function processLangPrompt(
+  deps: BotDeps,
+  from: { id: number },
+  send: Send,
+): Promise<void> {
+  const t = translatorForUser(getUser(deps.db, from.id));
+  const buttons = (Object.keys(LOCALES) as Lang[]).map((code) => [
+    { text: LOCALES[code].nativeName, data: `lang_${code}` },
+  ]);
+  await send(t("lang.prompt"), buttons);
+}
+
+/** Handles a `lang_<code>` callback. An unregistered code is ignored, never stored. */
+export async function processLangChoice(
+  deps: BotDeps,
+  from: { id: number },
+  data: string,
+  send: Send,
+): Promise<void> {
+  const code = data.slice("lang_".length);
+  if (!isLang(code)) return;
+  setLang(deps.db, from.id, code);
+  await send(translatorFor(code)("lang.changed")); // confirm in the language just chosen
 }
 
 export async function processPhoto(
@@ -90,13 +130,14 @@ export async function processPhoto(
   const { db, provider, config } = deps;
   const u = getUser(db, from.id);
   if (!u || u.state !== "active") {
-    await send("Сначала пройди /start.");
+    await send(translatorForUser(u)("errors.notOnboarded"));
     return;
   }
   const prof = profileOf(u);
+  const t = translatorFor(prof.lang);
   const date = berlinDate(new Date(), config.tz);
   if (countMealsToday(db, from.id, date) >= config.perUserDailyPhotoCap) {
-    await send("Лимит фото на сегодня достигнут — вернись завтра.");
+    await send(t("errors.dailyCap"));
     return;
   }
   let analysis: MealAnalysis;
@@ -105,12 +146,12 @@ export async function processPhoto(
     analysis = await analyzeMeal(bytes, prof, provider);
   } catch (e) {
     console.error(`[eait] analyze failed user=${from.id}: ${(e as any)?.message}`);
-    await send("Не смог разобрать 🤔 пришли фото ещё раз.");
+    await send(t("errors.analyzeFailed"));
     return;
   }
   console.log(`[eait] photo user=${from.id} isFood=${analysis.isFood} kcal=${analysis.kcal} items=${analysis.items.length}`);
   if (!analysis.isFood) {
-    await send("Это не похоже на еду 🤔");
+    await send(t("errors.notFood"));
     return;
   }
   const id = crypto.randomUUID();
@@ -120,8 +161,7 @@ export async function processPhoto(
   console.log(`[eait] meal stored ${id} user=${from.id}`);
   const totals = dailyTotals(db, from.id, date);
   const sent = await send(
-    formatReply(analysis, totals, targetsFor(prof), translatorFor(prof.lang)) +
-      "\n\n↩️ Не так? Ответь реплаем на это сообщение с уточнением.",
+    formatReply(analysis, totals, targetsFor(prof), t) + "\n\n" + t("meal.correctionHint"),
   );
   if (sent) setMealReply(db, id, from.id, sent.chat_id, sent.message_id);
 }
@@ -140,16 +180,17 @@ export async function processCorrection(
   const u = getUser(db, from.id);
   if (!u) return false;
   const prof = profileOf(u);
+  const t = translatorFor(prof.lang);
   let updated: MealAnalysis;
   try {
     updated = await analyzeCorrection(mealToAnalysis(meal), text, prof, provider);
   } catch {
-    await send("Не смог применить правку — попробуй иначе.");
+    await send(t("errors.correctionFailed"));
     return true;
   }
   applyCorrection(db, meal.id, from.id, updated);
   const totals = dailyTotals(db, from.id, meal.date);
-  await send("Обновил:\n" + formatReply(updated, totals, targetsFor(prof), translatorFor(prof.lang)));
+  await send(t("meal.updatedPrefix") + "\n" + formatReply(updated, totals, targetsFor(prof), t));
   return true;
 }
 
@@ -160,16 +201,31 @@ export function meCard(deps: BotDeps, userId: number): string | null {
   const date = berlinDate(new Date(), deps.config.tz);
   const totals = dailyTotals(deps.db, userId, date);
   const targets = targetsFor(prof);
-  const goalRu = u.goal === "lose" ? "похудеть" : u.goal === "gain" ? "набрать" : "держать";
-  const restr = prof.restrictions.length ? prof.restrictions.join(", ") : "нет";
+  const t = translatorFor(prof.lang);
   return (
-    `Профиль: цель — ${goalRu}; ограничения — ${restr}\n` +
-    `Сегодня: ${Math.round(totals.kcal)} / ${targets.kcal} ккал · Б ${Math.round(totals.protein_g)} / ${targets.protein_g} г`
+    t("me.profileLine", {
+      goal: t(`me.goal.${u.goal ?? "maintain"}`),
+      restrictions: prof.restrictions.length
+        ? prof.restrictions.join(", ")
+        : t("me.noRestrictions"),
+    }) +
+    "\n" +
+    t("me.todayLine", {
+      kcal: Math.round(totals.kcal),
+      kcalTarget: targets.kcal,
+      protein: Math.round(totals.protein_g),
+      proteinTarget: targets.protein_g,
+    })
   );
 }
 
-export function statsCard(deps: BotDeps): string {
-  return `Пользователей: ${userCount(deps.db)} · приёмов еды: ${mealCount(deps.db)}`;
+/** Admin-only. Takes an explicit lang because it is rendered for whoever ran /stats. */
+export function statsCard(deps: BotDeps, lang: Lang): string {
+  const t = translatorFor(lang);
+  return t("stats.card", {
+    users: t("stats.users", { count: userCount(deps.db) }),
+    meals: t("stats.meals", { count: mealCount(deps.db) }),
+  });
 }
 
 // ---------- grammy wiring ----------
@@ -202,24 +258,34 @@ export function createBot(deps: BotDeps): Bot {
     return { chat_id: m.chat.id, message_id: m.message_id };
   };
 
+  /** The translator for whoever sent this update. */
+  const tFor = (ctx: any): TFunction =>
+    translatorForUser(ctx.from ? getUser(db, ctx.from.id) : undefined);
+
   bot.command("start", async (ctx) => {
     if (ctx.from) await processOnboarding(deps, ctx.from, { type: "command", command: "start" }, sendVia(ctx));
   });
   bot.command("me", async (ctx) => {
     const card = ctx.from ? meCard(deps, ctx.from.id) : null;
-    await ctx.reply(card ?? "Сначала пройди /start.");
+    await ctx.reply(card ?? tFor(ctx)("errors.notOnboarded"));
+  });
+  bot.command("lang", async (ctx) => {
+    if (ctx.from) await processLangPrompt(deps, ctx.from, sendVia(ctx));
   });
   bot.command("delete", async (ctx) => {
-    await ctx.reply("Удалить все твои данные?", {
-      reply_markup: new InlineKeyboard().text("Да, удалить", "delete_confirm").text("Отмена", "delete_cancel"),
+    const t = tFor(ctx);
+    await ctx.reply(t("delete.prompt"), {
+      reply_markup: new InlineKeyboard()
+        .text(t("delete.button.confirm"), "delete_confirm")
+        .text(t("delete.button.cancel"), "delete_cancel"),
     });
   });
   bot.command("stats", async (ctx) => {
     if (!ctx.from || config.adminUserId === null || config.adminUserId !== ctx.from.id) {
-      await ctx.reply("Команда только для админа.");
+      await ctx.reply(tFor(ctx)("errors.adminOnly"));
       return;
     }
-    await ctx.reply(statsCard(deps));
+    await ctx.reply(statsCard(deps, profileOf(getUser(db, ctx.from.id)!).lang));
   });
 
   bot.on("callback_query:data", async (ctx) => {
@@ -227,12 +293,17 @@ export function createBot(deps: BotDeps): Bot {
     if (!ctx.from) return;
     const data = ctx.callbackQuery.data;
     if (data === "delete_confirm") {
+      const t = tFor(ctx); // read the language BEFORE the row is deleted
       deleteUser(db, ctx.from.id);
-      await ctx.reply("Все твои данные удалены. /start — начать заново.");
+      await ctx.reply(t("delete.done"));
       return;
     }
     if (data === "delete_cancel") {
-      await ctx.reply("Отменено.");
+      await ctx.reply(tFor(ctx)("delete.cancelled"));
+      return;
+    }
+    if (data.startsWith("lang_")) {
+      await processLangChoice(deps, ctx.from, data, sendVia(ctx));
       return;
     }
     await processOnboarding(deps, ctx.from, { type: "callback", data }, sendVia(ctx));

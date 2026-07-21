@@ -1,6 +1,6 @@
 // The analyzer owns the prompt AND the zod-validated parse (spec §18). The provider is thin
 // transport. A generic, profile-personalized prompt goes in; a validated MealAnalysis comes out.
-// Invalid output throws — the caller shows "не смог разобрать" and writes NO row (never poisons
+// Invalid output throws — the caller shows `errors.analyzeFailed` and writes NO row (never poisons
 // daily totals with partial/garbage macros).
 
 import { z } from "zod";

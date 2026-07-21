@@ -147,7 +147,7 @@ export function setLang(db: Database, telegram_id: number, lang: string): void {
   db.query(`UPDATE users SET lang = ? WHERE telegram_id = ?`).run(lang, telegram_id);
 }
 
-/** [Согласен]: record consent time and advance to the profile step. */
+/** Consent accepted: record consent time and advance to the profile step. */
 export function setConsent(db: Database, telegram_id: number, consentAt: string): void {
   db.query(`UPDATE users SET consent_at = ?, state = 'profile' WHERE telegram_id = ?`).run(
     consentAt,

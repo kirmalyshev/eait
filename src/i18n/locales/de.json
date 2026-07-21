@@ -1,6 +1,41 @@
 {
   "errors": {
-    "notOnboarded": "Schick zuerst /start."
+    "notOnboarded": "Schick zuerst /start.",
+    "dailyCap": "Du hast das Foto-Limit für heute erreicht — komm morgen wieder.",
+    "analyzeFailed": "Konnte ich nicht auswerten 🤔 schick das Foto nochmal.",
+    "notFood": "Das sieht nicht nach Essen aus 🤔",
+    "correctionFailed": "Konnte die Korrektur nicht anwenden — formulier sie anders.",
+    "adminOnly": "Befehl nur für Admins."
+  },
+  "lang": {
+    "prompt": "Wähle eine Sprache:",
+    "changed": "Sprache auf Deutsch umgestellt."
+  },
+  "me": {
+    "profileLine": "Profil: Ziel — {{goal}}; Einschränkungen — {{restrictions}}",
+    "todayLine": "Heute: {{kcal}} / {{kcalTarget}} kcal · E {{protein}} / {{proteinTarget}} g",
+    "noRestrictions": "keine",
+    "goal": {
+      "lose": "abnehmen",
+      "maintain": "halten",
+      "gain": "zunehmen"
+    }
+  },
+  "stats": {
+    "card": "{{users}} · {{meals}}",
+    "users_one": "{{count}} Nutzer",
+    "users_other": "{{count}} Nutzer",
+    "meals_one": "{{count}} Mahlzeit",
+    "meals_other": "{{count}} Mahlzeiten"
+  },
+  "delete": {
+    "prompt": "Alle deine Daten löschen?",
+    "done": "Alle deine Daten wurden gelöscht. /start — von vorn beginnen.",
+    "cancelled": "Abgebrochen.",
+    "button": {
+      "confirm": "Ja, löschen",
+      "cancel": "Abbrechen"
+    }
   },
   "onboarding": {
     "consent": "Hallo! Ich analysiere Fotos deines Essens und berechne Kalorien und Nährwerte passend zu deinem Ziel.\n\nWas du wissen solltest:\n• Ich verarbeite Essensfotos und dein Profil (Ziel, Einschränkungen).\n• Die Schätzungen sind ungefähr — das ist keine medizinische Beratung.\n• Fotos werden nicht gespeichert: Ich werte sie aus und lösche sie sofort.\n• /delete löscht alle deine Daten.\n\nBist du mit dieser Datenverarbeitung einverstanden?",
@@ -31,6 +66,8 @@
       "kidneys": "Nieren"
     },
     "notesLine": "📝 {{notes}}",
+    "correctionHint": "↩️ Nicht richtig? Antworte auf diese Nachricht mit einer Korrektur.",
+    "updatedPrefix": "Aktualisiert:",
     "totalKcal": "Heute: {{now}} / {{target}} kcal",
     "totalProtein": "Eiweiß: {{now}} / {{target}} g",
     "totalSatfat": "Gesättigte Fettsäuren: {{now}} / {{target}} g",

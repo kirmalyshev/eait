@@ -4,8 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openDb, getUser, mealByReply, countMealsToday, berlinDate, type UserRow } from "./db.ts";
 import {
-  processOnboarding, processPhoto, processCorrection, meCard, statsCard, type BotDeps, type Send,
+  processOnboarding, processPhoto, processCorrection, meCard, statsCard, profileOf,
+  processLangPrompt, processLangChoice, type BotDeps, type Send,
 } from "./bot.ts";
+import { DEFAULT_LANG, LANGS, translatorFor } from "./i18n/index.ts";
 import type { Config } from "./config.ts";
 import type { LLMProvider } from "./llm/provider.ts";
 
@@ -82,7 +84,7 @@ test("processPhoto enforces the per-user daily cap", async () => {
   await processPhoto(deps, { id: 9 }, async () => new Uint8Array([1]), c1.send);
   const c2 = collector();
   await processPhoto(deps, { id: 9 }, async () => new Uint8Array([1]), c2.send);
-  expect(c2.msgs[0]).toContain("Лимит");
+  expect(c2.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.dailyCap"));
 });
 
 test("processCorrection updates the matched meal; false when the reply matches nothing", async () => {
@@ -105,6 +107,127 @@ test("meCard is null unless active; statsCard counts users+meals", async () => {
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   expect(meCard(deps, 1)).toBeNull();
   await onboardToActive(deps, 3);
-  expect(meCard(deps, 3)).toContain("цель");
-  expect(statsCard(deps)).toContain("Пользователей: 1");
+  expect(meCard(deps, 3)).toContain(translatorFor(DEFAULT_LANG)("me.goal.lose"));
+  expect(statsCard(deps, "ru")).toContain("1 пользователь");
+});
+
+// ---------- language ----------
+
+test("profileOf accepts any registered locale and falls back for anything else", () => {
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, restrictions: [], created_at: "t" };
+  expect(profileOf({ ...base, lang: "de" } as UserRow).lang).toBe("de");
+  expect(profileOf({ ...base, lang: "ru" } as UserRow).lang).toBe("ru");
+  // a value that predates (or outlives) the registry must not render as a raw key
+  expect(profileOf({ ...base, lang: "klingon" } as UserRow).lang).toBe(DEFAULT_LANG);
+  expect(profileOf({ ...base, lang: "" } as UserRow).lang).toBe(DEFAULT_LANG);
+});
+
+test("first contact seeds the language from Telegram's language_code", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const { msgs, send } = collector();
+  await processOnboarding(deps, { id: 50, language_code: "de-AT" }, { type: "command", command: "start" }, send);
+  expect(getUser(db, 50)?.lang).toBe("de");
+  expect(msgs[0]).toBe(translatorFor("de")("onboarding.consent"));
+});
+
+test("an unsupported language_code falls back without breaking onboarding", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const { msgs, send } = collector();
+  await processOnboarding(deps, { id: 51, language_code: "pt-BR" }, { type: "command", command: "start" }, send);
+  expect(getUser(db, 51)?.lang).toBe(DEFAULT_LANG);
+  expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("onboarding.consent"));
+});
+
+test("/lang lists every registered locale", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 60);
+  const seen: string[][] = [];
+  const send: Send = async (_t, buttons) => {
+    seen.push((buttons ?? []).flat().map((b) => b.data));
+    return { chat_id: 1, message_id: 1 };
+  };
+  await processLangPrompt(deps, { id: 60 }, send);
+  expect(seen[0]).toEqual(expect.arrayContaining(LANGS.map((l) => `lang_${l}`)));
+});
+
+test("/lang change switches the user's language and confirms in the NEW one", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 61);
+  const { msgs, send } = collector();
+  await processLangChoice(deps, { id: 61 }, "lang_de", send);
+  expect(getUser(db, 61)?.lang).toBe("de");
+  expect(msgs[0]).toBe(translatorFor("de")("lang.changed"));
+});
+
+test("/lang ignores an unregistered code instead of storing it", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 62);
+  const before = getUser(db, 62)?.lang;
+  const { send } = collector();
+  await processLangChoice(deps, { id: 62 }, "lang_klingon", send);
+  expect(getUser(db, 62)?.lang).toBe(before);
+});
+
+test("a user's language drives every bot-emitted string", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 1 } };
+  await onboardToActive(deps, 70);
+  await processLangChoice(deps, { id: 70 }, "lang_de", noop);
+  const tde = translatorFor("de");
+
+  const c1 = collector();
+  await processPhoto(deps, { id: 70 }, async () => new Uint8Array([1]), c1.send);
+  expect(c1.msgs[0]).toContain(tde("meal.correctionHint"));
+
+  const c2 = collector(); // over the cap now
+  await processPhoto(deps, { id: 70 }, async () => new Uint8Array([1]), c2.send);
+  expect(c2.msgs[0]).toBe(tde("errors.dailyCap"));
+
+  const c3 = collector(); // not food
+  deps.provider = fakeProvider(JSON.stringify({ isFood: false }));
+  await processPhoto(deps, { id: 71 }, async () => new Uint8Array([1]), c3.send);
+  expect(c3.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.notOnboarded")); // 71 never onboarded
+});
+
+test("analysis failure is reported in the user's language and writes no row", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: { chat: async () => "not json" }, config: cfg };
+  await onboardToActive(deps, 80);
+  await processLangChoice(deps, { id: 80 }, "lang_de", noop);
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 80 }, async () => new Uint8Array([1]), send);
+  expect(msgs[0]).toBe(translatorFor("de")("errors.analyzeFailed"));
+  expect(countMealsToday(db, 80, berlinDate(new Date(), cfg.tz))).toBe(0);
+});
+
+test("meCard and statsCard render in the user's language, with correct plurals", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 90);
+  await processLangChoice(deps, { id: 90 }, "lang_de", noop);
+  const card = meCard(deps, 90) as string;
+  expect(card).toContain(translatorFor("de")("me.goal.lose"));
+  expect(card).not.toMatch(/me\.[a-zA-Z.]+/);
+
+  // ru plural categories differ at 1 / 2 / 5 — a wrong plural key shows up here
+  const tru = translatorFor("ru");
+  expect(tru("stats.users", { count: 1 })).not.toBe(tru("stats.users", { count: 2 }));
+  expect(tru("stats.users", { count: 2 })).not.toBe(tru("stats.users", { count: 5 }));
+  expect(statsCard(deps, "ru")).toContain(tru("stats.users", { count: 1 }));
+});
+
+test("no locale leaks a raw key through any bot card", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 95);
+  for (const lang of LANGS) {
+    await processLangChoice(deps, { id: 95 }, `lang_${lang}`, noop);
+    expect(meCard(deps, 95)).not.toMatch(/\b(me|meal|errors|stats)\.[a-zA-Z.]+/);
+    expect(statsCard(deps, lang)).not.toMatch(/\b(me|meal|errors|stats)\.[a-zA-Z.]+/);
+  }
 });
