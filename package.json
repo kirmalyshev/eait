@@ -6,7 +6,9 @@
   "description": "Multi-user food-photo Telegram bot (personal tool). TS/bun + grammy + bun:sqlite.",
   "scripts": {
     "start": "bun run src/index.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "security": "bun run scripts/security-scan.ts",
+    "smoke": "bun run scripts/smoke-openrouter.ts"
   },
   "dependencies": {
     "@grammyjs/runner": "^2.0.3",

@@ -1,0 +1,8 @@
+#!/bin/sh
+# Local pre-commit safety gate. Enable once with:
+#   git config core.hooksPath .githooks
+# Blocks a commit if the repo-safety scan finds a secret or personal-data leak.
+bun run scripts/security-scan.ts || {
+  echo "commit blocked: security-scan found an issue (see above)"
+  exit 1
+}

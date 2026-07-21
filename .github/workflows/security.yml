@@ -1,0 +1,39 @@
+name: security
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # weekly, Monday 06:00 UTC — catches newly-disclosed dep vulns
+  workflow_dispatch:
+
+permissions:
+  contents: read # least privilege
+
+jobs:
+  repo-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Repo safety scan (secrets + personal-data guardrails)
+        run: bun run security
+      - name: Tests
+        run: bun test
+      - name: Dependency audit (informational)
+        run: bun audit --audit-level=high || true
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so gitleaks scans every commit
+      - name: gitleaks (secret history scan)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"

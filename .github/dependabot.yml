@@ -1,0 +1,11 @@
+version: 2
+updates:
+  # Keeps the GitHub Actions in .github/workflows patched (supply-chain hygiene).
+  # Note: Dependabot has no bun-lockfile ecosystem yet, so runtime deps are
+  # covered by `bun audit` in the security workflow, not here.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(ci)"
