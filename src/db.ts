@@ -28,6 +28,14 @@ export interface UserRow {
   goal: Goal | null;
   restrictions: string[];
   created_at: string;
+  acquisition_source: string | null;
+}
+
+export interface EventRow {
+  ts: string;
+  user_id: number;
+  event: string;
+  source_code: string | null;
 }
 
 export interface NewMeal {
@@ -116,6 +124,24 @@ function migrate(db: Database): void {
       db.run("PRAGMA user_version = 2");
     })();
   }
+  if (cur < 3) {
+    // Acquisition attribution: which content asset brought a user in (t.me deep-link start
+    // payload) and an append-only funnel log. Campaign codes only — never personal data,
+    // never anything photo-related.
+    db.transaction(() => {
+      db.run(`ALTER TABLE users ADD COLUMN acquisition_source TEXT`);
+      db.run(`
+        CREATE TABLE events (
+          ts          TEXT NOT NULL,
+          user_id     INTEGER NOT NULL,
+          event       TEXT NOT NULL,
+          source_code TEXT
+        )`);
+      db.run(`CREATE INDEX idx_events_user ON events(user_id)`);
+      db.run(`CREATE INDEX idx_events_event ON events(event)`);
+      db.run("PRAGMA user_version = 3");
+    })();
+  }
 }
 
 // ---------- settings (runtime overrides) ----------
@@ -167,7 +193,37 @@ export function getUser(db: Database, telegram_id: number): UserRow | undefined 
     goal: row.goal,
     restrictions: parseJsonArray(row.restrictions),
     created_at: row.created_at,
+    acquisition_source: row.acquisition_source ?? null,
   };
+}
+
+/** First-touch only: a user's source is whatever code their FIRST /start carried, forever. */
+export function setAcquisitionSource(db: Database, telegram_id: number, source: string): void {
+  db.query(
+    `UPDATE users SET acquisition_source = ? WHERE telegram_id = ? AND acquisition_source IS NULL`,
+  ).run(source, telegram_id);
+}
+
+// ---------- events (append-only funnel log) ----------
+
+export function logEvent(
+  db: Database,
+  user_id: number,
+  event: string,
+  source_code?: string | null,
+): void {
+  db.query(`INSERT INTO events (ts, user_id, event, source_code) VALUES (?, ?, ?, ?)`).run(
+    new Date().toISOString(),
+    user_id,
+    event,
+    source_code ?? null,
+  );
+}
+
+export function eventsFor(db: Database, user_id: number): EventRow[] {
+  return db
+    .query(`SELECT ts, user_id, event, source_code FROM events WHERE user_id = ? ORDER BY rowid`)
+    .all(user_id) as EventRow[];
 }
 
 export function setUserState(db: Database, telegram_id: number, state: UserState): void {

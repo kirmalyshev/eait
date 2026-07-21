@@ -18,10 +18,13 @@ import {
   insertMeal,
   markUpdate,
   mealByReply,
+  eventsFor,
+  logEvent,
   mealCount,
   mealCountToday,
   openDb,
   seenUpdate,
+  setAcquisitionSource,
   setConsent,
   setLang,
   setMealReply,
@@ -67,9 +70,9 @@ function analysis(over: Partial<MealAnalysis> = {}): MealAnalysis {
 }
 
 describe("openDb + migrations", () => {
-  test("sets PRAGMAs and user_version=2", () => {
+  test("sets PRAGMAs and user_version=3", () => {
     const db = freshDb();
-    expect((db.query("PRAGMA user_version").get() as any).user_version).toBe(2);
+    expect((db.query("PRAGMA user_version").get() as any).user_version).toBe(3);
     expect((db.query("PRAGMA journal_mode").get() as any).journal_mode).toBe("wal");
     expect((db.query("PRAGMA foreign_keys").get() as any).foreign_keys).toBe(1);
     expect((db.query("PRAGMA busy_timeout").get() as any).timeout).toBe(5000);
@@ -318,6 +321,8 @@ describe("settings key/value store", () => {
     upsertUser(a, { telegram_id: 1, username: "keepme" });
     insertMeal(a, { id: "m1", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis() });
     a.run("DROP TABLE settings");         // simulate a pre-settings database
+    a.run("DROP TABLE events");           // v3 artifacts must also be absent in a real v1 db
+    a.run("ALTER TABLE users DROP COLUMN acquisition_source");
     a.run("PRAGMA user_version = 1");
     a.close();
 
@@ -325,6 +330,53 @@ describe("settings key/value store", () => {
     expect(getSetting(b, "global_cap")).toBeNull();
     setSetting(b, "global_cap", "7");
     expect(getSetting(b, "global_cap")).toBe("7");
+    expect(getUser(b, 1)?.username).toBe("keepme"); // existing rows intact
+    expect(getMeal(b, "m1", 1)?.id).toBe("m1");
+    b.close();
+  });
+});
+
+describe("acquisition attribution", () => {
+  test("acquisition_source is null by default and set-once — a second code never overwrites", () => {
+    const db = freshDb();
+    upsertUser(db, { telegram_id: 1 });
+    expect(getUser(db, 1)?.acquisition_source).toBeNull();
+    setAcquisitionSource(db, 1, "tt_001");
+    expect(getUser(db, 1)?.acquisition_source).toBe("tt_001");
+    setAcquisitionSource(db, 1, "ig_002"); // later /start with a different code
+    expect(getUser(db, 1)?.acquisition_source).toBe("tt_001");
+  });
+
+  test("logEvent appends and eventsFor returns the user's events in order", () => {
+    const db = freshDb();
+    upsertUser(db, { telegram_id: 1 });
+    upsertUser(db, { telegram_id: 2 });
+    logEvent(db, 1, "start", "tt_001");
+    logEvent(db, 1, "first_photo");
+    logEvent(db, 2, "start"); // another user's event must not leak into user 1's list
+    const events = eventsFor(db, 1);
+    expect(events.map((e) => e.event)).toEqual(["start", "first_photo"]);
+    expect(events[0]?.source_code).toBe("tt_001");
+    expect(events[1]?.source_code).toBeNull();
+    expect(events[0]?.ts).toBeTruthy();
+    expect(eventsFor(db, 2)).toHaveLength(1);
+  });
+
+  test("migrating an existing v2 database adds events + acquisition_source without touching data", () => {
+    const path = join(tmpdir(), `eait-mig3-${crypto.randomUUID()}.sqlite`);
+    created.push(path);
+    const a = openDb(path);
+    upsertUser(a, { telegram_id: 1, username: "keepme" });
+    insertMeal(a, { id: "m1", user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis() });
+    a.run("DROP TABLE events"); // simulate a pre-attribution database
+    a.run("ALTER TABLE users DROP COLUMN acquisition_source");
+    a.run("PRAGMA user_version = 2");
+    a.close();
+
+    const b = openDb(path); // reopen: migration should run
+    logEvent(b, 1, "start", "tt_001");
+    setAcquisitionSource(b, 1, "tt_001");
+    expect(getUser(b, 1)?.acquisition_source).toBe("tt_001");
     expect(getUser(b, 1)?.username).toBe("keepme"); // existing rows intact
     expect(getMeal(b, "m1", 1)?.id).toBe("m1");
     b.close();
