@@ -94,7 +94,16 @@ case "$OS" in
       stop)    launchctl unload "$PLIST" 2>/dev/null || true; echo "stopped" ;;
       # kickstart -k kills before restarting: two pollers on one bot token means 409 Conflict.
       restart) launchctl kickstart -k "gui/$(id -u)/$LABEL" >/dev/null && echo "restarted" ;;
-      status)  launchctl list | grep "$LABEL" || echo "not loaded" ;;
+      # launchctl lists a crash-looping service as loaded, so print the last exit status
+      # too: non-zero means the previous run died (see logs/eait.err.log).
+      status)
+        line=$(launchctl list | grep "$LABEL") || { echo "not loaded"; exit 0; }
+        echo "$line"
+        code=$(echo "$line" | awk '{print $2}')
+        if [ "$code" != "0" ]; then
+          echo "last exit=$code — check logs/eait.err.log (crash-looping?)"
+        fi
+        ;;
       logs)    tail -n 40 "$DIR/logs/eait.out.log" "$DIR/logs/eait.err.log" 2>/dev/null ;;
       uninstall) launchctl unload "$PLIST" 2>/dev/null || true; rm -f "$PLIST"; echo "uninstalled" ;;
       *) echo "usage: scripts/service.sh {install|start|stop|restart|status|logs|uninstall}"; exit 1 ;;

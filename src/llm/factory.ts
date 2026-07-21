@@ -5,7 +5,11 @@
 import type { LLMProvider } from "./provider.ts";
 import { OpenRouterProvider } from "./openrouter.ts";
 
-/** Just the config fields a provider needs — keeps this usable from tests and scripts. */
+/**
+ * The config fields providers are built from. `openrouterApiKey` is vendor-specific and sits here
+ * only because OpenRouter is the sole backend; a second vendor should take its credential from a
+ * narrower per-provider shape rather than widening this one into a bag of every vendor key.
+ */
 export interface ProviderConfig {
   llmProvider: string;
   openrouterApiKey: string;
@@ -29,7 +33,7 @@ const PROVIDERS: Record<string, (c: ProviderConfig) => LLMProvider> = Object.ass
   },
 );
 
-export const SUPPORTED_PROVIDERS = Object.keys(PROVIDERS);
+const SUPPORTED_PROVIDERS = Object.keys(PROVIDERS);
 
 export function createProvider(config: ProviderConfig): LLMProvider {
   const key = config.llmProvider.trim().toLowerCase();

@@ -5,7 +5,7 @@ Tests are co-located (`*.test.ts`, run with `bun test`).
 
 ## Key files
 
-- `index.ts` — entrypoint: load config, open db, start bot.
+- `index.ts` — entrypoint: load config, hand off to `startBot`, and turn a startup failure into one readable line.
 - `config.ts` — env → typed config; fails fast on missing required vars.
 - `types.ts` — shared types (`Profile`, `MealAnalysis`, `MealRecord`, `DailyTotals`, `FoodTargets`, `Verdict`).
 - `db.ts` — `bun:sqlite`: PRAGMAs + `user_version` migrations + typed queries.

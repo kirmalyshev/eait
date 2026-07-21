@@ -6,8 +6,8 @@ transport-agnostic; a second front end (CLI, web) would sit next to this folder,
 ## Key files
 
 - `bot.ts` — grammy glue: the `process*` functions (real logic, grammy-free),
-  `createBot(deps)` (testable, no live token needed), and `startBot(config)` (opens the db,
-  builds the provider, runs the supervised poller, wires SIGTERM/SIGINT).
+  `createBot(deps)` (constructable with no live token — see the test), and `startBot(config)`
+  (builds the provider, opens the db, runs the supervised poller, wires SIGTERM/SIGINT).
 - `bot.test.ts` — co-located tests: temp db + fake provider + fake `send`.
 
 ## Surface

@@ -8,10 +8,14 @@ See `src/AGENTS.md` for the domain invariants and the root `AGENTS.md` for proje
 `bot.ts` splits in two halves, and the split is the point:
 
 - **`process*` functions** — grammy-free, unit-tested with a fake `send`, a temp db, and a fake
-  provider. All the real logic lives here.
-- **`createBot(deps)`** — thin grammy adapters that only unwrap `ctx` and call a `process*`.
+  provider. This is where logic belongs.
+- **`createBot(deps)`** — thin grammy adapters that unwrap `ctx` and call a `process*`.
 
 New behaviour goes in a `process*` function, not in a handler body.
+
+Two handlers predate that rule and still hold logic inline: `/delete` (prompt + the
+`delete_confirm`/`delete_cancel` callbacks) and the `/stats` admin gate. Both are consequently
+untested. Don't copy the pattern, and prefer extracting them over adding a third.
 
 ## Invariants that bite here
 
@@ -27,14 +31,18 @@ New behaviour goes in a `process*` function, not in a handler body.
 - **`translatorFor(lang)`, never `i18n.changeLanguage()`.** The runner serves users concurrently,
   so a global language switch can render one user's locale into another's in-flight reply. Read the
   translator *before* a destructive action (`/delete` reads `t` before the row is deleted).
-- **No user-facing string literals.** Every reply goes through `t(...)`; copy lives in
-  `src/i18n/locales/*.json`.
+- **No user-facing copy in code.** Every reply goes through `t(...)`; copy lives in
+  `src/i18n/locales/*.json`. Layout separators (`"\n"`, `", "`) stay in code.
 - **The LLM restriction fallback lives here**, not in `onboarding.ts` — `step()` is a pure no-I/O
   state machine and must stay one.
 - **Callbacks always `answerCallbackQuery()`** and ignore unknown data rather than storing it
   (`lang_<code>` is validated against the registry).
 - **`bot.catch` stays.** A failed reply must never crash the process; `startBot`'s supervisor
   retries runner errors (e.g. a 409 during poller hand-off) instead of exiting.
+- **Retry transient, exit on fatal.** `isFatalTelegramError` (401/404 — a dead or wrong token)
+  ends the loop with a message naming the env var. Retrying a credential failure every 15s
+  forever is indistinguishable from a network blip in the log; keep new codes on the right side
+  of that line.
 
 ## Where to add things
 
