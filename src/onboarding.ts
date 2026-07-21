@@ -17,7 +17,7 @@ export interface OnboardingUser {
 }
 
 export type OnboardingInput =
-  | { type: "command"; command: "start" }
+  | { type: "command"; command: "start"; payload?: string } // t.me deep-link start payload, if any
   | { type: "callback"; data: string }
   | { type: "text"; text: string };
 

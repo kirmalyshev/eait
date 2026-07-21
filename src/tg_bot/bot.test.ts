@@ -2,7 +2,7 @@ import { test, expect } from "bun:test";
 import { mkdtempSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openDb, getUser, mealByReply, countMealsToday, mealCountToday, berlinDate, setSetting, type UserRow } from "../db.ts";
+import { openDb, getUser, mealByReply, countMealsToday, mealCountToday, berlinDate, setSetting, eventsFor, type UserRow } from "../db.ts";
 import {
   processOnboarding, processPhoto, processCorrection, meCard, statsCard, profileOf,
   processLangPrompt, processLangChoice, buildCommands, processSettingsOpen,
@@ -766,4 +766,68 @@ test("/cap is refused entirely when no admin is configured", async () => {
   await onboardToActive(deps, 42);
   await processCap(deps, { id: 42 }, "1", noop);
   expect(effectiveGlobalCap(db, deps.config)).toBe(500);
+});
+
+// ---------- acquisition attribution events ----------
+
+test("/start with a deep-link payload records the source and a start event", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await processOnboarding(deps, { id: 60 }, { type: "command", command: "start", payload: "tt_001" }, noop);
+  expect(getUser(db, 60)?.acquisition_source).toBe("tt_001");
+  const events = eventsFor(db, 60);
+  expect(events).toHaveLength(1);
+  expect(events[0]?.event).toBe("start");
+  expect(events[0]?.source_code).toBe("tt_001");
+});
+
+test("/start payload outside the allowed charset is ignored, start event still logged", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await processOnboarding(deps, { id: 61 }, { type: "command", command: "start", payload: "tt 001; DROP" }, noop);
+  expect(getUser(db, 61)?.acquisition_source).toBeNull();
+  const events = eventsFor(db, 61);
+  expect(events).toHaveLength(1);
+  expect(events[0]?.event).toBe("start");
+  expect(events[0]?.source_code).toBeNull();
+});
+
+test("a later /start with a different code never overwrites the first source", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await processOnboarding(deps, { id: 62 }, { type: "command", command: "start", payload: "tt_001" }, noop);
+  await processOnboarding(deps, { id: 62 }, { type: "command", command: "start", payload: "ig_009" }, noop);
+  expect(getUser(db, 62)?.acquisition_source).toBe("tt_001");
+});
+
+test("completing onboarding logs onboarding_complete exactly once", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 63);
+  // a stale second tap resumes idempotently and must not double-log
+  await processOnboarding(deps, { id: 63 }, { type: "callback", data: "restrictions_skip" }, noop);
+  const completes = eventsFor(db, 63).filter((e) => e.event === "onboarding_complete");
+  expect(completes).toHaveLength(1);
+});
+
+test("first analyzed photo logs first_photo exactly once", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 64);
+  const { send } = collector();
+  await processPhoto(deps, { id: 64 }, async () => new Uint8Array([1]), send);
+  await processPhoto(deps, { id: 64 }, async () => new Uint8Array([1]), send);
+  const firsts = eventsFor(db, 64).filter((e) => e.event === "first_photo");
+  expect(firsts).toHaveLength(1);
+});
+
+test("a photo blocked by the global cap logs a cap_hit event", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, globalDailyAnalysisCap: 0 } };
+  await onboardToActive(deps, 65);
+  const { send } = collector();
+  await processPhoto(deps, { id: 65 }, async () => new Uint8Array([1]), send);
+  const hits = eventsFor(db, 65).filter((e) => e.event === "cap_hit");
+  expect(hits).toHaveLength(1);
+  expect(countMealsToday(db, 65, berlinDate(new Date(), cfg.tz))).toBe(0);
 });

@@ -14,7 +14,8 @@ import {
   openDb, berlinDate, upsertUser, getUser, setConsent, setProfile, setUserState,
   insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals, countMealsToday,
   deleteUser, userCount, mealCount, mealCountToday, seenUpdate, markUpdate, setLang,
-  getSetting, setSetting, clearSetting, type UserRow,
+  getSetting, setSetting, clearSetting, hasMeals, logEvent, setAcquisitionSource,
+  type UserRow,
 } from "../db.ts";
 import { analyzeMeal, analyzeCorrection, classifyRestrictions } from "../analyzer.ts";
 import { targetsFor, isRestrictionTag } from "../targets.ts";
@@ -97,11 +98,29 @@ export async function processOnboarding(
     lang: resolveLang(from.language_code),
   });
   const u = getUser(deps.db, from.id);
+  if (input.type === "command") recordStart(deps.db, from.id, input.payload);
   const t = translatorForUser(u);
   const r = step(u ? { state: u.state, goal: u.goal } : undefined, input, t);
   await applyRestrictionFallback(deps, u, input, r);
   applyOnboarding(deps.db, from.id, r);
+  if (u?.state !== "active" && r.nextState === "active") {
+    logEvent(deps.db, from.id, "onboarding_complete");
+  }
   await send(r.reply, r.buttons);
+}
+
+/**
+ * Telegram deep links (`t.me/<bot>?start=<payload>`) carry at most 64 chars of
+ * `A-Za-z0-9_-`. Anything outside that grammar is dropped rather than stored — the payload
+ * is an attribution campaign code, not user input. The bare `start` event is still logged
+ * so organic arrivals form the no-code baseline.
+ */
+const START_PAYLOAD_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+function recordStart(db: Database, telegram_id: number, payload: string | undefined): void {
+  const code = payload && START_PAYLOAD_RE.test(payload) ? payload : null;
+  if (code) setAcquisitionSource(db, telegram_id, code); // first-touch: set-once in db layer
+  logEvent(db, telegram_id, "start", code);
 }
 
 /**
@@ -331,6 +350,7 @@ export async function processPhoto(
   const cap = effectiveGlobalCap(db, config);
   if (cap !== null && mealCountToday(db, date) >= cap) {
     console.warn(`[eait] global daily cap ${cap} reached`);
+    logEvent(db, from.id, "cap_hit");
     await send(t("errors.globalCap"));
     return;
   }
@@ -349,9 +369,11 @@ export async function processPhoto(
     return;
   }
   const id = crypto.randomUUID();
+  const firstPhoto = !hasMeals(db, from.id); // read before the insert makes it true forever
   insertMeal(db, {
     id, user_id: from.id, ts: new Date().toISOString(), date, analysis, model: config.llmModel,
   });
+  if (firstPhoto) logEvent(db, from.id, "first_photo");
   console.log(`[eait] meal stored ${id} user=${from.id}`);
   const totals = dailyTotals(db, from.id, date);
   const sent = await send(
@@ -536,7 +558,8 @@ export function createBot(deps: BotDeps): Bot {
     translatorForUser(ctx.from ? getUser(db, ctx.from.id) : undefined);
 
   bot.command("start", async (ctx) => {
-    if (ctx.from) await processOnboarding(deps, ctx.from, { type: "command", command: "start" }, sendVia(ctx));
+    // `ctx.match` is the deep-link payload (`t.me/<bot>?start=<code>`) — the attribution code.
+    if (ctx.from) await processOnboarding(deps, ctx.from, { type: "command", command: "start", payload: String(ctx.match ?? "") }, sendVia(ctx));
   });
   bot.command("me", async (ctx) => {
     const card = ctx.from ? meCard(deps, ctx.from.id) : null;

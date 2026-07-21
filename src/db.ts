@@ -426,6 +426,10 @@ export function mealCount(db: Database): number {
   return (db.query(`SELECT COUNT(*) AS n FROM meals`).get() as { n: number }).n;
 }
 
+export function hasMeals(db: Database, user_id: number): boolean {
+  return db.query(`SELECT 1 FROM meals WHERE user_id = ? LIMIT 1`).get(user_id) !== null;
+}
+
 // ---------- update dedupe ----------
 
 export function seenUpdate(db: Database, update_id: number): boolean {
