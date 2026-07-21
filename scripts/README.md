@@ -8,5 +8,5 @@ Dev/ops helpers — not part of the bot runtime. Run with `bun run scripts/<name
 ## Security CI
 
 - `.github/workflows/security.yml` — on push/PR/weekly: `repo-safety` (security-scan + tests + `bun audit`) and `secret-scan` (gitleaks over full history).
-- `.github/dependabot.yml` — weekly GitHub-Actions version bumps.
+- `.github/dependabot.yml` — weekly bun (runtime deps) + GitHub-Actions updates.
 - `.githooks/pre-commit` — local gate; enable with `git config core.hooksPath .githooks`.

@@ -18,3 +18,18 @@ bun run start                 # start the bot (long-polling)
 - **Stack:** TS/bun, [grammy](https://grammy.dev) + `@grammyjs/runner`, `bun:sqlite` (builtin), `zod`.
 - **LLM:** OpenRouter (default model `openai/gpt-5.2`) behind a swappable `LLMProvider`.
 - **Layout:** all logic under `src/`; no source in the repo root. See `AGENTS.md`.
+
+## Security
+
+Repo safety is enforced in CI (`.github/workflows/security.yml`):
+
+- `bun run security` — custom scanner blocking secret patterns, personal-data leaks, and a tracked `.env`.
+- [gitleaks](https://github.com/gitleaks/gitleaks) — secret scan over full git history.
+- `bun audit` — dependency vulnerability check.
+- [Dependabot](.github/dependabot.yml) — weekly bun + GitHub-Actions updates.
+
+Enable the local pre-commit gate: `git config core.hooksPath .githooks`.
+
+## License
+
+[MIT](LICENSE).
