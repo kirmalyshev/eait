@@ -1,4 +1,21 @@
 {
+  "commands": {
+    "start": "Start or resume setup",
+    "me": "Today's totals",
+    "settings": "Goal, restrictions, language",
+    "help": "How this bot works",
+    "delete": "Erase all my data",
+    "stats": "Admin counts"
+  },
+  "delete": {
+    "prompt": "Delete all your data?",
+    "done": "All your data has been deleted. /start to begin again.",
+    "cancelled": "Cancelled.",
+    "button": {
+      "confirm": "Yes, delete",
+      "cancel": "Cancel"
+    }
+  },
   "errors": {
     "notOnboarded": "Send /start first.",
     "dailyCap": "You've hit today's photo limit — come back tomorrow.",
@@ -6,6 +23,9 @@
     "notFood": "That doesn't look like food 🤔",
     "correctionFailed": "Couldn't apply that correction — try phrasing it differently.",
     "adminOnly": "Admin-only command."
+  },
+  "help": {
+    "body": "Send me a photo of your meal. I estimate the items, calories and macros, judge them against your goal, and add them to today's running total.\n\n*Got it wrong?* Reply directly to my message about that meal with a correction — for example \"two pieces, no oil\" — and I'll redo the estimate.\n\nCommands:\n/me — today's totals\n/settings — change your goal, restrictions or language\n/help — this message\n/delete — erase all your data\n\nEstimates from a photo are approximate and are not medical advice."
   },
   "lang": {
     "prompt": "Choose a language:",
@@ -27,39 +47,6 @@
       "vegan": "vegan"
     }
   },
-  "stats": {
-    "card": "{{users}} · {{meals}}",
-    "users_one": "{{count}} user",
-    "users_other": "{{count}} users",
-    "meals_one": "{{count}} meal",
-    "meals_other": "{{count}} meals"
-  },
-  "delete": {
-    "prompt": "Delete all your data?",
-    "done": "All your data has been deleted. /start to begin again.",
-    "cancelled": "Cancelled.",
-    "button": {
-      "confirm": "Yes, delete",
-      "cancel": "Cancel"
-    }
-  },
-  "onboarding": {
-    "consent": "Hi! I analyse photos of your food and count calories and macros against your goal.\n\nWhat you should know:\n• I process food photos and your profile (goal, restrictions).\n• Estimates are approximate — this is not medical advice.\n• Photos are not stored: I analyse them and delete them immediately.\n• /delete erases all your data.\n\nDo you agree to this data being processed?",
-    "decline": "Without consent I can't process your data. Send /start when you're ready.",
-    "askGoal": "What's your goal?",
-    "askRestrictions": "Any health or dietary restrictions? Write freely (for example: \"kidneys, no sugar\") or tap \"Skip\".",
-    "done": "All set — send me photos of your food 📸",
-    "alreadyActive": "You're already set up — just send photos of your food 📸 (/me — profile and today's totals).",
-    "nudge": "Tap a button above, or send /start.",
-    "button": {
-      "agree": "I agree",
-      "decline": "Decline",
-      "goalLose": "Lose",
-      "goalMaintain": "Maintain",
-      "goalGain": "Gain",
-      "skip": "Skip"
-    }
-  },
   "meal": {
     "itemUnit": "{{name}} {{grams}}g",
     "itemsLine": "🍽 {{items}}",
@@ -78,5 +65,44 @@
     "totalProtein": "Protein: {{now}} / {{target}} g",
     "totalSatfat": "Saturated fat: {{now}} / {{target}} g",
     "totalSodium": "Sodium: {{now}} / {{target}} mg"
+  },
+  "onboarding": {
+    "consent": "Hi! I analyse photos of your food and count calories and macros against your goal.\n\nWhat you should know:\n• I process food photos and your profile (goal, restrictions).\n• Estimates are approximate — this is not medical advice.\n• Photos are not stored: I analyse them and delete them immediately.\n• /delete erases all your data.\n\nDo you agree to this data being processed?",
+    "decline": "Without consent I can't process your data. Send /start when you're ready.",
+    "askGoal": "What's your goal?",
+    "askRestrictions": "Any health or dietary restrictions? Write freely (for example: \"kidneys, no sugar\") or tap \"Skip\".",
+    "done": "All set — send me photos of your food 📸",
+    "alreadyActive": "You're already set up — just send photos of your food 📸 (/me — profile and today's totals).",
+    "nudge": "Tap a button above, or send /start.",
+    "button": {
+      "agree": "I agree",
+      "decline": "Decline",
+      "goalLose": "Lose",
+      "goalMaintain": "Maintain",
+      "goalGain": "Gain",
+      "skip": "Skip"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "goalLine": "Goal: {{goal}}",
+    "restrictionsLine": "Restrictions: {{restrictions}}",
+    "langLine": "Language: {{lang}}",
+    "askRestrictions": "Tap a restriction to switch it on or off:",
+    "toggleOn": "✅ {{name}}",
+    "toggleOff": "⬜ {{name}}",
+    "button": {
+      "goal": "🎯 Goal",
+      "restrictions": "🥗 Restrictions",
+      "language": "🌍 Language",
+      "back": "← Back"
+    }
+  },
+  "stats": {
+    "card": "{{users}} · {{meals}}",
+    "users_one": "{{count}} user",
+    "users_other": "{{count}} users",
+    "meals_one": "{{count}} meal",
+    "meals_other": "{{count}} meals"
   }
 }

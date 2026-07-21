@@ -1,4 +1,21 @@
 {
+  "commands": {
+    "start": "Einrichtung starten oder fortsetzen",
+    "me": "Tagesbilanz",
+    "settings": "Ziel, Einschränkungen, Sprache",
+    "help": "Wie dieser Bot funktioniert",
+    "delete": "Alle meine Daten löschen",
+    "stats": "Admin-Zähler"
+  },
+  "delete": {
+    "prompt": "Alle deine Daten löschen?",
+    "done": "Alle deine Daten wurden gelöscht. /start — von vorn beginnen.",
+    "cancelled": "Abgebrochen.",
+    "button": {
+      "confirm": "Ja, löschen",
+      "cancel": "Abbrechen"
+    }
+  },
   "errors": {
     "notOnboarded": "Schick zuerst /start.",
     "dailyCap": "Du hast das Foto-Limit für heute erreicht — komm morgen wieder.",
@@ -6,6 +23,9 @@
     "notFood": "Das sieht nicht nach Essen aus 🤔",
     "correctionFailed": "Konnte die Korrektur nicht anwenden — formulier sie anders.",
     "adminOnly": "Befehl nur für Admins."
+  },
+  "help": {
+    "body": "Schick mir ein Foto deiner Mahlzeit. Ich schätze die Bestandteile, Kalorien und Nährwerte, bewerte sie anhand deines Ziels und rechne sie zur Tagesbilanz.\n\n*Falsch geschätzt?* Antworte direkt auf meine Nachricht zu dieser Mahlzeit mit einer Korrektur — zum Beispiel „zwei Stück, ohne Öl“ — und ich rechne neu.\n\nBefehle:\n/me — Tagesbilanz\n/settings — Ziel, Einschränkungen, Sprache\n/help — diese Nachricht\n/delete — alle Daten löschen\n\nSchätzungen aus einem Foto sind ungefähr und keine medizinische Beratung."
   },
   "lang": {
     "prompt": "Wähle eine Sprache:",
@@ -27,39 +47,6 @@
       "vegan": "vegan"
     }
   },
-  "stats": {
-    "card": "{{users}} · {{meals}}",
-    "users_one": "{{count}} Nutzer",
-    "users_other": "{{count}} Nutzer",
-    "meals_one": "{{count}} Mahlzeit",
-    "meals_other": "{{count}} Mahlzeiten"
-  },
-  "delete": {
-    "prompt": "Alle deine Daten löschen?",
-    "done": "Alle deine Daten wurden gelöscht. /start — von vorn beginnen.",
-    "cancelled": "Abgebrochen.",
-    "button": {
-      "confirm": "Ja, löschen",
-      "cancel": "Abbrechen"
-    }
-  },
-  "onboarding": {
-    "consent": "Hallo! Ich analysiere Fotos deines Essens und berechne Kalorien und Nährwerte passend zu deinem Ziel.\n\nWas du wissen solltest:\n• Ich verarbeite Essensfotos und dein Profil (Ziel, Einschränkungen).\n• Die Schätzungen sind ungefähr — das ist keine medizinische Beratung.\n• Fotos werden nicht gespeichert: Ich werte sie aus und lösche sie sofort.\n• /delete löscht alle deine Daten.\n\nBist du mit dieser Datenverarbeitung einverstanden?",
-    "decline": "Ohne Einwilligung kann ich keine Daten verarbeiten. Schreib /start, wenn du bereit bist.",
-    "askGoal": "Was ist dein Ziel?",
-    "askRestrictions": "Hast du gesundheitliche oder ernährungsbedingte Einschränkungen? Schreib frei (zum Beispiel: „Nieren, kein Zucker“) oder tippe auf „Überspringen“.",
-    "done": "Fertig — schick mir Fotos von deinem Essen 📸",
-    "alreadyActive": "Du bist schon eingerichtet — schick einfach Fotos von deinem Essen 📸 (/me — Profil und Tagesbilanz).",
-    "nudge": "Tippe oben auf einen Button oder schreib /start.",
-    "button": {
-      "agree": "Einverstanden",
-      "decline": "Ablehnen",
-      "goalLose": "Abnehmen",
-      "goalMaintain": "Halten",
-      "goalGain": "Zunehmen",
-      "skip": "Überspringen"
-    }
-  },
   "meal": {
     "itemUnit": "{{name}} {{grams}} g",
     "itemsLine": "🍽 {{items}}",
@@ -78,5 +65,44 @@
     "totalProtein": "Eiweiß: {{now}} / {{target}} g",
     "totalSatfat": "Gesättigte Fettsäuren: {{now}} / {{target}} g",
     "totalSodium": "Natrium: {{now}} / {{target}} mg"
+  },
+  "onboarding": {
+    "consent": "Hallo! Ich analysiere Fotos deines Essens und berechne Kalorien und Nährwerte passend zu deinem Ziel.\n\nWas du wissen solltest:\n• Ich verarbeite Essensfotos und dein Profil (Ziel, Einschränkungen).\n• Die Schätzungen sind ungefähr — das ist keine medizinische Beratung.\n• Fotos werden nicht gespeichert: Ich werte sie aus und lösche sie sofort.\n• /delete löscht alle deine Daten.\n\nBist du mit dieser Datenverarbeitung einverstanden?",
+    "decline": "Ohne Einwilligung kann ich keine Daten verarbeiten. Schreib /start, wenn du bereit bist.",
+    "askGoal": "Was ist dein Ziel?",
+    "askRestrictions": "Hast du gesundheitliche oder ernährungsbedingte Einschränkungen? Schreib frei (zum Beispiel: „Nieren, kein Zucker“) oder tippe auf „Überspringen“.",
+    "done": "Fertig — schick mir Fotos von deinem Essen 📸",
+    "alreadyActive": "Du bist schon eingerichtet — schick einfach Fotos von deinem Essen 📸 (/me — Profil und Tagesbilanz).",
+    "nudge": "Tippe oben auf einen Button oder schreib /start.",
+    "button": {
+      "agree": "Einverstanden",
+      "decline": "Ablehnen",
+      "goalLose": "Abnehmen",
+      "goalMaintain": "Halten",
+      "goalGain": "Zunehmen",
+      "skip": "Überspringen"
+    }
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "goalLine": "Ziel: {{goal}}",
+    "restrictionsLine": "Einschränkungen: {{restrictions}}",
+    "langLine": "Sprache: {{lang}}",
+    "askRestrictions": "Tippe auf eine Einschränkung, um sie ein- oder auszuschalten:",
+    "toggleOn": "✅ {{name}}",
+    "toggleOff": "⬜ {{name}}",
+    "button": {
+      "goal": "🎯 Ziel",
+      "restrictions": "🥗 Einschränkungen",
+      "language": "🌍 Sprache",
+      "back": "← Zurück"
+    }
+  },
+  "stats": {
+    "card": "{{users}} · {{meals}}",
+    "users_one": "{{count}} Nutzer",
+    "users_other": "{{count}} Nutzer",
+    "meals_one": "{{count}} Mahlzeit",
+    "meals_other": "{{count}} Mahlzeiten"
   }
 }
