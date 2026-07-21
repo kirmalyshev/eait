@@ -18,19 +18,26 @@ export function targetsFor(profile: Profile): FoodTargets {
 
 // Ordered so output tags are stable regardless of input order. Substring match catches
 // inflected forms (почками, сахара, cholesterol) without a full morphology pass.
-const RESTRICTION_MAP: Array<{ tag: string; keywords: string[] }> = [
+const RESTRICTION_MAP = [
   { tag: "kidneys", keywords: ["почк", "kidney", "ckd", "renal"] },
   { tag: "ldl", keywords: ["холестер", "ldl", "cholesterol"] },
   { tag: "vegan", keywords: ["веган", "vegan"] },
   { tag: "lowsugar", keywords: ["сахар", "sugar"] },
-];
+] as const satisfies ReadonlyArray<{ tag: string; keywords: readonly string[] }>;
 
 /**
  * The complete restriction vocabulary. Anything outside it is meaningless to `targetsFor` and
  * to the analyzer prompt, so the LLM classifier validates against this exact list — one source
  * of truth, no drift between the keyword pass and the fallback.
+ *
+ * It is a literal union, not string[], so `me.restriction.${tag}` is a checkable catalog key.
  */
-export const RESTRICTION_TAGS = RESTRICTION_MAP.map((r) => r.tag);
+export const RESTRICTION_TAGS = RESTRICTION_MAP.map((r) => r.tag) as RestrictionTag[];
+export type RestrictionTag = (typeof RESTRICTION_MAP)[number]["tag"];
+
+export function isRestrictionTag(v: string): v is RestrictionTag {
+  return (RESTRICTION_TAGS as string[]).includes(v);
+}
 
 /** Free text -> tags. Unknown words are dropped; `classifyRestrictions` is the LLM fallback. */
 export function parseRestrictions(text: string): string[] {

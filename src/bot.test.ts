@@ -297,3 +297,28 @@ test("skipping restrictions never consults the classifier", async () => {
   expect(getUser(db, 204)?.restrictions).toEqual([]);
   expect(calls()).toBe(0);
 });
+
+test("/me renders restriction tags as localized names, not raw identifiers", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await processOnboarding(deps, { id: 300, language_code: "de" }, { type: "command", command: "start" }, noop);
+  await processOnboarding(deps, { id: 300 }, { type: "callback", data: "consent_agree" }, noop);
+  await processOnboarding(deps, { id: 300 }, { type: "callback", data: "goal_lose" }, noop);
+  await processOnboarding(deps, { id: 300 }, { type: "text", text: "почки, холестерин" }, noop);
+
+  const card = meCard(deps, 300) as string;
+  expect(card).toContain("Nieren");
+  expect(card).toContain("Cholesterin");
+  expect(card).not.toContain("kidneys"); // the storage identifier must not reach the user
+  expect(card).not.toContain("ldl");
+});
+
+test("an unknown stored tag degrades to itself rather than throwing", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 301);
+  // a tag written by an older build that the catalog has no name for
+  db.query("UPDATE users SET restrictions = ? WHERE telegram_id = ?").run('["gluten"]', 301);
+  expect(() => meCard(deps, 301)).not.toThrow();
+  expect(meCard(deps, 301)).toContain("gluten");
+});

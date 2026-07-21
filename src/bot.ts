@@ -16,7 +16,7 @@ import {
   deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang, type UserRow,
 } from "./db.ts";
 import { analyzeMeal, analyzeCorrection, classifyRestrictions } from "./analyzer.ts";
-import { targetsFor } from "./targets.ts";
+import { targetsFor, isRestrictionTag } from "./targets.ts";
 import { formatReply } from "./reply.ts";
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "./onboarding.ts";
 import { DEFAULT_LANG, LOCALES, isLang, resolveLang, translatorFor } from "./i18n/index.ts";
@@ -231,8 +231,13 @@ export function meCard(deps: BotDeps, userId: number): string | null {
   return (
     t("me.profileLine", {
       goal: t(`me.goal.${u.goal ?? "maintain"}`),
+      // Tags are storage identifiers, not copy — render their localized names. Membership is
+      // checked explicitly rather than leaning on i18next's defaultValue, which does not
+      // suppress the strict missing-key handler. A tag from an older build shows as itself.
       restrictions: prof.restrictions.length
-        ? prof.restrictions.join(", ")
+        ? prof.restrictions
+            .map((tag) => (isRestrictionTag(tag) ? t(`me.restriction.${tag}`) : tag))
+            .join(", ")
         : t("me.noRestrictions"),
     }) +
     "\n" +

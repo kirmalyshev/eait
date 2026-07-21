@@ -19,6 +19,12 @@
       "lose": "lose weight",
       "maintain": "maintain",
       "gain": "gain weight"
+    },
+    "restriction": {
+      "kidneys": "kidneys",
+      "ldl": "cholesterol",
+      "lowsugar": "low sugar",
+      "vegan": "vegan"
     }
   },
   "stats": {

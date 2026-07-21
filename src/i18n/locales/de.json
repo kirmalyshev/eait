@@ -19,6 +19,12 @@
       "lose": "abnehmen",
       "maintain": "halten",
       "gain": "zunehmen"
+    },
+    "restriction": {
+      "kidneys": "Nieren",
+      "ldl": "Cholesterin",
+      "lowsugar": "wenig Zucker",
+      "vegan": "vegan"
     }
   },
   "stats": {

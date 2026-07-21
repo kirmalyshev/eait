@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { DEFAULT_LANG, LANGS, LOCALES, REFERENCE_LANG, type Lang } from "./registry.ts";
 import { resolveLang, translatorFor } from "./index.ts";
+import { RESTRICTION_TAGS } from "../targets.ts";
 
 // ---------- catalog introspection helpers ----------
 
@@ -164,5 +165,22 @@ describe("plural completeness", () => {
       if (CATALOGS[lang].has(base)) problems.push(`${base} (singular form shadows plurals)`);
     }
     expect(problems).toEqual([]);
+  });
+});
+
+describe("catalog covers the domain vocabularies", () => {
+  // A tag added to targets.ts without catalog entries would render as a raw identifier at the
+  // user. Coupling the check to the exported vocabulary means the test fails at the moment the
+  // tag is added, not the first time someone declares it.
+  test.each(LANGS)("%s names every restriction tag", (lang) => {
+    const missing = RESTRICTION_TAGS.filter((tag) => !CATALOGS[lang].has(`me.restriction.${tag}`));
+    expect(missing).toEqual([]);
+  });
+
+  test.each(LANGS)("%s names every goal", (lang) => {
+    const missing = (["lose", "maintain", "gain"] as const).filter(
+      (g) => !CATALOGS[lang].has(`me.goal.${g}`),
+    );
+    expect(missing).toEqual([]);
   });
 });

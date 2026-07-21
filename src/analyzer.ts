@@ -6,7 +6,7 @@
 import { z } from "zod";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import { LOCALES } from "./i18n/registry.ts";
-import { RESTRICTION_TAGS } from "./targets.ts";
+import { RESTRICTION_TAGS, isRestrictionTag } from "./targets.ts";
 import type { MealAnalysis, Profile } from "./types.ts";
 
 const VerdictSchema = z.enum(["good", "warn", "bad"]);
@@ -211,7 +211,7 @@ export async function classifyRestrictions(
     const parsed = RestrictionsSchema.safeParse(tolerantJson(raw));
     if (!parsed.success) return [];
     // Validate against the vocabulary the rest of the app can actually act on.
-    return parsed.data.tags.filter((tag) => RESTRICTION_TAGS.includes(tag));
+    return parsed.data.tags.filter(isRestrictionTag);
   } catch (e) {
     console.error(`[eait] restriction classification failed: ${(e as any)?.message}`);
     return [];

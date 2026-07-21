@@ -19,6 +19,12 @@
       "lose": "похудеть",
       "maintain": "держать",
       "gain": "набрать"
+    },
+    "restriction": {
+      "kidneys": "почки",
+      "ldl": "холестерин",
+      "lowsugar": "мало сахара",
+      "vegan": "веган"
     }
   },
   "stats": {
