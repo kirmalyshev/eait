@@ -18,8 +18,9 @@ import {
 import { analyzeMeal, analyzeCorrection, classifyRestrictions } from "./analyzer.ts";
 import { targetsFor, isRestrictionTag } from "./targets.ts";
 import { formatReply } from "./reply.ts";
+import { settingsRoot, settingsStep } from "./settings.ts";
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "./onboarding.ts";
-import { DEFAULT_LANG, LOCALES, isLang, resolveLang, translatorFor } from "./i18n/index.ts";
+import { DEFAULT_LANG, LANGS, LOCALES, isLang, resolveLang, translatorFor } from "./i18n/index.ts";
 import type { TFunction } from "i18next";
 import type { Lang, MealAnalysis, MealRecord, Profile } from "./types.ts";
 
@@ -35,6 +36,12 @@ export interface Sent {
 }
 /** How the process* functions emit to the user. Returns the sent message ids (for reply-routing). */
 export type Send = (text: string, buttons?: InlineButton[][]) => Promise<Sent | void>;
+
+/**
+ * Rewrites the message a callback came from. Settings needs this: four restriction toggles
+ * would otherwise produce four chat messages.
+ */
+export type Edit = (text: string, buttons?: InlineButton[][]) => Promise<void>;
 
 // ---------- pure helpers ----------
 
@@ -120,6 +127,67 @@ async function applyRestrictionFallback(
 }
 
 const translatorLangOf = (u: UserRow | undefined): Lang => (u ? profileOf(u).lang : DEFAULT_LANG);
+
+// ---------- commands, settings, help ----------
+
+/** The commands shown in Telegram's `/` menu. Pure, so the list is testable without a token. */
+export function buildCommands(t: TFunction): Array<{ command: string; description: string }> {
+  return [
+    { command: "start", description: t("commands.start") },
+    { command: "me", description: t("commands.me") },
+    { command: "settings", description: t("commands.settings") },
+    { command: "help", description: t("commands.help") },
+    { command: "delete", description: t("commands.delete") },
+  ];
+}
+
+/** /help. Deliberately works before onboarding — it is how someone learns what to do. */
+export function helpText(
+  deps: BotDeps,
+  from: { id: number; language_code?: string | null },
+): string {
+  const u = getUser(deps.db, from.id);
+  // No row yet (they ran /help before /start): fall back to their Telegram client language
+  // rather than the default, so a German user reads German help from the first message.
+  const lang = u ? profileOf(u).lang : resolveLang(from.language_code);
+  return translatorFor(lang)("help.body");
+}
+
+/** /settings — sends a new message; every tap after this edits it. */
+export async function processSettingsOpen(
+  deps: BotDeps,
+  from: { id: number },
+  send: Send,
+): Promise<void> {
+  const u = getUser(deps.db, from.id);
+  if (!u || u.state !== "active") {
+    await send(translatorForUser(u)("errors.notOnboarded"));
+    return;
+  }
+  const prof = profileOf(u);
+  const v = settingsRoot(prof, translatorFor(prof.lang));
+  await send(v.text, v.buttons);
+}
+
+/** Handles an `st:` callback: persist whatever changed, then rewrite the message in place. */
+export async function processSettingsCallback(
+  deps: BotDeps,
+  from: { id: number },
+  data: string,
+  edit: Edit,
+): Promise<void> {
+  const u = getUser(deps.db, from.id);
+  if (!u || u.state !== "active") return; // no row to edit against; stay silent
+  const prof = profileOf(u);
+  const v = settingsStep(prof, data, translatorFor(prof.lang));
+  if (v.patch) {
+    if (v.patch.lang) setLang(deps.db, from.id, v.patch.lang);
+    if (v.patch.goal || v.patch.restrictions) {
+      setProfile(deps.db, from.id, { goal: v.patch.goal, restrictions: v.patch.restrictions });
+    }
+  }
+  await edit(v.text, v.buttons);
+}
 
 /** /lang — a picker built from the registry, so a new locale appears with no code change. */
 export async function processLangPrompt(
@@ -289,6 +357,17 @@ export function createBot(deps: BotDeps): Bot {
     return { chat_id: m.chat.id, message_id: m.message_id };
   };
 
+  const editVia = (ctx: any): Edit => async (text, buttons) => {
+    try {
+      await ctx.editMessageText(text, buttons ? { reply_markup: toKeyboard(buttons) } : undefined);
+    } catch (e) {
+      // Telegram rejects an edit whose result is byte-identical, which a stale keyboard can
+      // produce. That is a no-op, not a failure. Anything else still propagates to bot.catch.
+      const desc = String((e as any)?.description ?? "");
+      if (!desc.includes("message is not modified")) throw e;
+    }
+  };
+
   /** The translator for whoever sent this update. */
   const tFor = (ctx: any): TFunction =>
     translatorForUser(ctx.from ? getUser(db, ctx.from.id) : undefined);
@@ -300,6 +379,13 @@ export function createBot(deps: BotDeps): Bot {
     const card = ctx.from ? meCard(deps, ctx.from.id) : null;
     await ctx.reply(card ?? tFor(ctx)("errors.notOnboarded"));
   });
+  bot.command("settings", async (ctx) => {
+    if (ctx.from) await processSettingsOpen(deps, ctx.from, sendVia(ctx));
+  });
+  bot.command("help", async (ctx) => {
+    if (ctx.from) await ctx.reply(helpText(deps, ctx.from));
+  });
+  // Retained alias, deliberately absent from the / menu: /settings is the documented route.
   bot.command("lang", async (ctx) => {
     if (ctx.from) await processLangPrompt(deps, ctx.from, sendVia(ctx));
   });
@@ -316,7 +402,9 @@ export function createBot(deps: BotDeps): Bot {
       await ctx.reply(tFor(ctx)("errors.adminOnly"));
       return;
     }
-    await ctx.reply(statsCard(deps, profileOf(getUser(db, ctx.from.id)!).lang));
+    // The admin may never have run /start, so there is no row to assume here.
+    const u = getUser(db, ctx.from.id);
+    await ctx.reply(statsCard(deps, u ? profileOf(u).lang : resolveLang(ctx.from.language_code)));
   });
 
   bot.on("callback_query:data", async (ctx) => {
@@ -331,6 +419,10 @@ export function createBot(deps: BotDeps): Bot {
     }
     if (data === "delete_cancel") {
       await ctx.reply(tFor(ctx)("delete.cancelled"));
+      return;
+    }
+    if (data.startsWith("st:")) {
+      await processSettingsCallback(deps, ctx.from, data, editVia(ctx));
       return;
     }
     if (data.startsWith("lang_")) {
@@ -375,6 +467,31 @@ export function createBot(deps: BotDeps): Bot {
   return bot;
 }
 
+/**
+ * Publishes the `/` menu. Registered once per locale via Telegram's `language_code`, so each
+ * user sees it in their own client language without any per-user call.
+ *
+ * Never throws: an empty menu is cosmetic, a bot that will not boot is not.
+ */
+export async function registerCommands(bot: Bot, config: Config): Promise<void> {
+  try {
+    for (const lang of LANGS) {
+      await bot.api.setMyCommands(buildCommands(translatorFor(lang)), { language_code: lang });
+    }
+    if (config.adminUserId !== null) {
+      // Chat scope outranks the default scope, so only the admin ever sees /stats.
+      const t = translatorFor(DEFAULT_LANG);
+      await bot.api.setMyCommands(
+        [...buildCommands(t), { command: "stats", description: t("commands.stats") }],
+        { scope: { type: "chat", chat_id: config.adminUserId } },
+      );
+    }
+    console.log(`[eait] commands registered for ${LANGS.join(", ")}`);
+  } catch (e) {
+    console.error(`[eait] command registration failed (menu will be stale): ${(e as any)?.message}`);
+  }
+}
+
 export function startBot(config: Config): { db: Database; stop: () => Promise<void> } {
   const db = openDb(config.dbPath);
   const provider = new OpenRouterProvider({
@@ -383,6 +500,7 @@ export function startBot(config: Config): { db: Database; stop: () => Promise<vo
     timeoutMs: config.llmTimeoutMs,
   });
   const bot = createBot({ db, provider, config });
+  void registerCommands(bot, config); // fire-and-forget: must not delay polling
 
   // Resilient polling: a source error (e.g. a 409 Conflict during a poller
   // hand-off, or a transient network blip) logs + retries instead of crashing

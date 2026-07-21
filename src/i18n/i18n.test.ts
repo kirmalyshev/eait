@@ -184,3 +184,14 @@ describe("catalog covers the domain vocabularies", () => {
     expect(missing).toEqual([]);
   });
 });
+
+describe("copy is plain text", () => {
+  // Nothing sets parse_mode, so markup renders as literal characters at the user.
+  test.each(LANGS)("%s uses no markdown emphasis", (lang) => {
+    const offenders: string[] = [];
+    for (const [k, v] of CATALOGS[lang]) {
+      if (/\*[^*]+\*|_[^_]+_|\[[^\]]+\]\([^)]+\)/.test(v)) offenders.push(`${lang}:${k}`);
+    }
+    expect(offenders).toEqual([]);
+  });
+});

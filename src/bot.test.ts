@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { openDb, getUser, mealByReply, countMealsToday, berlinDate, type UserRow } from "./db.ts";
 import {
   processOnboarding, processPhoto, processCorrection, meCard, statsCard, profileOf,
-  processLangPrompt, processLangChoice, type BotDeps, type Send,
+  processLangPrompt, processLangChoice, buildCommands, processSettingsOpen,
+  processSettingsCallback, helpText, type BotDeps, type Send, type Edit,
 } from "./bot.ts";
 import { DEFAULT_LANG, LANGS, translatorFor } from "./i18n/index.ts";
 import type { Config } from "./config.ts";
@@ -321,4 +322,121 @@ test("an unknown stored tag degrades to itself rather than throwing", async () =
   db.query("UPDATE users SET restrictions = ? WHERE telegram_id = ?").run('["gluten"]', 301);
   expect(() => meCard(deps, 301)).not.toThrow();
   expect(meCard(deps, 301)).toContain("gluten");
+});
+
+// ---------- commands & settings ----------
+
+function editor() {
+  const edits: { text: string; data: string[] }[] = [];
+  const edit: Edit = async (text, buttons) => {
+    edits.push({ text, data: (buttons ?? []).flat().map((b) => b.data) });
+  };
+  return { edits, edit, last: () => edits[edits.length - 1]! };
+}
+
+test("buildCommands lists the menu commands, localized, with no blanks", () => {
+  for (const lang of LANGS) {
+    const cmds = buildCommands(translatorFor(lang));
+    expect(cmds.map((c) => c.command)).toEqual(["start", "me", "settings", "help", "delete"]);
+    for (const c of cmds) {
+      expect(c.description.trim()).not.toBe("");
+      expect(c.description).not.toMatch(/commands\./); // a missing key would leak here
+      expect(c.description.length).toBeLessThanOrEqual(256); // Telegram's cap
+    }
+  }
+  // descriptions must actually differ per locale, not silently fall back
+  expect(buildCommands(translatorFor("de"))[0]!.description)
+    .not.toBe(buildCommands(translatorFor("ru"))[0]!.description);
+});
+
+test("/settings is refused until onboarding is finished", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const { msgs, send } = collector();
+  await processSettingsOpen(deps, { id: 400 }, send);
+  expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.notOnboarded"));
+});
+
+test("/settings opens the root view with the three sections", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 401);
+  const seen: string[][] = [];
+  const send: Send = async (_t, buttons) => {
+    seen.push((buttons ?? []).flat().map((b) => b.data));
+    return { chat_id: 1, message_id: 1 };
+  };
+  await processSettingsOpen(deps, { id: 401 }, send);
+  expect(seen[0]).toEqual(["st:goal", "st:restr", "st:lang"]);
+});
+
+test("choosing a goal persists it and edits the message in place", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 402); // onboards as 'lose'
+  const { edits, edit, last } = editor();
+  await processSettingsCallback(deps, { id: 402 }, "st:goal:maintain", edit);
+  expect(getUser(db, 402)?.goal).toBe("maintain");
+  expect(edits).toHaveLength(1); // edited, not appended
+  expect(last().data).toEqual(["st:goal", "st:restr", "st:lang"]); // back at root
+});
+
+test("toggling a restriction twice persists on and then off, with no new messages", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 403);
+  const { edits, edit } = editor();
+  await processSettingsCallback(deps, { id: 403 }, "st:restr:kidneys", edit);
+  expect(getUser(db, 403)?.restrictions).toEqual(["kidneys"]);
+  await processSettingsCallback(deps, { id: 403 }, "st:restr:kidneys", edit);
+  expect(getUser(db, 403)?.restrictions).toEqual([]);
+  expect(edits).toHaveLength(2); // two edits, zero sends
+});
+
+test("a restriction toggled in settings reaches the analyzer prompt and the targets", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 404);
+  const { edit } = editor();
+  await processSettingsCallback(deps, { id: 404 }, "st:restr:kidneys", edit);
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 404 }, async () => new Uint8Array([1]), send);
+  // the sodium cap line only exists when a kidneys restriction is declared
+  expect(msgs[0]).toContain("2000");
+});
+
+test("changing the language from settings re-renders the root in the new language", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 405);
+  const { edit, last } = editor();
+  await processSettingsCallback(deps, { id: 405 }, "st:lang:de", edit);
+  expect(getUser(db, 405)?.lang).toBe("de");
+  expect(last().text).toContain(translatorFor("de")("settings.title"));
+});
+
+test("settings callbacks from a non-active user change nothing", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await processOnboarding(deps, { id: 406 }, { type: "command", command: "start" }, noop);
+  const { edits, edit } = editor();
+  await processSettingsCallback(deps, { id: 406 }, "st:goal:gain", edit);
+  expect(getUser(db, 406)?.goal).toBeNull();
+  expect(edits).toHaveLength(0);
+});
+
+test("/help works before onboarding, in the language of the Telegram client", () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const body = helpText(deps, { id: 407, language_code: "de" });
+  expect(body).toBe(translatorFor("de")("help.body"));
+  expect(body).toContain("/settings"); // command list is part of it
+});
+
+test("/help follows a stored language over the client's", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 408);
+  await processLangChoice(deps, { id: 408 }, "lang_ru", noop);
+  expect(helpText(deps, { id: 408, language_code: "de" })).toBe(translatorFor("ru")("help.body"));
 });

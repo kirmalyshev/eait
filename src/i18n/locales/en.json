@@ -25,7 +25,7 @@
     "adminOnly": "Admin-only command."
   },
   "help": {
-    "body": "Send me a photo of your meal. I estimate the items, calories and macros, judge them against your goal, and add them to today's running total.\n\n*Got it wrong?* Reply directly to my message about that meal with a correction — for example \"two pieces, no oil\" — and I'll redo the estimate.\n\nCommands:\n/me — today's totals\n/settings — change your goal, restrictions or language\n/help — this message\n/delete — erase all your data\n\nEstimates from a photo are approximate and are not medical advice."
+    "body": "Send me a photo of your meal. I estimate the items, calories and macros, judge them against your goal, and add them to today's running total.\n\nGot it wrong? Reply directly to my message about that meal with a correction — for example \"two pieces, no oil\" — and I'll redo the estimate.\n\nCommands:\n/me — today's totals\n/settings — change your goal, restrictions or language\n/help — this message\n/delete — erase all your data\n\nEstimates from a photo are approximate and are not medical advice."
   },
   "lang": {
     "prompt": "Choose a language:",

@@ -150,3 +150,21 @@ describe("localization", () => {
     }
   });
 });
+
+describe("keyboard layout", () => {
+  // Telegram shrinks buttons to fit a row. Four "✅ Cholesterin"-length labels side by side are
+  // unreadable on a phone, so wide sets wrap.
+  test("no row holds more than two restriction toggles", () => {
+    const v = settingsStep(profile(), "st:restr", t);
+    for (const row of v.buttons) expect(row.length).toBeLessThanOrEqual(2);
+  });
+
+  test("the back button is on its own final row in every sub-view", () => {
+    for (const d of ["st:goal", "st:restr", "st:lang"]) {
+      const v = settingsStep(profile(), d, t);
+      const last = v.buttons[v.buttons.length - 1]!;
+      expect(last).toHaveLength(1);
+      expect(last[0]!.data).toBe("st:root");
+    }
+  });
+});

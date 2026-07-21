@@ -25,7 +25,7 @@
     "adminOnly": "Befehl nur für Admins."
   },
   "help": {
-    "body": "Schick mir ein Foto deiner Mahlzeit. Ich schätze die Bestandteile, Kalorien und Nährwerte, bewerte sie anhand deines Ziels und rechne sie zur Tagesbilanz.\n\n*Falsch geschätzt?* Antworte direkt auf meine Nachricht zu dieser Mahlzeit mit einer Korrektur — zum Beispiel „zwei Stück, ohne Öl“ — und ich rechne neu.\n\nBefehle:\n/me — Tagesbilanz\n/settings — Ziel, Einschränkungen, Sprache\n/help — diese Nachricht\n/delete — alle Daten löschen\n\nSchätzungen aus einem Foto sind ungefähr und keine medizinische Beratung."
+    "body": "Schick mir ein Foto deiner Mahlzeit. Ich schätze die Bestandteile, Kalorien und Nährwerte, bewerte sie anhand deines Ziels und rechne sie zur Tagesbilanz.\n\nFalsch geschätzt? Antworte direkt auf meine Nachricht zu dieser Mahlzeit mit einer Korrektur — zum Beispiel „zwei Stück, ohne Öl“ — und ich rechne neu.\n\nBefehle:\n/me — Tagesbilanz\n/settings — Ziel, Einschränkungen, Sprache\n/help — diese Nachricht\n/delete — alle Daten löschen\n\nSchätzungen aus einem Foto sind ungefähr und keine medizinische Beratung."
   },
   "lang": {
     "prompt": "Wähle eine Sprache:",

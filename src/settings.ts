@@ -69,18 +69,25 @@ function goalPicker(t: TFunction): SettingsView {
   };
 }
 
+/** Telegram shrinks buttons to fit a row; long labels four-across are unreadable on a phone. */
+const TOGGLES_PER_ROW = 2;
+
+function chunk<T>(xs: readonly T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < xs.length; i += size) out.push(xs.slice(i, i + size));
+  return out;
+}
+
 function restrictionToggles(p: Profile, t: TFunction): SettingsView {
+  const toggles = RESTRICTION_TAGS.map((tag) => ({
+    text: t(p.restrictions.includes(tag) ? "settings.toggleOn" : "settings.toggleOff", {
+      name: t(`me.restriction.${tag}`),
+    }),
+    data: `st:restr:${tag}`,
+  }));
   return {
     text: t("settings.askRestrictions"),
-    buttons: [
-      RESTRICTION_TAGS.map((tag) => ({
-        text: t(p.restrictions.includes(tag) ? "settings.toggleOn" : "settings.toggleOff", {
-          name: t(`me.restriction.${tag}`),
-        }),
-        data: `st:restr:${tag}`,
-      })),
-      backRow(t),
-    ],
+    buttons: [...chunk(toggles, TOGGLES_PER_ROW), backRow(t)],
   };
 }
 
