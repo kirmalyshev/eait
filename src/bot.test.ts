@@ -6,7 +6,7 @@ import { openDb, getUser, mealByReply, countMealsToday, berlinDate, type UserRow
 import {
   processOnboarding, processPhoto, processCorrection, meCard, statsCard, profileOf,
   processLangPrompt, processLangChoice, buildCommands, processSettingsOpen,
-  processSettingsCallback, helpText, type BotDeps, type Send, type Edit,
+  processSettingsCallback, helpText, commandRegistrations, type BotDeps, type Send, type Edit,
 } from "./bot.ts";
 import { DEFAULT_LANG, LANGS, translatorFor } from "./i18n/index.ts";
 import type { Config } from "./config.ts";
@@ -439,4 +439,33 @@ test("/help follows a stored language over the client's", async () => {
   await onboardToActive(deps, 408);
   await processLangChoice(deps, { id: 408 }, "lang_ru", noop);
   expect(helpText(deps, { id: 408, language_code: "de" })).toBe(translatorFor("ru")("help.body"));
+});
+
+test("command registrations cover every locale, for the default scope and the admin's", () => {
+  const plan = commandRegistrations({ ...cfg, adminUserId: 42 });
+  const defaults = plan.filter((r) => !r.options.scope);
+  const admin = plan.filter((r) => r.options.scope);
+
+  expect(defaults.map((r) => r.options.language_code).sort()).toEqual([...LANGS].sort());
+  // Chat scope OUTRANKS default, so the admin must get every locale too — registering the
+  // admin in one language only would replace their localized menu with that language.
+  expect(admin.map((r) => r.options.language_code).sort()).toEqual([...LANGS].sort());
+  for (const r of admin) {
+    expect(r.commands.map((c) => c.command)).toContain("stats");
+    expect(r.options.scope).toEqual({ type: "chat", chat_id: 42 });
+  }
+  for (const r of defaults) expect(r.commands.map((c) => c.command)).not.toContain("stats");
+});
+
+test("registrations for the admin are in the admin's own language, not a fixed one", () => {
+  const plan = commandRegistrations({ ...cfg, adminUserId: 42 });
+  const ru = plan.find((r) => r.options.scope && r.options.language_code === "ru")!;
+  expect(ru.commands.find((c) => c.command === "stats")!.description)
+    .toBe(translatorFor("ru")("commands.stats"));
+});
+
+test("no admin registrations when no admin is configured", () => {
+  const plan = commandRegistrations({ ...cfg, adminUserId: null });
+  expect(plan.filter((r) => r.options.scope)).toEqual([]);
+  expect(plan).toHaveLength(LANGS.length);
 });

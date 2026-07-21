@@ -467,24 +467,43 @@ export function createBot(deps: BotDeps): Bot {
   return bot;
 }
 
+export interface CommandRegistration {
+  commands: Array<{ command: string; description: string }>;
+  options: { language_code: Lang; scope?: { type: "chat"; chat_id: number } };
+}
+
 /**
- * Publishes the `/` menu. Registered once per locale via Telegram's `language_code`, so each
- * user sees it in their own client language without any per-user call.
+ * What to publish to Telegram, as data — pure, so the plan is testable without a live token.
  *
- * Never throws: an empty menu is cosmetic, a bot that will not boot is not.
+ * One registration per locale for the default scope; Telegram then matches each user's client
+ * language itself, with no per-user call. The admin gets the same treatment plus /stats.
+ *
+ * The admin MUST be registered in every locale too. Chat scope outranks default scope, so a
+ * single-language admin registration would silently replace their localized menu.
+ */
+export function commandRegistrations(config: Config): CommandRegistration[] {
+  const plan: CommandRegistration[] = [];
+  for (const lang of LANGS) {
+    const t = translatorFor(lang);
+    plan.push({ commands: buildCommands(t), options: { language_code: lang } });
+    if (config.adminUserId !== null) {
+      plan.push({
+        commands: [...buildCommands(t), { command: "stats", description: t("commands.stats") }],
+        options: { language_code: lang, scope: { type: "chat", chat_id: config.adminUserId } },
+      });
+    }
+  }
+  return plan;
+}
+
+/**
+ * Publishes the `/` menu. Never throws: a stale menu is cosmetic, a bot that will not boot
+ * is not.
  */
 export async function registerCommands(bot: Bot, config: Config): Promise<void> {
   try {
-    for (const lang of LANGS) {
-      await bot.api.setMyCommands(buildCommands(translatorFor(lang)), { language_code: lang });
-    }
-    if (config.adminUserId !== null) {
-      // Chat scope outranks the default scope, so only the admin ever sees /stats.
-      const t = translatorFor(DEFAULT_LANG);
-      await bot.api.setMyCommands(
-        [...buildCommands(t), { command: "stats", description: t("commands.stats") }],
-        { scope: { type: "chat", chat_id: config.adminUserId } },
-      );
+    for (const { commands, options } of commandRegistrations(config)) {
+      await bot.api.setMyCommands(commands, options);
     }
     console.log(`[eait] commands registered for ${LANGS.join(", ")}`);
   } catch (e) {
