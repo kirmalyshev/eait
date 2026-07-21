@@ -6,8 +6,6 @@ Orientation for any coding agent (or human) working in this repo.
 
 `eait` — a multi-user food-photo Telegram bot, personal tool for a small closed circle. Photo in → per-user meal analysis + daily totals out. Generalized from a single-user Pulse bot: profile-driven analysis instead of hard-coded thresholds, SQLite store, ephemeral images, provider abstraction.
 
-> `CLAUDE.md` is a symlink to this file — one set of instructions, whichever name a tool looks for.
-
 ## Stack & commands
 
 - **Runtime:** TS/bun (`bun` 1.3+). Deps: `grammy`, `@grammyjs/runner`, `zod`, `i18next`; `bun:sqlite` is builtin.
