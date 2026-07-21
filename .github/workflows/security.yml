@@ -39,6 +39,11 @@ jobs:
 
   secret-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # gitleaks-action v3 lists the PR's commits to scope the scan; without this it gets a
+      # 403 and the job dies mid-run, which looks like a finding but means nothing was scanned.
+      pull-requests: read
     steps:
       - uses: actions/checkout@v7
         with:
