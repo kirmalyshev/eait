@@ -12,7 +12,10 @@ All bot logic. Focused files, co-located tests. See the root `AGENTS.md` for pro
 - **Idempotency:** `update_id` dedupe middleware; callbacks guard on expected state and always `answerCallbackQuery`.
 - **No user-facing string literals** outside `i18n/locales/*.json`. `bot.ts`, `reply.ts`, and `onboarding.ts` render only via a translator passed in from the caller.
 - **`translatorFor(lang)`, never `i18n.changeLanguage()`.** The runner serves users concurrently (`sequentialize` is per-user), so a global language switch can render one user's locale into another's in-flight reply.
-- **`onboarding.step()` stays pure.** `t` is a value passed in, not I/O. The LLM restriction fallback lives in `bot.ts` for exactly this reason.
+- **`onboarding.step()` and `settingsStep()` stay pure.** `t` is a value passed in, not I/O. The LLM restriction fallback lives in `bot.ts` for exactly this reason.
+- **Callback data is namespaced.** Settings owns `st:`, onboarding owns the bare `consent_*`/`goal_*`/`restrictions_*` names, `/delete` owns `delete_*`. Never reuse a prefix across machines — the receiving machine's state guards would reject the taps silently.
+- **Copy is plain text.** Nothing sets `parse_mode`, so markdown in a catalog value renders as literal characters at the user (a test enforces this).
+- **Settings callbacks edit, they don't send.** Use `Edit`, or a four-tap toggle session leaves four messages behind.
 - `createBot(deps)` must be constructable/testable with an injected db + fake provider and **no live token** (pass `botInfo` + an API transformer in tests).
 
 ## Where to add things

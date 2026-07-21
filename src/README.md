@@ -13,6 +13,7 @@ All bot logic lives here. Tests are co-located (`*.test.ts`, run with `bun test`
 - `llm/openrouter.ts` — OpenRouter impl (timeout + backoff).
 - `analyzer.ts` — builds the prompt, calls the provider, zod-validates the result.
 - `onboarding.ts` — pure state machine `step(user, input, t)`.
+- `settings.ts` — pure state machine for `/settings` (`settingsRoot`, `settingsStep`).
 - `reply.ts` — `formatReply(meal, totals, targets, t)`.
 - `bot.ts` — grammy glue: `createBot(deps)` (testable) + `startBot(config)`.
 - `i18n/` — locale registry, `resolveLang`, `translatorFor`, and the JSON catalogs.

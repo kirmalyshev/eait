@@ -2,6 +2,8 @@
 
 A small standalone Telegram bot ([@eait_bot](https://t.me/eait_bot)) for a tiny closed circle. Each user does a 2-step onboarding (consent → goal + restrictions), then sends meal photos; every photo is analyzed against **that user's own profile** and logged per-user. **Images are ephemeral** — downloaded, analyzed, then deleted; nothing raw is persisted.
 
+**Commands:** `/start`, `/me` (today's totals), `/settings` (goal, restrictions, language — all button-driven), `/help`, `/delete`. They appear in Telegram's `/` menu in your own language.
+
 **Multi-language.** English, Russian, and German. The language is detected from your Telegram client on first contact and changed any time with `/lang` — including the food names and notes the model writes, not just the bot's own copy. Adding a language is one JSON file plus one registry line (see `src/README.md`).
 
 Personal tool, **not a product** — no billing, moderation, growth, or web dashboard.
