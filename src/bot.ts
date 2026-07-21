@@ -260,6 +260,11 @@ export function createBot(deps: BotDeps): Bot {
     await processOnboarding(deps, ctx.from, { type: "text", text: ctx.message.text }, sendVia(ctx));
   });
 
+  // Handler-level errors (a failed reply, a bad update) must never crash the process.
+  bot.catch((err) => {
+    console.error("[eait] handler error:", (err as any)?.error ?? err);
+  });
+
   return bot;
 }
 
@@ -271,9 +276,32 @@ export function startBot(config: Config): { db: Database; stop: () => Promise<vo
     timeoutMs: config.llmTimeoutMs,
   });
   const bot = createBot({ db, provider, config });
-  const runner = run(bot);
+
+  // Resilient polling: a source error (e.g. a 409 Conflict during a poller
+  // hand-off, or a transient network blip) logs + retries instead of crashing
+  // the process. Without this, an uncaught runner rejection exits the process
+  // and (under launchd KeepAlive) crash-loops.
+  let stopping = false;
+  let handle = run(bot);
+  const supervise = async () => {
+    while (!stopping) {
+      try {
+        await handle.task();
+        break; // stopped cleanly
+      } catch (err) {
+        if (stopping) break;
+        console.error(`[eait] runner error, retry in 15s: ${(err as any)?.description ?? err}`);
+        await new Promise((r) => setTimeout(r, 15000));
+        if (stopping) break;
+        handle = run(bot);
+      }
+    }
+  };
+  void supervise();
+
   const stop = async () => {
-    if (runner.isRunning()) await runner.stop();
+    stopping = true;
+    if (handle.isRunning()) await handle.stop();
     db.close();
   };
   process.once("SIGTERM", stop);
