@@ -23,7 +23,9 @@
     "dailyCap": "Du hast das Foto-Limit für heute erreicht — komm morgen wieder.",
     "globalCap": "Der gemeinsame Demo-Bot hat das Tageslimit an Auswertungen erreicht — er läuft auf dem API-Budget einer einzelnen Person. Versuch es morgen wieder oder betreibe deine eigene Instanz: https://github.com/kirmalyshev/eait",
     "notFood": "Das sieht nicht nach Essen aus 🤔",
-    "notOnboarded": "Schick zuerst /start."
+    "notOnboarded": "Schick zuerst /start.",
+    "notAnImage": "Das ist kein Bild 🤔 schick ein Foto der Mahlzeit.",
+    "fileTooBig": "Die Datei ist zu groß — schick sie stattdessen als Foto."
   },
   "help": {
     "body": "Schick mir ein Foto deiner Mahlzeit. Ich schätze die Bestandteile, Kalorien und Nährwerte, bewerte sie anhand deines Ziels und rechne sie zur Tagesbilanz.\n\nFalsch geschätzt? Antworte direkt auf meine Nachricht zu dieser Mahlzeit mit einer Korrektur — zum Beispiel „zwei Stück, ohne Öl“ — und ich rechne neu.\n\nBefehle:\n/me — Tagesbilanz\n/settings — Ziel, Einschränkungen, Sprache\n/help — diese Nachricht\n/delete — alle Daten löschen\n\nSchätzungen aus einem Foto sind ungefähr und keine medizinische Beratung."

@@ -287,6 +287,39 @@ export async function processPhoto(
   if (sent) setMealReply(db, id, from.id, sent.chat_id, sent.message_id);
 }
 
+/**
+ * Telegram's Bot API refuses to serve a file over 20MB, and an uncompressed camera photo can
+ * exceed that. Checked before the download so the user gets a reason instead of silence.
+ */
+const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
+
+/**
+ * A photo sent as a file ("send without compression", or dragged in on desktop) arrives as a
+ * document, not a photo — Telegram does not convert it. Without this it matched no handler at
+ * all and the user got no reply, which reads as the bot being broken.
+ *
+ * Only `image/*` is accepted: an unannounced mime type is refused rather than guessed, because
+ * every analysis is a billed vision call and a PDF would burn one to be told it isn't food.
+ */
+export async function processDocument(
+  deps: BotDeps,
+  from: { id: number },
+  doc: { mime_type?: string; file_size?: number },
+  getBytes: () => Promise<Uint8Array>,
+  send: Send,
+): Promise<void> {
+  const t = translatorForUser(getUser(deps.db, from.id));
+  if (!doc.mime_type?.startsWith("image/")) {
+    await send(t("errors.notAnImage"));
+    return;
+  }
+  if ((doc.file_size ?? 0) > MAX_DOCUMENT_BYTES) {
+    await send(t("errors.fileTooBig"));
+    return;
+  }
+  await processPhoto(deps, from, getBytes, send);
+}
+
 /** Returns true if the text was a correction of a known meal (so the caller stops routing). */
 export async function processCorrection(
   deps: BotDeps,
@@ -487,28 +520,33 @@ export function createBot(deps: BotDeps): Bot {
     await processOnboarding(deps, ctx.from, { type: "callback", data }, sendVia(ctx));
   });
 
+  /** Downloads a Telegram file by id. Shared by the photo and document handlers. */
+  const fetchFile = (ctx: any, fileId: string) => async (): Promise<Uint8Array> => {
+    const file = await ctx.api.getFile(fileId);
+    const url = `https://api.telegram.org/file/bot${config.telegramBotToken}/${file.file_path}`;
+    // Time-box the download: sequentialize() is per-user, so a hung fetch would stall
+    // everything else that user sends until the process restarts.
+    const res = await fetch(url, { signal: AbortSignal.timeout(config.llmTimeoutMs) });
+    // Without this, a non-2xx body (an expired file_path returns a JSON error) would be
+    // base64'd and sent to the model as if it were a photo, and the user would be told
+    // their meal "isn't food" — a download failure reported as a wrong diagnosis.
+    // The status is thrown, never the URL: that carries the bot token.
+    if (!res.ok) throw new Error(`telegram file download failed: ${res.status}`);
+    return new Uint8Array(await res.arrayBuffer());
+  };
+
   bot.on("message:photo", async (ctx) => {
     if (!ctx.from) return;
     const photos = ctx.message.photo;
     const largest = photos[photos.length - 1]; // largest PhotoSize
-    await processPhoto(
-      deps,
-      ctx.from,
-      async () => {
-        const file = await ctx.api.getFile(largest.file_id);
-        const url = `https://api.telegram.org/file/bot${config.telegramBotToken}/${file.file_path}`;
-        // Time-box the download: sequentialize() is per-user, so a hung fetch would stall
-        // everything else that user sends until the process restarts.
-        const res = await fetch(url, { signal: AbortSignal.timeout(config.llmTimeoutMs) });
-        // Without this, a non-2xx body (an expired file_path returns a JSON error) would be
-        // base64'd and sent to the model as if it were a photo, and the user would be told
-        // their meal "isn't food" — a download failure reported as a wrong diagnosis.
-        // The status is thrown, never the URL: that carries the bot token.
-        if (!res.ok) throw new Error(`telegram file download failed: ${res.status}`);
-        return new Uint8Array(await res.arrayBuffer());
-      },
-      sendVia(ctx),
-    );
+    await processPhoto(deps, ctx.from, fetchFile(ctx, largest.file_id), sendVia(ctx));
+  });
+
+  // A meal photo sent uncompressed ("send as file") arrives here, not as a photo.
+  bot.on("message:document", async (ctx) => {
+    if (!ctx.from) return;
+    const doc = ctx.message.document;
+    await processDocument(deps, ctx.from, doc, fetchFile(ctx, doc.file_id), sendVia(ctx));
   });
 
   bot.on("message:text", async (ctx) => {

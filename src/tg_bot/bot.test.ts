@@ -7,7 +7,7 @@ import {
   processOnboarding, processPhoto, processCorrection, meCard, statsCard, profileOf,
   processLangPrompt, processLangChoice, buildCommands, processSettingsOpen,
   processSettingsCallback, helpText, commandRegistrations, isAllowed,
-  createBot, startBot, adminLangFor, isFatalTelegramError, describeError,
+  createBot, startBot, adminLangFor, isFatalTelegramError, describeError, processDocument,
   type BotDeps, type Send, type Edit,
 } from "./bot.ts";
 import { DEFAULT_LANG, LANGS, translatorFor } from "../i18n/index.ts";
@@ -605,4 +605,77 @@ test("startBot validates the provider before it opens the db", () => {
   expect(() => startBot({ ...cfg, dbPath, llmProvider: "nope" })).toThrow(/LLM_PROVIDER/);
   // The throw alone passes under either ordering — this is the line that pins it.
   expect(existsSync(dbPath)).toBe(false);
+});
+
+// ---------- documents (a photo sent uncompressed) ----------
+
+test("an image document is analyzed exactly like a photo", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
+  await onboardToActive(deps, 500);
+  const { msgs, send } = collector();
+  await processDocument(
+    deps, { id: 500 },
+    { mime_type: "image/jpeg", file_size: 1024 },
+    async () => new Uint8Array([1]),
+    send,
+  );
+  expect(msgs[0]).toContain("600");
+  expect(countMealsToday(db, 500, berlinDate(new Date(), cfg.tz))).toBe(1);
+});
+
+test("a non-image document is refused, and never reaches the model", async () => {
+  const db = tmpDb();
+  let called = false;
+  const deps: BotDeps = {
+    db, config: cfg,
+    provider: { chat: async () => { called = true; return foodJson(); } },
+  };
+  await onboardToActive(deps, 501);
+  const { msgs, send } = collector();
+  await processDocument(
+    deps, { id: 501 },
+    { mime_type: "application/pdf", file_size: 1024 },
+    async () => new Uint8Array([1]),
+    send,
+  );
+  expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.notAnImage"));
+  expect(called).toBe(false); // a billed vision call for a PDF would be pure waste
+  expect(countMealsToday(db, 501, berlinDate(new Date(), cfg.tz))).toBe(0);
+});
+
+test("a document too large for the Bot API is refused before download", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 502);
+  const { msgs, send } = collector();
+  let downloaded = false;
+  await processDocument(
+    deps, { id: 502 },
+    { mime_type: "image/png", file_size: 25 * 1024 * 1024 },
+    async () => { downloaded = true; return new Uint8Array([1]); },
+    send,
+  );
+  expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.fileTooBig"));
+  expect(downloaded).toBe(false);
+});
+
+test("a document with no declared mime type is refused rather than guessed", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 503);
+  const { msgs, send } = collector();
+  await processDocument(deps, { id: 503 }, {}, async () => new Uint8Array([1]), send);
+  expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.notAnImage"));
+});
+
+test("an image document still respects the daily cap", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 1 } };
+  await onboardToActive(deps, 504);
+  const doc = { mime_type: "image/jpeg", file_size: 10 };
+  await processDocument(deps, { id: 504 }, doc, async () => new Uint8Array([1]), collector().send);
+  const c2 = collector();
+  await processDocument(deps, { id: 504 }, doc, async () => new Uint8Array([1]), c2.send);
+  expect(c2.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.dailyCap"));
 });
