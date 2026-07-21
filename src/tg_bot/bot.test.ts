@@ -15,7 +15,7 @@ import type { LLMProvider } from "../llm/provider.ts";
 
 const cfg: Config = {
   telegramBotToken: "x", openrouterApiKey: "x", llmProvider: "openrouter", llmModel: "test",
-  llmTimeoutMs: 1000, dbPath: ":memory:", photoDir: "./photos", tz: "Europe/Berlin",
+  llmTimeoutMs: 1000, dbPath: ":memory:", tz: "Europe/Berlin",
   perUserDailyPhotoCap: 2, adminUserId: 42, allowedUserIds: null, globalDailyAnalysisCap: null,
 };
 

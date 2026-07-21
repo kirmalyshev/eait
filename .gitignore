@@ -3,7 +3,6 @@ node_modules/
 *.log
 logs/
 data/
-photos/
 *.sqlite
 *.sqlite-journal
 *.db

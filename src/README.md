@@ -12,6 +12,7 @@ Tests are co-located (`*.test.ts`, run with `bun test`).
 - `targets.ts` — `targetsFor(profile)` and `parseRestrictions(text)`.
 - `llm/provider.ts` — `LLMProvider` interface (thin transport).
 - `llm/openrouter.ts` — OpenRouter impl (timeout + backoff).
+- `llm/factory.ts` — `createProvider(config)`: `LLM_PROVIDER` → a provider; unknown value throws.
 - `analyzer.ts` — builds the prompt, calls the provider, zod-validates the result.
 - `onboarding.ts` — pure state machine `step(user, input, t)`.
 - `settings.ts` — pure state machine for `/settings` (`settingsRoot`, `settingsStep`).

@@ -9,7 +9,7 @@ import { run, sequentialize } from "@grammyjs/runner";
 import type { Database } from "bun:sqlite";
 import type { Config } from "../config.ts";
 import type { LLMProvider } from "../llm/provider.ts";
-import { OpenRouterProvider } from "../llm/openrouter.ts";
+import { createProvider } from "../llm/factory.ts";
 import {
   openDb, berlinDate, upsertUser, getUser, setConsent, setProfile, setUserState,
   insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals, countMealsToday,
@@ -551,11 +551,7 @@ export async function registerCommands(bot: Bot, config: Config): Promise<void> 
 
 export function startBot(config: Config): { db: Database; stop: () => Promise<void> } {
   const db = openDb(config.dbPath);
-  const provider = new OpenRouterProvider({
-    apiKey: config.openrouterApiKey,
-    model: config.llmModel,
-    timeoutMs: config.llmTimeoutMs,
-  });
+  const provider = createProvider(config); // throws on an unknown LLM_PROVIDER
   const bot = createBot({ db, provider, config });
   if (config.allowedUserIds === null) {
     console.warn(

@@ -8,7 +8,7 @@ for project-wide invariants.
 
 - **Meal queries** are always `WHERE id = ? AND user_id = ?`; meal `id` = `crypto.randomUUID()`. Never a timestamp, never cross-user.
 - **The analyzer owns the prompt and the zod parse.** `llm/` is transport only — no prompt strings, no meal-schema knowledge in the provider.
-- **Images are ephemeral.** The photo handler downloads to a temp file under `PHOTO_DIR`, reads bytes, and deletes the file in a `finally` — always, even on analysis error. No photo path is stored.
+- **Images are ephemeral.** Bytes reach `analyzeMeal` in memory and are dropped; no image is ever written to disk and no photo path is stored.
 - **Dates** use `Europe/Berlin` (`berlinDate` in `db.ts`), not UTC.
 - **No user-facing string literals** outside `i18n/locales/*.json`. `reply.ts`, `onboarding.ts`, and `settings.ts` render only via a translator passed in from the caller.
 - **`translatorFor(lang)`, never `i18n.changeLanguage()`.** Users are served concurrently, so a global language switch can render one user's locale into another's in-flight reply.
@@ -19,7 +19,7 @@ for project-wide invariants.
 ## Where to add things
 
 - New domain rule → its own file (like `targets.ts`), re-exported types from `types.ts` (defined once, consumed unchanged).
-- New LLM backend → a new file under `llm/` implementing `LLMProvider`; wire it by `LLM_PROVIDER` in `config.ts`.
+- New LLM backend → a new file under `llm/` implementing `LLMProvider`, plus one entry in `llm/factory.ts`; select it with `LLM_PROVIDER`.
 - New command, callback, or handler → `src/tg_bot/` (see `src/tg_bot/AGENTS.md`).
 - New user-facing copy → a key in **every** `i18n/locales/*.json`; the parity test fails until they all have it.
 - New language → see "Adding a language" in `src/README.md`. One JSON file + one `registry.ts` line.

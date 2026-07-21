@@ -58,7 +58,8 @@ is safe.
   vision-capable model works). The analyzer owns the prompt and the zod-validated parse — the
   provider is thin transport, so swapping it is one file.
 - **Storage:** one SQLite file. Every meal query is scoped `WHERE id = ? AND user_id = ?`.
-- **Layout:** all logic under `src/`, tests co-located. See [AGENTS.md](AGENTS.md).
+- **Layout:** domain logic under `src/`, the Telegram adapter under `src/tg_bot/`, tests
+  co-located. See [AGENTS.md](AGENTS.md).
 
 `bun test` · `bun run typecheck` · `bun run security`
 

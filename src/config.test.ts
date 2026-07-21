@@ -33,7 +33,6 @@ describe("loadConfig", () => {
     expect(cfg.llmModel).toBe("x-ai/grok-4.5");
     expect(cfg.llmTimeoutMs).toBe(60000);
     expect(cfg.dbPath).toBe("./data/eait.sqlite");
-    expect(cfg.photoDir).toBe("./photos");
     expect(cfg.tz).toBe("Europe/Berlin");
     expect(cfg.perUserDailyPhotoCap).toBe(50);
     expect(cfg.adminUserId).toBeNull();

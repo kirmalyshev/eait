@@ -8,7 +8,6 @@ export interface Config {
   llmModel: string;
   llmTimeoutMs: number;
   dbPath: string;
-  photoDir: string;
   tz: string;
   perUserDailyPhotoCap: number;
   adminUserId: number | null;
@@ -87,7 +86,6 @@ export function loadConfig(env: Env): Config {
     llmModel: env.LLM_MODEL?.trim() || "x-ai/grok-4.5",
     llmTimeoutMs: intOr(env.LLM_TIMEOUT_MS, 60000),
     dbPath: env.DB_PATH?.trim() || "./data/eait.sqlite",
-    photoDir: env.PHOTO_DIR?.trim() || "./photos",
     tz: env.TZ?.trim() || "Europe/Berlin",
     perUserDailyPhotoCap: intOr(env.PER_USER_DAILY_PHOTO_CAP, 50),
     adminUserId,
