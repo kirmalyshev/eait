@@ -7,12 +7,14 @@
   "scripts": {
     "start": "bun run src/index.ts",
     "test": "bun test",
+    "typecheck": "tsc --noEmit",
     "security": "bun run scripts/security-scan.ts",
     "smoke": "bun run scripts/smoke-openrouter.ts"
   },
   "dependencies": {
     "@grammyjs/runner": "^2.0.3",
     "grammy": "^1.45.1",
+    "i18next": "^26.3.6",
     "zod": "^4.4.3"
   },
   "devDependencies": {
