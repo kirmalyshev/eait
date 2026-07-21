@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import { loadConfig } from "./config.ts";
 
 const REQUIRED = {
@@ -52,15 +53,40 @@ describe("loadConfig", () => {
   test("overrides defaults from env", () => {
     const cfg = loadConfig({
       ...REQUIRED,
+      LLM_PROVIDER: "some-other-vendor",
       LLM_MODEL: "anthropic/claude-x",
       LLM_TIMEOUT_MS: "1000",
+      DB_PATH: "/tmp/other.sqlite",
       PER_USER_DAILY_PHOTO_CAP: "10",
       TZ: "UTC",
     });
+    // LLM_PROVIDER must actually reach the config — hardcoding it in loadConfig would make the
+    // whole provider-dispatch seam a no-op while every other test stayed green.
+    expect(cfg.llmProvider).toBe("some-other-vendor");
     expect(cfg.llmModel).toBe("anthropic/claude-x");
     expect(cfg.llmTimeoutMs).toBe(1000);
+    expect(cfg.dbPath).toBe("/tmp/other.sqlite");
     expect(cfg.perUserDailyPhotoCap).toBe(10);
     expect(cfg.tz).toBe("UTC");
+  });
+
+  // PHOTO_DIR sat in .env.example and Config for months after nothing read it. This pins the
+  // two ends together: a documented var nobody reads, or a read var nobody documents, fails here.
+  test(".env.example and loadConfig describe the same variables", () => {
+    const documented = new Set(
+      readFileSync(new URL("../.env.example", import.meta.url), "utf8")
+        .split("\n")
+        .map((l) => l.match(/^([A-Z][A-Z0-9_]*)=/)?.[1])
+        .filter((k): k is string => Boolean(k)),
+    );
+    const read = new Set(
+      readFileSync(new URL("./config.ts", import.meta.url), "utf8")
+        .matchAll(/env\.([A-Z][A-Z0-9_]*)|required\("([A-Z][A-Z0-9_]*)"\)/g)
+        .map((m) => m[1] ?? m[2])
+        .filter((k): k is string => Boolean(k)),
+    );
+    expect([...read].filter((k) => !documented.has(k))).toEqual([]);
+    expect([...documented].filter((k) => !read.has(k))).toEqual([]);
   });
 });
 

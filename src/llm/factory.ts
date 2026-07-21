@@ -17,21 +17,32 @@ export interface ProviderConfig {
   llmTimeoutMs: number;
 }
 
-// Object.create(null), not {}: a plain literal inherits Object.prototype, so LLM_PROVIDER=constructor
-// would resolve to the Object constructor — truthy, callable, and Object(config) hands back the config
-// itself. The bot would boot clean and only die on the first meal photo. A null-prototype table (plus
-// the hasOwn guard below) makes every non-registered value take the error path.
-const PROVIDERS: Record<string, (c: ProviderConfig) => LLMProvider> = Object.assign(
-  Object.create(null),
-  {
-    openrouter: (c: ProviderConfig) =>
-      new OpenRouterProvider({
-        apiKey: c.openrouterApiKey,
-        model: c.llmModel,
-        timeoutMs: c.llmTimeoutMs,
-      }),
-  },
-);
+// `__proto__: null` in an object literal, not Object.assign(Object.create(null), …): both give a
+// null-prototype table, but Object.create(null) is typed `any`, which collapses the whole
+// expression to `any` and silently turns the Record<> annotation below into decoration — a
+// wrong-shaped provider entry would then compile clean. A literal stays structurally checked.
+//
+// Why null-prototype at all: with a plain {} literal, LLM_PROVIDER=constructor resolves to the
+// Object constructor — truthy and callable — and Object(config) hands back the config itself.
+// Nothing crashes. The bot boots, and every photo answers "analysis failed" forever while
+// onboarding silently drops restrictions, because both call sites catch the resulting TypeError.
+// Silent permanent degradation, not a crash. The hasOwn guard below independently closes the same
+// hole; keep both, and don't delete one on the grounds that the other suffices.
+type ProviderTable = Record<string, (c: ProviderConfig) => LLMProvider>;
+
+// Annotated separately so the literal is structurally checked: a wrong-shaped entry is a compile
+// error here. Inlining it into the Object.assign below would not be — Object.create(null) is typed
+// `any`, which collapses the whole expression to `any` and turns the annotation into decoration.
+const REGISTERED: ProviderTable = {
+  openrouter: (c) =>
+    new OpenRouterProvider({
+      apiKey: c.openrouterApiKey,
+      model: c.llmModel,
+      timeoutMs: c.llmTimeoutMs,
+    }),
+};
+
+const PROVIDERS: ProviderTable = Object.assign(Object.create(null), REGISTERED);
 
 const SUPPORTED_PROVIDERS = Object.keys(PROVIDERS);
 

@@ -27,15 +27,28 @@ describe("createProvider", () => {
     expect(() => createProvider({ ...base, llmProvider: "nope" })).toThrow(/openrouter/);
   });
 
-  // A plain object literal inherits Object.prototype, so a lookup by these keys finds a
-  // truthy member and skips the guard. "constructor" is the dangerous one: Object(config)
-  // returns the config itself, so the bot boots "fine" and only dies on the first meal photo.
-  test.each(["constructor", "__proto__", "toString", "valueOf", "hasOwnProperty"])(
-    "rejects the inherited Object.prototype key %p",
+  // Only "constructor" was ever a live hole: it resolved to the Object constructor, and
+  // Object(config) handed the config back as the "provider", so nothing threw at all.
+  // "__proto__" threw, but as "build is not a function" with no mention of LLM_PROVIDER.
+  test.each(["constructor", "__proto__"])(
+    "rejects the prototype key %p that used to slip past the guard",
     (key) => {
       expect(() => createProvider({ ...base, llmProvider: key })).toThrow(/LLM_PROVIDER/);
     },
   );
+
+  // These were never reachable — .toLowerCase() mangles them to "tostring" etc., which match
+  // nothing. Kept as a cheap regression net in case the lookup ever stops normalizing case.
+  test.each(["toString", "valueOf", "hasOwnProperty"])("rejects %p", (key) => {
+    expect(() => createProvider({ ...base, llmProvider: key })).toThrow(/LLM_PROVIDER/);
+  });
+
+  test("lists the registered providers, so the error can't degrade to an empty set", () => {
+    // Object.keys over a null-prototype table: swapping it for a Map would silently yield [].
+    expect(() => createProvider({ ...base, llmProvider: "nope" })).toThrow(
+      /supported: openrouter$/,
+    );
+  });
 
   test("rejects an empty provider rather than defaulting", () => {
     expect(() => createProvider({ ...base, llmProvider: "   " })).toThrow(/LLM_PROVIDER/);
@@ -65,5 +78,25 @@ describe("createProvider", () => {
     }
     expect((seen!.headers as Record<string, string>).Authorization).toBe("Bearer secret-key");
     expect(JSON.parse(seen!.body as string).model).toBe("vendor/model-x");
+  });
+
+  // Third constructor argument. Without this, deleting `timeoutMs: c.llmTimeoutMs` from the
+  // factory leaves every request on OpenRouterProvider's 60s default and no test notices.
+  test("passes llmTimeoutMs through — a dropped timeout is silent otherwise", async () => {
+    const p = createProvider({ ...base, llmProvider: "openrouter", llmTimeoutMs: 25 });
+    const original = globalThis.fetch;
+    // Never settles: only the provider's own timeout can end this call.
+    globalThis.fetch = ((_url: string, init: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+      })) as unknown as typeof fetch;
+    const started = performance.now();
+    try {
+      await expect(p.chat({ system: "s", userText: "u" })).rejects.toThrow();
+    } finally {
+      globalThis.fetch = original;
+    }
+    // Comfortably under the 60s default, so this fails if the timeout is not wired through.
+    expect(performance.now() - started).toBeLessThan(5000);
   });
 });

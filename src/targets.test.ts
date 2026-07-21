@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseRestrictions, targetsFor } from "./targets.ts";
+import { parseRestrictions, targetsFor, isRestrictionTag, RESTRICTION_TAGS } from "./targets.ts";
 import type { Goal, Profile } from "./types.ts";
 
 function profile(goal: Goal | null, restrictions: string[] = []): Profile {
@@ -73,5 +73,20 @@ describe("parseRestrictions — ru + en keyword map, unknowns dropped", () => {
   });
   test("stable tag order regardless of input order", () => {
     expect(parseRestrictions("sugar, kidney, ldl")).toEqual(["kidneys", "ldl", "lowsugar"]);
+  });
+});
+
+describe("isRestrictionTag", () => {
+  test("accepts every tag in the exported vocabulary", () => {
+    expect(RESTRICTION_TAGS.length).toBeGreaterThan(0);
+    for (const tag of RESTRICTION_TAGS) expect(isRestrictionTag(tag)).toBe(true);
+  });
+
+  test("rejects anything outside it", () => {
+    // The guard is what stops a stale stored tag, or a hallucinated one from the LLM
+    // classifier, reaching the user as a raw identifier.
+    for (const v of ["", "kidney ", "KIDNEY", "made-up", "__proto__", "toString"]) {
+      expect(isRestrictionTag(v)).toBe(false);
+    }
   });
 });

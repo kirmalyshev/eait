@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // MANUAL smoke test — makes a REAL, BILLED OpenRouter call to verify that the configured
-// model (default x-ai/grok-4.5) actually does vision + structured output. NOT part of
+// model (LLM_MODEL, default in src/config.ts) actually does vision + structured output. NOT part of
 // `bun test`; run this once before relying on the model (Task 9 / go-live checkpoint).
 //
 //   OPENROUTER_API_KEY=... bun run scripts/smoke-openrouter.ts <path-to-food-image.jpg>

@@ -20,14 +20,16 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
 ## Invariants that bite here
 
 - **Routing precedence:** command > reply-to-meal (correction) > onboarding text > nudge.
-  `message:text` tries `processCorrection` first and only falls through when it returns `false`.
+  A text update tries `processCorrection` **only when it is a reply** (`reply_to_message`), and
+  falls through to `processOnboarding` when that returns `false`. Plain text goes straight to
+  onboarding — including from active users, who get the nudge out of `step()`.
 - **Idempotency:** the `update_id` dedupe middleware must stay **first** in the chain (crash
   redelivery safety), with `sequentialize(by user)` after it — one user's slow vision call must
   never block another's.
 - **Images are in-memory only.** `processPhoto` takes a `getBytes()` thunk, hands the bytes to the
   analyzer, and drops them. No disk write, no photo path, ever.
 - **`createBot(deps)` must be constructable with an injected db + fake provider and no live token**
-  (tests pass `botInfo` + an API transformer).
+  — the test sets `botInfo` and an API transformer so grammy never calls `getMe`.
 - **`translatorFor(lang)`, never `i18n.changeLanguage()`.** The runner serves users concurrently,
   so a global language switch can render one user's locale into another's in-flight reply. Read the
   translator *before* a destructive action (`/delete` reads `t` before the row is deleted).
@@ -35,8 +37,9 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
   `src/i18n/locales/*.json`. Layout separators (`"\n"`, `", "`) stay in code.
 - **The LLM restriction fallback lives here**, not in `onboarding.ts` — `step()` is a pure no-I/O
   state machine and must stay one.
-- **Callbacks always `answerCallbackQuery()`** and ignore unknown data rather than storing it
-  (`lang_<code>` is validated against the registry).
+- **Callbacks always `answerCallbackQuery()`.** Unknown data is never *stored* — `lang_<code>` is
+  validated against the registry — but it isn't discarded either: it falls through to
+  `processOnboarding`, whose `step()` default re-prompts the current stage.
 - **`bot.catch` stays.** A failed reply must never crash the process; `startBot`'s supervisor
   retries runner errors (e.g. a 409 during poller hand-off) instead of exiting.
 - **Retry transient, exit on fatal.** `isFatalTelegramError` (401/404 — a dead or wrong token)

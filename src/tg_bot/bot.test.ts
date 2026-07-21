@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openDb, getUser, mealByReply, countMealsToday, mealCountToday, berlinDate, type UserRow } from "../db.ts";
@@ -598,4 +598,11 @@ test("describeError keeps the error_code that 'Not Found' alone hides", () => {
   expect(describeError({ error_code: 404, description: "Not Found" })).toBe("404 Not Found");
   expect(describeError(new Error("boom"))).toContain("boom");
   expect(describeError("plain")).toBe("plain");
+});
+
+test("startBot validates the provider before it opens the db", () => {
+  const dbPath = join(mkdtempSync(join(tmpdir(), "eait-")), "never.sqlite");
+  expect(() => startBot({ ...cfg, dbPath, llmProvider: "nope" })).toThrow(/LLM_PROVIDER/);
+  // The throw alone passes under either ordering — this is the line that pins it.
+  expect(existsSync(dbPath)).toBe(false);
 });

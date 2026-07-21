@@ -601,7 +601,13 @@ export function startBot(config: Config): { db: Database; stop: () => Promise<vo
   // LLM_PROVIDER, and doing it first means that failure can't strand an open sqlite handle.
   const provider = createProvider(config);
   const db = openDb(config.dbPath);
-  const bot = createBot({ db, provider, config });
+  let bot: Bot;
+  try {
+    bot = createBot({ db, provider, config });
+  } catch (e) {
+    db.close(); // `new Bot(token)` rejects a malformed token — don't strand the handle we just opened
+    throw e;
+  }
   if (config.allowedUserIds === null) {
     console.warn(
       "[eait] WARNING: ALLOWED_USER_IDS is not set — anyone who finds this bot can use it " +

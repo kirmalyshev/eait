@@ -26,6 +26,11 @@ transport-agnostic; a second front end (CLI, web) would sit next to this folder,
 | `/stats` (admin only) | `statsCard` |
 | photo | `processPhoto` |
 | text replying to a meal | `processCorrection`, falling through to onboarding |
+| any other text | `processOnboarding` (active users get the nudge) |
+
+**Not handled — these get no reply at all:** `message:document` (a photo sent uncompressed, or
+"send as file" — the likeliest real mistake), voice, video, sticker, and edited messages. They
+pass the dedupe middleware and fall off the end. Worth a handler if anyone actually hits it.
 
 ## Verify
 
