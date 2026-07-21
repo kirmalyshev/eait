@@ -1,7 +1,12 @@
 // Pure 2-step onboarding state machine (spec §7). No I/O — the bot persists `patch` + `nextState`
 // and renders `reply`/`buttons`. Auto-approve: restrictions submitted/skipped -> active.
 // Guards make every transition idempotent (a stale button tap resumes, it never resets progress).
+//
+// Copy comes from the caller's translator, so this file stays language-agnostic AND stays pure:
+// `t` is a value passed in, not I/O. The LLM restriction fallback deliberately lives in bot.ts
+// for the same reason — see processOnboarding.
 
+import type { TFunction } from "i18next";
 import { parseRestrictions } from "./targets.ts";
 import type { Goal, UserState } from "./types.ts";
 
@@ -28,41 +33,22 @@ export interface OnboardingResult {
   buttons?: InlineButton[][];
 }
 
-// ---------- copy (ru) ----------
-
-const CONSENT_COPY =
-  "Привет! Я анализирую фото твоей еды и считаю КБЖУ под твою цель.\n\n" +
-  "Что важно знать:\n" +
-  "• Я обрабатываю фото еды и твой профиль (цель, ограничения).\n" +
-  "• Оценки — приблизительные, это не медицинский совет.\n" +
-  "• Фото не хранятся: разбираю и сразу удаляю.\n" +
-  "• Команда /delete стирает все твои данные.\n\n" +
-  "Согласен обрабатывать эти данные?";
-
-const DECLINE_COPY =
-  "Без согласия не могу обрабатывать данные. Напиши /start, когда будешь готов.";
-
-const ASK_GOAL = "Какая цель?";
-const ASK_RESTRICTIONS =
-  "Есть ограничения по здоровью или питанию? Напиши свободно (например: «почки, без сахара») или нажми «Пропустить».";
-const DONE = "Готово — шли фото еды 📸";
-const ALREADY_ACTIVE = "Ты уже настроен — просто шли фото еды 📸 (/me — профиль и итоги дня).";
-const NUDGE_BUTTON = "Нажми кнопку выше или напиши /start.";
-
 // ---------- buttons ----------
 
-const CONSENT_BUTTONS: InlineButton[][] = [
-  [{ text: "Согласен", data: "consent_agree" }],
-  [{ text: "Отказ", data: "consent_decline" }],
+const consentButtons = (t: TFunction): InlineButton[][] => [
+  [{ text: t("onboarding.button.agree"), data: "consent_agree" }],
+  [{ text: t("onboarding.button.decline"), data: "consent_decline" }],
 ];
-const GOAL_BUTTONS: InlineButton[][] = [
+const goalButtons = (t: TFunction): InlineButton[][] => [
   [
-    { text: "Похудеть", data: "goal_lose" },
-    { text: "Держать", data: "goal_maintain" },
-    { text: "Набрать", data: "goal_gain" },
+    { text: t("onboarding.button.goalLose"), data: "goal_lose" },
+    { text: t("onboarding.button.goalMaintain"), data: "goal_maintain" },
+    { text: t("onboarding.button.goalGain"), data: "goal_gain" },
   ],
 ];
-const RESTRICTION_BUTTONS: InlineButton[][] = [[{ text: "Пропустить", data: "restrictions_skip" }]];
+const restrictionButtons = (t: TFunction): InlineButton[][] => [
+  [{ text: t("onboarding.button.skip"), data: "restrictions_skip" }],
+];
 
 const GOAL_FROM_DATA: Record<string, Goal> = {
   goal_lose: "lose",
@@ -72,60 +58,73 @@ const GOAL_FROM_DATA: Record<string, Goal> = {
 
 // ---------- machine ----------
 
-function askGoal(): OnboardingResult {
-  return { nextState: "profile", reply: ASK_GOAL, buttons: GOAL_BUTTONS };
+function askGoal(t: TFunction): OnboardingResult {
+  return { nextState: "profile", reply: t("onboarding.askGoal"), buttons: goalButtons(t) };
 }
-function askRestrictions(): OnboardingResult {
-  return { nextState: "profile", reply: ASK_RESTRICTIONS, buttons: RESTRICTION_BUTTONS };
+function askRestrictions(t: TFunction): OnboardingResult {
+  return {
+    nextState: "profile",
+    reply: t("onboarding.askRestrictions"),
+    buttons: restrictionButtons(t),
+  };
 }
-function consent(): OnboardingResult {
-  return { nextState: "consent", reply: CONSENT_COPY, buttons: CONSENT_BUTTONS };
+function consent(t: TFunction): OnboardingResult {
+  return { nextState: "consent", reply: t("onboarding.consent"), buttons: consentButtons(t) };
 }
-function activeNudge(): OnboardingResult {
-  return { nextState: "active", reply: ALREADY_ACTIVE };
+function activeNudge(t: TFunction): OnboardingResult {
+  return { nextState: "active", reply: t("onboarding.alreadyActive") };
 }
 
 /** Resume: pick the right prompt for the user's current progress. */
-function resume(u: OnboardingUser | undefined): OnboardingResult {
-  if (!u || u.state === "consent") return consent();
-  if (u.state === "profile") return u.goal == null ? askGoal() : askRestrictions();
-  return activeNudge();
+function resume(u: OnboardingUser | undefined, t: TFunction): OnboardingResult {
+  if (!u || u.state === "consent") return consent(t);
+  if (u.state === "profile") return u.goal == null ? askGoal(t) : askRestrictions(t);
+  return activeNudge(t);
 }
 
 export function step(
   u: OnboardingUser | undefined,
   input: OnboardingInput,
+  t: TFunction,
   now: Date = new Date(),
 ): OnboardingResult {
   const state = u?.state ?? "consent";
 
-  if (input.type === "command" && input.command === "start") {
-    return resume(u); // /start always resumes from wherever the user is
+  // Narrow on `input.type` alone: a compound guard (`type === "command" && command === "start"`)
+  // leaves `{type:"command"}` in the union on the false branch, so `input.text` below would not
+  // typecheck. `command` has only one member today, so this is equivalent at runtime.
+  if (input.type === "command") {
+    return resume(u, t); // /start always resumes from wherever the user is
   }
 
   if (input.type === "callback") {
     switch (input.data) {
       case "consent_agree":
-        if (state !== "consent") return resume(u); // idempotent: already past consent
+        if (state !== "consent") return resume(u, t); // idempotent: already past consent
         return {
           nextState: "profile",
-          reply: ASK_GOAL,
+          reply: t("onboarding.askGoal"),
           patch: { consent_at: now.toISOString() },
-          buttons: GOAL_BUTTONS,
+          buttons: goalButtons(t),
         };
       case "consent_decline":
-        if (state !== "consent") return resume(u);
-        return { nextState: "consent", reply: DECLINE_COPY };
+        if (state !== "consent") return resume(u, t);
+        return { nextState: "consent", reply: t("onboarding.decline") };
       case "restrictions_skip":
-        if (state !== "profile" || u?.goal == null) return resume(u);
-        return { nextState: "active", reply: DONE, patch: { restrictions: [] } };
+        if (state !== "profile" || u?.goal == null) return resume(u, t);
+        return { nextState: "active", reply: t("onboarding.done"), patch: { restrictions: [] } };
       default: {
         const goal = GOAL_FROM_DATA[input.data];
         if (goal) {
-          if (state !== "profile" || u?.goal != null) return resume(u); // don't overwrite
-          return { nextState: "profile", reply: ASK_RESTRICTIONS, patch: { goal }, buttons: RESTRICTION_BUTTONS };
+          if (state !== "profile" || u?.goal != null) return resume(u, t); // don't overwrite
+          return {
+            nextState: "profile",
+            reply: t("onboarding.askRestrictions"),
+            patch: { goal },
+            buttons: restrictionButtons(t),
+          };
         }
-        return resume(u); // unknown callback -> re-prompt current step
+        return resume(u, t); // unknown callback -> re-prompt current step
       }
     }
   }
@@ -135,11 +134,11 @@ export function step(
     // the restrictions free-text step
     return {
       nextState: "active",
-      reply: DONE,
+      reply: t("onboarding.done"),
       patch: { restrictions: parseRestrictions(input.text) },
     };
   }
-  if (state === "profile") return askGoal(); // still need a goal (via button)
-  if (state === "active") return activeNudge();
-  return { nextState: "consent", reply: NUDGE_BUTTON, buttons: CONSENT_BUTTONS };
+  if (state === "profile") return askGoal(t); // still need a goal (via button)
+  if (state === "active") return activeNudge(t);
+  return { nextState: "consent", reply: t("onboarding.nudge"), buttons: consentButtons(t) };
 }

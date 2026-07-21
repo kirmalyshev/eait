@@ -2,6 +2,23 @@
   "errors": {
     "notOnboarded": "Send /start first."
   },
+  "onboarding": {
+    "consent": "Hi! I analyse photos of your food and count calories and macros against your goal.\n\nWhat you should know:\n• I process food photos and your profile (goal, restrictions).\n• Estimates are approximate — this is not medical advice.\n• Photos are not stored: I analyse them and delete them immediately.\n• /delete erases all your data.\n\nDo you agree to this data being processed?",
+    "decline": "Without consent I can't process your data. Send /start when you're ready.",
+    "askGoal": "What's your goal?",
+    "askRestrictions": "Any health or dietary restrictions? Write freely (for example: \"kidneys, no sugar\") or tap \"Skip\".",
+    "done": "All set — send me photos of your food 📸",
+    "alreadyActive": "You're already set up — just send photos of your food 📸 (/me — profile and today's totals).",
+    "nudge": "Tap a button above, or send /start.",
+    "button": {
+      "agree": "I agree",
+      "decline": "Decline",
+      "goalLose": "Lose",
+      "goalMaintain": "Maintain",
+      "goalGain": "Gain",
+      "skip": "Skip"
+    }
+  },
   "meal": {
     "itemUnit": "{{name}} {{grams}}g",
     "itemsLine": "🍽 {{items}}",

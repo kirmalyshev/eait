@@ -19,7 +19,7 @@ import { analyzeMeal, analyzeCorrection } from "./analyzer.ts";
 import { targetsFor } from "./targets.ts";
 import { formatReply } from "./reply.ts";
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "./onboarding.ts";
-import { translatorFor } from "./i18n/index.ts";
+import { DEFAULT_LANG, translatorFor } from "./i18n/index.ts";
 import type { Lang, MealAnalysis, MealRecord, Profile } from "./types.ts";
 
 export interface BotDeps {
@@ -75,7 +75,8 @@ export async function processOnboarding(
 ): Promise<void> {
   upsertUser(deps.db, { telegram_id: from.id, username: from.username ?? null });
   const u = getUser(deps.db, from.id);
-  const r = step(u ? { state: u.state, goal: u.goal } : undefined, input);
+  const t = translatorFor(u ? profileOf(u).lang : DEFAULT_LANG);
+  const r = step(u ? { state: u.state, goal: u.goal } : undefined, input, t);
   applyOnboarding(deps.db, from.id, r);
   await send(r.reply, r.buttons);
 }
