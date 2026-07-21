@@ -12,6 +12,11 @@ export interface Config {
   tz: string;
   perUserDailyPhotoCap: number;
   adminUserId: number | null;
+  /**
+   * Telegram user ids permitted to use the bot. `null` means NO allowlist — anyone who finds
+   * the bot can onboard and spend your LLM budget. An empty array means nobody is allowed.
+   */
+  allowedUserIds: number[] | null;
 }
 
 type Env = Record<string, string | undefined>;
@@ -46,9 +51,23 @@ export function loadConfig(env: Env): Config {
       ? Number(adminRaw)
       : null;
 
+  // Absent/blank -> null (open). Present -> only the ids that actually parse. A typo'd entry is
+  // dropped rather than admitted, and an all-junk value yields an EMPTY allowlist, never an open
+  // bot: failing open here would turn a config typo into an unauthenticated, billable bot.
+  const allowedRaw = env.ALLOWED_USER_IDS?.trim();
+  const allowedUserIds =
+    allowedRaw
+      ? allowedRaw
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => s !== "" && Number.isFinite(Number(s)))
+          .map(Number)
+      : null;
+
   return {
     telegramBotToken,
     openrouterApiKey,
+    allowedUserIds,
     llmProvider: env.LLM_PROVIDER?.trim() || "openrouter",
     llmModel: env.LLM_MODEL?.trim() || "x-ai/grok-4.5",
     llmTimeoutMs: intOr(env.LLM_TIMEOUT_MS, 60000),

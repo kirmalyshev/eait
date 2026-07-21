@@ -6,7 +6,8 @@ import { openDb, getUser, mealByReply, countMealsToday, berlinDate, type UserRow
 import {
   processOnboarding, processPhoto, processCorrection, meCard, statsCard, profileOf,
   processLangPrompt, processLangChoice, buildCommands, processSettingsOpen,
-  processSettingsCallback, helpText, commandRegistrations, type BotDeps, type Send, type Edit,
+  processSettingsCallback, helpText, commandRegistrations, isAllowed,
+  type BotDeps, type Send, type Edit,
 } from "./bot.ts";
 import { DEFAULT_LANG, LANGS, translatorFor } from "./i18n/index.ts";
 import type { Config } from "./config.ts";
@@ -15,7 +16,7 @@ import type { LLMProvider } from "./llm/provider.ts";
 const cfg: Config = {
   telegramBotToken: "x", openrouterApiKey: "x", llmProvider: "openrouter", llmModel: "test",
   llmTimeoutMs: 1000, dbPath: ":memory:", photoDir: "./photos", tz: "Europe/Berlin",
-  perUserDailyPhotoCap: 2, adminUserId: 42,
+  perUserDailyPhotoCap: 2, adminUserId: 42, allowedUserIds: null,
 };
 
 function tmpDb() {
@@ -468,4 +469,31 @@ test("no admin registrations when no admin is configured", () => {
   const plan = commandRegistrations({ ...cfg, adminUserId: null });
   expect(plan.filter((r) => r.options.scope)).toEqual([]);
   expect(plan).toHaveLength(LANGS.length);
+});
+
+// ---------- access control ----------
+
+test("with no allowlist configured, everyone is admitted", () => {
+  const open = { ...cfg, allowedUserIds: null };
+  expect(isAllowed(open, 1)).toBe(true);
+  expect(isAllowed(open, 999999)).toBe(true);
+});
+
+test("with an allowlist, only listed ids are admitted", () => {
+  const closed = { ...cfg, allowedUserIds: [10, 20] };
+  expect(isAllowed(closed, 10)).toBe(true);
+  expect(isAllowed(closed, 20)).toBe(true);
+  expect(isAllowed(closed, 11)).toBe(false);
+});
+
+test("an empty allowlist admits nobody, including the admin", () => {
+  // an all-junk ALLOWED_USER_IDS lands here; it must fail closed
+  const nobody = { ...cfg, allowedUserIds: [], adminUserId: 42 };
+  expect(isAllowed(nobody, 42)).toBe(false);
+  expect(isAllowed(nobody, 1)).toBe(false);
+});
+
+test("an unidentifiable sender is never admitted when an allowlist exists", () => {
+  expect(isAllowed({ ...cfg, allowedUserIds: [10] }, undefined)).toBe(false);
+  expect(isAllowed({ ...cfg, allowedUserIds: null }, undefined)).toBe(true);
 });

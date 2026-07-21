@@ -128,6 +128,22 @@ async function applyRestrictionFallback(
 
 const translatorLangOf = (u: UserRow | undefined): Lang => (u ? profileOf(u).lang : DEFAULT_LANG);
 
+// ---------- access control ----------
+
+/**
+ * Whether a sender may use the bot at all.
+ *
+ * Every photo is a billed vision call, so an open instance is a spending hole for whoever
+ * hosts it. `allowedUserIds: null` preserves the original open behaviour; any configured list
+ * is enforced strictly — including against the admin, so a mistyped list fails closed rather
+ * than quietly admitting everyone.
+ */
+export function isAllowed(config: Config, userId: number | undefined): boolean {
+  if (config.allowedUserIds === null) return true;
+  if (userId === undefined) return false;
+  return config.allowedUserIds.includes(userId);
+}
+
 // ---------- commands, settings, help ----------
 
 /** The commands shown in Telegram's `/` menu. Pure, so the list is testable without a token. */
@@ -342,7 +358,18 @@ export function createBot(deps: BotDeps): Bot {
   const { db, config } = deps;
   const bot = new Bot(config.telegramBotToken);
 
-  // update_id dedupe (crash-redelivery safety) — must be first
+  // Access control — first, ahead of the dedupe table, so a stranger's update never writes a
+  // row or costs a vision call. Dropped silently: replying would confirm the bot exists and
+  // hand a stranger something to poke at.
+  bot.use(async (ctx, next) => {
+    if (!isAllowed(config, ctx.from?.id)) {
+      console.warn(`[eait] blocked update from user=${ctx.from?.id ?? "unknown"}`);
+      return;
+    }
+    await next();
+  });
+
+  // update_id dedupe (crash-redelivery safety)
   bot.use(async (ctx, next) => {
     const uid = ctx.update.update_id;
     if (seenUpdate(db, uid)) return;
@@ -519,6 +546,14 @@ export function startBot(config: Config): { db: Database; stop: () => Promise<vo
     timeoutMs: config.llmTimeoutMs,
   });
   const bot = createBot({ db, provider, config });
+  if (config.allowedUserIds === null) {
+    console.warn(
+      "[eait] WARNING: ALLOWED_USER_IDS is not set — anyone who finds this bot can use it " +
+        "and spend your OpenRouter budget. Set it in .env to close the bot.",
+    );
+  } else {
+    console.log(`[eait] allowlist active: ${config.allowedUserIds.length} user(s)`);
+  }
   void registerCommands(bot, config); // fire-and-forget: must not delay polling
 
   // Resilient polling: a source error (e.g. a 409 Conflict during a poller

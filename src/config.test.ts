@@ -64,3 +64,30 @@ describe("loadConfig", () => {
     expect(cfg.tz).toBe("UTC");
   });
 });
+
+describe("ALLOWED_USER_IDS", () => {
+  const base = { TELEGRAM_BOT_TOKEN: "t", OPENROUTER_API_KEY: "k" };
+
+  test("unset means no allowlist (open bot)", () => {
+    expect(loadConfig({ ...base }).allowedUserIds).toBeNull();
+    expect(loadConfig({ ...base, ALLOWED_USER_IDS: "" }).allowedUserIds).toBeNull();
+    expect(loadConfig({ ...base, ALLOWED_USER_IDS: "   " }).allowedUserIds).toBeNull();
+  });
+
+  test("parses a comma-separated list, tolerating spaces", () => {
+    expect(loadConfig({ ...base, ALLOWED_USER_IDS: "1,2,3" }).allowedUserIds).toEqual([1, 2, 3]);
+    expect(loadConfig({ ...base, ALLOWED_USER_IDS: " 10 , 20 " }).allowedUserIds).toEqual([10, 20]);
+    expect(loadConfig({ ...base, ALLOWED_USER_IDS: "7" }).allowedUserIds).toEqual([7]);
+  });
+
+  test("drops non-numeric entries rather than admitting them", () => {
+    // a typo must never silently widen access
+    expect(loadConfig({ ...base, ALLOWED_USER_IDS: "1,abc,2" }).allowedUserIds).toEqual([1, 2]);
+    expect(loadConfig({ ...base, ALLOWED_USER_IDS: "1,,2," }).allowedUserIds).toEqual([1, 2]);
+  });
+
+  test("a list of only junk is a closed allowlist, not an open bot", () => {
+    // failing open here would turn a typo into an unauthenticated bot
+    expect(loadConfig({ ...base, ALLOWED_USER_IDS: "abc" }).allowedUserIds).toEqual([]);
+  });
+});
