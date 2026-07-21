@@ -50,7 +50,7 @@ export function loadConfig(env: Env): Config {
     telegramBotToken,
     openrouterApiKey,
     llmProvider: env.LLM_PROVIDER?.trim() || "openrouter",
-    llmModel: env.LLM_MODEL?.trim() || "openai/gpt-5.2",
+    llmModel: env.LLM_MODEL?.trim() || "qwen/qwen3-vl-235b-a22b-instruct",
     llmTimeoutMs: intOr(env.LLM_TIMEOUT_MS, 60000),
     dbPath: env.DB_PATH?.trim() || "./data/eait.sqlite",
     photoDir: env.PHOTO_DIR?.trim() || "./photos",
