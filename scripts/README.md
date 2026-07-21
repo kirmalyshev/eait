@@ -3,6 +3,7 @@
 Dev/ops helpers — not part of the bot runtime. Run with `bun run scripts/<name>.ts`.
 
 - `smoke-openrouter.ts` — manual smoke test: sends one real image to the configured model and prints the raw output. Verifies OpenRouter + `openai/gpt-5.2` vision + structured output actually work. **Run this before relying on the model** (needs a real `OPENROUTER_API_KEY`; makes a real network + billed call). Also `bun run smoke`.
+- `service.sh` — run eait as a persistent macOS launchd service: `scripts/service.sh {install|start|stop|restart|status|logs|uninstall}`. Generates the plist locally (no machine paths committed); logs → `logs/`.
 - `security-scan.ts` — repo safety gate (`bun run security`). Scans tracked files for secret patterns, personal-data leaks (operator id/name), and forbidden tracked files (`.env`). Exits non-zero on any finding. Runs in CI (`.github/workflows/security.yml`) and, once enabled, as a pre-commit hook: `git config core.hooksPath .githooks`.
 
 ## Security CI
