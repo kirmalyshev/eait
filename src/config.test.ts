@@ -30,7 +30,7 @@ describe("loadConfig", () => {
     expect(cfg.telegramBotToken).toBe("test-token");
     expect(cfg.openrouterApiKey).toBe("test-key");
     expect(cfg.llmProvider).toBe("openrouter");
-    expect(cfg.llmModel).toBe("qwen/qwen3-vl-235b-a22b-instruct");
+    expect(cfg.llmModel).toBe("x-ai/grok-4.5");
     expect(cfg.llmTimeoutMs).toBe(60000);
     expect(cfg.dbPath).toBe("./data/eait.sqlite");
     expect(cfg.photoDir).toBe("./photos");
