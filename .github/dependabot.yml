@@ -1,0 +1,16 @@
+version: 2
+updates:
+  # Runtime deps via bun.lock (Dependabot GA'd bun support 2025-02; text-based bun.lock only).
+  - package-ecosystem: "bun"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(deps)"
+  # Keep the GitHub Actions in .github/workflows patched (supply-chain hygiene).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(ci)"

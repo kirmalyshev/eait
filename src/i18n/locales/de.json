@@ -1,0 +1,120 @@
+{
+  "commands": {
+    "cap": "Ausgabenlimit (Admin)",
+    "delete": "Alle meine Daten löschen",
+    "help": "Wie dieser Bot funktioniert",
+    "me": "Tagesbilanz",
+    "settings": "Ziel, Einschränkungen, Sprache",
+    "start": "Einrichtung starten oder fortsetzen",
+    "stats": "Admin-Zähler"
+  },
+  "delete": {
+    "prompt": "Alle deine Daten löschen?",
+    "done": "Alle deine Daten wurden gelöscht. /start — von vorn beginnen.",
+    "cancelled": "Abgebrochen.",
+    "button": {
+      "confirm": "Ja, löschen",
+      "cancel": "Abbrechen"
+    }
+  },
+  "errors": {
+    "adminOnly": "Befehl nur für Admins.",
+    "analyzeFailed": "Konnte ich nicht auswerten 🤔 schick das Foto nochmal.",
+    "correctionFailed": "Konnte die Korrektur nicht anwenden — formulier sie anders.",
+    "dailyCap": "Du hast das Foto-Limit für heute erreicht — komm morgen wieder.",
+    "globalCap": "Der gemeinsame Demo-Bot hat das Tageslimit an Auswertungen erreicht — er läuft auf dem API-Budget einer einzelnen Person. Versuch es morgen wieder oder betreibe deine eigene Instanz: https://github.com/kirmalyshev/eait",
+    "notFood": "Das sieht nicht nach Essen aus 🤔",
+    "notOnboarded": "Schick zuerst /start.",
+    "notAnImage": "Das ist kein Bild 🤔 schick ein Foto der Mahlzeit.",
+    "fileTooBig": "Die Datei ist zu groß — schick sie stattdessen als Foto."
+  },
+  "help": {
+    "body": "Schick mir ein Foto deiner Mahlzeit. Ich schätze die Bestandteile, Kalorien und Nährwerte, bewerte sie anhand deines Ziels und rechne sie zur Tagesbilanz.\n\nFalsch geschätzt? Antworte direkt auf meine Nachricht zu dieser Mahlzeit mit einer Korrektur — zum Beispiel „zwei Stück, ohne Öl“ — und ich rechne neu.\n\nBefehle:\n/me — Tagesbilanz\n/settings — Ziel, Einschränkungen, Sprache\n/help — diese Nachricht\n/delete — alle Daten löschen\n\nSchätzungen aus einem Foto sind ungefähr und keine medizinische Beratung."
+  },
+  "lang": {
+    "prompt": "Wähle eine Sprache:",
+    "changed": "Sprache auf Deutsch umgestellt."
+  },
+  "me": {
+    "profileLine": "Profil: Ziel — {{goal}}; Einschränkungen — {{restrictions}}",
+    "todayLine": "Heute: {{kcal}} / {{kcalTarget}} kcal · E {{protein}} / {{proteinTarget}} g",
+    "noRestrictions": "keine",
+    "goal": {
+      "lose": "abnehmen",
+      "maintain": "halten",
+      "gain": "zunehmen"
+    },
+    "restriction": {
+      "kidneys": "Nieren",
+      "ldl": "Cholesterin",
+      "lowsugar": "wenig Zucker",
+      "vegan": "vegan"
+    }
+  },
+  "meal": {
+    "itemUnit": "{{name}} {{grams}} g",
+    "itemsLine": "🍽 {{items}}",
+    "noItems": "—",
+    "macrosLine": "🔥 {{kcal}} kcal · E {{protein}} · F {{fat}} · K {{carbs}}",
+    "verdictItem": "{{label}}: {{emoji}}",
+    "verdict": {
+      "weight": "Gewicht",
+      "ldl": "Cholesterin",
+      "kidneys": "Nieren"
+    },
+    "notesLine": "📝 {{notes}}",
+    "correctionHint": "↩️ Nicht richtig? Antworte auf diese Nachricht mit einer Korrektur.",
+    "updatedPrefix": "Aktualisiert:",
+    "totalKcal": "Heute: {{now}} / {{target}} kcal",
+    "totalProtein": "Eiweiß: {{now}} / {{target}} g",
+    "totalSatfat": "Gesättigte Fettsäuren: {{now}} / {{target}} g",
+    "totalSodium": "Natrium: {{now}} / {{target}} mg"
+  },
+  "onboarding": {
+    "consent": "Hallo! Ich analysiere Fotos deines Essens und berechne Kalorien und Nährwerte passend zu deinem Ziel.\n\nWas du wissen solltest:\n• Ich verarbeite Essensfotos und dein Profil (Ziel, Einschränkungen).\n• Einschränkungen können Gesundheitsangaben enthalten (Nieren, Cholesterin). Du musst keine angeben — tippe auf Überspringen.\n• Die Schätzungen sind ungefähr — das ist keine medizinische Beratung.\n• Fotos werden nicht gespeichert: Ich werte sie aus und lösche sie sofort.\n• Fotos und dein Profil werden für die Auswertung an einen KI-Anbieter gesendet.\n• /delete löscht alle deine Daten und widerruft diese Einwilligung.\n• Vollständige Richtlinie: https://github.com/kirmalyshev/eait/blob/main/docs/PRIVACY.md\n\nBist du mit dieser Datenverarbeitung einverstanden?",
+    "decline": "Ohne Einwilligung kann ich keine Daten verarbeiten. Schreib /start, wenn du bereit bist.",
+    "askGoal": "Was ist dein Ziel?",
+    "askRestrictions": "Hast du gesundheitliche oder ernährungsbedingte Einschränkungen? Schreib frei (zum Beispiel: „Nieren, kein Zucker“) oder tippe auf „Überspringen“.",
+    "done": "Fertig — schick mir Fotos von deinem Essen 📸",
+    "alreadyActive": "Du bist schon eingerichtet — schick einfach Fotos von deinem Essen 📸 (/me — Profil und Tagesbilanz).",
+    "nudge": "Tippe oben auf einen Button oder schreib /start.",
+    "button": {
+      "agree": "Einverstanden",
+      "decline": "Ablehnen",
+      "goalLose": "Abnehmen",
+      "goalMaintain": "Halten",
+      "goalGain": "Zunehmen",
+      "skip": "Überspringen"
+    }
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "goalLine": "Ziel: {{goal}}",
+    "restrictionsLine": "Einschränkungen: {{restrictions}}",
+    "langLine": "Sprache: {{lang}}",
+    "askRestrictions": "Tippe auf eine Einschränkung, um sie ein- oder auszuschalten:",
+    "toggleOn": "✅ {{name}}",
+    "toggleOff": "⬜ {{name}}",
+    "button": {
+      "goal": "🎯 Ziel",
+      "restrictions": "🥗 Einschränkungen",
+      "language": "🌍 Sprache",
+      "back": "← Zurück"
+    }
+  },
+  "stats": {
+    "card": "{{users}} · {{meals}}",
+    "users_one": "{{count}} Nutzer",
+    "users_other": "{{count}} Nutzer",
+    "meals_one": "{{count}} Mahlzeit",
+    "meals_other": "{{count}} Mahlzeiten"
+  },
+  "cap": {
+    "current": "Globales Limit: {{cap}} · heute genutzt: {{used}}\nÄndern: /cap 200 · /cap off · /cap reset",
+    "invalid": "Verwendung: /cap <Zahl> | /cap off | /cap reset",
+    "off": "Globales Tageslimit entfernt — unbegrenzt.",
+    "reset": "Globales Tageslimit auf den konfigurierten Wert zurückgesetzt: {{cap}}.",
+    "set": "Globales Tageslimit auf {{cap}} gesetzt.",
+    "unlimited": "unbegrenzt"
+  }
+}

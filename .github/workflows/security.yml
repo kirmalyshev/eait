@@ -1,0 +1,57 @@
+name: security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # weekly, Monday 06:00 UTC — catches newly-disclosed dep vulns
+  workflow_dispatch:
+
+permissions:
+  contents: read # least privilege
+
+jobs:
+  repo-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Repo safety scan (secrets + personal-data guardrails)
+        # Personal patterns are not in the repo (they would leak what they guard). Supplied
+        # here as a secret; absent on fork PRs, where the personal rules simply do not run.
+        env:
+          SECURITY_PERSONAL_PATTERNS: ${{ secrets.SECURITY_PERSONAL_PATTERNS }}
+        run: bun run security
+      - name: Tests
+        run: bun test
+      - name: Dependency audit (informational)
+        run: bun audit --audit-level=high || true
+      # setup.sh is the self-hoster entrypoint and runs on machines we never see;
+      # a portability bug there is a broken first impression with no stack trace.
+      - name: Shell script lint
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck -s sh scripts/*.sh .githooks/* || exit 1
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # gitleaks-action v3 lists the PR's commits to scope the scan; without this it gets a
+      # 403 and the job dies mid-run, which looks like a finding but means nothing was scanned.
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # full history so gitleaks scans every commit
+      - name: gitleaks (secret history scan)
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          # v3 refuses to scan a pull_request event without this and exits before scanning
+          # anything — the job fails in a way that looks like a finding but is a missing token.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"

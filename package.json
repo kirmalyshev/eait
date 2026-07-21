@@ -1,0 +1,24 @@
+{
+  "name": "eait",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Multi-user food-photo Telegram bot (personal tool). TS/bun + grammy + bun:sqlite.",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "security": "bun run scripts/security-scan.ts",
+    "smoke": "bun run scripts/smoke-openrouter.ts"
+  },
+  "dependencies": {
+    "@grammyjs/runner": "^2.0.3",
+    "grammy": "^1.45.1",
+    "i18next": "^26.3.6",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "typescript": "^7.0.2"
+  }
+}

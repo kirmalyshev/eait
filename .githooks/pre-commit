@@ -1,0 +1,26 @@
+#!/bin/sh
+# Local pre-commit safety gate. Enable once with:
+#   git config core.hooksPath .githooks
+#
+# Runs both halves of the CI `security` workflow, so a leak is caught before it
+# reaches a commit rather than after it is already in the history:
+#   1. security-scan.ts — secret patterns, personal-data leaks, forbidden tracked files.
+#   2. gitleaks         — the same scanner CI runs, over the staged diff.
+
+bun run scripts/security-scan.ts || {
+  echo "commit blocked: security-scan found an issue (see above)"
+  exit 1
+}
+
+# gitleaks is optional locally (CI always runs it over full history), but a silent skip
+# would read as a pass — say so out loud when it isn't installed.
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks git --staged --no-banner --redact || {
+    echo "commit blocked: gitleaks found a secret in the staged changes"
+    echo "if it is a false positive, annotate the line with: gitleaks:allow"
+    exit 1
+  }
+else
+  echo "note: gitleaks not installed — skipping the staged secret scan (CI still enforces it)."
+  echo "      install with: brew install gitleaks"
+fi

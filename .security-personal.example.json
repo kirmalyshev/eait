@@ -1,0 +1,4 @@
+[
+  { "name": "operator-telegram-id", "pattern": "\\b123456789\\b" },
+  { "name": "operator-name", "pattern": "YourName|ВашеИмя" }
+]

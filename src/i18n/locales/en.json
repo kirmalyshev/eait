@@ -1,0 +1,120 @@
+{
+  "commands": {
+    "cap": "Spend cap (admin)",
+    "delete": "Erase all my data",
+    "help": "How this bot works",
+    "me": "Today's totals",
+    "settings": "Goal, restrictions, language",
+    "start": "Start or resume setup",
+    "stats": "Admin counts"
+  },
+  "delete": {
+    "prompt": "Delete all your data?",
+    "done": "All your data has been deleted. /start to begin again.",
+    "cancelled": "Cancelled.",
+    "button": {
+      "confirm": "Yes, delete",
+      "cancel": "Cancel"
+    }
+  },
+  "errors": {
+    "adminOnly": "Admin-only command.",
+    "analyzeFailed": "Couldn't read that 🤔 send the photo again.",
+    "correctionFailed": "Couldn't apply that correction — try phrasing it differently.",
+    "dailyCap": "You've hit today's photo limit — come back tomorrow.",
+    "globalCap": "The shared demo bot has hit today's analysis limit — it runs on one person's API budget. Try again tomorrow, or run your own instance: https://github.com/kirmalyshev/eait",
+    "notFood": "That doesn't look like food 🤔",
+    "notOnboarded": "Send /start first.",
+    "notAnImage": "That's not an image 🤔 send a photo of the meal.",
+    "fileTooBig": "That file is too big for me to fetch — send it as a photo instead."
+  },
+  "help": {
+    "body": "Send me a photo of your meal. I estimate the items, calories and macros, judge them against your goal, and add them to today's running total.\n\nGot it wrong? Reply directly to my message about that meal with a correction — for example \"two pieces, no oil\" — and I'll redo the estimate.\n\nCommands:\n/me — today's totals\n/settings — change your goal, restrictions or language\n/help — this message\n/delete — erase all your data\n\nEstimates from a photo are approximate and are not medical advice."
+  },
+  "lang": {
+    "prompt": "Choose a language:",
+    "changed": "Language switched to English."
+  },
+  "me": {
+    "profileLine": "Profile: goal — {{goal}}; restrictions — {{restrictions}}",
+    "todayLine": "Today: {{kcal}} / {{kcalTarget}} kcal · P {{protein}} / {{proteinTarget}} g",
+    "noRestrictions": "none",
+    "goal": {
+      "lose": "lose weight",
+      "maintain": "maintain",
+      "gain": "gain weight"
+    },
+    "restriction": {
+      "kidneys": "kidneys",
+      "ldl": "cholesterol",
+      "lowsugar": "low sugar",
+      "vegan": "vegan"
+    }
+  },
+  "meal": {
+    "itemUnit": "{{name}} {{grams}}g",
+    "itemsLine": "🍽 {{items}}",
+    "noItems": "—",
+    "macrosLine": "🔥 {{kcal}} kcal · P {{protein}} · F {{fat}} · C {{carbs}}",
+    "verdictItem": "{{label}}: {{emoji}}",
+    "verdict": {
+      "weight": "Weight",
+      "ldl": "Cholesterol",
+      "kidneys": "Kidneys"
+    },
+    "notesLine": "📝 {{notes}}",
+    "correctionHint": "↩️ Not right? Reply to this message with a correction.",
+    "updatedPrefix": "Updated:",
+    "totalKcal": "Today: {{now}} / {{target}} kcal",
+    "totalProtein": "Protein: {{now}} / {{target}} g",
+    "totalSatfat": "Saturated fat: {{now}} / {{target}} g",
+    "totalSodium": "Sodium: {{now}} / {{target}} mg"
+  },
+  "onboarding": {
+    "consent": "Hi! I analyse photos of your food and count calories and macros against your goal.\n\nWhat you should know:\n• I process food photos and your profile (goal, restrictions).\n• Restrictions can include health conditions (kidneys, cholesterol). You never have to give one — tap Skip.\n• Estimates are approximate — this is not medical advice.\n• Photos are not stored: I analyse them and delete them immediately.\n• Photos and your profile are sent to an AI provider to produce the estimate.\n• /delete erases all your data and withdraws this consent.\n• Full policy: https://github.com/kirmalyshev/eait/blob/main/docs/PRIVACY.md\n\nDo you agree to this data being processed?",
+    "decline": "Without consent I can't process your data. Send /start when you're ready.",
+    "askGoal": "What's your goal?",
+    "askRestrictions": "Any health or dietary restrictions? Write freely (for example: \"kidneys, no sugar\") or tap \"Skip\".",
+    "done": "All set — send me photos of your food 📸",
+    "alreadyActive": "You're already set up — just send photos of your food 📸 (/me — profile and today's totals).",
+    "nudge": "Tap a button above, or send /start.",
+    "button": {
+      "agree": "I agree",
+      "decline": "Decline",
+      "goalLose": "Lose",
+      "goalMaintain": "Maintain",
+      "goalGain": "Gain",
+      "skip": "Skip"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "goalLine": "Goal: {{goal}}",
+    "restrictionsLine": "Restrictions: {{restrictions}}",
+    "langLine": "Language: {{lang}}",
+    "askRestrictions": "Tap a restriction to switch it on or off:",
+    "toggleOn": "✅ {{name}}",
+    "toggleOff": "⬜ {{name}}",
+    "button": {
+      "goal": "🎯 Goal",
+      "restrictions": "🥗 Restrictions",
+      "language": "🌍 Language",
+      "back": "← Back"
+    }
+  },
+  "stats": {
+    "card": "{{users}} · {{meals}}",
+    "users_one": "{{count}} user",
+    "users_other": "{{count}} users",
+    "meals_one": "{{count}} meal",
+    "meals_other": "{{count}} meals"
+  },
+  "cap": {
+    "current": "Global cap: {{cap}} · used today: {{used}}\nChange: /cap 200 · /cap off · /cap reset",
+    "invalid": "Usage: /cap <number> | /cap off | /cap reset",
+    "off": "Global daily cap removed — unlimited.",
+    "reset": "Global daily cap reset to the configured value: {{cap}}.",
+    "set": "Global daily cap set to {{cap}}.",
+    "unlimited": "unlimited"
+  }
+}
