@@ -1,0 +1,13 @@
+node_modules/
+.env
+*.log
+data/
+photos/
+*.sqlite
+*.sqlite-journal
+*.db
+dist/
+.DS_Store
+docs/superpowers/plans/
+docs/superpowers/specs/
+docs/MARKET.md
