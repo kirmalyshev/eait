@@ -3,6 +3,7 @@ import { existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { MealAnalysis } from "./types.ts";
+import { DEFAULT_LANG } from "./i18n/registry.ts";
 import {
   applyCorrection,
   berlinDate,
@@ -18,6 +19,7 @@ import {
   openDb,
   seenUpdate,
   setConsent,
+  setLang,
   setMealReply,
   setProfile,
   upsertUser,
@@ -229,4 +231,35 @@ describe("file db is created on disk", () => {
     db.close();
     expect(existsSync(path)).toBe(true);
   });
+});
+
+test("upsertUser stores the seeded language; a re-upsert never overwrites it", () => {
+  const db = freshDb();
+  upsertUser(db, { telegram_id: 1, username: "a", lang: "de" });
+  expect(getUser(db, 1)?.lang).toBe("de");
+  // a later /start must not reset a language the user has since changed
+  setLang(db, 1, "ru");
+  upsertUser(db, { telegram_id: 1, username: "a", lang: "de" });
+  expect(getUser(db, 1)?.lang).toBe("ru");
+});
+
+test("upsertUser without an explicit language falls back to DEFAULT_LANG", () => {
+  const db = freshDb();
+  upsertUser(db, { telegram_id: 1, username: "a" });
+  expect(getUser(db, 1)?.lang).toBe(DEFAULT_LANG);
+});
+
+test("setLang changes only the target user's language", () => {
+  const db = freshDb();
+  upsertUser(db, { telegram_id: 1, username: "a", lang: "en" });
+  upsertUser(db, { telegram_id: 2, username: "b", lang: "en" });
+  setLang(db, 1, "de");
+  expect(getUser(db, 1)?.lang).toBe("de");
+  expect(getUser(db, 2)?.lang).toBe("en");
+});
+
+test("setLang on an unknown user is a no-op, not a crash", () => {
+  const db = freshDb();
+  expect(() => setLang(db, 999, "de")).not.toThrow();
+  expect(getUser(db, 999)).toBeUndefined();
 });

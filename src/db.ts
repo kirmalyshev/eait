@@ -5,6 +5,10 @@
 import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+// The SQL column default is 'ru' for historical reasons and is left alone (changing it means
+// a migration to alter a default that callers always override). DEFAULT_LANG is the real
+// policy, applied here so storage and i18n cannot drift apart.
+import { DEFAULT_LANG } from "./i18n/registry.ts";
 import type {
   DailyTotals,
   Goal,
@@ -114,7 +118,7 @@ export function upsertUser(
     `INSERT INTO users (telegram_id, username, lang, state, created_at)
      VALUES (?, ?, ?, 'consent', ?)
      ON CONFLICT(telegram_id) DO UPDATE SET username = excluded.username`,
-  ).run(u.telegram_id, u.username ?? null, u.lang ?? "ru", new Date().toISOString());
+  ).run(u.telegram_id, u.username ?? null, u.lang ?? DEFAULT_LANG, new Date().toISOString());
 }
 
 export function getUser(db: Database, telegram_id: number): UserRow | undefined {
@@ -136,6 +140,11 @@ export function getUser(db: Database, telegram_id: number): UserRow | undefined 
 
 export function setUserState(db: Database, telegram_id: number, state: UserState): void {
   db.query(`UPDATE users SET state = ? WHERE telegram_id = ?`).run(state, telegram_id);
+}
+
+/** /lang — the only place a user's language changes after it is seeded at first contact. */
+export function setLang(db: Database, telegram_id: number, lang: string): void {
+  db.query(`UPDATE users SET lang = ? WHERE telegram_id = ?`).run(lang, telegram_id);
 }
 
 /** [Согласен]: record consent time and advance to the profile step. */
