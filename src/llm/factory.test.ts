@@ -26,4 +26,44 @@ describe("createProvider", () => {
   test("names the supported providers in the error", () => {
     expect(() => createProvider({ ...base, llmProvider: "nope" })).toThrow(/openrouter/);
   });
+
+  // A plain object literal inherits Object.prototype, so a lookup by these keys finds a
+  // truthy member and skips the guard. "constructor" is the dangerous one: Object(config)
+  // returns the config itself, so the bot boots "fine" and only dies on the first meal photo.
+  test.each(["constructor", "__proto__", "toString", "valueOf", "hasOwnProperty"])(
+    "rejects the inherited Object.prototype key %p",
+    (key) => {
+      expect(() => createProvider({ ...base, llmProvider: key })).toThrow(/LLM_PROVIDER/);
+    },
+  );
+
+  test("rejects an empty provider rather than defaulting", () => {
+    expect(() => createProvider({ ...base, llmProvider: "   " })).toThrow(/LLM_PROVIDER/);
+  });
+
+  test("passes the config through to the provider", async () => {
+    const p = createProvider({
+      llmProvider: "openrouter",
+      openrouterApiKey: "secret-key",
+      llmModel: "vendor/model-x",
+      llmTimeoutMs: 4242,
+    });
+    // Assert the wiring, not just the class: a swapped argument would still be instanceof.
+    let seen: RequestInit | undefined;
+    const original = globalThis.fetch;
+    globalThis.fetch = (async (_url: string, init: RequestInit) => {
+      seen = init;
+      return new Response(JSON.stringify({ choices: [{ message: { content: "{}" } }] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+    try {
+      await p.chat({ system: "s", userText: "u" });
+    } finally {
+      globalThis.fetch = original;
+    }
+    expect((seen!.headers as Record<string, string>).Authorization).toBe("Bearer secret-key");
+    expect(JSON.parse(seen!.body as string).model).toBe("vendor/model-x");
+  });
 });

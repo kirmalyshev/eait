@@ -13,20 +13,27 @@ export interface ProviderConfig {
   llmTimeoutMs: number;
 }
 
-const PROVIDERS: Record<string, (c: ProviderConfig) => LLMProvider> = {
-  openrouter: (c) =>
-    new OpenRouterProvider({
-      apiKey: c.openrouterApiKey,
-      model: c.llmModel,
-      timeoutMs: c.llmTimeoutMs,
-    }),
-};
+// Object.create(null), not {}: a plain literal inherits Object.prototype, so LLM_PROVIDER=constructor
+// would resolve to the Object constructor — truthy, callable, and Object(config) hands back the config
+// itself. The bot would boot clean and only die on the first meal photo. A null-prototype table (plus
+// the hasOwn guard below) makes every non-registered value take the error path.
+const PROVIDERS: Record<string, (c: ProviderConfig) => LLMProvider> = Object.assign(
+  Object.create(null),
+  {
+    openrouter: (c: ProviderConfig) =>
+      new OpenRouterProvider({
+        apiKey: c.openrouterApiKey,
+        model: c.llmModel,
+        timeoutMs: c.llmTimeoutMs,
+      }),
+  },
+);
 
 export const SUPPORTED_PROVIDERS = Object.keys(PROVIDERS);
 
 export function createProvider(config: ProviderConfig): LLMProvider {
   const key = config.llmProvider.trim().toLowerCase();
-  const build = PROVIDERS[key];
+  const build = Object.hasOwn(PROVIDERS, key) ? PROVIDERS[key] : undefined;
   if (!build) {
     throw new Error(
       `Unknown LLM_PROVIDER "${config.llmProvider}" — supported: ${SUPPORTED_PROVIDERS.join(", ")}`,

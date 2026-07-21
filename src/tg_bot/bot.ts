@@ -550,8 +550,10 @@ export async function registerCommands(bot: Bot, config: Config): Promise<void> 
 }
 
 export function startBot(config: Config): { db: Database; stop: () => Promise<void> } {
+  // Validate config before touching the filesystem: createProvider throws on an unknown
+  // LLM_PROVIDER, and doing it first means that failure can't strand an open sqlite handle.
+  const provider = createProvider(config);
   const db = openDb(config.dbPath);
-  const provider = createProvider(config); // throws on an unknown LLM_PROVIDER
   const bot = createBot({ db, provider, config });
   if (config.allowedUserIds === null) {
     console.warn(
