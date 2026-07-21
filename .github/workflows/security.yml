@@ -30,6 +30,12 @@ jobs:
         run: bun test
       - name: Dependency audit (informational)
         run: bun audit --audit-level=high || true
+      # setup.sh is the self-hoster entrypoint and runs on machines we never see;
+      # a portability bug there is a broken first impression with no stack trace.
+      - name: Shell script lint
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck -s sh scripts/*.sh .githooks/* || exit 1
 
   secret-scan:
     runs-on: ubuntu-latest

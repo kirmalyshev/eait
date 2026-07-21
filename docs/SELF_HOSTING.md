@@ -32,7 +32,32 @@ Ask for these up front; three of the four cannot be obtained without them.
 `ADMIN_USER_ID` is optional — it is the one id allowed to run `/stats`, and it also gets `/stats`
 added to their Telegram command menu.
 
-## Steps
+## The fast path
+
+```bash
+git clone https://github.com/kirmalyshev/eait.git && cd eait
+./scripts/setup.sh
+```
+
+`scripts/setup.sh` performs every step below: checks prerequisites (offering to install bun),
+installs dependencies, runs the suite to verify the checkout, walks you through `.env` with the
+secrets hidden, optionally smoke-tests the model, and optionally installs a background service.
+
+It is idempotent — re-run it any time. It backs up an existing `.env` before replacing it and
+never overwrites one without asking. `.env` is written mode 600.
+
+For provisioning without prompts:
+
+```bash
+EAIT_NONINTERACTIVE=1 \
+TELEGRAM_BOT_TOKEN=… OPENROUTER_API_KEY=… ALLOWED_USER_IDS=… \
+./scripts/setup.sh
+```
+
+The rest of this document explains what the script does and how to operate the result. Follow
+it manually if you would rather not run a script that touches your `.env`.
+
+## Steps (what setup.sh does)
 
 ### 1. Prerequisites
 
@@ -128,7 +153,7 @@ host logs `blocked update from user=…`.
 
 `bun run start` dies with its terminal. For an always-on instance:
 
-**macOS** — a launchd wrapper ships with the repo:
+**macOS** — launchd:
 
 ```bash
 scripts/service.sh install    # then start | stop | restart | status | logs | uninstall
@@ -137,25 +162,18 @@ scripts/service.sh install    # then start | stop | restart | status | logs | un
 It generates the plist at install time with your local paths, so nothing machine-specific is
 committed. Logs land in `logs/`.
 
-**Linux** — no unit file ships with the repo; write one. A minimal systemd service:
+**Linux** — the same command installs a **systemd user unit** (no root required):
 
-```ini
-[Unit]
-Description=eait
-After=network-online.target
-
-[Service]
-WorkingDirectory=/opt/eait
-ExecStart=/home/YOU/.bun/bin/bun run src/index.ts
-Restart=always
-RestartSec=15
-User=eait
-
-[Install]
-WantedBy=multi-user.target
+```bash
+scripts/service.sh install    # then start | stop | restart | status | logs | uninstall
 ```
 
-`WorkingDirectory` matters: `DB_PATH` and `PHOTO_DIR` default to relative paths.
+It also runs `loginctl enable-linger` so the bot survives logout — without lingering, systemd
+stops user services when your last session ends. If your system disallows it, the script says
+so rather than failing silently, and you should use a system unit instead.
+
+`status` and `logs` read from `journalctl --user`, falling back to `logs/` if journald is
+unavailable.
 
 **One instance per token.** Telegram allows a single long-polling consumer per bot token; a
 second one gets `409 Conflict` and both degrade. Stop the old process before starting a new

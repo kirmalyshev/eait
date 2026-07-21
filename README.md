@@ -39,11 +39,13 @@ The short version:
 
 ```bash
 git clone https://github.com/kirmalyshev/eait.git && cd eait
-bun install
-bun test                      # 197 tests, no credentials needed
-cp .env.example .env          # TELEGRAM_BOT_TOKEN + OPENROUTER_API_KEY
-bun run start
+./scripts/setup.sh
 ```
+
+`setup.sh` checks prerequisites, installs dependencies, verifies the checkout, walks you
+through `.env` (secrets are never echoed), optionally smoke-tests the model, and optionally
+installs a background service — launchd on macOS, a systemd user unit on Linux. Re-running it
+is safe.
 
 > **Set `ALLOWED_USER_IDS`** unless you intend an open bot, and `GLOBAL_DAILY_ANALYSIS_CAP` if
 > you do. Every photo is a billed vision call on *your* key.
