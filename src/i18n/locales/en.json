@@ -17,12 +17,13 @@
     }
   },
   "errors": {
-    "notOnboarded": "Send /start first.",
-    "dailyCap": "You've hit today's photo limit — come back tomorrow.",
+    "adminOnly": "Admin-only command.",
     "analyzeFailed": "Couldn't read that 🤔 send the photo again.",
-    "notFood": "That doesn't look like food 🤔",
     "correctionFailed": "Couldn't apply that correction — try phrasing it differently.",
-    "adminOnly": "Admin-only command."
+    "dailyCap": "You've hit today's photo limit — come back tomorrow.",
+    "globalCap": "The shared demo bot has hit today's analysis limit — it runs on one person's API budget. Try again tomorrow, or run your own instance: https://github.com/kirmalyshev/eait",
+    "notFood": "That doesn't look like food 🤔",
+    "notOnboarded": "Send /start first."
   },
   "help": {
     "body": "Send me a photo of your meal. I estimate the items, calories and macros, judge them against your goal, and add them to today's running total.\n\nGot it wrong? Reply directly to my message about that meal with a correction — for example \"two pieces, no oil\" — and I'll redo the estimate.\n\nCommands:\n/me — today's totals\n/settings — change your goal, restrictions or language\n/help — this message\n/delete — erase all your data\n\nEstimates from a photo are approximate and are not medical advice."
@@ -67,7 +68,7 @@
     "totalSodium": "Sodium: {{now}} / {{target}} mg"
   },
   "onboarding": {
-    "consent": "Hi! I analyse photos of your food and count calories and macros against your goal.\n\nWhat you should know:\n• I process food photos and your profile (goal, restrictions).\n• Estimates are approximate — this is not medical advice.\n• Photos are not stored: I analyse them and delete them immediately.\n• /delete erases all your data.\n\nDo you agree to this data being processed?",
+    "consent": "Hi! I analyse photos of your food and count calories and macros against your goal.\n\nWhat you should know:\n• I process food photos and your profile (goal, restrictions).\n• Restrictions can include health conditions (kidneys, cholesterol). You never have to give one — tap Skip.\n• Estimates are approximate — this is not medical advice.\n• Photos are not stored: I analyse them and delete them immediately.\n• Photos and your profile are sent to an AI provider to produce the estimate.\n• /delete erases all your data and withdraws this consent.\n• Full policy: https://github.com/kirmalyshev/eait/blob/main/docs/PRIVACY.md\n\nDo you agree to this data being processed?",
     "decline": "Without consent I can't process your data. Send /start when you're ready.",
     "askGoal": "What's your goal?",
     "askRestrictions": "Any health or dietary restrictions? Write freely (for example: \"kidneys, no sugar\") or tap \"Skip\".",

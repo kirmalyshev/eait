@@ -17,6 +17,12 @@ export interface Config {
    * the bot can onboard and spend your LLM budget. An empty array means nobody is allowed.
    */
   allowedUserIds: number[] | null;
+  /**
+   * Ceiling on meal analyses per day across EVERY user — the spend bound for a publicly
+   * linked instance. `null` means unlimited. Per-user caps bound one account; only this
+   * bounds the bill when strangers can reach the bot.
+   */
+  globalDailyAnalysisCap: number | null;
 }
 
 type Env = Record<string, string | undefined>;
@@ -64,10 +70,19 @@ export function loadConfig(env: Env): Config {
           .map(Number)
       : null;
 
+  // Only a non-negative integer is a cap. Junk and negatives mean "unset" rather than being
+  // coerced — silently turning a typo into a cap of 0 would take the bot offline, and into a
+  // tiny cap would be worse (looks alive, serves nobody).
+  const capRaw = env.GLOBAL_DAILY_ANALYSIS_CAP?.trim();
+  const capNum = capRaw ? Number(capRaw) : NaN;
+  const globalDailyAnalysisCap =
+    Number.isInteger(capNum) && capNum >= 0 ? capNum : null;
+
   return {
     telegramBotToken,
     openrouterApiKey,
     allowedUserIds,
+    globalDailyAnalysisCap,
     llmProvider: env.LLM_PROVIDER?.trim() || "openrouter",
     llmModel: env.LLM_MODEL?.trim() || "x-ai/grok-4.5",
     llmTimeoutMs: intOr(env.LLM_TIMEOUT_MS, 60000),

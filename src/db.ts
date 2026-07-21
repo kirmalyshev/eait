@@ -317,6 +317,15 @@ export function dailyTotals(db: Database, user_id: number, date: string): DailyT
   return row;
 }
 
+/**
+ * Meals analyzed across ALL users on a date — the denominator for the global spend cap.
+ * Per-user caps bound one account; this bounds the bill when the bot is publicly linked.
+ */
+export function mealCountToday(db: Database, date: string): number {
+  const row = db.query(`SELECT COUNT(*) AS n FROM meals WHERE date = ?`).get(date) as { n: number };
+  return row.n;
+}
+
 export function countMealsToday(db: Database, user_id: number, date: string): number {
   return (
     db.query(`SELECT COUNT(*) AS n FROM meals WHERE user_id = ? AND date = ?`).get(user_id, date) as {

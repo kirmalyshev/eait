@@ -17,12 +17,13 @@
     }
   },
   "errors": {
-    "notOnboarded": "Schick zuerst /start.",
-    "dailyCap": "Du hast das Foto-Limit für heute erreicht — komm morgen wieder.",
+    "adminOnly": "Befehl nur für Admins.",
     "analyzeFailed": "Konnte ich nicht auswerten 🤔 schick das Foto nochmal.",
-    "notFood": "Das sieht nicht nach Essen aus 🤔",
     "correctionFailed": "Konnte die Korrektur nicht anwenden — formulier sie anders.",
-    "adminOnly": "Befehl nur für Admins."
+    "dailyCap": "Du hast das Foto-Limit für heute erreicht — komm morgen wieder.",
+    "globalCap": "Der gemeinsame Demo-Bot hat das Tageslimit an Auswertungen erreicht — er läuft auf dem API-Budget einer einzelnen Person. Versuch es morgen wieder oder betreibe deine eigene Instanz: https://github.com/kirmalyshev/eait",
+    "notFood": "Das sieht nicht nach Essen aus 🤔",
+    "notOnboarded": "Schick zuerst /start."
   },
   "help": {
     "body": "Schick mir ein Foto deiner Mahlzeit. Ich schätze die Bestandteile, Kalorien und Nährwerte, bewerte sie anhand deines Ziels und rechne sie zur Tagesbilanz.\n\nFalsch geschätzt? Antworte direkt auf meine Nachricht zu dieser Mahlzeit mit einer Korrektur — zum Beispiel „zwei Stück, ohne Öl“ — und ich rechne neu.\n\nBefehle:\n/me — Tagesbilanz\n/settings — Ziel, Einschränkungen, Sprache\n/help — diese Nachricht\n/delete — alle Daten löschen\n\nSchätzungen aus einem Foto sind ungefähr und keine medizinische Beratung."
@@ -67,7 +68,7 @@
     "totalSodium": "Natrium: {{now}} / {{target}} mg"
   },
   "onboarding": {
-    "consent": "Hallo! Ich analysiere Fotos deines Essens und berechne Kalorien und Nährwerte passend zu deinem Ziel.\n\nWas du wissen solltest:\n• Ich verarbeite Essensfotos und dein Profil (Ziel, Einschränkungen).\n• Die Schätzungen sind ungefähr — das ist keine medizinische Beratung.\n• Fotos werden nicht gespeichert: Ich werte sie aus und lösche sie sofort.\n• /delete löscht alle deine Daten.\n\nBist du mit dieser Datenverarbeitung einverstanden?",
+    "consent": "Hallo! Ich analysiere Fotos deines Essens und berechne Kalorien und Nährwerte passend zu deinem Ziel.\n\nWas du wissen solltest:\n• Ich verarbeite Essensfotos und dein Profil (Ziel, Einschränkungen).\n• Einschränkungen können Gesundheitsangaben enthalten (Nieren, Cholesterin). Du musst keine angeben — tippe auf Überspringen.\n• Die Schätzungen sind ungefähr — das ist keine medizinische Beratung.\n• Fotos werden nicht gespeichert: Ich werte sie aus und lösche sie sofort.\n• Fotos und dein Profil werden für die Auswertung an einen KI-Anbieter gesendet.\n• /delete löscht alle deine Daten und widerruft diese Einwilligung.\n• Vollständige Richtlinie: https://github.com/kirmalyshev/eait/blob/main/docs/PRIVACY.md\n\nBist du mit dieser Datenverarbeitung einverstanden?",
     "decline": "Ohne Einwilligung kann ich keine Daten verarbeiten. Schreib /start, wenn du bereit bist.",
     "askGoal": "Was ist dein Ziel?",
     "askRestrictions": "Hast du gesundheitliche oder ernährungsbedingte Einschränkungen? Schreib frei (zum Beispiel: „Nieren, kein Zucker“) oder tippe auf „Überspringen“.",

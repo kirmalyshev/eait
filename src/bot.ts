@@ -13,7 +13,7 @@ import { OpenRouterProvider } from "./llm/openrouter.ts";
 import {
   openDb, berlinDate, upsertUser, getUser, setConsent, setProfile, setUserState,
   insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals, countMealsToday,
-  deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang, type UserRow,
+  deleteUser, userCount, mealCount, mealCountToday, seenUpdate, markUpdate, setLang, type UserRow,
 } from "./db.ts";
 import { analyzeMeal, analyzeCorrection, classifyRestrictions } from "./analyzer.ts";
 import { targetsFor, isRestrictionTag } from "./targets.ts";
@@ -248,6 +248,17 @@ export async function processPhoto(
   const date = berlinDate(new Date(), config.tz);
   if (countMealsToday(db, from.id, date) >= config.perUserDailyPhotoCap) {
     await send(t("errors.dailyCap"));
+    return;
+  }
+  // Global spend bound, checked BEFORE the vision call — the per-user cap bounds one account,
+  // but a publicly linked bot has unbounded accounts. A cap enforced after the call would cost
+  // exactly as much as no cap at all.
+  if (
+    config.globalDailyAnalysisCap !== null &&
+    mealCountToday(db, date) >= config.globalDailyAnalysisCap
+  ) {
+    console.warn(`[eait] global daily cap ${config.globalDailyAnalysisCap} reached`);
+    await send(t("errors.globalCap"));
     return;
   }
   let analysis: MealAnalysis;

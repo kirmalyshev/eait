@@ -4,17 +4,22 @@
 //
 // Checks over TRACKED files:
 //   1. Secret patterns (tokens, API keys, private keys).
-//   2. Personal-data leaks that must never re-enter this public-facing repo
-//      (the operator's real Telegram id + name — scrubbed once, guarded forever).
+//   2. Personal-data leaks — operator-specific strings that must never enter the repo.
 //   3. Files that must never be tracked (.env).
 //
-// The scanner file itself is skipped (it legitimately contains the patterns), as are
-// lockfiles (hashes cause false positives). Tune patterns here as the repo grows.
+// The personal patterns are deliberately NOT in this file. They used to be, which meant the
+// guard against leaking the operator's identity leaked it itself the moment the repo went
+// public. They now load from an untracked source (see PERSONAL_PATTERNS_FILE below).
+//
+// The scanner file itself is skipped, as are lockfiles (hashes cause false positives).
 
 import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const SELF = "scripts/security-scan.ts";
+
+/** Gitignored, machine-local. See `.security-personal.example.json` for the shape. */
+const PERSONAL_PATTERNS_FILE = ".security-personal.json";
 
 const SECRET_RULES: Array<[string, RegExp]> = [
   ["telegram-bot-token", /\b\d{8,10}:[A-Za-z0-9_-]{35}\b/],
@@ -24,10 +29,40 @@ const SECRET_RULES: Array<[string, RegExp]> = [
   ["hardcoded-bearer", /Bearer\s+[A-Za-z0-9._-]{24,}/],
 ];
 
-const PERSONAL_RULES: Array<[string, RegExp]> = [
-  ["operator-telegram-id", /\b179249804\b/],
-  ["operator-name", /Kirill|Кирилл/],
-];
+/**
+ * Operator-specific patterns, loaded from outside the repo.
+ *
+ * Source order: `SECURITY_PERSONAL_PATTERNS` env (a JSON array — use a CI secret), then the
+ * gitignored `.security-personal.json`. Absent from both means the personal rules do not run,
+ * which is correct for a fork or a contributor: they have no operator identity to protect.
+ *
+ * Shape: `[{ "name": "operator-telegram-id", "pattern": "\\b123456789\\b" }]`
+ */
+function loadPersonalRules(): Array<[string, RegExp]> {
+  let raw: string | null = null;
+  if (process.env.SECURITY_PERSONAL_PATTERNS?.trim()) {
+    raw = process.env.SECURITY_PERSONAL_PATTERNS;
+  } else if (existsSync(PERSONAL_PATTERNS_FILE)) {
+    raw = readFileSync(PERSONAL_PATTERNS_FILE, "utf8");
+  }
+  if (!raw) return [];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // Fail loudly: a malformed file must not silently disable the guard.
+    console.error(`❌ security-scan: could not parse personal patterns (${PERSONAL_PATTERNS_FILE})`);
+    process.exit(1);
+  }
+  if (!Array.isArray(parsed)) {
+    console.error("❌ security-scan: personal patterns must be a JSON array");
+    process.exit(1);
+  }
+  return parsed.map((entry: any) => [String(entry.name ?? "personal"), new RegExp(entry.pattern)]);
+}
+
+const PERSONAL_RULES = loadPersonalRules();
 
 const NEVER_TRACKED = [".env"];
 
@@ -68,8 +103,11 @@ function main(): void {
     for (const f of findings) console.error("   - " + f);
     process.exit(1);
   }
+  const personal = PERSONAL_RULES.length
+    ? `${PERSONAL_RULES.length} personal`
+    : "personal rules OFF (no patterns configured)";
   console.log(
-    `✓ security-scan clean — ${files.length} tracked files, ${SECRET_RULES.length + PERSONAL_RULES.length} rules`,
+    `✓ security-scan clean — ${files.length} tracked files, ${SECRET_RULES.length} secret + ${personal}`,
   );
 }
 

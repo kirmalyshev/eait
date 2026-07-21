@@ -2,7 +2,7 @@ import { test, expect } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openDb, getUser, mealByReply, countMealsToday, berlinDate, type UserRow } from "./db.ts";
+import { openDb, getUser, mealByReply, countMealsToday, mealCountToday, berlinDate, type UserRow } from "./db.ts";
 import {
   processOnboarding, processPhoto, processCorrection, meCard, statsCard, profileOf,
   processLangPrompt, processLangChoice, buildCommands, processSettingsOpen,
@@ -16,7 +16,7 @@ import type { LLMProvider } from "./llm/provider.ts";
 const cfg: Config = {
   telegramBotToken: "x", openrouterApiKey: "x", llmProvider: "openrouter", llmModel: "test",
   llmTimeoutMs: 1000, dbPath: ":memory:", photoDir: "./photos", tz: "Europe/Berlin",
-  perUserDailyPhotoCap: 2, adminUserId: 42, allowedUserIds: null,
+  perUserDailyPhotoCap: 2, adminUserId: 42, allowedUserIds: null, globalDailyAnalysisCap: null,
 };
 
 function tmpDb() {
@@ -496,4 +496,52 @@ test("an empty allowlist admits nobody, including the admin", () => {
 test("an unidentifiable sender is never admitted when an allowlist exists", () => {
   expect(isAllowed({ ...cfg, allowedUserIds: [10] }, undefined)).toBe(false);
   expect(isAllowed({ ...cfg, allowedUserIds: null }, undefined)).toBe(true);
+});
+
+// ---------- global spend cap ----------
+
+test("the global cap blocks analysis once the day's total is reached, across users", async () => {
+  const db = tmpDb();
+  // per-user cap high, global cap low: proves the global one is what bites
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: 2 } };
+  await onboardToActive(deps, 1);
+  await onboardToActive(deps, 2);
+  await onboardToActive(deps, 3);
+
+  await processPhoto(deps, { id: 1 }, async () => new Uint8Array([1]), noop);
+  await processPhoto(deps, { id: 2 }, async () => new Uint8Array([1]), noop);
+  const date = berlinDate(new Date(), cfg.tz);
+  expect(mealCountToday(db, date)).toBe(2);
+
+  // a THIRD user, well under their own cap, is refused because the day is spent
+  const c = collector();
+  await processPhoto(deps, { id: 3 }, async () => new Uint8Array([1]), c.send);
+  expect(c.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.globalCap"));
+  expect(mealCountToday(db, date)).toBe(2); // no row written
+});
+
+test("the global cap is checked BEFORE the model is called, so it actually saves money", async () => {
+  const db = tmpDb();
+  let calls = 0;
+  const counting: LLMProvider = { chat: async () => { calls++; return foodJson(); } };
+  const deps: BotDeps = { db, provider: counting, config: { ...cfg, globalDailyAnalysisCap: 0 } };
+  await onboardToActive(deps, 1);
+  await processPhoto(deps, { id: 1 }, async () => new Uint8Array([1]), noop);
+  expect(calls).toBe(0); // a cap that fires after the call would be decorative
+});
+
+test("no global cap configured means unlimited", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: null } };
+  await onboardToActive(deps, 1);
+  for (let i = 0; i < 5; i++) await processPhoto(deps, { id: 1 }, async () => new Uint8Array([1]), noop);
+  expect(mealCountToday(db, berlinDate(new Date(), cfg.tz))).toBe(5);
+});
+
+test("the cap message points at self-hosting rather than just refusing", () => {
+  for (const lang of LANGS) {
+    const msg = translatorFor(lang)("errors.globalCap");
+    expect(msg.trim()).not.toBe("");
+    expect(msg).not.toMatch(/errors\./);
+  }
 });

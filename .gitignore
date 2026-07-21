@@ -12,3 +12,6 @@ dist/
 docs/superpowers/plans/
 docs/superpowers/specs/
 docs/MARKET.md
+
+# machine-local scanner patterns (contain operator PII by design)
+.security-personal.json

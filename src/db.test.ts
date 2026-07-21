@@ -16,6 +16,7 @@ import {
   markUpdate,
   mealByReply,
   mealCount,
+  mealCountToday,
   openDb,
   seenUpdate,
   setConsent,
@@ -262,4 +263,16 @@ test("setLang on an unknown user is a no-op, not a crash", () => {
   const db = freshDb();
   expect(() => setLang(db, 999, "de")).not.toThrow();
   expect(getUser(db, 999)).toBeUndefined();
+});
+
+test("mealCountToday counts across ALL users for a date, not per user", () => {
+  const db = freshDb();
+  upsertUser(db, { telegram_id: 1 });
+  upsertUser(db, { telegram_id: 2 });
+  insertMeal(db, { id: "a", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis() });
+  insertMeal(db, { id: "b", user_id: 2, ts: "t", date: "2026-07-21", analysis: analysis() });
+  insertMeal(db, { id: "c", user_id: 2, ts: "t", date: "2026-07-22", analysis: analysis() });
+  expect(mealCountToday(db, "2026-07-21")).toBe(2);
+  expect(mealCountToday(db, "2026-07-22")).toBe(1);
+  expect(mealCountToday(db, "2026-01-01")).toBe(0);
 });

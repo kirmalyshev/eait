@@ -21,6 +21,10 @@ jobs:
           bun-version: latest
       - run: bun install --frozen-lockfile
       - name: Repo safety scan (secrets + personal-data guardrails)
+        # Personal patterns are not in the repo (they would leak what they guard). Supplied
+        # here as a secret; absent on fork PRs, where the personal rules simply do not run.
+        env:
+          SECURITY_PERSONAL_PATTERNS: ${{ secrets.SECURITY_PERSONAL_PATTERNS }}
         run: bun run security
       - name: Tests
         run: bun test

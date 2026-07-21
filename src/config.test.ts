@@ -91,3 +91,25 @@ describe("ALLOWED_USER_IDS", () => {
     expect(loadConfig({ ...base, ALLOWED_USER_IDS: "abc" }).allowedUserIds).toEqual([]);
   });
 });
+
+describe("GLOBAL_DAILY_ANALYSIS_CAP", () => {
+  const base = { TELEGRAM_BOT_TOKEN: "t", OPENROUTER_API_KEY: "k" };
+
+  test("unset means no global cap", () => {
+    expect(loadConfig({ ...base }).globalDailyAnalysisCap).toBeNull();
+    expect(loadConfig({ ...base, GLOBAL_DAILY_ANALYSIS_CAP: "" }).globalDailyAnalysisCap).toBeNull();
+  });
+
+  test("parses a positive integer", () => {
+    expect(loadConfig({ ...base, GLOBAL_DAILY_ANALYSIS_CAP: "200" }).globalDailyAnalysisCap).toBe(200);
+  });
+
+  test("zero is a real cap (bot open but analysing nothing), not 'unset'", () => {
+    expect(loadConfig({ ...base, GLOBAL_DAILY_ANALYSIS_CAP: "0" }).globalDailyAnalysisCap).toBe(0);
+  });
+
+  test("junk is rejected as unlimited rather than silently becoming a tiny cap", () => {
+    expect(loadConfig({ ...base, GLOBAL_DAILY_ANALYSIS_CAP: "abc" }).globalDailyAnalysisCap).toBeNull();
+    expect(loadConfig({ ...base, GLOBAL_DAILY_ANALYSIS_CAP: "-5" }).globalDailyAnalysisCap).toBeNull();
+  });
+});
