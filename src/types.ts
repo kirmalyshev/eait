@@ -3,7 +3,12 @@
 export type Goal = "lose" | "maintain" | "gain";
 export type UserState = "consent" | "profile" | "active";
 export type Verdict = "good" | "warn" | "bad";
-export type Lang = "ru" | "en";
+
+// Lang is DERIVED from the locale registry, not written by hand: adding a locale file widens
+// it automatically, and nothing here needs editing. Imported for local use below and
+// re-exported so existing imports of `Lang` from ./types.ts keep working.
+import type { Lang } from "./i18n/registry.ts";
+export type { Lang };
 
 /** A user's analysis profile — what every meal is judged against. */
 export interface Profile {

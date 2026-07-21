@@ -1,5 +1,22 @@
 {
   "errors": {
     "notOnboarded": "Schick zuerst /start."
+  },
+  "meal": {
+    "itemUnit": "{{name}} {{grams}} g",
+    "itemsLine": "🍽 {{items}}",
+    "noItems": "—",
+    "macrosLine": "🔥 {{kcal}} kcal · E {{protein}} · F {{fat}} · K {{carbs}}",
+    "verdictItem": "{{label}}: {{emoji}}",
+    "verdict": {
+      "weight": "Gewicht",
+      "ldl": "Cholesterin",
+      "kidneys": "Nieren"
+    },
+    "notesLine": "📝 {{notes}}",
+    "totalKcal": "Heute: {{now}} / {{target}} kcal",
+    "totalProtein": "Eiweiß: {{now}} / {{target}} g",
+    "totalSatfat": "Gesättigte Fettsäuren: {{now}} / {{target}} g",
+    "totalSodium": "Natrium: {{now}} / {{target}} mg"
   }
 }

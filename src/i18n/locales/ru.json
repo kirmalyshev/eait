@@ -1,5 +1,22 @@
 {
   "errors": {
     "notOnboarded": "Сначала пройди /start."
+  },
+  "meal": {
+    "itemUnit": "{{name}} {{grams}}г",
+    "itemsLine": "🍽 {{items}}",
+    "noItems": "—",
+    "macrosLine": "🔥 {{kcal}} ккал · Б {{protein}} · Ж {{fat}} · У {{carbs}}",
+    "verdictItem": "{{label}}: {{emoji}}",
+    "verdict": {
+      "weight": "Вес",
+      "ldl": "Холестерин",
+      "kidneys": "Почки"
+    },
+    "notesLine": "📝 {{notes}}",
+    "totalKcal": "Итого сегодня: {{now}} / {{target}} ккал",
+    "totalProtein": "Белок: {{now}} / {{target}} г",
+    "totalSatfat": "Насыщенные жиры: {{now}} / {{target}} г",
+    "totalSodium": "Натрий: {{now}} / {{target}} мг"
   }
 }

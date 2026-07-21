@@ -1,7 +1,11 @@
 // Human-facing reply for one analyzed meal (spec §8): items, macros, verdicts (only the user's
-// relevant dimensions), and the running daily total vs the user's targets. ru by default.
+// relevant dimensions), and the running daily total vs the user's targets.
+//
+// Every string comes from the caller's translator — nothing is hard-coded here. The caller owns
+// the language (see src/i18n), so this stays a pure formatter.
 
-import type { DailyTotals, FoodTargets, Lang, MealItem, MealVerdicts, Verdict } from "./types.ts";
+import type { TFunction } from "i18next";
+import type { DailyTotals, FoodTargets, MealItem, MealVerdicts, Verdict } from "./types.ts";
 
 /** The meal fields formatReply needs — satisfied by both MealAnalysis and MealRecord. */
 export interface FormatMeal {
@@ -30,43 +34,52 @@ export function verdictEmoji(v: Verdict): string {
 
 const round = (n: number) => Math.round(n);
 
+/** The verdict dimensions, in render order. Only those present in the analysis are shown. */
+const VERDICT_KEYS = ["weight", "ldl", "kidneys"] as const;
+
 export function formatReply(
   meal: FormatMeal,
   totals: DailyTotals,
   targets: FoodTargets,
-  _lang: Lang = "ru",
+  t: TFunction,
 ): string {
   const lines: string[] = [];
 
   // items
   const items = meal.items.length
-    ? meal.items.map((i) => `${i.name} ${round(i.grams)}г`).join(", ")
-    : "—";
-  lines.push(`🍽 ${items}`);
+    ? meal.items.map((i) => t("meal.itemUnit", { name: i.name, grams: round(i.grams) })).join(", ")
+    : t("meal.noItems");
+  lines.push(t("meal.itemsLine", { items }));
 
   // this meal's macros
   lines.push(
-    `🔥 ${round(meal.kcal)} ккал · Б ${round(meal.protein_g)} · Ж ${round(meal.fat_g)} · У ${round(meal.carbs_g)}`,
+    t("meal.macrosLine", {
+      kcal: round(meal.kcal),
+      protein: round(meal.protein_g),
+      fat: round(meal.fat_g),
+      carbs: round(meal.carbs_g),
+    }),
   );
 
   // verdicts — only dimensions present in the analysis (i.e. relevant to this user's profile)
-  const verdictLines: string[] = [];
-  if (meal.verdicts.weight) verdictLines.push(`Вес: ${verdictEmoji(meal.verdicts.weight)}`);
-  if (meal.verdicts.ldl) verdictLines.push(`Холестерин: ${verdictEmoji(meal.verdicts.ldl)}`);
-  if (meal.verdicts.kidneys) verdictLines.push(`Почки: ${verdictEmoji(meal.verdicts.kidneys)}`);
+  const verdictLines = VERDICT_KEYS.flatMap((k) => {
+    const v = meal.verdicts[k];
+    if (!v) return [];
+    return [t("meal.verdictItem", { label: t(`meal.verdict.${k}`), emoji: verdictEmoji(v) })];
+  });
   if (verdictLines.length) lines.push(verdictLines.join("  "));
 
-  if (meal.notes && meal.notes.trim()) lines.push(`📝 ${meal.notes.trim()}`);
+  if (meal.notes && meal.notes.trim()) lines.push(t("meal.notesLine", { notes: meal.notes.trim() }));
 
   // running daily total vs the user's targets
   lines.push("");
-  lines.push(`Итого сегодня: ${round(totals.kcal)} / ${targets.kcal} ккал`);
-  lines.push(`Белок: ${round(totals.protein_g)} / ${targets.protein_g} г`);
+  lines.push(t("meal.totalKcal", { now: round(totals.kcal), target: targets.kcal }));
+  lines.push(t("meal.totalProtein", { now: round(totals.protein_g), target: targets.protein_g }));
   if (targets.satfat_g !== undefined) {
-    lines.push(`Насыщенные жиры: ${round(totals.satfat_g)} / ${targets.satfat_g} г`);
+    lines.push(t("meal.totalSatfat", { now: round(totals.satfat_g), target: targets.satfat_g }));
   }
   if (targets.sodium_mg !== undefined) {
-    lines.push(`Натрий: ${round(totals.sodium_mg)} / ${targets.sodium_mg} мг`);
+    lines.push(t("meal.totalSodium", { now: round(totals.sodium_mg), target: targets.sodium_mg }));
   }
 
   return lines.join("\n");

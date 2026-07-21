@@ -19,6 +19,7 @@ import { analyzeMeal, analyzeCorrection } from "./analyzer.ts";
 import { targetsFor } from "./targets.ts";
 import { formatReply } from "./reply.ts";
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "./onboarding.ts";
+import { translatorFor } from "./i18n/index.ts";
 import type { Lang, MealAnalysis, MealRecord, Profile } from "./types.ts";
 
 export interface BotDeps {
@@ -118,7 +119,7 @@ export async function processPhoto(
   console.log(`[eait] meal stored ${id} user=${from.id}`);
   const totals = dailyTotals(db, from.id, date);
   const sent = await send(
-    formatReply(analysis, totals, targetsFor(prof), prof.lang) +
+    formatReply(analysis, totals, targetsFor(prof), translatorFor(prof.lang)) +
       "\n\n↩️ Не так? Ответь реплаем на это сообщение с уточнением.",
   );
   if (sent) setMealReply(db, id, from.id, sent.chat_id, sent.message_id);
@@ -147,7 +148,7 @@ export async function processCorrection(
   }
   applyCorrection(db, meal.id, from.id, updated);
   const totals = dailyTotals(db, from.id, meal.date);
-  await send("Обновил:\n" + formatReply(updated, totals, targetsFor(prof), prof.lang));
+  await send("Обновил:\n" + formatReply(updated, totals, targetsFor(prof), translatorFor(prof.lang)));
   return true;
 }
 
