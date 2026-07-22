@@ -16,7 +16,7 @@ Last updated: 2026-07-21.
 | Current weight (optional — the question is skippable) | Personalize your protein target (1.6 g/kg) | Until you `/delete` |
 | Dietary and health restrictions | Judge meals on the dimensions you declared | Until you `/delete` |
 | Per-meal estimates — items, calories, macros, verdicts, notes | Daily totals and corrections | Until you `/delete` |
-| Update ids | Avoid processing the same message twice after a restart | Until you `/delete` |
+| Update ids | Avoid processing the same message twice after a restart | Kept indefinitely — numeric Telegram ids only, no content and no link to your account |
 
 ### Health data
 

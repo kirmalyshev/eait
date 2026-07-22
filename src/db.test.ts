@@ -236,6 +236,18 @@ describe("delete cascade", () => {
     expect((await getUser(db, 2))?.telegram_id).toBe(2);
     expect((await getMeal(db, "m2", 2))?.id).toBe("m2");
   });
+
+  test("deleteUser also purges the user's funnel events — PRIVACY.md promises full erasure", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await upsertUser(db, { telegram_id: 2 });
+    await logEvent(db, 1, "start");
+    await logEvent(db, 1, "first_photo");
+    await logEvent(db, 2, "start");
+    await deleteUser(db, 1);
+    expect(await eventsFor(db, 1)).toEqual([]);
+    expect((await eventsFor(db, 2)).length).toBe(1); // other users' funnels untouched
+  });
 });
 
 describe("update dedupe", () => {

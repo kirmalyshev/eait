@@ -53,9 +53,11 @@
     "changed": "Language switched to English."
   },
   "me": {
-    "profileLine": "Profile: goal — {{goal}}; restrictions — {{restrictions}}",
+    "profileLine": "Profile: goal — {{goal}}; weight — {{weight}}; restrictions — {{restrictions}}",
     "todayLine": "Today: {{kcal}} / {{kcalTarget}} kcal · P {{protein}} / {{proteinTarget}} g",
     "noRestrictions": "none",
+    "weightValue": "{{kg}} kg",
+    "noWeight": "not set",
     "goal": {
       "lose": "lose weight",
       "maintain": "maintain",

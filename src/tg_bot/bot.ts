@@ -613,6 +613,9 @@ export async function meCard(deps: BotDeps, userId: number): Promise<string | nu
   return (
     t("me.profileLine", {
       goal: t(`me.goal.${u.goal ?? "maintain"}`),
+      // Weight is shown so a misparsed onboarding answer stays visible and correctable —
+      // the value silently driving the protein target must never be invisible.
+      weight: prof.weight_kg ? t("me.weightValue", { kg: prof.weight_kg }) : t("me.noWeight"),
       // Tags are storage identifiers, not copy — render their localized names. Membership is
       // checked explicitly rather than leaning on i18next's defaultValue, which does not
       // suppress the strict missing-key handler. A tag from an older build shows as itself.

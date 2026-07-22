@@ -293,6 +293,35 @@ test("a qualified 'low (mixed dish)' still triggers the weight nudge", async () 
   expect(msgs[0]).toContain(translatorFor(DEFAULT_LANG)("meal.lowConfidenceHint"));
 });
 
+test("/me shows the stored weight, and 'not set' after a skip — misparses stay visible", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 88); // answers weight 92
+  expect(await meCard(deps, 88)).toContain("92");
+  const t = translatorFor(DEFAULT_LANG);
+  await processOnboarding(deps, { id: 89 }, { type: "command", command: "start" }, noop);
+  await processOnboarding(deps, { id: 89 }, { type: "callback", data: "consent_agree" }, noop);
+  await processOnboarding(deps, { id: 89 }, { type: "callback", data: "goal_lose" }, noop);
+  await processOnboarding(deps, { id: 89 }, { type: "callback", data: "weight_skip" }, noop);
+  await processOnboarding(deps, { id: 89 }, { type: "callback", data: "restrictions_skip" }, noop);
+  expect(await meCard(deps, 89)).toContain(t("me.noWeight"));
+});
+
+test("a capped user still gets the 👀 — the bot saw the photo even when it refuses", async () => {
+  // Deliberate: ack = "seen", not "will analyze". Pinned so a refactor can't flip it silently.
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 1 } };
+  await onboardToActive(deps, 87);
+  await processPhoto(deps, { id: 87 }, async () => new Uint8Array([1]), noop);
+  let acked = 0;
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 87 }, async () => new Uint8Array([1]), send, {
+    ack: async () => { acked++; },
+  });
+  expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.dailyCap"));
+  expect(acked).toBe(1);
+});
+
 test("the stored weight drives the protein target on both user-visible surfaces", async () => {
   // onboardToActive answers weight 92 → target round(92 × 1.6) = 147, not the flat 100.
   const db = await freshTestDb();

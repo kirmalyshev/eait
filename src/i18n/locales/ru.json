@@ -53,9 +53,11 @@
     "changed": "Язык переключён на русский."
   },
   "me": {
-    "profileLine": "Профиль: цель — {{goal}}; ограничения — {{restrictions}}",
+    "profileLine": "Профиль: цель — {{goal}}; вес — {{weight}}; ограничения — {{restrictions}}",
     "todayLine": "Сегодня: {{kcal}} / {{kcalTarget}} ккал · Б {{protein}} / {{proteinTarget}} г",
     "noRestrictions": "нет",
+    "weightValue": "{{kg}} кг",
+    "noWeight": "не указан",
     "goal": {
       "lose": "похудеть",
       "maintain": "держать",

@@ -430,9 +430,12 @@ export async function setProfile(
 }
 
 export async function deleteUser(db: Db, user_id: number): Promise<void> {
-  // No ON DELETE CASCADE in the schema (spec §6), so meals go first, atomically.
+  // No ON DELETE CASCADE in the schema (spec §6), so children go first, atomically.
+  // events go too: PRIVACY.md promises /delete erases the user's data, and funnel rows are
+  // keyed to the account. processed_updates stays — numeric update ids with no user linkage.
   await db.begin(async (tx) => {
     await tx`DELETE FROM meals WHERE user_id = ${user_id}`;
+    await tx`DELETE FROM events WHERE user_id = ${user_id}`;
     await tx`DELETE FROM users WHERE telegram_id = ${user_id}`;
   });
 }
