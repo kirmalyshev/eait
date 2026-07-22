@@ -1,0 +1,9 @@
+# Production overlay for the host machine. Adds a loopback port to the
+# selfhost stack's Postgres so native tools (psql, attribution-report, backups) can reach
+# the prod database without docker exec:
+#
+#   docker compose -f docker-compose.selfhost.yml -f docker-compose.prod.yml up -d
+services:
+  db:
+    ports:
+      - "127.0.0.1:5440:5432"
