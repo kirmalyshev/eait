@@ -89,5 +89,12 @@ for (const model of models) {
     if (caseRuns.length) inputs.push({ expected, runs: caseRuns });
     else console.error(`  ${model} ${c.name}: all runs failed — case excluded from the summary`);
   }
+  // A model whose every call failed (bad id, provider policy 403) must not kill the models
+  // that come after it — one summary lost, not the whole sweep.
+  if (inputs.length === 0) {
+    console.error(`\n${model}: EVERY case failed — no summary. Check the model id / provider policy.\n`);
+    process.exitCode = 1;
+    continue;
+  }
   console.log("\n" + renderReport(model, summarize(inputs)) + "\n");
 }
