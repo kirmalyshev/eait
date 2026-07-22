@@ -13,6 +13,14 @@ import type { InlineButton } from "./onboarding.ts";
 import { REPLY_FORMATS, isReplyFormat } from "./types.ts";
 import type { Goal, Lang, Profile, ReplyFormat } from "./types.ts";
 
+/**
+ * The profile the settings machine renders. reply_format must arrive RESOLVED to the effective
+ * value (user choice, else instance default) — the machine has no config access, and a raw
+ * profile here would mislabel the root's Style line. The compiler enforces what a comment
+ * used to merely discourage.
+ */
+export type SettingsProfile = Profile & { reply_format: ReplyFormat };
+
 export interface SettingsView {
   text: string;
   buttons: InlineButton[][];
@@ -34,7 +42,7 @@ const backRow = (t: TFunction): InlineButton[] => [
 ];
 
 /** Renders the profile summary + the four section buttons. */
-export function settingsRoot(p: Profile, t: TFunction): SettingsView {
+export function settingsRoot(p: SettingsProfile, t: TFunction): SettingsView {
   const restrictions = p.restrictions.length
     ? p.restrictions.map((tag) => tagName(tag, t)).join(", ")
     : t("me.noRestrictions");
@@ -44,9 +52,7 @@ export function settingsRoot(p: Profile, t: TFunction): SettingsView {
       t("settings.goalLine", { goal: t(`me.goal.${p.goal ?? "maintain"}`) }),
       t("settings.restrictionsLine", { restrictions }),
       t("settings.langLine", { lang: LOCALES[p.lang].nativeName }),
-      // The caller resolves null (never chose) to the instance default before rendering;
-      // the "rich" fallback here only covers a profile built without that resolution.
-      t("settings.formatLine", { format: t(`settings.format.${p.reply_format ?? "rich"}`) }),
+      t("settings.formatLine", { format: t(`settings.format.${p.reply_format}`) }),
     ].join("\n"),
     buttons: [
       [
@@ -85,7 +91,7 @@ function chunk<T>(xs: readonly T[], size: number): T[][] {
   return out;
 }
 
-function restrictionToggles(p: Profile, t: TFunction): SettingsView {
+function restrictionToggles(p: SettingsProfile, t: TFunction): SettingsView {
   const toggles = RESTRICTION_TAGS.map((tag) => ({
     text: t(p.restrictions.includes(tag) ? "settings.toggleOn" : "settings.toggleOff", {
       name: t(`me.restriction.${tag}`),
@@ -123,7 +129,7 @@ function formatPicker(t: TFunction): SettingsView {
  * section, an invalid goal, a tag or locale outside the vocabulary — falls back to the root
  * view and patches nothing, the same "re-prompt rather than break" rule onboarding follows.
  */
-export function settingsStep(p: Profile, data: string, t: TFunction): SettingsView {
+export function settingsStep(p: SettingsProfile, data: string, t: TFunction): SettingsView {
   if (data === "st:goal") return goalPicker(t);
   if (data === "st:restr") return restrictionToggles(p, t);
   if (data === "st:lang") return langPicker(t);

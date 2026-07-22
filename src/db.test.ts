@@ -293,6 +293,15 @@ describe("delete cascade", () => {
     expect(await eventsFor(db, 1)).toEqual([]);
     expect((await eventsFor(db, 2)).length).toBe(1); // other users' funnels untouched
   });
+
+  test("the reply-format preference dies with the account — PRIVACY.md 'Until you /delete'", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await setReplyFormat(db, 1, "plain");
+    await deleteUser(db, 1);
+    await upsertUser(db, { telegram_id: 1 }); // same telegram id, next life
+    expect((await getUser(db, 1))!.reply_format).toBeNull(); // no leak across /delete
+  });
 });
 
 describe("update dedupe", () => {

@@ -1,13 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { settingsRoot, settingsStep } from "./settings.ts";
+import { settingsRoot, settingsStep, type SettingsProfile } from "./settings.ts";
 import { LANGS, translatorFor } from "./i18n/index.ts";
 import { RESTRICTION_TAGS } from "./targets.ts";
-import type { Profile } from "./types.ts";
 
 const t = translatorFor("en");
 
-function profile(over: Partial<Profile> = {}): Profile {
-  return { telegram_id: 1, lang: "en", goal: "lose", restrictions: [], ...over };
+// The machine demands a RESOLVED profile (SettingsProfile) — the default "rich" here plays
+// the instance default the bot resolves in before calling.
+function profile(over: Partial<SettingsProfile> = {}): SettingsProfile {
+  return { telegram_id: 1, lang: "en", goal: "lose", restrictions: [], reply_format: "rich", ...over };
 }
 
 const data = (v: { buttons: { text: string; data: string }[][] }) =>

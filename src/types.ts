@@ -26,8 +26,12 @@ export interface Profile {
   /** Kilograms; null/absent = unknown (never asked, or declined). The db's 0-skip sentinel never reaches here. */
   weight_kg?: number | null;
   restrictions: string[]; // tags e.g. ["kidneys","ldl","vegan","lowsugar"]
-  /** Card rendering: the user's choice, or null when they never picked (instance default applies). */
-  reply_format?: ReplyFormat | null;
+  /**
+   * Card rendering: the user's RAW /settings choice; null = never picked (instance default
+   * applies). Resolution to the effective value happens in bot.ts (`replyFormatFor`); the
+   * settings machine demands the resolved form via its own `SettingsProfile` type.
+   */
+  reply_format: ReplyFormat | null;
 }
 
 export interface MealItem {

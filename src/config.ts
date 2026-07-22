@@ -1,8 +1,8 @@
 // env -> typed config. Fails fast (listing ALL missing required vars) so misconfig can't
 // reach the network or the db. loadConfig takes an env object so it is testable without process.env.
 
-import { REPLY_FORMATS } from "./types.ts";
-export { REPLY_FORMATS };
+import { REPLY_FORMATS, isReplyFormat } from "./types.ts";
+import type { ReplyFormat } from "./types.ts";
 
 /** Postgres connection settings. Standard libpq env names, so psql sees the same world. */
 export interface PgConfig {
@@ -37,10 +37,12 @@ export interface Config {
    */
   globalDailyAnalysisCap: number | null;
   /**
-   * How meal cards render: "rich" = Telegram Rich Messages (Bot API 10.1 tables/headings,
-   * with automatic plain fallback if a rich send fails), "plain" = text with emojis.
+   * INSTANCE-DEFAULT meal-card rendering: "rich" = Telegram Rich Messages (Bot API 10.1
+   * tables/headings, automatic plain fallback on a failed send), "plain" = text with emojis.
+   * A user's /settings → Style choice (users.reply_format) overrides it — resolve via
+   * replyFormatFor, never read this field directly at a meal-card site.
    */
-  replyFormat: (typeof REPLY_FORMATS)[number];
+  replyFormat: ReplyFormat;
 }
 
 type Env = Record<string, string | undefined>;
@@ -106,11 +108,10 @@ export function loadConfig(env: Env): Config {
     );
   }
   // Same policy as LLM_PROVIDER: an unknown value dies at startup, never a silent fallback.
-  const replyFormatRaw = env.REPLY_FORMAT?.trim() || "rich";
-  if (!(REPLY_FORMATS as readonly string[]).includes(replyFormatRaw)) {
-    throw new Error(`REPLY_FORMAT must be one of ${REPLY_FORMATS.map((v) => `"${v}"`).join(" | ")} (got ${JSON.stringify(replyFormatRaw)})`);
+  const replyFormat = env.REPLY_FORMAT?.trim() || "rich";
+  if (!isReplyFormat(replyFormat)) {
+    throw new Error(`REPLY_FORMAT must be one of ${REPLY_FORMATS.map((v) => `"${v}"`).join(" | ")} (got ${JSON.stringify(replyFormat)})`);
   }
-  const replyFormat = replyFormatRaw as (typeof REPLY_FORMATS)[number];
 
   const pg: PgConfig = {
     host: env.PGHOST?.trim() || "127.0.0.1",

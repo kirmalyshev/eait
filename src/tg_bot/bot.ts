@@ -28,7 +28,7 @@ import { RejectionLog } from "./rejections.ts";
 import { targetsFor, isRestrictionTag } from "../targets.ts";
 import { formatReply } from "../reply.ts";
 import { renderMealCard } from "../render.ts";
-import { settingsRoot, settingsStep } from "../settings.ts";
+import { settingsRoot, settingsStep, type SettingsProfile } from "../settings.ts";
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "../onboarding.ts";
 import { DEFAULT_LANG, LANGS, LOCALES, isLang, resolveLang, translatorFor } from "../i18n/index.ts";
 import type { TFunction } from "i18next";
@@ -113,6 +113,15 @@ function fireReaction(react: React | undefined, emoji: "👀" | "👍", userId: 
 // ---------- pure helpers ----------
 
 export function profileOf(u: UserRow): Profile {
+  // Off-vocabulary stored values (a renamed locale/format, a hand-edited row) degrade to the
+  // default, but LOUDLY — a silent reset after a rename would strand affected users with no
+  // operator trace. Null is the normal "never chose" state and stays quiet.
+  if (u.lang && !isLang(u.lang)) {
+    console.warn(`[eait] unknown lang ${JSON.stringify(u.lang)} user=${u.telegram_id} — using default`);
+  }
+  if (u.reply_format !== null && !isReplyFormat(u.reply_format)) {
+    console.warn(`[eait] unknown reply_format ${JSON.stringify(u.reply_format)} user=${u.telegram_id} — using instance default`);
+  }
   return {
     telegram_id: u.telegram_id,
     // Validate against the registry rather than coercing: a stored value can predate a locale
@@ -122,8 +131,7 @@ export function profileOf(u: UserRow): Profile {
     // 0 is the db's "explicitly skipped" sentinel — outside the db/bot boundary it means unknown.
     weight_kg: u.weight_kg ? u.weight_kg : null,
     restrictions: u.restrictions,
-    // Same validation rule as lang: junk (a renamed format, a hand-edited row) means "never
-    // chose", so the instance default applies rather than an unknown value leaking downstream.
+    // Same validation rule as lang: junk means "never chose", so the instance default applies.
     reply_format: isReplyFormat(u.reply_format) ? u.reply_format : null,
   };
 }
@@ -490,10 +498,10 @@ export async function processSettingsOpen(
 }
 
 /** The profile the settings machine renders: reply_format resolved to the EFFECTIVE value
- * (user choice, else instance default), so the root always shows what actually happens. */
-function settingsProfile(u: UserRow, config: Config): Profile {
-  const p = profileOf(u);
-  return { ...p, reply_format: p.reply_format ?? config.replyFormat };
+ * (user choice, else instance default) — replyFormatFor is the ONE resolution implementation,
+ * and the SettingsProfile return type makes the machine reject unresolved profiles. */
+function settingsProfile(u: UserRow, config: Config): SettingsProfile {
+  return { ...profileOf(u), reply_format: replyFormatFor(u, config) };
 }
 
 /** Handles an `st:` callback: persist whatever changed, then rewrite the message in place. */
@@ -810,7 +818,9 @@ export const makeSendRich = (ctx: any): SendRich => async ({ html, plain }) => {
     const m = await ctx.api.sendRichMessage(ctx.chat.id, { html });
     return { chat_id: m.chat.id, message_id: m.message_id };
   } catch (e) {
-    console.warn(`[eait] rich send failed, falling back to plain: ${describeError(e)}`);
+    // chat id included: with per-user formats, "I chose rich and nothing changed" is only
+    // diagnosable if the operator can correlate these lines to the complaining user.
+    console.warn(`[eait] rich send failed chat=${ctx.chat?.id}, falling back to plain: ${describeError(e)}`);
   }
   try {
     const m = await ctx.reply(plain);
@@ -1094,7 +1104,11 @@ export function createBot(deps: BotDeps): Bot {
   });
 
   bot.on("callback_query:data", async (ctx) => {
-    await ctx.answerCallbackQuery();
+    // Guarded: a stale query id (backlog replay after downtime) must not abort the tap —
+    // dismissing the spinner is cosmetic; the state change behind the tap is not.
+    await ctx.answerCallbackQuery().catch((e) => {
+      console.warn(`[eait] answerCallbackQuery failed user=${ctx.from?.id}: ${describeError(e)}`);
+    });
     if (!ctx.from) return;
     const data = ctx.callbackQuery.data;
     if (data === "delete_confirm") {

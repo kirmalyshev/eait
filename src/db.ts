@@ -23,6 +23,7 @@ import type {
   MealItem,
   MealRecord,
   MealVerdicts,
+  ReplyFormat,
   UserState,
 } from "./types.ts";
 
@@ -41,7 +42,12 @@ export interface UserRow {
   restrictions: string[];
   created_at: string;
   acquisition_source: string | null;
-  /** Per-user card rendering override; NULL = follow the instance's REPLY_FORMAT. */
+  /**
+   * Per-user card rendering override; NULL = follow the instance's REPLY_FORMAT. An explicit
+   * choice PINS the user: picking the value that happens to match the instance default still
+   * stores it, so their rendering stops following future REPLY_FORMAT changes. Deliberate —
+   * an explicit choice sticks.
+   */
   reply_format: string | null;
 }
 
@@ -280,8 +286,8 @@ const MIGRATIONS: Migration[] = [
   },
   {
     // Per-user reply-format override from /settings. NULL = follow the instance's REPLY_FORMAT
-    // (existing users keep their current rendering until they choose). Free TEXT like lang/goal:
-    // validated at the read boundary (profileOf), not by a CHECK, matching the users-table style.
+    // (existing users keep their current rendering until they choose). Free TEXT with no CHECK,
+    // matching the users-table style; validated at the read boundary (profileOf) the way lang is.
     version: 4,
     up: async (tx) => {
       await tx`ALTER TABLE users ADD COLUMN reply_format TEXT`;
@@ -305,7 +311,13 @@ async function migrate(db: Db): Promise<void> {
     }
     for (const m of MIGRATIONS) {
       if (m.version <= cur) continue;
-      await m.up(tx);
+      try {
+        await m.up(tx);
+      } catch (e) {
+        // Name the version: "column already exists" without it sends the operator diffing
+        // every migration instead of the one that fired.
+        throw new Error(`migration v${m.version} failed: ${message(e)}`);
+      }
       await tx`UPDATE schema_version SET version = ${m.version}`;
     }
   });
@@ -444,13 +456,21 @@ export async function setUserState(db: Db, telegram_id: number, state: UserState
   await db`UPDATE users SET state = ${state} WHERE telegram_id = ${telegram_id}`;
 }
 
-/** /lang — the only place a user's language changes after it is seeded at first contact. */
+/** /lang and /settings → Language — the only places a user's language changes after seeding. */
 export async function setLang(db: Db, telegram_id: number, lang: string): Promise<void> {
   await db`UPDATE users SET lang = ${lang} WHERE telegram_id = ${telegram_id}`;
 }
 
-/** /settings → Style — per-user meal-card rendering override ("rich" | "plain"). */
-export async function setReplyFormat(db: Db, telegram_id: number, format: string): Promise<void> {
+/**
+ * /settings → Style — per-user meal-card rendering override. Like its siblings (setLang,
+ * setProfile), a 0-row UPDATE (user deleted mid-tap) resolves silently: sequentialize(by user)
+ * excludes that race in-process, and every later interaction re-gates on getUser anyway.
+ */
+export async function setReplyFormat(
+  db: Db,
+  telegram_id: number,
+  format: ReplyFormat,
+): Promise<void> {
   await db`UPDATE users SET reply_format = ${format} WHERE telegram_id = ${telegram_id}`;
 }
 

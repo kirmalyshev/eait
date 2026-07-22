@@ -4,7 +4,7 @@ Covers the **hosted demo bot** [@eait_bot](https://t.me/eait_bot). If you self-h
 your users' data reaches the maintainer — you become the operator, and this document is a
 template for the one you owe your own users.
 
-Last updated: 2026-07-21.
+Last updated: 2026-07-23.
 
 ## What is collected
 

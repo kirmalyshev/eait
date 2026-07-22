@@ -1,5 +1,5 @@
 import { afterAll, test, expect } from "bun:test";
-import { getUser, mealByReply, countMealsToday, mealCountToday, llmCallsToday, logLlmCall, berlinDate, setSetting, eventsFor, type UserRow } from "../db.ts";
+import { getUser, mealByReply, countMealsToday, mealCountToday, llmCallsToday, logLlmCall, berlinDate, setSetting, setReplyFormat, eventsFor, type UserRow } from "../db.ts";
 import { loadAllowlist } from "../allowlist.ts";
 import { RejectionLog } from "./rejections.ts";
 import { cleanupTestDbs, freshTestDb } from "../testutil.ts";
@@ -690,7 +690,7 @@ test("/settings is refused until onboarding is finished", async () => {
   expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.notOnboarded"));
 });
 
-test("/settings opens the root view with the three sections", async () => {
+test("/settings opens the root view with the four sections", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   await onboardToActive(deps, 401);
@@ -771,20 +771,29 @@ test("choosing a reply format in settings persists it per user", async () => {
 
 test("the settings root shows the INSTANCE default format when the user never chose", async () => {
   const db = await freshTestDb();
-  // instance runs rich; user 409 has reply_format NULL
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, replyFormat: "rich" } };
-  await onboardToActive(deps, 409);
+  // PLAIN instance deliberately: the machine's internal fallback is "rich", so only a plain
+  // instance distinguishes real resolution (settingsProfile) from the fallback firing.
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg }; // cfg is plain
+  await onboardToActive(deps, 409); // reply_format NULL
   const texts: string[] = [];
   const send: Send = async (t) => { texts.push(t); return { chat_id: 1, message_id: 1 }; };
   await processSettingsOpen(deps, { id: 409 }, send);
-  expect(texts[0]).toContain(translatorFor(DEFAULT_LANG)("settings.format.rich"));
+  expect(texts[0]).toContain(translatorFor(DEFAULT_LANG)("settings.format.plain"));
+});
+
+test("a settings CALLBACK re-render also resolves the instance default (st:root, plain instance)", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg }; // plain instance
+  await onboardToActive(deps, 415); // reply_format NULL
+  const { edit, last } = editor();
+  await processSettingsCallback(deps, { id: 415 }, "st:root", edit);
+  expect(last().text).toContain(translatorFor(DEFAULT_LANG)("settings.format.plain"));
 });
 
 test("a user's plain preference beats a rich instance at the meal card", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: { ...cfg, replyFormat: "rich" } };
   await onboardToActive(deps, 410);
-  const { setReplyFormat } = await import("../db.ts");
   await setReplyFormat(db, 410, "plain");
   let richCalls = 0;
   const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 95 });
@@ -798,7 +807,6 @@ test("a user's rich preference beats a plain instance at the meal card", async (
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg }; // cfg is plain
   await onboardToActive(deps, 411);
-  const { setReplyFormat } = await import("../db.ts");
   await setReplyFormat(db, 411, "rich");
   let richCalls = 0;
   const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 96 });
@@ -812,12 +820,72 @@ test("a junk stored reply_format falls back to the instance default", async () =
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: { ...cfg, replyFormat: "rich" } };
   await onboardToActive(deps, 412);
-  await db`UPDATE users SET reply_format = 'markdown' WHERE telegram_id = 412`; // pre-validation era row
+  await db`UPDATE users SET reply_format = 'markdown' WHERE telegram_id = 412`; // hand-edited or renamed-format row — never writable through the app
   let richCalls = 0;
   const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 97 });
   const { send } = collector();
   await processPhoto(deps, { id: 412 }, [async () => new Uint8Array([1])], send, { sendRich });
   expect(richCalls).toBe(1); // junk ignored → instance default (rich)
+});
+
+test("a user's plain preference beats a rich instance at the correction card", async () => {
+  const db = await freshTestDb();
+  const outs = [foodJson(600)];
+  const deps: BotDeps = { db, provider: { chat: async () => outs.shift() ?? corrIntentJson(900) }, config: { ...cfg, replyFormat: "rich" } };
+  await onboardToActive(deps, 413);
+  await setReplyFormat(db, 413, "plain");
+  let richCalls = 0;
+  const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 98 });
+  await processPhoto(deps, { id: 413 }, [async () => new Uint8Array([1])], collector().send, { sendRich });
+  const { msgs, send } = collector();
+  // reply to the photo analysis (bot message id 1 from the collector above)
+  await processText(deps, { id: 413 }, { text: "actually 900 kcal", messageId: 5, replyTo: 1 }, send, { sendRich });
+  expect(richCalls).toBe(0); // pref plain despite rich instance — at BOTH card sites
+  expect(msgs.some((m) => m.includes("900"))).toBe(true); // correction applied, plain rendering
+});
+
+test("a user's rich preference renders the tm:log card rich and wires the reply id", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(mealIntentJson(450)), config: cfg }; // plain instance
+  await onboardToActive(deps, 414);
+  await setReplyFormat(db, 414, "rich");
+  const { id } = await seedPending(db, 414);
+  let richCalls = 0;
+  const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 99 });
+  const { msgs, send } = collector();
+  await processTextMealDecision(deps, { id: 414 }, `tm:log:${id}`, send, { sendRich });
+  expect(richCalls).toBe(1); // rich pref wins at the confirm-card site too
+  expect(msgs).toHaveLength(0);
+  expect((await mealByReply(db, 414, 99))?.kcal).toBe(450); // rich Sent reaches setMealReply
+});
+
+test("an album flush carries the user's rich preference through to the card", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson(300)), config: cfg }; // plain instance
+  await onboardToActive(deps, 416);
+  await setReplyFormat(db, 416, "rich");
+  let richCalls = 0;
+  const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 100 });
+  const bytes = new Uint8Array([1]);
+  const parts: PendingAlbumPart[] = [
+    { getBytes: async () => bytes, caption: undefined, messageId: 30, send: noop, sendRich, react: async () => {}, from: { id: 416 } },
+    { getBytes: async () => bytes, caption: undefined, messageId: 31, send: noop, sendRich, react: async () => {}, from: { id: 416 } },
+  ];
+  await processAlbum(deps, "416:g9", parts);
+  expect(richCalls).toBe(1); // one album → one rich card
+});
+
+test("Q&A answers stay plain even for a rich-preference user", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(qJson("only text")), config: cfg };
+  await onboardToActive(deps, 417);
+  await setReplyFormat(db, 417, "rich");
+  let richCalls = 0;
+  const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 101 });
+  const { msgs, send } = collector();
+  await processText(deps, { id: 417 }, { text: "how am I doing?", messageId: 40 }, send, { sendRich });
+  expect(richCalls).toBe(0); // LLM text has unknown markup — never rich
+  expect(msgs[0]).toBe("only text");
 });
 
 test("/help works before onboarding, in the language of the Telegram client", async () => {
