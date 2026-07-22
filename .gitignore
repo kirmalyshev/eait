@@ -6,6 +6,7 @@ node_modules/
 *.log
 logs/
 data/
+backups/
 # weighed-meal eval fixtures: real food photos + ground truth, never committed (issue #6)
 eval/
 *.sqlite
