@@ -1,20 +1,28 @@
 // Measure-Monday attribution report: the acquisition funnel grouped by /start code.
-// Read-only against the live database (WAL allows concurrent reads while the bot runs).
+// Read-only against the live database (Postgres serves concurrent readers while the bot runs).
 //
-//   bun run scripts/attribution-report.ts            # uses DB_PATH from .env, else ./data/eait.sqlite
-//   bun run scripts/attribution-report.ts <db-path>  # explicit path
+//   bun run scripts/attribution-report.ts             # this worktree's PGDATABASE from .env
+//   bun run scripts/attribution-report.ts <dbname>    # explicit database on the same server
 //
 // Views per code live in the platform dashboards and are entered by hand into the week file;
 // only the denominator is manual — everything below comes from the bot's own event log.
 
 import { openDb, funnelByCode } from "../src/db.ts";
 
-const path = process.argv[2] ?? process.env.DB_PATH?.trim() ?? "./data/eait.sqlite";
-const db = openDb(path);
-const rows = funnelByCode(db);
+const env = process.env;
+const database = process.argv[2] ?? env.PGDATABASE?.trim() ?? "eait";
+const db = await openDb({
+  host: env.PGHOST?.trim() || "127.0.0.1",
+  port: Number(env.PGPORT) || 5439,
+  user: env.PGUSER?.trim() || "eait",
+  password: env.PGPASSWORD?.trim() || "eait",
+  database,
+});
+const rows = await funnelByCode(db);
 
 if (rows.length === 0) {
-  console.log(`No users yet (${path}).`);
+  console.log(`No users yet (${database}).`);
+  await db.close();
   process.exit(0);
 }
 
@@ -34,4 +42,4 @@ const line = (cells: string[]) => cells.map((c, i) => c.padEnd(widths[i]!)).join
 console.log(line(header));
 console.log(line(widths.map((w) => "-".repeat(w))));
 for (const row of table) console.log(line(row));
-db.close();
+await db.close();

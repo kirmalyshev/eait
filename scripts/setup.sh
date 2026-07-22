@@ -113,22 +113,42 @@ fi
 [ -x "$HOME/.bun/bin/bun" ] && PATH="$HOME/.bun/bin:$PATH" && export PATH
 ok "bun $(bun --version)"
 
+HAVE_DOCKER=""
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  HAVE_DOCKER=1
+  ok "docker available"
+else
+  warn "docker is not available — the bot needs a reachable Postgres."
+  warn "Either install docker (then 'sh scripts/db.sh up' runs one), or point PGHOST/PGPORT/"
+  warn "PGUSER/PGPASSWORD in .env at a server you already have."
+fi
+
 # ---------- 2. dependencies ----------
 
 step "Installing dependencies"
 bun install >/dev/null 2>&1 || die "bun install failed — run 'bun install' to see why"
 ok "dependencies installed"
 
-# ---------- 3. verify the checkout ----------
+# ---------- 3. database ----------
+
+step "Postgres"
+if [ -n "$HAVE_DOCKER" ]; then
+  sh "$DIR/scripts/db.sh" up >/dev/null 2>&1 || die "could not start Postgres — run 'sh scripts/db.sh up' to see why"
+  ok "shared dev Postgres up (sh scripts/db.sh {status|psql|down})"
+else
+  note "skipping — no docker; tests and the bot will use PG* from the environment"
+fi
+
+# ---------- 4. verify the checkout ----------
 
 step "Verifying the checkout"
 if bun test >/dev/null 2>&1; then
   ok "test suite passes"
 else
-  die "tests fail on a clean checkout — fix that before deploying. Run 'bun test' to see why."
+  die "tests fail on a clean checkout — fix that before deploying. Run 'bun test' to see why. (The suite needs the Postgres from the previous step.)"
 fi
 
-# ---------- 4. configure ----------
+# ---------- 5. configure ----------
 
 step "Configuration"
 
@@ -201,8 +221,14 @@ LLM_PROVIDER=openrouter
 LLM_MODEL=x-ai/grok-4.5
 LLM_TIMEOUT_MS=60000
 
-DB_PATH=./data/eait.sqlite
-PHOTO_DIR=./photos
+# Postgres — defaults match the shared dev server from 'sh scripts/db.sh up'. The database
+# is created on first boot; scripts/compose-env.sh points PGDATABASE at eait_<branch> per worktree.
+PGHOST=127.0.0.1
+PGPORT=5439
+PGUSER=eait
+PGPASSWORD=eait
+PGDATABASE=eait
+
 TZ=$ZONE
 PER_USER_DAILY_PHOTO_CAP=50
 
@@ -220,7 +246,7 @@ EOF
   fi
 fi
 
-# ---------- 5. smoke test ----------
+# ---------- 6. smoke test ----------
 
 if [ -z "$NONINTERACTIVE" ]; then
   step "Model check"
@@ -233,7 +259,7 @@ if [ -z "$NONINTERACTIVE" ]; then
   fi
 fi
 
-# ---------- 6. service ----------
+# ---------- 7. service ----------
 
 if [ -z "$NONINTERACTIVE" ]; then
   step "Run in the background?"
@@ -251,7 +277,8 @@ fi
 
 step "Done"
 cat <<EOF
-  Start it:      bun run start        (or: scripts/service.sh install)
+  Start it:      bun run start        (or: scripts/service.sh install, or: docker compose up -d)
+  Postgres:      sh scripts/db.sh {up|status|psql|down}
   Then, in Telegram, message your bot: /start
 
   Docs:          docs/SELF_HOSTING.md

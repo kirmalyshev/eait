@@ -1,0 +1,51 @@
+# Shared dev infrastructure: ONE Postgres serving every worktree, each branch in its own
+# database (onlypro's model). Always runs under the fixed project name `eait-infra` so all
+# worktrees find the same instance — start it via `sh scripts/db.sh up`, which pins -p.
+#
+# The bot containers (docker-compose.yml) join this project's network and reach the server as
+# `db`; native runs (bun run start / bun test) use the loopback port published below.
+name: eait-infra
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    command:
+      - postgres
+      # Each bot instance / test run opens a small pool, but worktrees multiply. Default 100
+      # is enough for ~2 busy worktrees + tests; 300 covers a desk full of them.
+      - -c
+      - max_connections=300
+      - -c
+      - shared_buffers=128MB
+      # DEV-ONLY durability trade: tests create one database per test, and with fsync each
+      # CREATE DATABASE costs ~2s on Docker-for-Mac. A host crash may lose recent writes;
+      # for a dev server whose data is reproducible, that is the right trade. Remove these
+      # three flags if this file is ever used for anything production-shaped.
+      - -c
+      - fsync=off
+      - -c
+      - synchronous_commit=off
+      - -c
+      - full_page_writes=off
+    environment:
+      POSTGRES_USER: eait
+      # Local dev credential, loopback-only. Interpolated from the SAME variables the client
+      # reads (compose loads this directory's .env), so overriding PGPASSWORD/PGPORT in .env
+      # reconfigures server and client together instead of silently splitting them. Note the
+      # server is shared: whichever worktree runs `db.sh up` supplies these values.
+      POSTGRES_PASSWORD: ${PGPASSWORD:-eait}
+      POSTGRES_DB: eait
+    ports:
+      - "127.0.0.1:${PGPORT:-5439}:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eait -d eait"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  pg-data:

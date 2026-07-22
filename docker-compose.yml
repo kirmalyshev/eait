@@ -1,0 +1,50 @@
+# One service: the long-polling bot. No inbound ports — it only makes outbound calls.
+# Storage is the shared dev Postgres (docker-compose.infra.yml, fixed project `eait-infra`);
+# start that first: sh scripts/db.sh up. The bot creates its branch database on boot.
+#
+# Parallel worktrees: each worktree must be its own compose PROJECT with its own DATABASE, or
+# `up` in one worktree silently replaces the containers of another. Run
+# `sh scripts/compose-env.sh` once per worktree — it writes COMPOSE_PROJECT_NAME=eait-<branch>
+# and PGDATABASE=eait_<branch> into .env. Each parallel instance ALSO needs its own
+# TELEGRAM_BOT_TOKEN: Telegram allows one long-polling consumer per token; a second gets
+# 409 Conflict and both degrade.
+services:
+  bot:
+    build: .
+    # Every variable the bot reads, in one visible place — no .env spelunking to learn the
+    # configuration surface. Values interpolate from ./.env (compose loads it automatically),
+    # so secrets never live in this file: `:?` marks required, `:-` carries the default.
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?message @BotFather → /newbot, put the token in .env}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?create at https://openrouter.ai/keys, put it in .env}
+      # Comma-separated Telegram user ids. EMPTY = OPEN BOT: anyone who finds the @handle can
+      # spend your OpenRouter budget.
+      ALLOWED_USER_IDS: ${ALLOWED_USER_IDS:-}
+      ADMIN_USER_ID: ${ADMIN_USER_ID:-}
+      GLOBAL_DAILY_ANALYSIS_CAP: ${GLOBAL_DAILY_ANALYSIS_CAP:-}
+      PER_USER_DAILY_PHOTO_CAP: ${PER_USER_DAILY_PHOTO_CAP:-50}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
+      LLM_MODEL: ${LLM_MODEL:-x-ai/grok-4.5}
+      LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-60000}
+      TZ: ${TZ:-Europe/Berlin}
+      # Inside the compose network the Postgres server is `db` on 5432 — fixed here, NOT taken
+      # from .env, whose PGHOST/PGPORT are the loopback values native runs use.
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: ${PGUSER:-eait}
+      PGPASSWORD: ${PGPASSWORD:-eait}
+      PGDATABASE: ${PGDATABASE:-eait}
+    networks:
+      - eait-infra
+    restart: unless-stopped
+    init: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+networks:
+  eait-infra:
+    external: true
+    name: eait-infra_default

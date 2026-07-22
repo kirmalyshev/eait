@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
-  "description": "Multi-user food-photo Telegram bot (personal tool). TS/bun + grammy + bun:sqlite.",
+  "description": "Multi-user food-photo Telegram bot (personal tool). TS/bun + grammy + Postgres (Bun.sql).",
   "scripts": {
     "start": "bun run src/index.ts",
     "test": "bun test",

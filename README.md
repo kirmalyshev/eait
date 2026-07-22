@@ -53,11 +53,13 @@ is safe.
 ## How it's built
 
 - **Stack:** TS/[bun](https://bun.sh), [grammy](https://grammy.dev) + `@grammyjs/runner`,
-  `bun:sqlite` (builtin), `zod`, [i18next](https://www.i18next.com). Four runtime dependencies.
+  Postgres via the builtin `Bun.sql` client, `zod`, [i18next](https://www.i18next.com). Four
+  runtime dependencies.
 - **LLM:** OpenRouter behind a swappable `LLMProvider` (default `x-ai/grok-4.5`; any
   vision-capable model works). The analyzer owns the prompt and the zod-validated parse — the
   provider is thin transport, so swapping it is one file.
-- **Storage:** one SQLite file. Every meal query is scoped `WHERE id = ? AND user_id = ?`.
+- **Storage:** one Postgres database per branch (auto-created on boot; a shared dockerized
+  dev server ships in the repo). Every meal query is scoped `WHERE id = ? AND user_id = ?`.
 - **Layout:** domain logic under `src/`, the Telegram adapter under `src/tg_bot/`, tests
   co-located. See [AGENTS.md](AGENTS.md).
 

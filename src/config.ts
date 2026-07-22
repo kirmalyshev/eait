@@ -1,13 +1,24 @@
 // env -> typed config. Fails fast (listing ALL missing required vars) so misconfig can't
 // reach the network or the db. loadConfig takes an env object so it is testable without process.env.
 
+/** Postgres connection settings. Standard libpq env names, so psql sees the same world. */
+export interface PgConfig {
+  host: string;
+  port: number;
+  user: string;
+  password: string;
+  database: string;
+  /** Pool size. Defaults to 10 in openDb; tests pass 1 so dozens of per-test databases don't exhaust the server. */
+  max?: number;
+}
+
 export interface Config {
   telegramBotToken: string;
   openrouterApiKey: string;
   llmProvider: string;
   llmModel: string;
   llmTimeoutMs: number;
-  dbPath: string;
+  pg: PgConfig;
   tz: string;
   perUserDailyPhotoCap: number;
   adminUserId: number | null;
@@ -77,6 +88,23 @@ export function loadConfig(env: Env): Config {
   const globalDailyAnalysisCap =
     Number.isInteger(capNum) && capNum >= 0 ? capNum : null;
 
+  // The database name is interpolated into CREATE DATABASE as an identifier (identifiers
+  // cannot be bind-parameterized), so anything outside the safe charset must die here — at
+  // startup with a readable message — not inside a SQL string.
+  const pgDatabase = env.PGDATABASE?.trim() || "eait";
+  if (!/^[a-z_][a-z0-9_]*$/.test(pgDatabase)) {
+    throw new Error(
+      `PGDATABASE must match [a-z_][a-z0-9_]* (got ${JSON.stringify(pgDatabase)})`,
+    );
+  }
+  const pg: PgConfig = {
+    host: env.PGHOST?.trim() || "127.0.0.1",
+    port: intOr(env.PGPORT, 5439),
+    user: env.PGUSER?.trim() || "eait",
+    password: env.PGPASSWORD?.trim() || "eait",
+    database: pgDatabase,
+  };
+
   return {
     telegramBotToken,
     openrouterApiKey,
@@ -85,7 +113,7 @@ export function loadConfig(env: Env): Config {
     llmProvider: env.LLM_PROVIDER?.trim() || "openrouter",
     llmModel: env.LLM_MODEL?.trim() || "x-ai/grok-4.5",
     llmTimeoutMs: intOr(env.LLM_TIMEOUT_MS, 60000),
-    dbPath: env.DB_PATH?.trim() || "./data/eait.sqlite",
+    pg,
     tz: env.TZ?.trim() || "Europe/Berlin",
     perUserDailyPhotoCap: intOr(env.PER_USER_DAILY_PHOTO_CAP, 50),
     adminUserId,

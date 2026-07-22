@@ -6,7 +6,6 @@
 
 import { Bot, InlineKeyboard } from "grammy";
 import { run, sequentialize } from "@grammyjs/runner";
-import type { Database } from "bun:sqlite";
 import type { Config } from "../config.ts";
 import type { LLMProvider } from "../llm/provider.ts";
 import { createProvider } from "../llm/factory.ts";
@@ -15,7 +14,7 @@ import {
   insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals, countMealsToday,
   deleteUser, userCount, mealCount, mealCountToday, seenUpdate, markUpdate, setLang,
   getSetting, setSetting, clearSetting, hasMeals, hasEvent, logEvent, setAcquisitionSource,
-  type UserRow,
+  type Db, type UserRow,
 } from "../db.ts";
 import { analyzeMeal, analyzeCorrection, classifyRestrictions } from "../analyzer.ts";
 import { targetsFor, isRestrictionTag } from "../targets.ts";
@@ -27,7 +26,7 @@ import type { TFunction } from "i18next";
 import type { Lang, MealAnalysis, MealContext, MealRecord, Profile } from "../types.ts";
 
 export interface BotDeps {
-  db: Database;
+  db: Db;
   provider: LLMProvider;
   config: Config;
 }
@@ -75,11 +74,11 @@ export function mealToAnalysis(m: MealRecord): MealAnalysis {
 }
 
 /** Persist an onboarding transition. setConsent/setProfile already move state; setUserState reconciles. */
-export function applyOnboarding(db: Database, telegram_id: number, r: OnboardingResult): void {
-  if (r.patch?.consent_at) setConsent(db, telegram_id, r.patch.consent_at);
-  if (r.patch?.goal) setProfile(db, telegram_id, { goal: r.patch.goal });
-  if (r.patch?.restrictions !== undefined) setProfile(db, telegram_id, { restrictions: r.patch.restrictions });
-  setUserState(db, telegram_id, r.nextState);
+export async function applyOnboarding(db: Db, telegram_id: number, r: OnboardingResult): Promise<void> {
+  if (r.patch?.consent_at) await setConsent(db, telegram_id, r.patch.consent_at);
+  if (r.patch?.goal) await setProfile(db, telegram_id, { goal: r.patch.goal });
+  if (r.patch?.restrictions !== undefined) await setProfile(db, telegram_id, { restrictions: r.patch.restrictions });
+  await setUserState(db, telegram_id, r.nextState);
 }
 
 // ---------- process functions (grammy-free, testable) ----------
@@ -92,19 +91,19 @@ export async function processOnboarding(
 ): Promise<void> {
   // Language is seeded at first contact so the consent screen already arrives localized.
   // upsertUser only writes `lang` on INSERT, so a later /start never undoes a /lang change.
-  upsertUser(deps.db, {
+  await upsertUser(deps.db, {
     telegram_id: from.id,
     username: from.username ?? null,
     lang: resolveLang(from.language_code),
   });
-  const u = getUser(deps.db, from.id);
-  if (input.type === "command") recordStart(deps.db, from.id, input.payload);
+  const u = await getUser(deps.db, from.id);
+  if (input.type === "command") await recordStart(deps.db, from.id, input.payload);
   const t = translatorForUser(u);
   const r = step(u ? { state: u.state, goal: u.goal } : undefined, input, t);
   await applyRestrictionFallback(deps, u, input, r);
-  applyOnboarding(deps.db, from.id, r);
+  await applyOnboarding(deps.db, from.id, r);
   if (u?.state !== "active" && r.nextState === "active") {
-    logEvent(deps.db, from.id, "onboarding_complete");
+    await logEvent(deps.db, from.id, "onboarding_complete");
   }
   await send(r.reply, r.buttons);
 }
@@ -117,10 +116,10 @@ export async function processOnboarding(
  */
 const START_PAYLOAD_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
-function recordStart(db: Database, telegram_id: number, payload: string | undefined): void {
+async function recordStart(db: Db, telegram_id: number, payload: string | undefined): Promise<void> {
   const code = payload && START_PAYLOAD_RE.test(payload) ? payload : null;
-  if (code) setAcquisitionSource(db, telegram_id, code); // first-touch: set-once in db layer
-  logEvent(db, telegram_id, "start", code);
+  if (code) await setAcquisitionSource(db, telegram_id, code); // first-touch: set-once in db layer
+  await logEvent(db, telegram_id, "start", code);
 }
 
 /**
@@ -180,8 +179,8 @@ const CAP_KEY = "global_cap";
  * Anything unparseable falls back to the configured value rather than to unlimited: a corrupt
  * row must not silently remove the spend bound.
  */
-export function effectiveGlobalCap(db: Database, config: Config): number | null {
-  const raw = getSetting(db, CAP_KEY);
+export async function effectiveGlobalCap(db: Db, config: Config): Promise<number | null> {
+  const raw = await getSetting(db, CAP_KEY);
   if (raw === null) return config.globalDailyAnalysisCap;
   if (raw === "off") return null;
   const n = Number(raw);
@@ -196,7 +195,7 @@ export async function processCap(
   send: Send,
 ): Promise<void> {
   const { db, config } = deps;
-  const t = translatorForUser(getUser(db, from.id));
+  const t = translatorForUser(await getUser(db, from.id));
   if (config.adminUserId === null || config.adminUserId !== from.id) {
     // Silent when no admin is configured at all: answering would advertise the command.
     if (config.adminUserId !== null) await send(t("errors.adminOnly"));
@@ -210,19 +209,19 @@ export async function processCap(
     const date = berlinDate(new Date(), config.tz);
     await send(
       t("cap.current", {
-        cap: shown(effectiveGlobalCap(db, config)),
-        used: mealCountToday(db, date),
+        cap: shown(await effectiveGlobalCap(db, config)),
+        used: await mealCountToday(db, date),
       }),
     );
     return;
   }
   if (a === "off") {
-    setSetting(db, CAP_KEY, "off");
+    await setSetting(db, CAP_KEY, "off");
     await send(t("cap.off"));
     return;
   }
   if (a === "reset") {
-    clearSetting(db, CAP_KEY);
+    await clearSetting(db, CAP_KEY);
     await send(t("cap.reset", { cap: shown(config.globalDailyAnalysisCap) }));
     return;
   }
@@ -233,7 +232,7 @@ export async function processCap(
     await send(t("cap.invalid"));
     return;
   }
-  setSetting(db, CAP_KEY, String(n));
+  await setSetting(db, CAP_KEY, String(n));
   console.log(`[eait] global daily cap set to ${n} by admin`);
   await send(t("cap.set", { cap: n }));
 }
@@ -244,12 +243,12 @@ export async function processCap(
  * so waitlist counts in the funnel report are users, not taps.
  */
 export async function processWaitlist(deps: BotDeps, from: { id: number }, send: Send): Promise<void> {
-  const t = translatorForUser(getUser(deps.db, from.id));
-  if (hasEvent(deps.db, from.id, "waitlist_join")) {
+  const t = translatorForUser(await getUser(deps.db, from.id));
+  if (await hasEvent(deps.db, from.id, "waitlist_join")) {
     await send(t("waitlist.already"));
     return;
   }
-  logEvent(deps.db, from.id, "waitlist_join");
+  await logEvent(deps.db, from.id, "waitlist_join");
   await send(t("waitlist.joined"));
 }
 
@@ -268,11 +267,11 @@ export function buildCommands(t: TFunction): Array<{ command: string; descriptio
 }
 
 /** /help. Deliberately works before onboarding — it is how someone learns what to do. */
-export function helpText(
+export async function helpText(
   deps: BotDeps,
   from: { id: number; language_code?: string | null },
-): string {
-  const u = getUser(deps.db, from.id);
+): Promise<string> {
+  const u = await getUser(deps.db, from.id);
   // No row yet (they ran /help before /start): fall back to their Telegram client language
   // rather than the default, so a German user reads German help from the first message.
   const lang = u ? profileOf(u).lang : resolveLang(from.language_code);
@@ -285,7 +284,7 @@ export async function processSettingsOpen(
   from: { id: number },
   send: Send,
 ): Promise<void> {
-  const u = getUser(deps.db, from.id);
+  const u = await getUser(deps.db, from.id);
   if (!u || u.state !== "active") {
     await send(translatorForUser(u)("errors.notOnboarded"));
     return;
@@ -302,14 +301,14 @@ export async function processSettingsCallback(
   data: string,
   edit: Edit,
 ): Promise<void> {
-  const u = getUser(deps.db, from.id);
+  const u = await getUser(deps.db, from.id);
   if (!u || u.state !== "active") return; // no row to edit against; stay silent
   const prof = profileOf(u);
   const v = settingsStep(prof, data, translatorFor(prof.lang));
   if (v.patch) {
-    if (v.patch.lang) setLang(deps.db, from.id, v.patch.lang);
+    if (v.patch.lang) await setLang(deps.db, from.id, v.patch.lang);
     if (v.patch.goal || v.patch.restrictions) {
-      setProfile(deps.db, from.id, { goal: v.patch.goal, restrictions: v.patch.restrictions });
+      await setProfile(deps.db, from.id, { goal: v.patch.goal, restrictions: v.patch.restrictions });
     }
   }
   await edit(v.text, v.buttons);
@@ -321,7 +320,7 @@ export async function processLangPrompt(
   from: { id: number },
   send: Send,
 ): Promise<void> {
-  const t = translatorForUser(getUser(deps.db, from.id));
+  const t = translatorForUser(await getUser(deps.db, from.id));
   const buttons = (Object.keys(LOCALES) as Lang[]).map((code) => [
     { text: LOCALES[code].nativeName, data: `lang_${code}` },
   ]);
@@ -337,7 +336,7 @@ export async function processLangChoice(
 ): Promise<void> {
   const code = data.slice("lang_".length);
   if (!isLang(code)) return;
-  setLang(deps.db, from.id, code);
+  await setLang(deps.db, from.id, code);
   await send(translatorFor(code)("lang.changed")); // confirm in the language just chosen
 }
 
@@ -349,7 +348,7 @@ export async function processPhoto(
   meta?: { caption?: string },
 ): Promise<void> {
   const { db, provider, config } = deps;
-  const u = getUser(db, from.id);
+  const u = await getUser(db, from.id);
   if (!u || u.state !== "active") {
     await send(translatorForUser(u)("errors.notOnboarded"));
     return;
@@ -357,17 +356,17 @@ export async function processPhoto(
   const prof = profileOf(u);
   const t = translatorFor(prof.lang);
   const date = berlinDate(new Date(), config.tz);
-  if (countMealsToday(db, from.id, date) >= config.perUserDailyPhotoCap) {
+  if ((await countMealsToday(db, from.id, date)) >= config.perUserDailyPhotoCap) {
     await send(t("errors.dailyCap"));
     return;
   }
   // Global spend bound, checked BEFORE the vision call — the per-user cap bounds one account,
   // but a publicly linked bot has unbounded accounts. A cap enforced after the call would cost
   // exactly as much as no cap at all.
-  const cap = effectiveGlobalCap(db, config);
-  if (cap !== null && mealCountToday(db, date) >= cap) {
+  const cap = await effectiveGlobalCap(db, config);
+  if (cap !== null && (await mealCountToday(db, date)) >= cap) {
     console.warn(`[eait] global daily cap ${cap} reached`);
-    logEvent(db, from.id, "cap_hit");
+    await logEvent(db, from.id, "cap_hit");
     await send(t("errors.globalCap"));
     return;
   }
@@ -391,13 +390,13 @@ export async function processPhoto(
     return;
   }
   const id = crypto.randomUUID();
-  const firstPhoto = !hasMeals(db, from.id); // read before the insert makes it true forever
-  insertMeal(db, {
+  const firstPhoto = !(await hasMeals(db, from.id)); // read before the insert makes it true forever
+  await insertMeal(db, {
     id, user_id: from.id, ts: new Date().toISOString(), date, analysis, model: config.llmModel,
   });
-  if (firstPhoto) logEvent(db, from.id, "first_photo");
+  if (firstPhoto) await logEvent(db, from.id, "first_photo");
   console.log(`[eait] meal stored ${id} user=${from.id}`);
-  const totals = dailyTotals(db, from.id, date);
+  const totals = await dailyTotals(db, from.id, date);
   // When the model itself flags the estimate as shaky, ask for the strongest correction the
   // literature knows — a user-supplied weight — instead of the generic hint. The schema already
   // normalizes casing; prefix-match so a qualifier ("low (mixed dish)") can't turn the nudge off.
@@ -405,7 +404,7 @@ export async function processPhoto(
     ? t("meal.lowConfidenceHint")
     : t("meal.correctionHint");
   const sent = await send(formatReply(analysis, totals, targetsFor(prof), t) + "\n\n" + hint);
-  if (sent) setMealReply(db, id, from.id, sent.chat_id, sent.message_id);
+  if (sent) await setMealReply(db, id, from.id, sent.chat_id, sent.message_id);
 }
 
 /**
@@ -430,7 +429,7 @@ export async function processDocument(
   send: Send,
   meta?: { caption?: string },
 ): Promise<void> {
-  const t = translatorForUser(getUser(deps.db, from.id));
+  const t = translatorForUser(await getUser(deps.db, from.id));
   if (!doc.mime_type?.startsWith("image/")) {
     await send(t("errors.notAnImage"));
     return;
@@ -451,9 +450,9 @@ export async function processCorrection(
   send: Send,
 ): Promise<boolean> {
   const { db, provider } = deps;
-  const meal = mealByReply(db, from.id, replyToMessageId);
+  const meal = await mealByReply(db, from.id, replyToMessageId);
   if (!meal) return false;
-  const u = getUser(db, from.id);
+  const u = await getUser(db, from.id);
   if (!u) return false;
   const prof = profileOf(u);
   const t = translatorFor(prof.lang);
@@ -467,18 +466,18 @@ export async function processCorrection(
     await send(t("errors.correctionFailed"));
     return true;
   }
-  applyCorrection(db, meal.id, from.id, updated);
-  const totals = dailyTotals(db, from.id, meal.date);
+  await applyCorrection(db, meal.id, from.id, updated);
+  const totals = await dailyTotals(db, from.id, meal.date);
   await send(t("meal.updatedPrefix") + "\n" + formatReply(updated, totals, targetsFor(prof), t));
   return true;
 }
 
-export function meCard(deps: BotDeps, userId: number): string | null {
-  const u = getUser(deps.db, userId);
+export async function meCard(deps: BotDeps, userId: number): Promise<string | null> {
+  const u = await getUser(deps.db, userId);
   if (!u || u.state !== "active") return null;
   const prof = profileOf(u);
   const date = berlinDate(new Date(), deps.config.tz);
-  const totals = dailyTotals(deps.db, userId, date);
+  const totals = await dailyTotals(deps.db, userId, date);
   const targets = targetsFor(prof);
   const t = translatorFor(prof.lang);
   return (
@@ -508,23 +507,23 @@ export function meCard(deps: BotDeps, userId: number): string | null {
  * to onboard before running an admin command), so there is no row to read a language from —
  * fall back to the default rather than dereferencing an absent user.
  */
-export function adminLangFor(
+export async function adminLangFor(
   deps: BotDeps,
   userId: number,
   languageCode?: string | null,
-): Lang {
-  const u = getUser(deps.db, userId);
+): Promise<Lang> {
+  const u = await getUser(deps.db, userId);
   // No row: fall back to their Telegram client language rather than the default, matching
   // how /help treats a pre-onboarding user.
   return u ? profileOf(u).lang : resolveLang(languageCode);
 }
 
 /** Admin-only. Takes an explicit lang because it is rendered for whoever ran /stats. */
-export function statsCard(deps: BotDeps, lang: Lang): string {
+export async function statsCard(deps: BotDeps, lang: Lang): Promise<string> {
   const t = translatorFor(lang);
   return t("stats.card", {
-    users: t("stats.users", { count: userCount(deps.db) }),
-    meals: t("stats.meals", { count: mealCount(deps.db) }),
+    users: t("stats.users", { count: await userCount(deps.db) }),
+    meals: t("stats.meals", { count: await mealCount(deps.db) }),
   });
 }
 
@@ -557,8 +556,8 @@ export function createBot(deps: BotDeps): Bot {
   // update_id dedupe (crash-redelivery safety)
   bot.use(async (ctx, next) => {
     const uid = ctx.update.update_id;
-    if (seenUpdate(db, uid)) return;
-    markUpdate(db, uid);
+    if (await seenUpdate(db, uid)) return;
+    await markUpdate(db, uid);
     await next();
   });
   // one user's slow vision call must not block others
@@ -581,22 +580,22 @@ export function createBot(deps: BotDeps): Bot {
   };
 
   /** The translator for whoever sent this update. */
-  const tFor = (ctx: any): TFunction =>
-    translatorForUser(ctx.from ? getUser(db, ctx.from.id) : undefined);
+  const tFor = async (ctx: any): Promise<TFunction> =>
+    translatorForUser(ctx.from ? await getUser(db, ctx.from.id) : undefined);
 
   bot.command("start", async (ctx) => {
     // `ctx.match` is the deep-link payload (`t.me/<bot>?start=<code>`) — the attribution code.
     if (ctx.from) await processOnboarding(deps, ctx.from, { type: "command", command: "start", payload: String(ctx.match ?? "") }, sendVia(ctx));
   });
   bot.command("me", async (ctx) => {
-    const card = ctx.from ? meCard(deps, ctx.from.id) : null;
-    await ctx.reply(card ?? tFor(ctx)("errors.notOnboarded"));
+    const card = ctx.from ? await meCard(deps, ctx.from.id) : null;
+    await ctx.reply(card ?? (await tFor(ctx))("errors.notOnboarded"));
   });
   bot.command("settings", async (ctx) => {
     if (ctx.from) await processSettingsOpen(deps, ctx.from, sendVia(ctx));
   });
   bot.command("help", async (ctx) => {
-    if (ctx.from) await ctx.reply(helpText(deps, ctx.from));
+    if (ctx.from) await ctx.reply(await helpText(deps, ctx.from));
   });
   bot.command("waitlist", async (ctx) => {
     if (ctx.from) await processWaitlist(deps, ctx.from, sendVia(ctx));
@@ -606,7 +605,7 @@ export function createBot(deps: BotDeps): Bot {
     if (ctx.from) await processLangPrompt(deps, ctx.from, sendVia(ctx));
   });
   bot.command("delete", async (ctx) => {
-    const t = tFor(ctx);
+    const t = await tFor(ctx);
     await ctx.reply(t("delete.prompt"), {
       reply_markup: new InlineKeyboard()
         .text(t("delete.button.confirm"), "delete_confirm")
@@ -615,10 +614,10 @@ export function createBot(deps: BotDeps): Bot {
   });
   bot.command("stats", async (ctx) => {
     if (!ctx.from || config.adminUserId === null || config.adminUserId !== ctx.from.id) {
-      await ctx.reply(tFor(ctx)("errors.adminOnly"));
+      await ctx.reply((await tFor(ctx))("errors.adminOnly"));
       return;
     }
-    await ctx.reply(statsCard(deps, adminLangFor(deps, ctx.from.id, ctx.from.language_code)));
+    await ctx.reply(await statsCard(deps, await adminLangFor(deps, ctx.from.id, ctx.from.language_code)));
   });
   // The admin gate lives inside processCap (unlike /stats above), so this stays a two-line
   // adapter per this folder's rule. `ctx.match` is the text after the command.
@@ -631,13 +630,13 @@ export function createBot(deps: BotDeps): Bot {
     if (!ctx.from) return;
     const data = ctx.callbackQuery.data;
     if (data === "delete_confirm") {
-      const t = tFor(ctx); // read the language BEFORE the row is deleted
-      deleteUser(db, ctx.from.id);
+      const t = await tFor(ctx); // read the language BEFORE the row is deleted
+      await deleteUser(db, ctx.from.id);
       await ctx.reply(t("delete.done"));
       return;
     }
     if (data === "delete_cancel") {
-      await ctx.reply(tFor(ctx)("delete.cancelled"));
+      await ctx.reply((await tFor(ctx))("delete.cancelled"));
       return;
     }
     if (data.startsWith("st:")) {
@@ -773,16 +772,16 @@ export function describeError(err: unknown): string {
   return String(err);
 }
 
-export function startBot(config: Config): { db: Database; stop: () => Promise<void> } {
-  // Validate config before touching the filesystem: createProvider throws on an unknown
-  // LLM_PROVIDER, and doing it first means that failure can't strand an open sqlite handle.
+export async function startBot(config: Config): Promise<{ db: Db; stop: () => Promise<void> }> {
+  // Validate config before touching the network: createProvider throws on an unknown
+  // LLM_PROVIDER, and doing it first means that failure can't strand an open connection pool.
   const provider = createProvider(config);
-  const db = openDb(config.dbPath);
+  const db = await openDb(config.pg);
   let bot: Bot;
   try {
     bot = createBot({ db, provider, config });
   } catch (e) {
-    db.close(); // `new Bot(token)` rejects a malformed token — don't strand the handle we just opened
+    await db.close(); // `new Bot(token)` rejects a malformed token — don't strand the pool we just opened
     throw e;
   }
   if (config.allowedUserIds === null) {
@@ -814,7 +813,7 @@ export function startBot(config: Config): { db: Database; stop: () => Promise<vo
           console.error(`[eait] fatal Telegram error, not retrying: ${describeError(err)}`);
           console.error("[eait] check TELEGRAM_BOT_TOKEN — the bot cannot authenticate.");
           stopping = true;
-          db.close();
+          await db.close();
           process.exitCode = 1;
           break;
         }
@@ -837,7 +836,7 @@ export function startBot(config: Config): { db: Database; stop: () => Promise<vo
     try {
       if (handle.isRunning()) await handle.stop();
     } finally {
-      db.close(); // must run even if stopping the runner rejects, or the db handle leaks
+      await db.close(); // must run even if stopping the runner rejects, or the pool leaks
     }
   };
   process.once("SIGTERM", stop);

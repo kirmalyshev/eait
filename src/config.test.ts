@@ -33,7 +33,13 @@ describe("loadConfig", () => {
     expect(cfg.llmProvider).toBe("openrouter");
     expect(cfg.llmModel).toBe("x-ai/grok-4.5");
     expect(cfg.llmTimeoutMs).toBe(60000);
-    expect(cfg.dbPath).toBe("./data/eait.sqlite");
+    expect(cfg.pg).toEqual({
+      host: "127.0.0.1",
+      port: 5439,
+      user: "eait",
+      password: "eait",
+      database: "eait",
+    });
     expect(cfg.tz).toBe("Europe/Berlin");
     expect(cfg.perUserDailyPhotoCap).toBe(50);
     expect(cfg.adminUserId).toBeNull();
@@ -56,7 +62,11 @@ describe("loadConfig", () => {
       LLM_PROVIDER: "some-other-vendor",
       LLM_MODEL: "anthropic/claude-x",
       LLM_TIMEOUT_MS: "1000",
-      DB_PATH: "/tmp/other.sqlite",
+      PGHOST: "db",
+      PGPORT: "5432",
+      PGUSER: "other",
+      PGPASSWORD: "secret",
+      PGDATABASE: "eait_feature_x",
       PER_USER_DAILY_PHOTO_CAP: "10",
       TZ: "UTC",
     });
@@ -65,9 +75,28 @@ describe("loadConfig", () => {
     expect(cfg.llmProvider).toBe("some-other-vendor");
     expect(cfg.llmModel).toBe("anthropic/claude-x");
     expect(cfg.llmTimeoutMs).toBe(1000);
-    expect(cfg.dbPath).toBe("/tmp/other.sqlite");
+    expect(cfg.pg).toEqual({
+      host: "db",
+      port: 5432,
+      user: "other",
+      password: "secret",
+      database: "eait_feature_x",
+    });
     expect(cfg.perUserDailyPhotoCap).toBe(10);
     expect(cfg.tz).toBe("UTC");
+  });
+
+  test("a junk PGPORT falls back to the default rather than NaN", () => {
+    expect(loadConfig({ ...REQUIRED, PGPORT: "abc" }).pg.port).toBe(5439);
+  });
+
+  test("a database name outside [a-z0-9_] is rejected at startup, not at CREATE DATABASE", () => {
+    // The name is interpolated into CREATE DATABASE as an identifier (identifiers cannot be
+    // bind-parameterized), so anything but the safe charset must die here.
+    expect(() => loadConfig({ ...REQUIRED, PGDATABASE: 'eait"; DROP DATABASE eait;--' })).toThrow(
+      /PGDATABASE/,
+    );
+    expect(() => loadConfig({ ...REQUIRED, PGDATABASE: "eait-dash" })).toThrow(/PGDATABASE/);
   });
 
   // PHOTO_DIR sat in .env.example and Config for months after nothing read it. This pins the

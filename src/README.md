@@ -8,7 +8,7 @@ Tests are co-located (`*.test.ts`, run with `bun test`).
 - `index.ts` — entrypoint: load config, hand off to `startBot`, and turn a startup failure into one readable line.
 - `config.ts` — env → typed config; fails fast on missing required vars.
 - `types.ts` — shared types (`Profile`, `MealAnalysis`, `MealRecord`, `DailyTotals`, `FoodTargets`, `Verdict`).
-- `db.ts` — `bun:sqlite`: PRAGMAs + `user_version` migrations + typed queries.
+- `db.ts` — Postgres (`Bun.sql`): auto-created branch database + versioned migrations + typed queries.
 - `targets.ts` — `targetsFor(profile)` and `parseRestrictions(text)`.
 - `llm/provider.ts` — `LLMProvider` interface (thin transport).
 - `llm/openrouter.ts` — OpenRouter impl (timeout + backoff).

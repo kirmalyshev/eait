@@ -68,6 +68,23 @@ curl -fsSL https://bun.sh/install | bash
 bun --version
 ```
 
+And a Postgres. The repo ships a dockerized one (`docker-compose.infra.yml`) — with docker
+installed it is one command:
+
+```bash
+sh scripts/db.sh up      # also: status | psql | down; data survives restarts in a volume
+```
+
+No docker? Point `PGHOST`/`PGPORT`/`PGUSER`/`PGPASSWORD` in `.env` at any Postgres 14+ you
+already run. The bot creates its own database (`PGDATABASE`) on first boot either way.
+
+> **Durability warning for real data:** the shipped server is tuned for development speed —
+> it runs with `fsync=off`, `synchronous_commit=off` and `full_page_writes=off`, so a host
+> crash or power loss can lose recent writes or corrupt the cluster. If this instance will
+> hold data you care about, delete those three `-c` flags from `docker-compose.infra.yml`
+> (then `sh scripts/db.sh down && sh scripts/db.sh up`), or use a Postgres you already
+> operate.
+
 ### 2. Get the code and its dependencies
 
 ```bash
@@ -79,7 +96,8 @@ bun install
 ### 3. Verify the checkout before configuring anything
 
 ```bash
-bun test          # full suite, no credentials needed
+sh scripts/db.sh up   # the suite runs against a real Postgres (throwaway per-test databases)
+bun test              # no credentials needed
 bun run typecheck
 ```
 
@@ -129,7 +147,7 @@ Expected on a healthy start, in this order:
 
 ```
 [eait] allowlist active: N user(s)
-eait started · model=… · db=./data/eait.sqlite
+eait starting · model=… · db=eait
 [eait] commands registered for en, ru, de
 ```
 
@@ -175,14 +193,44 @@ so rather than failing silently, and you should use a system unit instead.
 `status` and `logs` read from `journalctl --user`, falling back to `logs/` if journald is
 unavailable.
 
+**Docker** — an alternative to both, and the only option that needs no bun on the host:
+
+```bash
+cp .env.example .env          # fill in tokens (or reuse an .env made by setup.sh)
+sh scripts/db.sh up           # shared Postgres (skip if already running)
+docker compose up -d --build  # build + start the bot; it joins the Postgres network
+docker compose logs -f        # watch startup; expect the same lines as step 6
+docker compose down           # stop the bot (the database keeps running and keeps the data)
+```
+
+The container runs the same long-polling process — no ports are exposed. Inside the network
+the bot reaches the server as `db`; native runs use the loopback port from `.env`. Both hit
+the same database, so switching between them is seamless (never run both at once — one
+long-polling consumer per token).
+
+*Parallel instances (worktree development):* each checkout must be its own compose project
+with its own database, or `up` in one worktree replaces the other's container. Once per
+worktree:
+
+```bash
+sh scripts/compose-env.sh     # writes COMPOSE_PROJECT_NAME=eait-<branch>,
+                              # PGDATABASE=eait_<branch>, PGDATABASE_TEST=eait_test_<branch>
+```
+
+Each parallel instance also needs its **own bot token** (next paragraph) — create a throwaway
+dev bot per worktree via `@BotFather`.
+
 **One instance per token.** Telegram allows a single long-polling consumer per bot token; a
 second one gets `409 Conflict` and both degrade. Stop the old process before starting a new
 one — `scripts/service.sh restart` and `systemctl restart` both do this correctly.
 
 ## Operating notes
 
-- **Data lives in one SQLite file** at `DB_PATH`. Back that up and you have backed up
-  everything. There is nothing else stateful.
+- **Data lives in one Postgres database** (`PGDATABASE`) — nothing else is stateful. See
+  "Backing up and restoring" below.
+- **Migrating from a sqlite-era install:** stop the old bot, then
+  `bun run scripts/migrate-sqlite-to-pg.ts ./data/eait.sqlite` — it copies every table and
+  prints per-table counts to verify against.
 - **Photos are never persisted.** They are downloaded to memory, analyzed, and dropped. No
   image and no image path is ever written to the database.
 - **`/delete` erases a user's data**, cascading to all their logged meals. It is irreversible
@@ -194,6 +242,30 @@ one — `scripts/service.sh restart` and `systemctl restart` both do this correc
   language and `/settings` can change it. Adding one is a JSON file plus a registry line — see
   `src/README.md`.
 
+## Backing up and restoring
+
+Plain `pg_dump`/`psql` — there is no built-in backup mechanism, and none is needed. Everything
+the bot knows lives in the one database.
+
+Back up:
+
+```bash
+docker compose -p eait-infra exec db pg_dump -U eait eait > "eait-$(date +%F).sql"
+```
+
+Restore (fresh machine or after data loss):
+
+```bash
+sh scripts/db.sh up
+docker compose -p eait-infra exec -T db psql -U eait -d postgres \
+  -c 'CREATE DATABASE eait' 2>/dev/null || true   # exists already? fine
+docker compose -p eait-infra exec -T db psql -U eait -d eait < eait-2026-07-22.sql
+```
+
+Running against your own (non-dockerized) Postgres: same commands minus the `docker compose
+exec` prefix. If the data matters, put the backup line in cron and re-read the durability
+warning in step 1 — the shipped dev server runs with `fsync=off`.
+
 ## Upgrading
 
 ```bash
@@ -203,5 +275,5 @@ bun test && bun run typecheck
 scripts/service.sh restart      # or: systemctl restart eait
 ```
 
-Run the tests before restarting, not after. The database migrates itself on open via
-`user_version`; there is no separate migration command.
+Run the tests before restarting, not after. The database migrates itself on open (a versioned
+migration list under an advisory lock); there is no separate migration command.

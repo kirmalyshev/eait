@@ -1,9 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { existsSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import type { MealAnalysis } from "./types.ts";
 import { DEFAULT_LANG } from "./i18n/registry.ts";
+import { cleanupTestDbs, freshTestDb, freshTestName, openTestDb } from "./testutil.ts";
 import {
   applyCorrection,
   berlinDate,
@@ -24,7 +22,6 @@ import {
   funnelByCode,
   mealCount,
   mealCountToday,
-  openDb,
   seenUpdate,
   setAcquisitionSource,
   setConsent,
@@ -35,21 +32,7 @@ import {
   userCount,
 } from "./db.ts";
 
-const created: string[] = [];
-function freshDb() {
-  const path = join(tmpdir(), `eait-test-${crypto.randomUUID()}.sqlite`);
-  created.push(path);
-  return openDb(path);
-}
-afterAll(() => {
-  for (const p of created) {
-    for (const suffix of ["", "-wal", "-shm", "-journal"]) {
-      try {
-        rmSync(p + suffix, { force: true });
-      } catch {}
-    }
-  }
-});
+afterAll(cleanupTestDbs, 60_000);
 
 function analysis(over: Partial<MealAnalysis> = {}): MealAnalysis {
   return {
@@ -72,151 +55,163 @@ function analysis(over: Partial<MealAnalysis> = {}): MealAnalysis {
 }
 
 describe("openDb + migrations", () => {
-  test("sets PRAGMAs and user_version=3", () => {
-    const db = freshDb();
-    expect((db.query("PRAGMA user_version").get() as any).user_version).toBe(3);
-    expect((db.query("PRAGMA journal_mode").get() as any).journal_mode).toBe("wal");
-    expect((db.query("PRAGMA foreign_keys").get() as any).foreign_keys).toBe(1);
-    expect((db.query("PRAGMA busy_timeout").get() as any).timeout).toBe(5000);
-    db.close();
+  test("auto-creates a missing database and records the schema version", async () => {
+    const db = await freshTestDb();
+    const rows = await db`SELECT version FROM schema_version`;
+    expect(Number(rows[0].version)).toBe(1);
+  });
+
+  test("reopening is idempotent — data survives, migrations do not rerun", async () => {
+    const name = freshTestName();
+    const a = await openTestDb(name);
+    await upsertUser(a, { telegram_id: 1, username: "keepme" });
+    await a.close();
+    const b = await openTestDb(name);
+    expect((await getUser(b, 1))?.username).toBe("keepme");
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(1);
+  });
+
+  test("two concurrent openDb calls on a missing database both succeed (create race)", async () => {
+    const name = freshTestName();
+    const [a, b] = await Promise.all([openTestDb(name), openTestDb(name)]);
+    await upsertUser(a, { telegram_id: 1 });
+    expect((await getUser(b, 1))?.telegram_id).toBe(1);
   });
 });
 
 describe("users", () => {
-  test("upsert then get; new user starts at consent with empty restrictions", () => {
-    const db = freshDb();
-    upsertUser(db, { telegram_id: 1, username: "a" });
-    const u = getUser(db, 1);
+  test("upsert then get; new user starts at consent with empty restrictions", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1, username: "a" });
+    const u = await getUser(db, 1);
     expect(u?.state).toBe("consent");
     expect(u?.restrictions).toEqual([]);
     expect(u?.consent_at).toBeNull();
-    db.close();
   });
 
-  test("upsert is resume-safe — never clobbers consent_at/goal/state", () => {
-    const db = freshDb();
-    upsertUser(db, { telegram_id: 1, username: "a" });
-    setConsent(db, 1, "2026-07-21T10:00:00Z");
-    setProfile(db, 1, { goal: "lose", restrictions: ["ldl"], state: "active" });
+  test("a full-size Telegram id (past int32) survives the round trip as a number", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 7_000_000_123, username: "big" });
+    const u = await getUser(db, 7_000_000_123);
+    expect(u?.telegram_id).toBe(7_000_000_123);
+    expect(typeof u?.telegram_id).toBe("number");
+  });
+
+  test("upsert is resume-safe — never clobbers consent_at/goal/state", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1, username: "a" });
+    await setConsent(db, 1, "2026-07-21T10:00:00Z");
+    await setProfile(db, 1, { goal: "lose", restrictions: ["ldl"], state: "active" });
     // a later /start re-upserts — must not reset progress
-    upsertUser(db, { telegram_id: 1, username: "a2" });
-    const u = getUser(db, 1);
+    await upsertUser(db, { telegram_id: 1, username: "a2" });
+    const u = await getUser(db, 1);
     expect(u?.state).toBe("active");
     expect(u?.goal).toBe("lose");
     expect(u?.restrictions).toEqual(["ldl"]);
     expect(u?.consent_at).toBe("2026-07-21T10:00:00Z");
     expect(u?.username).toBe("a2"); // username does update
-    db.close();
   });
 });
 
 describe("meals + daily totals", () => {
-  test("insert meals, sum daily totals for user+date", () => {
-    const db = freshDb();
-    upsertUser(db, { telegram_id: 1 });
-    insertMeal(db, { id: "m1", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis({ kcal: 300, protein_g: 8 }) });
-    insertMeal(db, { id: "m2", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis({ kcal: 500, protein_g: 20 }) });
-    insertMeal(db, { id: "m3", user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis({ kcal: 999 }) });
-    const totals = dailyTotals(db, 1, "2026-07-21");
+  test("insert meals, sum daily totals for user+date", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await insertMeal(db, { id: "m1", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis({ kcal: 300, protein_g: 8 }) });
+    await insertMeal(db, { id: "m2", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis({ kcal: 500, protein_g: 20 }) });
+    await insertMeal(db, { id: "m3", user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis({ kcal: 999 }) });
+    const totals = await dailyTotals(db, 1, "2026-07-21");
     expect(totals.kcal).toBe(800);
     expect(totals.protein_g).toBe(28);
-    expect(countMealsToday(db, 1, "2026-07-21")).toBe(2);
-    db.close();
+    expect(await countMealsToday(db, 1, "2026-07-21")).toBe(2);
   });
 
-  test("empty day totals are zero, not null", () => {
-    const db = freshDb();
-    upsertUser(db, { telegram_id: 1 });
-    const totals = dailyTotals(db, 1, "2026-07-21");
+  test("empty day totals are zero, not null", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    const totals = await dailyTotals(db, 1, "2026-07-21");
     expect(totals.kcal).toBe(0);
     expect(totals.sodium_mg).toBe(0);
-    db.close();
   });
 
-  test("setMealReply then mealByReply routes back to the meal (scoped to sender)", () => {
-    const db = freshDb();
-    upsertUser(db, { telegram_id: 1 });
-    upsertUser(db, { telegram_id: 2 });
-    insertMeal(db, { id: "m1", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis() });
-    setMealReply(db, "m1", 1, 555, 42);
-    expect(mealByReply(db, 1, 42)?.id).toBe("m1");
+  test("setMealReply then mealByReply routes back to the meal (scoped to sender)", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await upsertUser(db, { telegram_id: 2 });
+    await insertMeal(db, { id: "m1", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis() });
+    await setMealReply(db, "m1", 1, 555, 42);
+    expect((await mealByReply(db, 1, 42))?.id).toBe("m1");
     // user 2 replying to the same message id must NOT reach user 1's meal
-    expect(mealByReply(db, 2, 42)).toBeUndefined();
-    db.close();
+    expect(await mealByReply(db, 2, 42)).toBeUndefined();
   });
 });
 
 describe("corrections are scoped", () => {
-  test("applyCorrection only touches the matching id+user and sets corrected=1", () => {
-    const db = freshDb();
-    upsertUser(db, { telegram_id: 1 });
-    upsertUser(db, { telegram_id: 2 });
-    insertMeal(db, { id: "m1", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis({ kcal: 300 }) });
+  test("applyCorrection only touches the matching id+user and sets corrected=1", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await upsertUser(db, { telegram_id: 2 });
+    await insertMeal(db, { id: "m1", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis({ kcal: 300 }) });
 
     // wrong user cannot correct user 1's meal
-    applyCorrection(db, "m1", 2, { kcal: 9999 });
-    expect(getMeal(db, "m1", 1)?.kcal).toBe(300);
-    expect(getMeal(db, "m1", 1)?.corrected).toBe(false);
+    await applyCorrection(db, "m1", 2, { kcal: 9999 });
+    expect((await getMeal(db, "m1", 1))?.kcal).toBe(300);
+    expect((await getMeal(db, "m1", 1))?.corrected).toBe(false);
 
     // correct owner can
-    applyCorrection(db, "m1", 1, { kcal: 450, protein_g: 12 });
-    const m = getMeal(db, "m1", 1);
+    await applyCorrection(db, "m1", 1, { kcal: 450, protein_g: 12 });
+    const m = await getMeal(db, "m1", 1);
     expect(m?.kcal).toBe(450);
     expect(m?.protein_g).toBe(12);
     expect(m?.corrected).toBe(true);
-    db.close();
   });
 });
 
 describe("cross-user isolation", () => {
-  test("user B cannot read user A's meal by id", () => {
-    const db = freshDb();
-    upsertUser(db, { telegram_id: 1 });
-    upsertUser(db, { telegram_id: 2 });
-    insertMeal(db, { id: "m1", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis() });
-    expect(getMeal(db, "m1", 1)?.id).toBe("m1");
-    expect(getMeal(db, "m1", 2)).toBeUndefined();
-    db.close();
+  test("user B cannot read user A's meal by id", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await upsertUser(db, { telegram_id: 2 });
+    await insertMeal(db, { id: "m1", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis() });
+    expect((await getMeal(db, "m1", 1))?.id).toBe("m1");
+    expect(await getMeal(db, "m1", 2)).toBeUndefined();
   });
 });
 
 describe("delete cascade", () => {
-  test("deleteUser removes the user and all their meals; other users untouched", () => {
-    const db = freshDb();
-    upsertUser(db, { telegram_id: 1 });
-    upsertUser(db, { telegram_id: 2 });
-    insertMeal(db, { id: "m1", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis() });
-    insertMeal(db, { id: "m2", user_id: 2, ts: "t", date: "2026-07-21", analysis: analysis() });
-    deleteUser(db, 1);
-    expect(getUser(db, 1)).toBeUndefined();
-    expect(getMeal(db, "m1", 1)).toBeUndefined();
-    expect(getUser(db, 2)?.telegram_id).toBe(2);
-    expect(getMeal(db, "m2", 2)?.id).toBe("m2");
-    db.close();
+  test("deleteUser removes the user and all their meals; other users untouched", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await upsertUser(db, { telegram_id: 2 });
+    await insertMeal(db, { id: "m1", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis() });
+    await insertMeal(db, { id: "m2", user_id: 2, ts: "t", date: "2026-07-21", analysis: analysis() });
+    await deleteUser(db, 1);
+    expect(await getUser(db, 1)).toBeUndefined();
+    expect(await getMeal(db, "m1", 1)).toBeUndefined();
+    expect((await getUser(db, 2))?.telegram_id).toBe(2);
+    expect((await getMeal(db, "m2", 2))?.id).toBe("m2");
   });
 });
 
 describe("update dedupe", () => {
-  test("seenUpdate flips after markUpdate; double-mark is safe", () => {
-    const db = freshDb();
-    expect(seenUpdate(db, 1001)).toBe(false);
-    markUpdate(db, 1001);
-    expect(seenUpdate(db, 1001)).toBe(true);
-    markUpdate(db, 1001); // idempotent, no throw
-    expect(seenUpdate(db, 1001)).toBe(true);
-    db.close();
+  test("seenUpdate flips after markUpdate; double-mark is safe", async () => {
+    const db = await freshTestDb();
+    expect(await seenUpdate(db, 1001)).toBe(false);
+    await markUpdate(db, 1001);
+    expect(await seenUpdate(db, 1001)).toBe(true);
+    await markUpdate(db, 1001); // idempotent, no throw
+    expect(await seenUpdate(db, 1001)).toBe(true);
   });
 });
 
 describe("admin counts", () => {
-  test("userCount and mealCount", () => {
-    const db = freshDb();
-    upsertUser(db, { telegram_id: 1 });
-    upsertUser(db, { telegram_id: 2 });
-    insertMeal(db, { id: "m1", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis() });
-    expect(userCount(db)).toBe(2);
-    expect(mealCount(db)).toBe(1);
-    db.close();
+  test("userCount and mealCount", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await upsertUser(db, { telegram_id: 2 });
+    await insertMeal(db, { id: "m1", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis() });
+    expect(await userCount(db)).toBe(2);
+    expect(await mealCount(db)).toBe(1);
   });
 });
 
@@ -241,180 +236,144 @@ describe("berlinTime renders HH:MM in the zone, not UTC", () => {
   });
 });
 
-describe("file db is created on disk", () => {
-  test("openDb makes the file", () => {
-    const path = join(tmpdir(), `eait-test-${crypto.randomUUID()}.sqlite`);
-    created.push(path);
-    const db = openDb(path);
-    db.close();
-    expect(existsSync(path)).toBe(true);
+describe("openDb input safety", () => {
+  test("a database name outside the safe charset is refused before any SQL runs", async () => {
+    const { openDb } = await import("./db.ts");
+    await expect(
+      openDb({ host: "127.0.0.1", port: 5439, user: "eait", password: "eait", database: 'x"; DROP DATABASE eait;--' }),
+    ).rejects.toThrow(/invalid database name/);
+  });
+
+  test("a nonexistent role gets the friendly connect error, not the create-database path", async () => {
+    const { openDb } = await import("./db.ts");
+    // Only a missing DATABASE may trigger auto-create; a missing role/user is a misconfig
+    // that must surface as "connect failed", never as a doomed CREATE DATABASE attempt.
+    await expect(
+      openDb({ host: "127.0.0.1", port: 5439, user: "eait_no_such_role", password: "x", database: "eait_wontmatter" }),
+    ).rejects.toThrow(/postgres connect failed/);
   });
 });
 
-test("upsertUser stores the seeded language; a re-upsert never overwrites it", () => {
-  const db = freshDb();
-  upsertUser(db, { telegram_id: 1, username: "a", lang: "de" });
-  expect(getUser(db, 1)?.lang).toBe("de");
+test("upsertUser stores the seeded language; a re-upsert never overwrites it", async () => {
+  const db = await freshTestDb();
+  await upsertUser(db, { telegram_id: 1, username: "a", lang: "de" });
+  expect((await getUser(db, 1))?.lang).toBe("de");
   // a later /start must not reset a language the user has since changed
-  setLang(db, 1, "ru");
-  upsertUser(db, { telegram_id: 1, username: "a", lang: "de" });
-  expect(getUser(db, 1)?.lang).toBe("ru");
+  await setLang(db, 1, "ru");
+  await upsertUser(db, { telegram_id: 1, username: "a", lang: "de" });
+  expect((await getUser(db, 1))?.lang).toBe("ru");
 });
 
-test("upsertUser without an explicit language falls back to DEFAULT_LANG", () => {
-  const db = freshDb();
-  upsertUser(db, { telegram_id: 1, username: "a" });
-  expect(getUser(db, 1)?.lang).toBe(DEFAULT_LANG);
+test("upsertUser without an explicit language falls back to DEFAULT_LANG", async () => {
+  const db = await freshTestDb();
+  await upsertUser(db, { telegram_id: 1, username: "a" });
+  expect((await getUser(db, 1))?.lang).toBe(DEFAULT_LANG);
 });
 
-test("setLang changes only the target user's language", () => {
-  const db = freshDb();
-  upsertUser(db, { telegram_id: 1, username: "a", lang: "en" });
-  upsertUser(db, { telegram_id: 2, username: "b", lang: "en" });
-  setLang(db, 1, "de");
-  expect(getUser(db, 1)?.lang).toBe("de");
-  expect(getUser(db, 2)?.lang).toBe("en");
+test("setLang changes only the target user's language", async () => {
+  const db = await freshTestDb();
+  await upsertUser(db, { telegram_id: 1, username: "a", lang: "en" });
+  await upsertUser(db, { telegram_id: 2, username: "b", lang: "en" });
+  await setLang(db, 1, "de");
+  expect((await getUser(db, 1))?.lang).toBe("de");
+  expect((await getUser(db, 2))?.lang).toBe("en");
 });
 
-test("setLang on an unknown user is a no-op, not a crash", () => {
-  const db = freshDb();
-  expect(() => setLang(db, 999, "de")).not.toThrow();
-  expect(getUser(db, 999)).toBeUndefined();
+test("setLang on an unknown user is a no-op, not a crash", async () => {
+  const db = await freshTestDb();
+  await setLang(db, 999, "de");
+  expect(await getUser(db, 999)).toBeUndefined();
 });
 
-test("mealCountToday counts across ALL users for a date, not per user", () => {
-  const db = freshDb();
-  upsertUser(db, { telegram_id: 1 });
-  upsertUser(db, { telegram_id: 2 });
-  insertMeal(db, { id: "a", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis() });
-  insertMeal(db, { id: "b", user_id: 2, ts: "t", date: "2026-07-21", analysis: analysis() });
-  insertMeal(db, { id: "c", user_id: 2, ts: "t", date: "2026-07-22", analysis: analysis() });
-  expect(mealCountToday(db, "2026-07-21")).toBe(2);
-  expect(mealCountToday(db, "2026-07-22")).toBe(1);
-  expect(mealCountToday(db, "2026-01-01")).toBe(0);
+test("mealCountToday counts across ALL users for a date, not per user", async () => {
+  const db = await freshTestDb();
+  await upsertUser(db, { telegram_id: 1 });
+  await upsertUser(db, { telegram_id: 2 });
+  await insertMeal(db, { id: "a", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis() });
+  await insertMeal(db, { id: "b", user_id: 2, ts: "t", date: "2026-07-21", analysis: analysis() });
+  await insertMeal(db, { id: "c", user_id: 2, ts: "t", date: "2026-07-22", analysis: analysis() });
+  expect(await mealCountToday(db, "2026-07-21")).toBe(2);
+  expect(await mealCountToday(db, "2026-07-22")).toBe(1);
+  expect(await mealCountToday(db, "2026-01-01")).toBe(0);
 });
 
 describe("settings key/value store", () => {
-  test("returns null for an unset key", () => {
-    expect(getSetting(freshDb(), "global_cap")).toBeNull();
+  test("returns null for an unset key", async () => {
+    expect(await getSetting(await freshTestDb(), "global_cap")).toBeNull();
   });
 
-  test("round-trips a value and overwrites on re-set", () => {
-    const db = freshDb();
-    setSetting(db, "global_cap", "200");
-    expect(getSetting(db, "global_cap")).toBe("200");
-    setSetting(db, "global_cap", "50");
-    expect(getSetting(db, "global_cap")).toBe("50");
+  test("round-trips a value and overwrites on re-set", async () => {
+    const db = await freshTestDb();
+    await setSetting(db, "global_cap", "200");
+    expect(await getSetting(db, "global_cap")).toBe("200");
+    await setSetting(db, "global_cap", "50");
+    expect(await getSetting(db, "global_cap")).toBe("50");
   });
 
-  test("clearSetting removes the override", () => {
-    const db = freshDb();
-    setSetting(db, "global_cap", "200");
-    clearSetting(db, "global_cap");
-    expect(getSetting(db, "global_cap")).toBeNull();
+  test("clearSetting removes the override", async () => {
+    const db = await freshTestDb();
+    await setSetting(db, "global_cap", "200");
+    await clearSetting(db, "global_cap");
+    expect(await getSetting(db, "global_cap")).toBeNull();
   });
 
-  test("settings survive reopening the same database file", () => {
-    const path = join(tmpdir(), `eait-settings-${crypto.randomUUID()}.sqlite`);
-    created.push(path);
-    const a = openDb(path);
-    setSetting(a, "global_cap", "123");
-    a.close();
-    const b = openDb(path); // a restart must not lose the override
-    expect(getSetting(b, "global_cap")).toBe("123");
-    b.close();
-  });
-
-  test("migrating an existing v1 database adds settings without touching user data", () => {
-    const path = join(tmpdir(), `eait-mig-${crypto.randomUUID()}.sqlite`);
-    created.push(path);
-    const a = openDb(path);
-    upsertUser(a, { telegram_id: 1, username: "keepme" });
-    insertMeal(a, { id: "m1", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis() });
-    a.run("DROP TABLE settings");         // simulate a pre-settings database
-    a.run("DROP TABLE events");           // v3 artifacts must also be absent in a real v1 db
-    a.run("ALTER TABLE users DROP COLUMN acquisition_source");
-    a.run("PRAGMA user_version = 1");
-    a.close();
-
-    const b = openDb(path);               // reopen: migration should run
-    expect(getSetting(b, "global_cap")).toBeNull();
-    setSetting(b, "global_cap", "7");
-    expect(getSetting(b, "global_cap")).toBe("7");
-    expect(getUser(b, 1)?.username).toBe("keepme"); // existing rows intact
-    expect(getMeal(b, "m1", 1)?.id).toBe("m1");
-    b.close();
+  test("settings survive reopening the same database", async () => {
+    const name = freshTestName();
+    const a = await openTestDb(name);
+    await setSetting(a, "global_cap", "123");
+    await a.close();
+    const b = await openTestDb(name); // a restart must not lose the override
+    expect(await getSetting(b, "global_cap")).toBe("123");
   });
 });
 
 describe("acquisition attribution", () => {
-  test("acquisition_source is null by default and set-once — a second code never overwrites", () => {
-    const db = freshDb();
-    upsertUser(db, { telegram_id: 1 });
-    expect(getUser(db, 1)?.acquisition_source).toBeNull();
-    setAcquisitionSource(db, 1, "tt_001");
-    expect(getUser(db, 1)?.acquisition_source).toBe("tt_001");
-    setAcquisitionSource(db, 1, "ig_002"); // later /start with a different code
-    expect(getUser(db, 1)?.acquisition_source).toBe("tt_001");
+  test("acquisition_source is null by default and set-once — a second code never overwrites", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    expect((await getUser(db, 1))?.acquisition_source).toBeNull();
+    await setAcquisitionSource(db, 1, "tt_001");
+    expect((await getUser(db, 1))?.acquisition_source).toBe("tt_001");
+    await setAcquisitionSource(db, 1, "ig_002"); // later /start with a different code
+    expect((await getUser(db, 1))?.acquisition_source).toBe("tt_001");
   });
 
-  test("logEvent appends and eventsFor returns the user's events in order", () => {
-    const db = freshDb();
-    upsertUser(db, { telegram_id: 1 });
-    upsertUser(db, { telegram_id: 2 });
-    logEvent(db, 1, "start", "tt_001");
-    logEvent(db, 1, "first_photo");
-    logEvent(db, 2, "start"); // another user's event must not leak into user 1's list
-    const events = eventsFor(db, 1);
+  test("logEvent appends and eventsFor returns the user's events in order", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await upsertUser(db, { telegram_id: 2 });
+    await logEvent(db, 1, "start", "tt_001");
+    await logEvent(db, 1, "first_photo");
+    await logEvent(db, 2, "start"); // another user's event must not leak into user 1's list
+    const events = await eventsFor(db, 1);
     expect(events.map((e) => e.event)).toEqual(["start", "first_photo"]);
     expect(events[0]?.source_code).toBe("tt_001");
     expect(events[1]?.source_code).toBeNull();
     expect(events[0]?.ts).toBeTruthy();
-    expect(eventsFor(db, 2)).toHaveLength(1);
-  });
-
-  test("migrating an existing v2 database adds events + acquisition_source without touching data", () => {
-    const path = join(tmpdir(), `eait-mig3-${crypto.randomUUID()}.sqlite`);
-    created.push(path);
-    const a = openDb(path);
-    upsertUser(a, { telegram_id: 1, username: "keepme" });
-    insertMeal(a, { id: "m1", user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis() });
-    a.run("DROP TABLE events"); // simulate a pre-attribution database
-    a.run("ALTER TABLE users DROP COLUMN acquisition_source");
-    a.run("PRAGMA user_version = 2");
-    a.close();
-
-    const b = openDb(path); // reopen: migration should run
-    logEvent(b, 1, "start", "tt_001");
-    setAcquisitionSource(b, 1, "tt_001");
-    expect(getUser(b, 1)?.acquisition_source).toBe("tt_001");
-    expect(getUser(b, 1)?.username).toBe("keepme"); // existing rows intact
-    expect(getMeal(b, "m1", 1)?.id).toBe("m1");
-    b.close();
+    expect(await eventsFor(db, 2)).toHaveLength(1);
   });
 });
 
 describe("funnelByCode (Measure Monday report)", () => {
-  test("aggregates users, first photos, D7 retention, cap hits and waitlist per source", () => {
-    const db = freshDb();
+  test("aggregates users, first photos, D7 retention, cap hits and waitlist per source", async () => {
+    const db = await freshTestDb();
     // two tt_001 users: one photographed + retained past day 7, one bounced
-    upsertUser(db, { telegram_id: 1 });
-    setAcquisitionSource(db, 1, "tt_001");
-    logEvent(db, 1, "first_photo");
-    insertMeal(db, { id: "m1", user_id: 1, ts: "t", date: "2099-01-01", analysis: analysis() });
-    upsertUser(db, { telegram_id: 2 });
-    setAcquisitionSource(db, 2, "tt_001");
+    await upsertUser(db, { telegram_id: 1 });
+    await setAcquisitionSource(db, 1, "tt_001");
+    await logEvent(db, 1, "first_photo");
+    await insertMeal(db, { id: "m1", user_id: 1, ts: "t", date: "2099-01-01", analysis: analysis() });
+    await upsertUser(db, { telegram_id: 2 });
+    await setAcquisitionSource(db, 2, "tt_001");
     // one organic user who hit the cap twice and joined the waitlist
-    upsertUser(db, { telegram_id: 3 });
-    logEvent(db, 3, "cap_hit");
-    logEvent(db, 3, "cap_hit");
-    logEvent(db, 3, "waitlist_join");
+    await upsertUser(db, { telegram_id: 3 });
+    await logEvent(db, 3, "cap_hit");
+    await logEvent(db, 3, "cap_hit");
+    await logEvent(db, 3, "waitlist_join");
 
-    const rows = funnelByCode(db);
+    const rows = await funnelByCode(db);
     const tt = rows.find((r) => r.source === "tt_001");
     expect(tt).toEqual({ source: "tt_001", users: 2, first_photo: 1, d7_retained: 1, cap_hits: 0, waitlist: 0 });
     const organic = rows.find((r) => r.source === "organic");
     expect(organic).toEqual({ source: "organic", users: 1, first_photo: 0, d7_retained: 0, cap_hits: 2, waitlist: 1 });
-    db.close();
   });
 });

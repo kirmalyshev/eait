@@ -14,6 +14,22 @@ permissions:
 jobs:
   repo-safety:
     runs-on: ubuntu-latest
+    services:
+      # The test suite runs one throwaway database per test against a real Postgres.
+      # Host port 5439 matches the suite's PGPORT default, so no env wiring is needed.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: eait
+          POSTGRES_PASSWORD: eait
+          POSTGRES_DB: eait
+        ports:
+          - "5439:5432"
+        options: >-
+          --health-cmd "pg_isready -U eait -d eait"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
