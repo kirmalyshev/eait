@@ -13,7 +13,7 @@ Orientation for any coding agent (or human) working in this repo.
 - **Test:** `bun test` (co-located under `src/**/*.test.ts`; needs the shared dev Postgres: `sh scripts/db.sh up`); one file with `bun test src/db.test.ts`.
 - **Typecheck:** `bun run typecheck` (`tsc --noEmit`). **Safety gate:** `bun run security`.
 - **Run:** `bun run start` (= `bun run src/index.ts`, needs a real `TELEGRAM_BOT_TOKEN`).
-- **Docker:** `sh scripts/db.sh up` (shared Postgres, once per machine), then `docker compose up -d --build`. Per-worktree instances: `sh scripts/compose-env.sh` once (writes unique `COMPOSE_PROJECT_NAME` + `PGDATABASE=eait_<branch>` + `PGDATABASE_TEST` into `.env`), plus a distinct bot token per parallel instance — one long-polling consumer per token or Telegram returns 409.
+- **Docker:** `make up` (= shared Postgres + build + start this worktree's bot container); `make down` stops the bot only; `make help` lists the rest. Per-worktree instances: `sh scripts/compose-env.sh` once (writes unique `COMPOSE_PROJECT_NAME` + `PGDATABASE=eait_<branch>` + `PGDATABASE_TEST` into `.env`), plus a distinct bot token per parallel instance — one long-polling consumer per token or Telegram returns 409.
 
 ## Hard conventions (do not break)
 

@@ -42,6 +42,14 @@ case "${1:-}" in
   psql)
     DB="${2:-$(env_db)}"
     [ -n "$DB" ] || DB=eait
+    # Same identifier charset the app enforces — the name is interpolated into SQL below.
+    case "$DB" in
+      *[!a-z0-9_]* | "") echo "invalid database name: $DB" >&2; exit 1 ;;
+    esac
+    # The branch database is normally born on the bot's first boot; create it here too so
+    # `make psql` works on a branch whose bot has never run.
+    $COMPOSE exec db psql -U eait -d eait -tAc "SELECT 1 FROM pg_database WHERE datname='$DB'" | grep -q 1 \
+      || $COMPOSE exec db createdb -U eait "$DB"
     psql_in "$DB"
     ;;
   list)
