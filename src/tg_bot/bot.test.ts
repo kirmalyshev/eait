@@ -170,7 +170,7 @@ test("meCard is null unless active; statsCard counts users+meals", async () => {
 // ---------- language ----------
 
 test("profileOf accepts any registered locale and falls back for anything else", () => {
-  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null };
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, reply_format: null };
   expect(profileOf({ ...base, lang: "de" } as UserRow).lang).toBe("de");
   expect(profileOf({ ...base, lang: "ru" } as UserRow).lang).toBe("ru");
   // a value that predates (or outlives) the registry must not render as a raw key
@@ -179,7 +179,7 @@ test("profileOf accepts any registered locale and falls back for anything else",
 });
 
 test("profileOf maps the db's 0-skip weight sentinel to null, real weights pass through", () => {
-  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, lang: "en" };
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, lang: "en", reply_format: null };
   expect(profileOf({ ...base, weight_kg: 0 } as UserRow).weight_kg).toBeNull();
   expect(profileOf({ ...base, weight_kg: 92.5 } as UserRow).weight_kg).toBe(92.5);
   expect(profileOf(base as UserRow).weight_kg).toBeNull();
@@ -700,7 +700,7 @@ test("/settings opens the root view with the three sections", async () => {
     return { chat_id: 1, message_id: 1 };
   };
   await processSettingsOpen(deps, { id: 401 }, send);
-  expect(seen[0]).toEqual(["st:goal", "st:restr", "st:lang"]);
+  expect(seen[0]).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
 });
 
 test("choosing a goal persists it and edits the message in place", async () => {
@@ -711,7 +711,7 @@ test("choosing a goal persists it and edits the message in place", async () => {
   await processSettingsCallback(deps, { id: 402 }, "st:goal:maintain", edit);
   expect((await getUser(db, 402))?.goal).toBe("maintain");
   expect(edits).toHaveLength(1); // edited, not appended
-  expect(last().data).toEqual(["st:goal", "st:restr", "st:lang"]); // back at root
+  expect(last().data).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]); // back at root
 });
 
 test("toggling a restriction twice persists on and then off, with no new messages", async () => {
@@ -756,6 +756,68 @@ test("settings callbacks from a non-active user change nothing", async () => {
   await processSettingsCallback(deps, { id: 406 }, "st:goal:gain", edit);
   expect((await getUser(db, 406))?.goal).toBeNull();
   expect(edits).toHaveLength(0);
+});
+
+test("choosing a reply format in settings persists it per user", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 408);
+  const { edit, last } = editor();
+  await processSettingsCallback(deps, { id: 408 }, "st:format:rich", edit);
+  expect((await getUser(db, 408))?.reply_format).toBe("rich");
+  expect(last().data).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]); // back at root
+  expect(last().text).toContain(translatorFor(DEFAULT_LANG)("settings.format.rich"));
+});
+
+test("the settings root shows the INSTANCE default format when the user never chose", async () => {
+  const db = await freshTestDb();
+  // instance runs rich; user 409 has reply_format NULL
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, replyFormat: "rich" } };
+  await onboardToActive(deps, 409);
+  const texts: string[] = [];
+  const send: Send = async (t) => { texts.push(t); return { chat_id: 1, message_id: 1 }; };
+  await processSettingsOpen(deps, { id: 409 }, send);
+  expect(texts[0]).toContain(translatorFor(DEFAULT_LANG)("settings.format.rich"));
+});
+
+test("a user's plain preference beats a rich instance at the meal card", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: { ...cfg, replyFormat: "rich" } };
+  await onboardToActive(deps, 410);
+  const { setReplyFormat } = await import("../db.ts");
+  await setReplyFormat(db, 410, "plain");
+  let richCalls = 0;
+  const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 95 });
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 410 }, [async () => new Uint8Array([1])], send, { sendRich });
+  expect(richCalls).toBe(0);
+  expect(msgs).toHaveLength(1); // went plain despite the rich instance
+});
+
+test("a user's rich preference beats a plain instance at the meal card", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg }; // cfg is plain
+  await onboardToActive(deps, 411);
+  const { setReplyFormat } = await import("../db.ts");
+  await setReplyFormat(db, 411, "rich");
+  let richCalls = 0;
+  const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 96 });
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 411 }, [async () => new Uint8Array([1])], send, { sendRich });
+  expect(richCalls).toBe(1);
+  expect(msgs).toHaveLength(0);
+});
+
+test("a junk stored reply_format falls back to the instance default", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: { ...cfg, replyFormat: "rich" } };
+  await onboardToActive(deps, 412);
+  await db`UPDATE users SET reply_format = 'markdown' WHERE telegram_id = 412`; // pre-validation era row
+  let richCalls = 0;
+  const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 97 });
+  const { send } = collector();
+  await processPhoto(deps, { id: 412 }, [async () => new Uint8Array([1])], send, { sendRich });
+  expect(richCalls).toBe(1); // junk ignored → instance default (rich)
 });
 
 test("/help works before onboarding, in the language of the Telegram client", async () => {

@@ -17,7 +17,7 @@ import {
   insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals,
   logLlmCall, llmCallsToday, llmCallCountToday, mealsOnDate, totalsByDate,
   insertPendingMeal, setPendingReply, getPendingMeal, deletePendingMeal, prunePendingMeals,
-  deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang,
+  deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang, setReplyFormat,
   getSetting, setSetting, clearSetting, hasEvent, logEvent, setAcquisitionSource,
   type Db, type UserRow,
 } from "../db.ts";
@@ -32,7 +32,8 @@ import { settingsRoot, settingsStep } from "../settings.ts";
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "../onboarding.ts";
 import { DEFAULT_LANG, LANGS, LOCALES, isLang, resolveLang, translatorFor } from "../i18n/index.ts";
 import type { TFunction } from "i18next";
-import type { Lang, MealAnalysis, MealContext, MealRecord, Profile } from "../types.ts";
+import { isReplyFormat } from "../types.ts";
+import type { Lang, MealAnalysis, MealContext, MealRecord, Profile, ReplyFormat } from "../types.ts";
 
 export interface BotDeps {
   db: Db;
@@ -73,14 +74,15 @@ export interface MealCard {
  */
 export type SendRich = (card: MealCard) => Promise<Sent | void>;
 
-/** Rich when configured AND wired; plain otherwise. One switch for every meal-card site. */
+/** Rich when the user's effective format says so AND the rich sender is wired; plain otherwise.
+ * One switch for every meal-card site. Callers resolve the format via replyFormatFor(u, config). */
 async function sendCard(
-  config: Config,
+  format: ReplyFormat,
   send: Send,
   sendRich: SendRich | undefined,
   card: MealCard,
 ): Promise<Sent | void> {
-  if (config.replyFormat === "rich" && sendRich) return sendRich(card);
+  if (format === "rich" && sendRich) return sendRich(card);
   return send(card.plain);
 }
 
@@ -120,7 +122,15 @@ export function profileOf(u: UserRow): Profile {
     // 0 is the db's "explicitly skipped" sentinel — outside the db/bot boundary it means unknown.
     weight_kg: u.weight_kg ? u.weight_kg : null,
     restrictions: u.restrictions,
+    // Same validation rule as lang: junk (a renamed format, a hand-edited row) means "never
+    // chose", so the instance default applies rather than an unknown value leaking downstream.
+    reply_format: isReplyFormat(u.reply_format) ? u.reply_format : null,
   };
+}
+
+/** The format a user's meal cards render in: their /settings choice, else the instance default. */
+export function replyFormatFor(u: UserRow, config: Config): ReplyFormat {
+  return profileOf(u).reply_format ?? config.replyFormat;
 }
 
 /** The translator for a user, or the default one if they have no row yet. */
@@ -474,9 +484,16 @@ export async function processSettingsOpen(
     await send(translatorForUser(u)("errors.notOnboarded"));
     return;
   }
-  const prof = profileOf(u);
+  const prof = settingsProfile(u, deps.config);
   const v = settingsRoot(prof, translatorFor(prof.lang));
   await send(v.text, v.buttons);
+}
+
+/** The profile the settings machine renders: reply_format resolved to the EFFECTIVE value
+ * (user choice, else instance default), so the root always shows what actually happens. */
+function settingsProfile(u: UserRow, config: Config): Profile {
+  const p = profileOf(u);
+  return { ...p, reply_format: p.reply_format ?? config.replyFormat };
 }
 
 /** Handles an `st:` callback: persist whatever changed, then rewrite the message in place. */
@@ -488,13 +505,14 @@ export async function processSettingsCallback(
 ): Promise<void> {
   const u = await getUser(deps.db, from.id);
   if (!u || u.state !== "active") return; // no row to edit against; stay silent
-  const prof = profileOf(u);
+  const prof = settingsProfile(u, deps.config);
   const v = settingsStep(prof, data, translatorFor(prof.lang));
   if (v.patch) {
     if (v.patch.lang) await setLang(deps.db, from.id, v.patch.lang);
     if (v.patch.goal || v.patch.restrictions) {
       await setProfile(deps.db, from.id, { goal: v.patch.goal, restrictions: v.patch.restrictions });
     }
+    if (v.patch.reply_format) await setReplyFormat(deps.db, from.id, v.patch.reply_format);
   }
   await edit(v.text, v.buttons);
 }
@@ -604,7 +622,7 @@ export async function processPhoto(
   const hint = analysis.confidence.startsWith("low")
     ? t("meal.lowConfidenceHint")
     : t("meal.correctionHint");
-  const sent = await sendCard(config, send, meta?.sendRich, {
+  const sent = await sendCard(replyFormatFor(u, config), send, meta?.sendRich, {
     html: renderMealCard(analysis, totals, targetsFor(prof), t, { footer: hint }),
     plain: formatReply(analysis, totals, targetsFor(prof), t) + "\n\n" + hint,
   });
@@ -745,7 +763,7 @@ export async function processText(
     const totals = await dailyTotals(db, from.id, focus.date);
     // Deliberately no hint suffix — the user just corrected; re-prompting would nag.
     // No footer on either rendering — the deliberate no-nag decision holds in both formats.
-    await sendCard(config, send, opts?.sendRich, {
+    await sendCard(replyFormatFor(u, config), send, opts?.sendRich, {
       html: renderMealCard(route.analysis, totals, targetsFor(prof), t, { prefix: t("meal.updatedPrefix") }),
       plain: t("meal.updatedPrefix") + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t),
     });
@@ -848,7 +866,7 @@ export async function processTextMealDecision(
   if (u) {
     const prof = profileOf(u);
     const totals = await dailyTotals(db, from.id, pending.date);
-    const sent = await sendCard(deps.config, send, opts?.sendRich, {
+    const sent = await sendCard(replyFormatFor(u, deps.config), send, opts?.sendRich, {
       html: renderMealCard(pending.analysis, totals, targetsFor(prof), t, { footer: t("meal.correctionHint") }),
       plain: formatReply(pending.analysis, totals, targetsFor(prof), t) + "\n\n" + t("meal.correctionHint"),
     });
