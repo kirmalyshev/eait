@@ -12,6 +12,7 @@ Last updated: 2026-07-21.
 |---|---|---|
 | Telegram user id, username | Identify your account and scope every row to it | Until you `/delete` |
 | Language | Reply in your language | Until you `/delete` |
+| Reply style (rich cards / plain text) | Render meal replies the way you chose | Until you `/delete` |
 | Goal (lose / maintain / gain) | Set your calorie and protein targets | Until you `/delete` |
 | Current weight (optional — the question is skippable) | Personalize your protein target (1.6 g/kg) | Until you `/delete` |
 | Dietary and health restrictions | Judge meals on the dimensions you declared | Until you `/delete` |

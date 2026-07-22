@@ -52,9 +52,11 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
   never block another's.
 - **Images are in-memory only.** `processPhoto` takes `getBytes()` thunks, hands the bytes to the
   analyzer, and drops them. No disk write, no photo path, ever.
-- **Rich replies fall back to plain.** `sendCard` renders via `render.ts` and sends through
-  `sendRichVia` only when `config.replyFormat === "rich"`; a failed rich send logs and resends
-  the plain text. Q&A answers are always plain (LLM text, unknown markup).
+- **Rich replies fall back to plain.** `sendCard` renders via `render.ts` and goes rich only
+  when the user's EFFECTIVE format is rich — `replyFormatFor(u, config)`: the `/settings → Style`
+  choice (`users.reply_format`), else the instance's `REPLY_FORMAT`. A failed rich send logs and
+  resends the plain text. Q&A answers are always plain (LLM text, unknown markup). Every new
+  meal-card site must resolve through `replyFormatFor`, never read `config.replyFormat` directly.
 - **`createBot(deps)` must be constructable with an injected db + fake provider and no live token**
   — the test sets `botInfo` and an API transformer so grammy never calls `getMe`.
 - **`translatorFor(lang)`, never `i18n.changeLanguage()`.** The runner serves users concurrently,
