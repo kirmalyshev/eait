@@ -293,6 +293,30 @@ test("a qualified 'low (mixed dish)' still triggers the weight nudge", async () 
   expect(msgs[0]).toContain(translatorFor(DEFAULT_LANG)("meal.lowConfidenceHint"));
 });
 
+test("the stored weight drives the protein target on both user-visible surfaces", async () => {
+  // onboardToActive answers weight 92 → target round(92 × 1.6) = 147, not the flat 100.
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 98);
+  expect(await meCard(deps, 98)).toContain("147");
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 98 }, async () => new Uint8Array([1]), send);
+  expect(msgs[0]).toContain("147");
+  expect(msgs[0]).not.toContain("/ 100");
+});
+
+test("weight-step text never reaches the LLM restriction classifier", async () => {
+  const db = await freshTestDb();
+  const { p, calls } = countingProvider(JSON.stringify({ tags: ["vegan"] }));
+  const deps: BotDeps = { db, provider: p, config: cfg };
+  await processOnboarding(deps, { id: 99 }, { type: "command", command: "start" }, noop);
+  await processOnboarding(deps, { id: 99 }, { type: "callback", data: "consent_agree" }, noop);
+  await processOnboarding(deps, { id: 99 }, { type: "callback", data: "goal_lose" }, noop);
+  await processOnboarding(deps, { id: 99 }, { type: "text", text: "not a weight" }, noop);
+  await processOnboarding(deps, { id: 99 }, { type: "text", text: "92" }, noop);
+  expect(calls()).toBe(0);
+});
+
 test("processPhoto fires the ack before the vision call starts", async () => {
   const db = await freshTestDb();
   const order: string[] = [];

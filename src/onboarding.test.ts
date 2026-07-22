@@ -167,6 +167,42 @@ describe("guards / idempotency", () => {
     expect(r.nextState).toBe("profile");
   });
 
+  test("restrictions_skip while the weight question is open resumes at weight, never completes", () => {
+    const r = step(user({ state: "profile", goal: "lose", weight_kg: null }), {
+      type: "callback",
+      data: "restrictions_skip",
+    }, t);
+    expect(r.nextState).toBe("profile");
+    expect(r.patch).toBeUndefined();
+    expect(buttonData(r)).toContain("weight_skip"); // resumed at the weight step
+  });
+
+  test("weight_skip before a goal is chosen re-asks the goal, stores nothing", () => {
+    const r = step(user({ state: "profile", goal: null }), {
+      type: "callback",
+      data: "weight_skip",
+    }, t);
+    expect(r.patch).toBeUndefined();
+    expect(buttonData(r)).toContain("goal_lose");
+  });
+
+  test("an active user with no stored weight texting a number is nudged, not re-onboarded", () => {
+    // Every pre-weight-step user is exactly this shape after the migration.
+    const r = step(user({ state: "active", goal: "lose", weight_kg: null }), {
+      type: "text",
+      text: "92",
+    }, t);
+    expect(r.nextState).toBe("active");
+    expect(r.patch).toBeUndefined();
+  });
+
+  test("parseWeight accepts the documented boundaries and takes the FIRST number", () => {
+    expect(step(user({ state: "profile", goal: "lose" }), { type: "text", text: "30" }, t).patch?.weight_kg).toBe(30);
+    expect(step(user({ state: "profile", goal: "lose" }), { type: "text", text: "300" }, t).patch?.weight_kg).toBe(300);
+    // "92 kg, yesterday 80" must not silently prefer the wrong number
+    expect(step(user({ state: "profile", goal: "lose" }), { type: "text", text: "92 kg yesterday 80" }, t).patch?.weight_kg).toBe(92);
+  });
+
   test("weight_skip after the weight was answered does not zero it", () => {
     const r = step(user({ state: "profile", goal: "lose", weight_kg: 92 }), {
       type: "callback",

@@ -11,6 +11,8 @@ describe("targetsFor — known weight drives the protein target", () => {
   // bodyweight cannot produce an absurd target. Unknown weight keeps the flat 100 g baseline.
   test("protein = 1.6 g/kg rounded", () => {
     expect(targetsFor({ ...profile("maintain"), weight_kg: 92.5 }).protein_g).toBe(148);
+    // a non-integer product, so round-vs-floor is actually exercised (91.6 × 1.6 = 146.56)
+    expect(targetsFor({ ...profile("maintain"), weight_kg: 91.6 }).protein_g).toBe(147);
   });
   test("clamped to [80, 180]", () => {
     expect(targetsFor({ ...profile("maintain"), weight_kg: 40 }).protein_g).toBe(80);
