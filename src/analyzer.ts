@@ -7,7 +7,7 @@ import { z } from "zod";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import { LOCALES } from "./i18n/registry.ts";
 import { RESTRICTION_TAGS, isRestrictionTag } from "./targets.ts";
-import type { MealAnalysis, MealContext, Profile } from "./types.ts";
+import type { FoodTargets, MealAnalysis, MealContext, MealItem, Profile } from "./types.ts";
 
 const VerdictSchema = z.enum(["good", "warn", "bad"]);
 
@@ -284,6 +284,118 @@ export async function classifyRestrictions(
 const SYSTEM_CLASSIFY =
   "You map free-text dietary and health restrictions onto a fixed tag vocabulary. " +
   "Respond with ONLY a single JSON object — no prose, no markdown fences.";
+
+// ---------- free-text router (one call: question / meal / correction) ----------
+
+/** Free text is longer than a caption but still bounded — past this is noise or injection. */
+const TEXT_INPUT_CAP = 1000;
+
+export interface RouteContext {
+  /** Set when the text replies to a known meal — unlocks the correction intent. */
+  focusMeal?: MealAnalysis;
+  todayMeals: Array<{ items: MealItem[]; kcal: number; protein_g: number }>;
+  weekTotals: Array<{ date: string; kcal: number; protein_g: number }>;
+  targets: FoodTargets;
+  localTime?: string;
+}
+
+export type RouteResult =
+  | { intent: "question"; answer: string }
+  | { intent: "meal"; analysis: MealAnalysis }
+  | { intent: "correction"; analysis: MealAnalysis };
+
+const ROUTE_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["intent"],
+  properties: {
+    // Same trick as the meal schema: reasoning first, so intent and numbers come after thought.
+    reasoning: { type: "string" },
+    intent: { type: "string", enum: ["question", "meal", "correction"] },
+    answer: { type: "string" },
+    analysis: MEAL_JSON_SCHEMA,
+  },
+} as const;
+
+const SYSTEM_ROUTE =
+  "You are the assistant behind a personal food-diary bot. The user sent a free-text message. " +
+  "Decide the intent and respond with ONLY one JSON object, no prose, no markdown fences: " +
+  '{"intent":"question","answer":"..."} for questions or chat — answer helpfully and concisely ' +
+  "from the provided diary context; " +
+  '{"intent":"meal","analysis":{...}} ONLY when the text describes food the user actually ate ' +
+  "(estimate the full analysis object from the description, following the estimation protocol); " +
+  '{"intent":"correction","analysis":{...}} ONLY when a focus meal is provided and the text ' +
+  "corrects that meal's estimate (return the full updated analysis object).";
+
+const RouteSchema = z.object({
+  intent: z.enum(["question", "meal", "correction"]),
+  answer: z.string().optional(),
+  analysis: MealAnalysisSchema.optional(),
+});
+
+export async function routeText(
+  text: string,
+  profile: Profile,
+  ctx: RouteContext,
+  provider: LLMProvider,
+): Promise<RouteResult> {
+  const lines: string[] = [];
+  lines.push(buildUserText(profile)); // goal, estimation protocol, cuisine prior, output language
+  lines.push("");
+  lines.push("Diary context (JSON):");
+  lines.push(
+    JSON.stringify({
+      todayMeals: ctx.todayMeals,
+      weekTotals: ctx.weekTotals,
+      targets: ctx.targets,
+      localTime: ctx.localTime,
+    }),
+  );
+  if (ctx.focusMeal) {
+    lines.push("The message replies to this specific meal (the focus meal):");
+    lines.push(
+      JSON.stringify({
+        items: ctx.focusMeal.items,
+        kcal: ctx.focusMeal.kcal,
+        protein_g: ctx.focusMeal.protein_g,
+        carbs_g: ctx.focusMeal.carbs_g,
+        fat_g: ctx.focusMeal.fat_g,
+        notes: ctx.focusMeal.notes,
+      }),
+    );
+  } else {
+    lines.push("There is no focus meal — the correction intent is NOT available.");
+  }
+  lines.push(`Write the answer in ${LOCALES[profile.lang].llmName}.`);
+  lines.push("");
+  lines.push(`User message: "${text.slice(0, TEXT_INPUT_CAP)}"`);
+
+  const raw = await provider.chat({
+    system: SYSTEM_ROUTE,
+    userText: lines.join("\n"),
+    jsonSchema: ROUTE_JSON_SCHEMA,
+    temperature: TEMPERATURE,
+  });
+  const parsed = RouteSchema.safeParse(tolerantJson(raw));
+  if (!parsed.success) {
+    throw new Error(`analyzer: route validation failed: ${parsed.error.message}`);
+  }
+  const r = parsed.data;
+  if (r.intent === "question") {
+    if (!r.answer?.trim()) throw new Error("analyzer: question intent without answer");
+    return { intent: "question", answer: r.answer.trim() };
+  }
+  if (r.intent === "correction" && !ctx.focusMeal) {
+    // The model ignored the "not available" instruction; salvage an answer if one exists.
+    if (r.answer?.trim()) return { intent: "question", answer: r.answer.trim() };
+    throw new Error("analyzer: correction intent without focus meal");
+  }
+  if (!r.analysis) throw new Error(`analyzer: ${r.intent} intent without analysis`);
+  if (r.intent === "meal" && !r.analysis.isFood) {
+    throw new Error("analyzer: meal intent with isFood=false");
+  }
+  return { intent: r.intent, analysis: r.analysis };
+}
 
 /**
  * Correction path: a text reply corrects a prior estimate. The image is already gone (ephemeral),

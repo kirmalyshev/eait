@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { analyzeCorrection, analyzeMeal, classifyRestrictions, MealAnalysisSchema } from "./analyzer.ts";
+import { analyzeCorrection, analyzeMeal, classifyRestrictions, routeText, MealAnalysisSchema } from "./analyzer.ts";
 import { LANGS, LOCALES } from "./i18n/registry.ts";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import type { MealAnalysis, Profile } from "./types.ts";
@@ -348,5 +348,62 @@ describe("analyzeMeal — multi-image (albums)", () => {
     const req = provider.lastRequest!;
     expect(req.imagesB64?.length).toBe(1);
     expect(req.userText).not.toContain("SAME meal");
+  });
+});
+
+describe("routeText", () => {
+  const routeCtx = {
+    todayMeals: [{ items: [{ name: "pasta", grams: 120 }], kcal: 640, protein_g: 28 }],
+    weekTotals: [{ date: "2026-07-21", kcal: 1800, protein_g: 90 }],
+    targets: { kcal: 1800, protein_g: 100 },
+    localTime: "18:30",
+  };
+
+  test("question intent returns the answer and sends diary context in the prompt", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "You ate 640 kcal today" }));
+    const r = await routeText("how am I doing?", profile, routeCtx, provider);
+    expect(r.intent).toBe("question");
+    if (r.intent === "question") expect(r.answer).toContain("640");
+    const seen = provider.lastRequest!.userText;
+    expect(seen).toContain("pasta");
+    expect(seen).toContain("18:30");
+    expect(seen).toContain("how am I doing?");
+  });
+
+  test("meal intent parses a full MealAnalysis", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "meal", analysis: JSON.parse(validJson) }));
+    const r = await routeText("ate 2 eggs and toast", profile, routeCtx, provider);
+    expect(r.intent).toBe("meal");
+    if (r.intent === "meal") expect(r.analysis.kcal).toBe(300);
+  });
+
+  test("correction intent passes through when a focus meal is present", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "correction", analysis: JSON.parse(validJson) }));
+    const focusMeal = { ...JSON.parse(validJson), kcal: 999 };
+    const r = await routeText("actually 300 kcal", profile, { ...routeCtx, focusMeal }, provider);
+    expect(r.intent).toBe("correction");
+    expect(provider.lastRequest!.userText).toContain("focus meal");
+  });
+
+  test("correction without focus meal degrades to question when an answer is present, else throws", async () => {
+    const withAnswer = new FakeProvider(() => JSON.stringify({ intent: "correction", answer: "did you mean?" }));
+    const r = await routeText("x", profile, routeCtx, withAnswer);
+    expect(r.intent).toBe("question");
+    const without = new FakeProvider(() => JSON.stringify({ intent: "correction" }));
+    await expect(routeText("x", profile, routeCtx, without)).rejects.toThrow();
+  });
+
+  test("meal intent with isFood=false throws", async () => {
+    const provider = new FakeProvider(() =>
+      JSON.stringify({ intent: "meal", analysis: { ...JSON.parse(validJson), isFood: false } }));
+    await expect(routeText("nothing edible", profile, routeCtx, provider)).rejects.toThrow();
+  });
+
+  test("question without an answer throws; user text is capped", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "" }));
+    await expect(routeText("y", profile, routeCtx, provider)).rejects.toThrow();
+    const ok = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "hi" }));
+    await routeText("z".repeat(5000), profile, routeCtx, ok);
+    expect(ok.lastRequest!.userText.length).toBeLessThan(4000);
   });
 });
