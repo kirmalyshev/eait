@@ -18,6 +18,7 @@ import {
   type Db, type UserRow,
 } from "../db.ts";
 import { loadAllowlist, type Allowlist } from "../allowlist.ts";
+import { AlbumBuffer } from "./albums.ts";
 import { analyzeMeal, analyzeCorrection, classifyRestrictions } from "../analyzer.ts";
 import { targetsFor, isRestrictionTag } from "../targets.ts";
 import { formatReply } from "../reply.ts";
@@ -484,9 +485,9 @@ export async function processLangChoice(
 export async function processPhoto(
   deps: BotDeps,
   from: { id: number },
-  getBytes: () => Promise<Uint8Array>,
+  photos: Array<() => Promise<Uint8Array>>,
   send: Send,
-  meta?: { caption?: string; react?: React },
+  meta?: { caption?: string; react?: React; userMessageId?: number },
 ): Promise<void> {
   const { db, provider, config } = deps;
   const u = await getUser(db, from.id);
@@ -523,8 +524,9 @@ export async function processPhoto(
   const context: MealContext = { caption: meta?.caption, localTime: berlinTime(new Date(), config.tz) };
   let analysis: MealAnalysis;
   try {
-    const bytes = await getBytes(); // in-memory only; never written to disk
-    analysis = await analyzeMeal([bytes], prof, provider, context);
+    const images: Uint8Array[] = [];
+    for (const get of photos) images.push(await get()); // in-memory only; never written to disk
+    analysis = await analyzeMeal(images, prof, provider, context);
   } catch (e) {
     console.error(`[eait] analyze failed user=${from.id}: ${(e as any)?.message}`);
     await send(t("errors.analyzeFailed"));
@@ -541,6 +543,7 @@ export async function processPhoto(
   const firstPhoto = !(await hasMeals(db, from.id)); // read before the insert makes it true forever
   await insertMeal(db, {
     id, user_id: from.id, ts: new Date().toISOString(), date, analysis, model: config.llmModel,
+    user_message_id: meta?.userMessageId ?? null,
   });
   if (firstPhoto) await logEvent(db, from.id, "first_photo");
   console.log(`[eait] meal stored ${id} user=${from.id}`);
@@ -577,7 +580,7 @@ export async function processDocument(
   doc: { mime_type?: string; file_size?: number },
   getBytes: () => Promise<Uint8Array>,
   send: Send,
-  meta?: { caption?: string; react?: React },
+  meta?: { caption?: string; react?: React; userMessageId?: number },
 ): Promise<void> {
   const t = translatorForUser(await getUser(deps.db, from.id));
   if (!doc.mime_type?.startsWith("image/")) {
@@ -588,7 +591,7 @@ export async function processDocument(
     await send(t("errors.fileTooBig"));
     return;
   }
-  await processPhoto(deps, from, getBytes, send, meta);
+  await processPhoto(deps, from, [getBytes], send, meta);
 }
 
 /** Returns true if the text was a correction of a known meal (so the caller stops routing). */
@@ -851,13 +854,48 @@ export function createBot(deps: BotDeps): Bot {
   /** Reaction lifecycle on the user's own message: 👀 = accepted, 👍 = processed. */
   const reactVia = (ctx: any): React => (emoji) => ctx.react(emoji);
 
+  // An album (media group) arrives as N separate photo updates sharing media_group_id.
+  // Parts are buffered per (user, group) and flushed as ONE analysis after a quiet period —
+  // otherwise a portion photo and its label photo get analyzed as two unrelated meals.
+  interface PendingAlbumPart {
+    getBytes: () => Promise<Uint8Array>;
+    caption?: string;
+    messageId: number;
+    send: Send;
+    react: React;
+    from: { id: number };
+  }
+  const ALBUM_FLUSH_MS = 1500;
+  const albums = new AlbumBuffer<PendingAlbumPart>(ALBUM_FLUSH_MS, (key, parts) => {
+    const first = parts[0];
+    const caption = parts.find((p) => p.caption)?.caption; // an album's caption sits on one part
+    void processPhoto(deps, first.from, parts.map((p) => p.getBytes), first.send, {
+      caption,
+      react: first.react,
+      userMessageId: first.messageId,
+    }).catch((e) => console.error(`[eait] album flush failed key=${key}: ${describeError(e)}`));
+  });
+
   bot.on("message:photo", async (ctx) => {
     if (!ctx.from) return;
     const photos = ctx.message.photo;
     const largest = photos[photos.length - 1]; // largest PhotoSize
-    await processPhoto(deps, ctx.from, fetchFile(ctx, largest.file_id), sendVia(ctx), {
+    const part: PendingAlbumPart = {
+      getBytes: fetchFile(ctx, largest.file_id),
       caption: ctx.message.caption,
+      messageId: ctx.message.message_id,
+      send: sendVia(ctx),
       react: reactVia(ctx),
+      from: { id: ctx.from.id },
+    };
+    if (ctx.message.media_group_id) {
+      albums.add(`${ctx.from.id}:${ctx.message.media_group_id}`, part);
+      return; // the whole group flushes as one analysis
+    }
+    await processPhoto(deps, ctx.from, [part.getBytes], part.send, {
+      caption: part.caption,
+      react: part.react,
+      userMessageId: part.messageId,
     });
   });
 
@@ -868,6 +906,7 @@ export function createBot(deps: BotDeps): Bot {
     await processDocument(deps, ctx.from, doc, fetchFile(ctx, doc.file_id), sendVia(ctx), {
       caption: ctx.message.caption,
       react: reactVia(ctx),
+      userMessageId: ctx.message.message_id,
     });
   });
 

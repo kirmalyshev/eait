@@ -79,7 +79,7 @@ test("processPhoto rejects a non-active user (no row written)", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   const { msgs, send } = collector();
-  await processPhoto(deps, { id: 1 }, async () => new Uint8Array([1]), send);
+  await processPhoto(deps, { id: 1 }, [async () => new Uint8Array([1])], send);
   expect(msgs[0]).toContain("/start");
   expect(await countMealsToday(db, 1, berlinDate(new Date(), cfg.tz))).toBe(0);
 });
@@ -89,7 +89,7 @@ test("processPhoto (active) inserts a meal, replies with the daily total, sets r
   const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
   await onboardToActive(deps, 7);
   const { msgs, send } = collector();
-  await processPhoto(deps, { id: 7 }, async () => new Uint8Array([1]), send);
+  await processPhoto(deps, { id: 7 }, [async () => new Uint8Array([1])], send);
   expect(msgs[0]).toContain("600");
   expect(await countMealsToday(db, 7, berlinDate(new Date(), cfg.tz))).toBe(1);
   expect(await mealByReply(db, 7, 1)).toBeDefined(); // reply msg id 1 → this meal
@@ -100,9 +100,9 @@ test("processPhoto enforces the per-user daily cap", async () => {
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 1 } };
   await onboardToActive(deps, 9);
   const c1 = collector();
-  await processPhoto(deps, { id: 9 }, async () => new Uint8Array([1]), c1.send);
+  await processPhoto(deps, { id: 9 }, [async () => new Uint8Array([1])], c1.send);
   const c2 = collector();
-  await processPhoto(deps, { id: 9 }, async () => new Uint8Array([1]), c2.send);
+  await processPhoto(deps, { id: 9 }, [async () => new Uint8Array([1])], c2.send);
   expect(c2.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.dailyCap"));
 });
 
@@ -112,7 +112,7 @@ test("processPhoto forwards the caption and Berlin local time into the analysis 
   const provider: LLMProvider = { chat: async (req) => ((seen = req.userText), foodJson()) };
   const deps: BotDeps = { db, provider, config: cfg };
   await onboardToActive(deps, 11);
-  await processPhoto(deps, { id: 11 }, async () => new Uint8Array([1]), noop, { caption: "борщ со сметаной" });
+  await processPhoto(deps, { id: 11 }, [async () => new Uint8Array([1])], noop, { caption: "борщ со сметаной" });
   expect(seen).toContain("борщ со сметаной");
   expect(seen).toMatch(/Local time of the meal: \d{2}:\d{2}/);
 });
@@ -123,7 +123,7 @@ test("processPhoto without a caption still injects the local time", async () => 
   const provider: LLMProvider = { chat: async (req) => ((seen = req.userText), foodJson()) };
   const deps: BotDeps = { db, provider, config: cfg };
   await onboardToActive(deps, 12);
-  await processPhoto(deps, { id: 12 }, async () => new Uint8Array([1]), noop);
+  await processPhoto(deps, { id: 12 }, [async () => new Uint8Array([1])], noop);
   expect(seen).not.toContain("captioned");
   expect(seen).toMatch(/Local time of the meal: \d{2}:\d{2}/);
 });
@@ -146,7 +146,7 @@ test("processCorrection updates the matched meal; false when the reply matches n
   const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
   await onboardToActive(deps, 5);
   const { send } = collector();
-  await processPhoto(deps, { id: 5 }, async () => new Uint8Array([1]), send); // meal reply id = 1
+  await processPhoto(deps, { id: 5 }, [async () => new Uint8Array([1])], send); // meal reply id = 1
   deps.provider = fakeProvider(foodJson(900)); // correction re-estimate returns 900
   const cc = collector();
   const handled = await processCorrection(deps, { id: 5 }, 1, "2 куска, без масла", cc.send);
@@ -242,16 +242,16 @@ test("a user's language drives every bot-emitted string", async () => {
   const tde = translatorFor("de");
 
   const c1 = collector();
-  await processPhoto(deps, { id: 70 }, async () => new Uint8Array([1]), c1.send);
+  await processPhoto(deps, { id: 70 }, [async () => new Uint8Array([1])], c1.send);
   expect(c1.msgs[0]).toContain(tde("meal.correctionHint"));
 
   const c2 = collector(); // over the cap now
-  await processPhoto(deps, { id: 70 }, async () => new Uint8Array([1]), c2.send);
+  await processPhoto(deps, { id: 70 }, [async () => new Uint8Array([1])], c2.send);
   expect(c2.msgs[0]).toBe(tde("errors.dailyCap"));
 
   const c3 = collector(); // not food
   deps.provider = fakeProvider(JSON.stringify({ isFood: false }));
-  await processPhoto(deps, { id: 71 }, async () => new Uint8Array([1]), c3.send);
+  await processPhoto(deps, { id: 71 }, [async () => new Uint8Array([1])], c3.send);
   expect(c3.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.notOnboarded")); // 71 never onboarded
 });
 
@@ -265,7 +265,7 @@ test("a low-confidence analysis swaps the correction hint for a weight nudge", a
   const deps: BotDeps = { db, provider: fakeProvider(lowConfidence), config: cfg };
   await onboardToActive(deps, 90);
   const { msgs, send } = collector();
-  await processPhoto(deps, { id: 90 }, async () => new Uint8Array([1]), send);
+  await processPhoto(deps, { id: 90 }, [async () => new Uint8Array([1])], send);
   const t = translatorFor(DEFAULT_LANG);
   expect(msgs[0]).toContain(t("meal.lowConfidenceHint"));
   expect(msgs[0]).not.toContain(t("meal.correctionHint"));
@@ -277,7 +277,7 @@ test("a whitespace-padded 'Low' still triggers the weight nudge", async () => {
   const deps: BotDeps = { db, provider: fakeProvider(padded), config: cfg };
   await onboardToActive(deps, 91);
   const { msgs, send } = collector();
-  await processPhoto(deps, { id: 91 }, async () => new Uint8Array([1]), send);
+  await processPhoto(deps, { id: 91 }, [async () => new Uint8Array([1])], send);
   expect(msgs[0]).toContain(translatorFor(DEFAULT_LANG)("meal.lowConfidenceHint"));
 });
 
@@ -289,7 +289,7 @@ test("a qualified 'low (mixed dish)' still triggers the weight nudge", async () 
   const deps: BotDeps = { db, provider: fakeProvider(qualified), config: cfg };
   await onboardToActive(deps, 92);
   const { msgs, send } = collector();
-  await processPhoto(deps, { id: 92 }, async () => new Uint8Array([1]), send);
+  await processPhoto(deps, { id: 92 }, [async () => new Uint8Array([1])], send);
   expect(msgs[0]).toContain(translatorFor(DEFAULT_LANG)("meal.lowConfidenceHint"));
 });
 
@@ -319,10 +319,10 @@ test("a capped user still gets the 👀 — the bot saw the photo even when it r
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 1 } };
   await onboardToActive(deps, 87);
-  await processPhoto(deps, { id: 87 }, async () => new Uint8Array([1]), noop);
+  await processPhoto(deps, { id: 87 }, [async () => new Uint8Array([1])], noop);
   const r = reactionLog();
   const { msgs, send } = collector();
-  await processPhoto(deps, { id: 87 }, async () => new Uint8Array([1]), send, { react: r.react });
+  await processPhoto(deps, { id: 87 }, [async () => new Uint8Array([1])], send, { react: r.react });
   await flush();
   expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.dailyCap"));
   expect(r.seen).toEqual(["👀"]); // seen, but never 👍 — nothing was processed
@@ -335,7 +335,7 @@ test("the stored weight drives the protein target on both user-visible surfaces"
   await onboardToActive(deps, 98);
   expect(await meCard(deps, 98)).toContain("147");
   const { msgs, send } = collector();
-  await processPhoto(deps, { id: 98 }, async () => new Uint8Array([1]), send);
+  await processPhoto(deps, { id: 98 }, [async () => new Uint8Array([1])], send);
   expect(msgs[0]).toContain("147");
   expect(msgs[0]).not.toContain("/ 100");
 });
@@ -358,7 +358,7 @@ test("photo lifecycle reactions: 👀 before the vision call, 👍 after success
   const provider: LLMProvider = { chat: async () => (order.push("chat"), foodJson()) };
   const deps: BotDeps = { db, provider, config: cfg };
   await onboardToActive(deps, 95);
-  await processPhoto(deps, { id: 95 }, async () => new Uint8Array([1]), noop, {
+  await processPhoto(deps, { id: 95 }, [async () => new Uint8Array([1])], noop, {
     react: async (e: string) => { order.push(e); },
   });
   await flush();
@@ -370,13 +370,13 @@ test("no 👍 when the analysis fails or the photo is not food", async () => {
   const deps: BotDeps = { db, provider: { chat: async () => "not json" }, config: cfg };
   await onboardToActive(deps, 94);
   const r1 = reactionLog();
-  await processPhoto(deps, { id: 94 }, async () => new Uint8Array([1]), noop, { react: r1.react });
+  await processPhoto(deps, { id: 94 }, [async () => new Uint8Array([1])], noop, { react: r1.react });
   await flush();
   expect(r1.seen).toEqual(["👀"]);
 
   deps.provider = fakeProvider(JSON.stringify({ isFood: false }));
   const r2 = reactionLog();
-  await processPhoto(deps, { id: 94 }, async () => new Uint8Array([1]), noop, { react: r2.react });
+  await processPhoto(deps, { id: 94 }, [async () => new Uint8Array([1])], noop, { react: r2.react });
   await flush();
   expect(r2.seen).toEqual(["👀"]);
 });
@@ -386,7 +386,7 @@ test("a correction reply gets 👀 on receipt and 👍 when the update lands", a
   const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
   await onboardToActive(deps, 93);
   const { send } = collector(); // meal reply gets message_id 1
-  await processPhoto(deps, { id: 93 }, async () => new Uint8Array([1]), send);
+  await processPhoto(deps, { id: 93 }, [async () => new Uint8Array([1])], send);
   const r = reactionLog();
   const handled = await processCorrection(deps, { id: 93 }, 1, "actually 340 g", collector().send, { react: r.react });
   await flush();
@@ -399,7 +399,7 @@ test("a failed correction keeps the 👀 but never earns the 👍", async () => 
   const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
   await onboardToActive(deps, 92);
   const { send } = collector();
-  await processPhoto(deps, { id: 92 }, async () => new Uint8Array([1]), send);
+  await processPhoto(deps, { id: 92 }, [async () => new Uint8Array([1])], send);
   deps.provider = { chat: async () => { throw new Error("model down"); } };
   const r = reactionLog();
   const handled = await processCorrection(deps, { id: 92 }, 1, "no oil", collector().send, { react: r.react });
@@ -424,7 +424,7 @@ test("a non-onboarded sender gets no reactions — the 👀 must not precede a r
   const r = reactionLog();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   const { msgs, send } = collector();
-  await processPhoto(deps, { id: 401 }, async () => new Uint8Array([1]), send, { react: r.react });
+  await processPhoto(deps, { id: 401 }, [async () => new Uint8Array([1])], send, { react: r.react });
   await flush();
   expect(msgs[0]).toContain("/start");
   expect(r.seen).toEqual([]);
@@ -435,7 +435,7 @@ test("a SYNCHRONOUSLY throwing react neither blocks the analysis nor crashes", a
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   await onboardToActive(deps, 402);
   const { msgs, send } = collector();
-  await processPhoto(deps, { id: 402 }, async () => new Uint8Array([1]), send, {
+  await processPhoto(deps, { id: 402 }, [async () => new Uint8Array([1])], send, {
     react: (() => { throw new Error("sync react throw"); }) as unknown as (e: string) => Promise<void>,
   });
   expect(msgs[0]).toContain("600");
@@ -460,7 +460,7 @@ test("a failing react never blocks the analysis or the meal insert", async () =>
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   await onboardToActive(deps, 96);
   const { msgs, send } = collector();
-  await processPhoto(deps, { id: 96 }, async () => new Uint8Array([1]), send, {
+  await processPhoto(deps, { id: 96 }, [async () => new Uint8Array([1])], send, {
     react: async () => { throw new Error("reaction rejected"); },
   });
   expect(msgs[0]).toContain("600");
@@ -491,7 +491,7 @@ test("medium and high confidence get the generic hint, never the weight nudge", 
   for (const confidence of ["medium", "high"]) {
     deps.provider = fakeProvider(JSON.stringify({ ...JSON.parse(foodJson()), confidence }));
     const { msgs, send } = collector();
-    await processPhoto(deps, { id: 93 }, async () => new Uint8Array([1]), send);
+    await processPhoto(deps, { id: 93 }, [async () => new Uint8Array([1])], send);
     expect(msgs[0]).toContain(t("meal.correctionHint"));
     expect(msgs[0]).not.toContain(t("meal.lowConfidenceHint"));
   }
@@ -505,7 +505,7 @@ test("a correction reply carries no hint — neither the generic nor the weight 
   const deps: BotDeps = { db, provider: fakeProvider(low), config: cfg };
   await onboardToActive(deps, 94);
   const photo = collector();
-  await processPhoto(deps, { id: 94 }, async () => new Uint8Array([1]), photo.send);
+  await processPhoto(deps, { id: 94 }, [async () => new Uint8Array([1])], photo.send);
   const { msgs, send } = collector();
   const handled = await processCorrection(deps, { id: 94 }, 1, "actually 340 g", send);
   expect(handled).toBe(true);
@@ -521,7 +521,7 @@ test("analysis failure is reported in the user's language and writes no row", as
   await onboardToActive(deps, 80);
   await processLangChoice(deps, { id: 80 }, "lang_de", noop);
   const { msgs, send } = collector();
-  await processPhoto(deps, { id: 80 }, async () => new Uint8Array([1]), send);
+  await processPhoto(deps, { id: 80 }, [async () => new Uint8Array([1])], send);
   expect(msgs[0]).toBe(translatorFor("de")("errors.analyzeFailed"));
   expect(await countMealsToday(db, 80, berlinDate(new Date(), cfg.tz))).toBe(0);
 });
@@ -721,7 +721,7 @@ test("a restriction toggled in settings reaches the analyzer prompt and the targ
   const { edit } = editor();
   await processSettingsCallback(deps, { id: 404 }, "st:restr:kidneys", edit);
   const { msgs, send } = collector();
-  await processPhoto(deps, { id: 404 }, async () => new Uint8Array([1]), send);
+  await processPhoto(deps, { id: 404 }, [async () => new Uint8Array([1])], send);
   // the sodium cap line only exists when a kidneys restriction is declared
   expect(msgs[0]).toContain("2000");
 });
@@ -828,14 +828,14 @@ test("the global cap blocks analysis once the day's total is reached, across use
   await onboardToActive(deps, 2);
   await onboardToActive(deps, 3);
 
-  await processPhoto(deps, { id: 1 }, async () => new Uint8Array([1]), noop);
-  await processPhoto(deps, { id: 2 }, async () => new Uint8Array([1]), noop);
+  await processPhoto(deps, { id: 1 }, [async () => new Uint8Array([1])], noop);
+  await processPhoto(deps, { id: 2 }, [async () => new Uint8Array([1])], noop);
   const date = berlinDate(new Date(), cfg.tz);
   expect(await mealCountToday(db, date)).toBe(2);
 
   // a THIRD user, well under their own cap, is refused because the day is spent
   const c = collector();
-  await processPhoto(deps, { id: 3 }, async () => new Uint8Array([1]), c.send);
+  await processPhoto(deps, { id: 3 }, [async () => new Uint8Array([1])], c.send);
   expect(c.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.globalCap"));
   expect(await mealCountToday(db, date)).toBe(2); // no row written
 });
@@ -846,7 +846,7 @@ test("the global cap is checked BEFORE the model is called, so it actually saves
   const counting: LLMProvider = { chat: async () => { calls++; return foodJson(); } };
   const deps: BotDeps = { db, provider: counting, config: { ...cfg, globalDailyAnalysisCap: 0 } };
   await onboardToActive(deps, 1);
-  await processPhoto(deps, { id: 1 }, async () => new Uint8Array([1]), noop);
+  await processPhoto(deps, { id: 1 }, [async () => new Uint8Array([1])], noop);
   expect(calls).toBe(0); // a cap that fires after the call would be decorative
 });
 
@@ -854,7 +854,7 @@ test("no global cap configured means unlimited", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: null } };
   await onboardToActive(deps, 1);
-  for (let i = 0; i < 5; i++) await processPhoto(deps, { id: 1 }, async () => new Uint8Array([1]), noop);
+  for (let i = 0; i < 5; i++) await processPhoto(deps, { id: 1 }, [async () => new Uint8Array([1])], noop);
   expect(await mealCountToday(db, berlinDate(new Date(), cfg.tz))).toBe(5);
 });
 
@@ -1027,7 +1027,7 @@ test("/cap with no argument reports the current cap and today's usage", async ()
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, globalDailyAnalysisCap: 500, adminUserId: 42 } };
   await onboardToActive(deps, 42);
-  await processPhoto(deps, { id: 42 }, async () => new Uint8Array([1]), noop);
+  await processPhoto(deps, { id: 42 }, [async () => new Uint8Array([1])], noop);
   const { msgs, send } = collector();
   await processCap(deps, { id: 42 }, "", send);
   expect(msgs[0]).toContain("500");
@@ -1041,9 +1041,9 @@ test("/cap <n> takes effect immediately, with no restart", async () => {
   await processCap(deps, { id: 42 }, "1", noop);
   expect(await effectiveGlobalCap(db, deps.config)).toBe(1);
 
-  await processPhoto(deps, { id: 42 }, async () => new Uint8Array([1]), noop); // uses the 1
+  await processPhoto(deps, { id: 42 }, [async () => new Uint8Array([1])], noop); // uses the 1
   const c = collector();
-  await processPhoto(deps, { id: 42 }, async () => new Uint8Array([1]), c.send);
+  await processPhoto(deps, { id: 42 }, [async () => new Uint8Array([1])], c.send);
   expect(c.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.globalCap"));
 });
 
@@ -1134,8 +1134,8 @@ test("first analyzed photo logs first_photo exactly once", async () => {
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   await onboardToActive(deps, 64);
   const { send } = collector();
-  await processPhoto(deps, { id: 64 }, async () => new Uint8Array([1]), send);
-  await processPhoto(deps, { id: 64 }, async () => new Uint8Array([1]), send);
+  await processPhoto(deps, { id: 64 }, [async () => new Uint8Array([1])], send);
+  await processPhoto(deps, { id: 64 }, [async () => new Uint8Array([1])], send);
   const firsts = (await eventsFor(db, 64)).filter((e) => e.event === "first_photo");
   expect(firsts).toHaveLength(1);
 });
@@ -1145,7 +1145,7 @@ test("a photo blocked by the global cap logs a cap_hit event", async () => {
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, globalDailyAnalysisCap: 0 } };
   await onboardToActive(deps, 65);
   const { send } = collector();
-  await processPhoto(deps, { id: 65 }, async () => new Uint8Array([1]), send);
+  await processPhoto(deps, { id: 65 }, [async () => new Uint8Array([1])], send);
   const hits = (await eventsFor(db, 65)).filter((e) => e.event === "cap_hit");
   expect(hits).toHaveLength(1);
   expect(await countMealsToday(db, 65, berlinDate(new Date(), cfg.tz))).toBe(0);
@@ -1301,14 +1301,14 @@ test("photo and correction draw one per-user llm-call pool", async () => {
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 2 } };
   await onboardToActive(deps, 700);
   const c1 = collector();
-  await processPhoto(deps, { id: 700 }, async () => new Uint8Array([1]), c1.send); // call 1
+  await processPhoto(deps, { id: 700 }, [async () => new Uint8Array([1])], c1.send); // call 1
   const c2 = collector();
   const handled = await processCorrection(deps, { id: 700 }, 1, "actually 300 kcal", c2.send); // call 2
   expect(handled).toBe(true);
   const date = berlinDate(new Date(), cfg.tz);
   expect(await llmCallsToday(db, 700, date)).toBe(2);
   const c3 = collector();
-  await processPhoto(deps, { id: 700 }, async () => new Uint8Array([1]), c3.send); // over cap
+  await processPhoto(deps, { id: 700 }, [async () => new Uint8Array([1])], c3.send); // over cap
   expect(c3.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.dailyCap"));
   expect(await countMealsToday(db, 700, date)).toBe(1); // only the first photo became a meal
 });
@@ -1323,11 +1323,11 @@ test("global cap counts llm calls across users, including not-food analyses", as
   await onboardToActive(deps, 702);
   const date = berlinDate(new Date(), cfg.tz);
   const c1 = collector();
-  await processPhoto(deps, { id: 701 }, async () => new Uint8Array([1]), c1.send); // not food, still 1 call
+  await processPhoto(deps, { id: 701 }, [async () => new Uint8Array([1])], c1.send); // not food, still 1 call
   expect(await llmCallsToday(db, 701, date)).toBe(1);
   expect(await countMealsToday(db, 701, date)).toBe(0); // no meal row
   const c2 = collector();
-  await processPhoto(deps, { id: 702 }, async () => new Uint8Array([1]), c2.send);
+  await processPhoto(deps, { id: 702 }, [async () => new Uint8Array([1])], c2.send);
   expect(c2.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.globalCap"));
 });
 
@@ -1338,10 +1338,44 @@ test("correction over the per-user cap is refused before the provider is called"
   const deps: BotDeps = { db, provider, config: { ...cfg, perUserDailyPhotoCap: 1 } };
   await onboardToActive(deps, 703);
   const c1 = collector();
-  await processPhoto(deps, { id: 703 }, async () => new Uint8Array([1]), c1.send); // uses the pool
+  await processPhoto(deps, { id: 703 }, [async () => new Uint8Array([1])], c1.send); // uses the pool
   const c2 = collector();
   const handled = await processCorrection(deps, { id: 703 }, 1, "make it 900 kcal", c2.send);
   expect(handled).toBe(true);
   expect(c2.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.dailyCap"));
   expect(calls).toBe(1); // the correction never reached the model
+});
+
+// ---------- albums: many photos, one meal ----------
+
+test("photo meal stores user_message_id so a reply to the photo finds the meal", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 710);
+  const { send } = collector();
+  await processPhoto(deps, { id: 710 }, [async () => new Uint8Array([1])], send, { userMessageId: 321 });
+  const meal = await mealByReply(db, 710, 321);
+  expect(meal).toBeDefined();
+  expect(meal!.user_message_id).toBe(321);
+});
+
+test("album parts produce ONE analysis with N images and one llm call", async () => {
+  const db = await freshTestDb();
+  let req: import("../llm/provider.ts").ChatRequest | undefined;
+  const provider: LLMProvider = { chat: async (r) => ((req = r), foodJson()) };
+  const deps: BotDeps = { db, provider, config: cfg };
+  await onboardToActive(deps, 711);
+  const { msgs, send } = collector();
+  await processPhoto(
+    deps, { id: 711 },
+    [async () => new Uint8Array([1]), async () => new Uint8Array([2])],
+    send,
+    { caption: "порция и этикетка", userMessageId: 400 },
+  );
+  expect(req!.imagesB64?.length).toBe(2);
+  expect(req!.userText).toContain("порция и этикетка");
+  const date = berlinDate(new Date(), cfg.tz);
+  expect(await llmCallsToday(db, 711, date)).toBe(1);
+  expect(await countMealsToday(db, 711, date)).toBe(1);
+  expect(msgs.length).toBe(1); // one reply for the whole album
 });
