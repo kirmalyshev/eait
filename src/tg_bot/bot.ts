@@ -467,8 +467,11 @@ export async function processPhoto(
   from: { id: number },
   getBytes: () => Promise<Uint8Array>,
   send: Send,
-  meta?: { caption?: string },
+  meta?: { caption?: string; ack?: () => Promise<void> },
 ): Promise<void> {
+  // Instant "seen" signal (a 👀 reaction from the handler): the vision call takes seconds and
+  // silence reads as broken. Fire-and-forget — a failed reaction must never block the analysis.
+  void meta?.ack?.().catch(() => {});
   const { db, provider, config } = deps;
   const u = await getUser(db, from.id);
   if (!u || u.state !== "active") {
@@ -549,7 +552,7 @@ export async function processDocument(
   doc: { mime_type?: string; file_size?: number },
   getBytes: () => Promise<Uint8Array>,
   send: Send,
-  meta?: { caption?: string },
+  meta?: { caption?: string; ack?: () => Promise<void> },
 ): Promise<void> {
   const t = translatorForUser(await getUser(deps.db, from.id));
   if (!doc.mime_type?.startsWith("image/")) {
@@ -798,12 +801,16 @@ export function createBot(deps: BotDeps): Bot {
     return new Uint8Array(await res.arrayBuffer());
   };
 
+  /** The instant "photo received" signal — a 👀 reaction on the user's own message. */
+  const ackVia = (ctx: any) => () => ctx.react("👀");
+
   bot.on("message:photo", async (ctx) => {
     if (!ctx.from) return;
     const photos = ctx.message.photo;
     const largest = photos[photos.length - 1]; // largest PhotoSize
     await processPhoto(deps, ctx.from, fetchFile(ctx, largest.file_id), sendVia(ctx), {
       caption: ctx.message.caption,
+      ack: ackVia(ctx),
     });
   });
 
@@ -813,6 +820,7 @@ export function createBot(deps: BotDeps): Bot {
     const doc = ctx.message.document;
     await processDocument(deps, ctx.from, doc, fetchFile(ctx, doc.file_id), sendVia(ctx), {
       caption: ctx.message.caption,
+      ack: ackVia(ctx),
     });
   });
 

@@ -293,6 +293,45 @@ test("a qualified 'low (mixed dish)' still triggers the weight nudge", async () 
   expect(msgs[0]).toContain(translatorFor(DEFAULT_LANG)("meal.lowConfidenceHint"));
 });
 
+test("processPhoto fires the ack before the vision call starts", async () => {
+  const db = await freshTestDb();
+  const order: string[] = [];
+  const provider: LLMProvider = { chat: async () => (order.push("chat"), foodJson()) };
+  const deps: BotDeps = { db, provider, config: cfg };
+  await onboardToActive(deps, 95);
+  await processPhoto(deps, { id: 95 }, async () => new Uint8Array([1]), noop, {
+    ack: async () => { order.push("ack"); },
+  });
+  expect(order).toEqual(["ack", "chat"]);
+});
+
+test("a failing ack never blocks the analysis or the meal insert", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 96);
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 96 }, async () => new Uint8Array([1]), send, {
+    ack: async () => { throw new Error("reaction rejected"); },
+  });
+  expect(msgs[0]).toContain("600");
+  expect(await countMealsToday(db, 96, berlinDate(new Date(), cfg.tz))).toBe(1);
+});
+
+test("processDocument forwards the ack to the photo path", async () => {
+  const db = await freshTestDb();
+  let acked = false;
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 97);
+  await processDocument(
+    deps, { id: 97 },
+    { mime_type: "image/jpeg", file_size: 1024 },
+    async () => new Uint8Array([1]),
+    noop,
+    { ack: async () => { acked = true; } },
+  );
+  expect(acked).toBe(true);
+});
+
 test("medium and high confidence get the generic hint, never the weight nudge", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
