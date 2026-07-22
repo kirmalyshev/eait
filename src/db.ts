@@ -734,10 +734,7 @@ export async function totalsByDate(
   return rows.map((r: any) => ({ date: r.date, kcal: r.kcal, protein_g: r.protein_g }));
 }
 
-/**
- * Meals analyzed across ALL users on a date — the denominator for the global spend cap.
- * Per-user caps bound one account; this bounds the bill when the bot is publicly linked.
- */
+/** Total meals stored across ALL users on a date (used in tests and admin stats). */
 export async function mealCountToday(db: Db, date: string): Promise<number> {
   const rows = await db`SELECT COUNT(*)::int AS n FROM meals WHERE date = ${date}`;
   return rows[0].n as number;

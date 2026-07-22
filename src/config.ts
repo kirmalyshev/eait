@@ -37,8 +37,10 @@ export interface Config {
    * How meal cards render: "rich" = Telegram Rich Messages (Bot API 10.1 tables/headings,
    * with automatic plain fallback if a rich send fails), "plain" = text with emojis.
    */
-  replyFormat: "rich" | "plain";
+  replyFormat: (typeof REPLY_FORMATS)[number];
 }
+
+export const REPLY_FORMATS = ["rich", "plain"] as const;
 
 type Env = Record<string, string | undefined>;
 
@@ -103,10 +105,11 @@ export function loadConfig(env: Env): Config {
     );
   }
   // Same policy as LLM_PROVIDER: an unknown value dies at startup, never a silent fallback.
-  const replyFormat = env.REPLY_FORMAT?.trim() || "rich";
-  if (replyFormat !== "rich" && replyFormat !== "plain") {
-    throw new Error(`REPLY_FORMAT must be "rich" or "plain" (got ${JSON.stringify(replyFormat)})`);
+  const replyFormatRaw = env.REPLY_FORMAT?.trim() || "rich";
+  if (!(REPLY_FORMATS as readonly string[]).includes(replyFormatRaw)) {
+    throw new Error(`REPLY_FORMAT must be one of ${REPLY_FORMATS.map((v) => `"${v}"`).join(" | ")} (got ${JSON.stringify(replyFormatRaw)})`);
   }
+  const replyFormat = replyFormatRaw as (typeof REPLY_FORMATS)[number];
 
   const pg: PgConfig = {
     host: env.PGHOST?.trim() || "127.0.0.1",

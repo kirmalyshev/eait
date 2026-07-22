@@ -40,13 +40,21 @@ describe("renderMealCard", () => {
   });
 
   test("builds the card structure: heading, metrics table, notes quote, progress table, footer", () => {
-    const html = renderMealCard(meal(), totals, targets, t);
+    const html = renderMealCard(meal(), totals, targets, t, { footer: t("meal.correctionHint") });
     expect(html).toContain("<h3>");
     expect(html).toContain("<table");
     expect(html).toContain("<blockquote>");
     expect(html).toContain("80 / 1800");
     expect(html).toContain("<footer>");
     expect(html).toContain("140");
+  });
+
+  test("footer and prefix appear only when the caller asks — a correction card carries no nag", () => {
+    const bare = renderMealCard(meal(), totals, targets, t);
+    expect(bare).not.toContain("<footer>");
+    const prefixed = renderMealCard(meal(), totals, targets, t, { prefix: "Updated <v2>" });
+    expect(prefixed).toContain("<p>");
+    expect(prefixed).toContain("&lt;v2&gt;"); // prefix is escaped like everything else
   });
 
   test("a meal without notes renders no blockquote", () => {

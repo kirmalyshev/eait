@@ -1,7 +1,8 @@
 // Rich-HTML rendering of a meal card for Telegram Bot API 10.1 sendRichMessage. Layout lives
-// here in code; every user-visible string still comes from the caller's translator, and every
-// interpolated value (LLM item names, notes) is HTML-escaped — the model must never be able to
-// inject markup. Plain-mode rendering stays in reply.ts; this module is rich-only.
+// here in code; every user-visible string comes from the caller's translator (except the unit
+// abbreviations kcal/g/mg, identical across the shipped locales), and every interpolated value
+// (LLM item names, notes) is HTML-escaped — the model must never be able to inject markup.
+// Plain-mode rendering stays in reply.ts; this module is rich-only.
 
 import type { TFunction } from "i18next";
 import type { DailyTotals, FoodTargets } from "./types.ts";
@@ -30,12 +31,16 @@ export function renderMealCard(
   totals: DailyTotals,
   targets: FoodTargets,
   t: TFunction,
+  // Footer/prefix are the caller's decision, matching the plain rendering site by site — a
+  // correction reply deliberately carries no hint, and rich mode must not re-add the nag.
+  opts?: { footer?: string; prefix?: string },
 ): string {
   const title = meal.items.length
     ? meal.items.map((i) => t("meal.itemUnit", { name: i.name, grams: round(i.grams) })).join(", ")
     : t("meal.noItems");
 
   const parts: string[] = [];
+  if (opts?.prefix) parts.push(`<p>${escapeHtml(opts.prefix)}</p>`);
   parts.push(`<h3>🍽 ${escapeHtml(title)}</h3>`);
 
   const rows: Array<[string, string]> = [
@@ -67,7 +72,7 @@ export function renderMealCard(
   }
   parts.push(table(t("rich.goal"), t("rich.progress"), progress));
 
-  parts.push(`<footer>↩️ ${escapeHtml(t("meal.correctionHint"))}</footer>`);
+  if (opts?.footer) parts.push(`<footer>↩️ ${escapeHtml(opts.footer)}</footer>`);
   return parts.join("\n");
 }
 
