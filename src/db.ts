@@ -41,6 +41,8 @@ export interface UserRow {
   restrictions: string[];
   created_at: string;
   acquisition_source: string | null;
+  /** Per-user card rendering override; NULL = follow the instance's REPLY_FORMAT. */
+  reply_format: string | null;
 }
 
 export interface EventRow {
@@ -276,6 +278,15 @@ const MIGRATIONS: Migration[] = [
       await tx`CREATE INDEX idx_llm_calls_user ON llm_calls(user_id, date)`;
     },
   },
+  {
+    // Per-user reply-format override from /settings. NULL = follow the instance's REPLY_FORMAT
+    // (existing users keep their current rendering until they choose). Free TEXT like lang/goal:
+    // validated at the read boundary (profileOf), not by a CHECK, matching the users-table style.
+    version: 4,
+    up: async (tx) => {
+      await tx`ALTER TABLE users ADD COLUMN reply_format TEXT`;
+    },
+  },
 ];
 
 async function migrate(db: Db): Promise<void> {
@@ -346,6 +357,7 @@ export async function getUser(db: Db, telegram_id: number): Promise<UserRow | un
     restrictions: parseJsonArray(row.restrictions),
     created_at: row.created_at,
     acquisition_source: row.acquisition_source ?? null,
+    reply_format: row.reply_format ?? null,
   };
 }
 
@@ -435,6 +447,11 @@ export async function setUserState(db: Db, telegram_id: number, state: UserState
 /** /lang — the only place a user's language changes after it is seeded at first contact. */
 export async function setLang(db: Db, telegram_id: number, lang: string): Promise<void> {
   await db`UPDATE users SET lang = ${lang} WHERE telegram_id = ${telegram_id}`;
+}
+
+/** /settings → Style — per-user meal-card rendering override ("rich" | "plain"). */
+export async function setReplyFormat(db: Db, telegram_id: number, format: string): Promise<void> {
+  await db`UPDATE users SET reply_format = ${format} WHERE telegram_id = ${telegram_id}`;
 }
 
 /** Consent accepted: record consent time and advance to the profile step. */
