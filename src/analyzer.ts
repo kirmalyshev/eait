@@ -7,7 +7,7 @@ import { z } from "zod";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import { LOCALES } from "./i18n/registry.ts";
 import { RESTRICTION_TAGS, isRestrictionTag } from "./targets.ts";
-import type { MealAnalysis, Profile } from "./types.ts";
+import type { MealAnalysis, MealContext, Profile } from "./types.ts";
 
 const VerdictSchema = z.enum(["good", "warn", "bad"]);
 
@@ -48,6 +48,9 @@ const MEAL_JSON_SCHEMA = {
   additionalProperties: false,
   required: ["isFood"],
   properties: {
+    // First on purpose: the model fills fields in schema order, so the volumetric reasoning
+    // happens BEFORE any number is committed. Scratch space only — zod strips it on parse.
+    reasoning: { type: "string" },
     isFood: { type: "boolean" },
     items: {
       type: "array",
@@ -80,8 +83,13 @@ const MEAL_JSON_SCHEMA = {
 
 const SYSTEM =
   "You are a careful nutrition estimator for a personal food-photo diary. Estimate the meal's " +
-  "items and macros from the photo. Respond with ONLY a single JSON object matching the schema — " +
-  "no prose, no markdown fences. If the photo is not food, set isFood=false. Estimates are best-effort.";
+  "items and macros from the photo, following the estimation protocol exactly and working " +
+  "through it in the `reasoning` field BEFORE filling any numeric field. Respond with ONLY a " +
+  "single JSON object matching the schema — no prose, no markdown fences. If the photo is not " +
+  "food, set isFood=false.";
+
+/** A caption is user text going into a prompt — cap it like the restriction input. */
+const CAPTION_INPUT_CAP = 300;
 
 function goalLine(goal: Profile["goal"]): string {
   switch (goal) {
@@ -97,10 +105,24 @@ function goalLine(goal: Profile["goal"]): string {
 }
 
 /** Generic instruction, personalized per profile. Only declared restrictions get a verdict. */
-function buildUserText(profile: Profile): string {
+function buildUserText(profile: Profile, context?: MealContext): string {
   const lines: string[] = [];
   lines.push(`User ${goalLine(profile.goal)}.`);
+  // Staged decomposition + volumetric reasoning: the measured levers against portion error,
+  // which dominates calorie MAE (identification is the easy part).
+  lines.push("Estimation protocol — work through it in `reasoning` before any number:");
+  lines.push("1. Identify every food item and its cooking method (fried/boiled/baked); look for hidden calories — oil, butter, dressings, sauces, sugar in drinks.");
+  lines.push("2. Estimate each portion's volume using visible scale references (plate ~26cm, cutlery, glass, hands), then convert volume to grams per item.");
+  lines.push("3. Compute kcal and macros per item from grams + cooking method; totals are the sums across items.");
+  lines.push("Mixed and layered dishes are systematically underestimated — when torn between two portion sizes, take the larger.");
   lines.push("Estimate items[{name,grams}], kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g, sodium_mg, plant_protein_pct.");
+  lines.push('Set confidence to exactly one of "high", "medium", "low" — "low" when the dish is mixed, ingredients may be hidden, or no scale reference is visible; state why in notes.');
+  if (context?.caption) {
+    lines.push(`The user captioned the photo: "${context.caption.slice(0, CAPTION_INPUT_CAP)}" — treat it as ground truth about the contents.`);
+  }
+  if (context?.localTime) {
+    lines.push(`Local time of the meal: ${context.localTime} — consider which meal of the day this typically is.`);
+  }
   lines.push("Always set verdicts.weight (good/warn/bad) relative to the weight goal above.");
   if (profile.restrictions.includes("kidneys")) {
     lines.push("This user has a KIDNEYS restriction: judge sodium and animal protein; set verdicts.kidneys.");
@@ -162,10 +184,11 @@ export async function analyzeMeal(
   bytes: Uint8Array,
   profile: Profile,
   provider: LLMProvider,
+  context?: MealContext,
 ): Promise<MealAnalysis> {
   const req: ChatRequest = {
     system: SYSTEM,
-    userText: buildUserText(profile),
+    userText: buildUserText(profile, context),
     imageB64: toBase64(bytes),
     imageMime: "image/jpeg",
     jsonSchema: MEAL_JSON_SCHEMA,

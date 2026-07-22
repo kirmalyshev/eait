@@ -30,6 +30,17 @@ export interface MealVerdicts {
   kidneys?: Verdict;
 }
 
+/**
+ * Optional context accompanying a photo, injected into the analysis prompt. Both fields
+ * measurably reduce estimation error (caption = user-supplied ground truth; local time
+ * lets the model infer the meal type). Absent for corrections — the image is already gone.
+ */
+export interface MealContext {
+  caption?: string;
+  /** HH:MM in the bot's timezone (Europe/Berlin), not UTC. */
+  localTime?: string;
+}
+
 /** The analyzer's validated output for one photo. No photo path — images are ephemeral. */
 export interface MealAnalysis {
   isFood: boolean;
