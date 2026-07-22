@@ -11,13 +11,49 @@ import type { MealAnalysis, MealContext, Profile } from "./types.ts";
 
 const VerdictSchema = z.enum(["good", "warn", "bad"]);
 
-export const MealAnalysisSchema = z.object({
+// Per-100g composition facts the model states per item. The model recalls these reliably;
+// its failure mode is the arithmetic — so it states facts and the CODE does the math
+// (groundTotals below). Scratch data: stripped after grounding, never persisted.
+const Per100gSchema = z.object({
+  kcal: z.coerce.number().nonnegative(),
+  protein_g: z.coerce.number().nonnegative(),
+  carbs_g: z.coerce.number().nonnegative(),
+  fat_g: z.coerce.number().nonnegative(),
+});
+
+const GROUNDED_FIELDS = ["kcal", "protein_g", "carbs_g", "fat_g"] as const;
+
+/**
+ * Deterministic nutrition math (issue #8, no external DB): when EVERY item carries per100g
+ * facts and a positive mass, the four grounded totals are recomputed as Σ grams × per100g/100
+ * (rounded to 0.1) — the model's own arithmetic is discarded. Any gap falls back to the
+ * model's totals; the remaining fields (satfat, fiber, …) always stay the model's.
+ */
+function groundTotals<T extends Record<string, unknown>>(parsed: T & {
+  items: Array<{ name: string; grams: number; per100g?: z.infer<typeof Per100gSchema> }>;
+}): T & { items: Array<{ name: string; grams: number }> } {
+  const complete =
+    parsed.items.length > 0 && parsed.items.every((i) => i.per100g && i.grams > 0);
+  const out: Record<string, unknown> = { ...parsed };
+  if (complete) {
+    for (const field of GROUNDED_FIELDS) {
+      const sum = parsed.items.reduce((acc, i) => acc + (i.grams * i.per100g![field]) / 100, 0);
+      out[field] = Math.round(sum * 10) / 10;
+    }
+  }
+  out.items = parsed.items.map(({ name, grams }) => ({ name, grams }));
+  return out as T & { items: Array<{ name: string; grams: number }> };
+}
+
+export const MealAnalysisSchema = z
+  .object({
   isFood: z.boolean(),
   items: z
     .array(
       z.object({
         name: z.string().default("item"),
         grams: z.coerce.number().default(0),
+        per100g: Per100gSchema.optional(),
       }),
     )
     .default([]),
@@ -46,7 +82,8 @@ export const MealAnalysisSchema = z.object({
     .default("unknown")
     .transform((s) => s.trim().toLowerCase()),
   notes: z.string().default(""),
-});
+  })
+  .transform(groundTotals);
 
 // JSON-schema hint for the provider's structured-output request. Hand-written (not derived) so
 // coerce/default quirks never leak into the wire schema; it is only a hint, the zod parse is truth.
@@ -63,7 +100,19 @@ const MEAL_JSON_SCHEMA = {
       type: "array",
       items: {
         type: "object",
-        properties: { name: { type: "string" }, grams: { type: "number" } },
+        properties: {
+          name: { type: "string" },
+          grams: { type: "number" },
+          per100g: {
+            type: "object",
+            properties: {
+              kcal: { type: "number" },
+              protein_g: { type: "number" },
+              carbs_g: { type: "number" },
+              fat_g: { type: "number" },
+            },
+          },
+        },
       },
     },
     kcal: { type: "number" },
@@ -128,7 +177,8 @@ function buildUserText(profile: Profile, context?: MealContext): string {
   lines.push("Estimation protocol — work through it in `reasoning` before any number:");
   lines.push("1. Identify every food item and its cooking method (fried/boiled/baked); look for hidden calories — oil, butter, dressings, sauces, sugar in drinks.");
   lines.push("2. Estimate each portion's volume using visible scale references (plate ~26cm, cutlery, glass, hands), then convert volume to grams per item.");
-  lines.push("3. Compute kcal and macros per item from grams + cooking method; totals are the sums across items.");
+  lines.push("3. For every item, state its standard per 100 g composition (kcal, protein_g, carbs_g, fat_g) in items[].per100g — use food-composition-table values for the item as prepared (fried rice ≠ boiled rice). The totals for those four fields are COMPUTED from grams × per100g, so get the facts right and don't worry about the multiplication.");
+  lines.push("4. Estimate the remaining totals (satfat_g, fiber_g, sugar_g, sodium_mg) across the whole meal yourself.");
   lines.push("Mixed and layered dishes are systematically underestimated — when torn between two portion sizes, take the larger.");
   // A regional prior steers identification away from generic international staples. Hedged on
   // purpose: the interface language suggests a cuisine, the photo always wins.

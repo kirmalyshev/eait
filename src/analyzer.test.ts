@@ -236,6 +236,58 @@ describe("meal context", () => {
   });
 });
 
+describe("nutrition grounding (per-100g facts × grams, computed in code)", () => {
+  // The model recalls per-100g composition reliably; its failure mode is the arithmetic.
+  // So the model states facts, the code does the math — issue #8 without an external DB.
+  const grounded = JSON.stringify({
+    isFood: true,
+    items: [
+      { name: "rice", grams: 200, per100g: { kcal: 130, protein_g: 2.7, carbs_g: 28, fat_g: 0.3 } },
+      { name: "chicken", grams: 150, per100g: { kcal: 165, protein_g: 31, carbs_g: 0, fat_g: 3.6 } },
+    ],
+    // Deliberately wrong model arithmetic — the grounded recompute must override all four.
+    kcal: 999, protein_g: 1, carbs_g: 1, fat_g: 99,
+    satfat_g: 2, sodium_mg: 300,
+    confidence: "high",
+  });
+
+  test("totals are recomputed from grams × per100g when every item carries facts", async () => {
+    const provider = new FakeProvider(() => grounded);
+    const out = await analyzeMeal(bytes, profile, provider);
+    expect(out.kcal).toBe(507.5); // 200×1.30 + 150×1.65
+    expect(out.protein_g).toBe(51.9); // 5.4 + 46.5
+    expect(out.carbs_g).toBe(56);
+    expect(out.fat_g).toBe(6); // 0.6 + 5.4
+    expect(out.satfat_g).toBe(2); // ungrounded fields keep the model's totals
+  });
+
+  test("per100g is scratch data: stripped from items, never persisted", async () => {
+    const provider = new FakeProvider(() => grounded);
+    const out = await analyzeMeal(bytes, profile, provider);
+    for (const item of out.items) expect("per100g" in item).toBe(false);
+  });
+
+  test("any item missing per100g (or with zero grams) falls back to the model's totals", async () => {
+    const partial = JSON.parse(grounded);
+    delete partial.items[1].per100g;
+    const provider = new FakeProvider(() => JSON.stringify(partial));
+    expect((await analyzeMeal(bytes, profile, provider)).kcal).toBe(999);
+
+    const zeroGrams = JSON.parse(grounded);
+    zeroGrams.items[0].grams = 0; // stated facts but no mass to scale them by
+    const p2 = new FakeProvider(() => JSON.stringify(zeroGrams));
+    expect((await analyzeMeal(bytes, profile, p2)).kcal).toBe(999);
+  });
+
+  test("the wire schema and prompt ask for per-item per100g facts", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal(bytes, profile, provider);
+    const schema = provider.lastRequest!.jsonSchema as any;
+    expect(schema.properties.items.items.properties.per100g).toBeDefined();
+    expect(provider.lastRequest!.userText).toMatch(/per\s*100\s*g/i);
+  });
+});
+
 describe("expert persona + cuisine prior", () => {
   // Persona measurably tightens macro estimates; a regional-cuisine prior steers identification
   // away from generic international staples (+87.5% ID in the GPT-4V origin-prompt study).
