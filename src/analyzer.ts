@@ -91,6 +91,11 @@ const SYSTEM =
 /** A caption is user text going into a prompt — cap it like the restriction input. */
 const CAPTION_INPUT_CAP = 300;
 
+// Low temperature = the cheap form of self-consistency: the same photo yields (nearly) the
+// same estimate run to run, without paying for a 3-call median. Applies to every analyzer
+// call — estimation and classification both want determinism, never creativity.
+const TEMPERATURE = 0.2;
+
 function goalLine(goal: Profile["goal"]): string {
   switch (goal) {
     case "lose":
@@ -192,6 +197,7 @@ export async function analyzeMeal(
     imageB64: toBase64(bytes),
     imageMime: "image/jpeg",
     jsonSchema: MEAL_JSON_SCHEMA,
+    temperature: TEMPERATURE,
   };
   const raw = await provider.chat(req);
   return parseAnalysis(raw);
@@ -230,7 +236,7 @@ export async function classifyRestrictions(
   ].join("\n");
 
   try {
-    const raw = await provider.chat({ system: SYSTEM_CLASSIFY, userText });
+    const raw = await provider.chat({ system: SYSTEM_CLASSIFY, userText, temperature: TEMPERATURE });
     const parsed = RestrictionsSchema.safeParse(tolerantJson(raw));
     // Never-throwing is deliberate (see the docstring), but staying silent is not: this path
     // only runs when the keyword pass already matched nothing, so the user ends up with no
@@ -278,6 +284,11 @@ export async function analyzeCorrection(
     "Apply the correction and return the full updated JSON object (same schema).",
   ].join("\n");
 
-  const raw = await provider.chat({ system: SYSTEM, userText, jsonSchema: MEAL_JSON_SCHEMA });
+  const raw = await provider.chat({
+    system: SYSTEM,
+    userText,
+    jsonSchema: MEAL_JSON_SCHEMA,
+    temperature: TEMPERATURE,
+  });
   return parseAnalysis(raw);
 }

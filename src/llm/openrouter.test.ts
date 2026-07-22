@@ -58,6 +58,14 @@ describe("OpenRouterProvider.chat — request shape", () => {
     expect(userMsg.content.some((c: any) => c.type === "image_url")).toBe(false);
     expect(body.response_format).toBeUndefined();
   });
+
+  test("forwards temperature when set; omits it when unset (provider default)", async () => {
+    const p = new OpenRouterProvider({ apiKey: "k", model: "m", log: () => {} });
+    await p.chat({ system: "s", userText: "u", temperature: 0.2 });
+    expect(JSON.parse(calls[0]!.init.body).temperature).toBe(0.2);
+    await p.chat({ system: "s", userText: "u" });
+    expect(JSON.parse(calls[1]!.init.body).temperature).toBeUndefined();
+  });
 });
 
 describe("OpenRouterProvider.chat — timeout", () => {
