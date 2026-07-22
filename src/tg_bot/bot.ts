@@ -396,9 +396,14 @@ export async function processPhoto(
   if (firstPhoto) logEvent(db, from.id, "first_photo");
   console.log(`[eait] meal stored ${id} user=${from.id}`);
   const totals = dailyTotals(db, from.id, date);
-  const sent = await send(
-    formatReply(analysis, totals, targetsFor(prof), t) + "\n\n" + t("meal.correctionHint"),
-  );
+  // When the model itself flags the estimate as shaky, ask for the strongest correction the
+  // literature knows — a user-supplied weight — instead of the generic hint. Normalized: the
+  // schema keeps confidence a free string, so "Low"/" low " must still trigger the nudge.
+  const hint =
+    analysis.confidence.trim().toLowerCase() === "low"
+      ? t("meal.lowConfidenceHint")
+      : t("meal.correctionHint");
+  const sent = await send(formatReply(analysis, totals, targetsFor(prof), t) + "\n\n" + hint);
   if (sent) setMealReply(db, id, from.id, sent.chat_id, sent.message_id);
 }
 

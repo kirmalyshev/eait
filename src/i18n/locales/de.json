@@ -65,6 +65,7 @@
     },
     "notesLine": "📝 {{notes}}",
     "correctionHint": "↩️ Nicht richtig? Antworte auf diese Nachricht mit einer Korrektur.",
+    "lowConfidenceHint": "🤔 Bei der Portionsgröße bin ich unsicher. Antworte auf diese Nachricht mit Gewicht oder Inhalt (zum Beispiel „340 g“ oder „zwei Frikadellen, ohne Öl“) — ich rechne neu.",
     "updatedPrefix": "Aktualisiert:",
     "totalKcal": "Heute: {{now}} / {{target}} kcal",
     "totalProtein": "Eiweiß: {{now}} / {{target}} g",
