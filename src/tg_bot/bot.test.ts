@@ -48,6 +48,7 @@ async function onboardToActive(deps: BotDeps, id: number) {
   await processOnboarding(deps, { id }, { type: "command", command: "start" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "goal_lose" }, noop);
+  await processOnboarding(deps, { id }, { type: "text", text: "92" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "restrictions_skip" }, noop);
 }
 
@@ -58,6 +59,20 @@ test("onboarding drives consent → profile → active", async () => {
   const u = (await getUser(db, 100)) as UserRow;
   expect(u.state).toBe("active");
   expect(u.goal).toBe("lose");
+  expect(u.weight_kg).toBe(92);
+});
+
+test("onboarding with a skipped weight still reaches active, weight stored as 0", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await processOnboarding(deps, { id: 101 }, { type: "command", command: "start" }, noop);
+  await processOnboarding(deps, { id: 101 }, { type: "callback", data: "consent_agree" }, noop);
+  await processOnboarding(deps, { id: 101 }, { type: "callback", data: "goal_lose" }, noop);
+  await processOnboarding(deps, { id: 101 }, { type: "callback", data: "weight_skip" }, noop);
+  await processOnboarding(deps, { id: 101 }, { type: "callback", data: "restrictions_skip" }, noop);
+  const u = (await getUser(db, 101)) as UserRow;
+  expect(u.state).toBe("active");
+  expect(u.weight_kg).toBe(0);
 });
 
 test("processPhoto rejects a non-active user (no row written)", async () => {
@@ -153,12 +168,19 @@ test("meCard is null unless active; statsCard counts users+meals", async () => {
 // ---------- language ----------
 
 test("profileOf accepts any registered locale and falls back for anything else", () => {
-  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, restrictions: [], created_at: "t", acquisition_source: null };
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null };
   expect(profileOf({ ...base, lang: "de" } as UserRow).lang).toBe("de");
   expect(profileOf({ ...base, lang: "ru" } as UserRow).lang).toBe("ru");
   // a value that predates (or outlives) the registry must not render as a raw key
   expect(profileOf({ ...base, lang: "klingon" } as UserRow).lang).toBe(DEFAULT_LANG);
   expect(profileOf({ ...base, lang: "" } as UserRow).lang).toBe(DEFAULT_LANG);
+});
+
+test("profileOf maps the db's 0-skip weight sentinel to null, real weights pass through", () => {
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, lang: "en" };
+  expect(profileOf({ ...base, weight_kg: 0 } as UserRow).weight_kg).toBeNull();
+  expect(profileOf({ ...base, weight_kg: 92.5 } as UserRow).weight_kg).toBe(92.5);
+  expect(profileOf(base as UserRow).weight_kg).toBeNull();
 });
 
 test("first contact seeds the language from Telegram's language_code", async () => {
@@ -271,6 +293,134 @@ test("a qualified 'low (mixed dish)' still triggers the weight nudge", async () 
   expect(msgs[0]).toContain(translatorFor(DEFAULT_LANG)("meal.lowConfidenceHint"));
 });
 
+test("/me shows the stored weight, and 'not set' after a skip — misparses stay visible", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 88); // answers weight 92
+  expect(await meCard(deps, 88)).toContain("92");
+  const t = translatorFor(DEFAULT_LANG);
+  await processOnboarding(deps, { id: 89 }, { type: "command", command: "start" }, noop);
+  await processOnboarding(deps, { id: 89 }, { type: "callback", data: "consent_agree" }, noop);
+  await processOnboarding(deps, { id: 89 }, { type: "callback", data: "goal_lose" }, noop);
+  await processOnboarding(deps, { id: 89 }, { type: "callback", data: "weight_skip" }, noop);
+  await processOnboarding(deps, { id: 89 }, { type: "callback", data: "restrictions_skip" }, noop);
+  expect(await meCard(deps, 89)).toContain(t("me.noWeight"));
+});
+
+test("a capped user still gets the 👀 — the bot saw the photo even when it refuses", async () => {
+  // Deliberate: ack = "seen", not "will analyze". Pinned so a refactor can't flip it silently.
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 1 } };
+  await onboardToActive(deps, 87);
+  await processPhoto(deps, { id: 87 }, async () => new Uint8Array([1]), noop);
+  let acked = 0;
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 87 }, async () => new Uint8Array([1]), send, {
+    ack: async () => { acked++; },
+  });
+  expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.dailyCap"));
+  expect(acked).toBe(1);
+});
+
+test("the stored weight drives the protein target on both user-visible surfaces", async () => {
+  // onboardToActive answers weight 92 → target round(92 × 1.6) = 147, not the flat 100.
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 98);
+  expect(await meCard(deps, 98)).toContain("147");
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 98 }, async () => new Uint8Array([1]), send);
+  expect(msgs[0]).toContain("147");
+  expect(msgs[0]).not.toContain("/ 100");
+});
+
+test("weight-step text never reaches the LLM restriction classifier", async () => {
+  const db = await freshTestDb();
+  const { p, calls } = countingProvider(JSON.stringify({ tags: ["vegan"] }));
+  const deps: BotDeps = { db, provider: p, config: cfg };
+  await processOnboarding(deps, { id: 99 }, { type: "command", command: "start" }, noop);
+  await processOnboarding(deps, { id: 99 }, { type: "callback", data: "consent_agree" }, noop);
+  await processOnboarding(deps, { id: 99 }, { type: "callback", data: "goal_lose" }, noop);
+  await processOnboarding(deps, { id: 99 }, { type: "text", text: "not a weight" }, noop);
+  await processOnboarding(deps, { id: 99 }, { type: "text", text: "92" }, noop);
+  expect(calls()).toBe(0);
+});
+
+test("processPhoto fires the ack before the vision call starts", async () => {
+  const db = await freshTestDb();
+  const order: string[] = [];
+  const provider: LLMProvider = { chat: async () => (order.push("chat"), foodJson()) };
+  const deps: BotDeps = { db, provider, config: cfg };
+  await onboardToActive(deps, 95);
+  await processPhoto(deps, { id: 95 }, async () => new Uint8Array([1]), noop, {
+    ack: async () => { order.push("ack"); },
+  });
+  expect(order).toEqual(["ack", "chat"]);
+});
+
+test("a non-onboarded sender gets no ack — the 👀 must not precede a refusal", async () => {
+  const db = await freshTestDb();
+  let acked = 0;
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 401 }, async () => new Uint8Array([1]), send, {
+    ack: async () => { acked++; },
+  });
+  expect(msgs[0]).toContain("/start");
+  expect(acked).toBe(0);
+});
+
+test("a SYNCHRONOUSLY throwing ack neither blocks the analysis nor crashes", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 402);
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 402 }, async () => new Uint8Array([1]), send, {
+    ack: (() => { throw new Error("sync react throw"); }) as unknown as () => Promise<void>,
+  });
+  expect(msgs[0]).toContain("600");
+  expect(await countMealsToday(db, 402, berlinDate(new Date(), cfg.tz))).toBe(1);
+});
+
+test("a rejected document (wrong mime) gets no ack; an accepted one acks exactly once", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 403);
+  let acked = 0;
+  const ack = async () => { acked++; };
+  await processDocument(deps, { id: 403 }, { mime_type: "application/pdf" }, async () => new Uint8Array([1]), noop, { ack });
+  expect(acked).toBe(0);
+  await processDocument(deps, { id: 403 }, { mime_type: "image/jpeg", file_size: 1 }, async () => new Uint8Array([1]), noop, { ack });
+  expect(acked).toBe(1);
+});
+
+test("a failing ack never blocks the analysis or the meal insert", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 96);
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 96 }, async () => new Uint8Array([1]), send, {
+    ack: async () => { throw new Error("reaction rejected"); },
+  });
+  expect(msgs[0]).toContain("600");
+  expect(await countMealsToday(db, 96, berlinDate(new Date(), cfg.tz))).toBe(1);
+});
+
+test("processDocument forwards the ack to the photo path", async () => {
+  const db = await freshTestDb();
+  let acked = false;
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 97);
+  await processDocument(
+    deps, { id: 97 },
+    { mime_type: "image/jpeg", file_size: 1024 },
+    async () => new Uint8Array([1]),
+    noop,
+    { ack: async () => { acked = true; } },
+  );
+  expect(acked).toBe(true);
+});
+
 test("medium and high confidence get the generic hint, never the weight nudge", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
@@ -353,6 +503,7 @@ async function toRestrictionsStep(deps: BotDeps, id: number, language_code?: str
   await processOnboarding(deps, { id, language_code }, { type: "command", command: "start" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "goal_lose" }, noop);
+  await processOnboarding(deps, { id }, { type: "callback", data: "weight_skip" }, noop);
 }
 
 test("a keyword match short-circuits — the classifier is never consulted", async () => {
@@ -413,6 +564,7 @@ test("/me renders restriction tags as localized names, not raw identifiers", asy
   await processOnboarding(deps, { id: 300, language_code: "de" }, { type: "command", command: "start" }, noop);
   await processOnboarding(deps, { id: 300 }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id: 300 }, { type: "callback", data: "goal_lose" }, noop);
+  await processOnboarding(deps, { id: 300 }, { type: "callback", data: "weight_skip" }, noop);
   await processOnboarding(deps, { id: 300 }, { type: "text", text: "почки, холестерин" }, noop);
 
   const card = (await meCard(deps, 300)) as string;

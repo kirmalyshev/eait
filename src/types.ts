@@ -15,6 +15,8 @@ export interface Profile {
   telegram_id: number;
   lang: Lang;
   goal: Goal | null;
+  /** Kilograms; null/absent = unknown (never asked, or declined). The db's 0-skip sentinel never reaches here. */
+  weight_kg?: number | null;
   restrictions: string[]; // tags e.g. ["kidneys","ldl","vegan","lowsugar"]
 }
 

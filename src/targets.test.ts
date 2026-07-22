@@ -6,6 +6,24 @@ function profile(goal: Goal | null, restrictions: string[] = []): Profile {
   return { telegram_id: 1, lang: "ru", goal, restrictions };
 }
 
+describe("targetsFor — known weight drives the protein target", () => {
+  // 1.6 g/kg — the low end of the sports-nutrition consensus band, clamped so an extreme
+  // bodyweight cannot produce an absurd target. Unknown weight keeps the flat 100 g baseline.
+  test("protein = 1.6 g/kg rounded", () => {
+    expect(targetsFor({ ...profile("maintain"), weight_kg: 92.5 }).protein_g).toBe(148);
+    // a non-integer product, so round-vs-floor is actually exercised (91.6 × 1.6 = 146.56)
+    expect(targetsFor({ ...profile("maintain"), weight_kg: 91.6 }).protein_g).toBe(147);
+  });
+  test("clamped to [80, 180]", () => {
+    expect(targetsFor({ ...profile("maintain"), weight_kg: 40 }).protein_g).toBe(80);
+    expect(targetsFor({ ...profile("maintain"), weight_kg: 140 }).protein_g).toBe(180);
+  });
+  test("null or absent weight keeps the 100 g baseline", () => {
+    expect(targetsFor({ ...profile("maintain"), weight_kg: null }).protein_g).toBe(100);
+    expect(targetsFor(profile("maintain")).protein_g).toBe(100);
+  });
+});
+
 describe("targetsFor — goal drives kcal, protein baseline is 100", () => {
   test("lose", () => {
     const t = targetsFor(profile("lose"));

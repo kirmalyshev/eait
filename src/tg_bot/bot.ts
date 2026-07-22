@@ -60,6 +60,8 @@ export function profileOf(u: UserRow): Profile {
     // being renamed or removed, and an unvalidated one would render raw keys at the user.
     lang: isLang(u.lang) ? u.lang : DEFAULT_LANG,
     goal: u.goal,
+    // 0 is the db's "explicitly skipped" sentinel — outside the db/bot boundary it means unknown.
+    weight_kg: u.weight_kg ? u.weight_kg : null,
     restrictions: u.restrictions,
   };
 }
@@ -84,6 +86,9 @@ export function mealToAnalysis(m: MealRecord): MealAnalysis {
 export async function applyOnboarding(db: Db, telegram_id: number, r: OnboardingResult): Promise<void> {
   if (r.patch?.consent_at) await setConsent(db, telegram_id, r.patch.consent_at);
   if (r.patch?.goal) await setProfile(db, telegram_id, { goal: r.patch.goal });
+  // !== undefined, not truthy: 0 is the explicit-skip sentinel and MUST be persisted,
+  // or the weight question re-opens on every resume.
+  if (r.patch?.weight_kg !== undefined) await setProfile(db, telegram_id, { weight_kg: r.patch.weight_kg });
   if (r.patch?.restrictions !== undefined) await setProfile(db, telegram_id, { restrictions: r.patch.restrictions });
   await setUserState(db, telegram_id, r.nextState);
 }
@@ -106,7 +111,7 @@ export async function processOnboarding(
   const u = await getUser(deps.db, from.id);
   if (input.type === "command") await recordStart(deps.db, from.id, input.payload);
   const t = translatorForUser(u);
-  const r = step(u ? { state: u.state, goal: u.goal } : undefined, input, t);
+  const r = step(u ? { state: u.state, goal: u.goal, weight_kg: u.weight_kg } : undefined, input, t);
   await applyRestrictionFallback(deps, u, input, r);
   await applyOnboarding(deps.db, from.id, r);
   if (u?.state !== "active" && r.nextState === "active") {
@@ -462,7 +467,7 @@ export async function processPhoto(
   from: { id: number },
   getBytes: () => Promise<Uint8Array>,
   send: Send,
-  meta?: { caption?: string },
+  meta?: { caption?: string; ack?: () => Promise<void> },
 ): Promise<void> {
   const { db, provider, config } = deps;
   const u = await getUser(db, from.id);
@@ -470,6 +475,14 @@ export async function processPhoto(
     await send(translatorForUser(u)("errors.notOnboarded"));
     return;
   }
+  // Instant "seen" signal (a 👀 reaction from the handler): the vision call takes seconds and
+  // silence reads as broken. Deliberately after the active-state gate (a refusal should not be
+  // preceded by a 👀) and before the cap checks. Promise.resolve wrapping makes even a
+  // SYNCHRONOUSLY throwing thunk harmless, and failures are logged — a Telegram-side reaction
+  // rejection must be visible to the operator, never a silent permanent degradation.
+  void Promise.resolve()
+    .then(() => meta?.ack?.())
+    .catch((e) => console.warn(`[eait] ack failed user=${from.id}: ${describeError(e)}`));
   const prof = profileOf(u);
   const t = translatorFor(prof.lang);
   const date = berlinDate(new Date(), config.tz);
@@ -544,7 +557,7 @@ export async function processDocument(
   doc: { mime_type?: string; file_size?: number },
   getBytes: () => Promise<Uint8Array>,
   send: Send,
-  meta?: { caption?: string },
+  meta?: { caption?: string; ack?: () => Promise<void> },
 ): Promise<void> {
   const t = translatorForUser(await getUser(deps.db, from.id));
   if (!doc.mime_type?.startsWith("image/")) {
@@ -600,6 +613,9 @@ export async function meCard(deps: BotDeps, userId: number): Promise<string | nu
   return (
     t("me.profileLine", {
       goal: t(`me.goal.${u.goal ?? "maintain"}`),
+      // Weight is shown so a misparsed onboarding answer stays visible and correctable —
+      // the value silently driving the protein target must never be invisible.
+      weight: prof.weight_kg ? t("me.weightValue", { kg: prof.weight_kg }) : t("me.noWeight"),
       // Tags are storage identifiers, not copy — render their localized names. Membership is
       // checked explicitly rather than leaning on i18next's defaultValue, which does not
       // suppress the strict missing-key handler. A tag from an older build shows as itself.
@@ -793,12 +809,16 @@ export function createBot(deps: BotDeps): Bot {
     return new Uint8Array(await res.arrayBuffer());
   };
 
+  /** The instant "photo received" signal — a 👀 reaction on the user's own message. */
+  const ackVia = (ctx: any) => () => ctx.react("👀");
+
   bot.on("message:photo", async (ctx) => {
     if (!ctx.from) return;
     const photos = ctx.message.photo;
     const largest = photos[photos.length - 1]; // largest PhotoSize
     await processPhoto(deps, ctx.from, fetchFile(ctx, largest.file_id), sendVia(ctx), {
       caption: ctx.message.caption,
+      ack: ackVia(ctx),
     });
   });
 
@@ -808,6 +828,7 @@ export function createBot(deps: BotDeps): Bot {
     const doc = ctx.message.document;
     await processDocument(deps, ctx.from, doc, fetchFile(ctx, doc.file_id), sendVia(ctx), {
       caption: ctx.message.caption,
+      ack: ackVia(ctx),
     });
   });
 
