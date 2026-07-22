@@ -36,8 +36,16 @@ fi
 CLEAN="$(printf '%s' "$RAW" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/^-*//; s/-*$//' | cut -c1-31)"
 [ -n "$CLEAN" ] || CLEAN="main"
 PROJECT="eait-$CLEAN"
-DB_NAME="eait_$(printf '%s' "$CLEAN" | tr '-' '_')"
-TEST_DB_NAME="eait_test_$(printf '%s' "$CLEAN" | tr '-' '_')"
+if [ "$CLEAN" = "main" ] || [ "$CLEAN" = "head" ]; then
+  # main (and detached HEAD) get the BASE database — the same `eait` the defaults point at.
+  # Without this, running the script on main would split state between eait and eait_main.
+  # Mirrors onlypro's branch-db-name.
+  DB_NAME="eait"
+  TEST_DB_NAME="eait_test"
+else
+  DB_NAME="eait_$(printf '%s' "$CLEAN" | tr '-' '_')"
+  TEST_DB_NAME="eait_test_$(printf '%s' "$CLEAN" | tr '-' '_')"
+fi
 
 # Rewrite atomically, preserving the 600 mode setup.sh uses (.env holds live secrets).
 TMP="$ENV_FILE.tmp.$$"
