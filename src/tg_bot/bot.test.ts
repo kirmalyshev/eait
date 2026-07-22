@@ -233,6 +233,32 @@ test("a user's language drives every bot-emitted string", async () => {
   expect(c3.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.notOnboarded")); // 71 never onboarded
 });
 
+test("a low-confidence analysis swaps the correction hint for a weight nudge", async () => {
+  // User-supplied mass is the strongest accuracy lever the literature found; when the model
+  // itself says the estimate is shaky, ask for it instead of the generic correction hint.
+  const db = tmpDb();
+  const lowConfidence = JSON.stringify({
+    ...JSON.parse(foodJson()), confidence: "low",
+  });
+  const deps: BotDeps = { db, provider: fakeProvider(lowConfidence), config: cfg };
+  await onboardToActive(deps, 90);
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 90 }, async () => new Uint8Array([1]), send);
+  const t = translatorFor(DEFAULT_LANG);
+  expect(msgs[0]).toContain(t("meal.lowConfidenceHint"));
+  expect(msgs[0]).not.toContain(t("meal.correctionHint"));
+});
+
+test("a whitespace-padded 'Low' still triggers the weight nudge", async () => {
+  const db = tmpDb();
+  const padded = JSON.stringify({ ...JSON.parse(foodJson()), confidence: " Low " });
+  const deps: BotDeps = { db, provider: fakeProvider(padded), config: cfg };
+  await onboardToActive(deps, 91);
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 91 }, async () => new Uint8Array([1]), send);
+  expect(msgs[0]).toContain(translatorFor(DEFAULT_LANG)("meal.lowConfidenceHint"));
+});
+
 test("analysis failure is reported in the user's language and writes no row", async () => {
   const db = tmpDb();
   const deps: BotDeps = { db, provider: { chat: async () => "not json" }, config: cfg };
