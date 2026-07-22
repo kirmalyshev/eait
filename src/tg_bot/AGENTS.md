@@ -36,8 +36,13 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
   "not food" reply ids so a reply to one gets the canned explanation. After a restart such
   replies degrade to the router, which honestly has nothing — never persist anything
   photo-derived to "fix" that.
-- **Caps meter LLM calls, not meals.** Every provider call logs an `llm_calls` row first
-  (`photo` | `router`); both caps count those rows. A not-food photo and a Q&A both spend one.
+- **Caps meter LLM calls, not meals.** Every provider call logs an `llm_calls` row first with
+  a `kind` tag (`photo` = photo or album analysis, `router` = text routing / Q&A / correction,
+  `classify` = onboarding restriction classifier); both the per-user and global caps count those
+  rows. A not-food photo, a Q&A, and a text meal each spend one call. The `classify` kind is
+  not cap-gated (it fires during onboarding before the user has a cap row), but it is metered
+  so `/cap` shows the real picture. **The `document` handler (uncompressed photo) passes through
+  to `processPhoto` for food content and does not get its own `kind` — it counts as `photo`.**
 - **Idempotency:** the `update_id` dedupe middleware must stay **first** in the chain (crash
   redelivery safety), with `sequentialize(by user)` after it — one user's slow vision call must
   never block another's.

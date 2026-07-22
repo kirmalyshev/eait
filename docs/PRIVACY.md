@@ -16,6 +16,8 @@ Last updated: 2026-07-21.
 | Current weight (optional — the question is skippable) | Personalize your protein target (1.6 g/kg) | Until you `/delete` |
 | Dietary and health restrictions | Judge meals on the dimensions you declared | Until you `/delete` |
 | Per-meal estimates — items, calories, macros, verdicts, notes | Daily totals and corrections | Until you `/delete` |
+| Pending text-meal descriptions (stored briefly while you confirm) | Hold your text input between the confirm prompt and your tap | Deleted immediately on confirm or cancel; auto-pruned after 48 h if neither arrives |
+| LLM call counts per day | Enforce per-user and global spend caps | Deleted with your account on `/delete`; no message content, just a kind tag and timestamp |
 | Update ids | Avoid processing the same message twice after a restart | Kept indefinitely — numeric Telegram ids only, no content and no link to your account |
 
 ### Health data
@@ -51,8 +53,8 @@ A Postgres database on the operator's machine. The hosted instance runs in **Ger
 
 ## Your rights
 
-- **Erasure** — `/delete` removes your row and every meal attached to it, immediately and
-  irreversibly. This is also how you withdraw consent.
+- **Erasure** — `/delete` removes your profile, every meal, any pending text-meal descriptions,
+  and LLM call logs — immediately and irreversibly. This is also how you withdraw consent.
 - **Access / portability** — there is currently **no self-service export**. Ask via the contact
   below and the operator will extract your rows manually.
 - **Rectification** — reply to any meal message with a correction and it is re-estimated.

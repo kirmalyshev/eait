@@ -8,8 +8,9 @@ different jobs; if you are deploying rather than changing code, you only need th
 
 ## What you are signing up for
 
-- **Every meal photo is a billed vision call** on your own OpenRouter key. There is no free
-  tier here and no shared quota. Cost scales with photos, not with users.
+- **Every photo, text meal, and Q&A is a billed LLM call** on your own OpenRouter key. There
+  is no free tier here and no shared quota. Cost scales with the number of LLM calls — roughly
+  the number of meals logged and questions asked, not with users.
 - **The bot is only as closed as you make it.** Telegram bot handles are discoverable. Set
   `ALLOWED_USER_IDS` (step 4) or anyone who finds yours can spend your budget.
 - **It is a personal tool, not a product.** No billing, no moderation queue, no web dashboard,
@@ -181,8 +182,10 @@ step 4.
 ### 7. Check it end to end
 
 From an allowlisted Telegram account: send `/start`, complete consent → goal → restrictions,
-then send a photo of food. You should get an estimate plus a running daily total. Reply to that
-message with a correction ("half that portion") and confirm the numbers change.
+then send a photo of food. You should get an estimate plus a running daily total. Try a few
+more interactions: type what you ate in text (confirm the prompt → tap Log), ask a nutrition
+question, and reply to the analysis with a correction ("half that portion") — confirm the
+numbers change.
 
 From a **non**-allowlisted account, send `/start` and confirm nothing comes back, and that the
 host logs `blocked update from user=…`.
