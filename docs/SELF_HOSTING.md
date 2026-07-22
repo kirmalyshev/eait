@@ -226,9 +226,8 @@ one — `scripts/service.sh restart` and `systemctl restart` both do this correc
 
 ## Operating notes
 
-- **Data lives in one Postgres database** (`PGDATABASE`). `pg_dump` it and you have backed up
-  everything — e.g. `docker compose -p eait-infra exec db pg_dump -U eait eait > backup.sql`.
-  There is nothing else stateful.
+- **Data lives in one Postgres database** (`PGDATABASE`) — nothing else is stateful. See
+  "Backing up and restoring" below.
 - **Migrating from a sqlite-era install:** stop the old bot, then
   `bun run scripts/migrate-sqlite-to-pg.ts ./data/eait.sqlite` — it copies every table and
   prints per-table counts to verify against.
@@ -242,6 +241,30 @@ one — `scripts/service.sh restart` and `systemctl restart` both do this correc
 - **Languages:** English, Russian and German ship. The bot follows each user's Telegram client
   language and `/settings` can change it. Adding one is a JSON file plus a registry line — see
   `src/README.md`.
+
+## Backing up and restoring
+
+Plain `pg_dump`/`psql` — there is no built-in backup mechanism, and none is needed. Everything
+the bot knows lives in the one database.
+
+Back up:
+
+```bash
+docker compose -p eait-infra exec db pg_dump -U eait eait > "eait-$(date +%F).sql"
+```
+
+Restore (fresh machine or after data loss):
+
+```bash
+sh scripts/db.sh up
+docker compose -p eait-infra exec -T db psql -U eait -d postgres \
+  -c 'CREATE DATABASE eait' 2>/dev/null || true   # exists already? fine
+docker compose -p eait-infra exec -T db psql -U eait -d eait < eait-2026-07-22.sql
+```
+
+Running against your own (non-dockerized) Postgres: same commands minus the `docker compose
+exec` prefix. If the data matters, put the backup line in cron and re-read the durability
+warning in step 1 — the shipped dev server runs with `fsync=off`.
 
 ## Upgrading
 
