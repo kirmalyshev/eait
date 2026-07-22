@@ -218,6 +218,28 @@ describe("meal context", () => {
   });
 });
 
+describe("sampling temperature", () => {
+  // Low temperature is the cheap form of self-consistency: same photo → same estimate,
+  // instead of a 3-call median. All analyzer calls request it; the provider stays generic.
+  test("meal analysis requests a low temperature", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal(bytes, profile, provider);
+    expect(provider.lastRequest!.temperature).toBeDefined();
+    expect(provider.lastRequest!.temperature!).toBeLessThanOrEqual(0.3);
+  });
+
+  test("correction and restriction classification inherit it", async () => {
+    const provider = new FakeProvider(() => validJson);
+    const prior = MealAnalysisSchema.parse(JSON.parse(validJson));
+    await analyzeCorrection(prior, "no oil", profile, provider);
+    expect(provider.lastRequest!.temperature!).toBeLessThanOrEqual(0.3);
+
+    const classifier = new FakeProvider(() => JSON.stringify({ tags: [] }));
+    await classifyRestrictions("kidneys", classifier, "en");
+    expect(classifier.lastRequest!.temperature!).toBeLessThanOrEqual(0.3);
+  });
+});
+
 describe("classifyRestrictions", () => {
   const tags = (v: string[]) => JSON.stringify({ tags: v });
 

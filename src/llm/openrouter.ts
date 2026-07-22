@@ -65,6 +65,7 @@ export class OpenRouterProvider implements LLMProvider {
         { role: "user", content },
       ],
     };
+    if (req.temperature !== undefined) body.temperature = req.temperature;
     if (req.jsonSchema) {
       body.response_format = {
         type: "json_schema",
