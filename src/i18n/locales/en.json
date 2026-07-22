@@ -1,7 +1,23 @@
 {
+  "allowlist": {
+    "usage": "Usage: /allow <telegram id> — the person gets their id from @userinfobot.",
+    "denyUsage": "Usage: /deny <telegram id>",
+    "added": "{{id}} allowed. {{count}} user(s) on the list.",
+    "already": "{{id}} is already on the list.",
+    "nowClosed": "The bot was open — allowlist started with {{id}} and you. Now closed to {{count}} user(s).",
+    "removed": "{{id}} removed. {{count}} user(s) remain.",
+    "notListed": "{{id}} is not on the list.",
+    "cantDenyAdmin": "Refusing: that is the admin id. Denying it would lock you out of every command, including /allow.",
+    "open": "No allowlist — the bot is OPEN to anyone who finds it. /allow <id> starts one (you are included automatically).",
+    "list": "Allowed ({{count}}): {{ids}}",
+    "unavailable": "Runtime allowlist editing is not available in this build — configure the allowlist in .env and restart."
+  },
   "commands": {
+    "allow": "Allow a user (admin)",
+    "allowed": "List allowed users (admin)",
     "cap": "Spend cap (admin)",
     "delete": "Erase all my data",
+    "deny": "Remove a user's access (admin)",
     "help": "How this bot works",
     "me": "Today's totals",
     "settings": "Goal, restrictions, language",
