@@ -10,13 +10,14 @@ import type { TFunction } from "i18next";
 import { LANGS, LOCALES, isLang, translatorFor } from "./i18n/index.ts";
 import { RESTRICTION_TAGS, isRestrictionTag } from "./targets.ts";
 import type { InlineButton } from "./onboarding.ts";
-import type { Goal, Lang, Profile } from "./types.ts";
+import { REPLY_FORMATS, isReplyFormat } from "./types.ts";
+import type { Goal, Lang, Profile, ReplyFormat } from "./types.ts";
 
 export interface SettingsView {
   text: string;
   buttons: InlineButton[][];
   /** Present only when this step actually changed something. */
-  patch?: { goal?: Goal; restrictions?: string[]; lang?: Lang };
+  patch?: { goal?: Goal; restrictions?: string[]; lang?: Lang; reply_format?: ReplyFormat };
 }
 
 /** Goals in picker order, paired with the onboarding button label they reuse. */
@@ -32,7 +33,7 @@ const backRow = (t: TFunction): InlineButton[] => [
   { text: t("settings.button.back"), data: "st:root" },
 ];
 
-/** Renders the profile summary + the three section buttons. */
+/** Renders the profile summary + the four section buttons. */
 export function settingsRoot(p: Profile, t: TFunction): SettingsView {
   const restrictions = p.restrictions.length
     ? p.restrictions.map((tag) => tagName(tag, t)).join(", ")
@@ -43,13 +44,19 @@ export function settingsRoot(p: Profile, t: TFunction): SettingsView {
       t("settings.goalLine", { goal: t(`me.goal.${p.goal ?? "maintain"}`) }),
       t("settings.restrictionsLine", { restrictions }),
       t("settings.langLine", { lang: LOCALES[p.lang].nativeName }),
+      // The caller resolves null (never chose) to the instance default before rendering;
+      // the "rich" fallback here only covers a profile built without that resolution.
+      t("settings.formatLine", { format: t(`settings.format.${p.reply_format ?? "rich"}`) }),
     ].join("\n"),
     buttons: [
       [
         { text: t("settings.button.goal"), data: "st:goal" },
         { text: t("settings.button.restrictions"), data: "st:restr" },
       ],
-      [{ text: t("settings.button.language"), data: "st:lang" }],
+      [
+        { text: t("settings.button.language"), data: "st:lang" },
+        { text: t("settings.button.format"), data: "st:format" },
+      ],
     ],
   };
 }
@@ -101,6 +108,16 @@ function langPicker(t: TFunction): SettingsView {
   };
 }
 
+function formatPicker(t: TFunction): SettingsView {
+  return {
+    text: t("settings.askFormat"),
+    buttons: [
+      REPLY_FORMATS.map((f) => ({ text: t(`settings.format.${f}`), data: `st:format:${f}` })),
+      backRow(t),
+    ],
+  };
+}
+
 /**
  * Applies `data` to `p` and returns the resulting view. Anything unrecognised — an unknown
  * section, an invalid goal, a tag or locale outside the vocabulary — falls back to the root
@@ -110,6 +127,7 @@ export function settingsStep(p: Profile, data: string, t: TFunction): SettingsVi
   if (data === "st:goal") return goalPicker(t);
   if (data === "st:restr") return restrictionToggles(p, t);
   if (data === "st:lang") return langPicker(t);
+  if (data === "st:format") return formatPicker(t);
 
   const goal = suffix(data, "st:goal:");
   if (goal !== null) {
@@ -140,6 +158,13 @@ export function settingsStep(p: Profile, data: string, t: TFunction): SettingsVi
     // the factory here does not compromise purity — translatorFor is itself a pure function of
     // its argument. This is the one view whose language differs from the caller's.
     return { ...settingsRoot({ ...p, lang }, translatorFor(lang)), patch: { lang } };
+  }
+
+  const format = suffix(data, "st:format:");
+  if (format !== null) {
+    if (!isReplyFormat(format)) return settingsRoot(p, t);
+    const next = { ...p, reply_format: format };
+    return { ...settingsRoot(next, t), patch: { reply_format: format } };
   }
 
   return settingsRoot(p, t);

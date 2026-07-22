@@ -1,6 +1,9 @@
 // env -> typed config. Fails fast (listing ALL missing required vars) so misconfig can't
 // reach the network or the db. loadConfig takes an env object so it is testable without process.env.
 
+import { REPLY_FORMATS } from "./types.ts";
+export { REPLY_FORMATS };
+
 /** Postgres connection settings. Standard libpq env names, so psql sees the same world. */
 export interface PgConfig {
   host: string;
@@ -39,8 +42,6 @@ export interface Config {
    */
   replyFormat: (typeof REPLY_FORMATS)[number];
 }
-
-export const REPLY_FORMATS = ["rich", "plain"] as const;
 
 type Env = Record<string, string | undefined>;
 

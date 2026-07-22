@@ -137,6 +137,7 @@
     "goalLine": "Цель: {{goal}}",
     "restrictionsLine": "Ограничения: {{restrictions}}",
     "langLine": "Язык: {{lang}}",
+    "formatLine": "Стиль ответов: {{format}}",
     "askRestrictions": "Нажми на ограничение, чтобы включить или выключить:",
     "toggleOn": "✅ {{name}}",
     "toggleOff": "⬜ {{name}}",
@@ -144,7 +145,13 @@
       "goal": "🎯 Цель",
       "restrictions": "🥗 Ограничения",
       "language": "🌍 Язык",
+      "format": "🎨 Стиль",
       "back": "← Назад"
+    },
+    "askFormat": "Как оформлять ответы о еде?",
+    "format": {
+      "rich": "Карточки",
+      "plain": "Обычный текст"
     }
   },
   "stats": {

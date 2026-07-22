@@ -137,6 +137,7 @@
     "goalLine": "Ziel: {{goal}}",
     "restrictionsLine": "Einschränkungen: {{restrictions}}",
     "langLine": "Sprache: {{lang}}",
+    "formatLine": "Antwortstil: {{format}}",
     "askRestrictions": "Tippe auf eine Einschränkung, um sie ein- oder auszuschalten:",
     "toggleOn": "✅ {{name}}",
     "toggleOff": "⬜ {{name}}",
@@ -144,7 +145,13 @@
       "goal": "🎯 Ziel",
       "restrictions": "🥗 Einschränkungen",
       "language": "🌍 Sprache",
+      "format": "🎨 Stil",
       "back": "← Zurück"
+    },
+    "askFormat": "Wie sollen Mahlzeit-Antworten aussehen?",
+    "format": {
+      "rich": "Karten",
+      "plain": "Einfacher Text"
     }
   },
   "stats": {

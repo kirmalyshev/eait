@@ -137,6 +137,7 @@
     "goalLine": "Goal: {{goal}}",
     "restrictionsLine": "Restrictions: {{restrictions}}",
     "langLine": "Language: {{lang}}",
+    "formatLine": "Reply style: {{format}}",
     "askRestrictions": "Tap a restriction to switch it on or off:",
     "toggleOn": "✅ {{name}}",
     "toggleOff": "⬜ {{name}}",
@@ -144,7 +145,13 @@
       "goal": "🎯 Goal",
       "restrictions": "🥗 Restrictions",
       "language": "🌍 Language",
+      "format": "🎨 Style",
       "back": "← Back"
+    },
+    "askFormat": "How should meal replies look?",
+    "format": {
+      "rich": "Rich cards",
+      "plain": "Plain text"
     }
   },
   "stats": {
