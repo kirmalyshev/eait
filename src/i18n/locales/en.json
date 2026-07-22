@@ -65,7 +65,7 @@
     },
     "notesLine": "📝 {{notes}}",
     "correctionHint": "↩️ Not right? Reply to this message with a correction.",
-    "lowConfidenceHint": "🤔 I'm not sure about the portion size. Reply to this message with the weight or contents (for example \"340 g\" or \"two cutlets, no oil\") and I'll redo the estimate.",
+    "lowConfidenceHint": "🤔 I'm not sure about the portion size. Reply to this message with the weight or contents (for example \"340g\" or \"two patties, no oil\") and I'll redo the estimate.",
     "updatedPrefix": "Updated:",
     "totalKcal": "Today: {{now}} / {{target}} kcal",
     "totalProtein": "Protein: {{now}} / {{target}} g",

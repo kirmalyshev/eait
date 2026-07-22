@@ -37,7 +37,14 @@ export const MealAnalysisSchema = z.object({
       kidneys: VerdictSchema.optional(),
     })
     .default({}),
-  confidence: z.string().default("unknown"),
+  // Normalized at parse (the wire enum is advisory under strict:false, so " Low "/"Medium" do
+  // arrive) — the bot and the stored row always see canonical casing. "unknown" is the
+  // absent-field sentinel, deliberately outside the high/medium/low prompt vocabulary; it
+  // routes to the generic correction hint downstream.
+  confidence: z
+    .string()
+    .default("unknown")
+    .transform((s) => s.trim().toLowerCase()),
   notes: z.string().default(""),
 });
 
@@ -125,10 +132,12 @@ function buildUserText(profile: Profile, context?: MealContext): string {
   lines.push("Mixed and layered dishes are systematically underestimated — when torn between two portion sizes, take the larger.");
   // A regional prior steers identification away from generic international staples. Hedged on
   // purpose: the interface language suggests a cuisine, the photo always wins.
+  // "Actual evidence", not "the photo": the correction path reuses this text with no image
+  // attached (ephemeral), where the evidence is the prior estimate + the user's description.
   const cuisine = LOCALES[profile.lang].cuisineHint;
   if (cuisine) {
     lines.push(
-      `The user's interface language suggests ${cuisine} is likely — weigh regional dishes when identifying items, but always trust what the photo shows over this prior.`,
+      `The user's interface language suggests ${cuisine} is likely — weigh regional dishes when identifying items, but always trust the actual evidence (the photo or the user's description) over this prior.`,
     );
   }
   lines.push("Estimate items[{name,grams}], kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g, sodium_mg, plant_protein_pct.");
