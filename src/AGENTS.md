@@ -16,7 +16,7 @@ the composition root and is allowed to know about the front end it starts. See t
 - **`translatorFor(lang)`, never `i18n.changeLanguage()`.** Users are served concurrently, so a global language switch can render one user's locale into another's in-flight reply.
 - **`onboarding.step()` and `settingsStep()` stay pure.** `t` is a value passed in, not I/O. The LLM restriction fallback lives in `tg_bot/bot.ts` for exactly this reason.
 - **Callback data is namespaced.** Settings owns `st:`, onboarding owns the bare `consent_*`/`goal_*`/`restrictions_*` names, `/delete` owns `delete_*`. Never reuse a prefix across machines — the receiving machine's state guards would reject the taps silently.
-- **Copy is plain text.** Nothing sets `parse_mode`, so markdown in a catalog value renders as literal characters at the user (a test enforces this).
+- **Copy is plain text; rich layout lives in `render.ts` only.** Plain mode sets no `parse_mode` anywhere, so markdown in a catalog value renders as literal characters at the user (a test enforces this). Rich mode (`REPLY_FORMAT=rich`) renders exclusively via `render.ts` → `sendRichMessage` HTML, with `escapeHtml` on **every** interpolated value — LLM item names and notes must never be able to inject markup. Copy strings stay in locale JSON in both modes.
 
 ## Where to add things
 

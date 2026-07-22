@@ -1,8 +1,9 @@
 // Telegram glue. The grammy handlers are thin adapters over the exported `process*` functions,
 // which hold the real logic and are unit-tested without grammy (a fake `send` + temp db + fake
-// provider). Routing precedence (spec §18): command > reply-to-meal (correction) > onboarding text
-// > nudge. Concurrency via @grammyjs/runner + sequentialize(by user); update_id dedupe; images
-// are in-memory only (never written to disk — ephemeral by construction).
+// provider). Text routing precedence (spec 2026-07-22): command > reply-to-rejection (canned) >
+// free-text router (processText: question / meal / correction, with a reply-mapped focus meal)
+// > onboarding for non-active users. Concurrency via @grammyjs/runner + sequentialize(by user);
+// update_id dedupe; images are in-memory only (never written to disk — ephemeral by construction).
 
 import { Bot, InlineKeyboard } from "grammy";
 import { run, sequentialize } from "@grammyjs/runner";
