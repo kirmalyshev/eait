@@ -51,6 +51,24 @@ export type Send = (text: string, buttons?: InlineButton[][]) => Promise<Sent | 
  */
 export type Edit = (text: string, buttons?: InlineButton[][]) => Promise<void>;
 
+/**
+ * Reacts on the USER'S message (grammy ctx.react). Two-phase lifecycle: 👀 the moment the
+ * message is accepted for processing, 👍 replacing it when processing succeeded (Telegram
+ * keeps one reaction set per message, so the second call swaps the first).
+ */
+export type React = (emoji: "👀" | "👍") => Promise<void>;
+
+/**
+ * Fire a reaction without ever letting it touch the pipeline: Promise.resolve wrapping makes
+ * even a synchronously-throwing thunk harmless, and failures are logged — a Telegram-side
+ * rejection must be visible to the operator, never a silent permanent degradation.
+ */
+function fireReaction(react: React | undefined, emoji: "👀" | "👍", userId: number): void {
+  void Promise.resolve()
+    .then(() => react?.(emoji))
+    .catch((e) => console.warn(`[eait] reaction failed user=${userId}: ${describeError(e)}`));
+}
+
 // ---------- pure helpers ----------
 
 export function profileOf(u: UserRow): Profile {
@@ -467,7 +485,7 @@ export async function processPhoto(
   from: { id: number },
   getBytes: () => Promise<Uint8Array>,
   send: Send,
-  meta?: { caption?: string; ack?: () => Promise<void> },
+  meta?: { caption?: string; react?: React },
 ): Promise<void> {
   const { db, provider, config } = deps;
   const u = await getUser(db, from.id);
@@ -475,14 +493,10 @@ export async function processPhoto(
     await send(translatorForUser(u)("errors.notOnboarded"));
     return;
   }
-  // Instant "seen" signal (a 👀 reaction from the handler): the vision call takes seconds and
-  // silence reads as broken. Deliberately after the active-state gate (a refusal should not be
-  // preceded by a 👀) and before the cap checks. Promise.resolve wrapping makes even a
-  // SYNCHRONOUSLY throwing thunk harmless, and failures are logged — a Telegram-side reaction
-  // rejection must be visible to the operator, never a silent permanent degradation.
-  void Promise.resolve()
-    .then(() => meta?.ack?.())
-    .catch((e) => console.warn(`[eait] ack failed user=${from.id}: ${describeError(e)}`));
+  // Instant "seen" signal: the vision call takes seconds and silence reads as broken.
+  // Deliberately after the active-state gate (a refusal should not be preceded by a 👀)
+  // and before the cap checks — 👀 means "seen", not "will analyze".
+  fireReaction(meta?.react, "👀", from.id);
   const prof = profileOf(u);
   const t = translatorFor(prof.lang);
   const date = berlinDate(new Date(), config.tz);
@@ -535,6 +549,8 @@ export async function processPhoto(
     : t("meal.correctionHint");
   const sent = await send(formatReply(analysis, totals, targetsFor(prof), t) + "\n\n" + hint);
   if (sent) await setMealReply(db, id, from.id, sent.chat_id, sent.message_id);
+  // Processed successfully — the 👍 replaces the 👀 on the user's photo.
+  fireReaction(meta?.react, "👍", from.id);
 }
 
 /**
@@ -557,7 +573,7 @@ export async function processDocument(
   doc: { mime_type?: string; file_size?: number },
   getBytes: () => Promise<Uint8Array>,
   send: Send,
-  meta?: { caption?: string; ack?: () => Promise<void> },
+  meta?: { caption?: string; react?: React },
 ): Promise<void> {
   const t = translatorForUser(await getUser(deps.db, from.id));
   if (!doc.mime_type?.startsWith("image/")) {
@@ -578,12 +594,16 @@ export async function processCorrection(
   replyToMessageId: number,
   text: string,
   send: Send,
+  opts?: { react?: React },
 ): Promise<boolean> {
   const { db, provider } = deps;
   const meal = await mealByReply(db, from.id, replyToMessageId);
   if (!meal) return false;
   const u = await getUser(db, from.id);
   if (!u) return false;
+  // Only once the reply is KNOWN to be a correction: a non-matching reply falls through to
+  // onboarding and must carry no reaction. Same 👀-then-👍 lifecycle as the photo path.
+  fireReaction(opts?.react, "👀", from.id);
   const prof = profileOf(u);
   const t = translatorFor(prof.lang);
   let updated: MealAnalysis;
@@ -594,11 +614,12 @@ export async function processCorrection(
     // from the operator's side: the user gets a message, the logs get nothing.
     console.error(`[eait] correction failed user=${from.id} meal=${meal.id}: ${(e as any)?.message}`);
     await send(t("errors.correctionFailed"));
-    return true;
+    return true; // handled, but not processed — the 👀 stays, no 👍
   }
   await applyCorrection(db, meal.id, from.id, updated);
   const totals = await dailyTotals(db, from.id, meal.date);
   await send(t("meal.updatedPrefix") + "\n" + formatReply(updated, totals, targetsFor(prof), t));
+  fireReaction(opts?.react, "👍", from.id);
   return true;
 }
 
@@ -809,8 +830,8 @@ export function createBot(deps: BotDeps): Bot {
     return new Uint8Array(await res.arrayBuffer());
   };
 
-  /** The instant "photo received" signal — a 👀 reaction on the user's own message. */
-  const ackVia = (ctx: any) => () => ctx.react("👀");
+  /** Reaction lifecycle on the user's own message: 👀 = accepted, 👍 = processed. */
+  const reactVia = (ctx: any): React => (emoji) => ctx.react(emoji);
 
   bot.on("message:photo", async (ctx) => {
     if (!ctx.from) return;
@@ -818,7 +839,7 @@ export function createBot(deps: BotDeps): Bot {
     const largest = photos[photos.length - 1]; // largest PhotoSize
     await processPhoto(deps, ctx.from, fetchFile(ctx, largest.file_id), sendVia(ctx), {
       caption: ctx.message.caption,
-      ack: ackVia(ctx),
+      react: reactVia(ctx),
     });
   });
 
@@ -828,7 +849,7 @@ export function createBot(deps: BotDeps): Bot {
     const doc = ctx.message.document;
     await processDocument(deps, ctx.from, doc, fetchFile(ctx, doc.file_id), sendVia(ctx), {
       caption: ctx.message.caption,
-      ack: ackVia(ctx),
+      react: reactVia(ctx),
     });
   });
 
@@ -836,7 +857,7 @@ export function createBot(deps: BotDeps): Bot {
     if (!ctx.from) return;
     const rt = ctx.message.reply_to_message;
     if (rt) {
-      const handled = await processCorrection(deps, ctx.from, rt.message_id, ctx.message.text, sendVia(ctx));
+      const handled = await processCorrection(deps, ctx.from, rt.message_id, ctx.message.text, sendVia(ctx), { react: reactVia(ctx) });
       if (handled) return;
     }
     await processOnboarding(deps, ctx.from, { type: "text", text: ctx.message.text }, sendVia(ctx));
