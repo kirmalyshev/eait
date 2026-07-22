@@ -47,6 +47,19 @@
     "rejectionExplain": "That photo wasn't recognized as food, so nothing was logged and I have no analysis for it. Send a clearer photo, or just describe the meal in text.",
     "textFailed": "I couldn't process that message — please try again."
   },
+  "rich": {
+    "metric": "Metric",
+    "amount": "Amount",
+    "calories": "Calories",
+    "protein": "Protein",
+    "fat": "Fat",
+    "carbs": "Carbs",
+    "satfat": "Sat. fat",
+    "sodium": "Sodium",
+    "todaysProgress": "Today's progress",
+    "goal": "Goal",
+    "progress": "Progress"
+  },
   "text": {
     "confirmPrompt": "Log this meal?",
     "logButton": "✅ Log it",

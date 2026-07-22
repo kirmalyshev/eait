@@ -22,6 +22,8 @@ const cfg: Config = {
   // uses it, overriding the port to something unreachable.
   pg: { host: "127.0.0.1", port: 5439, user: "eait", password: "eait", database: "eait_test_cfg_unused" },
   perUserDailyPhotoCap: 2, adminUserId: 42, allowedUserIds: null, globalDailyAnalysisCap: null,
+  // Plain keeps the long-standing text assertions exact; the rich path has its own tests.
+  replyFormat: "plain",
 };
 
 afterAll(cleanupTestDbs, 60_000);
@@ -1594,4 +1596,49 @@ test("a foreign user's tap cannot log someone else's pending meal", async () => 
   await processTextMealDecision(deps, { id: 813 }, `tm:log:${id}`, send);
   expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("text.pendingGone"));
   expect(await countMealsToday(db, 812, berlinDate(new Date(), cfg.tz))).toBe(0);
+});
+
+// ---------- rich formatting ----------
+
+test("rich mode sends the HTML card through sendRich and wires the reply id for corrections", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: { ...cfg, replyFormat: "rich" } };
+  await onboardToActive(deps, 820);
+  const richCalls: Array<{ html: string; fallback: string }> = [];
+  const sendRich = async (html: string, fallback: string) => {
+    richCalls.push({ html, fallback });
+    return { chat_id: 1, message_id: 91 };
+  };
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 820 }, [async () => new Uint8Array([1])], send, { sendRich });
+  expect(richCalls.length).toBe(1);
+  expect(richCalls[0]!.html).toContain("<table");
+  expect(richCalls[0]!.html).toContain("600");
+  expect(richCalls[0]!.fallback).toContain("600"); // plain fallback rides along
+  expect(msgs.length).toBe(0); // nothing went through the plain path
+  expect((await mealByReply(db, 820, 91))?.kcal).toBe(600); // rich Sent wired into setMealReply
+});
+
+test("plain mode never calls sendRich even when it is wired", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
+  await onboardToActive(deps, 821);
+  let richCalls = 0;
+  const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 92 });
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 821 }, [async () => new Uint8Array([1])], send, { sendRich });
+  expect(richCalls).toBe(0);
+  expect(msgs.length).toBe(1);
+});
+
+test("Q&A answers stay plain even in rich mode", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(qJson("just text")), config: { ...cfg, replyFormat: "rich" } };
+  await onboardToActive(deps, 822);
+  let richCalls = 0;
+  const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 93 });
+  const { msgs, send } = collector();
+  await processText(deps, { id: 822 }, { text: "hi", messageId: 80 }, send, { sendRich });
+  expect(richCalls).toBe(0);
+  expect(msgs[0]).toBe("just text");
 });

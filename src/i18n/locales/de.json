@@ -47,6 +47,19 @@
     "rejectionExplain": "Auf dem Foto habe ich kein Essen erkannt — es wurde nichts protokolliert und es gibt keine Analyse dazu. Schick ein deutlicheres Foto oder beschreib die Mahlzeit einfach als Text.",
     "textFailed": "Die Nachricht konnte nicht verarbeitet werden — versuch es bitte noch einmal."
   },
+  "rich": {
+    "metric": "Messwert",
+    "amount": "Menge",
+    "calories": "Kalorien",
+    "protein": "Eiweiß",
+    "fat": "Fett",
+    "carbs": "Kohlenhydrate",
+    "satfat": "Ges. Fett",
+    "sodium": "Natrium",
+    "todaysProgress": "Fortschritt heute",
+    "goal": "Ziel",
+    "progress": "Fortschritt"
+  },
   "text": {
     "confirmPrompt": "Diese Mahlzeit eintragen?",
     "logButton": "✅ Eintragen",

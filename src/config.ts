@@ -33,6 +33,11 @@ export interface Config {
    * bounds the bill when strangers can reach the bot.
    */
   globalDailyAnalysisCap: number | null;
+  /**
+   * How meal cards render: "rich" = Telegram Rich Messages (Bot API 10.1 tables/headings,
+   * with automatic plain fallback if a rich send fails), "plain" = text with emojis.
+   */
+  replyFormat: "rich" | "plain";
 }
 
 type Env = Record<string, string | undefined>;
@@ -97,6 +102,12 @@ export function loadConfig(env: Env): Config {
       `PGDATABASE must match [a-z_][a-z0-9_]* (got ${JSON.stringify(pgDatabase)})`,
     );
   }
+  // Same policy as LLM_PROVIDER: an unknown value dies at startup, never a silent fallback.
+  const replyFormat = env.REPLY_FORMAT?.trim() || "rich";
+  if (replyFormat !== "rich" && replyFormat !== "plain") {
+    throw new Error(`REPLY_FORMAT must be "rich" or "plain" (got ${JSON.stringify(replyFormat)})`);
+  }
+
   const pg: PgConfig = {
     host: env.PGHOST?.trim() || "127.0.0.1",
     port: intOr(env.PGPORT, 5439),
@@ -117,5 +128,6 @@ export function loadConfig(env: Env): Config {
     tz: env.TZ?.trim() || "Europe/Berlin",
     perUserDailyPhotoCap: intOr(env.PER_USER_DAILY_PHOTO_CAP, 50),
     adminUserId,
+    replyFormat,
   };
 }

@@ -24,6 +24,7 @@ import { analyzeMeal, classifyRestrictions, routeText, type RouteContext, type R
 import { RejectionLog } from "./rejections.ts";
 import { targetsFor, isRestrictionTag } from "../targets.ts";
 import { formatReply } from "../reply.ts";
+import { renderMealCard } from "../render.ts";
 import { settingsRoot, settingsStep } from "../settings.ts";
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "../onboarding.ts";
 import { DEFAULT_LANG, LANGS, LOCALES, isLang, resolveLang, translatorFor } from "../i18n/index.ts";
@@ -53,6 +54,24 @@ export interface Sent {
 }
 /** How the process* functions emit to the user. Returns the sent message ids (for reply-routing). */
 export type Send = (text: string, buttons?: InlineButton[][]) => Promise<Sent | void>;
+
+/**
+ * Sends a Rich Message (Bot API 10.1 HTML: tables, headings) with a plain-text fallback the
+ * sender uses when the rich send fails — the bot must never go silent over formatting.
+ */
+export type SendRich = (html: string, fallbackText: string) => Promise<Sent | void>;
+
+/** Rich when configured AND wired; plain otherwise. One switch for every meal-card site. */
+async function sendCard(
+  config: Config,
+  send: Send,
+  sendRich: SendRich | undefined,
+  html: string,
+  plain: string,
+): Promise<Sent | void> {
+  if (config.replyFormat === "rich" && sendRich) return sendRich(html, plain);
+  return send(plain);
+}
 
 /**
  * Rewrites the message a callback came from. Settings needs this: four restriction toggles
@@ -494,7 +513,7 @@ export async function processPhoto(
   from: { id: number },
   photos: Array<() => Promise<Uint8Array>>,
   send: Send,
-  meta?: { caption?: string; react?: React; userMessageId?: number },
+  meta?: { caption?: string; react?: React; userMessageId?: number; sendRich?: SendRich },
 ): Promise<void> {
   const { db, provider, config } = deps;
   const u = await getUser(db, from.id);
@@ -563,7 +582,11 @@ export async function processPhoto(
   const hint = analysis.confidence.startsWith("low")
     ? t("meal.lowConfidenceHint")
     : t("meal.correctionHint");
-  const sent = await send(formatReply(analysis, totals, targetsFor(prof), t) + "\n\n" + hint);
+  const sent = await sendCard(
+    config, send, meta?.sendRich,
+    renderMealCard(analysis, totals, targetsFor(prof), t),
+    formatReply(analysis, totals, targetsFor(prof), t) + "\n\n" + hint,
+  );
   if (sent) await setMealReply(db, id, from.id, sent.chat_id, sent.message_id);
   // Processed successfully — the 👍 replaces the 👀 on the user's photo.
   fireReaction(meta?.react, "👍", from.id);
@@ -589,7 +612,7 @@ export async function processDocument(
   doc: { mime_type?: string; file_size?: number },
   getBytes: () => Promise<Uint8Array>,
   send: Send,
-  meta?: { caption?: string; react?: React; userMessageId?: number },
+  meta?: { caption?: string; react?: React; userMessageId?: number; sendRich?: SendRich },
 ): Promise<void> {
   const t = translatorForUser(await getUser(deps.db, from.id));
   if (!doc.mime_type?.startsWith("image/")) {
@@ -615,7 +638,7 @@ export async function processText(
   from: { id: number },
   msg: { text: string; messageId: number; replyTo?: number },
   send: Send,
-  opts?: { react?: React },
+  opts?: { react?: React; sendRich?: SendRich },
 ): Promise<boolean> {
   const { db, provider, config } = deps;
   const u = await getUser(db, from.id);
@@ -680,7 +703,11 @@ export async function processText(
     await applyCorrection(db, focus.id, from.id, route.analysis);
     const totals = await dailyTotals(db, from.id, focus.date);
     // Deliberately no hint suffix — the user just corrected; re-prompting would nag.
-    await send(t("meal.updatedPrefix") + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t));
+    await sendCard(
+      config, send, opts?.sendRich,
+      renderMealCard(route.analysis, totals, targetsFor(prof), t),
+      t("meal.updatedPrefix") + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t),
+    );
     fireReaction(opts?.react, "👍", from.id);
     return true;
   }
@@ -714,6 +741,7 @@ export async function processTextMealDecision(
   from: { id: number },
   data: string,
   send: Send,
+  opts?: { sendRich?: SendRich },
 ): Promise<void> {
   const { db } = deps;
   const u = await getUser(db, from.id);
@@ -741,7 +769,9 @@ export async function processTextMealDecision(
   if (!u) return;
   const prof = profileOf(u);
   const totals = await dailyTotals(db, from.id, pending.date);
-  const sent = await send(
+  const sent = await sendCard(
+    deps.config, send, opts?.sendRich,
+    renderMealCard(pending.analysis, totals, targetsFor(prof), t),
     formatReply(pending.analysis, totals, targetsFor(prof), t) + "\n\n" + t("meal.correctionHint"),
   );
   if (sent) await setMealReply(db, pending.id, from.id, sent.chat_id, sent.message_id);
@@ -850,6 +880,19 @@ export function createBot(deps: BotDeps): Bot {
     return { chat_id: m.chat.id, message_id: m.message_id };
   };
 
+  // Rich Messages (Bot API 10.1). A failed rich send falls back to the plain rendering —
+  // formatting must never cost the user their reply. Failures are logged for the operator.
+  const sendRichVia = (ctx: any): SendRich => async (html, fallbackText) => {
+    try {
+      const m = await ctx.api.sendRichMessage(ctx.chat.id, { html });
+      return { chat_id: m.chat.id, message_id: m.message_id };
+    } catch (e) {
+      console.warn(`[eait] rich send failed, falling back to plain: ${describeError(e)}`);
+      const m = await ctx.reply(fallbackText);
+      return { chat_id: m.chat.id, message_id: m.message_id };
+    }
+  };
+
   const editVia = (ctx: any): Edit => async (text, buttons) => {
     try {
       await ctx.editMessageText(text, buttons ? { reply_markup: toKeyboard(buttons) } : undefined);
@@ -931,7 +974,7 @@ export function createBot(deps: BotDeps): Bot {
       return;
     }
     if (data.startsWith("tm:")) {
-      await processTextMealDecision(deps, ctx.from, data, sendVia(ctx));
+      await processTextMealDecision(deps, ctx.from, data, sendVia(ctx), { sendRich: sendRichVia(ctx) });
       return;
     }
     if (data.startsWith("st:")) {
@@ -971,6 +1014,7 @@ export function createBot(deps: BotDeps): Bot {
     caption?: string;
     messageId: number;
     send: Send;
+    sendRich: SendRich;
     react: React;
     from: { id: number };
   }
@@ -982,6 +1026,7 @@ export function createBot(deps: BotDeps): Bot {
       caption,
       react: first.react,
       userMessageId: first.messageId,
+      sendRich: first.sendRich,
     }).catch((e) => console.error(`[eait] album flush failed key=${key}: ${describeError(e)}`));
   });
 
@@ -994,6 +1039,7 @@ export function createBot(deps: BotDeps): Bot {
       caption: ctx.message.caption,
       messageId: ctx.message.message_id,
       send: sendVia(ctx),
+      sendRich: sendRichVia(ctx),
       react: reactVia(ctx),
       from: { id: ctx.from.id },
     };
@@ -1005,6 +1051,7 @@ export function createBot(deps: BotDeps): Bot {
       caption: part.caption,
       react: part.react,
       userMessageId: part.messageId,
+      sendRich: part.sendRich,
     });
   });
 
@@ -1016,6 +1063,7 @@ export function createBot(deps: BotDeps): Bot {
       caption: ctx.message.caption,
       react: reactVia(ctx),
       userMessageId: ctx.message.message_id,
+      sendRich: sendRichVia(ctx),
     });
   });
 
@@ -1025,7 +1073,7 @@ export function createBot(deps: BotDeps): Bot {
       text: ctx.message.text,
       messageId: ctx.message.message_id,
       replyTo: ctx.message.reply_to_message?.message_id,
-    }, sendVia(ctx), { react: reactVia(ctx) });
+    }, sendVia(ctx), { react: reactVia(ctx), sendRich: sendRichVia(ctx) });
     if (!handled) {
       await processOnboarding(deps, ctx.from, { type: "text", text: ctx.message.text }, sendVia(ctx));
     }
