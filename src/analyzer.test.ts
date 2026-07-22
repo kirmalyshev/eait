@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { analyzeCorrection, analyzeMeal, classifyRestrictions, MealAnalysisSchema } from "./analyzer.ts";
+import { LANGS, LOCALES } from "./i18n/registry.ts";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import type { MealAnalysis, Profile } from "./types.ts";
 
@@ -121,6 +122,14 @@ describe("MealAnalysisSchema", () => {
     expect(parsed.items).toEqual([]);
     expect(parsed.verdicts).toEqual({});
   });
+
+  test("confidence is normalized at parse: trimmed + lowercased", () => {
+    // The wire enum is advisory (strict:false), so " Low " and "Medium" do arrive. Normalizing
+    // here means the bot and the stored row always see canonical casing.
+    expect(MealAnalysisSchema.parse({ isFood: true, confidence: " Low " }).confidence).toBe("low");
+    expect(MealAnalysisSchema.parse({ isFood: true, confidence: "Medium" }).confidence).toBe("medium");
+    expect(MealAnalysisSchema.parse({ isFood: true }).confidence).toBe("unknown");
+  });
 });
 
 describe("output language", () => {
@@ -236,27 +245,29 @@ describe("expert persona + cuisine prior", () => {
     expect(provider.lastRequest!.system.toLowerCase()).toContain("expert nutritionist");
   });
 
-  test("a locale with a regional cuisine gets a hedged prior in the prompt", async () => {
+  // Registry-driven, so a future locale's cuisineHint (or its absence) is covered the moment
+  // it is registered — no per-locale literal patterns to keep in sync.
+  test.each(LANGS)("cuisine prior tracks the registry for %s", async (lang) => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, { ...profile, lang: "ru" }, provider);
+    await analyzeMeal(bytes, { ...profile, lang }, provider);
     const text = provider.lastRequest!.userText;
-    expect(text).toMatch(/Eastern European|Russian.{0,40}home cooking/);
-    expect(text).toMatch(/prior|likely|suggest/i); // a hint, never an assertion about the photo
-  });
-
-  test("a locale without a regional prior gets no cuisine line", async () => {
-    const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, { ...profile, lang: "en" }, provider);
-    // Match the line's fixed wording, so a null leaking into the template can't slip past.
-    expect(provider.lastRequest!.userText).not.toMatch(/home cooking|interface language suggests/i);
+    const hint = LOCALES[lang].cuisineHint;
+    if (hint) {
+      expect(text).toContain(hint); // verbatim — a null leaking into the template can't pass
+      // The hedge is the safety property: the prior must never outrank what is actually shown.
+      expect(text).toMatch(/always trust the actual evidence/);
+    } else {
+      expect(text).not.toMatch(/interface language suggests/i);
+    }
   });
 
   test("the correction path inherits the cuisine prior", async () => {
     const provider = new FakeProvider(() => validJson);
     const prior = MealAnalysisSchema.parse(JSON.parse(validJson));
     await analyzeCorrection(prior, "no oil", { ...profile, lang: "de" }, provider);
-    expect(provider.lastRequest!.userText).toMatch(/German|Central European/);
-    expect(provider.lastRequest!.userText).toMatch(/home cooking/);
+    // The verbatim hint, not /German|.../: the output-language line always contains "German",
+    // so a looser pattern would pass even with the cuisine line deleted.
+    expect(provider.lastRequest!.userText).toContain(LOCALES.de.cuisineHint);
   });
 });
 

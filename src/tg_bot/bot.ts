@@ -383,7 +383,9 @@ export async function processPhoto(
     await send(t("errors.analyzeFailed"));
     return;
   }
-  console.log(`[eait] photo user=${from.id} isFood=${analysis.isFood} kcal=${analysis.kcal} items=${analysis.items.length}`);
+  // confidence is logged so a model drifting off the high/medium/low vocabulary is visible —
+  // off-vocabulary values silently route to the generic hint, and nothing else would say so.
+  console.log(`[eait] photo user=${from.id} isFood=${analysis.isFood} kcal=${analysis.kcal} items=${analysis.items.length} confidence=${analysis.confidence}`);
   if (!analysis.isFood) {
     await send(t("errors.notFood"));
     return;
@@ -397,12 +399,11 @@ export async function processPhoto(
   console.log(`[eait] meal stored ${id} user=${from.id}`);
   const totals = dailyTotals(db, from.id, date);
   // When the model itself flags the estimate as shaky, ask for the strongest correction the
-  // literature knows — a user-supplied weight — instead of the generic hint. Normalized: the
-  // schema keeps confidence a free string, so "Low"/" low " must still trigger the nudge.
-  const hint =
-    analysis.confidence.trim().toLowerCase() === "low"
-      ? t("meal.lowConfidenceHint")
-      : t("meal.correctionHint");
+  // literature knows — a user-supplied weight — instead of the generic hint. The schema already
+  // normalizes casing; prefix-match so a qualifier ("low (mixed dish)") can't turn the nudge off.
+  const hint = analysis.confidence.startsWith("low")
+    ? t("meal.lowConfidenceHint")
+    : t("meal.correctionHint");
   const sent = await send(formatReply(analysis, totals, targetsFor(prof), t) + "\n\n" + hint);
   if (sent) setMealReply(db, id, from.id, sent.chat_id, sent.message_id);
 }
