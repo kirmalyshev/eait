@@ -1,0 +1,26 @@
+# Secrets must never reach the build context — env enters the container via compose env_file.
+.env
+.env.*
+.security-personal*
+
+node_modules
+.git
+.githooks
+.github
+.remember
+data
+logs
+*.log
+*.sqlite
+*.sqlite-journal
+*.db
+dist
+docs
+scripts
+src/**/*.test.ts
+AGENTS.md
+CLAUDE.md
+README.md
+SECURITY.md
+LICENSE
+.DS_Store

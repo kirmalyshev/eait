@@ -1,0 +1,24 @@
+# One service: the long-polling bot. No inbound ports — it only makes outbound calls.
+#
+# Parallel worktrees: each worktree must be its own compose PROJECT, or `up` in one worktree
+# silently replaces the containers of another. Run `sh scripts/compose-env.sh` once per
+# worktree — it writes COMPOSE_PROJECT_NAME=eait-<branch> into .env, which compose reads.
+# Each parallel instance ALSO needs its own TELEGRAM_BOT_TOKEN: Telegram allows one
+# long-polling consumer per token; a second gets 409 Conflict and both degrade.
+services:
+  bot:
+    build: .
+    env_file: .env
+    environment:
+      # Pin the container-side path regardless of what DB_PATH says in .env — the mount
+      # below is the only persistence surface, and each worktree's ./data is its own.
+      DB_PATH: /app/data/eait.sqlite
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    init: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"

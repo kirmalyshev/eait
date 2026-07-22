@@ -13,6 +13,7 @@ Orientation for any coding agent (or human) working in this repo.
 - **Test:** `bun test` (tests co-located under `src/**/*.test.ts`); one file with `bun test src/db.test.ts`.
 - **Typecheck:** `bun run typecheck` (`tsc --noEmit`). **Safety gate:** `bun run security`.
 - **Run:** `bun run start` (= `bun run src/index.ts`, needs a real `TELEGRAM_BOT_TOKEN`).
+- **Docker:** `docker compose up -d --build`. Per-worktree instances: `sh scripts/compose-env.sh` once (unique `COMPOSE_PROJECT_NAME` in `.env`), plus a distinct bot token per parallel instance — one long-polling consumer per token or Telegram returns 409.
 
 ## Hard conventions (do not break)
 

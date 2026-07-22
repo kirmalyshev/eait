@@ -175,6 +175,28 @@ so rather than failing silently, and you should use a system unit instead.
 `status` and `logs` read from `journalctl --user`, falling back to `logs/` if journald is
 unavailable.
 
+**Docker** — an alternative to both, and the only option that needs no bun on the host:
+
+```bash
+cp .env.example .env          # fill in tokens (or reuse an .env made by setup.sh)
+docker compose up -d --build  # build + start; SQLite lands in ./data on the host
+docker compose logs -f        # watch startup; expect the same lines as step 6
+docker compose down           # stop (data survives in ./data)
+```
+
+The container runs the same long-polling process — no ports are exposed. `DB_PATH` inside the
+container is pinned to the mounted `./data`, so backups work the same as a native run.
+
+*Parallel instances (worktree development):* each checkout must be its own compose project or
+`up` in one worktree replaces the other's container. Once per worktree:
+
+```bash
+sh scripts/compose-env.sh     # writes COMPOSE_PROJECT_NAME=eait-<branch> into .env
+```
+
+Each parallel instance also needs its **own bot token** (next paragraph) — create a throwaway
+dev bot per worktree via `@BotFather`.
+
 **One instance per token.** Telegram allows a single long-polling consumer per bot token; a
 second one gets `409 Conflict` and both degrade. Stop the old process before starting a new
 one — `scripts/service.sh restart` and `systemctl restart` both do this correctly.
