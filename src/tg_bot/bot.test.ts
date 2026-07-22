@@ -4,7 +4,7 @@ import { loadAllowlist } from "../allowlist.ts";
 import { RejectionLog } from "./rejections.ts";
 import { cleanupTestDbs, freshTestDb } from "../testutil.ts";
 import {
-  processOnboarding, processPhoto, processText, meCard, statsCard, profileOf,
+  processOnboarding, processPhoto, processText, processTextMealDecision, meCard, statsCard, profileOf,
   processLangPrompt, processLangChoice, buildCommands, processSettingsOpen,
   processSettingsCallback, helpText, commandRegistrations, isAllowed,
   processCap, effectiveGlobalCap, processWaitlist,
@@ -1531,4 +1531,67 @@ test("a router failure reports errors.textFailed and keeps the 👀", async () =
   await flush();
   expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.textFailed"));
   expect(r.seen).toEqual(["👀"]);
+});
+
+// ---------- tm: confirm callbacks ----------
+
+async function seedPending(db: Awaited<ReturnType<typeof freshTestDb>>, userId: number): Promise<{ id: string; msgs: string[] }> {
+  const deps: BotDeps = { db, provider: fakeProvider(mealIntentJson(450)), config: cfg };
+  const sentButtons: Array<Array<{ text: string; data: string }>> = [];
+  const msgs: string[] = [];
+  const send: Send = async (t, buttons) => {
+    msgs.push(t);
+    if (buttons) sentButtons.push(...buttons);
+    return { chat_id: 9, message_id: 33 };
+  };
+  await processText(deps, { id: userId }, { text: "ate 2 eggs", messageId: 70 }, send);
+  const id = sentButtons[0]![0]!.data.split(":")[2]!;
+  return { id, msgs };
+}
+
+test("tm:log inserts the meal, deletes pending, replies with totals, and the reply is correctable", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  await onboardToActive(deps, 810);
+  const { id } = await seedPending(db, 810);
+  const { msgs, send } = collector();
+  await processTextMealDecision(deps, { id: 810 }, `tm:log:${id}`, send);
+  expect(msgs[0]).toContain("450");
+  expect(msgs[0]).toContain(translatorFor(DEFAULT_LANG)("meal.correctionHint"));
+  const date = berlinDate(new Date(), cfg.tz);
+  expect(await countMealsToday(db, 810, date)).toBe(1);
+  const meal = await mealByReply(db, 810, 1); // collector's reply id
+  expect(meal).toBeDefined();
+  expect(meal!.kcal).toBe(450);
+  // double-tap: pending row is gone
+  const again = collector();
+  await processTextMealDecision(deps, { id: 810 }, `tm:log:${id}`, again.send);
+  expect(again.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("text.pendingGone"));
+  expect(await countMealsToday(db, 810, date)).toBe(1); // still one meal
+});
+
+test("tm:cancel deletes pending and acks; a stale id reports pendingGone", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  await onboardToActive(deps, 811);
+  const { id } = await seedPending(db, 811);
+  const { msgs, send } = collector();
+  await processTextMealDecision(deps, { id: 811 }, `tm:cancel:${id}`, send);
+  expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("text.cancelled"));
+  expect(await countMealsToday(db, 811, berlinDate(new Date(), cfg.tz))).toBe(0);
+  const stale = collector();
+  await processTextMealDecision(deps, { id: 811 }, `tm:log:${id}`, stale.send);
+  expect(stale.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("text.pendingGone"));
+});
+
+test("a foreign user's tap cannot log someone else's pending meal", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  await onboardToActive(deps, 812);
+  await onboardToActive(deps, 813);
+  const { id } = await seedPending(db, 812);
+  const { msgs, send } = collector();
+  await processTextMealDecision(deps, { id: 813 }, `tm:log:${id}`, send);
+  expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("text.pendingGone"));
+  expect(await countMealsToday(db, 812, berlinDate(new Date(), cfg.tz))).toBe(0);
 });

@@ -708,6 +708,45 @@ export async function processText(
 /** Stale pending text meals are swept lazily on the next pending insert. */
 const PENDING_TTL_MS = 48 * 3_600_000;
 
+/** Handles the tm:log / tm:cancel taps on a text-meal confirm prompt. */
+export async function processTextMealDecision(
+  deps: BotDeps,
+  from: { id: number },
+  data: string,
+  send: Send,
+): Promise<void> {
+  const { db } = deps;
+  const u = await getUser(db, from.id);
+  const t = translatorForUser(u);
+  const m = /^tm:(log|cancel):(.+)$/.exec(data);
+  if (!m) return;
+  const [, action, id] = m;
+  // User-scoped read: a forwarded/foreign tap sees nothing and gets the neutral "expired".
+  const pending = await getPendingMeal(db, id!, from.id);
+  if (!pending) {
+    await send(t("text.pendingGone"));
+    return;
+  }
+  if (action === "cancel") {
+    await deletePendingMeal(db, id!, from.id);
+    await send(t("text.cancelled"));
+    return;
+  }
+  // Log: the analysis was already produced (and the LLM call already metered) at router time.
+  await insertMeal(db, {
+    id: pending.id, user_id: from.id, ts: pending.ts, date: pending.date,
+    analysis: pending.analysis, model: pending.model,
+  });
+  await deletePendingMeal(db, id!, from.id);
+  if (!u) return;
+  const prof = profileOf(u);
+  const totals = await dailyTotals(db, from.id, pending.date);
+  const sent = await send(
+    formatReply(pending.analysis, totals, targetsFor(prof), t) + "\n\n" + t("meal.correctionHint"),
+  );
+  if (sent) await setMealReply(db, pending.id, from.id, sent.chat_id, sent.message_id);
+}
+
 export async function meCard(deps: BotDeps, userId: number): Promise<string | null> {
   const u = await getUser(deps.db, userId);
   if (!u || u.state !== "active") return null;
@@ -889,6 +928,10 @@ export function createBot(deps: BotDeps): Bot {
     }
     if (data === "delete_cancel") {
       await ctx.reply((await tFor(ctx))("delete.cancelled"));
+      return;
+    }
+    if (data.startsWith("tm:")) {
+      await processTextMealDecision(deps, ctx.from, data, sendVia(ctx));
       return;
     }
     if (data.startsWith("st:")) {
