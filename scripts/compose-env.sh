@@ -1,7 +1,11 @@
 #!/bin/sh
-# Per-worktree docker compose identity. Writes COMPOSE_PROJECT_NAME=eait-<branch> into .env so
-# parallel worktrees run as separate compose projects (separate containers, images, state)
-# instead of silently replacing each other's containers on `docker compose up`.
+# Per-worktree identity for parallel branch development. Writes into .env:
+#
+#   COMPOSE_PROJECT_NAME=eait-<branch>   separate compose project (containers, images, network
+#                                        aliases) — without it, `docker compose up` in one
+#                                        worktree silently replaces another's containers
+#   PGDATABASE=eait_<branch>             this branch's database on the shared dev Postgres
+#   PGDATABASE_TEST=eait_test_<branch>   base name for this branch's throwaway test databases
 #
 #   sh scripts/compose-env.sh            # derive the name from the current git branch
 #   sh scripts/compose-env.sh <name>     # explicit instance name
@@ -25,23 +29,29 @@ else
   RAW="$(git -C "$DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
 fi
 
-# Compose project names must be lowercase [a-z0-9_-] and start alphanumeric.
-NAME="$(printf '%s' "$RAW" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/^-*//; s/-*$//' | cut -c1-40)"
-[ -n "$NAME" ] || NAME="main"
-PROJECT="eait-$NAME"
+# Two spellings of the same name: compose project names take dashes, Postgres database names
+# (validated as [a-z_][a-z0-9_]* in config.ts) take underscores.
+CLEAN="$(printf '%s' "$RAW" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/^-*//; s/-*$//' | cut -c1-40)"
+[ -n "$CLEAN" ] || CLEAN="main"
+PROJECT="eait-$CLEAN"
+DB_NAME="eait_$(printf '%s' "$CLEAN" | tr '-' '_')"
+TEST_DB_NAME="eait_test_$(printf '%s' "$CLEAN" | tr '-' '_')"
 
 # Rewrite atomically, preserving the 600 mode setup.sh uses (.env holds live secrets).
 TMP="$ENV_FILE.tmp.$$"
-grep -v '^COMPOSE_PROJECT_NAME=' "$ENV_FILE" > "$TMP" || true
-# Guard against a missing trailing newline gluing our line onto the last one.
+grep -v -e '^COMPOSE_PROJECT_NAME=' -e '^PGDATABASE=' -e '^PGDATABASE_TEST=' "$ENV_FILE" > "$TMP" || true
+# Guard against a missing trailing newline gluing our lines onto the last one.
 [ ! -s "$TMP" ] || [ -z "$(tail -c 1 "$TMP")" ] || printf '\n' >> "$TMP"
-printf 'COMPOSE_PROJECT_NAME=%s\n' "$PROJECT" >> "$TMP"
+{
+  printf 'COMPOSE_PROJECT_NAME=%s\n' "$PROJECT"
+  printf 'PGDATABASE=%s\n' "$DB_NAME"
+  printf 'PGDATABASE_TEST=%s\n' "$TEST_DB_NAME"
+} >> "$TMP"
 chmod 600 "$TMP"
 mv "$TMP" "$ENV_FILE"
 
-# Pre-create the bind-mount dir: if docker creates it on Linux it lands root-owned and the
-# container's bun user cannot write the SQLite file.
-mkdir -p "$DIR/data"
-
-echo "COMPOSE_PROJECT_NAME=$PROJECT written to .env"
+echo "written to .env:"
+echo "  COMPOSE_PROJECT_NAME=$PROJECT"
+echo "  PGDATABASE=$DB_NAME"
+echo "  PGDATABASE_TEST=$TEST_DB_NAME"
 echo "Reminder: each parallel instance needs its own TELEGRAM_BOT_TOKEN (409 Conflict otherwise)."

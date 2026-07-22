@@ -18,6 +18,7 @@ dist
 docs
 scripts
 src/**/*.test.ts
+src/testutil.ts
 AGENTS.md
 CLAUDE.md
 README.md

@@ -68,6 +68,16 @@ curl -fsSL https://bun.sh/install | bash
 bun --version
 ```
 
+And a Postgres. The repo ships a dockerized one (`docker-compose.infra.yml`) — with docker
+installed it is one command:
+
+```bash
+sh scripts/db.sh up      # also: status | psql | down; data survives restarts in a volume
+```
+
+No docker? Point `PGHOST`/`PGPORT`/`PGUSER`/`PGPASSWORD` in `.env` at any Postgres 14+ you
+already run. The bot creates its own database (`PGDATABASE`) on first boot either way.
+
 ### 2. Get the code and its dependencies
 
 ```bash
@@ -79,7 +89,8 @@ bun install
 ### 3. Verify the checkout before configuring anything
 
 ```bash
-bun test          # full suite, no credentials needed
+sh scripts/db.sh up   # the suite runs against a real Postgres (throwaway per-test databases)
+bun test              # no credentials needed
 bun run typecheck
 ```
 
@@ -129,7 +140,7 @@ Expected on a healthy start, in this order:
 
 ```
 [eait] allowlist active: N user(s)
-eait started · model=… · db=./data/eait.sqlite
+eait starting · model=… · db=eait
 [eait] commands registered for en, ru, de
 ```
 
@@ -179,19 +190,24 @@ unavailable.
 
 ```bash
 cp .env.example .env          # fill in tokens (or reuse an .env made by setup.sh)
-docker compose up -d --build  # build + start; SQLite lands in ./data on the host
+sh scripts/db.sh up           # shared Postgres (skip if already running)
+docker compose up -d --build  # build + start the bot; it joins the Postgres network
 docker compose logs -f        # watch startup; expect the same lines as step 6
-docker compose down           # stop (data survives in ./data)
+docker compose down           # stop the bot (the database keeps running and keeps the data)
 ```
 
-The container runs the same long-polling process — no ports are exposed. `DB_PATH` inside the
-container is pinned to the mounted `./data`, so backups work the same as a native run.
+The container runs the same long-polling process — no ports are exposed. Inside the network
+the bot reaches the server as `db`; native runs use the loopback port from `.env`. Both hit
+the same database, so switching between them is seamless (never run both at once — one
+long-polling consumer per token).
 
-*Parallel instances (worktree development):* each checkout must be its own compose project or
-`up` in one worktree replaces the other's container. Once per worktree:
+*Parallel instances (worktree development):* each checkout must be its own compose project
+with its own database, or `up` in one worktree replaces the other's container. Once per
+worktree:
 
 ```bash
-sh scripts/compose-env.sh     # writes COMPOSE_PROJECT_NAME=eait-<branch> into .env
+sh scripts/compose-env.sh     # writes COMPOSE_PROJECT_NAME=eait-<branch>,
+                              # PGDATABASE=eait_<branch>, PGDATABASE_TEST=eait_test_<branch>
 ```
 
 Each parallel instance also needs its **own bot token** (next paragraph) — create a throwaway
@@ -203,8 +219,12 @@ one — `scripts/service.sh restart` and `systemctl restart` both do this correc
 
 ## Operating notes
 
-- **Data lives in one SQLite file** at `DB_PATH`. Back that up and you have backed up
-  everything. There is nothing else stateful.
+- **Data lives in one Postgres database** (`PGDATABASE`). `pg_dump` it and you have backed up
+  everything — e.g. `docker compose -p eait-infra exec db pg_dump -U eait eait > backup.sql`.
+  There is nothing else stateful.
+- **Migrating from a sqlite-era install:** stop the old bot, then
+  `bun run scripts/migrate-sqlite-to-pg.ts ./data/eait.sqlite` — it copies every table and
+  prints per-table counts to verify against.
 - **Photos are never persisted.** They are downloaded to memory, analyzed, and dropped. No
   image and no image path is ever written to the database.
 - **`/delete` erases a user's data**, cascading to all their logged meals. It is irreversible
@@ -225,5 +245,5 @@ bun test && bun run typecheck
 scripts/service.sh restart      # or: systemctl restart eait
 ```
 
-Run the tests before restarting, not after. The database migrates itself on open via
-`user_version`; there is no separate migration command.
+Run the tests before restarting, not after. The database migrates itself on open (a versioned
+migration list under an advisory lock); there is no separate migration command.

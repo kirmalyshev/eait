@@ -1,20 +1,24 @@
 # One service: the long-polling bot. No inbound ports — it only makes outbound calls.
+# Storage is the shared dev Postgres (docker-compose.infra.yml, fixed project `eait-infra`);
+# start that first: sh scripts/db.sh up. The bot creates its branch database on boot.
 #
-# Parallel worktrees: each worktree must be its own compose PROJECT, or `up` in one worktree
-# silently replaces the containers of another. Run `sh scripts/compose-env.sh` once per
-# worktree — it writes COMPOSE_PROJECT_NAME=eait-<branch> into .env, which compose reads.
-# Each parallel instance ALSO needs its own TELEGRAM_BOT_TOKEN: Telegram allows one
-# long-polling consumer per token; a second gets 409 Conflict and both degrade.
+# Parallel worktrees: each worktree must be its own compose PROJECT with its own DATABASE, or
+# `up` in one worktree silently replaces the containers of another. Run
+# `sh scripts/compose-env.sh` once per worktree — it writes COMPOSE_PROJECT_NAME=eait-<branch>
+# and PGDATABASE=eait_<branch> into .env. Each parallel instance ALSO needs its own
+# TELEGRAM_BOT_TOKEN: Telegram allows one long-polling consumer per token; a second gets
+# 409 Conflict and both degrade.
 services:
   bot:
     build: .
     env_file: .env
     environment:
-      # Pin the container-side path regardless of what DB_PATH says in .env — the mount
-      # below is the only persistence surface, and each worktree's ./data is its own.
-      DB_PATH: /app/data/eait.sqlite
-    volumes:
-      - ./data:/app/data
+      # Inside the compose network the server is `db` on 5432 — override the loopback
+      # host/port that native runs read from the same .env.
+      PGHOST: db
+      PGPORT: "5432"
+    networks:
+      - eait-infra
     restart: unless-stopped
     init: true
     logging:
@@ -22,3 +26,8 @@ services:
       options:
         max-size: "20m"
         max-file: "3"
+
+networks:
+  eait-infra:
+    external: true
+    name: eait-infra_default

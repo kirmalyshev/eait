@@ -1,10 +1,13 @@
-// bun:sqlite datastore: PRAGMAs + user_version migrations + typed, per-user-scoped queries.
-// Invariants: meal id = UUID; every meal read/update is `WHERE id = ? AND user_id = ?`;
-// dates are computed in Europe/Berlin. No raw image or photo path is ever stored.
+// Postgres datastore (Bun.sql): branch database auto-created on open + versioned migrations +
+// typed, per-user-scoped queries. Invariants: meal id = UUID; every meal read/update is
+// `WHERE id = ? AND user_id = ?`; dates are computed in Europe/Berlin. No raw image or photo
+// path is ever stored.
+//
+// The server is the shared dev/prod instance (docker-compose.infra.yml locally); each branch
+// worktree points PGDATABASE at its own database, so parallel instances never share state.
 
-import { Database } from "bun:sqlite";
-import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { SQL } from "bun";
+import type { PgConfig } from "./config.ts";
 // The SQL column default is 'ru' for historical reasons and is left alone (changing it means
 // a migration to alter a default that callers always override). DEFAULT_LANG is the real
 // policy, applied here so storage and i18n cannot drift apart.
@@ -18,6 +21,9 @@ import type {
   MealVerdicts,
   UserState,
 } from "./types.ts";
+
+/** A connected, migrated database handle. */
+export type Db = SQL;
 
 export interface UserRow {
   telegram_id: number;
@@ -69,133 +75,202 @@ export function berlinTime(d: Date, tz = "Europe/Berlin"): string {
   }).format(d);
 }
 
-export function openDb(path: string): Database {
-  if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
-  const db = new Database(path, { create: true });
-  db.run("PRAGMA journal_mode = WAL");
-  db.run("PRAGMA busy_timeout = 5000");
-  db.run("PRAGMA foreign_keys = ON");
-  migrate(db);
+/**
+ * Connect, creating the database if it does not exist (the per-branch database is born on the
+ * first boot of that branch — there is no separate `createdb` step), then migrate.
+ */
+export async function openDb(pg: PgConfig): Promise<Db> {
+  // config.ts validates PGDATABASE, but openDb is also called directly (tests, scripts) — the
+  // name is interpolated into CREATE DATABASE as an identifier, so re-check unconditionally.
+  if (!/^[a-z_][a-z0-9_]*$/.test(pg.database)) {
+    throw new Error(`invalid database name ${JSON.stringify(pg.database)}`);
+  }
+  const db = new SQL({
+    hostname: pg.host,
+    port: pg.port,
+    username: pg.user,
+    password: pg.password,
+    database: pg.database,
+    max: pg.max ?? 10,
+  });
+  try {
+    await db`SELECT 1`;
+  } catch (e) {
+    if (!isMissingDatabase(e)) {
+      throw new Error(
+        `postgres connect failed (${pg.host}:${pg.port}/${pg.database}): ${message(e)} — ` +
+          `is the shared dev server up? sh scripts/db.sh up`,
+      );
+    }
+    await createDatabase(pg);
+    await db`SELECT 1`;
+  }
+  await migrate(db);
   return db;
 }
 
-function migrate(db: Database): void {
-  const cur = (db.query("PRAGMA user_version").get() as { user_version: number }).user_version;
-  if (cur < 1) {
-    db.transaction(() => {
-      db.run(`
+/** 3D000 invalid_catalog_name — the branch database has not been created yet. */
+function isMissingDatabase(e: unknown): boolean {
+  return (e as { code?: unknown })?.code === "3D000" || /does not exist/.test(message(e));
+}
+
+function message(e: unknown): string {
+  return String((e as Error)?.message ?? e);
+}
+
+async function createDatabase(pg: PgConfig): Promise<void> {
+  // CREATE DATABASE cannot run inside a transaction and cannot bind the name as a parameter;
+  // the name was charset-validated in openDb above.
+  const admin = new SQL({
+    hostname: pg.host,
+    port: pg.port,
+    username: pg.user,
+    password: pg.password,
+    database: "postgres",
+    max: 1,
+  });
+  try {
+    await admin.unsafe(`CREATE DATABASE "${pg.database}"`);
+  } catch (e) {
+    // A parallel instance winning the create race is success. It surfaces as 42P04
+    // duplicate_database, or — when both CREATEs are truly simultaneous — as a 23505 unique
+    // violation on pg_database before the friendly check ever runs.
+    const dup = /already exists|duplicate key value/.test(message(e));
+    if (!dup) throw e;
+  } finally {
+    await admin.close();
+  }
+}
+
+// ---------- migrations ----------
+
+// Columns deliberately mirror the original bun:sqlite schema: TEXT timestamps (ISO strings)
+// and TEXT-encoded JSON, so every mapper and caller kept its semantics across the port. Only
+// structurally necessary changes were made: BIGINT ids (Telegram ids exceed int32), DOUBLE
+// PRECISION macros, and an explicit `seq` on events (Postgres has no implicit rowid to ORDER BY).
+type Migration = { version: number; up: (tx: SQL) => Promise<void> };
+
+const MIGRATIONS: Migration[] = [
+  {
+    version: 1,
+    up: async (tx) => {
+      await tx`
         CREATE TABLE users (
-          telegram_id   INTEGER PRIMARY KEY,
-          username      TEXT,
-          lang          TEXT NOT NULL DEFAULT 'ru',
-          state         TEXT NOT NULL DEFAULT 'consent',
-          consent_at    TEXT,
-          goal          TEXT,
-          restrictions  TEXT NOT NULL DEFAULT '[]',
-          created_at    TEXT NOT NULL
-        )`);
-      db.run(`
+          telegram_id        BIGINT PRIMARY KEY,
+          username           TEXT,
+          lang               TEXT NOT NULL DEFAULT 'ru',
+          state              TEXT NOT NULL DEFAULT 'consent',
+          consent_at         TEXT,
+          goal               TEXT,
+          restrictions       TEXT NOT NULL DEFAULT '[]',
+          created_at         TEXT NOT NULL,
+          acquisition_source TEXT
+        )`;
+      await tx`
         CREATE TABLE meals (
           id                TEXT PRIMARY KEY,
-          user_id           INTEGER NOT NULL REFERENCES users(telegram_id),
+          user_id           BIGINT NOT NULL REFERENCES users(telegram_id),
           ts                TEXT NOT NULL,
           date              TEXT NOT NULL,
-          chat_id           INTEGER,
-          bot_message_id    INTEGER,
+          chat_id           BIGINT,
+          bot_message_id    BIGINT,
           items             TEXT,
-          kcal              REAL, protein_g REAL, carbs_g REAL, fat_g REAL,
-          satfat_g          REAL, fiber_g REAL, sugar_g REAL, sodium_mg REAL,
-          plant_protein_pct REAL,
+          kcal              DOUBLE PRECISION, protein_g DOUBLE PRECISION,
+          carbs_g           DOUBLE PRECISION, fat_g DOUBLE PRECISION,
+          satfat_g          DOUBLE PRECISION, fiber_g DOUBLE PRECISION,
+          sugar_g           DOUBLE PRECISION, sodium_mg DOUBLE PRECISION,
+          plant_protein_pct DOUBLE PRECISION,
           verdicts          TEXT,
           confidence        TEXT,
           notes             TEXT,
           corrected         INTEGER NOT NULL DEFAULT 0,
           model             TEXT
-        )`);
-      db.run(`CREATE INDEX idx_meals_user_date ON meals(user_id, date)`);
-      db.run(`CREATE INDEX idx_meals_reply ON meals(user_id, bot_message_id)`);
-      db.run(`
+        )`;
+      await tx`CREATE INDEX idx_meals_user_date ON meals(user_id, date)`;
+      await tx`CREATE INDEX idx_meals_reply ON meals(user_id, bot_message_id)`;
+      await tx`
         CREATE TABLE processed_updates (
-          update_id INTEGER PRIMARY KEY,
+          update_id BIGINT PRIMARY KEY,
           at        TEXT
-        )`);
-      db.run("PRAGMA user_version = 1");
-    })();
-  }
-  if (cur < 2) {
-    // Runtime overrides that must outlive a restart — currently only the global spend cap,
-    // set via the admin /cap command so it can be changed without editing .env and rebooting.
-    db.transaction(() => {
-      db.run(`
-        CREATE TABLE IF NOT EXISTS settings (
+        )`;
+      await tx`
+        CREATE TABLE settings (
           key   TEXT PRIMARY KEY,
           value TEXT NOT NULL
-        )`);
-      db.run("PRAGMA user_version = 2");
-    })();
-  }
-  if (cur < 3) {
-    // Acquisition attribution: which content asset brought a user in (t.me deep-link start
-    // payload) and an append-only funnel log. Campaign codes only — never personal data,
-    // never anything photo-related.
-    db.transaction(() => {
-      db.run(`ALTER TABLE users ADD COLUMN acquisition_source TEXT`);
-      db.run(`
+        )`;
+      await tx`
         CREATE TABLE events (
+          seq         BIGSERIAL PRIMARY KEY,
           ts          TEXT NOT NULL,
-          user_id     INTEGER NOT NULL,
+          user_id     BIGINT NOT NULL,
           event       TEXT NOT NULL,
           source_code TEXT
-        )`);
-      db.run(`CREATE INDEX idx_events_user ON events(user_id)`);
-      db.run(`CREATE INDEX idx_events_event ON events(event)`);
-      db.run("PRAGMA user_version = 3");
-    })();
-  }
+        )`;
+      await tx`CREATE INDEX idx_events_user ON events(user_id)`;
+      await tx`CREATE INDEX idx_events_event ON events(event)`;
+    },
+  },
+];
+
+async function migrate(db: Db): Promise<void> {
+  await db.begin(async (tx) => {
+    // Serialize concurrent boots (two instances racing on a fresh branch database): DDL in
+    // Postgres is transactional, and the advisory lock makes the version check-and-apply atomic.
+    await tx`SELECT pg_advisory_xact_lock(726174001)`;
+    await tx`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)`;
+    const rows = await tx`SELECT version FROM schema_version`;
+    let cur: number;
+    if (rows.length === 0) {
+      await tx`INSERT INTO schema_version (version) VALUES (0)`;
+      cur = 0;
+    } else {
+      cur = Number(rows[0].version);
+    }
+    for (const m of MIGRATIONS) {
+      if (m.version <= cur) continue;
+      await m.up(tx);
+      await tx`UPDATE schema_version SET version = ${m.version}`;
+    }
+  });
 }
 
 // ---------- settings (runtime overrides) ----------
 
-export function getSetting(db: Database, key: string): string | null {
-  const row = db.query(`SELECT value FROM settings WHERE key = ?`).get(key) as
-    | { value: string }
-    | null;
-  return row ? row.value : null;
+export async function getSetting(db: Db, key: string): Promise<string | null> {
+  const rows = await db`SELECT value FROM settings WHERE key = ${key}`;
+  return rows.length ? (rows[0].value as string) : null;
 }
 
-export function setSetting(db: Database, key: string, value: string): void {
-  db.query(
-    `INSERT INTO settings (key, value) VALUES (?, ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-  ).run(key, value);
+export async function setSetting(db: Db, key: string, value: string): Promise<void> {
+  await db`
+    INSERT INTO settings (key, value) VALUES (${key}, ${value})
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
 }
 
-export function clearSetting(db: Database, key: string): void {
-  db.query(`DELETE FROM settings WHERE key = ?`).run(key);
+export async function clearSetting(db: Db, key: string): Promise<void> {
+  await db`DELETE FROM settings WHERE key = ${key}`;
 }
 
 // ---------- users ----------
 
-export function upsertUser(
-  db: Database,
+export async function upsertUser(
+  db: Db,
   u: { telegram_id: number; username?: string | null; lang?: string },
-): void {
+): Promise<void> {
   // Resume-safe: on conflict only the username is refreshed; consent_at/goal/state/restrictions
   // are left untouched so a mid-onboarding /start does not reset progress.
-  db.query(
-    `INSERT INTO users (telegram_id, username, lang, state, created_at)
-     VALUES (?, ?, ?, 'consent', ?)
-     ON CONFLICT(telegram_id) DO UPDATE SET username = excluded.username`,
-  ).run(u.telegram_id, u.username ?? null, u.lang ?? DEFAULT_LANG, new Date().toISOString());
+  await db`
+    INSERT INTO users (telegram_id, username, lang, state, created_at)
+    VALUES (${u.telegram_id}, ${u.username ?? null}, ${u.lang ?? DEFAULT_LANG}, 'consent', ${new Date().toISOString()})
+    ON CONFLICT (telegram_id) DO UPDATE SET username = EXCLUDED.username`;
 }
 
-export function getUser(db: Database, telegram_id: number): UserRow | undefined {
-  const row = db
-    .query(`SELECT * FROM users WHERE telegram_id = ?`)
-    .get(telegram_id) as Record<string, any> | null;
+export async function getUser(db: Db, telegram_id: number): Promise<UserRow | undefined> {
+  const rows = await db`SELECT * FROM users WHERE telegram_id = ${telegram_id}`;
+  const row = rows[0] as Record<string, any> | undefined;
   if (!row) return undefined;
   return {
-    telegram_id: row.telegram_id,
+    telegram_id: Number(row.telegram_id),
     username: row.username,
     lang: row.lang,
     state: row.state,
@@ -208,39 +283,45 @@ export function getUser(db: Database, telegram_id: number): UserRow | undefined 
 }
 
 /** First-touch only: a user's source is whatever code their FIRST /start carried, forever. */
-export function setAcquisitionSource(db: Database, telegram_id: number, source: string): void {
-  db.query(
-    `UPDATE users SET acquisition_source = ? WHERE telegram_id = ? AND acquisition_source IS NULL`,
-  ).run(source, telegram_id);
+export async function setAcquisitionSource(
+  db: Db,
+  telegram_id: number,
+  source: string,
+): Promise<void> {
+  await db`
+    UPDATE users SET acquisition_source = ${source}
+    WHERE telegram_id = ${telegram_id} AND acquisition_source IS NULL`;
 }
 
 // ---------- events (append-only funnel log) ----------
 
-export function logEvent(
-  db: Database,
+export async function logEvent(
+  db: Db,
   user_id: number,
   event: string,
   source_code?: string | null,
-): void {
-  db.query(`INSERT INTO events (ts, user_id, event, source_code) VALUES (?, ?, ?, ?)`).run(
-    new Date().toISOString(),
-    user_id,
-    event,
-    source_code ?? null,
-  );
+): Promise<void> {
+  await db`
+    INSERT INTO events (ts, user_id, event, source_code)
+    VALUES (${new Date().toISOString()}, ${user_id}, ${event}, ${source_code ?? null})`;
 }
 
-export function eventsFor(db: Database, user_id: number): EventRow[] {
-  return db
-    .query(`SELECT ts, user_id, event, source_code FROM events WHERE user_id = ? ORDER BY rowid`)
-    .all(user_id) as EventRow[];
+export async function eventsFor(db: Db, user_id: number): Promise<EventRow[]> {
+  const rows = await db`
+    SELECT ts, user_id, event, source_code FROM events
+    WHERE user_id = ${user_id} ORDER BY seq`;
+  return rows.map((r: Record<string, any>) => ({
+    ts: r.ts,
+    user_id: Number(r.user_id),
+    event: r.event,
+    source_code: r.source_code,
+  }));
 }
 
-export function hasEvent(db: Database, user_id: number, event: string): boolean {
-  return (
-    db.query(`SELECT 1 FROM events WHERE user_id = ? AND event = ? LIMIT 1`).get(user_id, event) !==
-    null
-  );
+export async function hasEvent(db: Db, user_id: number, event: string): Promise<boolean> {
+  const rows = await db`
+    SELECT 1 FROM events WHERE user_id = ${user_id} AND event = ${event} LIMIT 1`;
+  return rows.length > 0;
 }
 
 export interface FunnelRow {
@@ -253,137 +334,126 @@ export interface FunnelRow {
 }
 
 /** The Measure-Monday query: the whole acquisition funnel grouped by start code. */
-export function funnelByCode(db: Database): FunnelRow[] {
-  return db
-    .query(
-      `SELECT
-         COALESCE(u.acquisition_source, 'organic') AS source,
-         COUNT(*) AS users,
-         SUM(EXISTS (SELECT 1 FROM events e WHERE e.user_id = u.telegram_id AND e.event = 'first_photo')) AS first_photo,
-         SUM(EXISTS (SELECT 1 FROM meals m WHERE m.user_id = u.telegram_id AND m.date >= date(u.created_at, '+7 day'))) AS d7_retained,
-         SUM((SELECT COUNT(*) FROM events e WHERE e.user_id = u.telegram_id AND e.event = 'cap_hit')) AS cap_hits,
-         SUM(EXISTS (SELECT 1 FROM events e WHERE e.user_id = u.telegram_id AND e.event = 'waitlist_join')) AS waitlist
-       FROM users u
-       GROUP BY source
-       ORDER BY users DESC, source`,
-    )
-    .all() as FunnelRow[];
+export async function funnelByCode(db: Db): Promise<FunnelRow[]> {
+  // ::int on every aggregate: Postgres counts are BIGINT, which the driver may surface as a
+  // non-number; int4 always arrives as a plain JS number. The +7-day boundary is computed on
+  // the UTC date, matching what sqlite's date(created_at, '+7 day') did on the stored ISO text.
+  const rows = await db`
+    SELECT
+      COALESCE(u.acquisition_source, 'organic') AS source,
+      COUNT(*)::int AS users,
+      (COUNT(*) FILTER (WHERE EXISTS (
+        SELECT 1 FROM events e WHERE e.user_id = u.telegram_id AND e.event = 'first_photo'
+      )))::int AS first_photo,
+      (COUNT(*) FILTER (WHERE EXISTS (
+        SELECT 1 FROM meals m WHERE m.user_id = u.telegram_id
+          AND m.date >= ((u.created_at::timestamptz AT TIME ZONE 'UTC' + interval '7 days')::date)::text
+      )))::int AS d7_retained,
+      COALESCE(SUM((
+        SELECT COUNT(*) FROM events e WHERE e.user_id = u.telegram_id AND e.event = 'cap_hit'
+      )), 0)::int AS cap_hits,
+      (COUNT(*) FILTER (WHERE EXISTS (
+        SELECT 1 FROM events e WHERE e.user_id = u.telegram_id AND e.event = 'waitlist_join'
+      )))::int AS waitlist
+    FROM users u
+    GROUP BY source
+    ORDER BY users DESC, source`;
+  return rows as FunnelRow[];
 }
 
-export function setUserState(db: Database, telegram_id: number, state: UserState): void {
-  db.query(`UPDATE users SET state = ? WHERE telegram_id = ?`).run(state, telegram_id);
+export async function setUserState(db: Db, telegram_id: number, state: UserState): Promise<void> {
+  await db`UPDATE users SET state = ${state} WHERE telegram_id = ${telegram_id}`;
 }
 
 /** /lang — the only place a user's language changes after it is seeded at first contact. */
-export function setLang(db: Database, telegram_id: number, lang: string): void {
-  db.query(`UPDATE users SET lang = ? WHERE telegram_id = ?`).run(lang, telegram_id);
+export async function setLang(db: Db, telegram_id: number, lang: string): Promise<void> {
+  await db`UPDATE users SET lang = ${lang} WHERE telegram_id = ${telegram_id}`;
 }
 
 /** Consent accepted: record consent time and advance to the profile step. */
-export function setConsent(db: Database, telegram_id: number, consentAt: string): void {
-  db.query(`UPDATE users SET consent_at = ?, state = 'profile' WHERE telegram_id = ?`).run(
-    consentAt,
-    telegram_id,
-  );
+export async function setConsent(db: Db, telegram_id: number, consentAt: string): Promise<void> {
+  await db`
+    UPDATE users SET consent_at = ${consentAt}, state = 'profile'
+    WHERE telegram_id = ${telegram_id}`;
 }
 
 /** Partial profile update (goal step, then restrictions step). Only provided fields change. */
-export function setProfile(
-  db: Database,
+export async function setProfile(
+  db: Db,
   telegram_id: number,
   patch: { goal?: Goal; restrictions?: string[]; state?: UserState },
-): void {
+): Promise<void> {
+  // Dynamic SET list over a fixed field whitelist — values always travel as $n parameters.
   const sets: string[] = [];
   const vals: unknown[] = [];
-  if (patch.goal !== undefined) {
-    sets.push("goal = ?");
-    vals.push(patch.goal);
-  }
+  if (patch.goal !== undefined) sets.push(`goal = $${vals.push(patch.goal)}`);
   if (patch.restrictions !== undefined) {
-    sets.push("restrictions = ?");
-    vals.push(JSON.stringify(patch.restrictions));
+    sets.push(`restrictions = $${vals.push(JSON.stringify(patch.restrictions))}`);
   }
-  if (patch.state !== undefined) {
-    sets.push("state = ?");
-    vals.push(patch.state);
-  }
+  if (patch.state !== undefined) sets.push(`state = $${vals.push(patch.state)}`);
   if (sets.length === 0) return;
-  vals.push(telegram_id);
-  db.query(`UPDATE users SET ${sets.join(", ")} WHERE telegram_id = ?`).run(...(vals as any[]));
+  await db.unsafe(
+    `UPDATE users SET ${sets.join(", ")} WHERE telegram_id = $${vals.push(telegram_id)}`,
+    vals as any[],
+  );
 }
 
-export function deleteUser(db: Database, user_id: number): void {
-  // No ON DELETE CASCADE in the schema (spec §6) + foreign_keys=ON, so meals go first.
-  db.transaction(() => {
-    db.query(`DELETE FROM meals WHERE user_id = ?`).run(user_id);
-    db.query(`DELETE FROM users WHERE telegram_id = ?`).run(user_id);
-  })();
+export async function deleteUser(db: Db, user_id: number): Promise<void> {
+  // No ON DELETE CASCADE in the schema (spec §6), so meals go first, atomically.
+  await db.begin(async (tx) => {
+    await tx`DELETE FROM meals WHERE user_id = ${user_id}`;
+    await tx`DELETE FROM users WHERE telegram_id = ${user_id}`;
+  });
 }
 
-export function userCount(db: Database): number {
-  return (db.query(`SELECT COUNT(*) AS n FROM users`).get() as { n: number }).n;
+export async function userCount(db: Db): Promise<number> {
+  const rows = await db`SELECT COUNT(*)::int AS n FROM users`;
+  return rows[0].n as number;
 }
 
 // ---------- meals ----------
 
-export function insertMeal(db: Database, m: NewMeal): void {
+export async function insertMeal(db: Db, m: NewMeal): Promise<void> {
   const a = m.analysis;
-  db.query(
-    `INSERT INTO meals (
-       id, user_id, ts, date, chat_id, bot_message_id, items,
-       kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g, sodium_mg,
-       plant_protein_pct, verdicts, confidence, notes, corrected, model
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-  ).run(
-    m.id,
-    m.user_id,
-    m.ts,
-    m.date,
-    m.chat_id ?? null,
-    m.bot_message_id ?? null,
-    JSON.stringify(a.items ?? []),
-    a.kcal,
-    a.protein_g,
-    a.carbs_g,
-    a.fat_g,
-    a.satfat_g,
-    a.fiber_g,
-    a.sugar_g,
-    a.sodium_mg,
-    a.plant_protein_pct,
-    JSON.stringify(a.verdicts ?? {}),
-    a.confidence ?? null,
-    a.notes ?? null,
-    m.model ?? null,
-  );
+  await db`
+    INSERT INTO meals (
+      id, user_id, ts, date, chat_id, bot_message_id, items,
+      kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g, sodium_mg,
+      plant_protein_pct, verdicts, confidence, notes, corrected, model
+    ) VALUES (
+      ${m.id}, ${m.user_id}, ${m.ts}, ${m.date}, ${m.chat_id ?? null}, ${m.bot_message_id ?? null},
+      ${JSON.stringify(a.items ?? [])},
+      ${a.kcal}, ${a.protein_g}, ${a.carbs_g}, ${a.fat_g}, ${a.satfat_g}, ${a.fiber_g},
+      ${a.sugar_g}, ${a.sodium_mg}, ${a.plant_protein_pct},
+      ${JSON.stringify(a.verdicts ?? {})}, ${a.confidence ?? null}, ${a.notes ?? null},
+      0, ${m.model ?? null}
+    )`;
 }
 
-export function getMeal(db: Database, id: string, user_id: number): MealRecord | undefined {
-  const row = db
-    .query(`SELECT * FROM meals WHERE id = ? AND user_id = ?`)
-    .get(id, user_id) as Record<string, any> | null;
-  return row ? rowToMeal(row) : undefined;
+export async function getMeal(db: Db, id: string, user_id: number): Promise<MealRecord | undefined> {
+  const rows = await db`SELECT * FROM meals WHERE id = ${id} AND user_id = ${user_id}`;
+  return rows.length ? rowToMeal(rows[0]) : undefined;
 }
 
-export function setMealReply(
-  db: Database,
+export async function setMealReply(
+  db: Db,
   id: string,
   user_id: number,
   chat_id: number,
   bot_message_id: number,
-): void {
-  db.query(
-    `UPDATE meals SET chat_id = ?, bot_message_id = ? WHERE id = ? AND user_id = ?`,
-  ).run(chat_id, bot_message_id, id, user_id);
+): Promise<void> {
+  await db`
+    UPDATE meals SET chat_id = ${chat_id}, bot_message_id = ${bot_message_id}
+    WHERE id = ${id} AND user_id = ${user_id}`;
 }
 
 /** Correction: patch macro/verdict fields for THIS meal only, marking it corrected. */
-export function applyCorrection(
-  db: Database,
+export async function applyCorrection(
+  db: Db,
   id: string,
   user_id: number,
   patch: Partial<MealAnalysis>,
-): void {
+): Promise<void> {
   const columns: Array<keyof MealAnalysis> = [
     "kcal",
     "protein_g",
@@ -400,91 +470,83 @@ export function applyCorrection(
   const sets: string[] = [];
   const vals: unknown[] = [];
   for (const c of columns) {
-    if (patch[c] !== undefined) {
-      sets.push(`${c} = ?`);
-      vals.push(patch[c]);
-    }
+    if (patch[c] !== undefined) sets.push(`${c} = $${vals.push(patch[c])}`);
   }
   if (patch.items !== undefined) {
-    sets.push("items = ?");
-    vals.push(JSON.stringify(patch.items));
+    sets.push(`items = $${vals.push(JSON.stringify(patch.items))}`);
   }
   if (patch.verdicts !== undefined) {
-    sets.push("verdicts = ?");
-    vals.push(JSON.stringify(patch.verdicts));
+    sets.push(`verdicts = $${vals.push(JSON.stringify(patch.verdicts))}`);
   }
   sets.push("corrected = 1");
-  vals.push(id, user_id);
-  db.query(`UPDATE meals SET ${sets.join(", ")} WHERE id = ? AND user_id = ?`).run(
-    ...(vals as any[]),
+  await db.unsafe(
+    `UPDATE meals SET ${sets.join(", ")} WHERE id = $${vals.push(id)} AND user_id = $${vals.push(user_id)}`,
+    vals as any[],
   );
 }
 
-export function mealByReply(
-  db: Database,
+export async function mealByReply(
+  db: Db,
   user_id: number,
   bot_message_id: number,
-): MealRecord | undefined {
-  const row = db
-    .query(`SELECT * FROM meals WHERE user_id = ? AND bot_message_id = ?`)
-    .get(user_id, bot_message_id) as Record<string, any> | null;
-  return row ? rowToMeal(row) : undefined;
+): Promise<MealRecord | undefined> {
+  const rows = await db`
+    SELECT * FROM meals WHERE user_id = ${user_id} AND bot_message_id = ${bot_message_id}`;
+  return rows.length ? rowToMeal(rows[0]) : undefined;
 }
 
-export function dailyTotals(db: Database, user_id: number, date: string): DailyTotals {
-  const row = db
-    .query(
-      `SELECT
-         COALESCE(SUM(kcal),0)              AS kcal,
-         COALESCE(SUM(protein_g),0)         AS protein_g,
-         COALESCE(SUM(carbs_g),0)           AS carbs_g,
-         COALESCE(SUM(fat_g),0)             AS fat_g,
-         COALESCE(SUM(satfat_g),0)          AS satfat_g,
-         COALESCE(SUM(fiber_g),0)           AS fiber_g,
-         COALESCE(SUM(sugar_g),0)           AS sugar_g,
-         COALESCE(SUM(sodium_mg),0)         AS sodium_mg
-       FROM meals WHERE user_id = ? AND date = ?`,
-    )
-    .get(user_id, date) as DailyTotals;
-  return row;
+export async function dailyTotals(db: Db, user_id: number, date: string): Promise<DailyTotals> {
+  const rows = await db`
+    SELECT
+      COALESCE(SUM(kcal),0)::float8      AS kcal,
+      COALESCE(SUM(protein_g),0)::float8 AS protein_g,
+      COALESCE(SUM(carbs_g),0)::float8   AS carbs_g,
+      COALESCE(SUM(fat_g),0)::float8     AS fat_g,
+      COALESCE(SUM(satfat_g),0)::float8  AS satfat_g,
+      COALESCE(SUM(fiber_g),0)::float8   AS fiber_g,
+      COALESCE(SUM(sugar_g),0)::float8   AS sugar_g,
+      COALESCE(SUM(sodium_mg),0)::float8 AS sodium_mg
+    FROM meals WHERE user_id = ${user_id} AND date = ${date}`;
+  return rows[0] as DailyTotals;
 }
 
 /**
  * Meals analyzed across ALL users on a date — the denominator for the global spend cap.
  * Per-user caps bound one account; this bounds the bill when the bot is publicly linked.
  */
-export function mealCountToday(db: Database, date: string): number {
-  const row = db.query(`SELECT COUNT(*) AS n FROM meals WHERE date = ?`).get(date) as { n: number };
-  return row.n;
+export async function mealCountToday(db: Db, date: string): Promise<number> {
+  const rows = await db`SELECT COUNT(*)::int AS n FROM meals WHERE date = ${date}`;
+  return rows[0].n as number;
 }
 
-export function countMealsToday(db: Database, user_id: number, date: string): number {
-  return (
-    db.query(`SELECT COUNT(*) AS n FROM meals WHERE user_id = ? AND date = ?`).get(user_id, date) as {
-      n: number;
-    }
-  ).n;
+export async function countMealsToday(db: Db, user_id: number, date: string): Promise<number> {
+  const rows = await db`
+    SELECT COUNT(*)::int AS n FROM meals WHERE user_id = ${user_id} AND date = ${date}`;
+  return rows[0].n as number;
 }
 
-export function mealCount(db: Database): number {
-  return (db.query(`SELECT COUNT(*) AS n FROM meals`).get() as { n: number }).n;
+export async function mealCount(db: Db): Promise<number> {
+  const rows = await db`SELECT COUNT(*)::int AS n FROM meals`;
+  return rows[0].n as number;
 }
 
-export function hasMeals(db: Database, user_id: number): boolean {
-  return db.query(`SELECT 1 FROM meals WHERE user_id = ? LIMIT 1`).get(user_id) !== null;
+export async function hasMeals(db: Db, user_id: number): Promise<boolean> {
+  const rows = await db`SELECT 1 FROM meals WHERE user_id = ${user_id} LIMIT 1`;
+  return rows.length > 0;
 }
 
 // ---------- update dedupe ----------
 
-export function seenUpdate(db: Database, update_id: number): boolean {
-  return db.query(`SELECT 1 FROM processed_updates WHERE update_id = ?`).get(update_id) !== null;
+export async function seenUpdate(db: Db, update_id: number): Promise<boolean> {
+  const rows = await db`SELECT 1 FROM processed_updates WHERE update_id = ${update_id}`;
+  return rows.length > 0;
 }
 
-export function markUpdate(db: Database, update_id: number): void {
-  db.query(`INSERT OR IGNORE INTO processed_updates (update_id, at) VALUES (?, ?)`).run(
-    update_id,
-    new Date().toISOString(),
-  );
+export async function markUpdate(db: Db, update_id: number): Promise<void> {
+  await db`
+    INSERT INTO processed_updates (update_id, at)
+    VALUES (${update_id}, ${new Date().toISOString()})
+    ON CONFLICT (update_id) DO NOTHING`;
 }
 
 // ---------- helpers ----------
@@ -517,11 +579,11 @@ function parseItems(s: unknown): MealItem[] {
 function rowToMeal(row: Record<string, any>): MealRecord {
   return {
     id: row.id,
-    user_id: row.user_id,
+    user_id: Number(row.user_id),
     ts: row.ts,
     date: row.date,
-    chat_id: row.chat_id,
-    bot_message_id: row.bot_message_id,
+    chat_id: row.chat_id === null ? null : Number(row.chat_id),
+    bot_message_id: row.bot_message_id === null ? null : Number(row.bot_message_id),
     items: parseItems(row.items),
     kcal: row.kcal,
     protein_g: row.protein_g,
@@ -535,7 +597,7 @@ function rowToMeal(row: Record<string, any>): MealRecord {
     verdicts: parseVerdicts(row.verdicts),
     confidence: row.confidence,
     notes: row.notes,
-    corrected: row.corrected === 1,
+    corrected: Number(row.corrected) === 1,
     model: row.model,
   };
 }

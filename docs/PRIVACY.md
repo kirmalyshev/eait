@@ -46,7 +46,7 @@ anyone else.
 
 ## Where it lives
 
-A single SQLite file on the operator's machine. The hosted instance runs in **Germany (EU)**.
+A Postgres database on the operator's machine. The hosted instance runs in **Germany (EU)**.
 
 ## Your rights
 
