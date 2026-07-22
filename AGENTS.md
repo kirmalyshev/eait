@@ -4,7 +4,7 @@ Orientation for any coding agent (or human) working in this repo.
 
 ## What this is
 
-`eait` — a multi-user food-photo Telegram bot, personal tool for a small closed circle. Photo (or album, or text description) in → per-user meal analysis + daily totals out; free text gets LLM Q&A over the diary. Generalized from a single-user Pulse bot: profile-driven analysis instead of hard-coded thresholds, Postgres store (one database per branch), ephemeral images, provider abstraction, rich-message or plain replies (`REPLY_FORMAT`).
+`eait` — a multi-user food-photo Telegram bot, personal tool for a small closed circle. Photo (or album, or text description) in → per-user meal analysis + daily totals out; free text gets LLM Q&A over the diary. Generalized from a single-user Pulse bot: profile-driven analysis instead of hard-coded thresholds, Postgres store (one database per branch), ephemeral images, provider abstraction, rich-message or plain replies (`REPLY_FORMAT` default, per-user override in `/settings`).
 
 ## Stack & commands
 

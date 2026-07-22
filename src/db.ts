@@ -23,6 +23,7 @@ import type {
   MealItem,
   MealRecord,
   MealVerdicts,
+  ReplyFormat,
   UserState,
 } from "./types.ts";
 
@@ -41,6 +42,13 @@ export interface UserRow {
   restrictions: string[];
   created_at: string;
   acquisition_source: string | null;
+  /**
+   * Per-user card rendering override; NULL = follow the instance's REPLY_FORMAT. An explicit
+   * choice PINS the user: picking the value that happens to match the instance default still
+   * stores it, so their rendering stops following future REPLY_FORMAT changes. Deliberate —
+   * an explicit choice sticks.
+   */
+  reply_format: string | null;
 }
 
 export interface EventRow {
@@ -124,14 +132,16 @@ export async function openDb(pg: PgConfig): Promise<Db> {
 }
 
 /**
- * 3D000 invalid_catalog_name — the branch database has not been created yet. The message
- * match is anchored on `database "…"` so a missing ROLE ("role \"x\" does not exist") takes
- * the friendly connect-failed path instead of a doomed CREATE DATABASE attempt.
+ * 3D000 invalid_catalog_name — the branch database has not been created yet. Bun's PostgresError
+ * puts the SQLSTATE on `.errno` (`.code` is a generic "ERR_POSTGRES_SERVER_ERROR"), so check both;
+ * the message match is the last resort and is anchored on `database "…"` so a missing ROLE
+ * ("role \"x\" does not exist") takes the friendly connect-failed path, not a doomed CREATE.
  */
 function isMissingDatabase(e: unknown): boolean {
-  return (
-    (e as { code?: unknown })?.code === "3D000" || /database ".*" does not exist/.test(message(e))
-  );
+  const err = e as { code?: unknown; errno?: unknown };
+  // `.code` is "ERR_POSTGRES_SERVER_ERROR" (non-null), so an `??` chain would never reach errno —
+  // check both explicitly.
+  return err?.code === "3D000" || err?.errno === "3D000" || /database ".*" does not exist/.test(message(e));
 }
 
 function message(e: unknown): string {
@@ -276,6 +286,15 @@ const MIGRATIONS: Migration[] = [
       await tx`CREATE INDEX idx_llm_calls_user ON llm_calls(user_id, date)`;
     },
   },
+  {
+    // Per-user reply-format override from /settings. NULL = follow the instance's REPLY_FORMAT
+    // (existing users keep their current rendering until they choose). Free TEXT with no CHECK,
+    // matching the users-table style; validated at the read boundary (profileOf) the way lang is.
+    version: 4,
+    up: async (tx) => {
+      await tx`ALTER TABLE users ADD COLUMN reply_format TEXT`;
+    },
+  },
 ];
 
 async function migrate(db: Db): Promise<void> {
@@ -294,7 +313,14 @@ async function migrate(db: Db): Promise<void> {
     }
     for (const m of MIGRATIONS) {
       if (m.version <= cur) continue;
-      await m.up(tx);
+      try {
+        await m.up(tx);
+      } catch (e) {
+        // Name the version: "column already exists" without it sends the operator diffing
+        // every migration instead of the one that fired. `cause` keeps the pg SQLSTATE and
+        // stack for a direct openDb caller (a test/script), which the message alone drops.
+        throw new Error(`migration v${m.version} failed: ${message(e)}`, { cause: e });
+      }
       await tx`UPDATE schema_version SET version = ${m.version}`;
     }
   });
@@ -346,6 +372,7 @@ export async function getUser(db: Db, telegram_id: number): Promise<UserRow | un
     restrictions: parseJsonArray(row.restrictions),
     created_at: row.created_at,
     acquisition_source: row.acquisition_source ?? null,
+    reply_format: row.reply_format ?? null,
   };
 }
 
@@ -432,9 +459,23 @@ export async function setUserState(db: Db, telegram_id: number, state: UserState
   await db`UPDATE users SET state = ${state} WHERE telegram_id = ${telegram_id}`;
 }
 
-/** /lang — the only place a user's language changes after it is seeded at first contact. */
+/** /lang and /settings → Language — the only places a user's language changes after seeding. */
 export async function setLang(db: Db, telegram_id: number, lang: string): Promise<void> {
   await db`UPDATE users SET lang = ${lang} WHERE telegram_id = ${telegram_id}`;
+}
+
+/**
+ * /settings → Style — per-user meal-card rendering override. Like its siblings (setLang,
+ * setProfile), a 0-row UPDATE (user deleted mid-tap) resolves silently: sequentialize(by user)
+ * excludes that race in-process, and every meal- and settings-path interaction re-gates on
+ * getUser anyway.
+ */
+export async function setReplyFormat(
+  db: Db,
+  telegram_id: number,
+  format: ReplyFormat,
+): Promise<void> {
+  await db`UPDATE users SET reply_format = ${format} WHERE telegram_id = ${telegram_id}`;
 }
 
 /** Consent accepted: record consent time and advance to the profile step. */

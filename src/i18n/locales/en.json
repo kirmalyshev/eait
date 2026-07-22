@@ -20,7 +20,7 @@
     "deny": "Remove a user's access (admin)",
     "help": "How this bot works",
     "me": "Today's totals",
-    "settings": "Goal, restrictions, language",
+    "settings": "Goal, restrictions, language, reply style",
     "start": "Start or resume setup",
     "stats": "Admin counts",
     "waitlist": "Get notified when unlimited opens"
@@ -68,7 +68,7 @@
     "pendingGone": "That one already expired — send the meal again if you still want it logged."
   },
   "help": {
-    "body": "Send me a photo of your meal and I'll estimate the calories and macros. You can also send multiple photos in one message (album) and I'll treat them as a single meal.\n\nDescribe a meal in text too — just type what you ate and I'll log it after you confirm.\n\nAsk me anything about nutrition, your goal, or today's intake and I'll answer.\n\nGot an estimate wrong? Reply directly to my analysis message with a correction — for example \"two pieces, no oil\" — and I'll redo it.\n\nBetter photos, better estimates:\n• shoot from above, the whole plate in frame\n• good light; cutlery or your hand next to the plate helps me judge portion size\n• know the weight or ingredients? add them in the caption\n\nCommands:\n/me — today's totals\n/cap — today's LLM call usage\n/settings — change your goal, restrictions or language\n/help — this message\n/delete — erase all your data\n\nEstimates from a photo are approximate and are not medical advice."
+    "body": "Send me a photo of your meal and I'll estimate the calories and macros. You can also send multiple photos in one message (album) and I'll treat them as a single meal.\n\nDescribe a meal in text too — just type what you ate and I'll log it after you confirm.\n\nAsk me anything about nutrition, your goal, or today's intake and I'll answer.\n\nGot an estimate wrong? Reply directly to my analysis message with a correction — for example \"two pieces, no oil\" — and I'll redo it.\n\nBetter photos, better estimates:\n• shoot from above, the whole plate in frame\n• good light; cutlery or your hand next to the plate helps me judge portion size\n• know the weight or ingredients? add them in the caption\n\nCommands:\n/me — today's totals\n/cap — today's LLM call usage\n/settings — change your goal, restrictions, language or reply style\n/help — this message\n/delete — erase all your data\n\nEstimates from a photo are approximate and are not medical advice."
   },
   "lang": {
     "prompt": "Choose a language:",
@@ -137,6 +137,7 @@
     "goalLine": "Goal: {{goal}}",
     "restrictionsLine": "Restrictions: {{restrictions}}",
     "langLine": "Language: {{lang}}",
+    "formatLine": "Reply style: {{format}}",
     "askRestrictions": "Tap a restriction to switch it on or off:",
     "toggleOn": "✅ {{name}}",
     "toggleOff": "⬜ {{name}}",
@@ -144,7 +145,13 @@
       "goal": "🎯 Goal",
       "restrictions": "🥗 Restrictions",
       "language": "🌍 Language",
+      "format": "🎨 Style",
       "back": "← Back"
+    },
+    "askFormat": "How should meal replies look?",
+    "format": {
+      "rich": "Rich cards",
+      "plain": "Plain text"
     }
   },
   "stats": {

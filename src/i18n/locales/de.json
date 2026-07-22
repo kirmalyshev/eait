@@ -20,7 +20,7 @@
     "deny": "Zugriff entziehen (Admin)",
     "help": "Wie dieser Bot funktioniert",
     "me": "Tagesbilanz",
-    "settings": "Ziel, Einschränkungen, Sprache",
+    "settings": "Ziel, Einschränkungen, Sprache, Antwortstil",
     "start": "Einrichtung starten oder fortsetzen",
     "stats": "Admin-Zähler",
     "waitlist": "Bescheid bekommen, wenn Unlimited startet"
@@ -68,7 +68,7 @@
     "pendingGone": "Der Eintrag ist schon abgelaufen — schick die Mahlzeit noch einmal, wenn du sie eintragen willst."
   },
   "help": {
-    "body": "Schick mir ein Foto deiner Mahlzeit und ich schätze Kalorien und Nährwerte. Mehrere Fotos in einer Nachricht (Album) behandle ich als eine Mahlzeit.\n\nDu kannst Mahlzeiten auch als Text beschreiben — schreib einfach, was du gegessen hast, bestätige kurz, und ich trage es ein.\n\nFragen zu Ernährung, deinem Ziel oder der Tagesbilanz? Einfach fragen.\n\nFalsch geschätzt? Antworte direkt auf meine Analyse mit einer Korrektur — zum Beispiel „zwei Stück, ohne Öl” — und ich rechne neu.\n\nBessere Fotos, bessere Schätzungen:\n• fotografiere von oben, der ganze Teller im Bild\n• gutes Licht; Besteck oder deine Hand neben dem Teller hilft mir, die Portionsgröße einzuschätzen\n• Gewicht oder Zutaten bekannt? Schreib es dazu in die Bildunterschrift\n\nBefehle:\n/me — Tagesbilanz\n/cap — heutige KI-Aufrufe\n/settings — Ziel, Einschränkungen, Sprache\n/help — diese Nachricht\n/delete — alle Daten löschen\n\nSchätzungen aus einem Foto sind ungefähr und keine medizinische Beratung."
+    "body": "Schick mir ein Foto deiner Mahlzeit und ich schätze Kalorien und Nährwerte. Mehrere Fotos in einer Nachricht (Album) behandle ich als eine Mahlzeit.\n\nDu kannst Mahlzeiten auch als Text beschreiben — schreib einfach, was du gegessen hast, bestätige kurz, und ich trage es ein.\n\nFragen zu Ernährung, deinem Ziel oder der Tagesbilanz? Einfach fragen.\n\nFalsch geschätzt? Antworte direkt auf meine Analyse mit einer Korrektur — zum Beispiel „zwei Stück, ohne Öl” — und ich rechne neu.\n\nBessere Fotos, bessere Schätzungen:\n• fotografiere von oben, der ganze Teller im Bild\n• gutes Licht; Besteck oder deine Hand neben dem Teller hilft mir, die Portionsgröße einzuschätzen\n• Gewicht oder Zutaten bekannt? Schreib es dazu in die Bildunterschrift\n\nBefehle:\n/me — Tagesbilanz\n/cap — heutige KI-Aufrufe\n/settings — Ziel, Einschränkungen, Sprache, Antwortstil\n/help — diese Nachricht\n/delete — alle Daten löschen\n\nSchätzungen aus einem Foto sind ungefähr und keine medizinische Beratung."
   },
   "lang": {
     "prompt": "Wähle eine Sprache:",
@@ -137,6 +137,7 @@
     "goalLine": "Ziel: {{goal}}",
     "restrictionsLine": "Einschränkungen: {{restrictions}}",
     "langLine": "Sprache: {{lang}}",
+    "formatLine": "Antwortstil: {{format}}",
     "askRestrictions": "Tippe auf eine Einschränkung, um sie ein- oder auszuschalten:",
     "toggleOn": "✅ {{name}}",
     "toggleOff": "⬜ {{name}}",
@@ -144,7 +145,13 @@
       "goal": "🎯 Ziel",
       "restrictions": "🥗 Einschränkungen",
       "language": "🌍 Sprache",
+      "format": "🎨 Stil",
       "back": "← Zurück"
+    },
+    "askFormat": "Wie sollen Mahlzeit-Antworten aussehen?",
+    "format": {
+      "rich": "Karten",
+      "plain": "Einfacher Text"
     }
   },
   "stats": {

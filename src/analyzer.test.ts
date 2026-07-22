@@ -19,6 +19,7 @@ const profile: Profile = {
   lang: "ru",
   goal: "lose",
   restrictions: ["kidneys", "ldl"],
+  reply_format: null,
 };
 
 const validJson = JSON.stringify({

@@ -32,6 +32,8 @@ computes calories, protein, fat, carbs, saturated fat and sodium, judges the mea
 - **Three languages.** English, Russian, German, picked up from your Telegram client and
   changeable in `/settings`. The food names and notes the model writes are localized too, not
   just the bot's own copy.
+- **Your reply style.** Rich cards (tables and headings) or plain text with emojis — pick per
+  account in `/settings → Style`; the instance's `REPLY_FORMAT` is only the default.
 
 **Commands:** `/start`, `/me`, `/cap`, `/settings`, `/help`, `/delete` — listed in Telegram's
 `/` menu in your language.

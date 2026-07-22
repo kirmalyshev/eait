@@ -17,7 +17,7 @@ import {
   insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals,
   logLlmCall, llmCallsToday, llmCallCountToday, mealsOnDate, totalsByDate,
   insertPendingMeal, setPendingReply, getPendingMeal, deletePendingMeal, prunePendingMeals,
-  deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang,
+  deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang, setReplyFormat,
   getSetting, setSetting, clearSetting, hasEvent, logEvent, setAcquisitionSource,
   type Db, type UserRow,
 } from "../db.ts";
@@ -28,11 +28,12 @@ import { RejectionLog } from "./rejections.ts";
 import { targetsFor, isRestrictionTag } from "../targets.ts";
 import { formatReply } from "../reply.ts";
 import { renderMealCard } from "../render.ts";
-import { settingsRoot, settingsStep } from "../settings.ts";
+import { settingsRoot, settingsStep, type SettingsProfile } from "../settings.ts";
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "../onboarding.ts";
 import { DEFAULT_LANG, LANGS, LOCALES, isLang, resolveLang, translatorFor } from "../i18n/index.ts";
 import type { TFunction } from "i18next";
-import type { Lang, MealAnalysis, MealContext, MealRecord, Profile } from "../types.ts";
+import { isReplyFormat } from "../types.ts";
+import type { Lang, MealAnalysis, MealContext, MealRecord, Profile, ReplyFormat } from "../types.ts";
 
 export interface BotDeps {
   db: Db;
@@ -73,14 +74,15 @@ export interface MealCard {
  */
 export type SendRich = (card: MealCard) => Promise<Sent | void>;
 
-/** Rich when configured AND wired; plain otherwise. One switch for every meal-card site. */
+/** Rich when the user's effective format says so AND the rich sender is wired; plain otherwise.
+ * One switch for every meal-card site. Callers resolve the format via replyFormatFor(u, config). */
 async function sendCard(
-  config: Config,
+  format: ReplyFormat,
   send: Send,
   sendRich: SendRich | undefined,
   card: MealCard,
 ): Promise<Sent | void> {
-  if (config.replyFormat === "rich" && sendRich) return sendRich(card);
+  if (format === "rich" && sendRich) return sendRich(card);
   return send(card.plain);
 }
 
@@ -108,9 +110,22 @@ function fireReaction(react: React | undefined, emoji: "👀" | "👍", userId: 
     .catch((e) => console.warn(`[eait] reaction failed user=${userId}: ${describeError(e)}`));
 }
 
-// ---------- pure helpers ----------
+// ---------- read-boundary helpers ----------
+// profileOf is the ONE read boundary between the raw UserRow and the rest of the code; it both
+// validates stored vocabulary and emits the operator warning, so it is intentionally not pure.
+// Everything downstream (replyFormatFor, translatorForUser) consumes the resolved Profile.
 
 export function profileOf(u: UserRow): Profile {
+  // Off-vocabulary stored values (a renamed locale/format, a hand-edited row) degrade to the
+  // default, but LOUDLY — a silent reset after a rename would strand affected users with no
+  // operator trace. No truthiness guard on lang: '' is exactly the hand-edited NOT-NULL row the
+  // warn exists for. reply_format's null is the normal "never chose" state and stays quiet.
+  if (!isLang(u.lang)) {
+    console.warn(`[eait] unknown lang ${JSON.stringify(u.lang)} user=${u.telegram_id} — using default`);
+  }
+  if (u.reply_format !== null && !isReplyFormat(u.reply_format)) {
+    console.warn(`[eait] unknown reply_format ${JSON.stringify(u.reply_format)} user=${u.telegram_id} — using instance default`);
+  }
   return {
     telegram_id: u.telegram_id,
     // Validate against the registry rather than coercing: a stored value can predate a locale
@@ -120,7 +135,15 @@ export function profileOf(u: UserRow): Profile {
     // 0 is the db's "explicitly skipped" sentinel — outside the db/bot boundary it means unknown.
     weight_kg: u.weight_kg ? u.weight_kg : null,
     restrictions: u.restrictions,
+    // Same validation rule as lang: junk means "never chose", so the instance default applies.
+    reply_format: isReplyFormat(u.reply_format) ? u.reply_format : null,
   };
+}
+
+/** The format a user's meal cards render in: their /settings choice, else the instance default.
+ * Takes the already-resolved Profile so it never re-runs profileOf (which would re-warn). */
+export function replyFormatFor(prof: Profile, config: Config): ReplyFormat {
+  return prof.reply_format ?? config.replyFormat;
 }
 
 /** The translator for a user, or the default one if they have no row yet. */
@@ -474,9 +497,17 @@ export async function processSettingsOpen(
     await send(translatorForUser(u)("errors.notOnboarded"));
     return;
   }
-  const prof = profileOf(u);
+  const prof = settingsProfile(u, deps.config);
   const v = settingsRoot(prof, translatorFor(prof.lang));
   await send(v.text, v.buttons);
+}
+
+/** The profile the settings machine renders: reply_format resolved to the EFFECTIVE value
+ * (user choice, else instance default) — replyFormatFor is the ONE resolution implementation,
+ * and the machine's SettingsProfile parameter type rejects unresolved profiles at compile time. */
+function settingsProfile(u: UserRow, config: Config): SettingsProfile {
+  const prof = profileOf(u); // once — profileOf is the warning site, don't double it
+  return { ...prof, reply_format: replyFormatFor(prof, config) };
 }
 
 /** Handles an `st:` callback: persist whatever changed, then rewrite the message in place. */
@@ -488,13 +519,14 @@ export async function processSettingsCallback(
 ): Promise<void> {
   const u = await getUser(deps.db, from.id);
   if (!u || u.state !== "active") return; // no row to edit against; stay silent
-  const prof = profileOf(u);
+  const prof = settingsProfile(u, deps.config);
   const v = settingsStep(prof, data, translatorFor(prof.lang));
   if (v.patch) {
     if (v.patch.lang) await setLang(deps.db, from.id, v.patch.lang);
     if (v.patch.goal || v.patch.restrictions) {
       await setProfile(deps.db, from.id, { goal: v.patch.goal, restrictions: v.patch.restrictions });
     }
+    if (v.patch.reply_format) await setReplyFormat(deps.db, from.id, v.patch.reply_format);
   }
   await edit(v.text, v.buttons);
 }
@@ -604,7 +636,7 @@ export async function processPhoto(
   const hint = analysis.confidence.startsWith("low")
     ? t("meal.lowConfidenceHint")
     : t("meal.correctionHint");
-  const sent = await sendCard(config, send, meta?.sendRich, {
+  const sent = await sendCard(replyFormatFor(prof, config), send, meta?.sendRich, {
     html: renderMealCard(analysis, totals, targetsFor(prof), t, { footer: hint }),
     plain: formatReply(analysis, totals, targetsFor(prof), t) + "\n\n" + hint,
   });
@@ -745,7 +777,7 @@ export async function processText(
     const totals = await dailyTotals(db, from.id, focus.date);
     // Deliberately no hint suffix — the user just corrected; re-prompting would nag.
     // No footer on either rendering — the deliberate no-nag decision holds in both formats.
-    await sendCard(config, send, opts?.sendRich, {
+    await sendCard(replyFormatFor(prof, config), send, opts?.sendRich, {
       html: renderMealCard(route.analysis, totals, targetsFor(prof), t, { prefix: t("meal.updatedPrefix") }),
       plain: t("meal.updatedPrefix") + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t),
     });
@@ -792,7 +824,9 @@ export const makeSendRich = (ctx: any): SendRich => async ({ html, plain }) => {
     const m = await ctx.api.sendRichMessage(ctx.chat.id, { html });
     return { chat_id: m.chat.id, message_id: m.message_id };
   } catch (e) {
-    console.warn(`[eait] rich send failed, falling back to plain: ${describeError(e)}`);
+    // chat id included: with per-user formats, "I chose rich and nothing changed" is only
+    // diagnosable if the operator can correlate these lines to the complaining user.
+    console.warn(`[eait] rich send failed chat=${ctx.chat?.id}, falling back to plain: ${describeError(e)}`);
   }
   try {
     const m = await ctx.reply(plain);
@@ -848,7 +882,7 @@ export async function processTextMealDecision(
   if (u) {
     const prof = profileOf(u);
     const totals = await dailyTotals(db, from.id, pending.date);
-    const sent = await sendCard(deps.config, send, opts?.sendRich, {
+    const sent = await sendCard(replyFormatFor(prof, deps.config), send, opts?.sendRich, {
       html: renderMealCard(pending.analysis, totals, targetsFor(prof), t, { footer: t("meal.correctionHint") }),
       plain: formatReply(pending.analysis, totals, targetsFor(prof), t) + "\n\n" + t("meal.correctionHint"),
     });
@@ -1076,7 +1110,11 @@ export function createBot(deps: BotDeps): Bot {
   });
 
   bot.on("callback_query:data", async (ctx) => {
-    await ctx.answerCallbackQuery();
+    // Guarded: a stale query id (backlog replay after downtime) must not abort the tap —
+    // dismissing the spinner is cosmetic; the state change behind the tap is not.
+    await ctx.answerCallbackQuery().catch((e) => {
+      console.warn(`[eait] answerCallbackQuery failed user=${ctx.from?.id} data=${ctx.callbackQuery.data}: ${describeError(e)}`);
+    });
     if (!ctx.from) return;
     const data = ctx.callbackQuery.data;
     if (data === "delete_confirm") {

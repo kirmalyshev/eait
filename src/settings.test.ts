@@ -1,13 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { settingsRoot, settingsStep } from "./settings.ts";
+import { settingsRoot, settingsStep, type SettingsProfile } from "./settings.ts";
 import { LANGS, translatorFor } from "./i18n/index.ts";
 import { RESTRICTION_TAGS } from "./targets.ts";
-import type { Profile } from "./types.ts";
 
 const t = translatorFor("en");
 
-function profile(over: Partial<Profile> = {}): Profile {
-  return { telegram_id: 1, lang: "en", goal: "lose", restrictions: [], ...over };
+// The machine demands a RESOLVED profile (SettingsProfile) — the default "rich" here plays
+// the instance default the bot resolves in before calling.
+function profile(over: Partial<SettingsProfile> = {}): SettingsProfile {
+  return { telegram_id: 1, lang: "en", goal: "lose", restrictions: [], reply_format: "rich", ...over };
 }
 
 const data = (v: { buttons: { text: string; data: string }[][] }) =>
@@ -29,8 +30,13 @@ describe("root view", () => {
     expect(v.text).toContain(t("me.noRestrictions"));
   });
 
-  test("offers exactly the three sections", () => {
-    expect(data(settingsRoot(profile(), t))).toEqual(["st:goal", "st:restr", "st:lang"]);
+  test("offers exactly the four sections", () => {
+    expect(data(settingsRoot(profile(), t))).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
+  });
+
+  test("shows the current reply format", () => {
+    const v = settingsRoot(profile({ reply_format: "plain" }), t);
+    expect(v.text).toContain(t("settings.format.plain"));
   });
 });
 
@@ -44,14 +50,14 @@ describe("goal", () => {
   test("choosing a goal patches it and returns to the root view", () => {
     const v = settingsStep(profile({ goal: "lose" }), "st:goal:maintain", t);
     expect(v.patch).toEqual({ goal: "maintain" });
-    expect(data(v)).toEqual(["st:goal", "st:restr", "st:lang"]);
+    expect(data(v)).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
     expect(v.text).toContain(t("me.goal.maintain")); // root reflects the new value immediately
   });
 
   test("an invalid goal is ignored rather than persisted", () => {
     const v = settingsStep(profile({ goal: "lose" }), "st:goal:teleport", t);
     expect(v.patch).toBeUndefined();
-    expect(data(v)).toEqual(["st:goal", "st:restr", "st:lang"]);
+    expect(data(v)).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
   });
 });
 
@@ -120,22 +126,43 @@ describe("language", () => {
   });
 });
 
+describe("format", () => {
+  test("st:format opens a picker with both formats and a way back", () => {
+    const v = settingsStep(profile(), "st:format", t);
+    expect(data(v)).toEqual(["st:format:rich", "st:format:plain", "st:root"]);
+    expect(v.patch).toBeUndefined();
+  });
+
+  test("choosing a format patches it and returns to the root view", () => {
+    const v = settingsStep(profile({ reply_format: "rich" }), "st:format:plain", t);
+    expect(v.patch).toEqual({ reply_format: "plain" });
+    expect(data(v)).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
+    expect(v.text).toContain(t("settings.format.plain")); // root reflects the new value
+  });
+
+  test("an unknown format is ignored rather than persisted", () => {
+    const v = settingsStep(profile(), "st:format:markdown", t);
+    expect(v.patch).toBeUndefined();
+    expect(data(v)).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
+  });
+});
+
 describe("robustness", () => {
   test("unknown callback data falls back to the root view without patching", () => {
     for (const junk of ["", "st:", "st:nope", "garbage", "st:goal:", "goal_lose"]) {
       const v = settingsStep(profile(), junk, t);
       expect(v.patch).toBeUndefined();
-      expect(data(v)).toEqual(["st:goal", "st:restr", "st:lang"]);
+      expect(data(v)).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
     }
   });
 
   test("st:root returns the root view", () => {
-    expect(data(settingsStep(profile(), "st:root", t))).toEqual(["st:goal", "st:restr", "st:lang"]);
+    expect(data(settingsStep(profile(), "st:root", t))).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
   });
 });
 
 describe("localization", () => {
-  const VIEWS = ["st:root", "st:goal", "st:restr", "st:lang"];
+  const VIEWS = ["st:root", "st:goal", "st:restr", "st:lang", "st:format"];
 
   test.each(LANGS)("%s renders every view with no raw key", (lang) => {
     const tl = translatorFor(lang);
@@ -160,7 +187,7 @@ describe("keyboard layout", () => {
   });
 
   test("the back button is on its own final row in every sub-view", () => {
-    for (const d of ["st:goal", "st:restr", "st:lang"]) {
+    for (const d of ["st:goal", "st:restr", "st:lang", "st:format"]) {
       const v = settingsStep(profile(), d, t);
       const last = v.buttons[v.buttons.length - 1]!;
       expect(last).toHaveLength(1);

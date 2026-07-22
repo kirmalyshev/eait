@@ -19,7 +19,8 @@ Tests are co-located (`*.test.ts`, run with `bun test`).
 - `settings.ts` — pure state machine for `/settings` (`settingsRoot`, `settingsStep`).
 - `reply.ts` — `formatReply(meal, totals, targets, t)` for plain-text mode.
 - `render.ts` — `renderMealCard(meal, totals, targets, t, opts?)` for Telegram Rich Messages
-  (Bot API 10.1 HTML, `REPLY_FORMAT=rich`). `escapeHtml` on every LLM-supplied value.
+  (Bot API 10.1 HTML, used when a user's effective reply format is rich — `/settings` choice,
+  else `REPLY_FORMAT`). `escapeHtml` on every LLM-supplied value.
 - `i18n/` — locale registry, `resolveLang`, `translatorFor`, and the JSON catalogs.
 - `tg_bot/bot.ts` — grammy glue: `createBot(deps)` (testable) + `startBot(config)`. See `tg_bot/README.md`.
 - `tg_bot/albums.ts` — `AlbumBuffer<T>`: debounced flush for Telegram media groups.

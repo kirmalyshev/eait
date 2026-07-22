@@ -4,13 +4,21 @@ export type Goal = "lose" | "maintain" | "gain";
 export type UserState = "consent" | "profile" | "active";
 export type Verdict = "good" | "warn" | "bad";
 
+/** Meal-card renderings: Telegram Rich Messages vs text with emojis. Vocabulary for both the
+ * instance default (REPLY_FORMAT env) and the per-user /settings override. */
+export const REPLY_FORMATS = ["rich", "plain"] as const;
+export type ReplyFormat = (typeof REPLY_FORMATS)[number];
+export function isReplyFormat(v: unknown): v is ReplyFormat {
+  return (REPLY_FORMATS as readonly unknown[]).includes(v);
+}
+
 // Lang is DERIVED from the locale registry, not written by hand: adding a locale file widens
 // it automatically, and nothing here needs editing. Imported for local use below and
 // re-exported so existing imports of `Lang` from ./types.ts keep working.
 import type { Lang } from "./i18n/registry.ts";
 export type { Lang };
 
-/** A user's analysis profile — what every meal is judged against. */
+/** A user's profile — the analysis inputs every meal is judged against, plus rendering prefs. */
 export interface Profile {
   telegram_id: number;
   lang: Lang;
@@ -18,6 +26,12 @@ export interface Profile {
   /** Kilograms; null/absent = unknown (never asked, or declined). The db's 0-skip sentinel never reaches here. */
   weight_kg?: number | null;
   restrictions: string[]; // tags e.g. ["kidneys","ldl","vegan","lowsugar"]
+  /**
+   * Card rendering: the user's RAW /settings choice; null = never picked (instance default
+   * applies). Resolution to the effective value happens in bot.ts (`replyFormatFor`); the
+   * settings machine demands the resolved form via its own `SettingsProfile` type.
+   */
+  reply_format: ReplyFormat | null;
 }
 
 export interface MealItem {

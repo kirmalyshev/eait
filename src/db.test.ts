@@ -38,6 +38,7 @@ import {
   setLang,
   setMealReply,
   setProfile,
+  setReplyFormat,
   upsertUser,
   userCount,
 } from "./db.ts";
@@ -85,8 +86,9 @@ describe("migration 2 upgrade path (pre-existing databases, not fresh creates)",
   test("active users keep NULL weight; users mid-flow past goal are backfilled to skipped", async () => {
     const name = freshTestName();
     const a = await openTestDb(name);
-    // Rewind to v1: drop the v2+v3 artifacts and reset the version, then seed pre-migration rows.
+    // Rewind to v1: drop the v2+v3+v4 artifacts and reset the version, then seed pre-migration rows.
     await a`ALTER TABLE users DROP COLUMN weight_kg`;
+    await a`ALTER TABLE users DROP COLUMN reply_format`;
     await a`ALTER TABLE meals DROP COLUMN user_message_id`;
     await a`DROP TABLE pending_meals`;
     await a`DROP TABLE llm_calls`;
@@ -99,8 +101,8 @@ describe("migration 2 upgrade path (pre-existing databases, not fresh creates)",
     await setProfile(a, 3, { state: "profile" });
     await a.close();
 
-    const b = await openTestDb(name); // migrations 2+3 run against existing rows
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(3);
+    const b = await openTestDb(name); // migrations 2+3+4 run against existing rows
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(4);
     // Active user: never asked — NULL, and never re-asked (resume() skips active users).
     expect((await getUser(b, 1))!.weight_kg).toBeNull();
     // Restrictions-step user: backfilled to the skip sentinel, or their next message — composed
@@ -112,11 +114,64 @@ describe("migration 2 upgrade path (pre-existing databases, not fresh creates)",
   });
 });
 
+describe("reply_format (migration 4)", () => {
+  test("a new user has no reply format preference (NULL = instance default)", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    expect((await getUser(db, 1))!.reply_format).toBeNull();
+  });
+
+  test("setReplyFormat persists and is scoped to the one user", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await upsertUser(db, { telegram_id: 2 });
+    await setReplyFormat(db, 1, "plain");
+    expect((await getUser(db, 1))!.reply_format).toBe("plain");
+    expect((await getUser(db, 2))!.reply_format).toBeNull(); // untouched
+    await setReplyFormat(db, 1, "rich");
+    expect((await getUser(db, 1))!.reply_format).toBe("rich");
+  });
+
+  test("setReplyFormat on a vanished user is a silent 0-row UPDATE, never a throw", async () => {
+    const db = await freshTestDb();
+    await setReplyFormat(db, 999, "plain"); // no such row — must resolve, not reject
+    expect((await getUser(db, 999))).toBeUndefined();
+  });
+
+  test("migration 4 upgrade path: the column physically exists on the upgraded db", async () => {
+    const name = freshTestName();
+    const a = await openTestDb(name);
+    await a`ALTER TABLE users DROP COLUMN reply_format`;
+    await a`UPDATE schema_version SET version = 3`;
+    await upsertUser(a, { telegram_id: 7 });
+    await a.close();
+    const b = await openTestDb(name); // migration 4 runs against the existing row
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(4);
+    expect((await getUser(b, 7))!.reply_format).toBeNull();
+    // Write-back proves the column was really added (getUser's `?? null` would mask a no-op
+    // migration: a missing column reads as undefined ?? null too).
+    await setReplyFormat(b, 7, "plain");
+    expect((await getUser(b, 7))!.reply_format).toBe("plain");
+  });
+});
+
+describe("migrate() failure reporting", () => {
+  test("a migration that throws names its version in the error", async () => {
+    const name = freshTestName();
+    const a = await openTestDb(name);
+    // Rewind the version WITHOUT dropping the v4 column: reopening re-fires migration 4's
+    // ADD COLUMN on the existing column → "already exists", the exact case the wrapper names.
+    await a`UPDATE schema_version SET version = 3`;
+    await a.close();
+    await expect(openTestDb(name)).rejects.toThrow(/migration v4 failed/);
+  });
+});
+
 describe("openDb + migrations", () => {
   test("auto-creates a missing database and records the schema version", async () => {
     const db = await freshTestDb();
     const rows = await db`SELECT version FROM schema_version`;
-    expect(Number(rows[0].version)).toBe(3);
+    expect(Number(rows[0].version)).toBe(4);
   });
 
   test("reopening is idempotent — data survives, migrations do not rerun", async () => {
@@ -126,7 +181,7 @@ describe("openDb + migrations", () => {
     await a.close();
     const b = await openTestDb(name);
     expect((await getUser(b, 1))?.username).toBe("keepme");
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(3);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(4);
   });
 
   test("two concurrent openDb calls on a missing database both succeed (create race)", async () => {
@@ -260,6 +315,15 @@ describe("delete cascade", () => {
     await deleteUser(db, 1);
     expect(await eventsFor(db, 1)).toEqual([]);
     expect((await eventsFor(db, 2)).length).toBe(1); // other users' funnels untouched
+  });
+
+  test("the reply-format preference dies with the account — PRIVACY.md 'Until you /delete'", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await setReplyFormat(db, 1, "plain");
+    await deleteUser(db, 1);
+    await upsertUser(db, { telegram_id: 1 }); // same telegram id, next life
+    expect((await getUser(db, 1))!.reply_format).toBeNull(); // no leak across /delete
   });
 });
 
@@ -573,6 +637,7 @@ describe("review fixes — db layer", () => {
     const name = freshTestName();
     const a = await openTestDb(name);
     await a`ALTER TABLE users DROP COLUMN weight_kg`;
+    await a`ALTER TABLE users DROP COLUMN reply_format`;
     await a`ALTER TABLE meals DROP COLUMN user_message_id`;
     await a`DROP TABLE pending_meals`;
     await a`DROP TABLE llm_calls`;
