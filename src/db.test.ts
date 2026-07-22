@@ -243,6 +243,15 @@ describe("openDb input safety", () => {
       openDb({ host: "127.0.0.1", port: 5439, user: "eait", password: "eait", database: 'x"; DROP DATABASE eait;--' }),
     ).rejects.toThrow(/invalid database name/);
   });
+
+  test("a nonexistent role gets the friendly connect error, not the create-database path", async () => {
+    const { openDb } = await import("./db.ts");
+    // Only a missing DATABASE may trigger auto-create; a missing role/user is a misconfig
+    // that must surface as "connect failed", never as a doomed CREATE DATABASE attempt.
+    await expect(
+      openDb({ host: "127.0.0.1", port: 5439, user: "eait_no_such_role", password: "x", database: "eait_wontmatter" }),
+    ).rejects.toThrow(/postgres connect failed/);
+  });
 });
 
 test("upsertUser stores the seeded language; a re-upsert never overwrites it", async () => {

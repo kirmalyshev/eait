@@ -30,12 +30,14 @@ services:
       - full_page_writes=off
     environment:
       POSTGRES_USER: eait
-      # Local dev credential. The port below binds to loopback only, so this is not reachable
-      # off the machine; override via .env if that ever changes.
-      POSTGRES_PASSWORD: ${EAIT_PG_PASSWORD:-eait}
+      # Local dev credential, loopback-only. Interpolated from the SAME variables the client
+      # reads (compose loads this directory's .env), so overriding PGPASSWORD/PGPORT in .env
+      # reconfigures server and client together instead of silently splitting them. Note the
+      # server is shared: whichever worktree runs `db.sh up` supplies these values.
+      POSTGRES_PASSWORD: ${PGPASSWORD:-eait}
       POSTGRES_DB: eait
     ports:
-      - "127.0.0.1:${EAIT_PG_HOST_PORT:-5439}:5432"
+      - "127.0.0.1:${PGPORT:-5439}:5432"
     volumes:
       - pg-data:/var/lib/postgresql/data
     healthcheck:

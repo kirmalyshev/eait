@@ -94,24 +94,37 @@ export async function openDb(pg: PgConfig): Promise<Db> {
     max: pg.max ?? 10,
   });
   try {
-    await db`SELECT 1`;
-  } catch (e) {
-    if (!isMissingDatabase(e)) {
-      throw new Error(
-        `postgres connect failed (${pg.host}:${pg.port}/${pg.database}): ${message(e)} — ` +
-          `is the shared dev server up? sh scripts/db.sh up`,
-      );
+    try {
+      await db`SELECT 1`;
+    } catch (e) {
+      if (!isMissingDatabase(e)) {
+        throw new Error(
+          `postgres connect failed (${pg.host}:${pg.port}/${pg.database}): ${message(e)} — ` +
+            `is the shared dev server up? sh scripts/db.sh up`,
+        );
+      }
+      await createDatabase(pg);
+      await db`SELECT 1`;
     }
-    await createDatabase(pg);
-    await db`SELECT 1`;
+    await migrate(db);
+  } catch (e) {
+    // Don't strand the pool on a failed open — the bot exits, but tests and scripts call
+    // openDb from long-lived processes where leaked connections accumulate.
+    await db.close().catch(() => {});
+    throw e;
   }
-  await migrate(db);
   return db;
 }
 
-/** 3D000 invalid_catalog_name — the branch database has not been created yet. */
+/**
+ * 3D000 invalid_catalog_name — the branch database has not been created yet. The message
+ * match is anchored on `database "…"` so a missing ROLE ("role \"x\" does not exist") takes
+ * the friendly connect-failed path instead of a doomed CREATE DATABASE attempt.
+ */
 function isMissingDatabase(e: unknown): boolean {
-  return (e as { code?: unknown })?.code === "3D000" || /does not exist/.test(message(e));
+  return (
+    (e as { code?: unknown })?.code === "3D000" || /database ".*" does not exist/.test(message(e))
+  );
 }
 
 function message(e: unknown): string {

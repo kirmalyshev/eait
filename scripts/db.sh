@@ -29,7 +29,9 @@ psql_in() {
 case "${1:-}" in
   up)
     $COMPOSE up -d --wait
-    echo "eait-infra Postgres up on 127.0.0.1:${EAIT_PG_HOST_PORT:-5439} (databases are created on first use)."
+    PORT="$(grep '^PGPORT=' "$DIR/.env" 2>/dev/null | cut -d= -f2 || true)"
+    [ -n "$PORT" ] || PORT=5439
+    echo "eait-infra Postgres up on 127.0.0.1:$PORT (databases are created on first use)."
     ;;
   down)
     $COMPOSE down
@@ -47,8 +49,11 @@ case "${1:-}" in
       "SELECT datname FROM pg_database WHERE datname LIKE 'eait%' ORDER BY datname"
     ;;
   clean-test)
+    # LIKE with escaped underscores + the testutil.ts suffix (_<12 hex>): a plain
+    # 'eait_test_%' would ALSO match the live branch database of a branch named test-* —
+    # in LIKE, _ is a single-char wildcard — and FORCE-drop it.
     NAMES="$($COMPOSE exec db psql -U eait -d eait -tAc \
-      "SELECT datname FROM pg_database WHERE datname LIKE 'eait_test_%'")"
+      "SELECT datname FROM pg_database WHERE datname LIKE 'eait\_test\_%' AND datname ~ '_[0-9a-f]{12}\$'")"
     if [ -z "$NAMES" ]; then
       echo "no eait_test_* databases to drop"
       exit 0

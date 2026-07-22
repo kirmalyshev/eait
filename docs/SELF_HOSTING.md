@@ -78,6 +78,13 @@ sh scripts/db.sh up      # also: status | psql | down; data survives restarts in
 No docker? Point `PGHOST`/`PGPORT`/`PGUSER`/`PGPASSWORD` in `.env` at any Postgres 14+ you
 already run. The bot creates its own database (`PGDATABASE`) on first boot either way.
 
+> **Durability warning for real data:** the shipped server is tuned for development speed —
+> it runs with `fsync=off`, `synchronous_commit=off` and `full_page_writes=off`, so a host
+> crash or power loss can lose recent writes or corrupt the cluster. If this instance will
+> hold data you care about, delete those three `-c` flags from `docker-compose.infra.yml`
+> (then `sh scripts/db.sh down && sh scripts/db.sh up`), or use a Postgres you already
+> operate.
+
 ### 2. Get the code and its dependencies
 
 ```bash

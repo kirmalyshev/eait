@@ -30,8 +30,10 @@ else
 fi
 
 # Two spellings of the same name: compose project names take dashes, Postgres database names
-# (validated as [a-z_][a-z0-9_]* in config.ts) take underscores.
-CLEAN="$(printf '%s' "$RAW" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/^-*//; s/-*$//' | cut -c1-40)"
+# (validated as [a-z_][a-z0-9_]* in config.ts) take underscores. Cut at 31 so the longest
+# derived identifier (eait_test_<branch>_<12 hex> from testutil.ts) stays under Postgres's
+# 63-char limit with headroom instead of landing exactly on it.
+CLEAN="$(printf '%s' "$RAW" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/^-*//; s/-*$//' | cut -c1-31)"
 [ -n "$CLEAN" ] || CLEAN="main"
 PROJECT="eait-$CLEAN"
 DB_NAME="eait_$(printf '%s' "$CLEAN" | tr '-' '_')"

@@ -1,7 +1,9 @@
 // One-shot importer for the sqlite→Postgres cutover: copies an existing bun:sqlite eait
 // database into a Postgres database. Manual and offline — stop the sqlite-era bot first, run
-// once, check the printed counts, then start the Postgres bot. Idempotent: rows that already
-// exist (by primary key) are skipped, so a re-run after a partial import is safe.
+// once, check the printed counts, then start the Postgres bot. Keyed tables are re-run-safe
+// (rows that already exist by primary key are skipped). events has no natural key, so it is
+// imported only into an empty events table — after a partial events import, delete the target
+// rows (`DELETE FROM events`) and re-run; the count check at the end flags this case.
 //
 //   bun run scripts/migrate-sqlite-to-pg.ts <path/to/eait.sqlite> [pg-database]
 //

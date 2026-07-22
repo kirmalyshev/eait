@@ -56,7 +56,10 @@ export async function cleanupTestDbs(): Promise<void> {
   const admin = new SQL({ ...connOpts(base), database: "postgres", max: 4 });
   try {
     await Promise.all(
-      created.map((n) => admin.unsafe(`DROP DATABASE IF EXISTS "${n}" WITH (FORCE)`)),
+      created
+        // Same identifier guard openDb applies — these names are interpolated into DDL.
+        .filter((n) => /^[a-z_][a-z0-9_]*$/.test(n))
+        .map((n) => admin.unsafe(`DROP DATABASE IF EXISTS "${n}" WITH (FORCE)`)),
     );
   } finally {
     created.length = 0;
