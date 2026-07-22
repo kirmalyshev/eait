@@ -18,4 +18,9 @@ export class RejectionLog {
   has(userId: number, messageId: number): boolean {
     return this.byUser.get(userId)?.includes(messageId) ?? false;
   }
+
+  /** /delete erasure: message ids aren't photo content, but the privacy promise is total. */
+  remove(userId: number): void {
+    this.byUser.delete(userId);
+  }
 }

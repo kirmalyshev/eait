@@ -405,3 +405,19 @@ describe("routeText", () => {
     expect(ok.lastRequest!.userText.length).toBeLessThan(4000);
   });
 });
+
+describe("routeText — review hardening", () => {
+  const minCtx = { todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } };
+
+  test("correction intent with isFood=false throws (would render a non-food meal card)", async () => {
+    const focusMeal = MealAnalysisSchema.parse(JSON.parse(validJson));
+    const provider = new FakeProvider(() =>
+      JSON.stringify({ intent: "correction", analysis: { ...JSON.parse(validJson), isFood: false } }));
+    await expect(routeText("that was my keys, not food", profile, { ...minCtx, focusMeal }, provider)).rejects.toThrow();
+  });
+
+  test("meal intent without an analysis object throws", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "meal" }));
+    await expect(routeText("ate rice", profile, minCtx, provider)).rejects.toThrow();
+  });
+});

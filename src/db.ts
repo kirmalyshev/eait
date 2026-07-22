@@ -17,6 +17,7 @@ import { DEFAULT_LANG } from "./i18n/registry.ts";
 import { MealAnalysisSchema } from "./analyzer.ts";
 import type {
   DailyTotals,
+  DayTotals,
   Goal,
   MealAnalysis,
   MealItem,
@@ -722,7 +723,7 @@ export async function totalsByDate(
   user_id: number,
   fromDate: string,
   toDate: string,
-): Promise<Array<{ date: string; kcal: number; protein_g: number }>> {
+): Promise<DayTotals[]> {
   const rows = await db`
     SELECT date,
       COALESCE(SUM(kcal),0)::float8      AS kcal,

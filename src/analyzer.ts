@@ -7,7 +7,7 @@ import { z } from "zod";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import { LOCALES } from "./i18n/registry.ts";
 import { RESTRICTION_TAGS, isRestrictionTag } from "./targets.ts";
-import type { FoodTargets, MealAnalysis, MealContext, MealItem, Profile } from "./types.ts";
+import type { DayTotals, FoodTargets, MealAnalysis, MealContext, MealSummary, Profile } from "./types.ts";
 
 const VerdictSchema = z.enum(["good", "warn", "bad"]);
 
@@ -286,6 +286,8 @@ const SYSTEM_CLASSIFY =
   "Respond with ONLY a single JSON object — no prose, no markdown fences.";
 
 // ---------- free-text router (one call: question / meal / correction) ----------
+// A single router — rather than a dedicated correction call — also lets a question about a
+// meal be answered rather than misapplied as a correction.
 
 /** Free text is longer than a caption but still bounded — past this is noise or injection. */
 const TEXT_INPUT_CAP = 1000;
@@ -293,8 +295,8 @@ const TEXT_INPUT_CAP = 1000;
 export interface RouteContext {
   /** Set when the text replies to a known meal — unlocks the correction intent. */
   focusMeal?: MealAnalysis;
-  todayMeals: Array<{ items: MealItem[]; kcal: number; protein_g: number }>;
-  weekTotals: Array<{ date: string; kcal: number; protein_g: number }>;
+  todayMeals: MealSummary[];
+  weekTotals: DayTotals[];
   targets: FoodTargets;
   localTime?: string;
 }
@@ -387,15 +389,20 @@ export async function routeText(
   }
   if (r.intent === "correction" && !ctx.focusMeal) {
     // The model ignored the "not available" instruction; salvage an answer if one exists.
-    if (r.answer?.trim()) return { intent: "question", answer: r.answer.trim() };
+    // Logged for the same reason confidence is: a model update drifting into focus-less
+    // corrections would otherwise be invisible to the operator.
+    if (r.answer?.trim()) {
+      console.warn("[eait] router: correction intent without focus meal, salvaged as question");
+      return { intent: "question", answer: r.answer.trim() };
+    }
     throw new Error("analyzer: correction intent without focus meal");
   }
   if (!r.analysis) throw new Error(`analyzer: ${r.intent} intent without analysis`);
-  if (r.intent === "meal" && !r.analysis.isFood) {
-    throw new Error("analyzer: meal intent with isFood=false");
+  // Both meal-producing intents must describe food — a "correction" to not-food would still
+  // render a meal card and land in daily totals.
+  if (!r.analysis.isFood) {
+    throw new Error(`analyzer: ${r.intent} intent with isFood=false`);
   }
   return { intent: r.intent, analysis: r.analysis };
 }
 
-// (The old analyzeCorrection path is gone: corrections now flow through routeText with a
-// focus meal, which also lets a question about a meal be answered instead of misapplied.)

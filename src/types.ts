@@ -100,6 +100,20 @@ export interface DailyTotals {
 }
 
 /** The user's daily targets. Caps are present only for relevant restrictions. */
+/** Compact per-meal summary fed to the free-text router as today-context. */
+export interface MealSummary {
+  items: MealItem[];
+  kcal: number;
+  protein_g: number;
+}
+
+/** Per-date kcal/protein sums — the router's week-context row and totalsByDate's return shape. */
+export interface DayTotals {
+  date: string;
+  kcal: number;
+  protein_g: number;
+}
+
 export interface FoodTargets {
   kcal: number;
   protein_g: number;

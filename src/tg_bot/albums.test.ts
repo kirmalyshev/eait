@@ -34,3 +34,29 @@ test("a key can be reused after its flush (a second album from the same user)", 
   await new Promise((r) => setTimeout(r, 30));
   expect(flushed).toEqual([[1], [2]]);
 });
+
+test("a synchronously-throwing onFlush cannot crash the process", async () => {
+  const buf = new AlbumBuffer<number>(10, () => {
+    throw new Error("sync boom");
+  });
+  buf.add("k", 1);
+  await new Promise((r) => setTimeout(r, 40)); // an uncaughtException here would fail the run
+  expect(true).toBe(true);
+});
+
+test("a rejecting async onFlush is caught, not an unhandled rejection", async () => {
+  const buf = new AlbumBuffer<number>(10, async () => {
+    throw new Error("async boom");
+  });
+  buf.add("k", 1);
+  await new Promise((r) => setTimeout(r, 40));
+  expect(true).toBe(true);
+});
+
+test("a group flushes early at the Telegram album cap (10 parts) without waiting for the timer", async () => {
+  const flushed: number[][] = [];
+  const buf = new AlbumBuffer<number>(10_000, (_k, p) => flushed.push(p)); // timer would take 10s
+  for (let i = 1; i <= 10; i++) buf.add("k", i);
+  await new Promise((r) => setTimeout(r, 20));
+  expect(flushed).toEqual([[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]);
+});
