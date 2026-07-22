@@ -30,7 +30,7 @@
     "fileTooBig": "That file is too big for me to fetch — send it as a photo instead."
   },
   "help": {
-    "body": "Send me a photo of your meal. I estimate the items, calories and macros, judge them against your goal, and add them to today's running total.\n\nGot it wrong? Reply directly to my message about that meal with a correction — for example \"two pieces, no oil\" — and I'll redo the estimate.\n\nCommands:\n/me — today's totals\n/settings — change your goal, restrictions or language\n/help — this message\n/delete — erase all your data\n\nEstimates from a photo are approximate and are not medical advice."
+    "body": "Send me a photo of your meal. I estimate the items, calories and macros, judge them against your goal, and add them to today's running total.\n\nGot it wrong? Reply directly to my message about that meal with a correction — for example \"two pieces, no oil\" — and I'll redo the estimate.\n\nBetter photos, better estimates:\n• shoot from above, the whole plate in frame\n• good light; cutlery or your hand next to the plate helps me judge portion size\n• know the weight or ingredients? add them in the caption\n\nCommands:\n/me — today's totals\n/settings — change your goal, restrictions or language\n/help — this message\n/delete — erase all your data\n\nEstimates from a photo are approximate and are not medical advice."
   },
   "lang": {
     "prompt": "Choose a language:",
@@ -77,7 +77,7 @@
     "decline": "Without consent I can't process your data. Send /start when you're ready.",
     "askGoal": "What's your goal?",
     "askRestrictions": "Any health or dietary restrictions? Write freely (for example: \"kidneys, no sugar\") or tap \"Skip\".",
-    "done": "All set — send me photos of your food 📸",
+    "done": "All set — send me photos of your food 📸\n\nFor the most accurate estimates:\n• shoot from above, the whole plate in frame\n• good light; cutlery or your hand next to the plate helps me judge portion size\n• know the weight or ingredients? add them in the caption",
     "alreadyActive": "You're already set up — just send photos of your food 📸 (/me — profile and today's totals).",
     "nudge": "Tap a button above, or send /start.",
     "button": {
