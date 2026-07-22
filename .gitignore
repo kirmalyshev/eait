@@ -6,6 +6,7 @@ node_modules/
 *.log
 logs/
 data/
+backups/
 *.sqlite
 *.sqlite-journal
 *.db

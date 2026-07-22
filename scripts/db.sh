@@ -48,26 +48,26 @@ case "${1:-}" in
     esac
     # The branch database is normally born on the bot's first boot; create it here too so
     # `make psql` works on a branch whose bot has never run.
-    $COMPOSE exec db psql -U eait -d eait -tAc "SELECT 1 FROM pg_database WHERE datname='$DB'" | grep -q 1 \
+    $COMPOSE exec db psql -U eait -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB'" | grep -q 1 \
       || $COMPOSE exec db createdb -U eait "$DB"
     psql_in "$DB"
     ;;
   list)
-    $COMPOSE exec db psql -U eait -d eait -tAc \
+    $COMPOSE exec db psql -U eait -d postgres -tAc \
       "SELECT datname FROM pg_database WHERE datname LIKE 'eait%' ORDER BY datname"
     ;;
   clean-test)
     # LIKE with escaped underscores + the testutil.ts suffix (_<12 hex>): a plain
     # 'eait_test_%' would ALSO match the live branch database of a branch named test-* —
     # in LIKE, _ is a single-char wildcard — and FORCE-drop it.
-    NAMES="$($COMPOSE exec db psql -U eait -d eait -tAc \
+    NAMES="$($COMPOSE exec db psql -U eait -d postgres -tAc \
       "SELECT datname FROM pg_database WHERE datname LIKE 'eait\_test\_%' AND datname ~ '_[0-9a-f]{12}\$'")"
     if [ -z "$NAMES" ]; then
       echo "no eait_test_* databases to drop"
       exit 0
     fi
     for n in $NAMES; do
-      $COMPOSE exec db psql -U eait -d eait -c "DROP DATABASE IF EXISTS \"$n\" WITH (FORCE)"
+      $COMPOSE exec db psql -U eait -d postgres -c "DROP DATABASE IF EXISTS \"$n\" WITH (FORCE)"
       echo "dropped $n"
     done
     ;;

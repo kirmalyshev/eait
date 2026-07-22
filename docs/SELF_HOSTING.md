@@ -287,8 +287,10 @@ docker compose -p eait-infra exec -T db psql -U eait -d eait < eait-2026-07-22.s
 ```
 
 Running against your own (non-dockerized) Postgres: same commands minus the `docker compose
-exec` prefix. If the data matters, put the backup line in cron and re-read the durability
-warning in step 1 — the shipped dev server runs with `fsync=off`.
+exec` prefix. If the data matters, schedule it — `scripts/backup.sh` wraps the dump + a
+14-dump retention for the selfhost stack (`sh scripts/backup.sh run` from cron, or
+`sh scripts/backup.sh install` for a daily launchd job on macOS) — and re-read the durability
+warning in step 1 if you are still on the dev server, which runs with `fsync=off`.
 
 ## Upgrading
 
