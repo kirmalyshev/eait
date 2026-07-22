@@ -18,7 +18,7 @@ import {
   logLlmCall, llmCallsToday, llmCallCountToday, mealsOnDate, totalsByDate,
   insertPendingMeal, setPendingReply, getPendingMeal, deletePendingMeal, prunePendingMeals,
   deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang,
-  getSetting, setSetting, clearSetting, hasMeals, hasEvent, logEvent, setAcquisitionSource,
+  getSetting, setSetting, clearSetting, hasEvent, logEvent, setAcquisitionSource,
   type Db, type UserRow,
 } from "../db.ts";
 import { loadAllowlist, type Allowlist } from "../allowlist.ts";

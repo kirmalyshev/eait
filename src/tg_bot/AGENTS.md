@@ -30,8 +30,12 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
   Photos and albums keep logging directly.
 - **Albums are one meal.** Photo updates sharing `media_group_id` are buffered per
   (user, group) in `AlbumBuffer` (in-memory, 1.5 s debounce) and flushed as ONE multi-image
-  `analyzeMeal` call — one cap draw, one reply, `user_message_id` = first part. A crash between
-  parts costs at most one partial analysis; that's the accepted trade.
+  `analyzeMeal` call (`processAlbum`) — one cap draw, one reply, `user_message_id` = first
+  part. A crash between parts costs at most one partial analysis; that's the accepted trade.
+  **Deliberate exclusion:** the `document` handler (uncompressed "send as file" images) does
+  NOT album-buffer — a multi-document group analyzes as N separate meals and N cap draws.
+  Uncompressed multi-image sends are rare enough that the asymmetry is accepted; if you wire
+  it, reuse the same `AlbumBuffer`, don't build a second one.
 - **The rejection log is in-memory on purpose.** `RejectionLog` (bounded, 20/user) remembers
   "not food" reply ids so a reply to one gets the canned explanation. After a restart such
   replies degrade to the router, which honestly has nothing — never persist anything

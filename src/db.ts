@@ -751,11 +751,6 @@ export async function mealCount(db: Db): Promise<number> {
   return rows[0].n as number;
 }
 
-export async function hasMeals(db: Db, user_id: number): Promise<boolean> {
-  const rows = await db`SELECT 1 FROM meals WHERE user_id = ${user_id} LIMIT 1`;
-  return rows.length > 0;
-}
-
 // ---------- update dedupe ----------
 
 export async function seenUpdate(db: Db, update_id: number): Promise<boolean> {
