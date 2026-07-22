@@ -35,7 +35,15 @@ in your language.
 **[docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)** — credentials, access control, deployment on
 macOS and Linux, and what it costs.
 
-The short version:
+The short version — docker is the only prerequisite:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/kirmalyshev/eait/main/docker-compose.selfhost.yml
+TELEGRAM_BOT_TOKEN=… OPENROUTER_API_KEY=… ALLOWED_USER_IDS=… \
+  docker compose -f docker-compose.selfhost.yml up -d
+```
+
+One file, prebuilt image (`ghcr.io/kirmalyshev/eait`), bundled Postgres. Or, from a clone:
 
 ```bash
 git clone https://github.com/kirmalyshev/eait.git && cd eait

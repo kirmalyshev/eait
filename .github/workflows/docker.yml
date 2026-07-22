@@ -1,0 +1,47 @@
+name: docker
+
+# Builds and publishes the bot image to GHCR on every version tag, so self-hosters run
+# `docker compose up` against ghcr.io/kirmalyshev/eait instead of cloning the repo and
+# building locally (docker-compose.selfhost.yml consumes this image).
+#
+# Release flow: bump package.json version → git tag vX.Y.Z → git push --tags.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: # manual rebuild of `latest` from the current default branch
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # arm64 matters here: Raspberry Pi self-hosters and Apple-silicon docker both pull it.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
