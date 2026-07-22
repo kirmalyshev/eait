@@ -1,0 +1,69 @@
+# eait, self-contained: the bot + its own Postgres in ONE file. This is the install for
+# running eait — no clone, no bun, no build:
+#
+#   curl -fsSLO https://raw.githubusercontent.com/kirmalyshev/eait/main/docker-compose.selfhost.yml
+#   TELEGRAM_BOT_TOKEN=… OPENROUTER_API_KEY=… ALLOWED_USER_IDS=… \
+#     docker compose -f docker-compose.selfhost.yml up -d
+#
+# Values interpolate from the shell or from a .env file next to this file; you can also just
+# paste them inline below — this file lives on your machine. `:?` = required, `:-` = default.
+#
+# Developing eait itself? Use docker-compose.yml + docker-compose.infra.yml instead — that
+# pair shares one Postgres across branch worktrees; this file is a single fixed instance.
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    # No published ports: Postgres is reachable only by the bot on this file's private
+    # network. Durability flags stay at their safe defaults here — this holds real data.
+    environment:
+      POSTGRES_USER: eait
+      POSTGRES_PASSWORD: ${PGPASSWORD:-eait}
+      POSTGRES_DB: eait
+    volumes:
+      - eait-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eait -d eait"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  bot:
+    image: ghcr.io/kirmalyshev/eait:latest
+    restart: unless-stopped
+    init: true
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?message @BotFather → /newbot, then supply the token}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?create at https://openrouter.ai/keys (needs credit)}
+      # Comma-separated Telegram user ids. EMPTY = OPEN BOT: anyone who finds the @handle can
+      # spend your OpenRouter budget. Get your id from @userinfobot.
+      ALLOWED_USER_IDS: ${ALLOWED_USER_IDS:-}
+      # The one id allowed to run /stats and /cap (optional).
+      ADMIN_USER_ID: ${ADMIN_USER_ID:-}
+      # Ceiling on analyses per day across ALL users — the bill guard for an open bot.
+      GLOBAL_DAILY_ANALYSIS_CAP: ${GLOBAL_DAILY_ANALYSIS_CAP:-}
+      PER_USER_DAILY_PHOTO_CAP: ${PER_USER_DAILY_PHOTO_CAP:-50}
+      LLM_PROVIDER: ${LLM_PROVIDER:-openrouter}
+      # Must be vision-capable on OpenRouter.
+      LLM_MODEL: ${LLM_MODEL:-x-ai/grok-4.5}
+      LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-60000}
+      # Decides when "today" rolls over for daily totals.
+      TZ: ${TZ:-Europe/Berlin}
+      # Fixed wiring to the db service above — not meant to be changed.
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: eait
+      PGPASSWORD: ${PGPASSWORD:-eait}
+      PGDATABASE: eait
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+volumes:
+  eait-db:

@@ -32,7 +32,27 @@ Ask for these up front; three of the four cannot be obtained without them.
 `ADMIN_USER_ID` is optional — it is the one id allowed to run `/stats`, and it also gets `/stats`
 added to their Telegram command menu.
 
-## The fast path
+## The fastest path — one file, no clone, no toolchain
+
+Docker is the only prerequisite. The prebuilt image lives at `ghcr.io/kirmalyshev/eait`:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/kirmalyshev/eait/main/docker-compose.selfhost.yml
+TELEGRAM_BOT_TOKEN=… OPENROUTER_API_KEY=… ALLOWED_USER_IDS=… \
+  docker compose -f docker-compose.selfhost.yml up -d
+```
+
+That file bundles the bot and its own Postgres (safe durability defaults, data in the
+`eait-db` volume). Every configurable variable is declared inline in it with its default —
+open the file to see the whole configuration surface. Backup for this variant:
+
+```bash
+docker compose -f docker-compose.selfhost.yml exec db pg_dump -U eait eait > "eait-$(date +%F).sql"
+```
+
+Upgrade: `docker compose -f docker-compose.selfhost.yml pull && docker compose -f docker-compose.selfhost.yml up -d`.
+
+## The fast path (from a clone)
 
 ```bash
 git clone https://github.com/kirmalyshev/eait.git && cd eait
