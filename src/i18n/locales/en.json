@@ -6,7 +6,8 @@
     "me": "Today's totals",
     "settings": "Goal, restrictions, language",
     "start": "Start or resume setup",
-    "stats": "Admin counts"
+    "stats": "Admin counts",
+    "waitlist": "Get notified when unlimited opens"
   },
   "delete": {
     "prompt": "Delete all your data?",
@@ -22,7 +23,7 @@
     "analyzeFailed": "Couldn't read that 🤔 send the photo again.",
     "correctionFailed": "Couldn't apply that correction — try phrasing it differently.",
     "dailyCap": "You've hit today's photo limit — come back tomorrow.",
-    "globalCap": "The shared demo bot has hit today's analysis limit — it runs on one person's API budget. Try again tomorrow, or run your own instance: https://github.com/kirmalyshev/eait",
+    "globalCap": "The shared demo bot has hit today's analysis limit — it runs on one person's API budget. Try again tomorrow, or run your own instance: https://github.com/kirmalyshev/eait Want unlimited hosted access when a paid tier opens? /waitlist",
     "notFood": "That doesn't look like food 🤔",
     "notOnboarded": "Send /start first.",
     "notAnImage": "That's not an image 🤔 send a photo of the meal.",
@@ -116,5 +117,9 @@
     "reset": "Global daily cap reset to the configured value: {{cap}}.",
     "set": "Global daily cap set to {{cap}}.",
     "unlimited": "unlimited"
+  },
+  "waitlist": {
+    "joined": "You're on the waitlist 🎟 I'll message you here when the unlimited tier opens.",
+    "already": "Already on the waitlist — I'll message you here as soon as it opens."
   }
 }

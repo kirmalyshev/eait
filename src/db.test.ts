@@ -21,6 +21,7 @@ import {
   mealByReply,
   eventsFor,
   logEvent,
+  funnelByCode,
   mealCount,
   mealCountToday,
   openDb,
@@ -390,5 +391,30 @@ describe("acquisition attribution", () => {
     expect(getUser(b, 1)?.username).toBe("keepme"); // existing rows intact
     expect(getMeal(b, "m1", 1)?.id).toBe("m1");
     b.close();
+  });
+});
+
+describe("funnelByCode (Measure Monday report)", () => {
+  test("aggregates users, first photos, D7 retention, cap hits and waitlist per source", () => {
+    const db = freshDb();
+    // two tt_001 users: one photographed + retained past day 7, one bounced
+    upsertUser(db, { telegram_id: 1 });
+    setAcquisitionSource(db, 1, "tt_001");
+    logEvent(db, 1, "first_photo");
+    insertMeal(db, { id: "m1", user_id: 1, ts: "t", date: "2099-01-01", analysis: analysis() });
+    upsertUser(db, { telegram_id: 2 });
+    setAcquisitionSource(db, 2, "tt_001");
+    // one organic user who hit the cap twice and joined the waitlist
+    upsertUser(db, { telegram_id: 3 });
+    logEvent(db, 3, "cap_hit");
+    logEvent(db, 3, "cap_hit");
+    logEvent(db, 3, "waitlist_join");
+
+    const rows = funnelByCode(db);
+    const tt = rows.find((r) => r.source === "tt_001");
+    expect(tt).toEqual({ source: "tt_001", users: 2, first_photo: 1, d7_retained: 1, cap_hits: 0, waitlist: 0 });
+    const organic = rows.find((r) => r.source === "organic");
+    expect(organic).toEqual({ source: "organic", users: 1, first_photo: 0, d7_retained: 0, cap_hits: 2, waitlist: 1 });
+    db.close();
   });
 });

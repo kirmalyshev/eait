@@ -14,7 +14,7 @@ import {
   openDb, berlinDate, berlinTime, upsertUser, getUser, setConsent, setProfile, setUserState,
   insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals, countMealsToday,
   deleteUser, userCount, mealCount, mealCountToday, seenUpdate, markUpdate, setLang,
-  getSetting, setSetting, clearSetting, hasMeals, logEvent, setAcquisitionSource,
+  getSetting, setSetting, clearSetting, hasMeals, hasEvent, logEvent, setAcquisitionSource,
   type UserRow,
 } from "../db.ts";
 import { analyzeMeal, analyzeCorrection, classifyRestrictions } from "../analyzer.ts";
@@ -238,6 +238,21 @@ export async function processCap(
   await send(t("cap.set", { cap: n }));
 }
 
+/**
+ * /waitlist — the willingness-to-pay instrument. No tier exists yet; the join is the signal.
+ * Joining is recorded once per user (a re-join gets a different reply, no duplicate event),
+ * so waitlist counts in the funnel report are users, not taps.
+ */
+export async function processWaitlist(deps: BotDeps, from: { id: number }, send: Send): Promise<void> {
+  const t = translatorForUser(getUser(deps.db, from.id));
+  if (hasEvent(deps.db, from.id, "waitlist_join")) {
+    await send(t("waitlist.already"));
+    return;
+  }
+  logEvent(deps.db, from.id, "waitlist_join");
+  await send(t("waitlist.joined"));
+}
+
 // ---------- commands, settings, help ----------
 
 /** The commands shown in Telegram's `/` menu. Pure, so the list is testable without a token. */
@@ -247,6 +262,7 @@ export function buildCommands(t: TFunction): Array<{ command: string; descriptio
     { command: "me", description: t("commands.me") },
     { command: "settings", description: t("commands.settings") },
     { command: "help", description: t("commands.help") },
+    { command: "waitlist", description: t("commands.waitlist") },
     { command: "delete", description: t("commands.delete") },
   ];
 }
@@ -575,6 +591,9 @@ export function createBot(deps: BotDeps): Bot {
   });
   bot.command("help", async (ctx) => {
     if (ctx.from) await ctx.reply(helpText(deps, ctx.from));
+  });
+  bot.command("waitlist", async (ctx) => {
+    if (ctx.from) await processWaitlist(deps, ctx.from, sendVia(ctx));
   });
   // Retained alias, deliberately absent from the / menu: /settings is the documented route.
   bot.command("lang", async (ctx) => {

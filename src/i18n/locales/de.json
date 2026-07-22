@@ -6,7 +6,8 @@
     "me": "Tagesbilanz",
     "settings": "Ziel, Einschränkungen, Sprache",
     "start": "Einrichtung starten oder fortsetzen",
-    "stats": "Admin-Zähler"
+    "stats": "Admin-Zähler",
+    "waitlist": "Bescheid bekommen, wenn Unlimited startet"
   },
   "delete": {
     "prompt": "Alle deine Daten löschen?",
@@ -22,7 +23,7 @@
     "analyzeFailed": "Konnte ich nicht auswerten 🤔 schick das Foto nochmal.",
     "correctionFailed": "Konnte die Korrektur nicht anwenden — formulier sie anders.",
     "dailyCap": "Du hast das Foto-Limit für heute erreicht — komm morgen wieder.",
-    "globalCap": "Der gemeinsame Demo-Bot hat das Tageslimit an Auswertungen erreicht — er läuft auf dem API-Budget einer einzelnen Person. Versuch es morgen wieder oder betreibe deine eigene Instanz: https://github.com/kirmalyshev/eait",
+    "globalCap": "Der gemeinsame Demo-Bot hat das Tageslimit an Auswertungen erreicht — er läuft auf dem API-Budget einer einzelnen Person. Versuch es morgen wieder oder betreibe deine eigene Instanz: https://github.com/kirmalyshev/eait Unbegrenzten Zugang, sobald es eine Bezahlversion gibt? /waitlist",
     "notFood": "Das sieht nicht nach Essen aus 🤔",
     "notOnboarded": "Schick zuerst /start.",
     "notAnImage": "Das ist kein Bild 🤔 schick ein Foto der Mahlzeit.",
@@ -116,5 +117,9 @@
     "reset": "Globales Tageslimit auf den konfigurierten Wert zurückgesetzt: {{cap}}.",
     "set": "Globales Tageslimit auf {{cap}} gesetzt.",
     "unlimited": "unbegrenzt"
+  },
+  "waitlist": {
+    "joined": "Du stehst auf der Warteliste 🎟 Ich melde mich hier, sobald die Unlimited-Version startet.",
+    "already": "Du stehst schon auf der Warteliste — ich melde mich hier, sobald sie startet."
   }
 }

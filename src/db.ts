@@ -236,6 +236,40 @@ export function eventsFor(db: Database, user_id: number): EventRow[] {
     .all(user_id) as EventRow[];
 }
 
+export function hasEvent(db: Database, user_id: number, event: string): boolean {
+  return (
+    db.query(`SELECT 1 FROM events WHERE user_id = ? AND event = ? LIMIT 1`).get(user_id, event) !==
+    null
+  );
+}
+
+export interface FunnelRow {
+  source: string; // acquisition code, or "organic" for users who arrived without one
+  users: number;
+  first_photo: number; // users who analyzed at least one photo
+  d7_retained: number; // users with a meal dated ≥7 days after their created_at
+  cap_hits: number; // cap_hit events across the cohort (events, not users)
+  waitlist: number; // users who joined the waitlist
+}
+
+/** The Measure-Monday query: the whole acquisition funnel grouped by start code. */
+export function funnelByCode(db: Database): FunnelRow[] {
+  return db
+    .query(
+      `SELECT
+         COALESCE(u.acquisition_source, 'organic') AS source,
+         COUNT(*) AS users,
+         SUM(EXISTS (SELECT 1 FROM events e WHERE e.user_id = u.telegram_id AND e.event = 'first_photo')) AS first_photo,
+         SUM(EXISTS (SELECT 1 FROM meals m WHERE m.user_id = u.telegram_id AND m.date >= date(u.created_at, '+7 day'))) AS d7_retained,
+         SUM((SELECT COUNT(*) FROM events e WHERE e.user_id = u.telegram_id AND e.event = 'cap_hit')) AS cap_hits,
+         SUM(EXISTS (SELECT 1 FROM events e WHERE e.user_id = u.telegram_id AND e.event = 'waitlist_join')) AS waitlist
+       FROM users u
+       GROUP BY source
+       ORDER BY users DESC, source`,
+    )
+    .all() as FunnelRow[];
+}
+
 export function setUserState(db: Database, telegram_id: number, state: UserState): void {
   db.query(`UPDATE users SET state = ? WHERE telegram_id = ?`).run(state, telegram_id);
 }

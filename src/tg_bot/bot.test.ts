@@ -7,7 +7,7 @@ import {
   processOnboarding, processPhoto, processCorrection, meCard, statsCard, profileOf,
   processLangPrompt, processLangChoice, buildCommands, processSettingsOpen,
   processSettingsCallback, helpText, commandRegistrations, isAllowed,
-  processCap, effectiveGlobalCap,
+  processCap, effectiveGlobalCap, processWaitlist,
   createBot, startBot, adminLangFor, isFatalTelegramError, describeError, processDocument,
   type BotDeps, type Send, type Edit,
 } from "./bot.ts";
@@ -375,7 +375,7 @@ function editor() {
 test("buildCommands lists the menu commands, localized, with no blanks", () => {
   for (const lang of LANGS) {
     const cmds = buildCommands(translatorFor(lang));
-    expect(cmds.map((c) => c.command)).toEqual(["start", "me", "settings", "help", "delete"]);
+    expect(cmds.map((c) => c.command)).toEqual(["start", "me", "settings", "help", "waitlist", "delete"]);
     for (const c of cmds) {
       expect(c.description.trim()).not.toBe("");
       expect(c.description).not.toMatch(/commands\./); // a missing key would leak here
@@ -865,4 +865,31 @@ test("a photo blocked by the global cap logs a cap_hit event", async () => {
   const hits = eventsFor(db, 65).filter((e) => e.event === "cap_hit");
   expect(hits).toHaveLength(1);
   expect(countMealsToday(db, 65, berlinDate(new Date(), cfg.tz))).toBe(0);
+});
+
+// ---------- waitlist (willingness-to-pay instrument) ----------
+
+test("/waitlist logs waitlist_join once and confirms; a second call does not duplicate", async () => {
+  const db = tmpDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 70);
+  const c1 = collector();
+  await processWaitlist(deps, { id: 70 }, c1.send);
+  expect(c1.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("waitlist.joined"));
+  const c2 = collector();
+  await processWaitlist(deps, { id: 70 }, c2.send);
+  expect(c2.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("waitlist.already"));
+  const joins = eventsFor(db, 70).filter((e) => e.event === "waitlist_join");
+  expect(joins).toHaveLength(1);
+});
+
+test("the global-cap message points at /waitlist in every language", () => {
+  for (const lang of LANGS) {
+    expect(translatorFor(lang)("errors.globalCap")).toContain("/waitlist");
+  }
+});
+
+test("the / menu includes waitlist", () => {
+  const commands = buildCommands(translatorFor(DEFAULT_LANG)).map((c) => c.command);
+  expect(commands).toContain("waitlist");
 });
