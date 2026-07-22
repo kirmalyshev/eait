@@ -12,6 +12,9 @@ import type { PgConfig } from "./config.ts";
 // a migration to alter a default that callers always override). DEFAULT_LANG is the real
 // policy, applied here so storage and i18n cannot drift apart.
 import { DEFAULT_LANG } from "./i18n/registry.ts";
+// Schema validation for pending-meal blobs on read — the analyzer's "invalid output never
+// poisons totals" contract must hold for rows that sat in the db, not just fresh parses.
+import { MealAnalysisSchema } from "./analyzer.ts";
 import type {
   DailyTotals,
   Goal,
@@ -251,21 +254,22 @@ const MIGRATIONS: Migration[] = [
       await tx`CREATE INDEX idx_meals_user_msg ON meals(user_id, user_message_id)`;
       await tx`
         CREATE TABLE pending_meals (
-          id             TEXT PRIMARY KEY,
-          user_id        BIGINT NOT NULL,
-          ts             TEXT NOT NULL,
-          date           TEXT NOT NULL,
-          chat_id        BIGINT,
-          bot_message_id BIGINT,
-          analysis       TEXT NOT NULL,
-          model          TEXT
+          id              TEXT PRIMARY KEY,
+          user_id         BIGINT NOT NULL,
+          ts              TEXT NOT NULL,
+          date            TEXT NOT NULL,
+          chat_id         BIGINT,
+          bot_message_id  BIGINT,
+          user_message_id BIGINT,
+          analysis        TEXT NOT NULL,
+          model           TEXT
         )`;
       await tx`CREATE INDEX idx_pending_reply ON pending_meals(user_id, bot_message_id)`;
       await tx`
         CREATE TABLE llm_calls (
           user_id BIGINT NOT NULL,
           date    TEXT NOT NULL,
-          kind    TEXT NOT NULL
+          kind    TEXT NOT NULL CHECK (kind IN ('photo', 'router', 'classify'))
         )`;
       await tx`CREATE INDEX idx_llm_calls_date ON llm_calls(date)`;
       await tx`CREATE INDEX idx_llm_calls_user ON llm_calls(user_id, date)`;
@@ -467,6 +471,10 @@ export async function deleteUser(db: Db, user_id: number): Promise<void> {
   // keyed to the account. processed_updates stays — numeric update ids with no user linkage.
   await db.begin(async (tx) => {
     await tx`DELETE FROM meals WHERE user_id = ${user_id}`;
+    // v3 children too: a pending analysis is meal content (PRIVACY.md erasure), and an orphaned
+    // pending row would FK-crash a post-delete tm:log tap.
+    await tx`DELETE FROM pending_meals WHERE user_id = ${user_id}`;
+    await tx`DELETE FROM llm_calls WHERE user_id = ${user_id}`;
     await tx`DELETE FROM events WHERE user_id = ${user_id}`;
     await tx`DELETE FROM users WHERE telegram_id = ${user_id}`;
   });
@@ -494,7 +502,10 @@ export async function insertMeal(db: Db, m: NewMeal): Promise<void> {
       ${a.sugar_g}, ${a.sodium_mg}, ${a.plant_protein_pct},
       ${JSON.stringify(a.verdicts ?? {})}, ${a.confidence ?? null}, ${a.notes ?? null},
       0, ${m.model ?? null}
-    )`;
+    )
+    ON CONFLICT (id) DO NOTHING`;
+  // DO NOTHING, not an error: ids are UUIDs, so a conflict only means a redelivered confirm
+  // (crash between insert and pending-delete). First write wins; the retry becomes idempotent.
 }
 
 export async function getMeal(db: Db, id: string, user_id: number): Promise<MealRecord | undefined> {
@@ -514,13 +525,17 @@ export async function setMealReply(
     WHERE id = ${id} AND user_id = ${user_id}`;
 }
 
-/** Correction: patch macro/verdict fields for THIS meal only, marking it corrected. */
+/**
+ * Correction: patch macro/verdict fields for THIS meal only, marking it corrected.
+ * Returns whether a row was actually updated — a vanished meal (e.g. deleted account) must
+ * not be confirmed to the user as corrected.
+ */
 export async function applyCorrection(
   db: Db,
   id: string,
   user_id: number,
   patch: Partial<MealAnalysis>,
-): Promise<void> {
+): Promise<boolean> {
   const columns: Array<keyof MealAnalysis> = [
     "kcal",
     "protein_g",
@@ -546,10 +561,11 @@ export async function applyCorrection(
     sets.push(`verdicts = $${vals.push(JSON.stringify(patch.verdicts))}`);
   }
   sets.push("corrected = 1");
-  await db.unsafe(
-    `UPDATE meals SET ${sets.join(", ")} WHERE id = $${vals.push(id)} AND user_id = $${vals.push(user_id)}`,
+  const rows = await db.unsafe(
+    `UPDATE meals SET ${sets.join(", ")} WHERE id = $${vals.push(id)} AND user_id = $${vals.push(user_id)} RETURNING id`,
     vals as any[],
   );
+  return rows.length > 0;
 }
 
 /** The meal a reply targets — matches the bot's analysis message OR the user's own photo. */
@@ -568,11 +584,14 @@ export async function mealByReply(
 
 // ---------- llm call metering (the cap basis: every provider call costs one) ----------
 
+/** One row per provider call. Mirrors the CHECK constraint on llm_calls.kind. */
+export type LlmCallKind = "photo" | "router" | "classify";
+
 export async function logLlmCall(
   db: Db,
   user_id: number,
   date: string,
-  kind: "photo" | "router",
+  kind: LlmCallKind,
 ): Promise<void> {
   await db`INSERT INTO llm_calls (user_id, date, kind) VALUES (${user_id}, ${date}, ${kind})`;
 }
@@ -590,6 +609,11 @@ export async function llmCallCountToday(db: Db, date: string): Promise<number> {
 
 // ---------- pending meals (text-described, confirm-first) ----------
 
+/**
+ * The read shape of a pending row. Deliberately `NewMeal` with nullability made concrete —
+ * `insertPendingMeal` takes a `NewMeal` so the two paths cannot drift field-by-field: a field
+ * added to `NewMeal` either flows through here or fails the types, never silently vanishes.
+ */
 export interface PendingMeal {
   id: string;
   user_id: number;
@@ -597,17 +621,16 @@ export interface PendingMeal {
   date: string;
   chat_id: number | null;
   bot_message_id: number | null;
+  user_message_id: number | null;
   analysis: MealAnalysis;
   model: string | null;
 }
 
-export async function insertPendingMeal(
-  db: Db,
-  p: { id: string; user_id: number; ts: string; date: string; analysis: MealAnalysis; model: string | null },
-): Promise<void> {
+export async function insertPendingMeal(db: Db, m: NewMeal): Promise<void> {
   await db`
-    INSERT INTO pending_meals (id, user_id, ts, date, analysis, model)
-    VALUES (${p.id}, ${p.user_id}, ${p.ts}, ${p.date}, ${JSON.stringify(p.analysis)}, ${p.model})`;
+    INSERT INTO pending_meals (id, user_id, ts, date, user_message_id, analysis, model)
+    VALUES (${m.id}, ${m.user_id}, ${m.ts}, ${m.date}, ${m.user_message_id ?? null},
+            ${JSON.stringify(m.analysis)}, ${m.model ?? null})`;
 }
 
 export async function setPendingReply(
@@ -631,11 +654,21 @@ export async function getPendingMeal(
     SELECT * FROM pending_meals WHERE id = ${id} AND user_id = ${user_id}`;
   if (!rows.length) return undefined;
   const row = rows[0];
-  let analysis: MealAnalysis;
+  // Full schema validation, not just JSON.parse: the analyzer's contract is that invalid output
+  // never poisons daily totals, and a confirmed pending row flows straight into meals. A row
+  // that fails is unusable forever — delete it (leaving it would silently re-fail every tap)
+  // and tell the operator, or a systematic corruption bug looks like "everything expired".
+  let analysis: MealAnalysis | undefined;
   try {
-    analysis = JSON.parse(row.analysis);
+    const parsed = MealAnalysisSchema.safeParse(JSON.parse(row.analysis));
+    if (parsed.success) analysis = parsed.data;
   } catch {
-    return undefined; // a corrupt pending row is unusable — treat as expired
+    // fall through to the shared corrupt-row handling below
+  }
+  if (!analysis) {
+    console.error(`[eait] corrupt pending_meals row id=${row.id} user=${user_id} — deleting`);
+    await deletePendingMeal(db, id, user_id);
+    return undefined;
   }
   return {
     id: row.id,
@@ -644,6 +677,7 @@ export async function getPendingMeal(
     date: row.date,
     chat_id: row.chat_id === null ? null : Number(row.chat_id),
     bot_message_id: row.bot_message_id === null ? null : Number(row.bot_message_id),
+    user_message_id: row.user_message_id === null ? null : Number(row.user_message_id),
     analysis,
     model: row.model,
   };

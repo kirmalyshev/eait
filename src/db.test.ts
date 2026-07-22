@@ -504,3 +504,88 @@ describe("migration v3", () => {
     expect(week[1].kcal).toBeCloseTo(500);
   });
 });
+
+describe("review fixes — db layer", () => {
+  test("deleteUser purges pending_meals and llm_calls too", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await insertPendingMeal(db, { id: crypto.randomUUID(), user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis(), model: null });
+    await logLlmCall(db, 1, "2026-07-22", "router");
+    await deleteUser(db, 1);
+    const pend = await db`SELECT 1 FROM pending_meals WHERE user_id = 1`;
+    const calls = await db`SELECT 1 FROM llm_calls WHERE user_id = 1`;
+    expect(pend.length).toBe(0);
+    expect(calls.length).toBe(0);
+  });
+
+  test("getPendingMeal validates the analysis blob and deletes an unusable row", async () => {
+    const db = await freshTestDb();
+    const id = crypto.randomUUID();
+    await insertPendingMeal(db, { id, user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis(), model: null });
+    await db`UPDATE pending_meals SET analysis = '{"kcal":"garbage-shape"' WHERE id = ${id}`; // corrupt JSON
+    expect(await getPendingMeal(db, id, 1)).toBeUndefined();
+    expect((await db`SELECT 1 FROM pending_meals WHERE id = ${id}`).length).toBe(0); // deleted, not left re-failing
+    const id2 = crypto.randomUUID();
+    await insertPendingMeal(db, { id: id2, user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis(), model: null });
+    await db`UPDATE pending_meals SET analysis = '{"items":"not-an-array"}' WHERE id = ${id2}`; // parseable, wrong shape
+    expect(await getPendingMeal(db, id2, 1)).toBeUndefined();
+    expect((await db`SELECT 1 FROM pending_meals WHERE id = ${id2}`).length).toBe(0);
+  });
+
+  test("pending meals carry user_message_id through to the logged meal's reply routing", async () => {
+    const db = await freshTestDb();
+    const id = crypto.randomUUID();
+    await insertPendingMeal(db, { id, user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis(), model: null, user_message_id: 888 });
+    const p = await getPendingMeal(db, id, 1);
+    expect(p?.user_message_id).toBe(888);
+  });
+
+  test("insertMeal is idempotent on id — a redelivered confirm cannot duplicate or throw", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    const id = crypto.randomUUID();
+    await insertMeal(db, { id, user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis({ kcal: 300 }) });
+    await insertMeal(db, { id, user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis({ kcal: 999 }) });
+    const rows = await db`SELECT kcal FROM meals WHERE id = ${id}`;
+    expect(rows.length).toBe(1);
+    expect(rows[0].kcal).toBe(300); // first write wins, second is a no-op
+  });
+
+  test("applyCorrection reports whether a row was actually updated", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    const id = crypto.randomUUID();
+    await insertMeal(db, { id, user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis() });
+    expect(await applyCorrection(db, id, 1, { kcal: 500 })).toBe(true);
+    expect(await applyCorrection(db, "no-such-id", 1, { kcal: 500 })).toBe(false);
+    expect(await applyCorrection(db, id, 2, { kcal: 500 })).toBe(false); // cross-user
+  });
+
+  test("prunePendingMeals boundary is strict: an exactly-cutoff row survives", async () => {
+    const db = await freshTestDb();
+    const id = crypto.randomUUID();
+    await insertPendingMeal(db, { id, user_id: 1, ts: "2026-07-20T00:00:00.000Z", date: "2026-07-20", analysis: analysis(), model: null });
+    await prunePendingMeals(db, "2026-07-20T00:00:00.000Z");
+    expect(await getPendingMeal(db, id, 1)).toBeDefined();
+  });
+
+  test("migration rewind with a pre-existing meal row: old meals read back user_message_id null", async () => {
+    const name = freshTestName();
+    const a = await openTestDb(name);
+    await a`ALTER TABLE users DROP COLUMN weight_kg`;
+    await a`ALTER TABLE meals DROP COLUMN user_message_id`;
+    await a`DROP TABLE pending_meals`;
+    await a`DROP TABLE llm_calls`;
+    await a`UPDATE schema_version SET version = 1`;
+    await upsertUser(a, { telegram_id: 1 });
+    await a`
+      INSERT INTO meals (id, user_id, ts, date, items, kcal, corrected)
+      VALUES ('old-meal', 1, 't', '2026-07-01', '[]', 100, 0)`;
+    await a.close();
+    const b = await openTestDb(name); // migrations rerun against a populated table
+    const m = await getMeal(b, "old-meal", 1);
+    expect(m).toBeDefined();
+    expect(m!.user_message_id).toBeNull();
+    expect(await mealByReply(b, 1, 0 as unknown as number)).toBeUndefined(); // null never matches
+  });
+});
