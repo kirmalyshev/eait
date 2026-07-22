@@ -37,7 +37,14 @@ export const MealAnalysisSchema = z.object({
       kidneys: VerdictSchema.optional(),
     })
     .default({}),
-  confidence: z.string().default("unknown"),
+  // Normalized at parse (the wire enum is advisory under strict:false, so " Low "/"Medium" do
+  // arrive) — the bot and the stored row always see canonical casing. "unknown" is the
+  // absent-field sentinel, deliberately outside the high/medium/low prompt vocabulary; it
+  // routes to the generic correction hint downstream.
+  confidence: z
+    .string()
+    .default("unknown")
+    .transform((s) => s.trim().toLowerCase()),
   notes: z.string().default(""),
 });
 
@@ -76,20 +83,28 @@ const MEAL_JSON_SCHEMA = {
         kidneys: { type: "string", enum: ["good", "warn", "bad"] },
       },
     },
-    confidence: { type: "string" },
+    // Enum, not a bare string: the bot's low-confidence nudge matches "low" exactly, and a
+    // free-string schema invites "low (mixed dish)". Zod still accepts any string (tolerance).
+    confidence: { type: "string", enum: ["high", "medium", "low"] },
     notes: { type: "string" },
   },
 } as const;
 
 const SYSTEM =
-  "You are a careful nutrition estimator for a personal food-photo diary. Estimate the meal's " +
-  "items and macros from the photo, following the estimation protocol exactly and working " +
-  "through it in the `reasoning` field BEFORE filling any numeric field. Respond with ONLY a " +
-  "single JSON object matching the schema — no prose, no markdown fences. If the photo is not " +
-  "food, set isFood=false.";
+  "You are an expert nutritionist experienced in estimating meal composition and portion " +
+  "weight from photos for a personal food diary. Estimate the meal's items and macros from " +
+  "the photo, following the estimation protocol exactly and working through it in the " +
+  "`reasoning` field BEFORE filling any numeric field. Respond with ONLY a single JSON " +
+  "object matching the schema — no prose, no markdown fences. If the photo is not food, " +
+  "set isFood=false.";
 
 /** A caption is user text going into a prompt — cap it like the restriction input. */
 const CAPTION_INPUT_CAP = 300;
+
+// Low temperature = the cheap form of self-consistency: the same photo yields (nearly) the
+// same estimate run to run, without paying for a 3-call median. Applies to every analyzer
+// call — estimation and classification both want determinism, never creativity.
+const TEMPERATURE = 0.2;
 
 function goalLine(goal: Profile["goal"]): string {
   switch (goal) {
@@ -115,6 +130,16 @@ function buildUserText(profile: Profile, context?: MealContext): string {
   lines.push("2. Estimate each portion's volume using visible scale references (plate ~26cm, cutlery, glass, hands), then convert volume to grams per item.");
   lines.push("3. Compute kcal and macros per item from grams + cooking method; totals are the sums across items.");
   lines.push("Mixed and layered dishes are systematically underestimated — when torn between two portion sizes, take the larger.");
+  // A regional prior steers identification away from generic international staples. Hedged on
+  // purpose: the interface language suggests a cuisine, the photo always wins.
+  // "Actual evidence", not "the photo": the correction path reuses this text with no image
+  // attached (ephemeral), where the evidence is the prior estimate + the user's description.
+  const cuisine = LOCALES[profile.lang].cuisineHint;
+  if (cuisine) {
+    lines.push(
+      `The user's interface language suggests ${cuisine} is likely — weigh regional dishes when identifying items, but always trust the actual evidence (the photo or the user's description) over this prior.`,
+    );
+  }
   lines.push("Estimate items[{name,grams}], kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g, sodium_mg, plant_protein_pct.");
   lines.push('Set confidence to exactly one of "high", "medium", "low" — "low" when the dish is mixed, ingredients may be hidden, or no scale reference is visible; state why in notes.');
   if (context?.caption) {
@@ -192,6 +217,7 @@ export async function analyzeMeal(
     imageB64: toBase64(bytes),
     imageMime: "image/jpeg",
     jsonSchema: MEAL_JSON_SCHEMA,
+    temperature: TEMPERATURE,
   };
   const raw = await provider.chat(req);
   return parseAnalysis(raw);
@@ -230,7 +256,7 @@ export async function classifyRestrictions(
   ].join("\n");
 
   try {
-    const raw = await provider.chat({ system: SYSTEM_CLASSIFY, userText });
+    const raw = await provider.chat({ system: SYSTEM_CLASSIFY, userText, temperature: TEMPERATURE });
     const parsed = RestrictionsSchema.safeParse(tolerantJson(raw));
     // Never-throwing is deliberate (see the docstring), but staying silent is not: this path
     // only runs when the keyword pass already matched nothing, so the user ends up with no
@@ -278,6 +304,11 @@ export async function analyzeCorrection(
     "Apply the correction and return the full updated JSON object (same schema).",
   ].join("\n");
 
-  const raw = await provider.chat({ system: SYSTEM, userText, jsonSchema: MEAL_JSON_SCHEMA });
+  const raw = await provider.chat({
+    system: SYSTEM,
+    userText,
+    jsonSchema: MEAL_JSON_SCHEMA,
+    temperature: TEMPERATURE,
+  });
   return parseAnalysis(raw);
 }

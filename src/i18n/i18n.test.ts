@@ -185,6 +185,16 @@ describe("catalog covers the domain vocabularies", () => {
   });
 });
 
+describe("photo-taking tips", () => {
+  // Controlled photo conditions (overhead shot, scale reference in frame) are a zero-code
+  // accuracy lever — vendors' "90%+ accuracy" numbers come from exactly these conditions.
+  // Structural check only (bullets present); the wording belongs to each locale.
+  test.each(LANGS)("%s teaches photo tips at onboarding completion and in /help", (lang) => {
+    expect(CATALOGS[lang].get("onboarding.done")).toContain("\n•");
+    expect(CATALOGS[lang].get("help.body")).toContain("\n•");
+  });
+});
+
 describe("copy is plain text", () => {
   // Nothing sets parse_mode, so markup renders as literal characters at the user.
   test.each(LANGS)("%s uses no markdown emphasis", (lang) => {

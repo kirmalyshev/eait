@@ -28,7 +28,7 @@ const foodJson = (kcal = 600) =>
   JSON.stringify({
     isFood: true, items: [{ name: "гречка", grams: 180 }], kcal, protein_g: 40, carbs_g: 60,
     fat_g: 15, satfat_g: 3, fiber_g: 8, sugar_g: 5, sodium_mg: 400, plant_protein_pct: 45,
-    verdicts: { weight: "good" }, confidence: "med", notes: "",
+    verdicts: { weight: "good" }, confidence: "medium", notes: "",
   });
 
 const fakeProvider = (out: string): LLMProvider => ({ chat: async () => out });
@@ -230,6 +230,76 @@ test("a user's language drives every bot-emitted string", async () => {
   deps.provider = fakeProvider(JSON.stringify({ isFood: false }));
   await processPhoto(deps, { id: 71 }, async () => new Uint8Array([1]), c3.send);
   expect(c3.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.notOnboarded")); // 71 never onboarded
+});
+
+test("a low-confidence analysis swaps the correction hint for a weight nudge", async () => {
+  // User-supplied mass is the strongest accuracy lever the literature found; when the model
+  // itself says the estimate is shaky, ask for it instead of the generic correction hint.
+  const db = await freshTestDb();
+  const lowConfidence = JSON.stringify({
+    ...JSON.parse(foodJson()), confidence: "low",
+  });
+  const deps: BotDeps = { db, provider: fakeProvider(lowConfidence), config: cfg };
+  await onboardToActive(deps, 90);
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 90 }, async () => new Uint8Array([1]), send);
+  const t = translatorFor(DEFAULT_LANG);
+  expect(msgs[0]).toContain(t("meal.lowConfidenceHint"));
+  expect(msgs[0]).not.toContain(t("meal.correctionHint"));
+});
+
+test("a whitespace-padded 'Low' still triggers the weight nudge", async () => {
+  const db = await freshTestDb();
+  const padded = JSON.stringify({ ...JSON.parse(foodJson()), confidence: " Low " });
+  const deps: BotDeps = { db, provider: fakeProvider(padded), config: cfg };
+  await onboardToActive(deps, 91);
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 91 }, async () => new Uint8Array([1]), send);
+  expect(msgs[0]).toContain(translatorFor(DEFAULT_LANG)("meal.lowConfidenceHint"));
+});
+
+test("a qualified 'low (mixed dish)' still triggers the weight nudge", async () => {
+  // The wire enum is advisory (strict:false) — models do append qualifiers. Prefix-match,
+  // so the headline lever doesn't silently turn off on a chatty model.
+  const db = await freshTestDb();
+  const qualified = JSON.stringify({ ...JSON.parse(foodJson()), confidence: "low (mixed dish)" });
+  const deps: BotDeps = { db, provider: fakeProvider(qualified), config: cfg };
+  await onboardToActive(deps, 92);
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 92 }, async () => new Uint8Array([1]), send);
+  expect(msgs[0]).toContain(translatorFor(DEFAULT_LANG)("meal.lowConfidenceHint"));
+});
+
+test("medium and high confidence get the generic hint, never the weight nudge", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 93);
+  const t = translatorFor(DEFAULT_LANG);
+  for (const confidence of ["medium", "high"]) {
+    deps.provider = fakeProvider(JSON.stringify({ ...JSON.parse(foodJson()), confidence }));
+    const { msgs, send } = collector();
+    await processPhoto(deps, { id: 93 }, async () => new Uint8Array([1]), send);
+    expect(msgs[0]).toContain(t("meal.correctionHint"));
+    expect(msgs[0]).not.toContain(t("meal.lowConfidenceHint"));
+  }
+});
+
+test("a correction reply carries no hint — neither the generic nor the weight nudge", async () => {
+  // Deliberate: the user just corrected; re-prompting them again would nag. This test puts
+  // that decision on the record so a shared-helper refactor can't silently change it.
+  const db = await freshTestDb();
+  const low = JSON.stringify({ ...JSON.parse(foodJson()), confidence: "low" });
+  const deps: BotDeps = { db, provider: fakeProvider(low), config: cfg };
+  await onboardToActive(deps, 94);
+  const photo = collector();
+  await processPhoto(deps, { id: 94 }, async () => new Uint8Array([1]), photo.send);
+  const { msgs, send } = collector();
+  const handled = await processCorrection(deps, { id: 94 }, 1, "actually 340 g", send);
+  expect(handled).toBe(true);
+  const t = translatorFor(DEFAULT_LANG);
+  expect(msgs[0]).toContain(t("meal.updatedPrefix"));
+  expect(msgs[0]).not.toContain(t("meal.lowConfidenceHint"));
+  expect(msgs[0]).not.toContain(t("meal.correctionHint"));
 });
 
 test("analysis failure is reported in the user's language and writes no row", async () => {
@@ -654,6 +724,8 @@ test("an image document is analyzed exactly like a photo", async () => {
     send,
   );
   expect(msgs[0]).toContain("600");
+  // The hint logic must survive a processDocument rewrite that stops delegating to processPhoto.
+  expect(msgs[0]).toContain(translatorFor(DEFAULT_LANG)("meal.correctionHint"));
   expect(await countMealsToday(db, 500, berlinDate(new Date(), cfg.tz))).toBe(1);
 });
 

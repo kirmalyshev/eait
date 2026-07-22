@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { analyzeCorrection, analyzeMeal, classifyRestrictions, MealAnalysisSchema } from "./analyzer.ts";
+import { LANGS, LOCALES } from "./i18n/registry.ts";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import type { MealAnalysis, Profile } from "./types.ts";
 
@@ -121,6 +122,14 @@ describe("MealAnalysisSchema", () => {
     expect(parsed.items).toEqual([]);
     expect(parsed.verdicts).toEqual({});
   });
+
+  test("confidence is normalized at parse: trimmed + lowercased", () => {
+    // The wire enum is advisory (strict:false), so " Low " and "Medium" do arrive. Normalizing
+    // here means the bot and the stored row always see canonical casing.
+    expect(MealAnalysisSchema.parse({ isFood: true, confidence: " Low " }).confidence).toBe("low");
+    expect(MealAnalysisSchema.parse({ isFood: true, confidence: "Medium" }).confidence).toBe("medium");
+    expect(MealAnalysisSchema.parse({ isFood: true }).confidence).toBe("unknown");
+  });
 });
 
 describe("output language", () => {
@@ -177,6 +186,15 @@ describe("estimation protocol", () => {
     expect(provider.lastRequest!.userText).toMatch(/high.{0,15}medium.{0,15}low/i);
   });
 
+  test("the wire schema enum-constrains confidence, not just the prose", async () => {
+    // The bot's low-confidence nudge exact-matches "low"; a free-string schema invites
+    // "low (mixed dish)", which would silently fall through to the generic hint.
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal(bytes, profile, provider);
+    const schema = provider.lastRequest!.jsonSchema as { properties: Record<string, any> };
+    expect(schema.properties.confidence.enum).toEqual(["high", "medium", "low"]);
+  });
+
   test("prompt counteracts the systematic underestimation of mixed dishes", async () => {
     const provider = new FakeProvider(() => validJson);
     await analyzeMeal(bytes, profile, provider);
@@ -215,6 +233,63 @@ describe("meal context", () => {
     await analyzeMeal(bytes, profile, provider, { caption: "start" + "x".repeat(5000) + "END" });
     expect(provider.lastRequest!.userText).toContain("start");
     expect(provider.lastRequest!.userText).not.toContain("END");
+  });
+});
+
+describe("expert persona + cuisine prior", () => {
+  // Persona measurably tightens macro estimates; a regional-cuisine prior steers identification
+  // away from generic international staples (+87.5% ID in the GPT-4V origin-prompt study).
+  test("the system prompt casts the model as an expert nutritionist", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal(bytes, profile, provider);
+    expect(provider.lastRequest!.system.toLowerCase()).toContain("expert nutritionist");
+  });
+
+  // Registry-driven, so a future locale's cuisineHint (or its absence) is covered the moment
+  // it is registered — no per-locale literal patterns to keep in sync.
+  test.each(LANGS)("cuisine prior tracks the registry for %s", async (lang) => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal(bytes, { ...profile, lang }, provider);
+    const text = provider.lastRequest!.userText;
+    const hint = LOCALES[lang].cuisineHint;
+    if (hint) {
+      expect(text).toContain(hint); // verbatim — a null leaking into the template can't pass
+      // The hedge is the safety property: the prior must never outrank what is actually shown.
+      expect(text).toMatch(/always trust the actual evidence/);
+    } else {
+      expect(text).not.toMatch(/interface language suggests/i);
+    }
+  });
+
+  test("the correction path inherits the cuisine prior", async () => {
+    const provider = new FakeProvider(() => validJson);
+    const prior = MealAnalysisSchema.parse(JSON.parse(validJson));
+    await analyzeCorrection(prior, "no oil", { ...profile, lang: "de" }, provider);
+    // The verbatim hint, not /German|.../: the output-language line always contains "German",
+    // so a looser pattern would pass even with the cuisine line deleted.
+    expect(provider.lastRequest!.userText).toContain(LOCALES.de.cuisineHint);
+  });
+});
+
+describe("sampling temperature", () => {
+  // Low temperature is the cheap form of self-consistency: same photo → same estimate,
+  // instead of a 3-call median. All analyzer calls request it; the provider stays generic.
+  test("meal analysis requests a low temperature", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal(bytes, profile, provider);
+    expect(provider.lastRequest!.temperature).toBeDefined();
+    expect(provider.lastRequest!.temperature!).toBeLessThanOrEqual(0.3);
+  });
+
+  test("correction and restriction classification inherit it", async () => {
+    const provider = new FakeProvider(() => validJson);
+    const prior = MealAnalysisSchema.parse(JSON.parse(validJson));
+    await analyzeCorrection(prior, "no oil", profile, provider);
+    expect(provider.lastRequest!.temperature!).toBeLessThanOrEqual(0.3);
+
+    const classifier = new FakeProvider(() => JSON.stringify({ tags: [] }));
+    await classifyRestrictions("kidneys", classifier, "en");
+    expect(classifier.lastRequest!.temperature!).toBeLessThanOrEqual(0.3);
   });
 });
 

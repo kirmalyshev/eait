@@ -8,6 +8,7 @@ export interface ChatRequest {
   imageB64?: string; // raw base64, no data: prefix
   imageMime?: string; // default image/jpeg
   jsonSchema?: object; // when set, request structured output
+  temperature?: number; // when set, forwarded verbatim; unset keeps the provider's default
   signal?: AbortSignal; // optional caller cancellation (in addition to the provider timeout)
 }
 
