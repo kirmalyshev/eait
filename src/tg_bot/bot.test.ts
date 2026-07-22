@@ -48,6 +48,7 @@ async function onboardToActive(deps: BotDeps, id: number) {
   await processOnboarding(deps, { id }, { type: "command", command: "start" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "goal_lose" }, noop);
+  await processOnboarding(deps, { id }, { type: "text", text: "92" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "restrictions_skip" }, noop);
 }
 
@@ -58,6 +59,20 @@ test("onboarding drives consent → profile → active", async () => {
   const u = (await getUser(db, 100)) as UserRow;
   expect(u.state).toBe("active");
   expect(u.goal).toBe("lose");
+  expect(u.weight_kg).toBe(92);
+});
+
+test("onboarding with a skipped weight still reaches active, weight stored as 0", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await processOnboarding(deps, { id: 101 }, { type: "command", command: "start" }, noop);
+  await processOnboarding(deps, { id: 101 }, { type: "callback", data: "consent_agree" }, noop);
+  await processOnboarding(deps, { id: 101 }, { type: "callback", data: "goal_lose" }, noop);
+  await processOnboarding(deps, { id: 101 }, { type: "callback", data: "weight_skip" }, noop);
+  await processOnboarding(deps, { id: 101 }, { type: "callback", data: "restrictions_skip" }, noop);
+  const u = (await getUser(db, 101)) as UserRow;
+  expect(u.state).toBe("active");
+  expect(u.weight_kg).toBe(0);
 });
 
 test("processPhoto rejects a non-active user (no row written)", async () => {
@@ -353,6 +368,7 @@ async function toRestrictionsStep(deps: BotDeps, id: number, language_code?: str
   await processOnboarding(deps, { id, language_code }, { type: "command", command: "start" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "goal_lose" }, noop);
+  await processOnboarding(deps, { id }, { type: "callback", data: "weight_skip" }, noop);
 }
 
 test("a keyword match short-circuits — the classifier is never consulted", async () => {
@@ -413,6 +429,7 @@ test("/me renders restriction tags as localized names, not raw identifiers", asy
   await processOnboarding(deps, { id: 300, language_code: "de" }, { type: "command", command: "start" }, noop);
   await processOnboarding(deps, { id: 300 }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id: 300 }, { type: "callback", data: "goal_lose" }, noop);
+  await processOnboarding(deps, { id: 300 }, { type: "callback", data: "weight_skip" }, noop);
   await processOnboarding(deps, { id: 300 }, { type: "text", text: "почки, холестерин" }, noop);
 
   const card = (await meCard(deps, 300)) as string;

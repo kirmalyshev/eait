@@ -92,6 +92,8 @@
     "consent": "Hi! I analyse photos of your food and count calories and macros against your goal.\n\nWhat you should know:\n• I process food photos and your profile (goal, restrictions).\n• Restrictions can include health conditions (kidneys, cholesterol). You never have to give one — tap Skip.\n• Estimates are approximate — this is not medical advice.\n• Photos are not stored: I analyse them and delete them immediately.\n• Photos and your profile are sent to an AI provider to produce the estimate.\n• /delete erases all your data and withdraws this consent.\n• Full policy: https://github.com/kirmalyshev/eait/blob/main/docs/PRIVACY.md\n\nDo you agree to this data being processed?",
     "decline": "Without consent I can't process your data. Send /start when you're ready.",
     "askGoal": "What's your goal?",
+    "askWeight": "What's your current weight? Send it in kilograms (for example 92.5), or tap \"Skip\".",
+    "weightInvalid": "That doesn't look like a weight in kilograms — send a number between 30 and 300 (for example 92.5), or tap \"Skip\".",
     "askRestrictions": "Any health or dietary restrictions? Write freely (for example: \"kidneys, no sugar\") or tap \"Skip\".",
     "done": "All set — send me photos of your food 📸\n\nFor the most accurate estimates:\n• shoot from above, the whole plate in frame\n• good light; cutlery or your hand next to the plate helps me judge portion size\n• know the weight or ingredients? add them in the caption",
     "alreadyActive": "You're already set up — just send photos of your food 📸 (/me — profile and today's totals).",
