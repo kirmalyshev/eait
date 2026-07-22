@@ -255,7 +255,11 @@ one — `scripts/service.sh restart` and `systemctl restart` both do this correc
   image and no image path is ever written to the database.
 - **`/delete` erases a user's data**, cascading to all their logged meals. It is irreversible
   and has no export first.
-- **Adding a user later** means adding their id to `ALLOWED_USER_IDS` and restarting.
+- **Adding a user later:** the admin sends `/allow <id>` — no restart. `/deny <id>` removes,
+  `/allowed` lists. The first runtime change persists the list in the database; from then on
+  it owns access and `ALLOWED_USER_IDS` is only the seed for a fresh database. `/allow` on an
+  open bot STARTS an allowlist (auto-including the admin), which is the recommended way to
+  close an accidentally-open instance without touching the host.
 - **Changing `TZ` mid-life** shifts the daily-total boundary; already-stored meals keep the
   date they were recorded under.
 - **Languages:** English, Russian and German ship. The bot follows each user's Telegram client

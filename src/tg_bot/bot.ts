@@ -16,6 +16,7 @@ import {
   getSetting, setSetting, clearSetting, hasMeals, hasEvent, logEvent, setAcquisitionSource,
   type Db, type UserRow,
 } from "../db.ts";
+import { loadAllowlist, type Allowlist } from "../allowlist.ts";
 import { analyzeMeal, analyzeCorrection, classifyRestrictions } from "../analyzer.ts";
 import { targetsFor, isRestrictionTag } from "../targets.ts";
 import { formatReply } from "../reply.ts";
@@ -29,6 +30,12 @@ export interface BotDeps {
   db: Db;
   provider: LLMProvider;
   config: Config;
+  /**
+   * Runtime access control (admin /allow · /deny). Optional so the many db+provider-only
+   * tests need not build one; when absent, access falls back to the static env list via
+   * isAllowed, and the allowlist commands report that runtime editing is unavailable.
+   */
+  allowlist?: Allowlist;
 }
 
 export interface Sent {
@@ -235,6 +242,116 @@ export async function processCap(
   await setSetting(db, CAP_KEY, String(n));
   console.log(`[eait] global daily cap set to ${n} by admin`);
   await send(t("cap.set", { cap: n }));
+}
+
+// ---------- runtime allowlist (/allow · /deny · /allowed) ----------
+
+/** Admin gate shared by the three allowlist commands. Mirrors processCap: silent when no
+ *  admin is configured (answering would advertise the command), adminOnly otherwise. */
+async function allowlistGate(
+  deps: BotDeps,
+  from: { id: number },
+  send: Send,
+): Promise<{ t: TFunction; al: Allowlist } | null> {
+  const t = translatorForUser(await getUser(deps.db, from.id));
+  const { config, allowlist } = deps;
+  if (config.adminUserId === null || config.adminUserId !== from.id) {
+    if (config.adminUserId !== null) await send(t("errors.adminOnly"));
+    return null;
+  }
+  if (!allowlist) {
+    // Constructed without runtime access control (static env list only).
+    await send(t("allowlist.unavailable"));
+    return null;
+  }
+  return { t, al: allowlist };
+}
+
+const parseUserId = (arg: string): number | null => {
+  const n = Number(arg.trim());
+  return Number.isSafeInteger(n) && n > 0 ? n : null;
+};
+
+/** /allow <id> — admits a user with no restart. On an open bot this STARTS an allowlist,
+ *  auto-including the admin: closing the bot must never lock out the person closing it. */
+export async function processAllow(
+  deps: BotDeps,
+  from: { id: number },
+  arg: string,
+  send: Send,
+): Promise<void> {
+  const gate = await allowlistGate(deps, from, send);
+  if (!gate) return;
+  const { t, al } = gate;
+  const id = parseUserId(arg);
+  if (id === null) {
+    await send(t("allowlist.usage"));
+    return;
+  }
+  if (al.isOpen()) {
+    await al.add(from.id); // the admin; from.id === config.adminUserId past the gate
+    await al.add(id);
+    console.log(`[eait] allowlist started by admin: ${al.list()!.length} user(s)`);
+    await send(t("allowlist.nowClosed", { id, count: al.list()!.length }));
+    return;
+  }
+  if (al.has(id)) {
+    await send(t("allowlist.already", { id }));
+    return;
+  }
+  await al.add(id);
+  console.log(`[eait] allowlist: admin allowed user=${id}`);
+  await send(t("allowlist.added", { id, count: al.list()!.length }));
+}
+
+/** /deny <id>. Refuses to remove the admin: past the access middleware — which has no admin
+ *  exemption — that would lock the admin out of every command, including /allow itself. */
+export async function processDeny(
+  deps: BotDeps,
+  from: { id: number },
+  arg: string,
+  send: Send,
+): Promise<void> {
+  const gate = await allowlistGate(deps, from, send);
+  if (!gate) return;
+  const { t, al } = gate;
+  const id = parseUserId(arg);
+  if (id === null) {
+    await send(t("allowlist.denyUsage"));
+    return;
+  }
+  if (al.isOpen()) {
+    await send(t("allowlist.open"));
+    return;
+  }
+  if (id === deps.config.adminUserId) {
+    await send(t("allowlist.cantDenyAdmin"));
+    return;
+  }
+  if (!al.has(id)) {
+    await send(t("allowlist.notListed", { id }));
+    return;
+  }
+  await al.remove(id);
+  console.log(`[eait] allowlist: admin denied user=${id}`);
+  await send(t("allowlist.removed", { id, count: al.list()!.length }));
+}
+
+/** /allowed — the current list, or a loud reminder that the bot is open. */
+export async function processAllowed(
+  deps: BotDeps,
+  from: { id: number },
+  send: Send,
+): Promise<void> {
+  const gate = await allowlistGate(deps, from, send);
+  if (!gate) return;
+  const { t, al } = gate;
+  const list = al.list();
+  if (list === null) {
+    await send(t("allowlist.open"));
+    return;
+  }
+  await send(t("allowlist.list", { count: list.length, ids: list.join(", ") }));
 }
 
 /**
@@ -544,9 +661,11 @@ export function createBot(deps: BotDeps): Bot {
 
   // Access control — first, ahead of the dedupe table, so a stranger's update never writes a
   // row or costs a vision call. Dropped silently: replying would confirm the bot exists and
-  // hand a stranger something to poke at.
+  // hand a stranger something to poke at. The runtime allowlist (deps.allowlist) is a sync
+  // in-memory check, so this stays query-free on the hot path.
   bot.use(async (ctx, next) => {
-    if (!isAllowed(config, ctx.from?.id)) {
+    const admitted = deps.allowlist ? deps.allowlist.has(ctx.from?.id) : isAllowed(config, ctx.from?.id);
+    if (!admitted) {
       console.warn(`[eait] blocked update from user=${ctx.from?.id ?? "unknown"}`);
       return;
     }
@@ -623,6 +742,15 @@ export function createBot(deps: BotDeps): Bot {
   // adapter per this folder's rule. `ctx.match` is the text after the command.
   bot.command("cap", async (ctx) => {
     if (ctx.from) await processCap(deps, ctx.from, String(ctx.match ?? ""), sendVia(ctx));
+  });
+  bot.command("allow", async (ctx) => {
+    if (ctx.from) await processAllow(deps, ctx.from, String(ctx.match ?? ""), sendVia(ctx));
+  });
+  bot.command("deny", async (ctx) => {
+    if (ctx.from) await processDeny(deps, ctx.from, String(ctx.match ?? ""), sendVia(ctx));
+  });
+  bot.command("allowed", async (ctx) => {
+    if (ctx.from) await processAllowed(deps, ctx.from, sendVia(ctx));
   });
 
   bot.on("callback_query:data", async (ctx) => {
@@ -726,6 +854,9 @@ export function commandRegistrations(config: Config): CommandRegistration[] {
           ...buildCommands(t),
           { command: "stats", description: t("commands.stats") },
           { command: "cap", description: t("commands.cap") },
+          { command: "allow", description: t("commands.allow") },
+          { command: "deny", description: t("commands.deny") },
+          { command: "allowed", description: t("commands.allowed") },
         ],
         options: { language_code: lang, scope: { type: "chat", chat_id: config.adminUserId } },
       });
@@ -779,18 +910,22 @@ export async function startBot(config: Config): Promise<{ db: Db; stop: () => Pr
   const db = await openDb(config.pg);
   let bot: Bot;
   try {
-    bot = createBot({ db, provider, config });
+    const allowlist = await loadAllowlist(db, config);
+    bot = createBot({ db, provider, config, allowlist });
+    // Report the EFFECTIVE list (stored beats env), not the env value — after an admin
+    // /allow, the two differ and the env line would lie.
+    const effective = allowlist.list();
+    if (effective === null) {
+      console.warn(
+        "[eait] WARNING: the bot is OPEN — anyone who finds it can use it and spend your " +
+          "OpenRouter budget. Set ALLOWED_USER_IDS in .env, or have the admin send /allow <id>.",
+      );
+    } else {
+      console.log(`[eait] allowlist active: ${effective.length} user(s)`);
+    }
   } catch (e) {
     await db.close(); // `new Bot(token)` rejects a malformed token — don't strand the pool we just opened
     throw e;
-  }
-  if (config.allowedUserIds === null) {
-    console.warn(
-      "[eait] WARNING: ALLOWED_USER_IDS is not set — anyone who finds this bot can use it " +
-        "and spend your OpenRouter budget. Set it in .env to close the bot.",
-    );
-  } else {
-    console.log(`[eait] allowlist active: ${config.allowedUserIds.length} user(s)`);
   }
   void registerCommands(bot, config); // fire-and-forget: must not delay polling
 

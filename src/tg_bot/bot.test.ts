@@ -1,5 +1,6 @@
 import { afterAll, test, expect } from "bun:test";
 import { getUser, mealByReply, countMealsToday, mealCountToday, berlinDate, setSetting, eventsFor, type UserRow } from "../db.ts";
+import { loadAllowlist } from "../allowlist.ts";
 import { cleanupTestDbs, freshTestDb } from "../testutil.ts";
 import {
   processOnboarding, processPhoto, processCorrection, meCard, statsCard, profileOf,
@@ -961,4 +962,120 @@ test("the global-cap message points at /waitlist in every language", () => {
 test("the / menu includes waitlist", () => {
   const commands = buildCommands(translatorFor(DEFAULT_LANG)).map((c) => c.command);
   expect(commands).toContain("waitlist");
+});
+
+// ---------- runtime allowlist (/allow · /deny · /allowed) ----------
+
+import { processAllow, processDeny, processAllowed } from "./bot.ts";
+
+const tEn = translatorFor(DEFAULT_LANG);
+
+async function allowlistDeps(overrides: Partial<Config> = {}): Promise<BotDeps> {
+  const db = await freshTestDb();
+  const config = { ...cfg, ...overrides };
+  return { db, provider: fakeProvider(foodJson()), config, allowlist: await loadAllowlist(db, config) };
+}
+
+test("/allow on an open bot starts a list containing the admin and the target", async () => {
+  const deps = await allowlistDeps(); // allowedUserIds: null → open
+  const { msgs, send } = collector();
+  await processAllow(deps, { id: 42 }, "777", send);
+  expect(deps.allowlist!.isOpen()).toBe(false);
+  expect(deps.allowlist!.has(777)).toBe(true);
+  expect(deps.allowlist!.has(42)).toBe(true); // closing the bot must never lock out the closer
+  expect(deps.allowlist!.has(888)).toBe(false);
+  expect(msgs[0]).toBe(tEn("allowlist.nowClosed", { id: 777, count: 2 }));
+});
+
+test("/allow extends a seeded list, persists across a reload, and is idempotent", async () => {
+  const deps = await allowlistDeps({ allowedUserIds: [42, 10] });
+  await processAllow(deps, { id: 42 }, "30", noop);
+  expect(deps.allowlist!.list()).toEqual([10, 30, 42]);
+  const c = collector();
+  await processAllow(deps, { id: 42 }, "30", c.send);
+  expect(c.msgs[0]).toBe(tEn("allowlist.already", { id: 30 }));
+  // a restart must see the stored list, not the env seed
+  const reloaded = await loadAllowlist(deps.db, { allowedUserIds: null });
+  expect(reloaded.list()).toEqual([10, 30, 42]);
+});
+
+test("/allow rejects a non-numeric id with usage, changing nothing", async () => {
+  const deps = await allowlistDeps({ allowedUserIds: [42] });
+  const { msgs, send } = collector();
+  await processAllow(deps, { id: 42 }, "@somehandle", send);
+  expect(msgs[0]).toBe(tEn("allowlist.usage"));
+  expect(deps.allowlist!.list()).toEqual([42]);
+});
+
+test("/allow is admin-only, and silent when no admin is configured", async () => {
+  const deps = await allowlistDeps({ allowedUserIds: [42, 99] });
+  const c1 = collector();
+  await processAllow(deps, { id: 99 }, "777", c1.send); // non-admin
+  expect(c1.msgs[0]).toBe(tEn("errors.adminOnly"));
+  expect(deps.allowlist!.has(777)).toBe(false);
+
+  const noAdmin = await allowlistDeps({ allowedUserIds: [99], adminUserId: null });
+  const c2 = collector();
+  await processAllow(noAdmin, { id: 99 }, "777", c2.send);
+  expect(c2.msgs).toHaveLength(0); // answering would advertise the command
+  expect(noAdmin.allowlist!.has(777)).toBe(false);
+});
+
+test("/deny removes a user and persists; unlisted and admin ids are refused", async () => {
+  const deps = await allowlistDeps({ allowedUserIds: [42, 10] });
+  const c1 = collector();
+  await processDeny(deps, { id: 42 }, "10", c1.send);
+  expect(c1.msgs[0]).toBe(tEn("allowlist.removed", { id: 10, count: 1 }));
+  expect(deps.allowlist!.has(10)).toBe(false);
+  const reloaded = await loadAllowlist(deps.db, { allowedUserIds: [42, 10] });
+  expect(reloaded.has(10)).toBe(false); // the env seed must not resurrect a denied id
+
+  const c2 = collector();
+  await processDeny(deps, { id: 42 }, "10", c2.send);
+  expect(c2.msgs[0]).toBe(tEn("allowlist.notListed", { id: 10 }));
+
+  const c3 = collector();
+  await processDeny(deps, { id: 42 }, "42", c3.send);
+  expect(c3.msgs[0]).toBe(tEn("allowlist.cantDenyAdmin"));
+  expect(deps.allowlist!.has(42)).toBe(true); // self-lockout refused
+});
+
+test("/deny on an open bot explains instead of closing it as a side effect", async () => {
+  const deps = await allowlistDeps();
+  const { msgs, send } = collector();
+  await processDeny(deps, { id: 42 }, "777", send);
+  expect(msgs[0]).toBe(tEn("allowlist.open"));
+  expect(deps.allowlist!.isOpen()).toBe(true);
+});
+
+test("/allowed lists the ids, or says the bot is open", async () => {
+  const deps = await allowlistDeps({ allowedUserIds: [42, 10] });
+  const c1 = collector();
+  await processAllowed(deps, { id: 42 }, c1.send);
+  expect(c1.msgs[0]).toBe(tEn("allowlist.list", { count: 2, ids: "10, 42" }));
+
+  const open = await allowlistDeps();
+  const c2 = collector();
+  await processAllowed(open, { id: 42 }, c2.send);
+  expect(c2.msgs[0]).toBe(tEn("allowlist.open"));
+});
+
+test("without a runtime allowlist in deps, the admin is told it is unavailable", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg }; // no allowlist
+  const { msgs, send } = collector();
+  await processAllow(deps, { id: 42 }, "777", send);
+  expect(msgs[0]).toBe(tEn("allowlist.unavailable"));
+});
+
+test("allow/deny/allowed are registered in the admin's scope only, in every locale", () => {
+  const plan = commandRegistrations({ ...cfg, adminUserId: 42 });
+  for (const r of plan.filter((x) => x.options.scope)) {
+    const names = r.commands.map((c) => c.command);
+    expect(names).toEqual(expect.arrayContaining(["allow", "deny", "allowed"]));
+    for (const c of r.commands) expect(c.description).not.toMatch(/commands\./);
+  }
+  for (const r of plan.filter((x) => !x.options.scope)) {
+    expect(r.commands.map((c) => c.command)).not.toContain("allow");
+  }
 });
