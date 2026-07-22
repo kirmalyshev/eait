@@ -5,6 +5,10 @@ Domain logic — transport-agnostic. Focused files, co-located tests. The Telegr
 the composition root and is allowed to know about the front end it starts. See the root
 `AGENTS.md` for project-wide invariants.
 
+Two files here are **never imported by the runtime**: `testutil.ts` (throwaway per-test Postgres
+databases, excluded from the docker image) and `eval.ts` (metric core for the manual accuracy
+eval, consumed only by `scripts/eval-meals.ts`). Keep them that way.
+
 ## Invariants that bite here
 
 - **Meal queries** are always `WHERE id = ? AND user_id = ?`; meal `id` = `crypto.randomUUID()`. Never a timestamp, never cross-user.
@@ -15,8 +19,10 @@ the composition root and is allowed to know about the front end it starts. See t
 "`, `", "`) are the exception and stay in code — a locale cannot currently reorder them.
 - **`translatorFor(lang)`, never `i18n.changeLanguage()`.** Users are served concurrently, so a global language switch can render one user's locale into another's in-flight reply.
 - **`onboarding.step()` and `settingsStep()` stay pure.** `t` is a value passed in, not I/O. The LLM restriction fallback lives in `tg_bot/bot.ts` for exactly this reason.
-- **Callback data is namespaced.** Settings owns `st:`, onboarding owns the bare `consent_*`/`goal_*`/`restrictions_*` names, `/delete` owns `delete_*`. Never reuse a prefix across machines — the receiving machine's state guards would reject the taps silently.
+- **Callback data is namespaced.** Settings owns `st:`, onboarding owns the bare `consent_*`/`goal_*`/`weight_*`/`restrictions_*` names, `/delete` owns `delete_*`. Never reuse a prefix across machines — the receiving machine's state guards would reject the taps silently.
 - **Copy is plain text.** Nothing sets `parse_mode`, so markdown in a catalog value renders as literal characters at the user (a test enforces this).
+- **The weight 0-sentinel never leaves the db/bot boundary.** In `users.weight_kg`, NULL = never asked, 0 = explicitly skipped, >0 = kilograms. `onboarding.step()` guards use `== null` (so 0 counts as answered), persistence uses `!== undefined` (so 0 is written), and `profileOf` maps 0 → null — everywhere past that boundary "no weight" is null, never 0. Break any leg of that and the weight question either re-opens forever or silently disappears.
+- **Never trust the model's arithmetic — grounded totals are computed in code.** `MealAnalysisSchema`'s transform recomputes kcal/protein/carbs/fat as Σ grams × per100g/100 whenever every item carries facts; the model's own sums are discarded. All model output MUST pass through `MealAnalysisSchema` — parsing around it silently reintroduces model arithmetic.
 
 ## Where to add things
 
@@ -28,4 +34,6 @@ the composition root and is allowed to know about the front end it starts. See t
 
 ## Verify
 
-`bun test` (or a single file, e.g. `bun test src/db.test.ts`).
+`bun test` (or a single file, e.g. `bun test src/db.test.ts`). Tests need the shared dev
+Postgres: `sh scripts/db.sh up` once per machine; `testutil.ts` then creates and drops a
+throwaway database per test, so runs never touch real data or each other.

@@ -7,8 +7,8 @@ See `src/AGENTS.md` for the domain invariants and the root `AGENTS.md` for proje
 
 `bot.ts` splits in two halves, and the split is the point:
 
-- **`process*` functions** — grammy-free, unit-tested with a fake `send`, a temp db, and a fake
-  provider. This is where logic belongs.
+- **`process*` functions** — grammy-free, unit-tested with a fake `send`, a throwaway Postgres
+  database (`src/testutil.ts`), and a fake provider. This is where logic belongs.
 - **`createBot(deps)`** — thin grammy adapters that unwrap `ctx` and call a `process*`.
 
 New behaviour goes in a `process*` function, not in a handler body.
@@ -40,6 +40,11 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
 - **Callbacks always `answerCallbackQuery()`.** Unknown data is never *stored* — `lang_<code>` is
   validated against the registry — but it isn't discarded either: it falls through to
   `processOnboarding`, whose `step()` default re-prompts the current stage.
+- **The 👀 ack is fire-and-forget and gated.** `processPhoto` fires the ack thunk *after* the
+  active-state check (a refusal must not be preceded by a reaction) and wraps it in
+  `Promise.resolve` with a logged catch — a reaction failure, sync or async, must never block
+  or fail the analysis, and must never fail silently. Don't move it above the gate; don't
+  await it.
 - **`bot.catch` stays.** A failed reply must never crash the process; `startBot`'s supervisor
   retries runner errors (e.g. a 409 during poller hand-off) instead of exiting.
 - **Retry transient, exit on fatal.** `isFatalTelegramError` (401/404 — a dead or wrong token)

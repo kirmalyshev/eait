@@ -15,6 +15,10 @@ Orientation for any coding agent (or human) working in this repo.
 - **Run:** `bun run start` (= `bun run src/index.ts`, needs a real `TELEGRAM_BOT_TOKEN`).
 - **Docker:** `make up` (= shared Postgres + build + start this worktree's bot container); `make down` stops the bot only; `make help` lists the rest. Per-worktree instances: `sh scripts/compose-env.sh` once (writes unique `COMPOSE_PROJECT_NAME` + `PGDATABASE=eait_<branch>` + `PGDATABASE_TEST` into `.env`), plus a distinct bot token per parallel instance — one long-polling consumer per token or Telegram returns 409.
 
+## Deployment — exactly ONE supervisor per token
+
+The production bot on this machine runs as the **Docker container** (`eait-bot-1`, started via `make up` from the main checkout; it has its own Postgres, `eait-db-1`). `scripts/service.sh` (launchd/systemd) is the **alternative** for self-hosts without Docker — never run both: two long-polling processes on one token fight each other with 409s, and the container is invisible to `ps`/`launchctl`, so *check `docker ps` before concluding no bot is running*. To ship a change to prod: merge to main → `git pull` in the main checkout → `docker compose build bot && docker compose up -d bot` (migrations run at boot).
+
 ## Hard conventions (do not break)
 
 - **No source code in the repo root.** Root holds only meta/config (`package.json`, `tsconfig.json`, `.env.example`, docs). All logic lives under `src/`.
