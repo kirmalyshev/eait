@@ -91,6 +91,41 @@ test("processPhoto enforces the per-user daily cap", async () => {
   expect(c2.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.dailyCap"));
 });
 
+test("processPhoto forwards the caption and Berlin local time into the analysis prompt", async () => {
+  const db = tmpDb();
+  let seen = "";
+  const provider: LLMProvider = { chat: async (req) => ((seen = req.userText), foodJson()) };
+  const deps: BotDeps = { db, provider, config: cfg };
+  await onboardToActive(deps, 11);
+  await processPhoto(deps, { id: 11 }, async () => new Uint8Array([1]), noop, { caption: "борщ со сметаной" });
+  expect(seen).toContain("борщ со сметаной");
+  expect(seen).toMatch(/Local time of the meal: \d{2}:\d{2}/);
+});
+
+test("processPhoto without a caption still injects the local time", async () => {
+  const db = tmpDb();
+  let seen = "";
+  const provider: LLMProvider = { chat: async (req) => ((seen = req.userText), foodJson()) };
+  const deps: BotDeps = { db, provider, config: cfg };
+  await onboardToActive(deps, 12);
+  await processPhoto(deps, { id: 12 }, async () => new Uint8Array([1]), noop);
+  expect(seen).not.toContain("captioned");
+  expect(seen).toMatch(/Local time of the meal: \d{2}:\d{2}/);
+});
+
+test("processDocument forwards the caption like the photo path does", async () => {
+  const db = tmpDb();
+  let seen = "";
+  const provider: LLMProvider = { chat: async (req) => ((seen = req.userText), foodJson()) };
+  const deps: BotDeps = { db, provider, config: cfg };
+  await onboardToActive(deps, 13);
+  await processDocument(
+    deps, { id: 13 }, { mime_type: "image/jpeg", file_size: 100 },
+    async () => new Uint8Array([1]), noop, { caption: "овсянка на воде" },
+  );
+  expect(seen).toContain("овсянка на воде");
+});
+
 test("processCorrection updates the matched meal; false when the reply matches nothing", async () => {
   const db = tmpDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };

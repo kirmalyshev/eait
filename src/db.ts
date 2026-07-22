@@ -59,6 +59,16 @@ export function berlinDate(d: Date, tz = "Europe/Berlin"): string {
   }).format(d);
 }
 
+/** HH:MM for an instant in the given IANA zone (default Europe/Berlin), not UTC. */
+export function berlinTime(d: Date, tz = "Europe/Berlin"): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
+}
+
 export function openDb(path: string): Database {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new Database(path, { create: true });

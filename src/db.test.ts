@@ -7,6 +7,7 @@ import { DEFAULT_LANG } from "./i18n/registry.ts";
 import {
   applyCorrection,
   berlinDate,
+  berlinTime,
   countMealsToday,
   dailyTotals,
   deleteUser,
@@ -227,6 +228,15 @@ describe("berlinDate is TZ-correct at the midnight boundary", () => {
   });
   test("midday is same day", () => {
     expect(berlinDate(new Date("2026-07-21T10:00:00Z"))).toBe("2026-07-21");
+  });
+});
+
+describe("berlinTime renders HH:MM in the zone, not UTC", () => {
+  test("summer (+02:00)", () => {
+    expect(berlinTime(new Date("2026-07-21T10:00:00Z"))).toBe("12:00");
+  });
+  test("winter (+01:00), crossing midnight", () => {
+    expect(berlinTime(new Date("2026-01-15T23:30:00Z"))).toBe("00:30");
   });
 });
 

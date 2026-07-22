@@ -11,7 +11,7 @@ import type { Config } from "../config.ts";
 import type { LLMProvider } from "../llm/provider.ts";
 import { createProvider } from "../llm/factory.ts";
 import {
-  openDb, berlinDate, upsertUser, getUser, setConsent, setProfile, setUserState,
+  openDb, berlinDate, berlinTime, upsertUser, getUser, setConsent, setProfile, setUserState,
   insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals, countMealsToday,
   deleteUser, userCount, mealCount, mealCountToday, seenUpdate, markUpdate, setLang,
   getSetting, setSetting, clearSetting, hasMeals, logEvent, setAcquisitionSource,
@@ -24,7 +24,7 @@ import { settingsRoot, settingsStep } from "../settings.ts";
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "../onboarding.ts";
 import { DEFAULT_LANG, LANGS, LOCALES, isLang, resolveLang, translatorFor } from "../i18n/index.ts";
 import type { TFunction } from "i18next";
-import type { Lang, MealAnalysis, MealRecord, Profile } from "../types.ts";
+import type { Lang, MealAnalysis, MealContext, MealRecord, Profile } from "../types.ts";
 
 export interface BotDeps {
   db: Database;
@@ -330,6 +330,7 @@ export async function processPhoto(
   from: { id: number },
   getBytes: () => Promise<Uint8Array>,
   send: Send,
+  meta?: { caption?: string },
 ): Promise<void> {
   const { db, provider, config } = deps;
   const u = getUser(db, from.id);
@@ -354,10 +355,13 @@ export async function processPhoto(
     await send(t("errors.globalCap"));
     return;
   }
+  // Caption + local clock go into the prompt: both measurably cut estimation error
+  // (the caption is user-supplied ground truth; the time implies the meal type).
+  const context: MealContext = { caption: meta?.caption, localTime: berlinTime(new Date(), config.tz) };
   let analysis: MealAnalysis;
   try {
     const bytes = await getBytes(); // in-memory only; never written to disk
-    analysis = await analyzeMeal(bytes, prof, provider);
+    analysis = await analyzeMeal(bytes, prof, provider, context);
   } catch (e) {
     console.error(`[eait] analyze failed user=${from.id}: ${(e as any)?.message}`);
     await send(t("errors.analyzeFailed"));
@@ -402,6 +406,7 @@ export async function processDocument(
   doc: { mime_type?: string; file_size?: number },
   getBytes: () => Promise<Uint8Array>,
   send: Send,
+  meta?: { caption?: string },
 ): Promise<void> {
   const t = translatorForUser(getUser(deps.db, from.id));
   if (!doc.mime_type?.startsWith("image/")) {
@@ -412,7 +417,7 @@ export async function processDocument(
     await send(t("errors.fileTooBig"));
     return;
   }
-  await processPhoto(deps, from, getBytes, send);
+  await processPhoto(deps, from, getBytes, send, meta);
 }
 
 /** Returns true if the text was a correction of a known meal (so the caller stops routing). */
@@ -640,14 +645,18 @@ export function createBot(deps: BotDeps): Bot {
     if (!ctx.from) return;
     const photos = ctx.message.photo;
     const largest = photos[photos.length - 1]; // largest PhotoSize
-    await processPhoto(deps, ctx.from, fetchFile(ctx, largest.file_id), sendVia(ctx));
+    await processPhoto(deps, ctx.from, fetchFile(ctx, largest.file_id), sendVia(ctx), {
+      caption: ctx.message.caption,
+    });
   });
 
   // A meal photo sent uncompressed ("send as file") arrives here, not as a photo.
   bot.on("message:document", async (ctx) => {
     if (!ctx.from) return;
     const doc = ctx.message.document;
-    await processDocument(deps, ctx.from, doc, fetchFile(ctx, doc.file_id), sendVia(ctx));
+    await processDocument(deps, ctx.from, doc, fetchFile(ctx, doc.file_id), sendVia(ctx), {
+      caption: ctx.message.caption,
+    });
   });
 
   bot.on("message:text", async (ctx) => {
