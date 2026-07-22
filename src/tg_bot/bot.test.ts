@@ -176,6 +176,13 @@ test("profileOf accepts any registered locale and falls back for anything else",
   expect(profileOf({ ...base, lang: "" } as UserRow).lang).toBe(DEFAULT_LANG);
 });
 
+test("profileOf maps the db's 0-skip weight sentinel to null, real weights pass through", () => {
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, lang: "en" };
+  expect(profileOf({ ...base, weight_kg: 0 } as UserRow).weight_kg).toBeNull();
+  expect(profileOf({ ...base, weight_kg: 92.5 } as UserRow).weight_kg).toBe(92.5);
+  expect(profileOf(base as UserRow).weight_kg).toBeNull();
+});
+
 test("first contact seeds the language from Telegram's language_code", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };

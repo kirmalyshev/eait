@@ -60,6 +60,8 @@ export function profileOf(u: UserRow): Profile {
     // being renamed or removed, and an unvalidated one would render raw keys at the user.
     lang: isLang(u.lang) ? u.lang : DEFAULT_LANG,
     goal: u.goal,
+    // 0 is the db's "explicitly skipped" sentinel — outside the db/bot boundary it means unknown.
+    weight_kg: u.weight_kg ? u.weight_kg : null,
     restrictions: u.restrictions,
   };
 }

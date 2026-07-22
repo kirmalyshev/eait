@@ -5,12 +5,20 @@ import type { FoodTargets, Profile } from "./types.ts";
 
 const KCAL_BY_GOAL = { lose: 1800, maintain: 2100, gain: 2400 } as const;
 const PROTEIN_BASELINE_G = 100;
+// 1.6 g/kg — low end of the sports-nutrition consensus band; clamped so an extreme
+// bodyweight cannot produce an absurd target.
+const PROTEIN_PER_KG = 1.6;
+const PROTEIN_MIN_G = 80;
+const PROTEIN_MAX_G = 180;
 const SATFAT_CAP_LDL_G = 13; // AHA-style saturated-fat ceiling
 const SODIUM_CAP_KIDNEYS_MG = 2000; // renal-diet sodium ceiling
 
 export function targetsFor(profile: Profile): FoodTargets {
   const kcal = KCAL_BY_GOAL[profile.goal ?? "maintain"];
-  const targets: FoodTargets = { kcal, protein_g: PROTEIN_BASELINE_G };
+  const protein_g = profile.weight_kg
+    ? Math.min(PROTEIN_MAX_G, Math.max(PROTEIN_MIN_G, Math.round(profile.weight_kg * PROTEIN_PER_KG)))
+    : PROTEIN_BASELINE_G;
+  const targets: FoodTargets = { kcal, protein_g };
   if (profile.restrictions.includes("ldl")) targets.satfat_g = SATFAT_CAP_LDL_G;
   if (profile.restrictions.includes("kidneys")) targets.sodium_mg = SODIUM_CAP_KIDNEYS_MG;
   return targets;
