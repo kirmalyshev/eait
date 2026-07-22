@@ -15,6 +15,16 @@ import {
   setSetting,
   clearSetting,
   insertMeal,
+  insertPendingMeal,
+  setPendingReply,
+  getPendingMeal,
+  deletePendingMeal,
+  prunePendingMeals,
+  logLlmCall,
+  llmCallsToday,
+  llmCallCountToday,
+  mealsOnDate,
+  totalsByDate,
   markUpdate,
   mealByReply,
   eventsFor,
@@ -75,8 +85,11 @@ describe("migration 2 upgrade path (pre-existing databases, not fresh creates)",
   test("active users keep NULL weight; users mid-flow past goal are backfilled to skipped", async () => {
     const name = freshTestName();
     const a = await openTestDb(name);
-    // Rewind to v1: drop the column and reset the version, then seed pre-migration rows.
+    // Rewind to v1: drop the v2+v3 artifacts and reset the version, then seed pre-migration rows.
     await a`ALTER TABLE users DROP COLUMN weight_kg`;
+    await a`ALTER TABLE meals DROP COLUMN user_message_id`;
+    await a`DROP TABLE pending_meals`;
+    await a`DROP TABLE llm_calls`;
     await a`UPDATE schema_version SET version = 1`;
     await upsertUser(a, { telegram_id: 1 });
     await setProfile(a, 1, { goal: "lose", restrictions: [], state: "active" });
@@ -86,8 +99,8 @@ describe("migration 2 upgrade path (pre-existing databases, not fresh creates)",
     await setProfile(a, 3, { state: "profile" });
     await a.close();
 
-    const b = await openTestDb(name); // migration 2 runs against existing rows
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(2);
+    const b = await openTestDb(name); // migrations 2+3 run against existing rows
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(3);
     // Active user: never asked — NULL, and never re-asked (resume() skips active users).
     expect((await getUser(b, 1))!.weight_kg).toBeNull();
     // Restrictions-step user: backfilled to the skip sentinel, or their next message — composed
@@ -103,7 +116,7 @@ describe("openDb + migrations", () => {
   test("auto-creates a missing database and records the schema version", async () => {
     const db = await freshTestDb();
     const rows = await db`SELECT version FROM schema_version`;
-    expect(Number(rows[0].version)).toBe(2);
+    expect(Number(rows[0].version)).toBe(3);
   });
 
   test("reopening is idempotent — data survives, migrations do not rerun", async () => {
@@ -113,7 +126,7 @@ describe("openDb + migrations", () => {
     await a.close();
     const b = await openTestDb(name);
     expect((await getUser(b, 1))?.username).toBe("keepme");
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(2);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(3);
   });
 
   test("two concurrent openDb calls on a missing database both succeed (create race)", async () => {
@@ -432,5 +445,147 @@ describe("funnelByCode (Measure Monday report)", () => {
     expect(tt).toEqual({ source: "tt_001", users: 2, first_photo: 1, d7_retained: 1, cap_hits: 0, waitlist: 0 });
     const organic = rows.find((r) => r.source === "organic");
     expect(organic).toEqual({ source: "organic", users: 1, first_photo: 0, d7_retained: 0, cap_hits: 2, waitlist: 1 });
+  });
+});
+
+describe("migration v3", () => {
+  test("meals.user_message_id round-trips and mealByReply matches either id", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    const id = crypto.randomUUID();
+    await insertMeal(db, { id, user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis(), user_message_id: 555 });
+    const viaUserMsg = await mealByReply(db, 1, 555);
+    expect(viaUserMsg?.user_message_id).toBe(555);
+    // still matches via bot_message_id after setMealReply
+    await setMealReply(db, id, 1, 10, 777);
+    expect((await mealByReply(db, 1, 777))?.id).toBe(id);
+    // cross-user probe finds nothing
+    expect(await mealByReply(db, 2, 555)).toBeUndefined();
+  });
+
+  test("llm_calls counting is per-user and global per date", async () => {
+    const db = await freshTestDb();
+    await logLlmCall(db, 1, "2026-07-22", "photo");
+    await logLlmCall(db, 1, "2026-07-22", "router");
+    await logLlmCall(db, 2, "2026-07-22", "router");
+    await logLlmCall(db, 1, "2026-07-21", "photo");
+    expect(await llmCallsToday(db, 1, "2026-07-22")).toBe(2);
+    expect(await llmCallCountToday(db, "2026-07-22")).toBe(3);
+  });
+
+  test("pending meals: insert/get/delete are user-scoped; prune drops old rows", async () => {
+    const db = await freshTestDb();
+    const id = crypto.randomUUID();
+    await insertPendingMeal(db, { id, user_id: 1, ts: "2026-07-22T10:00:00.000Z", date: "2026-07-22", analysis: analysis(), model: "m" });
+    await setPendingReply(db, id, 1, 10, 42);
+    const p = await getPendingMeal(db, id, 1);
+    expect(p?.analysis.kcal).toBe(300);
+    expect(p?.analysis.items).toEqual([{ name: "rice", grams: 200 }]);
+    expect(p?.bot_message_id).toBe(42);
+    expect(await getPendingMeal(db, id, 2)).toBeUndefined(); // cross-user
+    expect(await deletePendingMeal(db, id, 2)).toBe(false); // cross-user delete no-op
+    expect(await deletePendingMeal(db, id, 1)).toBe(true);
+    // prune
+    const old = crypto.randomUUID();
+    await insertPendingMeal(db, { id: old, user_id: 1, ts: "2026-07-20T00:00:00.000Z", date: "2026-07-20", analysis: analysis(), model: null });
+    await prunePendingMeals(db, "2026-07-21T00:00:00.000Z");
+    expect(await getPendingMeal(db, old, 1)).toBeUndefined();
+  });
+
+  test("mealsOnDate and totalsByDate", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await insertMeal(db, { id: "m1", user_id: 1, ts: "2026-07-21T09:00:00.000Z", date: "2026-07-21", analysis: analysis({ kcal: 300 }) });
+    await insertMeal(db, { id: "m2", user_id: 1, ts: "2026-07-22T09:00:00.000Z", date: "2026-07-22", analysis: analysis({ kcal: 500 }) });
+    expect((await mealsOnDate(db, 1, "2026-07-22")).length).toBe(1);
+    const week = await totalsByDate(db, 1, "2026-07-16", "2026-07-22");
+    expect(week.map((r) => r.date)).toEqual(["2026-07-21", "2026-07-22"]);
+    expect(week[0].kcal).toBeCloseTo(300);
+    expect(week[1].kcal).toBeCloseTo(500);
+  });
+});
+
+describe("review fixes — db layer", () => {
+  test("deleteUser purges pending_meals and llm_calls too", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await insertPendingMeal(db, { id: crypto.randomUUID(), user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis(), model: null });
+    await logLlmCall(db, 1, "2026-07-22", "router");
+    await deleteUser(db, 1);
+    const pend = await db`SELECT 1 FROM pending_meals WHERE user_id = 1`;
+    const calls = await db`SELECT 1 FROM llm_calls WHERE user_id = 1`;
+    expect(pend.length).toBe(0);
+    expect(calls.length).toBe(0);
+  });
+
+  test("getPendingMeal validates the analysis blob and deletes an unusable row", async () => {
+    const db = await freshTestDb();
+    const id = crypto.randomUUID();
+    await insertPendingMeal(db, { id, user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis(), model: null });
+    await db`UPDATE pending_meals SET analysis = '{"kcal":"garbage-shape"' WHERE id = ${id}`; // corrupt JSON
+    expect(await getPendingMeal(db, id, 1)).toBeUndefined();
+    expect((await db`SELECT 1 FROM pending_meals WHERE id = ${id}`).length).toBe(0); // deleted, not left re-failing
+    const id2 = crypto.randomUUID();
+    await insertPendingMeal(db, { id: id2, user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis(), model: null });
+    await db`UPDATE pending_meals SET analysis = '{"items":"not-an-array"}' WHERE id = ${id2}`; // parseable, wrong shape
+    expect(await getPendingMeal(db, id2, 1)).toBeUndefined();
+    expect((await db`SELECT 1 FROM pending_meals WHERE id = ${id2}`).length).toBe(0);
+  });
+
+  test("pending meals carry user_message_id through to the logged meal's reply routing", async () => {
+    const db = await freshTestDb();
+    const id = crypto.randomUUID();
+    await insertPendingMeal(db, { id, user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis(), model: null, user_message_id: 888 });
+    const p = await getPendingMeal(db, id, 1);
+    expect(p?.user_message_id).toBe(888);
+  });
+
+  test("insertMeal is idempotent on id — a redelivered confirm cannot duplicate or throw", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    const id = crypto.randomUUID();
+    await insertMeal(db, { id, user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis({ kcal: 300 }) });
+    await insertMeal(db, { id, user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis({ kcal: 999 }) });
+    const rows = await db`SELECT kcal FROM meals WHERE id = ${id}`;
+    expect(rows.length).toBe(1);
+    expect(rows[0].kcal).toBe(300); // first write wins, second is a no-op
+  });
+
+  test("applyCorrection reports whether a row was actually updated", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    const id = crypto.randomUUID();
+    await insertMeal(db, { id, user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis() });
+    expect(await applyCorrection(db, id, 1, { kcal: 500 })).toBe(true);
+    expect(await applyCorrection(db, "no-such-id", 1, { kcal: 500 })).toBe(false);
+    expect(await applyCorrection(db, id, 2, { kcal: 500 })).toBe(false); // cross-user
+  });
+
+  test("prunePendingMeals boundary is strict: an exactly-cutoff row survives", async () => {
+    const db = await freshTestDb();
+    const id = crypto.randomUUID();
+    await insertPendingMeal(db, { id, user_id: 1, ts: "2026-07-20T00:00:00.000Z", date: "2026-07-20", analysis: analysis(), model: null });
+    await prunePendingMeals(db, "2026-07-20T00:00:00.000Z");
+    expect(await getPendingMeal(db, id, 1)).toBeDefined();
+  });
+
+  test("migration rewind with a pre-existing meal row: old meals read back user_message_id null", async () => {
+    const name = freshTestName();
+    const a = await openTestDb(name);
+    await a`ALTER TABLE users DROP COLUMN weight_kg`;
+    await a`ALTER TABLE meals DROP COLUMN user_message_id`;
+    await a`DROP TABLE pending_meals`;
+    await a`DROP TABLE llm_calls`;
+    await a`UPDATE schema_version SET version = 1`;
+    await upsertUser(a, { telegram_id: 1 });
+    await a`
+      INSERT INTO meals (id, user_id, ts, date, items, kcal, corrected)
+      VALUES ('old-meal', 1, 't', '2026-07-01', '[]', 100, 0)`;
+    await a.close();
+    const b = await openTestDb(name); // migrations rerun against a populated table
+    const m = await getMeal(b, "old-meal", 1);
+    expect(m).toBeDefined();
+    expect(m!.user_message_id).toBeNull();
+    expect(await mealByReply(b, 1, 0 as unknown as number)).toBeUndefined(); // null never matches
   });
 });

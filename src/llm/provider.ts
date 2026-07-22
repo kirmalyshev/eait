@@ -5,7 +5,7 @@
 export interface ChatRequest {
   system: string;
   userText: string;
-  imageB64?: string; // raw base64, no data: prefix
+  imagesB64?: string[]; // raw base64, no data: prefix; order preserved (albums send several)
   imageMime?: string; // default image/jpeg
   jsonSchema?: object; // when set, request structured output
   temperature?: number; // when set, forwarded verbatim; unset keeps the provider's default

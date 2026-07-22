@@ -9,6 +9,8 @@ transport-agnostic; a second front end (CLI, web) would sit next to this folder,
   `createBot(deps)` (constructable with no live token — see the test), and `startBot(config)`
   (builds the provider, opens the db, runs the supervised poller, wires SIGTERM/SIGINT).
 - `bot.test.ts` — co-located tests: temp db + fake provider + fake `send`.
+- `albums.ts` — `AlbumBuffer<T>`: debounced per-key flush for Telegram media groups (albums).
+- `rejections.ts` — `RejectionLog`: bounded in-memory log of "not food" reply ids per user.
 
 ## Surface
 
@@ -24,12 +26,17 @@ transport-agnostic; a second front end (CLI, web) would sit next to this folder,
 | `/lang`, `lang_<code>` callback | `processLangPrompt` / `processLangChoice` |
 | `/delete`, `delete_confirm`, `delete_cancel` | inline in `createBot` (db `deleteUser`) |
 | `/stats` (admin only) | `statsCard` |
-| photo | `processPhoto` |
+| `/cap` | `processCap` |
+| photo | album buffer → `processAlbum` → `processPhoto` |
+| album (multi-photo message) | same: each part buffers; buffer flushes to `processAlbum` |
 | document (a photo sent uncompressed) | `processDocument` → `processPhoto` when `image/*` |
 | `/settings`, `st:*` callbacks | `processSettingsOpen` / `processSettingsCallback` |
 | `/help` | `helpText` |
-| text replying to a meal | `processCorrection`, falling through to onboarding |
-| any other text | `processOnboarding` (active users get the nudge) |
+| `tm:log:` / `tm:cancel:` callbacks | `processTextMealDecision` |
+| text replying to a "not food" message | canned `errors.rejectionExplain` reply (no LLM) |
+| text replying to a meal or its analysis | `processText` with correction intent unlocked |
+| any other active-user text | `processText` → `routeText` (question / meal / correction) |
+| text from non-active users | `processOnboarding` |
 
 **Still not handled — these get no reply at all:** voice, video, sticker, and edited messages.
 They pass the dedupe middleware and fall off the end.

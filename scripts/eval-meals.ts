@@ -74,7 +74,7 @@ for (const model of models) {
     const caseRuns: EvalRun[] = [];
     for (let i = 0; i < runs; i++) {
       try {
-        const a = await analyzeMeal(bytes, profile, provider);
+        const a = await analyzeMeal([bytes], profile, provider);
         if (!a.isFood) throw new Error("model said isFood=false");
         caseRuns.push({
           kcal: a.kcal, protein_g: a.protein_g, carbs_g: a.carbs_g, fat_g: a.fat_g,

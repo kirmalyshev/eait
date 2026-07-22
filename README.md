@@ -1,7 +1,8 @@
 # eait
 
-**Send a photo of your meal, get calories and macros judged against your own goal.** A
-self-hostable Telegram bot in TypeScript. Photos are never stored.
+**Send a photo of your meal, describe it in text, or just ask nutrition questions — eait
+tracks calories and macros against your goal.** A self-hostable Telegram bot in TypeScript.
+Photos are never stored.
 
 **Try it:** [@eait_bot](https://t.me/eait_bot) — a live demo running on the maintainer's API
 budget, so it has a shared daily analysis cap. For unlimited use, run your own:
@@ -12,23 +13,28 @@ budget, so it has a shared daily analysis cap. For unlimited use, run your own:
 
 ## What it does
 
-Send a photo. It estimates the items and grams, computes calories, protein, fat, carbs,
-saturated fat and sodium, judges the meal against *your* profile, and adds it to your running
-daily total.
+Send a photo, describe a meal in text, or ask a question. It estimates items and grams,
+computes calories, protein, fat, carbs, saturated fat and sodium, judges the meal against
+*your* profile, and adds it to your running daily total.
 
+- **Photo logging.** One photo or several in one album message — both get analyzed as a single
+  meal, one LLM call. Downloaded to memory, analyzed, dropped; no image or image path ever
+  reaches the database.
+- **Text meal logging.** Describe what you ate in plain text; the bot confirms before saving
+  so you can tweak the description.
+- **Nutrition Q&A.** Ask anything about today's intake, your goal, or general nutrition — the
+  bot answers with today's meals and 7-day totals as context.
 - **Profile-driven, not one-size-fits-all.** Your goal (lose / maintain / gain) sets your
   targets. Declare a kidney or cholesterol restriction and the bot judges sodium or saturated
   fat too — and only then. Undeclared dimensions are never scored.
-- **Wrong estimate? Just say so.** Reply to any meal message with "half that" or "no oil" and
-  it re-estimates.
-- **Photos are ephemeral by construction.** Downloaded to memory, analyzed, dropped. No image
-  and no image path ever touches the database — enforced in code and covered by tests.
+- **Wrong estimate? Just say so.** Reply to any meal analysis with "half that" or "no oil" and
+  it re-estimates. Works on the bot's reply or on your original photo message.
 - **Three languages.** English, Russian, German, picked up from your Telegram client and
   changeable in `/settings`. The food names and notes the model writes are localized too, not
   just the bot's own copy.
 
-**Commands:** `/start`, `/me`, `/settings`, `/help`, `/delete` — listed in Telegram's `/` menu
-in your language.
+**Commands:** `/start`, `/me`, `/cap`, `/settings`, `/help`, `/delete` — listed in Telegram's
+`/` menu in your language.
 
 ## Self-hosting
 

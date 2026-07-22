@@ -167,3 +167,17 @@ describe("GLOBAL_DAILY_ANALYSIS_CAP", () => {
     expect(loadConfig({ ...base, GLOBAL_DAILY_ANALYSIS_CAP: "-5" }).globalDailyAnalysisCap).toBeNull();
   });
 });
+
+describe("REPLY_FORMAT", () => {
+  const base = { TELEGRAM_BOT_TOKEN: "t", OPENROUTER_API_KEY: "k" };
+
+  test("defaults to rich; accepts plain; trims", () => {
+    expect(loadConfig({ ...base }).replyFormat).toBe("rich");
+    expect(loadConfig({ ...base, REPLY_FORMAT: "plain" }).replyFormat).toBe("plain");
+    expect(loadConfig({ ...base, REPLY_FORMAT: " rich " }).replyFormat).toBe("rich");
+  });
+
+  test("an unknown value fails startup, naming the env var", () => {
+    expect(() => loadConfig({ ...base, REPLY_FORMAT: "fancy" })).toThrow(/REPLY_FORMAT/);
+  });
+});

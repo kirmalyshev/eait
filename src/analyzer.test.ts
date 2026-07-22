@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { analyzeCorrection, analyzeMeal, classifyRestrictions, MealAnalysisSchema } from "./analyzer.ts";
+import { analyzeMeal, classifyRestrictions, routeText, MealAnalysisSchema } from "./analyzer.ts";
 import { LANGS, LOCALES } from "./i18n/registry.ts";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import type { MealAnalysis, Profile } from "./types.ts";
@@ -41,7 +41,7 @@ const validJson = JSON.stringify({
 describe("analyzeMeal", () => {
   test("returns a parsed, validated MealAnalysis", async () => {
     const provider = new FakeProvider(() => validJson);
-    const out = await analyzeMeal(bytes, profile, provider);
+    const out = await analyzeMeal([bytes], profile, provider);
     expect(out.isFood).toBe(true);
     expect(out.kcal).toBe(300);
     expect(out.items[0]!.name).toBe("rice");
@@ -50,27 +50,27 @@ describe("analyzeMeal", () => {
 
   test("injects the profile (goal + restriction tags) into the prompt", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     const req = provider.lastRequest!;
     const blob = `${req.system}\n${req.userText}`.toLowerCase();
     expect(blob).toContain("lose");
     expect(blob).toContain("kidneys");
     expect(blob).toContain("ldl");
     // and it actually sends the image + asks for structured output
-    expect(req.imageB64).toBeDefined();
+    expect(req.imagesB64?.length).toBe(1);
     expect(req.jsonSchema).toBeDefined();
   });
 
   test("isFood=false passes through (valid, not an error)", async () => {
     const provider = new FakeProvider(() => JSON.stringify({ isFood: false }));
-    const out = await analyzeMeal(bytes, profile, provider);
+    const out = await analyzeMeal([bytes], profile, provider);
     expect(out.isFood).toBe(false);
     expect(out.kcal).toBe(0); // defaulted, not garbage
   });
 
   test("tolerant parse: strips code fences", async () => {
     const provider = new FakeProvider(() => "```json\n{\"isFood\":true,\"kcal\":420}\n```");
-    const out = await analyzeMeal(bytes, profile, provider);
+    const out = await analyzeMeal([bytes], profile, provider);
     expect(out.isFood).toBe(true);
     expect(out.kcal).toBe(420);
   });
@@ -79,39 +79,41 @@ describe("analyzeMeal", () => {
     const provider = new FakeProvider(
       () => 'Sure! Here you go: {"isFood":true,"kcal":100} — hope that helps.',
     );
-    const out = await analyzeMeal(bytes, profile, provider);
+    const out = await analyzeMeal([bytes], profile, provider);
     expect(out.kcal).toBe(100);
   });
 
   test("non-JSON output throws (caller shows 'не смог разобрать', writes no row)", async () => {
     const provider = new FakeProvider(() => "I cannot help with that.");
-    await expect(analyzeMeal(bytes, profile, provider)).rejects.toThrow();
+    await expect(analyzeMeal([bytes], profile, provider)).rejects.toThrow();
   });
 
   test("zod rejects garbage that lacks isFood", async () => {
     const provider = new FakeProvider(() => JSON.stringify({ foo: 1, kcal: "lots" }));
-    await expect(analyzeMeal(bytes, profile, provider)).rejects.toThrow();
+    await expect(analyzeMeal([bytes], profile, provider)).rejects.toThrow();
   });
 
   test("zod rejects a non-boolean isFood", async () => {
     const provider = new FakeProvider(() => JSON.stringify({ isFood: "yes" }));
-    await expect(analyzeMeal(bytes, profile, provider)).rejects.toThrow();
+    await expect(analyzeMeal([bytes], profile, provider)).rejects.toThrow();
   });
 });
 
-describe("analyzeCorrection", () => {
-  test("re-analyzes with the correction text + prior estimate, returns updated analysis", async () => {
-    const prior: MealAnalysis = MealAnalysisSchema.parse(JSON.parse(validJson));
+describe("correction via routeText", () => {
+  test("re-routes with the correction text + focus meal, returns updated analysis, no image", async () => {
+    const focusMeal: MealAnalysis = MealAnalysisSchema.parse(JSON.parse(validJson));
     const provider = new FakeProvider(() =>
-      JSON.stringify({ isFood: true, kcal: 250, items: [{ name: "rice", grams: 150 }] }),
+      JSON.stringify({ intent: "correction", analysis: { isFood: true, kcal: 250, items: [{ name: "rice", grams: 150 }] } }),
     );
-    const out = await analyzeCorrection(prior, "на самом деле 150г риса", profile, provider);
-    expect(out.kcal).toBe(250);
+    const ctx = { focusMeal, todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } };
+    const out = await routeText("на самом деле 150г риса", profile, ctx, provider);
+    expect(out.intent).toBe("correction");
+    if (out.intent === "correction") expect(out.analysis.kcal).toBe(250);
     const req = provider.lastRequest!;
     expect(req.userText.toLowerCase()).toContain("150");
     // prior estimate is provided as context (no image needed — images are ephemeral)
-    expect(req.userText).toContain("300"); // prior kcal
-    expect(req.imageB64).toBeUndefined();
+    expect(req.userText).toContain("300"); // focus meal kcal
+    expect(req.imagesB64).toBeUndefined();
   });
 });
 
@@ -136,21 +138,20 @@ describe("output language", () => {
   test("the prompt names the user's language, so items and notes come back localized", async () => {
     for (const [lang, llmName] of [["ru", "Russian"], ["de", "German"], ["en", "English"]] as const) {
       const provider = new FakeProvider(() => validJson);
-      await analyzeMeal(bytes, { ...profile, lang }, provider);
+      await analyzeMeal([bytes], { ...profile, lang }, provider);
       expect(provider.lastRequest?.userText).toContain(llmName);
     }
   });
 
-  test("the correction path inherits the language instruction", async () => {
-    const provider = new FakeProvider(() => validJson);
-    const prior = MealAnalysisSchema.parse(JSON.parse(validJson));
-    await analyzeCorrection(prior, "no oil", { ...profile, lang: "de" }, provider);
+  test("the router path inherits the language instruction", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "ok" }));
+    await routeText("no oil", { ...profile, lang: "de" }, { todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } }, provider);
     expect(provider.lastRequest?.userText).toContain("German");
   });
 
   test("numeric fields are explicitly excluded from localization", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, { ...profile, lang: "de" }, provider);
+    await analyzeMeal([bytes], { ...profile, lang: "de" }, provider);
     // guards against a model that "helpfully" returns "dreihundert" for kcal
     expect(provider.lastRequest?.userText).toMatch(/numeric/i);
   });
@@ -159,7 +160,7 @@ describe("output language", () => {
 describe("estimation protocol", () => {
   test("prompt stages the estimate: items + cooking method, portions via scale references, then macros", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     const text = provider.lastRequest!.userText.toLowerCase();
     expect(text).toContain("cooking method");
     expect(text).toContain("scale reference");
@@ -168,7 +169,7 @@ describe("estimation protocol", () => {
 
   test("reasoning comes first in the wire schema so the model reasons before the numbers", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     const schema = provider.lastRequest!.jsonSchema as { properties: Record<string, unknown> };
     expect(Object.keys(schema.properties)[0]).toBe("reasoning");
   });
@@ -176,13 +177,13 @@ describe("estimation protocol", () => {
   test("reasoning is scratch space: stripped from the parsed result, never persisted", async () => {
     const withReasoning = JSON.stringify({ ...JSON.parse(validJson), reasoning: "the plate is ~26cm" });
     const provider = new FakeProvider(() => withReasoning);
-    const out = await analyzeMeal(bytes, profile, provider);
+    const out = await analyzeMeal([bytes], profile, provider);
     expect("reasoning" in out).toBe(false);
   });
 
   test("confidence is constrained to high/medium/low", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     expect(provider.lastRequest!.userText).toMatch(/high.{0,15}medium.{0,15}low/i);
   });
 
@@ -190,21 +191,20 @@ describe("estimation protocol", () => {
     // The bot's low-confidence nudge exact-matches "low"; a free-string schema invites
     // "low (mixed dish)", which would silently fall through to the generic hint.
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     const schema = provider.lastRequest!.jsonSchema as { properties: Record<string, any> };
     expect(schema.properties.confidence.enum).toEqual(["high", "medium", "low"]);
   });
 
   test("prompt counteracts the systematic underestimation of mixed dishes", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     expect(provider.lastRequest!.userText.toLowerCase()).toContain("underestimat");
   });
 
-  test("the correction path inherits the estimation protocol", async () => {
-    const provider = new FakeProvider(() => validJson);
-    const prior = MealAnalysisSchema.parse(JSON.parse(validJson));
-    await analyzeCorrection(prior, "no oil", profile, provider);
+  test("the router path inherits the estimation protocol", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "ok" }));
+    await routeText("no oil", profile, { todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } }, provider);
     expect(provider.lastRequest!.userText.toLowerCase()).toContain("cooking method");
   });
 });
@@ -212,25 +212,25 @@ describe("estimation protocol", () => {
 describe("meal context", () => {
   test("caption is injected verbatim when provided", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider, { caption: "две котлеты и гречка" });
+    await analyzeMeal([bytes], profile, provider, { caption: "две котлеты и гречка" });
     expect(provider.lastRequest!.userText).toContain("две котлеты и гречка");
   });
 
   test("local time is injected when provided", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider, { localTime: "08:30" });
+    await analyzeMeal([bytes], profile, provider, { localTime: "08:30" });
     expect(provider.lastRequest!.userText).toContain("08:30");
   });
 
   test("no context → no caption or local-time lines in the prompt", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     expect(provider.lastRequest!.userText).not.toMatch(/caption|local time/i);
   });
 
   test("an oversized caption is truncated before it reaches the model", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider, { caption: "start" + "x".repeat(5000) + "END" });
+    await analyzeMeal([bytes], profile, provider, { caption: "start" + "x".repeat(5000) + "END" });
     expect(provider.lastRequest!.userText).toContain("start");
     expect(provider.lastRequest!.userText).not.toContain("END");
   });
@@ -241,7 +241,7 @@ describe("expert persona + cuisine prior", () => {
   // away from generic international staples (+87.5% ID in the GPT-4V origin-prompt study).
   test("the system prompt casts the model as an expert nutritionist", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     expect(provider.lastRequest!.system.toLowerCase()).toContain("expert nutritionist");
   });
 
@@ -249,7 +249,7 @@ describe("expert persona + cuisine prior", () => {
   // it is registered — no per-locale literal patterns to keep in sync.
   test.each(LANGS)("cuisine prior tracks the registry for %s", async (lang) => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, { ...profile, lang }, provider);
+    await analyzeMeal([bytes], { ...profile, lang }, provider);
     const text = provider.lastRequest!.userText;
     const hint = LOCALES[lang].cuisineHint;
     if (hint) {
@@ -261,10 +261,9 @@ describe("expert persona + cuisine prior", () => {
     }
   });
 
-  test("the correction path inherits the cuisine prior", async () => {
-    const provider = new FakeProvider(() => validJson);
-    const prior = MealAnalysisSchema.parse(JSON.parse(validJson));
-    await analyzeCorrection(prior, "no oil", { ...profile, lang: "de" }, provider);
+  test("the router path inherits the cuisine prior", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "ok" }));
+    await routeText("no oil", { ...profile, lang: "de" }, { todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } }, provider);
     // The verbatim hint, not /German|.../: the output-language line always contains "German",
     // so a looser pattern would pass even with the cuisine line deleted.
     expect(provider.lastRequest!.userText).toContain(LOCALES.de.cuisineHint);
@@ -276,15 +275,14 @@ describe("sampling temperature", () => {
   // instead of a 3-call median. All analyzer calls request it; the provider stays generic.
   test("meal analysis requests a low temperature", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     expect(provider.lastRequest!.temperature).toBeDefined();
     expect(provider.lastRequest!.temperature!).toBeLessThanOrEqual(0.3);
   });
 
-  test("correction and restriction classification inherit it", async () => {
-    const provider = new FakeProvider(() => validJson);
-    const prior = MealAnalysisSchema.parse(JSON.parse(validJson));
-    await analyzeCorrection(prior, "no oil", profile, provider);
+  test("router and restriction classification inherit it", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "ok" }));
+    await routeText("no oil", profile, { todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } }, provider);
     expect(provider.lastRequest!.temperature!).toBeLessThanOrEqual(0.3);
 
     const classifier = new FakeProvider(() => JSON.stringify({ tags: [] }));
@@ -330,5 +328,96 @@ describe("classifyRestrictions", () => {
     await classifyRestrictions("...", provider, "de");
     expect(provider.lastRequest?.userText).toContain("German");
     expect(provider.lastRequest?.userText).toMatch(/may be|might be|likely/i);
+  });
+});
+
+describe("analyzeMeal — multi-image (albums)", () => {
+  test("two images are both sent and the multi-photo instruction is added", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes, new Uint8Array([9, 9])], profile, provider);
+    const req = provider.lastRequest!;
+    expect(req.imagesB64?.length).toBe(2);
+    expect(req.userText).toContain("SAME meal");
+  });
+
+  test("a single image gets no multi-photo instruction", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], profile, provider);
+    const req = provider.lastRequest!;
+    expect(req.imagesB64?.length).toBe(1);
+    expect(req.userText).not.toContain("SAME meal");
+  });
+});
+
+describe("routeText", () => {
+  const routeCtx = {
+    todayMeals: [{ items: [{ name: "pasta", grams: 120 }], kcal: 640, protein_g: 28 }],
+    weekTotals: [{ date: "2026-07-21", kcal: 1800, protein_g: 90 }],
+    targets: { kcal: 1800, protein_g: 100 },
+    localTime: "18:30",
+  };
+
+  test("question intent returns the answer and sends diary context in the prompt", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "You ate 640 kcal today" }));
+    const r = await routeText("how am I doing?", profile, routeCtx, provider);
+    expect(r.intent).toBe("question");
+    if (r.intent === "question") expect(r.answer).toContain("640");
+    const seen = provider.lastRequest!.userText;
+    expect(seen).toContain("pasta");
+    expect(seen).toContain("18:30");
+    expect(seen).toContain("how am I doing?");
+  });
+
+  test("meal intent parses a full MealAnalysis", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "meal", analysis: JSON.parse(validJson) }));
+    const r = await routeText("ate 2 eggs and toast", profile, routeCtx, provider);
+    expect(r.intent).toBe("meal");
+    if (r.intent === "meal") expect(r.analysis.kcal).toBe(300);
+  });
+
+  test("correction intent passes through when a focus meal is present", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "correction", analysis: JSON.parse(validJson) }));
+    const focusMeal = { ...JSON.parse(validJson), kcal: 999 };
+    const r = await routeText("actually 300 kcal", profile, { ...routeCtx, focusMeal }, provider);
+    expect(r.intent).toBe("correction");
+    expect(provider.lastRequest!.userText).toContain("focus meal");
+  });
+
+  test("correction without focus meal degrades to question when an answer is present, else throws", async () => {
+    const withAnswer = new FakeProvider(() => JSON.stringify({ intent: "correction", answer: "did you mean?" }));
+    const r = await routeText("x", profile, routeCtx, withAnswer);
+    expect(r.intent).toBe("question");
+    const without = new FakeProvider(() => JSON.stringify({ intent: "correction" }));
+    await expect(routeText("x", profile, routeCtx, without)).rejects.toThrow();
+  });
+
+  test("meal intent with isFood=false throws", async () => {
+    const provider = new FakeProvider(() =>
+      JSON.stringify({ intent: "meal", analysis: { ...JSON.parse(validJson), isFood: false } }));
+    await expect(routeText("nothing edible", profile, routeCtx, provider)).rejects.toThrow();
+  });
+
+  test("question without an answer throws; user text is capped", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "" }));
+    await expect(routeText("y", profile, routeCtx, provider)).rejects.toThrow();
+    const ok = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "hi" }));
+    await routeText("z".repeat(5000), profile, routeCtx, ok);
+    expect(ok.lastRequest!.userText.length).toBeLessThan(4000);
+  });
+});
+
+describe("routeText — review hardening", () => {
+  const minCtx = { todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } };
+
+  test("correction intent with isFood=false throws (would render a non-food meal card)", async () => {
+    const focusMeal = MealAnalysisSchema.parse(JSON.parse(validJson));
+    const provider = new FakeProvider(() =>
+      JSON.stringify({ intent: "correction", analysis: { ...JSON.parse(validJson), isFood: false } }));
+    await expect(routeText("that was my keys, not food", profile, { ...minCtx, focusMeal }, provider)).rejects.toThrow();
+  });
+
+  test("meal intent without an analysis object throws", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "meal" }));
+    await expect(routeText("ate rice", profile, minCtx, provider)).rejects.toThrow();
   });
 });

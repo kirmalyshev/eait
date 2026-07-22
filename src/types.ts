@@ -69,6 +69,8 @@ export interface MealRecord {
   date: string; // YYYY-MM-DD in Europe/Berlin
   chat_id: number | null;
   bot_message_id: number | null;
+  /** The user's own photo/album message id — lets a reply to the photo find the meal. */
+  user_message_id: number | null;
   items: MealItem[];
   kcal: number;
   protein_g: number;
@@ -98,6 +100,20 @@ export interface DailyTotals {
 }
 
 /** The user's daily targets. Caps are present only for relevant restrictions. */
+/** Compact per-meal summary fed to the free-text router as today-context. */
+export interface MealSummary {
+  items: MealItem[];
+  kcal: number;
+  protein_g: number;
+}
+
+/** Per-date kcal/protein sums — the router's week-context row and totalsByDate's return shape. */
+export interface DayTotals {
+  date: string;
+  kcal: number;
+  protein_g: number;
+}
+
 export interface FoodTargets {
   kcal: number;
   protein_g: number;

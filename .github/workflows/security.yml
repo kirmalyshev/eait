@@ -23,6 +23,11 @@ jobs:
           POSTGRES_USER: eait
           POSTGRES_PASSWORD: eait
           POSTGRES_DB: eait
+          # Every test opens its own throwaway database and holds one connection until the
+          # file's afterAll — bot.test.ts alone exceeds the stock 100. Must match the 300 in
+          # docker-compose.infra.yml, or CI fails on connection exhaustion where local passes.
+          # (Service containers can't override the command; initdb -c persists the setting.)
+          POSTGRES_INITDB_ARGS: "-c max_connections=300"
         ports:
           - "5439:5432"
         options: >-

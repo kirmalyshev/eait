@@ -52,10 +52,10 @@ export class OpenRouterProvider implements LLMProvider {
   async chat(req: ChatRequest): Promise<string> {
     const url = `${this.baseUrl}/chat/completions`;
     const content: unknown[] = [{ type: "text", text: req.userText }];
-    if (req.imageB64) {
+    for (const b64 of req.imagesB64 ?? []) {
       content.push({
         type: "image_url",
-        image_url: { url: `data:${req.imageMime ?? "image/jpeg"};base64,${req.imageB64}` },
+        image_url: { url: `data:${req.imageMime ?? "image/jpeg"};base64,${b64}` },
       });
     }
     const body: Record<string, unknown> = {

@@ -28,7 +28,7 @@ describe("OpenRouterProvider.chat — request shape", () => {
     const out = await p.chat({
       system: "sys",
       userText: "analyze this",
-      imageB64: "QUJD",
+      imagesB64: ["QUJD"],
       jsonSchema: { type: "object" },
     });
     expect(out).toBe('{"isFood":true}');
@@ -135,5 +135,25 @@ describe("OpenRouterProvider.chat — backoff on 429/5xx", () => {
     globalThis.fetch = (async () => new Response("bad", { status: 400 })) as any;
     const p = new OpenRouterProvider({ apiKey: "k", model: "m", maxRetries: 2, log: () => {} });
     await expect(p.chat({ system: "s", userText: "u" })).rejects.toThrow(/400/);
+  });
+});
+
+describe("OpenRouterProvider.chat — multi-image", () => {
+  test("multiple images become multiple image_url parts in order", async () => {
+    const calls: Array<{ init: any }> = [];
+    const fetchImpl = (async (_url: string, init: any) => {
+      calls.push({ init });
+      return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), {
+        status: 200, headers: { "content-type": "application/json" },
+      });
+    }) as any;
+    const p = new OpenRouterProvider({ apiKey: "k", model: "m", log: () => {}, fetchImpl });
+    await p.chat({ system: "s", userText: "u", imagesB64: ["QUFB", "QkJC"] });
+    const body = JSON.parse(calls[0]!.init.body);
+    const userMsg = body.messages.find((m: any) => m.role === "user");
+    const imgs = userMsg.content.filter((c: any) => c.type === "image_url");
+    expect(imgs.length).toBe(2);
+    expect(imgs[0].image_url.url).toContain("base64,QUFB");
+    expect(imgs[1].image_url.url).toContain("base64,QkJC");
   });
 });
