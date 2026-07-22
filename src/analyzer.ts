@@ -76,7 +76,9 @@ const MEAL_JSON_SCHEMA = {
         kidneys: { type: "string", enum: ["good", "warn", "bad"] },
       },
     },
-    confidence: { type: "string" },
+    // Enum, not a bare string: the bot's low-confidence nudge matches "low" exactly, and a
+    // free-string schema invites "low (mixed dish)". Zod still accepts any string (tolerance).
+    confidence: { type: "string", enum: ["high", "medium", "low"] },
     notes: { type: "string" },
   },
 } as const;
