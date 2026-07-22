@@ -307,19 +307,25 @@ test("/me shows the stored weight, and 'not set' after a skip — misparses stay
   expect(await meCard(deps, 89)).toContain(t("me.noWeight"));
 });
 
+/** Collects reaction emojis; flush() lets fire-and-forget microtasks land before asserting. */
+function reactionLog() {
+  const seen: string[] = [];
+  return { seen, react: async (e: string) => { seen.push(e); } };
+}
+const flush = () => new Promise((r) => setTimeout(r, 0));
+
 test("a capped user still gets the 👀 — the bot saw the photo even when it refuses", async () => {
   // Deliberate: ack = "seen", not "will analyze". Pinned so a refactor can't flip it silently.
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 1 } };
   await onboardToActive(deps, 87);
   await processPhoto(deps, { id: 87 }, async () => new Uint8Array([1]), noop);
-  let acked = 0;
+  const r = reactionLog();
   const { msgs, send } = collector();
-  await processPhoto(deps, { id: 87 }, async () => new Uint8Array([1]), send, {
-    ack: async () => { acked++; },
-  });
+  await processPhoto(deps, { id: 87 }, async () => new Uint8Array([1]), send, { react: r.react });
+  await flush();
   expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.dailyCap"));
-  expect(acked).toBe(1);
+  expect(r.seen).toEqual(["👀"]); // seen, but never 👍 — nothing was processed
 });
 
 test("the stored weight drives the protein target on both user-visible surfaces", async () => {
@@ -346,69 +352,124 @@ test("weight-step text never reaches the LLM restriction classifier", async () =
   expect(calls()).toBe(0);
 });
 
-test("processPhoto fires the ack before the vision call starts", async () => {
+test("photo lifecycle reactions: 👀 before the vision call, 👍 after success", async () => {
   const db = await freshTestDb();
   const order: string[] = [];
   const provider: LLMProvider = { chat: async () => (order.push("chat"), foodJson()) };
   const deps: BotDeps = { db, provider, config: cfg };
   await onboardToActive(deps, 95);
   await processPhoto(deps, { id: 95 }, async () => new Uint8Array([1]), noop, {
-    ack: async () => { order.push("ack"); },
+    react: async (e: string) => { order.push(e); },
   });
-  expect(order).toEqual(["ack", "chat"]);
+  await flush();
+  expect(order).toEqual(["👀", "chat", "👍"]);
 });
 
-test("a non-onboarded sender gets no ack — the 👀 must not precede a refusal", async () => {
+test("no 👍 when the analysis fails or the photo is not food", async () => {
   const db = await freshTestDb();
-  let acked = 0;
+  const deps: BotDeps = { db, provider: { chat: async () => "not json" }, config: cfg };
+  await onboardToActive(deps, 94);
+  const r1 = reactionLog();
+  await processPhoto(deps, { id: 94 }, async () => new Uint8Array([1]), noop, { react: r1.react });
+  await flush();
+  expect(r1.seen).toEqual(["👀"]);
+
+  deps.provider = fakeProvider(JSON.stringify({ isFood: false }));
+  const r2 = reactionLog();
+  await processPhoto(deps, { id: 94 }, async () => new Uint8Array([1]), noop, { react: r2.react });
+  await flush();
+  expect(r2.seen).toEqual(["👀"]);
+});
+
+test("a correction reply gets 👀 on receipt and 👍 when the update lands", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
+  await onboardToActive(deps, 93);
+  const { send } = collector(); // meal reply gets message_id 1
+  await processPhoto(deps, { id: 93 }, async () => new Uint8Array([1]), send);
+  const r = reactionLog();
+  const handled = await processCorrection(deps, { id: 93 }, 1, "actually 340 g", collector().send, { react: r.react });
+  await flush();
+  expect(handled).toBe(true);
+  expect(r.seen).toEqual(["👀", "👍"]);
+});
+
+test("a failed correction keeps the 👀 but never earns the 👍", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
+  await onboardToActive(deps, 92);
+  const { send } = collector();
+  await processPhoto(deps, { id: 92 }, async () => new Uint8Array([1]), send);
+  deps.provider = { chat: async () => { throw new Error("model down"); } };
+  const r = reactionLog();
+  const handled = await processCorrection(deps, { id: 92 }, 1, "no oil", collector().send, { react: r.react });
+  await flush();
+  expect(handled).toBe(true);
+  expect(r.seen).toEqual(["👀"]);
+});
+
+test("a reply that matches no meal gets no reaction at all", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 91);
+  const r = reactionLog();
+  const handled = await processCorrection(deps, { id: 91 }, 555, "text", noop, { react: r.react });
+  await flush();
+  expect(handled).toBe(false);
+  expect(r.seen).toEqual([]);
+});
+
+test("a non-onboarded sender gets no reactions — the 👀 must not precede a refusal", async () => {
+  const db = await freshTestDb();
+  const r = reactionLog();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   const { msgs, send } = collector();
-  await processPhoto(deps, { id: 401 }, async () => new Uint8Array([1]), send, {
-    ack: async () => { acked++; },
-  });
+  await processPhoto(deps, { id: 401 }, async () => new Uint8Array([1]), send, { react: r.react });
+  await flush();
   expect(msgs[0]).toContain("/start");
-  expect(acked).toBe(0);
+  expect(r.seen).toEqual([]);
 });
 
-test("a SYNCHRONOUSLY throwing ack neither blocks the analysis nor crashes", async () => {
+test("a SYNCHRONOUSLY throwing react neither blocks the analysis nor crashes", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   await onboardToActive(deps, 402);
   const { msgs, send } = collector();
   await processPhoto(deps, { id: 402 }, async () => new Uint8Array([1]), send, {
-    ack: (() => { throw new Error("sync react throw"); }) as unknown as () => Promise<void>,
+    react: (() => { throw new Error("sync react throw"); }) as unknown as (e: string) => Promise<void>,
   });
   expect(msgs[0]).toContain("600");
   expect(await countMealsToday(db, 402, berlinDate(new Date(), cfg.tz))).toBe(1);
 });
 
-test("a rejected document (wrong mime) gets no ack; an accepted one acks exactly once", async () => {
+test("a rejected document (wrong mime) gets no reactions; an accepted one gets 👀 then 👍", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   await onboardToActive(deps, 403);
-  let acked = 0;
-  const ack = async () => { acked++; };
-  await processDocument(deps, { id: 403 }, { mime_type: "application/pdf" }, async () => new Uint8Array([1]), noop, { ack });
-  expect(acked).toBe(0);
-  await processDocument(deps, { id: 403 }, { mime_type: "image/jpeg", file_size: 1 }, async () => new Uint8Array([1]), noop, { ack });
-  expect(acked).toBe(1);
+  const r = reactionLog();
+  await processDocument(deps, { id: 403 }, { mime_type: "application/pdf" }, async () => new Uint8Array([1]), noop, { react: r.react });
+  await flush();
+  expect(r.seen).toEqual([]);
+  await processDocument(deps, { id: 403 }, { mime_type: "image/jpeg", file_size: 1 }, async () => new Uint8Array([1]), noop, { react: r.react });
+  await flush();
+  expect(r.seen).toEqual(["👀", "👍"]);
 });
 
-test("a failing ack never blocks the analysis or the meal insert", async () => {
+test("a failing react never blocks the analysis or the meal insert", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   await onboardToActive(deps, 96);
   const { msgs, send } = collector();
   await processPhoto(deps, { id: 96 }, async () => new Uint8Array([1]), send, {
-    ack: async () => { throw new Error("reaction rejected"); },
+    react: async () => { throw new Error("reaction rejected"); },
   });
   expect(msgs[0]).toContain("600");
   expect(await countMealsToday(db, 96, berlinDate(new Date(), cfg.tz))).toBe(1);
 });
 
-test("processDocument forwards the ack to the photo path", async () => {
+test("processDocument forwards the react thunk to the photo path", async () => {
   const db = await freshTestDb();
-  let acked = false;
+  const r = reactionLog();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   await onboardToActive(deps, 97);
   await processDocument(
@@ -416,9 +477,10 @@ test("processDocument forwards the ack to the photo path", async () => {
     { mime_type: "image/jpeg", file_size: 1024 },
     async () => new Uint8Array([1]),
     noop,
-    { ack: async () => { acked = true; } },
+    { react: r.react },
   );
-  expect(acked).toBe(true);
+  await flush();
+  expect(r.seen).toEqual(["👀", "👍"]);
 });
 
 test("medium and high confidence get the generic hint, never the weight nudge", async () => {
