@@ -30,7 +30,7 @@
     "fileTooBig": "Die Datei ist zu groß — schick sie stattdessen als Foto."
   },
   "help": {
-    "body": "Schick mir ein Foto deiner Mahlzeit. Ich schätze die Bestandteile, Kalorien und Nährwerte, bewerte sie anhand deines Ziels und rechne sie zur Tagesbilanz.\n\nFalsch geschätzt? Antworte direkt auf meine Nachricht zu dieser Mahlzeit mit einer Korrektur — zum Beispiel „zwei Stück, ohne Öl“ — und ich rechne neu.\n\nBessere Fotos, bessere Schätzungen:\n• von oben fotografieren, der ganze Teller im Bild\n• gutes Licht; Besteck oder deine Hand neben dem Teller hilft mir, die Portionsgröße einzuschätzen\n• Gewicht oder Zutaten bekannt? Schreib sie in die Bildunterschrift\n\nBefehle:\n/me — Tagesbilanz\n/settings — Ziel, Einschränkungen, Sprache\n/help — diese Nachricht\n/delete — alle Daten löschen\n\nSchätzungen aus einem Foto sind ungefähr und keine medizinische Beratung."
+    "body": "Schick mir ein Foto deiner Mahlzeit. Ich schätze die Bestandteile, Kalorien und Nährwerte, bewerte sie anhand deines Ziels und rechne sie zur Tagesbilanz.\n\nFalsch geschätzt? Antworte direkt auf meine Nachricht zu dieser Mahlzeit mit einer Korrektur — zum Beispiel „zwei Stück, ohne Öl“ — und ich rechne neu.\n\nBessere Fotos, bessere Schätzungen:\n• von oben fotografieren, der ganze Teller im Bild\n• gutes Licht; Besteck oder deine Hand neben dem Teller hilft mir, die Portionsgröße einzuschätzen\n• Gewicht oder Zutaten bekannt? Schreib es in die Bildunterschrift\n\nBefehle:\n/me — Tagesbilanz\n/settings — Ziel, Einschränkungen, Sprache\n/help — diese Nachricht\n/delete — alle Daten löschen\n\nSchätzungen aus einem Foto sind ungefähr und keine medizinische Beratung."
   },
   "lang": {
     "prompt": "Wähle eine Sprache:",
@@ -65,7 +65,7 @@
     },
     "notesLine": "📝 {{notes}}",
     "correctionHint": "↩️ Nicht richtig? Antworte auf diese Nachricht mit einer Korrektur.",
-    "lowConfidenceHint": "🤔 Bei der Portionsgröße bin ich unsicher. Antworte auf diese Nachricht mit Gewicht oder Inhalt (zum Beispiel „340 g“ oder „zwei Frikadellen, ohne Öl“) — ich rechne neu.",
+    "lowConfidenceHint": "🤔 Bei der Portionsgröße bin ich unsicher. Antworte auf diese Nachricht mit dem Gewicht oder dem Inhalt (zum Beispiel „340 g“ oder „zwei Frikadellen, ohne Öl“) — ich rechne neu.",
     "updatedPrefix": "Aktualisiert:",
     "totalKcal": "Heute: {{now}} / {{target}} kcal",
     "totalProtein": "Eiweiß: {{now}} / {{target}} g",
@@ -77,7 +77,7 @@
     "decline": "Ohne Einwilligung kann ich keine Daten verarbeiten. Schreib /start, wenn du bereit bist.",
     "askGoal": "Was ist dein Ziel?",
     "askRestrictions": "Hast du gesundheitliche oder ernährungsbedingte Einschränkungen? Schreib frei (zum Beispiel: „Nieren, kein Zucker“) oder tippe auf „Überspringen“.",
-    "done": "Fertig — schick mir Fotos von deinem Essen 📸\n\nFür die genauesten Schätzungen:\n• von oben fotografieren, der ganze Teller im Bild\n• gutes Licht; Besteck oder deine Hand neben dem Teller hilft mir, die Portionsgröße einzuschätzen\n• Gewicht oder Zutaten bekannt? Schreib sie in die Bildunterschrift",
+    "done": "Fertig — schick mir Fotos von deinem Essen 📸\n\nFür die genauesten Schätzungen:\n• von oben fotografieren, der ganze Teller im Bild\n• gutes Licht; Besteck oder deine Hand neben dem Teller hilft mir, die Portionsgröße einzuschätzen\n• Gewicht oder Zutaten bekannt? Schreib es in die Bildunterschrift",
     "alreadyActive": "Du bist schon eingerichtet — schick einfach Fotos von deinem Essen 📸 (/me — Profil und Tagesbilanz).",
     "nudge": "Tippe oben auf einen Button oder schreib /start.",
     "button": {

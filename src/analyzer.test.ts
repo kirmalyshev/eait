@@ -177,6 +177,15 @@ describe("estimation protocol", () => {
     expect(provider.lastRequest!.userText).toMatch(/high.{0,15}medium.{0,15}low/i);
   });
 
+  test("the wire schema enum-constrains confidence, not just the prose", async () => {
+    // The bot's low-confidence nudge exact-matches "low"; a free-string schema invites
+    // "low (mixed dish)", which would silently fall through to the generic hint.
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal(bytes, profile, provider);
+    const schema = provider.lastRequest!.jsonSchema as { properties: Record<string, any> };
+    expect(schema.properties.confidence.enum).toEqual(["high", "medium", "low"]);
+  });
+
   test("prompt counteracts the systematic underestimation of mixed dishes", async () => {
     const provider = new FakeProvider(() => validJson);
     await analyzeMeal(bytes, profile, provider);
@@ -238,7 +247,8 @@ describe("expert persona + cuisine prior", () => {
   test("a locale without a regional prior gets no cuisine line", async () => {
     const provider = new FakeProvider(() => validJson);
     await analyzeMeal(bytes, { ...profile, lang: "en" }, provider);
-    expect(provider.lastRequest!.userText).not.toMatch(/home cooking|cuisine/i);
+    // Match the line's fixed wording, so a null leaking into the template can't slip past.
+    expect(provider.lastRequest!.userText).not.toMatch(/home cooking|interface language suggests/i);
   });
 
   test("the correction path inherits the cuisine prior", async () => {
