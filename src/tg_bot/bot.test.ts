@@ -1,5 +1,5 @@
 import { afterAll, test, expect } from "bun:test";
-import { getUser, mealByReply, countMealsToday, mealCountToday, berlinDate, setSetting, eventsFor, type UserRow } from "../db.ts";
+import { getUser, mealByReply, countMealsToday, mealCountToday, llmCallsToday, berlinDate, setSetting, eventsFor, type UserRow } from "../db.ts";
 import { loadAllowlist } from "../allowlist.ts";
 import { cleanupTestDbs, freshTestDb } from "../testutil.ts";
 import {
@@ -1292,4 +1292,56 @@ test("allow/deny/allowed are registered in the admin's scope only, in every loca
   for (const r of plan.filter((x) => !x.options.scope)) {
     expect(r.commands.map((c) => c.command)).not.toContain("allow");
   }
+});
+
+// ---------- unified LLM-call caps (photo + correction + router draw one pool) ----------
+
+test("photo and correction draw one per-user llm-call pool", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 2 } };
+  await onboardToActive(deps, 700);
+  const c1 = collector();
+  await processPhoto(deps, { id: 700 }, async () => new Uint8Array([1]), c1.send); // call 1
+  const c2 = collector();
+  const handled = await processCorrection(deps, { id: 700 }, 1, "actually 300 kcal", c2.send); // call 2
+  expect(handled).toBe(true);
+  const date = berlinDate(new Date(), cfg.tz);
+  expect(await llmCallsToday(db, 700, date)).toBe(2);
+  const c3 = collector();
+  await processPhoto(deps, { id: 700 }, async () => new Uint8Array([1]), c3.send); // over cap
+  expect(c3.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.dailyCap"));
+  expect(await countMealsToday(db, 700, date)).toBe(1); // only the first photo became a meal
+});
+
+test("global cap counts llm calls across users, including not-food analyses", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = {
+    db, provider: fakeProvider(JSON.stringify({ isFood: false })),
+    config: { ...cfg, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: 1 },
+  };
+  await onboardToActive(deps, 701);
+  await onboardToActive(deps, 702);
+  const date = berlinDate(new Date(), cfg.tz);
+  const c1 = collector();
+  await processPhoto(deps, { id: 701 }, async () => new Uint8Array([1]), c1.send); // not food, still 1 call
+  expect(await llmCallsToday(db, 701, date)).toBe(1);
+  expect(await countMealsToday(db, 701, date)).toBe(0); // no meal row
+  const c2 = collector();
+  await processPhoto(deps, { id: 702 }, async () => new Uint8Array([1]), c2.send);
+  expect(c2.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.globalCap"));
+});
+
+test("correction over the per-user cap is refused before the provider is called", async () => {
+  const db = await freshTestDb();
+  let calls = 0;
+  const provider: LLMProvider = { chat: async () => (calls++, foodJson()) };
+  const deps: BotDeps = { db, provider, config: { ...cfg, perUserDailyPhotoCap: 1 } };
+  await onboardToActive(deps, 703);
+  const c1 = collector();
+  await processPhoto(deps, { id: 703 }, async () => new Uint8Array([1]), c1.send); // uses the pool
+  const c2 = collector();
+  const handled = await processCorrection(deps, { id: 703 }, 1, "make it 900 kcal", c2.send);
+  expect(handled).toBe(true);
+  expect(c2.msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.dailyCap"));
+  expect(calls).toBe(1); // the correction never reached the model
 });

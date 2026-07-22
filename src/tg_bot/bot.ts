@@ -12,6 +12,7 @@ import { createProvider } from "../llm/factory.ts";
 import {
   openDb, berlinDate, berlinTime, upsertUser, getUser, setConsent, setProfile, setUserState,
   insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals, countMealsToday,
+  logLlmCall, llmCallsToday, llmCallCountToday,
   deleteUser, userCount, mealCount, mealCountToday, seenUpdate, markUpdate, setLang,
   getSetting, setSetting, clearSetting, hasMeals, hasEvent, logEvent, setAcquisitionSource,
   type Db, type UserRow,
@@ -500,7 +501,9 @@ export async function processPhoto(
   const prof = profileOf(u);
   const t = translatorFor(prof.lang);
   const date = berlinDate(new Date(), config.tz);
-  if ((await countMealsToday(db, from.id, date)) >= config.perUserDailyPhotoCap) {
+  // Caps meter LLM CALLS, not stored meals — a not-food analysis or a correction costs the
+  // same tokens as a logged meal, so it must draw from the same pool.
+  if ((await llmCallsToday(db, from.id, date)) >= config.perUserDailyPhotoCap) {
     await send(t("errors.dailyCap"));
     return;
   }
@@ -508,12 +511,13 @@ export async function processPhoto(
   // but a publicly linked bot has unbounded accounts. A cap enforced after the call would cost
   // exactly as much as no cap at all.
   const cap = await effectiveGlobalCap(db, config);
-  if (cap !== null && (await mealCountToday(db, date)) >= cap) {
+  if (cap !== null && (await llmCallCountToday(db, date)) >= cap) {
     console.warn(`[eait] global daily cap ${cap} reached`);
     await logEvent(db, from.id, "cap_hit");
     await send(t("errors.globalCap"));
     return;
   }
+  await logLlmCall(db, from.id, date, "photo");
   // Caption + local clock go into the prompt: both measurably cut estimation error
   // (the caption is user-supplied ground truth; the time implies the meal type).
   const context: MealContext = { caption: meta?.caption, localTime: berlinTime(new Date(), config.tz) };
@@ -601,11 +605,25 @@ export async function processCorrection(
   if (!meal) return false;
   const u = await getUser(db, from.id);
   if (!u) return false;
+  const prof = profileOf(u);
+  const t = translatorFor(prof.lang);
+  // Corrections draw from the same LLM-call pool as photo analyses — same tokens, same bound.
+  const date = berlinDate(new Date(), deps.config.tz);
+  if ((await llmCallsToday(db, from.id, date)) >= deps.config.perUserDailyPhotoCap) {
+    await send(t("errors.dailyCap"));
+    return true;
+  }
+  const cap = await effectiveGlobalCap(db, deps.config);
+  if (cap !== null && (await llmCallCountToday(db, date)) >= cap) {
+    console.warn(`[eait] global daily cap ${cap} reached`);
+    await logEvent(db, from.id, "cap_hit");
+    await send(t("errors.globalCap"));
+    return true;
+  }
   // Only once the reply is KNOWN to be a correction: a non-matching reply falls through to
   // onboarding and must carry no reaction. Same 👀-then-👍 lifecycle as the photo path.
   fireReaction(opts?.react, "👀", from.id);
-  const prof = profileOf(u);
-  const t = translatorFor(prof.lang);
+  await logLlmCall(db, from.id, date, "router");
   let updated: MealAnalysis;
   try {
     updated = await analyzeCorrection(mealToAnalysis(meal), text, prof, provider);
