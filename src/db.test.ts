@@ -132,7 +132,13 @@ describe("reply_format (migration 4)", () => {
     expect((await getUser(db, 1))!.reply_format).toBe("rich");
   });
 
-  test("migration 4 upgrade path: pre-existing users read back reply_format null", async () => {
+  test("setReplyFormat on a vanished user is a silent 0-row UPDATE, never a throw", async () => {
+    const db = await freshTestDb();
+    await setReplyFormat(db, 999, "plain"); // no such row — must resolve, not reject
+    expect((await getUser(db, 999))).toBeUndefined();
+  });
+
+  test("migration 4 upgrade path: the column physically exists on the upgraded db", async () => {
     const name = freshTestName();
     const a = await openTestDb(name);
     await a`ALTER TABLE users DROP COLUMN reply_format`;
@@ -140,7 +146,24 @@ describe("reply_format (migration 4)", () => {
     await upsertUser(a, { telegram_id: 7 });
     await a.close();
     const b = await openTestDb(name); // migration 4 runs against the existing row
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(4);
     expect((await getUser(b, 7))!.reply_format).toBeNull();
+    // Write-back proves the column was really added (getUser's `?? null` would mask a no-op
+    // migration: a missing column reads as undefined ?? null too).
+    await setReplyFormat(b, 7, "plain");
+    expect((await getUser(b, 7))!.reply_format).toBe("plain");
+  });
+});
+
+describe("migrate() failure reporting", () => {
+  test("a migration that throws names its version in the error", async () => {
+    const name = freshTestName();
+    const a = await openTestDb(name);
+    // Rewind the version WITHOUT dropping the v4 column: reopening re-fires migration 4's
+    // ADD COLUMN on the existing column → "already exists", the exact case the wrapper names.
+    await a`UPDATE schema_version SET version = 3`;
+    await a.close();
+    await expect(openTestDb(name)).rejects.toThrow(/migration v4 failed/);
   });
 });
 

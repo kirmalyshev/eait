@@ -18,7 +18,7 @@ export function isReplyFormat(v: unknown): v is ReplyFormat {
 import type { Lang } from "./i18n/registry.ts";
 export type { Lang };
 
-/** A user's analysis profile — what every meal is judged against. */
+/** A user's profile — the analysis inputs every meal is judged against, plus rendering prefs. */
 export interface Profile {
   telegram_id: number;
   lang: Lang;

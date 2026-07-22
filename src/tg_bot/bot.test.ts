@@ -1,4 +1,4 @@
-import { afterAll, test, expect } from "bun:test";
+import { afterAll, test, expect, spyOn } from "bun:test";
 import { getUser, mealByReply, countMealsToday, mealCountToday, llmCallsToday, logLlmCall, berlinDate, setSetting, setReplyFormat, eventsFor, type UserRow } from "../db.ts";
 import { loadAllowlist } from "../allowlist.ts";
 import { RejectionLog } from "./rejections.ts";
@@ -183,6 +183,34 @@ test("profileOf maps the db's 0-skip weight sentinel to null, real weights pass 
   expect(profileOf({ ...base, weight_kg: 0 } as UserRow).weight_kg).toBeNull();
   expect(profileOf({ ...base, weight_kg: 92.5 } as UserRow).weight_kg).toBe(92.5);
   expect(profileOf(base as UserRow).weight_kg).toBeNull();
+});
+
+test("profileOf maps a junk reply_format to null (never coerces to a hardcoded format)", () => {
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, lang: "en" };
+  // null is the only value that distinguishes "→ null" from a mutant that coerces to "rich" or
+  // passes junk through: on a plain instance either mutant would render the wrong format.
+  expect(profileOf({ ...base, reply_format: "markdown" } as UserRow).reply_format).toBeNull();
+  expect(profileOf({ ...base, reply_format: "" } as UserRow).reply_format).toBeNull();
+  expect(profileOf({ ...base, reply_format: "rich" } as UserRow).reply_format).toBe("rich");
+  expect(profileOf({ ...base, reply_format: null } as UserRow).reply_format).toBeNull();
+});
+
+test("profileOf warns LOUDLY on off-vocabulary stored values, stays quiet on the normal states", () => {
+  const base = { telegram_id: 55, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, lang: "en", reply_format: null };
+  const warn = spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    profileOf({ ...base, lang: "en", reply_format: null } as UserRow); // both normal → silent
+    expect(warn).toHaveBeenCalledTimes(0);
+    profileOf({ ...base, lang: "klingon", reply_format: "markdown" } as UserRow); // both junk → 2
+    expect(warn).toHaveBeenCalledTimes(2);
+    expect(warn.mock.calls.some((c) => String(c[0]).includes("klingon") && String(c[0]).includes("user=55"))).toBe(true);
+    expect(warn.mock.calls.some((c) => String(c[0]).includes("markdown"))).toBe(true);
+    warn.mockClear();
+    profileOf({ ...base, lang: "" } as UserRow); // empty-string lang is a hand-edited NOT-NULL row → warns
+    expect(warn).toHaveBeenCalledTimes(1);
+  } finally {
+    warn.mockRestore();
+  }
 });
 
 test("first contact seeds the language from Telegram's language_code", async () => {
@@ -769,10 +797,30 @@ test("choosing a reply format in settings persists it per user", async () => {
   expect(last().text).toContain(translatorFor(DEFAULT_LANG)("settings.format.rich"));
 });
 
+test("choosing the format that MATCHES the instance default still stores it (pins the user)", async () => {
+  const db = await freshTestDb();
+  // Plain instance, user taps plain: a naive "skip write if == default" would leave NULL and let
+  // the user silently follow a future REPLY_FORMAT flip. The docstring promises the choice pins.
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg }; // plain
+  await onboardToActive(deps, 418);
+  const { edit } = editor();
+  await processSettingsCallback(deps, { id: 418 }, "st:format:plain", edit);
+  expect((await getUser(db, 418))?.reply_format).toBe("plain"); // stored, not NULL
+  // and it holds against a later instance flip to rich:
+  const rich: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: { ...cfg, replyFormat: "rich" } };
+  let richCalls = 0;
+  const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 88 });
+  const { msgs, send } = collector();
+  await processPhoto(rich, { id: 418 }, [async () => new Uint8Array([1])], send, { sendRich });
+  expect(richCalls).toBe(0); // still plain — the pin survived the instance-default change
+  expect(msgs).toHaveLength(1);
+});
+
 test("the settings root shows the INSTANCE default format when the user never chose", async () => {
   const db = await freshTestDb();
-  // PLAIN instance deliberately: the machine's internal fallback is "rich", so only a plain
-  // instance distinguishes real resolution (settingsProfile) from the fallback firing.
+  // PLAIN instance deliberately: a rich instance could never distinguish real resolution
+  // (settingsProfile) from a hard-coded default. Plain is the only config that proves the
+  // instance default actually flows through to the Style line.
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg }; // cfg is plain
   await onboardToActive(deps, 409); // reply_format NULL
   const texts: string[] = [];
@@ -866,13 +914,15 @@ test("an album flush carries the user's rich preference through to the card", as
   await setReplyFormat(db, 416, "rich");
   let richCalls = 0;
   const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 100 });
+  const { msgs, send } = collector(); // real send so a rich+plain double-send would show
   const bytes = new Uint8Array([1]);
   const parts: PendingAlbumPart[] = [
-    { getBytes: async () => bytes, caption: undefined, messageId: 30, send: noop, sendRich, react: async () => {}, from: { id: 416 } },
-    { getBytes: async () => bytes, caption: undefined, messageId: 31, send: noop, sendRich, react: async () => {}, from: { id: 416 } },
+    { getBytes: async () => bytes, caption: undefined, messageId: 30, send, sendRich, react: async () => {}, from: { id: 416 } },
+    { getBytes: async () => bytes, caption: undefined, messageId: 31, send, sendRich, react: async () => {}, from: { id: 416 } },
   ];
   await processAlbum(deps, "416:g9", parts);
   expect(richCalls).toBe(1); // one album → one rich card
+  expect(msgs).toHaveLength(0); // and nothing went out the plain path
 });
 
 test("Q&A answers stay plain even for a rich-preference user", async () => {
@@ -1028,6 +1078,40 @@ test("createBot builds without a live token, given botInfo and an API transforme
   });
   expect(bot.isInited()).toBe(true);
   expect(calledApi).toBe(false); // constructing must not touch Telegram
+});
+
+test("a failing answerCallbackQuery does not abort the tap — the setting still persists", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider("{}"), config: cfg };
+  await onboardToActive(deps, 505);
+  const bot = createBot(deps);
+  bot.botInfo = {
+    id: 1, is_bot: true, first_name: "eait", username: "eait_bot",
+    can_join_groups: false, can_read_all_group_messages: false, supports_inline_queries: false,
+    can_connect_to_business: false, has_main_web_app: false, has_topics_enabled: false,
+    allows_users_to_create_topics: false, can_manage_bots: false,
+    supports_join_request_queries: false,
+  };
+  // Stale query id: answerCallbackQuery throws ("query is too old"), everything else succeeds.
+  bot.api.config.use(async (prev, method, payload, signal) => {
+    if (method === "answerCallbackQuery") throw new Error("Bad Request: query is too old");
+    return { ok: true, result: true as any };
+  });
+  const warn = spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    await bot.handleUpdate({
+      update_id: 700001,
+      callback_query: {
+        id: "q-stale", chat_instance: "ci", data: "st:format:plain",
+        from: { id: 505, is_bot: false, first_name: "u" },
+        message: { message_id: 5, date: 0, chat: { id: 505, type: "private" } } as any,
+      },
+    } as any);
+  } finally {
+    warn.mockRestore();
+  }
+  // The guard means the throw is swallowed and the persist behind the tap still runs.
+  expect((await getUser(db, 505))?.reply_format).toBe("plain");
 });
 
 // --- /stats: admin who never ran /start ---
@@ -2020,15 +2104,22 @@ test("makeSendRich: rich succeeds → returns the Sent from sendRichMessage", as
   expect(result).toEqual({ chat_id: 99, message_id: 7 });
 });
 
-test("makeSendRich: rich fails → falls back to plain, returns Sent", async () => {
+test("makeSendRich: rich fails → falls back to plain, returns Sent, warns WITH the chat id", async () => {
   const ctx = {
     chat: { id: 99 },
     api: { sendRichMessage: async () => { throw new Error("rich not supported"); } },
     reply: async (_: string) => ({ chat: { id: 99 }, message_id: 3 }),
   };
-  const sendRich = makeSendRich(ctx);
-  const result = await sendRich(card);
-  expect(result).toEqual({ chat_id: 99, message_id: 3 });
+  const warn = spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    const sendRich = makeSendRich(ctx);
+    const result = await sendRich(card);
+    expect(result).toEqual({ chat_id: 99, message_id: 3 });
+    // chat id in the warn is what makes a per-user "I chose rich, nothing changed" diagnosable.
+    expect(warn.mock.calls.some((c) => String(c[0]).includes("chat=99"))).toBe(true);
+  } finally {
+    warn.mockRestore();
+  }
 });
 
 test("makeSendRich: both fail → returns undefined, never throws", async () => {

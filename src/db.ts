@@ -132,14 +132,16 @@ export async function openDb(pg: PgConfig): Promise<Db> {
 }
 
 /**
- * 3D000 invalid_catalog_name — the branch database has not been created yet. The message
- * match is anchored on `database "…"` so a missing ROLE ("role \"x\" does not exist") takes
- * the friendly connect-failed path instead of a doomed CREATE DATABASE attempt.
+ * 3D000 invalid_catalog_name — the branch database has not been created yet. Bun's PostgresError
+ * puts the SQLSTATE on `.errno` (`.code` is a generic "ERR_POSTGRES_SERVER_ERROR"), so check both;
+ * the message match is the last resort and is anchored on `database "…"` so a missing ROLE
+ * ("role \"x\" does not exist") takes the friendly connect-failed path, not a doomed CREATE.
  */
 function isMissingDatabase(e: unknown): boolean {
-  return (
-    (e as { code?: unknown })?.code === "3D000" || /database ".*" does not exist/.test(message(e))
-  );
+  const err = e as { code?: unknown; errno?: unknown };
+  // `.code` is "ERR_POSTGRES_SERVER_ERROR" (non-null), so an `??` chain would never reach errno —
+  // check both explicitly.
+  return err?.code === "3D000" || err?.errno === "3D000" || /database ".*" does not exist/.test(message(e));
 }
 
 function message(e: unknown): string {
@@ -315,8 +317,9 @@ async function migrate(db: Db): Promise<void> {
         await m.up(tx);
       } catch (e) {
         // Name the version: "column already exists" without it sends the operator diffing
-        // every migration instead of the one that fired.
-        throw new Error(`migration v${m.version} failed: ${message(e)}`);
+        // every migration instead of the one that fired. `cause` keeps the pg SQLSTATE and
+        // stack for a direct openDb caller (a test/script), which the message alone drops.
+        throw new Error(`migration v${m.version} failed: ${message(e)}`, { cause: e });
       }
       await tx`UPDATE schema_version SET version = ${m.version}`;
     }
@@ -464,7 +467,8 @@ export async function setLang(db: Db, telegram_id: number, lang: string): Promis
 /**
  * /settings → Style — per-user meal-card rendering override. Like its siblings (setLang,
  * setProfile), a 0-row UPDATE (user deleted mid-tap) resolves silently: sequentialize(by user)
- * excludes that race in-process, and every later interaction re-gates on getUser anyway.
+ * excludes that race in-process, and every meal- and settings-path interaction re-gates on
+ * getUser anyway.
  */
 export async function setReplyFormat(
   db: Db,

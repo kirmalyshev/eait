@@ -110,13 +110,17 @@ function fireReaction(react: React | undefined, emoji: "👀" | "👍", userId: 
     .catch((e) => console.warn(`[eait] reaction failed user=${userId}: ${describeError(e)}`));
 }
 
-// ---------- pure helpers ----------
+// ---------- read-boundary helpers ----------
+// profileOf is the ONE read boundary between the raw UserRow and the rest of the code; it both
+// validates stored vocabulary and emits the operator warning, so it is intentionally not pure.
+// Everything downstream (replyFormatFor, translatorForUser) consumes the resolved Profile.
 
 export function profileOf(u: UserRow): Profile {
   // Off-vocabulary stored values (a renamed locale/format, a hand-edited row) degrade to the
   // default, but LOUDLY — a silent reset after a rename would strand affected users with no
-  // operator trace. Null is the normal "never chose" state and stays quiet.
-  if (u.lang && !isLang(u.lang)) {
+  // operator trace. No truthiness guard on lang: '' is exactly the hand-edited NOT-NULL row the
+  // warn exists for. reply_format's null is the normal "never chose" state and stays quiet.
+  if (!isLang(u.lang)) {
     console.warn(`[eait] unknown lang ${JSON.stringify(u.lang)} user=${u.telegram_id} — using default`);
   }
   if (u.reply_format !== null && !isReplyFormat(u.reply_format)) {
@@ -136,9 +140,10 @@ export function profileOf(u: UserRow): Profile {
   };
 }
 
-/** The format a user's meal cards render in: their /settings choice, else the instance default. */
-export function replyFormatFor(u: UserRow, config: Config): ReplyFormat {
-  return profileOf(u).reply_format ?? config.replyFormat;
+/** The format a user's meal cards render in: their /settings choice, else the instance default.
+ * Takes the already-resolved Profile so it never re-runs profileOf (which would re-warn). */
+export function replyFormatFor(prof: Profile, config: Config): ReplyFormat {
+  return prof.reply_format ?? config.replyFormat;
 }
 
 /** The translator for a user, or the default one if they have no row yet. */
@@ -499,9 +504,10 @@ export async function processSettingsOpen(
 
 /** The profile the settings machine renders: reply_format resolved to the EFFECTIVE value
  * (user choice, else instance default) — replyFormatFor is the ONE resolution implementation,
- * and the SettingsProfile return type makes the machine reject unresolved profiles. */
+ * and the machine's SettingsProfile parameter type rejects unresolved profiles at compile time. */
 function settingsProfile(u: UserRow, config: Config): SettingsProfile {
-  return { ...profileOf(u), reply_format: replyFormatFor(u, config) };
+  const prof = profileOf(u); // once — profileOf is the warning site, don't double it
+  return { ...prof, reply_format: replyFormatFor(prof, config) };
 }
 
 /** Handles an `st:` callback: persist whatever changed, then rewrite the message in place. */
@@ -630,7 +636,7 @@ export async function processPhoto(
   const hint = analysis.confidence.startsWith("low")
     ? t("meal.lowConfidenceHint")
     : t("meal.correctionHint");
-  const sent = await sendCard(replyFormatFor(u, config), send, meta?.sendRich, {
+  const sent = await sendCard(replyFormatFor(prof, config), send, meta?.sendRich, {
     html: renderMealCard(analysis, totals, targetsFor(prof), t, { footer: hint }),
     plain: formatReply(analysis, totals, targetsFor(prof), t) + "\n\n" + hint,
   });
@@ -771,7 +777,7 @@ export async function processText(
     const totals = await dailyTotals(db, from.id, focus.date);
     // Deliberately no hint suffix — the user just corrected; re-prompting would nag.
     // No footer on either rendering — the deliberate no-nag decision holds in both formats.
-    await sendCard(replyFormatFor(u, config), send, opts?.sendRich, {
+    await sendCard(replyFormatFor(prof, config), send, opts?.sendRich, {
       html: renderMealCard(route.analysis, totals, targetsFor(prof), t, { prefix: t("meal.updatedPrefix") }),
       plain: t("meal.updatedPrefix") + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t),
     });
@@ -876,7 +882,7 @@ export async function processTextMealDecision(
   if (u) {
     const prof = profileOf(u);
     const totals = await dailyTotals(db, from.id, pending.date);
-    const sent = await sendCard(replyFormatFor(u, deps.config), send, opts?.sendRich, {
+    const sent = await sendCard(replyFormatFor(prof, deps.config), send, opts?.sendRich, {
       html: renderMealCard(pending.analysis, totals, targetsFor(prof), t, { footer: t("meal.correctionHint") }),
       plain: formatReply(pending.analysis, totals, targetsFor(prof), t) + "\n\n" + t("meal.correctionHint"),
     });
@@ -1107,7 +1113,7 @@ export function createBot(deps: BotDeps): Bot {
     // Guarded: a stale query id (backlog replay after downtime) must not abort the tap —
     // dismissing the spinner is cosmetic; the state change behind the tap is not.
     await ctx.answerCallbackQuery().catch((e) => {
-      console.warn(`[eait] answerCallbackQuery failed user=${ctx.from?.id}: ${describeError(e)}`);
+      console.warn(`[eait] answerCallbackQuery failed user=${ctx.from?.id} data=${ctx.callbackQuery.data}: ${describeError(e)}`);
     });
     if (!ctx.from) return;
     const data = ctx.callbackQuery.data;

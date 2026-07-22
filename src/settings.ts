@@ -125,9 +125,9 @@ function formatPicker(t: TFunction): SettingsView {
 }
 
 /**
- * Applies `data` to `p` and returns the resulting view. Anything unrecognised — an unknown
- * section, an invalid goal, a tag or locale outside the vocabulary — falls back to the root
- * view and patches nothing, the same "re-prompt rather than break" rule onboarding follows.
+ * Applies `data` to `p` and returns the resulting view. An invalid goal, format, or locale falls
+ * back to the root view; an unknown restriction tag re-renders the toggles. Nothing unrecognised
+ * ever patches — the same "re-prompt rather than break" rule onboarding follows.
  */
 export function settingsStep(p: SettingsProfile, data: string, t: TFunction): SettingsView {
   if (data === "st:goal") return goalPicker(t);
