@@ -43,7 +43,16 @@
     "notFood": "That doesn't look like food 🤔",
     "notOnboarded": "Send /start first.",
     "notAnImage": "That's not an image 🤔 send a photo of the meal.",
-    "fileTooBig": "That file is too big for me to fetch — send it as a photo instead."
+    "fileTooBig": "That file is too big for me to fetch — send it as a photo instead.",
+    "rejectionExplain": "That photo wasn't recognized as food, so nothing was logged and I have no analysis for it. Send a clearer photo, or just describe the meal in text.",
+    "textFailed": "I couldn't process that message — please try again."
+  },
+  "text": {
+    "confirmPrompt": "Log this meal?",
+    "logButton": "✅ Log it",
+    "cancelButton": "✖️ Cancel",
+    "cancelled": "Okay, not logged.",
+    "pendingGone": "That one already expired — send the meal again if you still want it logged."
   },
   "help": {
     "body": "Send me a photo of your meal. I estimate the items, calories and macros, judge them against your goal, and add them to today's running total.\n\nGot it wrong? Reply directly to my message about that meal with a correction — for example \"two pieces, no oil\" — and I'll redo the estimate.\n\nBetter photos, better estimates:\n• shoot from above, the whole plate in frame\n• good light; cutlery or your hand next to the plate helps me judge portion size\n• know the weight or ingredients? add them in the caption\n\nCommands:\n/me — today's totals\n/settings — change your goal, restrictions or language\n/help — this message\n/delete — erase all your data\n\nEstimates from a photo are approximate and are not medical advice."

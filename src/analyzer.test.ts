@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { analyzeCorrection, analyzeMeal, classifyRestrictions, routeText, MealAnalysisSchema } from "./analyzer.ts";
+import { analyzeMeal, classifyRestrictions, routeText, MealAnalysisSchema } from "./analyzer.ts";
 import { LANGS, LOCALES } from "./i18n/registry.ts";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import type { MealAnalysis, Profile } from "./types.ts";
@@ -99,18 +99,20 @@ describe("analyzeMeal", () => {
   });
 });
 
-describe("analyzeCorrection", () => {
-  test("re-analyzes with the correction text + prior estimate, returns updated analysis", async () => {
-    const prior: MealAnalysis = MealAnalysisSchema.parse(JSON.parse(validJson));
+describe("correction via routeText", () => {
+  test("re-routes with the correction text + focus meal, returns updated analysis, no image", async () => {
+    const focusMeal: MealAnalysis = MealAnalysisSchema.parse(JSON.parse(validJson));
     const provider = new FakeProvider(() =>
-      JSON.stringify({ isFood: true, kcal: 250, items: [{ name: "rice", grams: 150 }] }),
+      JSON.stringify({ intent: "correction", analysis: { isFood: true, kcal: 250, items: [{ name: "rice", grams: 150 }] } }),
     );
-    const out = await analyzeCorrection(prior, "на самом деле 150г риса", profile, provider);
-    expect(out.kcal).toBe(250);
+    const ctx = { focusMeal, todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } };
+    const out = await routeText("на самом деле 150г риса", profile, ctx, provider);
+    expect(out.intent).toBe("correction");
+    if (out.intent === "correction") expect(out.analysis.kcal).toBe(250);
     const req = provider.lastRequest!;
     expect(req.userText.toLowerCase()).toContain("150");
     // prior estimate is provided as context (no image needed — images are ephemeral)
-    expect(req.userText).toContain("300"); // prior kcal
+    expect(req.userText).toContain("300"); // focus meal kcal
     expect(req.imagesB64).toBeUndefined();
   });
 });
@@ -141,10 +143,9 @@ describe("output language", () => {
     }
   });
 
-  test("the correction path inherits the language instruction", async () => {
-    const provider = new FakeProvider(() => validJson);
-    const prior = MealAnalysisSchema.parse(JSON.parse(validJson));
-    await analyzeCorrection(prior, "no oil", { ...profile, lang: "de" }, provider);
+  test("the router path inherits the language instruction", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "ok" }));
+    await routeText("no oil", { ...profile, lang: "de" }, { todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } }, provider);
     expect(provider.lastRequest?.userText).toContain("German");
   });
 
@@ -201,10 +202,9 @@ describe("estimation protocol", () => {
     expect(provider.lastRequest!.userText.toLowerCase()).toContain("underestimat");
   });
 
-  test("the correction path inherits the estimation protocol", async () => {
-    const provider = new FakeProvider(() => validJson);
-    const prior = MealAnalysisSchema.parse(JSON.parse(validJson));
-    await analyzeCorrection(prior, "no oil", profile, provider);
+  test("the router path inherits the estimation protocol", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "ok" }));
+    await routeText("no oil", profile, { todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } }, provider);
     expect(provider.lastRequest!.userText.toLowerCase()).toContain("cooking method");
   });
 });
@@ -261,10 +261,9 @@ describe("expert persona + cuisine prior", () => {
     }
   });
 
-  test("the correction path inherits the cuisine prior", async () => {
-    const provider = new FakeProvider(() => validJson);
-    const prior = MealAnalysisSchema.parse(JSON.parse(validJson));
-    await analyzeCorrection(prior, "no oil", { ...profile, lang: "de" }, provider);
+  test("the router path inherits the cuisine prior", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "ok" }));
+    await routeText("no oil", { ...profile, lang: "de" }, { todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } }, provider);
     // The verbatim hint, not /German|.../: the output-language line always contains "German",
     // so a looser pattern would pass even with the cuisine line deleted.
     expect(provider.lastRequest!.userText).toContain(LOCALES.de.cuisineHint);
@@ -281,10 +280,9 @@ describe("sampling temperature", () => {
     expect(provider.lastRequest!.temperature!).toBeLessThanOrEqual(0.3);
   });
 
-  test("correction and restriction classification inherit it", async () => {
-    const provider = new FakeProvider(() => validJson);
-    const prior = MealAnalysisSchema.parse(JSON.parse(validJson));
-    await analyzeCorrection(prior, "no oil", profile, provider);
+  test("router and restriction classification inherit it", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "ok" }));
+    await routeText("no oil", profile, { todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } }, provider);
     expect(provider.lastRequest!.temperature!).toBeLessThanOrEqual(0.3);
 
     const classifier = new FakeProvider(() => JSON.stringify({ tags: [] }));

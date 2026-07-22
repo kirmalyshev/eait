@@ -397,38 +397,5 @@ export async function routeText(
   return { intent: r.intent, analysis: r.analysis };
 }
 
-/**
- * Correction path: a text reply corrects a prior estimate. The image is already gone (ephemeral),
- * so we re-estimate from the prior analysis + the user's correction. Same schema/validation.
- */
-export async function analyzeCorrection(
-  prior: MealAnalysis,
-  correctionText: string,
-  profile: Profile,
-  provider: LLMProvider,
-): Promise<MealAnalysis> {
-  const priorSummary = JSON.stringify({
-    items: prior.items,
-    kcal: prior.kcal,
-    protein_g: prior.protein_g,
-    carbs_g: prior.carbs_g,
-    fat_g: prior.fat_g,
-  });
-  const userText = [
-    buildUserText(profile),
-    "",
-    "You previously produced this estimate for the meal:",
-    priorSummary,
-    "",
-    `The user corrects it: "${correctionText}"`,
-    "Apply the correction and return the full updated JSON object (same schema).",
-  ].join("\n");
-
-  const raw = await provider.chat({
-    system: SYSTEM,
-    userText,
-    jsonSchema: MEAL_JSON_SCHEMA,
-    temperature: TEMPERATURE,
-  });
-  return parseAnalysis(raw);
-}
+// (The old analyzeCorrection path is gone: corrections now flow through routeText with a
+// focus meal, which also lets a question about a meal be answered instead of misapplied.)

@@ -12,14 +12,16 @@ import { createProvider } from "../llm/factory.ts";
 import {
   openDb, berlinDate, berlinTime, upsertUser, getUser, setConsent, setProfile, setUserState,
   insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals, countMealsToday,
-  logLlmCall, llmCallsToday, llmCallCountToday,
+  logLlmCall, llmCallsToday, llmCallCountToday, mealsOnDate, totalsByDate,
+  insertPendingMeal, setPendingReply, getPendingMeal, deletePendingMeal, prunePendingMeals,
   deleteUser, userCount, mealCount, mealCountToday, seenUpdate, markUpdate, setLang,
   getSetting, setSetting, clearSetting, hasMeals, hasEvent, logEvent, setAcquisitionSource,
   type Db, type UserRow,
 } from "../db.ts";
 import { loadAllowlist, type Allowlist } from "../allowlist.ts";
 import { AlbumBuffer } from "./albums.ts";
-import { analyzeMeal, analyzeCorrection, classifyRestrictions } from "../analyzer.ts";
+import { analyzeMeal, classifyRestrictions, routeText, type RouteContext, type RouteResult } from "../analyzer.ts";
+import { RejectionLog } from "./rejections.ts";
 import { targetsFor, isRestrictionTag } from "../targets.ts";
 import { formatReply } from "../reply.ts";
 import { settingsRoot, settingsStep } from "../settings.ts";
@@ -38,6 +40,11 @@ export interface BotDeps {
    * isAllowed, and the allowlist commands report that runtime editing is unavailable.
    */
   allowlist?: Allowlist;
+  /**
+   * Not-food reply ids, so a follow-up reply gets the canned explanation. Optional like
+   * allowlist; absent → such replies route to the LLM, which honestly has nothing on them.
+   */
+  rejections?: RejectionLog;
 }
 
 export interface Sent {
@@ -536,7 +543,9 @@ export async function processPhoto(
   // off-vocabulary values silently route to the generic hint, and nothing else would say so.
   console.log(`[eait] photo user=${from.id} isFood=${analysis.isFood} kcal=${analysis.kcal} items=${analysis.items.length} confidence=${analysis.confidence}`);
   if (!analysis.isFood) {
-    await send(t("errors.notFood"));
+    const sent = await send(t("errors.notFood"));
+    // Remember the rejection so a reply to it can be explained instead of guessed at.
+    if (sent) deps.rejections?.add(from.id, sent.message_id);
     return;
   }
   const id = crypto.randomUUID();
@@ -594,55 +603,110 @@ export async function processDocument(
   await processPhoto(deps, from, [getBytes], send, meta);
 }
 
-/** Returns true if the text was a correction of a known meal (so the caller stops routing). */
-export async function processCorrection(
+/**
+ * The free-text router (spec 2026-07-22): every plain text from an ACTIVE user goes through one
+ * LLM call that decides question / meal / correction. Returns false only for non-active users,
+ * whose text still belongs to onboarding.
+ *
+ * Precedence inside: reply-to-rejection (canned, no LLM) > reply-mapped focus meal > free router.
+ */
+export async function processText(
   deps: BotDeps,
   from: { id: number },
-  replyToMessageId: number,
-  text: string,
+  msg: { text: string; messageId: number; replyTo?: number },
   send: Send,
   opts?: { react?: React },
 ): Promise<boolean> {
-  const { db, provider } = deps;
-  const meal = await mealByReply(db, from.id, replyToMessageId);
-  if (!meal) return false;
+  const { db, provider, config } = deps;
   const u = await getUser(db, from.id);
-  if (!u) return false;
+  if (!u || u.state !== "active") return false; // onboarding owns non-active text
+
   const prof = profileOf(u);
   const t = translatorFor(prof.lang);
-  // Corrections draw from the same LLM-call pool as photo analyses — same tokens, same bound.
-  const date = berlinDate(new Date(), deps.config.tz);
-  if ((await llmCallsToday(db, from.id, date)) >= deps.config.perUserDailyPhotoCap) {
+
+  // A reply to a known "not food" message: explain deterministically — there is nothing stored
+  // about that photo (ephemeral), so no LLM call could say more.
+  if (msg.replyTo !== undefined && deps.rejections?.has(from.id, msg.replyTo)) {
+    await send(t("errors.rejectionExplain"));
+    return true;
+  }
+  const focus = msg.replyTo !== undefined ? await mealByReply(db, from.id, msg.replyTo) : undefined;
+
+  // Text calls draw from the same LLM-call pool as photo analyses — same tokens, same bound.
+  const date = berlinDate(new Date(), config.tz);
+  if ((await llmCallsToday(db, from.id, date)) >= config.perUserDailyPhotoCap) {
     await send(t("errors.dailyCap"));
     return true;
   }
-  const cap = await effectiveGlobalCap(db, deps.config);
+  const cap = await effectiveGlobalCap(db, config);
   if (cap !== null && (await llmCallCountToday(db, date)) >= cap) {
     console.warn(`[eait] global daily cap ${cap} reached`);
     await logEvent(db, from.id, "cap_hit");
     await send(t("errors.globalCap"));
     return true;
   }
-  // Only once the reply is KNOWN to be a correction: a non-matching reply falls through to
-  // onboarding and must carry no reaction. Same 👀-then-👍 lifecycle as the photo path.
+
   fireReaction(opts?.react, "👀", from.id);
+  const todayMeals = (await mealsOnDate(db, from.id, date)).map((m) => ({
+    items: m.items, kcal: m.kcal, protein_g: m.protein_g,
+  }));
+  const weekStart = berlinDate(new Date(Date.now() - 7 * 86_400_000), config.tz);
+  const routeCtx: RouteContext = {
+    focusMeal: focus ? mealToAnalysis(focus) : undefined,
+    todayMeals,
+    weekTotals: await totalsByDate(db, from.id, weekStart, date),
+    targets: targetsFor(prof),
+    localTime: berlinTime(new Date(), config.tz),
+  };
   await logLlmCall(db, from.id, date, "router");
-  let updated: MealAnalysis;
+  let route: RouteResult;
   try {
-    updated = await analyzeCorrection(mealToAnalysis(meal), text, prof, provider);
+    route = await routeText(msg.text, prof, routeCtx, provider);
   } catch (e) {
     // Log like processPhoto does — otherwise a model outage and a parse bug look identical
     // from the operator's side: the user gets a message, the logs get nothing.
-    console.error(`[eait] correction failed user=${from.id} meal=${meal.id}: ${(e as any)?.message}`);
-    await send(t("errors.correctionFailed"));
+    console.error(`[eait] route failed user=${from.id}: ${(e as any)?.message}`);
+    await send(t("errors.textFailed"));
     return true; // handled, but not processed — the 👀 stays, no 👍
   }
-  await applyCorrection(db, meal.id, from.id, updated);
-  const totals = await dailyTotals(db, from.id, meal.date);
-  await send(t("meal.updatedPrefix") + "\n" + formatReply(updated, totals, targetsFor(prof), t));
+
+  if (route.intent === "question") {
+    await send(route.answer);
+    fireReaction(opts?.react, "👍", from.id);
+    return true;
+  }
+
+  if (route.intent === "correction" && focus) {
+    await applyCorrection(db, focus.id, from.id, route.analysis);
+    const totals = await dailyTotals(db, from.id, focus.date);
+    // Deliberately no hint suffix — the user just corrected; re-prompting would nag.
+    await send(t("meal.updatedPrefix") + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t));
+    fireReaction(opts?.react, "👍", from.id);
+    return true;
+  }
+
+  // meal (or a correction whose focus meal vanished mid-flight) → confirm before logging:
+  // unlike a photo, free text is easy to misread as a meal, so nothing is stored until the tap.
+  const id = crypto.randomUUID();
+  await prunePendingMeals(db, new Date(Date.now() - PENDING_TTL_MS).toISOString());
+  await insertPendingMeal(db, {
+    id, user_id: from.id, ts: new Date().toISOString(), date,
+    analysis: route.analysis, model: config.llmModel,
+  });
+  const totals = await dailyTotals(db, from.id, date);
+  const preview =
+    t("text.confirmPrompt") + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t);
+  const sent = await send(preview, [[
+    { text: t("text.logButton"), data: `tm:log:${id}` },
+    { text: t("text.cancelButton"), data: `tm:cancel:${id}` },
+  ]]);
+  if (sent) await setPendingReply(db, id, from.id, sent.chat_id, sent.message_id);
   fireReaction(opts?.react, "👍", from.id);
   return true;
 }
+
+/** Stale pending text meals are swept lazily on the next pending insert. */
+const PENDING_TTL_MS = 48 * 3_600_000;
 
 export async function meCard(deps: BotDeps, userId: number): Promise<string | null> {
   const u = await getUser(deps.db, userId);
@@ -715,6 +779,8 @@ function toKeyboard(buttons: InlineButton[][]): InlineKeyboard {
 
 export function createBot(deps: BotDeps): Bot {
   const { db, config } = deps;
+  // Rejection tracking is per-process state; default it here so the live bot always has one.
+  deps.rejections ??= new RejectionLog();
   const bot = new Bot(config.telegramBotToken);
 
   // Access control — first, ahead of the dedupe table, so a stranger's update never writes a
@@ -912,12 +978,14 @@ export function createBot(deps: BotDeps): Bot {
 
   bot.on("message:text", async (ctx) => {
     if (!ctx.from) return;
-    const rt = ctx.message.reply_to_message;
-    if (rt) {
-      const handled = await processCorrection(deps, ctx.from, rt.message_id, ctx.message.text, sendVia(ctx), { react: reactVia(ctx) });
-      if (handled) return;
+    const handled = await processText(deps, ctx.from, {
+      text: ctx.message.text,
+      messageId: ctx.message.message_id,
+      replyTo: ctx.message.reply_to_message?.message_id,
+    }, sendVia(ctx), { react: reactVia(ctx) });
+    if (!handled) {
+      await processOnboarding(deps, ctx.from, { type: "text", text: ctx.message.text }, sendVia(ctx));
     }
-    await processOnboarding(deps, ctx.from, { type: "text", text: ctx.message.text }, sendVia(ctx));
   });
 
   // Handler-level errors (a failed reply, a bad update) must never crash the process.

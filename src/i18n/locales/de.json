@@ -43,7 +43,16 @@
     "notFood": "Das sieht nicht nach Essen aus 🤔",
     "notOnboarded": "Schick zuerst /start.",
     "notAnImage": "Das ist kein Bild 🤔 schick ein Foto der Mahlzeit.",
-    "fileTooBig": "Die Datei ist zu groß — schick sie stattdessen als Foto."
+    "fileTooBig": "Die Datei ist zu groß — schick sie stattdessen als Foto.",
+    "rejectionExplain": "Auf dem Foto habe ich kein Essen erkannt — es wurde nichts protokolliert und es gibt keine Analyse dazu. Schick ein deutlicheres Foto oder beschreib die Mahlzeit einfach als Text.",
+    "textFailed": "Die Nachricht konnte nicht verarbeitet werden — versuch es bitte noch einmal."
+  },
+  "text": {
+    "confirmPrompt": "Diese Mahlzeit eintragen?",
+    "logButton": "✅ Eintragen",
+    "cancelButton": "✖️ Abbrechen",
+    "cancelled": "Okay, nicht eingetragen.",
+    "pendingGone": "Der Eintrag ist schon abgelaufen — schick die Mahlzeit noch einmal, wenn du sie eintragen willst."
   },
   "help": {
     "body": "Schick mir ein Foto deiner Mahlzeit. Ich schätze die Bestandteile, Kalorien und Nährwerte, bewerte sie anhand deines Ziels und rechne sie zur Tagesbilanz.\n\nFalsch geschätzt? Antworte direkt auf meine Nachricht zu dieser Mahlzeit mit einer Korrektur — zum Beispiel „zwei Stück, ohne Öl“ — und ich rechne neu.\n\nBessere Fotos, bessere Schätzungen:\n• fotografiere von oben, der ganze Teller im Bild\n• gutes Licht; Besteck oder deine Hand neben dem Teller hilft mir, die Portionsgröße einzuschätzen\n• Gewicht oder Zutaten bekannt? Schreib es dazu in die Bildunterschrift\n\nBefehle:\n/me — Tagesbilanz\n/settings — Ziel, Einschränkungen, Sprache\n/help — diese Nachricht\n/delete — alle Daten löschen\n\nSchätzungen aus einem Foto sind ungefähr und keine medizinische Beratung."
