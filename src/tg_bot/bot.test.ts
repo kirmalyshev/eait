@@ -1,5 +1,5 @@
 import { afterAll, test, expect } from "bun:test";
-import { getUser, mealByReply, countMealsToday, mealCountToday, llmCallsToday, berlinDate, setSetting, eventsFor, type UserRow } from "../db.ts";
+import { getUser, mealByReply, countMealsToday, mealCountToday, llmCallsToday, logLlmCall, berlinDate, setSetting, eventsFor, type UserRow } from "../db.ts";
 import { loadAllowlist } from "../allowlist.ts";
 import { RejectionLog } from "./rejections.ts";
 import { cleanupTestDbs, freshTestDb } from "../testutil.ts";
@@ -9,7 +9,8 @@ import {
   processSettingsCallback, helpText, commandRegistrations, isAllowed,
   processCap, effectiveGlobalCap, processWaitlist,
   createBot, startBot, adminLangFor, isFatalTelegramError, describeError, processDocument,
-  type BotDeps, type Send, type Edit,
+  processAlbum, makeSendRich,
+  type BotDeps, type Send, type Edit, type PendingAlbumPart,
 } from "./bot.ts";
 import { DEFAULT_LANG, LANGS, translatorFor } from "../i18n/index.ts";
 import type { Config } from "../config.ts";
@@ -1605,8 +1606,8 @@ test("rich mode sends the HTML card through sendRich and wires the reply id for 
   const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: { ...cfg, replyFormat: "rich" } };
   await onboardToActive(deps, 820);
   const richCalls: Array<{ html: string; fallback: string }> = [];
-  const sendRich = async (html: string, fallback: string) => {
-    richCalls.push({ html, fallback });
+  const sendRich = async ({ html, plain }: { html: string; plain: string }) => {
+    richCalls.push({ html, fallback: plain });
     return { chat_id: 1, message_id: 91 };
   };
   const { msgs, send } = collector();
@@ -1641,4 +1642,272 @@ test("Q&A answers stay plain even in rich mode", async () => {
   await processText(deps, { id: 822 }, { text: "hi", messageId: 80 }, send, { sendRich });
   expect(richCalls).toBe(0);
   expect(msgs[0]).toBe("just text");
+});
+
+// ---------- review-fix regression tests ----------
+
+test("/cap 'used today' counts LLM calls, not stored meals", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(JSON.stringify({ isFood: false })), config: { ...cfg, adminUserId: 830, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: 500 } };
+  await onboardToActive(deps, 830);
+  await processPhoto(deps, { id: 830 }, [async () => new Uint8Array([1])], collector().send); // not-food: 1 call, 0 meals
+  deps.provider = fakeProvider(qJson("hi"));
+  await processText(deps, { id: 830 }, { text: "how much left?", messageId: 90 }, collector().send); // 1 more call
+  const cap = collector();
+  await processCap(deps, { id: 830 }, "", cap.send);
+  expect(cap.msgs[0]).toContain("2"); // 2 llm calls, 0 meals — display must show the enforced basis
+});
+
+test("the GLOBAL cap blocks the router before the provider is called", async () => {
+  const db = await freshTestDb();
+  let calls = 0;
+  const provider: LLMProvider = { chat: async () => (calls++, qJson("x")) };
+  const deps: BotDeps = { db, provider, config: { ...cfg, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: 1 } };
+  await onboardToActive(deps, 831);
+  await onboardToActive(deps, 832);
+  await logLlmCall(db, 832, berlinDate(new Date(), cfg.tz), "photo"); // someone else spent the cap
+  const { msgs, send } = collector();
+  await processText(deps, { id: 831 }, { text: "hi", messageId: 91 }, send);
+  expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.globalCap"));
+  expect(calls).toBe(0);
+  expect((await eventsFor(db, 831)).some((e) => e.event === "cap_hit")).toBe(true);
+});
+
+test("tm:log after /delete reports pendingGone — no orphan crash", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  await onboardToActive(deps, 833);
+  const { id } = await seedPending(db, 833);
+  const { deleteUser } = await import("../db.ts");
+  await deleteUser(db, 833);
+  const { msgs, send } = collector();
+  await processTextMealDecision(deps, { id: 833 }, `tm:log:${id}`, send);
+  expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("text.pendingGone"));
+});
+
+test("a correction whose meal vanished mid-flight is NOT confirmed as updated", async () => {
+  const db = await freshTestDb();
+  const outs = [foodJson(600), corrIntentJson(900)];
+  const provider: LLMProvider = { chat: async () => outs.shift()! };
+  const deps: BotDeps = { db, provider, config: cfg };
+  await onboardToActive(deps, 834);
+  await processPhoto(deps, { id: 834 }, [async () => new Uint8Array([1])], collector().send);
+  // meal vanishes between mealByReply and applyCorrection
+  const meal = await mealByReply(db, 834, 1);
+  const realApply = provider.chat;
+  provider.chat = async (req) => {
+    await db`DELETE FROM meals WHERE id = ${meal!.id}`;
+    return realApply.call(provider, req);
+  };
+  const { msgs, send } = collector();
+  await processText(deps, { id: 834 }, { text: "actually 900", messageId: 92, replyTo: 1 }, send);
+  expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.correctionFailed"));
+});
+
+test("a confirmed text meal is reply-correctable via the ORIGINAL text message", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(mealIntentJson(450)), config: cfg };
+  await onboardToActive(deps, 835);
+  const sentButtons: Array<Array<{ text: string; data: string }>> = [];
+  const send: Send = async (t, buttons) => {
+    if (buttons) sentButtons.push(...buttons);
+    return { chat_id: 9, message_id: 33 };
+  };
+  await processText(deps, { id: 835 }, { text: "ate 2 eggs", messageId: 4242 }, send);
+  const id = sentButtons[0]![0]!.data.split(":")[2]!;
+  await processTextMealDecision(deps, { id: 835 }, `tm:log:${id}`, collector().send);
+  const meal = await mealByReply(db, 835, 4242); // reply to the user's own text message
+  expect(meal).toBeDefined();
+  expect(meal!.kcal).toBe(450);
+});
+
+test("a failed Telegram download is not billed as an LLM call", async () => {
+  const db = await freshTestDb();
+  let calls = 0;
+  const provider: LLMProvider = { chat: async () => (calls++, foodJson()) };
+  const deps: BotDeps = { db, provider, config: cfg };
+  await onboardToActive(deps, 836);
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 836 }, [async () => { throw new Error("telegram file download failed: 404"); }], send);
+  expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.analyzeFailed"));
+  expect(calls).toBe(0);
+  expect(await llmCallsToday(db, 836, berlinDate(new Date(), cfg.tz))).toBe(0);
+});
+
+test("first_photo fires for the first PHOTO even when a text meal came first", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(mealIntentJson(300)), config: cfg };
+  await onboardToActive(deps, 837);
+  const sentButtons: Array<Array<{ text: string; data: string }>> = [];
+  const send: Send = async (t, buttons) => {
+    if (buttons) sentButtons.push(...buttons);
+    return { chat_id: 9, message_id: 33 };
+  };
+  await processText(deps, { id: 837 }, { text: "ate rice", messageId: 95 }, send);
+  await processTextMealDecision(deps, { id: 837 }, `tm:log:${sentButtons[0]![0]!.data.split(":")[2]}`, collector().send);
+  deps.provider = fakeProvider(foodJson(500));
+  await processPhoto(deps, { id: 837 }, [async () => new Uint8Array([1])], collector().send);
+  expect((await eventsFor(db, 837)).filter((e) => e.event === "first_photo").length).toBe(1);
+});
+
+test("a capped text user still gets the 👀 (seen ≠ will analyze, same as photos)", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(qJson("x")), config: { ...cfg, perUserDailyPhotoCap: 0 } };
+  await onboardToActive(deps, 838);
+  const r = reactionLog();
+  await processText(deps, { id: 838 }, { text: "hi", messageId: 96 }, collector().send, { react: r.react });
+  await flush();
+  expect(r.seen).toEqual(["👀"]);
+});
+
+test("a pending older than the TTL cannot be confirmed", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  await onboardToActive(deps, 839);
+  const id = crypto.randomUUID();
+  const staleTs = new Date(Date.now() - 49 * 3_600_000).toISOString();
+  const { insertPendingMeal } = await import("../db.ts");
+  await insertPendingMeal(db, { id, user_id: 839, ts: staleTs, date: "2026-07-20", analysis: JSON.parse(foodJson(300)), model: null });
+  const { msgs, send } = collector();
+  await processTextMealDecision(deps, { id: 839 }, `tm:log:${id}`, send);
+  expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("text.pendingGone"));
+  expect(await countMealsToday(db, 839, "2026-07-20")).toBe(0);
+});
+
+test("processText triggers the stale-pending sweep", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(mealIntentJson(300)), config: cfg };
+  await onboardToActive(deps, 840);
+  const oldId = crypto.randomUUID();
+  const { insertPendingMeal, getPendingMeal } = await import("../db.ts");
+  await insertPendingMeal(db, { id: oldId, user_id: 840, ts: new Date(Date.now() - 72 * 3_600_000).toISOString(), date: "2026-07-19", analysis: JSON.parse(foodJson(1)), model: null });
+  await processText(deps, { id: 840 }, { text: "ate rice", messageId: 97 }, collector().send);
+  expect(await getPendingMeal(db, oldId, 840)).toBeUndefined(); // swept by the insert-path prune
+});
+
+test("a reply with focus can still be a NEW meal (\"also had a coke\") — confirm flow, focus untouched", async () => {
+  const db = await freshTestDb();
+  const outs = [foodJson(600), mealIntentJson(140)];
+  const provider: LLMProvider = { chat: async () => outs.shift()! };
+  const deps: BotDeps = { db, provider, config: cfg };
+  await onboardToActive(deps, 841);
+  await processPhoto(deps, { id: 841 }, [async () => new Uint8Array([1])], collector().send);
+  const sentButtons: Array<Array<{ text: string; data: string }>> = [];
+  const send: Send = async (t, buttons) => {
+    if (buttons) sentButtons.push(...buttons);
+    return { chat_id: 9, message_id: 34 };
+  };
+  await processText(deps, { id: 841 }, { text: "also had a coke", messageId: 98, replyTo: 1 }, send);
+  expect(sentButtons.length).toBe(1); // confirm prompt, not a correction
+  expect((await mealByReply(db, 841, 1))!.kcal).toBe(600); // focus meal untouched
+});
+
+test("tm:log across midnight logs to the pending's own date (pinned as deliberate)", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  await onboardToActive(deps, 842);
+  const id = crypto.randomUUID();
+  const { insertPendingMeal } = await import("../db.ts");
+  const yesterday = new Date(Date.now() - 20 * 3_600_000).toISOString();
+  await insertPendingMeal(db, { id, user_id: 842, ts: yesterday, date: "2026-07-21", analysis: JSON.parse(foodJson(300)), model: null });
+  await processTextMealDecision(deps, { id: 842 }, `tm:log:${id}`, collector().send);
+  expect(await countMealsToday(db, 842, "2026-07-21")).toBe(1); // the described day, not today
+});
+
+test("the onboarding restriction classifier is metered as an llm call", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(JSON.stringify({ tags: ["kidneys"] })), config: cfg };
+  await processOnboarding(deps, { id: 843 }, { type: "command", command: "start" }, noop);
+  await processOnboarding(deps, { id: 843 }, { type: "callback", data: "consent_agree" }, noop);
+  await processOnboarding(deps, { id: 843 }, { type: "callback", data: "goal_lose" }, noop);
+  await processOnboarding(deps, { id: 843 }, { type: "text", text: "92" }, noop);
+  await processOnboarding(deps, { id: 843 }, { type: "text", text: "j'ai des problèmes rénaux" }, noop); // no keyword match → classifier
+  expect(await llmCallsToday(db, 843, berlinDate(new Date(), cfg.tz))).toBe(1);
+});
+
+// ---------- processAlbum ----------
+
+test("processAlbum: caption on the second part reaches the analyzer prompt", async () => {
+  // The user sends a portion photo + a product-label photo as one album.
+  // Only the label photo carries a caption; processAlbum must find it and pass it through.
+  const db = await freshTestDb();
+  let capturedReq: any;
+  const captureProvider: LLMProvider = {
+    chat: async (req) => { capturedReq = req; return foodJson(300); },
+  };
+  const deps: BotDeps = { db, provider: captureProvider, config: cfg };
+  await onboardToActive(deps, 900);
+
+  const bytes = new Uint8Array([1]);
+  const parts: PendingAlbumPart[] = [
+    { getBytes: async () => bytes, caption: undefined, messageId: 10, send: noop, sendRich: async () => undefined, react: async () => {}, from: { id: 900 } },
+    { getBytes: async () => bytes, caption: "Oatmeal 100g", messageId: 11, send: noop, sendRich: async () => undefined, react: async () => {}, from: { id: 900 } },
+  ];
+
+  await processAlbum(deps, "900:g1", parts);
+
+  // The provider saw the caption in the userText of the chat request
+  expect(capturedReq).toBeDefined();
+  expect(capturedReq.userText).toContain("Oatmeal 100g");
+  // A meal row was inserted (album treated as one meal)
+  expect(await countMealsToday(db, 900, berlinDate(new Date(), cfg.tz))).toBe(1);
+});
+
+test("processAlbum: getBytes throw yields errors.analyzeFailed reply and no meal row", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 901);
+
+  const { msgs, send } = collector();
+  const parts: PendingAlbumPart[] = [
+    {
+      getBytes: async () => { throw new Error("download failed: 403"); },
+      caption: undefined, messageId: 20, send, sendRich: async () => undefined, react: async () => {},
+      from: { id: 901 },
+    },
+  ];
+
+  // processAlbum must not throw — it catches internally and sends the error reply
+  await processAlbum(deps, "901:g2", parts);
+
+  // The English locale has "Couldn't read that 🤔 send the photo again."
+  expect(msgs.some((m) => m.toLowerCase().includes("couldn") || m.includes("🤔"))).toBe(true);
+  expect(await countMealsToday(db, 901, berlinDate(new Date(), cfg.tz))).toBe(0);
+});
+
+// ---------- makeSendRich ----------
+
+const card = { html: "<h3>Test</h3>", plain: "Test plain" };
+
+test("makeSendRich: rich succeeds → returns the Sent from sendRichMessage", async () => {
+  const ctx = {
+    chat: { id: 99 },
+    api: { sendRichMessage: async (_: number, __: any) => ({ chat: { id: 99 }, message_id: 7 }) },
+    reply: async (_: string) => { throw new Error("should not fall back"); },
+  };
+  const sendRich = makeSendRich(ctx);
+  const result = await sendRich(card);
+  expect(result).toEqual({ chat_id: 99, message_id: 7 });
+});
+
+test("makeSendRich: rich fails → falls back to plain, returns Sent", async () => {
+  const ctx = {
+    chat: { id: 99 },
+    api: { sendRichMessage: async () => { throw new Error("rich not supported"); } },
+    reply: async (_: string) => ({ chat: { id: 99 }, message_id: 3 }),
+  };
+  const sendRich = makeSendRich(ctx);
+  const result = await sendRich(card);
+  expect(result).toEqual({ chat_id: 99, message_id: 3 });
+});
+
+test("makeSendRich: both fail → returns undefined, never throws", async () => {
+  const ctx = {
+    chat: { id: 99 },
+    api: { sendRichMessage: async () => { throw new Error("rich not supported"); } },
+    reply: async (_: string) => { throw new Error("plain also failed"); },
+  };
+  const sendRich = makeSendRich(ctx);
+  const result = await sendRich(card);
+  expect(result).toBeUndefined();
 });

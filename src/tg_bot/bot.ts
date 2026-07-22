@@ -1,9 +1,11 @@
 // Telegram glue. The grammy handlers are thin adapters over the exported `process*` functions,
 // which hold the real logic and are unit-tested without grammy (a fake `send` + temp db + fake
-// provider). Text routing precedence (spec 2026-07-22): command > reply-to-rejection (canned) >
-// free-text router (processText: question / meal / correction, with a reply-mapped focus meal)
-// > onboarding for non-active users. Concurrency via @grammyjs/runner + sequentialize(by user);
-// update_id dedupe; images are in-memory only (never written to disk — ephemeral by construction).
+// provider). Text routing (spec 2026-07-22-free-text-handling-design): command first, then the
+// active-state gate — active users get processText (reply-to-rejection canned > caps > one
+// router call deciding question / meal / correction, with a reply-mapped focus meal as context);
+// non-active users' text belongs to onboarding. Concurrency via @grammyjs/runner +
+// sequentialize(by user); update_id dedupe; images are in-memory only (never written to disk —
+// ephemeral by construction).
 
 import { Bot, InlineKeyboard } from "grammy";
 import { run, sequentialize } from "@grammyjs/runner";
@@ -12,10 +14,10 @@ import type { LLMProvider } from "../llm/provider.ts";
 import { createProvider } from "../llm/factory.ts";
 import {
   openDb, berlinDate, berlinTime, upsertUser, getUser, setConsent, setProfile, setUserState,
-  insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals, countMealsToday,
+  insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals,
   logLlmCall, llmCallsToday, llmCallCountToday, mealsOnDate, totalsByDate,
   insertPendingMeal, setPendingReply, getPendingMeal, deletePendingMeal, prunePendingMeals,
-  deleteUser, userCount, mealCount, mealCountToday, seenUpdate, markUpdate, setLang,
+  deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang,
   getSetting, setSetting, clearSetting, hasMeals, hasEvent, logEvent, setAcquisitionSource,
   type Db, type UserRow,
 } from "../db.ts";
@@ -57,21 +59,29 @@ export interface Sent {
 export type Send = (text: string, buttons?: InlineButton[][]) => Promise<Sent | void>;
 
 /**
- * Sends a Rich Message (Bot API 10.1 HTML: tables, headings) with a plain-text fallback the
- * sender uses when the rich send fails — the bot must never go silent over formatting.
+ * One meal card, both renderings. An object on purpose: `html` and `plain` are same-typed
+ * strings, and as positional params a silent swap would ship raw tags to plain-mode users.
  */
-export type SendRich = (html: string, fallbackText: string) => Promise<Sent | void>;
+export interface MealCard {
+  html: string;
+  plain: string;
+}
+
+/**
+ * Sends a Rich Message (Bot API 10.1 HTML: tables, headings) with the card's plain fallback
+ * when the rich send fails — the bot must never go silent over formatting.
+ */
+export type SendRich = (card: MealCard) => Promise<Sent | void>;
 
 /** Rich when configured AND wired; plain otherwise. One switch for every meal-card site. */
 async function sendCard(
   config: Config,
   send: Send,
   sendRich: SendRich | undefined,
-  html: string,
-  plain: string,
+  card: MealCard,
 ): Promise<Sent | void> {
-  if (config.replyFormat === "rich" && sendRich) return sendRich(html, plain);
-  return send(plain);
+  if (config.replyFormat === "rich" && sendRich) return sendRich(card);
+  return send(card.plain);
 }
 
 /**
@@ -200,6 +210,10 @@ async function applyRestrictionFallback(
   if (input.type !== "text" || !input.text.trim()) return;
   if (r.patch?.restrictions === undefined || r.patch.restrictions.length > 0) return;
 
+  // Metered like every other provider call ("every LLM call draws one"), but deliberately NOT
+  // cap-gated: refusing an onboarding step over a spend cap would strand the user mid-flow,
+  // and this path runs at most once per user.
+  if (u) await logLlmCall(deps.db, u.telegram_id, berlinDate(new Date(), deps.config.tz), "classify");
   const tags = await classifyRestrictions(input.text, deps.provider, translatorLangOf(u));
   if (tags.length) r.patch.restrictions = tags;
 }
@@ -269,7 +283,9 @@ export async function processCap(
     await send(
       t("cap.current", {
         cap: shown(await effectiveGlobalCap(db, config)),
-        used: await mealCountToday(db, date),
+        // Must be the ENFORCED basis (LLM calls), not stored meals — not-food photos and Q&A
+        // draw the cap without adding a meal row, and the /cap readout exists to watch spend.
+        used: await llmCallCountToday(db, date),
       }),
     );
     return;
@@ -529,8 +545,9 @@ export async function processPhoto(
   const prof = profileOf(u);
   const t = translatorFor(prof.lang);
   const date = berlinDate(new Date(), config.tz);
-  // Caps meter LLM CALLS, not stored meals — a not-food analysis or a correction costs the
-  // same tokens as a logged meal, so it must draw from the same pool.
+  // Caps meter LLM CALLS, not stored meals — every provider call is billed (a not-food photo
+  // or a Q&A costs real money even though no meal row appears), so every call draws one from
+  // the same pool. Deliberately a per-call policy, not a token-cost model.
   if ((await llmCallsToday(db, from.id, date)) >= config.perUserDailyPhotoCap) {
     await send(t("errors.dailyCap"));
     return;
@@ -545,7 +562,6 @@ export async function processPhoto(
     await send(t("errors.globalCap"));
     return;
   }
-  await logLlmCall(db, from.id, date, "photo");
   // Caption + local clock go into the prompt: both measurably cut estimation error
   // (the caption is user-supplied ground truth; the time implies the meal type).
   const context: MealContext = { caption: meta?.caption, localTime: berlinTime(new Date(), config.tz) };
@@ -553,9 +569,12 @@ export async function processPhoto(
   try {
     const images: Uint8Array[] = [];
     for (const get of photos) images.push(await get()); // in-memory only; never written to disk
+    // Metered only once the bytes are in hand: a Telegram-side download failure costs no
+    // provider call and must not burn a cap unit.
+    await logLlmCall(db, from.id, date, "photo");
     analysis = await analyzeMeal(images, prof, provider, context);
   } catch (e) {
-    console.error(`[eait] analyze failed user=${from.id}: ${(e as any)?.message}`);
+    console.error(`[eait] analyze failed user=${from.id}: ${describeError(e)}`);
     await send(t("errors.analyzeFailed"));
     return;
   }
@@ -569,7 +588,9 @@ export async function processPhoto(
     return;
   }
   const id = crypto.randomUUID();
-  const firstPhoto = !(await hasMeals(db, from.id)); // read before the insert makes it true forever
+  // Event-based, not hasMeals: text meals write to `meals` too, so "has any meal" would
+  // suppress the funnel event for a user whose first photo follows a text meal.
+  const firstPhoto = !(await hasEvent(db, from.id, "first_photo"));
   await insertMeal(db, {
     id, user_id: from.id, ts: new Date().toISOString(), date, analysis, model: config.llmModel,
     user_message_id: meta?.userMessageId ?? null,
@@ -583,11 +604,10 @@ export async function processPhoto(
   const hint = analysis.confidence.startsWith("low")
     ? t("meal.lowConfidenceHint")
     : t("meal.correctionHint");
-  const sent = await sendCard(
-    config, send, meta?.sendRich,
-    renderMealCard(analysis, totals, targetsFor(prof), t),
-    formatReply(analysis, totals, targetsFor(prof), t) + "\n\n" + hint,
-  );
+  const sent = await sendCard(config, send, meta?.sendRich, {
+    html: renderMealCard(analysis, totals, targetsFor(prof), t, { footer: hint }),
+    plain: formatReply(analysis, totals, targetsFor(prof), t) + "\n\n" + hint,
+  });
   if (sent) await setMealReply(db, id, from.id, sent.chat_id, sent.message_id);
   // Processed successfully — the 👍 replaces the 👀 on the user's photo.
   fireReaction(meta?.react, "👍", from.id);
@@ -627,12 +647,17 @@ export async function processDocument(
   await processPhoto(deps, from, [getBytes], send, meta);
 }
 
+/** Stale pending text meals are swept lazily on the next pending insert; a tap on an older
+ * confirm prompt is refused. 48 h. */
+const PENDING_TTL_MS = 48 * 3_600_000;
+
 /**
- * The free-text router (spec 2026-07-22): every plain text from an ACTIVE user goes through one
- * LLM call that decides question / meal / correction. Returns false only for non-active users,
- * whose text still belongs to onboarding.
+ * The free-text router (spec 2026-07-22-free-text-handling-design): every plain text from an
+ * ACTIVE user goes through one LLM call that decides question / meal / correction. Returns
+ * false only for non-active users, whose text still belongs to onboarding.
  *
- * Precedence inside: reply-to-rejection (canned, no LLM) > reply-mapped focus meal > free router.
+ * Precedence inside: reply-to-rejection (canned, no LLM) > caps > one router call — a reply
+ * that maps to a meal doesn't short-circuit, it becomes the call's focus-meal context.
  */
 export async function processText(
   deps: BotDeps,
@@ -656,7 +681,11 @@ export async function processText(
   }
   const focus = msg.replyTo !== undefined ? await mealByReply(db, from.id, msg.replyTo) : undefined;
 
-  // Text calls draw from the same LLM-call pool as photo analyses — same tokens, same bound.
+  // 👀 before the cap checks, mirroring the photo path — "seen", not "will analyze".
+  fireReaction(opts?.react, "👀", from.id);
+
+  // Text calls draw from the same LLM-call pool as photo analyses — every provider call is
+  // billed, so every call draws one. A per-call policy, not a token-cost model.
   const date = berlinDate(new Date(), config.tz);
   if ((await llmCallsToday(db, from.id, date)) >= config.perUserDailyPhotoCap) {
     await send(t("errors.dailyCap"));
@@ -670,7 +699,6 @@ export async function processText(
     return true;
   }
 
-  fireReaction(opts?.react, "👀", from.id);
   const todayMeals = (await mealsOnDate(db, from.id, date)).map((m) => ({
     items: m.items, kcal: m.kcal, protein_g: m.protein_g,
   }));
@@ -689,7 +717,7 @@ export async function processText(
   } catch (e) {
     // Log like processPhoto does — otherwise a model outage and a parse bug look identical
     // from the operator's side: the user gets a message, the logs get nothing.
-    console.error(`[eait] route failed user=${from.id}: ${(e as any)?.message}`);
+    console.error(`[eait] route failed user=${from.id}: ${describeError(e)}`);
     await send(t("errors.textFailed"));
     return true; // handled, but not processed — the 👀 stays, no 👍
   }
@@ -700,26 +728,45 @@ export async function processText(
     return true;
   }
 
-  if (route.intent === "correction" && focus) {
-    await applyCorrection(db, focus.id, from.id, route.analysis);
+  if (route.intent === "correction") {
+    // routeText guarantees a correction only arrives with a focus meal; a missing one here is
+    // a programming error — make it loud, never silently re-route a correction into a NEW meal.
+    if (!focus) {
+      console.error(`[eait] correction intent without focus row user=${from.id} — should be unreachable`);
+      await send(t("errors.textFailed"));
+      return true;
+    }
+    // The meal can vanish between lookup and update (/delete race, second instance) — a 0-row
+    // update must not be confirmed to the user as applied.
+    if (!(await applyCorrection(db, focus.id, from.id, route.analysis))) {
+      await send(t("errors.correctionFailed"));
+      return true;
+    }
     const totals = await dailyTotals(db, from.id, focus.date);
     // Deliberately no hint suffix — the user just corrected; re-prompting would nag.
-    await sendCard(
-      config, send, opts?.sendRich,
-      renderMealCard(route.analysis, totals, targetsFor(prof), t),
-      t("meal.updatedPrefix") + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t),
-    );
+    // No footer on either rendering — the deliberate no-nag decision holds in both formats.
+    await sendCard(config, send, opts?.sendRich, {
+      html: renderMealCard(route.analysis, totals, targetsFor(prof), t, { prefix: t("meal.updatedPrefix") }),
+      plain: t("meal.updatedPrefix") + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t),
+    });
     fireReaction(opts?.react, "👍", from.id);
     return true;
   }
 
-  // meal (or a correction whose focus meal vanished mid-flight) → confirm before logging:
-  // unlike a photo, free text is easy to misread as a meal, so nothing is stored until the tap.
+  // meal → confirm before logging: unlike a photo, free text is easy to misread as a meal,
+  // so nothing is stored until the tap.
   const id = crypto.randomUUID();
-  await prunePendingMeals(db, new Date(Date.now() - PENDING_TTL_MS).toISOString());
+  // Housekeeping must never cost the user their (already-metered) meal — sweep failures are
+  // logged and skipped; the next insert retries anyway.
+  try {
+    await prunePendingMeals(db, new Date(Date.now() - PENDING_TTL_MS).toISOString());
+  } catch (e) {
+    console.warn(`[eait] pending sweep failed: ${describeError(e)}`);
+  }
   await insertPendingMeal(db, {
     id, user_id: from.id, ts: new Date().toISOString(), date,
     analysis: route.analysis, model: config.llmModel,
+    user_message_id: msg.messageId,
   });
   const totals = await dailyTotals(db, from.id, date);
   const preview =
@@ -733,8 +780,28 @@ export async function processText(
   return true;
 }
 
-/** Stale pending text meals are swept lazily on the next pending insert. */
-const PENDING_TTL_MS = 48 * 3_600_000;
+/**
+ * Rich Messages (Bot API 10.1). A failed rich send falls back to the plain rendering —
+ * formatting must never cost the user their reply. The fallback is guarded too: if BOTH sends
+ * fail, that is loudly logged and `undefined` is returned rather than thrown, because callers
+ * may already have committed state (a logged meal) that a throw would hide behind "expired".
+ * Module-level (not a createBot closure) so the failure ladder is unit-testable with a fake ctx.
+ */
+export const makeSendRich = (ctx: any): SendRich => async ({ html, plain }) => {
+  try {
+    const m = await ctx.api.sendRichMessage(ctx.chat.id, { html });
+    return { chat_id: m.chat.id, message_id: m.message_id };
+  } catch (e) {
+    console.warn(`[eait] rich send failed, falling back to plain: ${describeError(e)}`);
+  }
+  try {
+    const m = await ctx.reply(plain);
+    return { chat_id: m.chat.id, message_id: m.message_id };
+  } catch (e) {
+    console.error(`[eait] BOTH rich and plain send failed chat=${ctx.chat?.id}: ${describeError(e)}`);
+    return undefined;
+  }
+};
 
 /** Handles the tm:log / tm:cancel taps on a text-meal confirm prompt. */
 export async function processTextMealDecision(
@@ -756,26 +823,41 @@ export async function processTextMealDecision(
     await send(t("text.pendingGone"));
     return;
   }
+  // The lazy sweep only runs on inserts, so a confirm prompt can outlive the TTL on screen —
+  // honor the TTL at tap time too, or "expired" and the actual lifetime disagree.
+  if (Date.parse(pending.ts) < Date.now() - PENDING_TTL_MS) {
+    await deletePendingMeal(db, id!, from.id);
+    await send(t("text.pendingGone"));
+    return;
+  }
   if (action === "cancel") {
     await deletePendingMeal(db, id!, from.id);
     await send(t("text.cancelled"));
     return;
   }
   // Log: the analysis was already produced (and the LLM call already metered) at router time.
+  // Order matters for crash/send-failure safety: insert (idempotent on id) → send the card →
+  // only then delete the pending row. A failed send leaves the row re-tappable instead of
+  // telling the user "expired" about a meal that WAS logged — the retry converges instead of
+  // manufacturing a duplicate via re-sent text.
   await insertMeal(db, {
     id: pending.id, user_id: from.id, ts: pending.ts, date: pending.date,
     analysis: pending.analysis, model: pending.model,
+    user_message_id: pending.user_message_id,
   });
-  await deletePendingMeal(db, id!, from.id);
-  if (!u) return;
-  const prof = profileOf(u);
-  const totals = await dailyTotals(db, from.id, pending.date);
-  const sent = await sendCard(
-    deps.config, send, opts?.sendRich,
-    renderMealCard(pending.analysis, totals, targetsFor(prof), t),
-    formatReply(pending.analysis, totals, targetsFor(prof), t) + "\n\n" + t("meal.correctionHint"),
-  );
-  if (sent) await setMealReply(db, pending.id, from.id, sent.chat_id, sent.message_id);
+  if (u) {
+    const prof = profileOf(u);
+    const totals = await dailyTotals(db, from.id, pending.date);
+    const sent = await sendCard(deps.config, send, opts?.sendRich, {
+      html: renderMealCard(pending.analysis, totals, targetsFor(prof), t, { footer: t("meal.correctionHint") }),
+      plain: formatReply(pending.analysis, totals, targetsFor(prof), t) + "\n\n" + t("meal.correctionHint"),
+    });
+    if (sent) await setMealReply(db, pending.id, from.id, sent.chat_id, sent.message_id);
+  }
+  if (!(await deletePendingMeal(db, id!, from.id))) {
+    // Somebody else's sweep raced us — harmless (the meal is in), but worth a trace.
+    console.warn(`[eait] pending row ${id} vanished before post-log delete user=${from.id}`);
+  }
 }
 
 export async function meCard(deps: BotDeps, userId: number): Promise<string | null> {
@@ -836,6 +918,50 @@ export async function statsCard(deps: BotDeps, lang: Lang): Promise<string> {
   });
 }
 
+// ---------- album flush (exported for tests) ----------
+
+/** One photo part arriving as part of a Telegram media group (album). */
+export interface PendingAlbumPart {
+  getBytes: () => Promise<Uint8Array>;
+  caption?: string;
+  messageId: number;
+  send: Send;
+  sendRich: SendRich;
+  react: React;
+  from: { id: number };
+}
+
+/**
+ * Flush a buffered album: all parts share one media_group_id and belong to one meal.
+ * Runs outside every grammy handler (the AlbumBuffer fires on a timer), so bot.catch
+ * can never intercept errors here — failure must be caught and reported inline.
+ */
+export async function processAlbum(
+  deps: BotDeps,
+  key: string,
+  parts: PendingAlbumPart[],
+): Promise<void> {
+  const first = parts[0];
+  const caption = parts.find((p) => p.caption)?.caption;
+  try {
+    await processPhoto(deps, first.from, parts.map((p) => p.getBytes), first.send, {
+      caption,
+      react: first.react,
+      userMessageId: first.messageId,
+      sendRich: first.sendRich,
+    });
+  } catch (e) {
+    // Without this, an album failure is a permanent 👀 and eternal silence at the user.
+    console.error(`[eait] album flush failed key=${key}: ${describeError(e)}`);
+    try {
+      const u = await getUser(deps.db, first.from.id);
+      await first.send(translatorForUser(u)("errors.analyzeFailed"));
+    } catch {
+      // the AlbumBuffer's own catch is the last line; nothing more to do
+    }
+  }
+}
+
 // ---------- grammy wiring ----------
 
 function toKeyboard(buttons: InlineButton[][]): InlineKeyboard {
@@ -881,18 +1007,7 @@ export function createBot(deps: BotDeps): Bot {
     return { chat_id: m.chat.id, message_id: m.message_id };
   };
 
-  // Rich Messages (Bot API 10.1). A failed rich send falls back to the plain rendering —
-  // formatting must never cost the user their reply. Failures are logged for the operator.
-  const sendRichVia = (ctx: any): SendRich => async (html, fallbackText) => {
-    try {
-      const m = await ctx.api.sendRichMessage(ctx.chat.id, { html });
-      return { chat_id: m.chat.id, message_id: m.message_id };
-    } catch (e) {
-      console.warn(`[eait] rich send failed, falling back to plain: ${describeError(e)}`);
-      const m = await ctx.reply(fallbackText);
-      return { chat_id: m.chat.id, message_id: m.message_id };
-    }
-  };
+  const sendRichVia = (ctx: any): SendRich => makeSendRich(ctx);
 
   const editVia = (ctx: any): Edit => async (text, buttons) => {
     try {
@@ -967,6 +1082,9 @@ export function createBot(deps: BotDeps): Bot {
     if (data === "delete_confirm") {
       const t = await tFor(ctx); // read the language BEFORE the row is deleted
       await deleteUser(db, ctx.from.id);
+      // In-memory state too: the erasure promise is total, and a stale rejection entry would
+      // leak a pre-delete interaction into the user's next life.
+      deps.rejections?.remove(ctx.from.id);
       await ctx.reply(t("delete.done"));
       return;
     }
@@ -1010,26 +1128,10 @@ export function createBot(deps: BotDeps): Bot {
   // An album (media group) arrives as N separate photo updates sharing media_group_id.
   // Parts are buffered per (user, group) and flushed as ONE analysis after a quiet period —
   // otherwise a portion photo and its label photo get analyzed as two unrelated meals.
-  interface PendingAlbumPart {
-    getBytes: () => Promise<Uint8Array>;
-    caption?: string;
-    messageId: number;
-    send: Send;
-    sendRich: SendRich;
-    react: React;
-    from: { id: number };
-  }
   const ALBUM_FLUSH_MS = 1500;
-  const albums = new AlbumBuffer<PendingAlbumPart>(ALBUM_FLUSH_MS, (key, parts) => {
-    const first = parts[0];
-    const caption = parts.find((p) => p.caption)?.caption; // an album's caption sits on one part
-    void processPhoto(deps, first.from, parts.map((p) => p.getBytes), first.send, {
-      caption,
-      react: first.react,
-      userMessageId: first.messageId,
-      sendRich: first.sendRich,
-    }).catch((e) => console.error(`[eait] album flush failed key=${key}: ${describeError(e)}`));
-  });
+  const albums = new AlbumBuffer<PendingAlbumPart>(ALBUM_FLUSH_MS, (key, parts) =>
+    processAlbum(deps, key, parts),
+  );
 
   bot.on("message:photo", async (ctx) => {
     if (!ctx.from) return;
@@ -1082,7 +1184,16 @@ export function createBot(deps: BotDeps): Bot {
 
   // Handler-level errors (a failed reply, a bad update) must never crash the process.
   bot.catch((err) => {
-    console.error("[eait] handler error:", (err as any)?.error ?? err);
+    // With user + update ids: "user X says the bot ignored them" must be greppable. And the
+    // user hears SOMETHING — total silence after an unexpected throw reads as a broken bot.
+    const ctx = (err as any)?.ctx;
+    console.error(
+      `[eait] handler error user=${ctx?.from?.id ?? "?"} update=${ctx?.update?.update_id ?? "?"}: ${describeError((err as any)?.error ?? err)}`,
+    );
+    void (async () => {
+      const u = ctx?.from?.id ? await getUser(db, ctx.from.id) : undefined;
+      await ctx?.reply?.(translatorForUser(u)("errors.textFailed"));
+    })().catch(() => {}); // best-effort only — a failed apology must not recurse
   });
 
   return bot;
