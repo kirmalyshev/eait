@@ -82,11 +82,12 @@ const MEAL_JSON_SCHEMA = {
 } as const;
 
 const SYSTEM =
-  "You are a careful nutrition estimator for a personal food-photo diary. Estimate the meal's " +
-  "items and macros from the photo, following the estimation protocol exactly and working " +
-  "through it in the `reasoning` field BEFORE filling any numeric field. Respond with ONLY a " +
-  "single JSON object matching the schema — no prose, no markdown fences. If the photo is not " +
-  "food, set isFood=false.";
+  "You are an expert nutritionist experienced in estimating meal composition and portion " +
+  "weight from photos for a personal food diary. Estimate the meal's items and macros from " +
+  "the photo, following the estimation protocol exactly and working through it in the " +
+  "`reasoning` field BEFORE filling any numeric field. Respond with ONLY a single JSON " +
+  "object matching the schema — no prose, no markdown fences. If the photo is not food, " +
+  "set isFood=false.";
 
 /** A caption is user text going into a prompt — cap it like the restriction input. */
 const CAPTION_INPUT_CAP = 300;
@@ -120,6 +121,14 @@ function buildUserText(profile: Profile, context?: MealContext): string {
   lines.push("2. Estimate each portion's volume using visible scale references (plate ~26cm, cutlery, glass, hands), then convert volume to grams per item.");
   lines.push("3. Compute kcal and macros per item from grams + cooking method; totals are the sums across items.");
   lines.push("Mixed and layered dishes are systematically underestimated — when torn between two portion sizes, take the larger.");
+  // A regional prior steers identification away from generic international staples. Hedged on
+  // purpose: the interface language suggests a cuisine, the photo always wins.
+  const cuisine = LOCALES[profile.lang].cuisineHint;
+  if (cuisine) {
+    lines.push(
+      `The user's interface language suggests ${cuisine} is likely — weigh regional dishes when identifying items, but always trust what the photo shows over this prior.`,
+    );
+  }
   lines.push("Estimate items[{name,grams}], kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g, sodium_mg, plant_protein_pct.");
   lines.push('Set confidence to exactly one of "high", "medium", "low" — "low" when the dish is mixed, ingredients may be hidden, or no scale reference is visible; state why in notes.');
   if (context?.caption) {
