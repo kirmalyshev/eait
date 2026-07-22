@@ -36,13 +36,21 @@ export interface OnboardingResult {
 }
 
 /**
- * "92", "92.5", "92,5 кг", "85kg" -> kilograms; null when unparseable or outside 30–300 kg
- * (outside that range it is far more likely a typo or lbs than a real bodyweight in kg).
+ * "92", "92.5", "92,5 кг", "85kg" -> kilograms; "180 lbs" is converted, not mistaken for kg.
+ * null when unparseable or outside 30–300 kg (outside that range it is far more likely a typo
+ * than a real bodyweight). The FIRST number wins ("92 kg yesterday 80" -> 92).
  */
+const LB_PER_KG = 0.45359237;
+
 export function parseWeight(text: string): number | null {
   const m = text.replace(",", ".").match(/-?\d+(?:\.\d+)?/);
   if (!m) return null;
-  const kg = Number(m[0]);
+  let kg = Number(m[0]);
+  // A pounds suffix converts; a bare number is trusted as kg (the echo in the reply is the
+  // safety net for someone who typed pounds without saying so).
+  // Unit anchored to a digit ("180 lbs", "200lb") — a bare \b misses "200lb" (digit→letter
+  // is not a word boundary) and a free-floating match would fire on words containing "lb".
+  if (/\d\s*(lbs?|pounds?|фунт\w*)\b/i.test(text)) kg = Math.round(kg * LB_PER_KG * 10) / 10;
   return kg >= 30 && kg <= 300 ? kg : null;
 }
 
@@ -172,7 +180,9 @@ export function step(
     if (kg == null) return askWeight(t, "onboarding.weightInvalid");
     return {
       nextState: "profile",
-      reply: t("onboarding.askRestrictions"),
+      // Echo the parsed value: a misparse (pounds typed as a bare number, a typo) must be
+      // visible and correctable, not silently stored.
+      reply: t("onboarding.weightSaved", { kg }) + "\n\n" + t("onboarding.askRestrictions"),
       patch: { weight_kg: kg },
       buttons: restrictionButtons(t),
     };

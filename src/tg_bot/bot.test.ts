@@ -329,6 +329,42 @@ test("processPhoto fires the ack before the vision call starts", async () => {
   expect(order).toEqual(["ack", "chat"]);
 });
 
+test("a non-onboarded sender gets no ack — the 👀 must not precede a refusal", async () => {
+  const db = await freshTestDb();
+  let acked = 0;
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 401 }, async () => new Uint8Array([1]), send, {
+    ack: async () => { acked++; },
+  });
+  expect(msgs[0]).toContain("/start");
+  expect(acked).toBe(0);
+});
+
+test("a SYNCHRONOUSLY throwing ack neither blocks the analysis nor crashes", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 402);
+  const { msgs, send } = collector();
+  await processPhoto(deps, { id: 402 }, async () => new Uint8Array([1]), send, {
+    ack: (() => { throw new Error("sync react throw"); }) as unknown as () => Promise<void>,
+  });
+  expect(msgs[0]).toContain("600");
+  expect(await countMealsToday(db, 402, berlinDate(new Date(), cfg.tz))).toBe(1);
+});
+
+test("a rejected document (wrong mime) gets no ack; an accepted one acks exactly once", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 403);
+  let acked = 0;
+  const ack = async () => { acked++; };
+  await processDocument(deps, { id: 403 }, { mime_type: "application/pdf" }, async () => new Uint8Array([1]), noop, { ack });
+  expect(acked).toBe(0);
+  await processDocument(deps, { id: 403 }, { mime_type: "image/jpeg", file_size: 1 }, async () => new Uint8Array([1]), noop, { ack });
+  expect(acked).toBe(1);
+});
+
 test("a failing ack never blocks the analysis or the meal insert", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };

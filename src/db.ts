@@ -231,6 +231,12 @@ const MIGRATIONS: Migration[] = [
     version: 2,
     up: async (tx) => {
       await tx`ALTER TABLE users ADD COLUMN weight_kg DOUBLE PRECISION`;
+      // Users mid-flow at the OLD restrictions step (profile + goal set) are backfilled to
+      // "skipped": without this their next message — composed as a restrictions answer —
+      // would be consumed by the new weight question, and any number in it stored as a
+      // bodyweight. Active users stay NULL (resume() never re-opens onboarding for them);
+      // goal-step users stay NULL and get the weight question in its natural place.
+      await tx`UPDATE users SET weight_kg = 0 WHERE state = 'profile' AND goal IS NOT NULL`;
     },
   },
 ];

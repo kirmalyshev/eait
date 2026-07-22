@@ -71,6 +71,34 @@ describe("weight", () => {
   });
 });
 
+describe("migration 2 upgrade path (pre-existing databases, not fresh creates)", () => {
+  test("active users keep NULL weight; users mid-flow past goal are backfilled to skipped", async () => {
+    const name = freshTestName();
+    const a = await openTestDb(name);
+    // Rewind to v1: drop the column and reset the version, then seed pre-migration rows.
+    await a`ALTER TABLE users DROP COLUMN weight_kg`;
+    await a`UPDATE schema_version SET version = 1`;
+    await upsertUser(a, { telegram_id: 1 });
+    await setProfile(a, 1, { goal: "lose", restrictions: [], state: "active" });
+    await upsertUser(a, { telegram_id: 2 }); // mid-flow at the OLD restrictions step
+    await setProfile(a, 2, { goal: "maintain", state: "profile" });
+    await upsertUser(a, { telegram_id: 3 }); // mid-flow at the goal step
+    await setProfile(a, 3, { state: "profile" });
+    await a.close();
+
+    const b = await openTestDb(name); // migration 2 runs against existing rows
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(2);
+    // Active user: never asked — NULL, and never re-asked (resume() skips active users).
+    expect((await getUser(b, 1))!.weight_kg).toBeNull();
+    // Restrictions-step user: backfilled to the skip sentinel, or their next message — composed
+    // as a restrictions answer — would be silently eaten by the new weight step.
+    expect((await getUser(b, 2))!.weight_kg).toBe(0);
+    expect((await getUser(b, 2))!.goal).toBe("maintain"); // untouched otherwise
+    // Goal-step user: still NULL — they haven't seen the weight question and should get it.
+    expect((await getUser(b, 3))!.weight_kg).toBeNull();
+  });
+});
+
 describe("openDb + migrations", () => {
   test("auto-creates a missing database and records the schema version", async () => {
     const db = await freshTestDb();

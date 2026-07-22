@@ -469,15 +469,20 @@ export async function processPhoto(
   send: Send,
   meta?: { caption?: string; ack?: () => Promise<void> },
 ): Promise<void> {
-  // Instant "seen" signal (a 👀 reaction from the handler): the vision call takes seconds and
-  // silence reads as broken. Fire-and-forget — a failed reaction must never block the analysis.
-  void meta?.ack?.().catch(() => {});
   const { db, provider, config } = deps;
   const u = await getUser(db, from.id);
   if (!u || u.state !== "active") {
     await send(translatorForUser(u)("errors.notOnboarded"));
     return;
   }
+  // Instant "seen" signal (a 👀 reaction from the handler): the vision call takes seconds and
+  // silence reads as broken. Deliberately after the active-state gate (a refusal should not be
+  // preceded by a 👀) and before the cap checks. Promise.resolve wrapping makes even a
+  // SYNCHRONOUSLY throwing thunk harmless, and failures are logged — a Telegram-side reaction
+  // rejection must be visible to the operator, never a silent permanent degradation.
+  void Promise.resolve()
+    .then(() => meta?.ack?.())
+    .catch((e) => console.warn(`[eait] ack failed user=${from.id}: ${describeError(e)}`));
   const prof = profileOf(u);
   const t = translatorFor(prof.lang);
   const date = berlinDate(new Date(), config.tz);

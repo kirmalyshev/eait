@@ -42,11 +42,20 @@ describe("happy path consent -> profile -> active", () => {
     expect(buttonData(r)).toContain("weight_skip");
   });
 
-  test("weight text -> stays profile, stores kg, asks restrictions", () => {
+  test("weight text -> stays profile, stores kg, echoes it back, asks restrictions", () => {
     const r = step(user({ state: "profile", goal: "lose" }), { type: "text", text: "92,5 кг" }, t);
     expect(r.nextState).toBe("profile");
     expect(r.patch?.weight_kg).toBe(92.5);
+    // The parsed value is echoed so a misparse is visible and correctable, not silent.
+    expect(r.reply).toContain("92.5");
+    expect(r.reply).toContain(t("onboarding.askRestrictions"));
     expect(buttonData(r)).toContain("restrictions_skip");
+  });
+
+  test("pounds are converted, not stored as kilograms", () => {
+    const r = step(user({ state: "profile", goal: "lose" }), { type: "text", text: "180 lbs" }, t);
+    expect(r.patch?.weight_kg).toBe(81.6); // 180 × 0.45359237, rounded to 0.1
+    expect(step(user({ state: "profile", goal: "lose" }), { type: "text", text: "200lb" }, t).patch?.weight_kg).toBe(90.7);
   });
 
   test("weight skip -> stores the 0 sentinel, asks restrictions", () => {
