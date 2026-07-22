@@ -55,6 +55,7 @@ export interface NewMeal {
   model?: string | null;
   chat_id?: number | null;
   bot_message_id?: number | null;
+  user_message_id?: number | null;
 }
 
 /** YYYY-MM-DD for an instant in the given IANA zone (default Europe/Berlin), not UTC. */
@@ -237,6 +238,37 @@ const MIGRATIONS: Migration[] = [
       // bodyweight. Active users stay NULL (resume() never re-opens onboarding for them);
       // goal-step users stay NULL and get the weight question in its natural place.
       await tx`UPDATE users SET weight_kg = 0 WHERE state = 'profile' AND goal IS NOT NULL`;
+    },
+  },
+  {
+    // Free-text era: replies to the user's OWN photo must find the meal (user_message_id),
+    // text-described meals wait for confirmation (pending_meals), and the spend caps count
+    // LLM calls rather than stored meals (llm_calls) — a capped correction or Q&A call costs
+    // exactly as much as a photo analysis.
+    version: 3,
+    up: async (tx) => {
+      await tx`ALTER TABLE meals ADD COLUMN user_message_id BIGINT`;
+      await tx`CREATE INDEX idx_meals_user_msg ON meals(user_id, user_message_id)`;
+      await tx`
+        CREATE TABLE pending_meals (
+          id             TEXT PRIMARY KEY,
+          user_id        BIGINT NOT NULL,
+          ts             TEXT NOT NULL,
+          date           TEXT NOT NULL,
+          chat_id        BIGINT,
+          bot_message_id BIGINT,
+          analysis       TEXT NOT NULL,
+          model          TEXT
+        )`;
+      await tx`CREATE INDEX idx_pending_reply ON pending_meals(user_id, bot_message_id)`;
+      await tx`
+        CREATE TABLE llm_calls (
+          user_id BIGINT NOT NULL,
+          date    TEXT NOT NULL,
+          kind    TEXT NOT NULL
+        )`;
+      await tx`CREATE INDEX idx_llm_calls_date ON llm_calls(date)`;
+      await tx`CREATE INDEX idx_llm_calls_user ON llm_calls(user_id, date)`;
     },
   },
 ];
@@ -451,11 +483,12 @@ export async function insertMeal(db: Db, m: NewMeal): Promise<void> {
   const a = m.analysis;
   await db`
     INSERT INTO meals (
-      id, user_id, ts, date, chat_id, bot_message_id, items,
+      id, user_id, ts, date, chat_id, bot_message_id, user_message_id, items,
       kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g, sodium_mg,
       plant_protein_pct, verdicts, confidence, notes, corrected, model
     ) VALUES (
       ${m.id}, ${m.user_id}, ${m.ts}, ${m.date}, ${m.chat_id ?? null}, ${m.bot_message_id ?? null},
+      ${m.user_message_id ?? null},
       ${JSON.stringify(a.items ?? [])},
       ${a.kcal}, ${a.protein_g}, ${a.carbs_g}, ${a.fat_g}, ${a.satfat_g}, ${a.fiber_g},
       ${a.sugar_g}, ${a.sodium_mg}, ${a.plant_protein_pct},
@@ -519,14 +552,112 @@ export async function applyCorrection(
   );
 }
 
+/** The meal a reply targets — matches the bot's analysis message OR the user's own photo. */
 export async function mealByReply(
   db: Db,
   user_id: number,
-  bot_message_id: number,
+  message_id: number,
 ): Promise<MealRecord | undefined> {
   const rows = await db`
-    SELECT * FROM meals WHERE user_id = ${user_id} AND bot_message_id = ${bot_message_id}`;
+    SELECT * FROM meals
+    WHERE user_id = ${user_id}
+      AND (bot_message_id = ${message_id} OR user_message_id = ${message_id})
+    LIMIT 1`;
   return rows.length ? rowToMeal(rows[0]) : undefined;
+}
+
+// ---------- llm call metering (the cap basis: every provider call costs one) ----------
+
+export async function logLlmCall(
+  db: Db,
+  user_id: number,
+  date: string,
+  kind: "photo" | "router",
+): Promise<void> {
+  await db`INSERT INTO llm_calls (user_id, date, kind) VALUES (${user_id}, ${date}, ${kind})`;
+}
+
+export async function llmCallsToday(db: Db, user_id: number, date: string): Promise<number> {
+  const rows = await db`
+    SELECT COUNT(*)::int AS n FROM llm_calls WHERE user_id = ${user_id} AND date = ${date}`;
+  return rows[0].n as number;
+}
+
+export async function llmCallCountToday(db: Db, date: string): Promise<number> {
+  const rows = await db`SELECT COUNT(*)::int AS n FROM llm_calls WHERE date = ${date}`;
+  return rows[0].n as number;
+}
+
+// ---------- pending meals (text-described, confirm-first) ----------
+
+export interface PendingMeal {
+  id: string;
+  user_id: number;
+  ts: string;
+  date: string;
+  chat_id: number | null;
+  bot_message_id: number | null;
+  analysis: MealAnalysis;
+  model: string | null;
+}
+
+export async function insertPendingMeal(
+  db: Db,
+  p: { id: string; user_id: number; ts: string; date: string; analysis: MealAnalysis; model: string | null },
+): Promise<void> {
+  await db`
+    INSERT INTO pending_meals (id, user_id, ts, date, analysis, model)
+    VALUES (${p.id}, ${p.user_id}, ${p.ts}, ${p.date}, ${JSON.stringify(p.analysis)}, ${p.model})`;
+}
+
+export async function setPendingReply(
+  db: Db,
+  id: string,
+  user_id: number,
+  chat_id: number,
+  bot_message_id: number,
+): Promise<void> {
+  await db`
+    UPDATE pending_meals SET chat_id = ${chat_id}, bot_message_id = ${bot_message_id}
+    WHERE id = ${id} AND user_id = ${user_id}`;
+}
+
+export async function getPendingMeal(
+  db: Db,
+  id: string,
+  user_id: number,
+): Promise<PendingMeal | undefined> {
+  const rows = await db`
+    SELECT * FROM pending_meals WHERE id = ${id} AND user_id = ${user_id}`;
+  if (!rows.length) return undefined;
+  const row = rows[0];
+  let analysis: MealAnalysis;
+  try {
+    analysis = JSON.parse(row.analysis);
+  } catch {
+    return undefined; // a corrupt pending row is unusable — treat as expired
+  }
+  return {
+    id: row.id,
+    user_id: Number(row.user_id),
+    ts: row.ts,
+    date: row.date,
+    chat_id: row.chat_id === null ? null : Number(row.chat_id),
+    bot_message_id: row.bot_message_id === null ? null : Number(row.bot_message_id),
+    analysis,
+    model: row.model,
+  };
+}
+
+/** True if a row was actually deleted (user-scoped — a foreign id deletes nothing). */
+export async function deletePendingMeal(db: Db, id: string, user_id: number): Promise<boolean> {
+  const rows = await db`
+    DELETE FROM pending_meals WHERE id = ${id} AND user_id = ${user_id} RETURNING id`;
+  return rows.length > 0;
+}
+
+export async function prunePendingMeals(db: Db, olderThanIso: string): Promise<void> {
+  await db`DELETE FROM pending_meals WHERE ts < ${olderThanIso}`;
 }
 
 export async function dailyTotals(db: Db, user_id: number, date: string): Promise<DailyTotals> {
@@ -542,6 +673,30 @@ export async function dailyTotals(db: Db, user_id: number, date: string): Promis
       COALESCE(SUM(sodium_mg),0)::float8 AS sodium_mg
     FROM meals WHERE user_id = ${user_id} AND date = ${date}`;
   return rows[0] as DailyTotals;
+}
+
+/** A user's meals on one date, oldest first — the router's today-context. */
+export async function mealsOnDate(db: Db, user_id: number, date: string): Promise<MealRecord[]> {
+  const rows = await db`
+    SELECT * FROM meals WHERE user_id = ${user_id} AND date = ${date} ORDER BY ts`;
+  return rows.map(rowToMeal);
+}
+
+/** Per-date kcal/protein sums over a date range (inclusive) — the router's week-context. */
+export async function totalsByDate(
+  db: Db,
+  user_id: number,
+  fromDate: string,
+  toDate: string,
+): Promise<Array<{ date: string; kcal: number; protein_g: number }>> {
+  const rows = await db`
+    SELECT date,
+      COALESCE(SUM(kcal),0)::float8      AS kcal,
+      COALESCE(SUM(protein_g),0)::float8 AS protein_g
+    FROM meals
+    WHERE user_id = ${user_id} AND date >= ${fromDate} AND date <= ${toDate}
+    GROUP BY date ORDER BY date`;
+  return rows.map((r: any) => ({ date: r.date, kcal: r.kcal, protein_g: r.protein_g }));
 }
 
 /**
@@ -618,6 +773,7 @@ function rowToMeal(row: Record<string, any>): MealRecord {
     date: row.date,
     chat_id: row.chat_id === null ? null : Number(row.chat_id),
     bot_message_id: row.bot_message_id === null ? null : Number(row.bot_message_id),
+    user_message_id: row.user_message_id === null ? null : Number(row.user_message_id),
     items: parseItems(row.items),
     kcal: row.kcal,
     protein_g: row.protein_g,

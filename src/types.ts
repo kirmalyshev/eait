@@ -69,6 +69,8 @@ export interface MealRecord {
   date: string; // YYYY-MM-DD in Europe/Berlin
   chat_id: number | null;
   bot_message_id: number | null;
+  /** The user's own photo/album message id — lets a reply to the photo find the meal. */
+  user_message_id: number | null;
   items: MealItem[];
   kcal: number;
   protein_g: number;
