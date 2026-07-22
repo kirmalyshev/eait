@@ -41,7 +41,7 @@ const validJson = JSON.stringify({
 describe("analyzeMeal", () => {
   test("returns a parsed, validated MealAnalysis", async () => {
     const provider = new FakeProvider(() => validJson);
-    const out = await analyzeMeal(bytes, profile, provider);
+    const out = await analyzeMeal([bytes], profile, provider);
     expect(out.isFood).toBe(true);
     expect(out.kcal).toBe(300);
     expect(out.items[0]!.name).toBe("rice");
@@ -50,27 +50,27 @@ describe("analyzeMeal", () => {
 
   test("injects the profile (goal + restriction tags) into the prompt", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     const req = provider.lastRequest!;
     const blob = `${req.system}\n${req.userText}`.toLowerCase();
     expect(blob).toContain("lose");
     expect(blob).toContain("kidneys");
     expect(blob).toContain("ldl");
     // and it actually sends the image + asks for structured output
-    expect(req.imageB64).toBeDefined();
+    expect(req.imagesB64?.length).toBe(1);
     expect(req.jsonSchema).toBeDefined();
   });
 
   test("isFood=false passes through (valid, not an error)", async () => {
     const provider = new FakeProvider(() => JSON.stringify({ isFood: false }));
-    const out = await analyzeMeal(bytes, profile, provider);
+    const out = await analyzeMeal([bytes], profile, provider);
     expect(out.isFood).toBe(false);
     expect(out.kcal).toBe(0); // defaulted, not garbage
   });
 
   test("tolerant parse: strips code fences", async () => {
     const provider = new FakeProvider(() => "```json\n{\"isFood\":true,\"kcal\":420}\n```");
-    const out = await analyzeMeal(bytes, profile, provider);
+    const out = await analyzeMeal([bytes], profile, provider);
     expect(out.isFood).toBe(true);
     expect(out.kcal).toBe(420);
   });
@@ -79,23 +79,23 @@ describe("analyzeMeal", () => {
     const provider = new FakeProvider(
       () => 'Sure! Here you go: {"isFood":true,"kcal":100} — hope that helps.',
     );
-    const out = await analyzeMeal(bytes, profile, provider);
+    const out = await analyzeMeal([bytes], profile, provider);
     expect(out.kcal).toBe(100);
   });
 
   test("non-JSON output throws (caller shows 'не смог разобрать', writes no row)", async () => {
     const provider = new FakeProvider(() => "I cannot help with that.");
-    await expect(analyzeMeal(bytes, profile, provider)).rejects.toThrow();
+    await expect(analyzeMeal([bytes], profile, provider)).rejects.toThrow();
   });
 
   test("zod rejects garbage that lacks isFood", async () => {
     const provider = new FakeProvider(() => JSON.stringify({ foo: 1, kcal: "lots" }));
-    await expect(analyzeMeal(bytes, profile, provider)).rejects.toThrow();
+    await expect(analyzeMeal([bytes], profile, provider)).rejects.toThrow();
   });
 
   test("zod rejects a non-boolean isFood", async () => {
     const provider = new FakeProvider(() => JSON.stringify({ isFood: "yes" }));
-    await expect(analyzeMeal(bytes, profile, provider)).rejects.toThrow();
+    await expect(analyzeMeal([bytes], profile, provider)).rejects.toThrow();
   });
 });
 
@@ -111,7 +111,7 @@ describe("analyzeCorrection", () => {
     expect(req.userText.toLowerCase()).toContain("150");
     // prior estimate is provided as context (no image needed — images are ephemeral)
     expect(req.userText).toContain("300"); // prior kcal
-    expect(req.imageB64).toBeUndefined();
+    expect(req.imagesB64).toBeUndefined();
   });
 });
 
@@ -136,7 +136,7 @@ describe("output language", () => {
   test("the prompt names the user's language, so items and notes come back localized", async () => {
     for (const [lang, llmName] of [["ru", "Russian"], ["de", "German"], ["en", "English"]] as const) {
       const provider = new FakeProvider(() => validJson);
-      await analyzeMeal(bytes, { ...profile, lang }, provider);
+      await analyzeMeal([bytes], { ...profile, lang }, provider);
       expect(provider.lastRequest?.userText).toContain(llmName);
     }
   });
@@ -150,7 +150,7 @@ describe("output language", () => {
 
   test("numeric fields are explicitly excluded from localization", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, { ...profile, lang: "de" }, provider);
+    await analyzeMeal([bytes], { ...profile, lang: "de" }, provider);
     // guards against a model that "helpfully" returns "dreihundert" for kcal
     expect(provider.lastRequest?.userText).toMatch(/numeric/i);
   });
@@ -159,7 +159,7 @@ describe("output language", () => {
 describe("estimation protocol", () => {
   test("prompt stages the estimate: items + cooking method, portions via scale references, then macros", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     const text = provider.lastRequest!.userText.toLowerCase();
     expect(text).toContain("cooking method");
     expect(text).toContain("scale reference");
@@ -168,7 +168,7 @@ describe("estimation protocol", () => {
 
   test("reasoning comes first in the wire schema so the model reasons before the numbers", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     const schema = provider.lastRequest!.jsonSchema as { properties: Record<string, unknown> };
     expect(Object.keys(schema.properties)[0]).toBe("reasoning");
   });
@@ -176,13 +176,13 @@ describe("estimation protocol", () => {
   test("reasoning is scratch space: stripped from the parsed result, never persisted", async () => {
     const withReasoning = JSON.stringify({ ...JSON.parse(validJson), reasoning: "the plate is ~26cm" });
     const provider = new FakeProvider(() => withReasoning);
-    const out = await analyzeMeal(bytes, profile, provider);
+    const out = await analyzeMeal([bytes], profile, provider);
     expect("reasoning" in out).toBe(false);
   });
 
   test("confidence is constrained to high/medium/low", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     expect(provider.lastRequest!.userText).toMatch(/high.{0,15}medium.{0,15}low/i);
   });
 
@@ -190,14 +190,14 @@ describe("estimation protocol", () => {
     // The bot's low-confidence nudge exact-matches "low"; a free-string schema invites
     // "low (mixed dish)", which would silently fall through to the generic hint.
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     const schema = provider.lastRequest!.jsonSchema as { properties: Record<string, any> };
     expect(schema.properties.confidence.enum).toEqual(["high", "medium", "low"]);
   });
 
   test("prompt counteracts the systematic underestimation of mixed dishes", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     expect(provider.lastRequest!.userText.toLowerCase()).toContain("underestimat");
   });
 
@@ -212,25 +212,25 @@ describe("estimation protocol", () => {
 describe("meal context", () => {
   test("caption is injected verbatim when provided", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider, { caption: "две котлеты и гречка" });
+    await analyzeMeal([bytes], profile, provider, { caption: "две котлеты и гречка" });
     expect(provider.lastRequest!.userText).toContain("две котлеты и гречка");
   });
 
   test("local time is injected when provided", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider, { localTime: "08:30" });
+    await analyzeMeal([bytes], profile, provider, { localTime: "08:30" });
     expect(provider.lastRequest!.userText).toContain("08:30");
   });
 
   test("no context → no caption or local-time lines in the prompt", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     expect(provider.lastRequest!.userText).not.toMatch(/caption|local time/i);
   });
 
   test("an oversized caption is truncated before it reaches the model", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider, { caption: "start" + "x".repeat(5000) + "END" });
+    await analyzeMeal([bytes], profile, provider, { caption: "start" + "x".repeat(5000) + "END" });
     expect(provider.lastRequest!.userText).toContain("start");
     expect(provider.lastRequest!.userText).not.toContain("END");
   });
@@ -241,7 +241,7 @@ describe("expert persona + cuisine prior", () => {
   // away from generic international staples (+87.5% ID in the GPT-4V origin-prompt study).
   test("the system prompt casts the model as an expert nutritionist", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     expect(provider.lastRequest!.system.toLowerCase()).toContain("expert nutritionist");
   });
 
@@ -249,7 +249,7 @@ describe("expert persona + cuisine prior", () => {
   // it is registered — no per-locale literal patterns to keep in sync.
   test.each(LANGS)("cuisine prior tracks the registry for %s", async (lang) => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, { ...profile, lang }, provider);
+    await analyzeMeal([bytes], { ...profile, lang }, provider);
     const text = provider.lastRequest!.userText;
     const hint = LOCALES[lang].cuisineHint;
     if (hint) {
@@ -276,7 +276,7 @@ describe("sampling temperature", () => {
   // instead of a 3-call median. All analyzer calls request it; the provider stays generic.
   test("meal analysis requests a low temperature", async () => {
     const provider = new FakeProvider(() => validJson);
-    await analyzeMeal(bytes, profile, provider);
+    await analyzeMeal([bytes], profile, provider);
     expect(provider.lastRequest!.temperature).toBeDefined();
     expect(provider.lastRequest!.temperature!).toBeLessThanOrEqual(0.3);
   });
@@ -330,5 +330,23 @@ describe("classifyRestrictions", () => {
     await classifyRestrictions("...", provider, "de");
     expect(provider.lastRequest?.userText).toContain("German");
     expect(provider.lastRequest?.userText).toMatch(/may be|might be|likely/i);
+  });
+});
+
+describe("analyzeMeal — multi-image (albums)", () => {
+  test("two images are both sent and the multi-photo instruction is added", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes, new Uint8Array([9, 9])], profile, provider);
+    const req = provider.lastRequest!;
+    expect(req.imagesB64?.length).toBe(2);
+    expect(req.userText).toContain("SAME meal");
+  });
+
+  test("a single image gets no multi-photo instruction", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], profile, provider);
+    const req = provider.lastRequest!;
+    expect(req.imagesB64?.length).toBe(1);
+    expect(req.userText).not.toContain("SAME meal");
   });
 });

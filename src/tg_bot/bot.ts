@@ -524,7 +524,7 @@ export async function processPhoto(
   let analysis: MealAnalysis;
   try {
     const bytes = await getBytes(); // in-memory only; never written to disk
-    analysis = await analyzeMeal(bytes, prof, provider, context);
+    analysis = await analyzeMeal([bytes], prof, provider, context);
   } catch (e) {
     console.error(`[eait] analyze failed user=${from.id}: ${(e as any)?.message}`);
     await send(t("errors.analyzeFailed"));

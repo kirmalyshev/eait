@@ -120,9 +120,17 @@ function goalLine(goal: Profile["goal"]): string {
 }
 
 /** Generic instruction, personalized per profile. Only declared restrictions get a verdict. */
-function buildUserText(profile: Profile, context?: MealContext): string {
+function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boolean): string {
   const lines: string[] = [];
   lines.push(`User ${goalLine(profile.goal)}.`);
+  if (multiPhoto) {
+    lines.push(
+      "The user sent several photos of the SAME meal (e.g. the portion plus product packaging " +
+        "or a nutrition label). Combine ALL photos into ONE analysis of one meal — never treat " +
+        "them as separate meals. Use any packaging/label photo as ground truth for ingredients " +
+        "and per-100g nutrition.",
+    );
+  }
   // Staged decomposition + volumetric reasoning: the measured levers against portion error,
   // which dominates calorie MAE (identification is the easy part).
   lines.push("Estimation protocol — work through it in `reasoning` before any number:");
@@ -206,15 +214,15 @@ function parseAnalysis(raw: string): MealAnalysis {
 }
 
 export async function analyzeMeal(
-  bytes: Uint8Array,
+  images: Uint8Array[],
   profile: Profile,
   provider: LLMProvider,
   context?: MealContext,
 ): Promise<MealAnalysis> {
   const req: ChatRequest = {
     system: SYSTEM,
-    userText: buildUserText(profile, context),
-    imageB64: toBase64(bytes),
+    userText: buildUserText(profile, context, images.length > 1),
+    imagesB64: images.map(toBase64),
     imageMime: "image/jpeg",
     jsonSchema: MEAL_JSON_SCHEMA,
     temperature: TEMPERATURE,

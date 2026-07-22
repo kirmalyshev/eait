@@ -42,7 +42,7 @@ const out = await provider.chat({
   system: "You are a nutrition estimator. Return ONLY a JSON object, no prose.",
   userText:
     "Analyze this meal photo. Return JSON: isFood, items[{name,grams}], kcal, protein_g, carbs_g, fat_g.",
-  imageB64: b64,
+  imagesB64: [b64],
   jsonSchema: schema,
 });
 
