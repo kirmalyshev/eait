@@ -218,6 +218,38 @@ describe("meal context", () => {
   });
 });
 
+describe("expert persona + cuisine prior", () => {
+  // Persona measurably tightens macro estimates; a regional-cuisine prior steers identification
+  // away from generic international staples (+87.5% ID in the GPT-4V origin-prompt study).
+  test("the system prompt casts the model as an expert nutritionist", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal(bytes, profile, provider);
+    expect(provider.lastRequest!.system.toLowerCase()).toContain("expert nutritionist");
+  });
+
+  test("a locale with a regional cuisine gets a hedged prior in the prompt", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal(bytes, { ...profile, lang: "ru" }, provider);
+    const text = provider.lastRequest!.userText;
+    expect(text).toMatch(/Eastern European|Russian.{0,40}home cooking/);
+    expect(text).toMatch(/prior|likely|suggest/i); // a hint, never an assertion about the photo
+  });
+
+  test("a locale without a regional prior gets no cuisine line", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal(bytes, { ...profile, lang: "en" }, provider);
+    expect(provider.lastRequest!.userText).not.toMatch(/home cooking|cuisine/i);
+  });
+
+  test("the correction path inherits the cuisine prior", async () => {
+    const provider = new FakeProvider(() => validJson);
+    const prior = MealAnalysisSchema.parse(JSON.parse(validJson));
+    await analyzeCorrection(prior, "no oil", { ...profile, lang: "de" }, provider);
+    expect(provider.lastRequest!.userText).toMatch(/German|Central European/);
+    expect(provider.lastRequest!.userText).toMatch(/home cooking/);
+  });
+});
+
 describe("sampling temperature", () => {
   // Low temperature is the cheap form of self-consistency: same photo → same estimate,
   // instead of a 3-call median. All analyzer calls request it; the provider stays generic.

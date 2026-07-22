@@ -4,18 +4,30 @@
 // here. Nothing else in `src/` changes. `Lang` widens automatically, and `i18n.test.ts` will
 // tell you precisely which keys the new file is missing.
 //
-// `nativeName` is the /lang button label. `llmName` is a PROMPT input (the language the model
-// should write food names and notes in) — deliberately not part of the translation namespace,
-// because it is never shown to a user.
+// `nativeName` is the /lang button label. `llmName` and `cuisineHint` are PROMPT inputs
+// (the language the model should write food names and notes in; the regional cuisine the
+// interface language weakly implies) — deliberately not part of the translation namespace,
+// because they are never shown to a user. `cuisineHint: null` means no useful prior (an
+// English UI implies nothing about the plate).
 
 import de from "./locales/de.json";
 import en from "./locales/en.json";
 import ru from "./locales/ru.json";
 
 export const LOCALES = {
-  en: { nativeName: "English", llmName: "English", resource: en },
-  ru: { nativeName: "Русский", llmName: "Russian", resource: ru },
-  de: { nativeName: "Deutsch", llmName: "German", resource: de },
+  en: { nativeName: "English", llmName: "English", cuisineHint: null, resource: en },
+  ru: {
+    nativeName: "Русский",
+    llmName: "Russian",
+    cuisineHint: "Russian and Eastern European home cooking",
+    resource: ru,
+  },
+  de: {
+    nativeName: "Deutsch",
+    llmName: "German",
+    cuisineHint: "German and Central European home cooking",
+    resource: de,
+  },
 } as const;
 
 /** Derived from the registry — a new locale widens this with no hand-editing. */
