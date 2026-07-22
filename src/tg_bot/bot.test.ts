@@ -153,7 +153,7 @@ test("meCard is null unless active; statsCard counts users+meals", async () => {
 // ---------- language ----------
 
 test("profileOf accepts any registered locale and falls back for anything else", () => {
-  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, restrictions: [], created_at: "t", acquisition_source: null };
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null };
   expect(profileOf({ ...base, lang: "de" } as UserRow).lang).toBe("de");
   expect(profileOf({ ...base, lang: "ru" } as UserRow).lang).toBe("ru");
   // a value that predates (or outlives) the registry must not render as a raw key

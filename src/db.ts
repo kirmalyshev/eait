@@ -32,6 +32,8 @@ export interface UserRow {
   state: UserState;
   consent_at: string | null;
   goal: Goal | null;
+  /** NULL = never asked, 0 = explicitly skipped during onboarding, >0 = kilograms. */
+  weight_kg: number | null;
   restrictions: string[];
   created_at: string;
   acquisition_source: string | null;
@@ -223,6 +225,14 @@ const MIGRATIONS: Migration[] = [
       await tx`CREATE INDEX idx_events_event ON events(event)`;
     },
   },
+  {
+    // Onboarding weight step: NULL = never asked, 0 = explicitly skipped, >0 = kilograms.
+    // The 0-sentinel stays inside the db/bot boundary — profileOf maps it to null.
+    version: 2,
+    up: async (tx) => {
+      await tx`ALTER TABLE users ADD COLUMN weight_kg DOUBLE PRECISION`;
+    },
+  },
 ];
 
 async function migrate(db: Db): Promise<void> {
@@ -289,6 +299,7 @@ export async function getUser(db: Db, telegram_id: number): Promise<UserRow | un
     state: row.state,
     consent_at: row.consent_at,
     goal: row.goal,
+    weight_kg: row.weight_kg === null || row.weight_kg === undefined ? null : Number(row.weight_kg),
     restrictions: parseJsonArray(row.restrictions),
     created_at: row.created_at,
     acquisition_source: row.acquisition_source ?? null,
@@ -390,16 +401,17 @@ export async function setConsent(db: Db, telegram_id: number, consentAt: string)
     WHERE telegram_id = ${telegram_id}`;
 }
 
-/** Partial profile update (goal step, then restrictions step). Only provided fields change. */
+/** Partial profile update (goal, weight, restrictions steps). Only provided fields change. */
 export async function setProfile(
   db: Db,
   telegram_id: number,
-  patch: { goal?: Goal; restrictions?: string[]; state?: UserState },
+  patch: { goal?: Goal; weight_kg?: number; restrictions?: string[]; state?: UserState },
 ): Promise<void> {
   // Dynamic SET list over a fixed field whitelist — values always travel as $n parameters.
   const sets: string[] = [];
   const vals: unknown[] = [];
   if (patch.goal !== undefined) sets.push(`goal = $${vals.push(patch.goal)}`);
+  if (patch.weight_kg !== undefined) sets.push(`weight_kg = $${vals.push(patch.weight_kg)}`);
   if (patch.restrictions !== undefined) {
     sets.push(`restrictions = $${vals.push(JSON.stringify(patch.restrictions))}`);
   }

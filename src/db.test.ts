@@ -54,11 +54,28 @@ function analysis(over: Partial<MealAnalysis> = {}): MealAnalysis {
   };
 }
 
+describe("weight", () => {
+  test("a new user has no weight; setProfile stores and getUser returns it", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1, username: null, lang: DEFAULT_LANG });
+    expect((await getUser(db, 1))!.weight_kg).toBeNull();
+    await setProfile(db, 1, { weight_kg: 92.5 });
+    expect((await getUser(db, 1))!.weight_kg).toBe(92.5);
+  });
+
+  test("weight 0 (the explicit-skip sentinel) round-trips distinctly from null", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 2, username: null, lang: DEFAULT_LANG });
+    await setProfile(db, 2, { weight_kg: 0 });
+    expect((await getUser(db, 2))!.weight_kg).toBe(0);
+  });
+});
+
 describe("openDb + migrations", () => {
   test("auto-creates a missing database and records the schema version", async () => {
     const db = await freshTestDb();
     const rows = await db`SELECT version FROM schema_version`;
-    expect(Number(rows[0].version)).toBe(1);
+    expect(Number(rows[0].version)).toBe(2);
   });
 
   test("reopening is idempotent — data survives, migrations do not rerun", async () => {
@@ -68,7 +85,7 @@ describe("openDb + migrations", () => {
     await a.close();
     const b = await openTestDb(name);
     expect((await getUser(b, 1))?.username).toBe("keepme");
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(1);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(2);
   });
 
   test("two concurrent openDb calls on a missing database both succeed (create race)", async () => {
