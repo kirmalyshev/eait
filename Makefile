@@ -3,12 +3,14 @@
 # AGENTS.md (shared Postgres via scripts/db.sh, per-branch identity via scripts/compose-env.sh).
 
 .DEFAULT_GOAL := help
-.PHONY: help env infra infra-down up down logs ps psql test typecheck security check
+.PHONY: help env infra infra-down up down restart deploy logs ps psql test typecheck security check
 
 help:
 	@echo "eait dev targets:"
 	@echo "  make up          shared Postgres + build + start THIS worktree's bot container"
 	@echo "  make down        stop this worktree's bot (the shared Postgres keeps running)"
+	@echo "  make restart     restart the bot container on its CURRENT image (no rebuild)"
+	@echo "  make deploy      ship: git pull + rebuild + restart the bot (run in the main checkout)"
 	@echo "  make logs        follow the bot container logs"
 	@echo "  make ps          container status for this worktree"
 	@echo "  make env         write this worktree's identity into .env (compose project + branch database)"
@@ -40,6 +42,16 @@ up: infra
 
 down:
 	docker compose down
+
+restart:
+	docker compose restart bot
+
+# Ship the merged code to the running instance: pull, rebuild the image, swap the container.
+# Migrations run at boot. Meant for the main checkout; in a worktree it deploys THAT branch.
+deploy:
+	git pull
+	docker compose up -d --build bot
+	docker compose ps
 
 logs:
 	docker compose logs -f bot
