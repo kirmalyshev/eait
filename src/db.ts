@@ -48,6 +48,14 @@ export interface UserRow {
    */
   country: string | null;
   restrictions: string[];
+  /**
+   * Free-text personal limitations — the open-ended companion to `restrictions`. Where a
+   * restriction is one of four tags that drives a numeric cap and a structured verdict, a
+   * limitation is prompt-only text ("no peanuts", "low FODMAP"). Same sentinels as `country`:
+   * NULL = never asked, '' = explicitly skipped or cleared, else the normalized text. Both map
+   * to null at the profileOf boundary.
+   */
+  limitations: string | null;
   created_at: string;
   acquisition_source: string | null;
   /**
@@ -359,6 +367,21 @@ const MIGRATIONS: Migration[] = [
       await tx`UPDATE users SET target_weight_kg = 0, country = '' WHERE state = 'profile' AND goal IS NOT NULL AND weight_kg IS NOT NULL`;
     },
   },
+  {
+    // Free-text limitations, the open-ended companion to the four-tag `restrictions` vocabulary.
+    // Sentinels mirror country: NULL = never asked, '' = skipped/cleared, else the text.
+    //
+    // NO BACKFILL, deliberately — and the reason is structural, not an oversight. v2 and v5 both
+    // needed one because they INSERTED an onboarding step, so a user mid-flow would have had
+    // their next message (composed as an answer to the old next question) eaten by the new one.
+    // v6 inserts no step: the existing restrictions question, already free text, simply stops
+    // discarding what the user typed. The flow order is unchanged, so nobody can be mid-flow in
+    // the wrong place. Existing users keep NULL and set the field in /settings.
+    version: 6,
+    up: async (tx) => {
+      await tx`ALTER TABLE users ADD COLUMN limitations TEXT`;
+    },
+  },
 ];
 
 async function migrate(db: Db): Promise<void> {
@@ -439,6 +462,8 @@ export async function getUser(db: Db, telegram_id: number): Promise<UserRow | un
         : Number(row.target_weight_kg),
     country: row.country ?? null,
     restrictions: parseJsonArray(row.restrictions),
+    // ?? not ||: '' is the explicit-skip sentinel and must survive the mapper distinct from NULL.
+    limitations: row.limitations ?? null,
     created_at: row.created_at,
     acquisition_source: row.acquisition_source ?? null,
     reply_format: row.reply_format ?? null,
@@ -565,6 +590,7 @@ export async function setProfile(
     target_weight_kg?: number;
     country?: string;
     restrictions?: string[];
+    limitations?: string;
     state?: UserState;
   },
 ): Promise<void> {
@@ -580,6 +606,7 @@ export async function setProfile(
   if (patch.restrictions !== undefined) {
     sets.push(`restrictions = $${vals.push(JSON.stringify(patch.restrictions))}`);
   }
+  if (patch.limitations !== undefined) sets.push(`limitations = $${vals.push(patch.limitations)}`);
   if (patch.state !== undefined) sets.push(`state = $${vals.push(patch.state)}`);
   if (sets.length === 0) return;
   await db.unsafe(
