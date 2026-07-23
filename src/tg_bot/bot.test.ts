@@ -1125,6 +1125,30 @@ test("/me shows 'not set' for target and country when the user skipped them, wit
   expect(card).not.toMatch(/\{\{/);
 });
 
+test("a reply (to a meal) is NOT consumed by an armed weight prompt", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(JSON.stringify({ intent: "question", answer: "ok" })), config: cfg };
+  await onboardToActive(deps, 440); // weight 92
+  await processSettingsCallback(deps, { id: 440 }, "st:weight", editor().edit);
+  // Reply carries an explicit correction/redate intent — it must reach the router, not the prompt.
+  const handled = await processText(deps, { id: 440 }, { text: "80", messageId: 2, replyTo: 999 }, noop);
+  expect(handled).toBe(true);
+  const u = (await getUser(db, 440))!;
+  expect(u.weight_kg).toBe(92); // the reply was NOT eaten as a weight
+  expect(u.pending_input).toBe("weight"); // prompt stays armed for the real answer
+});
+
+test("a slash command is NOT consumed by an armed weight prompt", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(JSON.stringify({ intent: "question", answer: "ok" })), config: cfg };
+  await onboardToActive(deps, 441);
+  await processSettingsCallback(deps, { id: 441 }, "st:weight", editor().edit);
+  await processText(deps, { id: 441 }, { text: "/me", messageId: 2 }, noop);
+  const u = (await getUser(db, 441))!;
+  expect(u.weight_kg).toBe(92); // "/me" not stored as a weight
+  expect(u.pending_input).toBe("weight"); // still armed
+});
+
 test("a photo sent while a weight prompt is armed is still logged as a meal", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };

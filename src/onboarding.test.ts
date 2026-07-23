@@ -128,11 +128,13 @@ describe("happy path consent -> profile -> active", () => {
     expect(buttonData(r)).toContain("country_other"); // resumed at the country picker
   });
 
-  test("country 'Other' -> prompts free text, stores nothing yet", () => {
+  test("country 'Other' -> prompts free text with a lone Skip, stores nothing yet", () => {
     const r = step(user(atCountry), { type: "callback", data: "country_other" }, t);
     expect(r.nextState).toBe("profile");
     expect(r.patch).toBeUndefined();
     expect(r.reply).toBe(t("onboarding.countryOther"));
+    // Minimal prompt: just Skip, not the whole picker again (matches the /settings "Other" flow).
+    expect(buttonData(r)).toEqual(["country_skip"]);
   });
 
   test("country free text -> stores it raw, asks restrictions", () => {

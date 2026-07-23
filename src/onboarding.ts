@@ -12,7 +12,7 @@
 
 import type { TFunction } from "i18next";
 import { parseRestrictions } from "./targets.ts";
-import { COUNTRIES, countryLabel, isCountryCode, parseCountry } from "./country.ts";
+import { countryCodeRows, countryLabel, isCountryCode, parseCountry } from "./country.ts";
 import type { Goal, UserState } from "./types.ts";
 
 /** The only user fields onboarding reads. Structurally satisfied by db's UserRow. */
@@ -93,24 +93,19 @@ const targetWeightButtons = (t: TFunction): InlineButton[][] => [
   [{ text: t("onboarding.button.skip"), data: "target_weight_skip" }],
 ];
 
-// Curated countries chunked so long labels stay readable on a phone, then an Other/Skip row.
-const COUNTRIES_PER_ROW = 3;
-const countryButtons = (t: TFunction): InlineButton[][] => {
-  const rows: InlineButton[][] = [];
-  for (let i = 0; i < COUNTRIES.length; i += COUNTRIES_PER_ROW) {
-    rows.push(
-      COUNTRIES.slice(i, i + COUNTRIES_PER_ROW).map((c) => ({
-        text: t(`country.${c}`),
-        data: `country_${c}`,
-      })),
-    );
-  }
-  rows.push([
+// A lone Skip row — the only affordance while typing a free-text "Other" country.
+const countrySkipButtons = (t: TFunction): InlineButton[][] => [
+  [{ text: t("onboarding.button.skip"), data: "country_skip" }],
+];
+
+// Curated country picker: shared chunked rows + an Other/Skip row.
+const countryButtons = (t: TFunction): InlineButton[][] => [
+  ...countryCodeRows(t, (c) => `country_${c}`),
+  [
     { text: t("onboarding.button.countryOther"), data: "country_other" },
     { text: t("onboarding.button.skip"), data: "country_skip" },
-  ]);
-  return rows;
-};
+  ],
+];
 
 const GOAL_FROM_DATA: Record<string, Goal> = {
   goal_lose: "lose",
@@ -230,9 +225,10 @@ export function step(
         if (!countryOpen(u)) return resume(u, t);
         return { ...askRestrictions(t), patch: { country: "" } }; // '' = asked and declined
       case "country_other":
-        // Nudge to type a country; store nothing so the next text is captured as the answer.
+        // Nudge to type a country; store nothing so the next text is captured as the answer. A
+        // lone Skip (not the whole picker again) — matches the minimal /settings "Other" prompt.
         if (!countryOpen(u)) return resume(u, t);
-        return { nextState: "profile", reply: t("onboarding.countryOther"), buttons: countryButtons(t) };
+        return { nextState: "profile", reply: t("onboarding.countryOther"), buttons: countrySkipButtons(t) };
       case "restrictions_skip":
         if (!restrictionsOpen(u)) return resume(u, t);
         return { nextState: "active", reply: t("onboarding.done"), patch: { restrictions: [] } };

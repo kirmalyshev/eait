@@ -15,6 +15,26 @@ export function isCountryCode(v: unknown): v is CountryCode {
   return typeof v === "string" && (COUNTRIES as readonly string[]).includes(v);
 }
 
+// Two per row: several labels are long ("🇬🇧 United Kingdom", "🇺🇸 United States") and three
+// long buttons across are unreadable on a phone — the same reason the restriction toggles wrap at 2.
+export const COUNTRIES_PER_ROW = 2;
+
+/**
+ * The curated-country buttons as chunked rows, shared by onboarding and /settings — they differ
+ * only in the callback data, supplied by `data(code)`. Structurally an InlineButton[][].
+ */
+export function countryCodeRows(
+  t: TFunction,
+  data: (code: CountryCode) => string,
+): { text: string; data: string }[][] {
+  const buttons = COUNTRIES.map((c) => ({ text: t(`country.${c}`), data: data(c) }));
+  const rows: { text: string; data: string }[][] = [];
+  for (let i = 0; i < buttons.length; i += COUNTRIES_PER_ROW) {
+    rows.push(buttons.slice(i, i + COUNTRIES_PER_ROW));
+  }
+  return rows;
+}
+
 // English names for the prompt: country steers identification toward local products and portion
 // norms regardless of the user's interface language, so the model always sees English here.
 const COUNTRY_EN: Record<CountryCode, string> = {
@@ -45,9 +65,11 @@ export function countryLabel(country: string, t: TFunction): string {
 }
 
 // Free-typed country ("Other"): stored raw so display and prompt both preserve what the user
-// wrote. Length-capped like the caption/restriction inputs; empty → null (the caller re-prompts).
+// wrote. Internal whitespace (incl. newlines) is collapsed to single spaces — a country name is one
+// line, and this neutralizes newline-based prompt injection where the raw value reaches the model.
+// Length-capped like the caption/restriction inputs; empty → null (the caller re-prompts).
 const COUNTRY_INPUT_CAP = 60;
 export function parseCountry(text: string): string | null {
-  const c = text.trim();
+  const c = text.trim().replace(/\s+/g, " ");
   return c.length >= 1 && c.length <= COUNTRY_INPUT_CAP ? c : null;
 }

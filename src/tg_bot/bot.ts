@@ -539,8 +539,15 @@ function settingsProfile(u: UserRow, config: Config): SettingsProfile {
 
 /** Persists a settings patch across the field-specific setters, then arms/clears the text-capture
  * marker. Shared by the callback path (edits the message) and the text-input path (sends a reply).
- * setProfile no-ops when its whitelist fields are all undefined, so one call covers every case. */
-async function applySettingsView(deps: BotDeps, id: number, v: SettingsView): Promise<void> {
+ * setProfile no-ops when its whitelist fields are all undefined, so one call covers every case.
+ * `currentPending` is the row's existing marker — the write is skipped when it wouldn't change,
+ * so plain picker navigation (no prompt armed, none to clear) costs no extra UPDATE. */
+async function applySettingsView(
+  deps: BotDeps,
+  id: number,
+  v: SettingsView,
+  currentPending: string | null,
+): Promise<void> {
   if (v.patch) {
     if (v.patch.lang) await setLang(deps.db, id, v.patch.lang);
     if (v.patch.reply_format) await setReplyFormat(deps.db, id, v.patch.reply_format);
@@ -553,8 +560,9 @@ async function applySettingsView(deps: BotDeps, id: number, v: SettingsView): Pr
     });
   }
   // A prompt view arms pending_input; every other view (including a completed edit) clears it, so
-  // tapping any button cancels a half-finished text prompt.
-  await setPendingInput(deps.db, id, v.awaitInput ?? null);
+  // tapping any button cancels a half-finished text prompt. Only write on an actual change.
+  const nextPending = v.awaitInput ?? null;
+  if (nextPending !== currentPending) await setPendingInput(deps.db, id, nextPending);
 }
 
 /** Handles an `st:` callback: persist whatever changed, then rewrite the message in place. */
@@ -568,7 +576,7 @@ export async function processSettingsCallback(
   if (!u || u.state !== "active") return; // no row to edit against; stay silent
   const prof = settingsProfile(u, deps.config);
   const v = settingsStep(prof, data, translatorFor(prof.lang));
-  await applySettingsView(deps, from.id, v);
+  await applySettingsView(deps, from.id, v, u.pending_input);
   await edit(v.text, v.buttons);
 }
 
@@ -583,7 +591,7 @@ export async function processSettingsInput(
 ): Promise<void> {
   const prof = settingsProfile(u, deps.config);
   const v = settingsInput(field, text, prof, translatorFor(prof.lang));
-  await applySettingsView(deps, u.telegram_id, v);
+  await applySettingsView(deps, u.telegram_id, v, u.pending_input);
   await send(v.text, v.buttons);
 }
 
@@ -760,7 +768,14 @@ export async function processText(
 
   // A /settings text prompt (weight / target weight / "other" country) consumes this message
   // BEFORE the router — no LLM call, no cap draw. Photos never hit this path (they stay meals).
-  if (u.pending_input && isPendingInput(u.pending_input)) {
+  // A reply-to-a-meal (correction/redate) and a slash command are NOT consumed: those carry their
+  // own explicit intent and must reach their handlers, not get eaten as a settings answer.
+  if (
+    u.pending_input &&
+    isPendingInput(u.pending_input) &&
+    msg.replyTo === undefined &&
+    !msg.text.startsWith("/")
+  ) {
     await processSettingsInput(deps, u, u.pending_input, msg.text, send);
     return true;
   }

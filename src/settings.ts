@@ -9,7 +9,7 @@
 import type { TFunction } from "i18next";
 import { LANGS, LOCALES, isLang, translatorFor } from "./i18n/index.ts";
 import { RESTRICTION_TAGS, isRestrictionTag } from "./targets.ts";
-import { COUNTRIES, countryLabel, isCountryCode, parseCountry } from "./country.ts";
+import { countryCodeRows, countryLabel, isCountryCode, parseCountry } from "./country.ts";
 import { parseWeight, type InlineButton } from "./onboarding.ts";
 import { REPLY_FORMATS, isReplyFormat } from "./types.ts";
 import type { Goal, Lang, Profile, ReplyFormat } from "./types.ts";
@@ -171,17 +171,15 @@ function textPrompt(text: string, field: PendingInput, t: TFunction): SettingsVi
 
 /** Curated countries + an "Other" (free-text) entry + back. Chosen codes patch; "other" prompts. */
 function countryPicker(t: TFunction): SettingsView {
-  const codeButtons = COUNTRIES.map((c) => ({ text: t(`country.${c}`), data: `st:country:${c}` }));
   return {
     text: t("settings.askCountry"),
     buttons: [
-      ...chunk(codeButtons, COUNTRIES_PER_ROW),
+      ...countryCodeRows(t, (c) => `st:country:${c}`),
       [{ text: t("onboarding.button.countryOther"), data: "st:country:other" }],
       backRow(t),
     ],
   };
 }
-const COUNTRIES_PER_ROW = 3;
 
 /**
  * Applies `data` to `p` and returns the resulting view. An invalid goal, format, or locale falls

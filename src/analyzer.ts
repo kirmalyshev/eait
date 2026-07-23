@@ -160,8 +160,10 @@ function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boo
   // portion norms — complementary to the language-derived cuisine prior, and hedged the same way.
   const country = countryForPrompt(profile.country);
   if (country) {
+    // Quoted + single-line (parseCountry collapses whitespace) so a free-text "Other" country
+    // can't break out of the sentence and steer the analysis — same containment as the caption.
     lines.push(
-      `The user buys most of their food in ${country} — prefer local product names, packaging sizes, and typical portion norms there, but always trust the actual evidence over this prior.`,
+      `The user buys most of their food in "${country}" — prefer local product names, packaging sizes, and typical portion norms there, but always trust the actual evidence over this prior.`,
     );
   }
   lines.push("Estimate items[{name,grams}], kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g, sodium_mg, plant_protein_pct.");
