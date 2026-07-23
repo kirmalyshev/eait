@@ -58,7 +58,7 @@ if (cases.length === 0) {
 }
 
 // A neutral profile: the eval measures the model, not personalization.
-const profile: Profile = { telegram_id: 0, lang: "en", goal: "maintain", restrictions: [], limitations: null, reply_format: null };
+const profile: Profile = { telegram_id: 0, lang: "en", goal: "maintain", restrictions: [], medical_limitations: null, food_allergies: null, product_limitations: null, reply_format: null };
 
 console.log(
   `${cases.length} case(s) × ${runs} run(s) × ${models.length} model(s) = ` +

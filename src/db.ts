@@ -18,6 +18,7 @@ import { MealAnalysisSchema } from "./analyzer.ts";
 import type {
   DailyTotals,
   DayTotals,
+  FoodTextField,
   Goal,
   MealAnalysis,
   MealItem,
@@ -49,13 +50,16 @@ export interface UserRow {
   country: string | null;
   restrictions: string[];
   /**
-   * Free-text personal limitations — the open-ended companion to `restrictions`. Where a
-   * restriction is one of four tags that drives a numeric cap and a structured verdict, a
-   * limitation is prompt-only text ("no peanuts", "low FODMAP"). Same sentinels as `country`:
-   * NULL = never asked, '' = explicitly skipped or cleared, else the normalized text. Both map
-   * to null at the profileOf boundary.
+   * Free-text "food specifics" — the open-ended companions to the closed `restrictions` tag
+   * vocabulary. Where a restriction is one of four tags that drives a numeric cap and a structured
+   * verdict, these are prompt-only text. Three labelled fields: medical conditions/needs,
+   * allergies (safety-critical), and specific products the user avoids. Same sentinels as
+   * `country` on each: NULL = never asked, '' = explicitly skipped or cleared, else normalized
+   * text. Each maps to null at the profileOf boundary. (Replaced the single `limitations` column.)
    */
-  limitations: string | null;
+  medical_limitations: string | null;
+  food_allergies: string | null;
+  product_limitations: string | null;
   created_at: string;
   acquisition_source: string | null;
   /**
@@ -382,6 +386,29 @@ const MIGRATIONS: Migration[] = [
       await tx`ALTER TABLE users ADD COLUMN limitations TEXT`;
     },
   },
+  {
+    // "Food specifics": the single free-text `limitations` field splits into three labelled ones —
+    // medical conditions/needs, allergies (safety-critical), and products avoided. Same per-field
+    // sentinels as country (NULL/''/text). The one shipped `limitations` value is a product
+    // avoidance, so it moves to product_limitations; the '' skip sentinel was never a real value,
+    // so it does not migrate (all three simply start NULL). Then the old column is dropped.
+    //
+    // No '' backfill: like `limitations`, none of the three is step-gating (resume()/*Open never
+    // read them, and every migrated user is already active), so NULL-for-everyone is correct.
+    version: 7,
+    up: async (tx) => {
+      await tx`ALTER TABLE users ADD COLUMN medical_limitations TEXT`;
+      await tx`ALTER TABLE users ADD COLUMN food_allergies TEXT`;
+      await tx`ALTER TABLE users ADD COLUMN product_limitations TEXT`;
+      await tx`UPDATE users SET product_limitations = limitations WHERE limitations IS NOT NULL AND limitations <> ''`;
+      await tx`ALTER TABLE users DROP COLUMN limitations`;
+      // A user mid-prompt at the deploy instant has pending_input='limitations', which is no longer
+      // a valid PENDING_INPUT — leave it and their next text misroutes to the router (one cap draw,
+      // input lost) until they reopen /settings. Clear it deterministically, as v2/v5 backfilled
+      // their mid-flow users for the same "next message silently eaten" class.
+      await tx`UPDATE users SET pending_input = NULL WHERE pending_input = 'limitations'`;
+    },
+  },
 ];
 
 async function migrate(db: Db): Promise<void> {
@@ -463,7 +490,9 @@ export async function getUser(db: Db, telegram_id: number): Promise<UserRow | un
     country: row.country ?? null,
     restrictions: parseJsonArray(row.restrictions),
     // ?? not ||: '' is the explicit-skip sentinel and must survive the mapper distinct from NULL.
-    limitations: row.limitations ?? null,
+    medical_limitations: row.medical_limitations ?? null,
+    food_allergies: row.food_allergies ?? null,
+    product_limitations: row.product_limitations ?? null,
     created_at: row.created_at,
     acquisition_source: row.acquisition_source ?? null,
     reply_format: row.reply_format ?? null,
@@ -580,7 +609,7 @@ export async function setConsent(db: Db, telegram_id: number, consentAt: string)
     WHERE telegram_id = ${telegram_id}`;
 }
 
-/** Partial profile update (goal, weight, target weight, country, restrictions, limitations, state). Only provided fields change. */
+/** Partial profile update (goal, weight, target weight, country, restrictions, the three food fields, state). Only provided fields change. */
 export async function setProfile(
   db: Db,
   telegram_id: number,
@@ -590,9 +619,8 @@ export async function setProfile(
     target_weight_kg?: number;
     country?: string;
     restrictions?: string[];
-    limitations?: string;
     state?: UserState;
-  },
+  } & Partial<Record<FoodTextField, string>>,
 ): Promise<void> {
   // Dynamic SET list over a fixed field whitelist — values always travel as $n parameters.
   const sets: string[] = [];
@@ -606,7 +634,9 @@ export async function setProfile(
   if (patch.restrictions !== undefined) {
     sets.push(`restrictions = $${vals.push(JSON.stringify(patch.restrictions))}`);
   }
-  if (patch.limitations !== undefined) sets.push(`limitations = $${vals.push(patch.limitations)}`);
+  if (patch.medical_limitations !== undefined) sets.push(`medical_limitations = $${vals.push(patch.medical_limitations)}`);
+  if (patch.food_allergies !== undefined) sets.push(`food_allergies = $${vals.push(patch.food_allergies)}`);
+  if (patch.product_limitations !== undefined) sets.push(`product_limitations = $${vals.push(patch.product_limitations)}`);
   if (patch.state !== undefined) sets.push(`state = $${vals.push(patch.state)}`);
   if (sets.length === 0) return;
   await db.unsafe(

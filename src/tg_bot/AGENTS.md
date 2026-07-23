@@ -29,7 +29,7 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
   confirm). `processText` returns `false` only for non-active users, whose text still belongs to
   `processOnboarding`.
 - **Settings text-capture: `pending_input` is the ONLY non-callback settings path.** Tapping the
-  weight / target-weight / country-"Other" / limitations buttons returns a view with `awaitInput`; the callback
+  weight / target-weight / country-"Other" / food-specifics (medical, allergies, products) buttons returns a view with `awaitInput`; the callback
   handler arms `users.pending_input` to that field. The very next text an active user sends is
   consumed by `processSettingsInput` **before** the router — no `routeText`, no LLM, no cap draw —
   and clears (or, on a parse failure, re-arms) the marker. Photos are never consumed (they stay
@@ -87,8 +87,8 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
 - **Callbacks always `answerCallbackQuery()`.** Unknown data is never *stored* — `lang_<code>` is
   validated against the registry — but it isn't discarded either: it falls through to
   `processOnboarding`, whose `step()` default re-prompts the current stage.
-- **Callback namespaces are disjoint:** `st:` settings (incl. `st:weight`/`st:targetw`/
-  `st:country`/`st:country:*`/`st:limits`/`st:limits:clear`), `lang_` language, bare `consent_*`/`goal_*`/`weight_skip`/
+- **Callback namespaces are disjoint:** `st:` settings (incl. group menus `st:g:*`, `st:weight`/`st:targetw`/
+  `st:country`/`st:country:*`, and food fields `st:medical`/`st:allergies`/`st:products` + `:clear`), `lang_` language, bare `consent_*`/`goal_*`/`weight_skip`/
   `target_weight_skip`/`country_*`/`restrictions_*` onboarding, `delete_*` delete, `tm:` text-meal
   confirm. Never reuse a prefix across machines — the receiving machine's guards reject foreign taps
   silently.

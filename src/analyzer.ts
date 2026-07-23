@@ -185,21 +185,31 @@ function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boo
   const declared = profile.restrictions.length ? profile.restrictions.join(", ") : "none";
   lines.push(`Declared restrictions: ${declared}.`);
   lines.push("Do NOT set verdicts for dimensions the user did not declare (weight always applies).");
-  // Free-text limitations: everything the four-tag vocabulary cannot express. Placed AFTER the
-  // verdict contract so that contract stays contiguous, and worded to land in `notes` plus the
-  // EXISTING verdicts — `verdicts` is a fixed weight/ldl/kidneys object, and inviting a fourth key
-  // would only produce output zod strips.
+  // Free-text "food specifics": everything the four-tag vocabulary cannot express, on three
+  // labelled lines. Placed AFTER the verdict contract so it stays contiguous, and worded to land
+  // in `notes` plus the EXISTING verdicts — `verdicts` is a fixed weight/ldl/kidneys object, and
+  // inviting a fourth key would only produce output zod strips.
   //
-  // `parseLimitations` already made the stored value single-line, quote-free and bounded, but a
-  // hand-edited row never passed through it — so re-run the SAME parser here as a floor.
-  // (The caption and free-text-message priors below do NOT contain their inputs — they slice to a
-  // length and interpolate raw — so this field is deliberately stricter than they are, not "the
-  // same": a caption or message is one-shot per call, a limitation persists into every future one.)
-  const limitations = containLimitations(profile.limitations);
-  if (limitations) {
+  // `parseLimitations` already made each stored value single-line, quote-free and bounded, but a
+  // hand-edited row never passed through it — so `containLimitations` re-runs the SAME parser here
+  // as a floor. (The caption and free-text-message priors below do NOT contain their inputs — a
+  // persisted field that reaches every future call warrants the stricter treatment.)
+  const medical = containLimitations(profile.medical_limitations);
+  if (medical) {
     lines.push(
-      `The user also declared these personal limitations: "${limitations}" — respect them when ` +
-        "judging this meal, and call out any conflict in notes.",
+      `The user's declared medical conditions / dietary needs: "${medical}" — weigh these in your verdicts and notes.`,
+    );
+  }
+  const allergies = containLimitations(profile.food_allergies);
+  if (allergies) {
+    lines.push(
+      `The user has FOOD ALLERGIES: "${allergies}" — if the meal may contain any of these, flag it prominently in notes; never downplay an allergen.`,
+    );
+  }
+  const products = containLimitations(profile.product_limitations);
+  if (products) {
+    lines.push(
+      `Products the user avoids: "${products}" — call it out in notes if the meal includes one.`,
     );
   }
   // The only user-visible text the model produces. Without this the output language is

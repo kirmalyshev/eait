@@ -71,7 +71,7 @@
     "pendingGone": "Der Eintrag ist schon abgelaufen — schick die Mahlzeit noch einmal, wenn du sie eintragen willst."
   },
   "help": {
-    "body": "Schick mir ein Foto deiner Mahlzeit und ich schätze Kalorien und Nährwerte. Mehrere Fotos in einer Nachricht (Album) behandle ich als eine Mahlzeit.\n\nDu kannst Mahlzeiten auch als Text beschreiben — schreib einfach, was du gegessen hast (sag „gestern“ oder „vor 2 Tagen“, um rückwirkend einzutragen), bestätige kurz, und ich trage es ein.\n\nFragen zu Ernährung, deinem Ziel oder der Tagesbilanz? Einfach fragen.\n\nFalsch geschätzt? Antworte direkt auf meine Analyse mit einer Korrektur — zum Beispiel „zwei Stück, ohne Öl“ — und ich rechne neu. Antworte „auf gestern verschieben“, um diese Mahlzeit auf einen anderen Tag zu legen.\n\nBessere Fotos, bessere Schätzungen:\n• fotografiere von oben, der ganze Teller im Bild\n• gutes Licht; Besteck oder deine Hand neben dem Teller hilft mir, die Portionsgröße einzuschätzen\n• Gewicht oder Zutaten bekannt? Schreib es dazu in die Bildunterschrift\n\nBefehle:\n/me — Tagesbilanz\n/cap — heutige KI-Aufrufe\n/settings — Ziel, Gewicht, Land, Einschränkungen, sonstige Einschränkungen, Sprache, Antwortstil\n/help — diese Nachricht\n/delete — alle Daten löschen\n\nSchätzungen aus einem Foto sind ungefähr und keine medizinische Beratung."
+    "body": "Schick mir ein Foto deiner Mahlzeit und ich schätze Kalorien und Nährwerte. Mehrere Fotos in einer Nachricht (Album) behandle ich als eine Mahlzeit.\n\nDu kannst Mahlzeiten auch als Text beschreiben — schreib einfach, was du gegessen hast (sag „gestern“ oder „vor 2 Tagen“, um rückwirkend einzutragen), bestätige kurz, und ich trage es ein.\n\nFragen zu Ernährung, deinem Ziel oder der Tagesbilanz? Einfach fragen.\n\nFalsch geschätzt? Antworte direkt auf meine Analyse mit einer Korrektur — zum Beispiel „zwei Stück, ohne Öl“ — und ich rechne neu. Antworte „auf gestern verschieben“, um diese Mahlzeit auf einen anderen Tag zu legen.\n\nBessere Fotos, bessere Schätzungen:\n• fotografiere von oben, der ganze Teller im Bild\n• gutes Licht; Besteck oder deine Hand neben dem Teller hilft mir, die Portionsgröße einzuschätzen\n• Gewicht oder Zutaten bekannt? Schreib es dazu in die Bildunterschrift\n\nBefehle:\n/me — Tagesbilanz\n/cap — heutige KI-Aufrufe\n/settings — Ziel & Gewicht, Land, Ernährung (Allergien, Erkrankungen, Produkte), Sprache und Antwortstil\n/help — diese Nachricht\n/delete — alle Daten löschen\n\nSchätzungen aus einem Foto sind ungefähr und keine medizinische Beratung."
   },
   "lang": {
     "prompt": "Wähle eine Sprache:",
@@ -97,8 +97,12 @@
       "lowsugar": "wenig Zucker",
       "vegan": "vegan"
     },
-    "limitationsLine": "Sonstige Einschränkungen: {{limitations}}",
-    "noLimitations": "keine"
+    "medicalLine": "Gesundheit: {{value}}",
+    "noMedical": "keine",
+    "allergiesLine": "Allergien: {{value}}",
+    "noAllergies": "keine",
+    "productsLine": "Meidet: {{value}}",
+    "noProducts": "keine"
   },
   "meal": {
     "itemUnit": "{{name}} {{grams}} g",
@@ -176,19 +180,42 @@
       "language": "🌍 Sprache",
       "format": "🎨 Stil",
       "back": "← Zurück",
-      "limitations": "✏️ Sonstige Einschränkungen",
-      "clearLimitations": "🗑 Löschen"
+      "medical": "✏️ Medizinisch",
+      "clearMedical": "🗑 Löschen",
+      "allergies": "✏️ Allergien",
+      "clearAllergies": "🗑 Löschen",
+      "products": "✏️ Produkte",
+      "clearProducts": "🗑 Löschen"
     },
     "askFormat": "Wie sollen Mahlzeit-Antworten aussehen?",
     "format": {
       "rich": "Karten",
       "plain": "Einfacher Text"
     },
-    "limitationsLine": "Sonstige Einschränkungen: {{limitations}}",
-    "askLimitations": "Schreib alles auf, was ich sonst berücksichtigen soll — Allergien, Erkrankungen, Lebensmittel, die du meidest. Das fließt in jede Analyse ein.",
-    "limitationsCurrent": "Aktuell: {{limitations}}",
-    "limitationsInvalid": "Das kam leer an — schreib ein paar Worte oder tippe auf „Zurück“, um es so zu lassen.",
-    "limitationsTruncated": "Ich habe die ersten {{max}} Zeichen behalten — der Rest wurde abgeschnitten."
+    "limitationsTruncated": "Ich habe die ersten {{max}} Zeichen behalten — der Rest wurde abgeschnitten.",
+    "group": {
+      "goal": "🎯 Ziel & Gewicht",
+      "country": "🛒 Land",
+      "food": "🥗 Ernährung",
+      "prefs": "🎨 Einstellungen"
+    },
+    "groupTitle": {
+      "goal": "🎯 Ziel & Gewicht",
+      "food": "🥗 Ernährung — Allergien, Erkrankungen, Produkte",
+      "prefs": "🎨 Einstellungen"
+    },
+    "askMedical": "Gesundheitliche Umstände oder Ernährungsbedürfnisse, die ich berücksichtigen soll? Zum Beispiel: Nieren, Diabetes, Gastritis.",
+    "medicalCurrent": "Aktuell: {{value}}",
+    "medicalInvalid": "Das kam leer an — schreib ein paar Worte oder tippe auf „Zurück“.",
+    "medicalLine": "Gesundheit: {{value}}",
+    "askAllergies": "Lebensmittelallergien? Ich markiere Gerichte, die sie enthalten könnten. Zum Beispiel: Erdnüsse, Meeresfrüchte.",
+    "allergiesCurrent": "Aktuell: {{value}}",
+    "allergiesInvalid": "Das kam leer an — schreib ein paar Worte oder tippe auf „Zurück“.",
+    "allergiesLine": "Allergien: {{value}}",
+    "askProducts": "Bestimmte Lebensmittel, die du meidest? Zum Beispiel: kein Buchweizen, kein Schweinefleisch.",
+    "productsCurrent": "Aktuell: {{value}}",
+    "productsInvalid": "Das kam leer an — schreib ein paar Worte oder tippe auf „Zurück“.",
+    "productsLine": "Meidet: {{value}}"
   },
   "country": {
     "de": "🇩🇪 Deutschland",

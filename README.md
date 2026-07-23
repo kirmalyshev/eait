@@ -27,8 +27,9 @@ computes calories, protein, fat, carbs, saturated fat and sodium, judges the mea
 - **Profile-driven, not one-size-fits-all.** Your goal (lose / maintain / gain) sets your
   targets. Declare a kidney or cholesterol restriction and the bot judges sodium or saturated
   fat too — and only then. Undeclared dimensions are never scored. Anything the tag list doesn't
-  cover — "no peanuts", "low FODMAP", "gastritis, nothing spicy" — you just type, in
-  `/settings → Limitations`, and it goes into every analysis from then on.
+  cover you just type under `/settings → Food specifics` — medical limitations ("gastritis"), food
+  allergies ("peanuts, shellfish"), or products you avoid ("no buckwheat") — and it goes into
+  every analysis from then on.
 - **Wrong estimate? Just say so.** Reply to any meal analysis with "half that" or "no oil" and
   it re-estimates. Works on the bot's reply or on your original photo message.
 - **Three languages.** English, Russian, German, picked up from your Telegram client and

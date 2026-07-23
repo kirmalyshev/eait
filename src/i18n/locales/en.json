@@ -71,7 +71,7 @@
     "pendingGone": "That one already expired — send the meal again if you still want it logged."
   },
   "help": {
-    "body": "Send me a photo of your meal and I'll estimate the calories and macros. You can also send multiple photos in one message (album) and I'll treat them as a single meal.\n\nDescribe a meal in text too — just type what you ate (say \"yesterday\" or \"2 days ago\" to back-date it) and I'll log it after you confirm.\n\nAsk me anything about nutrition, your goal, or today's intake and I'll answer.\n\nGot an estimate wrong? Reply directly to my analysis message with a correction — for example \"two pieces, no oil\" — and I'll redo it. Reply \"move to yesterday\" to re-file that meal on another day.\n\nBetter photos, better estimates:\n• shoot from above, the whole plate in frame\n• good light; cutlery or your hand next to the plate helps me judge portion size\n• know the weight or ingredients? add them in the caption\n\nCommands:\n/me — today's totals\n/cap — today's LLM call usage\n/settings — change your goal, weight, target weight, country, restrictions, limitations, language or reply style\n/help — this message\n/delete — erase all your data\n\nEstimates from a photo are approximate and are not medical advice."
+    "body": "Send me a photo of your meal and I'll estimate the calories and macros. You can also send multiple photos in one message (album) and I'll treat them as a single meal.\n\nDescribe a meal in text too — just type what you ate (say \"yesterday\" or \"2 days ago\" to back-date it) and I'll log it after you confirm.\n\nAsk me anything about nutrition, your goal, or today's intake and I'll answer.\n\nGot an estimate wrong? Reply directly to my analysis message with a correction — for example \"two pieces, no oil\" — and I'll redo it. Reply \"move to yesterday\" to re-file that meal on another day.\n\nBetter photos, better estimates:\n• shoot from above, the whole plate in frame\n• good light; cutlery or your hand next to the plate helps me judge portion size\n• know the weight or ingredients? add them in the caption\n\nCommands:\n/me — today's totals\n/cap — today's LLM call usage\n/settings — goal & weight, country, food specifics (allergies, conditions, products you avoid), language and reply style\n/help — this message\n/delete — erase all your data\n\nEstimates from a photo are approximate and are not medical advice."
   },
   "lang": {
     "prompt": "Choose a language:",
@@ -97,8 +97,12 @@
       "lowsugar": "low sugar",
       "vegan": "vegan"
     },
-    "limitationsLine": "Limitations: {{limitations}}",
-    "noLimitations": "none"
+    "medicalLine": "Medical: {{value}}",
+    "noMedical": "none",
+    "allergiesLine": "Allergies: {{value}}",
+    "noAllergies": "none",
+    "productsLine": "Avoids: {{value}}",
+    "noProducts": "none"
   },
   "meal": {
     "itemUnit": "{{name}} {{grams}}g",
@@ -176,19 +180,42 @@
       "language": "🌍 Language",
       "format": "🎨 Style",
       "back": "← Back",
-      "limitations": "✏️ Limitations",
-      "clearLimitations": "🗑 Clear"
+      "medical": "✏️ Medical",
+      "clearMedical": "🗑 Clear",
+      "allergies": "✏️ Allergies",
+      "clearAllergies": "🗑 Clear",
+      "products": "✏️ Products",
+      "clearProducts": "🗑 Clear"
     },
     "askFormat": "How should meal replies look?",
     "format": {
       "rich": "Rich cards",
       "plain": "Plain text"
     },
-    "limitationsLine": "Limitations: {{limitations}}",
-    "askLimitations": "Type anything else I should account for — allergies, conditions, foods you avoid. This goes into every analysis.",
-    "limitationsCurrent": "Current: {{limitations}}",
-    "limitationsInvalid": "That came through empty — type a few words, or tap Back to leave it as is.",
-    "limitationsTruncated": "I kept the first {{max}} characters — the rest was cut."
+    "limitationsTruncated": "I kept the first {{max}} characters — the rest was cut.",
+    "group": {
+      "goal": "🎯 Goal & weight",
+      "country": "🛒 Country",
+      "food": "🥗 Food specifics",
+      "prefs": "🎨 Preferences"
+    },
+    "groupTitle": {
+      "goal": "🎯 Goal & weight",
+      "food": "🥗 Food specifics — allergies, conditions, products you avoid",
+      "prefs": "🎨 Preferences"
+    },
+    "askMedical": "Any medical conditions or dietary needs I should account for? For example: CKD, diabetes, gastritis.",
+    "medicalCurrent": "Current: {{value}}",
+    "medicalInvalid": "That came through empty — type a few words, or tap Back to leave it as is.",
+    "medicalLine": "Medical: {{value}}",
+    "askAllergies": "Any food allergies? I'll flag dishes that may contain them. For example: peanuts, shellfish.",
+    "allergiesCurrent": "Current: {{value}}",
+    "allergiesInvalid": "That came through empty — type a few words, or tap Back to leave it as is.",
+    "allergiesLine": "Allergies: {{value}}",
+    "askProducts": "Any specific foods or products you avoid? For example: no buckwheat, no pork.",
+    "productsCurrent": "Current: {{value}}",
+    "productsInvalid": "That came through empty — type a few words, or tap Back to leave it as is.",
+    "productsLine": "Avoids: {{value}}"
   },
   "country": {
     "de": "🇩🇪 Germany",

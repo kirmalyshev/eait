@@ -330,7 +330,7 @@ test("meCard is null unless active; statsCard counts users+meals", async () => {
 // ---------- language ----------
 
 test("profileOf accepts any registered locale and falls back for anything else", () => {
-  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, limitations: null, reply_format: null };
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, medical_limitations: null, food_allergies: null, product_limitations: null, reply_format: null };
   expect(profileOf({ ...base, lang: "de" } as UserRow).lang).toBe("de");
   expect(profileOf({ ...base, lang: "ru" } as UserRow).lang).toBe("ru");
   // a value that predates (or outlives) the registry must not render as a raw key
@@ -339,23 +339,24 @@ test("profileOf accepts any registered locale and falls back for anything else",
 });
 
 test("profileOf maps the db's 0-skip weight sentinel to null, real weights pass through", () => {
-  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, limitations: null, lang: "en", reply_format: null };
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, medical_limitations: null, food_allergies: null, product_limitations: null, lang: "en", reply_format: null };
   expect(profileOf({ ...base, weight_kg: 0 } as UserRow).weight_kg).toBeNull();
   expect(profileOf({ ...base, weight_kg: 92.5 } as UserRow).weight_kg).toBe(92.5);
   expect(profileOf(base as UserRow).weight_kg).toBeNull();
 });
 
-test("profileOf maps the db's '' limitations skip sentinel to null, real text passes through", () => {
-  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, limitations: null, lang: "en", reply_format: null };
+test("profileOf maps each food field's '' skip sentinel to null, real text passes through", () => {
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, medical_limitations: null, food_allergies: null, product_limitations: null, lang: "en", reply_format: null };
   // '' means "asked and declined" inside the db boundary; outside it, that is simply unknown —
-  // and the analyzer must add no limitations line at all for it.
-  expect(profileOf({ ...base, limitations: "" } as UserRow).limitations).toBeNull();
-  expect(profileOf({ ...base, limitations: "no peanuts" } as UserRow).limitations).toBe("no peanuts");
-  expect(profileOf(base as UserRow).limitations).toBeNull();
+  // and the analyzer must add no line at all for it. Each field maps independently.
+  expect(profileOf({ ...base, food_allergies: "" } as UserRow).food_allergies).toBeNull();
+  expect(profileOf({ ...base, food_allergies: "peanuts" } as UserRow).food_allergies).toBe("peanuts");
+  expect(profileOf({ ...base, medical_limitations: "CKD" } as UserRow).medical_limitations).toBe("CKD");
+  expect(profileOf(base as UserRow).product_limitations).toBeNull();
 });
 
 test("profileOf maps a junk reply_format to null (never coerces to a hardcoded format)", () => {
-  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, limitations: null, lang: "en" };
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, medical_limitations: null, food_allergies: null, product_limitations: null, lang: "en" };
   // null is the only value that distinguishes "→ null" from a mutant that coerces to "rich" or
   // passes junk through: on a plain instance either mutant would render the wrong format.
   expect(profileOf({ ...base, reply_format: "markdown" } as UserRow).reply_format).toBeNull();
@@ -365,7 +366,7 @@ test("profileOf maps a junk reply_format to null (never coerces to a hardcoded f
 });
 
 test("profileOf warns LOUDLY on off-vocabulary stored values, stays quiet on the normal states", () => {
-  const base = { telegram_id: 55, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, limitations: null, lang: "en", reply_format: null };
+  const base = { telegram_id: 55, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, medical_limitations: null, food_allergies: null, product_limitations: null, lang: "en", reply_format: null };
   const warn = spyOn(console, "warn").mockImplementation(() => {});
   try {
     profileOf({ ...base, lang: "en", reply_format: null } as UserRow); // both normal → silent
@@ -508,18 +509,26 @@ test("/me shows the stored weight, and 'not set' after a skip — misparses stay
   expect(await meCard(deps, 89)).toContain(t("me.noWeight"));
 });
 
-test("/me shows limitations when set, and omits the line entirely when not", async () => {
+test("/me renders all three food fields, each on its own line with the right label→value pairing", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   const t = translatorFor(DEFAULT_LANG);
-  await onboardToActive(deps, 92); // restrictions answered, so limitations captured from it
-  await processSettingsInput(deps, (await getUser(db, 92))!, "limitations", "no peanuts", noop);
-  expect(await meCard(deps, 92)).toContain("no peanuts");
-
-  // Cleared → the '' sentinel → no line at all, rather than a "Limitations: none" row of noise.
-  await processSettingsCallback(deps, { id: 92 }, "st:limits:clear", editor().edit);
+  await onboardToActive(deps, 92);
+  // Distinct values so a mis-wire (a line interpolating the wrong column) is caught.
+  await processSettingsInput(deps, (await getUser(db, 92))!, "medical", "CKD", noop);
+  await processSettingsInput(deps, (await getUser(db, 92))!, "allergies", "peanuts", noop);
+  await processSettingsInput(deps, (await getUser(db, 92))!, "products", "buckwheat", noop);
   const card = await meCard(deps, 92);
-  expect(card).not.toContain(t("me.limitationsLine", { limitations: "" }).split("{")[0]!.trim());
+  expect(card).toContain(t("me.medicalLine", { value: "CKD" }));
+  expect(card).toContain(t("me.allergiesLine", { value: "peanuts" }));
+  expect(card).toContain(t("me.productsLine", { value: "buckwheat" }));
+
+  // Clearing one drops ONLY its line; the other two remain.
+  await processSettingsCallback(deps, { id: 92 }, "st:allergies:clear", editor().edit);
+  const after = await meCard(deps, 92);
+  expect(after).not.toContain(t("me.allergiesLine", { value: "peanuts" }));
+  expect(after).toContain(t("me.medicalLine", { value: "CKD" }));
+  expect(after).toContain(t("me.productsLine", { value: "buckwheat" }));
 });
 
 test("onboarding stores a typed target weight and a picked country, then reaches active", async () => {
@@ -833,7 +842,7 @@ test("a keyword miss falls back to the classifier — German text still yields t
   expect((await getUser(db, 201))?.state).toBe("active");
 });
 
-test("the classifier fallback does not clobber the limitations captured from the same text", async () => {
+test("the classifier fallback does not clobber the medical_limitations captured from the same text", async () => {
   const db = await freshTestDb();
   // Keyword miss → the classifier runs and rewrites patch.restrictions. patch.limitations was
   // set by the pure step() from the SAME raw text and must survive that rewrite untouched.
@@ -844,16 +853,16 @@ test("the classifier fallback does not clobber the limitations captured from the
   expect(calls()).toBe(1);
   const u = (await getUser(db, 210))!;
   expect(u.restrictions).toEqual(["kidneys"]);
-  expect(u.limitations).toBe("Nieren, keine Erdnüsse");
+  expect(u.medical_limitations).toBe("Nieren, keine Erdnüsse");
 });
 
-test("onboarding persists the '' limitations sentinel on skip (not undefined, not null)", async () => {
+test("onboarding persists the '' medical_limitations sentinel on skip (not undefined, not null)", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   await toRestrictionsStep(deps, 211);
   await processOnboarding(deps, { id: 211 }, { type: "callback", data: "restrictions_skip" }, noop);
   // A truthiness guard in applyOnboarding would leave this NULL — the regression this pins.
-  expect((await getUser(db, 211))!.limitations).toBe("");
+  expect((await getUser(db, 211))!.medical_limitations).toBe("");
 });
 
 test("a keyword-matched restrictions answer stores the raw words too", async () => {
@@ -863,7 +872,7 @@ test("a keyword-matched restrictions answer stores the raw words too", async () 
   await processOnboarding(deps, { id: 212 }, { type: "text", text: "почки, без арахиса" }, noop);
   const u = (await getUser(db, 212))!;
   expect(u.restrictions).toEqual(["kidneys"]);
-  expect(u.limitations).toBe("почки, без арахиса");
+  expect(u.medical_limitations).toBe("почки, без арахиса");
 });
 
 test("a classifier failure leaves restrictions empty but still completes onboarding — and keeps the limitations", async () => {
@@ -875,7 +884,7 @@ test("a classifier failure leaves restrictions empty but still completes onboard
   expect((await getUser(db, 202))?.restrictions).toEqual([]);
   expect((await getUser(db, 202))?.state).toBe("active");
   // The deterministic parse needed no model; a provider/meter failure must not discard it.
-  expect((await getUser(db, 202))?.limitations).toBe("Nieren");
+  expect((await getUser(db, 202))?.medical_limitations).toBe("Nieren");
   expect(msgs[0]).toBe(translatorFor("de")("onboarding.done"));
 });
 
@@ -887,16 +896,16 @@ test("applyOnboarding persists a transition in a SINGLE setProfile UPDATE (atomi
     await applyOnboarding(db, 730, {
       nextState: "active",
       reply: "ok",
-      patch: { restrictions: ["kidneys"], limitations: "no peanuts" },
+      patch: { restrictions: ["kidneys"], medical_limitations: "no peanuts" },
     });
-    // The refactor's whole point: one UPDATE, so a crash can't half-apply (tags stored, limitations NULL).
+    // The refactor's whole point: one UPDATE, so a crash can't half-apply (tags stored, medical NULL).
     expect(spy).toHaveBeenCalledTimes(1);
   } finally {
     spy.mockRestore();
   }
   const u = (await getUser(db, 730))!;
   expect(u.restrictions).toEqual(["kidneys"]);
-  expect(u.limitations).toBe("no peanuts");
+  expect(u.medical_limitations).toBe("no peanuts");
   expect(u.state).toBe("active");
 });
 
@@ -990,7 +999,7 @@ test("/settings opens the root view with every section", async () => {
     return { chat_id: 1, message_id: 1 };
   };
   await processSettingsOpen(deps, { id: 401 }, send);
-  expect(seen[0]).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"]);
+  expect(seen[0]).toEqual(["st:g:goal", "st:country", "st:g:food", "st:g:prefs"]);
 });
 
 test("choosing a goal persists it and edits the message in place", async () => {
@@ -1001,10 +1010,10 @@ test("choosing a goal persists it and edits the message in place", async () => {
   await processSettingsCallback(deps, { id: 402 }, "st:goal:maintain", edit);
   expect((await getUser(db, 402))?.goal).toBe("maintain");
   expect(edits).toHaveLength(1); // edited, not appended
-  expect(last().data).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"]); // back at root
+  expect(last().data).toEqual(["st:goal", "st:weight", "st:targetw", "st:root"]); // back at the goal group
 });
 
-test("a typed limitation persists and reaches the NEXT analyzer prompt", async () => {
+test("a typed food field persists and reaches the NEXT analyzer prompt", async () => {
   const db = await freshTestDb();
   // The provider records the last request, so we can assert the prompt actually carries it —
   // persisting is only half the feature; the point is that the model sees it.
@@ -1012,41 +1021,55 @@ test("a typed limitation persists and reaches the NEXT analyzer prompt", async (
   const deps: BotDeps = { db, provider, config: cfg };
   await onboardToActive(deps, 420);
   const { edit } = editor();
-  await processSettingsCallback(deps, { id: 420 }, "st:limits", edit);
-  expect((await getUser(db, 420))?.pending_input).toBe("limitations");
+  await processSettingsCallback(deps, { id: 420 }, "st:allergies", edit);
+  expect((await getUser(db, 420))?.pending_input).toBe("allergies");
 
   const u = (await getUser(db, 420))!;
-  await processSettingsInput(deps, u, "limitations", "no peanuts, low FODMAP", noop);
-  expect((await getUser(db, 420))?.limitations).toBe("no peanuts, low FODMAP");
+  await processSettingsInput(deps, u, "allergies", "peanuts, shellfish", noop);
+  expect((await getUser(db, 420))?.food_allergies).toBe("peanuts, shellfish");
   expect((await getUser(db, 420))?.pending_input).toBeNull(); // prompt disarmed
 
   await processPhoto(deps, { id: 420 }, [async () => new Uint8Array([1])], noop);
-  expect(provider.lastRequest!.userText).toContain('"no peanuts, low FODMAP"');
+  expect(provider.lastRequest!.userText).toContain('"peanuts, shellfish"');
 });
 
-test("clearing a limitation stores the '' sentinel and drops it from the prompt", async () => {
+test("clearing a food field stores the '' sentinel and drops it from the prompt", async () => {
   const db = await freshTestDb();
   const provider = recordingProvider(foodJson());
   const deps: BotDeps = { db, provider, config: cfg };
   await onboardToActive(deps, 421);
   const { edit } = editor();
-  await processSettingsCallback(deps, { id: 421 }, "st:limits", edit);
-  await processSettingsInput(deps, (await getUser(db, 421))!, "limitations", "no peanuts", noop);
-  await processSettingsCallback(deps, { id: 421 }, "st:limits:clear", edit);
-  expect((await getUser(db, 421))?.limitations).toBe("");
+  await processSettingsCallback(deps, { id: 421 }, "st:allergies", edit);
+  await processSettingsInput(deps, (await getUser(db, 421))!, "allergies", "peanuts", noop);
+  await processSettingsCallback(deps, { id: 421 }, "st:allergies:clear", edit);
+  expect((await getUser(db, 421))?.food_allergies).toBe("");
 
   await processPhoto(deps, { id: 421 }, [async () => new Uint8Array([1])], noop);
-  expect(provider.lastRequest!.userText).not.toMatch(/declared these personal limitations/i);
+  expect(provider.lastRequest!.userText).not.toMatch(/food allergies/i);
 });
 
-test("tapping another settings button cancels a half-armed limitations prompt", async () => {
+test("a full multi-level walk root → food group → field → back → group works at the bot layer", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 425);
+  const { edit, last } = editor();
+  await processSettingsCallback(deps, { id: 425 }, "st:g:food", edit); // root → food group
+  expect(last().data).toEqual(["st:restr", "st:medical", "st:allergies", "st:products", "st:root"]);
+  await processSettingsCallback(deps, { id: 425 }, "st:medical", edit); // group → field prompt
+  expect((await getUser(db, 425))?.pending_input).toBe("medical");
+  await processSettingsCallback(deps, { id: 425 }, "st:g:food", edit); // Back → food group (cancels the prompt)
+  expect(last().data).toEqual(["st:restr", "st:medical", "st:allergies", "st:products", "st:root"]);
+  expect((await getUser(db, 425))?.pending_input).toBeNull();
+});
+
+test("tapping another settings button cancels a half-armed food-field prompt", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   await onboardToActive(deps, 422);
   const { edit } = editor();
-  await processSettingsCallback(deps, { id: 422 }, "st:limits", edit);
-  expect((await getUser(db, 422))?.pending_input).toBe("limitations");
-  await processSettingsCallback(deps, { id: 422 }, "st:goal", edit);
+  await processSettingsCallback(deps, { id: 422 }, "st:medical", edit);
+  expect((await getUser(db, 422))?.pending_input).toBe("medical");
+  await processSettingsCallback(deps, { id: 422 }, "st:g:goal", edit);
   expect((await getUser(db, 422))?.pending_input).toBeNull();
 });
 
@@ -1101,7 +1124,7 @@ test("choosing a reply format in settings persists it per user", async () => {
   const { edit, last } = editor();
   await processSettingsCallback(deps, { id: 408 }, "st:format:rich", edit);
   expect((await getUser(db, 408))?.reply_format).toBe("rich");
-  expect(last().data).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"]); // back at root
+  expect(last().data).toEqual(["st:lang", "st:format", "st:root"]); // back at the prefs group
   expect(last().text).toContain(translatorFor(DEFAULT_LANG)("settings.format.rich"));
 });
 
