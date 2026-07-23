@@ -71,7 +71,7 @@
     "pendingGone": "That one already expired — send the meal again if you still want it logged."
   },
   "help": {
-    "body": "Send me a photo of your meal and I'll estimate the calories and macros. You can also send multiple photos in one message (album) and I'll treat them as a single meal.\n\nDescribe a meal in text too — just type what you ate (say \"yesterday\" or \"2 days ago\" to back-date it) and I'll log it after you confirm.\n\nAsk me anything about nutrition, your goal, or today's intake and I'll answer.\n\nGot an estimate wrong? Reply directly to my analysis message with a correction — for example \"two pieces, no oil\" — and I'll redo it. Reply \"move to yesterday\" to re-file that meal on another day.\n\nBetter photos, better estimates:\n• shoot from above, the whole plate in frame\n• good light; cutlery or your hand next to the plate helps me judge portion size\n• know the weight or ingredients? add them in the caption\n\nCommands:\n/me — today's totals\n/cap — today's LLM call usage\n/settings — change your goal, weight, target weight, country, restrictions, language or reply style\n/help — this message\n/delete — erase all your data\n\nEstimates from a photo are approximate and are not medical advice."
+    "body": "Send me a photo of your meal and I'll estimate the calories and macros. You can also send multiple photos in one message (album) and I'll treat them as a single meal.\n\nDescribe a meal in text too — just type what you ate (say \"yesterday\" or \"2 days ago\" to back-date it) and I'll log it after you confirm.\n\nAsk me anything about nutrition, your goal, or today's intake and I'll answer.\n\nGot an estimate wrong? Reply directly to my analysis message with a correction — for example \"two pieces, no oil\" — and I'll redo it. Reply \"move to yesterday\" to re-file that meal on another day.\n\nBetter photos, better estimates:\n• shoot from above, the whole plate in frame\n• good light; cutlery or your hand next to the plate helps me judge portion size\n• know the weight or ingredients? add them in the caption\n\nCommands:\n/me — today's totals\n/cap — today's LLM call usage\n/settings — change your goal, weight, target weight, country, restrictions, limitations, language or reply style\n/help — this message\n/delete — erase all your data\n\nEstimates from a photo are approximate and are not medical advice."
   },
   "lang": {
     "prompt": "Choose a language:",
@@ -96,7 +96,9 @@
       "ldl": "cholesterol",
       "lowsugar": "low sugar",
       "vegan": "vegan"
-    }
+    },
+    "limitationsLine": "Limitations: {{limitations}}",
+    "noLimitations": "none"
   },
   "meal": {
     "itemUnit": "{{name}} {{grams}}g",
@@ -122,7 +124,7 @@
     "totalSodium": "Sodium: {{now}} / {{target}} mg"
   },
   "onboarding": {
-    "consent": "Hi! I analyse photos of your food and count calories and macros against your goal.\n\nWhat you should know:\n• I process food photos and your profile (goal, weight, target weight, country, restrictions).\n• Restrictions can include health conditions (kidneys, cholesterol). You never have to give one — tap Skip.\n• Estimates are approximate — this is not medical advice.\n• Photos are not stored: I analyse them and delete them immediately.\n• Photos and your profile are sent to an AI provider to produce the estimate.\n• /delete erases all your data and withdraws this consent.\n• Full policy: https://github.com/kirmalyshev/eait/blob/main/docs/PRIVACY.md\n\nDo you agree to this data being processed?",
+    "consent": "Hi! I analyse photos of your food and count calories and macros against your goal.\n\nWhat you should know:\n• I process food photos and your profile (goal, weight, target weight, country, restrictions, and any limitations you type in your own words).\n• Restrictions and typed limitations can name health conditions (kidneys, cholesterol, allergies). You never have to give any — tap Skip.\n• Estimates are approximate — this is not medical advice.\n• Photos are not stored: I analyse them and delete them immediately.\n• Photos and your profile are sent to an AI provider to produce the estimate.\n• /delete erases all your data and withdraws this consent.\n• Full policy: https://github.com/kirmalyshev/eait/blob/main/docs/PRIVACY.md\n\nDo you agree to this data being processed?",
     "decline": "Without consent I can't process your data. Send /start when you're ready.",
     "askGoal": "What's your goal?",
     "askWeight": "What's your current weight? I use it to set your protein target. Send it in kilograms (for example 92.5) or tap \"Skip\".",
@@ -135,7 +137,7 @@
     "countryInvalid": "I didn't catch that — pick a country below, tap \"Other\" to type it, or \"Skip\".",
     "countrySaved": "🛒 {{country}} — noted.",
     "countryOther": "Type the country where you buy most of your food.",
-    "askRestrictions": "Any health or dietary restrictions? Write freely (for example: \"kidneys, no sugar\") or tap \"Skip\".",
+    "askRestrictions": "Any health or dietary restrictions? Allergies, conditions, foods you avoid — write freely (for example: \"kidneys, no sugar, no peanuts\") or tap \"Skip\".",
     "done": "All set — send me photos of your food 📸\n\nFor the most accurate estimates:\n• shoot from above, the whole plate in frame\n• good light; cutlery or your hand next to the plate helps me judge portion size\n• know the weight or ingredients? add them in the caption",
     "alreadyActive": "You're already set up — just send photos of your food 📸 (/me — profile and today's totals).",
     "nudge": "Tap a button above, or send /start.",
@@ -147,7 +149,8 @@
       "goalGain": "Gain",
       "skip": "Skip",
       "countryOther": "🌐 Other"
-    }
+    },
+    "restrictionsInvalid": "That came through empty. Any health or dietary restrictions? Write freely, or tap Skip."
   },
   "settings": {
     "title": "Settings",
@@ -172,13 +175,20 @@
       "restrictions": "🥗 Restrictions",
       "language": "🌍 Language",
       "format": "🎨 Style",
-      "back": "← Back"
+      "back": "← Back",
+      "limitations": "✏️ Limitations",
+      "clearLimitations": "🗑 Clear"
     },
     "askFormat": "How should meal replies look?",
     "format": {
       "rich": "Rich cards",
       "plain": "Plain text"
-    }
+    },
+    "limitationsLine": "Limitations: {{limitations}}",
+    "askLimitations": "Type anything else I should account for — allergies, conditions, foods you avoid. This goes into every analysis.",
+    "limitationsCurrent": "Current: {{limitations}}",
+    "limitationsInvalid": "That came through empty — type a few words, or tap Back to leave it as is.",
+    "limitationsTruncated": "I kept the first {{max}} characters — the rest was cut."
   },
   "country": {
     "de": "🇩🇪 Germany",

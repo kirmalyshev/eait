@@ -3,8 +3,13 @@
 // Guards make every transition idempotent (a stale button tap resumes, it never resets progress).
 //
 // Flow after consent: goal -> current weight -> target weight -> country -> restrictions -> active.
+// The restrictions step feeds TWO fields from its single free-text answer: `restrictions` (the
+// closed tag vocabulary, via parseRestrictions) and `limitations` (the raw words, via
+// parseLimitations). No step was added for the latter — the question was already free text.
 // Each field's step is derived from which fields are still null; a skip stores a sentinel (0 for
 // weights, '' for country) so "answered" is distinguishable from "never asked" on every resume.
+// `limitations` rides along on the restrictions answer and is NOT a step-gating field — the flow
+// derives no step from it, so its '' sentinel is written for consistency, not for resumption.
 //
 // Copy comes from the caller's translator, so this file stays language-agnostic AND stays pure:
 // `t` is a value passed in, not I/O. The LLM restriction fallback deliberately lives in tg_bot/bot.ts
@@ -12,6 +17,7 @@
 
 import type { TFunction } from "i18next";
 import { parseRestrictions } from "./targets.ts";
+import { LIMITATIONS_MAX_LEN, limitationsTruncated, parseLimitations } from "./limitations.ts";
 import { countryCodeRows, countryLabel, isCountryCode, parseCountry } from "./country.ts";
 import type { Goal, UserState } from "./types.ts";
 
@@ -47,6 +53,9 @@ export interface OnboardingResult {
     target_weight_kg?: number;
     country?: string;
     restrictions?: string[];
+    /** The restrictions answer kept VERBATIM (normalized), alongside the tags parsed from it.
+     * '' is the explicit-skip sentinel — persist with `!== undefined`, never a truthiness check. */
+    limitations?: string;
   };
   buttons?: InlineButton[][];
 }
@@ -226,7 +235,12 @@ export function step(
         return { nextState: "profile", reply: t("onboarding.countryOther"), buttons: countrySkipButtons(t) };
       case "restrictions_skip":
         if (!restrictionsOpen(u)) return resume(u, t);
-        return { nextState: "active", reply: t("onboarding.done"), patch: { restrictions: [] } };
+        // '' = asked and declined, the same sentinel country uses.
+        return {
+          nextState: "active",
+          reply: t("onboarding.done"),
+          patch: { restrictions: [], limitations: "" },
+        };
       default: {
         const goal = GOAL_FROM_DATA[input.data];
         if (goal) {
@@ -286,10 +300,31 @@ export function step(
     };
   }
   if (restrictionsOpen(u)) {
+    // The one question feeds BOTH fields: the closed vocabulary takes what it can classify
+    // (tags → numeric caps + structured verdicts), and the raw words are kept as free-text
+    // limitations for the prompt. Before this, anything outside the four tags — "no peanuts",
+    // "gastritis" — was parsed to nothing and thrown away.
+    const limitations = parseLimitations(input.text);
+    // A NON-EMPTY answer that normalizes to nothing (all quotes/control/invisible/bidi) is not a
+    // real answer — re-ask rather than silently recording a skip and saying "done". Whitespace-only
+    // (trim empty) is still an intentional skip and falls through to the '' sentinel below. This
+    // mirrors the /settings limitations path, which re-prompts on the same input.
+    if (limitations == null && input.text.trim() !== "") {
+      return { nextState: "profile", reply: t("onboarding.restrictionsInvalid"), buttons: restrictionButtons(t) };
+    }
+    // Surface a dropped tail instead of truncating silently — the question solicits a full list.
+    const notice = limitationsTruncated(input.text)
+      ? t("settings.limitationsTruncated", { max: LIMITATIONS_MAX_LEN }) + "\n\n"
+      : "";
     return {
       nextState: "active",
-      reply: t("onboarding.done"),
-      patch: { restrictions: parseRestrictions(input.text) },
+      reply: notice + t("onboarding.done"),
+      patch: {
+        restrictions: parseRestrictions(input.text),
+        // ?? "": a whitespace-only answer is an intentional skip and must land as the sentinel
+        // rather than re-opening the question forever.
+        limitations: limitations ?? "",
+      },
     };
   }
   if (state === "profile") return askGoal(t); // still need a goal (via button)

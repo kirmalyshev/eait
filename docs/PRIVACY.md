@@ -18,6 +18,7 @@ Last updated: 2026-07-23.
 | Target weight (optional — skippable) | Anchor your protein target when cutting and show progress toward your goal | Until you `/delete` |
 | Purchase country (optional — skippable) | Steer estimates toward local products and portion sizes | Until you `/delete` |
 | Dietary and health restrictions | Judge meals on the dimensions you declared | Until you `/delete` |
+| Free-text limitations (optional — skippable, clearable) | Sent with every analysis so the model respects them | Until you clear them or `/delete` |
 | Per-meal estimates — items, calories, macros, verdicts, notes | Daily totals and corrections | Until you `/delete` |
 | Pending text-meal descriptions (stored briefly while you confirm) | Hold your text input between the confirm prompt and your tap | Deleted immediately on confirm or cancel; auto-pruned after 48 h if neither arrives |
 | LLM call counts per day | Enforce per-user and global spend caps | Deleted with your account on `/delete`; no message content, just a kind tag and timestamp |
@@ -25,12 +26,14 @@ Last updated: 2026-07-23.
 
 ### Health data
 
-Restrictions may include health conditions — kidney disease, cholesterol/LDL. Under GDPR that
-is **special-category data (Art 9)**. The legal basis is your **explicit consent**, given on the
+Restrictions may include health conditions — kidney disease, cholesterol/LDL — and free-text
+limitations are whatever you type, which may name allergies or conditions in your own words.
+Under GDPR that is **special-category data (Art 9)**. The legal basis is your **explicit consent**, given on the
 consent screen before anything is stored, and withdrawable at any time via `/delete`.
 
-You are not required to declare a restriction. Tap "Skip" during setup, or clear them in
-`/settings → Restrictions`, and the bot works on calories and your weight goal alone.
+You are not required to declare a restriction or a limitation. Tap "Skip" during setup, clear
+tags in `/settings → Restrictions`, or clear your typed text with `/settings → Limitations →
+Clear`, and the bot works on calories and your weight goal alone.
 
 ## Photos are not stored
 
@@ -43,7 +46,8 @@ The photo does leave the server to reach the model provider (below).
 
 - **Telegram** — carries every message. Subject to [Telegram's privacy policy](https://telegram.org/privacy).
 - **OpenRouter**, and the model provider it routes to — receives the photo and your goal and
-  restrictions as prompt context, in order to produce the estimate. Subject to
+  restrictions, and any free-text limitations you typed as prompt context, in order to produce
+  the estimate. Subject to
   [OpenRouter's privacy policy](https://openrouter.ai/privacy). The hosted bot's configured
   model is stated in the README.
 

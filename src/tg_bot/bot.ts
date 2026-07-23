@@ -13,7 +13,7 @@ import type { Config } from "../config.ts";
 import type { LLMProvider } from "../llm/provider.ts";
 import { createProvider } from "../llm/factory.ts";
 import {
-  openDb, berlinDate, berlinDateMinus, berlinTime, upsertUser, getUser, setConsent, setProfile, setUserState,
+  openDb, berlinDate, berlinDateMinus, berlinTime, upsertUser, getUser, setConsent, setProfile,
   insertMeal, setMealReply, applyCorrection, setMealDate, mealByReply, dailyTotals,
   logLlmCall, llmCallsToday, llmCallCountToday, mealsOnDate, totalsByDate,
   insertPendingMeal, setPendingReply, getPendingMeal, deletePendingMeal, prunePendingMeals,
@@ -27,6 +27,7 @@ import { analyzeMeal, classifyRestrictions, routeText, type RouteContext, type R
 import { RejectionLog } from "./rejections.ts";
 import { targetsFor, weightRemainingKg, isRestrictionTag } from "../targets.ts";
 import { countryLabel } from "../country.ts";
+import { limitationsDisplay } from "../limitations.ts";
 import { formatReply, berlinDayLabel, mealDateLabel } from "../reply.ts";
 import { renderMealCard } from "../render.ts";
 import {
@@ -142,6 +143,9 @@ export function profileOf(u: UserRow): Profile {
     // '' is the db's "explicitly skipped" sentinel — outside the boundary it means unknown.
     country: u.country ? u.country : null,
     restrictions: u.restrictions,
+    // '' is the skip sentinel here too. No vocabulary to validate against, so no warn: any
+    // stored string is a legitimate limitation.
+    limitations: u.limitations ? u.limitations : null,
     // Same validation rule as lang: junk means "never chose", so the instance default applies.
     reply_format: isReplyFormat(u.reply_format) ? u.reply_format : null,
   };
@@ -169,21 +173,27 @@ export function mealToAnalysis(m: MealRecord): MealAnalysis {
   };
 }
 
-/** Persist an onboarding transition. setConsent/setProfile already move state; setUserState reconciles. */
+/**
+ * Persist an onboarding transition. The whole profile patch goes in ONE `setProfile` UPDATE
+ * (plus the state), rather than a separate round-trip per field: a step never mutates more than a
+ * couple of fields, but a crash between two of N sequential writes would leave a half-applied
+ * transition (tags stored, limitations NULL). `setProfile` already applies each field on
+ * `!== undefined`, so the sentinels (`0` for skipped weights, `''` for skipped country and
+ * limitations) are forwarded verbatim and persist — a truthiness check anywhere here would drop
+ * them and re-open the question on every resume. `setConsent` stays its own call: it writes the
+ * `consent_at` column and moves state to `profile` in a single UPDATE of its own.
+ */
 export async function applyOnboarding(db: Db, telegram_id: number, r: OnboardingResult): Promise<void> {
   if (r.patch?.consent_at) await setConsent(db, telegram_id, r.patch.consent_at);
-  if (r.patch?.goal) await setProfile(db, telegram_id, { goal: r.patch.goal });
-  // !== undefined, not truthy: 0 is the explicit-skip sentinel and MUST be persisted,
-  // or the weight question re-opens on every resume.
-  if (r.patch?.weight_kg !== undefined) await setProfile(db, telegram_id, { weight_kg: r.patch.weight_kg });
-  // !== undefined for the same reason weight uses it: 0 (target skip) and '' (country skip) are
-  // the explicit-skip sentinels and MUST persist, or the question re-opens on every resume.
-  if (r.patch?.target_weight_kg !== undefined) {
-    await setProfile(db, telegram_id, { target_weight_kg: r.patch.target_weight_kg });
-  }
-  if (r.patch?.country !== undefined) await setProfile(db, telegram_id, { country: r.patch.country });
-  if (r.patch?.restrictions !== undefined) await setProfile(db, telegram_id, { restrictions: r.patch.restrictions });
-  await setUserState(db, telegram_id, r.nextState);
+  await setProfile(db, telegram_id, {
+    goal: r.patch?.goal,
+    weight_kg: r.patch?.weight_kg,
+    target_weight_kg: r.patch?.target_weight_kg,
+    country: r.patch?.country,
+    restrictions: r.patch?.restrictions,
+    limitations: r.patch?.limitations,
+    state: r.nextState,
+  });
 }
 
 // ---------- process functions (grammy-free, testable) ----------
@@ -258,12 +268,22 @@ async function applyRestrictionFallback(
   if (input.type !== "text" || !input.text.trim()) return;
   if (r.patch?.restrictions === undefined || r.patch.restrictions.length > 0) return;
 
-  // Metered like every other provider call ("every LLM call draws one"), but deliberately NOT
-  // cap-gated: refusing an onboarding step over a spend cap would strand the user mid-flow,
-  // and this path runs at most once per user.
-  if (u) await logLlmCall(deps.db, u.telegram_id, berlinDate(new Date(), deps.config.tz), "classify");
-  const tags = await classifyRestrictions(input.text, deps.provider, translatorLangOf(u));
-  if (tags.length) r.patch.restrictions = tags;
+  // This is a REFINEMENT: the deterministic parse (keyword tags + raw limitations) is already in
+  // `r.patch` and must persist even if this path fails, so the whole thing is guarded. The LLM
+  // classifier itself never throws (it catches internally and returns []), but the metering write
+  // `logLlmCall` can — and a throw here would propagate past the caller and skip `applyOnboarding`
+  // entirely, discarding an answer that needed no model. The model may only IMPROVE the tags.
+  try {
+    // Metered like every other provider call ("every LLM call draws one"), but deliberately NOT
+    // cap-gated: refusing an onboarding step over a spend cap would strand the user mid-flow,
+    // and this path runs at most once per user.
+    if (u) await logLlmCall(deps.db, u.telegram_id, berlinDate(new Date(), deps.config.tz), "classify");
+    const tags = await classifyRestrictions(input.text, deps.provider, translatorLangOf(u));
+    if (tags.length) r.patch.restrictions = tags;
+  } catch (e) {
+    // Keep the keyword-only result already in r.patch; the answer (tags + limitations) still saves.
+    console.error(`[eait] restriction classify/meter failed, keeping keyword parse: ${describeError(e)}`);
+  }
 }
 
 const translatorLangOf = (u: UserRow | undefined): Lang => (u ? profileOf(u).lang : DEFAULT_LANG);
@@ -557,6 +577,7 @@ async function applySettingsView(
       weight_kg: v.patch.weight_kg,
       target_weight_kg: v.patch.target_weight_kg,
       country: v.patch.country,
+      limitations: v.patch.limitations,
     });
   }
   // A prompt view arms pending_input; every other view (including a completed edit) clears it, so
@@ -1084,6 +1105,11 @@ export async function meCard(deps: BotDeps, userId: number): Promise<string | nu
   // Progress line only when both weights are known: at-goal vs. absolute distance to the target.
   const remaining = weightRemainingKg(prof);
   const lines = [profileLine];
+  // Its own line, and only when set: profileLine already carries five fields, and a sixth
+  // free-text one would make it unreadable on a phone. Absent means absent — no "none" row.
+  if (prof.limitations) {
+    lines.push(t("me.limitationsLine", { limitations: limitationsDisplay(prof.limitations) }));
+  }
   if (remaining !== null) {
     lines.push(remaining === 0 ? t("me.atGoal") : t("me.toGoal", { kg: Math.abs(remaining) }));
   }
