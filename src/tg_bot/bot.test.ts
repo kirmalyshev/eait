@@ -507,6 +507,20 @@ test("/me shows the stored weight, and 'not set' after a skip — misparses stay
   expect(await meCard(deps, 89)).toContain(t("me.noWeight"));
 });
 
+test("/me shows limitations when set, and omits the line entirely when not", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const t = translatorFor(DEFAULT_LANG);
+  await onboardToActive(deps, 92); // restrictions answered, so limitations captured from it
+  await processSettingsInput(deps, (await getUser(db, 92))!, "limitations", "no peanuts", noop);
+  expect(await meCard(deps, 92)).toContain("no peanuts");
+
+  // Cleared → the '' sentinel → no line at all, rather than a "Limitations: none" row of noise.
+  await processSettingsCallback(deps, { id: 92 }, "st:limits:clear", editor().edit);
+  const card = await meCard(deps, 92);
+  expect(card).not.toContain(t("me.limitationsLine", { limitations: "" }).split("{")[0]!.trim());
+});
+
 test("onboarding stores a typed target weight and a picked country, then reaches active", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };

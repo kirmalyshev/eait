@@ -27,6 +27,7 @@ import { analyzeMeal, classifyRestrictions, routeText, type RouteContext, type R
 import { RejectionLog } from "./rejections.ts";
 import { targetsFor, weightRemainingKg, isRestrictionTag } from "../targets.ts";
 import { countryLabel } from "../country.ts";
+import { limitationsDisplay } from "../limitations.ts";
 import { formatReply, berlinDayLabel, mealDateLabel } from "../reply.ts";
 import { renderMealCard } from "../render.ts";
 import {
@@ -1091,6 +1092,11 @@ export async function meCard(deps: BotDeps, userId: number): Promise<string | nu
   // Progress line only when both weights are known: at-goal vs. absolute distance to the target.
   const remaining = weightRemainingKg(prof);
   const lines = [profileLine];
+  // Its own line, and only when set: profileLine already carries five fields, and a sixth
+  // free-text one would make it unreadable on a phone. Absent means absent — no "none" row.
+  if (prof.limitations) {
+    lines.push(t("me.limitationsLine", { limitations: limitationsDisplay(prof.limitations) }));
+  }
   if (remaining !== null) {
     lines.push(remaining === 0 ? t("me.atGoal") : t("me.toGoal", { kg: Math.abs(remaining) }));
   }
