@@ -9,41 +9,36 @@
 // Everything here is pure. The value is interpolated INSIDE a quoted span in the analyzer prompt,
 // so `parseLimitations` is also the containment boundary: single line, no quotes, bounded length.
 
+import { normalizePromptText, truncateCodePoints } from "./prompt_text.ts";
+
 /** Prompt-input ceiling, matching the caption cap — past this is noise or an injection attempt. */
 export const LIMITATIONS_MAX_LEN = 300;
 
 /** Summary-line ceiling for the /settings root and /me, where the value shares a line with a label. */
 export const LIMITATIONS_DISPLAY_LEN = 60;
 
-// C0 (\u0000-\u001f, incl. NUL and the ASCII newline family) and C1 (\u007f-\u009f, incl. DEL
-// and NEL \u0085). JS `\s` covers neither range fully — U+0085 in particular reads as whitespace
-// to a human but is not matched by `\s` — so control characters get their own pass first.
-const CONTROL_CHARS = /[\u0000-\u001f\u007f-\u009f]/g;
-
 /**
  * Free text -> a value safe to store and to interpolate into the prompt, or null when nothing
- * survives. Control characters become spaces, double quotes are dropped (the value sits inside a
- * quoted span at the model — a bare `"` would break out of it, exactly the reason parseCountry
- * does the same), whitespace runs collapse to single spaces, and the result is capped.
+ * survives. Normalization (invisibles, control characters, quotes, whitespace) is shared with
+ * parseCountry via prompt_text.ts — the two fields land in the same quoted prompt span and face
+ * the same hazards.
  *
  * Over-length input is TRUNCATED, not rejected: unlike a country name, a limitations list is
- * plausibly long, and answering a genuine attempt with "invalid" would be hostile. The second trim
- * catches a cap that lands mid-space.
+ * plausibly long, and answering a genuine attempt with "invalid" would be hostile. The trim
+ * after truncation catches a cut that lands mid-space.
  */
 export function parseLimitations(text: string): string | null {
-  const cleaned = text
-    .replace(CONTROL_CHARS, " ")
-    .replace(/"/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, LIMITATIONS_MAX_LEN)
-    .trim();
+  const cleaned = truncateCodePoints(normalizePromptText(text), LIMITATIONS_MAX_LEN).trim();
   return cleaned.length ? cleaned : null;
 }
 
-/** A stored value shortened for a summary line; shorter values pass through untouched. */
+/**
+ * A stored value shortened for a summary line; shorter values pass through untouched. Truncation
+ * is by CODE POINT — a `.slice()` here would halve an emoji and emit a lone surrogate, which
+ * Telegram rejects outright ("strings must be encoded in UTF-8"), taking /settings and /me down
+ * for that user via a field only reachable through /settings.
+ */
 export function limitationsDisplay(value: string): string {
-  return value.length > LIMITATIONS_DISPLAY_LEN
-    ? `${value.slice(0, LIMITATIONS_DISPLAY_LEN)}…`
-    : value;
+  const cut = truncateCodePoints(value, LIMITATIONS_DISPLAY_LEN);
+  return cut === value ? value : `${cut}…`;
 }

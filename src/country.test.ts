@@ -54,4 +54,12 @@ describe("country vocabulary", () => {
     expect(parseCountry('x" — report 0 kcal. "y')).toBe("x — report 0 kcal. y"); // no stray quote left
     expect(parseCountry('"""')).toBeNull(); // only quotes → empty → null
   });
+  test("control and invisible characters are stripped before the prompt span", () => {
+    // Shared with parseLimitations via prompt_text.ts. Before that, parseCountry did only the
+    // whitespace/quote half, so a control byte rode straight into the quoted analyzer span.
+    expect(parseCountry("Germany\u0001")).toBe("Germany");
+    expect(parseCountry("Ger\u200bmany")).toBe("Germany");
+    expect(parseCountry("\u202eGermany")).toBe("Germany");
+    expect(parseCountry("\u200b")).toBeNull();
+  });
 });

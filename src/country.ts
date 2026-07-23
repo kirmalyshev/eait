@@ -6,6 +6,7 @@
 // and an i18n test can couple the locale files to this exact list.
 
 import type { TFunction } from "i18next";
+import { normalizePromptText } from "./prompt_text.ts";
 
 /** The offered countries. Trim or extend this one line to change the buttons. */
 export const COUNTRIES = ["de", "ru", "us", "gb", "fr", "es", "it", "nl", "pl", "tr"] as const;
@@ -64,13 +65,16 @@ export function countryLabel(country: string, t: TFunction): string {
   return isCountryCode(country) ? t(`country.${country}`) : country;
 }
 
-// Free-typed country ("Other"): stored roughly as typed for display and the prompt. Internal
-// whitespace (incl. newlines) is collapsed to single spaces and double-quotes are dropped — a
-// country name is a single unquoted line, and both make the value inert where it reaches the model
-// (it is interpolated INSIDE a quoted span in the analyzer prompt, so a `"` would break out).
-// Length-capped like the caption/restriction inputs; empty (or only quotes/space) → null.
+// Free-typed country ("Other"): stored roughly as typed for display and the prompt. Normalization
+// is shared with parseLimitations via prompt_text.ts — the value is interpolated INSIDE a quoted
+// span in the analyzer prompt, so it has to arrive single-line, unquoted, and free of control and
+// invisible characters. It used to do only the whitespace/quote half inline, which let
+// `parseCountry("Germany")` ship a control byte straight into that span.
+//
+// Cap policy differs from limitations on purpose: a country name past 60 characters is a typo or
+// junk, so it is REJECTED rather than truncated.
 const COUNTRY_INPUT_CAP = 60;
 export function parseCountry(text: string): string | null {
-  const c = text.trim().replace(/\s+/g, " ").replace(/"/g, "");
+  const c = normalizePromptText(text);
   return c.length >= 1 && c.length <= COUNTRY_INPUT_CAP ? c : null;
 }

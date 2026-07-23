@@ -191,9 +191,10 @@ function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boo
   // would only produce output zod strips.
   //
   // `parseLimitations` already made the stored value single-line, quote-free and bounded, but a
-  // hand-edited row never passed through it — so contain it again here, exactly as the caption and
-  // country priors do. Belt and braces on the one field whose whole purpose is to carry user
-  // prose into the prompt.
+  // hand-edited row never passed through it — so re-run the SAME parser here as a floor.
+  // (The caption and free-text-message priors below do NOT contain their inputs — they slice to a
+  // length and interpolate raw — so this field is deliberately stricter than they are, not "the
+  // same": a caption or message is one-shot per call, a limitation persists into every future one.)
   const limitations = containLimitations(profile.limitations);
   if (limitations) {
     lines.push(
