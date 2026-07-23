@@ -15,13 +15,36 @@ const SODIUM_CAP_KIDNEYS_MG = 2000; // renal-diet sodium ceiling
 
 export function targetsFor(profile: Profile): FoodTargets {
   const kcal = KCAL_BY_GOAL[profile.goal ?? "maintain"];
-  const protein_g = profile.weight_kg
-    ? Math.min(PROTEIN_MAX_G, Math.max(PROTEIN_MIN_G, Math.round(profile.weight_kg * PROTEIN_PER_KG)))
+  const anchor = proteinAnchorKg(profile);
+  const protein_g = anchor
+    ? Math.min(PROTEIN_MAX_G, Math.max(PROTEIN_MIN_G, Math.round(anchor * PROTEIN_PER_KG)))
     : PROTEIN_BASELINE_G;
   const targets: FoodTargets = { kcal, protein_g };
   if (profile.restrictions.includes("ldl")) targets.satfat_g = SATFAT_CAP_LDL_G;
   if (profile.restrictions.includes("kidneys")) targets.sodium_mg = SODIUM_CAP_KIDNEYS_MG;
   return targets;
+}
+
+/**
+ * The bodyweight the protein target scales against: the GOAL weight when cutting (a calorie deficit
+ * risks lean mass, so protein is anchored to where the user is heading), otherwise current
+ * bodyweight. Null when no usable weight is known — the caller falls back to the flat baseline.
+ * Kcal deliberately stays goal-banded; a bodyweight-delta→calorie formula is out of scope (it needs
+ * safe-rate-of-loss logic this photo-logger has no business inventing).
+ */
+function proteinAnchorKg(p: Profile): number | null {
+  if (p.goal === "lose" && p.target_weight_kg) return p.target_weight_kg;
+  return p.weight_kg ?? null;
+}
+
+/**
+ * Signed kilograms from current to target (current − target): positive = still to lose, negative =
+ * still to gain, 0 = at goal. Null when either weight is unknown. Feeds the /me progress line and
+ * the analyzer's goal framing; it never changes the numeric targets.
+ */
+export function weightRemainingKg(p: Profile): number | null {
+  if (!p.weight_kg || !p.target_weight_kg) return null;
+  return Math.round((p.weight_kg - p.target_weight_kg) * 10) / 10;
 }
 
 // Ordered so output tags are stable regardless of input order. Substring match catches
