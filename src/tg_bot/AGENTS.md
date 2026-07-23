@@ -19,14 +19,23 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
 
 ## Invariants that bite here
 
-- **Text routing precedence:** command > reply-to-rejection (canned explain, no LLM) >
-  free-text router > onboarding. Every text from an **active** user goes through `processText`
-  — one `routeText` LLM call deciding question / meal / correction / redate (a reply that maps to
-  a meal via `mealByReply` — the bot's analysis message OR the user's own photo — becomes the
-  focus meal, which unlocks the correction AND redate intents). `correction` fixes the focus
-  meal's macros; `redate` moves it to another day (`setMealDate`, macros unchanged) — both apply
-  immediately (the reply is unambiguous, no confirm). `processText` returns `false` only for
-  non-active users, whose text still belongs to `processOnboarding`.
+- **Text routing precedence:** command > armed settings prompt (`users.pending_input`) >
+  reply-to-rejection (canned explain, no LLM) > free-text router > onboarding. Every text from an
+  **active** user goes through `processText` — one `routeText` LLM call deciding question / meal /
+  correction / redate (a reply that maps to a meal via `mealByReply` — the bot's analysis message
+  OR the user's own photo — becomes the focus meal, which unlocks the correction AND redate
+  intents). `correction` fixes the focus meal's macros; `redate` moves it to another day
+  (`setMealDate`, macros unchanged) — both apply immediately (the reply is unambiguous, no
+  confirm). `processText` returns `false` only for non-active users, whose text still belongs to
+  `processOnboarding`.
+- **Settings text-capture: `pending_input` is the ONLY non-callback settings path.** Tapping the
+  weight / target-weight / country-"Other" buttons returns a view with `awaitInput`; the callback
+  handler arms `users.pending_input` to that field. The very next text an active user sends is
+  consumed by `processSettingsInput` **before** the router — no `routeText`, no LLM, no cap draw —
+  and clears (or, on a parse failure, re-arms) the marker. Photos are never consumed (they stay
+  meals). Every settings interaction sets `pending_input = view.awaitInput ?? null`, so tapping
+  any other button — or reopening `/settings` — cancels a half-finished prompt. A photo mid-prompt
+  logs normally and leaves the prompt armed.
 - **Text meals are confirm-first.** A `meal` intent creates a `pending_meals` row + `tm:log:` /
   `tm:cancel:` buttons; nothing reaches `meals` until the tap (`processTextMealDecision`).
   Photos and albums keep logging directly. On either tap the confirm prompt is **deleted**
@@ -78,9 +87,10 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
 - **Callbacks always `answerCallbackQuery()`.** Unknown data is never *stored* — `lang_<code>` is
   validated against the registry — but it isn't discarded either: it falls through to
   `processOnboarding`, whose `step()` default re-prompts the current stage.
-- **Callback namespaces are disjoint:** `st:` settings, `lang_` language, bare
-  `consent_*`/`goal_*`/`restrictions_*` onboarding, `delete_*` delete, `tm:` text-meal confirm.
-  Never reuse a prefix across machines — the receiving machine's guards reject foreign taps
+- **Callback namespaces are disjoint:** `st:` settings (incl. `st:weight`/`st:targetw`/
+  `st:country`/`st:country:*`), `lang_` language, bare `consent_*`/`goal_*`/`weight_skip`/
+  `target_weight_skip`/`country_*`/`restrictions_*` onboarding, `delete_*` delete, `tm:` text-meal
+  confirm. Never reuse a prefix across machines — the receiving machine's guards reject foreign taps
   silently.
 - **`bot.catch` stays.** A failed reply must never crash the process; `startBot`'s supervisor
   retries runner errors (e.g. a 409 during poller hand-off) instead of exiting.
