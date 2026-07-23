@@ -6,7 +6,7 @@ import { cleanupTestDbs, freshTestDb } from "../testutil.ts";
 import {
   processOnboarding, processPhoto, processText, processTextMealDecision, meCard, statsCard, profileOf,
   processLangPrompt, processLangChoice, buildCommands, processSettingsOpen,
-  processSettingsCallback, helpText, commandRegistrations, isAllowed,
+  processSettingsCallback, processSettingsInput, helpText, commandRegistrations, isAllowed,
   processCap, effectiveGlobalCap, processWaitlist,
   createBot, startBot, adminLangFor, isFatalTelegramError, describeError, processDocument,
   processAlbum, makeSendRich,
@@ -38,6 +38,18 @@ const foodJson = (kcal = 600) =>
   });
 
 const fakeProvider = (out: string): LLMProvider => ({ chat: async () => out });
+
+/** fakeProvider that also keeps the last request, for asserting what reached the prompt. */
+function recordingProvider(out: string) {
+  const p = {
+    lastRequest: undefined as { userText: string } | undefined,
+    chat: async (req: { userText: string }) => {
+      p.lastRequest = req;
+      return out;
+    },
+  };
+  return p as typeof p & LLMProvider;
+}
 
 function collector() {
   const msgs: string[] = [];
@@ -940,7 +952,7 @@ test("/settings opens the root view with every section", async () => {
     return { chat_id: 1, message_id: 1 };
   };
   await processSettingsOpen(deps, { id: 401 }, send);
-  expect(seen[0]).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
+  expect(seen[0]).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"]);
 });
 
 test("choosing a goal persists it and edits the message in place", async () => {
@@ -951,7 +963,53 @@ test("choosing a goal persists it and edits the message in place", async () => {
   await processSettingsCallback(deps, { id: 402 }, "st:goal:maintain", edit);
   expect((await getUser(db, 402))?.goal).toBe("maintain");
   expect(edits).toHaveLength(1); // edited, not appended
-  expect(last().data).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]); // back at root
+  expect(last().data).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"]); // back at root
+});
+
+test("a typed limitation persists and reaches the NEXT analyzer prompt", async () => {
+  const db = await freshTestDb();
+  // The provider records the last request, so we can assert the prompt actually carries it —
+  // persisting is only half the feature; the point is that the model sees it.
+  const provider = recordingProvider(foodJson());
+  const deps: BotDeps = { db, provider, config: cfg };
+  await onboardToActive(deps, 420);
+  const { edit } = editor();
+  await processSettingsCallback(deps, { id: 420 }, "st:limits", edit);
+  expect((await getUser(db, 420))?.pending_input).toBe("limitations");
+
+  const u = (await getUser(db, 420))!;
+  await processSettingsInput(deps, u, "limitations", "no peanuts, low FODMAP", noop);
+  expect((await getUser(db, 420))?.limitations).toBe("no peanuts, low FODMAP");
+  expect((await getUser(db, 420))?.pending_input).toBeNull(); // prompt disarmed
+
+  await processPhoto(deps, { id: 420 }, [async () => new Uint8Array([1])], noop);
+  expect(provider.lastRequest!.userText).toContain('"no peanuts, low FODMAP"');
+});
+
+test("clearing a limitation stores the '' sentinel and drops it from the prompt", async () => {
+  const db = await freshTestDb();
+  const provider = recordingProvider(foodJson());
+  const deps: BotDeps = { db, provider, config: cfg };
+  await onboardToActive(deps, 421);
+  const { edit } = editor();
+  await processSettingsCallback(deps, { id: 421 }, "st:limits", edit);
+  await processSettingsInput(deps, (await getUser(db, 421))!, "limitations", "no peanuts", noop);
+  await processSettingsCallback(deps, { id: 421 }, "st:limits:clear", edit);
+  expect((await getUser(db, 421))?.limitations).toBe("");
+
+  await processPhoto(deps, { id: 421 }, [async () => new Uint8Array([1])], noop);
+  expect(provider.lastRequest!.userText).not.toMatch(/declared these personal limitations/i);
+});
+
+test("tapping another settings button cancels a half-armed limitations prompt", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 422);
+  const { edit } = editor();
+  await processSettingsCallback(deps, { id: 422 }, "st:limits", edit);
+  expect((await getUser(db, 422))?.pending_input).toBe("limitations");
+  await processSettingsCallback(deps, { id: 422 }, "st:goal", edit);
+  expect((await getUser(db, 422))?.pending_input).toBeNull();
 });
 
 test("toggling a restriction twice persists on and then off, with no new messages", async () => {
@@ -1005,7 +1063,7 @@ test("choosing a reply format in settings persists it per user", async () => {
   const { edit, last } = editor();
   await processSettingsCallback(deps, { id: 408 }, "st:format:rich", edit);
   expect((await getUser(db, 408))?.reply_format).toBe("rich");
-  expect(last().data).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]); // back at root
+  expect(last().data).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"]); // back at root
   expect(last().text).toContain(translatorFor(DEFAULT_LANG)("settings.format.rich"));
 });
 

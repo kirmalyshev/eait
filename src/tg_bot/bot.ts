@@ -563,6 +563,7 @@ async function applySettingsView(
       weight_kg: v.patch.weight_kg,
       target_weight_kg: v.patch.target_weight_kg,
       country: v.patch.country,
+      limitations: v.patch.limitations,
     });
   }
   // A prompt view arms pending_input; every other view (including a completed edit) clears it, so

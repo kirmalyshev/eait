@@ -10,6 +10,7 @@ import type { TFunction } from "i18next";
 import { LANGS, LOCALES, isLang, translatorFor } from "./i18n/index.ts";
 import { RESTRICTION_TAGS, isRestrictionTag } from "./targets.ts";
 import { countryCodeRows, countryLabel, isCountryCode, parseCountry } from "./country.ts";
+import { limitationsDisplay, parseLimitations } from "./limitations.ts";
 import { parseWeight, type InlineButton } from "./onboarding.ts";
 import { REPLY_FORMATS, isReplyFormat } from "./types.ts";
 import type { Goal, Lang, Profile, ReplyFormat } from "./types.ts";
@@ -20,7 +21,7 @@ import type { Goal, Lang, Profile, ReplyFormat } from "./types.ts";
  * next text message is routed to `settingsInput`. Kept a literal union so the db marker validates
  * against it at the read boundary.
  */
-export const PENDING_INPUTS = ["weight", "target_weight", "country"] as const;
+export const PENDING_INPUTS = ["weight", "target_weight", "country", "limitations"] as const;
 export type PendingInput = (typeof PENDING_INPUTS)[number];
 export function isPendingInput(v: unknown): v is PendingInput {
   return typeof v === "string" && (PENDING_INPUTS as readonly string[]).includes(v);
@@ -46,6 +47,8 @@ export interface SettingsView {
     weight_kg?: number;
     target_weight_kg?: number;
     country?: string;
+    /** '' is the explicit-clear sentinel, so persist on `!== undefined`, never truthiness. */
+    limitations?: string;
   };
   /** Present only when this step opens a text prompt: bot.ts arms pending_input to this field so
    * the user's next text message reaches `settingsInput`. Absent on every other view, which is how
@@ -84,6 +87,9 @@ export function settingsRoot(p: SettingsProfile, t: TFunction): SettingsView {
       t("settings.targetWeightLine", { weight: weightDisplay(p.target_weight_kg, t) }),
       t("settings.countryLine", { country: p.country ? countryLabel(p.country, t) : t("me.noCountry") }),
       t("settings.restrictionsLine", { restrictions }),
+      t("settings.limitationsLine", {
+        limitations: p.limitations ? limitationsDisplay(p.limitations) : t("me.noLimitations"),
+      }),
       t("settings.langLine", { lang: LOCALES[p.lang].nativeName }),
       t("settings.formatLine", { format: t(`settings.format.${p.reply_format}`) }),
     ].join("\n"),
@@ -97,6 +103,9 @@ export function settingsRoot(p: SettingsProfile, t: TFunction): SettingsView {
         { text: t("settings.button.country"), data: "st:country" },
         { text: t("settings.button.restrictions"), data: "st:restr" },
       ],
+      // Its own row: the label is long in every locale, and paired with another it would be
+      // squeezed to unreadable — the same reason the country picker wraps at two.
+      [{ text: t("settings.button.limitations"), data: "st:limits" }],
       [
         { text: t("settings.button.language"), data: "st:lang" },
         { text: t("settings.button.format"), data: "st:format" },
@@ -169,6 +178,21 @@ function textPrompt(text: string, field: PendingInput, t: TFunction): SettingsVi
   return { text, buttons: [backRow(t)], awaitInput: field };
 }
 
+/**
+ * The free-text limitations prompt. Echoes the current value and offers Clear only when there IS
+ * one — a Clear button over an empty field is a dead control that patches '' to no visible effect.
+ */
+function limitationsPrompt(p: SettingsProfile, t: TFunction): SettingsView {
+  const current = p.limitations;
+  const text = current
+    ? `${t("settings.askLimitations")}\n\n${t("settings.limitationsCurrent", { limitations: current })}`
+    : t("settings.askLimitations");
+  const buttons: InlineButton[][] = current
+    ? [[{ text: t("settings.button.clearLimitations"), data: "st:limits:clear" }], backRow(t)]
+    : [backRow(t)];
+  return { text, buttons, awaitInput: "limitations" };
+}
+
 /** Curated countries + an "Other" (free-text) entry + back. Chosen codes patch; "other" prompts. */
 function countryPicker(t: TFunction): SettingsView {
   return {
@@ -194,6 +218,12 @@ export function settingsStep(p: SettingsProfile, data: string, t: TFunction): Se
   if (data === "st:weight") return textPrompt(t("settings.askWeight"), "weight", t);
   if (data === "st:targetw") return textPrompt(t("settings.askTargetWeight"), "target_weight", t);
   if (data === "st:country") return countryPicker(t);
+  // Before the `st:limits` prompt, so the more specific clear action wins the prefix.
+  if (data === "st:limits:clear") {
+    const next = { ...p, limitations: "" };
+    return { ...settingsRoot(next, t), patch: { limitations: "" } };
+  }
+  if (data === "st:limits") return limitationsPrompt(p, t);
 
   const country = suffix(data, "st:country:");
   if (country !== null) {
@@ -277,6 +307,14 @@ export function settingsInput(
       const country = parseCountry(text);
       if (country == null) return textPrompt(t("onboarding.countryInvalid"), "country", t);
       return { ...settingsRoot({ ...p, country }, t), patch: { country } };
+    }
+    case "limitations": {
+      // Over-length input truncates rather than failing (see parseLimitations); only input that
+      // normalizes to NOTHING re-prompts, and it re-prompts against the unchanged profile so the
+      // existing value is still echoed alongside Clear.
+      const limitations = parseLimitations(text);
+      if (limitations == null) return limitationsPrompt(p, t);
+      return { ...settingsRoot({ ...p, limitations }, t), patch: { limitations } };
     }
   }
 }

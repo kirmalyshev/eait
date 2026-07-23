@@ -96,7 +96,9 @@
       "ldl": "cholesterol",
       "lowsugar": "low sugar",
       "vegan": "vegan"
-    }
+    },
+    "limitationsLine": "Limitations: {{limitations}}",
+    "noLimitations": "none"
   },
   "meal": {
     "itemUnit": "{{name}} {{grams}}g",
@@ -135,7 +137,7 @@
     "countryInvalid": "I didn't catch that — pick a country below, tap \"Other\" to type it, or \"Skip\".",
     "countrySaved": "🛒 {{country}} — noted.",
     "countryOther": "Type the country where you buy most of your food.",
-    "askRestrictions": "Any health or dietary restrictions? Write freely (for example: \"kidneys, no sugar\") or tap \"Skip\".",
+    "askRestrictions": "Any health or dietary restrictions? Allergies, conditions, foods you avoid — write freely (for example: \"kidneys, no sugar, no peanuts\") or tap \"Skip\".",
     "done": "All set — send me photos of your food 📸\n\nFor the most accurate estimates:\n• shoot from above, the whole plate in frame\n• good light; cutlery or your hand next to the plate helps me judge portion size\n• know the weight or ingredients? add them in the caption",
     "alreadyActive": "You're already set up — just send photos of your food 📸 (/me — profile and today's totals).",
     "nudge": "Tap a button above, or send /start.",
@@ -172,13 +174,18 @@
       "restrictions": "🥗 Restrictions",
       "language": "🌍 Language",
       "format": "🎨 Style",
-      "back": "← Back"
+      "back": "← Back",
+      "limitations": "✏️ Limitations",
+      "clearLimitations": "🗑 Clear"
     },
     "askFormat": "How should meal replies look?",
     "format": {
       "rich": "Rich cards",
       "plain": "Plain text"
-    }
+    },
+    "limitationsLine": "Limitations: {{limitations}}",
+    "askLimitations": "Type anything else I should account for — allergies, conditions, foods you avoid. This goes into every analysis.",
+    "limitationsCurrent": "Current: {{limitations}}"
   },
   "country": {
     "de": "🇩🇪 Germany",

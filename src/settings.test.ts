@@ -47,7 +47,7 @@ describe("root view", () => {
   });
 
   test("offers every section", () => {
-    expect(data(settingsRoot(profile(), t))).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
+    expect(data(settingsRoot(profile(), t))).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"]);
   });
 
   test("shows the current reply format", () => {
@@ -66,14 +66,14 @@ describe("goal", () => {
   test("choosing a goal patches it and returns to the root view", () => {
     const v = settingsStep(profile({ goal: "lose" }), "st:goal:maintain", t);
     expect(v.patch).toEqual({ goal: "maintain" });
-    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
+    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"]);
     expect(v.text).toContain(t("me.goal.maintain")); // root reflects the new value immediately
   });
 
   test("an invalid goal is ignored rather than persisted", () => {
     const v = settingsStep(profile({ goal: "lose" }), "st:goal:teleport", t);
     expect(v.patch).toBeUndefined();
-    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
+    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"]);
   });
 });
 
@@ -152,14 +152,14 @@ describe("format", () => {
   test("choosing a format patches it and returns to the root view", () => {
     const v = settingsStep(profile({ reply_format: "rich" }), "st:format:plain", t);
     expect(v.patch).toEqual({ reply_format: "plain" });
-    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
+    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"]);
     expect(v.text).toContain(t("settings.format.plain")); // root reflects the new value
   });
 
   test("an unknown format is ignored rather than persisted", () => {
     const v = settingsStep(profile(), "st:format:markdown", t);
     expect(v.patch).toBeUndefined();
-    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
+    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"]);
   });
 });
 
@@ -181,7 +181,7 @@ describe("weight + target weight (text input)", () => {
     const v = settingsInput("weight", "80,5", profile({ weight_kg: 92 }), t);
     expect(v.patch).toEqual({ weight_kg: 80.5 });
     expect(v.awaitInput).toBeUndefined();
-    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
+    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"]);
     expect(v.text).toContain(t("me.weightValue", { kg: 80.5 }));
   });
 
@@ -204,6 +204,62 @@ describe("weight + target weight (text input)", () => {
   });
 });
 
+describe("limitations (free text)", () => {
+  test("the root shows the current limitations, truncated, or 'none'", () => {
+    const set = settingsRoot(profile({ limitations: "no peanuts, low FODMAP" }), t);
+    expect(set.text).toContain("no peanuts, low FODMAP");
+    const unset = settingsRoot(profile({ limitations: null }), t);
+    expect(unset.text).toContain(t("me.noLimitations"));
+    const long = settingsRoot(profile({ limitations: "z".repeat(200) }), t);
+    expect(long.text).toContain("…");
+    expect(long.text).not.toContain("z".repeat(200)); // the summary line stays one line
+  });
+
+  test("st:limits arms a text prompt and patches nothing yet", () => {
+    const v = settingsStep(profile(), "st:limits", t);
+    expect(v.awaitInput).toBe("limitations");
+    expect(v.patch).toBeUndefined();
+  });
+
+  test("with nothing set, the prompt offers only Back — no dead Clear button", () => {
+    const v = settingsStep(profile({ limitations: null }), "st:limits", t);
+    expect(data(v)).toEqual(["st:root"]);
+    expect(v.text).not.toContain(t("settings.limitationsCurrent", { limitations: "" }).slice(0, 5));
+  });
+
+  test("with a value set, the prompt echoes it and offers Clear", () => {
+    const v = settingsStep(profile({ limitations: "no peanuts" }), "st:limits", t);
+    expect(data(v)).toEqual(["st:limits:clear", "st:root"]);
+    expect(v.text).toContain("no peanuts");
+  });
+
+  test("typed input is normalized, patched, and returns to root with the prompt cleared", () => {
+    const v = settingsInput("limitations", '  no  "junk"\nno peanuts  ', profile(), t);
+    expect(v.patch).toEqual({ limitations: "no junk no peanuts" });
+    expect(v.awaitInput).toBeUndefined();
+    expect(v.text).toContain("no junk no peanuts");
+  });
+
+  test("input that normalizes to nothing re-prompts with the prompt still armed", () => {
+    const v = settingsInput("limitations", "   \n  ", profile({ limitations: "no peanuts" }), t);
+    expect(v.patch).toBeUndefined();
+    expect(v.awaitInput).toBe("limitations");
+  });
+
+  test("st:limits:clear patches the '' sentinel and returns to root", () => {
+    const v = settingsStep(profile({ limitations: "no peanuts" }), "st:limits:clear", t);
+    expect(v.patch).toEqual({ limitations: "" });
+    expect(v.awaitInput).toBeUndefined();
+    expect(v.text).toContain(t("me.noLimitations"));
+  });
+
+  test("an over-length typed value is truncated, never rejected", () => {
+    const v = settingsInput("limitations", "a".repeat(500), profile(), t);
+    expect(v.patch?.limitations).toHaveLength(300);
+    expect(v.awaitInput).toBeUndefined();
+  });
+});
+
 describe("country", () => {
   test("st:country opens a picker with every curated country, Other, and back", () => {
     const v = settingsStep(profile(), "st:country", t);
@@ -219,7 +275,7 @@ describe("country", () => {
     const v = settingsStep(profile({ country: null }), "st:country:de", t);
     expect(v.patch).toEqual({ country: "de" });
     expect(v.text).toContain(t("country.de"));
-    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
+    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"]);
   });
 
   test("an unknown country code re-shows the picker, patches nothing", () => {
@@ -253,23 +309,25 @@ describe("robustness", () => {
     for (const junk of ["", "st:", "st:nope", "garbage", "st:goal:", "goal_lose"]) {
       const v = settingsStep(profile(), junk, t);
       expect(v.patch).toBeUndefined();
-      expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
+      expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"]);
     }
   });
 
   test("st:root returns the root view", () => {
-    expect(data(settingsStep(profile(), "st:root", t))).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
+    expect(data(settingsStep(profile(), "st:root", t))).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"]);
   });
 });
 
 describe("localization", () => {
-  const VIEWS = ["st:root", "st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"];
+  const VIEWS = ["st:root", "st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"];
   const RAW_KEY = /\b(settings|me|onboarding|lang|country)\.[a-zA-Z.]+/;
 
   test.each(LANGS)("%s renders every view with no raw key", (lang) => {
     const tl = translatorFor(lang);
     for (const d of VIEWS) {
-      const v = settingsStep(profile({ restrictions: ["kidneys"], weight_kg: 92, target_weight_kg: 85, country: "de" }), d, tl);
+      // limitations set, so the prompt's "Current:" line and Clear button are rendered too —
+      // the unset branch would skip both and leave their keys uncovered.
+      const v = settingsStep(profile({ restrictions: ["kidneys"], weight_kg: 92, target_weight_kg: 85, country: "de", limitations: "no peanuts" }), d, tl);
       expect(v.text.trim()).not.toBe("");
       expect(v.text).not.toMatch(RAW_KEY);
       for (const label of labels(v)) {
@@ -289,11 +347,16 @@ describe("keyboard layout", () => {
   });
 
   test("the back button is on its own final row in every sub-view", () => {
-    for (const d of ["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]) {
-      const v = settingsStep(profile(), d, t);
-      const last = v.buttons[v.buttons.length - 1]!;
-      expect(last).toHaveLength(1);
-      expect(last[0]!.data).toBe("st:root");
+    const SUBVIEWS = ["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"];
+    // Both limitations branches: with a value the view gains a Clear row ABOVE back, and back
+    // must still be last and alone.
+    for (const p of [profile(), profile({ limitations: "no peanuts" })]) {
+      for (const d of SUBVIEWS) {
+        const v = settingsStep(p, d, t);
+        const last = v.buttons[v.buttons.length - 1]!;
+        expect(last).toHaveLength(1);
+        expect(last[0]!.data).toBe("st:root");
+      }
     }
   });
 });
