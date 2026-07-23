@@ -18,6 +18,7 @@ import { MealAnalysisSchema } from "./analyzer.ts";
 import type {
   DailyTotals,
   DayTotals,
+  FoodTextField,
   Goal,
   MealAnalysis,
   MealItem,
@@ -401,6 +402,11 @@ const MIGRATIONS: Migration[] = [
       await tx`ALTER TABLE users ADD COLUMN product_limitations TEXT`;
       await tx`UPDATE users SET product_limitations = limitations WHERE limitations IS NOT NULL AND limitations <> ''`;
       await tx`ALTER TABLE users DROP COLUMN limitations`;
+      // A user mid-prompt at the deploy instant has pending_input='limitations', which is no longer
+      // a valid PENDING_INPUT — leave it and their next text misroutes to the router (one cap draw,
+      // input lost) until they reopen /settings. Clear it deterministically, as v2/v5 backfilled
+      // their mid-flow users for the same "next message silently eaten" class.
+      await tx`UPDATE users SET pending_input = NULL WHERE pending_input = 'limitations'`;
     },
   },
 ];
@@ -613,11 +619,8 @@ export async function setProfile(
     target_weight_kg?: number;
     country?: string;
     restrictions?: string[];
-    medical_limitations?: string;
-    food_allergies?: string;
-    product_limitations?: string;
     state?: UserState;
-  },
+  } & Partial<Record<FoodTextField, string>>,
 ): Promise<void> {
   // Dynamic SET list over a fixed field whitelist — values always travel as $n parameters.
   const sets: string[] = [];

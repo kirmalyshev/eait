@@ -18,10 +18,15 @@ import { countryCodeRows, countryLabel, isCountryCode, parseCountry } from "./co
 import { LIMITATIONS_MAX_LEN, limitationsDisplay, limitationsTruncated, parseLimitations } from "./limitations.ts";
 import { parseWeight, type InlineButton } from "./onboarding.ts";
 import { REPLY_FORMATS, isReplyFormat } from "./types.ts";
-import type { Goal, Lang, Profile, ReplyFormat } from "./types.ts";
+import type { FoodTextField, Goal, Lang, Profile, ReplyFormat } from "./types.ts";
 
-/** The profile keys the three food-specifics free-text fields write to. */
-type FoodProfileKey = "medical_limitations" | "food_allergies" | "product_limitations";
+/** The profile keys the three food-specifics free-text fields write to (single source in types.ts). */
+type FoodProfileKey = FoodTextField;
+
+/** The food part of a settings patch — derived from `FoodTextField`, so `SettingsView["patch"]`
+ * and `setProfile`'s param cannot drift from each other. '' is the explicit-clear sentinel on each,
+ * persisted on `!== undefined`, never truthiness. */
+export type FoodPatch = Partial<Record<FoodTextField, string>>;
 
 /**
  * The profile fields editable by typing rather than tapping (weight, target weight, a free-text
@@ -88,11 +93,7 @@ export interface SettingsView {
     weight_kg?: number;
     target_weight_kg?: number;
     country?: string;
-    /** '' is the explicit-clear sentinel on each, so persist on `!== undefined`, never truthiness. */
-    medical_limitations?: string;
-    food_allergies?: string;
-    product_limitations?: string;
-  };
+  } & FoodPatch;
   /** Present only when this step opens a text prompt: bot.ts arms pending_input to this field so
    * the user's next text message reaches `settingsInput`. Absent on every other view, which is how
    * bot.ts knows to CLEAR any armed prompt (tapping any other button cancels a pending edit). */
@@ -304,10 +305,13 @@ function countryPicker(t: TFunction): SettingsView {
   };
 }
 
-/** `{ [field]: value }` typed as a patch — the computed food-field key is always a valid patch key,
- * but a single computed property widens to an index signature, so the cast restores the exact shape. */
-function foodPatch(f: FoodField, value: string): SettingsView["patch"] {
-  return { [f.profile]: value } as SettingsView["patch"];
+/** A one-field patch. The INDEXED WRITE (not a computed-property literal) is deliberate: it makes
+ * `f.profile` checked against the patch's keys — a drifted column name raises TS7053 here rather
+ * than compiling into a wrong-column write, and no cast is needed. */
+function foodPatch(f: FoodField, value: string): FoodPatch {
+  const patch: FoodPatch = {};
+  patch[f.profile] = value;
+  return patch;
 }
 
 // ---------- routing ----------
@@ -409,8 +413,11 @@ export function settingsInput(
   p: SettingsProfile,
   t: TFunction,
 ): SettingsView {
-  const food = FOOD_FIELDS.find((f) => f.key === field);
-  if (food) {
+  // Narrow FIRST so the switch below sees only the non-food inputs and its exhaustiveness is real
+  // (no dead food cases returning a plausible `settingsRoot` fallback — a food key that ever
+  // escaped this branch would hit `assertNever`, a loud throw, not a silent bounce to root).
+  if (isFoodKey(field)) {
+    const food = FOOD_FIELDS.find((f) => f.key === field)!;
     // Over-length input truncates rather than failing (see parseLimitations); only input that
     // normalizes to NOTHING re-prompts, against the unchanged profile so the existing value is
     // still echoed alongside Clear.
@@ -441,10 +448,19 @@ export function settingsInput(
       if (country == null) return textPrompt(t("onboarding.countryInvalid"), "country", t);
       return { ...settingsRoot({ ...p, country }, t), patch: { country } };
     }
-    // medical/allergies/products handled above via FOOD_FIELDS.
-    case "medical":
-    case "allergies":
-    case "products":
-      return settingsRoot(p, t); // unreachable: `food` matched above
+    default:
+      // `field` is `never` here — weight/target/country are handled, food keys narrowed away above.
+      return assertNever(field);
   }
+}
+
+/** Narrows a pending input to a food-field key, so `settingsInput`'s switch is genuinely exhaustive
+ * over the remaining (weight/target/country) inputs rather than padded with dead food cases. */
+function isFoodKey(field: PendingInput): field is FoodField["key"] {
+  return FOOD_FIELDS.some((f) => f.key === field);
+}
+
+/** Compile-time exhaustiveness guard: reaching it means a `PendingInput` grew without a branch. */
+function assertNever(x: never): never {
+  throw new Error(`settings: unhandled input field ${JSON.stringify(x)}`);
 }

@@ -51,6 +51,13 @@ export interface Profile {
   reply_format: ReplyFormat | null;
 }
 
+/**
+ * The profile columns the three food-specifics free-text fields write to. Single source for the
+ * patch/param shapes in `settings.ts` and `db.ts`, so those cannot drift from each other (the SQL
+ * column strings still can't be type-checked, but the TS surfaces are now tied).
+ */
+export type FoodTextField = "medical_limitations" | "food_allergies" | "product_limitations";
+
 export interface MealItem {
   name: string;
   grams: number;

@@ -312,6 +312,26 @@ describe("food specifics — 3 free-text fields (migration 7)", () => {
     const cols = await b`SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='limitations'`;
     expect(cols.length).toBe(0);
   });
+
+  test("migration 7 clears a stale pending_input='limitations' left by the previous build", async () => {
+    const name = freshTestName();
+    const a = await openTestDb(name);
+    await a`ALTER TABLE users DROP COLUMN medical_limitations`;
+    await a`ALTER TABLE users DROP COLUMN food_allergies`;
+    await a`ALTER TABLE users DROP COLUMN product_limitations`;
+    await a`ALTER TABLE users ADD COLUMN limitations TEXT`;
+    await a`UPDATE schema_version SET version = 6`;
+    await upsertUser(a, { telegram_id: 1 });
+    await a`UPDATE users SET pending_input = 'limitations' WHERE telegram_id = 1`; // mid-prompt at deploy
+    await upsertUser(a, { telegram_id: 2 });
+    await a`UPDATE users SET pending_input = 'weight' WHERE telegram_id = 2`; // a still-valid marker
+    await a.close();
+
+    const b = await openTestDb(name);
+    // The now-invalid marker is cleared (else the next text misroutes); a valid one is untouched.
+    expect((await getUser(b, 1))!.pending_input).toBeNull();
+    expect((await getUser(b, 2))!.pending_input).toBe("weight");
+  });
 });
 
 describe("migrate() failure reporting", () => {

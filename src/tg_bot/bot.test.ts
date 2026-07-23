@@ -509,18 +509,26 @@ test("/me shows the stored weight, and 'not set' after a skip — misparses stay
   expect(await meCard(deps, 89)).toContain(t("me.noWeight"));
 });
 
-test("/me shows a food field when set, and omits the line entirely when cleared", async () => {
+test("/me renders all three food fields, each on its own line with the right label→value pairing", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   const t = translatorFor(DEFAULT_LANG);
   await onboardToActive(deps, 92);
-  await processSettingsInput(deps, (await getUser(db, 92))!, "allergies", "no peanuts", noop);
-  expect(await meCard(deps, 92)).toContain("no peanuts");
-
-  // Cleared → the '' sentinel → no line at all, rather than an "Allergies: none" row of noise.
-  await processSettingsCallback(deps, { id: 92 }, "st:allergies:clear", editor().edit);
+  // Distinct values so a mis-wire (a line interpolating the wrong column) is caught.
+  await processSettingsInput(deps, (await getUser(db, 92))!, "medical", "CKD", noop);
+  await processSettingsInput(deps, (await getUser(db, 92))!, "allergies", "peanuts", noop);
+  await processSettingsInput(deps, (await getUser(db, 92))!, "products", "buckwheat", noop);
   const card = await meCard(deps, 92);
-  expect(card).not.toContain(t("me.allergiesLine", { value: "" }).split("{")[0]!.trim());
+  expect(card).toContain(t("me.medicalLine", { value: "CKD" }));
+  expect(card).toContain(t("me.allergiesLine", { value: "peanuts" }));
+  expect(card).toContain(t("me.productsLine", { value: "buckwheat" }));
+
+  // Clearing one drops ONLY its line; the other two remain.
+  await processSettingsCallback(deps, { id: 92 }, "st:allergies:clear", editor().edit);
+  const after = await meCard(deps, 92);
+  expect(after).not.toContain(t("me.allergiesLine", { value: "peanuts" }));
+  expect(after).toContain(t("me.medicalLine", { value: "CKD" }));
+  expect(after).toContain(t("me.productsLine", { value: "buckwheat" }));
 });
 
 test("onboarding stores a typed target weight and a picked country, then reaches active", async () => {
@@ -1038,6 +1046,20 @@ test("clearing a food field stores the '' sentinel and drops it from the prompt"
 
   await processPhoto(deps, { id: 421 }, [async () => new Uint8Array([1])], noop);
   expect(provider.lastRequest!.userText).not.toMatch(/food allergies/i);
+});
+
+test("a full multi-level walk root → food group → field → back → group works at the bot layer", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 425);
+  const { edit, last } = editor();
+  await processSettingsCallback(deps, { id: 425 }, "st:g:food", edit); // root → food group
+  expect(last().data).toEqual(["st:restr", "st:medical", "st:allergies", "st:products", "st:root"]);
+  await processSettingsCallback(deps, { id: 425 }, "st:medical", edit); // group → field prompt
+  expect((await getUser(db, 425))?.pending_input).toBe("medical");
+  await processSettingsCallback(deps, { id: 425 }, "st:g:food", edit); // Back → food group (cancels the prompt)
+  expect(last().data).toEqual(["st:restr", "st:medical", "st:allergies", "st:products", "st:root"]);
+  expect((await getUser(db, 425))?.pending_input).toBeNull();
 });
 
 test("tapping another settings button cancels a half-armed food-field prompt", async () => {

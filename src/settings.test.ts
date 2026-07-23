@@ -120,6 +120,12 @@ describe("weight + target weight (text input)", () => {
     expect(v.awaitInput).toBe("weight");
   });
 
+  test("st:targetw arms a prompt whose Back returns to the goal group (exact, not any group)", () => {
+    const v = settingsStep(profile(), "st:targetw", t);
+    expect(v.awaitInput).toBe("target_weight");
+    expect(data(v)).toEqual(["st:g:goal"]);
+  });
+
   test("a valid target-weight input patches and returns to the goal group", () => {
     const v = settingsInput("target_weight", "85", profile(), t);
     expect(v.patch).toEqual({ target_weight_kg: 85 });
@@ -203,17 +209,20 @@ describe("food specifics — three free-text fields", () => {
     expect(v.text).toContain(t("settings.limitationsTruncated", { max: 300 }));
   });
 
-  // The three fields are independent of each other and of the tags (design invariant).
-  test("editing one field leaves the other two and the tags untouched", () => {
-    const v = settingsInput("allergies", "peanuts", profile({ restrictions: ["kidneys"], medical_limitations: "CKD" }), t);
-    expect(v.patch).toEqual({ food_allergies: "peanuts" }); // ONLY food_allergies in the patch
-    expect(v.text).toContain("CKD"); // medical still shown
+  // The three fields are independent of each other and of the tags (design invariant) — parametrized
+  // so every field's patch is proven to name ONLY its own column.
+  test.each(FIELDS)("editing %s patches only its column, leaving the others and the tags", (key, col) => {
+    const others = { medical_limitations: "M", food_allergies: "A", product_limitations: "P" } as Record<string, string>;
+    delete others[col];
+    const v = settingsInput(key, "typed", profile({ restrictions: ["kidneys"], ...others }), t);
+    expect(v.patch).toEqual({ [col]: "typed" }); // ONLY this field's column
+    for (const leftover of Object.values(others)) expect(v.text).toContain(leftover);
     expect(v.text).toContain(t("me.restriction.kidneys")); // tag still shown
   });
 
-  test("clearing a field does not drop a tag", () => {
-    const v = settingsStep(profile({ restrictions: ["kidneys"], product_limitations: "x" }), "st:products:clear", t);
-    expect(v.patch).toEqual({ product_limitations: "" });
+  test.each(FIELDS)("clearing %s does not drop a tag or touch another field", (key, col) => {
+    const v = settingsStep(profile({ restrictions: ["kidneys"], [col]: "x", medical_limitations: col === "medical_limitations" ? "x" : "keepM" }), `st:${key}:clear`, t);
+    expect(v.patch).toEqual({ [col]: "" });
     expect(v.text).toContain(t("me.restriction.kidneys"));
   });
 });
