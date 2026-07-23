@@ -185,6 +185,42 @@ describe("happy path consent -> profile -> active", () => {
     expect(r.nextState).toBe("active");
     expect(r.patch?.restrictions).toEqual([]);
   });
+
+  // The step keeps the words, not just the tags it could classify. Everything outside the
+  // four-tag vocabulary ("no peanuts") used to be silently discarded here.
+  test("restriction free text ALSO stores the raw words as limitations", () => {
+    const r = step(user(atRestrictions), { type: "text", text: "почки, без сахара, no peanuts" }, t);
+    expect(r.patch?.restrictions).toEqual(["kidneys", "lowsugar"]);
+    expect(r.patch?.limitations).toBe("почки, без сахара, no peanuts");
+  });
+
+  test("text the tag vocabulary cannot classify still survives as limitations", () => {
+    const r = step(user(atRestrictions), { type: "text", text: "gastritis, nothing spicy" }, t);
+    expect(r.patch?.restrictions).toEqual([]); // no tag matches
+    expect(r.patch?.limitations).toBe("gastritis, nothing spicy");
+    expect(r.nextState).toBe("active");
+  });
+
+  test("skipping restrictions stores the '' limitations sentinel, not undefined", () => {
+    const r = step(user({ ...atRestrictions, goal: "gain" }), {
+      type: "callback",
+      data: "restrictions_skip",
+    }, t);
+    // '' not undefined: applyOnboarding persists on `!== undefined`, and "asked and declined"
+    // must be distinguishable from "never asked".
+    expect(r.patch?.limitations).toBe("");
+  });
+
+  test("a whitespace-only restrictions answer stores '' rather than null", () => {
+    const r = step(user(atRestrictions), { type: "text", text: "   \n  " }, t);
+    expect(r.patch?.limitations).toBe("");
+    expect(r.nextState).toBe("active");
+  });
+
+  test("the stored limitation is normalized (single line, no quotes)", () => {
+    const r = step(user(atRestrictions), { type: "text", text: 'no  "junk"\nno peanuts' }, t);
+    expect(r.patch?.limitations).toBe("no junk no peanuts");
+  });
 });
 
 describe("decline", () => {

@@ -3,6 +3,9 @@
 // Guards make every transition idempotent (a stale button tap resumes, it never resets progress).
 //
 // Flow after consent: goal -> current weight -> target weight -> country -> restrictions -> active.
+// The restrictions step feeds TWO fields from its single free-text answer: `restrictions` (the
+// closed tag vocabulary, via parseRestrictions) and `limitations` (the raw words, via
+// parseLimitations). No step was added for the latter — the question was already free text.
 // Each field's step is derived from which fields are still null; a skip stores a sentinel (0 for
 // weights, '' for country) so "answered" is distinguishable from "never asked" on every resume.
 //
@@ -12,6 +15,7 @@
 
 import type { TFunction } from "i18next";
 import { parseRestrictions } from "./targets.ts";
+import { parseLimitations } from "./limitations.ts";
 import { countryCodeRows, countryLabel, isCountryCode, parseCountry } from "./country.ts";
 import type { Goal, UserState } from "./types.ts";
 
@@ -47,6 +51,9 @@ export interface OnboardingResult {
     target_weight_kg?: number;
     country?: string;
     restrictions?: string[];
+    /** The restrictions answer kept VERBATIM (normalized), alongside the tags parsed from it.
+     * '' is the explicit-skip sentinel — persist with `!== undefined`, never a truthiness check. */
+    limitations?: string;
   };
   buttons?: InlineButton[][];
 }
@@ -226,7 +233,12 @@ export function step(
         return { nextState: "profile", reply: t("onboarding.countryOther"), buttons: countrySkipButtons(t) };
       case "restrictions_skip":
         if (!restrictionsOpen(u)) return resume(u, t);
-        return { nextState: "active", reply: t("onboarding.done"), patch: { restrictions: [] } };
+        // '' = asked and declined, the same sentinel country uses.
+        return {
+          nextState: "active",
+          reply: t("onboarding.done"),
+          patch: { restrictions: [], limitations: "" },
+        };
       default: {
         const goal = GOAL_FROM_DATA[input.data];
         if (goal) {
@@ -286,10 +298,19 @@ export function step(
     };
   }
   if (restrictionsOpen(u)) {
+    // The one question feeds BOTH fields: the closed vocabulary takes what it can classify
+    // (tags → numeric caps + structured verdicts), and the raw words are kept as free-text
+    // limitations for the prompt. Before this, anything outside the four tags — "no peanuts",
+    // "gastritis" — was parsed to nothing and thrown away.
     return {
       nextState: "active",
       reply: t("onboarding.done"),
-      patch: { restrictions: parseRestrictions(input.text) },
+      patch: {
+        restrictions: parseRestrictions(input.text),
+        // ?? "": an answer that normalizes to nothing is still an ANSWER, and must land as the
+        // skip sentinel rather than re-opening the question forever.
+        limitations: parseLimitations(input.text) ?? "",
+      },
     };
   }
   if (state === "profile") return askGoal(t); // still need a goal (via button)

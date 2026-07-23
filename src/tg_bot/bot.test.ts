@@ -806,6 +806,39 @@ test("a keyword miss falls back to the classifier — German text still yields t
   expect((await getUser(db, 201))?.state).toBe("active");
 });
 
+test("the classifier fallback does not clobber the limitations captured from the same text", async () => {
+  const db = await freshTestDb();
+  // Keyword miss → the classifier runs and rewrites patch.restrictions. patch.limitations was
+  // set by the pure step() from the SAME raw text and must survive that rewrite untouched.
+  const { p, calls } = countingProvider(JSON.stringify({ tags: ["kidneys"] }));
+  const deps: BotDeps = { db, provider: p, config: cfg };
+  await toRestrictionsStep(deps, 210, "de");
+  await processOnboarding(deps, { id: 210 }, { type: "text", text: "Nieren, keine Erdnüsse" }, noop);
+  expect(calls()).toBe(1);
+  const u = (await getUser(db, 210))!;
+  expect(u.restrictions).toEqual(["kidneys"]);
+  expect(u.limitations).toBe("Nieren, keine Erdnüsse");
+});
+
+test("onboarding persists the '' limitations sentinel on skip (not undefined, not null)", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await toRestrictionsStep(deps, 211);
+  await processOnboarding(deps, { id: 211 }, { type: "callback", data: "restrictions_skip" }, noop);
+  // A truthiness guard in applyOnboarding would leave this NULL — the regression this pins.
+  expect((await getUser(db, 211))!.limitations).toBe("");
+});
+
+test("a keyword-matched restrictions answer stores the raw words too", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await toRestrictionsStep(deps, 212);
+  await processOnboarding(deps, { id: 212 }, { type: "text", text: "почки, без арахиса" }, noop);
+  const u = (await getUser(db, 212))!;
+  expect(u.restrictions).toEqual(["kidneys"]);
+  expect(u.limitations).toBe("почки, без арахиса");
+});
+
 test("a classifier failure leaves restrictions empty but still completes onboarding", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: { chat: async () => { throw new Error("down"); } }, config: cfg };

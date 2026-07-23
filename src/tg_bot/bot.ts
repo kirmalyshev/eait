@@ -186,6 +186,9 @@ export async function applyOnboarding(db: Db, telegram_id: number, r: Onboarding
   }
   if (r.patch?.country !== undefined) await setProfile(db, telegram_id, { country: r.patch.country });
   if (r.patch?.restrictions !== undefined) await setProfile(db, telegram_id, { restrictions: r.patch.restrictions });
+  // !== undefined for the same reason as country: '' is the explicit-skip sentinel, and a
+  // truthiness check would drop it — leaving the field indistinguishable from "never asked".
+  if (r.patch?.limitations !== undefined) await setProfile(db, telegram_id, { limitations: r.patch.limitations });
   await setUserState(db, telegram_id, r.nextState);
 }
 
