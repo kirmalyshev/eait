@@ -172,6 +172,12 @@ export async function applyOnboarding(db: Db, telegram_id: number, r: Onboarding
   // !== undefined, not truthy: 0 is the explicit-skip sentinel and MUST be persisted,
   // or the weight question re-opens on every resume.
   if (r.patch?.weight_kg !== undefined) await setProfile(db, telegram_id, { weight_kg: r.patch.weight_kg });
+  // !== undefined for the same reason weight uses it: 0 (target skip) and '' (country skip) are
+  // the explicit-skip sentinels and MUST persist, or the question re-opens on every resume.
+  if (r.patch?.target_weight_kg !== undefined) {
+    await setProfile(db, telegram_id, { target_weight_kg: r.patch.target_weight_kg });
+  }
+  if (r.patch?.country !== undefined) await setProfile(db, telegram_id, { country: r.patch.country });
   if (r.patch?.restrictions !== undefined) await setProfile(db, telegram_id, { restrictions: r.patch.restrictions });
   await setUserState(db, telegram_id, r.nextState);
 }
@@ -194,7 +200,19 @@ export async function processOnboarding(
   const u = await getUser(deps.db, from.id);
   if (input.type === "command") await recordStart(deps.db, from.id, input.payload);
   const t = translatorForUser(u);
-  const r = step(u ? { state: u.state, goal: u.goal, weight_kg: u.weight_kg } : undefined, input, t);
+  const r = step(
+    u
+      ? {
+          state: u.state,
+          goal: u.goal,
+          weight_kg: u.weight_kg,
+          target_weight_kg: u.target_weight_kg,
+          country: u.country,
+        }
+      : undefined,
+    input,
+    t,
+  );
   await applyRestrictionFallback(deps, u, input, r);
   await applyOnboarding(deps.db, from.id, r);
   if (u?.state !== "active" && r.nextState === "active") {

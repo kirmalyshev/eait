@@ -5,7 +5,7 @@ import { LANGS, translatorFor } from "./i18n/index.ts";
 const t = translatorFor("ru");
 
 function user(over: Partial<OnboardingUser> = {}): OnboardingUser {
-  return { state: "consent", goal: null, weight_kg: null, ...over };
+  return { state: "consent", goal: null, weight_kg: null, target_weight_kg: null, country: null, ...over };
 }
 function buttonData(r: { buttons?: { text: string; data: string }[][] }): string[] {
   return (r.buttons ?? []).flat().map((b) => b.data);
@@ -13,6 +13,18 @@ function buttonData(r: { buttons?: { text: string; data: string }[][] }): string
 function buttonText(r: { buttons?: { text: string; data: string }[][] }): string[] {
   return (r.buttons ?? []).flat().map((b) => b.text);
 }
+
+// Reaching each profile step: the machine derives the step from which fields are still null.
+const atWeight = { state: "profile", goal: "lose" } as const;
+const atTarget = { state: "profile", goal: "lose", weight_kg: 92 } as const;
+const atCountry = { state: "profile", goal: "lose", weight_kg: 92, target_weight_kg: 85 } as const;
+const atRestrictions = {
+  state: "profile",
+  goal: "lose",
+  weight_kg: 92,
+  target_weight_kg: 85,
+  country: "de",
+} as const;
 
 describe("happy path consent -> profile -> active", () => {
   test("new user /start -> consent with agree/decline buttons", () => {
@@ -42,35 +54,32 @@ describe("happy path consent -> profile -> active", () => {
     expect(buttonData(r)).toContain("weight_skip");
   });
 
-  test("weight text -> stays profile, stores kg, echoes it back, asks restrictions", () => {
-    const r = step(user({ state: "profile", goal: "lose" }), { type: "text", text: "92,5 кг" }, t);
+  test("weight text -> stays profile, stores kg, echoes it back, asks target weight", () => {
+    const r = step(user(atWeight), { type: "text", text: "92,5 кг" }, t);
     expect(r.nextState).toBe("profile");
     expect(r.patch?.weight_kg).toBe(92.5);
     // The parsed value is echoed so a misparse is visible and correctable, not silent.
     expect(r.reply).toContain("92.5");
-    expect(r.reply).toContain(t("onboarding.askRestrictions"));
-    expect(buttonData(r)).toContain("restrictions_skip");
+    expect(r.reply).toContain(t("onboarding.askTargetWeight"));
+    expect(buttonData(r)).toContain("target_weight_skip");
   });
 
   test("pounds are converted, not stored as kilograms", () => {
-    const r = step(user({ state: "profile", goal: "lose" }), { type: "text", text: "180 lbs" }, t);
+    const r = step(user(atWeight), { type: "text", text: "180 lbs" }, t);
     expect(r.patch?.weight_kg).toBe(81.6); // 180 × 0.45359237, rounded to 0.1
-    expect(step(user({ state: "profile", goal: "lose" }), { type: "text", text: "200lb" }, t).patch?.weight_kg).toBe(90.7);
+    expect(step(user(atWeight), { type: "text", text: "200lb" }, t).patch?.weight_kg).toBe(90.7);
   });
 
-  test("weight skip -> stores the 0 sentinel, asks restrictions", () => {
-    const r = step(user({ state: "profile", goal: "lose" }), {
-      type: "callback",
-      data: "weight_skip",
-    }, t);
+  test("weight skip -> stores the 0 sentinel, asks target weight", () => {
+    const r = step(user(atWeight), { type: "callback", data: "weight_skip" }, t);
     expect(r.nextState).toBe("profile");
     expect(r.patch?.weight_kg).toBe(0);
-    expect(buttonData(r)).toContain("restrictions_skip");
+    expect(buttonData(r)).toContain("target_weight_skip");
   });
 
   test("unparseable or out-of-range weight re-asks without a patch", () => {
     for (const text of ["abc", "20", "500", "-5"]) {
-      const r = step(user({ state: "profile", goal: "lose" }), { type: "text", text }, t);
+      const r = step(user(atWeight), { type: "text", text }, t);
       expect(r.nextState).toBe("profile");
       expect(r.patch).toBeUndefined();
       expect(r.reply).toBe(t("onboarding.weightInvalid"));
@@ -78,18 +87,87 @@ describe("happy path consent -> profile -> active", () => {
     }
   });
 
+  test("target weight text -> stays profile, stores kg, echoes it, asks country", () => {
+    const r = step(user(atTarget), { type: "text", text: "85" }, t);
+    expect(r.nextState).toBe("profile");
+    expect(r.patch?.target_weight_kg).toBe(85);
+    expect(r.reply).toContain("85");
+    expect(r.reply).toContain(t("onboarding.askCountry"));
+    expect(buttonData(r)).toContain("country_de");
+    expect(buttonData(r)).toContain("country_other");
+    expect(buttonData(r)).toContain("country_skip");
+  });
+
+  test("target weight skip -> stores the 0 sentinel, asks country", () => {
+    const r = step(user(atTarget), { type: "callback", data: "target_weight_skip" }, t);
+    expect(r.nextState).toBe("profile");
+    expect(r.patch?.target_weight_kg).toBe(0);
+    expect(buttonData(r)).toContain("country_skip");
+  });
+
+  test("unparseable target weight re-asks without a patch", () => {
+    const r = step(user(atTarget), { type: "text", text: "soon" }, t);
+    expect(r.nextState).toBe("profile");
+    expect(r.patch).toBeUndefined();
+    expect(r.reply).toBe(t("onboarding.targetWeightInvalid"));
+    expect(buttonData(r)).toContain("target_weight_skip");
+  });
+
+  test("country pick -> stores the code, echoes it, asks restrictions", () => {
+    const r = step(user(atCountry), { type: "callback", data: "country_de" }, t);
+    expect(r.nextState).toBe("profile");
+    expect(r.patch?.country).toBe("de");
+    expect(r.reply).toContain(t("country.de"));
+    expect(r.reply).toContain(t("onboarding.askRestrictions"));
+    expect(buttonData(r)).toContain("restrictions_skip");
+  });
+
+  test("an unknown country code is rejected, re-asks the picker", () => {
+    const r = step(user(atCountry), { type: "callback", data: "country_zz" }, t);
+    expect(r.patch).toBeUndefined();
+    expect(buttonData(r)).toContain("country_other"); // resumed at the country picker
+  });
+
+  test("country 'Other' -> prompts free text, stores nothing yet", () => {
+    const r = step(user(atCountry), { type: "callback", data: "country_other" }, t);
+    expect(r.nextState).toBe("profile");
+    expect(r.patch).toBeUndefined();
+    expect(r.reply).toBe(t("onboarding.countryOther"));
+  });
+
+  test("country free text -> stores it raw, asks restrictions", () => {
+    const r = step(user(atCountry), { type: "text", text: "Portugal" }, t);
+    expect(r.nextState).toBe("profile");
+    expect(r.patch?.country).toBe("Portugal");
+    expect(r.reply).toContain("Portugal");
+    expect(r.reply).toContain(t("onboarding.askRestrictions"));
+    expect(buttonData(r)).toContain("restrictions_skip");
+  });
+
+  test("empty/whitespace country text re-asks without a patch", () => {
+    const r = step(user(atCountry), { type: "text", text: "   " }, t);
+    expect(r.nextState).toBe("profile");
+    expect(r.patch).toBeUndefined();
+    expect(r.reply).toBe(t("onboarding.countryInvalid"));
+    expect(buttonData(r)).toContain("country_skip");
+  });
+
+  test("country skip -> stores the '' sentinel, asks restrictions", () => {
+    const r = step(user(atCountry), { type: "callback", data: "country_skip" }, t);
+    expect(r.nextState).toBe("profile");
+    expect(r.patch?.country).toBe("");
+    expect(buttonData(r)).toContain("restrictions_skip");
+  });
+
   test("restriction free text -> active, parses tags", () => {
-    const r = step(user({ state: "profile", goal: "lose", weight_kg: 92 }), {
-      type: "text",
-      text: "почки, без сахара",
-    }, t);
+    const r = step(user(atRestrictions), { type: "text", text: "почки, без сахара" }, t);
     expect(r.nextState).toBe("active");
     expect(r.patch?.restrictions).toEqual(["kidneys", "lowsugar"]);
     expect(r.reply).toBe(t("onboarding.done"));
   });
 
-  test("restrictions work after a skipped weight (0 sentinel counts as answered)", () => {
-    const r = step(user({ state: "profile", goal: "lose", weight_kg: 0 }), {
+  test("restrictions work after skipped weight/target/country (sentinels count as answered)", () => {
+    const r = step(user({ state: "profile", goal: "lose", weight_kg: 0, target_weight_kg: 0, country: "" }), {
       type: "text",
       text: "kidneys",
     }, t);
@@ -98,7 +176,7 @@ describe("happy path consent -> profile -> active", () => {
   });
 
   test("skip restrictions -> active with empty tags", () => {
-    const r = step(user({ state: "profile", goal: "gain", weight_kg: 80 }), {
+    const r = step(user({ ...atRestrictions, goal: "gain" }), {
       type: "callback",
       data: "restrictions_skip",
     }, t);
@@ -127,18 +205,37 @@ describe("/start mid-flow resumes without clobbering progress", () => {
   });
 
   test("resume at profile (goal set, no weight yet) re-asks weight", () => {
-    const r = step(user({ state: "profile", goal: "lose" }), {
-      type: "command",
-      command: "start",
-    }, t);
+    const r = step(user(atWeight), { type: "command", command: "start" }, t);
     expect(r.nextState).toBe("profile");
     expect(buttonData(r)).toContain("weight_skip");
     expect(r.patch?.goal).toBeUndefined(); // does not overwrite the chosen goal
   });
 
-  test("resume at profile (weight answered or skipped) re-asks restrictions", () => {
+  test("resume at profile (weight answered/skipped, no target) re-asks target weight", () => {
     for (const weight_kg of [92, 0]) {
       const r = step(user({ state: "profile", goal: "lose", weight_kg }), {
+        type: "command",
+        command: "start",
+      }, t);
+      expect(r.nextState).toBe("profile");
+      expect(buttonData(r)).toContain("target_weight_skip");
+    }
+  });
+
+  test("resume at profile (target answered/skipped, no country) re-asks country", () => {
+    for (const target_weight_kg of [85, 0]) {
+      const r = step(user({ state: "profile", goal: "lose", weight_kg: 92, target_weight_kg }), {
+        type: "command",
+        command: "start",
+      }, t);
+      expect(r.nextState).toBe("profile");
+      expect(buttonData(r)).toContain("country_skip");
+    }
+  });
+
+  test("resume at profile (country answered/skipped) re-asks restrictions", () => {
+    for (const country of ["de", ""]) {
+      const r = step(user({ state: "profile", goal: "lose", weight_kg: 92, target_weight_kg: 85, country }), {
         type: "command",
         command: "start",
       }, t);
@@ -168,15 +265,12 @@ describe("guards / idempotency", () => {
   });
 
   test("goal callback when goal already set does not overwrite", () => {
-    const r = step(user({ state: "profile", goal: "lose" }), {
-      type: "callback",
-      data: "goal_gain",
-    }, t);
+    const r = step(user(atWeight), { type: "callback", data: "goal_gain" }, t);
     expect(r.patch?.goal).toBeUndefined();
     expect(r.nextState).toBe("profile");
   });
 
-  test("restrictions_skip while the weight question is open resumes at weight, never completes", () => {
+  test("restrictions_skip while an earlier question is open resumes there, never completes", () => {
     const r = step(user({ state: "profile", goal: "lose", weight_kg: null }), {
       type: "callback",
       data: "restrictions_skip",
@@ -195,8 +289,19 @@ describe("guards / idempotency", () => {
     expect(buttonData(r)).toContain("goal_lose");
   });
 
+  test("target_weight_skip before the weight is answered resumes at weight", () => {
+    const r = step(user(atWeight), { type: "callback", data: "target_weight_skip" }, t);
+    expect(r.patch).toBeUndefined();
+    expect(buttonData(r)).toContain("weight_skip");
+  });
+
+  test("country_skip before the target is answered resumes at target", () => {
+    const r = step(user(atTarget), { type: "callback", data: "country_skip" }, t);
+    expect(r.patch).toBeUndefined();
+    expect(buttonData(r)).toContain("target_weight_skip");
+  });
+
   test("an active user with no stored weight texting a number is nudged, not re-onboarded", () => {
-    // Every pre-weight-step user is exactly this shape after the migration.
     const r = step(user({ state: "active", goal: "lose", weight_kg: null }), {
       type: "text",
       text: "92",
@@ -206,20 +311,17 @@ describe("guards / idempotency", () => {
   });
 
   test("parseWeight accepts the documented boundaries and takes the FIRST number", () => {
-    expect(step(user({ state: "profile", goal: "lose" }), { type: "text", text: "30" }, t).patch?.weight_kg).toBe(30);
-    expect(step(user({ state: "profile", goal: "lose" }), { type: "text", text: "300" }, t).patch?.weight_kg).toBe(300);
+    expect(step(user(atWeight), { type: "text", text: "30" }, t).patch?.weight_kg).toBe(30);
+    expect(step(user(atWeight), { type: "text", text: "300" }, t).patch?.weight_kg).toBe(300);
     // "92 kg, yesterday 80" must not silently prefer the wrong number
-    expect(step(user({ state: "profile", goal: "lose" }), { type: "text", text: "92 kg yesterday 80" }, t).patch?.weight_kg).toBe(92);
+    expect(step(user(atWeight), { type: "text", text: "92 kg yesterday 80" }, t).patch?.weight_kg).toBe(92);
   });
 
-  test("weight_skip after the weight was answered does not zero it", () => {
-    const r = step(user({ state: "profile", goal: "lose", weight_kg: 92 }), {
-      type: "callback",
-      data: "weight_skip",
-    }, t);
+  test("weight_skip after the weight was answered does not zero it (resumes at target)", () => {
+    const r = step(user(atTarget), { type: "callback", data: "weight_skip" }, t);
     expect(r.patch?.weight_kg).toBeUndefined();
     expect(r.nextState).toBe("profile");
-    expect(buttonData(r)).toContain("restrictions_skip"); // resumes at the real current step
+    expect(buttonData(r)).toContain("target_weight_skip"); // resumes at the real current step
   });
 
   test("text during consent nudges toward the buttons", () => {
@@ -242,11 +344,18 @@ describe("localization", () => {
     { u: user({ state: "consent" }), i: { type: "callback", data: "consent_agree" } },
     { u: user({ state: "consent" }), i: { type: "callback", data: "consent_decline" } },
     { u: user({ state: "profile", goal: null }), i: { type: "callback", data: "goal_lose" } },
-    { u: user({ state: "profile", goal: "lose" }), i: { type: "text", text: "92" } },
-    { u: user({ state: "profile", goal: "lose" }), i: { type: "text", text: "not a weight" } },
-    { u: user({ state: "profile", goal: "lose" }), i: { type: "callback", data: "weight_skip" } },
-    { u: user({ state: "profile", goal: "lose", weight_kg: 92 }), i: { type: "callback", data: "restrictions_skip" } },
-    { u: user({ state: "profile", goal: "lose", weight_kg: 92 }), i: { type: "text", text: "x" } },
+    { u: user(atWeight), i: { type: "text", text: "92" } },
+    { u: user(atWeight), i: { type: "text", text: "not a weight" } },
+    { u: user(atWeight), i: { type: "callback", data: "weight_skip" } },
+    { u: user(atTarget), i: { type: "text", text: "85" } },
+    { u: user(atTarget), i: { type: "text", text: "nope" } },
+    { u: user(atTarget), i: { type: "callback", data: "target_weight_skip" } },
+    { u: user(atCountry), i: { type: "callback", data: "country_de" } },
+    { u: user(atCountry), i: { type: "callback", data: "country_other" } },
+    { u: user(atCountry), i: { type: "text", text: "Portugal" } },
+    { u: user(atCountry), i: { type: "callback", data: "country_skip" } },
+    { u: user(atRestrictions), i: { type: "callback", data: "restrictions_skip" } },
+    { u: user(atRestrictions), i: { type: "text", text: "x" } },
     { u: user({ state: "active", goal: "lose" }), i: { type: "command", command: "start" } },
     { u: user({ state: "consent" }), i: { type: "text", text: "hi" } },
   ] as const;
@@ -259,7 +368,7 @@ describe("localization", () => {
       expect(r.reply).not.toMatch(/onboarding\.[a-zA-Z.]+/);
       for (const label of buttonText(r)) {
         expect(label.trim()).not.toBe("");
-        expect(label).not.toMatch(/onboarding\.[a-zA-Z.]+/);
+        expect(label).not.toMatch(/(onboarding|country)\.[a-zA-Z.]+/);
       }
     }
   });

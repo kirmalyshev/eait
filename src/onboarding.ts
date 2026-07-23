@@ -1,6 +1,10 @@
-// Pure 2-step onboarding state machine (spec §7). No I/O — the bot persists `patch` + `nextState`
+// Pure onboarding state machine (spec §7). No I/O — the bot persists `patch` + `nextState`
 // and renders `reply`/`buttons`. Auto-approve: restrictions submitted/skipped -> active.
 // Guards make every transition idempotent (a stale button tap resumes, it never resets progress).
+//
+// Flow after consent: goal -> current weight -> target weight -> country -> restrictions -> active.
+// Each field's step is derived from which fields are still null; a skip stores a sentinel (0 for
+// weights, '' for country) so "answered" is distinguishable from "never asked" on every resume.
 //
 // Copy comes from the caller's translator, so this file stays language-agnostic AND stays pure:
 // `t` is a value passed in, not I/O. The LLM restriction fallback deliberately lives in tg_bot/bot.ts
@@ -8,6 +12,7 @@
 
 import type { TFunction } from "i18next";
 import { parseRestrictions } from "./targets.ts";
+import { COUNTRIES, countryLabel, isCountryCode, parseCountry } from "./country.ts";
 import type { Goal, UserState } from "./types.ts";
 
 /** The only user fields onboarding reads. Structurally satisfied by db's UserRow. */
@@ -16,6 +21,10 @@ export interface OnboardingUser {
   goal: Goal | null;
   /** null = not asked yet; 0 = explicitly skipped; >0 = kilograms. */
   weight_kg: number | null;
+  /** Same sentinel as weight_kg: null = not asked, 0 = skipped, >0 = target kilograms. */
+  target_weight_kg: number | null;
+  /** null = not asked; '' = skipped; else a curated code or a raw "other" string. */
+  country: string | null;
 }
 
 export type OnboardingInput =
@@ -31,7 +40,14 @@ export interface InlineButton {
 export interface OnboardingResult {
   nextState: UserState;
   reply: string;
-  patch?: { consent_at?: string; goal?: Goal; weight_kg?: number; restrictions?: string[] };
+  patch?: {
+    consent_at?: string;
+    goal?: Goal;
+    weight_kg?: number;
+    target_weight_kg?: number;
+    country?: string;
+    restrictions?: string[];
+  };
   buttons?: InlineButton[][];
 }
 
@@ -73,6 +89,28 @@ const restrictionButtons = (t: TFunction): InlineButton[][] => [
 const weightButtons = (t: TFunction): InlineButton[][] => [
   [{ text: t("onboarding.button.skip"), data: "weight_skip" }],
 ];
+const targetWeightButtons = (t: TFunction): InlineButton[][] => [
+  [{ text: t("onboarding.button.skip"), data: "target_weight_skip" }],
+];
+
+// Curated countries chunked so long labels stay readable on a phone, then an Other/Skip row.
+const COUNTRIES_PER_ROW = 3;
+const countryButtons = (t: TFunction): InlineButton[][] => {
+  const rows: InlineButton[][] = [];
+  for (let i = 0; i < COUNTRIES.length; i += COUNTRIES_PER_ROW) {
+    rows.push(
+      COUNTRIES.slice(i, i + COUNTRIES_PER_ROW).map((c) => ({
+        text: t(`country.${c}`),
+        data: `country_${c}`,
+      })),
+    );
+  }
+  rows.push([
+    { text: t("onboarding.button.countryOther"), data: "country_other" },
+    { text: t("onboarding.button.skip"), data: "country_skip" },
+  ]);
+  return rows;
+};
 
 const GOAL_FROM_DATA: Record<string, Goal> = {
   goal_lose: "lose",
@@ -91,6 +129,18 @@ function askWeight(
 ): OnboardingResult {
   return { nextState: "profile", reply: t(reply), buttons: weightButtons(t) };
 }
+function askTargetWeight(
+  t: TFunction,
+  reply: "onboarding.askTargetWeight" | "onboarding.targetWeightInvalid" = "onboarding.askTargetWeight",
+): OnboardingResult {
+  return { nextState: "profile", reply: t(reply), buttons: targetWeightButtons(t) };
+}
+function askCountry(
+  t: TFunction,
+  reply: "onboarding.askCountry" | "onboarding.countryInvalid" = "onboarding.askCountry",
+): OnboardingResult {
+  return { nextState: "profile", reply: t(reply), buttons: countryButtons(t) };
+}
 function askRestrictions(t: TFunction): OnboardingResult {
   return {
     nextState: "profile",
@@ -105,17 +155,38 @@ function activeNudge(t: TFunction): OnboardingResult {
   return { nextState: "active", reply: t("onboarding.alreadyActive") };
 }
 
-/** Resume: pick the right prompt for the user's current progress. */
+/** Resume: pick the right prompt for the user's current progress. Order = the flow order; each
+ * sentinel (weight/target 0, country '') counts as answered, so only null re-opens a question. */
 function resume(u: OnboardingUser | undefined, t: TFunction): OnboardingResult {
   if (!u || u.state === "consent") return consent(t);
   if (u.state === "profile") {
     if (u.goal == null) return askGoal(t);
-    // weight_kg 0 = skipped = answered; only null means the question is still open
     if (u.weight_kg == null) return askWeight(t);
+    if (u.target_weight_kg == null) return askTargetWeight(t);
+    if (u.country == null) return askCountry(t);
     return askRestrictions(t);
   }
   return activeNudge(t);
 }
+
+// Step-open predicates: true only when that question is the current one. Each requires every
+// EARLIER field answered and its OWN still null, so a stale tap for a later step resumes instead.
+const weightOpen = (u: OnboardingUser | undefined): boolean =>
+  u?.state === "profile" && u.goal != null && u.weight_kg == null;
+const targetOpen = (u: OnboardingUser | undefined): boolean =>
+  u?.state === "profile" && u.goal != null && u.weight_kg != null && u.target_weight_kg == null;
+const countryOpen = (u: OnboardingUser | undefined): boolean =>
+  u?.state === "profile" &&
+  u.goal != null &&
+  u.weight_kg != null &&
+  u.target_weight_kg != null &&
+  u.country == null;
+const restrictionsOpen = (u: OnboardingUser | undefined): boolean =>
+  u?.state === "profile" &&
+  u.goal != null &&
+  u.weight_kg != null &&
+  u.target_weight_kg != null &&
+  u.country != null;
 
 export function step(
   u: OnboardingUser | undefined,
@@ -147,48 +218,83 @@ export function step(
         return { nextState: "consent", reply: t("onboarding.decline") };
       case "weight_skip":
         // Only meaningful while the weight question is open — a stale tap resumes instead.
-        if (state !== "profile" || u?.goal == null || u.weight_kg != null) return resume(u, t);
+        if (!weightOpen(u)) return resume(u, t);
         return {
-          nextState: "profile",
-          reply: t("onboarding.askRestrictions"),
+          ...askTargetWeight(t),
           patch: { weight_kg: 0 }, // the explicit-skip sentinel: asked and declined
-          buttons: restrictionButtons(t),
         };
+      case "target_weight_skip":
+        if (!targetOpen(u)) return resume(u, t);
+        return { ...askCountry(t), patch: { target_weight_kg: 0 } };
+      case "country_skip":
+        if (!countryOpen(u)) return resume(u, t);
+        return { ...askRestrictions(t), patch: { country: "" } }; // '' = asked and declined
+      case "country_other":
+        // Nudge to type a country; store nothing so the next text is captured as the answer.
+        if (!countryOpen(u)) return resume(u, t);
+        return { nextState: "profile", reply: t("onboarding.countryOther"), buttons: countryButtons(t) };
       case "restrictions_skip":
-        if (state !== "profile" || u?.goal == null || u.weight_kg == null) return resume(u, t);
+        if (!restrictionsOpen(u)) return resume(u, t);
         return { nextState: "active", reply: t("onboarding.done"), patch: { restrictions: [] } };
       default: {
         const goal = GOAL_FROM_DATA[input.data];
         if (goal) {
           if (state !== "profile" || u?.goal != null) return resume(u, t); // don't overwrite
-          return {
-            nextState: "profile",
-            reply: t("onboarding.askWeight"),
-            patch: { goal },
-            buttons: weightButtons(t),
-          };
+          return { ...askWeight(t), patch: { goal } };
+        }
+        // A curated country button (`country_de`, …). Unknown codes fall through to a re-prompt.
+        if (input.data.startsWith("country_")) {
+          const code = input.data.slice("country_".length);
+          if (countryOpen(u) && isCountryCode(code)) {
+            return {
+              nextState: "profile",
+              reply: t("onboarding.countrySaved", { country: countryLabel(code, t) }) +
+                "\n\n" + t("onboarding.askRestrictions"),
+              patch: { country: code },
+              buttons: restrictionButtons(t),
+            };
+          }
         }
         return resume(u, t); // unknown callback -> re-prompt current step
       }
     }
   }
 
-  // input.type === "text"
-  if (state === "profile" && u?.goal != null && u.weight_kg == null) {
-    // the weight free-text step
+  // input.type === "text" — routed to whichever profile question is currently open.
+  if (weightOpen(u)) {
     const kg = parseWeight(input.text);
     if (kg == null) return askWeight(t, "onboarding.weightInvalid");
     return {
       nextState: "profile",
       // Echo the parsed value: a misparse (pounds typed as a bare number, a typo) must be
       // visible and correctable, not silently stored.
-      reply: t("onboarding.weightSaved", { kg }) + "\n\n" + t("onboarding.askRestrictions"),
+      reply: t("onboarding.weightSaved", { kg }) + "\n\n" + t("onboarding.askTargetWeight"),
       patch: { weight_kg: kg },
+      buttons: targetWeightButtons(t),
+    };
+  }
+  if (targetOpen(u)) {
+    const kg = parseWeight(input.text);
+    if (kg == null) return askTargetWeight(t, "onboarding.targetWeightInvalid");
+    return {
+      nextState: "profile",
+      reply: t("onboarding.targetWeightSaved", { kg }) + "\n\n" + t("onboarding.askCountry"),
+      patch: { target_weight_kg: kg },
+      buttons: countryButtons(t),
+    };
+  }
+  if (countryOpen(u)) {
+    const country = parseCountry(input.text);
+    if (country == null) return askCountry(t, "onboarding.countryInvalid");
+    return {
+      nextState: "profile",
+      reply: t("onboarding.countrySaved", { country: countryLabel(country, t) }) +
+        "\n\n" + t("onboarding.askRestrictions"),
+      patch: { country }, // stored raw ("other"); a typed code is not force-canonicalized
       buttons: restrictionButtons(t),
     };
   }
-  if (state === "profile" && u?.goal != null) {
-    // the restrictions free-text step
+  if (restrictionsOpen(u)) {
     return {
       nextState: "active",
       reply: t("onboarding.done"),

@@ -54,6 +54,10 @@ async function onboardToActive(deps: BotDeps, id: number) {
   await processOnboarding(deps, { id }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "goal_lose" }, noop);
   await processOnboarding(deps, { id }, { type: "text", text: "92" }, noop);
+  // The generic helper skips the optional target-weight and country steps, so a stored current
+  // weight of 92 remains the sole protein driver. The full target/country path has its own test.
+  await processOnboarding(deps, { id }, { type: "callback", data: "target_weight_skip" }, noop);
+  await processOnboarding(deps, { id }, { type: "callback", data: "country_skip" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "restrictions_skip" }, noop);
 }
 
@@ -74,10 +78,14 @@ test("onboarding with a skipped weight still reaches active, weight stored as 0"
   await processOnboarding(deps, { id: 101 }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id: 101 }, { type: "callback", data: "goal_lose" }, noop);
   await processOnboarding(deps, { id: 101 }, { type: "callback", data: "weight_skip" }, noop);
+  await processOnboarding(deps, { id: 101 }, { type: "callback", data: "target_weight_skip" }, noop);
+  await processOnboarding(deps, { id: 101 }, { type: "callback", data: "country_skip" }, noop);
   await processOnboarding(deps, { id: 101 }, { type: "callback", data: "restrictions_skip" }, noop);
   const u = (await getUser(db, 101)) as UserRow;
   expect(u.state).toBe("active");
   expect(u.weight_kg).toBe(0);
+  expect(u.target_weight_kg).toBe(0);
+  expect(u.country).toBe("");
 });
 
 test("processPhoto rejects a non-active user (no row written)", async () => {
@@ -472,8 +480,27 @@ test("/me shows the stored weight, and 'not set' after a skip — misparses stay
   await processOnboarding(deps, { id: 89 }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id: 89 }, { type: "callback", data: "goal_lose" }, noop);
   await processOnboarding(deps, { id: 89 }, { type: "callback", data: "weight_skip" }, noop);
+  await processOnboarding(deps, { id: 89 }, { type: "callback", data: "target_weight_skip" }, noop);
+  await processOnboarding(deps, { id: 89 }, { type: "callback", data: "country_skip" }, noop);
   await processOnboarding(deps, { id: 89 }, { type: "callback", data: "restrictions_skip" }, noop);
   expect(await meCard(deps, 89)).toContain(t("me.noWeight"));
+});
+
+test("onboarding stores a typed target weight and a picked country, then reaches active", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await processOnboarding(deps, { id: 90 }, { type: "command", command: "start" }, noop);
+  await processOnboarding(deps, { id: 90 }, { type: "callback", data: "consent_agree" }, noop);
+  await processOnboarding(deps, { id: 90 }, { type: "callback", data: "goal_lose" }, noop);
+  await processOnboarding(deps, { id: 90 }, { type: "text", text: "92" }, noop);
+  await processOnboarding(deps, { id: 90 }, { type: "text", text: "85" }, noop); // target weight
+  await processOnboarding(deps, { id: 90 }, { type: "callback", data: "country_de" }, noop);
+  await processOnboarding(deps, { id: 90 }, { type: "callback", data: "restrictions_skip" }, noop);
+  const u = (await getUser(db, 90)) as UserRow;
+  expect(u.state).toBe("active");
+  expect(u.weight_kg).toBe(92);
+  expect(u.target_weight_kg).toBe(85);
+  expect(u.country).toBe("de");
 });
 
 /** Collects reaction emojis; flush() lets fire-and-forget microtasks land before asserting. */
@@ -745,6 +772,8 @@ async function toRestrictionsStep(deps: BotDeps, id: number, language_code?: str
   await processOnboarding(deps, { id }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "goal_lose" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "weight_skip" }, noop);
+  await processOnboarding(deps, { id }, { type: "callback", data: "target_weight_skip" }, noop);
+  await processOnboarding(deps, { id }, { type: "callback", data: "country_skip" }, noop);
 }
 
 test("a keyword match short-circuits — the classifier is never consulted", async () => {
@@ -806,6 +835,8 @@ test("/me renders restriction tags as localized names, not raw identifiers", asy
   await processOnboarding(deps, { id: 300 }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id: 300 }, { type: "callback", data: "goal_lose" }, noop);
   await processOnboarding(deps, { id: 300 }, { type: "callback", data: "weight_skip" }, noop);
+  await processOnboarding(deps, { id: 300 }, { type: "callback", data: "target_weight_skip" }, noop);
+  await processOnboarding(deps, { id: 300 }, { type: "callback", data: "country_skip" }, noop);
   await processOnboarding(deps, { id: 300 }, { type: "text", text: "почки, холестерин" }, noop);
 
   const card = (await meCard(deps, 300)) as string;
@@ -2380,6 +2411,8 @@ test("the onboarding restriction classifier is metered as an llm call", async ()
   await processOnboarding(deps, { id: 843 }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id: 843 }, { type: "callback", data: "goal_lose" }, noop);
   await processOnboarding(deps, { id: 843 }, { type: "text", text: "92" }, noop);
+  await processOnboarding(deps, { id: 843 }, { type: "callback", data: "target_weight_skip" }, noop);
+  await processOnboarding(deps, { id: 843 }, { type: "callback", data: "country_skip" }, noop);
   await processOnboarding(deps, { id: 843 }, { type: "text", text: "j'ai des problèmes rénaux" }, noop); // no keyword match → classifier
   expect(await llmCallsToday(db, 843, berlinDate(new Date(), cfg.tz))).toBe(1);
 });
