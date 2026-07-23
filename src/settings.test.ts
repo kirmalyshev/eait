@@ -322,6 +322,17 @@ describe("localization", () => {
   const VIEWS = ["st:root", "st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:limits", "st:lang", "st:format"];
   const RAW_KEY = /\b(settings|me|onboarding|lang|country)\.[a-zA-Z.]+/;
 
+  // Restrictions and limitations are adjacent rows in the root view. "Ограничения" /
+  // "Einschränkungen" is the natural translation of BOTH, and the first pass shipped them
+  // identical in ru and de — two same-labelled buttons and two same-prefixed summary lines.
+  test.each(LANGS)("%s labels restrictions and limitations distinguishably", (lang) => {
+    const tl = translatorFor(lang);
+    expect(tl("settings.button.limitations")).not.toBe(tl("settings.button.restrictions"));
+    const root = settingsRoot(profile({ limitations: "no peanuts" }), tl);
+    const rows = root.text.split("\n");
+    expect(new Set(rows).size).toBe(rows.length); // no two identical lines
+  });
+
   test.each(LANGS)("%s renders every view with no raw key", (lang) => {
     const tl = translatorFor(lang);
     for (const d of VIEWS) {
