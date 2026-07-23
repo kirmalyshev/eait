@@ -888,7 +888,7 @@ test("/settings is refused until onboarding is finished", async () => {
   expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.notOnboarded"));
 });
 
-test("/settings opens the root view with the four sections", async () => {
+test("/settings opens the root view with every section", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   await onboardToActive(deps, 401);
@@ -898,7 +898,7 @@ test("/settings opens the root view with the four sections", async () => {
     return { chat_id: 1, message_id: 1 };
   };
   await processSettingsOpen(deps, { id: 401 }, send);
-  expect(seen[0]).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
+  expect(seen[0]).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
 });
 
 test("choosing a goal persists it and edits the message in place", async () => {
@@ -909,7 +909,7 @@ test("choosing a goal persists it and edits the message in place", async () => {
   await processSettingsCallback(deps, { id: 402 }, "st:goal:maintain", edit);
   expect((await getUser(db, 402))?.goal).toBe("maintain");
   expect(edits).toHaveLength(1); // edited, not appended
-  expect(last().data).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]); // back at root
+  expect(last().data).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]); // back at root
 });
 
 test("toggling a restriction twice persists on and then off, with no new messages", async () => {
@@ -963,7 +963,7 @@ test("choosing a reply format in settings persists it per user", async () => {
   const { edit, last } = editor();
   await processSettingsCallback(deps, { id: 408 }, "st:format:rich", edit);
   expect((await getUser(db, 408))?.reply_format).toBe("rich");
-  expect(last().data).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]); // back at root
+  expect(last().data).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]); // back at root
   expect(last().text).toContain(translatorFor(DEFAULT_LANG)("settings.format.rich"));
 });
 
@@ -1006,6 +1006,108 @@ test("a settings CALLBACK re-render also resolves the instance default (st:root,
   const { edit, last } = editor();
   await processSettingsCallback(deps, { id: 415 }, "st:root", edit);
   expect(last().text).toContain(translatorFor(DEFAULT_LANG)("settings.format.plain"));
+});
+
+// ---------- settings text-input (weight / target weight / country) ----------
+
+/** Sends a text message through the real entry point; returns whether processText handled it. */
+async function sendText(deps: BotDeps, id: number, text: string, send: Send = noop) {
+  return processText(deps, { id }, { text, messageId: 1 }, send);
+}
+
+test("tapping Weight arms the prompt; the next text sets the weight and clears pending", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 420); // weight 92
+  const { edit } = editor();
+  await processSettingsCallback(deps, { id: 420 }, "st:weight", edit);
+  expect((await getUser(db, 420))?.pending_input).toBe("weight");
+
+  const { msgs, send } = collector();
+  const handled = await sendText(deps, 420, "80,5", send);
+  expect(handled).toBe(true);
+  const u = (await getUser(db, 420))!;
+  expect(u.weight_kg).toBe(80.5);
+  expect(u.pending_input).toBeNull(); // cleared on success
+  expect(msgs[0]).toContain(translatorFor(DEFAULT_LANG)("me.weightValue", { kg: 80.5 }));
+});
+
+test("an armed weight prompt draws no LLM call and never routes to the analyzer", async () => {
+  const db = await freshTestDb();
+  const { p, calls } = countingProvider(foodJson());
+  const deps: BotDeps = { db, provider: p, config: cfg };
+  await onboardToActive(deps, 421);
+  await processSettingsCallback(deps, { id: 421 }, "st:weight", editor().edit);
+  await sendText(deps, 421, "80");
+  expect(calls()).toBe(0); // captured before the router — no provider call, no cap draw
+  expect(await llmCallsToday(db, 421, berlinDate(new Date(), cfg.tz))).toBe(0);
+});
+
+test("an invalid weight input re-prompts and keeps the prompt armed", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 422);
+  await processSettingsCallback(deps, { id: 422 }, "st:weight", editor().edit);
+  const { msgs, send } = collector();
+  await sendText(deps, 422, "banana", send);
+  expect((await getUser(db, 422))?.pending_input).toBe("weight"); // still armed
+  expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("onboarding.weightInvalid"));
+});
+
+test("target-weight and 'Other' country prompts capture the next text", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 423);
+  await processSettingsCallback(deps, { id: 423 }, "st:targetw", editor().edit);
+  await sendText(deps, 423, "85");
+  expect((await getUser(db, 423))?.target_weight_kg).toBe(85);
+
+  await processSettingsCallback(deps, { id: 423 }, "st:country:other", editor().edit);
+  expect((await getUser(db, 423))?.pending_input).toBe("country");
+  await sendText(deps, 423, "Portugal");
+  const u = (await getUser(db, 423))!;
+  expect(u.country).toBe("Portugal");
+  expect(u.pending_input).toBeNull();
+});
+
+test("picking a curated country patches it with no text step", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 424);
+  await processSettingsCallback(deps, { id: 424 }, "st:country:de", editor().edit);
+  expect((await getUser(db, 424))?.country).toBe("de");
+  expect((await getUser(db, 424))?.pending_input).toBeNull();
+});
+
+test("tapping another settings button cancels an armed prompt", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 425);
+  await processSettingsCallback(deps, { id: 425 }, "st:weight", editor().edit);
+  expect((await getUser(db, 425))?.pending_input).toBe("weight");
+  await processSettingsCallback(deps, { id: 425 }, "st:goal:maintain", editor().edit);
+  expect((await getUser(db, 425))?.pending_input).toBeNull(); // cancelled
+  expect((await getUser(db, 425))?.goal).toBe("maintain");
+});
+
+test("reopening /settings clears a stale armed prompt", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 426);
+  await processSettingsCallback(deps, { id: 426 }, "st:weight", editor().edit);
+  await processSettingsOpen(deps, { id: 426 }, noop);
+  expect((await getUser(db, 426))?.pending_input).toBeNull();
+});
+
+test("a photo sent while a weight prompt is armed is still logged as a meal", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 427);
+  await processSettingsCallback(deps, { id: 427 }, "st:weight", editor().edit);
+  const { send } = collector();
+  await processPhoto(deps, { id: 427 }, [async () => new Uint8Array([1])], send);
+  expect(await countMealsToday(db, 427, berlinDate(new Date(), cfg.tz))).toBe(1); // photo not consumed
+  expect((await getUser(db, 427))?.pending_input).toBe("weight"); // prompt survives the photo
 });
 
 test("a user's plain preference beats a rich instance at the meal card", async () => {

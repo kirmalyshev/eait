@@ -17,7 +17,7 @@ import {
   insertMeal, setMealReply, applyCorrection, setMealDate, mealByReply, dailyTotals,
   logLlmCall, llmCallsToday, llmCallCountToday, mealsOnDate, totalsByDate,
   insertPendingMeal, setPendingReply, getPendingMeal, deletePendingMeal, prunePendingMeals,
-  deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang, setReplyFormat,
+  deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang, setReplyFormat, setPendingInput,
   getSetting, setSetting, clearSetting, hasEvent, logEvent, setAcquisitionSource,
   type Db, type UserRow,
 } from "../db.ts";
@@ -28,7 +28,10 @@ import { RejectionLog } from "./rejections.ts";
 import { targetsFor, isRestrictionTag } from "../targets.ts";
 import { formatReply, berlinDayLabel, mealDateLabel } from "../reply.ts";
 import { renderMealCard } from "../render.ts";
-import { settingsRoot, settingsStep, type SettingsProfile } from "../settings.ts";
+import {
+  settingsInput, settingsRoot, settingsStep, isPendingInput,
+  type PendingInput, type SettingsProfile, type SettingsView,
+} from "../settings.ts";
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "../onboarding.ts";
 import { DEFAULT_LANG, LANGS, LOCALES, isLang, resolveLang, translatorFor } from "../i18n/index.ts";
 import type { TFunction } from "i18next";
@@ -518,6 +521,8 @@ export async function processSettingsOpen(
     await send(translatorForUser(u)("errors.notOnboarded"));
     return;
   }
+  // A fresh open cancels any half-finished text prompt from a previous session.
+  await setPendingInput(deps.db, from.id, null);
   const prof = settingsProfile(u, deps.config);
   const v = settingsRoot(prof, translatorFor(prof.lang));
   await send(v.text, v.buttons);
@@ -531,6 +536,26 @@ function settingsProfile(u: UserRow, config: Config): SettingsProfile {
   return { ...prof, reply_format: replyFormatFor(prof, config) };
 }
 
+/** Persists a settings patch across the field-specific setters, then arms/clears the text-capture
+ * marker. Shared by the callback path (edits the message) and the text-input path (sends a reply).
+ * setProfile no-ops when its whitelist fields are all undefined, so one call covers every case. */
+async function applySettingsView(deps: BotDeps, id: number, v: SettingsView): Promise<void> {
+  if (v.patch) {
+    if (v.patch.lang) await setLang(deps.db, id, v.patch.lang);
+    if (v.patch.reply_format) await setReplyFormat(deps.db, id, v.patch.reply_format);
+    await setProfile(deps.db, id, {
+      goal: v.patch.goal,
+      restrictions: v.patch.restrictions,
+      weight_kg: v.patch.weight_kg,
+      target_weight_kg: v.patch.target_weight_kg,
+      country: v.patch.country,
+    });
+  }
+  // A prompt view arms pending_input; every other view (including a completed edit) clears it, so
+  // tapping any button cancels a half-finished text prompt.
+  await setPendingInput(deps.db, id, v.awaitInput ?? null);
+}
+
 /** Handles an `st:` callback: persist whatever changed, then rewrite the message in place. */
 export async function processSettingsCallback(
   deps: BotDeps,
@@ -542,14 +567,23 @@ export async function processSettingsCallback(
   if (!u || u.state !== "active") return; // no row to edit against; stay silent
   const prof = settingsProfile(u, deps.config);
   const v = settingsStep(prof, data, translatorFor(prof.lang));
-  if (v.patch) {
-    if (v.patch.lang) await setLang(deps.db, from.id, v.patch.lang);
-    if (v.patch.goal || v.patch.restrictions) {
-      await setProfile(deps.db, from.id, { goal: v.patch.goal, restrictions: v.patch.restrictions });
-    }
-    if (v.patch.reply_format) await setReplyFormat(deps.db, from.id, v.patch.reply_format);
-  }
+  await applySettingsView(deps, from.id, v);
   await edit(v.text, v.buttons);
+}
+
+/** Handles the user's next text message when a /settings prompt is armed: parse + persist the
+ * typed value (or re-prompt on a parse failure), then send the resulting view. No LLM, no cap. */
+export async function processSettingsInput(
+  deps: BotDeps,
+  u: UserRow,
+  field: PendingInput,
+  text: string,
+  send: Send,
+): Promise<void> {
+  const prof = settingsProfile(u, deps.config);
+  const v = settingsInput(field, text, prof, translatorFor(prof.lang));
+  await applySettingsView(deps, u.telegram_id, v);
+  await send(v.text, v.buttons);
 }
 
 /** /lang — a picker built from the registry, so a new locale appears with no code change. */
@@ -722,6 +756,13 @@ export async function processText(
   const { db, provider, config } = deps;
   const u = await getUser(db, from.id);
   if (!u || u.state !== "active") return false; // onboarding owns non-active text
+
+  // A /settings text prompt (weight / target weight / "other" country) consumes this message
+  // BEFORE the router — no LLM call, no cap draw. Photos never hit this path (they stay meals).
+  if (u.pending_input && isPendingInput(u.pending_input)) {
+    await processSettingsInput(deps, u, u.pending_input, msg.text, send);
+    return true;
+  }
 
   const prof = profileOf(u);
   const t = translatorFor(prof.lang);
