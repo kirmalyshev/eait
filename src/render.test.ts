@@ -62,6 +62,20 @@ describe("renderMealCard", () => {
     expect(html).not.toContain("<blockquote>");
   });
 
+  test("no dateLabel ⇒ the today's-progress header, no date line", () => {
+    const html = renderMealCard(meal(), totals, targets, t);
+    expect(html).toContain(escapeHtml(t("rich.todaysProgress")));
+    expect(html).not.toContain(escapeHtml(t("meal.loggedForDate", { date: "Tue 21 Jul" })));
+  });
+
+  test("a dateLabel adds a 'For <date>' paragraph and dates the progress header", () => {
+    const html = renderMealCard(meal(), totals, targets, t, { dateLabel: "Tue 21 Jul" });
+    expect(html).toContain("<p>");
+    expect(html).toContain(escapeHtml(t("meal.loggedForDate", { date: "Tue 21 Jul" })));
+    expect(html).toContain(escapeHtml(t("rich.progressForDate", { date: "Tue 21 Jul" })));
+    expect(html).not.toContain(escapeHtml(t("rich.todaysProgress"))); // header swapped, not both
+  });
+
   test("optional targets add rows only when present", () => {
     const withSodium = renderMealCard(meal(), totals, { ...targets, sodium_mg: 2000 }, t);
     expect(withSodium).toContain("2000");

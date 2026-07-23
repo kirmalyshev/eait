@@ -21,6 +21,21 @@ export interface FormatMeal {
   notes?: string | null;
 }
 
+/**
+ * A human day label ("Mon 21 Jul") for a stored YYYY-MM-DD, rendered in the user's locale and the
+ * bot's timezone. Pure. Noon-UTC anchor keeps the calendar day stable under any real tz offset.
+ * Names come from Intl (en/ru/de are valid BCP-47), so no month/weekday strings live in the catalog.
+ */
+export function berlinDayLabel(date: string, lang: string, tz = "Europe/Berlin"): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  return new Intl.DateTimeFormat(lang, {
+    timeZone: tz,
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  }).format(d);
+}
+
 export function verdictEmoji(v: Verdict): string {
   switch (v) {
     case "good":
@@ -42,8 +57,13 @@ export function formatReply(
   totals: DailyTotals,
   targets: FoodTargets,
   t: TFunction,
+  // dateLabel present ⇒ the meal is NOT for today; name the day and label the totals with it.
+  // Absent ⇒ byte-identical to the pre-date-feature output.
+  opts?: { dateLabel?: string },
 ): string {
   const lines: string[] = [];
+
+  if (opts?.dateLabel) lines.push(t("meal.loggedForDate", { date: opts.dateLabel }));
 
   // items
   const items = meal.items.length
@@ -71,9 +91,13 @@ export function formatReply(
 
   if (meal.notes && meal.notes.trim()) lines.push(t("meal.notesLine", { notes: meal.notes.trim() }));
 
-  // running daily total vs the user's targets
+  // running daily total vs the user's targets (for the meal's day — "Today" when same-day)
   lines.push("");
-  lines.push(t("meal.totalKcal", { now: round(totals.kcal), target: targets.kcal }));
+  lines.push(
+    opts?.dateLabel
+      ? t("meal.totalKcalDated", { date: opts.dateLabel, now: round(totals.kcal), target: targets.kcal })
+      : t("meal.totalKcal", { now: round(totals.kcal), target: targets.kcal }),
+  );
   lines.push(t("meal.totalProtein", { now: round(totals.protein_g), target: targets.protein_g }));
   if (targets.satfat_g !== undefined) {
     lines.push(t("meal.totalSatfat", { now: round(totals.satfat_g), target: targets.satfat_g }));

@@ -57,11 +57,13 @@
     "satfat": "Ges. Fett",
     "sodium": "Natrium",
     "todaysProgress": "Fortschritt heute",
+    "progressForDate": "Fortschritt für {{date}}",
     "goal": "Ziel",
     "progress": "Fortschritt"
   },
   "text": {
     "confirmPrompt": "Diese Mahlzeit eintragen?",
+    "confirmPromptDated": "Diese Mahlzeit für {{date}} eintragen?",
     "logButton": "✅ Eintragen",
     "cancelButton": "✖️ Abbrechen",
     "cancelled": "Okay, nicht eingetragen.",
@@ -104,10 +106,12 @@
       "kidneys": "Nieren"
     },
     "notesLine": "📝 {{notes}}",
+    "loggedForDate": "📅 Für {{date}}",
     "correctionHint": "↩️ Nicht richtig? Antworte auf diese Nachricht mit einer Korrektur.",
     "lowConfidenceHint": "🤔 Bei der Portionsgröße bin ich unsicher. Antworte auf diese Nachricht mit dem Gewicht oder den Zutaten (zum Beispiel „340 g“ oder „zwei Frikadellen, ohne Öl“) — ich rechne neu.",
     "updatedPrefix": "Aktualisiert:",
     "totalKcal": "Heute: {{now}} / {{target}} kcal",
+    "totalKcalDated": "{{date}}: {{now}} / {{target}} kcal",
     "totalProtein": "Eiweiß: {{now}} / {{target}} g",
     "totalSatfat": "Gesättigte Fettsäuren: {{now}} / {{target}} g",
     "totalSodium": "Natrium: {{now}} / {{target}} mg"

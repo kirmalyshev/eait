@@ -57,11 +57,13 @@
     "satfat": "Sat. fat",
     "sodium": "Sodium",
     "todaysProgress": "Today's progress",
+    "progressForDate": "{{date}} progress",
     "goal": "Goal",
     "progress": "Progress"
   },
   "text": {
     "confirmPrompt": "Log this meal?",
+    "confirmPromptDated": "Log this meal for {{date}}?",
     "logButton": "✅ Log it",
     "cancelButton": "✖️ Cancel",
     "cancelled": "Okay, not logged.",
@@ -104,10 +106,12 @@
       "kidneys": "Kidneys"
     },
     "notesLine": "📝 {{notes}}",
+    "loggedForDate": "📅 For {{date}}",
     "correctionHint": "↩️ Not right? Reply to this message with a correction.",
     "lowConfidenceHint": "🤔 I'm not sure about the portion size. Reply to this message with the weight or contents (for example \"340g\" or \"two patties, no oil\") and I'll redo the estimate.",
     "updatedPrefix": "Updated:",
     "totalKcal": "Today: {{now}} / {{target}} kcal",
+    "totalKcalDated": "{{date}}: {{now}} / {{target}} kcal",
     "totalProtein": "Protein: {{now}} / {{target}} g",
     "totalSatfat": "Saturated fat: {{now}} / {{target}} g",
     "totalSodium": "Sodium: {{now}} / {{target}} mg"
