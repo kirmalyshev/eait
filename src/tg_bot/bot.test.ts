@@ -1099,6 +1099,32 @@ test("reopening /settings clears a stale armed prompt", async () => {
   expect((await getUser(db, 426))?.pending_input).toBeNull();
 });
 
+test("/me shows target weight, country, and a progress line toward the target", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 430); // goal lose, weight 92, target/country skipped
+  await processSettingsCallback(deps, { id: 430 }, "st:targetw", editor().edit);
+  await sendText(deps, 430, "85"); // target weight
+  await processSettingsCallback(deps, { id: 430 }, "st:country:de", editor().edit);
+  const card = (await meCard(deps, 430)) as string;
+  const t = translatorFor(DEFAULT_LANG);
+  expect(card).toContain(t("country.de"));
+  expect(card).toContain(t("me.weightValue", { kg: 85 }));
+  expect(card).toContain(t("me.toGoal", { kg: 7 })); // 92 − 85
+  expect(card).not.toMatch(/\{\{/); // no unresolved i18n placeholder leaks to the user
+});
+
+test("/me shows 'not set' for target and country when the user skipped them, with no progress line", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 431); // target + country skipped by the helper
+  const card = (await meCard(deps, 431)) as string;
+  const t = translatorFor(DEFAULT_LANG);
+  expect(card).toContain(t("me.noCountry"));
+  expect(card).not.toContain("🎯"); // the progress line (me.toGoal/me.atGoal) is the only 🎯 source
+  expect(card).not.toMatch(/\{\{/);
+});
+
 test("a photo sent while a weight prompt is armed is still logged as a meal", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };

@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import { LOCALES } from "./i18n/registry.ts";
 import { RESTRICTION_TAGS, isRestrictionTag } from "./targets.ts";
+import { countryForPrompt } from "./country.ts";
 import type { DayTotals, FoodTargets, MealAnalysis, MealContext, MealSummary, Profile } from "./types.ts";
 
 const VerdictSchema = z.enum(["good", "warn", "bad"]);
@@ -123,6 +124,13 @@ function goalLine(goal: Profile["goal"]): string {
 function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boolean): string {
   const lines: string[] = [];
   lines.push(`User ${goalLine(profile.goal)}.`);
+  // Target-weight framing: gives the model the magnitude behind the goal so the weight verdict is
+  // judged against real progress, not just the lose/gain direction. Kcal targets are unchanged.
+  if (profile.weight_kg && profile.target_weight_kg) {
+    lines.push(
+      `Current weight ${profile.weight_kg} kg, target ${profile.target_weight_kg} kg — judge verdicts.weight against progress toward that target.`,
+    );
+  }
   if (multiPhoto) {
     lines.push(
       "The user sent several photos of the SAME meal (e.g. the portion plus product packaging " +
@@ -146,6 +154,14 @@ function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boo
   if (cuisine) {
     lines.push(
       `The user's interface language suggests ${cuisine} is likely — weigh regional dishes when identifying items, but always trust the actual evidence (the photo or the user's description) over this prior.`,
+    );
+  }
+  // Purchase country steers identification toward local product names, packaging sizes, and
+  // portion norms — complementary to the language-derived cuisine prior, and hedged the same way.
+  const country = countryForPrompt(profile.country);
+  if (country) {
+    lines.push(
+      `The user buys most of their food in ${country} — prefer local product names, packaging sizes, and typical portion norms there, but always trust the actual evidence over this prior.`,
     );
   }
   lines.push("Estimate items[{name,grams}], kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g, sodium_mg, plant_protein_pct.");

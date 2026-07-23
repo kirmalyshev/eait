@@ -25,7 +25,8 @@ import { loadAllowlist, type Allowlist } from "../allowlist.ts";
 import { AlbumBuffer } from "./albums.ts";
 import { analyzeMeal, classifyRestrictions, routeText, type RouteContext, type RouteResult } from "../analyzer.ts";
 import { RejectionLog } from "./rejections.ts";
-import { targetsFor, isRestrictionTag } from "../targets.ts";
+import { targetsFor, weightRemainingKg, isRestrictionTag } from "../targets.ts";
+import { countryLabel } from "../country.ts";
 import { formatReply, berlinDayLabel, mealDateLabel } from "../reply.ts";
 import { renderMealCard } from "../render.ts";
 import {
@@ -1036,29 +1037,36 @@ export async function meCard(deps: BotDeps, userId: number): Promise<string | nu
   const totals = await dailyTotals(deps.db, userId, date);
   const targets = targetsFor(prof);
   const t = translatorFor(prof.lang);
-  return (
-    t("me.profileLine", {
-      goal: t(`me.goal.${u.goal ?? "maintain"}`),
-      // Weight is shown so a misparsed onboarding answer stays visible and correctable —
-      // the value silently driving the protein target must never be invisible.
-      weight: prof.weight_kg ? t("me.weightValue", { kg: prof.weight_kg }) : t("me.noWeight"),
-      // Tags are storage identifiers, not copy — render their localized names. Membership is
-      // checked explicitly rather than leaning on i18next's defaultValue, which does not
-      // suppress the strict missing-key handler. A tag from an older build shows as itself.
-      restrictions: prof.restrictions.length
-        ? prof.restrictions
-            .map((tag) => (isRestrictionTag(tag) ? t(`me.restriction.${tag}`) : tag))
-            .join(", ")
-        : t("me.noRestrictions"),
-    }) +
-    "\n" +
-    t("me.todayLine", {
-      kcal: Math.round(totals.kcal),
-      kcalTarget: targets.kcal,
-      protein: Math.round(totals.protein_g),
-      proteinTarget: targets.protein_g,
-    })
-  );
+  const profileLine = t("me.profileLine", {
+    goal: t(`me.goal.${u.goal ?? "maintain"}`),
+    // Weight is shown so a misparsed onboarding answer stays visible and correctable —
+    // the value silently driving the protein target must never be invisible.
+    weight: prof.weight_kg ? t("me.weightValue", { kg: prof.weight_kg }) : t("me.noWeight"),
+    target: prof.target_weight_kg ? t("me.weightValue", { kg: prof.target_weight_kg }) : t("me.noWeight"),
+    country: prof.country ? countryLabel(prof.country, t) : t("me.noCountry"),
+    // Tags are storage identifiers, not copy — render their localized names. Membership is
+    // checked explicitly rather than leaning on i18next's defaultValue, which does not
+    // suppress the strict missing-key handler. A tag from an older build shows as itself.
+    restrictions: prof.restrictions.length
+      ? prof.restrictions
+          .map((tag) => (isRestrictionTag(tag) ? t(`me.restriction.${tag}`) : tag))
+          .join(", ")
+      : t("me.noRestrictions"),
+  });
+  const todayLine = t("me.todayLine", {
+    kcal: Math.round(totals.kcal),
+    kcalTarget: targets.kcal,
+    protein: Math.round(totals.protein_g),
+    proteinTarget: targets.protein_g,
+  });
+  // Progress line only when both weights are known: at-goal vs. absolute distance to the target.
+  const remaining = weightRemainingKg(prof);
+  const lines = [profileLine];
+  if (remaining !== null) {
+    lines.push(remaining === 0 ? t("me.atGoal") : t("me.toGoal", { kg: Math.abs(remaining) }));
+  }
+  lines.push(todayLine);
+  return lines.join("\n");
 }
 
 /**
