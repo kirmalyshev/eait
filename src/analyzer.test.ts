@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { analyzeMeal, classifyRestrictions, routeText, MealAnalysisSchema } from "./analyzer.ts";
+import { analyzeMeal, classifyRestrictions, routeText, clampDayOffset, MealAnalysisSchema } from "./analyzer.ts";
 import { LANGS, LOCALES } from "./i18n/registry.ts";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import type { MealAnalysis, Profile } from "./types.ts";
@@ -420,5 +420,46 @@ describe("routeText — review hardening", () => {
   test("meal intent without an analysis object throws", async () => {
     const provider = new FakeProvider(() => JSON.stringify({ intent: "meal" }));
     await expect(routeText("ate rice", profile, minCtx, provider)).rejects.toThrow();
+  });
+});
+
+describe("clampDayOffset", () => {
+  test("maps every input to an integer in [0, 7]", () => {
+    expect(clampDayOffset(0)).toBe(0);
+    expect(clampDayOffset(1)).toBe(1);
+    expect(clampDayOffset(7)).toBe(7);
+    expect(clampDayOffset(8)).toBe(7); // older than the window → clamp to the edge
+    expect(clampDayOffset(100)).toBe(7);
+    expect(clampDayOffset(-1)).toBe(0); // future → today
+    expect(clampDayOffset(3.7)).toBe(3); // truncated to a whole day
+    expect(clampDayOffset(NaN)).toBe(0);
+    expect(clampDayOffset(Infinity)).toBe(0);
+    expect(clampDayOffset(undefined)).toBe(0);
+    expect(clampDayOffset("2")).toBe(0); // non-number → default, never trust a string
+  });
+});
+
+describe("routeText — meal date offset", () => {
+  const minCtx = { todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } };
+
+  test("meal intent carries a normalized dayOffset from the model", async () => {
+    const provider = new FakeProvider(() =>
+      JSON.stringify({ intent: "meal", dayOffset: 1, analysis: JSON.parse(validJson) }));
+    const r = await routeText("add on yesterday 2 beers", profile, minCtx, provider);
+    expect(r.intent).toBe("meal");
+    if (r.intent === "meal") expect(r.dayOffset).toBe(1);
+  });
+
+  test("a meal with no dayOffset defaults to 0 (today)", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "meal", analysis: JSON.parse(validJson) }));
+    const r = await routeText("ate 2 eggs", profile, minCtx, provider);
+    if (r.intent === "meal") expect(r.dayOffset).toBe(0);
+  });
+
+  test("an out-of-range model dayOffset is clamped, not trusted", async () => {
+    const provider = new FakeProvider(() =>
+      JSON.stringify({ intent: "meal", dayOffset: 99, analysis: JSON.parse(validJson) }));
+    const r = await routeText("ages ago", profile, minCtx, provider);
+    if (r.intent === "meal") expect(r.dayOffset).toBe(7);
   });
 });
