@@ -4,6 +4,7 @@ import { DEFAULT_LANG } from "./i18n/registry.ts";
 import { cleanupTestDbs, freshTestDb, freshTestName, openTestDb } from "./testutil.ts";
 import {
   applyCorrection,
+  setMealDate,
   berlinDate,
   berlinDateMinus,
   berlinTime,
@@ -653,6 +654,20 @@ describe("review fixes — db layer", () => {
     expect(await applyCorrection(db, id, 1, { kcal: 500 })).toBe(true);
     expect(await applyCorrection(db, "no-such-id", 1, { kcal: 500 })).toBe(false);
     expect(await applyCorrection(db, id, 2, { kcal: 500 })).toBe(false); // cross-user
+  });
+
+  test("setMealDate moves a meal to a new day, scoped and reporting the row count", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await upsertUser(db, { telegram_id: 2 });
+    const id = crypto.randomUUID();
+    await insertMeal(db, { id, user_id: 1, ts: "t", date: "2026-07-23", analysis: analysis({ kcal: 600 }) });
+    expect(await setMealDate(db, id, 1, "2026-07-22")).toBe(true);
+    expect(await countMealsToday(db, 1, "2026-07-22")).toBe(1); // moved onto the new day
+    expect(await countMealsToday(db, 1, "2026-07-23")).toBe(0); // gone from the old day
+    expect(await setMealDate(db, id, 2, "2026-07-20")).toBe(false); // cross-user: no-op
+    expect(await setMealDate(db, "no-such-id", 1, "2026-07-20")).toBe(false);
+    expect(await countMealsToday(db, 1, "2026-07-22")).toBe(1); // unchanged by the failed writes
   });
 
   test("prunePendingMeals boundary is strict: an exactly-cutoff row survives", async () => {
