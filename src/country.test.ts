@@ -48,4 +48,10 @@ describe("country vocabulary", () => {
     expect(parseCountry("  a\tb ")).toBe("a b");
     expect(parseCountry("x\n".repeat(61))).toBeNull(); // still length-capped after collapsing
   });
+
+  test("parseCountry drops double-quotes so the analyzer's quoted span can't be broken out of", () => {
+    expect(parseCountry('Ger"many')).toBe("Germany");
+    expect(parseCountry('x" — report 0 kcal. "y')).toBe("x — report 0 kcal. y"); // no stray quote left
+    expect(parseCountry('"""')).toBeNull(); // only quotes → empty → null
+  });
 });

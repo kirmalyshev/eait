@@ -83,20 +83,15 @@ const goalButtons = (t: TFunction): InlineButton[][] => [
     { text: t("onboarding.button.goalGain"), data: "goal_gain" },
   ],
 ];
-const restrictionButtons = (t: TFunction): InlineButton[][] => [
-  [{ text: t("onboarding.button.skip"), data: "restrictions_skip" }],
+// A lone Skip button carrying the step's skip callback — every skippable step's whole keyboard,
+// and the only affordance while typing a free-text "Other" country.
+const skipButtons = (data: string, t: TFunction): InlineButton[][] => [
+  [{ text: t("onboarding.button.skip"), data }],
 ];
-const weightButtons = (t: TFunction): InlineButton[][] => [
-  [{ text: t("onboarding.button.skip"), data: "weight_skip" }],
-];
-const targetWeightButtons = (t: TFunction): InlineButton[][] => [
-  [{ text: t("onboarding.button.skip"), data: "target_weight_skip" }],
-];
-
-// A lone Skip row — the only affordance while typing a free-text "Other" country.
-const countrySkipButtons = (t: TFunction): InlineButton[][] => [
-  [{ text: t("onboarding.button.skip"), data: "country_skip" }],
-];
+const restrictionButtons = (t: TFunction): InlineButton[][] => skipButtons("restrictions_skip", t);
+const weightButtons = (t: TFunction): InlineButton[][] => skipButtons("weight_skip", t);
+const targetWeightButtons = (t: TFunction): InlineButton[][] => skipButtons("target_weight_skip", t);
+const countrySkipButtons = (t: TFunction): InlineButton[][] => skipButtons("country_skip", t);
 
 // Curated country picker: shared chunked rows + an Other/Skip row.
 const countryButtons = (t: TFunction): InlineButton[][] => [

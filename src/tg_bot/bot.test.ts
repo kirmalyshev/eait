@@ -1125,17 +1125,29 @@ test("/me shows 'not set' for target and country when the user skipped them, wit
   expect(card).not.toMatch(/\{\{/);
 });
 
-test("a reply (to a meal) is NOT consumed by an armed weight prompt", async () => {
+test("a reply to a MEAL is exempt from an armed prompt, but a reply to the prompt still sets the field", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(JSON.stringify({ intent: "question", answer: "ok" })), config: cfg };
+  const { insertMeal } = await import("../db.ts");
   await onboardToActive(deps, 440); // weight 92
+  await insertMeal(db, {
+    id: crypto.randomUUID(), user_id: 440, ts: "t",
+    date: berlinDate(new Date(), cfg.tz), analysis: JSON.parse(foodJson()),
+    chat_id: 1, bot_message_id: 555,
+  });
   await processSettingsCallback(deps, { id: 440 }, "st:weight", editor().edit);
-  // Reply carries an explicit correction/redate intent — it must reach the router, not the prompt.
-  const handled = await processText(deps, { id: 440 }, { text: "80", messageId: 2, replyTo: 999 }, noop);
-  expect(handled).toBe(true);
-  const u = (await getUser(db, 440))!;
-  expect(u.weight_kg).toBe(92); // the reply was NOT eaten as a weight
-  expect(u.pending_input).toBe("weight"); // prompt stays armed for the real answer
+
+  // (a) reply to the meal card → explicit correction/redate intent, NOT eaten as a weight.
+  await processText(deps, { id: 440 }, { text: "less oil", messageId: 2, replyTo: 555 }, noop);
+  let u = (await getUser(db, 440))!;
+  expect(u.weight_kg).toBe(92); // unchanged
+  expect(u.pending_input).toBe("weight"); // prompt still armed
+
+  // (b) reply to a non-meal message (e.g. the bot's own weight prompt) → consumed, field set.
+  await processText(deps, { id: 440 }, { text: "80", messageId: 3, replyTo: 999 }, noop);
+  u = (await getUser(db, 440))!;
+  expect(u.weight_kg).toBe(80); // answering-by-reply works
+  expect(u.pending_input).toBeNull(); // cleared on success
 });
 
 test("a slash command is NOT consumed by an armed weight prompt", async () => {

@@ -766,15 +766,23 @@ export async function processText(
   const u = await getUser(db, from.id);
   if (!u || u.state !== "active") return false; // onboarding owns non-active text
 
+  // Resolve reply targets ONCE, up front: a reply to a known "not food" message (rejection-explain)
+  // or to a meal card (correction/redate focus) carries explicit intent. A reply to nothing
+  // meaningful — e.g. to the bot's own "send your weight" prompt — does not.
+  const isRejectionReply =
+    msg.replyTo !== undefined && (deps.rejections?.has(from.id, msg.replyTo) ?? false);
+  const focus = msg.replyTo !== undefined ? await mealByReply(db, from.id, msg.replyTo) : undefined;
+
   // A /settings text prompt (weight / target weight / "other" country) consumes this message
   // BEFORE the router — no LLM call, no cap draw. Photos never hit this path (they stay meals).
-  // A reply-to-a-meal (correction/redate) and a slash command are NOT consumed: those carry their
-  // own explicit intent and must reach their handlers, not get eaten as a settings answer.
+  // Exempt slash commands and replies that TARGET a meal/rejection; a plain answer or a reply to
+  // the prompt itself (focus undefined) is still consumed, so answering by replying works.
   if (
     u.pending_input &&
     isPendingInput(u.pending_input) &&
-    msg.replyTo === undefined &&
-    !msg.text.startsWith("/")
+    !msg.text.startsWith("/") &&
+    !isRejectionReply &&
+    focus === undefined
   ) {
     await processSettingsInput(deps, u, u.pending_input, msg.text, send);
     return true;
@@ -785,11 +793,10 @@ export async function processText(
 
   // A reply to a known "not food" message: explain deterministically — there is nothing stored
   // about that photo (ephemeral), so no LLM call could say more.
-  if (msg.replyTo !== undefined && deps.rejections?.has(from.id, msg.replyTo)) {
+  if (isRejectionReply) {
     await send(t("errors.rejectionExplain"));
     return true;
   }
-  const focus = msg.replyTo !== undefined ? await mealByReply(db, from.id, msg.replyTo) : undefined;
 
   // 👀 before the cap checks, mirroring the photo path — "seen", not "will analyze".
   fireReaction(opts?.react, "👀", from.id);

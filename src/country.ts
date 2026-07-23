@@ -64,12 +64,13 @@ export function countryLabel(country: string, t: TFunction): string {
   return isCountryCode(country) ? t(`country.${country}`) : country;
 }
 
-// Free-typed country ("Other"): stored raw so display and prompt both preserve what the user
-// wrote. Internal whitespace (incl. newlines) is collapsed to single spaces — a country name is one
-// line, and this neutralizes newline-based prompt injection where the raw value reaches the model.
-// Length-capped like the caption/restriction inputs; empty → null (the caller re-prompts).
+// Free-typed country ("Other"): stored roughly as typed for display and the prompt. Internal
+// whitespace (incl. newlines) is collapsed to single spaces and double-quotes are dropped — a
+// country name is a single unquoted line, and both make the value inert where it reaches the model
+// (it is interpolated INSIDE a quoted span in the analyzer prompt, so a `"` would break out).
+// Length-capped like the caption/restriction inputs; empty (or only quotes/space) → null.
 const COUNTRY_INPUT_CAP = 60;
 export function parseCountry(text: string): string | null {
-  const c = text.trim().replace(/\s+/g, " ");
+  const c = text.trim().replace(/\s+/g, " ").replace(/"/g, "");
   return c.length >= 1 && c.length <= COUNTRY_INPUT_CAP ? c : null;
 }
