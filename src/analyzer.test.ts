@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, spyOn } from "bun:test";
 import { analyzeMeal, classifyRestrictions, routeText, clampDayOffset, MealAnalysisSchema } from "./analyzer.ts";
 import { LANGS, LOCALES } from "./i18n/registry.ts";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
@@ -456,10 +456,38 @@ describe("routeText — meal date offset", () => {
     if (r.intent === "meal") expect(r.dayOffset).toBe(0);
   });
 
-  test("an out-of-range model dayOffset is clamped, not trusted", async () => {
+  test("an out-of-range model dayOffset is clamped, not trusted, and warned", async () => {
     const provider = new FakeProvider(() =>
       JSON.stringify({ intent: "meal", dayOffset: 99, analysis: JSON.parse(validJson) }));
-    const r = await routeText("ages ago", profile, minCtx, provider);
-    if (r.intent === "meal") expect(r.dayOffset).toBe(7);
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const r = await routeText("ages ago", profile, minCtx, provider);
+      if (r.intent === "meal") expect(r.dayOffset).toBe(7);
+      // Doctrine: model drift is surfaced, never silently normalized.
+      expect(warn.mock.calls.some((c) => String(c[0]).includes("out of contract"))).toBe(true);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test("an in-contract dayOffset does not warn (no false operator noise)", async () => {
+    const provider = new FakeProvider(() =>
+      JSON.stringify({ intent: "meal", dayOffset: 2, analysis: JSON.parse(validJson) }));
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await routeText("day before yesterday", profile, minCtx, provider);
+      expect(warn.mock.calls.some((c) => String(c[0]).includes("out of contract"))).toBe(false);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test("a correction ignores any model-supplied dayOffset (no leak, no date shift)", async () => {
+    const focusMeal = MealAnalysisSchema.parse(JSON.parse(validJson));
+    const provider = new FakeProvider(() =>
+      JSON.stringify({ intent: "correction", dayOffset: 3, analysis: JSON.parse(validJson) }));
+    const r = await routeText("actually 300", profile, { ...minCtx, focusMeal }, provider);
+    expect(r.intent).toBe("correction");
+    expect(r as Record<string, unknown>).not.toHaveProperty("dayOffset");
   });
 });

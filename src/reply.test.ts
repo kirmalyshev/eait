@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, spyOn } from "bun:test";
 import { formatReply, berlinDayLabel, verdictEmoji, type FormatMeal } from "./reply.ts";
 import { LANGS, translatorFor } from "./i18n/index.ts";
 import type { DailyTotals, FoodTargets, MealVerdicts } from "./types.ts";
@@ -63,6 +63,16 @@ describe("berlinDayLabel", () => {
   test("the noon-UTC anchor keeps the day stable (no off-by-one at the boundary)", () => {
     expect(berlinDayLabel("2026-01-01", "en")).toMatch(/1/); // not Dec 31
     expect(berlinDayLabel("2026-01-01", "en")).toMatch(/Jan/);
+  });
+  test("a malformed date degrades to the raw string and warns, never throws a RangeError", () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(() => berlinDayLabel("not-a-date", "en")).not.toThrow();
+      expect(berlinDayLabel("not-a-date", "en")).toBe("not-a-date");
+      expect(warn).toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 

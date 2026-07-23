@@ -5,7 +5,7 @@
 // the language (see src/i18n), so this stays a pure formatter.
 
 import type { TFunction } from "i18next";
-import type { DailyTotals, FoodTargets, MealItem, MealVerdicts, Verdict } from "./types.ts";
+import type { DailyTotals, FoodTargets, Lang, MealItem, MealVerdicts, Verdict } from "./types.ts";
 
 /** The meal fields formatReply needs — satisfied by both MealAnalysis and MealRecord. */
 export interface FormatMeal {
@@ -22,18 +22,40 @@ export interface FormatMeal {
 }
 
 /**
- * A human day label ("Mon 21 Jul") for a stored YYYY-MM-DD, rendered in the user's locale and the
- * bot's timezone. Pure. Noon-UTC anchor keeps the calendar day stable under any real tz offset.
- * Names come from Intl (en/ru/de are valid BCP-47), so no month/weekday strings live in the catalog.
+ * A human day label (en → "Tue, Jul 21", de → "Di., 21. Juli", ru → "вт, 21 июл.") for a stored
+ * YYYY-MM-DD, rendered in the user's locale and the bot's timezone. Pure. The noon-UTC anchor keeps
+ * the calendar day stable for any offset within ±12h (covers every European tz the bot runs in).
+ * Names come from Intl, so no month/weekday strings live in the catalog. `lang` is a validated Lang
+ * (a bad BCP-47 tag would make Intl throw); a malformed date degrades loudly to the raw string
+ * rather than throwing a RangeError into a reply handler.
  */
-export function berlinDayLabel(date: string, lang: string, tz = "Europe/Berlin"): string {
+export function berlinDayLabel(date: string, lang: Lang, tz = "Europe/Berlin"): string {
   const d = new Date(`${date}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) {
+    console.warn(`[eait] berlinDayLabel: unusable date ${JSON.stringify(date)} — returning raw`);
+    return date;
+  }
   return new Intl.DateTimeFormat(lang, {
     timeZone: tz,
     weekday: "short",
     day: "numeric",
     month: "short",
   }).format(d);
+}
+
+/**
+ * The date label to show for a meal, or undefined when it is today's — the "not today ⇒ named"
+ * rule, in ONE place. Every meal-card site (confirm prompt, logged card, correction card) resolves
+ * through this so a future site can't forget the today-vs-not comparison and mislabel a same-day
+ * meal, or a past-dated one as "Today".
+ */
+export function mealDateLabel(
+  mealDate: string,
+  today: string,
+  lang: Lang,
+  tz: string,
+): string | undefined {
+  return mealDate === today ? undefined : berlinDayLabel(mealDate, lang, tz);
 }
 
 export function verdictEmoji(v: Verdict): string {

@@ -306,7 +306,8 @@ export type RouteResult =
   | { intent: "meal"; analysis: MealAnalysis; dayOffset: number }
   | { intent: "correction"; analysis: MealAnalysis };
 
-/** Newest day the diary keeps a relative meal date for — mirrors the 7-day week context. */
+/** Oldest day back a text meal can be dated to (offset 0 = today … 7 = a week ago) — mirrors the
+ * 7-day week context (weekStart = today − 7d), so offset 7 lands on the oldest day the router sees. */
 export const MAX_DAY_OFFSET = 7;
 
 /**
@@ -345,8 +346,8 @@ const SYSTEM_ROUTE =
   '{"intent":"meal","analysis":{...},"dayOffset":N} ONLY when the text describes food the user ' +
   "actually ate (estimate the full analysis object from the description, following the estimation " +
   "protocol). Set dayOffset to the whole number of days before today the food was eaten — 0 for " +
-  "today (the default), 1 for yesterday, up to 7; a relative phrase like \"yesterday\" or \"2 days " +
-  'ago" sets it, otherwise use 0; ' +
+  `today (the default), 1 for yesterday, up to ${MAX_DAY_OFFSET}; a relative phrase like "yesterday" ` +
+  'or "2 days ago" sets it, otherwise use 0; ' +
   '{"intent":"correction","analysis":{...}} ONLY when a focus meal is provided and the text ' +
   "corrects that meal's estimate (return the full updated analysis object).";
 
@@ -427,7 +428,14 @@ export async function routeText(
   }
   // Only a NEW meal carries a relative date; a correction keeps its focus meal's date.
   if (r.intent === "meal") {
-    return { intent: "meal", analysis: r.analysis, dayOffset: clampDayOffset(r.dayOffset) };
+    const dayOffset = clampDayOffset(r.dayOffset);
+    // Surface model drift the way confidence/restriction-salvage do: a value the schema should
+    // have bounded arriving out of contract (future, >7, fractional, wrong type) means the model
+    // is off-spec — the clamp keeps us safe, the warn keeps the operator informed.
+    if (r.dayOffset !== undefined && r.dayOffset !== dayOffset) {
+      console.warn(`[eait] router: dayOffset ${JSON.stringify(r.dayOffset)} out of contract → ${dayOffset}`);
+    }
+    return { intent: "meal", analysis: r.analysis, dayOffset };
   }
   return { intent: "correction", analysis: r.analysis };
 }

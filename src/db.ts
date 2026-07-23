@@ -80,6 +80,20 @@ export function berlinDate(d: Date, tz = "Europe/Berlin"): string {
   }).format(d);
 }
 
+/**
+ * N calendar days before a YYYY-MM-DD, in calendar space. DST-safe: subtracting a fixed
+ * `days * 24h` from the *instant* and re-deriving a Berlin date is off by one when a transition
+ * falls in the span and the clock is near midnight (spring days are 23h). Operating on the
+ * already-Berlin calendar date (noon-UTC anchor, ±12h stable) sidesteps that entirely — no tz
+ * needed, because `date` is already the local day.
+ */
+export function berlinDateMinus(date: string, days: number): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const dt = new Date(Date.UTC(y!, m! - 1, d!, 12));
+  dt.setUTCDate(dt.getUTCDate() - days);
+  return dt.toISOString().slice(0, 10);
+}
+
 /** HH:MM for an instant in the given IANA zone (default Europe/Berlin), not UTC. */
 export function berlinTime(d: Date, tz = "Europe/Berlin"): string {
   return new Intl.DateTimeFormat("en-GB", {

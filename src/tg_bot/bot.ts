@@ -13,7 +13,7 @@ import type { Config } from "../config.ts";
 import type { LLMProvider } from "../llm/provider.ts";
 import { createProvider } from "../llm/factory.ts";
 import {
-  openDb, berlinDate, berlinTime, upsertUser, getUser, setConsent, setProfile, setUserState,
+  openDb, berlinDate, berlinDateMinus, berlinTime, upsertUser, getUser, setConsent, setProfile, setUserState,
   insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals,
   logLlmCall, llmCallsToday, llmCallCountToday, mealsOnDate, totalsByDate,
   insertPendingMeal, setPendingReply, getPendingMeal, deletePendingMeal, prunePendingMeals,
@@ -26,7 +26,7 @@ import { AlbumBuffer } from "./albums.ts";
 import { analyzeMeal, classifyRestrictions, routeText, type RouteContext, type RouteResult } from "../analyzer.ts";
 import { RejectionLog } from "./rejections.ts";
 import { targetsFor, isRestrictionTag } from "../targets.ts";
-import { formatReply, berlinDayLabel } from "../reply.ts";
+import { formatReply, mealDateLabel } from "../reply.ts";
 import { renderMealCard } from "../render.ts";
 import { settingsRoot, settingsStep, type SettingsProfile } from "../settings.ts";
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "../onboarding.ts";
@@ -734,7 +734,7 @@ export async function processText(
   const todayMeals = (await mealsOnDate(db, from.id, date)).map((m) => ({
     items: m.items, kcal: m.kcal, protein_g: m.protein_g,
   }));
-  const weekStart = berlinDate(new Date(Date.now() - 7 * 86_400_000), config.tz);
+  const weekStart = berlinDateMinus(date, 7); // calendar subtraction — DST-safe
   const routeCtx: RouteContext = {
     focusMeal: focus ? mealToAnalysis(focus) : undefined,
     todayMeals,
@@ -775,24 +775,25 @@ export async function processText(
       return true;
     }
     const totals = await dailyTotals(db, from.id, focus.date);
+    // The corrected meal keeps its own date — name it when it isn't today, or the card shows
+    // "Today's progress" over another day's totals (the totals are already for focus.date).
+    const dateLabel = mealDateLabel(focus.date, date, prof.lang, config.tz);
     // Deliberately no hint suffix — the user just corrected; re-prompting would nag.
     // No footer on either rendering — the deliberate no-nag decision holds in both formats.
     await sendCard(replyFormatFor(prof, config), send, opts?.sendRich, {
-      html: renderMealCard(route.analysis, totals, targetsFor(prof), t, { prefix: t("meal.updatedPrefix") }),
-      plain: t("meal.updatedPrefix") + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t),
+      html: renderMealCard(route.analysis, totals, targetsFor(prof), t, { prefix: t("meal.updatedPrefix"), dateLabel }),
+      plain: t("meal.updatedPrefix") + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t, { dateLabel }),
     });
     fireReaction(opts?.react, "👍", from.id);
     return true;
   }
 
-  // meal → confirm before logging: unlike a photo, free text is easy to misread as a meal,
-  // so nothing is stored until the tap. A relative date ("yesterday") shifts the meal's day;
-  // confirm-first means the resolved date is on the prompt for the user to catch a misparse.
-  const mealDate =
-    route.dayOffset === 0
-      ? date
-      : berlinDate(new Date(Date.now() - route.dayOffset * 86_400_000), config.tz);
-  const dateLabel = mealDate === date ? undefined : berlinDayLabel(mealDate, prof.lang, config.tz);
+  // meal → confirm before logging: unlike a photo, free text is easy to misread as a meal, so
+  // nothing reaches the meals table until the tap. A relative date ("yesterday") shifts the
+  // meal's day; confirm-first means the resolved date is on the prompt to catch a misparse.
+  const mealDate = route.dayOffset === 0 ? date : berlinDateMinus(date, route.dayOffset);
+  const dateLabel = mealDateLabel(mealDate, date, prof.lang, config.tz);
+  console.log(`[eait] text meal user=${from.id} dayOffset=${route.dayOffset} date=${mealDate}`);
   const id = crypto.randomUUID();
   // Housekeeping must never cost the user their (already-metered) meal — sweep failures are
   // logged and skipped; the next insert retries anyway.
@@ -890,7 +891,7 @@ export async function processTextMealDecision(
     const totals = await dailyTotals(db, from.id, pending.date);
     // Name the day on the logged card whenever the pending meal was for another date.
     const today = berlinDate(new Date(), deps.config.tz);
-    const dateLabel = pending.date === today ? undefined : berlinDayLabel(pending.date, prof.lang, deps.config.tz);
+    const dateLabel = mealDateLabel(pending.date, today, prof.lang, deps.config.tz);
     const sent = await sendCard(replyFormatFor(prof, deps.config), send, opts?.sendRich, {
       html: renderMealCard(pending.analysis, totals, targetsFor(prof), t, { footer: t("meal.correctionHint"), dateLabel }),
       plain: formatReply(pending.analysis, totals, targetsFor(prof), t, { dateLabel }) + "\n\n" + t("meal.correctionHint"),
