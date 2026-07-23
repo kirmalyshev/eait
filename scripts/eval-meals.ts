@@ -89,5 +89,11 @@ for (const model of models) {
     if (caseRuns.length) inputs.push({ expected, runs: caseRuns });
     else console.error(`  ${model} ${c.name}: all runs failed — case excluded from the summary`);
   }
+  // A model that failed EVERY case (bad slug, provider 403, rate-limit) must not abort the whole
+  // A/B: summarize([]) throws by design, so guard it and move to the next model with a loud line.
+  if (inputs.length === 0) {
+    console.error(`\n${model}: 0/${cases.length} cases succeeded — model skipped, no summary\n`);
+    continue;
+  }
   console.log("\n" + renderReport(model, summarize(inputs)) + "\n");
 }
