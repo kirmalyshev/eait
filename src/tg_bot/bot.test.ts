@@ -157,6 +157,11 @@ test("a correction routed through processText updates the matched meal", async (
   const handled = await processText(deps, { id: 5 }, { text: "2 куска, без масла", messageId: 50, replyTo: 1 }, cc.send);
   expect(handled).toBe(true);
   expect(cc.msgs[0]).toContain("900");
+  // The corrected meal is today's, so its card must NOT carry a date line and must use the
+  // plain "Today:" total — pins the correction-card today-branch (mealDateLabel → undefined).
+  const today = berlinDate(new Date(), cfg.tz);
+  expect(cc.msgs[0]).not.toContain(berlinDayLabel(today, DEFAULT_LANG, cfg.tz));
+  expect(cc.msgs[0]).toContain(translatorFor(DEFAULT_LANG)("meal.totalKcal", { now: 900, target: 1800 }));
 });
 
 test("meCard is null unless active; statsCard counts users+meals", async () => {

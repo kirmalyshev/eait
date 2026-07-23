@@ -381,6 +381,7 @@ describe("berlinDateMinus subtracts calendar days, DST-safe", () => {
   });
   test("month and year boundaries", () => {
     expect(berlinDateMinus("2026-03-01", 1)).toBe("2026-02-28"); // 2026 not a leap year
+    expect(berlinDateMinus("2024-03-01", 1)).toBe("2024-02-29"); // 2024 IS a leap year
     expect(berlinDateMinus("2026-01-01", 1)).toBe("2025-12-31");
   });
   test("throws loudly on a non-calendar input (junk, rollover, or non-finite days)", () => {

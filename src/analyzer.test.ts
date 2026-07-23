@@ -450,10 +450,18 @@ describe("routeText — meal date offset", () => {
     if (r.intent === "meal") expect(r.dayOffset).toBe(1);
   });
 
-  test("a meal with no dayOffset defaults to 0 (today)", async () => {
+  test("a meal with no dayOffset defaults to 0 (today) and does NOT warn", async () => {
     const provider = new FakeProvider(() => JSON.stringify({ intent: "meal", analysis: JSON.parse(validJson) }));
-    const r = await routeText("ate 2 eggs", profile, minCtx, provider);
-    if (r.intent === "meal") expect(r.dayOffset).toBe(0);
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const r = await routeText("ate 2 eggs", profile, minCtx, provider);
+      if (r.intent === "meal") expect(r.dayOffset).toBe(0);
+      // The common case (no offset) must be silent — an absent field is in-contract, not drift.
+      // Pins the `r.dayOffset !== undefined` half of the warn guard (else every plain meal spams).
+      expect(warn.mock.calls.some((c) => String(c[0]).includes("out of contract"))).toBe(false);
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   test("an out-of-range model dayOffset is clamped, not trusted, and warned", async () => {

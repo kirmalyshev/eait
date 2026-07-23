@@ -64,6 +64,10 @@ describe("berlinDayLabel", () => {
     expect(berlinDayLabel("2026-01-01", "en")).toMatch(/1/); // not Dec 31
     expect(berlinDayLabel("2026-01-01", "en")).toMatch(/Jan/);
   });
+  test("the noon anchor holds the day WEST of UTC too, not just Berlin", () => {
+    // Sao Paulo is UTC-3; a midnight anchor would slip this to Jul 20. Pins the anchor's purpose.
+    expect(berlinDayLabel("2026-07-21", "en", "America/Sao_Paulo")).toMatch(/21/);
+  });
   test("a malformed date degrades to the raw string and warns, never throws a RangeError", () => {
     const warn = spyOn(console, "warn").mockImplementation(() => {});
     try {
