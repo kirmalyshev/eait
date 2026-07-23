@@ -10,7 +10,7 @@ import type { TFunction } from "i18next";
 import { LANGS, LOCALES, isLang, translatorFor } from "./i18n/index.ts";
 import { RESTRICTION_TAGS, isRestrictionTag } from "./targets.ts";
 import { countryCodeRows, countryLabel, isCountryCode, parseCountry } from "./country.ts";
-import { limitationsDisplay, parseLimitations } from "./limitations.ts";
+import { LIMITATIONS_MAX_LEN, limitationsDisplay, limitationsTruncated, parseLimitations } from "./limitations.ts";
 import { parseWeight, type InlineButton } from "./onboarding.ts";
 import { REPLY_FORMATS, isReplyFormat } from "./types.ts";
 import type { Goal, Lang, Profile, ReplyFormat } from "./types.ts";
@@ -323,7 +323,13 @@ export function settingsInput(
       // existing value is still echoed alongside Clear.
       const limitations = parseLimitations(text);
       if (limitations == null) return limitationsPrompt(p, t, "settings.limitationsInvalid");
-      return { ...settingsRoot({ ...p, limitations }, t), patch: { limitations } };
+      const root = settingsRoot({ ...p, limitations }, t);
+      // Surface the loss rather than truncating silently — the copy solicits a full list, so a
+      // dropped tail on a long medical answer must be visible (the root only shows the first 60).
+      const notice = limitationsTruncated(text)
+        ? `${t("settings.limitationsTruncated", { max: LIMITATIONS_MAX_LEN })}\n\n`
+        : "";
+      return { ...root, text: notice + root.text, patch: { limitations } };
     }
   }
 }

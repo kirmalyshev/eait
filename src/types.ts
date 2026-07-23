@@ -36,8 +36,9 @@ export interface Profile {
    * cannot express ("no peanuts", "low FODMAP", "gastritis — nothing spicy"). Unlike a restriction
    * tag it drives no numeric cap and no verdict dimension; it is injected into the analyzer prompt
    * verbatim. null = unknown; the db's '' skip sentinel is mapped to null before it lands here.
-   * Required-with-null like every sibling field, so a new boundary that forgets to map it fails
-   * the build rather than silently dropping the user's limitations from the prompt.
+   * Required-with-null (like `goal`/`reply_format`; the weight/country fields are the looser
+   * optional-with-null), so a new boundary that forgets to map it fails the build rather than
+   * silently dropping the user's limitations from the prompt.
    */
   limitations: string | null;
   /**

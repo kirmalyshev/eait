@@ -33,12 +33,25 @@ export function parseLimitations(text: string): string | null {
 }
 
 /**
- * A stored value shortened for a summary line; shorter values pass through untouched. Truncation
- * is by CODE POINT — a `.slice()` here would halve an emoji and emit a lone surrogate, which
- * Telegram rejects outright ("strings must be encoded in UTF-8"), taking /settings and /me down
- * for that user via a field only reachable through /settings.
+ * A stored value shortened for a summary line; shorter values pass through untouched. Runs the
+ * SAME containment as the prompt path first — `limitationsDisplay` is the display sink, and a
+ * hand-edited DB row could carry a bidi override or a lone surrogate that `parseLimitations` never
+ * saw; the /settings and /me cards are plain text, so those bytes would reach Telegram raw and
+ * scramble (or reject) the card. Normalizing here closes the sink the prompt path already guards.
+ * Truncation is by CODE POINT — a `.slice()` would halve an emoji into a lone surrogate.
  */
 export function limitationsDisplay(value: string): string {
-  const cut = truncateCodePoints(value, LIMITATIONS_DISPLAY_LEN);
-  return cut === value ? value : `${cut}…`;
+  const safe = normalizePromptText(value);
+  const cut = truncateCodePoints(safe, LIMITATIONS_DISPLAY_LEN);
+  return cut === safe ? safe : `${cut}…`;
+}
+
+/**
+ * Whether `parseLimitations` would DROP characters from this input (its normalized length exceeds
+ * the cap). Lets the write boundaries surface the loss instead of truncating silently — a long
+ * medical answer must not lose its tail with no notice. Cheap enough to re-normalize: once per
+ * onboarding/settings message.
+ */
+export function limitationsTruncated(text: string): boolean {
+  return [...normalizePromptText(text)].length > LIMITATIONS_MAX_LEN;
 }

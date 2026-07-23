@@ -149,7 +149,8 @@
       "goalGain": "Zunehmen",
       "skip": "Überspringen",
       "countryOther": "🌐 Andere"
-    }
+    },
+    "restrictionsInvalid": "Das kam leer an. Gesundheitliche oder diätetische Einschränkungen? Schreib frei oder tippe auf „Überspringen“."
   },
   "settings": {
     "title": "Einstellungen",
@@ -186,7 +187,8 @@
     "limitationsLine": "Sonstige Einschränkungen: {{limitations}}",
     "askLimitations": "Schreib alles auf, was ich sonst berücksichtigen soll — Allergien, Erkrankungen, Lebensmittel, die du meidest. Das fließt in jede Analyse ein.",
     "limitationsCurrent": "Aktuell: {{limitations}}",
-    "limitationsInvalid": "Das kam leer an — schreib ein paar Worte oder tippe auf „Zurück“, um es so zu lassen."
+    "limitationsInvalid": "Das kam leer an — schreib ein paar Worte oder tippe auf „Zurück“, um es so zu lassen.",
+    "limitationsTruncated": "Ich habe die ersten {{max}} Zeichen behalten — der Rest wurde abgeschnitten."
   },
   "country": {
     "de": "🇩🇪 Deutschland",

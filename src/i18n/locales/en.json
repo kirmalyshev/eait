@@ -149,7 +149,8 @@
       "goalGain": "Gain",
       "skip": "Skip",
       "countryOther": "🌐 Other"
-    }
+    },
+    "restrictionsInvalid": "That came through empty. Any health or dietary restrictions? Write freely, or tap Skip."
   },
   "settings": {
     "title": "Settings",
@@ -186,7 +187,8 @@
     "limitationsLine": "Limitations: {{limitations}}",
     "askLimitations": "Type anything else I should account for — allergies, conditions, foods you avoid. This goes into every analysis.",
     "limitationsCurrent": "Current: {{limitations}}",
-    "limitationsInvalid": "That came through empty — type a few words, or tap Back to leave it as is."
+    "limitationsInvalid": "That came through empty — type a few words, or tap Back to leave it as is.",
+    "limitationsTruncated": "I kept the first {{max}} characters — the rest was cut."
   },
   "country": {
     "de": "🇩🇪 Germany",

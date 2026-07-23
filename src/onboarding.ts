@@ -17,7 +17,7 @@
 
 import type { TFunction } from "i18next";
 import { parseRestrictions } from "./targets.ts";
-import { parseLimitations } from "./limitations.ts";
+import { LIMITATIONS_MAX_LEN, limitationsTruncated, parseLimitations } from "./limitations.ts";
 import { countryCodeRows, countryLabel, isCountryCode, parseCountry } from "./country.ts";
 import type { Goal, UserState } from "./types.ts";
 
@@ -304,14 +304,26 @@ export function step(
     // (tags → numeric caps + structured verdicts), and the raw words are kept as free-text
     // limitations for the prompt. Before this, anything outside the four tags — "no peanuts",
     // "gastritis" — was parsed to nothing and thrown away.
+    const limitations = parseLimitations(input.text);
+    // A NON-EMPTY answer that normalizes to nothing (all quotes/control/invisible/bidi) is not a
+    // real answer — re-ask rather than silently recording a skip and saying "done". Whitespace-only
+    // (trim empty) is still an intentional skip and falls through to the '' sentinel below. This
+    // mirrors the /settings limitations path, which re-prompts on the same input.
+    if (limitations == null && input.text.trim() !== "") {
+      return { nextState: "profile", reply: t("onboarding.restrictionsInvalid"), buttons: restrictionButtons(t) };
+    }
+    // Surface a dropped tail instead of truncating silently — the question solicits a full list.
+    const notice = limitationsTruncated(input.text)
+      ? t("settings.limitationsTruncated", { max: LIMITATIONS_MAX_LEN }) + "\n\n"
+      : "";
     return {
       nextState: "active",
-      reply: t("onboarding.done"),
+      reply: notice + t("onboarding.done"),
       patch: {
         restrictions: parseRestrictions(input.text),
-        // ?? "": an answer that normalizes to nothing is still an ANSWER, and must land as the
-        // skip sentinel rather than re-opening the question forever.
-        limitations: parseLimitations(input.text) ?? "",
+        // ?? "": a whitespace-only answer is an intentional skip and must land as the sentinel
+        // rather than re-opening the question forever.
+        limitations: limitations ?? "",
       },
     };
   }

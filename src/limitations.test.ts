@@ -3,6 +3,7 @@ import {
   LIMITATIONS_DISPLAY_LEN,
   LIMITATIONS_MAX_LEN,
   limitationsDisplay,
+  limitationsTruncated,
   parseLimitations,
 } from "./limitations.ts";
 
@@ -104,5 +105,27 @@ describe("limitationsDisplay", () => {
   test("a value exactly at the limit is not truncated", () => {
     const exact = "c".repeat(LIMITATIONS_DISPLAY_LEN);
     expect(limitationsDisplay(exact)).toBe(exact);
+  });
+
+  test("re-contains a hand-edited hostile value — the display sink, not just the prompt", () => {
+    // A DB row that never passed parseLimitations (bidi override + control char) must not reach
+    // the plain-text /settings or /me card raw, where Telegram would honour the U+202E reversal.
+    expect(limitationsDisplay("no ‮ peanuts")).toBe("no peanuts");
+    expect(limitationsDisplay("no \u0007 peanuts")).toBe("no peanuts"); // C0 control stripped
+    expect(limitationsDisplay("a\uD800b")).not.toMatch(LONE_SURROGATE); // lone surrogate scrubbed
+  });
+});
+
+describe("limitationsTruncated", () => {
+  test("true only when the NORMALIZED length exceeds the cap", () => {
+    expect(limitationsTruncated("a".repeat(LIMITATIONS_MAX_LEN + 1))).toBe(true);
+    expect(limitationsTruncated("a".repeat(LIMITATIONS_MAX_LEN))).toBe(false);
+  });
+
+  test("measures what parseLimitations keeps — whitespace collapses before the count", () => {
+    // 300 single-letter words joined by spaces is 599 raw chars but normalizes to 599 → truncated;
+    // 150 words normalizes to 299 → not.
+    expect(limitationsTruncated("a ".repeat(150).trim())).toBe(false); // -> 299 chars
+    expect(limitationsTruncated("a ".repeat(300).trim())).toBe(true); // -> 599 chars
   });
 });

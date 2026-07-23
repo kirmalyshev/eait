@@ -268,12 +268,22 @@ async function applyRestrictionFallback(
   if (input.type !== "text" || !input.text.trim()) return;
   if (r.patch?.restrictions === undefined || r.patch.restrictions.length > 0) return;
 
-  // Metered like every other provider call ("every LLM call draws one"), but deliberately NOT
-  // cap-gated: refusing an onboarding step over a spend cap would strand the user mid-flow,
-  // and this path runs at most once per user.
-  if (u) await logLlmCall(deps.db, u.telegram_id, berlinDate(new Date(), deps.config.tz), "classify");
-  const tags = await classifyRestrictions(input.text, deps.provider, translatorLangOf(u));
-  if (tags.length) r.patch.restrictions = tags;
+  // This is a REFINEMENT: the deterministic parse (keyword tags + raw limitations) is already in
+  // `r.patch` and must persist even if this path fails, so the whole thing is guarded. The LLM
+  // classifier itself never throws (it catches internally and returns []), but the metering write
+  // `logLlmCall` can — and a throw here would propagate past the caller and skip `applyOnboarding`
+  // entirely, discarding an answer that needed no model. The model may only IMPROVE the tags.
+  try {
+    // Metered like every other provider call ("every LLM call draws one"), but deliberately NOT
+    // cap-gated: refusing an onboarding step over a spend cap would strand the user mid-flow,
+    // and this path runs at most once per user.
+    if (u) await logLlmCall(deps.db, u.telegram_id, berlinDate(new Date(), deps.config.tz), "classify");
+    const tags = await classifyRestrictions(input.text, deps.provider, translatorLangOf(u));
+    if (tags.length) r.patch.restrictions = tags;
+  } catch (e) {
+    // Keep the keyword-only result already in r.patch; the answer (tags + limitations) still saves.
+    console.error(`[eait] restriction classify/meter failed, keeping keyword parse: ${describeError(e)}`);
+  }
 }
 
 const translatorLangOf = (u: UserRow | undefined): Lang => (u ? profileOf(u).lang : DEFAULT_LANG);

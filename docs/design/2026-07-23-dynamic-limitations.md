@@ -218,6 +218,9 @@ New keys (all three locales; the parity test fails until they match):
 - `settings.button.clearLimitations`
 - `settings.askLimitations`
 - `settings.limitationsCurrent`
+- `settings.limitationsInvalid` (empty re-prompt notice)
+- `settings.limitationsTruncated` (over-length notice, shared by the onboarding path)
+- `onboarding.restrictionsInvalid` (all-invisible answer re-ask)
 - `me.limitationsLine`
 - `me.noLimitations`
 
@@ -301,3 +304,19 @@ them.
 - Multiple named limitations as separate rows — one free-text field is the whole feature
 - Reconciling restrictions and limitations (deduping the rows, cascading a tag un-toggle into the
   prose) — decided against above; they are independent by design
+- A branded `ContainedText` type to make containment a compile-time guarantee (raised in review) —
+  the tactical fix (containment shared in `prompt_text.ts`, re-applied at every prompt AND display
+  sink, lone surrogates stripped so the "contained" set is complete) closes the actual hole; the
+  brand is deferred rather than adopted, consistent with this codebase carrying invariants in
+  focused functions + AGENTS.md rather than the type system
+
+## Containment (post-review hardening)
+
+`src/prompt_text.ts` is the single containment primitive, shared by `parseLimitations` and
+`parseCountry` and re-applied at both display sinks (`limitationsDisplay`, `countryLabel`'s
+free-text branch) — not just the prompt sink. It strips control chars, dangerous invisibles/bidi
+(overrides, marks, isolates U+2066–U+2069, BOM) and lone surrogates, but DELIBERATELY preserves
+U+200C/U+200D (ZWJ/ZWNJ) — meaningful joiners for emoji sequences and Persian/Arabic orthography
+that carry no injection risk. Over-length input truncates by code point (never splitting an astral
+character) and the loss is surfaced to the user (`limitationsTruncated` → a notice at both write
+boundaries), never silent.

@@ -217,6 +217,23 @@ describe("happy path consent -> profile -> active", () => {
     expect(r.nextState).toBe("active");
   });
 
+  // A non-empty answer that normalizes to nothing (all bidi/invisible) is not a real answer;
+  // mirrors the /settings re-prompt rather than silently recording a skip and saying "done".
+  test("an all-invisible restrictions answer re-asks instead of recording a skip", () => {
+    const r = step(user(atRestrictions), { type: "text", text: "‮​﻿" }, t);
+    expect(r.nextState).toBe("profile"); // stays at the restrictions step, not active
+    expect(r.patch).toBeUndefined();
+    expect(r.reply).toBe(t("onboarding.restrictionsInvalid"));
+  });
+
+  test("a long restrictions answer stores the first 300 chars AND flags the truncation", () => {
+    const r = step(user(atRestrictions), { type: "text", text: "x".repeat(400) }, t);
+    expect(r.nextState).toBe("active");
+    expect(r.patch?.limitations).toHaveLength(300);
+    // The silent-loss guard: onboarding echoes nothing otherwise, so a dropped tail must be named.
+    expect(r.reply).toContain(t("settings.limitationsTruncated", { max: 300 }));
+  });
+
   test("the stored limitation is normalized (single line, no quotes)", () => {
     const r = step(user(atRestrictions), { type: "text", text: 'no  "junk"\nno peanuts' }, t);
     expect(r.patch?.limitations).toBe("no junk no peanuts");

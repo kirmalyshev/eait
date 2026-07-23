@@ -270,10 +270,28 @@ describe("limitations (free text)", () => {
     expect(v.patch).toEqual({ restrictions: [] }); // limitations NOT in the patch
   });
 
-  test("an over-length typed value is truncated, never rejected", () => {
+  test("an over-length typed value is truncated AND the user is told, never silently", () => {
     const v = settingsInput("limitations", "a".repeat(500), profile(), t);
     expect(v.patch?.limitations).toHaveLength(300);
     expect(v.awaitInput).toBeUndefined();
+    // The loss must be visible — the root only shows the first 60 chars, so without this the user
+    // would never know their tail was dropped.
+    expect(v.text).toContain(t("settings.limitationsTruncated", { max: 300 }));
+  });
+
+  test("an in-length value shows NO truncation notice", () => {
+    const v = settingsInput("limitations", "no peanuts", profile(), t);
+    expect(v.text).not.toContain(t("settings.limitationsTruncated", { max: 300 }));
+  });
+
+  // The 4th cell of limitationsPrompt's (headline × current) grid: invalid headline, NO current
+  // value. Reachable when a user with no limitation opens the prompt and sends whitespace.
+  test("empty input with no existing value re-prompts with the invalid notice and only Back", () => {
+    const v = settingsInput("limitations", "   \n ", profile({ limitations: null }), t);
+    expect(v.awaitInput).toBe("limitations");
+    expect(v.patch).toBeUndefined();
+    expect(v.text).toContain(t("settings.limitationsInvalid"));
+    expect(data(v)).toEqual(["st:root"]); // no Clear button over an empty field
   });
 });
 

@@ -60,9 +60,10 @@ export function countryForPrompt(country: string | null | undefined): string | n
   return isCountryCode(country) ? COUNTRY_EN[country] : country;
 }
 
-/** A stored country's display label: a known code → its localized name; a raw string → itself. */
+/** A stored country's display label: a known code → its localized name; a raw string → itself,
+ * re-contained (a hand-edited "other" row could carry a bidi override the card would honour). */
 export function countryLabel(country: string, t: TFunction): string {
-  return isCountryCode(country) ? t(`country.${country}`) : country;
+  return isCountryCode(country) ? t(`country.${country}`) : normalizePromptText(country);
 }
 
 // Free-typed country ("Other"): stored roughly as typed for display and the prompt. Normalization
