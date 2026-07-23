@@ -181,7 +181,7 @@ step 4.
 
 ### 7. Check it end to end
 
-From an allowlisted Telegram account: send `/start`, complete consent → goal → restrictions,
+From an allowlisted Telegram account: send `/start`, complete consent → goal → weight → target → country → restrictions,
 then send a photo of food. You should get an estimate plus a running daily total. Try a few
 more interactions: type what you ate in text (confirm the prompt → tap Log), ask a nutrition
 question, and reply to the analysis with a correction ("half that portion") — confirm the
