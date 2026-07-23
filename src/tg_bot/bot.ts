@@ -143,9 +143,11 @@ export function profileOf(u: UserRow): Profile {
     // '' is the db's "explicitly skipped" sentinel — outside the boundary it means unknown.
     country: u.country ? u.country : null,
     restrictions: u.restrictions,
-    // '' is the skip sentinel here too. No vocabulary to validate against, so no warn: any
-    // stored string is a legitimate limitation.
-    limitations: u.limitations ? u.limitations : null,
+    // '' is the skip sentinel on each. No vocabulary to validate against, so no warn: any stored
+    // string is a legitimate value.
+    medical_limitations: u.medical_limitations ? u.medical_limitations : null,
+    food_allergies: u.food_allergies ? u.food_allergies : null,
+    product_limitations: u.product_limitations ? u.product_limitations : null,
     // Same validation rule as lang: junk means "never chose", so the instance default applies.
     reply_format: isReplyFormat(u.reply_format) ? u.reply_format : null,
   };
@@ -191,7 +193,7 @@ export async function applyOnboarding(db: Db, telegram_id: number, r: Onboarding
     target_weight_kg: r.patch?.target_weight_kg,
     country: r.patch?.country,
     restrictions: r.patch?.restrictions,
-    limitations: r.patch?.limitations,
+    medical_limitations: r.patch?.medical_limitations,
     state: r.nextState,
   });
 }
@@ -577,7 +579,9 @@ async function applySettingsView(
       weight_kg: v.patch.weight_kg,
       target_weight_kg: v.patch.target_weight_kg,
       country: v.patch.country,
-      limitations: v.patch.limitations,
+      medical_limitations: v.patch.medical_limitations,
+      food_allergies: v.patch.food_allergies,
+      product_limitations: v.patch.product_limitations,
     });
   }
   // A prompt view arms pending_input; every other view (including a completed edit) clears it, so
@@ -1105,10 +1109,16 @@ export async function meCard(deps: BotDeps, userId: number): Promise<string | nu
   // Progress line only when both weights are known: at-goal vs. absolute distance to the target.
   const remaining = weightRemainingKg(prof);
   const lines = [profileLine];
-  // Its own line, and only when set: profileLine already carries five fields, and a sixth
-  // free-text one would make it unreadable on a phone. Absent means absent — no "none" row.
-  if (prof.limitations) {
-    lines.push(t("me.limitationsLine", { limitations: limitationsDisplay(prof.limitations) }));
+  // Each food-specifics field its own line, and only when set — profileLine already carries five
+  // fields, so free-text ones go below it, and absent means absent (no "none" row).
+  if (prof.medical_limitations) {
+    lines.push(t("me.medicalLine", { value: limitationsDisplay(prof.medical_limitations) }));
+  }
+  if (prof.food_allergies) {
+    lines.push(t("me.allergiesLine", { value: limitationsDisplay(prof.food_allergies) }));
+  }
+  if (prof.product_limitations) {
+    lines.push(t("me.productsLine", { value: limitationsDisplay(prof.product_limitations) }));
   }
   if (remaining !== null) {
     lines.push(remaining === 0 ? t("me.atGoal") : t("me.toGoal", { kg: Math.abs(remaining) }));

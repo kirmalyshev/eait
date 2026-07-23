@@ -95,7 +95,9 @@ describe("migration 2 upgrade path (pre-existing databases, not fresh creates)",
     await a`ALTER TABLE users DROP COLUMN target_weight_kg`;
     await a`ALTER TABLE users DROP COLUMN country`;
     await a`ALTER TABLE users DROP COLUMN pending_input`;
-    await a`ALTER TABLE users DROP COLUMN limitations`;
+    await a`ALTER TABLE users DROP COLUMN medical_limitations`;
+    await a`ALTER TABLE users DROP COLUMN food_allergies`;
+    await a`ALTER TABLE users DROP COLUMN product_limitations`;
     await a`ALTER TABLE meals DROP COLUMN user_message_id`;
     await a`DROP TABLE pending_meals`;
     await a`DROP TABLE llm_calls`;
@@ -109,7 +111,7 @@ describe("migration 2 upgrade path (pre-existing databases, not fresh creates)",
     await a.close();
 
     const b = await openTestDb(name); // migrations 2+3+4+5 run against existing rows
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(6);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(7);
     // Active user: never asked — NULL, and never re-asked (resume() skips active users).
     expect((await getUser(b, 1))!.weight_kg).toBeNull();
     // Restrictions-step user: backfilled to the skip sentinel, or their next message — composed
@@ -153,12 +155,14 @@ describe("reply_format (migration 4)", () => {
     await a`ALTER TABLE users DROP COLUMN target_weight_kg`;
     await a`ALTER TABLE users DROP COLUMN country`;
     await a`ALTER TABLE users DROP COLUMN pending_input`;
-    await a`ALTER TABLE users DROP COLUMN limitations`;
+    await a`ALTER TABLE users DROP COLUMN medical_limitations`;
+    await a`ALTER TABLE users DROP COLUMN food_allergies`;
+    await a`ALTER TABLE users DROP COLUMN product_limitations`;
     await a`UPDATE schema_version SET version = 3`;
     await upsertUser(a, { telegram_id: 7 });
     await a.close();
     const b = await openTestDb(name); // migration 4 (and 5) run against the existing row
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(6);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(7);
     expect((await getUser(b, 7))!.reply_format).toBeNull();
     // Write-back proves the column was really added (getUser's `?? null` would mask a no-op
     // migration: a missing column reads as undefined ?? null too).
@@ -212,7 +216,9 @@ describe("target weight + country + pending_input (migration 5)", () => {
     await a`ALTER TABLE users DROP COLUMN target_weight_kg`;
     await a`ALTER TABLE users DROP COLUMN country`;
     await a`ALTER TABLE users DROP COLUMN pending_input`;
-    await a`ALTER TABLE users DROP COLUMN limitations`;
+    await a`ALTER TABLE users DROP COLUMN medical_limitations`;
+    await a`ALTER TABLE users DROP COLUMN food_allergies`;
+    await a`ALTER TABLE users DROP COLUMN product_limitations`;
     await a`UPDATE schema_version SET version = 4`;
     await upsertUser(a, { telegram_id: 1 });
     await setProfile(a, 1, { goal: "lose", weight_kg: 90, restrictions: [], state: "active" });
@@ -223,7 +229,7 @@ describe("target weight + country + pending_input (migration 5)", () => {
     await a.close();
 
     const b = await openTestDb(name); // migration 5 runs against existing rows
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(6);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(7);
     // Active user: never asked, never re-asked (resume() skips active users).
     expect((await getUser(b, 1))!.target_weight_kg).toBeNull();
     expect((await getUser(b, 1))!.country).toBeNull();
@@ -237,23 +243,36 @@ describe("target weight + country + pending_input (migration 5)", () => {
   });
 });
 
-describe("limitations (migration 6)", () => {
-  test("a new user has no limitations; setProfile stores and getUser returns them", async () => {
+describe("food specifics — 3 free-text fields (migration 7)", () => {
+  test("a new user has none of the three; setProfile stores and getUser returns each", async () => {
     const db = await freshTestDb();
     await upsertUser(db, { telegram_id: 1 });
-    expect((await getUser(db, 1))!.limitations).toBeNull();
-    await setProfile(db, 1, { limitations: "no peanuts, gastritis" });
-    expect((await getUser(db, 1))!.limitations).toBe("no peanuts, gastritis");
+    const u0 = (await getUser(db, 1))!;
+    expect(u0.medical_limitations).toBeNull();
+    expect(u0.food_allergies).toBeNull();
+    expect(u0.product_limitations).toBeNull();
+    await setProfile(db, 1, {
+      medical_limitations: "CKD stage 3",
+      food_allergies: "peanuts, shellfish",
+      product_limitations: "no buckwheat",
+    });
+    const u1 = (await getUser(db, 1))!;
+    expect(u1.medical_limitations).toBe("CKD stage 3");
+    expect(u1.food_allergies).toBe("peanuts, shellfish");
+    expect(u1.product_limitations).toBe("no buckwheat");
   });
 
-  test("limitations '' (the skip sentinel) round-trips distinctly from null", async () => {
+  test("each field's '' skip sentinel round-trips distinctly from null, independently", async () => {
     const db = await freshTestDb();
     await upsertUser(db, { telegram_id: 2 });
-    await setProfile(db, 2, { limitations: "" });
-    expect((await getUser(db, 2))!.limitations).toBe("");
+    await setProfile(db, 2, { food_allergies: "" }); // only one set to the sentinel
+    const u = (await getUser(db, 2))!;
+    expect(u.food_allergies).toBe("");
+    expect(u.medical_limitations).toBeNull(); // the others stay untouched
+    expect(u.product_limitations).toBeNull();
   });
 
-  test("setProfile({}) still no-ops now that limitations joined the whitelist", async () => {
+  test("setProfile({}) still no-ops now that three fields joined the whitelist", async () => {
     const db = await freshTestDb();
     await upsertUser(db, { telegram_id: 3 });
     await setProfile(db, 3, { goal: "lose" });
@@ -261,31 +280,37 @@ describe("limitations (migration 6)", () => {
     expect((await getUser(db, 3))!.goal).toBe("lose");
   });
 
-  test("migration 6 adds the column and backfills NOTHING", async () => {
+  test("migration 7 adds the three columns, moves limitations→product_limitations, drops limitations", async () => {
     const name = freshTestName();
     const a = await openTestDb(name);
-    // Rewind to v5: drop the v6 column and reset the version, then seed pre-migration rows
-    // in every onboarding position.
-    await a`ALTER TABLE users DROP COLUMN limitations`;
-    await a`UPDATE schema_version SET version = 5`;
-    await upsertUser(a, { telegram_id: 1 }); // active
-    await setProfile(a, 1, { goal: "lose", weight_kg: 90, restrictions: [], state: "active" });
-    await upsertUser(a, { telegram_id: 2 }); // mid-flow, at the restrictions step
-    await setProfile(a, 2, { goal: "maintain", weight_kg: 80, target_weight_kg: 75, country: "de", state: "profile" });
-    await upsertUser(a, { telegram_id: 3 }); // mid-flow, at the goal step
-    await setProfile(a, 3, { state: "profile" });
+    // Rewind to v6: drop the v7 columns, re-add the v6 `limitations` column, reset the version.
+    await a`ALTER TABLE users DROP COLUMN medical_limitations`;
+    await a`ALTER TABLE users DROP COLUMN food_allergies`;
+    await a`ALTER TABLE users DROP COLUMN product_limitations`;
+    await a`ALTER TABLE users ADD COLUMN limitations TEXT`;
+    await a`UPDATE schema_version SET version = 6`;
+    await upsertUser(a, { telegram_id: 1 }); // has a real free-text value
+    await setProfile(a, 1, { goal: "lose", state: "active" });
+    await a`UPDATE users SET limitations = 'низя есть гречку' WHERE telegram_id = 1`;
+    await upsertUser(a, { telegram_id: 2 }); // has the '' skip sentinel
+    await a`UPDATE users SET limitations = '' WHERE telegram_id = 2`;
+    await upsertUser(a, { telegram_id: 3 }); // never set (NULL)
     await a.close();
 
     const b = await openTestDb(name);
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(6);
-    // No step was inserted and the flow order did not change, so no user can have their next
-    // message eaten by a new question — which is exactly why v6 needs no backfill (v2 and v5 did).
-    expect((await getUser(b, 1))!.limitations).toBeNull();
-    expect((await getUser(b, 2))!.limitations).toBeNull();
-    expect((await getUser(b, 3))!.limitations).toBeNull();
-    // Everything else survives untouched.
-    expect((await getUser(b, 2))!.country).toBe("de");
-    expect((await getUser(b, 2))!.goal).toBe("maintain");
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(7);
+    // The real value moves to product_limitations; the other two new fields start NULL.
+    const u1 = (await getUser(b, 1))!;
+    expect(u1.product_limitations).toBe("низя есть гречку");
+    expect(u1.medical_limitations).toBeNull();
+    expect(u1.food_allergies).toBeNull();
+    expect(u1.goal).toBe("lose"); // untouched
+    // The '' sentinel was not a real value → not migrated; everything starts NULL.
+    expect((await getUser(b, 2))!.product_limitations).toBeNull();
+    expect((await getUser(b, 3))!.product_limitations).toBeNull();
+    // The old column is gone.
+    const cols = await b`SELECT column_name FROM information_schema.columns WHERE table_name='users' AND column_name='limitations'`;
+    expect(cols.length).toBe(0);
   });
 });
 
@@ -305,7 +330,7 @@ describe("openDb + migrations", () => {
   test("auto-creates a missing database and records the schema version", async () => {
     const db = await freshTestDb();
     const rows = await db`SELECT version FROM schema_version`;
-    expect(Number(rows[0].version)).toBe(6);
+    expect(Number(rows[0].version)).toBe(7);
   });
 
   test("reopening is idempotent — data survives, migrations do not rerun", async () => {
@@ -315,7 +340,7 @@ describe("openDb + migrations", () => {
     await a.close();
     const b = await openTestDb(name);
     expect((await getUser(b, 1))?.username).toBe("keepme");
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(6);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(7);
   });
 
   test("two concurrent openDb calls on a missing database both succeed (create race)", async () => {
@@ -818,7 +843,9 @@ describe("review fixes — db layer", () => {
     await a`ALTER TABLE users DROP COLUMN target_weight_kg`;
     await a`ALTER TABLE users DROP COLUMN country`;
     await a`ALTER TABLE users DROP COLUMN pending_input`;
-    await a`ALTER TABLE users DROP COLUMN limitations`;
+    await a`ALTER TABLE users DROP COLUMN medical_limitations`;
+    await a`ALTER TABLE users DROP COLUMN food_allergies`;
+    await a`ALTER TABLE users DROP COLUMN product_limitations`;
     await a`ALTER TABLE meals DROP COLUMN user_message_id`;
     await a`DROP TABLE pending_meals`;
     await a`DROP TABLE llm_calls`;

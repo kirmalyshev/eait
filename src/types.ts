@@ -32,15 +32,17 @@ export interface Profile {
   country?: string | null;
   restrictions: string[]; // tags e.g. ["kidneys","ldl","vegan","lowsugar"]
   /**
-   * Free-text personal limitations, prompt-only — everything the closed `restrictions` vocabulary
-   * cannot express ("no peanuts", "low FODMAP", "gastritis — nothing spicy"). Unlike a restriction
-   * tag it drives no numeric cap and no verdict dimension; it is injected into the analyzer prompt
-   * verbatim. null = unknown; the db's '' skip sentinel is mapped to null before it lands here.
-   * Required-with-null (like `goal`/`reply_format`; the weight/country fields are the looser
-   * optional-with-null), so a new boundary that forgets to map it fails the build rather than
-   * silently dropping the user's limitations from the prompt.
+   * Free-text "food specifics", prompt-only — everything the closed `restrictions` vocabulary
+   * cannot express. Three labelled fields: medical conditions/needs, food allergies
+   * (safety-critical), and specific products the user avoids. None drives a numeric cap or a
+   * verdict dimension; each is injected into the analyzer prompt verbatim on its own labelled line.
+   * null = unknown; the db's '' skip sentinel maps to null before it lands here. Required-with-null
+   * (like `goal`/`reply_format`), so a boundary that forgets to map one fails the build rather than
+   * silently dropping it from the prompt.
    */
-  limitations: string | null;
+  medical_limitations: string | null;
+  food_allergies: string | null;
+  product_limitations: string | null;
   /**
    * Card rendering: the user's RAW /settings choice; null = never picked (instance default
    * applies). Resolution to the effective value happens in bot.ts (`replyFormatFor`); the

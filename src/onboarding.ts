@@ -53,9 +53,11 @@ export interface OnboardingResult {
     target_weight_kg?: number;
     country?: string;
     restrictions?: string[];
-    /** The restrictions answer kept VERBATIM (normalized), alongside the tags parsed from it.
-     * '' is the explicit-skip sentinel — persist with `!== undefined`, never a truthiness check. */
-    limitations?: string;
+    /** The restrictions answer kept VERBATIM (normalized) into the medical-limitations catch-all,
+     * alongside the tags parsed from it. A one-shot onboarding question can't sort text into the
+     * three food-specifics fields, so it lands in the broad one; allergies + products are settings
+     * refinements. '' is the explicit-skip sentinel — persist with `!== undefined`, never truthiness. */
+    medical_limitations?: string;
   };
   buttons?: InlineButton[][];
 }
@@ -239,7 +241,7 @@ export function step(
         return {
           nextState: "active",
           reply: t("onboarding.done"),
-          patch: { restrictions: [], limitations: "" },
+          patch: { restrictions: [], medical_limitations: "" },
         };
       default: {
         const goal = GOAL_FROM_DATA[input.data];
@@ -300,16 +302,16 @@ export function step(
     };
   }
   if (restrictionsOpen(u)) {
-    // The one question feeds BOTH fields: the closed vocabulary takes what it can classify
-    // (tags → numeric caps + structured verdicts), and the raw words are kept as free-text
-    // limitations for the prompt. Before this, anything outside the four tags — "no peanuts",
-    // "gastritis" — was parsed to nothing and thrown away.
-    const limitations = parseLimitations(input.text);
+    // The one question feeds BOTH sides: the closed vocabulary takes what it can classify (tags →
+    // numeric caps + structured verdicts), and the raw words land in the medical-limitations
+    // catch-all for the prompt. Anything outside the four tags — "no peanuts", "gastritis" — used
+    // to be parsed to nothing and thrown away.
+    const medical = parseLimitations(input.text);
     // A NON-EMPTY answer that normalizes to nothing (all quotes/control/invisible/bidi) is not a
     // real answer — re-ask rather than silently recording a skip and saying "done". Whitespace-only
     // (trim empty) is still an intentional skip and falls through to the '' sentinel below. This
-    // mirrors the /settings limitations path, which re-prompts on the same input.
-    if (limitations == null && input.text.trim() !== "") {
+    // mirrors the /settings food-specifics paths, which re-prompt on the same input.
+    if (medical == null && input.text.trim() !== "") {
       return { nextState: "profile", reply: t("onboarding.restrictionsInvalid"), buttons: restrictionButtons(t) };
     }
     // Surface a dropped tail instead of truncating silently — the question solicits a full list.
@@ -323,7 +325,7 @@ export function step(
         restrictions: parseRestrictions(input.text),
         // ?? "": a whitespace-only answer is an intentional skip and must land as the sentinel
         // rather than re-opening the question forever.
-        limitations: limitations ?? "",
+        medical_limitations: medical ?? "",
       },
     };
   }
