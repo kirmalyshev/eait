@@ -33,7 +33,8 @@ export function renderMealCard(
   t: TFunction,
   // Footer/prefix are the caller's decision, matching the plain rendering site by site — a
   // correction reply deliberately carries no hint, and rich mode must not re-add the nag.
-  opts?: { footer?: string; prefix?: string },
+  // dateLabel present ⇒ the meal is NOT for today: name the day and label the progress table.
+  opts?: { footer?: string; prefix?: string; dateLabel?: string },
 ): string {
   const title = meal.items.length
     ? meal.items.map((i) => t("meal.itemUnit", { name: i.name, grams: round(i.grams) })).join(", ")
@@ -42,6 +43,7 @@ export function renderMealCard(
   const parts: string[] = [];
   if (opts?.prefix) parts.push(`<p>${escapeHtml(opts.prefix)}</p>`);
   parts.push(`<h3>🍽 ${escapeHtml(title)}</h3>`);
+  if (opts?.dateLabel) parts.push(`<p>${escapeHtml(t("meal.loggedForDate", { date: opts.dateLabel }))}</p>`);
 
   const rows: Array<[string, string]> = [
     [`🔥 ${t("rich.calories")}`, `${round(meal.kcal)} kcal`],
@@ -59,7 +61,10 @@ export function renderMealCard(
     parts.push(`<blockquote>📝 ${escapeHtml(meal.notes.trim())}</blockquote>`);
   }
 
-  parts.push(`<h4>📊 ${escapeHtml(t("rich.todaysProgress"))}</h4>`);
+  const progressHead = opts?.dateLabel
+    ? t("rich.progressForDate", { date: opts.dateLabel })
+    : t("rich.todaysProgress");
+  parts.push(`<h4>📊 ${escapeHtml(progressHead)}</h4>`);
   const progress: Array<[string, string]> = [
     [`🔥 ${t("rich.calories")}`, `${round(totals.kcal)} / ${targets.kcal} kcal`],
     [`🥩 ${t("rich.protein")}`, `${round(totals.protein_g)} / ${targets.protein_g} g`],

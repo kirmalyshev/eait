@@ -1,5 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import { formatReply, verdictEmoji, type FormatMeal } from "./reply.ts";
+import { describe, expect, test, spyOn } from "bun:test";
+import { formatReply, berlinDayLabel, mealDateLabel, verdictEmoji, type FormatMeal } from "./reply.ts";
 import { LANGS, translatorFor } from "./i18n/index.ts";
 import type { DailyTotals, FoodTargets, MealVerdicts } from "./types.ts";
 
@@ -46,6 +46,64 @@ describe("verdictEmoji", () => {
     expect(verdictEmoji("good")).toBe("✅");
     expect(verdictEmoji("warn")).toBe("⚠️");
     expect(verdictEmoji("bad")).toBe("❌");
+  });
+});
+
+describe("berlinDayLabel", () => {
+  test("renders the stored calendar day in the locale, Berlin tz", () => {
+    // 2026-07-21 is a Tuesday.
+    expect(berlinDayLabel("2026-07-21", "en")).toMatch(/Tue/);
+    expect(berlinDayLabel("2026-07-21", "en")).toMatch(/21/);
+    expect(berlinDayLabel("2026-07-21", "en")).toMatch(/Jul/);
+  });
+  test("localizes month/weekday names without any catalog strings", () => {
+    expect(berlinDayLabel("2026-07-21", "de")).toMatch(/Di|Juli|Jul/); // German abbreviations
+    expect(berlinDayLabel("2026-07-21", "ru")).toMatch(/июл|вт/i); // Russian
+  });
+  test("the noon-UTC anchor keeps the day stable (no off-by-one at the boundary)", () => {
+    expect(berlinDayLabel("2026-01-01", "en")).toMatch(/1/); // not Dec 31
+    expect(berlinDayLabel("2026-01-01", "en")).toMatch(/Jan/);
+  });
+  test("the noon anchor holds the day WEST of UTC too, not just Berlin", () => {
+    // Sao Paulo is UTC-3; a midnight anchor would slip this to Jul 20. Pins the anchor's purpose.
+    expect(berlinDayLabel("2026-07-21", "en", "America/Sao_Paulo")).toMatch(/21/);
+  });
+  test("a malformed date degrades to the raw string and warns, never throws a RangeError", () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(() => berlinDayLabel("not-a-date", "en")).not.toThrow();
+      expect(berlinDayLabel("not-a-date", "en")).toBe("not-a-date");
+      // Rollover-valid strings (Feb 30) must NOT silently normalize to Mar 2 — they degrade too.
+      expect(berlinDayLabel("2026-02-30", "en")).toBe("2026-02-30");
+      expect(berlinDayLabel("2026-04-31", "en")).toBe("2026-04-31");
+      expect(warn).toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+});
+
+describe("mealDateLabel", () => {
+  test("same-day ⇒ undefined; a different day ⇒ the berlinDayLabel", () => {
+    expect(mealDateLabel("2026-07-22", "2026-07-22", "en")).toBeUndefined();
+    expect(mealDateLabel("2026-07-21", "2026-07-22", "en")).toBe(berlinDayLabel("2026-07-21", "en"));
+  });
+});
+
+describe("formatReply — dated meal", () => {
+  test("no dateLabel ⇒ byte-identical to the undated call (no regression)", () => {
+    const bare = formatReply(meal(), totals, targets(), ten);
+    const explicitUndefined = formatReply(meal(), totals, targets(), ten, {});
+    expect(explicitUndefined).toBe(bare);
+    expect(bare).toContain(ten("meal.totalKcal", { now: 1850, target: 2100 }));
+  });
+
+  test("a dateLabel adds the 'For <date>' line and dates the kcal total", () => {
+    const r = formatReply(meal(), totals, targets(), ten, { dateLabel: "Tue 21 Jul" });
+    expect(r).toContain("Tue 21 Jul");
+    expect(r).toContain(ten("meal.loggedForDate", { date: "Tue 21 Jul" }));
+    expect(r).toContain(ten("meal.totalKcalDated", { date: "Tue 21 Jul", now: 1850, target: 2100 }));
+    expect(r).not.toContain(ten("meal.totalKcal", { now: 1850, target: 2100 })); // "Today:" gone
   });
 });
 

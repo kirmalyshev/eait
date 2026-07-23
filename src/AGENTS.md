@@ -10,7 +10,9 @@ the composition root and is allowed to know about the front end it starts. See t
 - **Meal queries** are always `WHERE id = ? AND user_id = ?`; meal `id` = `crypto.randomUUID()`. Never a timestamp, never cross-user.
 - **The analyzer owns the prompt and the zod parse.** `llm/` is transport only — no prompt strings, no meal-schema knowledge in the provider.
 - **Images are ephemeral.** Bytes reach `analyzeMeal` in memory and are dropped; no image is ever written to disk and no photo path is stored.
-- **Dates** use `Europe/Berlin` (`berlinDate` in `db.ts`), not UTC.
+- **Dates** use `Europe/Berlin` (`berlinDate` in `db.ts`), not UTC. To shift a stored `YYYY-MM-DD` by whole days, use `berlinDateMinus(date, n)` — calendar subtraction, DST-safe. **Never** `berlinDate(new Date(Date.now() - n*86_400_000))`: subtracting fixed 24h spans then re-deriving a Berlin date is off by one across a DST transition near midnight.
+- **`RouteResult` is constructed only in `routeText`.** Its `meal` variant's `dayOffset` MUST pass through `clampDayOffset` (→ integer `[0,7]`; out-of-contract values are clamped **and** warned). There is exactly one construction site; keep it that way, or the "normalized" invariant (carried by convention, not the type) breaks.
+- **Relative meal dates are text-only and set-once.** A text meal's `dayOffset` fixes its day; `applyCorrection` never changes a meal's `date`, and there is no per-meal delete — a mis-dated meal is only recoverable by wiping the whole account (`/delete` erases every meal) and re-entering. The confirm prompt naming the resolved date is the guard against a misparse — do not remove it.
 - **No user-facing copy** outside `i18n/locales/*.json`. `reply.ts`, `onboarding.ts`, and `settings.ts` render only via a translator passed in from the caller. Layout separators (`"
 "`, `", "`) are the exception and stay in code — a locale cannot currently reorder them.
 - **`translatorFor(lang)`, never `i18n.changeLanguage()`.** Users are served concurrently, so a global language switch can render one user's locale into another's in-flight reply.

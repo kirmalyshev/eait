@@ -5,6 +5,7 @@ import { cleanupTestDbs, freshTestDb, freshTestName, openTestDb } from "./testut
 import {
   applyCorrection,
   berlinDate,
+  berlinDateMinus,
   berlinTime,
   countMealsToday,
   dailyTotals,
@@ -358,6 +359,35 @@ describe("berlinDate is TZ-correct at the midnight boundary", () => {
   });
   test("midday is same day", () => {
     expect(berlinDate(new Date("2026-07-21T10:00:00Z"))).toBe("2026-07-21");
+  });
+});
+
+describe("berlinDateMinus subtracts calendar days, DST-safe", () => {
+  // Hardcoded expectations — NOT derived from the production formula, so a DST/arithmetic bug
+  // in berlinDateMinus cannot hide by matching the assertion.
+  test("plain subtraction", () => {
+    expect(berlinDateMinus("2026-07-22", 0)).toBe("2026-07-22");
+    expect(berlinDateMinus("2026-07-22", 1)).toBe("2026-07-21");
+    expect(berlinDateMinus("2026-07-22", 7)).toBe("2026-07-15");
+  });
+  test("crosses the spring-forward transition (2026-03-29 is a 23h day) without slipping", () => {
+    expect(berlinDateMinus("2026-03-30", 1)).toBe("2026-03-29");
+    expect(berlinDateMinus("2026-03-30", 2)).toBe("2026-03-28");
+    expect(berlinDateMinus("2026-03-31", 7)).toBe("2026-03-24");
+  });
+  test("crosses the fall-back transition (2026-10-25 is a 25h day)", () => {
+    expect(berlinDateMinus("2026-10-26", 1)).toBe("2026-10-25");
+    expect(berlinDateMinus("2026-10-26", 2)).toBe("2026-10-24");
+  });
+  test("month and year boundaries", () => {
+    expect(berlinDateMinus("2026-03-01", 1)).toBe("2026-02-28"); // 2026 not a leap year
+    expect(berlinDateMinus("2024-03-01", 1)).toBe("2024-02-29"); // 2024 IS a leap year
+    expect(berlinDateMinus("2026-01-01", 1)).toBe("2025-12-31");
+  });
+  test("throws loudly on a non-calendar input (junk, rollover, or non-finite days)", () => {
+    expect(() => berlinDateMinus("not-a-date", 1)).toThrow(/non-calendar/);
+    expect(() => berlinDateMinus("2026-02-30", 1)).toThrow(/non-calendar/); // rollover, not silently Mar 2
+    expect(() => berlinDateMinus("2026-01-01", NaN)).toThrow(/non-calendar/);
   });
 });
 

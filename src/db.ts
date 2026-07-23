@@ -80,6 +80,38 @@ export function berlinDate(d: Date, tz = "Europe/Berlin"): string {
   }).format(d);
 }
 
+/**
+ * A strict `YYYY-MM-DD` → noon-UTC Date, or null. Rejects both junk (`"not-a-date"`, `""`) AND
+ * rollover-valid strings (`"2026-02-30"` → would silently become Mar 2 via JS Date normalization):
+ * the components must round-trip, so only a REAL calendar day passes. Noon avoids any tz edge.
+ */
+export function parseCalendarDate(date: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!m) return null;
+  const [, ys, ms, ds] = m;
+  const y = Number(ys), mo = Number(ms), d = Number(ds);
+  const dt = new Date(Date.UTC(y, mo - 1, d, 12));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+  return dt;
+}
+
+/**
+ * N calendar days before a YYYY-MM-DD, in calendar space. DST-safe: subtracting a fixed
+ * `days * 24h` from the *instant* and re-deriving a Berlin date is off by one when a transition
+ * falls in the span and the clock is near midnight (spring days are 23h). Operating on the
+ * already-Berlin calendar date in UTC space sidesteps that entirely — no tz needed, because
+ * `date` is already the local day. Throws on a non-calendar input: only `berlinDate` output
+ * (or another real date) is ever meant to reach it, so a bad value is a programming error, loud.
+ */
+export function berlinDateMinus(date: string, days: number): string {
+  const dt = parseCalendarDate(date);
+  if (!dt || !Number.isFinite(days)) {
+    throw new Error(`berlinDateMinus: non-calendar input date=${JSON.stringify(date)} days=${days}`);
+  }
+  dt.setUTCDate(dt.getUTCDate() - days);
+  return dt.toISOString().slice(0, 10);
+}
+
 /** HH:MM for an instant in the given IANA zone (default Europe/Berlin), not UTC. */
 export function berlinTime(d: Date, tz = "Europe/Berlin"): string {
   return new Intl.DateTimeFormat("en-GB", {

@@ -303,8 +303,25 @@ export interface RouteContext {
 
 export type RouteResult =
   | { intent: "question"; answer: string }
-  | { intent: "meal"; analysis: MealAnalysis }
+  | { intent: "meal"; analysis: MealAnalysis; dayOffset: number }
   | { intent: "correction"; analysis: MealAnalysis };
+
+/** Oldest day back a text meal can be dated to (offset 0 = today … 7 = a week ago) — mirrors the
+ * 7-day week context (weekStart = today − 7d), so offset 7 lands on the oldest day the router sees. */
+export const MAX_DAY_OFFSET = 7;
+
+/**
+ * Normalize the model's `dayOffset` (whole days before today the meal was eaten) into `[0, 7]`.
+ * Total and pure: a future date, junk, or a non-number all mean "today" (0); older than the
+ * window clamps to the edge (7); fractions truncate to whole days. Never trusts the raw value.
+ */
+export function clampDayOffset(n: unknown): number {
+  if (typeof n !== "number" || !Number.isFinite(n)) return 0;
+  const whole = Math.trunc(n);
+  if (whole < 0) return 0;
+  if (whole > MAX_DAY_OFFSET) return MAX_DAY_OFFSET;
+  return whole;
+}
 
 const ROUTE_JSON_SCHEMA = {
   type: "object",
@@ -316,6 +333,8 @@ const ROUTE_JSON_SCHEMA = {
     intent: { type: "string", enum: ["question", "meal", "correction"] },
     answer: { type: "string" },
     analysis: MEAL_JSON_SCHEMA,
+    // Whole days before today the meal was eaten (0 today, 1 yesterday). Meal intent only.
+    dayOffset: { type: "integer", minimum: 0, maximum: MAX_DAY_OFFSET },
   },
 } as const;
 
@@ -324,8 +343,11 @@ const SYSTEM_ROUTE =
   "Decide the intent and respond with ONLY one JSON object, no prose, no markdown fences: " +
   '{"intent":"question","answer":"..."} for questions or chat — answer helpfully and concisely ' +
   "from the provided diary context; " +
-  '{"intent":"meal","analysis":{...}} ONLY when the text describes food the user actually ate ' +
-  "(estimate the full analysis object from the description, following the estimation protocol); " +
+  '{"intent":"meal","analysis":{...},"dayOffset":N} ONLY when the text describes food the user ' +
+  "actually ate (estimate the full analysis object from the description, following the estimation " +
+  "protocol). Set dayOffset to the whole number of days before today the food was eaten — 0 for " +
+  `today (the default), 1 for yesterday, up to ${MAX_DAY_OFFSET}; a relative phrase like "yesterday" ` +
+  'or "2 days ago" sets it, otherwise use 0; ' +
   '{"intent":"correction","analysis":{...}} ONLY when a focus meal is provided and the text ' +
   "corrects that meal's estimate (return the full updated analysis object).";
 
@@ -333,6 +355,10 @@ const RouteSchema = z.object({
   intent: z.enum(["question", "meal", "correction"]),
   answer: z.string().optional(),
   analysis: MealAnalysisSchema.optional(),
+  // `unknown`, not `z.number()`: clampDayOffset is the normalizer and tolerates any junk (null,
+  // "1", 99, 2.5) — a strict number type here would REJECT the whole meal on a stringy/null offset
+  // (models commonly emit null for same-day), discarding a valid analysis. Clamp + warn instead.
+  dayOffset: z.unknown().optional(),
 });
 
 export async function routeText(
@@ -403,6 +429,17 @@ export async function routeText(
   if (!r.analysis.isFood) {
     throw new Error(`analyzer: ${r.intent} intent with isFood=false`);
   }
-  return { intent: r.intent, analysis: r.analysis };
+  // Only a NEW meal carries a relative date; a correction keeps its focus meal's date.
+  if (r.intent === "meal") {
+    const dayOffset = clampDayOffset(r.dayOffset);
+    // Surface model drift the way confidence/restriction-salvage do: a value the schema should
+    // have bounded arriving out of contract (future, >7, fractional, wrong type) means the model
+    // is off-spec — the clamp keeps us safe, the warn keeps the operator informed.
+    if (r.dayOffset !== undefined && r.dayOffset !== dayOffset) {
+      console.warn(`[eait] router: dayOffset ${JSON.stringify(r.dayOffset)} out of contract → ${dayOffset}`);
+    }
+    return { intent: "meal", analysis: r.analysis, dayOffset };
+  }
+  return { intent: "correction", analysis: r.analysis };
 }
 
