@@ -282,6 +282,16 @@ commit.
   provider with every analysis; `/delete` removes them with the row
 - `README.md` / `docs/SELF_HOSTING.md` — mention the field where the profile fields are listed
 
+## Decided: restrictions and limitations are independent axes
+
+The onboarding answer feeds both fields, so an answer with a known keyword ("kidneys, no sugar")
+lands on both `/settings` rows and reads as redundant. Reviewed and **kept as-is** (2026-07-23):
+never lose user input, and the two rows show genuinely different things — Restrictions is the
+active cap + verdict dimension, Limitations is the raw note to the model. Non-reconciliation is
+intentional: un-toggling a tag does not edit the prose, clearing the prose does not drop a tag.
+Each knob is cleared where it is set. Pinned by a test so a future "dedupe" doesn't quietly couple
+them.
+
 ## Out of scope
 
 - Numeric enforcement (parsing "sugar under 50g" into a `FoodTargets` cap) — explicitly deferred;
@@ -289,3 +299,5 @@ commit.
 - Replacing or retiring the four-tag `restrictions` vocabulary
 - Per-limitation structured verdicts (the `verdicts` schema stays `weight`/`ldl`/`kidneys`)
 - Multiple named limitations as separate rows — one free-text field is the whole feature
+- Reconciling restrictions and limitations (deduping the rows, cascading a tag un-toggle into the
+  prose) — decided against above; they are independent by design

@@ -257,6 +257,19 @@ describe("limitations (free text)", () => {
     expect(v.text).toContain(t("me.noLimitations"));
   });
 
+  // Independent axes, by design (see src/AGENTS.md). Clearing the prose must NOT drop tags, and a
+  // tag toggle must NOT touch the prose — this pins that against a future "dedupe/reconcile".
+  test("clearing limitations leaves restrictions untouched", () => {
+    const v = settingsStep(profile({ restrictions: ["kidneys"], limitations: "no sugar" }), "st:limits:clear", t);
+    expect(v.patch).toEqual({ limitations: "" }); // restrictions NOT in the patch
+    expect(v.text).toContain(t("me.restriction.kidneys")); // still shown, still set
+  });
+
+  test("un-toggling a restriction tag leaves limitations untouched", () => {
+    const v = settingsStep(profile({ restrictions: ["kidneys"], limitations: "kidneys, no sugar" }), "st:restr:kidneys", t);
+    expect(v.patch).toEqual({ restrictions: [] }); // limitations NOT in the patch
+  });
+
   test("an over-length typed value is truncated, never rejected", () => {
     const v = settingsInput("limitations", "a".repeat(500), profile(), t);
     expect(v.patch?.limitations).toHaveLength(300);
