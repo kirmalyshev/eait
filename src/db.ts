@@ -609,7 +609,7 @@ export async function setConsent(db: Db, telegram_id: number, consentAt: string)
     WHERE telegram_id = ${telegram_id}`;
 }
 
-/** Partial profile update (goal, weight, target weight, country, restrictions, limitations, state). Only provided fields change. */
+/** Partial profile update (goal, weight, target weight, country, restrictions, the three food fields, state). Only provided fields change. */
 export async function setProfile(
   db: Db,
   telegram_id: number,
