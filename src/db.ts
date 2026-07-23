@@ -39,6 +39,14 @@ export interface UserRow {
   goal: Goal | null;
   /** NULL = never asked, 0 = explicitly skipped during onboarding, >0 = kilograms. */
   weight_kg: number | null;
+  /** Same sentinel as weight_kg: NULL = never asked, 0 = skipped, >0 = target kilograms. */
+  target_weight_kg: number | null;
+  /**
+   * Purchase country — where the user buys most of their food, steering the analyzer toward local
+   * products and portion norms. NULL = never asked, '' = explicitly skipped, else a curated code
+   * (`de`/`ru`/…) or a raw "other" string. Both sentinels map to null at the profileOf boundary.
+   */
+  country: string | null;
   restrictions: string[];
   created_at: string;
   acquisition_source: string | null;
@@ -49,6 +57,12 @@ export interface UserRow {
    * an explicit choice sticks.
    */
   reply_format: string | null;
+  /**
+   * Transient /settings text-capture state: which profile field the user's NEXT text message
+   * fills (`weight`/`target_weight`/`country`), or NULL when not awaiting input. Settings-only —
+   * onboarding derives its step from field-nullness, not from this column.
+   */
+  pending_input: string | null;
 }
 
 export interface EventRow {
@@ -327,6 +341,24 @@ const MIGRATIONS: Migration[] = [
       await tx`ALTER TABLE users ADD COLUMN reply_format TEXT`;
     },
   },
+  {
+    // Onboarding gains target-weight and purchase-country steps (both editable in /settings), plus
+    // a settings text-capture marker. Sentinels mirror weight_kg: target_weight_kg NULL/0/>0;
+    // country NULL=never asked, ''=skipped, else code/raw. pending_input NULL=not awaiting input.
+    version: 5,
+    up: async (tx) => {
+      await tx`ALTER TABLE users ADD COLUMN target_weight_kg DOUBLE PRECISION`;
+      await tx`ALTER TABLE users ADD COLUMN country TEXT`;
+      await tx`ALTER TABLE users ADD COLUMN pending_input TEXT`;
+      // The new steps sit AFTER the weight step. A user mid-flow who has already answered weight
+      // (in the old flow they were at the restrictions step) must be backfilled to the skip
+      // sentinels — otherwise their next message, composed as a restrictions answer, would be
+      // silently eaten by the new target-weight step. Users still AT the weight step (weight_kg
+      // NULL) get the new questions in their natural place, so they stay NULL. Active users stay
+      // NULL too — resume() never re-opens onboarding for them.
+      await tx`UPDATE users SET target_weight_kg = 0, country = '' WHERE state = 'profile' AND goal IS NOT NULL AND weight_kg IS NOT NULL`;
+    },
+  },
 ];
 
 async function migrate(db: Db): Promise<void> {
@@ -401,10 +433,16 @@ export async function getUser(db: Db, telegram_id: number): Promise<UserRow | un
     consent_at: row.consent_at,
     goal: row.goal,
     weight_kg: row.weight_kg === null || row.weight_kg === undefined ? null : Number(row.weight_kg),
+    target_weight_kg:
+      row.target_weight_kg === null || row.target_weight_kg === undefined
+        ? null
+        : Number(row.target_weight_kg),
+    country: row.country ?? null,
     restrictions: parseJsonArray(row.restrictions),
     created_at: row.created_at,
     acquisition_source: row.acquisition_source ?? null,
     reply_format: row.reply_format ?? null,
+    pending_input: row.pending_input ?? null,
   };
 }
 
@@ -517,17 +555,28 @@ export async function setConsent(db: Db, telegram_id: number, consentAt: string)
     WHERE telegram_id = ${telegram_id}`;
 }
 
-/** Partial profile update (goal, weight, restrictions steps). Only provided fields change. */
+/** Partial profile update (goal, weight, target weight, country, restrictions). Only provided fields change. */
 export async function setProfile(
   db: Db,
   telegram_id: number,
-  patch: { goal?: Goal; weight_kg?: number; restrictions?: string[]; state?: UserState },
+  patch: {
+    goal?: Goal;
+    weight_kg?: number;
+    target_weight_kg?: number;
+    country?: string;
+    restrictions?: string[];
+    state?: UserState;
+  },
 ): Promise<void> {
   // Dynamic SET list over a fixed field whitelist — values always travel as $n parameters.
   const sets: string[] = [];
   const vals: unknown[] = [];
   if (patch.goal !== undefined) sets.push(`goal = $${vals.push(patch.goal)}`);
   if (patch.weight_kg !== undefined) sets.push(`weight_kg = $${vals.push(patch.weight_kg)}`);
+  if (patch.target_weight_kg !== undefined) {
+    sets.push(`target_weight_kg = $${vals.push(patch.target_weight_kg)}`);
+  }
+  if (patch.country !== undefined) sets.push(`country = $${vals.push(patch.country)}`);
   if (patch.restrictions !== undefined) {
     sets.push(`restrictions = $${vals.push(JSON.stringify(patch.restrictions))}`);
   }
@@ -537,6 +586,19 @@ export async function setProfile(
     `UPDATE users SET ${sets.join(", ")} WHERE telegram_id = $${vals.push(telegram_id)}`,
     vals as any[],
   );
+}
+
+/**
+ * Arms (or clears) the /settings text-capture marker: the next text message the user sends fills
+ * `field`. Null clears it. Like setLang/setReplyFormat, a 0-row UPDATE (user vanished mid-tap)
+ * resolves silently — every settings-path interaction re-gates on getUser anyway.
+ */
+export async function setPendingInput(
+  db: Db,
+  telegram_id: number,
+  field: string | null,
+): Promise<void> {
+  await db`UPDATE users SET pending_input = ${field} WHERE telegram_id = ${telegram_id}`;
 }
 
 export async function deleteUser(db: Db, user_id: number): Promise<void> {

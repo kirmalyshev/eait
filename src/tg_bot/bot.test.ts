@@ -309,7 +309,7 @@ test("meCard is null unless active; statsCard counts users+meals", async () => {
 // ---------- language ----------
 
 test("profileOf accepts any registered locale and falls back for anything else", () => {
-  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, reply_format: null };
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, reply_format: null };
   expect(profileOf({ ...base, lang: "de" } as UserRow).lang).toBe("de");
   expect(profileOf({ ...base, lang: "ru" } as UserRow).lang).toBe("ru");
   // a value that predates (or outlives) the registry must not render as a raw key
@@ -318,14 +318,14 @@ test("profileOf accepts any registered locale and falls back for anything else",
 });
 
 test("profileOf maps the db's 0-skip weight sentinel to null, real weights pass through", () => {
-  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, lang: "en", reply_format: null };
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, lang: "en", reply_format: null };
   expect(profileOf({ ...base, weight_kg: 0 } as UserRow).weight_kg).toBeNull();
   expect(profileOf({ ...base, weight_kg: 92.5 } as UserRow).weight_kg).toBe(92.5);
   expect(profileOf(base as UserRow).weight_kg).toBeNull();
 });
 
 test("profileOf maps a junk reply_format to null (never coerces to a hardcoded format)", () => {
-  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, lang: "en" };
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, lang: "en" };
   // null is the only value that distinguishes "→ null" from a mutant that coerces to "rich" or
   // passes junk through: on a plain instance either mutant would render the wrong format.
   expect(profileOf({ ...base, reply_format: "markdown" } as UserRow).reply_format).toBeNull();
@@ -335,7 +335,7 @@ test("profileOf maps a junk reply_format to null (never coerces to a hardcoded f
 });
 
 test("profileOf warns LOUDLY on off-vocabulary stored values, stays quiet on the normal states", () => {
-  const base = { telegram_id: 55, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, lang: "en", reply_format: null };
+  const base = { telegram_id: 55, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, lang: "en", reply_format: null };
   const warn = spyOn(console, "warn").mockImplementation(() => {});
   try {
     profileOf({ ...base, lang: "en", reply_format: null } as UserRow); // both normal → silent
