@@ -850,11 +850,21 @@ export async function processTextMealDecision(
   from: { id: number },
   data: string,
   send: Send,
-  opts?: { sendRich?: SendRich },
+  // deleteConfirm removes the confirm-prompt message (the one bearing the buttons) so a resolved
+  // meal doesn't leave a stale dead-button card on screen. Optional (many tests omit it);
+  // guarded at every call so a delete failure (e.g. message too old) never crashes the tap.
+  opts?: { sendRich?: SendRich; deleteConfirm?: () => Promise<void> },
 ): Promise<void> {
   const { db } = deps;
   const u = await getUser(db, from.id);
   const t = translatorForUser(u);
+  const removeConfirm = async () => {
+    try {
+      await opts?.deleteConfirm?.();
+    } catch (e) {
+      console.warn(`[eait] failed to delete confirm prompt user=${from.id}: ${describeError(e)}`);
+    }
+  };
   const m = /^tm:(log|cancel):(.+)$/.exec(data);
   if (!m) return;
   const [, action, id] = m;
@@ -868,11 +878,13 @@ export async function processTextMealDecision(
   // honor the TTL at tap time too, or "expired" and the actual lifetime disagree.
   if (Date.parse(pending.ts) < Date.now() - PENDING_TTL_MS) {
     await deletePendingMeal(db, id!, from.id);
+    await removeConfirm(); // the stale prompt is what they tapped; clear it
     await send(t("text.pendingGone"));
     return;
   }
   if (action === "cancel") {
     await deletePendingMeal(db, id!, from.id);
+    await removeConfirm();
     await send(t("text.cancelled"));
     return;
   }
@@ -898,6 +910,9 @@ export async function processTextMealDecision(
     });
     if (sent) await setMealReply(db, pending.id, from.id, sent.chat_id, sent.message_id);
   }
+  // Remove the confirm prompt only AFTER the result card is out — card-first so a send failure
+  // above leaves the prompt (and its re-tappable pending row) in place, never neither.
+  await removeConfirm();
   if (!(await deletePendingMeal(db, id!, from.id))) {
     // Somebody else's sweep raced us — harmless (the meal is in), but worth a trace.
     console.warn(`[eait] pending row ${id} vanished before post-log delete user=${from.id}`);
@@ -1141,7 +1156,11 @@ export function createBot(deps: BotDeps): Bot {
       return;
     }
     if (data.startsWith("tm:")) {
-      await processTextMealDecision(deps, ctx.from, data, sendVia(ctx), { sendRich: sendRichVia(ctx) });
+      // deleteMessage targets the message the callback fired from — the confirm prompt itself.
+      await processTextMealDecision(deps, ctx.from, data, sendVia(ctx), {
+        sendRich: sendRichVia(ctx),
+        deleteConfirm: () => ctx.deleteMessage().then(() => undefined),
+      });
       return;
     }
     if (data.startsWith("st:")) {

@@ -1892,6 +1892,42 @@ test("tm:log inserts the meal, deletes pending, replies with totals, and the rep
   expect(await countMealsToday(db, 810, date)).toBe(1); // still one meal
 });
 
+test("tm:log deletes the confirm prompt AFTER sending the result card", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  await onboardToActive(deps, 850);
+  const { id } = await seedPending(db, 850);
+  const events: string[] = [];
+  const send: Send = async (text) => { events.push("send"); return { chat_id: 9, message_id: 5 }; };
+  const deleteConfirm = async () => { events.push("delete"); };
+  await processTextMealDecision(deps, { id: 850 }, `tm:log:${id}`, send, { deleteConfirm });
+  // Card sent, prompt deleted, and the card came first — a failed send must never leave the
+  // user with neither the prompt nor the result.
+  expect(events).toEqual(["send", "delete"]);
+});
+
+test("tm:log: a failed prompt-delete does not throw and the meal still logs", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  await onboardToActive(deps, 851);
+  const { id } = await seedPending(db, 851);
+  const { send } = collector();
+  const deleteConfirm = async () => { throw new Error("message to delete not found"); };
+  await processTextMealDecision(deps, { id: 851 }, `tm:log:${id}`, send, { deleteConfirm });
+  expect(await countMealsToday(db, 851, berlinDate(new Date(), cfg.tz))).toBe(1); // logged despite delete failure
+});
+
+test("tm:cancel deletes the confirm prompt too (no lingering dead buttons)", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  await onboardToActive(deps, 852);
+  const { id } = await seedPending(db, 852);
+  let deleted = false;
+  const { send } = collector();
+  await processTextMealDecision(deps, { id: 852 }, `tm:cancel:${id}`, send, { deleteConfirm: async () => { deleted = true; } });
+  expect(deleted).toBe(true);
+});
+
 test("tm:cancel deletes pending and acks; a stale id reports pendingGone", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
