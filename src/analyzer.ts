@@ -335,7 +335,7 @@ const ROUTE_JSON_SCHEMA = {
     intent: { type: "string", enum: ["question", "meal", "correction", "redate"] },
     answer: { type: "string" },
     analysis: MEAL_JSON_SCHEMA,
-    // Whole days before today the meal was eaten (0 today, 1 yesterday). Meal intent only.
+    // Whole days before today to file under (0 today, 1 yesterday). Meal AND redate intents.
     dayOffset: { type: "integer", minimum: 0, maximum: MAX_DAY_OFFSET },
   },
 } as const;
@@ -362,8 +362,9 @@ const RouteSchema = z.object({
   answer: z.string().optional(),
   analysis: MealAnalysisSchema.optional(),
   // `unknown`, not `z.number()`: clampDayOffset is the normalizer and tolerates any junk (null,
-  // "1", 99, 2.5) — a strict number type here would REJECT the whole meal on a stringy/null offset
-  // (models commonly emit null for same-day), discarding a valid analysis. Clamp + warn instead.
+  // "1", 99, 2.5) — a strict number type here would REJECT the whole object on a stringy/null
+  // offset (models commonly emit null for same-day), discarding a valid meal analysis OR a valid
+  // redate move. Clamp + warn instead. Shared by the meal and redate intents.
   dayOffset: z.unknown().optional(),
 });
 
@@ -431,7 +432,12 @@ export async function routeText(
   // Redate moves the focus meal to another day — no analysis, macros unchanged; only the offset.
   if (r.intent === "redate") {
     const dayOffset = clampDayOffset(r.dayOffset);
-    if (r.dayOffset !== undefined && r.dayOffset !== dayOffset) {
+    // A redate with NO target ("move this back") would silently file the meal under today — a
+    // no-op if it's already today, an unintended move otherwise. Warn so the operator sees the
+    // model under-specifying moves; the confirm-first card still names the resolved day to the user.
+    if (r.dayOffset === undefined) {
+      console.warn(`[eait] router: redate without a dayOffset user-focus present → defaulting to today (0)`);
+    } else if (r.dayOffset !== dayOffset) {
       console.warn(`[eait] router: redate dayOffset ${JSON.stringify(r.dayOffset)} out of contract → ${dayOffset}`);
     }
     return { intent: "redate", dayOffset };
@@ -453,6 +459,17 @@ export async function routeText(
     }
     return { intent: "meal", analysis: r.analysis, dayOffset };
   }
-  return { intent: "correction", analysis: r.analysis };
+  if (r.intent === "correction") {
+    return { intent: "correction", analysis: r.analysis };
+  }
+  // Exhaustiveness: with `intent` narrowed to a 5-value enum minus the four handled above, this
+  // is `never`. A future intent added to the enum without a branch here becomes a compile error
+  // rather than being silently mislabeled by a fallthrough.
+  return assertNever(r.intent);
+}
+
+/** Compile-time exhaustiveness guard: reaching this at runtime means an enum grew without a branch. */
+function assertNever(x: never): never {
+  throw new Error(`analyzer: unhandled route intent ${JSON.stringify(x)}`);
 }
 

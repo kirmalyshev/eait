@@ -43,7 +43,7 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
   replies degrade to the router, which honestly has nothing — never persist anything
   photo-derived to "fix" that.
 - **Caps meter LLM calls, not meals.** Every provider call logs an `llm_calls` row first with
-  a `kind` tag (`photo` = photo or album analysis, `router` = text routing / Q&A / correction,
+  a `kind` tag (`photo` = photo or album analysis, `router` = text routing / Q&A / correction / redate,
   `classify` = onboarding restriction classifier); both the per-user and global caps count those
   rows. A not-food photo, a Q&A, and a text meal each spend one call. The `classify` kind is
   not cap-gated (it fires during onboarding before the user has a cap row), but it is metered

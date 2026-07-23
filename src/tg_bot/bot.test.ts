@@ -200,6 +200,103 @@ test("a redate without a focus meal (plain text, no reply) is not treated as a r
   expect(msgs[0]).toContain("reply to the meal"); // answered, not a silent move
 });
 
+// A send that hands back a fresh, monotonic message id each call and remembers the last one —
+// lets a test reply to "the card that was just sent" without guessing the numbering.
+function idTrackingSend() {
+  const msgs: string[] = [];
+  let lastId = 0;
+  const send: Send = async (text) => { msgs.push(text); lastId += 1; return { chat_id: 1, message_id: lastId }; };
+  return { msgs, send, lastId: () => lastId };
+}
+
+test("offset is relative to TODAY, and the moved card stays reply-focusable (multi-step move)", async () => {
+  const db = await freshTestDb();
+  // High cap: this test spends 3 LLM calls (photo + two moves); the default test cap is 2.
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: { ...cfg, perUserDailyPhotoCap: 50 } };
+  await onboardToActive(deps, 64);
+  const s = idTrackingSend();
+  await processPhoto(deps, { id: 64 }, [async () => new Uint8Array([1])], s.send);
+  const photoCardId = s.lastId(); // the meal's card, whatever id it landed on
+  const today = berlinDate(new Date(), cfg.tz);
+
+  // move to yesterday (offset 1), replying to the ORIGINAL card
+  deps.provider = fakeProvider(JSON.stringify({ intent: "redate", dayOffset: 1 }));
+  await processText(deps, { id: 64 }, { text: "move to yesterday", messageId: 70, replyTo: photoCardId }, s.send);
+  const movedCardId = s.lastId();
+  expect(await countMealsToday(db, 64, berlinDateMinus(today, 1))).toBe(1);
+
+  // reply to the MOVED card with offset 2 — only resolves if setMealReply mapped it.
+  // Offset is relative to TODAY, so this lands on today−2, NOT yesterday−2.
+  deps.provider = fakeProvider(JSON.stringify({ intent: "redate", dayOffset: 2 }));
+  const handled = await processText(deps, { id: 64 }, { text: "actually 2 days ago", messageId: 71, replyTo: movedCardId }, s.send);
+  expect(handled).toBe(true);
+  expect(await countMealsToday(db, 64, berlinDateMinus(today, 2))).toBe(1); // relative to today
+  expect(await countMealsToday(db, 64, berlinDateMinus(today, 1))).toBe(0); // left yesterday
+  expect(await countMealsToday(db, 64, today)).toBe(0);
+});
+
+test("a moved meal's card shows the new day's RE-BUCKETED total, not just its own macros", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
+  await onboardToActive(deps, 65);
+  const today = berlinDate(new Date(), cfg.tz);
+  const yesterday = berlinDateMinus(today, 1);
+  // A pre-existing 300-kcal meal already on yesterday, plus a 600 logged today.
+  const { insertMeal } = await import("../db.ts");
+  await insertMeal(db, { id: crypto.randomUUID(), user_id: 65, ts: "t", date: yesterday, analysis: JSON.parse(foodJson(300)) });
+  const s = idTrackingSend();
+  await processPhoto(deps, { id: 65 }, [async () => new Uint8Array([1])], s.send); // today
+  const photoCardId = s.lastId();
+
+  // move the 600 to yesterday → yesterday's total becomes 900, but this meal's macros stay 600.
+  deps.provider = fakeProvider(JSON.stringify({ intent: "redate", dayOffset: 1 }));
+  await processText(deps, { id: 65 }, { text: "move to yesterday", messageId: 72, replyTo: photoCardId }, s.send);
+  const label = berlinDayLabel(yesterday, DEFAULT_LANG, cfg.tz);
+  const t = translatorFor(DEFAULT_LANG);
+  const moved = s.msgs[s.msgs.length - 1]!;
+  expect(moved).toContain(t("meal.totalKcalDated", { date: label, now: 900, target: 1800 })); // re-bucketed
+  expect(moved).toContain("600"); // its own macros still shown
+});
+
+test("redate to today (offset 0) names today on the prefix but uses the plain 'Today:' total", async () => {
+  const db = await freshTestDb();
+  // 3 LLM calls (photo + two moves); raise above the default test cap of 2.
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: { ...cfg, perUserDailyPhotoCap: 50 } };
+  await onboardToActive(deps, 66);
+  const today = berlinDate(new Date(), cfg.tz);
+  const s = idTrackingSend();
+  await processPhoto(deps, { id: 66 }, [async () => new Uint8Array([1])], s.send);
+  const photoCardId = s.lastId();
+  // First move it to yesterday, then back to today (offset 0).
+  deps.provider = fakeProvider(JSON.stringify({ intent: "redate", dayOffset: 1 }));
+  await processText(deps, { id: 66 }, { text: "yesterday", messageId: 73, replyTo: photoCardId }, s.send);
+  const movedCardId = s.lastId();
+  deps.provider = fakeProvider(JSON.stringify({ intent: "redate", dayOffset: 0 }));
+  await processText(deps, { id: 66 }, { text: "no, keep today", messageId: 74, replyTo: movedCardId }, s.send);
+  const t = translatorFor(DEFAULT_LANG);
+  expect(await countMealsToday(db, 66, today)).toBe(1);
+  // Prefix names today (always), but the totals line is the plain "Today:" form (no date stamp).
+  const last = s.msgs[s.msgs.length - 1]!;
+  expect(last).toContain(t("meal.movedPrefix", { date: berlinDayLabel(today, DEFAULT_LANG, cfg.tz) }));
+  expect(last).toContain(t("meal.totalKcal", { now: 600, target: 1800 }));
+});
+
+test("a rich-preference user's redate card renders rich", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg }; // plain instance
+  await onboardToActive(deps, 67);
+  const { setReplyFormat } = await import("../db.ts");
+  await setReplyFormat(db, 67, "rich");
+  const s = idTrackingSend();
+  await processPhoto(deps, { id: 67 }, [async () => new Uint8Array([1])], s.send);
+  const photoCardId = s.lastId();
+  let richCalls = 0;
+  const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 99 });
+  deps.provider = fakeProvider(JSON.stringify({ intent: "redate", dayOffset: 1 }));
+  await processText(deps, { id: 67 }, { text: "move to yesterday", messageId: 75, replyTo: photoCardId }, s.send, { sendRich });
+  expect(richCalls).toBe(1); // the moved card went rich
+});
+
 test("meCard is null unless active; statsCard counts users+meals", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };

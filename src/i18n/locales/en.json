@@ -38,6 +38,7 @@
     "adminOnly": "Admin-only command.",
     "analyzeFailed": "Couldn't read that 🤔 send the photo again.",
     "correctionFailed": "Couldn't apply that correction — try phrasing it differently.",
+    "redateFailed": "Couldn't move that meal — it may have been deleted. Send it again to re-log it.",
     "dailyCap": "You've hit today's photo limit — come back tomorrow.",
     "globalCap": "The shared demo bot has hit today's analysis limit — it runs on one person's API budget. Try again tomorrow, or run your own instance: https://github.com/kirmalyshev/eait Want unlimited hosted access when a paid tier opens? /waitlist",
     "notFood": "That doesn't look like food 🤔",

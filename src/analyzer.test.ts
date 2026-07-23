@@ -398,6 +398,31 @@ describe("routeText", () => {
     if (r.intent === "redate") expect(r.dayOffset).toBe(7);
   });
 
+  test("redate offset 0 ('move to today') passes through and does not warn", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "redate", dayOffset: 0 }));
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const r = await routeText("actually keep it today", profile, { ...routeCtx, focusMeal: JSON.parse(validJson) }, provider);
+      if (r.intent === "redate") expect(r.dayOffset).toBe(0);
+      expect(warn.mock.calls.some((c) => String(c[0]).includes("redate"))).toBe(false);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  test("redate with NO dayOffset defaults to today (0) and warns the operator", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "redate" }));
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const r = await routeText("move this back", profile, { ...routeCtx, focusMeal: JSON.parse(validJson) }, provider);
+      expect(r.intent).toBe("redate");
+      if (r.intent === "redate") expect(r.dayOffset).toBe(0);
+      expect(warn.mock.calls.some((c) => String(c[0]).includes("redate without a dayOffset"))).toBe(true);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   test("redate without a focus meal degrades to question if an answer exists, else throws", async () => {
     const withAnswer = new FakeProvider(() => JSON.stringify({ intent: "redate", answer: "reply to the meal you want to move" }));
     const r = await routeText("move my beer", profile, routeCtx, withAnswer);

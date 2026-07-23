@@ -797,19 +797,28 @@ export async function processText(
       return true;
     }
     const newDate = berlinDateMinus(date, route.dayOffset);
+    const oldDate = focus.date;
     if (!(await setMealDate(db, focus.id, from.id, newDate))) {
-      await send(t("errors.correctionFailed")); // vanished mid-flight — don't confirm a no-op
+      // 0-row: the meal vanished (deleted account / race). Name the move, not a "correction",
+      // and don't tell the user to rephrase — nothing they type can bring the row back.
+      await send(t("errors.redateFailed"));
       return true;
     }
+    // The one sanctioned date mutation gets an audit line, like the meal-stored path — a "why did
+    // my breakfast jump days" report is otherwise untraceable.
+    console.log(`[eait] redate user=${from.id} meal=${focus.id} dayOffset=${route.dayOffset} ${oldDate}→${newDate}`);
     const totals = await dailyTotals(db, from.id, newDate);
     const dateLabel = mealDateLabel(newDate, date, prof.lang, config.tz);
     // The prefix always names the target day (even "today"), so a move is legible on its own.
     const prefix = t("meal.movedPrefix", { date: berlinDayLabel(newDate, prof.lang, config.tz) });
     const analysis = mealToAnalysis(focus);
-    await sendCard(replyFormatFor(prof, config), send, opts?.sendRich, {
+    const sent = await sendCard(replyFormatFor(prof, config), send, opts?.sendRich, {
       html: renderMealCard(analysis, totals, targetsFor(prof), t, { prefix, dateLabel }),
       plain: prefix + "\n" + formatReply(analysis, totals, targetsFor(prof), t, { dateLabel }),
     });
+    // Map the "Moved" card to the meal so a follow-up reply to IT re-focuses — otherwise a
+    // multi-step move ("yesterday", then reply again "one more day back") dead-ends with no focus.
+    if (sent) await setMealReply(db, focus.id, from.id, sent.chat_id, sent.message_id);
     fireReaction(opts?.react, "👍", from.id);
     return true;
   }
@@ -817,6 +826,7 @@ export async function processText(
   // meal → confirm before logging: unlike a photo, free text is easy to misread as a meal, so
   // nothing reaches the meals table until the tap. A relative date ("yesterday") shifts the
   // meal's day; confirm-first means the resolved date is on the prompt to catch a misparse.
+  if (route.intent !== "meal") return assertNever(route);
   const mealDate = berlinDateMinus(date, route.dayOffset); // offset 0 returns `date` unchanged
   const dateLabel = mealDateLabel(mealDate, date, prof.lang, config.tz);
   console.log(`[eait] text meal user=${from.id} dayOffset=${route.dayOffset} date=${mealDate}`);
@@ -1338,6 +1348,11 @@ export function isFatalTelegramError(err: unknown): boolean {
 
 /** grammy puts the useful text in `description` but drops `error_code` — "Not Found" alone is
  *  weak signal for "your bot token is wrong", so keep both. */
+/** Compile-time exhaustiveness guard: a new route intent without a `processText` branch is a TS error here. */
+function assertNever(x: never): never {
+  throw new Error(`bot: unhandled route intent ${JSON.stringify(x)}`);
+}
+
 export function describeError(err: unknown): string {
   const e = err as { error_code?: unknown; description?: unknown } | undefined;
   if (e?.description) {
