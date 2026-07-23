@@ -78,11 +78,14 @@
     "changed": "Sprache auf Deutsch umgestellt."
   },
   "me": {
-    "profileLine": "Profil: Ziel — {{goal}}; Gewicht — {{weight}}; Einschränkungen — {{restrictions}}",
+    "profileLine": "Profil: Ziel — {{goal}}; Gewicht — {{weight}}; Zielgewicht — {{target}}; Land — {{country}}; Einschränkungen — {{restrictions}}",
     "todayLine": "Heute: {{kcal}} / {{kcalTarget}} kcal · E {{protein}} / {{proteinTarget}} g",
+    "toGoal": "🎯 {{kg}} kg bis zum Ziel",
+    "atGoal": "🎯 Du bist auf deinem Zielgewicht 🎉",
     "noRestrictions": "keine",
     "weightValue": "{{kg}} kg",
     "noWeight": "nicht angegeben",
+    "noCountry": "nicht angegeben",
     "goal": {
       "lose": "abnehmen",
       "maintain": "halten",
@@ -125,6 +128,13 @@
     "askWeight": "Was ist dein aktuelles Gewicht? Damit lege ich dein Protein-Ziel fest. Schick es in Kilogramm (zum Beispiel 92,5) oder tippe auf „Überspringen“.",
     "weightInvalid": "Das sieht nicht nach einem Gewicht in Kilogramm aus — schick eine Zahl zwischen 30 und 300 (zum Beispiel 92,5) oder tippe auf „Überspringen“.",
     "weightSaved": "✅ {{kg}} kg — notiert.",
+    "askTargetWeight": "Was ist dein Zielgewicht? Damit verfolge ich den Fortschritt zu deinem Ziel. Schick es in Kilogramm (zum Beispiel 85) oder tippe auf „Überspringen“.",
+    "targetWeightInvalid": "Das sieht nicht nach einem Gewicht in Kilogramm aus — schick eine Zahl zwischen 30 und 300 (zum Beispiel 85) oder tippe auf „Überspringen“.",
+    "targetWeightSaved": "🎯 {{kg}} kg — notiert.",
+    "askCountry": "Wo kaufst du die meisten Lebensmittel? Damit erkenne ich lokale Produkte und Portionsgrößen. Wähle ein Land, tippe auf „Andere“, um es einzugeben, oder „Überspringen“.",
+    "countryInvalid": "Das habe ich nicht verstanden — wähle unten ein Land, tippe auf „Andere“, um es einzugeben, oder „Überspringen“.",
+    "countrySaved": "🛒 {{country}} — notiert.",
+    "countryOther": "Schreib das Land, in dem du die meisten Lebensmittel kaufst.",
     "askRestrictions": "Hast du gesundheitliche oder ernährungsbedingte Einschränkungen? Schreib frei (zum Beispiel: „Nieren, kein Zucker“) oder tippe auf „Überspringen“.",
     "done": "Fertig — schick mir Fotos von deinem Essen 📸\n\nFür die genauesten Schätzungen:\n• fotografiere von oben, der ganze Teller im Bild\n• gutes Licht; Besteck oder deine Hand neben dem Teller hilft mir, die Portionsgröße einzuschätzen\n• Gewicht oder Zutaten bekannt? Schreib es dazu in die Bildunterschrift",
     "alreadyActive": "Du bist schon eingerichtet — schick einfach Fotos von deinem Essen 📸 (/me — Profil und Tagesbilanz).",
@@ -135,20 +145,30 @@
       "goalLose": "Abnehmen",
       "goalMaintain": "Halten",
       "goalGain": "Zunehmen",
-      "skip": "Überspringen"
+      "skip": "Überspringen",
+      "countryOther": "🌐 Andere"
     }
   },
   "settings": {
     "title": "Einstellungen",
     "goalLine": "Ziel: {{goal}}",
+    "weightLine": "Gewicht: {{weight}}",
+    "targetWeightLine": "Zielgewicht: {{weight}}",
+    "countryLine": "Land: {{country}}",
     "restrictionsLine": "Einschränkungen: {{restrictions}}",
     "langLine": "Sprache: {{lang}}",
     "formatLine": "Antwortstil: {{format}}",
     "askRestrictions": "Tippe auf eine Einschränkung, um sie ein- oder auszuschalten:",
+    "askWeight": "Schick dein aktuelles Gewicht in Kilogramm (zum Beispiel 92,5).",
+    "askTargetWeight": "Schick dein Zielgewicht in Kilogramm (zum Beispiel 85).",
+    "askCountry": "Wo kaufst du die meisten Lebensmittel? Wähle unten ein Land oder tippe auf „Andere“, um es einzugeben.",
     "toggleOn": "✅ {{name}}",
     "toggleOff": "⬜ {{name}}",
     "button": {
       "goal": "🎯 Ziel",
+      "weight": "⚖️ Gewicht",
+      "targetWeight": "🎯 Zielgewicht",
+      "country": "🛒 Land",
       "restrictions": "🥗 Einschränkungen",
       "language": "🌍 Sprache",
       "format": "🎨 Stil",
@@ -159,6 +179,18 @@
       "rich": "Karten",
       "plain": "Einfacher Text"
     }
+  },
+  "country": {
+    "de": "🇩🇪 Deutschland",
+    "ru": "🇷🇺 Russland",
+    "us": "🇺🇸 USA",
+    "gb": "🇬🇧 Vereinigtes Königreich",
+    "fr": "🇫🇷 Frankreich",
+    "es": "🇪🇸 Spanien",
+    "it": "🇮🇹 Italien",
+    "nl": "🇳🇱 Niederlande",
+    "pl": "🇵🇱 Polen",
+    "tr": "🇹🇷 Türkei"
   },
   "stats": {
     "card": "{{users}} · {{meals}}",

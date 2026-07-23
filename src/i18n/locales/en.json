@@ -78,11 +78,14 @@
     "changed": "Language switched to English."
   },
   "me": {
-    "profileLine": "Profile: goal — {{goal}}; weight — {{weight}}; restrictions — {{restrictions}}",
+    "profileLine": "Profile: goal — {{goal}}; weight — {{weight}}; target — {{target}}; country — {{country}}; restrictions — {{restrictions}}",
     "todayLine": "Today: {{kcal}} / {{kcalTarget}} kcal · P {{protein}} / {{proteinTarget}} g",
+    "toGoal": "🎯 {{kg}} kg to your target",
+    "atGoal": "🎯 You're at your target weight 🎉",
     "noRestrictions": "none",
     "weightValue": "{{kg}} kg",
     "noWeight": "not set",
+    "noCountry": "not set",
     "goal": {
       "lose": "lose weight",
       "maintain": "maintain",
@@ -125,6 +128,13 @@
     "askWeight": "What's your current weight? I use it to set your protein target. Send it in kilograms (for example 92.5) or tap \"Skip\".",
     "weightInvalid": "That doesn't look like a weight in kilograms — send a number between 30 and 300 (for example 92.5), or tap \"Skip\".",
     "weightSaved": "✅ {{kg}} kg — noted.",
+    "askTargetWeight": "What's your target weight? I use it to track progress toward your goal. Send it in kilograms (for example 85) or tap \"Skip\".",
+    "targetWeightInvalid": "That doesn't look like a weight in kilograms — send a number between 30 and 300 (for example 85), or tap \"Skip\".",
+    "targetWeightSaved": "🎯 {{kg}} kg — noted.",
+    "askCountry": "Where do you buy most of your food? I use it to recognise local products and portion sizes. Pick a country, tap \"Other\" to type it, or \"Skip\".",
+    "countryInvalid": "I didn't catch that — pick a country below, tap \"Other\" to type it, or \"Skip\".",
+    "countrySaved": "🛒 {{country}} — noted.",
+    "countryOther": "Type the country where you buy most of your food.",
     "askRestrictions": "Any health or dietary restrictions? Write freely (for example: \"kidneys, no sugar\") or tap \"Skip\".",
     "done": "All set — send me photos of your food 📸\n\nFor the most accurate estimates:\n• shoot from above, the whole plate in frame\n• good light; cutlery or your hand next to the plate helps me judge portion size\n• know the weight or ingredients? add them in the caption",
     "alreadyActive": "You're already set up — just send photos of your food 📸 (/me — profile and today's totals).",
@@ -135,20 +145,30 @@
       "goalLose": "Lose",
       "goalMaintain": "Maintain",
       "goalGain": "Gain",
-      "skip": "Skip"
+      "skip": "Skip",
+      "countryOther": "🌐 Other"
     }
   },
   "settings": {
     "title": "Settings",
     "goalLine": "Goal: {{goal}}",
+    "weightLine": "Weight: {{weight}}",
+    "targetWeightLine": "Target weight: {{weight}}",
+    "countryLine": "Country: {{country}}",
     "restrictionsLine": "Restrictions: {{restrictions}}",
     "langLine": "Language: {{lang}}",
     "formatLine": "Reply style: {{format}}",
     "askRestrictions": "Tap a restriction to switch it on or off:",
+    "askWeight": "Send your current weight in kilograms (for example 92.5).",
+    "askTargetWeight": "Send your target weight in kilograms (for example 85).",
+    "askCountry": "Where do you buy most of your food? Pick a country below, or tap \"Other\" to type it.",
     "toggleOn": "✅ {{name}}",
     "toggleOff": "⬜ {{name}}",
     "button": {
       "goal": "🎯 Goal",
+      "weight": "⚖️ Weight",
+      "targetWeight": "🎯 Target weight",
+      "country": "🛒 Country",
       "restrictions": "🥗 Restrictions",
       "language": "🌍 Language",
       "format": "🎨 Style",
@@ -159,6 +179,18 @@
       "rich": "Rich cards",
       "plain": "Plain text"
     }
+  },
+  "country": {
+    "de": "🇩🇪 Germany",
+    "ru": "🇷🇺 Russia",
+    "us": "🇺🇸 United States",
+    "gb": "🇬🇧 United Kingdom",
+    "fr": "🇫🇷 France",
+    "es": "🇪🇸 Spain",
+    "it": "🇮🇹 Italy",
+    "nl": "🇳🇱 Netherlands",
+    "pl": "🇵🇱 Poland",
+    "tr": "🇹🇷 Turkey"
   },
   "stats": {
     "card": "{{users}} · {{meals}}",

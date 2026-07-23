@@ -134,6 +134,9 @@ export function profileOf(u: UserRow): Profile {
     goal: u.goal,
     // 0 is the db's "explicitly skipped" sentinel — outside the db/bot boundary it means unknown.
     weight_kg: u.weight_kg ? u.weight_kg : null,
+    target_weight_kg: u.target_weight_kg ? u.target_weight_kg : null,
+    // '' is the db's "explicitly skipped" sentinel — outside the boundary it means unknown.
+    country: u.country ? u.country : null,
     restrictions: u.restrictions,
     // Same validation rule as lang: junk means "never chose", so the instance default applies.
     reply_format: isReplyFormat(u.reply_format) ? u.reply_format : null,

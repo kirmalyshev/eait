@@ -25,6 +25,11 @@ export interface Profile {
   goal: Goal | null;
   /** Kilograms; null/absent = unknown (never asked, or declined). The db's 0-skip sentinel never reaches here. */
   weight_kg?: number | null;
+  /** Target bodyweight in kg; null/absent = unknown. Same boundary rule as weight_kg (0 → null). */
+  target_weight_kg?: number | null;
+  /** Purchase country: a curated code (`de`/`ru`/…) or a raw "other" string; null/absent = unknown.
+   * The db's '' skip sentinel is mapped to null before it reaches here. */
+  country?: string | null;
   restrictions: string[]; // tags e.g. ["kidneys","ldl","vegan","lowsugar"]
   /**
    * Card rendering: the user's RAW /settings choice; null = never picked (instance default
