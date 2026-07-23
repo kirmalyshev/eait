@@ -17,7 +17,7 @@ import {
   insertMeal, setMealReply, applyCorrection, setMealDate, mealByReply, dailyTotals,
   logLlmCall, llmCallsToday, llmCallCountToday, mealsOnDate, totalsByDate,
   insertPendingMeal, setPendingReply, getPendingMeal, deletePendingMeal, prunePendingMeals,
-  deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang, setReplyFormat,
+  deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang, setReplyFormat, setPendingInput,
   getSetting, setSetting, clearSetting, hasEvent, logEvent, setAcquisitionSource,
   type Db, type UserRow,
 } from "../db.ts";
@@ -25,10 +25,14 @@ import { loadAllowlist, type Allowlist } from "../allowlist.ts";
 import { AlbumBuffer } from "./albums.ts";
 import { analyzeMeal, classifyRestrictions, routeText, type RouteContext, type RouteResult } from "../analyzer.ts";
 import { RejectionLog } from "./rejections.ts";
-import { targetsFor, isRestrictionTag } from "../targets.ts";
+import { targetsFor, weightRemainingKg, isRestrictionTag } from "../targets.ts";
+import { countryLabel } from "../country.ts";
 import { formatReply, berlinDayLabel, mealDateLabel } from "../reply.ts";
 import { renderMealCard } from "../render.ts";
-import { settingsRoot, settingsStep, type SettingsProfile } from "../settings.ts";
+import {
+  settingsInput, settingsRoot, settingsStep, isPendingInput,
+  type PendingInput, type SettingsProfile, type SettingsView,
+} from "../settings.ts";
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "../onboarding.ts";
 import { DEFAULT_LANG, LANGS, LOCALES, isLang, resolveLang, translatorFor } from "../i18n/index.ts";
 import type { TFunction } from "i18next";
@@ -134,6 +138,9 @@ export function profileOf(u: UserRow): Profile {
     goal: u.goal,
     // 0 is the db's "explicitly skipped" sentinel — outside the db/bot boundary it means unknown.
     weight_kg: u.weight_kg ? u.weight_kg : null,
+    target_weight_kg: u.target_weight_kg ? u.target_weight_kg : null,
+    // '' is the db's "explicitly skipped" sentinel — outside the boundary it means unknown.
+    country: u.country ? u.country : null,
     restrictions: u.restrictions,
     // Same validation rule as lang: junk means "never chose", so the instance default applies.
     reply_format: isReplyFormat(u.reply_format) ? u.reply_format : null,
@@ -169,6 +176,12 @@ export async function applyOnboarding(db: Db, telegram_id: number, r: Onboarding
   // !== undefined, not truthy: 0 is the explicit-skip sentinel and MUST be persisted,
   // or the weight question re-opens on every resume.
   if (r.patch?.weight_kg !== undefined) await setProfile(db, telegram_id, { weight_kg: r.patch.weight_kg });
+  // !== undefined for the same reason weight uses it: 0 (target skip) and '' (country skip) are
+  // the explicit-skip sentinels and MUST persist, or the question re-opens on every resume.
+  if (r.patch?.target_weight_kg !== undefined) {
+    await setProfile(db, telegram_id, { target_weight_kg: r.patch.target_weight_kg });
+  }
+  if (r.patch?.country !== undefined) await setProfile(db, telegram_id, { country: r.patch.country });
   if (r.patch?.restrictions !== undefined) await setProfile(db, telegram_id, { restrictions: r.patch.restrictions });
   await setUserState(db, telegram_id, r.nextState);
 }
@@ -191,7 +204,19 @@ export async function processOnboarding(
   const u = await getUser(deps.db, from.id);
   if (input.type === "command") await recordStart(deps.db, from.id, input.payload);
   const t = translatorForUser(u);
-  const r = step(u ? { state: u.state, goal: u.goal, weight_kg: u.weight_kg } : undefined, input, t);
+  const r = step(
+    u
+      ? {
+          state: u.state,
+          goal: u.goal,
+          weight_kg: u.weight_kg,
+          target_weight_kg: u.target_weight_kg,
+          country: u.country,
+        }
+      : undefined,
+    input,
+    t,
+  );
   await applyRestrictionFallback(deps, u, input, r);
   await applyOnboarding(deps.db, from.id, r);
   if (u?.state !== "active" && r.nextState === "active") {
@@ -497,6 +522,8 @@ export async function processSettingsOpen(
     await send(translatorForUser(u)("errors.notOnboarded"));
     return;
   }
+  // A fresh open cancels any half-finished text prompt from a previous session.
+  await setPendingInput(deps.db, from.id, null);
   const prof = settingsProfile(u, deps.config);
   const v = settingsRoot(prof, translatorFor(prof.lang));
   await send(v.text, v.buttons);
@@ -510,6 +537,34 @@ function settingsProfile(u: UserRow, config: Config): SettingsProfile {
   return { ...prof, reply_format: replyFormatFor(prof, config) };
 }
 
+/** Persists a settings patch across the field-specific setters, then arms/clears the text-capture
+ * marker. Shared by the callback path (edits the message) and the text-input path (sends a reply).
+ * setProfile no-ops when its whitelist fields are all undefined, so one call covers every case.
+ * `currentPending` is the row's existing marker — the write is skipped when it wouldn't change,
+ * so plain picker navigation (no prompt armed, none to clear) costs no extra UPDATE. */
+async function applySettingsView(
+  deps: BotDeps,
+  id: number,
+  v: SettingsView,
+  currentPending: string | null,
+): Promise<void> {
+  if (v.patch) {
+    if (v.patch.lang) await setLang(deps.db, id, v.patch.lang);
+    if (v.patch.reply_format) await setReplyFormat(deps.db, id, v.patch.reply_format);
+    await setProfile(deps.db, id, {
+      goal: v.patch.goal,
+      restrictions: v.patch.restrictions,
+      weight_kg: v.patch.weight_kg,
+      target_weight_kg: v.patch.target_weight_kg,
+      country: v.patch.country,
+    });
+  }
+  // A prompt view arms pending_input; every other view (including a completed edit) clears it, so
+  // tapping any button cancels a half-finished text prompt. Only write on an actual change.
+  const nextPending = v.awaitInput ?? null;
+  if (nextPending !== currentPending) await setPendingInput(deps.db, id, nextPending);
+}
+
 /** Handles an `st:` callback: persist whatever changed, then rewrite the message in place. */
 export async function processSettingsCallback(
   deps: BotDeps,
@@ -521,14 +576,23 @@ export async function processSettingsCallback(
   if (!u || u.state !== "active") return; // no row to edit against; stay silent
   const prof = settingsProfile(u, deps.config);
   const v = settingsStep(prof, data, translatorFor(prof.lang));
-  if (v.patch) {
-    if (v.patch.lang) await setLang(deps.db, from.id, v.patch.lang);
-    if (v.patch.goal || v.patch.restrictions) {
-      await setProfile(deps.db, from.id, { goal: v.patch.goal, restrictions: v.patch.restrictions });
-    }
-    if (v.patch.reply_format) await setReplyFormat(deps.db, from.id, v.patch.reply_format);
-  }
+  await applySettingsView(deps, from.id, v, u.pending_input);
   await edit(v.text, v.buttons);
+}
+
+/** Handles the user's next text message when a /settings prompt is armed: parse + persist the
+ * typed value (or re-prompt on a parse failure), then send the resulting view. No LLM, no cap. */
+export async function processSettingsInput(
+  deps: BotDeps,
+  u: UserRow,
+  field: PendingInput,
+  text: string,
+  send: Send,
+): Promise<void> {
+  const prof = settingsProfile(u, deps.config);
+  const v = settingsInput(field, text, prof, translatorFor(prof.lang));
+  await applySettingsView(deps, u.telegram_id, v, u.pending_input);
+  await send(v.text, v.buttons);
 }
 
 /** /lang — a picker built from the registry, so a new locale appears with no code change. */
@@ -702,16 +766,37 @@ export async function processText(
   const u = await getUser(db, from.id);
   if (!u || u.state !== "active") return false; // onboarding owns non-active text
 
+  // Resolve reply targets ONCE, up front: a reply to a known "not food" message (rejection-explain)
+  // or to a meal card (correction/redate focus) carries explicit intent. A reply to nothing
+  // meaningful — e.g. to the bot's own "send your weight" prompt — does not.
+  const isRejectionReply =
+    msg.replyTo !== undefined && (deps.rejections?.has(from.id, msg.replyTo) ?? false);
+  const focus = msg.replyTo !== undefined ? await mealByReply(db, from.id, msg.replyTo) : undefined;
+
+  // A /settings text prompt (weight / target weight / "other" country) consumes this message
+  // BEFORE the router — no LLM call, no cap draw. Photos never hit this path (they stay meals).
+  // Exempt slash commands and replies that TARGET a meal/rejection; a plain answer or a reply to
+  // the prompt itself (focus undefined) is still consumed, so answering by replying works.
+  if (
+    u.pending_input &&
+    isPendingInput(u.pending_input) &&
+    !msg.text.startsWith("/") &&
+    !isRejectionReply &&
+    focus === undefined
+  ) {
+    await processSettingsInput(deps, u, u.pending_input, msg.text, send);
+    return true;
+  }
+
   const prof = profileOf(u);
   const t = translatorFor(prof.lang);
 
   // A reply to a known "not food" message: explain deterministically — there is nothing stored
   // about that photo (ephemeral), so no LLM call could say more.
-  if (msg.replyTo !== undefined && deps.rejections?.has(from.id, msg.replyTo)) {
+  if (isRejectionReply) {
     await send(t("errors.rejectionExplain"));
     return true;
   }
-  const focus = msg.replyTo !== undefined ? await mealByReply(db, from.id, msg.replyTo) : undefined;
 
   // 👀 before the cap checks, mirroring the photo path — "seen", not "will analyze".
   fireReaction(opts?.react, "👀", from.id);
@@ -974,29 +1059,36 @@ export async function meCard(deps: BotDeps, userId: number): Promise<string | nu
   const totals = await dailyTotals(deps.db, userId, date);
   const targets = targetsFor(prof);
   const t = translatorFor(prof.lang);
-  return (
-    t("me.profileLine", {
-      goal: t(`me.goal.${u.goal ?? "maintain"}`),
-      // Weight is shown so a misparsed onboarding answer stays visible and correctable —
-      // the value silently driving the protein target must never be invisible.
-      weight: prof.weight_kg ? t("me.weightValue", { kg: prof.weight_kg }) : t("me.noWeight"),
-      // Tags are storage identifiers, not copy — render their localized names. Membership is
-      // checked explicitly rather than leaning on i18next's defaultValue, which does not
-      // suppress the strict missing-key handler. A tag from an older build shows as itself.
-      restrictions: prof.restrictions.length
-        ? prof.restrictions
-            .map((tag) => (isRestrictionTag(tag) ? t(`me.restriction.${tag}`) : tag))
-            .join(", ")
-        : t("me.noRestrictions"),
-    }) +
-    "\n" +
-    t("me.todayLine", {
-      kcal: Math.round(totals.kcal),
-      kcalTarget: targets.kcal,
-      protein: Math.round(totals.protein_g),
-      proteinTarget: targets.protein_g,
-    })
-  );
+  const profileLine = t("me.profileLine", {
+    goal: t(`me.goal.${u.goal ?? "maintain"}`),
+    // Weight is shown so a misparsed onboarding answer stays visible and correctable —
+    // the value silently driving the protein target must never be invisible.
+    weight: prof.weight_kg ? t("me.weightValue", { kg: prof.weight_kg }) : t("me.noWeight"),
+    target: prof.target_weight_kg ? t("me.weightValue", { kg: prof.target_weight_kg }) : t("me.noWeight"),
+    country: prof.country ? countryLabel(prof.country, t) : t("me.noCountry"),
+    // Tags are storage identifiers, not copy — render their localized names. Membership is
+    // checked explicitly rather than leaning on i18next's defaultValue, which does not
+    // suppress the strict missing-key handler. A tag from an older build shows as itself.
+    restrictions: prof.restrictions.length
+      ? prof.restrictions
+          .map((tag) => (isRestrictionTag(tag) ? t(`me.restriction.${tag}`) : tag))
+          .join(", ")
+      : t("me.noRestrictions"),
+  });
+  const todayLine = t("me.todayLine", {
+    kcal: Math.round(totals.kcal),
+    kcalTarget: targets.kcal,
+    protein: Math.round(totals.protein_g),
+    proteinTarget: targets.protein_g,
+  });
+  // Progress line only when both weights are known: at-goal vs. absolute distance to the target.
+  const remaining = weightRemainingKg(prof);
+  const lines = [profileLine];
+  if (remaining !== null) {
+    lines.push(remaining === 0 ? t("me.atGoal") : t("me.toGoal", { kg: Math.abs(remaining) }));
+  }
+  lines.push(todayLine);
+  return lines.join("\n");
 }
 
 /**

@@ -20,7 +20,7 @@
     "deny": "Zugriff entziehen (Admin)",
     "help": "Wie dieser Bot funktioniert",
     "me": "Tagesbilanz",
-    "settings": "Ziel, Einschränkungen, Sprache, Antwortstil",
+    "settings": "Ziel, Gewicht, Land, Einschränkungen, Sprache, Antwortstil",
     "start": "Einrichtung starten oder fortsetzen",
     "stats": "Admin-Zähler",
     "waitlist": "Bescheid bekommen, wenn Unlimited startet"
@@ -71,18 +71,21 @@
     "pendingGone": "Der Eintrag ist schon abgelaufen — schick die Mahlzeit noch einmal, wenn du sie eintragen willst."
   },
   "help": {
-    "body": "Schick mir ein Foto deiner Mahlzeit und ich schätze Kalorien und Nährwerte. Mehrere Fotos in einer Nachricht (Album) behandle ich als eine Mahlzeit.\n\nDu kannst Mahlzeiten auch als Text beschreiben — schreib einfach, was du gegessen hast (sag „gestern“ oder „vor 2 Tagen“, um rückwirkend einzutragen), bestätige kurz, und ich trage es ein.\n\nFragen zu Ernährung, deinem Ziel oder der Tagesbilanz? Einfach fragen.\n\nFalsch geschätzt? Antworte direkt auf meine Analyse mit einer Korrektur — zum Beispiel „zwei Stück, ohne Öl“ — und ich rechne neu. Antworte „auf gestern verschieben“, um diese Mahlzeit auf einen anderen Tag zu legen.\n\nBessere Fotos, bessere Schätzungen:\n• fotografiere von oben, der ganze Teller im Bild\n• gutes Licht; Besteck oder deine Hand neben dem Teller hilft mir, die Portionsgröße einzuschätzen\n• Gewicht oder Zutaten bekannt? Schreib es dazu in die Bildunterschrift\n\nBefehle:\n/me — Tagesbilanz\n/cap — heutige KI-Aufrufe\n/settings — Ziel, Einschränkungen, Sprache, Antwortstil\n/help — diese Nachricht\n/delete — alle Daten löschen\n\nSchätzungen aus einem Foto sind ungefähr und keine medizinische Beratung."
+    "body": "Schick mir ein Foto deiner Mahlzeit und ich schätze Kalorien und Nährwerte. Mehrere Fotos in einer Nachricht (Album) behandle ich als eine Mahlzeit.\n\nDu kannst Mahlzeiten auch als Text beschreiben — schreib einfach, was du gegessen hast (sag „gestern“ oder „vor 2 Tagen“, um rückwirkend einzutragen), bestätige kurz, und ich trage es ein.\n\nFragen zu Ernährung, deinem Ziel oder der Tagesbilanz? Einfach fragen.\n\nFalsch geschätzt? Antworte direkt auf meine Analyse mit einer Korrektur — zum Beispiel „zwei Stück, ohne Öl“ — und ich rechne neu. Antworte „auf gestern verschieben“, um diese Mahlzeit auf einen anderen Tag zu legen.\n\nBessere Fotos, bessere Schätzungen:\n• fotografiere von oben, der ganze Teller im Bild\n• gutes Licht; Besteck oder deine Hand neben dem Teller hilft mir, die Portionsgröße einzuschätzen\n• Gewicht oder Zutaten bekannt? Schreib es dazu in die Bildunterschrift\n\nBefehle:\n/me — Tagesbilanz\n/cap — heutige KI-Aufrufe\n/settings — Ziel, Gewicht, Land, Einschränkungen, Sprache, Antwortstil\n/help — diese Nachricht\n/delete — alle Daten löschen\n\nSchätzungen aus einem Foto sind ungefähr und keine medizinische Beratung."
   },
   "lang": {
     "prompt": "Wähle eine Sprache:",
     "changed": "Sprache auf Deutsch umgestellt."
   },
   "me": {
-    "profileLine": "Profil: Ziel — {{goal}}; Gewicht — {{weight}}; Einschränkungen — {{restrictions}}",
+    "profileLine": "Profil: Ziel — {{goal}}; Gewicht — {{weight}}; Zielgewicht — {{target}}; Land — {{country}}; Einschränkungen — {{restrictions}}",
     "todayLine": "Heute: {{kcal}} / {{kcalTarget}} kcal · E {{protein}} / {{proteinTarget}} g",
+    "toGoal": "🎯 {{kg}} kg bis zum Ziel",
+    "atGoal": "🎯 Du bist auf deinem Zielgewicht 🎉",
     "noRestrictions": "keine",
     "weightValue": "{{kg}} kg",
     "noWeight": "nicht angegeben",
+    "noCountry": "nicht angegeben",
     "goal": {
       "lose": "abnehmen",
       "maintain": "halten",
@@ -119,12 +122,19 @@
     "totalSodium": "Natrium: {{now}} / {{target}} mg"
   },
   "onboarding": {
-    "consent": "Hallo! Ich analysiere Fotos deines Essens und berechne Kalorien und Nährwerte passend zu deinem Ziel.\n\nWas du wissen solltest:\n• Ich verarbeite Essensfotos und dein Profil (Ziel, Gewicht, Einschränkungen).\n• Einschränkungen können Gesundheitsangaben enthalten (Nieren, Cholesterin). Du musst keine angeben — tippe auf Überspringen.\n• Die Schätzungen sind ungefähr — das ist keine medizinische Beratung.\n• Fotos werden nicht gespeichert: Ich werte sie aus und lösche sie sofort.\n• Fotos und dein Profil werden für die Auswertung an einen KI-Anbieter gesendet.\n• /delete löscht alle deine Daten und widerruft diese Einwilligung.\n• Vollständige Richtlinie: https://github.com/kirmalyshev/eait/blob/main/docs/PRIVACY.md\n\nBist du mit dieser Datenverarbeitung einverstanden?",
+    "consent": "Hallo! Ich analysiere Fotos deines Essens und berechne Kalorien und Nährwerte passend zu deinem Ziel.\n\nWas du wissen solltest:\n• Ich verarbeite Essensfotos und dein Profil (Ziel, Gewicht, Zielgewicht, Land, Einschränkungen).\n• Einschränkungen können Gesundheitsangaben enthalten (Nieren, Cholesterin). Du musst keine angeben — tippe auf Überspringen.\n• Die Schätzungen sind ungefähr — das ist keine medizinische Beratung.\n• Fotos werden nicht gespeichert: Ich werte sie aus und lösche sie sofort.\n• Fotos und dein Profil werden für die Auswertung an einen KI-Anbieter gesendet.\n• /delete löscht alle deine Daten und widerruft diese Einwilligung.\n• Vollständige Richtlinie: https://github.com/kirmalyshev/eait/blob/main/docs/PRIVACY.md\n\nBist du mit dieser Datenverarbeitung einverstanden?",
     "decline": "Ohne Einwilligung kann ich keine Daten verarbeiten. Schreib /start, wenn du bereit bist.",
     "askGoal": "Was ist dein Ziel?",
     "askWeight": "Was ist dein aktuelles Gewicht? Damit lege ich dein Protein-Ziel fest. Schick es in Kilogramm (zum Beispiel 92,5) oder tippe auf „Überspringen“.",
     "weightInvalid": "Das sieht nicht nach einem Gewicht in Kilogramm aus — schick eine Zahl zwischen 30 und 300 (zum Beispiel 92,5) oder tippe auf „Überspringen“.",
     "weightSaved": "✅ {{kg}} kg — notiert.",
+    "askTargetWeight": "Was ist dein Zielgewicht? Damit verfolge ich den Fortschritt zu deinem Ziel. Schick es in Kilogramm (zum Beispiel 85) oder tippe auf „Überspringen“.",
+    "targetWeightInvalid": "Das sieht nicht nach einem Gewicht in Kilogramm aus — schick eine Zahl zwischen 30 und 300 (zum Beispiel 85) oder tippe auf „Überspringen“.",
+    "targetWeightSaved": "🎯 {{kg}} kg — notiert.",
+    "askCountry": "Wo kaufst du die meisten Lebensmittel? Damit erkenne ich lokale Produkte und Portionsgrößen. Wähle ein Land, tippe auf „Andere“, um es einzugeben, oder „Überspringen“.",
+    "countryInvalid": "Das habe ich nicht verstanden — wähle unten ein Land, tippe auf „Andere“, um es einzugeben, oder „Überspringen“.",
+    "countrySaved": "🛒 {{country}} — notiert.",
+    "countryOther": "Schreib das Land, in dem du die meisten Lebensmittel kaufst.",
     "askRestrictions": "Hast du gesundheitliche oder ernährungsbedingte Einschränkungen? Schreib frei (zum Beispiel: „Nieren, kein Zucker“) oder tippe auf „Überspringen“.",
     "done": "Fertig — schick mir Fotos von deinem Essen 📸\n\nFür die genauesten Schätzungen:\n• fotografiere von oben, der ganze Teller im Bild\n• gutes Licht; Besteck oder deine Hand neben dem Teller hilft mir, die Portionsgröße einzuschätzen\n• Gewicht oder Zutaten bekannt? Schreib es dazu in die Bildunterschrift",
     "alreadyActive": "Du bist schon eingerichtet — schick einfach Fotos von deinem Essen 📸 (/me — Profil und Tagesbilanz).",
@@ -135,20 +145,30 @@
       "goalLose": "Abnehmen",
       "goalMaintain": "Halten",
       "goalGain": "Zunehmen",
-      "skip": "Überspringen"
+      "skip": "Überspringen",
+      "countryOther": "🌐 Andere"
     }
   },
   "settings": {
     "title": "Einstellungen",
     "goalLine": "Ziel: {{goal}}",
+    "weightLine": "Gewicht: {{weight}}",
+    "targetWeightLine": "Zielgewicht: {{weight}}",
+    "countryLine": "Land: {{country}}",
     "restrictionsLine": "Einschränkungen: {{restrictions}}",
     "langLine": "Sprache: {{lang}}",
     "formatLine": "Antwortstil: {{format}}",
     "askRestrictions": "Tippe auf eine Einschränkung, um sie ein- oder auszuschalten:",
+    "askWeight": "Schick dein aktuelles Gewicht in Kilogramm (zum Beispiel 92,5).",
+    "askTargetWeight": "Schick dein Zielgewicht in Kilogramm (zum Beispiel 85).",
+    "askCountry": "Wo kaufst du die meisten Lebensmittel? Wähle unten ein Land oder tippe auf „Andere“, um es einzugeben.",
     "toggleOn": "✅ {{name}}",
     "toggleOff": "⬜ {{name}}",
     "button": {
       "goal": "🎯 Ziel",
+      "weight": "⚖️ Gewicht",
+      "targetWeight": "🎯 Zielgewicht",
+      "country": "🛒 Land",
       "restrictions": "🥗 Einschränkungen",
       "language": "🌍 Sprache",
       "format": "🎨 Stil",
@@ -159,6 +179,18 @@
       "rich": "Karten",
       "plain": "Einfacher Text"
     }
+  },
+  "country": {
+    "de": "🇩🇪 Deutschland",
+    "ru": "🇷🇺 Russland",
+    "us": "🇺🇸 USA",
+    "gb": "🇬🇧 Vereinigtes Königreich",
+    "fr": "🇫🇷 Frankreich",
+    "es": "🇪🇸 Spanien",
+    "it": "🇮🇹 Italien",
+    "nl": "🇳🇱 Niederlande",
+    "pl": "🇵🇱 Polen",
+    "tr": "🇹🇷 Türkei"
   },
   "stats": {
     "card": "{{users}} · {{meals}}",

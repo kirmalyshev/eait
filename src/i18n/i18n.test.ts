@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { DEFAULT_LANG, LANGS, LOCALES, REFERENCE_LANG, type Lang } from "./registry.ts";
 import { resolveLang, translatorFor } from "./index.ts";
 import { RESTRICTION_TAGS } from "../targets.ts";
+import { COUNTRIES } from "../country.ts";
 
 // ---------- catalog introspection helpers ----------
 
@@ -181,6 +182,13 @@ describe("catalog covers the domain vocabularies", () => {
     const missing = (["lose", "maintain", "gain"] as const).filter(
       (g) => !CATALOGS[lang].has(`me.goal.${g}`),
     );
+    expect(missing).toEqual([]);
+  });
+
+  // A country code offered as a button but missing its catalog entry would render as a raw
+  // `country.xx` key. Coupling to the exported COUNTRIES list fails the moment a code is added.
+  test.each(LANGS)("%s names every curated country", (lang) => {
+    const missing = COUNTRIES.filter((c) => !CATALOGS[lang].has(`country.${c}`));
     expect(missing).toEqual([]);
   });
 });

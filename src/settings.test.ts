@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { settingsRoot, settingsStep, type SettingsProfile } from "./settings.ts";
+import { settingsInput, settingsRoot, settingsStep, type SettingsProfile } from "./settings.ts";
 import { LANGS, translatorFor } from "./i18n/index.ts";
 import { RESTRICTION_TAGS } from "./targets.ts";
+import { COUNTRIES } from "./country.ts";
 
 const t = translatorFor("en");
 
@@ -30,8 +31,23 @@ describe("root view", () => {
     expect(v.text).toContain(t("me.noRestrictions"));
   });
 
-  test("offers exactly the four sections", () => {
-    expect(data(settingsRoot(profile(), t))).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
+  test("shows the current weight, target weight, and country (or 'not set')", () => {
+    const set = settingsRoot(profile({ weight_kg: 92, target_weight_kg: 85, country: "de" }), t);
+    expect(set.text).toContain(t("me.weightValue", { kg: 92 }));
+    expect(set.text).toContain(t("me.weightValue", { kg: 85 }));
+    expect(set.text).toContain(t("country.de"));
+    const unset = settingsRoot(profile({ weight_kg: null, target_weight_kg: null, country: null }), t);
+    expect(unset.text).toContain(t("me.noWeight"));
+    expect(unset.text).toContain(t("me.noCountry"));
+  });
+
+  test("shows a raw 'other' country as itself", () => {
+    const v = settingsRoot(profile({ country: "Portugal" }), t);
+    expect(v.text).toContain("Portugal");
+  });
+
+  test("offers every section", () => {
+    expect(data(settingsRoot(profile(), t))).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
   });
 
   test("shows the current reply format", () => {
@@ -50,14 +66,14 @@ describe("goal", () => {
   test("choosing a goal patches it and returns to the root view", () => {
     const v = settingsStep(profile({ goal: "lose" }), "st:goal:maintain", t);
     expect(v.patch).toEqual({ goal: "maintain" });
-    expect(data(v)).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
+    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
     expect(v.text).toContain(t("me.goal.maintain")); // root reflects the new value immediately
   });
 
   test("an invalid goal is ignored rather than persisted", () => {
     const v = settingsStep(profile({ goal: "lose" }), "st:goal:teleport", t);
     expect(v.patch).toBeUndefined();
-    expect(data(v)).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
+    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
   });
 });
 
@@ -136,14 +152,99 @@ describe("format", () => {
   test("choosing a format patches it and returns to the root view", () => {
     const v = settingsStep(profile({ reply_format: "rich" }), "st:format:plain", t);
     expect(v.patch).toEqual({ reply_format: "plain" });
-    expect(data(v)).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
+    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
     expect(v.text).toContain(t("settings.format.plain")); // root reflects the new value
   });
 
   test("an unknown format is ignored rather than persisted", () => {
     const v = settingsStep(profile(), "st:format:markdown", t);
     expect(v.patch).toBeUndefined();
-    expect(data(v)).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
+    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
+  });
+});
+
+describe("weight + target weight (text input)", () => {
+  test("st:weight arms a text prompt, patches nothing yet", () => {
+    const v = settingsStep(profile(), "st:weight", t);
+    expect(v.awaitInput).toBe("weight");
+    expect(v.patch).toBeUndefined();
+    expect(data(v)).toEqual(["st:root"]); // only a way back while typing
+  });
+
+  test("st:targetw arms a target-weight prompt", () => {
+    const v = settingsStep(profile(), "st:targetw", t);
+    expect(v.awaitInput).toBe("target_weight");
+    expect(v.patch).toBeUndefined();
+  });
+
+  test("a valid weight input patches it, returns to root, and clears the prompt", () => {
+    const v = settingsInput("weight", "80,5", profile({ weight_kg: 92 }), t);
+    expect(v.patch).toEqual({ weight_kg: 80.5 });
+    expect(v.awaitInput).toBeUndefined();
+    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
+    expect(v.text).toContain(t("me.weightValue", { kg: 80.5 }));
+  });
+
+  test("an invalid weight re-prompts, keeps the prompt armed, patches nothing", () => {
+    const v = settingsInput("weight", "banana", profile(), t);
+    expect(v.patch).toBeUndefined();
+    expect(v.awaitInput).toBe("weight");
+  });
+
+  test("a valid target-weight input patches target_weight_kg", () => {
+    const v = settingsInput("target_weight", "85", profile(), t);
+    expect(v.patch).toEqual({ target_weight_kg: 85 });
+    expect(v.awaitInput).toBeUndefined();
+  });
+
+  test("an invalid target weight keeps the target prompt armed", () => {
+    const v = settingsInput("target_weight", "soon", profile(), t);
+    expect(v.patch).toBeUndefined();
+    expect(v.awaitInput).toBe("target_weight");
+  });
+});
+
+describe("country", () => {
+  test("st:country opens a picker with every curated country, Other, and back", () => {
+    const v = settingsStep(profile(), "st:country", t);
+    const ds = data(v);
+    for (const c of COUNTRIES) expect(ds).toContain(`st:country:${c}`);
+    expect(ds).toContain("st:country:other");
+    expect(ds).toContain("st:root");
+    expect(v.patch).toBeUndefined();
+    expect(v.awaitInput).toBeUndefined();
+  });
+
+  test("picking a country patches the code and returns to root", () => {
+    const v = settingsStep(profile({ country: null }), "st:country:de", t);
+    expect(v.patch).toEqual({ country: "de" });
+    expect(v.text).toContain(t("country.de"));
+    expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
+  });
+
+  test("an unknown country code re-shows the picker, patches nothing", () => {
+    const v = settingsStep(profile(), "st:country:zz", t);
+    expect(v.patch).toBeUndefined();
+    expect(data(v)).toContain("st:country:other"); // still the picker
+  });
+
+  test("st:country:other arms a free-text prompt", () => {
+    const v = settingsStep(profile(), "st:country:other", t);
+    expect(v.awaitInput).toBe("country");
+    expect(v.patch).toBeUndefined();
+  });
+
+  test("a free-text country input is stored raw and returns to root", () => {
+    const v = settingsInput("country", "  Portugal ", profile(), t);
+    expect(v.patch).toEqual({ country: "Portugal" });
+    expect(v.awaitInput).toBeUndefined();
+    expect(v.text).toContain("Portugal");
+  });
+
+  test("an empty country input keeps the country prompt armed", () => {
+    const v = settingsInput("country", "   ", profile(), t);
+    expect(v.patch).toBeUndefined();
+    expect(v.awaitInput).toBe("country");
   });
 });
 
@@ -152,27 +253,28 @@ describe("robustness", () => {
     for (const junk of ["", "st:", "st:nope", "garbage", "st:goal:", "goal_lose"]) {
       const v = settingsStep(profile(), junk, t);
       expect(v.patch).toBeUndefined();
-      expect(data(v)).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
+      expect(data(v)).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
     }
   });
 
   test("st:root returns the root view", () => {
-    expect(data(settingsStep(profile(), "st:root", t))).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
+    expect(data(settingsStep(profile(), "st:root", t))).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
   });
 });
 
 describe("localization", () => {
-  const VIEWS = ["st:root", "st:goal", "st:restr", "st:lang", "st:format"];
+  const VIEWS = ["st:root", "st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"];
+  const RAW_KEY = /\b(settings|me|onboarding|lang|country)\.[a-zA-Z.]+/;
 
   test.each(LANGS)("%s renders every view with no raw key", (lang) => {
     const tl = translatorFor(lang);
     for (const d of VIEWS) {
-      const v = settingsStep(profile({ restrictions: ["kidneys"] }), d, tl);
+      const v = settingsStep(profile({ restrictions: ["kidneys"], weight_kg: 92, target_weight_kg: 85, country: "de" }), d, tl);
       expect(v.text.trim()).not.toBe("");
-      expect(v.text).not.toMatch(/\b(settings|me|onboarding|lang)\.[a-zA-Z.]+/);
+      expect(v.text).not.toMatch(RAW_KEY);
       for (const label of labels(v)) {
         expect(label.trim()).not.toBe("");
-        expect(label).not.toMatch(/\b(settings|me|onboarding|lang)\.[a-zA-Z.]+/);
+        expect(label).not.toMatch(RAW_KEY);
       }
     }
   });
@@ -187,7 +289,7 @@ describe("keyboard layout", () => {
   });
 
   test("the back button is on its own final row in every sub-view", () => {
-    for (const d of ["st:goal", "st:restr", "st:lang", "st:format"]) {
+    for (const d of ["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]) {
       const v = settingsStep(profile(), d, t);
       const last = v.buttons[v.buttons.length - 1]!;
       expect(last).toHaveLength(1);

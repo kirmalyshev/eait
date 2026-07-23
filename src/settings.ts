@@ -9,9 +9,22 @@
 import type { TFunction } from "i18next";
 import { LANGS, LOCALES, isLang, translatorFor } from "./i18n/index.ts";
 import { RESTRICTION_TAGS, isRestrictionTag } from "./targets.ts";
-import type { InlineButton } from "./onboarding.ts";
+import { countryCodeRows, countryLabel, isCountryCode, parseCountry } from "./country.ts";
+import { parseWeight, type InlineButton } from "./onboarding.ts";
 import { REPLY_FORMATS, isReplyFormat } from "./types.ts";
 import type { Goal, Lang, Profile, ReplyFormat } from "./types.ts";
+
+/**
+ * The profile fields editable by typing rather than tapping (weight, target weight, a free-text
+ * "other" country). A picker sets `awaitInput` to one of these; `bot.ts` stores it, and the user's
+ * next text message is routed to `settingsInput`. Kept a literal union so the db marker validates
+ * against it at the read boundary.
+ */
+export const PENDING_INPUTS = ["weight", "target_weight", "country"] as const;
+export type PendingInput = (typeof PENDING_INPUTS)[number];
+export function isPendingInput(v: unknown): v is PendingInput {
+  return typeof v === "string" && (PENDING_INPUTS as readonly string[]).includes(v);
+}
 
 /**
  * The profile the settings machine renders. reply_format must arrive RESOLVED to the effective
@@ -25,7 +38,19 @@ export interface SettingsView {
   text: string;
   buttons: InlineButton[][];
   /** Present only when this step actually changed something. */
-  patch?: { goal?: Goal; restrictions?: string[]; lang?: Lang; reply_format?: ReplyFormat };
+  patch?: {
+    goal?: Goal;
+    restrictions?: string[];
+    lang?: Lang;
+    reply_format?: ReplyFormat;
+    weight_kg?: number;
+    target_weight_kg?: number;
+    country?: string;
+  };
+  /** Present only when this step opens a text prompt: bot.ts arms pending_input to this field so
+   * the user's next text message reaches `settingsInput`. Absent on every other view, which is how
+   * bot.ts knows to CLEAR any armed prompt (tapping any other button cancels a pending edit). */
+  awaitInput?: PendingInput;
 }
 
 /** Goals in picker order, paired with the onboarding button label they reuse. */
@@ -41,7 +66,12 @@ const backRow = (t: TFunction): InlineButton[] => [
   { text: t("settings.button.back"), data: "st:root" },
 ];
 
-/** Renders the profile summary + the four section buttons. */
+/** A weight value or the "not set" placeholder — shared by the current-weight and target lines. */
+function weightDisplay(kg: number | null | undefined, t: TFunction): string {
+  return kg ? t("me.weightValue", { kg }) : t("me.noWeight");
+}
+
+/** Renders the profile summary + the section buttons. */
 export function settingsRoot(p: SettingsProfile, t: TFunction): SettingsView {
   const restrictions = p.restrictions.length
     ? p.restrictions.map((tag) => tagName(tag, t)).join(", ")
@@ -50,13 +80,21 @@ export function settingsRoot(p: SettingsProfile, t: TFunction): SettingsView {
     text: [
       t("settings.title"),
       t("settings.goalLine", { goal: t(`me.goal.${p.goal ?? "maintain"}`) }),
+      t("settings.weightLine", { weight: weightDisplay(p.weight_kg, t) }),
+      t("settings.targetWeightLine", { weight: weightDisplay(p.target_weight_kg, t) }),
+      t("settings.countryLine", { country: p.country ? countryLabel(p.country, t) : t("me.noCountry") }),
       t("settings.restrictionsLine", { restrictions }),
       t("settings.langLine", { lang: LOCALES[p.lang].nativeName }),
       t("settings.formatLine", { format: t(`settings.format.${p.reply_format}`) }),
     ].join("\n"),
     buttons: [
+      [{ text: t("settings.button.goal"), data: "st:goal" }],
       [
-        { text: t("settings.button.goal"), data: "st:goal" },
+        { text: t("settings.button.weight"), data: "st:weight" },
+        { text: t("settings.button.targetWeight"), data: "st:targetw" },
+      ],
+      [
+        { text: t("settings.button.country"), data: "st:country" },
         { text: t("settings.button.restrictions"), data: "st:restr" },
       ],
       [
@@ -124,6 +162,25 @@ function formatPicker(t: TFunction): SettingsView {
   };
 }
 
+/** A text prompt: only a "back" button (which cancels), plus `awaitInput` so bot.ts captures the
+ * user's next text message as this field's value. `text` is pre-translated by the caller (keeps
+ * the i18n key literal at the call site, where the typed `t` can check it). */
+function textPrompt(text: string, field: PendingInput, t: TFunction): SettingsView {
+  return { text, buttons: [backRow(t)], awaitInput: field };
+}
+
+/** Curated countries + an "Other" (free-text) entry + back. Chosen codes patch; "other" prompts. */
+function countryPicker(t: TFunction): SettingsView {
+  return {
+    text: t("settings.askCountry"),
+    buttons: [
+      ...countryCodeRows(t, (c) => `st:country:${c}`),
+      [{ text: t("onboarding.button.countryOther"), data: "st:country:other" }],
+      backRow(t),
+    ],
+  };
+}
+
 /**
  * Applies `data` to `p` and returns the resulting view. An invalid goal, format, or locale falls
  * back to the root view; an unknown restriction tag re-renders the toggles. Nothing unrecognised
@@ -134,6 +191,18 @@ export function settingsStep(p: SettingsProfile, data: string, t: TFunction): Se
   if (data === "st:restr") return restrictionToggles(p, t);
   if (data === "st:lang") return langPicker(t);
   if (data === "st:format") return formatPicker(t);
+  if (data === "st:weight") return textPrompt(t("settings.askWeight"), "weight", t);
+  if (data === "st:targetw") return textPrompt(t("settings.askTargetWeight"), "target_weight", t);
+  if (data === "st:country") return countryPicker(t);
+
+  const country = suffix(data, "st:country:");
+  if (country !== null) {
+    // "Other" opens a free-text prompt; a curated code patches; anything else re-shows the picker.
+    if (country === "other") return textPrompt(t("onboarding.countryOther"), "country", t);
+    if (!isCountryCode(country)) return countryPicker(t);
+    const next = { ...p, country };
+    return { ...settingsRoot(next, t), patch: { country } };
+  }
 
   const goal = suffix(data, "st:goal:");
   if (goal !== null) {
@@ -179,4 +248,35 @@ export function settingsStep(p: SettingsProfile, data: string, t: TFunction): Se
 /** `"st:goal:lose"` with prefix `"st:goal:"` -> `"lose"`; null when the prefix does not match. */
 function suffix(data: string, prefix: string): string | null {
   return data.startsWith(prefix) ? data.slice(prefix.length) : null;
+}
+
+/**
+ * Applies a typed value to the field a prompt is awaiting. On success returns the refreshed root
+ * (no `awaitInput`, so bot.ts clears the marker); on a parse failure re-prompts with `awaitInput`
+ * still set, so the marker stays armed for a corrected retry. Same "re-prompt, never break" rule
+ * the callback machine follows. Reuses onboarding's parsers and invalid-input copy.
+ */
+export function settingsInput(
+  field: PendingInput,
+  text: string,
+  p: SettingsProfile,
+  t: TFunction,
+): SettingsView {
+  switch (field) {
+    case "weight": {
+      const kg = parseWeight(text);
+      if (kg == null) return textPrompt(t("onboarding.weightInvalid"), "weight", t);
+      return { ...settingsRoot({ ...p, weight_kg: kg }, t), patch: { weight_kg: kg } };
+    }
+    case "target_weight": {
+      const kg = parseWeight(text);
+      if (kg == null) return textPrompt(t("onboarding.targetWeightInvalid"), "target_weight", t);
+      return { ...settingsRoot({ ...p, target_weight_kg: kg }, t), patch: { target_weight_kg: kg } };
+    }
+    case "country": {
+      const country = parseCountry(text);
+      if (country == null) return textPrompt(t("onboarding.countryInvalid"), "country", t);
+      return { ...settingsRoot({ ...p, country }, t), patch: { country } };
+    }
+  }
 }

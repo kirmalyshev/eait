@@ -54,6 +54,10 @@ async function onboardToActive(deps: BotDeps, id: number) {
   await processOnboarding(deps, { id }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "goal_lose" }, noop);
   await processOnboarding(deps, { id }, { type: "text", text: "92" }, noop);
+  // The generic helper skips the optional target-weight and country steps, so a stored current
+  // weight of 92 remains the sole protein driver. The full target/country path has its own test.
+  await processOnboarding(deps, { id }, { type: "callback", data: "target_weight_skip" }, noop);
+  await processOnboarding(deps, { id }, { type: "callback", data: "country_skip" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "restrictions_skip" }, noop);
 }
 
@@ -74,10 +78,14 @@ test("onboarding with a skipped weight still reaches active, weight stored as 0"
   await processOnboarding(deps, { id: 101 }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id: 101 }, { type: "callback", data: "goal_lose" }, noop);
   await processOnboarding(deps, { id: 101 }, { type: "callback", data: "weight_skip" }, noop);
+  await processOnboarding(deps, { id: 101 }, { type: "callback", data: "target_weight_skip" }, noop);
+  await processOnboarding(deps, { id: 101 }, { type: "callback", data: "country_skip" }, noop);
   await processOnboarding(deps, { id: 101 }, { type: "callback", data: "restrictions_skip" }, noop);
   const u = (await getUser(db, 101)) as UserRow;
   expect(u.state).toBe("active");
   expect(u.weight_kg).toBe(0);
+  expect(u.target_weight_kg).toBe(0);
+  expect(u.country).toBe("");
 });
 
 test("processPhoto rejects a non-active user (no row written)", async () => {
@@ -309,7 +317,7 @@ test("meCard is null unless active; statsCard counts users+meals", async () => {
 // ---------- language ----------
 
 test("profileOf accepts any registered locale and falls back for anything else", () => {
-  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, reply_format: null };
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, reply_format: null };
   expect(profileOf({ ...base, lang: "de" } as UserRow).lang).toBe("de");
   expect(profileOf({ ...base, lang: "ru" } as UserRow).lang).toBe("ru");
   // a value that predates (or outlives) the registry must not render as a raw key
@@ -318,14 +326,14 @@ test("profileOf accepts any registered locale and falls back for anything else",
 });
 
 test("profileOf maps the db's 0-skip weight sentinel to null, real weights pass through", () => {
-  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, lang: "en", reply_format: null };
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, lang: "en", reply_format: null };
   expect(profileOf({ ...base, weight_kg: 0 } as UserRow).weight_kg).toBeNull();
   expect(profileOf({ ...base, weight_kg: 92.5 } as UserRow).weight_kg).toBe(92.5);
   expect(profileOf(base as UserRow).weight_kg).toBeNull();
 });
 
 test("profileOf maps a junk reply_format to null (never coerces to a hardcoded format)", () => {
-  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, lang: "en" };
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, lang: "en" };
   // null is the only value that distinguishes "→ null" from a mutant that coerces to "rich" or
   // passes junk through: on a plain instance either mutant would render the wrong format.
   expect(profileOf({ ...base, reply_format: "markdown" } as UserRow).reply_format).toBeNull();
@@ -335,7 +343,7 @@ test("profileOf maps a junk reply_format to null (never coerces to a hardcoded f
 });
 
 test("profileOf warns LOUDLY on off-vocabulary stored values, stays quiet on the normal states", () => {
-  const base = { telegram_id: 55, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, lang: "en", reply_format: null };
+  const base = { telegram_id: 55, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, lang: "en", reply_format: null };
   const warn = spyOn(console, "warn").mockImplementation(() => {});
   try {
     profileOf({ ...base, lang: "en", reply_format: null } as UserRow); // both normal → silent
@@ -472,8 +480,27 @@ test("/me shows the stored weight, and 'not set' after a skip — misparses stay
   await processOnboarding(deps, { id: 89 }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id: 89 }, { type: "callback", data: "goal_lose" }, noop);
   await processOnboarding(deps, { id: 89 }, { type: "callback", data: "weight_skip" }, noop);
+  await processOnboarding(deps, { id: 89 }, { type: "callback", data: "target_weight_skip" }, noop);
+  await processOnboarding(deps, { id: 89 }, { type: "callback", data: "country_skip" }, noop);
   await processOnboarding(deps, { id: 89 }, { type: "callback", data: "restrictions_skip" }, noop);
   expect(await meCard(deps, 89)).toContain(t("me.noWeight"));
+});
+
+test("onboarding stores a typed target weight and a picked country, then reaches active", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await processOnboarding(deps, { id: 90 }, { type: "command", command: "start" }, noop);
+  await processOnboarding(deps, { id: 90 }, { type: "callback", data: "consent_agree" }, noop);
+  await processOnboarding(deps, { id: 90 }, { type: "callback", data: "goal_lose" }, noop);
+  await processOnboarding(deps, { id: 90 }, { type: "text", text: "92" }, noop);
+  await processOnboarding(deps, { id: 90 }, { type: "text", text: "85" }, noop); // target weight
+  await processOnboarding(deps, { id: 90 }, { type: "callback", data: "country_de" }, noop);
+  await processOnboarding(deps, { id: 90 }, { type: "callback", data: "restrictions_skip" }, noop);
+  const u = (await getUser(db, 90)) as UserRow;
+  expect(u.state).toBe("active");
+  expect(u.weight_kg).toBe(92);
+  expect(u.target_weight_kg).toBe(85);
+  expect(u.country).toBe("de");
 });
 
 /** Collects reaction emojis; flush() lets fire-and-forget microtasks land before asserting. */
@@ -745,6 +772,8 @@ async function toRestrictionsStep(deps: BotDeps, id: number, language_code?: str
   await processOnboarding(deps, { id }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "goal_lose" }, noop);
   await processOnboarding(deps, { id }, { type: "callback", data: "weight_skip" }, noop);
+  await processOnboarding(deps, { id }, { type: "callback", data: "target_weight_skip" }, noop);
+  await processOnboarding(deps, { id }, { type: "callback", data: "country_skip" }, noop);
 }
 
 test("a keyword match short-circuits — the classifier is never consulted", async () => {
@@ -806,6 +835,8 @@ test("/me renders restriction tags as localized names, not raw identifiers", asy
   await processOnboarding(deps, { id: 300 }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id: 300 }, { type: "callback", data: "goal_lose" }, noop);
   await processOnboarding(deps, { id: 300 }, { type: "callback", data: "weight_skip" }, noop);
+  await processOnboarding(deps, { id: 300 }, { type: "callback", data: "target_weight_skip" }, noop);
+  await processOnboarding(deps, { id: 300 }, { type: "callback", data: "country_skip" }, noop);
   await processOnboarding(deps, { id: 300 }, { type: "text", text: "почки, холестерин" }, noop);
 
   const card = (await meCard(deps, 300)) as string;
@@ -857,7 +888,7 @@ test("/settings is refused until onboarding is finished", async () => {
   expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.notOnboarded"));
 });
 
-test("/settings opens the root view with the four sections", async () => {
+test("/settings opens the root view with every section", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
   await onboardToActive(deps, 401);
@@ -867,7 +898,7 @@ test("/settings opens the root view with the four sections", async () => {
     return { chat_id: 1, message_id: 1 };
   };
   await processSettingsOpen(deps, { id: 401 }, send);
-  expect(seen[0]).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]);
+  expect(seen[0]).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]);
 });
 
 test("choosing a goal persists it and edits the message in place", async () => {
@@ -878,7 +909,7 @@ test("choosing a goal persists it and edits the message in place", async () => {
   await processSettingsCallback(deps, { id: 402 }, "st:goal:maintain", edit);
   expect((await getUser(db, 402))?.goal).toBe("maintain");
   expect(edits).toHaveLength(1); // edited, not appended
-  expect(last().data).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]); // back at root
+  expect(last().data).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]); // back at root
 });
 
 test("toggling a restriction twice persists on and then off, with no new messages", async () => {
@@ -932,7 +963,7 @@ test("choosing a reply format in settings persists it per user", async () => {
   const { edit, last } = editor();
   await processSettingsCallback(deps, { id: 408 }, "st:format:rich", edit);
   expect((await getUser(db, 408))?.reply_format).toBe("rich");
-  expect(last().data).toEqual(["st:goal", "st:restr", "st:lang", "st:format"]); // back at root
+  expect(last().data).toEqual(["st:goal", "st:weight", "st:targetw", "st:country", "st:restr", "st:lang", "st:format"]); // back at root
   expect(last().text).toContain(translatorFor(DEFAULT_LANG)("settings.format.rich"));
 });
 
@@ -975,6 +1006,170 @@ test("a settings CALLBACK re-render also resolves the instance default (st:root,
   const { edit, last } = editor();
   await processSettingsCallback(deps, { id: 415 }, "st:root", edit);
   expect(last().text).toContain(translatorFor(DEFAULT_LANG)("settings.format.plain"));
+});
+
+// ---------- settings text-input (weight / target weight / country) ----------
+
+/** Sends a text message through the real entry point; returns whether processText handled it. */
+async function sendText(deps: BotDeps, id: number, text: string, send: Send = noop) {
+  return processText(deps, { id }, { text, messageId: 1 }, send);
+}
+
+test("tapping Weight arms the prompt; the next text sets the weight and clears pending", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 420); // weight 92
+  const { edit } = editor();
+  await processSettingsCallback(deps, { id: 420 }, "st:weight", edit);
+  expect((await getUser(db, 420))?.pending_input).toBe("weight");
+
+  const { msgs, send } = collector();
+  const handled = await sendText(deps, 420, "80,5", send);
+  expect(handled).toBe(true);
+  const u = (await getUser(db, 420))!;
+  expect(u.weight_kg).toBe(80.5);
+  expect(u.pending_input).toBeNull(); // cleared on success
+  expect(msgs[0]).toContain(translatorFor(DEFAULT_LANG)("me.weightValue", { kg: 80.5 }));
+});
+
+test("an armed weight prompt draws no LLM call and never routes to the analyzer", async () => {
+  const db = await freshTestDb();
+  const { p, calls } = countingProvider(foodJson());
+  const deps: BotDeps = { db, provider: p, config: cfg };
+  await onboardToActive(deps, 421);
+  await processSettingsCallback(deps, { id: 421 }, "st:weight", editor().edit);
+  await sendText(deps, 421, "80");
+  expect(calls()).toBe(0); // captured before the router — no provider call, no cap draw
+  expect(await llmCallsToday(db, 421, berlinDate(new Date(), cfg.tz))).toBe(0);
+});
+
+test("an invalid weight input re-prompts and keeps the prompt armed", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 422);
+  await processSettingsCallback(deps, { id: 422 }, "st:weight", editor().edit);
+  const { msgs, send } = collector();
+  await sendText(deps, 422, "banana", send);
+  expect((await getUser(db, 422))?.pending_input).toBe("weight"); // still armed
+  expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("onboarding.weightInvalid"));
+});
+
+test("target-weight and 'Other' country prompts capture the next text", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 423);
+  await processSettingsCallback(deps, { id: 423 }, "st:targetw", editor().edit);
+  await sendText(deps, 423, "85");
+  expect((await getUser(db, 423))?.target_weight_kg).toBe(85);
+
+  await processSettingsCallback(deps, { id: 423 }, "st:country:other", editor().edit);
+  expect((await getUser(db, 423))?.pending_input).toBe("country");
+  await sendText(deps, 423, "Portugal");
+  const u = (await getUser(db, 423))!;
+  expect(u.country).toBe("Portugal");
+  expect(u.pending_input).toBeNull();
+});
+
+test("picking a curated country patches it with no text step", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 424);
+  await processSettingsCallback(deps, { id: 424 }, "st:country:de", editor().edit);
+  expect((await getUser(db, 424))?.country).toBe("de");
+  expect((await getUser(db, 424))?.pending_input).toBeNull();
+});
+
+test("tapping another settings button cancels an armed prompt", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 425);
+  await processSettingsCallback(deps, { id: 425 }, "st:weight", editor().edit);
+  expect((await getUser(db, 425))?.pending_input).toBe("weight");
+  await processSettingsCallback(deps, { id: 425 }, "st:goal:maintain", editor().edit);
+  expect((await getUser(db, 425))?.pending_input).toBeNull(); // cancelled
+  expect((await getUser(db, 425))?.goal).toBe("maintain");
+});
+
+test("reopening /settings clears a stale armed prompt", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 426);
+  await processSettingsCallback(deps, { id: 426 }, "st:weight", editor().edit);
+  await processSettingsOpen(deps, { id: 426 }, noop);
+  expect((await getUser(db, 426))?.pending_input).toBeNull();
+});
+
+test("/me shows target weight, country, and a progress line toward the target", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 430); // goal lose, weight 92, target/country skipped
+  await processSettingsCallback(deps, { id: 430 }, "st:targetw", editor().edit);
+  await sendText(deps, 430, "85"); // target weight
+  await processSettingsCallback(deps, { id: 430 }, "st:country:de", editor().edit);
+  const card = (await meCard(deps, 430)) as string;
+  const t = translatorFor(DEFAULT_LANG);
+  expect(card).toContain(t("country.de"));
+  expect(card).toContain(t("me.weightValue", { kg: 85 }));
+  expect(card).toContain(t("me.toGoal", { kg: 7 })); // 92 − 85
+  expect(card).not.toMatch(/\{\{/); // no unresolved i18n placeholder leaks to the user
+});
+
+test("/me shows 'not set' for target and country when the user skipped them, with no progress line", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 431); // target + country skipped by the helper
+  const card = (await meCard(deps, 431)) as string;
+  const t = translatorFor(DEFAULT_LANG);
+  expect(card).toContain(t("me.noCountry"));
+  expect(card).not.toContain("🎯"); // the progress line (me.toGoal/me.atGoal) is the only 🎯 source
+  expect(card).not.toMatch(/\{\{/);
+});
+
+test("a reply to a MEAL is exempt from an armed prompt, but a reply to the prompt still sets the field", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(JSON.stringify({ intent: "question", answer: "ok" })), config: cfg };
+  const { insertMeal } = await import("../db.ts");
+  await onboardToActive(deps, 440); // weight 92
+  await insertMeal(db, {
+    id: crypto.randomUUID(), user_id: 440, ts: "t",
+    date: berlinDate(new Date(), cfg.tz), analysis: JSON.parse(foodJson()),
+    chat_id: 1, bot_message_id: 555,
+  });
+  await processSettingsCallback(deps, { id: 440 }, "st:weight", editor().edit);
+
+  // (a) reply to the meal card → explicit correction/redate intent, NOT eaten as a weight.
+  await processText(deps, { id: 440 }, { text: "less oil", messageId: 2, replyTo: 555 }, noop);
+  let u = (await getUser(db, 440))!;
+  expect(u.weight_kg).toBe(92); // unchanged
+  expect(u.pending_input).toBe("weight"); // prompt still armed
+
+  // (b) reply to a non-meal message (e.g. the bot's own weight prompt) → consumed, field set.
+  await processText(deps, { id: 440 }, { text: "80", messageId: 3, replyTo: 999 }, noop);
+  u = (await getUser(db, 440))!;
+  expect(u.weight_kg).toBe(80); // answering-by-reply works
+  expect(u.pending_input).toBeNull(); // cleared on success
+});
+
+test("a slash command is NOT consumed by an armed weight prompt", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(JSON.stringify({ intent: "question", answer: "ok" })), config: cfg };
+  await onboardToActive(deps, 441);
+  await processSettingsCallback(deps, { id: 441 }, "st:weight", editor().edit);
+  await processText(deps, { id: 441 }, { text: "/me", messageId: 2 }, noop);
+  const u = (await getUser(db, 441))!;
+  expect(u.weight_kg).toBe(92); // "/me" not stored as a weight
+  expect(u.pending_input).toBe("weight"); // still armed
+});
+
+test("a photo sent while a weight prompt is armed is still logged as a meal", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 427);
+  await processSettingsCallback(deps, { id: 427 }, "st:weight", editor().edit);
+  const { send } = collector();
+  await processPhoto(deps, { id: 427 }, [async () => new Uint8Array([1])], send);
+  expect(await countMealsToday(db, 427, berlinDate(new Date(), cfg.tz))).toBe(1); // photo not consumed
+  expect((await getUser(db, 427))?.pending_input).toBe("weight"); // prompt survives the photo
 });
 
 test("a user's plain preference beats a rich instance at the meal card", async () => {
@@ -2380,6 +2575,8 @@ test("the onboarding restriction classifier is metered as an llm call", async ()
   await processOnboarding(deps, { id: 843 }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id: 843 }, { type: "callback", data: "goal_lose" }, noop);
   await processOnboarding(deps, { id: 843 }, { type: "text", text: "92" }, noop);
+  await processOnboarding(deps, { id: 843 }, { type: "callback", data: "target_weight_skip" }, noop);
+  await processOnboarding(deps, { id: 843 }, { type: "callback", data: "country_skip" }, noop);
   await processOnboarding(deps, { id: 843 }, { type: "text", text: "j'ai des problèmes rénaux" }, noop); // no keyword match → classifier
   expect(await llmCallsToday(db, 843, berlinDate(new Date(), cfg.tz))).toBe(1);
 });

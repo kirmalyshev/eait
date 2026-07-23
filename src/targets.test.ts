@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { parseRestrictions, targetsFor, isRestrictionTag, RESTRICTION_TAGS } from "./targets.ts";
+import {
+  parseRestrictions,
+  targetsFor,
+  isRestrictionTag,
+  weightRemainingKg,
+  RESTRICTION_TAGS,
+} from "./targets.ts";
 import type { Goal, Profile } from "./types.ts";
 
 function profile(goal: Goal | null, restrictions: string[] = []): Profile {
@@ -21,6 +27,51 @@ describe("targetsFor — known weight drives the protein target", () => {
   test("null or absent weight keeps the 100 g baseline", () => {
     expect(targetsFor({ ...profile("maintain"), weight_kg: null }).protein_g).toBe(100);
     expect(targetsFor(profile("maintain")).protein_g).toBe(100);
+  });
+});
+
+describe("targetsFor — a target weight anchors protein when cutting", () => {
+  // Cutting on a deficit risks lean mass, so protein is set to the GOAL weight, not the current
+  // one. Other goals keep anchoring to current bodyweight. Kcal (KCAL_BY_GOAL) is unaffected.
+  test("cutting with a target anchors protein to the target, not current", () => {
+    // round(85 × 1.6) = 136, not round(92 × 1.6) = 147
+    expect(targetsFor({ ...profile("lose"), weight_kg: 92, target_weight_kg: 85 }).protein_g).toBe(136);
+  });
+  test("maintain/gain anchor protein to current weight even with a target set", () => {
+    expect(targetsFor({ ...profile("maintain"), weight_kg: 92, target_weight_kg: 85 }).protein_g).toBe(147);
+    expect(targetsFor({ ...profile("gain"), weight_kg: 80, target_weight_kg: 90 }).protein_g).toBe(128);
+  });
+  test("cutting with no target still anchors to current weight", () => {
+    expect(targetsFor({ ...profile("lose"), weight_kg: 92 }).protein_g).toBe(147);
+  });
+  test("cutting with a target but no current weight anchors to the target", () => {
+    expect(targetsFor({ ...profile("lose"), weight_kg: null, target_weight_kg: 85 }).protein_g).toBe(136);
+  });
+  test("the anchored protein is still clamped to [80, 180]", () => {
+    expect(targetsFor({ ...profile("lose"), weight_kg: 60, target_weight_kg: 40 }).protein_g).toBe(80);
+  });
+  test("kcal is unchanged by a target weight (no invented deficit)", () => {
+    expect(targetsFor({ ...profile("lose"), weight_kg: 92, target_weight_kg: 85 }).kcal).toBe(1800);
+  });
+});
+
+describe("weightRemainingKg — signed distance to the target", () => {
+  test("positive when there is weight to lose", () => {
+    expect(weightRemainingKg({ ...profile("lose"), weight_kg: 92, target_weight_kg: 85 })).toBe(7);
+  });
+  test("negative when there is weight to gain", () => {
+    expect(weightRemainingKg({ ...profile("gain"), weight_kg: 80, target_weight_kg: 90 })).toBe(-10);
+  });
+  test("zero at the target", () => {
+    expect(weightRemainingKg({ ...profile("maintain"), weight_kg: 85, target_weight_kg: 85 })).toBe(0);
+  });
+  test("rounded to 0.1 kg", () => {
+    expect(weightRemainingKg({ ...profile("lose"), weight_kg: 92.5, target_weight_kg: 85 })).toBe(7.5);
+  });
+  test("null when either weight is unknown", () => {
+    expect(weightRemainingKg({ ...profile("lose"), weight_kg: 92 })).toBeNull();
+    expect(weightRemainingKg({ ...profile("lose"), target_weight_kg: 85 })).toBeNull();
+    expect(weightRemainingKg(profile("lose"))).toBeNull();
   });
 });
 

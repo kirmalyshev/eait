@@ -271,6 +271,43 @@ describe("expert persona + cuisine prior", () => {
   });
 });
 
+describe("purchase-country prior + target-weight framing", () => {
+  test("a set country adds a local-products prior, hedged like the cuisine one", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], { ...profile, country: "de" }, provider);
+    const text = provider.lastRequest!.userText;
+    expect(text).toContain("Germany"); // resolved English name, not the code
+    expect(text).toMatch(/local product/i);
+    expect(text).toMatch(/always trust the actual evidence/); // the prior never outranks evidence
+  });
+
+  test("a raw 'other' country is passed through verbatim", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], { ...profile, country: "Portugal" }, provider);
+    expect(provider.lastRequest!.userText).toContain("Portugal");
+  });
+
+  test("no country → no country line at all", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], { ...profile, country: null }, provider);
+    expect(provider.lastRequest!.userText).not.toMatch(/local product/i);
+  });
+
+  test("current + target weight adds a progress-framing line", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], { ...profile, weight_kg: 92, target_weight_kg: 85 }, provider);
+    const text = provider.lastRequest!.userText;
+    expect(text).toContain("92");
+    expect(text).toContain("85");
+  });
+
+  test("the router path inherits the country prior", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "ok" }));
+    await routeText("no oil", { ...profile, country: "de" }, { todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } }, provider);
+    expect(provider.lastRequest!.userText).toContain("Germany");
+  });
+});
+
 describe("sampling temperature", () => {
   // Low temperature is the cheap form of self-consistency: same photo → same estimate,
   // instead of a 3-call median. All analyzer calls request it; the provider stays generic.

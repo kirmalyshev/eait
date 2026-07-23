@@ -15,6 +15,8 @@ Last updated: 2026-07-23.
 | Reply style (rich cards / plain text) | Render meal replies the way you chose | Until you `/delete` |
 | Goal (lose / maintain / gain) | Set your calorie and protein targets | Until you `/delete` |
 | Current weight (optional — the question is skippable) | Personalize your protein target (1.6 g/kg) | Until you `/delete` |
+| Target weight (optional — skippable) | Anchor your protein target when cutting and show progress toward your goal | Until you `/delete` |
+| Purchase country (optional — skippable) | Steer estimates toward local products and portion sizes | Until you `/delete` |
 | Dietary and health restrictions | Judge meals on the dimensions you declared | Until you `/delete` |
 | Per-meal estimates — items, calories, macros, verdicts, notes | Daily totals and corrections | Until you `/delete` |
 | Pending text-meal descriptions (stored briefly while you confirm) | Hold your text input between the confirm prompt and your tap | Deleted immediately on confirm or cancel; auto-pruned after 48 h if neither arrives |
