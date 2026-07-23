@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   ExpectationSchema,
   median,
+  nutrition5kRowToExpectation,
   pairFixtures,
   renderReport,
   summarize,
@@ -21,6 +22,40 @@ describe("ExpectationSchema", () => {
   test("rejects non-positive kcal — a zero expectation breaks MAPE and is always a typo", () => {
     expect(ExpectationSchema.safeParse({ kcal: 0 }).success).toBe(false);
     expect(ExpectationSchema.safeParse({ kcal: -100 }).success).toBe(false);
+  });
+});
+
+describe("nutrition5kRowToExpectation", () => {
+  // A real dish_metadata_cafe1.csv line: 6 dish-level fields, then repeating ingredient
+  // fields the eval ignores. The real CSV has NO num_ingrs column — ingredients begin at
+  // field 7 (an ingr_id), so the mapper reads fields 1–6 only.
+  const REAL_ROW =
+    "dish_1561662216,300.794281,193.000000,12.387489,28.218290,18.633970," +
+    "ingr_0000000508,egg,50.0,72.0,4.8,0.4,6.3";
+
+  test("maps the six dish-level fields; rounds kcal to int, macros/grams to 1dp", () => {
+    expect(nutrition5kRowToExpectation(REAL_ROW)).toEqual({
+      dishId: "dish_1561662216",
+      expectation: { kcal: 301, total_grams: 193, fat_g: 12.4, carbs_g: 28.2, protein_g: 18.6 },
+    });
+  });
+
+  test("ignores trailing ingredient columns entirely", () => {
+    // Same six numbers, zero ingredient fields → identical expectation.
+    const bare = "dish_x,300.794281,193.0,12.387489,28.21829,18.63397";
+    expect(nutrition5kRowToExpectation(bare).expectation).toEqual(
+      nutrition5kRowToExpectation(REAL_ROW).expectation,
+    );
+  });
+
+  test("throws on a short row rather than emitting NaN ground truth", () => {
+    expect(() => nutrition5kRowToExpectation("dish_x,100,200,3")).toThrow(/fields/i);
+  });
+
+  test("rejects a non-numeric / non-positive dish via the schema (garbage line)", () => {
+    // kcal=0 → ExpectationSchema.positive() rejects; a zeroed row would poison MAPE.
+    expect(() => nutrition5kRowToExpectation("dish_x,0,200,3,4,5")).toThrow();
+    expect(() => nutrition5kRowToExpectation("dish_x,abc,200,3,4,5")).toThrow();
   });
 });
 

@@ -16,6 +16,36 @@ export const ExpectationSchema = z.object({
 });
 export type Expectation = z.infer<typeof ExpectationSchema>;
 
+/** One decimal place (12.4), collapsing a trailing `.0` so whole numbers stay integers (193). */
+const round1 = (n: number): number => Math.round(n * 10) / 10;
+
+/**
+ * Map one raw `dish_metadata_cafe*.csv` line (Nutrition5k) to a fixture Expectation — the
+ * zero-effort accuracy baseline for the model A/B (#7), pending real weighed home meals (#6).
+ * The first six comma fields are dish-level (dish_id, total_calories, total_mass, total_fat,
+ * total_carb, total_protein); the real CSV then repeats per-ingredient fields we ignore (it has
+ * NO num_ingrs column — ingredients start at field 7). kcal rounds to an integer, macros/grams to
+ * one decimal, then ExpectationSchema validates — so a short or non-numeric line throws instead
+ * of writing NaN ground truth that would silently poison the MAE/MAPE.
+ */
+export function nutrition5kRowToExpectation(
+  row: string,
+): { dishId: string; expectation: Expectation } {
+  const f = row.split(",");
+  if (f.length < 6) {
+    throw new Error(`nutrition5k row has ${f.length} fields, need >= 6 dish-level`);
+  }
+  const [dishId, kcal, mass, fat, carb, protein] = f;
+  const expectation = ExpectationSchema.parse({
+    kcal: Math.round(Number(kcal)),
+    total_grams: round1(Number(mass)),
+    fat_g: round1(Number(fat)),
+    carbs_g: round1(Number(carb)),
+    protein_g: round1(Number(protein)),
+  });
+  return { dishId: dishId!, expectation };
+}
+
 /** The numbers one analyzer run yields for one case (a MealAnalysis, flattened). */
 export interface EvalRun {
   kcal: number;
