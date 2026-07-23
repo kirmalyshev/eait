@@ -2,8 +2,8 @@
 // which hold the real logic and are unit-tested without grammy (a fake `send` + temp db + fake
 // provider). Text routing (spec 2026-07-22-free-text-handling-design): command first, then the
 // active-state gate — active users get processText (reply-to-rejection canned > caps > one
-// router call deciding question / meal / correction, with a reply-mapped focus meal as context);
-// non-active users' text belongs to onboarding. Concurrency via @grammyjs/runner +
+// router call deciding question / meal / correction / redate, with a reply-mapped focus meal as
+// context); non-active users' text belongs to onboarding. Concurrency via @grammyjs/runner +
 // sequentialize(by user); update_id dedupe; images are in-memory only (never written to disk —
 // ephemeral by construction).
 
@@ -14,7 +14,7 @@ import type { LLMProvider } from "../llm/provider.ts";
 import { createProvider } from "../llm/factory.ts";
 import {
   openDb, berlinDate, berlinDateMinus, berlinTime, upsertUser, getUser, setConsent, setProfile, setUserState,
-  insertMeal, setMealReply, applyCorrection, mealByReply, dailyTotals,
+  insertMeal, setMealReply, applyCorrection, setMealDate, mealByReply, dailyTotals,
   logLlmCall, llmCallsToday, llmCallCountToday, mealsOnDate, totalsByDate,
   insertPendingMeal, setPendingReply, getPendingMeal, deletePendingMeal, prunePendingMeals,
   deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang, setReplyFormat,
@@ -26,7 +26,7 @@ import { AlbumBuffer } from "./albums.ts";
 import { analyzeMeal, classifyRestrictions, routeText, type RouteContext, type RouteResult } from "../analyzer.ts";
 import { RejectionLog } from "./rejections.ts";
 import { targetsFor, isRestrictionTag } from "../targets.ts";
-import { formatReply, mealDateLabel } from "../reply.ts";
+import { formatReply, berlinDayLabel, mealDateLabel } from "../reply.ts";
 import { renderMealCard } from "../render.ts";
 import { settingsRoot, settingsStep, type SettingsProfile } from "../settings.ts";
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "../onboarding.ts";
@@ -783,6 +783,32 @@ export async function processText(
     await sendCard(replyFormatFor(prof, config), send, opts?.sendRich, {
       html: renderMealCard(route.analysis, totals, targetsFor(prof), t, { prefix: t("meal.updatedPrefix"), dateLabel }),
       plain: t("meal.updatedPrefix") + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t, { dateLabel }),
+    });
+    fireReaction(opts?.react, "👍", from.id);
+    return true;
+  }
+
+  if (route.intent === "redate") {
+    // Reply-based re-date: the focus meal moves to another day (macros unchanged). Reply is
+    // unambiguous, so it applies immediately, like a correction — no confirm step.
+    if (!focus) {
+      console.error(`[eait] redate intent without focus row user=${from.id} — should be unreachable`);
+      await send(t("errors.textFailed"));
+      return true;
+    }
+    const newDate = berlinDateMinus(date, route.dayOffset);
+    if (!(await setMealDate(db, focus.id, from.id, newDate))) {
+      await send(t("errors.correctionFailed")); // vanished mid-flight — don't confirm a no-op
+      return true;
+    }
+    const totals = await dailyTotals(db, from.id, newDate);
+    const dateLabel = mealDateLabel(newDate, date, prof.lang, config.tz);
+    // The prefix always names the target day (even "today"), so a move is legible on its own.
+    const prefix = t("meal.movedPrefix", { date: berlinDayLabel(newDate, prof.lang, config.tz) });
+    const analysis = mealToAnalysis(focus);
+    await sendCard(replyFormatFor(prof, config), send, opts?.sendRich, {
+      html: renderMealCard(analysis, totals, targetsFor(prof), t, { prefix, dateLabel }),
+      plain: prefix + "\n" + formatReply(analysis, totals, targetsFor(prof), t, { dateLabel }),
     });
     fireReaction(opts?.react, "👍", from.id);
     return true;

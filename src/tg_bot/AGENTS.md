@@ -21,10 +21,12 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
 
 - **Text routing precedence:** command > reply-to-rejection (canned explain, no LLM) >
   free-text router > onboarding. Every text from an **active** user goes through `processText`
-  — one `routeText` LLM call deciding question / meal / correction (a reply that maps to a meal
-  via `mealByReply` — the bot's analysis message OR the user's own photo — becomes the focus
-  meal, which unlocks the correction intent). `processText` returns `false` only for non-active
-  users, whose text still belongs to `processOnboarding`.
+  — one `routeText` LLM call deciding question / meal / correction / redate (a reply that maps to
+  a meal via `mealByReply` — the bot's analysis message OR the user's own photo — becomes the
+  focus meal, which unlocks the correction AND redate intents). `correction` fixes the focus
+  meal's macros; `redate` moves it to another day (`setMealDate`, macros unchanged) — both apply
+  immediately (the reply is unambiguous, no confirm). `processText` returns `false` only for
+  non-active users, whose text still belongs to `processOnboarding`.
 - **Text meals are confirm-first.** A `meal` intent creates a `pending_meals` row + `tm:log:` /
   `tm:cancel:` buttons; nothing reaches `meals` until the tap (`processTextMealDecision`).
   Photos and albums keep logging directly.

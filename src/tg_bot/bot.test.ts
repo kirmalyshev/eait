@@ -164,6 +164,42 @@ test("a correction routed through processText updates the matched meal", async (
   expect(cc.msgs[0]).toContain(translatorFor(DEFAULT_LANG)("meal.totalKcal", { now: 900, target: 1800 }));
 });
 
+test("a redate reply moves the focus meal to the offset day, re-files its totals, names the move", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
+  await onboardToActive(deps, 60);
+  const { send } = collector();
+  await processPhoto(deps, { id: 60 }, [async () => new Uint8Array([1])], send); // logs today, reply id = 1
+  const today = berlinDate(new Date(), cfg.tz);
+  const yesterday = berlinDateMinus(today, 1);
+  expect(await countMealsToday(db, 60, today)).toBe(1);
+
+  // reply "move this to yesterday"
+  deps.provider = fakeProvider(JSON.stringify({ intent: "redate", dayOffset: 1 }));
+  const rc = collector();
+  const handled = await processText(deps, { id: 60 }, { text: "move this to yesterday", messageId: 61, replyTo: 1 }, rc.send);
+  expect(handled).toBe(true);
+  // Meal re-filed: gone from today, present on yesterday.
+  expect(await countMealsToday(db, 60, today)).toBe(0);
+  expect(await countMealsToday(db, 60, yesterday)).toBe(1);
+  // Card names the move + the new day, and shows yesterday's totals (600, not today's 0).
+  const label = berlinDayLabel(yesterday, DEFAULT_LANG, cfg.tz);
+  const t = translatorFor(DEFAULT_LANG);
+  expect(rc.msgs[0]).toContain(t("meal.movedPrefix", { date: label }));
+  expect(rc.msgs[0]).toContain(t("meal.totalKcalDated", { date: label, now: 600, target: 1800 }));
+});
+
+test("a redate without a focus meal (plain text, no reply) is not treated as a redate", async () => {
+  const db = await freshTestDb();
+  // No focus meal → the router salvages to a question; the meal is never moved.
+  const deps: BotDeps = { db, provider: fakeProvider(JSON.stringify({ intent: "redate", answer: "reply to the meal you want to move" })), config: cfg };
+  await onboardToActive(deps, 62);
+  const { msgs, send } = collector();
+  const handled = await processText(deps, { id: 62 }, { text: "move my beer to yesterday", messageId: 63 }, send);
+  expect(handled).toBe(true);
+  expect(msgs[0]).toContain("reply to the meal"); // answered, not a silent move
+});
+
 test("meCard is null unless active; statsCard counts users+meals", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
