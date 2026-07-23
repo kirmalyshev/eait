@@ -26,7 +26,7 @@ import { AlbumBuffer } from "./albums.ts";
 import { analyzeMeal, classifyRestrictions, routeText, type RouteContext, type RouteResult } from "../analyzer.ts";
 import { RejectionLog } from "./rejections.ts";
 import { targetsFor, isRestrictionTag } from "../targets.ts";
-import { formatReply } from "../reply.ts";
+import { formatReply, berlinDayLabel } from "../reply.ts";
 import { renderMealCard } from "../render.ts";
 import { settingsRoot, settingsStep, type SettingsProfile } from "../settings.ts";
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "../onboarding.ts";
@@ -786,7 +786,13 @@ export async function processText(
   }
 
   // meal → confirm before logging: unlike a photo, free text is easy to misread as a meal,
-  // so nothing is stored until the tap.
+  // so nothing is stored until the tap. A relative date ("yesterday") shifts the meal's day;
+  // confirm-first means the resolved date is on the prompt for the user to catch a misparse.
+  const mealDate =
+    route.dayOffset === 0
+      ? date
+      : berlinDate(new Date(Date.now() - route.dayOffset * 86_400_000), config.tz);
+  const dateLabel = mealDate === date ? undefined : berlinDayLabel(mealDate, prof.lang, config.tz);
   const id = crypto.randomUUID();
   // Housekeeping must never cost the user their (already-metered) meal — sweep failures are
   // logged and skipped; the next insert retries anyway.
@@ -796,13 +802,13 @@ export async function processText(
     console.warn(`[eait] pending sweep failed: ${describeError(e)}`);
   }
   await insertPendingMeal(db, {
-    id, user_id: from.id, ts: new Date().toISOString(), date,
+    id, user_id: from.id, ts: new Date().toISOString(), date: mealDate,
     analysis: route.analysis, model: config.llmModel,
     user_message_id: msg.messageId,
   });
-  const totals = await dailyTotals(db, from.id, date);
-  const preview =
-    t("text.confirmPrompt") + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t);
+  const totals = await dailyTotals(db, from.id, mealDate);
+  const promptLine = dateLabel ? t("text.confirmPromptDated", { date: dateLabel }) : t("text.confirmPrompt");
+  const preview = promptLine + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t, { dateLabel });
   const sent = await send(preview, [[
     { text: t("text.logButton"), data: `tm:log:${id}` },
     { text: t("text.cancelButton"), data: `tm:cancel:${id}` },
@@ -882,9 +888,12 @@ export async function processTextMealDecision(
   if (u) {
     const prof = profileOf(u);
     const totals = await dailyTotals(db, from.id, pending.date);
+    // Name the day on the logged card whenever the pending meal was for another date.
+    const today = berlinDate(new Date(), deps.config.tz);
+    const dateLabel = pending.date === today ? undefined : berlinDayLabel(pending.date, prof.lang, deps.config.tz);
     const sent = await sendCard(replyFormatFor(prof, deps.config), send, opts?.sendRich, {
-      html: renderMealCard(pending.analysis, totals, targetsFor(prof), t, { footer: t("meal.correctionHint") }),
-      plain: formatReply(pending.analysis, totals, targetsFor(prof), t) + "\n\n" + t("meal.correctionHint"),
+      html: renderMealCard(pending.analysis, totals, targetsFor(prof), t, { footer: t("meal.correctionHint"), dateLabel }),
+      plain: formatReply(pending.analysis, totals, targetsFor(prof), t, { dateLabel }) + "\n\n" + t("meal.correctionHint"),
     });
     if (sent) await setMealReply(db, pending.id, from.id, sent.chat_id, sent.message_id);
   }

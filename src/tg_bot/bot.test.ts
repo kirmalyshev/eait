@@ -13,6 +13,7 @@ import {
   type BotDeps, type Send, type Edit, type PendingAlbumPart,
 } from "./bot.ts";
 import { DEFAULT_LANG, LANGS, translatorFor } from "../i18n/index.ts";
+import { berlinDayLabel } from "../reply.ts";
 import type { Config } from "../config.ts";
 import type { LLMProvider } from "../llm/provider.ts";
 
@@ -1611,6 +1612,8 @@ test("album parts produce ONE analysis with N images and one llm call", async ()
 
 const qJson = (answer: string) => JSON.stringify({ intent: "question", answer });
 const mealIntentJson = (kcal = 450) => JSON.stringify({ intent: "meal", analysis: JSON.parse(foodJson(kcal)) });
+const datedMealJson = (dayOffset: number, kcal = 450) =>
+  JSON.stringify({ intent: "meal", dayOffset, analysis: JSON.parse(foodJson(kcal)) });
 const corrIntentJson = (kcal = 900) => JSON.stringify({ intent: "correction", analysis: JSON.parse(foodJson(kcal)) });
 
 test("processText returns false for a non-active user (caller falls to onboarding)", async () => {
@@ -1724,6 +1727,42 @@ test("a text meal creates a pending row with confirm buttons and NO meal row", a
   expect(sentButtons.length).toBe(1);
   expect(sentButtons[0]!.map((b) => b.data.split(":").slice(0, 2).join(":"))).toEqual(["tm:log", "tm:cancel"]);
   expect(await countMealsToday(db, 807, berlinDate(new Date(), cfg.tz))).toBe(0);
+});
+
+test("a dated text meal ('yesterday') pends on the offset day, names the date, logs it there", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(datedMealJson(1, 450)), config: cfg };
+  await onboardToActive(deps, 820);
+  const sentButtons: Array<Array<{ text: string; data: string }>> = [];
+  const msgs: string[] = [];
+  const send: Send = async (t, buttons) => {
+    msgs.push(t);
+    if (buttons) sentButtons.push(...buttons);
+    return { chat_id: 9, message_id: 40 };
+  };
+  await processText(deps, { id: 820 }, { text: "add on yesterday 2 beers", messageId: 40 }, send);
+
+  const today = berlinDate(new Date(), cfg.tz);
+  const yesterday = berlinDate(new Date(Date.now() - 86_400_000), cfg.tz);
+  // The confirm prompt names the target date so a misparse is catchable before Log.
+  const label = berlinDayLabel(yesterday, DEFAULT_LANG, cfg.tz);
+  expect(msgs[0]).toContain(label);
+  // Nothing logged yet, and when logged it lands on yesterday, not today.
+  const id = sentButtons[0]![0]!.data.split(":")[2]!;
+  await processTextMealDecision(deps, { id: 820 }, `tm:log:${id}`, collector().send);
+  expect(await countMealsToday(db, 820, yesterday)).toBe(1);
+  expect(await countMealsToday(db, 820, today)).toBe(0);
+});
+
+test("a plain text meal (no relative date) still pends and logs on today, with no date line", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(mealIntentJson(450)), config: cfg };
+  await onboardToActive(deps, 821);
+  const { msgs, send } = collector();
+  await processText(deps, { id: 821 }, { text: "ate 2 eggs", messageId: 41 }, send);
+  const today = berlinDate(new Date(), cfg.tz);
+  // No "for <date>" line on a same-day meal — output is unchanged from before the feature.
+  expect(msgs[0]).not.toContain(berlinDayLabel(today, DEFAULT_LANG, cfg.tz));
 });
 
 test("the per-user cap blocks the router before the provider is called", async () => {
