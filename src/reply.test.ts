@@ -1,5 +1,5 @@
 import { describe, expect, test, spyOn } from "bun:test";
-import { formatReply, berlinDayLabel, verdictEmoji, type FormatMeal } from "./reply.ts";
+import { formatReply, berlinDayLabel, mealDateLabel, verdictEmoji, type FormatMeal } from "./reply.ts";
 import { LANGS, translatorFor } from "./i18n/index.ts";
 import type { DailyTotals, FoodTargets, MealVerdicts } from "./types.ts";
 
@@ -69,10 +69,20 @@ describe("berlinDayLabel", () => {
     try {
       expect(() => berlinDayLabel("not-a-date", "en")).not.toThrow();
       expect(berlinDayLabel("not-a-date", "en")).toBe("not-a-date");
+      // Rollover-valid strings (Feb 30) must NOT silently normalize to Mar 2 — they degrade too.
+      expect(berlinDayLabel("2026-02-30", "en")).toBe("2026-02-30");
+      expect(berlinDayLabel("2026-04-31", "en")).toBe("2026-04-31");
       expect(warn).toHaveBeenCalled();
     } finally {
       warn.mockRestore();
     }
+  });
+});
+
+describe("mealDateLabel", () => {
+  test("same-day ⇒ undefined; a different day ⇒ the berlinDayLabel", () => {
+    expect(mealDateLabel("2026-07-22", "2026-07-22", "en")).toBeUndefined();
+    expect(mealDateLabel("2026-07-21", "2026-07-22", "en")).toBe(berlinDayLabel("2026-07-21", "en"));
   });
 });
 

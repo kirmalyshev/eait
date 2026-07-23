@@ -355,7 +355,10 @@ const RouteSchema = z.object({
   intent: z.enum(["question", "meal", "correction"]),
   answer: z.string().optional(),
   analysis: MealAnalysisSchema.optional(),
-  dayOffset: z.number().optional(), // normalized (clamped) after parse, never trusted raw
+  // `unknown`, not `z.number()`: clampDayOffset is the normalizer and tolerates any junk (null,
+  // "1", 99, 2.5) — a strict number type here would REJECT the whole meal on a stringy/null offset
+  // (models commonly emit null for same-day), discarding a valid analysis. Clamp + warn instead.
+  dayOffset: z.unknown().optional(),
 });
 
 export async function routeText(

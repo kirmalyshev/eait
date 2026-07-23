@@ -791,7 +791,7 @@ export async function processText(
   // meal → confirm before logging: unlike a photo, free text is easy to misread as a meal, so
   // nothing reaches the meals table until the tap. A relative date ("yesterday") shifts the
   // meal's day; confirm-first means the resolved date is on the prompt to catch a misparse.
-  const mealDate = route.dayOffset === 0 ? date : berlinDateMinus(date, route.dayOffset);
+  const mealDate = berlinDateMinus(date, route.dayOffset); // offset 0 returns `date` unchanged
   const dateLabel = mealDateLabel(mealDate, date, prof.lang, config.tz);
   console.log(`[eait] text meal user=${from.id} dayOffset=${route.dayOffset} date=${mealDate}`);
   const id = crypto.randomUUID();

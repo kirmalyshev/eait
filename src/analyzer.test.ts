@@ -482,6 +482,23 @@ describe("routeText — meal date offset", () => {
     }
   });
 
+  test("a non-number dayOffset (null / string) degrades to 0 + warn, never discards the meal", async () => {
+    // z.number() would REJECT these and throw away a valid analysis; z.unknown() + clamp keeps it.
+    for (const bad of [null, "1", "yesterday"]) {
+      const provider = new FakeProvider(() =>
+        JSON.stringify({ intent: "meal", dayOffset: bad, analysis: JSON.parse(validJson) }));
+      const warn = spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        const r = await routeText("ate rice", profile, minCtx, provider);
+        expect(r.intent).toBe("meal"); // meal survived
+        if (r.intent === "meal") expect(r.dayOffset).toBe(0); // non-number → today
+        expect(warn.mock.calls.some((c) => String(c[0]).includes("out of contract"))).toBe(true);
+      } finally {
+        warn.mockRestore();
+      }
+    }
+  });
+
   test("a correction ignores any model-supplied dayOffset (no leak, no date shift)", async () => {
     const focusMeal = MealAnalysisSchema.parse(JSON.parse(validJson));
     const provider = new FakeProvider(() =>

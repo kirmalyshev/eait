@@ -5,6 +5,7 @@
 // the language (see src/i18n), so this stays a pure formatter.
 
 import type { TFunction } from "i18next";
+import { parseCalendarDate } from "./db.ts";
 import type { DailyTotals, FoodTargets, Lang, MealItem, MealVerdicts, Verdict } from "./types.ts";
 
 /** The meal fields formatReply needs — satisfied by both MealAnalysis and MealRecord. */
@@ -22,16 +23,17 @@ export interface FormatMeal {
 }
 
 /**
- * A human day label (en → "Tue, Jul 21", de → "Di., 21. Juli", ru → "вт, 21 июл.") for a stored
- * YYYY-MM-DD, rendered in the user's locale and the bot's timezone. Pure. The noon-UTC anchor keeps
- * the calendar day stable for any offset within ±12h (covers every European tz the bot runs in).
- * Names come from Intl, so no month/weekday strings live in the catalog. `lang` is a validated Lang
- * (a bad BCP-47 tag would make Intl throw); a malformed date degrades loudly to the raw string
- * rather than throwing a RangeError into a reply handler.
+ * A short human day label (en → "Tue, Jul 21"; de/ru similar — exact punctuation, casing and month
+ * abbreviation are ICU-data-dependent and differ between the macOS dev bun and the Linux container)
+ * for a stored YYYY-MM-DD, in the user's locale and the bot's timezone. Pure. Names come from Intl,
+ * so no month/weekday strings live in the catalog. `lang` is a validated Lang (a bad BCP-47 tag
+ * would make Intl throw). A non-calendar date — junk OR a rollover-valid string like "2026-02-30" —
+ * degrades loudly to the raw string rather than being silently normalized or throwing a RangeError
+ * into a reply handler.
  */
 export function berlinDayLabel(date: string, lang: Lang, tz = "Europe/Berlin"): string {
-  const d = new Date(`${date}T12:00:00Z`);
-  if (Number.isNaN(d.getTime())) {
+  const d = parseCalendarDate(date);
+  if (!d) {
     console.warn(`[eait] berlinDayLabel: unusable date ${JSON.stringify(date)} — returning raw`);
     return date;
   }
@@ -53,7 +55,7 @@ export function mealDateLabel(
   mealDate: string,
   today: string,
   lang: Lang,
-  tz: string,
+  tz = "Europe/Berlin",
 ): string | undefined {
   return mealDate === today ? undefined : berlinDayLabel(mealDate, lang, tz);
 }

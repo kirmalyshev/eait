@@ -164,7 +164,7 @@
     "users_few": "{{count}} пользователя",
     "users_many": "{{count}} пользователей",
     "users_other": "{{count}} пользователя",
-    "meals_one": "{{count}} приём еды",
+    "meals_one": "{{count}} приём пищи",
     "meals_few": "{{count}} приёма еды",
     "meals_many": "{{count}} приёмов еды",
     "meals_other": "{{count}} приёма еды"

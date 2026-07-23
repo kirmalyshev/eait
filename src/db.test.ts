@@ -383,6 +383,11 @@ describe("berlinDateMinus subtracts calendar days, DST-safe", () => {
     expect(berlinDateMinus("2026-03-01", 1)).toBe("2026-02-28"); // 2026 not a leap year
     expect(berlinDateMinus("2026-01-01", 1)).toBe("2025-12-31");
   });
+  test("throws loudly on a non-calendar input (junk, rollover, or non-finite days)", () => {
+    expect(() => berlinDateMinus("not-a-date", 1)).toThrow(/non-calendar/);
+    expect(() => berlinDateMinus("2026-02-30", 1)).toThrow(/non-calendar/); // rollover, not silently Mar 2
+    expect(() => berlinDateMinus("2026-01-01", NaN)).toThrow(/non-calendar/);
+  });
 });
 
 describe("berlinTime renders HH:MM in the zone, not UTC", () => {
