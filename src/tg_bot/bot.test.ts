@@ -1120,6 +1120,36 @@ test("a failing answerCallbackQuery does not abort the tap — the setting still
   expect((await getUser(db, 505))?.reply_format).toBe("plain");
 });
 
+test("a tm:log tap through createBot fires ctx.deleteMessage (the prompt-delete wiring is connected)", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  await onboardToActive(deps, 856);
+  const { id } = await seedPending(db, 856);
+  const bot = createBot(deps);
+  bot.botInfo = {
+    id: 1, is_bot: true, first_name: "eait", username: "eait_bot",
+    can_join_groups: false, can_read_all_group_messages: false, supports_inline_queries: false,
+    can_connect_to_business: false, has_main_web_app: false, has_topics_enabled: false,
+    allows_users_to_create_topics: false, can_manage_bots: false,
+    supports_join_request_queries: false,
+  };
+  const methods: string[] = [];
+  bot.api.config.use(async (_prev, method) => {
+    methods.push(method);
+    if (method === "sendMessage") return { ok: true, result: { message_id: 7, date: 0, chat: { id: 856, type: "private" } } as any };
+    return { ok: true, result: true as any };
+  });
+  await bot.handleUpdate({
+    update_id: 700200,
+    callback_query: {
+      id: "q1", chat_instance: "ci", data: `tm:log:${id}`,
+      from: { id: 856, is_bot: false, first_name: "u" },
+      message: { message_id: 33, date: 0, chat: { id: 856, type: "private" } } as any,
+    },
+  } as any);
+  expect(methods).toContain("deleteMessage"); // the production wiring actually fires the delete
+});
+
 // --- /stats: admin who never ran /start ---
 
 test("statsCard renders for an admin with no user row", async () => {
@@ -1906,15 +1936,56 @@ test("tm:log deletes the confirm prompt AFTER sending the result card", async ()
   expect(events).toEqual(["send", "delete"]);
 });
 
-test("tm:log: a failed prompt-delete does not throw and the meal still logs", async () => {
+test("tm:log: a failed prompt-delete does not throw, still logs, and warns WITH context", async () => {
   const db = await freshTestDb();
   const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
   await onboardToActive(deps, 851);
   const { id } = await seedPending(db, 851);
   const { send } = collector();
   const deleteConfirm = async () => { throw new Error("message to delete not found"); };
-  await processTextMealDecision(deps, { id: 851 }, `tm:log:${id}`, send, { deleteConfirm });
-  expect(await countMealsToday(db, 851, berlinDate(new Date(), cfg.tz))).toBe(1); // logged despite delete failure
+  const warn = spyOn(console, "warn").mockImplementation(() => {});
+  try {
+    await processTextMealDecision(deps, { id: 851 }, `tm:log:${id}`, send, { deleteConfirm });
+    expect(await countMealsToday(db, 851, berlinDate(new Date(), cfg.tz))).toBe(1); // logged despite delete failure
+    // The swallow must not be silent — an operator needs the user + call site to diagnose.
+    expect(warn.mock.calls.some((c) => String(c[0]).includes("failed to delete confirm prompt") && String(c[0]).includes("user=851") && String(c[0]).includes("at=post-log"))).toBe(true);
+  } finally {
+    warn.mockRestore();
+  }
+});
+
+test("tm:log: both sends failed (sendCard→undefined) keeps the prompt AND the re-tappable pending row", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  await onboardToActive(deps, 854);
+  const { id } = await seedPending(db, 854);
+  const { getPendingMeal } = await import("../db.ts");
+  let deleted = false;
+  const failSend: Send = async () => undefined; // both rich+plain failed → sendCard returns undefined
+  const err = spyOn(console, "error").mockImplementation(() => {});
+  try {
+    await processTextMealDecision(deps, { id: 854 }, `tm:log:${id}`, failSend, { deleteConfirm: async () => { deleted = true; } });
+    expect(await countMealsToday(db, 854, berlinDate(new Date(), cfg.tz))).toBe(1); // meal is in (idempotent insert)
+    expect(deleted).toBe(false); // prompt NOT deleted — never "neither"
+    expect(await getPendingMeal(db, id, 854)).toBeDefined(); // pending row survives for a re-tap
+    expect(err.mock.calls.some((c) => String(c[0]).includes("card send failed"))).toBe(true); // loud, not silent
+  } finally {
+    err.mockRestore();
+  }
+});
+
+test("tm:log on a TTL-expired pending still deletes the confirm prompt", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  await onboardToActive(deps, 855);
+  const id = crypto.randomUUID();
+  const staleTs = new Date(Date.now() - 49 * 3_600_000).toISOString();
+  const { insertPendingMeal } = await import("../db.ts");
+  await insertPendingMeal(db, { id, user_id: 855, ts: staleTs, date: "2026-07-20", analysis: JSON.parse(foodJson(300)), model: null });
+  let deleted = false;
+  const { send } = collector();
+  await processTextMealDecision(deps, { id: 855 }, `tm:log:${id}`, send, { deleteConfirm: async () => { deleted = true; } });
+  expect(deleted).toBe(true); // the stale dead-button prompt is cleared on the expiry path too
 });
 
 test("tm:cancel deletes the confirm prompt too (no lingering dead buttons)", async () => {
