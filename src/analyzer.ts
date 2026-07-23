@@ -8,6 +8,7 @@ import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import { LOCALES } from "./i18n/registry.ts";
 import { RESTRICTION_TAGS, isRestrictionTag } from "./targets.ts";
 import { countryForPrompt } from "./country.ts";
+import { parseLimitations } from "./limitations.ts";
 import type { DayTotals, FoodTargets, MealAnalysis, MealContext, MealSummary, Profile } from "./types.ts";
 
 const VerdictSchema = z.enum(["good", "warn", "bad"]);
@@ -184,6 +185,22 @@ function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boo
   const declared = profile.restrictions.length ? profile.restrictions.join(", ") : "none";
   lines.push(`Declared restrictions: ${declared}.`);
   lines.push("Do NOT set verdicts for dimensions the user did not declare (weight always applies).");
+  // Free-text limitations: everything the four-tag vocabulary cannot express. Placed AFTER the
+  // verdict contract so that contract stays contiguous, and worded to land in `notes` plus the
+  // EXISTING verdicts — `verdicts` is a fixed weight/ldl/kidneys object, and inviting a fourth key
+  // would only produce output zod strips.
+  //
+  // `parseLimitations` already made the stored value single-line, quote-free and bounded, but a
+  // hand-edited row never passed through it — so contain it again here, exactly as the caption and
+  // country priors do. Belt and braces on the one field whose whole purpose is to carry user
+  // prose into the prompt.
+  const limitations = containLimitations(profile.limitations);
+  if (limitations) {
+    lines.push(
+      `The user also declared these personal limitations: "${limitations}" — respect them when ` +
+        "judging this meal, and call out any conflict in notes.",
+    );
+  }
   // The only user-visible text the model produces. Without this the output language is
   // unspecified, and food names would land in a reply whose chrome is in another language.
   lines.push(
@@ -192,6 +209,15 @@ function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boo
   );
   lines.push("Return JSON only.");
   return lines.join("\n");
+}
+
+/**
+ * Re-applies `parseLimitations`' containment at the injection site, for values that never went
+ * through it (a hand-edited row, a future writer that forgets). Returns null for anything empty,
+ * which is also how the '' skip sentinel produces no line at all.
+ */
+function containLimitations(raw: string | null | undefined): string | null {
+  return raw ? parseLimitations(raw) : null;
 }
 
 function toBase64(bytes: Uint8Array): string {

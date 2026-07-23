@@ -142,6 +142,9 @@ export function profileOf(u: UserRow): Profile {
     // '' is the db's "explicitly skipped" sentinel — outside the boundary it means unknown.
     country: u.country ? u.country : null,
     restrictions: u.restrictions,
+    // '' is the skip sentinel here too. No vocabulary to validate against, so no warn: any
+    // stored string is a legitimate limitation.
+    limitations: u.limitations ? u.limitations : null,
     // Same validation rule as lang: junk means "never chose", so the instance default applies.
     reply_format: isReplyFormat(u.reply_format) ? u.reply_format : null,
   };

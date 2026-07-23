@@ -32,6 +32,13 @@ export interface Profile {
   country?: string | null;
   restrictions: string[]; // tags e.g. ["kidneys","ldl","vegan","lowsugar"]
   /**
+   * Free-text personal limitations, prompt-only — everything the closed `restrictions` vocabulary
+   * cannot express ("no peanuts", "low FODMAP", "gastritis — nothing spicy"). Unlike a restriction
+   * tag it drives no numeric cap and no verdict dimension; it is injected into the analyzer prompt
+   * verbatim. null/absent = unknown; the db's '' skip sentinel is mapped to null before it lands here.
+   */
+  limitations?: string | null;
+  /**
    * Card rendering: the user's RAW /settings choice; null = never picked (instance default
    * applies). Resolution to the effective value happens in bot.ts (`replyFormatFor`); the
    * settings machine demands the resolved form via its own `SettingsProfile` type.

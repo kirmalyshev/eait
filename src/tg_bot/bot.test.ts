@@ -332,6 +332,15 @@ test("profileOf maps the db's 0-skip weight sentinel to null, real weights pass 
   expect(profileOf(base as UserRow).weight_kg).toBeNull();
 });
 
+test("profileOf maps the db's '' limitations skip sentinel to null, real text passes through", () => {
+  const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, limitations: null, lang: "en", reply_format: null };
+  // '' means "asked and declined" inside the db boundary; outside it, that is simply unknown —
+  // and the analyzer must add no limitations line at all for it.
+  expect(profileOf({ ...base, limitations: "" } as UserRow).limitations).toBeNull();
+  expect(profileOf({ ...base, limitations: "no peanuts" } as UserRow).limitations).toBe("no peanuts");
+  expect(profileOf(base as UserRow).limitations).toBeNull();
+});
+
 test("profileOf maps a junk reply_format to null (never coerces to a hardcoded format)", () => {
   const base = { telegram_id: 1, username: null, state: "active", consent_at: null, goal: null, weight_kg: null, restrictions: [], created_at: "t", acquisition_source: null, target_weight_kg: null, country: null, pending_input: null, limitations: null, lang: "en" };
   // null is the only value that distinguishes "→ null" from a mutant that coerces to "rich" or
