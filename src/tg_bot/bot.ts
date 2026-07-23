@@ -886,11 +886,23 @@ export async function processTextMealDecision(
   from: { id: number },
   data: string,
   send: Send,
-  opts?: { sendRich?: SendRich },
+  // deleteConfirm removes the confirm-prompt message (the one bearing the buttons) so a resolved
+  // meal doesn't leave a stale dead-button card on screen. Optional (many tests omit it);
+  // guarded at every call so a delete failure (e.g. message too old) never crashes the tap.
+  opts?: { sendRich?: SendRich; deleteConfirm?: () => Promise<void> },
 ): Promise<void> {
   const { db } = deps;
   const u = await getUser(db, from.id);
   const t = translatorForUser(u);
+  const removeConfirm = async (where: string) => {
+    try {
+      await opts?.deleteConfirm?.();
+    } catch (e) {
+      // Cosmetic delete — a message too old / already gone must never crash the tap. Logged with
+      // the call site + pending id so "the dead prompt won't disappear" is diagnosable.
+      console.warn(`[eait] failed to delete confirm prompt user=${from.id} at=${where}: ${describeError(e)}`);
+    }
+  };
   const m = /^tm:(log|cancel):(.+)$/.exec(data);
   if (!m) return;
   const [, action, id] = m;
@@ -904,11 +916,13 @@ export async function processTextMealDecision(
   // honor the TTL at tap time too, or "expired" and the actual lifetime disagree.
   if (Date.parse(pending.ts) < Date.now() - PENDING_TTL_MS) {
     await deletePendingMeal(db, id!, from.id);
+    await removeConfirm("expired"); // the stale prompt is what they tapped; clear it
     await send(t("text.pendingGone"));
     return;
   }
   if (action === "cancel") {
     await deletePendingMeal(db, id!, from.id);
+    await removeConfirm("cancel");
     await send(t("text.cancelled"));
     return;
   }
@@ -922,18 +936,30 @@ export async function processTextMealDecision(
     analysis: pending.analysis, model: pending.model,
     user_message_id: pending.user_message_id,
   });
-  if (u) {
-    const prof = profileOf(u);
-    const totals = await dailyTotals(db, from.id, pending.date);
-    // Name the day on the logged card whenever the pending meal was for another date.
-    const today = berlinDate(new Date(), deps.config.tz);
-    const dateLabel = mealDateLabel(pending.date, today, prof.lang, deps.config.tz);
-    const sent = await sendCard(replyFormatFor(prof, deps.config), send, opts?.sendRich, {
-      html: renderMealCard(pending.analysis, totals, targetsFor(prof), t, { footer: t("meal.correctionHint"), dateLabel }),
-      plain: formatReply(pending.analysis, totals, targetsFor(prof), t, { dateLabel }) + "\n\n" + t("meal.correctionHint"),
-    });
-    if (sent) await setMealReply(db, pending.id, from.id, sent.chat_id, sent.message_id);
+  // No user row: nothing to render a card from (near-impossible for an active tapper who owns a
+  // pending row). Leave the prompt + pending in place rather than orphan the insert with no card.
+  if (!u) return;
+  const prof = profileOf(u);
+  const totals = await dailyTotals(db, from.id, pending.date);
+  // Name the day on the logged card whenever the pending meal was for another date.
+  const today = berlinDate(new Date(), deps.config.tz);
+  const dateLabel = mealDateLabel(pending.date, today, prof.lang, deps.config.tz);
+  const sent = await sendCard(replyFormatFor(prof, deps.config), send, opts?.sendRich, {
+    html: renderMealCard(pending.analysis, totals, targetsFor(prof), t, { footer: t("meal.correctionHint"), dateLabel }),
+    plain: formatReply(pending.analysis, totals, targetsFor(prof), t, { dateLabel }) + "\n\n" + t("meal.correctionHint"),
+  });
+  // Both rich AND plain sends failed (makeSendRich swallows the double-failure → undefined). The
+  // meal is logged (insert is idempotent), but the user saw nothing — KEEP the prompt and the
+  // pending row so a re-tap converges, never leaving them with neither the card nor a way to retry.
+  // (Plain mode reaches here only on success; a failed plain send throws before this point.)
+  if (!sent) {
+    console.error(`[eait] text meal ${pending.id} logged but card send failed user=${from.id}; keeping prompt+pending for retry`);
+    return;
   }
+  await setMealReply(db, pending.id, from.id, sent.chat_id, sent.message_id);
+  // Tear down the prompt + pending row only now that the card is on screen — card-first so a
+  // send failure above leaves the prompt and its re-tappable row in place, never neither.
+  await removeConfirm("post-log");
   if (!(await deletePendingMeal(db, id!, from.id))) {
     // Somebody else's sweep raced us — harmless (the meal is in), but worth a trace.
     console.warn(`[eait] pending row ${id} vanished before post-log delete user=${from.id}`);
@@ -1177,7 +1203,11 @@ export function createBot(deps: BotDeps): Bot {
       return;
     }
     if (data.startsWith("tm:")) {
-      await processTextMealDecision(deps, ctx.from, data, sendVia(ctx), { sendRich: sendRichVia(ctx) });
+      // deleteMessage targets the message the callback fired from — the confirm prompt itself.
+      await processTextMealDecision(deps, ctx.from, data, sendVia(ctx), {
+        sendRich: sendRichVia(ctx),
+        deleteConfirm: () => ctx.deleteMessage().then(() => undefined),
+      });
       return;
     }
     if (data.startsWith("st:")) {

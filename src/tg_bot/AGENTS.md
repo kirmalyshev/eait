@@ -29,7 +29,13 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
   non-active users, whose text still belongs to `processOnboarding`.
 - **Text meals are confirm-first.** A `meal` intent creates a `pending_meals` row + `tm:log:` /
   `tm:cancel:` buttons; nothing reaches `meals` until the tap (`processTextMealDecision`).
-  Photos and albums keep logging directly.
+  Photos and albums keep logging directly. On either tap the confirm prompt is **deleted**
+  (`deleteConfirm` = `ctx.deleteMessage()`) so no dead-button card lingers — on `log` the prompt
+  and pending row are torn down **only after a successful card send** (`sent` truthy). A failed
+  send — plain throws, rich's `makeSendRich` returns `undefined` — leaves BOTH the prompt and the
+  re-tappable pending row in place (the idempotent `insertMeal` makes the re-tap converge), so the
+  user is never left with neither. The delete itself is always guarded (a too-old-to-delete message
+  never crashes the tap).
 - **Albums are one meal.** Photo updates sharing `media_group_id` are buffered per
   (user, group) in `AlbumBuffer` (in-memory, 1.5 s debounce) and flushed as ONE multi-image
   `analyzeMeal` call (`processAlbum`) — one cap draw, one reply, `user_message_id` = first
