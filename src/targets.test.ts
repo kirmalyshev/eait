@@ -9,7 +9,7 @@ import {
 import type { Goal, Profile } from "./types.ts";
 
 function profile(goal: Goal | null, restrictions: string[] = []): Profile {
-  return { telegram_id: 1, lang: "ru", goal, restrictions, reply_format: null };
+  return { telegram_id: 1, lang: "ru", goal, restrictions, limitations: null, reply_format: null };
 }
 
 describe("targetsFor — known weight drives the protein target", () => {

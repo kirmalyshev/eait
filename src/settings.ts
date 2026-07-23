@@ -17,9 +17,9 @@ import type { Goal, Lang, Profile, ReplyFormat } from "./types.ts";
 
 /**
  * The profile fields editable by typing rather than tapping (weight, target weight, a free-text
- * "other" country). A picker sets `awaitInput` to one of these; `bot.ts` stores it, and the user's
- * next text message is routed to `settingsInput`. Kept a literal union so the db marker validates
- * against it at the read boundary.
+ * "other" country, and the free-text limitations). A picker sets `awaitInput` to one of these;
+ * `bot.ts` stores it, and the user's next text message is routed to `settingsInput`. Kept a literal
+ * union so the db marker validates against it at the read boundary.
  */
 export const PENDING_INPUTS = ["weight", "target_weight", "country", "limitations"] as const;
 export type PendingInput = (typeof PENDING_INPUTS)[number];
@@ -181,12 +181,19 @@ function textPrompt(text: string, field: PendingInput, t: TFunction): SettingsVi
 /**
  * The free-text limitations prompt. Echoes the current value and offers Clear only when there IS
  * one — a Clear button over an empty field is a dead control that patches '' to no visible effect.
+ * `headlineKey` swaps the lead line: the ask on a fresh open, the "came through empty" notice on a
+ * re-prompt after input that normalized to nothing (mirrors weight/country's *Invalid copy, which
+ * a bare re-render of the identical ask would not — the user would see no sign anything failed).
  */
-function limitationsPrompt(p: SettingsProfile, t: TFunction): SettingsView {
+function limitationsPrompt(
+  p: SettingsProfile,
+  t: TFunction,
+  headlineKey: "settings.askLimitations" | "settings.limitationsInvalid" = "settings.askLimitations",
+): SettingsView {
   const current = p.limitations;
   const text = current
-    ? `${t("settings.askLimitations")}\n\n${t("settings.limitationsCurrent", { limitations: current })}`
-    : t("settings.askLimitations");
+    ? `${t(headlineKey)}\n\n${t("settings.limitationsCurrent", { limitations: current })}`
+    : t(headlineKey);
   const buttons: InlineButton[][] = current
     ? [[{ text: t("settings.button.clearLimitations"), data: "st:limits:clear" }], backRow(t)]
     : [backRow(t)];
@@ -218,7 +225,9 @@ export function settingsStep(p: SettingsProfile, data: string, t: TFunction): Se
   if (data === "st:weight") return textPrompt(t("settings.askWeight"), "weight", t);
   if (data === "st:targetw") return textPrompt(t("settings.askTargetWeight"), "target_weight", t);
   if (data === "st:country") return countryPicker(t);
-  // Before the `st:limits` prompt, so the more specific clear action wins the prefix.
+  // Both exact `===` (unlike the `st:country:` prefix match below), so order carries no meaning —
+  // "st:limits:clear" cannot be shadowed by "st:limits". If either is ever converted to a
+  // `suffix(data, "st:limits:")` match, restore the specific-before-generic ordering then.
   if (data === "st:limits:clear") {
     const next = { ...p, limitations: "" };
     return { ...settingsRoot(next, t), patch: { limitations: "" } };
@@ -313,7 +322,7 @@ export function settingsInput(
       // normalizes to NOTHING re-prompts, and it re-prompts against the unchanged profile so the
       // existing value is still echoed alongside Clear.
       const limitations = parseLimitations(text);
-      if (limitations == null) return limitationsPrompt(p, t);
+      if (limitations == null) return limitationsPrompt(p, t, "settings.limitationsInvalid");
       return { ...settingsRoot({ ...p, limitations }, t), patch: { limitations } };
     }
   }

@@ -8,6 +8,8 @@
 // parseLimitations). No step was added for the latter — the question was already free text.
 // Each field's step is derived from which fields are still null; a skip stores a sentinel (0 for
 // weights, '' for country) so "answered" is distinguishable from "never asked" on every resume.
+// `limitations` rides along on the restrictions answer and is NOT a step-gating field — the flow
+// derives no step from it, so its '' sentinel is written for consistency, not for resumption.
 //
 // Copy comes from the caller's translator, so this file stays language-agnostic AND stays pure:
 // `t` is a value passed in, not I/O. The LLM restriction fallback deliberately lives in tg_bot/bot.ts

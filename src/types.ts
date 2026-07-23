@@ -35,9 +35,11 @@ export interface Profile {
    * Free-text personal limitations, prompt-only — everything the closed `restrictions` vocabulary
    * cannot express ("no peanuts", "low FODMAP", "gastritis — nothing spicy"). Unlike a restriction
    * tag it drives no numeric cap and no verdict dimension; it is injected into the analyzer prompt
-   * verbatim. null/absent = unknown; the db's '' skip sentinel is mapped to null before it lands here.
+   * verbatim. null = unknown; the db's '' skip sentinel is mapped to null before it lands here.
+   * Required-with-null like every sibling field, so a new boundary that forgets to map it fails
+   * the build rather than silently dropping the user's limitations from the prompt.
    */
-  limitations?: string | null;
+  limitations: string | null;
   /**
    * Card rendering: the user's RAW /settings choice; null = never picked (instance default
    * applies). Resolution to the effective value happens in bot.ts (`replyFormatFor`); the

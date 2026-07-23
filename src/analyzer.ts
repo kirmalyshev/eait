@@ -217,7 +217,7 @@ function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boo
  * through it (a hand-edited row, a future writer that forgets). Returns null for anything empty,
  * which is also how the '' skip sentinel produces no line at all.
  */
-function containLimitations(raw: string | null | undefined): string | null {
+function containLimitations(raw: string | null): string | null {
   return raw ? parseLimitations(raw) : null;
 }
 

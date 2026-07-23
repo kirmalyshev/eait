@@ -9,7 +9,7 @@ const t = translatorFor("en");
 // The machine demands a RESOLVED profile (SettingsProfile) — the default "rich" here plays
 // the instance default the bot resolves in before calling.
 function profile(over: Partial<SettingsProfile> = {}): SettingsProfile {
-  return { telegram_id: 1, lang: "en", goal: "lose", restrictions: [], reply_format: "rich", ...over };
+  return { telegram_id: 1, lang: "en", goal: "lose", restrictions: [], limitations: null, reply_format: "rich", ...over };
 }
 
 const data = (v: { buttons: { text: string; data: string }[][] }) =>
@@ -240,10 +240,14 @@ describe("limitations (free text)", () => {
     expect(v.text).toContain("no junk no peanuts");
   });
 
-  test("input that normalizes to nothing re-prompts with the prompt still armed", () => {
+  test("input that normalizes to nothing re-prompts (with a distinct error), prompt still armed", () => {
     const v = settingsInput("limitations", "   \n  ", profile({ limitations: "no peanuts" }), t);
     expect(v.patch).toBeUndefined();
     expect(v.awaitInput).toBe("limitations");
+    // A distinct notice, not a byte-identical re-render of the ask — the user must see it failed.
+    expect(v.text).toContain(t("settings.limitationsInvalid"));
+    expect(v.text).not.toContain(t("settings.askLimitations"));
+    expect(v.text).toContain("no peanuts"); // the existing value is still shown alongside Clear
   });
 
   test("st:limits:clear patches the '' sentinel and returns to root", () => {

@@ -19,6 +19,7 @@ const profile: Profile = {
   lang: "ru",
   goal: "lose",
   restrictions: ["kidneys", "ldl"],
+  limitations: null,
   reply_format: null,
 };
 
