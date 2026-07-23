@@ -642,6 +642,22 @@ export async function applyCorrection(
   return rows.length > 0;
 }
 
+/**
+ * Move a meal to a different day (reply-based re-date). Scoped like every meal write; returns
+ * false on a 0-row update (the meal vanished mid-flight) so the caller never confirms a no-op.
+ * The ONLY sanctioned way a meal's `date` changes after insert — corrections never touch it.
+ */
+export async function setMealDate(
+  db: Db,
+  id: string,
+  user_id: number,
+  date: string,
+): Promise<boolean> {
+  const rows = await db`
+    UPDATE meals SET date = ${date} WHERE id = ${id} AND user_id = ${user_id} RETURNING id`;
+  return rows.length > 0;
+}
+
 /** The meal a reply targets — matches the bot's analysis message OR the user's own photo. */
 export async function mealByReply(
   db: Db,

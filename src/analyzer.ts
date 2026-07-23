@@ -304,7 +304,9 @@ export interface RouteContext {
 export type RouteResult =
   | { intent: "question"; answer: string }
   | { intent: "meal"; analysis: MealAnalysis; dayOffset: number }
-  | { intent: "correction"; analysis: MealAnalysis };
+  | { intent: "correction"; analysis: MealAnalysis }
+  // Move an existing (focus) meal to a different day; carries no analysis — macros are unchanged.
+  | { intent: "redate"; dayOffset: number };
 
 /** Oldest day back a text meal can be dated to (offset 0 = today … 7 = a week ago) — mirrors the
  * 7-day week context (weekStart = today − 7d), so offset 7 lands on the oldest day the router sees. */
@@ -330,10 +332,10 @@ const ROUTE_JSON_SCHEMA = {
   properties: {
     // Same trick as the meal schema: reasoning first, so intent and numbers come after thought.
     reasoning: { type: "string" },
-    intent: { type: "string", enum: ["question", "meal", "correction"] },
+    intent: { type: "string", enum: ["question", "meal", "correction", "redate"] },
     answer: { type: "string" },
     analysis: MEAL_JSON_SCHEMA,
-    // Whole days before today the meal was eaten (0 today, 1 yesterday). Meal intent only.
+    // Whole days before today to file under (0 today, 1 yesterday). Meal AND redate intents.
     dayOffset: { type: "integer", minimum: 0, maximum: MAX_DAY_OFFSET },
   },
 } as const;
@@ -349,15 +351,20 @@ const SYSTEM_ROUTE =
   `today (the default), 1 for yesterday, up to ${MAX_DAY_OFFSET}; a relative phrase like "yesterday" ` +
   'or "2 days ago" sets it, otherwise use 0; ' +
   '{"intent":"correction","analysis":{...}} ONLY when a focus meal is provided and the text ' +
-  "corrects that meal's estimate (return the full updated analysis object).";
+  "corrects that meal's estimate (return the full updated analysis object); " +
+  '{"intent":"redate","dayOffset":N} ONLY when a focus meal is provided and the text asks to MOVE ' +
+  "that meal to a different day (e.g. \"move this to yesterday\", \"this was 2 days ago\") without " +
+  "changing what was eaten — dayOffset is the whole number of days before today to file it under " +
+  `(0 today, 1 yesterday, up to ${MAX_DAY_OFFSET}).`;
 
 const RouteSchema = z.object({
-  intent: z.enum(["question", "meal", "correction"]),
+  intent: z.enum(["question", "meal", "correction", "redate"]),
   answer: z.string().optional(),
   analysis: MealAnalysisSchema.optional(),
   // `unknown`, not `z.number()`: clampDayOffset is the normalizer and tolerates any junk (null,
-  // "1", 99, 2.5) — a strict number type here would REJECT the whole meal on a stringy/null offset
-  // (models commonly emit null for same-day), discarding a valid analysis. Clamp + warn instead.
+  // "1", 99, 2.5) — a strict number type here would REJECT the whole object on a stringy/null
+  // offset (models commonly emit null for same-day), discarding a valid meal analysis OR a valid
+  // redate move. Clamp + warn instead. Shared by the meal and redate intents.
   dayOffset: z.unknown().optional(),
 });
 
@@ -392,7 +399,7 @@ export async function routeText(
       }),
     );
   } else {
-    lines.push("There is no focus meal — the correction intent is NOT available.");
+    lines.push("There is no focus meal — the correction and redate intents are NOT available.");
   }
   lines.push(`Write the answer in ${LOCALES[profile.lang].llmName}.`);
   lines.push("");
@@ -413,15 +420,27 @@ export async function routeText(
     if (!r.answer?.trim()) throw new Error("analyzer: question intent without answer");
     return { intent: "question", answer: r.answer.trim() };
   }
-  if (r.intent === "correction" && !ctx.focusMeal) {
-    // The model ignored the "not available" instruction; salvage an answer if one exists.
-    // Logged for the same reason confidence is: a model update drifting into focus-less
-    // corrections would otherwise be invisible to the operator.
+  // Correction and redate both require a focus meal (the model was told they're unavailable
+  // otherwise). Salvage an answer if the model provided one; else make the drift loud.
+  if ((r.intent === "correction" || r.intent === "redate") && !ctx.focusMeal) {
     if (r.answer?.trim()) {
-      console.warn("[eait] router: correction intent without focus meal, salvaged as question");
+      console.warn(`[eait] router: ${r.intent} intent without focus meal, salvaged as question`);
       return { intent: "question", answer: r.answer.trim() };
     }
-    throw new Error("analyzer: correction intent without focus meal");
+    throw new Error(`analyzer: ${r.intent} intent without focus meal`);
+  }
+  // Redate moves the focus meal to another day — no analysis, macros unchanged; only the offset.
+  if (r.intent === "redate") {
+    const dayOffset = clampDayOffset(r.dayOffset);
+    // A redate with NO target ("move this back") would silently file the meal under today — a
+    // no-op if it's already today, an unintended move otherwise. Warn so the operator sees the
+    // model under-specifying moves; the confirm-first card still names the resolved day to the user.
+    if (r.dayOffset === undefined) {
+      console.warn(`[eait] router: redate without a dayOffset user-focus present → defaulting to today (0)`);
+    } else if (r.dayOffset !== dayOffset) {
+      console.warn(`[eait] router: redate dayOffset ${JSON.stringify(r.dayOffset)} out of contract → ${dayOffset}`);
+    }
+    return { intent: "redate", dayOffset };
   }
   if (!r.analysis) throw new Error(`analyzer: ${r.intent} intent without analysis`);
   // Both meal-producing intents must describe food — a "correction" to not-food would still
@@ -440,6 +459,17 @@ export async function routeText(
     }
     return { intent: "meal", analysis: r.analysis, dayOffset };
   }
-  return { intent: "correction", analysis: r.analysis };
+  if (r.intent === "correction") {
+    return { intent: "correction", analysis: r.analysis };
+  }
+  // Exhaustiveness: with `intent` narrowed to a 5-value enum minus the four handled above, this
+  // is `never`. A future intent added to the enum without a branch here becomes a compile error
+  // rather than being silently mislabeled by a fallthrough.
+  return assertNever(r.intent);
+}
+
+/** Compile-time exhaustiveness guard: reaching this at runtime means an enum grew without a branch. */
+function assertNever(x: never): never {
+  throw new Error(`analyzer: unhandled route intent ${JSON.stringify(x)}`);
 }
 
