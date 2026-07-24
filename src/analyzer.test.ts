@@ -63,6 +63,27 @@ describe("analyzeMeal", () => {
     expect(req.jsonSchema).toBeDefined();
   });
 
+  test("default mode requests json_schema via response_format, not a schema dump in the prompt", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], profile, provider);
+    const req = provider.lastRequest!;
+    expect(req.jsonSchema).toBeDefined();
+    // field NAMES are always in the prompt (buildUserText), but the JSON-schema object is not dumped
+    expect(req.userText).not.toContain('"properties"');
+  });
+
+  test("prompt mode drops json_schema and dumps the schema object into the prompt instead", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], profile, provider, undefined, "prompt");
+    const req = provider.lastRequest!;
+    // no response_format request — the mode used to A/B providers that choke on it...
+    expect(req.jsonSchema).toBeUndefined();
+    // ...so the full schema object rides in the prompt (nested items/verdicts shape, not just names)
+    expect(req.userText).toContain('"properties"');
+    // still the real analysis path: image sent, output parses
+    expect(req.imagesB64?.length).toBe(1);
+  });
+
   test("isFood=false passes through (valid, not an error)", async () => {
     const provider = new FakeProvider(() => JSON.stringify({ isFood: false }));
     const out = await analyzeMeal([bytes], profile, provider);

@@ -268,18 +268,35 @@ function parseAnalysis(raw: string): MealAnalysis {
   return result.data;
 }
 
+/**
+ * How the model is asked for structured output. `"schema"` (default, production) sends the JSON
+ * schema as an OpenRouter `response_format` — strictest, but some providers (several Chinese vision
+ * models via OpenRouter) return an empty shell, wrong types, or a 400. `"prompt"` drops
+ * `response_format` and inlines the schema into the prompt instead, relying on the tolerant parse —
+ * the portable mode used by the accuracy eval to A/B those providers on equal footing.
+ */
+export type StructuredOutputMode = "schema" | "prompt";
+
 export async function analyzeMeal(
   images: Uint8Array[],
   profile: Profile,
   provider: LLMProvider,
   context?: MealContext,
+  mode: StructuredOutputMode = "schema",
 ): Promise<MealAnalysis> {
+  const baseUserText = buildUserText(profile, context, images.length > 1);
+  // In prompt mode the field shape can't ride in response_format, so it must be in the prompt —
+  // otherwise the model only knows "match the schema" with no schema to match.
+  const userText =
+    mode === "prompt"
+      ? `${baseUserText}\n\nReturn ONLY a JSON object with exactly this shape (no prose, no fences):\n${JSON.stringify(MEAL_JSON_SCHEMA)}`
+      : baseUserText;
   const req: ChatRequest = {
     system: SYSTEM,
-    userText: buildUserText(profile, context, images.length > 1),
+    userText,
     imagesB64: images.map(toBase64),
     imageMime: "image/jpeg",
-    jsonSchema: MEAL_JSON_SCHEMA,
+    ...(mode === "schema" ? { jsonSchema: MEAL_JSON_SCHEMA } : {}),
     temperature: TEMPERATURE,
   };
   const raw = await provider.chat(req);

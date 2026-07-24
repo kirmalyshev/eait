@@ -43,6 +43,16 @@ if (!Number.isInteger(runs) || runs < 1) {
 const models = arg("models", process.env.LLM_MODEL ?? "x-ai/grok-4.5")
   .split(",").map((m) => m.trim()).filter(Boolean);
 
+// Structured-output mode: "schema" mirrors production (response_format json_schema — works for
+// grok/OpenAI-style), "prompt" inlines the schema and drops response_format so providers that
+// choke on it (several Chinese vision models) can compete. Use "prompt" for a fair cross-vendor
+// A/B — it's the one mode every reachable model honors.
+const mode = arg("mode", "schema");
+if (mode !== "schema" && mode !== "prompt") {
+  console.error('--mode must be "schema" or "prompt"');
+  process.exit(1);
+}
+
 let files: string[];
 try {
   files = readdirSync(dir);
@@ -74,7 +84,7 @@ for (const model of models) {
     const caseRuns: EvalRun[] = [];
     for (let i = 0; i < runs; i++) {
       try {
-        const a = await analyzeMeal([bytes], profile, provider);
+        const a = await analyzeMeal([bytes], profile, provider, undefined, mode);
         if (!a.isFood) throw new Error("model said isFood=false");
         caseRuns.push({
           kcal: a.kcal, protein_g: a.protein_g, carbs_g: a.carbs_g, fat_g: a.fat_g,
