@@ -477,15 +477,23 @@ describe("analyzeMeal — multi-image (albums)", () => {
     const req = provider.lastRequest!;
     expect(req.imagesB64?.length).toBe(1);
     expect(req.userText).not.toContain("SAME meal");
+    // the side-view framing (issue #11) must stay scoped to the multi-photo branch — telling a
+    // single overhead shot to "use a side view" is nonsense. side/angle/height are all absent
+    // from the single-photo prompt (unlike "volume", which the base protocol always emits).
+    const single = req.userText.toLowerCase();
+    expect(single).not.toMatch(/side|angle/);
+    expect(single).not.toContain("height");
   });
 
   test("multi-photo prompt steers a side/angle view at portion VOLUME (issue #11), not just packaging", async () => {
     const provider = new FakeProvider(() => validJson);
     await analyzeMeal([bytes, new Uint8Array([9, 9])], profile, provider);
     const blob = provider.lastRequest!.userText.toLowerCase();
-    // the extra view must be framed as a height/volume signal for tall/layered dishes...
-    expect(blob).toMatch(/side|angle/);
-    expect(blob).toMatch(/volume|height/);
+    // The side view must be framed AS the height/volume signal — asserted as one co-located
+    // phrase, not two loose mentions. "height" is unique to this branch; "volume" alone leaks
+    // from the always-present estimation protocol, so matching it wouldn't pin the #11 change.
+    expect(blob).toMatch(/side or angled view to judge the height and volume/);
+    expect(blob).toMatch(/tall or layered/);
     // ...while keeping the existing packaging/label ground-truth use
     expect(blob).toContain("packaging");
   });

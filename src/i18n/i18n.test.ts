@@ -201,6 +201,16 @@ describe("photo-taking tips", () => {
     expect(CATALOGS[lang].get("onboarding.done")).toContain("\n•");
     expect(CATALOGS[lang].get("help.body")).toContain("\n•");
   });
+
+  // Key parity can't catch a tip added to some locales but forgotten in others — both keys
+  // pre-exist. A missing bullet ships the feature dead for those users (the prompt exploits a
+  // side photo the user was never told to send). Assert every locale carries the SAME count.
+  test("every locale carries the same number of photo tips", () => {
+    for (const key of ["onboarding.done", "help.body"] as const) {
+      const counts = LANGS.map((l) => (CATALOGS[l].get(key)!.match(/\n•/g) ?? []).length);
+      expect(new Set(counts).size).toBe(1); // all locales agree
+    }
+  });
 });
 
 describe("copy is plain text", () => {
