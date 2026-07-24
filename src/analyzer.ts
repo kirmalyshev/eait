@@ -134,10 +134,12 @@ function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boo
   }
   if (multiPhoto) {
     lines.push(
-      "The user sent several photos of the SAME meal (e.g. the portion plus product packaging " +
-        "or a nutrition label). Combine ALL photos into ONE analysis of one meal — never treat " +
-        "them as separate meals. Use any packaging/label photo as ground truth for ingredients " +
-        "and per-100g nutrition.",
+      "The user sent several photos of the SAME meal — these may be a different ANGLE (e.g. a " +
+        "side view), and/or product packaging or a nutrition label. Combine ALL photos into ONE " +
+        "analysis of one meal — never treat them as separate meals. Use a side or angled view to " +
+        "judge the HEIGHT and VOLUME of tall or layered dishes (bowls, casseroles, stacked food), " +
+        "where an overhead shot alone under-constrains the portion. Use any packaging/label photo " +
+        "as ground truth for ingredients and per-100g nutrition.",
     );
   }
   // Staged decomposition + volumetric reasoning: the measured levers against portion error,

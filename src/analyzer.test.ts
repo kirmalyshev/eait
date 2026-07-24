@@ -478,6 +478,17 @@ describe("analyzeMeal — multi-image (albums)", () => {
     expect(req.imagesB64?.length).toBe(1);
     expect(req.userText).not.toContain("SAME meal");
   });
+
+  test("multi-photo prompt steers a side/angle view at portion VOLUME (issue #11), not just packaging", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes, new Uint8Array([9, 9])], profile, provider);
+    const blob = provider.lastRequest!.userText.toLowerCase();
+    // the extra view must be framed as a height/volume signal for tall/layered dishes...
+    expect(blob).toMatch(/side|angle/);
+    expect(blob).toMatch(/volume|height/);
+    // ...while keeping the existing packaging/label ground-truth use
+    expect(blob).toContain("packaging");
+  });
 });
 
 describe("routeText", () => {
