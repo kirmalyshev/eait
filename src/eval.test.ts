@@ -133,6 +133,71 @@ describe("summarize", () => {
   });
 });
 
+describe("summarize — signed bias", () => {
+  // MAE/MAPE are absolute: a model that is 30% high on every meal and one that scatters ±30%
+  // score identically, yet the first is fixable with one prompt line and the second is not.
+  // Bias is the geometric mean of est/true, so a 2x over and a 2x under cancel exactly.
+
+  test("symmetric errors cancel — zero bias, half over", () => {
+    const s = summarize([
+      { expected: { kcal: 100 }, runs: [run(200)] }, // 2x over
+      { expected: { kcal: 100 }, runs: [run(50)] }, // 2x under
+    ]);
+    expect(s.kcal.mape).toBeCloseTo(75); // absolute error is large...
+    expect(s.kcal.biasPct).toBeCloseTo(0); // ...but there is no systematic direction
+    expect(s.kcal.overPct).toBe(50);
+  });
+
+  test("a uniformly high model reports its exact multiplicative bias", () => {
+    const s = summarize([
+      { expected: { kcal: 100 }, runs: [run(150)] },
+      { expected: { kcal: 400 }, runs: [run(600)] },
+    ]);
+    expect(s.kcal.biasPct).toBeCloseTo(50); // every meal 1.5x
+    expect(s.kcal.overPct).toBe(100);
+  });
+
+  test("bias is negative when the model under-estimates", () => {
+    const s = summarize([{ expected: { kcal: 100 }, runs: [run(50)] }]);
+    expect(s.kcal.biasPct).toBeCloseTo(-50);
+    expect(s.kcal.overPct).toBe(0);
+  });
+
+  test("signed decomposition attributes the direction to grams or density", () => {
+    // Pure density over-estimate: portion right, richness 1.6x high.
+    const dense = summarize([
+      { expected: { kcal: 500, total_grams: 250 }, runs: [run(800, { grams_total: 250 })] },
+    ]);
+    expect(dense.decomp!.gramsBiasPct).toBeCloseTo(0);
+    expect(dense.decomp!.densityBiasPct).toBeCloseTo(60);
+
+    // Pure portion over-estimate: richness right, grams 1.6x high.
+    const big = summarize([
+      { expected: { kcal: 500, total_grams: 250 }, runs: [run(800, { grams_total: 400 })] },
+    ]);
+    expect(big.decomp!.gramsBiasPct).toBeCloseTo(60);
+    expect(big.decomp!.densityBiasPct).toBeCloseTo(0);
+  });
+
+  test("a zero kcal estimate has no log ratio — bias is omitted, never reported as unbiased", () => {
+    const s = summarize([{ expected: { kcal: 100 }, runs: [run(0)] }]);
+    expect(s.kcal.biasPct).toBeUndefined();
+    expect(s.kcal.overPct).toBe(0); // the absolute metrics still cover the case
+    expect(s.kcal.mape).toBeCloseTo(100);
+  });
+
+  test("grams under + density over can hide inside a small kcal bias", () => {
+    // 200 g true @ 2 kcal/g = 400 kcal. Model: 100 g @ 4 kcal/g = 400 kcal — kcal is perfect,
+    // yet both components are 2x wrong in opposite directions. Absolute metrics see nothing.
+    const s = summarize([
+      { expected: { kcal: 400, total_grams: 200 }, runs: [run(400, { grams_total: 100 })] },
+    ]);
+    expect(s.kcal.biasPct).toBeCloseTo(0);
+    expect(s.decomp!.gramsBiasPct).toBeCloseTo(-50); // half the true weight
+    expect(s.decomp!.densityBiasPct).toBeCloseTo(100); // twice the true richness
+  });
+});
+
 describe("summarize — grams vs density decomposition", () => {
   // kcal = grams × density, so a kcal error is either an over-portion (grams) or an
   // over-richness (density) error. These decide #11 (portion technique) vs #8 (DB grounding).

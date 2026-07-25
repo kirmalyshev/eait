@@ -106,9 +106,37 @@ export interface CaseInput {
   runs: EvalRun[];
 }
 
+/**
+ * Geometric-mean bias of estimate vs truth, as a percentage: `+28` means the estimate is on
+ * average 1.28x the true value. Computed in log space so an over- and an under-estimate of the
+ * same factor cancel exactly (a 2x over and a 2x under average to 0, not to +25%).
+ *
+ * This is the number MAE/MAPE cannot show. A model that is uniformly 30% high and one that
+ * scatters ±30% score the same absolute error, but the first is a one-line prompt fix and the
+ * second is a hard modelling problem. Estimates of zero have no defined log ratio and are
+ * excluded — `undefined` means no case had a positive estimate, never "unbiased".
+ */
+function biasPct(estimates: number[], truths: number[]): number | undefined {
+  const logs: number[] = [];
+  for (let i = 0; i < estimates.length; i++) {
+    const e = estimates[i]!;
+    if (e > 0) logs.push(Math.log(e / truths[i]!));
+  }
+  if (logs.length === 0) return undefined;
+  return (Math.exp(mean(logs)) - 1) * 100;
+}
+
 export interface Summary {
   cases: number;
-  kcal: { mae: number; mape: number; spread: number };
+  kcal: {
+    mae: number;
+    mape: number;
+    spread: number;
+    /** Systematic direction of the kcal error, % (see `biasPct`). Absent if no positive estimate. */
+    biasPct?: number;
+    /** % of cases the model over-estimated. 50 = no systematic direction. */
+    overPct: number;
+  };
   protein_g?: { mae: number; cases: number };
   carbs_g?: { mae: number; cases: number };
   fat_g?: { mae: number; cases: number };
@@ -131,6 +159,10 @@ export interface Summary {
     densityLogMae: number;
     /** % of cases where the grams component is the larger driver of the kcal error. */
     gramsDominatedPct: number;
+    /** Signed portion bias, % (see `biasPct`) — is the model reading meals as too big or too small? */
+    gramsBiasPct?: number;
+    /** Signed richness bias, % — is the model assuming too much oil/fat per gram, or too little? */
+    densityBiasPct?: number;
   };
 }
 
@@ -152,6 +184,11 @@ export function summarize(cases: CaseInput[]): Summary {
   const gramsLogs: number[] = [];
   const densityLogs: number[] = [];
   let gramsDominated = 0;
+  // Signed series, kept alongside the absolute ones so bias and error come from the same cases.
+  const kcalEsts: number[] = [], kcalTrues: number[] = [];
+  const gramsEsts: number[] = [], gramsTrues: number[] = [];
+  const densityEsts: number[] = [], densityTrues: number[] = [];
+  let kcalOver = 0;
 
   for (const c of cases) {
     const kcals = c.runs.map((r) => r.kcal);
@@ -159,6 +196,9 @@ export function summarize(cases: CaseInput[]): Summary {
     kcalErrs.push(Math.abs(est - c.expected.kcal));
     kcalPctErrs.push((Math.abs(est - c.expected.kcal) / c.expected.kcal) * 100);
     kcalSpreads.push(Math.max(...kcals) - Math.min(...kcals));
+    kcalEsts.push(est);
+    kcalTrues.push(c.expected.kcal);
+    if (est > c.expected.kcal) kcalOver++;
 
     for (const key of ["protein_g", "carbs_g", "fat_g"] as const) {
       const want = c.expected[key];
@@ -168,12 +208,16 @@ export function summarize(cases: CaseInput[]): Summary {
     if (c.expected.total_grams !== undefined) {
       const est_g = median(c.runs.map((r) => r.grams_total));
       gramsPctErrs.push((Math.abs(est_g - c.expected.total_grams) / c.expected.total_grams) * 100);
+      gramsEsts.push(est_g);
+      gramsTrues.push(c.expected.total_grams);
       // Density = kcal/gram. Needs a positive gram estimate; a zero-gram run (empty model output)
       // has no defined density, so it's excluded from the decomposition rather than divided by zero.
       if (est_g > 0) {
         const dTrue = c.expected.kcal / c.expected.total_grams;
         const dEst = est / est_g;
         densityPctErrs.push((Math.abs(dEst - dTrue) / dTrue) * 100);
+        densityEsts.push(dEst);
+        densityTrues.push(dTrue);
         const gLog = Math.abs(Math.log(est_g / c.expected.total_grams));
         const dLog = Math.abs(Math.log(dEst / dTrue));
         gramsLogs.push(gLog);
@@ -183,21 +227,32 @@ export function summarize(cases: CaseInput[]): Summary {
     }
   }
 
+  const kcalBias = biasPct(kcalEsts, kcalTrues);
   const summary: Summary = {
     cases: cases.length,
-    kcal: { mae: mean(kcalErrs), mape: mean(kcalPctErrs), spread: mean(kcalSpreads) },
+    kcal: {
+      mae: mean(kcalErrs),
+      mape: mean(kcalPctErrs),
+      spread: mean(kcalSpreads),
+      ...(kcalBias === undefined ? {} : { biasPct: kcalBias }),
+      overPct: (kcalOver / cases.length) * 100,
+    },
   };
   for (const key of ["protein_g", "carbs_g", "fat_g"] as const) {
     if (macroErrs[key].length) summary[key] = { mae: mean(macroErrs[key]), cases: macroErrs[key].length };
   }
   if (gramsPctErrs.length) summary.grams = { mape: mean(gramsPctErrs), cases: gramsPctErrs.length };
   if (densityPctErrs.length) {
+    const gBias = biasPct(gramsEsts, gramsTrues);
+    const dBias = biasPct(densityEsts, densityTrues);
     summary.decomp = {
       cases: densityPctErrs.length,
       densityMape: mean(densityPctErrs),
       gramsLogMae: mean(gramsLogs),
       densityLogMae: mean(densityLogs),
       gramsDominatedPct: (gramsDominated / densityPctErrs.length) * 100,
+      ...(gBias === undefined ? {} : { gramsBiasPct: gBias }),
+      ...(dBias === undefined ? {} : { densityBiasPct: dBias }),
     };
   }
   return summary;
@@ -205,12 +260,20 @@ export function summarize(cases: CaseInput[]): Summary {
 
 const fmt = (n: number): string => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
+/** Signed numbers carry their sign explicitly — "+28%" vs "-28%" is the whole point of a bias. */
+const signed = (n: number): string => `${n > 0 ? "+" : ""}${fmt(n)}%`;
+
 /** One model's summary as a compact plain-text block (the runner prints one per model). */
 export function renderReport(model: string, s: Summary): string {
   const lines = [
     `model: ${model} (${s.cases} case${s.cases === 1 ? "" : "s"})`,
     `  kcal    MAE ${fmt(s.kcal.mae)} · MAPE ${fmt(s.kcal.mape)}% · run spread ${fmt(s.kcal.spread)}`,
   ];
+  if (s.kcal.biasPct !== undefined) {
+    lines.push(
+      `  kcal    BIAS ${signed(s.kcal.biasPct)} (${fmt(s.kcal.overPct)}% of meals over-estimated)`,
+    );
+  }
   if (s.protein_g) lines.push(`  protein MAE ${fmt(s.protein_g.mae)} g (${s.protein_g.cases} cases)`);
   if (s.carbs_g) lines.push(`  carbs   MAE ${fmt(s.carbs_g.mae)} g (${s.carbs_g.cases} cases)`);
   if (s.fat_g) lines.push(`  fat     MAE ${fmt(s.fat_g.mae)} g (${s.fat_g.cases} cases)`);
@@ -222,6 +285,11 @@ export function renderReport(model: string, s: Summary): string {
       `  kcal error source: grams |ln| ${fmt(d.gramsLogMae)} vs density |ln| ${fmt(d.densityLogMae)}` +
         ` — ${fmt(d.gramsDominatedPct)}% grams-dominated`,
     );
+    if (d.gramsBiasPct !== undefined && d.densityBiasPct !== undefined) {
+      lines.push(
+        `  bias direction: portion ${signed(d.gramsBiasPct)} · richness ${signed(d.densityBiasPct)}`,
+      );
+    }
   }
   return lines.join("\n");
 }

@@ -86,11 +86,14 @@ for (const model of models) {
       try {
         const a = await analyzeMeal([bytes], profile, provider, undefined, mode);
         if (!a.isFood) throw new Error("model said isFood=false");
+        const grams = a.items.reduce((sum, item) => sum + item.grams, 0);
         caseRuns.push({
           kcal: a.kcal, protein_g: a.protein_g, carbs_g: a.carbs_g, fat_g: a.fat_g,
-          grams_total: a.items.reduce((sum, item) => sum + item.grams, 0),
+          grams_total: grams,
         });
-        console.log(`  ${model} ${c.name} run ${i + 1}: kcal=${a.kcal}`);
+        // grams too, not just kcal: the signed grams/density split is recomputable from an
+        // archived log only if BOTH numbers are on the line — a kcal-only log costs a re-run.
+        console.log(`  ${model} ${c.name} run ${i + 1}: kcal=${a.kcal} grams=${grams}`);
       } catch (e) {
         // A failed run is reported and EXCLUDED — a zeroed placeholder would poison the MAE.
         console.error(`  ${model} ${c.name} run ${i + 1} FAILED: ${(e as Error).message}`);
