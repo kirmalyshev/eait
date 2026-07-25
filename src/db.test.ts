@@ -111,7 +111,7 @@ describe("migration 2 upgrade path (pre-existing databases, not fresh creates)",
     await a.close();
 
     const b = await openTestDb(name); // migrations 2+3+4+5 run against existing rows
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(7);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(8);
     // Active user: never asked — NULL, and never re-asked (resume() skips active users).
     expect((await getUser(b, 1))!.weight_kg).toBeNull();
     // Restrictions-step user: backfilled to the skip sentinel, or their next message — composed
@@ -162,7 +162,7 @@ describe("reply_format (migration 4)", () => {
     await upsertUser(a, { telegram_id: 7 });
     await a.close();
     const b = await openTestDb(name); // migration 4 (and 5) run against the existing row
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(7);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(8);
     expect((await getUser(b, 7))!.reply_format).toBeNull();
     // Write-back proves the column was really added (getUser's `?? null` would mask a no-op
     // migration: a missing column reads as undefined ?? null too).
@@ -229,7 +229,7 @@ describe("target weight + country + pending_input (migration 5)", () => {
     await a.close();
 
     const b = await openTestDb(name); // migration 5 runs against existing rows
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(7);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(8);
     // Active user: never asked, never re-asked (resume() skips active users).
     expect((await getUser(b, 1))!.target_weight_kg).toBeNull();
     expect((await getUser(b, 1))!.country).toBeNull();
@@ -298,7 +298,7 @@ describe("food specifics — 3 free-text fields (migration 7)", () => {
     await a.close();
 
     const b = await openTestDb(name);
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(7);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(8);
     // The real value moves to product_limitations; the other two new fields start NULL.
     const u1 = (await getUser(b, 1))!;
     expect(u1.product_limitations).toBe("низя есть гречку");
@@ -350,7 +350,7 @@ describe("openDb + migrations", () => {
   test("auto-creates a missing database and records the schema version", async () => {
     const db = await freshTestDb();
     const rows = await db`SELECT version FROM schema_version`;
-    expect(Number(rows[0].version)).toBe(7);
+    expect(Number(rows[0].version)).toBe(8);
   });
 
   test("reopening is idempotent — data survives, migrations do not rerun", async () => {
@@ -360,7 +360,7 @@ describe("openDb + migrations", () => {
     await a.close();
     const b = await openTestDb(name);
     expect((await getUser(b, 1))?.username).toBe("keepme");
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(7);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(8);
   });
 
   test("two concurrent openDb calls on a missing database both succeed (create race)", async () => {
@@ -880,5 +880,69 @@ describe("review fixes — db layer", () => {
     expect(m).toBeDefined();
     expect(m!.user_message_id).toBeNull();
     expect(await mealByReply(b, 1, 0 as unknown as number)).toBeUndefined(); // null never matches
+  });
+});
+
+describe("migration 8 — undeclared medical verdicts are removed from stored meals", () => {
+  // The bug this migrates away from: the analyzer prompt ASKED the model not to judge undeclared
+  // dimensions, nothing enforced it, and rows accumulated ldl/kidneys verdicts for users who
+  // never ticked either. The gate now runs at the parse and at both renderers; this clears what
+  // was already written, because a cholesterol judgement on the food of someone who never raised
+  // cholesterol is not data to keep.
+
+  const withAll = { weight: "good", ldl: "bad", kidneys: "warn" } as const;
+
+  async function seedAtV7(name: string) {
+    const a = await openTestDb(name);
+    await a`UPDATE schema_version SET version = 7`;
+    await upsertUser(a, { telegram_id: 1 }); // declared neither
+    await setProfile(a, 1, { restrictions: [], state: "active" });
+    await upsertUser(a, { telegram_id: 2 }); // declared only ldl
+    await setProfile(a, 2, { restrictions: ["ldl"], state: "active" });
+    await upsertUser(a, { telegram_id: 3 }); // declared both
+    await setProfile(a, 3, { restrictions: ["ldl", "kidneys"], state: "active" });
+    await upsertUser(a, { telegram_id: 4 }); // declared an unrelated tag
+    await setProfile(a, 4, { restrictions: ["lowsugar"], state: "active" });
+    for (const uid of [1, 2, 3, 4]) {
+      await insertMeal(a, {
+        id: `m${uid}`, user_id: uid, ts: "t", date: "2026-07-21",
+        analysis: analysis({ kcal: 500, verdicts: { ...withAll } }),
+      });
+    }
+    await a.close();
+  }
+
+  const verdictsOf = async (db: Awaited<ReturnType<typeof openTestDb>>, id: string) =>
+    JSON.parse((await db`SELECT verdicts FROM meals WHERE id = ${id}`)[0].verdicts as string);
+
+  test("strips exactly the undeclared dimensions, per user, and never touches weight", async () => {
+    const name = freshTestName();
+    await seedAtV7(name);
+    const b = await openTestDb(name);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(8);
+
+    expect(await verdictsOf(b, "m1")).toEqual({ weight: "good" }); // declared neither
+    expect(await verdictsOf(b, "m2")).toEqual({ weight: "good", ldl: "bad" }); // only ldl
+    expect(await verdictsOf(b, "m3")).toEqual(withAll); // declared both → untouched
+    expect(await verdictsOf(b, "m4")).toEqual({ weight: "good" }); // lowsugar unlocks nothing
+  });
+
+  test("leaves the rest of the row alone", async () => {
+    const name = freshTestName();
+    await seedAtV7(name);
+    const b = await openTestDb(name);
+    const row = (await b`SELECT kcal, date FROM meals WHERE id = 'm1'`)[0];
+    expect(Number(row.kcal)).toBe(500);
+    expect(row.date).toBe("2026-07-21");
+  });
+
+  test("is idempotent — a second boot changes nothing", async () => {
+    const name = freshTestName();
+    await seedAtV7(name);
+    const b = await openTestDb(name);
+    const first = await verdictsOf(b, "m1");
+    await b.close();
+    const c = await openTestDb(name);
+    expect(await verdictsOf(c, "m1")).toEqual(first);
   });
 });

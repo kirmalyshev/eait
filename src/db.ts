@@ -409,6 +409,34 @@ const MIGRATIONS: Migration[] = [
       await tx`UPDATE users SET pending_input = NULL WHERE pending_input = 'limitations'`;
     },
   },
+  {
+    // Strip medical verdicts from meals whose owner never declared the matching restriction.
+    //
+    // The analyzer prompt asked the model not to judge undeclared dimensions; the model did it
+    // anyway, and nothing enforced it, so rows accumulated `ldl` and `kidneys` verdicts for users
+    // who ticked only lowsugar — or nothing at all. `visibleVerdicts` now gates this at the parse
+    // and at both renderers, so nothing new can land and nothing old is displayed. This clears
+    // what is already stored, because a cholesterol judgement on the food of someone who never
+    // raised cholesterol is not data this bot should be holding.
+    //
+    // Only `ldl` and `kidneys` are gated; `weight` applies to everyone and is left alone. The
+    // subtraction is unconditional per row and keys off the owner's CURRENT restrictions, which
+    // is also the correct reading for a user who has since unticked one.
+    version: 8,
+    up: async (tx) => {
+      await tx`
+        UPDATE meals m
+           SET verdicts = (m.verdicts::jsonb - (
+                 SELECT COALESCE(array_agg(dim), ARRAY[]::text[])
+                   FROM unnest(ARRAY['ldl', 'kidneys']) AS dim
+                  WHERE NOT (u.restrictions::jsonb ? dim)
+               ))::text
+          FROM users u
+         WHERE u.telegram_id = m.user_id
+           AND (m.verdicts::jsonb ?| ARRAY['ldl', 'kidneys'])
+      `;
+    },
+  },
 ];
 
 async function migrate(db: Db): Promise<void> {
