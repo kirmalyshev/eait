@@ -19,19 +19,19 @@ export const MealAnalysisSchema = z.object({
     .array(
       z.object({
         name: z.string().default("item"),
-        grams: z.coerce.number().default(0),
+        grams: z.coerce.number().nonnegative().default(0),
       }),
     )
     .default([]),
-  kcal: z.coerce.number().default(0),
-  protein_g: z.coerce.number().default(0),
-  carbs_g: z.coerce.number().default(0),
-  fat_g: z.coerce.number().default(0),
-  satfat_g: z.coerce.number().default(0),
-  fiber_g: z.coerce.number().default(0),
-  sugar_g: z.coerce.number().default(0),
-  sodium_mg: z.coerce.number().default(0),
-  plant_protein_pct: z.coerce.number().default(0),
+  kcal: z.coerce.number().nonnegative().default(0),
+  protein_g: z.coerce.number().nonnegative().default(0),
+  carbs_g: z.coerce.number().nonnegative().default(0),
+  fat_g: z.coerce.number().nonnegative().default(0),
+  satfat_g: z.coerce.number().nonnegative().default(0),
+  fiber_g: z.coerce.number().nonnegative().default(0),
+  sugar_g: z.coerce.number().nonnegative().default(0),
+  sodium_mg: z.coerce.number().nonnegative().default(0),
+  plant_protein_pct: z.coerce.number().nonnegative().default(0),
   verdicts: z
     .object({
       weight: VerdictSchema.optional(),

@@ -148,6 +148,21 @@ describe("MealAnalysisSchema", () => {
     expect(parsed.verdicts).toEqual({});
   });
 
+  test("rejects negative quantities rather than storing them", () => {
+    // A negative kcal, gram or macro is garbage, never a real estimate. Letting one through
+    // poisons the day's totals silently and, in the eval, makes ln(kcal) NaN — which destroys
+    // the aggregate for every other meal in the run. The file contract is that invalid output
+    // THROWS: the caller shows errors.analyzeFailed and writes no row at all.
+    expect(() => MealAnalysisSchema.parse({ isFood: true, kcal: -100 })).toThrow();
+    expect(() => MealAnalysisSchema.parse({ isFood: true, protein_g: -1 })).toThrow();
+    expect(() => MealAnalysisSchema.parse({ isFood: true, sodium_mg: -5 })).toThrow();
+    expect(() =>
+      MealAnalysisSchema.parse({ isFood: true, items: [{ name: "rice", grams: -50 }] }),
+    ).toThrow();
+    // Zero stays valid — black coffee is 0 kcal, and an unknown macro defaults to 0.
+    expect(MealAnalysisSchema.parse({ isFood: true, kcal: 0 }).kcal).toBe(0);
+  });
+
   test("confidence is normalized at parse: trimmed + lowercased", () => {
     // The wire enum is advisory (strict:false), so " Low " and "Medium" do arrive. Normalizing
     // here means the bot and the stored row always see canonical casing.
