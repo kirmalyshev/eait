@@ -133,6 +133,44 @@ describe("summarize", () => {
   });
 });
 
+describe("summarize — grams vs density decomposition", () => {
+  // kcal = grams × density, so a kcal error is either an over-portion (grams) or an
+  // over-richness (density) error. These decide #11 (portion technique) vs #8 (DB grounding).
+
+  test("pure density error: right grams, wrong kcal/g (the 800-vs-500 case)", () => {
+    // true 500 kcal @ 250 g = 2.0 kcal/g; model says 800 kcal @ 250 g = 3.2 kcal/g
+    const s = summarize([
+      { expected: { kcal: 500, total_grams: 250 }, runs: [run(800, { grams_total: 250 })] },
+    ]);
+    expect(s.grams!.mape).toBeCloseTo(0); // portion is spot on
+    expect(s.decomp!.densityMape).toBeCloseTo(60); // all the error is richness
+    expect(s.decomp!.gramsDominatedPct).toBe(0); // density-dominated
+    expect(s.decomp!.densityLogMae).toBeGreaterThan(s.decomp!.gramsLogMae);
+  });
+
+  test("pure grams error: right kcal/g, wrong portion", () => {
+    // true 500 kcal @ 250 g = 2.0 kcal/g; model 800 kcal @ 400 g = 2.0 kcal/g (density identical)
+    const s = summarize([
+      { expected: { kcal: 500, total_grams: 250 }, runs: [run(800, { grams_total: 400 })] },
+    ]);
+    expect(s.grams!.mape).toBeCloseTo(60); // portion is 60% high
+    expect(s.decomp!.densityMape).toBeCloseTo(0); // richness is spot on
+    expect(s.decomp!.gramsDominatedPct).toBe(100); // grams-dominated
+  });
+
+  test("decomp is omitted when no case declares total_grams (density needs grams)", () => {
+    const s = summarize([{ expected: { kcal: 500 }, runs: [run(800)] }]);
+    expect(s.decomp).toBeUndefined();
+  });
+
+  test("a zero-grams run (empty model output) is excluded from decomp, not divided by zero", () => {
+    const s = summarize([
+      { expected: { kcal: 500, total_grams: 250 }, runs: [run(800, { grams_total: 0 })] },
+    ]);
+    expect(s.decomp).toBeUndefined(); // the only case was undecomposable → no decomp block
+  });
+});
+
 describe("renderReport", () => {
   test("renders model name and headline numbers", () => {
     const s = summarize([{ expected: { kcal: 100, protein_g: 30 }, runs: [run(90, { protein_g: 25 })] }]);
