@@ -148,6 +148,21 @@ describe("MealAnalysisSchema", () => {
     expect(parsed.verdicts).toEqual({});
   });
 
+  test("rejects negative quantities rather than storing them", () => {
+    // A negative kcal, gram or macro is garbage, never a real estimate. Letting one through
+    // poisons the day's totals silently and, in the eval, makes ln(kcal) NaN — which destroys
+    // the aggregate for every other meal in the run. The file contract is that invalid output
+    // THROWS: the caller shows errors.analyzeFailed and writes no row at all.
+    expect(() => MealAnalysisSchema.parse({ isFood: true, kcal: -100 })).toThrow();
+    expect(() => MealAnalysisSchema.parse({ isFood: true, protein_g: -1 })).toThrow();
+    expect(() => MealAnalysisSchema.parse({ isFood: true, sodium_mg: -5 })).toThrow();
+    expect(() =>
+      MealAnalysisSchema.parse({ isFood: true, items: [{ name: "rice", grams: -50 }] }),
+    ).toThrow();
+    // Zero stays valid — black coffee is 0 kcal, and an unknown macro defaults to 0.
+    expect(MealAnalysisSchema.parse({ isFood: true, kcal: 0 }).kcal).toBe(0);
+  });
+
   test("confidence is normalized at parse: trimmed + lowercased", () => {
     // The wire enum is advisory (strict:false), so " Low " and "Medium" do arrive. Normalizing
     // here means the bot and the stored row always see canonical casing.
@@ -219,10 +234,18 @@ describe("estimation protocol", () => {
     expect(schema.properties.confidence.enum).toEqual(["high", "medium", "low"]);
   });
 
-  test("prompt counteracts the systematic underestimation of mixed dishes", async () => {
+  test("prompt carries NO round-up hedge — the model already over-portions", async () => {
+    // Inverted from its original form on evidence. The prompt used to tell the model that mixed
+    // dishes are systematically UNDERestimated and to take the larger portion when torn. Measured
+    // against 30 weighed Nutrition5k dishes, grok-4.5 over-portions by +28.5% and over-estimates
+    // 2 meals in 3, so that line was pushing the error further out: deleting it moved kcal MAE
+    // 149.3 → 125.0 and portion bias +28.5% → +16.5%. This test fails the moment a round-up
+    // instruction comes back, because the next one needs its own measurement first.
     const provider = new FakeProvider(() => validJson);
     await analyzeMeal([bytes], profile, provider);
-    expect(provider.lastRequest!.userText.toLowerCase()).toContain("underestimat");
+    const text = provider.lastRequest!.userText.toLowerCase();
+    expect(text).not.toContain("underestimat");
+    expect(text).not.toContain("take the larger");
   });
 
   test("the router path inherits the estimation protocol", async () => {
