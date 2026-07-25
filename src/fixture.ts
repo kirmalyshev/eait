@@ -169,10 +169,16 @@ export const FOOD_TABLE: readonly FoodEntry[] = [
 
 /**
  * Lookup key: lowercase, everything but letters/digits/`%` collapsed to single spaces. So
- * "Rice, Cooked", "rice cooked" and "rice,cooked" are one key, while "milk 3.5%" stays distinct
- * from "milk 1.5%" — the `%` is load-bearing, it is the fat grade.
+ * "Rice, Cooked", "rice cooked" and "rice,cooked" are one key.
+ *
+ * DIGITS are the load-bearing part, not the `%`: they are what keeps "milk 3.5%" distinct from
+ * "milk 1.5%", i.e. one fat grade from another. Dropping `%` would be harmless on today's table;
+ * dropping digits would collapse three pairs of entries into one key each. Exported so the table's
+ * duplicate-key test checks THIS function rather than a copy of it — a test that re-implements the
+ * key function cannot see a regression in it.
  */
-const normalize = (s: string): string => s.toLowerCase().replace(/[^a-z0-9%]+/g, " ").trim();
+export const normalize = (s: string): string =>
+  s.toLowerCase().replace(/[^a-z0-9%]+/g, " ").trim();
 
 const INDEX = new Map<string, Per100>();
 /** Normalized key → canonical name, for building suggestions out of a miss. */
@@ -206,7 +212,13 @@ function editDistance(a: string, b: string): number {
 
 /** A query token matches a name token on prefix, or (for real words) within one or two typos. */
 function tokenMatches(query: string, target: string): boolean {
-  if (target.startsWith(query) || query.startsWith(target)) return true;
+  if (query === target) return true;
+  // Prefix matching needs real length on BOTH sides. Short function words in the table's names are
+  // the problem: with no floor, "instant noodles" suggests "porridge oats, cooked in water" and
+  // "tuna, canned in water", matched purely on the token "in".
+  if (query.length >= 3 && target.length >= 3 && (target.startsWith(query) || query.startsWith(target))) {
+    return true;
+  }
   if (query.length < 4) return false; // too short to fuzzy-match without matching everything
   return editDistance(query, target) <= (query.length > 6 ? 2 : 1);
 }
@@ -238,12 +250,16 @@ export interface Component {
   per100: Per100;
 }
 
-/** `40/3.4/4/1` → per-100g composition. kcal alone is allowed; a partial macro list is not. */
-function parseOverride(spec: string): Per100 {
+/**
+ * `40/3.4/4/1` → per-100g composition. kcal alone is allowed; a partial macro list is not.
+ * `whole` is the full component line, quoted in errors: a bare trailing `@` leaves `spec` empty,
+ * and `"" has a blank per-100g field` names nothing the user can find in what they typed.
+ */
+function parseOverride(spec: string, whole: string): Per100 {
   const parts = spec.split("/").map((p) => p.trim());
   if (parts.length !== 1 && parts.length !== 4) {
     throw new Error(
-      `"${spec}" is not a per-100g composition — expected kcal or kcal/protein/carbs/fat`,
+      `"${whole}" is not a per-100g composition — expected kcal or kcal/protein/carbs/fat`,
     );
   }
   // Blank BEFORE numeric: `Number("")` and `Number(" ")` are both 0, so an empty field would pass
@@ -253,11 +269,11 @@ function parseOverride(spec: string): Per100 {
   // look wrong. A blank is a slipped keystroke, and a slipped keystroke must never read as a
   // measurement.
   if (parts.some((p) => p === "")) {
-    throw new Error(`"${spec}" has a blank per-100g field — every value must be given explicitly`);
+    throw new Error(`"${whole}" has a blank per-100g field — every value must be given explicitly`);
   }
   const nums = parts.map(Number);
   if (nums.some((n) => !Number.isFinite(n) || n < 0)) {
-    throw new Error(`"${spec}": per-100g values must be non-negative numbers`);
+    throw new Error(`"${whole}": per-100g values must be non-negative numbers`);
   }
   const [kcal, protein_g, carbs_g, fat_g] = nums as [number, number?, number?, number?];
   return parts.length === 1 ? { kcal } : { kcal, protein_g, carbs_g, fat_g };
@@ -280,6 +296,12 @@ export function parseComponent(spec: string): Component {
   if (colon === -1) throw new Error(`"${spec}" is not "<food>: <grams>"`);
   const name = spec.slice(0, colon).trim();
   if (!name) throw new Error(`"${spec}" has an empty food name`);
+  // An `@` left of the colon is a misplaced override, not part of a food name. Without this it is
+  // absorbed into the name, `normalize` strips it, the table lookup succeeds, and the user gets a
+  // generic table row while believing they supplied a label — a silently ignored instruction.
+  if (name.includes("@")) {
+    throw new Error(`"${spec}" puts @ in the food name — the override goes after the grams`);
+  }
 
   const rest = spec.slice(colon + 1);
   const at = rest.indexOf("@");
@@ -292,7 +314,7 @@ export function parseComponent(spec: string): Component {
     throw new Error(`"${spec}": grams must be a positive number, got "${gramsText}"`);
   }
 
-  if (at !== -1) return { name, grams, per100: parseOverride(rest.slice(at + 1).trim()) };
+  if (at !== -1) return { name, grams, per100: parseOverride(rest.slice(at + 1).trim(), spec) };
 
   const per100 = lookupFood(name);
   if (!per100) {
@@ -347,14 +369,27 @@ export function buildExpectation(specs: string[]): Expectation {
     );
   }
 
-  // Omit-vs-undefined: the spread skips the key entirely rather than writing `"protein_g": null`
-  // into the fixture, which ExpectationSchema would reject on the next read. Same pattern (and
-  // same reason) as `summarize` in eval.ts.
-  return ExpectationSchema.parse({
+  // Omit-vs-undefined: `flatMap` skips the key entirely rather than writing `"protein_g": null`
+  // into the fixture, which ExpectationSchema would reject on the next read. Note this invariant
+  // rests on flatMap alone — zod does NOT strip an explicit `undefined`, so writing the key with an
+  // undefined value would put it in the JSON. Same pattern (and reason) as `summarize` in eval.ts.
+  //
+  // The schema stays the authority on what valid ground truth is, rather than being duplicated as
+  // hand-written guards here — it catches cases the arithmetic above cannot, e.g. a sub-0.05 g
+  // component whose rounded `total_grams` is 0. Wrapped so that failure names the cause instead of
+  // surfacing a raw zod dump about a field the user never typed.
+  const candidate = {
     kcal: Math.round(kcal),
     total_grams: round1(total_grams),
     ...Object.fromEntries(
       MACROS.flatMap((m) => (macroSums[m] === undefined ? [] : [[m, round1(macroSums[m]!)]])),
     ),
-  });
+  };
+  try {
+    return ExpectationSchema.parse(candidate);
+  } catch (e) {
+    throw new Error(
+      `the weighed components do not form usable ground truth: ${(e as Error).message}`,
+    );
+  }
 }
