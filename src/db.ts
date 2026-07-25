@@ -425,42 +425,71 @@ const MIGRATIONS: Migration[] = [
     // for and can no longer see. There is no restriction-change history to distinguish "never
     // declared" from "declared then withdrawn", and this is the safer of the two readings.
     //
-    // `NULLIF`/`COALESCE` are load-bearing, not defensive habit: `''::jsonb` THROWS, the read path
-    // treats `''` as reachable for both columns (`parseVerdicts`, `parseJsonArray`), and
-    // `scripts/migrate-sqlite-to-pg.ts` copies both straight through unnormalized. A single empty
-    // cell would abort the migration inside `db.begin` — i.e. the bot would never boot again until
-    // someone hand-edited the database. A `<> ''` guard in the WHERE would NOT be enough: Postgres
-    // does not promise clause evaluation order, so the cast can still run.
+    // The `IS JSON` guards are load-bearing, not defensive habit. `::jsonb` THROWS on `''`, on
+    // malformed text, and on a JSON scalar ("cannot delete from scalar" — and `?|` matches a
+    // string scalar, so a value guard alone would not catch it). Every OTHER consumer of these two
+    // columns is deliberately tolerant of exactly those values: `parseVerdicts` and
+    // `parseJsonArray` both short-circuit on `''` and both wrap JSON.parse in try/catch. The
+    // columns are bare TEXT with no CHECK, and `scripts/migrate-sqlite-to-pg.ts` copies both
+    // through unnormalized. Migrations run inside `db.begin` during `openDb`, so ONE such row
+    // would roll back the transaction, leave schema_version at 7, and hit the same row on every
+    // subsequent boot: a permanent boot loop fixable only by hand-editing the database. This is
+    // the first code in the repo that could turn a row the read path shrugs off into an outage.
+    //
+    // The guards sit in a MATERIALIZED CTE rather than the UPDATE's WHERE because Postgres does
+    // not promise qual evaluation order — a `<> ''` or inline `IS JSON` test can still be
+    // evaluated after the cast. MATERIALIZED is an optimization barrier in PG12+, so nothing is
+    // pushed past the filter. Malformed rows are skipped, not repaired: that matches the read
+    // path, where `parseJsonArray` yields `[]` and the render gate hides the verdicts anyway.
+    //
+    // `?&` skips users who declared BOTH dimensions — nothing would be subtracted for them, and
+    // rewriting the row anyway costs a dead tuple and re-serializes their verdicts JSON for no
+    // reason.
     //
     // `pending_meals` gets the same treatment: its `analysis` blob was written by the pre-gate
-    // build and is confirmed into `meals` on the user's next tap, which would re-insert an
-    // undeclared verdict AFTER this cleanup ran.
+    // build and is confirmed into `meals` on the user's next tap (48h TTL), which would re-insert
+    // an undeclared verdict AFTER this cleanup ran. It is rewritten rather than deleted — the row
+    // is a meal the user is midway through confirming, and a metered LLM call already paid for.
     version: 8,
     up: async (tx) => {
       await tx`
+        WITH parseable AS MATERIALIZED (
+          SELECT m.id, m.verdicts, u.restrictions
+            FROM meals m
+            JOIN users u ON u.telegram_id = m.user_id
+           WHERE m.verdicts IS JSON OBJECT AND u.restrictions IS JSON ARRAY
+        )
         UPDATE meals m
-           SET verdicts = (NULLIF(m.verdicts, '')::jsonb - (
+           SET verdicts = (p.verdicts::jsonb - (
                  SELECT COALESCE(array_agg(dim), ARRAY[]::text[])
                    FROM unnest(ARRAY['ldl', 'kidneys']) AS dim
-                  WHERE NOT (COALESCE(NULLIF(u.restrictions, ''), '[]')::jsonb ? dim)
+                  WHERE NOT (p.restrictions::jsonb ? dim)
                ))::text
-          FROM users u
-         WHERE u.telegram_id = m.user_id
-           AND (NULLIF(m.verdicts, '')::jsonb ?| ARRAY['ldl', 'kidneys'])
+          FROM parseable p
+         WHERE p.id = m.id
+           AND (p.verdicts::jsonb ?| ARRAY['ldl', 'kidneys'])
+           AND NOT (p.restrictions::jsonb ?& ARRAY['ldl', 'kidneys'])
       `;
       await tx`
-        UPDATE pending_meals p
+        WITH parseable AS MATERIALIZED (
+          SELECT p.id, p.analysis, u.restrictions
+            FROM pending_meals p
+            JOIN users u ON u.telegram_id = p.user_id
+           WHERE p.analysis IS JSON OBJECT AND u.restrictions IS JSON ARRAY
+        )
+        UPDATE pending_meals pm
            SET analysis = jsonb_set(
-                 p.analysis::jsonb, '{verdicts}',
-                 (p.analysis::jsonb -> 'verdicts') - (
+                 q.analysis::jsonb, '{verdicts}',
+                 (q.analysis::jsonb -> 'verdicts') - (
                    SELECT COALESCE(array_agg(dim), ARRAY[]::text[])
                      FROM unnest(ARRAY['ldl', 'kidneys']) AS dim
-                    WHERE NOT (COALESCE(NULLIF(u.restrictions, ''), '[]')::jsonb ? dim)
+                    WHERE NOT (q.restrictions::jsonb ? dim)
                  )
                )::text
-          FROM users u
-         WHERE u.telegram_id = p.user_id
-           AND (p.analysis::jsonb -> 'verdicts') ?| ARRAY['ldl', 'kidneys']
+          FROM parseable q
+         WHERE q.id = pm.id
+           AND (q.analysis::jsonb -> 'verdicts') ?| ARRAY['ldl', 'kidneys']
+           AND NOT (q.restrictions::jsonb ?& ARRAY['ldl', 'kidneys'])
       `;
     },
   },
@@ -1030,7 +1059,7 @@ export async function markUpdate(db: Db, update_id: number): Promise<void> {
 
 // ---------- helpers ----------
 
-function parseJsonArray(s: unknown): string[] {
+export function parseJsonArray(s: unknown): string[] {
   if (typeof s !== "string" || s.trim() === "") return [];
   try {
     const v = JSON.parse(s);
@@ -1040,7 +1069,7 @@ function parseJsonArray(s: unknown): string[] {
   }
 }
 
-function parseVerdicts(s: unknown): MealVerdicts {
+export function parseVerdicts(s: unknown): MealVerdicts {
   if (typeof s !== "string" || s.trim() === "") return {};
   try {
     const v = JSON.parse(s);

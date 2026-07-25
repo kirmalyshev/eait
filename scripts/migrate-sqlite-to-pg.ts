@@ -11,7 +11,8 @@
 // PGPASSWORD with the same defaults as the bot (the shared dev server from `sh scripts/db.sh up`).
 
 import { Database } from "bun:sqlite";
-import { openDb } from "../src/db.ts";
+import { openDb, parseJsonArray, parseVerdicts } from "../src/db.ts";
+import { visibleVerdicts } from "../src/targets.ts";
 
 const src = process.argv[2];
 if (!src) {
@@ -44,14 +45,26 @@ for (const u of all("users")) {
     ON CONFLICT (telegram_id) DO NOTHING`;
   copied++;
 }
+// Restriction tags per user, so imported verdicts pass the same gate as live ones. The legacy
+// SQLite rows predate the gate entirely, and this importer runs AFTER migration 8 has cleaned the
+// Postgres side — without this it would re-import exactly the undeclared verdicts that migration
+// deleted, and nothing would clean them a second time.
+const restrictionsByUser = new Map<number, string[]>();
+for (const u of all("users")) {
+  restrictionsByUser.set(Number(u.telegram_id), parseJsonArray(u.restrictions));
+}
+
 for (const m of all("meals")) {
+  const verdicts = JSON.stringify(
+    visibleVerdicts(parseVerdicts(m.verdicts), restrictionsByUser.get(Number(m.user_id)) ?? []),
+  );
   await pg`
     INSERT INTO meals (id, user_id, ts, date, chat_id, bot_message_id, items,
                        kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g, sodium_mg,
                        plant_protein_pct, verdicts, confidence, notes, corrected, model)
     VALUES (${m.id}, ${m.user_id}, ${m.ts}, ${m.date}, ${m.chat_id}, ${m.bot_message_id}, ${m.items},
             ${m.kcal}, ${m.protein_g}, ${m.carbs_g}, ${m.fat_g}, ${m.satfat_g}, ${m.fiber_g},
-            ${m.sugar_g}, ${m.sodium_mg}, ${m.plant_protein_pct}, ${m.verdicts}, ${m.confidence},
+            ${m.sugar_g}, ${m.sodium_mg}, ${m.plant_protein_pct}, ${verdicts}, ${m.confidence},
             ${m.notes}, ${m.corrected}, ${m.model})
     ON CONFLICT (id) DO NOTHING`;
   copied++;

@@ -47,6 +47,12 @@ jobs:
         env:
           SECURITY_PERSONAL_PATTERNS: ${{ secrets.SECURITY_PERSONAL_PATTERNS }}
         run: bun run security
+      - name: Typecheck
+        # `bun test` strips types, so nothing here enforced tsc until now. Several invariants are
+        # carried ONLY by the type system — the required `restrictions` parameter on the meal
+        # renderers (omitting it would silently mean "show everything"), and the `satisfies` guards
+        # that make a new verdict dimension a compile error rather than a silently missing row.
+        run: bun run typecheck
       - name: Tests
         run: bun test
       - name: Dependency audit (informational)

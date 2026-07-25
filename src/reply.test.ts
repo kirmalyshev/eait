@@ -156,6 +156,22 @@ describe("formatReply", () => {
     expect(r).not.toContain(tru("meal.verdict.kidneys"));
   });
 
+  test.each(LANGS)("%s gates cleanly — no stray separator or dangling line", (lang) => {
+    // The all-locales test below runs with MEDICAL, so it never exercises the gate; de in
+    // particular had no gated coverage at all. Two verdict lines disappearing must not leave a
+    // dangling separator or an empty line behind in any locale.
+    const t = translatorFor(lang);
+    const v: MealVerdicts = { weight: "good", ldl: "warn", kidneys: "bad" };
+    const gated = formatReply(meal({ verdicts: v }), totals, targets(), t, []);
+    const ungated = formatReply(meal({ verdicts: v }), totals, targets(), t, MEDICAL);
+    expect(gated).not.toContain(t("meal.verdict.ldl"));
+    expect(gated).not.toContain(t("meal.verdict.kidneys"));
+    expect(gated).toContain(t("meal.verdict.weight"));
+    expect(gated.split("\n").length).toBe(ungated.split("\n").length); // same line count
+    expect(gated).not.toMatch(/\n\s*\n\s*\n/); // no doubled blank line
+    expect(gated.trimEnd()).toBe(gated); // no trailing whitespace left by a dropped item
+  });
+
   test("an unrelated restriction unlocks nothing medical", () => {
     // lowsugar is a real tag with no verdict dimension — it must not act as a skeleton key.
     const v: MealVerdicts = { ldl: "bad", kidneys: "warn" };

@@ -933,35 +933,70 @@ describe("migration 8 — undeclared medical verdicts are removed from stored me
     expect(row.date).toBe("2026-07-21");
   });
 
-  test("an empty-string cell does not abort the migration and brick the boot", async () => {
-    // `''::jsonb` throws. Migrations run inside db.begin during openDb, so ONE such cell would
-    // mean the bot never boots again until someone hand-edits the database. Both columns are
-    // reachable as '': the read path special-cases it (parseVerdicts / parseJsonArray) and
-    // scripts/migrate-sqlite-to-pg.ts copies both through unnormalized.
+  test("an unparseable cell does not abort the migration and brick the boot", async () => {
+    // `::jsonb` throws on '', on malformed text, and on a JSON scalar. Migrations run inside
+    // db.begin during openDb, so ONE such cell would roll the transaction back, leave the version
+    // at 7, and hit the same row on every boot — a permanent boot loop fixable only by hand-editing
+    // the database. Both columns are bare TEXT, the read path already tolerates these values
+    // (parseVerdicts / parseJsonArray), and migrate-sqlite-to-pg copies them through unnormalized.
     const name = freshTestName();
     const a = await openTestDb(name);
     await a`UPDATE schema_version SET version = 7`;
-    await upsertUser(a, { telegram_id: 1 });
-    await setProfile(a, 1, { restrictions: [], state: "active" });
-    await upsertUser(a, { telegram_id: 2 });
-    await setProfile(a, 2, { restrictions: [], state: "active" });
-    await insertMeal(a, {
-      id: "empty-verdicts", user_id: 1, ts: "t", date: "2026-07-21",
-      analysis: analysis({ kcal: 500, verdicts: { ...withAll } }),
-    });
-    await a`UPDATE meals SET verdicts = '' WHERE id = 'empty-verdicts'`;
+    for (const id of [1, 2, 3]) {
+      await upsertUser(a, { telegram_id: id });
+      await setProfile(a, id, { restrictions: [], state: "active" });
+    }
+    const seed = (id: string, user_id: number) =>
+      insertMeal(a, {
+        id, user_id, ts: "t", date: "2026-07-21",
+        analysis: analysis({ kcal: 500, verdicts: { ...withAll } }),
+      });
+    await seed("v-empty", 1);
+    await seed("v-garbage", 1);
+    await seed("v-scalar", 1);
+    await seed("clean", 1); // must still be cleaned despite its neighbours
+    await a`UPDATE meals SET verdicts = '' WHERE id = 'v-empty'`;
+    await a`UPDATE meals SET verdicts = '{not json' WHERE id = 'v-garbage'`;
+    await a`UPDATE meals SET verdicts = '"ldl"' WHERE id = 'v-scalar'`;
+    // ...and the same two shapes on the OTHER column.
+    await seed("r-empty", 2);
+    await seed("r-garbage", 3);
     await a`UPDATE users SET restrictions = '' WHERE telegram_id = 2`;
-    await insertMeal(a, {
-      id: "empty-restrictions-owner", user_id: 2, ts: "t", date: "2026-07-21",
-      analysis: analysis({ kcal: 500, verdicts: { ...withAll } }),
-    });
+    await a`UPDATE users SET restrictions = '{bad' WHERE telegram_id = 3`;
     await a.close();
 
     const b = await openTestDb(name); // must not throw
     expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(8);
-    // The '' cell is left as-is; the row belonging to the ''-restrictions user is still cleaned.
-    expect((await b`SELECT verdicts FROM meals WHERE id = 'empty-verdicts'`)[0].verdicts).toBe("");
-    expect(await verdictsOf(b, "empty-restrictions-owner")).toEqual({ weight: "good" });
+    // Unparseable rows are SKIPPED, not repaired and not destroyed — the render gate hides their
+    // verdicts anyway, so guessing at malformed data buys nothing.
+    const raw = async (id: string) =>
+      (await b`SELECT verdicts FROM meals WHERE id = ${id}`)[0].verdicts;
+    expect(await raw("v-empty")).toBe("");
+    expect(await raw("v-garbage")).toBe("{not json");
+    expect(await raw("v-scalar")).toBe('"ldl"');
+    expect(await raw("r-empty")).toContain("ldl"); // owner's restrictions unreadable → untouched
+    expect(await raw("r-garbage")).toContain("ldl");
+    // The well-formed row alongside them is still cleaned.
+    expect(await verdictsOf(b, "clean")).toEqual({ weight: "good" });
+  });
+
+  test("a user who declared BOTH dimensions is not rewritten at all", async () => {
+    // Nothing would be subtracted for them, so touching the row only costs a dead tuple and
+    // re-serializes their verdicts JSON. Asserted on the raw text, which stays byte-identical.
+    const name = freshTestName();
+    const a = await openTestDb(name);
+    await a`UPDATE schema_version SET version = 7`;
+    await upsertUser(a, { telegram_id: 1 });
+    await setProfile(a, 1, { restrictions: ["ldl", "kidneys"], state: "active" });
+    await insertMeal(a, {
+      id: "both", user_id: 1, ts: "t", date: "2026-07-21",
+      analysis: analysis({ kcal: 500, verdicts: { ...withAll } }),
+    });
+    const before = (await a`SELECT verdicts FROM meals WHERE id = 'both'`)[0].verdicts;
+    await a.close();
+
+    const b = await openTestDb(name);
+    expect((await b`SELECT verdicts FROM meals WHERE id = 'both'`)[0].verdicts).toBe(before);
   });
 
   test("a pending meal is cleaned too — it is confirmed into meals AFTER the migration", async () => {
@@ -991,13 +1026,20 @@ describe("migration 8 — undeclared medical verdicts are removed from stored me
     expect(await pendingVerdicts("p2")).toEqual(withAll); // declared both → untouched
   });
 
-  test("is idempotent — a second boot changes nothing", async () => {
+  test("is idempotent — re-running the statement on migrated data changes nothing", async () => {
+    // Rewinding schema_version forces migration 8 to RUN AGAIN over rows it already cleaned.
+    // Merely reopening would prove the framework skips applied migrations, not that this
+    // statement is safe to re-apply — it would pass even if the SQL were catastrophic.
     const name = freshTestName();
     await seedAtV7(name);
     const b = await openTestDb(name);
-    const first = await verdictsOf(b, "m1");
+    const first = await Promise.all(["m1", "m2", "m3", "m4"].map((id) => verdictsOf(b, id)));
+    await b`UPDATE schema_version SET version = 7`; // rewind: migration 8 will re-execute
     await b.close();
+
     const c = await openTestDb(name);
-    expect(await verdictsOf(c, "m1")).toEqual(first);
+    expect(Number((await c`SELECT version FROM schema_version`)[0].version)).toBe(8);
+    const second = await Promise.all(["m1", "m2", "m3", "m4"].map((id) => verdictsOf(c, id)));
+    expect(second).toEqual(first);
   });
 });
