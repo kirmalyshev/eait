@@ -96,7 +96,8 @@ const GATING_TAG = { ldl: "ldl", kidneys: "kidneys" } as const satisfies Record<
  * Applied at both ends on purpose: at every analyzer exit (`gated` in analyzer.ts — photo, text
  * meal, and correction) so an undeclared verdict is never persisted, and at both renderers so a
  * row written before this gate — or one whose owner has since UNTICKED the restriction — stops
- * being displayed. Un-ticking is the case a one-time backfill cannot cover.
+ * being displayed. The render half is what keeps working after the one-shot backfill (migration 8)
+ * has run: a user who un-ticks tomorrow needs the same protection with no migration to apply.
  *
  * This is a one-way filter, NOT reconciliation between the two axes: un-ticking a tag still edits
  * no stored prose and no other field (see the independence rule in src/AGENTS.md).

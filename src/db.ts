@@ -418,20 +418,49 @@ const MIGRATIONS: Migration[] = [
     // of someone who never raised cholesterol is not data this bot should be holding.
     //
     // Only `ldl` and `kidneys` are gated; `weight` applies to everyone and is left alone. The set
-    // of keys to subtract is computed per row from the owner's CURRENT restrictions, which is also
-    // the correct reading for a user who has since unticked one.
+    // of keys to subtract is computed per row from the owner's CURRENT restrictions. For someone
+    // who has since UNTICKED a restriction that is a deletion of real history, and deliberately:
+    // un-ticking says "stop judging me on this", and the render gate would hide those verdicts
+    // anyway, so keeping them would mean holding medical judgements the user has withdrawn consent
+    // for and can no longer see. There is no restriction-change history to distinguish "never
+    // declared" from "declared then withdrawn", and this is the safer of the two readings.
+    //
+    // `NULLIF`/`COALESCE` are load-bearing, not defensive habit: `''::jsonb` THROWS, the read path
+    // treats `''` as reachable for both columns (`parseVerdicts`, `parseJsonArray`), and
+    // `scripts/migrate-sqlite-to-pg.ts` copies both straight through unnormalized. A single empty
+    // cell would abort the migration inside `db.begin` — i.e. the bot would never boot again until
+    // someone hand-edited the database. A `<> ''` guard in the WHERE would NOT be enough: Postgres
+    // does not promise clause evaluation order, so the cast can still run.
+    //
+    // `pending_meals` gets the same treatment: its `analysis` blob was written by the pre-gate
+    // build and is confirmed into `meals` on the user's next tap, which would re-insert an
+    // undeclared verdict AFTER this cleanup ran.
     version: 8,
     up: async (tx) => {
       await tx`
         UPDATE meals m
-           SET verdicts = (m.verdicts::jsonb - (
+           SET verdicts = (NULLIF(m.verdicts, '')::jsonb - (
                  SELECT COALESCE(array_agg(dim), ARRAY[]::text[])
                    FROM unnest(ARRAY['ldl', 'kidneys']) AS dim
-                  WHERE NOT (u.restrictions::jsonb ? dim)
+                  WHERE NOT (COALESCE(NULLIF(u.restrictions, ''), '[]')::jsonb ? dim)
                ))::text
           FROM users u
          WHERE u.telegram_id = m.user_id
-           AND (m.verdicts::jsonb ?| ARRAY['ldl', 'kidneys'])
+           AND (NULLIF(m.verdicts, '')::jsonb ?| ARRAY['ldl', 'kidneys'])
+      `;
+      await tx`
+        UPDATE pending_meals p
+           SET analysis = jsonb_set(
+                 p.analysis::jsonb, '{verdicts}',
+                 (p.analysis::jsonb -> 'verdicts') - (
+                   SELECT COALESCE(array_agg(dim), ARRAY[]::text[])
+                     FROM unnest(ARRAY['ldl', 'kidneys']) AS dim
+                    WHERE NOT (COALESCE(NULLIF(u.restrictions, ''), '[]')::jsonb ? dim)
+                 )
+               )::text
+          FROM users u
+         WHERE u.telegram_id = p.user_id
+           AND (p.analysis::jsonb -> 'verdicts') ?| ARRAY['ldl', 'kidneys']
       `;
     },
   },

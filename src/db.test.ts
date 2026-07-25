@@ -933,6 +933,64 @@ describe("migration 8 — undeclared medical verdicts are removed from stored me
     expect(row.date).toBe("2026-07-21");
   });
 
+  test("an empty-string cell does not abort the migration and brick the boot", async () => {
+    // `''::jsonb` throws. Migrations run inside db.begin during openDb, so ONE such cell would
+    // mean the bot never boots again until someone hand-edits the database. Both columns are
+    // reachable as '': the read path special-cases it (parseVerdicts / parseJsonArray) and
+    // scripts/migrate-sqlite-to-pg.ts copies both through unnormalized.
+    const name = freshTestName();
+    const a = await openTestDb(name);
+    await a`UPDATE schema_version SET version = 7`;
+    await upsertUser(a, { telegram_id: 1 });
+    await setProfile(a, 1, { restrictions: [], state: "active" });
+    await upsertUser(a, { telegram_id: 2 });
+    await setProfile(a, 2, { restrictions: [], state: "active" });
+    await insertMeal(a, {
+      id: "empty-verdicts", user_id: 1, ts: "t", date: "2026-07-21",
+      analysis: analysis({ kcal: 500, verdicts: { ...withAll } }),
+    });
+    await a`UPDATE meals SET verdicts = '' WHERE id = 'empty-verdicts'`;
+    await a`UPDATE users SET restrictions = '' WHERE telegram_id = 2`;
+    await insertMeal(a, {
+      id: "empty-restrictions-owner", user_id: 2, ts: "t", date: "2026-07-21",
+      analysis: analysis({ kcal: 500, verdicts: { ...withAll } }),
+    });
+    await a.close();
+
+    const b = await openTestDb(name); // must not throw
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(8);
+    // The '' cell is left as-is; the row belonging to the ''-restrictions user is still cleaned.
+    expect((await b`SELECT verdicts FROM meals WHERE id = 'empty-verdicts'`)[0].verdicts).toBe("");
+    expect(await verdictsOf(b, "empty-restrictions-owner")).toEqual({ weight: "good" });
+  });
+
+  test("a pending meal is cleaned too — it is confirmed into meals AFTER the migration", async () => {
+    // The one row the meals-only cleanup provably cannot see: written by the pre-gate build,
+    // confirmed on the user's next tap, re-inserting an undeclared verdict post-cleanup.
+    const name = freshTestName();
+    const a = await openTestDb(name);
+    await a`UPDATE schema_version SET version = 7`;
+    await upsertUser(a, { telegram_id: 1 });
+    await setProfile(a, 1, { restrictions: [], state: "active" });
+    await upsertUser(a, { telegram_id: 2 });
+    await setProfile(a, 2, { restrictions: ["ldl", "kidneys"], state: "active" });
+    await insertPendingMeal(a, {
+      id: "p1", user_id: 1, ts: "t", date: "2026-07-21",
+      analysis: analysis({ kcal: 500, verdicts: { ...withAll } }),
+    });
+    await insertPendingMeal(a, {
+      id: "p2", user_id: 2, ts: "t", date: "2026-07-21",
+      analysis: analysis({ kcal: 500, verdicts: { ...withAll } }),
+    });
+    await a.close();
+
+    const b = await openTestDb(name);
+    const pendingVerdicts = async (id: string) =>
+      JSON.parse((await b`SELECT analysis FROM pending_meals WHERE id = ${id}`)[0].analysis as string).verdicts;
+    expect(await pendingVerdicts("p1")).toEqual({ weight: "good" });
+    expect(await pendingVerdicts("p2")).toEqual(withAll); // declared both → untouched
+  });
+
   test("is idempotent — a second boot changes nothing", async () => {
     const name = freshTestName();
     await seedAtV7(name);
