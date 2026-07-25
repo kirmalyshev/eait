@@ -16,8 +16,13 @@ export const ExpectationSchema = z.object({
 });
 export type Expectation = z.infer<typeof ExpectationSchema>;
 
-/** One decimal place (12.4), collapsing a trailing `.0` so whole numbers stay integers (193). */
-const round1 = (n: number): number => Math.round(n * 10) / 10;
+/**
+ * One decimal place (12.4), collapsing a trailing `.0` so whole numbers stay integers (193).
+ * Exported so every ground-truth source rounds identically — a fixture written by `fixture.ts`
+ * and one written from Nutrition5k must not differ in precision, or the two sets are not
+ * comparable in the same report.
+ */
+export const round1 = (n: number): number => Math.round(n * 10) / 10;
 
 /**
  * Map one raw `dish_metadata_cafe*.csv` line (Nutrition5k) to a fixture Expectation — the
