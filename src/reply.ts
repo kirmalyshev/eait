@@ -6,6 +6,7 @@
 
 import type { TFunction } from "i18next";
 import { parseCalendarDate } from "./db.ts";
+import { visibleVerdicts } from "./targets.ts";
 import type { DailyTotals, FoodTargets, Lang, MealItem, MealVerdicts, Verdict } from "./types.ts";
 
 /** The meal fields formatReply needs — satisfied by both MealAnalysis and MealRecord. */
@@ -81,6 +82,12 @@ export function formatReply(
   totals: DailyTotals,
   targets: FoodTargets,
   t: TFunction,
+  /**
+   * The user's CURRENT restriction tags — the gate on which verdict dimensions render. Required,
+   * not optional: an omitted argument would silently mean "show everything", which is the bug this
+   * parameter exists to prevent.
+   */
+  restrictions: readonly string[],
   // dateLabel present ⇒ the meal is NOT for today; name the day and label the totals with it.
   // Absent ⇒ byte-identical to the pre-date-feature output.
   opts?: { dateLabel?: string },
@@ -105,9 +112,12 @@ export function formatReply(
     }),
   );
 
-  // verdicts — only dimensions present in the analysis (i.e. relevant to this user's profile)
+  // Verdicts, gated on what this user actually declared — never on what the model chose to
+  // return. A row stored before the analyzer gate existed, or one whose owner has since unticked
+  // the restriction, still carries the dimension; neither should reach the user.
+  const verdicts = visibleVerdicts(meal.verdicts, restrictions);
   const verdictLines = VERDICT_KEYS.flatMap((k) => {
-    const v = meal.verdicts[k];
+    const v = verdicts[k];
     if (!v) return [];
     return [t("meal.verdictItem", { label: t(`meal.verdict.${k}`), emoji: verdictEmoji(v) })];
   });

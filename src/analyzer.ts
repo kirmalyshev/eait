@@ -6,7 +6,7 @@
 import { z } from "zod";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import { LOCALES } from "./i18n/registry.ts";
-import { RESTRICTION_TAGS, isRestrictionTag } from "./targets.ts";
+import { RESTRICTION_TAGS, isRestrictionTag, visibleVerdicts } from "./targets.ts";
 import { countryForPrompt } from "./country.ts";
 import { parseLimitations } from "./limitations.ts";
 import type { DayTotals, FoodTargets, MealAnalysis, MealContext, MealSummary, Profile } from "./types.ts";
@@ -309,7 +309,12 @@ export async function analyzeMeal(
     temperature: TEMPERATURE,
   };
   const raw = await provider.chat(req);
-  return parseAnalysis(raw);
+  const analysis = parseAnalysis(raw);
+  // The prompt ASKS for no verdicts on undeclared dimensions; this enforces it. Models do return
+  // an ldl or kidneys judgement for users who declared neither, and a user who never ticked
+  // "cholesterol" must not be handed a cholesterol verdict on their dinner. Gated here, at the
+  // parse, so an undeclared verdict is never persisted in the first place.
+  return { ...analysis, verdicts: visibleVerdicts(analysis.verdicts, profile.restrictions) };
 }
 
 // ---------- restriction classification (the keyword pass's fallback) ----------

@@ -4,6 +4,7 @@ import {
   targetsFor,
   isRestrictionTag,
   weightRemainingKg,
+  visibleVerdicts,
   RESTRICTION_TAGS,
 } from "./targets.ts";
 import type { Goal, Profile } from "./types.ts";
@@ -157,5 +158,48 @@ describe("isRestrictionTag", () => {
     for (const v of ["", "kidney ", "KIDNEY", "made-up", "__proto__", "toString"]) {
       expect(isRestrictionTag(v)).toBe(false);
     }
+  });
+});
+
+describe("visibleVerdicts", () => {
+  // The analyzer prompt ASKS the model not to judge undeclared dimensions, but a prompt is not an
+  // enforcement mechanism: measured against the live database, users who declared only lowsugar
+  // (or nothing at all) still had meals carrying ldl and kidneys verdicts. This is the gate that
+  // makes the invariant true regardless of what the model returns.
+
+  test("weight always survives — it applies to every user", () => {
+    expect(visibleVerdicts({ weight: "good" }, [])).toEqual({ weight: "good" });
+  });
+
+  test("drops ldl and kidneys when the user declared neither", () => {
+    expect(visibleVerdicts({ weight: "good", ldl: "bad", kidneys: "warn" }, [])).toEqual({
+      weight: "good",
+    });
+  });
+
+  test("an unrelated restriction does not unlock a medical verdict", () => {
+    // lowsugar and vegan carry no verdict dimension of their own; they must not open ldl/kidneys.
+    expect(visibleVerdicts({ ldl: "bad", kidneys: "bad" }, ["lowsugar", "vegan"])).toEqual({});
+  });
+
+  test("keeps exactly the declared dimensions", () => {
+    expect(visibleVerdicts({ weight: "good", ldl: "bad", kidneys: "warn" }, ["ldl"])).toEqual({
+      weight: "good",
+      ldl: "bad",
+    });
+    expect(visibleVerdicts({ ldl: "bad", kidneys: "warn" }, ["kidneys"])).toEqual({
+      kidneys: "warn",
+    });
+  });
+
+  test("declaring a restriction cannot invent a verdict the model never gave", () => {
+    expect(visibleVerdicts({}, ["ldl", "kidneys"])).toEqual({});
+  });
+
+  test("does not mutate the input", () => {
+    const original = { weight: "good", ldl: "bad" } as const;
+    const copy = { ...original };
+    visibleVerdicts(copy, []);
+    expect(copy).toEqual(original);
   });
 });

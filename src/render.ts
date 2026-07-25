@@ -6,6 +6,7 @@
 
 import type { TFunction } from "i18next";
 import type { DailyTotals, FoodTargets } from "./types.ts";
+import { visibleVerdicts } from "./targets.ts";
 import { verdictEmoji, type FormatMeal } from "./reply.ts";
 
 export function escapeHtml(s: string): string {
@@ -31,6 +32,8 @@ export function renderMealCard(
   totals: DailyTotals,
   targets: FoodTargets,
   t: TFunction,
+  /** The user's CURRENT restriction tags — see `formatReply`; same gate, same reason. */
+  restrictions: readonly string[],
   // Footer/prefix are the caller's decision, matching the plain rendering site by site — a
   // correction reply deliberately carries no hint, and rich mode must not re-add the nag.
   // dateLabel present ⇒ the meal is NOT for today: name the day and label the progress table.
@@ -51,8 +54,10 @@ export function renderMealCard(
     [`🧈 ${t("rich.fat")}`, `${round(meal.fat_g)} g`],
     [`🍞 ${t("rich.carbs")}`, `${round(meal.carbs_g)} g`],
   ];
+  // Gated on the user's declared restrictions, not on what the model returned — mirrors reply.ts.
+  const verdicts = visibleVerdicts(meal.verdicts, restrictions);
   for (const [key, emoji] of VERDICT_ROWS) {
-    const v = meal.verdicts[key];
+    const v = verdicts[key];
     if (v) rows.push([`${emoji} ${t(`meal.verdict.${key}`)}`, verdictEmoji(v)]);
   }
   parts.push(table(t("rich.metric"), t("rich.amount"), rows));

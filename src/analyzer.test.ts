@@ -140,6 +140,34 @@ describe("correction via routeText", () => {
   });
 });
 
+describe("analyzeMeal — verdict gate", () => {
+  // Enforced at the parse, not just at render: an undeclared verdict must never reach a stored
+  // row. The prompt asks the model to skip undeclared dimensions and the model does not comply —
+  // this is what makes the invariant true rather than requested.
+  const withVerdicts = JSON.stringify({
+    ...JSON.parse(validJson),
+    verdicts: { weight: "good", ldl: "bad", kidneys: "warn" },
+  });
+
+  test("strips verdicts the profile never declared", async () => {
+    const provider = new FakeProvider(() => withVerdicts);
+    const out = await analyzeMeal([bytes], { ...profile, restrictions: [] }, provider);
+    expect(out.verdicts).toEqual({ weight: "good" });
+  });
+
+  test("keeps exactly the declared ones", async () => {
+    const provider = new FakeProvider(() => withVerdicts);
+    const out = await analyzeMeal([bytes], { ...profile, restrictions: ["kidneys"] }, provider);
+    expect(out.verdicts).toEqual({ weight: "good", kidneys: "warn" });
+  });
+
+  test("a non-medical restriction unlocks nothing", async () => {
+    const provider = new FakeProvider(() => withVerdicts);
+    const out = await analyzeMeal([bytes], { ...profile, restrictions: ["lowsugar"] }, provider);
+    expect(out.verdicts).toEqual({ weight: "good" });
+  });
+});
+
 describe("MealAnalysisSchema", () => {
   test("defaults numeric fields so a minimal isFood object is valid", () => {
     const parsed = MealAnalysisSchema.parse({ isFood: false });

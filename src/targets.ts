@@ -1,7 +1,7 @@
 // Per-user daily targets + free-text restriction parsing.
 // Generic by default; kidney/LDL caps apply ONLY when the user declared them (spec §9).
 
-import type { FoodTargets, Profile } from "./types.ts";
+import type { FoodTargets, MealVerdicts, Profile } from "./types.ts";
 
 const KCAL_BY_GOAL = { lose: 1800, maintain: 2100, gain: 2400 } as const;
 const PROTEIN_BASELINE_G = 100;
@@ -68,6 +68,42 @@ export type RestrictionTag = (typeof RESTRICTION_MAP)[number]["tag"];
 
 export function isRestrictionTag(v: string): v is RestrictionTag {
   return (RESTRICTION_TAGS as string[]).includes(v);
+}
+
+/**
+ * Which restriction tag unlocks which verdict dimension. `weight` is absent on purpose: it applies
+ * to every user and is never gated. `lowsugar` and `vegan` are absent because they carry no
+ * verdict dimension — declaring them must not open a medical one.
+ */
+const VERDICT_GATE = { ldl: "ldl", kidneys: "kidneys" } as const satisfies Record<
+  Exclude<keyof MealVerdicts, "weight">,
+  RestrictionTag
+>;
+
+/**
+ * Drop verdicts for dimensions the user did not declare.
+ *
+ * The analyzer prompt already instructs the model not to judge undeclared dimensions, but an
+ * instruction is a request, not a guarantee — in the live database, users who declared only
+ * `lowsugar`, and users who declared nothing at all, both had meals carrying `ldl` and `kidneys`
+ * verdicts. Someone who never ticked "cholesterol" should not be shown a cholesterol judgement on
+ * their food.
+ *
+ * Applied at BOTH ends on purpose: at the analyzer so an undeclared verdict is never persisted,
+ * and at render so a row written before this gate — or one whose owner has since UNTICKED the
+ * restriction — stops being displayed. Un-ticking is the case a one-time backfill cannot cover.
+ */
+export function visibleVerdicts(
+  verdicts: MealVerdicts,
+  restrictions: readonly string[],
+): MealVerdicts {
+  const out: MealVerdicts = {};
+  if (verdicts.weight !== undefined) out.weight = verdicts.weight;
+  for (const [dimension, tag] of Object.entries(VERDICT_GATE)) {
+    const v = verdicts[dimension as keyof MealVerdicts];
+    if (v !== undefined && restrictions.includes(tag)) out[dimension as keyof MealVerdicts] = v;
+  }
+  return out;
 }
 
 /** Free text -> tags. Unknown words are dropped; `classifyRestrictions` is the LLM fallback. */
