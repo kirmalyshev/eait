@@ -11,7 +11,8 @@ Orientation for any coding agent (or human) working in this repo.
 - **Runtime:** TS/bun (`bun` 1.3+). Deps: `grammy`, `@grammyjs/runner`, `zod`, `i18next`; Postgres via the builtin `Bun.sql` client.
 - **Install:** `bun install`.
 - **Test:** `bun test` (co-located under `src/**/*.test.ts`; needs the shared dev Postgres: `sh scripts/db.sh up`); one file with `bun test src/db.test.ts`.
-- **Typecheck:** `bun run typecheck` (`tsc --noEmit`). **Safety gate:** `bun run security`.
+- **Typecheck:** `bun run typecheck` (`tsc --noEmit`). **Safety gate:** `bun run security`. `make check` runs test + typecheck + security.
+- **Typecheck is a gate, not a suggestion.** bun executes TypeScript *without* checking it, so a type error is invisible to `bun test` and to the running bot until it crashes on live input — and several invariants here are carried only by the type system (the required `restrictions` argument on the meal renderers, the `satisfies` guards that make a new verdict dimension a compile error). It therefore runs in five places: the pre-commit hook, `make up`, `make deploy` (after the pull), `setup.sh`, and both CI workflows — the docker one gating the GHCR publish, since the image build would never notice.
 - **Run:** `bun run start` (= `bun run src/index.ts`, needs a real `TELEGRAM_BOT_TOKEN`).
 - **Docker:** `make up` (= shared Postgres + build + start this worktree's bot container); `make down` stops the bot only; `make help` lists the rest. Per-worktree instances: `sh scripts/compose-env.sh` once (writes unique `COMPOSE_PROJECT_NAME` + `PGDATABASE=eait_<branch>` + `PGDATABASE_TEST` into `.env`), plus a distinct bot token per parallel instance — one long-polling consumer per token or Telegram returns 409.
 

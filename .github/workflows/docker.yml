@@ -16,7 +16,19 @@ permissions:
   packages: write
 
 jobs:
+  # Gate the publish on a typecheck. The Dockerfile installs production deps only and bun runs
+  # TypeScript without checking it, so nothing in the image build would notice a type error —
+  # a tagged release could ship one straight to every self-hoster's `docker compose pull`.
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+
   build-push:
+    needs: typecheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

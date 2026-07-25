@@ -2,10 +2,23 @@
 # Local pre-commit safety gate. Enable once with:
 #   git config core.hooksPath .githooks
 #
-# Runs both halves of the CI `security` workflow, so a leak is caught before it
+# Runs the CI `security` workflow's gates, so a leak or a type error is caught before it
 # reaches a commit rather than after it is already in the history:
-#   1. security-scan.ts — secret patterns, personal-data leaks, forbidden tracked files.
-#   2. gitleaks         — the same scanner CI runs, over the staged diff.
+#   1. tsc --noEmit     — bun runs TypeScript WITHOUT checking it, so a type error is invisible
+#                         to `bun test` and to the running bot until it crashes on live input.
+#                         Several invariants are carried only by the type system.
+#   2. security-scan.ts — secret patterns, personal-data leaks, forbidden tracked files.
+#   3. gitleaks         — the same scanner CI runs, over the staged diff.
+#
+# Caveat worth knowing: tsc checks the WORKING TREE, not the staged snapshot. With a partially
+# staged file it can pass on edits you are not committing, or fail on ones you are not. CI checks
+# the committed tree, so that is the authority; this is the fast local signal.
+
+bun run typecheck || {
+  echo "commit blocked: typecheck failed (see above)"
+  echo "if node_modules is missing, run: bun install"
+  exit 1
+}
 
 bun run scripts/security-scan.ts || {
   echo "commit blocked: security-scan found an issue (see above)"
