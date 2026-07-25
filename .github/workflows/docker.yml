@@ -20,6 +20,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # Gate the publish on a typecheck, in THIS job rather than a dependent one — a second
+      # runner's startup dwarfs the ~1s check. The Dockerfile installs production deps only and
+      # bun runs TypeScript without checking it, so nothing in the image build would notice a type
+      # error: a tagged release could ship one straight to every self-hoster's `docker compose pull`.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
       # arm64 matters here: Raspberry Pi self-hosters and Apple-silicon docker both pull it.
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3

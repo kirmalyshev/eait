@@ -5,7 +5,9 @@
 // Plain-mode rendering stays in reply.ts; this module is rich-only.
 
 import type { TFunction } from "i18next";
-import type { DailyTotals, FoodTargets } from "./types.ts";
+import { VERDICT_DIMENSIONS } from "./types.ts";
+import type { DailyTotals, FoodTargets, VerdictDimension } from "./types.ts";
+import { visibleVerdicts } from "./targets.ts";
 import { verdictEmoji, type FormatMeal } from "./reply.ts";
 
 export function escapeHtml(s: string): string {
@@ -19,18 +21,24 @@ export function escapeHtml(s: string): string {
 
 const round = (n: number) => Math.round(n);
 
-/** The verdict dimensions, in render order — mirrors reply.ts. */
-const VERDICT_ROWS = [
-  ["weight", "⚖️"],
-  ["ldl", "🫀"],
-  ["kidneys", "🫘"],
-] as const;
+/**
+ * Row icon per verdict dimension. Order and membership come from VERDICT_DIMENSIONS, so this only
+ * has to supply the icon — and `satisfies` makes a new dimension without one a compile error
+ * rather than a row that silently never renders in rich mode.
+ */
+const VERDICT_EMOJI = {
+  weight: "⚖️",
+  ldl: "🫀",
+  kidneys: "🫘",
+} as const satisfies Record<VerdictDimension, string>;
 
 export function renderMealCard(
   meal: FormatMeal,
   totals: DailyTotals,
   targets: FoodTargets,
   t: TFunction,
+  /** The user's CURRENT restriction tags — see `formatReply`; same gate, same reason. */
+  restrictions: readonly string[],
   // Footer/prefix are the caller's decision, matching the plain rendering site by site — a
   // correction reply deliberately carries no hint, and rich mode must not re-add the nag.
   // dateLabel present ⇒ the meal is NOT for today: name the day and label the progress table.
@@ -51,9 +59,11 @@ export function renderMealCard(
     [`🧈 ${t("rich.fat")}`, `${round(meal.fat_g)} g`],
     [`🍞 ${t("rich.carbs")}`, `${round(meal.carbs_g)} g`],
   ];
-  for (const [key, emoji] of VERDICT_ROWS) {
-    const v = meal.verdicts[key];
-    if (v) rows.push([`${emoji} ${t(`meal.verdict.${key}`)}`, verdictEmoji(v)]);
+  // Gated on the user's declared restrictions, not on what the model returned — mirrors reply.ts.
+  const verdicts = visibleVerdicts(meal.verdicts, restrictions);
+  for (const key of VERDICT_DIMENSIONS) {
+    const v = verdicts[key];
+    if (v) rows.push([`${VERDICT_EMOJI[key]} ${t(`meal.verdict.${key}`)}`, verdictEmoji(v)]);
   }
   parts.push(table(t("rich.metric"), t("rich.amount"), rows));
 

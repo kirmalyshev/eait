@@ -7,10 +7,10 @@
 
 help:
 	@echo "eait dev targets:"
-	@echo "  make up          shared Postgres + build + start THIS worktree's bot container"
+	@echo "  make up          typecheck + shared Postgres + build + start THIS worktree's bot container"
 	@echo "  make down        stop this worktree's bot (the shared Postgres keeps running)"
 	@echo "  make restart     restart the bot container on its CURRENT image (no rebuild)"
-	@echo "  make deploy      ship: git pull + rebuild + restart the bot (run in the main checkout)"
+	@echo "  make deploy      ship: git pull + typecheck + rebuild + restart the bot (run in the main checkout)"
 	@echo "  make logs        follow the bot container logs"
 	@echo "  make ps          container status for this worktree"
 	@echo "  make env         write this worktree's identity into .env (compose project + branch database)"
@@ -34,7 +34,11 @@ infra-down:
 # .env must already exist (setup.sh, or cp .env.example .env — it holds the secrets); the
 # per-worktree identity is applied automatically so `up` can never hijack another worktree's
 # compose project by running under a default name.
-up: infra
+#
+# Typechecked before it builds: bun executes TypeScript without checking it, so a type error
+# runs happily in the container until it becomes a crash on a real user's message. tsc is ~0.2s,
+# which is far cheaper than finding out from the logs.
+up: infra typecheck
 	@test -f .env || { echo "no .env — run ./scripts/setup.sh, or: cp .env.example .env"; exit 1; }
 	@grep -q '^COMPOSE_PROJECT_NAME=' .env || sh scripts/compose-env.sh
 	docker compose up -d --build
@@ -48,8 +52,12 @@ restart:
 
 # Ship the merged code to the running instance: pull, rebuild the image, swap the container.
 # Migrations run at boot. Meant for the main checkout; in a worktree it deploys THAT branch.
+#
+# The typecheck runs AFTER the pull (that is the code being shipped, not what was here before),
+# which is why it is a recipe line rather than a prerequisite — prerequisites run first.
 deploy:
 	git pull
+	$(MAKE) typecheck
 	docker compose up -d --build bot
 	docker compose ps
 

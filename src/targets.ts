@@ -1,7 +1,7 @@
-// Per-user daily targets + free-text restriction parsing.
+// Per-user daily targets, free-text restriction parsing, and the verdict-visibility gate.
 // Generic by default; kidney/LDL caps apply ONLY when the user declared them (spec §9).
 
-import type { FoodTargets, Profile } from "./types.ts";
+import type { FoodTargets, MealVerdicts, Profile } from "./types.ts";
 
 const KCAL_BY_GOAL = { lose: 1800, maintain: 2100, gain: 2400 } as const;
 const PROTEIN_BASELINE_G = 100;
@@ -20,8 +20,11 @@ export function targetsFor(profile: Profile): FoodTargets {
     ? Math.min(PROTEIN_MAX_G, Math.max(PROTEIN_MIN_G, Math.round(anchor * PROTEIN_PER_KG)))
     : PROTEIN_BASELINE_G;
   const targets: FoodTargets = { kcal, protein_g };
-  if (profile.restrictions.includes("ldl")) targets.satfat_g = SATFAT_CAP_LDL_G;
-  if (profile.restrictions.includes("kidneys")) targets.sodium_mg = SODIUM_CAP_KIDNEYS_MG;
+  // Typed lookup, not a bare string literal: a typo here would silently drop a cap the user asked
+  // for, the same class of failure `visibleVerdicts` exists to prevent on the verdict side.
+  const declared = (tag: RestrictionTag) => profile.restrictions.includes(tag);
+  if (declared("ldl")) targets.satfat_g = SATFAT_CAP_LDL_G;
+  if (declared("kidneys")) targets.sodium_mg = SODIUM_CAP_KIDNEYS_MG;
   return targets;
 }
 
@@ -68,6 +71,49 @@ export type RestrictionTag = (typeof RESTRICTION_MAP)[number]["tag"];
 
 export function isRestrictionTag(v: string): v is RestrictionTag {
   return (RESTRICTION_TAGS as string[]).includes(v);
+}
+
+/**
+ * Which restriction tag unlocks which verdict dimension — the lookup the gate consults, not the
+ * gate itself (that is `visibleVerdicts`). `weight` is absent on purpose: it applies
+ * to every user and is never gated. `lowsugar` and `vegan` are absent because they carry no
+ * verdict dimension — declaring them must not open a medical one.
+ */
+const GATING_TAG = { ldl: "ldl", kidneys: "kidneys" } as const satisfies Record<
+  Exclude<keyof MealVerdicts, "weight">,
+  RestrictionTag
+>;
+
+/**
+ * Drop verdicts for dimensions the user did not declare.
+ *
+ * The analyzer prompt already instructs the model not to judge undeclared dimensions, but an
+ * instruction is a request, not a guarantee — in the live database, users who declared only
+ * `lowsugar`, and users who declared nothing at all, both had meals carrying `ldl` and `kidneys`
+ * verdicts. Someone who never ticked "cholesterol" should not be shown a cholesterol judgement on
+ * their food.
+ *
+ * Applied at both ends on purpose: at every analyzer exit (`gated` in analyzer.ts — photo, text
+ * meal, and correction) so an undeclared verdict is never persisted, and at both renderers so a
+ * row written before this gate — or one whose owner has since UNTICKED the restriction — stops
+ * being displayed. The render half is what keeps working after the one-shot backfill (migration 8)
+ * has run: a user who un-ticks tomorrow needs the same protection with no migration to apply.
+ *
+ * This is a one-way filter, NOT reconciliation between the two axes: un-ticking a tag still edits
+ * no stored prose and no other field (see the independence rule in src/AGENTS.md).
+ */
+export function visibleVerdicts(
+  verdicts: MealVerdicts,
+  restrictions: readonly string[],
+): MealVerdicts {
+  const out: MealVerdicts = {};
+  if (verdicts.weight !== undefined) out.weight = verdicts.weight;
+  // Object.keys, not entries: entries widens the key to `string` and would need the cast twice.
+  for (const dimension of Object.keys(GATING_TAG) as (keyof typeof GATING_TAG)[]) {
+    const v = verdicts[dimension];
+    if (v !== undefined && restrictions.includes(GATING_TAG[dimension])) out[dimension] = v;
+  }
+  return out;
 }
 
 /** Free text -> tags. Unknown words are dropped; `classifyRestrictions` is the LLM fallback. */

@@ -6,7 +6,7 @@
 import { z } from "zod";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import { LOCALES } from "./i18n/registry.ts";
-import { RESTRICTION_TAGS, isRestrictionTag } from "./targets.ts";
+import { RESTRICTION_TAGS, isRestrictionTag, visibleVerdicts } from "./targets.ts";
 import { countryForPrompt } from "./country.ts";
 import { parseLimitations } from "./limitations.ts";
 import type { DayTotals, FoodTargets, MealAnalysis, MealContext, MealSummary, Profile } from "./types.ts";
@@ -309,7 +309,22 @@ export async function analyzeMeal(
     temperature: TEMPERATURE,
   };
   const raw = await provider.chat(req);
-  return parseAnalysis(raw);
+  return gated(parseAnalysis(raw), profile);
+}
+
+/**
+ * The single gate every MealAnalysis passes through on its way out of this module — three exits:
+ * `analyzeMeal` (photo), and `routeText`'s `meal` (text-described) and `correction` intents.
+ *
+ * The prompt ASKS for no verdicts on undeclared dimensions; this enforces it. Rationale and the
+ * measured evidence live with `visibleVerdicts` in targets.ts.
+ *
+ * Gating only `analyzeMeal` would be a half-fix that looks whole: a text meal would still store an
+ * undeclared verdict, and a correction applied to a PHOTO meal would write one straight back onto
+ * a row the photo gate had already kept clean.
+ */
+function gated(analysis: MealAnalysis, profile: Profile): MealAnalysis {
+  return { ...analysis, verdicts: visibleVerdicts(analysis.verdicts, profile.restrictions) };
 }
 
 // ---------- restriction classification (the keyword pass's fallback) ----------
@@ -538,10 +553,10 @@ export async function routeText(
     if (r.dayOffset !== undefined && r.dayOffset !== dayOffset) {
       console.warn(`[eait] router: dayOffset ${JSON.stringify(r.dayOffset)} out of contract → ${dayOffset}`);
     }
-    return { intent: "meal", analysis: r.analysis, dayOffset };
+    return { intent: "meal", analysis: gated(r.analysis, profile), dayOffset };
   }
   if (r.intent === "correction") {
-    return { intent: "correction", analysis: r.analysis };
+    return { intent: "correction", analysis: gated(r.analysis, profile) };
   }
   // Exhaustiveness: with `intent` narrowed to a 5-value enum minus the four handled above, this
   // is `never`. A future intent added to the enum without a branch here becomes a compile error

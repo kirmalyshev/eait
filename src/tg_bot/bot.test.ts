@@ -1,5 +1,5 @@
 import { afterAll, test, expect, spyOn } from "bun:test";
-import { getUser, upsertUser, mealByReply, countMealsToday, mealCountToday, llmCallsToday, logLlmCall, berlinDate, berlinDateMinus, setSetting, setReplyFormat, eventsFor, type UserRow } from "../db.ts";
+import { getUser, upsertUser, setProfile, mealByReply, countMealsToday, mealCountToday, llmCallsToday, logLlmCall, berlinDate, berlinDateMinus, setSetting, setReplyFormat, eventsFor, type UserRow } from "../db.ts";
 import * as dbModule from "../db.ts";
 import { loadAllowlist } from "../allowlist.ts";
 import { RejectionLog } from "./rejections.ts";
@@ -2834,4 +2834,116 @@ test("makeSendRich: both fail → returns undefined, never throws", async () => 
   const sendRich = makeSendRich(ctx);
   const result = await sendRich(card);
   expect(result).toBeUndefined();
+});
+
+// The gap that let the routeText leak survive 710 green tests: every fixture here has the model
+// already complying (`verdicts: { weight: "good" }`) and every onboardToActive ends in
+// `restrictions_skip`, so the integration layer ran under exactly the two conditions that make an
+// undeclared verdict invisible. These assert on the STORED column, not the rendered string —
+// rendering was gated first, and a DB-level assertion is what actually caught the leak.
+const leakyFoodJson = (kcal = 600) =>
+  JSON.stringify({
+    ...JSON.parse(foodJson(kcal)),
+    verdicts: { weight: "good", ldl: "bad", kidneys: "warn" },
+  });
+
+const storedVerdicts = async (db: Awaited<ReturnType<typeof freshTestDb>>, user_id: number) =>
+  (await db`SELECT verdicts FROM meals WHERE user_id = ${user_id}`).map(
+    (r: { verdicts: string }) => JSON.parse(r.verdicts),
+  );
+
+test("a PHOTO meal never stores a verdict the user did not declare", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(leakyFoodJson()), config: cfg };
+  await onboardToActive(deps, 940); // restrictions_skip → []
+  await processPhoto(deps, { id: 940 }, [async () => new Uint8Array([1])], collector().send);
+  expect(await storedVerdicts(db, 940)).toEqual([{ weight: "good" }]);
+});
+
+test("a TEXT meal never stores a verdict the user did not declare", async () => {
+  const db = await freshTestDb();
+  const leakyIntent = JSON.stringify({ intent: "meal", analysis: JSON.parse(leakyFoodJson(450)) });
+  const deps: BotDeps = { db, provider: fakeProvider(leakyIntent), config: cfg };
+  await onboardToActive(deps, 941);
+  const sentButtons: Array<Array<{ text: string; data: string }>> = [];
+  const capture: Send = async (_t, buttons) => {
+    if (buttons) sentButtons.push(...buttons);
+    return { chat_id: 9, message_id: 77 };
+  };
+  await processText(deps, { id: 941 }, { text: "ate a burger", messageId: 77 }, capture);
+  const id = sentButtons[0]![0]!.data.split(":")[2]!;
+  await processTextMealDecision(deps, { id: 941 }, `tm:log:${id}`, collector().send);
+  expect(await storedVerdicts(db, 941)).toEqual([{ weight: "good" }]);
+});
+
+test("a CORRECTION cannot write an undeclared verdict back onto a clean row", async () => {
+  // The nastiest path: the photo gate stored a clean row, then a correction re-ran the model and
+  // overwrote the verdicts wholesale (MealAnalysisSchema defaults verdicts, so patch.verdicts is
+  // never undefined). Ungated, correcting a meal UNDID the fix on a row that was already right.
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(leakyFoodJson()), config: cfg };
+  await onboardToActive(deps, 942);
+  const c1 = collector();
+  await processPhoto(deps, { id: 942 }, [async () => new Uint8Array([1])], c1.send);
+  expect(await storedVerdicts(db, 942)).toEqual([{ weight: "good" }]);
+
+  const corrected = JSON.stringify({
+    intent: "correction",
+    analysis: { ...JSON.parse(leakyFoodJson(300)) },
+  });
+  const cdeps: BotDeps = { db, provider: fakeProvider(corrected), config: cfg };
+  await processText(
+    cdeps, { id: 942 },
+    { text: "actually smaller", messageId: 78, replyTo: 1 }, // collector numbers cards from 1
+    collector().send,
+  );
+  expect(await storedVerdicts(db, 942)).toEqual([{ weight: "good" }]);
+});
+
+test("the delivered card carries no undeclared verdict, plain and rich", async () => {
+  const db = await freshTestDb();
+  const deps: BotDeps = { db, provider: fakeProvider(leakyFoodJson()), config: cfg };
+  await onboardToActive(deps, 943);
+  const t = translatorFor(DEFAULT_LANG);
+  const plain = collector();
+  await processPhoto(deps, { id: 943 }, [async () => new Uint8Array([1])], plain.send);
+  const card = plain.msgs.join("\n");
+  expect(card).not.toContain(t("meal.verdict.ldl"));
+  expect(card).not.toContain(t("meal.verdict.kidneys"));
+
+  let html = "";
+  const sendRich = makeSendRich(async (h: string) => { html = h; return { chat_id: 9, message_id: 5 }; });
+  await processPhoto(deps, { id: 943 }, [async () => new Uint8Array([1])], collector().send, { sendRich });
+  expect(html).not.toContain(t("meal.verdict.ldl"));
+  expect(html).not.toContain(t("meal.verdict.kidneys"));
+});
+
+test("un-ticking a restriction hides the verdict on re-render without deleting the stored row", async () => {
+  // This is the stated reason the render gate exists ALONGSIDE the analyzer gate and migration 8:
+  // a user who un-ticks later has a stored row that was legitimately judged at the time. The gate
+  // must hide it on the next render — and must do so WITHOUT touching the row, which is what makes
+  // it reversible if they tick the restriction again.
+  const db = await freshTestDb();
+  const deps: BotDeps = {
+    db, provider: fakeProvider(leakyFoodJson(600)),
+    config: { ...cfg, perUserDailyPhotoCap: 50 }, // photo + redate = 2 calls
+  };
+  await onboardToActive(deps, 944);
+  await setProfile(db, 944, { restrictions: ["ldl"] });
+  const t = translatorFor(DEFAULT_LANG);
+
+  const s = idTrackingSend();
+  await processPhoto(deps, { id: 944 }, [async () => new Uint8Array([1])], s.send);
+  const cardId = s.lastId();
+  expect(s.msgs.join("\n")).toContain(t("meal.verdict.ldl")); // declared → shown
+  expect(await storedVerdicts(db, 944)).toEqual([{ weight: "good", ldl: "bad" }]);
+
+  // Un-tick, then force a re-render of the SAME stored meal via the redate path.
+  await setProfile(db, 944, { restrictions: [] });
+  deps.provider = fakeProvider(JSON.stringify({ intent: "redate", dayOffset: 1 }));
+  const after = idTrackingSend();
+  await processText(deps, { id: 944 }, { text: "move to yesterday", messageId: 90, replyTo: cardId }, after.send);
+
+  expect(after.msgs.join("\n")).not.toContain(t("meal.verdict.ldl")); // render gate hid it
+  expect(await storedVerdicts(db, 944)).toEqual([{ weight: "good", ldl: "bad" }]); // row untouched
 });

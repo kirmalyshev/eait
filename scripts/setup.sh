@@ -142,6 +142,14 @@ fi
 # ---------- 4. verify the checkout ----------
 
 step "Verifying the checkout"
+# Typecheck FIRST: bun executes TypeScript without checking it, so a type error is invisible to
+# both `bun test` and the running bot until it becomes a runtime crash on some user's message.
+# It is also the faster of the two, so a broken checkout fails in a fraction of a second.
+if bun run typecheck >/dev/null 2>&1; then
+  ok "typecheck passes"
+else
+  die "typecheck fails on a clean checkout — fix that before deploying. Run 'bun run typecheck' to see why."
+fi
 if bun test >/dev/null 2>&1; then
   ok "test suite passes"
 else

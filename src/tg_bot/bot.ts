@@ -726,8 +726,8 @@ export async function processPhoto(
     ? t("meal.lowConfidenceHint")
     : t("meal.correctionHint");
   const sent = await sendCard(replyFormatFor(prof, config), send, meta?.sendRich, {
-    html: renderMealCard(analysis, totals, targetsFor(prof), t, { footer: hint }),
-    plain: formatReply(analysis, totals, targetsFor(prof), t) + "\n\n" + hint,
+    html: renderMealCard(analysis, totals, targetsFor(prof), t, prof.restrictions, { footer: hint }),
+    plain: formatReply(analysis, totals, targetsFor(prof), t, prof.restrictions) + "\n\n" + hint,
   });
   if (sent) await setMealReply(db, id, from.id, sent.chat_id, sent.message_id);
   // Processed successfully — the 👍 replaces the 👀 on the user's photo.
@@ -891,8 +891,8 @@ export async function processText(
     // Deliberately no hint suffix — the user just corrected; re-prompting would nag.
     // No footer on either rendering — the deliberate no-nag decision holds in both formats.
     await sendCard(replyFormatFor(prof, config), send, opts?.sendRich, {
-      html: renderMealCard(route.analysis, totals, targetsFor(prof), t, { prefix: t("meal.updatedPrefix"), dateLabel }),
-      plain: t("meal.updatedPrefix") + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t, { dateLabel }),
+      html: renderMealCard(route.analysis, totals, targetsFor(prof), t, prof.restrictions, { prefix: t("meal.updatedPrefix"), dateLabel }),
+      plain: t("meal.updatedPrefix") + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t, prof.restrictions, { dateLabel }),
     });
     fireReaction(opts?.react, "👍", from.id);
     return true;
@@ -923,8 +923,8 @@ export async function processText(
     const prefix = t("meal.movedPrefix", { date: berlinDayLabel(newDate, prof.lang, config.tz) });
     const analysis = mealToAnalysis(focus);
     const sent = await sendCard(replyFormatFor(prof, config), send, opts?.sendRich, {
-      html: renderMealCard(analysis, totals, targetsFor(prof), t, { prefix, dateLabel }),
-      plain: prefix + "\n" + formatReply(analysis, totals, targetsFor(prof), t, { dateLabel }),
+      html: renderMealCard(analysis, totals, targetsFor(prof), t, prof.restrictions, { prefix, dateLabel }),
+      plain: prefix + "\n" + formatReply(analysis, totals, targetsFor(prof), t, prof.restrictions, { dateLabel }),
     });
     // Map the "Moved" card to the meal so a follow-up reply to IT re-focuses — otherwise a
     // multi-step move ("yesterday", then reply again "one more day back") dead-ends with no focus.
@@ -955,7 +955,7 @@ export async function processText(
   });
   const totals = await dailyTotals(db, from.id, mealDate);
   const promptLine = dateLabel ? t("text.confirmPromptDated", { date: dateLabel }) : t("text.confirmPrompt");
-  const preview = promptLine + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t, { dateLabel });
+  const preview = promptLine + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t, prof.restrictions, { dateLabel });
   const sent = await send(preview, [[
     { text: t("text.logButton"), data: `tm:log:${id}` },
     { text: t("text.cancelButton"), data: `tm:cancel:${id}` },
@@ -1055,8 +1055,8 @@ export async function processTextMealDecision(
   const today = berlinDate(new Date(), deps.config.tz);
   const dateLabel = mealDateLabel(pending.date, today, prof.lang, deps.config.tz);
   const sent = await sendCard(replyFormatFor(prof, deps.config), send, opts?.sendRich, {
-    html: renderMealCard(pending.analysis, totals, targetsFor(prof), t, { footer: t("meal.correctionHint"), dateLabel }),
-    plain: formatReply(pending.analysis, totals, targetsFor(prof), t, { dateLabel }) + "\n\n" + t("meal.correctionHint"),
+    html: renderMealCard(pending.analysis, totals, targetsFor(prof), t, prof.restrictions, { footer: t("meal.correctionHint"), dateLabel }),
+    plain: formatReply(pending.analysis, totals, targetsFor(prof), t, prof.restrictions, { dateLabel }) + "\n\n" + t("meal.correctionHint"),
   });
   // Both rich AND plain sends failed (makeSendRich swallows the double-failure → undefined). The
   // meal is logged (insert is idempotent), but the user saw nothing — KEEP the prompt and the

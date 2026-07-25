@@ -22,6 +22,12 @@ function meal(over: Partial<FormatMeal> = {}): FormatMeal {
   };
 }
 
+/**
+ * The restriction set most tests run with: both medical dimensions declared, so a verdict the
+ * model returns is one the user asked for. Tests about the GATE pass their own set instead.
+ */
+const MEDICAL = ["ldl", "kidneys"] as const;
+
 const totals: DailyTotals = {
   kcal: 1850,
   protein_g: 90,
@@ -92,14 +98,14 @@ describe("mealDateLabel", () => {
 
 describe("formatReply — dated meal", () => {
   test("no dateLabel ⇒ byte-identical to the undated call (no regression)", () => {
-    const bare = formatReply(meal(), totals, targets(), ten);
-    const explicitUndefined = formatReply(meal(), totals, targets(), ten, {});
+    const bare = formatReply(meal(), totals, targets(), ten, MEDICAL);
+    const explicitUndefined = formatReply(meal(), totals, targets(), ten, MEDICAL, {});
     expect(explicitUndefined).toBe(bare);
     expect(bare).toContain(ten("meal.totalKcal", { now: 1850, target: 2100 }));
   });
 
   test("a dateLabel adds the 'For <date>' line and dates the kcal total", () => {
-    const r = formatReply(meal(), totals, targets(), ten, { dateLabel: "Tue 21 Jul" });
+    const r = formatReply(meal(), totals, targets(), ten, MEDICAL, { dateLabel: "Tue 21 Jul" });
     expect(r).toContain("Tue 21 Jul");
     expect(r).toContain(ten("meal.loggedForDate", { date: "Tue 21 Jul" }));
     expect(r).toContain(ten("meal.totalKcalDated", { date: "Tue 21 Jul", now: 1850, target: 2100 }));
@@ -109,33 +115,74 @@ describe("formatReply — dated meal", () => {
 
 describe("formatReply", () => {
   test("shows this meal's items and macros", () => {
-    const r = formatReply(meal(), totals, targets(), tru);
+    const r = formatReply(meal(), totals, targets(), tru, MEDICAL);
     expect(r).toContain("rice");
     expect(r).toContain("200");
     expect(r).toContain("550"); // meal kcal
   });
 
   test("shows the running daily total against the kcal target", () => {
-    const r = formatReply(meal(), totals, targets(), tru);
+    const r = formatReply(meal(), totals, targets(), tru, MEDICAL);
     expect(r).toContain("1850");
     expect(r).toContain("2100"); // target
     expect(r).toContain("/ 2100");
   });
 
   test("weight verdict always renders", () => {
-    const r = formatReply(meal({ verdicts: { weight: "good" } }), totals, targets(), tru);
+    const r = formatReply(meal({ verdicts: { weight: "good" } }), totals, targets(), tru, MEDICAL);
     expect(r).toContain("✅");
   });
 
-  test("no kidney/ldl lines when the profile did not declare them", () => {
-    const r = formatReply(meal({ verdicts: { weight: "good" } }), totals, targets(), tru);
+  test("no kidney/ldl lines when the analysis carries no such verdict", () => {
+    const r = formatReply(meal({ verdicts: { weight: "good" } }), totals, targets(), tru, MEDICAL);
     expect(r).not.toContain(tru("meal.verdict.kidneys"));
     expect(r).not.toContain(tru("meal.verdict.ldl"));
   });
 
+  test("an UNDECLARED dimension is not rendered even when the analysis has one", () => {
+    // The shipped bug (rationale on `visibleVerdicts`). The previous test could not catch it:
+    // its fixture had the model already complying, so it tested the model, not the gate.
+    const v: MealVerdicts = { weight: "good", ldl: "bad", kidneys: "warn" };
+    const r = formatReply(meal({ verdicts: v }), totals, targets(), tru, []);
+    expect(r).not.toContain(tru("meal.verdict.kidneys"));
+    expect(r).not.toContain(tru("meal.verdict.ldl"));
+    expect(r).toContain(tru("meal.verdict.weight")); // weight is never gated
+  });
+
+  test("declaring one medical dimension does not unlock the other", () => {
+    const v: MealVerdicts = { weight: "good", ldl: "bad", kidneys: "warn" };
+    const r = formatReply(meal({ verdicts: v }), totals, targets(), tru, ["ldl"]);
+    expect(r).toContain(tru("meal.verdict.ldl"));
+    expect(r).not.toContain(tru("meal.verdict.kidneys"));
+  });
+
+  test.each(LANGS)("%s gates cleanly — no stray separator or dangling line", (lang) => {
+    // The all-locales test below runs with MEDICAL, so it never exercises the gate; de in
+    // particular had no gated coverage at all. Two verdict lines disappearing must not leave a
+    // dangling separator or an empty line behind in any locale.
+    const t = translatorFor(lang);
+    const v: MealVerdicts = { weight: "good", ldl: "warn", kidneys: "bad" };
+    const gated = formatReply(meal({ verdicts: v }), totals, targets(), t, []);
+    const ungated = formatReply(meal({ verdicts: v }), totals, targets(), t, MEDICAL);
+    expect(gated).not.toContain(t("meal.verdict.ldl"));
+    expect(gated).not.toContain(t("meal.verdict.kidneys"));
+    expect(gated).toContain(t("meal.verdict.weight"));
+    expect(gated.split("\n").length).toBe(ungated.split("\n").length); // same line count
+    expect(gated).not.toMatch(/\n\s*\n\s*\n/); // no doubled blank line
+    expect(gated.trimEnd()).toBe(gated); // no trailing whitespace left by a dropped item
+  });
+
+  test("an unrelated restriction unlocks nothing medical", () => {
+    // lowsugar is a real tag with no verdict dimension — it must not act as a skeleton key.
+    const v: MealVerdicts = { ldl: "bad", kidneys: "warn" };
+    const r = formatReply(meal({ verdicts: v }), totals, targets(), tru, ["lowsugar"]);
+    expect(r).not.toContain(tru("meal.verdict.ldl"));
+    expect(r).not.toContain(tru("meal.verdict.kidneys"));
+  });
+
   test("ldl verdict + satfat target line appear when declared", () => {
     const v: MealVerdicts = { weight: "good", ldl: "warn" };
-    const r = formatReply(meal({ verdicts: v }), totals, targets({ satfat_g: 13 }), tru);
+    const r = formatReply(meal({ verdicts: v }), totals, targets({ satfat_g: 13 }), tru, MEDICAL);
     expect(r).toContain(tru("meal.verdict.ldl"));
     expect(r).toContain("⚠️");
     expect(r).toContain("13"); // satfat target cap
@@ -143,21 +190,21 @@ describe("formatReply", () => {
 
   test("kidneys verdict + sodium target line appear when declared", () => {
     const v: MealVerdicts = { weight: "good", kidneys: "bad" };
-    const r = formatReply(meal({ verdicts: v }), totals, targets({ sodium_mg: 2000 }), tru);
+    const r = formatReply(meal({ verdicts: v }), totals, targets({ sodium_mg: 2000 }), tru, MEDICAL);
     expect(r).toContain(tru("meal.verdict.kidneys"));
     expect(r).toContain("❌");
     expect(r).toContain("2000"); // sodium target cap
   });
 
   test("renders an empty item list without crashing", () => {
-    const r = formatReply(meal({ items: [] }), totals, targets(), ten);
+    const r = formatReply(meal({ items: [] }), totals, targets(), ten, MEDICAL);
     expect(r).toContain("🍽");
   });
 
   test("notes line only appears when notes are non-empty", () => {
-    expect(formatReply(meal({ notes: "" }), totals, targets(), ten)).not.toContain("📝");
-    expect(formatReply(meal({ notes: "  " }), totals, targets(), ten)).not.toContain("📝");
-    expect(formatReply(meal({ notes: "grilled" }), totals, targets(), ten)).toContain("📝 grilled");
+    expect(formatReply(meal({ notes: "" }), totals, targets(), ten, MEDICAL)).not.toContain("📝");
+    expect(formatReply(meal({ notes: "  " }), totals, targets(), ten, MEDICAL)).not.toContain("📝");
+    expect(formatReply(meal({ notes: "grilled" }), totals, targets(), ten, MEDICAL)).toContain("📝 grilled");
   });
 
   test("every locale renders every line without leaking a raw key", () => {
@@ -168,6 +215,7 @@ describe("formatReply", () => {
         totals,
         targets({ satfat_g: 13, sodium_mg: 2000 }),
         translatorFor(lang),
+        MEDICAL,
       );
       expect(r).not.toMatch(/meal\.[a-zA-Z.]+/); // an unrendered key would appear verbatim
       // items, macros, verdicts, notes, total kcal, protein, satfat, sodium
@@ -181,7 +229,7 @@ describe("formatReply", () => {
 // grammar regression shows up in the diff.
 describe("formatReply golden output", () => {
   test("en", () => {
-    expect(formatReply(meal(), totals, targets(), ten)).toBe(
+    expect(formatReply(meal(), totals, targets(), ten, MEDICAL)).toBe(
       [
         "🍽 rice 200g, chicken 150g",
         "🔥 550 kcal · P 40 · F 12 · C 60",
@@ -194,7 +242,7 @@ describe("formatReply golden output", () => {
   });
 
   test("ru", () => {
-    expect(formatReply(meal(), totals, targets(), tru)).toBe(
+    expect(formatReply(meal(), totals, targets(), tru, MEDICAL)).toBe(
       [
         "🍽 rice 200г, chicken 150г",
         "🔥 550 ккал · Б 40 · Ж 12 · У 60",
@@ -207,7 +255,7 @@ describe("formatReply golden output", () => {
   });
 
   test("de", () => {
-    expect(formatReply(meal(), totals, targets(), tde)).toBe(
+    expect(formatReply(meal(), totals, targets(), tde, MEDICAL)).toBe(
       [
         "🍽 rice 200 g, chicken 150 g",
         "🔥 550 kcal · E 40 · F 12 · K 60",
