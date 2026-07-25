@@ -44,22 +44,33 @@ export interface FoodEntry {
  * numbers vary by producer, so a generic row would be invented precision. Those take the inline
  * `@` override, where the package label — the better ground truth — goes in directly.
  *
- * Values: USDA FoodData Central (SR Legacy / Foundation Foods), rounded. Where a food has a fat
- * grade (mince, dairy), the grade is in the name and only that grade is claimed.
+ * Values: USDA FoodData Central (SR Legacy 2018-04 / Foundation Foods), rounded — EXCEPT the four
+ * Russian dairy rows (kefir, both tvorog grades, smetana), which USDA has no entry for at these
+ * grades and which come from Skurikhin's Химический состав пищевых продуктов via Calorizator.
+ *
+ * COOKING METHOD is part of the name wherever it moves the number more than the eval can ignore.
+ * Fried potato is the worst case in the table: oven-baked 148, home pan-fried 265, deep-fried 312
+ * — a 2x spread on a food that shows up at 200 g. Same for a fat grade (mince, dairy, ham): the
+ * grade is in the name and only that grade is claimed.
+ *
+ * Two known soft spots, recorded rather than hidden. German market grades were never checked
+ * against the Bundeslebensmittelschlüssel (not freely queryable): `milk 3.5%` carries USDA's 3.25%
+ * whole-milk row, and `yogurt, plain 3.5%` likewise — the values are sourced, the exact grade in
+ * the name is not. `milk 1.5%` has no USDA row at all and interpolates between 1% and 2%.
  */
 export const FOOD_TABLE: readonly FoodEntry[] = [
   // — meat & poultry, cooked —
   { name: "chicken breast", per100: { kcal: 165, protein_g: 31, carbs_g: 0, fat_g: 3.6 }, aliases: ["chicken breast, cooked"] },
-  { name: "chicken thigh", per100: { kcal: 209, protein_g: 26, carbs_g: 0, fat_g: 10.9 } },
+  { name: "chicken thigh", per100: { kcal: 179, protein_g: 24.8, carbs_g: 0, fat_g: 8.2 } },
   { name: "chicken with skin, roasted", per100: { kcal: 239, protein_g: 27, carbs_g: 0, fat_g: 13.6 } },
   { name: "turkey breast", per100: { kcal: 147, protein_g: 30, carbs_g: 0, fat_g: 2 } },
   { name: "beef mince 15%", per100: { kcal: 250, protein_g: 26, carbs_g: 0, fat_g: 15 }, aliases: ["ground beef 15%"] },
-  { name: "beef steak, lean", per100: { kcal: 217, protein_g: 30, carbs_g: 0, fat_g: 10 } },
+  { name: "beef steak, lean", per100: { kcal: 207, protein_g: 29.2, carbs_g: 0, fat_g: 9.1 } },
   { name: "pork chop", per100: { kcal: 231, protein_g: 27, carbs_g: 0, fat_g: 13 } },
   { name: "pork mince", per100: { kcal: 297, protein_g: 26, carbs_g: 0, fat_g: 21 }, aliases: ["ground pork"] },
   { name: "bacon", per100: { kcal: 541, protein_g: 37, carbs_g: 1.4, fat_g: 42 } },
   { name: "pork sausage", per100: { kcal: 300, protein_g: 17, carbs_g: 2, fat_g: 25 } },
-  { name: "ham, sliced", per100: { kcal: 145, protein_g: 18, carbs_g: 1.5, fat_g: 7.7 } },
+  { name: "ham, sliced (11% fat)", per100: { kcal: 164, protein_g: 16.6, carbs_g: 3.6, fat_g: 8.8 } },
   { name: "beef liver", per100: { kcal: 175, protein_g: 27, carbs_g: 5.1, fat_g: 4.7 } },
 
   // — fish & seafood, cooked —
@@ -67,7 +78,7 @@ export const FOOD_TABLE: readonly FoodEntry[] = [
   { name: "smoked salmon", per100: { kcal: 117, protein_g: 18, carbs_g: 0, fat_g: 4.3 } },
   { name: "cod", per100: { kcal: 105, protein_g: 23, carbs_g: 0, fat_g: 0.9 } },
   { name: "mackerel", per100: { kcal: 262, protein_g: 24, carbs_g: 0, fat_g: 18 } },
-  { name: "salted herring", per100: { kcal: 217, protein_g: 20, carbs_g: 0, fat_g: 15 }, aliases: ["seledka"] },
+  { name: "salted herring", per100: { kcal: 217, protein_g: 24.6, carbs_g: 0, fat_g: 12.4 }, aliases: ["seledka"] },
   { name: "tuna, canned in water", per100: { kcal: 116, protein_g: 26, carbs_g: 0, fat_g: 0.8 } },
   { name: "shrimp", per100: { kcal: 99, protein_g: 24, carbs_g: 0.2, fat_g: 0.3 }, aliases: ["prawns"] },
 
@@ -102,8 +113,8 @@ export const FOOD_TABLE: readonly FoodEntry[] = [
   { name: "porridge oats, cooked in water", per100: { kcal: 71, protein_g: 2.5, carbs_g: 12, fat_g: 1.5 } },
   { name: "rolled oats, dry", per100: { kcal: 389, protein_g: 17, carbs_g: 66, fat_g: 7 } },
   { name: "potato, boiled", per100: { kcal: 87, protein_g: 2, carbs_g: 20, fat_g: 0.1 } },
-  { name: "potato, fried", per100: { kcal: 312, protein_g: 3.4, carbs_g: 41, fat_g: 15 }, aliases: ["french fries", "pommes"] },
-  { name: "mashed potato", per100: { kcal: 113, protein_g: 2, carbs_g: 17, fat_g: 4.2 } },
+  { name: "potato, deep-fried", per100: { kcal: 312, protein_g: 3.4, carbs_g: 41, fat_g: 15 }, aliases: ["french fries"] },
+  { name: "oven fries, baked", per100: { kcal: 148, protein_g: 2.6, carbs_g: 27, fat_g: 3.8 }, aliases: ["pommes"] },
   { name: "white bread", per100: { kcal: 265, protein_g: 9, carbs_g: 49, fat_g: 3.2 } },
   { name: "rye bread", per100: { kcal: 250, protein_g: 8.5, carbs_g: 48, fat_g: 3.3 }, aliases: ["dark bread", "schwarzbrot"] },
   { name: "wholegrain bread", per100: { kcal: 247, protein_g: 13, carbs_g: 41, fat_g: 3.4 }, aliases: ["vollkornbrot"] },
@@ -125,7 +136,7 @@ export const FOOD_TABLE: readonly FoodEntry[] = [
   { name: "bell pepper", per100: { kcal: 26, protein_g: 1, carbs_g: 6, fat_g: 0.3 }, aliases: ["paprika"] },
   { name: "broccoli, cooked", per100: { kcal: 35, protein_g: 2.4, carbs_g: 7.2, fat_g: 0.4 } },
   { name: "cauliflower, cooked", per100: { kcal: 23, protein_g: 1.8, carbs_g: 4.1, fat_g: 0.5 } },
-  { name: "zucchini, cooked", per100: { kcal: 17, protein_g: 1.2, carbs_g: 3.1, fat_g: 0.3 }, aliases: ["courgette"] },
+  { name: "zucchini, cooked", per100: { kcal: 15, protein_g: 1.1, carbs_g: 2.7, fat_g: 0.4 }, aliases: ["courgette"] },
   { name: "eggplant, cooked", per100: { kcal: 35, protein_g: 0.8, carbs_g: 8.7, fat_g: 0.2 }, aliases: ["aubergine"] },
   { name: "mushrooms, cooked", per100: { kcal: 28, protein_g: 2.2, carbs_g: 5.3, fat_g: 0.5 } },
   { name: "spinach, cooked", per100: { kcal: 23, protein_g: 3, carbs_g: 3.8, fat_g: 0.3 } },
