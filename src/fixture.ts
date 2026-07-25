@@ -246,6 +246,15 @@ function parseOverride(spec: string): Per100 {
       `"${spec}" is not a per-100g composition — expected kcal or kcal/protein/carbs/fat`,
     );
   }
+  // Blank BEFORE numeric: `Number("")` and `Number(" ")` are both 0, so an empty field would pass
+  // the numeric check and become real ground truth — "40//4/1" silently declaring zero protein, a
+  // bare "@" silently declaring a zero-calorie food. That is the same silent-zero failure an
+  // unknown ingredient is already protected from, and it is worse here because there is no name to
+  // look wrong. A blank is a slipped keystroke, and a slipped keystroke must never read as a
+  // measurement.
+  if (parts.some((p) => p === "")) {
+    throw new Error(`"${spec}" has a blank per-100g field — every value must be given explicitly`);
+  }
   const nums = parts.map(Number);
   if (nums.some((n) => !Number.isFinite(n) || n < 0)) {
     throw new Error(`"${spec}": per-100g values must be non-negative numbers`);

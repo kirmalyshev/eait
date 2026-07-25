@@ -64,6 +64,17 @@ describe("parseComponent — inline per-100g override", () => {
     expect(() => parseComponent("x: 100 @ -5")).toThrow(/per-100g/);
   });
 
+  test("rejects a BLANK field rather than reading it as zero", () => {
+    // `Number("")` is 0, so a slipped keystroke would otherwise become real ground truth: "40//4/1"
+    // silently declares zero protein, and a bare "@" silently declares a zero-calorie food. Both
+    // are the same silent-zero defect an unknown ingredient is already protected from — a blank is
+    // a typo, and a typo must never be readable as a measurement.
+    expect(() => parseComponent("x: 100 @ 40//4/1")).toThrow(/blank/);
+    expect(() => parseComponent("x: 100 @ /3.4/4/1")).toThrow(/blank/);
+    expect(() => parseComponent("x: 100 @")).toThrow(/blank/);
+    expect(() => parseComponent("x: 100 @   ")).toThrow(/blank/);
+  });
+
   test("accepts a zero-kcal override — black coffee and water are real meal components", () => {
     expect(parseComponent("black coffee: 200 @ 0").per100.kcal).toBe(0);
   });
