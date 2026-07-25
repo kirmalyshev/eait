@@ -148,7 +148,14 @@ function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boo
   lines.push("1. Identify every food item and its cooking method (fried/boiled/baked); look for hidden calories — oil, butter, dressings, sauces, sugar in drinks.");
   lines.push("2. Estimate each portion's volume using visible scale references (plate ~26cm, cutlery, glass, hands), then convert volume to grams per item.");
   lines.push("3. Compute kcal and macros per item from grams + cooking method; totals are the sums across items.");
-  lines.push("Mixed and layered dishes are systematically underestimated — when torn between two portion sizes, take the larger.");
+  // NO round-up rule here, deliberately, and do not reintroduce one. This line used to read
+  // "mixed and layered dishes are systematically underestimated — when torn between two portion
+  // sizes, take the larger", on the assumption (from the vision-nutrition literature, about
+  // HUMANS) that the model would under-portion. Measured on 30 weighed Nutrition5k dishes, grok
+  // does the opposite: portion bias +28.5%, over-estimating 2 meals in 3. Deleting the line moved
+  // kcal MAE 149.3 → 125.0, MAPE 49.2% → 42.2%, portion bias +28.5% → +16.5%. A hedge that pushes
+  // one way is only ever right if the model errs the other way — measure the sign before adding
+  // one back.
   // A regional prior steers identification away from generic international staples. Hedged on
   // purpose: the interface language suggests a cuisine, the photo always wins.
   // "Actual evidence", not "the photo": the correction path reuses this text with no image

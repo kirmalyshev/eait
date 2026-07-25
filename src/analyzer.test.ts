@@ -234,10 +234,18 @@ describe("estimation protocol", () => {
     expect(schema.properties.confidence.enum).toEqual(["high", "medium", "low"]);
   });
 
-  test("prompt counteracts the systematic underestimation of mixed dishes", async () => {
+  test("prompt carries NO round-up hedge — the model already over-portions", async () => {
+    // Inverted from its original form on evidence. The prompt used to tell the model that mixed
+    // dishes are systematically UNDERestimated and to take the larger portion when torn. Measured
+    // against 30 weighed Nutrition5k dishes, grok-4.5 over-portions by +28.5% and over-estimates
+    // 2 meals in 3, so that line was pushing the error further out: deleting it moved kcal MAE
+    // 149.3 → 125.0 and portion bias +28.5% → +16.5%. This test fails the moment a round-up
+    // instruction comes back, because the next one needs its own measurement first.
     const provider = new FakeProvider(() => validJson);
     await analyzeMeal([bytes], profile, provider);
-    expect(provider.lastRequest!.userText.toLowerCase()).toContain("underestimat");
+    const text = provider.lastRequest!.userText.toLowerCase();
+    expect(text).not.toContain("underestimat");
+    expect(text).not.toContain("take the larger");
   });
 
   test("the router path inherits the estimation protocol", async () => {
