@@ -71,6 +71,14 @@ export interface MealVerdicts {
 }
 
 /**
+ * The verdict dimensions in render order — the single list both renderers iterate. `satisfies`
+ * ties it to `MealVerdicts`, so a dimension added there without an entry here (or a stale entry
+ * left behind) is a compile error rather than a row silently missing from every meal card.
+ */
+export const VERDICT_DIMENSIONS = ["weight", "ldl", "kidneys"] as const satisfies readonly (keyof MealVerdicts)[];
+export type VerdictDimension = (typeof VERDICT_DIMENSIONS)[number];
+
+/**
  * Optional context accompanying a photo, injected into the analysis prompt. Both fields
  * measurably reduce estimation error (caption = user-supplied ground truth; local time
  * lets the model infer the meal type). Absent for corrections — the image is already gone.

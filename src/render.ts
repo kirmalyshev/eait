@@ -5,7 +5,8 @@
 // Plain-mode rendering stays in reply.ts; this module is rich-only.
 
 import type { TFunction } from "i18next";
-import type { DailyTotals, FoodTargets } from "./types.ts";
+import { VERDICT_DIMENSIONS } from "./types.ts";
+import type { DailyTotals, FoodTargets, VerdictDimension } from "./types.ts";
 import { visibleVerdicts } from "./targets.ts";
 import { verdictEmoji, type FormatMeal } from "./reply.ts";
 
@@ -20,12 +21,16 @@ export function escapeHtml(s: string): string {
 
 const round = (n: number) => Math.round(n);
 
-/** The verdict dimensions, in render order — mirrors reply.ts. */
-const VERDICT_ROWS = [
-  ["weight", "⚖️"],
-  ["ldl", "🫀"],
-  ["kidneys", "🫘"],
-] as const;
+/**
+ * Row icon per verdict dimension. Order and membership come from VERDICT_DIMENSIONS, so this only
+ * has to supply the icon — and `satisfies` makes a new dimension without one a compile error
+ * rather than a row that silently never renders in rich mode.
+ */
+const VERDICT_EMOJI = {
+  weight: "⚖️",
+  ldl: "🫀",
+  kidneys: "🫘",
+} as const satisfies Record<VerdictDimension, string>;
 
 export function renderMealCard(
   meal: FormatMeal,
@@ -56,9 +61,9 @@ export function renderMealCard(
   ];
   // Gated on the user's declared restrictions, not on what the model returned — mirrors reply.ts.
   const verdicts = visibleVerdicts(meal.verdicts, restrictions);
-  for (const [key, emoji] of VERDICT_ROWS) {
+  for (const key of VERDICT_DIMENSIONS) {
     const v = verdicts[key];
-    if (v) rows.push([`${emoji} ${t(`meal.verdict.${key}`)}`, verdictEmoji(v)]);
+    if (v) rows.push([`${VERDICT_EMOJI[key]} ${t(`meal.verdict.${key}`)}`, verdictEmoji(v)]);
   }
   parts.push(table(t("rich.metric"), t("rich.amount"), rows));
 

@@ -7,6 +7,7 @@
 import type { TFunction } from "i18next";
 import { parseCalendarDate } from "./db.ts";
 import { visibleVerdicts } from "./targets.ts";
+import { VERDICT_DIMENSIONS } from "./types.ts";
 import type { DailyTotals, FoodTargets, Lang, MealItem, MealVerdicts, Verdict } from "./types.ts";
 
 /** The meal fields formatReply needs — satisfied by both MealAnalysis and MealRecord. */
@@ -74,8 +75,9 @@ export function verdictEmoji(v: Verdict): string {
 
 const round = (n: number) => Math.round(n);
 
-/** The verdict dimensions, in render order. Only those present in the analysis are shown. */
-const VERDICT_KEYS = ["weight", "ldl", "kidneys"] as const;
+// Dimensions and their order come from VERDICT_DIMENSIONS (types.ts) — one list, so rich and
+// plain cards cannot drift apart. A dimension is shown only if it is present in the analysis AND
+// declared by the user; see `visibleVerdicts`.
 
 export function formatReply(
   meal: FormatMeal,
@@ -116,7 +118,7 @@ export function formatReply(
   // return. A row stored before the analyzer gate existed, or one whose owner has since unticked
   // the restriction, still carries the dimension; neither should reach the user.
   const verdicts = visibleVerdicts(meal.verdicts, restrictions);
-  const verdictLines = VERDICT_KEYS.flatMap((k) => {
+  const verdictLines = VERDICT_DIMENSIONS.flatMap((k) => {
     const v = verdicts[k];
     if (!v) return [];
     return [t("meal.verdictItem", { label: t(`meal.verdict.${k}`), emoji: verdictEmoji(v) })];

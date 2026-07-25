@@ -1,4 +1,4 @@
-// Per-user daily targets + free-text restriction parsing.
+// Per-user daily targets, free-text restriction parsing, and the verdict-visibility gate.
 // Generic by default; kidney/LDL caps apply ONLY when the user declared them (spec §9).
 
 import type { FoodTargets, MealVerdicts, Profile } from "./types.ts";
@@ -20,8 +20,11 @@ export function targetsFor(profile: Profile): FoodTargets {
     ? Math.min(PROTEIN_MAX_G, Math.max(PROTEIN_MIN_G, Math.round(anchor * PROTEIN_PER_KG)))
     : PROTEIN_BASELINE_G;
   const targets: FoodTargets = { kcal, protein_g };
-  if (profile.restrictions.includes("ldl")) targets.satfat_g = SATFAT_CAP_LDL_G;
-  if (profile.restrictions.includes("kidneys")) targets.sodium_mg = SODIUM_CAP_KIDNEYS_MG;
+  // Typed lookup, not a bare string literal: a typo here would silently drop a cap the user asked
+  // for, the same class of failure `visibleVerdicts` exists to prevent on the verdict side.
+  const declared = (tag: RestrictionTag) => profile.restrictions.includes(tag);
+  if (declared("ldl")) targets.satfat_g = SATFAT_CAP_LDL_G;
+  if (declared("kidneys")) targets.sodium_mg = SODIUM_CAP_KIDNEYS_MG;
   return targets;
 }
 
@@ -71,11 +74,12 @@ export function isRestrictionTag(v: string): v is RestrictionTag {
 }
 
 /**
- * Which restriction tag unlocks which verdict dimension. `weight` is absent on purpose: it applies
+ * Which restriction tag unlocks which verdict dimension — the lookup the gate consults, not the
+ * gate itself (that is `visibleVerdicts`). `weight` is absent on purpose: it applies
  * to every user and is never gated. `lowsugar` and `vegan` are absent because they carry no
  * verdict dimension — declaring them must not open a medical one.
  */
-const VERDICT_GATE = { ldl: "ldl", kidneys: "kidneys" } as const satisfies Record<
+const GATING_TAG = { ldl: "ldl", kidneys: "kidneys" } as const satisfies Record<
   Exclude<keyof MealVerdicts, "weight">,
   RestrictionTag
 >;
@@ -89,9 +93,13 @@ const VERDICT_GATE = { ldl: "ldl", kidneys: "kidneys" } as const satisfies Recor
  * verdicts. Someone who never ticked "cholesterol" should not be shown a cholesterol judgement on
  * their food.
  *
- * Applied at BOTH ends on purpose: at the analyzer so an undeclared verdict is never persisted,
- * and at render so a row written before this gate — or one whose owner has since UNTICKED the
- * restriction — stops being displayed. Un-ticking is the case a one-time backfill cannot cover.
+ * Applied at both ends on purpose: at every analyzer exit (`gated` in analyzer.ts — photo, text
+ * meal, and correction) so an undeclared verdict is never persisted, and at both renderers so a
+ * row written before this gate — or one whose owner has since UNTICKED the restriction — stops
+ * being displayed. Un-ticking is the case a one-time backfill cannot cover.
+ *
+ * This is a one-way filter, NOT reconciliation between the two axes: un-ticking a tag still edits
+ * no stored prose and no other field (see the independence rule in src/AGENTS.md).
  */
 export function visibleVerdicts(
   verdicts: MealVerdicts,
@@ -99,9 +107,10 @@ export function visibleVerdicts(
 ): MealVerdicts {
   const out: MealVerdicts = {};
   if (verdicts.weight !== undefined) out.weight = verdicts.weight;
-  for (const [dimension, tag] of Object.entries(VERDICT_GATE)) {
-    const v = verdicts[dimension as keyof MealVerdicts];
-    if (v !== undefined && restrictions.includes(tag)) out[dimension as keyof MealVerdicts] = v;
+  // Object.keys, not entries: entries widens the key to `string` and would need the cast twice.
+  for (const dimension of Object.keys(GATING_TAG) as (keyof typeof GATING_TAG)[]) {
+    const v = verdicts[dimension];
+    if (v !== undefined && restrictions.includes(GATING_TAG[dimension])) out[dimension] = v;
   }
   return out;
 }

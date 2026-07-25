@@ -140,10 +140,8 @@ describe("formatReply", () => {
   });
 
   test("an UNDECLARED dimension is not rendered even when the analysis has one", () => {
-    // The shipped bug. The prompt asks the model not to judge undeclared dimensions and it does
-    // anyway: in the live database, users who declared only lowsugar — and users who declared
-    // nothing — had meals carrying ldl and kidneys verdicts, and the card showed them. The
-    // previous test could not catch it, because its fixture had the model already complying.
+    // The shipped bug (rationale on `visibleVerdicts`). The previous test could not catch it:
+    // its fixture had the model already complying, so it tested the model, not the gate.
     const v: MealVerdicts = { weight: "good", ldl: "bad", kidneys: "warn" };
     const r = formatReply(meal({ verdicts: v }), totals, targets(), tru, []);
     expect(r).not.toContain(tru("meal.verdict.kidneys"));

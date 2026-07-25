@@ -142,8 +142,7 @@ describe("correction via routeText", () => {
 
 describe("analyzeMeal — verdict gate", () => {
   // Enforced at the parse, not just at render: an undeclared verdict must never reach a stored
-  // row. The prompt asks the model to skip undeclared dimensions and the model does not comply —
-  // this is what makes the invariant true rather than requested.
+  // row (rationale on `visibleVerdicts`).
   const withVerdicts = JSON.stringify({
     ...JSON.parse(validJson),
     verdicts: { weight: "good", ldl: "bad", kidneys: "warn" },
@@ -165,6 +164,45 @@ describe("analyzeMeal — verdict gate", () => {
     const provider = new FakeProvider(() => withVerdicts);
     const out = await analyzeMeal([bytes], { ...profile, restrictions: ["lowsugar"] }, provider);
     expect(out.verdicts).toEqual({ weight: "good" });
+  });
+
+  // A MealAnalysis leaves this module by three exits, and all three end up in the meals table.
+  // Gating only the photo path would be a half-fix that looks whole.
+  const routeCtx = { todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } };
+  const routed = (intent: "meal" | "correction") =>
+    JSON.stringify({
+      intent,
+      analysis: { ...JSON.parse(validJson), verdicts: { weight: "good", ldl: "bad", kidneys: "warn" } },
+    });
+
+  test("a TEXT-described meal is gated too", async () => {
+    const provider = new FakeProvider(() => routed("meal"));
+    const r = await routeText("borscht, big bowl", { ...profile, restrictions: [] }, routeCtx, provider);
+    expect(r.intent).toBe("meal");
+    if (r.intent === "meal") expect(r.analysis.verdicts).toEqual({ weight: "good" });
+  });
+
+  test("a CORRECTION is gated — it must not write an undeclared verdict back onto a clean row", async () => {
+    // The nastiest case: correcting a photo meal re-runs the model and overwrites the stored
+    // verdicts. Ungated, that undoes the photo gate on a row that was already correct.
+    const provider = new FakeProvider(() => routed("correction"));
+    const focusMeal: MealAnalysis = MealAnalysisSchema.parse(JSON.parse(validJson));
+    const r = await routeText(
+      "actually 150g",
+      { ...profile, restrictions: [] },
+      { ...routeCtx, focusMeal },
+      provider,
+    );
+    expect(r.intent).toBe("correction");
+    if (r.intent === "correction") expect(r.analysis.verdicts).toEqual({ weight: "good" });
+  });
+
+  test("routed intents keep the dimensions the user DID declare", async () => {
+    const provider = new FakeProvider(() => routed("meal"));
+    const r = await routeText("borscht", { ...profile, restrictions: ["ldl"] }, routeCtx, provider);
+    if (r.intent === "meal") {
+      expect(r.analysis.verdicts).toEqual({ weight: "good", ldl: "bad" });
+    }
   });
 });
 

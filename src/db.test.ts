@@ -884,11 +884,8 @@ describe("review fixes — db layer", () => {
 });
 
 describe("migration 8 — undeclared medical verdicts are removed from stored meals", () => {
-  // The bug this migrates away from: the analyzer prompt ASKED the model not to judge undeclared
-  // dimensions, nothing enforced it, and rows accumulated ldl/kidneys verdicts for users who
-  // never ticked either. The gate now runs at the parse and at both renderers; this clears what
-  // was already written, because a cholesterol judgement on the food of someone who never raised
-  // cholesterol is not data to keep.
+  // The gate (see `visibleVerdicts`) stops new undeclared verdicts landing and stops old ones
+  // displaying; this migration clears what was already written.
 
   const withAll = { weight: "good", ldl: "bad", kidneys: "warn" } as const;
 

@@ -162,10 +162,8 @@ describe("isRestrictionTag", () => {
 });
 
 describe("visibleVerdicts", () => {
-  // The analyzer prompt ASKS the model not to judge undeclared dimensions, but a prompt is not an
-  // enforcement mechanism: measured against the live database, users who declared only lowsugar
-  // (or nothing at all) still had meals carrying ldl and kidneys verdicts. This is the gate that
-  // makes the invariant true regardless of what the model returns.
+  // The gate that makes "only declared dimensions are judged" true regardless of what the model
+  // returns — full rationale and the measured evidence live on `visibleVerdicts` itself.
 
   test("weight always survives — it applies to every user", () => {
     expect(visibleVerdicts({ weight: "good" }, [])).toEqual({ weight: "good" });
