@@ -101,8 +101,9 @@ model: x-ai/grok-4.5 (20 cases)
   kcal    BIAS +16.5% (20 cases) · over-estimated in 75% of 20 cases
   portion MAPE 37% (20 cases)
   density MAPE 28% (20 cases)
-  kcal error source: grams |ln| 0.31 vs density |ln| 0.24 — 56% of the error magnitude is grams
-  bias direction: portion +16.5% · richness +0.0% (20 cases)
+  kcal error source: grams |ln| 0.3 vs density |ln| 0.2 — 56% of the error magnitude is grams, grams-dominated in 65% of 20 cases
+  bias direction: portion +16.5% · richness 0% (20 cases)
+  coverage: 20/20 fixtures evaluated · runs 60/60
 ```
 
 - **MAPE** is the headline: typical error as a percentage. Published photo-only estimation sits at
