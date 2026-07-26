@@ -78,21 +78,53 @@ is the directory; national tables are the real sources.
 
 | Country | Source | Size | Access | Licence |
 |---|---|---|---|---|
-| **Germany** | **BLS 4.0** (Max Rubner-Institut) | **7,140 foods incl. prepared dishes**, 138 nutrients | [blsdb.de](https://www.blsdb.de/) — **licence fees waived, free to all** | free; redistribution terms not stated on the site |
+| **UK** | **CoFID** (McCance & Widdowson, OHID) | **~3,300 foods incl. prepared dishes** | 4.4 MB xlsx, direct download | **Open Government Licence v3** — reuse incl. commercial |
+| **Germany** | BLS 4.0 (Max Rubner-Institut) | 7,140 foods incl. prepared dishes, 138 nutrients | [blsdb.de](https://www.blsdb.de/) — free to USE but **website search only, no bulk download or API** | free; not scriptable |
 | France | CIQUAL (ANSES) | 3,185 foods / 67 components | XML/XLS download | open (Etalab) |
 | Finland | Fineli (THL) | 4,156 foods / 55 nutrients | open-data download | CC BY |
 | Denmark | Frida (DTU) | 1,170 foods / 105 nutrients | download | open |
 | Netherlands | NEVO (RIVM) | 2,152 foods / 133 nutrients | download, registration | restricted |
 | Sweden | Livsmedelsverket | ~2k | REST API (`dataportal.livsmedelsverket.se`) | open |
 
-**BLS 4.0 is the standout for this project.** It is the German national database, it was
-licence-fee-only until recently, and it uniquely includes *prepared dishes* rather than only
-ingredients — which is what a meal photo actually shows. For a Berlin-based user logging German
-food, it beats USDA on relevance.
+**CoFID is the one to add next, and it is English — which is the whole point.**
 
-### Russia
+A meal photo shows *dishes*, not ingredients, and USDA is overwhelmingly an ingredient table.
+CoFID carries composite dishes under names a model actually produces — verified in the shipped
+file: "Lasagne, homemade", "Shepherd's pie, homemade", "Risotto, chicken, homemade", "Casserole,
+bean and mixed vegetable, homemade", "Pizza, cheese and tomato, retail", "Chicken soup, cream of,
+canned". It is 4.4 MB, downloads directly, and the Open Government Licence v3 permits commercial
+reuse, so unlike Open Food Facts it imposes nothing on self-hosters.
 
-**This is the gap.** No official open, machine-readable database exists.
+Cost to adopt: it ships as `.xlsx`, and this repo has no spreadsheet dependency. Parsing the one
+sheet needed (`1.3 Proximates`) out of the zip container is tractable — the file is already open
+XML — but it is real work rather than another CSV reader.
+
+BLS 4.0 was the earlier candidate here and is now ruled out for automation: free to use, but
+website search only, with no bulk download and no API. It remains the better German-food source
+for anyone willing to query it by hand.
+
+### Russia — DECIDED: English-first, no Russian source
+
+Russian food resolves through the **English** dictionaries like every other locale. There is no
+Russian composition source in this system and none is planned.
+
+This is already how it works: the analyzer emits `items[].name_en` beside the localized display
+name, so a Russian user's «Гречка» arrives as `buckwheat groats, cooked` and matches USDA exactly
+(92 kcal). The user still reads their own language; only the lookup key is English.
+
+What this costs, stated rather than discovered later: Russian **ingredients** resolve fine, because
+buckwheat and pork ribs exist in English tables. Russian **composite dishes** — borscht, pelmeni,
+syrniki — do not appear in USDA and will fall back to the model's own macros. That fallback is the
+designed behaviour, not a failure, and it is why the fallback must stay visible rather than
+silently substituting a near-miss row.
+
+The alternative was hand-curating a Russian dish table or scraping unlicensed consumer sites. The
+first is real ongoing work for one locale; the second is not shippable. English-first also means
+every locale improves at once when the matcher improves, instead of each needing its own table.
+
+#### Why there was no third option
+
+No official open, machine-readable database exists.
 
 - The reference work is Skurikhin & Volgarev, *Химический состав пищевых продуктов* — the Russian
   Institute of Nutrition tables, ~1,618 items / 20 nutrients, published 1994 in print.
@@ -100,10 +132,10 @@ food, it beats USDA on relevance.
   Russian-speaking apps actually use, but they are unofficial, have **no stated reuse licence**, and
   would have to be scraped.
 
-Practical options, in order: (1) accept USDA/BLS for Russian dishes, which covers ingredients well
-and prepared dishes poorly; (2) hand-curate a small Russian-dish table the way `src/fixture.ts`
-already does for the eval, sourced and reviewed; (3) treat Russian prepared dishes as the
-package-label case and let users correct them, feeding #12.
+Also checked and rejected: public Google Sheets and Excel "calorie tables", which dominate the
+Russian-language search results. They are the same Skurikhin-derived consumer data re-uploaded by
+individuals — no provenance, no versioning, no licence. Convenient to read, not something to base
+a measurement on.
 
 ### Latin America
 
@@ -218,16 +250,30 @@ success criterion is the **density row**, not the headline:
 Report match rate alongside, since a layer that silently falls back on 80% of items has not been
 tested by a small MAPE improvement.
 
+### Google as a source — checked, and no
+
+Worth writing down because it looks plausible. Google Dataset Search is an **index**, not a host:
+what it surfaces for food composition is the same set already evaluated here — USDA, Nutrition5k,
+CoFID. There is no separate Google-hosted nutrition table to adopt.
+
+Public Google Sheets and Excel "calorie tables" do exist, in quantity, and for Russian food they
+are the most visible results. They are the same Skurikhin-derived consumer data noted above:
+re-uploaded by individuals, with no provenance, no versioning and no stated licence. Convenient to
+read, not something to build a measurement on.
+
 ## Recommendation
 
 1. **USDA FDC first** — public domain, real API, best documentation, and it is the reference the
    others are validated against. Enough to prove the pipeline.
-2. **BLS 4.0 next** — newly free, German, and the only one of these that covers *prepared dishes*.
-   For this user base it is the highest-relevance source available.
+2. **CoFID next** — Open Government Licence v3, direct download, and the only scriptable source of
+   the thing USDA lacks: prepared dishes under names a model actually emits. English, so it serves
+   every locale at once rather than one. Costs an xlsx reader.
+   (BLS 4.0 was this slot until it turned out to be website-search-only.)
 3. **Open Food Facts for packaged items**, via bulk dump rather than live search. Mind ODbL
    share-alike if a derived table is ever published.
-4. **Russia: no open source exists.** Decide deliberately between hand-curation and accepting
-   USDA/BLS coverage. Do not scrape unlicensed consumer sites into a shipped product.
+4. **Russia: English-first, decided.** No Russian source; `name_en` carries every locale into the
+   English tables. Russian ingredients resolve, Russian composite dishes fall back to the model —
+   visibly, never by silent substitution.
 5. **Latin America and SE Asia: not now.** PDF-era tables, no users, and the work does not
    generalize from the EU/US integration.
 
