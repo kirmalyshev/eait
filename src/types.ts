@@ -59,8 +59,16 @@ export interface Profile {
 export type FoodTextField = "medical_limitations" | "food_allergies" | "product_limitations";
 
 export interface MealItem {
+  /** Display name, in the user's language. This is what renders on the meal card. */
   name: string;
   grams: number;
+  /**
+   * Canonical English name used to look this food up in a composition table (#8) — never
+   * displayed. Optional because every meal stored before the field existed lacks it, and because
+   * a model may omit it; empty or absent means "no lookup key", which the lookup layer reads as
+   * "keep the model's own macros".
+   */
+  name_en?: string;
 }
 
 /** Per-dimension verdicts. Only dimensions relevant to the user's profile are set. */

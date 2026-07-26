@@ -20,6 +20,17 @@ export const MealAnalysisSchema = z.object({
       z.object({
         name: z.string().default("item"),
         grams: z.coerce.number().nonnegative().default(0),
+        /**
+         * Canonical ENGLISH name, for looking the food up in a composition table (#8). `name` is
+         * written in the user's language and so cannot be matched against an English table; this
+         * is the key, and it is never displayed.
+         *
+         * Optional rather than required, and ABSENT rather than empty-string when the model omits it:
+         * every meal stored before this field existed lacks it, and writing "" into each of those
+         * items would be persisted noise. Missing means "no lookup key", which the lookup layer
+         * reads as "keep the model own macros" — never as a reason to reject a good analysis.
+         */
+        name_en: z.string().optional(),
       }),
     )
     .default([]),
@@ -65,7 +76,11 @@ const MEAL_JSON_SCHEMA = {
       type: "array",
       items: {
         type: "object",
-        properties: { name: { type: "string" }, grams: { type: "number" } },
+        properties: {
+          name: { type: "string" },
+          grams: { type: "number" },
+          name_en: { type: "string" },
+        },
       },
     },
     kcal: { type: "number" },
@@ -226,6 +241,19 @@ function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boo
   lines.push(
     `Write items[].name and notes in ${LOCALES[profile.lang].llmName}. ` +
       "All numeric fields stay numeric — never spell a number out as words.",
+  );
+  // Immediately after the language line, because this is the one instruction that could be read as
+  // contradicting it. name_en is a DATABASE KEY, not user-facing text: it is matched against an
+  // English food-composition table (#8) to replace the model's own macro arithmetic, which is the
+  // part it is measurably worst at. The requested shape mirrors how those tables are written —
+  // generic food first, qualifiers after commas, cooking state included — because that is what
+  // makes the difference between finding "chicken breast, roasted" and matching breaded tenders.
+  lines.push(
+    "Also set items[].name_en: the SAME food in English, lowercase and singular, as a generic " +
+      'food name with its cooking state — "chicken breast, roasted", "rice, white, cooked", ' +
+      '"potato, boiled", "olive oil". This one is a database key, never shown to the user: use ' +
+      "the plain ingredient name, not a brand and not a dish name. Leave it empty only if no " +
+      "generic English name fits.",
   );
   lines.push("Return JSON only.");
   return lines.join("\n");
