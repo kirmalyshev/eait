@@ -139,6 +139,25 @@ describe("buildFoodIndex — English lookup", () => {
     expect(plural.find("lentil, cooked")?.id).toBe("usda:b");
   });
 
+  test("a USDA taxonomy prefix may be absent from the query", () => {
+    // USDA files many foods under a category word: "Fish, salmon, ...", "Beef, ground, ...".
+    // Strict head containment rejected those, because a model says "salmon" and never "fish".
+    // A head token counts as a taxonomy prefix by how many rows it heads, measured on the corpus
+    // itself — no hand-written list of category words.
+    const taxo = buildFoodIndex([
+      ...Array.from({ length: 60 }, (_, i) => ({
+        id: `usda:f${i}`, name: `Fish, species${i}, raw`, kcal: 100, protein_g: 20, carbs_g: 0, fat_g: 2,
+      })),
+      { id: "usda:s", name: "Fish, salmon, chinook, cooked, dry heat", kcal: 231, protein_g: 25, carbs_g: 0, fat_g: 13 },
+      // "Pepper" heads almost nothing, so it stays an identity word and must still block.
+      { id: "usda:p", name: "Pepper, banana, raw", kcal: 27, protein_g: 1.7, carbs_g: 5.4, fat_g: 0.5 },
+      { id: "usda:b", name: "Bananas, raw", kcal: 89, protein_g: 1.1, carbs_g: 22.8, fat_g: 0.3 },
+    ]);
+    expect(taxo.find("salmon, cooked")?.id).toBe("usda:s");
+    // The relaxation must not reopen the trap it was gated against.
+    expect(taxo.find("banana, raw")?.id).toBe("usda:b");
+  });
+
   test("returns null rather than the least-bad row when nothing is close", () => {
     // A silent wrong match is worse than the model's own guess, because it looks authoritative.
     expect(index.find("borscht")).toBeNull();

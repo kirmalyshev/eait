@@ -194,6 +194,19 @@ export function buildFoodIndex(rows: readonly FoodRow[]): FoodIndex {
     });
   }
 
+  // How many rows each token HEADS. USDA files whole classes of food under a category word —
+  // "Fish, salmon, ...", "Beef, ground, ...", "Pork, fresh, ..." — and a model says "salmon", never
+  // "fish". Strict head containment therefore rejected the correct row for anything filed this way.
+  //
+  // A head token counts as a taxonomy prefix by how many rows it heads, measured on the corpus
+  // rather than from a hand-written list of category words. The separation is clear at the extremes
+  // (beef heads 960 rows, fish 230, pork 324; pepper heads 1, banana 0) and blurred in the middle,
+  // which is tolerable because relaxing this rule cannot invent a match: every strong query token
+  // must still be present, so it only admits candidates that already contain every word asked for.
+  const headCount = new Map<string, number>();
+  for (const { head } of entries) for (const t of head) headCount.set(t, (headCount.get(t) ?? 0) + 1);
+  const TAXONOMY_HEAD_MIN = 50;
+
   // Inverse document frequency over the indexed names. A token appearing in almost every row
   // ("cooked") carries no identity; one appearing in a handful ("glutinous") carries a lot.
   const docFreq = new Map<string, number>();
@@ -229,7 +242,16 @@ export function buildFoodIndex(rows: readonly FoodRow[]): FoodIndex {
         // what separates "Bananas, raw" from "Pepper, banana, raw", "Potatoes" from "Sweet potato",
         // and "Chicken, ... breast" from "Chicken breast tenders, breaded". Qualifiers after the
         // first comma stay optional; the head does not.
-        if (![...head].every((t) => asked.has(t) || WEAK_TOKENS.has(t))) continue;
+        if (
+          ![...head].every(
+            (t) =>
+              asked.has(t) ||
+              WEAK_TOKENS.has(t) ||
+              (headCount.get(t) ?? 0) >= TAXONOMY_HEAD_MIN, // category prefix, not identity
+          )
+        ) {
+          continue;
+        }
         // Among survivors, penalise each unasked-for token by its RARITY rather than counting them.
         // Counting favours whichever description is shortest, which is how "rice, white, cooked"
         // picked "glutinous, unenriched" over plain long-grain, and "chicken thigh" picked the SKIN
