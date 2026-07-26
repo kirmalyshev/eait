@@ -123,6 +123,45 @@ For both regions, [FAO/INFOODS](https://www.fao.org/infoods/infoods/tables-and-d
 umbrella directory and the right starting point when a user base actually appears there. Neither is
 worth building for now — no users.
 
+## What the GitHub ecosystem adds — mostly nothing, and one measured dead end
+
+Searched for open food/nutrition data and name-matching tooling. The result is worth recording so
+it is not searched again: **nothing on GitHub beats USDA for generic food composition.** The
+ecosystem is overwhelmingly API-client wrappers, analysis notebooks, and scrapers of commercial
+sites. The few "food database" repos with stars turn out to be scraping harnesses with no data
+committed (`lxaw/ComprehensiveFoodDatabase`, 114★, is `web_scraping/` and `image_scraping/`).
+
+Three that are genuinely relevant:
+
+| Repo | | Licence | Use |
+|---|---|---|---|
+| [FoodOntology/foodon](https://github.com/FoodOntology/foodon) | 228★ | CC BY 4.0 | The food ontology. The principled answer to cross-vocabulary mapping — it exists to say that "spareribs" and "pork spare rib" are the same thing. Heavy (OWL), but this is the standards-body solution to the exact blocker below. |
+| [strangetom/ingredient-parser](https://github.com/strangetom/ingredient-parser) | 160★ | MIT | Parses free-text ingredient phrases into structured name/quantity/preparation. Python, so it is a reference implementation for us rather than a dependency. |
+| [AlexLamson/clean-usda-foods](https://github.com/AlexLamson/clean-usda-foods) | 2★ | MIT | USDA ids mapped to spoken-language names ("salted butter", not "Butter, salted"). Looked like the exact fix. **Measured: it is not** — see below. |
+
+### The dead end, measured rather than assumed
+
+`clean-usda-foods` maps 9,758 USDA NDB ids to natural-language names, and `sr_legacy_food.csv`
+carries `fdc_id → NDB_number`, so it joins cleanly. It looked like a direct fix for the vocabulary
+gap. Joining 4,762 spoken-language aliases onto the index and re-grading:
+
+| index | within 20% | wrong | missed |
+|---|---|---|---|
+| USDA only | 13 | 3 | 5 |
+| + spoken-language aliases | **12** | **4** | 5 |
+
+Slightly worse. The lesson is about the diagnosis, not the dataset: the failures are not caused by
+USDA's names being *awkwardly formatted*, so renaming rows cannot fix them. They are caused by the
+right row being **unreachable** — head containment rejects "Pork, fresh, spareribs" for a query
+that never said "pork", and no amount of renaming changes that. Every row also carries status `U`
+(unreviewed), so the rename is mechanical rather than curated.
+
+### Russia, again
+
+No open Russian food composition dataset exists on GitHub either. Searches surface food-recognition
+models, recipe UIs and quizzes — no composition table. This independently corroborates the gap
+recorded above: the Skurikhin values circulate only through unlicensed consumer sites.
+
 ## Integration design
 
 ### Where it sits
