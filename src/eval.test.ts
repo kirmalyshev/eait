@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   ExpectationSchema,
+  labelsAgree,
   nutrition5kRowToExpectation,
+  nutritionverseRowToExpectation,
   pairFixtures,
   renderCoverage,
   renderReport,
@@ -23,6 +25,95 @@ describe("ExpectationSchema", () => {
   test("rejects non-positive kcal — a zero expectation breaks MAPE and is always a typo", () => {
     expect(ExpectationSchema.safeParse({ kcal: 0 }).success).toBe(false);
     expect(ExpectationSchema.safeParse({ kcal: -100 }).success).toBe(false);
+  });
+});
+
+describe("nutritionverseRowToExpectation", () => {
+  // 13 dish-level fields, then 13 per ingredient. Real row shape from
+  // nutritionverse_dish_metadata3.csv: dish_id, total_food_weight, total_calories, total_fats,
+  // total_carbohydrates, total_protein, then micros, then the ingredient blocks.
+  const ingredient = (name: string) => `,${name},156.0,95.7,0.33,22.8,0.5,0.01,0.0002,0.009,0.19,0.008,0.0,0.0`;
+  const dish = (head: string, ingredients = 1) =>
+    head + Array.from({ length: ingredients }, (_, i) => ingredient(`food-${i}`)).join("");
+
+  test("maps the dish-level totals", () => {
+    const { dishId, expectation } = nutritionverseRowToExpectation(
+      dish("7,165.0,95.72999999999999,0.33359999999999995,22.7958,0.5048999999999999,0,0,0,0,0,0,0"),
+    );
+    expect(dishId).toBe("7");
+    expect(expectation.kcal).toBe(96);
+    expect(expectation.total_grams).toBe(165);
+    expect(expectation.fat_g).toBe(0.3);
+    expect(expectation.carbs_g).toBe(22.8);
+    expect(expectation.protein_g).toBe(0.5);
+  });
+
+  test("mass and kcal are NOT in the Nutrition5k order", () => {
+    // Nutrition5k is dish_id,kcal,mass,...; NutritionVerse is dish_id,MASS,kcal,... Reading one
+    // with the other's field order yields a plausible dish (both are positive numbers in the same
+    // rough range) whose every metric is wrong — no parse error anywhere. Pinned so a future
+    // "shared CSV mapper" refactor cannot quietly merge the two.
+    const { expectation } = nutritionverseRowToExpectation(dish("1,400,800,10,20,30,0,0,0,0,0,0,0"));
+    expect(expectation.total_grams).toBe(400);
+    expect(expectation.kcal).toBe(800);
+  });
+
+  test("accepts the full 1..7 ingredient range", () => {
+    for (const n of [1, 4, 7]) {
+      const row = dish("2,300,500,10,20,30,0,0,0,0,0,0,0", n);
+      expect(nutritionverseRowToExpectation(row).expectation.kcal).toBe(500);
+    }
+  });
+
+  test("rejects a row whose column count is not 13 + 13n", () => {
+    // The failure this guards is column drift in a re-released CSV: shifted fields still parse as
+    // numbers, so without a shape check every fixture silently becomes wrong ground truth.
+    expect(() => nutritionverseRowToExpectation("1,400,800,10,20,30,0,0,0,0,0,0,0")).toThrow(/13/);
+    expect(() => nutritionverseRowToExpectation(dish("1,400,800,10,20,30,0,0,0,0,0,0,0") + ",oops")).toThrow(/13/);
+  });
+
+  test("rejects a non-numeric or zero-mass row", () => {
+    expect(() => nutritionverseRowToExpectation(dish("1,400,abc,10,20,30,0,0,0,0,0,0,0"))).toThrow();
+    expect(() => nutritionverseRowToExpectation(dish("1,0,800,10,20,30,0,0,0,0,0,0,0"))).toThrow();
+  });
+});
+
+describe("labelsAgree — the photo-vs-ground-truth gate for NutritionVerse", () => {
+  // Measured against the real archive: image dish_N does map to CSV dish_id N (mean Jaccard 0.80
+  // at offset 0 vs ~0.43 at ±1), but a handful of dishes carry a photo of an entirely different
+  // meal. Those are the dangerous ones — plausible ground truth, wrong food, no error anywhere.
+
+  test("keeps a dish whose photo and ground truth share a food", () => {
+    expect(labelsAgree(["hamburger", "plain-toast"], ["hamburger", "plain-toast"])).toBe(true);
+    expect(labelsAgree(["rib", "carrot"], ["rib", "rib", "carrot"])).toBe(true);
+  });
+
+  test("tolerates the two vocabularies naming the same food differently", () => {
+    // The COCO categories and the CSV food_item_type columns are separate vocabularies. Rejecting
+    // on exact-name mismatch would throw away ~7 good dishes for a naming suffix.
+    expect(labelsAgree(["costco-cucumber-sushi-roll"], ["costco-cucumber-sushi-roll-1"])).toBe(true);
+    expect(labelsAgree(["carrot", "chocolate-granola-bar"], ["nature-valley-granola-bar"])).toBe(true);
+    expect(labelsAgree(["costco-salad-sushi-roll"], ["costco-california-sushi-roll-1"])).toBe(true);
+  });
+
+  test("REJECTS a dish whose photo is a different meal entirely", () => {
+    // The three real offenders in the shipped archive. Each would contribute ground truth for food
+    // that is not in the picture — the model would be scored as wrong for being right.
+    expect(labelsAgree(["red-yellow-apple"], ["half-bread-loaf", "lobster"])).toBe(false);
+    expect(labelsAgree(["asian-pear"], ["stack-of-tofu-4pc", "salad-chicken-strip"])).toBe(false);
+    expect(
+      labelsAgree(["half-minced-shrimp", "chicken-sandwich"], ["hamburger", "lamb-shank", "red-apple"]),
+    ).toBe(false);
+  });
+
+  test("an empty side is not agreement — absent evidence must not admit the dish", () => {
+    expect(labelsAgree([], ["hamburger"])).toBe(false);
+    expect(labelsAgree(["hamburger"], [])).toBe(false);
+  });
+
+  test("ignores pure noise tokens that would make everything agree", () => {
+    // Without a stop-list, shared filler ("of", "with", a bare digit) matches almost any pair.
+    expect(labelsAgree(["stack-of-tofu-4pc"], ["bowl-of-rice"])).toBe(false);
   });
 });
 
