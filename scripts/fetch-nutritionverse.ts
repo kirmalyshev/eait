@@ -43,7 +43,7 @@ function fail(message: string, code = 1): never {
 let argv;
 try {
   argv = parseArgv(process.argv.slice(2), {
-    valued: ["archive", "n", "min-kcal", "dir"],
+    valued: ["archive", "n", "min-kcal", "max-dim", "dir"],
     boolean: [],
   });
 } catch (e) {
@@ -67,7 +67,36 @@ const num = (name: string, fallback: number, min: number): number => {
 };
 const n = num("n", 30, 1);
 const minKcal = num("min-kcal", 150, 0);
+// Telegram's largest PhotoSize is 1280 on the long edge, so that is the biggest image the bot ever
+// analyzes. The archive ships 3024x4032 (12 MP) originals — evaluating on those measures the model
+// on ~9x the pixels production ever sends it, and it is also ~18x slower per call (measured: ~3 min
+// vs ~10 s against the 640x480 Nutrition5k set). Downscaling makes the eval match the bot AND makes
+// the two datasets comparable on something other than resolution. `--max-dim 0` keeps originals.
+const maxDim = num("max-dim", 1280, 0);
 const dir = argv.values.dir ?? "eval/nutritionverse";
+
+/**
+ * Shrink a written fixture in place to `maxDim` on its long edge. `sips` ships with macOS;
+ * ImageMagick covers Linux. Returns false when neither exists, so the caller can say the fixtures
+ * are full-resolution rather than let a silent no-op be mistaken for a resize — the whole point is
+ * that the eval runs on the resolution production sees, and being wrong about that quietly is
+ * worse than not doing it.
+ */
+async function shrink(path: string, maxDim: number): Promise<boolean> {
+  const attempts = [
+    ["sips", "-Z", String(maxDim), path, "--out", path],
+    ["magick", path, "-resize", `${maxDim}x${maxDim}>`, path],
+  ];
+  for (const cmd of attempts) {
+    try {
+      const p = Bun.spawn(cmd, { stdout: "ignore", stderr: "ignore" });
+      if ((await p.exited) === 0) return true;
+    } catch {
+      // binary not on PATH — try the next one
+    }
+  }
+  return false;
+}
 
 /** `unzip -p` streams ONE entry to stdout — no temp files, and no need to expand 1.1 GB to take 30. */
 async function unzip(args: string[]): Promise<Uint8Array> {
@@ -176,6 +205,7 @@ console.log(`license: CC BY-NC-SA 4.0 — non-commercial, do not commit or redis
 
 mkdirSync(dir, { recursive: true });
 let saved = 0;
+let noResizer = false;
 for (const id of picked) {
   const imgPath = join(dir, `nv_${id}.jpg`);
   const jsonPath = join(dir, `nv_${id}.json`);
@@ -192,9 +222,19 @@ for (const id of picked) {
   // it is an orphan the eval reports. Same ordering rule as add-fixture.ts.
   writeFileSync(jsonPath, `${JSON.stringify(e)}\n`);
   writeFileSync(imgPath, bytes);
+  if (maxDim > 0 && !(await shrink(imgPath, maxDim))) noResizer = true;
   saved++;
-  console.log(`  nv_${id}: kcal=${e.kcal} grams=${e.total_grams} (${bytes.length}b)`);
+  const kb = Math.round(Bun.file(imgPath).size / 1024);
+  console.log(`  nv_${id}: kcal=${e.kcal} grams=${e.total_grams} (${kb}kb)`);
 }
 
+if (noResizer) {
+  console.warn(
+    `\nWARNING: neither sips nor ImageMagick found — fixtures are FULL RESOLUTION (12 MP).\n` +
+      `  The bot only ever sees ~${maxDim}px (Telegram's largest PhotoSize), so these numbers are\n` +
+      `  not what production would produce, and each call is far slower. Install ImageMagick, or\n` +
+      `  pass --max-dim 0 to accept full resolution deliberately.`,
+  );
+}
 console.log(`\n${saved} fixture pair(s) in ${dir}/`);
 console.log(`run it: OPENROUTER_API_KEY=... bun run scripts/eval-meals.ts --dir ${dir}`);
