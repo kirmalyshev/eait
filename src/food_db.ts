@@ -136,6 +136,78 @@ export function usdaFoodRow(
   return row;
 }
 
+/** `A` → 0, `Z` → 25, `AA` → 26. Column letters in an xlsx cell reference are base-26-ish. */
+const columnIndex = (ref: string): number => {
+  let n = 0;
+  for (const c of ref) n = n * 26 + (c.charCodeAt(0) - 64);
+  return n - 1;
+};
+
+/**
+ * One xlsx worksheet's XML into rows of cell strings, resolving shared-string references.
+ *
+ * Written rather than taken as a dependency: the file is already open XML inside a zip, only one
+ * sheet is needed, and the alternative is a spreadsheet library in a project that has none.
+ *
+ * Each cell is placed at the index its OWN column reference gives. xlsx omits empty cells entirely,
+ * so consuming them positionally would slide every later value one column left — the same silent
+ * column-shift that the CSV parser above exists to prevent, and just as undetectable afterwards.
+ */
+export function parseXlsxSheet(sheetXml: string, sharedStrings: readonly string[]): string[][] {
+  const rows: string[][] = [];
+  for (const rowMatch of sheetXml.matchAll(/<row[^>]*>([\s\S]*?)<\/row>/g)) {
+    const cells: string[] = [];
+    for (const cell of rowMatch[1]!.matchAll(/<c r="([A-Z]+)\d+"([^>]*)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+      const idx = columnIndex(cell[1]!);
+      const body = cell[3] ?? "";
+      const raw = /<v>([\s\S]*?)<\/v>/.exec(body)?.[1] ?? "";
+      // t="s" makes the value an index into the shared-string table, not the text itself.
+      const value = /t="s"/.test(cell[2]!) ? (sharedStrings[Number(raw)] ?? "") : raw;
+      while (cells.length < idx) cells.push("");
+      cells[idx] = value;
+    }
+    rows.push(cells);
+  }
+  return rows;
+}
+
+/** Column positions in CoFID's "1.3 Proximates" sheet (2021 release). */
+const COFID = { code: 0, name: 1, protein_g: 9, fat_g: 10, carbs_g: 11, kcal: 12 } as const;
+
+/**
+ * One row of CoFID's Proximates sheet into a `FoodRow`.
+ *
+ * CoFID matters because it carries **composite dishes** — "Lasagne, homemade", "Shepherd's pie,
+ * homemade", "Risotto, chicken, homemade" — which USDA almost entirely lacks. A meal photo shows
+ * dishes, not ingredients, so this is coverage USDA cannot provide at any matching quality.
+ * Open Government Licence v3: reuse including commercial, so self-hosters inherit no obligation.
+ *
+ * Two sentinels have to be told apart. "Tr" is a trace amount and genuinely means zero. "N" means
+ * the nutrient was never analysed — storing 0 for it would assert the food contains none, and that
+ * fabricated zero would be summed into a user's daily total as fact.
+ */
+export function cofidFoodRow(cells: readonly string[]): FoodRow | null {
+  const cell = (i: number): string => (cells[i] ?? "").trim();
+  const num = (i: number): number | undefined => {
+    const raw = cell(i);
+    if (!raw || raw === "N") return undefined; // not measured
+    if (raw === "Tr") return 0; // trace really is zero
+    const v = Number(raw.replace(/[^0-9.-]/g, "")); // some cells carry a qualifier character
+    return Number.isFinite(v) && v >= 0 ? round1(v) : undefined;
+  };
+  const name = cell(COFID.name);
+  const kcal = num(COFID.kcal);
+  if (!name || kcal === undefined) return null;
+  return {
+    id: `cofid:${cell(COFID.code) || name}`,
+    name,
+    kcal: Math.round(kcal),
+    protein_g: num(COFID.protein_g) ?? 0,
+    carbs_g: num(COFID.carbs_g) ?? 0,
+    fat_g: num(COFID.fat_g) ?? 0,
+  };
+}
+
 /**
  * Tokens that appear in a large share of descriptions and so carry almost no identifying power on
  * their own. They still COUNT when they co-occur with real food words — "cooked" is what separates

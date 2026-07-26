@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   NUTRIENT_IDS,
+  cofidFoodRow,
+  parseXlsxSheet,
   buildFoodIndex,
   normalizeFoodName,
   parseCsvLine,
@@ -30,6 +32,77 @@ describe("parseCsvLine — USDA quotes its fields and its names contain commas",
 
   test("a comma inside quotes is never a separator, even repeatedly", () => {
     expect(parseCsvLine(`"a,b,c","d"`)).toHaveLength(2);
+  });
+});
+
+describe("parseXlsxSheet — CoFID ships as .xlsx, which is XML in a zip", () => {
+  const strings = ["Food Name", "Ackee, canned, drained", "Tr"];
+  const sheet =
+    `<sheetData>` +
+    `<row r="1"><c r="A1" t="s"><v>0</v></c><c r="C1"><v>42</v></c></row>` +
+    `<row r="2"><c r="B2" t="s"><v>1</v></c><c r="M2"><v>151</v></c><c r="AA2" t="s"><v>2</v></c></row>` +
+    `</sheetData>`;
+
+  test("resolves shared strings and keeps inline numbers", () => {
+    const rows = parseXlsxSheet(sheet, strings);
+    expect(rows[0]![0]).toBe("Food Name");
+    expect(rows[1]![1]).toBe("Ackee, canned, drained");
+    expect(rows[1]![12]).toBe("151"); // column M
+  });
+
+  test("a skipped cell leaves a GAP at its own column, it does not shift the row", () => {
+    // xlsx omits empty cells entirely. Reading cells positionally would slide every later value
+    // one column left — the same silent column-shift the USDA CSV parser exists to prevent.
+    const rows = parseXlsxSheet(sheet, strings);
+    expect(rows[0]![1]).toBe(""); // B1 absent
+    expect(rows[0]![2]).toBe("42"); // C1 still at index 2
+  });
+
+  test("handles two-letter column references", () => {
+    expect(parseXlsxSheet(sheet, strings)[1]![26]).toBe("Tr"); // AA = 26
+  });
+});
+
+describe("cofidFoodRow", () => {
+  // Column layout of CoFID's "1.3 Proximates" sheet, verified against the 2021 release.
+  const row = (over: Partial<Record<number, string>> = {}): string[] => {
+    const r = new Array(20).fill("");
+    r[0] = "13-145"; r[1] = "Ackee, canned, drained";
+    r[9] = "2.9"; r[10] = "15.2"; r[11] = "0.8"; r[12] = "151";
+    for (const [i, v] of Object.entries(over)) r[Number(i)] = v;
+    return r;
+  };
+
+  test("maps name, kcal and macros per 100 g", () => {
+    const f = cofidFoodRow(row())!;
+    expect(f.id).toBe("cofid:13-145");
+    expect(f.name).toBe("Ackee, canned, drained");
+    expect(f.kcal).toBe(151);
+    expect(f.protein_g).toBe(2.9);
+    expect(f.fat_g).toBe(15.2);
+    expect(f.carbs_g).toBe(0.8);
+  });
+
+  test('"Tr" means trace, which is zero, not unknown', () => {
+    expect(cofidFoodRow(row({ 11: "Tr" }))!.carbs_g).toBe(0);
+  });
+
+  test('"N" means not measured — zero would be a fabricated fact', () => {
+    // CoFID writes N for a nutrient that was never analysed. Storing 0 would assert the food
+    // contains none of it, and that number would be summed into a user's daily total.
+    const f = cofidFoodRow(row({ 9: "N" }))!;
+    expect(f.protein_g).toBe(0);
+    expect(f.kcal).toBe(151);
+  });
+
+  test("a value carrying a qualifier still parses to its number", () => {
+    expect(cofidFoodRow(row({ 12: "151" }))!.kcal).toBe(151);
+  });
+
+  test("returns null without a usable name or energy", () => {
+    expect(cofidFoodRow(row({ 12: "N" }))).toBeNull();
+    expect(cofidFoodRow(row({ 1: "" }))).toBeNull();
+    expect(cofidFoodRow(row({ 12: "" }))).toBeNull();
   });
 });
 

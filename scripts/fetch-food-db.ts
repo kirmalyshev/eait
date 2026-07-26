@@ -24,7 +24,14 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { parseArgv } from "../src/argv.ts";
-import { NUTRIENT_IDS, parseCsvLine, usdaFoodRow, type FoodRow } from "../src/food_db.ts";
+import {
+  NUTRIENT_IDS,
+  cofidFoodRow,
+  parseCsvLine,
+  parseXlsxSheet,
+  usdaFoodRow,
+  type FoodRow,
+} from "../src/food_db.ts";
 
 // `dataType` is NOT decoration. Each archive's food.csv carries every row type FDC uses, and only
 // one of them is a food: the Foundation archive holds 411 `foundation_food` rows among 62k lab
@@ -43,6 +50,22 @@ const SOURCES = {
     dataType: "foundation_food",
   },
 } as const;
+
+// CoFID is a different shape (one xlsx, not a CSV bundle) and earns its own path. It is here for
+// one reason: a meal photo shows DISHES, and USDA is an ingredient table. CoFID carries composite
+// dishes under names a model actually emits — "Lasagne, homemade", "Shepherd's pie, homemade",
+// "Risotto, chicken, homemade" — which is coverage USDA cannot provide at any matching quality.
+// Open Government Licence v3: reuse including commercial, so self-hosters inherit no obligation.
+const COFID = {
+  url:
+    "https://assets.publishing.service.gov.uk/media/60538b91e90e07527df82ae4/" +
+    "McCance_Widdowsons_Composition_of_Foods_Integrated_Dataset_2021..xlsx",
+  label: "UK CoFID (McCance & Widdowson) — ~3,300 foods INCLUDING prepared dishes",
+  /** "1.3 Proximates" — energy and macros. Other sheets carry vitamins/inorganics we do not use. */
+  sheetName: "1.3 Proximates",
+  /** Rows 1-3 are a three-line header (long names, short codes, units) before any food. */
+  headerRows: 3,
+} as const;
 type SourceName = keyof typeof SOURCES;
 
 function fail(message: string, code = 1): never {
@@ -60,12 +83,13 @@ try {
   fail(`${(e as Error).message} (see the header of this file for usage)`, 2);
 }
 
-const requested = (argv.values.sources ?? Object.keys(SOURCES).join(","))
+const ALL_SOURCES = [...Object.keys(SOURCES), "cofid"];
+const requested = (argv.values.sources ?? ALL_SOURCES.join(","))
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
 for (const s of requested) {
-  if (!(s in SOURCES)) fail(`unknown source "${s}" — known: ${Object.keys(SOURCES).join(", ")}`, 2);
+  if (!ALL_SOURCES.includes(s)) fail(`unknown source "${s}" — known: ${ALL_SOURCES.join(", ")}`, 2);
 }
 if (requested.length === 0) fail("--sources listed no usable source names", 2);
 const out = argv.values.out ?? "data/food-db/foods.jsonl";
@@ -93,7 +117,7 @@ const rows: FoodRow[] = [];
 const seen = new Set<string>();
 let skippedNoEnergy = 0;
 
-for (const name of requested as SourceName[]) {
+for (const name of requested.filter((s) => s in SOURCES) as SourceName[]) {
   const src = SOURCES[name];
   const zip = join(cacheDir, `${name}.zip`);
   if (existsSync(zip) && !argv.flags.has("refresh")) {
@@ -184,6 +208,52 @@ for (const name of requested as SourceName[]) {
   if (!argv.flags.has("keep-archives")) rmSync(zip, { force: true });
 }
 
+if (requested.includes("cofid")) {
+  const zip = join(cacheDir, "cofid.xlsx");
+  if (existsSync(zip) && !argv.flags.has("refresh")) {
+    console.log(`cofid: using cached ${zip}`);
+  } else {
+    console.log(`cofid: downloading ${COFID.label}`);
+    const res = await fetch(COFID.url);
+    if (!res.ok) fail(`cofid: download failed — HTTP ${res.status}`);
+    writeFileSync(zip, new Uint8Array(await res.arrayBuffer()));
+  }
+
+  // An xlsx IS a zip of XML, so the same `unzip -p` streaming works. The sheet is found by NAME via
+  // workbook.xml + its rels rather than by guessing a file number: sheet order is not part of the
+  // format's contract, and silently reading the wrong sheet would import vitamin columns as macros.
+  const workbook = new TextDecoder().decode(await run(["unzip", "-p", zip, "xl/workbook.xml"]));
+  const rid = new RegExp(`<sheet name="${COFID.sheetName}"[^>]*r:id="(rId\\d+)"`).exec(workbook)?.[1];
+  if (!rid) fail(`cofid: sheet "${COFID.sheetName}" not found — the release layout may have changed`);
+  const rels = new TextDecoder().decode(await run(["unzip", "-p", zip, "xl/_rels/workbook.xml.rels"]));
+  const target = new RegExp(`Id="${rid}"[^>]*Target="([^"]+)"`).exec(rels)?.[1];
+  if (!target) fail(`cofid: no relationship for ${rid}`);
+
+  const sharedXml = new TextDecoder().decode(await run(["unzip", "-p", zip, "xl/sharedStrings.xml"]));
+  // <si> may hold several <t> runs (rich text); joining them keeps the whole food name.
+  const shared = [...sharedXml.matchAll(/<si>([\s\S]*?)<\/si>/g)].map((si) =>
+    [...si[1]!.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map((t) => t[1]!).join(""),
+  );
+  const sheetXml = new TextDecoder().decode(await run(["unzip", "-p", zip, `xl/${target}`]));
+
+  let added = 0;
+  let skipped = 0;
+  for (const cells of parseXlsxSheet(sheetXml, shared).slice(COFID.headerRows)) {
+    const row = cofidFoodRow(cells);
+    if (!row) {
+      skipped++;
+      continue;
+    }
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    rows.push(row);
+    added++;
+  }
+  if (added === 0) fail("cofid: parsed no foods — the sheet layout may have changed");
+  console.log(`cofid: ${added} foods with energy${skipped ? ` (${skipped} rows without usable energy)` : ""}`);
+  if (!argv.flags.has("keep-archives")) rmSync(zip, { force: true });
+}
+
 if (rows.length === 0) fail("no foods parsed — the source layout may have changed");
 
 rows.sort((a, b) => a.id.localeCompare(b.id));
@@ -196,4 +266,7 @@ if (skippedNoEnergy) {
   // count would mean the nutrient join broke rather than that the data is sparse.
   console.log(`${skippedNoEnergy} entries skipped for having no usable energy value`);
 }
-console.log("source: USDA FoodData Central — public domain, no attribution required");
+// Provenance must name every source actually included: USDA is public domain, CoFID is OGL v3
+// and carries an attribution requirement. Printing only the first would understate the obligation.
+const used = requested.map((s) => (s === "cofid" ? "UK CoFID (Open Government Licence v3 — attribution required)" : "USDA FoodData Central (public domain)"));
+console.log(`sources: ${[...new Set(used)].join(" + ")}`);
