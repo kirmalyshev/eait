@@ -75,8 +75,8 @@ every prompt carrying `todayMeals`/`weekTotals`/`targets`/`localTime` whether re
 
 ## Hard invariant carried forward: no cross-user reach
 
-**`user_id` is bound into Mastra's `runtimeContext` from the Telegram update at call time — never a
-tool argument the model supplies.** Every tool reads `user_id` from `runtimeContext`, not from its
+**`user_id` is bound into Mastra's `requestContext` from the Telegram update at call time — never a
+tool argument the model supplies.** Every tool reads `user_id` from `requestContext`, not from its
 own input schema. This is non-negotiable: the root convention is "every meal read/update is
 `WHERE id = ? AND user_id = ?`," and a tool-calling model must never be in a position to request
 (via prompt injection or otherwise) another user's rows. No tool's `inputSchema` includes a user

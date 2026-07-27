@@ -9,10 +9,19 @@ export interface SubmitMealResult {
 
 /**
  * The terminal tool for a NEW meal (photo or free text describing food eaten). Its `inputSchema`
- * IS the validation boundary today's `RouteSchema`/`MealAnalysisSchema.safeParse` played —
- * Mastra validates the model's tool-call arguments against this schema before `execute` runs, so
- * an out-of-contract call never reaches the handler. `execute` does no db work; a later plan's
- * `bot.ts` still owns rendering + persistence from whatever this returns.
+ * IS the validation boundary today's `RouteSchema`/`MealAnalysisSchema.safeParse` played — but the
+ * failure mode is NOT the same. `safeParse` throws (via `analyzer.ts`'s fail-loud contract) on an
+ * invalid payload. Mastra does not: when the model's tool-call arguments fail `inputSchema`
+ * validation, `execute` never runs, but the call does not throw either — Mastra instead resolves
+ * the tool call to an error-shaped result (verified empirically):
+ *   `{ error: true, message: string, validationErrors: unknown }`
+ * and feeds that back to the model so it can retry. So a `submit_meal` tool result's
+ * `payload.result` is really a discriminated union — this error shape, or `SubmitMealResult` —
+ * never a thrown exception. Whoever wires this into `bot.ts` next (a later plan) MUST check for
+ * `error === true` before trusting `payload.result` as a `SubmitMealResult`; naively reading
+ * `.analysis.items[0].name` off an error payload will crash exactly where today's `safeParse`
+ * fails loudly and cleanly instead. `execute` does no db work either way; a later plan's `bot.ts`
+ * still owns rendering + persistence from whatever this returns.
  */
 export const submitMealTool = createTool({
   id: "submit_meal",
