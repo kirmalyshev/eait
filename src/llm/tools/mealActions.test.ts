@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { submitMealTool, type SubmitMealResult } from "./mealActions.ts";
-import type { z } from "zod";
 
 const VALID_MEAL = {
   isFood: true,
@@ -21,21 +20,34 @@ const VALID_MEAL = {
 
 describe("submitMealTool", () => {
   test("accepts a valid meal payload and separates analysis from dayOffset", async () => {
-    // inputSchema has .parse at runtime (StandardSchemaWithJSON is Zod-compatible)
-    const input = (submitMealTool.inputSchema as unknown as z.ZodSchema).parse({ ...VALID_MEAL, dayOffset: 1 });
-    const stubContext = {};
-    const result = (await (submitMealTool.execute as unknown as (input: unknown, context: unknown) => Promise<SubmitMealResult>)(input, stubContext)) as SubmitMealResult;
+    // Standard Schema v1: inputSchema["~standard"].validate returns Result<T> with either {value} or {issues}
+    const inputSchema = submitMealTool.inputSchema!;
+    const validation = await inputSchema["~standard"].validate({ ...VALID_MEAL, dayOffset: 1 });
+    if (validation.issues) {
+      throw new Error(`Validation failed: ${JSON.stringify(validation.issues)}`);
+    }
+    const input = validation.value;
+
+    const execute = submitMealTool.execute!;
+    const stubContext = {} as Parameters<typeof execute>[1];
+    const result = (await execute(input, stubContext)) as SubmitMealResult;
 
     expect(result.dayOffset).toBe(1);
     expect(result.analysis.items[0].name).toBe("banana");
     expect(result.analysis).not.toHaveProperty("dayOffset");
   });
 
-  test("rejects a dayOffset outside [0, MAX_DAY_OFFSET]", () => {
-    expect(() => (submitMealTool.inputSchema as unknown as z.ZodSchema).parse({ ...VALID_MEAL, dayOffset: 99 })).toThrow();
+  test("rejects a dayOffset outside [0, MAX_DAY_OFFSET]", async () => {
+    const inputSchema = submitMealTool.inputSchema!;
+    const validation = await inputSchema["~standard"].validate({ ...VALID_MEAL, dayOffset: 99 });
+    expect(validation.issues).toBeDefined();
+    expect(validation.issues?.length).toBeGreaterThan(0);
   });
 
-  test("rejects a missing dayOffset — the model must always state which day", () => {
-    expect(() => (submitMealTool.inputSchema as unknown as z.ZodSchema).parse(VALID_MEAL)).toThrow();
+  test("rejects a missing dayOffset — the model must always state which day", async () => {
+    const inputSchema = submitMealTool.inputSchema!;
+    const validation = await inputSchema["~standard"].validate(VALID_MEAL);
+    expect(validation.issues).toBeDefined();
+    expect(validation.issues?.length).toBeGreaterThan(0);
   });
 });
