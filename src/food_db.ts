@@ -13,6 +13,12 @@
 // translation table per locale, the analyzer emits a canonical English name beside whatever the
 // user sees, and that canonical name is what is matched here. User-facing copy stays in
 // `i18n/locales/*.json` exactly as before — nothing about this layer is displayed.
+//
+// NOT WIRED IN YET. `buildFoodIndex`/`find` are complete and fully tested, but nothing in
+// `analyzer.ts` calls them — `items[].name_en` (the lookup key this module expects) is emitted by
+// the model today with no downstream consumer. The "replace the model's macro arithmetic" step
+// above is future work; this file and its build script (`scripts/fetch-food-db.ts`) are the
+// prepared, unwired seam it will land on.
 
 /** FoodData Central nutrient ids. 1008 is kcal; 1062 is the SAME nutrient in kJ — never that one. */
 export const NUTRIENT_IDS = {
