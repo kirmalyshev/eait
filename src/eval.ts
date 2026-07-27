@@ -51,6 +51,94 @@ export function nutrition5kRowToExpectation(
   return { dishId: dishId!, expectation };
 }
 
+/** Dish-level column count in `nutritionverse_dish_metadata3.csv`, repeated per ingredient. */
+const NV_BLOCK = 13;
+
+/**
+ * Tokens that carry no food identity. Without a stop-list, two dishes sharing only "of" or a size
+ * digit would read as agreeing, which defeats the gate — "stack-of-tofu-4pc" and "bowl-of-rice" are
+ * not the same meal.
+ */
+const NOISE_TOKENS = new Set(["of", "with", "and", "the", "a", "in", "on", "half", "piece", "pc", "1", "2", "3", "4"]);
+
+const foodTokens = (names: readonly string[]): Set<string> => {
+  const out = new Set<string>();
+  for (const name of names) {
+    for (const token of name.toLowerCase().split(/[^a-z0-9]+/)) {
+      if (token && !NOISE_TOKENS.has(token) && !/^\d+pc$/.test(token)) out.add(token);
+    }
+  }
+  return out;
+};
+
+/**
+ * Does a NutritionVerse dish's PHOTO actually show the food its ground truth claims?
+ *
+ * Measured against the shipped archive, image `dish_N` does correspond to CSV `dish_id = N` — mean
+ * Jaccard 0.80 at offset 0 against ~0.43 at ±1, so the numbering is sound. But a few dishes pair a
+ * photo with an unrelated meal's row: dish 2 is an apple labelled as bread and lobster, dish 21 a
+ * pear labelled as tofu and chicken, dish 152 a shrimp plate labelled as hamburger and lamb shank.
+ * Those are the dangerous ones, because nothing about them fails: the numbers are well-formed and
+ * meal-sized, so the model gets scored as badly wrong for correctly reading the picture.
+ *
+ * The test is a shared FOOD TOKEN rather than a shared name, because the COCO categories and the
+ * CSV `food_item_type` columns are two separate vocabularies — `costco-cucumber-sushi-roll` versus
+ * `costco-cucumber-sushi-roll-1`, `chocolate-granola-bar` versus `nature-valley-granola-bar`.
+ * Demanding equal names would discard ~7 sound dishes to catch 3 bad ones.
+ *
+ * Deliberately conservative in one direction only: a dish whose two vocabularies happen to share
+ * no token is dropped even when it may be fine (`meatloaf` vs `meatball`). Losing a good fixture
+ * costs one case out of ~200; keeping a bad one silently corrupts the metric it feeds.
+ */
+export function labelsAgree(imageLabels: readonly string[], csvItems: readonly string[]): boolean {
+  const image = foodTokens(imageLabels);
+  const csv = foodTokens(csvItems);
+  // Absent evidence is not agreement: an unlabelled photo tells us nothing about whether it matches.
+  if (image.size === 0 || csv.size === 0) return false;
+  for (const token of image) if (csv.has(token)) return true;
+  return false;
+}
+
+/**
+ * Map one `nutritionverse_dish_metadata3.csv` line (NutritionVerse-Real) to a fixture Expectation.
+ *
+ * Why this dataset earns a second adapter beside Nutrition5k: its photos are handheld iPhone shots
+ * at random angles of real composed dishes (1-7 weighed ingredients), which is how eait is actually
+ * used. Nutrition5k is a fixed overhead rig on cafeteria trays — it measures capability under
+ * conditions no user reproduces, and portion is the larger half of our error. Ground truth is the
+ * same method as our own protocol: every ingredient weighed, nutrition from packaging or the
+ * Canada Nutrient File. CC BY-NC-SA 4.0 (Tai et al., 2024) — non-commercial, fixtures stay
+ * gitignored and are never redistributed.
+ *
+ * FIELD ORDER IS NOT NUTRITION5K'S. Here it is dish_id, total_food_weight, total_calories, fats,
+ * carbohydrates, protein; Nutrition5k puts kcal before mass and orders macros fat/carb/protein
+ * after. Reading either with the other's layout produces a dish whose numbers are all wrong and
+ * all plausible, with no parse error — hence the explicit test pinning the two apart.
+ *
+ * The row must be 13 + 13n columns (dish-level block, then one block per ingredient). That shape
+ * check is the guard against column drift in a re-released CSV: shifted fields still parse as
+ * numbers, so without it every fixture silently becomes wrong ground truth.
+ */
+export function nutritionverseRowToExpectation(
+  row: string,
+): { dishId: string; expectation: Expectation } {
+  const f = row.split(",");
+  if (f.length < NV_BLOCK * 2 || f.length % NV_BLOCK !== 0) {
+    throw new Error(
+      `nutritionverse row has ${f.length} fields, expected 13 + 13n (dish block + one per ingredient)`,
+    );
+  }
+  const [dishId, mass, kcal, fat, carb, protein] = f;
+  const expectation = ExpectationSchema.parse({
+    kcal: Math.round(Number(kcal)),
+    total_grams: round1(Number(mass)),
+    fat_g: round1(Number(fat)),
+    carbs_g: round1(Number(carb)),
+    protein_g: round1(Number(protein)),
+  });
+  return { dishId: dishId!, expectation };
+}
+
 /** The numbers one analyzer run yields for one case (a MealAnalysis, flattened). */
 export interface EvalRun {
   kcal: number;

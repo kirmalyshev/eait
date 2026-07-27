@@ -206,6 +206,50 @@ describe("analyzeMeal — verdict gate", () => {
   });
 });
 
+describe("items[].name_en — the food-database lookup key", () => {
+  // The display name is written in the user's language, which cannot be looked up in an English
+  // composition table. Asking the model for a canonical English name alongside it turns a
+  // multilingual matching problem into a monolingual one, for roughly the cost of two extra words
+  // in a field it is already generating. See docs/NUTRITION_DB.md.
+
+  test("the schema accepts a canonical English name beside the display name", () => {
+    const parsed = MealAnalysisSchema.parse({
+      isFood: true,
+      items: [{ name: "Гречка", grams: 200, name_en: "buckwheat groats, cooked" }],
+    });
+    expect(parsed.items[0]!.name).toBe("Гречка");
+    expect(parsed.items[0]!.name_en).toBe("buckwheat groats, cooked");
+  });
+
+  test("a model that omits it still parses — this field never breaks an analysis", () => {
+    // Every meal already stored predates this field, and a model may simply not emit it. Absent
+    // means "no lookup key", which downstream must treat as "use the model's own macros", NOT as
+    // a reason to reject an otherwise good analysis.
+    const parsed = MealAnalysisSchema.parse({ isFood: true, items: [{ name: "rice", grams: 100 }] });
+    expect(parsed.items[0]!.name_en).toBeUndefined();
+    expect("name_en" in parsed.items[0]!).toBe(false);
+  });
+
+  test("the prompt asks for it in English even when the display language is not", async () => {
+    for (const lang of LANGS) {
+      const provider = new FakeProvider(() => validJson);
+      await analyzeMeal([bytes], { ...profile, lang }, provider);
+      const text = provider.lastRequest!.userText;
+      expect(text).toContain("name_en");
+      // The instruction has to survive beside the "write names in <language>" line, which is the
+      // one it could plausibly be read as contradicting.
+      expect(text.toLowerCase()).toContain("english");
+    }
+  });
+
+  test("structured-output mode declares the field, or the model may never emit it", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], profile, provider);
+    const schema = JSON.stringify(provider.lastRequest!.jsonSchema);
+    expect(schema).toContain("name_en");
+  });
+});
+
 describe("MealAnalysisSchema", () => {
   test("defaults numeric fields so a minimal isFood object is valid", () => {
     const parsed = MealAnalysisSchema.parse({ isFood: false });
