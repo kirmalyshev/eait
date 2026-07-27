@@ -13,14 +13,16 @@ describe("buildRequestContext / requireUserId", () => {
     expect(() => requireUserId(empty)).toThrow(/no userId bound/);
   });
 
-  test("throws on negative or fractional userId — only positive integers are valid Telegram ids", () => {
+  test("throws a distinct 'invalid userId' message on negative or fractional userId — only " +
+    "positive integers are valid Telegram ids, and this must not be confused with the 'no userId " +
+    "bound' wiring-bug case since a value WAS bound here, just an invalid one", () => {
     const ctxNegative = buildRequestContext(-5);
-    expect(() => requireUserId(ctxNegative)).toThrow(/no userId bound/);
+    expect(() => requireUserId(ctxNegative)).toThrow(/invalid userId bound.*-5/);
 
     const ctxFractional = buildRequestContext(4242.5);
-    expect(() => requireUserId(ctxFractional)).toThrow(/no userId bound/);
+    expect(() => requireUserId(ctxFractional)).toThrow(/invalid userId bound.*4242\.5/);
 
     const ctxZero = buildRequestContext(0);
-    expect(() => requireUserId(ctxZero)).toThrow(/no userId bound/);
+    expect(() => requireUserId(ctxZero)).toThrow(/invalid userId bound.*\b0\b/);
   });
 });
