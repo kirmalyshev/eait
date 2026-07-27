@@ -104,6 +104,13 @@ describe("cofidFoodRow", () => {
     expect(cofidFoodRow(row({ 1: "" }))).toBeNull();
     expect(cofidFoodRow(row({ 12: "" }))).toBeNull();
   });
+
+  test("returns null without a usable code — id must never silently fall back to the name", () => {
+    // FoodRow.id is the namespace that keeps two sources' rows from ever colliding; falling back to
+    // the name when the code is blank would defeat that (and two blank-code rows sharing a name
+    // would collide with each other too).
+    expect(cofidFoodRow(row({ 0: "" }))).toBeNull();
+  });
 });
 
 describe("normalizeFoodName — English is the lookup notation", () => {

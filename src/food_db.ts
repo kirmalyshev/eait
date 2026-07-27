@@ -197,9 +197,12 @@ export function cofidFoodRow(cells: readonly string[]): FoodRow | null {
   };
   const name = cell(COFID.name);
   const kcal = num(COFID.kcal);
-  if (!name || kcal === undefined) return null;
+  const code = cell(COFID.code);
+  // `id` is the namespace that keeps two sources' rows from ever colliding — a blank code must not
+  // silently fall back to the name, or two blank-code rows sharing a name would collide too.
+  if (!name || !code || kcal === undefined) return null;
   return {
-    id: `cofid:${cell(COFID.code) || name}`,
+    id: `cofid:${code}`,
     name,
     kcal: Math.round(kcal),
     protein_g: num(COFID.protein_g) ?? 0,
