@@ -12,4 +12,15 @@ describe("buildRequestContext / requireUserId", () => {
     const empty = new RequestContext();
     expect(() => requireUserId(empty)).toThrow(/no userId bound/);
   });
+
+  test("throws on negative or fractional userId — only positive integers are valid Telegram ids", () => {
+    const ctxNegative = buildRequestContext(-5);
+    expect(() => requireUserId(ctxNegative)).toThrow(/no userId bound/);
+
+    const ctxFractional = buildRequestContext(4242.5);
+    expect(() => requireUserId(ctxFractional)).toThrow(/no userId bound/);
+
+    const ctxZero = buildRequestContext(0);
+    expect(() => requireUserId(ctxZero)).toThrow(/no userId bound/);
+  });
 });

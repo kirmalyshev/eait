@@ -19,7 +19,7 @@ export function buildRequestContext(userId: number): RequestContext {
  * fail loudly rather than silently reach the wrong (or no) user's rows. */
 export function requireUserId(requestContext: RequestContext): number {
   const userId = requestContext.get(USER_ID_KEY);
-  if (typeof userId !== "number" || !Number.isFinite(userId)) {
+  if (typeof userId !== "number" || !Number.isInteger(userId) || userId <= 0) {
     throw new Error(
       "llm/context: no userId bound on this RequestContext — wiring bug, not a valid call",
     );
