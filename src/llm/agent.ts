@@ -1,6 +1,8 @@
 import { Agent } from "@mastra/core/agent";
 import type { Memory } from "@mastra/memory";
 import { submitMealTool } from "./tools/mealActions.ts";
+import { makeSearchFoodDbTool } from "./tools/foodDb.ts";
+import type { FoodIndex } from "../food_db.ts";
 
 type EngineModel = ConstructorParameters<typeof Agent>[0]["model"];
 
@@ -13,16 +15,34 @@ type EngineModel = ConstructorParameters<typeof Agent>[0]["model"];
  * `model` is a parameter rather than hardcoded so tests inject a scripted mock and production
  * wiring (a later plan) passes a real OpenRouter gateway model string — this is the provider-swap
  * seam `llm/factory.ts` used to own.
+ *
+ * `deps.foodIndex` registers `search_food_db` when a composition table is available, and omits the
+ * tool entirely when it is not. Injected rather than loaded here: the table is 10,780 rows read
+ * from disk, this function is called in tests with a mock model, and an agent constructor that
+ * performs file I/O is one that cannot be exercised cheaply. Omitting the tool rather than
+ * registering a broken one also means a missing table degrades to the agent's own estimates —
+ * which is the same outcome as a food it cannot find, and a path already covered.
  */
-export function createEngineAgent(model: EngineModel, memory: Memory): Agent {
+export function createEngineAgent(
+  model: EngineModel,
+  memory: Memory,
+  deps: { foodIndex?: FoodIndex } = {},
+): Agent {
   return new Agent({
     id: "eait-engine",
     name: "eait-engine",
     instructions:
       "You are the assistant behind a personal food-diary Telegram bot. You MUST finish every " +
-      "turn by calling exactly one terminal tool — right now only submit_meal is available.",
+      "turn by calling exactly one terminal tool — right now only submit_meal is available. " +
+      "When search_food_db is available, look up each food you identify BEFORE submitting, passing " +
+      "its English name together with any similar food it could be confused with, and use the " +
+      "per-100g figures of the row you pick. If the search returns nothing, keep your own estimate " +
+      "rather than choosing a row that is merely close.",
     model,
     memory,
-    tools: { submit_meal: submitMealTool },
+    tools: {
+      submit_meal: submitMealTool,
+      ...(deps.foodIndex ? { search_food_db: makeSearchFoodDbTool(deps.foodIndex) } : {}),
+    },
   });
 }

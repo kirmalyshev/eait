@@ -6,6 +6,7 @@ import {
   buildFoodIndex,
   normalizeFoodName,
   parseCsvLine,
+  parseFoodJsonl,
   usdaFoodRow,
   type FoodRow,
 } from "./food_db.ts";
@@ -302,5 +303,46 @@ describe("candidates — the retrieve half of retrieve-then-select", () => {
 
   test("ties keep corpus order, so the same query never returns a different food", () => {
     expect(index.candidates("bulgur", 5)).toEqual(index.candidates("bulgur", 5));
+  });
+});
+
+describe("parseFoodJsonl", () => {
+  const row = (over = "") =>
+    `{"id":"usda:1","name":"Bulgur, cooked","kcal":83,"protein_g":3.1,"carbs_g":18.6,"fat_g":0.2${over}}`;
+
+  test("parses the table and reports nothing skipped", () => {
+    const out = parseFoodJsonl(`${row()}\n${row()}\n`);
+    expect(out.rows.length).toBe(2);
+    expect(out.skipped).toBe(0);
+  });
+
+  test("ignores blank lines without counting them as damage", () => {
+    expect(parseFoodJsonl(`\n${row()}\n\n`).skipped).toBe(0);
+  });
+
+  test("skips an unparseable line rather than losing the whole table", () => {
+    // A truncated download should cost the rows it damaged, not every row after it.
+    const out = parseFoodJsonl(`${row()}\n{"id":"broken`);
+    expect(out.rows.length).toBe(1);
+    expect(out.skipped).toBe(1);
+  });
+
+  test("skips a row that parses but lacks a required nutrient", () => {
+    // The dangerous case: valid JSON, no kcal. It would index as a food with no calories and
+    // silently zero out any meal grounded on it — a wrong number with no error anywhere.
+    const out = parseFoodJsonl('{"id":"usda:2","name":"Ghost","protein_g":1,"carbs_g":1,"fat_g":1}');
+    expect(out.rows).toEqual([]);
+    expect(out.skipped).toBe(1);
+  });
+
+  test("skips negative and non-finite amounts", () => {
+    expect(parseFoodJsonl(row(',"kcal":-5').replace('"kcal":83,', "")).rows).toEqual([]);
+    expect(parseFoodJsonl('{"id":"a","name":"b","kcal":"lots","protein_g":1,"carbs_g":1,"fat_g":1}').skipped).toBe(1);
+  });
+
+  test("keeps optional nutrients when present", () => {
+    const out = parseFoodJsonl(row(',"fiber_g":4.5,"sodium_mg":5'));
+    expect(out.rows[0]!.fiber_g).toBe(4.5);
+    expect(out.rows[0]!.sodium_mg).toBe(5);
   });
 });

@@ -385,3 +385,38 @@ export function buildFoodIndex(rows: readonly FoodRow[]): FoodIndex {
     },
   };
 }
+
+/**
+ * Parse the JSONL table written by `scripts/fetch-food-db.ts` into rows.
+ *
+ * Tolerant of a bad LINE, strict about a bad ROW. A truncated download or a half-written file
+ * should cost the rows it damaged, not the whole table — but a row that parses as JSON while
+ * missing `kcal` would enter the index as a food with no calories and silently zero out any meal
+ * grounded on it. So unparseable and malformed lines are both skipped, and the count of what was
+ * dropped is returned rather than hidden: a caller that loads 10,780 rows and discards 4,000 needs
+ * to find that out at boot, not from a user's meal card.
+ */
+export function parseFoodJsonl(text: string): { rows: FoodRow[]; skipped: number } {
+  const rows: FoodRow[] = [];
+  let skipped = 0;
+  for (const line of text.split("\n")) {
+    const t = line.trim();
+    if (!t) continue;
+    try {
+      const o = JSON.parse(t) as Partial<FoodRow>;
+      const num = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0;
+      if (
+        typeof o.id !== "string" || !o.id ||
+        typeof o.name !== "string" || !o.name ||
+        !num(o.kcal) || !num(o.protein_g) || !num(o.carbs_g) || !num(o.fat_g)
+      ) {
+        skipped++;
+        continue;
+      }
+      rows.push(o as FoodRow);
+    } catch {
+      skipped++;
+    }
+  }
+  return { rows, skipped };
+}
