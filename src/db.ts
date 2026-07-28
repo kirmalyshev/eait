@@ -962,6 +962,26 @@ export async function insertPendingMeal(db: Db, m: NewMeal): Promise<void> {
  * reply to their own text finds no focus. The old code got this for free by writing
  * `user_message_id` at insert time; the engine no longer knows about Telegram message ids.
  */
+/**
+ * Record which of the user's messages produced a MEAL, without a card having been sent.
+ *
+ * The mirror of `setPendingUserMessage`, and it exists for the same narrow case: the card failed to
+ * send, so `setMealReply` cannot be used (there is no bot message to point at), but the user's own
+ * photo must still map to the meal or a reply to it finds no focus. Before the engine extraction
+ * this was free — `user_message_id` was written at insert time — and losing it was a silent
+ * regression, since the only symptom is a reply that quietly stops working.
+ */
+export async function setMealUserMessage(
+  db: Db,
+  id: string,
+  user_id: number,
+  user_message_id: number,
+): Promise<void> {
+  await db`
+    UPDATE meals SET user_message_id = ${user_message_id}
+    WHERE id = ${id} AND user_id = ${user_id}`;
+}
+
 export async function setPendingUserMessage(
   db: Db,
   id: string,

@@ -4,7 +4,7 @@ The product engine: what the app does, independent of how a request arrived.
 
 | File | Holds |
 |---|---|
-| `meals.ts` | `logPhotoMeal` — gate, caps, metering, analysis, the meal write |
+| `meals.ts` | `logPhotoMeal`, `confirmPendingMeal`/`dropPendingMeal`/`cancelPendingMeal` |
 | `text.ts` | `handleText` — routing to question / proposed meal / correction / re-date |
 | `diary.ts` | `day`, `week` — reads a mobile client is mostly made of |
 | `caps.ts` | the spend policy, shared by every surface |

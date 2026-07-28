@@ -190,62 +190,70 @@ const cross: Comparison[] = [];
 const within: Comparison[] = [];
 let failures = 0;
 
-for (const c of selected) {
-  const bytes = new Uint8Array(readFileSync(join(dir, c.image)));
-  try {
-    // The old path runs twice when --repeat 2: the second run is the within-path baseline, and it
-    // must be the SAME path so the baseline measures model nondeterminism alone.
-    const oldRuns: Shape[] = [];
-    for (let i = 0; i < repeat; i++) {
-      oldRuns.push(shapeOf(await analyzeMeal([bytes], profile, oldProvider)));
-    }
-    const viaAgent = shapeOf(
-      await analyzeMealViaAgent(agent, [bytes], profile, buildRequestContext(1)),
-    );
+/** Drop the scratch database. Registered for the throw path too — a harness that leaks a database
+ * per run turns "I ran the gate a few times" into a full disk. */
+async function teardown(): Promise<void> {
+  await (mastra.getStorage() as { close?: () => Promise<void> } | undefined)?.close?.();
+  const drop = new (await import("bun")).SQL({ ...pg, database: "postgres" });
+  await drop`DROP DATABASE IF EXISTS ${drop(pg.database)}`.catch(() => {});
+  await drop.close();
+}
 
-    const x = compare(oldRuns[0]!, viaAgent);
-    cross.push(x);
-    console.log(
-      `  ${c.name}  cross: kcal ${x.kcal.toFixed(1)}%  macros ${x.macros.toFixed(1)}%  ` +
-        `grams ${x.grams.toFixed(1)}%  items ${x.items.toFixed(0)}% agree` +
-        `   [old ${oldRuns[0]!.kcal} kcal → agent ${viaAgent.kcal} kcal]`,
-    );
-    if (oldRuns.length > 1) {
-      const w = compare(oldRuns[0]!, oldRuns[1]!);
-      within.push(w);
-      console.log(
-        `  ${" ".repeat(c.name.length)}  within: kcal ${w.kcal.toFixed(1)}%  ` +
-          `macros ${w.macros.toFixed(1)}%  grams ${w.grams.toFixed(1)}%  items ${w.items.toFixed(0)}% agree`,
+try {
+  for (const c of selected) {
+    const bytes = new Uint8Array(readFileSync(join(dir, c.image)));
+    try {
+      // The old path runs twice when --repeat 2: the second run is the within-path baseline, and it
+      // must be the SAME path so the baseline measures model nondeterminism alone.
+      const oldRuns: Shape[] = [];
+      for (let i = 0; i < repeat; i++) {
+        oldRuns.push(shapeOf(await analyzeMeal([bytes], profile, oldProvider)));
+      }
+      const viaAgent = shapeOf(
+        await analyzeMealViaAgent(agent, [bytes], profile, buildRequestContext(1)),
       );
+
+      const x = compare(oldRuns[0]!, viaAgent);
+      cross.push(x);
+      console.log(
+        `  ${c.name}  cross: kcal ${x.kcal.toFixed(1)}%  macros ${x.macros.toFixed(1)}%  ` +
+          `grams ${x.grams.toFixed(1)}%  items ${x.items.toFixed(0)}% agree` +
+          `   [old ${oldRuns[0]!.kcal} kcal → agent ${viaAgent.kcal} kcal]`,
+      );
+      if (oldRuns.length > 1) {
+        const w = compare(oldRuns[0]!, oldRuns[1]!);
+        within.push(w);
+        console.log(
+          `  ${" ".repeat(c.name.length)}  within: kcal ${w.kcal.toFixed(1)}%  ` +
+            `macros ${w.macros.toFixed(1)}%  grams ${w.grams.toFixed(1)}%  items ${w.items.toFixed(0)}% agree`,
+        );
+      }
+    } catch (e) {
+      failures++;
+      console.error(`  ${c.name} FAILED: ${(e as Error).message}`);
     }
-  } catch (e) {
-    failures++;
-    console.error(`  ${c.name} FAILED: ${(e as Error).message}`);
   }
+
+  const report = (label: string, xs: Comparison[]) =>
+    xs.length === 0
+      ? `${label}: no data`
+      : `${label} (median of ${xs.length}): kcal ${median(xs.map((x) => x.kcal)).toFixed(1)}%  ` +
+        `macros ${median(xs.map((x) => x.macros)).toFixed(1)}%  ` +
+        `grams ${median(xs.map((x) => x.grams)).toFixed(1)}%  ` +
+        `items ${median(xs.map((x) => x.items)).toFixed(0)}% agree`;
+
+  console.log(`\n${report("CROSS-PATH  old vs agent", cross)}`);
+  if (within.length) {
+    console.log(report("WITHIN-PATH old vs old  ", within));
+    console.log(
+      "\nRead the first line against the second. Cross-path divergence at or below the " +
+        "within-path baseline is the model disagreeing with itself, not the transport diverging.",
+    );
+  }
+  if (failures) console.log(`\n${failures} case(s) failed outright`);
+} finally {
+  await teardown();
 }
-
-const report = (label: string, xs: Comparison[]) =>
-  xs.length === 0
-    ? `${label}: no data`
-    : `${label} (median of ${xs.length}): kcal ${median(xs.map((x) => x.kcal)).toFixed(1)}%  ` +
-      `macros ${median(xs.map((x) => x.macros)).toFixed(1)}%  ` +
-      `grams ${median(xs.map((x) => x.grams)).toFixed(1)}%  ` +
-      `items ${median(xs.map((x) => x.items)).toFixed(0)}% agree`;
-
-console.log(`\n${report("CROSS-PATH  old vs agent", cross)}`);
-if (within.length) {
-  console.log(report("WITHIN-PATH old vs old  ", within));
-  console.log(
-    "\nRead the first line against the second. Cross-path divergence at or below the " +
-      "within-path baseline is the model disagreeing with itself, not the transport diverging.",
-  );
-}
-if (failures) console.log(`\n${failures} case(s) failed outright`);
-
-await (mastra.getStorage() as { close?: () => Promise<void> } | undefined)?.close?.();
-const drop = new (await import("bun")).SQL({ ...pg, database: "postgres" });
-await drop`DROP DATABASE IF EXISTS ${drop(pg.database)}`.catch(() => {});
-await drop.close();
 
 // Partial coverage must not read as a clean gate to whoever runs this before a cutover.
 if (failures) process.exit(3);

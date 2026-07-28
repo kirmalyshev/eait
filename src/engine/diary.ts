@@ -37,12 +37,25 @@ export async function day(
   };
 }
 
-/** Trailing-window kcal/protein by date, for a chart. Default 7 days, matching the router's view. */
+/** Widest window a single call may scan. A chart does not need more, and an unbounded `days` is an
+ * unbounded query on a table that only grows. */
+export const MAX_WINDOW_DAYS = 90;
+
+/**
+ * Trailing-window kcal/protein by date, for a chart. Default 7 days, matching the router's view.
+ *
+ * Bounds `days` ITSELF rather than trusting the caller. `api/` validates too and returns a 400,
+ * which is the better error — but the engine is the contract, and a second front end that forgets
+ * to validate must not be able to ask for ten years of rows.
+ */
 export async function week(
   deps: EngineDeps,
   userId: UserId,
   days = 7,
 ): Promise<DayTotals[] | null> {
+  if (!Number.isInteger(days) || days < 1 || days > MAX_WINDOW_DAYS) {
+    throw new Error(`engine/diary: days must be an integer in [1, ${MAX_WINDOW_DAYS}], got ${days}`);
+  }
   const u = await getUser(deps.db, userId);
   if (!u || u.state !== "active") return null;
   const to = berlinDate(new Date(), deps.config.tz);

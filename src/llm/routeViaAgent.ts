@@ -62,7 +62,7 @@ export async function routeTextViaAgent(
       // model may answer in prose, which here means no terminal tool and a thrown error where the
       // user should have got a reply — the failure mode measured on the photo path.
       toolChoice: "required",
-    } as never,
+    },
   );
 
   const calls = ((result as { toolResults?: unknown[] }).toolResults ?? []) as {

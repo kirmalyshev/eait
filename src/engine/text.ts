@@ -25,7 +25,13 @@ import type { HandleTextResult } from "./results.ts";
 /** Mirrors the 7-day week context the router is given (weekStart = today − 7d). */
 const WEEK_DAYS = 7;
 
-/** Stale pending text meals are swept lazily on the next pending insert. 48 h. */
+/**
+ * Stale pending text meals are swept lazily on the next pending insert. 48 h.
+ *
+ * Lives here, where pending rows are CREATED and swept; `meals.ts` imports it to honour the same
+ * TTL at confirm time. One direction only (`meals.ts` → `text.ts`, never back) — the sweep and the
+ * confirm check must agree, and two constants is how "expired" and the actual lifetime drift apart.
+ */
 export const PENDING_TTL_MS = 48 * 3_600_000;
 
 export interface HandleTextInput {

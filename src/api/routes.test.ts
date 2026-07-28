@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { createRouter } from "./routes.ts";
+import { createRouter, MAX_UPLOAD_BYTES } from "./routes.ts";
 
 /** `Response.json()` is `unknown`; every assertion here reads a field, so narrow once. */
 const body = async (res: Response): Promise<any> => res.json();
@@ -158,6 +158,91 @@ describe("api router", () => {
     expect(proposed.pendingId).toBeString();
     // Nothing in `meals` yet — the whole point of confirm-first.
     expect((await body(await handle(new Request("http://x/v1/diary/day")))).meals).toEqual([]);
+  });
+
+  test("a proposed text meal can be confirmed — the API is not a dead end", async () => {
+    // The finding this test exists for: /v1/messages could answer `proposed` with a pendingId and
+    // nothing could act on it. A client that cannot confirm cannot log a text meal at all.
+    const { db, deps } = await ctx({
+      routeText: async () => ({ intent: "meal", analysis: ANALYSIS, dayOffset: 0 }),
+    });
+    await activeUser(db, 709);
+    const handle = createRouter(deps, () => 709);
+    const proposed = await body(await handle(new Request("http://x/v1/messages", {
+      method: "POST", body: JSON.stringify({ text: "ate buckwheat" }),
+    })));
+
+    const res = await handle(new Request(`http://x/v1/meals/pending/${proposed.pendingId}/confirm`, { method: "POST" }));
+    expect(res.status).toBe(200);
+    expect((await body(res)).kind).toBe("logged");
+    const day = await body(await handle(new Request("http://x/v1/diary/day")));
+    expect(day.meals.length).toBe(1);
+    expect(day.totals.kcal).toBe(600);
+
+    // Confirming twice is 410, not a second meal: the row was dropped once delivered.
+    const again = await handle(new Request(`http://x/v1/meals/pending/${proposed.pendingId}/confirm`, { method: "POST" }));
+    expect(again.status).toBe(410);
+    expect((await body(await handle(new Request("http://x/v1/diary/day")))).meals.length).toBe(1);
+  });
+
+  test("cancelling a proposal logs nothing", async () => {
+    const { db, deps } = await ctx({
+      routeText: async () => ({ intent: "meal", analysis: ANALYSIS, dayOffset: 0 }),
+    });
+    await activeUser(db, 710);
+    const handle = createRouter(deps, () => 710);
+    const proposed = await body(await handle(new Request("http://x/v1/messages", {
+      method: "POST", body: JSON.stringify({ text: "ate buckwheat" }),
+    })));
+    expect((await handle(new Request(`http://x/v1/meals/pending/${proposed.pendingId}/cancel`, { method: "POST" }))).status)
+      .toBe(200);
+    expect((await body(await handle(new Request("http://x/v1/diary/day")))).meals).toEqual([]);
+  });
+
+  test("one user cannot confirm ANOTHER user's pending meal", async () => {
+    // Same scoping rule as every other read, at the one endpoint that takes an id and writes a row.
+    const { db, deps } = await ctx({
+      routeText: async () => ({ intent: "meal", analysis: ANALYSIS, dayOffset: 0 }),
+    });
+    await activeUser(db, 711);
+    await activeUser(db, 712);
+    const proposed = await body(await createRouter(deps, () => 711)(new Request("http://x/v1/messages", {
+      method: "POST", body: JSON.stringify({ text: "ate buckwheat" }),
+    })));
+    const stolen = await createRouter(deps, () => 712)(
+      new Request(`http://x/v1/meals/pending/${proposed.pendingId}/confirm`, { method: "POST" }),
+    );
+    expect(stolen.status).toBe(410);
+    // And 711's offer is untouched — a failed theft must not consume it.
+    const mine = await createRouter(deps, () => 711)(
+      new Request(`http://x/v1/meals/pending/${proposed.pendingId}/confirm`, { method: "POST" }),
+    );
+    expect(mine.status).toBe(200);
+  });
+
+  test("an oversized upload is refused BEFORE the body is buffered", async () => {
+    // The check used to run after `req.formData()`, which reads the whole body — so the allocation
+    // it was meant to prevent had already happened by the time it ran.
+    const { db, deps } = await ctx();
+    await activeUser(db, 713);
+    const res = await createRouter(deps, () => 713)(
+      new Request("http://x/v1/meals/photo", {
+        method: "POST",
+        headers: { "content-length": String(MAX_UPLOAD_BYTES + 1) },
+        body: photoBody(),
+      }),
+    );
+    expect(res.status).toBe(413);
+  });
+
+  test("a malformed date is a 400, not a cheerfully empty day", async () => {
+    const { db, deps } = await ctx();
+    await activeUser(db, 714);
+    const handle = createRouter(deps, () => 714);
+    for (const bad of ["yesterday", "2026-13-01", "2026-02-31", "26-01-01"]) {
+      expect((await handle(new Request(`http://x/v1/diary/day?date=${bad}`))).status).toBe(400);
+    }
+    expect((await handle(new Request("http://x/v1/diary/day?date=2026-02-28"))).status).toBe(200);
   });
 
   test("rejects a bad request instead of guessing", async () => {

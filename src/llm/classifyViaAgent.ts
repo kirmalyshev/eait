@@ -41,7 +41,7 @@ export async function classifyRestrictionsViaAgent(
         activeTools: ["submit_restrictions"],
         toolChoice: "required",
         maxSteps: 3,
-      } as never,
+      },
     );
 
     const calls = ((result as { toolResults?: unknown[] }).toolResults ?? []) as {

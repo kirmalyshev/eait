@@ -10,15 +10,16 @@
 // `grammy`, or anything under `tg_bot/`, and nothing in it can send a message.
 
 import {
-  berlinDate, berlinDateMinus, berlinTime, dailyTotals, getUser, hasEvent, insertMeal, logEvent,
-  logLlmCall, recentMealItems,
+  berlinDate, berlinDateMinus, berlinTime, dailyTotals, deletePendingMeal, getPendingMeal, getUser,
+  hasEvent, insertMeal, logEvent, logLlmCall, recentMealItems,
 } from "../db.ts";
 import { buildRepertoire } from "../repertoire.ts";
 import { checkConsistency } from "../consistency.ts";
 import { profileFromRow } from "./profile.ts";
 import { checkCaps } from "./caps.ts";
 import type { EngineDeps, UserId } from "./deps.ts";
-import type { LogPhotoResult, MealHint } from "./results.ts";
+import { PENDING_TTL_MS } from "./text.ts";
+import type { ConfirmMealResult, LogPhotoResult, MealHint } from "./results.ts";
 import type { MealAnalysis, MealContext } from "../types.ts";
 
 /**
@@ -143,4 +144,78 @@ export async function logPhotoMeal(
     date,
     hint: hintFor(analysis),
   };
+}
+
+/**
+ * Log a meal the user has confirmed. Returns the same `MealLogged` shape a photo does.
+ *
+ * IT DOES NOT DELETE THE PENDING ROW, and that is the whole reason confirm and drop are two calls.
+ * The bot's order is insert → render the card → only then drop, so that a failed send leaves the
+ * row re-tappable instead of telling the user "expired" about a meal that WAS logged; `insertMeal`
+ * is idempotent on id, so the re-tap converges rather than duplicating. Only the surface knows
+ * whether the user actually saw anything, so only the surface can decide the meal is delivered.
+ * (For HTTP the two collapse: a 200 response IS the delivery, so the route calls both.)
+ */
+export async function confirmPendingMeal(
+  deps: EngineDeps,
+  userId: UserId,
+  pendingId: string,
+): Promise<ConfirmMealResult> {
+  const { db } = deps;
+  // The PENDING ROW is checked before the user, and the order is load-bearing: after a /delete the
+  // account is gone AND so is its pending row, and "that offer expired" is the answer the user can
+  // act on, where "you are not onboarded" is both less specific and, on this path, confusing. A
+  // user-scoped read, so a forwarded or foreign id sees nothing and gets the same neutral answer.
+  const pending = await getPendingMeal(db, pendingId, userId);
+  if (!pending) return { kind: "expired" };
+
+  const u = await getUser(db, userId);
+  if (!u || u.state !== "active") return { kind: "not-onboarded" };
+  // The lazy sweep only runs on inserts, so a confirm prompt can outlive the TTL on screen — the
+  // TTL is honoured at confirm time too, or "expired" and the actual lifetime disagree.
+  if (Date.parse(pending.ts) < Date.now() - PENDING_TTL_MS) {
+    await deletePendingMeal(db, pendingId, userId);
+    return { kind: "expired" };
+  }
+
+  await insertMeal(db, {
+    id: pending.id, user_id: userId, ts: pending.ts, date: pending.date,
+    analysis: pending.analysis, model: pending.model, user_message_id: pending.user_message_id,
+  });
+  return {
+    kind: "logged",
+    mealId: pending.id,
+    analysis: pending.analysis,
+    // Totals for the meal's OWN date — a back-dated text meal is not today's.
+    totals: await dailyTotals(db, userId, pending.date),
+    date: pending.date,
+    // Always the generic nudge: the user just confirmed, and `confidence` is not stored on a
+    // pending row, so there is nothing to justify the stronger low-confidence ask.
+    hint: "correction",
+  };
+}
+
+/**
+ * Drop a pending row once its meal is delivered. Idempotent from the caller's side: `false` means
+ * somebody else's sweep got there first, which is harmless but worth a trace.
+ */
+export async function dropPendingMeal(
+  deps: EngineDeps,
+  userId: UserId,
+  pendingId: string,
+): Promise<boolean> {
+  const gone = await deletePendingMeal(deps.db, pendingId, userId);
+  if (!gone) console.warn(`[eait] pending row ${pendingId} vanished before drop user=${userId}`);
+  return gone;
+}
+
+/** The user declined. Nothing was ever written to `meals`, so this only clears the offer. */
+export async function cancelPendingMeal(
+  deps: EngineDeps,
+  userId: UserId,
+  pendingId: string,
+): Promise<{ kind: "cancelled" } | { kind: "expired" }> {
+  return (await deletePendingMeal(deps.db, pendingId, userId))
+    ? { kind: "cancelled" }
+    : { kind: "expired" };
 }

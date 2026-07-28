@@ -1,5 +1,6 @@
-// Photo analysis through the Mastra agent — plan 2 of the migration
-// (`docs/design/2026-07-27-mastra-agent-engine.md`). NOT yet wired into `bot.ts`.
+// Photo analysis through the Mastra agent. Reached from `bot.ts` and `api/` alike via the
+// `AnalyzePhoto` port (`llm/analyzePort.ts`) — this is the ONLY photo path the app has.
+// Design: `docs/design/2026-07-28-mastra-engine-boundary.md`.
 //
 // THE PROMPT IS REUSED, NOT REWRITTEN. `SYSTEM` and `buildUserText` are imported from
 // `analyzer.ts` verbatim. That text carries the estimation protocol, the deleted round-up hedge,
@@ -77,7 +78,7 @@ export async function analyzeMealViaAgent(
       // reproduced with grounding on and off, on different fixtures each run, so it is the missing
       // forcing and not a tool-loop artefact. The user's meal was simply gone.
       toolChoice: "required",
-    } as never,
+    },
   );
 
   // Find the terminal tool call among the steps. Not `toolResults.at(-1)`: a turn that also called

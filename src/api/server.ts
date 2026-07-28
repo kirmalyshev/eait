@@ -2,7 +2,7 @@
 // represents, and it keeps the bot owning the process: long-polling and graceful stop stay where
 // they are, and the API is one more thing the composition root starts.
 
-import { createRouter, type ResolveUserId } from "./routes.ts";
+import { createRouter, MAX_UPLOAD_BYTES, type ResolveUserId } from "./routes.ts";
 import type { EngineDeps } from "../engine/index.ts";
 
 export interface ApiServer {
@@ -30,6 +30,10 @@ export function startApi(
     // Loopback unless API_HOST says otherwise — see the note on Config.apiHost. Read from config
     // rather than process.env because config.ts is the one place env is loaded.
     hostname: net.apiHost,
+    // The real bound. The router rejects an oversized upload from its Content-Length, but a client
+    // can understate or omit that header — only the server can stop the body from being read.
+    // Headroom over MAX_UPLOAD_BYTES for the multipart envelope around the photo itself.
+    maxRequestBodySize: MAX_UPLOAD_BYTES + 1024 * 1024,
     fetch: handle,
   });
   console.log(`[eait] api listening on ${server.hostname}:${server.port}`);

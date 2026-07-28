@@ -1,11 +1,16 @@
-// Telegram glue. The grammy handlers are thin adapters over the exported `process*` functions,
-// which hold the real logic and are unit-tested without grammy (a fake `send` + temp db + fake
-// provider). Text routing (spec 2026-07-22-free-text-handling-design): command first, then the
-// active-state gate — active users get processText (reply-to-rejection canned > caps > one
-// router call deciding question / meal / correction / redate, with a reply-mapped focus meal as
-// context); non-active users' text belongs to onboarding. Concurrency via @grammyjs/runner +
-// sequentialize(by user); update_id dedupe; images are in-memory only (never written to disk —
-// ephemeral by construction).
+// Telegram glue. The product logic lives in `src/engine/`; the `process*` functions here are
+// ADAPTERS — they resolve Telegram's precedence, call one engine function, and map its result kind
+// onto i18n copy and a card. They are unit-tested without grammy (a fake `send`, a temp db, and
+// stubbed engine ports).
+//
+// Text precedence (spec 2026-07-22-free-text-handling-design): command first, then the
+// active-state gate — active users get processText (armed settings prompt > reply-to-rejection
+// canned reply > the engine's router, with a reply-mapped focus meal resolved to a meal id);
+// non-active users' text belongs to onboarding. Caps are NOT checked here: the engine owns that
+// policy, so the bot and the HTTP API draw from one pool.
+//
+// Concurrency via @grammyjs/runner + sequentialize(by user); update_id dedupe; images are
+// in-memory only (never written to disk — ephemeral by construction).
 
 import { Bot, InlineKeyboard } from "grammy";
 import { run, sequentialize } from "@grammyjs/runner";
@@ -19,29 +24,17 @@ import { createEngineAgent } from "../llm/agent.ts";
 import { modelRouterId } from "../llm/model.ts";
 import { loadFoodIndex } from "../food_db.ts";
 import {
-  openDb, berlinDate, berlinDateMinus, berlinTime, upsertUser, getUser, setConsent, setProfile,
-  recentMealItems,
-  insertMeal, setMealReply, applyCorrection, setMealDate, mealByReply, dailyTotals,
-  logLlmCall, llmCallsToday, llmCallCountToday, mealsOnDate, totalsByDate,
-  insertPendingMeal, setPendingReply, setPendingUserMessage, getPendingMeal, deletePendingMeal, prunePendingMeals,
-  deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang, setReplyFormat, setPendingInput,
-  getSetting, setSetting, clearSetting, hasEvent, logEvent, setAcquisitionSource,
-  type Db, type UserRow,
+  openDb, berlinDate, upsertUser, getUser, setConsent, setProfile, setMealReply, mealByReply,
+  dailyTotals, logLlmCall, llmCallCountToday, setPendingReply, setPendingUserMessage,
+  setMealUserMessage, deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang,
+  setReplyFormat, setPendingInput, setSetting, clearSetting, hasEvent, logEvent,
+  setAcquisitionSource, type Db, type UserRow,
 } from "../db.ts";
 import { loadAllowlist, type Allowlist } from "../allowlist.ts";
 import { AlbumBuffer } from "./albums.ts";
-import type { RouteContext, RouteResult } from "../analyzer.ts";
 import { RejectionLog } from "./rejections.ts";
 import { targetsFor, weightRemainingKg, isRestrictionTag } from "../targets.ts";
-import { checkConsistency } from "../consistency.ts";
-import { buildRepertoire } from "../repertoire.ts";
 
-/**
- * How far back the identification prior looks. A window, not a memory: a food dropped a season
- * ago should stop steering the model, and an unbounded history would also grow this per-photo
- * query without limit.
- */
-const REPERTOIRE_DAYS = 90;
 import { countryLabel } from "../country.ts";
 import { limitationsDisplay } from "../limitations.ts";
 import { formatReply, berlinDayLabel, mealDateLabel } from "../reply.ts";
@@ -165,7 +158,10 @@ function fireReaction(react: React | undefined, emoji: "👀" | "👍", userId: 
 // `profileOf` moved to `engine/profile.ts` — every surface needs it, not just Telegram. Re-exported
 // under its original name so this file's call sites and its tests are unchanged.
 import { profileFromRow, mealRecordToAnalysis } from "../engine/profile.ts";
-import { logPhotoMeal } from "../engine/meals.ts";
+import {
+  logPhotoMeal, confirmPendingMeal, cancelPendingMeal, dropPendingMeal,
+} from "../engine/meals.ts";
+import { CAP_KEY, effectiveGlobalCap } from "../engine/caps.ts";
 import { handleText } from "../engine/text.ts";
 import { startApi, type ApiServer } from "../api/server.ts";
 import type { Refusal } from "../engine/results.ts";
@@ -320,28 +316,10 @@ export function isAllowed(config: Config, userId: number | undefined): boolean {
 }
 
 // ---------- spend cap ----------
-
-/** Key in the settings table holding the admin's runtime override. */
-const CAP_KEY = "global_cap";
-
-/**
- * The cap actually in force: a stored override if the admin set one, else the `.env` value.
- *
- * The override is read per photo rather than cached, so `/cap` takes effect on the very next
- * message with no restart — the whole point, since the moment you need to change a spend cap
- * is while traffic is arriving and you are holding a phone.
- *
- * A stored `"off"` means unlimited, which is deliberately distinct from having no override.
- * Anything unparseable falls back to the configured value rather than to unlimited: a corrupt
- * row must not silently remove the spend bound.
- */
-export async function effectiveGlobalCap(db: Db, config: Config): Promise<number | null> {
-  const raw = await getSetting(db, CAP_KEY);
-  if (raw === null) return config.globalDailyAnalysisCap;
-  if (raw === "off") return null;
-  const n = Number(raw);
-  return Number.isInteger(n) && n >= 0 ? n : config.globalDailyAnalysisCap;
-}
+// The policy itself lives in `engine/caps.ts` — the engine ENFORCES it, so a second copy here
+// would let `/cap`'s readout and the cap actually in force drift apart, and the readout is the
+// only thing the operator sees. Re-exported so existing importers of this module are unchanged.
+export { CAP_KEY, effectiveGlobalCap } from "../engine/caps.ts";
 
 /** `/cap`, `/cap <n>`, `/cap off`, `/cap reset` — admin only. */
 export async function processCap(
@@ -688,8 +666,14 @@ export async function processPhoto(
     return;
   }
 
-  const prof = u ? profileOf(u) : undefined;
-  if (!prof) return; // unreachable: a logged meal implies an active user
+  // A logged meal implies the ENGINE saw an active user, but that is its read, not ours. Narrow on
+  // our own row, and say so if the two ever disagree — silently returning here would leave a stored
+  // meal with no card, no 👍, and nothing in the log to explain it.
+  if (!u) {
+    console.error(`[eait] meal ${result.mealId} stored but user=${from.id} vanished before rendering`);
+    return;
+  }
+  const prof = profileOf(u);
   const totals = result.totals;
   const hint = t(result.hint === "lowConfidence" ? "meal.lowConfidenceHint" : "meal.correctionHint");
   const sent = await sendCard(replyFormatFor(prof, config), send, meta?.sendRich, {
@@ -700,6 +684,11 @@ export async function processPhoto(
   // it, and which of the USER'S messages produced it. Neither is an engine concept.
   if (sent) {
     await setMealReply(db, result.mealId, from.id, sent.chat_id, sent.message_id, meta?.userMessageId);
+  } else if (meta?.userMessageId !== undefined) {
+    // No card on screen, so there is no bot message to map — but the user's own photo must still
+    // point at the meal, or replying to it quietly stops working. Free before the engine
+    // extraction (it was written at insert time); explicit now.
+    await setMealUserMessage(db, result.mealId, from.id, meta.userMessageId);
   }
   // Processed successfully — the 👍 replaces the 👀 on the user's photo.
   fireReaction(meta?.react, "👍", from.id);
@@ -794,27 +783,18 @@ export async function processText(
     return true;
   }
 
-  // 👀 before the cap checks, mirroring the photo path — "seen", not "will analyze".
-  fireReaction(opts?.react, "👀", from.id);
-
-  // Text calls draw from the same LLM-call pool as photo analyses — every provider call is
-  // billed, so every call draws one. A per-call policy, not a token-cost model.
+  // No cap check here: `handleText` draws from the same pool the photo flow does, and a second
+  // copy of the policy in the transport is how the two start disagreeing — it also short-circuited
+  // before the engine could fire `onAccepted`, so a capped user silently lost their 👀.
   const date = berlinDate(new Date(), config.tz);
-  if ((await llmCallsToday(db, from.id, date)) >= config.perUserDailyPhotoCap) {
-    await send(t("errors.dailyCap"));
-    return true;
-  }
-  const cap = await effectiveGlobalCap(db, config);
-  if (cap !== null && (await llmCallCountToday(db, date)) >= cap) {
-    console.warn(`[eait] global daily cap ${cap} reached`);
-    await logEvent(db, from.id, "cap_hit");
-    await send(t("errors.globalCap"));
-    return true;
-  }
 
   const result = await handleText(deps, from.id, {
     text: msg.text,
     ...(focus ? { focusMealId: focus.id } : {}),
+    // 👀 before the cap checks, mirroring the photo path — "seen", not "will analyze". Fired by the
+    // engine rather than inline here, so both flows agree on what "accepted" means instead of two
+    // call sites drifting apart.
+    onAccepted: () => fireReaction(opts?.react, "👀", from.id),
   });
 
   if (result.kind === "answered") {
@@ -934,64 +914,53 @@ export async function processTextMealDecision(
   const m = /^tm:(log|cancel):(.+)$/.exec(data);
   if (!m) return;
   const [, action, id] = m;
-  // User-scoped read: a forwarded/foreign tap sees nothing and gets the neutral "expired".
-  const pending = await getPendingMeal(db, id!, from.id);
-  if (!pending) {
-    await send(t("text.pendingGone"));
-    return;
-  }
-  // The lazy sweep only runs on inserts, so a confirm prompt can outlive the TTL on screen —
-  // honor the TTL at tap time too, or "expired" and the actual lifetime disagree.
-  if (Date.parse(pending.ts) < Date.now() - PENDING_TTL_MS) {
-    await deletePendingMeal(db, id!, from.id);
-    await removeConfirm("expired"); // the stale prompt is what they tapped; clear it
-    await send(t("text.pendingGone"));
-    return;
-  }
+
   if (action === "cancel") {
-    await deletePendingMeal(db, id!, from.id);
-    await removeConfirm("cancel");
-    await send(t("text.cancelled"));
+    const cancelled = await cancelPendingMeal(deps, from.id, id!);
+    await removeConfirm(cancelled.kind);
+    await send(t(cancelled.kind === "cancelled" ? "text.cancelled" : "text.pendingGone"));
     return;
   }
-  // Log: the analysis was already produced (and the LLM call already metered) at router time.
-  // Order matters for crash/send-failure safety: insert (idempotent on id) → send the card →
-  // only then delete the pending row. A failed send leaves the row re-tappable instead of
-  // telling the user "expired" about a meal that WAS logged — the retry converges instead of
-  // manufacturing a duplicate via re-sent text.
-  await insertMeal(db, {
-    id: pending.id, user_id: from.id, ts: pending.ts, date: pending.date,
-    analysis: pending.analysis, model: pending.model,
-    user_message_id: pending.user_message_id,
-  });
-  // No user row: nothing to render a card from (near-impossible for an active tapper who owns a
-  // pending row). Leave the prompt + pending in place rather than orphan the insert with no card.
+
+  const result = await confirmPendingMeal(deps, from.id, id!);
+  if (result.kind === "expired") {
+    // The stale prompt is what they tapped; clear it.
+    await removeConfirm("expired");
+    await send(t("text.pendingGone"));
+    return;
+  }
+  if (result.kind !== "logged") {
+    // A pending row exists but its owner is gone or inactive — near-impossible for someone who just
+    // tapped their own prompt. Nothing to render a card from, so the prompt and the row stay put
+    // rather than orphaning an insert with no card. Logged, because silence here is invisible.
+    console.warn(`[eait] pending ${id} confirmed by a non-active user=${from.id} (${result.kind})`);
+    return;
+  }
+
+  // `logged` implies the engine found an active user, but that is the ENGINE's read, not this
+  // function's — narrow on our own `u` rather than asserting the two agree.
   if (!u) return;
   const prof = profileOf(u);
-  const totals = await dailyTotals(db, from.id, pending.date);
-  // Name the day on the logged card whenever the pending meal was for another date.
+  // Name the day on the logged card whenever the meal was for another date.
   const today = berlinDate(new Date(), deps.config.tz);
-  const dateLabel = mealDateLabel(pending.date, today, prof.lang, deps.config.tz);
+  const dateLabel = mealDateLabel(result.date, today, prof.lang, deps.config.tz);
   const sent = await sendCard(replyFormatFor(prof, deps.config), send, opts?.sendRich, {
-    html: renderMealCard(pending.analysis, totals, targetsFor(prof), t, prof.restrictions, { footer: t("meal.correctionHint"), dateLabel }),
-    plain: formatReply(pending.analysis, totals, targetsFor(prof), t, prof.restrictions, { dateLabel }) + "\n\n" + t("meal.correctionHint"),
+    html: renderMealCard(result.analysis, result.totals, targetsFor(prof), t, prof.restrictions, { footer: t("meal.correctionHint"), dateLabel }),
+    plain: formatReply(result.analysis, result.totals, targetsFor(prof), t, prof.restrictions, { dateLabel }) + "\n\n" + t("meal.correctionHint"),
   });
-  // Both rich AND plain sends failed (makeSendRich swallows the double-failure → undefined). The
-  // meal is logged (insert is idempotent), but the user saw nothing — KEEP the prompt and the
-  // pending row so a re-tap converges, never leaving them with neither the card nor a way to retry.
-  // (Plain mode reaches here only on success; a failed plain send throws before this point.)
+  // Both rich AND plain sends failed (makeSendRich swallows the double failure → undefined). The
+  // meal IS logged (the insert is idempotent), but the user saw nothing — so KEEP the prompt and
+  // the pending row, and a re-tap converges rather than leaving them with neither the card nor a
+  // way to retry. This is exactly why confirm and drop are two engine calls.
   if (!sent) {
-    console.error(`[eait] text meal ${pending.id} logged but card send failed user=${from.id}; keeping prompt+pending for retry`);
+    console.error(`[eait] text meal ${result.mealId} logged but card send failed user=${from.id}; keeping prompt+pending for retry`);
     return;
   }
-  await setMealReply(db, pending.id, from.id, sent.chat_id, sent.message_id);
-  // Tear down the prompt + pending row only now that the card is on screen — card-first so a
-  // send failure above leaves the prompt and its re-tappable row in place, never neither.
+  await setMealReply(db, result.mealId, from.id, sent.chat_id, sent.message_id);
+  // Tear down only now that the card is on screen — card-first, so a send failure above leaves the
+  // prompt and its re-tappable row in place, never neither.
   await removeConfirm("post-log");
-  if (!(await deletePendingMeal(db, id!, from.id))) {
-    // Somebody else's sweep raced us — harmless (the meal is in), but worth a trace.
-    console.warn(`[eait] pending row ${id} vanished before post-log delete user=${from.id}`);
-  }
+  await dropPendingMeal(deps, from.id, id!);
 }
 
 export async function meCard(deps: BotDeps, userId: number): Promise<string | null> {

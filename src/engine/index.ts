@@ -3,9 +3,11 @@
 // case of the other.
 
 export type { EngineDeps, UserId } from "./deps.ts";
-export { logPhotoMeal, type LogPhotoInput } from "./meals.ts";
+export {
+  logPhotoMeal, confirmPendingMeal, cancelPendingMeal, dropPendingMeal, type LogPhotoInput,
+} from "./meals.ts";
 export { handleText, type HandleTextInput, PENDING_TTL_MS } from "./text.ts";
-export { day, week, type DayView } from "./diary.ts";
+export { day, week, MAX_WINDOW_DAYS, type DayView } from "./diary.ts";
 export { profileFromRow, mealRecordToAnalysis } from "./profile.ts";
 export { effectiveGlobalCap, checkCaps, CAP_KEY } from "./caps.ts";
 export type {
