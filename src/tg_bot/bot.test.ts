@@ -17,6 +17,9 @@ import { DEFAULT_LANG, LANGS, translatorFor } from "../i18n/index.ts";
 import { berlinDayLabel } from "../reply.ts";
 import type { Config } from "../config.ts";
 import type { LLMProvider } from "../llm/provider.ts";
+import type { AnalyzePhoto } from "../llm/analyzePort.ts";
+import type { MealContext } from "../types.ts";
+import { analyzeMeal } from "../analyzer.ts";
 
 const cfg: Config = {
   telegramBotToken: "x", openrouterApiKey: "x", llmProvider: "openrouter", llmModel: "test",
@@ -39,6 +42,28 @@ const foodJson = (kcal = 600) =>
   });
 
 const fakeProvider = (out: string): LLMProvider => ({ chat: async () => out });
+
+/**
+ * BotDeps with the photo analyzer defaulted to the SAME provider the test already scripts.
+ *
+ * Photo analysis moved off `provider` onto the `analyzePhoto` port (migration stage 2), but most of
+ * these tests are about what the bot does with an analysis — caps, storage, cards, dates — not about
+ * which engine produced it. Routing the default through `analyzeMeal` keeps `fakeProvider(foodJson(600))`
+ * meaning exactly what it always did at those ~170 call sites, so a test that cares about the photo
+ * flow's plumbing is not rewritten to prove something it never tested.
+ *
+ * A test that cares about the PORT passes `analyzePhoto` explicitly and gets the provider ignored.
+ */
+function botDeps(over: Omit<BotDeps, "analyzePhoto"> & { analyzePhoto?: AnalyzePhoto }): BotDeps {
+  const deps = { ...over } as BotDeps;
+  // Reads `deps.provider` when CALLED, not when built: several tests swap the provider after
+  // construction (`deps.provider = fakeProvider(...)`) to script a different second response, and a
+  // captured reference would silently keep serving the first one.
+  deps.analyzePhoto =
+    over.analyzePhoto ??
+    ((images, profile, context) => analyzeMeal([...images], profile, deps.provider, context));
+  return deps;
+}
 
 /** fakeProvider that also keeps the last request, for asserting what reached the prompt. */
 function recordingProvider(out: string) {
@@ -76,7 +101,7 @@ async function onboardToActive(deps: BotDeps, id: number) {
 
 test("onboarding drives consent → profile → active", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 100);
   const u = (await getUser(db, 100)) as UserRow;
   expect(u.state).toBe("active");
@@ -86,7 +111,7 @@ test("onboarding drives consent → profile → active", async () => {
 
 test("onboarding with a skipped weight still reaches active, weight stored as 0", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await processOnboarding(deps, { id: 101 }, { type: "command", command: "start" }, noop);
   await processOnboarding(deps, { id: 101 }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id: 101 }, { type: "callback", data: "goal_lose" }, noop);
@@ -103,7 +128,7 @@ test("onboarding with a skipped weight still reaches active, weight stored as 0"
 
 test("processPhoto rejects a non-active user (no row written)", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   const { msgs, send } = collector();
   await processPhoto(deps, { id: 1 }, [async () => new Uint8Array([1])], send);
   expect(msgs[0]).toContain("/start");
@@ -112,7 +137,7 @@ test("processPhoto rejects a non-active user (no row written)", async () => {
 
 test("processPhoto (active) inserts a meal, replies with the daily total, sets reply id", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: cfg });
   await onboardToActive(deps, 7);
   const { msgs, send } = collector();
   await processPhoto(deps, { id: 7 }, [async () => new Uint8Array([1])], send);
@@ -123,7 +148,7 @@ test("processPhoto (active) inserts a meal, replies with the daily total, sets r
 
 test("processPhoto enforces the per-user daily cap", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 1 } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 1 } });
   await onboardToActive(deps, 9);
   const c1 = collector();
   await processPhoto(deps, { id: 9 }, [async () => new Uint8Array([1])], c1.send);
@@ -136,7 +161,7 @@ test("processPhoto forwards the caption and Berlin local time into the analysis 
   const db = await freshTestDb();
   let seen = "";
   const provider: LLMProvider = { chat: async (req) => ((seen = req.userText), foodJson()) };
-  const deps: BotDeps = { db, provider, config: cfg };
+  const deps = botDeps({ db, provider, config: cfg });
   await onboardToActive(deps, 11);
   await processPhoto(deps, { id: 11 }, [async () => new Uint8Array([1])], noop, { caption: "борщ со сметаной" });
   expect(seen).toContain("борщ со сметаной");
@@ -147,7 +172,7 @@ test("processPhoto without a caption still injects the local time", async () => 
   const db = await freshTestDb();
   let seen = "";
   const provider: LLMProvider = { chat: async (req) => ((seen = req.userText), foodJson()) };
-  const deps: BotDeps = { db, provider, config: cfg };
+  const deps = botDeps({ db, provider, config: cfg });
   await onboardToActive(deps, 12);
   await processPhoto(deps, { id: 12 }, [async () => new Uint8Array([1])], noop);
   expect(seen).not.toContain("captioned");
@@ -158,7 +183,7 @@ test("processDocument forwards the caption like the photo path does", async () =
   const db = await freshTestDb();
   let seen = "";
   const provider: LLMProvider = { chat: async (req) => ((seen = req.userText), foodJson()) };
-  const deps: BotDeps = { db, provider, config: cfg };
+  const deps = botDeps({ db, provider, config: cfg });
   await onboardToActive(deps, 13);
   await processDocument(
     deps, { id: 13 }, { mime_type: "image/jpeg", file_size: 100 },
@@ -169,7 +194,7 @@ test("processDocument forwards the caption like the photo path does", async () =
 
 test("a correction routed through processText updates the matched meal", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: cfg });
   await onboardToActive(deps, 5);
   const { send } = collector();
   await processPhoto(deps, { id: 5 }, [async () => new Uint8Array([1])], send); // meal reply id = 1
@@ -187,7 +212,7 @@ test("a correction routed through processText updates the matched meal", async (
 
 test("a redate reply moves the focus meal to the offset day, re-files its totals, names the move", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: cfg });
   await onboardToActive(deps, 60);
   const { send } = collector();
   await processPhoto(deps, { id: 60 }, [async () => new Uint8Array([1])], send); // logs today, reply id = 1
@@ -213,7 +238,7 @@ test("a redate reply moves the focus meal to the offset day, re-files its totals
 test("a redate without a focus meal (plain text, no reply) is not treated as a redate", async () => {
   const db = await freshTestDb();
   // No focus meal → the router salvages to a question; the meal is never moved.
-  const deps: BotDeps = { db, provider: fakeProvider(JSON.stringify({ intent: "redate", answer: "reply to the meal you want to move" })), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(JSON.stringify({ intent: "redate", answer: "reply to the meal you want to move" })), config: cfg });
   await onboardToActive(deps, 62);
   const { msgs, send } = collector();
   const handled = await processText(deps, { id: 62 }, { text: "move my beer to yesterday", messageId: 63 }, send);
@@ -233,7 +258,7 @@ function idTrackingSend() {
 test("offset is relative to TODAY, and the moved card stays reply-focusable (multi-step move)", async () => {
   const db = await freshTestDb();
   // High cap: this test spends 3 LLM calls (photo + two moves); the default test cap is 2.
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: { ...cfg, perUserDailyPhotoCap: 50 } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: { ...cfg, perUserDailyPhotoCap: 50 } });
   await onboardToActive(deps, 64);
   const s = idTrackingSend();
   await processPhoto(deps, { id: 64 }, [async () => new Uint8Array([1])], s.send);
@@ -258,7 +283,7 @@ test("offset is relative to TODAY, and the moved card stays reply-focusable (mul
 
 test("a moved meal's card shows the new day's RE-BUCKETED total, not just its own macros", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: cfg });
   await onboardToActive(deps, 65);
   const today = berlinDate(new Date(), cfg.tz);
   const yesterday = berlinDateMinus(today, 1);
@@ -282,7 +307,7 @@ test("a moved meal's card shows the new day's RE-BUCKETED total, not just its ow
 test("redate to today (offset 0) names today on the prefix but uses the plain 'Today:' total", async () => {
   const db = await freshTestDb();
   // 3 LLM calls (photo + two moves); raise above the default test cap of 2.
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: { ...cfg, perUserDailyPhotoCap: 50 } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: { ...cfg, perUserDailyPhotoCap: 50 } });
   await onboardToActive(deps, 66);
   const today = berlinDate(new Date(), cfg.tz);
   const s = idTrackingSend();
@@ -304,7 +329,7 @@ test("redate to today (offset 0) names today on the prefix but uses the plain 'T
 
 test("a rich-preference user's redate card renders rich", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg }; // plain instance
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: cfg }); // plain instance
   await onboardToActive(deps, 67);
   const { setReplyFormat } = await import("../db.ts");
   await setReplyFormat(db, 67, "rich");
@@ -320,7 +345,7 @@ test("a rich-preference user's redate card renders rich", async () => {
 
 test("meCard is null unless active; statsCard counts users+meals", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   expect(await meCard(deps, 1)).toBeNull();
   await onboardToActive(deps, 3);
   expect(await meCard(deps, 3)).toContain(translatorFor(DEFAULT_LANG)("me.goal.lose"));
@@ -385,7 +410,7 @@ test("profileOf warns LOUDLY on off-vocabulary stored values, stays quiet on the
 
 test("first contact seeds the language from Telegram's language_code", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   const { msgs, send } = collector();
   await processOnboarding(deps, { id: 50, language_code: "de-AT" }, { type: "command", command: "start" }, send);
   expect((await getUser(db, 50))?.lang).toBe("de");
@@ -394,7 +419,7 @@ test("first contact seeds the language from Telegram's language_code", async () 
 
 test("an unsupported language_code falls back without breaking onboarding", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   const { msgs, send } = collector();
   await processOnboarding(deps, { id: 51, language_code: "pt-BR" }, { type: "command", command: "start" }, send);
   expect((await getUser(db, 51))?.lang).toBe(DEFAULT_LANG);
@@ -403,7 +428,7 @@ test("an unsupported language_code falls back without breaking onboarding", asyn
 
 test("/lang lists every registered locale", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 60);
   const seen: string[][] = [];
   const send: Send = async (_t, buttons) => {
@@ -416,7 +441,7 @@ test("/lang lists every registered locale", async () => {
 
 test("/lang change switches the user's language and confirms in the NEW one", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 61);
   const { msgs, send } = collector();
   await processLangChoice(deps, { id: 61 }, "lang_de", send);
@@ -426,7 +451,7 @@ test("/lang change switches the user's language and confirms in the NEW one", as
 
 test("/lang ignores an unregistered code instead of storing it", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 62);
   const before = (await getUser(db, 62))?.lang;
   const { send } = collector();
@@ -436,7 +461,7 @@ test("/lang ignores an unregistered code instead of storing it", async () => {
 
 test("a user's language drives every bot-emitted string", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 1 } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 1 } });
   await onboardToActive(deps, 70);
   await processLangChoice(deps, { id: 70 }, "lang_de", noop);
   const tde = translatorFor("de");
@@ -462,7 +487,7 @@ test("a low-confidence analysis swaps the correction hint for a weight nudge", a
   const lowConfidence = JSON.stringify({
     ...JSON.parse(foodJson()), confidence: "low",
   });
-  const deps: BotDeps = { db, provider: fakeProvider(lowConfidence), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(lowConfidence), config: cfg });
   await onboardToActive(deps, 90);
   const { msgs, send } = collector();
   await processPhoto(deps, { id: 90 }, [async () => new Uint8Array([1])], send);
@@ -474,7 +499,7 @@ test("a low-confidence analysis swaps the correction hint for a weight nudge", a
 test("a whitespace-padded 'Low' still triggers the weight nudge", async () => {
   const db = await freshTestDb();
   const padded = JSON.stringify({ ...JSON.parse(foodJson()), confidence: " Low " });
-  const deps: BotDeps = { db, provider: fakeProvider(padded), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(padded), config: cfg });
   await onboardToActive(deps, 91);
   const { msgs, send } = collector();
   await processPhoto(deps, { id: 91 }, [async () => new Uint8Array([1])], send);
@@ -486,7 +511,7 @@ test("a qualified 'low (mixed dish)' still triggers the weight nudge", async () 
   // so the headline lever doesn't silently turn off on a chatty model.
   const db = await freshTestDb();
   const qualified = JSON.stringify({ ...JSON.parse(foodJson()), confidence: "low (mixed dish)" });
-  const deps: BotDeps = { db, provider: fakeProvider(qualified), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(qualified), config: cfg });
   await onboardToActive(deps, 92);
   const { msgs, send } = collector();
   await processPhoto(deps, { id: 92 }, [async () => new Uint8Array([1])], send);
@@ -495,7 +520,7 @@ test("a qualified 'low (mixed dish)' still triggers the weight nudge", async () 
 
 test("/me shows the stored weight, and 'not set' after a skip — misparses stay visible", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 88); // answers weight 92
   expect(await meCard(deps, 88)).toContain("92");
   const t = translatorFor(DEFAULT_LANG);
@@ -511,7 +536,7 @@ test("/me shows the stored weight, and 'not set' after a skip — misparses stay
 
 test("/me renders all three food fields, each on its own line with the right label→value pairing", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   const t = translatorFor(DEFAULT_LANG);
   await onboardToActive(deps, 92);
   // Distinct values so a mis-wire (a line interpolating the wrong column) is caught.
@@ -533,7 +558,7 @@ test("/me renders all three food fields, each on its own line with the right lab
 
 test("onboarding stores a typed target weight and a picked country, then reaches active", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await processOnboarding(deps, { id: 90 }, { type: "command", command: "start" }, noop);
   await processOnboarding(deps, { id: 90 }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id: 90 }, { type: "callback", data: "goal_lose" }, noop);
@@ -558,7 +583,7 @@ const flush = () => new Promise((r) => setTimeout(r, 0));
 test("a capped user still gets the 👀 — the bot saw the photo even when it refuses", async () => {
   // Deliberate: ack = "seen", not "will analyze". Pinned so a refactor can't flip it silently.
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 1 } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 1 } });
   await onboardToActive(deps, 87);
   await processPhoto(deps, { id: 87 }, [async () => new Uint8Array([1])], noop);
   const r = reactionLog();
@@ -572,7 +597,7 @@ test("a capped user still gets the 👀 — the bot saw the photo even when it r
 test("the stored weight drives the protein target on both user-visible surfaces", async () => {
   // onboardToActive answers weight 92 → target round(92 × 1.6) = 147, not the flat 100.
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 98);
   expect(await meCard(deps, 98)).toContain("147");
   const { msgs, send } = collector();
@@ -584,7 +609,7 @@ test("the stored weight drives the protein target on both user-visible surfaces"
 test("weight-step text never reaches the LLM restriction classifier", async () => {
   const db = await freshTestDb();
   const { p, calls } = countingProvider(JSON.stringify({ tags: ["vegan"] }));
-  const deps: BotDeps = { db, provider: p, config: cfg };
+  const deps = botDeps({ db, provider: p, config: cfg });
   await processOnboarding(deps, { id: 99 }, { type: "command", command: "start" }, noop);
   await processOnboarding(deps, { id: 99 }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id: 99 }, { type: "callback", data: "goal_lose" }, noop);
@@ -597,7 +622,7 @@ test("photo lifecycle reactions: 👀 before the vision call, 👍 after success
   const db = await freshTestDb();
   const order: string[] = [];
   const provider: LLMProvider = { chat: async () => (order.push("chat"), foodJson()) };
-  const deps: BotDeps = { db, provider, config: cfg };
+  const deps = botDeps({ db, provider, config: cfg });
   await onboardToActive(deps, 95);
   await processPhoto(deps, { id: 95 }, [async () => new Uint8Array([1])], noop, {
     react: async (e: string) => { order.push(e); },
@@ -608,7 +633,7 @@ test("photo lifecycle reactions: 👀 before the vision call, 👍 after success
 
 test("no 👍 when the analysis fails or the photo is not food", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: { chat: async () => "not json" }, config: cfg };
+  const deps = botDeps({ db, provider: { chat: async () => "not json" }, config: cfg });
   await onboardToActive(deps, 94);
   const r1 = reactionLog();
   await processPhoto(deps, { id: 94 }, [async () => new Uint8Array([1])], noop, { react: r1.react });
@@ -624,7 +649,7 @@ test("no 👍 when the analysis fails or the photo is not food", async () => {
 
 test("a correction reply gets 👀 on receipt and 👍 when the update lands", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: cfg });
   await onboardToActive(deps, 93);
   const { send } = collector(); // meal reply gets message_id 1
   await processPhoto(deps, { id: 93 }, [async () => new Uint8Array([1])], send);
@@ -638,7 +663,7 @@ test("a correction reply gets 👀 on receipt and 👍 when the update lands", a
 
 test("a failed correction keeps the 👀 but never earns the 👍", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: cfg });
   await onboardToActive(deps, 92);
   const { send } = collector();
   await processPhoto(deps, { id: 92 }, [async () => new Uint8Array([1])], send);
@@ -652,7 +677,7 @@ test("a failed correction keeps the 👀 but never earns the 👍", async () => 
 
 test("a reply that matches no meal still routes (router without focus) — but a non-active user gets no reaction", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("nothing on that")), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("nothing on that")), config: cfg });
   await onboardToActive(deps, 91);
   const r = reactionLog();
   const { msgs, send } = collector();
@@ -672,7 +697,7 @@ test("a reply that matches no meal still routes (router without focus) — but a
 test("a non-onboarded sender gets no reactions — the 👀 must not precede a refusal", async () => {
   const db = await freshTestDb();
   const r = reactionLog();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   const { msgs, send } = collector();
   await processPhoto(deps, { id: 401 }, [async () => new Uint8Array([1])], send, { react: r.react });
   await flush();
@@ -682,7 +707,7 @@ test("a non-onboarded sender gets no reactions — the 👀 must not precede a r
 
 test("a SYNCHRONOUSLY throwing react neither blocks the analysis nor crashes", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 402);
   const { msgs, send } = collector();
   await processPhoto(deps, { id: 402 }, [async () => new Uint8Array([1])], send, {
@@ -694,7 +719,7 @@ test("a SYNCHRONOUSLY throwing react neither blocks the analysis nor crashes", a
 
 test("a rejected document (wrong mime) gets no reactions; an accepted one gets 👀 then 👍", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 403);
   const r = reactionLog();
   await processDocument(deps, { id: 403 }, { mime_type: "application/pdf" }, async () => new Uint8Array([1]), noop, { react: r.react });
@@ -707,7 +732,7 @@ test("a rejected document (wrong mime) gets no reactions; an accepted one gets �
 
 test("a failing react never blocks the analysis or the meal insert", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 96);
   const { msgs, send } = collector();
   await processPhoto(deps, { id: 96 }, [async () => new Uint8Array([1])], send, {
@@ -720,7 +745,7 @@ test("a failing react never blocks the analysis or the meal insert", async () =>
 test("processDocument forwards the react thunk to the photo path", async () => {
   const db = await freshTestDb();
   const r = reactionLog();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 97);
   await processDocument(
     deps, { id: 97 },
@@ -735,7 +760,7 @@ test("processDocument forwards the react thunk to the photo path", async () => {
 
 test("medium and high confidence get the generic hint, never the weight nudge", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 93);
   const t = translatorFor(DEFAULT_LANG);
   for (const confidence of ["medium", "high"]) {
@@ -752,7 +777,7 @@ test("a correction reply carries no hint — neither the generic nor the weight 
   // that decision on the record so a shared-helper refactor can't silently change it.
   const db = await freshTestDb();
   const low = JSON.stringify({ ...JSON.parse(foodJson()), confidence: "low" });
-  const deps: BotDeps = { db, provider: fakeProvider(low), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(low), config: cfg });
   await onboardToActive(deps, 94);
   const photo = collector();
   await processPhoto(deps, { id: 94 }, [async () => new Uint8Array([1])], photo.send);
@@ -768,7 +793,7 @@ test("a correction reply carries no hint — neither the generic nor the weight 
 
 test("analysis failure is reported in the user's language and writes no row", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: { chat: async () => "not json" }, config: cfg };
+  const deps = botDeps({ db, provider: { chat: async () => "not json" }, config: cfg });
   await onboardToActive(deps, 80);
   await processLangChoice(deps, { id: 80 }, "lang_de", noop);
   const { msgs, send } = collector();
@@ -779,7 +804,7 @@ test("analysis failure is reported in the user's language and writes no row", as
 
 test("meCard and statsCard render in the user's language, with correct plurals", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 90);
   await processLangChoice(deps, { id: 90 }, "lang_de", noop);
   const card = (await meCard(deps, 90)) as string;
@@ -795,7 +820,7 @@ test("meCard and statsCard render in the user's language, with correct plurals",
 
 test("no locale leaks a raw key through any bot card", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 95);
   for (const lang of LANGS) {
     await processLangChoice(deps, { id: 95 }, `lang_${lang}`, noop);
@@ -824,7 +849,7 @@ async function toRestrictionsStep(deps: BotDeps, id: number, language_code?: str
 test("a keyword match short-circuits — the classifier is never consulted", async () => {
   const db = await freshTestDb();
   const { p, calls } = countingProvider(JSON.stringify({ tags: ["vegan"] }));
-  const deps: BotDeps = { db, provider: p, config: cfg };
+  const deps = botDeps({ db, provider: p, config: cfg });
   await toRestrictionsStep(deps, 200);
   await processOnboarding(deps, { id: 200 }, { type: "text", text: "почки" }, noop);
   expect((await getUser(db, 200))?.restrictions).toEqual(["kidneys"]);
@@ -834,7 +859,7 @@ test("a keyword match short-circuits — the classifier is never consulted", asy
 test("a keyword miss falls back to the classifier — German text still yields tags", async () => {
   const db = await freshTestDb();
   const { p, calls } = countingProvider(JSON.stringify({ tags: ["kidneys", "lowsugar"] }));
-  const deps: BotDeps = { db, provider: p, config: cfg };
+  const deps = botDeps({ db, provider: p, config: cfg });
   await toRestrictionsStep(deps, 201, "de");
   await processOnboarding(deps, { id: 201 }, { type: "text", text: "Nieren, kein Zucker" }, noop);
   expect((await getUser(db, 201))?.restrictions).toEqual(["kidneys", "lowsugar"]);
@@ -847,7 +872,7 @@ test("the classifier fallback does not clobber the medical_limitations captured 
   // Keyword miss → the classifier runs and rewrites patch.restrictions. patch.limitations was
   // set by the pure step() from the SAME raw text and must survive that rewrite untouched.
   const { p, calls } = countingProvider(JSON.stringify({ tags: ["kidneys"] }));
-  const deps: BotDeps = { db, provider: p, config: cfg };
+  const deps = botDeps({ db, provider: p, config: cfg });
   await toRestrictionsStep(deps, 210, "de");
   await processOnboarding(deps, { id: 210 }, { type: "text", text: "Nieren, keine Erdnüsse" }, noop);
   expect(calls()).toBe(1);
@@ -858,7 +883,7 @@ test("the classifier fallback does not clobber the medical_limitations captured 
 
 test("onboarding persists the '' medical_limitations sentinel on skip (not undefined, not null)", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await toRestrictionsStep(deps, 211);
   await processOnboarding(deps, { id: 211 }, { type: "callback", data: "restrictions_skip" }, noop);
   // A truthiness guard in applyOnboarding would leave this NULL — the regression this pins.
@@ -867,7 +892,7 @@ test("onboarding persists the '' medical_limitations sentinel on skip (not undef
 
 test("a keyword-matched restrictions answer stores the raw words too", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await toRestrictionsStep(deps, 212);
   await processOnboarding(deps, { id: 212 }, { type: "text", text: "почки, без арахиса" }, noop);
   const u = (await getUser(db, 212))!;
@@ -877,7 +902,7 @@ test("a keyword-matched restrictions answer stores the raw words too", async () 
 
 test("a classifier failure leaves restrictions empty but still completes onboarding — and keeps the limitations", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: { chat: async () => { throw new Error("down"); } }, config: cfg };
+  const deps = botDeps({ db, provider: { chat: async () => { throw new Error("down"); } }, config: cfg });
   await toRestrictionsStep(deps, 202, "de");
   const { msgs, send } = collector();
   await processOnboarding(deps, { id: 202 }, { type: "text", text: "Nieren" }, send);
@@ -912,7 +937,7 @@ test("applyOnboarding persists a transition in a SINGLE setProfile UPDATE (atomi
 test("the classifier is not consulted for non-restriction steps", async () => {
   const db = await freshTestDb();
   const { p, calls } = countingProvider(JSON.stringify({ tags: ["vegan"] }));
-  const deps: BotDeps = { db, provider: p, config: cfg };
+  const deps = botDeps({ db, provider: p, config: cfg });
   // text typed during consent is a nudge, not a restriction declaration
   await processOnboarding(deps, { id: 203 }, { type: "command", command: "start" }, noop);
   await processOnboarding(deps, { id: 203 }, { type: "text", text: "hello there" }, noop);
@@ -922,7 +947,7 @@ test("the classifier is not consulted for non-restriction steps", async () => {
 test("skipping restrictions never consults the classifier", async () => {
   const db = await freshTestDb();
   const { p, calls } = countingProvider(JSON.stringify({ tags: ["vegan"] }));
-  const deps: BotDeps = { db, provider: p, config: cfg };
+  const deps = botDeps({ db, provider: p, config: cfg });
   await toRestrictionsStep(deps, 204);
   await processOnboarding(deps, { id: 204 }, { type: "callback", data: "restrictions_skip" }, noop);
   expect((await getUser(db, 204))?.restrictions).toEqual([]);
@@ -931,7 +956,7 @@ test("skipping restrictions never consults the classifier", async () => {
 
 test("/me renders restriction tags as localized names, not raw identifiers", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await processOnboarding(deps, { id: 300, language_code: "de" }, { type: "command", command: "start" }, noop);
   await processOnboarding(deps, { id: 300 }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id: 300 }, { type: "callback", data: "goal_lose" }, noop);
@@ -949,7 +974,7 @@ test("/me renders restriction tags as localized names, not raw identifiers", asy
 
 test("an unknown stored tag degrades to itself rather than throwing", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 301);
   // a tag written by an older build that the catalog has no name for
   await db`UPDATE users SET restrictions = ${'["gluten"]'} WHERE telegram_id = ${301}`;
@@ -983,7 +1008,7 @@ test("buildCommands lists the menu commands, localized, with no blanks", () => {
 
 test("/settings is refused until onboarding is finished", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   const { msgs, send } = collector();
   await processSettingsOpen(deps, { id: 400 }, send);
   expect(msgs[0]).toBe(translatorFor(DEFAULT_LANG)("errors.notOnboarded"));
@@ -991,7 +1016,7 @@ test("/settings is refused until onboarding is finished", async () => {
 
 test("/settings opens the root view with every section", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 401);
   const seen: string[][] = [];
   const send: Send = async (_t, buttons) => {
@@ -1004,7 +1029,7 @@ test("/settings opens the root view with every section", async () => {
 
 test("choosing a goal persists it and edits the message in place", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 402); // onboards as 'lose'
   const { edits, edit, last } = editor();
   await processSettingsCallback(deps, { id: 402 }, "st:goal:maintain", edit);
@@ -1018,7 +1043,7 @@ test("a typed food field persists and reaches the NEXT analyzer prompt", async (
   // The provider records the last request, so we can assert the prompt actually carries it —
   // persisting is only half the feature; the point is that the model sees it.
   const provider = recordingProvider(foodJson());
-  const deps: BotDeps = { db, provider, config: cfg };
+  const deps = botDeps({ db, provider, config: cfg });
   await onboardToActive(deps, 420);
   const { edit } = editor();
   await processSettingsCallback(deps, { id: 420 }, "st:allergies", edit);
@@ -1036,7 +1061,7 @@ test("a typed food field persists and reaches the NEXT analyzer prompt", async (
 test("clearing a food field stores the '' sentinel and drops it from the prompt", async () => {
   const db = await freshTestDb();
   const provider = recordingProvider(foodJson());
-  const deps: BotDeps = { db, provider, config: cfg };
+  const deps = botDeps({ db, provider, config: cfg });
   await onboardToActive(deps, 421);
   const { edit } = editor();
   await processSettingsCallback(deps, { id: 421 }, "st:allergies", edit);
@@ -1050,7 +1075,7 @@ test("clearing a food field stores the '' sentinel and drops it from the prompt"
 
 test("a full multi-level walk root → food group → field → back → group works at the bot layer", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 425);
   const { edit, last } = editor();
   await processSettingsCallback(deps, { id: 425 }, "st:g:food", edit); // root → food group
@@ -1064,7 +1089,7 @@ test("a full multi-level walk root → food group → field → back → group w
 
 test("tapping another settings button cancels a half-armed food-field prompt", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 422);
   const { edit } = editor();
   await processSettingsCallback(deps, { id: 422 }, "st:medical", edit);
@@ -1075,7 +1100,7 @@ test("tapping another settings button cancels a half-armed food-field prompt", a
 
 test("toggling a restriction twice persists on and then off, with no new messages", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 403);
   const { edits, edit } = editor();
   await processSettingsCallback(deps, { id: 403 }, "st:restr:kidneys", edit);
@@ -1087,7 +1112,7 @@ test("toggling a restriction twice persists on and then off, with no new message
 
 test("a restriction toggled in settings reaches the analyzer prompt and the targets", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 404);
   const { edit } = editor();
   await processSettingsCallback(deps, { id: 404 }, "st:restr:kidneys", edit);
@@ -1099,7 +1124,7 @@ test("a restriction toggled in settings reaches the analyzer prompt and the targ
 
 test("changing the language from settings re-renders the root in the new language", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 405);
   const { edit, last } = editor();
   await processSettingsCallback(deps, { id: 405 }, "st:lang:de", edit);
@@ -1109,7 +1134,7 @@ test("changing the language from settings re-renders the root in the new languag
 
 test("settings callbacks from a non-active user change nothing", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await processOnboarding(deps, { id: 406 }, { type: "command", command: "start" }, noop);
   const { edits, edit } = editor();
   await processSettingsCallback(deps, { id: 406 }, "st:goal:gain", edit);
@@ -1119,7 +1144,7 @@ test("settings callbacks from a non-active user change nothing", async () => {
 
 test("choosing a reply format in settings persists it per user", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 408);
   const { edit, last } = editor();
   await processSettingsCallback(deps, { id: 408 }, "st:format:rich", edit);
@@ -1132,13 +1157,13 @@ test("choosing the format that MATCHES the instance default still stores it (pin
   const db = await freshTestDb();
   // Plain instance, user taps plain: a naive "skip write if == default" would leave NULL and let
   // the user silently follow a future REPLY_FORMAT flip. The docstring promises the choice pins.
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg }; // plain
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg }); // plain
   await onboardToActive(deps, 418);
   const { edit } = editor();
   await processSettingsCallback(deps, { id: 418 }, "st:format:plain", edit);
   expect((await getUser(db, 418))?.reply_format).toBe("plain"); // stored, not NULL
   // and it holds against a later instance flip to rich:
-  const rich: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: { ...cfg, replyFormat: "rich" } };
+  const rich = botDeps({ db, provider: fakeProvider(foodJson(600)), config: { ...cfg, replyFormat: "rich" } });
   let richCalls = 0;
   const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 88 });
   const { msgs, send } = collector();
@@ -1152,7 +1177,7 @@ test("the settings root shows the INSTANCE default format when the user never ch
   // PLAIN instance deliberately: a rich instance could never distinguish real resolution
   // (settingsProfile) from a hard-coded default. Plain is the only config that proves the
   // instance default actually flows through to the Style line.
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg }; // cfg is plain
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg }); // cfg is plain
   await onboardToActive(deps, 409); // reply_format NULL
   const texts: string[] = [];
   const send: Send = async (t) => { texts.push(t); return { chat_id: 1, message_id: 1 }; };
@@ -1162,7 +1187,7 @@ test("the settings root shows the INSTANCE default format when the user never ch
 
 test("a settings CALLBACK re-render also resolves the instance default (st:root, plain instance)", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg }; // plain instance
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg }); // plain instance
   await onboardToActive(deps, 415); // reply_format NULL
   const { edit, last } = editor();
   await processSettingsCallback(deps, { id: 415 }, "st:root", edit);
@@ -1178,7 +1203,7 @@ async function sendText(deps: BotDeps, id: number, text: string, send: Send = no
 
 test("tapping Weight arms the prompt; the next text sets the weight and clears pending", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 420); // weight 92
   const { edit } = editor();
   await processSettingsCallback(deps, { id: 420 }, "st:weight", edit);
@@ -1196,7 +1221,7 @@ test("tapping Weight arms the prompt; the next text sets the weight and clears p
 test("an armed weight prompt draws no LLM call and never routes to the analyzer", async () => {
   const db = await freshTestDb();
   const { p, calls } = countingProvider(foodJson());
-  const deps: BotDeps = { db, provider: p, config: cfg };
+  const deps = botDeps({ db, provider: p, config: cfg });
   await onboardToActive(deps, 421);
   await processSettingsCallback(deps, { id: 421 }, "st:weight", editor().edit);
   await sendText(deps, 421, "80");
@@ -1206,7 +1231,7 @@ test("an armed weight prompt draws no LLM call and never routes to the analyzer"
 
 test("an invalid weight input re-prompts and keeps the prompt armed", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 422);
   await processSettingsCallback(deps, { id: 422 }, "st:weight", editor().edit);
   const { msgs, send } = collector();
@@ -1217,7 +1242,7 @@ test("an invalid weight input re-prompts and keeps the prompt armed", async () =
 
 test("target-weight and 'Other' country prompts capture the next text", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 423);
   await processSettingsCallback(deps, { id: 423 }, "st:targetw", editor().edit);
   await sendText(deps, 423, "85");
@@ -1233,7 +1258,7 @@ test("target-weight and 'Other' country prompts capture the next text", async ()
 
 test("picking a curated country patches it with no text step", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 424);
   await processSettingsCallback(deps, { id: 424 }, "st:country:de", editor().edit);
   expect((await getUser(db, 424))?.country).toBe("de");
@@ -1242,7 +1267,7 @@ test("picking a curated country patches it with no text step", async () => {
 
 test("tapping another settings button cancels an armed prompt", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 425);
   await processSettingsCallback(deps, { id: 425 }, "st:weight", editor().edit);
   expect((await getUser(db, 425))?.pending_input).toBe("weight");
@@ -1253,7 +1278,7 @@ test("tapping another settings button cancels an armed prompt", async () => {
 
 test("reopening /settings clears a stale armed prompt", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 426);
   await processSettingsCallback(deps, { id: 426 }, "st:weight", editor().edit);
   await processSettingsOpen(deps, { id: 426 }, noop);
@@ -1262,7 +1287,7 @@ test("reopening /settings clears a stale armed prompt", async () => {
 
 test("/me shows target weight, country, and a progress line toward the target", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 430); // goal lose, weight 92, target/country skipped
   await processSettingsCallback(deps, { id: 430 }, "st:targetw", editor().edit);
   await sendText(deps, 430, "85"); // target weight
@@ -1277,7 +1302,7 @@ test("/me shows target weight, country, and a progress line toward the target", 
 
 test("/me shows 'not set' for target and country when the user skipped them, with no progress line", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 431); // target + country skipped by the helper
   const card = (await meCard(deps, 431)) as string;
   const t = translatorFor(DEFAULT_LANG);
@@ -1288,7 +1313,7 @@ test("/me shows 'not set' for target and country when the user skipped them, wit
 
 test("a reply to a MEAL is exempt from an armed prompt, but a reply to the prompt still sets the field", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(JSON.stringify({ intent: "question", answer: "ok" })), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(JSON.stringify({ intent: "question", answer: "ok" })), config: cfg });
   const { insertMeal } = await import("../db.ts");
   await onboardToActive(deps, 440); // weight 92
   await insertMeal(db, {
@@ -1313,7 +1338,7 @@ test("a reply to a MEAL is exempt from an armed prompt, but a reply to the promp
 
 test("a slash command is NOT consumed by an armed weight prompt", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(JSON.stringify({ intent: "question", answer: "ok" })), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(JSON.stringify({ intent: "question", answer: "ok" })), config: cfg });
   await onboardToActive(deps, 441);
   await processSettingsCallback(deps, { id: 441 }, "st:weight", editor().edit);
   await processText(deps, { id: 441 }, { text: "/me", messageId: 2 }, noop);
@@ -1324,7 +1349,7 @@ test("a slash command is NOT consumed by an armed weight prompt", async () => {
 
 test("a photo sent while a weight prompt is armed is still logged as a meal", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 427);
   await processSettingsCallback(deps, { id: 427 }, "st:weight", editor().edit);
   const { send } = collector();
@@ -1335,7 +1360,7 @@ test("a photo sent while a weight prompt is armed is still logged as a meal", as
 
 test("a user's plain preference beats a rich instance at the meal card", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: { ...cfg, replyFormat: "rich" } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: { ...cfg, replyFormat: "rich" } });
   await onboardToActive(deps, 410);
   await setReplyFormat(db, 410, "plain");
   let richCalls = 0;
@@ -1348,7 +1373,7 @@ test("a user's plain preference beats a rich instance at the meal card", async (
 
 test("a user's rich preference beats a plain instance at the meal card", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg }; // cfg is plain
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: cfg }); // cfg is plain
   await onboardToActive(deps, 411);
   await setReplyFormat(db, 411, "rich");
   let richCalls = 0;
@@ -1361,7 +1386,7 @@ test("a user's rich preference beats a plain instance at the meal card", async (
 
 test("a junk stored reply_format falls back to the instance default", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: { ...cfg, replyFormat: "rich" } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: { ...cfg, replyFormat: "rich" } });
   await onboardToActive(deps, 412);
   await db`UPDATE users SET reply_format = 'markdown' WHERE telegram_id = 412`; // hand-edited or renamed-format row — never writable through the app
   let richCalls = 0;
@@ -1374,7 +1399,7 @@ test("a junk stored reply_format falls back to the instance default", async () =
 test("a user's plain preference beats a rich instance at the correction card", async () => {
   const db = await freshTestDb();
   const outs = [foodJson(600)];
-  const deps: BotDeps = { db, provider: { chat: async () => outs.shift() ?? corrIntentJson(900) }, config: { ...cfg, replyFormat: "rich" } };
+  const deps = botDeps({ db, provider: { chat: async () => outs.shift() ?? corrIntentJson(900) }, config: { ...cfg, replyFormat: "rich" } });
   await onboardToActive(deps, 413);
   await setReplyFormat(db, 413, "plain");
   let richCalls = 0;
@@ -1389,7 +1414,7 @@ test("a user's plain preference beats a rich instance at the correction card", a
 
 test("a user's rich preference renders the tm:log card rich and wires the reply id", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(mealIntentJson(450)), config: cfg }; // plain instance
+  const deps = botDeps({ db, provider: fakeProvider(mealIntentJson(450)), config: cfg }); // plain instance
   await onboardToActive(deps, 414);
   await setReplyFormat(db, 414, "rich");
   const { id } = await seedPending(db, 414);
@@ -1404,7 +1429,7 @@ test("a user's rich preference renders the tm:log card rich and wires the reply 
 
 test("an album flush carries the user's rich preference through to the card", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(300)), config: cfg }; // plain instance
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(300)), config: cfg }); // plain instance
   await onboardToActive(deps, 416);
   await setReplyFormat(db, 416, "rich");
   let richCalls = 0;
@@ -1422,7 +1447,7 @@ test("an album flush carries the user's rich preference through to the card", as
 
 test("Q&A answers stay plain even for a rich-preference user", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("only text")), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("only text")), config: cfg });
   await onboardToActive(deps, 417);
   await setReplyFormat(db, 417, "rich");
   let richCalls = 0;
@@ -1435,7 +1460,7 @@ test("Q&A answers stay plain even for a rich-preference user", async () => {
 
 test("/help works before onboarding, in the language of the Telegram client", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   const body = await helpText(deps, { id: 407, language_code: "de" });
   expect(body).toBe(translatorFor("de")("help.body"));
   expect(body).toContain("/settings"); // command list is part of it
@@ -1443,7 +1468,7 @@ test("/help works before onboarding, in the language of the Telegram client", as
 
 test("/help follows a stored language over the client's", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 408);
   await processLangChoice(deps, { id: 408 }, "lang_ru", noop);
   expect(await helpText(deps, { id: 408, language_code: "de" })).toBe(translatorFor("ru")("help.body"));
@@ -1510,7 +1535,7 @@ test("an unidentifiable sender is never admitted when an allowlist exists", () =
 test("the global cap blocks analysis once the day's total is reached, across users", async () => {
   const db = await freshTestDb();
   // per-user cap high, global cap low: proves the global one is what bites
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: 2 } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: 2 } });
   await onboardToActive(deps, 1);
   await onboardToActive(deps, 2);
   await onboardToActive(deps, 3);
@@ -1531,7 +1556,7 @@ test("the global cap is checked BEFORE the model is called, so it actually saves
   const db = await freshTestDb();
   let calls = 0;
   const counting: LLMProvider = { chat: async () => { calls++; return foodJson(); } };
-  const deps: BotDeps = { db, provider: counting, config: { ...cfg, globalDailyAnalysisCap: 0 } };
+  const deps = botDeps({ db, provider: counting, config: { ...cfg, globalDailyAnalysisCap: 0 } });
   await onboardToActive(deps, 1);
   await processPhoto(deps, { id: 1 }, [async () => new Uint8Array([1])], noop);
   expect(calls).toBe(0); // a cap that fires after the call would be decorative
@@ -1539,7 +1564,7 @@ test("the global cap is checked BEFORE the model is called, so it actually saves
 
 test("no global cap configured means unlimited", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: null } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: null } });
   await onboardToActive(deps, 1);
   for (let i = 0; i < 5; i++) await processPhoto(deps, { id: 1 }, [async () => new Uint8Array([1])], noop);
   expect(await mealCountToday(db, berlinDate(new Date(), cfg.tz))).toBe(5);
@@ -1557,7 +1582,7 @@ test("the cap message points at self-hosting rather than just refusing", () => {
 
 test("createBot builds without a live token, given botInfo and an API transformer", async () => {
   const db = await freshTestDb();
-  const bot = createBot({ db, provider: fakeProvider("{}"), config: cfg });
+  const bot = createBot(botDeps({ db, provider: fakeProvider("{}"), config: cfg }));
   // botInfo + a transformer are what let grammy skip getMe and never reach the network.
   bot.botInfo = {
     id: 1, is_bot: true, first_name: "eait", username: "eait_bot",
@@ -1577,7 +1602,7 @@ test("createBot builds without a live token, given botInfo and an API transforme
 
 test("a failing answerCallbackQuery does not abort the tap — the setting still persists", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider("{}"), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider("{}"), config: cfg });
   await onboardToActive(deps, 505);
   const bot = createBot(deps);
   bot.botInfo = {
@@ -1611,7 +1636,7 @@ test("a failing answerCallbackQuery does not abort the tap — the setting still
 
 test("a tm:log tap through createBot fires ctx.deleteMessage (the prompt-delete wiring is connected)", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("unused")), config: cfg });
   await onboardToActive(deps, 856);
   const { id } = await seedPending(db, 856);
   const bot = createBot(deps);
@@ -1643,7 +1668,7 @@ test("a tm:log tap through createBot fires ctx.deleteMessage (the prompt-delete 
 
 test("statsCard renders for an admin with no user row", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider("{}"), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider("{}"), config: cfg });
   // The handler previously did profileOf(getUser(db, id)!) — undefined for an admin who never
   // sent /start, which threw inside the handler and left them with no reply at all.
   expect(await statsCard(deps, DEFAULT_LANG)).toBeTruthy();
@@ -1680,7 +1705,7 @@ test("startBot validates the provider before it connects anywhere", async () => 
 
 test("an image document is analyzed exactly like a photo", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: cfg });
   await onboardToActive(deps, 500);
   const { msgs, send } = collector();
   await processDocument(
@@ -1698,10 +1723,10 @@ test("an image document is analyzed exactly like a photo", async () => {
 test("a non-image document is refused, and never reaches the model", async () => {
   const db = await freshTestDb();
   let called = false;
-  const deps: BotDeps = {
+  const deps = botDeps({
     db, config: cfg,
     provider: { chat: async () => { called = true; return foodJson(); } },
-  };
+  });
   await onboardToActive(deps, 501);
   const { msgs, send } = collector();
   await processDocument(
@@ -1717,7 +1742,7 @@ test("a non-image document is refused, and never reaches the model", async () =>
 
 test("a document too large for the Bot API is refused before download", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 502);
   const { msgs, send } = collector();
   let downloaded = false;
@@ -1733,7 +1758,7 @@ test("a document too large for the Bot API is refused before download", async ()
 
 test("a document with no declared mime type is refused rather than guessed", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 503);
   const { msgs, send } = collector();
   await processDocument(deps, { id: 503 }, {}, async () => new Uint8Array([1]), send);
@@ -1742,7 +1767,7 @@ test("a document with no declared mime type is refused rather than guessed", asy
 
 test("an image document still respects the daily cap", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 1 } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 1 } });
   await onboardToActive(deps, 504);
   const doc = { mime_type: "image/jpeg", file_size: 10 };
   await processDocument(deps, { id: 504 }, doc, async () => new Uint8Array([1]), collector().send);
@@ -1776,7 +1801,7 @@ test("a corrupt stored override falls back to env rather than disabling the cap"
 
 test("/cap with no argument reports the current cap and today's usage", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, globalDailyAnalysisCap: 500, adminUserId: 42 } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: { ...cfg, globalDailyAnalysisCap: 500, adminUserId: 42 } });
   await onboardToActive(deps, 42);
   await processPhoto(deps, { id: 42 }, [async () => new Uint8Array([1])], noop);
   const { msgs, send } = collector();
@@ -1787,7 +1812,7 @@ test("/cap with no argument reports the current cap and today's usage", async ()
 
 test("/cap <n> takes effect immediately, with no restart", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: 500, adminUserId: 42 } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: 500, adminUserId: 42 } });
   await onboardToActive(deps, 42);
   await processCap(deps, { id: 42 }, "1", noop);
   expect(await effectiveGlobalCap(db, deps.config)).toBe(1);
@@ -1800,7 +1825,7 @@ test("/cap <n> takes effect immediately, with no restart", async () => {
 
 test("/cap off removes the limit; /cap reset returns to the .env value", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, globalDailyAnalysisCap: 500, adminUserId: 42 } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: { ...cfg, globalDailyAnalysisCap: 500, adminUserId: 42 } });
   await onboardToActive(deps, 42);
   await processCap(deps, { id: 42 }, "off", noop);
   expect(await effectiveGlobalCap(db, deps.config)).toBeNull();
@@ -1810,7 +1835,7 @@ test("/cap off removes the limit; /cap reset returns to the .env value", async (
 
 test("/cap rejects junk instead of storing it", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, globalDailyAnalysisCap: 500, adminUserId: 42 } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: { ...cfg, globalDailyAnalysisCap: 500, adminUserId: 42 } });
   await onboardToActive(deps, 42);
   for (const bad of ["abc", "-5", "1.5", "99999999999999999999"]) {
     const c = collector();
@@ -1822,7 +1847,7 @@ test("/cap rejects junk instead of storing it", async () => {
 
 test("/cap is admin-only — a non-admin changes nothing", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, globalDailyAnalysisCap: 500, adminUserId: 42 } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: { ...cfg, globalDailyAnalysisCap: 500, adminUserId: 42 } });
   await onboardToActive(deps, 99);
   const c = collector();
   await processCap(deps, { id: 99 }, "1", c.send);
@@ -1832,7 +1857,7 @@ test("/cap is admin-only — a non-admin changes nothing", async () => {
 
 test("/cap is refused entirely when no admin is configured", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, globalDailyAnalysisCap: 500, adminUserId: null } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: { ...cfg, globalDailyAnalysisCap: 500, adminUserId: null } });
   await onboardToActive(deps, 42);
   await processCap(deps, { id: 42 }, "1", noop);
   expect(await effectiveGlobalCap(db, deps.config)).toBe(500);
@@ -1842,7 +1867,7 @@ test("/cap is refused entirely when no admin is configured", async () => {
 
 test("/start with a deep-link payload records the source and a start event", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await processOnboarding(deps, { id: 60 }, { type: "command", command: "start", payload: "tt_001" }, noop);
   expect((await getUser(db, 60))?.acquisition_source).toBe("tt_001");
   const events = await eventsFor(db, 60);
@@ -1853,7 +1878,7 @@ test("/start with a deep-link payload records the source and a start event", asy
 
 test("/start payload outside the allowed charset is ignored, start event still logged", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await processOnboarding(deps, { id: 61 }, { type: "command", command: "start", payload: "tt 001; DROP" }, noop);
   expect((await getUser(db, 61))?.acquisition_source).toBeNull();
   const events = await eventsFor(db, 61);
@@ -1864,7 +1889,7 @@ test("/start payload outside the allowed charset is ignored, start event still l
 
 test("a later /start with a different code never overwrites the first source", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await processOnboarding(deps, { id: 62 }, { type: "command", command: "start", payload: "tt_001" }, noop);
   await processOnboarding(deps, { id: 62 }, { type: "command", command: "start", payload: "ig_009" }, noop);
   expect((await getUser(db, 62))?.acquisition_source).toBe("tt_001");
@@ -1872,7 +1897,7 @@ test("a later /start with a different code never overwrites the first source", a
 
 test("completing onboarding logs onboarding_complete exactly once", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 63);
   // a stale second tap resumes idempotently and must not double-log
   await processOnboarding(deps, { id: 63 }, { type: "callback", data: "restrictions_skip" }, noop);
@@ -1882,7 +1907,7 @@ test("completing onboarding logs onboarding_complete exactly once", async () => 
 
 test("first analyzed photo logs first_photo exactly once", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 64);
   const { send } = collector();
   await processPhoto(deps, { id: 64 }, [async () => new Uint8Array([1])], send);
@@ -1893,7 +1918,7 @@ test("first analyzed photo logs first_photo exactly once", async () => {
 
 test("a photo blocked by the global cap logs a cap_hit event", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, globalDailyAnalysisCap: 0 } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: { ...cfg, globalDailyAnalysisCap: 0 } });
   await onboardToActive(deps, 65);
   const { send } = collector();
   await processPhoto(deps, { id: 65 }, [async () => new Uint8Array([1])], send);
@@ -1906,7 +1931,7 @@ test("a photo blocked by the global cap logs a cap_hit event", async () => {
 
 test("/waitlist logs waitlist_join once and confirms; a second call does not duplicate", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 70);
   const c1 = collector();
   await processWaitlist(deps, { id: 70 }, c1.send);
@@ -1938,7 +1963,7 @@ const tEn = translatorFor(DEFAULT_LANG);
 async function allowlistDeps(overrides: Partial<Config> = {}): Promise<BotDeps> {
   const db = await freshTestDb();
   const config = { ...cfg, ...overrides };
-  return { db, provider: fakeProvider(foodJson()), config, allowlist: await loadAllowlist(db, config) };
+  return botDeps({ db, provider: fakeProvider(foodJson()), config, allowlist: await loadAllowlist(db, config) });
 }
 
 test("/allow on an open bot starts a list containing the admin and the target", async () => {
@@ -2027,7 +2052,7 @@ test("/allowed lists the ids, or says the bot is open", async () => {
 
 test("without a runtime allowlist in deps, the admin is told it is unavailable", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg }; // no allowlist
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg }); // no allowlist
   const { msgs, send } = collector();
   await processAllow(deps, { id: 42 }, "777", send);
   expect(msgs[0]).toBe(tEn("allowlist.unavailable"));
@@ -2049,7 +2074,7 @@ test("allow/deny/allowed are registered in the admin's scope only, in every loca
 
 test("photo and correction draw one per-user llm-call pool", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 2 } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: { ...cfg, perUserDailyPhotoCap: 2 } });
   await onboardToActive(deps, 700);
   const c1 = collector();
   await processPhoto(deps, { id: 700 }, [async () => new Uint8Array([1])], c1.send); // call 1
@@ -2067,10 +2092,10 @@ test("photo and correction draw one per-user llm-call pool", async () => {
 
 test("global cap counts llm calls across users, including not-food analyses", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = {
+  const deps = botDeps({
     db, provider: fakeProvider(JSON.stringify({ isFood: false })),
     config: { ...cfg, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: 1 },
-  };
+  });
   await onboardToActive(deps, 701);
   await onboardToActive(deps, 702);
   const date = berlinDate(new Date(), cfg.tz);
@@ -2087,7 +2112,7 @@ test("correction over the per-user cap is refused before the provider is called"
   const db = await freshTestDb();
   let calls = 0;
   const provider: LLMProvider = { chat: async () => (calls++, foodJson()) };
-  const deps: BotDeps = { db, provider, config: { ...cfg, perUserDailyPhotoCap: 1 } };
+  const deps = botDeps({ db, provider, config: { ...cfg, perUserDailyPhotoCap: 1 } });
   await onboardToActive(deps, 703);
   const c1 = collector();
   await processPhoto(deps, { id: 703 }, [async () => new Uint8Array([1])], c1.send); // uses the pool
@@ -2102,7 +2127,7 @@ test("correction over the per-user cap is refused before the provider is called"
 
 test("photo meal stores user_message_id so a reply to the photo finds the meal", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 710);
   const { send } = collector();
   await processPhoto(deps, { id: 710 }, [async () => new Uint8Array([1])], send, { userMessageId: 321 });
@@ -2115,7 +2140,7 @@ test("album parts produce ONE analysis with N images and one llm call", async ()
   const db = await freshTestDb();
   let req: import("../llm/provider.ts").ChatRequest | undefined;
   const provider: LLMProvider = { chat: async (r) => ((req = r), foodJson()) };
-  const deps: BotDeps = { db, provider, config: cfg };
+  const deps = botDeps({ db, provider, config: cfg });
   await onboardToActive(deps, 711);
   const { msgs, send } = collector();
   await processPhoto(
@@ -2144,7 +2169,7 @@ test("processText returns false for a non-active user (caller falls to onboardin
   const db = await freshTestDb();
   let calls = 0;
   const provider: LLMProvider = { chat: async () => (calls++, qJson("hi")) };
-  const deps: BotDeps = { db, provider, config: cfg };
+  const deps = botDeps({ db, provider, config: cfg });
   const handled = await processText(deps, { id: 800 }, { text: "hello", messageId: 1 }, noop);
   expect(handled).toBe(false);
   expect(calls).toBe(0);
@@ -2156,7 +2181,7 @@ test("a reply to a remembered rejection gets the canned explain with zero provid
   const provider: LLMProvider = { chat: async () => (calls++, qJson("hi")) };
   const rejections = new RejectionLog();
   rejections.add(801, 55);
-  const deps: BotDeps = { db, provider, config: cfg, rejections };
+  const deps = botDeps({ db, provider, config: cfg, rejections });
   await onboardToActive(deps, 801);
   const { msgs, send } = collector();
   const handled = await processText(deps, { id: 801 }, { text: "what was it?", messageId: 2, replyTo: 55 }, send);
@@ -2168,7 +2193,7 @@ test("a reply to a remembered rejection gets the canned explain with zero provid
 test("a not-food photo registers its reply in the rejection log", async () => {
   const db = await freshTestDb();
   const rejections = new RejectionLog();
-  const deps: BotDeps = { db, provider: fakeProvider(JSON.stringify({ isFood: false })), config: cfg, rejections };
+  const deps = botDeps({ db, provider: fakeProvider(JSON.stringify({ isFood: false })), config: cfg, rejections });
   await onboardToActive(deps, 802);
   const { msgs, send } = collector();
   await processPhoto(deps, { id: 802 }, [async () => new Uint8Array([1])], send);
@@ -2181,7 +2206,7 @@ test("a reply to the user's own photo reaches the router with the focus meal", a
   const outs = [foodJson(600), qJson("It was pasta")];
   let seen = "";
   const provider: LLMProvider = { chat: async (req) => { seen = req.userText; return outs.shift()!; } };
-  const deps: BotDeps = { db, provider, config: cfg };
+  const deps = botDeps({ db, provider, config: cfg });
   await onboardToActive(deps, 803);
   await processPhoto(deps, { id: 803 }, [async () => new Uint8Array([1])], collector().send, { userMessageId: 777 });
   const { msgs, send } = collector();
@@ -2195,7 +2220,7 @@ test("a question replied to the bot's analysis answers without touching the meal
   const db = await freshTestDb();
   const outs = [foodJson(600), qJson("about 600")];
   const provider: LLMProvider = { chat: async () => outs.shift()! };
-  const deps: BotDeps = { db, provider, config: cfg };
+  const deps = botDeps({ db, provider, config: cfg });
   await onboardToActive(deps, 804);
   await processPhoto(deps, { id: 804 }, [async () => new Uint8Array([1])], collector().send);
   const { msgs, send } = collector();
@@ -2210,7 +2235,7 @@ test("a correction replied to the bot's analysis updates the meal", async () => 
   const db = await freshTestDb();
   const outs = [foodJson(600), corrIntentJson(900)];
   const provider: LLMProvider = { chat: async () => outs.shift()! };
-  const deps: BotDeps = { db, provider, config: cfg };
+  const deps = botDeps({ db, provider, config: cfg });
   await onboardToActive(deps, 805);
   await processPhoto(deps, { id: 805 }, [async () => new Uint8Array([1])], collector().send);
   const { msgs, send } = collector();
@@ -2224,7 +2249,7 @@ test("a correction replied to the bot's analysis updates the meal", async () => 
 
 test("a plain-text question answers and draws one router llm call", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("You're at 0 kcal")), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("You're at 0 kcal")), config: cfg });
   await onboardToActive(deps, 806);
   const { msgs, send } = collector();
   const handled = await processText(deps, { id: 806 }, { text: "how am I doing?", messageId: 6 }, send);
@@ -2235,7 +2260,7 @@ test("a plain-text question answers and draws one router llm call", async () => 
 
 test("a text meal creates a pending row with confirm buttons and NO meal row", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(mealIntentJson(450)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(mealIntentJson(450)), config: cfg });
   await onboardToActive(deps, 807);
   const sentButtons: Array<Array<{ text: string; data: string }>> = [];
   const msgs: string[] = [];
@@ -2255,7 +2280,7 @@ test("a text meal creates a pending row with confirm buttons and NO meal row", a
 
 test("a dated text meal ('yesterday') pends on the offset day, names it on the PROMPT and LOGGED card", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(datedMealJson(1, 450)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(datedMealJson(1, 450)), config: cfg });
   await onboardToActive(deps, 820);
   const sentButtons: Array<Array<{ text: string; data: string }>> = [];
   const msgs: string[] = [];
@@ -2284,7 +2309,7 @@ test("a dated text meal ('yesterday') pends on the offset day, names it on the P
 
 test("a dayOffset=7 meal lands exactly 7 calendar days back (independent expected date)", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(datedMealJson(7, 450)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(datedMealJson(7, 450)), config: cfg });
   await onboardToActive(deps, 826);
   const { msgs, send } = collector();
   const sentButtons: Array<Array<{ text: string; data: string }>> = [];
@@ -2299,7 +2324,7 @@ test("a dayOffset=7 meal lands exactly 7 calendar days back (independent expecte
 
 test("a dated preview's totals are the OFFSET day's, not today's", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(700)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(700)), config: cfg });
   await onboardToActive(deps, 827);
   // Log a real meal on TODAY first (700 kcal via a photo).
   await processPhoto(deps, { id: 827 }, [async () => new Uint8Array([1])], collector().send);
@@ -2318,7 +2343,7 @@ test("a dated preview's totals are the OFFSET day's, not today's", async () => {
 
 test("correcting a past-dated meal names its date, not 'Today'", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(datedMealJson(1, 450)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(datedMealJson(1, 450)), config: cfg });
   await onboardToActive(deps, 828);
   // Log a yesterday meal, capturing its bot message id for the reply.
   const sentButtons: Array<Array<{ text: string; data: string }>> = [];
@@ -2341,7 +2366,7 @@ test("correcting a past-dated meal names its date, not 'Today'", async () => {
 
 test("a plain text meal (no relative date) still pends and logs on today, with no date line", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(mealIntentJson(450)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(mealIntentJson(450)), config: cfg });
   await onboardToActive(deps, 821);
   const { msgs, send } = collector();
   await processText(deps, { id: 821 }, { text: "ate 2 eggs", messageId: 41 }, send);
@@ -2354,7 +2379,7 @@ test("the per-user cap blocks the router before the provider is called", async (
   const db = await freshTestDb();
   let calls = 0;
   const provider: LLMProvider = { chat: async () => (calls++, qJson("x")) };
-  const deps: BotDeps = { db, provider, config: { ...cfg, perUserDailyPhotoCap: 0 } };
+  const deps = botDeps({ db, provider, config: { ...cfg, perUserDailyPhotoCap: 0 } });
   await onboardToActive(deps, 808);
   const { msgs, send } = collector();
   await processText(deps, { id: 808 }, { text: "hi", messageId: 8 }, send);
@@ -2364,7 +2389,7 @@ test("the per-user cap blocks the router before the provider is called", async (
 
 test("a router failure reports errors.textFailed and keeps the 👀", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: { chat: async () => { throw new Error("down"); } }, config: cfg };
+  const deps = botDeps({ db, provider: { chat: async () => { throw new Error("down"); } }, config: cfg });
   await onboardToActive(deps, 809);
   const r = reactionLog();
   const { msgs, send } = collector();
@@ -2377,7 +2402,7 @@ test("a router failure reports errors.textFailed and keeps the 👀", async () =
 // ---------- tm: confirm callbacks ----------
 
 async function seedPending(db: Awaited<ReturnType<typeof freshTestDb>>, userId: number): Promise<{ id: string; msgs: string[] }> {
-  const deps: BotDeps = { db, provider: fakeProvider(mealIntentJson(450)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(mealIntentJson(450)), config: cfg });
   const sentButtons: Array<Array<{ text: string; data: string }>> = [];
   const msgs: string[] = [];
   const send: Send = async (t, buttons) => {
@@ -2392,7 +2417,7 @@ async function seedPending(db: Awaited<ReturnType<typeof freshTestDb>>, userId: 
 
 test("tm:log inserts the meal, deletes pending, replies with totals, and the reply is correctable", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("unused")), config: cfg });
   await onboardToActive(deps, 810);
   const { id } = await seedPending(db, 810);
   const { msgs, send } = collector();
@@ -2413,7 +2438,7 @@ test("tm:log inserts the meal, deletes pending, replies with totals, and the rep
 
 test("tm:log deletes the confirm prompt AFTER sending the result card", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("unused")), config: cfg });
   await onboardToActive(deps, 850);
   const { id } = await seedPending(db, 850);
   const events: string[] = [];
@@ -2427,7 +2452,7 @@ test("tm:log deletes the confirm prompt AFTER sending the result card", async ()
 
 test("tm:log: a failed prompt-delete does not throw, still logs, and warns WITH context", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("unused")), config: cfg });
   await onboardToActive(deps, 851);
   const { id } = await seedPending(db, 851);
   const { send } = collector();
@@ -2445,7 +2470,7 @@ test("tm:log: a failed prompt-delete does not throw, still logs, and warns WITH 
 
 test("tm:log: both sends failed (sendCard→undefined) keeps the prompt AND the re-tappable pending row", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("unused")), config: cfg });
   await onboardToActive(deps, 854);
   const { id } = await seedPending(db, 854);
   const { getPendingMeal } = await import("../db.ts");
@@ -2465,7 +2490,7 @@ test("tm:log: both sends failed (sendCard→undefined) keeps the prompt AND the 
 
 test("tm:log on a TTL-expired pending still deletes the confirm prompt", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("unused")), config: cfg });
   await onboardToActive(deps, 855);
   const id = crypto.randomUUID();
   const staleTs = new Date(Date.now() - 49 * 3_600_000).toISOString();
@@ -2479,7 +2504,7 @@ test("tm:log on a TTL-expired pending still deletes the confirm prompt", async (
 
 test("tm:cancel deletes the confirm prompt too (no lingering dead buttons)", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("unused")), config: cfg });
   await onboardToActive(deps, 852);
   const { id } = await seedPending(db, 852);
   let deleted = false;
@@ -2490,7 +2515,7 @@ test("tm:cancel deletes the confirm prompt too (no lingering dead buttons)", asy
 
 test("tm:cancel deletes pending and acks; a stale id reports pendingGone", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("unused")), config: cfg });
   await onboardToActive(deps, 811);
   const { id } = await seedPending(db, 811);
   const { msgs, send } = collector();
@@ -2504,7 +2529,7 @@ test("tm:cancel deletes pending and acks; a stale id reports pendingGone", async
 
 test("a foreign user's tap cannot log someone else's pending meal", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("unused")), config: cfg });
   await onboardToActive(deps, 812);
   await onboardToActive(deps, 813);
   const { id } = await seedPending(db, 812);
@@ -2518,7 +2543,7 @@ test("a foreign user's tap cannot log someone else's pending meal", async () => 
 
 test("rich mode sends the HTML card through sendRich and wires the reply id for corrections", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: { ...cfg, replyFormat: "rich" } };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: { ...cfg, replyFormat: "rich" } });
   await onboardToActive(deps, 820);
   const richCalls: Array<{ html: string; fallback: string }> = [];
   const sendRich = async ({ html, plain }: { html: string; plain: string }) => {
@@ -2537,7 +2562,7 @@ test("rich mode sends the HTML card through sendRich and wires the reply id for 
 
 test("plain mode never calls sendRich even when it is wired", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson(600)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: cfg });
   await onboardToActive(deps, 821);
   let richCalls = 0;
   const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 92 });
@@ -2549,7 +2574,7 @@ test("plain mode never calls sendRich even when it is wired", async () => {
 
 test("Q&A answers stay plain even in rich mode", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("just text")), config: { ...cfg, replyFormat: "rich" } };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("just text")), config: { ...cfg, replyFormat: "rich" } });
   await onboardToActive(deps, 822);
   let richCalls = 0;
   const sendRich = async () => (richCalls++, { chat_id: 1, message_id: 93 });
@@ -2563,7 +2588,7 @@ test("Q&A answers stay plain even in rich mode", async () => {
 
 test("/cap 'used today' counts LLM calls, not stored meals", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(JSON.stringify({ isFood: false })), config: { ...cfg, adminUserId: 830, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: 500 } };
+  const deps = botDeps({ db, provider: fakeProvider(JSON.stringify({ isFood: false })), config: { ...cfg, adminUserId: 830, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: 500 } });
   await onboardToActive(deps, 830);
   await processPhoto(deps, { id: 830 }, [async () => new Uint8Array([1])], collector().send); // not-food: 1 call, 0 meals
   deps.provider = fakeProvider(qJson("hi"));
@@ -2577,7 +2602,7 @@ test("the GLOBAL cap blocks the router before the provider is called", async () 
   const db = await freshTestDb();
   let calls = 0;
   const provider: LLMProvider = { chat: async () => (calls++, qJson("x")) };
-  const deps: BotDeps = { db, provider, config: { ...cfg, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: 1 } };
+  const deps = botDeps({ db, provider, config: { ...cfg, perUserDailyPhotoCap: 50, globalDailyAnalysisCap: 1 } });
   await onboardToActive(deps, 831);
   await onboardToActive(deps, 832);
   await logLlmCall(db, 832, berlinDate(new Date(), cfg.tz), "photo"); // someone else spent the cap
@@ -2590,7 +2615,7 @@ test("the GLOBAL cap blocks the router before the provider is called", async () 
 
 test("tm:log after /delete reports pendingGone — no orphan crash", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("unused")), config: cfg });
   await onboardToActive(deps, 833);
   const { id } = await seedPending(db, 833);
   const { deleteUser } = await import("../db.ts");
@@ -2604,7 +2629,7 @@ test("a correction whose meal vanished mid-flight is NOT confirmed as updated", 
   const db = await freshTestDb();
   const outs = [foodJson(600), corrIntentJson(900)];
   const provider: LLMProvider = { chat: async () => outs.shift()! };
-  const deps: BotDeps = { db, provider, config: cfg };
+  const deps = botDeps({ db, provider, config: cfg });
   await onboardToActive(deps, 834);
   await processPhoto(deps, { id: 834 }, [async () => new Uint8Array([1])], collector().send);
   // meal vanishes between mealByReply and applyCorrection
@@ -2621,7 +2646,7 @@ test("a correction whose meal vanished mid-flight is NOT confirmed as updated", 
 
 test("a confirmed text meal is reply-correctable via the ORIGINAL text message", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(mealIntentJson(450)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(mealIntentJson(450)), config: cfg });
   await onboardToActive(deps, 835);
   const sentButtons: Array<Array<{ text: string; data: string }>> = [];
   const send: Send = async (t, buttons) => {
@@ -2640,7 +2665,7 @@ test("a failed Telegram download is not billed as an LLM call", async () => {
   const db = await freshTestDb();
   let calls = 0;
   const provider: LLMProvider = { chat: async () => (calls++, foodJson()) };
-  const deps: BotDeps = { db, provider, config: cfg };
+  const deps = botDeps({ db, provider, config: cfg });
   await onboardToActive(deps, 836);
   const { msgs, send } = collector();
   await processPhoto(deps, { id: 836 }, [async () => { throw new Error("telegram file download failed: 404"); }], send);
@@ -2651,7 +2676,7 @@ test("a failed Telegram download is not billed as an LLM call", async () => {
 
 test("first_photo fires for the first PHOTO even when a text meal came first", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(mealIntentJson(300)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(mealIntentJson(300)), config: cfg });
   await onboardToActive(deps, 837);
   const sentButtons: Array<Array<{ text: string; data: string }>> = [];
   const send: Send = async (t, buttons) => {
@@ -2667,7 +2692,7 @@ test("first_photo fires for the first PHOTO even when a text meal came first", a
 
 test("a capped text user still gets the 👀 (seen ≠ will analyze, same as photos)", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("x")), config: { ...cfg, perUserDailyPhotoCap: 0 } };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("x")), config: { ...cfg, perUserDailyPhotoCap: 0 } });
   await onboardToActive(deps, 838);
   const r = reactionLog();
   await processText(deps, { id: 838 }, { text: "hi", messageId: 96 }, collector().send, { react: r.react });
@@ -2677,7 +2702,7 @@ test("a capped text user still gets the 👀 (seen ≠ will analyze, same as pho
 
 test("a pending older than the TTL cannot be confirmed", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("unused")), config: cfg });
   await onboardToActive(deps, 839);
   const id = crypto.randomUUID();
   const staleTs = new Date(Date.now() - 49 * 3_600_000).toISOString();
@@ -2691,7 +2716,7 @@ test("a pending older than the TTL cannot be confirmed", async () => {
 
 test("processText triggers the stale-pending sweep", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(mealIntentJson(300)), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(mealIntentJson(300)), config: cfg });
   await onboardToActive(deps, 840);
   const oldId = crypto.randomUUID();
   const { insertPendingMeal, getPendingMeal } = await import("../db.ts");
@@ -2704,7 +2729,7 @@ test("a reply with focus can still be a NEW meal (\"also had a coke\") — confi
   const db = await freshTestDb();
   const outs = [foodJson(600), mealIntentJson(140)];
   const provider: LLMProvider = { chat: async () => outs.shift()! };
-  const deps: BotDeps = { db, provider, config: cfg };
+  const deps = botDeps({ db, provider, config: cfg });
   await onboardToActive(deps, 841);
   await processPhoto(deps, { id: 841 }, [async () => new Uint8Array([1])], collector().send);
   const sentButtons: Array<Array<{ text: string; data: string }>> = [];
@@ -2719,7 +2744,7 @@ test("a reply with focus can still be a NEW meal (\"also had a coke\") — confi
 
 test("tm:log across midnight logs to the pending's own date (pinned as deliberate)", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(qJson("unused")), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(qJson("unused")), config: cfg });
   await onboardToActive(deps, 842);
   const id = crypto.randomUUID();
   const { insertPendingMeal } = await import("../db.ts");
@@ -2731,7 +2756,7 @@ test("tm:log across midnight logs to the pending's own date (pinned as deliberat
 
 test("the onboarding restriction classifier is metered as an llm call", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(JSON.stringify({ tags: ["kidneys"] })), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(JSON.stringify({ tags: ["kidneys"] })), config: cfg });
   await processOnboarding(deps, { id: 843 }, { type: "command", command: "start" }, noop);
   await processOnboarding(deps, { id: 843 }, { type: "callback", data: "consent_agree" }, noop);
   await processOnboarding(deps, { id: 843 }, { type: "callback", data: "goal_lose" }, noop);
@@ -2752,7 +2777,7 @@ test("processAlbum: caption on the second part reaches the analyzer prompt", asy
   const captureProvider: LLMProvider = {
     chat: async (req) => { capturedReq = req; return foodJson(300); },
   };
-  const deps: BotDeps = { db, provider: captureProvider, config: cfg };
+  const deps = botDeps({ db, provider: captureProvider, config: cfg });
   await onboardToActive(deps, 900);
 
   const bytes = new Uint8Array([1]);
@@ -2772,7 +2797,7 @@ test("processAlbum: caption on the second part reaches the analyzer prompt", asy
 
 test("processAlbum: getBytes throw yields errors.analyzeFailed reply and no meal row", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 901);
 
   const { msgs, send } = collector();
@@ -2854,7 +2879,7 @@ const storedVerdicts = async (db: Awaited<ReturnType<typeof freshTestDb>>, user_
 
 test("a PHOTO meal never stores a verdict the user did not declare", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(leakyFoodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(leakyFoodJson()), config: cfg });
   await onboardToActive(deps, 940); // restrictions_skip → []
   await processPhoto(deps, { id: 940 }, [async () => new Uint8Array([1])], collector().send);
   expect(await storedVerdicts(db, 940)).toEqual([{ weight: "good" }]);
@@ -2863,7 +2888,7 @@ test("a PHOTO meal never stores a verdict the user did not declare", async () =>
 test("a TEXT meal never stores a verdict the user did not declare", async () => {
   const db = await freshTestDb();
   const leakyIntent = JSON.stringify({ intent: "meal", analysis: JSON.parse(leakyFoodJson(450)) });
-  const deps: BotDeps = { db, provider: fakeProvider(leakyIntent), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(leakyIntent), config: cfg });
   await onboardToActive(deps, 941);
   const sentButtons: Array<Array<{ text: string; data: string }>> = [];
   const capture: Send = async (_t, buttons) => {
@@ -2881,7 +2906,7 @@ test("a CORRECTION cannot write an undeclared verdict back onto a clean row", as
   // overwrote the verdicts wholesale (MealAnalysisSchema defaults verdicts, so patch.verdicts is
   // never undefined). Ungated, correcting a meal UNDID the fix on a row that was already right.
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(leakyFoodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(leakyFoodJson()), config: cfg });
   await onboardToActive(deps, 942);
   const c1 = collector();
   await processPhoto(deps, { id: 942 }, [async () => new Uint8Array([1])], c1.send);
@@ -2891,7 +2916,7 @@ test("a CORRECTION cannot write an undeclared verdict back onto a clean row", as
     intent: "correction",
     analysis: { ...JSON.parse(leakyFoodJson(300)) },
   });
-  const cdeps: BotDeps = { db, provider: fakeProvider(corrected), config: cfg };
+  const cdeps = botDeps({ db, provider: fakeProvider(corrected), config: cfg });
   await processText(
     cdeps, { id: 942 },
     { text: "actually smaller", messageId: 78, replyTo: 1 }, // collector numbers cards from 1
@@ -2902,7 +2927,7 @@ test("a CORRECTION cannot write an undeclared verdict back onto a clean row", as
 
 test("the delivered card carries no undeclared verdict, plain and rich", async () => {
   const db = await freshTestDb();
-  const deps: BotDeps = { db, provider: fakeProvider(leakyFoodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(leakyFoodJson()), config: cfg });
   await onboardToActive(deps, 943);
   const t = translatorFor(DEFAULT_LANG);
   const plain = collector();
@@ -2924,10 +2949,10 @@ test("un-ticking a restriction hides the verdict on re-render without deleting t
   // must hide it on the next render — and must do so WITHOUT touching the row, which is what makes
   // it reversible if they tick the restriction again.
   const db = await freshTestDb();
-  const deps: BotDeps = {
+  const deps = botDeps({
     db, provider: fakeProvider(leakyFoodJson(600)),
     config: { ...cfg, perUserDailyPhotoCap: 50 }, // photo + redate = 2 calls
-  };
+  });
   await onboardToActive(deps, 944);
   await setProfile(db, 944, { restrictions: ["ldl"] });
   const t = translatorFor(DEFAULT_LANG);
@@ -2957,7 +2982,7 @@ test("the repertoire prior reaches the prompt from the user's own logged meals (
   // covers the wiring, which is where a prior silently becomes a no-op.
   const db = await freshTestDb();
   const { insertMeal } = await import("../db.ts");
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 55);
   const date = berlinDate(new Date(), cfg.tz);
   await insertMeal(db, {
@@ -2965,9 +2990,17 @@ test("the repertoire prior reaches the prompt from the user's own logged meals (
     analysis: { ...JSON.parse(foodJson()), items: [{ name: "гречка", grams: 200 }] },
   });
 
-  const rec = recordingProvider(foodJson());
-  await processPhoto({ ...deps, provider: rec }, { id: 55 }, [async () => new Uint8Array([1])], collector().send);
-  expect(rec.lastRequest!.userText).toContain("гречка");
+  // Asserted at the PORT, not in the prompt string. Building the MealContext is what bot.ts is
+  // responsible for; rendering it into prompt text belongs to `buildUserText` (covered in
+  // analyzer.test.ts, and asserted byte-identical across both engines in analyzeViaAgent.test.ts).
+  // Reaching through to the prompt here would re-test the analyzer and would break the moment the
+  // photo flow changed engines — which is exactly what it did.
+  let seen: MealContext | undefined;
+  await processPhoto(
+    { ...deps, analyzePhoto: async (_i, _p, ctx) => ((seen = ctx), JSON.parse(foodJson())) },
+    { id: 55 }, [async () => new Uint8Array([1])], collector().send,
+  );
+  expect(seen?.repertoire).toContain("гречка");
 });
 
 test("one user's repertoire never leaks into another's prompt (A1)", async () => {
@@ -2975,7 +3008,7 @@ test("one user's repertoire never leaks into another's prompt (A1)", async () =>
   // is the most personal thing this bot stores.
   const db = await freshTestDb();
   const { insertMeal } = await import("../db.ts");
-  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   await onboardToActive(deps, 56);
   await onboardToActive(deps, 57);
   const date = berlinDate(new Date(), cfg.tz);
@@ -2984,7 +3017,10 @@ test("one user's repertoire never leaks into another's prompt (A1)", async () =>
     analysis: { ...JSON.parse(foodJson()), items: [{ name: "борщ", grams: 300 }] },
   });
 
-  const rec = recordingProvider(foodJson());
-  await processPhoto({ ...deps, provider: rec }, { id: 57 }, [async () => new Uint8Array([1])], collector().send);
-  expect(rec.lastRequest!.userText).not.toContain("борщ");
+  let seen: MealContext | undefined;
+  await processPhoto(
+    { ...deps, analyzePhoto: async (_i, _p, ctx) => ((seen = ctx), JSON.parse(foodJson())) },
+    { id: 57 }, [async () => new Uint8Array([1])], collector().send,
+  );
+  expect(seen?.repertoire ?? []).not.toContain("борщ");
 });

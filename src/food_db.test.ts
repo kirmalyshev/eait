@@ -1,9 +1,12 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
+import { unlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import {
   NUTRIENT_IDS,
   cofidFoodRow,
   parseXlsxSheet,
   buildFoodIndex,
+  loadFoodIndex,
   normalizeFoodName,
   parseCsvLine,
   parseFoodJsonl,
@@ -344,5 +347,30 @@ describe("parseFoodJsonl", () => {
     const out = parseFoodJsonl(row(',"fiber_g":4.5,"sodium_mg":5'));
     expect(out.rows[0]!.fiber_g).toBe(4.5);
     expect(out.rows[0]!.sodium_mg).toBe(5);
+  });
+});
+
+describe("loadFoodIndex", () => {
+  const tmp = `${tmpdir()}/eait-fooddb-${crypto.randomUUID()}.jsonl`;
+  afterAll(() => { try { unlinkSync(tmp); } catch { /* already gone */ } });
+
+  test("reads a jsonl table off disk and reports what it dropped", async () => {
+    writeFileSync(tmp, [
+      JSON.stringify({ id: "usda:1", name: "Bulgur, cooked", kcal: 83, protein_g: 3.1, carbs_g: 18.6, fat_g: 0.2 }),
+      "{ this is not json",
+      JSON.stringify({ id: "usda:2", name: "Couscous, cooked", kcal: 112, protein_g: 3.8, carbs_g: 23.2, fat_g: 0.2 }),
+    ].join("\n"));
+    const loaded = await loadFoodIndex(tmp);
+    expect(loaded).not.toBeNull();
+    expect(loaded!.skipped).toBe(1);
+    expect(loaded!.index.size).toBe(2);
+    expect(loaded!.index.find("bulgur, cooked")?.id).toBe("usda:1");
+  });
+
+  test("a MISSING table is null, not a throw — the bot must boot without one", async () => {
+    // search_food_db is registered only when an index exists (agent.ts), and a food the table does
+    // not have already degrades to the model's own estimate. A missing file is the same condition
+    // for every food at once, so it must not be a startup failure.
+    expect(await loadFoodIndex(`${tmpdir()}/eait-definitely-absent-${crypto.randomUUID()}.jsonl`)).toBeNull();
   });
 });

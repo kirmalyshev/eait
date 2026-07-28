@@ -12,6 +12,12 @@ import { run, sequentialize } from "@grammyjs/runner";
 import type { Config } from "../config.ts";
 import type { LLMProvider } from "../llm/provider.ts";
 import { createProvider } from "../llm/factory.ts";
+import type { AnalyzePhoto } from "../llm/analyzePort.ts";
+import { photoAnalyzerViaAgent } from "../llm/analyzePort.ts";
+import { createMastra } from "../llm/mastra.ts";
+import { createEngineAgent } from "../llm/agent.ts";
+import { modelRouterId } from "../llm/model.ts";
+import { loadFoodIndex } from "../food_db.ts";
 import {
   openDb, berlinDate, berlinDateMinus, berlinTime, upsertUser, getUser, setConsent, setProfile,
   recentMealItems,
@@ -24,7 +30,7 @@ import {
 } from "../db.ts";
 import { loadAllowlist, type Allowlist } from "../allowlist.ts";
 import { AlbumBuffer } from "./albums.ts";
-import { analyzeMeal, classifyRestrictions, routeText, type RouteContext, type RouteResult } from "../analyzer.ts";
+import { classifyRestrictions, routeText, type RouteContext, type RouteResult } from "../analyzer.ts";
 import { RejectionLog } from "./rejections.ts";
 import { targetsFor, weightRemainingKg, isRestrictionTag } from "../targets.ts";
 import { checkConsistency } from "../consistency.ts";
@@ -52,7 +58,21 @@ import type { Lang, MealAnalysis, MealContext, MealRecord, Profile, ReplyFormat 
 
 export interface BotDeps {
   db: Db;
+  /**
+   * The OLD transport, still serving `routeText` (free text) and `classifyRestrictions`
+   * (onboarding). Photo analysis no longer uses it — see `analyzePhoto`. Removed at migration
+   * stage 4, when the last two call sites move to terminal tools
+   * (`docs/design/2026-07-28-mastra-engine-boundary.md`).
+   */
   provider: LLMProvider;
+  /**
+   * Meal analysis as a CAPABILITY, not a vendor. In production this is
+   * `photoAnalyzerViaAgent(agent)` — the Mastra path — bound once in `startBot`; in tests it is a
+   * one-line stub. Keeping it a function rather than an `Agent` is what stops every photo test from
+   * having to build a scripted model plus a Postgres-backed Memory to assert that, say, the
+   * repertoire reached the analyzer.
+   */
+  analyzePhoto: AnalyzePhoto;
   config: Config;
   /**
    * Runtime access control (admin /allow · /deny). Optional so the many db+provider-only
@@ -663,7 +683,7 @@ export async function processPhoto(
   send: Send,
   meta?: { caption?: string; react?: React; userMessageId?: number; sendRich?: SendRich },
 ): Promise<void> {
-  const { db, provider, config } = deps;
+  const { db, config } = deps;
   const u = await getUser(db, from.id);
   if (!u || u.state !== "active") {
     await send(translatorForUser(u)("errors.notOnboarded"));
@@ -715,7 +735,7 @@ export async function processPhoto(
     // Metered only once the bytes are in hand: a Telegram-side download failure costs no
     // provider call and must not burn a cap unit.
     await logLlmCall(db, from.id, date, "photo");
-    analysis = await analyzeMeal(images, prof, provider, context);
+    analysis = await deps.analyzePhoto(images, prof, context);
   } catch (e) {
     console.error(`[eait] analyze failed user=${from.id}: ${describeError(e)}`);
     await send(t("errors.analyzeFailed"));
@@ -1553,14 +1573,36 @@ export function describeError(err: unknown): string {
 }
 
 export async function startBot(config: Config): Promise<{ db: Db; stop: () => Promise<void> }> {
-  // Validate config before touching the network: createProvider throws on an unknown
-  // LLM_PROVIDER, and doing it first means that failure can't strand an open connection pool.
+  // Validate config before touching the network: createProvider and modelRouterId both throw on an
+  // unknown LLM_PROVIDER, and doing it first means that failure can't strand an open connection
+  // pool. Two validations of the same variable during the migration — one per engine — and stage 4
+  // deletes the first along with the provider it builds.
   const provider = createProvider(config);
+  const routerId = modelRouterId(config);
   const db = await openDb(config.pg);
   let bot: Bot;
   try {
+    // Mastra memory persists into the SAME Postgres db.ts uses; PostgresStore manages its own
+    // tables there, outside db.ts's schema_version migrations. `init()` runs inside createMastra so
+    // a storage failure surfaces at boot, like the db migrations, not on the first photo.
+    const { memory } = await createMastra(config.pg);
+    // Grounding is optional by construction: no table on disk → no `search_food_db` tool → the
+    // agent falls back to its own estimates, which is the same path a food the table lacks already
+    // takes. Announced either way, because silently running ungrounded is how you discover six
+    // weeks later that grounding was never on.
+    const loaded = await loadFoodIndex();
+    console.log(
+      loaded
+        ? `[eait] food composition table: ${loaded.index.size} rows (${loaded.skipped} lines skipped)`
+        : "[eait] no food composition table — analyses run ungrounded (run scripts/fetch-food-db.ts)",
+    );
+    const agent = createEngineAgent(routerId, memory, {
+      ...(loaded ? { foodIndex: loaded.index } : {}),
+    });
     const allowlist = await loadAllowlist(db, config);
-    bot = createBot({ db, provider, config, allowlist });
+    bot = createBot({
+      db, provider, analyzePhoto: photoAnalyzerViaAgent(agent), config, allowlist,
+    });
     // Report the EFFECTIVE list (stored beats env), not the env value — after an admin
     // /allow, the two differ and the env line would lie.
     const effective = allowlist.list();

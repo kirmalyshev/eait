@@ -420,3 +420,26 @@ export function parseFoodJsonl(text: string): { rows: FoodRow[]; skipped: number
   }
   return { rows, skipped };
 }
+
+/** Where `scripts/fetch-food-db.ts` writes the composition table by default. */
+export const FOOD_DB_PATH = "data/food-db/foods.jsonl";
+
+/**
+ * Load the composition table off disk, or `null` when there isn't one.
+ *
+ * NULL, NOT A THROW. `search_food_db` is registered only when an index exists (`llm/agent.ts`), and
+ * a food the table does not contain already degrades to the model's own estimate — a missing file is
+ * just that condition for every food at once. Self-hosters who never run `fetch-food-db.ts` must get
+ * a working bot, not a boot failure, so this is the one load in the startup path that is allowed to
+ * come back empty. It still says so on stdout: silently running ungrounded is how you discover six
+ * weeks later that grounding was never on.
+ */
+export async function loadFoodIndex(
+  path: string = FOOD_DB_PATH,
+): Promise<{ index: FoodIndex; skipped: number } | null> {
+  const file = Bun.file(path);
+  if (!(await file.exists())) return null;
+  const { rows, skipped } = parseFoodJsonl(await file.text());
+  if (rows.length === 0) return null;
+  return { index: buildFoodIndex(rows), skipped };
+}
