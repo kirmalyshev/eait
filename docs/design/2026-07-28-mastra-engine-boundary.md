@@ -141,8 +141,9 @@ Each is independently shippable and independently verifiable.
 | 3 | Text flow → Mastra | ✅ `a91c098` |
 | 4 | Onboarding classify → Mastra | ✅ `a91c098` — **the bot runtime calls no `LLMProvider`** |
 | 4b | Delete `provider.ts`/`factory.ts`/`openrouter.ts` | ⛔ blocked on the stage-1 gate (below) |
-| 5 | Extract `src/engine/`; `bot.ts` becomes an adapter | not started |
-| 6 | `src/api/` over `Bun.serve` | not started |
+| 5 | Extract `src/engine/`; `bot.ts` becomes an adapter | ✅ `e21b5c4` |
+| 6 | `src/api/` over `Bun.serve` | ✅ `2c6c918` — **both front ends share one engine** |
+| 7 | An authentication scheme for `src/api/` | not started — its own decision, its own doc |
 
 ### Why the old files are still on disk
 
