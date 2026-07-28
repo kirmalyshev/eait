@@ -23,7 +23,7 @@ import {
   recentMealItems,
   insertMeal, setMealReply, applyCorrection, setMealDate, mealByReply, dailyTotals,
   logLlmCall, llmCallsToday, llmCallCountToday, mealsOnDate, totalsByDate,
-  insertPendingMeal, setPendingReply, getPendingMeal, deletePendingMeal, prunePendingMeals,
+  insertPendingMeal, setPendingReply, setPendingUserMessage, getPendingMeal, deletePendingMeal, prunePendingMeals,
   deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang, setReplyFormat, setPendingInput,
   getSetting, setSetting, clearSetting, hasEvent, logEvent, setAcquisitionSource,
   type Db, type UserRow,
@@ -90,6 +90,19 @@ export interface BotDeps {
   rejections?: RejectionLog;
 }
 
+/**
+ * The one place an engine refusal becomes Telegram copy. A table, not a switch, so a new refusal
+ * kind is a compile error here rather than an unhandled case that renders the key at the user —
+ * `satisfies` pins the keys to the union exactly.
+ */
+const REFUSAL_COPY = {
+  "not-onboarded": "errors.notOnboarded",
+  "not-food": "errors.notFood",
+  "cap-user": "errors.dailyCap",
+  "cap-global": "errors.globalCap",
+  "analysis-failed": "errors.analyzeFailed",
+} as const satisfies Record<Exclude<Refusal["kind"], "cap-exceeded"> | "cap-user" | "cap-global", string>;
+
 export interface Sent {
   chat_id: number;
   message_id: number;
@@ -149,42 +162,15 @@ function fireReaction(react: React | undefined, emoji: "👀" | "👍", userId: 
 }
 
 // ---------- read-boundary helpers ----------
-// profileOf is the ONE read boundary between the raw UserRow and the rest of the code; it both
-// validates stored vocabulary and emits the operator warning, so it is intentionally not pure.
-// Everything downstream (replyFormatFor, translatorForUser) consumes the resolved Profile.
-
-export function profileOf(u: UserRow): Profile {
-  // Off-vocabulary stored values (a renamed locale/format, a hand-edited row) degrade to the
-  // default, but LOUDLY — a silent reset after a rename would strand affected users with no
-  // operator trace. No truthiness guard on lang: '' is exactly the hand-edited NOT-NULL row the
-  // warn exists for. reply_format's null is the normal "never chose" state and stays quiet.
-  if (!isLang(u.lang)) {
-    console.warn(`[eait] unknown lang ${JSON.stringify(u.lang)} user=${u.telegram_id} — using default`);
-  }
-  if (u.reply_format !== null && !isReplyFormat(u.reply_format)) {
-    console.warn(`[eait] unknown reply_format ${JSON.stringify(u.reply_format)} user=${u.telegram_id} — using instance default`);
-  }
-  return {
-    telegram_id: u.telegram_id,
-    // Validate against the registry rather than coercing: a stored value can predate a locale
-    // being renamed or removed, and an unvalidated one would render raw keys at the user.
-    lang: isLang(u.lang) ? u.lang : DEFAULT_LANG,
-    goal: u.goal,
-    // 0 is the db's "explicitly skipped" sentinel — outside the db/bot boundary it means unknown.
-    weight_kg: u.weight_kg ? u.weight_kg : null,
-    target_weight_kg: u.target_weight_kg ? u.target_weight_kg : null,
-    // '' is the db's "explicitly skipped" sentinel — outside the boundary it means unknown.
-    country: u.country ? u.country : null,
-    restrictions: u.restrictions,
-    // '' is the skip sentinel on each. No vocabulary to validate against, so no warn: any stored
-    // string is a legitimate value.
-    medical_limitations: u.medical_limitations ? u.medical_limitations : null,
-    food_allergies: u.food_allergies ? u.food_allergies : null,
-    product_limitations: u.product_limitations ? u.product_limitations : null,
-    // Same validation rule as lang: junk means "never chose", so the instance default applies.
-    reply_format: isReplyFormat(u.reply_format) ? u.reply_format : null,
-  };
-}
+// `profileOf` moved to `engine/profile.ts` — every surface needs it, not just Telegram. Re-exported
+// under its original name so this file's call sites and its tests are unchanged.
+import { profileFromRow, mealRecordToAnalysis } from "../engine/profile.ts";
+import { logPhotoMeal } from "../engine/meals.ts";
+import { handleText } from "../engine/text.ts";
+import type { Refusal } from "../engine/results.ts";
+export { profileFromRow as profileOf };
+const profileOf = profileFromRow;
+const mealToAnalysis = mealRecordToAnalysis;
 
 /** The format a user's meal cards render in: their /settings choice, else the instance default.
  * Takes the already-resolved Profile so it never re-runs profileOf (which would re-warn). */
@@ -197,16 +183,7 @@ function translatorForUser(u: UserRow | undefined): TFunction {
   return translatorFor(u ? profileOf(u).lang : DEFAULT_LANG);
 }
 
-export function mealToAnalysis(m: MealRecord): MealAnalysis {
-  return {
-    isFood: true,
-    items: m.items,
-    kcal: m.kcal, protein_g: m.protein_g, carbs_g: m.carbs_g, fat_g: m.fat_g,
-    satfat_g: m.satfat_g, fiber_g: m.fiber_g, sugar_g: m.sugar_g, sodium_mg: m.sodium_mg,
-    plant_protein_pct: m.plant_protein_pct, verdicts: m.verdicts,
-    confidence: m.confidence ?? "", notes: m.notes ?? "",
-  };
-}
+export { mealRecordToAnalysis as mealToAnalysis };
 
 /**
  * Persist an onboarding transition. The whole profile patch goes in ONE `setProfile` UPDATE
@@ -690,103 +667,39 @@ export async function processPhoto(
 ): Promise<void> {
   const { db, config } = deps;
   const u = await getUser(db, from.id);
-  if (!u || u.state !== "active") {
-    await send(translatorForUser(u)("errors.notOnboarded"));
-    return;
-  }
-  // Instant "seen" signal: the vision call takes seconds and silence reads as broken.
-  // Deliberately after the active-state gate (a refusal should not be preceded by a 👀)
-  // and before the cap checks — 👀 means "seen", not "will analyze".
-  fireReaction(meta?.react, "👀", from.id);
-  const prof = profileOf(u);
-  const t = translatorFor(prof.lang);
-  const date = berlinDate(new Date(), config.tz);
-  // Caps meter LLM CALLS, not stored meals — every provider call is billed (a not-food photo
-  // or a Q&A costs real money even though no meal row appears), so every call draws one from
-  // the same pool. Deliberately a per-call policy, not a token-cost model.
-  if ((await llmCallsToday(db, from.id, date)) >= config.perUserDailyPhotoCap) {
-    await send(t("errors.dailyCap"));
-    return;
-  }
-  // Global spend bound, checked BEFORE the vision call — the per-user cap bounds one account,
-  // but a publicly linked bot has unbounded accounts. A cap enforced after the call would cost
-  // exactly as much as no cap at all.
-  const cap = await effectiveGlobalCap(db, config);
-  if (cap !== null && (await llmCallCountToday(db, date)) >= cap) {
-    console.warn(`[eait] global daily cap ${cap} reached`);
-    await logEvent(db, from.id, "cap_hit");
-    await send(t("errors.globalCap"));
-    return;
-  }
-  // Caption + local clock go into the prompt: both measurably cut estimation error
-  // (the caption is user-supplied ground truth; the time implies the meal type).
-  // The user's own diary as an identification prior (A1). Read here rather than inside the
-  // analyzer, which owns the prompt and the parse and must stay free of db access. 90 days is a
-  // window, not a memory: a food someone stopped eating a season ago should stop steering the
-  // model. `berlinDateMinus` for the same DST reason as everywhere else — subtracting fixed 24h
-  // spans and re-deriving a Berlin date is off by one across a transition near midnight.
-  const repertoire = buildRepertoire(
-    await recentMealItems(db, from.id, berlinDateMinus(date, REPERTOIRE_DAYS)),
-  );
-  const context: MealContext = {
-    caption: meta?.caption,
-    localTime: berlinTime(new Date(), config.tz),
-    ...(repertoire.length ? { repertoire } : {}),
-  };
-  let analysis: MealAnalysis;
-  try {
-    const images: Uint8Array[] = [];
-    for (const get of photos) images.push(await get()); // in-memory only; never written to disk
-    // Metered only once the bytes are in hand: a Telegram-side download failure costs no
-    // provider call and must not burn a cap unit.
-    await logLlmCall(db, from.id, date, "photo");
-    analysis = await deps.analyzePhoto(images, prof, context);
-  } catch (e) {
-    console.error(`[eait] analyze failed user=${from.id}: ${describeError(e)}`);
-    await send(t("errors.analyzeFailed"));
-    return;
-  }
-  // confidence is logged so a model drifting off the high/medium/low vocabulary is visible —
-  // off-vocabulary values silently route to the generic hint, and nothing else would say so.
-  console.log(`[eait] photo user=${from.id} isFood=${analysis.isFood} kcal=${analysis.kcal} items=${analysis.items.length} confidence=${analysis.confidence}`);
-  // Lever B, phase 1: OBSERVE ONLY. The analysis is not touched and the user sees no difference —
-  // this exists to produce a fire rate, because the right action on a mismatch (force
-  // confidence:"low"? retry the call? nothing?) depends entirely on whether this trips on 3% of
-  // meals or 30%. Logged per finding with both numbers so the rate can be read off the logs
-  // without re-running anything. Decide the action from the measured rate, then come back here.
-  for (const f of checkConsistency(analysis).findings) {
-    console.warn(
-      `[eait] inconsistent user=${from.id} kind=${f.kind} stated=${f.stated} derived=${f.derived}`,
-    );
-  }
-  if (!analysis.isFood) {
-    const sent = await send(t("errors.notFood"));
-    // Remember the rejection so a reply to it can be explained instead of guessed at.
-    if (sent) deps.rejections?.add(from.id, sent.message_id);
-    return;
-  }
-  const id = crypto.randomUUID();
-  // Event-based, not hasMeals: text meals write to `meals` too, so "has any meal" would
-  // suppress the funnel event for a user whose first photo follows a text meal.
-  const firstPhoto = !(await hasEvent(db, from.id, "first_photo"));
-  await insertMeal(db, {
-    id, user_id: from.id, ts: new Date().toISOString(), date, analysis, model: config.llmModel,
-    user_message_id: meta?.userMessageId ?? null,
+  const t = translatorForUser(u);
+
+  const result = await logPhotoMeal(deps, from.id, {
+    images: photos,
+    ...(meta?.caption === undefined ? {} : { caption: meta.caption }),
+    // Instant "seen" signal: the analysis takes seconds and silence reads as broken. The engine
+    // fires this after the onboarding gate and before the caps — 👀 means "seen", not "will analyze".
+    onAccepted: () => fireReaction(meta?.react, "👀", from.id),
   });
-  if (firstPhoto) await logEvent(db, from.id, "first_photo");
-  console.log(`[eait] meal stored ${id} user=${from.id}`);
-  const totals = await dailyTotals(db, from.id, date);
-  // When the model itself flags the estimate as shaky, ask for the strongest correction the
-  // literature knows — a user-supplied weight — instead of the generic hint. The schema already
-  // normalizes casing; prefix-match so a qualifier ("low (mixed dish)") can't turn the nudge off.
-  const hint = analysis.confidence.startsWith("low")
-    ? t("meal.lowConfidenceHint")
-    : t("meal.correctionHint");
+
+  if (result.kind !== "logged") {
+    const sent = await send(t(REFUSAL_COPY[result.kind === "cap-exceeded"
+      ? (result.scope === "user" ? "cap-user" : "cap-global")
+      : result.kind]));
+    // Remember a rejection so a REPLY to it gets the canned explanation instead of the router,
+    // which honestly has nothing on a photo it never saw. Telegram-only: it is keyed on message id.
+    if (result.kind === "not-food" && sent) deps.rejections?.add(from.id, sent.message_id);
+    return;
+  }
+
+  const prof = u ? profileOf(u) : undefined;
+  if (!prof) return; // unreachable: a logged meal implies an active user
+  const totals = result.totals;
+  const hint = t(result.hint === "lowConfidence" ? "meal.lowConfidenceHint" : "meal.correctionHint");
   const sent = await sendCard(replyFormatFor(prof, config), send, meta?.sendRich, {
-    html: renderMealCard(analysis, totals, targetsFor(prof), t, prof.restrictions, { footer: hint }),
-    plain: formatReply(analysis, totals, targetsFor(prof), t, prof.restrictions) + "\n\n" + hint,
+    html: renderMealCard(result.analysis, totals, targetsFor(prof), t, prof.restrictions, { footer: hint }),
+    plain: formatReply(result.analysis, totals, targetsFor(prof), t, prof.restrictions) + "\n\n" + hint,
   });
-  if (sent) await setMealReply(db, id, from.id, sent.chat_id, sent.message_id);
+  // Telegram surface metadata: which of OUR messages this meal's card is, so a reply maps back to
+  // it, and which of the USER'S messages produced it. Neither is an engine concept.
+  if (sent) {
+    await setMealReply(db, result.mealId, from.id, sent.chat_id, sent.message_id, meta?.userMessageId);
+  }
   // Processed successfully — the 👍 replaces the 👀 on the user's photo.
   fireReaction(meta?.react, "👍", from.id);
 }
@@ -898,126 +811,73 @@ export async function processText(
     return true;
   }
 
-  const todayMeals = (await mealsOnDate(db, from.id, date)).map((m) => ({
-    items: m.items, kcal: m.kcal, protein_g: m.protein_g,
-  }));
-  const weekStart = berlinDateMinus(date, 7); // calendar subtraction — DST-safe
-  const routeCtx: RouteContext = {
-    focusMeal: focus ? mealToAnalysis(focus) : undefined,
-    todayMeals,
-    weekTotals: await totalsByDate(db, from.id, weekStart, date),
-    targets: targetsFor(prof),
-    localTime: berlinTime(new Date(), config.tz),
-  };
-  await logLlmCall(db, from.id, date, "router");
-  let route: RouteResult;
-  try {
-    route = await deps.routeText(msg.text, prof, routeCtx);
-  } catch (e) {
-    // Log like processPhoto does — otherwise a model outage and a parse bug look identical
-    // from the operator's side: the user gets a message, the logs get nothing.
-    console.error(`[eait] route failed user=${from.id}: ${describeError(e)}`);
-    await send(t("errors.textFailed"));
-    return true; // handled, but not processed — the 👀 stays, no 👍
-  }
-
-  if (route.intent === "question") {
-    await send(route.answer);
-    fireReaction(opts?.react, "👍", from.id);
-    return true;
-  }
-
-  if (route.intent === "correction") {
-    // routeText guarantees a correction only arrives with a focus meal; a missing one here is
-    // a programming error — make it loud, never silently re-route a correction into a NEW meal.
-    if (!focus) {
-      console.error(`[eait] correction intent without focus row user=${from.id} — should be unreachable`);
-      await send(t("errors.textFailed"));
-      return true;
-    }
-    // The meal can vanish between lookup and update (/delete race, second instance) — a 0-row
-    // update must not be confirmed to the user as applied.
-    if (!(await applyCorrection(db, focus.id, from.id, route.analysis))) {
-      await send(t("errors.correctionFailed"));
-      return true;
-    }
-    const totals = await dailyTotals(db, from.id, focus.date);
-    // The corrected meal keeps its own date — name it when it isn't today, or the card shows
-    // "Today's progress" over another day's totals (the totals are already for focus.date).
-    const dateLabel = mealDateLabel(focus.date, date, prof.lang, config.tz);
-    // Deliberately no hint suffix — the user just corrected; re-prompting would nag.
-    // No footer on either rendering — the deliberate no-nag decision holds in both formats.
-    await sendCard(replyFormatFor(prof, config), send, opts?.sendRich, {
-      html: renderMealCard(route.analysis, totals, targetsFor(prof), t, prof.restrictions, { prefix: t("meal.updatedPrefix"), dateLabel }),
-      plain: t("meal.updatedPrefix") + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t, prof.restrictions, { dateLabel }),
-    });
-    fireReaction(opts?.react, "👍", from.id);
-    return true;
-  }
-
-  if (route.intent === "redate") {
-    // Reply-based re-date: the focus meal moves to another day (macros unchanged). Reply is
-    // unambiguous, so it applies immediately, like a correction — no confirm step.
-    if (!focus) {
-      console.error(`[eait] redate intent without focus row user=${from.id} — should be unreachable`);
-      await send(t("errors.textFailed"));
-      return true;
-    }
-    const newDate = berlinDateMinus(date, route.dayOffset);
-    const oldDate = focus.date;
-    if (!(await setMealDate(db, focus.id, from.id, newDate))) {
-      // 0-row: the meal vanished (deleted account / race). Name the move, not a "correction",
-      // and don't tell the user to rephrase — nothing they type can bring the row back.
-      await send(t("errors.redateFailed"));
-      return true;
-    }
-    // The one sanctioned date mutation gets an audit line, like the meal-stored path — a "why did
-    // my breakfast jump days" report is otherwise untraceable.
-    console.log(`[eait] redate user=${from.id} meal=${focus.id} dayOffset=${route.dayOffset} ${oldDate}→${newDate}`);
-    const totals = await dailyTotals(db, from.id, newDate);
-    const dateLabel = mealDateLabel(newDate, date, prof.lang, config.tz);
-    // The prefix always names the target day (even "today"), so a move is legible on its own.
-    const prefix = t("meal.movedPrefix", { date: berlinDayLabel(newDate, prof.lang, config.tz) });
-    const analysis = mealToAnalysis(focus);
-    const sent = await sendCard(replyFormatFor(prof, config), send, opts?.sendRich, {
-      html: renderMealCard(analysis, totals, targetsFor(prof), t, prof.restrictions, { prefix, dateLabel }),
-      plain: prefix + "\n" + formatReply(analysis, totals, targetsFor(prof), t, prof.restrictions, { dateLabel }),
-    });
-    // Map the "Moved" card to the meal so a follow-up reply to IT re-focuses — otherwise a
-    // multi-step move ("yesterday", then reply again "one more day back") dead-ends with no focus.
-    if (sent) await setMealReply(db, focus.id, from.id, sent.chat_id, sent.message_id);
-    fireReaction(opts?.react, "👍", from.id);
-    return true;
-  }
-
-  // meal → confirm before logging: unlike a photo, free text is easy to misread as a meal, so
-  // nothing reaches the meals table until the tap. A relative date ("yesterday") shifts the
-  // meal's day; confirm-first means the resolved date is on the prompt to catch a misparse.
-  if (route.intent !== "meal") return assertNever(route);
-  const mealDate = berlinDateMinus(date, route.dayOffset); // offset 0 returns `date` unchanged
-  const dateLabel = mealDateLabel(mealDate, date, prof.lang, config.tz);
-  console.log(`[eait] text meal user=${from.id} dayOffset=${route.dayOffset} date=${mealDate}`);
-  const id = crypto.randomUUID();
-  // Housekeeping must never cost the user their (already-metered) meal — sweep failures are
-  // logged and skipped; the next insert retries anyway.
-  try {
-    await prunePendingMeals(db, new Date(Date.now() - PENDING_TTL_MS).toISOString());
-  } catch (e) {
-    console.warn(`[eait] pending sweep failed: ${describeError(e)}`);
-  }
-  await insertPendingMeal(db, {
-    id, user_id: from.id, ts: new Date().toISOString(), date: mealDate,
-    analysis: route.analysis, model: config.llmModel,
-    user_message_id: msg.messageId,
+  const result = await handleText(deps, from.id, {
+    text: msg.text,
+    ...(focus ? { focusMealId: focus.id } : {}),
   });
-  const totals = await dailyTotals(db, from.id, mealDate);
+
+  if (result.kind === "answered") {
+    await send(result.text);
+    fireReaction(opts?.react, "👍", from.id);
+    return true;
+  }
+  if (result.kind === "target-gone") {
+    // A failed correction can be rephrased; a failed re-date cannot — nothing the user types brings
+    // a deleted row back, so the copy names the move instead of asking them to try again.
+    await send(t(result.on === "redate" ? "errors.redateFailed" : "errors.correctionFailed"));
+    return true;
+  }
+  if (result.kind === "not-onboarded" || result.kind === "analysis-failed") {
+    await send(t(result.kind === "not-onboarded" ? "errors.notOnboarded" : "errors.textFailed"));
+    return true;
+  }
+  if (result.kind === "cap-exceeded") {
+    await send(t(result.scope === "user" ? "errors.dailyCap" : "errors.globalCap"));
+    return true;
+  }
+  if (result.kind === "not-food") {
+    await send(t("errors.notFood"));
+    return true;
+  }
+
+  if (result.kind === "updated" || result.kind === "redated") {
+    // Both apply immediately — a reply is unambiguous, so neither gets a confirm step.
+    const dateLabel = mealDateLabel(result.date, date, prof.lang, config.tz);
+    // A move always names its target day (even "today") so it is legible on its own; a correction
+    // says "updated" and lets the card carry the rest.
+    const prefix = result.kind === "redated"
+      ? t("meal.movedPrefix", { date: berlinDayLabel(result.date, prof.lang, config.tz) })
+      : t("meal.updatedPrefix");
+    const sent = await sendCard(replyFormatFor(prof, config), send, opts?.sendRich, {
+      html: renderMealCard(result.analysis, result.totals, targetsFor(prof), t, prof.restrictions, { prefix, dateLabel }),
+      plain: prefix + "\n" + formatReply(result.analysis, result.totals, targetsFor(prof), t, prof.restrictions, { dateLabel }),
+    });
+    // Map the new card to the meal so a follow-up reply to IT re-focuses — otherwise a multi-step
+    // move ("yesterday", then reply again "one more day back") dead-ends with no focus.
+    if (sent) await setMealReply(db, result.mealId, from.id, sent.chat_id, sent.message_id);
+    fireReaction(opts?.react, "👍", from.id);
+    return true;
+  }
+
+  // proposed → confirm before logging. Unlike a photo, free text is easy to misread as a meal, so
+  // nothing reaches `meals` until the tap, and the resolved date is on the prompt to catch a
+  // misparse.
+  if (result.kind !== "proposed") return assertNever(result);
+  const dateLabel = mealDateLabel(result.date, date, prof.lang, config.tz);
+  const totals = await dailyTotals(db, from.id, result.date);
   const promptLine = dateLabel ? t("text.confirmPromptDated", { date: dateLabel }) : t("text.confirmPrompt");
-  const preview = promptLine + "\n" + formatReply(route.analysis, totals, targetsFor(prof), t, prof.restrictions, { dateLabel });
+  const preview = promptLine + "\n" + formatReply(result.analysis, totals, targetsFor(prof), t, prof.restrictions, { dateLabel });
   const sent = await send(preview, [[
-    { text: t("text.logButton"), data: `tm:log:${id}` },
-    { text: t("text.cancelButton"), data: `tm:cancel:${id}` },
+    { text: t("text.logButton"), data: `tm:log:${result.pendingId}` },
+    { text: t("text.cancelButton"), data: `tm:cancel:${result.pendingId}` },
   ]]);
-  if (sent) await setPendingReply(db, id, from.id, sent.chat_id, sent.message_id);
+  if (sent) {
+    await setPendingReply(db, result.pendingId, from.id, sent.chat_id, sent.message_id, msg.messageId);
+  } else {
+    // No card on screen, so the pending row can never be tapped — record which user message
+    // produced it anyway, or a reply to their own text finds no focus meal.
+    await setPendingUserMessage(db, result.pendingId, from.id, msg.messageId);
+  }
   fireReaction(opts?.react, "👍", from.id);
   return true;
 }
