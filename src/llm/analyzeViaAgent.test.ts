@@ -4,7 +4,7 @@ import { freshTestName, cleanupTestDbs, openTestDb } from "../testutil.ts";
 import { createMastra } from "./mastra.ts";
 import { createEngineAgent } from "./agent.ts";
 import { analyzeMealViaAgent } from "./analyzeViaAgent.ts";
-import { buildUserText } from "../analyzer.ts";
+import { buildUserText, SYSTEM } from "../analyzer.ts";
 import { buildRequestContext } from "./context.ts";
 import { buildFoodIndex } from "../food_db.ts";
 import type { Profile } from "../types.ts";
@@ -218,6 +218,27 @@ describe("analyzeMealViaAgent", () => {
       [bytes], profile, buildRequestContext(1),
     );
     expect(offered).toEqual(["search_food_db", "submit_meal"]);
+  });
+
+  test("the model is TOLD how to use search_food_db — per-call instructions replace, not append", async () => {
+    // Mastra's per-call `instructions` REPLACES the agent's. Every flow passes its own system text,
+    // so the agent's grounding guidance was silently dropped and the model was offered the lookup
+    // with nothing telling it to pass confusable alternatives — which is the single instruction
+    // that makes a bulgur/couscous misread recoverable at all.
+    let sys = "";
+    const model = new MockLanguageModelV4({
+      doGenerate: async (opts: any) => {
+        sys = (opts.prompt ?? []).filter((m: any) => m.role === "system").map((m: any) => m.content).join("\n");
+        return {
+          finishReason: { unified: "tool-calls" as const, raw: undefined }, usage, warnings: [],
+          content: [{ type: "tool-call" as const, toolCallId: "c1", toolName: "submit_meal", input: JSON.stringify(ANALYSIS) }],
+        };
+      },
+    });
+    await analyzeMealViaAgent(await agentFor(model), [bytes], profile, buildRequestContext(1));
+    expect(sys).toContain("search_food_db");
+    // Still carries the estimation protocol — appended, not replaced in the other direction.
+    expect(sys).toContain(SYSTEM);
   });
 
   test("THROWS when the agent never calls submit_meal", async () => {

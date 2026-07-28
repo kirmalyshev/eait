@@ -18,6 +18,7 @@
 // exists rather than a two-line call.
 
 import type { Agent } from "@mastra/core/agent";
+import { LOOKUP_GUIDANCE } from "./agent.ts";
 import { stopAtTerminalTool, PHOTO_TOOLS, LOOKUP_TOOL } from "./stop.ts";
 import { SYSTEM, buildUserText, MealAnalysisSchema, gated } from "../analyzer.ts";
 import type { MealAnalysis, MealContext, Profile } from "../types.ts";
@@ -66,7 +67,10 @@ export async function analyzeMealViaAgent(
       },
     ],
     {
-      instructions: SYSTEM,
+      // Appended, not assumed: Mastra's per-call `instructions` REPLACES the agent's, so passing
+      // SYSTEM alone dropped the agent's guidance on how to use `search_food_db` and the model was
+      // offered the tool with nothing telling it to pass confusable alternatives. Measured.
+      instructions: `${SYSTEM}\n\n${LOOKUP_GUIDANCE}`,
       requestContext: requestContext as never,
       memory: memoryKey,
       // The agent must be able to look a food up and THEN submit, so a single step cannot be the

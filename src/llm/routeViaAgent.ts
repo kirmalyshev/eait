@@ -25,6 +25,7 @@
 // first; tightening is a separate change with its own evidence.
 
 import type { Agent } from "@mastra/core/agent";
+import { LOOKUP_GUIDANCE } from "./agent.ts";
 import { stopAtTerminalTool, ROUTER_TOOLS, LOOKUP_TOOL } from "./stop.ts";
 import { SYSTEM_ROUTE, buildRouteText, gated } from "../analyzer.ts";
 import type { RouteContext, RouteResult } from "../analyzer.ts";
@@ -54,7 +55,10 @@ export async function routeTextViaAgent(
   const result = await agent.generate(
     [{ role: "user", content: [{ type: "text", text: buildRouteText(text, profile, ctx) }] }],
     {
-      instructions: SYSTEM_ROUTE,
+      // Appended, not assumed: Mastra's per-call `instructions` REPLACES the agent's, so passing
+      // SYSTEM_ROUTE alone dropped the agent's guidance on how to use `search_food_db` and the model was
+      // offered the tool with nothing telling it to pass confusable alternatives. Measured.
+      instructions: `${SYSTEM_ROUTE}\n\n${LOOKUP_GUIDANCE}`,
       requestContext: requestContext as never,
       // Memory keyed on the Telegram user, from the PROFILE. A thread id a model could influence
       // is a thread id it could point at somebody else's conversation.

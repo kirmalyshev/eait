@@ -34,17 +34,7 @@ export function createEngineAgent(
   return new Agent({
     id: "eait-engine",
     name: "eait-engine",
-    instructions:
-      "You are the assistant behind a personal food-diary Telegram bot. You MUST finish every " +
-      "turn by calling exactly one terminal tool: submit_meal for food the user ate, " +
-      "submit_correction to fix the focus meal's estimate, submit_redate to move the focus meal to " +
-      "another day, or answer_question for anything else. submit_correction and submit_redate are " +
-      "only valid when a focus meal was provided. Never end a turn with prose alone — a turn that " +
-      "calls no terminal tool is a lost message to the user. " +
-      "When search_food_db is available, look up each food you identify BEFORE submitting, passing " +
-      "its English name together with any similar food it could be confused with, and use the " +
-      "per-100g figures of the row you pick. If the search returns nothing, keep your own estimate " +
-      "rather than choosing a row that is merely close.",
+    instructions: `${BASE_INSTRUCTIONS} ${LOOKUP_GUIDANCE}`,
     model,
     memory,
     tools: {
@@ -57,3 +47,31 @@ export function createEngineAgent(
     },
   });
 }
+
+const BASE_INSTRUCTIONS =
+  "You are the assistant behind a personal food-diary Telegram bot. You MUST finish every " +
+  "turn by calling exactly one terminal tool: submit_meal for food the user ate, " +
+  "submit_correction to fix the focus meal's estimate, submit_redate to move the focus meal to " +
+  "another day, or answer_question for anything else. submit_correction and submit_redate are " +
+  "only valid when a focus meal was provided. Never end a turn with prose alone — a turn that " +
+  "calls no terminal tool is a lost message to the user.";
+
+/**
+ * How to use the composition-table lookup, as a SEPARATE export.
+ *
+ * Mastra's per-call `instructions` REPLACES the agent's, it does not append — so every flow that
+ * passes its own system text (all of them: SYSTEM, SYSTEM_ROUTE, SYSTEM_CLASSIFY) silently dropped
+ * this, and the model was offered `search_food_db` with nothing telling it how to use it. Measured
+ * by capturing the system text a photo turn actually receives.
+ *
+ * The specific instruction that matters is "pass any similar food it could be confused with":
+ * retrieval is driven by the name the model produces, so without an alternative the bulgur row is
+ * never on the shortlist for a model that said couscous, and grounding SHARPENS the wrong answer
+ * instead of correcting it. Phrased conditionally, so appending it where the tool may be absent
+ * costs nothing.
+ */
+export const LOOKUP_GUIDANCE =
+  "When search_food_db is available, look up each food you identify BEFORE submitting, passing " +
+  "its English name together with any similar food it could be confused with, and use the " +
+  "per-100g figures of the row you pick. If the search returns nothing, keep your own estimate " +
+  "rather than choosing a row that is merely close.";

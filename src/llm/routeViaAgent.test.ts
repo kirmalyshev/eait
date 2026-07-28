@@ -4,7 +4,7 @@ import { freshTestName, cleanupTestDbs, openTestDb } from "../testutil.ts";
 import { createMastra } from "./mastra.ts";
 import { createEngineAgent } from "./agent.ts";
 import { routeTextViaAgent } from "./routeViaAgent.ts";
-import { buildRouteText } from "../analyzer.ts";
+import { buildRouteText, SYSTEM_ROUTE } from "../analyzer.ts";
 import type { RouteContext } from "../analyzer.ts";
 import { buildRequestContext } from "./context.ts";
 import type { MealAnalysis, Profile } from "../types.ts";
@@ -171,6 +171,22 @@ describe("routeTextViaAgent", () => {
     await route(model, ctxWith());
     expect(offered).not.toContain("submit_restrictions");
     expect(offered).toEqual(["answer_question", "submit_correction", "submit_meal", "submit_redate"]);
+  });
+
+  test("the router is TOLD how to use search_food_db too — a text meal is grounded like a photo", async () => {
+    let sys = "";
+    const model = new MockLanguageModelV4({
+      doGenerate: async (opts: any) => {
+        sys = (opts.prompt ?? []).filter((m: any) => m.role === "system").map((m: any) => m.content).join("\n");
+        return {
+          finishReason: { unified: "tool-calls" as const, raw: undefined }, usage, warnings: [],
+          content: [{ type: "tool-call" as const, toolCallId: "c1", toolName: "answer_question", input: JSON.stringify({ answer: "ок" }) }],
+        };
+      },
+    });
+    await route(model, ctxWith());
+    expect(sys).toContain("search_food_db");
+    expect(sys).toContain(SYSTEM_ROUTE);
   });
 
   test("THROWS when the agent ends with prose and no terminal tool", async () => {
