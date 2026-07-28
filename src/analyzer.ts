@@ -31,6 +31,25 @@ export const MealAnalysisSchema = z.object({
          * reads as "keep the model own macros" — never as a reason to reject a good analysis.
          */
         name_en: z.string().optional(),
+        /**
+         * Per-item nutrition. The prompt already instructs the model to compute these ("totals are
+         * the sums across items") — we simply stopped throwing the work away. They make a per-item
+         * substitution expressible, make the item-vs-total consistency check possible at all, and
+         * let a disambiguation tap rescale locally instead of paying for a second billed call.
+         *
+         * `kcal_per_100g` is density, not total: it is what a substitution rescales by, and what
+         * answers "is this other candidate materially different?" without a table round-trip.
+         *
+         * OPTIONAL, and absent rather than 0, for the same reason as `name_en` above — every meal
+         * stored before these fields existed lacks them, and a `.default(0)` would write a
+         * confident "this item has zero calories" onto all of them. Zero is a claim; absent is a
+         * gap, and only the gap is honest.
+         */
+        kcal: z.coerce.number().nonnegative().optional(),
+        protein_g: z.coerce.number().nonnegative().optional(),
+        carbs_g: z.coerce.number().nonnegative().optional(),
+        fat_g: z.coerce.number().nonnegative().optional(),
+        kcal_per_100g: z.coerce.number().nonnegative().optional(),
       }),
     )
     .default([]),
@@ -80,6 +99,13 @@ const MEAL_JSON_SCHEMA = {
           name: { type: "string" },
           grams: { type: "number" },
           name_en: { type: "string" },
+          // Per-item nutrition (A2). Declared here or the model has no field to put it in, and
+          // the arithmetic it was already told to do stays trapped in `reasoning`.
+          kcal: { type: "number" },
+          protein_g: { type: "number" },
+          carbs_g: { type: "number" },
+          fat_g: { type: "number" },
+          kcal_per_100g: { type: "number" },
         },
       },
     },
@@ -191,7 +217,11 @@ function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boo
       `The user buys most of their food in "${country}" — prefer local product names, packaging sizes, and typical portion norms there, but always trust the actual evidence over this prior.`,
     );
   }
-  lines.push("Estimate items[{name,grams}], kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g, sodium_mg, plant_protein_pct.");
+  // Step 3 above already asks for per-item arithmetic; this is where the model is told to REPORT
+  // it rather than leave it in `reasoning`. Writing the per-item numbers down is also what makes
+  // the totals checkable against their own parts.
+  lines.push("Estimate items[{name,grams,kcal,protein_g,carbs_g,fat_g,kcal_per_100g}], and the meal totals kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g, sodium_mg, plant_protein_pct.");
+  lines.push("Per item: kcal_per_100g is that food's density as served (kcal per 100 g), and kcal must equal grams/100 x kcal_per_100g. The meal totals must equal the sums across items.");
   lines.push('Set confidence to exactly one of "high", "medium", "low" — "low" when the dish is mixed, ingredients may be hidden, or no scale reference is visible; state why in notes.');
   if (context?.caption) {
     lines.push(`The user captioned the photo: "${context.caption.slice(0, CAPTION_INPUT_CAP)}" — treat it as ground truth about the contents.`);

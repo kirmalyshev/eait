@@ -250,6 +250,69 @@ describe("items[].name_en — the food-database lookup key", () => {
   });
 });
 
+describe("items[] per-item macros (A2)", () => {
+  // The prompt already tells the model to "Compute kcal and macros per item ... totals are the sums
+  // across items" — it does that work and we throw it away, keeping only the totals. Capturing it
+  // is what makes a per-item substitution expressible at all, what lets the item-sum check exist,
+  // and what lets a user's disambiguation tap recompute locally instead of paying for a re-analysis.
+
+  test("the schema accepts kcal and macros per item", () => {
+    const parsed = MealAnalysisSchema.parse({
+      isFood: true,
+      items: [
+        { name: "Гречка", grams: 200, kcal: 184, protein_g: 6.8, carbs_g: 39.8, fat_g: 1.2 },
+      ],
+    });
+    const item = parsed.items[0]!;
+    expect(item.kcal).toBe(184);
+    expect(item.protein_g).toBe(6.8);
+    expect(item.carbs_g).toBe(39.8);
+    expect(item.fat_g).toBe(1.2);
+  });
+
+  test("kcal_per_100g is carried separately from the item's own kcal", () => {
+    // Density, not total. It is what a disambiguation tap rescales by, and what makes the
+    // "is this alternative materially different?" gate answerable without a database round-trip.
+    const parsed = MealAnalysisSchema.parse({
+      isFood: true,
+      items: [{ name: "bulgur", grams: 200, kcal: 166, kcal_per_100g: 83 }],
+    });
+    expect(parsed.items[0]!.kcal).toBe(166);
+    expect(parsed.items[0]!.kcal_per_100g).toBe(83);
+  });
+
+  test("all of them are ABSENT, not zero, when the model omits them", () => {
+    // Same reasoning as name_en, and the same trap: a `.default(0)` here would write a confident
+    // zero into every meal stored before this field existed, and 0 kcal is a claim, not a gap.
+    const parsed = MealAnalysisSchema.parse({ isFood: true, items: [{ name: "rice", grams: 100 }] });
+    const item = parsed.items[0]!;
+    for (const key of ["kcal", "protein_g", "carbs_g", "fat_g", "kcal_per_100g"] as const) {
+      expect(item[key]).toBeUndefined();
+      expect(key in item).toBe(false);
+    }
+  });
+
+  test("a negative per-item value is rejected, like every other macro on this schema", () => {
+    const bad = MealAnalysisSchema.safeParse({
+      isFood: true,
+      items: [{ name: "rice", grams: 100, kcal: -5 }],
+    });
+    expect(bad.success).toBe(false);
+  });
+
+  test("structured-output mode declares them, or the model may never emit them", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], profile, provider);
+    const schema = JSON.stringify(provider.lastRequest!.jsonSchema);
+    // Asserted inside the items block specifically: the meal-level macro keys share these names,
+    // so a bare `toContain` would pass on the totals alone and prove nothing about the items.
+    const items = JSON.parse(schema).properties.items.items.properties;
+    expect(Object.keys(items).sort()).toEqual(
+      ["carbs_g", "fat_g", "grams", "kcal", "kcal_per_100g", "name", "name_en", "protein_g"],
+    );
+  });
+});
+
 describe("MealAnalysisSchema", () => {
   test("defaults numeric fields so a minimal isFood object is valid", () => {
     const parsed = MealAnalysisSchema.parse({ isFood: false });

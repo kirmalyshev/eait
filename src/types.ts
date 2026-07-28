@@ -69,6 +69,20 @@ export interface MealItem {
    * "keep the model's own macros".
    */
   name_en?: string;
+  /**
+   * Per-item nutrition, as computed by the model (the prompt already asks for it; totals are the
+   * sums across items). Optional and absent-not-zero for the same reason as `name_en`: meals
+   * stored before these fields existed lack them, and a zero would read as a claim that the item
+   * has no calories rather than as a missing measurement.
+   *
+   * `kcal_per_100g` is the item's density — what a substitution rescales by, and what makes
+   * "materially different?" answerable without a composition-table lookup.
+   */
+  kcal?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
+  kcal_per_100g?: number;
 }
 
 /** Per-dimension verdicts. Only dimensions relevant to the user's profile are set. */
