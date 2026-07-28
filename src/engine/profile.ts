@@ -5,7 +5,11 @@
 // reading a profile must get the same validated shape, and a second copy of these rules is a second
 // place for "unknown locale" to be handled differently.
 
-import { DEFAULT_LANG, isLang } from "../i18n/index.ts";
+// From the REGISTRY, not `i18n/index.ts`. The registry is pure vocabulary — the locale list and a
+// validator — while `index.ts` also constructs an i18next instance, and importing it would give the
+// engine a transitive dependency on a translation runtime it must never touch. A user's language is
+// profile DATA; rendering in it is the surface's job.
+import { DEFAULT_LANG, isLang } from "../i18n/registry.ts";
 import { isReplyFormat } from "../types.ts";
 import type { UserRow } from "../db.ts";
 import type { MealAnalysis, MealRecord, Profile } from "../types.ts";

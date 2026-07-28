@@ -8,6 +8,10 @@ neither is privileged. Design: `docs/design/2026-07-28-mastra-engine-boundary.md
 **An engine function takes a resolved `userId` plus typed input and returns a typed RESULT UNION.**
 No rendering, no i18n, no transport types, no message ids. Nothing here may import `i18next`,
 `grammy`, or anything under `tg_bot/` — if a change wants to, the change belongs in the surface.
+**`boundary.test.ts` enforces this**, because nothing breaks at runtime the day it is violated: the
+folder just quietly stops being transport-agnostic, and the next front end inherits Telegram's
+assumptions. `i18n/registry.ts` (the locale vocabulary and its validator) IS allowed — a user's
+language is profile data; `i18n/index.ts` is not, because it builds an i18next instance.
 
 `hint` is a **code** (`"lowConfidence"`), never copy. The bot resolves it through `t()`; a mobile
 client resolves it however it likes, and neither has to agree with the other about wording.
