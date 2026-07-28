@@ -15,7 +15,7 @@
     "@grammyjs/runner": "^2.0.3",
     "@mastra/core": "^1.52.1",
     "@mastra/memory": "^1.23.1",
-    "@mastra/pg": "^1.17.0",
+    "@mastra/pg": "^1.17.1",
     "grammy": "^1.45.1",
     "i18next": "^26.3.6",
     "zod": "^4.4.3"
