@@ -10,6 +10,7 @@
 // with no restrictions at all, no kidney verdict, no sodium cap, and nothing saying why.
 
 import type { Agent } from "@mastra/core/agent";
+import type { RequestContext } from "@mastra/core/request-context";
 import { stopAtTerminalTool, ONBOARDING_TOOLS } from "./stop.ts";
 import { SYSTEM_CLASSIFY, buildClassifyText } from "../analyzer.ts";
 import { isRestrictionTag } from "../targets.ts";
@@ -22,7 +23,7 @@ export async function classifyRestrictionsViaAgent(
   agent: Agent,
   text: string,
   lang: Profile["lang"],
-  requestContext: unknown,
+  requestContext: RequestContext,
   telegramId: number,
 ): Promise<string[]> {
   try {
@@ -30,7 +31,7 @@ export async function classifyRestrictionsViaAgent(
       [{ role: "user", content: [{ type: "text", text: buildClassifyText(text, lang) }] }],
       {
         instructions: SYSTEM_CLASSIFY,
-        requestContext: requestContext as never,
+        requestContext,
         // NO MEMORY: classifying one sentence of free text against a fixed vocabulary has no
         // history to carry, and this runs once per user before a profile exists.
         // The ONE per-call tool subset in the codebase, and the one place it is clearly right: this

@@ -18,6 +18,7 @@
 // exists rather than a two-line call.
 
 import type { Agent } from "@mastra/core/agent";
+import type { RequestContext } from "@mastra/core/request-context";
 import { LOOKUP_GUIDANCE } from "./agent.ts";
 import { stopAtTerminalTool, PHOTO_TOOLS, LOOKUP_TOOL } from "./stop.ts";
 import { SYSTEM, buildUserText, MealAnalysisSchema, gated } from "../analyzer.ts";
@@ -37,14 +38,16 @@ const isToolError = (v: unknown): v is ToolError =>
  * Analyze one meal's photos through the agent, returning the same `MealAnalysis` the old path does.
  *
  * `userId` is bound into the request context by the CALLER, never taken from anything the model
- * produces — the constitutional rule in `llm/context.ts`. It is required here rather than optional
- * so a caller cannot forget it and silently get an unscoped agent turn.
+ * produces — the constitutional rule in `llm/context.ts`. Required, and typed as a real
+ * `RequestContext` rather than `unknown`: the parameter used to be untyped behind a cast, which
+ * meant a caller could pass anything at all and only find out inside a tool's `requireUserId`,
+ * at runtime, on somebody's meal.
  */
 export async function analyzeMealViaAgent(
   agent: Agent,
   images: readonly Uint8Array[],
   profile: Profile,
-  requestContext: unknown,
+  requestContext: RequestContext,
   context?: MealContext,
 ): Promise<MealAnalysis> {
   if (images.length === 0) throw new Error("analyzeMealViaAgent: no images");
@@ -67,7 +70,7 @@ export async function analyzeMealViaAgent(
       // SYSTEM alone dropped the agent's guidance on how to use `search_food_db` and the model was
       // offered the tool with nothing telling it to pass confusable alternatives. Measured.
       instructions: `${SYSTEM}\n\n${LOOKUP_GUIDANCE}`,
-      requestContext: requestContext as never,
+      requestContext,
       // NO MEMORY, deliberately. A photo analysis is a single-shot estimate, and the old path sent
       // exactly one user message. Passing a thread made Mastra replay the whole conversation into
       // every turn — measured at 2 → 5 → 8 → 11 prompt messages over four photos, each carrying the

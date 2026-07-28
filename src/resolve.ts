@@ -1,6 +1,18 @@
 // Retrieve-then-select: ground each item on a composition-table row instead of trusting the
 // model's own arithmetic (design: docs/design/2026-07-27-analysis-quality.md, D').
 //
+// ⚠ NOT WIRED. Nothing imports this module. The Mastra migration took the OTHER half of D' — the
+// agent calls `search_food_db` and picks a row itself, mid-turn, then does its own arithmetic
+// (`llm/tools/foodDb.ts`). That supersedes `buildCandidateSets`, which exists to do the retrieval
+// outside the model.
+//
+// It is kept rather than deleted because `applySelections` still encodes two decisions the agent
+// path has NO equivalent for, both of which took measurement to arrive at: totals are re-summed
+// only when at least one item is grounded, and MICROS only when EVERY item is — a partial sodium
+// sum silently understates the one nutrient a user with a kidney restriction would act on. Under
+// the agent path the model does that arithmetic itself and nothing checks it. Wiring this back in
+// as a post-pass over the agent's answer is a live option; deleting it would throw the guard away.
+//
 // WHY THIS SHAPE, RATHER THAN LOOKING THE ANSWER UP AFTERWARDS. The obvious design is to take the
 // model's name, find the best row, and replace the macros. That amplifies a misidentification
 // instead of fixing it: look up "couscous" and you get precise, authoritative couscous numbers for
