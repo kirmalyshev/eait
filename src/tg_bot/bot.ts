@@ -26,6 +26,7 @@ import { AlbumBuffer } from "./albums.ts";
 import { analyzeMeal, classifyRestrictions, routeText, type RouteContext, type RouteResult } from "../analyzer.ts";
 import { RejectionLog } from "./rejections.ts";
 import { targetsFor, weightRemainingKg, isRestrictionTag } from "../targets.ts";
+import { checkConsistency } from "../consistency.ts";
 import { countryLabel } from "../country.ts";
 import { limitationsDisplay } from "../limitations.ts";
 import { formatReply, berlinDayLabel, mealDateLabel } from "../reply.ts";
@@ -702,6 +703,16 @@ export async function processPhoto(
   // confidence is logged so a model drifting off the high/medium/low vocabulary is visible —
   // off-vocabulary values silently route to the generic hint, and nothing else would say so.
   console.log(`[eait] photo user=${from.id} isFood=${analysis.isFood} kcal=${analysis.kcal} items=${analysis.items.length} confidence=${analysis.confidence}`);
+  // Lever B, phase 1: OBSERVE ONLY. The analysis is not touched and the user sees no difference —
+  // this exists to produce a fire rate, because the right action on a mismatch (force
+  // confidence:"low"? retry the call? nothing?) depends entirely on whether this trips on 3% of
+  // meals or 30%. Logged per finding with both numbers so the rate can be read off the logs
+  // without re-running anything. Decide the action from the measured rate, then come back here.
+  for (const f of checkConsistency(analysis).findings) {
+    console.warn(
+      `[eait] inconsistent user=${from.id} kind=${f.kind} stated=${f.stated} derived=${f.derived}`,
+    );
+  }
   if (!analysis.isFood) {
     const sent = await send(t("errors.notFood"));
     // Remember the rejection so a reply to it can be explained instead of guessed at.
