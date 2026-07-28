@@ -30,6 +30,10 @@ const cfg: Config = {
   perUserDailyPhotoCap: 2, adminUserId: 42, allowedUserIds: null, globalDailyAnalysisCap: null,
   // Plain keeps the long-standing text assertions exact; the rich path has its own tests.
   replyFormat: "plain",
+  // The HTTP API is off in the bot tests: they exercise the Telegram surface, and a listening
+  // socket per test file would collide.
+  apiPort: null,
+  apiHost: "127.0.0.1",
 };
 
 afterAll(cleanupTestDbs, 60_000);

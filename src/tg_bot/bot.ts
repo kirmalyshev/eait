@@ -167,6 +167,7 @@ function fireReaction(react: React | undefined, emoji: "👀" | "👍", userId: 
 import { profileFromRow, mealRecordToAnalysis } from "../engine/profile.ts";
 import { logPhotoMeal } from "../engine/meals.ts";
 import { handleText } from "../engine/text.ts";
+import { startApi, type ApiServer } from "../api/server.ts";
 import type { Refusal } from "../engine/results.ts";
 export { profileFromRow as profileOf };
 const profileOf = profileFromRow;
@@ -1443,6 +1444,7 @@ export async function startBot(config: Config): Promise<{ db: Db; stop: () => Pr
   const routerId = modelRouterId(config);
   const db = await openDb(config.pg);
   let bot: Bot;
+  let api: ApiServer | null = null;
   try {
     // Mastra memory persists into the SAME Postgres db.ts uses; PostgresStore manages its own
     // tables there, outside db.ts's schema_version migrations. `init()` runs inside createMastra so
@@ -1461,12 +1463,22 @@ export async function startBot(config: Config): Promise<{ db: Db; stop: () => Pr
     const agent = createEngineAgent(routerId, memory, {
       ...(loaded ? { foodIndex: loaded.index } : {}),
     });
-    const allowlist = await loadAllowlist(db, config);
-    bot = createBot({
-      db, config, allowlist,
+    const engineDeps = {
+      db, config,
       analyzePhoto: photoAnalyzerViaAgent(agent),
       routeText: textRouterViaAgent(agent),
       classifyRestrictions: restrictionClassifierViaAgent(agent),
+    };
+    // The HTTP API is the second front end over the SAME engine deps — same caps, same per-user
+    // scoping, same Mastra agent. It starts only when API_PORT is set, and `resolveUserId` has no
+    // default: an authentication scheme that defaults to anything is one that is off, and this
+    // endpoint reaches every user's diary. Until a scheme is chosen it resolves to null, so the API
+    // answers 401 to everything but /health rather than serving unauthenticated reads.
+    api = startApi(engineDeps, () => null, config);
+
+    const allowlist = await loadAllowlist(db, config);
+    bot = createBot({
+      ...engineDeps, allowlist,
     });
     // Report the EFFECTIVE list (stored beats env), not the env value — after an admin
     // /allow, the two differ and the env line would lie.
@@ -1480,6 +1492,7 @@ export async function startBot(config: Config): Promise<{ db: Db; stop: () => Pr
       console.log(`[eait] allowlist active: ${effective.length} user(s)`);
     }
   } catch (e) {
+    await api?.stop(); // a listening socket must not outlive a failed startup
     await db.close(); // `new Bot(token)` rejects a malformed token — don't strand the pool we just opened
     throw e;
   }
@@ -1527,7 +1540,9 @@ export async function startBot(config: Config): Promise<{ db: Db; stop: () => Pr
     try {
       if (handle.isRunning()) await handle.stop();
     } finally {
-      await db.close(); // must run even if stopping the runner rejects, or the pool leaks
+      // Both must run even if stopping the runner rejects, or the socket and the pool leak.
+      await api?.stop().catch((e) => console.warn(`[eait] api stop failed: ${describeError(e)}`));
+      await db.close();
     }
   };
   process.once("SIGTERM", stop);
