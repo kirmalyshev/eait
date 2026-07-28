@@ -39,7 +39,15 @@ import type { MealAnalysis, Profile } from "../src/types.ts";
 
 let argv: ParsedArgv;
 try {
-  argv = parseArgv(process.argv.slice(2), { valued: ["dir", "limit", "repeat"], boolean: [] });
+  argv = parseArgv(process.argv.slice(2), {
+    valued: ["dir", "limit", "repeat"],
+    // Grounding is a CAPABILITY the agent path has and the old path cannot have — search_food_db
+    // has no equivalent behind `provider.chat`. Leaving it on measures transport and grounding
+    // together, and the first run of this harness did exactly that: item agreement fell to 60%
+    // against a 92% within-path baseline, which is unreadable as either a transport regression or
+    // a grounding effect. Run it BOTH ways: --no-food-db isolates the transport.
+    boolean: ["no-food-db"],
+  });
 } catch (e) {
   console.error((e as Error).message);
   process.exit(2);
@@ -167,7 +175,7 @@ const { mastra, memory } = await createMastra(pg);
 // The food index is loaded when present so the agent path runs as production would — WITH
 // search_food_db. Omitting it would compare the new path's degraded mode against the old path's
 // only mode, and call the result parity.
-const loaded = await loadFoodIndex();
+const loaded = argv.flags.has("no-food-db") ? null : await loadFoodIndex();
 const agent = createEngineAgent(modelRouterId({ llmProvider: provider, llmModel: model }), memory, {
   ...(loaded ? { foodIndex: loaded.index } : {}),
 });

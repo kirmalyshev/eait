@@ -449,13 +449,10 @@ const RestrictionsSchema = z.object({
  * NEVER throws: a failure here must not block onboarding, so every error path yields `[]` and
  * the user simply keeps the keyword result. Called at most once per user.
  */
-export async function classifyRestrictions(
-  text: string,
-  provider: LLMProvider,
-  lang: Profile["lang"],
-): Promise<string[]> {
+/** The classifier's user-turn text. Exported so the Mastra path sends the identical string. */
+export function buildClassifyText(text: string, lang: Profile["lang"]): string {
   const vocabulary = RESTRICTION_TAGS.join(", ");
-  const userText = [
+  return [
     "Classify a user's free-text dietary/health restrictions into tags.",
     `Allowed tags (use NOTHING else): ${vocabulary}.`,
     // A hint, not an assertion — a user may well write in a language other than their interface.
@@ -464,9 +461,19 @@ export async function classifyRestrictions(
     "",
     `Text: ${text.slice(0, RESTRICTION_INPUT_CAP)}`,
   ].join("\n");
+}
 
+export async function classifyRestrictions(
+  text: string,
+  provider: LLMProvider,
+  lang: Profile["lang"],
+): Promise<string[]> {
   try {
-    const raw = await provider.chat({ system: SYSTEM_CLASSIFY, userText, temperature: TEMPERATURE });
+    const raw = await provider.chat({
+      system: SYSTEM_CLASSIFY,
+      userText: buildClassifyText(text, lang),
+      temperature: TEMPERATURE,
+    });
     const parsed = RestrictionsSchema.safeParse(tolerantJson(raw));
     // Never-throwing is deliberate (see the docstring), but staying silent is not: this path
     // only runs when the keyword pass already matched nothing, so the user ends up with no
@@ -483,7 +490,7 @@ export async function classifyRestrictions(
   }
 }
 
-const SYSTEM_CLASSIFY =
+export const SYSTEM_CLASSIFY =
   "You map free-text dietary and health restrictions onto a fixed tag vocabulary. " +
   "Respond with ONLY a single JSON object — no prose, no markdown fences.";
 
@@ -542,7 +549,7 @@ const ROUTE_JSON_SCHEMA = {
   },
 } as const;
 
-const SYSTEM_ROUTE =
+export const SYSTEM_ROUTE =
   "You are the assistant behind a personal food-diary bot. The user sent a free-text message. " +
   "Decide the intent and respond with ONLY one JSON object, no prose, no markdown fences: " +
   '{"intent":"question","answer":"..."} for questions or chat — answer helpfully and concisely ' +
@@ -570,12 +577,13 @@ const RouteSchema = z.object({
   dayOffset: z.unknown().optional(),
 });
 
-export async function routeText(
-  text: string,
-  profile: Profile,
-  ctx: RouteContext,
-  provider: LLMProvider,
-): Promise<RouteResult> {
+/**
+ * The router's user-turn text. Exported so the Mastra path (`llm/routeViaAgent.ts`) sends the
+ * IDENTICAL string — the same discipline `buildUserText` carries for photos. If the two engines
+ * built their own prompts, no eval could tell a transport regression from an accuracy one, because
+ * both would move the same numbers.
+ */
+export function buildRouteText(text: string, profile: Profile, ctx: RouteContext): string {
   const lines: string[] = [];
   lines.push(buildUserText(profile)); // goal, estimation protocol, cuisine prior, output language
   lines.push("");
@@ -606,10 +614,18 @@ export async function routeText(
   lines.push(`Write the answer in ${LOCALES[profile.lang].llmName}.`);
   lines.push("");
   lines.push(`User message: "${text.slice(0, TEXT_INPUT_CAP)}"`);
+  return lines.join("\n");
+}
 
+export async function routeText(
+  text: string,
+  profile: Profile,
+  ctx: RouteContext,
+  provider: LLMProvider,
+): Promise<RouteResult> {
   const raw = await provider.chat({
     system: SYSTEM_ROUTE,
-    userText: lines.join("\n"),
+    userText: buildRouteText(text, profile, ctx),
     jsonSchema: ROUTE_JSON_SCHEMA,
     temperature: TEMPERATURE,
   });

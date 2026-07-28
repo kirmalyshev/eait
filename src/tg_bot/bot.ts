@@ -10,10 +10,10 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { run, sequentialize } from "@grammyjs/runner";
 import type { Config } from "../config.ts";
-import type { LLMProvider } from "../llm/provider.ts";
-import { createProvider } from "../llm/factory.ts";
-import type { AnalyzePhoto } from "../llm/analyzePort.ts";
-import { photoAnalyzerViaAgent } from "../llm/analyzePort.ts";
+import type { AnalyzePhoto, RouteText, ClassifyRestrictions } from "../llm/analyzePort.ts";
+import {
+  photoAnalyzerViaAgent, textRouterViaAgent, restrictionClassifierViaAgent,
+} from "../llm/analyzePort.ts";
 import { createMastra } from "../llm/mastra.ts";
 import { createEngineAgent } from "../llm/agent.ts";
 import { modelRouterId } from "../llm/model.ts";
@@ -30,7 +30,7 @@ import {
 } from "../db.ts";
 import { loadAllowlist, type Allowlist } from "../allowlist.ts";
 import { AlbumBuffer } from "./albums.ts";
-import { classifyRestrictions, routeText, type RouteContext, type RouteResult } from "../analyzer.ts";
+import type { RouteContext, RouteResult } from "../analyzer.ts";
 import { RejectionLog } from "./rejections.ts";
 import { targetsFor, weightRemainingKg, isRestrictionTag } from "../targets.ts";
 import { checkConsistency } from "../consistency.ts";
@@ -59,13 +59,6 @@ import type { Lang, MealAnalysis, MealContext, MealRecord, Profile, ReplyFormat 
 export interface BotDeps {
   db: Db;
   /**
-   * The OLD transport, still serving `routeText` (free text) and `classifyRestrictions`
-   * (onboarding). Photo analysis no longer uses it — see `analyzePhoto`. Removed at migration
-   * stage 4, when the last two call sites move to terminal tools
-   * (`docs/design/2026-07-28-mastra-engine-boundary.md`).
-   */
-  provider: LLMProvider;
-  /**
    * Meal analysis as a CAPABILITY, not a vendor. In production this is
    * `photoAnalyzerViaAgent(agent)` — the Mastra path — bound once in `startBot`; in tests it is a
    * one-line stub. Keeping it a function rather than an `Agent` is what stops every photo test from
@@ -73,6 +66,16 @@ export interface BotDeps {
    * repertoire reached the analyzer.
    */
   analyzePhoto: AnalyzePhoto;
+  /**
+   * Free-text routing as a capability. In production `textRouterViaAgent(agent)` — the Mastra
+   * terminal-tool path; in tests a one-line stub. Same reasoning as `analyzePhoto`.
+   */
+  routeText: RouteText;
+  /**
+   * Onboarding's restriction classifier — the keyword pass's fallback. Never throws; `[]` means
+   * "keep the keyword result".
+   */
+  classifyRestrictions: ClassifyRestrictions;
   config: Config;
   /**
    * Runtime access control (admin /allow · /deny). Optional so the many db+provider-only
@@ -310,7 +313,9 @@ async function applyRestrictionFallback(
     // cap-gated: refusing an onboarding step over a spend cap would strand the user mid-flow,
     // and this path runs at most once per user.
     if (u) await logLlmCall(deps.db, u.telegram_id, berlinDate(new Date(), deps.config.tz), "classify");
-    const tags = await classifyRestrictions(input.text, deps.provider, translatorLangOf(u));
+    const tags = await deps.classifyRestrictions(input.text, {
+      telegram_id: u?.telegram_id ?? 0, lang: translatorLangOf(u),
+    });
     if (tags.length) r.patch.restrictions = tags;
   } catch (e) {
     // Keep the keyword-only result already in r.patch; the answer (tags + limitations) still saves.
@@ -839,7 +844,7 @@ export async function processText(
   send: Send,
   opts?: { react?: React; sendRich?: SendRich },
 ): Promise<boolean> {
-  const { db, provider, config } = deps;
+  const { db, config } = deps;
   const u = await getUser(db, from.id);
   if (!u || u.state !== "active") return false; // onboarding owns non-active text
 
@@ -907,7 +912,7 @@ export async function processText(
   await logLlmCall(db, from.id, date, "router");
   let route: RouteResult;
   try {
-    route = await routeText(msg.text, prof, routeCtx, provider);
+    route = await deps.routeText(msg.text, prof, routeCtx);
   } catch (e) {
     // Log like processPhoto does — otherwise a model outage and a parse bug look identical
     // from the operator's side: the user gets a message, the logs get nothing.
@@ -1573,11 +1578,8 @@ export function describeError(err: unknown): string {
 }
 
 export async function startBot(config: Config): Promise<{ db: Db; stop: () => Promise<void> }> {
-  // Validate config before touching the network: createProvider and modelRouterId both throw on an
-  // unknown LLM_PROVIDER, and doing it first means that failure can't strand an open connection
-  // pool. Two validations of the same variable during the migration — one per engine — and stage 4
-  // deletes the first along with the provider it builds.
-  const provider = createProvider(config);
+  // Validate config before touching the network: modelRouterId throws on an unknown LLM_PROVIDER,
+  // and doing it first means that failure can't strand an open connection pool.
   const routerId = modelRouterId(config);
   const db = await openDb(config.pg);
   let bot: Bot;
@@ -1601,7 +1603,10 @@ export async function startBot(config: Config): Promise<{ db: Db; stop: () => Pr
     });
     const allowlist = await loadAllowlist(db, config);
     bot = createBot({
-      db, provider, analyzePhoto: photoAnalyzerViaAgent(agent), config, allowlist,
+      db, config, allowlist,
+      analyzePhoto: photoAnalyzerViaAgent(agent),
+      routeText: textRouterViaAgent(agent),
+      classifyRestrictions: restrictionClassifierViaAgent(agent),
     });
     // Report the EFFECTIVE list (stored beats env), not the env value — after an admin
     // /allow, the two differ and the env line would lie.

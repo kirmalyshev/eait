@@ -16,7 +16,10 @@
 
 import type { Agent } from "@mastra/core/agent";
 import { analyzeMealViaAgent } from "./analyzeViaAgent.ts";
+import { routeTextViaAgent } from "./routeViaAgent.ts";
+import { classifyRestrictionsViaAgent } from "./classifyViaAgent.ts";
 import { buildRequestContext } from "./context.ts";
+import type { RouteContext, RouteResult } from "../analyzer.ts";
 import type { MealAnalysis, MealContext, Profile } from "../types.ts";
 
 /**
@@ -43,4 +46,37 @@ export type AnalyzePhoto = (
 export function photoAnalyzerViaAgent(agent: Agent): AnalyzePhoto {
   return (images, profile, context) =>
     analyzeMealViaAgent(agent, images, profile, buildRequestContext(profile.telegram_id), context);
+}
+
+/**
+ * Route one free-text message to an intent. Same union `routeText` returned, so the caller's
+ * dispatch is unchanged.
+ */
+export type RouteText = (
+  text: string,
+  profile: Profile,
+  ctx: RouteContext,
+) => Promise<RouteResult>;
+
+/** Bind a Mastra agent as the free-text router. Same RequestContext discipline as the analyzer. */
+export function textRouterViaAgent(agent: Agent): RouteText {
+  return (text, profile, ctx) =>
+    routeTextViaAgent(agent, text, profile, ctx, buildRequestContext(profile.telegram_id));
+}
+
+/**
+ * Map free-text restrictions onto the closed tag vocabulary. NEVER throws — `[]` means "keep the
+ * keyword result", and the whole call is a refinement of an answer the user already gave.
+ */
+export type ClassifyRestrictions = (
+  text: string,
+  profile: Pick<Profile, "telegram_id" | "lang">,
+) => Promise<string[]>;
+
+/** Bind a Mastra agent as the onboarding restriction classifier. */
+export function restrictionClassifierViaAgent(agent: Agent): ClassifyRestrictions {
+  return (text, profile) =>
+    classifyRestrictionsViaAgent(
+      agent, text, profile.lang, buildRequestContext(profile.telegram_id), profile.telegram_id,
+    );
 }

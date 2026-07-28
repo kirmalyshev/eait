@@ -17,9 +17,9 @@ import { DEFAULT_LANG, LANGS, translatorFor } from "../i18n/index.ts";
 import { berlinDayLabel } from "../reply.ts";
 import type { Config } from "../config.ts";
 import type { LLMProvider } from "../llm/provider.ts";
-import type { AnalyzePhoto } from "../llm/analyzePort.ts";
+
 import type { MealContext } from "../types.ts";
-import { analyzeMeal } from "../analyzer.ts";
+import { analyzeMeal, routeText, classifyRestrictions } from "../analyzer.ts";
 
 const cfg: Config = {
   telegramBotToken: "x", openrouterApiKey: "x", llmProvider: "openrouter", llmModel: "test",
@@ -54,14 +54,27 @@ const fakeProvider = (out: string): LLMProvider => ({ chat: async () => out });
  *
  * A test that cares about the PORT passes `analyzePhoto` explicitly and gets the provider ignored.
  */
-function botDeps(over: Omit<BotDeps, "analyzePhoto"> & { analyzePhoto?: AnalyzePhoto }): BotDeps {
-  const deps = { ...over } as BotDeps;
-  // Reads `deps.provider` when CALLED, not when built: several tests swap the provider after
-  // construction (`deps.provider = fakeProvider(...)`) to script a different second response, and a
-  // captured reference would silently keep serving the first one.
+type EnginePorts = "analyzePhoto" | "routeText" | "classifyRestrictions";
+/**
+ * `provider` is TEST-ONLY as of stage 4 — it is no longer a `BotDeps` field, and production has no
+ * `LLMProvider` at all. Here it means "the scripted LLM response for this test", and `botDeps`
+ * turns it into the three engine ports so ~170 call sites keep saying what they always said.
+ */
+type TestDeps = Omit<BotDeps, EnginePorts> & { provider: LLMProvider } & Partial<Pick<BotDeps, EnginePorts>>;
+
+function botDeps(over: TestDeps): BotDeps & { provider: LLMProvider } {
+  const deps = { ...over } as BotDeps & { provider: LLMProvider };
+  // Every default reads `deps.provider` when CALLED, not when built: several tests swap the
+  // provider after construction (`deps.provider = fakeProvider(...)`) to script a different second
+  // response, and a captured reference would silently keep serving the first one.
   deps.analyzePhoto =
     over.analyzePhoto ??
     ((images, profile, context) => analyzeMeal([...images], profile, deps.provider, context));
+  deps.routeText =
+    over.routeText ?? ((text, profile, ctx) => routeText(text, profile, ctx, deps.provider));
+  deps.classifyRestrictions =
+    over.classifyRestrictions ??
+    ((text, profile) => classifyRestrictions(text, deps.provider, profile.lang));
   return deps;
 }
 

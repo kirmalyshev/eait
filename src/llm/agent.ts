@@ -1,6 +1,9 @@
 import { Agent } from "@mastra/core/agent";
 import type { Memory } from "@mastra/memory";
 import { submitMealTool } from "./tools/mealActions.ts";
+import {
+  answerQuestionTool, submitCorrectionTool, submitRedateTool, submitRestrictionsTool,
+} from "./tools/routeActions.ts";
 import { makeSearchFoodDbTool } from "./tools/foodDb.ts";
 import type { FoodIndex } from "../food_db.ts";
 
@@ -33,7 +36,11 @@ export function createEngineAgent(
     name: "eait-engine",
     instructions:
       "You are the assistant behind a personal food-diary Telegram bot. You MUST finish every " +
-      "turn by calling exactly one terminal tool — right now only submit_meal is available. " +
+      "turn by calling exactly one terminal tool: submit_meal for food the user ate, " +
+      "submit_correction to fix the focus meal's estimate, submit_redate to move the focus meal to " +
+      "another day, or answer_question for anything else. submit_correction and submit_redate are " +
+      "only valid when a focus meal was provided. Never end a turn with prose alone — a turn that " +
+      "calls no terminal tool is a lost message to the user. " +
       "When search_food_db is available, look up each food you identify BEFORE submitting, passing " +
       "its English name together with any similar food it could be confused with, and use the " +
       "per-100g figures of the row you pick. If the search returns nothing, keep your own estimate " +
@@ -42,6 +49,10 @@ export function createEngineAgent(
     memory,
     tools: {
       submit_meal: submitMealTool,
+      submit_correction: submitCorrectionTool,
+      submit_redate: submitRedateTool,
+      answer_question: answerQuestionTool,
+      submit_restrictions: submitRestrictionsTool,
       ...(deps.foodIndex ? { search_food_db: makeSearchFoodDbTool(deps.foodIndex) } : {}),
     },
   });
