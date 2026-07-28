@@ -728,10 +728,6 @@ export async function processDocument(
   await processPhoto(deps, from, [getBytes], send, meta);
 }
 
-/** Stale pending text meals are swept lazily on the next pending insert; a tap on an older
- * confirm prompt is refused. 48 h. */
-const PENDING_TTL_MS = 48 * 3_600_000;
-
 /**
  * The free-text router (spec 2026-07-22-free-text-handling-design): every plain text from an
  * ACTIVE user goes through one LLM call that decides question / meal / correction. Returns
