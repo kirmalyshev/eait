@@ -1009,6 +1009,28 @@ export async function mealsOnDate(db: Db, user_id: number, date: string): Promis
   return rows.map(rowToMeal);
 }
 
+/**
+ * Recent meals reduced to what the repertoire prior needs: the item list and whether the user
+ * vouched for it (design: docs/design/2026-07-27-analysis-quality.md, A1).
+ *
+ * NEWEST FIRST, because `buildRepertoire` resolves ties toward recency. Bounded by both a date
+ * window and a row cap: this runs on the path of every photo, so it must not grow without limit
+ * as a diary fills up. Selecting two columns rather than `SELECT *` keeps a heavy meal row out of
+ * a query whose answer is a list of food names.
+ */
+export async function recentMealItems(
+  db: Db,
+  user_id: number,
+  fromDate: string,
+  limit = 200,
+): Promise<{ items: MealItem[]; corrected: boolean }[]> {
+  const rows = await db`
+    SELECT items, corrected FROM meals
+    WHERE user_id = ${user_id} AND date >= ${fromDate}
+    ORDER BY ts DESC LIMIT ${limit}`;
+  return rows.map((r: any) => ({ items: parseItems(r.items), corrected: r.corrected === 1 }));
+}
+
 /** Per-date kcal/protein sums over a date range (inclusive) — the router's week-context. */
 export async function totalsByDate(
   db: Db,

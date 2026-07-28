@@ -2947,3 +2947,40 @@ test("un-ticking a restriction hides the verdict on re-render without deleting t
   expect(after.msgs.join("\n")).not.toContain(t("meal.verdict.ldl")); // render gate hid it
   expect(await storedVerdicts(db, 944)).toEqual([{ weight: "good", ldl: "bad" }]); // row untouched
 });
+
+test("the repertoire prior reaches the prompt from the user's own logged meals (A1)", async () => {
+  // End-to-end: db history -> buildRepertoire -> prompt. The unit tests cover the ranking; this
+  // covers the wiring, which is where a prior silently becomes a no-op.
+  const db = await freshTestDb();
+  const { insertMeal } = await import("../db.ts");
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 55);
+  const date = berlinDate(new Date(), cfg.tz);
+  await insertMeal(db, {
+    id: "r1", user_id: 55, ts: "t1", date,
+    analysis: { ...JSON.parse(foodJson()), items: [{ name: "гречка", grams: 200 }] },
+  });
+
+  const rec = recordingProvider(foodJson());
+  await processPhoto({ ...deps, provider: rec }, { id: 55 }, [async () => new Uint8Array([1])], collector().send);
+  expect(rec.lastRequest!.userText).toContain("гречка");
+});
+
+test("one user's repertoire never leaks into another's prompt (A1)", async () => {
+  // Same per-user scoping every meal read here obeys. A prior is derived from a diary, and a diary
+  // is the most personal thing this bot stores.
+  const db = await freshTestDb();
+  const { insertMeal } = await import("../db.ts");
+  const deps: BotDeps = { db, provider: fakeProvider(foodJson()), config: cfg };
+  await onboardToActive(deps, 56);
+  await onboardToActive(deps, 57);
+  const date = berlinDate(new Date(), cfg.tz);
+  await insertMeal(db, {
+    id: "r2", user_id: 56, ts: "t1", date,
+    analysis: { ...JSON.parse(foodJson()), items: [{ name: "борщ", grams: 300 }] },
+  });
+
+  const rec = recordingProvider(foodJson());
+  await processPhoto({ ...deps, provider: rec }, { id: 57 }, [async () => new Uint8Array([1])], collector().send);
+  expect(rec.lastRequest!.userText).not.toContain("борщ");
+});

@@ -226,6 +226,19 @@ function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boo
   if (context?.caption) {
     lines.push(`The user captioned the photo: "${context.caption.slice(0, CAPTION_INPUT_CAP)}" — treat it as ground truth about the contents.`);
   }
+  // Repertoire prior (A1). Hedged exactly like the cuisine and country priors above, and placed
+  // beside them for the same reason: it is a tie-breaker for ambiguous staples (bulgur against
+  // couscous, one grain against another), never a licence to overrule what is in the picture.
+  // The hedge is load-bearing — the risk here is symmetric, since a prior naming the wrong grain
+  // hurts precisely as much as the right one helps.
+  if (context?.repertoire?.length) {
+    lines.push(
+      `This user has logged these foods before, most often first: ${context.repertoire.join(", ")}. ` +
+        "Prefer one of these ONLY when the photo is genuinely ambiguous between similar-looking " +
+        "foods — otherwise trust the actual evidence and name what you see, including foods absent " +
+        "from this list.",
+    );
+  }
   if (context?.localTime) {
     lines.push(`Local time of the meal: ${context.localTime} — consider which meal of the day this typically is.`);
   }

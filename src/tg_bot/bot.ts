@@ -14,6 +14,7 @@ import type { LLMProvider } from "../llm/provider.ts";
 import { createProvider } from "../llm/factory.ts";
 import {
   openDb, berlinDate, berlinDateMinus, berlinTime, upsertUser, getUser, setConsent, setProfile,
+  recentMealItems,
   insertMeal, setMealReply, applyCorrection, setMealDate, mealByReply, dailyTotals,
   logLlmCall, llmCallsToday, llmCallCountToday, mealsOnDate, totalsByDate,
   insertPendingMeal, setPendingReply, getPendingMeal, deletePendingMeal, prunePendingMeals,
@@ -27,6 +28,14 @@ import { analyzeMeal, classifyRestrictions, routeText, type RouteContext, type R
 import { RejectionLog } from "./rejections.ts";
 import { targetsFor, weightRemainingKg, isRestrictionTag } from "../targets.ts";
 import { checkConsistency } from "../consistency.ts";
+import { buildRepertoire } from "../repertoire.ts";
+
+/**
+ * How far back the identification prior looks. A window, not a memory: a food dropped a season
+ * ago should stop steering the model, and an unbounded history would also grow this per-photo
+ * query without limit.
+ */
+const REPERTOIRE_DAYS = 90;
 import { countryLabel } from "../country.ts";
 import { limitationsDisplay } from "../limitations.ts";
 import { formatReply, berlinDayLabel, mealDateLabel } from "../reply.ts";
@@ -686,7 +695,19 @@ export async function processPhoto(
   }
   // Caption + local clock go into the prompt: both measurably cut estimation error
   // (the caption is user-supplied ground truth; the time implies the meal type).
-  const context: MealContext = { caption: meta?.caption, localTime: berlinTime(new Date(), config.tz) };
+  // The user's own diary as an identification prior (A1). Read here rather than inside the
+  // analyzer, which owns the prompt and the parse and must stay free of db access. 90 days is a
+  // window, not a memory: a food someone stopped eating a season ago should stop steering the
+  // model. `berlinDateMinus` for the same DST reason as everywhere else — subtracting fixed 24h
+  // spans and re-deriving a Berlin date is off by one across a transition near midnight.
+  const repertoire = buildRepertoire(
+    await recentMealItems(db, from.id, berlinDateMinus(date, REPERTOIRE_DAYS)),
+  );
+  const context: MealContext = {
+    caption: meta?.caption,
+    localTime: berlinTime(new Date(), config.tz),
+    ...(repertoire.length ? { repertoire } : {}),
+  };
   let analysis: MealAnalysis;
   try {
     const images: Uint8Array[] = [];

@@ -908,3 +908,32 @@ describe("routeText — meal date offset", () => {
     expect(r as Record<string, unknown>).not.toHaveProperty("dayOffset");
   });
 });
+
+describe("repertoire prior (A1)", () => {
+  test("the prompt lists the user's own foods when there is history", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], profile, provider, { repertoire: ["гречка", "булгур"] });
+    const text = provider.lastRequest!.userText;
+    expect(text).toContain("гречка, булгур");
+  });
+
+  test("NO line at all when the user has no history — never an empty prior", async () => {
+    // An empty list rendered as "logged these foods before: " is worse than silence: it reads as
+    // "this user eats nothing", which is a claim, and it burns prompt on a claim that is false.
+    for (const ctx of [undefined, { repertoire: [] }]) {
+      const provider = new FakeProvider(() => validJson);
+      await analyzeMeal([bytes], profile, provider, ctx);
+      expect(provider.lastRequest!.userText).not.toContain("logged these foods before");
+    }
+  });
+
+  test("the prior is hedged — the photo must be able to win", async () => {
+    // Symmetric risk: naming bulgur helps when bulgur was eaten and hurts when couscous was. The
+    // same trap as the deleted round-up hedge, so the escape clause is asserted, not assumed.
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], profile, provider, { repertoire: ["булгур"] });
+    const text = provider.lastRequest!.userText;
+    expect(text).toContain("genuinely ambiguous");
+    expect(text).toContain("absent");
+  });
+});

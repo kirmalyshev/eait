@@ -109,6 +109,12 @@ export interface MealContext {
   caption?: string;
   /** HH:MM in the bot's timezone (Europe/Berlin), not UTC. */
   localTime?: string;
+  /**
+   * Foods this user has logged before, most-eaten first (`buildRepertoire`). A prior for
+   * identification only — it never touches a number. Empty or absent means the user has no
+   * history worth leaning on, and the prompt then carries no line at all rather than an empty one.
+   */
+  repertoire?: readonly string[];
 }
 
 /** The analyzer's validated output for one photo. No photo path — images are ephemeral. */
