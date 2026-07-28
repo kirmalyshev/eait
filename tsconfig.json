@@ -8,6 +8,11 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "strict": true,
+    // Dead imports and bindings accumulate invisibly during refactors — the engine extraction left
+    // eight behind across four files, and nothing failed. `noUnusedParameters` is deliberately NOT
+    // set: unused positional params in test stubs are idiomatic, and forcing `_` prefixes on them
+    // buys nothing.
+    "noUnusedLocals": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,

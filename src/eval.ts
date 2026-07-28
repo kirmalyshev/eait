@@ -381,7 +381,6 @@ export function summarize(cases: CaseInput[]): Summary {
 
   const kcalErrs: number[] = [];
   const kcalPctErrs: number[] = [];
-  const kcalSpreads: number[] = [];
   const macroErrs: Record<"protein_g" | "carbs_g" | "fat_g", number[]> = {
     protein_g: [], carbs_g: [], fat_g: [],
   };

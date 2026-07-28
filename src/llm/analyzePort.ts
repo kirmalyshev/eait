@@ -76,7 +76,5 @@ export type ClassifyRestrictions = (
 /** Bind a Mastra agent as the onboarding restriction classifier. */
 export function restrictionClassifierViaAgent(agent: Agent): ClassifyRestrictions {
   return (text, profile) =>
-    classifyRestrictionsViaAgent(
-      agent, text, profile.lang, buildRequestContext(profile.telegram_id), profile.telegram_id,
-    );
+    classifyRestrictionsViaAgent(agent, text, profile.lang, buildRequestContext(profile.telegram_id));
 }

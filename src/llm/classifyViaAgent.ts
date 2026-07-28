@@ -24,7 +24,6 @@ export async function classifyRestrictionsViaAgent(
   text: string,
   lang: Profile["lang"],
   requestContext: RequestContext,
-  telegramId: number,
 ): Promise<string[]> {
   try {
     const result = await agent.generate(

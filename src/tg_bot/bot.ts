@@ -46,8 +46,7 @@ import {
 import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "../onboarding.ts";
 import { DEFAULT_LANG, LANGS, LOCALES, isLang, resolveLang, translatorFor } from "../i18n/index.ts";
 import type { TFunction } from "i18next";
-import { isReplyFormat } from "../types.ts";
-import type { Lang, MealAnalysis, MealContext, MealRecord, Profile, ReplyFormat } from "../types.ts";
+import type { Lang, Profile, ReplyFormat } from "../types.ts";
 
 export interface BotDeps {
   db: Db;
@@ -167,7 +166,6 @@ import { startApi, type ApiServer } from "../api/server.ts";
 import type { Refusal } from "../engine/results.ts";
 export { profileFromRow as profileOf };
 const profileOf = profileFromRow;
-const mealToAnalysis = mealRecordToAnalysis;
 
 /** The format a user's meal cards render in: their /settings choice, else the instance default.
  * Takes the already-resolved Profile so it never re-runs profileOf (which would re-warn). */

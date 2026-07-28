@@ -2366,7 +2366,7 @@ test("a dayOffset=7 meal lands exactly 7 calendar days back (independent expecte
   const db = await freshTestDb();
   const deps = botDeps({ db, provider: fakeProvider(datedMealJson(7, 450)), config: cfg });
   await onboardToActive(deps, 826);
-  const { msgs, send } = collector();
+  const { msgs } = collector(); // `capture` below is the sender; only the buffer is reused
   const sentButtons: Array<Array<{ text: string; data: string }>> = [];
   const capture: Send = async (text, buttons) => { msgs.push(text); if (buttons) sentButtons.push(...buttons); return { chat_id: 9, message_id: 77 }; };
   await processText(deps, { id: 826 }, { text: "a week ago I had ramen", messageId: 77 }, capture);
