@@ -47,7 +47,9 @@ describe("analyzeMeal", () => {
     expect(out.isFood).toBe(true);
     expect(out.kcal).toBe(300);
     expect(out.items[0]!.name).toBe("rice");
-    expect(out.verdicts.kidneys).toBe("warn");
+    // Computed from the caps, not taken from the model: this 300 kcal / 5 mg-sodium meal is well
+    // under a kidneys allowance, so it is "good" even though the model's JSON claimed "warn".
+    expect(out.verdicts.kidneys).toBe("good");
   });
 
   test("injects the profile (goal + restriction tags) into the prompt", async () => {
@@ -157,7 +159,9 @@ describe("analyzeMeal — verdict gate", () => {
   test("keeps exactly the declared ones", async () => {
     const provider = new FakeProvider(() => withVerdicts);
     const out = await analyzeMeal([bytes], { ...profile, restrictions: ["kidneys"] }, provider);
-    expect(out.verdicts).toEqual({ weight: "good", kidneys: "warn" });
+    // The model asserted kidneys:"warn"; the meal's own sodium (5 mg against a 2000 mg cap) says
+    // otherwise, and the caps win. The gate's job here is still the dimension set, not the value.
+    expect(out.verdicts).toEqual({ weight: "good", kidneys: "good" });
   });
 
   test("a non-medical restriction unlocks nothing", async () => {
@@ -201,7 +205,9 @@ describe("analyzeMeal — verdict gate", () => {
     const provider = new FakeProvider(() => routed("meal"));
     const r = await routeText("borscht", { ...profile, restrictions: ["ldl"] }, routeCtx, provider);
     if (r.intent === "meal") {
-      expect(r.analysis.verdicts).toEqual({ weight: "good", ldl: "bad" });
+      // ldl is present because it was declared, and "good" because 0.5 g of saturated fat is well
+      // under a 13 g cap — the model's "bad" is discarded along with the rest of its judging.
+      expect(r.analysis.verdicts).toEqual({ weight: "good", ldl: "good" });
     }
   });
 });

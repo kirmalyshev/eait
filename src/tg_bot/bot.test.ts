@@ -2936,7 +2936,9 @@ test("un-ticking a restriction hides the verdict on re-render without deleting t
   await processPhoto(deps, { id: 944 }, [async () => new Uint8Array([1])], s.send);
   const cardId = s.lastId();
   expect(s.msgs.join("\n")).toContain(t("meal.verdict.ldl")); // declared → shown
-  expect(await storedVerdicts(db, 944)).toEqual([{ weight: "good", ldl: "bad" }]);
+  // "good", not the model's "bad": verdicts are computed from the caps now (3 g of saturated fat
+  // against a 13 g allowance). What this test is about is the DIMENSION surviving, not its value.
+  expect(await storedVerdicts(db, 944)).toEqual([{ weight: "good", ldl: "good" }]);
 
   // Un-tick, then force a re-render of the SAME stored meal via the redate path.
   await setProfile(db, 944, { restrictions: [] });
@@ -2945,7 +2947,9 @@ test("un-ticking a restriction hides the verdict on re-render without deleting t
   await processText(deps, { id: 944 }, { text: "move to yesterday", messageId: 90, replyTo: cardId }, after.send);
 
   expect(after.msgs.join("\n")).not.toContain(t("meal.verdict.ldl")); // render gate hid it
-  expect(await storedVerdicts(db, 944)).toEqual([{ weight: "good", ldl: "bad" }]); // row untouched
+  // "good", not the model's "bad": verdicts are computed from the caps now (3 g of saturated fat
+  // against a 13 g allowance). What this test is about is the DIMENSION surviving, not its value.
+  expect(await storedVerdicts(db, 944)).toEqual([{ weight: "good", ldl: "good" }]); // row untouched
 });
 
 test("the repertoire prior reaches the prompt from the user's own logged meals (A1)", async () => {

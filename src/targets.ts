@@ -1,7 +1,7 @@
 // Per-user daily targets, free-text restriction parsing, and the verdict-visibility gate.
 // Generic by default; kidney/LDL caps apply ONLY when the user declared them (spec §9).
 
-import type { FoodTargets, MealVerdicts, Profile } from "./types.ts";
+import type { FoodTargets, MealVerdicts, Profile, Verdict } from "./types.ts";
 
 const KCAL_BY_GOAL = { lose: 1800, maintain: 2100, gain: 2400 } as const;
 const PROTEIN_BASELINE_G = 100;
@@ -124,4 +124,51 @@ export function parseRestrictions(text: string): string[] {
     if (keywords.some((k) => hay.includes(k))) tags.push(tag);
   }
   return tags;
+}
+
+/**
+ * Share of a day's allowance above which one meal is `warn`, and above which it is `bad`.
+ *
+ * A POLICY CHOICE, not a measurement, and worth naming as such. The reasoning is arithmetic rather
+ * than clinical: roughly three meals make a day, so a meal at a third of the allowance is on plan,
+ * and one carrying more than half the day's budget is not — whatever the remaining meals look like.
+ * Every dimension uses the same rule, so a verdict means the same thing wherever it appears.
+ */
+const WARN_SHARE = 1 / 3;
+const BAD_SHARE = 1 / 2;
+
+/** Where one meal's number falls against a whole day's allowance. */
+function shareVerdict(value: number, dailyAllowance: number): Verdict {
+  const share = value / dailyAllowance;
+  if (share > BAD_SHARE) return "bad";
+  if (share > WARN_SHARE) return "warn";
+  return "good";
+}
+
+/**
+ * Derive the meal's verdicts from the user's caps, instead of asking the model to judge.
+ *
+ * WHY THIS EXISTS. Verdicts used to be authored by the model, from the model's own macros. The
+ * moment any downstream step revises a number — a composition-table lookup replacing 5 g of
+ * saturated fat with 20 g — the verdict beside it describes numbers that no longer exist. A
+ * reassuring `ldl: "good"` printed over a damning figure is worse than either alone, and it lands
+ * on a card belonging to someone who declared a medical restriction and may act on it.
+ *
+ * Computing verdicts from the caps `targetsFor` already produces makes them deterministic,
+ * auditable, and correct by construction after any substitution. It also stops the model judging
+ * at all, which removes the reason the verdict gate had to exist in the first place — though the
+ * gate stays, because defence in depth on a medical claim costs nothing.
+ *
+ * Only dimensions the user actually declared get a verdict: a cap is absent from `targets` exactly
+ * when its restriction was not declared, so an undeclared dimension cannot be produced here even
+ * by accident. `weight` applies to everyone and is judged against the kcal target.
+ */
+export function verdictsFromTargets(
+  meal: { kcal: number; satfat_g: number; sodium_mg: number },
+  targets: FoodTargets,
+): MealVerdicts {
+  const out: MealVerdicts = { weight: shareVerdict(meal.kcal, targets.kcal) };
+  if (targets.satfat_g !== undefined) out.ldl = shareVerdict(meal.satfat_g, targets.satfat_g);
+  if (targets.sodium_mg !== undefined) out.kidneys = shareVerdict(meal.sodium_mg, targets.sodium_mg);
+  return out;
 }

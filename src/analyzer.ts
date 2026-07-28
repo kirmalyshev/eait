@@ -6,7 +6,7 @@
 import { z } from "zod";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import { LOCALES } from "./i18n/registry.ts";
-import { RESTRICTION_TAGS, isRestrictionTag, visibleVerdicts } from "./targets.ts";
+import { RESTRICTION_TAGS, isRestrictionTag, visibleVerdicts, verdictsFromTargets, targetsFor } from "./targets.ts";
 import { countryForPrompt } from "./country.ts";
 import { parseLimitations } from "./limitations.ts";
 import type { DayTotals, FoodTargets, MealAnalysis, MealContext, MealSummary, Profile } from "./types.ts";
@@ -395,7 +395,19 @@ export async function analyzeMeal(
  * a row the photo gate had already kept clean.
  */
 function gated(analysis: MealAnalysis, profile: Profile): MealAnalysis {
-  return { ...analysis, verdicts: visibleVerdicts(analysis.verdicts, profile.restrictions) };
+  // The model's own verdicts are DISCARDED here, not filtered. They were authored from the model's
+  // own macros, so any later revision of a number — a composition-table lookup replacing 5 g of
+  // saturated fat with 20 g — leaves the verdict describing figures that no longer exist. A
+  // reassuring "good" over a damning number is worse than either alone, on a card belonging to
+  // someone who declared a medical restriction.
+  //
+  // Computing them from the caps `targetsFor` already produces makes them deterministic, auditable,
+  // and correct after any substitution. `visibleVerdicts` still runs on the result: it is now
+  // structurally impossible for an undeclared dimension to appear (no cap exists to compute one
+  // from), but defence in depth on a medical claim costs nothing, and the gate also protects the
+  // display path against a row written before this change.
+  const computed = verdictsFromTargets(analysis, targetsFor(profile));
+  return { ...analysis, verdicts: visibleVerdicts(computed, profile.restrictions) };
 }
 
 // ---------- restriction classification (the keyword pass's fallback) ----------
