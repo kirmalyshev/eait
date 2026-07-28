@@ -70,6 +70,13 @@ export async function analyzeMealViaAgent(
       // The agent must be able to look a food up and THEN submit, so a single step cannot be the
       // limit. Bounded anyway: a runaway loop on a photo is a bill, not a hang.
       maxSteps: 6,
+      // MEASURED, not precautionary. The old path forced structure with
+      // `response_format: json_schema`; leaving toolChoice at its "auto" default dropped that
+      // guarantee, and the parity harness lost roughly one photo in four to
+      // "finished without calling submit_meal" — the model answering in prose instead. It
+      // reproduced with grounding on and off, on different fixtures each run, so it is the missing
+      // forcing and not a tool-loop artefact. The user's meal was simply gone.
+      toolChoice: "required",
     } as never,
   );
 

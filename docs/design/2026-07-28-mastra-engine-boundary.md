@@ -133,15 +133,49 @@ implementations.
 
 Each is independently shippable and independently verifiable.
 
-| # | Stage | Done when |
+| # | Stage | Status |
 |---|---|---|
-| 0 | Fix the two divergences | Both new tests green |
-| 1 | Parity harness over the 12 fixtures | Diff inspected, no unexplained delta |
-| 2 | Photo flow → Mastra | `bot.ts` calls `analyzeMealViaAgent`; old path still serves text |
-| 3 | Text flow → Mastra | `submit_correction` / `submit_redate` / `answer_question` + `tools/diary.ts` replace `routeText` |
-| 4 | Onboarding classify → `submit_restrictions`; **delete `provider.ts`/`factory.ts`/`openrouter.ts`** | **Goal 1 met** |
-| 5 | Extract `src/engine/`; `bot.ts` becomes an adapter | `tg_bot/` imports no db query directly |
-| 6 | `src/api/` over `Bun.serve` | **Goal 2 met** |
+| 0 | Fix the two divergences | ✅ `1285257` |
+| 1 | Parity harness | ✅ built · ⛔ **gate not passed — OpenRouter credits exhausted** |
+| 2 | Photo flow → Mastra | ✅ `86f3cd8` |
+| 3 | Text flow → Mastra | ✅ `a91c098` |
+| 4 | Onboarding classify → Mastra | ✅ `a91c098` — **the bot runtime calls no `LLMProvider`** |
+| 4b | Delete `provider.ts`/`factory.ts`/`openrouter.ts` | ⛔ blocked on the stage-1 gate (below) |
+| 5 | Extract `src/engine/`; `bot.ts` becomes an adapter | not started |
+| 6 | `src/api/` over `Bun.serve` | not started |
+
+### Why the old files are still on disk
+
+They are dev-only and unreachable from `index.ts`. Deleting them would remove the only baseline
+`scripts/parity-llm-paths.ts` can measure the cutover against, and that gate has not run to
+completion. "We deleted the thing that could have told us" is not a passing gate.
+
+## What the parity harness measured
+
+Three runs, and each one changed a decision.
+
+**Run 1 (4 fixtures, grounding ON) — confounded.** Cross-path item agreement 60% against a 92%
+within-path baseline, kcal 13.0% against 8.7%. Unreadable, because the agent path had
+`search_food_db` and the old path has no equivalent: the run measured transport *and* grounding
+together. That was a flaw in the harness, not a finding, and `--no-food-db` now exists to separate
+them.
+
+**Run 2 (grounding OFF) — the transport is clean.** Item agreement **100%** cross-path and
+within-path; grams **0.0%** both. So the 60% in run 1 was grounding changing item names and macros,
+which is the feature working, not the migration regressing.
+
+**Both runs — a real bug, ~1 photo in 4 lost.** `analyzeMealViaAgent: the agent finished without
+calling submit_meal`, on a different fixture each run, with grounding on and off. Cause: the old
+path forced structure with `response_format: json_schema`, and the agent path left `toolChoice` at
+its `auto` default, so the model could answer in prose and the meal was simply gone. Fixed with
+`toolChoice: "required"` on every terminal-tool call. **This fix is unit-tested but not yet
+confirmed live** — the confirming run died on a 402 from OpenRouter.
+
+### What still has to happen before 4b
+
+Re-run `scripts/parity-llm-paths.ts` on a funded key, both with and without `--no-food-db`, over
+`eval/telegram` and `eval/telegram-unverified`. Expect zero `finished without calling submit_meal`
+failures. Then delete the old files.
 
 Stages 2–4 write new code **engine-shaped** — pure functions taking deps and returning results, even
 while still living in `bot.ts` — so stage 5 is a move, not a rewrite.

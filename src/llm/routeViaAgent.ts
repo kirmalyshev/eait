@@ -58,6 +58,10 @@ export async function routeTextViaAgent(
       // is a thread id it could point at somebody else's conversation.
       memory: { thread: `u${profile.telegram_id}`, resource: String(profile.telegram_id) },
       maxSteps: 6,
+      // The router's equivalent of the old path's `response_format: json_schema`. Without it the
+      // model may answer in prose, which here means no terminal tool and a thrown error where the
+      // user should have got a reply — the failure mode measured on the photo path.
+      toolChoice: "required",
     } as never,
   );
 

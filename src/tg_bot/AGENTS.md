@@ -7,8 +7,8 @@ See `src/AGENTS.md` for the domain invariants and the root `AGENTS.md` for proje
 
 `bot.ts` splits in two halves, and the split is the point:
 
-- **`process*` functions** — grammy-free, unit-tested with a fake `send`, a temp db, and a fake
-  provider. This is where logic belongs.
+- **`process*` functions** — grammy-free, unit-tested with a fake `send`, a temp db, and stubbed
+  engine ports. This is where logic belongs.
 - **`createBot(deps)`** — thin grammy adapters that unwrap `ctx` and call a `process*`.
 
 New behaviour goes in a `process*` function, not in a handler body.
@@ -47,7 +47,7 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
   never crashes the tap).
 - **Albums are one meal.** Photo updates sharing `media_group_id` are buffered per
   (user, group) in `AlbumBuffer` (in-memory, 1.5 s debounce) and flushed as ONE multi-image
-  `analyzeMeal` call (`processAlbum`) — one cap draw, one reply, `user_message_id` = first
+  `analyzePhoto` call (`processAlbum`) — one cap draw, one reply, `user_message_id` = first
   part. A crash between parts costs at most one partial analysis; that's the accepted trade.
   **Deliberate exclusion:** the `document` handler (uncompressed "send as file" images) does
   NOT album-buffer — a multi-document group analyzes as N separate meals and N cap draws.
@@ -57,7 +57,7 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
   "not food" reply ids so a reply to one gets the canned explanation. After a restart such
   replies degrade to the router, which honestly has nothing — never persist anything
   photo-derived to "fix" that.
-- **Caps meter LLM calls, not meals.** Every provider call logs an `llm_calls` row first with
+- **Caps meter LLM calls, not meals.** Every engine call logs an `llm_calls` row first with
   a `kind` tag (`photo` = photo or album analysis, `router` = text routing / Q&A / correction / redate,
   `classify` = onboarding restriction classifier); both the per-user and global caps count those
   rows. A not-food photo, a Q&A, and a text meal each spend one call. The `classify` kind is
@@ -75,7 +75,12 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
   else the instance's `REPLY_FORMAT`. A failed rich send logs and resends the plain text. Q&A
   answers are always plain (LLM text, unknown markup). Every new meal-card site must resolve
   through `replyFormatFor`, never read `config.replyFormat` directly.
-- **`createBot(deps)` must be constructable with an injected db + fake provider and no live token**
+- **`bot.ts` depends on the engine PORTS, never on a Mastra `Agent`.** `BotDeps` carries
+  `analyzePhoto`, `routeText` and `classifyRestrictions` — function types from
+  `llm/analyzePort.ts`, bound to the agent in `startBot`. An `Agent` here would force every unit
+  test to build a scripted model plus a Postgres-backed Memory. New LLM-touching behaviour adds a
+  port, not an import from `llm/`.
+- **`createBot(deps)` must be constructable with an injected db + stubbed ports and no live token**
   — the test sets `botInfo` and an API transformer so grammy never calls `getMe`.
 - **`translatorFor(lang)`, never `i18n.changeLanguage()`.** The runner serves users concurrently,
   so a global language switch can render one user's locale into another's in-flight reply. Read the
