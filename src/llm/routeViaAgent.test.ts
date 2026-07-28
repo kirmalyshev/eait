@@ -154,6 +154,25 @@ describe("routeTextViaAgent", () => {
       .rejects.toThrow(/isFood=false/);
   });
 
+  test("a router turn is never offered submit_restrictions — it could not dispatch it", async () => {
+    // `submit_restrictions` is registered on the agent but belongs to onboarding. Because the stop
+    // condition halts on ANY terminal tool, a router turn that called it would end on a tool this
+    // function has no branch for, and the user's message would raise instead of being answered.
+    let offered: string[] = [];
+    const model = new MockLanguageModelV4({
+      doGenerate: async (opts: any) => {
+        offered = (opts.tools ?? []).map((t: any) => t.name ?? t.id).sort();
+        return {
+          finishReason: { unified: "tool-calls" as const, raw: undefined }, usage, warnings: [],
+          content: [{ type: "tool-call" as const, toolCallId: "c1", toolName: "answer_question", input: JSON.stringify({ answer: "ок" }) }],
+        };
+      },
+    });
+    await route(model, ctxWith());
+    expect(offered).not.toContain("submit_restrictions");
+    expect(offered).toEqual(["answer_question", "submit_correction", "submit_meal", "submit_redate"]);
+  });
+
   test("THROWS when the agent ends with prose and no terminal tool", async () => {
     const model = new MockLanguageModelV4({
       doGenerate: async () => ({

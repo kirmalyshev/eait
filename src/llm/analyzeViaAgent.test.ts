@@ -194,6 +194,32 @@ describe("analyzeMealViaAgent", () => {
     expect(out.kcal).toBe(166);
   });
 
+  test("a photo turn is offered ONLY submit_meal and the lookup — not the router's tools", async () => {
+    // The agent registers every terminal tool because it is one agent. The stop condition halts on
+    // ANY of them, so a photo turn that reached `answer_question` ("that looks like a nice lunch")
+    // would end with no analysis and the meal would be gone. `activeTools` is what makes that
+    // unreachable, and this asserts the model is never even shown the option.
+    let offered: string[] = [];
+    const model = new MockLanguageModelV4({
+      doGenerate: async (opts: any) => {
+        offered = (opts.tools ?? []).map((t: any) => t.name ?? t.id).sort();
+        return {
+          finishReason: { unified: "tool-calls" as const, raw: undefined }, usage, warnings: [],
+          content: [{ type: "tool-call" as const, toolCallId: "c1", toolName: "submit_meal", input: JSON.stringify(ANALYSIS) }],
+        };
+      },
+    });
+    const database = freshTestName();
+    await (await openTestDb(database)).close();
+    const { memory } = await createMastra({ ...pgBase(), database });
+    const index = buildFoodIndex([{ id: "u:1", name: "Bulgur", kcal: 83, protein_g: 3, carbs_g: 18, fat_g: 0.2 }]);
+    await analyzeMealViaAgent(
+      createEngineAgent(model as never, memory, { foodIndex: index }),
+      [bytes], profile, buildRequestContext(1),
+    );
+    expect(offered).toEqual(["search_food_db", "submit_meal"]);
+  });
+
   test("THROWS when the agent never calls submit_meal", async () => {
     // Mirrors the old path's contract: no analysis means no row, never a meal assembled from
     // whatever the agent said in prose.

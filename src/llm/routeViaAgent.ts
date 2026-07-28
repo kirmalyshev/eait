@@ -25,7 +25,7 @@
 // first; tightening is a separate change with its own evidence.
 
 import type { Agent } from "@mastra/core/agent";
-import { stopAtTerminalTool } from "./stop.ts";
+import { stopAtTerminalTool, ROUTER_TOOLS, LOOKUP_TOOL } from "./stop.ts";
 import { SYSTEM_ROUTE, buildRouteText, gated } from "../analyzer.ts";
 import type { RouteContext, RouteResult } from "../analyzer.ts";
 import type { Profile } from "../types.ts";
@@ -34,8 +34,9 @@ import type { Profile } from "../types.ts";
 const isToolError = (v: unknown): v is { error: true; message?: string } =>
   typeof v === "object" && v !== null && (v as { error?: unknown }).error === true;
 
-const TERMINAL = ["submit_meal", "submit_correction", "submit_redate", "answer_question"] as const;
-type TerminalName = (typeof TERMINAL)[number];
+// The router's four terminal tools come from `stop.ts`, not a second list here: the stop condition
+// and this dispatch must agree about what ends a turn, and two arrays is how they stop agreeing.
+type TerminalName = (typeof ROUTER_TOOLS)[number];
 
 /**
  * Route one free-text message. Returns the same `RouteResult` union `routeText` does, so
@@ -67,6 +68,10 @@ export async function routeTextViaAgent(
       // is forbidden from replying in prose even after it has submitted, and burns maxSteps producing
       // answers nobody reads. Measured at 6 model calls for one photo.
       stopWhen: stopAtTerminalTool,
+      // `submit_restrictions` is registered on the agent but belongs to onboarding; it would end
+      // this turn on a tool this function cannot dispatch. Grounding stays available — a text meal
+      // is estimated from prose and benefits from the composition table as much as a photo does.
+      activeTools: [...ROUTER_TOOLS, LOOKUP_TOOL],
     },
   );
 
@@ -76,7 +81,7 @@ export async function routeTextViaAgent(
   // The LAST terminal call wins: a turn that also called `search_food_db` ends with whichever tool
   // ran last, and a retry after a validation error supersedes the attempt it corrected.
   const terminal = calls
-    .filter((c) => TERMINAL.includes(c.payload?.toolName as TerminalName))
+    .filter((c) => (ROUTER_TOOLS as readonly string[]).includes(c.payload?.toolName ?? ""))
     .at(-1);
 
   if (!terminal) {

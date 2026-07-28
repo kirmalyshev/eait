@@ -18,7 +18,7 @@
 // exists rather than a two-line call.
 
 import type { Agent } from "@mastra/core/agent";
-import { stopAtTerminalTool } from "./stop.ts";
+import { stopAtTerminalTool, PHOTO_TOOLS, LOOKUP_TOOL } from "./stop.ts";
 import { SYSTEM, buildUserText, MealAnalysisSchema, gated } from "../analyzer.ts";
 import type { MealAnalysis, MealContext, Profile } from "../types.ts";
 
@@ -83,6 +83,12 @@ export async function analyzeMealViaAgent(
       // is forbidden from replying in prose even after it has submitted, and burns maxSteps producing
       // answers nobody reads. Measured at 6 model calls for one photo.
       stopWhen: stopAtTerminalTool,
+      // Only `submit_meal` may END this turn. The agent registers every terminal tool, so without
+      // this a photo turn could finish on `answer_question` ("that looks like a nice lunch") — and
+      // because the stop condition halts on ANY terminal tool, that call would end the turn with no
+      // analysis and the meal would be lost. `search_food_db` stays available: it is a mid-turn
+      // lookup, and grounding depends on it.
+      activeTools: [...PHOTO_TOOLS, LOOKUP_TOOL],
     },
   );
 

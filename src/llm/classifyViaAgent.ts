@@ -10,7 +10,7 @@
 // with no restrictions at all, no kidney verdict, no sodium cap, and nothing saying why.
 
 import type { Agent } from "@mastra/core/agent";
-import { stopAtTerminalTool } from "./stop.ts";
+import { stopAtTerminalTool, ONBOARDING_TOOLS } from "./stop.ts";
 import { SYSTEM_CLASSIFY, buildClassifyText } from "../analyzer.ts";
 import { isRestrictionTag } from "../targets.ts";
 import type { Profile } from "../types.ts";
@@ -39,7 +39,7 @@ export async function classifyRestrictionsViaAgent(
         // `activeTools`, NOT `toolsets`: `ToolsetsInput = Record<string, ToolsInput>` MERGES extra
         // tools into the agent's set, so passing a subset there would have restricted nothing and
         // left every terminal tool reachable on an onboarding turn.
-        activeTools: ["submit_restrictions"],
+        activeTools: [...ONBOARDING_TOOLS],
         toolChoice: "required",
         // `toolChoice: "required"` applies to EVERY step, so without this the loop cannot end: the model
         // is forbidden from replying in prose even after it has submitted, and burns maxSteps producing
