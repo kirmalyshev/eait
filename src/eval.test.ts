@@ -8,6 +8,7 @@ import {
   renderCoverage,
   renderReport,
   representativeRun,
+  storedMealToExpectation,
   summarize,
   type EvalRun,
 } from "./eval.ts";
@@ -676,5 +677,36 @@ describe("calibration in the eval report (C)", () => {
     const s = summarize(cases.slice(0, 3));
     expect(s.calibration).toBeUndefined();
     expect(renderReport("m", s)).not.toContain("calibration");
+  });
+});
+
+describe("storedMealToExpectation — the diary as identification ground truth", () => {
+  test("carries the item names, which is the point of using this source at all", () => {
+    const e = storedMealToExpectation({
+      items: [{ name: "гречка", grams: 200 }, { name: "курица", grams: 150 }],
+      kcal: 432, protein_g: 34, carbs_g: 40, fat_g: 9,
+    });
+    expect(e.items).toEqual(["гречка", "курица"]);
+    expect(e.total_grams).toBe(350);
+    expect(e.kcal).toBe(432);
+  });
+
+  test("marks itself identification-only — its numbers are not weighed", () => {
+    // Unless the user restated a weight, the macros are the model's own output that nobody
+    // disputed. Scoring calories against them measures agreement with a previous run of the same
+    // model. The flag is what lets a report refuse to average this into a kcal metric.
+    const e = storedMealToExpectation({ items: [{ name: "суп", grams: 300 }], kcal: 200 });
+    expect(e.identificationOnly).toBe(true);
+  });
+
+  test("omits total_grams when no item declares a weight, rather than claiming zero", () => {
+    const e = storedMealToExpectation({ items: [{ name: "чай" }], kcal: 5 });
+    expect(e.total_grams).toBeUndefined();
+    expect("total_grams" in e).toBe(false);
+  });
+
+  test("drops blank names instead of writing empty strings into ground truth", () => {
+    const e = storedMealToExpectation({ items: [{ name: "  " }, { name: "рис", grams: 100 }], kcal: 130 });
+    expect(e.items).toEqual(["рис"]);
   });
 });

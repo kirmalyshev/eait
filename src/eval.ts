@@ -626,3 +626,42 @@ export function renderReport(model: string, s: Summary): string {
   }
   return lines.join("\n");
 }
+
+/**
+ * Turn a meal already stored in the diary into an Expectation.
+ *
+ * The only source of ground truth in the principal's own cuisine that does not require a kitchen
+ * scale — but its numbers are NOT weighed, and that limit decides what it may be used for.
+ *
+ * A meal with `corrected = 1` carries names the user checked and fixed by hand, which is real
+ * identification ground truth: "was this bulgur or couscous" is answered by someone who ate it.
+ * The macros are a different matter. Unless the user restated a weight, they remain the model's own
+ * output that the user simply did not dispute — so scoring calories against them measures agreement
+ * with a previous run of the same model, not accuracy. Circular, and flattering.
+ *
+ * Hence `identificationOnly`: it marks a fixture whose ITEMS are trustworthy and whose NUMBERS are
+ * not, so a report can refuse to average it into a kcal metric. Fixtures from this source belong in
+ * their own directory for the same reason the NutritionVerse set does — one directory produces one
+ * aggregate, and mixing weighed dishes with unweighed ones measures neither.
+ */
+export function storedMealToExpectation(meal: {
+  items: readonly { name: string; grams?: number }[];
+  kcal: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
+}): Expectation & { identificationOnly: true } {
+  const names = meal.items.map((i) => i.name.trim()).filter(Boolean);
+  const grams = meal.items.reduce((s, i) => s + (i.grams ?? 0), 0);
+  const base = ExpectationSchema.parse({
+    kcal: Math.round(meal.kcal),
+    ...(meal.protein_g === undefined ? {} : { protein_g: round1(meal.protein_g) }),
+    ...(meal.carbs_g === undefined ? {} : { carbs_g: round1(meal.carbs_g) }),
+    ...(meal.fat_g === undefined ? {} : { fat_g: round1(meal.fat_g) }),
+    // Only when positive: the schema rejects 0, and a meal whose items carry no grams has no
+    // portion ground truth to offer rather than a portion of zero.
+    ...(grams > 0 ? { total_grams: round1(grams) } : {}),
+    ...(names.length ? { items: names } : {}),
+  });
+  return { ...base, identificationOnly: true };
+}
