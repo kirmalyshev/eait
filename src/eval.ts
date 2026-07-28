@@ -3,6 +3,7 @@
 // runner `scripts/eval-meals.ts`. Not imported by the bot runtime.
 
 import { z } from "zod";
+import { crossValidate, type CvResult } from "./calibration.ts";
 
 /** Ground truth for one meal photo, from `<name>.json` next to `<name>.jpg`. */
 export const ExpectationSchema = z.object({
@@ -305,6 +306,16 @@ export interface Summary {
   fat_g?: { mae: number; cases: number };
   grams?: { mape: number; cases: number };
   /**
+   * Whether a portion calibration (lever C) earns its place, cross-validated on THIS run's own
+   * grams pairs. Absent when there are too few pairs to fit honestly.
+   *
+   * Read `beatsConstant`, not `improvedMape`. Beating the raw estimate only shows the estimate was
+   * poor: fitting an estimator with no signal collapses the exponent toward 0, every prediction
+   * becomes a constant near the middle of the data, and that alone produces a healthy-looking
+   * improvement. Only beating the constant shows the calibration is using what the model saw.
+   */
+  calibration?: CvResult;
+  /**
    * Grams-vs-density attribution of the kcal error, over the cases declaring total_grams whose
    * representative run has positive kcal AND positive grams. Since kcal = grams × density, in log
    * space ln(kcal_est/kcal_true) = ln(grams_est/grams_true) + ln(density_est/density_true) — an
@@ -467,6 +478,11 @@ export function summarize(cases: CaseInput[]): Summary {
     if (macroErrs[key].length) summary[key] = { mae: mean(macroErrs[key]), cases: macroErrs[key].length };
   }
   if (gramsPctErrs.length) summary.grams = { mape: mean(gramsPctErrs), cases: gramsPctErrs.length };
+  // Lever C, measured on the run that just happened rather than on a number carried in by hand.
+  // crossValidate returns null when the pairs cannot support an honest fit, and that absence is
+  // the intended answer — a calibration nobody can validate is one nobody should ship.
+  const cv = crossValidate(gramsRatios.map((r) => ({ estimated: r.est, actual: r.truth })));
+  if (cv) summary.calibration = cv;
   if (densityPctErrs.length) {
     const gramsBias = geoMeanBias(gramsRatios);
     const densityBias = geoMeanBias(densityRatios);
@@ -572,6 +588,18 @@ export function renderReport(model: string, s: Summary): string {
   if (s.carbs_g) lines.push(`  carbs   MAE ${fmt(s.carbs_g.mae)} g (${plural(s.carbs_g.cases)})`);
   if (s.fat_g) lines.push(`  fat     MAE ${fmt(s.fat_g.mae)} g (${plural(s.fat_g.cases)})`);
   if (s.grams) lines.push(`  portion MAPE ${fmt(s.grams.mape)}% (${plural(s.grams.cases)})`);
+  if (s.calibration) {
+    const c = s.calibration;
+    // The verdict is printed, not left to be inferred from the numbers, because the numbers invite
+    // exactly the wrong reading: a healthy `improvedMape` beside a failed `beatsConstant` means the
+    // fit is shrinking toward the mean rather than correcting the model.
+    lines.push(
+      `  calibration ${c.baselineMape.toFixed(1)}% → ${c.calibratedMape.toFixed(1)}% ` +
+        `out-of-fold (${c.folds}-fold, ${plural(c.evaluated)}); ` +
+        `constant-only ${c.constantMape.toFixed(1)}% — ` +
+        (c.beatsConstant ? "beats the constant, SHIPPABLE" : "does NOT beat the constant, do not ship"),
+    );
+  }
   if (s.decomp) {
     const d = s.decomp;
     lines.push(`  density MAPE ${fmt(d.densityMape)}% (${plural(d.cases)})`);

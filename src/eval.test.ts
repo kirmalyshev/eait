@@ -646,3 +646,35 @@ describe("renderCoverage", () => {
     expect(out).toMatch(/WARNING/);
   });
 });
+
+describe("calibration in the eval report (C)", () => {
+  const run = (kcal: number, grams: number) => ({
+    kcal, protein_g: 0, carbs_g: 0, fat_g: 0, grams_total: grams,
+  });
+  // est = true^0.67 — the compression actually measured, so a calibration should find real signal.
+  const cases = [50, 80, 120, 175, 240, 320, 430, 560, 700, 900, 1150, 1400].map((t) => ({
+    expected: { kcal: Math.round(t * 1.5), total_grams: t },
+    runs: [run(Math.round(t * 1.5), Math.round(t ** 0.67))],
+  }));
+
+  test("summarize cross-validates the portion calibration on the run's own pairs", () => {
+    const s = summarize(cases);
+    expect(s.calibration).toBeDefined();
+    expect(s.calibration!.beatsConstant).toBe(true);
+    expect(s.calibration!.evaluated).toBe(cases.length);
+  });
+
+  test("the report states the verdict, not just the numbers", () => {
+    // A reader who sees only "72% → 60%" concludes it works. The constant-only column and an
+    // explicit verdict are what stop a shrinkage artefact from being read as a win.
+    const text = renderReport("m", summarize(cases));
+    expect(text).toContain("constant-only");
+    expect(text).toContain("SHIPPABLE");
+  });
+
+  test("too few pairs to fit honestly means NO calibration section at all", () => {
+    const s = summarize(cases.slice(0, 3));
+    expect(s.calibration).toBeUndefined();
+    expect(renderReport("m", s)).not.toContain("calibration");
+  });
+});
