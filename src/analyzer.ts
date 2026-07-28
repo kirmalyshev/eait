@@ -50,6 +50,12 @@ export const MealAnalysisSchema = z.object({
         carbs_g: z.coerce.number().nonnegative().optional(),
         fat_g: z.coerce.number().nonnegative().optional(),
         kcal_per_100g: z.coerce.number().nonnegative().optional(),
+        /**
+         * Alternative English names, for widening the composition-table shortlist. Capped at 2: a
+         * third candidate is noise, and the list exists to admit the ONE food genuinely confusable
+         * with this one, not to hedge.
+         */
+        alt_en: z.array(z.string()).max(2).optional(),
       }),
     )
     .default([]),
@@ -106,6 +112,7 @@ const MEAL_JSON_SCHEMA = {
           carbs_g: { type: "number" },
           fat_g: { type: "number" },
           kcal_per_100g: { type: "number" },
+          alt_en: { type: "array", items: { type: "string" } },
         },
       },
     },
@@ -222,6 +229,9 @@ function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boo
   // the totals checkable against their own parts.
   lines.push("Estimate items[{name,grams,kcal,protein_g,carbs_g,fat_g,kcal_per_100g}], and the meal totals kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g, sodium_mg, plant_protein_pct.");
   lines.push("Per item: kcal_per_100g is that food's density as served (kcal per 100 g), and kcal must equal grams/100 x kcal_per_100g. The meal totals must equal the sums across items.");
+  // Widens the composition-table shortlist. Without this a misidentification is unrecoverable: the
+  // shortlist is built from name_en, so "couscous" never offers the bulgur row.
+  lines.push("Per item, set alt_en to at most 2 OTHER canonical English names this food could plausibly be, when a similar-looking food would be easy to confuse it with (bulgur vs couscous, rice varieties, similar cuts of meat). Leave alt_en out when you are not genuinely torn.");
   lines.push('Set confidence to exactly one of "high", "medium", "low" — "low" when the dish is mixed, ingredients may be hidden, or no scale reference is visible; state why in notes.');
   if (context?.caption) {
     lines.push(`The user captioned the photo: "${context.caption.slice(0, CAPTION_INPUT_CAP)}" — treat it as ground truth about the contents.`);

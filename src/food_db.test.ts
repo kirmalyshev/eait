@@ -253,3 +253,54 @@ describe("buildFoodIndex — English lookup", () => {
     expect(index.size).toBe(5);
   });
 });
+
+describe("candidates — the retrieve half of retrieve-then-select", () => {
+  const rows: FoodRow[] = [
+    { id: "usda:170287", name: "Bulgur, cooked", kcal: 83, protein_g: 3.1, carbs_g: 18.6, fat_g: 0.2 },
+    { id: "usda:169700", name: "Couscous, cooked", kcal: 112, protein_g: 3.8, carbs_g: 23.2, fat_g: 0.2 },
+    { id: "usda:170688", name: "Bulgur, dry", kcal: 342, protein_g: 12.3, carbs_g: 75.9, fat_g: 1.3 },
+    { id: "usda:4", name: "Rice, white, long-grain, regular, cooked", kcal: 130, protein_g: 2.7, carbs_g: 28, fat_g: 0.3 },
+  ];
+  const index = buildFoodIndex(rows);
+
+  test("find is exactly the top candidate — one scoring path, so they cannot disagree", () => {
+    for (const q of ["bulgur cooked", "rice white cooked", "couscous"]) {
+      expect(index.find(q)?.id).toBe(index.candidates(q, 5)[0]?.id);
+    }
+  });
+
+  test("returns several plausible rows, best first", () => {
+    const c = index.candidates("bulgur", 5);
+    expect(c.length).toBeGreaterThan(1);
+    expect(c.map((r) => r.id)).toContain("usda:170287");
+    expect(c.map((r) => r.id)).toContain("usda:170688");
+  });
+
+  test("still refuses to invent a match — an unknown food yields nothing to choose from", () => {
+    // The escape hatch matters more than the list: offering candidates for a food that is not in
+    // the table would force a choice between wrong rows, which is worse than the model's own guess
+    // because everything downstream treats a matched row as fact.
+    expect(index.candidates("tiramisu", 5)).toEqual([]);
+  });
+
+  test("respects the cooking-state guard — dry bulgur is not a candidate for cooked bulgur", () => {
+    // 342 kcal against 83 is a 4.2x error, larger than anything the lookup exists to fix.
+    const ids = index.candidates("bulgur, cooked", 5).map((r) => r.id);
+    expect(ids).toContain("usda:170287");
+    expect(ids).not.toContain("usda:170688");
+  });
+
+  test("k bounds the list, and k=0 is empty rather than everything", () => {
+    expect(index.candidates("bulgur", 1).length).toBe(1);
+    expect(index.candidates("bulgur", 0)).toEqual([]);
+  });
+
+  test("an exact name short-circuits to one answer, not a menu", () => {
+    // The question is already settled; offering alternatives could only unsettle it.
+    expect(index.candidates("Couscous, cooked", 5).map((r) => r.id)).toEqual(["usda:169700"]);
+  });
+
+  test("ties keep corpus order, so the same query never returns a different food", () => {
+    expect(index.candidates("bulgur", 5)).toEqual(index.candidates("bulgur", 5));
+  });
+});

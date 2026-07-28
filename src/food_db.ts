@@ -243,6 +243,19 @@ const PREPARATION_TOKENS = new Set([
 export interface FoodIndex {
   /** Best English match, or null when nothing scores above the confidence floor. */
   find(query: string): FoodRow | null;
+  /**
+   * Up to `k` plausible rows, best first — the candidate set for retrieve-then-select.
+   *
+   * `find` answers "which row is this?" and has to be right alone. This answers "which rows could
+   * this be?", and being right is then the model's job with the photo still in hand. That split is
+   * the point: the matcher is good at narrowing 10,780 foods to a handful and bad at the last step,
+   * where "bulgur" against "couscous" is decided by looking rather than by string overlap.
+   *
+   * Measured as the reason this exists: across five runs of one photo the model produced six
+   * different names for a single food (labneh, herbed labneh, herbed strained yogurt, ...). A
+   * candidate list is how that free-text spread collapses onto one row.
+   */
+  candidates(query: string, k?: number): FoodRow[];
   size: number;
 }
 
@@ -297,13 +310,14 @@ export function buildFoodIndex(rows: readonly FoodRow[]): FoodIndex {
   // An unseen token is maximally surprising, so it must not score as free.
   const maxIdf = Math.log(Math.max(entries.length, 2));
 
-  return {
-    size: rows.length,
-    find(query: string): FoodRow | null {
+  /** Every row passing the hard filters, scored. Shared so `find` cannot drift from `candidates`. */
+  function ranked(query: string): { row: FoodRow; score: number }[] {
       const key = normalizeFoodName(query);
-      if (!key) return null;
+      if (!key) return [];
       const hit = exact.get(key);
-      if (hit) return hit;
+      // An exact name match is not merely the best candidate, it is the answer — ranking on past it
+      // could offer alternatives to a question already settled.
+      if (hit) return [{ row: hit, score: 0 }];
 
       const queryTokens = [...tokenSet(key)];
       const asked = new Set(queryTokens);
@@ -311,10 +325,9 @@ export function buildFoodIndex(rows: readonly FoodRow[]): FoodIndex {
       // At least one token must actually NAME a food. A query of pure filler or pure preparation
       // state ("cooked") would otherwise return whichever row happens to share the word — an
       // arbitrary food delivered with full confidence.
-      if (!strong.some((t) => !PREPARATION_TOKENS.has(t))) return null;
+      if (!strong.some((t) => !PREPARATION_TOKENS.has(t))) return [];
 
-      let best: FoodRow | null = null;
-      let bestScore = -Infinity;
+      const scored: { row: FoodRow; score: number }[] = [];
       for (const { row, tokens, head } of entries) {
         // EVERY strong query token must be present. This is the cooking-state guard: "rice cooked"
         // cannot match a raw row, because "cooked" is missing from it.
@@ -352,13 +365,23 @@ export function buildFoodIndex(rows: readonly FoodRow[]): FoodIndex {
           extra++;
           worst = Math.max(worst, idf.get(t) ?? maxIdf);
         }
-        const score = -(worst + extra * 0.01);
-        if (score > bestScore) {
-          bestScore = score;
-          best = row;
-        }
+        scored.push({ row, score: -(worst + extra * 0.01) });
       }
-      return best;
+      // Stable on ties: equal-scoring rows keep corpus order, so the same query cannot return a
+      // different food between runs. Non-determinism here would be indistinguishable from a
+      // matcher bug and far harder to find.
+      return scored.sort((a, b) => b.score - a.score);
+  }
+
+  return {
+    size: rows.length,
+    find(query: string): FoodRow | null {
+      // Literally the top candidate: one code path, so a scoring change can never make the single
+      // best row disagree with the head of the list offered to the model.
+      return ranked(query)[0]?.row ?? null;
+    },
+    candidates(query: string, k = 10): FoodRow[] {
+      return ranked(query).slice(0, Math.max(0, k)).map((s) => s.row);
     },
   };
 }

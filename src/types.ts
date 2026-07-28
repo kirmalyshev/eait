@@ -83,6 +83,28 @@ export interface MealItem {
   carbs_g?: number;
   fat_g?: number;
   kcal_per_100g?: number;
+  /**
+   * The composition-table row this item's macros came from (`FoodRow.id`, e.g. `usda:170287`).
+   *
+   * Absent means the numbers are the model's own. That distinction is the whole audit trail: a year
+   * from now it is the only thing that says whether a stored figure was grounded or guessed, and it
+   * is what lets match rate be measured on real traffic instead of on test queries.
+   */
+  food_id?: string;
+  /**
+   * Other canonical English names this food might be, most likely first.
+   *
+   * These WIDEN RETRIEVAL, which is the only way grounding can fix a misidentification. The
+   * shortlist is built from the model's own name, so a query for "couscous" returns couscous rows
+   * and nothing else — the correct row is never offered, and selecting among wrong rows cannot
+   * recover. Measured on the real table: bulgur is 83 kcal/100 g against couscous at 112, and 4.5 g
+   * of fibre against 1.4.
+   *
+   * With alternatives, both foods reach the shortlist and the model chooses between them with the
+   * photo still in hand — which is the step string matching cannot do, since the two are told apart
+   * by looking.
+   */
+  alt_en?: string[];
 }
 
 /** Per-dimension verdicts. Only dimensions relevant to the user's profile are set. */

@@ -314,7 +314,7 @@ describe("items[] per-item macros (A2)", () => {
     // so a bare `toContain` would pass on the totals alone and prove nothing about the items.
     const items = JSON.parse(schema).properties.items.items.properties;
     expect(Object.keys(items).sort()).toEqual(
-      ["carbs_g", "fat_g", "grams", "kcal", "kcal_per_100g", "name", "name_en", "protein_g"],
+      ["alt_en", "carbs_g", "fat_g", "grams", "kcal", "kcal_per_100g", "name", "name_en", "protein_g"],
     );
   });
 });
@@ -941,5 +941,39 @@ describe("repertoire prior (A1)", () => {
     const text = provider.lastRequest!.userText;
     expect(text).toContain("genuinely ambiguous");
     expect(text).toContain("absent");
+  });
+});
+
+describe("items[].alt_en — widening the composition-table shortlist (D')", () => {
+  test("the schema accepts alternatives and caps them at 2", () => {
+    // Two is deliberate: the list exists to admit the ONE food genuinely confusable with this one,
+    // not to hedge. A third candidate is noise that widens retrieval without informing the choice.
+    const ok = MealAnalysisSchema.safeParse({
+      isFood: true,
+      items: [{ name: "Булгур", grams: 200, name_en: "couscous", alt_en: ["bulgur"] }],
+    });
+    expect(ok.success).toBe(true);
+    expect(ok.success && ok.data.items[0]!.alt_en).toEqual(["bulgur"]);
+    const tooMany = MealAnalysisSchema.safeParse({
+      isFood: true,
+      items: [{ name: "x", grams: 1, alt_en: ["a", "b", "c"] }],
+    });
+    expect(tooMany.success).toBe(false);
+  });
+
+  test("absent when the model is not torn, rather than an empty array", () => {
+    const parsed = MealAnalysisSchema.parse({ isFood: true, items: [{ name: "rice", grams: 100 }] });
+    expect(parsed.items[0]!.alt_en).toBeUndefined();
+    expect("alt_en" in parsed.items[0]!).toBe(false);
+  });
+
+  test("the prompt asks for alternatives only when genuinely torn", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], profile, provider);
+    const text = provider.lastRequest!.userText;
+    expect(text).toContain("alt_en");
+    // The restraint matters as much as the ask: alternatives on every item would widen every
+    // shortlist and make the selection step harder for no gain.
+    expect(text).toContain("not genuinely torn");
   });
 });
