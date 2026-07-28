@@ -227,6 +227,44 @@ test("a correction routed through processText updates the matched meal", async (
   expect(cc.msgs[0]).toContain(translatorFor(DEFAULT_LANG)("meal.totalKcal", { now: 900, target: 1800 }));
 });
 
+test("a correction does NOT steal the reply mapping — the ORIGINAL card still focuses the meal", async () => {
+  // `meals` has one bot_message_id, so re-pointing it orphans whichever card it left. A correction
+  // must not: the user keeps replying to the original meal card, and that is the message they
+  // scroll back to. Only a redate earns the remap (it names a new "Moved" card to reply to).
+  // Regression guard — the engine extraction briefly merged the two branches and broke this
+  // silently, with the whole suite still green.
+  const db = await freshTestDb();
+  // photo + two corrections = 3 LLM calls; cfg's default cap of 2 would refuse the last one and
+  // the test would "fail" on the cap rather than on the mapping it exists to check.
+  const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: { ...cfg, perUserDailyPhotoCap: 5 } });
+  await onboardToActive(deps, 61);
+
+  // Message ids must be GLOBALLY increasing. `collector()` restarts at 1 per instance, so the
+  // correction card would reuse the original card's id and re-pointing bot_message_id would be
+  // invisible — the first version of this test passed with and without the bug for exactly that
+  // reason.
+  let nextId = 100;
+  const msgs: string[] = [];
+  const send: Send = async (text) => {
+    msgs.push(text);
+    return { chat_id: 1, message_id: ++nextId };
+  };
+
+  await processPhoto(deps, { id: 61 }, [async () => new Uint8Array([1])], send); // card id = 101
+
+  deps.provider = fakeProvider(JSON.stringify({ intent: "correction", analysis: JSON.parse(foodJson(900)) }));
+  await processText(deps, { id: 61 }, { text: "actually 900", messageId: 50, replyTo: 101 }, send); // card 102
+
+  // The mapping must STILL be the original card, not the correction card.
+  expect((await mealByReply(db, 61, 101))?.kcal).toBe(900);
+  expect(await mealByReply(db, 61, 102)).toBeUndefined();
+
+  // And a second correction replying to the original card therefore still lands.
+  deps.provider = fakeProvider(JSON.stringify({ intent: "correction", analysis: JSON.parse(foodJson(750)) }));
+  await processText(deps, { id: 61 }, { text: "no, 750", messageId: 51, replyTo: 101 }, send);
+  expect(msgs.at(-1)).toContain("750");
+});
+
 test("a redate reply moves the focus meal to the offset day, re-files its totals, names the move", async () => {
   const db = await freshTestDb();
   const deps = botDeps({ db, provider: fakeProvider(foodJson(600)), config: cfg });

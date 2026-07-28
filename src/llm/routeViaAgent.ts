@@ -25,6 +25,7 @@
 // first; tightening is a separate change with its own evidence.
 
 import type { Agent } from "@mastra/core/agent";
+import { stopAtTerminalTool } from "./stop.ts";
 import { SYSTEM_ROUTE, buildRouteText, gated } from "../analyzer.ts";
 import type { RouteContext, RouteResult } from "../analyzer.ts";
 import type { Profile } from "../types.ts";
@@ -62,6 +63,10 @@ export async function routeTextViaAgent(
       // model may answer in prose, which here means no terminal tool and a thrown error where the
       // user should have got a reply — the failure mode measured on the photo path.
       toolChoice: "required",
+      // `toolChoice: "required"` applies to EVERY step, so without this the loop cannot end: the model
+      // is forbidden from replying in prose even after it has submitted, and burns maxSteps producing
+      // answers nobody reads. Measured at 6 model calls for one photo.
+      stopWhen: stopAtTerminalTool,
     },
   );
 

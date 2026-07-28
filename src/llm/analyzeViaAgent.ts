@@ -18,6 +18,7 @@
 // exists rather than a two-line call.
 
 import type { Agent } from "@mastra/core/agent";
+import { stopAtTerminalTool } from "./stop.ts";
 import { SYSTEM, buildUserText, MealAnalysisSchema, gated } from "../analyzer.ts";
 import type { MealAnalysis, MealContext, Profile } from "../types.ts";
 
@@ -78,6 +79,10 @@ export async function analyzeMealViaAgent(
       // reproduced with grounding on and off, on different fixtures each run, so it is the missing
       // forcing and not a tool-loop artefact. The user's meal was simply gone.
       toolChoice: "required",
+      // `toolChoice: "required"` applies to EVERY step, so without this the loop cannot end: the model
+      // is forbidden from replying in prose even after it has submitted, and burns maxSteps producing
+      // answers nobody reads. Measured at 6 model calls for one photo.
+      stopWhen: stopAtTerminalTool,
     },
   );
 

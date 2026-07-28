@@ -10,6 +10,7 @@
 // with no restrictions at all, no kidney verdict, no sodium cap, and nothing saying why.
 
 import type { Agent } from "@mastra/core/agent";
+import { stopAtTerminalTool } from "./stop.ts";
 import { SYSTEM_CLASSIFY, buildClassifyText } from "../analyzer.ts";
 import { isRestrictionTag } from "../targets.ts";
 import type { Profile } from "../types.ts";
@@ -40,6 +41,10 @@ export async function classifyRestrictionsViaAgent(
         // left every terminal tool reachable on an onboarding turn.
         activeTools: ["submit_restrictions"],
         toolChoice: "required",
+        // `toolChoice: "required"` applies to EVERY step, so without this the loop cannot end: the model
+        // is forbidden from replying in prose even after it has submitted, and burns maxSteps producing
+        // answers nobody reads. Measured at 6 model calls for one photo.
+        stopWhen: stopAtTerminalTool,
         maxSteps: 3,
       },
     );

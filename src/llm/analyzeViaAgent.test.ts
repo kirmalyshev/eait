@@ -6,6 +6,7 @@ import { createEngineAgent } from "./agent.ts";
 import { analyzeMealViaAgent } from "./analyzeViaAgent.ts";
 import { buildUserText } from "../analyzer.ts";
 import { buildRequestContext } from "./context.ts";
+import { buildFoodIndex } from "../food_db.ts";
 import type { Profile } from "../types.ts";
 
 const profile: Profile = {
@@ -136,6 +137,60 @@ describe("analyzeMealViaAgent", () => {
     // comes back error-shaped, and the meal is lost where the shipped path files it at offset 0.
     const { model } = scripted({ ...ANALYSIS, dayOffset: null });
     const out = await analyzeMealViaAgent(await agentFor(model), [bytes], profile, buildRequestContext(1));
+    expect(out.kcal).toBe(166);
+  });
+
+  test("costs ONE model call — the loop stops at the terminal tool, not at maxSteps", async () => {
+    // `toolChoice: "required"` forbids the model from ever answering in prose, so without a stop
+    // condition the loop cannot end early: it burns maxSteps producing answers nobody reads. This
+    // mock always returns a tool call — exactly what a real model under `required` does — so
+    // without `stopWhen` this asserts 6 instead of 1, i.e. a 6x bill and 6x latency per photo.
+    let calls = 0;
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        calls++;
+        return {
+          finishReason: { unified: "tool-calls" as const, raw: undefined }, usage, warnings: [],
+          content: [{
+            type: "tool-call" as const, toolCallId: `c${calls}`, toolName: "submit_meal",
+            input: JSON.stringify(ANALYSIS),
+          }],
+        };
+      },
+    });
+    await analyzeMealViaAgent(await agentFor(model), [bytes], profile, buildRequestContext(1));
+    expect(calls).toBe(1);
+  });
+
+  test("a food LOOKUP before submitting is still allowed — the stop is on terminal tools only", async () => {
+    // The other half of the stop condition. `search_food_db` is a mid-turn lookup, and grounding
+    // depends on the agent being able to call it and THEN submit. A stop condition that fired on
+    // any tool call would silently disable grounding while every test still passed.
+    const index = buildFoodIndex([
+      { id: "usda:1", name: "Bulgur, cooked", kcal: 83, protein_g: 3.1, carbs_g: 18.6, fat_g: 0.2 },
+    ]);
+    const seen: string[] = [];
+    let calls = 0;
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        calls++;
+        const [toolName, input] = calls === 1
+          ? ["search_food_db", JSON.stringify({ queries: ["bulgur"] })]
+          : ["submit_meal", JSON.stringify(ANALYSIS)];
+        seen.push(toolName!);
+        return {
+          finishReason: { unified: "tool-calls" as const, raw: undefined }, usage, warnings: [],
+          content: [{ type: "tool-call" as const, toolCallId: `c${calls}`, toolName: toolName!, input: input! }],
+        };
+      },
+    });
+    const database = freshTestName();
+    await (await openTestDb(database)).close();
+    const { memory } = await createMastra({ ...pgBase(), database });
+    const agent = createEngineAgent(model as never, memory, { foodIndex: index });
+    const out = await analyzeMealViaAgent(agent, [bytes], profile, buildRequestContext(1));
+
+    expect(seen).toEqual(["search_food_db", "submit_meal"]);
     expect(out.kcal).toBe(166);
   });
 

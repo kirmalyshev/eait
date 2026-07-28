@@ -833,9 +833,14 @@ export async function processText(
       html: renderMealCard(result.analysis, result.totals, targetsFor(prof), t, prof.restrictions, { prefix, dateLabel }),
       plain: prefix + "\n" + formatReply(result.analysis, result.totals, targetsFor(prof), t, prof.restrictions, { dateLabel }),
     });
-    // Map the new card to the meal so a follow-up reply to IT re-focuses — otherwise a multi-step
-    // move ("yesterday", then reply again "one more day back") dead-ends with no focus.
-    if (sent) await setMealReply(db, result.mealId, from.id, sent.chat_id, sent.message_id);
+    // REDATE ONLY. `meals` has one `bot_message_id`, so re-pointing it moves which card a reply
+    // resolves — and orphans the previous one. A move earns that: "yesterday", then a reply to the
+    // Moved card saying "one more day back", would otherwise dead-end with no focus. A correction
+    // does not: the user keeps replying to the original meal card, and stealing the mapping would
+    // silently break exactly the message they scroll back to.
+    if (result.kind === "redated" && sent) {
+      await setMealReply(db, result.mealId, from.id, sent.chat_id, sent.message_id);
+    }
     fireReaction(opts?.react, "👍", from.id);
     return true;
   }
