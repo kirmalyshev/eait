@@ -119,6 +119,35 @@ describe("loadConfig", () => {
   });
 });
 
+describe("API_PORT / API_HOST", () => {
+  const base = { TELEGRAM_BOT_TOKEN: "t", OPENROUTER_API_KEY: "k" };
+
+  test("unset means the API does not start — opt-in, never a default", () => {
+    // An instance that has always been long-polling-only must not begin listening on a port
+    // because it was upgraded.
+    expect(loadConfig({ ...base }).apiPort).toBeNull();
+    expect(loadConfig({ ...base, API_PORT: "" }).apiPort).toBeNull();
+    expect(loadConfig({ ...base, API_PORT: "   " }).apiPort).toBeNull();
+  });
+
+  test("a valid port is parsed", () => {
+    expect(loadConfig({ ...base, API_PORT: "8080" }).apiPort).toBe(8080);
+  });
+
+  test("an INVALID port dies at startup rather than silently leaving the API off", () => {
+    // The two are indistinguishable from outside the process, and only one is intended: a typo in
+    // API_PORT must not read as "the operator chose not to enable it".
+    for (const bad of ["0", "-1", "70000", "http", "80.5"]) {
+      expect(() => loadConfig({ ...base, API_PORT: bad })).toThrow(/API_PORT/);
+    }
+  });
+
+  test("the host defaults to loopback", () => {
+    expect(loadConfig({ ...base }).apiHost).toBe("127.0.0.1");
+    expect(loadConfig({ ...base, API_HOST: "0.0.0.0" }).apiHost).toBe("0.0.0.0");
+  });
+});
+
 describe("ALLOWED_USER_IDS", () => {
   const base = { TELEGRAM_BOT_TOKEN: "t", OPENROUTER_API_KEY: "k" };
 

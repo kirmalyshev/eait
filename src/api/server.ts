@@ -7,6 +7,8 @@ import type { EngineDeps } from "../engine/index.ts";
 
 export interface ApiServer {
   port: number;
+  /** Interface actually bound. Exposed so a test can prove config reached `Bun.serve`. */
+  hostname: string;
   stop: () => Promise<void>;
 }
 
@@ -37,5 +39,9 @@ export function startApi(
     fetch: handle,
   });
   console.log(`[eait] api listening on ${server.hostname}:${server.port}`);
-  return { port: Number(server.port), stop: async () => void server.stop(true) };
+  return {
+    port: Number(server.port),
+    hostname: String(server.hostname),
+    stop: async () => void server.stop(true),
+  };
 }

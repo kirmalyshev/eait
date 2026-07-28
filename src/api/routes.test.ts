@@ -6,7 +6,7 @@ const body = async (res: Response): Promise<any> => res.json();
 import { cleanupTestDbs, freshTestDb } from "../testutil.ts";
 import { insertMeal, setProfile, upsertUser, berlinDate } from "../db.ts";
 import type { Config } from "../config.ts";
-import type { EngineDeps } from "../engine/index.ts";
+import { week, type EngineDeps } from "../engine/index.ts";
 import type { MealAnalysis } from "../types.ts";
 
 afterAll(cleanupTestDbs, 60_000);
@@ -254,6 +254,17 @@ describe("api router", () => {
       .toBe(400);
     expect((await handle(new Request("http://x/v1/diary/week?days=0"))).status).toBe(400);
     expect((await handle(new Request("http://x/v1/nope"))).status).toBe(404);
+  });
+
+  test("the engine bounds the diary window ITSELF, not only the route", async () => {
+    // The route validates and returns a clean 400, which is the better error — but the engine is
+    // the contract, and a second front end that forgets to validate must not be able to ask for
+    // ten years of rows. Called directly, past the route's guard.
+    const { db, deps } = await ctx();
+    await activeUser(db, 715);
+    await expect(week(deps, 715, 5000)).rejects.toThrow(/days must be an integer/);
+    await expect(week(deps, 715, 0)).rejects.toThrow(/days must be an integer/);
+    expect(await week(deps, 715, 7)).toBeArray();
   });
 
   test("an internal error is 500 with NO detail in the body", async () => {
