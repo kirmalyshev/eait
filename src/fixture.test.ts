@@ -241,6 +241,20 @@ describe("buildExpectation", () => {
     expect(buildExpectation(["olive oil: 12.5"]).kcal).toBe(Math.round(884 * 0.125));
   });
 
+  test("keeps the component NAMES, in order (#A0)", () => {
+    // The weighed path parsed each name and then summed it away, exactly like the NutritionVerse
+    // adapter did. Recording twenty meals on a kitchen scale before this fix would have thrown the
+    // names away at write time — the most expensive ground truth here, unrecoverable without
+    // weighing them again.
+    const e = buildExpectation(["chicken breast: 200", "rice, cooked: 200"]);
+    expect(e.items).toEqual(["chicken breast", "rice, cooked"]);
+  });
+
+  test("carries the name a per-100g override was given under, not the override text", () => {
+    const e = buildExpectation(["babushka's borscht: 300 @ 45/1.5/4/2.5"]);
+    expect(e.items).toEqual(["babushka's borscht"]);
+  });
+
   test("sums macros when every component declares them", () => {
     const e = buildExpectation(["chicken breast: 100", "rice, cooked: 100"]);
     expect(e.protein_g).toBeCloseTo(31 + 2.7, 1);
@@ -266,7 +280,9 @@ describe("buildExpectation", () => {
     // exactOptionalPropertyTypes is off repo-wide — the `flatMap` is the only guard.
     const e = buildExpectation(["chicken breast: 100", "mystery stew: 300 @ 150"]);
     expect("protein_g" in e).toBe(false);
-    expect(Object.keys(e).sort()).toEqual(["kcal", "total_grams"]);
+    // `items` is unconditional — a weighed meal always has at least one named component (an empty
+    // spec list throws upstream), so it is never the present-as-undefined case this test guards.
+    expect(Object.keys(e).sort()).toEqual(["items", "kcal", "total_grams"]);
     expect(JSON.parse(JSON.stringify(e))).toEqual(e);
   });
 

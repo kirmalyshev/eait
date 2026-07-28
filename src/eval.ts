@@ -13,6 +13,18 @@ export const ExpectationSchema = z.object({
   fat_g: z.number().nonnegative().optional(),
   /** Kitchen-scale weight of the whole serving; compared against the sum of items[].grams. */
   total_grams: z.number().positive().optional(),
+  /**
+   * Ground-truth food names for this meal, in source order. Without these, "was the food
+   * identified correctly?" cannot be asked of a fixture at all — only "were the numbers close" —
+   * and identification is where the reported failures live (couscous read as bulgur costs +35%
+   * kcal and 3.2x on fibre). Both ground-truth writers parsed these names and then summed them
+   * away; keeping them is the whole of A0.
+   *
+   * OPTIONAL on purpose: the Nutrition5k fixtures already on disk were written without names and
+   * must keep validating on the next read rather than being regenerated. Absent means "this
+   * fixture cannot score identification", never "this meal had no food in it".
+   */
+  items: z.array(z.string()).optional(),
 });
 export type Expectation = z.infer<typeof ExpectationSchema>;
 
@@ -129,12 +141,24 @@ export function nutritionverseRowToExpectation(
     );
   }
   const [dishId, mass, kcal, fat, carb, protein] = f;
+  // Ingredient names sit at the head of each 13-column block after the dish block. The shape check
+  // above is what makes this indexing safe: on a re-released CSV with drifted columns we throw
+  // rather than harvest whatever string now sits at field 13 and call it a food.
+  //
+  // A blank name is skipped rather than pushed as "": an empty string is not a food, and it would
+  // score as a failed identification against whatever the model correctly saw.
+  const items: string[] = [];
+  for (let i = NV_BLOCK; i + 1 < f.length; i += NV_BLOCK) {
+    const name = f[i]?.trim();
+    if (name) items.push(name);
+  }
   const expectation = ExpectationSchema.parse({
     kcal: Math.round(Number(kcal)),
     total_grams: round1(Number(mass)),
     fat_g: round1(Number(fat)),
     carbs_g: round1(Number(carb)),
     protein_g: round1(Number(protein)),
+    ...(items.length ? { items } : {}),
   });
   return { dishId: dishId!, expectation };
 }

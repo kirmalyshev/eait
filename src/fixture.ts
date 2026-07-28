@@ -392,6 +392,11 @@ export function buildExpectation(specs: string[]): Expectation {
   const candidate = {
     kcal: Math.round(kcal),
     total_grams: round1(total_grams),
+    // The parsed component name, not the raw spec: an override line ("borscht: 300 @ 45/1.5/4/2.5")
+    // must record the food, not the arithmetic. Weighed meals are the only ground truth in the
+    // principal's own cuisine, and they are expensive to produce — summing the names away here, as
+    // this function used to, made every recorded meal unable to score identification.
+    items: components.map((c) => c.name),
     ...Object.fromEntries(
       MACROS.flatMap((m) => (macroSums[m] === undefined ? [] : [[m, round1(macroSums[m]!)]])),
     ),

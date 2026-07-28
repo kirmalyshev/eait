@@ -22,6 +22,19 @@ describe("ExpectationSchema", () => {
     expect(full.success).toBe(true);
   });
 
+  test("items carries ground-truth food names, and stays OPTIONAL", () => {
+    // Optional is load-bearing: the 22 Nutrition5k fixtures already on disk were written without
+    // names, and must keep validating on the next read rather than being regenerated.
+    expect(ExpectationSchema.safeParse({ kcal: 620 }).success).toBe(true);
+    const named = ExpectationSchema.safeParse({ kcal: 620, items: ["bulgur", "chicken breast"] });
+    expect(named.success).toBe(true);
+    expect(named.success && named.data.items).toEqual(["bulgur", "chicken breast"]);
+  });
+
+  test("items rejects non-string entries — a number here means a column-offset bug upstream", () => {
+    expect(ExpectationSchema.safeParse({ kcal: 620, items: ["bulgur", 156] }).success).toBe(false);
+  });
+
   test("rejects non-positive kcal — a zero expectation breaks MAPE and is always a typo", () => {
     expect(ExpectationSchema.safeParse({ kcal: 0 }).success).toBe(false);
     expect(ExpectationSchema.safeParse({ kcal: -100 }).success).toBe(false);
@@ -56,6 +69,24 @@ describe("nutritionverseRowToExpectation", () => {
     const { expectation } = nutritionverseRowToExpectation(dish("1,400,800,10,20,30,0,0,0,0,0,0,0"));
     expect(expectation.total_grams).toBe(400);
     expect(expectation.kcal).toBe(800);
+  });
+
+  test("keeps the ingredient NAMES — identification cannot be scored without them (#A0)", () => {
+    // The names sit at the head of each 13-column ingredient block. They were parsed for the
+    // photo-pairing gate and then discarded, which left every fixture on disk unable to answer
+    // "was the food identified correctly?" — the question the whole identification track needs.
+    const { expectation } = nutritionverseRowToExpectation(
+      dish("7,165.0,95.7,0.33,22.8,0.5,0,0,0,0,0,0,0", 3),
+    );
+    expect(expectation.items).toEqual(["food-0", "food-1", "food-2"]);
+  });
+
+  test("skips a blank ingredient name rather than writing an empty string", () => {
+    const blank = `,,156.0,95.7,0.33,22.8,0.5,0.01,0.0002,0.009,0.19,0.008,0.0,0.0`;
+    const { expectation } = nutritionverseRowToExpectation(
+      `7,165.0,95.7,0.33,22.8,0.5,0,0,0,0,0,0,0${ingredient("rice")}${blank}`,
+    );
+    expect(expectation.items).toEqual(["rice"]);
   });
 
   test("accepts the full 1..7 ingredient range", () => {
