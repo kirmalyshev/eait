@@ -140,7 +140,7 @@ const MEAL_JSON_SCHEMA = {
   },
 } as const;
 
-const SYSTEM =
+export const SYSTEM =
   "You are an expert nutritionist experienced in estimating meal composition and portion " +
   "weight from photos for a personal food diary. Estimate the meal's items and macros from " +
   "the photo, following the estimation protocol exactly and working through it in the " +
@@ -170,7 +170,15 @@ function goalLine(goal: Profile["goal"]): string {
 }
 
 /** Generic instruction, personalized per profile. Only declared restrictions get a verdict. */
-function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boolean): string {
+/**
+ * Exported so the Mastra path sends the SAME prompt as the shipped one, rather than a re-typed
+ * imitation of it. This text is not incidental — it carries the estimation protocol, the deleted
+ * round-up hedge, the cuisine and country priors, the repertoire prior, the per-item macro
+ * instruction and the verdict contract, each of them measured or fought for. Re-authoring it for
+ * the new engine would turn a transport migration into an accuracy experiment, and the two would
+ * be indistinguishable in the results.
+ */
+export function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boolean): string {
   const lines: string[] = [];
   lines.push(`User ${goalLine(profile.goal)}.`);
   // Target-weight framing: gives the model the magnitude behind the goal so the weight verdict is
