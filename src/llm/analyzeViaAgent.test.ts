@@ -241,6 +241,29 @@ describe("analyzeMealViaAgent", () => {
     expect(sys).toContain(SYSTEM);
   });
 
+  test("a photo turn carries NO conversation history — four meals cost the same prompt", async () => {
+    // Passing a memory thread made Mastra replay the whole conversation into every turn: measured
+    // at 2 → 5 → 8 → 11 prompt messages over four photos, each carrying the PREVIOUS photos' image
+    // parts. Unbounded cost on the most expensive token type there is — and the model would be
+    // estimating this meal while looking at the last three, which is not the transport-only change
+    // this migration claims to be.
+    const sizes: number[] = [];
+    const model = new MockLanguageModelV4({
+      doGenerate: async (opts: any) => {
+        sizes.push((opts.prompt ?? []).length);
+        return {
+          finishReason: { unified: "tool-calls" as const, raw: undefined }, usage, warnings: [],
+          content: [{ type: "tool-call" as const, toolCallId: "c1", toolName: "submit_meal", input: JSON.stringify(ANALYSIS) }],
+        };
+      },
+    });
+    const agent = await agentFor(model);
+    for (let i = 0; i < 4; i++) {
+      await analyzeMealViaAgent(agent, [new Uint8Array([i])], profile, buildRequestContext(1));
+    }
+    expect(sizes).toEqual([sizes[0]!, sizes[0]!, sizes[0]!, sizes[0]!]);
+  });
+
   test("THROWS when the agent never calls submit_meal", async () => {
     // Mirrors the old path's contract: no analysis means no row, never a meal assembled from
     // whatever the agent said in prose.

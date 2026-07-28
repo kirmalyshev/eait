@@ -31,7 +31,8 @@ export async function classifyRestrictionsViaAgent(
       {
         instructions: SYSTEM_CLASSIFY,
         requestContext: requestContext as never,
-        memory: { thread: `u${telegramId}`, resource: String(telegramId) },
+        // NO MEMORY: classifying one sentence of free text against a fixed vocabulary has no
+        // history to carry, and this runs once per user before a profile exists.
         // The ONE per-call tool subset in the codebase, and the one place it is clearly right: this
         // runs before a profile exists, so a diary tool would query rows the user does not have,
         // and `submit_meal` on an onboarding answer would log a meal out of a list of allergies.

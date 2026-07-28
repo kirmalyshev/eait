@@ -22,6 +22,12 @@
 // runs twice, and its own run-to-run spread is the yardstick the cross-path spread is read
 // against. A cross-path kcal delta of 12% means nothing until you know the same model disagrees
 // with itself by 10% on the same photo.
+//
+// RESULTS FROM BEFORE 2026-07-28 ARE NOT COMPARABLE. Two bugs contaminated them, both since fixed:
+// the agent path replayed conversation memory, so every fixture after the first was analyzed with
+// the previous fixtures' PHOTOS still in the prompt; and the grounding guidance never reached the
+// model, so whatever `search_food_db` did in those runs, it was not what the design intends.
+// Re-run from scratch rather than comparing against an archived report.
 
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";

@@ -39,6 +39,9 @@ const isToolError = (v: unknown): v is { error: true; message?: string } =>
 // and this dispatch must agree about what ends a turn, and two arrays is how they stop agreeing.
 type TerminalName = (typeof ROUTER_TOOLS)[number];
 
+/** How much conversation the router replays. See the memory note in `routeTextViaAgent`. */
+const ROUTER_HISTORY_TURNS = 10;
+
 /**
  * Route one free-text message. Returns the same `RouteResult` union `routeText` does, so
  * `processText`'s dispatch is unchanged.
@@ -60,9 +63,20 @@ export async function routeTextViaAgent(
       // offered the tool with nothing telling it to pass confusable alternatives. Measured.
       instructions: `${SYSTEM_ROUTE}\n\n${LOOKUP_GUIDANCE}`,
       requestContext: requestContext as never,
-      // Memory keyed on the Telegram user, from the PROFILE. A thread id a model could influence
-      // is a thread id it could point at somebody else's conversation.
-      memory: { thread: `u${profile.telegram_id}`, resource: String(profile.telegram_id) },
+      // The one flow that KEEPS memory — conversational continuity is the point here (#45), and
+      // unlike a photo turn there are no image parts to drag along. Keyed on the Telegram user from
+      // the PROFILE: a thread id a model could influence is a thread id it could point at somebody
+      // else's conversation.
+      //
+      // BOUNDED explicitly. Left at the default, the replayed history grows every turn, and this
+      // prompt already carries today's meals, the week's totals and the targets as structured
+      // context — which answers "what did I eat" far better than raw transcript ever will. History
+      // is here for "what did I just ask you", and that needs a handful of turns, not all of them.
+      memory: {
+        thread: `u${profile.telegram_id}`,
+        resource: String(profile.telegram_id),
+        options: { lastMessages: ROUTER_HISTORY_TURNS },
+      },
       maxSteps: 6,
       // The router's equivalent of the old path's `response_format: json_schema`. Without it the
       // model may answer in prose, which here means no terminal tool and a thrown error where the

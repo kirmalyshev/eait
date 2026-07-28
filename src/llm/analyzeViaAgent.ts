@@ -47,10 +47,6 @@ export async function analyzeMealViaAgent(
   requestContext: unknown,
   context?: MealContext,
 ): Promise<MealAnalysis> {
-  // Memory is keyed on the Telegram user, per the design. Both values come from the PROFILE, never
-  // from anything the model produced — a thread id a model could influence is a thread id it could
-  // point at somebody else's conversation.
-  const memoryKey = { thread: `u${profile.telegram_id}`, resource: String(profile.telegram_id) };
   if (images.length === 0) throw new Error("analyzeMealViaAgent: no images");
 
   const result = await agent.generate(
@@ -72,7 +68,13 @@ export async function analyzeMealViaAgent(
       // offered the tool with nothing telling it to pass confusable alternatives. Measured.
       instructions: `${SYSTEM}\n\n${LOOKUP_GUIDANCE}`,
       requestContext: requestContext as never,
-      memory: memoryKey,
+      // NO MEMORY, deliberately. A photo analysis is a single-shot estimate, and the old path sent
+      // exactly one user message. Passing a thread made Mastra replay the whole conversation into
+      // every turn — measured at 2 → 5 → 8 → 11 prompt messages over four photos, each carrying the
+      // PREVIOUS photos' image parts. That is an unbounded bill on the most expensive token type
+      // there is, and it quietly breaks the premise this migration rests on: the model would be
+      // estimating this meal while looking at the last three. The router keeps memory, where
+      // conversational continuity is the actual feature.
       // The agent must be able to look a food up and THEN submit, so a single step cannot be the
       // limit. Bounded anyway: a runaway loop on a photo is a bill, not a hang.
       maxSteps: 6,

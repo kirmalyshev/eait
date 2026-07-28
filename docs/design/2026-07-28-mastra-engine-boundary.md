@@ -172,6 +172,15 @@ its `auto` default, so the model could answer in prose and the meal was simply g
 `toolChoice: "required"` on every terminal-tool call. **This fix is unit-tested but not yet
 confirmed live** — the confirming run died on a 402 from OpenRouter.
 
+### The earlier parity numbers are void
+
+Both runs predate two fixes and cannot be compared against: the agent path replayed conversation
+memory (so each fixture was analyzed with the previous fixtures' photos still in the prompt —
+measured at 2 → 5 → 8 → 11 prompt messages over four turns), and the grounding guidance never
+reached the model at all, because Mastra's per-call `instructions` replaces rather than appends.
+The *transport* conclusion — 100% item agreement with grounding off — was drawn from the FIRST
+fixture of that run, which had no prior turns to inherit, so it survives. Nothing else does.
+
 ### What still has to happen before 4b
 
 Re-run `scripts/parity-llm-paths.ts` on a funded key, both with and without `--no-food-db`, over
