@@ -17,7 +17,7 @@
 // exists rather than a two-line call.
 
 import type { Agent } from "@mastra/core/agent";
-import { SYSTEM, buildUserText, MealAnalysisSchema } from "../analyzer.ts";
+import { SYSTEM, buildUserText, MealAnalysisSchema, gated } from "../analyzer.ts";
 import type { MealAnalysis, MealContext, Profile } from "../types.ts";
 
 /** Mastra resolves a failed tool-call validation to this instead of throwing. */
@@ -104,5 +104,11 @@ export async function analyzeMealViaAgent(
   // tool's `inputSchema` and this parse are the same contract, but this function's RETURN type is
   // what every caller trusts, and a defaulted or coerced field must land identically to the old
   // path — otherwise the two engines could disagree on a meal neither of them got wrong.
-  return MealAnalysisSchema.parse(analysis);
+  //
+  // `gated` is the fourth exit of the verdict gate and is NOT optional. Without it the model's own
+  // verdicts reach the card and the row: this path shipped returning `verdicts.kidneys` for a
+  // profile that declared only `ldl`. The gate discards the model's verdicts entirely and recomputes
+  // them from the user's caps, so it also keeps the two engines agreeing on a dimension the model
+  // is not trusted to judge in the first place.
+  return gated(MealAnalysisSchema.parse(analysis), profile);
 }

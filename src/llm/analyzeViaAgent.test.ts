@@ -116,6 +116,29 @@ describe("analyzeMealViaAgent", () => {
     expect("dayOffset" in out).toBe(false);
   });
 
+  test("APPLIES the verdict gate — an undeclared dimension never survives the agent path", async () => {
+    // The old path returns `gated(parseAnalysis(raw), profile)`: model verdicts are DISCARDED and
+    // recomputed from the user's caps, then filtered to declared dimensions. This profile declares
+    // only "ldl", so a model-authored `kidneys` verdict is a medical claim about a dimension its
+    // owner never opted into — the exact leak PR #34 closed on the shipped path.
+    const { model } = scripted({
+      ...ANALYSIS,
+      verdicts: { weight: "good", ldl: "good", kidneys: "bad" },
+    });
+    const out = await analyzeMealViaAgent(await agentFor(model), [bytes], profile, buildRequestContext(1));
+    expect(out.verdicts.kidneys).toBeUndefined();
+  });
+
+  test("a null dayOffset still logs the meal — models commonly emit it for same-day", async () => {
+    // `RouteSchema` types dayOffset as `z.unknown().optional()` and clamps, precisely because a
+    // strict number REJECTS the whole object on the null models emit for today. `submit_meal`'s
+    // inputSchema bounds it strictly instead, so under Mastra the same payload fails validation,
+    // comes back error-shaped, and the meal is lost where the shipped path files it at offset 0.
+    const { model } = scripted({ ...ANALYSIS, dayOffset: null });
+    const out = await analyzeMealViaAgent(await agentFor(model), [bytes], profile, buildRequestContext(1));
+    expect(out.kcal).toBe(166);
+  });
+
   test("THROWS when the agent never calls submit_meal", async () => {
     // Mirrors the old path's contract: no analysis means no row, never a meal assembled from
     // whatever the agent said in prose.

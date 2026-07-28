@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { submitMealTool, type SubmitMealResult } from "./mealActions.ts";
+import { MAX_DAY_OFFSET } from "../../analyzer.ts";
 
 const VALID_MEAL = {
   isFood: true,
@@ -37,17 +38,38 @@ describe("submitMealTool", () => {
     expect(result.analysis).not.toHaveProperty("dayOffset");
   });
 
-  test("rejects a dayOffset outside [0, MAX_DAY_OFFSET]", async () => {
-    const inputSchema = submitMealTool.inputSchema!;
-    const validation = await inputSchema["~standard"].validate({ ...VALID_MEAL, dayOffset: 99 });
-    expect(validation.issues).toBeDefined();
-    expect(validation.issues?.length).toBeGreaterThan(0);
+  /** Validate then execute, the way Mastra does — the clamp lives in `execute`, not the schema. */
+  async function submit(payload: unknown): Promise<SubmitMealResult> {
+    const validation = await submitMealTool.inputSchema!["~standard"].validate(payload);
+    if (validation.issues) {
+      throw new Error(`Validation failed: ${JSON.stringify(validation.issues)}`);
+    }
+    const execute = submitMealTool.execute!;
+    return (await execute(validation.value, {} as Parameters<typeof execute>[1])) as SubmitMealResult;
+  }
+
+  // These four replace two earlier tests that asserted the OPPOSITE — that an out-of-contract or
+  // missing dayOffset is REJECTED. That contract was wrong, and wrong in a way that loses data.
+  // `RouteSchema` on the shipped path types dayOffset as `z.unknown().optional()` and clamps,
+  // with a comment saying why: models commonly emit `null` for same-day. Rejecting the call does
+  // not get a better date — Mastra hands the model an error and asks it to retry, and a model that
+  // keeps emitting null exhausts maxSteps, so a fully correct meal analysis is DISCARDED over its
+  // date field. Clamping keeps the meal and files it under today, exactly as the old path does.
+  test.each([
+    ["above the window", 99, MAX_DAY_OFFSET],
+    ["null — the value models emit for same-day", null, 0],
+    ["a stringy number", "1", 0],
+    ["fractional", 2.5, 2],
+  ])("clamps a dayOffset %s rather than losing the meal", async (_label, sent, expected) => {
+    const result = await submit({ ...VALID_MEAL, dayOffset: sent });
+    expect(result.dayOffset).toBe(expected);
+    // The point of clamping instead of rejecting: the analysis survives.
+    expect(result.analysis.items[0].name).toBe("banana");
   });
 
-  test("rejects a missing dayOffset — the model must always state which day", async () => {
-    const inputSchema = submitMealTool.inputSchema!;
-    const validation = await inputSchema["~standard"].validate(VALID_MEAL);
-    expect(validation.issues).toBeDefined();
-    expect(validation.issues?.length).toBeGreaterThan(0);
+  test("a missing dayOffset means today, not a rejected meal", async () => {
+    const result = await submit(VALID_MEAL);
+    expect(result.dayOffset).toBe(0);
+    expect(result.analysis.kcal).toBe(107);
   });
 });

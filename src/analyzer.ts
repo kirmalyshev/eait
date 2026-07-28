@@ -405,6 +405,11 @@ export async function analyzeMeal(
  * The single gate every MealAnalysis passes through on its way out of this module — three exits:
  * `analyzeMeal` (photo), and `routeText`'s `meal` (text-described) and `correction` intents.
  *
+ * Exported for the Mastra path (`llm/analyzeViaAgent.ts`), which is a FOURTH exit and must apply
+ * the same gate. It shipped without one: the agent returned the model's own verdicts verbatim, so a
+ * profile declaring only `ldl` received a model-authored `kidneys` verdict — the leak this function
+ * exists to stop, on the engine meant to replace the one that stops it.
+ *
  * The prompt ASKS for no verdicts on undeclared dimensions; this enforces it. Rationale and the
  * measured evidence live with `visibleVerdicts` in targets.ts.
  *
@@ -412,7 +417,7 @@ export async function analyzeMeal(
  * undeclared verdict, and a correction applied to a PHOTO meal would write one straight back onto
  * a row the photo gate had already kept clean.
  */
-function gated(analysis: MealAnalysis, profile: Profile): MealAnalysis {
+export function gated(analysis: MealAnalysis, profile: Profile): MealAnalysis {
   // The model's own verdicts are DISCARDED here, not filtered. They were authored from the model's
   // own macros, so any later revision of a number — a composition-table lookup replacing 5 g of
   // saturated fat with 20 g — leaves the verdict describing figures that no longer exist. A
