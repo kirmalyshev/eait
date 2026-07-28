@@ -150,14 +150,56 @@ latency; ours runs ~10 s per call, so ~20 s to a card, behind the existing 👀 
 
 ---
 
-## 0 · Model A/B refresh — first, because it may dominate
+## 0 · Model A/B refresh — considered and dropped from the critical path
 
-Published VLMs reach 23.9–24.5% MAPE where we measure 42.2%. **Different datasets; not directly
-comparable, and this document does not claim otherwise.** But the gap is wide enough that a current
-frontier model may close more of it than every lever below combined, at the cost of one eval run.
+An earlier draft put this first, arguing that published VLMs reach 23.9–24.5% MAPE where we measure
+42.2%, so a newer model might close the gap. **That argument does not survive our own fixture set.**
 
-`x-ai/grok-4.5` was chosen by A/B months ago in model time. Re-run the A/B before investing in
-pipeline work — if the ranking has moved, the rest of this document gets reprioritised.
+| | mean dish |
+|---|---|
+| `data/food-photos` (n=22) | **1085 kcal** |
+| `eval/nutritionverse` (n=30) | **972 kcal** |
+| combined (n=52) | median **720**, p25 552, p75 1018, max 4900 |
+| above 1000 kcal | **27% of dishes** |
+
+Compression pivots near 500 kcal, and we measured **−57% above 1000**. A set with a median of 720 and
+a quarter of its mass in the worst zone is **adversarial by construction for a compressed estimator**.
+ACETADA is free-living dietitian-verified smartphone meals, almost certainly centred nearer the pivot,
+where the same model scores better. The gap therefore compares dish-size distributions, not models —
+the same trap this document warns about elsewhere ("each dataset's apparent bias is its mean dish size
+read through the compression").
+
+`x-ai/grok-4.5` was already chosen by an A/B **on these same fixtures**, which is apples-to-apples in
+the way the cross-dataset comparison is not. Pipeline work is durable and benefits any model; model
+choice decays. So this is optional, not step 0.
+
+**One thing to carry regardless:** every measurement in this document is model-conditional. C in
+particular fits two parameters to *this* model's compression slope — change the model and the
+calibration is wrong, not merely stale. Refit C on any model change.
+
+## 0 · Record weighed home meals — the real gap
+
+`eval/weighed` holds **zero fixtures**. Everything measurable today is Western restaurant and
+cafeteria food averaging ~1000 kcal a dish. The bot is used on Russian/German home cooking, likely
+300–800 kcal — near the compression pivot, where the model is least wrong.
+
+So **42.2% is not the number the principal experiences**, and the two concrete complaints ("couscous
+instead of bulgur", "protein/fat wrong") are both non-calorie. The eval set is measuring a bot
+serving food nobody here eats.
+
+The capture protocol is already written (`docs/ACCURACY_EVAL.md`). Twenty weighed home meals would be
+worth more than any model swap, and are the only way to measure identification on the cuisine that
+matters.
+
+**A0 must land first, and this is a hard ordering constraint.** `buildExpectation`
+(`src/fixture.ts:356`) parses each component's name via `parseComponent` and then sums it away,
+returning totals only; `add-fixture.ts:183` writes exactly that. It is the same discard as the
+NutritionVerse adapter, in a second writer. Record twenty meals with a kitchen scale before A0 and
+the names are thrown away at write time — the most expensive input in this document, wasted, and
+unrecoverable without weighing them again.
+
+So A0 covers **both** writers, and only then does the scale work start. That work needs a human, so
+it should begin as early as A0 allows and run in parallel with everything below.
 
 ## A0 · Fixtures must carry ground-truth item names (prerequisite)
 
@@ -176,9 +218,13 @@ The names are discarded, not absent. `src/eval.ts:31` says so: the CSV *"repeats
 fields we ignore"*, and `labelsAgree` (`src/eval.ts:93`) already parses them for the pairing gate
 before dropping them.
 
-A0: add an optional `items: string[]` to `Expectation`, keep the names the adapter already reads,
-re-run it. No billed calls, no new photos. Optional on the type so the 22 Nutrition5k fixtures stay
-valid without regeneration.
+**Two writers discard names, not one.** `buildExpectation` (`src/fixture.ts:356`) parses each weighed
+component's name via `parseComponent`, then sums it away and returns totals; `add-fixture.ts:183`
+writes that. So the weighed-meal path drops names exactly like the NutritionVerse adapter does.
+
+A0: add an optional `items: string[]` to `Expectation`, keep the names **both** writers already read,
+re-run the adapter. No billed calls, no new photos. Optional on the type so the 22 Nutrition5k
+fixtures stay valid without regeneration.
 
 ### Fixture inventory (verified on disk, 2026-07-27)
 
@@ -370,8 +416,8 @@ accuracy — a MAPE gain at a 20% match rate has tested nothing.
 ## Sequence
 
 ```
- 0   model A/B refresh          may dominate; one eval run
- A0  fixture item names         unblocks every identification experiment
+ A0  fixture item names         BOTH writers; blocks the scale work below
+ 0   weighed home meals         human + kitchen scale; runs in parallel from here
  A2  per-item macros            shared schema; needed by B and by call 2
  D'  retrieve-then-select       the architecture decision, gated by its experiment
  B   consistency gate           load-bearing once D' lands — validation between steps
