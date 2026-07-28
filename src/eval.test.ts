@@ -685,28 +685,29 @@ describe("storedMealToExpectation — the diary as identification ground truth",
     const e = storedMealToExpectation({
       items: [{ name: "гречка", grams: 200 }, { name: "курица", grams: 150 }],
       kcal: 432, protein_g: 34, carbs_g: 40, fat_g: 9,
-    });
+    }, true);
     expect(e.items).toEqual(["гречка", "курица"]);
     expect(e.total_grams).toBe(350);
     expect(e.kcal).toBe(432);
   });
 
-  test("marks itself identification-only — its numbers are not weighed", () => {
-    // Unless the user restated a weight, the macros are the model's own output that nobody
-    // disputed. Scoring calories against them measures agreement with a previous run of the same
-    // model. The flag is what lets a report refuse to average this into a kcal metric.
-    const e = storedMealToExpectation({ items: [{ name: "суп", grams: 300 }], kcal: 200 });
-    expect(e.identificationOnly).toBe(true);
+  test("carries its provenance, because a number is worth exactly what its source is", () => {
+    // A corrected meal has human-checked NAMES and unweighed numbers. An uncorrected one has
+    // neither: its names came from the model too, so scoring that model against them measures
+    // agreement with an earlier run of itself and reads as near-perfect.
+    const meal = { items: [{ name: "суп", grams: 300 }], kcal: 200 };
+    expect(storedMealToExpectation(meal, true).groundTruth).toBe("user-corrected");
+    expect(storedMealToExpectation(meal, false).groundTruth).toBe("model-unverified");
   });
 
   test("omits total_grams when no item declares a weight, rather than claiming zero", () => {
-    const e = storedMealToExpectation({ items: [{ name: "чай" }], kcal: 5 });
+    const e = storedMealToExpectation({ items: [{ name: "чай" }], kcal: 5 }, true);
     expect(e.total_grams).toBeUndefined();
     expect("total_grams" in e).toBe(false);
   });
 
   test("drops blank names instead of writing empty strings into ground truth", () => {
-    const e = storedMealToExpectation({ items: [{ name: "  " }, { name: "рис", grams: 100 }], kcal: 130 });
+    const e = storedMealToExpectation({ items: [{ name: "  " }, { name: "рис", grams: 100 }], kcal: 130 }, true);
     expect(e.items).toEqual(["рис"]);
   });
 });

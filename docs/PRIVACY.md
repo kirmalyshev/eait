@@ -47,8 +47,8 @@ The photo does leave the server to reach the model provider (below).
 
 Because your original message stays in your Telegram chat, the operator can re-fetch the photo of
 a meal you already logged, using a manual tool (`scripts/extract-telegram-fixtures.ts`). It is used
-to build a set of real meals for measuring how accurate the bot's estimates are — by default only
-meals you have **corrected**, since those are the ones with a human-checked answer.
+to build a set of real meals for measuring how accurate the bot's estimates are. It covers every
+meal you have logged, not only the ones you corrected.
 
 What that means concretely:
 

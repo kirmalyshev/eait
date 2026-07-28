@@ -5,7 +5,7 @@
 // kitchen scale.
 //
 //   bun run scripts/extract-telegram-fixtures.ts [--dir eval/telegram] [--user <id>]
-//     [--limit 50] [--all] [--dry-run]
+//     [--limit 50] [--corrected-only] [--dry-run]
 //
 // HOW IT GETS THE PHOTOS, AND WHY IT LOOKS LIKE THIS. The bot stores no image and no file_id — the
 // runtime is ephemeral by design and stays that way; this script changes no bot code path. What IS
@@ -15,12 +15,20 @@
 // process, delete — nothing accumulates in the chat, and the only lasting artefact is the fixture
 // in a gitignored directory.
 //
-// ONLY CORRECTED MEALS BY DEFAULT (`--all` overrides, and should be used knowing this). A meal the
-// user never corrected carries the model's own numbers and names, so scoring a model against it
-// measures agreement with an earlier run of itself. That is circular and it flatters. A corrected
-// meal carries names a human checked, which is the identification ground truth this is for; its
-// macros are still unweighed, which is why every fixture written here is marked
-// `identificationOnly` and lands in its own directory.
+// EVERY MEAL BY DEFAULT, BUT SORTED BY WHAT ITS LABELS ARE WORTH. The photos are the valuable part
+// and are worth having regardless of label quality — the self-consistency and vote-margin
+// experiments need no labels at all, and an unlabelled photo of real food is still a labelling
+// queue. But the labels are not equal, so they are not mixed:
+//
+//   <dir>/            corrected meals   — NAMES checked by the person who ate it. Real (if
+//                                         unweighed) identification ground truth.
+//   <dir>-unverified/ everything else   — names AND numbers came from the model. Scoring that
+//                                         model against them measures agreement with an earlier
+//                                         run of itself, and reads as near-perfect. NOT truth.
+//
+// One directory produces one aggregate, which is exactly why these cannot share one. Each fixture
+// also carries its own `groundTruth` provenance, so the distinction survives a file being moved.
+// `--corrected-only` skips the unverified set entirely.
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -36,7 +44,7 @@ const fail = (msg: string): never => {
 
 const argv = parseArgv(process.argv.slice(2), {
   valued: ["dir", "user", "limit"],
-  boolean: ["all", "dry-run"],
+  boolean: ["corrected-only", "dry-run"],
 });
 const flag = (name: string) => argv.flags.has(name);
 const value = (name: string): string | undefined => argv.values[name];
@@ -81,33 +89,36 @@ const rows = await db`
   FROM meals
   WHERE user_message_id IS NOT NULL AND chat_id IS NOT NULL
     ${onlyUser === null ? db`` : db`AND user_id = ${onlyUser}`}
-    ${flag("all") ? db`` : db`AND corrected = 1`}
+    ${flag("corrected-only") ? db`AND corrected = 1` : db``}
   ORDER BY ts DESC LIMIT ${limit}`;
 
 if (rows.length === 0) {
   console.log(
-    flag("all")
-      ? "no meals with a recoverable user message"
-      : "no CORRECTED meals with a recoverable user message — correct a few meals first, or pass --all knowing the numbers are the model's own",
+    flag("corrected-only")
+      ? "no CORRECTED meals with a recoverable user message — correct a few meals first, or drop --corrected-only"
+      : "no meals with a recoverable user message",
   );
   process.exit(0);
 }
 
+const unverifiedDir = `${dir}-unverified`;
+const correctedCount = rows.filter((r: any) => r.corrected === 1).length;
 console.log(
-  `${rows.length} candidate meal(s)${flag("all") ? "" : " (corrected only)"} → ${dir}` +
+  `${rows.length} candidate meal(s): ${correctedCount} corrected → ${dir}, ` +
+    `${rows.length - correctedCount} unverified → ${unverifiedDir}` +
     (flag("dry-run") ? "  [DRY RUN — nothing forwarded, nothing written]" : ""),
 );
 if (flag("dry-run")) {
   for (const r of rows) {
     const items = (JSON.parse(r.items ?? "[]") as { name: string }[]).map((i) => i.name);
-    console.log(`  ${r.id}  user=${r.user_id}  ${r.kcal} kcal  ${items.join(", ")}`);
+    const mark = r.corrected === 1 ? "corrected " : "unverified";
+    console.log(`  ${mark}  ${r.id}  user=${r.user_id}  ${r.kcal} kcal  ${items.join(", ")}`);
   }
   process.exit(0);
 }
 
-if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-
 let written = 0;
+let writtenUnverified = 0;
 let noPhoto = 0;
 let failed = 0;
 
@@ -138,20 +149,29 @@ for (const r of rows) {
     const url = `https://api.telegram.org/file/bot${config.telegramBotToken}/${file.file_path}`;
     const bytes = new Uint8Array(await (await fetch(url)).arrayBuffer());
 
-    const expectation = storedMealToExpectation({
-      items: JSON.parse(r.items ?? "[]"),
-      kcal: Number(r.kcal),
-      protein_g: r.protein_g === null ? undefined : Number(r.protein_g),
-      carbs_g: r.carbs_g === null ? undefined : Number(r.carbs_g),
-      fat_g: r.fat_g === null ? undefined : Number(r.fat_g),
-    });
+    const corrected = r.corrected === 1;
+    const expectation = storedMealToExpectation(
+      {
+        items: JSON.parse(r.items ?? "[]"),
+        kcal: Number(r.kcal),
+        protein_g: r.protein_g === null ? undefined : Number(r.protein_g),
+        carbs_g: r.carbs_g === null ? undefined : Number(r.carbs_g),
+        fat_g: r.fat_g === null ? undefined : Number(r.fat_g),
+      },
+      corrected,
+    );
+    // Created on demand rather than up front, so a run that finds only one kind does not leave an
+    // empty directory that later reads as "we looked and there was nothing".
+    const target = corrected ? dir : unverifiedDir;
+    if (!existsSync(target)) mkdirSync(target, { recursive: true });
 
     // JSON first and exclusively, as in add-fixture.ts: the json write is the atomic claim on the
     // stem, so two runs cannot both believe they own it and leave one photo orphaned.
     const stem = String(r.id);
-    writeFileSync(join(dir, `${stem}.json`), `${JSON.stringify(expectation)}\n`, { flag: "wx" });
-    writeFileSync(join(dir, `${stem}.jpg`), bytes);
-    written++;
+    writeFileSync(join(target, `${stem}.json`), `${JSON.stringify(expectation)}\n`, { flag: "wx" });
+    writeFileSync(join(target, `${stem}.jpg`), bytes);
+    if (corrected) written++;
+    else writtenUnverified++;
   } catch (e) {
     // An already-extracted meal (wx on an existing stem) and a message the user has since deleted
     // both land here, and neither is worth aborting a batch for.
@@ -169,12 +189,15 @@ for (const r of rows) {
 }
 
 console.log(
-  `wrote ${written} fixture(s) to ${dir}` +
+  `wrote ${written} corrected → ${dir}, ${writtenUnverified} unverified → ${unverifiedDir}` +
     (noPhoto ? `; ${noPhoto} had no photo (text meal)` : "") +
     (failed ? `; ${failed} skipped` : ""),
 );
 console.log(
-  "These are identification-only: the item NAMES are user-checked, the macros are not weighed.\n" +
-    "Score food identification against them; do not average their kcal into an accuracy metric.",
+  `\n${dir}: item NAMES were checked by the person who ate the meal. The macros were NOT weighed,\n` +
+    "  so score identification against these and never average their kcal into an accuracy metric.\n" +
+    `${unverifiedDir}: names AND numbers came from the model. These are NOT ground truth — scoring\n` +
+    "  the model against them measures agreement with an earlier run of itself. Use them for the\n" +
+    "  experiments that need no labels, or as a queue to label by hand.",
 );
 await db.close();

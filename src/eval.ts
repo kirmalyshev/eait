@@ -639,18 +639,27 @@ export function renderReport(model: string, s: Summary): string {
  * output that the user simply did not dispute — so scoring calories against them measures agreement
  * with a previous run of the same model, not accuracy. Circular, and flattering.
  *
- * Hence `identificationOnly`: it marks a fixture whose ITEMS are trustworthy and whose NUMBERS are
- * not, so a report can refuse to average it into a kcal metric. Fixtures from this source belong in
- * their own directory for the same reason the NutritionVerse set does — one directory produces one
- * aggregate, and mixing weighed dishes with unweighed ones measures neither.
+ * An UNCORRECTED meal is weaker still, and differently so: its names came from the model too, so
+ * scoring that model against them measures agreement with an earlier run of itself and reads as
+ * near-perfect. It is not ground truth at all. What it is, is a real photo of real food someone
+ * actually ate — worth having for the experiments that need no labels (self-consistency, vote
+ * margin) and as a queue for hand-labelling later.
+ *
+ * Hence `groundTruth`, carried inside the fixture: `user-corrected` means the ITEMS are trustworthy
+ * and the NUMBERS are not; `model-unverified` means neither is. The two must never land in one
+ * directory, for the same reason the NutritionVerse set has its own — one directory produces one
+ * aggregate, and an aggregate over both measures nothing.
  */
-export function storedMealToExpectation(meal: {
-  items: readonly { name: string; grams?: number }[];
-  kcal: number;
-  protein_g?: number;
-  carbs_g?: number;
-  fat_g?: number;
-}): Expectation & { identificationOnly: true } {
+export function storedMealToExpectation(
+  meal: {
+    items: readonly { name: string; grams?: number }[];
+    kcal: number;
+    protein_g?: number;
+    carbs_g?: number;
+    fat_g?: number;
+  },
+  corrected: boolean,
+): Expectation & { groundTruth: "user-corrected" | "model-unverified" } {
   const names = meal.items.map((i) => i.name.trim()).filter(Boolean);
   const grams = meal.items.reduce((s, i) => s + (i.grams ?? 0), 0);
   const base = ExpectationSchema.parse({
@@ -663,5 +672,8 @@ export function storedMealToExpectation(meal: {
     ...(grams > 0 ? { total_grams: round1(grams) } : {}),
     ...(names.length ? { items: names } : {}),
   });
-  return { ...base, identificationOnly: true };
+  // Provenance travels WITH the fixture, not in a filename or a README. A number's worth depends
+  // entirely on where it came from, and that fact has to survive being moved, copied, or read a
+  // year later by someone who was not here.
+  return { ...base, groundTruth: corrected ? "user-corrected" : "model-unverified" };
 }
