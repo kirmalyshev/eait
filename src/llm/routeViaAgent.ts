@@ -30,6 +30,8 @@ import { LOOKUP_GUIDANCE } from "./agent.ts";
 import { stopAtTerminalTool, ROUTER_TOOLS, LOOKUP_TOOL } from "./stop.ts";
 import { SYSTEM_ROUTE, buildRouteText, gated } from "../analyzer.ts";
 import type { RouteContext, RouteResult } from "../analyzer.ts";
+import type { SubmitMealResult } from "./tools/mealActions.ts";
+import type { SubmitCorrectionResult } from "./tools/routeActions.ts";
 import type { Profile } from "../types.ts";
 
 /** Mastra resolves a failed tool-call validation to this instead of throwing. */
@@ -135,17 +137,20 @@ export async function routeTextViaAgent(
     return { intent: "redate", dayOffset: (payload as { dayOffset: number }).dayOffset };
   }
 
-  const { analysis } = payload as { analysis: { isFood: boolean } };
+  // Typed against what the tools' `execute` actually returns, rather than cast: if either tool's
+  // result shape changes, this stops compiling instead of silently handing `gated` something that
+  // is not a MealAnalysis.
+  const { analysis } = payload as SubmitMealResult | SubmitCorrectionResult;
   // Both meal-producing intents must describe food — a "correction" to not-food would still render
   // a meal card and land in daily totals.
   if (!analysis.isFood) throw new Error(`routeTextViaAgent: ${name} with isFood=false`);
 
   if (name === "submit_correction") {
-    return { intent: "correction", analysis: gated(analysis as never, profile) };
+    return { intent: "correction", analysis: gated(analysis, profile) };
   }
   return {
     intent: "meal",
-    analysis: gated(analysis as never, profile),
-    dayOffset: (payload as { dayOffset: number }).dayOffset,
+    analysis: gated(analysis, profile),
+    dayOffset: (payload as SubmitMealResult).dayOffset,
   };
 }
