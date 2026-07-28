@@ -6,8 +6,12 @@ import { pgConnectionString } from "./pgConnection.ts";
 
 /**
  * One Mastra instance for the process, created once at startup (a later plan wires this into
- * `index.ts`) — the same composition-root role `createProvider()` played for the retired
- * `llm/factory.ts`. Memory persists into the SAME Postgres database `db.ts` already uses;
+ * `index.ts`) — the composition-root role `createProvider()` plays today for `llm/factory.ts`.
+ *
+ * "Today", not "used to": `llm/factory.ts` is NOT retired. It is the only LLM path the running bot
+ * has — `bot.ts` calls `createProvider` at startup and `analyzer.ts` calls `provider.chat` for
+ * every meal, while nothing reachable from `index.ts` imports this file. Retiring it happens at the
+ * cutover, in a later plan; until then, deleting it takes the bot down. Memory persists into the SAME Postgres database `db.ts` already uses;
  * `PostgresStore.init()` creates and manages its own tables there, independent of `db.ts`'s
  * `schema_version`-tracked migrations list — do not add Mastra's tables to that list.
  *
