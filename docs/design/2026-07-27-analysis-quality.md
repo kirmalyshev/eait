@@ -2,6 +2,21 @@
 
 Date: 2026-07-27 · Branch: `feat/analysis-quality`
 
+## Status (2026-07-28)
+
+| lever | state |
+|---|---|
+| **A0** fixture item names | **shipped** — both writers keep names; fixtures on disk still need the adapter re-run against a fresh archive |
+| **A2** per-item macros | **shipped** — schema + prompt + JSON schema; round-trip asserted, no migration |
+| **B** consistency gate | **shipped, observe-only** — needs a real-traffic fire rate before its action is chosen |
+| **A1** repertoire prior | **shipped** — 90-day window, corrected meals weighted ×3, hedged prompt line |
+| **C** grams calibration | **shipped but UNWIRED** — fit + k-fold CV + the shrinkage guard; the eval prints the ship verdict |
+| **0** weighed home meals | not started — needs a human and a kitchen scale |
+| **A3** ask on ambiguity | not started — its trigger is gated on the `alt[]`-vs-vote-margin experiment |
+| **D'** retrieve-then-select | not started — blocked on the verdict decision below, and belongs with the Mastra cutover |
+
+Nothing measured yet: every experiment below needs billed eval runs, and A0's regeneration first.
+
 ## Goal
 
 Make meal analysis stable and predictable. Three reported failures, in the principal's words:
@@ -333,6 +348,23 @@ biased estimator is still biased. Aggregation reduces variance; only calibration
 Two parameters fitted in log space on ~52 dishes is thin enough that overfitting is the default
 outcome, not a risk. k-fold cross-validation, report the held-out gain with a CI, and **ship only if
 it survives out of fold.** If it does not, C stops there, and that is a result worth having.
+
+### The out-of-fold gain is not the gate — found while building it
+
+The obvious guard is "calibration must show no held-out gain on data with no signal". **That guard is
+wrong**, and measuring it showed why.
+
+Fit an estimator carrying no signal and the exponent collapses toward 0 (measured: **0.084** on
+seeded noise). Every prediction then becomes a constant near the middle of the data — and a constant
+beats a useless estimate. Result: a **12.6pp "improvement" on pure noise**, with the bare constant
+scoring 59.0 against calibration's 59.7. The apparent win was **shrinkage toward the mean**, not
+correction of compression.
+
+So `crossValidate` also scores the predictor that ignores the photo entirely and answers with the
+training folds' typical portion, and **`beatsConstant` is the ship gate**. Beating the raw estimate
+only shows the estimate was poor; beating the constant shows the calibration is using what the model
+actually saw. The eval prints all three numbers plus the verdict in words, because "72% → 60%" on its
+own reads as success.
 
 ## D · The food table as vocabulary, not as post-hoc substitution
 
