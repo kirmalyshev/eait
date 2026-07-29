@@ -15,3 +15,15 @@ export interface ChatRequest {
 export interface LLMProvider {
   chat(req: ChatRequest): Promise<string>;
 }
+
+// ---------------------------------------------------------------------------------------------
+// DEV-ONLY AS OF THE MASTRA CUTOVER. Nothing in the bot runtime implements or calls this interface
+// any more — `bot.ts` depends on the ports in `analyzePort.ts`, which are bound to the Mastra
+// agent in `startBot`. What keeps `provider.ts` / `factory.ts` / `openrouter.ts` and the three
+// `analyzer.ts` functions on disk is `scripts/`: the accuracy eval (`eval-meals.ts`) and the parity
+// harness (`parity-llm-paths.ts`), which needs BOTH engines to compare them at all.
+//
+// They are deleted once the parity gate has actually run — deleting them first would remove the
+// only baseline the cutover can be measured against, and "we deleted the thing that could have
+// told us" is not a passing gate. See docs/design/2026-07-28-mastra-engine-boundary.md.
+// ---------------------------------------------------------------------------------------------

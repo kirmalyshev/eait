@@ -175,10 +175,15 @@ describe("createEngineAgent", () => {
   });
 
   test("an out-of-contract submit_meal call does not throw — Mastra returns an error-shaped tool result and feeds it back to the model instead", async () => {
-    // Mirrors mealActions.test.ts's "rejects a dayOffset outside [0, MAX_DAY_OFFSET]" unit-level
-    // case, but this time through the real agent.generate() tool-calling loop — proving what
-    // actually happens to an out-of-contract call in production, not just at the schema level.
-    const invalidMealCall = { ...VALID_MEAL_TOOL_CALL, dayOffset: 99 };
+    // Proves what happens to an out-of-contract call through the real agent.generate() tool-calling
+    // loop, not just at the schema level.
+    //
+    // The payload is a malformed `isFood`, NOT the out-of-range `dayOffset: 99` this test used to
+    // send: dayOffset is deliberately permissive-then-clamped now (see mealActions.ts), because
+    // rejecting a meal over its date field costs a retry and can lose the analysis entirely. A type
+    // error on the food flag is a genuine contract violation with no sensible normalization, so it
+    // still exercises the error-and-retry path this test exists to document.
+    const invalidMealCall = { ...VALID_MEAL_TOOL_CALL, isFood: "yes" };
 
     let callCount = 0;
     const mockModel = new MockLanguageModelV4({
@@ -235,7 +240,7 @@ describe("createEngineAgent", () => {
         | undefined;
       expect(payloadResult).toBeDefined();
       expect((payloadResult as { error?: boolean })?.error).toBe(true);
-      expect((payloadResult as { message?: string })?.message).toMatch(/dayOffset/);
+      expect((payloadResult as { message?: string })?.message).toMatch(/isFood/);
       // The model retried after seeing the validation error, exactly as Mastra's error-and-retry
       // contract promises.
       expect(callCount).toBe(2);

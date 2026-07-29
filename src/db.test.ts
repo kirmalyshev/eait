@@ -418,6 +418,38 @@ describe("meals + daily totals", () => {
     expect(await countMealsToday(db, 1, "2026-07-21")).toBe(2);
   });
 
+  test("per-item macros and name_en survive the items round-trip, with no migration (A2)", async () => {
+    // `items` is a TEXT column holding JSON, and parseItems passes objects through untouched, so
+    // new per-item fields persist without a schema change. Asserted rather than assumed: this is
+    // exactly where a `.default("")` on name_en broke a round-trip before, and the whole
+    // substitution design rests on these fields coming back out the way they went in.
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    const item = {
+      name: "Гречка", grams: 200, name_en: "buckwheat groats, cooked",
+      kcal: 184, protein_g: 6.8, carbs_g: 39.8, fat_g: 1.2, kcal_per_100g: 92,
+    };
+    await insertMeal(db, {
+      id: "m1", user_id: 1, ts: "t", date: "2026-07-21", analysis: analysis({ items: [item] }),
+    });
+    const back = (await getMeal(db, "m1", 1))!;
+    expect(back.items[0]).toEqual(item);
+  });
+
+  test("an item with NO per-item macros round-trips without gaining zeros", async () => {
+    // Meals stored before A2 must come back as they were. A zero here would be a fabricated claim
+    // that the item has no calories, and it would flow straight into any item-vs-total check.
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await insertMeal(db, {
+      id: "m1", user_id: 1, ts: "t", date: "2026-07-21",
+      analysis: analysis({ items: [{ name: "rice", grams: 100 }] }),
+    });
+    const back = (await getMeal(db, "m1", 1))!;
+    expect(back.items[0]).toEqual({ name: "rice", grams: 100 });
+    expect("kcal" in back.items[0]!).toBe(false);
+  });
+
   test("empty day totals are zero, not null", async () => {
     const db = await freshTestDb();
     await upsertUser(db, { telegram_id: 1 });

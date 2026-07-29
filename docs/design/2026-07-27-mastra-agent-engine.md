@@ -2,6 +2,12 @@
 
 Date: 2026-07-27 · Branch: `mastra`
 
+> **Rollout superseded** by `2026-07-28-mastra-engine-boundary.md`, which answers this doc's "Rollout
+> risk" and "Open items" sections with a staged plan, adds the transport-agnostic engine boundary the
+> mobile client needs, and records two measured divergences in the code plans 1–2 landed. The
+> architecture below (unified agent, terminal tools, `requestContext` user binding, Postgres-backed
+> memory) stands unchanged.
+
 ## Goal
 
 Replace `src/llm/` (raw-fetch `OpenRouterProvider` behind the `LLMProvider` transport interface) with

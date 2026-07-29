@@ -1,0 +1,142 @@
+// Photo analysis through the Mastra agent. Reached from `bot.ts` and `api/` alike via the
+// `AnalyzePhoto` port (`llm/analyzePort.ts`) — this is the ONLY photo path the app has.
+// Design: `docs/design/2026-07-28-mastra-engine-boundary.md`.
+//
+// THE PROMPT IS REUSED, NOT REWRITTEN. `SYSTEM` and `buildUserText` are imported from
+// `analyzer.ts` verbatim. That text carries the estimation protocol, the deleted round-up hedge,
+// the cuisine/country/repertoire priors, the per-item macro instruction and the verdict contract —
+// each measured or argued for. Re-authoring it for the new engine would turn a transport migration
+// into a simultaneous accuracy experiment, and no eval could then tell which of the two moved the
+// numbers. The migration is a transport change, and this file keeps it one.
+//
+// THE PARSE BOUNDARY MOVES, AND ITS FAILURE MODE CHANGES WITH IT. On the old path an invalid
+// payload makes `safeParse` throw, `bot.ts` shows `errors.analyzeFailed`, and no row is written.
+// Mastra does not throw: a tool call failing `inputSchema` validation resolves to an error-shaped
+// result `{error: true, message, validationErrors}` which is fed back for a retry. So a
+// `submit_meal` result is a discriminated union, and reading `.analysis` off the error shape would
+// crash exactly where the old path failed loudly and cleanly. That check is the reason this file
+// exists rather than a two-line call.
+
+import type { Agent } from "@mastra/core/agent";
+import type { RequestContext } from "@mastra/core/request-context";
+import { LOOKUP_GUIDANCE } from "./agent.ts";
+import { stopAtTerminalTool, PHOTO_TOOLS, LOOKUP_TOOL } from "./stop.ts";
+import { SYSTEM, buildUserText, MealAnalysisSchema, gated } from "../analyzer.ts";
+import type { MealAnalysis, MealContext, Profile } from "../types.ts";
+
+/** Mastra resolves a failed tool-call validation to this instead of throwing. */
+interface ToolError {
+  error: true;
+  message?: string;
+  validationErrors?: unknown;
+}
+
+const isToolError = (v: unknown): v is ToolError =>
+  typeof v === "object" && v !== null && (v as { error?: unknown }).error === true;
+
+/**
+ * Analyze one meal's photos through the agent, returning the same `MealAnalysis` the old path does.
+ *
+ * `userId` is bound into the request context by the CALLER, never taken from anything the model
+ * produces — the constitutional rule in `llm/context.ts`. Required, and typed as a real
+ * `RequestContext` rather than `unknown`: the parameter used to be untyped behind a cast, which
+ * meant a caller could pass anything at all and only find out inside a tool's `requireUserId`,
+ * at runtime, on somebody's meal.
+ */
+export async function analyzeMealViaAgent(
+  agent: Agent,
+  images: readonly Uint8Array[],
+  profile: Profile,
+  requestContext: RequestContext,
+  context?: MealContext,
+): Promise<MealAnalysis> {
+  if (images.length === 0) throw new Error("analyzeMealViaAgent: no images");
+
+  const result = await agent.generate(
+    [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: buildUserText(profile, context, images.length > 1) },
+          // Every image in ONE message, as the old path does: several photos are different angles
+          // of a single meal, and splitting them across messages would invite the agent to treat
+          // them as separate dishes.
+          ...images.map((bytes) => ({ type: "image" as const, image: bytes })),
+        ],
+      },
+    ],
+    {
+      // Appended, not assumed: Mastra's per-call `instructions` REPLACES the agent's, so passing
+      // SYSTEM alone dropped the agent's guidance on how to use `search_food_db` and the model was
+      // offered the tool with nothing telling it to pass confusable alternatives. Measured.
+      instructions: `${SYSTEM}\n\n${LOOKUP_GUIDANCE}`,
+      requestContext,
+      // NO MEMORY, deliberately. A photo analysis is a single-shot estimate, and the old path sent
+      // exactly one user message. Passing a thread made Mastra replay the whole conversation into
+      // every turn — measured at 2 → 5 → 8 → 11 prompt messages over four photos, each carrying the
+      // PREVIOUS photos' image parts. That is an unbounded bill on the most expensive token type
+      // there is, and it quietly breaks the premise this migration rests on: the model would be
+      // estimating this meal while looking at the last three. The router keeps memory, where
+      // conversational continuity is the actual feature.
+      // The agent must be able to look a food up and THEN submit, so a single step cannot be the
+      // limit. Bounded anyway: a runaway loop on a photo is a bill, not a hang.
+      maxSteps: 6,
+      // MEASURED, not precautionary. The old path forced structure with
+      // `response_format: json_schema`; leaving toolChoice at its "auto" default dropped that
+      // guarantee, and the parity harness lost roughly one photo in four to
+      // "finished without calling submit_meal" — the model answering in prose instead. It
+      // reproduced with grounding on and off, on different fixtures each run, so it is the missing
+      // forcing and not a tool-loop artefact. The user's meal was simply gone.
+      toolChoice: "required",
+      // `toolChoice: "required"` applies to EVERY step, so without this the loop cannot end: the model
+      // is forbidden from replying in prose even after it has submitted, and burns maxSteps producing
+      // answers nobody reads. Measured at 6 model calls for one photo.
+      stopWhen: stopAtTerminalTool,
+      // Only `submit_meal` may END this turn. The agent registers every terminal tool, so without
+      // this a photo turn could finish on `answer_question` ("that looks like a nice lunch") — and
+      // because the stop condition halts on ANY terminal tool, that call would end the turn with no
+      // analysis and the meal would be lost. `search_food_db` stays available: it is a mid-turn
+      // lookup, and grounding depends on it.
+      activeTools: [...PHOTO_TOOLS, LOOKUP_TOOL],
+    },
+  );
+
+  // Find the terminal tool call among the steps. Not `toolResults.at(-1)`: a turn that also called
+  // `search_food_db` ends with whichever tool ran last, and reading the food lookup as the analysis
+  // would be a type error at best and a silently empty meal at worst.
+  const calls = ((result as { toolResults?: unknown[] }).toolResults ?? []) as {
+    payload?: { toolName?: string; result?: unknown };
+  }[];
+  const submitted = calls.filter((c) => c.payload?.toolName === "submit_meal");
+
+  if (submitted.length === 0) {
+    // Fail loudly, mirroring the old path's contract: no analysis means no row, never a partial
+    // meal assembled from whatever the agent happened to say in prose.
+    throw new Error("analyzeMealViaAgent: the agent finished without calling submit_meal");
+  }
+  // The LAST submit_meal wins if the agent retried after a validation error — the earlier ones are
+  // the rejected attempts, and Mastra fed them back precisely so they would be superseded.
+  const payload = submitted[submitted.length - 1]!.payload?.result;
+
+  if (isToolError(payload)) {
+    throw new Error(
+      `analyzeMealViaAgent: submit_meal failed validation: ${payload.message ?? "unknown"}`,
+    );
+  }
+
+  // `submit_meal`'s execute returns { analysis, dayOffset } — dayOffset belongs to the text-meal
+  // flow and means nothing for a photo, which is always logged on the day it was sent.
+  const { analysis } = payload as { analysis: unknown };
+
+  // Re-validated even though Mastra already checked the tool call against the same schema. The
+  // tool's `inputSchema` and this parse are the same contract, but this function's RETURN type is
+  // what every caller trusts, and a defaulted or coerced field must land identically to the old
+  // path — otherwise the two engines could disagree on a meal neither of them got wrong.
+  //
+  // `gated` is the fourth exit of the verdict gate and is NOT optional. Without it the model's own
+  // verdicts reach the card and the row: this path shipped returning `verdicts.kidneys` for a
+  // profile that declared only `ldl`. The gate discards the model's verdicts entirely and recomputes
+  // them from the user's caps, so it also keeps the two engines agreeing on a dimension the model
+  // is not trusted to judge in the first place.
+  return gated(MealAnalysisSchema.parse(analysis), profile);
+}

@@ -34,9 +34,27 @@ services:
       PGUSER: ${PGUSER:-eait}
       PGPASSWORD: ${PGPASSWORD:-eait}
       PGDATABASE: ${PGDATABASE:-eait}
+      # HTTP API for a mobile client. Declared so the variable EXISTS in the container — compose
+      # passes only what is listed here, so an API_PORT set in .env would otherwise be invisible
+      # inside Docker and the API would silently never start.
+      #
+      # Left empty on purpose, and enabling it takes more than a value: no authentication scheme is
+      # wired yet (every route but /health answers 401), and the port is not published below. Both
+      # are deliberate — see src/api/AGENTS.md.
+      API_PORT: ${API_PORT:-}
+      API_HOST: ${API_HOST:-127.0.0.1}
     networks:
       - eait-infra
     restart: unless-stopped
+    # The composition table, read-only. `data/` is dockerignored (it also holds the old sqlite file)
+    # and the Dockerfile copies only `src`, so without this mount `loadFoodIndex()` finds nothing,
+    # `search_food_db` is never registered, and every analysis runs UNGROUNDED — silently, since a
+    # missing table is a supported state. Mounted rather than baked into the image so a refreshed
+    # table needs a container restart, not a rebuild.
+    #
+    # The startup log says which mode it is in; check it after a deploy.
+    volumes:
+      - ./data/food-db:/app/data/food-db:ro
     init: true
     logging:
       driver: json-file

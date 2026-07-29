@@ -243,6 +243,19 @@ const PREPARATION_TOKENS = new Set([
 export interface FoodIndex {
   /** Best English match, or null when nothing scores above the confidence floor. */
   find(query: string): FoodRow | null;
+  /**
+   * Up to `k` plausible rows, best first — the candidate set for retrieve-then-select.
+   *
+   * `find` answers "which row is this?" and has to be right alone. This answers "which rows could
+   * this be?", and being right is then the model's job with the photo still in hand. That split is
+   * the point: the matcher is good at narrowing 10,780 foods to a handful and bad at the last step,
+   * where "bulgur" against "couscous" is decided by looking rather than by string overlap.
+   *
+   * Measured as the reason this exists: across five runs of one photo the model produced six
+   * different names for a single food (labneh, herbed labneh, herbed strained yogurt, ...). A
+   * candidate list is how that free-text spread collapses onto one row.
+   */
+  candidates(query: string, k?: number): FoodRow[];
   size: number;
 }
 
@@ -297,13 +310,14 @@ export function buildFoodIndex(rows: readonly FoodRow[]): FoodIndex {
   // An unseen token is maximally surprising, so it must not score as free.
   const maxIdf = Math.log(Math.max(entries.length, 2));
 
-  return {
-    size: rows.length,
-    find(query: string): FoodRow | null {
+  /** Every row passing the hard filters, scored. Shared so `find` cannot drift from `candidates`. */
+  function ranked(query: string): { row: FoodRow; score: number }[] {
       const key = normalizeFoodName(query);
-      if (!key) return null;
+      if (!key) return [];
       const hit = exact.get(key);
-      if (hit) return hit;
+      // An exact name match is not merely the best candidate, it is the answer — ranking on past it
+      // could offer alternatives to a question already settled.
+      if (hit) return [{ row: hit, score: 0 }];
 
       const queryTokens = [...tokenSet(key)];
       const asked = new Set(queryTokens);
@@ -311,10 +325,9 @@ export function buildFoodIndex(rows: readonly FoodRow[]): FoodIndex {
       // At least one token must actually NAME a food. A query of pure filler or pure preparation
       // state ("cooked") would otherwise return whichever row happens to share the word — an
       // arbitrary food delivered with full confidence.
-      if (!strong.some((t) => !PREPARATION_TOKENS.has(t))) return null;
+      if (!strong.some((t) => !PREPARATION_TOKENS.has(t))) return [];
 
-      let best: FoodRow | null = null;
-      let bestScore = -Infinity;
+      const scored: { row: FoodRow; score: number }[] = [];
       for (const { row, tokens, head } of entries) {
         // EVERY strong query token must be present. This is the cooking-state guard: "rice cooked"
         // cannot match a raw row, because "cooked" is missing from it.
@@ -352,13 +365,81 @@ export function buildFoodIndex(rows: readonly FoodRow[]): FoodIndex {
           extra++;
           worst = Math.max(worst, idf.get(t) ?? maxIdf);
         }
-        const score = -(worst + extra * 0.01);
-        if (score > bestScore) {
-          bestScore = score;
-          best = row;
-        }
+        scored.push({ row, score: -(worst + extra * 0.01) });
       }
-      return best;
+      // Stable on ties: equal-scoring rows keep corpus order, so the same query cannot return a
+      // different food between runs. Non-determinism here would be indistinguishable from a
+      // matcher bug and far harder to find.
+      return scored.sort((a, b) => b.score - a.score);
+  }
+
+  return {
+    size: rows.length,
+    find(query: string): FoodRow | null {
+      // Literally the top candidate: one code path, so a scoring change can never make the single
+      // best row disagree with the head of the list offered to the model.
+      return ranked(query)[0]?.row ?? null;
+    },
+    candidates(query: string, k = 10): FoodRow[] {
+      return ranked(query).slice(0, Math.max(0, k)).map((s) => s.row);
     },
   };
+}
+
+/**
+ * Parse the JSONL table written by `scripts/fetch-food-db.ts` into rows.
+ *
+ * Tolerant of a bad LINE, strict about a bad ROW. A truncated download or a half-written file
+ * should cost the rows it damaged, not the whole table — but a row that parses as JSON while
+ * missing `kcal` would enter the index as a food with no calories and silently zero out any meal
+ * grounded on it. So unparseable and malformed lines are both skipped, and the count of what was
+ * dropped is returned rather than hidden: a caller that loads 10,780 rows and discards 4,000 needs
+ * to find that out at boot, not from a user's meal card.
+ */
+export function parseFoodJsonl(text: string): { rows: FoodRow[]; skipped: number } {
+  const rows: FoodRow[] = [];
+  let skipped = 0;
+  for (const line of text.split("\n")) {
+    const t = line.trim();
+    if (!t) continue;
+    try {
+      const o = JSON.parse(t) as Partial<FoodRow>;
+      const num = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0;
+      if (
+        typeof o.id !== "string" || !o.id ||
+        typeof o.name !== "string" || !o.name ||
+        !num(o.kcal) || !num(o.protein_g) || !num(o.carbs_g) || !num(o.fat_g)
+      ) {
+        skipped++;
+        continue;
+      }
+      rows.push(o as FoodRow);
+    } catch {
+      skipped++;
+    }
+  }
+  return { rows, skipped };
+}
+
+/** Where `scripts/fetch-food-db.ts` writes the composition table by default. */
+export const FOOD_DB_PATH = "data/food-db/foods.jsonl";
+
+/**
+ * Load the composition table off disk, or `null` when there isn't one.
+ *
+ * NULL, NOT A THROW. `search_food_db` is registered only when an index exists (`llm/agent.ts`), and
+ * a food the table does not contain already degrades to the model's own estimate — a missing file is
+ * just that condition for every food at once. Self-hosters who never run `fetch-food-db.ts` must get
+ * a working bot, not a boot failure, so this is the one load in the startup path that is allowed to
+ * come back empty. It still says so on stdout: silently running ungrounded is how you discover six
+ * weeks later that grounding was never on.
+ */
+export async function loadFoodIndex(
+  path: string = FOOD_DB_PATH,
+): Promise<{ index: FoodIndex; skipped: number } | null> {
+  const file = Bun.file(path);
+  if (!(await file.exists())) return null;
+  const { rows, skipped } = parseFoodJsonl(await file.text());
+  if (rows.length === 0) return null;
+  return { index: buildFoodIndex(rows), skipped };
 }

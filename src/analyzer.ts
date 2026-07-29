@@ -6,7 +6,7 @@
 import { z } from "zod";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import { LOCALES } from "./i18n/registry.ts";
-import { RESTRICTION_TAGS, isRestrictionTag, visibleVerdicts } from "./targets.ts";
+import { RESTRICTION_TAGS, isRestrictionTag, visibleVerdicts, verdictsFromTargets, targetsFor } from "./targets.ts";
 import { countryForPrompt } from "./country.ts";
 import { parseLimitations } from "./limitations.ts";
 import type { DayTotals, FoodTargets, MealAnalysis, MealContext, MealSummary, Profile } from "./types.ts";
@@ -31,6 +31,31 @@ export const MealAnalysisSchema = z.object({
          * reads as "keep the model own macros" — never as a reason to reject a good analysis.
          */
         name_en: z.string().optional(),
+        /**
+         * Per-item nutrition. The prompt already instructs the model to compute these ("totals are
+         * the sums across items") — we simply stopped throwing the work away. They make a per-item
+         * substitution expressible, make the item-vs-total consistency check possible at all, and
+         * let a disambiguation tap rescale locally instead of paying for a second billed call.
+         *
+         * `kcal_per_100g` is density, not total: it is what a substitution rescales by, and what
+         * answers "is this other candidate materially different?" without a table round-trip.
+         *
+         * OPTIONAL, and absent rather than 0, for the same reason as `name_en` above — every meal
+         * stored before these fields existed lacks them, and a `.default(0)` would write a
+         * confident "this item has zero calories" onto all of them. Zero is a claim; absent is a
+         * gap, and only the gap is honest.
+         */
+        kcal: z.coerce.number().nonnegative().optional(),
+        protein_g: z.coerce.number().nonnegative().optional(),
+        carbs_g: z.coerce.number().nonnegative().optional(),
+        fat_g: z.coerce.number().nonnegative().optional(),
+        kcal_per_100g: z.coerce.number().nonnegative().optional(),
+        /**
+         * Alternative English names, for widening the composition-table shortlist. Capped at 2: a
+         * third candidate is noise, and the list exists to admit the ONE food genuinely confusable
+         * with this one, not to hedge.
+         */
+        alt_en: z.array(z.string()).max(2).optional(),
       }),
     )
     .default([]),
@@ -80,6 +105,14 @@ const MEAL_JSON_SCHEMA = {
           name: { type: "string" },
           grams: { type: "number" },
           name_en: { type: "string" },
+          // Per-item nutrition (A2). Declared here or the model has no field to put it in, and
+          // the arithmetic it was already told to do stays trapped in `reasoning`.
+          kcal: { type: "number" },
+          protein_g: { type: "number" },
+          carbs_g: { type: "number" },
+          fat_g: { type: "number" },
+          kcal_per_100g: { type: "number" },
+          alt_en: { type: "array", items: { type: "string" } },
         },
       },
     },
@@ -107,7 +140,7 @@ const MEAL_JSON_SCHEMA = {
   },
 } as const;
 
-const SYSTEM =
+export const SYSTEM =
   "You are an expert nutritionist experienced in estimating meal composition and portion " +
   "weight from photos for a personal food diary. Estimate the meal's items and macros from " +
   "the photo, following the estimation protocol exactly and working through it in the " +
@@ -137,7 +170,15 @@ function goalLine(goal: Profile["goal"]): string {
 }
 
 /** Generic instruction, personalized per profile. Only declared restrictions get a verdict. */
-function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boolean): string {
+/**
+ * Exported so the Mastra path sends the SAME prompt as the shipped one, rather than a re-typed
+ * imitation of it. This text is not incidental — it carries the estimation protocol, the deleted
+ * round-up hedge, the cuisine and country priors, the repertoire prior, the per-item macro
+ * instruction and the verdict contract, each of them measured or fought for. Re-authoring it for
+ * the new engine would turn a transport migration into an accuracy experiment, and the two would
+ * be indistinguishable in the results.
+ */
+export function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boolean): string {
   const lines: string[] = [];
   lines.push(`User ${goalLine(profile.goal)}.`);
   // Target-weight framing: gives the model the magnitude behind the goal so the weight verdict is
@@ -191,10 +232,30 @@ function buildUserText(profile: Profile, context?: MealContext, multiPhoto?: boo
       `The user buys most of their food in "${country}" — prefer local product names, packaging sizes, and typical portion norms there, but always trust the actual evidence over this prior.`,
     );
   }
-  lines.push("Estimate items[{name,grams}], kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g, sodium_mg, plant_protein_pct.");
+  // Step 3 above already asks for per-item arithmetic; this is where the model is told to REPORT
+  // it rather than leave it in `reasoning`. Writing the per-item numbers down is also what makes
+  // the totals checkable against their own parts.
+  lines.push("Estimate items[{name,grams,kcal,protein_g,carbs_g,fat_g,kcal_per_100g}], and the meal totals kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g, sodium_mg, plant_protein_pct.");
+  lines.push("Per item: kcal_per_100g is that food's density as served (kcal per 100 g), and kcal must equal grams/100 x kcal_per_100g. The meal totals must equal the sums across items.");
+  // Widens the composition-table shortlist. Without this a misidentification is unrecoverable: the
+  // shortlist is built from name_en, so "couscous" never offers the bulgur row.
+  lines.push("Per item, set alt_en to at most 2 OTHER canonical English names this food could plausibly be, when a similar-looking food would be easy to confuse it with (bulgur vs couscous, rice varieties, similar cuts of meat). Leave alt_en out when you are not genuinely torn.");
   lines.push('Set confidence to exactly one of "high", "medium", "low" — "low" when the dish is mixed, ingredients may be hidden, or no scale reference is visible; state why in notes.');
   if (context?.caption) {
     lines.push(`The user captioned the photo: "${context.caption.slice(0, CAPTION_INPUT_CAP)}" — treat it as ground truth about the contents.`);
+  }
+  // Repertoire prior (A1). Hedged exactly like the cuisine and country priors above, and placed
+  // beside them for the same reason: it is a tie-breaker for ambiguous staples (bulgur against
+  // couscous, one grain against another), never a licence to overrule what is in the picture.
+  // The hedge is load-bearing — the risk here is symmetric, since a prior naming the wrong grain
+  // hurts precisely as much as the right one helps.
+  if (context?.repertoire?.length) {
+    lines.push(
+      `This user has logged these foods before, most often first: ${context.repertoire.join(", ")}. ` +
+        "Prefer one of these ONLY when the photo is genuinely ambiguous between similar-looking " +
+        "foods — otherwise trust the actual evidence and name what you see, including foods absent " +
+        "from this list.",
+    );
   }
   if (context?.localTime) {
     lines.push(`Local time of the meal: ${context.localTime} — consider which meal of the day this typically is.`);
@@ -344,6 +405,11 @@ export async function analyzeMeal(
  * The single gate every MealAnalysis passes through on its way out of this module — three exits:
  * `analyzeMeal` (photo), and `routeText`'s `meal` (text-described) and `correction` intents.
  *
+ * Exported for the Mastra path (`llm/analyzeViaAgent.ts`), which is a FOURTH exit and must apply
+ * the same gate. It shipped without one: the agent returned the model's own verdicts verbatim, so a
+ * profile declaring only `ldl` received a model-authored `kidneys` verdict — the leak this function
+ * exists to stop, on the engine meant to replace the one that stops it.
+ *
  * The prompt ASKS for no verdicts on undeclared dimensions; this enforces it. Rationale and the
  * measured evidence live with `visibleVerdicts` in targets.ts.
  *
@@ -351,8 +417,20 @@ export async function analyzeMeal(
  * undeclared verdict, and a correction applied to a PHOTO meal would write one straight back onto
  * a row the photo gate had already kept clean.
  */
-function gated(analysis: MealAnalysis, profile: Profile): MealAnalysis {
-  return { ...analysis, verdicts: visibleVerdicts(analysis.verdicts, profile.restrictions) };
+export function gated(analysis: MealAnalysis, profile: Profile): MealAnalysis {
+  // The model's own verdicts are DISCARDED here, not filtered. They were authored from the model's
+  // own macros, so any later revision of a number — a composition-table lookup replacing 5 g of
+  // saturated fat with 20 g — leaves the verdict describing figures that no longer exist. A
+  // reassuring "good" over a damning number is worse than either alone, on a card belonging to
+  // someone who declared a medical restriction.
+  //
+  // Computing them from the caps `targetsFor` already produces makes them deterministic, auditable,
+  // and correct after any substitution. `visibleVerdicts` still runs on the result: it is now
+  // structurally impossible for an undeclared dimension to appear (no cap exists to compute one
+  // from), but defence in depth on a medical claim costs nothing, and the gate also protects the
+  // display path against a row written before this change.
+  const computed = verdictsFromTargets(analysis, targetsFor(profile));
+  return { ...analysis, verdicts: visibleVerdicts(computed, profile.restrictions) };
 }
 
 // ---------- restriction classification (the keyword pass's fallback) ----------
@@ -371,13 +449,10 @@ const RestrictionsSchema = z.object({
  * NEVER throws: a failure here must not block onboarding, so every error path yields `[]` and
  * the user simply keeps the keyword result. Called at most once per user.
  */
-export async function classifyRestrictions(
-  text: string,
-  provider: LLMProvider,
-  lang: Profile["lang"],
-): Promise<string[]> {
+/** The classifier's user-turn text. Exported so the Mastra path sends the identical string. */
+export function buildClassifyText(text: string, lang: Profile["lang"]): string {
   const vocabulary = RESTRICTION_TAGS.join(", ");
-  const userText = [
+  return [
     "Classify a user's free-text dietary/health restrictions into tags.",
     `Allowed tags (use NOTHING else): ${vocabulary}.`,
     // A hint, not an assertion — a user may well write in a language other than their interface.
@@ -386,9 +461,19 @@ export async function classifyRestrictions(
     "",
     `Text: ${text.slice(0, RESTRICTION_INPUT_CAP)}`,
   ].join("\n");
+}
 
+export async function classifyRestrictions(
+  text: string,
+  provider: LLMProvider,
+  lang: Profile["lang"],
+): Promise<string[]> {
   try {
-    const raw = await provider.chat({ system: SYSTEM_CLASSIFY, userText, temperature: TEMPERATURE });
+    const raw = await provider.chat({
+      system: SYSTEM_CLASSIFY,
+      userText: buildClassifyText(text, lang),
+      temperature: TEMPERATURE,
+    });
     const parsed = RestrictionsSchema.safeParse(tolerantJson(raw));
     // Never-throwing is deliberate (see the docstring), but staying silent is not: this path
     // only runs when the keyword pass already matched nothing, so the user ends up with no
@@ -405,7 +490,7 @@ export async function classifyRestrictions(
   }
 }
 
-const SYSTEM_CLASSIFY =
+export const SYSTEM_CLASSIFY =
   "You map free-text dietary and health restrictions onto a fixed tag vocabulary. " +
   "Respond with ONLY a single JSON object — no prose, no markdown fences.";
 
@@ -464,7 +549,7 @@ const ROUTE_JSON_SCHEMA = {
   },
 } as const;
 
-const SYSTEM_ROUTE =
+export const SYSTEM_ROUTE =
   "You are the assistant behind a personal food-diary bot. The user sent a free-text message. " +
   "Decide the intent and respond with ONLY one JSON object, no prose, no markdown fences: " +
   '{"intent":"question","answer":"..."} for questions or chat — answer helpfully and concisely ' +
@@ -492,12 +577,13 @@ const RouteSchema = z.object({
   dayOffset: z.unknown().optional(),
 });
 
-export async function routeText(
-  text: string,
-  profile: Profile,
-  ctx: RouteContext,
-  provider: LLMProvider,
-): Promise<RouteResult> {
+/**
+ * The router's user-turn text. Exported so the Mastra path (`llm/routeViaAgent.ts`) sends the
+ * IDENTICAL string — the same discipline `buildUserText` carries for photos. If the two engines
+ * built their own prompts, no eval could tell a transport regression from an accuracy one, because
+ * both would move the same numbers.
+ */
+export function buildRouteText(text: string, profile: Profile, ctx: RouteContext): string {
   const lines: string[] = [];
   lines.push(buildUserText(profile)); // goal, estimation protocol, cuisine prior, output language
   lines.push("");
@@ -528,10 +614,18 @@ export async function routeText(
   lines.push(`Write the answer in ${LOCALES[profile.lang].llmName}.`);
   lines.push("");
   lines.push(`User message: "${text.slice(0, TEXT_INPUT_CAP)}"`);
+  return lines.join("\n");
+}
 
+export async function routeText(
+  text: string,
+  profile: Profile,
+  ctx: RouteContext,
+  provider: LLMProvider,
+): Promise<RouteResult> {
   const raw = await provider.chat({
     system: SYSTEM_ROUTE,
-    userText: lines.join("\n"),
+    userText: buildRouteText(text, profile, ctx),
     jsonSchema: ROUTE_JSON_SCHEMA,
     temperature: TEMPERATURE,
   });

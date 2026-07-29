@@ -69,6 +69,42 @@ export interface MealItem {
    * "keep the model's own macros".
    */
   name_en?: string;
+  /**
+   * Per-item nutrition, as computed by the model (the prompt already asks for it; totals are the
+   * sums across items). Optional and absent-not-zero for the same reason as `name_en`: meals
+   * stored before these fields existed lack them, and a zero would read as a claim that the item
+   * has no calories rather than as a missing measurement.
+   *
+   * `kcal_per_100g` is the item's density — what a substitution rescales by, and what makes
+   * "materially different?" answerable without a composition-table lookup.
+   */
+  kcal?: number;
+  protein_g?: number;
+  carbs_g?: number;
+  fat_g?: number;
+  kcal_per_100g?: number;
+  /**
+   * The composition-table row this item's macros came from (`FoodRow.id`, e.g. `usda:170287`).
+   *
+   * Absent means the numbers are the model's own. That distinction is the whole audit trail: a year
+   * from now it is the only thing that says whether a stored figure was grounded or guessed, and it
+   * is what lets match rate be measured on real traffic instead of on test queries.
+   */
+  food_id?: string;
+  /**
+   * Other canonical English names this food might be, most likely first.
+   *
+   * These WIDEN RETRIEVAL, which is the only way grounding can fix a misidentification. The
+   * shortlist is built from the model's own name, so a query for "couscous" returns couscous rows
+   * and nothing else — the correct row is never offered, and selecting among wrong rows cannot
+   * recover. Measured on the real table: bulgur is 83 kcal/100 g against couscous at 112, and 4.5 g
+   * of fibre against 1.4.
+   *
+   * With alternatives, both foods reach the shortlist and the model chooses between them with the
+   * photo still in hand — which is the step string matching cannot do, since the two are told apart
+   * by looking.
+   */
+  alt_en?: string[];
 }
 
 /** Per-dimension verdicts. Only dimensions relevant to the user's profile are set. */
@@ -95,6 +131,12 @@ export interface MealContext {
   caption?: string;
   /** HH:MM in the bot's timezone (Europe/Berlin), not UTC. */
   localTime?: string;
+  /**
+   * Foods this user has logged before, most-eaten first (`buildRepertoire`). A prior for
+   * identification only — it never touches a number. Empty or absent means the user has no
+   * history worth leaning on, and the prompt then carries no line at all rather than an empty one.
+   */
+  repertoire?: readonly string[];
 }
 
 /** The analyzer's validated output for one photo. No photo path — images are ephemeral. */

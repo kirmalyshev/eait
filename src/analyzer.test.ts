@@ -47,7 +47,9 @@ describe("analyzeMeal", () => {
     expect(out.isFood).toBe(true);
     expect(out.kcal).toBe(300);
     expect(out.items[0]!.name).toBe("rice");
-    expect(out.verdicts.kidneys).toBe("warn");
+    // Computed from the caps, not taken from the model: this 300 kcal / 5 mg-sodium meal is well
+    // under a kidneys allowance, so it is "good" even though the model's JSON claimed "warn".
+    expect(out.verdicts.kidneys).toBe("good");
   });
 
   test("injects the profile (goal + restriction tags) into the prompt", async () => {
@@ -157,7 +159,9 @@ describe("analyzeMeal — verdict gate", () => {
   test("keeps exactly the declared ones", async () => {
     const provider = new FakeProvider(() => withVerdicts);
     const out = await analyzeMeal([bytes], { ...profile, restrictions: ["kidneys"] }, provider);
-    expect(out.verdicts).toEqual({ weight: "good", kidneys: "warn" });
+    // The model asserted kidneys:"warn"; the meal's own sodium (5 mg against a 2000 mg cap) says
+    // otherwise, and the caps win. The gate's job here is still the dimension set, not the value.
+    expect(out.verdicts).toEqual({ weight: "good", kidneys: "good" });
   });
 
   test("a non-medical restriction unlocks nothing", async () => {
@@ -201,7 +205,9 @@ describe("analyzeMeal — verdict gate", () => {
     const provider = new FakeProvider(() => routed("meal"));
     const r = await routeText("borscht", { ...profile, restrictions: ["ldl"] }, routeCtx, provider);
     if (r.intent === "meal") {
-      expect(r.analysis.verdicts).toEqual({ weight: "good", ldl: "bad" });
+      // ldl is present because it was declared, and "good" because 0.5 g of saturated fat is well
+      // under a 13 g cap — the model's "bad" is discarded along with the rest of its judging.
+      expect(r.analysis.verdicts).toEqual({ weight: "good", ldl: "good" });
     }
   });
 });
@@ -247,6 +253,69 @@ describe("items[].name_en — the food-database lookup key", () => {
     await analyzeMeal([bytes], profile, provider);
     const schema = JSON.stringify(provider.lastRequest!.jsonSchema);
     expect(schema).toContain("name_en");
+  });
+});
+
+describe("items[] per-item macros (A2)", () => {
+  // The prompt already tells the model to "Compute kcal and macros per item ... totals are the sums
+  // across items" — it does that work and we throw it away, keeping only the totals. Capturing it
+  // is what makes a per-item substitution expressible at all, what lets the item-sum check exist,
+  // and what lets a user's disambiguation tap recompute locally instead of paying for a re-analysis.
+
+  test("the schema accepts kcal and macros per item", () => {
+    const parsed = MealAnalysisSchema.parse({
+      isFood: true,
+      items: [
+        { name: "Гречка", grams: 200, kcal: 184, protein_g: 6.8, carbs_g: 39.8, fat_g: 1.2 },
+      ],
+    });
+    const item = parsed.items[0]!;
+    expect(item.kcal).toBe(184);
+    expect(item.protein_g).toBe(6.8);
+    expect(item.carbs_g).toBe(39.8);
+    expect(item.fat_g).toBe(1.2);
+  });
+
+  test("kcal_per_100g is carried separately from the item's own kcal", () => {
+    // Density, not total. It is what a disambiguation tap rescales by, and what makes the
+    // "is this alternative materially different?" gate answerable without a database round-trip.
+    const parsed = MealAnalysisSchema.parse({
+      isFood: true,
+      items: [{ name: "bulgur", grams: 200, kcal: 166, kcal_per_100g: 83 }],
+    });
+    expect(parsed.items[0]!.kcal).toBe(166);
+    expect(parsed.items[0]!.kcal_per_100g).toBe(83);
+  });
+
+  test("all of them are ABSENT, not zero, when the model omits them", () => {
+    // Same reasoning as name_en, and the same trap: a `.default(0)` here would write a confident
+    // zero into every meal stored before this field existed, and 0 kcal is a claim, not a gap.
+    const parsed = MealAnalysisSchema.parse({ isFood: true, items: [{ name: "rice", grams: 100 }] });
+    const item = parsed.items[0]!;
+    for (const key of ["kcal", "protein_g", "carbs_g", "fat_g", "kcal_per_100g"] as const) {
+      expect(item[key]).toBeUndefined();
+      expect(key in item).toBe(false);
+    }
+  });
+
+  test("a negative per-item value is rejected, like every other macro on this schema", () => {
+    const bad = MealAnalysisSchema.safeParse({
+      isFood: true,
+      items: [{ name: "rice", grams: 100, kcal: -5 }],
+    });
+    expect(bad.success).toBe(false);
+  });
+
+  test("structured-output mode declares them, or the model may never emit them", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], profile, provider);
+    const schema = JSON.stringify(provider.lastRequest!.jsonSchema);
+    // Asserted inside the items block specifically: the meal-level macro keys share these names,
+    // so a bare `toContain` would pass on the totals alone and prove nothing about the items.
+    const items = JSON.parse(schema).properties.items.items.properties;
+    expect(Object.keys(items).sort()).toEqual(
+      ["alt_en", "carbs_g", "fat_g", "grams", "kcal", "kcal_per_100g", "name", "name_en", "protein_g"],
+    );
   });
 });
 
@@ -843,5 +912,68 @@ describe("routeText — meal date offset", () => {
     const r = await routeText("actually 300", profile, { ...minCtx, focusMeal }, provider);
     expect(r.intent).toBe("correction");
     expect(r as Record<string, unknown>).not.toHaveProperty("dayOffset");
+  });
+});
+
+describe("repertoire prior (A1)", () => {
+  test("the prompt lists the user's own foods when there is history", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], profile, provider, { repertoire: ["гречка", "булгур"] });
+    const text = provider.lastRequest!.userText;
+    expect(text).toContain("гречка, булгур");
+  });
+
+  test("NO line at all when the user has no history — never an empty prior", async () => {
+    // An empty list rendered as "logged these foods before: " is worse than silence: it reads as
+    // "this user eats nothing", which is a claim, and it burns prompt on a claim that is false.
+    for (const ctx of [undefined, { repertoire: [] }]) {
+      const provider = new FakeProvider(() => validJson);
+      await analyzeMeal([bytes], profile, provider, ctx);
+      expect(provider.lastRequest!.userText).not.toContain("logged these foods before");
+    }
+  });
+
+  test("the prior is hedged — the photo must be able to win", async () => {
+    // Symmetric risk: naming bulgur helps when bulgur was eaten and hurts when couscous was. The
+    // same trap as the deleted round-up hedge, so the escape clause is asserted, not assumed.
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], profile, provider, { repertoire: ["булгур"] });
+    const text = provider.lastRequest!.userText;
+    expect(text).toContain("genuinely ambiguous");
+    expect(text).toContain("absent");
+  });
+});
+
+describe("items[].alt_en — widening the composition-table shortlist (D')", () => {
+  test("the schema accepts alternatives and caps them at 2", () => {
+    // Two is deliberate: the list exists to admit the ONE food genuinely confusable with this one,
+    // not to hedge. A third candidate is noise that widens retrieval without informing the choice.
+    const ok = MealAnalysisSchema.safeParse({
+      isFood: true,
+      items: [{ name: "Булгур", grams: 200, name_en: "couscous", alt_en: ["bulgur"] }],
+    });
+    expect(ok.success).toBe(true);
+    expect(ok.success && ok.data.items[0]!.alt_en).toEqual(["bulgur"]);
+    const tooMany = MealAnalysisSchema.safeParse({
+      isFood: true,
+      items: [{ name: "x", grams: 1, alt_en: ["a", "b", "c"] }],
+    });
+    expect(tooMany.success).toBe(false);
+  });
+
+  test("absent when the model is not torn, rather than an empty array", () => {
+    const parsed = MealAnalysisSchema.parse({ isFood: true, items: [{ name: "rice", grams: 100 }] });
+    expect(parsed.items[0]!.alt_en).toBeUndefined();
+    expect("alt_en" in parsed.items[0]!).toBe(false);
+  });
+
+  test("the prompt asks for alternatives only when genuinely torn", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], profile, provider);
+    const text = provider.lastRequest!.userText;
+    expect(text).toContain("alt_en");
+    // The restraint matters as much as the ask: alternatives on every item would widen every
+    // shortlist and make the selection step harder for no gain.
+    expect(text).toContain("not genuinely torn");
   });
 });

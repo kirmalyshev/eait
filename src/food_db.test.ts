@@ -1,11 +1,15 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test } from "bun:test";
+import { unlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import {
   NUTRIENT_IDS,
   cofidFoodRow,
   parseXlsxSheet,
   buildFoodIndex,
+  loadFoodIndex,
   normalizeFoodName,
   parseCsvLine,
+  parseFoodJsonl,
   usdaFoodRow,
   type FoodRow,
 } from "./food_db.ts";
@@ -251,5 +255,122 @@ describe("buildFoodIndex — English lookup", () => {
 
   test("size reports what was indexed", () => {
     expect(index.size).toBe(5);
+  });
+});
+
+describe("candidates — the retrieve half of retrieve-then-select", () => {
+  const rows: FoodRow[] = [
+    { id: "usda:170287", name: "Bulgur, cooked", kcal: 83, protein_g: 3.1, carbs_g: 18.6, fat_g: 0.2 },
+    { id: "usda:169700", name: "Couscous, cooked", kcal: 112, protein_g: 3.8, carbs_g: 23.2, fat_g: 0.2 },
+    { id: "usda:170688", name: "Bulgur, dry", kcal: 342, protein_g: 12.3, carbs_g: 75.9, fat_g: 1.3 },
+    { id: "usda:4", name: "Rice, white, long-grain, regular, cooked", kcal: 130, protein_g: 2.7, carbs_g: 28, fat_g: 0.3 },
+  ];
+  const index = buildFoodIndex(rows);
+
+  test("find is exactly the top candidate — one scoring path, so they cannot disagree", () => {
+    for (const q of ["bulgur cooked", "rice white cooked", "couscous"]) {
+      expect(index.find(q)?.id).toBe(index.candidates(q, 5)[0]?.id);
+    }
+  });
+
+  test("returns several plausible rows, best first", () => {
+    const c = index.candidates("bulgur", 5);
+    expect(c.length).toBeGreaterThan(1);
+    expect(c.map((r) => r.id)).toContain("usda:170287");
+    expect(c.map((r) => r.id)).toContain("usda:170688");
+  });
+
+  test("still refuses to invent a match — an unknown food yields nothing to choose from", () => {
+    // The escape hatch matters more than the list: offering candidates for a food that is not in
+    // the table would force a choice between wrong rows, which is worse than the model's own guess
+    // because everything downstream treats a matched row as fact.
+    expect(index.candidates("tiramisu", 5)).toEqual([]);
+  });
+
+  test("respects the cooking-state guard — dry bulgur is not a candidate for cooked bulgur", () => {
+    // 342 kcal against 83 is a 4.2x error, larger than anything the lookup exists to fix.
+    const ids = index.candidates("bulgur, cooked", 5).map((r) => r.id);
+    expect(ids).toContain("usda:170287");
+    expect(ids).not.toContain("usda:170688");
+  });
+
+  test("k bounds the list, and k=0 is empty rather than everything", () => {
+    expect(index.candidates("bulgur", 1).length).toBe(1);
+    expect(index.candidates("bulgur", 0)).toEqual([]);
+  });
+
+  test("an exact name short-circuits to one answer, not a menu", () => {
+    // The question is already settled; offering alternatives could only unsettle it.
+    expect(index.candidates("Couscous, cooked", 5).map((r) => r.id)).toEqual(["usda:169700"]);
+  });
+
+  test("ties keep corpus order, so the same query never returns a different food", () => {
+    expect(index.candidates("bulgur", 5)).toEqual(index.candidates("bulgur", 5));
+  });
+});
+
+describe("parseFoodJsonl", () => {
+  const row = (over = "") =>
+    `{"id":"usda:1","name":"Bulgur, cooked","kcal":83,"protein_g":3.1,"carbs_g":18.6,"fat_g":0.2${over}}`;
+
+  test("parses the table and reports nothing skipped", () => {
+    const out = parseFoodJsonl(`${row()}\n${row()}\n`);
+    expect(out.rows.length).toBe(2);
+    expect(out.skipped).toBe(0);
+  });
+
+  test("ignores blank lines without counting them as damage", () => {
+    expect(parseFoodJsonl(`\n${row()}\n\n`).skipped).toBe(0);
+  });
+
+  test("skips an unparseable line rather than losing the whole table", () => {
+    // A truncated download should cost the rows it damaged, not every row after it.
+    const out = parseFoodJsonl(`${row()}\n{"id":"broken`);
+    expect(out.rows.length).toBe(1);
+    expect(out.skipped).toBe(1);
+  });
+
+  test("skips a row that parses but lacks a required nutrient", () => {
+    // The dangerous case: valid JSON, no kcal. It would index as a food with no calories and
+    // silently zero out any meal grounded on it — a wrong number with no error anywhere.
+    const out = parseFoodJsonl('{"id":"usda:2","name":"Ghost","protein_g":1,"carbs_g":1,"fat_g":1}');
+    expect(out.rows).toEqual([]);
+    expect(out.skipped).toBe(1);
+  });
+
+  test("skips negative and non-finite amounts", () => {
+    expect(parseFoodJsonl(row(',"kcal":-5').replace('"kcal":83,', "")).rows).toEqual([]);
+    expect(parseFoodJsonl('{"id":"a","name":"b","kcal":"lots","protein_g":1,"carbs_g":1,"fat_g":1}').skipped).toBe(1);
+  });
+
+  test("keeps optional nutrients when present", () => {
+    const out = parseFoodJsonl(row(',"fiber_g":4.5,"sodium_mg":5'));
+    expect(out.rows[0]!.fiber_g).toBe(4.5);
+    expect(out.rows[0]!.sodium_mg).toBe(5);
+  });
+});
+
+describe("loadFoodIndex", () => {
+  const tmp = `${tmpdir()}/eait-fooddb-${crypto.randomUUID()}.jsonl`;
+  afterAll(() => { try { unlinkSync(tmp); } catch { /* already gone */ } });
+
+  test("reads a jsonl table off disk and reports what it dropped", async () => {
+    writeFileSync(tmp, [
+      JSON.stringify({ id: "usda:1", name: "Bulgur, cooked", kcal: 83, protein_g: 3.1, carbs_g: 18.6, fat_g: 0.2 }),
+      "{ this is not json",
+      JSON.stringify({ id: "usda:2", name: "Couscous, cooked", kcal: 112, protein_g: 3.8, carbs_g: 23.2, fat_g: 0.2 }),
+    ].join("\n"));
+    const loaded = await loadFoodIndex(tmp);
+    expect(loaded).not.toBeNull();
+    expect(loaded!.skipped).toBe(1);
+    expect(loaded!.index.size).toBe(2);
+    expect(loaded!.index.find("bulgur, cooked")?.id).toBe("usda:1");
+  });
+
+  test("a MISSING table is null, not a throw — the bot must boot without one", async () => {
+    // search_food_db is registered only when an index exists (agent.ts), and a food the table does
+    // not have already degrades to the model's own estimate. A missing file is the same condition
+    // for every food at once, so it must not be a startup failure.
+    expect(await loadFoodIndex(`${tmpdir()}/eait-definitely-absent-${crypto.randomUUID()}.jsonl`)).toBeNull();
   });
 });

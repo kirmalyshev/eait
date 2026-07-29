@@ -20,6 +20,14 @@ export interface Config {
   openrouterApiKey: string;
   llmProvider: string;
   llmModel: string;
+  /** Port for the HTTP API, or null when it is not enabled. */
+  apiPort: number | null;
+  /**
+   * Interface the API binds to. Loopback by default: a self-hoster behind a reverse proxy is the
+   * expected shape, and a process that binds 0.0.0.0 because nobody said otherwise is how a build
+   * with no auth scheme ends up reachable from the internet.
+   */
+  apiHost: string;
   llmTimeoutMs: number;
   pg: PgConfig;
   tz: string;
@@ -121,6 +129,20 @@ export function loadConfig(env: Env): Config {
     database: pgDatabase,
   };
 
+  // Absent means the HTTP API does not start. Opt-in, not a default: an instance that has always
+  // been long-polling-only must not begin listening on a port because it was upgraded. A value
+  // that is present but not a valid port is a misconfiguration and dies here, rather than silently
+  // leaving the API off — the two are indistinguishable from the outside, and only one is intended.
+  const rawApiPort = env.API_PORT?.trim();
+  let apiPort: number | null = null;
+  if (rawApiPort) {
+    const n = Number(rawApiPort);
+    if (!Number.isInteger(n) || n < 1 || n > 65535) {
+      throw new Error(`API_PORT must be an integer in [1, 65535], got ${JSON.stringify(rawApiPort)}`);
+    }
+    apiPort = n;
+  }
+
   return {
     telegramBotToken,
     openrouterApiKey,
@@ -134,5 +156,7 @@ export function loadConfig(env: Env): Config {
     perUserDailyPhotoCap: intOr(env.PER_USER_DAILY_PHOTO_CAP, 50),
     adminUserId,
     replyFormat,
+    apiPort,
+    apiHost: env.API_HOST?.trim() || "127.0.0.1",
   };
 }

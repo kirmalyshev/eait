@@ -7,15 +7,15 @@ transport-agnostic; a second front end (CLI, web) would sit next to this folder,
 
 - `bot.ts` — grammy glue: the `process*` functions (real logic, grammy-free),
   `createBot(deps)` (constructable with no live token — see the test), and `startBot(config)`
-  (builds the provider, opens the db, runs the supervised poller, wires SIGTERM/SIGINT).
-- `bot.test.ts` — co-located tests: temp db + fake provider + fake `send`.
+  (builds the Mastra agent + engine ports, opens the db, runs the supervised poller, wires SIGTERM/SIGINT).
+- `bot.test.ts` — co-located tests: temp db + stubbed engine ports + fake `send`.
 - `albums.ts` — `AlbumBuffer<T>`: debounced per-key flush for Telegram media groups (albums).
 - `rejections.ts` — `RejectionLog`: bounded in-memory log of "not food" reply ids per user.
 
 ## Surface
 
 `startBot(config)` is what `src/index.ts` calls; it returns `{ db, stop }`.
-`createBot(deps)` takes `{ db, provider, config }` and returns a grammy `Bot`.
+`createBot(deps)` takes `{ db, config, analyzePhoto, routeText, classifyRestrictions }` and returns a grammy `Bot`.
 
 ## Handlers
 

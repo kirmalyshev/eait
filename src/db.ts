@@ -796,9 +796,23 @@ export async function setMealReply(
   user_id: number,
   chat_id: number,
   bot_message_id: number,
+  /**
+   * The USER'S message that produced this meal, so a reply to their own photo also maps back to it.
+   * Optional and folded into this one UPDATE rather than given its own function: both are Telegram
+   * surface metadata written at the same moment, and a second statement would double the writes on
+   * every logged meal to set one column. `undefined` leaves the stored value alone.
+   */
+  user_message_id?: number,
 ): Promise<void> {
+  if (user_message_id === undefined) {
+    await db`
+      UPDATE meals SET chat_id = ${chat_id}, bot_message_id = ${bot_message_id}
+      WHERE id = ${id} AND user_id = ${user_id}`;
+    return;
+  }
   await db`
-    UPDATE meals SET chat_id = ${chat_id}, bot_message_id = ${bot_message_id}
+    UPDATE meals SET chat_id = ${chat_id}, bot_message_id = ${bot_message_id},
+                     user_message_id = ${user_message_id}
     WHERE id = ${id} AND user_id = ${user_id}`;
 }
 
@@ -875,6 +889,20 @@ export async function mealByReply(
   return rows.length ? rowToMeal(rows[0]) : undefined;
 }
 
+/**
+ * One meal by id, ALWAYS user-scoped. The id is a UUID the caller supplies, so the `user_id`
+ * predicate is what stops one user naming another's meal — the same rule every meal read here obeys.
+ * `mealByReply` is Telegram's way of resolving a focus meal; this is every other surface's.
+ */
+export async function mealById(
+  db: Db,
+  user_id: number,
+  id: string,
+): Promise<MealRecord | undefined> {
+  const rows = await db`SELECT * FROM meals WHERE id = ${id} AND user_id = ${user_id} LIMIT 1`;
+  return rows.length ? rowToMeal(rows[0]) : undefined;
+}
+
 // ---------- llm call metering (the cap basis: every provider call costs one) ----------
 
 /** One row per provider call. Mirrors the CHECK constraint on llm_calls.kind. */
@@ -926,15 +954,63 @@ export async function insertPendingMeal(db: Db, m: NewMeal): Promise<void> {
             ${JSON.stringify(m.analysis)}, ${m.model ?? null})`;
 }
 
+/**
+ * Record which of the user's messages produced a pending meal, without a card having been sent.
+ *
+ * Exists for one narrow case: the confirm prompt failed to send. `setPendingReply` cannot be used
+ * (there is no bot message to point at), but the user's own message must still map to the meal or a
+ * reply to their own text finds no focus. The old code got this for free by writing
+ * `user_message_id` at insert time; the engine no longer knows about Telegram message ids.
+ */
+/**
+ * Record which of the user's messages produced a MEAL, without a card having been sent.
+ *
+ * The mirror of `setPendingUserMessage`, and it exists for the same narrow case: the card failed to
+ * send, so `setMealReply` cannot be used (there is no bot message to point at), but the user's own
+ * photo must still map to the meal or a reply to it finds no focus. Before the engine extraction
+ * this was free — `user_message_id` was written at insert time — and losing it was a silent
+ * regression, since the only symptom is a reply that quietly stops working.
+ */
+export async function setMealUserMessage(
+  db: Db,
+  id: string,
+  user_id: number,
+  user_message_id: number,
+): Promise<void> {
+  await db`
+    UPDATE meals SET user_message_id = ${user_message_id}
+    WHERE id = ${id} AND user_id = ${user_id}`;
+}
+
+export async function setPendingUserMessage(
+  db: Db,
+  id: string,
+  user_id: number,
+  user_message_id: number,
+): Promise<void> {
+  await db`
+    UPDATE pending_meals SET user_message_id = ${user_message_id}
+    WHERE id = ${id} AND user_id = ${user_id}`;
+}
+
 export async function setPendingReply(
   db: Db,
   id: string,
   user_id: number,
   chat_id: number,
   bot_message_id: number,
+  /** Telegram surface metadata, folded in here for the same reason as `setMealReply`'s. */
+  user_message_id?: number,
 ): Promise<void> {
+  if (user_message_id === undefined) {
+    await db`
+      UPDATE pending_meals SET chat_id = ${chat_id}, bot_message_id = ${bot_message_id}
+      WHERE id = ${id} AND user_id = ${user_id}`;
+    return;
+  }
   await db`
-    UPDATE pending_meals SET chat_id = ${chat_id}, bot_message_id = ${bot_message_id}
+    UPDATE pending_meals SET chat_id = ${chat_id}, bot_message_id = ${bot_message_id},
+                             user_message_id = ${user_message_id}
     WHERE id = ${id} AND user_id = ${user_id}`;
 }
 
@@ -1007,6 +1083,28 @@ export async function mealsOnDate(db: Db, user_id: number, date: string): Promis
   const rows = await db`
     SELECT * FROM meals WHERE user_id = ${user_id} AND date = ${date} ORDER BY ts`;
   return rows.map(rowToMeal);
+}
+
+/**
+ * Recent meals reduced to what the repertoire prior needs: the item list and whether the user
+ * vouched for it (design: docs/design/2026-07-27-analysis-quality.md, A1).
+ *
+ * NEWEST FIRST, because `buildRepertoire` resolves ties toward recency. Bounded by both a date
+ * window and a row cap: this runs on the path of every photo, so it must not grow without limit
+ * as a diary fills up. Selecting two columns rather than `SELECT *` keeps a heavy meal row out of
+ * a query whose answer is a list of food names.
+ */
+export async function recentMealItems(
+  db: Db,
+  user_id: number,
+  fromDate: string,
+  limit = 200,
+): Promise<{ items: MealItem[]; corrected: boolean }[]> {
+  const rows = await db`
+    SELECT items, corrected FROM meals
+    WHERE user_id = ${user_id} AND date >= ${fromDate}
+    ORDER BY ts DESC LIMIT ${limit}`;
+  return rows.map((r: any) => ({ items: parseItems(r.items), corrected: r.corrected === 1 }));
 }
 
 /** Per-date kcal/protein sums over a date range (inclusive) — the router's week-context. */

@@ -127,11 +127,11 @@ for (const line of csv.split("\n").slice(1)) {
     // as 130% error and drowns the meal-sized cases the bot actually sees.
     if (expectation.kcal >= minKcal) {
       rows.set(dishId, expectation);
-      // Ingredient names live at the head of each 13-column block, for the agreement gate below.
-      const f = t.split(",");
-      const items: string[] = [];
-      for (let i = 13; i + 1 < f.length; i += 13) if (f[i]) items.push(f[i]!);
-      csvItems.set(dishId, items);
+      // The adapter now keeps the ingredient names (A0), so the agreement gate reads them from the
+      // expectation instead of re-slicing the row here. Two copies of that block-head indexing,
+      // one carrying a hardcoded 13 against the adapter's NV_BLOCK, could drift apart and leave
+      // the gate judging different names than the fixture records.
+      csvItems.set(dishId, expectation.items ?? []);
     }
   } catch {
     malformed++;

@@ -43,6 +43,27 @@ path is ever written to the database — enforced in code and covered by tests, 
 
 The photo does leave the server to reach the model provider (below).
 
+### One exception: accuracy testing by the operator
+
+Because your original message stays in your Telegram chat, the operator can re-fetch the photo of
+a meal you already logged, using a manual tool (`scripts/extract-telegram-fixtures.ts`). It is used
+to build a set of real meals for measuring how accurate the bot's estimates are. It covers every
+meal you have logged, not only the ones you corrected.
+
+What that means concretely:
+
+- The **running bot still never stores your photos.** This is a separate tool an operator runs by
+  hand; it is not part of analysing a meal.
+- A copy of the photo is saved **outside the database**, on the operator's machine, and is never
+  committed to the repository or redistributed.
+- The tool forwards the message to the operator's own chat only long enough to read the file, then
+  **deletes that forwarded copy immediately**.
+- `/delete` removes your account and meals from the database. It cannot reach a photo already
+  extracted this way — ask the operator, who can delete it directly.
+
+If you are running your own instance, you are the operator, and none of this happens unless you run
+that script yourself.
+
 ## Who else sees it
 
 - **Telegram** — carries every message. Subject to [Telegram's privacy policy](https://telegram.org/privacy).

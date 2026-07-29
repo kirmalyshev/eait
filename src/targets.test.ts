@@ -5,6 +5,7 @@ import {
   isRestrictionTag,
   weightRemainingKg,
   visibleVerdicts,
+  verdictsFromTargets,
   RESTRICTION_TAGS,
 } from "./targets.ts";
 import type { Goal, Profile } from "./types.ts";
@@ -199,5 +200,54 @@ describe("visibleVerdicts", () => {
     const copy = { ...original };
     visibleVerdicts(copy, []);
     expect(copy).toEqual(original);
+  });
+});
+
+describe("verdictsFromTargets — verdicts computed, not asked for", () => {
+  const withTags = (restrictions: string[]): Profile => profile("maintain", restrictions);
+  const meal = (over: Partial<{ kcal: number; satfat_g: number; sodium_mg: number }> = {}) =>
+    ({ kcal: 100, satfat_g: 0, sodium_mg: 0, ...over });
+
+  test("judges each dimension by its share of the day's allowance", () => {
+    const t = targetsFor(withTags(["ldl", "kidneys"]));
+    // satfat cap 13 g/day: 4 g is under a third, 5 g is over it, 7 g is over half.
+    expect(verdictsFromTargets(meal({ satfat_g: 4 }), t).ldl).toBe("good");
+    expect(verdictsFromTargets(meal({ satfat_g: 5 }), t).ldl).toBe("warn");
+    expect(verdictsFromTargets(meal({ satfat_g: 7 }), t).ldl).toBe("bad");
+    // sodium cap 2000 mg/day.
+    expect(verdictsFromTargets(meal({ sodium_mg: 600 }), t).kidneys).toBe("good");
+    expect(verdictsFromTargets(meal({ sodium_mg: 700 }), t).kidneys).toBe("warn");
+    expect(verdictsFromTargets(meal({ sodium_mg: 1200 }), t).kidneys).toBe("bad");
+  });
+
+  test("weight always applies and is judged against the kcal target", () => {
+    const t = targetsFor(withTags([]));
+    expect(verdictsFromTargets(meal({ kcal: t.kcal * 0.2 }), t).weight).toBe("good");
+    expect(verdictsFromTargets(meal({ kcal: t.kcal * 0.4 }), t).weight).toBe("warn");
+    expect(verdictsFromTargets(meal({ kcal: t.kcal * 0.9 }), t).weight).toBe("bad");
+  });
+
+  test("an UNDECLARED dimension cannot be produced, even by accident", () => {
+    // The cap is absent from `targets` exactly when the restriction was not declared, so the
+    // undeclared dimension has nothing to be computed from. Structural, not a filter.
+    const v = verdictsFromTargets(meal({ satfat_g: 99, sodium_mg: 9999 }), targetsFor(withTags([])));
+    expect(v.ldl).toBeUndefined();
+    expect(v.kidneys).toBeUndefined();
+    expect(Object.keys(v)).toEqual(["weight"]);
+  });
+
+  test("declaring one restriction does not unlock the other", () => {
+    const v = verdictsFromTargets(meal({ satfat_g: 99, sodium_mg: 9999 }), targetsFor(withTags(["ldl"])));
+    expect(v.ldl).toBe("bad");
+    expect(v.kidneys).toBeUndefined();
+  });
+
+  test("a substituted macro changes the verdict — the whole point (D)", () => {
+    // The staleness this replaces: the model reported 5 g of saturated fat and called it good, a
+    // lookup revised it to 20 g, and the reassuring verdict stayed attached to a number that no
+    // longer existed. Recomputed, the verdict follows the macro.
+    const t = targetsFor(withTags(["ldl"]));
+    expect(verdictsFromTargets(meal({ satfat_g: 4 }), t).ldl).toBe("good");
+    expect(verdictsFromTargets(meal({ satfat_g: 20 }), t).ldl).toBe("bad");
   });
 });

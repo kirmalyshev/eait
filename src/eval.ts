@@ -3,6 +3,7 @@
 // runner `scripts/eval-meals.ts`. Not imported by the bot runtime.
 
 import { z } from "zod";
+import { crossValidate, type CvResult } from "./calibration.ts";
 
 /** Ground truth for one meal photo, from `<name>.json` next to `<name>.jpg`. */
 export const ExpectationSchema = z.object({
@@ -13,6 +14,18 @@ export const ExpectationSchema = z.object({
   fat_g: z.number().nonnegative().optional(),
   /** Kitchen-scale weight of the whole serving; compared against the sum of items[].grams. */
   total_grams: z.number().positive().optional(),
+  /**
+   * Ground-truth food names for this meal, in source order. Without these, "was the food
+   * identified correctly?" cannot be asked of a fixture at all — only "were the numbers close" —
+   * and identification is where the reported failures live (couscous read as bulgur costs +35%
+   * kcal and 3.2x on fibre). Both ground-truth writers parsed these names and then summed them
+   * away; keeping them is the whole of A0.
+   *
+   * OPTIONAL on purpose: the Nutrition5k fixtures already on disk were written without names and
+   * must keep validating on the next read rather than being regenerated. Absent means "this
+   * fixture cannot score identification", never "this meal had no food in it".
+   */
+  items: z.array(z.string()).optional(),
 });
 export type Expectation = z.infer<typeof ExpectationSchema>;
 
@@ -129,12 +142,24 @@ export function nutritionverseRowToExpectation(
     );
   }
   const [dishId, mass, kcal, fat, carb, protein] = f;
+  // Ingredient names sit at the head of each 13-column block after the dish block. The shape check
+  // above is what makes this indexing safe: on a re-released CSV with drifted columns we throw
+  // rather than harvest whatever string now sits at field 13 and call it a food.
+  //
+  // A blank name is skipped rather than pushed as "": an empty string is not a food, and it would
+  // score as a failed identification against whatever the model correctly saw.
+  const items: string[] = [];
+  for (let i = NV_BLOCK; i + 1 < f.length; i += NV_BLOCK) {
+    const name = f[i]?.trim();
+    if (name) items.push(name);
+  }
   const expectation = ExpectationSchema.parse({
     kcal: Math.round(Number(kcal)),
     total_grams: round1(Number(mass)),
     fat_g: round1(Number(fat)),
     carbs_g: round1(Number(carb)),
     protein_g: round1(Number(protein)),
+    ...(items.length ? { items } : {}),
   });
   return { dishId: dishId!, expectation };
 }
@@ -281,6 +306,16 @@ export interface Summary {
   fat_g?: { mae: number; cases: number };
   grams?: { mape: number; cases: number };
   /**
+   * Whether a portion calibration (lever C) earns its place, cross-validated on THIS run's own
+   * grams pairs. Absent when there are too few pairs to fit honestly.
+   *
+   * Read `beatsConstant`, not `improvedMape`. Beating the raw estimate only shows the estimate was
+   * poor: fitting an estimator with no signal collapses the exponent toward 0, every prediction
+   * becomes a constant near the middle of the data, and that alone produces a healthy-looking
+   * improvement. Only beating the constant shows the calibration is using what the model saw.
+   */
+  calibration?: CvResult;
+  /**
    * Grams-vs-density attribution of the kcal error, over the cases declaring total_grams whose
    * representative run has positive kcal AND positive grams. Since kcal = grams × density, in log
    * space ln(kcal_est/kcal_true) = ln(grams_est/grams_true) + ln(density_est/density_true) — an
@@ -346,7 +381,6 @@ export function summarize(cases: CaseInput[]): Summary {
 
   const kcalErrs: number[] = [];
   const kcalPctErrs: number[] = [];
-  const kcalSpreads: number[] = [];
   const macroErrs: Record<"protein_g" | "carbs_g" | "fat_g", number[]> = {
     protein_g: [], carbs_g: [], fat_g: [],
   };
@@ -443,6 +477,11 @@ export function summarize(cases: CaseInput[]): Summary {
     if (macroErrs[key].length) summary[key] = { mae: mean(macroErrs[key]), cases: macroErrs[key].length };
   }
   if (gramsPctErrs.length) summary.grams = { mape: mean(gramsPctErrs), cases: gramsPctErrs.length };
+  // Lever C, measured on the run that just happened rather than on a number carried in by hand.
+  // crossValidate returns null when the pairs cannot support an honest fit, and that absence is
+  // the intended answer — a calibration nobody can validate is one nobody should ship.
+  const cv = crossValidate(gramsRatios.map((r) => ({ estimated: r.est, actual: r.truth })));
+  if (cv) summary.calibration = cv;
   if (densityPctErrs.length) {
     const gramsBias = geoMeanBias(gramsRatios);
     const densityBias = geoMeanBias(densityRatios);
@@ -548,6 +587,18 @@ export function renderReport(model: string, s: Summary): string {
   if (s.carbs_g) lines.push(`  carbs   MAE ${fmt(s.carbs_g.mae)} g (${plural(s.carbs_g.cases)})`);
   if (s.fat_g) lines.push(`  fat     MAE ${fmt(s.fat_g.mae)} g (${plural(s.fat_g.cases)})`);
   if (s.grams) lines.push(`  portion MAPE ${fmt(s.grams.mape)}% (${plural(s.grams.cases)})`);
+  if (s.calibration) {
+    const c = s.calibration;
+    // The verdict is printed, not left to be inferred from the numbers, because the numbers invite
+    // exactly the wrong reading: a healthy `improvedMape` beside a failed `beatsConstant` means the
+    // fit is shrinking toward the mean rather than correcting the model.
+    lines.push(
+      `  calibration ${c.baselineMape.toFixed(1)}% → ${c.calibratedMape.toFixed(1)}% ` +
+        `out-of-fold (${c.folds}-fold, ${plural(c.evaluated)}); ` +
+        `constant-only ${c.constantMape.toFixed(1)}% — ` +
+        (c.beatsConstant ? "beats the constant, SHIPPABLE" : "does NOT beat the constant, do not ship"),
+    );
+  }
   if (s.decomp) {
     const d = s.decomp;
     lines.push(`  density MAPE ${fmt(d.densityMape)}% (${plural(d.cases)})`);
@@ -573,4 +624,55 @@ export function renderReport(model: string, s: Summary): string {
     );
   }
   return lines.join("\n");
+}
+
+/**
+ * Turn a meal already stored in the diary into an Expectation.
+ *
+ * The only source of ground truth in the principal's own cuisine that does not require a kitchen
+ * scale — but its numbers are NOT weighed, and that limit decides what it may be used for.
+ *
+ * A meal with `corrected = 1` carries names the user checked and fixed by hand, which is real
+ * identification ground truth: "was this bulgur or couscous" is answered by someone who ate it.
+ * The macros are a different matter. Unless the user restated a weight, they remain the model's own
+ * output that the user simply did not dispute — so scoring calories against them measures agreement
+ * with a previous run of the same model, not accuracy. Circular, and flattering.
+ *
+ * An UNCORRECTED meal is weaker still, and differently so: its names came from the model too, so
+ * scoring that model against them measures agreement with an earlier run of itself and reads as
+ * near-perfect. It is not ground truth at all. What it is, is a real photo of real food someone
+ * actually ate — worth having for the experiments that need no labels (self-consistency, vote
+ * margin) and as a queue for hand-labelling later.
+ *
+ * Hence `groundTruth`, carried inside the fixture: `user-corrected` means the ITEMS are trustworthy
+ * and the NUMBERS are not; `model-unverified` means neither is. The two must never land in one
+ * directory, for the same reason the NutritionVerse set has its own — one directory produces one
+ * aggregate, and an aggregate over both measures nothing.
+ */
+export function storedMealToExpectation(
+  meal: {
+    items: readonly { name: string; grams?: number }[];
+    kcal: number;
+    protein_g?: number;
+    carbs_g?: number;
+    fat_g?: number;
+  },
+  corrected: boolean,
+): Expectation & { groundTruth: "user-corrected" | "model-unverified" } {
+  const names = meal.items.map((i) => i.name.trim()).filter(Boolean);
+  const grams = meal.items.reduce((s, i) => s + (i.grams ?? 0), 0);
+  const base = ExpectationSchema.parse({
+    kcal: Math.round(meal.kcal),
+    ...(meal.protein_g === undefined ? {} : { protein_g: round1(meal.protein_g) }),
+    ...(meal.carbs_g === undefined ? {} : { carbs_g: round1(meal.carbs_g) }),
+    ...(meal.fat_g === undefined ? {} : { fat_g: round1(meal.fat_g) }),
+    // Only when positive: the schema rejects 0, and a meal whose items carry no grams has no
+    // portion ground truth to offer rather than a portion of zero.
+    ...(grams > 0 ? { total_grams: round1(grams) } : {}),
+    ...(names.length ? { items: names } : {}),
+  });
+  // Provenance travels WITH the fixture, not in a filename or a README. A number's worth depends
+  // entirely on where it came from, and that fact has to survive being moved, copied, or read a
+  // year later by someone who was not here.
+  return { ...base, groundTruth: corrected ? "user-corrected" : "model-unverified" };
 }

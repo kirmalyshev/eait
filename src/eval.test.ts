@@ -8,6 +8,7 @@ import {
   renderCoverage,
   renderReport,
   representativeRun,
+  storedMealToExpectation,
   summarize,
   type EvalRun,
 } from "./eval.ts";
@@ -20,6 +21,19 @@ describe("ExpectationSchema", () => {
       kcal: 620, protein_g: 40, carbs_g: 55, fat_g: 20, total_grams: 340,
     });
     expect(full.success).toBe(true);
+  });
+
+  test("items carries ground-truth food names, and stays OPTIONAL", () => {
+    // Optional is load-bearing: the 22 Nutrition5k fixtures already on disk were written without
+    // names, and must keep validating on the next read rather than being regenerated.
+    expect(ExpectationSchema.safeParse({ kcal: 620 }).success).toBe(true);
+    const named = ExpectationSchema.safeParse({ kcal: 620, items: ["bulgur", "chicken breast"] });
+    expect(named.success).toBe(true);
+    expect(named.success && named.data.items).toEqual(["bulgur", "chicken breast"]);
+  });
+
+  test("items rejects non-string entries — a number here means a column-offset bug upstream", () => {
+    expect(ExpectationSchema.safeParse({ kcal: 620, items: ["bulgur", 156] }).success).toBe(false);
   });
 
   test("rejects non-positive kcal — a zero expectation breaks MAPE and is always a typo", () => {
@@ -56,6 +70,24 @@ describe("nutritionverseRowToExpectation", () => {
     const { expectation } = nutritionverseRowToExpectation(dish("1,400,800,10,20,30,0,0,0,0,0,0,0"));
     expect(expectation.total_grams).toBe(400);
     expect(expectation.kcal).toBe(800);
+  });
+
+  test("keeps the ingredient NAMES — identification cannot be scored without them (#A0)", () => {
+    // The names sit at the head of each 13-column ingredient block. They were parsed for the
+    // photo-pairing gate and then discarded, which left every fixture on disk unable to answer
+    // "was the food identified correctly?" — the question the whole identification track needs.
+    const { expectation } = nutritionverseRowToExpectation(
+      dish("7,165.0,95.7,0.33,22.8,0.5,0,0,0,0,0,0,0", 3),
+    );
+    expect(expectation.items).toEqual(["food-0", "food-1", "food-2"]);
+  });
+
+  test("skips a blank ingredient name rather than writing an empty string", () => {
+    const blank = `,,156.0,95.7,0.33,22.8,0.5,0.01,0.0002,0.009,0.19,0.008,0.0,0.0`;
+    const { expectation } = nutritionverseRowToExpectation(
+      `7,165.0,95.7,0.33,22.8,0.5,0,0,0,0,0,0,0${ingredient("rice")}${blank}`,
+    );
+    expect(expectation.items).toEqual(["rice"]);
   });
 
   test("accepts the full 1..7 ingredient range", () => {
@@ -613,5 +645,69 @@ describe("renderCoverage", () => {
     });
     expect(out).toContain("runs 62/90");
     expect(out).toMatch(/WARNING/);
+  });
+});
+
+describe("calibration in the eval report (C)", () => {
+  const run = (kcal: number, grams: number) => ({
+    kcal, protein_g: 0, carbs_g: 0, fat_g: 0, grams_total: grams,
+  });
+  // est = true^0.67 — the compression actually measured, so a calibration should find real signal.
+  const cases = [50, 80, 120, 175, 240, 320, 430, 560, 700, 900, 1150, 1400].map((t) => ({
+    expected: { kcal: Math.round(t * 1.5), total_grams: t },
+    runs: [run(Math.round(t * 1.5), Math.round(t ** 0.67))],
+  }));
+
+  test("summarize cross-validates the portion calibration on the run's own pairs", () => {
+    const s = summarize(cases);
+    expect(s.calibration).toBeDefined();
+    expect(s.calibration!.beatsConstant).toBe(true);
+    expect(s.calibration!.evaluated).toBe(cases.length);
+  });
+
+  test("the report states the verdict, not just the numbers", () => {
+    // A reader who sees only "72% → 60%" concludes it works. The constant-only column and an
+    // explicit verdict are what stop a shrinkage artefact from being read as a win.
+    const text = renderReport("m", summarize(cases));
+    expect(text).toContain("constant-only");
+    expect(text).toContain("SHIPPABLE");
+  });
+
+  test("too few pairs to fit honestly means NO calibration section at all", () => {
+    const s = summarize(cases.slice(0, 3));
+    expect(s.calibration).toBeUndefined();
+    expect(renderReport("m", s)).not.toContain("calibration");
+  });
+});
+
+describe("storedMealToExpectation — the diary as identification ground truth", () => {
+  test("carries the item names, which is the point of using this source at all", () => {
+    const e = storedMealToExpectation({
+      items: [{ name: "гречка", grams: 200 }, { name: "курица", grams: 150 }],
+      kcal: 432, protein_g: 34, carbs_g: 40, fat_g: 9,
+    }, true);
+    expect(e.items).toEqual(["гречка", "курица"]);
+    expect(e.total_grams).toBe(350);
+    expect(e.kcal).toBe(432);
+  });
+
+  test("carries its provenance, because a number is worth exactly what its source is", () => {
+    // A corrected meal has human-checked NAMES and unweighed numbers. An uncorrected one has
+    // neither: its names came from the model too, so scoring that model against them measures
+    // agreement with an earlier run of itself and reads as near-perfect.
+    const meal = { items: [{ name: "суп", grams: 300 }], kcal: 200 };
+    expect(storedMealToExpectation(meal, true).groundTruth).toBe("user-corrected");
+    expect(storedMealToExpectation(meal, false).groundTruth).toBe("model-unverified");
+  });
+
+  test("omits total_grams when no item declares a weight, rather than claiming zero", () => {
+    const e = storedMealToExpectation({ items: [{ name: "чай" }], kcal: 5 }, true);
+    expect(e.total_grams).toBeUndefined();
+    expect("total_grams" in e).toBe(false);
+  });
+
+  test("drops blank names instead of writing empty strings into ground truth", () => {
+    const e = storedMealToExpectation({ items: [{ name: "  " }, { name: "рис", grams: 100 }], kcal: 130 }, true);
+    expect(e.items).toEqual(["рис"]);
   });
 });
