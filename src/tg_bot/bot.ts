@@ -1411,6 +1411,11 @@ export async function startBot(config: Config): Promise<{ db: Db; stop: () => Pr
   // and doing it first means that failure can't strand an open connection pool.
   const routerId = modelRouterId(config);
   const db = await openDb(config.pg);
+  // Which database, and how populated. openDb refuses a database that does not EXIST, but one
+  // that exists and is the wrong one is still silent — and "0 users" on an instance that had
+  // three is the line that makes a mis-set PGDATABASE obvious before anyone has to re-onboard.
+  const [{ n: userCount } = { n: 0 }] = (await db`SELECT count(*)::int AS n FROM users`) as { n: number }[];
+  console.log(`[eait] storage: ${config.pg.database} · ${userCount} users`);
   let bot: Bot;
   let api: ApiServer | null = null;
   try {

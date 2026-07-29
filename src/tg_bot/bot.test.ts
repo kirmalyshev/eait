@@ -1756,6 +1756,26 @@ test("startBot validates the provider before it connects anywhere", async () => 
   ).rejects.toThrow(/LLM_PROVIDER/);
 });
 
+test("startBot announces the database and how many users are in it", async () => {
+  // The counterpart to openDb's missing-database guard: a database that EXISTS but is the wrong
+  // one is still silent, and "0 users" on an instance that had three is the one line that makes
+  // it obvious in the log. Wrong-PGDATABASE cost every user their onboarding once already.
+  const database = freshTestName();
+  const db = await openTestDb(database);
+  await upsertUser(db, { telegram_id: 1, username: "a" });
+  await upsertUser(db, { telegram_id: 2, username: "b" });
+  await db.close();
+
+  const lines: string[] = [];
+  const spy = spyOn(console, "log").mockImplementation((...a: unknown[]) => void lines.push(a.join(" ")));
+  try {
+    await startBot({ ...cfg, telegramBotToken: "", pg: { ...cfg.pg, database } }).catch(() => {});
+  } finally {
+    spy.mockRestore();
+  }
+  expect(lines.join("\n")).toMatch(new RegExp(`storage: ${database} · 2 users`));
+});
+
 test("startBot composes the WHOLE Mastra engine before it ever touches Telegram", async () => {
   // The boot path had no coverage past config validation, and it is the part that only runs in
   // production: modelRouterId → openDb → createMastra (PostgresStore.init, which CREATES tables)
