@@ -1,6 +1,7 @@
 # Dev-loop ergonomics for THIS worktree. Self-hosters never need make — they get
 # docker-compose.selfhost.yml; this file drives the branch-development flow documented in
-# AGENTS.md (shared Postgres via scripts/db.sh, per-branch identity via scripts/compose-env.sh).
+# AGENTS.md (shared Postgres via scripts/db.sh, per-branch CONTAINER identity via
+# scripts/compose-env.sh — the database is app-wide and never per-branch).
 
 .DEFAULT_GOAL := help
 .PHONY: help env infra infra-down up down restart deploy logs ps psql test typecheck security check
@@ -13,8 +14,8 @@ help:
 	@echo "  make deploy      ship: git pull + typecheck + rebuild + restart the bot (run in the main checkout)"
 	@echo "  make logs        follow the bot container logs"
 	@echo "  make ps          container status for this worktree"
-	@echo "  make env         write this worktree's identity into .env (compose project + branch database)"
-	@echo "  make psql        psql into this branch's database"
+	@echo "  make env         write this worktree's compose-project identity into .env (pins PGDATABASE=eait)"
+	@echo "  make psql        psql into the app database"
 	@echo "  make infra       start the shared dev Postgres only"
 	@echo "  make infra-down  stop the shared Postgres — affects EVERY worktree (data survives)"
 	@echo "  make test | typecheck | security | check (= all three)"

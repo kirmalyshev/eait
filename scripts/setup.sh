@@ -229,8 +229,9 @@ LLM_PROVIDER=openrouter
 LLM_MODEL=x-ai/grok-4.5
 LLM_TIMEOUT_MS=60000
 
-# Postgres — defaults match the shared dev server from 'sh scripts/db.sh up'. The database
-# is created on first boot; scripts/compose-env.sh points PGDATABASE at eait_<branch> per worktree.
+# Postgres — defaults match the shared dev server from 'sh scripts/db.sh up', which also creates
+# the database. ONE database for the whole app: never derive it from the git branch, or a rebuild
+# from another checkout opens an empty one and every user re-onboards.
 PGHOST=127.0.0.1
 PGPORT=5439
 PGUSER=eait

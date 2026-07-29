@@ -8,7 +8,7 @@ Tests are co-located (`*.test.ts`, run with `bun test`).
 - `index.ts` — entrypoint: load config, hand off to `startBot`, and turn a startup failure into one readable line.
 - `config.ts` — env → typed config; fails fast on missing required vars.
 - `types.ts` — shared types (`Profile`, `MealAnalysis`, `MealRecord`, `DailyTotals`, `FoodTargets`, `Verdict`).
-- `db.ts` — Postgres (`Bun.sql`): auto-created branch database + versioned migrations + typed queries.
+- `db.ts` — Postgres (`Bun.sql`): one app-wide database (never auto-created) + versioned migrations + typed queries.
 - `targets.ts` — `targetsFor(profile)` and `parseRestrictions(text)`.
 - `llm/agent.ts` — the one unified Mastra Agent; `llm/analyzePort.ts` — the ports `bot.ts` uses.
 - `llm/model.ts` — `LLM_PROVIDER`+`LLM_MODEL` → a Mastra model-router id; unknown provider throws.
