@@ -240,7 +240,18 @@ export function buildUserText(profile: Profile, context?: MealContext, multiPhot
   // Widens the composition-table shortlist. Without this a misidentification is unrecoverable: the
   // shortlist is built from name_en, so "couscous" never offers the bulgur row.
   lines.push("Per item, set alt_en to at most 2 OTHER canonical English names this food could plausibly be, when a similar-looking food would be easy to confuse it with (bulgur vs couscous, rice varieties, similar cuts of meat). Leave alt_en out when you are not genuinely torn.");
-  lines.push('Set confidence to exactly one of "high", "medium", "low" — "low" when the dish is mixed, ingredients may be hidden, or no scale reference is visible; state why in notes.');
+  lines.push('Set confidence to exactly one of "high", "medium", "low" — "low" when the dish is mixed, ingredients may be hidden, or no scale reference is visible.');
+  // The notes contract. `notes` renders as a blockquote under the macro table, so it is the one
+  // free-text field whose length the user actually pays for — uncapped, the model narrates its own
+  // confidence for five lines and restates the items it just listed. The cap deliberately does NOT
+  // exempt low confidence (the card already has a "reply with the weight" hint for that) but DOES
+  // exempt allergens, because an unflagged allergen is a safety failure and brevity is not.
+  lines.push(
+    "Keep notes to ONE sentence of at most 140 characters: the single most useful thing the numbers " +
+      "do not already say — a hidden ingredient, the portion assumption the estimate rests on, or the " +
+      "one change that would serve the user's goal. Never restate the items or the macros, and never " +
+      "narrate your own confidence. An allergen or avoided product outranks this cap.",
+  );
   if (context?.caption) {
     lines.push(`The user captioned the photo: "${context.caption.slice(0, CAPTION_INPUT_CAP)}" — treat it as ground truth about the contents.`);
   }

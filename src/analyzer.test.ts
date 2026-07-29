@@ -351,6 +351,23 @@ describe("MealAnalysisSchema", () => {
   });
 });
 
+describe("notes brevity", () => {
+  // The card puts `notes` in a blockquote directly under the macro table. Unbounded, the model
+  // writes a paragraph of confidence narration there — measured at five lines for one meal, longer
+  // than every other part of the card combined. The cap is a prompt contract, so assert it is sent.
+  test("the prompt caps notes at one sentence", async () => {
+    const provider = new FakeProvider(() => validJson);
+    await analyzeMeal([bytes], profile, provider);
+    expect(provider.lastRequest?.userText).toMatch(/notes to ONE sentence/);
+  });
+
+  test("the correction path inherits the same cap", async () => {
+    const provider = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "ok" }));
+    await routeText("no oil", profile, { todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } }, provider);
+    expect(provider.lastRequest?.userText).toMatch(/notes to ONE sentence/);
+  });
+});
+
 describe("output language", () => {
   test("the prompt names the user's language, so items and notes come back localized", async () => {
     for (const [lang, llmName] of [["ru", "Russian"], ["de", "German"], ["en", "English"]] as const) {
@@ -801,7 +818,10 @@ describe("routeText", () => {
     await expect(routeText("y", profile, routeCtx, provider)).rejects.toThrow();
     const ok = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "hi" }));
     await routeText("z".repeat(5000), profile, routeCtx, ok);
-    expect(ok.lastRequest!.userText.length).toBeLessThan(4000);
+    // Assert the cap itself, not the total prompt length: a bound on the whole prompt fails the
+    // day an instruction is added, which says nothing about whether user input is still truncated.
+    expect(ok.lastRequest!.userText).toContain(`"${"z".repeat(1000)}"`);
+    expect(ok.lastRequest!.userText).not.toContain("z".repeat(1001));
   });
 });
 
