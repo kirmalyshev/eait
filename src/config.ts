@@ -13,6 +13,13 @@ export interface PgConfig {
   database: string;
   /** Pool size. Defaults to 10 in openDb; tests pass 1 so dozens of per-test databases don't exhaust the server. */
   max?: number;
+  /**
+   * Bootstrap opt-in: create the database when it is missing. Test fixtures and the one-off
+   * bootstrap scripts set it; the BOT NEVER DOES — see openDb. `loadConfig` deliberately has no
+   * env var for it, so no .env edit can turn a running instance back into one that invents an
+   * empty world for itself when PGDATABASE is wrong.
+   */
+  createIfMissing?: boolean;
 }
 
 export interface Config {

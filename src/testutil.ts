@@ -2,9 +2,10 @@
 // (sh scripts/db.sh up), dropped in afterAll. Never imported by runtime code and excluded from
 // the docker image via .dockerignore.
 //
-// The name base comes from PGDATABASE_TEST (compose-env.sh writes eait_test_<branch>), so test
-// runs in parallel worktrees never touch each other's databases; the random suffix isolates
-// tests within a run exactly like the old one-sqlite-file-per-test fixture did.
+// The name base comes from PGDATABASE_TEST (compose-env.sh pins it to eait_test); the random
+// suffix isolates tests within a run — and across parallel worktrees — exactly like the old
+// one-sqlite-file-per-test fixture did. The LIVE database is shared by every worktree; only
+// these throwaway ones are per-run.
 
 import { SQL } from "bun";
 import { openDb, type Db } from "./db.ts";
@@ -32,7 +33,9 @@ export function freshTestName(): string {
 export async function openTestDb(name: string): Promise<Db> {
   // max 1: handles stay open until afterAll, and a test file opens dozens of databases —
   // default-size pools would exhaust the server's connection limit mid-file.
-  const db = await openDb({ ...base, database: name, max: 1 });
+  // createIfMissing: a throwaway per-test database is exactly the bootstrap case openDb's guard
+  // carves out — the runtime path (bot boot) must keep failing loudly on a missing database.
+  const db = await openDb({ ...base, database: name, max: 1, createIfMissing: true });
   handles.push(db);
   return db;
 }

@@ -1,11 +1,13 @@
 #!/bin/sh
-# Shared dev Postgres (docker-compose.infra.yml, fixed project `eait-infra`) — one server for
-# every worktree, one database per branch. The bot auto-creates its branch database on boot;
-# this script only manages the server.
+# Shared dev Postgres (docker-compose.infra.yml, fixed project `eait-infra`) — one server, and
+# ONE database (`eait`) for the whole app across every branch and worktree. `up` creates it if
+# it is absent; the bot never does (openDb refuses, because an empty database looks exactly like
+# every user having been wiped).
 #
-#   sh scripts/db.sh up          # start (or reuse) the shared Postgres
+#   sh scripts/db.sh up          # start (or reuse) the shared Postgres + ensure `eait` exists
 #   sh scripts/db.sh down        # stop it (data survives in the pg-data volume)
 #   sh scripts/db.sh status      # is it running?
+#   sh scripts/db.sh create [db] # create a database (default: this worktree's PGDATABASE)
 #   sh scripts/db.sh psql [dbname]   # psql into a database (default: this worktree's PGDATABASE)
 #   sh scripts/db.sh list        # list eait databases
 #   sh scripts/db.sh clean-test  # drop leftover eait_test_* databases from crashed test runs
@@ -26,12 +28,38 @@ psql_in() {
   $COMPOSE exec db psql -U eait -d "$1"
 }
 
+# Resolve + charset-check a database name (the same [a-z0-9_] guard config.ts and openDb apply,
+# because the name is interpolated into DDL below).
+resolve_db() {
+  DB="${1:-$(env_db)}"
+  [ -n "$DB" ] || DB=eait
+  case "$DB" in
+    *[!a-z0-9_]* | "") echo "invalid database name: $DB" >&2; exit 1 ;;
+  esac
+  printf '%s' "$DB"
+}
+
+# Idempotent. This is the ONLY sanctioned way a database comes into existence — the bot's
+# auto-create was removed after a wrong PGDATABASE silently produced an empty world instead of
+# an error, and every user had to onboard again.
+ensure_db() {
+  # shellcheck disable=SC2086
+  $COMPOSE exec db psql -U eait -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$1'" | grep -q 1 && return 0
+  # shellcheck disable=SC2086
+  $COMPOSE exec db createdb -U eait "$1"
+  echo "created database $1"
+}
+
 case "${1:-}" in
   up)
     $COMPOSE up -d --wait
     PORT="$(grep '^PGPORT=' "$DIR/.env" 2>/dev/null | cut -d= -f2 || true)"
     [ -n "$PORT" ] || PORT=5439
-    echo "eait-infra Postgres up on 127.0.0.1:$PORT (databases are created on first use)."
+    ensure_db "$(resolve_db "")"
+    echo "eait-infra Postgres up on 127.0.0.1:$PORT."
+    ;;
+  create)
+    ensure_db "$(resolve_db "${2:-}")"
     ;;
   down)
     $COMPOSE down
@@ -40,16 +68,8 @@ case "${1:-}" in
     $COMPOSE ps
     ;;
   psql)
-    DB="${2:-$(env_db)}"
-    [ -n "$DB" ] || DB=eait
-    # Same identifier charset the app enforces — the name is interpolated into SQL below.
-    case "$DB" in
-      *[!a-z0-9_]* | "") echo "invalid database name: $DB" >&2; exit 1 ;;
-    esac
-    # The branch database is normally born on the bot's first boot; create it here too so
-    # `make psql` works on a branch whose bot has never run.
-    $COMPOSE exec db psql -U eait -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$DB'" | grep -q 1 \
-      || $COMPOSE exec db createdb -U eait "$DB"
+    DB="$(resolve_db "${2:-}")"
+    ensure_db "$DB"
     psql_in "$DB"
     ;;
   list)
@@ -58,8 +78,8 @@ case "${1:-}" in
     ;;
   clean-test)
     # LIKE with escaped underscores + the testutil.ts suffix (_<12 hex>): a plain
-    # 'eait_test_%' would ALSO match the live branch database of a branch named test-* —
-    # in LIKE, _ is a single-char wildcard — and FORCE-drop it.
+    # 'eait_test_%' would ALSO match a leftover database named eait_test_something — in LIKE,
+    # _ is a single-char wildcard — and FORCE-drop it.
     NAMES="$($COMPOSE exec db psql -U eait -d postgres -tAc \
       "SELECT datname FROM pg_database WHERE datname LIKE 'eait\_test\_%' AND datname ~ '_[0-9a-f]{12}\$'")"
     if [ -z "$NAMES" ]; then
@@ -78,7 +98,7 @@ case "${1:-}" in
     $COMPOSE down -v
     ;;
   *)
-    echo "usage: sh scripts/db.sh {up|down|status|psql [db]|list|clean-test|destroy}" >&2
+    echo "usage: sh scripts/db.sh {up|down|status|create [db]|psql [db]|list|clean-test|destroy}" >&2
     exit 1
     ;;
 esac

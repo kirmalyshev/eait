@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
+import { SQL } from "bun";
 import type { MealAnalysis } from "./types.ts";
 import { DEFAULT_LANG } from "./i18n/registry.ts";
 import { cleanupTestDbs, freshTestDb, freshTestName, openTestDb } from "./testutil.ts";
@@ -625,6 +626,34 @@ describe("openDb input safety", () => {
     await expect(
       openDb({ host: "127.0.0.1", port: 5439, user: "eait_no_such_role", password: "x", database: "eait_wontmatter" }),
     ).rejects.toThrow(/postgres connect failed/);
+  });
+
+  test("a missing database is a loud error, not a silent empty start", async () => {
+    const { openDb } = await import("./db.ts");
+    // The bug this guards: PGDATABASE pointed somewhere that did not exist, openDb created it,
+    // and every user woke up unknown — re-onboarding into an empty world with no error anywhere.
+    // Creating a database is a bootstrap step, never something a running bot does to itself.
+    await expect(
+      openDb({ host: "127.0.0.1", port: 5439, user: "eait", password: "eait", database: "eait_no_such_db_guard" }),
+    ).rejects.toThrow(/does not exist.*PGDATABASE/s);
+  });
+
+  test("createIfMissing: true is the explicit bootstrap opt-in", async () => {
+    const { openDb } = await import("./db.ts");
+    const name = `eait_test_create_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`;
+    const db = await openDb({
+      host: "127.0.0.1", port: 5439, user: "eait", password: "eait", database: name,
+      max: 1, createIfMissing: true,
+    });
+    try {
+      const rows = (await db`SELECT count(*)::int AS n FROM users`) as { n: number }[];
+      expect(rows[0]?.n).toBe(0); // migrated (the table exists) and empty
+    } finally {
+      await db.close();
+      const admin = new SQL({ hostname: "127.0.0.1", port: 5439, username: "eait", password: "eait", database: "postgres", max: 1 });
+      await admin.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
+      await admin.close();
+    }
   });
 });
 

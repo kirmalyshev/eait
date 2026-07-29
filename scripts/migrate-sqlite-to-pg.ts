@@ -31,6 +31,9 @@ const pg = await openDb({
   user: env.PGUSER?.trim() || "eait",
   password: env.PGPASSWORD?.trim() || "eait",
   database,
+  // The one runtime-shaped caller that legitimately bootstraps: this script's whole job is to
+  // fill a target that does not exist yet. Read-only scripts keep openDb's loud missing-db error.
+  createIfMissing: true,
 });
 
 const all = (table: string, order = "rowid") =>

@@ -1,10 +1,9 @@
-// Postgres datastore (Bun.sql): branch database auto-created on open + versioned migrations +
-// typed, per-user-scoped queries. Invariants: meal id = UUID; every meal read/update is
-// `WHERE id = ? AND user_id = ?`; dates are computed in Europe/Berlin. No raw image or photo
-// path is ever stored.
+// Postgres datastore (Bun.sql): versioned migrations + typed, per-user-scoped queries.
+// Invariants: meal id = UUID; every meal read/update is `WHERE id = ? AND user_id = ?`; dates
+// are computed in Europe/Berlin. No raw image or photo path is ever stored.
 //
-// The server is the shared dev/prod instance (docker-compose.infra.yml locally); each branch
-// worktree points PGDATABASE at its own database, so parallel instances never share state.
+// ONE database for the whole app — every branch, every worktree (`eait`). It is created by
+// `sh scripts/db.sh up`, never by the bot: see openDb.
 
 import { SQL } from "bun";
 import type { PgConfig } from "./config.ts";
@@ -149,8 +148,13 @@ export function berlinTime(d: Date, tz = "Europe/Berlin"): string {
 }
 
 /**
- * Connect, creating the database if it does not exist (the per-branch database is born on the
- * first boot of that branch — there is no separate `createdb` step), then migrate.
+ * Connect to an EXISTING database and migrate it.
+ *
+ * A missing database is a loud startup error, never a fresh empty one. This used to auto-create:
+ * PGDATABASE was derived per git branch, so rebuilding the container from a different checkout
+ * silently opened a brand-new world — every user unknown, onboarding from scratch, no error in
+ * any log. Creating a database is a BOOTSTRAP step (`sh scripts/db.sh up`, `setup.sh`) or a test
+ * fixture, never something a running bot does to itself. Opt in with `createIfMissing`.
  */
 export async function openDb(pg: PgConfig): Promise<Db> {
   // config.ts validates PGDATABASE, but openDb is also called directly (tests, scripts) — the
@@ -176,6 +180,14 @@ export async function openDb(pg: PgConfig): Promise<Db> {
             `is the shared dev server up? sh scripts/db.sh up`,
         );
       }
+      if (!pg.createIfMissing) {
+        throw new Error(
+          `database "${pg.database}" does not exist on ${pg.host}:${pg.port}. Refusing to create ` +
+            `it: an empty database is indistinguishable from every user having been wiped. Check ` +
+            `PGDATABASE in .env (the whole app uses ONE database — "eait" unless you changed it). ` +
+            `To bootstrap a genuinely new one: sh scripts/db.sh create ${pg.database}`,
+        );
+      }
       await createDatabase(pg);
       await db`SELECT 1`;
     }
@@ -190,7 +202,7 @@ export async function openDb(pg: PgConfig): Promise<Db> {
 }
 
 /**
- * 3D000 invalid_catalog_name — the branch database has not been created yet. Bun's PostgresError
+ * 3D000 invalid_catalog_name — the database does not exist. Bun's PostgresError
  * puts the SQLSTATE on `.errno` (`.code` is a generic "ERR_POSTGRES_SERVER_ERROR"), so check both;
  * the message match is the last resort and is anchored on `database "…"` so a missing ROLE
  * ("role \"x\" does not exist") takes the friendly connect-failed path, not a doomed CREATE.
@@ -497,7 +509,8 @@ const MIGRATIONS: Migration[] = [
 
 async function migrate(db: Db): Promise<void> {
   await db.begin(async (tx) => {
-    // Serialize concurrent boots (two instances racing on a fresh branch database): DDL in
+    // Serialize concurrent boots (parallel worktrees share the database, so two instances can
+    // race on the same pending migration): DDL in
     // Postgres is transactional, and the advisory lock makes the version check-and-apply atomic.
     await tx`SELECT pg_advisory_xact_lock(726174001)`;
     await tx`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)`;
