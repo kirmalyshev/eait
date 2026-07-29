@@ -49,18 +49,13 @@
     "textFailed": "I couldn't process that message — please try again."
   },
   "rich": {
-    "metric": "Metric",
-    "amount": "Amount",
     "calories": "Calories",
     "protein": "Protein",
     "fat": "Fat",
     "carbs": "Carbs",
     "satfat": "Sat. fat",
     "sodium": "Sodium",
-    "todaysProgress": "Today's progress",
-    "progressForDate": "{{date}} progress",
-    "goal": "Goal",
-    "progress": "Progress"
+    "today": "Today"
   },
   "text": {
     "confirmPrompt": "Log this meal?",

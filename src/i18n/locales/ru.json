@@ -49,18 +49,13 @@
     "textFailed": "Не получилось обработать сообщение — попробуй ещё раз."
   },
   "rich": {
-    "metric": "Показатель",
-    "amount": "Значение",
     "calories": "Калории",
     "protein": "Белки",
     "fat": "Жиры",
     "carbs": "Углеводы",
     "satfat": "Насыщ. жиры",
     "sodium": "Натрий",
-    "todaysProgress": "Прогресс за день",
-    "progressForDate": "Прогресс за {{date}}",
-    "goal": "Цель",
-    "progress": "Прогресс"
+    "today": "Сегодня"
   },
   "text": {
     "confirmPrompt": "Записать этот приём пищи?",

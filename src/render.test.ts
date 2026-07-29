@@ -41,14 +41,21 @@ describe("renderMealCard", () => {
     expect(html).not.toContain("<notes>");
   });
 
-  test("builds the card structure: heading, metrics table, notes quote, progress table, footer", () => {
+  test("builds the card structure: item line, metrics table, notes quote, progress table, footer", () => {
     const html = renderMealCard(meal(), totals, targets, t, MEDICAL, { footer: t("meal.correctionHint") });
-    expect(html).toContain("<h3>");
+    expect(html).toContain("<p>");
     expect(html).toContain("<table");
     expect(html).toContain("<blockquote>");
     expect(html).toContain("80 / 1800");
     expect(html).toContain("<footer>");
     expect(html).toContain("140");
+  });
+
+  test("no headings and no table column headers — the rows label themselves", () => {
+    const html = renderMealCard(meal(), totals, targets, t, MEDICAL, { footer: t("meal.correctionHint") });
+    expect(html).not.toContain("<h3>");
+    expect(html).not.toContain("<h4>");
+    expect(html).not.toContain("<th>");
   });
 
   test("footer and prefix appear only when the caller asks — a correction card carries no nag", () => {
@@ -59,23 +66,33 @@ describe("renderMealCard", () => {
     expect(prefixed).toContain("&lt;v2&gt;"); // prefix is escaped like everything else
   });
 
+  test("the footer emoji comes from the catalog string, never doubled by the renderer", () => {
+    // Both hints already open with their own emoji — ↩️ for the correction nag, 🤔 for the
+    // low-confidence one. Prepending a fixed ↩️ here rendered "↩️ ↩️ Not right?" and, worse,
+    // labelled the low-confidence hint with a correction arrow it does not mean.
+    const corr = renderMealCard(meal(), totals, targets, t, MEDICAL, { footer: t("meal.correctionHint") });
+    expect(corr).toContain(`<footer>${t("meal.correctionHint")}</footer>`);
+    const low = renderMealCard(meal(), totals, targets, t, MEDICAL, { footer: t("meal.lowConfidenceHint") });
+    expect(low).not.toContain("↩️");
+  });
+
   test("a meal without notes renders no blockquote", () => {
     const html = renderMealCard(meal({ notes: "" }), totals, targets, t, MEDICAL);
     expect(html).not.toContain("<blockquote>");
   });
 
-  test("no dateLabel ⇒ the today's-progress header, no date line", () => {
+  test("no dateLabel ⇒ the progress row says Today, no date line", () => {
     const html = renderMealCard(meal(), totals, targets, t, MEDICAL);
-    expect(html).toContain(escapeHtml(t("rich.todaysProgress")));
+    expect(html).toContain(escapeHtml(t("rich.today")));
     expect(html).not.toContain(escapeHtml(t("meal.loggedForDate", { date: "Tue 21 Jul" })));
   });
 
-  test("a dateLabel adds a 'For <date>' paragraph and dates the progress header", () => {
+  test("a dateLabel adds a 'For <date>' line and names the day in the progress row", () => {
     const html = renderMealCard(meal(), totals, targets, t, MEDICAL, { dateLabel: "Tue 21 Jul" });
     expect(html).toContain("<p>");
     expect(html).toContain(escapeHtml(t("meal.loggedForDate", { date: "Tue 21 Jul" })));
-    expect(html).toContain(escapeHtml(t("rich.progressForDate", { date: "Tue 21 Jul" })));
-    expect(html).not.toContain(escapeHtml(t("rich.todaysProgress"))); // header swapped, not both
+    expect(html).toContain(`📊 ${escapeHtml("Tue 21 Jul")}`);
+    expect(html).not.toContain(escapeHtml(t("rich.today"))); // label swapped, not both
   });
 
   test("optional targets add rows only when present", () => {
