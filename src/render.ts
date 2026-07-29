@@ -87,7 +87,10 @@ export function renderMealCard(
   }
   parts.push(table(progress));
 
-  if (opts?.footer) parts.push(`<footer>↩️ ${escapeHtml(opts.footer)}</footer>`);
+  // No emoji prefix here: every footer string in the catalog carries its own (↩️ for the
+  // correction nag, 🤔 for the low-confidence one), and a fixed one both doubled the arrow and
+  // mislabelled the low-confidence hint as a correction.
+  if (opts?.footer) parts.push(`<footer>${escapeHtml(opts.footer)}</footer>`);
   return parts.join("\n");
 }
 

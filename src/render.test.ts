@@ -66,6 +66,16 @@ describe("renderMealCard", () => {
     expect(prefixed).toContain("&lt;v2&gt;"); // prefix is escaped like everything else
   });
 
+  test("the footer emoji comes from the catalog string, never doubled by the renderer", () => {
+    // Both hints already open with their own emoji — ↩️ for the correction nag, 🤔 for the
+    // low-confidence one. Prepending a fixed ↩️ here rendered "↩️ ↩️ Not right?" and, worse,
+    // labelled the low-confidence hint with a correction arrow it does not mean.
+    const corr = renderMealCard(meal(), totals, targets, t, MEDICAL, { footer: t("meal.correctionHint") });
+    expect(corr).toContain(`<footer>${t("meal.correctionHint")}</footer>`);
+    const low = renderMealCard(meal(), totals, targets, t, MEDICAL, { footer: t("meal.lowConfidenceHint") });
+    expect(low).not.toContain("↩️");
+  });
+
   test("a meal without notes renders no blockquote", () => {
     const html = renderMealCard(meal({ notes: "" }), totals, targets, t, MEDICAL);
     expect(html).not.toContain("<blockquote>");
