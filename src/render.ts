@@ -50,7 +50,9 @@ export function renderMealCard(
 
   const parts: string[] = [];
   if (opts?.prefix) parts.push(`<p>${escapeHtml(opts.prefix)}</p>`);
-  parts.push(`<h3>🍽 ${escapeHtml(title)}</h3>`);
+  // The item line is a paragraph, not a heading: on a phone an <h3> of six comma-separated foods
+  // is a wall of oversized type, and the card carries no other level for it to head.
+  parts.push(`<p>🍽 ${escapeHtml(title)}</p>`);
   if (opts?.dateLabel) parts.push(`<p>${escapeHtml(t("meal.loggedForDate", { date: opts.dateLabel }))}</p>`);
 
   const rows: Array<[string, string]> = [
@@ -65,18 +67,16 @@ export function renderMealCard(
     const v = verdicts[key];
     if (v) rows.push([`${VERDICT_EMOJI[key]} ${t(`meal.verdict.${key}`)}`, verdictEmoji(v)]);
   }
-  parts.push(table(t("rich.metric"), t("rich.amount"), rows));
+  parts.push(table(rows));
 
   if (meal.notes && meal.notes.trim()) {
     parts.push(`<blockquote>📝 ${escapeHtml(meal.notes.trim())}</blockquote>`);
   }
 
-  const progressHead = opts?.dateLabel
-    ? t("rich.progressForDate", { date: opts.dateLabel })
-    : t("rich.todaysProgress");
-  parts.push(`<h4>📊 ${escapeHtml(progressHead)}</h4>`);
+  // No "Today's progress" heading: the day is carried by the first row's label, and the "/ target"
+  // in every value is what actually distinguishes this table from the meal's own macros.
   const progress: Array<[string, string]> = [
-    [`🔥 ${t("rich.calories")}`, `${round(totals.kcal)} / ${targets.kcal} kcal`],
+    [`📊 ${opts?.dateLabel ?? t("rich.today")}`, `${round(totals.kcal)} / ${targets.kcal} kcal`],
     [`🥩 ${t("rich.protein")}`, `${round(totals.protein_g)} / ${targets.protein_g} g`],
   ];
   if (targets.satfat_g !== undefined) {
@@ -85,15 +85,20 @@ export function renderMealCard(
   if (targets.sodium_mg !== undefined) {
     progress.push([`🧂 ${t("rich.sodium")}`, `${round(totals.sodium_mg)} / ${targets.sodium_mg} mg`]);
   }
-  parts.push(table(t("rich.goal"), t("rich.progress"), progress));
+  parts.push(table(progress));
 
   if (opts?.footer) parts.push(`<footer>↩️ ${escapeHtml(opts.footer)}</footer>`);
   return parts.join("\n");
 }
 
-function table(head1: string, head2: string, rows: Array<[string, string]>): string {
+/**
+ * A header-less two-column table. Every row labels itself ("🔥 Calories"), so a Metric/Amount
+ * header row was two words of chrome per table and nothing else — dropped deliberately; do not
+ * reintroduce one without a column whose meaning the rows cannot carry.
+ */
+function table(rows: Array<[string, string]>): string {
   const body = rows
     .map(([k, v]) => `<tr><td align="left">${escapeHtml(k)}</td><td align="right"><b>${escapeHtml(v)}</b></td></tr>`)
     .join("");
-  return `<table bordered striped><tr><th>${escapeHtml(head1)}</th><th>${escapeHtml(head2)}</th></tr>${body}</table>`;
+  return `<table bordered striped>${body}</table>`;
 }

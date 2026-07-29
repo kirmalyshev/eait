@@ -49,18 +49,13 @@
     "textFailed": "Die Nachricht konnte nicht verarbeitet werden — versuch es bitte noch einmal."
   },
   "rich": {
-    "metric": "Messwert",
-    "amount": "Menge",
     "calories": "Kalorien",
     "protein": "Eiweiß",
     "fat": "Fett",
     "carbs": "Kohlenhydrate",
     "satfat": "Ges. Fett",
     "sodium": "Natrium",
-    "todaysProgress": "Fortschritt heute",
-    "progressForDate": "Fortschritt für {{date}}",
-    "goal": "Ziel",
-    "progress": "Fortschritt"
+    "today": "Heute"
   },
   "text": {
     "confirmPrompt": "Diese Mahlzeit eintragen?",
