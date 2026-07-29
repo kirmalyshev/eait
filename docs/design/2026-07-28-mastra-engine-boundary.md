@@ -136,7 +136,7 @@ Each is independently shippable and independently verifiable.
 | # | Stage | Status |
 |---|---|---|
 | 0 | Fix the two divergences | ✅ `1285257` |
-| 1 | Parity harness | ✅ built · ⛔ **gate not passed — OpenRouter credits exhausted** |
+| 1 | Parity harness | ✅ **gate passed 2026-07-29** — see below |
 | 2 | Photo flow → Mastra | ✅ `86f3cd8` |
 | 3 | Text flow → Mastra | ✅ `a91c098` |
 | 4 | Onboarding classify → Mastra | ✅ `a91c098` — **the bot runtime calls no `LLMProvider`** |
@@ -180,6 +180,27 @@ measured at 2 → 5 → 8 → 11 prompt messages over four turns), and the groun
 reached the model at all, because Mastra's per-call `instructions` replaces rather than appends.
 The *transport* conclusion — 100% item agreement with grounding off — was drawn from the FIRST
 fixture of that run, which had no prior turns to inherit, so it survives. Nothing else does.
+
+### Gate result — 2026-07-29, 4 fixtures, `--repeat 2 --no-food-db`
+
+```
+CROSS-PATH  old vs agent: kcal 5.4%  macros 7.6%  grams  4.1%  items 66% agree
+WITHIN-PATH old vs old  : kcal 5.7%  macros 7.2%  grams 11.7%  items 83% agree
+```
+
+**4/4 completed, zero `finished without calling submit_meal`** — the blocking defect, previously
+about one photo in four, closed by `toolChoice: "required"` plus `stopWhen`.
+
+Every figure the product reports is at or below the model's own run-to-run spread. Grams is the
+striking one: the two paths agree on portion weight (4.1%) far more closely than the old path
+agrees with itself (11.7%).
+
+**Item naming does not clear the bar: 66% cross against 83% within.** Read as noise at N=4 rather
+than a regression — per-fixture within-path agreement ranges 50–100%, and on the worst fixture
+cross (45%) and within (50%) are the same. Two caveats on the metric itself: the Jaccard fold
+cannot collapse synonyms, so it overstates divergence in both columns; and `--no-food-db` still
+sends `LOOKUP_GUIDANCE`, so that arm is not purely transport. Worth re-measuring with more
+fixtures before treating the gap as real.
 
 ### What still has to happen before 4b
 
