@@ -1,5 +1,5 @@
 import { describe, expect, test, spyOn } from "bun:test";
-import { analyzeMeal, classifyRestrictions, routeText, clampDayOffset, MealAnalysisSchema } from "./analyzer.ts";
+import { analyzeMeal, classifyRestrictions, routeText, clampDayOffset, MealAnalysisSchema, TEXT_INPUT_CAP } from "./analyzer.ts";
 import { LANGS, LOCALES } from "./i18n/registry.ts";
 import type { ChatRequest, LLMProvider } from "./llm/provider.ts";
 import type { MealAnalysis, Profile } from "./types.ts";
@@ -361,7 +361,7 @@ describe("notes brevity", () => {
     expect(provider.lastRequest?.userText).toMatch(/notes to ONE sentence/);
   });
 
-  test("the correction path inherits the same cap", async () => {
+  test("the router path inherits the same cap", async () => {
     const provider = new FakeProvider(() => JSON.stringify({ intent: "question", answer: "ok" }));
     await routeText("no oil", profile, { todayMeals: [], weekTotals: [], targets: { kcal: 1800, protein_g: 100 } }, provider);
     expect(provider.lastRequest?.userText).toMatch(/notes to ONE sentence/);
@@ -820,8 +820,8 @@ describe("routeText", () => {
     await routeText("z".repeat(5000), profile, routeCtx, ok);
     // Assert the cap itself, not the total prompt length: a bound on the whole prompt fails the
     // day an instruction is added, which says nothing about whether user input is still truncated.
-    expect(ok.lastRequest!.userText).toContain(`"${"z".repeat(1000)}"`);
-    expect(ok.lastRequest!.userText).not.toContain("z".repeat(1001));
+    expect(ok.lastRequest!.userText).toContain(`"${"z".repeat(TEXT_INPUT_CAP)}"`);
+    expect(ok.lastRequest!.userText).not.toContain("z".repeat(TEXT_INPUT_CAP + 1));
   });
 });
 
