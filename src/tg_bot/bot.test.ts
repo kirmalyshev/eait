@@ -3,7 +3,7 @@ import { getUser, upsertUser, setProfile, mealByReply, countMealsToday, mealCoun
 import * as dbModule from "../db.ts";
 import { loadAllowlist } from "../allowlist.ts";
 import { RejectionLog } from "./rejections.ts";
-import { cleanupTestDbs, freshTestDb } from "../testutil.ts";
+import { cleanupTestDbs, freshTestDb, freshTestName, openTestDb } from "../testutil.ts";
 import {
   processOnboarding, processPhoto, processText, processTextMealDecision, meCard, statsCard, profileOf,
   processLangPrompt, processLangChoice, buildCommands, processSettingsOpen,
@@ -1755,6 +1755,46 @@ test("startBot validates the provider before it connects anywhere", async () => 
     startBot({ ...cfg, pg: { ...cfg.pg, port: 1 }, llmProvider: "nope" }),
   ).rejects.toThrow(/LLM_PROVIDER/);
 });
+
+test("startBot composes the WHOLE Mastra engine before it ever touches Telegram", async () => {
+  // The boot path had no coverage past config validation, and it is the part that only runs in
+  // production: modelRouterId → openDb → createMastra (PostgresStore.init, which CREATES tables)
+  // → loadFoodIndex → createEngineAgent → startApi → loadAllowlist → createBot.
+  //
+  // Driven with a real database and a deliberately malformed token, so everything upstream of
+  // grammy must succeed for the failure to be a TOKEN failure. If Mastra's storage init were
+  // broken, or the model router rejected the configured provider, this would throw something else
+  // — which is exactly the assertion.
+  // An EMPTY token, which grammy rejects in its constructor — synchronously, inside startBot's
+  // try. A merely malformed one is accepted at construction and fails later on the first API call,
+  // which happens on the supervisor's async path and sets process.exitCode = 1, poisoning the exit
+  // status of the whole test run for a test that passed.
+  const database = freshTestName();
+  await (await openTestDb(database)).close();
+  let err: Error | undefined;
+  try {
+    await startBot({ ...cfg, telegramBotToken: "", pg: { ...cfg.pg, database } });
+  } catch (e) {
+    err = e as Error;
+  }
+  expect(err).toBeDefined();
+  // Neither a Mastra/storage failure nor an LLM_PROVIDER failure — it got all the way to grammy.
+  expect(err!.message).not.toMatch(/LLM_PROVIDER|LLM_MODEL|storage|relation|connect/i);
+
+  // And PostgresStore really did create its tables in the SAME database db.ts uses — the
+  // coexistence claim the design makes, checked rather than assumed.
+  const db = await openTestDb(database);
+  try {
+    const rows = await db`
+      SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'mastra%'`;
+    expect(rows.length).toBeGreaterThan(0);
+    // db.ts's own migrations ran too, in the same database.
+    const ours = await db`SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename='meals'`;
+    expect(ours.length).toBe(1);
+  } finally {
+    await db.close();
+  }
+}, 30_000);
 
 // ---------- documents (a photo sent uncompressed) ----------
 
