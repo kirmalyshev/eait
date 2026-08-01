@@ -16,15 +16,17 @@
 
 import {
   MAX_PHOTOS_PER_MEAL, MAX_UPLOAD_BYTES, REFUSAL_STATUS, ROUTES,
-  type AuthDeviceRequest, type AuthDeviceResponse, type EditMealRequest, type Lang,
+  type AuthDeviceRequest, type AuthDeviceResponse, type AuthProviderRequest,
+  type AuthProviderResponse, type EditMealRequest, type IdentitiesResponse, type Lang,
   type MessageRequest, type PatchProfileRequest, isRefusal,
 } from "@ieat/shared";
 import { LANGS } from "@ieat/shared";
+import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
 import { isCalendarDate } from "../dates.ts";
 import type { Store } from "../store.ts";
 import {
-  MAX_WINDOW_DAYS, cancelPendingMeal, confirmPendingMeal, day, editMeal, handleText, logPhotoMeal,
-  patchProfile, profileView, week, type EngineDeps,
+  MAX_WINDOW_DAYS, cancelPendingMeal, confirmPendingMeal, day, editMeal, handleText, identitiesFor,
+  logPhotoMeal, patchProfile, profileView, signInWithProvider, week, type EngineDeps,
 } from "../engine/index.ts";
 
 const json = (body: unknown, status = 200): Response =>
@@ -42,12 +44,16 @@ function toLang(locale: string | undefined): Lang {
   return (LANGS as readonly string[]).includes(head) ? (head as Lang) : "en";
 }
 
-export function createRouter(deps: EngineDeps, store: Store) {
+export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityVerifier) {
+  const bearer = (req: Request): string | null => {
+    const header = req.headers.get("authorization");
+    return header?.startsWith("Bearer ") ? header.slice(7) : null;
+  };
+
   /** The ONLY path from a request to a userId. */
   async function resolveUserId(req: Request): Promise<string | null> {
-    const header = req.headers.get("authorization");
-    if (!header?.startsWith("Bearer ")) return null;
-    return store.userIdForToken(header.slice(7));
+    const token = bearer(req);
+    return token === null ? null : store.userIdForToken(token);
   }
 
   return async function handle(req: Request): Promise<Response> {
@@ -72,8 +78,49 @@ export function createRouter(deps: EngineDeps, store: Store) {
         return json({ token, userId, created } satisfies AuthDeviceResponse);
       }
 
+      // Sign in with Apple / Google.
+      //
+      // OPTIONALLY authenticated, and that is the whole feature: a bearer token here means "link
+      // this identity to the account I am already using" rather than "create a new one", which is
+      // what lets someone try the app anonymously and keep the meals they logged.
+      if (req.method === "POST" && (pathname === ROUTES.authApple || pathname === ROUTES.authGoogle)) {
+        const provider = pathname === ROUTES.authApple ? "apple" : "google";
+        const body = await req.json() as AuthProviderRequest;
+        if (typeof body.idToken !== "string" || !body.idToken) {
+          return json({ error: "idToken required" }, 400);
+        }
+        const current = await resolveUserId(req);
+        try {
+          const result = await signInWithProvider(
+            deps, verifier, provider, body.idToken,
+            typeof body.nonce === "string" ? body.nonce : undefined,
+            current,
+          );
+          return json(result satisfies AuthProviderResponse);
+        } catch (e) {
+          if (e instanceof AuthError) {
+            // The reason is logged, never returned — it can quote the token.
+            console.error(`[ieat] ${provider} sign-in rejected: ${e.reason}`);
+            return json({ error: "sign-in-failed" }, 401);
+          }
+          throw e;
+        }
+      }
+
       const userId = await resolveUserId(req);
       if (userId === null) return json({ error: "unauthenticated" }, 401);
+
+      // Sign OUT — drops this token only. Not account deletion; the data is untouched, and every
+      // other device stays signed in.
+      if (req.method === "POST" && pathname === ROUTES.authSignOut) {
+        const token = bearer(req);
+        if (token) await store.revokeToken(token);
+        return json({ signedOut: true });
+      }
+
+      if (req.method === "GET" && pathname === ROUTES.identities) {
+        return json({ identities: await identitiesFor(deps, userId) } satisfies IdentitiesResponse);
+      }
 
       // ── Profile ───────────────────────────────────────────────────────────────────────────
       if (pathname === ROUTES.profile) {

@@ -12,7 +12,7 @@
 //     in any log. An empty database is indistinguishable from every user having been wiped.
 
 import { SQL } from "bun";
-import type { DayTotals, Lang, MealItem, MealRecord, MealVerdicts, Profile } from "@ieat/shared";
+import type { DayTotals, Lang, MealItem, MealRecord, MealVerdicts, Profile, Provider } from "@ieat/shared";
 import { blankProfile, type MealPatch, type PendingMeal, type ProfilePatch, type Store } from "./store.ts";
 
 const SCHEMA = `
@@ -43,6 +43,24 @@ create table if not exists tokens (
   created_at timestamptz not null default now()
 );
 create index if not exists tokens_user_idx on tokens(user_id);
+
+-- Federated identities: 'device' | 'apple' | 'google'.
+--
+-- The UNIQUE constraint is the security boundary, not an optimisation: without it two accounts
+-- could claim the same Apple subject and which one a sign-in reached would depend on row order.
+create table if not exists identities (
+  provider   text not null,
+  subject    text not null,
+  user_id    uuid not null references users(id) on delete cascade,
+  linked_at  timestamptz not null default now(),
+  primary key (provider, subject)
+);
+create index if not exists identities_user_idx on identities(user_id);
+
+-- device_id predates the identities table. Kept nullable so a user who signs in with Apple on a
+-- fresh install has an account without a fabricated device id.
+-- (No backticks anywhere in this string: it is a template literal, and one would end it.)
+alter table users alter column device_id drop not null;
 
 create table if not exists meals (
   id            uuid primary key,
@@ -167,7 +185,19 @@ export async function postgresStore(databaseUrl: string): Promise<Store> {
       // re-reading is what makes the second one return the FIRST one's user rather than throwing.
       const row = await sql`select id from users where device_id = ${deviceId}`;
       const userId = String(row[0].id);
-      return { userId, created: userId === id };
+      const created = userId === id;
+      if (created) {
+        await sql`insert into identities (provider, subject, user_id)
+                  values ('device', ${deviceId}, ${userId})
+                  on conflict (provider, subject) do nothing`;
+      }
+      return { userId, created };
+    },
+
+    async createUser(lang: Lang) {
+      const id = crypto.randomUUID();
+      await sql`insert into users (id, lang) values (${id}, ${lang})`;
+      return id;
     },
 
     async issueToken(userId) {
@@ -179,6 +209,58 @@ export async function postgresStore(databaseUrl: string): Promise<Store> {
     async userIdForToken(token) {
       const rows = await sql`select user_id from tokens where token = ${token}`;
       return rows.length > 0 ? String(rows[0].user_id) : null;
+    },
+
+    async revokeToken(token) {
+      await sql`delete from tokens where token = ${token}`;
+    },
+
+    async userIdForIdentity(provider, subject) {
+      const rows = await sql`
+        select user_id from identities where provider = ${provider} and subject = ${subject}`;
+      return rows.length > 0 ? String(rows[0].user_id) : null;
+    },
+
+    async addIdentity(userId, provider, subject) {
+      // `do nothing` then re-read, rather than upsert: a conflict here means the identity belongs
+      // to a DIFFERENT account, and silently repointing it would hand one person another's diary.
+      await sql`insert into identities (provider, subject, user_id)
+                values (${provider}, ${subject}, ${userId})
+                on conflict (provider, subject) do nothing`;
+      const rows = await sql`
+        select user_id from identities where provider = ${provider} and subject = ${subject}`;
+      if (String(rows[0].user_id) !== userId) {
+        throw new Error("identity already linked to another account");
+      }
+    },
+
+    async listIdentities(userId) {
+      const rows = await sql`
+        select provider, linked_at from identities where user_id = ${userId} order by linked_at asc`;
+      return rows.map((r: Record<string, unknown>) => ({
+        provider: String(r.provider) as Provider,
+        linkedAt: new Date(r.linked_at as string).toISOString(),
+      }));
+    },
+
+    async mergeUsers(fromUserId, intoUserId) {
+      // One transaction. A half-applied merge leaves meals owned by a user row that is about to be
+      // deleted, and `on delete cascade` would then destroy the data this operation exists to save.
+      return await sql.begin(async (tx) => {
+        const moved = await tx`
+          update meals set user_id = ${intoUserId} where user_id = ${fromUserId} returning id`;
+        await tx`update pendings set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        await tx`update analyses set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        // DROPPED, not repointed — the merged-away account is anonymous, so these are device
+        // identities only, and repointing one would let plain device auth walk back into the full
+        // account after a sign-out. Matches `store.memory.ts`; a test asserts the behaviour.
+        await tx`delete from identities where user_id = ${fromUserId}`;
+        // Tokens are deleted, not moved: a token that pointed at the now-empty account must stop
+        // working rather than silently start addressing someone else's diary.
+        await tx`delete from tokens where user_id = ${fromUserId}`;
+        await tx`delete from users where id = ${fromUserId}`;
+        return moved.length;
+      });
     },
 
     async getProfile(userId) {

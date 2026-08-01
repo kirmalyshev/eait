@@ -18,6 +18,22 @@ export interface Config {
   globalDailyAnalysisCap: number;
   /** IANA zone used for every date boundary. Dates are NOT computed in UTC. */
   timezone: string;
+
+  /**
+   * Every audience an Apple ID token may legitimately carry — the iOS bundle id, plus a Service ID
+   * if a web flow is ever added. NOT a secret; a client id is public by design.
+   *
+   * Empty means Sign in with Apple is OFF, and the route says so rather than verifying without an
+   * audience check. A verifier with no audience accepts tokens minted for any app in the world.
+   */
+  appleAudiences: string[];
+  /** Every Google OAuth client id that may sign in: iOS, web, Android. Empty = Google is off. */
+  googleAudiences: string[];
+}
+
+/** Comma-separated env list → trimmed array, empties dropped. */
+function list(name: string): string[] {
+  return (process.env[name] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
 }
 
 function required(name: string): string {
@@ -45,6 +61,8 @@ export function loadConfig(): Config {
     userDailyPhotoCap: int("USER_DAILY_PHOTO_CAP", 20),
     globalDailyAnalysisCap: int("GLOBAL_DAILY_ANALYSIS_CAP", 500),
     timezone: process.env.TZ_NAME ?? "Europe/Berlin",
+    appleAudiences: list("APPLE_AUDIENCES"),
+    googleAudiences: list("GOOGLE_AUDIENCES"),
   };
 }
 

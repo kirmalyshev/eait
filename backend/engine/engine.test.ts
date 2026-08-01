@@ -15,6 +15,7 @@ const CONFIG: Config = {
   port: 0, host: "127.0.0.1", databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
   userDailyPhotoCap: 3, globalDailyAnalysisCap: 10, timezone: "Europe/Berlin",
+  appleAudiences: ["app.ieat"], googleAudiences: ["test.apps.googleusercontent.com"],
 };
 
 let store: Store;

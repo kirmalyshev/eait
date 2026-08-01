@@ -10,7 +10,7 @@
 // as an ARGUMENT resolved from credentials — never from a request body, a model output, or a tool
 // call. There is no method here that can reach a row without being told whose it is.
 
-import type { DayTotals, Lang, MealAnalysis, MealRecord, Profile } from "@ieat/shared";
+import type { DayTotals, Lang, MealAnalysis, MealRecord, Profile, Provider } from "@ieat/shared";
 
 /** A text meal awaiting confirmation. Not in the diary yet, and expires. */
 export interface PendingMeal {
@@ -42,10 +42,31 @@ export interface Store {
   // ── Identity ───────────────────────────────────────────────────────────────────────────────
   /** Find or create the user behind a device id. Returns whether the row was created. */
   upsertDeviceUser(deviceId: string, lang: Lang): Promise<{ userId: string; created: boolean }>;
+  /** Create a bare account with no device — a user who signed in with Apple/Google on a fresh install. */
+  createUser(lang: Lang): Promise<string>;
   /** Mint a bearer token for a user. */
   issueToken(userId: string): Promise<string>;
   /** Resolve a bearer token to a user id, or null. The ONLY way a request becomes a userId. */
   userIdForToken(token: string): Promise<string | null>;
+  /** Drop one token. Sign-out — the account and its data are untouched. */
+  revokeToken(token: string): Promise<void>;
+
+  // ── Federated identities ───────────────────────────────────────────────────────────────────
+  /** The account behind a verified `(provider, subject)`, or null. */
+  userIdForIdentity(provider: Provider, subject: string): Promise<string | null>;
+  /** Attach a verified identity to an account. Unique on `(provider, subject)`. */
+  addIdentity(userId: string, provider: Provider, subject: string): Promise<void>;
+  /** What is linked to this account — for the settings screen, and for the merge guard. */
+  listIdentities(userId: string): Promise<{ provider: Provider; linkedAt: string }[]>;
+  /**
+   * Move everything owned by `fromUserId` onto `intoUserId`, then delete the empty account.
+   * Returns the number of meals moved.
+   *
+   * Called in exactly one situation: an ANONYMOUS session signs in with an identity that already
+   * has an account. Merging two real accounts is a different problem and is not attempted — the
+   * caller checks that before getting here.
+   */
+  mergeUsers(fromUserId: string, intoUserId: string): Promise<number>;
 
   // ── Profile ────────────────────────────────────────────────────────────────────────────────
   getProfile(userId: string): Promise<Profile | null>;

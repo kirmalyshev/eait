@@ -7,6 +7,7 @@
 
 import { MAX_UPLOAD_BYTES } from "@ieat/shared";
 import { loadConfig, redact, type Config } from "./config.ts";
+import { AuthError, remoteVerifier, type IdentityVerifier } from "./auth/verify.ts";
 import { createRouter } from "./api/routes.ts";
 import { demoPorts } from "./llm/demo.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
@@ -25,6 +26,7 @@ const config: Config = demo
       llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
       userDailyPhotoCap: 100, globalDailyAnalysisCap: 0,
       timezone: process.env.TZ_NAME ?? "Europe/Berlin",
+      appleAudiences: [], googleAudiences: [],
     }
   : loadConfig();
 
@@ -37,7 +39,23 @@ const deps: EngineDeps = {
     : openRouterPorts({ apiKey: config.llmApiKey, model: config.llmModel }),
 };
 
-const handle = createRouter(deps, store);
+// In demo mode the verifier trusts a token of the form `demo:<provider>:<subject>` so the sign-in
+// flows can be driven without Apple or Google credentials. It is wired ONLY under `--demo`; the
+// real verifier checks signature, issuer, audience and expiry against the provider's JWKS.
+const verifier: IdentityVerifier = demo
+  ? {
+      async verify(provider, idToken) {
+        const [marker, p, subject] = idToken.split(":");
+        if (marker !== "demo" || p !== provider || !subject) throw new AuthError("demo-token-invalid");
+        return { provider, subject };
+      },
+    }
+  : remoteVerifier({
+      appleAudiences: config.appleAudiences,
+      googleAudiences: config.googleAudiences,
+    });
+
+const handle = createRouter(deps, store, verifier);
 
 const server = Bun.serve({
   port: config.port,

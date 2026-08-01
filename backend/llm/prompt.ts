@@ -102,7 +102,7 @@ Rules:
 - If the image contains no food or drink, set isFood to false, return zero totals and an empty items array, and say what you saw in notes.
 - Estimate. Do not refuse and do not ask questions — you will never get an answer, and a refusal reads to the user as a broken app.
 - Weights are grams of the food as served. Liquids in grams too.
-- name is what the user reads, in their language. name_en is a canonical English name used only for lookups and is never displayed.
+- name is what the user reads, and it MUST be written in the requested reply language — whatever country the user eats in, and whatever language the food's name comes from. A user reading English gets "Roast chicken", never "Gebratenes Hähnchen". name_en is a separate canonical English name used only for lookups and is never displayed.
 - notes is at most two short sentences: what drove the estimate, or what you were unsure about. No preamble, no advice, no disclaimers.
 - Never comment on the user's body, their weight, or whether they should be eating this.`;
 
@@ -137,9 +137,15 @@ export function buildUserText(profile: Profile, targets: FoodTargets, opts: {
   // complaints skew GB/AU ("wasn't even recognised" — Oatly, Marmite, M&S items), which is the
   // gap a non-US-first push attacks. See the App Store review brief §3.3.
   if (profile.country) {
+    // The "not a language instruction" clause is not defensive padding — it is a measured fix.
+    // Without it, `country: de` made the model return `Gebratenes Hähnchenfleisch` and
+    // `Maiskolben` to a user whose profile said `lang: en`, on 2 of 8 photos in the first eval
+    // run. A country is a hint about which foods are on the plate, and models read it as a hint
+    // about which language to answer in.
     lines.push(
-      `The user shops and eats in: ${profile.country}. Prefer local products, brands and portion ` +
-      `conventions when identifying food.`,
+      `The user shops and eats in: ${profile.country}. Use this ONLY to judge which products, ` +
+      `brands and portion conventions are likely on the plate. It is NOT a language instruction — ` +
+      `write every name in ${profile.lang} regardless.`,
     );
   }
   if (opts.repertoire && opts.repertoire.length > 0) {

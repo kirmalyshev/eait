@@ -10,6 +10,7 @@ export {
 export { handleText, PENDING_TTL_MS, type HandleTextInput } from "./text.ts";
 export { day, week, MAX_WINDOW_DAYS } from "./diary.ts";
 export { profileView, patchProfile, classifyRestrictions, type PatchOutcome } from "./profile.ts";
+export { signInWithProvider, identitiesFor, isAnonymous } from "./identity.ts";
 // The onboarding sequence lives in `@ieat/shared` so the app derives the same "what's next" the
 // server validates against. Re-exported here only so engine callers have one import.
 export { nextStep, stepApplies, ONBOARDING_STEPS, type OnboardingStep } from "@ieat/shared";

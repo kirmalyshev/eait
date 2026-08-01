@@ -36,6 +36,12 @@ export const MAX_PHOTOS_PER_MEAL = 4;
 export const ROUTES = {
   health: "/health",
   authDevice: "/v1/auth/device",
+  authApple: "/v1/auth/apple",
+  authGoogle: "/v1/auth/google",
+  /** Drops the caller's own token. Sign-out, not account deletion. */
+  authSignOut: "/v1/auth/signout",
+  /** The identities linked to this account, so settings can show what is connected. */
+  identities: "/v1/auth/identities",
   profile: "/v1/profile",
   photo: "/v1/meals/photo",
   messages: "/v1/messages",
@@ -73,6 +79,61 @@ export interface AuthDeviceResponse {
   userId: string;
   /** True the first time this device id was seen — the app routes to onboarding on true. */
   created: boolean;
+}
+
+/** Where an identity came from. `device` is the anonymous one every install starts with. */
+export const PROVIDERS = ["device", "apple", "google"] as const;
+export type Provider = (typeof PROVIDERS)[number];
+
+/**
+ * Sign in with Apple / Google.
+ *
+ * The client sends the provider's ID TOKEN. The server verifies its signature against the
+ * provider's JWKS and reads the subject out of the verified claims — it never accepts a
+ * client-asserted user id, because a client-asserted identity is not an identity.
+ *
+ * If the request carries a bearer token, this LINKS the identity to that account instead of
+ * creating a new one. That is what lets a user try the app anonymously and keep their meals when
+ * they sign in — and it is the fix for the anonymous account's real weakness, which is that losing
+ * the device loses everything.
+ */
+export interface AuthProviderRequest {
+  /** The provider's ID token (JWT). Verified server-side. */
+  idToken: string;
+  /**
+   * The raw nonce the client generated for this sign-in, if it used one.
+   *
+   * Apple puts the SHA-256 of the nonce in the token for native sign-in, so the server compares
+   * against both the raw value and its hash. Replay protection is worth the extra field.
+   */
+  nonce?: string;
+}
+
+/** What happened to the account when an identity was presented. */
+export type LinkOutcome =
+  /** No account existed for this identity, and no anonymous session was supplied — a new one. */
+  | "created"
+  /** The identity was attached to the caller's existing (anonymous) account. Nothing moved. */
+  | "linked"
+  /** The identity already had an account; the caller's anonymous data was moved into it. */
+  | "merged"
+  /** The identity already had an account and the caller already had a real one. Just signed in. */
+  | "switched"
+  /** The identity was already on this account. A no-op sign-in. */
+  | "already";
+
+export interface AuthProviderResponse {
+  token: string;
+  userId: string;
+  outcome: LinkOutcome;
+  /** True when the account still needs onboarding — the app routes on this, not on `outcome`. */
+  onboarded: boolean;
+  /** Meals moved from the anonymous account on a `merged` outcome. Shown to the user. */
+  mergedMeals?: number;
+}
+
+export interface IdentitiesResponse {
+  identities: { provider: Provider; linkedAt: string }[];
 }
 
 // ── Profile ──────────────────────────────────────────────────────────────────────────────────

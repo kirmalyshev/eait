@@ -5,12 +5,30 @@ import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import type { EngineDeps } from "../engine/index.ts";
+import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
 import { createRouter } from "./routes.ts";
+
+/**
+ * A stand-in verifier. Accepts `ok:<provider>:<subject>` and rejects everything else.
+ *
+ * Signature/issuer/audience verification is the provider libraries' job and is not what these
+ * tests are about — what IS tested here is the link/merge/switch logic that runs on the far side
+ * of a successful verification, which is where this product's own bugs would live.
+ */
+const testVerifier: IdentityVerifier = {
+  async verify(provider, idToken, nonce) {
+    const [marker, p, subject] = idToken.split(":");
+    if (marker !== "ok" || p !== provider || !subject) throw new AuthError("invalid");
+    if (nonce !== undefined && nonce !== "good-nonce") throw new AuthError("nonce-mismatch");
+    return { provider, subject };
+  },
+};
 
 const CONFIG: Config = {
   port: 0, host: "127.0.0.1", databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
   userDailyPhotoCap: 5, globalDailyAnalysisCap: 0, timezone: "Europe/Berlin",
+  appleAudiences: ["app.ieat"], googleAudiences: ["test.apps.googleusercontent.com"],
 };
 
 let store: Store;
@@ -62,7 +80,7 @@ function photoRequest(token: string, files = 1, caption?: string): Request {
 beforeEach(() => {
   store = memoryStore();
   const deps: EngineDeps = { store, config: CONFIG, llm: demoPorts() };
-  handle = createRouter(deps, store);
+  handle = createRouter(deps, store, testVerifier);
 });
 
 describe("auth", () => {
@@ -165,7 +183,7 @@ describe("photo", () => {
   it("429s with a scope once the per-user cap is spent", async () => {
     const token = await session();
     const deps: EngineDeps = { store, config: { ...CONFIG, userDailyPhotoCap: 1 }, llm: demoPorts() };
-    handle = createRouter(deps, store);
+    handle = createRouter(deps, store, testVerifier);
     await handle(photoRequest(token));
     const res = await handle(photoRequest(token));
     expect(res.status).toBe(429);
@@ -279,9 +297,227 @@ describe("errors", () => {
       llm: { ...demoPorts(), routeText: async () => { throw new Error("secret query text"); } },
     };
     const token = await session();
-    handle = createRouter(exploding, store);
+    handle = createRouter(exploding, store, testVerifier);
     const res = await post(ROUTES.messages, { text: "hello" }, token);
     const body = JSON.stringify(await res.json());
     expect(body).not.toContain("secret query text");
+  });
+});
+
+describe("sign in with apple / google", () => {
+  /** A device session that has logged one meal. The anonymous starting point. */
+  async function anonymousWithAMeal(): Promise<{ token: string; userId: string }> {
+    const token = await session();
+    await handle(photoRequest(token));
+    const { profile } = await (await get(ROUTES.profile, token)).json() as { profile: { user_id: string } };
+    return { token, userId: profile.user_id };
+  }
+
+  const signIn = (provider: "apple" | "google", subject: string, token?: string, nonce?: string) =>
+    post(
+      provider === "apple" ? ROUTES.authApple : ROUTES.authGoogle,
+      { idToken: `ok:${provider}:${subject}`, ...(nonce ? { nonce } : {}) },
+      token,
+    );
+
+  it("creates an account when a fresh install signs in with Apple", async () => {
+    const res = await signIn("apple", "apple-sub-1");
+    expect(res.status).toBe(200);
+    const body = await res.json() as { outcome: string; token: string; onboarded: boolean };
+    expect(body.outcome).toBe("created");
+    expect(body.onboarded).toBe(false); // straight to onboarding
+    expect((await get(ROUTES.profile, body.token)).status).toBe(200);
+  });
+
+  it("does the same for Google", async () => {
+    const body = await (await signIn("google", "google-sub-1")).json() as { outcome: string };
+    expect(body.outcome).toBe("created");
+  });
+
+  it("LINKS to the anonymous account and keeps its meals — the whole point", async () => {
+    const { token, userId } = await anonymousWithAMeal();
+    const body = await (await signIn("apple", "apple-sub-2", token)).json() as
+      { outcome: string; userId: string; token: string };
+
+    expect(body.outcome).toBe("linked");
+    expect(body.userId).toBe(userId); // same account, not a new one
+    const dayView = await (await get(ROUTES.day, body.token)).json() as { meals: unknown[] };
+    expect(dayView.meals).toHaveLength(1); // the meal survived signing in
+  });
+
+  it("signs a returning user into their existing account on a new device", async () => {
+    const first = await (await signIn("apple", "apple-sub-3")).json() as { userId: string; token: string };
+    await patch(ROUTES.profile, {
+      goal: "lose", sex: "male", weight_kg: 90, complete_onboarding: true,
+    }, first.token);
+
+    // A different install. No bearer token — a fresh device.
+    const second = await (await signIn("apple", "apple-sub-3")).json() as
+      { userId: string; outcome: string; onboarded: boolean };
+    expect(second.outcome).toBe("switched");
+    expect(second.userId).toBe(first.userId);
+    expect(second.onboarded).toBe(true); // and it does NOT re-onboard them
+  });
+
+  it("MERGES an anonymous session's meals into the account it signs into", async () => {
+    // The account already exists from an earlier device...
+    const original = await (await signIn("apple", "apple-sub-4")).json() as { token: string; userId: string };
+    await patch(ROUTES.profile, {
+      goal: "lose", sex: "male", weight_kg: 90, complete_onboarding: true,
+    }, original.token);
+    await handle(photoRequest(original.token));
+
+    // ...and now a NEW install logs a meal anonymously, then signs in as the same person.
+    const anon = await anonymousWithAMeal();
+    const merged = await (await signIn("apple", "apple-sub-4", anon.token)).json() as
+      { outcome: string; userId: string; token: string; mergedMeals: number };
+
+    expect(merged.outcome).toBe("merged");
+    expect(merged.userId).toBe(original.userId);
+    expect(merged.mergedMeals).toBe(1);
+
+    // Both meals are now on one account.
+    const dayView = await (await get(ROUTES.day, merged.token)).json() as { meals: unknown[] };
+    expect(dayView.meals).toHaveLength(2);
+  });
+
+  it("invalidates the merged-away session's old token", async () => {
+    const original = await (await signIn("apple", "apple-sub-5")).json() as { token: string };
+    await patch(ROUTES.profile, { goal: "lose", weight_kg: 80, complete_onboarding: true }, original.token);
+    const anon = await anonymousWithAMeal();
+    await signIn("apple", "apple-sub-5", anon.token);
+    // The old token pointed at an account that no longer exists. It must stop working rather than
+    // silently start addressing someone else's diary.
+    expect((await get(ROUTES.profile, anon.token)).status).toBe(401);
+  });
+
+  it("does NOT merge two accounts that both have real identities", async () => {
+    const a = await (await signIn("apple", "apple-sub-6")).json() as { token: string; userId: string };
+    await patch(ROUTES.profile, { goal: "lose", weight_kg: 80, complete_onboarding: true }, a.token);
+    await handle(photoRequest(a.token));
+
+    const b = await (await signIn("google", "google-sub-6")).json() as { token: string; userId: string };
+    await patch(ROUTES.profile, { goal: "gain", weight_kg: 70, complete_onboarding: true }, b.token);
+    await handle(photoRequest(b.token));
+
+    // Signed into account B, now presenting account A's Apple identity.
+    const res = await (await signIn("apple", "apple-sub-6", b.token)).json() as
+      { outcome: string; userId: string; mergedMeals?: number };
+
+    expect(res.outcome).toBe("switched");
+    expect(res.userId).toBe(a.userId);
+    expect(res.mergedMeals).toBeUndefined();
+    // B is untouched — nothing was destroyed and nothing was guessed.
+    expect((await (await get(ROUTES.day, b.token)).json() as { meals: unknown[] }).meals).toHaveLength(1);
+  });
+
+  it("links a second provider to the same account", async () => {
+    const a = await (await signIn("apple", "apple-sub-7")).json() as { token: string; userId: string };
+    const g = await (await signIn("google", "google-sub-7", a.token)).json() as
+      { outcome: string; userId: string };
+    expect(g.outcome).toBe("linked");
+    expect(g.userId).toBe(a.userId);
+
+    const { identities } = await (await get(ROUTES.identities, a.token)).json() as
+      { identities: { provider: string }[] };
+    expect(identities.map((i) => i.provider).sort()).toEqual(["apple", "google"]);
+  });
+
+  it("is a no-op when the identity is already on this account", async () => {
+    const a = await (await signIn("apple", "apple-sub-8")).json() as { token: string };
+    const again = await (await signIn("apple", "apple-sub-8", a.token)).json() as { outcome: string };
+    expect(again.outcome).toBe("already");
+  });
+
+  it("keeps apple and google subjects in separate namespaces", async () => {
+    // The same string from two providers is two different people.
+    const a = await (await signIn("apple", "collide")).json() as { userId: string };
+    const g = await (await signIn("google", "collide")).json() as { userId: string };
+    expect(g.userId).not.toBe(a.userId);
+  });
+
+  it("401s an unverifiable token and never says why", async () => {
+    const res = await post(ROUTES.authApple, { idToken: "forged" });
+    expect(res.status).toBe(401);
+    expect(await res.json()).toEqual({ error: "sign-in-failed" });
+  });
+
+  it("401s a token minted for the other provider", async () => {
+    // An Apple token replayed at the Google endpoint, and vice versa.
+    expect((await post(ROUTES.authGoogle, { idToken: "ok:apple:x" })).status).toBe(401);
+    expect((await post(ROUTES.authApple, { idToken: "ok:google:x" })).status).toBe(401);
+  });
+
+  it("401s a nonce that does not match the one this client generated", async () => {
+    expect((await signIn("apple", "apple-sub-9", undefined, "replayed")).status).toBe(401);
+    expect((await signIn("apple", "apple-sub-9", undefined, "good-nonce")).status).toBe(200);
+  });
+
+  it("400s a request with no idToken", async () => {
+    expect((await post(ROUTES.authApple, {})).status).toBe(400);
+  });
+
+  it("signs out by dropping only the calling token", async () => {
+    const a = await (await signIn("apple", "apple-sub-10")).json() as { token: string; userId: string };
+    // A second device on the same account.
+    const b = await (await signIn("apple", "apple-sub-10")).json() as { token: string };
+
+    expect((await post(ROUTES.authSignOut, {}, a.token)).status).toBe(200);
+    expect((await get(ROUTES.profile, a.token)).status).toBe(401);
+    // The other device stays signed in, and the data is untouched.
+    expect((await get(ROUTES.profile, b.token)).status).toBe(200);
+  });
+
+  it("releases the provider subject when the account is deleted", async () => {
+    const a = await (await signIn("apple", "apple-sub-11")).json() as { token: string; userId: string };
+    await handle(new Request(url(ROUTES.account), {
+      method: "DELETE", headers: { authorization: `Bearer ${a.token}` },
+    }));
+    // Signing in again is a NEW account, not a resurrection of the deleted one.
+    const again = await (await signIn("apple", "apple-sub-11")).json() as { outcome: string; userId: string };
+    expect(again.outcome).toBe("created");
+    expect(again.userId).not.toBe(a.userId);
+  });
+
+  it("lists the device identity for an anonymous account", async () => {
+    const token = await session();
+    const { identities } = await (await get(ROUTES.identities, token)).json() as
+      { identities: { provider: string }[] };
+    expect(identities.map((i) => i.provider)).toEqual(["device"]);
+  });
+});
+
+describe("sign-out after a merge", () => {
+  it("does not let device auth walk back into the merged account", async () => {
+    // The regression this guards: if a merge repointed the anonymous DEVICE identity at the real
+    // account, then signing out and re-authenticating by device id would silently restore full
+    // access with no credential presented — and sign-out would mean nothing.
+    const deviceId = crypto.randomUUID() + crypto.randomUUID();
+    const anon = await (await post(ROUTES.authDevice, { deviceId })).json() as { token: string };
+    await patch(ROUTES.profile, {
+      goal: "lose", sex: "male", weight_kg: 90, complete_onboarding: true,
+    }, anon.token);
+    await handle(photoRequest(anon.token));
+
+    const real = await (await post(ROUTES.authApple, { idToken: "ok:apple:merge-sub" })).json() as { token: string };
+    await patch(ROUTES.profile, { goal: "lose", weight_kg: 88, complete_onboarding: true }, real.token);
+
+    const merged = await (await post(
+      ROUTES.authApple, { idToken: "ok:apple:merge-sub" }, anon.token,
+    )).json() as { outcome: string; userId: string; token: string };
+    expect(merged.outcome).toBe("merged");
+
+    await post(ROUTES.authSignOut, {}, merged.token);
+
+    // Re-authenticating with the SAME device id must land on a fresh, empty account.
+    const back = await (await post(ROUTES.authDevice, { deviceId })).json() as
+      { userId: string; created: boolean; token: string };
+    expect(back.userId).not.toBe(merged.userId);
+    expect(back.created).toBe(true);
+    // Empty: none of the merged account's meals are reachable from the device credential alone.
+    const dayView = await (await get(ROUTES.day, back.token)).json() as { meals: unknown[] };
+    expect(dayView.meals).toHaveLength(0);
+    const view = await (await get(ROUTES.profile, back.token)).json() as { onboarded: boolean };
+    expect(view.onboarded).toBe(false);
   });
 });
