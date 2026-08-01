@@ -49,6 +49,16 @@ export interface VerifierConfig {
   appleAudiences: string[];
   /** Every Google OAuth client id that may sign in: iOS, web, Android. */
   googleAudiences: string[];
+  /**
+   * JWKS endpoints and expected issuers. Defaulted to the real providers; overridable ONLY so the
+   * tests can point this at a local key set.
+   *
+   * That override exists because the alternative is a security boundary with no test on it. A fake
+   * verifier proves the link/merge logic and nothing about signature, issuer, audience or expiry
+   * checking — which is the half that decides whether a stranger can become you.
+   */
+  apple?: { jwksUri: string; issuer: string };
+  google?: { jwksUri: string; issuer: string | string[] };
 }
 
 /** Hex SHA-256, for the Apple nonce comparison. */
@@ -58,10 +68,13 @@ async function sha256Hex(input: string): Promise<string> {
 }
 
 export function remoteVerifier(config: VerifierConfig): IdentityVerifier {
+  const appleCfg = config.apple ?? { jwksUri: APPLE_JWKS, issuer: APPLE_ISSUER };
+  const googleCfg = config.google ?? { jwksUri: GOOGLE_JWKS, issuer: GOOGLE_ISSUERS };
+
   // Built once. `createRemoteJWKSet` caches keys and refetches on an unknown `kid`, which is what
   // makes provider key rotation a non-event instead of a global outage.
-  const apple = createRemoteJWKSet(new URL(APPLE_JWKS));
-  const google = createRemoteJWKSet(new URL(GOOGLE_JWKS));
+  const apple = createRemoteJWKSet(new URL(appleCfg.jwksUri));
+  const google = createRemoteJWKSet(new URL(googleCfg.jwksUri));
 
   return {
     async verify(provider, idToken, nonce) {
@@ -80,7 +93,7 @@ export function remoteVerifier(config: VerifierConfig): IdentityVerifier {
           idToken,
           provider === "apple" ? apple : google,
           {
-            issuer: provider === "apple" ? APPLE_ISSUER : GOOGLE_ISSUERS,
+            issuer: provider === "apple" ? appleCfg.issuer : googleCfg.issuer,
             audience: audiences,
             // jose enforces `exp`, and clock skew is bounded rather than ignored.
             clockTolerance: 30,

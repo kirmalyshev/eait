@@ -139,7 +139,7 @@ function toMeal(r: MealRow): MealRecord {
     ts: new Date(r.ts as string).toISOString(),
     date: String(r.date),
     isFood: Boolean(r.is_food),
-    items: (r.items ?? []) as MealItem[],
+    items: json<MealItem[]>(r.items, []),
     kcal: num(r.kcal),
     protein_g: num(r.protein_g),
     carbs_g: num(r.carbs_g),
@@ -148,7 +148,7 @@ function toMeal(r: MealRow): MealRecord {
     fiber_g: num(r.fiber_g),
     sugar_g: num(r.sugar_g),
     sodium_mg: num(r.sodium_mg),
-    verdicts: (r.verdicts ?? {}) as MealVerdicts,
+    verdicts: json<MealVerdicts>(r.verdicts, {}),
     confidence: (r.confidence ?? "") as string,
     notes: (r.notes ?? "") as string,
     corrected: Boolean(r.corrected),
@@ -169,6 +169,48 @@ const MEAL_COLUMNS: Record<string, string> = {
   satfat_g: "satfat_g", fiber_g: "fiber_g", sugar_g: "sugar_g", sodium_mg: "sodium_mg",
   verdicts: "verdicts", notes: "notes", corrected: "corrected", date: "date",
 };
+
+/** Columns that are `jsonb` and must be cast as such in a dynamic update. */
+const JSON_COLUMNS = new Set(["items", "verdicts"]);
+
+/**
+ * A JS array → a Postgres array literal, e.g. `{"ldl","kidneys"}`.
+ *
+ * `Bun.sql` does not serialize JS arrays for a `text[]` column, in a tagged template OR in an
+ * `unsafe` statement: the array is flattened to `ldl,kidneys` and Postgres answers `malformed array
+ * literal`. (`sql.array()` exists but stores each element with its quotes embedded, which is worse
+ * — it round-trips as `"ldl"` rather than `ldl`.) Verified against a real database; the in-memory
+ * store accepted the raw array happily, so onboarding with any restriction would have 500ed in
+ * production while the whole suite stayed green.
+ *
+ * THE RESULT IS BOUND AS A PARAMETER, never interpolated into SQL, so this is array-literal syntax
+ * and not an injection surface — a malformed value is a parse error, not an escape. The quoting
+ * still follows Postgres' rules exactly (backslash and double-quote are backslash-escaped) because
+ * these values arrive from requests, and "our vocabulary happens to be safe today" is not a
+ * property worth depending on.
+ */
+function toPgTextArray(values: readonly string[]): string {
+  if (values.length === 0) return "{}";
+  const quoted = values.map((v) => `"${v.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`);
+  return `{${quoted.join(",")}}`;
+}
+
+/**
+ * jsonb → JS, tolerating a value that was stored double-encoded.
+ *
+ * The write paths now cast correctly, but a row written before that fix holds a jsonb string, and
+ * reading it as an array would hand the app a string it renders as nothing. Parsing defensively
+ * here repairs those rows on read instead of requiring a migration to find them.
+ */
+function json<T>(v: unknown, fallback: T): T {
+  if (v === null || v === undefined) return fallback;
+  if (typeof v !== "string") return v as T;
+  try {
+    return JSON.parse(v) as T;
+  } catch {
+    return fallback;
+  }
+}
 
 export async function postgresStore(databaseUrl: string): Promise<Store> {
   const sql = new SQL(databaseUrl);
@@ -269,8 +311,24 @@ export async function postgresStore(databaseUrl: string): Promise<Store> {
     },
 
     async patchProfile(userId, patch: ProfilePatch) {
+      // `restrictions` is written by its OWN tagged-template statement, not through the dynamic
+      // one below.
+      //
+      // A `text[]` parameter in an `unsafe` statement has no type context, so the driver flattens
+      // the JS array to the text `ldl,kidneys` and Postgres rejects it — `malformed array literal`.
+      // Adding `::text[]` does not help: the cast sees the already-flattened string. Hand-building
+      // `{"ldl","kidneys"}` would work but puts quoting and escaping in our hands for a value that
+      // reaches us from a request, and getting that wrong is an injection, not a bug.
+      //
+      // The tagged template infers the array type properly, so it is used instead. Found only by
+      // running against real Postgres: the memory store accepted the array happily, so onboarding
+      // with ANY restriction would have 500ed in production while every test passed.
+      if (patch.restrictions !== undefined) {
+        await sql`update users set restrictions = ${toPgTextArray(patch.restrictions)} where id = ${userId}`;
+      }
+
       const entries = PROFILE_COLUMNS
-        .filter((c) => (patch as Record<string, unknown>)[c] !== undefined)
+        .filter((c) => c !== "restrictions" && (patch as Record<string, unknown>)[c] !== undefined)
         .map((c) => [c, (patch as Record<string, unknown>)[c]] as const);
       if (entries.length > 0) {
         // Column names come from the frozen list above, never from the patch's own keys, so no
@@ -312,7 +370,14 @@ export async function postgresStore(databaseUrl: string): Promise<Store> {
           return [MEAL_COLUMNS[k]!, k === "items" || k === "verdicts" ? JSON.stringify(v) : v] as const;
         });
       if (entries.length > 0) {
-        const assignments = entries.map(([c], i) => `${c} = $${i + 3}`).join(", ");
+        // `::jsonb` for the JSON columns, same reason as `::text[]` above: an untyped parameter in
+        // a dynamic statement is text, so a JSON string lands in a jsonb column as a jsonb STRING
+        // rather than as the array it encodes. It round-trips without error and comes back as
+        // `"[{...}]"` instead of `[{...}]` — a meal whose items render as nothing after an edit,
+        // which is the single most-used path in this app.
+        const assignments = entries
+          .map(([c], i) => (JSON_COLUMNS.has(c) ? `${c} = $${i + 3}::jsonb` : `${c} = $${i + 3}`))
+          .join(", ");
         await sql.unsafe(
           `update meals set ${assignments} where id = $1 and user_id = $2`,
           [mealId, userId, ...entries.map(([, v]) => v)],
@@ -357,7 +422,7 @@ export async function postgresStore(databaseUrl: string): Promise<Store> {
       }
       return {
         id: String(r.id), userId: String(r.user_id),
-        analysis: r.analysis as PendingMeal["analysis"], date: String(r.date), expiresAt,
+        analysis: json<PendingMeal["analysis"]>(r.analysis, {} as PendingMeal["analysis"]), date: String(r.date), expiresAt,
       };
     },
 
