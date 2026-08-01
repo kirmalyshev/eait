@@ -7,7 +7,7 @@ export {
   logPhotoMeal, editMeal, applyCorrection, confirmPendingMeal, cancelPendingMeal, sumTotals,
   toAnalysis, type LogPhotoInput,
 } from "./meals.ts";
-export { handleText, PENDING_TTL_MS, type HandleTextInput } from "./text.ts";
+export { handleText, type HandleTextInput } from "./text.ts";
 export { day, week, MAX_WINDOW_DAYS } from "./diary.ts";
 export { profileView, patchProfile, classifyRestrictions, type PatchOutcome } from "./profile.ts";
 export { signInWithProvider, identitiesFor, isAnonymous } from "./identity.ts";

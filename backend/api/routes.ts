@@ -15,7 +15,7 @@
 //    encoder cannot drift.
 
 import {
-  MAX_PHOTOS_PER_MEAL, MAX_UPLOAD_BYTES, REFUSAL_STATUS, ROUTES,
+  REFUSAL_STATUS, ROUTES,
   type AuthDeviceRequest, type AuthDeviceResponse, type AuthProviderRequest,
   type AuthProviderResponse, type EditMealRequest, type IdentitiesResponse, type Lang,
   type MessageRequest, type PatchProfileRequest, isRefusal,
@@ -145,15 +145,15 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
         // already happened. `maxRequestBodySize` on the server is the real backstop (a client can
         // lie about Content-Length); this is the early, cheap, honest-client rejection.
         const declared = Number(req.headers.get("content-length") ?? 0);
-        if (declared > MAX_UPLOAD_BYTES) return json({ error: "too large" }, 413);
+        if (declared > deps.config.maxUploadBytes) return json({ error: "too large" }, 413);
 
         const form = await req.formData();
         // flatMap rather than a filter predicate: it narrows the element type without asserting
         // one, so a string-valued "photo" field is simply dropped as the malformed input it is.
         const files = form.getAll("photo").flatMap((f) => (typeof f === "string" ? [] : [f]));
         if (files.length === 0) return json({ error: "no photo" }, 400);
-        if (files.length > MAX_PHOTOS_PER_MEAL) return json({ error: "too many photos" }, 400);
-        if (files.reduce((n, f) => n + f.size, 0) > MAX_UPLOAD_BYTES) {
+        if (files.length > deps.config.maxPhotosPerMeal) return json({ error: "too many photos" }, 400);
+        if (files.reduce((n, f) => n + f.size, 0) > deps.config.maxUploadBytes) {
           return json({ error: "too large" }, 413);
         }
         const caption = form.get("caption");

@@ -14,8 +14,8 @@ import type { EngineDeps } from "./deps.ts";
 import { checkCaps } from "./caps.ts";
 import { applyCorrection, sumTotals, toAnalysis } from "./meals.ts";
 
-/** How long a proposed text meal stays confirmable. */
-export const PENDING_TTL_MS = 30 * 60 * 1000;
+// How long a proposed text meal stays confirmable is `config.pendingTtlMs` (`PENDING_TTL_MINUTES`),
+// read from deps at the point of use rather than frozen into a module constant here.
 
 /** Days of history handed to the router as context. */
 const CONTEXT_DAYS = 7;
@@ -82,7 +82,7 @@ export async function handleText(
       const pendingId = crypto.randomUUID();
       await deps.store.putPending({
         id: pendingId, userId, analysis: routed.analysis, date,
-        expiresAt: Date.now() + PENDING_TTL_MS,
+        expiresAt: Date.now() + deps.config.pendingTtlMs,
       });
       return { kind: "proposed", pendingId, analysis: routed.analysis, date } satisfies MealProposed;
     }

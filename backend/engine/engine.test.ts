@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { isMeal, type MealAnalysis } from "@ieat/shared";
-import type { Config } from "../config.ts";
+import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { LlmPorts } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
@@ -12,9 +12,10 @@ import {
 } from "./index.ts";
 
 const CONFIG: Config = {
-  port: 0, host: "127.0.0.1", databaseUrl: "memory://test",
+  ...configDefaults(),
+  port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  userDailyPhotoCap: 3, globalDailyAnalysisCap: 10, timezone: "Europe/Berlin",
+  userDailyPhotoCap: 3, globalDailyAnalysisCap: 10,
   appleAudiences: ["app.ieat"], googleAudiences: ["test.apps.googleusercontent.com"],
 };
 
@@ -120,6 +121,20 @@ describe("onboarding", () => {
     const view = (await profileView(deps, userId))!;
     expect(view.targets.kcal).toBe(1200);
     expect(view.basis.floorApplied).toBe(true);
+  });
+
+  it("tells the client THIS server's limits, so the two cannot disagree", async () => {
+    // Both are env-configured and differ per environment. The app renders as many photo slots as
+    // `limits.maxPhotosPerMeal` allows; if it used its own compiled constant instead, a user on an
+    // instance with a lower limit would pick photos and only then be refused.
+    const userId = await onboard();
+    const view = (await profileView(deps, userId))!;
+    expect(view.limits.maxPhotosPerMeal).toBe(CONFIG.maxPhotosPerMeal);
+    expect(view.limits.maxUploadBytes).toBe(CONFIG.maxUploadBytes);
+
+    // And it tracks the config rather than a constant that happens to match today.
+    const tighter = { ...deps, config: { ...CONFIG, maxPhotosPerMeal: 1 } };
+    expect((await profileView(tighter, userId))!.limits.maxPhotosPerMeal).toBe(1);
   });
 });
 

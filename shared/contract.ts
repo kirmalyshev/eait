@@ -28,9 +28,26 @@ export const REFUSAL_STATUS = {
 } as const;
 export type RefusalKind = keyof typeof REFUSAL_STATUS;
 
-/** Total size an upload may reach in memory. A cap is what keeps a large POST from being a DoS. */
+/**
+ * The server's effective limits, as told to the client.
+ *
+ * These are ENV-CONFIGURED on the server (`MAX_UPLOAD_MB`, `MAX_PHOTOS_PER_MEAL`) and therefore
+ * differ between environments — which is exactly why they are sent rather than compiled into the
+ * app. A limit the server enforces and the client separately hardcodes is two numbers that must
+ * agree, and the failure when they stop agreeing is a user picking four photos and being refused
+ * by a server that allows two.
+ *
+ * The constants below are the DEFAULTS and the fallback for a client that has not loaded a profile
+ * yet. They are not the authority; the server is.
+ */
+export interface Limits {
+  maxUploadBytes: number;
+  maxPhotosPerMeal: number;
+}
+
+/** Fallback only — see `Limits`. Total upload size, above which a large POST is a DoS. */
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
-/** One meal may be photographed from several angles. More than this is not a meal, it is a bug. */
+/** Fallback only — see `Limits`. Several angles of ONE plate, one analysis, one billed call. */
 export const MAX_PHOTOS_PER_MEAL = 4;
 
 export const ROUTES = {
@@ -146,6 +163,12 @@ export interface ProfileResponse {
   basis: TargetBasis;
   /** Null until onboarding completes. */
   onboarded: boolean;
+  /**
+   * What this server will actually accept. Carried here because the profile is fetched at boot and
+   * on every refresh, so the app learns the limits of the environment it is talking to instead of
+   * assuming the ones it was compiled with.
+   */
+  limits: Limits;
 }
 
 /**

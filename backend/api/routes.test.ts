@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { ROUTES } from "@ieat/shared";
-import type { Config } from "../config.ts";
+import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
@@ -25,9 +25,10 @@ const testVerifier: IdentityVerifier = {
 };
 
 const CONFIG: Config = {
-  port: 0, host: "127.0.0.1", databaseUrl: "memory://test",
+  ...configDefaults(),
+  port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  userDailyPhotoCap: 5, globalDailyAnalysisCap: 0, timezone: "Europe/Berlin",
+  userDailyPhotoCap: 5, globalDailyAnalysisCap: 0,
   appleAudiences: ["app.ieat"], googleAudiences: ["test.apps.googleusercontent.com"],
 };
 

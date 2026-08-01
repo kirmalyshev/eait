@@ -5,8 +5,7 @@
 // database and no API key. That is not a toy: it is how the app is developed on a plane, and how a
 // UI change gets reviewed without spending money on vision calls.
 
-import { MAX_UPLOAD_BYTES } from "@ieat/shared";
-import { loadConfig, redact, type Config } from "./config.ts";
+import { configDefaults, loadConfig, redact, type Config } from "./config.ts";
 import { AuthError, remoteVerifier, type IdentityVerifier } from "./auth/verify.ts";
 import { createRouter } from "./api/routes.ts";
 import { demoPorts } from "./llm/demo.ts";
@@ -18,15 +17,18 @@ import type { Store } from "./store.ts";
 
 const demo = process.argv.includes("--demo");
 
+// Demo starts from the shared defaults and overrides only what demo mode changes, so a new
+// setting picks up its default here instead of being silently absent.
 const config: Config = demo
   ? {
+      ...configDefaults(),
       port: Number(process.env.PORT ?? 8787),
       host: process.env.HOST ?? "127.0.0.1",
       databaseUrl: "memory://demo",
       llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
+      // Generous per user, unmetered globally: it is a local demo, not a public instance.
       userDailyPhotoCap: 100, globalDailyAnalysisCap: 0,
       timezone: process.env.TZ_NAME ?? "Europe/Berlin",
-      appleAudiences: [], googleAudiences: [],
     }
   : loadConfig();
 
@@ -36,7 +38,12 @@ const deps: EngineDeps = {
   config,
   llm: demo
     ? demoPorts()
-    : openRouterPorts({ apiKey: config.llmApiKey, model: config.llmModel }),
+    : openRouterPorts({
+        apiKey: config.llmApiKey,
+        model: config.llmModel,
+        baseUrl: config.llmBaseUrl,
+        timeoutMs: config.llmTimeoutMs,
+      }),
 };
 
 // In demo mode the verifier trusts a token of the form `demo:<provider>:<subject>` so the sign-in
@@ -64,7 +71,7 @@ const server = Bun.serve({
   hostname: config.host,
   // The real backstop for upload size — a client can lie about or omit Content-Length, so the
   // early check in the router is a courtesy and this is the guarantee.
-  maxRequestBodySize: MAX_UPLOAD_BYTES + 1024 * 1024,
+  maxRequestBodySize: config.maxUploadBytes + 1024 * 1024,
   fetch: handle,
 });
 

@@ -9,17 +9,30 @@
 import {
   ACTIVITY_LEVELS, LANGS, PACES, RESTRICTION_TAGS, checkTargetWeight, explainTargets, isRestrictionTag,
   type ActivityLevel, type Lang, type Pace, type PatchProfileRequest, type Profile,
-  type ProfileRejected, type ProfileResponse,
+  type Limits, type ProfileRejected, type ProfileResponse,
 } from "@ieat/shared";
 import { MIN_AGE } from "@ieat/shared";
 import type { ProfilePatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 
+/**
+ * The limits THIS server enforces, so the client stops guessing at them.
+ *
+ * Both are env-configured and therefore differ per environment. Sending them is what keeps the app
+ * from offering four photo slots to a server that accepts two.
+ */
+function limitsOf(deps: EngineDeps): Limits {
+  return {
+    maxUploadBytes: deps.config.maxUploadBytes,
+    maxPhotosPerMeal: deps.config.maxPhotosPerMeal,
+  };
+}
+
 export async function profileView(deps: EngineDeps, userId: string): Promise<ProfileResponse | null> {
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
   const { targets, basis } = explainTargets(profile);
-  return { profile, targets, basis, onboarded: profile.onboarded_at !== null };
+  return { profile, targets, basis, onboarded: profile.onboarded_at !== null, limits: limitsOf(deps) };
 }
 
 export type PatchOutcome =
@@ -130,7 +143,10 @@ export async function patchProfile(
 
   const profile = await deps.store.patchProfile(userId, patch);
   const { targets, basis } = explainTargets(profile);
-  return { ok: true, view: { profile, targets, basis, onboarded: profile.onboarded_at !== null } };
+  return {
+    ok: true,
+    view: { profile, targets, basis, onboarded: profile.onboarded_at !== null, limits: limitsOf(deps) },
+  };
 }
 
 /** Free text → tags, keyword pass first, LLM only when it found nothing. */

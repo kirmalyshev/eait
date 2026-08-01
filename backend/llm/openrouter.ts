@@ -13,12 +13,13 @@ import {
   buildClassifyText, buildRouteText, buildUserText,
 } from "./prompt.ts";
 
-const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
-
 interface Options {
   apiKey: string;
   model: string;
-  baseUrl?: string;
+  /** Where the chat-completions call goes. From `LLM_BASE_URL`; the composition root supplies it. */
+  baseUrl: string;
+  /** How long one call may hang. From `LLM_TIMEOUT_MS`. */
+  timeoutMs: number;
   /** Injected in tests so the ports can be exercised without a billed call. */
   fetchImpl?: typeof fetch;
 }
@@ -42,7 +43,7 @@ function toDataUrl(bytes: Uint8Array): string {
 
 export function openRouterPorts(opts: Options): LlmPorts {
   const doFetch = opts.fetchImpl ?? fetch;
-  const url = opts.baseUrl ?? ENDPOINT;
+  const url = opts.baseUrl;
 
   /**
    * One chat completion, validated against `schema`.
@@ -78,15 +79,31 @@ export function openRouterPorts(opts: Options): LlmPorts {
         },
       };
 
-      const res = await doFetch(url, {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${opts.apiKey}`,
-          "content-type": "application/json",
-          "x-title": "ieat",
-        },
-        body: JSON.stringify(body),
-      });
+      // A model call that hangs used to hang FOREVER: the provider accepts the connection, never
+      // answers, and holds the request, the photo and a worker slot until the process restarts.
+      // Vision inference is slow, so the budget is generous — but it is finite.
+      const abort = new AbortController();
+      const timer = setTimeout(() => abort.abort(), opts.timeoutMs);
+      let res: Response;
+      try {
+        res = await doFetch(url, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${opts.apiKey}`,
+            "content-type": "application/json",
+            "x-title": "ieat",
+          },
+          body: JSON.stringify(body),
+          signal: abort.signal,
+        });
+      } catch (e) {
+        // Reported as a timeout rather than as whatever the runtime called it, because the caller
+        // turns this into "the analysis didn't come back" and the log is where the detail belongs.
+        if (abort.signal.aborted) throw new Error(`llm timeout after ${opts.timeoutMs}ms`);
+        throw e;
+      } finally {
+        clearTimeout(timer);
+      }
 
       if (!res.ok) {
         // The status and a short body go to the log; neither reaches the client. An upstream error
