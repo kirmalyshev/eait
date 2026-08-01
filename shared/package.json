@@ -1,0 +1,16 @@
+{
+  "name": "@ieat/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./types": "./types.ts",
+    "./targets": "./targets.ts",
+    "./results": "./results.ts",
+    "./contract": "./contract.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

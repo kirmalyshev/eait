@@ -1,0 +1,9 @@
+// The shared package's public surface. The backend and the app import from HERE and from nowhere
+// deeper — that is the whole contract, and it is what keeps them peers rather than one being a
+// special case of the other.
+
+export * from "./types.ts";
+export * from "./targets.ts";
+export * from "./results.ts";
+export * from "./onboarding.ts";
+export * from "./contract.ts";

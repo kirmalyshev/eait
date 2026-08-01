@@ -1,0 +1,16 @@
+{
+  "name": "@ieat/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run index.ts",
+    "dev": "bun --watch run index.ts",
+    "typecheck": "tsc --noEmit",
+    "demo": "bun run index.ts --demo"
+  },
+  "dependencies": {
+    "@ieat/shared": "workspace:*",
+    "zod": "^4.1.13"
+  }
+}
