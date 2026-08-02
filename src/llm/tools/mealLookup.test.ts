@@ -104,6 +104,28 @@ describe("find_meals", () => {
     expect(FIND_MEALS_WINDOW_DAYS).toBe(7);
   });
 
+  test("a query reaches a matching meal the newest rows have pushed past the cap", async () => {
+    // The cap bounds the ANSWER, not the search. With the LIMIT applied before the filter, a busy
+    // week buried the one meal the model asked for: `find_meals(["sushi"])` answered "nothing"
+    // while the row sat in the window — the exact lookup this tool exists to serve.
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await insertMeal(db, {
+      id: "m-sushi", user_id: 1, ts: "2026-07-28T12:00:00Z", date: "2026-07-28",
+      analysis: analysis({ items: [{ name: "sushi", grams: 300 }] }),
+    });
+    for (let i = 0; i < FIND_MEALS_MAX_ROWS + 5; i++) {
+      await insertMeal(db, {
+        id: `m${i}`, user_id: 1, ts: `2026-08-01T${String(i % 24).padStart(2, "0")}:00:00Z`,
+        date: "2026-08-01", analysis: analysis({ items: [{ name: "salad", grams: 100 }] }),
+      });
+    }
+    expect((await run(db, 1, { queries: ["sushi"] })).meals.map((m) => m.mealId)).toEqual(["m-sushi"]);
+    // and a modest limit — the shape a model actually emits — does not narrow the search either
+    expect((await run(db, 1, { queries: ["sushi"], limit: 5 })).meals.map((m) => m.mealId))
+      .toEqual(["m-sushi"]);
+  });
+
   test("row count is capped however large a limit the model asks for", async () => {
     const db = await freshTestDb();
     await upsertUser(db, { telegram_id: 1 });

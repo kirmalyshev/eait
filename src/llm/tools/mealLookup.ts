@@ -33,12 +33,29 @@ import type { Db } from "../../db.ts";
 export const FIND_MEALS_WINDOW_DAYS = 7;
 
 /**
- * Hard cap on rows per lookup, applied AFTER the model's own `limit`.
+ * Hard cap on rows RETURNED per lookup, applied after the model's own `limit`.
  *
- * This runs inside a turn the user is waiting on and every row is paid for in prompt tokens, so the
- * model does not get to decide how much of the diary to load. A model asking for 999 gets this.
+ * This runs inside a turn the user is waiting on and every returned row is paid for in prompt
+ * tokens, so the model does not get to decide how much of the diary to load. A model asking for
+ * 999 gets this.
  */
 export const FIND_MEALS_MAX_ROWS = 20;
+
+/**
+ * How many rows the SQL read may scan before the query filter runs. Distinct from the cap above,
+ * and the distinction is load-bearing.
+ *
+ * The two were the same number, which put the `LIMIT` before the filter: `find_meals(["pasta"])`
+ * searched only the twenty most recent meals in the window, and a model that also passed a modest
+ * `limit` (5 is a natural thing to ask for) searched only the five most recent — so the tool
+ * answered "no pasta" for a diary that had one, on exactly the lookup the feature exists to serve.
+ * Four meals a day fills twenty rows in five days, short of the seven the description promises.
+ *
+ * Scanning wider costs nothing the user waits on: the token bound is on what is RETURNED, and this
+ * is one indexed read of one user's rows on the same host. The ceiling stays because a bound that
+ * can never be reached in practice is still a bound.
+ */
+export const FIND_MEALS_SCAN_ROWS = 200;
 
 export interface FindMealsDeps {
   tz: string;
@@ -105,15 +122,16 @@ export function makeFindMealsTool(db: Db, deps: FindMealsDeps) {
 
       // The model's limit narrows, never widens: `Math.min` against the hard cap, and any junk
       // (null, "5", NaN — all shapes models actually emit) falls back to the cap rather than
-      // rejecting the call and costing a retry.
+      // rejecting the call and costing a retry. It bounds the ANSWER, not the search — see
+      // `FIND_MEALS_SCAN_ROWS`.
       const asked = typeof limit === "number" && Number.isFinite(limit) && limit >= 1
         ? Math.trunc(limit)
         : FIND_MEALS_MAX_ROWS;
-      const rows = await mealsInWindow(db, userId, from, today, Math.min(asked, FIND_MEALS_MAX_ROWS));
+      const rows = await mealsInWindow(db, userId, from, today, FIND_MEALS_SCAN_ROWS);
 
-      // Filtering in memory rather than SQL: `items` is a JSON blob, the row set is already capped
-      // at 20, and a substring match over a handful of food names is not worth a jsonb query whose
-      // behaviour would then differ from the repertoire code that reads the same column.
+      // Filtering in memory rather than SQL: `items` is a JSON blob, the scan is bounded above, and
+      // a substring match over food names is not worth a jsonb query whose behaviour would then
+      // differ from the repertoire code that reads the same column.
       const needles = (queries ?? [])
         .filter((q): q is string => typeof q === "string" && q.trim() !== "")
         .map((q) => q.trim().toLowerCase());
@@ -124,8 +142,10 @@ export function makeFindMealsTool(db: Db, deps: FindMealsDeps) {
           return needles.some((n) => name.includes(n));
         });
 
+      // Filter first, THEN take the answer's worth: the rows are already newest-first, so this
+      // keeps the likeliest candidates among the ones that actually matched.
       return {
-        meals: rows.filter(matches).map((m) => ({
+        meals: rows.filter(matches).slice(0, Math.min(asked, FIND_MEALS_MAX_ROWS)).map((m) => ({
           mealId: m.id,
           date: m.date,
           time: timeOf(m.ts, deps.tz),

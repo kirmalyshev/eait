@@ -3594,6 +3594,38 @@ test("today's meals reach the router prompt WITH their ids", async () => {
   expect((seen as { mealId?: string }[])[0]!.mealId).toBe("m-pasta");
 });
 
+test("recovery scans the whole week, not just the newest rows the prompt budget allows", async () => {
+  // The recovery read shares `mealsInWindow` with `find_meals`, whose default limit is a PROMPT
+  // budget — nothing here reaches a model. Left at that default, a week busier than twenty meals
+  // made the older days unmatchable and the edit was refused with the row sitting in the window.
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "redate", dayOffset: 1 }), // no analysis, no mealId
+  });
+  await onboardToActive(deps, 1);
+  const date = berlinDate(new Date(), cfg.tz);
+  await dbModule.insertMeal(db, {
+    id: "m-sushi", user_id: 1, ts: `${berlinDateMinus(date, 3)}T12:00:00Z`,
+    date: berlinDateMinus(date, 3),
+    analysis: { ...CORRECTED, items: [{ name: "sushi", grams: 300 }] },
+  });
+  for (let i = 0; i < 25; i++) {
+    await dbModule.insertMeal(db, {
+      id: `m${i}`, user_id: 1, ts: `${date}T${String(i % 24).padStart(2, "0")}:00:00Z`, date,
+      analysis: { ...CORRECTED, items: [{ name: "салат", grams: 100 }] },
+    });
+  }
+  const c = kbCollector();
+
+  await processText(deps, { id: 1 }, { text: "sushi was yesterday, move it", messageId: 5 }, c.send);
+
+  const apply = c.dataOf().find((d) => d?.startsWith("ce:ok:"));
+  expect(apply).toBeDefined();
+  await processEditDecision(deps, { id: 1 }, apply!, c.send);
+  expect((await dbModule.getMeal(db, "m-sushi", 1))!.date).toBe(berlinDateMinus(date, 1));
+});
+
 test("a recovered candidate list is capped to the same keyboard budget the tool schema enforces", async () => {
   // The engine's recovery path has no zod schema bounding it, so a week of "coffee" would render a
   // button per meal. Capped and logged — a truncated list looks exactly like a complete one.

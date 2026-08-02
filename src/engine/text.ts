@@ -69,6 +69,17 @@ async function sweepPendingEdits(db: EngineDeps["db"]): Promise<void> {
 const MIN_FOOD_WORD = 4;
 
 /**
+ * How many of the window's meals the name match may scan.
+ *
+ * `mealsInWindow`'s default limit is a PROMPT budget — it exists because `find_meals` pays for
+ * every row it hands the model in tokens. Nothing here reaches a model: the rows are matched
+ * against strings in this process and only the survivors (capped at `MAX_MEAL_CHOICES`) are ever
+ * rendered. Left at the default, a user logging four meals a day had the oldest two days of the
+ * seven-day window silently unreachable by the recovery this whole path exists to provide.
+ */
+const RECOVERY_SCAN_ROWS = 200;
+
+/**
  * Find the meals an UNTARGETED edit could be about, from whatever signal it does carry.
  *
  * THE FALLBACK EXISTS BECAUSE THE MODEL IS NOT RELIABLE ABOUT THIS, and that was measured, not
@@ -99,7 +110,9 @@ async function recoverTargets(
     .map((n) => n.trim().toLowerCase());
   const haystack = signal.text.toLowerCase();
 
-  const window = await mealsInWindow(db, userId, berlinDateMinus(today, WEEK_DAYS), today);
+  const window = await mealsInWindow(
+    db, userId, berlinDateMinus(today, WEEK_DAYS), today, RECOVERY_SCAN_ROWS,
+  );
   return window.filter((m) =>
     m.items.some((it) => {
       const stored = `${it.name} ${it.name_en ?? ""}`.toLowerCase();
