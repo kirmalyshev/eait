@@ -9,7 +9,7 @@
 //
 // Results are typed unions; every string a user sees is still resolved by the surface.
 
-import { berlinDate, clearSetting, llmCallCountToday, setSetting } from "../db.ts";
+import { berlinDate, clearSetting, deleteUser, llmCallCountToday, setSetting } from "../db.ts";
 import { CAP_KEY, effectiveGlobalCap } from "./caps.ts";
 import type { Allowlist } from "../allowlist.ts";
 import type { EngineDeps, UserId } from "./deps.ts";
@@ -191,3 +191,20 @@ export async function listAllowed(
 }
 
 export { isRefusal as isAdminRefusal };
+
+// ---------- erasure ----------
+
+/**
+ * Delete everything stored about one user.
+ *
+ * Not admin-gated: it is the user's own account, and the promise the confirm prompt makes is total.
+ * It lives in the engine rather than in a handler because the erasure has to be the SAME operation
+ * whichever front end asks for it — a second implementation is how a table gets missed, and a
+ * missed table is a deletion that quietly did not happen.
+ *
+ * In-memory surface state (the Telegram rejection log) is NOT covered here; the surface clears its
+ * own, because only it knows what it is holding.
+ */
+export async function deleteAccount(deps: EngineDeps, userId: UserId): Promise<void> {
+  await deleteUser(deps.db, userId);
+}

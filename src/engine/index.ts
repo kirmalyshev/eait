@@ -21,7 +21,7 @@ export {
 export { profileFromRow, mealRecordToAnalysis, replyFormatFor } from "./profile.ts";
 export { effectiveGlobalCap, checkCaps, CAP_KEY } from "./caps.ts";
 export {
-  readCap, setCap, allowUser, denyUser, listAllowed, isAdminRefusal,
+  readCap, setCap, allowUser, denyUser, listAllowed, isAdminRefusal, deleteAccount,
   type AdminRefusal, type AllowlistResult, type CapChange, type CapStatus,
 } from "./admin.ts";
 export type {

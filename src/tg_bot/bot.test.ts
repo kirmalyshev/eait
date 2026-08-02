@@ -9,6 +9,7 @@ import {
   processLangPrompt, processLangChoice, buildCommands, processSettingsOpen,
   processSettingsCallback, processSettingsInput, helpText, commandRegistrations, isAllowed,
   processCap, effectiveGlobalCap, processWaitlist,
+  processDeletePrompt, processDeleteDecision, processStats,
   createBot, startBot, adminLangFor, isFatalTelegramError, describeError, processDocument,
   processAlbum, makeSendRich, processEditDecision,
   type BotDeps, type Send, type Edit, type PendingAlbumPart,
@@ -3631,4 +3632,101 @@ test("a recovered candidate list is capped to the same keyboard budget the tool 
   await processText(deps, { id: 1 }, { text: "паста была 200г", messageId: 5 }, c.send);
 
   expect(c.dataOf().length).toBe(MAX_MEAL_CHOICES);
+});
+
+// ---------- /delete and /stats (extracted from their handler bodies; previously untested) ----------
+
+/** A collector that keeps the buttons too — the delete prompt IS its buttons. */
+function buttonCollector() {
+  const sent: Array<{ text: string; buttons?: InlineButton[][] }> = [];
+  const send: Send = async (text, buttons) => {
+    sent.push({ text, ...(buttons ? { buttons } : {}) });
+    return { chat_id: 1, message_id: sent.length };
+  };
+  return { sent, send };
+}
+
+test("/delete asks first and erases nothing on its own", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
+  await onboardToActive(deps, 940);
+  const c = buttonCollector();
+  await processDeletePrompt(deps, { id: 940 }, c.send);
+
+  expect(c.sent[0]!.text).toBe(tEn("delete.prompt"));
+  expect(c.sent[0]!.buttons!.flat().map((b) => b.data)).toEqual(["delete_confirm", "delete_cancel"]);
+  // The whole point of a confirm step: the prompt is not the deletion.
+  expect(await getUser(db, 940)).toBeDefined();
+});
+
+test("delete_cancel leaves the account untouched", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
+  await onboardToActive(deps, 941);
+  const c = collector();
+  expect(await processDeleteDecision(deps, { id: 941 }, "delete_cancel", c.send)).toBe(true);
+  expect(c.msgs[0]).toBe(tEn("delete.cancelled"));
+  expect(await getUser(db, 941)).toBeDefined();
+});
+
+test("delete_confirm erases the user and their meals", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
+  await onboardToActive(deps, 942);
+  await processPhoto(deps, { id: 942 }, [async () => new Uint8Array([1])], noop);
+  expect((await getUser(db, 942))).toBeDefined();
+
+  const c = collector();
+  expect(await processDeleteDecision(deps, { id: 942 }, "delete_confirm", c.send)).toBe(true);
+  expect(c.msgs[0]).toBe(tEn("delete.done"));
+  expect(await getUser(db, 942)).toBeUndefined();
+  const rows = await db`SELECT count(*)::int AS n FROM meals WHERE user_id = 942`;
+  expect((rows[0] as { n: number }).n).toBe(0);
+});
+
+test("delete_confirm answers in the user's language, read before the row is gone", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
+  await onboardToActive(deps, 943);
+  await processLangChoice(deps, { id: 943 }, "lang_ru", noop);
+  const c = collector();
+  await processDeleteDecision(deps, { id: 943 }, "delete_confirm", c.send);
+  // Reading the translator after the delete would fall back to the default and answer in English.
+  expect(c.msgs[0]).toBe(translatorFor("ru")("delete.done"));
+});
+
+test("delete_confirm clears the in-memory rejection log too", async () => {
+  const db = await freshTestDb();
+  const rejections = new RejectionLog();
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg, rejections });
+  await onboardToActive(deps, 944);
+  rejections.add(944, 5150);
+  expect(rejections.has(944, 5150)).toBe(true);
+  await processDeleteDecision(deps, { id: 944 }, "delete_confirm", noop);
+  // The erasure promise is total; a stale entry would leak a pre-delete interaction into the
+  // user's next life.
+  expect(rejections.has(944, 5150)).toBe(false);
+});
+
+test("processDeleteDecision ignores data it does not own, so the caller falls through", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
+  await onboardToActive(deps, 945);
+  const c = collector();
+  expect(await processDeleteDecision(deps, { id: 945 }, "st:g:goal", c.send)).toBe(false);
+  expect(c.msgs).toEqual([]);
+  expect(await getUser(db, 945)).toBeDefined();
+});
+
+test("/stats is admin-only and renders for the admin", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({ db, provider: fakeProvider("{}"), config: cfg });
+  const outsider = collector();
+  await processStats(deps, { id: 999_001 }, outsider.send);
+  expect(outsider.msgs[0]).toBe(tEn("errors.adminOnly"));
+
+  const admin = collector();
+  await processStats(deps, { id: cfg.adminUserId! }, admin.send);
+  expect(admin.msgs[0]).toBeTruthy();
+  expect(admin.msgs[0]).not.toBe(tEn("errors.adminOnly"));
 });

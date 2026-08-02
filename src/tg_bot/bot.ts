@@ -26,7 +26,7 @@ import { loadFoodIndex } from "../food_db.ts";
 import {
   openDb, berlinDate, getUser, setMealReply, mealByReply, mealById,
   dailyTotals, setPendingReply, setPendingUserMessage,
-  setMealUserMessage, deleteUser, userCount, mealCount, seenUpdate, markUpdate,
+  setMealUserMessage, userCount, mealCount, seenUpdate, markUpdate,
   hasEvent, logEvent,
   type Db, type UserRow,
 } from "../db.ts";
@@ -156,7 +156,8 @@ function fireReaction(react: React | undefined, emoji: "👀" | "👍", userId: 
 import {
   profileFromRow, mealRecordToAnalysis, advanceOnboarding, replyFormatFor,
   openSettings, applySettingsAction, submitSettingsInput, setUserLanguage,
-  readCap, setCap, allowUser, denyUser, listAllowed, isAdminRefusal, type AllowlistResult,
+  readCap, setCap, allowUser, denyUser, listAllowed, isAdminRefusal, deleteAccount,
+  type AllowlistResult,
   logPhotoMeal, confirmPendingMeal, cancelPendingMeal, dropPendingMeal,
   handleText,
   applyPendingEdit, cancelPendingEdit, dropPendingEdit, resolveMealChoice,
@@ -325,6 +326,64 @@ export async function processAllowed(
   await sendAllowlistResult(
     await listAllowed(deps, from.id, deps.allowlist), t, send, "allowlist.usage",
   );
+}
+
+/**
+ * /delete step 1 — the confirm prompt. Destructive and irreversible, so the tap is the only thing
+ * that erases anything; this sends the question and nothing else.
+ */
+export async function processDeletePrompt(
+  deps: BotDeps,
+  from: { id: number },
+  send: Send,
+): Promise<void> {
+  const t = translatorForUser(await getUser(deps.db, from.id));
+  await send(t("delete.prompt"), [[
+    { text: t("delete.button.confirm"), data: "delete_confirm" },
+    { text: t("delete.button.cancel"), data: "delete_cancel" },
+  ]]);
+}
+
+/**
+ * /delete step 2 — the tap. Returns false for data this machine does not own, so the caller can
+ * fall through to the next one.
+ */
+export async function processDeleteDecision(
+  deps: BotDeps,
+  from: { id: number },
+  data: string,
+  send: Send,
+): Promise<boolean> {
+  if (data !== "delete_confirm" && data !== "delete_cancel") return false;
+  // Read the language BEFORE the row is deleted — afterwards there is no row to read it from.
+  const t = translatorForUser(await getUser(deps.db, from.id));
+  if (data === "delete_cancel") {
+    await send(t("delete.cancelled"));
+    return true;
+  }
+  await deleteAccount(deps, from.id);
+  // In-memory surface state too: the erasure promise is total, and a stale rejection entry would
+  // leak a pre-delete interaction into the user's next life.
+  deps.rejections?.remove(from.id);
+  await send(t("delete.done"));
+  return true;
+}
+
+/**
+ * /stats — admin only. Unlike the other admin commands the gate is HERE rather than in the engine,
+ * because the answer is an operator report rather than a product operation.
+ */
+export async function processStats(
+  deps: BotDeps,
+  from: { id: number; language_code?: string | null },
+  send: Send,
+): Promise<void> {
+  const { config } = deps;
+  if (config.adminUserId === null || config.adminUserId !== from.id) {
+    await send(translatorForUser(await getUser(deps.db, from.id))("errors.adminOnly"));
+    return;
+  }
+  await send(await statsCard(deps, await adminLangFor(deps, from.id, from.language_code)));
 }
 
 /**
@@ -1170,22 +1229,12 @@ export function createBot(deps: BotDeps): Bot {
     if (ctx.from) await processLangPrompt(deps, ctx.from, sendVia(ctx));
   });
   bot.command("delete", async (ctx) => {
-    const t = await tFor(ctx);
-    await ctx.reply(t("delete.prompt"), {
-      reply_markup: new InlineKeyboard()
-        .text(t("delete.button.confirm"), "delete_confirm")
-        .text(t("delete.button.cancel"), "delete_cancel"),
-    });
+    if (ctx.from) await processDeletePrompt(deps, ctx.from, sendVia(ctx));
   });
   bot.command("stats", async (ctx) => {
-    if (!ctx.from || config.adminUserId === null || config.adminUserId !== ctx.from.id) {
-      await ctx.reply((await tFor(ctx))("errors.adminOnly"));
-      return;
-    }
-    await ctx.reply(await statsCard(deps, await adminLangFor(deps, ctx.from.id, ctx.from.language_code)));
+    if (ctx.from) await processStats(deps, ctx.from, sendVia(ctx));
   });
-  // The admin gate lives inside processCap (unlike /stats above), so this stays a two-line
-  // adapter per this folder's rule. `ctx.match` is the text after the command.
+  // `ctx.match` is the text after the command.
   bot.command("cap", async (ctx) => {
     if (ctx.from) await processCap(deps, ctx.from, String(ctx.match ?? ""), sendVia(ctx));
   });
@@ -1207,19 +1256,7 @@ export function createBot(deps: BotDeps): Bot {
     });
     if (!ctx.from) return;
     const data = ctx.callbackQuery.data;
-    if (data === "delete_confirm") {
-      const t = await tFor(ctx); // read the language BEFORE the row is deleted
-      await deleteUser(db, ctx.from.id);
-      // In-memory state too: the erasure promise is total, and a stale rejection entry would
-      // leak a pre-delete interaction into the user's next life.
-      deps.rejections?.remove(ctx.from.id);
-      await ctx.reply(t("delete.done"));
-      return;
-    }
-    if (data === "delete_cancel") {
-      await ctx.reply((await tFor(ctx))("delete.cancelled"));
-      return;
-    }
+    if (await processDeleteDecision(deps, ctx.from, data, sendVia(ctx))) return;
     if (data.startsWith("tm:")) {
       // deleteMessage targets the message the callback fired from — the confirm prompt itself.
       await processTextMealDecision(deps, ctx.from, data, sendVia(ctx), {
