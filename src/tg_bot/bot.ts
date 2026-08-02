@@ -24,12 +24,12 @@ import { createEngineAgent } from "../llm/agent.ts";
 import { modelRouterId } from "../llm/model.ts";
 import { loadFoodIndex } from "../food_db.ts";
 import {
-  openDb, berlinDate, upsertUser, getUser, setConsent, setProfile, setMealReply, mealByReply,
+  openDb, berlinDate, getUser, setProfile, setMealReply, mealByReply,
   mealById,
-  dailyTotals, logLlmCall, llmCallCountToday, setPendingReply, setPendingUserMessage,
+  dailyTotals, llmCallCountToday, setPendingReply, setPendingUserMessage,
   setMealUserMessage, deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang,
   setReplyFormat, setPendingInput, setSetting, clearSetting, hasEvent, logEvent,
-  setAcquisitionSource, type Db, type UserRow,
+  type Db, type UserRow,
 } from "../db.ts";
 import { loadAllowlist, type Allowlist } from "../allowlist.ts";
 import { AlbumBuffer } from "./albums.ts";
@@ -44,7 +44,7 @@ import {
   settingsInput, settingsRoot, settingsStep, isPendingInput,
   type PendingInput, type SettingsProfile, type SettingsView,
 } from "../settings.ts";
-import { step, type OnboardingInput, type OnboardingResult, type InlineButton } from "../onboarding.ts";
+import type { OnboardingInput, InlineButton } from "../onboarding.ts";
 import { DEFAULT_LANG, LANGS, LOCALES, isLang, resolveLang, translatorFor } from "../i18n/index.ts";
 import type { TFunction } from "i18next";
 import type { Lang, Profile, ReplyFormat } from "../types.ts";
@@ -158,7 +158,7 @@ function fireReaction(react: React | undefined, emoji: "👀" | "👍", userId: 
 // `profileOf` moved to `engine/profile.ts` — every surface needs it, not just Telegram. Re-exported
 // under its original name so this file's call sites and its tests are unchanged.
 import {
-  profileFromRow, mealRecordToAnalysis,
+  profileFromRow, mealRecordToAnalysis, advanceOnboarding,
   logPhotoMeal, confirmPendingMeal, cancelPendingMeal, dropPendingMeal,
   CAP_KEY, effectiveGlobalCap,
   handleText,
@@ -182,122 +182,29 @@ function translatorForUser(u: UserRow | undefined): TFunction {
 
 export { mealRecordToAnalysis as mealToAnalysis };
 
-/**
- * Persist an onboarding transition. The whole profile patch goes in ONE `setProfile` UPDATE
- * (plus the state), rather than a separate round-trip per field: a step never mutates more than a
- * couple of fields, but a crash between two of N sequential writes would leave a half-applied
- * transition (tags stored, limitations NULL). `setProfile` already applies each field on
- * `!== undefined`, so the sentinels (`0` for skipped weights, `''` for skipped country and
- * limitations) are forwarded verbatim and persist — a truthiness check anywhere here would drop
- * them and re-open the question on every resume. `setConsent` stays its own call: it writes the
- * `consent_at` column and moves state to `profile` in a single UPDATE of its own.
- */
-export async function applyOnboarding(db: Db, telegram_id: number, r: OnboardingResult): Promise<void> {
-  if (r.patch?.consent_at) await setConsent(db, telegram_id, r.patch.consent_at);
-  await setProfile(db, telegram_id, {
-    goal: r.patch?.goal,
-    weight_kg: r.patch?.weight_kg,
-    target_weight_kg: r.patch?.target_weight_kg,
-    country: r.patch?.country,
-    restrictions: r.patch?.restrictions,
-    medical_limitations: r.patch?.medical_limitations,
-    state: r.nextState,
-  });
-}
-
 // ---------- process functions (grammy-free, testable) ----------
 
+/**
+ * Onboarding is an ENGINE flow now (`engine/onboarding.ts`): the state machine, the restriction
+ * classifier fallback, and the persistence all live there, so `api/` can create a user too. What is
+ * left here is the two genuinely Telegram-shaped bits — turning a `language_code` into a `Lang`,
+ * and sending.
+ */
 export async function processOnboarding(
   deps: BotDeps,
   from: { id: number; username?: string | null; language_code?: string | null },
   input: OnboardingInput,
   send: Send,
 ): Promise<void> {
-  // Language is seeded at first contact so the consent screen already arrives localized.
-  // upsertUser only writes `lang` on INSERT, so a later /start never undoes a /lang change.
-  await upsertUser(deps.db, {
-    telegram_id: from.id,
-    username: from.username ?? null,
-    lang: resolveLang(from.language_code),
-  });
-  const u = await getUser(deps.db, from.id);
-  if (input.type === "command") await recordStart(deps.db, from.id, input.payload);
-  const t = translatorForUser(u);
-  const r = step(
-    u
-      ? {
-          state: u.state,
-          goal: u.goal,
-          weight_kg: u.weight_kg,
-          target_weight_kg: u.target_weight_kg,
-          country: u.country,
-        }
-      : undefined,
-    input,
-    t,
+  const r = await advanceOnboarding(
+    deps,
+    from.id,
+    { input, username: from.username ?? null, langHint: resolveLang(from.language_code) },
+    translatorFor,
   );
-  await applyRestrictionFallback(deps, u, input, r);
-  await applyOnboarding(deps.db, from.id, r);
-  if (u?.state !== "active" && r.nextState === "active") {
-    await logEvent(deps.db, from.id, "onboarding_complete");
-  }
   await send(r.reply, r.buttons);
 }
 
-/**
- * Telegram deep links (`t.me/<bot>?start=<payload>`) carry at most 64 chars of
- * `A-Za-z0-9_-`. Anything outside that grammar is dropped rather than stored — the payload
- * is an attribution campaign code, not user input. The bare `start` event is still logged
- * so organic arrivals form the no-code baseline.
- */
-const START_PAYLOAD_RE = /^[A-Za-z0-9_-]{1,64}$/;
-
-async function recordStart(db: Db, telegram_id: number, payload: string | undefined): Promise<void> {
-  const code = payload && START_PAYLOAD_RE.test(payload) ? payload : null;
-  if (code) await setAcquisitionSource(db, telegram_id, code); // first-touch: set-once in db layer
-  await logEvent(db, telegram_id, "start", code);
-}
-
-/**
- * The keyword pass in `targets.ts` only knows the languages someone wrote keywords for, so a
- * German user typing "Nieren, kein Zucker" silently loses their kidney verdict and sodium cap.
- * When it matches nothing, ask the model instead.
- *
- * This lives here, not in `onboarding.ts`, because `step()` is a pure no-I/O state machine and
- * must stay one. Mutates `r.patch` in place before it is persisted.
- */
-async function applyRestrictionFallback(
-  deps: BotDeps,
-  u: UserRow | undefined,
-  input: OnboardingInput,
-  r: OnboardingResult,
-): Promise<void> {
-  // Only the free-text restrictions step: a `restrictions_skip` tap also yields [], and an
-  // explicit skip must never be second-guessed by the model.
-  if (input.type !== "text" || !input.text.trim()) return;
-  if (r.patch?.restrictions === undefined || r.patch.restrictions.length > 0) return;
-
-  // This is a REFINEMENT: the deterministic parse (keyword tags + raw limitations) is already in
-  // `r.patch` and must persist even if this path fails, so the whole thing is guarded. The LLM
-  // classifier itself never throws (it catches internally and returns []), but the metering write
-  // `logLlmCall` can — and a throw here would propagate past the caller and skip `applyOnboarding`
-  // entirely, discarding an answer that needed no model. The model may only IMPROVE the tags.
-  try {
-    // Metered like every other provider call ("every LLM call draws one"), but deliberately NOT
-    // cap-gated: refusing an onboarding step over a spend cap would strand the user mid-flow,
-    // and this path runs at most once per user.
-    if (u) await logLlmCall(deps.db, u.telegram_id, berlinDate(new Date(), deps.config.tz), "classify");
-    const tags = await deps.classifyRestrictions(input.text, {
-      telegram_id: u?.telegram_id ?? 0, lang: translatorLangOf(u),
-    });
-    if (tags.length) r.patch.restrictions = tags;
-  } catch (e) {
-    // Keep the keyword-only result already in r.patch; the answer (tags + limitations) still saves.
-    console.error(`[eait] restriction classify/meter failed, keeping keyword parse: ${describeError(e)}`);
-  }
-}
-
-const translatorLangOf = (u: UserRow | undefined): Lang => (u ? profileOf(u).lang : DEFAULT_LANG);
 
 // ---------- access control ----------
 

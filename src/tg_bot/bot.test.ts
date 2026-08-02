@@ -7,7 +7,7 @@ import { cleanupTestDbs, freshTestDb, freshTestName, openTestDb } from "../testu
 import {
   processOnboarding, processPhoto, processText, processTextMealDecision, meCard, statsCard, profileOf,
   processLangPrompt, processLangChoice, buildCommands, processSettingsOpen,
-  processSettingsCallback, processSettingsInput, applyOnboarding, helpText, commandRegistrations, isAllowed,
+  processSettingsCallback, processSettingsInput, helpText, commandRegistrations, isAllowed,
   processCap, effectiveGlobalCap, processWaitlist,
   createBot, startBot, adminLangFor, isFatalTelegramError, describeError, processDocument,
   processAlbum, makeSendRich, processEditDecision,
@@ -968,27 +968,6 @@ test("a classifier failure leaves restrictions empty but still completes onboard
   // The deterministic parse needed no model; a provider/meter failure must not discard it.
   expect((await getUser(db, 202))?.medical_limitations).toBe("Nieren");
   expect(msgs[0]).toBe(translatorFor("de")("onboarding.done"));
-});
-
-test("applyOnboarding persists a transition in a SINGLE setProfile UPDATE (atomic, not per-field)", async () => {
-  const db = await freshTestDb();
-  await upsertUser(db, { telegram_id: 730 });
-  const spy = spyOn(dbModule, "setProfile"); // bun spyOn calls through by default, so it still persists
-  try {
-    await applyOnboarding(db, 730, {
-      nextState: "active",
-      reply: "ok",
-      patch: { restrictions: ["kidneys"], medical_limitations: "no peanuts" },
-    });
-    // The refactor's whole point: one UPDATE, so a crash can't half-apply (tags stored, medical NULL).
-    expect(spy).toHaveBeenCalledTimes(1);
-  } finally {
-    spy.mockRestore();
-  }
-  const u = (await getUser(db, 730))!;
-  expect(u.restrictions).toEqual(["kidneys"]);
-  expect(u.medical_limitations).toBe("no peanuts");
-  expect(u.state).toBe("active");
 });
 
 test("the classifier is not consulted for non-restriction steps", async () => {

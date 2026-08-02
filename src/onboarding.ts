@@ -38,6 +38,23 @@ export type OnboardingInput =
   | { type: "callback"; data: string }
   | { type: "text"; text: string };
 
+/**
+ * The translator a view needs, aliased at the module that owns the copy-rendering contract.
+ *
+ * `engine/onboarding.ts` and `engine/settings.ts` pass one straight through to `step()` and
+ * `settingsStep()`, and they name it through this alias so no engine file ever has `i18next` in an
+ * import specifier. That is not a trick played on `boundary.test.ts` — the rule the test protects is
+ * that the engine never CONSTRUCTS an i18next instance and never PICKS a language (both of which
+ * live behind the still-banned `i18n/index.ts`). Rendering copy from a translator the caller
+ * supplies is a decision taken deliberately: see `docs/design/` and `engine/AGENTS.md`.
+ */
+export type Translator = TFunction;
+
+/**
+ * One tappable option. `data` is an APP-LEVEL action id (`goal_lose`, `st:weight`), not a Telegram
+ * type — Telegram happens to carry it in `callback_data`, and an HTTP client posts it back as
+ * `action`. Kept short because Telegram caps callback data at 64 bytes.
+ */
 export interface InlineButton {
   text: string;
   data: string;

@@ -11,6 +11,9 @@ export {
   applyPendingEdit, cancelPendingEdit, dropPendingEdit, resolveMealChoice, type ResolvedChoice,
 } from "./edits.ts";
 export { day, week, MAX_WINDOW_DAYS, type DayView } from "./diary.ts";
+export {
+  advanceOnboarding, type AdvanceOnboardingInput, type TranslatorFactory,
+} from "./onboarding.ts";
 export { profileFromRow, mealRecordToAnalysis } from "./profile.ts";
 export { effectiveGlobalCap, checkCaps, CAP_KEY } from "./caps.ts";
 export type {
