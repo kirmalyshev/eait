@@ -7,11 +7,15 @@ export {
   logPhotoMeal, confirmPendingMeal, cancelPendingMeal, dropPendingMeal, type LogPhotoInput,
 } from "./meals.ts";
 export { handleText, type HandleTextInput, PENDING_TTL_MS } from "./text.ts";
+export {
+  applyPendingEdit, cancelPendingEdit, dropPendingEdit, resolveMealChoice, type ResolvedChoice,
+} from "./edits.ts";
 export { day, week, MAX_WINDOW_DAYS, type DayView } from "./diary.ts";
 export { profileFromRow, mealRecordToAnalysis } from "./profile.ts";
 export { effectiveGlobalCap, checkCaps, CAP_KEY } from "./caps.ts";
 export type {
-  Answered, ConfirmMealResult, HandleTextResult, LogPhotoResult, MealHint, MealLogged,
-  MealProposed, MealRedated, MealUpdated, Refusal, TargetGone,
+  Answered, ApplyEditResult, ConfirmMealResult, EditProposed, HandleTextResult, LogPhotoResult,
+  MealChoice, MealChoiceNeeded, MealHint, MealLogged, MealProposed, MealRedated, MealUpdated,
+  Refusal, TargetGone,
 } from "./results.ts";
 export { isMeal } from "./results.ts";

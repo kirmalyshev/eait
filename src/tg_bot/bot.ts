@@ -25,6 +25,7 @@ import { modelRouterId } from "../llm/model.ts";
 import { loadFoodIndex } from "../food_db.ts";
 import {
   openDb, berlinDate, upsertUser, getUser, setConsent, setProfile, setMealReply, mealByReply,
+  mealById,
   dailyTotals, logLlmCall, llmCallCountToday, setPendingReply, setPendingUserMessage,
   setMealUserMessage, deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang,
   setReplyFormat, setPendingInput, setSetting, clearSetting, hasEvent, logEvent,
@@ -162,6 +163,9 @@ import {
 } from "../engine/meals.ts";
 import { CAP_KEY, effectiveGlobalCap } from "../engine/caps.ts";
 import { handleText } from "../engine/text.ts";
+import {
+  applyPendingEdit, cancelPendingEdit, dropPendingEdit, resolveMealChoice,
+} from "../engine/edits.ts";
 import { startApi, type ApiServer } from "../api/server.ts";
 import type { Refusal } from "../engine/results.ts";
 export { profileFromRow as profileOf };
@@ -737,7 +741,17 @@ export async function processDocument(
 export async function processText(
   deps: BotDeps,
   from: { id: number },
-  msg: { text: string; messageId: number; replyTo?: number },
+  msg: {
+    text: string;
+    messageId: number;
+    replyTo?: number;
+    /**
+     * A focus meal the CALLER already resolved, used by the disambiguation replay: the user tapped
+     * a candidate, which is as explicit as a reply and arrives without one. Never set from a
+     * Telegram update.
+     */
+    focusMealId?: string;
+  },
   send: Send,
   opts?: { react?: React; sendRich?: SendRich },
 ): Promise<boolean> {
@@ -750,7 +764,13 @@ export async function processText(
   // meaningful — e.g. to the bot's own "send your weight" prompt — does not.
   const isRejectionReply =
     msg.replyTo !== undefined && (deps.rejections?.has(from.id, msg.replyTo) ?? false);
-  const focus = msg.replyTo !== undefined ? await mealByReply(db, from.id, msg.replyTo) : undefined;
+  // Still user-scoped through `mealById`, so a caller-supplied id can only ever name this user's
+  // own meal — the same rule `mealByReply` obeys.
+  const focus = msg.focusMealId !== undefined
+    ? await mealById(db, from.id, msg.focusMealId)
+    : msg.replyTo !== undefined
+      ? await mealByReply(db, from.id, msg.replyTo)
+      : undefined;
 
   // A /settings text prompt (weight / target weight / "other" country) consumes this message
   // BEFORE the router — no LLM call, no cap draw. Photos never hit this path (they stay meals).
@@ -839,6 +859,43 @@ export async function processText(
     return true;
   }
 
+  // The agent could not tell which meal was meant. Its question, plus one button per candidate —
+  // the tap replays this very message with that meal in focus.
+  if (result.kind === "choose-meal") {
+    await send(
+      result.question,
+      result.candidates.map((c, i) => [
+        { text: choiceLabel(c, t), data: `ce:pick:${result.pendingId}:${i}` },
+      ]),
+    );
+    fireReaction(opts?.react, "👍", from.id);
+    return true;
+  }
+
+  // An edit whose target the AGENT worked out. Confirm-first, unlike the reply-based path: the
+  // user pointed at nothing, so the card has to name the meal it is about to change.
+  if (result.kind === "edit-proposed") {
+    const targetName = mealNameOf(result.current);
+    const promptLine = result.edit === "redate"
+      ? t("edit.confirmRedate", {
+          meal: targetName,
+          date: berlinDayLabel(result.newDate, prof.lang, config.tz),
+        })
+      : t("edit.confirmCorrection", { meal: targetName });
+    // Totals for the day the meal is on TODAY, matching the text-meal prompt: they show the day as
+    // it stands, and the edit is what is being asked about.
+    const totals = await dailyTotals(db, from.id, result.date);
+    const dateLabel = mealDateLabel(result.date, date, prof.lang, config.tz);
+    const preview = promptLine + "\n" +
+      formatReply(result.proposed, totals, targetsFor(prof), t, prof.restrictions, { dateLabel });
+    await send(preview, [[
+      { text: t("edit.applyButton"), data: `ce:ok:${result.pendingId}` },
+      { text: t("edit.cancelButton"), data: `ce:no:${result.pendingId}` },
+    ]]);
+    fireReaction(opts?.react, "👍", from.id);
+    return true;
+  }
+
   // proposed → confirm before logging. Unlike a photo, free text is easy to misread as a meal, so
   // nothing reaches `meals` until the tap, and the resolved date is on the prompt to catch a
   // misparse.
@@ -860,6 +917,33 @@ export async function processText(
   }
   fireReaction(opts?.react, "👍", from.id);
   return true;
+}
+
+/**
+ * How much of a meal's item list fits in a confirm prompt or on a button.
+ *
+ * Inline button text is not a place Telegram will wrap for you, and a prompt that names the target
+ * only helps if the name is readable — so both are trimmed to a length that stays on one line on a
+ * phone rather than to any protocol limit.
+ */
+const MEAL_LABEL_CAP = 40;
+
+/** A meal's items as one short human label. The ellipsis is the signal it was cut. */
+function mealNameOf(analysis: { items: { name: string }[] }): string {
+  const joined = analysis.items.map((i) => i.name).join(", ");
+  return joined.length > MEAL_LABEL_CAP ? `${joined.slice(0, MEAL_LABEL_CAP - 1).trimEnd()}…` : joined;
+}
+
+/**
+ * One disambiguation button: the time of day plus what was in it.
+ *
+ * The time is what actually separates two same-named meals ("08:12 coffee" from "15:40 coffee"),
+ * which is the case this whole flow exists for. A meal whose stored timestamp did not parse has an
+ * empty time, and falls back to the items alone rather than rendering a stray separator.
+ */
+function choiceLabel(c: { time: string; items: string[] }, t: TFunction): string {
+  const meal = mealNameOf({ items: c.items.map((name) => ({ name })) });
+  return c.time ? t("edit.choiceButton", { time: c.time, meal }) : meal;
 }
 
 /**
@@ -960,6 +1044,123 @@ export async function processTextMealDecision(
   // prompt and its re-tappable row in place, never neither.
   await removeConfirm("post-log");
   await dropPendingMeal(deps, from.id, id!);
+}
+
+/**
+ * Handles the `ce:` taps on a chat-targeted edit: Apply, Cancel, and the disambiguation buttons.
+ *
+ * Mirrors `processTextMealDecision` deliberately, including the part that looks like an
+ * afterthought: the confirm card is deleted only AFTER the result card has been sent. A failed send
+ * would otherwise leave the user with neither the old prompt nor a new card, and no way to retry —
+ * where keeping both means a re-tap converges (`applyCorrection` and `setMealDate` are idempotent).
+ *
+ * `ce:pick` does not apply anything. It resolves the tapped candidate and replays the user's
+ * ORIGINAL message through `processText` with that meal as the focus, which is the ordinary
+ * unambiguous path. That costs a second router call, and it is the reason the tool carries no
+ * analysis: the user's tap makes the target as explicit as a reply, so the second pass is a normal
+ * reply-shaped edit rather than a half-finished one this layer would have to keep in step.
+ */
+export async function processEditDecision(
+  deps: BotDeps,
+  from: { id: number },
+  data: string,
+  send: Send,
+  opts?: { sendRich?: SendRich; react?: React; deleteConfirm?: () => Promise<void> },
+): Promise<void> {
+  const { db, config } = deps;
+  const u = await getUser(db, from.id);
+  const t = translatorForUser(u);
+  const removeConfirm = async (where: string) => {
+    try {
+      await opts?.deleteConfirm?.();
+    } catch (e) {
+      console.warn(`[eait] failed to delete edit prompt user=${from.id} at=${where}: ${describeError(e)}`);
+    }
+  };
+
+  const pick = /^ce:pick:([^:]+):(\d+)$/.exec(data);
+  if (pick) {
+    const [, id, idx] = pick;
+    const choice = await resolveMealChoice(deps, from.id, id!, Number(idx));
+    if (!choice) {
+      await removeConfirm("choice-gone");
+      await send(t("edit.choiceGone"));
+      return;
+    }
+    // Clear the question BEFORE replaying: the replay sends its own message, and leaving a live
+    // keyboard above it invites a second tap that would run the whole turn again.
+    await removeConfirm("picked");
+    await dropPendingEdit(deps, from.id, id!);
+    await processText(
+      deps,
+      from,
+      // No `replyTo`: the focus is supplied directly. `messageId` is only used to map a reply back
+      // to a meal, and there is no new user message here to map.
+      { text: choice.text, messageId: 0, focusMealId: choice.mealId },
+      send,
+      { ...(opts?.react ? { react: opts.react } : {}), ...(opts?.sendRich ? { sendRich: opts.sendRich } : {}) },
+    );
+    return;
+  }
+
+  const m = /^ce:(ok|no):(.+)$/.exec(data);
+  if (!m) return;
+  const [, action, id] = m;
+
+  if (action === "no") {
+    const cancelled = await cancelPendingEdit(deps, from.id, id!);
+    await removeConfirm(cancelled.kind);
+    await send(t(cancelled.kind === "cancelled" ? "edit.cancelled" : "edit.pendingGone"));
+    return;
+  }
+
+  const result = await applyPendingEdit(deps, from.id, id!);
+  if (result.kind === "expired") {
+    await removeConfirm("expired");
+    await send(t("edit.pendingGone"));
+    return;
+  }
+  if (result.kind === "target-gone") {
+    await removeConfirm("target-gone");
+    // A failed correction can be rephrased; a failed re-date cannot — same distinction the
+    // reply-based path draws, and the reason `TargetGone` carries `on` at all.
+    await send(t(result.on === "redate" ? "errors.redateFailed" : "errors.correctionFailed"));
+    await dropPendingEdit(deps, from.id, id!);
+    return;
+  }
+  if (result.kind !== "updated" && result.kind !== "redated") {
+    // The row exists but its owner is gone or inactive — near-impossible for someone who just
+    // tapped their own prompt. Nothing to render, so prompt and row stay put rather than leaving
+    // an applied edit with no card.
+    console.warn(`[eait] pending edit ${id} tapped by a non-active user=${from.id} (${result.kind})`);
+    return;
+  }
+
+  if (!u) return;
+  const prof = profileOf(u);
+  const today = berlinDate(new Date(), config.tz);
+  const dateLabel = mealDateLabel(result.date, today, prof.lang, config.tz);
+  const prefix = result.kind === "redated"
+    ? t("meal.movedPrefix", { date: berlinDayLabel(result.date, prof.lang, config.tz) })
+    : t("meal.updatedPrefix");
+  const sent = await sendCard(replyFormatFor(prof, config), send, opts?.sendRich, {
+    html: renderMealCard(result.analysis, result.totals, targetsFor(prof), t, prof.restrictions, { prefix, dateLabel }),
+    plain: prefix + "\n" + formatReply(result.analysis, result.totals, targetsFor(prof), t, prof.restrictions, { dateLabel }),
+  });
+  if (!sent) {
+    console.error(`[eait] edit ${result.mealId} applied but card send failed user=${from.id}; keeping prompt+pending for retry`);
+    return;
+  }
+  // REDATE ONLY, for the reason the reply-based path gives: `meals` has one `bot_message_id`, so
+  // re-pointing it moves which card a reply resolves and orphans the previous one. A move earns
+  // that (a reply to the Moved card saying "one more day back" must find a focus); a correction
+  // does not, because the user keeps replying to the original meal card.
+  if (result.kind === "redated") {
+    await setMealReply(db, result.mealId, from.id, sent.chat_id, sent.message_id);
+  }
+  await removeConfirm("post-apply");
+  await dropPendingEdit(deps, from.id, id!);
+  fireReaction(opts?.react, "👍", from.id);
 }
 
 export async function meCard(deps: BotDeps, userId: number): Promise<string | null> {
@@ -1224,6 +1425,16 @@ export function createBot(deps: BotDeps): Bot {
       });
       return;
     }
+    if (data.startsWith("ce:")) {
+      // Same deleteMessage discipline as `tm:` — it targets the message the callback fired from,
+      // which is the confirm prompt or the disambiguation question.
+      await processEditDecision(deps, ctx.from, data, sendVia(ctx), {
+        sendRich: sendRichVia(ctx),
+        react: reactVia(ctx),
+        deleteConfirm: () => ctx.deleteMessage().then(() => undefined),
+      });
+      return;
+    }
     if (data.startsWith("st:")) {
       await processSettingsCallback(deps, ctx.from, data, editVia(ctx));
       return;
@@ -1435,6 +1646,11 @@ export async function startBot(config: Config): Promise<{ db: Db; stop: () => Pr
     );
     const agent = createEngineAgent(routerId, memory, {
       ...(loaded ? { foodIndex: loaded.index } : {}),
+      // The db handle is what registers `find_meals`, so an edit can be targeted from the
+      // conversation instead of from a reply. Without it the agent simply cannot search the diary
+      // and editing degrades to the reply path — which is why the tool is optional, not assumed.
+      db,
+      tz: config.tz,
     });
     const engineDeps = {
       db, config,

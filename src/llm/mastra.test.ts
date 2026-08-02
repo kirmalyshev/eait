@@ -4,7 +4,7 @@ import type { PostgresStore } from "@mastra/pg";
 import { freshTestName, openTestDb, cleanupTestDbs } from "../testutil.ts";
 import { createMastra } from "./mastra.ts";
 
-afterAll(cleanupTestDbs);
+afterAll(cleanupTestDbs, 60_000); // dropping N databases outlives the 5s default under load
 
 function pgBase() {
   return {

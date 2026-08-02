@@ -11,16 +11,18 @@
 // before calling; a mobile client already knows the id because the user tapped a card.
 
 import {
-  applyCorrection, berlinDate, berlinDateMinus, berlinTime, dailyTotals, getUser, insertPendingMeal,
-  logLlmCall, mealById, mealsOnDate, prunePendingMeals, setMealDate, totalsByDate,
+  applyCorrection, berlinDate, berlinDateMinus, berlinTime, dailyTotals, getUser, insertPendingEdit,
+  insertPendingMeal, logLlmCall, mealById, mealsOnDate, prunePendingEdits, prunePendingMeals,
+  setMealDate, totalsByDate,
 } from "../db.ts";
 import { targetsFor } from "../targets.ts";
 import { mealRecordToAnalysis } from "./profile.ts";
 import { profileFromRow } from "./profile.ts";
 import { checkCaps } from "./caps.ts";
 import type { RouteContext } from "../analyzer.ts";
+import type { MealRecord } from "../types.ts";
 import type { EngineDeps, UserId } from "./deps.ts";
-import type { HandleTextResult } from "./results.ts";
+import type { HandleTextResult, MealChoice } from "./results.ts";
 
 /** Mirrors the 7-day week context the router is given (weekStart = today − 7d). */
 const WEEK_DAYS = 7;
@@ -41,6 +43,28 @@ export interface HandleTextInput {
   /** Same "seen" hook as the photo flow — fired after the gate, before the caps. */
   onAccepted?: () => void;
 }
+
+/**
+ * Sweep expired pending edits, on the same lazy-on-insert schedule and the same TTL as pending
+ * meals. A sweep failure must never cost the user their (already metered) edit — logged and
+ * skipped, and the next insert retries anyway.
+ */
+async function sweepPendingEdits(db: EngineDeps["db"]): Promise<void> {
+  try {
+    await prunePendingEdits(db, new Date(Date.now() - PENDING_TTL_MS).toISOString());
+  } catch (e) {
+    console.warn(`[eait] pending-edit sweep failed: ${(e as Error)?.message}`);
+  }
+}
+
+/** A stored meal reduced to what a disambiguation button needs to be distinguishable. */
+const toChoice = (tz: string) => (m: MealRecord): MealChoice => ({
+  mealId: m.id,
+  date: m.date,
+  time: Number.isNaN(Date.parse(m.ts)) ? "" : berlinTime(new Date(m.ts), tz),
+  items: m.items.map((it) => it.name),
+  kcal: m.kcal,
+});
 
 const fire = (hook: (() => void) | undefined, userId: UserId): void => {
   void Promise.resolve()
@@ -113,14 +137,81 @@ export async function handleText(
     return { kind: "proposed", pendingId, analysis: route.analysis, date: mealDate };
   }
 
-  // Correction and redate both act on the focus meal. The router guarantees one is present; a
-  // missing one here is a wiring bug, and returning `target-gone` keeps it from ever being
-  // silently re-routed into a NEW meal.
-  if (!focus) {
-    // Distinct from `target-gone`: the row did not vanish, the caller wired this wrong. Surfaces as
-    // the generic failure, exactly as it did before, rather than as "your meal was deleted".
-    console.error(`[eait] ${route.intent} intent without focus row user=${userId} — should be unreachable`);
+  if (route.intent === "choose") {
+    // The agent found several possible targets and refused to guess. Resolve the ids it named
+    // against the user's OWN rows — a hallucinated or foreign id simply drops out, so the buttons
+    // can only ever offer meals that exist and belong to the caller.
+    const found: MealRecord[] = [];
+    for (const id of route.mealIds) {
+      const m = await mealById(db, userId, id);
+      if (m) found.push(m);
+    }
+    if (found.length === 0) {
+      console.error(`[eait] choose intent resolved to no real meals user=${userId}`);
+      return { kind: "analysis-failed" };
+    }
+    // One survivor is still worth asking about — "did you mean this one?" is a tap, where the
+    // generic apology is a dead end. It happens when the model names one real meal and one it
+    // invented; the real one is still the likeliest target.
+    const pendingId = crypto.randomUUID();
+    await sweepPendingEdits(db);
+    await insertPendingEdit(db, {
+      id: pendingId, user_id: userId, ts: new Date().toISOString(), kind: "choose",
+      source_text: input.text, candidates: found.map((m) => m.id),
+    });
+    return {
+      kind: "choose-meal",
+      pendingId,
+      question: route.question,
+      candidates: found.map(toChoice(config.tz)),
+    };
+  }
+
+  // Correction and redate act on a target, and there are two ways to have one: the reply's focus
+  // meal, or a `mealId` the agent found for itself. THE FOCUS WINS — a user who replied to meal A
+  // must never have meal B edited, however confident the model is about B.
+  const target = focus ?? (route.mealId ? await mealById(db, userId, route.mealId) : undefined);
+  if (!target) {
+    // Two different failures land here and they are not the same thing. With a `mealId`, the model
+    // named a meal that is not the caller's (or no longer exists) — the user should be told their
+    // target is gone. Without one, the router let through an untargeted edit, which is a wiring
+    // bug: the generic failure, exactly as before, never a silent re-route into a NEW meal.
+    if (route.mealId) {
+      console.warn(`[eait] ${route.intent} named an unreachable meal user=${userId}`);
+      return { kind: "target-gone", on: route.intent };
+    }
+    console.error(`[eait] ${route.intent} intent without a target user=${userId} — should be unreachable`);
     return { kind: "analysis-failed" };
+  }
+
+  // An INFERRED target waits for a tap; a replied-to one applies immediately. The distinction is
+  // the whole confirm-first rationale: pointing at a card is unambiguous, reading a sentence is not.
+  if (!focus) {
+    const pendingId = crypto.randomUUID();
+    const newDate = route.intent === "redate"
+      // Resolved NOW, and stored as a date rather than an offset: "move it to yesterday" typed at
+      // 23:59 and approved at 00:01 must land on the day the user meant, not one day later.
+      ? berlinDateMinus(date, route.dayOffset)
+      : target.date;
+    await sweepPendingEdits(db);
+    await insertPendingEdit(db, {
+      id: pendingId, user_id: userId, ts: new Date().toISOString(), kind: route.intent,
+      meal_id: target.id,
+      ...(route.intent === "correction" ? { analysis: route.analysis } : { new_date: newDate }),
+    });
+    const current = mealRecordToAnalysis(target);
+    return {
+      kind: "edit-proposed",
+      pendingId,
+      edit: route.intent,
+      mealId: target.id,
+      current,
+      // A re-date changes no macros, so the "after" IS the "before" — carried anyway so a surface
+      // can render both edits through one code path.
+      proposed: route.intent === "correction" ? route.analysis : current,
+      date: target.date,
+      newDate,
+    };
   }
 
   if (route.intent === "correction") {

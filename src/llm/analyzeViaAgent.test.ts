@@ -61,7 +61,7 @@ function scripted(payload: unknown) {
   return { model, seen };
 }
 
-afterAll(cleanupTestDbs);
+afterAll(cleanupTestDbs, 60_000); // dropping N databases outlives the 5s default under load
 
 function pgBase() {
   return {

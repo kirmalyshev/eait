@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
-  answerQuestionTool, submitCorrectionTool, submitRedateTool,
-  type AnswerQuestionResult, type SubmitRedateResult,
+  answerQuestionTool, askWhichMealTool, submitCorrectionTool, submitRedateTool, MAX_MEAL_CHOICES,
+  type AnswerQuestionResult, type AskWhichMealResult, type SubmitRedateResult,
 } from "./routeActions.ts";
 import { MAX_DAY_OFFSET } from "../../analyzer.ts";
 
@@ -88,5 +88,77 @@ describe("answer_question", () => {
 
   test("trims, so a padded answer is not sent with leading blank lines", async () => {
     expect((await run<AnswerQuestionResult>(answerQuestionTool, { answer: "  hi  " })).answer).toBe("hi");
+  });
+});
+
+describe("chat-targeted editing: the optional mealId", () => {
+  test("submit_correction carries a mealId when the agent found the meal itself", async () => {
+    const out = await run<{ analysis: { kcal: number }; mealId?: string }>(submitCorrectionTool, {
+      ...VALID_MEAL, mealId: "b3f1c2d4-0000-4000-8000-000000000001",
+    });
+    expect(out.mealId).toBe("b3f1c2d4-0000-4000-8000-000000000001");
+    expect(out.analysis.kcal).toBe(107);
+  });
+
+  test("the mealId never leaks into the stored analysis", async () => {
+    // It would ride into `meals.analysis` as an unknown key and read back as part of the meal.
+    const out = await run<{ analysis: Record<string, unknown> }>(submitCorrectionTool, {
+      ...VALID_MEAL, mealId: "m1",
+    });
+    expect("mealId" in out.analysis).toBe(false);
+  });
+
+  test("omitting mealId is still valid — the reply path supplies the target", async () => {
+    const out = await run<{ mealId?: string }>(submitCorrectionTool, VALID_MEAL);
+    expect(out.mealId).toBeUndefined();
+  });
+
+  test("a non-string mealId is dropped rather than vetoing the whole correction", async () => {
+    // Same discipline as dayOffset: under Mastra a schema violation is a retry, not a clean
+    // failure, so a malformed id must not cost a perfectly good analysis.
+    const out = await run<{ analysis: { kcal: number }; mealId?: string }>(submitCorrectionTool, {
+      ...VALID_MEAL, mealId: 42,
+    });
+    expect(out.mealId).toBeUndefined();
+    expect(out.analysis.kcal).toBe(107);
+  });
+
+  test("submit_redate carries a mealId too", async () => {
+    const out = await run<SubmitRedateResult & { mealId?: string }>(submitRedateTool, {
+      dayOffset: 2, mealId: "m9",
+    });
+    expect(out).toEqual({ dayOffset: 2, mealId: "m9" });
+  });
+});
+
+describe("ask_which_meal", () => {
+  test("carries the candidate ids and the question to put to the user", async () => {
+    const out = await run<AskWhichMealResult>(askWhichMealTool, {
+      mealIds: ["m1", "m2"], question: "Which coffee?",
+    });
+    expect(out).toEqual({ mealIds: ["m1", "m2"], question: "Which coffee?" });
+  });
+
+  test("fewer than two candidates is rejected — that is not a question, that is a target", async () => {
+    // A model that "asks" with one option produces a button the user must tap to get what it
+    // already knew, and an empty list produces a message with no buttons at all.
+    await expect(run(askWhichMealTool, { mealIds: ["m1"], question: "Which?" })).rejects.toThrow();
+    await expect(run(askWhichMealTool, { mealIds: [], question: "Which?" })).rejects.toThrow();
+  });
+
+  test("candidates are capped so the keyboard stays tappable", async () => {
+    const many = Array.from({ length: MAX_MEAL_CHOICES + 1 }, (_, i) => `m${i}`);
+    await expect(run(askWhichMealTool, { mealIds: many, question: "Which?" })).rejects.toThrow();
+  });
+
+  test("an empty question is rejected — the buttons need a prompt above them", async () => {
+    await expect(run(askWhichMealTool, { mealIds: ["m1", "m2"], question: "  " })).rejects.toThrow();
+  });
+
+  test("duplicate candidate ids collapse — two buttons for one meal is not a choice", async () => {
+    const out = await run<AskWhichMealResult>(askWhichMealTool, {
+      mealIds: ["m1", "m1", "m2"], question: "Which?",
+    });
+    expect(out.mealIds).toEqual(["m1", "m2"]);
   });
 });

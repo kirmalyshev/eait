@@ -10,11 +10,12 @@ import {
   processSettingsCallback, processSettingsInput, applyOnboarding, helpText, commandRegistrations, isAllowed,
   processCap, effectiveGlobalCap, processWaitlist,
   createBot, startBot, adminLangFor, isFatalTelegramError, describeError, processDocument,
-  processAlbum, makeSendRich,
+  processAlbum, makeSendRich, processEditDecision,
   type BotDeps, type Send, type Edit, type PendingAlbumPart,
 } from "./bot.ts";
 import { DEFAULT_LANG, LANGS, translatorFor } from "../i18n/index.ts";
 import { berlinDayLabel } from "../reply.ts";
+import type { InlineButton } from "../onboarding.ts";
 import type { Config } from "../config.ts";
 import type { LLMProvider } from "../llm/provider.ts";
 
@@ -3138,4 +3139,324 @@ test("one user's repertoire never leaks into another's prompt (A1)", async () =>
     { id: 57 }, [async () => new Uint8Array([1])], collector().send,
   );
   expect(seen?.repertoire ?? []).not.toContain("борщ");
+});
+
+// ---------- chat-targeted meal editing (no reply; the agent finds the meal) ----------
+// Design: docs/design/2026-08-02-chat-targeted-meal-editing.md
+
+/** A collector that also keeps the inline keyboard of each message. */
+function kbCollector() {
+  const msgs: { text: string; buttons: InlineButton[][] }[] = [];
+  const send: Send = async (text, buttons) => {
+    msgs.push({ text, buttons: buttons ?? [] });
+    return { chat_id: 1, message_id: msgs.length };
+  };
+  const last = () => msgs[msgs.length - 1]!;
+  const dataOf = () => last().buttons.flat().map((b) => b.data);
+  return { msgs, send, last, dataOf };
+}
+
+const CORRECTED = {
+  isFood: true as const, items: [{ name: "паста", grams: 200 }], kcal: 690, protein_g: 42,
+  carbs_g: 78, fat_g: 22, satfat_g: 6, fiber_g: 4, sugar_g: 5, sodium_mg: 500,
+  plant_protein_pct: 20, verdicts: {}, confidence: "medium" as const, notes: "",
+};
+
+/** An active user with one logged meal, ready to be edited from the chat. */
+async function withLoggedMeal(db: dbModule.Db, deps: BotDeps, id = 1, mealId = "m-pasta") {
+  await onboardToActive(deps, id);
+  const date = berlinDate(new Date(), cfg.tz);
+  await dbModule.insertMeal(db, {
+    id: mealId, user_id: id, ts: new Date().toISOString(), date,
+    analysis: { ...CORRECTED, kcal: 520, protein_g: 22 },
+  });
+  return { date, mealId };
+}
+
+test("a correction with no reply proposes the edit instead of applying it", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "correction", analysis: CORRECTED, mealId: "m-pasta" }),
+  });
+  const { mealId } = await withLoggedMeal(db, deps);
+  const c = kbCollector();
+
+  await processText(deps, { id: 1 }, { text: "паста была 200г, не 150", messageId: 5 }, c.send);
+
+  // NOT applied yet — the target was inferred, so it waits for a tap.
+  expect((await dbModule.getMeal(db, mealId, 1))!.kcal).toBe(520);
+  expect(c.dataOf().some((d) => d?.startsWith("ce:ok:"))).toBe(true);
+  expect(c.dataOf().some((d) => d?.startsWith("ce:no:"))).toBe(true);
+  // and the prompt NAMES the meal it is about to change — the misparse guard
+  expect(c.last().text).toContain("паста");
+});
+
+test("tapping Apply writes the correction and clears the pending row", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "correction", analysis: CORRECTED, mealId: "m-pasta" }),
+  });
+  const { mealId } = await withLoggedMeal(db, deps);
+  const c = kbCollector();
+  await processText(deps, { id: 1 }, { text: "паста была 200г", messageId: 5 }, c.send);
+  const apply = c.dataOf().find((d) => d?.startsWith("ce:ok:"))!;
+
+  await processEditDecision(deps, { id: 1 }, apply, c.send);
+
+  const meal = (await dbModule.getMeal(db, mealId, 1))!;
+  expect(meal.kcal).toBe(690);
+  expect(meal.corrected).toBe(true);
+  // the offer is spent
+  const pendingId = apply.slice("ce:ok:".length);
+  expect(await dbModule.getPendingEdit(db, pendingId, 1)).toBeUndefined();
+});
+
+test("tapping Cancel leaves the meal exactly as it was", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "correction", analysis: CORRECTED, mealId: "m-pasta" }),
+  });
+  const { mealId } = await withLoggedMeal(db, deps);
+  const c = kbCollector();
+  await processText(deps, { id: 1 }, { text: "паста была 200г", messageId: 5 }, c.send);
+  const cancel = c.dataOf().find((d) => d?.startsWith("ce:no:"))!;
+
+  await processEditDecision(deps, { id: 1 }, cancel, c.send);
+
+  expect((await dbModule.getMeal(db, mealId, 1))!.kcal).toBe(520);
+  expect(await dbModule.getPendingEdit(db, cancel.slice("ce:no:".length), 1)).toBeUndefined();
+});
+
+test("a REPLY-based correction still applies immediately — no confirm step", async () => {
+  // The whole distinction: pointing at a card is unambiguous, so it must not grow a tap.
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "correction", analysis: CORRECTED }),
+  });
+  const { mealId } = await withLoggedMeal(db, deps);
+  await dbModule.setMealReply(db, mealId, 1, 1, 77);
+  const c = kbCollector();
+
+  await processText(deps, { id: 1 }, { text: "было 200г", messageId: 5, replyTo: 77 }, c.send);
+
+  expect((await dbModule.getMeal(db, mealId, 1))!.kcal).toBe(690);
+  expect(c.dataOf()).toEqual([]);
+});
+
+test("the reply's focus meal WINS over a mealId the model chose", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    // The model points at a DIFFERENT meal than the one the user replied to.
+    routeText: async () => ({ intent: "correction", analysis: CORRECTED, mealId: "m-other" }),
+  });
+  await withLoggedMeal(db, deps, 1, "m-replied");
+  await dbModule.insertMeal(db, {
+    id: "m-other", user_id: 1, ts: new Date().toISOString(),
+    date: berlinDate(new Date(), cfg.tz), analysis: { ...CORRECTED, kcal: 100 },
+  });
+  await dbModule.setMealReply(db, "m-replied", 1, 1, 77);
+
+  await processText(deps, { id: 1 }, { text: "было 200г", messageId: 5, replyTo: 77 }, noop);
+
+  expect((await dbModule.getMeal(db, "m-replied", 1))!.kcal).toBe(690); // the replied-to one
+  expect((await dbModule.getMeal(db, "m-other", 1))!.kcal).toBe(100); // untouched
+});
+
+test("a mealId belonging to somebody else reaches nothing and says so", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "correction", analysis: CORRECTED, mealId: "m-theirs" }),
+  });
+  await withLoggedMeal(db, deps, 1, "m-mine");
+  await upsertUser(db, { telegram_id: 2 });
+  await dbModule.insertMeal(db, {
+    id: "m-theirs", user_id: 2, ts: new Date().toISOString(),
+    date: berlinDate(new Date(), cfg.tz), analysis: { ...CORRECTED, kcal: 100 },
+  });
+  const c = collector();
+
+  await processText(deps, { id: 1 }, { text: "поправь", messageId: 5 }, c.send);
+
+  expect((await dbModule.getMeal(db, "m-theirs", 2))!.kcal).toBe(100); // never touched
+  expect(c.msgs.join("\n")).toBe(translatorFor(DEFAULT_LANG)("errors.correctionFailed"));
+});
+
+test("a chat-targeted redate stores the RESOLVED date, so an overnight tap lands where the user meant", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "redate", dayOffset: 1, mealId: "m-pasta" }),
+  });
+  const { date } = await withLoggedMeal(db, deps);
+  const c = kbCollector();
+
+  await processText(deps, { id: 1 }, { text: "это было вчера", messageId: 5 }, c.send);
+
+  const pendingId = c.dataOf().find((d) => d?.startsWith("ce:ok:"))!.slice("ce:ok:".length);
+  const row = (await dbModule.getPendingEdit(db, pendingId, 1))!;
+  // A stored OFFSET would re-resolve against tomorrow's "today" and land a day late.
+  expect(row.new_date).toBe(berlinDateMinus(date, 1));
+  expect(row.kind).toBe("redate");
+
+  await processEditDecision(deps, { id: 1 }, `ce:ok:${pendingId}`, c.send);
+  expect((await dbModule.getMeal(db, "m-pasta", 1))!.date).toBe(berlinDateMinus(date, 1));
+});
+
+test("an ambiguous edit asks with one button per candidate and changes nothing yet", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({
+      intent: "choose", mealIds: ["m-a", "m-b"], question: "Какой кофе?",
+    }),
+  });
+  await onboardToActive(deps, 1);
+  const date = berlinDate(new Date(), cfg.tz);
+  for (const [id, kcal] of [["m-a", 10], ["m-b", 20]] as const) {
+    await dbModule.insertMeal(db, {
+      id, user_id: 1, ts: new Date().toISOString(), date,
+      analysis: { ...CORRECTED, items: [{ name: "кофе", grams: 200 }], kcal },
+    });
+  }
+  const c = kbCollector();
+
+  await processText(deps, { id: 1 }, { text: "поправь кофе", messageId: 5 }, c.send);
+
+  expect(c.last().text).toBe("Какой кофе?");
+  expect(c.dataOf()).toEqual([expect.stringMatching(/^ce:pick:.+:0$/), expect.stringMatching(/^ce:pick:.+:1$/)]);
+  expect((await dbModule.getMeal(db, "m-a", 1))!.kcal).toBe(10);
+});
+
+test("a candidate the model invented is dropped rather than offered as a button", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({
+      intent: "choose", mealIds: ["m-pasta", "m-hallucinated"], question: "Какой?",
+    }),
+  });
+  await withLoggedMeal(db, deps);
+  const c = kbCollector();
+
+  await processText(deps, { id: 1 }, { text: "поправь", messageId: 5 }, c.send);
+
+  expect(c.dataOf().length).toBe(1);
+});
+
+test("tapping a candidate replays the original message against that meal and applies", async () => {
+  const db = await freshTestDb();
+  let call = 0;
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async (text, _p, ctx) => {
+      call++;
+      // First pass: ambiguous. Second pass: the surface supplied a focus meal, so it is an
+      // ordinary reply-shaped correction — and it must see the ORIGINAL text.
+      if (call === 1) return { intent: "choose", mealIds: ["m-a", "m-b"], question: "Какой?" };
+      expect(text).toBe("кофе был 200мл");
+      expect(ctx.focusMeal).toBeDefined();
+      return { intent: "correction", analysis: CORRECTED };
+    },
+  });
+  await onboardToActive(deps, 1);
+  const date = berlinDate(new Date(), cfg.tz);
+  for (const id of ["m-a", "m-b"]) {
+    await dbModule.insertMeal(db, {
+      id, user_id: 1, ts: new Date().toISOString(), date,
+      analysis: { ...CORRECTED, items: [{ name: "кофе", grams: 200 }], kcal: 10 },
+    });
+  }
+  const c = kbCollector();
+  await processText(deps, { id: 1 }, { text: "кофе был 200мл", messageId: 5 }, c.send);
+  const pick = c.dataOf().find((d) => d?.endsWith(":1"))!;
+
+  await processEditDecision(deps, { id: 1 }, pick, c.send);
+
+  // The SECOND candidate is the one that changed, and it applied immediately — the tap is as
+  // explicit as a reply.
+  expect((await dbModule.getMeal(db, "m-b", 1))!.kcal).toBe(690);
+  expect((await dbModule.getMeal(db, "m-a", 1))!.kcal).toBe(10);
+  expect(call).toBe(2);
+});
+
+test("a pick index outside the offered candidates does nothing", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "choose", mealIds: ["m-pasta"], question: "Какой?" }),
+  });
+  await withLoggedMeal(db, deps);
+  const c = kbCollector();
+  await processText(deps, { id: 1 }, { text: "поправь", messageId: 5 }, c.send);
+  const pendingId = c.dataOf()[0]!.split(":")[2]!;
+
+  await processEditDecision(deps, { id: 1 }, `ce:pick:${pendingId}:9`, c.send);
+
+  expect(c.last().text).toBe(translatorFor(DEFAULT_LANG)("edit.choiceGone"));
+  expect((await dbModule.getMeal(db, "m-pasta", 1))!.kcal).toBe(520);
+});
+
+test("a tap on somebody else's pending edit reaches nothing", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "correction", analysis: CORRECTED, mealId: "m-pasta" }),
+  });
+  await withLoggedMeal(db, deps);
+  await onboardToActive(deps, 2);
+  const c = kbCollector();
+  await processText(deps, { id: 1 }, { text: "поправь", messageId: 5 }, c.send);
+  const apply = c.dataOf().find((d) => d?.startsWith("ce:ok:"))!;
+
+  const c2 = collector();
+  await processEditDecision(deps, { id: 2 }, apply, c2.send);
+
+  expect((await dbModule.getMeal(db, "m-pasta", 1))!.kcal).toBe(520); // untouched
+  expect(c2.msgs.join("\n")).toBe(translatorFor(DEFAULT_LANG)("edit.pendingGone"));
+});
+
+test("a meal deleted between proposal and tap reports target-gone, not success", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "correction", analysis: CORRECTED, mealId: "m-pasta" }),
+  });
+  await withLoggedMeal(db, deps);
+  const c = kbCollector();
+  await processText(deps, { id: 1 }, { text: "поправь", messageId: 5 }, c.send);
+  const apply = c.dataOf().find((d) => d?.startsWith("ce:ok:"))!;
+  await db`DELETE FROM meals WHERE id = ${"m-pasta"}`;
+
+  const c2 = collector();
+  await processEditDecision(deps, { id: 1 }, apply, c2.send);
+
+  expect(c2.msgs.join("\n")).toBe(translatorFor(DEFAULT_LANG)("errors.correctionFailed"));
+});
+
+test("the confirm prompt is deleted only AFTER the card is on screen", async () => {
+  // A failed send must leave the prompt and its re-tappable row, never neither.
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "correction", analysis: CORRECTED, mealId: "m-pasta" }),
+  });
+  await withLoggedMeal(db, deps);
+  const c = kbCollector();
+  await processText(deps, { id: 1 }, { text: "поправь", messageId: 5 }, c.send);
+  const apply = c.dataOf().find((d) => d?.startsWith("ce:ok:"))!;
+  const pendingId = apply.slice("ce:ok:".length);
+
+  let deleted = false;
+  await processEditDecision(deps, { id: 1 }, apply, async () => undefined, {
+    deleteConfirm: async () => { deleted = true; },
+  });
+
+  expect(deleted).toBe(false);
+  expect(await dbModule.getPendingEdit(db, pendingId, 1)).toBeDefined(); // re-tappable
 });

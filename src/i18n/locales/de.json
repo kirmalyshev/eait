@@ -65,6 +65,16 @@
     "cancelled": "Okay, nicht eingetragen.",
     "pendingGone": "Der Eintrag ist schon abgelaufen — schick die Mahlzeit noch einmal, wenn du sie eintragen willst."
   },
+  "edit": {
+    "confirmCorrection": "«{{meal}}» aktualisieren?",
+    "confirmRedate": "«{{meal}}» auf {{date}} verschieben?",
+    "applyButton": "✅ Übernehmen",
+    "cancelButton": "✖️ Abbrechen",
+    "cancelled": "Okay, alles bleibt wie es war.",
+    "pendingGone": "Dieser Vorschlag ist abgelaufen — sag es noch einmal, wenn du die Änderung noch willst.",
+    "choiceGone": "Diese Frage ist abgelaufen — frag noch einmal, dann schaue ich neu nach.",
+    "choiceButton": "{{time}} · {{meal}}"
+  },
   "help": {
     "body": "Schick mir ein Foto deiner Mahlzeit und ich schätze Kalorien und Nährwerte. Mehrere Fotos in einer Nachricht (Album) behandle ich als eine Mahlzeit.\n\nDu kannst Mahlzeiten auch als Text beschreiben — schreib einfach, was du gegessen hast (sag „gestern“ oder „vor 2 Tagen“, um rückwirkend einzutragen), bestätige kurz, und ich trage es ein.\n\nFragen zu Ernährung, deinem Ziel oder der Tagesbilanz? Einfach fragen.\n\nFalsch geschätzt? Antworte direkt auf meine Analyse mit einer Korrektur — zum Beispiel „zwei Stück, ohne Öl“ — und ich rechne neu. Antworte „auf gestern verschieben“, um diese Mahlzeit auf einen anderen Tag zu legen.\n\nBessere Fotos, bessere Schätzungen:\n• fotografiere von oben, der ganze Teller im Bild\n• gutes Licht; Besteck oder deine Hand neben dem Teller hilft mir, die Portionsgröße einzuschätzen\n• Gewicht oder Zutaten bekannt? Schreib es dazu in die Bildunterschrift\n• hohes oder geschichtetes Gericht (Schüssel, Auflauf, Stapel)? füg ein zweites Foto von der Seite hinzu — hilft mir, das Volumen einzuschätzen\n\nBefehle:\n/me — Tagesbilanz\n/cap — heutige KI-Aufrufe\n/settings — Ziel & Gewicht, Land, Ernährung (Allergien, Erkrankungen, Produkte), Sprache und Antwortstil\n/help — diese Nachricht\n/delete — alle Daten löschen\n\nSchätzungen aus einem Foto sind ungefähr und keine medizinische Beratung."
   },

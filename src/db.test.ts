@@ -1167,17 +1167,17 @@ describe("pending_edits", () => {
     expect(back.kind).toBe("correction");
     expect(back.meal_id).toBe("m1");
     expect(back.analysis!.kcal).toBe(690);
-    expect(back.day_offset).toBeNull();
+    expect(back.new_date).toBeNull();
   });
 
-  test("a redate round-trips with its day offset and no analysis", async () => {
+  test("a redate round-trips with a RESOLVED date, not an offset, and no analysis", async () => {
     const db = await freshTestDb();
     await upsertUser(db, { telegram_id: 1 });
     await insertPendingEdit(db, {
-      id: "e2", user_id: 1, ts: "t", kind: "redate", meal_id: "m1", day_offset: 2,
+      id: "e2", user_id: 1, ts: "t", kind: "redate", meal_id: "m1", new_date: "2026-07-31",
     });
     const back = (await getPendingEdit(db, "e2", 1))!;
-    expect(back.day_offset).toBe(2);
+    expect(back.new_date).toBe("2026-07-31");
     expect(back.analysis).toBeNull();
   });
 
@@ -1198,7 +1198,7 @@ describe("pending_edits", () => {
     const db = await freshTestDb();
     await upsertUser(db, { telegram_id: 1 });
     await upsertUser(db, { telegram_id: 2 });
-    await insertPendingEdit(db, { id: "e1", user_id: 1, ts: "t", kind: "redate", meal_id: "m1", day_offset: 1 });
+    await insertPendingEdit(db, { id: "e1", user_id: 1, ts: "t", kind: "redate", meal_id: "m1", new_date: "2026-08-01" });
     expect(await getPendingEdit(db, "e1", 2)).toBeUndefined();
     expect(await deletePendingEdit(db, "e1", 2)).toBe(false);
     expect(await deletePendingEdit(db, "e1", 1)).toBe(true);
@@ -1208,8 +1208,8 @@ describe("pending_edits", () => {
   test("prune drops rows older than the cutoff and keeps the rest", async () => {
     const db = await freshTestDb();
     await upsertUser(db, { telegram_id: 1 });
-    await insertPendingEdit(db, { id: "old", user_id: 1, ts: "2026-07-01T00:00:00Z", kind: "redate", meal_id: "m", day_offset: 1 });
-    await insertPendingEdit(db, { id: "new", user_id: 1, ts: "2026-08-02T00:00:00Z", kind: "redate", meal_id: "m", day_offset: 1 });
+    await insertPendingEdit(db, { id: "old", user_id: 1, ts: "2026-07-01T00:00:00Z", kind: "redate", meal_id: "m", new_date: "2026-08-01" });
+    await insertPendingEdit(db, { id: "new", user_id: 1, ts: "2026-08-02T00:00:00Z", kind: "redate", meal_id: "m", new_date: "2026-08-01" });
     await prunePendingEdits(db, "2026-07-15T00:00:00Z");
     expect(await getPendingEdit(db, "old", 1)).toBeUndefined();
     expect(await getPendingEdit(db, "new", 1)).toBeDefined();

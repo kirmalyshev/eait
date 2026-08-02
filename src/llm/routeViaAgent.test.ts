@@ -4,7 +4,7 @@ import { freshTestName, cleanupTestDbs, openTestDb } from "../testutil.ts";
 import { createMastra } from "./mastra.ts";
 import { createEngineAgent } from "./agent.ts";
 import { routeTextViaAgent } from "./routeViaAgent.ts";
-import { buildRouteText, SYSTEM_ROUTE } from "../analyzer.ts";
+import { buildRouteText, SYSTEM_ROUTE, TARGETING_GUIDANCE } from "../analyzer.ts";
 import type { RouteContext } from "../analyzer.ts";
 import { buildRequestContext } from "./context.ts";
 import type { MealAnalysis, Profile } from "../types.ts";
@@ -59,7 +59,7 @@ function scripted(...calls: { toolName: string; input: unknown }[]) {
   return { model, seen };
 }
 
-afterAll(cleanupTestDbs);
+afterAll(cleanupTestDbs, 60_000); // dropping N databases outlives the 5s default under load
 
 function pgBase() {
   return {
@@ -137,12 +137,12 @@ describe("routeTextViaAgent", () => {
   test("a correction without a focus meal AND no answer throws, never becomes a new meal", async () => {
     // The dangerous fallthrough: silently re-routing a correction into a NEW meal would double-log.
     const { model } = scripted({ toolName: "submit_correction", input: ANALYSIS });
-    await expect(route(model, ctxWith())).rejects.toThrow(/without focus meal/);
+    await expect(route(model, ctxWith())).rejects.toThrow(/without a target/);
   });
 
   test("a redate without a focus meal throws too", async () => {
     const { model } = scripted({ toolName: "submit_redate", input: { dayOffset: 1 } });
-    await expect(route(model, ctxWith())).rejects.toThrow(/without focus meal/);
+    await expect(route(model, ctxWith())).rejects.toThrow(/without a target/);
   });
 
   test("isFood=false on a meal-producing intent throws", async () => {
@@ -170,7 +170,11 @@ describe("routeTextViaAgent", () => {
     });
     await route(model, ctxWith());
     expect(offered).not.toContain("submit_restrictions");
-    expect(offered).toEqual(["answer_question", "submit_correction", "submit_meal", "submit_redate"]);
+    // find_meals is absent because `agentFor` builds the agent with no db handle; the test below
+    // covers it being offered when there is one.
+    expect(offered).toEqual([
+      "answer_question", "ask_which_meal", "submit_correction", "submit_meal", "submit_redate",
+    ]);
   });
 
   test("the router is TOLD how to use search_food_db too — a text meal is grounded like a photo", async () => {
@@ -213,5 +217,114 @@ describe("routeTextViaAgent", () => {
     // does NOT throw. Reading `.answer` off that shape would send `undefined` to the user.
     const { model } = scripted({ toolName: "answer_question", input: { answer: "" } });
     await expect(route(model, ctxWith())).rejects.toThrow(/failed validation/);
+  });
+});
+
+describe("chat-targeted editing (no reply, no focus meal)", () => {
+  test("a correction carrying a mealId is returned instead of being salvaged as a question", async () => {
+    // Before this, a correction with no focus meal was either salvaged or a loud throw — because
+    // there was no way for the model to name a meal. Now there is.
+    const { model } = scripted({
+      toolName: "submit_correction",
+      input: { ...ANALYSIS, mealId: "m-pasta" },
+    });
+    const r = await route(model, ctxWith());
+    expect(r.intent).toBe("correction");
+    expect(r).toMatchObject({ mealId: "m-pasta" });
+  });
+
+  test("a redate carrying a mealId survives with no focus meal", async () => {
+    const { model } = scripted({
+      toolName: "submit_redate",
+      input: { dayOffset: 2, mealId: "m-pasta" },
+    });
+    expect(await route(model, ctxWith())).toEqual({
+      intent: "redate", dayOffset: 2, mealId: "m-pasta",
+    });
+  });
+
+  test("a correction with NEITHER focus meal nor mealId is still salvaged or thrown", async () => {
+    // The old guard, unchanged: an untargeted edit must never silently become a new meal.
+    const { model } = scripted({ toolName: "submit_correction", input: ANALYSIS });
+    await expect(route(model, ctxWith())).rejects.toThrow(/without a target/);
+  });
+
+  test("the reply's focus meal WINS over a mealId the model invented", async () => {
+    // A user who replied to meal A must not have meal B edited. The engine resolves the target,
+    // so the router simply must not drop the focus — asserted here as the mealId being reported
+    // for what it is, with the focus present for the engine to prefer.
+    const { model } = scripted({
+      toolName: "submit_correction",
+      input: { ...ANALYSIS, mealId: "m-somewhere-else" },
+    });
+    const r = await route(model, ctxWith(focusMeal));
+    expect(r).toMatchObject({ intent: "correction", mealId: "m-somewhere-else" });
+  });
+
+  test("ask_which_meal becomes a choose result", async () => {
+    const { model } = scripted({
+      toolName: "ask_which_meal",
+      input: { mealIds: ["m1", "m2"], question: "Какой кофе?" },
+    });
+    expect(await route(model, ctxWith())).toEqual({
+      intent: "choose", mealIds: ["m1", "m2"], question: "Какой кофе?",
+    });
+  });
+
+  test("a find_meals lookup before the edit does not end the turn", async () => {
+    // Same guarantee search_food_db has: a mid-turn lookup is not terminal, and the LAST terminal
+    // call is the one that counts.
+    const { model } = scripted(
+      { toolName: "find_meals", input: { queries: ["pasta"] } },
+      { toolName: "submit_correction", input: { ...ANALYSIS, mealId: "m-pasta" } },
+    );
+    const r = await route(model, ctxWith());
+    expect(r).toMatchObject({ intent: "correction", mealId: "m-pasta" });
+  });
+});
+
+describe("the router is equipped to target meals", () => {
+  /** Same as `agentFor`, but with the db handle that registers `find_meals`. */
+  async function agentWithDb(model: MockLanguageModelV4) {
+    const database = freshTestName();
+    const db = await openTestDb(database);
+    const { memory } = await createMastra({ ...pgBase(), database });
+    return createEngineAgent(model as never, memory, { db, tz: "Europe/Berlin" });
+  }
+
+  const probe = () => {
+    const captured: { offered: string[]; sys: string } = { offered: [], sys: "" };
+    const model = new MockLanguageModelV4({
+      doGenerate: async (opts: any) => {
+        captured.offered = (opts.tools ?? []).map((t: any) => t.name ?? t.id).sort();
+        captured.sys = (opts.prompt ?? [])
+          .filter((m: any) => m.role === "system").map((m: any) => m.content).join("\n");
+        return {
+          finishReason: { unified: "tool-calls" as const, raw: undefined }, usage, warnings: [],
+          content: [{
+            type: "tool-call" as const, toolCallId: "c1", toolName: "answer_question",
+            input: JSON.stringify({ answer: "ок" }),
+          }],
+        };
+      },
+    });
+    return { model, captured };
+  };
+
+  test("find_meals is offered to a router turn when the agent has a db", async () => {
+    const { model, captured } = probe();
+    await routeTextViaAgent(await agentWithDb(model), "поправь пасту", profile, ctxWith(), buildRequestContext(1));
+    expect(captured.offered).toContain("find_meals");
+    // still never the onboarding tool, which this function could not dispatch
+    expect(captured.offered).not.toContain("submit_restrictions");
+  });
+
+  test("the router is TOLD how to target a meal it was not handed", async () => {
+    // Mastra's per-call `instructions` REPLACES the agent's, so guidance that is not appended
+    // explicitly is dead text — the bug that shipped once with LOOKUP_GUIDANCE.
+    const { model, captured } = probe();
+    await routeTextViaAgent(await agentWithDb(model), "поправь пасту", profile, ctxWith(), buildRequestContext(1));
+    expect(captured.sys).toContain(TARGETING_GUIDANCE);
+    expect(captured.sys).toContain(SYSTEM_ROUTE);
   });
 });

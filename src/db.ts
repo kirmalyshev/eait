@@ -528,7 +528,7 @@ const MIGRATIONS: Migration[] = [
           kind        TEXT NOT NULL CHECK (kind IN ('correction', 'redate', 'choose')),
           meal_id     TEXT,
           analysis    TEXT,
-          day_offset  INTEGER,
+          new_date    TEXT,
           source_text TEXT,
           candidates  TEXT
         )`;
@@ -1126,8 +1126,14 @@ export interface NewPendingEdit {
   meal_id?: string | null;
   /** `correction` only: the full updated analysis, exactly as a reply-based correction carries. */
   analysis?: MealAnalysis | null;
-  /** `redate` only: whole days before today to file the meal under. */
-  day_offset?: number | null;
+  /**
+   * `redate` only: the RESOLVED calendar date to move the meal to, not an offset.
+   *
+   * An offset would re-resolve against whatever "today" is when the user taps: "move it to
+   * yesterday" typed at 23:59 and approved at 00:01 would land a day off the day they meant. The
+   * date is fixed when the edit is proposed, which is when the user said it.
+   */
+  new_date?: string | null;
   /** `choose` only: the user's original message, replayed through the router after the tap. */
   source_text?: string | null;
   /** `choose` only: candidate meal ids, in the order the buttons are rendered. */
@@ -1141,16 +1147,16 @@ export interface PendingEdit {
   kind: PendingEditKind;
   meal_id: string | null;
   analysis: MealAnalysis | null;
-  day_offset: number | null;
+  new_date: string | null;
   source_text: string | null;
   candidates: string[] | null;
 }
 
 export async function insertPendingEdit(db: Db, e: NewPendingEdit): Promise<void> {
   await db`
-    INSERT INTO pending_edits (id, user_id, ts, kind, meal_id, analysis, day_offset, source_text, candidates)
+    INSERT INTO pending_edits (id, user_id, ts, kind, meal_id, analysis, new_date, source_text, candidates)
     VALUES (${e.id}, ${e.user_id}, ${e.ts}, ${e.kind}, ${e.meal_id ?? null},
-            ${e.analysis ? JSON.stringify(e.analysis) : null}, ${e.day_offset ?? null},
+            ${e.analysis ? JSON.stringify(e.analysis) : null}, ${e.new_date ?? null},
             ${e.source_text ?? null}, ${e.candidates ? JSON.stringify(e.candidates) : null})`;
 }
 
@@ -1193,8 +1199,8 @@ export async function getPendingEdit(
   // A row whose `kind` and payload disagree is as unusable as an unparseable one: a correction with
   // no analysis, or a choose with no candidates, would reach the surface as a tap that can do
   // nothing. Caught here rather than at four call sites.
-  if (row.kind === "correction" && !analysis) corrupt = true;
-  if (row.kind === "redate" && row.day_offset === null) corrupt = true;
+  if (row.kind === "correction" && (!analysis || !row.meal_id)) corrupt = true;
+  if (row.kind === "redate" && (row.new_date === null || !row.meal_id)) corrupt = true;
   if (row.kind === "choose" && (!candidates || candidates.length === 0)) corrupt = true;
 
   if (corrupt) {
@@ -1210,7 +1216,7 @@ export async function getPendingEdit(
     kind: row.kind as PendingEditKind,
     meal_id: row.meal_id,
     analysis,
-    day_offset: row.day_offset === null ? null : Number(row.day_offset),
+    new_date: row.new_date,
     source_text: row.source_text,
     candidates,
   };

@@ -10,7 +10,7 @@ import { buildRequestContext, requireUserId } from "./context.ts";
 import { createEngineAgent } from "./agent.ts";
 import type { SubmitMealResult } from "./tools/mealActions.ts";
 
-afterAll(cleanupTestDbs);
+afterAll(cleanupTestDbs, 60_000); // dropping N databases outlives the 5s default under load
 
 function pgBase() {
   return {
