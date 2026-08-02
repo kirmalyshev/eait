@@ -20,6 +20,10 @@ export {
 } from "./settings.ts";
 export { profileFromRow, mealRecordToAnalysis, replyFormatFor } from "./profile.ts";
 export { effectiveGlobalCap, checkCaps, CAP_KEY } from "./caps.ts";
+export {
+  readCap, setCap, allowUser, denyUser, listAllowed, isAdminRefusal,
+  type AdminRefusal, type AllowlistResult, type CapChange, type CapStatus,
+} from "./admin.ts";
 export type {
   Answered, ApplyEditResult, ConfirmMealResult, EditProposed, HandleTextResult, LogPhotoResult,
   MealChoice, MealChoiceNeeded, MealHint, MealLogged, MealProposed, MealRedated, MealUpdated,

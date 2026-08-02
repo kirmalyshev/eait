@@ -25,9 +25,9 @@ import { modelRouterId } from "../llm/model.ts";
 import { loadFoodIndex } from "../food_db.ts";
 import {
   openDb, berlinDate, getUser, setMealReply, mealByReply, mealById,
-  dailyTotals, llmCallCountToday, setPendingReply, setPendingUserMessage,
+  dailyTotals, setPendingReply, setPendingUserMessage,
   setMealUserMessage, deleteUser, userCount, mealCount, seenUpdate, markUpdate,
-  setSetting, clearSetting, hasEvent, logEvent,
+  hasEvent, logEvent,
   type Db, type UserRow,
 } from "../db.ts";
 import { loadAllowlist, type Allowlist } from "../allowlist.ts";
@@ -156,8 +156,8 @@ function fireReaction(react: React | undefined, emoji: "👀" | "👍", userId: 
 import {
   profileFromRow, mealRecordToAnalysis, advanceOnboarding, replyFormatFor,
   openSettings, applySettingsAction, submitSettingsInput, setUserLanguage,
+  readCap, setCap, allowUser, denyUser, listAllowed, isAdminRefusal, type AllowlistResult,
   logPhotoMeal, confirmPendingMeal, cancelPendingMeal, dropPendingMeal,
-  CAP_KEY, effectiveGlobalCap,
   handleText,
   applyPendingEdit, cancelPendingEdit, dropPendingEdit, resolveMealChoice,
   type Refusal,
@@ -221,149 +221,98 @@ export function isAllowed(config: Config, userId: number | undefined): boolean {
 // only thing the operator sees. Re-exported so existing importers of this module are unchanged.
 export { CAP_KEY, effectiveGlobalCap } from "../engine/index.ts";
 
-/** `/cap`, `/cap <n>`, `/cap off`, `/cap reset` — admin only. */
+/**
+ * `/cap`, `/cap <n>`, `/cap off`, `/cap reset` — admin only.
+ *
+ * The policy (who may, what parses, what gets written) is `engine/admin.ts`. What is left here is
+ * the copy, including the one piece that is genuinely a surface decision: an instance with NO admin
+ * configured stays silent rather than answering, because an answer advertises the command.
+ */
 export async function processCap(
   deps: BotDeps,
   from: { id: number },
   arg: string,
   send: Send,
 ): Promise<void> {
-  const { db, config } = deps;
-  const t = translatorForUser(await getUser(db, from.id));
-  if (config.adminUserId === null || config.adminUserId !== from.id) {
-    // Silent when no admin is configured at all: answering would advertise the command.
-    if (config.adminUserId !== null) await send(t("errors.adminOnly"));
-    return;
-  }
-
-  const a = arg.trim().toLowerCase();
+  const t = translatorForUser(await getUser(deps.db, from.id));
   const shown = (v: number | null) => (v === null ? t("cap.unlimited") : String(v));
+  const r = arg.trim() === ""
+    ? await readCap(deps, from.id)
+    : await setCap(deps, from.id, arg);
 
-  if (a === "") {
-    const date = berlinDate(new Date(), config.tz);
-    await send(
-      t("cap.current", {
-        cap: shown(await effectiveGlobalCap(db, config)),
-        // Must be the ENFORCED basis (LLM calls), not stored meals — not-food photos and Q&A
-        // draw the cap without adding a meal row, and the /cap readout exists to watch spend.
-        used: await llmCallCountToday(db, date),
-      }),
-    );
+  if (isAdminRefusal(r)) {
+    // Silent when NO admin is configured: answering would advertise that the command exists.
+    if (r.kind === "not-admin") await send(t("errors.adminOnly"));
     return;
   }
-  if (a === "off") {
-    await setSetting(db, CAP_KEY, "off");
-    await send(t("cap.off"));
-    return;
+  switch (r.kind) {
+    case "status": return void await send(t("cap.current", { cap: shown(r.cap), used: r.usedToday }));
+    case "off": return void await send(t("cap.off"));
+    case "reset": return void await send(t("cap.reset", { cap: shown(r.cap) }));
+    case "invalid": return void await send(t("cap.invalid"));
+    case "set": return void await send(t("cap.set", { cap: r.cap }));
+    default: return assertNever(r);
   }
-  if (a === "reset") {
-    await clearSetting(db, CAP_KEY);
-    await send(t("cap.reset", { cap: shown(config.globalDailyAnalysisCap) }));
-    return;
-  }
-
-  const n = Number(a);
-  // Number.isSafeInteger rejects 1.5, -5, and values past 2^53 that would round on the way in.
-  if (!Number.isSafeInteger(n) || n < 0) {
-    await send(t("cap.invalid"));
-    return;
-  }
-  await setSetting(db, CAP_KEY, String(n));
-  console.log(`[eait] global daily cap set to ${n} by admin`);
-  await send(t("cap.set", { cap: n }));
 }
 
 // ---------- runtime allowlist (/allow · /deny · /allowed) ----------
 
-/** Admin gate shared by the three allowlist commands. Mirrors processCap: silent when no
- *  admin is configured (answering would advertise the command), adminOnly otherwise. */
-async function allowlistGate(
-  deps: BotDeps,
-  from: { id: number },
+/**
+ * Renders any allowlist outcome. One mapping for all three commands, so a new result kind is a
+ * compile error in exactly one place — `assertNever` is what makes that true.
+ *
+ * `usage` differs per command (the copy names the command), so the caller passes its own key.
+ */
+async function sendAllowlistResult(
+  r: AllowlistResult,
+  t: TFunction,
   send: Send,
-): Promise<{ t: TFunction; al: Allowlist } | null> {
-  const t = translatorForUser(await getUser(deps.db, from.id));
-  const { config, allowlist } = deps;
-  if (config.adminUserId === null || config.adminUserId !== from.id) {
-    if (config.adminUserId !== null) await send(t("errors.adminOnly"));
-    return null;
+  usageKey: "allowlist.usage" | "allowlist.denyUsage",
+): Promise<void> {
+  if (isAdminRefusal(r)) {
+    if (r.kind === "not-admin") await send(t("errors.adminOnly"));
+    return;
   }
-  if (!allowlist) {
-    // Constructed without runtime access control (static env list only).
-    await send(t("allowlist.unavailable"));
-    return null;
+  switch (r.kind) {
+    case "unavailable": return void await send(t("allowlist.unavailable"));
+    case "invalid-id": return void await send(t(usageKey));
+    case "started": return void await send(t("allowlist.nowClosed", { id: r.id, count: r.count }));
+    case "added": return void await send(t("allowlist.added", { id: r.id, count: r.count }));
+    case "already": return void await send(t("allowlist.already", { id: r.id }));
+    case "removed": return void await send(t("allowlist.removed", { id: r.id, count: r.count }));
+    case "not-listed": return void await send(t("allowlist.notListed", { id: r.id }));
+    case "cant-deny-admin": return void await send(t("allowlist.cantDenyAdmin"));
+    case "open": return void await send(t("allowlist.open"));
+    case "list":
+      return void await send(t("allowlist.list", { count: r.ids.length, ids: r.ids.join(", ") }));
+    default: return assertNever(r);
   }
-  return { t, al: allowlist };
 }
 
-const parseUserId = (arg: string): number | null => {
-  const n = Number(arg.trim());
-  return Number.isSafeInteger(n) && n > 0 ? n : null;
-};
-
-/** /allow <id> — admits a user with no restart. On an open bot this STARTS an allowlist,
- *  auto-including the admin: closing the bot must never lock out the person closing it. */
+/** /allow <id> — admits a user with no restart. */
 export async function processAllow(
   deps: BotDeps,
   from: { id: number },
   arg: string,
   send: Send,
 ): Promise<void> {
-  const gate = await allowlistGate(deps, from, send);
-  if (!gate) return;
-  const { t, al } = gate;
-  const id = parseUserId(arg);
-  if (id === null) {
-    await send(t("allowlist.usage"));
-    return;
-  }
-  if (al.isOpen()) {
-    await al.add(from.id); // the admin; from.id === config.adminUserId past the gate
-    await al.add(id);
-    console.log(`[eait] allowlist started by admin: ${al.list()!.length} user(s)`);
-    await send(t("allowlist.nowClosed", { id, count: al.list()!.length }));
-    return;
-  }
-  if (al.has(id)) {
-    await send(t("allowlist.already", { id }));
-    return;
-  }
-  await al.add(id);
-  console.log(`[eait] allowlist: admin allowed user=${id}`);
-  await send(t("allowlist.added", { id, count: al.list()!.length }));
+  const t = translatorForUser(await getUser(deps.db, from.id));
+  await sendAllowlistResult(
+    await allowUser(deps, from.id, deps.allowlist, arg), t, send, "allowlist.usage",
+  );
 }
 
-/** /deny <id>. Refuses to remove the admin: past the access middleware — which has no admin
- *  exemption — that would lock the admin out of every command, including /allow itself. */
+/** /deny <id>. */
 export async function processDeny(
   deps: BotDeps,
   from: { id: number },
   arg: string,
   send: Send,
 ): Promise<void> {
-  const gate = await allowlistGate(deps, from, send);
-  if (!gate) return;
-  const { t, al } = gate;
-  const id = parseUserId(arg);
-  if (id === null) {
-    await send(t("allowlist.denyUsage"));
-    return;
-  }
-  if (al.isOpen()) {
-    await send(t("allowlist.open"));
-    return;
-  }
-  if (id === deps.config.adminUserId) {
-    await send(t("allowlist.cantDenyAdmin"));
-    return;
-  }
-  if (!al.has(id)) {
-    await send(t("allowlist.notListed", { id }));
-    return;
-  }
-  await al.remove(id);
-  console.log(`[eait] allowlist: admin denied user=${id}`);
-  await send(t("allowlist.removed", { id, count: al.list()!.length }));
+  const t = translatorForUser(await getUser(deps.db, from.id));
+  await sendAllowlistResult(
+    await denyUser(deps, from.id, deps.allowlist, arg), t, send, "allowlist.denyUsage",
+  );
 }
 
 /** /allowed — the current list, or a loud reminder that the bot is open. */
@@ -372,15 +321,10 @@ export async function processAllowed(
   from: { id: number },
   send: Send,
 ): Promise<void> {
-  const gate = await allowlistGate(deps, from, send);
-  if (!gate) return;
-  const { t, al } = gate;
-  const list = al.list();
-  if (list === null) {
-    await send(t("allowlist.open"));
-    return;
-  }
-  await send(t("allowlist.list", { count: list.length, ids: list.join(", ") }));
+  const t = translatorForUser(await getUser(deps.db, from.id));
+  await sendAllowlistResult(
+    await listAllowed(deps, from.id, deps.allowlist), t, send, "allowlist.usage",
+  );
 }
 
 /**
