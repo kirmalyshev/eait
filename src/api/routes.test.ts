@@ -4,7 +4,8 @@ import { createRouter, MAX_UPLOAD_BYTES } from "./routes.ts";
 /** `Response.json()` is `unknown`; every assertion here reads a field, so narrow once. */
 const body = async (res: Response): Promise<any> => res.json();
 import { cleanupTestDbs, freshTestDb } from "../testutil.ts";
-import { insertMeal, setProfile, upsertUser, berlinDate } from "../db.ts";
+import { getUser, insertMeal, setProfile, upsertUser, berlinDate } from "../db.ts";
+import { translatorFor } from "../i18n/index.ts";
 import type { Config } from "../config.ts";
 import { week, type EngineDeps } from "../engine/index.ts";
 import type { MealAnalysis } from "../types.ts";
@@ -401,5 +402,145 @@ describe("api router", () => {
     const res = await handle(new Request(`http://x/v1/edits/pending/${asked.pendingId}/choose/9`, { method: "POST" }));
     expect(res.status).toBe(410);
     expect((await body(await handle(new Request("http://x/v1/diary/day")))).totals.kcal).toBe(600);
+  });
+
+  // ---------- the whole user lifecycle, over HTTP only ----------
+  //
+  // The gap these close: before them the API could log meals for a user it had no way to create or
+  // configure, so `api/` was a peer of `tg_bot/` for exactly the half of the product that comes
+  // after signup. Nothing below touches Telegram.
+
+  test("a user can be created and driven to active over HTTP alone", async () => {
+    const { db, deps } = await ctx();
+    const handle = createRouter(deps, () => 750);
+    const post = (input: unknown) =>
+      handle(new Request("http://x/v1/onboarding", { method: "POST", body: JSON.stringify({ input }) }));
+
+    const first = await body(await post({ type: "command", command: "start" }));
+    expect(first.state).toBe("consent");
+    expect(first.buttons.flat().map((b: { data: string }) => b.data)).toContain("consent_agree");
+
+    await post({ type: "callback", data: "consent_agree" });
+    await post({ type: "callback", data: "goal_lose" });
+    await post({ type: "text", text: "93" });
+    await post({ type: "text", text: "85" });
+    await post({ type: "callback", data: "country_de" });
+    const done = await body(await post({ type: "text", text: "kidneys" }));
+
+    expect(done.state).toBe("active");
+    const u = (await getUser(db, 750))!;
+    expect(u.state).toBe("active");
+    expect(u.goal).toBe("lose");
+    expect(u.weight_kg).toBe(93);
+    expect(u.restrictions).toContain("kidneys");
+  });
+
+  test("a malformed onboarding input is 400, not a silent re-prompt", async () => {
+    // step() re-prompts on unrecognised callback data, so an unvalidated body would look to the
+    // client exactly like a stale tap and it would never learn the request was wrong.
+    const { deps } = await ctx();
+    const handle = createRouter(deps, () => 751);
+    for (const input of [undefined, {}, { type: "text" }, { type: "callback", data: 7 }, "start"]) {
+      const res = await handle(new Request("http://x/v1/onboarding", {
+        method: "POST", body: JSON.stringify({ input }),
+      }));
+      expect(res.status).toBe(400);
+    }
+  });
+
+  test("Accept-Language seeds the first screen, and a later header cannot override a stored choice", async () => {
+    const { db, deps } = await ctx();
+    const handle = createRouter(deps, () => 752);
+    const start = (lang: string) => handle(new Request("http://x/v1/onboarding", {
+      method: "POST",
+      headers: { "accept-language": lang },
+      body: JSON.stringify({ input: { type: "command", command: "start" } }),
+    }));
+    const ru = await body(await start("ru"));
+    expect(ru.text).toBe(translatorFor("ru")("onboarding.consent"));
+    await start("en");
+    expect((await getUser(db, 752))?.lang).toBe("ru");
+  });
+
+  test("settings are readable and editable over HTTP", async () => {
+    const { db, deps } = await ctx();
+    await activeUser(db, 753);
+    const handle = createRouter(deps, () => 753);
+
+    const root = await body(await handle(new Request("http://x/v1/settings")));
+    expect(root.text).toContain(translatorFor("en")("me.goal.lose"));
+    expect(root.buttons.flat().length).toBeGreaterThan(0);
+
+    const act = (payload: unknown) =>
+      handle(new Request("http://x/v1/settings", { method: "POST", body: JSON.stringify(payload) }));
+    await act({ action: "st:goal:gain" });
+    expect((await getUser(db, 753))?.goal).toBe("gain");
+
+    // The two-step text prompt: arm it, then answer it.
+    const armed = await body(await act({ action: "st:targetw" }));
+    expect(armed.awaitInput).toBe("target_weight");
+    await act({ field: "target_weight", text: "85" });
+    expect((await getUser(db, 753))?.target_weight_kg).toBe(85);
+  });
+
+  test("a settings write for a field that is not the armed one is refused", async () => {
+    const { db, deps } = await ctx();
+    await activeUser(db, 754);
+    const handle = createRouter(deps, () => 754);
+    const act = (payload: unknown) =>
+      handle(new Request("http://x/v1/settings", { method: "POST", body: JSON.stringify(payload) }));
+    await act({ action: "st:weight" });
+    // A client racing a tap must not get "70" written into `country`.
+    const res = await act({ field: "country", text: "70" });
+    expect(res.status).toBe(409);
+    expect((await getUser(db, 754))?.country).toBeNull();
+  });
+
+  test("a settings POST with neither shape is 400", async () => {
+    const { db, deps } = await ctx();
+    await activeUser(db, 755);
+    const handle = createRouter(deps, () => 755);
+    const res = await handle(new Request("http://x/v1/settings", {
+      method: "POST", body: JSON.stringify({ nonsense: true }),
+    }));
+    expect(res.status).toBe(400);
+  });
+
+  test("settings and onboarding are 403 / reachable per the caller's own state", async () => {
+    const { db, deps } = await ctx();
+    await upsertUser(db, { telegram_id: 756 }); // exists, not onboarded
+    const handle = createRouter(deps, () => 756);
+    expect((await handle(new Request("http://x/v1/settings"))).status).toBe(403);
+  });
+
+  test("a language is stored only if the registry knows it", async () => {
+    const { db, deps } = await ctx();
+    await activeUser(db, 757);
+    const handle = createRouter(deps, () => 757);
+    const put = (lang: unknown) =>
+      handle(new Request("http://x/v1/language", { method: "POST", body: JSON.stringify({ lang }) }));
+    expect((await put("ru")).status).toBe(200);
+    expect((await getUser(db, 757))?.lang).toBe("ru");
+    expect((await put("klingon")).status).toBe(400);
+    expect((await getUser(db, 757))?.lang).toBe("ru");
+  });
+
+  test("one caller's settings write never reaches another's row", async () => {
+    const { db, deps } = await ctx();
+    await activeUser(db, 758);
+    await activeUser(db, 759);
+    await createRouter(deps, () => 758)(new Request("http://x/v1/settings", {
+      method: "POST", body: JSON.stringify({ action: "st:goal:gain" }),
+    }));
+    expect((await getUser(db, 758))?.goal).toBe("gain");
+    expect((await getUser(db, 759))?.goal).toBe("lose");
+  });
+
+  test("the lifecycle routes are 401 without a resolved user, like every other route", async () => {
+    const { deps } = await ctx();
+    const handle = createRouter(deps, () => null);
+    expect((await handle(new Request("http://x/v1/settings"))).status).toBe(401);
+    expect((await handle(new Request("http://x/v1/onboarding", { method: "POST", body: "{}" }))).status).toBe(401);
+    expect((await handle(new Request("http://x/v1/language", { method: "POST", body: "{}" }))).status).toBe(401);
   });
 });

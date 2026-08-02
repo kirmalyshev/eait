@@ -17,9 +17,13 @@
 import {
   logPhotoMeal, handleText, day, week, confirmPendingMeal, cancelPendingMeal, dropPendingMeal,
   applyPendingEdit, cancelPendingEdit, dropPendingEdit, resolveMealChoice,
+  advanceOnboarding, openSettings, applySettingsAction, submitSettingsInput, setUserLanguage,
   MAX_WINDOW_DAYS, type EngineDeps, type UserId,
-  type HandleTextResult, type Refusal, type TargetGone,
+  type HandleTextResult, type Refusal, type TargetGone, type SettingsResult,
 } from "../engine/index.ts";
+import { resolveLang, translatorFor } from "../i18n/index.ts";
+import { isPendingInput } from "../settings.ts";
+import type { OnboardingInput } from "../onboarding.ts";
 
 /** Resolves the authenticated user from a request, or null. Injected — see the note above. */
 export type ResolveUserId = (req: Request) => Promise<UserId | null> | UserId | null;
@@ -50,6 +54,41 @@ export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 function assertNever(x: never): never {
   throw new Error(`api: unhandled engine result ${JSON.stringify(x)}`);
 }
+
+/**
+ * A client-supplied onboarding input, validated into the engine's union or rejected.
+ *
+ * Narrow rather than cast: `step()` re-prompts on unrecognised callback data, so a wrong-SHAPED
+ * input would not crash — it would silently look like a stale tap and the client would never learn
+ * its request was malformed. `command` is checked against the one member it has for the same reason.
+ */
+function parseOnboardingInput(v: unknown): OnboardingInput | null {
+  if (typeof v !== "object" || v === null) return null;
+  const o = v as Record<string, unknown>;
+  if (o.type === "command" && o.command === "start") {
+    // A payload is optional; anything non-string is dropped rather than stringified, and the
+    // engine's grammar check is still the thing that decides whether it is stored.
+    return typeof o.payload === "string"
+      ? { type: "command", command: "start", payload: o.payload }
+      : { type: "command", command: "start" };
+  }
+  if (o.type === "callback" && typeof o.data === "string") return { type: "callback", data: o.data };
+  if (o.type === "text" && typeof o.text === "string") return { type: "text", text: o.text };
+  return null;
+}
+
+/**
+ * A settings/onboarding view as JSON.
+ *
+ * `text` and `buttons` are copy, rendered server-side in the user's own language — the deliberate
+ * trade recorded in `engine/AGENTS.md`. A client renders `text` and turns each button into a
+ * tappable control that POSTs its `data` back as `action`; the string is an app-level action id,
+ * not a Telegram type.
+ */
+const viewJson = (r: SettingsResult): Response =>
+  r.kind === "view"
+    ? json({ text: r.view.text, buttons: r.view.buttons ?? [], awaitInput: r.view.awaitInput ?? null })
+    : json({ error: r.kind }, r.kind === "not-onboarded" ? 403 : 409);
 
 /** `YYYY-MM-DD`, and a real calendar date — `2026-02-31` parses as a string and is not a day. */
 function isCalendarDate(v: string): boolean {
@@ -220,6 +259,54 @@ export function createRouter(deps: EngineDeps, resolveUserId: ResolveUserId) {
         }
         const totals = await week(deps, userId, days);
         return totals ? json({ days: totals }) : json({ error: "not-onboarded" }, 403);
+      }
+
+      // Signup. Without this the API could log meals for a user it had no way to create, which made
+      // "both front ends are peers" true only for the half of the product that comes after signup.
+      if (req.method === "POST" && url.pathname === "/v1/onboarding") {
+        const body = (await req.json()) as { input?: unknown; username?: unknown };
+        const input = parseOnboardingInput(body.input);
+        if (!input) return json({ error: "input required" }, 400);
+        const r = await advanceOnboarding(
+          deps, userId,
+          {
+            input,
+            username: typeof body.username === "string" ? body.username : null,
+            // The surface negotiates the locale, the engine stores it: `Accept-Language` is this
+            // protocol's version of Telegram's `language_code`, and neither is the engine's business.
+            langHint: resolveLang(req.headers.get("accept-language")),
+          },
+          translatorFor,
+        );
+        return json({
+          state: r.nextState, text: r.reply, buttons: r.buttons ?? [],
+        });
+      }
+
+      if (req.method === "GET" && url.pathname === "/v1/settings") {
+        return viewJson(await openSettings(deps, userId, translatorFor));
+      }
+
+      if (req.method === "POST" && url.pathname === "/v1/settings") {
+        const body = (await req.json()) as { action?: unknown; field?: unknown; text?: unknown };
+        // Two shapes, because the settings machine has two kinds of step: tapping a control, and
+        // answering the text prompt a control opened. `field` is required on the second so the
+        // engine can check it against the prompt actually armed rather than trusting the client.
+        if (typeof body.action === "string") {
+          return viewJson(await applySettingsAction(deps, userId, body.action, translatorFor));
+        }
+        if (typeof body.text === "string" && isPendingInput(body.field)) {
+          return viewJson(
+            await submitSettingsInput(deps, userId, body.field, body.text, translatorFor),
+          );
+        }
+        return json({ error: "action, or field + text, required" }, 400);
+      }
+
+      if (req.method === "POST" && url.pathname === "/v1/language") {
+        const body = (await req.json()) as { lang?: unknown };
+        const r = await setUserLanguage(deps, userId, typeof body.lang === "string" ? body.lang : "");
+        return r.kind === "ok" ? json(r) : json({ error: r.kind }, 400);
       }
 
       return json({ error: "not found" }, 404);
