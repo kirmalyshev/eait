@@ -1,0 +1,106 @@
+# `src/backend/landing/`
+
+The marketing page at the app's own domain. One static HTML file, one stylesheet, no JavaScript.
+
+```sh
+make landing                     # build it and serve it on http://localhost:4173
+bun test src/backend/landing     # the claims gate, the config refusals, the palette check
+```
+
+> **`make landing` is a preview, not a rehearsal.** It serves the files with no headers, and the
+> headers are part of the page: a `style-src 'self'` policy drops every inline `style` attribute,
+> silently, which is exactly how the hero's floor mark ended up stacked at the left edge of the card
+> on staging while localhost looked perfect. To check it the way production serves it, build
+> `deploy/Dockerfile.landing` and run that container, or deploy to staging and look.
+
+## What it is
+
+A generator, not a page. `build.ts` renders `render.ts(config)` into a directory, and the deploy
+serves that directory with nginx. There is no framework and no runtime: the output is 15 KB of HTML
+and 9 KB of CSS, the single animated moment is a CSS keyframe, and the FAQ is `<details>`.
+
+That is not minimalism for its own sake. A page with no script at all can be served under
+`default-src 'none'` with no `script-src` — see `deploy/nginx/nginx.conf` — and a page whose whole
+argument is "we keep nothing of yours" has no business loading a third-party font.
+
+| File | |
+|---|---|
+| `content.ts` | Every word. The header explains which research each section came from and what may not appear. |
+| `config.ts` | What the page cannot know about itself: origin, store link, bot link. Refuses a build it cannot make work. |
+| `render.ts` | Content + config → HTML. |
+| `styles.ts` | The stylesheet, as a string. |
+| `tokens.ts` | The app's palette, transcribed from `src/mobile/lib/theme.ts`. A test fails if it drifts. |
+| `claims.ts` | The health-claims and exclusivity gate. Fails the build; does not warn. |
+| `build.ts` | Validate → render → lint → write. Nothing is written until all three pass. |
+
+## The rules this page is written under
+
+**Positioning is not taste.** `../../../../eait-marketer/docs/research/` is where every section comes
+from, and `content.ts` cites which document for which. The lead sells judgement rather than
+measurement because a 163-ad scrape of the category found nobody selling it. The first refusal is
+about billing because that is the largest complaint cluster in an 864-review corpus, four times the
+size of accuracy, and a category tax rather than one vendor's mistake.
+
+**The claims gate blocks the build.** Health claims (`lose weight`, `guaranteed`, `lowers
+cholesterol`, `detox`…) and exclusivity claims (`the only app`, `every other app`) fail
+`bun run check` and fail `docker build`. FTC substantiation is per claim; an unsubstantiated "the
+only" is an *Alleinstellungsbehauptung* under §5 UWG and actionable by any competitor. The rule set
+is a deliberate copy of `eait-marketer/src/claims.ts` — see the header of `claims.ts` for why, and
+change both if you change either.
+
+**Numbers on the page are numbers in the code.** The floor section quotes `KCAL_FLOOR` from
+`@ieat/shared`, and a test fails if the copy and the constant disagree. The whole legitimacy of that
+section is that it describes what actually runs.
+
+**Copy is fetched by nobody at runtime.** Unlike the onboarding content, this is baked at build
+time. There is no admin for it, and there should not be: a marketing page is reviewed before it
+ships, not edited live.
+
+## Configuration
+
+Everything environment-specific is an environment variable read by `config.ts`, which refuses rather
+than guesses:
+
+| Variable | | Refused when |
+|---|---|---|
+| `LANDING_SITE_URL` | Canonical origin | Unset, or cleartext for anything but `localhost` |
+| `LANDING_APP_STORE_URL` | The listing, once it exists | Not an `apps.apple.com` URL |
+| `LANDING_TELEGRAM_URL` | The bot | Not a `t.me` URL |
+| `LANDING_SUPPORT_EMAIL` | Footer `mailto:` | Not an address |
+| `LANDING_UPDATED` | Copy-review date | Not `YYYY-MM-DD` |
+
+**With neither the store link nor the bot link set, the build fails.** A landing page whose only
+button goes nowhere is worse than no landing page. While the store link is empty the bot becomes the
+primary action — a real thing a visitor can do — rather than a greyed-out "coming soon", and the two
+swap places by themselves on the day `LANDING_APP_STORE_URL` is set.
+
+## How it is served
+
+```
+internet → Caddy (TLS, ACME)  →  nginx (static, caching, CSP)
+             deploy/Caddyfile        deploy/nginx/
+             + caddy/conf.d/*.caddy  deploy/Dockerfile.landing
+```
+
+Caddy keeps TLS because it already has it and because a second ACME client on the box reintroduces
+the renewal that silently stopped working — the failure mode `deploy/Caddyfile` exists to avoid.
+nginx owns the bytes: cache headers, gzip, the per-path Content-Security-Policy, and a `444` for any
+Host it was not configured for.
+
+The nginx service sits behind a compose **profile**, so it starts only under `--profile landing`.
+That is what lets one description of the stack cover a host that serves the marketing site and a
+host that serves only the API — including staging running the page for review while production has
+not turned it on yet.
+
+Ansible drives all three from one variable. `ieat_landing_enabled` decides whether the profile is
+passed, whether Caddy gets a site block, and whether the environment file carries the values the
+image is built from; `roles/ieat_app/tasks/landing.yml` is where they are kept in agreement, and it
+removes the site block when the flag goes back to false so turning the page off is not an edit
+somebody has to remember to revert.
+
+### Known coupling
+
+Caddy `depends_on` the backend being healthy. So a backend that will not come up takes the landing
+page down with it, even though the two share no code. That predates this directory and is not worth
+changing for the landing alone — but it is the reason a "the marketing site is down" report can turn
+out to be an API incident.

@@ -7,3 +7,4 @@ export * from "./targets.ts";
 export * from "./results.ts";
 export * from "./onboarding.ts";
 export * from "./contract.ts";
+export * from "./perf.ts";
