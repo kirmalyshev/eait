@@ -22,11 +22,13 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
 - **Text routing precedence:** command > armed settings prompt (`users.pending_input`) >
   reply-to-rejection (canned explain, no LLM) > free-text router > onboarding. Every text from an
   **active** user goes through `processText` — one `routeText` LLM call deciding question / meal /
-  correction / redate (a reply that maps to a meal via `mealByReply` — the bot's analysis message
-  OR the user's own photo — becomes the focus meal, which unlocks the correction AND redate
-  intents). `correction` fixes the focus meal's macros; `redate` moves it to another day
-  (`setMealDate`, macros unchanged) — both apply immediately (the reply is unambiguous, no
-  confirm). `processText` returns `false` only for non-active users, whose text still belongs to
+  correction / redate / choose. A reply that maps to a meal via `mealByReply` (the bot's analysis
+  message OR the user's own photo) becomes the focus meal; `processText` also accepts a
+  caller-supplied `focusMealId`, used ONLY by the disambiguation replay and never read from a
+  Telegram update. `correction` fixes the target's macros; `redate` moves it to another day
+  (`setMealDate`, macros unchanged). **Both apply immediately when the target came from a reply,
+  and wait for a tap when the agent inferred it** — see the chat-targeted editing bullet below.
+  `processText` returns `false` only for non-active users, whose text still belongs to
   `processOnboarding`.
 - **Settings text-capture: `pending_input` is the ONLY non-callback settings path.** Tapping the
   weight / target-weight / country-"Other" / food-specifics (medical, allergies, products) buttons returns a view with `awaitInput`; the callback
@@ -60,7 +62,9 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
 - **Caps meter LLM calls, not meals.** Every engine call logs an `llm_calls` row first with
   a `kind` tag (`photo` = photo or album analysis, `router` = text routing / Q&A / correction / redate,
   `classify` = onboarding restriction classifier); both the per-user and global caps count those
-  rows. A not-food photo, a Q&A, and a text meal each spend one call. The `classify` kind is
+  rows. A not-food photo, a Q&A, and a text meal each spend one call. A `find_meals` lookup is a
+  tool call INSIDE a router turn and costs no extra row; a `ce:pick` tap DOES log one, because it
+  is genuinely a second model call. The `classify` kind is
   not cap-gated (it fires during onboarding before the user has a cap row), but it is metered
   so `/cap` shows the real picture. **The `document` handler (uncompressed photo) passes through
   to `processPhoto` for food content and does not get its own `kind` — it counts as `photo`.**
@@ -92,11 +96,22 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
 - **Callbacks always `answerCallbackQuery()`.** Unknown data is never *stored* — `lang_<code>` is
   validated against the registry — but it isn't discarded either: it falls through to
   `processOnboarding`, whose `step()` default re-prompts the current stage.
+- **Chat-targeted edits are confirm-first, and `ce:pick` REPLAYS rather than applies.** When the
+  agent located the meal itself (no reply), `processText` renders an `[Apply] [Cancel]` card over a
+  `pending_edits` row and `processEditDecision` handles the taps. It mirrors
+  `processTextMealDecision` exactly, including the ordering that looks incidental: the confirm
+  prompt is deleted **only after** the result card has been sent, so a failed send leaves a
+  re-tappable offer instead of an applied edit the user never saw (both writes are idempotent, so
+  the re-tap converges). `ce:pick:<id>:<n>` is the disambiguation button — it carries an **index**,
+  not a meal id, because two UUIDs do not fit in Telegram's 64-byte callback data, and because an
+  index can only ever select one of the candidates that row already offered. It applies nothing: it
+  resolves the tapped meal and re-runs `processText` with the user's ORIGINAL text and that meal as
+  the focus, which costs a second `router` cap draw and buys the ordinary unambiguous path.
 - **Callback namespaces are disjoint:** `st:` settings (incl. group menus `st:g:*`, `st:weight`/`st:targetw`/
   `st:country`/`st:country:*`, and food fields `st:medical`/`st:allergies`/`st:products` + `:clear`), `lang_` language, bare `consent_*`/`goal_*`/`weight_skip`/
   `target_weight_skip`/`country_*`/`restrictions_*` onboarding, `delete_*` delete, `tm:` text-meal
-  confirm. Never reuse a prefix across machines — the receiving machine's guards reject foreign taps
-  silently.
+  confirm, `ce:` chat-targeted edit (`ce:ok:`/`ce:no:`/`ce:pick:`). Never reuse a prefix across
+  machines — the receiving machine's guards reject foreign taps silently.
 - **`bot.catch` stays.** A failed reply must never crash the process; `startBot`'s supervisor
   retries runner errors (e.g. a 409 during poller hand-off) instead of exiting.
 - **Retry transient, exit on fatal.** `isFatalTelegramError` (401/404 — a dead or wrong token)

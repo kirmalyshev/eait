@@ -45,6 +45,14 @@ reply-to-rejection > router). All are about how a *Telegram* message arrives. Th
 precedence and a focus meal, then calls the engine with `text` + `focusMealId` — a UUID, not a
 message id.
 
+`edits.ts` is the same split applied to chat-targeted editing: the engine decides whether an edit
+applies now or waits (`EditProposed`), which meals a disambiguation may offer (`MealChoiceNeeded`,
+already filtered to rows the caller owns), and what a tap resolves to (`resolveMealChoice` returns
+the text to replay and against which meal). The buttons, the callback data, and the replay itself
+are the surface's. Note `resolveMealChoice` takes an INDEX into the stored candidates rather than a
+meal id — that is not a Telegram detail leaking in, it is the guarantee that a tampered payload can
+only ever pick something this row already offered.
+
 ## Verify
 
 `bun test src/api/routes.test.ts src/tg_bot/bot.test.ts` — the engine is covered through both of its
