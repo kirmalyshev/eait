@@ -18,7 +18,8 @@ import {
   REFUSAL_STATUS, ROUTES,
   type AuthDeviceRequest, type AuthDeviceResponse, type AuthProviderRequest,
   type AuthProviderResponse, type EditMealRequest, type IdentitiesResponse, type Lang,
-  type MessageRequest, type PatchProfileRequest, isRefusal,
+  type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
+  type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
 } from "@ieat/shared";
 import { LANGS } from "@ieat/shared";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
@@ -26,8 +27,10 @@ import { isCalendarDate } from "../dates.ts";
 import type { Store } from "../store.ts";
 import {
   MAX_WINDOW_DAYS, cancelPendingMeal, confirmPendingMeal, day, editMeal, handleText, identitiesFor,
-  logPhotoMeal, patchProfile, profileView, signInWithProvider, week, type EngineDeps,
+  logPhotoMeal, onboardingContent, patchProfile, profileView, recordOnboardingEvents,
+  signInWithProvider, week, type EngineDeps,
 } from "../engine/index.ts";
+import { adminRoutes } from "./admin.ts";
 
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -65,6 +68,15 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
     if (pathname === ROUTES.health) return json({ ok: true });
 
     try {
+      // The admin, on its OWN credential.
+      //
+      // Handled before `resolveUserId` and never reachable with a user's bearer token — the two
+      // are separate authorities, and an admin surface that accepts an ordinary session token is
+      // an admin surface every user has. Off entirely unless `ADMIN_TOKEN` is set.
+      if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+        return await adminRoutes(req, url, deps);
+      }
+
       // Also unauthenticated — this is where a token comes from.
       if (req.method === "POST" && pathname === ROUTES.authDevice) {
         const body = await req.json() as AuthDeviceRequest;
@@ -136,6 +148,21 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
           // it must not be expressible as a warning the user can dismiss.
           return out.ok ? json(out.view) : json(out.rejected, 422);
         }
+      }
+
+      // ── Onboarding ────────────────────────────────────────────────────────────────────────
+      if (req.method === "GET" && pathname === ROUTES.onboarding) {
+        return json({ content: await onboardingContent(deps) } satisfies OnboardingContentResponse);
+      }
+
+      // Funnel events. Authenticated, because they are stored against the caller's account and
+      // erased with it — but deliberately forgiving about their contents: the engine drops what it
+      // does not recognise rather than 400ing, since a rejected batch means an app that retries
+      // forever and a funnel that is missing exactly the users on bad connections.
+      if (req.method === "POST" && pathname === ROUTES.onboardingEvents) {
+        const body = await req.json() as OnboardingEventsRequest;
+        const accepted = await recordOnboardingEvents(deps, userId, body?.events);
+        return json({ accepted } satisfies OnboardingEventsResponse);
       }
 
       // ── Photo ─────────────────────────────────────────────────────────────────────────────

@@ -56,6 +56,18 @@ export interface Config {
   appleAudiences: string[];
   /** Every Google OAuth client id that may sign in: iOS, web, Android. Empty = Google is off. */
   googleAudiences: string[];
+
+  /**
+   * The credential for `/admin` — onboarding copy and the funnel.
+   *
+   * EMPTY MEANS THERE IS NO ADMIN. Every path under `/admin` answers 404, so a deployment that
+   * never sets this has no admin surface to attack rather than a locked one to guess at. It is its
+   * own authority: a user's bearer token gets nothing here, and this token gets nothing on the
+   * user API.
+   *
+   * A secret, and it is treated as one — `redact()` masks it, and nothing prints it.
+   */
+  adminToken: string;
 }
 
 /** Comma-separated env list → trimmed array, empties dropped. */
@@ -105,6 +117,7 @@ export function configDefaults(): Config {
     maxPhotosPerMeal: 4,
     appleAudiences: [],
     googleAudiences: [],
+    adminToken: "",
   };
 }
 
@@ -133,7 +146,27 @@ export function loadConfig(): Config {
     maxPhotosPerMeal,
     appleAudiences: list("APPLE_AUDIENCES"),
     googleAudiences: list("GOOGLE_AUDIENCES"),
+    adminToken: adminTokenFromEnv(),
   };
+}
+
+/**
+ * The admin credential, refused if it is too short to be one.
+ *
+ * A short admin token is a guessable admin token, and this one edits what every new user reads
+ * while answering questions about their health. Unset is fine and means "no admin"; set-and-weak
+ * is a startup error, because it looks protected and is not.
+ *
+ * Exported so `--demo` reads it the same way. Demo mode is a real server on a real port, and an
+ * admin surface that validates its credential differently there is an admin surface whose only
+ * tested path is the one nobody ships.
+ */
+export function adminTokenFromEnv(): string {
+  const raw = process.env.ADMIN_TOKEN ?? "";
+  if (raw !== "" && raw.length < 24) {
+    throw new Error("[ieat] ADMIN_TOKEN must be at least 24 characters (or unset to disable /admin)");
+  }
+  return raw;
 }
 
 /**
@@ -141,6 +174,12 @@ export function loadConfig(): Config {
  * crash report is one of the commonest ways a key reaches a log aggregator.
  */
 export function redact(c: Config): Record<string, unknown> {
-  const { llmApiKey: _k, databaseUrl, ...rest } = c;
-  return { ...rest, databaseUrl: databaseUrl.replace(/\/\/[^@]*@/, "//***@"), llmApiKey: "***" };
+  const { llmApiKey: _k, adminToken: _a, databaseUrl, ...rest } = c;
+  return {
+    ...rest,
+    databaseUrl: databaseUrl.replace(/\/\/[^@]*@/, "//***@"),
+    llmApiKey: "***",
+    // Whether the admin is ON is worth seeing in a boot log; the token itself never is.
+    adminToken: c.adminToken === "" ? "(disabled)" : "***",
+  };
 }

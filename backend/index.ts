@@ -5,7 +5,7 @@
 // database and no API key. That is not a toy: it is how the app is developed on a plane, and how a
 // UI change gets reviewed without spending money on vision calls.
 
-import { configDefaults, loadConfig, redact, type Config } from "./config.ts";
+import { adminTokenFromEnv, configDefaults, loadConfig, redact, type Config } from "./config.ts";
 import { AuthError, remoteVerifier, type IdentityVerifier } from "./auth/verify.ts";
 import { createRouter } from "./api/routes.ts";
 import { demoPorts } from "./llm/demo.ts";
@@ -29,6 +29,10 @@ const config: Config = demo
       // Generous per user, unmetered globally: it is a local demo, not a public instance.
       userDailyPhotoCap: 100, globalDailyAnalysisCap: 0,
       timezone: process.env.TZ_NAME ?? "Europe/Berlin",
+      // Read from the environment here too, and validated by the same function: the admin is how
+      // onboarding copy is edited, and "works in demo, untested in production" is the shape of
+      // every configuration bug that ships.
+      adminToken: adminTokenFromEnv(),
     }
   : loadConfig();
 

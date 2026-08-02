@@ -12,8 +12,13 @@
 //     in any log. An empty database is indistinguishable from every user having been wiped.
 
 import { SQL } from "bun";
-import type { DayTotals, Lang, MealItem, MealRecord, MealVerdicts, Profile, Provider } from "@ieat/shared";
-import { blankProfile, type MealPatch, type PendingMeal, type ProfilePatch, type Store } from "./store.ts";
+import type {
+  DayTotals, Lang, MealItem, MealRecord, MealVerdicts, OnboardingContent, Profile, Provider,
+} from "@ieat/shared";
+import {
+  blankProfile, type FunnelAggregate, type MealPatch, type PendingMeal, type ProfilePatch,
+  type Store,
+} from "./store.ts";
 
 const SCHEMA = `
 create table if not exists users (
@@ -102,6 +107,41 @@ create table if not exists analyses (
 );
 create index if not exists analyses_date_idx on analyses(date);
 create index if not exists analyses_user_date_idx on analyses(user_id, date, scope);
+
+-- The admin-edited onboarding copy. ONE row, pinned to id = 1.
+--
+-- A single row rather than a version history: the app fetches "what is live", and the thing an
+-- admin needs to undo a bad edit is the previous JSON, which is what the version number in the
+-- payload is for. Keeping every revision here would be a second product.
+create table if not exists onboarding_content (
+  id         integer primary key check (id = 1),
+  version    integer not null,
+  content    jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+-- The onboarding funnel.
+--
+-- The id column is the CLIENT's event id and the primary key, which is what makes a retried batch
+-- a no-op rather than a doubled count. Nothing in here is an answer to a health question -- see the
+-- note on OnboardingEvent; the value column carries enumerated choices only, and the numeric
+-- screens send none. (No backticks in this string: it is a template literal, and one would end it.)
+create table if not exists onboarding_events (
+  id              text primary key,
+  user_id         uuid not null references users(id) on delete cascade,
+  session_id      text not null,
+  place           text not null,
+  action          text not null,
+  content_version integer not null,
+  ms              integer,
+  field           text,
+  value           text,
+  at              timestamptz not null,
+  received_at     timestamptz not null default now()
+);
+create index if not exists onboarding_events_received_idx on onboarding_events(received_at);
+create index if not exists onboarding_events_session_idx on onboarding_events(session_id);
+create index if not exists onboarding_events_user_idx on onboarding_events(user_id);
 `;
 
 /** Row shapes as Postgres hands them back. Numbers are coerced at the boundary, once. */
@@ -293,6 +333,9 @@ export async function postgresStore(databaseUrl: string): Promise<Store> {
           update meals set user_id = ${intoUserId} where user_id = ${fromUserId} returning id`;
         await tx`update pendings set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         await tx`update analyses set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        // Funnel rows move too: signing in halfway through onboarding is normal, and a run split
+        // across two user ids reads as two abandoned runs.
+        await tx`update onboarding_events set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         // DROPPED, not repointed — the merged-away account is anonymous, so these are device
         // identities only, and repointing one would let plain device auth walk back into the full
         // account after a sign-out. Matches `store.memory.ts`; a test asserts the behaviour.
@@ -342,6 +385,83 @@ export async function postgresStore(databaseUrl: string): Promise<Store> {
       const rows = await sql`select * from users where id = ${userId}`;
       if (rows.length === 0) throw new Error("no such user");
       return toProfile(rows[0]);
+    },
+
+    async getOnboardingContent() {
+      const rows = await sql`select content from onboarding_content where id = 1`;
+      if (rows.length === 0) return null;
+      return json<OnboardingContent | null>(rows[0].content, null);
+    },
+
+    async putOnboardingContent(content) {
+      // `::jsonb` on the parameter for the same reason the meal update casts: an untyped parameter
+      // is text, and a JSON string landing in a jsonb column stores the STRING rather than the
+      // object — it round-trips without error and comes back unusable.
+      await sql`
+        insert into onboarding_content (id, version, content, updated_at)
+        values (1, ${content.version}, ${JSON.stringify(content)}::jsonb, now())
+        on conflict (id) do update
+          set version = excluded.version,
+              content = excluded.content,
+              updated_at = now()`;
+    },
+
+    async recordOnboardingEvents(userId, events) {
+      if (events.length === 0) return 0;
+      let added = 0;
+      // One statement per event rather than a multi-row insert. The batches are small (the app
+      // flushes a screen at a time) and `do nothing` per row means one duplicate does not discard
+      // the rest of the batch, which a single multi-row insert with a conflict would.
+      for (const e of events) {
+        const rows = await sql`
+          insert into onboarding_events
+            (id, user_id, session_id, place, action, content_version, ms, field, value, at)
+          values (${e.id}, ${userId}, ${e.sessionId}, ${e.place}, ${e.action}, ${e.contentVersion},
+                  ${e.ms ?? null}, ${e.field ?? null}, ${e.value ?? null}, ${e.at})
+          on conflict (id) do nothing
+          returning id`;
+        if (rows.length > 0) added++;
+      }
+      return added;
+    },
+
+    async onboardingFunnel(days): Promise<FunnelAggregate> {
+      // `days` is an integer chosen by the engine, never a raw request value, and it is bound as a
+      // parameter regardless.
+      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+      const totals = await sql`
+        select count(distinct session_id)::int as sessions,
+               count(distinct session_id) filter (where action = 'complete')::int as completed
+        from onboarding_events where received_at >= ${since}`;
+
+      // `percentile_cont` over the answer rows only — a median that included view events would be
+      // measuring nothing, since a view carries no elapsed time.
+      const rows = await sql`
+        select place,
+               count(*) filter (where action = 'view')::int   as views,
+               count(*) filter (where action = 'answer')::int as answers,
+               count(*) filter (where action = 'back')::int   as backs,
+               count(*) filter (where action = 'reject')::int as rejects,
+               percentile_cont(0.5) within group (
+                 order by ms
+               ) filter (where action = 'answer' and ms is not null) as median_ms
+        from onboarding_events
+        where received_at >= ${since}
+        group by place`;
+
+      return {
+        sessions: num(totals[0]?.sessions),
+        completed: num(totals[0]?.completed),
+        rows: rows.map((r: Record<string, unknown>) => ({
+          place: String(r.place),
+          views: num(r.views),
+          answers: num(r.answers),
+          backs: num(r.backs),
+          rejects: num(r.rejects),
+          medianMs: r.median_ms === null || r.median_ms === undefined ? null : Math.round(Number(r.median_ms)),
+        })),
+      };
     },
 
     async insertMeal(m) {
@@ -447,7 +567,8 @@ export async function postgresStore(databaseUrl: string): Promise<Store> {
     },
 
     async deleteUser(userId) {
-      // `on delete cascade` clears tokens, meals, pendings and analyses with the row.
+      // `on delete cascade` clears tokens, meals, pendings, analyses AND onboarding events with the
+      // row. The last one is deliberate — see the note on `deleteUser` in the port.
       await sql`delete from users where id = ${userId}`;
     },
 

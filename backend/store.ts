@@ -10,7 +10,9 @@
 // as an ARGUMENT resolved from credentials — never from a request body, a model output, or a tool
 // call. There is no method here that can reach a row without being told whose it is.
 
-import type { DayTotals, Lang, MealAnalysis, MealRecord, Profile, Provider } from "@ieat/shared";
+import type {
+  DayTotals, Lang, MealAnalysis, MealRecord, OnboardingContent, OnboardingEvent, Profile, Provider,
+} from "@ieat/shared";
 
 /** A text meal awaiting confirmation. Not in the diary yet, and expires. */
 export interface PendingMeal {
@@ -37,6 +39,29 @@ export type MealPatch = Partial<
     "items" | "kcal" | "protein_g" | "carbs_g" | "fat_g" | "satfat_g" | "fiber_g" | "sugar_g" |
     "sodium_mg" | "verdicts" | "notes" | "corrected" | "date">
 >;
+
+/**
+ * The onboarding funnel, aggregated by the store.
+ *
+ * Aggregated THERE rather than here because the raw table is one row per screen per user and the
+ * admin wants seven numbers. Pulling a million rows into the process to count them is how an admin
+ * page becomes the reason the server fell over.
+ */
+export interface FunnelAggregate {
+  /** Distinct onboarding runs in the window. */
+  sessions: number;
+  /** Runs that reached the end. */
+  completed: number;
+  rows: {
+    place: string;
+    views: number;
+    answers: number;
+    backs: number;
+    rejects: number;
+    /** Median time on screen before an answer, in ms. Null when nothing was answered. */
+    medianMs: number | null;
+  }[];
+}
 
 export interface Store {
   // ── Identity ───────────────────────────────────────────────────────────────────────────────
@@ -72,6 +97,27 @@ export interface Store {
   getProfile(userId: string): Promise<Profile | null>;
   patchProfile(userId: string, patch: ProfilePatch): Promise<Profile>;
 
+  // ── Onboarding ─────────────────────────────────────────────────────────────────────────────
+  /**
+   * The admin-edited onboarding copy, or null when nothing has ever been saved.
+   *
+   * Null is a real answer, not an error: a fresh database has no row, and the engine answers with
+   * `DEFAULT_ONBOARDING_CONTENT` rather than refusing. Seeding on boot would work too and is worse
+   * — it makes "has an admin ever touched this?" unanswerable.
+   */
+  getOnboardingContent(): Promise<OnboardingContent | null>;
+  /** Replace it. Validated by the caller — the store writes what it is given. */
+  putOnboardingContent(content: OnboardingContent): Promise<void>;
+  /**
+   * Append funnel events, ignoring ids already stored. Returns how many were new.
+   *
+   * Idempotent on `event.id` because the app retries a batch it could not confirm, and a funnel
+   * that double-counts a bad connection reports its best numbers for its worst users.
+   */
+  recordOnboardingEvents(userId: string, events: OnboardingEvent[]): Promise<number>;
+  /** The funnel over the last `days`, aggregated. Reads every user — this is the admin's view. */
+  onboardingFunnel(days: number): Promise<FunnelAggregate>;
+
   // ── Meals ──────────────────────────────────────────────────────────────────────────────────
   insertMeal(record: MealRecord): Promise<void>;
   /** Scoped: another user's meal id resolves to null, not to their row. */
@@ -102,7 +148,15 @@ export interface Store {
   recordAnalysis(userId: string, date: string, scope: "photo" | "text"): Promise<void>;
 
   // ── Erasure ────────────────────────────────────────────────────────────────────────────────
-  /** Full account deletion. Everything, not a soft-delete flag. */
+  /**
+   * Full account deletion. Everything, not a soft-delete flag.
+   *
+   * That INCLUDES the account's onboarding funnel rows, and the analytics cost of losing them is
+   * accepted deliberately. Onboarding copy tells the user "deleting your account erases it" while
+   * they are answering questions about their kidneys; keeping a per-user row of how they moved
+   * through those questions would make that sentence false. The funnel is a tool, the promise is
+   * not negotiable.
+   */
   deleteUser(userId: string): Promise<void>;
 
   close(): Promise<void>;

@@ -13,7 +13,7 @@
 //   TEST_DATABASE_URL=postgres://ieat:ieat@127.0.0.1:5433/ieat bun test src/backend/store.contract.test.ts
 
 import { afterAll, describe, expect, it } from "bun:test";
-import type { MealRecord } from "@ieat/shared";
+import { DEFAULT_ONBOARDING_CONTENT, type MealRecord } from "@ieat/shared";
 import { memoryStore } from "./store.memory.ts";
 import { postgresStore } from "./store.pg.ts";
 import type { Store } from "./store.ts";
@@ -233,6 +233,104 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.userIdForToken(token)).toBeNull();
       // Released, so signing in again is a NEW account rather than a resurrection.
       expect(await s.userIdForIdentity("apple", subject("to-be-released"))).toBeNull();
+    });
+
+    // ── Onboarding ─────────────────────────────────────────────────────────────────────────
+    //
+    // The funnel is aggregated in JS by one implementation and in SQL by the other, so "both
+    // produce the same numbers" is a claim that has to be tested rather than assumed. The median
+    // is the one most likely to diverge: `percentile_cont` interpolates, and a hand-written median
+    // that picked the lower of two middles would disagree on every even-sized sample.
+
+    it("stores onboarding content and reads it back whole", async () => {
+      const s = await open();
+      // No assertion that it STARTS null. This is a single pinned row and Postgres keeps it
+      // between runs, so "nothing has been saved yet" is true exactly once per database — the
+      // same trap as the identity subjects above. The null case is covered in the engine tests,
+      // which get a fresh store every time.
+      const content = { ...DEFAULT_ONBOARDING_CONTENT, version: 7 };
+      await s.putOnboardingContent(content);
+      const back = await s.getOnboardingContent();
+      // Deep equality, not "it returned something". A jsonb column that stored the JSON as a
+      // STRING round-trips without error and comes back unusable — the same bug the meal items
+      // column had.
+      expect(back).toEqual(content);
+
+      await s.putOnboardingContent({ ...content, version: 8 });
+      expect((await s.getOnboardingContent())?.version).toBe(8);
+    });
+
+    it("ignores an onboarding event id it has already stored", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const at = new Date().toISOString();
+      const e = { id: `dup-${RUN}`, sessionId: `sess-${RUN}`, place: "about" as const, action: "view" as const, contentVersion: 1, at };
+
+      expect(await s.recordOnboardingEvents(u, [e])).toBe(1);
+      expect(await s.recordOnboardingEvents(u, [e])).toBe(0);
+    });
+
+    it("aggregates the funnel identically in both implementations", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const at = new Date().toISOString();
+      const sid = `funnel-${RUN}`;
+      const ev = (n: number, over: Record<string, unknown>) => ({
+        id: `${sid}-${n}`, sessionId: sid, place: "goal" as const, action: "view" as const,
+        contentVersion: 1, at, ...over,
+      });
+
+      // Measured as a DELTA. The funnel is instance-wide by definition — it is the admin's view of
+      // every user — so it carries rows from the other tests in this suite, and against real
+      // Postgres it carries rows from every earlier run today. Absolute counts here would pass
+      // exactly once per database.
+      const before = await s.onboardingFunnel(1);
+      await s.recordOnboardingEvents(u, [
+        ev(1, {}),
+        ev(2, { action: "answer", field: "goal", value: "lose", ms: 1000 }),
+        ev(3, { action: "answer", field: "goal", value: "gain", ms: 3000 }),
+        ev(4, { action: "back" }),
+        ev(5, { action: "reject", field: "goal" }),
+        ev(6, { place: "summary", action: "complete" }),
+      ] as never);
+      const after = await s.onboardingFunnel(1);
+
+      const delta = (key: "views" | "answers" | "backs" | "rejects") =>
+        (after.rows.find((r) => r.place === "goal")?.[key] ?? 0)
+        - (before.rows.find((r) => r.place === "goal")?.[key] ?? 0);
+
+      expect(delta("views")).toBe(1);
+      expect(delta("answers")).toBe(2);
+      expect(delta("backs")).toBe(1);
+      expect(delta("rejects")).toBe(1);
+      expect(after.sessions - before.sessions).toBe(1);
+      expect(after.completed - before.completed).toBe(1);
+      // Two samples, so the median is their mean. Both implementations must say 2000 — and they
+      // must agree on it: `percentile_cont` interpolates, and a hand-written median that took the
+      // lower of two middles would answer 1000 on every even-sized sample.
+      expect(after.rows.find((r) => r.place === "goal")!.medianMs).toBe(2000);
+    });
+
+    it("erases a user's funnel rows with the account", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const sid = `erase-${RUN}`;
+      // `pace` is used by no other test here, so its count is this test's alone.
+      const views = async () =>
+        (await s.onboardingFunnel(1)).rows.find((r) => r.place === "pace")?.views ?? 0;
+
+      const before = await views();
+      await s.recordOnboardingEvents(u, [{
+        id: `${sid}-1`, sessionId: sid, place: "pace", action: "view", contentVersion: 1,
+        at: new Date().toISOString(),
+      }] as never);
+      expect(await views()).toBe(before + 1);
+
+      await s.deleteUser(u);
+
+      // Back to where it started. Onboarding promises erasure while asking about the user's
+      // kidneys; the analytics table is not an exception to that sentence.
+      expect(await views()).toBe(before);
     });
   });
 }

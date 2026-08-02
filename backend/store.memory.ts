@@ -4,8 +4,60 @@
 // are enforced here exactly as they are in Postgres, so a test that proves "another user's meal id
 // resolves to null" is proving something about the engine rather than about a mock's mood.
 
-import type { DayTotals, Lang, MealRecord, Profile, Provider } from "@ieat/shared";
-import { blankProfile, type MealPatch, type PendingMeal, type ProfilePatch, type Store } from "./store.ts";
+import type {
+  DayTotals, Lang, MealRecord, OnboardingContent, OnboardingEvent, Profile, Provider,
+} from "@ieat/shared";
+import {
+  blankProfile, type FunnelAggregate, type MealPatch, type PendingMeal, type ProfilePatch,
+  type Store,
+} from "./store.ts";
+
+/** A stored funnel event: what the client sent, plus who and when we received it. */
+type StoredEvent = OnboardingEvent & { userId: string; receivedAt: number };
+
+/** The middle value, or the mean of the two middles. Null for an empty sample. */
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const s = [...values].sort((a, b) => a - b);
+  const mid = s.length >> 1;
+  return s.length % 2 === 1 ? s[mid]! : Math.round((s[mid - 1]! + s[mid]!) / 2);
+}
+
+/**
+ * Aggregate raw events into the admin's funnel. Shared by both stores' unit of meaning.
+ *
+ * The Postgres store does this in SQL rather than calling this function — but it must produce the
+ * same numbers, and `store.contract.test.ts` runs the same assertions against both. A median that
+ * differs between implementations is a metric that means nothing.
+ */
+export function aggregateFunnel(events: StoredEvent[]): FunnelAggregate {
+  const byPlace = new Map<string, { views: number; answers: number; backs: number; rejects: number; ms: number[] }>();
+  const sessions = new Set<string>();
+  const completed = new Set<string>();
+
+  for (const e of events) {
+    sessions.add(e.sessionId);
+    if (e.action === "complete") completed.add(e.sessionId);
+    const row = byPlace.get(e.place) ?? { views: 0, answers: 0, backs: 0, rejects: 0, ms: [] };
+    if (e.action === "view") row.views++;
+    if (e.action === "answer") {
+      row.answers++;
+      if (typeof e.ms === "number") row.ms.push(e.ms);
+    }
+    if (e.action === "back") row.backs++;
+    if (e.action === "reject") row.rejects++;
+    byPlace.set(e.place, row);
+  }
+
+  return {
+    sessions: sessions.size,
+    completed: completed.size,
+    rows: [...byPlace.entries()].map(([place, r]) => ({
+      place, views: r.views, answers: r.answers, backs: r.backs, rejects: r.rejects,
+      medianMs: median(r.ms),
+    })),
+  };
+}
 
 export function memoryStore(): Store {
   const users = new Map<string, Profile>();
@@ -15,6 +67,8 @@ export function memoryStore(): Store {
   const pendings = new Map<string, PendingMeal>(); // pendingId -> pending
   const analyses: { userId: string; date: string; scope: "photo" | "text" }[] = [];
   const identities: { userId: string; provider: Provider; subject: string; linkedAt: string }[] = [];
+  const onboardingEvents = new Map<string, StoredEvent>(); // event id -> event
+  let onboardingContent: OnboardingContent | null = null;
 
   /** Deep-copies on the way out so a caller mutating a returned object cannot edit the store. */
   const clone = <T>(v: T): T => structuredClone(v);
@@ -78,6 +132,9 @@ export function memoryStore(): Store {
       }
       for (const p of pendings.values()) if (p.userId === fromUserId) p.userId = intoUserId;
       for (const a of analyses) if (a.userId === fromUserId) a.userId = intoUserId;
+      // Funnel rows move with the account. Signing in halfway through onboarding is a normal thing
+      // to do, and a run split across two user ids reads as two abandoned runs.
+      for (const e of onboardingEvents.values()) if (e.userId === fromUserId) e.userId = intoUserId;
 
       // The merged-away account's identities are DROPPED, not repointed. It is anonymous by the
       // time we get here, so those are device identities only — and repointing one would mean that
@@ -111,6 +168,31 @@ export function memoryStore(): Store {
       }
       users.set(userId, next);
       return clone(next);
+    },
+
+    async getOnboardingContent() {
+      return onboardingContent ? clone(onboardingContent) : null;
+    },
+
+    async putOnboardingContent(content) {
+      onboardingContent = clone(content);
+    },
+
+    async recordOnboardingEvents(userId, events) {
+      let added = 0;
+      for (const e of events) {
+        // Keyed on the CLIENT's id, so a retried batch overwrites nothing and adds nothing. The
+        // Postgres implementation gets the same behaviour from a primary key.
+        if (onboardingEvents.has(e.id)) continue;
+        onboardingEvents.set(e.id, { ...clone(e), userId, receivedAt: Date.now() });
+        added++;
+      }
+      return added;
+    },
+
+    async onboardingFunnel(days) {
+      const since = Date.now() - days * 24 * 60 * 60 * 1000;
+      return aggregateFunnel([...onboardingEvents.values()].filter((e) => e.receivedAt >= since));
     },
 
     async insertMeal(record) {
@@ -199,6 +281,9 @@ export function memoryStore(): Store {
       for (let i = identities.length - 1; i >= 0; i--) {
         if (identities[i]!.userId === userId) identities.splice(i, 1);
       }
+      // And the funnel rows. See the note on `deleteUser` in the port: onboarding promises erasure
+      // while asking about the user's kidneys, so the analytics table is not an exception to it.
+      for (const [id, e] of onboardingEvents) if (e.userId === userId) onboardingEvents.delete(id);
     },
 
     async close() {},

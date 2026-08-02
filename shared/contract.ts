@@ -7,6 +7,7 @@
 import type {
   ActivityLevel, DailyTotals, DayTotals, Goal, Lang, MealItem, MealRecord, Pace, Profile, Sex,
 } from "./types.ts";
+import type { OnboardingContent, OnboardingEvent } from "./onboarding.ts";
 import type { TargetBasis } from "./targets.ts";
 import type { ConfirmMealResult, HandleTextResult, LogPhotoResult, MealUpdated, TargetGone } from "./results.ts";
 import type { FoodTargets } from "./types.ts";
@@ -60,6 +61,10 @@ export const ROUTES = {
   /** The identities linked to this account, so settings can show what is connected. */
   identities: "/v1/auth/identities",
   profile: "/v1/profile",
+  /** GET — the onboarding copy this server is currently serving. Editable in the admin. */
+  onboarding: "/v1/onboarding",
+  /** POST — a batch of onboarding funnel events. Fire-and-forget from the app's point of view. */
+  onboardingEvents: "/v1/onboarding/events",
   photo: "/v1/meals/photo",
   messages: "/v1/messages",
   /** PATCH — the manual edit path. See `EditMealRequest`. */
@@ -208,6 +213,37 @@ export interface ProfileRejected {
   /** Present for `target-weight-below-healthy-bmi` — what the app shows as the lowest it accepts. */
   minHealthyKg?: number;
 }
+
+// ── Onboarding ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The onboarding copy, as this server currently has it.
+ *
+ * The app ships with `DEFAULT_ONBOARDING_CONTENT` compiled in and renders from that immediately,
+ * then replaces it when this arrives. So the fetch is an ENHANCEMENT, never a gate: an onboarding
+ * that waits for the network is an onboarding that shows a spinner as its first screen.
+ */
+export interface OnboardingContentResponse {
+  content: OnboardingContent;
+}
+
+/**
+ * A batch of funnel events.
+ *
+ * Batched rather than sent per-event because onboarding is exactly when a user is least likely to
+ * have a good connection — a fresh install, often on cellular, often walking. The app keeps its own
+ * copy on disk and flushes what it can; the ids make a re-flush idempotent.
+ */
+export interface OnboardingEventsRequest {
+  events: OnboardingEvent[];
+}
+
+export interface OnboardingEventsResponse {
+  accepted: number;
+}
+
+/** Bounded so one client cannot post a million rows. The app flushes well under this. */
+export const MAX_ONBOARDING_EVENTS_PER_BATCH = 100;
 
 // ── Meals ────────────────────────────────────────────────────────────────────────────────────
 
