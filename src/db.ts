@@ -794,10 +794,58 @@ export async function deleteUser(db: Db, user_id: number): Promise<void> {
     // v3 children too: a pending analysis is meal content (PRIVACY.md erasure), and an orphaned
     // pending row would FK-crash a post-delete tm:log tap.
     await tx`DELETE FROM pending_meals WHERE user_id = ${user_id}`;
+    // Same reasoning as pending_meals: a pending edit holds a proposed meal analysis, which is
+    // meal content under PRIVACY.md's erasure promise, and an orphaned row would outlive its owner.
+    await tx`DELETE FROM pending_edits WHERE user_id = ${user_id}`;
     await tx`DELETE FROM llm_calls WHERE user_id = ${user_id}`;
     await tx`DELETE FROM events WHERE user_id = ${user_id}`;
     await tx`DELETE FROM users WHERE telegram_id = ${user_id}`;
+    await deleteAgentMemory(tx, user_id);
   });
+}
+
+/**
+ * Erase the user's Mastra conversation memory.
+ *
+ * THIS IS NOT OUR SCHEMA, and that is exactly why it was missed. `PostgresStore.init()` creates and
+ * owns `mastra_messages` / `mastra_threads` / `mastra_resources` inside the same database, outside
+ * `db.ts`'s migration list — so they are invisible to anyone reading this file, and `/delete` left
+ * them untouched from the day the router gained memory. Measured on the live database: five stored
+ * user turns, 9.8–12.8 KB each, because what is persisted is the whole `buildRouteText` prompt —
+ * the diary, the goal, the declared restrictions. Health data, retained indefinitely, for an
+ * account the user had asked to erase.
+ *
+ * Keyed exactly as `routeViaAgent.ts` writes it: thread `u<telegram_id>`, resource `<telegram_id>`.
+ * If that key convention ever changes, this must change with it — a test asserts both agree.
+ *
+ * Tables are addressed defensively (`to_regclass`) rather than assumed: a fresh database that has
+ * never run `PostgresStore.init()` has none of them, and a `/delete` must not fail because the
+ * memory backend has not booted yet.
+ */
+async function deleteAgentMemory(tx: Db, user_id: number): Promise<void> {
+  const thread = agentThreadId(user_id);
+  const resource = String(user_id);
+  if (await tableExists(tx, "mastra_messages")) {
+    await tx`DELETE FROM mastra_messages WHERE thread_id = ${thread} OR "resourceId" = ${resource}`;
+  }
+  if (await tableExists(tx, "mastra_threads")) {
+    await tx`DELETE FROM mastra_threads WHERE id = ${thread} OR "resourceId" = ${resource}`;
+  }
+  if (await tableExists(tx, "mastra_resources")) {
+    await tx`DELETE FROM mastra_resources WHERE id = ${resource}`;
+  }
+}
+
+/**
+ * The Mastra memory thread id for a user. ONE definition, imported by the router that writes it and
+ * the erasure that clears it — two string templates is how a rename silently orphans a user's
+ * conversation history after they asked for it to be deleted.
+ */
+export const agentThreadId = (user_id: number): string => `u${user_id}`;
+
+async function tableExists(tx: Db, name: string): Promise<boolean> {
+  const rows = await tx`SELECT to_regclass(${`public.${name}`}) IS NOT NULL AS present`;
+  return rows[0]?.present === true;
 }
 
 export async function userCount(db: Db): Promise<number> {

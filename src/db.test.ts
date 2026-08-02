@@ -28,6 +28,7 @@ import {
   getPendingEdit,
   deletePendingEdit,
   prunePendingEdits,
+  agentThreadId,
   logLlmCall,
   llmCallsToday,
   llmCallCountToday,
@@ -1223,5 +1224,57 @@ describe("pending_edits", () => {
     expect(await getPendingEdit(db, "e1", 1)).toBeUndefined();
     // gone for good, not merely unreadable
     expect((await db`SELECT id FROM pending_edits WHERE id = ${"e1"}`).length).toBe(0);
+  });
+});
+
+describe("/delete erases everything keyed to the user", () => {
+  test("a pending edit does not outlive its owner", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await upsertUser(db, { telegram_id: 2 });
+    await insertPendingEdit(db, { id: "e1", user_id: 1, ts: "t", kind: "redate", meal_id: "m", new_date: "2026-08-01" });
+    await insertPendingEdit(db, { id: "e2", user_id: 2, ts: "t", kind: "redate", meal_id: "m", new_date: "2026-08-01" });
+
+    await deleteUser(db, 1);
+
+    expect((await db`SELECT id FROM pending_edits WHERE user_id = ${1}`).length).toBe(0);
+    // and nobody else's
+    expect((await db`SELECT id FROM pending_edits WHERE user_id = ${2}`).length).toBe(1);
+  });
+
+  test("the agent's conversation memory goes too — it holds the whole prompt, diary and all", async () => {
+    // Mastra owns these tables (PostgresStore.init creates them outside db.ts's migrations), which
+    // is exactly why /delete missed them: they are invisible to anyone reading db.ts. What is
+    // stored is the full buildRouteText prompt — meals, goal, declared restrictions.
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await upsertUser(db, { telegram_id: 2 });
+    // Stand in for PostgresStore.init() with the columns deleteUser addresses.
+    await db`CREATE TABLE mastra_threads (id TEXT PRIMARY KEY, "resourceId" TEXT NOT NULL)`;
+    await db`CREATE TABLE mastra_messages (id TEXT PRIMARY KEY, thread_id TEXT NOT NULL, "resourceId" TEXT, content TEXT NOT NULL)`;
+    await db`CREATE TABLE mastra_resources (id TEXT PRIMARY KEY)`;
+    await db`INSERT INTO mastra_threads VALUES (${agentThreadId(1)}, ${"1"}), (${agentThreadId(2)}, ${"2"})`;
+    await db`INSERT INTO mastra_messages VALUES
+      (${"m1"}, ${agentThreadId(1)}, ${"1"}, ${"my cholesterol is high"}),
+      (${"m2"}, ${agentThreadId(2)}, ${"2"}, ${"someone else's turn"})`;
+    await db`INSERT INTO mastra_resources VALUES (${"1"}), (${"2"})`;
+
+    await deleteUser(db, 1);
+
+    expect((await db`SELECT id FROM mastra_messages WHERE thread_id = ${agentThreadId(1)}`).length).toBe(0);
+    expect((await db`SELECT id FROM mastra_threads WHERE id = ${agentThreadId(1)}`).length).toBe(0);
+    expect((await db`SELECT id FROM mastra_resources WHERE id = ${"1"}`).length).toBe(0);
+    // user 2 is untouched — erasure is scoped, not a wipe
+    expect((await db`SELECT id FROM mastra_messages WHERE thread_id = ${agentThreadId(2)}`).length).toBe(1);
+    expect((await db`SELECT id FROM mastra_resources WHERE id = ${"2"}`).length).toBe(1);
+  });
+
+  test("/delete still succeeds on a database where the memory backend never booted", async () => {
+    // A fresh instance that has not run PostgresStore.init() has none of those tables. An erasure
+    // that throws because the memory backend is absent is an erasure that did not happen.
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await deleteUser(db, 1);
+    expect(await getUser(db, 1)).toBeUndefined();
   });
 });

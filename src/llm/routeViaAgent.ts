@@ -29,6 +29,7 @@ import type { RequestContext } from "@mastra/core/request-context";
 import { LOOKUP_GUIDANCE } from "./agent.ts";
 import { stopAtTerminalTool, ROUTER_TOOLS, LOOKUP_TOOL, MEAL_LOOKUP_TOOL } from "./stop.ts";
 import { SYSTEM_ROUTE, TARGETING_GUIDANCE, buildRouteText, gated } from "../analyzer.ts";
+import { agentThreadId } from "../db.ts";
 import type { RouteContext, RouteResult } from "../analyzer.ts";
 import type { SubmitMealResult } from "./tools/mealActions.ts";
 import type {
@@ -78,7 +79,9 @@ export async function routeTextViaAgent(
       // context — which answers "what did I eat" far better than raw transcript ever will. History
       // is here for "what did I just ask you", and that needs a handful of turns, not all of them.
       memory: {
-        thread: `u${profile.telegram_id}`,
+        // `agentThreadId`, not a template here: `deleteUser` erases this thread on /delete, and two
+        // copies of the key is how a rename leaves a deleted user's conversation history behind.
+        thread: agentThreadId(profile.telegram_id),
         resource: String(profile.telegram_id),
         options: { lastMessages: ROUTER_HISTORY_TURNS },
       },
