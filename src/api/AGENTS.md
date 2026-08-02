@@ -33,6 +33,25 @@ folder never imports `db.ts` and never touches `meals`.
 - **Confirm and drop collapse here, unlike on Telegram.** The HTTP response IS the delivery, so there is no window in which a meal is logged (or an edit applied) and the caller has seen nothing. On Telegram they stay two calls because only the surface knows whether the card actually sent.
 - **Exhaustiveness is a `switch` + `assertNever`, never an assignment.** The earlier guard cast the result to a union of the then-known success kinds and assigned it to `Exclude<HandleTextResult, Refusal | TargetGone>` — narrow into wide, which TypeScript accepts, so a new kind could never error. It didn't: two kinds were added and this file compiled clean while serving 200s no client could act on.
 
+- **The whole user LIFECYCLE is reachable here, not just the diary.** `POST /v1/onboarding`,
+  `GET`/`POST /v1/settings` and `POST /v1/language` exist because an API that can log meals for a
+  user it cannot create is a peer of the bot for only half the product. Onboarding input is NARROWED,
+  never cast: `step()` re-prompts on unrecognised callback data, so a malformed body would look to
+  the client exactly like a stale tap and it would never learn its request was wrong — it is a 400.
+- **`Accept-Language` is this protocol's `language_code`.** The surface negotiates the locale and
+  passes a resolved `Lang`; the engine stores it on INSERT only, so a later header cannot override a
+  choice the user made.
+- **A settings POST has two shapes** — `{action}` for tapping a control, `{field, text}` for
+  answering the prompt a control opened. `field` is required on the second so the engine can check
+  it against the prompt actually armed; a mismatch is 409 and writes nothing. Without it a client
+  racing a tap gets its text written into whichever field is armed now.
+- **These views carry rendered copy, and that is the one deliberate exception** to "no product logic
+  here" — see `engine/AGENTS.md`. `text` renders as-is; each button is a control that POSTs its
+  `data` back as `action`.
+- **There is NO erasure route, on purpose.** `resolveUserId` still resolves to `null`, so this
+  surface is unauthenticated by design; adding a destructive endpoint to it would be strictly worse
+  than not having one. It goes in when a real auth scheme does, not before.
+
 ## Where to add things
 
 A new route → one handler that calls one `src/engine/` function. If a route needs logic the engine

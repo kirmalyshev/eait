@@ -12,8 +12,9 @@
 // derives no step from it, so its '' sentinel is written for consistency, not for resumption.
 //
 // Copy comes from the caller's translator, so this file stays language-agnostic AND stays pure:
-// `t` is a value passed in, not I/O. The LLM restriction fallback deliberately lives in tg_bot/bot.ts
-// for the same reason — see processOnboarding.
+// `t` is a value passed in, not I/O. The LLM restriction fallback deliberately lives in
+// engine/onboarding.ts for the same reason — see advanceOnboarding, which also owns the read and
+// the persistence so that every front end gets the same flow.
 
 import type { TFunction } from "i18next";
 import { parseRestrictions } from "./targets.ts";
@@ -46,7 +47,7 @@ export type OnboardingInput =
  * import specifier. That is not a trick played on `boundary.test.ts` — the rule the test protects is
  * that the engine never CONSTRUCTS an i18next instance and never PICKS a language (both of which
  * live behind the still-banned `i18n/index.ts`). Rendering copy from a translator the caller
- * supplies is a decision taken deliberately: see `docs/design/` and `engine/AGENTS.md`.
+ * supplies is a decision taken deliberately: `docs/design/2026-08-02-engine-boundary-completion.md`.
  */
 export type Translator = TFunction;
 

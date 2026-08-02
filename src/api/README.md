@@ -11,6 +11,10 @@ HTTP over the engine, for the mobile client. Off unless `API_PORT` is set.
 | `POST /v1/meals/pending/:id/cancel` | discards a proposal; nothing was ever written to `meals` |
 | `GET /v1/diary/day` | `?date=YYYY-MM-DD` (default: today, Europe/Berlin) |
 | `GET /v1/diary/week` | `?days=N` (1–90, default 7) |
+| `POST /v1/onboarding` | `{input}` — `{type:"command",command:"start"}` / `{type:"callback",data}` / `{type:"text",text}` → `{state, text, buttons}`. `Accept-Language` seeds the locale on first contact |
+| `GET /v1/settings` | the settings root: summary text + buttons |
+| `POST /v1/settings` | `{action}` to tap a control, or `{field, text}` to answer the prompt one opened (409 if that field is not the armed one) |
+| `POST /v1/language` | `{lang}` — a registry code, else 400 |
 
 **No authentication scheme is wired yet** — `resolveUserId` returns `null`, so every route except
 `/health` answers 401. See `AGENTS.md`.

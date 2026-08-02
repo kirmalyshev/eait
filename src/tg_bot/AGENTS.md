@@ -11,11 +11,14 @@ See `src/AGENTS.md` for the domain invariants and the root `AGENTS.md` for proje
   engine ports. This is where logic belongs.
 - **`createBot(deps)`** — thin grammy adapters that unwrap `ctx` and call a `process*`.
 
-New behaviour goes in a `process*` function, not in a handler body.
+New behaviour goes in a `process*` function, not in a handler body. Every handler now follows it —
+`/delete` and `/stats` were the last two holdouts and are now `processDeletePrompt` /
+`processDeleteDecision` / `processStats`, with tests. There is no remaining example to copy from.
 
-Two handlers predate that rule and still hold logic inline: `/delete` (prompt + the
-`delete_confirm`/`delete_cancel` callbacks) and the `/stats` admin gate. Both are consequently
-untested. Don't copy the pattern, and prefer extracting them over adding a third.
+A `process*` function is thinner than it used to be: onboarding, settings, cap and allowlist
+administration, and account erasure are all ENGINE calls now (`src/engine/AGENTS.md`). What stays
+here is resolving a `ctx` into arguments, deciding text precedence, and turning a typed engine
+result into copy plus a keyboard.
 
 ## Invariants that bite here
 
@@ -30,6 +33,17 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
   and wait for a tap when the agent inferred it** — see the chat-targeted editing bullet below.
   `processText` returns `false` only for non-active users, whose text still belongs to
   `processOnboarding`.
+- **Settings and onboarding are engine flows; this layer renders them.** `processSettingsOpen` /
+  `processSettingsCallback` / `processSettingsInput` / `processOnboarding` / `processLangChoice` are
+  adapters over `openSettings` / `applySettingsAction` / `submitSettingsInput` / `advanceOnboarding`
+  / `setUserLanguage`. The engine takes a translator FACTORY and picks the language from the row, so
+  a brand-new user's consent screen renders in the locale `resolveLang(language_code)` just seeded —
+  resolving a translator here first would render every first screen in the default language.
+- **`submitSettingsInput` re-checks the armed field.** `processText` still reads `u.pending_input`
+  to resolve precedence (it must know a prompt is armed before deciding the text is not a meal) and
+  passes the row, but the engine re-reads and verifies rather than trusting it. A `no-prompt` result
+  means a tap raced the message: nothing was written and nothing is owed, because the tap already
+  sent the view that replaced the prompt.
 - **Settings text-capture: `pending_input` is the ONLY non-callback settings path.** Tapping the
   weight / target-weight / country-"Other" / food-specifics (medical, allergies, products) buttons returns a view with `awaitInput`; the callback
   handler arms `users.pending_input` to that field. The very next text an active user sends is
@@ -112,6 +126,16 @@ untested. Don't copy the pattern, and prefer extracting them over adding a third
   `target_weight_skip`/`country_*`/`restrictions_*` onboarding, `delete_*` delete, `tm:` text-meal
   confirm, `ce:` chat-targeted edit (`ce:ok:`/`ce:no:`/`ce:pick:`). Never reuse a prefix across
   machines — the receiving machine's guards reject foreign taps silently.
+- **Admin commands render, they do not decide.** `/cap`, `/allow`, `/deny`, `/allowed` call
+  `engine/admin.ts` and map the result union to copy through ONE `sendAllowlistResult` with an
+  `assertNever`, so a new result kind is a compile error in exactly one place rather than three
+  handlers that drift. The silent-when-no-admin behaviour is the surface's call and stays here: the
+  engine reports `no-admin-configured` and this layer chooses to say nothing.
+- **`/delete` is confirm-first and the confirm is the only thing that erases.** The prompt sends
+  buttons and writes nothing. `processDeleteDecision` reads the translator BEFORE the delete (there
+  is no row to read it from afterwards), calls the engine's `deleteAccount`, then clears the
+  in-memory rejection log — which the engine cannot do, since only this layer knows it exists. It
+  returns `false` for data it does not own so the callback chain keeps its fall-through.
 - **`bot.catch` stays.** A failed reply must never crash the process; `startBot`'s supervisor
   retries runner errors (e.g. a 409 during poller hand-off) instead of exiting.
 - **Retry transient, exit on fatal.** `isFatalTelegramError` (401/404 — a dead or wrong token)
