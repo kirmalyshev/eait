@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
-  answerQuestionTool, askWhichMealTool, submitCorrectionTool, submitRedateTool, MAX_MEAL_CHOICES,
+  answerQuestionTool, askWhichMealTool, submitCorrectionTool, submitRedateTool,
   type AnswerQuestionResult, type AskWhichMealResult, type SubmitRedateResult,
 } from "./routeActions.ts";
-import { MAX_DAY_OFFSET } from "../../analyzer.ts";
+import { MAX_DAY_OFFSET, MAX_MEAL_CHOICES } from "../../analyzer.ts";
 
 const VALID_MEAL = {
   isFood: true,

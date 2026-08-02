@@ -20,6 +20,7 @@ import { targetsFor } from "../targets.ts";
 import { mealRecordToAnalysis } from "./profile.ts";
 import { profileFromRow } from "./profile.ts";
 import { checkCaps } from "./caps.ts";
+import { MAX_MEAL_CHOICES } from "../analyzer.ts";
 import type { RouteContext } from "../analyzer.ts";
 import type { MealAnalysis, MealRecord } from "../types.ts";
 import type { EngineDeps, UserId } from "./deps.ts";
@@ -317,7 +318,19 @@ export async function handleText(
     );
     // Never applied straight through, however confident the match: this target was inferred by
     // string overlap, which is weaker evidence than the model naming an id, not stronger.
-    if (recovered.length > 1) return proposeChoice(deps, userId, input.text, recovered);
+    if (recovered.length > 1) {
+      // Capped to the same keyboard budget `ask_which_meal` is bound to by its schema. This path
+      // has no such schema — a week of "coffee" would otherwise render twenty buttons — so the cap
+      // is applied here, and the drop is LOGGED rather than silent: a truncated list looks exactly
+      // like a complete one to whoever reads it.
+      const offered = recovered.slice(0, MAX_MEAL_CHOICES);
+      if (offered.length < recovered.length) {
+        console.log(
+          `[eait] choice list truncated user=${userId} ${recovered.length}→${offered.length} (newest kept)`,
+        );
+      }
+      return proposeChoice(deps, userId, input.text, offered);
+    }
     return proposeEdit(deps, userId, route, recovered[0]!, date);
   }
 

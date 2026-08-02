@@ -1,6 +1,8 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { MealAnalysisSchema, MAX_DAY_OFFSET, clampDayOffset } from "../../analyzer.ts";
+import {
+  MealAnalysisSchema, MAX_DAY_OFFSET, MAX_MEAL_CHOICES, clampDayOffset,
+} from "../../analyzer.ts";
 import { RESTRICTION_TAGS } from "../../targets.ts";
 
 // The three remaining terminal tools, completing the set `routeText`'s four-intent union used to
@@ -113,14 +115,6 @@ export const submitRedateTool = createTool({
     return { dayOffset: clamped, ...(clean ? { mealId: clean } : {}) };
   },
 });
-
-/**
- * How many meals one disambiguation question may offer.
- *
- * A cap, not a preference: each candidate is an inline button, and a keyboard the user has to
- * scroll is worse than the model narrowing harder before it asks. Four fits one screen on a phone.
- */
-export const MAX_MEAL_CHOICES = 4;
 
 export interface AskWhichMealResult {
   mealIds: string[];

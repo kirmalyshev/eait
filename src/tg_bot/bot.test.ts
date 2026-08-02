@@ -15,6 +15,7 @@ import {
 } from "./bot.ts";
 import { DEFAULT_LANG, LANGS, translatorFor } from "../i18n/index.ts";
 import { berlinDayLabel } from "../reply.ts";
+import { MAX_MEAL_CHOICES } from "../analyzer.ts";
 import type { InlineButton } from "../onboarding.ts";
 import type { Config } from "../config.ts";
 import type { LLMProvider } from "../llm/provider.ts";
@@ -3591,4 +3592,27 @@ test("today's meals reach the router prompt WITH their ids", async () => {
   await processText(deps, { id: 1 }, { text: "как дела", messageId: 5 }, noop);
 
   expect((seen as { mealId?: string }[])[0]!.mealId).toBe("m-pasta");
+});
+
+test("a recovered candidate list is capped to the same keyboard budget the tool schema enforces", async () => {
+  // The engine's recovery path has no zod schema bounding it, so a week of "coffee" would render a
+  // button per meal. Capped and logged — a truncated list looks exactly like a complete one.
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "correction", analysis: CORRECTED }),
+  });
+  await onboardToActive(deps, 1);
+  const date = berlinDate(new Date(), cfg.tz);
+  for (let i = 0; i < MAX_MEAL_CHOICES + 3; i++) {
+    await dbModule.insertMeal(db, {
+      id: `m${i}`, user_id: 1, ts: `${date}T0${i % 10}:00:00Z`, date,
+      analysis: { ...CORRECTED, kcal: 100 + i },
+    });
+  }
+  const c = kbCollector();
+
+  await processText(deps, { id: 1 }, { text: "паста была 200г", messageId: 5 }, c.send);
+
+  expect(c.dataOf().length).toBe(MAX_MEAL_CHOICES);
 });

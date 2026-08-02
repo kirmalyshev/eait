@@ -539,6 +539,19 @@ export type RouteResult =
   // tap replays their original message with the chosen meal in focus.
   | { intent: "choose"; mealIds: string[]; question: string };
 
+/**
+ * How many meals one disambiguation may offer.
+ *
+ * A cap, not a preference: each candidate becomes an inline button, and a keyboard the user has to
+ * scroll is worse than narrowing harder before asking. Four fits one phone screen.
+ *
+ * It lives HERE, beside `MAX_DAY_OFFSET`, because two independent paths build candidate lists —
+ * `ask_which_meal`'s schema and the engine's own recovery — and a cap enforced in only one of them
+ * is a cap the other silently ignores. Neither `llm/` nor `engine/` may import the other, so the
+ * bound belongs in the module they both already depend on.
+ */
+export const MAX_MEAL_CHOICES = 4;
+
 /** Oldest day back a text meal can be dated to (offset 0 = today … 7 = a week ago) — mirrors the
  * 7-day week context (weekStart = today − 7d), so offset 7 lands on the oldest day the router sees. */
 export const MAX_DAY_OFFSET = 7;
