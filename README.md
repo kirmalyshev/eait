@@ -77,8 +77,9 @@ is safe.
 - **LLM:** OpenRouter behind a swappable `LLMProvider` (default `x-ai/grok-4.5`; any
   vision-capable model works). The analyzer owns the prompt and the zod-validated parse — the
   provider is thin transport, so swapping it is one file.
-- **Storage:** one Postgres database per branch (auto-created on boot; a shared dockerized
-  dev server ships in the repo). Every meal query is scoped `WHERE id = ? AND user_id = ?`.
+- **Storage:** one Postgres database for the whole app, across every branch and worktree, so
+  user state survives a branch switch (a shared dockerized dev server ships in the repo; the
+  bot never creates a database). Every meal query is scoped `WHERE id = ? AND user_id = ?`.
 - **Layout:** domain logic under `src/`, the Telegram adapter under `src/tg_bot/`, tests
   co-located. See [AGENTS.md](AGENTS.md).
 

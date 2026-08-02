@@ -529,9 +529,28 @@ export interface RouteContext {
 export type RouteResult =
   | { intent: "question"; answer: string }
   | { intent: "meal"; analysis: MealAnalysis; dayOffset: number }
-  | { intent: "correction"; analysis: MealAnalysis }
-  // Move an existing (focus) meal to a different day; carries no analysis — macros are unchanged.
-  | { intent: "redate"; dayOffset: number };
+  // `mealId` is set when the AGENT located the target itself via `find_meals`, absent when the
+  // target is the reply's focus meal. The engine resolves the two — focus wins — and an id that
+  // names nothing the caller owns becomes `target-gone`, never somebody else's row.
+  | { intent: "correction"; analysis: MealAnalysis; mealId?: string }
+  // Move an existing meal to a different day; carries no analysis — macros are unchanged.
+  | { intent: "redate"; dayOffset: number; mealId?: string }
+  // The agent found several plausible targets and refused to guess. Carries no edit: the user's
+  // tap replays their original message with the chosen meal in focus.
+  | { intent: "choose"; mealIds: string[]; question: string };
+
+/**
+ * How many meals one disambiguation may offer.
+ *
+ * A cap, not a preference: each candidate becomes an inline button, and a keyboard the user has to
+ * scroll is worse than narrowing harder before asking. Four fits one phone screen.
+ *
+ * It lives HERE, beside `MAX_DAY_OFFSET`, because two independent paths build candidate lists —
+ * `ask_which_meal`'s schema and the engine's own recovery — and a cap enforced in only one of them
+ * is a cap the other silently ignores. Neither `llm/` nor `engine/` may import the other, so the
+ * bound belongs in the module they both already depend on.
+ */
+export const MAX_MEAL_CHOICES = 4;
 
 /** Oldest day back a text meal can be dated to (offset 0 = today … 7 = a week ago) — mirrors the
  * 7-day week context (weekStart = today − 7d), so offset 7 lands on the oldest day the router sees. */
@@ -575,12 +594,33 @@ export const SYSTEM_ROUTE =
   "protocol). Set dayOffset to the whole number of days before today the food was eaten — 0 for " +
   `today (the default), 1 for yesterday, up to ${MAX_DAY_OFFSET}; a relative phrase like "yesterday" ` +
   'or "2 days ago" sets it, otherwise use 0; ' +
-  '{"intent":"correction","analysis":{...}} ONLY when a focus meal is provided and the text ' +
-  "corrects that meal's estimate (return the full updated analysis object); " +
-  '{"intent":"redate","dayOffset":N} ONLY when a focus meal is provided and the text asks to MOVE ' +
-  "that meal to a different day (e.g. \"move this to yesterday\", \"this was 2 days ago\") without " +
-  "changing what was eaten — dayOffset is the whole number of days before today to file it under " +
+  '{"intent":"correction","analysis":{...}} when the text corrects a logged meal\'s estimate ' +
+  "(return the full updated analysis object); " +
+  '{"intent":"redate","dayOffset":N} when the text asks to MOVE a logged meal to a different day ' +
+  '(e.g. "move this to yesterday", "the pasta was 2 days ago") without changing what was eaten — ' +
+  "dayOffset is the whole number of days before today to file it under " +
   `(0 today, 1 yesterday, up to ${MAX_DAY_OFFSET}).`;
+
+/**
+ * How to target a correction or a re-date when the user did NOT reply to a meal card.
+ *
+ * A separate export, appended by the tool-driven engine only, because it describes tools the
+ * JSON-schema path does not have. That path (dev-only now: `scripts/eval-meals.ts`,
+ * `scripts/parity-llm-paths.ts`) can neither search the diary nor ask a question, so telling it
+ * about `find_meals` would be instructions for capabilities it lacks — the exact failure mode
+ * `LOOKUP_GUIDANCE` was written to avoid on the other side.
+ */
+export const TARGETING_GUIDANCE =
+  "submit_correction and submit_redate ALWAYS need a target. When a focus meal was provided, that " +
+  "is the target: omit mealId. Otherwise you MUST supply mealId, and an edit without one is " +
+  "rejected — the user's message is lost. Get the id one of two ways. (1) If the meal is one of " +
+  "the todayMeals in the diary context, use its mealId directly; they are listed there precisely " +
+  "so you do not have to search for something you can already see. (2) Otherwise call find_meals " +
+  "with the food words from their message and use an id it returns. Use find_meals to answer " +
+  "questions about earlier days too. If several candidate meals could plausibly be the one they " +
+  "mean, do NOT pick one — call ask_which_meal with those ids and a short question naming what " +
+  "tells them apart. If nothing fits, say so with answer_question rather than editing a meal that " +
+  "is merely close.";
 
 const RouteSchema = z.object({
   intent: z.enum(["question", "meal", "correction", "redate"]),
@@ -625,7 +665,15 @@ export function buildRouteText(text: string, profile: Profile, ctx: RouteContext
       }),
     );
   } else {
-    lines.push("There is no focus meal — the correction and redate intents are NOT available.");
+    // Used to read "the correction and redate intents are NOT available", which was true when a
+    // Telegram reply was the only way to name a meal. The agent can now find one itself, so the
+    // line tells it how rather than closing the door
+    // (`docs/design/2026-08-02-chat-targeted-meal-editing.md`).
+    lines.push(
+      "The message does not reply to any meal, so there is no focus meal. If it changes a meal " +
+        "already logged, you MUST name that meal with mealId — take it from todayMeals above when " +
+        "the meal is there, otherwise from find_meals. Never act on a meal you have not named.",
+    );
   }
   lines.push(`Write the answer in ${LOCALES[profile.lang].llmName}.`);
   lines.push("");

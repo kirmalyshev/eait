@@ -18,12 +18,15 @@
 /** Terminal for the photo flow. Grounding is a mid-turn lookup, not an ending. */
 export const PHOTO_TOOLS = ["submit_meal"] as const;
 
-/** Terminal for the free-text router — one per intent of the old `RouteResult` union. */
+/** Terminal for the free-text router — one per variant of the `RouteResult` union. */
 export const ROUTER_TOOLS = [
   "submit_meal",
   "submit_correction",
   "submit_redate",
   "answer_question",
+  // "I found more than one meal this could be." Terminal because the turn genuinely ends there:
+  // the user's tap replays the message with a focus meal rather than resuming this turn.
+  "ask_which_meal",
 ] as const;
 
 /** Terminal for onboarding. Restricted hardest: it runs before a profile exists, so a diary tool
@@ -33,6 +36,16 @@ export const ONBOARDING_TOOLS = ["submit_restrictions"] as const;
 
 /** The composition-table lookup. Available mid-turn wherever grounding helps; never ends a turn. */
 export const LOOKUP_TOOL = "search_food_db";
+
+/**
+ * The user's-own-diary lookup. Mid-turn, never terminal — like `search_food_db`, it answers a
+ * question the model then has to act on.
+ *
+ * ROUTER ONLY, and the omission from the photo set is deliberate: a photo is a NEW meal, so a
+ * diary search could only tempt the model into "correcting" an existing one out of a picture of a
+ * different plate. Onboarding is restricted harder still — it runs before the user has any rows.
+ */
+export const MEAL_LOOKUP_TOOL = "find_meals";
 
 /** Every tool that ENDS a turn, in any flow. The stop condition matches this whole set — safe
  * precisely because `activeTools` decides which of them a given turn can reach. */

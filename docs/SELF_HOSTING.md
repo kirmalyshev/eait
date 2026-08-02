@@ -231,14 +231,18 @@ the bot reaches the server as `db`; native runs use the loopback port from `.env
 the same database, so switching between them is seamless (never run both at once — one
 long-polling consumer per token).
 
-*Parallel instances (worktree development):* each checkout must be its own compose project
-with its own database, or `up` in one worktree replaces the other's container. Once per
-worktree:
+*Parallel instances (worktree development):* each checkout must be its own compose project, or
+`up` in one worktree replaces the other's container. Once per worktree:
 
 ```bash
 sh scripts/compose-env.sh     # writes COMPOSE_PROJECT_NAME=eait-<branch>,
-                              # PGDATABASE=eait_<branch>, PGDATABASE_TEST=eait_test_<branch>
+                              # and pins PGDATABASE=eait / PGDATABASE_TEST=eait_test
 ```
+
+Containers are per-branch; **the database is not**. All worktrees share the one `eait` database,
+because user state (onboarding, profile, diary) has to survive a branch switch. The trade: a
+branch that runs a new migration migrates the database `main` is using too, and migrations are
+forward-only.
 
 Each parallel instance also needs its **own bot token** (next paragraph) — create a throwaway
 dev bot per worktree via `@BotFather`.

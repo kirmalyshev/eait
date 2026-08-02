@@ -281,4 +281,125 @@ describe("api router", () => {
     // either way the body must not carry the message.
     expect(await res.text()).not.toContain("secret-bearing");
   });
+
+  // ---------- chat-targeted editing over HTTP ----------
+  // The engine is meant to serve both front ends. These exist because `/v1/messages` learned to
+  // answer `edit-proposed` and `choose-meal` while nothing here could act on either — the same
+  // dead end the pending-meal routes were added to close.
+
+  async function seedMeal(db: Awaited<ReturnType<typeof freshTestDb>>, id: number, mealId: string) {
+    await activeUser(db, id);
+    await insertMeal(db, {
+      id: mealId, user_id: id, ts: new Date().toISOString(),
+      date: berlinDate(new Date(), cfg.tz), analysis: ANALYSIS,
+    });
+  }
+
+  const CORRECTED = { ...ANALYSIS, kcal: 900 } as MealAnalysis;
+
+  test("a proposed edit can be applied — the API is not a dead end here either", async () => {
+    const { db, deps } = await ctx({
+      routeText: async () => ({ intent: "correction", analysis: CORRECTED, mealId: "m1" }),
+    });
+    await seedMeal(db, 720, "m1");
+    const handle = createRouter(deps, () => 720);
+
+    const proposed = await body(await handle(new Request("http://x/v1/messages", {
+      method: "POST", body: JSON.stringify({ text: "that was bigger" }),
+    })));
+    expect(proposed.kind).toBe("edit-proposed");
+    // Not applied yet: the target was inferred, so it waits.
+    expect((await body(await handle(new Request("http://x/v1/diary/day")))).totals.kcal).toBe(600);
+
+    const res = await handle(new Request(`http://x/v1/edits/pending/${proposed.pendingId}/apply`, { method: "POST" }));
+    expect(res.status).toBe(200);
+    expect((await body(res)).kind).toBe("updated");
+    expect((await body(await handle(new Request("http://x/v1/diary/day")))).totals.kcal).toBe(900);
+
+    // Applying twice is 410, not a second write: the row was dropped once delivered.
+    const again = await handle(new Request(`http://x/v1/edits/pending/${proposed.pendingId}/apply`, { method: "POST" }));
+    expect(again.status).toBe(410);
+  });
+
+  test("a proposed edit can be cancelled, and the meal is untouched", async () => {
+    const { db, deps } = await ctx({
+      routeText: async () => ({ intent: "correction", analysis: CORRECTED, mealId: "m1" }),
+    });
+    await seedMeal(db, 721, "m1");
+    const handle = createRouter(deps, () => 721);
+    const proposed = await body(await handle(new Request("http://x/v1/messages", {
+      method: "POST", body: JSON.stringify({ text: "that was bigger" }),
+    })));
+
+    const res = await handle(new Request(`http://x/v1/edits/pending/${proposed.pendingId}/cancel`, { method: "POST" }));
+    expect(res.status).toBe(200);
+    expect((await body(await handle(new Request("http://x/v1/diary/day")))).totals.kcal).toBe(600);
+  });
+
+  test("one user cannot apply ANOTHER user's pending edit", async () => {
+    // Same scoping rule as the pending-meal confirm, at the other endpoint that takes an id and
+    // writes a row.
+    const { db, deps } = await ctx({
+      routeText: async () => ({ intent: "correction", analysis: CORRECTED, mealId: "m1" }),
+    });
+    await seedMeal(db, 722, "m1");
+    await activeUser(db, 723);
+    const proposed = await body(await createRouter(deps, () => 722)(new Request("http://x/v1/messages", {
+      method: "POST", body: JSON.stringify({ text: "that was bigger" }),
+    })));
+
+    const res = await createRouter(deps, () => 723)(
+      new Request(`http://x/v1/edits/pending/${proposed.pendingId}/apply`, { method: "POST" }));
+    expect(res.status).toBe(410);
+    // and user 722's meal is untouched
+    const day = await body(await createRouter(deps, () => 722)(new Request("http://x/v1/diary/day")));
+    expect(day.totals.kcal).toBe(600);
+  });
+
+  test("choosing a candidate replays the original message against that meal", async () => {
+    let call = 0;
+    const { db, deps } = await ctx({
+      routeText: async (text, _p, rctx) => {
+        call++;
+        if (call === 1) return { intent: "choose", mealIds: ["m1", "m2"], question: "which?" };
+        expect(text).toBe("the coffee was bigger"); // the ORIGINAL message, not the tap
+        expect(rctx.focusMeal).toBeDefined();
+        return { intent: "correction", analysis: CORRECTED };
+      },
+    });
+    await seedMeal(db, 724, "m1");
+    await insertMeal(db, {
+      id: "m2", user_id: 724, ts: new Date().toISOString(),
+      date: berlinDate(new Date(), cfg.tz), analysis: ANALYSIS,
+    });
+    const handle = createRouter(deps, () => 724);
+
+    const asked = await body(await handle(new Request("http://x/v1/messages", {
+      method: "POST", body: JSON.stringify({ text: "the coffee was bigger" }),
+    })));
+    expect(asked.kind).toBe("choose-meal");
+    expect(asked.candidates.length).toBe(2);
+
+    const res = await handle(new Request(`http://x/v1/edits/pending/${asked.pendingId}/choose/1`, { method: "POST" }));
+    expect(res.status).toBe(200);
+    // The tap is as explicit as a reply, so the replay applies immediately.
+    const applied = await body(res);
+    expect(applied.kind).toBe("updated");
+    expect(applied.mealId).toBe("m2");
+  });
+
+  test("an out-of-range candidate index is 410, and writes nothing", async () => {
+    const { db, deps } = await ctx({
+      routeText: async () => ({ intent: "choose", mealIds: ["m1"], question: "which?" }),
+    });
+    await seedMeal(db, 725, "m1");
+    const handle = createRouter(deps, () => 725);
+    const asked = await body(await handle(new Request("http://x/v1/messages", {
+      method: "POST", body: JSON.stringify({ text: "the coffee was bigger" }),
+    })));
+
+    const res = await handle(new Request(`http://x/v1/edits/pending/${asked.pendingId}/choose/9`, { method: "POST" }));
+    expect(res.status).toBe(410);
+    expect((await body(await handle(new Request("http://x/v1/diary/day")))).totals.kcal).toBe(600);
+  });
 });

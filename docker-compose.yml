@@ -1,11 +1,13 @@
 # One service: the long-polling bot. No inbound ports — it only makes outbound calls.
 # Storage is the shared dev Postgres (docker-compose.infra.yml, fixed project `eait-infra`);
-# start that first: sh scripts/db.sh up. The bot creates its branch database on boot.
+# start that first: sh scripts/db.sh up — which creates the database. The bot never does.
 #
-# Parallel worktrees: each worktree must be its own compose PROJECT with its own DATABASE, or
-# `up` in one worktree silently replaces the containers of another. Run
-# `sh scripts/compose-env.sh` once per worktree — it writes COMPOSE_PROJECT_NAME=eait-<branch>
-# and PGDATABASE=eait_<branch> into .env. Each parallel instance ALSO needs its own
+# Parallel worktrees: each worktree must be its own compose PROJECT, or `up` in one worktree
+# silently replaces the containers of another. Run `sh scripts/compose-env.sh` once per worktree
+# — it writes COMPOSE_PROJECT_NAME=eait-<branch> into .env. It does NOT vary PGDATABASE: one
+# database serves every branch, so a rebuild from another checkout cannot strand the users in a
+# fresh empty world (which is exactly what the per-branch database used to do, silently).
+# Each parallel instance ALSO needs its own
 # TELEGRAM_BOT_TOKEN: Telegram allows one long-polling consumer per token; a second gets
 # 409 Conflict and both degrade.
 services:

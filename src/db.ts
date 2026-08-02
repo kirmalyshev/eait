@@ -1,10 +1,9 @@
-// Postgres datastore (Bun.sql): branch database auto-created on open + versioned migrations +
-// typed, per-user-scoped queries. Invariants: meal id = UUID; every meal read/update is
-// `WHERE id = ? AND user_id = ?`; dates are computed in Europe/Berlin. No raw image or photo
-// path is ever stored.
+// Postgres datastore (Bun.sql): versioned migrations + typed, per-user-scoped queries.
+// Invariants: meal id = UUID; every meal read/update is `WHERE id = ? AND user_id = ?`; dates
+// are computed in Europe/Berlin. No raw image or photo path is ever stored.
 //
-// The server is the shared dev/prod instance (docker-compose.infra.yml locally); each branch
-// worktree points PGDATABASE at its own database, so parallel instances never share state.
+// ONE database for the whole app — every branch, every worktree (`eait`). It is created by
+// `sh scripts/db.sh up`, never by the bot: see openDb.
 
 import { SQL } from "bun";
 import type { PgConfig } from "./config.ts";
@@ -149,8 +148,13 @@ export function berlinTime(d: Date, tz = "Europe/Berlin"): string {
 }
 
 /**
- * Connect, creating the database if it does not exist (the per-branch database is born on the
- * first boot of that branch — there is no separate `createdb` step), then migrate.
+ * Connect to an EXISTING database and migrate it.
+ *
+ * A missing database is a loud startup error, never a fresh empty one. This used to auto-create:
+ * PGDATABASE was derived per git branch, so rebuilding the container from a different checkout
+ * silently opened a brand-new world — every user unknown, onboarding from scratch, no error in
+ * any log. Creating a database is a BOOTSTRAP step (`sh scripts/db.sh up`, `setup.sh`) or a test
+ * fixture, never something a running bot does to itself. Opt in with `createIfMissing`.
  */
 export async function openDb(pg: PgConfig): Promise<Db> {
   // config.ts validates PGDATABASE, but openDb is also called directly (tests, scripts) — the
@@ -176,6 +180,14 @@ export async function openDb(pg: PgConfig): Promise<Db> {
             `is the shared dev server up? sh scripts/db.sh up`,
         );
       }
+      if (!pg.createIfMissing) {
+        throw new Error(
+          `database "${pg.database}" does not exist on ${pg.host}:${pg.port}. Refusing to create ` +
+            `it: an empty database is indistinguishable from every user having been wiped. Check ` +
+            `PGDATABASE in .env (the whole app uses ONE database — "eait" unless you changed it). ` +
+            `To bootstrap a genuinely new one: sh scripts/db.sh create ${pg.database}`,
+        );
+      }
       await createDatabase(pg);
       await db`SELECT 1`;
     }
@@ -190,7 +202,7 @@ export async function openDb(pg: PgConfig): Promise<Db> {
 }
 
 /**
- * 3D000 invalid_catalog_name — the branch database has not been created yet. Bun's PostgresError
+ * 3D000 invalid_catalog_name — the database does not exist. Bun's PostgresError
  * puts the SQLSTATE on `.errno` (`.code` is a generic "ERR_POSTGRES_SERVER_ERROR"), so check both;
  * the message match is the last resort and is anchored on `database "…"` so a missing ROLE
  * ("role \"x\" does not exist") takes the friendly connect-failed path, not a doomed CREATE.
@@ -493,11 +505,42 @@ const MIGRATIONS: Migration[] = [
       `;
     },
   },
+  {
+    // Chat-targeted meal editing (`docs/design/2026-08-02-chat-targeted-meal-editing.md`): an edit
+    // whose target the MODEL inferred, rather than one the user pointed at with a reply, waits for
+    // a tap before it touches `meals`.
+    //
+    // One table with nullable columns rather than three narrow ones, and the discriminator is
+    // `kind`. The trade is deliberate: one row shape, one TTL sweep, one callback handler. Reads
+    // parse through zod (`getPendingEdit`) instead of trusting which columns happen to be set, so
+    // a row whose `kind` and payload disagree is caught rather than half-applied.
+    //
+    // `analysis` and `candidates` are TEXT holding JSON, matching `meals.analysis` and
+    // `pending_meals.analysis` — this codebase stores JSON as text everywhere, and one jsonb
+    // column would be the only place a reader has to know the difference.
+    version: 9,
+    up: async (tx) => {
+      await tx`
+        CREATE TABLE pending_edits (
+          id          TEXT PRIMARY KEY,
+          user_id     BIGINT NOT NULL,
+          ts          TEXT NOT NULL,
+          kind        TEXT NOT NULL CHECK (kind IN ('correction', 'redate', 'choose')),
+          meal_id     TEXT,
+          analysis    TEXT,
+          new_date    TEXT,
+          source_text TEXT,
+          candidates  TEXT
+        )`;
+      await tx`CREATE INDEX idx_pending_edits_user ON pending_edits(user_id)`;
+    },
+  },
 ];
 
 async function migrate(db: Db): Promise<void> {
   await db.begin(async (tx) => {
-    // Serialize concurrent boots (two instances racing on a fresh branch database): DDL in
+    // Serialize concurrent boots (parallel worktrees share the database, so two instances can
+    // race on the same pending migration): DDL in
     // Postgres is transactional, and the advisory lock makes the version check-and-apply atomic.
     await tx`SELECT pg_advisory_xact_lock(726174001)`;
     await tx`CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)`;
@@ -751,10 +794,58 @@ export async function deleteUser(db: Db, user_id: number): Promise<void> {
     // v3 children too: a pending analysis is meal content (PRIVACY.md erasure), and an orphaned
     // pending row would FK-crash a post-delete tm:log tap.
     await tx`DELETE FROM pending_meals WHERE user_id = ${user_id}`;
+    // Same reasoning as pending_meals: a pending edit holds a proposed meal analysis, which is
+    // meal content under PRIVACY.md's erasure promise, and an orphaned row would outlive its owner.
+    await tx`DELETE FROM pending_edits WHERE user_id = ${user_id}`;
     await tx`DELETE FROM llm_calls WHERE user_id = ${user_id}`;
     await tx`DELETE FROM events WHERE user_id = ${user_id}`;
     await tx`DELETE FROM users WHERE telegram_id = ${user_id}`;
+    await deleteAgentMemory(tx, user_id);
   });
+}
+
+/**
+ * Erase the user's Mastra conversation memory.
+ *
+ * THIS IS NOT OUR SCHEMA, and that is exactly why it was missed. `PostgresStore.init()` creates and
+ * owns `mastra_messages` / `mastra_threads` / `mastra_resources` inside the same database, outside
+ * `db.ts`'s migration list — so they are invisible to anyone reading this file, and `/delete` left
+ * them untouched from the day the router gained memory. Measured on the live database: five stored
+ * user turns, 9.8–12.8 KB each, because what is persisted is the whole `buildRouteText` prompt —
+ * the diary, the goal, the declared restrictions. Health data, retained indefinitely, for an
+ * account the user had asked to erase.
+ *
+ * Keyed exactly as `routeViaAgent.ts` writes it: thread `u<telegram_id>`, resource `<telegram_id>`.
+ * If that key convention ever changes, this must change with it — a test asserts both agree.
+ *
+ * Tables are addressed defensively (`to_regclass`) rather than assumed: a fresh database that has
+ * never run `PostgresStore.init()` has none of them, and a `/delete` must not fail because the
+ * memory backend has not booted yet.
+ */
+async function deleteAgentMemory(tx: Db, user_id: number): Promise<void> {
+  const thread = agentThreadId(user_id);
+  const resource = String(user_id);
+  if (await tableExists(tx, "mastra_messages")) {
+    await tx`DELETE FROM mastra_messages WHERE thread_id = ${thread} OR "resourceId" = ${resource}`;
+  }
+  if (await tableExists(tx, "mastra_threads")) {
+    await tx`DELETE FROM mastra_threads WHERE id = ${thread} OR "resourceId" = ${resource}`;
+  }
+  if (await tableExists(tx, "mastra_resources")) {
+    await tx`DELETE FROM mastra_resources WHERE id = ${resource}`;
+  }
+}
+
+/**
+ * The Mastra memory thread id for a user. ONE definition, imported by the router that writes it and
+ * the erasure that clears it — two string templates is how a rename silently orphans a user's
+ * conversation history after they asked for it to be deleted.
+ */
+export const agentThreadId = (user_id: number): string => `u${user_id}`;
+
+async function tableExists(tx: Db, name: string): Promise<boolean> {
+  const rows = await tx`SELECT to_regclass(${`public.${name}`}) IS NOT NULL AS present`;
+  return rows[0]?.present === true;
 }
 
 export async function userCount(db: Db): Promise<number> {
@@ -1063,6 +1154,133 @@ export async function prunePendingMeals(db: Db, olderThanIso: string): Promise<v
   await db`DELETE FROM pending_meals WHERE ts < ${olderThanIso}`;
 }
 
+// ---------- pending edits (chat-targeted correction / re-date / disambiguation) ----------
+
+/**
+ * Which shape a `pending_edits` row is.
+ *
+ * `correction` and `redate` are an edit the model TARGETED ITSELF and the user has not yet
+ * approved; `choose` is the model admitting it could not tell which meal was meant, holding the
+ * candidates and the text that produced them so the user's tap can re-run the turn unambiguously.
+ */
+export type PendingEditKind = "correction" | "redate" | "choose";
+
+export interface NewPendingEdit {
+  id: string;
+  user_id: number;
+  ts: string;
+  kind: PendingEditKind;
+  /** The meal being edited. Null on `choose` — that is the question being asked. */
+  meal_id?: string | null;
+  /** `correction` only: the full updated analysis, exactly as a reply-based correction carries. */
+  analysis?: MealAnalysis | null;
+  /**
+   * `redate` only: the RESOLVED calendar date to move the meal to, not an offset.
+   *
+   * An offset would re-resolve against whatever "today" is when the user taps: "move it to
+   * yesterday" typed at 23:59 and approved at 00:01 would land a day off the day they meant. The
+   * date is fixed when the edit is proposed, which is when the user said it.
+   */
+  new_date?: string | null;
+  /** `choose` only: the user's original message, replayed through the router after the tap. */
+  source_text?: string | null;
+  /** `choose` only: candidate meal ids, in the order the buttons are rendered. */
+  candidates?: string[] | null;
+}
+
+export interface PendingEdit {
+  id: string;
+  user_id: number;
+  ts: string;
+  kind: PendingEditKind;
+  meal_id: string | null;
+  analysis: MealAnalysis | null;
+  new_date: string | null;
+  source_text: string | null;
+  candidates: string[] | null;
+}
+
+export async function insertPendingEdit(db: Db, e: NewPendingEdit): Promise<void> {
+  await db`
+    INSERT INTO pending_edits (id, user_id, ts, kind, meal_id, analysis, new_date, source_text, candidates)
+    VALUES (${e.id}, ${e.user_id}, ${e.ts}, ${e.kind}, ${e.meal_id ?? null},
+            ${e.analysis ? JSON.stringify(e.analysis) : null}, ${e.new_date ?? null},
+            ${e.source_text ?? null}, ${e.candidates ? JSON.stringify(e.candidates) : null})`;
+}
+
+/**
+ * One pending edit, ALWAYS user-scoped — a foreign id resolves to nothing, like every other meal
+ * read here.
+ *
+ * A `correction` row's analysis is schema-validated rather than merely parsed, for the reason
+ * `getPendingMeal` gives: it flows straight into `meals` on the tap, so an invalid blob would
+ * poison daily totals. A row that fails is unusable forever — leaving it would silently re-fail
+ * every tap — so it is deleted and the operator told, or systematic corruption reads as
+ * "everything expired".
+ */
+export async function getPendingEdit(
+  db: Db,
+  id: string,
+  user_id: number,
+): Promise<PendingEdit | undefined> {
+  const rows = await db`SELECT * FROM pending_edits WHERE id = ${id} AND user_id = ${user_id}`;
+  if (!rows.length) return undefined;
+  const row = rows[0];
+
+  let analysis: MealAnalysis | null = null;
+  let candidates: string[] | null = null;
+  let corrupt = false;
+  try {
+    if (row.analysis !== null) {
+      const parsed = MealAnalysisSchema.safeParse(JSON.parse(row.analysis));
+      if (parsed.success) analysis = parsed.data;
+      else corrupt = true;
+    }
+    if (row.candidates !== null) {
+      const list = JSON.parse(row.candidates);
+      if (Array.isArray(list) && list.every((v) => typeof v === "string")) candidates = list;
+      else corrupt = true;
+    }
+  } catch {
+    corrupt = true;
+  }
+  // A row whose `kind` and payload disagree is as unusable as an unparseable one: a correction with
+  // no analysis, or a choose with no candidates, would reach the surface as a tap that can do
+  // nothing. Caught here rather than at four call sites.
+  if (row.kind === "correction" && (!analysis || !row.meal_id)) corrupt = true;
+  if (row.kind === "redate" && (row.new_date === null || !row.meal_id)) corrupt = true;
+  if (row.kind === "choose" && (!candidates || candidates.length === 0)) corrupt = true;
+
+  if (corrupt) {
+    console.error(`[eait] corrupt pending_edits row id=${row.id} user=${user_id} — deleting`);
+    await deletePendingEdit(db, id, user_id);
+    return undefined;
+  }
+
+  return {
+    id: row.id,
+    user_id: Number(row.user_id),
+    ts: row.ts,
+    kind: row.kind as PendingEditKind,
+    meal_id: row.meal_id,
+    analysis,
+    new_date: row.new_date,
+    source_text: row.source_text,
+    candidates,
+  };
+}
+
+/** True if a row was actually deleted (user-scoped — a foreign id deletes nothing). */
+export async function deletePendingEdit(db: Db, id: string, user_id: number): Promise<boolean> {
+  const rows = await db`
+    DELETE FROM pending_edits WHERE id = ${id} AND user_id = ${user_id} RETURNING id`;
+  return rows.length > 0;
+}
+
+export async function prunePendingEdits(db: Db, olderThanIso: string): Promise<void> {
+  await db`DELETE FROM pending_edits WHERE ts < ${olderThanIso}`;
+}
+
 export async function dailyTotals(db: Db, user_id: number, date: string): Promise<DailyTotals> {
   const rows = await db`
     SELECT
@@ -1082,6 +1300,32 @@ export async function dailyTotals(db: Db, user_id: number, date: string): Promis
 export async function mealsOnDate(db: Db, user_id: number, date: string): Promise<MealRecord[]> {
   const rows = await db`
     SELECT * FROM meals WHERE user_id = ${user_id} AND date = ${date} ORDER BY ts`;
+  return rows.map(rowToMeal);
+}
+
+/**
+ * The meals a chat-targeted edit may reach: one user's rows inside a date window, newest first.
+ *
+ * This is what backs the `find_meals` tool, so both bounds are load-bearing rather than tidy. The
+ * window is the caller's (seven days — see the design doc), and `limit` caps what one lookup can
+ * put in front of the model: this runs inside a turn the user is waiting on, and the rows are paid
+ * for in tokens. NEWEST FIRST because a reference like "the pasta" almost always means the most
+ * recent one, and a truncated list should keep the likeliest candidates rather than the oldest.
+ *
+ * `SELECT *` here, unlike `recentMealItems`: at 20 rows the row weight is irrelevant, and the
+ * caller needs enough of each meal to describe it back to the user.
+ */
+export async function mealsInWindow(
+  db: Db,
+  user_id: number,
+  fromDate: string,
+  toDate: string,
+  limit = 20,
+): Promise<MealRecord[]> {
+  const rows = await db`
+    SELECT * FROM meals
+    WHERE user_id = ${user_id} AND date >= ${fromDate} AND date <= ${toDate}
+    ORDER BY date DESC, ts DESC LIMIT ${limit}`;
   return rows.map(rowToMeal);
 }
 

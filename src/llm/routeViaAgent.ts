@@ -27,11 +27,14 @@
 import type { Agent } from "@mastra/core/agent";
 import type { RequestContext } from "@mastra/core/request-context";
 import { LOOKUP_GUIDANCE } from "./agent.ts";
-import { stopAtTerminalTool, ROUTER_TOOLS, LOOKUP_TOOL } from "./stop.ts";
-import { SYSTEM_ROUTE, buildRouteText, gated } from "../analyzer.ts";
+import { stopAtTerminalTool, ROUTER_TOOLS, LOOKUP_TOOL, MEAL_LOOKUP_TOOL } from "./stop.ts";
+import { SYSTEM_ROUTE, TARGETING_GUIDANCE, buildRouteText, gated } from "../analyzer.ts";
+import { agentThreadId } from "../db.ts";
 import type { RouteContext, RouteResult } from "../analyzer.ts";
 import type { SubmitMealResult } from "./tools/mealActions.ts";
-import type { SubmitCorrectionResult } from "./tools/routeActions.ts";
+import type {
+  AskWhichMealResult, SubmitCorrectionResult, SubmitRedateResult,
+} from "./tools/routeActions.ts";
 import type { Profile } from "../types.ts";
 
 /** Mastra resolves a failed tool-call validation to this instead of throwing. */
@@ -64,7 +67,7 @@ export async function routeTextViaAgent(
       // Appended, not assumed: Mastra's per-call `instructions` REPLACES the agent's, so passing
       // SYSTEM_ROUTE alone dropped the agent's guidance on how to use `search_food_db` and the model was
       // offered the tool with nothing telling it to pass confusable alternatives. Measured.
-      instructions: `${SYSTEM_ROUTE}\n\n${LOOKUP_GUIDANCE}`,
+      instructions: `${SYSTEM_ROUTE}\n\n${LOOKUP_GUIDANCE}\n\n${TARGETING_GUIDANCE}`,
       requestContext,
       // The one flow that KEEPS memory — conversational continuity is the point here (#45), and
       // unlike a photo turn there are no image parts to drag along. Keyed on the Telegram user from
@@ -76,7 +79,9 @@ export async function routeTextViaAgent(
       // context — which answers "what did I eat" far better than raw transcript ever will. History
       // is here for "what did I just ask you", and that needs a handful of turns, not all of them.
       memory: {
-        thread: `u${profile.telegram_id}`,
+        // `agentThreadId`, not a template here: `deleteUser` erases this thread on /delete, and two
+        // copies of the key is how a rename leaves a deleted user's conversation history behind.
+        thread: agentThreadId(profile.telegram_id),
         resource: String(profile.telegram_id),
         options: { lastMessages: ROUTER_HISTORY_TURNS },
       },
@@ -92,7 +97,7 @@ export async function routeTextViaAgent(
       // `submit_restrictions` is registered on the agent but belongs to onboarding; it would end
       // this turn on a tool this function cannot dispatch. Grounding stays available — a text meal
       // is estimated from prose and benefits from the composition table as much as a photo does.
-      activeTools: [...ROUTER_TOOLS, LOOKUP_TOOL],
+      activeTools: [...ROUTER_TOOLS, LOOKUP_TOOL, MEAL_LOOKUP_TOOL],
     },
   );
 
@@ -118,23 +123,32 @@ export async function routeTextViaAgent(
     return { intent: "question", answer: (payload as { answer: string }).answer };
   }
 
-  // Correction and redate both require a focus meal. Salvage an answer if the agent produced one
-  // anyway, else make the drift loud — `routeText`'s behaviour, preserved verbatim.
-  if ((name === "submit_correction" || name === "submit_redate") && !ctx.focusMeal) {
+  if (name === "ask_which_meal") {
+    const { mealIds, question } = payload as AskWhichMealResult;
+    return { intent: "choose", mealIds, question };
+  }
+
+  // Correction and redate need a TARGET, and there are now two ways to have one: the reply's focus
+  // meal, or a `mealId` the agent found with `find_meals`. Only when it has NEITHER is this the
+  // drift the original guard was written for — salvage an answer if the agent produced one anyway,
+  // else make it loud. (The guard itself is unchanged in spirit; what counts as a target grew.)
+  const targeted = (payload as { mealId?: string }).mealId;
+  if ((name === "submit_correction" || name === "submit_redate") && !ctx.focusMeal && !targeted) {
     const salvaged = calls
       .filter((c) => c.payload?.toolName === "answer_question")
       .map((c) => c.payload?.result)
       .filter((r) => !isToolError(r))
       .at(-1) as { answer?: string } | undefined;
     if (salvaged?.answer?.trim()) {
-      console.warn(`[eait] router: ${name} without focus meal, salvaged as question`);
+      console.warn(`[eait] router: ${name} without a target, salvaged as question`);
       return { intent: "question", answer: salvaged.answer.trim() };
     }
-    throw new Error(`routeTextViaAgent: ${name} without focus meal`);
+    throw new Error(`routeTextViaAgent: ${name} without a target (no focus meal, no mealId)`);
   }
 
   if (name === "submit_redate") {
-    return { intent: "redate", dayOffset: (payload as { dayOffset: number }).dayOffset };
+    const { dayOffset, mealId } = payload as SubmitRedateResult;
+    return { intent: "redate", dayOffset, ...(mealId ? { mealId } : {}) };
   }
 
   // Typed against what the tools' `execute` actually returns, rather than cast: if either tool's
@@ -146,7 +160,8 @@ export async function routeTextViaAgent(
   if (!analysis.isFood) throw new Error(`routeTextViaAgent: ${name} with isFood=false`);
 
   if (name === "submit_correction") {
-    return { intent: "correction", analysis: gated(analysis, profile) };
+    const { mealId } = payload as SubmitCorrectionResult;
+    return { intent: "correction", analysis: gated(analysis, profile), ...(mealId ? { mealId } : {}) };
   }
   return {
     intent: "meal",

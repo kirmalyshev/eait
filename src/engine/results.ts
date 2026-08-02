@@ -84,13 +84,73 @@ export interface TargetGone {
   on: "correction" | "redate";
 }
 
+/**
+ * An edit whose target the MODEL worked out, waiting for the user to approve it.
+ *
+ * A reply-based edit applies immediately — pointing at a card is unambiguous. This one is not: the
+ * agent read the sentence, searched the diary and chose. So it gets the same confirm-first
+ * treatment a text meal gets, and for the same reason — the card names the meal it is about to
+ * change, which is the misparse guard.
+ *
+ * `current` and `proposed` are both carried so a surface can show what actually changes rather
+ * than only the end state. For a re-date they are equal: macros never move, only the day.
+ */
+export interface EditProposed {
+  kind: "edit-proposed";
+  pendingId: string;
+  edit: "correction" | "redate";
+  mealId: string;
+  current: MealAnalysis;
+  proposed: MealAnalysis;
+  /** The meal's date now. */
+  date: string;
+  /** Where it would end up. Equal to `date` for a correction. */
+  newDate: string;
+}
+
+/** One meal offered as a possible target, with enough on it to tell two similar meals apart. */
+export interface MealChoice {
+  mealId: string;
+  date: string;
+  /** Local time of day, `HH:MM`. Empty when the stored timestamp is unparseable. */
+  time: string;
+  items: string[];
+  kcal: number;
+}
+
+/**
+ * The agent found several meals the message could be about and refused to pick.
+ *
+ * It carries no edit, deliberately. The user's tap replays their ORIGINAL message with the chosen
+ * meal in focus, so the second pass is an ordinary unambiguous edit rather than a half-finished one
+ * this layer would have to keep in step.
+ */
+export interface MealChoiceNeeded {
+  kind: "choose-meal";
+  pendingId: string;
+  /**
+   * Model prose — content, not copy, like `Answered.text`.
+   *
+   * ABSENT when the candidates came from the engine's item-match fallback rather than from
+   * `ask_which_meal`: there is no model sentence in that case, and inventing an English one here
+   * would put user-facing wording in the engine. The surface resolves a copy key instead.
+   */
+  question?: string;
+  candidates: MealChoice[];
+}
+
 export type HandleTextResult =
   | Answered
   | MealProposed
   | MealUpdated
   | MealRedated
+  | EditProposed
+  | MealChoiceNeeded
   | TargetGone
   | Refusal;
+
+/** What became of a pending edit the user tapped Apply on. */
+export type ApplyEditResult = MealUpdated | MealRedated | { kind: "expired" } | TargetGone | Refusal;
 
 export type ConfirmMealResult = MealLogged | { kind: "expired" } | Refusal;
 

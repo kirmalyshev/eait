@@ -2,10 +2,13 @@ import { Agent } from "@mastra/core/agent";
 import type { Memory } from "@mastra/memory";
 import { submitMealTool } from "./tools/mealActions.ts";
 import {
-  answerQuestionTool, submitCorrectionTool, submitRedateTool, submitRestrictionsTool,
+  answerQuestionTool, askWhichMealTool, submitCorrectionTool, submitRedateTool,
+  submitRestrictionsTool,
 } from "./tools/routeActions.ts";
 import { makeSearchFoodDbTool } from "./tools/foodDb.ts";
+import { makeFindMealsTool } from "./tools/mealLookup.ts";
 import type { FoodIndex } from "../food_db.ts";
+import type { Db } from "../db.ts";
 
 type EngineModel = ConstructorParameters<typeof Agent>[0]["model"];
 
@@ -29,7 +32,7 @@ type EngineModel = ConstructorParameters<typeof Agent>[0]["model"];
 export function createEngineAgent(
   model: EngineModel,
   memory: Memory,
-  deps: { foodIndex?: FoodIndex } = {},
+  deps: { foodIndex?: FoodIndex; db?: Db; tz?: string } = {},
 ): Agent {
   return new Agent({
     id: "eait-engine",
@@ -42,8 +45,13 @@ export function createEngineAgent(
       submit_correction: submitCorrectionTool,
       submit_redate: submitRedateTool,
       answer_question: answerQuestionTool,
+      ask_which_meal: askWhichMealTool,
       submit_restrictions: submitRestrictionsTool,
       ...(deps.foodIndex ? { search_food_db: makeSearchFoodDbTool(deps.foodIndex) } : {}),
+      // Registered only with a db handle, mirroring `foodIndex`: without one the agent simply
+      // cannot search the diary, and a chat-targeted edit degrades to the reply path it replaces
+      // rather than to a tool that throws. Tests that do not exercise editing pass neither.
+      ...(deps.db ? { find_meals: makeFindMealsTool(deps.db, { tz: deps.tz ?? "Europe/Berlin" }) } : {}),
     },
   });
 }
@@ -51,9 +59,9 @@ export function createEngineAgent(
 const BASE_INSTRUCTIONS =
   "You are the assistant behind a personal food-diary Telegram bot. You MUST finish every " +
   "turn by calling exactly one terminal tool: submit_meal for food the user ate, " +
-  "submit_correction to fix the focus meal's estimate, submit_redate to move the focus meal to " +
-  "another day, or answer_question for anything else. submit_correction and submit_redate are " +
-  "only valid when a focus meal was provided. Never end a turn with prose alone — a turn that " +
+  "submit_correction to fix a logged meal's estimate, submit_redate to move a logged meal to " +
+  "another day, ask_which_meal when you cannot tell which logged meal is meant, or " +
+  "answer_question for anything else. Never end a turn with prose alone — a turn that " +
   "calls no terminal tool is a lost message to the user.";
 
 /**
