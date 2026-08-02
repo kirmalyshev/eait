@@ -1,8 +1,19 @@
-import { afterAll, describe, expect, test } from "bun:test";
+import { afterAll, describe, expect, test as bunTest } from "bun:test";
 import { SQL } from "bun";
 import type { PostgresStore } from "@mastra/pg";
 import { freshTestName, openTestDb, cleanupTestDbs } from "../testutil.ts";
 import { createMastra } from "./mastra.ts";
+
+/**
+ * Every test in this file builds a fresh database AND a Postgres-backed Mastra `Memory` (Mastra
+ * engages memory on every `generate`, so a storage-less one fails before the model is consulted).
+ * That is comfortably more than bun's 5s default under a loaded suite, and it fails as a bare
+ * "(unnamed) timed out" with no clue which test it was. `bunfig.toml`'s `[test] timeout` is not
+ * honoured by bun 1.3, so the allowance is applied here, once, by wrapping `test`.
+ */
+const AGENT_TEST_TIMEOUT_MS = 30_000;
+const test = (name: string, fn: () => unknown) => bunTest(name, fn as never, AGENT_TEST_TIMEOUT_MS);
+
 
 afterAll(cleanupTestDbs, 60_000); // dropping N databases outlives the 5s default under load
 
