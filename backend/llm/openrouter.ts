@@ -150,8 +150,17 @@ export function openRouterPorts(opts: Options): LlmPorts {
     const out = await complete(SYSTEM_ROUTE, text, RouteSchema, "route");
 
     // The one place a `RouteResult` is constructed. Every dayOffset-bearing branch clamps, and a
-    // branch that claims a shape it did not supply degrades to `answer` rather than throwing —
-    // the user asked a question, and an exception is a worse answer than a plain reply.
+    // branch that claims something this call cannot do — a correction or a re-date with no focus
+    // meal — degrades to `answer` rather than throwing, because the model usually explains itself
+    // in `text` and an exception is a worse reply than that explanation.
+    //
+    // What it may NOT do is degrade to an EMPTY reply. That is what it used to do, and it is how a
+    // model omitting `analysis` on a `meal` turned every "two boiled eggs and a slice of rye bread"
+    // into a blank chat bubble — no error, no log, and a user who reasonably concluded their food
+    // had been understood. `RouteSchema` now refuses that response so `complete()` retries it, and
+    // the guard below refuses to invent a reply when there is genuinely nothing to say: this
+    // transport owns HTTP and image encoding and nothing else, so it raises, and `handleText`
+    // turns that into `analysis-failed` — which the app renders as an actual message.
     switch (out.intent) {
       case "meal":
         if (!out.analysis) break;
@@ -165,7 +174,12 @@ export function openRouterPorts(opts: Options): LlmPorts {
       case "answer":
         break;
     }
-    return { intent: "answer", text: out.text ?? "" } satisfies RouteResult;
+
+    const reply = out.text ?? "";
+    if (reply.trim() === "") {
+      throw new Error(`route returned intent "${out.intent}" with an empty answer and nothing to act on`);
+    }
+    return { intent: "answer", text: reply } satisfies RouteResult;
   };
 
   const classifyRestrictions: ClassifyRestrictions = async (text) => {

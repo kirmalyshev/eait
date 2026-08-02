@@ -82,7 +82,20 @@ export const RouteSchema = z.object({
   // Unknown, not a bounded number: models commonly emit `null` for "today", and a strict type
   // rejects the whole response over its date field. Bounded in `clampDayOffset` instead.
   dayOffset: z.unknown().optional(),
-});
+})
+  // `analysis` HAS to be optional in the shape — three of the four intents do not carry one — so
+  // the requirement is expressed across fields instead. This is not pedantry about types: the
+  // request goes out as a non-strict `json_schema`, so an optional property is a property a model
+  // may simply omit, and a real one did. It answered `intent: "meal"` with no analysis for every
+  // message describing food, which the transport then degraded to an empty reply.
+  //
+  // Stating it here rather than in the transport is what makes it RECOVERABLE: `complete()`
+  // already retries once with the validation errors fed back, so a model that forgot the analysis
+  // gets told exactly that and usually supplies it.
+  .refine(
+    (r) => (r.intent !== "meal" && r.intent !== "correction") || r.analysis !== undefined,
+    { message: 'intent "meal" and "correction" must include the full `analysis` object' },
+  );
 
 export const ClassifySchema = z.object({ tags: z.array(z.string()) });
 
