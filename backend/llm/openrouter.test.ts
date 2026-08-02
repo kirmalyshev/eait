@@ -66,22 +66,34 @@ describe("routeText", () => {
     expect(out).toEqual({ intent: "answer", text: "You have had 0 g of protein." });
   });
 
-  // The defect. `intent: "meal"` with no analysis is a malformed reply, not an answer.
-  test("`meal` without an analysis is retried, not silently turned into an empty answer", async () => {
+  test("a router that supplies the analysis costs exactly one call", async () => {
+    const { llm, bodies } = ports([{ intent: "meal", analysis: ANALYSIS, dayOffset: 0 }]);
+    await llm.routeText(ROUTE_INPUT);
+    expect(bodies.length).toBe(1);
+  });
+
+  // The defect, and the fix. grok-4.5 picks `intent: "meal"` and omits the analysis EVERY time —
+  // the routing prompt says "same rules as a photo" and those rules are only in the PHOTO prompt.
+  // Feeding the validation error back on a retry does not help. A focused second call does.
+  test("a router that omits the analysis gets it from a focused second call", async () => {
     const { llm, bodies } = ports([
-      { intent: "meal", dayOffset: 0 },                        // malformed
-      { intent: "meal", analysis: ANALYSIS, dayOffset: 0 },    // the retry gets it right
+      { intent: "meal", dayOffset: 0 },   // the router decides, and does not do the work
+      ANALYSIS,                            // the focused call does
     ]);
     const out = await llm.routeText(ROUTE_INPUT);
 
-    expect(bodies.length).toBe(2);
     expect(out.intent).toBe("meal");
+    expect(out).toHaveProperty("analysis.kcal", 155);
+    // The second call asks for the ANALYSIS schema, not the route schema. That is the whole point.
+    expect(bodies.length).toBe(2);
+    expect((bodies[1] as { response_format: { json_schema: { name: string } } })
+      .response_format.json_schema.name).toBe("text-meal");
   });
 
-  test("a reply that stays malformed throws rather than answering with nothing", async () => {
+  test("a focused analysis that also fails throws rather than answering with nothing", async () => {
     // `handleText` turns a throw into `analysis-failed`, which the app renders as a real message.
     // An empty string renders as an empty bubble, which tells the user their food was understood.
-    const { llm } = ports([{ intent: "meal", dayOffset: 0 }]);
+    const { llm } = ports([{ intent: "meal", dayOffset: 0 }, { nope: true }]);
     await expect(llm.routeText(ROUTE_INPUT)).rejects.toThrow();
   });
 

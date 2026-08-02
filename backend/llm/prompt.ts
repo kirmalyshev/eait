@@ -82,20 +82,18 @@ export const RouteSchema = z.object({
   // Unknown, not a bounded number: models commonly emit `null` for "today", and a strict type
   // rejects the whole response over its date field. Bounded in `clampDayOffset` instead.
   dayOffset: z.unknown().optional(),
-})
-  // `analysis` HAS to be optional in the shape — three of the four intents do not carry one — so
-  // the requirement is expressed across fields instead. This is not pedantry about types: the
-  // request goes out as a non-strict `json_schema`, so an optional property is a property a model
-  // may simply omit, and a real one did. It answered `intent: "meal"` with no analysis for every
-  // message describing food, which the transport then degraded to an empty reply.
-  //
-  // Stating it here rather than in the transport is what makes it RECOVERABLE: `complete()`
-  // already retries once with the validation errors fed back, so a model that forgot the analysis
-  // gets told exactly that and usually supplies it.
-  .refine(
-    (r) => (r.intent !== "meal" && r.intent !== "correction") || r.analysis !== undefined,
-    { message: 'intent "meal" and "correction" must include the full `analysis` object' },
-  );
+});
+// `analysis` stays OPTIONAL here, and that is a decision rather than an oversight.
+//
+// Three of the four intents do not carry one, so the requirement is a cross-field rule. Expressing
+// it as a `.refine()` was the first attempt and it was the wrong layer: the request goes out as a
+// non-strict `json_schema`, so an optional property is one a model may simply omit — and grok-4.5
+// omits it on EVERY message describing food, including when `complete()` feeds the validation
+// error straight back on the retry. Refusing the response just turned a silent empty reply into a
+// loud failure; it never produced a meal.
+//
+// So the invariant moved from "reject a router that leaves the analysis out" to "get the analysis
+// anyway": `routeText` follows up with a focused `SYSTEM_TEXT_MEAL` call. See the note there.
 
 export const ClassifySchema = z.object({ tags: z.array(z.string()) });
 
@@ -187,6 +185,48 @@ Rules:
 - For "answer": use the intake data given below. Be specific and short — a few sentences. Never invent numbers you were not given.
 - Never comment on the user's body or whether they should be eating something, unless they asked.
 - No medical advice. If asked something clinical, say plainly that this is an estimate tool and they should ask a doctor.`;
+
+/**
+ * Analysing food the user DESCRIBED, as its own turn.
+ *
+ * `SYSTEM_ROUTE` tells the model to produce "a full analysis, same rules as a photo" — and those
+ * rules are in `SYSTEM`, which that call never sees. grok-4.5 duly picked `intent: "meal"` and
+ * omitted the analysis on every food message, including when the validation error was fed straight
+ * back to it on the retry.
+ *
+ * So the decision and the work are separate calls. This one asks for `MealAnalysisSchema` and
+ * nothing else, which is exactly the shape the photo path already gets right every time, and it
+ * only happens when the router actually left the analysis out.
+ */
+export const SYSTEM_TEXT_MEAL = `You estimate the nutritional content of a meal from the user's own description of it.
+
+Work in this order:
+1. Identify every distinct food and drink they named. Name each one in the user's language.
+2. Take the weight in grams from what they said. Where they gave a household measure ("a slice", "a bowl", "two eggs"), convert it to the usual cooked, edible weight for that item. Where they gave no quantity at all, use one ordinary serving.
+3. Compute nutrition per item, then the totals as the sum across items. Include the fat a dish is normally cooked with unless they said otherwise.
+4. Give an honest confidence: "low" when the quantity is vague or the dish could mean very different things; "high" only when both the food and the amount are plain.
+
+Rules:
+- If the message names no food or drink at all, set isFood to false, return zero totals and an empty items array, and say so in notes.
+- Estimate. Do not refuse and do not ask questions — you will never get an answer, and a refusal reads to the user as a broken app.
+- Do not invent food they did not mention, and do not drop food they did.
+- Weights are grams of the food as served. Liquids in grams too.
+- name is what the user reads, and it MUST be written in the requested reply language. name_en is a separate canonical English name used only for lookups and is never displayed.
+- notes is at most two short sentences: what drove the estimate, or what you were unsure about. No preamble, no advice, no disclaimers.
+- Never comment on the user's body, their weight, or whether they should be eating this.`;
+
+/** The user-side text for a described meal. Deliberately just the message and who is eating. */
+export function buildTextMealText(input: {
+  text: string;
+  profile: Profile;
+  targets: FoodTargets;
+}): string {
+  return [
+    buildUserText(input.profile, input.targets, {}),
+    "",
+    `The user said they ate: ${input.text}`,
+  ].join("\n");
+}
 
 export function buildRouteText(input: {
   text: string;

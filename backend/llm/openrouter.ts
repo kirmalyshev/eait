@@ -10,7 +10,7 @@ import type { AnalyzePhoto, ClassifyRestrictions, LlmPorts, RouteResult, RouteTe
 import { clampDayOffset } from "./port.ts";
 import {
   ClassifySchema, MealAnalysisSchema, RouteSchema, SYSTEM, SYSTEM_CLASSIFY, SYSTEM_ROUTE,
-  buildClassifyText, buildRouteText, buildUserText,
+  SYSTEM_TEXT_MEAL, buildClassifyText, buildRouteText, buildTextMealText, buildUserText,
 } from "./prompt.ts";
 
 interface Options {
@@ -147,7 +147,27 @@ export function openRouterPorts(opts: Options): LlmPorts {
       todayMeals: input.todayMeals, week: input.week,
       ...(input.focusMeal !== undefined ? { focusMeal: input.focusMeal } : {}),
     });
-    const out = await complete(SYSTEM_ROUTE, text, RouteSchema, "route");
+    let out = await complete(SYSTEM_ROUTE, text, RouteSchema, "route");
+
+    // The decision and the work, separated — but only when the model made us.
+    //
+    // `SYSTEM_ROUTE` asks for "a full analysis, same rules as a photo", and those rules live in
+    // `SYSTEM`, which this call never sees. grok-4.5 answers `intent: "meal"` with no analysis on
+    // every food message, and keeps doing it when `complete()` feeds the validation error back. A
+    // second call that asks ONLY for `MealAnalysisSchema` — the shape the photo path gets right
+    // every time — is what actually produces the numbers.
+    //
+    // Deliberately not the default path: a router that supplies the analysis costs one call, and
+    // this only spends a second one when the first came back without it.
+    if ((out.intent === "meal" || out.intent === "correction") && !out.analysis) {
+      const analysis = await complete(
+        SYSTEM_TEXT_MEAL,
+        buildTextMealText({ text: input.text, profile: input.profile, targets: input.targets }),
+        MealAnalysisSchema,
+        "text-meal",
+      );
+      out = { ...out, analysis };
+    }
 
     // The one place a `RouteResult` is constructed. Every dayOffset-bearing branch clamps, and a
     // branch that claims something this call cannot do — a correction or a re-date with no focus
