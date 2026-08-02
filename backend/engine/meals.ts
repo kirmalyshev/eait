@@ -18,6 +18,7 @@ import {
 import { localDate, localTime } from "../dates.ts";
 import type { EngineDeps } from "./deps.ts";
 import { checkCaps } from "./caps.ts";
+import type { AnalyzedMeal } from "../llm/port.ts";
 
 /** Images arrive as thunks so nothing is READ until the caps have passed. */
 export interface LogPhotoInput {
@@ -44,12 +45,18 @@ export function sumTotals(meals: readonly MealRecord[]): DailyTotals {
  * smallest is "fixing a wrong result doesn't work" — a correction loop nobody can find is the same
  * as not having one. A low-confidence analysis says so and invites the fix immediately.
  */
-function hintFor(analysis: MealAnalysis): MealHint {
+function hintFor(analysis: AnalyzedMeal): MealHint {
   return analysis.confidence === "low" ? "lowConfidence" : "correction";
 }
 
-/** Recompute the verdicts for an analysis against the user's current caps, then gate them. */
-async function gatedVerdicts(deps: EngineDeps, userId: string, a: {
+/**
+ * Recompute the verdicts for an analysis against the user's current caps, then gate them.
+ *
+ * Exported because `handleText` needs it too. A proposed meal is the ONE analysis the app renders
+ * without a store round-trip, so it is the one place an analyzer's raw output — which has no
+ * `verdicts` field at all — could reach a client, and did.
+ */
+export async function gatedVerdicts(deps: EngineDeps, userId: string, a: {
   kcal: number; satfat_g: number; sodium_mg: number;
 }) {
   const profile = await deps.store.getProfile(userId);
@@ -81,7 +88,7 @@ export async function logPhotoMeal(
   const images = await Promise.all(input.images.map((read) => read()));
   const { targets } = explainTargets(profile);
 
-  let analysis: MealAnalysis;
+  let analysis: AnalyzedMeal;
   try {
     analysis = await deps.llm.analyzePhoto({
       images, profile, targets,
@@ -165,7 +172,7 @@ export async function applyCorrection(
   deps: EngineDeps,
   userId: string,
   mealId: string,
-  analysis: MealAnalysis,
+  analysis: AnalyzedMeal,
 ): Promise<MealUpdated | TargetGone> {
   const res = await editMeal(deps, userId, mealId, {
     items: analysis.items, kcal: analysis.kcal, protein_g: analysis.protein_g,

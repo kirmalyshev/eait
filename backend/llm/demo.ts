@@ -5,8 +5,7 @@
 // pretends to be accurate — the notes say what it is, because a demo that looks like a real
 // estimate is a demo someone eventually screenshots as evidence the product works.
 
-import type { MealAnalysis } from "@ieat/shared";
-import type { AnalyzePhoto, ClassifyRestrictions, LlmPorts, RouteText } from "./port.ts";
+import type { AnalyzedMeal, AnalyzePhoto, ClassifyRestrictions, LlmPorts, RouteText } from "./port.ts";
 import { clampDayOffset } from "./port.ts";
 
 /** Stable small integer from a string — the seed for every canned number below. */
@@ -28,7 +27,7 @@ const PLATES = [
   { name: "Greek yoghurt", name_en: "greek yoghurt, plain", grams: 170, per100: 59, p: 10, c: 3.6, f: 0.4 },
 ];
 
-function plateFor(seed: number): MealAnalysis {
+function plateFor(seed: number): AnalyzedMeal {
   const count = 2 + (seed % 2);
   const items = Array.from({ length: count }, (_, i) => PLATES[(seed + i * 3) % PLATES.length]!);
   const scaled = items.map((it) => ({
@@ -56,7 +55,6 @@ function plateFor(seed: number): MealAnalysis {
     fiber_g: Math.round(kcal / 200),
     sugar_g: Math.round(sum("carbs_g") * 0.15 * 10) / 10,
     sodium_mg: 300 + (seed % 700),
-    verdicts: {}, // computed by the engine, never by an analyzer
     confidence: seed % 5 === 0 ? "low" : seed % 3 === 0 ? "medium" : "high",
     notes: "Demo analyzer — these numbers are canned, not an estimate of a real photograph.",
   };
@@ -74,7 +72,9 @@ export function demoPorts(): LlmPorts {
 
     if (input.focusMeal && /half|less|no |without|actually|instead|only|половин|без |wirklich/.test(text)) {
       const scale = /half|половин/.test(text) ? 0.5 : 0.8;
-      const f = input.focusMeal;
+      // `verdicts` is dropped deliberately: a real analyzer has none, and a fake that supplies
+      // one cannot fail the way the real one does. That difference hid a crash for a whole day.
+      const { verdicts: _drop, ...f } = input.focusMeal;
       return {
         intent: "correction",
         analysis: {

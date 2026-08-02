@@ -7,6 +7,26 @@
 
 import type { MealAnalysis, Profile, FoodTargets, DayTotals } from "@ieat/shared";
 
+/**
+ * What an analyzer returns: every number, and NO verdicts.
+ *
+ * The model is never asked to judge — `prompt.ts` says so, and `MealAnalysisSchema` has no such
+ * field, so zod strips one even when a model volunteers it. The engine derives verdicts from the
+ * user's caps instead (`gatedVerdicts`), which is what makes them deterministic and auditable.
+ *
+ * This type exists because the old signature said `MealAnalysis`, and the implementations closed
+ * the gap with `as MealAnalysis` — three casts asserting a field none of those values carried. The
+ * typechecker therefore could not see that `proposed` shipped an analyzer's output straight to the
+ * app with `verdicts` undefined, and `VerdictRow` indexed into it. In a Release build an unhandled
+ * render error is a process abort: `RCTFatal` throws an NSException off the TurboModule queue and
+ * the main thread dies wherever it happened to be, which is why three crash reports named three
+ * unrelated subsystems and none of them named this.
+ *
+ * Saying what an analyzer really returns makes "an analysis reached a client unrepaired" a compile
+ * error, which is the only version of this guarantee that holds.
+ */
+export type AnalyzedMeal = Omit<MealAnalysis, "verdicts">;
+
 export interface PhotoInput {
   /** Several images are ANGLES OF ONE MEAL, not several meals. One analysis, one billed call. */
   images: Uint8Array[];
@@ -20,7 +40,7 @@ export interface PhotoInput {
   repertoire?: readonly string[];
 }
 
-export type AnalyzePhoto = (input: PhotoInput) => Promise<MealAnalysis>;
+export type AnalyzePhoto = (input: PhotoInput) => Promise<AnalyzedMeal>;
 
 /**
  * What free text turned out to mean.
@@ -31,8 +51,8 @@ export type AnalyzePhoto = (input: PhotoInput) => Promise<MealAnalysis>;
  */
 export type RouteResult =
   | { intent: "answer"; text: string }
-  | { intent: "meal"; analysis: MealAnalysis; dayOffset: number }
-  | { intent: "correction"; analysis: MealAnalysis }
+  | { intent: "meal"; analysis: AnalyzedMeal; dayOffset: number }
+  | { intent: "correction"; analysis: AnalyzedMeal }
   | { intent: "redate"; dayOffset: number };
 
 export interface TextInput {

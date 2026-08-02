@@ -12,7 +12,7 @@ import {
 import { dateMinus, localDate } from "../dates.ts";
 import type { EngineDeps } from "./deps.ts";
 import { checkCaps } from "./caps.ts";
-import { applyCorrection, sumTotals, toAnalysis } from "./meals.ts";
+import { applyCorrection, gatedVerdicts, sumTotals, toAnalysis } from "./meals.ts";
 
 // How long a proposed text meal stays confirmable is `config.pendingTtlMs` (`PENDING_TTL_MINUTES`),
 // read from deps at the point of use rather than frozen into a module constant here.
@@ -80,18 +80,28 @@ export async function handleText(
       // NAMES the resolved date, which is the misparse guard for "yesterday" and friends.
       const date = dateMinus(today, routed.dayOffset);
       const pendingId = crypto.randomUUID();
+      // The verdicts are DERIVED here, because the analyzer does not supply them and this result
+      // does not pass through a store row that would. Attached before the pending is written so the
+      // card the user confirms carries the same judgement as the card they were shown; the write
+      // itself recomputes anyway, since the caps can move while a proposal sits.
+      const analysis: MealAnalysis = {
+        ...routed.analysis,
+        verdicts: await gatedVerdicts(deps, userId, routed.analysis),
+      };
       await deps.store.putPending({
-        id: pendingId, userId, analysis: routed.analysis, date,
+        id: pendingId, userId, analysis, date,
         expiresAt: Date.now() + deps.config.pendingTtlMs,
       });
-      return { kind: "proposed", pendingId, analysis: routed.analysis, date } satisfies MealProposed;
+      return { kind: "proposed", pendingId, analysis, date } satisfies MealProposed;
     }
 
     case "correction": {
       // Unreachable without a focus meal — the provider degrades the intent to `answer` when none
       // was supplied — but guarded anyway, because that guarantee lives in another file.
       if (!focus) return { kind: "answered", text: "" };
-      return applyCorrection(deps, userId, focus.id, routed.analysis satisfies MealAnalysis);
+      // No verdict repair needed on this branch: `applyCorrection` writes through `editMeal`, which
+      // recomputes them from the stored row like every other write.
+      return applyCorrection(deps, userId, focus.id, routed.analysis);
     }
 
     case "redate": {

@@ -362,6 +362,26 @@ describe("chat", () => {
     expect((await day(deps, userId))!.meals).toHaveLength(0);
   });
 
+  it("computes the proposal's verdicts rather than shipping the analyzer's output raw", async () => {
+    const userId = await onboard();
+    const res = await handleText(deps, userId, { text: "two eggs and toast" });
+    if (res.kind !== "proposed") throw new Error("expected proposed");
+
+    // An analyzer is NEVER asked for verdicts, so its output has no such field. Every other result
+    // repairs that before it reaches a client — `logged` and `updated` overwrite it, the day view
+    // reads it from a column that defaults to `{}`. `proposed` did not, and it is the ONE analysis
+    // the app renders straight from the model. `VerdictRow` then indexed into `undefined`, which in
+    // a Release build is a process abort rather than a red box.
+    expect(res.analysis.verdicts).toBeDefined();
+    expect(res.analysis.verdicts.weight).toBeDefined();
+
+    // The stored pending carries them too, so the card the user confirms describes the same
+    // judgement as the card they were shown.
+    const confirmed = await confirmPendingMeal(deps, userId, res.pendingId);
+    if (confirmed.kind !== "logged") throw new Error("expected logged");
+    expect(confirmed.analysis.verdicts.weight).toBeDefined();
+  });
+
   it("writes only on confirm, and confirm is idempotent-safe", async () => {
     const userId = await onboard();
     const res = await handleText(deps, userId, { text: "two eggs and toast" });

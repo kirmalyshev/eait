@@ -71,18 +71,27 @@ export interface Profile {
 
 export type FoodTextField = "medical_limitations" | "food_allergies" | "product_limitations";
 
+/**
+ * One food on the plate.
+ *
+ * The optional fields are written `?: T | undefined` rather than `?: T` on purpose, despite
+ * `exactOptionalPropertyTypes`. An item crosses two JSON boundaries — the analyzer's response and
+ * this API's — and "absent" and "present but undefined" are the same value on the far side of both.
+ * Claiming the stricter type is what forces a cast at the parser, and a cast at the parser is how a
+ * missing field reached a phone once already. Every consumer here already tests `!== undefined`.
+ */
 export interface MealItem {
   /** Display name, in the user's language. This is what renders on the meal card. */
   name: string;
   grams: number;
   /** Canonical English lookup key for a composition table — never displayed. */
-  name_en?: string;
-  kcal?: number;
-  protein_g?: number;
-  carbs_g?: number;
-  fat_g?: number;
+  name_en?: string | undefined;
+  kcal?: number | undefined;
+  protein_g?: number | undefined;
+  carbs_g?: number | undefined;
+  fat_g?: number | undefined;
   /** The item's density — what a substitution rescales by when the user edits grams. */
-  kcal_per_100g?: number;
+  kcal_per_100g?: number | undefined;
 }
 
 /** Per-dimension verdicts. Only dimensions relevant to the user's profile are ever set. */

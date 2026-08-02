@@ -5,7 +5,6 @@
 // two transports without wondering whether they were asked different questions.
 
 import { z } from "zod";
-import type { MealAnalysis } from "@ieat/shared";
 import type { AnalyzePhoto, ClassifyRestrictions, LlmPorts, RouteResult, RouteText } from "./port.ts";
 import { clampDayOffset } from "./port.ts";
 import {
@@ -137,8 +136,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       }) },
       ...input.images.map((b) => ({ type: "image_url" as const, image_url: { url: toDataUrl(b) } })),
     ];
-    const out = await complete(SYSTEM, content, MealAnalysisSchema, "meal_analysis");
-    return out as MealAnalysis;
+    return complete(SYSTEM, content, MealAnalysisSchema, "meal_analysis");
   };
 
   const routeText: RouteText = async (input) => {
@@ -184,10 +182,10 @@ export function openRouterPorts(opts: Options): LlmPorts {
     switch (out.intent) {
       case "meal":
         if (!out.analysis) break;
-        return { intent: "meal", analysis: out.analysis as MealAnalysis, dayOffset: clampDayOffset(out.dayOffset) };
+        return { intent: "meal", analysis: out.analysis, dayOffset: clampDayOffset(out.dayOffset) };
       case "correction":
         if (!out.analysis || !input.focusMeal) break;
-        return { intent: "correction", analysis: out.analysis as MealAnalysis };
+        return { intent: "correction", analysis: out.analysis };
       case "redate":
         if (!input.focusMeal) break;
         return { intent: "redate", dayOffset: clampDayOffset(out.dayOffset) };
