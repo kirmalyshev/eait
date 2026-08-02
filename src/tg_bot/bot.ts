@@ -157,17 +157,15 @@ function fireReaction(react: React | undefined, emoji: "👀" | "👍", userId: 
 // ---------- read-boundary helpers ----------
 // `profileOf` moved to `engine/profile.ts` — every surface needs it, not just Telegram. Re-exported
 // under its original name so this file's call sites and its tests are unchanged.
-import { profileFromRow, mealRecordToAnalysis } from "../engine/profile.ts";
 import {
+  profileFromRow, mealRecordToAnalysis,
   logPhotoMeal, confirmPendingMeal, cancelPendingMeal, dropPendingMeal,
-} from "../engine/meals.ts";
-import { CAP_KEY, effectiveGlobalCap } from "../engine/caps.ts";
-import { handleText } from "../engine/text.ts";
-import {
+  CAP_KEY, effectiveGlobalCap,
+  handleText,
   applyPendingEdit, cancelPendingEdit, dropPendingEdit, resolveMealChoice,
-} from "../engine/edits.ts";
+  type Refusal,
+} from "../engine/index.ts";
 import { startApi, type ApiServer } from "../api/server.ts";
-import type { Refusal } from "../engine/results.ts";
 export { profileFromRow as profileOf };
 const profileOf = profileFromRow;
 
@@ -321,7 +319,7 @@ export function isAllowed(config: Config, userId: number | undefined): boolean {
 // The policy itself lives in `engine/caps.ts` — the engine ENFORCES it, so a second copy here
 // would let `/cap`'s readout and the cap actually in force drift apart, and the readout is the
 // only thing the operator sees. Re-exported so existing importers of this module are unchanged.
-export { CAP_KEY, effectiveGlobalCap } from "../engine/caps.ts";
+export { CAP_KEY, effectiveGlobalCap } from "../engine/index.ts";
 
 /** `/cap`, `/cap <n>`, `/cap off`, `/cap reset` — admin only. */
 export async function processCap(
