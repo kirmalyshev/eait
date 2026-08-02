@@ -16,8 +16,8 @@
 
 import {
   logPhotoMeal, handleText, day, week, confirmPendingMeal, cancelPendingMeal, dropPendingMeal,
+  applyPendingEdit, cancelPendingEdit, dropPendingEdit, resolveMealChoice,
   MAX_WINDOW_DAYS, type EngineDeps, type UserId,
-  type Answered, type MealProposed, type MealUpdated, type MealRedated,
   type HandleTextResult, type Refusal, type TargetGone,
 } from "../engine/index.ts";
 
@@ -41,6 +41,15 @@ const REFUSAL_STATUS = {
 
 /** Total size an upload may reach in memory. A cap is what keeps a large POST from being a DoS. */
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+
+/**
+ * Compile-time exhaustiveness guard. Reached only if a `HandleTextResult` success kind has no case
+ * above, and the argument's type is then no longer `never` — a build error, not a runtime surprise.
+ * Throws anyway, because `tsc` is not in the request path at 3am.
+ */
+function assertNever(x: never): never {
+  throw new Error(`api: unhandled engine result ${JSON.stringify(x)}`);
+}
 
 /** `YYYY-MM-DD`, and a real calendar date — `2026-02-31` parses as a string and is not a day. */
 function isCalendarDate(v: string): boolean {
@@ -106,13 +115,27 @@ export function createRouter(deps: EngineDeps, resolveUserId: ResolveUserId) {
           return json({ error: result.kind, ...("scope" in result ? { scope: result.scope } : {}) },
             REFUSAL_STATUS[result.kind as keyof typeof REFUSAL_STATUS]);
         }
-        // Exhaustive by construction: with target-gone and every refusal handled above, the only
-        // shapes left are successes. Adding a kind to HandleTextResult without giving it a status
-        // here is a COMPILE error rather than a silent 200 carrying a shape no client can read.
-        // The `in` guard above does not narrow the union, so the refusals are excluded explicitly.
-        const ok = result as Answered | MealProposed | MealUpdated | MealRedated;
-        const _exhaustive: Exclude<HandleTextResult, Refusal | TargetGone> = ok;
-        return json(_exhaustive);
+        // Exhaustiveness, done so it actually FIRES. The previous version cast `result` to a union
+        // of four success kinds and assigned that to a variable typed `Exclude<HandleTextResult,
+        // Refusal | TargetGone>` — narrow into wide, which TypeScript accepts, so adding a kind
+        // could never error. It didn't: `edit-proposed` and `choose-meal` were added and this file
+        // compiled clean while serving 200s no client could act on.
+        //
+        // A switch over `kind` with an `assertNever` default has no such escape: a new member of
+        // the union reaches the default with a type that is no longer `never` (verified by removing
+        // a case and watching tsc fail).
+        const ok = result as Exclude<HandleTextResult, Refusal | TargetGone>;
+        switch (ok.kind) {
+          case "answered":
+          case "proposed":
+          case "updated":
+          case "redated":
+          case "edit-proposed":
+          case "choose-meal":
+            return json(ok);
+          default:
+            return assertNever(ok);
+        }
       }
 
       if (req.method === "GET" && url.pathname === "/v1/diary/day") {
@@ -145,6 +168,49 @@ export function createRouter(deps: EngineDeps, resolveUserId: ResolveUserId) {
         // there is no window in which the meal is logged but the user has seen nothing.
         await dropPendingMeal(deps, userId, id);
         return json(res);
+      }
+
+      // The other half of chat-targeted editing, for the same reason the pending-meal routes exist:
+      // `/v1/messages` can answer `edit-proposed` with a pendingId, and without these the client
+      // holds an id it can do nothing with.
+      const edit = /^\/v1\/edits\/pending\/([^/]+)\/(apply|cancel)$/.exec(url.pathname);
+      if (req.method === "POST" && edit) {
+        const [, rawId, action] = edit;
+        const id = decodeURIComponent(rawId!);
+        if (action === "cancel") {
+          const res = await cancelPendingEdit(deps, userId, id);
+          return res.kind === "cancelled" ? json(res) : json({ error: "expired" }, 410);
+        }
+        const res = await applyPendingEdit(deps, userId, id);
+        if (res.kind === "expired") return json({ error: "expired" }, 410);
+        if (res.kind === "target-gone") return json({ error: "target-gone", on: res.on }, 409);
+        if (res.kind !== "updated" && res.kind !== "redated") {
+          return json({ error: res.kind }, REFUSAL_STATUS[res.kind as keyof typeof REFUSAL_STATUS]);
+        }
+        // Same collapse as the pending-meal confirm: this response IS the delivery, so there is no
+        // window in which the edit is applied and the caller has seen nothing.
+        await dropPendingEdit(deps, userId, id);
+        return json(res);
+      }
+
+      // Picking a candidate after `choose-meal`. It applies nothing on its own — it replays the
+      // user's original message with the chosen meal in focus, exactly as the Telegram tap does, so
+      // the second pass is an ordinary unambiguous edit. That costs a second router call and a cap
+      // draw, which is why it is a POST rather than something a client might fire speculatively.
+      const choice = /^\/v1\/edits\/pending\/([^/]+)\/choose\/(\d+)$/.exec(url.pathname);
+      if (req.method === "POST" && choice) {
+        const [, rawId, index] = choice;
+        const id = decodeURIComponent(rawId!);
+        const picked = await resolveMealChoice(deps, userId, id, Number(index));
+        if (!picked) return json({ error: "expired" }, 410);
+        await dropPendingEdit(deps, userId, id);
+        const replay = await handleText(deps, userId, { text: picked.text, focusMealId: picked.mealId });
+        if (replay.kind === "target-gone") return json({ error: "target-gone", on: replay.on }, 409);
+        if (replay.kind in REFUSAL_STATUS) {
+          return json({ error: replay.kind, ...("scope" in replay ? { scope: replay.scope } : {}) },
+            REFUSAL_STATUS[replay.kind as keyof typeof REFUSAL_STATUS]);
+        }
+        return json(replay);
       }
 
       if (req.method === "GET" && url.pathname === "/v1/diary/week") {

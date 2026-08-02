@@ -29,6 +29,10 @@ folder never imports `db.ts` and never touches `meals`.
 - **`not-onboarded` is 403, never 401.** The caller authenticated fine; a 401 sends a well-behaved
   client into a token-refresh loop it can never win.
 
+- **Every `pendingId` the API hands out needs a route that acts on it.** `/v1/messages` can answer `proposed` (text meal), `edit-proposed` (chat-targeted edit) or `choose-meal` (disambiguation). Each has its counterpart: `/v1/meals/pending/{id}/confirm|cancel`, `/v1/edits/pending/{id}/apply|cancel`, `/v1/edits/pending/{id}/choose/{n}`. An id with no route is a client holding a token it can never spend — it has happened twice now, once per confirm-first flow added.
+- **Confirm and drop collapse here, unlike on Telegram.** The HTTP response IS the delivery, so there is no window in which a meal is logged (or an edit applied) and the caller has seen nothing. On Telegram they stay two calls because only the surface knows whether the card actually sent.
+- **Exhaustiveness is a `switch` + `assertNever`, never an assignment.** The earlier guard cast the result to a union of the then-known success kinds and assigned it to `Exclude<HandleTextResult, Refusal | TargetGone>` — narrow into wide, which TypeScript accepts, so a new kind could never error. It didn't: two kinds were added and this file compiled clean while serving 200s no client could act on.
+
 ## Where to add things
 
 A new route → one handler that calls one `src/engine/` function. If a route needs logic the engine
