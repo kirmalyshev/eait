@@ -73,7 +73,8 @@
     "cancelled": "Okay, left as it was.",
     "pendingGone": "That suggestion already expired — say it again if you still want the change.",
     "choiceGone": "That question already expired — ask again and I'll look afresh.",
-    "choiceButton": "{{time}} · {{meal}}"
+    "choiceButton": "{{time}} · {{meal}}",
+    "whichMeal": "Which meal did you mean?"
   },
   "help": {
     "body": "Send me a photo of your meal and I'll estimate the calories and macros. You can also send multiple photos in one message (album) and I'll treat them as a single meal.\n\nDescribe a meal in text too — just type what you ate (say \"yesterday\" or \"2 days ago\" to back-date it) and I'll log it after you confirm.\n\nAsk me anything about nutrition, your goal, or today's intake and I'll answer.\n\nGot an estimate wrong? Reply directly to my analysis message with a correction — for example \"two pieces, no oil\" — and I'll redo it. Reply \"move to yesterday\" to re-file that meal on another day.\n\nBetter photos, better estimates:\n• shoot from above, the whole plate in frame\n• good light; cutlery or your hand next to the plate helps me judge portion size\n• know the weight or ingredients? add them in the caption\n• tall or layered dish (bowl, casserole, stack)? add a second photo from the side — it helps me judge volume\n\nCommands:\n/me — today's totals\n/cap — today's LLM call usage\n/settings — goal & weight, country, food specifics (allergies, conditions, products you avoid), language and reply style\n/help — this message\n/delete — erase all your data\n\nEstimates from a photo are approximate and are not medical advice."

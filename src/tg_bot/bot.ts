@@ -863,7 +863,9 @@ export async function processText(
   // the tap replays this very message with that meal in focus.
   if (result.kind === "choose-meal") {
     await send(
-      result.question,
+      // The model's own question when it asked; our copy when the engine's item-match fallback
+      // produced the candidates and there is no model sentence to show.
+      result.question ?? t("edit.whichMeal"),
       result.candidates.map((c, i) => [
         { text: choiceLabel(c, t), data: `ce:pick:${result.pendingId}:${i}` },
       ]),

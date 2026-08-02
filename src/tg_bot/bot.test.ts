@@ -3460,3 +3460,135 @@ test("the confirm prompt is deleted only AFTER the card is on screen", async () 
   expect(deleted).toBe(false);
   expect(await dbModule.getPendingEdit(db, pendingId, 1)).toBeDefined(); // re-tappable
 });
+
+test("an untargeted correction is recovered from the food it names, not discarded", async () => {
+  // Measured against a live model: it produced submit_correction with NO mealId even though the
+  // meal was in the prompt. The analysis still names the food, which is enough to find the row.
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "correction", analysis: CORRECTED }), // no mealId, no reply
+  });
+  await withLoggedMeal(db, deps);
+  const c = kbCollector();
+
+  await processText(deps, { id: 1 }, { text: "паста была 200г", messageId: 5 }, c.send);
+
+  // Recovered as a PROPOSAL, never applied outright — a string match is weaker evidence than the
+  // model naming an id, not stronger.
+  expect((await dbModule.getMeal(db, "m-pasta", 1))!.kcal).toBe(520);
+  const apply = c.dataOf().find((d) => d?.startsWith("ce:ok:"));
+  expect(apply).toBeDefined();
+  await processEditDecision(deps, { id: 1 }, apply!, c.send);
+  expect((await dbModule.getMeal(db, "m-pasta", 1))!.kcal).toBe(690);
+});
+
+test("an untargeted correction matching two meals asks which, in the user's language", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "correction", analysis: CORRECTED }),
+  });
+  await withLoggedMeal(db, deps, 1, "m-pasta");
+  await dbModule.insertMeal(db, {
+    id: "m-pasta-2", user_id: 1, ts: new Date().toISOString(),
+    date: berlinDate(new Date(), cfg.tz), analysis: { ...CORRECTED, kcal: 300 },
+  });
+  const c = kbCollector();
+
+  await processText(deps, { id: 1 }, { text: "паста была 200г", messageId: 5 }, c.send);
+
+  expect(c.dataOf().length).toBe(2);
+  // No model prose in this path, so the surface supplies the wording — never the engine.
+  expect(c.last().text).toBe(translatorFor(DEFAULT_LANG)("edit.whichMeal"));
+});
+
+test("an untargeted correction naming food the diary does not have is still refused", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({
+      intent: "correction",
+      analysis: { ...CORRECTED, items: [{ name: "суши", grams: 200 }] },
+    }),
+  });
+  await withLoggedMeal(db, deps);
+  const c = collector();
+
+  await processText(deps, { id: 1 }, { text: "суши были больше", messageId: 5 }, c.send);
+
+  expect((await dbModule.getMeal(db, "m-pasta", 1))!.kcal).toBe(520);
+  expect(c.msgs.join("\n")).toBe(translatorFor(DEFAULT_LANG)("errors.textFailed"));
+});
+
+test("an untargeted redate whose text names no food is refused", async () => {
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "redate", dayOffset: 1 }),
+  });
+  const { date } = await withLoggedMeal(db, deps);
+  const c = collector();
+
+  // "move it to yesterday" names no meal, and a redate carries no analysis — nothing to match on.
+  await processText(deps, { id: 1 }, { text: "перенеси на вчера", messageId: 5 }, c.send);
+
+  expect((await dbModule.getMeal(db, "m-pasta", 1))!.date).toBe(date);
+  expect(c.msgs.join("\n")).toBe(translatorFor(DEFAULT_LANG)("errors.textFailed"));
+});
+
+test("an untargeted redate IS recovered when the user's own words name the meal", async () => {
+  // Measured against a live model: "actually the oatmeal was yesterday, move it" produced
+  // submit_redate with no mealId. A redate carries no analysis, but the sentence says "oatmeal".
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "redate", dayOffset: 1 }),
+  });
+  const { date } = await withLoggedMeal(db, deps);
+  const c = kbCollector();
+
+  await processText(deps, { id: 1 }, { text: "паста была вчера, перенеси", messageId: 5 }, c.send);
+
+  const apply = c.dataOf().find((d) => d?.startsWith("ce:ok:"));
+  expect(apply).toBeDefined();
+  expect((await dbModule.getMeal(db, "m-pasta", 1))!.date).toBe(date); // not yet
+  await processEditDecision(deps, { id: 1 }, apply!, c.send);
+  expect((await dbModule.getMeal(db, "m-pasta", 1))!.date).toBe(berlinDateMinus(date, 1));
+});
+
+test("a short word in the message never matches a meal on its own", async () => {
+  // The false-positive guard: without a floor, "it"/"a"/"of" would target whatever is in the diary.
+  const db = await freshTestDb();
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async () => ({ intent: "redate", dayOffset: 1 }),
+  });
+  const { date } = await withLoggedMeal(db, deps, 1, "m-tea");
+  await db`UPDATE meals SET items = ${JSON.stringify([{ name: "tea", grams: 200 }])} WHERE id = ${"m-tea"}`;
+  const c = collector();
+
+  await processText(deps, { id: 1 }, { text: "move it back a day", messageId: 5 }, c.send);
+
+  expect((await dbModule.getMeal(db, "m-tea", 1))!.date).toBe(date);
+  expect(c.msgs.join("\n")).toBe(translatorFor(DEFAULT_LANG)("errors.textFailed"));
+});
+
+test("today's meals reach the router prompt WITH their ids", async () => {
+  // The measured cause of the untargeted correction: the model could see the meal and had no way
+  // to name it. A regression here is silent — edits just start needing an extra round trip.
+  const db = await freshTestDb();
+  let seen: unknown;
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg,
+    routeText: async (_t, _p, ctx) => {
+      seen = ctx.todayMeals;
+      return { intent: "question", answer: "ок" };
+    },
+  });
+  await withLoggedMeal(db, deps);
+
+  await processText(deps, { id: 1 }, { text: "как дела", messageId: 5 }, noop);
+
+  expect((seen as { mealId?: string }[])[0]!.mealId).toBe("m-pasta");
+});

@@ -198,6 +198,16 @@ export interface DailyTotals {
 /** The user's daily targets. Caps are present only for relevant restrictions. */
 /** Compact per-meal summary fed to the free-text router as today-context. */
 export interface MealSummary {
+  /**
+   * The meal's UUID, so the router can target it directly.
+   *
+   * Optional only because the type predates it. Its ABSENCE was a measured bug: today's meals were
+   * listed in the router prompt with their items and macros but no id, so a model asked to correct
+   * one could see exactly which meal was meant and still had no way to name it — it either called
+   * `submit_correction` with no target (refused) or had to spend a `find_meals` round trip
+   * rediscovering rows it had already been handed.
+   */
+  mealId?: string;
   items: MealItem[];
   kcal: number;
   protein_g: number;

@@ -598,14 +598,16 @@ export const SYSTEM_ROUTE =
  * `LOOKUP_GUIDANCE` was written to avoid on the other side.
  */
 export const TARGETING_GUIDANCE =
-  "When the user refers to a logged meal WITHOUT replying to its card, call find_meals first to " +
-  "locate it, passing the food words from their message, and put the id you get back in the " +
-  "mealId field of submit_correction or submit_redate. Use find_meals to answer questions about " +
-  "what they ate on earlier days too. If several of the meals it returns could plausibly be the " +
-  "one they mean, do NOT pick one — call ask_which_meal with those ids and a short question " +
-  "naming what tells them apart. If it returns nothing that fits, say so with answer_question " +
-  "rather than editing a meal that is merely close. When a focus meal WAS provided, that is the " +
-  "target: do not search, and omit mealId.";
+  "submit_correction and submit_redate ALWAYS need a target. When a focus meal was provided, that " +
+  "is the target: omit mealId. Otherwise you MUST supply mealId, and an edit without one is " +
+  "rejected — the user's message is lost. Get the id one of two ways. (1) If the meal is one of " +
+  "the todayMeals in the diary context, use its mealId directly; they are listed there precisely " +
+  "so you do not have to search for something you can already see. (2) Otherwise call find_meals " +
+  "with the food words from their message and use an id it returns. Use find_meals to answer " +
+  "questions about earlier days too. If several candidate meals could plausibly be the one they " +
+  "mean, do NOT pick one — call ask_which_meal with those ids and a short question naming what " +
+  "tells them apart. If nothing fits, say so with answer_question rather than editing a meal that " +
+  "is merely close.";
 
 const RouteSchema = z.object({
   intent: z.enum(["question", "meal", "correction", "redate"]),
@@ -655,8 +657,9 @@ export function buildRouteText(text: string, profile: Profile, ctx: RouteContext
     // line tells it how rather than closing the door
     // (`docs/design/2026-08-02-chat-targeted-meal-editing.md`).
     lines.push(
-      "The message does not reply to any meal. If it refers to a meal already logged, find that " +
-        "meal before acting on it, and never act on a meal you have not located.",
+      "The message does not reply to any meal, so there is no focus meal. If it changes a meal " +
+        "already logged, you MUST name that meal with mealId — take it from todayMeals above when " +
+        "the meal is there, otherwise from find_meals. Never act on a meal you have not named.",
     );
   }
   lines.push(`Write the answer in ${LOCALES[profile.lang].llmName}.`);

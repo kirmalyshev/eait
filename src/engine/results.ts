@@ -128,8 +128,14 @@ export interface MealChoice {
 export interface MealChoiceNeeded {
   kind: "choose-meal";
   pendingId: string;
-  /** Model prose — content, not copy, like `Answered.text`. */
-  question: string;
+  /**
+   * Model prose — content, not copy, like `Answered.text`.
+   *
+   * ABSENT when the candidates came from the engine's item-match fallback rather than from
+   * `ask_which_meal`: there is no model sentence in that case, and inventing an English one here
+   * would put user-facing wording in the engine. The surface resolves a copy key instead.
+   */
+  question?: string;
   candidates: MealChoice[];
 }
 
