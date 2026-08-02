@@ -12,7 +12,8 @@
 import { DEFAULT_LANG, isLang } from "../i18n/registry.ts";
 import { isReplyFormat } from "../types.ts";
 import type { UserRow } from "../db.ts";
-import type { MealAnalysis, MealRecord, Profile } from "../types.ts";
+import type { Config } from "../config.ts";
+import type { MealAnalysis, MealRecord, Profile, ReplyFormat } from "../types.ts";
 
 /** Named `profileFromRow` here; `tg_bot/bot.ts` re-exports it as `profileOf` for its call sites. */
 export function profileFromRow(u: UserRow): Profile {
@@ -64,4 +65,16 @@ export function mealRecordToAnalysis(m: MealRecord): MealAnalysis {
     plant_protein_pct: m.plant_protein_pct, verdicts: m.verdicts,
     confidence: m.confidence ?? "", notes: m.notes ?? "",
   };
+}
+
+/**
+ * The format a user's meal cards render in: their `/settings` choice, else the instance default.
+ *
+ * Lives here rather than in a surface because it is a RESOLUTION RULE, not a rendering one — the
+ * settings summary has to show the same answer the card renderer will use, and a second front end
+ * reading `config.replyFormat` directly would disagree with the bot about a value the user set.
+ * Takes an already-resolved `Profile` so it never re-runs `profileFromRow` (which would re-warn).
+ */
+export function replyFormatFor(prof: Profile, config: Config): ReplyFormat {
+  return prof.reply_format ?? config.replyFormat;
 }

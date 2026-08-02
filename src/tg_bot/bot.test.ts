@@ -596,10 +596,15 @@ test("/me renders all three food fields, each on its own line with the right lab
   const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg });
   const t = translatorFor(DEFAULT_LANG);
   await onboardToActive(deps, 92);
-  // Distinct values so a mis-wire (a line interpolating the wrong column) is caught.
-  await processSettingsInput(deps, (await getUser(db, 92))!, "medical", "CKD", noop);
-  await processSettingsInput(deps, (await getUser(db, 92))!, "allergies", "peanuts", noop);
-  await processSettingsInput(deps, (await getUser(db, 92))!, "products", "buckwheat", noop);
+  // Distinct values so a mis-wire (a line interpolating the wrong column) is caught. Each field is
+  // ARMED first, as a real tap would: the engine checks the typed answer against the prompt that is
+  // actually open rather than trusting the caller's word for it.
+  for (const [field, value] of [
+    ["medical", "CKD"], ["allergies", "peanuts"], ["products", "buckwheat"],
+  ] as const) {
+    await processSettingsCallback(deps, { id: 92 }, `st:${field}`, editor().edit);
+    await processSettingsInput(deps, (await getUser(db, 92))!, field, value, noop);
+  }
   const card = await meCard(deps, 92);
   expect(card).toContain(t("me.medicalLine", { value: "CKD" }));
   expect(card).toContain(t("me.allergiesLine", { value: "peanuts" }));

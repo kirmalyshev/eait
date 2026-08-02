@@ -24,11 +24,10 @@ import { createEngineAgent } from "../llm/agent.ts";
 import { modelRouterId } from "../llm/model.ts";
 import { loadFoodIndex } from "../food_db.ts";
 import {
-  openDb, berlinDate, getUser, setProfile, setMealReply, mealByReply,
-  mealById,
+  openDb, berlinDate, getUser, setMealReply, mealByReply, mealById,
   dailyTotals, llmCallCountToday, setPendingReply, setPendingUserMessage,
-  setMealUserMessage, deleteUser, userCount, mealCount, seenUpdate, markUpdate, setLang,
-  setReplyFormat, setPendingInput, setSetting, clearSetting, hasEvent, logEvent,
+  setMealUserMessage, deleteUser, userCount, mealCount, seenUpdate, markUpdate,
+  setSetting, clearSetting, hasEvent, logEvent,
   type Db, type UserRow,
 } from "../db.ts";
 import { loadAllowlist, type Allowlist } from "../allowlist.ts";
@@ -40,14 +39,11 @@ import { countryLabel } from "../country.ts";
 import { limitationsDisplay } from "../limitations.ts";
 import { formatReply, berlinDayLabel, mealDateLabel } from "../reply.ts";
 import { renderMealCard } from "../render.ts";
-import {
-  settingsInput, settingsRoot, settingsStep, isPendingInput,
-  type PendingInput, type SettingsProfile, type SettingsView,
-} from "../settings.ts";
+import { isPendingInput, type PendingInput } from "../settings.ts";
 import type { OnboardingInput, InlineButton } from "../onboarding.ts";
-import { DEFAULT_LANG, LANGS, LOCALES, isLang, resolveLang, translatorFor } from "../i18n/index.ts";
+import { DEFAULT_LANG, LANGS, LOCALES, resolveLang, translatorFor } from "../i18n/index.ts";
 import type { TFunction } from "i18next";
-import type { Lang, Profile, ReplyFormat } from "../types.ts";
+import type { Lang, ReplyFormat } from "../types.ts";
 
 export interface BotDeps {
   db: Db;
@@ -158,7 +154,8 @@ function fireReaction(react: React | undefined, emoji: "👀" | "👍", userId: 
 // `profileOf` moved to `engine/profile.ts` — every surface needs it, not just Telegram. Re-exported
 // under its original name so this file's call sites and its tests are unchanged.
 import {
-  profileFromRow, mealRecordToAnalysis, advanceOnboarding,
+  profileFromRow, mealRecordToAnalysis, advanceOnboarding, replyFormatFor,
+  openSettings, applySettingsAction, submitSettingsInput, setUserLanguage,
   logPhotoMeal, confirmPendingMeal, cancelPendingMeal, dropPendingMeal,
   CAP_KEY, effectiveGlobalCap,
   handleText,
@@ -169,11 +166,7 @@ import { startApi, type ApiServer } from "../api/server.ts";
 export { profileFromRow as profileOf };
 const profileOf = profileFromRow;
 
-/** The format a user's meal cards render in: their /settings choice, else the instance default.
- * Takes the already-resolved Profile so it never re-runs profileOf (which would re-warn). */
-export function replyFormatFor(prof: Profile, config: Config): ReplyFormat {
-  return prof.reply_format ?? config.replyFormat;
-}
+export { replyFormatFor };
 
 /** The translator for a user, or the default one if they have no row yet. */
 function translatorForUser(u: UserRow | undefined): TFunction {
@@ -437,74 +430,33 @@ export async function processSettingsOpen(
   from: { id: number },
   send: Send,
 ): Promise<void> {
-  const u = await getUser(deps.db, from.id);
-  if (!u || u.state !== "active") {
-    await send(translatorForUser(u)("errors.notOnboarded"));
+  const r = await openSettings(deps, from.id, translatorFor);
+  if (r.kind !== "view") {
+    await send(translatorForUser(await getUser(deps.db, from.id))("errors.notOnboarded"));
     return;
   }
-  // A fresh open cancels any half-finished text prompt from a previous session.
-  await setPendingInput(deps.db, from.id, null);
-  const prof = settingsProfile(u, deps.config);
-  const v = settingsRoot(prof, translatorFor(prof.lang));
-  await send(v.text, v.buttons);
+  await send(r.view.text, r.view.buttons);
 }
 
-/** The profile the settings machine renders: reply_format resolved to the EFFECTIVE value
- * (user choice, else instance default) — replyFormatFor is the ONE resolution implementation,
- * and the machine's SettingsProfile parameter type rejects unresolved profiles at compile time. */
-function settingsProfile(u: UserRow, config: Config): SettingsProfile {
-  const prof = profileOf(u); // once — profileOf is the warning site, don't double it
-  return { ...prof, reply_format: replyFormatFor(prof, config) };
-}
-
-/** Persists a settings patch across the field-specific setters, then arms/clears the text-capture
- * marker. Shared by the callback path (edits the message) and the text-input path (sends a reply).
- * setProfile no-ops when its whitelist fields are all undefined, so one call covers every case.
- * `currentPending` is the row's existing marker — the write is skipped when it wouldn't change,
- * so plain picker navigation (no prompt armed, none to clear) costs no extra UPDATE. */
-async function applySettingsView(
-  deps: BotDeps,
-  id: number,
-  v: SettingsView,
-  currentPending: string | null,
-): Promise<void> {
-  if (v.patch) {
-    if (v.patch.lang) await setLang(deps.db, id, v.patch.lang);
-    if (v.patch.reply_format) await setReplyFormat(deps.db, id, v.patch.reply_format);
-    await setProfile(deps.db, id, {
-      goal: v.patch.goal,
-      restrictions: v.patch.restrictions,
-      weight_kg: v.patch.weight_kg,
-      target_weight_kg: v.patch.target_weight_kg,
-      country: v.patch.country,
-      medical_limitations: v.patch.medical_limitations,
-      food_allergies: v.patch.food_allergies,
-      product_limitations: v.patch.product_limitations,
-    });
-  }
-  // A prompt view arms pending_input; every other view (including a completed edit) clears it, so
-  // tapping any button cancels a half-finished text prompt. Only write on an actual change.
-  const nextPending = v.awaitInput ?? null;
-  if (nextPending !== currentPending) await setPendingInput(deps.db, id, nextPending);
-}
-
-/** Handles an `st:` callback: persist whatever changed, then rewrite the message in place. */
+/** Handles an `st:` callback: the engine persists whatever changed, this rewrites the message. */
 export async function processSettingsCallback(
   deps: BotDeps,
   from: { id: number },
   data: string,
   edit: Edit,
 ): Promise<void> {
-  const u = await getUser(deps.db, from.id);
-  if (!u || u.state !== "active") return; // no row to edit against; stay silent
-  const prof = settingsProfile(u, deps.config);
-  const v = settingsStep(prof, data, translatorFor(prof.lang));
-  await applySettingsView(deps, from.id, v, u.pending_input);
-  await edit(v.text, v.buttons);
+  const r = await applySettingsAction(deps, from.id, data, translatorFor);
+  if (r.kind !== "view") return; // no row to edit against; stay silent
+  await edit(r.view.text, r.view.buttons);
 }
 
-/** Handles the user's next text message when a /settings prompt is armed: parse + persist the
- * typed value (or re-prompt on a parse failure), then send the resulting view. No LLM, no cap. */
+/**
+ * The user's next text message while a /settings prompt is armed. No LLM, no cap draw.
+ *
+ * Takes the already-read row because the CALLER resolved precedence with it (`processText` must
+ * know a prompt is armed before deciding this text is not a meal); the engine re-reads and checks
+ * the field again rather than trusting what is passed.
+ */
 export async function processSettingsInput(
   deps: BotDeps,
   u: UserRow,
@@ -512,10 +464,11 @@ export async function processSettingsInput(
   text: string,
   send: Send,
 ): Promise<void> {
-  const prof = settingsProfile(u, deps.config);
-  const v = settingsInput(field, text, prof, translatorFor(prof.lang));
-  await applySettingsView(deps, u.telegram_id, v, u.pending_input);
-  await send(v.text, v.buttons);
+  const r = await submitSettingsInput(deps, u.telegram_id, field, text, translatorFor);
+  // `no-prompt` means the marker changed under us (a button tap raced this message). Nothing was
+  // written and nothing is owed: the tap already sent the view that replaced the prompt.
+  if (r.kind !== "view") return;
+  await send(r.view.text, r.view.buttons);
 }
 
 /** /lang — a picker built from the registry, so a new locale appears with no code change. */
@@ -538,10 +491,9 @@ export async function processLangChoice(
   data: string,
   send: Send,
 ): Promise<void> {
-  const code = data.slice("lang_".length);
-  if (!isLang(code)) return;
-  await setLang(deps.db, from.id, code);
-  await send(translatorFor(code)("lang.changed")); // confirm in the language just chosen
+  const r = await setUserLanguage(deps, from.id, data.slice("lang_".length));
+  if (r.kind !== "ok") return;
+  await send(translatorFor(r.lang)("lang.changed")); // confirm in the language just chosen
 }
 
 export async function processPhoto(

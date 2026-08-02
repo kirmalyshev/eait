@@ -14,7 +14,11 @@ export { day, week, MAX_WINDOW_DAYS, type DayView } from "./diary.ts";
 export {
   advanceOnboarding, type AdvanceOnboardingInput, type TranslatorFactory,
 } from "./onboarding.ts";
-export { profileFromRow, mealRecordToAnalysis } from "./profile.ts";
+export {
+  openSettings, applySettingsAction, submitSettingsInput, setUserLanguage,
+  type SettingsResult, type SetLanguageResult,
+} from "./settings.ts";
+export { profileFromRow, mealRecordToAnalysis, replyFormatFor } from "./profile.ts";
 export { effectiveGlobalCap, checkCaps, CAP_KEY } from "./caps.ts";
 export type {
   Answered, ApplyEditResult, ConfirmMealResult, EditProposed, HandleTextResult, LogPhotoResult,
