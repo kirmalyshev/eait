@@ -505,6 +505,36 @@ const MIGRATIONS: Migration[] = [
       `;
     },
   },
+  {
+    // Chat-targeted meal editing (`docs/design/2026-08-02-chat-targeted-meal-editing.md`): an edit
+    // whose target the MODEL inferred, rather than one the user pointed at with a reply, waits for
+    // a tap before it touches `meals`.
+    //
+    // One table with nullable columns rather than three narrow ones, and the discriminator is
+    // `kind`. The trade is deliberate: one row shape, one TTL sweep, one callback handler. Reads
+    // parse through zod (`getPendingEdit`) instead of trusting which columns happen to be set, so
+    // a row whose `kind` and payload disagree is caught rather than half-applied.
+    //
+    // `analysis` and `candidates` are TEXT holding JSON, matching `meals.analysis` and
+    // `pending_meals.analysis` — this codebase stores JSON as text everywhere, and one jsonb
+    // column would be the only place a reader has to know the difference.
+    version: 9,
+    up: async (tx) => {
+      await tx`
+        CREATE TABLE pending_edits (
+          id          TEXT PRIMARY KEY,
+          user_id     BIGINT NOT NULL,
+          ts          TEXT NOT NULL,
+          kind        TEXT NOT NULL CHECK (kind IN ('correction', 'redate', 'choose')),
+          meal_id     TEXT,
+          analysis    TEXT,
+          day_offset  INTEGER,
+          source_text TEXT,
+          candidates  TEXT
+        )`;
+      await tx`CREATE INDEX idx_pending_edits_user ON pending_edits(user_id)`;
+    },
+  },
 ];
 
 async function migrate(db: Db): Promise<void> {
@@ -1076,6 +1106,127 @@ export async function prunePendingMeals(db: Db, olderThanIso: string): Promise<v
   await db`DELETE FROM pending_meals WHERE ts < ${olderThanIso}`;
 }
 
+// ---------- pending edits (chat-targeted correction / re-date / disambiguation) ----------
+
+/**
+ * Which shape a `pending_edits` row is.
+ *
+ * `correction` and `redate` are an edit the model TARGETED ITSELF and the user has not yet
+ * approved; `choose` is the model admitting it could not tell which meal was meant, holding the
+ * candidates and the text that produced them so the user's tap can re-run the turn unambiguously.
+ */
+export type PendingEditKind = "correction" | "redate" | "choose";
+
+export interface NewPendingEdit {
+  id: string;
+  user_id: number;
+  ts: string;
+  kind: PendingEditKind;
+  /** The meal being edited. Null on `choose` — that is the question being asked. */
+  meal_id?: string | null;
+  /** `correction` only: the full updated analysis, exactly as a reply-based correction carries. */
+  analysis?: MealAnalysis | null;
+  /** `redate` only: whole days before today to file the meal under. */
+  day_offset?: number | null;
+  /** `choose` only: the user's original message, replayed through the router after the tap. */
+  source_text?: string | null;
+  /** `choose` only: candidate meal ids, in the order the buttons are rendered. */
+  candidates?: string[] | null;
+}
+
+export interface PendingEdit {
+  id: string;
+  user_id: number;
+  ts: string;
+  kind: PendingEditKind;
+  meal_id: string | null;
+  analysis: MealAnalysis | null;
+  day_offset: number | null;
+  source_text: string | null;
+  candidates: string[] | null;
+}
+
+export async function insertPendingEdit(db: Db, e: NewPendingEdit): Promise<void> {
+  await db`
+    INSERT INTO pending_edits (id, user_id, ts, kind, meal_id, analysis, day_offset, source_text, candidates)
+    VALUES (${e.id}, ${e.user_id}, ${e.ts}, ${e.kind}, ${e.meal_id ?? null},
+            ${e.analysis ? JSON.stringify(e.analysis) : null}, ${e.day_offset ?? null},
+            ${e.source_text ?? null}, ${e.candidates ? JSON.stringify(e.candidates) : null})`;
+}
+
+/**
+ * One pending edit, ALWAYS user-scoped — a foreign id resolves to nothing, like every other meal
+ * read here.
+ *
+ * A `correction` row's analysis is schema-validated rather than merely parsed, for the reason
+ * `getPendingMeal` gives: it flows straight into `meals` on the tap, so an invalid blob would
+ * poison daily totals. A row that fails is unusable forever — leaving it would silently re-fail
+ * every tap — so it is deleted and the operator told, or systematic corruption reads as
+ * "everything expired".
+ */
+export async function getPendingEdit(
+  db: Db,
+  id: string,
+  user_id: number,
+): Promise<PendingEdit | undefined> {
+  const rows = await db`SELECT * FROM pending_edits WHERE id = ${id} AND user_id = ${user_id}`;
+  if (!rows.length) return undefined;
+  const row = rows[0];
+
+  let analysis: MealAnalysis | null = null;
+  let candidates: string[] | null = null;
+  let corrupt = false;
+  try {
+    if (row.analysis !== null) {
+      const parsed = MealAnalysisSchema.safeParse(JSON.parse(row.analysis));
+      if (parsed.success) analysis = parsed.data;
+      else corrupt = true;
+    }
+    if (row.candidates !== null) {
+      const list = JSON.parse(row.candidates);
+      if (Array.isArray(list) && list.every((v) => typeof v === "string")) candidates = list;
+      else corrupt = true;
+    }
+  } catch {
+    corrupt = true;
+  }
+  // A row whose `kind` and payload disagree is as unusable as an unparseable one: a correction with
+  // no analysis, or a choose with no candidates, would reach the surface as a tap that can do
+  // nothing. Caught here rather than at four call sites.
+  if (row.kind === "correction" && !analysis) corrupt = true;
+  if (row.kind === "redate" && row.day_offset === null) corrupt = true;
+  if (row.kind === "choose" && (!candidates || candidates.length === 0)) corrupt = true;
+
+  if (corrupt) {
+    console.error(`[eait] corrupt pending_edits row id=${row.id} user=${user_id} — deleting`);
+    await deletePendingEdit(db, id, user_id);
+    return undefined;
+  }
+
+  return {
+    id: row.id,
+    user_id: Number(row.user_id),
+    ts: row.ts,
+    kind: row.kind as PendingEditKind,
+    meal_id: row.meal_id,
+    analysis,
+    day_offset: row.day_offset === null ? null : Number(row.day_offset),
+    source_text: row.source_text,
+    candidates,
+  };
+}
+
+/** True if a row was actually deleted (user-scoped — a foreign id deletes nothing). */
+export async function deletePendingEdit(db: Db, id: string, user_id: number): Promise<boolean> {
+  const rows = await db`
+    DELETE FROM pending_edits WHERE id = ${id} AND user_id = ${user_id} RETURNING id`;
+  return rows.length > 0;
+}
+
+export async function prunePendingEdits(db: Db, olderThanIso: string): Promise<void> {
+  await db`DELETE FROM pending_edits WHERE ts < ${olderThanIso}`;
+}
+
 export async function dailyTotals(db: Db, user_id: number, date: string): Promise<DailyTotals> {
   const rows = await db`
     SELECT
@@ -1095,6 +1246,32 @@ export async function dailyTotals(db: Db, user_id: number, date: string): Promis
 export async function mealsOnDate(db: Db, user_id: number, date: string): Promise<MealRecord[]> {
   const rows = await db`
     SELECT * FROM meals WHERE user_id = ${user_id} AND date = ${date} ORDER BY ts`;
+  return rows.map(rowToMeal);
+}
+
+/**
+ * The meals a chat-targeted edit may reach: one user's rows inside a date window, newest first.
+ *
+ * This is what backs the `find_meals` tool, so both bounds are load-bearing rather than tidy. The
+ * window is the caller's (seven days — see the design doc), and `limit` caps what one lookup can
+ * put in front of the model: this runs inside a turn the user is waiting on, and the rows are paid
+ * for in tokens. NEWEST FIRST because a reference like "the pasta" almost always means the most
+ * recent one, and a truncated list should keep the likeliest candidates rather than the oldest.
+ *
+ * `SELECT *` here, unlike `recentMealItems`: at 20 rows the row weight is irrelevant, and the
+ * caller needs enough of each meal to describe it back to the user.
+ */
+export async function mealsInWindow(
+  db: Db,
+  user_id: number,
+  fromDate: string,
+  toDate: string,
+  limit = 20,
+): Promise<MealRecord[]> {
+  const rows = await db`
+    SELECT * FROM meals
+    WHERE user_id = ${user_id} AND date >= ${fromDate} AND date <= ${toDate}
+    ORDER BY date DESC, ts DESC LIMIT ${limit}`;
   return rows.map(rowToMeal);
 }
 

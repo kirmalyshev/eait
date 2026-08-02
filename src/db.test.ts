@@ -23,6 +23,11 @@ import {
   getPendingMeal,
   deletePendingMeal,
   prunePendingMeals,
+  mealsInWindow,
+  insertPendingEdit,
+  getPendingEdit,
+  deletePendingEdit,
+  prunePendingEdits,
   logLlmCall,
   llmCallsToday,
   llmCallCountToday,
@@ -102,6 +107,7 @@ describe("migration 2 upgrade path (pre-existing databases, not fresh creates)",
     await a`ALTER TABLE meals DROP COLUMN user_message_id`;
     await a`DROP TABLE pending_meals`;
     await a`DROP TABLE llm_calls`;
+    await a`DROP TABLE IF EXISTS pending_edits`;
     await a`UPDATE schema_version SET version = 1`;
     await upsertUser(a, { telegram_id: 1 });
     await setProfile(a, 1, { goal: "lose", restrictions: [], state: "active" });
@@ -112,7 +118,7 @@ describe("migration 2 upgrade path (pre-existing databases, not fresh creates)",
     await a.close();
 
     const b = await openTestDb(name); // migrations 2+3+4+5 run against existing rows
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(8);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(9);
     // Active user: never asked — NULL, and never re-asked (resume() skips active users).
     expect((await getUser(b, 1))!.weight_kg).toBeNull();
     // Restrictions-step user: backfilled to the skip sentinel, or their next message — composed
@@ -159,11 +165,12 @@ describe("reply_format (migration 4)", () => {
     await a`ALTER TABLE users DROP COLUMN medical_limitations`;
     await a`ALTER TABLE users DROP COLUMN food_allergies`;
     await a`ALTER TABLE users DROP COLUMN product_limitations`;
+    await a`DROP TABLE IF EXISTS pending_edits`;
     await a`UPDATE schema_version SET version = 3`;
     await upsertUser(a, { telegram_id: 7 });
     await a.close();
     const b = await openTestDb(name); // migration 4 (and 5) run against the existing row
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(8);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(9);
     expect((await getUser(b, 7))!.reply_format).toBeNull();
     // Write-back proves the column was really added (getUser's `?? null` would mask a no-op
     // migration: a missing column reads as undefined ?? null too).
@@ -220,6 +227,7 @@ describe("target weight + country + pending_input (migration 5)", () => {
     await a`ALTER TABLE users DROP COLUMN medical_limitations`;
     await a`ALTER TABLE users DROP COLUMN food_allergies`;
     await a`ALTER TABLE users DROP COLUMN product_limitations`;
+    await a`DROP TABLE IF EXISTS pending_edits`;
     await a`UPDATE schema_version SET version = 4`;
     await upsertUser(a, { telegram_id: 1 });
     await setProfile(a, 1, { goal: "lose", weight_kg: 90, restrictions: [], state: "active" });
@@ -230,7 +238,7 @@ describe("target weight + country + pending_input (migration 5)", () => {
     await a.close();
 
     const b = await openTestDb(name); // migration 5 runs against existing rows
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(8);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(9);
     // Active user: never asked, never re-asked (resume() skips active users).
     expect((await getUser(b, 1))!.target_weight_kg).toBeNull();
     expect((await getUser(b, 1))!.country).toBeNull();
@@ -289,6 +297,7 @@ describe("food specifics — 3 free-text fields (migration 7)", () => {
     await a`ALTER TABLE users DROP COLUMN food_allergies`;
     await a`ALTER TABLE users DROP COLUMN product_limitations`;
     await a`ALTER TABLE users ADD COLUMN limitations TEXT`;
+    await a`DROP TABLE IF EXISTS pending_edits`;
     await a`UPDATE schema_version SET version = 6`;
     await upsertUser(a, { telegram_id: 1 }); // has a real free-text value
     await setProfile(a, 1, { goal: "lose", state: "active" });
@@ -299,7 +308,7 @@ describe("food specifics — 3 free-text fields (migration 7)", () => {
     await a.close();
 
     const b = await openTestDb(name);
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(8);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(9);
     // The real value moves to product_limitations; the other two new fields start NULL.
     const u1 = (await getUser(b, 1))!;
     expect(u1.product_limitations).toBe("низя есть гречку");
@@ -321,6 +330,7 @@ describe("food specifics — 3 free-text fields (migration 7)", () => {
     await a`ALTER TABLE users DROP COLUMN food_allergies`;
     await a`ALTER TABLE users DROP COLUMN product_limitations`;
     await a`ALTER TABLE users ADD COLUMN limitations TEXT`;
+    await a`DROP TABLE IF EXISTS pending_edits`;
     await a`UPDATE schema_version SET version = 6`;
     await upsertUser(a, { telegram_id: 1 });
     await a`UPDATE users SET pending_input = 'limitations' WHERE telegram_id = 1`; // mid-prompt at deploy
@@ -341,6 +351,7 @@ describe("migrate() failure reporting", () => {
     const a = await openTestDb(name);
     // Rewind the version WITHOUT dropping the v4 column: reopening re-fires migration 4's
     // ADD COLUMN on the existing column → "already exists", the exact case the wrapper names.
+    await a`DROP TABLE IF EXISTS pending_edits`;
     await a`UPDATE schema_version SET version = 3`;
     await a.close();
     await expect(openTestDb(name)).rejects.toThrow(/migration v4 failed/);
@@ -351,7 +362,7 @@ describe("openDb + migrations", () => {
   test("auto-creates a missing database and records the schema version", async () => {
     const db = await freshTestDb();
     const rows = await db`SELECT version FROM schema_version`;
-    expect(Number(rows[0].version)).toBe(8);
+    expect(Number(rows[0].version)).toBe(9);
   });
 
   test("reopening is idempotent — data survives, migrations do not rerun", async () => {
@@ -361,7 +372,7 @@ describe("openDb + migrations", () => {
     await a.close();
     const b = await openTestDb(name);
     expect((await getUser(b, 1))?.username).toBe("keepme");
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(8);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(9);
   });
 
   test("two concurrent openDb calls on a missing database both succeed (create race)", async () => {
@@ -930,6 +941,7 @@ describe("review fixes — db layer", () => {
     await a`ALTER TABLE meals DROP COLUMN user_message_id`;
     await a`DROP TABLE pending_meals`;
     await a`DROP TABLE llm_calls`;
+    await a`DROP TABLE IF EXISTS pending_edits`;
     await a`UPDATE schema_version SET version = 1`;
     await upsertUser(a, { telegram_id: 1 });
     await a`
@@ -952,6 +964,7 @@ describe("migration 8 — undeclared medical verdicts are removed from stored me
 
   async function seedAtV7(name: string) {
     const a = await openTestDb(name);
+    await a`DROP TABLE IF EXISTS pending_edits`;
     await a`UPDATE schema_version SET version = 7`;
     await upsertUser(a, { telegram_id: 1 }); // declared neither
     await setProfile(a, 1, { restrictions: [], state: "active" });
@@ -977,7 +990,7 @@ describe("migration 8 — undeclared medical verdicts are removed from stored me
     const name = freshTestName();
     await seedAtV7(name);
     const b = await openTestDb(name);
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(8);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(9);
 
     expect(await verdictsOf(b, "m1")).toEqual({ weight: "good" }); // declared neither
     expect(await verdictsOf(b, "m2")).toEqual({ weight: "good", ldl: "bad" }); // only ldl
@@ -1002,6 +1015,7 @@ describe("migration 8 — undeclared medical verdicts are removed from stored me
     // (parseVerdicts / parseJsonArray), and migrate-sqlite-to-pg copies them through unnormalized.
     const name = freshTestName();
     const a = await openTestDb(name);
+    await a`DROP TABLE IF EXISTS pending_edits`;
     await a`UPDATE schema_version SET version = 7`;
     for (const id of [1, 2, 3]) {
       await upsertUser(a, { telegram_id: id });
@@ -1027,7 +1041,7 @@ describe("migration 8 — undeclared medical verdicts are removed from stored me
     await a.close();
 
     const b = await openTestDb(name); // must not throw
-    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(8);
+    expect(Number((await b`SELECT version FROM schema_version`)[0].version)).toBe(9);
     // Unparseable rows are SKIPPED, not repaired and not destroyed — the render gate hides their
     // verdicts anyway, so guessing at malformed data buys nothing.
     const raw = async (id: string) =>
@@ -1046,6 +1060,7 @@ describe("migration 8 — undeclared medical verdicts are removed from stored me
     // re-serializes their verdicts JSON. Asserted on the raw text, which stays byte-identical.
     const name = freshTestName();
     const a = await openTestDb(name);
+    await a`DROP TABLE IF EXISTS pending_edits`;
     await a`UPDATE schema_version SET version = 7`;
     await upsertUser(a, { telegram_id: 1 });
     await setProfile(a, 1, { restrictions: ["ldl", "kidneys"], state: "active" });
@@ -1065,6 +1080,7 @@ describe("migration 8 — undeclared medical verdicts are removed from stored me
     // confirmed on the user's next tap, re-inserting an undeclared verdict post-cleanup.
     const name = freshTestName();
     const a = await openTestDb(name);
+    await a`DROP TABLE IF EXISTS pending_edits`;
     await a`UPDATE schema_version SET version = 7`;
     await upsertUser(a, { telegram_id: 1 });
     await setProfile(a, 1, { restrictions: [], state: "active" });
@@ -1095,12 +1111,117 @@ describe("migration 8 — undeclared medical verdicts are removed from stored me
     await seedAtV7(name);
     const b = await openTestDb(name);
     const first = await Promise.all(["m1", "m2", "m3", "m4"].map((id) => verdictsOf(b, id)));
+    await b`DROP TABLE IF EXISTS pending_edits`;
     await b`UPDATE schema_version SET version = 7`; // rewind: migration 8 will re-execute
     await b.close();
 
     const c = await openTestDb(name);
-    expect(Number((await c`SELECT version FROM schema_version`)[0].version)).toBe(8);
+    expect(Number((await c`SELECT version FROM schema_version`)[0].version)).toBe(9);
     const second = await Promise.all(["m1", "m2", "m3", "m4"].map((id) => verdictsOf(c, id)));
     expect(second).toEqual(first);
+  });
+});
+
+describe("mealsInWindow (the find_meals tool's read)", () => {
+  test("returns the user's meals in the window, newest first, and nobody else's", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await upsertUser(db, { telegram_id: 2 });
+    await insertMeal(db, { id: "m1", user_id: 1, ts: "2026-07-20T08:00:00Z", date: "2026-07-20", analysis: analysis() });
+    await insertMeal(db, { id: "m2", user_id: 1, ts: "2026-07-22T12:00:00Z", date: "2026-07-22", analysis: analysis() });
+    await insertMeal(db, { id: "old", user_id: 1, ts: "2026-07-01T12:00:00Z", date: "2026-07-01", analysis: analysis() });
+    await insertMeal(db, { id: "other", user_id: 2, ts: "2026-07-22T12:00:00Z", date: "2026-07-22", analysis: analysis() });
+
+    const rows = await mealsInWindow(db, 1, "2026-07-19", "2026-07-22");
+    expect(rows.map((r) => r.id)).toEqual(["m2", "m1"]);
+  });
+
+  test("is bounded by limit — a full diary can never flood one prompt", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    for (let i = 0; i < 8; i++) {
+      await insertMeal(db, {
+        id: `m${i}`, user_id: 1, ts: `2026-07-2${i}T10:00:00Z`, date: "2026-07-22", analysis: analysis(),
+      });
+    }
+    expect((await mealsInWindow(db, 1, "2026-07-01", "2026-07-30", 3)).length).toBe(3);
+  });
+
+  test("a foreign user id reaches nothing, even for a window that has rows", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await insertMeal(db, { id: "m1", user_id: 1, ts: "t", date: "2026-07-22", analysis: analysis() });
+    expect(await mealsInWindow(db, 2, "2026-07-01", "2026-07-30")).toEqual([]);
+  });
+});
+
+describe("pending_edits", () => {
+  test("a correction round-trips with its analysis and target meal", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await insertPendingEdit(db, {
+      id: "e1", user_id: 1, ts: "2026-08-02T10:00:00Z", kind: "correction",
+      meal_id: "m1", analysis: analysis({ kcal: 690 }),
+    });
+    const back = (await getPendingEdit(db, "e1", 1))!;
+    expect(back.kind).toBe("correction");
+    expect(back.meal_id).toBe("m1");
+    expect(back.analysis!.kcal).toBe(690);
+    expect(back.day_offset).toBeNull();
+  });
+
+  test("a redate round-trips with its day offset and no analysis", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await insertPendingEdit(db, {
+      id: "e2", user_id: 1, ts: "t", kind: "redate", meal_id: "m1", day_offset: 2,
+    });
+    const back = (await getPendingEdit(db, "e2", 1))!;
+    expect(back.day_offset).toBe(2);
+    expect(back.analysis).toBeNull();
+  });
+
+  test("a choose row round-trips its candidates and the text that produced them", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await insertPendingEdit(db, {
+      id: "e3", user_id: 1, ts: "t", kind: "choose",
+      source_text: "the pasta was 200g", candidates: ["m1", "m2"],
+    });
+    const back = (await getPendingEdit(db, "e3", 1))!;
+    expect(back.candidates).toEqual(["m1", "m2"]);
+    expect(back.source_text).toBe("the pasta was 200g");
+    expect(back.meal_id).toBeNull();
+  });
+
+  test("reads and deletes are user-scoped — a foreign id reaches nothing", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await upsertUser(db, { telegram_id: 2 });
+    await insertPendingEdit(db, { id: "e1", user_id: 1, ts: "t", kind: "redate", meal_id: "m1", day_offset: 1 });
+    expect(await getPendingEdit(db, "e1", 2)).toBeUndefined();
+    expect(await deletePendingEdit(db, "e1", 2)).toBe(false);
+    expect(await deletePendingEdit(db, "e1", 1)).toBe(true);
+    expect(await getPendingEdit(db, "e1", 1)).toBeUndefined();
+  });
+
+  test("prune drops rows older than the cutoff and keeps the rest", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await insertPendingEdit(db, { id: "old", user_id: 1, ts: "2026-07-01T00:00:00Z", kind: "redate", meal_id: "m", day_offset: 1 });
+    await insertPendingEdit(db, { id: "new", user_id: 1, ts: "2026-08-02T00:00:00Z", kind: "redate", meal_id: "m", day_offset: 1 });
+    await prunePendingEdits(db, "2026-07-15T00:00:00Z");
+    expect(await getPendingEdit(db, "old", 1)).toBeUndefined();
+    expect(await getPendingEdit(db, "new", 1)).toBeDefined();
+  });
+
+  test("a corrupt correction row is deleted rather than re-failing every tap", async () => {
+    const db = await freshTestDb();
+    await upsertUser(db, { telegram_id: 1 });
+    await insertPendingEdit(db, { id: "e1", user_id: 1, ts: "t", kind: "correction", meal_id: "m1", analysis: analysis() });
+    await db`UPDATE pending_edits SET analysis = ${"{not json"} WHERE id = ${"e1"}`;
+    expect(await getPendingEdit(db, "e1", 1)).toBeUndefined();
+    // gone for good, not merely unreadable
+    expect((await db`SELECT id FROM pending_edits WHERE id = ${"e1"}`).length).toBe(0);
   });
 });
