@@ -208,6 +208,8 @@ export const floorSection = {
     "And when the floor is why your number is what it is, the screen that shows you the number " +
     "says so. A guard nobody is told about is a guard that only protects the people who were " +
     "never at risk.",
+  /** What Spud says here. Same job as in the app: name the refusal, and why. */
+  mascot: "This is the bit where I tell you no. It is the only thing I am strict about.",
 } as const;
 
 /**
@@ -384,21 +386,26 @@ export const subscribeSection = {
   note:
     "Deleting an ieat account does not remove an address from this list — they are separate " +
     "things, deliberately, and the unsubscribe link is how you leave.",
+  /** The only place the page asks the reader for something, which is exactly Spud's job. */
+  mascot: "One message. I will not make a habit of it.",
 } as const;
 
 /** The three pages the form's redirects land on. Static, no JavaScript, same shell as the page. */
 export const outcomes = {
   subscribed: {
+    mascot: "wave" as const,
     title: "You are on the list",
     body:
       "One message when the iPhone app is out, and a link in it that removes you in one click. " +
       "Nothing else.",
   },
   notSubscribed: {
+    mascot: "think" as const,
     title: "That did not look like an email address",
     body: "Nothing was saved. Go back and try it again — a typo is the usual reason.",
   },
   unsubscribed: {
+    mascot: "care" as const,
     title: "You are off the list",
     body:
       "The address is gone rather than flagged. If you clicked the link twice, this page says the " +

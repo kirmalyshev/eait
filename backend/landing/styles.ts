@@ -373,6 +373,21 @@ a { color: inherit; }
   position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden;
 }
 
+/* ── Spud ───────────────────────────────────────────────────────────────────────────────── */
+/* He appears three times and no more — see the header of mascot.ts. Sized down deliberately: he is
+   a voice beside a paragraph, not an illustration the section is built around. */
+/* 4.5rem, against the app's 50-point badge. The drawing occupies about 82 of its 120 viewBox units
+   vertically, so the potato itself lands near 49px — the same optical weight beside 15px body copy
+   that the badge has beside 13px caption text on a phone. */
+.spud { width: 4.5rem; height: 4.5rem; flex: none; }
+.spud-says {
+  display: flex; align-items: center; gap: 1rem;
+  margin-top: 2.5rem; max-width: 44ch;
+}
+.spud-line { color: var(--muted); font-size: .9375rem; line-height: 1.5; }
+
+.outcome .spud { width: 6rem; height: 6rem; margin-bottom: 1rem; margin-left: -.5rem; }
+
 /* ── Outcome pages ──────────────────────────────────────────────────────────────────────── */
 .outcome { padding: clamp(5rem, 14vw, 10rem) 0; }
 .outcome-title {

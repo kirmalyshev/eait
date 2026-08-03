@@ -12,6 +12,7 @@ import { iconSvg, outcomePages, renderLanding } from "./render.ts";
 import { buildLanding } from "./build.ts";
 import { faviconIco, ogPng, OG_HEIGHT, OG_WIDTH } from "./images.ts";
 import { color, TOKEN_SOURCE } from "./tokens.ts";
+import { BODY, MASCOT_SOURCE, MOUTHS, SHEEN } from "./mascot.ts";
 import { styles } from "./styles.ts";
 import { founder, measured, refusals, floorSection, sample } from "./content.ts";
 import { KCAL_FLOOR } from "@ieat/shared";
@@ -489,5 +490,74 @@ describe("the mailing list on the page", () => {
     // The surprising consequence of keeping them separate. Burying it is how a privacy promise
     // becomes a complaint.
     expect(withForm).toContain("Deleting an ieat account does not remove an address from this list");
+  });
+});
+
+describe("Spud", () => {
+  const mascotSource = readFileSync(resolve(REPO_ROOT, MASCOT_SOURCE), "utf8");
+  const withApi = renderLanding(loadLandingConfig({ ...ENV, LANDING_API_URL: "https://api.eait.fit" }));
+
+  test("the potato on the web is the potato in the app", () => {
+    // A subtly different potato on the page immediately before the App Store screenshots is worse
+    // than none. The outline is the piece that breaks: the first version was near-circular and
+    // everybody read it as a peach.
+    //
+    // `joined` splices adjacent string literals back together first — the body path is authored in
+    // that file as two quoted halves and a `+`, so a naive substring search never finds it and the
+    // guard would pass by never matching anything.
+    const joined = mascotSource.replace(/"\s*\+\s*"/g, "");
+    expect(joined).toContain(BODY);
+    expect(joined).toContain(SHEEN);
+  });
+
+  test("the drift guard would actually catch a drift", () => {
+    // The failure this test exists for: a guard that greps a file for a string it can never find,
+    // reports green forever, and is the reason nobody noticed the potato changed.
+    const joined = mascotSource.replace(/"\s*\+\s*"/g, "");
+    expect(joined).not.toContain(BODY.replace("M8 60", "M9 61"));
+  });
+
+  test("every mood's mouth matches the app's", () => {
+    for (const mouth of Object.values(MOUTHS)) expect(mascotSource).toContain(mouth);
+  });
+
+  test("he appears exactly three times, and never in the hero", () => {
+    // His rule in the app is one place only, because the category's failure is reward theatre and
+    // a potato sprinkled over every section IS that. Three jobs here: a refusal, a question, and a
+    // greeting on the page after the form.
+    expect([...withApi.matchAll(/class="spud"/g)]).toHaveLength(2);
+    const hero = withApi.slice(withApi.indexOf('class="hero"'), withApi.indexOf('class="section"'));
+    expect(hero).not.toContain('class="spud"');
+  });
+
+  test("he is beside the floor and beside the form, which are his two jobs here", () => {
+    const floor = withApi.slice(withApi.indexOf("floor-outro"), withApi.indexOf("floor-outro") + 2000);
+    expect(floor).toContain("spud-floor");
+    expect(withApi).toContain("spud-subscribe");
+  });
+
+  test("each appearance has its own gradient id", () => {
+    // Two inline SVGs sharing one linearGradient id is not a warning, it is a second potato with
+    // no fill.
+    const ids = [...withApi.matchAll(/<linearGradient id="([^"]+)"/g)].map((m) => m[1]!);
+    expect(ids.length).toBeGreaterThan(1);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test("he is hidden from assistive technology, and never the only carrier of anything", () => {
+    // A screen reader announcing "smiling potato" between a heading and its paragraph is noise.
+    // Every line he says is decoration beside copy that already states it.
+    for (const svg of withApi.matchAll(/<svg class="spud"[^>]*>/g)) {
+      expect(svg[0]).toContain('aria-hidden="true"');
+      expect(svg[0]).toContain('focusable="false"');
+    }
+  });
+
+  test("he never congratulates anyone", () => {
+    // The rule from mascot.tsx, kept. `cheer` is the mood with sparkles and both arms up; it has
+    // no job on this page and is not one of the moods this module can even draw.
+    const moods: string[] = Object.keys(MOUTHS);
+    expect(moods).not.toContain("cheer");
+    expect(moods.sort()).toEqual(["care", "think", "wave"]);
   });
 });

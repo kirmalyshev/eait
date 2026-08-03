@@ -19,6 +19,7 @@ import {
   primaryCta, secondaryCta, surfaceNote, START_CODES, type CtaPlacement, type LandingConfig,
 } from "./config.ts";
 import { color } from "./tokens.ts";
+import { spudSvg, type LandingMood } from "./mascot.ts";
 import { OG_HEIGHT, OG_WIDTH } from "./images.ts";
 
 export function esc(value: string): string {
@@ -140,6 +141,20 @@ function ctaBlock(config: LandingConfig, placement: CtaPlacement): string {
 }
 
 /**
+ * Spud with a line, as he appears in the app: a potato and something he is saying.
+ *
+ * `id` makes the gradient's id unique. Two inline SVGs sharing one `<linearGradient id>` in a single
+ * document is not a duplicate-id warning, it is a second potato with no fill.
+ */
+function spud(mood: LandingMood, id: string, says: string): string {
+  return `
+      <div class="spud-says">
+        ${spudSvg(mood, id)}
+        <p class="spud-line">${esc(says)}</p>
+      </div>`;
+}
+
+/**
  * The subscribe form, or nothing.
  *
  * A plain `<form method="post">`, because the page carries no JavaScript and this is the only
@@ -175,6 +190,7 @@ function subscribeForm(config: LandingConfig): string {
         </div>
         <p class="subscribe-note">${esc(subscribeSection.note)}</p>
       </form>
+${spud("wave", "spud-subscribe", subscribeSection.mascot)}
     </div>
   </section>
 `;
@@ -188,7 +204,7 @@ function subscribeForm(config: LandingConfig): string {
  */
 export function renderOutcome(
   config: LandingConfig,
-  outcome: { title: string; body: string },
+  outcome: { title: string; body: string; mascot: LandingMood },
 ): string {
   return `<!doctype html>
 <html lang="en">
@@ -214,6 +230,7 @@ export function renderOutcome(
 </header>
 <main class="outcome">
   <div class="wrap">
+    ${spudSvg(outcome.mascot, "spud-outcome")}
     <h1 class="outcome-title">${esc(outcome.title)}</h1>
     <p class="outcome-body">${esc(outcome.body)}</p>
     <p class="outcome-back"><a href="/">Back to the page</a></p>
@@ -382,6 +399,7 @@ ${floorSection.guards
   .join("\n")}
       </div>
       <p class="floor-outro">${esc(floorSection.outro)}</p>
+${spud("care", "spud-floor", floorSection.mascot)}
     </div>
   </section>
 
