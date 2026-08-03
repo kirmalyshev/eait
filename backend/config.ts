@@ -68,6 +68,28 @@ export interface Config {
    * A secret, and it is treated as one — `redact()` masks it, and nothing prints it.
    */
   adminToken: string;
+
+  /**
+   * How many addresses the landing page's form may add in a rolling day, across everyone.
+   *
+   * The honeypot stops a bot that fills every field it finds; this stops one that does not. It
+   * counts rows ADDED, not requests accepted — a cap that only counts the ones it liked is a cap a
+   * retry loop walks straight through, which is the same reasoning as `globalDailyAnalysisCap`.
+   */
+  subscribeDailyCap: number;
+
+  /**
+   * The landing page's origin, for the ONE thing the API needs it for: where to send a browser
+   * after it posts the subscribe form.
+   *
+   * The form lives on a different origin from this API and the page carries no JavaScript, so the
+   * browser NAVIGATES to the response. Without somewhere to send it back to, a person who
+   * subscribed would be left looking at a JSON body on an api. hostname.
+   *
+   * Empty is a supported state, not a broken one: the routes answer with JSON instead of
+   * redirecting, which is what a `curl` and a backend deployed without a landing page both want.
+   */
+  landingUrl: string;
 }
 
 /** Comma-separated env list → trimmed array, empties dropped. */
@@ -118,6 +140,8 @@ export function configDefaults(): Config {
     appleAudiences: [],
     googleAudiences: [],
     adminToken: "",
+    subscribeDailyCap: 200,
+    landingUrl: "",
   };
 }
 
@@ -147,6 +171,10 @@ export function loadConfig(): Config {
     appleAudiences: list("APPLE_AUDIENCES"),
     googleAudiences: list("GOOGLE_AUDIENCES"),
     adminToken: adminTokenFromEnv(),
+    subscribeDailyCap: int("SUBSCRIBE_DAILY_CAP", d.subscribeDailyCap),
+    // No validation beyond "looks like an origin": a wrong value here sends somebody to the wrong
+    // page, which is visible, rather than corrupting anything, which is not.
+    landingUrl: (process.env.LANDING_URL ?? d.landingUrl).replace(/\/$/, ""),
   };
 }
 

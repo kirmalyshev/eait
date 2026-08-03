@@ -33,6 +33,10 @@ const config: Config = demo
       // onboarding copy is edited, and "works in demo, untested in production" is the shape of
       // every configuration bug that ships.
       adminToken: adminTokenFromEnv(),
+      // Same argument. The subscribe form's redirect is the one behaviour that cannot be checked
+      // by reading the code — you have to POST the form and watch where the browser goes — and a
+      // demo that always answered JSON would make that untestable outside production.
+      landingUrl: (process.env.LANDING_URL ?? "").replace(/\/$/, ""),
     }
   : loadConfig();
 

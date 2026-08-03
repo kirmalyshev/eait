@@ -142,11 +142,41 @@ create table if not exists onboarding_events (
 create index if not exists onboarding_events_received_idx on onboarding_events(received_at);
 create index if not exists onboarding_events_session_idx on onboarding_events(session_id);
 create index if not exists onboarding_events_user_idx on onboarding_events(user_id);
+
+-- The mailing list, from the landing page.
+--
+-- NO FOREIGN KEY TO users, deliberately. A subscriber is not an account: the app never asks for an
+-- email and never stores one, and the only way that stays true is if the list it does keep is not
+-- attached to the accounts. The consequence to know about is that deleting an account does NOT
+-- remove an address from here -- withdrawal is its own action, which is what the token column is.
+--
+-- The email is the primary key, so a second submission of the same address is an upsert rather than
+-- a second row with a second token of which only one would unsubscribe them.
+create table if not exists subscribers (
+  email      text primary key,
+  token      text not null unique,
+  source     text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists subscribers_created_idx on subscribers(created_at);
 `;
 
 /** Row shapes as Postgres hands them back. Numbers are coerced at the boundary, once. */
 type UserRow = Record<string, unknown>;
 type MealRow = Record<string, unknown>;
+
+/**
+ * The unsubscribe token. 256 bits of randomness, hex, in one column.
+ *
+ * It is a capability: whoever holds it can remove that address and nothing else. That is the whole
+ * design — an unsubscribe link that needs a login is an unsubscribe link people do not use, and one
+ * that takes the address as a parameter lets anyone unsubscribe anyone.
+ */
+function newSubscriberToken(): string {
+  return [...crypto.getRandomValues(new Uint8Array(32))]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 const num = (v: unknown): number => (v === null || v === undefined ? 0 : Number(v));
 const nullableNum = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
@@ -423,6 +453,36 @@ export async function postgresStore(databaseUrl: string): Promise<Store> {
         if (rows.length > 0) added++;
       }
       return added;
+    },
+
+    // ── The mailing list ─────────────────────────────────────────────────────────────────────
+
+    async addSubscriber(email, source) {
+      const token = newSubscriberToken();
+      // `do update` rather than `do nothing`, so the RETURNING clause always yields a row and the
+      // existing token comes back for an address already on the list. With `do nothing` a repeat
+      // submission returns nothing at all, and the caller cannot tell "already subscribed" from
+      // "the insert failed" — which is the difference between a thank-you page and an error page.
+      //
+      // The update itself is a no-op that touches nothing: the source and the token of the first
+      // subscription are what stay, because the first one is the one they consented to.
+      const rows = await sql`
+        insert into subscribers (email, token, source)
+        values (${email}, ${token}, ${source})
+        on conflict (email) do update set email = excluded.email
+        returning token, (xmax = 0) as inserted`;
+      const row = rows[0] as Record<string, unknown> | undefined;
+      return { token: String(row?.token ?? token), created: Boolean(row?.inserted) };
+    },
+
+    async removeSubscriber(token) {
+      const rows = await sql`delete from subscribers where token = ${token} returning email`;
+      return rows.length > 0;
+    },
+
+    async countSubscribersSince(sinceIso) {
+      const rows = await sql`select count(*)::int as n from subscribers where created_at >= ${sinceIso}`;
+      return num((rows[0] as Record<string, unknown> | undefined)?.n);
     },
 
     async onboardingFunnel(days): Promise<FunnelAggregate> {

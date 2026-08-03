@@ -522,3 +522,68 @@ describe("sign-out after a merge", () => {
     expect(view.onboarded).toBe(false);
   });
 });
+
+describe("the mailing list", () => {
+  /** A router with its own config, because these routes are the only ones that read landingUrl. */
+  const router = (landingUrl: string) => {
+    const s = memoryStore();
+    const config: Config = { ...CONFIG, landingUrl };
+    return { store: s, handle: createRouter({ store: s, config, llm: demoPorts() }, s, testVerifier) };
+  };
+
+  const form = (fields: Record<string, string>) =>
+    new Request(url(ROUTES.subscribe), { method: "POST", body: new URLSearchParams(fields) });
+
+  it("subscribes and sends the browser back to the landing page", async () => {
+    const { handle: h } = router("https://eait.fit");
+    const res = await h(form({ email: "a@example.com", source: "web_hero" }));
+    // 303, not 302: 303 tells the browser to follow with GET, so a reload does not re-post.
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("https://eait.fit/subscribed");
+  });
+
+  it("needs no token, which is the entire point", async () => {
+    // A subscriber is not a user. Requiring auth here would mean the list could only hold people
+    // who already signed up for the thing the list exists to tell them about.
+    const { handle: h, store: s } = router("https://eait.fit");
+    await h(form({ email: "b@example.com" }));
+    expect(await s.countSubscribersSince(new Date(0).toISOString())).toBe(1);
+  });
+
+  it("tells a person about a typo, and a bot about nothing", async () => {
+    const { handle: h } = router("https://eait.fit");
+    const typo = await h(form({ email: "not-an-address" }));
+    expect(typo.headers.get("location")).toBe("https://eait.fit/not-subscribed");
+  });
+
+  it("answers a filled honeypot exactly like a success", async () => {
+    const { handle: h, store: s } = router("https://eait.fit");
+    const res = await h(form({ email: "bot@example.com", company: "Acme" }));
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("https://eait.fit/subscribed");
+    expect(await s.countSubscribersSince(new Date(0).toISOString())).toBe(0);
+  });
+
+  it("unsubscribes on a token and no login", async () => {
+    const { handle: h, store: s } = router("https://eait.fit");
+    const { token } = await s.addSubscriber("a@example.com", "web");
+    const res = await h(new Request(url(`${ROUTES.unsubscribe}?t=${token}`)));
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("https://eait.fit/unsubscribed");
+    expect(await s.countSubscribersSince(new Date(0).toISOString())).toBe(0);
+  });
+
+  it("lands an unknown token on the same page as a real one", async () => {
+    // The route must not be an oracle for which tokens are live, and clicking twice is not an error.
+    const { handle: h } = router("https://eait.fit");
+    const res = await h(new Request(url(`${ROUTES.unsubscribe}?t=deadbeef`)));
+    expect(res.headers.get("location")).toBe("https://eait.fit/unsubscribed");
+  });
+
+  it("answers JSON when there is no landing page to send anyone to", async () => {
+    const { handle: h } = router("");
+    const res = await h(form({ email: "a@example.com" }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+  });
+});

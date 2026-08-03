@@ -68,6 +68,8 @@ export function memoryStore(): Store {
   const analyses: { userId: string; date: string; scope: "photo" | "text" }[] = [];
   const identities: { userId: string; provider: Provider; subject: string; linkedAt: string }[] = [];
   const onboardingEvents = new Map<string, StoredEvent>(); // event id -> event
+  // Keyed by address, which is what makes a repeat subscription an upsert here too.
+  const subscribers = new Map<string, { token: string; source: string; createdAt: number }>();
   let onboardingContent: OnboardingContent | null = null;
 
   /** Deep-copies on the way out so a caller mutating a returned object cannot edit the store. */
@@ -193,6 +195,33 @@ export function memoryStore(): Store {
     async onboardingFunnel(days) {
       const since = Date.now() - days * 24 * 60 * 60 * 1000;
       return aggregateFunnel([...onboardingEvents.values()].filter((e) => e.receivedAt >= since));
+    },
+
+    // ── The mailing list ─────────────────────────────────────────────────────────────────────
+    //
+    // Same rules as the Postgres implementation, so a test proving "a repeat subscription returns
+    // the FIRST token" proves something about the engine rather than about a mock's mood.
+
+    async addSubscriber(email, source) {
+      const existing = subscribers.get(email);
+      if (existing) return { token: existing.token, created: false };
+      const token = [...crypto.getRandomValues(new Uint8Array(32))]
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+      subscribers.set(email, { token, source, createdAt: Date.now() });
+      return { token, created: true };
+    },
+
+    async removeSubscriber(token) {
+      for (const [email, row] of subscribers) {
+        if (row.token === token) { subscribers.delete(email); return true; }
+      }
+      return false;
+    },
+
+    async countSubscribersSince(sinceIso) {
+      const since = Date.parse(sinceIso);
+      return [...subscribers.values()].filter((r) => r.createdAt >= since).length;
     },
 
     async insertMeal(record) {

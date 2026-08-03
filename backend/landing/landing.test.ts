@@ -8,12 +8,12 @@ import { assertClean, ClaimsError, copyFromHtml, lintCopy } from "./claims.ts";
 import {
   loadLandingConfig, LandingConfigError, primaryCta, secondaryCta, surfaceNote, START_CODES,
 } from "./config.ts";
-import { iconSvg, renderLanding } from "./render.ts";
+import { iconSvg, outcomePages, renderLanding } from "./render.ts";
 import { buildLanding } from "./build.ts";
 import { faviconIco, ogPng, OG_HEIGHT, OG_WIDTH } from "./images.ts";
 import { color, TOKEN_SOURCE } from "./tokens.ts";
 import { styles } from "./styles.ts";
-import { refusals, floorSection, sample } from "./content.ts";
+import { founder, measured, refusals, floorSection, sample } from "./content.ts";
 import { KCAL_FLOOR } from "@ieat/shared";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -388,5 +388,106 @@ describe("the page describes the surface its button opens", () => {
   test("once it exists there is nothing to explain", () => {
     expect(surfaceNote(config)).toBeNull();
     expect(html).not.toContain("hero-surface");
+  });
+});
+
+describe("the measured numbers are the ones we actually measured", () => {
+  const doc = readFileSync(resolve(REPO_ROOT, "docs/ACCURACY.md"), "utf8");
+
+  test("the sample size on the page is the sample size in the eval", () => {
+    // n is part of the claim. A page quoting an error rate without it is doing the thing this
+    // section exists to refuse.
+    const n = doc.match(/\*\*n = (\d+)\.\*\*/);
+    expect(n).not.toBeNull();
+    expect(measured.dishes as number).toBe(Number(n![1]));
+  });
+
+  test("the median and signed errors round to what the eval reports", () => {
+    // Rounded on purpose: docs/ACCURACY.md warns that one-decimal comparisons between runs are
+    // noise at this sample size, so the page must not borrow a precision the run does not have.
+    const median = doc.match(/median absolute error \| ([\d.]+)%/);
+    const signed = doc.match(/mean signed error \| \+([\d.]+)%/);
+    expect(median).not.toBeNull();
+    expect(signed).not.toBeNull();
+    expect(measured.medianErrorPct as number).toBe(Math.round(Number(median![1])));
+    expect(measured.meanSignedErrorPct as number).toBe(Math.round(Number(signed![1])));
+  });
+
+  test("the page states the sample size next to the number", () => {
+    expect(html).toContain(`${measured.dishes} reference dishes`);
+    expect(html).toContain("smoke test rather than a study");
+  });
+});
+
+describe("the founder line", () => {
+  test("is on the page and attributed", () => {
+    expect(html).toContain(founder.line.replace(/ /g, " ").slice(0, 40));
+    expect(html).toContain("founder-by");
+  });
+
+  test("claims a result for nobody but its author", () => {
+    // The line that would have to be refused: anything promising the READER an outcome. This one
+    // is a first-person statement of fact, which is why the claims gate lets it through.
+    expect(lintCopy({ founder: founder.line })).toEqual([]);
+    expect(founder.line).toMatch(/^I /);
+  });
+});
+
+describe("the mailing list on the page", () => {
+  const withApi = loadLandingConfig({ ...ENV, LANDING_API_URL: "https://api.eait.fit" });
+  const withForm = renderLanding(withApi);
+
+  test("no API means no form, rather than a form that posts nowhere", () => {
+    // The failure this prevents is the expensive one: collecting an address at the exact moment
+    // somebody decided to give you one, and losing it.
+    expect(config.apiUrl).toBeNull();
+    expect(html).not.toContain("<form");
+  });
+
+  test("the form posts to the API's subscribe route and carries a source", () => {
+    expect(withForm).toContain('action="https://api.eait.fit/v1/subscribe"');
+    expect(withForm).toContain('method="post"');
+    expect(withForm).toContain(`value="${START_CODES.footer}"`);
+  });
+
+  test("the honeypot is present, off-screen and out of the tab order", () => {
+    // Hidden from people three ways: positioned off-screen in CSS, tabindex -1, aria-hidden on the
+    // wrapper. Not display:none, which some bots skip.
+    expect(withForm).toContain('name="company"');
+    expect(withForm).toContain('tabindex="-1"');
+    expect(withForm).toContain('aria-hidden="true"');
+    expect(styles).toContain(".honeypot {");
+    expect(styles).not.toContain(".honeypot { display: none");
+  });
+
+  test("the submit button does not take the accent", () => {
+    // One accent per screen, on one action. A second lime button asks for two things at once.
+    expect(styles).toContain(".subscribe-button {");
+    const rule = styles.slice(styles.indexOf(".subscribe-button {"));
+    expect(rule.slice(0, rule.indexOf("}"))).not.toContain("var(--accent)");
+  });
+
+  test("the three redirect targets are built, so none of them 404s", () => {
+    const pages = outcomePages(withApi);
+    expect(Object.keys(pages).sort())
+      .toEqual(["not-subscribed.html", "subscribed.html", "unsubscribed.html"]);
+    for (const page of Object.values(pages)) {
+      expect(lintCopy(copyFromHtml(page))).toEqual([]);
+      expect(page).toContain('<meta name="robots" content="noindex">');
+      expect(page).not.toContain("<form");
+    }
+  });
+
+  test("the privacy copy no longer claims the product holds no address anywhere", () => {
+    // The old sentence — "there is no address here to leak" — stopped being true the moment a form
+    // existed. The claim has to name which half it is about.
+    expect(html).toContain("The app never asks for your email");
+    expect(html).not.toContain("no address here to leak");
+  });
+
+  test("the page says out loud that deleting an account does not leave the list", () => {
+    // The surprising consequence of keeping them separate. Burying it is how a privacy promise
+    // becomes a complaint.
+    expect(withForm).toContain("Deleting an ieat account does not remove an address from this list");
   });
 });

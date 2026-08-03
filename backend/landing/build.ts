@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 import { assertClean, copyFromHtml } from "./claims.ts";
 import { loadLandingConfig, type LandingConfig } from "./config.ts";
 import { faviconIco, markPng, ogPng } from "./images.ts";
-import { iconSvg, renderLanding } from "./render.ts";
+import { iconSvg, outcomePages, renderLanding } from "./render.ts";
 import { styles } from "./styles.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -69,6 +69,15 @@ export async function buildLanding(
   await write("index.html", html);
   await write("styles.css", styles);
   await write("robots.txt", robots(config));
+
+  // The three pages the subscribe form's redirects land on. Built whenever the form is — a form
+  // that posts to a redirect target that 404s is worse than no form.
+  if (config.apiUrl) {
+    for (const [name, page] of Object.entries(outcomePages(config))) {
+      assertClean(copyFromHtml(page));
+      await write(name, page);
+    }
+  }
 
   // Drawn, not exported from a design file — see images.ts. `apple-touch-icon` is 180 because that
   // is what iOS asks for; anything else is resampled by the phone.

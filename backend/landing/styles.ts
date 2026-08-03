@@ -295,6 +295,29 @@ a { color: inherit; }
 .prose { display: grid; gap: 1.25rem; max-width: 62ch; color: var(--muted); }
 .prose p:first-child { color: var(--text); font-size: 1.0625rem; }
 
+/* The measured numbers. Bordered rather than styled up: it is a receipt, not a badge, and the
+   category's habit of putting an accuracy claim in a rosette is the thing it is answering. */
+.measured {
+  margin-top: 2.5rem; padding: 1.25rem 1.5rem; max-width: 62ch;
+  border: 1px solid var(--line); border-radius: 1rem; background: var(--panel);
+}
+.measured-label {
+  font-family: var(--mono); font-size: .625rem; text-transform: uppercase;
+  letter-spacing: .14em; color: var(--dim);
+}
+.measured-body { margin-top: .625rem; color: var(--muted); font-size: .9375rem; }
+
+.founder { max-width: 44ch; margin: 0 auto clamp(2.5rem, 5vw, 3.5rem); }
+.founder-line {
+  margin: 0; font-size: 1.0625rem; line-height: 1.55; color: var(--muted);
+  border-left: 2px solid var(--line-strong); padding-left: 1.25rem; text-align: left;
+}
+.founder-by {
+  margin-top: .75rem; padding-left: 1.3125rem; text-align: left;
+  font-family: var(--mono); font-size: .6875rem; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--dim);
+}
+
 /* ── Privacy ────────────────────────────────────────────────────────────────────────────── */
 .facts { display: grid; gap: 1.75rem; }
 @media (min-width: 48rem) { .facts { grid-template-columns: repeat(2, 1fr); gap: 2.25rem 3rem; } }
@@ -315,6 +338,51 @@ a { color: inherit; }
 }
 .faq-item[open] .faq-q::after { content: "\\2212"; color: var(--care); }
 .faq-a { padding: 0 3rem 1.5rem 0; color: var(--muted); font-size: .9375rem; max-width: 62ch; }
+
+/* ── The subscribe form ─────────────────────────────────────────────────────────────────── */
+.subscribe { max-width: 34rem; }
+.subscribe-label {
+  display: block; font-family: var(--mono); font-size: .625rem; text-transform: uppercase;
+  letter-spacing: .14em; color: var(--dim); margin-bottom: .625rem;
+}
+.subscribe-row { display: flex; flex-wrap: wrap; gap: .625rem; }
+.subscribe-input {
+  flex: 1 1 15rem; min-width: 0;
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: 999px;
+  color: var(--text); font: inherit; font-size: 1rem; padding: .875rem 1.25rem;
+}
+.subscribe-input::placeholder { color: var(--dim); }
+.subscribe-input:focus { border-color: var(--care); outline: none; }
+.subscribe-button {
+  flex: none; cursor: pointer;
+  /* NOT the accent. The accent marks one action per screen and that action is the CTA — a second
+     lime button would make the page ask for two things at once and get neither. */
+  background: transparent; color: var(--text);
+  border: 1px solid var(--line-strong); border-radius: 999px;
+  font: inherit; font-size: 1rem; font-weight: 600; padding: .875rem 1.5rem;
+  transition: border-color .15s ease, color .15s ease;
+}
+.subscribe-button:hover { border-color: var(--care); }
+.subscribe-note { margin-top: 1rem; font-size: .8125rem; line-height: 1.55; color: var(--dim); max-width: 52ch; }
+
+/* The honeypot. NOT display:none — some bots skip what a browser would not render. Moved off
+   screen, taken out of the tab order in the markup, and hidden from assistive technology by
+   aria-hidden on the wrapper. (No backticks anywhere in this file: it is one template literal,
+   and one would end it. That has now cost two build failures.) */
+.honeypot {
+  position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden;
+}
+
+/* ── Outcome pages ──────────────────────────────────────────────────────────────────────── */
+.outcome { padding: clamp(5rem, 14vw, 10rem) 0; }
+.outcome-title {
+  font-size: clamp(1.875rem, 4.4vw, 2.75rem); font-weight: 700;
+  letter-spacing: -0.04em; line-height: 1.06; max-width: 20ch;
+}
+.outcome-body { margin-top: 1.25rem; color: var(--muted); max-width: 48ch; }
+.outcome-back { margin-top: 2rem; font-size: .9375rem; }
+.outcome-back a { color: var(--muted); border-bottom: 1px solid var(--line-strong); text-decoration: none; padding-bottom: 2px; }
+.outcome-back a:hover { color: var(--text); border-bottom-color: var(--care); }
 
 /* ── Closing ────────────────────────────────────────────────────────────────────────────── */
 .closing { text-align: center; padding: clamp(4.5rem, 10vw, 8rem) 0; border-top: 1px solid var(--line); }

@@ -30,6 +30,7 @@ import {
   logPhotoMeal, onboardingContent, patchProfile, profileView, recordOnboardingEvents,
   signInWithProvider, week, type EngineDeps,
 } from "../engine/index.ts";
+import { subscribe, unsubscribe } from "../engine/subscribe.ts";
 import { adminRoutes } from "./admin.ts";
 
 const json = (body: unknown, status = 200): Response =>
@@ -45,6 +46,22 @@ function refusal(r: { kind: string; scope?: string }): Response {
 function toLang(locale: string | undefined): Lang {
   const head = (locale ?? "en").slice(0, 2).toLowerCase();
   return (LANGS as readonly string[]).includes(head) ? (head as Lang) : "en";
+}
+
+/**
+ * Where a browser goes after posting the subscribe form.
+ *
+ * 303 rather than 302, and it matters: 303 tells the browser to follow with GET. A 302 after a POST
+ * is followed with GET by every browser in practice but is specified as "repeat the method", and
+ * the observable difference is a page that re-submits the form when somebody reloads it.
+ *
+ * With no landing URL configured there is nowhere to send anyone, so the route answers with the
+ * JSON body instead — which is what a `curl` wants and what a backend deployed without a landing
+ * page has to do.
+ */
+function landingRedirect(landingUrl: string, path: string, body: unknown): Response {
+  if (landingUrl === "") return json(body);
+  return new Response(null, { status: 303, headers: { location: `${landingUrl}${path}` } });
 }
 
 export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityVerifier) {
@@ -75,6 +92,39 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
       // an admin surface every user has. Off entirely unless `ADMIN_TOKEN` is set.
       if (pathname === "/admin" || pathname.startsWith("/admin/")) {
         return await adminRoutes(req, url, deps);
+      }
+
+      // ── The mailing list ──────────────────────────────────────────────────────────────────
+      //
+      // Unauthenticated, and handled before `resolveUserId` for the same reason the admin is: a
+      // subscriber is not a user, has no token, and must never need one — the whole point of the
+      // list is the people who have not signed up for anything yet.
+      //
+      // FORM-ENCODED, not JSON. The page that posts here carries no JavaScript at all, so a plain
+      // <form> is the only submit available, and a browser navigates to whatever comes back. Hence
+      // the redirects: a person who subscribed should land on a page that says so, on the site they
+      // were reading, not on a JSON body at an api. hostname.
+      if (req.method === "POST" && pathname === ROUTES.subscribe) {
+        const form = await req.formData().catch(() => null);
+        const field = (name: string) => {
+          const v = form?.get(name);
+          return typeof v === "string" ? v : "";
+        };
+        const result = await subscribe(
+          { store, config: deps.config },
+          { email: field("email"), honeypot: field("company"), source: field("source") || "web" },
+        );
+        // A refused submission and an accepted one look the same to a bot: same page, same status.
+        // The only thing that distinguishes them is `invalid`, which is a person's typo and the one
+        // case worth telling somebody about.
+        const failed = !result.ok && result.reason === "invalid";
+        return landingRedirect(deps.config.landingUrl, failed ? "/not-subscribed" : "/subscribed",
+          failed ? { error: "that does not look like an email address" } : { ok: true });
+      }
+
+      if (req.method === "GET" && pathname === ROUTES.unsubscribe) {
+        await unsubscribe({ store, config: deps.config }, url.searchParams.get("t") ?? "");
+        return landingRedirect(deps.config.landingUrl, "/unsubscribed", { ok: true });
       }
 
       // Also unauthenticated — this is where a token comes from.

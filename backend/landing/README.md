@@ -32,6 +32,7 @@ argument is "we keep nothing of yours" has no business loading a third-party fon
 | `tokens.ts` | The app's palette, transcribed from `src/mobile/lib/theme.ts`. A test fails if it drifts. |
 | `claims.ts` | The health-claims and exclusivity gate. Fails the build; does not warn. |
 | `build.ts` | Validate → render → lint → write. Nothing is written until all three pass. |
+| `images.ts` | The favicon, touch icon and share card, drawn from the app icon's own coordinates. |
 
 ## The rules this page is written under
 
@@ -56,6 +57,25 @@ section is that it describes what actually runs.
 time. There is no admin for it, and there should not be: a marketing page is reviewed before it
 ships, not edited live.
 
+## The mailing list
+
+The one place this product holds an email address, and the reason it can go on saying the app does
+not. `LANDING_API_URL` renders the form; unset renders none, because a form whose action is missing
+collects an address at the moment somebody decided to give you one and loses it.
+
+It is a plain `<form method="post">` — the page has no JavaScript, so that is the only submit
+available. The browser navigates to the response, so `POST /v1/subscribe` answers **303** and sends
+it back to `/subscribed`, `/not-subscribed` or `/unsubscribed`, which are static pages in this same
+bundle. The API needs `LANDING_URL` for that; without it the routes answer JSON.
+
+Anti-spam is a honeypot field plus a global daily cap. Not a CAPTCHA: that is a third-party script
+on a page whose argument is that it loads none.
+
+**The list is deliberately not joined to accounts.** `subscribers` has no foreign key to `users`,
+which is what keeps "the app never stores your email" literally true — and means deleting an account
+does not leave the list. That is stated on the page and in the privacy policy rather than left to be
+discovered.
+
 ## Configuration
 
 Everything environment-specific is an environment variable read by `config.ts`, which refuses rather
@@ -68,6 +88,8 @@ than guesses:
 | `LANDING_TELEGRAM_URL` | The bot | Not a `t.me` URL |
 | `LANDING_SUPPORT_EMAIL` | Footer `mailto:` | Not an address |
 | `LANDING_UPDATED` | Copy-review date | Not `YYYY-MM-DD` |
+| `LANDING_INDEXABLE` | `"true"` opts this build into search indexing | Anything else means no |
+| `LANDING_API_URL` | Where the subscribe form posts | Unset renders no form at all |
 
 **With neither the store link nor the bot link set, the build fails.** A landing page whose only
 button goes nowhere is worse than no landing page. While the store link is empty the bot becomes the
@@ -98,9 +120,10 @@ image is built from; `roles/ieat_app/tasks/landing.yml` is where they are kept i
 removes the site block when the flag goes back to false so turning the page off is not an edit
 somebody has to remember to revert.
 
-### Known coupling
+### One coupling that was there and is not any more
 
-Caddy `depends_on` the backend being healthy. So a backend that will not come up takes the landing
-page down with it, even though the two share no code. That predates this directory and is not worth
-changing for the landing alone — but it is the reason a "the marketing site is down" report can turn
-out to be an API incident.
+Caddy used to `depends_on` the backend being **healthy**, so a backend that never came up took the
+landing page down with it — and the privacy policy the App Store listing points at, and the ACME
+challenge, which means the certificate would have quietly stopped renewing with nothing running to
+notice it by. It is `service_started` now. The cost is a few seconds of 502 on the API during a cold
+boot, which is what a deploy looks like anyway.

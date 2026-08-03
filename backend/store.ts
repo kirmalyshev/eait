@@ -118,6 +118,24 @@ export interface Store {
   /** The funnel over the last `days`, aggregated. Reads every user — this is the admin's view. */
   onboardingFunnel(days: number): Promise<FunnelAggregate>;
 
+  // ── The mailing list ───────────────────────────────────────────────────────────────────────
+  //
+  // Not scoped by `userId`, and that is the one place in this interface where that is correct: a
+  // subscriber is not an account. Nothing joins these rows to `users`, so the app's "we never store
+  // an email address" stays true of the app, and leaving the list does not require having one.
+
+  /**
+   * Idempotent on the address, which is the primary key. A second submission of the same address
+   * returns the token already issued rather than a second row — so a double-tapped button, or
+   * somebody subscribing twice a month apart, cannot produce two entries with two tokens of which
+   * only one unsubscribes them.
+   */
+  addSubscriber(email: string, source: string): Promise<{ token: string; created: boolean }>;
+  /** Removes by token. Returns false when the token is unknown — already gone, or never valid. */
+  removeSubscriber(token: string): Promise<boolean>;
+  /** Rows added at or after `sinceIso`. The only number the abuse cap needs. */
+  countSubscribersSince(sinceIso: string): Promise<number>;
+
   // ── Meals ──────────────────────────────────────────────────────────────────────────────────
   insertMeal(record: MealRecord): Promise<void>;
   /** Scoped: another user's meal id resolves to null, not to their row. */

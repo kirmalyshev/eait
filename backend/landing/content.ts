@@ -210,6 +210,27 @@ export const floorSection = {
     "never at risk.",
 } as const;
 
+/**
+ * The measured numbers, from `docs/ACCURACY.md` (run of 2026-08-01, `x-ai/grok-4.5`).
+ *
+ * Published because the category's actual credibility problem is that nobody publishes anything —
+ * the vendor claims are uncited "90%+" and the counter-claims come from competitor blogs that rank
+ * for "<leader> review" in order to sell an alternative. A real number with its sample size beside
+ * it is worth more than a better number without one.
+ *
+ * **n IS PART OF THE CLAIM.** Eight dishes is a smoke test, and that document says so in as many
+ * words. Quoting the headline MAPE alone would be borrowing a precision the run does not have, so
+ * the page quotes the median, the signed error and the sample size together, and rounds — the doc
+ * warns that one-decimal comparisons between runs are noise.
+ *
+ * A test parses `docs/ACCURACY.md` and fails if these stop matching it.
+ */
+export const measured = {
+  dishes: 8,
+  medianErrorPct: 28,
+  meanSignedErrorPct: 2,
+} as const;
+
 export const accuracySection = {
   eyebrow: "Accuracy",
   headline: "A photo is an estimate. So it lets you argue with it.",
@@ -226,6 +247,16 @@ export const accuracySection = {
     "That last part is not a detail. A verdict is never carried over from the numbers it was " +
     "first computed on, so it can never describe a meal that has since changed.",
   ],
+  proof: {
+    label: "What we measured",
+    body:
+      `On ${measured.dishes} reference dishes with weighed ingredients, the median error was ` +
+      `about ${measured.medianErrorPct}%, and the mean signed error was ` +
+      `+${measured.meanSignedErrorPct}% — so it is not quietly flattering you. ` +
+      `${measured.dishes} dishes is a smoke test rather than a study, and saying so is the point: ` +
+      "nobody in this category publishes a number at all. Most of what is left is portion size, " +
+      "which is the one thing a sentence can fix.",
+  },
 } as const;
 
 export const privacySection = {
@@ -233,12 +264,16 @@ export const privacySection = {
   headline: "What it never has in the first place.",
   facts: [
     {
-      title: "No email address.",
+      title: "The app never asks for your email.",
+      // Rewritten when the list below was added, because the old sentence — "there is no address
+      // here to leak" — stopped being true of the whole product the moment there was a form on
+      // this page. It is still true of the APP, which is the part that holds your meals, and the
+      // honest version says which is which rather than hoping nobody reads both sections.
       body:
         "Sign in with Apple asks for no email scope at all, and whatever a provider volunteers in " +
         "its token is discarded before anything is written. The account key is the anonymous " +
-        "subject identifier and nothing else — so there is no address here to leak, and none to " +
-        "hand over to anyone who asks.",
+        "subject identifier and nothing else. If you give us an address on this website it lives " +
+        "on a list that touches none of that, and one click removes it.",
     },
     {
       title: "No photographs.",
@@ -300,6 +335,75 @@ export const faqs: readonly Faq[] = [
 export const closing = {
   headline: "One photo. Then an answer you can act on.",
   sub: "No card, nothing to cancel, and nothing kept afterwards. Find out whether you like it before you tell it anything about yourself.",
+} as const;
+
+/**
+ * The founder line.
+ *
+ * The one proof this product can honestly offer today: there are no users to count, no
+ * testimonials, and no revenue. Founder-face is also the format the category's leader ran for 104
+ * days straight, so it is competitor-validated rather than a guess.
+ *
+ * It is true, it is checkable against nothing, and it makes no claim about anyone's results but
+ * mine — which is what keeps it out of the territory `claims.ts` exists to police.
+ */
+export const founder = {
+  line:
+    "I built this while cutting to 92 kg. It judges my meals too, and it has told me no more " +
+    "often than I would like.",
+  by: "Kirill, Berlin",
+} as const;
+
+/**
+ * The mailing list.
+ *
+ * The page's hardest sentence to write, because the section three above it says we never store an
+ * email address. Both are true and the copy has to carry the distinction rather than hope nobody
+ * notices it: the APP never asks for one and cannot reach one; this is a list on the website, kept
+ * apart from the accounts, that you leave with one click and no login.
+ *
+ * Sold on a specific thing rather than "updates", because "join our newsletter" is a request for a
+ * favour and this should be an exchange.
+ */
+export const subscribeSection = {
+  eyebrow: "If not today",
+  headline: "Hear when the iPhone app is out.",
+  body:
+    "One address, on a list that lives on this website and nowhere near your meals. It is not " +
+    "connected to an account, it is not used for anything else, and every message carries a link " +
+    "that removes you in one click with no login and no questions.",
+  label: "Email address",
+  placeholder: "you@example.com",
+  button: "Tell me when it ships",
+  /**
+   * The honeypot's visible label. It is hidden from people and read by nothing except a bot that
+   * fills every field it finds — which is most of them, and the entire anti-spam story here. A
+   * CAPTCHA is a third-party script on a page whose argument is that it loads none.
+   */
+  honeypotLabel: "Company (leave this empty)",
+  note:
+    "Deleting an ieat account does not remove an address from this list — they are separate " +
+    "things, deliberately, and the unsubscribe link is how you leave.",
+} as const;
+
+/** The three pages the form's redirects land on. Static, no JavaScript, same shell as the page. */
+export const outcomes = {
+  subscribed: {
+    title: "You are on the list",
+    body:
+      "One message when the iPhone app is out, and a link in it that removes you in one click. " +
+      "Nothing else.",
+  },
+  notSubscribed: {
+    title: "That did not look like an email address",
+    body: "Nothing was saved. Go back and try it again — a typo is the usual reason.",
+  },
+  unsubscribed: {
+    title: "You are off the list",
+    body:
+      "The address is gone rather than flagged. If you clicked the link twice, this page says the " +
+      "same thing both times, which is deliberate.",
+  },
 } as const;
 
 export const footer = {

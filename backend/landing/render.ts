@@ -13,10 +13,10 @@
 
 import {
   accuracySection, brand, closing, faqSection, faqs, floorSection, footer, hero, privacySection,
-  refusals, refusalsSection, sample, steps, stepsSection,
+  founder, outcomes, refusals, refusalsSection, sample, steps, stepsSection, subscribeSection,
 } from "./content.ts";
 import {
-  primaryCta, secondaryCta, surfaceNote, type CtaPlacement, type LandingConfig,
+  primaryCta, secondaryCta, surfaceNote, START_CODES, type CtaPlacement, type LandingConfig,
 } from "./config.ts";
 import { color } from "./tokens.ts";
 import { OG_HEIGHT, OG_WIDTH } from "./images.ts";
@@ -137,6 +137,100 @@ function ctaBlock(config: LandingConfig, placement: CtaPlacement): string {
         }
       </div>
       <p class="cta-note">${esc(primary.note)}</p>`;
+}
+
+/**
+ * The subscribe form, or nothing.
+ *
+ * A plain `<form method="post">`, because the page carries no JavaScript and this is the only
+ * submit that works without any. The browser navigates to the response, so the API answers 303 and
+ * sends it back here — to /subscribed, /not-subscribed or /unsubscribed, which are static pages in
+ * this same bundle.
+ *
+ * `source` travels with it so a subscription can be told from a bare visit later, using the same
+ * code the CTA carries.
+ */
+function subscribeForm(config: LandingConfig): string {
+  if (!config.apiUrl) return "";
+  return `
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">${esc(subscribeSection.eyebrow)}</p>
+        <h2 class="section-title">${esc(subscribeSection.headline)}</h2>
+        <p class="section-intro">${esc(subscribeSection.body)}</p>
+      </div>
+      <form class="subscribe" method="post" action="${esc(config.apiUrl)}/v1/subscribe">
+        <input type="hidden" name="source" value="${esc(START_CODES.footer)}">
+        <label class="subscribe-label" for="email">${esc(subscribeSection.label)}</label>
+        <div class="subscribe-row">
+          <input class="subscribe-input" id="email" type="email" name="email" required
+                 autocomplete="email" inputmode="email" spellcheck="false"
+                 placeholder="${esc(subscribeSection.placeholder)}">
+          <button class="subscribe-button" type="submit">${esc(subscribeSection.button)}</button>
+        </div>
+        <div class="honeypot" aria-hidden="true">
+          <label for="company">${esc(subscribeSection.honeypotLabel)}</label>
+          <input id="company" name="company" type="text" tabindex="-1" autocomplete="off">
+        </div>
+        <p class="subscribe-note">${esc(subscribeSection.note)}</p>
+      </form>
+    </div>
+  </section>
+`;
+}
+
+/**
+ * A landing outcome page — the three the form's redirects land on.
+ *
+ * The same shell and the same stylesheet as the page, so somebody who just handed over an address
+ * does not land on something that looks like a different site. No form, no CTA, one way back.
+ */
+export function renderOutcome(
+  config: LandingConfig,
+  outcome: { title: string; body: string },
+): string {
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>${esc(`${outcome.title} — ${brand.name}`)}</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="${esc(color.bg)}">
+<link rel="icon" href="/favicon.ico" sizes="64x64">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="masthead">
+  <div class="wrap masthead-row">
+    <a class="wordmark" href="/"><span class="wordmark-dot"></span>${esc(brand.name)}</a>
+    <nav class="masthead-links" aria-label="Legal and support">
+      <a href="/privacy">Privacy</a>
+      <a href="/support">Support</a>
+    </nav>
+  </div>
+</header>
+<main class="outcome">
+  <div class="wrap">
+    <h1 class="outcome-title">${esc(outcome.title)}</h1>
+    <p class="outcome-body">${esc(outcome.body)}</p>
+    <p class="outcome-back"><a href="/">Back to the page</a></p>
+  </div>
+</main>
+</body>
+</html>
+`;
+}
+
+/** The three of them, by the path the API redirects to. */
+export function outcomePages(config: LandingConfig): Record<string, string> {
+  return {
+    "subscribed.html": renderOutcome(config, outcomes.subscribed),
+    "not-subscribed.html": renderOutcome(config, outcomes.notSubscribed),
+    "unsubscribed.html": renderOutcome(config, outcomes.unsubscribed),
+  };
 }
 
 /**
@@ -263,6 +357,10 @@ ${steps
       <div class="prose">
 ${accuracySection.body.map((p) => `        <p>${esc(p)}</p>`).join("\n")}
       </div>
+      <div class="measured">
+        <p class="measured-label">${esc(accuracySection.proof.label)}</p>
+        <p class="measured-body">${esc(accuracySection.proof.body)}</p>
+      </div>
     </div>
   </section>
 
@@ -325,8 +423,13 @@ ${faqs
     </div>
   </section>
 
+${subscribeForm(config)}
   <section class="closing">
     <div class="wrap">
+      <figure class="founder">
+        <blockquote class="founder-line">${esc(founder.line)}</blockquote>
+        <figcaption class="founder-by">${esc(founder.by)}</figcaption>
+      </figure>
       <h2 class="closing-title">${esc(closing.headline)}</h2>
       <p class="closing-sub">${esc(closing.sub)}</p>
 ${ctaBlock(config, 'footer')}

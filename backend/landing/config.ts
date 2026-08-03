@@ -38,6 +38,14 @@ export interface LandingConfig {
    * switch off. Production sets it; nothing else does.
    */
   indexable: boolean;
+  /**
+   * The API origin the subscribe form posts to. Absent means the page renders no form at all.
+   *
+   * Separate from everything else here because it is the one value that makes the page do
+   * something rather than say something — and a form whose action is wrong fails silently, in the
+   * one place a visitor has already decided to give you their address.
+   */
+  apiUrl: string | null;
 }
 
 export class LandingConfigError extends Error {
@@ -123,7 +131,12 @@ export function loadLandingConfig(env: Record<string, string | undefined>): Land
   // finding the staging hostname in a search result.
   const indexable = env.LANDING_INDEXABLE?.trim().toLowerCase() === "true";
 
-  return { siteUrl, appStoreUrl, telegramUrl, supportEmail, updatedAt, indexable };
+  // No API, no form. Rendering one that posts nowhere would be worse than not asking: it collects
+  // an address, loses it, and shows an error to somebody who had already agreed.
+  const apiRaw = env.LANDING_API_URL?.trim();
+  const apiUrl = apiRaw ? requireUrl("LANDING_API_URL", apiRaw) : null;
+
+  return { siteUrl, appStoreUrl, telegramUrl, supportEmail, updatedAt, indexable, apiUrl };
 }
 
 /** Bumped by hand when the copy changes. See `LandingConfig.updatedAt` for why it is not a clock. */

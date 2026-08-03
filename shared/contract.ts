@@ -74,6 +74,21 @@ export const ROUTES = {
   day: "/v1/diary/day",
   week: "/v1/diary/week",
   account: "/v1/account",
+
+  // ── The mailing list ──────────────────────────────────────────────────────────────────────
+  //
+  // The only two routes here that no app ever calls. They exist for the landing page, they are
+  // unauthenticated, and they take FORM ENCODING rather than JSON — because the page that posts to
+  // them carries no JavaScript, and a plain <form> is the only way to submit without any.
+  //
+  // A subscriber is deliberately NOT a user. There is no row linking the two, and there cannot be:
+  // the app's promise is that it never stores an email address, and that stays literally true
+  // because this list lives beside the accounts rather than inside them. It also means leaving the
+  // list is its own action with its own token, not something buried in account deletion.
+  /** POST, form-encoded, unauthenticated. Fields: `email`, and the honeypot `company`. */
+  subscribe: "/v1/subscribe",
+  /** GET `?t=<token>`. The withdrawal half — one click, no login, no confirmation screen. */
+  unsubscribe: "/v1/unsubscribe",
 } as const;
 
 // ── Auth ─────────────────────────────────────────────────────────────────────────────────────
