@@ -7,9 +7,17 @@
 import type { Config } from "../config.ts";
 import type { Store } from "../store.ts";
 import type { LlmPorts } from "../llm/port.ts";
+import type { Mailer } from "../mail/port.ts";
 
 export interface EngineDeps {
   store: Store;
   config: Config;
   llm: LlmPorts;
+  /**
+   * The one message this product sends: the mailing list's confirmation.
+   *
+   * A port for the same reason `llm` is one — the subscribe flow has to be provable without a
+   * vendor account or a real send, and the flow is where this product's own bugs would live.
+   */
+  mailer: Mailer;
 }

@@ -1,3 +1,4 @@
+import { fakeMailer } from "../mail/fake.ts";
 // The onboarding API, and the admin behind it.
 //
 // This file is mostly about who is allowed to do what. The admin edits the first thing every new
@@ -34,7 +35,7 @@ const url = (p: string) => `http://localhost${p}`;
 
 function mount(config: Config) {
   store = memoryStore();
-  const deps: EngineDeps = { store, config, llm: demoPorts() };
+  const deps: EngineDeps = { store, config, llm: demoPorts(), mailer: fakeMailer() };
   handle = createRouter(deps, store, verifier);
 }
 

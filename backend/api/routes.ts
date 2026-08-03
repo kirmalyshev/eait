@@ -30,7 +30,7 @@ import {
   logPhotoMeal, onboardingContent, patchProfile, profileView, recordOnboardingEvents,
   signInWithProvider, week, type EngineDeps,
 } from "../engine/index.ts";
-import { subscribe, unsubscribe } from "../engine/subscribe.ts";
+import { confirmSubscription, subscribe, unsubscribe } from "../engine/subscribe.ts";
 import { adminRoutes } from "./admin.ts";
 import { clientAddress, rateLimiter } from "./ratelimit.ts";
 
@@ -116,6 +116,29 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
       headers: { "content-type": "application/json", "retry-after": String(retryAfter) },
     });
 
+  /**
+   * This server's public origin, for the confirmation link.
+   *
+   * `publicApiUrl` when it is set, because a link built from a request header is a link whose
+   * hostname a client can influence — and this one goes into an email. Falling back to the request
+   * is what keeps development, where nobody sets it, from needing a second variable: Caddy forwards
+   * the original Host, and `X-Forwarded-Proto` is how the https gets back on a request that reached
+   * this process over plain HTTP on the internal network.
+   */
+  const publicOrigin = (req: Request): string => {
+    if (deps.config.publicApiUrl) return deps.config.publicApiUrl;
+    const here = new URL(req.url);
+    const proto = req.headers.get("x-forwarded-proto") ?? here.protocol.replace(":", "");
+    return `${proto}://${here.host}`;
+  };
+
+  const subscribeDeps = (req: Request) => ({
+    store,
+    mailer: deps.mailer,
+    config: deps.config,
+    confirmUrlBase: publicOrigin(req),
+  });
+
   /** The ONLY path from a request to a userId. */
   async function resolveUserId(req: Request): Promise<string | null> {
     const token = bearer(req);
@@ -167,7 +190,7 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
           return typeof v === "string" ? v : "";
         };
         const result = await subscribe(
-          { store, config: deps.config },
+          subscribeDeps(req),
           { email: field("email"), honeypot: field("company"), source: field("source") || "web" },
         );
         // ── Where each outcome goes, and why it is not two branches ─────────────────────────
@@ -186,22 +209,50 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
         if (!result.ok && result.reason === "capped") {
           console.warn("[ieat] subscribe refused: the daily list cap is spent");
         }
+        //
+        // The success page is CHECK-YOUR-EMAIL, not "you are on the list". A pending row is not a
+        // subscription, and a page that says it is would be the same lie in a nicer font.
+        //
+        // `send-failed` shares `/try-later` with `capped`, because from the reader's side they are
+        // the same event: nothing was saved and it was not their fault. The pending row is left to
+        // be swept.
+        if (!result.ok && result.reason === "capped") {
+          console.warn("[ieat] subscribe refused: the daily list cap is spent");
+        }
         const path = !result.ok
           ? (result.reason === "invalid" ? "/not-subscribed"
-            : result.reason === "capped" ? "/try-later"
-            : "/subscribed")   // honeypot — indistinguishable from success, deliberately
-          : "/subscribed";
+            : result.reason === "capped" || result.reason === "send-failed" ? "/try-later"
+            : "/check-your-email")   // honeypot — indistinguishable from success, deliberately
+          : "/check-your-email";
         const body = !result.ok && result.reason === "invalid"
           ? { error: "that does not look like an email address" }
           : !result.ok && result.reason === "capped"
             ? { error: "the list is not taking more addresses today — try again shortly" }
-            : { ok: true };
-        const status = !result.ok && result.reason === "capped" ? 429 : 200;
+            : !result.ok && result.reason === "send-failed"
+              ? { error: "the confirmation could not be sent — try again shortly" }
+              : { ok: true };
+        // 429 for the cap (come back later, it is a rate) and 502 for a failed send (the provider
+        // did not answer, which is not the caller's rate and not their fault). Both land on the same
+        // page; only a JSON caller can tell them apart, and a JSON caller is the one that should.
+        const status = !result.ok
+          ? (result.reason === "capped" ? 429 : result.reason === "send-failed" ? 502 : 200)
+          : 200;
         return landingRedirect(deps.config.landingUrl, path, body, status);
       }
 
+      // The other half of double opt-in. A GET, because it is a link in an email and a link in an
+      // email is a GET — and it is safe to be one because the token grants exactly "put this one
+      // address on the list" and nothing else. A mail client that prefetches it confirms an address
+      // its owner asked to confirm, which is the outcome either way.
+      if (req.method === "GET" && pathname === ROUTES.subscribeConfirm) {
+        await confirmSubscription(subscribeDeps(req), url.searchParams.get("t") ?? "");
+        // The same page for a known token and an unknown one. Anything else is an oracle for which
+        // confirmation links are live, and it would mean somebody clicking twice gets an error.
+        return landingRedirect(deps.config.landingUrl, "/subscribed", { ok: true });
+      }
+
       if (req.method === "GET" && pathname === ROUTES.unsubscribe) {
-        await unsubscribe({ store, config: deps.config }, url.searchParams.get("t") ?? "");
+        await unsubscribe(subscribeDeps(req), url.searchParams.get("t") ?? "");
         return landingRedirect(deps.config.landingUrl, "/unsubscribed", { ok: true });
       }
 

@@ -87,6 +87,13 @@ export const ROUTES = {
   // list is its own action with its own token, not something buried in account deletion.
   /** POST, form-encoded, unauthenticated. Fields: `email`, and the honeypot `company`. */
   subscribe: "/v1/subscribe",
+  /**
+   * GET `?t=<token>`. The confirmation half of double opt-in — the link in the one email this
+   * product sends. Until it is followed the address is on no list at all, and if it never is, the
+   * row is deleted within days: an address somebody typed into a form is not consent, and holding
+   * one that was never confirmed is holding personal data with no basis for it.
+   */
+  subscribeConfirm: "/v1/subscribe/confirm",
   /** GET `?t=<token>`. The withdrawal half — one click, no login, no confirmation screen. */
   unsubscribe: "/v1/unsubscribe",
 } as const;

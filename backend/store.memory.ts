@@ -79,8 +79,19 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const identities: { userId: string; provider: Provider; subject: string; linkedAt: string }[] = [];
   const onboardingEvents = new Map<string, StoredEvent>(); // event id -> event
   // Keyed by address, which is what makes a repeat subscription an upsert here too.
-  const subscribers = new Map<string, { token: string; source: string; createdAt: number }>();
+  const subscribers = new Map<string, {
+    token: string;
+    confirmToken: string;
+    /** Null until the address is confirmed. A pending row is not a subscriber. */
+    confirmedAt: number | null;
+    source: string;
+    createdAt: number;
+  }>();
   let onboardingContent: OnboardingContent | null = null;
+
+  /** 256 bits of hex. Used for both subscriber capabilities: confirmation and withdrawal. */
+  const randomHex = (): string =>
+    [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("");
 
   /** Deep-copies on the way out so a caller mutating a returned object cannot edit the store. */
   const clone = <T>(v: T): T => structuredClone(v);
@@ -251,12 +262,34 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async addSubscriber(email, source) {
       const existing = subscribers.get(email);
-      if (existing) return { token: existing.token, created: false };
-      const token = [...crypto.getRandomValues(new Uint8Array(32))]
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-      subscribers.set(email, { token, source, createdAt: Date.now() });
-      return { token, created: true };
+      if (existing) {
+        return {
+          // Null once confirmed — the caller's signal to send nothing at all. Re-submitting a
+          // pending address returns the SAME token, so the link already in somebody's inbox keeps
+          // working rather than being quietly replaced.
+          confirmToken: existing.confirmedAt === null ? existing.confirmToken : null,
+          unsubscribeToken: existing.token,
+          created: false,
+        };
+      }
+      const token = randomHex();
+      const confirmToken = randomHex();
+      subscribers.set(email, {
+        token, confirmToken, confirmedAt: null, source, createdAt: now(),
+      });
+      return { confirmToken, unsubscribeToken: token, created: true };
+    },
+
+    async confirmSubscriber(confirmToken) {
+      for (const row of subscribers.values()) {
+        if (row.confirmToken === confirmToken) {
+          // Idempotent: the first click sets the time, the second finds it already set and still
+          // reports success, exactly as unsubscribing twice does.
+          row.confirmedAt ??= now();
+          return true;
+        }
+      }
+      return false;
     },
 
     async removeSubscriber(token) {
@@ -267,8 +300,21 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     },
 
     async countSubscribersSince(sinceIso) {
+      // Pending rows count. A cap that only counted confirmed ones is a cap a bot never reaches.
       const since = Date.parse(sinceIso);
       return [...subscribers.values()].filter((r) => r.createdAt >= since).length;
+    },
+
+    async pruneUnconfirmedSubscribers(beforeIso) {
+      const before = Date.parse(beforeIso);
+      let removed = 0;
+      for (const [email, row] of subscribers) {
+        if (row.confirmedAt === null && row.createdAt < before) {
+          subscribers.delete(email);
+          removed++;
+        }
+      }
+      return removed;
     },
 
     async insertMeal(record) {

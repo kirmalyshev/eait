@@ -6,6 +6,7 @@ import type { LlmPorts } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { localDate } from "../dates.ts";
+import { fakeMailer } from "../mail/fake.ts";
 import {
   applyCorrection, cancelPendingMeal, confirmPendingMeal, day, editMeal, handleText, logPhotoMeal,
   nextStep, patchProfile, profileView, week, type EngineDeps,
@@ -23,7 +24,7 @@ let store: Store;
 let deps: EngineDeps;
 
 function makeDeps(over: Partial<Config> = {}, llm: LlmPorts = demoPorts()): EngineDeps {
-  return { store, config: { ...CONFIG, ...over }, llm };
+  return { store, config: { ...CONFIG, ...over }, llm, mailer: fakeMailer() };
 }
 
 /** A fully onboarded user. Returns the id. */

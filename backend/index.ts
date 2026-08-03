@@ -9,6 +9,9 @@ import { adminTokenFromEnv, configDefaults, loadConfig, redact, type Config } fr
 import { AuthError, remoteVerifier, type IdentityVerifier } from "./auth/verify.ts";
 import { createRouter } from "./api/routes.ts";
 import { demoPorts } from "./llm/demo.ts";
+import { logMailer } from "./mail/log.ts";
+import type { Mailer } from "./mail/port.ts";
+import { resendMailer } from "./mail/resend.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import type { EngineDeps } from "./engine/index.ts";
 import { memoryStore } from "./store.memory.ts";
@@ -47,6 +50,25 @@ const store: Store = demo
   ? memoryStore(storeOptions)
   : await postgresStore(config.databaseUrl, storeOptions);
 
+// The mailer, chosen once. `log` prints the confirmation link and never the recipient, which is
+// what makes the double-opt-in flow drivable with no vendor account; `resend` is the real one.
+const mailer: Mailer = config.mailProvider === "resend"
+  ? resendMailer({
+      apiKey: config.resendApiKey, from: config.mailFrom,
+      baseUrl: config.resendBaseUrl, timeoutMs: config.mailTimeoutMs,
+    })
+  : logMailer();
+
+// A production instance with a landing page and no real sender collects addresses that nobody can
+// confirm — the links go to a container log instead of an inbox, and the only symptom is a list
+// that silently stops growing. Loud at startup rather than discovered from an empty table.
+if (!demo && config.mailProvider === "log" && config.landingUrl !== "") {
+  console.warn(
+    "[ieat] MAIL_PROVIDER=log with a landing page configured: confirmation links are being PRINTED, "
+    + "not sent, so no subscriber can ever confirm. Set MAIL_PROVIDER=resend and RESEND_API_KEY.",
+  );
+}
+
 // One sweep at startup, so a process that has been up for months and is then restarted does not
 // carry a table of rows that stopped meaning anything in between. Every later sweep rides along
 // with a token being issued; there is no scheduler in this process and adding one for this would be
@@ -56,6 +78,7 @@ if (pruned > 0) console.log(`[ieat] pruned ${pruned} idle session token(s) at st
 const deps: EngineDeps = {
   store,
   config,
+  mailer,
   llm: demo
     ? demoPorts()
     : openRouterPorts({

@@ -204,13 +204,53 @@ create index if not exists onboarding_events_user_idx on onboarding_events(user_
 --
 -- The email is the primary key, so a second submission of the same address is an upsert rather than
 -- a second row with a second token of which only one would unsubscribe them.
+-- A row here is NOT a subscriber until confirmed_at is set. See engine/subscribe.ts: an address
+-- typed into a form is not consent, and in Germany specifically the standard for proving consent is
+-- the confirmed variety. Unconfirmed rows are swept after a few days rather than kept.
 create table if not exists subscribers (
-  email      text primary key,
-  token      text not null unique,
-  source     text not null,
-  created_at timestamptz not null default now()
+  email         text primary key,
+  token         text not null unique,
+  confirm_token text not null unique,
+  confirmed_at  timestamptz,
+  source        text not null,
+  created_at    timestamptz not null default now()
 );
+`;
+
+/**
+ * Migration for a host whose list predates double opt-in.
+ *
+ * Separate from SCHEMA because it is conditional in a way a plain DDL string cannot express, and
+ * because the grandfathering decision in the middle of it deserves to be read rather than skimmed.
+ */
+const SUBSCRIBER_MIGRATION = `
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = current_schema()
+      and table_name = 'subscribers' and column_name = 'confirm_token'
+  ) then
+    alter table subscribers add column confirm_token text;
+    alter table subscribers add column confirmed_at timestamptz;
+    -- A token for every existing row, so the column can be NOT NULL and UNIQUE like a new one.
+    update subscribers set confirm_token = encode(gen_random_bytes(32), 'hex')
+      where confirm_token is null;
+    -- EXISTING ADDRESSES ARE GRANDFATHERED AS CONFIRMED.
+    --
+    -- They were submitted under a single-opt-in flow that was live at the time and said what it
+    -- would do. Nulling them instead would mean sweeping genuine signups within the week without
+    -- ever asking, which is a worse answer to the same question. docs/DEPLOY.md names this so it is
+    -- a decision on the record rather than a side effect nobody noticed.
+    update subscribers set confirmed_at = created_at where confirmed_at is null;
+    alter table subscribers alter column confirm_token set not null;
+    alter table subscribers add constraint subscribers_confirm_token_key unique (confirm_token);
+  end if;
+end $$;
+
 create index if not exists subscribers_created_idx on subscribers(created_at);
+-- The sweep reads this one: pending rows, oldest first.
+create index if not exists subscribers_pending_idx on subscribers(created_at) where confirmed_at is null;
 `;
 
 /** Row shapes as Postgres hands them back. Numbers are coerced at the boundary, once. */
@@ -343,6 +383,14 @@ export async function postgresStore(
   // cron runs — both of which want a connection at a moment nobody chose.
   const sql = new SQL(databaseUrl, { max: opts.maxConnections ?? 10 });
   await sql.unsafe(SCHEMA);
+  // `gen_random_bytes` is pgcrypto's. Requested only here, and only on the upgrade path — a fresh
+  // database mints its tokens in TypeScript like every other one and needs no extension at all.
+  await sql.unsafe(`create extension if not exists pgcrypto`).catch(() => {
+    // A managed Postgres may refuse the extension to a non-superuser. The migration below is the
+    // only thing that wants it, so this is fatal ONLY on a host that has rows to migrate — and
+    // there the next statement says so with the right error rather than this one.
+  });
+  await sql.unsafe(SUBSCRIBER_MIGRATION);
 
   const sessionTtlMs = opts.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS;
   const refreshAfterMs = sessionRefreshAfterMs(sessionTtlMs);
@@ -561,20 +609,39 @@ export async function postgresStore(
 
     async addSubscriber(email, source) {
       const token = newSubscriberToken();
+      const confirmToken = newSubscriberToken();
       // `do update` rather than `do nothing`, so the RETURNING clause always yields a row and the
-      // existing token comes back for an address already on the list. With `do nothing` a repeat
-      // submission returns nothing at all, and the caller cannot tell "already subscribed" from
-      // "the insert failed" — which is the difference between a thank-you page and an error page.
+      // existing tokens come back for an address already known. With `do nothing` a repeat
+      // submission returns nothing at all, and the caller cannot tell "already here" from "the
+      // insert failed" — which is the difference between a thank-you page and an error page.
       //
-      // The update itself is a no-op that touches nothing: the source and the token of the first
-      // subscription are what stay, because the first one is the one they consented to.
+      // The update itself is a no-op that touches nothing: the source and the tokens of the first
+      // submission are what stay, because re-submitting must not mint a second confirmation link
+      // and quietly invalidate the one already sitting in somebody's inbox.
       const rows = await sql`
-        insert into subscribers (email, token, source)
-        values (${email}, ${token}, ${source})
+        insert into subscribers (email, token, confirm_token, source)
+        values (${email}, ${token}, ${confirmToken}, ${source})
         on conflict (email) do update set email = excluded.email
-        returning token, (xmax = 0) as inserted`;
+        returning token, confirm_token, confirmed_at, (xmax = 0) as inserted`;
       const row = rows[0] as Record<string, unknown> | undefined;
-      return { token: String(row?.token ?? token), created: Boolean(row?.inserted) };
+      return {
+        // Null once the address is confirmed: that is the caller's signal to send NOTHING. A
+        // "you are already subscribed" email is unsolicited mail to somebody who did not ask for
+        // it this time.
+        confirmToken: row?.confirmed_at ? null : String(row?.confirm_token ?? confirmToken),
+        unsubscribeToken: String(row?.token ?? token),
+        created: Boolean(row?.inserted),
+      };
+    },
+
+    async confirmSubscriber(confirmToken) {
+      // Idempotent: `confirmed_at` is only written when it is null, and the row is returned either
+      // way, so a second click on the link says the same thing as the first.
+      const rows = await sql`
+        update subscribers set confirmed_at = coalesce(confirmed_at, now())
+        where confirm_token = ${confirmToken}
+        returning email`;
+      return rows.length > 0;
     },
 
     async removeSubscriber(token) {
@@ -583,8 +650,19 @@ export async function postgresStore(
     },
 
     async countSubscribersSince(sinceIso) {
+      // Every row, pending or confirmed. Counting only the confirmed ones would be a cap a bot
+      // walks straight through — submitting is what costs a row and an outbound email, and
+      // confirming is the part an abuser never does.
       const rows = await sql`select count(*)::int as n from subscribers where created_at >= ${sinceIso}`;
       return num((rows[0] as Record<string, unknown> | undefined)?.n);
+    },
+
+    async pruneUnconfirmedSubscribers(beforeIso) {
+      const rows = await sql`
+        delete from subscribers
+        where confirmed_at is null and created_at < ${beforeIso}
+        returning email`;
+      return rows.length;
     },
 
     async onboardingFunnel(days): Promise<FunnelAggregate> {

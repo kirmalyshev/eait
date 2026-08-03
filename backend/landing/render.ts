@@ -159,8 +159,9 @@ function spud(mood: LandingMood, id: string, says: string): string {
  *
  * A plain `<form method="post">`, because the page carries no JavaScript and this is the only
  * submit that works without any. The browser navigates to the response, so the API answers 303 and
- * sends it back here — to /subscribed, /not-subscribed or /unsubscribed, which are static pages in
- * this same bundle.
+ * sends it back here — to /check-your-email, /not-subscribed or /try-later, which are static pages
+ * in this same bundle. /subscribed is not one of the form's destinations any more: it belongs to
+ * the confirmation link, because until that link is followed nobody is on any list.
  *
  * `source` travels with it so a subscription can be told from a bare visit later, using the same
  * code the CTA carries.
@@ -251,6 +252,7 @@ export function renderOutcome(
 export function outcomePages(config: LandingConfig): Record<string, string> {
   return {
     "subscribed.html": renderOutcome(config, outcomes.subscribed),
+    "check-your-email.html": renderOutcome(config, outcomes.checkYourEmail),
     "not-subscribed.html": renderOutcome(config, outcomes.notSubscribed),
     "try-later.html": renderOutcome(config, outcomes.tryLater),
     "unsubscribed.html": renderOutcome(config, outcomes.unsubscribed),

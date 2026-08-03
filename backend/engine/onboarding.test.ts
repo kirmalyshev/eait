@@ -1,3 +1,4 @@
+import { fakeMailer } from "../mail/fake.ts";
 // The onboarding engine: content storage, event sanitising, and the funnel.
 //
 // The event tests are the important ones. `/v1/onboarding/events` is authenticated with an ordinary
@@ -29,7 +30,7 @@ let userId: string;
 
 beforeEach(async () => {
   store = memoryStore();
-  deps = { store, config: CONFIG, llm: demoPorts() };
+  deps = { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer() };
   userId = await store.createUser("en");
 });
 

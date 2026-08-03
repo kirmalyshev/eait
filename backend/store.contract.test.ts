@@ -537,5 +537,41 @@ if (PG_URL) {
         await sql.close();
       }
     });
+
+    it("grandfathers a single-opt-in list rather than sweeping it", async () => {
+      // The other migration with a judgement call in it. These addresses were submitted under a
+      // flow that was live at the time and said what it would do; leaving them pending would mean
+      // deleting genuine signups within the week without ever asking, which is a worse answer to
+      // the same question. docs/DEPLOY.md names the decision.
+      const sql = new SQL(PG_URL, { max: TEST_POOL });
+      try {
+        await sql`drop table if exists subscribers`;
+        await sql.unsafe(`create table subscribers (
+          email      text primary key,
+          token      text not null unique,
+          source     text not null,
+          created_at timestamptz not null default now()
+        )`);
+        const email = `legacy-${RUN}@example.com`;
+        await sql`insert into subscribers (email, token, source)
+                  values (${email}, ${`legacy-unsub-${RUN}`}, 'web')`;
+
+        const s = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
+        try {
+          // Confirmed, so the sweep leaves it alone — and `addSubscriber` reports no confirmation
+          // token for it, which is what stops the first deploy mailing the whole existing list.
+          expect(await s.pruneUnconfirmedSubscribers(new Date(Date.now() + 1).toISOString())).toBe(0);
+          const upsert = await s.addSubscriber(email, "web");
+          expect(upsert.confirmToken).toBeNull();
+          expect(upsert.created).toBe(false);
+          // The withdrawal token they were given is still the one that works.
+          expect(await s.removeSubscriber(`legacy-unsub-${RUN}`)).toBe(true);
+        } finally {
+          await s.close();
+        }
+      } finally {
+        await sql.close();
+      }
+    });
   });
 }
