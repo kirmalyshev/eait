@@ -33,8 +33,17 @@ export type Refusal =
   | { kind: "not-onboarded" }
   /** The model looked and there was no food. Not an error — an answer. */
   | { kind: "not-food" }
-  /** `scope` distinguishes "you have used your day" from "the instance has used its budget". */
-  | { kind: "cap-exceeded"; scope: "user" | "global" }
+  /**
+   * `scope` distinguishes "you have used your day" from "the instance has used its budget" from
+   * "this network address has".
+   *
+   * `address` is not a spend cap, it is the thing that makes the other two mean anything. Minting
+   * an account is one unauthenticated request, so a per-user allowance is only a limit if there is
+   * also a limit on how many users one address may spend through. Worded differently in the app,
+   * because "your allowance is gone" would be a lie told to somebody who has logged one meal from
+   * a carrier network.
+   */
+  | { kind: "cap-exceeded"; scope: "user" | "global" | "address" }
   /** The engine failed to produce an analysis. Already logged; the surface just apologises. */
   | { kind: "analysis-failed" };
 

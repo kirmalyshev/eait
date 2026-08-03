@@ -63,18 +63,87 @@ export interface FunnelAggregate {
   }[];
 }
 
+/**
+ * What a store may be built with. Both implementations take the same options and mean the same
+ * thing by them, because a lifetime that differs between them is a lifetime the tests do not cover.
+ */
+export interface StoreOptions {
+  /**
+   * How long a bearer token survives WITHOUT BEING USED. Defaults to `DEFAULT_SESSION_TTL_MS`.
+   * See `auth/tokens.ts` for why it is idle time and not absolute age.
+   */
+  sessionTtlMs?: number;
+  /**
+   * The clock, injectable so a test can reach an expiry that is six months away in production.
+   * Everything time-dependent in a store reads from here rather than calling `Date.now()` directly
+   * — including the values it writes, so an injected clock governs both sides of a comparison.
+   */
+  now?: () => number;
+  /**
+   * Upper bound on the connection pool, for the implementations that have one.
+   *
+   * Stated rather than inherited from the driver. Postgres refuses at `max_connections` (100 in the
+   * shipped image) with "sorry, too many clients already", which arrives as a FATAL on a connection
+   * the app was in the middle of using — so the failure is not "the pool is busy", it is requests
+   * dying. A number here is one that can be reasoned about against that limit; a driver default is
+   * one that changes when the driver does.
+   */
+  maxConnections?: number;
+}
+
+/** What `addSubscriber` found or created. */
+export interface SubscriberUpsert {
+  /**
+   * The capability that turns this pending row into a subscriber.
+   *
+   * NULL when the address is already confirmed. That is the signal not to send anything: a
+   * "you are already on the list" email is unsolicited mail to somebody who did not ask for it
+   * this time, and answering the form differently for a known address makes the endpoint an
+   * oracle for who is on the list.
+   */
+  confirmToken: string | null;
+  /** The capability that removes the address. Carried in every message the list ever sends. */
+  unsubscribeToken: string;
+  /** True when this call created the row. */
+  created: boolean;
+}
+
 export interface Store {
   // ── Identity ───────────────────────────────────────────────────────────────────────────────
   /** Find or create the user behind a device id. Returns whether the row was created. */
   upsertDeviceUser(deviceId: string, lang: Lang): Promise<{ userId: string; created: boolean }>;
   /** Create a bare account with no device — a user who signed in with Apple/Google on a fresh install. */
   createUser(lang: Lang): Promise<string>;
-  /** Mint a bearer token for a user. */
+  /**
+   * Mint a bearer token for a user, and return it.
+   *
+   * This is the ONLY moment the token exists in a readable form on this side of the wire. What the
+   * store keeps is `hashToken()` of it — see `auth/tokens.ts` — so nothing that can read the
+   * database, a dump, or a backup can present a token back.
+   */
   issueToken(userId: string): Promise<string>;
-  /** Resolve a bearer token to a user id, or null. The ONLY way a request becomes a userId. */
+  /**
+   * Resolve a bearer token to a user id, or null. The ONLY way a request becomes a userId.
+   *
+   * Null covers three cases the caller must NOT be able to tell apart: never issued, revoked, and
+   * idle past its lifetime. All three mean "not authenticated", and a caller that could distinguish
+   * them would be an oracle for which tokens have ever existed.
+   *
+   * A successful lookup slides the token's deadline forward, so a session in daily use never
+   * expires and one on a phone nobody opens again does.
+   */
   userIdForToken(token: string): Promise<string | null>;
   /** Drop one token. Sign-out — the account and its data are untouched. */
   revokeToken(token: string): Promise<void>;
+  /**
+   * Delete every token that is past its idle lifetime. Returns how many went.
+   *
+   * Called at startup and again whenever a token is issued, which is rare enough to be free and
+   * frequent enough to keep the table bounded without a scheduler this process does not have.
+   * Expired rows are already refused by `userIdForToken`; this is about not keeping a row that
+   * names a user and a login time for years after it stopped meaning anything.
+   */
+  pruneExpiredTokens(): Promise<number>;
 
   // ── Federated identities ───────────────────────────────────────────────────────────────────
   /** The account behind a verified `(provider, subject)`, or null. */
@@ -125,16 +194,43 @@ export interface Store {
   // an email address" stays true of the app, and leaving the list does not require having one.
 
   /**
-   * Idempotent on the address, which is the primary key. A second submission of the same address
-   * returns the token already issued rather than a second row — so a double-tapped button, or
-   * somebody subscribing twice a month apart, cannot produce two entries with two tokens of which
-   * only one unsubscribes them.
+   * Record an address as PENDING, or return what is already known about it.
+   *
+   * Idempotent on the address, which is the primary key. A second submission returns the tokens
+   * already issued rather than a second row — so a double-tapped button, or somebody subscribing
+   * twice a month apart, cannot produce two entries with two tokens of which only one unsubscribes
+   * them.
+   *
+   * A row here is NOT a subscriber. It becomes one when `confirmSubscriber` is called with the
+   * confirmation token, and until then it is an address somebody typed into a form, which is not
+   * the same thing as consent — see `engine/subscribe.ts`.
    */
-  addSubscriber(email: string, source: string): Promise<{ token: string; created: boolean }>;
-  /** Removes by token. Returns false when the token is unknown — already gone, or never valid. */
+  addSubscriber(email: string, source: string): Promise<SubscriberUpsert>;
+  /**
+   * Turn a pending row into a subscriber, by its confirmation token.
+   *
+   * Returns false for an unknown token. Idempotent for a known one: clicking the link twice says
+   * the same thing both times, exactly as unsubscribing does.
+   */
+  confirmSubscriber(confirmToken: string): Promise<boolean>;
+  /** Removes by unsubscribe token. False when unknown — already gone, or never valid. */
   removeSubscriber(token: string): Promise<boolean>;
-  /** Rows added at or after `sinceIso`. The only number the abuse cap needs. */
+  /**
+   * Rows added at or after `sinceIso`, CONFIRMED OR NOT.
+   *
+   * Counting only the confirmed ones would be a cap a bot walks straight through: submitting is
+   * what costs the server something — a row and an outbound email — and confirming is the part an
+   * abuser never does.
+   */
   countSubscribersSince(sinceIso: string): Promise<number>;
+  /**
+   * Delete pending rows created before `beforeIso`. Returns how many went.
+   *
+   * The point is not tidiness. An address that was typed into a form and never confirmed is
+   * personal data held with no basis whatsoever — quite possibly somebody else's address, typed by
+   * a stranger — and the only defensible thing to do with it is to stop having it.
+   */
+  pruneUnconfirmedSubscribers(beforeIso: string): Promise<number>;
 
   // ── Meals ──────────────────────────────────────────────────────────────────────────────────
   insertMeal(record: MealRecord): Promise<void>;

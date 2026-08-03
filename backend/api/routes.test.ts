@@ -7,6 +7,7 @@ import type { Store } from "../store.ts";
 import type { EngineDeps } from "../engine/index.ts";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
 import { createRouter } from "./routes.ts";
+import { fakeMailer } from "../mail/fake.ts";
 
 /**
  * A stand-in verifier. Accepts `ok:<provider>:<subject>` and rejects everything else.
@@ -80,7 +81,7 @@ function photoRequest(token: string, files = 1, caption?: string): Request {
 
 beforeEach(() => {
   store = memoryStore();
-  const deps: EngineDeps = { store, config: CONFIG, llm: demoPorts() };
+  const deps: EngineDeps = { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer() };
   handle = createRouter(deps, store, testVerifier);
 });
 
@@ -183,7 +184,7 @@ describe("photo", () => {
 
   it("429s with a scope once the per-user cap is spent", async () => {
     const token = await session();
-    const deps: EngineDeps = { store, config: { ...CONFIG, userDailyPhotoCap: 1 }, llm: demoPorts() };
+    const deps: EngineDeps = { store, config: { ...CONFIG, userDailyPhotoCap: 1 }, llm: demoPorts(), mailer: fakeMailer() };
     handle = createRouter(deps, store, testVerifier);
     await handle(photoRequest(token));
     const res = await handle(photoRequest(token));
@@ -295,7 +296,7 @@ describe("errors", () => {
   it("never returns an internal error message to the client", async () => {
     const exploding: EngineDeps = {
       store, config: CONFIG,
-      llm: { ...demoPorts(), routeText: async () => { throw new Error("secret query text"); } },
+      llm: { ...demoPorts(), routeText: async () => { throw new Error("secret query text"); } }, mailer: fakeMailer(),
     };
     const token = await session();
     handle = createRouter(exploding, store, testVerifier);
@@ -527,19 +528,79 @@ describe("the mailing list", () => {
   /** A router with its own config, because these routes are the only ones that read landingUrl. */
   const router = (landingUrl: string) => {
     const s = memoryStore();
+    const mailer = fakeMailer();
     const config: Config = { ...CONFIG, landingUrl };
-    return { store: s, handle: createRouter({ store: s, config, llm: demoPorts() }, s, testVerifier) };
+    return {
+      store: s, mailer,
+      handle: createRouter({ store: s, config, llm: demoPorts(), mailer }, s, testVerifier),
+    };
   };
 
   const form = (fields: Record<string, string>) =>
     new Request(url(ROUTES.subscribe), { method: "POST", body: new URLSearchParams(fields) });
 
-  it("subscribes and sends the browser back to the landing page", async () => {
-    const { handle: h } = router("https://eait.fit");
+  it("takes a submission and sends the browser to check-your-email", async () => {
+    const { handle: h, mailer } = router("https://eait.fit");
     const res = await h(form({ email: "a@example.com", source: "web_hero" }));
     // 303, not 302: 303 tells the browser to follow with GET, so a reload does not re-post.
     expect(res.status).toBe(303);
+    // NOT /subscribed. Nothing is on the list yet, and a page that said so would be the same lie
+    // the capped case used to tell, in a nicer font.
+    expect(res.headers.get("location")).toBe("https://eait.fit/check-your-email");
+    expect(mailer.sent).toHaveLength(1);
+  });
+
+  it("confirms on the link, and lands on the page that says you are on the list", async () => {
+    const { handle: h, mailer, store: s } = router("https://eait.fit");
+    await h(form({ email: "a@example.com" }));
+
+    const link = new URL(mailer.sent[0]!.confirmUrl);
+    const res = await h(new Request(url(`${ROUTES.subscribeConfirm}${link.search}`)));
+    expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("https://eait.fit/subscribed");
+    // Confirmed, so the sweep leaves it alone.
+    expect(await s.pruneUnconfirmedSubscribers(new Date(Date.now() + 1).toISOString())).toBe(0);
+  });
+
+  it("lands an unknown confirmation token on the same page as a real one", async () => {
+    // Same rule as unsubscribe: not an oracle for which links are live, and clicking twice is fine.
+    const { handle: h } = router("https://eait.fit");
+    const res = await h(new Request(url(`${ROUTES.subscribeConfirm}?t=deadbeef`)));
+    expect(res.headers.get("location")).toBe("https://eait.fit/subscribed");
+  });
+
+  it("builds the confirmation link with the scheme the client actually used", async () => {
+    // The request reaches this process over plain HTTP on a Docker network — Caddy terminates TLS
+    // and proxies onward — so without X-Forwarded-Proto every link in every email is http://, and
+    // a mail client that refuses to open one is right to.
+    //
+    // The HOST needs no such rescue: Caddy passes the original Host header through untouched
+    // (unlike nginx, which replaces it unless told otherwise), so the URL this handler sees already
+    // carries the public name.
+    const { handle: h, mailer } = router("https://eait.fit");
+    await h(new Request("http://api.eait.fit/v1/subscribe", {
+      method: "POST",
+      headers: { "x-forwarded-proto": "https" },
+      body: new URLSearchParams({ email: "a@example.com" }),
+    }));
+    expect(mailer.sent[0]!.confirmUrl).toStartWith("https://api.eait.fit/v1/subscribe/confirm?t=");
+  });
+
+  it("prefers the configured public origin over anything a request can say", async () => {
+    // A link built from a header is a link whose hostname a client can influence, and this one goes
+    // into an email. Where the origin is known, it is stated.
+    const s = memoryStore();
+    const mailer = fakeMailer();
+    const config: Config = {
+      ...CONFIG, landingUrl: "https://eait.fit", publicApiUrl: "https://api.eait.fit",
+    };
+    const h = createRouter({ store: s, config, llm: demoPorts(), mailer }, s, testVerifier);
+
+    await h(new Request("http://attacker.example/v1/subscribe", {
+      method: "POST",
+      body: new URLSearchParams({ email: "a@example.com" }),
+    }));
+    expect(mailer.sent[0]!.confirmUrl).toStartWith("https://api.eait.fit/v1/subscribe/confirm?t=");
   });
 
   it("needs no token, which is the entire point", async () => {
@@ -560,14 +621,16 @@ describe("the mailing list", () => {
     const { handle: h, store: s } = router("https://eait.fit");
     const res = await h(form({ email: "bot@example.com", company: "Acme" }));
     expect(res.status).toBe(303);
-    expect(res.headers.get("location")).toBe("https://eait.fit/subscribed");
+    // The same page a real submission gets — which is now "check your email", because a pending
+    // row is not a subscription and the page must not say it is.
+    expect(res.headers.get("location")).toBe("https://eait.fit/check-your-email");
     expect(await s.countSubscribersSince(new Date(0).toISOString())).toBe(0);
   });
 
   it("unsubscribes on a token and no login", async () => {
     const { handle: h, store: s } = router("https://eait.fit");
-    const { token } = await s.addSubscriber("a@example.com", "web");
-    const res = await h(new Request(url(`${ROUTES.unsubscribe}?t=${token}`)));
+    const { unsubscribeToken } = await s.addSubscriber("a@example.com", "web");
+    const res = await h(new Request(url(`${ROUTES.unsubscribe}?t=${unsubscribeToken}`)));
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("https://eait.fit/unsubscribed");
     expect(await s.countSubscribersSince(new Date(0).toISOString())).toBe(0);
@@ -585,5 +648,168 @@ describe("the mailing list", () => {
     const res = await h(form({ email: "a@example.com" }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
+  });
+});
+
+// ── Per-address limits ─────────────────────────────────────────────────────────────────────────
+//
+// The unit tests in `ratelimit.test.ts` cover the limiter. These cover the thing it is FOR: that
+// minting a second account does not buy a second allowance, which is the bypass that made the
+// per-user cap decorative.
+describe("rate limits", () => {
+  const routerWith = (over: Partial<Config>) => {
+    const s = memoryStore();
+    const config: Config = { ...CONFIG, ...over };
+    return createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer() }, s, testVerifier);
+  };
+
+  /** A device registration from a stated address, as Caddy would present it. */
+  const registerFrom = (h: (r: Request) => Promise<Response>, address: string) =>
+    h(new Request(url(ROUTES.authDevice), {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": address },
+      body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en" }),
+    }));
+
+  it("bounds how many accounts one address may mint", async () => {
+    const h = routerWith({ authRateLimitPerHour: 3 });
+
+    for (let i = 0; i < 3; i++) {
+      expect((await registerFrom(h, "203.0.113.9")).status).toBe(200);
+    }
+
+    const refused = await registerFrom(h, "203.0.113.9");
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toEqual({ error: "rate-limited" });
+    // Without this a client has no idea whether to retry in a second or an hour, and picks a second.
+    expect(Number(refused.headers.get("retry-after"))).toBeGreaterThan(0);
+  });
+
+  it("does not let one address spend another's allowance", async () => {
+    const h = routerWith({ authRateLimitPerHour: 1 });
+    expect((await registerFrom(h, "203.0.113.9")).status).toBe(200);
+    expect((await registerFrom(h, "203.0.113.9")).status).toBe(429);
+    expect((await registerFrom(h, "198.51.100.7")).status).toBe(200);
+  });
+
+  it("reads the LAST forwarded address, so a client cannot forge its way out", async () => {
+    const h = routerWith({ authRateLimitPerHour: 1 });
+    // Caddy appends what it saw, so everything left of the final entry is attacker-controlled. A
+    // limiter that keyed on the first value would hand this attacker a fresh bucket per request.
+    const spoof = (n: number) =>
+      h(new Request(url(ROUTES.authDevice), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-for": `10.0.0.${n}, 203.0.113.9`,
+        },
+        body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en" }),
+      }));
+
+    expect((await spoof(1)).status).toBe(200);
+    expect((await spoof(2)).status).toBe(429);
+    expect((await spoof(3)).status).toBe(429);
+  });
+
+  it("counts billed analyses per address, across every account it creates", async () => {
+    // The whole point. Two accounts, one address, one allowance between them — otherwise the
+    // per-user cap is worth exactly one call to /v1/auth/device.
+    const h = routerWith({ analysisRateLimitPerDay: 2, userDailyPhotoCap: 99 });
+    const address = "203.0.113.9";
+
+    const onboard = async (): Promise<string> => {
+      const res = await registerFrom(h, address);
+      const { token } = await res.json() as { token: string };
+      await h(new Request(url(ROUTES.profile), {
+        method: "PATCH",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
+          target_weight_kg: 65, activity: "moderate", pace: "steady", country: "gb",
+          restrictions: [], complete_onboarding: true,
+        }),
+      }));
+      return token;
+    };
+
+    const photo = (token: string) => {
+      const form = new FormData();
+      form.append("photo", new File([new Uint8Array(64).fill(7)], "m.jpg", { type: "image/jpeg" }));
+      return h(new Request(url(ROUTES.photo), {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "x-forwarded-for": address },
+        body: form,
+      }));
+    };
+
+    const first = await onboard();
+    expect((await photo(first)).status).toBe(200);
+    expect((await photo(first)).status).toBe(200);
+
+    // A brand new account from the same address. Its own allowance is untouched — and it gets
+    // nothing, because the allowance that matters is the address's.
+    const second = await onboard();
+    const refused = await photo(second);
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toEqual({ error: "cap-exceeded", scope: "address" });
+  });
+
+  it("is off when the limit is zero, and says so by allowing the request", async () => {
+    // An escape hatch that has to be typed, rather than one that happens when a variable is missing.
+    const h = routerWith({ authRateLimitPerHour: 0 });
+    for (let i = 0; i < 25; i++) {
+      expect((await registerFrom(h, "203.0.113.9")).status).toBe(200);
+    }
+  });
+});
+
+describe("subscribe outcomes", () => {
+  const routerWith = (over: Partial<Config>) => {
+    const s = memoryStore();
+    const config: Config = { ...CONFIG, landingUrl: "https://eait.fit", ...over };
+    return createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer() }, s, testVerifier);
+  };
+
+  const submit = (h: (r: Request) => Promise<Response>, fields: Record<string, string>) =>
+    h(new Request(url(ROUTES.subscribe), { method: "POST", body: new URLSearchParams(fields) }));
+
+  it("does not tell a capped submitter they are on the list", async () => {
+    // The defect this exists for. Only `invalid` was routed away from /subscribed, so a submission
+    // the cap refused reported success and dropped the address — and the cap is global, so one
+    // script filling it turned every real visitor for the rest of the day into a silent loss.
+    const h = routerWith({ subscribeDailyCap: 1 });
+
+    const first = await submit(h, { email: "first@example.com" });
+    expect(first.headers.get("location")).toBe("https://eait.fit/check-your-email");
+
+    const capped = await submit(h, { email: "second@example.com" });
+    expect(capped.headers.get("location")).toBe("https://eait.fit/try-later");
+  });
+
+  it("still answers a honeypot hit exactly like a success", async () => {
+    // The one case where lying is right: a bot that can tell the two apart learns which field to
+    // leave empty next time.
+    const h = routerWith({});
+    const bot = await submit(h, { email: "bot@example.com", company: "Acme Inc" });
+    expect(bot.headers.get("location")).toBe("https://eait.fit/check-your-email");
+  });
+
+  it("says the cap was hit in the JSON answer too, for a backend with no landing page", async () => {
+    const h = routerWith({ landingUrl: "", subscribeDailyCap: 1 });
+    await submit(h, { email: "first@example.com" });
+    const capped = await submit(h, { email: "second@example.com" });
+    // 429 rather than 200-with-an-error-body: a caller that only reads the status must not read
+    // this as an acceptance.
+    expect(capped.status).toBe(429);
+    expect(await capped.json()).toHaveProperty("error");
+  });
+
+  it("sends a rate-limited submission to the same page, saying nothing about which limit", async () => {
+    // Distinguishing "the cap is spent" from "you are being limited" tells a script how well it is
+    // doing. One page for both.
+    const h = routerWith({ subscribeRateLimitPerHour: 1 });
+    await submit(h, { email: "a@example.com" });
+    const limited = await submit(h, { email: "b@example.com" });
+    expect(limited.headers.get("location")).toBe("https://eait.fit/try-later");
   });
 });

@@ -373,7 +373,9 @@ export const subscribeSection = {
   body:
     "One address, on a list that lives on this website and nowhere near your meals. It is not " +
     "connected to an account, it is not used for anything else, and every message carries a link " +
-    "that removes you in one click with no login and no questions.",
+    "that removes you in one click with no login and no questions. You will get one email asking " +
+    "you to confirm — until you do, the address is on no list at all, and if you never do it is " +
+    "deleted within a week.",
   label: "Email address",
   placeholder: "you@example.com",
   button: "Tell me when it ships",
@@ -390,8 +392,9 @@ export const subscribeSection = {
   mascot: "One message. I will not make a habit of it.",
 } as const;
 
-/** The three pages the form's redirects land on. Static, no JavaScript, same shell as the page. */
+/** The pages the form's redirects land on. Static, no JavaScript, same shell as the page. */
 export const outcomes = {
+  /** After the CONFIRMATION link, not after the form. That is what makes the title true. */
   subscribed: {
     mascot: "wave" as const,
     title: "You are on the list",
@@ -399,10 +402,42 @@ export const outcomes = {
       "One message when the iPhone app is out, and a link in it that removes you in one click. " +
       "Nothing else.",
   },
+  /**
+   * Where a submission lands. NOT "you are on the list" — nothing is, until the link in the email
+   * is followed, and a page that claimed otherwise would be the same lie the capped case used to
+   * tell in a nicer font.
+   */
+  checkYourEmail: {
+    mascot: "wave" as const,
+    title: "Check your email",
+    body:
+      "One message is on its way with a link in it. Follow the link and you are on the list; " +
+      "ignore it and nothing happens — the address is deleted within a week and you hear nothing.",
+  },
   notSubscribed: {
     mascot: "think" as const,
     title: "That did not look like an email address",
     body: "Nothing was saved. Go back and try it again — a typo is the usual reason.",
+  },
+  /**
+   * The refusals that are not the reader's fault: the daily cap, and too many submissions from one
+   * network address.
+   *
+   * This page exists because of a defect. Both of those used to land on `subscribed` — only an
+   * invalid address was routed anywhere else — so somebody whose submission was refused was told
+   * they were on the list, and the address was simply gone. A bot filling the day's cap in a minute
+   * would have turned every real visitor after it into a silent loss, and nothing anywhere would
+   * have said so.
+   *
+   * It does NOT say which of the two happened. A page that distinguishes "the cap is spent" from
+   * "you personally are being limited" tells a script exactly how well it is doing.
+   */
+  tryLater: {
+    mascot: "care" as const,
+    title: "Not right now — try again shortly",
+    body:
+      "Nothing was saved, and that one is on us rather than on you. The list takes a limited " +
+      "number of addresses each day. Come back in a little while and it will go through.",
   },
   unsubscribed: {
     mascot: "care" as const,

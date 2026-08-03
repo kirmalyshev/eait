@@ -9,6 +9,9 @@ import { adminTokenFromEnv, configDefaults, loadConfig, redact, type Config } fr
 import { AuthError, remoteVerifier, type IdentityVerifier } from "./auth/verify.ts";
 import { createRouter } from "./api/routes.ts";
 import { demoPorts } from "./llm/demo.ts";
+import { logMailer } from "./mail/log.ts";
+import type { Mailer } from "./mail/port.ts";
+import { resendMailer } from "./mail/resend.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import type { EngineDeps } from "./engine/index.ts";
 import { memoryStore } from "./store.memory.ts";
@@ -40,10 +43,42 @@ const config: Config = demo
     }
   : loadConfig();
 
-const store: Store = demo ? memoryStore() : await postgresStore(config.databaseUrl);
+// The session lifetime reaches the store the same way every other setting reaches the engine: as an
+// argument from the composition root, never as a module constant either side could disagree about.
+const storeOptions = { sessionTtlMs: config.sessionTtlDays * 24 * 60 * 60 * 1000 };
+const store: Store = demo
+  ? memoryStore(storeOptions)
+  : await postgresStore(config.databaseUrl, storeOptions);
+
+// The mailer, chosen once. `log` prints the confirmation link and never the recipient, which is
+// what makes the double-opt-in flow drivable with no vendor account; `resend` is the real one.
+const mailer: Mailer = config.mailProvider === "resend"
+  ? resendMailer({
+      apiKey: config.resendApiKey, from: config.mailFrom,
+      baseUrl: config.resendBaseUrl, timeoutMs: config.mailTimeoutMs,
+    })
+  : logMailer();
+
+// A production instance with a landing page and no real sender collects addresses that nobody can
+// confirm — the links go to a container log instead of an inbox, and the only symptom is a list
+// that silently stops growing. Loud at startup rather than discovered from an empty table.
+if (!demo && config.mailProvider === "log" && config.landingUrl !== "") {
+  console.warn(
+    "[ieat] MAIL_PROVIDER=log with a landing page configured: confirmation links are being PRINTED, "
+    + "not sent, so no subscriber can ever confirm. Set MAIL_PROVIDER=resend and RESEND_API_KEY.",
+  );
+}
+
+// One sweep at startup, so a process that has been up for months and is then restarted does not
+// carry a table of rows that stopped meaning anything in between. Every later sweep rides along
+// with a token being issued; there is no scheduler in this process and adding one for this would be
+// the largest thing in it.
+const pruned = await store.pruneExpiredTokens();
+if (pruned > 0) console.log(`[ieat] pruned ${pruned} idle session token(s) at startup`);
 const deps: EngineDeps = {
   store,
   config,
+  mailer,
   llm: demo
     ? demoPorts()
     : openRouterPorts({
@@ -80,7 +115,11 @@ const server = Bun.serve({
   // The real backstop for upload size — a client can lie about or omit Content-Length, so the
   // early check in the router is a courtesy and this is the guarantee.
   maxRequestBodySize: config.maxUploadBytes + 1024 * 1024,
-  fetch: handle,
+  // `server` is passed through so the router can fall back to the socket peer when a request has no
+  // `X-Forwarded-For`. In production every request has one — Caddy is the only way in — so this is
+  // the local-development path, where it is the difference between per-address limits and one
+  // shared bucket called "unknown".
+  fetch: (req, server) => handle(req, server),
 });
 
 console.log(`[ieat] listening on http://${server.hostname}:${server.port}${demo ? " (demo: in-memory store, canned analyzer)" : ""}`);

@@ -1,3 +1,5 @@
+import { DEFAULT_SESSION_TTL_MS } from "./auth/tokens.ts";
+
 // Configuration, loaded once at startup and validated loudly.
 //
 // An unknown or missing setting is a STARTUP ERROR, never a silent fallback. A bot that quietly
@@ -58,6 +60,36 @@ export interface Config {
   googleAudiences: string[];
 
   /**
+   * How many days a bearer token survives WITHOUT BEING USED.
+   *
+   * Idle time, not absolute age — `auth/tokens.ts` has the argument. Configurable because the right
+   * number is a product judgement rather than a constant of nature, and because a staging instance
+   * that wants to exercise the expiry path should not have to wait half a year to reach it.
+   */
+  sessionTtlDays: number;
+
+  /**
+   * Requests per hour, per address, on the routes that mint a session.
+   *
+   * `POST /v1/auth/device` creates an account for anybody with a 32-character string, so without
+   * this the per-user analysis allowance is worth nothing — resetting it costs one HTTP call — and
+   * the users table grows as fast as somebody cares to loop. Zero disables the limit.
+   */
+  authRateLimitPerHour: number;
+  /**
+   * Billed analyses per day, per address, across every account reached from it.
+   *
+   * THIS is the cap that closes the account-minting bypass: `userDailyPhotoCap` bounds one account
+   * and this bounds one address regardless of how many accounts it creates. Set well above one
+   * person's own allowance on purpose — a mobile carrier can put thousands of subscribers behind
+   * one address, and refusing a stranger who has logged one meal is a worse failure than the spend
+   * this is guarding. Zero disables it; `globalDailyAnalysisCap` is then the only backstop.
+   */
+  analysisRateLimitPerDay: number;
+  /** Subscribe submissions per hour, per address. The honeypot's backstop. Zero disables. */
+  subscribeRateLimitPerHour: number;
+
+  /**
    * The credential for `/admin` — onboarding copy and the funnel.
    *
    * EMPTY MEANS THERE IS NO ADMIN. Every path under `/admin` answers 404, so a deployment that
@@ -77,6 +109,41 @@ export interface Config {
    * retry loop walks straight through, which is the same reasoning as `globalDailyAnalysisCap`.
    */
   subscribeDailyCap: number;
+
+  /**
+   * How long a submitted-but-unconfirmed address is kept before it is deleted.
+   *
+   * Not a tidying interval. An address that was typed into a form and never confirmed is personal
+   * data held with no basis at all — quite possibly somebody else's address, typed by a stranger —
+   * and a week is long enough for a person to find the email and short enough that nothing lingers.
+   */
+  subscribeConfirmTtlDays: number;
+
+  /**
+   * Who sends the one email this product sends.
+   *
+   * `log` prints the confirmation link and NOT the recipient, which is what makes the whole flow
+   * drivable in development with no vendor account. `resend` is the real one. Anything else is a
+   * startup error rather than a silent fallback to printing links nobody reads.
+   */
+  mailProvider: "log" | "resend";
+  /** The From header. Must be on a domain verified with the provider, or every send is a 403. */
+  mailFrom: string;
+  /** Credential for `resend`. Required when that provider is selected, ignored otherwise. */
+  resendApiKey: string;
+  /** Regional endpoint. The EU one matters here — see `mail/resend.ts`. */
+  resendBaseUrl: string;
+  /** How long one send may hang before it is abandoned, holding a person's form submission. */
+  mailTimeoutMs: number;
+
+  /**
+   * This server's own public origin, used to build the confirmation link.
+   *
+   * Empty is supported and means "work it out from the request" — the Host header Caddy forwards,
+   * plus `X-Forwarded-Proto`. Setting it explicitly is better wherever it is known, because a link
+   * built from a header is a link an attacker can influence the hostname of.
+   */
+  publicApiUrl: string;
 
   /**
    * The landing page's origin, for the ONE thing the API needs it for: where to send a browser
@@ -137,10 +204,21 @@ export function configDefaults(): Config {
     pendingTtlMs: 30 * 60 * 1000,
     maxUploadBytes: 20 * 1024 * 1024,
     maxPhotosPerMeal: 4,
+    sessionTtlDays: DEFAULT_SESSION_TTL_MS / (24 * 60 * 60 * 1000),
+    authRateLimitPerHour: 20,
+    analysisRateLimitPerDay: 60,
+    subscribeRateLimitPerHour: 5,
     appleAudiences: [],
     googleAudiences: [],
     adminToken: "",
     subscribeDailyCap: 200,
+    subscribeConfirmTtlDays: 7,
+    mailProvider: "log",
+    mailFrom: "ieat <lets@eait.fit>",
+    resendApiKey: "",
+    resendBaseUrl: "https://api.resend.com",
+    mailTimeoutMs: 15_000,
+    publicApiUrl: "",
     landingUrl: "",
   };
 }
@@ -150,6 +228,27 @@ export function loadConfig(): Config {
 
   const maxPhotosPerMeal = int("MAX_PHOTOS_PER_MEAL", d.maxPhotosPerMeal);
   if (maxPhotosPerMeal < 1) throw new Error("[ieat] MAX_PHOTOS_PER_MEAL must be at least 1");
+
+  // Zero passes `int` — it is a non-negative integer — and would expire every token the instant it
+  // was issued, which presents as an app that cannot stay signed in and as nothing in any log.
+  const sessionTtlDays = int("SESSION_TTL_DAYS", d.sessionTtlDays);
+  if (sessionTtlDays < 1) throw new Error("[ieat] SESSION_TTL_DAYS must be at least 1");
+
+  const subscribeConfirmTtlDays = int("SUBSCRIBE_CONFIRM_TTL_DAYS", d.subscribeConfirmTtlDays);
+  if (subscribeConfirmTtlDays < 1) {
+    throw new Error("[ieat] SUBSCRIBE_CONFIRM_TTL_DAYS must be at least 1");
+  }
+
+  // An unknown provider is a STARTUP ERROR, not a fallback to `log`. Falling back would mean a
+  // typo in a deploy variable produced a server that quietly printed confirmation links into a
+  // container log instead of sending them, and the only symptom is a list that stops growing.
+  const mailProvider = (process.env.MAIL_PROVIDER ?? d.mailProvider) as Config["mailProvider"];
+  if (mailProvider !== "log" && mailProvider !== "resend") {
+    throw new Error(`[ieat] MAIL_PROVIDER must be "log" or "resend", not "${mailProvider}"`);
+  }
+  if (mailProvider === "resend" && !process.env.RESEND_API_KEY) {
+    throw new Error("[ieat] MAIL_PROVIDER=resend needs RESEND_API_KEY");
+  }
 
   return {
     ...d,
@@ -168,10 +267,21 @@ export function loadConfig(): Config {
     // Expressed in megabytes because that is how anyone setting it thinks about it.
     maxUploadBytes: int("MAX_UPLOAD_MB", d.maxUploadBytes / (1024 * 1024)) * 1024 * 1024,
     maxPhotosPerMeal,
+    sessionTtlDays,
+    authRateLimitPerHour: int("AUTH_RATE_LIMIT_PER_HOUR", d.authRateLimitPerHour),
+    analysisRateLimitPerDay: int("ANALYSIS_RATE_LIMIT_PER_DAY", d.analysisRateLimitPerDay),
+    subscribeRateLimitPerHour: int("SUBSCRIBE_RATE_LIMIT_PER_HOUR", d.subscribeRateLimitPerHour),
     appleAudiences: list("APPLE_AUDIENCES"),
     googleAudiences: list("GOOGLE_AUDIENCES"),
     adminToken: adminTokenFromEnv(),
     subscribeDailyCap: int("SUBSCRIBE_DAILY_CAP", d.subscribeDailyCap),
+    subscribeConfirmTtlDays: subscribeConfirmTtlDays,
+    mailProvider,
+    mailFrom: process.env.MAIL_FROM ?? d.mailFrom,
+    resendApiKey: process.env.RESEND_API_KEY ?? d.resendApiKey,
+    resendBaseUrl: (process.env.RESEND_BASE_URL ?? d.resendBaseUrl).replace(/\/$/, ""),
+    mailTimeoutMs: int("MAIL_TIMEOUT_MS", d.mailTimeoutMs),
+    publicApiUrl: (process.env.PUBLIC_API_URL ?? d.publicApiUrl).replace(/\/$/, ""),
     // No validation beyond "looks like an origin": a wrong value here sends somebody to the wrong
     // page, which is visible, rather than corrupting anything, which is not.
     landingUrl: (process.env.LANDING_URL ?? d.landingUrl).replace(/\/$/, ""),
@@ -202,11 +312,14 @@ export function adminTokenFromEnv(): string {
  * crash report is one of the commonest ways a key reaches a log aggregator.
  */
 export function redact(c: Config): Record<string, unknown> {
-  const { llmApiKey: _k, adminToken: _a, databaseUrl, ...rest } = c;
+  const { llmApiKey: _k, adminToken: _a, resendApiKey: _r, databaseUrl, ...rest } = c;
   return {
     ...rest,
     databaseUrl: databaseUrl.replace(/\/\/[^@]*@/, "//***@"),
     llmApiKey: "***",
+    // Destructured out above and reinstated as a mask, so a field added to Config can never reach
+    // this log by being forgotten — the omission is the default and the disclosure is the edit.
+    resendApiKey: c.resendApiKey === "" ? "(unset)" : "***",
     // Whether the admin is ON is worth seeing in a boot log; the token itself never is.
     adminToken: c.adminToken === "" ? "(disabled)" : "***",
   };
