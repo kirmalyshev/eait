@@ -5,7 +5,9 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assertClean, ClaimsError, copyFromHtml, lintCopy } from "./claims.ts";
-import { loadLandingConfig, LandingConfigError, primaryCta, secondaryCta } from "./config.ts";
+import {
+  loadLandingConfig, LandingConfigError, primaryCta, secondaryCta, surfaceNote, START_CODES,
+} from "./config.ts";
 import { iconSvg, renderLanding } from "./render.ts";
 import { buildLanding } from "./build.ts";
 import { faviconIco, ogPng, OG_HEIGHT, OG_WIDTH } from "./images.ts";
@@ -68,8 +70,10 @@ describe("config", () => {
   });
 
   test("the store link is primary when it exists", () => {
-    expect(primaryCta(config).href).toBe(ENV.LANDING_APP_STORE_URL);
-    expect(secondaryCta(config)?.href).toBe(ENV.LANDING_TELEGRAM_URL);
+    // The store link goes out untouched: Apple takes campaign attribution through pt/ct provider
+    // tokens, not a query string of ours.
+    expect(primaryCta(config, "hero").href).toBe(ENV.LANDING_APP_STORE_URL);
+    expect(secondaryCta(config, "hero")?.href).toBe(`${ENV.LANDING_TELEGRAM_URL}?start=web_hero`);
   });
 
   test("before the listing exists the bot is primary, not a consolation link", () => {
@@ -77,8 +81,8 @@ describe("config", () => {
       LANDING_SITE_URL: ENV.LANDING_SITE_URL,
       LANDING_TELEGRAM_URL: ENV.LANDING_TELEGRAM_URL,
     });
-    expect(primaryCta(preLaunch).href).toBe(ENV.LANDING_TELEGRAM_URL);
-    expect(secondaryCta(preLaunch)).toBeNull();
+    expect(primaryCta(preLaunch, "hero").href).toBe(`${ENV.LANDING_TELEGRAM_URL}?start=web_hero`);
+    expect(secondaryCta(preLaunch, "hero")).toBeNull();
   });
 
   test("a copy-review date is a date", () => {
@@ -217,14 +221,19 @@ describe("the rendered page", () => {
     const urls = [...html.matchAll(/(?:href|src)="([^"]+)"/g)].map((m) => m[1]!);
     const external = [...new Set(urls.filter((u) => /^[a-z]+:\/\//i.test(u)))];
     expect(external.sort()).toEqual(
-      [config.appStoreUrl!, `${config.siteUrl}/`, config.telegramUrl!].sort(),
+      [
+        config.appStoreUrl!,
+        `${config.siteUrl}/`,
+        `${config.telegramUrl!}?start=web_hero`,
+        `${config.telegramUrl!}?start=web_foot`,
+      ].sort(),
     );
   });
 
   test("the primary action appears twice — top and bottom — and always resolves", () => {
     const ctas = [...html.matchAll(/class="cta"/g)];
     expect(ctas).toHaveLength(2);
-    expect(html).toContain(`href="${primaryCta(config).href}"`);
+    expect(html).toContain(`href="${primaryCta(config, "hero").href}"`);
   });
 
   test("privacy and support are reachable from the page", () => {
@@ -344,5 +353,40 @@ describe("the images", () => {
   test("the share card is an absolute URL", () => {
     // Every unfurler requires it. A relative og:image silently produces a card with no image.
     expect(html).toContain(`<meta property="og:image" content="${config.siteUrl}/og.png">`);
+  });
+});
+
+describe("attribution", () => {
+  test("every bot link carries a start code, and they differ by placement", () => {
+    // Without these the page converts into the organic bucket and cannot be judged at all —
+    // which is the one thing `eait-marketer` built an attribution convention to avoid.
+    const bot = [...html.matchAll(/https:\/\/t\.me\/[^"]*/g)].map((m) => m[0]);
+    expect(bot.length).toBeGreaterThanOrEqual(2);
+    for (const href of bot) expect(href).toMatch(/\?start=web_(hero|foot)$/);
+    expect(new Set(bot).size).toBe(2);
+  });
+
+  test("start codes are payloads Telegram will accept", () => {
+    // `[A-Za-z0-9_-]{1,64}`. A code Telegram rejects is a link that opens the bot with no /start
+    // payload at all — which looks like it worked and records nothing.
+    for (const code of Object.values(START_CODES)) expect(code).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
+  });
+});
+
+describe("the page describes the surface its button opens", () => {
+  test("before the listing exists, it says the app is not out", () => {
+    // The page argues for an iPhone app and its only button opens Telegram. Saying so is the only
+    // option consistent with the rest of it.
+    const preLaunch = loadLandingConfig({
+      LANDING_SITE_URL: ENV.LANDING_SITE_URL,
+      LANDING_TELEGRAM_URL: ENV.LANDING_TELEGRAM_URL,
+    });
+    expect(surfaceNote(preLaunch)).toContain("not out yet");
+    expect(renderLanding(preLaunch)).toContain("hero-surface");
+  });
+
+  test("once it exists there is nothing to explain", () => {
+    expect(surfaceNote(config)).toBeNull();
+    expect(html).not.toContain("hero-surface");
   });
 });

@@ -213,9 +213,12 @@ export const floorSection = {
 export const accuracySection = {
   eyebrow: "Accuracy",
   headline: "A photo is an estimate. So it lets you argue with it.",
-  body: [
+  // Lifted out of the body and into the section's opening line. It was the strongest sentence on
+  // the page and it was the second half of a mid-paragraph clause in the fifth section.
+  intro:
     "Nobody can weigh your lunch from a picture. An app that behaves as though it can is going to " +
-    "be wrong quietly, and quietly wrong is the failure mode that costs you the month.",
+    "be wrong quietly — and quietly wrong is the failure mode that costs you the month.",
+  body: [
     "So eait shows its working: the items it thinks it saw, and what it assumed about each. When " +
     "it has that wrong, say so in ordinary words — “half that”, “no oil”, “that is a small one” — " +
     "or open the item and set the grams yourself. Change one item and its calories rescale by its " +
@@ -288,7 +291,9 @@ export const faqs: readonly Faq[] = [
   },
   {
     q: "Is there an Android version?",
-    a: "Not yet. The Telegram bot works on anything that runs Telegram, which includes Android.",
+    a:
+      "Neither app is out yet — iPhone first, Android after it has proved itself there. The " +
+      "Telegram bot works on anything that runs Telegram, Android included.",
   },
 ];
 

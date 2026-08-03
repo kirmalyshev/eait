@@ -130,6 +130,36 @@ export function loadLandingConfig(env: Record<string, string | undefined>): Land
 export const DEFAULT_UPDATED_AT = "2026-08-02";
 
 /**
+ * Attribution codes, appended to the bot link as `?start=<code>`.
+ *
+ * `eait-marketer` gives every published asset a unique `t.me/eait_bot?start=<code>` so a view can
+ * be traced to the post that produced it — `tt_*` TikTok, `ig_*` Instagram, `cr_*` creators, `rs_*`
+ * and `ro_*` Reddit. This page had neither, so every visitor it converted landed in the organic
+ * bucket and the page could not be judged at all. `web_*` is a new prefix in that scheme; record it
+ * in that repo's convention when you next touch it.
+ *
+ * Two codes rather than one, because the difference between them is the only cheap read available
+ * on whether the page's argument is doing any work: a tap at the top is the headline converting,
+ * and a tap at the bottom is someone who read 1,200 words first.
+ *
+ * Telegram accepts `[A-Za-z0-9_-]{1,64}` as a start payload; both of these are well inside it.
+ */
+export const START_CODES = { hero: "web_hero", footer: "web_foot" } as const;
+export type CtaPlacement = keyof typeof START_CODES;
+
+/**
+ * Appends the start code, and ONLY to a Telegram link.
+ *
+ * An App Store URL takes campaign attribution through `pt`/`ct` provider tokens instead, which are
+ * account-specific and not ours to invent here — so a store link goes out untouched rather than
+ * carrying a query parameter Apple ignores.
+ */
+function withStartCode(href: string, placement: CtaPlacement): string {
+  if (!TELEGRAM_HOSTS.includes(new URL(href).hostname)) return href;
+  return `${href}?start=${START_CODES[placement]}`;
+}
+
+/**
  * Which button gets the accent.
  *
  * The app's own rule is that the accent colour marks exactly one thing per screen — the primary
@@ -137,25 +167,53 @@ export const DEFAULT_UPDATED_AT = "2026-08-02";
  * destinations is primary. The App Store wins whenever it exists; before then the bot is not a
  * consolation link, it is the only thing a visitor can actually do.
  */
-export function primaryCta(config: LandingConfig): { href: string; label: string; note: string } {
+export function primaryCta(
+  config: LandingConfig,
+  placement: CtaPlacement,
+): { href: string; label: string; note: string } {
   if (config.appStoreUrl) {
     return {
-      href: config.appStoreUrl,
+      href: withStartCode(config.appStoreUrl, placement),
       label: "Get eait for iPhone",
       note: "No card. No trial. Photos are deleted once they have been read.",
     };
   }
   return {
-    href: config.telegramUrl!,
-    label: "Open the Telegram bot",
-    note: "Nothing to install. Send a photo to a chat and read the answer.",
+    href: withStartCode(config.telegramUrl!, placement),
+    // Not "Open the Telegram bot". A button that names the destination spends itself on navigation;
+    // this one names what happens next, and the note under it carries the destination.
+    label: "Send your first meal",
+    note: "Nothing to install. Send a photo to a Telegram chat and read the answer.",
   };
 }
 
 /** The other one, if there is another one. */
-export function secondaryCta(config: LandingConfig): { href: string; label: string } | null {
+export function secondaryCta(
+  config: LandingConfig,
+  placement: CtaPlacement,
+): { href: string; label: string } | null {
   if (config.appStoreUrl && config.telegramUrl) {
-    return { href: config.telegramUrl, label: "or try it in Telegram first" };
+    return { href: withStartCode(config.telegramUrl, placement), label: "or try it in Telegram first" };
   }
   return null;
+}
+
+/**
+ * The one sentence that stops the page describing a product the button does not open.
+ *
+ * Until the listing exists, this page argues for an iPhone app — "Sign in with Apple", "the app",
+ * an FAQ answering whether there is an Android version — and its only button opens Telegram. A
+ * visitor forms one model of what they are getting and is handed another, on a page whose entire
+ * argument is that we do not do sneaky things. Saying it plainly costs one line and is the only
+ * honest option: the app is not released, and pretending the mismatch is not there is the thing
+ * the rest of the page promises we would not do.
+ *
+ * Returns null once the store link exists, at which point there is nothing to explain.
+ */
+export function surfaceNote(config: LandingConfig): string | null {
+  if (config.appStoreUrl) return null;
+  return (
+    "The iPhone app is not out yet — everything below describes it. The Telegram bot does the " +
+    "photo-to-verdict part today, on any phone, with nothing to install."
+  );
 }

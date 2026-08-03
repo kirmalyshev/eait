@@ -162,6 +162,13 @@ a { color: inherit; }
 }
 .hero-sub { margin-top: 1.75rem; font-size: clamp(1.0625rem, 1.6vw, 1.1875rem); color: var(--muted); max-width: 44ch; }
 
+/* The line that says which surface the button actually opens. Care-blue rule, because this is the
+   same class of statement as the floor — we stopped you to tell you something true. */
+.hero-surface {
+  margin-top: 1.5rem; padding-left: 1rem; border-left: 2px solid var(--care);
+  color: var(--muted); font-size: .9375rem; max-width: 46ch;
+}
+
 .cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; margin-top: 2.5rem; }
 .cta {
   display: inline-flex; align-items: center; gap: .625rem;

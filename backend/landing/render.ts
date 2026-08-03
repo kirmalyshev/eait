@@ -15,7 +15,9 @@ import {
   accuracySection, brand, closing, faqSection, faqs, floorSection, footer, hero, privacySection,
   refusals, refusalsSection, sample, steps, stepsSection,
 } from "./content.ts";
-import { primaryCta, secondaryCta, type LandingConfig } from "./config.ts";
+import {
+  primaryCta, secondaryCta, surfaceNote, type CtaPlacement, type LandingConfig,
+} from "./config.ts";
 import { color } from "./tokens.ts";
 import { OG_HEIGHT, OG_WIDTH } from "./images.ts";
 
@@ -122,11 +124,11 @@ function heroInstrument(): string {
       </figure>`;
 }
 
-function ctaBlock(config: LandingConfig, extraClass = ""): string {
-  const primary = primaryCta(config);
-  const secondary = secondaryCta(config);
+function ctaBlock(config: LandingConfig, placement: CtaPlacement): string {
+  const primary = primaryCta(config, placement);
+  const secondary = secondaryCta(config, placement);
   return `
-      <div class="cta-row${extraClass}">
+      <div class="cta-row">
         <a class="cta" href="${esc(primary.href)}">${esc(primary.label)}</a>${
           secondary
             ? `
@@ -199,8 +201,13 @@ ${robotsMeta(config)}<link rel="icon" href="/favicon.ico" sizes="64x64">
       <div>
         <p class="eyebrow">${esc(hero.eyebrow)}</p>
         <h1 class="hero-title">${esc(hero.headline)}</h1>
-        <p class="hero-sub">${esc(hero.sub)}</p>
-${ctaBlock(config)}
+        <p class="hero-sub">${esc(hero.sub)}</p>${
+          surfaceNote(config)
+            ? `
+        <p class="hero-surface">${esc(surfaceNote(config)!)}</p>`
+            : ""
+        }
+${ctaBlock(config, 'hero')}
       </div>
 ${heroInstrument()}
     </div>
@@ -246,6 +253,19 @@ ${steps
     </div>
   </section>
 
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">${esc(accuracySection.eyebrow)}</p>
+        <h2 class="section-title">${esc(accuracySection.headline)}</h2>
+        <p class="section-intro">${esc(accuracySection.intro)}</p>
+      </div>
+      <div class="prose">
+${accuracySection.body.map((p) => `        <p>${esc(p)}</p>`).join("\n")}
+      </div>
+    </div>
+  </section>
+
   <section class="section floor-section">
     <div class="wrap">
       <div class="section-head">
@@ -264,18 +284,6 @@ ${floorSection.guards
   .join("\n")}
       </div>
       <p class="floor-outro">${esc(floorSection.outro)}</p>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="wrap">
-      <div class="section-head">
-        <p class="eyebrow">${esc(accuracySection.eyebrow)}</p>
-        <h2 class="section-title">${esc(accuracySection.headline)}</h2>
-      </div>
-      <div class="prose">
-${accuracySection.body.map((p) => `        <p>${esc(p)}</p>`).join("\n")}
-      </div>
     </div>
   </section>
 
@@ -321,7 +329,7 @@ ${faqs
     <div class="wrap">
       <h2 class="closing-title">${esc(closing.headline)}</h2>
       <p class="closing-sub">${esc(closing.sub)}</p>
-${ctaBlock(config)}
+${ctaBlock(config, 'footer')}
     </div>
   </section>
 
