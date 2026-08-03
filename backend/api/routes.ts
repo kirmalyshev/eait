@@ -32,6 +32,7 @@ import {
 } from "../engine/index.ts";
 import { subscribe, unsubscribe } from "../engine/subscribe.ts";
 import { adminRoutes } from "./admin.ts";
+import { clientAddress, rateLimiter } from "./ratelimit.ts";
 
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -59,10 +60,22 @@ function toLang(locale: string | undefined): Lang {
  * JSON body instead — which is what a `curl` wants and what a backend deployed without a landing
  * page has to do.
  */
-function landingRedirect(landingUrl: string, path: string, body: unknown): Response {
-  if (landingUrl === "") return json(body);
+function landingRedirect(landingUrl: string, path: string, body: unknown, status = 200): Response {
+  if (landingUrl === "") return json(body, status);
   return new Response(null, { status: 303, headers: { location: `${landingUrl}${path}` } });
 }
+
+/**
+ * The part of Bun's server this file needs: the socket peer, for a request that arrived without an
+ * `X-Forwarded-For`. Declared structurally rather than imported so the router stays constructible
+ * in a test with no server at all.
+ */
+export interface PeerSource {
+  requestIP(req: Request): { address: string } | null;
+}
+
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
 
 export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityVerifier) {
   const bearer = (req: Request): string | null => {
@@ -70,13 +83,46 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
     return header?.startsWith("Bearer ") ? header.slice(7) : null;
   };
 
+  // ── Per-address limits ──────────────────────────────────────────────────────────────────────
+  //
+  // One limiter per router, so a test gets a clean one and the process gets exactly one.
+  //
+  // These are NOT the spend caps. `engine/caps.ts` bounds what one ACCOUNT and what the INSTANCE
+  // may spend, and both were correct while being trivially bypassable: `POST /v1/auth/device`
+  // mints an account for anybody, so resetting a per-user allowance cost one HTTP call, and the
+  // only real bound left was the instance budget — which an attacker exhausts on purpose, spending
+  // the money and refusing every real user for the rest of the day. A per-address limit on the
+  // billed routes is what makes the per-account one mean something.
+  const limiter = rateLimiter();
+
+  /** Zero means the limit is off — an escape hatch that has to be explicit rather than implied. */
+  const limit = (
+    req: Request,
+    peer: PeerSource | undefined,
+    bucket: string,
+    perWindow: number,
+    windowMs: number,
+  ): number | null => {
+    if (perWindow <= 0) return null;
+    const address = clientAddress(req, peer?.requestIP(req)?.address);
+    // The bucket is part of the key, so an hour of sign-ins and a day of analyses are counted
+    // separately for the same address rather than sharing one allowance.
+    return limiter.check(`${bucket}:${address}`, { limit: perWindow, windowMs });
+  };
+
+  const tooManyRequests = (retryAfter: number, body: Record<string, unknown>): Response =>
+    new Response(JSON.stringify(body), {
+      status: 429,
+      headers: { "content-type": "application/json", "retry-after": String(retryAfter) },
+    });
+
   /** The ONLY path from a request to a userId. */
   async function resolveUserId(req: Request): Promise<string | null> {
     const token = bearer(req);
     return token === null ? null : store.userIdForToken(token);
   }
 
-  return async function handle(req: Request): Promise<Response> {
+  return async function handle(req: Request, peer?: PeerSource): Promise<Response> {
     const url = new URL(req.url);
     const { pathname } = url;
 
@@ -105,6 +151,16 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
       // the redirects: a person who subscribed should land on a page that says so, on the site they
       // were reading, not on a JSON body at an api. hostname.
       if (req.method === "POST" && pathname === ROUTES.subscribe) {
+        // Refused BEFORE the body is read. The honeypot catches a bot that fills every field and
+        // `subscribeDailyCap` bounds the list as a whole; this bounds one address, which is what
+        // stops a single script spending the day's cap in a minute and leaving every real visitor
+        // told they subscribed when they did not.
+        const wait = limit(req, peer, "subscribe", deps.config.subscribeRateLimitPerHour, HOUR);
+        if (wait !== null) {
+          return landingRedirect(deps.config.landingUrl, "/not-subscribed",
+            { error: "too many attempts from this address — try again shortly" }, 429);
+        }
+
         const form = await req.formData().catch(() => null);
         const field = (name: string) => {
           const v = form?.get(name);
@@ -127,7 +183,24 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
         return landingRedirect(deps.config.landingUrl, "/unsubscribed", { ok: true });
       }
 
-      // Also unauthenticated — this is where a token comes from.
+      // ── The routes that mint a session ────────────────────────────────────────────────────
+      //
+      // All three are unauthenticated by necessity — this is where a token comes from — and all
+      // three are therefore rate-limited by address before anything else happens. Device auth is
+      // the one that matters: it creates an ACCOUNT, so without a limit here the per-user analysis
+      // allowance is worth exactly one extra HTTP call to reset, and the users table grows as fast
+      // as somebody cares to loop.
+      if (req.method === "POST"
+        && (pathname === ROUTES.authDevice || pathname === ROUTES.authApple
+          || pathname === ROUTES.authGoogle)) {
+        const wait = limit(req, peer, "auth", deps.config.authRateLimitPerHour, HOUR);
+        if (wait !== null) {
+          // A distinct error from `cap-exceeded`: nothing has been spent, and the app words the two
+          // differently — one is "your day is used up", this one is "slow down".
+          return tooManyRequests(wait, { error: "rate-limited" });
+        }
+      }
+
       if (req.method === "POST" && pathname === ROUTES.authDevice) {
         const body = await req.json() as AuthDeviceRequest;
         // Length is a real check, not decoration: a short device id is guessable, and guessing one
@@ -171,6 +244,25 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
 
       const userId = await resolveUserId(req);
       if (userId === null) return json({ error: "unauthenticated" }, 401);
+
+      // ── The billed routes, bounded by ADDRESS as well as by account ───────────────────────
+      //
+      // Checked here, after authentication and before any handler, because it applies to both
+      // routes that call the model and neither should be able to forget it.
+      //
+      // This is the cap that closes the bypass. A per-account allowance is only a limit while
+      // accounts are scarce, and they are not: the route above hands one to anybody. Counting per
+      // address instead means minting a hundred accounts buys nothing.
+      //
+      // Reported as `cap-exceeded` with `scope: "address"` rather than as a bare 429, so it travels
+      // the refusal path the app already renders — and is worded as what it is. Saying "your daily
+      // allowance is spent" to somebody on a carrier network who has logged one meal would be a lie.
+      if (req.method === "POST" && (pathname === ROUTES.photo || pathname === ROUTES.messages)) {
+        const wait = limit(req, peer, "analysis", deps.config.analysisRateLimitPerDay, DAY);
+        if (wait !== null) {
+          return tooManyRequests(wait, { error: "cap-exceeded", scope: "address" });
+        }
+      }
 
       // Sign OUT — drops this token only. Not account deletion; the data is untouched, and every
       // other device stays signed in.

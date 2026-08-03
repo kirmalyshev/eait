@@ -587,3 +587,115 @@ describe("the mailing list", () => {
     expect(await res.json()).toEqual({ ok: true });
   });
 });
+
+// ── Per-address limits ─────────────────────────────────────────────────────────────────────────
+//
+// The unit tests in `ratelimit.test.ts` cover the limiter. These cover the thing it is FOR: that
+// minting a second account does not buy a second allowance, which is the bypass that made the
+// per-user cap decorative.
+describe("rate limits", () => {
+  const routerWith = (over: Partial<Config>) => {
+    const s = memoryStore();
+    const config: Config = { ...CONFIG, ...over };
+    return createRouter({ store: s, config, llm: demoPorts() }, s, testVerifier);
+  };
+
+  /** A device registration from a stated address, as Caddy would present it. */
+  const registerFrom = (h: (r: Request) => Promise<Response>, address: string) =>
+    h(new Request(url(ROUTES.authDevice), {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": address },
+      body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en" }),
+    }));
+
+  it("bounds how many accounts one address may mint", async () => {
+    const h = routerWith({ authRateLimitPerHour: 3 });
+
+    for (let i = 0; i < 3; i++) {
+      expect((await registerFrom(h, "203.0.113.9")).status).toBe(200);
+    }
+
+    const refused = await registerFrom(h, "203.0.113.9");
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toEqual({ error: "rate-limited" });
+    // Without this a client has no idea whether to retry in a second or an hour, and picks a second.
+    expect(Number(refused.headers.get("retry-after"))).toBeGreaterThan(0);
+  });
+
+  it("does not let one address spend another's allowance", async () => {
+    const h = routerWith({ authRateLimitPerHour: 1 });
+    expect((await registerFrom(h, "203.0.113.9")).status).toBe(200);
+    expect((await registerFrom(h, "203.0.113.9")).status).toBe(429);
+    expect((await registerFrom(h, "198.51.100.7")).status).toBe(200);
+  });
+
+  it("reads the LAST forwarded address, so a client cannot forge its way out", async () => {
+    const h = routerWith({ authRateLimitPerHour: 1 });
+    // Caddy appends what it saw, so everything left of the final entry is attacker-controlled. A
+    // limiter that keyed on the first value would hand this attacker a fresh bucket per request.
+    const spoof = (n: number) =>
+      h(new Request(url(ROUTES.authDevice), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-for": `10.0.0.${n}, 203.0.113.9`,
+        },
+        body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en" }),
+      }));
+
+    expect((await spoof(1)).status).toBe(200);
+    expect((await spoof(2)).status).toBe(429);
+    expect((await spoof(3)).status).toBe(429);
+  });
+
+  it("counts billed analyses per address, across every account it creates", async () => {
+    // The whole point. Two accounts, one address, one allowance between them — otherwise the
+    // per-user cap is worth exactly one call to /v1/auth/device.
+    const h = routerWith({ analysisRateLimitPerDay: 2, userDailyPhotoCap: 99 });
+    const address = "203.0.113.9";
+
+    const onboard = async (): Promise<string> => {
+      const res = await registerFrom(h, address);
+      const { token } = await res.json() as { token: string };
+      await h(new Request(url(ROUTES.profile), {
+        method: "PATCH",
+        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
+          target_weight_kg: 65, activity: "moderate", pace: "steady", country: "gb",
+          restrictions: [], complete_onboarding: true,
+        }),
+      }));
+      return token;
+    };
+
+    const photo = (token: string) => {
+      const form = new FormData();
+      form.append("photo", new File([new Uint8Array(64).fill(7)], "m.jpg", { type: "image/jpeg" }));
+      return h(new Request(url(ROUTES.photo), {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "x-forwarded-for": address },
+        body: form,
+      }));
+    };
+
+    const first = await onboard();
+    expect((await photo(first)).status).toBe(200);
+    expect((await photo(first)).status).toBe(200);
+
+    // A brand new account from the same address. Its own allowance is untouched — and it gets
+    // nothing, because the allowance that matters is the address's.
+    const second = await onboard();
+    const refused = await photo(second);
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toEqual({ error: "cap-exceeded", scope: "address" });
+  });
+
+  it("is off when the limit is zero, and says so by allowing the request", async () => {
+    // An escape hatch that has to be typed, rather than one that happens when a variable is missing.
+    const h = routerWith({ authRateLimitPerHour: 0 });
+    for (let i = 0; i < 25; i++) {
+      expect((await registerFrom(h, "203.0.113.9")).status).toBe(200);
+    }
+  });
+});

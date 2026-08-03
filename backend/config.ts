@@ -69,6 +69,27 @@ export interface Config {
   sessionTtlDays: number;
 
   /**
+   * Requests per hour, per address, on the routes that mint a session.
+   *
+   * `POST /v1/auth/device` creates an account for anybody with a 32-character string, so without
+   * this the per-user analysis allowance is worth nothing — resetting it costs one HTTP call — and
+   * the users table grows as fast as somebody cares to loop. Zero disables the limit.
+   */
+  authRateLimitPerHour: number;
+  /**
+   * Billed analyses per day, per address, across every account reached from it.
+   *
+   * THIS is the cap that closes the account-minting bypass: `userDailyPhotoCap` bounds one account
+   * and this bounds one address regardless of how many accounts it creates. Set well above one
+   * person's own allowance on purpose — a mobile carrier can put thousands of subscribers behind
+   * one address, and refusing a stranger who has logged one meal is a worse failure than the spend
+   * this is guarding. Zero disables it; `globalDailyAnalysisCap` is then the only backstop.
+   */
+  analysisRateLimitPerDay: number;
+  /** Subscribe submissions per hour, per address. The honeypot's backstop. Zero disables. */
+  subscribeRateLimitPerHour: number;
+
+  /**
    * The credential for `/admin` — onboarding copy and the funnel.
    *
    * EMPTY MEANS THERE IS NO ADMIN. Every path under `/admin` answers 404, so a deployment that
@@ -149,6 +170,9 @@ export function configDefaults(): Config {
     maxUploadBytes: 20 * 1024 * 1024,
     maxPhotosPerMeal: 4,
     sessionTtlDays: DEFAULT_SESSION_TTL_MS / (24 * 60 * 60 * 1000),
+    authRateLimitPerHour: 20,
+    analysisRateLimitPerDay: 60,
+    subscribeRateLimitPerHour: 5,
     appleAudiences: [],
     googleAudiences: [],
     adminToken: "",
@@ -186,6 +210,9 @@ export function loadConfig(): Config {
     maxUploadBytes: int("MAX_UPLOAD_MB", d.maxUploadBytes / (1024 * 1024)) * 1024 * 1024,
     maxPhotosPerMeal,
     sessionTtlDays,
+    authRateLimitPerHour: int("AUTH_RATE_LIMIT_PER_HOUR", d.authRateLimitPerHour),
+    analysisRateLimitPerDay: int("ANALYSIS_RATE_LIMIT_PER_DAY", d.analysisRateLimitPerDay),
+    subscribeRateLimitPerHour: int("SUBSCRIBE_RATE_LIMIT_PER_HOUR", d.subscribeRateLimitPerHour),
     appleAudiences: list("APPLE_AUDIENCES"),
     googleAudiences: list("GOOGLE_AUDIENCES"),
     adminToken: adminTokenFromEnv(),

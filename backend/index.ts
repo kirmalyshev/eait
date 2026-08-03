@@ -92,7 +92,11 @@ const server = Bun.serve({
   // The real backstop for upload size — a client can lie about or omit Content-Length, so the
   // early check in the router is a courtesy and this is the guarantee.
   maxRequestBodySize: config.maxUploadBytes + 1024 * 1024,
-  fetch: handle,
+  // `server` is passed through so the router can fall back to the socket peer when a request has no
+  // `X-Forwarded-For`. In production every request has one — Caddy is the only way in — so this is
+  // the local-development path, where it is the difference between per-address limits and one
+  // shared bucket called "unknown".
+  fetch: (req, server) => handle(req, server),
 });
 
 console.log(`[ieat] listening on http://${server.hostname}:${server.port}${demo ? " (demo: in-memory store, canned analyzer)" : ""}`);
