@@ -699,3 +699,54 @@ describe("rate limits", () => {
     }
   });
 });
+
+describe("subscribe outcomes", () => {
+  const routerWith = (over: Partial<Config>) => {
+    const s = memoryStore();
+    const config: Config = { ...CONFIG, landingUrl: "https://eait.fit", ...over };
+    return createRouter({ store: s, config, llm: demoPorts() }, s, testVerifier);
+  };
+
+  const submit = (h: (r: Request) => Promise<Response>, fields: Record<string, string>) =>
+    h(new Request(url(ROUTES.subscribe), { method: "POST", body: new URLSearchParams(fields) }));
+
+  it("does not tell a capped submitter they are on the list", async () => {
+    // The defect this exists for. Only `invalid` was routed away from /subscribed, so a submission
+    // the cap refused reported success and dropped the address — and the cap is global, so one
+    // script filling it turned every real visitor for the rest of the day into a silent loss.
+    const h = routerWith({ subscribeDailyCap: 1 });
+
+    const first = await submit(h, { email: "first@example.com" });
+    expect(first.headers.get("location")).toBe("https://eait.fit/subscribed");
+
+    const capped = await submit(h, { email: "second@example.com" });
+    expect(capped.headers.get("location")).toBe("https://eait.fit/try-later");
+  });
+
+  it("still answers a honeypot hit exactly like a success", async () => {
+    // The one case where lying is right: a bot that can tell the two apart learns which field to
+    // leave empty next time.
+    const h = routerWith({});
+    const bot = await submit(h, { email: "bot@example.com", company: "Acme Inc" });
+    expect(bot.headers.get("location")).toBe("https://eait.fit/subscribed");
+  });
+
+  it("says the cap was hit in the JSON answer too, for a backend with no landing page", async () => {
+    const h = routerWith({ landingUrl: "", subscribeDailyCap: 1 });
+    await submit(h, { email: "first@example.com" });
+    const capped = await submit(h, { email: "second@example.com" });
+    // 429 rather than 200-with-an-error-body: a caller that only reads the status must not read
+    // this as an acceptance.
+    expect(capped.status).toBe(429);
+    expect(await capped.json()).toHaveProperty("error");
+  });
+
+  it("sends a rate-limited submission to the same page, saying nothing about which limit", async () => {
+    // Distinguishing "the cap is spent" from "you are being limited" tells a script how well it is
+    // doing. One page for both.
+    const h = routerWith({ subscribeRateLimitPerHour: 1 });
+    await submit(h, { email: "a@example.com" });
+    const limited = await submit(h, { email: "b@example.com" });
+    expect(limited.headers.get("location")).toBe("https://eait.fit/try-later");
+  });
+});

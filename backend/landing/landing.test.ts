@@ -468,10 +468,13 @@ describe("the mailing list on the page", () => {
     expect(rule.slice(0, rule.indexOf("}"))).not.toContain("var(--accent)");
   });
 
-  test("the three redirect targets are built, so none of them 404s", () => {
+  test("every redirect target is built, so none of them 404s", () => {
     const pages = outcomePages(withApi);
+    // `try-later` is the fourth and it exists because of a real defect: a submission refused by the
+    // daily cap used to land on `subscribed`, so the person was told they were on a list they were
+    // not on, and the address was gone. An outcome without a page is an outcome that lies.
     expect(Object.keys(pages).sort())
-      .toEqual(["not-subscribed.html", "subscribed.html", "unsubscribed.html"]);
+      .toEqual(["not-subscribed.html", "subscribed.html", "try-later.html", "unsubscribed.html"]);
     for (const page of Object.values(pages)) {
       expect(lintCopy(copyFromHtml(page))).toEqual([]);
       expect(page).toContain('<meta name="robots" content="noindex">');

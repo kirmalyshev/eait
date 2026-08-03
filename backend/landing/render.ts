@@ -241,11 +241,18 @@ export function renderOutcome(
 `;
 }
 
-/** The three of them, by the path the API redirects to. */
+/**
+ * Every one of them, by the path the API redirects to.
+ *
+ * Adding a redirect target here is half the job — `deploy/nginx/templates/landing.conf.template`
+ * needs the extensionless location too, or the browser follows a 303 into a 404 at the worst
+ * possible moment.
+ */
 export function outcomePages(config: LandingConfig): Record<string, string> {
   return {
     "subscribed.html": renderOutcome(config, outcomes.subscribed),
     "not-subscribed.html": renderOutcome(config, outcomes.notSubscribed),
+    "try-later.html": renderOutcome(config, outcomes.tryLater),
     "unsubscribed.html": renderOutcome(config, outcomes.unsubscribed),
   };
 }

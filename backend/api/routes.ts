@@ -157,7 +157,7 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
         // told they subscribed when they did not.
         const wait = limit(req, peer, "subscribe", deps.config.subscribeRateLimitPerHour, HOUR);
         if (wait !== null) {
-          return landingRedirect(deps.config.landingUrl, "/not-subscribed",
+          return landingRedirect(deps.config.landingUrl, "/try-later",
             { error: "too many attempts from this address — try again shortly" }, 429);
         }
 
@@ -170,12 +170,34 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
           { store, config: deps.config },
           { email: field("email"), honeypot: field("company"), source: field("source") || "web" },
         );
-        // A refused submission and an accepted one look the same to a bot: same page, same status.
-        // The only thing that distinguishes them is `invalid`, which is a person's typo and the one
-        // case worth telling somebody about.
-        const failed = !result.ok && result.reason === "invalid";
-        return landingRedirect(deps.config.landingUrl, failed ? "/not-subscribed" : "/subscribed",
-          failed ? { error: "that does not look like an email address" } : { ok: true });
+        // ── Where each outcome goes, and why it is not two branches ─────────────────────────
+        //
+        // A HONEYPOT hit is answered exactly like a success. That is the one case where lying is
+        // correct: a bot that can tell the two apart learns which field to leave alone.
+        //
+        // Everything else must tell the truth, and this used to be a single boolean that did not.
+        // Only `invalid` was routed anywhere but `/subscribed`, so a submission refused by the
+        // daily cap landed on a page saying "you are on the list" while the address was dropped —
+        // and since the cap is global and was reachable by anybody in about a minute, a script
+        // could turn every real visitor for the rest of the day into a silent loss.
+        //
+        // `capped` is logged rather than merely redirected: it is the only one of these the
+        // operator can do something about, and it is invisible from the outside by design.
+        if (!result.ok && result.reason === "capped") {
+          console.warn("[ieat] subscribe refused: the daily list cap is spent");
+        }
+        const path = !result.ok
+          ? (result.reason === "invalid" ? "/not-subscribed"
+            : result.reason === "capped" ? "/try-later"
+            : "/subscribed")   // honeypot — indistinguishable from success, deliberately
+          : "/subscribed";
+        const body = !result.ok && result.reason === "invalid"
+          ? { error: "that does not look like an email address" }
+          : !result.ok && result.reason === "capped"
+            ? { error: "the list is not taking more addresses today — try again shortly" }
+            : { ok: true };
+        const status = !result.ok && result.reason === "capped" ? 429 : 200;
+        return landingRedirect(deps.config.landingUrl, path, body, status);
       }
 
       if (req.method === "GET" && pathname === ROUTES.unsubscribe) {

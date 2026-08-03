@@ -390,7 +390,7 @@ export const subscribeSection = {
   mascot: "One message. I will not make a habit of it.",
 } as const;
 
-/** The three pages the form's redirects land on. Static, no JavaScript, same shell as the page. */
+/** The pages the form's redirects land on. Static, no JavaScript, same shell as the page. */
 export const outcomes = {
   subscribed: {
     mascot: "wave" as const,
@@ -403,6 +403,26 @@ export const outcomes = {
     mascot: "think" as const,
     title: "That did not look like an email address",
     body: "Nothing was saved. Go back and try it again — a typo is the usual reason.",
+  },
+  /**
+   * The refusals that are not the reader's fault: the daily cap, and too many submissions from one
+   * network address.
+   *
+   * This page exists because of a defect. Both of those used to land on `subscribed` — only an
+   * invalid address was routed anywhere else — so somebody whose submission was refused was told
+   * they were on the list, and the address was simply gone. A bot filling the day's cap in a minute
+   * would have turned every real visitor after it into a silent loss, and nothing anywhere would
+   * have said so.
+   *
+   * It does NOT say which of the two happened. A page that distinguishes "the cap is spent" from
+   * "you personally are being limited" tells a script exactly how well it is doing.
+   */
+  tryLater: {
+    mascot: "care" as const,
+    title: "Not right now — try again shortly",
+    body:
+      "Nothing was saved, and that one is on us rather than on you. The list takes a limited " +
+      "number of addresses each day. Come back in a little while and it will go through.",
   },
   unsubscribed: {
     mascot: "care" as const,
