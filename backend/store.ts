@@ -63,18 +63,70 @@ export interface FunnelAggregate {
   }[];
 }
 
+/**
+ * What a store may be built with. Both implementations take the same options and mean the same
+ * thing by them, because a lifetime that differs between them is a lifetime the tests do not cover.
+ */
+export interface StoreOptions {
+  /**
+   * How long a bearer token survives WITHOUT BEING USED. Defaults to `DEFAULT_SESSION_TTL_MS`.
+   * See `auth/tokens.ts` for why it is idle time and not absolute age.
+   */
+  sessionTtlMs?: number;
+  /**
+   * The clock, injectable so a test can reach an expiry that is six months away in production.
+   * Everything time-dependent in a store reads from here rather than calling `Date.now()` directly
+   * — including the values it writes, so an injected clock governs both sides of a comparison.
+   */
+  now?: () => number;
+  /**
+   * Upper bound on the connection pool, for the implementations that have one.
+   *
+   * Stated rather than inherited from the driver. Postgres refuses at `max_connections` (100 in the
+   * shipped image) with "sorry, too many clients already", which arrives as a FATAL on a connection
+   * the app was in the middle of using — so the failure is not "the pool is busy", it is requests
+   * dying. A number here is one that can be reasoned about against that limit; a driver default is
+   * one that changes when the driver does.
+   */
+  maxConnections?: number;
+}
+
 export interface Store {
   // ── Identity ───────────────────────────────────────────────────────────────────────────────
   /** Find or create the user behind a device id. Returns whether the row was created. */
   upsertDeviceUser(deviceId: string, lang: Lang): Promise<{ userId: string; created: boolean }>;
   /** Create a bare account with no device — a user who signed in with Apple/Google on a fresh install. */
   createUser(lang: Lang): Promise<string>;
-  /** Mint a bearer token for a user. */
+  /**
+   * Mint a bearer token for a user, and return it.
+   *
+   * This is the ONLY moment the token exists in a readable form on this side of the wire. What the
+   * store keeps is `hashToken()` of it — see `auth/tokens.ts` — so nothing that can read the
+   * database, a dump, or a backup can present a token back.
+   */
   issueToken(userId: string): Promise<string>;
-  /** Resolve a bearer token to a user id, or null. The ONLY way a request becomes a userId. */
+  /**
+   * Resolve a bearer token to a user id, or null. The ONLY way a request becomes a userId.
+   *
+   * Null covers three cases the caller must NOT be able to tell apart: never issued, revoked, and
+   * idle past its lifetime. All three mean "not authenticated", and a caller that could distinguish
+   * them would be an oracle for which tokens have ever existed.
+   *
+   * A successful lookup slides the token's deadline forward, so a session in daily use never
+   * expires and one on a phone nobody opens again does.
+   */
   userIdForToken(token: string): Promise<string | null>;
   /** Drop one token. Sign-out — the account and its data are untouched. */
   revokeToken(token: string): Promise<void>;
+  /**
+   * Delete every token that is past its idle lifetime. Returns how many went.
+   *
+   * Called at startup and again whenever a token is issued, which is rare enough to be free and
+   * frequent enough to keep the table bounded without a scheduler this process does not have.
+   * Expired rows are already refused by `userIdForToken`; this is about not keeping a row that
+   * names a user and a login time for years after it stopped meaning anything.
+   */
+  pruneExpiredTokens(): Promise<number>;
 
   // ── Federated identities ───────────────────────────────────────────────────────────────────
   /** The account behind a verified `(provider, subject)`, or null. */

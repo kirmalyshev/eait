@@ -1,3 +1,5 @@
+import { DEFAULT_SESSION_TTL_MS } from "./auth/tokens.ts";
+
 // Configuration, loaded once at startup and validated loudly.
 //
 // An unknown or missing setting is a STARTUP ERROR, never a silent fallback. A bot that quietly
@@ -56,6 +58,15 @@ export interface Config {
   appleAudiences: string[];
   /** Every Google OAuth client id that may sign in: iOS, web, Android. Empty = Google is off. */
   googleAudiences: string[];
+
+  /**
+   * How many days a bearer token survives WITHOUT BEING USED.
+   *
+   * Idle time, not absolute age — `auth/tokens.ts` has the argument. Configurable because the right
+   * number is a product judgement rather than a constant of nature, and because a staging instance
+   * that wants to exercise the expiry path should not have to wait half a year to reach it.
+   */
+  sessionTtlDays: number;
 
   /**
    * The credential for `/admin` — onboarding copy and the funnel.
@@ -137,6 +148,7 @@ export function configDefaults(): Config {
     pendingTtlMs: 30 * 60 * 1000,
     maxUploadBytes: 20 * 1024 * 1024,
     maxPhotosPerMeal: 4,
+    sessionTtlDays: DEFAULT_SESSION_TTL_MS / (24 * 60 * 60 * 1000),
     appleAudiences: [],
     googleAudiences: [],
     adminToken: "",
@@ -150,6 +162,11 @@ export function loadConfig(): Config {
 
   const maxPhotosPerMeal = int("MAX_PHOTOS_PER_MEAL", d.maxPhotosPerMeal);
   if (maxPhotosPerMeal < 1) throw new Error("[ieat] MAX_PHOTOS_PER_MEAL must be at least 1");
+
+  // Zero passes `int` — it is a non-negative integer — and would expire every token the instant it
+  // was issued, which presents as an app that cannot stay signed in and as nothing in any log.
+  const sessionTtlDays = int("SESSION_TTL_DAYS", d.sessionTtlDays);
+  if (sessionTtlDays < 1) throw new Error("[ieat] SESSION_TTL_DAYS must be at least 1");
 
   return {
     ...d,
@@ -168,6 +185,7 @@ export function loadConfig(): Config {
     // Expressed in megabytes because that is how anyone setting it thinks about it.
     maxUploadBytes: int("MAX_UPLOAD_MB", d.maxUploadBytes / (1024 * 1024)) * 1024 * 1024,
     maxPhotosPerMeal,
+    sessionTtlDays,
     appleAudiences: list("APPLE_AUDIENCES"),
     googleAudiences: list("GOOGLE_AUDIENCES"),
     adminToken: adminTokenFromEnv(),

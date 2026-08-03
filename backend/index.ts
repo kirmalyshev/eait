@@ -40,7 +40,19 @@ const config: Config = demo
     }
   : loadConfig();
 
-const store: Store = demo ? memoryStore() : await postgresStore(config.databaseUrl);
+// The session lifetime reaches the store the same way every other setting reaches the engine: as an
+// argument from the composition root, never as a module constant either side could disagree about.
+const storeOptions = { sessionTtlMs: config.sessionTtlDays * 24 * 60 * 60 * 1000 };
+const store: Store = demo
+  ? memoryStore(storeOptions)
+  : await postgresStore(config.databaseUrl, storeOptions);
+
+// One sweep at startup, so a process that has been up for months and is then restarted does not
+// carry a table of rows that stopped meaning anything in between. Every later sweep rides along
+// with a token being issued; there is no scheduler in this process and adding one for this would be
+// the largest thing in it.
+const pruned = await store.pruneExpiredTokens();
+if (pruned > 0) console.log(`[ieat] pruned ${pruned} idle session token(s) at startup`);
 const deps: EngineDeps = {
   store,
   config,

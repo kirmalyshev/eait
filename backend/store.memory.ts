@@ -8,8 +8,11 @@ import type {
   DayTotals, Lang, MealRecord, OnboardingContent, OnboardingEvent, Profile, Provider,
 } from "@ieat/shared";
 import {
+  DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
+} from "./auth/tokens.ts";
+import {
   blankProfile, type FunnelAggregate, type MealPatch, type PendingMeal, type ProfilePatch,
-  type Store,
+  type Store, type StoreOptions,
 } from "./store.ts";
 
 /** A stored funnel event: what the client sent, plus who and when we received it. */
@@ -59,10 +62,17 @@ export function aggregateFunnel(events: StoredEvent[]): FunnelAggregate {
   };
 }
 
-export function memoryStore(): Store {
+export function memoryStore(opts: StoreOptions = {}): Store {
+  const sessionTtlMs = opts.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS;
+  const refreshAfterMs = sessionRefreshAfterMs(sessionTtlMs);
+  const now = opts.now ?? Date.now;
+
   const users = new Map<string, Profile>();
   const devices = new Map<string, string>(); // deviceId -> userId
-  const tokens = new Map<string, string>(); // token -> userId
+  // Keyed by the HASH of the token, exactly as Postgres is. Storing the raw value here would make
+  // demo mode the one environment where a token is recoverable from the store — and demo mode is
+  // where the sign-in flows get driven, so it is the environment where that would be noticed last.
+  const tokens = new Map<string, { userId: string; lastUsedAt: number }>();
   const meals = new Map<string, MealRecord>(); // mealId -> record
   const pendings = new Map<string, PendingMeal>(); // pendingId -> pending
   const analyses: { userId: string; date: string; scope: "photo" | "text" }[] = [];
@@ -74,6 +84,24 @@ export function memoryStore(): Store {
 
   /** Deep-copies on the way out so a caller mutating a returned object cannot edit the store. */
   const clone = <T>(v: T): T => structuredClone(v);
+
+  /**
+   * Shared by `pruneExpiredTokens` and `issueToken`. A plain closure rather than `this.prune()`:
+   * every method here is reachable as a detached function — `const { issueToken } = store` is a
+   * thing callers do — and a `this` that silently becomes undefined is a runtime error in the one
+   * path that mints credentials.
+   */
+  const prune = (): number => {
+    const at = now();
+    let removed = 0;
+    for (const [hash, row] of tokens) {
+      if (at - row.lastUsedAt > sessionTtlMs) {
+        tokens.delete(hash);
+        removed++;
+      }
+    }
+    return removed;
+  };
 
   return {
     async upsertDeviceUser(deviceId, lang: Lang) {
@@ -93,17 +121,36 @@ export function memoryStore(): Store {
     },
 
     async issueToken(userId) {
-      const token = crypto.randomUUID().replaceAll("-", "") + crypto.randomUUID().replaceAll("-", "");
-      tokens.set(token, userId);
+      const token = newSessionToken();
+      tokens.set(await hashToken(token), { userId, lastUsedAt: now() });
+      prune();
       return token;
     },
 
     async userIdForToken(token) {
-      return tokens.get(token) ?? null;
+      const row = tokens.get(await hashToken(token));
+      if (!row) return null;
+
+      const at = now();
+      // Idle past its lifetime is indistinguishable from never issued, and deliberately so. The row
+      // is dropped on the way out rather than left for the next prune: a token that has just been
+      // refused must not be answerable again if the clock moves backwards.
+      if (at - row.lastUsedAt > sessionTtlMs) {
+        tokens.delete(await hashToken(token));
+        return null;
+      }
+
+      // Slide the deadline, but only once the value is actually stale. See `sessionRefreshAfterMs`.
+      if (at - row.lastUsedAt >= refreshAfterMs) row.lastUsedAt = at;
+      return row.userId;
     },
 
     async revokeToken(token) {
-      tokens.delete(token);
+      tokens.delete(await hashToken(token));
+    },
+
+    async pruneExpiredTokens() {
+      return prune();
     },
 
     async userIdForIdentity(provider, subject) {
@@ -149,7 +196,7 @@ export function memoryStore(): Store {
 
       // Tokens are deleted, not moved: one that pointed at the now-empty account must stop working
       // rather than silently start addressing someone else's diary.
-      for (const [t, u] of tokens) if (u === fromUserId) tokens.delete(t);
+      for (const [h, row] of tokens) if (row.userId === fromUserId) tokens.delete(h);
       users.delete(fromUserId);
       return moved;
     },
@@ -299,7 +346,7 @@ export function memoryStore(): Store {
     async deleteUser(userId) {
       users.delete(userId);
       for (const [d, u] of devices) if (u === userId) devices.delete(d);
-      for (const [t, u] of tokens) if (u === userId) tokens.delete(t);
+      for (const [h, row] of tokens) if (row.userId === userId) tokens.delete(h);
       for (const [id, m] of meals) if (m.user_id === userId) meals.delete(id);
       for (const [id, p] of pendings) if (p.userId === userId) pendings.delete(id);
       for (let i = analyses.length - 1; i >= 0; i--) {

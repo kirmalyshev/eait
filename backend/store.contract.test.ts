@@ -13,12 +13,24 @@
 //   TEST_DATABASE_URL=postgres://ieat:ieat@127.0.0.1:5433/ieat bun test src/backend/store.contract.test.ts
 
 import { afterAll, describe, expect, it } from "bun:test";
+import { SQL } from "bun";
 import { DEFAULT_ONBOARDING_CONTENT, type MealRecord } from "@ieat/shared";
+import { hashToken } from "./auth/tokens.ts";
 import { memoryStore } from "./store.memory.ts";
 import { postgresStore } from "./store.pg.ts";
-import type { Store } from "./store.ts";
+import type { Store, StoreOptions } from "./store.ts";
 
 const PG_URL = process.env.TEST_DATABASE_URL;
+
+/**
+ * Connections per pool, in tests only.
+ *
+ * This file opens several stores — one per suite, plus the two that inspect the table directly —
+ * and each holds its own pool for as long as its suite runs. At the shipped size that is more than
+ * Postgres allows at once, and the failure is not a slow test: it is FATAL "sorry, too many clients
+ * already" on a connection mid-query, reported against whichever assertion happened to be running.
+ */
+const TEST_POOL = 2;
 
 const meal = (userId: string, over: Partial<MealRecord> = {}): MealRecord => ({
   id: crypto.randomUUID(), user_id: userId, ts: new Date().toISOString(), date: "2026-08-01",
@@ -338,9 +350,192 @@ function contract(name: string, make: () => Promise<Store>) {
 contract("memory", async () => memoryStore());
 
 if (PG_URL) {
-  contract("postgres", () => postgresStore(PG_URL));
+  contract("postgres", () => postgresStore(PG_URL, { maxConnections: TEST_POOL }));
 } else {
   describe("store contract — postgres", () => {
     it.skip("SKIPPED: set TEST_DATABASE_URL to run against real Postgres", () => {});
+  });
+}
+
+// ── Session-token lifetime ─────────────────────────────────────────────────────────────────────
+//
+// A separate suite rather than more cases inside `contract`, because every one of these needs a
+// store built with a lifetime short enough to reach and a clock the test moves. The shipped value
+// is 180 days; waiting it out is not a test.
+//
+// REGISTERED LAST ON PURPOSE. `pruneExpiredTokens` is global by definition — it cannot be scoped to
+// one user without becoming a different method — so against real Postgres it deletes the rows the
+// suites above issued. Those have finished by the time this runs. Moving this block up breaks them
+// in a way that reads as a bug in the store.
+function tokenLifetime(name: string, make: (opts: StoreOptions) => Promise<Store>) {
+  describe(`session tokens — ${name}`, () => {
+    const TTL = 60_000;
+    // Fixed rather than `Date.now()`, so a failure reproduces with the same numbers.
+    let clock = Date.parse("2026-08-01T12:00:00Z");
+
+    let store: Store | null = null;
+    const open = async () => (store ??= await make({ sessionTtlMs: TTL, now: () => clock }));
+    afterAll(async () => { await store?.close(); });
+
+    it("stops honouring a token that has gone unused for its lifetime", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const token = await s.issueToken(userId);
+      expect(await s.userIdForToken(token)).toBe(userId);
+
+      clock += TTL + 1_000;
+
+      // Not "returns a user whose session is stale" — the caller has one question and gets one
+      // answer. `routes.ts` turns null into 401, and the app trades its device id for a new token.
+      expect(await s.userIdForToken(token)).toBeNull();
+    });
+
+    it("keeps a token alive for as long as it is being used", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const token = await s.issueToken(userId);
+
+      // Three quarters of the way to the deadline, then a request. The deadline moves with it.
+      clock += Math.floor(TTL * 0.75);
+      expect(await s.userIdForToken(token)).toBe(userId);
+
+      // Past where the ORIGINAL deadline was. An absolute expiry would have signed this user out
+      // mid-use; the whole point of the sliding one is that only an abandoned token dies.
+      clock += Math.floor(TTL * 0.75);
+      expect(await s.userIdForToken(token)).toBe(userId);
+    });
+
+    it("prunes the idle tokens and leaves the live ones", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+
+      // Two tokens for one account — a phone that gets replaced, which is the case this is for.
+      const abandoned = await s.issueToken(userId);
+      clock += Math.floor(TTL / 2);
+      const current = await s.issueToken(userId);
+
+      // Far enough that the first is idle past its lifetime and the second is not. No token is
+      // ISSUED after this point, because issuing sweeps on its own and the sweep is what is under
+      // test here.
+      clock += TTL - Math.floor(TTL / 2) + 1_000;
+
+      // At least one: against real Postgres this table also holds whatever the suites above left,
+      // and a global sweep is global. Exactly-one would be asserting the state of the database
+      // rather than the behaviour of the method.
+      expect(await s.pruneExpiredTokens()).toBeGreaterThanOrEqual(1);
+      expect(await s.userIdForToken(abandoned)).toBeNull();
+      expect(await s.userIdForToken(current)).toBe(userId);
+
+      // Idempotent, and it does not take the live one on a second pass.
+      expect(await s.pruneExpiredTokens()).toBe(0);
+      expect(await s.userIdForToken(current)).toBe(userId);
+    });
+
+    it("sweeps on issue, so the table stays bounded without a scheduler", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const abandoned = await s.issueToken(userId);
+
+      clock += TTL + 1_000;
+
+      // Nothing calls prune here. Minting is the sweep — a first launch, a sign-in, or the 401
+      // recovery in the app's boot path, all of which are rare enough to afford it.
+      await s.issueToken(userId);
+      expect(await s.pruneExpiredTokens()).toBe(0);
+      expect(await s.userIdForToken(abandoned)).toBeNull();
+    });
+  });
+}
+
+tokenLifetime("memory", async (o) => memoryStore(o));
+
+if (PG_URL) {
+  tokenLifetime("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
+
+  // The reason the column is a hash, stated as an assertion rather than as a comment.
+  //
+  // Everything else here is reachable through the port. This is not: "what a stolen dump contains"
+  // is a question about the table, so the test asks the table. A backup lands on this host nightly
+  // and is rsynced off it — if the answer to this ever changes, that file becomes a set of live
+  // credentials for every account.
+  describe("session tokens at rest — postgres", () => {
+    it("keeps nothing a dump could present back as a bearer token", async () => {
+      const s = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const token = await s.issueToken(userId);
+
+      const sql = new SQL(PG_URL, { max: TEST_POOL });
+      try {
+        const columns = (await sql`
+          select column_name from information_schema.columns
+          where table_schema = current_schema() and table_name = 'tokens'`)
+          .map((r: { column_name: string }) => r.column_name);
+        // The plaintext column is GONE, not merely unused. A column that still exists is a column
+        // the next `select *` puts back into a dump.
+        expect(columns).not.toContain("token");
+        expect(columns).toContain("token_hash");
+
+        // The row is found by the hash...
+        const byHash = await sql`
+          select user_id from tokens where token_hash = ${await hashToken(token)}`;
+        expect(byHash.length).toBe(1);
+        expect(String(byHash[0].user_id)).toBe(userId);
+
+        // ...and the value the client holds appears nowhere in the table.
+        const byRaw = await sql`select count(*)::int as n from tokens where token_hash = ${token}`;
+        expect(byRaw[0].n).toBe(0);
+      } finally {
+        await sql.close();
+        await s.close();
+      }
+    });
+
+    // The upgrade itself, against the shape a host deployed before this actually has.
+    //
+    // REGISTERED LAST, because it drops and rebuilds the tokens table. Everything above has
+    // finished by then. Without this test the migration is a block of SQL that has only ever run on
+    // a database where its `if` was false — which is to say, never.
+    it("carries a plaintext-token host across without signing anybody out", async () => {
+      const sql = new SQL(PG_URL, { max: TEST_POOL });
+      const seed = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
+      const { userId } = await seed.upsertDeviceUser(device(), "en");
+      await seed.close();
+
+      try {
+        // The pre-migration shape, exactly: token as the primary key, no hash, no last_used_at.
+        await sql`drop table if exists tokens`;
+        await sql.unsafe(`create table tokens (
+          token      text primary key,
+          user_id    uuid not null references users(id) on delete cascade,
+          created_at timestamptz not null default now()
+        )`);
+        const legacy = `legacy-token-${RUN}`;
+        await sql`insert into tokens (token, user_id) values (${legacy}, ${userId})`;
+
+        // Opening a store is what runs the migration.
+        const s = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
+        try {
+          // The phone in somebody's pocket does not notice the deploy. This is the entire reason
+          // the migration hashes the existing values rather than truncating the table.
+          expect(await s.userIdForToken(legacy)).toBe(userId);
+
+          const columns = (await sql`
+            select column_name from information_schema.columns
+            where table_schema = current_schema() and table_name = 'tokens'`)
+            .map((r: { column_name: string }) => r.column_name);
+          expect(columns).not.toContain("token");
+          expect(columns).toContain("last_used_at");
+
+          // And it is idempotent — a second deploy re-runs the same SQL against the new shape.
+          const again = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
+          expect(await again.userIdForToken(legacy)).toBe(userId);
+          await again.close();
+        } finally {
+          await s.close();
+        }
+      } finally {
+        await sql.close();
+      }
+    });
   });
 }

@@ -16,8 +16,11 @@ import type {
   DayTotals, Lang, MealItem, MealRecord, MealVerdicts, OnboardingContent, Profile, Provider,
 } from "@ieat/shared";
 import {
+  DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
+} from "./auth/tokens.ts";
+import {
   blankProfile, type FunnelAggregate, type MealPatch, type PendingMeal, type ProfilePatch,
-  type Store,
+  type Store, type StoreOptions,
 } from "./store.ts";
 
 const SCHEMA = `
@@ -42,12 +45,61 @@ create table if not exists users (
   created_at          timestamptz not null default now()
 );
 
+-- Bearer tokens, as SHA-256 hashes.
+--
+-- The column is token_hash and there is no column holding the token itself. A dump of this table
+-- names accounts and login times; it does not let the reader become any of them. See
+-- auth/tokens.ts for why a fast unsalted hash is the right shape for a 256-bit random value.
+-- (No backticks in this string: it is a template literal, and one would end it.)
+--
+-- Expiry is measured from last_used_at, not from created_at. An idle lifetime signs out the phone
+-- that was sold and never the person using the app every day.
 create table if not exists tokens (
-  token      text primary key,
-  user_id    uuid not null references users(id) on delete cascade,
-  created_at timestamptz not null default now()
+  token_hash   text primary key,
+  user_id      uuid not null references users(id) on delete cascade,
+  created_at   timestamptz not null default now(),
+  last_used_at timestamptz not null default now()
 );
+-- Migration off the plaintext column, for a host deployed before this existed.
+--
+-- Lossless on purpose: the old rows hold the token itself, so its hash is computable and every
+-- signed-in phone stays signed in across the deploy. The alternative — dropping the table — would
+-- have signed out every user at once, and for an anonymous account that means the app trades its
+-- device id for a new token silently, which is fine, while a signed-in one looks like it lost
+-- everything until Apple is tapped again.
+--
+-- Guarded by a lookup rather than by "add column if not exists" alone, because on a FRESH database
+-- the create above already made the right table and the update below would fail on a column that
+-- has never existed. sha256() is built into Postgres 11+; no pgcrypto extension is involved.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = current_schema() and table_name = 'tokens' and column_name = 'token'
+  ) then
+    alter table tokens add column if not exists token_hash text;
+    alter table tokens add column if not exists last_used_at timestamptz;
+    update tokens set token_hash = encode(sha256(token::bytea), 'hex') where token_hash is null;
+    -- Existing sessions start their idle clock from when they were issued. Anything already past
+    -- the lifetime is refused on its next request and pruned then, which is correct.
+    update tokens set last_used_at = created_at where last_used_at is null;
+    -- Dropping the column drops the primary key that was on it. The new one goes on afterwards; a
+    -- table of credentials without a unique constraint is a table that can hold two rows for one
+    -- token pointing at two different users.
+    alter table tokens drop column token;
+    alter table tokens alter column token_hash set not null;
+    alter table tokens alter column last_used_at set not null;
+    alter table tokens alter column last_used_at set default now();
+    alter table tokens add primary key (token_hash);
+  end if;
+end $$;
+
+-- AFTER the migration, not before it. On an upgraded host the create above is a no-op, so
+-- last_used_at does not exist until the block has run — and an index over a column that is not
+-- there yet aborts the whole schema with "column last_used_at does not exist", on the one code path
+-- a fresh database never takes. Found exactly that way.
 create index if not exists tokens_user_idx on tokens(user_id);
+create index if not exists tokens_last_used_idx on tokens(last_used_at);
 
 -- Federated identities: 'device' | 'apple' | 'google'.
 --
@@ -282,9 +334,33 @@ function json<T>(v: unknown, fallback: T): T {
   }
 }
 
-export async function postgresStore(databaseUrl: string): Promise<Store> {
-  const sql = new SQL(databaseUrl);
+export async function postgresStore(
+  databaseUrl: string,
+  opts: StoreOptions = {},
+): Promise<Store> {
+  // Ten, explicitly. The image's `max_connections` is 100 and this is a single-process backend, so
+  // ten is generous for the workload and leaves room for a `psql` and the nightly `pg_dump` that
+  // cron runs — both of which want a connection at a moment nobody chose.
+  const sql = new SQL(databaseUrl, { max: opts.maxConnections ?? 10 });
   await sql.unsafe(SCHEMA);
+
+  const sessionTtlMs = opts.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS;
+  const refreshAfterMs = sessionRefreshAfterMs(sessionTtlMs);
+  const now = opts.now ?? Date.now;
+
+  /**
+   * Delete every token idle past its lifetime, and say how many.
+   *
+   * The cutoff is computed here rather than written as `now() - interval` in SQL, so an injected
+   * clock governs the sweep as well as the lookup. A test that can move time forward but cannot
+   * move it forward for the prune is a test of half the behaviour.
+   */
+  const prune = async (): Promise<number> => {
+    const rows = await sql`
+      delete from tokens where last_used_at <= ${new Date(now() - sessionTtlMs)}
+      returning token_hash`;
+    return rows.length;
+  };
 
   return {
     async upsertDeviceUser(deviceId, lang: Lang) {
@@ -313,18 +389,44 @@ export async function postgresStore(databaseUrl: string): Promise<Store> {
     },
 
     async issueToken(userId) {
-      const token = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
-      await sql`insert into tokens (token, user_id) values (${token}, ${userId})`;
+      const token = newSessionToken();
+      const at = new Date(now());
+      await sql`insert into tokens (token_hash, user_id, created_at, last_used_at)
+                values (${await hashToken(token)}, ${userId}, ${at}, ${at})`;
+      // Minting is rare — a first launch, a sign-in, a 401 recovery — so this is the one write path
+      // that can afford to sweep, and it means the table stays bounded without a scheduler.
+      await prune();
       return token;
     },
 
     async userIdForToken(token) {
-      const rows = await sql`select user_id from tokens where token = ${token}`;
-      return rows.length > 0 ? String(rows[0].user_id) : null;
+      const hash = await hashToken(token);
+      const at = now();
+      // The idle cutoff is in the WHERE clause rather than checked after the fact. A row that is
+      // past it must be indistinguishable from a row that does not exist — including in how long
+      // the answer takes — and one query with one predicate is the only version of that which
+      // cannot drift.
+      const rows = await sql`
+        select user_id, last_used_at from tokens
+        where token_hash = ${hash} and last_used_at > ${new Date(at - sessionTtlMs)}`;
+      if (rows.length === 0) return null;
+
+      // Slide the deadline, but only once the stored value is genuinely stale. Writing on every
+      // authenticated request would put an UPDATE on the read path of every screen in the app for
+      // no additional security — see `sessionRefreshAfterMs`.
+      const lastUsed = new Date(rows[0].last_used_at as string).getTime();
+      if (at - lastUsed >= refreshAfterMs) {
+        await sql`update tokens set last_used_at = ${new Date(at)} where token_hash = ${hash}`;
+      }
+      return String(rows[0].user_id);
+    },
+
+    async pruneExpiredTokens() {
+      return prune();
     },
 
     async revokeToken(token) {
-      await sql`delete from tokens where token = ${token}`;
+      await sql`delete from tokens where token_hash = ${await hashToken(token)}`;
     },
 
     async userIdForIdentity(provider, subject) {
