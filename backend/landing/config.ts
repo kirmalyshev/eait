@@ -107,7 +107,7 @@ export function loadLandingConfig(env: Record<string, string | undefined>): Land
     );
   }
 
-  const supportEmail = env.LANDING_SUPPORT_EMAIL?.trim() || "support@eait.fit";
+  const supportEmail = env.LANDING_SUPPORT_EMAIL?.trim() || "lets@eait.fit";
   if (!supportEmail.includes("@")) {
     throw new LandingConfigError(`LANDING_SUPPORT_EMAIL is not an address: ${supportEmail}`);
   }
