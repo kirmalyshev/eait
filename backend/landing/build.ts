@@ -20,7 +20,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assertClean, copyFromHtml } from "./claims.ts";
-import { loadLandingConfig } from "./config.ts";
+import { loadLandingConfig, type LandingConfig } from "./config.ts";
+import { faviconIco, markPng, ogPng } from "./images.ts";
 import { iconSvg, renderLanding } from "./render.ts";
 import { styles } from "./styles.ts";
 
@@ -59,11 +60,26 @@ export async function buildLanding(
     bytes += Buffer.byteLength(contents, "utf8");
   };
 
+  const writeBinary = async (name: string, contents: Uint8Array) => {
+    await writeFile(join(outDir, name), contents);
+    files.push(name);
+    bytes += contents.length;
+  };
+
   await write("index.html", html);
   await write("styles.css", styles);
+  await write("robots.txt", robots(config));
+
+  // Drawn, not exported from a design file — see images.ts. `apple-touch-icon` is 180 because that
+  // is what iOS asks for; anything else is resampled by the phone.
   await write("icon.svg", iconSvg());
-  await write("robots.txt", robots(config.siteUrl));
-  await write("sitemap.xml", sitemap(config));
+  await writeBinary("favicon.ico", faviconIco());
+  await writeBinary("apple-touch-icon.png", markPng(180));
+  await writeBinary("og.png", ogPng());
+
+  // A sitemap for a build nobody may index would be an invitation contradicting the two refusals
+  // beside it. Emitted only when the build is the one that should be found.
+  if (config.indexable) await write("sitemap.xml", sitemap(config));
 
   for (const page of SHARED_PAGES) {
     const source = join(REPO_ROOT, "deploy/public", page);
@@ -83,8 +99,19 @@ export async function buildLanding(
   return { outDir, files, bytes };
 }
 
-function robots(siteUrl: string): string {
-  return `User-agent: *\nAllow: /\nSitemap: ${siteUrl}/sitemap.xml\n`;
+/**
+ * `robots.txt`, and it says the opposite thing on staging.
+ *
+ * Staging serves this page on a real, publicly resolvable name with a real certificate. Left to the
+ * default it gets crawled, and the product then has two indexed copies of its own landing page
+ * competing with each other — one of them on a hostname made of an IP address. `Disallow: /` is the
+ * default for that reason, and production is the environment that opts in.
+ */
+function robots(config: LandingConfig): string {
+  if (!config.indexable) {
+    return "# Not the canonical deployment of this page. See LANDING_INDEXABLE.\nUser-agent: *\nDisallow: /\n";
+  }
+  return `User-agent: *\nAllow: /\nSitemap: ${config.siteUrl}/sitemap.xml\n`;
 }
 
 /**

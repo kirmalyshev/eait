@@ -1,11 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assertClean, ClaimsError, copyFromHtml, lintCopy } from "./claims.ts";
 import { loadLandingConfig, LandingConfigError, primaryCta, secondaryCta } from "./config.ts";
 import { iconSvg, renderLanding } from "./render.ts";
+import { buildLanding } from "./build.ts";
+import { faviconIco, ogPng, OG_HEIGHT, OG_WIDTH } from "./images.ts";
 import { color, TOKEN_SOURCE } from "./tokens.ts";
 import { styles } from "./styles.ts";
 import { refusals, floorSection, sample } from "./content.ts";
@@ -257,5 +260,89 @@ describe("the browser-tab icon", () => {
     expect(svg).toContain(`stroke="${color.accent}"`);
     expect(svg).toContain('cx="512" cy="190" r="76"');
     expect(svg).toContain(`fill="${color.bg}"`);
+  });
+});
+
+describe("indexing is opt-in per environment", () => {
+  test("only the exact string \"true\" opts in", () => {
+    // A staging box becoming indexable because a variable was set to something truthy-looking is
+    // discovered by finding the staging hostname in a search result, weeks later.
+    expect(loadLandingConfig({ ...ENV, LANDING_INDEXABLE: "true" }).indexable).toBe(true);
+    expect(loadLandingConfig({ ...ENV, LANDING_INDEXABLE: "TRUE" }).indexable).toBe(true);
+    for (const value of ["1", "yes", "on", "", "ture", undefined]) {
+      expect(loadLandingConfig({ ...ENV, LANDING_INDEXABLE: value }).indexable).toBe(false);
+    }
+    expect(loadLandingConfig(ENV).indexable).toBe(false);
+  });
+
+  test("a build nobody may index says so in the document as well as in robots.txt", () => {
+    // Both, because they do different jobs: robots.txt asks a crawler not to FETCH, and a page it
+    // never fetched is a page whose meta it never read — but a URL found on someone else's site can
+    // be indexed without being fetched. `noindex` is what removes it once it has been.
+    expect(html).toContain('<meta name="robots" content="noindex, nofollow">');
+  });
+
+  test("the production build carries no such meta", () => {
+    const indexed = renderLanding(loadLandingConfig({ ...ENV, LANDING_INDEXABLE: "true" }));
+    expect(indexed).not.toContain('name="robots"');
+  });
+});
+
+describe("the build output", () => {
+  const outDir = () => mkdtempSync(join(tmpdir(), "landing-"));
+
+  test("a non-indexable build disallows crawlers and ships no sitemap", async () => {
+    const dir = outDir();
+    const result = await buildLanding(ENV, dir);
+    expect(readFileSync(join(dir, "robots.txt"), "utf8")).toContain("Disallow: /");
+    expect(result.files).not.toContain("sitemap.xml");
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("an indexable build invites them and ships one", async () => {
+    const dir = outDir();
+    const result = await buildLanding({ ...ENV, LANDING_INDEXABLE: "true" }, dir);
+    const robots = readFileSync(join(dir, "robots.txt"), "utf8");
+    expect(robots).toContain("Allow: /");
+    expect(robots).toContain("Sitemap: https://eait.fit/sitemap.xml");
+    expect(result.files).toContain("sitemap.xml");
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("nothing is written when the copy fails the claims gate", async () => {
+    // The ordering that matters: validate, render, lint, THEN write. A deploy that races a failing
+    // build must serve the last good page rather than half of a new one.
+    const dir = outDir();
+    rmSync(dir, { recursive: true, force: true });
+    await expect(buildLanding({ ...ENV, LANDING_SITE_URL: "not-a-url" }, dir)).rejects.toThrow();
+    expect(existsSync(dir)).toBe(false);
+  });
+});
+
+describe("the images", () => {
+  test("favicon.ico is a real ICO, not a PNG with the wrong extension", () => {
+    const ico = faviconIco();
+    // ICONDIR: reserved 0, type 1 (icon), count 1.
+    expect([ico[0], ico[1], ico[2], ico[3], ico[4], ico[5]]).toEqual([0, 0, 1, 0, 1, 0]);
+    // Then the entry says 64×64 and points past itself at a PNG signature.
+    expect(ico[6]).toBe(64);
+    expect(ico[7]).toBe(64);
+    expect([...ico.slice(22, 26)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+  });
+
+  test("the share card is the size the meta tags claim", () => {
+    // A mismatch here is not a broken image, it is a card that unfurls cropped — which is worse,
+    // because it looks deliberate.
+    const png = ogPng();
+    const view = new DataView(png.buffer, png.byteOffset);
+    expect(view.getUint32(16)).toBe(OG_WIDTH);   // IHDR width
+    expect(view.getUint32(20)).toBe(OG_HEIGHT);  // IHDR height
+    expect(html).toContain(`<meta property="og:image:width" content="${OG_WIDTH}">`);
+    expect(html).toContain(`<meta property="og:image:height" content="${OG_HEIGHT}">`);
+  });
+
+  test("the share card is an absolute URL", () => {
+    // Every unfurler requires it. A relative og:image silently produces a card with no image.
+    expect(html).toContain(`<meta property="og:image" content="${config.siteUrl}/og.png">`);
   });
 });

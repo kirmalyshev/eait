@@ -17,6 +17,7 @@ import {
 } from "./content.ts";
 import { primaryCta, secondaryCta, type LandingConfig } from "./config.ts";
 import { color } from "./tokens.ts";
+import { OG_HEIGHT, OG_WIDTH } from "./images.ts";
 
 export function esc(value: string): string {
   return value
@@ -136,6 +137,18 @@ function ctaBlock(config: LandingConfig, extraClass = ""): string {
       <p class="cta-note">${esc(primary.note)}</p>`;
 }
 
+/**
+ * The `robots` meta, present only when a build must NOT be indexed.
+ *
+ * Emitted as well as `robots.txt` rather than instead of it, because the two do different jobs: the
+ * file asks a crawler not to fetch the page, and a page it never fetched is a page whose meta tag
+ * it never read — but a URL discovered from a link elsewhere can still be indexed without being
+ * fetched. `noindex` in the document is what removes it once it has been.
+ */
+function robotsMeta(config: LandingConfig): string {
+  return config.indexable ? "" : '<meta name="robots" content="noindex, nofollow">\n';
+}
+
 export function renderLanding(config: LandingConfig): string {
   const privacyHref = "/privacy";
   const supportHref = "/support";
@@ -149,12 +162,20 @@ export function renderLanding(config: LandingConfig): string {
 <meta name="description" content="${esc(metaDescription())}">
 <meta name="theme-color" content="${esc(color.bg)}">
 <link rel="canonical" href="${esc(config.siteUrl)}/">
+${robotsMeta(config)}<link rel="icon" href="/favicon.ico" sizes="64x64">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/styles.css">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="${esc(brand.name)}">
+<meta property="og:locale" content="en_GB">
 <meta property="og:title" content="${esc(brand.title)}">
 <meta property="og:description" content="${esc(metaDescription())}">
 <meta property="og:url" content="${esc(config.siteUrl)}/">
+<meta property="og:image" content="${esc(config.siteUrl)}/og.png">
+<meta property="og:image:width" content="${OG_WIDTH}">
+<meta property="og:image:height" content="${OG_HEIGHT}">
+<meta property="og:image:alt" content="${esc(`The ${brand.name} mark: a plate seen from above.`)}">
 <meta name="twitter:card" content="summary_large_image">
 </head>
 <body>

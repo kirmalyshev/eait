@@ -25,6 +25,19 @@ export interface LandingConfig {
    * build-stamped date makes the output non-reproducible for no benefit.
    */
   updatedAt: string;
+  /**
+   * Whether search engines may index this build. **Defaults to false**, and the default is the
+   * whole point.
+   *
+   * Staging serves the same page on a real, publicly resolvable, certificate-bearing name. Left
+   * alone it gets crawled — and then the product has two indexed copies of its own landing page,
+   * one of them on a hostname made of an IP address, competing with the domain it is trying to
+   * rank. Undoing that costs weeks and a `noindex` nobody can force a crawler to re-read promptly.
+   *
+   * So indexing is opt-in per environment rather than something a staging box has to remember to
+   * switch off. Production sets it; nothing else does.
+   */
+  indexable: boolean;
 }
 
 export class LandingConfigError extends Error {
@@ -104,7 +117,13 @@ export function loadLandingConfig(env: Record<string, string | undefined>): Land
     throw new LandingConfigError(`LANDING_UPDATED must be YYYY-MM-DD (got ${updatedAt})`);
   }
 
-  return { siteUrl, appStoreUrl, telegramUrl, supportEmail, updatedAt };
+  // Only the exact string "true" opts in. Not "1", not "yes", not a typo that happens to be
+  // non-empty — the failure this guards against is a staging box quietly becoming indexable
+  // because a variable was set to something truthy-looking, and that failure is discovered by
+  // finding the staging hostname in a search result.
+  const indexable = env.LANDING_INDEXABLE?.trim().toLowerCase() === "true";
+
+  return { siteUrl, appStoreUrl, telegramUrl, supportEmail, updatedAt, indexable };
 }
 
 /** Bumped by hand when the copy changes. See `LandingConfig.updatedAt` for why it is not a clock. */
