@@ -4,7 +4,6 @@ import { renderableVerdicts } from "./types.ts";
 // These tests are about a RENDER boundary, not about domain logic. `verdicts` is the one field on a
 // meal analysis that no analyzer supplies and every write recomputes, so it crosses more hands than
 // any other — and when it arrived undefined the app did not show a bad row, it aborted the process.
-// See docs/DECISIONS.md, "A cast, not a crash".
 describe("renderableVerdicts", () => {
   it("returns the dimensions present, in the shared render order", () => {
     expect(renderableVerdicts({ kidneys: "warn", weight: "good" })).toEqual(["weight", "kidneys"]);

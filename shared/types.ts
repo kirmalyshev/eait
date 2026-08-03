@@ -117,9 +117,9 @@ const VERDICT_VALUES: readonly string[] = ["good", "warn", "bad"] satisfies read
  * Takes `unknown` on purpose. `verdicts` is the one field on a meal analysis that no analyzer
  * supplies and every store write recomputes, so it passes through more hands than anything else
  * here — and a renderer that indexed into it straight got `TypeError: Cannot convert undefined
- * value to object`, which in a Release build is a process abort rather than a bad row
- * (docs/DECISIONS.md, "A cast, not a crash"). The type system now makes that specific bug
- * impossible; this makes the whole CLASS of it cost a row instead of the app.
+ * value to object`, which in a Release build is a process abort rather than a bad row. The type
+ * system now makes that specific bug impossible; this makes the whole CLASS of it cost a row
+ * instead of the app.
  *
  * Unknown values are dropped rather than rendered. A server a version ahead can name a verdict this
  * binary has no label or colour for, and a blank pill in an unstyled colour is worse than no pill.

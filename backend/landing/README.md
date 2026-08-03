@@ -120,10 +120,10 @@ image is built from; `roles/ieat_app/tasks/landing.yml` is where they are kept i
 removes the site block when the flag goes back to false so turning the page off is not an edit
 somebody has to remember to revert.
 
-### One coupling that was there and is not any more
+### Caddy does not wait for the backend to be healthy
 
-Caddy used to `depends_on` the backend being **healthy**, so a backend that never came up took the
-landing page down with it — and the privacy policy the App Store listing points at, and the ACME
-challenge, which means the certificate would have quietly stopped renewing with nothing running to
-notice it by. It is `service_started` now. The cost is a few seconds of 502 on the API during a cold
-boot, which is what a deploy looks like anyway.
+`depends_on` is `service_started`, not `service_healthy`, and that matters: a backend that never
+comes up would otherwise take the landing page down with it — along with the privacy policy the App
+Store listing points at, and the ACME challenge, so the certificate would quietly stop renewing with
+nothing running to notice. The cost is a few seconds of 502 on the API during a cold boot, which is
+what a deploy looks like anyway.
