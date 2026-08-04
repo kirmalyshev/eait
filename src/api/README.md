@@ -15,6 +15,7 @@ HTTP over the engine, for the mobile client. Off unless `API_PORT` is set.
 | `GET /v1/settings` | the settings root: summary text + buttons |
 | `POST /v1/settings` | `{action}` to tap a control, or `{field, text}` to answer the prompt one opened (409 if that field is not the armed one) |
 | `POST /v1/language` | `{lang}` — a registry code, else 400 |
+| `DELETE /v1/account` | erases the caller's account and every row of theirs; idempotent. DELETE only — `GET`/`POST` are 404 |
 
 **No authentication scheme is wired yet** — `resolveUserId` returns `null`, so every route except
 `/health` answers 401. See `AGENTS.md`.

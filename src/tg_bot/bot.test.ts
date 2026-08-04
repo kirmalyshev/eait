@@ -3698,7 +3698,13 @@ test("delete_confirm answers in the user's language, read before the row is gone
 test("delete_confirm clears the in-memory rejection log too", async () => {
   const db = await freshTestDb();
   const rejections = new RejectionLog();
-  const deps = botDeps({ db, provider: fakeProvider(foodJson()), config: cfg, rejections });
+  // Wired the way `startBot` wires it: the purge goes through the ENGINE's onAccountDeleted hook,
+  // not through a line in the Telegram handler. That distinction is the test — clearing it inline
+  // covered only deletions that started here, and `api/` can start one too.
+  const deps = botDeps({
+    db, provider: fakeProvider(foodJson()), config: cfg, rejections,
+    onAccountDeleted: (id: number) => rejections.remove(id),
+  });
   await onboardToActive(deps, 944);
   rejections.add(944, 5150);
   expect(rejections.has(944, 5150)).toBe(true);

@@ -70,10 +70,17 @@ above is taken knowingly.
 - **Admin actions return two DISTINCT refusals.** `not-admin` and `no-admin-configured` are not
   interchangeable: an instance with no admin configured must stay silent, because answering
   advertises that the command exists. Collapsing them leaks the command to whoever guessed it.
-- **`deleteAccount` is the one erasure.** Whichever front end asks, the same operation runs — a
-  second implementation is how a table gets missed, and a missed table is a deletion that quietly
-  did not happen. In-memory SURFACE state (the Telegram rejection log) is cleared by the surface,
-  which is the only thing that knows what it holds.
+- **`deleteAccount` is the one erasure, and it ANNOUNCES itself.** Whichever front end asks, the
+  same operation runs — a second implementation is how a table gets missed, and a missed table is a
+  deletion that quietly did not happen. In-memory SURFACE state is unreachable from here, so
+  `EngineDeps.onAccountDeleted` is fired after the rows are gone and each surface drops its own.
+  **Do not clear surface state inline in a handler instead**: that covers only deletions which
+  started on that surface, and both front ends run in ONE process — an account erased over HTTP
+  would leave the bot's `RejectionLog` holding entries, so a reply to a pre-delete "not food"
+  message would still resolve and leak that the earlier life existed. The hook is optional,
+  synchronous, never awaited, and its throw is swallowed: the rows are already gone, and failing at
+  that point invites a retry of a deletion that has already happened. `deleteAccount` is idempotent
+  for the same reason.
 - **The allowlist is an ARGUMENT, not part of `EngineDeps`.** Its rules are here (closing an open
   bot auto-includes the admin; the admin can never be denied) because they are the kind whose second
   implementation locks somebody out of their own instance. The list itself gates *Telegram* access,

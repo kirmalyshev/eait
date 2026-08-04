@@ -77,6 +77,15 @@ export interface BotDeps {
    * allowlist; absent → such replies route to the LLM, which honestly has nothing on them.
    */
   rejections?: RejectionLog;
+  /**
+   * The engine's post-erasure hook (see `EngineDeps`), re-declared here because `BotDeps` is its
+   * own interface rather than an extension.
+   *
+   * `startBot` binds it to `rejections.remove`. It is what actually clears the log on `/delete` —
+   * doing that inline in the handler would cover only deletions that started on Telegram, and the
+   * HTTP surface in this same process can start one too.
+   */
+  onAccountDeleted?: (userId: number) => void;
 }
 
 /**
@@ -361,10 +370,9 @@ export async function processDeleteDecision(
     await send(t("delete.cancelled"));
     return true;
   }
+  // The rejection log is purged by the engine's `onAccountDeleted` hook, NOT here. Clearing it
+  // inline would only cover deletions that started on Telegram, and `api/` can start one too.
   await deleteAccount(deps, from.id);
-  // In-memory surface state too: the erasure promise is total, and a stale rejection entry would
-  // leak a pre-delete interaction into the user's next life.
-  deps.rejections?.remove(from.id);
   await send(t("delete.done"));
   return true;
 }
@@ -1492,11 +1500,18 @@ export async function startBot(config: Config): Promise<{ db: Db; stop: () => Pr
       db,
       tz: config.tz,
     });
+    // Built HERE rather than left to `createBot`'s lazy default, because the API needs to be able
+    // to purge it: both front ends run in this process, and an account erased through `api/` must
+    // not leave this user's entries behind for their next life.
+    const rejections = new RejectionLog();
     const engineDeps = {
       db, config,
       analyzePhoto: photoAnalyzerViaAgent(agent),
       routeText: textRouterViaAgent(agent),
       classifyRestrictions: restrictionClassifierViaAgent(agent),
+      // The composition root is the only place that knows BOTH that a rejection log exists and
+      // that an HTTP surface can delete an account. The engine only announces the erasure.
+      onAccountDeleted: (userId: number) => rejections.remove(userId),
     };
     // The HTTP API is the second front end over the SAME engine deps — same caps, same per-user
     // scoping, same Mastra agent. It starts only when API_PORT is set, and `resolveUserId` has no
@@ -1507,7 +1522,7 @@ export async function startBot(config: Config): Promise<{ db: Db; stop: () => Pr
 
     const allowlist = await loadAllowlist(db, config);
     bot = createBot({
-      ...engineDeps, allowlist,
+      ...engineDeps, allowlist, rejections,
     });
     // Report the EFFECTIVE list (stored beats env), not the env value — after an admin
     // /allow, the two differ and the env line would lie.

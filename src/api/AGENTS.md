@@ -48,9 +48,13 @@ folder never imports `db.ts` and never touches `meals`.
 - **These views carry rendered copy, and that is the one deliberate exception** to "no product logic
   here" — see `engine/AGENTS.md`. `text` renders as-is; each button is a control that POSTs its
   `data` back as `action`.
-- **There is NO erasure route, on purpose.** `resolveUserId` still resolves to `null`, so this
-  surface is unauthenticated by design; adding a destructive endpoint to it would be strictly worse
-  than not having one. It goes in when a real auth scheme does, not before.
+- **`DELETE /v1/account` is the erasure route, and DELETE is the only method that reaches it.** The
+  method IS the safeguard: a GET or a form POST can be provoked cross-site by an `<img>` or a hidden
+  form, and this route is unrecoverable. `GET`/`POST /v1/account` are 404. It is idempotent, so a
+  client retrying a timed-out request is never told that completed work failed.
+  *(Added deliberately while `resolveUserId` still returns `null` — every route including this one
+  answers 401 until a real auth scheme is wired. That scheme is what makes this route reachable at
+  all, and it is the thing to get right before it is.)*
 
 ## Where to add things
 

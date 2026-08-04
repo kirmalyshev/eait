@@ -84,9 +84,18 @@ have learned the request was wrong. It is a 400.
 
 ## Not done, on purpose
 
-- **No `DELETE /v1/account`.** `resolveUserId` still resolves to `null` — the API is unauthenticated
-  by design until a real scheme is chosen. Adding a destructive endpoint to that is strictly worse
-  than not having one. It goes in when auth does.
+- ~~**No `DELETE /v1/account`.**~~ **Superseded 2026-08-04** — the route was added on request. The
+  reservation stands and is recorded in `api/AGENTS.md`: every route including this one answers 401
+  until `resolveUserId` is wired, and that auth scheme is the thing to get right before this route
+  is reachable. `DELETE` is the only method that reaches it, because a GET or a form POST can be
+  provoked cross-site and this route is unrecoverable.
+
+  Adding it surfaced a bug that had nothing to do with HTTP: both front ends run in ONE process, and
+  `deleteAccount` erased the database while the bot's in-memory `RejectionLog` kept the deleted
+  user's message ids. The bot cleared that log inline in its own handler, which covered only
+  deletions that started on Telegram. It is now `EngineDeps.onAccountDeleted`, bound at the
+  composition root — and `startBot` builds the `RejectionLog` itself, because `createBot`'s lazy
+  default lands on a spread copy the API could never reach.
 - **The allowlist stays out of `EngineDeps`** and is passed as an argument. Its rules are engine
   rules, but the list itself gates *Telegram* access and `api/` authenticates its own way.
 - **Copy is still rendered server-side** for onboarding and settings, per the compromise above.

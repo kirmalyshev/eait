@@ -18,6 +18,7 @@ import {
   logPhotoMeal, handleText, day, week, confirmPendingMeal, cancelPendingMeal, dropPendingMeal,
   applyPendingEdit, cancelPendingEdit, dropPendingEdit, resolveMealChoice,
   advanceOnboarding, openSettings, applySettingsAction, submitSettingsInput, setUserLanguage,
+  deleteAccount,
   MAX_WINDOW_DAYS, type EngineDeps, type UserId,
   type HandleTextResult, type Refusal, type TargetGone, type SettingsResult,
 } from "../engine/index.ts";
@@ -301,6 +302,15 @@ export function createRouter(deps: EngineDeps, resolveUserId: ResolveUserId) {
           );
         }
         return json({ error: "action, or field + text, required" }, 400);
+      }
+
+      // Erasure. DELETE and nothing else: the method IS the safeguard, because a GET or a form
+      // POST can be provoked cross-site by an <img> or a hidden form and this route is
+      // unrecoverable. Idempotent, so a client retrying a timed-out request is not told that
+      // completed work failed.
+      if (req.method === "DELETE" && url.pathname === "/v1/account") {
+        await deleteAccount(deps, userId);
+        return json({ kind: "deleted" });
       }
 
       if (req.method === "POST" && url.pathname === "/v1/language") {

@@ -543,4 +543,75 @@ describe("api router", () => {
     expect((await handle(new Request("http://x/v1/onboarding", { method: "POST", body: "{}" }))).status).toBe(401);
     expect((await handle(new Request("http://x/v1/language", { method: "POST", body: "{}" }))).status).toBe(401);
   });
+
+  // ---------- erasure ----------
+
+  test("DELETE /v1/account erases the caller's account and their meals", async () => {
+    const { db, deps } = await ctx();
+    await activeUser(db, 770);
+    await seedMeal(db, 770, "m-gone");
+    const handle = createRouter(deps, () => 770);
+
+    const res = await handle(new Request("http://x/v1/account", { method: "DELETE" }));
+    expect(res.status).toBe(200);
+    expect((await body(res)).kind).toBe("deleted");
+    expect(await getUser(db, 770)).toBeUndefined();
+    const rows = await db`SELECT count(*)::int AS n FROM meals WHERE user_id = 770`;
+    expect((rows[0] as { n: number }).n).toBe(0);
+  });
+
+  test("erasure takes ONLY the caller's rows", async () => {
+    const { db, deps } = await ctx();
+    await activeUser(db, 771);
+    await activeUser(db, 772);
+    await seedMeal(db, 772, "m-keep");
+    await createRouter(deps, () => 771)(new Request("http://x/v1/account", { method: "DELETE" }));
+    expect(await getUser(db, 771)).toBeUndefined();
+    expect(await getUser(db, 772)).toBeDefined();
+    const rows = await db`SELECT count(*)::int AS n FROM meals WHERE user_id = 772`;
+    expect((rows[0] as { n: number }).n).toBe(1);
+  });
+
+  test("erasure is idempotent — a second DELETE is not an error", async () => {
+    // A client that retries a timed-out request must not get a failure for work already done.
+    const { db, deps } = await ctx();
+    await activeUser(db, 773);
+    const handle = createRouter(deps, () => 773);
+    expect((await handle(new Request("http://x/v1/account", { method: "DELETE" }))).status).toBe(200);
+    expect((await handle(new Request("http://x/v1/account", { method: "DELETE" }))).status).toBe(200);
+    expect(await getUser(db, 773)).toBeUndefined();
+  });
+
+  test("only DELETE erases — GET and POST on /v1/account are 404", async () => {
+    // The method IS the safeguard here: a GET or a form POST can be triggered cross-site by an
+    // <img> or a hidden form, and this route is unrecoverable. DELETE cannot be provoked that way.
+    const { db, deps } = await ctx();
+    await activeUser(db, 774);
+    const handle = createRouter(deps, () => 774);
+    for (const method of ["GET", "POST"]) {
+      expect((await handle(new Request("http://x/v1/account", { method }))).status).toBe(404);
+    }
+    expect(await getUser(db, 774)).toBeDefined();
+  });
+
+  test("erasure is 401 without a resolved user, and erases nothing", async () => {
+    const { db, deps } = await ctx();
+    await activeUser(db, 775);
+    const res = await createRouter(deps, () => null)(
+      new Request("http://x/v1/account", { method: "DELETE" }),
+    );
+    expect(res.status).toBe(401);
+    expect(await getUser(db, 775)).toBeDefined();
+  });
+
+  test("erasure fires the surface-state purge hook", async () => {
+    // The API and the bot share one process. The engine erases the database; whatever a SURFACE
+    // holds in memory is unreachable from here, so it is purged through this hook or not at all.
+    const purged: number[] = [];
+    const { db, deps } = await ctx();
+    deps.onAccountDeleted = (id) => purged.push(id);
+    await activeUser(db, 776);
+    await createRouter(deps, () => 776)(new Request("http://x/v1/account", { method: "DELETE" }));
+    expect(purged).toEqual([776]);
+  });
 });

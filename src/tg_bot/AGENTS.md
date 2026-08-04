@@ -133,9 +133,13 @@ result into copy plus a keyboard.
   engine reports `no-admin-configured` and this layer chooses to say nothing.
 - **`/delete` is confirm-first and the confirm is the only thing that erases.** The prompt sends
   buttons and writes nothing. `processDeleteDecision` reads the translator BEFORE the delete (there
-  is no row to read it from afterwards), calls the engine's `deleteAccount`, then clears the
-  in-memory rejection log — which the engine cannot do, since only this layer knows it exists. It
-  returns `false` for data it does not own so the callback chain keeps its fall-through.
+  is no row to read it from afterwards) and calls the engine's `deleteAccount`. It does NOT clear
+  the rejection log inline — `startBot` binds `onAccountDeleted` to `rejections.remove`, so the
+  purge happens for an erasure started over HTTP too. That is also why `startBot` builds the
+  `RejectionLog` itself rather than leaving it to `createBot`'s lazy default: the API holds
+  `engineDeps`, and a log created on `createBot`'s spread copy is one the hook could never reach.
+  `processDeleteDecision` returns `false` for data it does not own so the callback chain keeps its
+  fall-through.
 - **`bot.catch` stays.** A failed reply must never crash the process; `startBot`'s supervisor
   retries runner errors (e.g. a 409 during poller hand-off) instead of exiting.
 - **Retry transient, exit on fatal.** `isFatalTelegramError` (401/404 — a dead or wrong token)

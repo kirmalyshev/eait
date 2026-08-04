@@ -202,9 +202,18 @@ export { isRefusal as isAdminRefusal };
  * whichever front end asks for it — a second implementation is how a table gets missed, and a
  * missed table is a deletion that quietly did not happen.
  *
- * In-memory surface state (the Telegram rejection log) is NOT covered here; the surface clears its
- * own, because only it knows what it is holding.
+ * Idempotent: deleting an account that is already gone is a success, not an error, so a client
+ * retrying a timed-out request is not told its completed work failed.
+ *
+ * `onAccountDeleted` then lets each surface drop its own in-memory state. It runs AFTER the
+ * database work and its throw is swallowed: the rows are already gone, and reporting a failure at
+ * that point would invite a retry of a deletion that has, in every sense that matters, happened.
  */
 export async function deleteAccount(deps: EngineDeps, userId: UserId): Promise<void> {
   await deleteUser(deps.db, userId);
+  try {
+    deps.onAccountDeleted?.(userId);
+  } catch (e) {
+    console.error(`[eait] account ${userId} erased, surface purge hook failed: ${(e as Error)?.message ?? e}`);
+  }
 }
