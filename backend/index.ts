@@ -62,7 +62,14 @@ const mailer: Mailer = config.mailProvider === "resend"
 // A production instance with a landing page and no real sender collects addresses that nobody can
 // confirm — the links go to a container log instead of an inbox, and the only symptom is a list
 // that silently stops growing. Loud at startup rather than discovered from an empty table.
-if (!demo && config.mailProvider === "log" && config.landingUrl !== "") {
+//
+// A LOCALHOST landing page is exempt, and that is not a loophole: printing the link is the
+// DESIRED behaviour there — it is what makes the double opt-in drivable with no vendor account —
+// and every worktree's dev backend has both settings by construction (`scripts/dev-env.ts` points
+// `LANDING_URL` at the local preview). A warning that fires on every ordinary start is a warning
+// nobody reads on the one start that matters.
+const landingIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:|$|\/)/.test(config.landingUrl);
+if (!demo && config.mailProvider === "log" && config.landingUrl !== "" && !landingIsLocal) {
   console.warn(
     "[ieat] MAIL_PROVIDER=log with a landing page configured: confirmation links are being PRINTED, "
     + "not sent, so no subscriber can ever confirm. Set MAIL_PROVIDER=resend and RESEND_API_KEY.",

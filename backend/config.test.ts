@@ -4,14 +4,29 @@
 // silently ignores its variable is worse than a hardcoded constant: the constant is at least
 // honest about not being configurable, while this looks configured and is not.
 
-import { afterEach, describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { configDefaults, loadConfig, redact } from "./config.ts";
 
-/** Every variable this suite touches, cleared between tests so ordering cannot matter. */
+/**
+ * EVERY variable `loadConfig` reads, cleared before AND after each test.
+ *
+ * Before, not only after, and that is the whole point: bun loads the repo's `.env` into the test
+ * process, and `make env` now writes one in every worktree. Clearing afterwards left the FIRST test
+ * running against whatever the developer happened to have configured — so "refuses to start without
+ * DATABASE_URL" passed on a clean machine and failed on any machine set up to actually run the
+ * server. A test whose result depends on an untracked file is not a test.
+ *
+ * The list is a superset on purpose: a variable added to `loadConfig` and forgotten here can only
+ * make a test read the ambient environment again.
+ */
 const VARS = [
   "DATABASE_URL", "LLM_API_KEY", "LLM_BASE_URL", "LLM_TIMEOUT_MS", "LLM_MODEL", "LLM_PROVIDER",
   "PENDING_TTL_MINUTES", "MAX_UPLOAD_MB", "MAX_PHOTOS_PER_MEAL", "PORT", "HOST", "TZ_NAME",
   "USER_DAILY_PHOTO_CAP", "GLOBAL_DAILY_ANALYSIS_CAP", "APPLE_AUDIENCES", "GOOGLE_AUDIENCES",
+  "SESSION_TTL_DAYS", "AUTH_RATE_LIMIT_PER_HOUR", "ANALYSIS_RATE_LIMIT_PER_DAY",
+  "SUBSCRIBE_RATE_LIMIT_PER_HOUR", "SUBSCRIBE_DAILY_CAP", "SUBSCRIBE_CONFIRM_TTL_DAYS",
+  "ADMIN_TOKEN", "MAIL_PROVIDER", "MAIL_FROM", "RESEND_API_KEY", "RESEND_BASE_URL",
+  "MAIL_TIMEOUT_MS", "PUBLIC_API_URL", "LANDING_URL",
 ] as const;
 
 /** The two without defaults. Set for every test so `loadConfig` gets past its required checks. */
@@ -21,9 +36,12 @@ function withRequired(extra: Record<string, string> = {}) {
   for (const [k, v] of Object.entries(extra)) process.env[k] = v;
 }
 
-afterEach(() => {
+const clear = () => {
   for (const v of VARS) delete process.env[v];
-});
+};
+
+beforeEach(clear);
+afterEach(clear);
 
 describe("loadConfig", () => {
   it("refuses to start without the two settings that have no safe default", () => {
