@@ -9,14 +9,14 @@
 
 import {
   DEFAULT_ONBOARDING_CONTENT, MAX_ONBOARDING_EVENTS_PER_BATCH, ONBOARDING_ACTIONS,
-  ONBOARDING_SCREENS, isReportableField, validateOnboardingContent,
+  ONBOARDING_PLACES, isReportableField, validateOnboardingContent,
   type ContentValidation, type FunnelRow, type OnboardingContent, type OnboardingEvent,
   type OnboardingFunnel, type OnboardingPlace,
 } from "@ieat/shared";
 import type { EngineDeps } from "./deps.ts";
 
-/** Every place an event may name. The screens, plus the summary. */
-const PLACES: readonly string[] = [...ONBOARDING_SCREENS, "summary"];
+/** Every place an event may name — the questions, and the three places that are not questions. */
+const PLACES: readonly string[] = ONBOARDING_PLACES;
 
 /**
  * The copy this server serves.
@@ -125,7 +125,10 @@ export async function recordOnboardingEvents(
 export async function onboardingFunnel(deps: EngineDeps, days: number): Promise<OnboardingFunnel> {
   const agg = await deps.store.onboardingFunnel(days);
   const content = await onboardingContent(deps);
-  const order = [...content.screens.map((s) => s.id), "summary"] as OnboardingPlace[];
+  // The order a person meets them in, which is what makes a drop between two rows readable as a
+  // drop. `welcome` first and `building` last are fixed; the screens between them are in whatever
+  // order the admin put them.
+  const order = ["welcome", ...content.screens.map((s) => s.id), "building", "summary"] as OnboardingPlace[];
   const byPlace = new Map(agg.rows.map((r) => [r.place, r]));
 
   const rows: FunnelRow[] = order.map((place) => {

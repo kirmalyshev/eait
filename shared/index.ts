@@ -4,6 +4,7 @@
 
 export * from "./types.ts";
 export * from "./targets.ts";
+export * from "./projection.ts";
 export * from "./results.ts";
 export * from "./onboarding.ts";
 export * from "./contract.ts";

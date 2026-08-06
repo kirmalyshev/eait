@@ -113,11 +113,30 @@ export const ADMIN_PAGE = `<!doctype html>
     Median is how long an answer took.
   </p>
 
-  <h2>Screens</h2>
   <div id="errors" class="errors hidden"><strong>Not saved.</strong><ul></ul></div>
+
+  <h2>The welcome screen</h2>
+  <p class="muted">
+    The first thing anyone sees. The lines under the title are what we do NOT ask for — do not name a
+    competitor there, and do not write "free"; the claim is "no card to start", which is checkable.
+  </p>
+  <div id="welcome"></div>
+
+  <h2>Screens</h2>
   <div id="screens"></div>
 
+  <h2>Working out the number</h2>
+  <p class="muted">
+    Labels only. Every figure beside them is computed from the person's own answers and cannot be
+    edited here.
+  </p>
+  <div id="building"></div>
+
   <h2>The plan screen</h2>
+  <p class="muted">
+    <code>{weeks}</code> and <code>{month}</code> are substituted into the projection line. It is
+    hidden entirely for anyone the arithmetic cannot honestly project.
+  </p>
   <div id="summary"></div>
 </div>
 
@@ -304,21 +323,66 @@ export const ADMIN_PAGE = `<!doctype html>
     render();
   }
 
+  /** Mood on the left, the line it says on the right — the pairing every card uses. */
+  function mascotRow(card, m) {
+    var row = document.createElement("div");
+    row.className = "row";
+    var left = document.createElement("div");
+    var right = document.createElement("div");
+    moodSelect(left, m.mood, function (v) { m.mood = v; });
+    field(right, "Mascot line", m.line, function (v) { m.line = v; });
+    row.appendChild(left);
+    row.appendChild(right);
+    card.appendChild(row);
+  }
+
+  function welcomeCard() {
+    var w = content.welcome;
+    var card = document.createElement("div");
+    card.className = "card";
+    field(card, "Title", w.title, function (v) { w.title = v; });
+    field(card, "Subtitle (optional)", w.subtitle, function (v) {
+      if (v.trim() === "") delete w.subtitle; else w.subtitle = v;
+    });
+    mascotRow(card, w.mascot);
+    // Rendered from the array each time, so removing a line is emptying its box rather than
+    // hunting for a delete control. The validator refuses an empty list, which is the guard.
+    w.points.forEach(function (pt, i) {
+      field(card, "Line " + (i + 1), pt, function (v) { w.points[i] = v; });
+    });
+    if (w.points.length < 4) {
+      var add = document.createElement("button");
+      add.textContent = "Add a line";
+      add.addEventListener("click", function () { w.points.push(""); render(); });
+      card.appendChild(add);
+    }
+    field(card, "Button label", w.cta, function (v) { w.cta = v; });
+    return card;
+  }
+
+  function buildingCard() {
+    var b = content.building;
+    var card = document.createElement("div");
+    card.className = "card";
+    field(card, "Title", b.title, function (v) { b.title = v; });
+    mascotRow(card, b.mascot);
+    field(card, "Resting burn", b.restLabel, function (v) { b.restLabel = v; });
+    field(card, "With activity", b.activityLabel, function (v) { b.activityLabel = v; });
+    field(card, "Pace adjustment", b.paceLabel, function (v) { b.paceLabel = v; });
+    field(card, "Safety floor", b.floorLabel, function (v) { b.floorLabel = v; });
+    field(card, "Button label", b.cta, function (v) { b.cta = v; });
+    return card;
+  }
+
   function summaryCard() {
     var s = content.summary;
     var card = document.createElement("div");
     card.className = "card";
     field(card, "Title", s.title, function (v) { s.title = v; });
-    var row = document.createElement("div");
-    row.className = "row";
-    var left = document.createElement("div");
-    var right = document.createElement("div");
-    moodSelect(left, s.mascot.mood, function (v) { s.mascot.mood = v; });
-    field(right, "Mascot line", s.mascot.line, function (v) { s.mascot.line = v; });
-    row.appendChild(left);
-    row.appendChild(right);
-    card.appendChild(row);
+    mascotRow(card, s.mascot);
     field(card, "Button label", s.cta, function (v) { s.cta = v; });
+    field(card, "Projection", s.projection, function (v) { s.projection = v; });
+    field(card, "Projection past two years", s.projectionFar, function (v) { s.projectionFar = v; });
     field(card, "Disclaimer", s.disclaimer, function (v) { s.disclaimer = v; }, true);
     return card;
   }
@@ -327,9 +391,14 @@ export const ADMIN_PAGE = `<!doctype html>
     var host = $("screens");
     host.textContent = "";
     content.screens.forEach(function (s, i) { host.appendChild(screenCard(s, i)); });
-    var sum = $("summary");
-    sum.textContent = "";
-    sum.appendChild(summaryCard());
+    var one = function (id, build) {
+      var host = $(id);
+      host.textContent = "";
+      host.appendChild(build());
+    };
+    one("welcome", welcomeCard);
+    one("building", buildingCard);
+    one("summary", summaryCard);
     status("version " + content.version);
   }
 

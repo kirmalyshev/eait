@@ -97,8 +97,30 @@ export const ONBOARDING_SCREENS = [
 ] as const;
 export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
 
-/** The summary is not a question, but it is a place the user can be and a thing analytics counts. */
-export type OnboardingPlace = OnboardingScreenId | "summary";
+/**
+ * The places that are not questions.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ * INTERSTITIALS ARE NOT SCREENS, AND THAT IS THE WHOLE REASON THEY ARE SAFE
+ *
+ * `welcome`, `building` and `summary` collect no profile field. So they are absent from
+ * `ONBOARDING_STEPS`, absent from `ONBOARDING_SCREENS`, and absent from `SCREEN_FIELDS` — which
+ * means the three-layer boundary above, and every rule `validateOnboardingContent` enforces about
+ * it, is exactly the shape it was before they existed. Adding a place a user can BE does not add a
+ * place a calorie target can come from.
+ *
+ * They are still places analytics counts, because the funnel's job is to price them. A beat that
+ * costs more people than it convinces has to be visible as a drop between two rows.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ */
+export const ONBOARDING_INTERSTITIALS = ["welcome", "building", "summary"] as const;
+export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
+
+/** Everywhere a user can be during onboarding. The analytics vocabulary. */
+export const ONBOARDING_PLACES = [
+  "welcome", ...ONBOARDING_SCREENS, "building", "summary",
+] as const;
+export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
 
 /**
  * Which fields each screen collects, in render order.
@@ -288,6 +310,57 @@ export interface OnboardingScreenContent {
   enabled?: boolean;
 }
 
+/**
+ * The front door. What this is, before the first question.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ * WHY THE FIRST THING THE APP SAYS IS WHAT IT WILL NOT ASK FOR
+ *
+ * Across seven calorie apps and 2,792 low-star reviews, the billing cluster is the largest
+ * complaint for every single one — floor 15%, median 27%, the category leader at 48%
+ * (`eait-marketer/.../2026-07-28-category-billing-crossread.md` §1). The same doc's §3 finds the
+ * pattern: the harder a paywall sits in front of first value, the more the reviews reach for
+ * "scam", "misleading", "tricked".
+ *
+ * This app has no paywall, no trial, no card and no email field. That is not a feature to defend,
+ * it is the absence of the thing the whole category is being complained about — so the front door
+ * states it plainly and moves on.
+ *
+ * TWO RULES ON THE WORDING, both from §5 of that doc and both enforced by a test:
+ *   - never name a competitor. All seven have the complaint; naming one invites a fair-comparison
+ *     argument we lose.
+ *   - never claim "free". The claim is "no card to start", which is true and checkable today.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ */
+export interface OnboardingWelcomeContent {
+  title: string;
+  subtitle?: string;
+  mascot: MascotLine;
+  /** Short lines under the title. One to four — past that it is a wall, not a promise. */
+  points: string[];
+  cta: string;
+}
+
+/**
+ * The plan being worked out.
+ *
+ * The incumbent's equivalent is a progress animation over nothing. This one prints the arithmetic
+ * from `TargetBasis`, which was computed before the screen mounted — the dwell is there so the
+ * lines can be read, and a tap skips it. Labels only: every NUMBER on this screen comes from the
+ * profile response, so no admin edit can make it say something that was not computed.
+ */
+export interface OnboardingBuildingContent {
+  title: string;
+  mascot: MascotLine;
+  /** The label beside each figure. The figures themselves are not editable — they are computed. */
+  restLabel: string;
+  activityLabel: string;
+  paceLabel: string;
+  /** Shown only when the safety floor is the reason the number is what it is. */
+  floorLabel: string;
+  cta: string;
+}
+
 /** The payoff screen. Editable too, because it is the most-read screen in the flow. */
 export interface OnboardingSummaryContent {
   title: string;
@@ -295,6 +368,16 @@ export interface OnboardingSummaryContent {
   cta: string;
   /** Shown under the number. The estimates-not-measurements disclaimer. */
   disclaimer: string;
+  /**
+   * The projection, with `{weeks}` and `{month}` substituted.
+   *
+   * Weeks and a month name, never a day-precise date: `projection.ts` says why. Absent from the
+   * screen entirely when `projectGoal` returns null, which is every case where a number would be
+   * an invention rather than a calculation.
+   */
+  projection: string;
+  /** Replaces `projection` past the two-year horizon, where naming a month stops being useful. */
+  projectionFar: string;
 }
 
 export interface OnboardingContent {
@@ -306,7 +389,9 @@ export interface OnboardingContent {
    * words were on screen.
    */
   version: number;
+  welcome: OnboardingWelcomeContent;
   screens: OnboardingScreenContent[];
+  building: OnboardingBuildingContent;
   summary: OnboardingSummaryContent;
 }
 
@@ -341,6 +426,17 @@ export const SCREEN_OPTIONS: Partial<Record<OnboardingScreenId, readonly string[
  */
 export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   version: 1,
+  welcome: {
+    title: "Photograph what you eat. Get an honest answer.",
+    subtitle: "Seven questions first, so the answer is about you rather than about an average.",
+    mascot: { mood: "wave", line: "Hi, I'm Spud. I'll judge your dinner, never you." },
+    points: [
+      "No card, and nothing to cancel later.",
+      "No email, no name — the account is this phone.",
+      "Your photos are read, judged, and dropped. Never stored.",
+    ],
+    cta: "Start",
+  },
   screens: [
     {
       id: "goal",
@@ -427,11 +523,25 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       cta: "Finish",
     },
   ],
+  building: {
+    title: "Working out your number",
+    mascot: { mood: "think", line: "Give me a second — I'm doing the arithmetic, not guessing." },
+    restLabel: "Your body at rest",
+    activityLabel: "With how you move",
+    paceLabel: "For the pace you picked",
+    floorLabel: "Held at your safe floor",
+    cta: "See the plan",
+  },
   summary: {
     title: "Your daily plan",
     mascot: { mood: "cheer", line: "That's you, worked out properly. Here's how I got there." },
-    cta: "Start logging",
+    // R0 of the retention plan: onboarding ends with ONE unambiguous instruction, and the thing
+    // being asked for is the first photo. "Start logging" points at a diary, which is an empty list
+    // and a second decision.
+    cta: "Photograph your next meal",
     disclaimer: "These are estimates from photographs, not measurements. Don't make medical decisions with them.",
+    projection: "About {weeks} weeks at this pace — around {month}, if the arithmetic holds.",
+    projectionFar: "Over two years at this pace. Worth picking a nearer goal weight first.",
   },
 };
 
@@ -443,6 +553,8 @@ const MAX_LINE = 160;
 const MAX_WHY = 400;
 const MAX_LABEL = 60;
 const MAX_HINT = 90;
+/** The front door is read in about three seconds or it is not read. */
+const MAX_WELCOME_POINTS = 4;
 
 export type ContentValidation =
   | { ok: true; content: OnboardingContent }
@@ -564,30 +676,75 @@ export function validateOnboardingContent(input: unknown): ContentValidation {
   // Order is content, not code: an admin may put `country` before `activity` if that reads better.
   // What is fixed is that every screen is present exactly once.
 
+  // ── The interstitials ──────────────────────────────────────────────────────────────────────
+  //
+  // Same discipline as a screen, for the same reason: an empty title or a mood the binary does not
+  // have renders as blank space on the one screen that has no question to fall back on.
+
+  /** A required, non-empty, length-capped string. Returns nothing; it reports. */
+  const str = (v: unknown, at: string, max: number) => {
+    if (!isStr(v) || v.trim() === "") push(`${at} is required`);
+    else if (v.length > max) push(`${at} is over ${max} characters`);
+  };
+  const mascotAt = (v: unknown, at: string) => {
+    if (typeof v !== "object" || v === null) { push(`${at} is required`); return; }
+    const m = v as Record<string, unknown>;
+    if (!isStr(m.mood) || !(MASCOT_MOODS as readonly string[]).includes(m.mood)) {
+      push(`${at}.mood must be one of ${MASCOT_MOODS.join(", ")}`);
+    }
+    str(m.line, `${at}.line`, MAX_LINE);
+  };
+
+  const wel = raw.welcome as Record<string, unknown> | undefined;
+  if (typeof wel !== "object" || wel === null) push("welcome is required");
+  else {
+    str(wel.title, "welcome.title", MAX_TITLE);
+    if (wel.subtitle !== undefined && (!isStr(wel.subtitle) || wel.subtitle.length > MAX_SUBTITLE)) {
+      push(`welcome.subtitle must be a string under ${MAX_SUBTITLE} characters`);
+    }
+    str(wel.cta, "welcome.cta", MAX_LABEL);
+    mascotAt(wel.mascot, "welcome.mascot");
+    // One to four. Zero makes the screen a title and a button; five makes it a wall, and the point
+    // of a front door is that it is read in about three seconds.
+    if (!Array.isArray(wel.points) || wel.points.length < 1 || wel.points.length > MAX_WELCOME_POINTS) {
+      push(`welcome.points must be 1 to ${MAX_WELCOME_POINTS} lines`);
+    } else {
+      for (const [i, pt] of wel.points.entries()) str(pt, `welcome.points[${i}]`, MAX_HINT);
+    }
+  }
+
+  const bld = raw.building as Record<string, unknown> | undefined;
+  if (typeof bld !== "object" || bld === null) push("building is required");
+  else {
+    str(bld.title, "building.title", MAX_TITLE);
+    str(bld.cta, "building.cta", MAX_LABEL);
+    mascotAt(bld.mascot, "building.mascot");
+    for (const key of ["restLabel", "activityLabel", "paceLabel", "floorLabel"] as const) {
+      str(bld[key], `building.${key}`, MAX_LABEL);
+    }
+  }
+
   const sum = raw.summary as Record<string, unknown> | undefined;
   if (typeof sum !== "object" || sum === null) push("summary is required");
   else {
-    if (!isStr(sum.title) || sum.title.trim() === "") push("summary.title is required");
-    else if (sum.title.length > MAX_TITLE) push(`summary.title is over ${MAX_TITLE} characters`);
-    if (!isStr(sum.cta) || sum.cta.trim() === "") push("summary.cta is required");
-    else if (sum.cta.length > MAX_LABEL) push(`summary.cta is over ${MAX_LABEL} characters`);
-    if (!isStr(sum.disclaimer) || sum.disclaimer.trim() === "") push("summary.disclaimer is required");
-    else if (sum.disclaimer.length > MAX_WHY) push(`summary.disclaimer is over ${MAX_WHY} characters`);
-    const m = sum.mascot as Record<string, unknown> | undefined;
-    if (typeof m !== "object" || m === null) push("summary.mascot is required");
-    else {
-      if (!isStr(m.mood) || !(MASCOT_MOODS as readonly string[]).includes(m.mood)) {
-        push(`summary.mascot.mood must be one of ${MASCOT_MOODS.join(", ")}`);
-      }
-      if (!isStr(m.line) || m.line.trim() === "") push("summary.mascot.line is required");
-      else if (m.line.length > MAX_LINE) push(`summary.mascot.line is over ${MAX_LINE} characters`);
-    }
+    str(sum.title, "summary.title", MAX_TITLE);
+    str(sum.cta, "summary.cta", MAX_LABEL);
+    str(sum.disclaimer, "summary.disclaimer", MAX_WHY);
+    str(sum.projection, "summary.projection", MAX_SUBTITLE);
+    str(sum.projectionFar, "summary.projectionFar", MAX_SUBTITLE);
+    mascotAt(sum.mascot, "summary.mascot");
   }
 
   if (errors.length > 0) return { ok: false, errors };
   return {
     ok: true,
-    content: { version: version as number, screens, summary: raw.summary as OnboardingSummaryContent },
+    content: {
+      version: version as number,
+      welcome: raw.welcome as OnboardingWelcomeContent,
+      screens,
+      building: raw.building as OnboardingBuildingContent,
+      summary: raw.summary as OnboardingSummaryContent,
+    },
   };
 }
 
@@ -625,6 +782,12 @@ export function orderedScreens(
  *
  * Dropping a whole revision of the copy is the right trade. The words are cosmetic and the app has
  * a complete set compiled in; the questions are not, and asking all of them is the point.
+ *
+ * AN INTERSTITIAL IS THE EXCEPTION, and the exception is what the rule's own reasoning asks for.
+ * `welcome` and `building` ask nothing, so a revision missing one cannot produce a flow that skips
+ * a question — the failure the paragraph above is written against does not exist here. Charging an
+ * admin every word they edited because a server predates a cosmetic block would be a penalty with
+ * no defect behind it, so those fall back BLOCK BY BLOCK and the rest of the revision survives.
  */
 export function usableContent(
   candidate: unknown,
@@ -632,12 +795,21 @@ export function usableContent(
 ): OnboardingContent {
   if (typeof candidate !== "object" || candidate === null) return fallback;
   const c = candidate as Partial<OnboardingContent>;
-  if (typeof c.version !== "number" || !Array.isArray(c.screens) || !c.summary) return fallback;
+  if (typeof c.version !== "number" || !Array.isArray(c.screens)) return fallback;
   const present = new Set(c.screens.map((s) => s?.id));
   for (const id of ONBOARDING_SCREENS) {
     if (!present.has(id)) return fallback;
   }
-  return c as OnboardingContent;
+  return {
+    version: c.version,
+    welcome: c.welcome ?? fallback.welcome,
+    screens: c.screens,
+    building: c.building ?? fallback.building,
+    // The summary carries the projection strings, added at the same time as the interstitials. A
+    // revision from before them has a summary that renders but has nothing to say about a
+    // projection, so it is filled the same way rather than half-adopted.
+    summary: c.summary?.projection ? c.summary : fallback.summary,
+  };
 }
 
 /**

@@ -7,9 +7,9 @@
 
 import { describe, expect, it } from "bun:test";
 import {
-  DEFAULT_ONBOARDING_CONTENT, ONBOARDING_SCREENS, ONBOARDING_STEPS, REPORTABLE_FIELDS,
-  SCREEN_FIELDS, applicableScreens, disabledScreens, nextScreenIndex, nextStep, orderedScreens,
-  screenForStep, usableContent, validateOnboardingContent,
+  DEFAULT_ONBOARDING_CONTENT, ONBOARDING_PLACES, ONBOARDING_SCREENS, ONBOARDING_STEPS,
+  REPORTABLE_FIELDS, SCREEN_FIELDS, applicableScreens, disabledScreens, nextScreenIndex, nextStep,
+  orderedScreens, screenForStep, usableContent, validateOnboardingContent,
   type OnboardingContent, type Profile,
 } from "./index.ts";
 
@@ -311,6 +311,85 @@ describe("content from a server this binary does not match", () => {
     const fine = clone(DEFAULT_ONBOARDING_CONTENT);
     fine.version = 12;
     expect(usableContent(fine).version).toBe(12);
+  });
+});
+
+describe("the interstitials", () => {
+  // `welcome` and `building` are places, not screens. They collect nothing, so they stay out of
+  // ONBOARDING_SCREENS and SCREEN_FIELDS — which is what keeps the three-layer boundary the same
+  // shape it was before they existed.
+
+  it("are not screens", () => {
+    for (const id of ["welcome", "building", "summary"]) {
+      expect(ONBOARDING_SCREENS as readonly string[]).not.toContain(id);
+    }
+  });
+
+  it("are places", () => {
+    for (const place of ["welcome", "building", "summary"] as const) {
+      expect(ONBOARDING_PLACES).toContain(place);
+    }
+    for (const id of ONBOARDING_SCREENS) expect(ONBOARDING_PLACES).toContain(id);
+  });
+
+  it("ship with copy that validates", () => {
+    const result = validateOnboardingContent(DEFAULT_ONBOARDING_CONTENT);
+    if (!result.ok) throw new Error(result.errors.join("\n"));
+    expect(DEFAULT_ONBOARDING_CONTENT.welcome.points.length).toBeGreaterThan(0);
+    expect(DEFAULT_ONBOARDING_CONTENT.building.title.trim()).not.toBe("");
+  });
+
+  it("refuse copy the app could not render", () => {
+    const bad = (mutate: (c: OnboardingContent) => unknown) =>
+      expect(validateOnboardingContent(mutate(clone(DEFAULT_ONBOARDING_CONTENT))).ok).toBe(false);
+
+    bad((c) => { (c as { welcome?: unknown }).welcome = undefined; return c; });
+    bad((c) => { (c as { building?: unknown }).building = undefined; return c; });
+    bad((c) => { c.welcome.title = ""; return c; });
+    bad((c) => { c.welcome.points = []; return c; });
+    bad((c) => { c.welcome.points = ["a", "b", "c", "d", "e"]; return c; });
+    bad((c) => { c.welcome.mascot.mood = "smug" as never; return c; });
+    bad((c) => { c.building.cta = ""; return c; });
+  });
+
+  // The billing beat is the largest complaint cluster in the category cross-read, and the wording
+  // rule from that doc is specific: "no card to start" is true and checkable; "free" is not, and
+  // naming a competitor invites a comparison argument we lose.
+  it("say what we do not ask for, without naming anyone or claiming free", () => {
+    const words = [
+      DEFAULT_ONBOARDING_CONTENT.welcome.title,
+      ...DEFAULT_ONBOARDING_CONTENT.welcome.points,
+      DEFAULT_ONBOARDING_CONTENT.welcome.mascot.line,
+    ].join(" ").toLowerCase();
+
+    expect(words).toContain("card");
+    for (const competitor of ["cal ai", "calai", "myfitnesspal", "noom", "yazio", "lose it"]) {
+      expect(words).not.toContain(competitor);
+    }
+    // An unqualified "free" is the one claim DECISIONS.md rules out by name.
+    expect(words).not.toMatch(/\bfree\b/);
+  });
+
+  it("fills a missing interstitial from the default without discarding the revision", () => {
+    // The opposite of the screens rule, and deliberately so. `usableContent` drops a whole revision
+    // when a SCREEN is missing because the result would be a flow that never asks a question the
+    // calorie target needs. An interstitial asks nothing, so the same penalty would cost an admin
+    // every word they edited in exchange for nothing.
+    const old = clone(DEFAULT_ONBOARDING_CONTENT);
+    old.version = 12;
+    old.screens[0]!.title = "Edited by an admin";
+    delete (old as { welcome?: unknown }).welcome;
+
+    const used = usableContent(old);
+    expect(used.version).toBe(12);
+    expect(used.screens[0]!.title).toBe("Edited by an admin");
+    expect(used.welcome).toEqual(DEFAULT_ONBOARDING_CONTENT.welcome);
+  });
+
+  it("still discards a revision missing a screen, interstitials or not", () => {
+    const old = clone(DEFAULT_ONBOARDING_CONTENT);
+    old.screens = old.screens.filter((s) => s.id !== "target");
+    expect(usableContent(old)).toBe(DEFAULT_ONBOARDING_CONTENT);
   });
 });
 

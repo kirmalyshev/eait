@@ -51,6 +51,7 @@ export const PERF_SCREENS = [
   // Cold launch: process start → the first screen a user can act on.
   "boot",
   "signin",
+  "onboarding:welcome",
   "onboarding:goal",
   "onboarding:about",
   "onboarding:body",
@@ -58,6 +59,7 @@ export const PERF_SCREENS = [
   "onboarding:activity",
   "onboarding:country",
   "onboarding:restrictions",
+  "onboarding:building",
   "onboarding:summary",
   "today",
   "chat",
@@ -101,6 +103,9 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   // no onboarding screen is ever waiting on a request — that is a design rule in `onboarding.tsx`
   // and these budgets are what enforces it. A screen here that misses `readyMs` has started
   // blocking on the network, which is the regression to catch.
+  // The front door. Static copy compiled into the binary — there is nothing to fetch and nothing
+  // to compute, which is the point: the first frame of the app is the first frame of the app.
+  "onboarding:welcome": { paintMs: 100, readyMs: 100 },
   "onboarding:goal": { paintMs: 100, readyMs: 100 },
   "onboarding:about": { paintMs: 100, readyMs: 100 },
   "onboarding:body": { paintMs: 100, readyMs: 100 },
@@ -108,6 +113,14 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   "onboarding:activity": { paintMs: 100, readyMs: 100 },
   "onboarding:country": { paintMs: 100, readyMs: 100 },
   "onboarding:restrictions": { paintMs: 100, readyMs: 100 },
+  // The plan being worked out.
+  //
+  // THE DWELL ON THIS SCREEN IS NOT A WAIT, and this budget is where that claim is enforced. Every
+  // figure it stages comes from `profile.basis`, which the patch that finished onboarding already
+  // returned — so the screen is complete on its first frame and is graded as such. The staging is
+  // a reveal over content that is already there, and a tap skips it. If somebody ever makes this
+  // screen fetch anything, `readyMs` is what fails.
+  "onboarding:building": { paintMs: 100, readyMs: 100 },
   // The plan. Reads `profile.targets`, which boot already fetched — no request of its own.
   "onboarding:summary": { paintMs: 100, readyMs: 100 },
 
