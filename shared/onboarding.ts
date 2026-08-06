@@ -441,7 +441,9 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
     {
       id: "goal",
       title: "What are you here to do?",
-      mascot: { mood: "wave", line: "Hi, I'm Spud. Seven quick questions and I'll have your number." },
+      // He introduced himself on the welcome screen a tap ago. Doing it twice in a row is the
+      // tell of a flow whose screens were written without reference to each other.
+      mascot: { mood: "happy", line: "Seven quick questions and I'll have your number." },
       options: {
         lose: { label: "Lose weight", hint: "Steadily, and never below what's safe" },
         maintain: { label: "Stay where I am", hint: "Hold the line, eat well" },
