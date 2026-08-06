@@ -428,11 +428,11 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   version: 1,
   welcome: {
     title: "Photograph what you eat. Get an honest answer.",
-    subtitle: "Seven questions first, so the answer is about you rather than about an average.",
+    subtitle: "A few questions first, so the answer is about you rather than an average.",
     mascot: { mood: "wave", line: "Hi, I'm Spud. I'll judge your dinner, never you." },
     points: [
       "No card, and nothing to cancel later.",
-      "No email, no name — the account is this phone.",
+      "No email, no name — we never ask who you are.",
       "Your photos are read, judged, and dropped. Never stored.",
     ],
     cta: "Start",
@@ -443,7 +443,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       title: "What are you here to do?",
       // He introduced himself on the welcome screen a tap ago. Doing it twice in a row is the
       // tell of a flow whose screens were written without reference to each other.
-      mascot: { mood: "happy", line: "Seven quick questions and I'll have your number." },
+      mascot: { mood: "happy", line: "A few quick questions and I'll have your number." },
       options: {
         lose: { label: "Lose weight", hint: "Steadily, and never below what's safe" },
         maintain: { label: "Stay where I am", hint: "Hold the line, eat well" },
