@@ -8,6 +8,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   DEFAULT_ONBOARDING_CONTENT, ONBOARDING_PLACES, ONBOARDING_SCREENS, ONBOARDING_STEPS,
+  KCAL_FLOOR, COUNTRY_CODES, countryFromRegion,
   REPORTABLE_FIELDS, SCREEN_FIELDS, applicableScreens, disabledScreens, nextScreenIndex, nextStep,
   orderedScreens, screenForStep, usableContent, validateOnboardingContent,
   type OnboardingContent, type Profile,
@@ -251,10 +252,13 @@ describe("which screen comes next", () => {
 
   it("follows the admin's order, not the canonical one", () => {
     const reordered = clone(content);
-    reordered.screens = [
-      reordered.screens.find((s) => s.id === "country")!,
-      ...reordered.screens.filter((s) => s.id !== "country"),
-    ];
+    // Switched ON for this test. `country` ships disabled — it is read from the device region
+    // instead of asked — and a disabled screen is filtered out before ordering is even considered,
+    // which would make this assert nothing. The claim here is about ORDER, so the subject has to be
+    // a screen that renders.
+    const country = reordered.screens.find((s) => s.id === "country")!;
+    country.enabled = true;
+    reordered.screens = [country, ...reordered.screens.filter((s) => s.id !== "country")];
     const first = orderedScreens(reordered, profile())[nextScreenIndex(reordered, profile())]!;
     expect(first.id).toBe("country");
   });
@@ -406,5 +410,60 @@ describe("what may be reported to analytics", () => {
 
   it("covers only real profile fields", () => {
     for (const f of REPORTABLE_FIELDS) expect(ONBOARDING_STEPS).toContain(f);
+  });
+});
+
+describe("the safety promise on the goal screen", () => {
+  it("quotes the floors the engine actually enforces", () => {
+    // The same rule the landing page is held to: a number quoted in copy is read from the code that
+    // produces it. A safety guarantee the app does not implement is the worst sentence it could
+    // show, and this one is shown at the exact moment a user commits to losing weight.
+    //
+    // BOTH are asserted because the goal screen is asked before sex is known, so the copy has to
+    // name the female and male floors rather than the user's own.
+    const goal = DEFAULT_ONBOARDING_CONTENT.screens.find((s) => s.id === "goal");
+    expect(goal?.why).toBeTruthy();
+    expect(goal!.why).toContain(String(KCAL_FLOOR.female));
+    expect(goal!.why).toContain(String(KCAL_FLOOR.male));
+  });
+
+  it("stays inside the length an admin is held to", () => {
+    // Shipped copy that would be rejected on the way back in is copy the admin cannot edit and
+    // resave, so the default has to pass its own validator.
+    const ok = validateOnboardingContent(DEFAULT_ONBOARDING_CONTENT).ok;
+    expect(ok).toBe(true);
+  });
+});
+
+describe("the country the device already knows", () => {
+  it("maps a curated region onto its own code, case-insensitively", () => {
+    expect(countryFromRegion("DE")).toBe("de");
+    expect(countryFromRegion("gb")).toBe("gb");
+    expect(countryFromRegion(" US ")).toBe("us");
+  });
+
+  it("answers 'other' for a region the list does not carry, and for no region at all", () => {
+    // "other" is a real answer here, not a failure: it is precisely what the curated list means by
+    // "somewhere we have not tuned the analyzer for". A device that reports nothing lands in the
+    // same place a user picking from the list would, so no caller has an unknown state to handle.
+    expect(countryFromRegion("FR")).toBe("other");
+    expect(countryFromRegion(null)).toBe("other");
+    expect(countryFromRegion(undefined)).toBe("other");
+    expect(countryFromRegion("")).toBe("other");
+  });
+
+  it("only ever returns a value the profile field accepts", () => {
+    for (const region of ["DE", "gb", "us", "RU", "FR", "zz", "", "other"]) {
+      expect(COUNTRY_CODES).toContain(countryFromRegion(region));
+    }
+  });
+
+  it("ships the screen off, because the device answers it", () => {
+    const country = DEFAULT_ONBOARDING_CONTENT.screens.find((s) => s.id === "country");
+    expect(country?.enabled).toBe(false);
+    // Disabled, NOT deleted: the validator requires every known screen to be present, and an admin
+    // who wants the question back should have a switch rather than a deploy.
+    expect(country).toBeTruthy();
+    expect(validateOnboardingContent(DEFAULT_ONBOARDING_CONTENT).ok).toBe(true);
   });
 });

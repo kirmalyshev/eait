@@ -404,6 +404,30 @@ export interface OnboardingContent {
 export const COUNTRY_CODES = ["de", "gb", "us", "ru", "other"] as const;
 export type CountryCode = (typeof COUNTRY_CODES)[number];
 
+/**
+ * The device's region, mapped onto the five countries this app actually curates.
+ *
+ * WHY THIS EXISTS AT ALL: the country screen is a full stop in front of the payoff that buys the
+ * user nothing — it tunes which products the analyzer expects to see, and the phone already knows
+ * the answer. Asked, it costs roughly a seventh of the people still in the flow. Read from the
+ * locale, it costs nothing and is right for almost everyone.
+ *
+ * "other" IS A REAL ANSWER, not a failure. It is what the curated list means by "somewhere we have
+ * not tuned for", so a region we do not carry maps to it exactly as a user picking it would — and
+ * so does a device that reports no region at all. There is no null return and no unknown state for
+ * a caller to invent behaviour around.
+ *
+ * The country never reaches `explainTargets`, which is why guessing here is safe and why `country`
+ * is the sole member of `OPTIONAL_SCREENS`. A wrong guess changes which brands the analyzer expects,
+ * and the user can correct it in settings; it cannot move a calorie target.
+ */
+export function countryFromRegion(region: string | null | undefined): CountryCode {
+  const code = (region ?? "").trim().toLowerCase();
+  return (COUNTRY_CODES as readonly string[]).includes(code) && code !== "other"
+    ? (code as CountryCode)
+    : "other";
+}
+
 export const SCREEN_OPTIONS: Partial<Record<OnboardingScreenId, readonly string[]>> = {
   goal: ["lose", "maintain", "gain"],
   about: ["female", "male"],
@@ -425,7 +449,10 @@ export const SCREEN_OPTIONS: Partial<Record<OnboardingScreenId, readonly string[
  * does not work".
  */
 export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
-  version: 1,
+  // Bumped whenever a word below changes, which is what makes the funnel readable: events carry the
+  // contentVersion they were recorded against, so "did the new copy help" is a question the data can
+  // answer instead of a matter of opinion. v2 added the safety promise to the goal screen.
+  version: 2,
   welcome: {
     title: "Photograph what you eat. Get an honest answer.",
     subtitle: "A few questions first, so the answer is about you rather than an average.",
@@ -444,6 +471,15 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       // He introduced himself on the welcome screen a tap ago. Doing it twice in a row is the
       // tell of a flow whose screens were written without reference to each other.
       mascot: { mood: "happy", line: "A few quick questions and I'll have your number." },
+      // The promise belongs HERE, on the tap that says "lose weight", and not only on the screen
+      // that asks how fast. The guards are the clearest difference between this app and the
+      // incumbent whose one-star reviews quote 569 kcal, and until now a user learned they existed
+      // only by tripping one with their own numbers — which is to say, only if they were already
+      // the person most at risk.
+      //
+      // BOTH floors are named because this screen is asked BEFORE sex is, so there is no single
+      // number to quote yet. `onboarding.test.ts` fails if either drifts from `KCAL_FLOOR`.
+      why: "Whatever pace you choose, there's a line we don't cross: never under 1200 kcal a day for women, or 1500 for men, and never more than a fifth off what you burn. That isn't a setting, and we won't ask you to turn it off.",
       options: {
         lose: { label: "Lose weight", hint: "Steadily, and never below what's safe" },
         maintain: { label: "Stay where I am", hint: "Hold the line, eat well" },
@@ -501,6 +537,14 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       title: "Where do you eat?",
       mascot: { mood: "happy", line: "So I know your supermarket, not somebody else's." },
       why: "This changes which products the analyzer expects to see. Most calorie apps are trained US-first and miss local brands entirely.",
+      // OFF BY DEFAULT, AND STILL PRESENT. `validateOnboardingContent` requires every known screen
+      // in the payload, so this is disabled rather than deleted — and an admin who wants the
+      // question back has a switch rather than a deploy.
+      //
+      // The value is not lost with the screen: `countryFromRegion` fills it from the device's own
+      // region at first load, and settings is where it is corrected. This is the one screen that
+      // may be switched off, because it is the one whose field never reaches `explainTargets`.
+      enabled: false,
       options: {
         de: { label: "Germany" },
         gb: { label: "United Kingdom" },
@@ -508,7 +552,6 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
         ru: { label: "Russia" },
         other: { label: "Somewhere else" },
       },
-      enabled: true,
     },
     {
       id: "restrictions",
