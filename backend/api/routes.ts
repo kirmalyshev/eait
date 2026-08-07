@@ -20,15 +20,17 @@ import {
   type AuthProviderResponse, type EditMealRequest, type IdentitiesResponse, type Lang,
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
   type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
+  type HealthDaysRequest, type HealthDaysResponse, type HealthResponse,
+  MAX_HEALTH_DAYS_PER_BATCH,
 } from "@ieat/shared";
 import { LANGS } from "@ieat/shared";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
-import { isCalendarDate } from "../dates.ts";
+import { isCalendarDate } from "@ieat/shared";
 import type { Store } from "../store.ts";
 import {
-  MAX_WINDOW_DAYS, cancelPendingMeal, confirmPendingMeal, day, editMeal, handleText, identitiesFor,
-  logPhotoMeal, onboardingContent, patchProfile, profileView, recordOnboardingEvents,
-  signInWithProvider, week, type EngineDeps,
+  MAX_TREND_DAYS, MAX_WINDOW_DAYS, cancelPendingMeal, confirmPendingMeal, day, editMeal, handleText,
+  healthTrend, identitiesFor, logPhotoMeal, onboardingContent, patchProfile, profileView,
+  recordHealthDays, recordOnboardingEvents, signInWithProvider, week, type EngineDeps,
 } from "../engine/index.ts";
 import { confirmSubscription, subscribe, unsubscribe } from "../engine/subscribe.ts";
 import { adminRoutes } from "./admin.ts";
@@ -465,6 +467,31 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
         }
         const totals = await week(deps, userId, days);
         return totals ? json({ days: totals }) : json({ error: "not-onboarded" }, 403);
+      }
+
+      // ── Health ────────────────────────────────────────────────────────────────────────────
+      //
+      // DAILY AGGREGATES, never raw samples. The phone reduces its health store to a handful of
+      // numbers per day before sending anything, so what arrives here is what this product uses
+      // rather than a per-second series it has no use for. The engine validates every value again:
+      // the client aggregating is a convenience, not a reason to trust the result.
+      if (req.method === "POST" && pathname === ROUTES.healthDays) {
+        const body = await req.json() as HealthDaysRequest;
+        const days = Array.isArray(body?.days) ? body.days : [];
+        if (days.length > MAX_HEALTH_DAYS_PER_BATCH) {
+          return json({ error: `at most ${MAX_HEALTH_DAYS_PER_BATCH} days per request` }, 400);
+        }
+        const out = await recordHealthDays(deps, userId, days, body?.weightMeasuredAt);
+        return out ? json(out satisfies HealthDaysResponse) : json({ error: "not-onboarded" }, 403);
+      }
+
+      if (req.method === "GET" && pathname === ROUTES.healthTrend) {
+        const days = Number(url.searchParams.get("days") ?? 30);
+        if (!Number.isInteger(days) || days < 1 || days > MAX_TREND_DAYS) {
+          return json({ error: `days must be an integer in [1, ${MAX_TREND_DAYS}]` }, 400);
+        }
+        const out = await healthTrend(deps, userId, days);
+        return out ? json(out satisfies HealthResponse) : json({ error: "not-onboarded" }, 403);
       }
 
       // ── Erasure ───────────────────────────────────────────────────────────────────────────

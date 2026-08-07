@@ -68,6 +68,23 @@ export const MIN_TARGET_BMI = 18.5;
 export const MIN_AGE = 16;
 const MAX_AGE = 100;
 
+/**
+ * The bodyweight this product will accept, in kilograms.
+ *
+ * ONE range, applied on every path that can set `weight_kg` — the manual profile form and the
+ * Apple Health import both. It lived only in the profile validator until the import existed, and a
+ * second copy there would have been two numbers that must agree; the failure when they stop
+ * agreeing is a weight the form refuses being written by a sync, and a calorie target computed
+ * from it.
+ */
+export const MIN_WEIGHT_KG = 30;
+export const MAX_WEIGHT_KG = 400;
+
+/** True for a bodyweight this product is willing to compute a calorie target from. */
+export function isAcceptableWeightKg(kg: number): boolean {
+  return Number.isFinite(kg) && kg >= MIN_WEIGHT_KG && kg <= MAX_WEIGHT_KG;
+}
+
 const ACTIVITY_FACTOR: Record<ActivityLevel, number> = {
   sedentary: 1.2,
   light: 1.375,

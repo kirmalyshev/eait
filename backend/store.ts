@@ -11,7 +11,8 @@
 // call. There is no method here that can reach a row without being told whose it is.
 
 import type {
-  DayTotals, Lang, MealAnalysis, MealRecord, OnboardingContent, OnboardingEvent, Profile, Provider,
+  DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, OnboardingContent, OnboardingEvent, Profile,
+  Provider,
 } from "@ieat/shared";
 
 /** A text meal awaiting confirmation. Not in the diary yet, and expires. */
@@ -261,6 +262,28 @@ export interface Store {
   /** Recorded BEFORE the model is called: a failed call still costs money. */
   recordAnalysis(userId: string, date: string, scope: "photo" | "text"): Promise<void>;
 
+  // ── Health ─────────────────────────────────────────────────────────────────────────────────
+  //
+  // Daily aggregates read off the user's phone. Scoped like everything else, and stored as one row
+  // per `(user_id, date)` — never as raw samples, which this product has no use for and which would
+  // be a large pile of special-category data whose only property is risk.
+
+  /**
+   * Upsert a batch of days. Returns how many rows were written.
+   *
+   * Idempotent on `(user_id, date)` because the app re-reads a rolling window on every sync: health
+   * data arrives late — a scale that syncs hours after the weigh-in, sleep written the following
+   * morning, a watch backfilling a week — so a sync that only looked forward would miss all three.
+   * Re-sending a day must correct it, not double it.
+   *
+   * A LATER read wins over an earlier one for the same day, wholesale. The phone aggregates from
+   * the full window each time, so the newest batch is the most complete view of that day rather
+   * than a delta to merge.
+   */
+  putHealthDays(userId: string, days: HealthDay[]): Promise<number>;
+  /** Scoped. `since` inclusive, most recent first — the same shape as `totalsSince`. */
+  healthDaysSince(userId: string, since: string): Promise<HealthDay[]>;
+
   // ── Erasure ────────────────────────────────────────────────────────────────────────────────
   /**
    * Full account deletion. Everything, not a soft-delete flag.
@@ -281,7 +304,8 @@ export interface Store {
 export function blankProfile(userId: string, lang: Lang): Profile {
   return {
     user_id: userId, lang, goal: null, sex: null, birth_year: null, height_cm: null,
-    weight_kg: null, target_weight_kg: null, activity: null, pace: null, country: null,
+    weight_kg: null, weight_measured_at: null, target_weight_kg: null, activity: null, pace: null,
+    country: null,
     restrictions: [], medical_limitations: null, food_allergies: null, product_limitations: null,
     onboarded_at: null,
   };

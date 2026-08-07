@@ -24,7 +24,7 @@ import {
   explainTargets, verdictsFromTargets, visibleVerdicts,
   type Lang, type MealItem, type MealRecord,
 } from "@ieat/shared";
-import { localDate, dateMinus } from "../dates.ts";
+import { localDate, dateMinus, emptyHealthDay, type HealthDay } from "@ieat/shared";
 import type { ProfilePatch, Store } from "../store.ts";
 
 /**
@@ -112,6 +112,8 @@ export interface SeededPersona {
   userId: string;
   summary: string;
   meals: number;
+  /** Health days written. Zero for a persona with no profile — see `seedDevData`. */
+  healthDays: number;
 }
 
 /** One plate: a name, and the share of the meal's calories it accounts for. */
@@ -194,7 +196,9 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
     const { userId } = await store.upsertDeviceUser(deviceId, lang);
 
     if (persona.profile === null) {
-      out.push({ key: persona.key, deviceId, userId, summary: persona.summary, meals: 0 });
+      out.push({
+        key: persona.key, deviceId, userId, summary: persona.summary, meals: 0, healthDays: 0,
+      });
       continue;
     }
 
@@ -258,8 +262,45 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
       }
     }
 
-    out.push({ key: persona.key, deviceId, userId, summary: persona.summary, meals });
+    // ── the health trend ──
+    //
+    // Written through the SAME store interface as everything else, so `bun test` covers it with no
+    // database. Deliberately incomplete: some days carry no weight and some carry no sleep, because
+    // a fixture where every metric is present every day is a fixture that never exercises the
+    // "unknown, not zero" rendering — and that is the branch a real trend spends most of its time in.
+    const healthDays: HealthDay[] = [];
+    for (let back = 0; back < persona.days; back++) {
+      const date = dateMinus(today, back);
+      const seed = `${persona.key}:health:${date}`;
+      const day = emptyHealthDay(date);
+
+      // A scale is stepped on most mornings, not all of them.
+      if (back % 3 !== 1) {
+        day.weight_kg = round1((profile.weight_kg ?? 80) + (jitter(`${seed}:w`) - 1) * 4);
+      }
+      day.height_cm = profile.height_cm;
+      day.active_kcal = Math.round(220 + jitter(`${seed}:a`) * 420);
+      day.resting_kcal = Math.round(1500 + jitter(`${seed}:r`) * 260);
+      day.steps = Math.round(3_500 + jitter(`${seed}:s`) * 9_000);
+      day.exercise_minutes = Math.round(jitter(`${seed}:e`) * 55);
+      day.distance_km = round1(2 + jitter(`${seed}:d`) * 8);
+      day.resting_hr_bpm = Math.round(52 + jitter(`${seed}:h`) * 10);
+      day.hrv_ms = Math.round(32 + jitter(`${seed}:v`) * 45);
+      // A watch is not worn every night.
+      if (back % 4 !== 2) day.asleep_minutes = Math.round(330 + jitter(`${seed}:z`) * 150);
+      if (back % 5 === 0) day.workouts = 1;
+
+      healthDays.push(day);
+    }
+    await store.putHealthDays(userId, healthDays);
+
+    out.push({
+      key: persona.key, deviceId, userId, summary: persona.summary, meals,
+      healthDays: healthDays.length,
+    });
   }
 
   return out;
 }
+
+const round1 = (n: number) => Math.round(n * 10) / 10;

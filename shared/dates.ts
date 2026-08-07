@@ -3,6 +3,14 @@
 // Dates are computed in the configured zone (Europe/Berlin by default), NOT in UTC. A daily total
 // whose midnight boundary is UTC rolls over at 01:00 or 02:00 local, so a late dinner lands on
 // tomorrow and the user's day looks empty when they open the app before bed.
+//
+// THIS LIVES IN SHARED BECAUSE BOTH SIDES COMPUTE DATES NOW. It used to be backend-only, which was
+// correct while the server was the only thing that decided what day a number belonged to. Apple
+// Health changed that: the phone aggregates raw samples into days before sending them. If it used
+// the DEVICE's zone while the server used its configured one, a day's meals and that same day's
+// health metrics would describe different twenty-four-hour windows — invisibly, only for people who
+// travel, and never reproducibly for whoever goes looking. The server sends its zone in
+// `ProfileResponse.timezone` and the phone aggregates in that.
 
 /** `YYYY-MM-DD` for an instant, in the given IANA zone. */
 export function localDate(zone: string, at: Date = new Date()): string {

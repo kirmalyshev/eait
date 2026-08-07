@@ -5,7 +5,7 @@ import { demoPorts } from "../llm/demo.ts";
 import type { LlmPorts } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
-import { localDate } from "../dates.ts";
+import { localDate } from "@ieat/shared";
 import { fakeMailer } from "../mail/fake.ts";
 import {
   applyCorrection, cancelPendingMeal, confirmPendingMeal, day, editMeal, handleText, logPhotoMeal,

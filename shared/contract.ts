@@ -10,6 +10,7 @@ import type {
 import type { OnboardingContent, OnboardingEvent } from "./onboarding.ts";
 import type { TargetBasis } from "./targets.ts";
 import type { ConfirmMealResult, HandleTextResult, LogPhotoResult, MealUpdated, TargetGone } from "./results.ts";
+import type { HealthDay } from "./health.ts";
 import type { FoodTargets } from "./types.ts";
 
 /** Bumped when a change is not backwards compatible. Shipped apps outlive the server they were built against. */
@@ -74,6 +75,13 @@ export const ROUTES = {
   day: "/v1/diary/day",
   week: "/v1/diary/week",
   account: "/v1/account",
+
+  // Note the distinction from `health` above, which is the LIVENESS probe the deploy watches.
+  // These two are the user's health metrics, and they are authenticated and versioned.
+  /** GET `?days=N` — the health trend this account has stored. Daily aggregates, never samples. */
+  healthTrend: "/v1/health",
+  /** POST — a batch of daily health aggregates read off the phone's health store. Upserted. */
+  healthDays: "/v1/health/days",
 
   // ── The mailing list ──────────────────────────────────────────────────────────────────────
   //
@@ -196,6 +204,16 @@ export interface ProfileResponse {
    * assuming the ones it was compiled with.
    */
   limits: Limits;
+  /**
+   * The IANA zone this server computes calendar dates in.
+   *
+   * Sent for the same reason `limits` is: it is server configuration the client must agree with
+   * rather than assume. The app aggregates health samples into days BEFORE sending them, and if it
+   * used the device's zone while the server dated meals in this one, a day's food and that same
+   * day's health would describe two different twenty-four-hour windows — on one screen, invisibly,
+   * and only for people who travel.
+   */
+  timezone: string;
 }
 
 /**
@@ -301,6 +319,58 @@ export interface EditMealRequest {
 }
 
 export type EditMealResponse = MealUpdated | TargetGone;
+
+// ── Health ───────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A batch of daily health aggregates, read off the phone's health store.
+ *
+ * DAYS, not samples. The phone aggregates first (`aggregateDays` in `health.ts`) and sends the
+ * result, so what crosses the wire and what is stored is the handful of numbers this product uses
+ * rather than a per-second heart rate series it has no use for. Special-category data that is not
+ * needed is data whose only property is risk.
+ *
+ * Idempotent: a day already stored is overwritten, not duplicated. The app re-reads a rolling
+ * window on every sync — health data arrives late, so a sync that only looks forward misses the
+ * scale that synced hours after the weigh-in and the sleep written the next morning.
+ */
+export interface HealthDaysRequest {
+  days: HealthDay[];
+  /**
+   * When the newest weight reading was TAKEN, as the phone read it off the sample.
+   *
+   * Optional, and the server derives a conservative value from the day's own date when it is
+   * absent — never from its own clock, which would let a stale batch replayed later beat a
+   * correction the user typed in the meantime. See `engine/health.ts`.
+   */
+  weightMeasuredAt?: string;
+}
+
+export interface HealthDaysResponse {
+  /** How many days were stored. A day carrying nothing usable is dropped, not counted. */
+  accepted: number;
+  /**
+   * The profile as it stands AFTER the batch, present only when a weight reading moved it.
+   *
+   * Returned rather than left for the client to re-fetch because a new weight means a new calorie
+   * target, and the alternative is a screen showing the old plan until something else happens to
+   * refresh it.
+   */
+  profile?: ProfileResponse;
+}
+
+export interface HealthResponse {
+  /** Most recent first. */
+  days: HealthDay[];
+}
+
+/** Bounded so one client cannot post a decade in a single request. A rolling sync sends days, not years. */
+export const MAX_HEALTH_DAYS_PER_BATCH = 400;
+
+/** The window the app re-reads on every sync. See `HealthDaysRequest` for why it looks backwards. */
+export const HEALTH_SYNC_LOOKBACK_DAYS = 7;
+
+// ── Diary ────────────────────────────────────────────────────────────────────────────────────
 
 export interface DayResponse {
   date: string;

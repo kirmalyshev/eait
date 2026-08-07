@@ -5,7 +5,7 @@
 // resolves to null" is proving something about the engine rather than about a mock's mood.
 
 import type {
-  DayTotals, Lang, MealRecord, OnboardingContent, OnboardingEvent, Profile, Provider,
+  DayTotals, HealthDay, Lang, MealRecord, OnboardingContent, OnboardingEvent, Profile, Provider,
 } from "@ieat/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
@@ -78,6 +78,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const analyses: { userId: string; date: string; scope: "photo" | "text" }[] = [];
   const identities: { userId: string; provider: Provider; subject: string; linkedAt: string }[] = [];
   const onboardingEvents = new Map<string, StoredEvent>(); // event id -> event
+  // `${userId}\n${date}` -> the day. One row per user per date, exactly as in Postgres, so the
+  // upsert semantics the tests assert are the semantics production has.
+  const healthDays = new Map<string, HealthDay & { userId: string }>();
   // Keyed by address, which is what makes a repeat subscription an upsert here too.
   const subscribers = new Map<string, {
     token: string;
@@ -191,6 +194,15 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         moved++;
       }
       for (const p of pendings.values()) if (p.userId === fromUserId) p.userId = intoUserId;
+      // Health days move, but NEVER over a day the real account already has. The merge direction is
+      // anonymous -> real, and the real account's own history is the one with a person's deliberate
+      // corrections in it. Filling gaps is a gift; overwriting is data loss with no undo.
+      for (const [k, d] of healthDays) {
+        if (d.userId !== fromUserId) continue;
+        healthDays.delete(k);
+        const target = `${intoUserId}\n${d.date}`;
+        if (!healthDays.has(target)) healthDays.set(target, { ...d, userId: intoUserId });
+      }
       for (const a of analyses) if (a.userId === fromUserId) a.userId = intoUserId;
       // Funnel rows move with the account. Signing in halfway through onboarding is a normal thing
       // to do, and a run split across two user ids reads as two abandoned runs.
@@ -389,6 +401,22 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       analyses.push({ userId, date, scope });
     },
 
+    async putHealthDays(userId, days) {
+      let written = 0;
+      for (const day of days) {
+        healthDays.set(`${userId}\n${day.date}`, { ...clone(day), userId });
+        written++;
+      }
+      return written;
+    },
+
+    async healthDaysSince(userId, since) {
+      return [...healthDays.values()]
+        .filter((d) => d.userId === userId && d.date >= since)
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .map(({ userId: _u, ...day }) => clone(day as HealthDay));
+    },
+
     async deleteUser(userId) {
       users.delete(userId);
       for (const [d, u] of devices) if (u === userId) devices.delete(d);
@@ -406,6 +434,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // And the funnel rows. See the note on `deleteUser` in the port: onboarding promises erasure
       // while asking about the user's kidneys, so the analytics table is not an exception to it.
       for (const [id, e] of onboardingEvents) if (e.userId === userId) onboardingEvents.delete(id);
+      // Health days are the most sensitive rows here — bodyweight, sleep, heart rate. Erasure that
+      // left them would make the settings screen's promise false in the one place it matters most.
+      for (const [k, d] of healthDays) if (d.userId === userId) healthDays.delete(k);
     },
 
     async close() {},

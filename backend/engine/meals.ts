@@ -15,7 +15,7 @@ import {
   type MealItem, type MealLogged, type MealRecord, type MealUpdated, type TargetGone,
   type ConfirmMealResult, explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@ieat/shared";
-import { localDate, localTime } from "../dates.ts";
+import { localDate, localTime } from "@ieat/shared";
 import type { EngineDeps } from "./deps.ts";
 import { checkCaps } from "./caps.ts";
 import type { AnalyzedMeal } from "../llm/port.ts";
@@ -241,7 +241,7 @@ export async function cancelPendingMeal(
  * "the bulgur he has four times a week". It must never touch a number.
  */
 async function buildRepertoire(deps: EngineDeps, userId: string, today: string): Promise<string[]> {
-  const { dateMinus } = await import("../dates.ts");
+  const { dateMinus } = await import("@ieat/shared");
   const since = dateMinus(today, 30);
   const days = await deps.store.totalsSince(userId, since);
   const counts = new Map<string, number>();

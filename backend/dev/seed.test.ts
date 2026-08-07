@@ -109,6 +109,39 @@ describe("seedDevData", () => {
     expect(verdicts.ldl.has("good")).toBe(true);
   });
 
+  test("the onboarded persona carries a health trend over the same week", async () => {
+    const store = memoryStore();
+    const seeded = await seedDevData(store, { timezone: TZ, today: TODAY });
+    const onboarded = seeded.find((s) => s.key === DEFAULT_SEED_PERSONA)!;
+
+    const days = await store.healthDaysSince(onboarded.userId, SEEDED_WEEK[SEEDED_WEEK.length - 1]!);
+    expect(days.map((d) => d.date)).toEqual(SEEDED_WEEK);
+    expect(onboarded.healthDays).toBe(SEEDED_WEEK.length);
+  });
+
+  test("the seeded trend has gaps, because a real one does", async () => {
+    // A fixture where every metric is present every day never exercises the "unknown, not zero"
+    // rendering — and that is the branch a real trend spends most of its time in. A scale is not
+    // stepped on daily and a watch is not worn every night.
+    const store = memoryStore();
+    const seeded = await seedDevData(store, { timezone: TZ, today: TODAY });
+    const onboarded = seeded.find((s) => s.key === DEFAULT_SEED_PERSONA)!;
+    const days = await store.healthDaysSince(onboarded.userId, SEEDED_WEEK[SEEDED_WEEK.length - 1]!);
+
+    expect(days.some((d) => d.weight_kg === null)).toBe(true);
+    expect(days.some((d) => d.weight_kg !== null)).toBe(true);
+    expect(days.some((d) => d.asleep_minutes === null)).toBe(true);
+    expect(days.every((d) => d.steps !== null)).toBe(true);
+  });
+
+  test("the fresh persona has no health rows at all", async () => {
+    const store = memoryStore();
+    const seeded = await seedDevData(store, { timezone: TZ, today: TODAY });
+    const fresh = seeded.find((s) => s.healthDays === 0);
+    expect(fresh).toBeDefined();
+    expect(await store.healthDaysSince(fresh!.userId, "2020-01-01")).toEqual([]);
+  });
+
   test("seeding twice leaves one week of meals, not two", async () => {
     const store = memoryStore();
     await seedDevData(store, { timezone: TZ, today: TODAY });

@@ -49,6 +49,19 @@ export interface Profile {
   height_cm: number | null;
   /** Kilograms; null = unknown (never asked, or declined). */
   weight_kg: number | null;
+  /**
+   * ISO instant `weight_kg` was MEASURED — not when the row was written.
+   *
+   * Exists to settle a race with Apple Health. A manual edit stamps this `now()`; an imported
+   * sample stamps it with the sample's own time; and an incoming value wins only if it is strictly
+   * newer. Without it, a user types their weight and a sync firing two seconds later silently
+   * reverts it to this morning's scale reading — or, just as wrong, a stale import overwrites a
+   * correction the user made deliberately.
+   *
+   * Never set from `PatchProfileRequest`: the client does not get to assert when something was
+   * weighed. The server stamps it on both paths.
+   */
+  weight_measured_at: string | null;
   target_weight_kg: number | null;
   activity: ActivityLevel | null;
   pace: Pace | null;

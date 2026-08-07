@@ -9,7 +9,7 @@ import {
   type HandleTextResult, type MealAnalysis, type MealProposed, type MealRedated,
   explainTargets,
 } from "@ieat/shared";
-import { dateMinus, localDate } from "../dates.ts";
+import { dateMinus, localDate } from "@ieat/shared";
 import type { EngineDeps } from "./deps.ts";
 import { checkCaps } from "./caps.ts";
 import { applyCorrection, gatedVerdicts, sumTotals, toAnalysis } from "./meals.ts";

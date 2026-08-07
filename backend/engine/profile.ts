@@ -7,7 +7,8 @@
 // simply be told no.
 
 import {
-  ACTIVITY_LEVELS, LANGS, PACES, RESTRICTION_TAGS, checkTargetWeight, explainTargets, isRestrictionTag,
+  ACTIVITY_LEVELS, LANGS, PACES, RESTRICTION_TAGS, checkTargetWeight, explainTargets,
+  isAcceptableWeightKg, isRestrictionTag,
   type ActivityLevel, type Lang, type Pace, type PatchProfileRequest, type Profile,
   type Limits, type ProfileRejected, type ProfileResponse,
 } from "@ieat/shared";
@@ -32,7 +33,10 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
   const { targets, basis } = explainTargets(profile);
-  return { profile, targets, basis, onboarded: profile.onboarded_at !== null, limits: limitsOf(deps) };
+  return {
+    profile, targets, basis, onboarded: profile.onboarded_at !== null,
+    limits: limitsOf(deps), timezone: deps.config.timezone,
+  };
 }
 
 export type PatchOutcome =
@@ -88,10 +92,14 @@ export async function patchProfile(
     patch.height_cm = req.height_cm;
   }
   if (req.weight_kg !== undefined) {
-    if (req.weight_kg !== null && (req.weight_kg < 30 || req.weight_kg > 400)) {
+    if (req.weight_kg !== null && !isAcceptableWeightKg(req.weight_kg)) {
       return reject("weight_kg", "out-of-range");
     }
     patch.weight_kg = req.weight_kg;
+    // Stamped HERE, on the server, because the client does not get to assert when something was
+    // weighed. This is the other half of the Apple Health clobber guard: an import wins only if its
+    // sample is newer than this, so a number the user typed a moment ago survives the next sync.
+    patch.weight_measured_at = req.weight_kg === null ? null : new Date().toISOString();
   }
   if (req.target_weight_kg !== undefined) {
     if (req.target_weight_kg !== null) {
@@ -145,7 +153,10 @@ export async function patchProfile(
   const { targets, basis } = explainTargets(profile);
   return {
     ok: true,
-    view: { profile, targets, basis, onboarded: profile.onboarded_at !== null, limits: limitsOf(deps) },
+    view: {
+      profile, targets, basis, onboarded: profile.onboarded_at !== null,
+      limits: limitsOf(deps), timezone: deps.config.timezone,
+    },
   };
 }
 

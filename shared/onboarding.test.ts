@@ -17,7 +17,8 @@ import {
 function profile(over: Partial<Profile> = {}): Profile {
   return {
     user_id: "u1", lang: "en", goal: null, sex: null, birth_year: null, height_cm: null,
-    weight_kg: null, target_weight_kg: null, activity: null, pace: null, country: null,
+    weight_kg: null, weight_measured_at: null, target_weight_kg: null, activity: null, pace: null,
+    country: null,
     restrictions: [], medical_limitations: null, food_allergies: null, product_limitations: null,
     onboarded_at: null,
     ...over,

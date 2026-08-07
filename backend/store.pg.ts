@@ -13,8 +13,10 @@
 
 import { SQL } from "bun";
 import type {
-  DayTotals, Lang, MealItem, MealRecord, MealVerdicts, OnboardingContent, Profile, Provider,
+  DayTotals, HealthDay, Lang, MealItem, MealRecord, MealVerdicts, OnboardingContent, Profile,
+  Provider,
 } from "@ieat/shared";
+import { HEALTH_FIELDS, emptyHealthDay } from "@ieat/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
@@ -22,6 +24,29 @@ import {
   blankProfile, type FunnelAggregate, type MealPatch, type PendingMeal, type ProfilePatch,
   type Store, type StoreOptions,
 } from "./store.ts";
+
+/**
+ * The health metric columns, and every statement built from them.
+ *
+ * All derived from `HEALTH_FIELDS`, which is the one place a metric is declared. A hand-maintained
+ * list here would be a second source of truth that drifts the first time somebody adds a metric and
+ * edits only one of the two — and the failure is a number the app sends and the database silently
+ * has no home for. The names come from our own constant and never from a request, which is what
+ * makes them safe to interpolate into SQL.
+ */
+const HEALTH_COLUMNS: readonly string[] = HEALTH_FIELDS.map((f) => f.key);
+
+/** One `add column if not exists` per metric — the migration for a host that predates one. */
+const HEALTH_COLUMN_DDL = HEALTH_COLUMNS
+  .map((c) => `alter table health_days add column if not exists ${c} double precision;`)
+  .join("\n");
+
+const HEALTH_UPSERT = `
+  insert into health_days (user_id, date, ${HEALTH_COLUMNS.join(", ")}, updated_at)
+  values ($1, $2, ${HEALTH_COLUMNS.map((_, i) => `$${i + 3}`).join(", ")}, now())
+  on conflict (user_id, date) do update set
+    ${HEALTH_COLUMNS.map((c) => `${c} = excluded.${c}`).join(", ")},
+    updated_at = now()`;
 
 const SCHEMA = `
 create table if not exists users (
@@ -44,6 +69,11 @@ create table if not exists users (
   onboarded_at        timestamptz,
   created_at          timestamptz not null default now()
 );
+-- When weight_kg was MEASURED, not when the row was written. Settles the race between a manual
+-- edit and an Apple Health import: whichever measurement is newer wins, so a sync cannot revert a
+-- number the user just typed and a stale import cannot overwrite a deliberate correction.
+-- Added separately so a host deployed before this exists gains it on the next boot.
+alter table users add column if not exists weight_measured_at timestamptz;
 
 -- Bearer tokens, as SHA-256 hashes.
 --
@@ -207,6 +237,29 @@ create index if not exists onboarding_events_user_idx on onboarding_events(user_
 -- A row here is NOT a subscriber until confirmed_at is set. See engine/subscribe.ts: an address
 -- typed into a form is not consent, and in Germany specifically the standard for proving consent is
 -- the confirmed variety. Unconfirmed rows are swept after a few days rather than kept.
+-- Daily health aggregates read off the user's phone. NEVER raw samples: this product uses a handful
+-- of numbers per day, and a per-second heart rate series would be a large pile of special-category
+-- data whose only property is risk.
+--
+-- Primary key is (user_id, date), which is what makes a re-sent day a correction rather than a
+-- duplicate. The app re-reads a rolling window every sync because health data arrives late -- a
+-- scale that syncs hours after the weigh-in, sleep written the next morning, a watch backfilling.
+--
+-- The metric columns are GENERATED from HEALTH_FIELDS rather than listed here. A hand-written list
+-- is a second source of truth that drifts the first time somebody adds a metric and edits only one
+-- of the two places -- and the failure is a column the app sends and the database silently has no
+-- home for. The generated "add column if not exists" lines are the migration for exactly that case:
+-- a host deployed before a metric existed gains it on the next boot.
+-- (No backticks in this string: it is a template literal, and one would end it.)
+create table if not exists health_days (
+  user_id    uuid not null references users(id) on delete cascade,
+  date       text not null,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, date)
+);
+${HEALTH_COLUMN_DDL}
+create index if not exists health_days_user_date_idx on health_days(user_id, date);
+
 create table if not exists subscribers (
   email         text primary key,
   token         text not null unique,
@@ -273,6 +326,15 @@ function newSubscriberToken(): string {
 const num = (v: unknown): number => (v === null || v === undefined ? 0 : Number(v));
 const nullableNum = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
 
+function toHealthDay(r: Record<string, unknown>): HealthDay {
+  const day = emptyHealthDay(String(r.date));
+  for (const f of HEALTH_FIELDS) {
+    const v = r[f.key];
+    day[f.key] = v === null || v === undefined ? null : Number(v);
+  }
+  return day;
+}
+
 function toProfile(r: UserRow): Profile {
   return {
     user_id: String(r.id),
@@ -282,6 +344,9 @@ function toProfile(r: UserRow): Profile {
     birth_year: nullableNum(r.birth_year),
     height_cm: nullableNum(r.height_cm),
     weight_kg: nullableNum(r.weight_kg),
+    weight_measured_at: r.weight_measured_at
+      ? new Date(r.weight_measured_at as string).toISOString()
+      : null,
     target_weight_kg: nullableNum(r.target_weight_kg),
     activity: (r.activity ?? null) as Profile["activity"],
     pace: (r.pace ?? null) as Profile["pace"],
@@ -516,6 +581,17 @@ export async function postgresStore(
         // Funnel rows move too: signing in halfway through onboarding is normal, and a run split
         // across two user ids reads as two abandoned runs.
         await tx`update onboarding_events set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        // Health days move, but NEVER over a day the real account already has. The direction is
+        // anonymous -> real, and the real account's history is the one with deliberate corrections
+        // in it. Filling a gap is a gift; overwriting is data loss with no undo. Matches
+        // `store.memory.ts`; a test asserts both.
+        await tx`
+          delete from health_days h
+          where h.user_id = ${fromUserId}
+            and exists (
+              select 1 from health_days t where t.user_id = ${intoUserId} and t.date = h.date
+            )`;
+        await tx`update health_days set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         // DROPPED, not repointed — the merged-away account is anonymous, so these are device
         // identities only, and repointing one would let plain device auth walk back into the full
         // account after a sign-out. Matches `store.memory.ts`; a test asserts the behaviour.
@@ -804,6 +880,29 @@ export async function postgresStore(
 
     async recordAnalysis(userId, date, scope) {
       await sql`insert into analyses (user_id, date, scope) values (${userId}, ${date}, ${scope})`;
+    },
+
+    async putHealthDays(userId, days) {
+      if (days.length === 0) return 0;
+      // One transaction: a partially applied batch would leave a day updated and the next one not,
+      // and the phone would report a successful sync over a window it did not actually store.
+      return await sql.begin(async (tx) => {
+        for (const day of days) {
+          await tx.unsafe(HEALTH_UPSERT, [
+            userId,
+            day.date,
+            ...HEALTH_FIELDS.map((f) => day[f.key] ?? null),
+          ]);
+        }
+        return days.length;
+      });
+    },
+
+    async healthDaysSince(userId, since) {
+      const rows = await sql`
+        select * from health_days where user_id = ${userId} and date >= ${since}
+        order by date desc`;
+      return rows.map((r: Record<string, unknown>) => toHealthDay(r));
     },
 
     async deleteUser(userId) {

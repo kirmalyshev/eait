@@ -1,7 +1,7 @@
 // Diary reads. No writes, no model calls, no caps — the cheapest thing the API does.
 
 import { explainTargets, type DayResponse, type DayTotals } from "@ieat/shared";
-import { dateMinus, localDate } from "../dates.ts";
+import { dateMinus, localDate } from "@ieat/shared";
 import type { EngineDeps } from "./deps.ts";
 import { sumTotals } from "./meals.ts";
 

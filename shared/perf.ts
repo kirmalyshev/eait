@@ -68,6 +68,7 @@ export const PERF_SCREENS = [
   "settings",
   "camera",
   "meal",
+  "health",
 ] as const;
 
 export type PerfScreen = (typeof PERF_SCREENS)[number];
@@ -125,6 +126,19 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   "onboarding:building": { paintMs: 100, readyMs: 100 },
   // The plan. Reads `profile.targets`, which boot already fetched — no request of its own.
   "onboarding:summary": { paintMs: 100, readyMs: 100 },
+
+  // Apple Health. Seeded from the trend cache, so a second visit is instant; the allowance above
+  // paintMs is for the cold case — one read of at most thirty daily rows — and for nothing else.
+  // The permission sheet and the sample read both happen AFTER the first frame, deliberately: this
+  // screen must draw its copy and its connect button without waiting on a native module.
+  //
+  // WHAT THIS NUMBER DOES NOT COVER: the harness runs with EXPO_PUBLIC_HEALTH_FAKE=1, because the
+  // simulator has HealthKit and no Health app and a real read there is empty forever. The fake
+  // source skips `loadHealthKit()`, so the one cost this budget never measures is importing the
+  // native module on a real device. It is a bundled import rather than a network one, so it should
+  // resolve in a microtask — but "should" is not "measured", and it is stated here rather than
+  // quietly assumed.
+  health: { paintMs: 100, readyMs: 250 },
 
   // The diary. Seeded from the day cache, which boot warms, so the common case is instant. The
   // allowance above `paintMs` is for the cold case — cache empty, one database read — and nothing
