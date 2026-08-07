@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ONBOARDING_SCREENS } from "./onboarding.ts";
 import {
-  PERF_SCREENS, SCREEN_BUDGETS, isPerfScreen, summarize, type ScreenSample,
+  PERF_SCREENS, walkableScreens, SCREEN_BUDGETS, isPerfScreen, summarize, type ScreenSample,
 } from "./perf.ts";
 
 const sample = (screen: string, paintMs: number, readyMs: number): ScreenSample => ({
@@ -63,7 +63,7 @@ describe("summarize", () => {
     const r = summarize(allFast());
     expect(r.verdict).toBe("ok");
     expect(r.missing).toEqual([]);
-    expect(r.results).toHaveLength(PERF_SCREENS.length);
+    expect(r.results).toHaveLength(walkableScreens().length);
   });
 
   test("a screen nobody opened is a hole in the run, not a pass", () => {
@@ -78,7 +78,7 @@ describe("summarize", () => {
   test("an empty run is incomplete, not ok", () => {
     const r = summarize([]);
     expect(r.verdict).toBe("incomplete");
-    expect(r.missing).toEqual([...PERF_SCREENS]);
+    expect(r.missing).toEqual([...walkableScreens()]);
   });
 
   test("a screen over its ready budget fails, and says which number broke", () => {
@@ -146,6 +146,25 @@ describe("summarize", () => {
 
   test("results come back in the declared screen order, not in arrival order", () => {
     const shuffled = [...allFast()].reverse();
-    expect(summarize(shuffled).results.map((r) => r.screen)).toEqual([...PERF_SCREENS]);
+    expect(summarize(shuffled).results.map((r) => r.screen)).toEqual([...walkableScreens()]);
+  });
+});
+
+describe("a screen the flow cannot reach", () => {
+  test("is not graded, but keeps its budget", () => {
+    // `country` ships disabled — the field is read from the device's region instead of asked for —
+    // so no walk can open it, and grading it would report `incomplete` on every single run over a
+    // question nobody is asked.
+    expect(walkableScreens()).not.toContain("onboarding:country");
+    // The entry and its budget STAY. It is a question an admin can switch back on, and the budget
+    // has to be waiting when they do — this is the difference between "not asked today" and "not
+    // measured", and only the first of those is acceptable.
+    expect(PERF_SCREENS).toContain("onboarding:country");
+    expect(SCREEN_BUDGETS["onboarding:country"].paintMs).toBeLessThanOrEqual(100);
+  });
+
+  test("every screen the walk CAN reach is still graded", () => {
+    for (const s of walkableScreens()) expect(PERF_SCREENS).toContain(s);
+    expect(walkableScreens().length).toBe(PERF_SCREENS.length - 1);
   });
 });

@@ -47,6 +47,8 @@
  * screen to the app without adding it here means the harness reports a complete run that never
  * looked at it, so the list and `SCREEN_BUDGETS` are checked against each other by a test.
  */
+import { DEFAULT_ONBOARDING_CONTENT } from "./onboarding.ts";
+
 export const PERF_SCREENS = [
   // Cold launch: process start → the first screen a user can act on.
   "boot",
@@ -220,6 +222,27 @@ function median(sorted: number[]): number {
  * time does. Printing the worst next to the median is what stops that tolerance from becoming a
  * place for a real spike to hide.
  */
+/**
+ * The screens THIS BUILD's onboarding can actually reach.
+ *
+ * `PERF_SCREENS` is every screen that exists; a screen switched off in the content is one no walk
+ * can open, and reporting it `incomplete` would fail every run over a question nobody is asked.
+ * Keeping the entry and its budget is still right — `country` is a question an admin can switch
+ * back on, and it must have a budget waiting when they do.
+ *
+ * Read from `DEFAULT_ONBOARDING_CONTENT` rather than taken as an argument, because that is the copy
+ * the perf walk actually runs against: `scripts/perf.sh` points the app at a backend with no admin
+ * row, and `getContent` serves the compiled-in default when none exists.
+ */
+export function walkableScreens(): readonly PerfScreen[] {
+  const off = new Set(
+    DEFAULT_ONBOARDING_CONTENT.screens
+      .filter((s) => s.enabled === false)
+      .map((s) => `onboarding:${s.id}`),
+  );
+  return PERF_SCREENS.filter((s) => !off.has(s));
+}
+
 export function summarize(samples: readonly ScreenSample[]): PerfSummary {
   const byScreen = new Map<PerfScreen, ScreenSample[]>();
   for (const s of samples) {
@@ -237,7 +260,7 @@ export function summarize(samples: readonly ScreenSample[]): PerfSummary {
 
   // Iterating the DECLARED order rather than the map's insertion order, so a report reads the same
   // way every run regardless of the path the flow happened to take through the app.
-  for (const screen of PERF_SCREENS) {
+  for (const screen of walkableScreens()) {
     const list = byScreen.get(screen);
     if (!list || list.length === 0) {
       missing.push(screen);
