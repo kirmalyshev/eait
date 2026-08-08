@@ -83,7 +83,7 @@ export async function recordHealthDays(
     .sort((a, b) => b.date.localeCompare(a.date))[0];
   if (!newest || !isAcceptableWeightKg(newest.weight_kg!)) return { accepted: clean.length };
 
-  const measuredAt = weightMeasuredAt ?? endOfDay(newest.date);
+  const measuredAt = measurementInstant(weightMeasuredAt, newest.date);
   if (!isNewerMeasurement(measuredAt, profile.weight_measured_at)) {
     return { accepted: clean.length };
   }
@@ -115,15 +115,32 @@ export async function healthTrend(
 }
 
 /**
- * The latest instant a reading filed under `date` could have been taken.
+ * When the newest weight was measured, as far as this server is willing to believe.
  *
- * Deliberately not the local end of day: this value is only ever compared against another stored
- * instant to decide which measurement is newer, and being at most a few hours generous on a
- * fallback path the shipped client never takes is not worth a second zone computation that could
- * itself be wrong.
+ * THE CLIENT DOES NOT GET TO STAMP THE FUTURE. `weightMeasuredAt` is read off a sample by the
+ * phone, and the phone's clock is the phone's business — a device running a year fast, or a client
+ * that simply says so, would otherwise write a stamp that beats every honest measurement after it.
+ * The user's own manual edit would still land (that path stamps `now()` unconditionally), but every
+ * subsequent Apple Health weight would lose the comparison and be dropped, silently, for as long as
+ * the fabricated stamp stayed in the future. A measurement cannot have been taken later than now,
+ * so anything ahead of now is held to now.
+ *
+ * A stamp that is not a time at all falls back to the day's own end, exactly as a missing one does.
+ * Treating it as "no newer measurement" instead would throw the weight away over a malformed field
+ * that carries no information either way.
+ *
+ * The fallback is deliberately not the local end of day: it is only ever compared against another
+ * stored instant, and being at most a few hours generous on a path the shipped client never takes
+ * is not worth a second zone computation that could itself be wrong.
  */
-function endOfDay(date: string): string {
-  return `${date}T23:59:59.999Z`;
+function measurementInstant(claimed: string | undefined, date: string): string {
+  const claimedAt = claimed === undefined ? Number.NaN : Date.parse(claimed);
+  // The end of the day the reading is filed under. Clamped by the same rule, which only ever bites
+  // for TODAY: an older day's end is already in the past, so the anti-replay property survives.
+  const at = Number.isNaN(claimedAt) ? Date.parse(`${date}T23:59:59.999Z`) : claimedAt;
+
+  const now = Date.now();
+  return new Date(Math.min(at, now)).toISOString();
 }
 
 /** True when `incoming` is strictly newer. An unknown existing time loses — anything beats nothing. */

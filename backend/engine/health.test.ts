@@ -48,8 +48,20 @@ function day(date: string, over: Partial<HealthDay> = {}): HealthDay {
 const ZONE = CONFIG.timezone;
 const TODAY = localDate(ZONE);
 const ago = (n: number) => dateMinus(TODAY, n);
-/** An instant `n` seconds from now, for ordering against a stamp the server just wrote. */
-const nowPlus = (seconds: number) => new Date(Date.now() + seconds * 1_000).toISOString();
+
+/**
+ * A measurement taken NOW, ordered strictly after whatever the server stamped a moment ago.
+ *
+ * These tests used to pass an instant a minute in the FUTURE to win that comparison, which the
+ * server now refuses — a client cannot have measured something later than now, and honouring such a
+ * stamp locked every honest reading after it out of the profile. So the ordering has to come from
+ * real elapsed time instead, and two milliseconds is enough: `weight_measured_at` is stamped to the
+ * millisecond and the comparison is strictly-greater.
+ */
+async function measuredNow(): Promise<string> {
+  await Bun.sleep(2);
+  return new Date().toISOString();
+}
 
 describe("recordHealthDays", () => {
   it("stores what it is given and reports the count", async () => {
@@ -137,7 +149,7 @@ describe("weight sync", () => {
 
     const out = await recordHealthDays(deps, userId, [
       day(ago(0), { weight_kg: 67 }),
-    ], nowPlus(60));
+    ], await measuredNow());
 
     expect((await store.getProfile(userId))!.weight_kg).toBe(67);
     // Returned rather than left for the client to re-fetch: a new weight is a new target, and the
@@ -152,7 +164,7 @@ describe("weight sync", () => {
       day(ago(2), { weight_kg: 72 }),
       day(ago(0), { weight_kg: 69 }),
       day(ago(1), { weight_kg: 71 }),
-    ], nowPlus(60));
+    ], await measuredNow());
     expect((await store.getProfile(userId))!.weight_kg).toBe(69);
   });
 
@@ -175,10 +187,37 @@ describe("weight sync", () => {
     await patchProfile(deps, userId, { weight_kg: 66 });
     const typedAt = (await store.getProfile(userId))!.weight_measured_at!;
 
-    const later = new Date(Date.parse(typedAt) + 60_000).toISOString();
-    await recordHealthDays(deps, userId, [day(ago(0), { weight_kg: 71 })], later);
+    await recordHealthDays(deps, userId, [day(ago(0), { weight_kg: 71 })], await measuredNow());
 
     expect((await store.getProfile(userId))!.weight_kg).toBe(71);
+  });
+
+  it("refuses to stamp a measurement in the future, so a bad clock cannot lock the sync out", async () => {
+    // `weightMeasuredAt` arrives from the CLIENT — it is read off the sample by the phone, and the
+    // phone's clock is the phone's business. Stored verbatim, a stamp a year ahead beats every real
+    // measurement that follows it, so Apple Health weight sync stops working from that moment on,
+    // silently, with nothing on any screen to say why. A measurement cannot have been taken later
+    // than now; the server holds it to that.
+    const userId = await onboard();
+    const wayAhead = new Date(Date.now() + 365 * 86_400_000).toISOString();
+    await Bun.sleep(2);
+    await recordHealthDays(deps, userId, [day(ago(0), { weight_kg: 71 })], wayAhead);
+
+    const stamped = (await store.getProfile(userId))!.weight_measured_at!;
+    expect(Date.parse(stamped)).toBeLessThanOrEqual(Date.now());
+
+    // And the point of all that: the next honest reading still lands.
+    await recordHealthDays(deps, userId, [day(ago(0), { weight_kg: 69 })], await measuredNow());
+    expect((await store.getProfile(userId))!.weight_kg).toBe(69);
+  });
+
+  it("ignores a measurement stamp that is not a time at all", async () => {
+    // Falls back to the day's own end rather than to `now()`: a batch replayed later must not be
+    // able to beat a correction the user typed in the meantime.
+    const userId = await onboard();
+    await Bun.sleep(2); // so the fallback instant is strictly after the stamp onboarding wrote
+    await recordHealthDays(deps, userId, [day(ago(0), { weight_kg: 68 })], "whenever");
+    expect((await store.getProfile(userId))!.weight_kg).toBe(68);
   });
 
   it("leaves the profile alone when no day carries a weight", async () => {
@@ -205,7 +244,7 @@ describe("weight sync", () => {
     // Range enforcement lives server-side on BOTH paths. A client that skipped it on the manual
     // form would simply be told no; a client that skipped it here must be told no too.
     const userId = await onboard();
-    await recordHealthDays(deps, userId, [day(ago(0), { weight_kg: 25 })], nowPlus(60));
+    await recordHealthDays(deps, userId, [day(ago(0), { weight_kg: 25 })], await measuredNow());
     expect((await store.getProfile(userId))!.weight_kg).toBe(70);
   });
 });
