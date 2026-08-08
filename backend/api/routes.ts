@@ -482,7 +482,11 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
         // anybody with a 32-character string. Per address, like the other three.
         const wait = limit(req, peer, "health", deps.config.healthSyncRateLimitPerHour, HOUR);
         if (wait !== null) {
-          return tooManyRequests(wait, { error: "too many health syncs from this address" });
+          // `rate-limited`, the same code the other per-address limiter uses, and NOT a sentence.
+          // The client switches on this string (`ApiError.isRefusal`) to tell a refusal the server
+          // meant from a request that never arrived; an unrecognised code is shown to the user as
+          // "couldn't reach ieat". Not `cap-exceeded` either: nothing has been spent here.
+          return tooManyRequests(wait, { error: "rate-limited" });
         }
 
         const body = await req.json() as HealthDaysRequest;
