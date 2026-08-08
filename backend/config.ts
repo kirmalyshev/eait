@@ -88,6 +88,19 @@ export interface Config {
   analysisRateLimitPerDay: number;
   /** Subscribe submissions per hour, per address. The honeypot's backstop. Zero disables. */
   subscribeRateLimitPerHour: number;
+  /**
+   * Health-sync posts per hour, per address.
+   *
+   * The heaviest write this API accepts: up to `MAX_HEALTH_DAYS_PER_BATCH` upserts inside one
+   * transaction. It costs nothing at the model, so no billed cap covers it, and `POST
+   * /v1/auth/device` hands out an account to anybody with a 32-character string — so an
+   * account-scoped bound would be reset by one HTTP call. Per address, like the others.
+   *
+   * Generous on purpose: the app syncs on each visit to one screen, and several people can sit
+   * behind one carrier address. This is a bound on a loop, not a quota anybody should meet. Zero
+   * disables it.
+   */
+  healthSyncRateLimitPerHour: number;
 
   /**
    * The credential for `/admin` — onboarding copy and the funnel.
@@ -208,6 +221,7 @@ export function configDefaults(): Config {
     authRateLimitPerHour: 20,
     analysisRateLimitPerDay: 60,
     subscribeRateLimitPerHour: 5,
+    healthSyncRateLimitPerHour: 120,
     appleAudiences: [],
     googleAudiences: [],
     adminToken: "",
@@ -271,6 +285,7 @@ export function loadConfig(): Config {
     authRateLimitPerHour: int("AUTH_RATE_LIMIT_PER_HOUR", d.authRateLimitPerHour),
     analysisRateLimitPerDay: int("ANALYSIS_RATE_LIMIT_PER_DAY", d.analysisRateLimitPerDay),
     subscribeRateLimitPerHour: int("SUBSCRIBE_RATE_LIMIT_PER_HOUR", d.subscribeRateLimitPerHour),
+    healthSyncRateLimitPerHour: int("HEALTH_SYNC_RATE_LIMIT_PER_HOUR", d.healthSyncRateLimitPerHour),
     appleAudiences: list("APPLE_AUDIENCES"),
     googleAudiences: list("GOOGLE_AUDIENCES"),
     adminToken: adminTokenFromEnv(),

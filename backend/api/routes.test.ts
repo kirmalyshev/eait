@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { ROUTES } from "@ieat/shared";
+import { MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay, localDate } from "@ieat/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
@@ -271,6 +271,52 @@ describe("diary", () => {
     const token = await session();
     expect((await get(`${ROUTES.week}?days=0`, token)).status).toBe(400);
     expect((await get(`${ROUTES.week}?days=900`, token)).status).toBe(400);
+  });
+});
+
+describe("health", () => {
+  // These routes had no test at this layer at all: the batch cap, the window bounds and the
+  // not-onboarded refusal were each enforced in exactly one place and asserted in none.
+  const aDay = (date: string) => ({ ...emptyHealthDay(date), steps: 8000 });
+
+  it("stores a batch and reads it back", async () => {
+    const token = await session();
+    const posted = await post(ROUTES.healthDays, { days: [aDay(localDate(CONFIG.timezone))] }, token);
+    expect(posted.status).toBe(200);
+    expect((await posted.json() as { accepted: number }).accepted).toBe(1);
+
+    const read = await get(`${ROUTES.healthTrend}?days=30`, token);
+    expect(read.status).toBe(200);
+    expect((await read.json() as { days: unknown[] }).days).toHaveLength(1);
+  });
+
+  it("400s a batch larger than the contract allows", async () => {
+    const token = await session();
+    const days = Array.from({ length: MAX_HEALTH_DAYS_PER_BATCH + 1 }, () => aDay("2026-03-10"));
+    expect((await post(ROUTES.healthDays, { days }, token)).status).toBe(400);
+  });
+
+  it("400s an out-of-range trend window", async () => {
+    const token = await session();
+    expect((await get(`${ROUTES.healthTrend}?days=0`, token)).status).toBe(400);
+    expect((await get(`${ROUTES.healthTrend}?days=9000`, token)).status).toBe(400);
+    expect((await get(`${ROUTES.healthTrend}?days=nope`, token)).status).toBe(400);
+  });
+
+  it("403s an account that has not onboarded", async () => {
+    // Health data is special-category and the basis for holding it is the consent given at the end
+    // of onboarding. Accepting it before then would be storing it with no basis at all.
+    const res = await post(ROUTES.authDevice, {
+      deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en",
+    });
+    const { token } = await res.json() as { token: string };
+    expect((await post(ROUTES.healthDays, { days: [aDay("2026-03-10")] }, token)).status).toBe(403);
+    expect((await get(`${ROUTES.healthTrend}?days=7`, token)).status).toBe(403);
+  });
+
+  it("401s without a bearer token", async () => {
+    expect((await post(ROUTES.healthDays, { days: [aDay("2026-03-10")] })).status).toBe(401);
+    expect((await get(`${ROUTES.healthTrend}?days=7`)).status).toBe(401);
   });
 });
 
@@ -682,6 +728,42 @@ describe("rate limits", () => {
     expect(refused.status).toBe(429);
     expect(await refused.json()).toEqual({ error: "rate-limited" });
     // Without this a client has no idea whether to retry in a second or an hour, and picks a second.
+    expect(Number(refused.headers.get("retry-after"))).toBeGreaterThan(0);
+  });
+
+  it("bounds the health sync, which nothing else bounds", async () => {
+    // The heaviest write this API accepts — up to MAX_HEALTH_DAYS_PER_BATCH upserts in one
+    // transaction — and no model is called, so none of the billed caps reach it. An account-scoped
+    // bound would be worth nothing either: POST /v1/auth/device mints a fresh account for anybody
+    // with a 32-character string, so resetting one costs a single request.
+    const h = routerWith({ healthSyncRateLimitPerHour: 2 });
+    const address = "203.0.113.44";
+
+    const register = await h(new Request(url(ROUTES.authDevice), {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": address },
+      body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en" }),
+    }));
+    const { token } = await register.json() as { token: string };
+
+    const sync = () => h(new Request(url(ROUTES.healthDays), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-forwarded-for": address,
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ days: [{ ...emptyHealthDay("2026-03-10"), steps: 1 }] }),
+    }));
+
+    // 403 rather than 200: this account never onboarded. Irrelevant here — what matters is that the
+    // limiter is charged BEFORE the body is read, so a refused request still costs an allowance.
+    // A cap that only counts the requests it liked is a cap a retry loop walks straight through.
+    expect((await sync()).status).toBe(403);
+    expect((await sync()).status).toBe(403);
+
+    const refused = await sync();
+    expect(refused.status).toBe(429);
     expect(Number(refused.headers.get("retry-after"))).toBeGreaterThan(0);
   });
 
