@@ -53,8 +53,13 @@ const MAX_SURPLUS_SHARE = 0.15;
 /** Weekly rate of change per pace, in kg/week. `push` sits at the top of the sustainable band. */
 const PACE_KG_PER_WEEK: Record<Pace, number> = { easy: 0.25, steady: 0.5, push: 0.75 };
 
-/** Energy in one kg of body mass. The classic 7700 kcal/kg figure. */
-const KCAL_PER_KG = 7700;
+/**
+ * Energy in one kg of body mass. The classic 7700 kcal/kg figure.
+ *
+ * Exported for `projection.ts`, which must divide by the SAME constant this file multiplies by —
+ * a projection derived from a different figure would disagree with the pace it is projecting.
+ */
+export const KCAL_PER_KG = 7700;
 
 /** Below this BMI we will not set a target weight. 18.5 is the WHO underweight threshold. */
 export const MIN_TARGET_BMI = 18.5;

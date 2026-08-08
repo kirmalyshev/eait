@@ -205,10 +205,15 @@ describe("the funnel", () => {
     expect(f.rows.find((r) => r.place === "goal")!.medianMs).toBe(2000);
   });
 
-  it("lists every screen in order, including ones nobody reached", async () => {
+  it("lists every place in order, including ones nobody reached", async () => {
     const f = await onboardingFunnel(deps, 30);
     const places = f.rows.map((r) => r.place);
-    expect(places).toEqual([...DEFAULT_ONBOARDING_CONTENT.screens.map((s) => s.id), "summary"]);
+    // The order a person meets them in — the welcome beat, the questions, the plan being built,
+    // the plan. A drop between two adjacent rows is only readable as a drop if the rows are in
+    // the order they happened.
+    expect(places).toEqual([
+      "welcome", ...DEFAULT_ONBOARDING_CONTENT.screens.map((s) => s.id), "building", "summary",
+    ]);
     // A screen with no events is a row of zeroes, not a missing row: "nobody got here" is the most
     // important thing a funnel can say, and it cannot say it by omission.
     expect(f.rows.find((r) => r.place === "country")!.views).toBe(0);

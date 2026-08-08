@@ -136,6 +136,35 @@ describe("editing the copy", () => {
     expect(body.content.version).toBe(DEFAULT_ONBOARDING_CONTENT.version + 1);
   });
 
+  it("saves the interstitials and serves them to the app", async () => {
+    const content = structuredClone(DEFAULT_ONBOARDING_CONTENT);
+    content.welcome.title = "Photograph dinner. Get a straight answer.";
+    content.welcome.points = ["No card to start.", "No email."];
+    content.building.floorLabel = "Stopped at your floor";
+    content.summary.projection = "Roughly {weeks} weeks — {month}.";
+
+    expect((await admin("PUT", "/admin/api/content", { content })).status).toBe(200);
+
+    const token = await session();
+    const res = await handle(new Request(url(ROUTES.onboarding), {
+      headers: { authorization: `Bearer ${token}` },
+    }));
+    const body = await res.json() as { content: OnboardingContent };
+    expect(body.content.welcome.title).toBe("Photograph dinner. Get a straight answer.");
+    expect(body.content.welcome.points).toEqual(["No card to start.", "No email."]);
+    expect(body.content.building.floorLabel).toBe("Stopped at your floor");
+    expect(body.content.summary.projection).toBe("Roughly {weeks} weeks — {month}.");
+  });
+
+  it("422s an interstitial the app could not render", async () => {
+    const content = structuredClone(DEFAULT_ONBOARDING_CONTENT);
+    content.welcome.points = [];
+
+    const res = await admin("PUT", "/admin/api/content", { content });
+    expect(res.status).toBe(422);
+    expect((await res.json() as { errors: string[] }).errors.join(" ")).toContain("welcome.points");
+  });
+
   it("422s a save that would break the app, with every reason", async () => {
     const content = structuredClone(DEFAULT_ONBOARDING_CONTENT);
     content.screens.find((s) => s.id === "activity")!.enabled = false;

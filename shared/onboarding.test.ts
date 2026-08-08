@@ -7,9 +7,10 @@
 
 import { describe, expect, it } from "bun:test";
 import {
-  DEFAULT_ONBOARDING_CONTENT, ONBOARDING_SCREENS, ONBOARDING_STEPS, REPORTABLE_FIELDS,
-  SCREEN_FIELDS, applicableScreens, disabledScreens, nextScreenIndex, nextStep, orderedScreens,
-  screenForStep, usableContent, validateOnboardingContent,
+  DEFAULT_ONBOARDING_CONTENT, ONBOARDING_PLACES, ONBOARDING_SCREENS, ONBOARDING_STEPS,
+  KCAL_FLOOR, COUNTRY_CODES, countryFromRegion,
+  REPORTABLE_FIELDS, SCREEN_FIELDS, applicableScreens, disabledScreens, nextScreenIndex, nextStep,
+  orderedScreens, screenForStep, usableContent, validateOnboardingContent,
   type OnboardingContent, type Profile,
 } from "./index.ts";
 
@@ -251,10 +252,13 @@ describe("which screen comes next", () => {
 
   it("follows the admin's order, not the canonical one", () => {
     const reordered = clone(content);
-    reordered.screens = [
-      reordered.screens.find((s) => s.id === "country")!,
-      ...reordered.screens.filter((s) => s.id !== "country"),
-    ];
+    // Switched ON for this test. `country` ships disabled — it is read from the device region
+    // instead of asked — and a disabled screen is filtered out before ordering is even considered,
+    // which would make this assert nothing. The claim here is about ORDER, so the subject has to be
+    // a screen that renders.
+    const country = reordered.screens.find((s) => s.id === "country")!;
+    country.enabled = true;
+    reordered.screens = [country, ...reordered.screens.filter((s) => s.id !== "country")];
     const first = orderedScreens(reordered, profile())[nextScreenIndex(reordered, profile())]!;
     expect(first.id).toBe("country");
   });
@@ -314,6 +318,85 @@ describe("content from a server this binary does not match", () => {
   });
 });
 
+describe("the interstitials", () => {
+  // `welcome` and `building` are places, not screens. They collect nothing, so they stay out of
+  // ONBOARDING_SCREENS and SCREEN_FIELDS — which is what keeps the three-layer boundary the same
+  // shape it was before they existed.
+
+  it("are not screens", () => {
+    for (const id of ["welcome", "building", "summary"]) {
+      expect(ONBOARDING_SCREENS as readonly string[]).not.toContain(id);
+    }
+  });
+
+  it("are places", () => {
+    for (const place of ["welcome", "building", "summary"] as const) {
+      expect(ONBOARDING_PLACES).toContain(place);
+    }
+    for (const id of ONBOARDING_SCREENS) expect(ONBOARDING_PLACES).toContain(id);
+  });
+
+  it("ship with copy that validates", () => {
+    const result = validateOnboardingContent(DEFAULT_ONBOARDING_CONTENT);
+    if (!result.ok) throw new Error(result.errors.join("\n"));
+    expect(DEFAULT_ONBOARDING_CONTENT.welcome.points.length).toBeGreaterThan(0);
+    expect(DEFAULT_ONBOARDING_CONTENT.building.title.trim()).not.toBe("");
+  });
+
+  it("refuse copy the app could not render", () => {
+    const bad = (mutate: (c: OnboardingContent) => unknown) =>
+      expect(validateOnboardingContent(mutate(clone(DEFAULT_ONBOARDING_CONTENT))).ok).toBe(false);
+
+    bad((c) => { (c as { welcome?: unknown }).welcome = undefined; return c; });
+    bad((c) => { (c as { building?: unknown }).building = undefined; return c; });
+    bad((c) => { c.welcome.title = ""; return c; });
+    bad((c) => { c.welcome.points = []; return c; });
+    bad((c) => { c.welcome.points = ["a", "b", "c", "d", "e"]; return c; });
+    bad((c) => { c.welcome.mascot.mood = "smug" as never; return c; });
+    bad((c) => { c.building.cta = ""; return c; });
+  });
+
+  // The billing beat is the largest complaint cluster in the category cross-read, and the wording
+  // rule from that doc is specific: "no card to start" is true and checkable; "free" is not, and
+  // naming a competitor invites a comparison argument we lose.
+  it("say what we do not ask for, without naming anyone or claiming free", () => {
+    const words = [
+      DEFAULT_ONBOARDING_CONTENT.welcome.title,
+      ...DEFAULT_ONBOARDING_CONTENT.welcome.points,
+      DEFAULT_ONBOARDING_CONTENT.welcome.mascot.line,
+    ].join(" ").toLowerCase();
+
+    expect(words).toContain("card");
+    for (const competitor of ["cal ai", "calai", "myfitnesspal", "noom", "yazio", "lose it"]) {
+      expect(words).not.toContain(competitor);
+    }
+    // An unqualified "free" is the one claim DECISIONS.md rules out by name.
+    expect(words).not.toMatch(/\bfree\b/);
+  });
+
+  it("fills a missing interstitial from the default without discarding the revision", () => {
+    // The opposite of the screens rule, and deliberately so. `usableContent` drops a whole revision
+    // when a SCREEN is missing because the result would be a flow that never asks a question the
+    // calorie target needs. An interstitial asks nothing, so the same penalty would cost an admin
+    // every word they edited in exchange for nothing.
+    const old = clone(DEFAULT_ONBOARDING_CONTENT);
+    old.version = 12;
+    old.screens[0]!.title = "Edited by an admin";
+    delete (old as { welcome?: unknown }).welcome;
+
+    const used = usableContent(old);
+    expect(used.version).toBe(12);
+    expect(used.screens[0]!.title).toBe("Edited by an admin");
+    expect(used.welcome).toEqual(DEFAULT_ONBOARDING_CONTENT.welcome);
+  });
+
+  it("still discards a revision missing a screen, interstitials or not", () => {
+    const old = clone(DEFAULT_ONBOARDING_CONTENT);
+    old.screens = old.screens.filter((s) => s.id !== "target");
+    expect(usableContent(old)).toBe(DEFAULT_ONBOARDING_CONTENT);
+  });
+});
+
 describe("what may be reported to analytics", () => {
   it("never the numbers, never the free text", () => {
     // The list is the mechanism that keeps body weight and a medical free-text field out of an
@@ -327,5 +410,60 @@ describe("what may be reported to analytics", () => {
 
   it("covers only real profile fields", () => {
     for (const f of REPORTABLE_FIELDS) expect(ONBOARDING_STEPS).toContain(f);
+  });
+});
+
+describe("the safety promise on the goal screen", () => {
+  it("quotes the floors the engine actually enforces", () => {
+    // The same rule the landing page is held to: a number quoted in copy is read from the code that
+    // produces it. A safety guarantee the app does not implement is the worst sentence it could
+    // show, and this one is shown at the exact moment a user commits to losing weight.
+    //
+    // BOTH are asserted because the goal screen is asked before sex is known, so the copy has to
+    // name the female and male floors rather than the user's own.
+    const goal = DEFAULT_ONBOARDING_CONTENT.screens.find((s) => s.id === "goal");
+    expect(goal?.why).toBeTruthy();
+    expect(goal!.why).toContain(String(KCAL_FLOOR.female));
+    expect(goal!.why).toContain(String(KCAL_FLOOR.male));
+  });
+
+  it("stays inside the length an admin is held to", () => {
+    // Shipped copy that would be rejected on the way back in is copy the admin cannot edit and
+    // resave, so the default has to pass its own validator.
+    const ok = validateOnboardingContent(DEFAULT_ONBOARDING_CONTENT).ok;
+    expect(ok).toBe(true);
+  });
+});
+
+describe("the country the device already knows", () => {
+  it("maps a curated region onto its own code, case-insensitively", () => {
+    expect(countryFromRegion("DE")).toBe("de");
+    expect(countryFromRegion("gb")).toBe("gb");
+    expect(countryFromRegion(" US ")).toBe("us");
+  });
+
+  it("answers 'other' for a region the list does not carry, and for no region at all", () => {
+    // "other" is a real answer here, not a failure: it is precisely what the curated list means by
+    // "somewhere we have not tuned the analyzer for". A device that reports nothing lands in the
+    // same place a user picking from the list would, so no caller has an unknown state to handle.
+    expect(countryFromRegion("FR")).toBe("other");
+    expect(countryFromRegion(null)).toBe("other");
+    expect(countryFromRegion(undefined)).toBe("other");
+    expect(countryFromRegion("")).toBe("other");
+  });
+
+  it("only ever returns a value the profile field accepts", () => {
+    for (const region of ["DE", "gb", "us", "RU", "FR", "zz", "", "other"]) {
+      expect(COUNTRY_CODES).toContain(countryFromRegion(region));
+    }
+  });
+
+  it("ships the screen off, because the device answers it", () => {
+    const country = DEFAULT_ONBOARDING_CONTENT.screens.find((s) => s.id === "country");
+    expect(country?.enabled).toBe(false);
+    // Disabled, NOT deleted: the validator requires every known screen to be present, and an admin
+    // who wants the question back should have a switch rather than a deploy.
+    expect(country).toBeTruthy();
+    expect(validateOnboardingContent(DEFAULT_ONBOARDING_CONTENT).ok).toBe(true);
   });
 });

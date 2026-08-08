@@ -47,10 +47,13 @@
  * screen to the app without adding it here means the harness reports a complete run that never
  * looked at it, so the list and `SCREEN_BUDGETS` are checked against each other by a test.
  */
+import { DEFAULT_ONBOARDING_CONTENT } from "./onboarding.ts";
+
 export const PERF_SCREENS = [
   // Cold launch: process start → the first screen a user can act on.
   "boot",
   "signin",
+  "onboarding:welcome",
   "onboarding:goal",
   "onboarding:about",
   "onboarding:body",
@@ -58,6 +61,7 @@ export const PERF_SCREENS = [
   "onboarding:activity",
   "onboarding:country",
   "onboarding:restrictions",
+  "onboarding:building",
   "onboarding:summary",
   "today",
   "chat",
@@ -101,6 +105,9 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   // no onboarding screen is ever waiting on a request — that is a design rule in `onboarding.tsx`
   // and these budgets are what enforces it. A screen here that misses `readyMs` has started
   // blocking on the network, which is the regression to catch.
+  // The front door. Static copy compiled into the binary — there is nothing to fetch and nothing
+  // to compute, which is the point: the first frame of the app is the first frame of the app.
+  "onboarding:welcome": { paintMs: 100, readyMs: 100 },
   "onboarding:goal": { paintMs: 100, readyMs: 100 },
   "onboarding:about": { paintMs: 100, readyMs: 100 },
   "onboarding:body": { paintMs: 100, readyMs: 100 },
@@ -108,6 +115,14 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   "onboarding:activity": { paintMs: 100, readyMs: 100 },
   "onboarding:country": { paintMs: 100, readyMs: 100 },
   "onboarding:restrictions": { paintMs: 100, readyMs: 100 },
+  // The plan being worked out.
+  //
+  // THE DWELL ON THIS SCREEN IS NOT A WAIT, and this budget is where that claim is enforced. Every
+  // figure it stages comes from `profile.basis`, which the patch that finished onboarding already
+  // returned — so the screen is complete on its first frame and is graded as such. The staging is
+  // a reveal over content that is already there, and a tap skips it. If somebody ever makes this
+  // screen fetch anything, `readyMs` is what fails.
+  "onboarding:building": { paintMs: 100, readyMs: 100 },
   // The plan. Reads `profile.targets`, which boot already fetched — no request of its own.
   "onboarding:summary": { paintMs: 100, readyMs: 100 },
 
@@ -207,6 +222,27 @@ function median(sorted: number[]): number {
  * time does. Printing the worst next to the median is what stops that tolerance from becoming a
  * place for a real spike to hide.
  */
+/**
+ * The screens THIS BUILD's onboarding can actually reach.
+ *
+ * `PERF_SCREENS` is every screen that exists; a screen switched off in the content is one no walk
+ * can open, and reporting it `incomplete` would fail every run over a question nobody is asked.
+ * Keeping the entry and its budget is still right — `country` is a question an admin can switch
+ * back on, and it must have a budget waiting when they do.
+ *
+ * Read from `DEFAULT_ONBOARDING_CONTENT` rather than taken as an argument, because that is the copy
+ * the perf walk actually runs against: `scripts/perf.sh` points the app at a backend with no admin
+ * row, and `getContent` serves the compiled-in default when none exists.
+ */
+export function walkableScreens(): readonly PerfScreen[] {
+  const off = new Set(
+    DEFAULT_ONBOARDING_CONTENT.screens
+      .filter((s) => s.enabled === false)
+      .map((s) => `onboarding:${s.id}`),
+  );
+  return PERF_SCREENS.filter((s) => !off.has(s));
+}
+
 export function summarize(samples: readonly ScreenSample[]): PerfSummary {
   const byScreen = new Map<PerfScreen, ScreenSample[]>();
   for (const s of samples) {
@@ -224,7 +260,7 @@ export function summarize(samples: readonly ScreenSample[]): PerfSummary {
 
   // Iterating the DECLARED order rather than the map's insertion order, so a report reads the same
   // way every run regardless of the path the flow happened to take through the app.
-  for (const screen of PERF_SCREENS) {
+  for (const screen of walkableScreens()) {
     const list = byScreen.get(screen);
     if (!list || list.length === 0) {
       missing.push(screen);
