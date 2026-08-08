@@ -1,6 +1,7 @@
 // The seeder, against the memory store. No database, no docker, runs on every `bun test`.
 
 import { describe, expect, test } from "bun:test";
+import { HEALTH_FIELDS } from "@ieat/shared";
 import { memoryStore } from "../store.memory.ts";
 import { DEFAULT_SEED_PERSONA, SEED_PERSONAS, seedDeviceId, seedDevData } from "./seed.ts";
 
@@ -132,6 +133,24 @@ describe("seedDevData", () => {
     expect(days.some((d) => d.weight_kg !== null)).toBe(true);
     expect(days.some((d) => d.asleep_minutes === null)).toBe(true);
     expect(days.every((d) => d.steps !== null)).toBe(true);
+  });
+
+  test("every health metric appears somewhere in the seeded week", async () => {
+    // GAPS ARE THE POINT ABOVE; A METRIC THAT NEVER APPEARS IS NOT A GAP. `scripts/health-fake.test.ts`
+    // makes this assertion about the canned phone source, for the reason that a field no fixture
+    // emits is a field nothing renders anywhere — and it surfaces only as a row absent from a
+    // screenshot nobody questions. The seeder is the OTHER fixture and had the same hole: body fat,
+    // lean mass, VO2 max and in-bed minutes were never written, so `--demo` and every seeded
+    // development build showed eleven of the fifteen metrics.
+    const store = memoryStore();
+    const seeded = await seedDevData(store, { timezone: TZ, today: TODAY });
+    const onboarded = seeded.find((s) => s.key === DEFAULT_SEED_PERSONA)!;
+    const days = await store.healthDaysSince(onboarded.userId, SEEDED_WEEK[SEEDED_WEEK.length - 1]!);
+
+    const missing = HEALTH_FIELDS
+      .filter((f) => !days.some((d) => d[f.key] !== null))
+      .map((f) => f.key);
+    expect(missing).toEqual([]);
   });
 
   test("the fresh persona has no health rows at all", async () => {
