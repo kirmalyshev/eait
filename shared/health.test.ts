@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   HEALTH_FIELDS, HEALTH_GROUPS, MEAL_NUTRIENTS, aggregateDays, emptyHealthDay, fieldsWithData,
-  healthDayIsEmpty, mealHasNutrition, mealSyncVersion, sanitizeHealthDay, type HealthSample,
+  healthDayIsEmpty, healthField, mealHasNutrition, mealSyncVersion, metricTrend, sanitizeHealthDay,
+  type HealthSample,
 } from "./health.ts";
 
 const BERLIN = "Europe/Berlin";
@@ -170,6 +171,119 @@ describe("aggregateDays", () => {
       at("active_kcal", "2026-03-10T09:00:00Z", Number.NaN),
     ], BERLIN);
     expect(days[0]!.active_kcal).toBe(200);
+  });
+});
+
+describe("aggregateDays across several recording sources", () => {
+  // THE APPLE WATCH PROBLEM. A phone and a watch both record steps, distance and active energy for
+  // the same wall-clock period, and Health shows one de-duplicated total by preferring a source.
+  // Reading raw samples and adding them up reports roughly twice what the user sees in Health — a
+  // number they can check, on the one screen whose whole job is to agree with Health.
+  const from = (source: string, metric: HealthSample["metric"], iso: string, value: number):
+    HealthSample => ({ metric, start: iso, end: iso, value, source });
+
+  test("does not add a phone's steps to a watch's steps for the same day", () => {
+    const days = aggregateDays([
+      from("com.apple.health.iphone", "steps", "2026-03-10T09:00:00Z", 4000),
+      from("com.apple.health.iphone", "steps", "2026-03-10T18:00:00Z", 3000),
+      from("com.apple.health.watch", "steps", "2026-03-10T09:00:00Z", 4200),
+      from("com.apple.health.watch", "steps", "2026-03-10T18:00:00Z", 3300),
+    ], BERLIN);
+    // 7500 from the watch, not 14500 from both.
+    expect(days[0]!.steps).toBe(7500);
+  });
+
+  test("keeps summing within one source", () => {
+    const days = aggregateDays([
+      from("watch", "active_kcal", "2026-03-10T08:00:00Z", 120),
+      from("watch", "active_kcal", "2026-03-10T12:00:00Z", 80),
+      from("watch", "active_kcal", "2026-03-10T18:00:00Z", 300),
+    ], BERLIN);
+    expect(days[0]!.active_kcal).toBe(500);
+  });
+
+  test("counts a workout once when two apps both recorded it", () => {
+    const days = aggregateDays([
+      span("workouts", "2026-03-10T08:00:00Z", "2026-03-10T09:00:00Z", 1),
+      { metric: "workouts", start: "2026-03-10T08:00:00Z", end: "2026-03-10T09:00:00Z", value: 1, source: "strava" },
+    ], BERLIN);
+    expect(days[0]!.workouts).toBe(1);
+  });
+
+  test("a night recorded by the watch AND a sleep app is one night, not two", () => {
+    // Summed, this is 900 minutes — over the 1440 cap only for a longer night, but ALWAYS wrong.
+    // And when it does breach the cap, `sanitizeHealthDay` nulls it and the user's sleep vanishes
+    // from the screen entirely rather than merely being overstated.
+    const days = aggregateDays([
+      { metric: "asleep_minutes", start: "2026-03-09T22:00:00Z", end: "2026-03-10T05:30:00Z", value: 450, source: "watch" },
+      { metric: "asleep_minutes", start: "2026-03-09T22:10:00Z", end: "2026-03-10T05:40:00Z", value: 450, source: "pillow" },
+    ], BERLIN);
+    expect(days[0]!.asleep_minutes).toBe(450);
+  });
+
+  test("a body metric still takes the latest reading, whichever source it came from", () => {
+    const days = aggregateDays([
+      from("scale", "weight_kg", "2026-03-10T06:00:00Z", 94),
+      from("phone", "weight_kg", "2026-03-10T19:00:00Z", 92),
+    ], BERLIN);
+    expect(days[0]!.weight_kg).toBe(92);
+  });
+
+  test("samples with no source at all are treated as one source", () => {
+    // The canned source and any older client omit it. Summing them as one is exactly the old
+    // behaviour, which is right: there is no evidence of a second recorder.
+    const days = aggregateDays([
+      at("steps", "2026-03-10T09:00:00Z", 4000),
+      at("steps", "2026-03-10T18:00:00Z", 3000),
+    ], BERLIN);
+    expect(days[0]!.steps).toBe(7000);
+  });
+});
+
+describe("metricTrend", () => {
+  const day = (date: string, patch: Record<string, number>) =>
+    ({ ...emptyHealthDay(date), ...patch });
+
+  test("compares the latest reading against the OTHER days, not against itself", () => {
+    // 92 today, and 90 on average before it. A mean that includes today reports +1.5 rather than
+    // the +2 the user actually moved, and understates every change by a factor of (n-1)/n.
+    const days = [
+      day("2026-03-13", { weight_kg: 92 }),
+      day("2026-03-12", { weight_kg: 90 }),
+      day("2026-03-11", { weight_kg: 90 }),
+      day("2026-03-10", { weight_kg: 90 }),
+    ];
+    const t = metricTrend(healthField("weight_kg")!, days)!;
+    expect(t.latest).toBe(92);
+    expect(t.delta).toBe(2);
+    expect(t.moved).toBe(true);
+  });
+
+  test("takes the most recent day that HAS the metric, not the most recent day", () => {
+    const days = [day("2026-03-13", { steps: 100 }), day("2026-03-12", { weight_kg: 91 })];
+    expect(metricTrend(healthField("weight_kg")!, days)!.latest).toBe(91);
+  });
+
+  test("one reading has nothing to compare against, and says so", () => {
+    // Not "no change": there is no baseline at all. Reporting a confident zero from one data point
+    // is the same lie as drawing a flat line through days nothing was recorded.
+    const t = metricTrend(healthField("weight_kg")!, [day("2026-03-13", { weight_kg: 92 })])!;
+    expect(t.latest).toBe(92);
+    expect(t.delta).toBeNull();
+    expect(t.moved).toBe(false);
+  });
+
+  test("a move inside the noise band does not get an arrow", () => {
+    const days = [
+      day("2026-03-13", { weight_kg: 90.5 }),
+      day("2026-03-12", { weight_kg: 90 }),
+      day("2026-03-11", { weight_kg: 90 }),
+    ];
+    expect(metricTrend(healthField("weight_kg")!, days)!.moved).toBe(false);
+  });
+
+  test("no reading at all is no row", () => {
+    expect(metricTrend(healthField("weight_kg")!, [day("2026-03-13", { steps: 10 })])).toBeNull();
   });
 });
 
