@@ -150,6 +150,28 @@ export function fieldsInGroup(group: HealthGroup): readonly HealthFieldSpec[] {
   return HEALTH_FIELDS.filter((f) => f.group === group);
 }
 
+/**
+ * The fields of one group that ANY day in the window carries a value for, in table order.
+ *
+ * THE WINDOW, NOT THE NEWEST DAY. Most of these metrics are not daily: a scale is stepped on some
+ * mornings, VO2 max is re-estimated every few weeks, body fat comes from a device that is not
+ * always the one to hand. Choosing what to render from the newest day alone drops all of them the
+ * moment that day happens to carry only steps — which is most days, and always the ones before the
+ * user has weighed in. The row itself then shows the most recent reading it has, so the screen says
+ * "92.1 kg" from yesterday rather than saying nothing about weight at all.
+ *
+ * The other direction still holds: a metric no day in the window carries is dropped, because a card
+ * of rows the user has never recorded is a screen that looks broken.
+ */
+export function fieldsWithData(
+  group: HealthGroup,
+  days: readonly HealthDay[],
+): readonly HealthFieldSpec[] {
+  // `!= null` rather than truthiness: zero steps is a measurement — the phone was carried and the
+  // user did not move — and it is not the same statement as having no step data at all.
+  return fieldsInGroup(group).filter((f) => days.some((d) => d[f.key] != null));
+}
+
 /** A day with nothing known about it. Every metric null — null is unknown, never zero. */
 export function emptyHealthDay(date: string): HealthDay {
   const day = { date } as HealthDay;

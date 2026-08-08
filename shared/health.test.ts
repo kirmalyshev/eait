@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
-  HEALTH_FIELDS, HEALTH_GROUPS, MEAL_NUTRIENTS, aggregateDays, emptyHealthDay, healthDayIsEmpty,
-  mealHasNutrition, mealSyncVersion, sanitizeHealthDay, type HealthSample,
+  HEALTH_FIELDS, HEALTH_GROUPS, MEAL_NUTRIENTS, aggregateDays, emptyHealthDay, fieldsWithData,
+  healthDayIsEmpty, mealHasNutrition, mealSyncVersion, sanitizeHealthDay, type HealthSample,
 } from "./health.ts";
 
 const BERLIN = "Europe/Berlin";
@@ -43,6 +43,46 @@ describe("HEALTH_FIELDS", () => {
     for (const f of HEALTH_FIELDS) {
       if (f.unit === "") expect(f.decimals).toBe(0);
     }
+  });
+});
+
+describe("fieldsWithData", () => {
+  const day = (date: string, patch: Partial<ReturnType<typeof emptyHealthDay>>) =>
+    ({ ...emptyHealthDay(date), ...patch });
+
+  test("keeps a metric measured earlier in the window but not on the newest day", () => {
+    // THE BUG THIS EXISTS FOR. A scale is stepped on some mornings, VO2 max is estimated every few
+    // weeks, and body fat comes from a smart scale that is not the one by the door. Deciding what
+    // to render from the NEWEST day alone drops every one of them from the screen the moment the
+    // most recent day happens to be a steps-only day — which is most days, and always the ones
+    // before the user has weighed in.
+    const days = [
+      day("2026-03-11", { steps: 8000 }),
+      day("2026-03-10", { weight_kg: 92, steps: 7000 }),
+    ];
+    expect(fieldsWithData("body", days).map((f) => f.key)).toEqual(["weight_kg"]);
+  });
+
+  test("drops a metric no day in the window carries", () => {
+    // The other half: a card full of rows the user has never recorded is a screen that looks broken.
+    const days = [day("2026-03-11", { steps: 8000 })];
+    expect(fieldsWithData("body", days)).toEqual([]);
+  });
+
+  test("returns fields in table order, not in the order data happened to arrive", () => {
+    const days = [day("2026-03-11", { lean_mass_kg: 68, weight_kg: 92 })];
+    expect(fieldsWithData("body", days).map((f) => f.key)).toEqual(["weight_kg", "lean_mass_kg"]);
+  });
+
+  test("a zero is data", () => {
+    // Same rule as `healthDayIsEmpty`: zero steps means the phone was carried and the user did not
+    // move, which is a measurement and belongs on the screen.
+    expect(fieldsWithData("activity", [day("2026-03-11", { steps: 0 })]).map((f) => f.key))
+      .toEqual(["steps"]);
+  });
+
+  test("no days at all is no fields", () => {
+    expect(fieldsWithData("body", [])).toEqual([]);
   });
 });
 
