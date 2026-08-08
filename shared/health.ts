@@ -332,8 +332,10 @@ export function mealSyncVersion(meal: MealNutrition): number {
     h ^= 0x2c; // a separator, so {12, 3} and {1, 23} cannot collide
     h = Math.imul(h, 0x01000193);
   }
-  // The platform's sync version is a signed integer; keep it positive and comfortably in range.
-  return Math.abs(h | 0);
+  // The platform's sync version is a signed 32-bit integer, so drop the sign BIT rather than take
+  // the absolute value: `Math.abs(-2147483648)` is 2147483648, which is one past the largest value
+  // that type holds. Masking cannot leave the range, and costs the same one bit of hash space.
+  return (h | 0) & 0x7fff_ffff;
 }
 
 /** True when something about this meal is worth writing. An all-zero meal is not. */

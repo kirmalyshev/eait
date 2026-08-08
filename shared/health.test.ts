@@ -247,6 +247,20 @@ describe("mealSyncVersion", () => {
     expect(Number.isInteger(v)).toBe(true);
     expect(v).toBeGreaterThanOrEqual(0);
   });
+
+  test("never exceeds the largest signed 32-bit integer", () => {
+    // The platform's sync version is that type. `Math.abs` was the wrong way to make the hash
+    // positive: one input in four billion hashes to exactly INT32_MIN, whose absolute value is one
+    // PAST the largest value the type holds. Masking the sign bit cannot leave the range.
+    //
+    // Stated as an invariant rather than driven by that input, because 60 million candidates were
+    // searched without finding one. The branch is reachable by inspection, not by this sweep.
+    for (let kcal = 0; kcal < 5_000; kcal++) {
+      const v = mealSyncVersion({ ...meal, kcal });
+      expect(v).toBeLessThanOrEqual(0x7fff_ffff);
+      expect(v).toBeGreaterThanOrEqual(0);
+    }
+  });
 });
 
 describe("mealHasNutrition", () => {
