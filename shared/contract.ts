@@ -370,6 +370,20 @@ export const MAX_HEALTH_DAYS_PER_BATCH = 400;
 /** The window the app re-reads on every sync. See `HealthDaysRequest` for why it looks backwards. */
 export const HEALTH_SYNC_LOOKBACK_DAYS = 7;
 
+/**
+ * The window the app reads ONCE, the first time a process finds nothing stored.
+ *
+ * The rolling window above is the steady state and is deliberately short — it exists to catch data
+ * that arrived late, not to move history. But it also means a user who connects Health today gets a
+ * screen showing seven days of a trend the screen renders thirty of, and it fills in over a month
+ * of app launches. Their health store already HAS those thirty days; nothing was missing except a
+ * wider first read.
+ *
+ * Matched to the trend the screen asks for. Bounded by `MAX_HEALTH_DAYS_PER_BATCH` with room to
+ * spare, and by `MAX_HEALTH_AGE_DAYS` on the server, which refuses anything older regardless.
+ */
+export const HEALTH_FIRST_SYNC_DAYS = 30;
+
 // ── Diary ────────────────────────────────────────────────────────────────────────────────────
 
 export interface DayResponse {

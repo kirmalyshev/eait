@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
-  HEALTH_FIELDS, HEALTH_GROUPS, MEAL_NUTRIENTS, aggregateDays, emptyHealthDay, healthDayIsEmpty,
-  mealHasNutrition, mealSyncVersion, sanitizeHealthDay, type HealthSample,
+  HEALTH_FIELDS, HEALTH_GROUPS, MEAL_NUTRIENTS, aggregateDays, emptyHealthDay, fieldsWithData,
+  healthDayIsEmpty, healthField, mealHasNutrition, mealSyncVersion, metricTrend, sanitizeHealthDay,
+  type HealthSample,
 } from "./health.ts";
 
 const BERLIN = "Europe/Berlin";
@@ -43,6 +44,46 @@ describe("HEALTH_FIELDS", () => {
     for (const f of HEALTH_FIELDS) {
       if (f.unit === "") expect(f.decimals).toBe(0);
     }
+  });
+});
+
+describe("fieldsWithData", () => {
+  const day = (date: string, patch: Partial<ReturnType<typeof emptyHealthDay>>) =>
+    ({ ...emptyHealthDay(date), ...patch });
+
+  test("keeps a metric measured earlier in the window but not on the newest day", () => {
+    // THE BUG THIS EXISTS FOR. A scale is stepped on some mornings, VO2 max is estimated every few
+    // weeks, and body fat comes from a smart scale that is not the one by the door. Deciding what
+    // to render from the NEWEST day alone drops every one of them from the screen the moment the
+    // most recent day happens to be a steps-only day — which is most days, and always the ones
+    // before the user has weighed in.
+    const days = [
+      day("2026-03-11", { steps: 8000 }),
+      day("2026-03-10", { weight_kg: 92, steps: 7000 }),
+    ];
+    expect(fieldsWithData("body", days).map((f) => f.key)).toEqual(["weight_kg"]);
+  });
+
+  test("drops a metric no day in the window carries", () => {
+    // The other half: a card full of rows the user has never recorded is a screen that looks broken.
+    const days = [day("2026-03-11", { steps: 8000 })];
+    expect(fieldsWithData("body", days)).toEqual([]);
+  });
+
+  test("returns fields in table order, not in the order data happened to arrive", () => {
+    const days = [day("2026-03-11", { lean_mass_kg: 68, weight_kg: 92 })];
+    expect(fieldsWithData("body", days).map((f) => f.key)).toEqual(["weight_kg", "lean_mass_kg"]);
+  });
+
+  test("a zero is data", () => {
+    // Same rule as `healthDayIsEmpty`: zero steps means the phone was carried and the user did not
+    // move, which is a measurement and belongs on the screen.
+    expect(fieldsWithData("activity", [day("2026-03-11", { steps: 0 })]).map((f) => f.key))
+      .toEqual(["steps"]);
+  });
+
+  test("no days at all is no fields", () => {
+    expect(fieldsWithData("body", [])).toEqual([]);
   });
 });
 
@@ -133,6 +174,119 @@ describe("aggregateDays", () => {
   });
 });
 
+describe("aggregateDays across several recording sources", () => {
+  // THE APPLE WATCH PROBLEM. A phone and a watch both record steps, distance and active energy for
+  // the same wall-clock period, and Health shows one de-duplicated total by preferring a source.
+  // Reading raw samples and adding them up reports roughly twice what the user sees in Health — a
+  // number they can check, on the one screen whose whole job is to agree with Health.
+  const from = (source: string, metric: HealthSample["metric"], iso: string, value: number):
+    HealthSample => ({ metric, start: iso, end: iso, value, source });
+
+  test("does not add a phone's steps to a watch's steps for the same day", () => {
+    const days = aggregateDays([
+      from("com.apple.health.iphone", "steps", "2026-03-10T09:00:00Z", 4000),
+      from("com.apple.health.iphone", "steps", "2026-03-10T18:00:00Z", 3000),
+      from("com.apple.health.watch", "steps", "2026-03-10T09:00:00Z", 4200),
+      from("com.apple.health.watch", "steps", "2026-03-10T18:00:00Z", 3300),
+    ], BERLIN);
+    // 7500 from the watch, not 14500 from both.
+    expect(days[0]!.steps).toBe(7500);
+  });
+
+  test("keeps summing within one source", () => {
+    const days = aggregateDays([
+      from("watch", "active_kcal", "2026-03-10T08:00:00Z", 120),
+      from("watch", "active_kcal", "2026-03-10T12:00:00Z", 80),
+      from("watch", "active_kcal", "2026-03-10T18:00:00Z", 300),
+    ], BERLIN);
+    expect(days[0]!.active_kcal).toBe(500);
+  });
+
+  test("counts a workout once when two apps both recorded it", () => {
+    const days = aggregateDays([
+      span("workouts", "2026-03-10T08:00:00Z", "2026-03-10T09:00:00Z", 1),
+      { metric: "workouts", start: "2026-03-10T08:00:00Z", end: "2026-03-10T09:00:00Z", value: 1, source: "strava" },
+    ], BERLIN);
+    expect(days[0]!.workouts).toBe(1);
+  });
+
+  test("a night recorded by the watch AND a sleep app is one night, not two", () => {
+    // Summed, this is 900 minutes — over the 1440 cap only for a longer night, but ALWAYS wrong.
+    // And when it does breach the cap, `sanitizeHealthDay` nulls it and the user's sleep vanishes
+    // from the screen entirely rather than merely being overstated.
+    const days = aggregateDays([
+      { metric: "asleep_minutes", start: "2026-03-09T22:00:00Z", end: "2026-03-10T05:30:00Z", value: 450, source: "watch" },
+      { metric: "asleep_minutes", start: "2026-03-09T22:10:00Z", end: "2026-03-10T05:40:00Z", value: 450, source: "pillow" },
+    ], BERLIN);
+    expect(days[0]!.asleep_minutes).toBe(450);
+  });
+
+  test("a body metric still takes the latest reading, whichever source it came from", () => {
+    const days = aggregateDays([
+      from("scale", "weight_kg", "2026-03-10T06:00:00Z", 94),
+      from("phone", "weight_kg", "2026-03-10T19:00:00Z", 92),
+    ], BERLIN);
+    expect(days[0]!.weight_kg).toBe(92);
+  });
+
+  test("samples with no source at all are treated as one source", () => {
+    // The canned source and any older client omit it. Summing them as one is exactly the old
+    // behaviour, which is right: there is no evidence of a second recorder.
+    const days = aggregateDays([
+      at("steps", "2026-03-10T09:00:00Z", 4000),
+      at("steps", "2026-03-10T18:00:00Z", 3000),
+    ], BERLIN);
+    expect(days[0]!.steps).toBe(7000);
+  });
+});
+
+describe("metricTrend", () => {
+  const day = (date: string, patch: Record<string, number>) =>
+    ({ ...emptyHealthDay(date), ...patch });
+
+  test("compares the latest reading against the OTHER days, not against itself", () => {
+    // 92 today, and 90 on average before it. A mean that includes today reports +1.5 rather than
+    // the +2 the user actually moved, and understates every change by a factor of (n-1)/n.
+    const days = [
+      day("2026-03-13", { weight_kg: 92 }),
+      day("2026-03-12", { weight_kg: 90 }),
+      day("2026-03-11", { weight_kg: 90 }),
+      day("2026-03-10", { weight_kg: 90 }),
+    ];
+    const t = metricTrend(healthField("weight_kg")!, days)!;
+    expect(t.latest).toBe(92);
+    expect(t.delta).toBe(2);
+    expect(t.moved).toBe(true);
+  });
+
+  test("takes the most recent day that HAS the metric, not the most recent day", () => {
+    const days = [day("2026-03-13", { steps: 100 }), day("2026-03-12", { weight_kg: 91 })];
+    expect(metricTrend(healthField("weight_kg")!, days)!.latest).toBe(91);
+  });
+
+  test("one reading has nothing to compare against, and says so", () => {
+    // Not "no change": there is no baseline at all. Reporting a confident zero from one data point
+    // is the same lie as drawing a flat line through days nothing was recorded.
+    const t = metricTrend(healthField("weight_kg")!, [day("2026-03-13", { weight_kg: 92 })])!;
+    expect(t.latest).toBe(92);
+    expect(t.delta).toBeNull();
+    expect(t.moved).toBe(false);
+  });
+
+  test("a move inside the noise band does not get an arrow", () => {
+    const days = [
+      day("2026-03-13", { weight_kg: 90.5 }),
+      day("2026-03-12", { weight_kg: 90 }),
+      day("2026-03-11", { weight_kg: 90 }),
+    ];
+    expect(metricTrend(healthField("weight_kg")!, days)!.moved).toBe(false);
+  });
+
+  test("no reading at all is no row", () => {
+    expect(metricTrend(healthField("weight_kg")!, [day("2026-03-13", { steps: 10 })])).toBeNull();
+  });
+});
+
 describe("healthDayIsEmpty", () => {
   test("an untouched day is empty", () => {
     expect(healthDayIsEmpty(emptyHealthDay("2026-03-10"))).toBe(true);
@@ -206,6 +360,20 @@ describe("mealSyncVersion", () => {
     const v = mealSyncVersion(meal);
     expect(Number.isInteger(v)).toBe(true);
     expect(v).toBeGreaterThanOrEqual(0);
+  });
+
+  test("never exceeds the largest signed 32-bit integer", () => {
+    // The platform's sync version is that type. `Math.abs` was the wrong way to make the hash
+    // positive: one input in four billion hashes to exactly INT32_MIN, whose absolute value is one
+    // PAST the largest value the type holds. Masking the sign bit cannot leave the range.
+    //
+    // Stated as an invariant rather than driven by that input, because 60 million candidates were
+    // searched without finding one. The branch is reachable by inspection, not by this sweep.
+    for (let kcal = 0; kcal < 5_000; kcal++) {
+      const v = mealSyncVersion({ ...meal, kcal });
+      expect(v).toBeLessThanOrEqual(0x7fff_ffff);
+      expect(v).toBeGreaterThanOrEqual(0);
+    }
   });
 });
 

@@ -150,6 +150,76 @@ export function fieldsInGroup(group: HealthGroup): readonly HealthFieldSpec[] {
   return HEALTH_FIELDS.filter((f) => f.group === group);
 }
 
+/**
+ * The fields of one group that ANY day in the window carries a value for, in table order.
+ *
+ * THE WINDOW, NOT THE NEWEST DAY. Most of these metrics are not daily: a scale is stepped on some
+ * mornings, VO2 max is re-estimated every few weeks, body fat comes from a device that is not
+ * always the one to hand. Choosing what to render from the newest day alone drops all of them the
+ * moment that day happens to carry only steps — which is most days, and always the ones before the
+ * user has weighed in. The row itself then shows the most recent reading it has, so the screen says
+ * "92.1 kg" from yesterday rather than saying nothing about weight at all.
+ *
+ * The other direction still holds: a metric no day in the window carries is dropped, because a card
+ * of rows the user has never recorded is a screen that looks broken.
+ */
+export function fieldsWithData(
+  group: HealthGroup,
+  days: readonly HealthDay[],
+): readonly HealthFieldSpec[] {
+  // `!= null` rather than truthiness: zero steps is a measurement — the phone was carried and the
+  // user did not move — and it is not the same statement as having no step data at all.
+  return fieldsInGroup(group).filter((f) => days.some((d) => d[f.key] != null));
+}
+
+/** What one metric's row on the trend screen shows. See `metricTrend`. */
+export interface MetricTrend {
+  /** The most recent reading in the window, from the most recent day that HAS one. */
+  latest: number;
+  /**
+   * How far `latest` sits from the mean of the OTHER days, or null when there are none.
+   *
+   * Null rather than zero, and the difference matters on screen: "no change" is a claim about a
+   * comparison that happened, and one reading supports no comparison at all. Rendering a confident
+   * zero from a single data point is the same lie as drawing a flat line through days on which
+   * nothing was recorded.
+   */
+  delta: number | null;
+  /** True when `delta` is outside the noise band and therefore worth drawing an arrow for. */
+  moved: boolean;
+}
+
+/**
+ * One metric's row: the latest reading, and where it sits against the rest of the window.
+ *
+ * THE BASELINE EXCLUDES THE READING BEING JUDGED. A mean taken over every day including today is a
+ * baseline today has already moved, so every change is understated by a factor of (n-1)/n — worst
+ * exactly when the window is short, which is every new user's first week.
+ *
+ * Here rather than in the screen because it is arithmetic, and arithmetic in a React component is
+ * arithmetic no test ever runs.
+ */
+export function metricTrend(
+  spec: HealthFieldSpec,
+  days: readonly HealthDay[],
+): MetricTrend | null {
+  const values: number[] = [];
+  for (const d of days) {
+    const v = d[spec.key];
+    if (v !== null) values.push(v);
+  }
+  const latest = values[0];
+  if (latest === undefined) return null;
+
+  const rest = values.slice(1);
+  if (rest.length === 0) return { latest, delta: null, moved: false };
+
+  const mean = rest.reduce((n, v) => n + v, 0) / rest.length;
+  const delta = round(latest - mean, spec.decimals);
+  // A ±2% band reads as "no change". Below that an arrow is noise dressed as a signal.
+  return { latest, delta, moved: Math.abs(delta) > Math.abs(mean) * 0.02 };
+}
+
 /** A day with nothing known about it. Every metric null — null is unknown, never zero. */
 export function emptyHealthDay(date: string): HealthDay {
   const day = { date } as HealthDay;
@@ -172,6 +242,15 @@ export interface HealthSample {
   /** ISO instant the sample ends. */
   end: string;
   value: number;
+  /**
+   * What recorded it — the source's bundle identifier, when the platform says.
+   *
+   * Carried for ONE reason: a phone and a watch both record steps, distance and active energy for
+   * the same period, and a day's samples therefore describe that day more than once. See
+   * `reduceSamples`. Optional because not every source has one to give, and a build that omits it
+   * behaves exactly as this file did before the field existed.
+   */
+  source?: string;
 }
 
 /**
@@ -219,15 +298,41 @@ export function aggregateDays(samples: readonly HealthSample[], zone: string): H
 }
 
 function reduceSamples(list: readonly HealthSample[], spec: HealthFieldSpec): number {
-  if (spec.agg === "count") return list.length;
-  if (spec.agg === "sum") return round(list.reduce((n, s) => n + s.value, 0), spec.decimals);
-  // `last`: the reading with the latest end, tie-broken on start so two samples closed at the same
-  // instant still order deterministically rather than by whatever order the query returned them in.
-  let best = list[0]!;
-  for (const s of list) {
-    if (s.end > best.end || (s.end === best.end && s.start > best.start)) best = s;
+  if (spec.agg === "last") {
+    // The reading with the latest end, tie-broken on start so two samples closed at the same
+    // instant still order deterministically rather than by whatever order the query returned them
+    // in. Which SOURCE it came from does not matter: the most recent weight is the most recent
+    // weight whether the scale or the user's own thumb put it there.
+    let best = list[0]!;
+    for (const s of list) {
+      if (s.end > best.end || (s.end === best.end && s.start > best.start)) best = s;
+    }
+    return round(best.value, spec.decimals);
   }
-  return round(best.value, spec.decimals);
+
+  // ── accumulated metrics, and the second recorder ──
+  //
+  // A phone and a watch worn on the same day both record steps, distance and active energy for the
+  // same hours; two fitness apps both record the same workout; a watch and a sleep app both record
+  // the same night. Adding every sample up reports each of those roughly twice — and Health, which
+  // de-duplicates by preferring one source, shows the user the other number on the same day. Sleep
+  // is worse than overstated: past 1440 minutes `sanitizeHealthDay` nulls it, so a doubled night
+  // leaves the screen with no sleep on it at all.
+  //
+  // So: total each source separately, and take the LARGEST. Within one source the samples are the
+  // consecutive pieces of one record — Apple's own sleep stages, a day's step buckets — and summing
+  // them is exactly right. Across sources they are competing accounts of the same hours, and the
+  // fullest account is the best single answer available without a source-priority list, which
+  // HealthKit does not hand out. It can under-count when two sources genuinely cover different
+  // parts of a day (a watch worn only in the evening). That direction is the right one to be wrong
+  // in: an understated total looks like a quiet day, an overstated one looks like a broken app.
+  const perSource = new Map<string, number>();
+  for (const s of list) {
+    // Absent source = one unnamed source, so a client that never sends the field sums as before.
+    const key = s.source ?? "";
+    perSource.set(key, (perSource.get(key) ?? 0) + (spec.agg === "count" ? 1 : s.value));
+  }
+  return round(Math.max(...perSource.values()), spec.decimals);
 }
 
 function round(n: number, decimals: number): number {
@@ -310,8 +415,10 @@ export function mealSyncVersion(meal: MealNutrition): number {
     h ^= 0x2c; // a separator, so {12, 3} and {1, 23} cannot collide
     h = Math.imul(h, 0x01000193);
   }
-  // The platform's sync version is a signed integer; keep it positive and comfortably in range.
-  return Math.abs(h | 0);
+  // The platform's sync version is a signed 32-bit integer, so drop the sign BIT rather than take
+  // the absolute value: `Math.abs(-2147483648)` is 2147483648, which is one past the largest value
+  // that type holds. Masking cannot leave the range, and costs the same one bit of hash space.
+  return (h | 0) & 0x7fff_ffff;
 }
 
 /** True when something about this meal is worth writing. An all-zero meal is not. */

@@ -268,6 +268,12 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
     // database. Deliberately incomplete: some days carry no weight and some carry no sleep, because
     // a fixture where every metric is present every day is a fixture that never exercises the
     // "unknown, not zero" rendering — and that is the branch a real trend spends most of its time in.
+    //
+    // A GAP IS SOME DAYS. A metric that appears on NO day is a different thing entirely: it is a
+    // field nothing in `--demo` or any seeded development build ever renders, and the only symptom
+    // is a row missing from a screen nobody thinks to question. Body fat, lean mass, VO2 max and
+    // in-bed minutes were all in that state. A test now fails when any metric is absent from the
+    // whole week, which is the same guard `scripts/health-fake.test.ts` puts on the phone's source.
     const healthDays: HealthDay[] = [];
     for (let back = 0; back < persona.days; back++) {
       const date = dateMinus(today, back);
@@ -279,6 +285,11 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
         day.weight_kg = round1((profile.weight_kg ?? 80) + (jitter(`${seed}:w`) - 1) * 4);
       }
       day.height_cm = profile.height_cm;
+      // Body composition comes from a smart scale, so it lands on the days the scale did.
+      if (back % 3 !== 1) {
+        day.body_fat_pct = round1(21 + jitter(`${seed}:f`) * 8);
+        day.lean_mass_kg = round1((profile.weight_kg ?? 80) * 0.72 + jitter(`${seed}:l`) * 2);
+      }
       day.active_kcal = Math.round(220 + jitter(`${seed}:a`) * 420);
       day.resting_kcal = Math.round(1500 + jitter(`${seed}:r`) * 260);
       day.steps = Math.round(3_500 + jitter(`${seed}:s`) * 9_000);
@@ -286,8 +297,15 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
       day.distance_km = round1(2 + jitter(`${seed}:d`) * 8);
       day.resting_hr_bpm = Math.round(52 + jitter(`${seed}:h`) * 10);
       day.hrv_ms = Math.round(32 + jitter(`${seed}:v`) * 45);
-      // A watch is not worn every night.
-      if (back % 4 !== 2) day.asleep_minutes = Math.round(330 + jitter(`${seed}:z`) * 150);
+      // Re-estimated every week or so, not daily — which is exactly why the health screen must not
+      // decide what to render from the newest day alone.
+      if (back % 6 === 0) day.vo2max = round1(38 + jitter(`${seed}:o`) * 5);
+      // A watch is not worn every night. In bed longer than asleep, which is what a night looks like.
+      if (back % 4 !== 2) {
+        const asleep = Math.round(330 + jitter(`${seed}:z`) * 150);
+        day.asleep_minutes = asleep;
+        day.in_bed_minutes = asleep + Math.round(10 + jitter(`${seed}:b`) * 30);
+      }
       if (back % 5 === 0) day.workouts = 1;
 
       healthDays.push(day);

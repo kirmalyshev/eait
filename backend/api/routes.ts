@@ -476,6 +476,19 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
       // rather than a per-second series it has no use for. The engine validates every value again:
       // the client aggregating is a convenience, not a reason to trust the result.
       if (req.method === "POST" && pathname === ROUTES.healthDays) {
+        // The heaviest write here: up to `MAX_HEALTH_DAYS_PER_BATCH` upserts in one transaction.
+        // No model is called, so none of the billed caps cover it — and an account-scoped bound
+        // would be worth nothing anyway, because `POST /v1/auth/device` mints a fresh account for
+        // anybody with a 32-character string. Per address, like the other three.
+        const wait = limit(req, peer, "health", deps.config.healthSyncRateLimitPerHour, HOUR);
+        if (wait !== null) {
+          // `rate-limited`, the same code the other per-address limiter uses, and NOT a sentence.
+          // The client switches on this string (`ApiError.isRefusal`) to tell a refusal the server
+          // meant from a request that never arrived; an unrecognised code is shown to the user as
+          // "couldn't reach ieat". Not `cap-exceeded` either: nothing has been spent here.
+          return tooManyRequests(wait, { error: "rate-limited" });
+        }
+
         const body = await req.json() as HealthDaysRequest;
         const days = Array.isArray(body?.days) ? body.days : [];
         if (days.length > MAX_HEALTH_DAYS_PER_BATCH) {
