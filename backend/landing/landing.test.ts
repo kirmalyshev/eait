@@ -14,7 +14,7 @@ import { faviconIco, ogPng, OG_HEIGHT, OG_WIDTH } from "./images.ts";
 import { color, TOKEN_SOURCE } from "./tokens.ts";
 import { BODY, MASCOT_SOURCE, MOUTHS, SHEEN } from "./mascot.ts";
 import { styles } from "./styles.ts";
-import { founder, measured, refusals, floorSection, sample } from "./content.ts";
+import { faqs, founder, measured, refusals, floorSection, sample } from "./content.ts";
 import { KCAL_FLOOR } from "@ieat/shared";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -190,8 +190,11 @@ describe("the rendered page", () => {
     expect([...html.matchAll(/<h1\b/g)]).toHaveLength(1);
   });
 
-  test("carries no script at all, which is what lets the CSP forbid one", () => {
-    expect(html).not.toContain("<script");
+  test("carries no executable script at all, which is what lets the CSP forbid one", () => {
+    // The one <script> allowed is the JSON-LD data block: `type="application/ld+json"` is data a
+    // crawler reads, never code a browser runs, and CSP's script-src does not govern it.
+    const scripts = [...html.matchAll(/<script\b[^>]*>/g)].map((m) => m[0]);
+    for (const tag of scripts) expect(tag).toContain('type="application/ld+json"');
     expect(html).not.toMatch(/\son[a-z]+=/i);
     expect(html).not.toContain("javascript:");
   });
@@ -564,5 +567,45 @@ describe("Spud", () => {
     const moods: string[] = Object.keys(MOUTHS);
     expect(moods).not.toContain("cheer");
     expect(moods.sort()).toEqual(["care", "think", "wave"]);
+  });
+});
+
+describe("search and LLM engines", () => {
+  const outDir = () => mkdtempSync(join(tmpdir(), "landing-"));
+
+  test("the page carries JSON-LD that parses, and its FAQ matches the page's", () => {
+    const match = html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s);
+    expect(match).not.toBeNull();
+    // `<` must not appear raw inside the block — "</script>" in an answer would end the element
+    // mid-JSON. Serialised as < instead.
+    expect(match![1]!).not.toContain("<");
+    const graph = JSON.parse(match![1]!) as { "@graph": Array<Record<string, unknown>> };
+    const types = graph["@graph"].map((node) => node["@type"]);
+    expect(types).toContain("Organization");
+    expect(types).toContain("WebSite");
+    expect(types).toContain("FAQPage");
+    const faqNode = graph["@graph"].find((node) => node["@type"] === "FAQPage") as {
+      mainEntity: Array<{ name: string }>;
+    };
+    expect(faqNode.mainEntity.length).toBe(faqs.length);
+    expect(faqNode.mainEntity[0]!.name).toBe(faqs[0]!.q);
+  });
+
+  test("an indexable build ships llms.txt; a private one does not", async () => {
+    const dir = outDir();
+    const result = await buildLanding({ ...ENV, LANDING_INDEXABLE: "true" }, dir);
+    expect(result.files).toContain("llms.txt");
+    const text = readFileSync(join(dir, "llms.txt"), "utf8");
+    // The floor is the page's central safety fact; a summary for machines that omits it is a
+    // summary that misrepresents the product. Localised, exactly as the page prints it.
+    expect(text).toContain(KCAL_FLOOR.female.toLocaleString("en-GB"));
+    expect(text).toContain(KCAL_FLOOR.male.toLocaleString("en-GB"));
+    expect(text).toContain("https://eait.fit/privacy");
+    rmSync(dir, { recursive: true, force: true });
+
+    const dark = outDir();
+    const hidden = await buildLanding(ENV, dark);
+    expect(hidden.files).not.toContain("llms.txt");
+    rmSync(dark, { recursive: true, force: true });
   });
 });

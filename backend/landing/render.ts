@@ -57,6 +57,49 @@ function metaDescription(): string {
   return `${hero.headline} ${brand.tagline} No card, no trial, and photos are never stored.`;
 }
 
+/**
+ * Structured data for search and answer engines: the organisation, the site, and the FAQ — the one
+ * section of the page already written as questions with self-contained answers.
+ *
+ * A data block, not a script — CSP's `script-src` governs execution and this never executes — but
+ * it still lives inside a `<script>` element, so a literal `<` in an answer could end the element
+ * mid-JSON. Every `<` is serialised as an escape instead.
+ */
+function jsonLd(config: LandingConfig): string {
+  const site = config.siteUrl;
+  const graph = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${site}/#org`,
+        name: brand.name,
+        url: `${site}/`,
+        logo: `${site}/apple-touch-icon.png`,
+        email: config.supportEmail,
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${site}/#website`,
+        url: `${site}/`,
+        name: brand.name,
+        description: metaDescription(),
+        publisher: { "@id": `${site}/#org` },
+      },
+      {
+        "@type": "FAQPage",
+        "@id": `${site}/#faq`,
+        mainEntity: faqs.map((f) => ({
+          "@type": "Question",
+          name: f.q,
+          acceptedAnswer: { "@type": "Answer", text: f.a },
+        })),
+      },
+    ],
+  };
+  return `<script type="application/ld+json">${JSON.stringify(graph).replace(/</g, "\\u003c")}</script>`;
+}
+
 function heroInstrument(): string {
   const { target, meal } = sample;
   const pills = meal.verdicts
@@ -299,6 +342,7 @@ ${robotsMeta(config)}<link rel="icon" href="/favicon.ico" sizes="64x64">
 <meta property="og:image:height" content="${OG_HEIGHT}">
 <meta property="og:image:alt" content="${esc(`The ${brand.name} mark: a plate seen from above.`)}">
 <meta name="twitter:card" content="summary_large_image">
+${jsonLd(config)}
 </head>
 <body>
 

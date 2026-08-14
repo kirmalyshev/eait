@@ -21,6 +21,9 @@ import { fileURLToPath } from "node:url";
 
 import { assertClean, copyFromHtml } from "./claims.ts";
 import { loadLandingConfig, type LandingConfig } from "./config.ts";
+import {
+  accuracySection, brand, faqs, hero, measured, refusals, steps,
+} from "./content.ts";
 import { faviconIco, markPng, ogPng } from "./images.ts";
 import { iconSvg, outcomePages, renderLanding } from "./render.ts";
 import { styles } from "./styles.ts";
@@ -90,6 +93,14 @@ export async function buildLanding(
   // beside it. Emitted only when the build is the one that should be found.
   if (config.indexable) await write("sitemap.xml", sitemap(config));
 
+  // llms.txt for answer engines, under the same opt-in as the sitemap and the same claims gate as
+  // the page — it is public copy, and copy for machines is quoted back to people verbatim.
+  if (config.indexable) {
+    const text = llmsTxt(config);
+    assertClean({ "llms.txt": text });
+    await write("llms.txt", text);
+  }
+
   for (const page of SHARED_PAGES) {
     const source = join(REPO_ROOT, "deploy/public", page);
     if (!existsSync(source)) {
@@ -121,6 +132,57 @@ function robots(config: LandingConfig): string {
     return "# Not the canonical deployment of this page. See LANDING_INDEXABLE.\nUser-agent: *\nDisallow: /\n";
   }
   return `User-agent: *\nAllow: /\nSitemap: ${config.siteUrl}/sitemap.xml\n`;
+}
+
+/**
+ * `llms.txt` — the page's facts in the shape an answer engine ingests (llmstxt.org: an H1, a
+ * one-line summary, then linked sections).
+ *
+ * Assembled from the SAME constants the page renders, never re-written here: a second authoring of
+ * the floor or the measured numbers is a second thing that can drift, and this file is the one a
+ * model quotes verbatim to somebody who never opens the page.
+ */
+function llmsTxt(config: LandingConfig): string {
+  const lines: string[] = [
+    `# ${brand.name}`,
+    "",
+    `> ${brand.tagline} ${hero.headline} No card, no trial, and photos are never stored.`,
+    "",
+    hero.sub,
+    "",
+    "## How it works",
+    "",
+    ...steps.map((s) => `- ${s.title} ${s.body}`),
+    "",
+    "## What it will not do",
+    "",
+    ...refusals.map((r) => `- ${r.title} ${r.body}`),
+    "",
+    "## Measured accuracy",
+    "",
+    accuracySection.proof.body,
+    "",
+    `Sample: ${measured.dishes} reference dishes with weighed ingredients; median error about ` +
+      `${measured.medianErrorPct}%; mean signed error +${measured.meanSignedErrorPct}%.`,
+    "",
+    "## Questions",
+    "",
+    ...faqs.map((f) => `- ${f.q} ${f.a}`),
+    "",
+    "## Pages",
+    "",
+    `- [Home](${config.siteUrl}/): what ${brand.name} does, and what it refuses to do`,
+    `- [Privacy](${config.siteUrl}/privacy): the privacy policy`,
+    `- [Support](${config.siteUrl}/support): support and contact`,
+  ];
+  if (config.telegramUrl) {
+    lines.push(`- [Telegram bot](${config.telegramUrl}): usable today, nothing to install`);
+  }
+  if (config.appStoreUrl) {
+    lines.push(`- [iPhone app](${config.appStoreUrl}): on the App Store`);
+  }
+  lines.push("");
+  return lines.join("\n");
 }
 
 /**
