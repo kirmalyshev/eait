@@ -1,42 +1,15 @@
 // Every word on the landing page.
 //
-// ─────────────────────────────────────────────────────────────────────────────────────────────
-// WHERE THE POSITIONING COMES FROM
+// The positioning is research, not taste — the rationale lives in `marketing/` (README.md distils
+// it), and each section below cites its source. What may not appear here — health, superiority and
+// exclusivity claims, unqualified "free" — is enforced by `claims.ts` at build time; the legal
+// reasoning is in that file's header and `marketing/DECISIONS.md`.
 //
-// Not from taste. `marketing/research/` is a year of adversarial market work and this
-// file is its output, section by section:
-//
-//   • The lead — judgement rather than measurement — is angle A2 in
-//     `2026-07-26-meta-ad-teardown.md` §6: every advertiser in a 163-ad scrape sells *counting*
-//     ("track", "log", "instant breakdown"); none sells *a verdict*. It is the one piece of
-//     language in the category nobody had occupied. It is also, unlike a feature list, true of
-//     this product specifically — `verdictsFromTargets` runs after every write.
-//
-//   • "It won't ask for a card" is angle 7 in `2026-07-28-calai-app-store-review-brief.md` §5:
-//     the largest complaint cluster in an 864-review corpus, four times the size of the accuracy
-//     cluster, and `2026-07-28-category-billing-crossread.md` shows it is a category tax rather
-//     than one vendor's mistake — 15% to 48% of low-star reviews across seven apps. It is a
-//     structural property of a product with no card gate, not a claim about one.
-//
-//   • The floor section exists because that brief's §3.4 carries a standing instruction: do not
-//     go near unsafe-target territory until our own goal-setting has a documented floor. It now
-//     has one — `src/shared/targets.ts`, `KCAL_FLOOR` — and every number quoted here is read off
-//     that file rather than written twice. A test asserts they still agree.
-//
-//   • The accuracy section is angle 2 of `2026-07-26-ad-angle-bank.md`, which is flagged there as
-//     double-edged: it may only be run by a product whose answer to "the photo was wrong" is real.
-//     Ours is the correction loop, so the section describes the loop and never claims a number.
-//
-// WHAT MAY NOT APPEAR HERE
-//
-//   • Health claims. `claims.ts` fails the build on them. FTC substantiation is per claim, and EU
-//     Reg 1924/2006 treats marketing copy about food like a product label.
-//   • Superiority or exclusivity claims — "the only", "better than", "every other app". That is an
-//     Alleinstellungsbehauptung under §5 UWG, actionable by any competitor, and
-//     `marketing/DECISIONS.md` (2026-07-26) already retired one caption for exactly this.
-//   • Unqualified "free". Same DECISIONS entry: posted copy outlives the pricing that made it true.
-//     What is written instead is a fact with a date on it — there is no paid tier and no card.
-// ─────────────────────────────────────────────────────────────────────────────────────────────
+// Citations: verdict-over-counting lead — `marketing/research/2026-07-26-meta-ad-teardown.md` §6
+// (angle A2) · no-card refusal — `marketing/research/2026-07-28-calai-app-store-review-brief.md`
+// §5 and `…-category-billing-crossread.md` · floor section — that brief's §3.4, numbers read from
+// `src/shared/targets.ts` · accuracy section — `marketing/research/2026-07-26-ad-angle-bank.md`
+// Angle 2.
 
 import { KCAL_FLOOR } from "@ieat/shared";
 
@@ -68,27 +41,14 @@ export const brand = {
 
 export const hero = {
   eyebrow: "Photo → numbers → verdict",
-  // The question the visitor is already asking at the table. The earlier lead — "A number is not
-  // an answer." — was the positioning stated as a thesis, and it read as clever before it read as
-  // useful: a first-time visitor could finish the hero without learning what they would get or
-  // whether the product was for them. Same angle (judgement over measurement, A2 in the teardown),
-  // now phrased as the moment it serves.
+  // Angle A2 phrased as the reader's moment, not a thesis — see marketing/README.md.
   headline: "Will this meal fit your day?",
   sub:
     "Photograph the plate. eait reads it — calories, protein, saturated fat, salt — and answers " +
     "against targets computed from your body and your goal. Seconds, no weighing, no database " +
     "search.",
-  /**
-   * The self-qualification line: who the verdict is for, in the reader's own words.
-   *
-   * The segment is the Tier-1 one from `marketing/research/2026-07-26-ad-angle-bank.md` (Angle 3):
-   * the unmedicated
-   * person who has fought the same few kilos for years, whom the category vacated while chasing
-   * GLP-1 users. NOT the restricted-diet (LDL/kidney) reader — the red-team doc rates that segment
-   * highest-liability for a verdict built on photo estimates, so the multi-dimension verdict stays
-   * a product fact in the steps section rather than the sold audience. No medication is named:
-   * descriptive only, never comparative-to-medication.
-   */
+  // The Tier-1 segment, never the restricted-diet reader, and no medication named —
+  // `marketing/research/2026-07-26-ad-angle-bank.md` Angle 3; liability: redteam-positioning.md.
   audience:
     "Built for the person who has fought the same few kilos for years — small deficits have " +
     "small margins, and one guessed dinner can undo a careful week.",
@@ -128,14 +88,8 @@ export const sample = {
 } as const;
 
 /**
- * Who it's for — the section that answers "is this for me" before the page asks for anything.
- *
- * Sourced, row by row, from `marketing/research/2026-07-26-ad-angle-bank.md`:
- * Angle 3 (the vacated last-few-kilos segment), Angle 1 (portion size is where logging breaks),
- * and the market research's §5 instruction to sell the accountability relationship, not the
- * calorie estimate. Three concrete situations rather than demographics, in the reader's own
- * words. No outcome promises: the gate blocks them, and the situations are recognisable without
- * them.
+ * Who it's for. Row by row: `marketing/research/2026-07-26-ad-angle-bank.md` Angle 3, Angle 1,
+ * and `…-market-research.md` §5 (sell the accountability relationship). No outcome promises.
  */
 export const forSection = {
   eyebrow: "Who it's for",
@@ -269,10 +223,7 @@ export const floorSection = {
 /**
  * The measured numbers, from `docs/ACCURACY.md` (run of 2026-08-01, `x-ai/grok-4.5`).
  *
- * Published because the category's actual credibility problem is that nobody publishes anything —
- * the vendor claims are uncited "90%+" and the counter-claims come from competitor blogs that rank
- * for "<leader> review" in order to sell an alternative. A real number with its sample size beside
- * it is worth more than a better number without one.
+ * Published because nobody in the category publishes anything — see marketing/README.md.
  *
  * **n IS PART OF THE CLAIM.** Eight dishes is a smoke test, and that document says so in as many
  * words. Quoting the headline MAPE alone would be borrowing a precision the run does not have, so
@@ -394,14 +345,8 @@ export const closing = {
 } as const;
 
 /**
- * The founder line.
- *
- * The one proof this product can honestly offer today: there are no users to count, no
- * testimonials, and no revenue. Founder-face is also the format the category's leader ran for 104
- * days straight, so it is competitor-validated rather than a guess.
- *
- * It is true, it is checkable against nothing, and it makes no claim about anyone's results but
- * mine — which is what keeps it out of the territory `claims.ts` exists to police.
+ * The founder line — the one honest proof pre-traction, claiming only my own result.
+ * Format validated by the category leader's ad run: `marketing/research/2026-07-26-meta-ad-teardown.md`.
  */
 export const founder = {
   line:
