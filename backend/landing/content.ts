@@ -329,8 +329,8 @@ export const faqs: readonly Faq[] = [
   {
     q: "Is there an Android version?",
     a:
-      "Neither app is out yet — iPhone first, Android after it has proved itself there. The " +
-      "Telegram bot works on anything that runs Telegram, Android included.",
+      "Not yet — iPhone first, Android after it has proved itself there. Leave an email on this " +
+      "page and you will hear the day the iPhone app ships.",
   },
 ];
 
@@ -379,6 +379,10 @@ export const subscribeSection = {
   label: "Email address",
   placeholder: "you@example.com",
   button: "Tell me when it ships",
+  /** Under the hero form, where the CTA note used to sit. Short: the full terms are one scroll down. */
+  heroNote:
+    "One email when the iPhone app is out, a confirmation click first, and a one-click way off " +
+    "the list. Nothing else.",
   /**
    * The honeypot's visible label. It is hidden from people and read by nothing except a bot that
    * fills every field it finds — which is most of them, and the entire anti-spam story here. A

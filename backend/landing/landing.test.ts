@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { assertClean, ClaimsError, copyFromHtml, lintCopy } from "./claims.ts";
 import {
-  loadLandingConfig, LandingConfigError, primaryCta, secondaryCta, surfaceNote, START_CODES,
+  loadLandingConfig, LandingConfigError, primaryAction, primaryCta, secondaryCta, surfaceNote, START_CODES,
 } from "./config.ts";
 import { iconSvg, outcomePages, renderLanding } from "./render.ts";
 import { buildLanding } from "./build.ts";
@@ -607,5 +607,54 @@ describe("search and LLM engines", () => {
     const hidden = await buildLanding(ENV, dark);
     expect(hidden.files).not.toContain("llms.txt");
     rmSync(dark, { recursive: true, force: true });
+  });
+});
+
+describe("the email form is the primary action while nothing else exists", () => {
+  // Telegram was the proof of concept; the page no longer sends anybody there. With no store
+  // listing either, the ONE thing a visitor can do is leave an address — so the form is the
+  // primary action, in the hero, not a section they have to find.
+  const FORM_ENV = {
+    LANDING_SITE_URL: "https://eait.fit",
+    LANDING_API_URL: "https://api.eait.fit",
+  };
+  const formConfig = loadLandingConfig(FORM_ENV);
+  const formHtml = renderLanding(formConfig);
+
+  test("a live form counts as a working call to action", () => {
+    expect(primaryAction(formConfig)).toBe("form");
+    expect(() => loadLandingConfig(FORM_ENV)).not.toThrow();
+  });
+
+  test("with nothing at all — no store, no bot, no form — the build still refuses", () => {
+    expect(() => loadLandingConfig({ LANDING_SITE_URL: "https://eait.fit" })).toThrow(
+      /no working call to action/,
+    );
+  });
+
+  test("the hero carries the form, attributed as the hero action", () => {
+    const hero = formHtml.slice(0, formHtml.indexOf("</section>"));
+    expect(hero).toContain('action="https://api.eait.fit/v1/subscribe"');
+    expect(hero).toContain(`value="${START_CODES.hero}"`);
+  });
+
+  test("two forms on one page do not share input ids", () => {
+    expect(formHtml).toContain('id="email-hero"');
+    expect(formHtml).toContain('id="email"');
+    const ids = [...formHtml.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test("no link on the page points at Telegram", () => {
+    expect(formHtml).not.toContain("t.me");
+    expect(formHtml).not.toContain("Telegram");
+  });
+
+  test("the store link still wins outright when it exists", () => {
+    const launched = loadLandingConfig({
+      ...FORM_ENV,
+      LANDING_APP_STORE_URL: "https://apps.apple.com/app/id0000000000",
+    });
+    expect(primaryAction(launched)).toBe("store");
   });
 });

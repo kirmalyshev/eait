@@ -107,11 +107,17 @@ export function loadLandingConfig(env: Record<string, string | undefined>): Land
     ? requireUrl("LANDING_TELEGRAM_URL", telegramRaw, { hosts: TELEGRAM_HOSTS })
     : null;
 
+  // No API, no form. Rendering one that posts nowhere would be worse than not asking: it collects
+  // an address, loses it, and shows an error to somebody who had already agreed.
+  const apiRaw = env.LANDING_API_URL?.trim();
+  const apiUrl = apiRaw ? requireUrl("LANDING_API_URL", apiRaw) : null;
+
   // The whole job of this page is one tap. Without a destination for it there is nothing to build.
-  if (!appStoreUrl && !telegramUrl) {
+  // The subscribe form counts: while nothing is released, leaving an address IS the product action.
+  if (!appStoreUrl && !telegramUrl && !apiUrl) {
     throw new LandingConfigError(
-      "Neither LANDING_APP_STORE_URL nor LANDING_TELEGRAM_URL is set, so the page would render " +
-        "with no working call to action. Set at least one.",
+      "None of LANDING_APP_STORE_URL, LANDING_API_URL or LANDING_TELEGRAM_URL is set, so the page " +
+        "would render with no working call to action. Set at least one.",
     );
   }
 
@@ -130,11 +136,6 @@ export function loadLandingConfig(env: Record<string, string | undefined>): Land
   // because a variable was set to something truthy-looking, and that failure is discovered by
   // finding the staging hostname in a search result.
   const indexable = env.LANDING_INDEXABLE?.trim().toLowerCase() === "true";
-
-  // No API, no form. Rendering one that posts nowhere would be worse than not asking: it collects
-  // an address, loses it, and shows an error to somebody who had already agreed.
-  const apiRaw = env.LANDING_API_URL?.trim();
-  const apiUrl = apiRaw ? requireUrl("LANDING_API_URL", apiRaw) : null;
 
   return { siteUrl, appStoreUrl, telegramUrl, supportEmail, updatedAt, indexable, apiUrl };
 }
@@ -170,6 +171,20 @@ export type CtaPlacement = keyof typeof START_CODES;
 function withStartCode(href: string, placement: CtaPlacement): string {
   if (!TELEGRAM_HOSTS.includes(new URL(href).hostname)) return href;
   return `${href}?start=${START_CODES[placement]}`;
+}
+
+/**
+ * What the page's one action IS.
+ *
+ * The store wins whenever it exists. Before then the email form is the action — Telegram was the
+ * proof of concept and the page no longer sends anybody there; the bot branch survives only for an
+ * environment that configures no API at all, where a bot link is still better than a dead page.
+ */
+export type PrimaryAction = "store" | "form" | "telegram";
+export function primaryAction(config: LandingConfig): PrimaryAction {
+  if (config.appStoreUrl) return "store";
+  if (config.apiUrl) return "form";
+  return "telegram";
 }
 
 /**
@@ -225,6 +240,12 @@ export function secondaryCta(
  */
 export function surfaceNote(config: LandingConfig): string | null {
   if (config.appStoreUrl) return null;
+  if (primaryAction(config) === "form") {
+    return (
+      "The iPhone app is not out yet — everything on this page describes it. Leave an email and " +
+      "you hear the day it ships."
+    );
+  }
   return (
     "The iPhone app is not out yet — everything below describes it. The Telegram bot does the " +
     "photo-to-verdict part today, on any phone, with nothing to install."

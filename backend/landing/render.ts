@@ -16,7 +16,8 @@ import {
   founder, outcomes, refusals, refusalsSection, sample, steps, stepsSection, subscribeSection,
 } from "./content.ts";
 import {
-  primaryCta, secondaryCta, surfaceNote, START_CODES, type CtaPlacement, type LandingConfig,
+  primaryAction, primaryCta, secondaryCta, surfaceNote, START_CODES, type CtaPlacement,
+  type LandingConfig,
 } from "./config.ts";
 import { color } from "./tokens.ts";
 import { spudSvg, type LandingMood } from "./mascot.ts";
@@ -209,6 +210,27 @@ function spud(mood: LandingMood, id: string, says: string): string {
  * `source` travels with it so a subscription can be told from a bare visit later, using the same
  * code the CTA carries.
  */
+function subscribeFormEl(config: LandingConfig, placement: CtaPlacement): string {
+  // Two placements can render on one page, so ids are suffixed per placement — duplicate ids break
+  // the label-for pairing exactly where a screen reader needs it. The source code per placement is
+  // the same top-versus-bottom read the CTA has always carried.
+  const suf = placement === "hero" ? "-hero" : "";
+  return `<form class="subscribe" method="post" action="${esc(config.apiUrl!)}/v1/subscribe">
+        <input type="hidden" name="source" value="${esc(START_CODES[placement])}">
+        <label class="subscribe-label" for="email${suf}">${esc(subscribeSection.label)}</label>
+        <div class="subscribe-row">
+          <input class="subscribe-input" id="email${suf}" type="email" name="email" required
+                 autocomplete="email" inputmode="email" spellcheck="false"
+                 placeholder="${esc(subscribeSection.placeholder)}">
+          <button class="subscribe-button" type="submit">${esc(subscribeSection.button)}</button>
+        </div>
+        <div class="honeypot" aria-hidden="true">
+          <label for="company${suf}">${esc(subscribeSection.honeypotLabel)}</label>
+          <input id="company${suf}" name="company" type="text" tabindex="-1" autocomplete="off">
+        </div>
+      </form>`;
+}
+
 function subscribeForm(config: LandingConfig): string {
   if (!config.apiUrl) return "";
   return `
@@ -219,21 +241,8 @@ function subscribeForm(config: LandingConfig): string {
         <h2 class="section-title">${esc(subscribeSection.headline)}</h2>
         <p class="section-intro">${esc(subscribeSection.body)}</p>
       </div>
-      <form class="subscribe" method="post" action="${esc(config.apiUrl)}/v1/subscribe">
-        <input type="hidden" name="source" value="${esc(START_CODES.footer)}">
-        <label class="subscribe-label" for="email">${esc(subscribeSection.label)}</label>
-        <div class="subscribe-row">
-          <input class="subscribe-input" id="email" type="email" name="email" required
-                 autocomplete="email" inputmode="email" spellcheck="false"
-                 placeholder="${esc(subscribeSection.placeholder)}">
-          <button class="subscribe-button" type="submit">${esc(subscribeSection.button)}</button>
-        </div>
-        <div class="honeypot" aria-hidden="true">
-          <label for="company">${esc(subscribeSection.honeypotLabel)}</label>
-          <input id="company" name="company" type="text" tabindex="-1" autocomplete="off">
-        </div>
-        <p class="subscribe-note">${esc(subscribeSection.note)}</p>
-      </form>
+      ${subscribeFormEl(config, "footer")}
+      <p class="subscribe-note">${esc(subscribeSection.note)}</p>
 ${spud("wave", "spud-subscribe", subscribeSection.mascot)}
     </div>
   </section>
@@ -371,7 +380,12 @@ ${jsonLd(config)}
         <p class="hero-surface">${esc(surfaceNote(config)!)}</p>`
             : ""
         }
-${ctaBlock(config, 'hero')}
+${
+          primaryAction(config) === "form"
+            ? `      ${subscribeFormEl(config, "hero")}
+      <p class="cta-note">${esc(subscribeSection.heroNote)}</p>`
+            : ctaBlock(config, "hero")
+        }
       </div>
 ${heroInstrument()}
     </div>
@@ -502,8 +516,11 @@ ${subscribeForm(config)}
         <figcaption class="founder-by">${esc(founder.by)}</figcaption>
       </figure>
       <h2 class="closing-title">${esc(closing.headline)}</h2>
-      <p class="closing-sub">${esc(closing.sub)}</p>
-${ctaBlock(config, 'footer')}
+      <p class="closing-sub">${esc(closing.sub)}</p>${
+        // In form mode the bottom action is the subscribe section directly above this one; a second
+        // copy of the form here would be a third accent and a duplicate ask on one screen.
+        primaryAction(config) === "form" ? "" : `\n${ctaBlock(config, "footer")}`
+      }
     </div>
   </section>
 
