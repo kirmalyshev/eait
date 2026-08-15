@@ -177,11 +177,21 @@ describe("palette", () => {
   });
 
   test("the accent is spent on the primary action and nothing else", () => {
-    // The app's rule, kept on the page. `--accent` may be defined once and used by `.cta`; any
-    // third use means something else on the page is competing with the button.
-    const uses = [...styles.matchAll(/var\(--accent\)/g)].length;
-    expect(uses).toBeLessThanOrEqual(3);
+    // The app's rule, kept on the page. Two rule blocks may spend it — `.cta` (store mode) and
+    // `.subscribe-primary` (form mode), which are never both accented in one build — plus the
+    // wordmark dot. Anything else on the page competing with the primary action is a regression.
+    const spenders = styles
+      .split("}")
+      .filter((block) => block.includes("var(--accent)"))
+      .filter(
+        (block) =>
+          !block.includes(".cta") &&
+          !block.includes(".subscribe-primary") &&
+          !block.includes(".wordmark-dot"),
+      );
+    expect(spenders).toEqual([]);
     expect(styles).toContain(".cta {");
+    expect(styles).toContain(".subscribe-primary .subscribe-button");
   });
 });
 
@@ -656,5 +666,24 @@ describe("the email form is the primary action while nothing else exists", () =>
       LANDING_APP_STORE_URL: "https://apps.apple.com/app/id0000000000",
     });
     expect(primaryAction(launched)).toBe("store");
+  });
+});
+
+describe("the form looks like the primary action when it is one", () => {
+  const FORM_ENV = { LANDING_SITE_URL: "https://eait.fit", LANDING_API_URL: "https://api.eait.fit" };
+  const formHtml = renderLanding(loadLandingConfig(FORM_ENV));
+
+  test("form mode dresses the submit button as the accent; store mode does not", () => {
+    // The old comment in styles.ts said the accent belongs to the CTA. In form mode the form IS
+    // the CTA, so it inherits the accent — and in store mode it yields it back to the store button.
+    expect(formHtml).toContain("subscribe-primary");
+    expect(html).not.toContain("subscribe-primary");
+    expect(styles).toContain(".subscribe-primary .subscribe-button");
+  });
+
+  test("an invalid address is flagged inline, in the page's own voice, before the browser bubble", () => {
+    expect(formHtml).toContain("subscribe-error");
+    expect(formHtml).toContain("you@example.com");
+    expect(styles).toContain(":user-invalid");
   });
 });

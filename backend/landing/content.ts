@@ -379,6 +379,12 @@ export const subscribeSection = {
   label: "Email address",
   placeholder: "you@example.com",
   button: "Tell me when it ships",
+  /**
+   * Shown by CSS when the address fails the browser's own email check (`:user-invalid`), so the
+   * first feedback a typo gets is this sentence rather than the browser's bubble. The example does
+   * the explaining; the sentence stays out of the way.
+   */
+  invalidHint: "That needs to be an email address — like you@example.com.",
   /** Under the hero form, where the CTA note used to sit. Short: the full terms are one scroll down. */
   heroNote:
     "One email when the iPhone app is out, a confirmation click first, and a one-click way off " +

@@ -215,7 +215,11 @@ function subscribeFormEl(config: LandingConfig, placement: CtaPlacement): string
   // the label-for pairing exactly where a screen reader needs it. The source code per placement is
   // the same top-versus-bottom read the CTA has always carried.
   const suf = placement === "hero" ? "-hero" : "";
-  return `<form class="subscribe" method="post" action="${esc(config.apiUrl!)}/v1/subscribe">
+  // When the form IS the page's primary action it wears the accent — the same one-accent rule the
+  // CTA followed. The error line is CSS-revealed on :user-invalid, so a typo is named inline, in
+  // this page's voice, before the browser's own bubble gets involved.
+  const formClass = primaryAction(config) === "form" ? "subscribe subscribe-primary" : "subscribe";
+  return `<form class="${formClass}" method="post" action="${esc(config.apiUrl!)}/v1/subscribe">
         <input type="hidden" name="source" value="${esc(START_CODES[placement])}">
         <label class="subscribe-label" for="email${suf}">${esc(subscribeSection.label)}</label>
         <div class="subscribe-row">
@@ -223,6 +227,7 @@ function subscribeFormEl(config: LandingConfig, placement: CtaPlacement): string
                  autocomplete="email" inputmode="email" spellcheck="false"
                  placeholder="${esc(subscribeSection.placeholder)}">
           <button class="subscribe-button" type="submit">${esc(subscribeSection.button)}</button>
+          <span class="subscribe-error">${esc(subscribeSection.invalidHint)}</span>
         </div>
         <div class="honeypot" aria-hidden="true">
           <label for="company${suf}">${esc(subscribeSection.honeypotLabel)}</label>

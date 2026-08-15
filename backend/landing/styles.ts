@@ -355,14 +355,35 @@ a { color: inherit; }
 .subscribe-input:focus { border-color: var(--care); outline: none; }
 .subscribe-button {
   flex: none; cursor: pointer;
-  /* NOT the accent. The accent marks one action per screen and that action is the CTA — a second
-     lime button would make the page ask for two things at once and get neither. */
+  /* Quiet by default: in store mode the accent belongs to the CTA, and a second lime button would
+     make the page ask for two things at once and get neither. */
   background: transparent; color: var(--text);
   border: 1px solid var(--line-strong); border-radius: 999px;
   font: inherit; font-size: 1rem; font-weight: 600; padding: .875rem 1.5rem;
-  transition: border-color .15s ease, color .15s ease;
+  transition: border-color .15s ease, color .15s ease, transform .15s ease, box-shadow .15s ease;
 }
 .subscribe-button:hover { border-color: var(--care); }
+
+/* When the form IS the primary action — no store listing, nothing else to tap — its button wears
+   the accent, exactly the way the CTA did. Same rule, new owner. */
+.subscribe-primary .subscribe-button {
+  background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+}
+.subscribe-primary .subscribe-button:hover {
+  border-color: var(--accent); transform: translateY(-1px);
+  box-shadow: 0 8px 28px -12px var(--accent);
+}
+
+/* Inline validation, CSS only. :user-invalid holds fire until the field has been interacted with,
+   so nobody is scolded for an empty form they have not touched — and the first feedback a typo
+   gets is our sentence under the field, not the browser's bubble. The bubble still guards the
+   actual submit; it cannot be styled without script, and this page does not carry one. */
+.subscribe-error {
+  flex: 1 1 100%; display: none;
+  font-size: .8125rem; line-height: 1.5; color: var(--bad);
+}
+.subscribe-input:user-invalid { border-color: var(--bad); }
+.subscribe-input:user-invalid ~ .subscribe-error { display: block; }
 .subscribe-note { margin-top: 1rem; font-size: .8125rem; line-height: 1.55; color: var(--dim); max-width: 52ch; }
 
 /* The honeypot. NOT display:none — some bots skip what a browser would not render. Moved off
