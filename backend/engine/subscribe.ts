@@ -8,7 +8,7 @@
 //
 // This is a different thing, and the difference is the whole design. Somebody who reads the page
 // and is not ready to open a chat today has, otherwise, no way to hear about it again — and
-// `eait-marketer/docs/research/2026-07-22-form-factor-research.md` names the list as the only
+// `marketing/research/2026-07-22-form-factor-research.md` names the list as the only
 // audience asset no platform can take away. So the list exists, and it is kept SEPARATE:
 //
 //   • No row joins a subscriber to a user. `store.ts` says so and both implementations obey it.

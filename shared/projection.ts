@@ -10,7 +10,7 @@
 // A projection computed from `requestedDeltaKcal` would print a date the app has already decided
 // not to pursue. It would also be the single most quotable sentence in a one-star review, and the
 // category has eleven of those already for the adjacent failure — handing out a number with no
-// arithmetic behind it (`eait-marketer/.../2026-07-28-calai-app-store-review-brief.md` §3.4).
+// arithmetic behind it (`marketing/research/2026-07-28-calai-app-store-review-brief.md` §3.4).
 //
 // So: `appliedDeltaKcal`, always. When the floor cut a 550 kcal deficit down to 84, this module
 // says sixty-five weeks and not ten, and that is the whole reason it exists.

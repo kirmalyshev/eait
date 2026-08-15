@@ -36,7 +36,7 @@ argument is "we keep nothing of yours" has no business loading a third-party fon
 
 ## The rules this page is written under
 
-**Positioning is not taste.** `../../../../eait-marketer/docs/research/` is where every section comes
+**Positioning is not taste.** `../../../marketing/research/` is where every section comes
 from, and `content.ts` cites which document for which. The lead sells judgement rather than
 measurement because a 163-ad scrape of the category found nobody selling it. The first refusal is
 about billing because that is the largest complaint cluster in an 864-review corpus, four times the

@@ -15,7 +15,7 @@
 //   "Told me to eat 900 calories a day…. There was a link to a Harvard source that stated going
 //    under 1,200 cals a day for woman can be extremely dangerous"  — Cal AI, 1★, 2026-04-20, US
 //
-// (`eait-marketer/docs/research/2026-07-28-calai-app-store-review-brief.md` §3.4. That doc's
+// (`marketing/research/2026-07-28-calai-app-store-review-brief.md` §3.4. That doc's
 // standing instruction is explicit: do not attack unsafe targets until our own goal-setting has a
 // documented floor. This file is that floor, and `explainTargets` is the "and says so" half.)
 //

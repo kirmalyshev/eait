@@ -103,7 +103,7 @@ describe("claims gate", () => {
   });
 
   test("it catches an exclusivity claim, which the health rules do not cover", () => {
-    // `eait-marketer/DECISIONS.md` 2026-07-26 retired a caption for exactly this class: an
+    // `marketing/DECISIONS.md` 2026-07-26 retired a caption for exactly this class: an
     // unsubstantiated "the only" is actionable under §5 UWG regardless of how true it feels.
     expect(() => assertClean({ h1: "the only app that judges your meal" })).toThrow(/exclusivity/);
     expect(() => assertClean({ h1: "Every other app just counts." })).toThrow(/superiority/);

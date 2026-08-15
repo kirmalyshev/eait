@@ -318,7 +318,7 @@ export interface OnboardingScreenContent {
  *
  * Across seven calorie apps and 2,792 low-star reviews, the billing cluster is the largest
  * complaint for every single one — floor 15%, median 27%, the category leader at 48%
- * (`eait-marketer/.../2026-07-28-category-billing-crossread.md` §1). The same doc's §3 finds the
+ * (`marketing/research/2026-07-28-category-billing-crossread.md` §1). The same doc's §3 finds the
  * pattern: the harder a paywall sits in front of first value, the more the reviews reach for
  * "scam", "misleading", "tricked".
  *

@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // WHERE THE POSITIONING COMES FROM
 //
-// Not from taste. `../eait-marketer/docs/research/` is a year of adversarial market work and this
+// Not from taste. `marketing/research/` is a year of adversarial market work and this
 // file is its output, section by section:
 //
 //   • The lead — judgement rather than measurement — is angle A2 in
@@ -33,7 +33,7 @@
 //     Reg 1924/2006 treats marketing copy about food like a product label.
 //   • Superiority or exclusivity claims — "the only", "better than", "every other app". That is an
 //     Alleinstellungsbehauptung under §5 UWG, actionable by any competitor, and
-//     `eait-marketer/DECISIONS.md` (2026-07-26) already retired one caption for exactly this.
+//     `marketing/DECISIONS.md` (2026-07-26) already retired one caption for exactly this.
 //   • Unqualified "free". Same DECISIONS entry: posted copy outlives the pricing that made it true.
 //     What is written instead is a fact with a date on it — there is no paid tier and no card.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -81,7 +81,8 @@ export const hero = {
   /**
    * The self-qualification line: who the verdict is for, in the reader's own words.
    *
-   * The segment is the Tier-1 one from `eait-marketer`'s ad-angle bank (Angle 3): the unmedicated
+   * The segment is the Tier-1 one from `marketing/research/2026-07-26-ad-angle-bank.md` (Angle 3):
+   * the unmedicated
    * person who has fought the same few kilos for years, whom the category vacated while chasing
    * GLP-1 users. NOT the restricted-diet (LDL/kidney) reader — the red-team doc rates that segment
    * highest-liability for a verdict built on photo estimates, so the multi-dimension verdict stays
@@ -129,7 +130,7 @@ export const sample = {
 /**
  * Who it's for — the section that answers "is this for me" before the page asks for anything.
  *
- * Sourced, row by row, from `eait-marketer/docs/research/2026-07-26-ad-angle-bank.md`:
+ * Sourced, row by row, from `marketing/research/2026-07-26-ad-angle-bank.md`:
  * Angle 3 (the vacated last-few-kilos segment), Angle 1 (portion size is where logging breaks),
  * and the market research's §5 instruction to sell the accountability relationship, not the
  * calorie estimate. Three concrete situations rather than demographics, in the reader's own

@@ -61,7 +61,7 @@ const RULES: readonly Rule[] = [
   //
   // An Alleinstellungsbehauptung — "the only", "the first", "no other app" — is actionable under
   // §5 UWG by any competitor or by the Wettbewerbszentrale, and an Abmahnung with costs is the
-  // standard response. `eait-marketer/DECISIONS.md` (2026-07-26) retired a caption for exactly
+  // standard response. `marketing/DECISIONS.md` (2026-07-26) retired a caption for exactly
   // this after the repo's own research disproved it. The page is written to make no such claim;
   // this is what keeps it that way after the fourth edit by someone who has not read that entry.
   { name: "exclusivity", re: /\bthe\s+only\s+(?:app|tracker|one)\b|\bno\s+other\s+app\b/gi },
