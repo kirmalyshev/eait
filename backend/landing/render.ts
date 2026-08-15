@@ -12,8 +12,9 @@
 //     accent-coloured. That is the app's own rule about the accent, applied here.
 
 import {
-  accuracySection, brand, closing, faqSection, faqs, floorSection, footer, hero, privacySection,
-  founder, outcomes, refusals, refusalsSection, sample, steps, stepsSection, subscribeSection,
+  accuracySection, brand, closing, faqSection, faqs, floorSection, footer, forSection, hero,
+  privacySection, founder, outcomes, refusals, refusalsSection, sample, steps, stepsSection,
+  subscribeSection,
 } from "./content.ts";
 import {
   primaryAction, primaryCta, secondaryCta, surfaceNote, START_CODES, type CtaPlacement,
@@ -379,7 +380,8 @@ ${jsonLd(config)}
       <div>
         <p class="eyebrow">${esc(hero.eyebrow)}</p>
         <h1 class="hero-title">${esc(hero.headline)}</h1>
-        <p class="hero-sub">${esc(hero.sub)}</p>${
+        <p class="hero-sub">${esc(hero.sub)}</p>
+        <p class="hero-audience">${esc(hero.audience)}</p>${
           surfaceNote(config)
             ? `
         <p class="hero-surface">${esc(surfaceNote(config)!)}</p>`
@@ -393,6 +395,25 @@ ${
         }
       </div>
 ${heroInstrument()}
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">${esc(forSection.eyebrow)}</p>
+        <h2 class="section-title">${esc(forSection.headline)}</h2>
+      </div>
+      <div class="facts">
+${forSection.rows
+  .map(
+    (r) => `        <div>
+          <h3 class="fact-title">${esc(r.title)}</h3>
+          <p class="fact-body">${esc(r.body)}</p>
+        </div>`,
+  )
+  .join("\n")}
+      </div>
     </div>
   </section>
 

@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 import { assertClean, copyFromHtml } from "./claims.ts";
 import { loadLandingConfig, type LandingConfig } from "./config.ts";
 import {
-  accuracySection, brand, faqs, hero, measured, refusals, steps,
+  accuracySection, brand, faqs, forSection, hero, measured, refusals, steps,
 } from "./content.ts";
 import { faviconIco, markPng, ogPng } from "./images.ts";
 import { iconSvg, outcomePages, renderLanding } from "./render.ts";
@@ -149,6 +149,12 @@ function llmsTxt(config: LandingConfig): string {
     `> ${brand.tagline} ${hero.headline} No card, no trial, and photos are never stored.`,
     "",
     hero.sub,
+    "",
+    hero.audience,
+    "",
+    "## Who it is for",
+    "",
+    ...forSection.rows.map((r) => `- ${r.title} ${r.body}`),
     "",
     "## How it works",
     "",

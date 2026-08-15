@@ -341,6 +341,9 @@ a { color: inherit; }
 
 /* ── The subscribe form ─────────────────────────────────────────────────────────────────── */
 .subscribe { max-width: 34rem; }
+.hero-audience {
+  margin-top: .875rem; font-size: .9375rem; line-height: 1.6; color: var(--dim); max-width: 54ch;
+}
 .subscribe-label {
   display: block; font-family: var(--mono); font-size: .625rem; text-transform: uppercase;
   letter-spacing: .14em; color: var(--dim); margin-bottom: .625rem;

@@ -62,20 +62,26 @@ export interface Faq {
 export const brand = {
   name: "eait",
   /** Used as the document title and the og:title. Kept under 60 characters for search results. */
-  title: "eait — a number is not an answer",
+  title: "eait — will this meal fit your day?",
   tagline: "Photograph the meal. Get the numbers, and a verdict on them.",
 } as const;
 
 export const hero = {
   eyebrow: "Photo → numbers → verdict",
-  headline: "A number is not an answer.",
-  // Deliberately not phrased against a competitor. "Every other app tells you it was 640 calories"
-  // is the sharper sentence and it is the one in the teardown, but on a domain we own it is a
-  // comparative claim about products we have not measured — see the header of this file.
+  // The question the visitor is already asking at the table. The earlier lead — "A number is not
+  // an answer." — was the positioning stated as a thesis, and it read as clever before it read as
+  // useful: a first-time visitor could finish the hero without learning what they would get or
+  // whether the product was for them. Same angle (judgement over measurement, A2 in the teardown),
+  // now phrased as the moment it serves.
+  headline: "Will this meal fit your day?",
   sub:
-    "640 calories is a fact, not a decision. eait scores each meal against targets computed from " +
-    "your body, your goal and whatever you said you have to watch, then tells you what it made " +
-    "of it.",
+    "Photograph the plate. eait reads it — calories, protein, saturated fat, salt — and answers " +
+    "against targets computed from your body and your goal. Seconds, no weighing, no database " +
+    "search.",
+  /** The self-qualification line: who the verdict is for, in the reader's own words. */
+  audience:
+    "Built for a cut, a cholesterol number you're watching, or a kidney diet — the verdict is " +
+    "about your limits, not a generic 2,000 kcal.",
 } as const;
 
 /**
@@ -109,6 +115,40 @@ export const sample = {
     ],
     note: "Counted the garlic sauce. Say “no sauce” if there wasn’t any.",
   },
+} as const;
+
+/**
+ * Who it's for — the section that answers "is this for me" before the page asks for anything.
+ *
+ * Three concrete situations rather than demographics, each in the reader's own words. No outcome
+ * promises: the gate blocks them, and the situations are recognisable without them.
+ */
+export const forSection = {
+  eyebrow: "Who it's for",
+  headline: "One question at the table, three people asking it.",
+  rows: [
+    {
+      title: "You're cutting.",
+      body:
+        "A deficit is won or lost one meal at a time. eait scores the plate against your day's " +
+        "target, so a restaurant menu or a shared dinner is a decision you make with numbers " +
+        "instead of a guess you regret at the weigh-in.",
+    },
+    {
+      title: "You're watching one number.",
+      body:
+        "Saturated fat for your LDL, sodium for your kidneys, sugar because you said so. Tell it " +
+        "once what you have to watch and every meal is judged on exactly those dimensions — " +
+        "separately from calories, because a meal can pass one and fail the other.",
+    },
+    {
+      title: "You've quit logging apps before.",
+      body:
+        "No barcode, no database search, no scales. A photo or one sentence is the whole entry, " +
+        "and when it guesses wrong you correct it in plain words — “half that”, “no oil” — " +
+        "instead of starting over.",
+    },
+  ],
 } as const;
 
 export const refusalsSection = {
