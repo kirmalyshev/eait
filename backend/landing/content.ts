@@ -78,10 +78,19 @@ export const hero = {
     "Photograph the plate. eait reads it — calories, protein, saturated fat, salt — and answers " +
     "against targets computed from your body and your goal. Seconds, no weighing, no database " +
     "search.",
-  /** The self-qualification line: who the verdict is for, in the reader's own words. */
+  /**
+   * The self-qualification line: who the verdict is for, in the reader's own words.
+   *
+   * The segment is the Tier-1 one from `eait-marketer`'s ad-angle bank (Angle 3): the unmedicated
+   * person who has fought the same few kilos for years, whom the category vacated while chasing
+   * GLP-1 users. NOT the restricted-diet (LDL/kidney) reader — the red-team doc rates that segment
+   * highest-liability for a verdict built on photo estimates, so the multi-dimension verdict stays
+   * a product fact in the steps section rather than the sold audience. No medication is named:
+   * descriptive only, never comparative-to-medication.
+   */
   audience:
-    "Built for a cut, a cholesterol number you're watching, or a kidney diet — the verdict is " +
-    "about your limits, not a generic 2,000 kcal.",
+    "Built for the person who has fought the same few kilos for years — small deficits have " +
+    "small margins, and one guessed dinner can undo a careful week.",
 } as const;
 
 /**
@@ -120,33 +129,37 @@ export const sample = {
 /**
  * Who it's for — the section that answers "is this for me" before the page asks for anything.
  *
- * Three concrete situations rather than demographics, each in the reader's own words. No outcome
- * promises: the gate blocks them, and the situations are recognisable without them.
+ * Sourced, row by row, from `eait-marketer/docs/research/2026-07-26-ad-angle-bank.md`:
+ * Angle 3 (the vacated last-few-kilos segment), Angle 1 (portion size is where logging breaks),
+ * and the market research's §5 instruction to sell the accountability relationship, not the
+ * calorie estimate. Three concrete situations rather than demographics, in the reader's own
+ * words. No outcome promises: the gate blocks them, and the situations are recognisable without
+ * them.
  */
 export const forSection = {
   eyebrow: "Who it's for",
   headline: "One question at the table, three people asking it.",
   rows: [
     {
-      title: "You're cutting.",
+      title: "You've carried the same few kilos for years.",
       body:
-        "A deficit is won or lost one meal at a time. eait scores the plate against your day's " +
-        "target, so a restaurant menu or a shared dinner is a decision you make with numbers " +
-        "instead of a guess you regret at the weigh-in.",
+        "Not a big cut — which is exactly why it is hard. The smaller the deficit, the smaller " +
+        "the margin of error, and one misjudged meal erases a careful week. A verdict on every " +
+        "meal is precision built for exactly that margin.",
     },
     {
-      title: "You're watching one number.",
+      title: "Logging always died at portions.",
       body:
-        "Saturated fat for your LDL, sodium for your kidneys, sugar because you said so. Tell it " +
-        "once what you have to watch and every meal is judged on exactly those dimensions — " +
-        "separately from calories, because a meal can pass one and fail the other.",
+        "You logged honestly and still guessed the grams — portion size is where every food " +
+        "diary breaks. eait reads the plate, shows what it assumed, and you correct it in a " +
+        "sentence: “half that”, “no oil”, “that was a small one”.",
     },
     {
-      title: "You've quit logging apps before.",
+      title: "You want someone to answer to.",
       body:
-        "No barcode, no database search, no scales. A photo or one sentence is the whole entry, " +
-        "and when it guesses wrong you correct it in plain words — “half that”, “no oil” — " +
-        "instead of starting over.",
+        "A diary writes things down and never says whether they were fine. Every meal you send " +
+        "comes back judged against your day — which is the part a tracker never gave you, and " +
+        "the reason to send the next one.",
     },
   ],
 } as const;
