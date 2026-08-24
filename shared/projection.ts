@@ -21,8 +21,8 @@
 // implies a smoothness that bodyweight does not have. Weeks and a month name is what the arithmetic
 // actually supports.
 
-import { KCAL_PER_KG, type TargetBasis } from "./targets.ts";
-import type { Profile } from "./types.ts";
+import { explainTargets, KCAL_PER_KG, type TargetBasis } from "./targets.ts";
+import type { Pace, Profile } from "./types.ts";
 
 /**
  * Past this, a date stops being motivating and starts being discouraging — and it is also where the
@@ -79,6 +79,24 @@ export function projectGoal(p: Profile, basis: TargetBasis): GoalProjection | nu
     kgToGo,
     beyondHorizon: weeks > PROJECTION_HORIZON_WEEKS,
   };
+}
+
+/**
+ * The projection for a pace the user is still choosing.
+ *
+ * The target screen shows a date beside the pace picker, before anything is saved. It must be the
+ * SAME date the summary will show, so the candidate answers are run through `explainTargets` —
+ * guards and all — and then through `projectGoal` like any stored profile. This is why activity is
+ * asked before the target screen: without it the arithmetic would be guessing the multiplier, and
+ * the preview would print a rate the guards are about to refuse.
+ */
+export function previewProjection(p: Profile, targetKg: number, pace: Pace): GoalProjection | null {
+  // An admin-reordered flow can put the target screen before activity. A stored target may let
+  // `explainTargets` default the multiplier; a preview may not — it would be a date derived from
+  // an answer nobody gave. No multiplier, no date.
+  if (p.activity === null) return null;
+  const candidate: Profile = { ...p, target_weight_kg: targetKg, pace };
+  return projectGoal(candidate, explainTargets(candidate).basis);
 }
 
 /**

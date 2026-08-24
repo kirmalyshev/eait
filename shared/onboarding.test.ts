@@ -414,6 +414,36 @@ describe("what may be reported to analytics", () => {
   });
 });
 
+describe("the order the questions are asked in", () => {
+  it("asks activity before the goal weight and pace", () => {
+    // The target screen previews a date per pace, and an honest date needs the full arithmetic —
+    // TDEE included. Activity after pace would leave the preview guessing a multiplier, which is
+    // the "applied, never requested" rule broken at the exact moment it matters most.
+    expect(ONBOARDING_STEPS.indexOf("activity"))
+      .toBeLessThan(ONBOARDING_STEPS.indexOf("target_weight_kg"));
+    expect(ONBOARDING_SCREENS.indexOf("activity")).toBeLessThan(ONBOARDING_SCREENS.indexOf("target"));
+    const shipped = DEFAULT_ONBOARDING_CONTENT.screens.map((s) => s.id);
+    expect(shipped.indexOf("activity")).toBeLessThan(shipped.indexOf("target"));
+  });
+});
+
+describe("copy a reader who skims can still use", () => {
+  it("keeps the goal screen's safety promise to one glance", () => {
+    // The promise is read standing in a queue or not at all. 160 characters is the same cap a
+    // mascot line is held to, and the floors must still be named inside it.
+    const goal = DEFAULT_ONBOARDING_CONTENT.screens.find((s) => s.id === "goal")!;
+    expect(goal.why!.length).toBeLessThanOrEqual(160);
+  });
+
+  it("welcome promises the plan, not only what we do not ask for", () => {
+    // The trust points say what is absent (card, email, storage). Someone who came to lose
+    // weight needs the outcome named too, before the first question.
+    const w = DEFAULT_ONBOARDING_CONTENT.welcome;
+    const words = [w.title, w.subtitle ?? "", ...w.points].join(" ").toLowerCase();
+    expect(words).toContain("plan");
+  });
+});
+
 describe("the safety promise on the goal screen", () => {
   it("quotes the floors the engine actually enforces", () => {
     // The same rule the landing page is held to: a number quoted in copy is read from the code that

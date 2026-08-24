@@ -146,6 +146,50 @@ describe("projectGoal", () => {
   });
 });
 
+describe("previewProjection", () => {
+  // The target screen shows a date per pace BEFORE the pace is saved. The preview must run the
+  // same arithmetic the server will — guards included — or it prints a date the app has already
+  // decided not to pursue, which is the exact failure `projectGoal`'s header forbids.
+  const beforeTarget = () => profile({ target_weight_kg: null, pace: null });
+
+  it("projects a candidate pace through the full arithmetic before it is saved", async () => {
+    const { previewProjection } = await import("./projection.ts");
+    // Male, 183 cm, 90 kg, moderate: a steady 550 kcal deficit clears both guards untouched.
+    const p = previewProjection(beforeTarget(), 83, "steady");
+    expect(p).not.toBeNull();
+    expect(p!.kgPerWeek).toBeCloseTo(0.5, 2);
+    expect(p!.weeks).toBe(14);
+  });
+
+  it("slows the date when the guards bite, rather than echoing the requested pace", async () => {
+    const { previewProjection } = await import("./projection.ts");
+    // Small sedentary female: "push" asks 825 kcal/day, the share cap allows ~20% of a ~1535
+    // kcal TDEE. The preview must show the capped rate, not 0.75 kg/week.
+    const p = previewProjection(
+      profile({ sex: "female", height_cm: 160, weight_kg: 62, activity: "sedentary",
+        target_weight_kg: null, pace: null }),
+      57, "push",
+    );
+    expect(p).not.toBeNull();
+    expect(p!.kgPerWeek).toBeLessThan(0.5);
+  });
+
+  it("is null while activity is unanswered, rather than assuming a multiplier", async () => {
+    // An admin-reordered flow (or a stale server revision) can put the target screen before
+    // activity. `explainTargets` would default the multiplier to sedentary — a real target may do
+    // that, a PREVIEW may not: it would show a date derived from an answer nobody gave.
+    const { previewProjection } = await import("./projection.ts");
+    expect(previewProjection(profile({ activity: null, target_weight_kg: null, pace: null }),
+      83, "steady")).toBeNull();
+  });
+
+  it("is null without the anthropometrics, where only the fallback band exists", async () => {
+    const { previewProjection } = await import("./projection.ts");
+    expect(previewProjection(profile({ height_cm: null, target_weight_kg: null }), 83, "steady"))
+      .toBeNull();
+  });
+});
+
 describe("projectionMonth", () => {
   it("names the month the projection lands in", async () => {
     const { projectionMonth } = await import("./projection.ts");

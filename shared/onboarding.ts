@@ -31,9 +31,16 @@ import { RESTRICTION_TAGS } from "./targets.ts";
 
 // ── Steps: the fields ────────────────────────────────────────────────────────────────────────
 
-/** The questions, in order. Each names the profile field that answers it. */
+/**
+ * The questions, in order. Each names the profile field that answers it.
+ *
+ * ACTIVITY COMES BEFORE THE TARGET AND PACE, and the order is load-bearing: the target screen
+ * previews a date per pace via `previewProjection`, which runs the full `explainTargets`
+ * arithmetic — and that needs the activity multiplier. Asked afterwards, the preview would be
+ * computed from a guessed multiplier, i.e. a date the guards may be about to refuse.
+ */
 export const ONBOARDING_STEPS = [
-  "goal", "sex", "birth_year", "height_cm", "weight_kg", "target_weight_kg", "activity", "pace",
+  "goal", "sex", "birth_year", "height_cm", "weight_kg", "activity", "target_weight_kg", "pace",
   "country", "restrictions",
 ] as const;
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
@@ -93,7 +100,7 @@ export function onboardingProgress(p: Profile): { index: number; total: number }
  * is the only one whose field does not enter the calorie arithmetic.
  */
 export const ONBOARDING_SCREENS = [
-  "goal", "about", "body", "target", "activity", "country", "restrictions",
+  "goal", "about", "body", "activity", "target", "country", "restrictions",
 ] as const;
 export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
 
@@ -451,15 +458,19 @@ export const SCREEN_OPTIONS: Partial<Record<OnboardingScreenId, readonly string[
 export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // Bumped whenever a word below changes, which is what makes the funnel readable: events carry the
   // contentVersion they were recorded against, so "did the new copy help" is a question the data can
-  // answer instead of a matter of opinion. v2 added the safety promise to the goal screen.
-  version: 2,
+  // answer instead of a matter of opinion. v2 added the safety promise to the goal screen. v3 led
+  // the welcome with the outcome, cut the goal screen's promise to one glance, and moved activity
+  // ahead of the target screen so the pace picker can show an honest date.
+  version: 3,
   welcome: {
     title: "Photograph what you eat. Get an honest answer.",
-    subtitle: "A few questions first, so the answer is about you rather than an average.",
+    // The outcome, before the first question. The trust points below say what is ABSENT — card,
+    // email, storage — and someone who came to lose weight needs the thing that is PRESENT named
+    // first: a plan, and how long the questions take to get it.
+    subtitle: "Three minutes of questions, and you leave with your plan — daily calories, protein, and what's realistic by when.",
     mascot: { mood: "wave", line: "Hi, I'm Spud. I'll judge your dinner, never you." },
     points: [
-      "No card, and nothing to cancel later.",
-      "No email, no name — we never ask who you are.",
+      "No card, no email, no name — nothing to cancel later.",
       "Your photos are read, judged, and dropped. Never stored.",
     ],
     cta: "Start",
@@ -478,8 +489,10 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       // the person most at risk.
       //
       // BOTH floors are named because this screen is asked BEFORE sex is, so there is no single
-      // number to quote yet. `onboarding.test.ts` fails if either drifts from `KCAL_FLOOR`.
-      why: "Whatever pace you choose, there's a line we don't cross: never under 1200 kcal a day for women, or 1500 for men, and never more than a fifth off what you burn. That isn't a setting, and we won't ask you to turn it off.",
+      // number to quote yet. `onboarding.test.ts` fails if either drifts from `KCAL_FLOOR` — and
+      // if the sentence outgrows one glance (160 chars): the person this promise protects is
+      // skimming, so a promise in a paragraph is a promise unread.
+      why: "One line we never cross, whatever pace you pick: 1200 kcal a day for women, 1500 for men. That isn't a setting.",
       options: {
         lose: { label: "Lose weight", hint: "Steadily, and never below what's safe" },
         maintain: { label: "Stay where I am", hint: "Hold the line, eat well" },
@@ -506,19 +519,9 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       why: "Height and weight are what your resting burn is computed from. Nothing else here moves the number as much.",
       cta: "Continue",
     },
-    {
-      id: "target",
-      title: "Where you'd like to be",
-      subtitle: "And how quickly you want to get there.",
-      mascot: { mood: "care", line: "Faster isn't better here. It's just harder to keep." },
-      why: "Whichever pace you pick, we cap the change at a fifth of your maintenance and never go below a floor — and we refuse a goal weight under a healthy one for your height.",
-      options: {
-        easy: { label: "Easy", hint: "About 0.25 kg a week" },
-        steady: { label: "Steady", hint: "About 0.5 kg a week" },
-        push: { label: "Push", hint: "About 0.75 kg a week" },
-      },
-      cta: "Continue",
-    },
+    // Activity BEFORE the target screen — see the note on `ONBOARDING_STEPS`. The pace picker
+    // shows a date, and the date is honest only when the multiplier under it was answered, not
+    // assumed.
     {
       id: "activity",
       title: "How much do you move?",
@@ -531,6 +534,21 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
         active: { label: "Very active", hint: "Training 5-6 times a week, or on your feet all day" },
         athlete: { label: "Athlete", hint: "Twice-daily training, or hard physical work" },
       },
+    },
+    {
+      id: "target",
+      // "Your goal weight", not "Where you'd like to be": the reader who skims parses a noun
+      // faster than a metaphor, and this screen is where the impatient are most likely to leave.
+      title: "Your goal weight",
+      subtitle: "And how fast you want to get there.",
+      mascot: { mood: "care", line: "Faster isn't better here. It's just harder to keep." },
+      why: "Whichever pace you pick, we cap the change at a fifth of what you burn in a day and never go below a floor — and we refuse a goal weight under a healthy one for your height.",
+      options: {
+        easy: { label: "Easy", hint: "About 0.25 kg a week" },
+        steady: { label: "Steady", hint: "About 0.5 kg a week" },
+        push: { label: "Push", hint: "About 0.75 kg a week" },
+      },
+      cta: "Continue",
     },
     {
       id: "country",
@@ -555,7 +573,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
     },
     {
       id: "restrictions",
-      title: "Anything I should judge your food against?",
+      title: "Any of these apply to you?",
       subtitle: "Only what you pick here gets scored. Skip it if none apply.",
       mascot: { mood: "care", line: "Last one. Skip it freely — nothing here is required." },
       why: "Health information is sensitive. It is used only to judge your meals, it is never sold or shared, and deleting your account erases it.",
