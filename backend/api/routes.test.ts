@@ -596,6 +596,17 @@ describe("the mailing list", () => {
     expect(mailer.sent).toHaveLength(1);
   });
 
+  it("sends the browser to try-later when the confirmation could not be sent", async () => {
+    // The visible half of the mail-provider fix. A host whose sender throws — including the log
+    // provider behind a public page — must never read as "check your email".
+    const { handle: h, mailer } = router("https://eait.fit");
+    mailer.failNext();
+    const res = await h(form({ email: "a@example.com" }));
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("https://eait.fit/try-later");
+    expect(mailer.sent).toHaveLength(0);
+  });
+
   it("confirms on the link, and lands on the page that says you are on the list", async () => {
     const { handle: h, mailer, store: s } = router("https://eait.fit");
     await h(form({ email: "a@example.com" }));

@@ -1,8 +1,9 @@
 // The development mailer: prints the link, never the address.
 //
 // It exists so the whole double-opt-in flow can be driven end to end — submit, receive, confirm —
-// with no vendor account and no billed send. `bun run backend:demo` uses it, and so does any
-// deployment that has not been given a real provider.
+// with no vendor account and no billed send. `bun run backend:demo` uses it, and so does a
+// deployment with no landing page or a local one — behind a public page `choose.ts` refuses the
+// send instead, so no visitor is told to check for a mail that went to a log.
 //
 // IT PRINTS THE URL AND NOT THE RECIPIENT, which is the only interesting decision in the file.
 // The URL carries a capability token that puts one address on a mailing list; the address itself is

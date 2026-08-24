@@ -19,7 +19,9 @@ type MailConfig = Pick<
   "mailProvider" | "mailFrom" | "resendApiKey" | "resendBaseUrl" | "mailTimeoutMs" | "landingUrl"
 >;
 
-const LOCAL_LANDING = /^https?:\/\/(localhost|127\.0\.0\.1)(:|$|\/)/;
+/** Loopback and RFC 1918: a preview served to a phone on the LAN is still a preview. */
+const LOCAL_LANDING =
+  /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:|$|\/)/;
 
 export function chooseMailer(config: MailConfig, demo: boolean): Mailer {
   // Demo first: a demo never sends real mail, whatever the environment happens to carry.
