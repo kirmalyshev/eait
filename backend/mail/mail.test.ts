@@ -137,10 +137,20 @@ describe("chooseMailer", () => {
     });
   });
 
-  it("still prints under --demo, whatever the landing url", async () => {
+  it("still prints under --demo, whatever the landing url or provider", async () => {
     await quiet(async () => {
       await chooseMailer({ ...base, landingUrl: "https://eait.fit" }, true)
         .sendConfirmation("reader@example.com", URL_);
+      let calls = 0;
+      const original = globalThis.fetch;
+      globalThis.fetch = (async () => { calls++; return new Response("{}"); }) as unknown as typeof fetch;
+      try {
+        await chooseMailer({ ...base, mailProvider: "resend", resendApiKey: "k", landingUrl: "https://eait.fit" }, true)
+          .sendConfirmation("reader@example.com", URL_);
+      } finally {
+        globalThis.fetch = original;
+      }
+      expect(calls).toBe(0);
     });
   });
 });

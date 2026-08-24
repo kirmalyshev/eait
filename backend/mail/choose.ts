@@ -22,13 +22,15 @@ type MailConfig = Pick<
 const LOCAL_LANDING = /^https?:\/\/(localhost|127\.0\.0\.1)(:|$|\/)/;
 
 export function chooseMailer(config: MailConfig, demo: boolean): Mailer {
+  // Demo first: a demo never sends real mail, whatever the environment happens to carry.
+  if (demo) return logMailer();
   if (config.mailProvider === "resend") {
     return resendMailer({
       apiKey: config.resendApiKey, from: config.mailFrom,
       baseUrl: config.resendBaseUrl, timeoutMs: config.mailTimeoutMs,
     });
   }
-  if (demo || config.landingUrl === "" || LOCAL_LANDING.test(config.landingUrl)) return logMailer();
+  if (config.landingUrl === "" || LOCAL_LANDING.test(config.landingUrl)) return logMailer();
 
   console.warn(
     "[ieat] MAIL_PROVIDER=log with a public landing page: every subscribe submission will be "
