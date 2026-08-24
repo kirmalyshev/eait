@@ -1,0 +1,42 @@
+// Which mailer a process gets, decided once from its config.
+//
+// `log` prints the confirmation link and never the recipient — the right sender for development
+// and for a host with no landing page. It is the WRONG sender behind a public page: eait.fit ran
+// that way for weeks, the boot warning fired once into a log nobody read, and every visitor who
+// left an address was sent to "check your email" for a link that went to a container. So behind a
+// public page the log provider does not print; it throws, the visitor lands on /try-later, and the
+// operator gets one error line per submission until MAIL_PROVIDER=resend is set. The process still
+// starts, because the app's API is the same process and a phone must not lose its diary over a
+// mailing list.
+
+import type { Config } from "../config.ts";
+import { logMailer } from "./log.ts";
+import type { Mailer } from "./port.ts";
+import { resendMailer } from "./resend.ts";
+
+type MailConfig = Pick<
+  Config,
+  "mailProvider" | "mailFrom" | "resendApiKey" | "resendBaseUrl" | "mailTimeoutMs" | "landingUrl"
+>;
+
+const LOCAL_LANDING = /^https?:\/\/(localhost|127\.0\.0\.1)(:|$|\/)/;
+
+export function chooseMailer(config: MailConfig, demo: boolean): Mailer {
+  if (config.mailProvider === "resend") {
+    return resendMailer({
+      apiKey: config.resendApiKey, from: config.mailFrom,
+      baseUrl: config.resendBaseUrl, timeoutMs: config.mailTimeoutMs,
+    });
+  }
+  if (demo || config.landingUrl === "" || LOCAL_LANDING.test(config.landingUrl)) return logMailer();
+
+  console.warn(
+    "[ieat] MAIL_PROVIDER=log with a public landing page: every subscribe submission will be "
+    + "refused (/try-later) until MAIL_PROVIDER=resend and RESEND_API_KEY are set.",
+  );
+  return {
+    async sendConfirmation() {
+      throw new Error("MAIL_PROVIDER=log with a public landing page: no confirmation was sent");
+    },
+  };
+}

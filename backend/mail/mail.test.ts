@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { confirmationMessage } from "./port.ts";
 import { logMailer } from "./log.ts";
 import { resendMailer } from "./resend.ts";
+import { chooseMailer } from "./choose.ts";
 
 const URL_ = "https://api.eait.fit/v1/subscribe/confirm?t=abc123";
 
@@ -99,5 +100,47 @@ describe("logMailer", () => {
     // A log that carries the addresses is a second copy of the list, in the system that promised
     // not to keep one.
     expect(lines.join("\n")).not.toContain("reader@example.com");
+  });
+});
+
+describe("chooseMailer", () => {
+  const base = {
+    mailProvider: "log" as const, mailFrom: "ieat <lets@eait.fit>", resendApiKey: "",
+    resendBaseUrl: "https://api.resend.test", mailTimeoutMs: 1_000, landingUrl: "",
+  };
+  const quiet = async (fn: () => Promise<void>) => {
+    const log = console.log, warn = console.warn;
+    console.log = () => {}; console.warn = () => {};
+    try { await fn(); } finally { console.log = log; console.warn = warn; }
+  };
+
+  it("prints the link when there is no landing page, or a local one", async () => {
+    await quiet(async () => {
+      await chooseMailer(base, false).sendConfirmation("reader@example.com", URL_);
+      await chooseMailer({ ...base, landingUrl: "http://localhost:4173" }, false)
+        .sendConfirmation("reader@example.com", URL_);
+    });
+  });
+
+  it("refuses to pretend a link was sent when the landing page is public", async () => {
+    // eait.fit ran for weeks with MAIL_PROVIDER=log: the boot warning fired, nobody read it, and
+    // every visitor was sent to "check your email" for a link that went to a container log. A send
+    // that fails routes the visitor to /try-later and puts an error in the log per submission.
+    await quiet(async () => {
+      const mailer = chooseMailer({ ...base, landingUrl: "https://eait.fit" }, false);
+      await expect(mailer.sendConfirmation("reader@example.com", URL_)).rejects.toThrow(/MAIL_PROVIDER=log/);
+      try {
+        await mailer.sendConfirmation("reader@example.com", URL_);
+      } catch (e) {
+        expect(String(e)).not.toContain("reader@example.com");
+      }
+    });
+  });
+
+  it("still prints under --demo, whatever the landing url", async () => {
+    await quiet(async () => {
+      await chooseMailer({ ...base, landingUrl: "https://eait.fit" }, true)
+        .sendConfirmation("reader@example.com", URL_);
+    });
   });
 });
