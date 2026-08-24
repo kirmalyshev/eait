@@ -4,6 +4,10 @@
 export type { EngineDeps } from "./deps.ts";
 export { checkCaps, type CapScope } from "./caps.ts";
 export {
+  applyRevenueCatEvent, dailyPhotoCap, entitlementFor,
+  type ApplyOutcome, type RevenueCatEvent,
+} from "./entitlement.ts";
+export {
   logPhotoMeal, editMeal, applyCorrection, confirmPendingMeal, cancelPendingMeal, sumTotals,
   toAnalysis, type LogPhotoInput,
 } from "./meals.ts";

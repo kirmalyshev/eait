@@ -7,6 +7,7 @@
 
 import type { Refusal } from "@ieat/shared";
 import type { EngineDeps } from "./deps.ts";
+import { dailyPhotoCap, entitlementFor } from "./entitlement.ts";
 
 export type CapScope = "photo" | "text";
 
@@ -30,11 +31,20 @@ export async function checkCaps(
     if (global >= config.globalDailyAnalysisCap) return { kind: "cap-exceeded", scope: "global" };
   }
 
-  if (scope === "photo" && config.userDailyPhotoCap > 0) {
-    // Photos only — `countUserPhotos` excludes text turns, which is the half of this rule that a
-    // shared counter silently broke until a test caught it.
-    const mine = await store.countUserPhotos(userId, date);
-    if (mine >= config.userDailyPhotoCap) return { kind: "cap-exceeded", scope: "user" };
+  if (scope === "photo") {
+    // The paid tier is a BIGGER per-user cap, never an exemption from the global one above — a
+    // subscription buys a larger share of the instance budget, not the right to exhaust it.
+    //
+    // Read from the store on every photo rather than carried in the session, and that is the point:
+    // a subscription that lapsed an hour ago must stop working an hour ago. An entitlement cached
+    // for the life of a bearer token would be cached for up to 180 days.
+    const cap = dailyPhotoCap(config, (await entitlementFor(deps, userId)).active);
+    if (cap > 0) {
+      // Photos only — `countUserPhotos` excludes text turns, which is the half of this rule that a
+      // shared counter silently broke until a test caught it.
+      const mine = await store.countUserPhotos(userId, date);
+      if (mine >= cap) return { kind: "cap-exceeded", scope: "user" };
+    }
   }
 
   return null;

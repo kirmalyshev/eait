@@ -27,6 +27,8 @@ const VARS = [
   "EAIT__BACKEND__SUBSCRIBE_RATE_LIMIT_PER_HOUR", "EAIT__BACKEND__SUBSCRIBE_DAILY_CAP", "EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS",
   "EAIT__BACKEND__ADMIN_TOKEN", "EAIT__BACKEND__MAIL_PROVIDER", "EAIT__BACKEND__MAIL_FROM", "EAIT__BACKEND__RESEND_API_KEY", "EAIT__BACKEND__RESEND_BASE_URL",
   "EAIT__BACKEND__MAIL_TIMEOUT_MS", "EAIT__BACKEND__PUBLIC_API_URL", "EAIT__BACKEND__LANDING_URL",
+  "EAIT__BACKEND__PAID_DAILY_PHOTO_CAP", "EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN",
+  "EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID",
 ] as const;
 
 /** The two without defaults. Set for every test so `loadConfig` gets past its required checks. */
@@ -114,5 +116,100 @@ describe("redact", () => {
     expect(printed).not.toContain("test-key-not-real");
     expect(printed).not.toContain(":p@");
     expect(printed).toContain("***");
+  });
+});
+
+// ── The paid tier ────────────────────────────────────────────────────────────────────────────
+//
+// Everything here is off or free by default. A server that was never told about RevenueCat has no
+// webhook, grants nobody anything, and gives every account the free cap — which is exactly what
+// every deployment did before any of this existed.
+describe("the paid tier", () => {
+  it("is dormant by default: no webhook, and the free cap for everyone", () => {
+    withRequired();
+    const c = loadConfig();
+    expect(c.revenueCatWebhookToken).toBe("");
+    expect(c.userDailyPhotoCap).toBe(configDefaults().userDailyPhotoCap);
+  });
+
+  it("reads both caps, and they are independent numbers", () => {
+    withRequired({
+      EAIT__BACKEND__USER_DAILY_PHOTO_CAP: "3",
+      EAIT__BACKEND__PAID_DAILY_PHOTO_CAP: "99",
+    });
+    const c = loadConfig();
+    expect(c.userDailyPhotoCap).toBe(3);
+    expect(c.paidDailyPhotoCap).toBe(99);
+  });
+
+  // The worst silent misconfiguration in a billing system: subscribing takes something away, and
+  // the only people who ever meet it are the ones paying. Zero means no cap, so the check reads
+  // backwards and is exactly why it is a check.
+  it("refuses a paid cap less generous than the free one", () => {
+    withRequired({
+      EAIT__BACKEND__USER_DAILY_PHOTO_CAP: "20",
+      EAIT__BACKEND__PAID_DAILY_PHOTO_CAP: "5",
+    });
+    expect(() => loadConfig()).toThrow(/less generous/);
+
+    // Unlimited free, capped paid — the case a naive `paid < free` comparison waves through.
+    withRequired({
+      EAIT__BACKEND__USER_DAILY_PHOTO_CAP: "0",
+      EAIT__BACKEND__PAID_DAILY_PHOTO_CAP: "200",
+    });
+    expect(() => loadConfig()).toThrow(/less generous/);
+  });
+
+  it("accepts equal caps, and an uncapped paid tier over a capped free one", () => {
+    withRequired({
+      EAIT__BACKEND__USER_DAILY_PHOTO_CAP: "20",
+      EAIT__BACKEND__PAID_DAILY_PHOTO_CAP: "20",
+    });
+    expect(loadConfig().paidDailyPhotoCap).toBe(20);
+
+    withRequired({
+      EAIT__BACKEND__USER_DAILY_PHOTO_CAP: "20",
+      EAIT__BACKEND__PAID_DAILY_PHOTO_CAP: "0",
+    });
+    expect(loadConfig().paidDailyPhotoCap).toBe(0);
+
+    withRequired({
+      EAIT__BACKEND__USER_DAILY_PHOTO_CAP: "0",
+      EAIT__BACKEND__PAID_DAILY_PHOTO_CAP: "0",
+    });
+    expect(loadConfig().userDailyPhotoCap).toBe(0);
+  });
+
+  it("names which entitlement grants the tier, defaulting to pro", () => {
+    withRequired();
+    expect(loadConfig().revenueCatEntitlementId).toBe("pro");
+    withRequired({ EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID: "lifetime" });
+    expect(loadConfig().revenueCatEntitlementId).toBe("lifetime");
+  });
+
+  // Set-and-weak is the dangerous state: it looks protected and is not, and what is behind it is
+  // the ability to mark any account paid.
+  it("refuses a webhook token too short to be one", () => {
+    withRequired({ EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN: "short" });
+    expect(() => loadConfig()).toThrow(/REVENUECAT_WEBHOOK_TOKEN/);
+  });
+
+  // RevenueCat sends it verbatim as an Authorization header. A space makes it a header the server
+  // parses differently from the one the dashboard shows, and every delivery 404s.
+  it("refuses a webhook token with whitespace in it", () => {
+    withRequired({ EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN: "a".repeat(12) + " " + "b".repeat(12) });
+    expect(() => loadConfig()).toThrow(/whitespace/);
+  });
+
+  it("accepts a long one", () => {
+    withRequired({ EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN: "z".repeat(40) });
+    expect(loadConfig().revenueCatWebhookToken).toBe("z".repeat(40));
+  });
+
+  it("never prints the webhook token", () => {
+    withRequired({ EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN: "z".repeat(40) });
+    const shown = JSON.stringify(redact(loadConfig()));
+    expect(shown).not.toContain("z".repeat(40));
+    expect(shown).toContain("***");
   });
 });

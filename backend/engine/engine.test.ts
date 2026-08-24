@@ -212,6 +212,53 @@ describe("photo logging", () => {
     expect(theirs).toEqual({ kind: "cap-exceeded", scope: "global" });
   });
 
+  // The freemium mechanic. What a paid account buys is a bigger per-user cap — never an exemption
+  // from the global one, which is the instance budget rather than a fairness rule.
+  it("gives a paid account the paid cap and a free one the free cap", async () => {
+    const free = await onboard();
+    const paid = await onboard();
+    await store.putEntitlement(paid, {
+      expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+      productId: "ieat_pro_yearly",
+      eventAt: new Date().toISOString(),
+    });
+
+    const d = makeDeps({ userDailyPhotoCap: 1, paidDailyPhotoCap: 3, globalDailyAnalysisCap: 100 });
+
+    await logPhotoMeal(d, free, photo());
+    expect(await logPhotoMeal(d, free, photo())).toEqual({ kind: "cap-exceeded", scope: "user" });
+
+    for (let i = 0; i < 3; i++) await logPhotoMeal(d, paid, photo());
+    expect(await logPhotoMeal(d, paid, photo())).toEqual({ kind: "cap-exceeded", scope: "user" });
+  });
+
+  // A subscription that lapsed an hour ago must stop working an hour ago. The entitlement is read
+  // per request rather than carried in the session, which lives for up to 180 days.
+  it("drops a lapsed account back to the free cap", async () => {
+    const userId = await onboard();
+    await store.putEntitlement(userId, {
+      expiresAt: new Date(Date.now() - 1000).toISOString(),
+      productId: "ieat_pro_yearly",
+      eventAt: new Date().toISOString(),
+    });
+    const d = makeDeps({ userDailyPhotoCap: 1, paidDailyPhotoCap: 50, globalDailyAnalysisCap: 100 });
+    await logPhotoMeal(d, userId, photo());
+    expect(await logPhotoMeal(d, userId, photo())).toEqual({ kind: "cap-exceeded", scope: "user" });
+  });
+
+  // The instance budget is not something a subscription can buy past.
+  it("still refuses a paid account when the instance budget is spent", async () => {
+    const userId = await onboard();
+    await store.putEntitlement(userId, {
+      expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+      productId: "ieat_pro_yearly",
+      eventAt: new Date().toISOString(),
+    });
+    const d = makeDeps({ userDailyPhotoCap: 1, paidDailyPhotoCap: 500, globalDailyAnalysisCap: 1 });
+    await logPhotoMeal(d, userId, photo());
+    expect(await logPhotoMeal(d, userId, photo())).toEqual({ kind: "cap-exceeded", scope: "global" });
+  });
+
   it("hints at correction, and says so louder when confidence is low", async () => {
     const userId = await onboard();
     const low: LlmPorts = {

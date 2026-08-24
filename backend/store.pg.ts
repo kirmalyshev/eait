@@ -75,6 +75,21 @@ create table if not exists users (
 -- Added separately so a host deployed before this exists gains it on the next boot.
 alter table users add column if not exists weight_measured_at timestamptz;
 
+-- The paid tier, on the user row rather than in a subscriptions table.
+--
+-- Three columns because the resolved state is all anything asks for: when it lapses, what was
+-- bought, and when the STORE generated the event that said so. That last one is the out-of-order
+-- guard — webhook delivery is not ordered, and a cancellation generated before a renewal can
+-- arrive after it. Same rule as weight_measured_at above: the newer event wins, not the later
+-- write.
+--
+-- On the users table, so deleting a user takes the subscription state with it. A separate table
+-- would leave a row naming an Apple transaction that belongs to somebody who asked to be erased.
+-- (No backticks anywhere in here: this is a template literal and one would end it.)
+alter table users add column if not exists entitlement_expires_at timestamptz;
+alter table users add column if not exists entitlement_product_id text;
+alter table users add column if not exists entitlement_event_at   timestamptz;
+
 -- Bearer tokens, as SHA-256 hashes.
 --
 -- The column is token_hash and there is no column holding the token itself. A dump of this table
@@ -641,6 +656,35 @@ export async function postgresStore(
       const rows = await sql`select * from users where id = ${userId}`;
       if (rows.length === 0) throw new Error("no such user");
       return toProfile(rows[0]);
+    },
+
+    async getEntitlement(userId) {
+      const rows = await sql`
+        select entitlement_expires_at, entitlement_product_id, entitlement_event_at
+        from users where id = ${userId}`;
+      const r = rows[0];
+      if (!r || !r.entitlement_expires_at || !r.entitlement_event_at) return null;
+      return {
+        expiresAt: new Date(r.entitlement_expires_at as string).toISOString(),
+        productId: (r.entitlement_product_id as string | null) ?? "",
+        eventAt: new Date(r.entitlement_event_at as string).toISOString(),
+      };
+    },
+
+    async putEntitlement(userId, entitlement) {
+      const eventAt = new Date(entitlement.eventAt);
+      // ONE statement carries both refusals, so neither can be forgotten by a caller. No row
+      // matches when the user does not exist — RevenueCat can name an id this server never issued
+      // — and none matches when what is stored came from a later event than this one.
+      const rows = await sql`
+        update users set
+          entitlement_expires_at = ${new Date(entitlement.expiresAt)},
+          entitlement_product_id = ${entitlement.productId},
+          entitlement_event_at   = ${eventAt}
+        where id = ${userId}
+          and (entitlement_event_at is null or entitlement_event_at < ${eventAt})
+        returning id`;
+      return rows.length > 0;
     },
 
     async getOnboardingContent() {

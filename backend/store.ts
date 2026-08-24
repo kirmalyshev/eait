@@ -28,6 +28,23 @@ export interface PendingMeal {
 export type ProfilePatch = Partial<Omit<Profile, "user_id">>;
 
 /**
+ * The paid tier as stored: what the store says, plus when it said it.
+ *
+ * `expiresAt` is the whole entitlement — `entitlementActive` in `@ieat/shared` turns it into a
+ * yes/no, and nothing else may. `productId` is not used to decide anything and is kept anyway,
+ * because the first support question about a charge is "what did they actually buy" and the
+ * alternative is asking the person to read it off their Apple receipt.
+ *
+ * `eventAt` is the instant the STORE generated the event, never the instant we received it. It is
+ * what makes out-of-order delivery safe; see `putEntitlement`.
+ */
+export interface StoredEntitlement {
+  expiresAt: string;
+  productId: string;
+  eventAt: string;
+}
+
+/**
  * What an edit may change on a stored meal.
  *
  * `verdicts` is here because the ENGINE recomputes it on every write — no caller supplies one.
@@ -166,6 +183,33 @@ export interface Store {
   // ── Profile ────────────────────────────────────────────────────────────────────────────────
   getProfile(userId: string): Promise<Profile | null>;
   patchProfile(userId: string, patch: ProfilePatch): Promise<Profile>;
+
+  // ── The paid tier ──────────────────────────────────────────────────────────────────────────
+  //
+  // Stored per user because that is what it is, and stored as the RESOLVED STATE rather than as a
+  // log of store events. The question anything here ever asks is "is this account paid right now";
+  // keeping the event history would be keeping a second, richer copy of something RevenueCat
+  // already keeps properly, in a table nothing reads.
+  //
+  // It lives on the user row, so deleting an account deletes it with everything else. There is no
+  // subscription row that outlives the person, which matters: the row would name an Apple
+  // transaction belonging to somebody who asked to be erased.
+
+  /** What this account has bought, or null when it has never bought anything. */
+  getEntitlement(userId: string): Promise<StoredEntitlement | null>;
+  /**
+   * Record what a store event says, and answer whether it was applied.
+   *
+   * FALSE has two meanings and both are ordinary: there is no such user (RevenueCat can name an id
+   * this server has never seen), or the stored state came from a LATER event than this one.
+   *
+   * That second guard is the important one. Webhook delivery is not ordered, so a cancellation
+   * that was generated before a renewal can arrive after it, and applying it would revoke a
+   * subscription somebody is paying for — silently, since nothing in the app says why. This is the
+   * same rule `weight_measured_at` enforces for Apple Health: the newer MEASUREMENT wins, not the
+   * later write.
+   */
+  putEntitlement(userId: string, entitlement: StoredEntitlement): Promise<boolean>;
 
   // ── Onboarding ─────────────────────────────────────────────────────────────────────────────
   /**

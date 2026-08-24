@@ -28,6 +28,18 @@ export interface Config {
   llmTimeoutMs: number;
   /** Photos one user may analyze per day. The cap is what makes a free tier affordable. */
   userDailyPhotoCap: number;
+  /**
+   * The same, for an account with a live entitlement. THE freemium lever.
+   *
+   * Separate from `userDailyPhotoCap` rather than a multiplier, because the two numbers answer
+   * different questions: the free one is "how much may we give away", the paid one is "how much
+   * did they buy". A multiplier ties them together so that making the free tier meaner silently
+   * makes the paid tier meaner too, on the day the paid tier is the thing being sold.
+   *
+   * `globalDailyAnalysisCap` still bounds the instance above this. A paid user is a bigger share
+   * of a budget, not an exemption from it.
+   */
+  paidDailyPhotoCap: number;
   /** Photos the whole instance may analyze per day. Bounds spend when the app is public. */
   globalDailyAnalysisCap: number;
   /** IANA zone used for every date boundary. Dates are NOT computed in UTC. */
@@ -101,6 +113,25 @@ export interface Config {
    * disables it.
    */
   healthSyncRateLimitPerHour: number;
+
+  /**
+   * The shared secret RevenueCat presents on its webhook, in the `Authorization` header.
+   *
+   * EMPTY MEANS THERE IS NO WEBHOOK. The route answers 404 exactly like `/admin` does when it is
+   * unconfigured — an unauthenticated endpoint that writes entitlements is an endpoint that grants
+   * them, and 404 rather than 403 keeps "there is one here" from being information.
+   *
+   * A secret, and treated as one: constant-time comparison, and `redact()` masks it.
+   */
+  revenueCatWebhookToken: string;
+  /**
+   * WHICH RevenueCat entitlement grants the paid tier.
+   *
+   * A project can carry several — a lifetime unlock, a legacy plan, an internal comp — and an
+   * event names the ones it affects. Matching on a configured id rather than "any entitlement at
+   * all" is what stops a product nobody meant to sell the paid tier from selling it.
+   */
+  revenueCatEntitlementId: string;
 
   /**
    * The credential for `/admin` — onboarding copy and the funnel.
@@ -212,6 +243,7 @@ export function configDefaults(): Config {
     llmBaseUrl: "https://openrouter.ai/api/v1/chat/completions",
     llmTimeoutMs: 90_000,
     userDailyPhotoCap: 20,
+    paidDailyPhotoCap: 200,
     globalDailyAnalysisCap: 500,
     timezone: "Europe/Berlin",
     pendingTtlMs: 30 * 60 * 1000,
@@ -225,6 +257,8 @@ export function configDefaults(): Config {
     appleAudiences: [],
     googleAudiences: [],
     adminToken: "",
+    revenueCatWebhookToken: "",
+    revenueCatEntitlementId: "pro",
     subscribeDailyCap: 200,
     subscribeConfirmTtlDays: 7,
     mailProvider: "log",
@@ -247,6 +281,23 @@ export function loadConfig(): Config {
   // was issued, which presents as an app that cannot stay signed in and as nothing in any log.
   const sessionTtlDays = int("EAIT__BACKEND__SESSION_TTL_DAYS", d.sessionTtlDays);
   if (sessionTtlDays < 1) throw new Error("[ieat] EAIT__BACKEND__SESSION_TTL_DAYS must be at least 1");
+
+  // A paid tier that is MEANER than the free one, refused at startup.
+  //
+  // Zero means "no cap" on both, which is what makes this worth a check rather than a comment: the
+  // arithmetic reads backwards. `USER_DAILY_PHOTO_CAP=0` with `PAID_DAILY_PHOTO_CAP=200` is an
+  // unlimited free tier and a capped paid one, so subscribing takes something away — and the only
+  // people who ever meet it are the ones who paid. Nothing else in the system would report it.
+  const userDailyPhotoCap = int("EAIT__BACKEND__USER_DAILY_PHOTO_CAP", d.userDailyPhotoCap);
+  const paidDailyPhotoCap = int("EAIT__BACKEND__PAID_DAILY_PHOTO_CAP", d.paidDailyPhotoCap);
+  const meaner = paidDailyPhotoCap !== 0
+    && (userDailyPhotoCap === 0 || paidDailyPhotoCap < userDailyPhotoCap);
+  if (meaner) {
+    throw new Error(
+      `[ieat] EAIT__BACKEND__PAID_DAILY_PHOTO_CAP (${paidDailyPhotoCap}) is less generous than ` +
+      `EAIT__BACKEND__USER_DAILY_PHOTO_CAP (${userDailyPhotoCap}); 0 means no cap`,
+    );
+  }
 
   const subscribeConfirmTtlDays = int("EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS", d.subscribeConfirmTtlDays);
   if (subscribeConfirmTtlDays < 1) {
@@ -274,7 +325,8 @@ export function loadConfig(): Config {
     llmApiKey: required("EAIT__BACKEND__LLM_API_KEY"),
     llmBaseUrl: process.env.EAIT__BACKEND__LLM_BASE_URL ?? d.llmBaseUrl,
     llmTimeoutMs: int("EAIT__BACKEND__LLM_TIMEOUT_MS", d.llmTimeoutMs),
-    userDailyPhotoCap: int("EAIT__BACKEND__USER_DAILY_PHOTO_CAP", d.userDailyPhotoCap),
+    userDailyPhotoCap,
+    paidDailyPhotoCap,
     globalDailyAnalysisCap: int("EAIT__BACKEND__GLOBAL_DAILY_ANALYSIS_CAP", d.globalDailyAnalysisCap),
     timezone: process.env.EAIT__BACKEND__TZ_NAME ?? d.timezone,
     pendingTtlMs: int("EAIT__BACKEND__PENDING_TTL_MINUTES", d.pendingTtlMs / 60_000) * 60 * 1000,
@@ -289,6 +341,9 @@ export function loadConfig(): Config {
     appleAudiences: list("EAIT__BACKEND__APPLE_AUDIENCES"),
     googleAudiences: list("EAIT__BACKEND__GOOGLE_AUDIENCES"),
     adminToken: adminTokenFromEnv(),
+    revenueCatWebhookToken: revenueCatWebhookTokenFromEnv(),
+    revenueCatEntitlementId:
+      process.env.EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID ?? d.revenueCatEntitlementId,
     subscribeDailyCap: int("EAIT__BACKEND__SUBSCRIBE_DAILY_CAP", d.subscribeDailyCap),
     subscribeConfirmTtlDays: subscribeConfirmTtlDays,
     mailProvider,
@@ -323,11 +378,40 @@ export function adminTokenFromEnv(): string {
 }
 
 /**
+ * The RevenueCat webhook credential, refused if it is too short to be one.
+ *
+ * Same shape and same reasoning as `adminTokenFromEnv`: unset is fine and means the webhook does
+ * not exist, while set-and-weak is a startup error because it looks protected and is not. What is
+ * behind this one is the ability to write "this account has paid" onto any account whose id you
+ * can guess — and account ids are handed to the client, so guessing is not the hard part.
+ *
+ * RevenueCat sends the value verbatim as the `Authorization` header, so it must be a header value:
+ * no whitespace, no newline. A token with a space in it is a header the server splits differently
+ * from the one the dashboard shows, and the only symptom is a webhook that always 404s.
+ */
+export function revenueCatWebhookTokenFromEnv(): string {
+  const raw = process.env.EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN ?? "";
+  if (raw === "") return raw;
+  if (raw.length < 24) {
+    throw new Error(
+      "[ieat] EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN must be at least 24 characters (or unset to disable the webhook)",
+    );
+  }
+  if (/\s/.test(raw)) {
+    throw new Error("[ieat] EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN must not contain whitespace");
+  }
+  return raw;
+}
+
+/**
  * A config safe to print. Never log the raw object — `llmApiKey` is in it, and a config dump in a
  * crash report is one of the commonest ways a key reaches a log aggregator.
  */
 export function redact(c: Config): Record<string, unknown> {
-  const { llmApiKey: _k, adminToken: _a, resendApiKey: _r, databaseUrl, ...rest } = c;
+  const {
+    llmApiKey: _k, adminToken: _a, resendApiKey: _r, revenueCatWebhookToken: _rc, databaseUrl,
+    ...rest
+  } = c;
   return {
     ...rest,
     databaseUrl: databaseUrl.replace(/\/\/[^@]*@/, "//***@"),
@@ -337,5 +421,7 @@ export function redact(c: Config): Record<string, unknown> {
     resendApiKey: c.resendApiKey === "" ? "(unset)" : "***",
     // Whether the admin is ON is worth seeing in a boot log; the token itself never is.
     adminToken: c.adminToken === "" ? "(disabled)" : "***",
+    // Same again: whether purchases can be reported at all is the thing worth reading in a log.
+    revenueCatWebhookToken: c.revenueCatWebhookToken === "" ? "(disabled)" : "***",
   };
 }

@@ -34,6 +34,7 @@ import {
 } from "../engine/index.ts";
 import { confirmSubscription, subscribe, unsubscribe } from "../engine/subscribe.ts";
 import { adminRoutes } from "./admin.ts";
+import { REVENUECAT_WEBHOOK_PATH, revenueCatWebhook } from "./revenuecat.ts";
 import { clientAddress, rateLimiter } from "./ratelimit.ts";
 
 const json = (body: unknown, status = 200): Response =>
@@ -163,6 +164,15 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
       // an admin surface every user has. Off entirely unless `EAIT__BACKEND__ADMIN_TOKEN` is set.
       if (pathname === "/admin" || pathname.startsWith("/admin/")) {
         return await adminRoutes(req, url, deps);
+      }
+
+      // The purchase webhook, on ITS OWN credential and before any user is resolved.
+      //
+      // Same authority argument as the admin above: RevenueCat is a third party reporting what the
+      // App Store told it, not a signed-in user, and the two must not be confusable. Unset token =
+      // the path answers 404 and no account can ever become paid.
+      if (pathname === REVENUECAT_WEBHOOK_PATH) {
+        return await revenueCatWebhook(req, deps);
       }
 
       // ── The mailing list ──────────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ import {
 } from "./auth/tokens.ts";
 import {
   blankProfile, type FunnelAggregate, type MealPatch, type PendingMeal, type ProfilePatch,
-  type Store, type StoreOptions,
+  type StoredEntitlement, type Store, type StoreOptions,
 } from "./store.ts";
 
 /** A stored funnel event: what the client sent, plus who and when we received it. */
@@ -68,6 +68,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const now = opts.now ?? Date.now;
 
   const users = new Map<string, Profile>();
+  const entitlements = new Map<string, StoredEntitlement>();
   const devices = new Map<string, string>(); // deviceId -> userId
   // Keyed by the HASH of the token, exactly as Postgres is. Storing the raw value here would make
   // demo mode the one environment where a token is recoverable from the store — and demo mode is
@@ -240,6 +241,24 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       }
       users.set(userId, next);
       return clone(next);
+    },
+
+    async getEntitlement(userId) {
+      const e = entitlements.get(userId);
+      return e ? { ...e } : null;
+    },
+
+    async putEntitlement(userId, entitlement) {
+      // No such user is a NO-OP, not a new row. RevenueCat names accounts by an id we gave it, and
+      // it also has ids of its own for a device that never signed in here — writing an entitlement
+      // for one would create paid state belonging to nobody.
+      if (!users.has(userId)) return false;
+      const current = entitlements.get(userId);
+      // Strictly newer. An identical timestamp is a redelivery of the event already applied, and
+      // re-applying it writes the same values for no reason.
+      if (current && Date.parse(current.eventAt) >= Date.parse(entitlement.eventAt)) return false;
+      entitlements.set(userId, { ...entitlement });
+      return true;
     },
 
     async getOnboardingContent() {
@@ -419,6 +438,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async deleteUser(userId) {
       users.delete(userId);
+      // Goes with the account. In Postgres this is a column on `users` and needs no statement at
+      // all; here it is a second map, so it needs this line to keep the two stores honest.
+      entitlements.delete(userId);
       for (const [d, u] of devices) if (u === userId) devices.delete(d);
       for (const [h, row] of tokens) if (row.userId === userId) tokens.delete(h);
       for (const [id, m] of meals) if (m.user_id === userId) meals.delete(id);

@@ -15,6 +15,7 @@ import {
 import { MIN_AGE } from "@ieat/shared";
 import type { ProfilePatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
+import { dailyPhotoCap, entitlementFor } from "./entitlement.ts";
 
 /**
  * The limits THIS server enforces, so the client stops guessing at them.
@@ -22,10 +23,13 @@ import type { EngineDeps } from "./deps.ts";
  * Both are env-configured and therefore differ per environment. Sending them is what keeps the app
  * from offering four photo slots to a server that accepts two.
  */
-function limitsOf(deps: EngineDeps): Limits {
+function limitsOf(deps: EngineDeps, entitled: boolean): Limits {
   return {
     maxUploadBytes: deps.config.maxUploadBytes,
     maxPhotosPerMeal: deps.config.maxPhotosPerMeal,
+    // The SAME function `checkCaps` refuses with. Anything else here is the app promising an
+    // allowance the server will not honour.
+    dailyPhotoCap: dailyPhotoCap(deps.config, entitled),
   };
 }
 
@@ -33,9 +37,10 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
   const { targets, basis } = explainTargets(profile);
+  const entitlement = await entitlementFor(deps, userId);
   return {
     profile, targets, basis, onboarded: profile.onboarded_at !== null,
-    limits: limitsOf(deps), timezone: deps.config.timezone,
+    limits: limitsOf(deps, entitlement.active), timezone: deps.config.timezone, entitlement,
   };
 }
 
@@ -151,11 +156,12 @@ export async function patchProfile(
 
   const profile = await deps.store.patchProfile(userId, patch);
   const { targets, basis } = explainTargets(profile);
+  const entitlement = await entitlementFor(deps, userId);
   return {
     ok: true,
     view: {
       profile, targets, basis, onboarded: profile.onboarded_at !== null,
-      limits: limitsOf(deps), timezone: deps.config.timezone,
+      limits: limitsOf(deps, entitlement.active), timezone: deps.config.timezone, entitlement,
     },
   };
 }

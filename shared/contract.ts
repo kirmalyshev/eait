@@ -11,6 +11,7 @@ import type { OnboardingContent, OnboardingEvent } from "./onboarding.ts";
 import type { TargetBasis } from "./targets.ts";
 import type { ConfirmMealResult, HandleTextResult, LogPhotoResult, MealUpdated, TargetGone } from "./results.ts";
 import type { HealthDay } from "./health.ts";
+import type { Entitlement } from "./entitlement.ts";
 import type { FoodTargets } from "./types.ts";
 
 /** Bumped when a change is not backwards compatible. Shipped apps outlive the server they were built against. */
@@ -45,6 +46,16 @@ export type RefusalKind = keyof typeof REFUSAL_STATUS;
 export interface Limits {
   maxUploadBytes: number;
   maxPhotosPerMeal: number;
+  /**
+   * Photos this account may have analyzed today. THE freemium lever, so it is the one limit that
+   * differs between two users of the same server rather than between two servers.
+   *
+   * Sent for the ordinary reason every limit here is sent, and for one more: the app cannot work
+   * this number out. It depends on an entitlement the store granted and the server was told about
+   * by webhook, so a client computing it would be a client deciding its own tier. Zero means the
+   * cap is switched off entirely on this server, not that nothing is allowed.
+   */
+  dailyPhotoCap: number;
 }
 
 /** Fallback only — see `Limits`. Total upload size, above which a large POST is a DoS. */
@@ -214,6 +225,15 @@ export interface ProfileResponse {
    * and only for people who travel.
    */
   timezone: string;
+  /**
+   * The paid tier, as the SERVER sees it.
+   *
+   * The store told RevenueCat, RevenueCat told this server by webhook, and this is the answer. The
+   * app has its own copy from the purchases SDK and must not branch on it for anything the server
+   * enforces: the two disagree for a few seconds after every purchase, and only one of them is the
+   * one refusing requests. `limits.dailyPhotoCap` above is already computed from this.
+   */
+  entitlement: Entitlement;
 }
 
 /**

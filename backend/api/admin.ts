@@ -26,27 +26,12 @@ import {
   type EngineDeps,
 } from "../engine/index.ts";
 import { ADMIN_PAGE } from "./admin.page.ts";
+import { timingSafeEqual } from "../auth/timingsafe.ts";
 
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 const notFound = () => json({ error: "not found" }, 404);
-
-/**
- * Constant-time string comparison.
- *
- * `a === b` on secrets returns as soon as two bytes differ, so the time it takes reveals how much
- * of a guess was right. This always reads both strings to the end. Lengths are compared too, and
- * unequal lengths still walk the loop.
- */
-function timingSafeEqual(a: string, b: string): boolean {
-  const ab = new TextEncoder().encode(a);
-  const bb = new TextEncoder().encode(b);
-  let diff = ab.length ^ bb.length;
-  const n = Math.max(ab.length, bb.length);
-  for (let i = 0; i < n; i++) diff |= (ab[i] ?? 0) ^ (bb[i] ?? 0);
-  return diff === 0;
-}
 
 /** What the editor needs in order to render the right controls for each screen. */
 function editorMeta() {

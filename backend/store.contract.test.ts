@@ -76,6 +76,98 @@ function contract(name: string, make: () => Promise<Store>) {
       expect((await s.listIdentities(first.userId)).map((i) => i.provider)).toEqual(["device"]);
     });
 
+    // ── The paid tier ──────────────────────────────────────────────────────────────────────
+    //
+    // Both implementations must agree here for the same reason they must agree about merging: the
+    // memory store is what every engine test runs against, so a rule it enforces and Postgres does
+    // not is a rule that passes everywhere and fails in production only.
+
+    it("has no entitlement until one is written", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      expect(await s.getEntitlement(userId)).toBeNull();
+    });
+
+    it("stores what a purchase said and reads it back", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const e = {
+        expiresAt: "2027-01-01T00:00:00.000Z",
+        productId: "ieat_pro_yearly",
+        eventAt: "2026-08-24T10:00:00.000Z",
+      };
+      expect(await s.putEntitlement(userId, e)).toBe(true);
+      expect(await s.getEntitlement(userId)).toEqual(e);
+    });
+
+    // Webhook delivery is not ordered. A cancellation generated BEFORE a renewal can arrive after
+    // it, and applying it would revoke a subscription somebody is paying for — with nothing in the
+    // app to say why. The newer EVENT wins, never the later write.
+    it("refuses an event older than the one already applied", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const renewal = {
+        expiresAt: "2027-01-01T00:00:00.000Z", productId: "ieat_pro_yearly",
+        eventAt: "2026-08-24T10:00:00.000Z",
+      };
+      const staleCancellation = {
+        expiresAt: "2026-08-24T09:00:00.000Z", productId: "ieat_pro_yearly",
+        eventAt: "2026-08-24T09:30:00.000Z",
+      };
+      expect(await s.putEntitlement(userId, renewal)).toBe(true);
+      expect(await s.putEntitlement(userId, staleCancellation)).toBe(false);
+      expect(await s.getEntitlement(userId)).toEqual(renewal);
+    });
+
+    // RevenueCat redelivers. The same event twice must not be treated as new information.
+    it("treats a redelivery of the same event as already applied", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const e = {
+        expiresAt: "2027-01-01T00:00:00.000Z", productId: "ieat_pro_yearly",
+        eventAt: "2026-08-24T10:00:00.000Z",
+      };
+      expect(await s.putEntitlement(userId, e)).toBe(true);
+      expect(await s.putEntitlement(userId, e)).toBe(false);
+    });
+
+    // A later event revoking access IS applied — that is how a cancellation reaches this server.
+    it("applies a newer event that expires the entitlement", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.putEntitlement(userId, {
+        expiresAt: "2027-01-01T00:00:00.000Z", productId: "ieat_pro_yearly",
+        eventAt: "2026-08-24T10:00:00.000Z",
+      });
+      const revoked = {
+        expiresAt: "2026-08-24T11:00:00.000Z", productId: "ieat_pro_yearly",
+        eventAt: "2026-08-24T11:00:00.000Z",
+      };
+      expect(await s.putEntitlement(userId, revoked)).toBe(true);
+      expect(await s.getEntitlement(userId)).toEqual(revoked);
+    });
+
+    // RevenueCat can name an id this server never issued — its own anonymous ids, or an account
+    // that has since been deleted. Writing one would create paid state belonging to nobody.
+    it("will not write an entitlement for an unknown account", async () => {
+      const s = await open();
+      expect(await s.putEntitlement(crypto.randomUUID(), {
+        expiresAt: "2027-01-01T00:00:00.000Z", productId: "ieat_pro_yearly",
+        eventAt: "2026-08-24T10:00:00.000Z",
+      })).toBe(false);
+    });
+
+    it("erases the entitlement with the account", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.putEntitlement(userId, {
+        expiresAt: "2027-01-01T00:00:00.000Z", productId: "ieat_pro_yearly",
+        eventAt: "2026-08-24T10:00:00.000Z",
+      });
+      await s.deleteUser(userId);
+      expect(await s.getEntitlement(userId)).toBeNull();
+    });
+
     it("resolves a token to its user, and stops after revocation", async () => {
       const s = await open();
       const { userId } = await s.upsertDeviceUser(device(), "en");
