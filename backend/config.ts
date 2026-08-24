@@ -26,18 +26,16 @@ export interface Config {
    * and a worker slot indefinitely.
    */
   llmTimeoutMs: number;
-  /** Photos one user may analyze per day. The cap is what makes a free tier affordable. */
-  userDailyPhotoCap: number;
   /**
-   * The same, for an account with a live entitlement. THE freemium lever.
-   *
-   * Separate from `userDailyPhotoCap` rather than a multiplier, because the two numbers answer
-   * different questions: the free one is "how much may we give away", the paid one is "how much
-   * did they buy". A multiplier ties them together so that making the free tier meaner silently
-   * makes the paid tier meaner too, on the day the paid tier is the thing being sold.
-   *
-   * `globalDailyAnalysisCap` still bounds the instance above this. A paid user is a bigger share
-   * of a budget, not an exemption from it.
+   * Analyses an account gets before an entitlement is required. THERE IS NO FREE TIER: this is
+   * the onboarding's sample — one verdict, photo or typed — and the default is 1. Lifetime, not
+   * per day. A demo instance sets it high rather than growing a second code path.
+   */
+  freeAnalyses: number;
+  /**
+   * Photos per day for an account with a live entitlement; 0 means no daily cap. What a
+   * subscription buys is this allowance — never an exemption from `globalDailyAnalysisCap`,
+   * which bounds the instance above it: a paid user is a bigger share of a budget.
    */
   paidDailyPhotoCap: number;
   /** Photos the whole instance may analyze per day. Bounds spend when the app is public. */
@@ -132,6 +130,12 @@ export interface Config {
    * all" is what stops a product nobody meant to sell the paid tier from selling it.
    */
   revenueCatEntitlementId: string;
+  /**
+   * Accept webhook events from RevenueCat's SANDBOX environment (App Store sandbox, Test Store).
+   * OFF in production: a simulated purchase must not grant a real entitlement. Staging opts in,
+   * and that is how a development build's purchase is exercised end to end.
+   */
+  revenueCatAcceptSandbox: boolean;
 
   /**
    * The credential for `/admin` — onboarding copy and the funnel.
@@ -242,7 +246,7 @@ export function configDefaults(): Config {
     llmApiKey: "",
     llmBaseUrl: "https://openrouter.ai/api/v1/chat/completions",
     llmTimeoutMs: 90_000,
-    userDailyPhotoCap: 20,
+    freeAnalyses: 1,
     paidDailyPhotoCap: 200,
     globalDailyAnalysisCap: 500,
     timezone: "Europe/Berlin",
@@ -259,6 +263,7 @@ export function configDefaults(): Config {
     adminToken: "",
     revenueCatWebhookToken: "",
     revenueCatEntitlementId: "pro",
+    revenueCatAcceptSandbox: false,
     subscribeDailyCap: 200,
     subscribeConfirmTtlDays: 7,
     mailProvider: "log",
@@ -282,22 +287,16 @@ export function loadConfig(): Config {
   const sessionTtlDays = int("EAIT__BACKEND__SESSION_TTL_DAYS", d.sessionTtlDays);
   if (sessionTtlDays < 1) throw new Error("[ieat] EAIT__BACKEND__SESSION_TTL_DAYS must be at least 1");
 
-  // A paid tier that is MEANER than the free one, refused at startup.
-  //
-  // Zero means "no cap" on both, which is what makes this worth a check rather than a comment: the
-  // arithmetic reads backwards. `USER_DAILY_PHOTO_CAP=0` with `PAID_DAILY_PHOTO_CAP=200` is an
-  // unlimited free tier and a capped paid one, so subscribing takes something away — and the only
-  // people who ever meet it are the ones who paid. Nothing else in the system would report it.
-  const userDailyPhotoCap = int("EAIT__BACKEND__USER_DAILY_PHOTO_CAP", d.userDailyPhotoCap);
-  const paidDailyPhotoCap = int("EAIT__BACKEND__PAID_DAILY_PHOTO_CAP", d.paidDailyPhotoCap);
-  const meaner = paidDailyPhotoCap !== 0
-    && (userDailyPhotoCap === 0 || paidDailyPhotoCap < userDailyPhotoCap);
-  if (meaner) {
+  // The free DAILY cap described a tier that no longer exists. A host provisioned before the
+  // change still spells it; refusing is what gets it removed rather than silently ignored.
+  if (process.env.EAIT__BACKEND__USER_DAILY_PHOTO_CAP !== undefined) {
     throw new Error(
-      `[ieat] EAIT__BACKEND__PAID_DAILY_PHOTO_CAP (${paidDailyPhotoCap}) is less generous than ` +
-      `EAIT__BACKEND__USER_DAILY_PHOTO_CAP (${userDailyPhotoCap}); 0 means no cap`,
+      "[ieat] EAIT__BACKEND__USER_DAILY_PHOTO_CAP is retired: there is no free tier. " +
+      "EAIT__BACKEND__FREE_ANALYSES is the sample size (default 1).",
     );
   }
+  const freeAnalyses = int("EAIT__BACKEND__FREE_ANALYSES", d.freeAnalyses);
+  const paidDailyPhotoCap = int("EAIT__BACKEND__PAID_DAILY_PHOTO_CAP", d.paidDailyPhotoCap);
 
   const subscribeConfirmTtlDays = int("EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS", d.subscribeConfirmTtlDays);
   if (subscribeConfirmTtlDays < 1) {
@@ -325,7 +324,7 @@ export function loadConfig(): Config {
     llmApiKey: required("EAIT__BACKEND__LLM_API_KEY"),
     llmBaseUrl: process.env.EAIT__BACKEND__LLM_BASE_URL ?? d.llmBaseUrl,
     llmTimeoutMs: int("EAIT__BACKEND__LLM_TIMEOUT_MS", d.llmTimeoutMs),
-    userDailyPhotoCap,
+    freeAnalyses,
     paidDailyPhotoCap,
     globalDailyAnalysisCap: int("EAIT__BACKEND__GLOBAL_DAILY_ANALYSIS_CAP", d.globalDailyAnalysisCap),
     timezone: process.env.EAIT__BACKEND__TZ_NAME ?? d.timezone,
@@ -344,6 +343,7 @@ export function loadConfig(): Config {
     revenueCatWebhookToken: revenueCatWebhookTokenFromEnv(),
     revenueCatEntitlementId:
       process.env.EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID ?? d.revenueCatEntitlementId,
+    revenueCatAcceptSandbox: ["1", "true"].includes(process.env.EAIT__BACKEND__REVENUECAT_ACCEPT_SANDBOX ?? ""),
     subscribeDailyCap: int("EAIT__BACKEND__SUBSCRIBE_DAILY_CAP", d.subscribeDailyCap),
     subscribeConfirmTtlDays: subscribeConfirmTtlDays,
     mailProvider,

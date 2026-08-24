@@ -29,7 +29,7 @@ const CONFIG: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  userDailyPhotoCap: 5, globalDailyAnalysisCap: 0,
+  freeAnalyses: 5, globalDailyAnalysisCap: 0,
   appleAudiences: ["app.ieat"], googleAudiences: ["test.apps.googleusercontent.com"],
 };
 
@@ -182,14 +182,14 @@ describe("photo", () => {
     expect(res.status).toBe(413);
   });
 
-  it("429s with a scope once the per-user cap is spent", async () => {
+  it("402s once the sample is spent — the status the app opens the paywall on", async () => {
     const token = await session();
-    const deps: EngineDeps = { store, config: { ...CONFIG, userDailyPhotoCap: 1 }, llm: demoPorts(), mailer: fakeMailer() };
+    const deps: EngineDeps = { store, config: { ...CONFIG, freeAnalyses: 1 }, llm: demoPorts(), mailer: fakeMailer() };
     handle = createRouter(deps, store, testVerifier);
     await handle(photoRequest(token));
     const res = await handle(photoRequest(token));
-    expect(res.status).toBe(429);
-    expect(await res.json()).toEqual({ error: "cap-exceeded", scope: "user" });
+    expect(res.status).toBe(402);
+    expect(await res.json()).toEqual({ error: "subscription-required" });
   });
 
   it("403s, not 401s, before onboarding — a 401 sends the client into a refresh loop it cannot win", async () => {
@@ -812,7 +812,7 @@ describe("rate limits", () => {
   it("counts billed analyses per address, across every account it creates", async () => {
     // The whole point. Two accounts, one address, one allowance between them — otherwise the
     // per-user cap is worth exactly one call to /v1/auth/device.
-    const h = routerWith({ analysisRateLimitPerDay: 2, userDailyPhotoCap: 99 });
+    const h = routerWith({ analysisRateLimitPerDay: 2, freeAnalyses: 99 });
     const address = "203.0.113.9";
 
     const onboard = async (): Promise<string> => {

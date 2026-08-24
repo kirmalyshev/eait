@@ -303,6 +303,12 @@ export interface Store {
   countUserPhotos(userId: string, date: string): Promise<number>;
   /** Every analysis the instance has spent on `date`, whatever its scope. */
   countGlobalAnalyses(date: string): Promise<number>;
+  /**
+   * Every analysis this account has EVER spent, photo or text. The sample rule reads it: one
+   * analysis without an entitlement, then refusal. Lifetime and both scopes on purpose — a typed
+   * meal is the sample as much as a photographed one, or a sentence is the free way around the ask.
+   */
+  countUserAnalyses(userId: string): Promise<number>;
   /** Recorded BEFORE the model is called: a failed call still costs money. */
   recordAnalysis(userId: string, date: string, scope: "photo" | "text"): Promise<void>;
 

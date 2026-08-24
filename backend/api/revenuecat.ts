@@ -95,6 +95,7 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent | null {
     expirationAtMs: epochMs(e.expiration_at_ms),
     productId: typeof e.product_id === "string" ? e.product_id : "",
     eventTimestampMs,
+    sandbox: e.environment === "SANDBOX",
   };
 }
 

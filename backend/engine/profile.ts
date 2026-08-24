@@ -23,13 +23,14 @@ import { dailyPhotoCap, entitlementFor } from "./entitlement.ts";
  * Both are env-configured and therefore differ per environment. Sending them is what keeps the app
  * from offering four photo slots to a server that accepts two.
  */
-function limitsOf(deps: EngineDeps, entitled: boolean): Limits {
+async function limitsOf(deps: EngineDeps, userId: string): Promise<Limits> {
   return {
     maxUploadBytes: deps.config.maxUploadBytes,
     maxPhotosPerMeal: deps.config.maxPhotosPerMeal,
-    // The SAME function `checkCaps` refuses with. Anything else here is the app promising an
-    // allowance the server will not honour.
-    dailyPhotoCap: dailyPhotoCap(deps.config, entitled),
+    // The SAME function and the SAME count `checkCaps` refuses with. Anything else here is the
+    // app promising an allowance the server will not honour.
+    dailyPhotoCap: dailyPhotoCap(deps.config),
+    sampleUsed: (await deps.store.countUserAnalyses(userId)) >= deps.config.freeAnalyses,
   };
 }
 
@@ -40,7 +41,7 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
   const entitlement = await entitlementFor(deps, userId);
   return {
     profile, targets, basis, onboarded: profile.onboarded_at !== null,
-    limits: limitsOf(deps, entitlement.active), timezone: deps.config.timezone, entitlement,
+    limits: await limitsOf(deps, userId), timezone: deps.config.timezone, entitlement,
   };
 }
 
@@ -161,7 +162,7 @@ export async function patchProfile(
     ok: true,
     view: {
       profile, targets, basis, onboarded: profile.onboarded_at !== null,
-      limits: limitsOf(deps, entitlement.active), timezone: deps.config.timezone, entitlement,
+      limits: await limitsOf(deps, userId), timezone: deps.config.timezone, entitlement,
     },
   };
 }

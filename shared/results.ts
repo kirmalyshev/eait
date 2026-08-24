@@ -10,6 +10,7 @@
 // the bot and another in this app, and neither has to agree with the other about wording.
 
 import type { DailyTotals, MealAnalysis } from "./types.ts";
+import { REFUSAL_STATUS } from "./contract.ts";
 
 /** Which correction nudge the surface should show under a logged meal. */
 export type MealHint = "lowConfidence" | "correction";
@@ -44,6 +45,11 @@ export type Refusal =
    * a carrier network.
    */
   | { kind: "cap-exceeded"; scope: "user" | "global" | "address" }
+  /**
+   * The sample is spent and there is no entitlement. Not a cap: nothing resets at midnight. The
+   * app answers it with the paywall, and `limits.sampleUsed` lets it do so before asking.
+   */
+  | { kind: "subscription-required" }
   /** The engine failed to produce an analysis. Already logged; the surface just apologises. */
   | { kind: "analysis-failed" };
 
@@ -107,7 +113,10 @@ export type ConfirmMealResult = MealLogged | { kind: "expired" } | Refusal;
 export const isMeal = (r: { kind: string }): r is MealLogged | MealUpdated | MealRedated =>
   r.kind === "logged" || r.kind === "updated" || r.kind === "redated";
 
-/** True when the result is a refusal — the surface shows a message and logs nothing. */
-export const isRefusal = (r: { kind: string }): r is Refusal =>
-  r.kind === "not-onboarded" || r.kind === "not-food" ||
-  r.kind === "cap-exceeded" || r.kind === "analysis-failed";
+/**
+ * True when the result is a refusal — the surface shows a message and logs nothing.
+ *
+ * Derived from the status map rather than listed again: the hand-written list shipped one kind
+ * short, and a refusal it did not name left the server as a 200 with the refusal in the body.
+ */
+export const isRefusal = (r: { kind: string }): r is Refusal => Object.hasOwn(REFUSAL_STATUS, r.kind);

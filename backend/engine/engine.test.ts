@@ -16,7 +16,8 @@ const CONFIG: Config = {
   ...configDefaults(),
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-  userDailyPhotoCap: 3, globalDailyAnalysisCap: 10,
+  // Most tests chain several analyses on one account; the sample rule has its own describe.
+  freeAnalyses: 100, globalDailyAnalysisCap: 10,
   appleAudiences: ["app.ieat"], googleAudiences: ["test.apps.googleusercontent.com"],
 };
 
@@ -40,6 +41,16 @@ async function onboard(over: Record<string, unknown> = {}): Promise<string> {
 }
 
 const photo = (bytes = 8) => ({ images: [async () => new Uint8Array(bytes).fill(1)] });
+
+/** A live entitlement, as the RevenueCat webhook would have written it. Each call is a newer event. */
+let eventSeq = 0;
+async function entitle(userId: string, expiresInMs = 86_400_000): Promise<void> {
+  await store.putEntitlement(userId, {
+    expiresAt: new Date(Date.now() + expiresInMs).toISOString(),
+    productId: "app.ieat.yearly",
+    eventAt: new Date(Date.now() + ++eventSeq * 1000).toISOString(),
+  });
+}
 
 beforeEach(() => {
   store = memoryStore();
@@ -180,83 +191,44 @@ describe("photo logging", () => {
       ...demoPorts(),
       analyzePhoto: async () => { throw new Error("nope"); },
     };
-    const d = makeDeps({}, llm);
+    const d = makeDeps({ freeAnalyses: 1 }, llm);
     const userId = await onboard();
     await logPhotoMeal(d, userId, photo());
     expect(await store.countUserPhotos(userId, localDate("Europe/Berlin"))).toBe(1);
+    // The sample too: a failed first call is the sample spent, not a free retry.
+    expect((await logPhotoMeal(makeDeps({ freeAnalyses: 1 }), userId, photo())).kind).toBe("subscription-required");
   });
 
   it("never reads image bytes when the cap already refused", async () => {
     const userId = await onboard();
-    const d = makeDeps({ userDailyPhotoCap: 1 });
+    const d = makeDeps({ freeAnalyses: 1 });
     await logPhotoMeal(d, userId, photo());
 
     let read = false;
     const res = await logPhotoMeal(d, userId, {
       images: [async () => { read = true; return new Uint8Array(4); }],
     });
-    expect(res.kind).toBe("cap-exceeded");
+    expect(res.kind).toBe("subscription-required");
     expect(read).toBe(false); // thunks exist precisely for this
   });
 
-  it("distinguishes the user cap from the global cap", async () => {
-    const a = await onboard();
-    const perUser = makeDeps({ userDailyPhotoCap: 1, globalDailyAnalysisCap: 100 });
-    await logPhotoMeal(perUser, a, photo());
-    const mine = await logPhotoMeal(perUser, a, photo());
-    expect(mine).toEqual({ kind: "cap-exceeded", scope: "user" });
-
-    const b = await onboard();
-    const global = makeDeps({ userDailyPhotoCap: 100, globalDailyAnalysisCap: 1 });
-    const theirs = await logPhotoMeal(global, b, photo());
-    expect(theirs).toEqual({ kind: "cap-exceeded", scope: "global" });
-  });
-
-  // The freemium mechanic. What a paid account buys is a bigger per-user cap — never an exemption
-  // from the global one, which is the instance budget rather than a fairness rule.
-  it("gives a paid account the paid cap and a free one the free cap", async () => {
-    const free = await onboard();
-    const paid = await onboard();
-    await store.putEntitlement(paid, {
-      expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
-      productId: "ieat_pro_yearly",
-      eventAt: new Date().toISOString(),
-    });
-
-    const d = makeDeps({ userDailyPhotoCap: 1, paidDailyPhotoCap: 3, globalDailyAnalysisCap: 100 });
-
-    await logPhotoMeal(d, free, photo());
-    expect(await logPhotoMeal(d, free, photo())).toEqual({ kind: "cap-exceeded", scope: "user" });
-
-    for (let i = 0; i < 3; i++) await logPhotoMeal(d, paid, photo());
-    expect(await logPhotoMeal(d, paid, photo())).toEqual({ kind: "cap-exceeded", scope: "user" });
-  });
-
-  // A subscription that lapsed an hour ago must stop working an hour ago. The entitlement is read
-  // per request rather than carried in the session, which lives for up to 180 days.
-  it("drops a lapsed account back to the free cap", async () => {
+  it("refuses an entitled account only at the global cap", async () => {
     const userId = await onboard();
-    await store.putEntitlement(userId, {
-      expiresAt: new Date(Date.now() - 1000).toISOString(),
-      productId: "ieat_pro_yearly",
-      eventAt: new Date().toISOString(),
-    });
-    const d = makeDeps({ userDailyPhotoCap: 1, paidDailyPhotoCap: 50, globalDailyAnalysisCap: 100 });
-    await logPhotoMeal(d, userId, photo());
-    expect(await logPhotoMeal(d, userId, photo())).toEqual({ kind: "cap-exceeded", scope: "user" });
-  });
-
-  // The instance budget is not something a subscription can buy past.
-  it("still refuses a paid account when the instance budget is spent", async () => {
-    const userId = await onboard();
-    await store.putEntitlement(userId, {
-      expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
-      productId: "ieat_pro_yearly",
-      eventAt: new Date().toISOString(),
-    });
-    const d = makeDeps({ userDailyPhotoCap: 1, paidDailyPhotoCap: 500, globalDailyAnalysisCap: 1 });
+    await entitle(userId);
+    const d = makeDeps({ paidDailyPhotoCap: 100, globalDailyAnalysisCap: 1 });
     await logPhotoMeal(d, userId, photo());
     expect(await logPhotoMeal(d, userId, photo())).toEqual({ kind: "cap-exceeded", scope: "global" });
+  });
+
+  it("gives an entitled account the paid daily cap, photos only", async () => {
+    const userId = await onboard();
+    await entitle(userId);
+    const d = makeDeps({ paidDailyPhotoCap: 2, globalDailyAnalysisCap: 100 });
+    await logPhotoMeal(d, userId, photo());
+    await logPhotoMeal(d, userId, photo());
+    expect(await logPhotoMeal(d, userId, photo())).toEqual({ kind: "cap-exceeded", scope: "user" });
+    // A question is not a photo: the paid cap is a photo allowance, chat still answers.
+    expect((await handleText(d, userId, { text: "how much protein so far?" })).kind).not.toBe("cap-exceeded");
   });
 
   it("hints at correction, and says so louder when confidence is low", async () => {
@@ -268,6 +240,55 @@ describe("photo logging", () => {
     const res = await logPhotoMeal(makeDeps({}, low), userId, photo());
     if (!isMeal(res) || res.kind !== "logged") throw new Error("expected logged");
     expect(res.hint).toBe("lowConfidence");
+  });
+});
+
+// No free tier. An account gets ONE analysis — photo, library or typed — and every later one is
+// refused until the RevenueCat webhook has written an entitlement. The sheet in the app renders
+// this refusal; it never decides it.
+describe("the sample", () => {
+  let one: EngineDeps;
+  beforeEach(() => { one = makeDeps({ freeAnalyses: 1 }); });
+
+  it("refuses the second analysis of an unentitled account, photo and typed alike", async () => {
+    const userId = await onboard();
+    expect((await logPhotoMeal(one, userId, photo())).kind).toBe("logged");
+    expect(await logPhotoMeal(one, userId, photo())).toEqual({ kind: "subscription-required" });
+    expect(await handleText(one, userId, { text: "chicken rice bowl" })).toEqual({ kind: "subscription-required" });
+  });
+
+  it("counts a typed meal as the sample", async () => {
+    const userId = await onboard();
+    expect((await handleText(one, userId, { text: "two eggs on toast" })).kind).not.toBe("subscription-required");
+    expect(await logPhotoMeal(one, userId, photo())).toEqual({ kind: "subscription-required" });
+  });
+
+  it("is sized by config, so a demo instance can switch it off without a second code path", async () => {
+    const userId = await onboard();
+    const d = makeDeps({ freeAnalyses: 3 });
+    for (let i = 0; i < 3; i++) expect((await logPhotoMeal(d, userId, photo())).kind).toBe("logged");
+    expect(await logPhotoMeal(d, userId, photo())).toEqual({ kind: "subscription-required" });
+  });
+
+  it("opens the account once an entitlement is written, and closes it again when it lapses", async () => {
+    const userId = await onboard();
+    await logPhotoMeal(one, userId, photo());
+    await entitle(userId);
+    expect((await logPhotoMeal(one, userId, photo())).kind).toBe("logged");
+    await entitle(userId, -1000);
+    expect(await logPhotoMeal(one, userId, photo())).toEqual({ kind: "subscription-required" });
+  });
+
+  it("tells the app whether the sample is spent, beside the entitlement", async () => {
+    const userId = await onboard();
+    expect((await profileView(one, userId))!.limits.sampleUsed).toBe(false);
+    await handleText(one, userId, { text: "an apple" });
+    expect((await profileView(one, userId))!.limits.sampleUsed).toBe(true);
+    // Still true after subscribing: the app pairs it with `entitlement.active` to decide the sheet.
+    await entitle(userId);
+    const view = (await profileView(one, userId))!;
+    expect(view.limits.sampleUsed).toBe(true);
+    expect(view.limits.dailyPhotoCap).toBe(one.config.paidDailyPhotoCap);
   });
 });
 
@@ -481,7 +502,8 @@ describe("chat", () => {
 
   it("charges chat against the global budget but not the per-user photo allowance", async () => {
     const userId = await onboard();
-    const d = makeDeps({ userDailyPhotoCap: 1, globalDailyAnalysisCap: 100 });
+    await entitle(userId);
+    const d = makeDeps({ paidDailyPhotoCap: 1, globalDailyAnalysisCap: 100 });
     await handleText(d, userId, { text: "how am I doing?" });
     await handleText(d, userId, { text: "and yesterday?" });
     // Chat did not eat the photo the user could still log.

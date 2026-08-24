@@ -27,8 +27,10 @@ const config: Config = demo
       host: process.env.EAIT__BACKEND__HOST ?? "127.0.0.1",
       databaseUrl: "memory://demo",
       llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-      // Generous per user, unmetered globally: it is a local demo, not a public instance.
-      userDailyPhotoCap: 100, globalDailyAnalysisCap: 0,
+      // No paywall in the demo — the E2E flows log several meals per account — and unmetered
+      // globally: it is a local demo, not a public instance. The sheet itself is exercised against
+      // RevenueCat's Test Store, not here.
+      freeAnalyses: 100_000, globalDailyAnalysisCap: 0,
       timezone: process.env.EAIT__BACKEND__TZ_NAME ?? "Europe/Berlin",
       // Read from the environment here too, and validated by the same function: the admin is how
       // onboarding copy is edited, and "works in demo, untested in production" is the shape of

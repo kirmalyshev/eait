@@ -14,9 +14,12 @@ export type CapScope = "photo" | "text";
 /**
  * Null when the request may proceed, a refusal when it may not.
  *
- * A text turn is checked against the GLOBAL budget only. Charging a question against the per-user
- * photo allowance would mean asking "how much protein have I had" costs the user a meal they could
- * have logged, which is the kind of accounting that quietly teaches people not to use the chat.
+ * Without an entitlement the account has the SAMPLE and nothing else: `config.freeAnalyses`
+ * analyses (one) over its lifetime, photo or text alike — a sentence must not be the free way
+ * around the ask. With one, photos meet the paid daily cap and text turns meet only the global
+ * budget: charging a question against the photo allowance would mean asking "how much protein
+ * have I had" costs the user a meal they could have logged, which quietly teaches people not to
+ * use the chat.
  */
 export async function checkCaps(
   deps: EngineDeps,
@@ -31,14 +34,19 @@ export async function checkCaps(
     if (global >= config.globalDailyAnalysisCap) return { kind: "cap-exceeded", scope: "global" };
   }
 
+  // Read from the store on every request rather than carried in the session, and that is the
+  // point: a subscription that lapsed an hour ago must stop working an hour ago. An entitlement
+  // cached for the life of a bearer token would be cached for up to 180 days.
+  const entitled = (await entitlementFor(deps, userId)).active;
+  if (!entitled) {
+    const spent = await store.countUserAnalyses(userId);
+    return spent >= config.freeAnalyses ? { kind: "subscription-required" } : null;
+  }
+
+  // The paid tier is a BIGGER per-user cap, never an exemption from the global one above — a
+  // subscription buys a larger share of the instance budget, not the right to exhaust it.
   if (scope === "photo") {
-    // The paid tier is a BIGGER per-user cap, never an exemption from the global one above — a
-    // subscription buys a larger share of the instance budget, not the right to exhaust it.
-    //
-    // Read from the store on every photo rather than carried in the session, and that is the point:
-    // a subscription that lapsed an hour ago must stop working an hour ago. An entitlement cached
-    // for the life of a bearer token would be cached for up to 180 days.
-    const cap = dailyPhotoCap(config, (await entitlementFor(deps, userId)).active);
+    const cap = dailyPhotoCap(config);
     if (cap > 0) {
       // Photos only — `countUserPhotos` excludes text turns, which is the half of this rule that a
       // shared counter silently broke until a test caught it.

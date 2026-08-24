@@ -922,6 +922,12 @@ export async function postgresStore(
       return num(rows[0].n);
     },
 
+    async countUserAnalyses(userId) {
+      // Served by the prefix of analyses_user_date_idx (user_id, date, scope).
+      const rows = await sql`select count(*)::int as n from analyses where user_id = ${userId}`;
+      return num(rows[0].n);
+    },
+
     async recordAnalysis(userId, date, scope) {
       await sql`insert into analyses (user_id, date, scope) values (${userId}, ${date}, ${scope})`;
     },

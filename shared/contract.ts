@@ -27,6 +27,7 @@ export const REFUSAL_STATUS = {
   "not-onboarded": 403,
   "not-food": 422,
   "cap-exceeded": 429,
+  "subscription-required": 402,
   "analysis-failed": 502,
 } as const;
 export type RefusalKind = keyof typeof REFUSAL_STATUS;
@@ -47,15 +48,19 @@ export interface Limits {
   maxUploadBytes: number;
   maxPhotosPerMeal: number;
   /**
-   * Photos this account may have analyzed today. THE freemium lever, so it is the one limit that
-   * differs between two users of the same server rather than between two servers.
-   *
-   * Sent for the ordinary reason every limit here is sent, and for one more: the app cannot work
-   * this number out. It depends on an entitlement the store granted and the server was told about
-   * by webhook, so a client computing it would be a client deciding its own tier. Zero means the
-   * cap is switched off entirely on this server, not that nothing is allowed.
+   * Photos an ENTITLED account may have analyzed today; zero means no daily cap on this server.
+   * Without an entitlement the number is moot — `sampleUsed` is the whole story — and it is sent
+   * unconditionally because the app must never work it out: the server decides the tier.
    */
   dailyPhotoCap: number;
+  /**
+   * Whether this account has spent its one sample analysis. There is no free tier: the sample is
+   * the onboarding's first verdict, and every analysis after it is refused with
+   * `subscription-required` until the RevenueCat webhook has written an entitlement. The app
+   * reads this beside `entitlement.active` to open the paywall on launch instead of on the first
+   * refusal — but the refusal is the authority, and the sheet is only its rendering.
+   */
+  sampleUsed: boolean;
 }
 
 /** Fallback only — see `Limits`. Total upload size, above which a large POST is a DoS. */

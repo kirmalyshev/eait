@@ -22,13 +22,13 @@ import { configDefaults, loadConfig, redact } from "./config.ts";
 const VARS = [
   "EAIT__BACKEND__DATABASE_URL", "EAIT__BACKEND__LLM_API_KEY", "EAIT__BACKEND__LLM_BASE_URL", "EAIT__BACKEND__LLM_TIMEOUT_MS", "EAIT__BACKEND__LLM_MODEL", "EAIT__BACKEND__LLM_PROVIDER",
   "EAIT__BACKEND__PENDING_TTL_MINUTES", "EAIT__BACKEND__MAX_UPLOAD_MB", "EAIT__BACKEND__MAX_PHOTOS_PER_MEAL", "EAIT__BACKEND__PORT", "EAIT__BACKEND__HOST", "EAIT__BACKEND__TZ_NAME",
-  "EAIT__BACKEND__USER_DAILY_PHOTO_CAP", "EAIT__BACKEND__GLOBAL_DAILY_ANALYSIS_CAP", "EAIT__BACKEND__APPLE_AUDIENCES", "EAIT__BACKEND__GOOGLE_AUDIENCES",
+  "EAIT__BACKEND__FREE_ANALYSES", "EAIT__BACKEND__GLOBAL_DAILY_ANALYSIS_CAP", "EAIT__BACKEND__APPLE_AUDIENCES", "EAIT__BACKEND__GOOGLE_AUDIENCES",
   "EAIT__BACKEND__SESSION_TTL_DAYS", "EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR", "EAIT__BACKEND__ANALYSIS_RATE_LIMIT_PER_DAY",
   "EAIT__BACKEND__SUBSCRIBE_RATE_LIMIT_PER_HOUR", "EAIT__BACKEND__SUBSCRIBE_DAILY_CAP", "EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS",
   "EAIT__BACKEND__ADMIN_TOKEN", "EAIT__BACKEND__MAIL_PROVIDER", "EAIT__BACKEND__MAIL_FROM", "EAIT__BACKEND__RESEND_API_KEY", "EAIT__BACKEND__RESEND_BASE_URL",
   "EAIT__BACKEND__MAIL_TIMEOUT_MS", "EAIT__BACKEND__PUBLIC_API_URL", "EAIT__BACKEND__LANDING_URL",
-  "EAIT__BACKEND__PAID_DAILY_PHOTO_CAP", "EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN",
-  "EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID",
+  "EAIT__BACKEND__PAID_DAILY_PHOTO_CAP", "EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN", "EAIT__BACKEND__REVENUECAT_ACCEPT_SANDBOX",
+  "EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID", "EAIT__BACKEND__USER_DAILY_PHOTO_CAP",
 ] as const;
 
 /** The two without defaults. Set for every test so `loadConfig` gets past its required checks. */
@@ -70,7 +70,7 @@ describe("loadConfig", () => {
       EAIT__BACKEND__PENDING_TTL_MINUTES: "5",
       EAIT__BACKEND__MAX_UPLOAD_MB: "8",
       EAIT__BACKEND__MAX_PHOTOS_PER_MEAL: "2",
-      EAIT__BACKEND__USER_DAILY_PHOTO_CAP: "3",
+      EAIT__BACKEND__FREE_ANALYSES: "3",
       EAIT__BACKEND__GLOBAL_DAILY_ANALYSIS_CAP: "7",
       EAIT__BACKEND__TZ_NAME: "America/New_York",
       EAIT__BACKEND__PORT: "9999",
@@ -82,7 +82,7 @@ describe("loadConfig", () => {
     expect(c.pendingTtlMs).toBe(5 * 60 * 1000);
     expect(c.maxUploadBytes).toBe(8 * 1024 * 1024);
     expect(c.maxPhotosPerMeal).toBe(2);
-    expect(c.userDailyPhotoCap).toBe(3);
+    expect(c.freeAnalyses).toBe(3);
     expect(c.globalDailyAnalysisCap).toBe(7);
     expect(c.timezone).toBe("America/New_York");
     expect(c.port).toBe(9999);
@@ -125,59 +125,31 @@ describe("redact", () => {
 // webhook, grants nobody anything, and gives every account the free cap — which is exactly what
 // every deployment did before any of this existed.
 describe("the paid tier", () => {
-  it("is dormant by default: no webhook, and the free cap for everyone", () => {
+  it("is dormant by default: no webhook, one sample analysis, sandbox refused", () => {
     withRequired();
     const c = loadConfig();
     expect(c.revenueCatWebhookToken).toBe("");
-    expect(c.userDailyPhotoCap).toBe(configDefaults().userDailyPhotoCap);
+    expect(c.freeAnalyses).toBe(1);
+    expect(c.revenueCatAcceptSandbox).toBe(false);
   });
 
-  it("reads both caps, and they are independent numbers", () => {
+  it("reads the sample size, the paid cap and the sandbox switch", () => {
     withRequired({
-      EAIT__BACKEND__USER_DAILY_PHOTO_CAP: "3",
+      EAIT__BACKEND__FREE_ANALYSES: "3",
       EAIT__BACKEND__PAID_DAILY_PHOTO_CAP: "99",
+      EAIT__BACKEND__REVENUECAT_ACCEPT_SANDBOX: "1",
     });
     const c = loadConfig();
-    expect(c.userDailyPhotoCap).toBe(3);
+    expect(c.freeAnalyses).toBe(3);
     expect(c.paidDailyPhotoCap).toBe(99);
+    expect(c.revenueCatAcceptSandbox).toBe(true);
   });
 
-  // The worst silent misconfiguration in a billing system: subscribing takes something away, and
-  // the only people who ever meet it are the ones paying. Zero means no cap, so the check reads
-  // backwards and is exactly why it is a check.
-  it("refuses a paid cap less generous than the free one", () => {
-    withRequired({
-      EAIT__BACKEND__USER_DAILY_PHOTO_CAP: "20",
-      EAIT__BACKEND__PAID_DAILY_PHOTO_CAP: "5",
-    });
-    expect(() => loadConfig()).toThrow(/less generous/);
-
-    // Unlimited free, capped paid — the case a naive `paid < free` comparison waves through.
-    withRequired({
-      EAIT__BACKEND__USER_DAILY_PHOTO_CAP: "0",
-      EAIT__BACKEND__PAID_DAILY_PHOTO_CAP: "200",
-    });
-    expect(() => loadConfig()).toThrow(/less generous/);
-  });
-
-  it("accepts equal caps, and an uncapped paid tier over a capped free one", () => {
-    withRequired({
-      EAIT__BACKEND__USER_DAILY_PHOTO_CAP: "20",
-      EAIT__BACKEND__PAID_DAILY_PHOTO_CAP: "20",
-    });
-    expect(loadConfig().paidDailyPhotoCap).toBe(20);
-
-    withRequired({
-      EAIT__BACKEND__USER_DAILY_PHOTO_CAP: "20",
-      EAIT__BACKEND__PAID_DAILY_PHOTO_CAP: "0",
-    });
-    expect(loadConfig().paidDailyPhotoCap).toBe(0);
-
-    withRequired({
-      EAIT__BACKEND__USER_DAILY_PHOTO_CAP: "0",
-      EAIT__BACKEND__PAID_DAILY_PHOTO_CAP: "0",
-    });
-    expect(loadConfig().userDailyPhotoCap).toBe(0);
+  // The old per-day free cap described a tier that no longer exists. Setting it must be a startup
+  // error, not a silently ignored variable on a host provisioned before the rename.
+  it("refuses the retired free daily cap", () => {
+    withRequired({ EAIT__BACKEND__USER_DAILY_PHOTO_CAP: "20" });
+    expect(() => loadConfig()).toThrow(/USER_DAILY_PHOTO_CAP/);
   });
 
   it("names which entitlement grants the tier, defaulting to pro", () => {

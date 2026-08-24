@@ -416,6 +416,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return analyses.filter((a) => a.date === date).length;
     },
 
+    async countUserAnalyses(userId) {
+      return analyses.filter((a) => a.userId === userId).length;
+    },
+
     async recordAnalysis(userId, date, scope) {
       analyses.push({ userId, date, scope });
     },

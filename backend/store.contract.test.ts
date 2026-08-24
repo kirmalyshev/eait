@@ -256,11 +256,18 @@ function contract(name: string, make: () => Promise<Store>) {
       const s = await open();
       const a = (await s.upsertDeviceUser(device(), "en")).userId;
       const b = (await s.upsertDeviceUser(device(), "en")).userId;
+      // A delta, not an absolute: the Postgres suite runs against a database other runs have used.
+      const before = await s.countGlobalAnalyses(RUN_DATE);
       await s.recordAnalysis(a, RUN_DATE, "photo");
       await s.recordAnalysis(a, RUN_DATE, "text");
       await s.recordAnalysis(b, RUN_DATE, "photo");
       expect(await s.countUserPhotos(a, RUN_DATE)).toBe(1); // text excluded
-      expect(await s.countGlobalAnalyses(RUN_DATE)).toBe(3);
+      // Lifetime, both scopes, every date: the sample is spent by whichever came first.
+      expect(await s.countUserAnalyses(a)).toBe(2);
+      await s.recordAnalysis(a, "2020-01-01", "photo");
+      expect(await s.countUserAnalyses(a)).toBe(3);
+      expect(await s.countUserAnalyses(b)).toBe(1);
+      expect(await s.countGlobalAnalyses(RUN_DATE)).toBe(before + 3);
     });
 
     // ── identities ────────────────────────────────────────────────────────────────────────────

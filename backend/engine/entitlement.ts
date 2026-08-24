@@ -1,7 +1,7 @@
 // The paid tier: what an account is entitled to, and how a store event becomes that.
 //
-// ONE RULE ABOVE THE OTHERS: the daily photo cap is decided HERE, by `dailyPhotoCap`, and nowhere
-// else. Two things need it — `checkCaps`, which refuses the request, and the profile's `limits`,
+// ONE RULE ABOVE THE OTHERS: the paid daily photo cap is decided HERE, by `dailyPhotoCap`, and
+// nowhere else. Two things need it — `checkCaps`, which refuses the request, and the profile's `limits`,
 // which tells the app what to show — and two independently-written copies of one number is the
 // failure this repo already documented for upload limits: the app says twelve photos left and the
 // server refuses at three, and the user meets that as a refusal after they have chosen a photo.
@@ -16,14 +16,13 @@ import type { StoredEntitlement } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 
 /**
- * The photos-per-day allowance for one account. The freemium lever, resolved in one place.
+ * The photos-per-day allowance of an ENTITLED account, resolved in one place.
  *
- * `active` is the answer from `entitlementActive`, never a raw expiry — passing the date in would
- * put a second "is it still live" comparison here, and the point of this function is that there is
- * only one of everything.
+ * There is no unentitled allowance to resolve: without an entitlement the account has the sample
+ * (`config.freeAnalyses`, checked in `checkCaps`) and nothing per day.
  */
-export function dailyPhotoCap(config: Config, active: boolean): number {
-  return active ? config.paidDailyPhotoCap : config.userDailyPhotoCap;
+export function dailyPhotoCap(config: Config): number {
+  return config.paidDailyPhotoCap;
 }
 
 /** This account's paid tier, in the shape the profile response carries. */
@@ -53,13 +52,15 @@ export interface RevenueCatEvent {
   productId: string;
   /** When the STORE generated the event. The ordering key — see `Store.putEntitlement`. */
   eventTimestampMs: number;
+  /** From `environment`: an App Store sandbox or Test Store purchase, not a real one. */
+  sandbox: boolean;
 }
 
 export type ApplyOutcome =
   /** Written. */
   | { applied: true }
   /** Read and deliberately ignored; `reason` is for the log, never for the caller's status code. */
-  | { applied: false; reason: "other-entitlement" | "no-expiry" | "not-applied" };
+  | { applied: false; reason: "other-entitlement" | "no-expiry" | "not-applied" | "sandbox" };
 
 /**
  * Fold one webhook delivery into this account's entitlement.
@@ -81,6 +82,10 @@ export async function applyRevenueCatEvent(
   if (!event.entitlementIds.includes(deps.config.revenueCatEntitlementId)) {
     return { applied: false, reason: "other-entitlement" };
   }
+
+  // A simulated purchase grants nothing real. Production never opts in; staging does, and that is
+  // the whole difference between the two webhooks in RevenueCat.
+  if (event.sandbox && !deps.config.revenueCatAcceptSandbox) return { applied: false, reason: "sandbox" };
 
   // No expiry means the event grants nothing that can lapse — a transfer, a billing issue, a
   // product change with no period attached. Writing a null would be indistinguishable from never

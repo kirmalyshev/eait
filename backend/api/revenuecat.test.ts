@@ -122,11 +122,11 @@ describe("a purchase", () => {
 
   // The whole point of the tier. The app is TOLD the number rather than computing it, and the
   // number it is told is the one `checkCaps` refuses with.
-  it("raises the daily photo cap the app is told about", async () => {
+  it("is what opens the account after the sample", async () => {
     const { userId, token } = await account();
-    expect((await profile(token)).limits.dailyPhotoCap).toBe(base.userDailyPhotoCap);
-    await deliver(purchase(userId));
     expect((await profile(token)).limits.dailyPhotoCap).toBe(base.paidDailyPhotoCap);
+    await deliver(purchase(userId));
+    expect((await profile(token)).entitlement.active).toBe(true);
   });
 
   it("lapses on its own once the expiry has passed", async () => {
@@ -136,11 +136,25 @@ describe("a purchase", () => {
     expect(after.entitlement.active).toBe(false);
     // Still reported, so a settings screen can say when it ended rather than pretending it never was.
     expect(after.entitlement.expiresAt).not.toBeNull();
-    expect(after.limits.dailyPhotoCap).toBe(base.userDailyPhotoCap);
   });
 });
 
 describe("deliveries this server ignores", () => {
+  // A Test Store or sandbox purchase is a simulated one. Accepting it in production would sell the
+  // tier for free to anybody with a development build; staging opts in explicitly.
+  it("ignores a SANDBOX event unless configured to accept one", async () => {
+    const { userId, token } = await account();
+    const res = await deliver(purchase(userId, { environment: "SANDBOX" }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, applied: false });
+    expect((await profile(token)).entitlement.active).toBe(false);
+
+    mount({ ...base, revenueCatWebhookToken: TOKEN, revenueCatAcceptSandbox: true });
+    const staged = await account();
+    await deliver(purchase(staged.userId, { environment: "SANDBOX" }));
+    expect((await profile(staged.token)).entitlement.active).toBe(true);
+  });
+
   // A project can carry a lifetime unlock or an internal comp alongside the paid tier. Treating
   // "any entitlement at all" as this one would sell the tier to whoever holds any of them.
   it("ignores an event about a different entitlement", async () => {
