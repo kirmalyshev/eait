@@ -1,7 +1,7 @@
 // Renders the landing page to a directory nginx can serve.
 //
-//   LANDING_SITE_URL=https://eait.fit \
-//   LANDING_TELEGRAM_URL=https://t.me/eait_bot \
+//   EAIT__BACKEND__LANDING_SITE_URL=https://eait.fit \
+//   EAIT__BACKEND__LANDING_TELEGRAM_URL=https://t.me/eait_bot \
 //   bun src/backend/landing/build.ts --out .build/landing
 //
 // Order matters and is the whole design of this file: config is validated, the page is rendered,
@@ -129,7 +129,7 @@ export async function buildLanding(
  */
 function robots(config: LandingConfig): string {
   if (!config.indexable) {
-    return "# Not the canonical deployment of this page. See LANDING_INDEXABLE.\nUser-agent: *\nDisallow: /\n";
+    return "# Not the canonical deployment of this page. See EAIT__BACKEND__LANDING_INDEXABLE.\nUser-agent: *\nDisallow: /\n";
   }
   return `User-agent: *\nAllow: /\nSitemap: ${config.siteUrl}/sitemap.xml\n`;
 }

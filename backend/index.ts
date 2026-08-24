@@ -9,9 +9,7 @@ import { adminTokenFromEnv, configDefaults, loadConfig, redact, type Config } fr
 import { AuthError, remoteVerifier, type IdentityVerifier } from "./auth/verify.ts";
 import { createRouter } from "./api/routes.ts";
 import { demoPorts } from "./llm/demo.ts";
-import { logMailer } from "./mail/log.ts";
-import type { Mailer } from "./mail/port.ts";
-import { resendMailer } from "./mail/resend.ts";
+import { chooseMailer } from "./mail/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import type { EngineDeps } from "./engine/index.ts";
 import { memoryStore } from "./store.memory.ts";
@@ -25,13 +23,13 @@ const demo = process.argv.includes("--demo");
 const config: Config = demo
   ? {
       ...configDefaults(),
-      port: Number(process.env.PORT ?? 8787),
-      host: process.env.HOST ?? "127.0.0.1",
+      port: Number(process.env.EAIT__BACKEND__PORT ?? 8787),
+      host: process.env.EAIT__BACKEND__HOST ?? "127.0.0.1",
       databaseUrl: "memory://demo",
       llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
       // Generous per user, unmetered globally: it is a local demo, not a public instance.
       userDailyPhotoCap: 100, globalDailyAnalysisCap: 0,
-      timezone: process.env.TZ_NAME ?? "Europe/Berlin",
+      timezone: process.env.EAIT__BACKEND__TZ_NAME ?? "Europe/Berlin",
       // Read from the environment here too, and validated by the same function: the admin is how
       // onboarding copy is edited, and "works in demo, untested in production" is the shape of
       // every configuration bug that ships.
@@ -39,7 +37,7 @@ const config: Config = demo
       // Same argument. The subscribe form's redirect is the one behaviour that cannot be checked
       // by reading the code — you have to POST the form and watch where the browser goes — and a
       // demo that always answered JSON would make that untestable outside production.
-      landingUrl: (process.env.LANDING_URL ?? "").replace(/\/$/, ""),
+      landingUrl: (process.env.EAIT__BACKEND__LANDING_URL ?? "").replace(/\/$/, ""),
     }
   : loadConfig();
 
@@ -50,31 +48,7 @@ const store: Store = demo
   ? memoryStore(storeOptions)
   : await postgresStore(config.databaseUrl, storeOptions);
 
-// The mailer, chosen once. `log` prints the confirmation link and never the recipient, which is
-// what makes the double-opt-in flow drivable with no vendor account; `resend` is the real one.
-const mailer: Mailer = config.mailProvider === "resend"
-  ? resendMailer({
-      apiKey: config.resendApiKey, from: config.mailFrom,
-      baseUrl: config.resendBaseUrl, timeoutMs: config.mailTimeoutMs,
-    })
-  : logMailer();
-
-// A production instance with a landing page and no real sender collects addresses that nobody can
-// confirm — the links go to a container log instead of an inbox, and the only symptom is a list
-// that silently stops growing. Loud at startup rather than discovered from an empty table.
-//
-// A LOCALHOST landing page is exempt, and that is not a loophole: printing the link is the
-// DESIRED behaviour there — it is what makes the double opt-in drivable with no vendor account —
-// and every worktree's dev backend has both settings by construction (`scripts/dev-env.ts` points
-// `LANDING_URL` at the local preview). A warning that fires on every ordinary start is a warning
-// nobody reads on the one start that matters.
-const landingIsLocal = /^https?:\/\/(localhost|127\.0\.0\.1)(:|$|\/)/.test(config.landingUrl);
-if (!demo && config.mailProvider === "log" && config.landingUrl !== "" && !landingIsLocal) {
-  console.warn(
-    "[ieat] MAIL_PROVIDER=log with a landing page configured: confirmation links are being PRINTED, "
-    + "not sent, so no subscriber can ever confirm. Set MAIL_PROVIDER=resend and RESEND_API_KEY.",
-  );
-}
+const mailer = chooseMailer(config, demo);
 
 // One sweep at startup, so a process that has been up for months and is then restarted does not
 // carry a table of rows that stopped meaning anything in between. Every later sweep rides along

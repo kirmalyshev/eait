@@ -88,54 +88,54 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
  * the refusals without mutating the process it runs in.
  */
 export function loadLandingConfig(env: Record<string, string | undefined>): LandingConfig {
-  const siteRaw = env.LANDING_SITE_URL?.trim();
+  const siteRaw = env.EAIT__BACKEND__LANDING_SITE_URL?.trim();
   if (!siteRaw) {
     throw new LandingConfigError(
-      "LANDING_SITE_URL is not set. There is no default: a canonical URL guessed wrong is worse " +
+      "EAIT__BACKEND__LANDING_SITE_URL is not set. There is no default: a canonical URL guessed wrong is worse " +
         "than one missing, because it is silently wrong in every search result and share card.",
     );
   }
-  const siteUrl = requireUrl("LANDING_SITE_URL", siteRaw);
+  const siteUrl = requireUrl("EAIT__BACKEND__LANDING_SITE_URL", siteRaw);
 
-  const storeRaw = env.LANDING_APP_STORE_URL?.trim();
+  const storeRaw = env.EAIT__BACKEND__LANDING_APP_STORE_URL?.trim();
   const appStoreUrl = storeRaw
-    ? requireUrl("LANDING_APP_STORE_URL", storeRaw, { hosts: [APP_STORE_HOST] })
+    ? requireUrl("EAIT__BACKEND__LANDING_APP_STORE_URL", storeRaw, { hosts: [APP_STORE_HOST] })
     : null;
 
-  const telegramRaw = env.LANDING_TELEGRAM_URL?.trim();
+  const telegramRaw = env.EAIT__BACKEND__LANDING_TELEGRAM_URL?.trim();
   const telegramUrl = telegramRaw
-    ? requireUrl("LANDING_TELEGRAM_URL", telegramRaw, { hosts: TELEGRAM_HOSTS })
+    ? requireUrl("EAIT__BACKEND__LANDING_TELEGRAM_URL", telegramRaw, { hosts: TELEGRAM_HOSTS })
     : null;
 
   // No API, no form. Rendering one that posts nowhere would be worse than not asking: it collects
   // an address, loses it, and shows an error to somebody who had already agreed.
-  const apiRaw = env.LANDING_API_URL?.trim();
-  const apiUrl = apiRaw ? requireUrl("LANDING_API_URL", apiRaw) : null;
+  const apiRaw = env.EAIT__BACKEND__LANDING_API_URL?.trim();
+  const apiUrl = apiRaw ? requireUrl("EAIT__BACKEND__LANDING_API_URL", apiRaw) : null;
 
   // The whole job of this page is one tap. Without a destination for it there is nothing to build.
   // The subscribe form counts: while nothing is released, leaving an address IS the product action.
   if (!appStoreUrl && !telegramUrl && !apiUrl) {
     throw new LandingConfigError(
-      "None of LANDING_APP_STORE_URL, LANDING_API_URL or LANDING_TELEGRAM_URL is set, so the page " +
+      "None of EAIT__BACKEND__LANDING_APP_STORE_URL, EAIT__BACKEND__LANDING_API_URL or EAIT__BACKEND__LANDING_TELEGRAM_URL is set, so the page " +
         "would render with no working call to action. Set at least one.",
     );
   }
 
-  const supportEmail = env.LANDING_SUPPORT_EMAIL?.trim() || "lets@eait.fit";
+  const supportEmail = env.EAIT__BACKEND__LANDING_SUPPORT_EMAIL?.trim() || "lets@eait.fit";
   if (!supportEmail.includes("@")) {
-    throw new LandingConfigError(`LANDING_SUPPORT_EMAIL is not an address: ${supportEmail}`);
+    throw new LandingConfigError(`EAIT__BACKEND__LANDING_SUPPORT_EMAIL is not an address: ${supportEmail}`);
   }
 
-  const updatedAt = env.LANDING_UPDATED?.trim() || DEFAULT_UPDATED_AT;
+  const updatedAt = env.EAIT__BACKEND__LANDING_UPDATED?.trim() || DEFAULT_UPDATED_AT;
   if (!DATE_RE.test(updatedAt)) {
-    throw new LandingConfigError(`LANDING_UPDATED must be YYYY-MM-DD (got ${updatedAt})`);
+    throw new LandingConfigError(`EAIT__BACKEND__LANDING_UPDATED must be YYYY-MM-DD (got ${updatedAt})`);
   }
 
   // Only the exact string "true" opts in. Not "1", not "yes", not a typo that happens to be
   // non-empty — the failure this guards against is a staging box quietly becoming indexable
   // because a variable was set to something truthy-looking, and that failure is discovered by
   // finding the staging hostname in a search result.
-  const indexable = env.LANDING_INDEXABLE?.trim().toLowerCase() === "true";
+  const indexable = env.EAIT__BACKEND__LANDING_INDEXABLE?.trim().toLowerCase() === "true";
 
   return { siteUrl, appStoreUrl, telegramUrl, supportEmail, updatedAt, indexable, apiUrl };
 }

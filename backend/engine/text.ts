@@ -14,7 +14,7 @@ import type { EngineDeps } from "./deps.ts";
 import { checkCaps } from "./caps.ts";
 import { applyCorrection, gatedVerdicts, sumTotals, toAnalysis } from "./meals.ts";
 
-// How long a proposed text meal stays confirmable is `config.pendingTtlMs` (`PENDING_TTL_MINUTES`),
+// How long a proposed text meal stays confirmable is `config.pendingTtlMs` (`EAIT__BACKEND__PENDING_TTL_MINUTES`),
 // read from deps at the point of use rather than frozen into a module constant here.
 
 /** Days of history handed to the router as context. */

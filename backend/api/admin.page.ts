@@ -87,7 +87,7 @@ export const ADMIN_PAGE = `<!doctype html>
 <div class="wrap gate" id="gate">
   <h1>ieat admin</h1>
   <p class="sub">Paste the admin token. It stays in this tab and is not written to disk.</p>
-  <input type="password" id="token" placeholder="ADMIN_TOKEN" autocomplete="off">
+  <input type="password" id="token" placeholder="admin token" autocomplete="off">
   <p id="gate-error" class="hidden" style="color:var(--bad);font-size:13px"></p>
   <p><button class="primary" id="unlock">Unlock</button></p>
 </div>

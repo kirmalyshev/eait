@@ -5,7 +5,7 @@
 //
 // Two things need them: the phone, which records the samples, and `scripts/perf-report.ts`, which
 // decides whether a run passed. A budget compiled into both is two numbers that must agree and
-// eventually will not — the same reasoning that puts `MAX_UPLOAD_MB` on the wire rather than in two
+// eventually will not — the same reasoning that puts `EAIT__BACKEND__MAX_UPLOAD_MB` on the wire rather than in two
 // constants. Here the file itself is the wire.
 //
 // WHAT THE TWO NUMBERS MEAN, AND WHY THERE ARE TWO
@@ -132,7 +132,7 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   // The permission sheet and the sample read both happen AFTER the first frame, deliberately: this
   // screen must draw its copy and its connect button without waiting on a native module.
   //
-  // WHAT THIS NUMBER DOES NOT COVER: the harness runs with EXPO_PUBLIC_HEALTH_FAKE=1, because the
+  // WHAT THIS NUMBER DOES NOT COVER: the harness runs with EXPO_PUBLIC_EAIT__FRONTEND__HEALTH_FAKE=1, because the
   // simulator has HealthKit and no Health app and a real read there is empty forever. The fake
   // source skips `loadHealthKit()`, so the one cost this budget never measures is importing the
   // native module on a real device. It is a bundled import rather than a network one, so it should

@@ -15,9 +15,9 @@ import {
 interface Options {
   apiKey: string;
   model: string;
-  /** Where the chat-completions call goes. From `LLM_BASE_URL`; the composition root supplies it. */
+  /** Where the chat-completions call goes. From `EAIT__BACKEND__LLM_BASE_URL`; the composition root supplies it. */
   baseUrl: string;
-  /** How long one call may hang. From `LLM_TIMEOUT_MS`. */
+  /** How long one call may hang. From `EAIT__BACKEND__LLM_TIMEOUT_MS`. */
   timeoutMs: number;
   /** Injected in tests so the ports can be exercised without a billed call. */
   fetchImpl?: typeof fetch;
