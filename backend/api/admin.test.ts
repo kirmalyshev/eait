@@ -16,7 +16,7 @@ import type { EngineDeps } from "../engine/index.ts";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
 import { createRouter } from "./routes.ts";
 
-const ADMIN_TOKEN = "test-admin-token-that-is-long-enough";
+const EAIT__BACKEND__ADMIN_TOKEN = "test-admin-token-that-is-long-enough";
 
 const verifier: IdentityVerifier = {
   async verify() { throw new AuthError("not-used-here"); },
@@ -39,7 +39,7 @@ function mount(config: Config) {
   handle = createRouter(deps, store, verifier);
 }
 
-const admin = (method: string, path: string, body?: unknown, token = ADMIN_TOKEN) =>
+const admin = (method: string, path: string, body?: unknown, token = EAIT__BACKEND__ADMIN_TOKEN) =>
   handle(new Request(url(path), {
     method,
     headers: {
@@ -62,7 +62,7 @@ async function session(): Promise<string> {
 describe("the admin is off unless configured", () => {
   beforeEach(() => { mount(base); });
 
-  it("404s every admin path when ADMIN_TOKEN is unset", async () => {
+  it("404s every admin path when EAIT__BACKEND__ADMIN_TOKEN is unset", async () => {
     // 404 rather than 403. "There is an admin here and you cannot have it" is information, and a
     // deployment that never set the variable should look like one that has no such feature.
     for (const path of ["/admin", "/admin/api/content", "/admin/api/funnel"]) {
@@ -73,7 +73,7 @@ describe("the admin is off unless configured", () => {
 });
 
 describe("the admin credential", () => {
-  beforeEach(() => { mount({ ...base, adminToken: ADMIN_TOKEN }); });
+  beforeEach(() => { mount({ ...base, adminToken: EAIT__BACKEND__ADMIN_TOKEN }); });
 
   it("serves the page without a token, because the page is where you type one", async () => {
     const res = await admin("GET", "/admin", undefined, "");
@@ -92,7 +92,7 @@ describe("the admin credential", () => {
     expect((await admin("GET", "/admin/api/content", undefined, "wrong")).status).toBe(401);
     // Including one that is a prefix of the real thing — the comparison is constant-time, and this
     // asserts the behaviour rather than the timing.
-    expect((await admin("GET", "/admin/api/content", undefined, ADMIN_TOKEN.slice(0, -1))).status).toBe(401);
+    expect((await admin("GET", "/admin/api/content", undefined, EAIT__BACKEND__ADMIN_TOKEN.slice(0, -1))).status).toBe(401);
   });
 
   it("refuses an ordinary user's bearer token", async () => {
@@ -116,7 +116,7 @@ describe("the admin credential", () => {
 });
 
 describe("editing the copy", () => {
-  beforeEach(() => { mount({ ...base, adminToken: ADMIN_TOKEN }); });
+  beforeEach(() => { mount({ ...base, adminToken: EAIT__BACKEND__ADMIN_TOKEN }); });
 
   it("saves a rewrite and serves it to the app", async () => {
     const content = structuredClone(DEFAULT_ONBOARDING_CONTENT);
@@ -190,7 +190,7 @@ describe("editing the copy", () => {
 });
 
 describe("the app's onboarding routes", () => {
-  beforeEach(() => { mount({ ...base, adminToken: ADMIN_TOKEN }); });
+  beforeEach(() => { mount({ ...base, adminToken: EAIT__BACKEND__ADMIN_TOKEN }); });
 
   it("needs a session", async () => {
     expect((await handle(new Request(url(ROUTES.onboarding)))).status).toBe(401);

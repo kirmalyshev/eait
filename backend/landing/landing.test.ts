@@ -20,9 +20,9 @@ import { KCAL_FLOOR } from "@ieat/shared";
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
 const ENV = {
-  LANDING_SITE_URL: "https://eait.fit",
-  LANDING_APP_STORE_URL: "https://apps.apple.com/app/id0000000000",
-  LANDING_TELEGRAM_URL: "https://t.me/eait_bot",
+  EAIT__BACKEND__LANDING_SITE_URL: "https://eait.fit",
+  EAIT__BACKEND__LANDING_APP_STORE_URL: "https://apps.apple.com/app/id0000000000",
+  EAIT__BACKEND__LANDING_TELEGRAM_URL: "https://t.me/eait_bot",
 };
 
 const config = loadLandingConfig(ENV);
@@ -30,25 +30,25 @@ const html = renderLanding(config);
 
 describe("config", () => {
   test("refuses a build with no canonical origin", () => {
-    expect(() => loadLandingConfig({ LANDING_TELEGRAM_URL: ENV.LANDING_TELEGRAM_URL })).toThrow(
+    expect(() => loadLandingConfig({ EAIT__BACKEND__LANDING_TELEGRAM_URL: ENV.EAIT__BACKEND__LANDING_TELEGRAM_URL })).toThrow(
       LandingConfigError,
     );
   });
 
   test("refuses a page with nothing to tap", () => {
-    expect(() => loadLandingConfig({ LANDING_SITE_URL: ENV.LANDING_SITE_URL })).toThrow(
+    expect(() => loadLandingConfig({ EAIT__BACKEND__LANDING_SITE_URL: ENV.EAIT__BACKEND__LANDING_SITE_URL })).toThrow(
       /no working call to action/,
     );
   });
 
   test("refuses cleartext for anything a stranger can reach", () => {
-    expect(() => loadLandingConfig({ ...ENV, LANDING_SITE_URL: "http://eait.fit" })).toThrow(
+    expect(() => loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_SITE_URL: "http://eait.fit" })).toThrow(
       /must be https/,
     );
   });
 
   test("allows http for a local preview", () => {
-    const local = loadLandingConfig({ ...ENV, LANDING_SITE_URL: "http://localhost:4173" });
+    const local = loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_SITE_URL: "http://localhost:4173" });
     expect(local.siteUrl).toBe("http://localhost:4173");
   });
 
@@ -56,38 +56,38 @@ describe("config", () => {
     // The failure this prevents: a shortener or a marketing redirect in the one link that has to
     // open the App Store app rather than a browser tab.
     expect(() =>
-      loadLandingConfig({ ...ENV, LANDING_APP_STORE_URL: "https://eait.fit/download" }),
+      loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_APP_STORE_URL: "https://eait.fit/download" }),
     ).toThrow(/apps\.apple\.com/);
   });
 
   test("refuses a bot link that is not a Telegram link", () => {
-    expect(() => loadLandingConfig({ ...ENV, LANDING_TELEGRAM_URL: "https://t.me.evil/eait" }))
+    expect(() => loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_TELEGRAM_URL: "https://t.me.evil/eait" }))
       .toThrow(/t\.me/);
   });
 
   test("the trailing slash is normalised away, so canonical URLs cannot double it", () => {
-    const trailing = loadLandingConfig({ ...ENV, LANDING_SITE_URL: "https://eait.fit/" });
+    const trailing = loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_SITE_URL: "https://eait.fit/" });
     expect(trailing.siteUrl).toBe("https://eait.fit");
   });
 
   test("the store link is primary when it exists", () => {
     // The store link goes out untouched: Apple takes campaign attribution through pt/ct provider
     // tokens, not a query string of ours.
-    expect(primaryCta(config, "hero").href).toBe(ENV.LANDING_APP_STORE_URL);
-    expect(secondaryCta(config, "hero")?.href).toBe(`${ENV.LANDING_TELEGRAM_URL}?start=web_hero`);
+    expect(primaryCta(config, "hero").href).toBe(ENV.EAIT__BACKEND__LANDING_APP_STORE_URL);
+    expect(secondaryCta(config, "hero")?.href).toBe(`${ENV.EAIT__BACKEND__LANDING_TELEGRAM_URL}?start=web_hero`);
   });
 
   test("before the listing exists the bot is primary, not a consolation link", () => {
     const preLaunch = loadLandingConfig({
-      LANDING_SITE_URL: ENV.LANDING_SITE_URL,
-      LANDING_TELEGRAM_URL: ENV.LANDING_TELEGRAM_URL,
+      EAIT__BACKEND__LANDING_SITE_URL: ENV.EAIT__BACKEND__LANDING_SITE_URL,
+      EAIT__BACKEND__LANDING_TELEGRAM_URL: ENV.EAIT__BACKEND__LANDING_TELEGRAM_URL,
     });
-    expect(primaryCta(preLaunch, "hero").href).toBe(`${ENV.LANDING_TELEGRAM_URL}?start=web_hero`);
+    expect(primaryCta(preLaunch, "hero").href).toBe(`${ENV.EAIT__BACKEND__LANDING_TELEGRAM_URL}?start=web_hero`);
     expect(secondaryCta(preLaunch, "hero")).toBeNull();
   });
 
   test("a copy-review date is a date", () => {
-    expect(() => loadLandingConfig({ ...ENV, LANDING_UPDATED: "yesterday" })).toThrow(/YYYY-MM-DD/);
+    expect(() => loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_UPDATED: "yesterday" })).toThrow(/YYYY-MM-DD/);
   });
 });
 
@@ -290,10 +290,10 @@ describe("indexing is opt-in per environment", () => {
   test("only the exact string \"true\" opts in", () => {
     // A staging box becoming indexable because a variable was set to something truthy-looking is
     // discovered by finding the staging hostname in a search result, weeks later.
-    expect(loadLandingConfig({ ...ENV, LANDING_INDEXABLE: "true" }).indexable).toBe(true);
-    expect(loadLandingConfig({ ...ENV, LANDING_INDEXABLE: "TRUE" }).indexable).toBe(true);
+    expect(loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_INDEXABLE: "true" }).indexable).toBe(true);
+    expect(loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_INDEXABLE: "TRUE" }).indexable).toBe(true);
     for (const value of ["1", "yes", "on", "", "ture", undefined]) {
-      expect(loadLandingConfig({ ...ENV, LANDING_INDEXABLE: value }).indexable).toBe(false);
+      expect(loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_INDEXABLE: value }).indexable).toBe(false);
     }
     expect(loadLandingConfig(ENV).indexable).toBe(false);
   });
@@ -306,7 +306,7 @@ describe("indexing is opt-in per environment", () => {
   });
 
   test("the production build carries no such meta", () => {
-    const indexed = renderLanding(loadLandingConfig({ ...ENV, LANDING_INDEXABLE: "true" }));
+    const indexed = renderLanding(loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_INDEXABLE: "true" }));
     expect(indexed).not.toContain('name="robots"');
   });
 });
@@ -324,7 +324,7 @@ describe("the build output", () => {
 
   test("an indexable build invites them and ships one", async () => {
     const dir = outDir();
-    const result = await buildLanding({ ...ENV, LANDING_INDEXABLE: "true" }, dir);
+    const result = await buildLanding({ ...ENV, EAIT__BACKEND__LANDING_INDEXABLE: "true" }, dir);
     const robots = readFileSync(join(dir, "robots.txt"), "utf8");
     expect(robots).toContain("Allow: /");
     expect(robots).toContain("Sitemap: https://eait.fit/sitemap.xml");
@@ -337,7 +337,7 @@ describe("the build output", () => {
     // build must serve the last good page rather than half of a new one.
     const dir = outDir();
     rmSync(dir, { recursive: true, force: true });
-    await expect(buildLanding({ ...ENV, LANDING_SITE_URL: "not-a-url" }, dir)).rejects.toThrow();
+    await expect(buildLanding({ ...ENV, EAIT__BACKEND__LANDING_SITE_URL: "not-a-url" }, dir)).rejects.toThrow();
     expect(existsSync(dir)).toBe(false);
   });
 });
@@ -392,8 +392,8 @@ describe("the page describes the surface its button opens", () => {
     // The page argues for an iPhone app and its only button opens Telegram. Saying so is the only
     // option consistent with the rest of it.
     const preLaunch = loadLandingConfig({
-      LANDING_SITE_URL: ENV.LANDING_SITE_URL,
-      LANDING_TELEGRAM_URL: ENV.LANDING_TELEGRAM_URL,
+      EAIT__BACKEND__LANDING_SITE_URL: ENV.EAIT__BACKEND__LANDING_SITE_URL,
+      EAIT__BACKEND__LANDING_TELEGRAM_URL: ENV.EAIT__BACKEND__LANDING_TELEGRAM_URL,
     });
     expect(surfaceNote(preLaunch)).toContain("not out yet");
     expect(renderLanding(preLaunch)).toContain("hero-surface");
@@ -448,7 +448,7 @@ describe("the founder line", () => {
 });
 
 describe("the mailing list on the page", () => {
-  const withApi = loadLandingConfig({ ...ENV, LANDING_API_URL: "https://api.eait.fit" });
+  const withApi = loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_API_URL: "https://api.eait.fit" });
   const withForm = renderLanding(withApi);
 
   test("no API means no form, rather than a form that posts nowhere", () => {
@@ -513,7 +513,7 @@ describe("the mailing list on the page", () => {
 
 describe("Spud", () => {
   const mascotSource = readFileSync(resolve(REPO_ROOT, MASCOT_SOURCE), "utf8");
-  const withApi = renderLanding(loadLandingConfig({ ...ENV, LANDING_API_URL: "https://api.eait.fit" }));
+  const withApi = renderLanding(loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_API_URL: "https://api.eait.fit" }));
 
   test("the potato on the web is the potato in the app", () => {
     // A subtly different potato on the page immediately before the App Store screenshots is worse
@@ -603,7 +603,7 @@ describe("search and LLM engines", () => {
 
   test("an indexable build ships llms.txt; a private one does not", async () => {
     const dir = outDir();
-    const result = await buildLanding({ ...ENV, LANDING_INDEXABLE: "true" }, dir);
+    const result = await buildLanding({ ...ENV, EAIT__BACKEND__LANDING_INDEXABLE: "true" }, dir);
     expect(result.files).toContain("llms.txt");
     const text = readFileSync(join(dir, "llms.txt"), "utf8");
     // The floor is the page's central safety fact; a summary for machines that omits it is a
@@ -625,8 +625,8 @@ describe("the email form is the primary action while nothing else exists", () =>
   // listing either, the ONE thing a visitor can do is leave an address — so the form is the
   // primary action, in the hero, not a section they have to find.
   const FORM_ENV = {
-    LANDING_SITE_URL: "https://eait.fit",
-    LANDING_API_URL: "https://api.eait.fit",
+    EAIT__BACKEND__LANDING_SITE_URL: "https://eait.fit",
+    EAIT__BACKEND__LANDING_API_URL: "https://api.eait.fit",
   };
   const formConfig = loadLandingConfig(FORM_ENV);
   const formHtml = renderLanding(formConfig);
@@ -637,7 +637,7 @@ describe("the email form is the primary action while nothing else exists", () =>
   });
 
   test("with nothing at all — no store, no bot, no form — the build still refuses", () => {
-    expect(() => loadLandingConfig({ LANDING_SITE_URL: "https://eait.fit" })).toThrow(
+    expect(() => loadLandingConfig({ EAIT__BACKEND__LANDING_SITE_URL: "https://eait.fit" })).toThrow(
       /no working call to action/,
     );
   });
@@ -663,14 +663,14 @@ describe("the email form is the primary action while nothing else exists", () =>
   test("the store link still wins outright when it exists", () => {
     const launched = loadLandingConfig({
       ...FORM_ENV,
-      LANDING_APP_STORE_URL: "https://apps.apple.com/app/id0000000000",
+      EAIT__BACKEND__LANDING_APP_STORE_URL: "https://apps.apple.com/app/id0000000000",
     });
     expect(primaryAction(launched)).toBe("store");
   });
 });
 
 describe("the form looks like the primary action when it is one", () => {
-  const FORM_ENV = { LANDING_SITE_URL: "https://eait.fit", LANDING_API_URL: "https://api.eait.fit" };
+  const FORM_ENV = { EAIT__BACKEND__LANDING_SITE_URL: "https://eait.fit", EAIT__BACKEND__LANDING_API_URL: "https://api.eait.fit" };
   const formHtml = renderLanding(loadLandingConfig(FORM_ENV));
 
   test("form mode dresses the submit button as the accent; store mode does not", () => {

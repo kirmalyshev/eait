@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // FOUR RULES, ALL OF THEM SECURITY
 //
-//  1. OFF BY DEFAULT. No `ADMIN_TOKEN` in the environment and every path here answers 404 — not
+//  1. OFF BY DEFAULT. No `EAIT__BACKEND__ADMIN_TOKEN` in the environment and every path here answers 404 — not
 //     403, because "there is an admin and you cannot have it" is information. A deployment that
 //     never sets the variable has no admin surface at all.
 //  2. ITS OWN CREDENTIAL. A user's bearer token is worthless here. `routes.ts` reaches this before

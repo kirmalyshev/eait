@@ -160,7 +160,7 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
       //
       // Handled before `resolveUserId` and never reachable with a user's bearer token — the two
       // are separate authorities, and an admin surface that accepts an ordinary session token is
-      // an admin surface every user has. Off entirely unless `ADMIN_TOKEN` is set.
+      // an admin surface every user has. Off entirely unless `EAIT__BACKEND__ADMIN_TOKEN` is set.
       if (pathname === "/admin" || pathname.startsWith("/admin/")) {
         return await adminRoutes(req, url, deps);
       }

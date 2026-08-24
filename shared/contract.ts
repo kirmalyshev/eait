@@ -33,7 +33,7 @@ export type RefusalKind = keyof typeof REFUSAL_STATUS;
 /**
  * The server's effective limits, as told to the client.
  *
- * These are ENV-CONFIGURED on the server (`MAX_UPLOAD_MB`, `MAX_PHOTOS_PER_MEAL`) and therefore
+ * These are ENV-CONFIGURED on the server (`EAIT__BACKEND__MAX_UPLOAD_MB`, `EAIT__BACKEND__MAX_PHOTOS_PER_MEAL`) and therefore
  * differ between environments — which is exactly why they are sent rather than compiled into the
  * app. A limit the server enforces and the client separately hardcodes is two numbers that must
  * agree, and the failure when they stop agreeing is a user picking four photos and being refused

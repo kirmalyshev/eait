@@ -60,13 +60,13 @@ ships, not edited live.
 ## The mailing list
 
 The one place this product holds an email address, and the reason it can go on saying the app does
-not. `LANDING_API_URL` renders the form; unset renders none, because a form whose action is missing
+not. `EAIT__BACKEND__LANDING_API_URL` renders the form; unset renders none, because a form whose action is missing
 collects an address at the moment somebody decided to give you one and loses it.
 
 It is a plain `<form method="post">` — the page has no JavaScript, so that is the only submit
 available. The browser navigates to the response, so `POST /v1/subscribe` answers **303** and sends
 it back to `/subscribed`, `/not-subscribed` or `/unsubscribed`, which are static pages in this same
-bundle. The API needs `LANDING_URL` for that; without it the routes answer JSON.
+bundle. The API needs `EAIT__BACKEND__LANDING_URL` for that; without it the routes answer JSON.
 
 Anti-spam is a honeypot field plus a global daily cap. Not a CAPTCHA: that is a third-party script
 on a page whose argument is that it loads none.
@@ -83,18 +83,18 @@ than guesses:
 
 | Variable | | Refused when |
 |---|---|---|
-| `LANDING_SITE_URL` | Canonical origin | Unset, or cleartext for anything but `localhost` |
-| `LANDING_APP_STORE_URL` | The listing, once it exists | Not an `apps.apple.com` URL |
-| `LANDING_TELEGRAM_URL` | The bot | Not a `t.me` URL |
-| `LANDING_SUPPORT_EMAIL` | Footer `mailto:` | Not an address |
-| `LANDING_UPDATED` | Copy-review date | Not `YYYY-MM-DD` |
-| `LANDING_INDEXABLE` | `"true"` opts this build into search indexing | Anything else means no |
-| `LANDING_API_URL` | Where the subscribe form posts | Unset renders no form at all |
+| `EAIT__BACKEND__LANDING_SITE_URL` | Canonical origin | Unset, or cleartext for anything but `localhost` |
+| `EAIT__BACKEND__LANDING_APP_STORE_URL` | The listing, once it exists | Not an `apps.apple.com` URL |
+| `EAIT__BACKEND__LANDING_TELEGRAM_URL` | The bot | Not a `t.me` URL |
+| `EAIT__BACKEND__LANDING_SUPPORT_EMAIL` | Footer `mailto:` | Not an address |
+| `EAIT__BACKEND__LANDING_UPDATED` | Copy-review date | Not `YYYY-MM-DD` |
+| `EAIT__BACKEND__LANDING_INDEXABLE` | `"true"` opts this build into search indexing | Anything else means no |
+| `EAIT__BACKEND__LANDING_API_URL` | Where the subscribe form posts | Unset renders no form at all |
 
 **With neither the store link nor the bot link set, the build fails.** A landing page whose only
 button goes nowhere is worse than no landing page. While the store link is empty the bot becomes the
 primary action — a real thing a visitor can do — rather than a greyed-out "coming soon", and the two
-swap places by themselves on the day `LANDING_APP_STORE_URL` is set.
+swap places by themselves on the day `EAIT__BACKEND__LANDING_APP_STORE_URL` is set.
 
 ## How it is served
 

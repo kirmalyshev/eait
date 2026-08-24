@@ -3,7 +3,7 @@
 // WHY THIS EXISTS. Every worktree gets its own database (see `scripts/dev-env.ts`), and a database
 // with no rows in it is a database you cannot look at: the diary is empty, the week view has
 // nothing to draw, and every screen that renders a meal renders the empty state instead. So each
-// database is seeded, and the app is TOLD which account to be — `EXPO_PUBLIC_DEV_DEVICE_ID` on the
+// database is seeded, and the app is TOLD which account to be — `EXPO_PUBLIC_EAIT__FRONTEND__DEV_DEVICE_ID` on the
 // phone side carries the pinned device id of one of these personas, so a build launches straight
 // into an account with a week of meals in it rather than into onboarding.
 //
@@ -94,7 +94,7 @@ export const SEED_PERSONAS: readonly SeedPersona[] = [
   },
 ];
 
-/** The persona `dev-env` pins into `EXPO_PUBLIC_DEV_DEVICE_ID` unless told otherwise. */
+/** The persona `dev-env` pins into `EXPO_PUBLIC_EAIT__FRONTEND__DEV_DEVICE_ID` unless told otherwise. */
 export const DEFAULT_SEED_PERSONA = "onboarded";
 
 export interface SeedOptions {

@@ -23,13 +23,13 @@ const demo = process.argv.includes("--demo");
 const config: Config = demo
   ? {
       ...configDefaults(),
-      port: Number(process.env.PORT ?? 8787),
-      host: process.env.HOST ?? "127.0.0.1",
+      port: Number(process.env.EAIT__BACKEND__PORT ?? 8787),
+      host: process.env.EAIT__BACKEND__HOST ?? "127.0.0.1",
       databaseUrl: "memory://demo",
       llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
       // Generous per user, unmetered globally: it is a local demo, not a public instance.
       userDailyPhotoCap: 100, globalDailyAnalysisCap: 0,
-      timezone: process.env.TZ_NAME ?? "Europe/Berlin",
+      timezone: process.env.EAIT__BACKEND__TZ_NAME ?? "Europe/Berlin",
       // Read from the environment here too, and validated by the same function: the admin is how
       // onboarding copy is edited, and "works in demo, untested in production" is the shape of
       // every configuration bug that ships.
@@ -37,7 +37,7 @@ const config: Config = demo
       // Same argument. The subscribe form's redirect is the one behaviour that cannot be checked
       // by reading the code — you have to POST the form and watch where the browser goes — and a
       // demo that always answered JSON would make that untestable outside production.
-      landingUrl: (process.env.LANDING_URL ?? "").replace(/\/$/, ""),
+      landingUrl: (process.env.EAIT__BACKEND__LANDING_URL ?? "").replace(/\/$/, ""),
     }
   : loadConfig();
 

@@ -5,7 +5,7 @@
 // that way for weeks, the boot warning fired once into a log nobody read, and every visitor who
 // left an address was sent to "check your email" for a link that went to a container. So behind a
 // public page the log provider does not print; it throws, the visitor lands on /try-later, and the
-// operator gets one error line per submission until MAIL_PROVIDER=resend is set. The process still
+// operator gets one error line per submission until EAIT__BACKEND__MAIL_PROVIDER=resend is set. The process still
 // starts, because the app's API is the same process and a phone must not lose its diary over a
 // mailing list.
 
@@ -35,12 +35,12 @@ export function chooseMailer(config: MailConfig, demo: boolean): Mailer {
   if (config.landingUrl === "" || LOCAL_LANDING.test(config.landingUrl)) return logMailer();
 
   console.warn(
-    "[ieat] MAIL_PROVIDER=log with a public landing page: every subscribe submission will be "
-    + "refused (/try-later) until MAIL_PROVIDER=resend and RESEND_API_KEY are set.",
+    "[ieat] EAIT__BACKEND__MAIL_PROVIDER=log with a public landing page: every subscribe submission will be "
+    + "refused (/try-later) until EAIT__BACKEND__MAIL_PROVIDER=resend and EAIT__BACKEND__RESEND_API_KEY are set.",
   );
   return {
     async sendConfirmation() {
-      throw new Error("MAIL_PROVIDER=log with a public landing page: no confirmation was sent");
+      throw new Error("EAIT__BACKEND__MAIL_PROVIDER=log with a public landing page: no confirmation was sent");
     },
   };
 }

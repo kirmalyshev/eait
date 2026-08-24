@@ -240,66 +240,66 @@ export function configDefaults(): Config {
 export function loadConfig(): Config {
   const d = configDefaults();
 
-  const maxPhotosPerMeal = int("MAX_PHOTOS_PER_MEAL", d.maxPhotosPerMeal);
-  if (maxPhotosPerMeal < 1) throw new Error("[ieat] MAX_PHOTOS_PER_MEAL must be at least 1");
+  const maxPhotosPerMeal = int("EAIT__BACKEND__MAX_PHOTOS_PER_MEAL", d.maxPhotosPerMeal);
+  if (maxPhotosPerMeal < 1) throw new Error("[ieat] EAIT__BACKEND__MAX_PHOTOS_PER_MEAL must be at least 1");
 
   // Zero passes `int` — it is a non-negative integer — and would expire every token the instant it
   // was issued, which presents as an app that cannot stay signed in and as nothing in any log.
-  const sessionTtlDays = int("SESSION_TTL_DAYS", d.sessionTtlDays);
-  if (sessionTtlDays < 1) throw new Error("[ieat] SESSION_TTL_DAYS must be at least 1");
+  const sessionTtlDays = int("EAIT__BACKEND__SESSION_TTL_DAYS", d.sessionTtlDays);
+  if (sessionTtlDays < 1) throw new Error("[ieat] EAIT__BACKEND__SESSION_TTL_DAYS must be at least 1");
 
-  const subscribeConfirmTtlDays = int("SUBSCRIBE_CONFIRM_TTL_DAYS", d.subscribeConfirmTtlDays);
+  const subscribeConfirmTtlDays = int("EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS", d.subscribeConfirmTtlDays);
   if (subscribeConfirmTtlDays < 1) {
-    throw new Error("[ieat] SUBSCRIBE_CONFIRM_TTL_DAYS must be at least 1");
+    throw new Error("[ieat] EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS must be at least 1");
   }
 
   // An unknown provider is a STARTUP ERROR, not a fallback to `log`. Falling back would mean a
   // typo in a deploy variable produced a server that quietly printed confirmation links into a
   // container log instead of sending them, and the only symptom is a list that stops growing.
-  const mailProvider = (process.env.MAIL_PROVIDER ?? d.mailProvider) as Config["mailProvider"];
+  const mailProvider = (process.env.EAIT__BACKEND__MAIL_PROVIDER ?? d.mailProvider) as Config["mailProvider"];
   if (mailProvider !== "log" && mailProvider !== "resend") {
-    throw new Error(`[ieat] MAIL_PROVIDER must be "log" or "resend", not "${mailProvider}"`);
+    throw new Error(`[ieat] EAIT__BACKEND__MAIL_PROVIDER must be "log" or "resend", not "${mailProvider}"`);
   }
-  if (mailProvider === "resend" && !process.env.RESEND_API_KEY) {
-    throw new Error("[ieat] MAIL_PROVIDER=resend needs RESEND_API_KEY");
+  if (mailProvider === "resend" && !process.env.EAIT__BACKEND__RESEND_API_KEY) {
+    throw new Error("[ieat] EAIT__BACKEND__MAIL_PROVIDER=resend needs EAIT__BACKEND__RESEND_API_KEY");
   }
 
   return {
     ...d,
-    port: int("PORT", d.port),
-    host: process.env.HOST ?? d.host,
-    databaseUrl: required("DATABASE_URL"),
-    llmProvider: process.env.LLM_PROVIDER ?? d.llmProvider,
-    llmModel: process.env.LLM_MODEL ?? d.llmModel,
-    llmApiKey: required("LLM_API_KEY"),
-    llmBaseUrl: process.env.LLM_BASE_URL ?? d.llmBaseUrl,
-    llmTimeoutMs: int("LLM_TIMEOUT_MS", d.llmTimeoutMs),
-    userDailyPhotoCap: int("USER_DAILY_PHOTO_CAP", d.userDailyPhotoCap),
-    globalDailyAnalysisCap: int("GLOBAL_DAILY_ANALYSIS_CAP", d.globalDailyAnalysisCap),
-    timezone: process.env.TZ_NAME ?? d.timezone,
-    pendingTtlMs: int("PENDING_TTL_MINUTES", d.pendingTtlMs / 60_000) * 60 * 1000,
+    port: int("EAIT__BACKEND__PORT", d.port),
+    host: process.env.EAIT__BACKEND__HOST ?? d.host,
+    databaseUrl: required("EAIT__BACKEND__DATABASE_URL"),
+    llmProvider: process.env.EAIT__BACKEND__LLM_PROVIDER ?? d.llmProvider,
+    llmModel: process.env.EAIT__BACKEND__LLM_MODEL ?? d.llmModel,
+    llmApiKey: required("EAIT__BACKEND__LLM_API_KEY"),
+    llmBaseUrl: process.env.EAIT__BACKEND__LLM_BASE_URL ?? d.llmBaseUrl,
+    llmTimeoutMs: int("EAIT__BACKEND__LLM_TIMEOUT_MS", d.llmTimeoutMs),
+    userDailyPhotoCap: int("EAIT__BACKEND__USER_DAILY_PHOTO_CAP", d.userDailyPhotoCap),
+    globalDailyAnalysisCap: int("EAIT__BACKEND__GLOBAL_DAILY_ANALYSIS_CAP", d.globalDailyAnalysisCap),
+    timezone: process.env.EAIT__BACKEND__TZ_NAME ?? d.timezone,
+    pendingTtlMs: int("EAIT__BACKEND__PENDING_TTL_MINUTES", d.pendingTtlMs / 60_000) * 60 * 1000,
     // Expressed in megabytes because that is how anyone setting it thinks about it.
-    maxUploadBytes: int("MAX_UPLOAD_MB", d.maxUploadBytes / (1024 * 1024)) * 1024 * 1024,
+    maxUploadBytes: int("EAIT__BACKEND__MAX_UPLOAD_MB", d.maxUploadBytes / (1024 * 1024)) * 1024 * 1024,
     maxPhotosPerMeal,
     sessionTtlDays,
-    authRateLimitPerHour: int("AUTH_RATE_LIMIT_PER_HOUR", d.authRateLimitPerHour),
-    analysisRateLimitPerDay: int("ANALYSIS_RATE_LIMIT_PER_DAY", d.analysisRateLimitPerDay),
-    subscribeRateLimitPerHour: int("SUBSCRIBE_RATE_LIMIT_PER_HOUR", d.subscribeRateLimitPerHour),
-    healthSyncRateLimitPerHour: int("HEALTH_SYNC_RATE_LIMIT_PER_HOUR", d.healthSyncRateLimitPerHour),
-    appleAudiences: list("APPLE_AUDIENCES"),
-    googleAudiences: list("GOOGLE_AUDIENCES"),
+    authRateLimitPerHour: int("EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR", d.authRateLimitPerHour),
+    analysisRateLimitPerDay: int("EAIT__BACKEND__ANALYSIS_RATE_LIMIT_PER_DAY", d.analysisRateLimitPerDay),
+    subscribeRateLimitPerHour: int("EAIT__BACKEND__SUBSCRIBE_RATE_LIMIT_PER_HOUR", d.subscribeRateLimitPerHour),
+    healthSyncRateLimitPerHour: int("EAIT__BACKEND__HEALTH_SYNC_RATE_LIMIT_PER_HOUR", d.healthSyncRateLimitPerHour),
+    appleAudiences: list("EAIT__BACKEND__APPLE_AUDIENCES"),
+    googleAudiences: list("EAIT__BACKEND__GOOGLE_AUDIENCES"),
     adminToken: adminTokenFromEnv(),
-    subscribeDailyCap: int("SUBSCRIBE_DAILY_CAP", d.subscribeDailyCap),
+    subscribeDailyCap: int("EAIT__BACKEND__SUBSCRIBE_DAILY_CAP", d.subscribeDailyCap),
     subscribeConfirmTtlDays: subscribeConfirmTtlDays,
     mailProvider,
-    mailFrom: process.env.MAIL_FROM ?? d.mailFrom,
-    resendApiKey: process.env.RESEND_API_KEY ?? d.resendApiKey,
-    resendBaseUrl: (process.env.RESEND_BASE_URL ?? d.resendBaseUrl).replace(/\/$/, ""),
-    mailTimeoutMs: int("MAIL_TIMEOUT_MS", d.mailTimeoutMs),
-    publicApiUrl: (process.env.PUBLIC_API_URL ?? d.publicApiUrl).replace(/\/$/, ""),
+    mailFrom: process.env.EAIT__BACKEND__MAIL_FROM ?? d.mailFrom,
+    resendApiKey: process.env.EAIT__BACKEND__RESEND_API_KEY ?? d.resendApiKey,
+    resendBaseUrl: (process.env.EAIT__BACKEND__RESEND_BASE_URL ?? d.resendBaseUrl).replace(/\/$/, ""),
+    mailTimeoutMs: int("EAIT__BACKEND__MAIL_TIMEOUT_MS", d.mailTimeoutMs),
+    publicApiUrl: (process.env.EAIT__BACKEND__PUBLIC_API_URL ?? d.publicApiUrl).replace(/\/$/, ""),
     // No validation beyond "looks like an origin": a wrong value here sends somebody to the wrong
     // page, which is visible, rather than corrupting anything, which is not.
-    landingUrl: (process.env.LANDING_URL ?? d.landingUrl).replace(/\/$/, ""),
+    landingUrl: (process.env.EAIT__BACKEND__LANDING_URL ?? d.landingUrl).replace(/\/$/, ""),
   };
 }
 
@@ -315,9 +315,9 @@ export function loadConfig(): Config {
  * tested path is the one nobody ships.
  */
 export function adminTokenFromEnv(): string {
-  const raw = process.env.ADMIN_TOKEN ?? "";
+  const raw = process.env.EAIT__BACKEND__ADMIN_TOKEN ?? "";
   if (raw !== "" && raw.length < 24) {
-    throw new Error("[ieat] ADMIN_TOKEN must be at least 24 characters (or unset to disable /admin)");
+    throw new Error("[ieat] EAIT__BACKEND__ADMIN_TOKEN must be at least 24 characters (or unset to disable /admin)");
   }
   return raw;
 }

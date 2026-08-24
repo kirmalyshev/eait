@@ -127,12 +127,12 @@ describe("chooseMailer", () => {
   });
 
   it("refuses to pretend a link was sent when the landing page is public", async () => {
-    // eait.fit ran for weeks with MAIL_PROVIDER=log: the boot warning fired, nobody read it, and
+    // eait.fit ran for weeks with EAIT__BACKEND__MAIL_PROVIDER=log: the boot warning fired, nobody read it, and
     // every visitor was sent to "check your email" for a link that went to a container log. A send
     // that fails routes the visitor to /try-later and puts an error in the log per submission.
     await quiet(async () => {
       const mailer = chooseMailer({ ...base, landingUrl: "https://eait.fit" }, false);
-      await expect(mailer.sendConfirmation("reader@example.com", URL_)).rejects.toThrow(/MAIL_PROVIDER=log/);
+      await expect(mailer.sendConfirmation("reader@example.com", URL_)).rejects.toThrow(/EAIT__BACKEND__MAIL_PROVIDER=log/);
       try {
         await mailer.sendConfirmation("reader@example.com", URL_);
       } catch (e) {
