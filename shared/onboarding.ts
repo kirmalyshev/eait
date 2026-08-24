@@ -329,9 +329,11 @@ export interface OnboardingScreenContent {
  * pattern: the harder a paywall sits in front of first value, the more the reviews reach for
  * "scam", "misleading", "tricked".
  *
- * This app has no paywall, no trial, no card and no email field. That is not a feature to defend,
- * it is the absence of the thing the whole category is being complained about — so the front door
- * states it plainly and moves on.
+ * This app has no email field and never will. It DOES get a paywall (decision 2026-08-24,
+ * marketing/DECISIONS.md): at the very end, after the first photo's verdict, behind a 7-day trial —
+ * never in front of the number or the first verdict, which is what §3 says must not be withheld. The shipped content below still
+ * describes the pre-paywall flow; the chat onboarding design in product/design/onboarding/ is the
+ * target, and its welcome says "no email, no name" rather than "no card".
  *
  * TWO RULES ON THE WORDING, both from §5 of that doc and both enforced by a test:
  *   - never name a competitor. All seven have the complaint; naming one invites a fair-comparison
