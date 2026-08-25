@@ -21,10 +21,23 @@ export interface Entitlement {
   active: boolean;
   /** ISO instant, or null when this account has never had an entitlement at all. */
   expiresAt: string | null;
+  /**
+   * Whether the CURRENT period is a free trial rather than a paid one.
+   *
+   * The store knows and nothing else can work it out: an expiry seven days out and an expiry a year
+   * out are the same shape, and two days before a yearly renewal looks exactly like two days before
+   * a trial ends. Without this the trial reminders fire before every renewal — telling somebody who
+   * pays that "the free week ends" and that they can stop it and pay nothing.
+   *
+   * False for an account that has never bought anything, and false for a stored entitlement written
+   * before this field existed. That is the safe direction: the failure is a reminder that does not
+   * arrive, not a wrong one that does.
+   */
+  trial: boolean;
 }
 
 /** What an account that has never purchased looks like. The overwhelmingly common case. */
-export const NO_ENTITLEMENT: Entitlement = { active: false, expiresAt: null };
+export const NO_ENTITLEMENT: Entitlement = { active: false, expiresAt: null, trial: false };
 
 /**
  * Whether a failed analysis just spent the free sample. A cap is charged before the model is asked

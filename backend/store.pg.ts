@@ -13,8 +13,8 @@
 
 import { SQL } from "bun";
 import type {
-  DayTotals, HealthDay, Lang, MealItem, MealRecord, MealVerdicts, OnboardingContent, Profile,
-  Provider,
+  DayTotals, HealthDay, Lang, MealItem, MealRecord, MealVerdicts, NotificationCopy,
+  OnboardingContent, Profile, Provider,
 } from "@ieat/shared";
 import { HEALTH_FIELDS, emptyHealthDay } from "@ieat/shared";
 import {
@@ -22,7 +22,7 @@ import {
 } from "./auth/tokens.ts";
 import { type ChatMessage,
   blankProfile, type FunnelAggregate, type MealPatch, type PendingMeal, type ProfilePatch,
-  type Store, type StoreOptions,
+  type PushPlatform, type Store, type StoreOptions,
 } from "./store.ts";
 
 /**
@@ -94,6 +94,10 @@ alter table users add column if not exists entitlement_product_id text;
 -- When Spud spoke the first verdict. Null until then; the claim is one atomic update.
 alter table users add column if not exists first_verdict_at timestamptz;
 alter table users add column if not exists entitlement_event_at   timestamptz;
+-- Whether the CURRENT period is a free trial. Defaults false, which is what a row written before
+-- this column existed reads as -- and false is the safe direction: a trial reminder that never
+-- arrives beats one telling somebody who pays that "the free week ends".
+alter table users add column if not exists entitlement_trial boolean not null default false;
 
 -- Bearer tokens, as SHA-256 hashes.
 --
@@ -271,6 +275,32 @@ drop index if exists chat_messages_meal_idx;
 alter table chat_messages add column if not exists client_id text;
 alter table chat_messages add column if not exists pending_id uuid;
 create index if not exists chat_messages_user_seq_idx on chat_messages(user_id, seq desc);
+
+-- Push tokens. ONE ROW PER DEVICE, keyed on the token itself rather than on (user, token).
+--
+-- That is what an Expo push token is: an installation. Keying on the pair would let the same phone
+-- hold rows for two accounts, and the evening sweep would then push one person's day to the lock
+-- screen of somebody who had signed out of it. The upsert MOVES the row instead.
+--
+-- Cascades with the user, like everything else that names a device. A token this server keeps is a
+-- message it will try to send.
+create table if not exists push_tokens (
+  token      text primary key,
+  user_id    uuid not null references users(id) on delete cascade,
+  platform   text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists push_tokens_user_idx on push_tokens(user_id);
+
+-- The admin-edited notification copy. ONE row, pinned to id = 1, exactly like onboarding_content.
+-- Its own table rather than a field on that one: two admin screens, and a save of either must not
+-- be able to overwrite the other's work.
+create table if not exists notification_copy (
+  id         integer primary key check (id = 1),
+  copy       jsonb not null,
+  updated_at timestamptz not null default now()
+);
 
 -- The mailing list, from the landing page.
 --
@@ -708,6 +738,15 @@ export async function postgresStore(
         // identities only, and repointing one would let plain device auth walk back into the full
         // account after a sign-out. Matches `store.memory.ts`; a test asserts the behaviour.
         await tx`delete from identities where user_id = ${fromUserId}`;
+        // The DEVICE moves with the account. A push token is an address, not a credential: the same
+        // phone is now signed into the real account, so its evening line belongs there. It is the
+        // opposite decision from the bearer tokens below, and for the opposite reason — moving a
+        // credential would let a signed-out session back in, while moving an address is the whole
+        // point of a merge. Deleting it instead would cost the user their 20:30 line until their next
+        // launch; leaving it on the emptied account would send that account's numbers to a phone
+        // whose owner has since signed in as somebody else.
+        await tx`update push_tokens set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+
         // Tokens are deleted, not moved: a token that pointed at the now-empty account must stop
         // working rather than silently start addressing someone else's diary.
         await tx`delete from tokens where user_id = ${fromUserId}`;
@@ -757,7 +796,7 @@ export async function postgresStore(
 
     async getEntitlement(userId) {
       const rows = await sql`
-        select entitlement_expires_at, entitlement_product_id, entitlement_event_at
+        select entitlement_expires_at, entitlement_product_id, entitlement_event_at, entitlement_trial
         from users where id = ${userId}`;
       const r = rows[0];
       if (!r || !r.entitlement_expires_at || !r.entitlement_event_at) return null;
@@ -765,6 +804,7 @@ export async function postgresStore(
         expiresAt: new Date(r.entitlement_expires_at as string).toISOString(),
         productId: (r.entitlement_product_id as string | null) ?? "",
         eventAt: new Date(r.entitlement_event_at as string).toISOString(),
+        trial: r.entitlement_trial === true,
       };
     },
 
@@ -777,7 +817,8 @@ export async function postgresStore(
         update users set
           entitlement_expires_at = ${new Date(entitlement.expiresAt)},
           entitlement_product_id = ${entitlement.productId},
-          entitlement_event_at   = ${eventAt}
+          entitlement_event_at   = ${eventAt},
+          entitlement_trial      = ${entitlement.trial === true}
         where id = ${userId}
           and (entitlement_event_at is null or entitlement_event_at < ${eventAt})
         returning id`;
@@ -788,6 +829,19 @@ export async function postgresStore(
       const rows = await sql`select content from onboarding_content where id = 1`;
       if (rows.length === 0) return null;
       return json<OnboardingContent | null>(rows[0].content, null);
+    },
+
+    async getNotificationCopy() {
+      const rows = await sql`select copy from notification_copy where id = 1`;
+      if (rows.length === 0) return null;
+      return json<NotificationCopy | null>(rows[0].copy, null);
+    },
+
+    async putNotificationCopy(copy) {
+      await sql`
+        insert into notification_copy (id, copy, updated_at)
+        values (1, ${JSON.stringify(copy)}::jsonb, now())
+        on conflict (id) do update set copy = excluded.copy, updated_at = now()`;
     },
 
     async putOnboardingContent(content) {
@@ -1030,6 +1084,36 @@ export async function postgresStore(
       return rows.length > 0;
     },
 
+    async putPushToken(userId, token, platform) {
+      // The token is the key, so a device that signs into another account MOVES rather than
+      // duplicating. `updated_at` is what a future sweep of dead installations would read.
+      await sql`
+        insert into push_tokens (token, user_id, platform, created_at, updated_at)
+        values (${token}, ${userId}, ${platform}, ${new Date(now())}, ${new Date(now())})
+        on conflict (token) do update
+          set user_id = excluded.user_id, platform = excluded.platform, updated_at = excluded.updated_at`;
+    },
+
+    async dropPushToken(userId, token) {
+      const rows = await sql`
+        delete from push_tokens where token = ${token} and user_id = ${userId} returning token`;
+      return rows.length > 0;
+    },
+
+    async pushTokensFor(userId) {
+      const rows = await sql`
+        select token, platform from push_tokens where user_id = ${userId} order by created_at`;
+      return (rows as Record<string, unknown>[]).map((r) => ({
+        token: r.token as string,
+        platform: r.platform as PushPlatform,
+      }));
+    },
+
+    async usersWithPushTokens() {
+      const rows = await sql`select distinct user_id from push_tokens`;
+      return (rows as Record<string, unknown>[]).map((r) => r.user_id as string);
+    },
+
     async appendChat(userId, lines) {
       if (lines.length === 0) return;
       // One transaction, and the account's row locked for its length: a bubble and its card land
@@ -1135,7 +1219,7 @@ export async function postgresStore(
     },
 
     async deleteUser(userId) {
-      // `on delete cascade` clears tokens, meals, pendings, analyses, the chat thread AND onboarding events with the
+      // `on delete cascade` clears tokens, push tokens, meals, pendings, analyses, the chat thread AND onboarding events with the
       // row. The last one is deliberate — see the note on `deleteUser` in the port.
       await sql`delete from users where id = ${userId}`;
     },

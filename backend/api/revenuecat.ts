@@ -51,7 +51,7 @@ const epochMs = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= MAX_EPOCH_MS ? v : null;
 
 /**
- * A delivery, narrowed to the five fields this server acts on, or null if it is not one.
+ * A delivery, narrowed to the six fields this server acts on, or null if it is not one.
  *
  * THE `app_user_id` QUESTION. Every other route in this API resolves a user from credentials and
  * would be broken by taking one from a body. This one takes it from the body because that is
@@ -94,6 +94,9 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent | null {
     // `applyRevenueCatEvent` handles "no expiry" by leaving the stored state alone.
     expirationAtMs: epochMs(e.expiration_at_ms),
     productId: typeof e.product_id === "string" ? e.product_id : "",
+    // TRIAL is the free week; NORMAL is a paid period, and INTRO/PROMOTIONAL are discounted paid
+    // ones. Only the first is what step 18 sold and what the two reminders are addressed at.
+    trial: e.period_type === "TRIAL",
     eventTimestampMs,
     sandbox: e.environment === "SANDBOX",
   };

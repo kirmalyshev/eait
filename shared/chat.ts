@@ -18,6 +18,18 @@ export const SCRIPTED_LINES = {
   /** Step 18 · the trial started. `price` is StoreKit's string for the chosen plan. */
   "trial-started": "Trial's on. Seven days, then {price} unless you stop it — I'll remind you on day five and the day before it ends, never the day after.",
   "trial-day-one": "Your first day is started. At 20:30 you get one line — today against the plan, and one concrete thing for tomorrow. Nothing before that.",
+  /**
+   * Step 18 · before iOS asks for notifications, once, after the trial starts.
+   *
+   * The camera primer's pattern from § Step 16: say what the permission is for, and what the
+   * limit is, BEFORE the OS dialog — because the OS dialog is asked once and a refusal there is
+   * final. What it promises is R1's budget, which `dailyMessage` in `notifications.ts` enforces.
+   *
+   * "if you're on it" is load-bearing. The ask fires for any live entitlement, and a RESTORED
+   * purchase has no trial — `reminderPlan` schedules nothing for it, so a sentence promising two
+   * reminders would be describing messages that are not coming.
+   */
+  "notify-primer": "One more thing iOS is about to ask about: notifications. One a day and never more — the 20:30 line, plus two reminders before the free week ends if you're on it. Nothing else, ever.",
   /** Step 18 · a restored purchase. */
   "restored": "Restored — you're in. A photo or a sentence both log a meal.",
   /** Step 16 · before the OS asks for the camera, once. */
@@ -49,6 +61,7 @@ const neutral = (text: string): string => text.replace(/[“”"]/g, "'").replac
 export const SCRIPTED_PARAMS: Record<ScriptedLineId, readonly string[]> = {
   "camera-closed": [], "trial-started": ["price"], "trial-day-one": [], "restored": [],
   "camera-denied": [], "onboarding-done": [], "dropped": [], "camera-primer": [], "fix-prompt": [], "already-in": [],
+  "notify-primer": [],
 };
 const MAX_PARAM_LENGTH = 64;
 

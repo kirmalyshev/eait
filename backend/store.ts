@@ -11,8 +11,8 @@
 // call. There is no method here that can reach a row without being told whose it is.
 
 import type {
-  DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, OnboardingContent, OnboardingEvent, Profile,
-  Provider, ChatEvent } from "@ieat/shared";
+  DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, OnboardingContent,
+  OnboardingEvent, Profile, Provider, ChatEvent } from "@ieat/shared";
 
 /** A text meal awaiting confirmation. Not in the diary yet, and expires. */
 export interface PendingMeal {
@@ -41,6 +41,27 @@ export interface StoredEntitlement {
   expiresAt: string;
   productId: string;
   eventAt: string;
+  /**
+   * Whether the period this event describes is a FREE TRIAL (RevenueCat's `period_type`).
+   *
+   * Kept because nothing else can reconstruct it. An expiry seven days out and an expiry a year out
+   * are the same shape, so two days before a yearly renewal is indistinguishable from two days
+   * before a trial ends — and the trial reminders would fire before every renewal, telling somebody
+   * who pays that "the free week ends" and that stopping now costs nothing.
+   *
+   * Optional so a row written before this existed reads as `false`: a reminder that does not arrive
+   * is a smaller failure than a wrong one that does.
+   */
+  trial?: boolean;
+}
+
+/** The one platform there is. On the wire and in the row, so adding Android is not a migration. */
+export type PushPlatform = "ios";
+
+/** One device this account can be reached on. */
+export interface PushToken {
+  token: string;
+  platform: PushPlatform;
 }
 
 /** A line to append to the thread. The shapes are the wire's (`ChatEntry`), minus what the store assigns. */
@@ -289,6 +310,47 @@ export interface Store {
    */
   putEntitlement(userId: string, entitlement: StoredEntitlement): Promise<boolean>;
 
+  // ── Push tokens ────────────────────────────────────────────────────────────────────────────
+  //
+  // One row per DEVICE, keyed on the token, because that is what an Expo push token is: an
+  // installation, not an account. The same phone signing into a second account must MOVE the token
+  // rather than gain a second row, or the evening sweep sends one person's day to the other's lock
+  // screen — and the person who signed out has no way to notice.
+  //
+  // Erased with the account like everything else that names a device. A token this server keeps is
+  // a message it will try to send.
+  //
+  // THE RESIDUAL RISK, STATED. Because the token is the key and the upsert moves it, ANY account
+  // can claim ANY device by registering a token it has learned — and an Expo push token is not a
+  // strong secret: it is handed to the client and routinely ends up in client logs and analytics
+  // payloads. The victim silently stops receiving their own 20:30 line until their next launch, and
+  // until then the claimer's numbers arrive on the victim's lock screen. It is accepted rather than
+  // fixed because the move is what makes signing out and in on one device work, and nothing in the
+  // request can tell the two apart. The real control is the app sending the value it last
+  // registered and the server refusing a move whose predecessor does not match — a feature, not a
+  // guard, and not in this change. The per-address rate limit on the route bounds the rate at which
+  // guesses can be tried; it does not make a known token safe.
+
+  /**
+   * Register a device's push token for an account. Idempotent per token: the app re-registers on
+   * every launch, because a token changes on reinstall, on a restore from backup, and whenever
+   * Apple reissues one.
+   */
+  putPushToken(userId: string, token: string, platform: PushPlatform): Promise<void>;
+  /** Scoped. True when this call removed one of THIS account's tokens. */
+  dropPushToken(userId: string, token: string): Promise<boolean>;
+  /** Scoped. Every device this account can be reached on. */
+  pushTokensFor(userId: string): Promise<PushToken[]>;
+  /**
+   * Every account with at least one device, for the nightly sweep. Reads across users — the one
+   * other place in this interface that does, and it is the same kind of read as `onboardingFunnel`.
+   *
+   * Ids only, and no paging: at one row per installed app this is a list of strings, and the sweep
+   * that consumes it does the per-user work one account at a time. It is the thing to revisit
+   * first if this product ever has enough users for a list of their ids to be a problem.
+   */
+  usersWithPushTokens(): Promise<string[]>;
+
   // ── Onboarding ─────────────────────────────────────────────────────────────────────────────
   /**
    * The admin-edited onboarding copy, or null when nothing has ever been saved.
@@ -300,6 +362,18 @@ export interface Store {
   getOnboardingContent(): Promise<OnboardingContent | null>;
   /** Replace it. Validated by the caller — the store writes what it is given. */
   putOnboardingContent(content: OnboardingContent): Promise<void>;
+
+  // ── Notification copy ──────────────────────────────────────────────────────────────────────
+  //
+  // The same shape as the onboarding copy above, and for the same reason: the words are editable
+  // in the admin, the shape is not, and null means "no admin has ever touched this" rather than
+  // "broken". Its own row rather than a field on the onboarding content, because the two are edited
+  // by different screens and a save of one must not be able to overwrite the other.
+
+  /** The admin-edited notification copy, or null when nothing has ever been saved. */
+  getNotificationCopy(): Promise<NotificationCopy | null>;
+  /** Replace it. Validated by the caller — the store writes what it is given. */
+  putNotificationCopy(copy: NotificationCopy): Promise<void>;
   /**
    * Append funnel events, ignoring ids already stored. Returns how many were new.
    *

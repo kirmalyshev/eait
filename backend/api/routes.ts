@@ -21,7 +21,7 @@ import {
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
   type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
   type HealthDaysRequest, type HealthDaysResponse, type HealthResponse,
-  MAX_HEALTH_DAYS_PER_BATCH,
+  MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, type PushTokenResponse,
 } from "@ieat/shared";
 import { LANGS } from "@ieat/shared";
 import { AuthError, type Verifier } from "../auth/verify.ts";
@@ -433,6 +433,37 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: Verifier)
           ...(typeof caption === "string" && caption ? { caption } : {}),
         });
         return isRefusal(result) ? refusal(result) : json(result);
+      }
+
+      // ── Push tokens ───────────────────────────────────────────────────────────────────────
+      //
+      // No engine call, deliberately: this is the same shape as sign-out and account deletion —
+      // credentials in, one store write, no product decision. Putting it behind an engine function
+      // would be a function that forwards its arguments.
+      //
+      // The register is idempotent because the app re-registers on every launch: a token changes on
+      // reinstall, on a restore from backup, and whenever Apple reissues one.
+      if (pathname === ROUTES.pushToken && (req.method === "POST" || req.method === "DELETE")) {
+        // Unbilled and unmetered otherwise, so the same per-address bound the other unbilled writes
+        // take — its own counter at the `/lines` allowance, exactly as the meal editor has. An
+        // account-scoped bound would be worth nothing: `POST /v1/auth/device` mints an account for
+        // anybody with a 32-character string. And `isPushToken` checks a SHAPE, so a caller can
+        // invent as many valid-looking tokens as it likes, each one a row that lives until the
+        // account is deleted.
+        const wait = limit(req, peer, "push-token", deps.config.linesRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: "rate-limited" });
+        const body = await req.json().catch(() => null);
+        if (req.method === "POST") {
+          if (!isPushTokenRequest(body)) return json({ error: "push token required" }, 400);
+          await store.putPushToken(userId, body.token, body.platform);
+          return json({ registered: true } satisfies PushTokenResponse);
+        }
+        const token = (body as { token?: unknown } | null)?.token;
+        if (!isPushToken(token)) return json({ error: "push token required" }, 400);
+        // The answer is the STATE, not whether this call changed it. Turning notifications off on a
+        // device whose token has already moved to another account must still read as "off here".
+        await store.dropPushToken(userId, token);
+        return json({ registered: false } satisfies PushTokenResponse);
       }
 
       // ── Chat ──────────────────────────────────────────────────────────────────────────────

@@ -14,6 +14,11 @@ export {
 export { handleText, type HandleTextInput } from "./text.ts";
 export { appendLines, chatHistory } from "./chat.ts";
 export { day, week, MAX_WINDOW_DAYS } from "./diary.ts";
+export {
+  collectPushReceipts, dailyNotification, eveningSweep, msUntilNextEveningLine, notificationCopy,
+  resetNotificationCopy, saveNotificationCopy, RECEIPT_DELAY_MS,
+  type DailyNotification, type SweepResult,
+} from "./notify.ts";
 export { profileView, patchProfile, classifyRestrictions, type PatchOutcome } from "./profile.ts";
 export { recordHealthDays, healthTrend, MAX_TREND_DAYS } from "./health.ts";
 export { signInWithProvider, identitiesFor, isAnonymous, revokeAppleIdentity } from "./identity.ts";

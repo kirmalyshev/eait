@@ -1,4 +1,5 @@
 import { fakeMailer } from "../mail/fake.ts";
+import { fakePush } from "../push/fake.ts";
 // The onboarding API, and the admin behind it.
 //
 // This file is mostly about who is allowed to do what. The admin edits the first thing every new
@@ -15,6 +16,7 @@ import type { Store } from "../store.ts";
 import type { EngineDeps } from "../engine/index.ts";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { createRouter } from "./routes.ts";
+import { ADMIN_PAGE } from "./admin.page.ts";
 
 const EAIT__BACKEND__ADMIN_TOKEN = "test-admin-token-that-is-long-enough";
 
@@ -36,7 +38,7 @@ const url = (p: string) => `http://localhost${p}`;
 
 function mount(config: Config) {
   store = memoryStore();
-  const deps: EngineDeps = { store, config, llm: demoPorts(), mailer: fakeMailer() };
+  const deps: EngineDeps = { store, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
   handle = createRouter(deps, store, verifier);
 }
 
@@ -66,7 +68,7 @@ describe("the admin is off unless configured", () => {
   it("404s every admin path when EAIT__BACKEND__ADMIN_TOKEN is unset", async () => {
     // 404 rather than 403. "There is an admin here and you cannot have it" is information, and a
     // deployment that never set the variable should look like one that has no such feature.
-    for (const path of ["/admin", "/admin/api/content", "/admin/api/funnel"]) {
+    for (const path of ["/admin", "/admin/api/content", "/admin/api/funnel", "/admin/api/notifications"]) {
       expect((await admin("GET", path)).status).toBe(404);
     }
     expect((await admin("PUT", "/admin/api/content", { content: {} })).status).toBe(404);
@@ -240,5 +242,89 @@ describe("the app's onboarding routes", () => {
     }));
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ accepted: 0 });
+  });
+});
+
+// The notification copy: the same three verbs on the same credential, and the same rule that the
+// validation runs on the WRITE. A lock screen is the one surface where "we will fix it in the next
+// fetch" is not available — the message has already been delivered.
+describe("editing the notification copy", () => {
+  beforeEach(() => { mount({ ...base, adminToken: EAIT__BACKEND__ADMIN_TOKEN }); });
+
+  it("serves the shipped copy and the placeholders the editor needs", async () => {
+    const res = await admin("GET", "/admin/api/notifications");
+    expect(res.status).toBe(200);
+    const body = await res.json() as {
+      copy: Record<string, { title: string; body: string }>;
+      meta: { ids: string[]; placeholders: Record<string, string[]> };
+    };
+    expect(body.copy.evening!.body).toContain("{eaten}");
+    expect(body.meta.ids).toEqual(["trial-day5", "trial-day6", "evening"]);
+    expect(body.meta.placeholders["evening.body"]).toEqual(["eaten", "plan", "tomorrow"]);
+  });
+
+  it("saves a rewrite", async () => {
+    const current = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, unknown> };
+    const copy = { ...current.copy, "trial-day5": { title: "Two days to go", body: "Two days before the free week ends." } };
+    expect((await admin("PUT", "/admin/api/notifications", { copy })).status).toBe(200);
+    const after = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, { title: string }> };
+    expect(after.copy["trial-day5"]!.title).toBe("Two days to go");
+  });
+
+  it("422s a template the composer cannot fill, with every reason", async () => {
+    const current = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, unknown> };
+    const res = await admin("PUT", "/admin/api/notifications", {
+      copy: { ...current.copy, evening: { title: "Evening", body: "{weight} today.", emptyBody: "Nothing." } },
+    });
+    expect(res.status).toBe(422);
+    const { errors } = await res.json() as { errors: string[] };
+    expect(errors.length).toBeGreaterThan(1);
+    expect(errors.join(" ")).toContain("{weight}");
+  });
+
+  it("422s a health claim rather than putting one on a lock screen", async () => {
+    const current = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, unknown> };
+    const res = await admin("PUT", "/admin/api/notifications", {
+      copy: { ...current.copy, "trial-day6": { title: "Last day", body: "One more week and this cures it." } },
+    });
+    expect(res.status).toBe(422);
+    expect((await res.json() as { errors: string[] }).errors.join(" ")).toContain("claim");
+  });
+
+  it("restores the shipped copy", async () => {
+    const current = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, unknown> };
+    await admin("PUT", "/admin/api/notifications", {
+      copy: { ...current.copy, "trial-day5": { title: "Edited", body: "Edited body." } },
+    });
+    expect((await admin("POST", "/admin/api/notifications/reset", {})).status).toBe(200);
+    const after = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, { title: string }> };
+    expect(after.copy["trial-day5"]!.title).toBe("Two days left");
+  });
+
+  it("refuses an ordinary user's bearer token here too", async () => {
+    const token = await session();
+    const res = await handle(new Request(url("/admin/api/notifications"), {
+      headers: { authorization: `Bearer ${token}` },
+    }));
+    expect(res.status).toBe(401);
+  });
+});
+
+// The page is a string, so nothing typechecks it and nothing runs it. A syntax error in that
+// script serves a 200 and an admin surface that does nothing at all, and the only symptom is a
+// console message in one browser. These two assertions are what stands in for a bundler.
+describe("the admin page", () => {
+  it("parses as JavaScript", () => {
+    const script = /<script>([\s\S]*?)<\/script>/.exec(ADMIN_PAGE)?.[1];
+    expect(script).toBeTruthy();
+    // Parses without executing — there is no DOM here, and a parse is what this is checking.
+    expect(() => new Function(script!)).not.toThrow();
+  });
+
+  it("only reaches for elements that exist on it", () => {
+    const ids = new Set(Array.from(ADMIN_PAGE.matchAll(/id="([\w-]+)"/g), (m) => m[1]!));
+    const wanted = Array.from(ADMIN_PAGE.matchAll(/\$\("([\w-]+)"\)/g), (m) => m[1]!);
+    expect(wanted.length).toBeGreaterThan(10);
+    expect([...new Set(wanted)].filter((id) => !ids.has(id))).toEqual([]);
   });
 });

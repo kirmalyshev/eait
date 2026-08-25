@@ -88,6 +88,13 @@ export const ROUTES = {
   messages: "/v1/messages",
   /** POST — the user's own words and Spud's SCRIPTED lines by id. See `AppendLinesRequest`. */
   messagesLines: "/v1/messages/lines",
+  /**
+   * POST — register this device's Expo push token. DELETE — drop it. See `PushTokenRequest`.
+   *
+   * The token is how the 20:30 line reaches a phone at all, and it is the only thing about a
+   * device this server keeps. Erased with the account, like everything else that names one.
+   */
+  pushToken: "/v1/push/token",
   /** PATCH — the manual edit path. See `EditMealRequest`. */
   meal: (id: string) => `/v1/meals/${encodeURIComponent(id)}`,
   pendingConfirm: (id: string) => `/v1/meals/pending/${encodeURIComponent(id)}/confirm`,
@@ -438,6 +445,51 @@ export function isEditMealRequest(body: unknown): body is EditMealRequest {
 }
 
 export type EditMealResponse = MealUpdated | TargetGone;
+
+// ── Push ────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * One device's push token, as Expo's push service issues it (`ExponentPushToken[...]`).
+ *
+ * `POST` registers it and is idempotent per (user, token): the app re-registers on every launch
+ * because a token is not stable — it changes on reinstall, on restore from a backup, and whenever
+ * Apple decides to reissue one — so a register that duplicated rows would grow a table of devices
+ * that answer `DeviceNotRegistered` forever. `DELETE` drops it, and is what the app calls when
+ * somebody turns notifications off: a token the server keeps is a message it will try to send.
+ *
+ * `platform` is on the wire because the shape of this problem is per-platform and Android will not
+ * be a different route. There is exactly one accepted value today.
+ */
+export interface PushTokenRequest {
+  token: string;
+  platform: "ios";
+}
+
+/** A bound on a value that is stored per device and re-sent on every launch. Expo's are ~40 chars. */
+export const MAX_PUSH_TOKEN = 200;
+
+/**
+ * Expo's own token shape, checked BEFORE anything is stored.
+ *
+ * Not a security boundary — the token is the caller's own — but a shape check is what stops the
+ * table filling with strings that can never be delivered to, and what makes "this account has a
+ * device" mean something when the evening sweep asks.
+ */
+export function isPushToken(v: unknown): v is string {
+  return typeof v === "string" && v.length <= MAX_PUSH_TOKEN
+    && /^Expo(?:nent)?PushToken\[[^\s\[\]]+\]$/.test(v);
+}
+
+export function isPushTokenRequest(body: unknown): body is PushTokenRequest {
+  if (typeof body !== "object" || body === null) return false;
+  const b = body as Record<string, unknown>;
+  return isPushToken(b.token) && b.platform === "ios";
+}
+
+/** What a register or an unregister answers. `registered` is the state AFTER the call. */
+export interface PushTokenResponse {
+  registered: boolean;
+}
 
 // ── Health ───────────────────────────────────────────────────────────────────────────────────
 

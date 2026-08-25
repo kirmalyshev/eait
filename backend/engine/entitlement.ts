@@ -31,6 +31,7 @@ export async function entitlementFor(deps: EngineDeps, userId: string): Promise<
   return {
     active: entitlementActive(stored?.expiresAt, Date.now()),
     expiresAt: stored?.expiresAt ?? null,
+    trial: stored?.trial === true,
   };
 }
 
@@ -50,6 +51,14 @@ export interface RevenueCatEvent {
   /** When the entitlement lapses, in epoch ms. Null on an event that grants nothing. */
   expirationAtMs: number | null;
   productId: string;
+  /**
+   * From `period_type`: this period is a free trial rather than a paid one.
+   *
+   * Extracted, where the rest of the payload deliberately is not, because it is the only signal
+   * that separates a trial ending from a subscription renewing — and the two trial reminders are
+   * addressed at one of those and would be a lie about the other.
+   */
+  trial: boolean;
   /** When the STORE generated the event. The ordering key — see `Store.putEntitlement`. */
   eventTimestampMs: number;
   /** From `environment`: an App Store sandbox or Test Store purchase, not a real one. */
@@ -99,6 +108,7 @@ export async function applyRevenueCatEvent(
     expiresAt: new Date(event.expirationAtMs).toISOString(),
     productId: event.productId,
     eventAt: new Date(event.eventTimestampMs).toISOString(),
+    trial: event.trial,
   };
 
   // `not-applied` covers BOTH of the store's refusals — an id we never issued, and an event older

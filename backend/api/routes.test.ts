@@ -8,6 +8,7 @@ import type { EngineDeps } from "../engine/index.ts";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { createRouter } from "./routes.ts";
 import { fakeMailer } from "../mail/fake.ts";
+import { fakePush } from "../push/fake.ts";
 
 /**
  * A stand-in verifier. Accepts `ok:<provider>:<subject>` and rejects everything else.
@@ -55,6 +56,13 @@ const patch = (p: string, body: unknown, token: string) =>
     body: JSON.stringify(body),
   }));
 
+const del = (p: string, body: unknown, token?: string) =>
+  handle(new Request(url(p), {
+    method: "DELETE",
+    headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(body),
+  }));
+
 const get = (p: string, token?: string) =>
   handle(new Request(url(p), { headers: token ? { authorization: `Bearer ${token}` } : {} }));
 
@@ -84,7 +92,7 @@ function photoRequest(token: string, files = 1, caption?: string): Request {
 
 beforeEach(() => {
   store = memoryStore();
-  const deps: EngineDeps = { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer() };
+  const deps: EngineDeps = { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
   handle = createRouter(deps, store, testVerifier);
 });
 
@@ -187,7 +195,7 @@ describe("photo", () => {
 
   it("402s once the sample is spent — the status the app opens the paywall on", async () => {
     const token = await session();
-    const deps: EngineDeps = { store, config: { ...CONFIG, freeAnalyses: 1 }, llm: demoPorts(), mailer: fakeMailer() };
+    const deps: EngineDeps = { store, config: { ...CONFIG, freeAnalyses: 1 }, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
     handle = createRouter(deps, store, testVerifier);
     await handle(photoRequest(token));
     const res = await handle(photoRequest(token));
@@ -378,7 +386,7 @@ describe("errors", () => {
   it("never returns an internal error message to the client", async () => {
     const exploding: EngineDeps = {
       store, config: CONFIG,
-      llm: { ...demoPorts(), routeText: async () => { throw new Error("secret query text"); } }, mailer: fakeMailer(),
+      llm: { ...demoPorts(), routeText: async () => { throw new Error("secret query text"); } }, mailer: fakeMailer(), push: fakePush(),
     };
     const token = await session();
     handle = createRouter(exploding, store, testVerifier);
@@ -614,7 +622,7 @@ describe("the mailing list", () => {
     const config: Config = { ...CONFIG, landingUrl };
     return {
       store: s, mailer,
-      handle: createRouter({ store: s, config, llm: demoPorts(), mailer }, s, testVerifier),
+      handle: createRouter({ store: s, config, llm: demoPorts(), mailer, push: fakePush() }, s, testVerifier),
     };
   };
 
@@ -687,7 +695,7 @@ describe("the mailing list", () => {
     const config: Config = {
       ...CONFIG, landingUrl: "https://eait.fit", publicApiUrl: "https://api.eait.fit",
     };
-    const h = createRouter({ store: s, config, llm: demoPorts(), mailer }, s, testVerifier);
+    const h = createRouter({ store: s, config, llm: demoPorts(), mailer, push: fakePush() }, s, testVerifier);
 
     await h(new Request("http://attacker.example/v1/subscribe", {
       method: "POST",
@@ -753,7 +761,7 @@ describe("rate limits", () => {
   const routerWith = (over: Partial<Config>) => {
     const s = memoryStore();
     const config: Config = { ...CONFIG, ...over };
-    return createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer() }, s, testVerifier);
+    return createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
   };
 
   /** A device registration from a stated address, as Caddy would present it. */
@@ -946,7 +954,7 @@ describe("subscribe outcomes", () => {
   const routerWith = (over: Partial<Config>) => {
     const s = memoryStore();
     const config: Config = { ...CONFIG, landingUrl: "https://eait.fit", ...over };
-    return createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer() }, s, testVerifier);
+    return createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
   };
 
   const submit = (h: (r: Request) => Promise<Response>, fields: Record<string, string>) =>
@@ -990,5 +998,113 @@ describe("subscribe outcomes", () => {
     await submit(h, { email: "a@example.com" });
     const limited = await submit(h, { email: "b@example.com" });
     expect(limited.headers.get("location")).toBe("https://eait.fit/try-later");
+  });
+});
+
+describe("push tokens", () => {
+  const token = () => `ExponentPushToken[${crypto.randomUUID().slice(0, 12)}]`;
+
+  it("registers a token and reads it back off the store", async () => {
+    const t = await session();
+    const pushToken = token();
+    const res = await post(ROUTES.pushToken, { token: pushToken, platform: "ios" }, t);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ registered: true });
+    const userId = (await store.userIdForToken(t))!;
+    expect(await store.pushTokensFor(userId)).toEqual([{ token: pushToken, platform: "ios" }]);
+  });
+
+  it("is idempotent — the app re-registers on every launch", async () => {
+    const t = await session();
+    const pushToken = token();
+    await post(ROUTES.pushToken, { token: pushToken, platform: "ios" }, t);
+    await post(ROUTES.pushToken, { token: pushToken, platform: "ios" }, t);
+    const userId = (await store.userIdForToken(t))!;
+    expect(await store.pushTokensFor(userId)).toHaveLength(1);
+  });
+
+  it("unregisters, and says so when there was nothing to unregister", async () => {
+    const t = await session();
+    const pushToken = token();
+    await post(ROUTES.pushToken, { token: pushToken, platform: "ios" }, t);
+    const first = await del(ROUTES.pushToken, { token: pushToken }, t);
+    expect(await first.json()).toEqual({ registered: false });
+    const again = await del(ROUTES.pushToken, { token: pushToken }, t);
+    expect(again.status).toBe(200);
+    const userId = (await store.userIdForToken(t))!;
+    expect(await store.pushTokensFor(userId)).toEqual([]);
+  });
+
+  it("refuses a body that is not a push token", async () => {
+    const t = await session();
+    for (const body of [
+      {}, { token: "" }, { token: "not-a-token", platform: "ios" },
+      { token: `ExponentPushToken[${"x".repeat(300)}]`, platform: "ios" },
+      { token: token(), platform: "android" },
+      { token: token() },
+    ]) {
+      expect((await post(ROUTES.pushToken, body, t)).status).toBe(400);
+    }
+  });
+
+  it("needs a session, on both methods", async () => {
+    expect((await post(ROUTES.pushToken, { token: token(), platform: "ios" })).status).toBe(401);
+    expect((await del(ROUTES.pushToken, { token: token() })).status).toBe(401);
+  });
+
+  it("keeps one account's device out of another's list", async () => {
+    const mine = await session();
+    const theirs = await session();
+    const pushToken = token();
+    await post(ROUTES.pushToken, { token: pushToken, platform: "ios" }, theirs);
+    const mineId = (await store.userIdForToken(mine))!;
+    expect(await store.pushTokensFor(mineId)).toEqual([]);
+    // And a token this account does not hold is not this account's to drop.
+    const res = await del(ROUTES.pushToken, { token: pushToken }, mine);
+    expect(res.status).toBe(200);
+    const theirsId = (await store.userIdForToken(theirs))!;
+    expect(await store.pushTokensFor(theirsId)).toHaveLength(1);
+  });
+
+  it("is bounded per address, like every other unbilled write here", async () => {
+    // `POST /v1/auth/device` mints an account for anybody with a 32-character string, so an
+    // account-scoped bound is worth one extra HTTP call to reset. Every token accepted is a row
+    // that lives until the account is deleted, and `isPushToken` only checks a shape — a caller
+    // can invent as many valid-looking ones as it likes.
+    const s = memoryStore();
+    const config = { ...CONFIG, linesRateLimitPerHour: 3 };
+    const h = createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
+    const res = await h(new Request(url(ROUTES.authDevice), {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID() }),
+    }));
+    const { token: bearer } = await res.json() as { token: string };
+    const register = (n: number) => h(new Request(url(ROUTES.pushToken), {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${bearer}` },
+      body: JSON.stringify({ token: `ExponentPushToken[flood-${n}]`, platform: "ios" }),
+    }));
+
+    for (let i = 0; i < 3; i++) expect((await register(i)).status).toBe(200);
+    const refused = await register(99);
+    expect(refused.status).toBe(429);
+    expect(refused.headers.get("retry-after")).toBeTruthy();
+    // Its OWN counter: the lines allowance is spent separately, exactly as the meal editor's is.
+    const lines = await h(new Request(url(ROUTES.messagesLines), {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${bearer}` },
+      body: JSON.stringify({ lines: [{ role: "user", text: "hi" }] }),
+    }));
+    expect(lines.status).not.toBe(429);
+  });
+
+  it("erases the device with the account", async () => {
+    const t = await session();
+    await post(ROUTES.pushToken, { token: token(), platform: "ios" }, t);
+    const userId = (await store.userIdForToken(t))!;
+    await handle(new Request(url(ROUTES.account), {
+      method: "DELETE", headers: { authorization: `Bearer ${t}` },
+    }));
+    expect(await store.pushTokensFor(userId)).toEqual([]);
   });
 });

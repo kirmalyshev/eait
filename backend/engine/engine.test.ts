@@ -7,6 +7,7 @@ import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { localDate } from "@ieat/shared";
 import { fakeMailer } from "../mail/fake.ts";
+import { fakePush } from "../push/fake.ts";
 import { remember } from "./chat.ts";
 import {
   appendLines, applyCorrection, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
@@ -26,7 +27,7 @@ let store: Store;
 let deps: EngineDeps;
 
 function makeDeps(over: Partial<Config> = {}, llm: LlmPorts = demoPorts()): EngineDeps {
-  return { store, config: { ...CONFIG, ...over }, llm, mailer: fakeMailer() };
+  return { store, config: { ...CONFIG, ...over }, llm, mailer: fakeMailer(), push: fakePush() };
 }
 
 /** A fully onboarded user. Returns the id. */

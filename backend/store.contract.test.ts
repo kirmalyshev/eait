@@ -14,7 +14,7 @@
 
 import { afterAll, describe, expect, it } from "bun:test";
 import { SQL } from "bun";
-import { DEFAULT_ONBOARDING_CONTENT, type MealRecord } from "@ieat/shared";
+import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, type MealRecord } from "@ieat/shared";
 import { hashToken } from "./auth/tokens.ts";
 import { memoryStore } from "./store.memory.ts";
 import { postgresStore } from "./store.pg.ts";
@@ -95,9 +95,19 @@ function contract(name: string, make: () => Promise<Store>) {
         expiresAt: "2027-01-01T00:00:00.000Z",
         productId: "ieat_pro_yearly",
         eventAt: "2026-08-24T10:00:00.000Z",
+        trial: false,
       };
       expect(await s.putEntitlement(userId, e)).toBe(true);
       expect(await s.getEntitlement(userId)).toEqual(e);
+
+      // The trial flag round-trips, and an event that omits it reads back as false in BOTH
+      // implementations — a row written before the column existed must not read as a trial.
+      const trial = { ...e, eventAt: "2026-08-24T11:00:00.000Z", trial: true };
+      expect(await s.putEntitlement(userId, trial)).toBe(true);
+      expect((await s.getEntitlement(userId))?.trial).toBe(true);
+      const legacy = { expiresAt: e.expiresAt, productId: e.productId, eventAt: "2026-08-24T12:00:00.000Z" };
+      expect(await s.putEntitlement(userId, legacy)).toBe(true);
+      expect((await s.getEntitlement(userId))?.trial).toBe(false);
     });
 
     // Webhook delivery is not ordered. A cancellation generated BEFORE a renewal can arrive after
@@ -108,7 +118,7 @@ function contract(name: string, make: () => Promise<Store>) {
       const { userId } = await s.upsertDeviceUser(device(), "en");
       const renewal = {
         expiresAt: "2027-01-01T00:00:00.000Z", productId: "ieat_pro_yearly",
-        eventAt: "2026-08-24T10:00:00.000Z",
+        eventAt: "2026-08-24T10:00:00.000Z", trial: false,
       };
       const staleCancellation = {
         expiresAt: "2026-08-24T09:00:00.000Z", productId: "ieat_pro_yearly",
@@ -141,7 +151,7 @@ function contract(name: string, make: () => Promise<Store>) {
       });
       const revoked = {
         expiresAt: "2026-08-24T11:00:00.000Z", productId: "ieat_pro_yearly",
-        eventAt: "2026-08-24T11:00:00.000Z",
+        eventAt: "2026-08-24T11:00:00.000Z", trial: false,
       };
       expect(await s.putEntitlement(userId, revoked)).toBe(true);
       expect(await s.getEntitlement(userId)).toEqual(revoked);
@@ -166,6 +176,107 @@ function contract(name: string, make: () => Promise<Store>) {
       });
       await s.deleteUser(userId);
       expect(await s.getEntitlement(userId)).toBeNull();
+    });
+
+    // ── Push tokens ────────────────────────────────────────────────────────────────────────
+    //
+    // One row per DEVICE, keyed on the token itself. A token is an installation, not an account:
+    // the same phone signing into a second account must move it, or the evening sweep keeps
+    // pushing one person's day to somebody else's lock screen.
+
+    it("registers a push token, reads it back, and is idempotent about it", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const token = `ExponentPushToken[${RUN}-idem]`;
+      await s.putPushToken(userId, token, "ios");
+      await s.putPushToken(userId, token, "ios");
+      expect(await s.pushTokensFor(userId)).toEqual([{ token, platform: "ios" }]);
+    });
+
+    it("scopes tokens to their owner", async () => {
+      const s = await open();
+      const mine = (await s.upsertDeviceUser(device(), "en")).userId;
+      const theirs = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.putPushToken(theirs, `ExponentPushToken[${RUN}-theirs]`, "ios");
+      expect(await s.pushTokensFor(mine)).toEqual([]);
+    });
+
+    it("moves a token to the account that registered it last", async () => {
+      const s = await open();
+      const first = (await s.upsertDeviceUser(device(), "en")).userId;
+      const second = (await s.upsertDeviceUser(device(), "en")).userId;
+      const token = `ExponentPushToken[${RUN}-handover]`;
+      await s.putPushToken(first, token, "ios");
+      await s.putPushToken(second, token, "ios");
+      expect(await s.pushTokensFor(first)).toEqual([]);
+      expect(await s.pushTokensFor(second)).toEqual([{ token, platform: "ios" }]);
+    });
+
+    it("drops a token, and refuses to drop one that is not this account's", async () => {
+      const s = await open();
+      const mine = (await s.upsertDeviceUser(device(), "en")).userId;
+      const theirs = (await s.upsertDeviceUser(device(), "en")).userId;
+      const token = `ExponentPushToken[${RUN}-drop]`;
+      await s.putPushToken(theirs, token, "ios");
+      expect(await s.dropPushToken(mine, token)).toBe(false);
+      expect(await s.pushTokensFor(theirs)).toHaveLength(1);
+      expect(await s.dropPushToken(theirs, token)).toBe(true);
+      expect(await s.dropPushToken(theirs, token)).toBe(false);
+      expect(await s.pushTokensFor(theirs)).toEqual([]);
+    });
+
+    it("lists the accounts the evening sweep has to visit, once each", async () => {
+      const s = await open();
+      const withToken = (await s.upsertDeviceUser(device(), "en")).userId;
+      const without = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.putPushToken(withToken, `ExponentPushToken[${RUN}-sweep-a]`, "ios");
+      await s.putPushToken(withToken, `ExponentPushToken[${RUN}-sweep-b]`, "ios");
+      const users = await s.usersWithPushTokens();
+      expect(users.filter((u) => u === withToken)).toEqual([withToken]);
+      expect(users).not.toContain(without);
+    });
+
+    it("MOVES a device to the account an anonymous session merged into", async () => {
+      const s = await open();
+      const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real = (await s.upsertDeviceUser(device(), "en")).userId;
+      const token = `ExponentPushToken[${RUN}-merged]`;
+      await s.putPushToken(anon, token, "ios");
+
+      await s.mergeUsers(anon, real);
+
+      // The same physical phone, and the person is now signed into the real account. A push token
+      // is a device ADDRESS, not a credential — unlike the bearer tokens above it, which are
+      // deleted precisely because moving one would let a signed-out session back in. Deleting this
+      // instead would cost the user their evening line until their next launch; leaving it on the
+      // dead account would send it to a phone whose owner is now somebody else.
+      expect(await s.pushTokensFor(real)).toEqual([{ token, platform: "ios" }]);
+      expect(await s.pushTokensFor(anon)).toEqual([]);
+      expect(await s.usersWithPushTokens()).not.toContain(anon);
+    });
+
+    it("erases push tokens when removing the last identity deletes the account", async () => {
+      const s = await open();
+      const deviceId = device();
+      const { userId } = await s.upsertDeviceUser(deviceId, "en");
+      await s.putPushToken(userId, `ExponentPushToken[${RUN}-revoked]`, "ios");
+
+      // The path Apple's server-to-server notification drives: removing the LAST identity erases
+      // the account. It shares `eraseUser` with `deleteUser`, which is why the push sweep lives in
+      // there rather than beside the one caller that came first — an account erased this way must
+      // not leave behind a device this server would go on pushing to every night.
+      expect(await s.removeIdentity(userId, "device", deviceId)).toBe("account-deleted");
+      expect(await s.pushTokensFor(userId)).toEqual([]);
+      expect(await s.usersWithPushTokens()).not.toContain(userId);
+    });
+
+    it("erases push tokens with the account", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.putPushToken(userId, `ExponentPushToken[${RUN}-erased]`, "ios");
+      await s.deleteUser(userId);
+      expect(await s.pushTokensFor(userId)).toEqual([]);
+      expect(await s.usersWithPushTokens()).not.toContain(userId);
     });
 
     it("resolves a token to its user, and stops after revocation", async () => {
@@ -633,6 +744,19 @@ function contract(name: string, make: () => Promise<Store>) {
 
       await s.putOnboardingContent({ ...content, version: 8 });
       expect((await s.getOnboardingContent())?.version).toBe(8);
+    });
+
+    it("stores notification copy in its own row, not the onboarding one", async () => {
+      const s = await open();
+      const edited = {
+        ...DEFAULT_NOTIFICATION_COPY,
+        evening: { ...DEFAULT_NOTIFICATION_COPY.evening, title: `Evening ${RUN}` },
+      };
+      await s.putNotificationCopy(edited);
+      expect((await s.getNotificationCopy())?.evening.title).toBe(`Evening ${RUN}`);
+      // Saving one must not disturb the other: two admin screens, two rows.
+      await s.putOnboardingContent({ ...DEFAULT_ONBOARDING_CONTENT, version: 99 });
+      expect((await s.getNotificationCopy())?.evening.title).toBe(`Evening ${RUN}`);
     });
 
     it("ignores an onboarding event id it has already stored", async () => {

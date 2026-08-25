@@ -138,6 +138,23 @@ export const ADMIN_PAGE = `<!doctype html>
     hidden entirely for anyone the arithmetic cannot honestly project.
   </p>
   <div id="summary"></div>
+
+  <h2>Notifications</h2>
+  <p class="muted">
+    The three messages this product is allowed to send: the two trial reminders, which the phone
+    fires itself, and the 20:30 line, which the server composes and pushes. One a day — a reminder
+    day sends the reminder <em>instead of</em> the evening line, never as well. The braces are
+    filled in by the server; you may move them, but you may not remove one or invent another, and
+    <code>Nothing logged</code> is the body for a day with no meals. A health claim is refused here
+    the same way it is on the landing page.
+  </p>
+  <div id="notify-errors" class="errors hidden"><strong>Not saved.</strong><ul></ul></div>
+  <div id="notifications"></div>
+  <p>
+    <button id="notify-reset">Restore defaults</button>
+    <button class="primary" id="notify-save">Save notifications</button>
+    <span class="status" id="notify-status"></span>
+  </p>
 </div>
 
 <div class="bar hidden" id="bar">
@@ -155,6 +172,8 @@ export const ADMIN_PAGE = `<!doctype html>
   var token = sessionStorage.getItem(TOKEN_KEY) || "";
   var content = null;
   var meta = null;
+  var notify = null;
+  var notifyMeta = null;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -449,6 +468,71 @@ export const ADMIN_PAGE = `<!doctype html>
     });
   }
 
+  // ── Notifications ──────────────────────────────────────────────────────────────────────────
+
+  var NOTIFY_LABELS = {
+    "trial-day5": "Two days before the trial ends (sent by the phone)",
+    "trial-day6": "The day before the trial ends (sent by the phone)",
+    "evening": "The 20:30 line (composed and pushed by the server)"
+  };
+
+  function holes(at) {
+    var declared = (notifyMeta.placeholders || {})[at] || [];
+    return declared.length ? "  ·  fills in: {" + declared.join("}  {") + "}" : "  ·  no braces here";
+  }
+
+  function notifyCard(id) {
+    var m = notify[id];
+    var card = document.createElement("div");
+    card.className = "card";
+    var head = document.createElement("header");
+    var name = document.createElement("span");
+    name.className = "id";
+    name.textContent = id;
+    head.appendChild(name);
+    var what = document.createElement("span");
+    what.className = "muted";
+    what.textContent = NOTIFY_LABELS[id] || "";
+    head.appendChild(what);
+    card.appendChild(head);
+
+    field(card, "Title" + holes(id + ".title"), m.title, function (v) { m.title = v; });
+    field(card, "Body" + holes(id + ".body"), m.body, function (v) { m.body = v; }, true);
+    if (id === "evening") {
+      field(card, "Body when nothing was logged" + holes(id + ".emptyBody"), m.emptyBody,
+        function (v) { m.emptyBody = v; }, true);
+    }
+    return card;
+  }
+
+  function renderNotify() {
+    var host = $("notifications");
+    host.textContent = "";
+    notifyMeta.ids.forEach(function (id) { host.appendChild(notifyCard(id)); });
+  }
+
+  function notifyErrors(list) {
+    var box = $("notify-errors");
+    var ul = box.querySelector("ul");
+    ul.textContent = "";
+    if (!list || !list.length) { box.classList.add("hidden"); return; }
+    list.forEach(function (e) {
+      var li = document.createElement("li");
+      li.textContent = e;
+      ul.appendChild(li);
+    });
+    box.classList.remove("hidden");
+    box.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function loadNotify() {
+    return api("GET", "/admin/api/notifications").then(function (res) {
+      notify = res.copy;
+      notifyMeta = res.meta;
+      renderNotify();
+    });
+  }
+
   // ── Wiring ─────────────────────────────────────────────────────────────────────────────────
 
   function load() {
@@ -456,7 +540,7 @@ export const ADMIN_PAGE = `<!doctype html>
       content = res.content;
       meta = res.meta;
       render();
-      return loadFunnel();
+      return loadNotify().then(loadFunnel);
     });
   }
 
@@ -501,6 +585,29 @@ export const ADMIN_PAGE = `<!doctype html>
       render();
       status("restored — version " + content.version);
     }).catch(function (e) { status("failed: " + e.message); });
+  });
+
+  $("notify-save").addEventListener("click", function () {
+    $("notify-status").textContent = "saving…";
+    api("PUT", "/admin/api/notifications", { copy: notify }).then(function (res) {
+      notify = res.copy;
+      notifyErrors(null);
+      renderNotify();
+      $("notify-status").textContent = "saved";
+    }).catch(function (e) {
+      notifyErrors((e.body && e.body.errors) || [e.message]);
+      $("notify-status").textContent = "not saved";
+    });
+  });
+
+  $("notify-reset").addEventListener("click", function () {
+    if (!confirm("Restore the three messages the app ships with? Your edits are replaced.")) return;
+    api("POST", "/admin/api/notifications/reset", {}).then(function (res) {
+      notify = res.copy;
+      notifyErrors(null);
+      renderNotify();
+      $("notify-status").textContent = "restored";
+    }).catch(function (e) { $("notify-status").textContent = "failed: " + e.message; });
   });
 
   $("reload").addEventListener("click", function () {

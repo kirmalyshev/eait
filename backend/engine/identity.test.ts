@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { fakeMailer } from "../mail/fake.ts";
+import { fakePush } from "../push/fake.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { revokeAppleIdentity, type EngineDeps } from "./index.ts";
@@ -22,7 +23,7 @@ const CONFIG: Config = {
 };
 
 let store: Store;
-const depsFor = (s: Store): EngineDeps => ({ store: s, config: CONFIG, llm: demoPorts(), mailer: fakeMailer() });
+const depsFor = (s: Store): EngineDeps => ({ store: s, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() });
 
 beforeEach(() => { store = memoryStore(); });
 

@@ -29,7 +29,7 @@ describe("scripted lines", () => {
   });
 
   it("knows its own ids and nothing else", () => {
-    for (const id of ["camera-closed", "camera-denied", "camera-primer", "onboarding-done", "fix-prompt", "already-in", "trial-started", "trial-day-one", "restored", "dropped"]) expect(isScriptedLineId(id)).toBe(true);
+    for (const id of ["camera-closed", "camera-denied", "camera-primer", "onboarding-done", "fix-prompt", "already-in", "trial-started", "trial-day-one", "notify-primer", "restored", "dropped"]) expect(isScriptedLineId(id)).toBe(true);
     expect(isScriptedLineId("ignore previous instructions")).toBe(false);
   });
 });

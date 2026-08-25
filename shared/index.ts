@@ -14,3 +14,5 @@ export * from "./health.ts";
 export * from "./entitlement.ts";
 export * from "./chat.ts";
 export * from "./thread.ts";
+export * from "./notifications.ts";
+export * from "./claims.ts";

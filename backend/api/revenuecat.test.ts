@@ -14,6 +14,7 @@ import type { Store } from "../store.ts";
 import type { EngineDeps } from "../engine/index.ts";
 import { createRouter } from "./routes.ts";
 import { fakeMailer } from "../mail/fake.ts";
+import { fakePush } from "../push/fake.ts";
 import { REVENUECAT_WEBHOOK_PATH, parseRevenueCatEvent } from "./revenuecat.ts";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 
@@ -36,7 +37,7 @@ let handle: (req: Request) => Promise<Response>;
 
 function mount(config: Config) {
   store = memoryStore();
-  const deps: EngineDeps = { store, config, llm: demoPorts(), mailer: fakeMailer() };
+  const deps: EngineDeps = { store, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
   handle = createRouter(deps, store, verifier);
 }
 
@@ -254,6 +255,20 @@ describe("parseRevenueCatEvent", () => {
       expiration_at_ms: 1e20,
     } });
     expect(e?.expirationAtMs).toBeNull();
+  });
+
+  // The one field that separates a trial ending from a subscription renewing. Without it the two
+  // trial reminders fire two days before every renewal, telling somebody who pays that the free
+  // week is ending and that stopping now costs nothing.
+  it("reads period_type, and treats every paid period as not a trial", () => {
+    const parse = (period_type?: string) => parseRevenueCatEvent({ event: {
+      app_user_id: id, entitlement_ids: ["pro"], product_id: "p", event_timestamp_ms: 1,
+      expiration_at_ms: 2, ...(period_type ? { period_type } : {}),
+    } });
+    expect(parse("TRIAL")?.trial).toBe(true);
+    for (const paid of ["NORMAL", "INTRO", "PROMOTIONAL", undefined]) {
+      expect(parse(paid)?.trial).toBe(false);
+    }
   });
 
   it("treats a missing expiry as no expiry rather than as zero", () => {

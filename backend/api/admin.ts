@@ -19,10 +19,12 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
-  MASCOT_MOODS, ONBOARDING_SCREENS, SCREEN_OPTIONS, screenIsOptional,
+  MASCOT_MOODS, NOTIFICATION_IDS, NOTIFICATION_PLACEHOLDERS, ONBOARDING_SCREENS, SCREEN_OPTIONS,
+  screenIsOptional,
 } from "@ieat/shared";
 import {
-  onboardingContent, onboardingFunnel, resetOnboardingContent, saveOnboardingContent,
+  notificationCopy, onboardingContent, onboardingFunnel, resetNotificationCopy,
+  resetOnboardingContent, saveNotificationCopy, saveOnboardingContent,
   type EngineDeps,
 } from "../engine/index.ts";
 import { ADMIN_PAGE } from "./admin.page.ts";
@@ -88,6 +90,28 @@ export async function adminRoutes(req: Request, url: URL, deps: EngineDeps): Pro
 
   if (req.method === "POST" && pathname === "/admin/api/content/reset") {
     return json({ content: await resetOnboardingContent(deps) });
+  }
+
+  // ── Notification copy ──────────────────────────────────────────────────────────────────────
+  //
+  // The same three verbs as the onboarding copy above, on the same credential, and validated the
+  // same way: on the WRITE. A template with a placeholder nothing fills renders a literal {plan} on
+  // somebody's lock screen, and by then the message has already been delivered.
+  if (req.method === "GET" && pathname === "/admin/api/notifications") {
+    return json({
+      copy: await notificationCopy(deps),
+      meta: { ids: NOTIFICATION_IDS, placeholders: NOTIFICATION_PLACEHOLDERS },
+    });
+  }
+
+  if (req.method === "PUT" && pathname === "/admin/api/notifications") {
+    const body = await req.json() as { copy?: unknown };
+    const result = await saveNotificationCopy(deps, body?.copy);
+    return result.ok ? json({ copy: result.content }) : json({ errors: result.errors }, 422);
+  }
+
+  if (req.method === "POST" && pathname === "/admin/api/notifications/reset") {
+    return json({ copy: await resetNotificationCopy(deps) });
   }
 
   if (req.method === "GET" && pathname === "/admin/api/funnel") {

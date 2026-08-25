@@ -1,3 +1,4 @@
+import { REMINDER_TIME } from "@ieat/shared";
 import { DEFAULT_SESSION_TTL_MS } from "./auth/tokens.ts";
 
 // Configuration, loaded once at startup and validated loudly.
@@ -196,6 +197,39 @@ export interface Config {
    */
   publicApiUrl: string;
 
+  // ── Notifications ────────────────────────────────────────────────────────────────────────
+  //
+  // Off by default, everywhere. A development server that pushed to real phones the first time
+  // somebody ran it would be a development server nobody could run twice.
+
+  /**
+   * Whether the nightly sweep runs at all.
+   *
+   * OFF unless a deployment says otherwise. It is the switch to pull when the loop is doing more
+   * harm than good — the retention plan pre-commits to turning a loop off when its blocks exceed
+   * its reactivations, and that promise needs a switch that is not a code change.
+   */
+  pushEnabled: boolean;
+  /**
+   * Expo's push access token.
+   *
+   * A secret, and treated as one. EMPTY MEANS PUSHES ARE LOGGED, NOT SENT: Expo accepts
+   * unauthenticated sends, so a server that fell back to sending without this would be a server
+   * anybody who learns a device token can impersonate. `choosePush` refuses to build the real
+   * client without it.
+   */
+  expoPushAccessToken: string;
+  /** How long one push request may hang. Same argument as `llmTimeoutMs` and `mailTimeoutMs`. */
+  pushTimeoutMs: number;
+  /**
+   * When the evening line goes out, in this server's `timezone`.
+   *
+   * Configurable so a staging instance can reach the path without waiting until the evening. The
+   * DEFAULT is `REMINDER_TIME` from `@ieat/shared`, which is the 20:30 the onboarding copy promises
+   * — move it in production and step 18's promise becomes false.
+   */
+  eveningLineTime: { hour: number; minute: number };
+
   /**
    * The landing page's origin, for the ONE thing the API needs it for: where to send a browser
    * after it posts the subscribe form.
@@ -277,6 +311,11 @@ export function configDefaults(): Config {
     mailTimeoutMs: 15_000,
     publicApiUrl: "",
     landingUrl: "",
+    pushEnabled: false,
+    expoPushAccessToken: "",
+    pushTimeoutMs: 15_000,
+    // The one number the shipped copy states out loud, so it has exactly one source.
+    eveningLineTime: { hour: REMINDER_TIME.hour, minute: REMINDER_TIME.minute },
   };
 }
 
@@ -317,6 +356,8 @@ export function loadConfig(): Config {
   if (mailProvider === "resend" && !process.env.EAIT__BACKEND__RESEND_API_KEY) {
     throw new Error("[ieat] EAIT__BACKEND__MAIL_PROVIDER=resend needs EAIT__BACKEND__RESEND_API_KEY");
   }
+
+  const eveningLineTime = eveningLineTimeFromEnv();
 
   return {
     ...d,
@@ -360,7 +401,26 @@ export function loadConfig(): Config {
     // No validation beyond "looks like an origin": a wrong value here sends somebody to the wrong
     // page, which is visible, rather than corrupting anything, which is not.
     landingUrl: (process.env.EAIT__BACKEND__LANDING_URL ?? d.landingUrl).replace(/\/$/, ""),
+    pushEnabled: ["1", "true"].includes(process.env.EAIT__BACKEND__PUSH_ENABLED ?? ""),
+    expoPushAccessToken: process.env.EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN ?? d.expoPushAccessToken,
+    pushTimeoutMs: int("EAIT__BACKEND__PUSH_TIMEOUT_MS", d.pushTimeoutMs),
+    eveningLineTime,
   };
+}
+
+/**
+ * `HH:MM`, in this server's zone.
+ *
+ * A startup error rather than a fallback to 20:30. A typo here does not break anything visible —
+ * the sweep simply runs at a time nobody chose, once a day, and the only way to find out is to
+ * notice when the messages arrive.
+ */
+export function eveningLineTimeFromEnv(): { hour: number; minute: number } {
+  const raw = process.env.EAIT__BACKEND__EVENING_LINE_TIME;
+  if (raw === undefined || raw === "") return { ...configDefaults().eveningLineTime };
+  const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(raw.trim());
+  if (!m) throw new Error(`[ieat] EAIT__BACKEND__EVENING_LINE_TIME must be HH:MM, not "${raw}"`);
+  return { hour: Number(m[1]), minute: Number(m[2]) };
 }
 
 /**
@@ -414,7 +474,8 @@ export function revenueCatWebhookTokenFromEnv(): string {
  */
 export function redact(c: Config): Record<string, unknown> {
   const {
-    llmApiKey: _k, adminToken: _a, resendApiKey: _r, revenueCatWebhookToken: _rc, databaseUrl,
+    llmApiKey: _k, adminToken: _a, resendApiKey: _r, revenueCatWebhookToken: _rc,
+    expoPushAccessToken: _e, databaseUrl,
     ...rest
   } = c;
   return {
@@ -428,5 +489,7 @@ export function redact(c: Config): Record<string, unknown> {
     adminToken: c.adminToken === "" ? "(disabled)" : "***",
     // Same again: whether purchases can be reported at all is the thing worth reading in a log.
     revenueCatWebhookToken: c.revenueCatWebhookToken === "" ? "(disabled)" : "***",
+    // Whether this server can send a notification at all is the thing worth reading in a boot log.
+    expoPushAccessToken: c.expoPushAccessToken === "" ? "(unset — pushes are logged)" : "***",
   };
 }

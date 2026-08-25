@@ -5,14 +5,15 @@
 // resolves to null" is proving something about the engine rather than about a mock's mood.
 
 import type {
-  DayTotals, HealthDay, Lang, MealRecord, OnboardingContent, OnboardingEvent, Profile, Provider,
+  DayTotals, HealthDay, Lang, MealRecord, NotificationCopy, OnboardingContent, OnboardingEvent,
+  Profile, Provider,
 } from "@ieat/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
 import { type ChatMessage,
   blankProfile, type FunnelAggregate, type MealPatch, type PendingMeal, type ProfilePatch,
-  type StoredEntitlement, type Store, type StoreOptions,
+  type PushPlatform, type PushToken, type StoredEntitlement, type Store, type StoreOptions,
 } from "./store.ts";
 
 /** A stored funnel event: what the client sent, plus who and when we received it. */
@@ -81,6 +82,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const chat: ChatMessage[] = [];
   let chatSeq = 0;
   const firstVerdictSpoken = new Set<string>();
+  let notificationCopy: NotificationCopy | null = null;
+  // Keyed by the TOKEN, exactly as Postgres is: a token is an installation, so registering it under
+  // a second account moves it rather than adding a row.
+  const pushTokens = new Map<string, { userId: string; platform: PushPlatform }>();
   const analyses: { userId: string; date: string; scope: "photo" | "text" }[] = [];
   const identities: { userId: string; provider: Provider; subject: string; linkedAt: string }[] = [];
   const onboardingEvents = new Map<string, StoredEvent>(); // event id -> event
@@ -153,6 +158,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     // And the funnel rows. See the note on `deleteUser` in the port: onboarding promises erasure
     // while asking about the user's kidneys, so the analytics table is not an exception to it.
     for (const [id, e] of onboardingEvents) if (e.userId === userId) onboardingEvents.delete(id);
+    // A device the account no longer has is a device this server would still push to. In here
+    // rather than in `deleteUser`, so the Apple server-to-server revocation path erases it too.
+    for (const [token, row] of pushTokens) if (row.userId === userId) pushTokens.delete(token);
     // Health days are the most sensitive rows here — bodyweight, sleep, heart rate. Erasure that
     // left them would make the settings screen's promise false in the one place it matters most.
     for (const [k, d] of healthDays) if (d.userId === userId) healthDays.delete(k);
@@ -291,6 +299,17 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       }
       for (const [d, u] of devices) if (u === fromUserId) devices.delete(d);
 
+      // The DEVICE moves with the account. A push token is an address, not a credential: the same
+      // phone is now signed into the real account, so its evening line belongs there. It is the
+      // opposite decision from the bearer tokens below, and for the opposite reason — moving a
+      // credential would let a signed-out session back in, while moving an address is the whole
+      // point of a merge. Deleting it instead would cost the user their 20:30 line until their next
+      // launch; leaving it on the emptied account would send that account's numbers to a phone
+      // whose owner has since signed in as somebody else.
+      for (const [t, row] of pushTokens) {
+        if (row.userId === fromUserId) pushTokens.set(t, { ...row, userId: intoUserId });
+      }
+
       // Tokens are deleted, not moved: one that pointed at the now-empty account must stop working
       // rather than silently start addressing someone else's diary.
       for (const [h, row] of tokens) if (row.userId === fromUserId) tokens.delete(h);
@@ -330,8 +349,34 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // Strictly newer. An identical timestamp is a redelivery of the event already applied, and
       // re-applying it writes the same values for no reason.
       if (current && Date.parse(current.eventAt) >= Date.parse(entitlement.eventAt)) return false;
-      entitlements.set(userId, { ...entitlement });
+      // `trial` normalised to a boolean, because Postgres reads its column back as one: a store
+      // that answered `undefined` where the other answers `false` is a divergence the contract test
+      // would catch and a reader would not.
+      entitlements.set(userId, { ...entitlement, trial: entitlement.trial === true });
       return true;
+    },
+
+    async putPushToken(userId, token, platform) {
+      pushTokens.set(token, { userId, platform });
+    },
+
+    async dropPushToken(userId, token) {
+      const row = pushTokens.get(token);
+      if (!row || row.userId !== userId) return false;
+      pushTokens.delete(token);
+      return true;
+    },
+
+    async pushTokensFor(userId) {
+      const out: PushToken[] = [];
+      for (const [token, row] of pushTokens) {
+        if (row.userId === userId) out.push({ token, platform: row.platform });
+      }
+      return out;
+    },
+
+    async usersWithPushTokens() {
+      return [...new Set([...pushTokens.values()].map((r) => r.userId))];
     },
 
     async getOnboardingContent() {
@@ -340,6 +385,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async putOnboardingContent(content) {
       onboardingContent = clone(content);
+    },
+
+    async getNotificationCopy() {
+      return notificationCopy ? clone(notificationCopy) : null;
+    },
+
+    async putNotificationCopy(copy) {
+      notificationCopy = clone(copy);
     },
 
     async recordOnboardingEvents(userId, events) {

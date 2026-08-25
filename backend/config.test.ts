@@ -29,6 +29,8 @@ const VARS = [
   "EAIT__BACKEND__MAIL_TIMEOUT_MS", "EAIT__BACKEND__PUBLIC_API_URL", "EAIT__BACKEND__LANDING_URL",
   "EAIT__BACKEND__PAID_DAILY_PHOTO_CAP", "EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN", "EAIT__BACKEND__REVENUECAT_ACCEPT_SANDBOX",
   "EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID", "EAIT__BACKEND__USER_DAILY_PHOTO_CAP",
+  "EAIT__BACKEND__PUSH_ENABLED", "EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN", "EAIT__BACKEND__PUSH_TIMEOUT_MS",
+  "EAIT__BACKEND__EVENING_LINE_TIME",
 ] as const;
 
 /** The two without defaults. Set for every test so `loadConfig` gets past its required checks. */
@@ -183,5 +185,48 @@ describe("the paid tier", () => {
     const shown = JSON.stringify(redact(loadConfig()));
     expect(shown).not.toContain("z".repeat(40));
     expect(shown).toContain("***");
+  });
+});
+
+// ── Notifications ────────────────────────────────────────────────────────────────────────────
+//
+// Off by default and silent by default. A server that was never told about Expo sends nothing, and
+// one that was told to send without a credential still sends nothing — Expo accepts unauthenticated
+// pushes, and the fallback must not be to make one.
+describe("notifications", () => {
+  it("is off, unauthenticated and at 20:30 by default", () => {
+    withRequired();
+    const c = loadConfig();
+    expect(c.pushEnabled).toBe(false);
+    expect(c.expoPushAccessToken).toBe("");
+    expect(c.eveningLineTime).toEqual({ hour: 20, minute: 30 });
+  });
+
+  it("reads the switch, the credential and the time", () => {
+    withRequired({
+      EAIT__BACKEND__PUSH_ENABLED: "true",
+      EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN: "expo-token-not-real",
+      EAIT__BACKEND__EVENING_LINE_TIME: "21:05",
+      EAIT__BACKEND__PUSH_TIMEOUT_MS: "5000",
+    });
+    const c = loadConfig();
+    expect(c.pushEnabled).toBe(true);
+    expect(c.expoPushAccessToken).toBe("expo-token-not-real");
+    expect(c.eveningLineTime).toEqual({ hour: 21, minute: 5 });
+    expect(c.pushTimeoutMs).toBe(5000);
+  });
+
+  it("refuses a time that is not HH:MM rather than falling back to 20:30", () => {
+    for (const bad of ["2030", "24:00", "8:5", "20:60", "twenty thirty"]) {
+      withRequired({ EAIT__BACKEND__EVENING_LINE_TIME: bad });
+      expect(() => loadConfig()).toThrow(/EVENING_LINE_TIME/);
+    }
+  });
+
+  it("keeps the Expo credential out of a printable config", () => {
+    withRequired({ EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN: "expo-token-not-real" });
+    const printed = JSON.stringify(redact(loadConfig()));
+    expect(printed).not.toContain("expo-token-not-real");
+    expect(printed).toContain("***");
   });
 });
