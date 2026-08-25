@@ -83,8 +83,9 @@ export async function applyRevenueCatEvent(
     return { applied: false, reason: "other-entitlement" };
   }
 
-  // A simulated purchase grants nothing real. Production never opts in; staging does, and that is
-  // the whole difference between the two webhooks in RevenueCat.
+  // A simulated purchase grants nothing real. The deployed host opts in only while purchases are
+  // exercised from development and TestFlight builds (`ieat_revenuecat_accept_sandbox`), and must
+  // opt out the day the listing goes live.
   if (event.sandbox && !deps.config.revenueCatAcceptSandbox) return { applied: false, reason: "sandbox" };
 
   // No expiry means the event grants nothing that can lapse — a transfer, a billing issue, a

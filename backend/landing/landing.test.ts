@@ -288,8 +288,8 @@ describe("the browser-tab icon", () => {
 
 describe("indexing is opt-in per environment", () => {
   test("only the exact string \"true\" opts in", () => {
-    // A staging box becoming indexable because a variable was set to something truthy-looking is
-    // discovered by finding the staging hostname in a search result, weeks later.
+    // A second box becoming indexable because a variable was set to something truthy-looking is
+    // discovered by finding its hostname in a search result, weeks later.
     expect(loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_INDEXABLE: "true" }).indexable).toBe(true);
     expect(loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_INDEXABLE: "TRUE" }).indexable).toBe(true);
     for (const value of ["1", "yes", "on", "", "ture", undefined]) {

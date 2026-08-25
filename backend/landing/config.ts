@@ -1,6 +1,6 @@
 // What the landing page cannot know about itself.
 //
-// Everything here differs between a laptop, staging and production — the canonical origin, whether
+// Everything here differs between a laptop, a preview container and production — the canonical origin, whether
 // the App Store listing exists yet, which bot the secondary action points at. Per the repo rule,
 // that makes each one an environment variable rather than a constant, and this file is the single
 // place they are read and checked.
@@ -29,12 +29,12 @@ export interface LandingConfig {
    * Whether search engines may index this build. **Defaults to false**, and the default is the
    * whole point.
    *
-   * Staging serves the same page on a real, publicly resolvable, certificate-bearing name. Left
+   * A second host serves the same page on a real, publicly resolvable, certificate-bearing name. Left
    * alone it gets crawled — and then the product has two indexed copies of its own landing page,
    * one of them on a hostname made of an IP address, competing with the domain it is trying to
    * rank. Undoing that costs weeks and a `noindex` nobody can force a crawler to re-read promptly.
    *
-   * So indexing is opt-in per environment rather than something a staging box has to remember to
+   * So indexing is opt-in per environment rather than something a second box has to remember to
    * switch off. Production sets it; nothing else does.
    */
   indexable: boolean;
@@ -132,9 +132,9 @@ export function loadLandingConfig(env: Record<string, string | undefined>): Land
   }
 
   // Only the exact string "true" opts in. Not "1", not "yes", not a typo that happens to be
-  // non-empty — the failure this guards against is a staging box quietly becoming indexable
+  // non-empty — the failure this guards against is a second box quietly becoming indexable
   // because a variable was set to something truthy-looking, and that failure is discovered by
-  // finding the staging hostname in a search result.
+  // finding its hostname in a search result.
   const indexable = env.EAIT__BACKEND__LANDING_INDEXABLE?.trim().toLowerCase() === "true";
 
   return { siteUrl, appStoreUrl, telegramUrl, supportEmail, updatedAt, indexable, apiUrl };

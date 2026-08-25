@@ -10,8 +10,8 @@ bun test src/backend/landing     # the claims gate, the config refusals, the pal
 > **`make landing` is a preview, not a rehearsal.** It serves the files with no headers, and the
 > headers are part of the page: a `style-src 'self'` policy drops every inline `style` attribute,
 > silently, which is exactly how the hero's floor mark ended up stacked at the left edge of the card
-> on staging while localhost looked perfect. To check it the way production serves it, build
-> `deploy/Dockerfile.landing` and run that container, or deploy to staging and look.
+> on the deployed host while localhost looked perfect. To check it the way production serves it, build
+> `deploy/Dockerfile.landing` and run that container, or deploy and look.
 
 ## What it is
 
@@ -111,8 +111,7 @@ Host it was not configured for.
 
 The nginx service sits behind a compose **profile**, so it starts only under `--profile landing`.
 That is what lets one description of the stack cover a host that serves the marketing site and a
-host that serves only the API — including staging running the page for review while production has
-not turned it on yet.
+host that serves only the API.
 
 Ansible drives all three from one variable. `ieat_landing_enabled` decides whether the profile is
 passed, whether Caddy gets a site block, and whether the environment file carries the values the

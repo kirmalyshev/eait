@@ -141,7 +141,8 @@ describe("a purchase", () => {
 
 describe("deliveries this server ignores", () => {
   // A Test Store or sandbox purchase is a simulated one. Accepting it in production would sell the
-  // tier for free to anybody with a development build; staging opts in explicitly.
+  // tier for free to anybody with a development build; the deployed host opts in explicitly, and
+  // only while purchases are exercised from development and TestFlight builds.
   it("ignores a SANDBOX event unless configured to accept one", async () => {
     const { userId, token } = await account();
     const res = await deliver(purchase(userId, { environment: "SANDBOX" }));

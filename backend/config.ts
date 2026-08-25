@@ -15,7 +15,7 @@ export interface Config {
   llmModel: string;
   llmApiKey: string;
   /**
-   * Where the chat-completions call goes. Env-configurable so staging can point at a proxy, a
+   * Where the chat-completions call goes. Env-configurable so a test instance can point at a proxy, a
    * gateway, or a recorded fixture server without a code change — and so nothing has to guess
    * which environment it is in.
    */
@@ -73,7 +73,7 @@ export interface Config {
    * How many days a bearer token survives WITHOUT BEING USED.
    *
    * Idle time, not absolute age — `auth/tokens.ts` has the argument. Configurable because the right
-   * number is a product judgement rather than a constant of nature, and because a staging instance
+   * number is a product judgement rather than a constant of nature, and because a test instance
    * that wants to exercise the expiry path should not have to wait half a year to reach it.
    */
   sessionTtlDays: number;
@@ -134,8 +134,9 @@ export interface Config {
   revenueCatEntitlementId: string;
   /**
    * Accept webhook events from RevenueCat's SANDBOX environment (App Store sandbox, Test Store).
-   * OFF in production: a simulated purchase must not grant a real entitlement. Staging opts in,
-   * and that is how a development build's purchase is exercised end to end.
+   * OFF by default: a simulated purchase must not grant a real entitlement. The one deployed host
+   * opts in while purchases are exercised from development and TestFlight builds, and must switch
+   * it OFF the day the listing goes live (`ieat_revenuecat_accept_sandbox`).
    */
   revenueCatAcceptSandbox: boolean;
 

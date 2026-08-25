@@ -120,9 +120,9 @@ export async function buildLanding(
 }
 
 /**
- * `robots.txt`, and it says the opposite thing on staging.
+ * `robots.txt`, and it says the opposite thing everywhere but production.
  *
- * Staging serves this page on a real, publicly resolvable name with a real certificate. Left to the
+ * A second host serves this page on a real, publicly resolvable name with a real certificate. Left to the
  * default it gets crawled, and the product then has two indexed copies of its own landing page
  * competing with each other — one of them on a hostname made of an IP address. `Disallow: /` is the
  * default for that reason, and production is the environment that opts in.
