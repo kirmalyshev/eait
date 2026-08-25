@@ -88,6 +88,172 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.getEntitlement(userId)).toBeNull();
     });
 
+    // THE TWO GRANTS ARE SEPARATE, and every test below is about that. A customer can hold a
+    // subscription and the lifetime unlock at once, because both grant the same entitlement. One
+    // column carrying both is not a shortcut, it is a bug with a receipt: it revoked a monthly
+    // plan that was still paid for the moment the lifetime was refunded.
+    it("stores a lifetime unlock, and it is not the same as having no record", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      expect(await s.putEntitlement(userId, {
+        lifetimeProductId: "lifetime", productId: "lifetime",
+        eventAt: "2026-08-24T10:00:00.000Z",
+      })).toBe(true);
+      expect(await s.getEntitlement(userId)).toEqual({
+        expiresAt: null, lifetimeProductId: "lifetime", productId: "lifetime",
+        eventAt: "2026-08-24T10:00:00.000Z", trial: false,
+      });
+
+      const { userId: other } = await s.upsertDeviceUser(device(), "en");
+      expect(await s.getEntitlement(other)).toBeNull();
+    });
+
+    it("keeps a subscription's end date when the lifetime unlock is granted, and vice versa", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+
+      await s.putEntitlement(userId, {
+        expiresAt: "2026-09-24T10:00:00.000Z", productId: "monthly",
+        eventAt: "2026-08-14T10:00:00.000Z",
+      });
+      // The unlock arrives. It says nothing about the monthly plan, so the plan's end survives.
+      await s.putEntitlement(userId, {
+        lifetimeProductId: "lifetime", productId: "lifetime",
+        eventAt: "2026-08-19T10:00:00.000Z",
+      });
+      expect(await s.getEntitlement(userId)).toEqual({
+        expiresAt: "2026-09-24T10:00:00.000Z", lifetimeProductId: "lifetime",
+        productId: "lifetime", eventAt: "2026-08-19T10:00:00.000Z", trial: false,
+      });
+
+      // The plan renews. It says nothing about the unlock, so the unlock survives.
+      await s.putEntitlement(userId, {
+        expiresAt: "2026-10-24T10:00:00.000Z", productId: "monthly",
+        eventAt: "2026-08-24T10:00:00.000Z",
+      });
+      const after = await s.getEntitlement(userId);
+      expect(after?.lifetimeProductId).toBe("lifetime");
+      expect(after?.expiresAt).toBe("2026-10-24T10:00:00.000Z");
+    });
+
+    it("clears the unlock only for the product that granted it", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.putEntitlement(userId, {
+        lifetimeProductId: "lifetime", productId: "lifetime",
+        eventAt: "2026-08-14T10:00:00.000Z",
+      });
+
+      // A monthly plan's cancellation must not revoke something bought outright.
+      expect(await s.putEntitlement(userId, {
+        lifetimeProductId: null, productId: "monthly", eventAt: "2026-08-19T10:00:00.000Z",
+      })).toBe(false);
+      expect((await s.getEntitlement(userId))?.lifetimeProductId).toBe("lifetime");
+
+      // Its own refund does.
+      expect(await s.putEntitlement(userId, {
+        lifetimeProductId: null, productId: "lifetime", eventAt: "2026-08-24T10:00:00.000Z",
+      })).toBe(true);
+      expect((await s.getEntitlement(userId))?.lifetimeProductId).toBeNull();
+    });
+
+    it("refuses to clear an unlock that was never granted", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      expect(await s.putEntitlement(userId, {
+        lifetimeProductId: null, productId: "lifetime", eventAt: "2026-08-24T10:00:00.000Z",
+      })).toBe(false);
+      // And nothing was written, so the account is still one that never bought anything — rather
+      // than one whose ordering key now refuses the purchase that is about to arrive.
+      expect(await s.getEntitlement(userId)).toBeNull();
+    });
+
+    // The merge is where a purchase is most easily lost: the entitlement lives on the users row,
+    // the merged-away row is deleted, and the account that BOUGHT is usually the anonymous one —
+    // the paywall sells from onboarding and from the camera refusal, both before anybody signs in.
+    it("carries a purchase across a merge, and never over the surviving account's own", async () => {
+      const s = await open();
+      const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.putEntitlement(anon, {
+        lifetimeProductId: "lifetime", productId: "lifetime",
+        eventAt: "2026-08-20T00:00:00.000Z",
+      });
+
+      await s.mergeUsers(anon, real);
+      expect((await s.getEntitlement(real))?.lifetimeProductId).toBe("lifetime");
+
+      // The other direction: a surviving account that already holds something keeps its own.
+      const anon2 = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real2 = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.putEntitlement(anon2, {
+        expiresAt: "2026-09-01T00:00:00.000Z", productId: "monthly",
+        eventAt: "2026-08-20T00:00:00.000Z",
+      });
+      await s.putEntitlement(real2, {
+        expiresAt: "2026-12-01T00:00:00.000Z", productId: "yearly",
+        eventAt: "2026-08-21T00:00:00.000Z",
+      });
+      await s.mergeUsers(anon2, real2);
+      expect((await s.getEntitlement(real2))?.expiresAt).toBe("2026-12-01T00:00:00.000Z");
+    });
+
+    // THE CLOCKS HAVE TO CROSS TOO, and `getEntitlement` hides them — so the only way to see one is
+    // to write against it. Without this, deleting both clock lines from the merge leaves the suite
+    // green while a stale post-merge delivery silently becomes applicable again.
+    it("carries each grant's clock across a merge, so a stale delivery stays stale", async () => {
+      const s = await open();
+      const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.putEntitlement(anon, {
+        expiresAt: "2026-09-24T00:00:00.000Z", productId: "monthly",
+        eventAt: "2026-08-20T00:00:00.000Z",
+      });
+      await s.mergeUsers(anon, real);
+
+      // Older than the clock that came with the grant. It was stale before the merge and the merge
+      // is not an excuse to apply it.
+      expect(await s.putEntitlement(real, {
+        expiresAt: "2026-08-25T00:00:00.000Z", productId: "monthly",
+        eventAt: "2026-08-19T00:00:00.000Z",
+      })).toBe(false);
+      expect((await s.getEntitlement(real))?.expiresAt).toBe("2026-09-24T00:00:00.000Z");
+
+      // And a genuinely newer one still lands.
+      expect(await s.putEntitlement(real, {
+        expiresAt: "2026-10-24T00:00:00.000Z", productId: "monthly",
+        eventAt: "2026-08-21T00:00:00.000Z",
+      })).toBe(true);
+    });
+
+    // Two grants, two clocks. A late event about one must not be refused by a newer event about
+    // the other: they are separate streams and RevenueCat orders neither.
+    it("orders each grant against its own stream and not the other's", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+
+      await s.putEntitlement(userId, {
+        lifetimeProductId: "lifetime", productId: "lifetime",
+        eventAt: "2026-08-24T00:00:00.000Z",
+      });
+      // OLDER than the unlock's event, and about the subscription. It must land.
+      expect(await s.putEntitlement(userId, {
+        expiresAt: "2026-09-24T00:00:00.000Z", productId: "monthly",
+        eventAt: "2026-08-20T00:00:00.000Z",
+      })).toBe(true);
+
+      const both = await s.getEntitlement(userId);
+      expect(both?.lifetimeProductId).toBe("lifetime");
+      expect(both?.expiresAt).toBe("2026-09-24T00:00:00.000Z");
+
+      // But within the subscription's own stream, an older event is still stale.
+      expect(await s.putEntitlement(userId, {
+        expiresAt: "2026-08-25T00:00:00.000Z", productId: "monthly",
+        eventAt: "2026-08-19T00:00:00.000Z",
+      })).toBe(false);
+      expect((await s.getEntitlement(userId))?.expiresAt).toBe("2026-09-24T00:00:00.000Z");
+    });
+
     it("stores what a purchase said and reads it back", async () => {
       const s = await open();
       const { userId } = await s.upsertDeviceUser(device(), "en");
@@ -98,7 +264,7 @@ function contract(name: string, make: () => Promise<Store>) {
         trial: false,
       };
       expect(await s.putEntitlement(userId, e)).toBe(true);
-      expect(await s.getEntitlement(userId)).toEqual(e);
+      expect(await s.getEntitlement(userId)).toEqual({ ...e, lifetimeProductId: null });
 
       // The trial flag round-trips, and an event that omits it reads back as false in BOTH
       // implementations — a row written before the column existed must not read as a trial.
@@ -126,7 +292,7 @@ function contract(name: string, make: () => Promise<Store>) {
       };
       expect(await s.putEntitlement(userId, renewal)).toBe(true);
       expect(await s.putEntitlement(userId, staleCancellation)).toBe(false);
-      expect(await s.getEntitlement(userId)).toEqual(renewal);
+      expect(await s.getEntitlement(userId)).toEqual({ ...renewal, lifetimeProductId: null });
     });
 
     // RevenueCat redelivers. The same event twice must not be treated as new information.
@@ -154,7 +320,7 @@ function contract(name: string, make: () => Promise<Store>) {
         eventAt: "2026-08-24T11:00:00.000Z", trial: false,
       };
       expect(await s.putEntitlement(userId, revoked)).toBe(true);
-      expect(await s.getEntitlement(userId)).toEqual(revoked);
+      expect(await s.getEntitlement(userId)).toEqual({ ...revoked, lifetimeProductId: null });
     });
 
     // RevenueCat can name an id this server never issued — its own anonymous ids, or an account
@@ -1101,6 +1267,138 @@ if (PG_URL) {
       } finally {
         await sql.close();
       }
+    });
+  });
+}
+
+// ── The migration onto the two-grant model ─────────────────────────────────────────────────────
+//
+// Postgres only, because the thing under test is DDL. An intermediate version of this code stored
+// the lifetime unlock as a NULL expiry on an existing record; a database that ran it holds rows the
+// current reader would otherwise see as having bought nothing, and a paid customer would lose their
+// access silently on deploy.
+//
+// The second test is the one that matters more. A refunded lifetime with no subscription has
+// exactly the shape of an old-model lifetime — null expiry, null unlock, an event_at — so a
+// backfill that ran on every start would re-grant every refund it ever processed. The backfill is
+// therefore inside the column-does-not-exist branch, and this proves that it is.
+if (PG_URL) {
+  describe("migrating a database that stored lifetimes the old way", () => {
+    // Constructing the store IS the migration — `postgresStore` runs the schema before it returns,
+    // so building one again is what a redeploy does.
+    const migrate = () => postgresStore(PG_URL, { maxConnections: 2 });
+    const fresh = async () => ({ sql: new SQL(PG_URL, { max: 2 }), store: await migrate() });
+
+    it("restores an unlock that was stored as a null expiry", async () => {
+      const { sql, store } = await fresh();
+      const { userId } = await store.upsertDeviceUser(`mig-${crypto.randomUUID()}`, "en");
+
+      // The old shape, put back by hand: the record exists, the expiry is null because the unlock
+      // had no period, and the new column is null because the row predates it.
+      await sql`
+        update users set entitlement_expires_at = null, entitlement_product_id = 'lifetime',
+                         entitlement_event_at = ${new Date("2026-08-20T00:00:00.000Z")},
+                         entitlement_lifetime_product_id = null
+        where id = ${userId}`;
+      expect((await store.getEntitlement(userId))?.lifetimeProductId).toBeNull();
+
+      // Dropping the column is what makes the next migration believe it is running for the first
+      // time — the state a real deploy onto an old database is in.
+      //
+      // IT IS TABLE-WIDE, and this suite shares one `users` table with every test above it. So the
+      // backfill also touches rows those tests left behind, including any refunded lifetime, which
+      // it will re-grant. That is not a defect in the backfill: on a database genuinely seeing this
+      // column for the first time, a null expiry can ONLY be an old-model unlock, because the code
+      // that produces a refunded one is the code that adds the column. It is a property of the
+      // SIMULATION — production never drops the column, so the collateral cannot occur there — and
+      // it is why the assertions below name this test's own user and nothing else.
+      await sql`alter table users drop column entitlement_lifetime_product_id`;
+      const redeployed = await migrate();
+
+      const restored = await redeployed.getEntitlement(userId);
+      expect(restored?.lifetimeProductId).toBe("lifetime");
+      await sql.end();
+    });
+
+    // The migration has to survive a table that has never held ANY of these columns. It did not:
+    // two backfills read `entitlement_event_at` in their WHERE clauses while it was still declared
+    // twenty lines below them, so the server failed to start against a fresh database — a new dev
+    // machine, CI given a clean Postgres, a restore into an empty schema. Invisible in every
+    // environment that had already run the older code, which is every environment anybody had.
+    it("runs against a table with none of the entitlement columns", async () => {
+      const { sql } = await fresh();
+      await sql`
+        alter table users
+          drop column entitlement_event_at,
+          drop column entitlement_expires_at,
+          drop column entitlement_expires_event_at,
+          drop column entitlement_product_id,
+          drop column entitlement_lifetime_product_id,
+          drop column entitlement_lifetime_event_at`;
+
+      const store = await migrate();
+      const { userId } = await store.upsertDeviceUser(`virgin-${crypto.randomUUID()}`, "en");
+      expect(await store.getEntitlement(userId)).toBeNull();
+      await sql.end();
+    });
+
+    // The clocks are seeded from the single legacy timestamp, and seeding BOTH from it hands an
+    // ordinary subscriber a lifetime clock for a lifetime they never bought. Their first real
+    // unlock, redelivered even slightly late, is then refused as older than an event that never
+    // happened — charged, unlock never delivered, no retry.
+    it("does not give a subscription-only account a clock for a lifetime it never had", async () => {
+      const { sql, store } = await fresh();
+      const { userId } = await store.upsertDeviceUser(`sub-${crypto.randomUUID()}`, "en");
+
+      // A subscriber as the released model stored one: an expiry, and one timestamp for both.
+      await sql`
+        update users set entitlement_expires_at = ${new Date("2026-09-20T00:00:00.000Z")},
+                         entitlement_product_id = 'monthly',
+                         entitlement_event_at = ${new Date("2026-08-20T00:00:00.000Z")},
+                         entitlement_expires_event_at = null,
+                         entitlement_lifetime_event_at = null,
+                         entitlement_lifetime_product_id = null
+        where id = ${userId}`;
+      await sql`
+        alter table users
+          drop column entitlement_expires_event_at, drop column entitlement_lifetime_event_at`;
+      const migrated = await migrate();
+
+      // Their first lifetime purchase, dated BEFORE their last subscription event because the
+      // delivery was retried. Nothing about the unlock has ever been recorded, so it must land.
+      expect(await migrated.putEntitlement(userId, {
+        lifetimeProductId: "lifetime", productId: "lifetime",
+        eventAt: "2026-08-15T00:00:00.000Z",
+      })).toBe(true);
+      expect((await migrated.getEntitlement(userId))?.lifetimeProductId).toBe("lifetime");
+
+      // And the subscription's own clock WAS seeded, so its stale redelivery is still refused.
+      expect(await migrated.putEntitlement(userId, {
+        expiresAt: "2026-08-25T00:00:00.000Z", productId: "monthly",
+        eventAt: "2026-08-19T00:00:00.000Z",
+      })).toBe(false);
+      await sql.end();
+    });
+
+    it("does not re-grant a lifetime that was refunded, however often it runs", async () => {
+      const { sql, store } = await fresh();
+      const { userId } = await store.upsertDeviceUser(`mig-${crypto.randomUUID()}`, "en");
+
+      await store.putEntitlement(userId, {
+        lifetimeProductId: "lifetime", productId: "lifetime",
+        eventAt: "2026-08-20T00:00:00.000Z",
+      });
+      await store.putEntitlement(userId, {
+        lifetimeProductId: null, productId: "lifetime",
+        eventAt: "2026-08-21T00:00:00.000Z",
+      });
+      expect((await store.getEntitlement(userId))?.lifetimeProductId).toBeNull();
+
+      // Every restart runs the schema again. The refund must survive all of them.
+      await migrate();
+      await migrate();
+      expect((await store.getEntitlement(userId))?.lifetimeProductId).toBeNull();
+      await sql.end();
     });
   });
 }

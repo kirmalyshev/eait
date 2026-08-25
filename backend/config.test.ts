@@ -156,7 +156,7 @@ describe("the paid tier", () => {
 
   it("names which entitlement grants the tier, defaulting to pro", () => {
     withRequired();
-    expect(loadConfig().revenueCatEntitlementId).toBe("pro");
+    expect(loadConfig().revenueCatEntitlementId).toBe("ieat_fit_pro");
     withRequired({ EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID: "lifetime" });
     expect(loadConfig().revenueCatEntitlementId).toBe("lifetime");
   });

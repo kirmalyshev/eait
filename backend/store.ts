@@ -27,18 +27,52 @@ export interface PendingMeal {
 export type ProfilePatch = Partial<Omit<Profile, "user_id">>;
 
 /**
- * The paid tier as stored: what the store says, plus when it said it.
+ * What is stored about an account's paid tier: the two grants, kept apart.
  *
- * `expiresAt` is the whole entitlement — `entitlementActive` in `@ieat/shared` turns it into a
- * yes/no, and nothing else may. `productId` is not used to decide anything and is kept anyway,
- * because the first support question about a charge is "what did they actually buy" and the
- * alternative is asking the person to read it off their Apple receipt.
+ * A customer can hold BOTH — a subscription with a period, and the lifetime unlock with none —
+ * because every product grants the same entitlement. One field cannot carry both: it did once, and
+ * refunding a lifetime then revoked a monthly plan that was still paid for.
  *
- * `eventAt` is the instant the STORE generated the event, never the instant we received it. It is
- * what makes out-of-order delivery safe; see `putEntitlement`.
+ * Turn this into a yes/no with `entitlementLive` from `@ieat/shared` and with nothing else.
+ * `entitlementActive` answers only the subscription half, and a lifetime holder reads as unentitled
+ * through it — which is exactly the mistake the Postgres reader made in its first version.
+ *
+ * `productId` decides nothing and is kept anyway, because the first support question about a charge
+ * is "what did they actually buy" and the alternative is asking the person to read it off their
+ * Apple receipt. `eventAt` is the instant the STORE generated the event, never the instant we
+ * received it: it is what makes out-of-order delivery safe. See `putEntitlement`.
  */
 export interface StoredEntitlement {
-  expiresAt: string;
+  /** When the SUBSCRIPTION lapses. Null when this account has never held one. */
+  expiresAt: string | null;
+  /** The product that bought the perpetual unlock, or null if there is none. */
+  lifetimeProductId: string | null;
+  /** The product named by the most recently APPLIED delivery, in arrival order. Decides nothing. */
+  productId: string;
+  /** When the store generated that event — the ordering key. */
+  eventAt: string;
+  /** Whether the current subscription period is a free trial. Absent on rows written before the
+   *  field existed; both implementations read that back as false. See `EntitlementPatch.trial`. */
+  trial?: boolean;
+}
+
+/**
+ * One event's effect: set the subscription's end, or set/clear the lifetime unlock, never both.
+ *
+ * Undefined means LEAVE ALONE, and that is the whole point. A monthly renewal says nothing about a
+ * lifetime unlock and must not touch it; a lifetime refund says nothing about a subscription that
+ * is still running and must not end it.
+ */
+export interface EntitlementPatch {
+  /** The subscription's new end. Undefined leaves the stored one untouched. */
+  expiresAt?: string;
+  /**
+   * The product granting the perpetual unlock, or null to clear it. Undefined leaves it untouched.
+   *
+   * Clearing is CONDITIONAL on the stored unlock having come from this same product, checked inside
+   * the write — a subscription's cancellation must not revoke a lifetime somebody bought.
+   */
+  lifetimeProductId?: string | null;
   productId: string;
   eventAt: string;
   /**
@@ -302,13 +336,17 @@ export interface Store {
    * FALSE has two meanings and both are ordinary: there is no such user (RevenueCat can name an id
    * this server has never seen), or the stored state came from a LATER event than this one.
    *
+   * Clearing the lifetime unlock carries one more condition, enforced in the same statement rather
+   * than by the caller: it applies only when the stored unlock came from the SAME product. A
+   * subscription's cancellation must not revoke something bought outright.
+   *
    * That second guard is the important one. Webhook delivery is not ordered, so a cancellation
    * that was generated before a renewal can arrive after it, and applying it would revoke a
    * subscription somebody is paying for — silently, since nothing in the app says why. This is the
    * same rule `weight_measured_at` enforces for Apple Health: the newer MEASUREMENT wins, not the
    * later write.
    */
-  putEntitlement(userId: string, entitlement: StoredEntitlement): Promise<boolean>;
+  putEntitlement(userId: string, patch: EntitlementPatch): Promise<boolean>;
 
   // ── Push tokens ────────────────────────────────────────────────────────────────────────────
   //

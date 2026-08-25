@@ -91,6 +91,86 @@ alter table users add column if not exists weight_measured_at timestamptz;
 -- (No backticks anywhere in here: this is a template literal and one would end it.)
 alter table users add column if not exists entitlement_expires_at timestamptz;
 alter table users add column if not exists entitlement_product_id text;
+-- BEFORE THE BACKFILLS BELOW, WHICH READ IT. It was declared after them once, and the whole
+-- server then failed to start against a database that did not already have it: a new dev
+-- machine, CI given a clean Postgres, a restore into a fresh schema. Invisible everywhere the
+-- column already existed, which is every environment that had ever run the older code.
+alter table users add column if not exists entitlement_event_at timestamptz;
+-- The perpetual unlock, kept APART from the subscription's expiry above: an account can hold
+-- both, and one column carrying both meant a lifetime refund revoked a monthly still paid for.
+--
+-- ADDED AND BACKFILLED IN ONE BREATH, and the guard is the point. An intermediate version of this
+-- code encoded the unlock as a NULL expiry on an existing record, so a database that ran it holds
+-- lifetime customers this reader would otherwise see as having bought nothing.
+--
+-- The backfill must run EXACTLY ONCE, at the moment the column first appears, which is why it is
+-- inside the not-exists branch rather than standing on its own. A refunded lifetime with no
+-- subscription is expires_at null and lifetime_product_id null and has an event_at — the
+-- same shape as an old-model lifetime, and indistinguishable from it. An unguarded backfill would
+-- therefore re-grant every refunded lifetime, on every server start, forever.
+--
+-- On a database that only ever ran the released code this matches nothing: that version refused
+-- every event with no expiry, so a stored record always carried a real date.
+--
+-- KNOWN AND ACCEPTED: the predicate cannot tell an old-model unlock from a new-model refunded one,
+-- because both are a null expiry on an existing record. Its correctness rests entirely on firing
+-- once, at the true first sight of this column. The only way to break that is to roll back to a
+-- binary that predates the column, take a real lifetime purchase through the old code path while
+-- the column sits there unknown to it, and roll forward — that purchase would go unbackfilled.
+-- There is one compose deploy per host and no blue-green tooling here, so that sequence is not one
+-- this system can perform today.
+do $do$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = current_schema()
+      and table_name = 'users' and column_name = 'entitlement_lifetime_product_id'
+  ) then
+    alter table users add column entitlement_lifetime_product_id text;
+    update users set entitlement_lifetime_product_id = entitlement_product_id
+     where entitlement_event_at is not null and entitlement_expires_at is null;
+  end if;
+end
+$do$;
+
+-- ONE CLOCK PER GRANT, for the same reason there is one column per grant.
+--
+-- The subscription and the unlock are separate event streams with independent timestamps, so a
+-- single ordering key lets a newer event about one refuse an older, never-applied event about the
+-- other — permanently, since the webhook answers 200 and nothing is redelivered. Measured before
+-- this existed: a lifetime purchase delivered after a monthly cancellation was dropped outright,
+-- and a renewal delivered late left the subscription's real end unrecorded, so refunding the
+-- unlock revoked a month somebody had paid for.
+--
+-- entitlement_event_at stays, as the record's EXISTENCE marker and nothing else: it is the max of
+-- the two, and it is what tells "bought something once" apart from "never bought".
+do $do$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = current_schema()
+      and table_name = 'users' and column_name = 'entitlement_expires_event_at'
+  ) then
+    alter table users add column entitlement_expires_event_at timestamptz;
+    alter table users add column entitlement_lifetime_event_at timestamptz;
+    -- SEED ONLY THE CLOCK WHOSE GRANT ACTUALLY EXISTS, and leave the other null.
+    --
+    -- Existing records carry one timestamp that governed both grants, but it belongs to whichever
+    -- stream produced it. Stamping it onto both would give an ordinary subscriber a lifetime clock
+    -- for a lifetime they never bought — and their first real unlock, if RevenueCat redelivers it
+    -- late, would then be refused as older than an event that never happened. Charged, unlock never
+    -- delivered, no retry: exactly the failure the two clocks were added to prevent, reintroduced
+    -- by the migration that added them.
+    --
+    -- A null clock is not a missing value, it is the true statement that this stream has no history
+    -- yet, and the guard accepts any first event against it.
+    update users set entitlement_expires_event_at = entitlement_event_at
+     where entitlement_event_at is not null and entitlement_expires_at is not null;
+    update users set entitlement_lifetime_event_at = entitlement_event_at
+     where entitlement_event_at is not null and entitlement_lifetime_product_id is not null;
+  end if;
+end
+$do$;
 -- When Spud spoke the first verdict. Null until then; the claim is one atomic update.
 alter table users add column if not exists first_verdict_at timestamptz;
 alter table users add column if not exists entitlement_event_at   timestamptz;
@@ -720,6 +800,26 @@ export async function postgresStore(
           update users set first_verdict_at = coalesce(
             first_verdict_at, (select first_verdict_at from users where id = ${fromUserId}))
           where id = ${intoUserId}`;
+        // THE PAID TIER MOVES TOO, and it is the one thing here that is somebody's money. The
+        // entitlement lives on the users row, and the row being merged away is deleted below — so
+        // without this, an account that BOUGHT is the account that loses the purchase. That is the
+        // common direction, not an exotic one: the paywall sells from onboarding and from the
+        // camera refusal, both of which happen before anybody signs in.
+        //
+        // Per grant, and only into a gap: `coalesce` keeps whatever the surviving account already
+        // has, because overwriting a live subscription with an older one is the same data loss the
+        // health days above are careful about. The clocks travel with their grants, or the next
+        // delivery would be ordered against a timestamp that belongs to a different stream.
+        await tx`
+          update users into_u set
+            entitlement_expires_at = coalesce(into_u.entitlement_expires_at, from_u.entitlement_expires_at),
+            entitlement_expires_event_at = coalesce(into_u.entitlement_expires_event_at, from_u.entitlement_expires_event_at),
+            entitlement_lifetime_product_id = coalesce(into_u.entitlement_lifetime_product_id, from_u.entitlement_lifetime_product_id),
+            entitlement_lifetime_event_at = coalesce(into_u.entitlement_lifetime_event_at, from_u.entitlement_lifetime_event_at),
+            entitlement_product_id = coalesce(into_u.entitlement_product_id, from_u.entitlement_product_id),
+            entitlement_event_at = greatest(into_u.entitlement_event_at, from_u.entitlement_event_at)
+          from users from_u
+          where into_u.id = ${intoUserId} and from_u.id = ${fromUserId}`;
         // Funnel rows move too: signing in halfway through onboarding is normal, and a run split
         // across two user ids reads as two abandoned runs.
         await tx`update onboarding_events set user_id = ${intoUserId} where user_id = ${fromUserId}`;
@@ -796,31 +896,63 @@ export async function postgresStore(
 
     async getEntitlement(userId) {
       const rows = await sql`
-        select entitlement_expires_at, entitlement_product_id, entitlement_event_at, entitlement_trial
+        select entitlement_expires_at, entitlement_product_id, entitlement_event_at,
+               entitlement_lifetime_product_id, entitlement_trial
         from users where id = ${userId}`;
       const r = rows[0];
-      if (!r || !r.entitlement_expires_at || !r.entitlement_event_at) return null;
+      // `entitlement_event_at` is what proves a record exists, NOT either grant: an account can
+      // hold a lifetime with no subscription expiry, and treating that as "no record" would revoke
+      // it on every read.
+      if (!r || !r.entitlement_event_at) return null;
       return {
-        expiresAt: new Date(r.entitlement_expires_at as string).toISOString(),
+        expiresAt: r.entitlement_expires_at
+          ? new Date(r.entitlement_expires_at as string).toISOString()
+          : null,
+        lifetimeProductId: (r.entitlement_lifetime_product_id as string | null) ?? null,
         productId: (r.entitlement_product_id as string | null) ?? "",
         eventAt: new Date(r.entitlement_event_at as string).toISOString(),
         trial: r.entitlement_trial === true,
       };
     },
 
-    async putEntitlement(userId, entitlement) {
-      const eventAt = new Date(entitlement.eventAt);
-      // ONE statement carries both refusals, so neither can be forgotten by a caller. No row
-      // matches when the user does not exist — RevenueCat can name an id this server never issued
-      // — and none matches when what is stored came from a later event than this one.
+    async putEntitlement(userId, patch) {
+      const eventAt = new Date(patch.eventAt);
+      // EACH GRANT IS GUARDED BY ITS OWN CLOCK. A patch speaks for exactly one of them, so this is
+      // two statements rather than one with a cross-product of conditions — and each is ordered
+      // against the stream it belongs to. A renewal arriving late is stale only with respect to
+      // other subscription events; it says nothing about the unlock and must not be refused by it.
+      //
+      // `entitlement_event_at` is bumped by both and read by neither: it is the record's existence
+      // marker, which is what tells "bought something once" apart from "never bought".
+      if (patch.expiresAt !== undefined) {
+        const rows = await sql`
+          update users set
+            entitlement_expires_at       = ${new Date(patch.expiresAt)},
+            entitlement_expires_event_at = ${eventAt},
+            entitlement_product_id       = ${patch.productId},
+            entitlement_trial            = ${patch.trial === true},
+            entitlement_event_at = greatest(coalesce(entitlement_event_at, ${eventAt}), ${eventAt})
+          where id = ${userId}
+            and (entitlement_expires_event_at is null or entitlement_expires_event_at < ${eventAt})
+          returning id`;
+        return rows.length > 0;
+      }
+      if (patch.lifetimeProductId === undefined) return false;
+
+      // Clearing is conditional on the stored unlock having come from this same product, checked
+      // inside the write rather than by the caller: a condition a caller checks with its own read
+      // is not a condition, because deliveries can be concurrent and nothing is transactional.
+      const clearing = patch.lifetimeProductId === null;
       const rows = await sql`
         update users set
-          entitlement_expires_at = ${new Date(entitlement.expiresAt)},
-          entitlement_product_id = ${entitlement.productId},
-          entitlement_event_at   = ${eventAt},
-          entitlement_trial      = ${entitlement.trial === true}
+          entitlement_lifetime_product_id = ${patch.lifetimeProductId},
+          entitlement_lifetime_event_at   = ${eventAt},
+          entitlement_product_id          = ${patch.productId},
+          entitlement_event_at = greatest(coalesce(entitlement_event_at, ${eventAt}), ${eventAt})
         where id = ${userId}
-          and (entitlement_event_at is null or entitlement_event_at < ${eventAt})
+          and (entitlement_lifetime_event_at is null or entitlement_lifetime_event_at < ${eventAt})
+          and (${clearing} = false
+               or entitlement_lifetime_product_id is not distinct from ${patch.productId})
         returning id`;
       return rows.length > 0;
     },

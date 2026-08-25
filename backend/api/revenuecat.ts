@@ -20,6 +20,9 @@
 import { applyRevenueCatEvent, type EngineDeps, type RevenueCatEvent } from "../engine/index.ts";
 import { timingSafeEqual } from "../auth/timingsafe.ts";
 
+/** How long the misconfiguration warning stays quiet after a delivery matched. */
+const QUIET_AFTER_MATCH_MS = 60 * 60 * 1000;
+
 export const REVENUECAT_WEBHOOK_PATH = "/v1/revenuecat/webhook";
 
 /**
@@ -82,16 +85,26 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent | null {
   const eventTimestampMs = epochMs(e.event_timestamp_ms);
   if (eventTimestampMs === null) return null;
 
+  // ABSENT AND NONSENSE ARE NOT THE SAME FIELD. Absent is meaningful — it is what a non-consumable
+  // sends, and it is how the lifetime unlock is recognised. A value that is present but cannot be a
+  // date is a provider bug, and reading it as absent would turn it into a lifetime grant, or into
+  // the refund of one. Refuse the delivery instead: it answers 200 and is logged as unreadable,
+  // which is the same treatment every other malformed field gets.
+  if (e.expiration_at_ms !== undefined && e.expiration_at_ms !== null && epochMs(e.expiration_at_ms) === null) {
+    return null;
+  }
+
   const ids = Array.isArray(e.entitlement_ids)
     ? e.entitlement_ids.filter((x): x is string => typeof x === "string")
     : typeof e.entitlement_id === "string" ? [e.entitlement_id] : [];
 
   return {
     appUserId,
+    // Absent is a valid parse, not a refusal: the type only ever decides what a NO-EXPIRY event
+    // means, and "" falls through to changing nothing, which is the safe reading of a delivery
+    // this server does not recognise.
+    type: typeof e.type === "string" ? e.type : "",
     entitlementIds: ids,
-    // A value out of range is treated as ABSENT, not as a refusal of the whole delivery: an event
-    // with a nonsense expiry still carries a real entitlement id and a real timestamp, and
-    // `applyRevenueCatEvent` handles "no expiry" by leaving the stored state alone.
     expirationAtMs: epochMs(e.expiration_at_ms),
     productId: typeof e.product_id === "string" ? e.product_id : "",
     // TRIAL is the free week; NORMAL is a paid period, and INTRO/PROMOTIONAL are discounted paid
@@ -109,7 +122,45 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent | null {
  * aggregator is not where that belongs; what is logged is whether an entitlement changed, which is
  * the only part anybody debugging this actually needs.
  */
-export async function revenueCatWebhook(req: Request, deps: EngineDeps): Promise<Response> {
+/**
+ * Build the webhook handler.
+ *
+ * A FACTORY because of the one piece of state below. Per SERVER, not per process and not per
+ * module: a fresh router gets a fresh answer to "has this server ever seen a purchase it
+ * recognised", which is what the question means, and is also what stops one test's state from
+ * deciding the next one's.
+ */
+export function createRevenueCatWebhook(): (req: Request, deps: EngineDeps) => Promise<Response> {
+  /**
+   * When the warning below goes quiet until.
+   *
+   * TIME-BOXED, NOT PERMANENT, and the difference is the whole point. A project is allowed more
+   * than one entitlement — a legacy plan, an internal comp — so warning on every event for those
+   * would turn a line meant to be rare into a standing false alarm. But a permanent latch blinds
+   * the case the warning exists for: a rename in the RevenueCat dashboard, which somebody can do
+   * without touching this repo, and which on a server that has already taken one successful
+   * purchase would then produce total silence until the process restarted. An hour of quiet after
+   * each match keeps the anti-spam property and still surfaces a rename within the hour.
+   */
+  let quietUntil = 0;
+  return (req, deps) => revenueCatWebhook(req, deps, {
+    matched: () => Date.now() < quietUntil,
+    markMatched: () => { quietUntil = Date.now() + QUIET_AFTER_MATCH_MS; },
+  });
+}
+
+/** The quiet period, injected so the handler itself stays a plain function of its inputs. */
+interface MatchLatch {
+  /** True while the warning is suppressed by a recent match. */
+  matched(): boolean;
+  markMatched(): void;
+}
+
+export async function revenueCatWebhook(
+  req: Request,
+  deps: EngineDeps,
+  latch: MatchLatch = { matched: () => false, markMatched: () => {} },
+): Promise<Response> {
   const expected = deps.config.revenueCatWebhookToken;
   // Unset means the surface does not exist. 404, before anything else is considered.
   if (expected === "") return json({ error: "not found" }, 404);
@@ -133,6 +184,34 @@ export async function revenueCatWebhook(req: Request, deps: EngineDeps): Promise
   }
 
   const outcome = await applyRevenueCatEvent(deps, event);
-  if (outcome.applied) console.log("[ieat] revenuecat: entitlement updated");
+  if (outcome.applied) {
+    console.log("[ieat] revenuecat: entitlement updated");
+    latch.markMatched();
+  }
+  // THE ONE REFUSAL THAT IS ALMOST NEVER ORDINARY.
+  //
+  // A LIVE event that granted entitlements, none of which is the one this server checks, is what a
+  // wrong `EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID` looks like from in here — and it looks like it
+  // on every single real purchase, while every customer is charged and gets nothing. It is also
+  // what a rename in the RevenueCat dashboard looks like, which is a thing somebody can do without
+  // touching this repo at all.
+  //
+  // Silence was the actual failure mode: the identifier was wrong for a day and nothing said so,
+  // because an ignored event and a misconfigured one were the same non-event in the log. Found by
+  // auditing the live dashboard by hand, which is not a control.
+  //
+  // Narrow on purpose. Events that grant NOTHING (a dashboard test ping, a transfer, an alias) are
+  // silent, and so is anything from sandbox, or a staging server would warn all day. The payload
+  // still reaches no log line: what is printed is our own configured identifier and the fact of a
+  // mismatch, never what anybody bought.
+  else if (
+    outcome.reason === "other-entitlement" && !event.sandbox &&
+    event.entitlementIds.length > 0 && !latch.matched()
+  ) {
+    console.warn(
+      `[ieat] revenuecat: a live purchase granted no entitlement this server knows — ` +
+      `expected ${deps.config.revenueCatEntitlementId}. Check the RevenueCat dashboard.`,
+    );
+  }
   return json({ ok: true, applied: outcome.applied });
 }

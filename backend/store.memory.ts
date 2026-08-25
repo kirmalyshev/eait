@@ -69,7 +69,24 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const now = opts.now ?? Date.now;
 
   const users = new Map<string, Profile>();
-  const entitlements = new Map<string, StoredEntitlement>();
+  /**
+   * The stored record PLUS the two per-grant ordering clocks, which are this store's own
+   * bookkeeping and never leave it — `getEntitlement` projects them away. Postgres keeps the same
+   * pair in two columns; the port declares neither, because nothing outside a store may order
+   * events for itself.
+   */
+  interface StoredWithClocks extends StoredEntitlement {
+    expiresEventAt: string | null;
+    lifetimeEventAt: string | null;
+  }
+  const entitlements = new Map<string, StoredWithClocks>();
+  /** The later of two instants, tolerating the first not existing yet. */
+  const newest = (a: string | undefined, b: string): string =>
+    a !== undefined && Date.parse(a) > Date.parse(b) ? a : b;
+  const blank = (c: StoredWithClocks | undefined): StoredWithClocks => c ?? {
+    expiresAt: null, expiresEventAt: null, lifetimeProductId: null, lifetimeEventAt: null,
+    productId: "", eventAt: "", trial: false,
+  };
   const devices = new Map<string, string>(); // deviceId -> userId
   // Keyed by the HASH of the token, exactly as Postgres is. Storing the raw value here would make
   // demo mode the one environment where a token is recoverable from the store — and demo mode is
@@ -286,6 +303,23 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       for (const m of chat) if (m.userId === fromUserId) m.userId = intoUserId;
       // The greeting travels with the thread that holds it, or Spud says "First one in." twice.
       if (firstVerdictSpoken.delete(fromUserId)) firstVerdictSpoken.add(intoUserId);
+      // The paid tier moves too — see store.pg.ts for why this is the one entry here that is
+      // somebody's money. Per grant, and only into a gap.
+      const from = entitlements.get(fromUserId);
+      if (from) {
+        const into = entitlements.get(intoUserId);
+        entitlements.set(intoUserId, {
+          expiresAt: into?.expiresAt ?? from.expiresAt,
+          expiresEventAt: into?.expiresEventAt ?? from.expiresEventAt,
+          lifetimeProductId: into?.lifetimeProductId ?? from.lifetimeProductId,
+          lifetimeEventAt: into?.lifetimeEventAt ?? from.lifetimeEventAt,
+          // `??`, not `||`: an empty productId is a stored value, and Postgres's coalesce keeps it.
+          productId: into?.productId ?? from.productId,
+          eventAt: newest(into?.eventAt, from.eventAt),
+        });
+        entitlements.delete(fromUserId);
+      }
+
       // Funnel rows move with the account. Signing in halfway through onboarding is a normal thing
       // to do, and a run split across two user ids reads as two abandoned runs.
       for (const e of onboardingEvents.values()) if (e.userId === fromUserId) e.userId = intoUserId;
@@ -337,22 +371,60 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async getEntitlement(userId) {
       const e = entitlements.get(userId);
-      return e ? { ...e } : null;
+      // The per-grant clocks are the store's own bookkeeping and are deliberately NOT part of
+      // `StoredEntitlement`: nothing outside here may order events, and a field that escapes the
+      // port is a field somebody will branch on.
+      if (!e) return null;
+      return {
+        expiresAt: e.expiresAt, lifetimeProductId: e.lifetimeProductId,
+        productId: e.productId, eventAt: e.eventAt, trial: e.trial === true,
+      };
     },
 
-    async putEntitlement(userId, entitlement) {
+    async putEntitlement(userId, patch) {
       // No such user is a NO-OP, not a new row. RevenueCat names accounts by an id we gave it, and
       // it also has ids of its own for a device that never signed in here — writing an entitlement
       // for one would create paid state belonging to nobody.
       if (!users.has(userId)) return false;
       const current = entitlements.get(userId);
-      // Strictly newer. An identical timestamp is a redelivery of the event already applied, and
-      // re-applying it writes the same values for no reason.
-      if (current && Date.parse(current.eventAt) >= Date.parse(entitlement.eventAt)) return false;
-      // `trial` normalised to a boolean, because Postgres reads its column back as one: a store
-      // that answered `undefined` where the other answers `false` is a divergence the contract test
-      // would catch and a reader would not.
-      entitlements.set(userId, { ...entitlement, trial: entitlement.trial === true });
+      const at = Date.parse(patch.eventAt);
+
+      // The same conditions store.pg.ts carries in its statements, and the same reason for putting
+      // them in the write. ONE CLOCK PER GRANT: a patch is ordered against the stream it belongs
+      // to and against no other, or a late renewal would be refused by an unrelated unlock.
+      if (patch.expiresAt !== undefined) {
+        if (current && current.expiresEventAt !== null && Date.parse(current.expiresEventAt) >= at) return false;
+        entitlements.set(userId, {
+          ...blank(current),
+          expiresAt: patch.expiresAt,
+          expiresEventAt: patch.eventAt,
+          lifetimeProductId: current?.lifetimeProductId ?? null,
+          lifetimeEventAt: current?.lifetimeEventAt ?? null,
+          productId: patch.productId,
+          eventAt: newest(current?.eventAt, patch.eventAt),
+          // Normalised to a boolean because Postgres reads its column back as one; a store that
+          // answered undefined where the other answers false is a divergence only the contract
+          // test would notice.
+          trial: patch.trial === true,
+        });
+        return true;
+      }
+      if (patch.lifetimeProductId === undefined) return false;
+
+      if (current && current.lifetimeEventAt !== null && Date.parse(current.lifetimeEventAt) >= at) return false;
+      if (patch.lifetimeProductId === null &&
+          (current?.lifetimeProductId ?? null) !== patch.productId) return false;
+      entitlements.set(userId, {
+        ...blank(current),
+        expiresAt: current?.expiresAt ?? null,
+        expiresEventAt: current?.expiresEventAt ?? null,
+        lifetimeProductId: patch.lifetimeProductId,
+        lifetimeEventAt: patch.eventAt,
+        productId: patch.productId,
+        eventAt: newest(current?.eventAt, patch.eventAt),
+        // A lifetime event says nothing about the subscription's period.
+        trial: current?.trial ?? false,
+      });
       return true;
     },
 

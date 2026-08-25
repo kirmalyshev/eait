@@ -34,7 +34,7 @@ import {
 } from "../engine/index.ts";
 import { confirmSubscription, subscribe, unsubscribe } from "../engine/subscribe.ts";
 import { adminRoutes } from "./admin.ts";
-import { REVENUECAT_WEBHOOK_PATH, revenueCatWebhook } from "./revenuecat.ts";
+import { REVENUECAT_WEBHOOK_PATH, createRevenueCatWebhook } from "./revenuecat.ts";
 import { APPLE_NOTIFICATIONS_PATH, appleNotifications } from "./apple-notifications.ts";
 import { clientAddress, rateLimiter } from "./ratelimit.ts";
 
@@ -82,6 +82,7 @@ const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
 export function createRouter(deps: EngineDeps, store: Store, verifier: Verifier) {
+  const handleRevenueCat = createRevenueCatWebhook();
   const bearer = (req: Request): string | null => {
     const header = req.headers.get("authorization");
     return header?.startsWith("Bearer ") ? header.slice(7) : null;
@@ -173,7 +174,7 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: Verifier)
       // App Store told it, not a signed-in user, and the two must not be confusable. Unset token =
       // the path answers 404 and no account can ever become paid.
       if (pathname === REVENUECAT_WEBHOOK_PATH) {
-        return await revenueCatWebhook(req, deps);
+        return await handleRevenueCat(req, deps);
       }
 
       // Apple's server-to-server notifications, on the SIGNATURE as their credential and before

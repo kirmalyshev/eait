@@ -5,7 +5,7 @@
 // another entitlement, or for an account this server never issued, is answered 200 and ignored,
 // because the alternative is RevenueCat retrying a message that will never mean anything different.
 
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { ROUTES, entitlementActive, type ProfileResponse } from "@ieat/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -15,7 +15,7 @@ import type { EngineDeps } from "../engine/index.ts";
 import { createRouter } from "./routes.ts";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
-import { REVENUECAT_WEBHOOK_PATH, parseRevenueCatEvent } from "./revenuecat.ts";
+import { REVENUECAT_WEBHOOK_PATH, createRevenueCatWebhook, parseRevenueCatEvent } from "./revenuecat.ts";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 
 const TOKEN = "rc-webhook-secret-token-long-enough";
@@ -71,8 +71,8 @@ const profile = async (token: string): Promise<ProfileResponse> => {
 const purchase = (userId: string, over: Record<string, unknown> = {}) => ({
   type: "INITIAL_PURCHASE",
   app_user_id: userId,
-  entitlement_ids: ["pro"],
-  product_id: "ieat_pro_yearly",
+  entitlement_ids: ["ieat_fit_pro"],
+  product_id: "yearly",
   expiration_at_ms: Date.now() + 30 * 24 * 60 * 60 * 1000,
   event_timestamp_ms: Date.now(),
   ...over,
@@ -136,8 +136,10 @@ describe("a purchase", () => {
     await deliver(purchase(userId, { expiration_at_ms: Date.now() - 1000 }));
     const after = await profile(token);
     expect(after.entitlement.active).toBe(false);
-    // Still reported, so a settings screen can say when it ended rather than pretending it never was.
-    expect(after.entitlement.expiresAt).not.toBeNull();
+    // NOT reported. A date is sent only while it is the grant keeping somebody in — a spent one is
+    // still on the record, because the lifetime unlock beside it may be what matters now, and
+    // sending it anyway is what made the settings screen say "Active until" a date in the past.
+    expect(after.entitlement.expiresAt).toBeNull();
   });
 });
 
@@ -171,7 +173,7 @@ describe("deliveries this server ignores", () => {
   it("honours a configured entitlement id other than the default", async () => {
     mount({ ...base, revenueCatWebhookToken: TOKEN, revenueCatEntitlementId: "lifetime" });
     const { userId, token } = await account();
-    await deliver(purchase(userId, { entitlement_ids: ["pro"] }));
+    await deliver(purchase(userId, { entitlement_ids: ["ieat_fit_pro"] }));
     expect((await profile(token)).entitlement.active).toBe(false);
     await deliver(purchase(userId, { entitlement_ids: ["lifetime"] }));
     expect((await profile(token)).entitlement.active).toBe(true);
@@ -229,32 +231,37 @@ describe("parseRevenueCatEvent", () => {
   // drop purchases and nothing would say why.
   it("reads the deprecated singular entitlement_id too", () => {
     const e = parseRevenueCatEvent({ event: {
-      app_user_id: id, entitlement_id: "pro", product_id: "p", event_timestamp_ms: 1,
+      app_user_id: id, entitlement_id: "ieat_fit_pro", product_id: "p", event_timestamp_ms: 1,
       expiration_at_ms: 2,
     } });
-    expect(e?.entitlementIds).toEqual(["pro"]);
+    expect(e?.entitlementIds).toEqual(["ieat_fit_pro"]);
   });
 
   // Without one, nothing can be ordered against what is already stored — which is what makes
   // out-of-order delivery safe.
   it("refuses a delivery with no event timestamp", () => {
     expect(parseRevenueCatEvent({ event: {
-      app_user_id: id, entitlement_ids: ["pro"], product_id: "p", expiration_at_ms: 2,
+      app_user_id: id, entitlement_ids: ["ieat_fit_pro"], product_id: "p", expiration_at_ms: 2,
     } })).toBeNull();
   });
 
   // `Number.isFinite(1e20)` is true and `new Date(1e20).toISOString()` throws. Unguarded that is a
   // 500, and a 500 is what makes RevenueCat retry — forever, for a delivery that never parses.
-  it("treats an out-of-range timestamp as absent rather than throwing", () => {
+  // `new Date(1e20).toISOString()` THROWS, which from inside the handler is a 500 — and a 500 is
+  // what makes RevenueCat redeliver, forever, an event that will never parse any differently.
+  it("refuses an out-of-range timestamp rather than throwing on it", () => {
     expect(parseRevenueCatEvent({ event: {
-      app_user_id: id, entitlement_ids: ["pro"], product_id: "p", event_timestamp_ms: 1e20,
+      app_user_id: id, entitlement_ids: ["ieat_fit_pro"], product_id: "p", event_timestamp_ms: 1e20,
     } })).toBeNull();
 
-    const e = parseRevenueCatEvent({ event: {
-      app_user_id: id, entitlement_ids: ["pro"], product_id: "p", event_timestamp_ms: 1,
+    // An out-of-range EXPIRY refuses the whole delivery too, and that is a deliberate change:
+    // absent and nonsense are not the same field. Absent is meaningful here — it is what a
+    // non-consumable sends — so reading a broken value as absent would turn a provider bug into a
+    // lifetime grant, or into the refund of one.
+    expect(parseRevenueCatEvent({ event: {
+      app_user_id: id, entitlement_ids: ["ieat_fit_pro"], product_id: "p", event_timestamp_ms: 1,
       expiration_at_ms: 1e20,
-    } });
-    expect(e?.expirationAtMs).toBeNull();
+    } })).toBeNull();
   });
 
   // The one field that separates a trial ending from a subscription renewing. Without it the two
@@ -273,8 +280,375 @@ describe("parseRevenueCatEvent", () => {
 
   it("treats a missing expiry as no expiry rather than as zero", () => {
     const e = parseRevenueCatEvent({ event: {
-      app_user_id: id, entitlement_ids: ["pro"], product_id: "p", event_timestamp_ms: 1,
+      app_user_id: id, entitlement_ids: ["ieat_fit_pro"], product_id: "p", event_timestamp_ms: 1,
     } });
     expect(e?.expirationAtMs).toBeNull();
+  });
+});
+
+// ── Lifetime ───────────────────────────────────────────────────────────────────────────────────
+//
+// A lifetime unlock is a NON-CONSUMABLE, so there is no period and RevenueCat sends
+// `expiration_at_ms: null` ("This can be null for non-subscription purchases or lifetime
+// products"). Every other event that arrives with no expiry is still ignored, and the difference
+// between them is the event TYPE — which is why the parser now reads it.
+describe("a lifetime purchase", () => {
+  it("grants the tier with no expiry, and the profile reports it active", async () => {
+    const { userId, token } = await account();
+    const res = await deliver(purchase(userId, {
+      type: "NON_RENEWING_PURCHASE", product_id: "lifetime", expiration_at_ms: null,
+    }));
+    expect(await res.json()).toEqual({ ok: true, applied: true });
+
+    const stored = await store.getEntitlement(userId);
+    expect(stored?.expiresAt).toBeNull();
+
+    const p = await profile(token);
+    expect(p.entitlement.active).toBe(true);
+    expect(p.entitlement.expiresAt).toBeNull();
+  });
+
+  it("is revoked by the refund, which arrives as a CANCELLATION with no expiry", async () => {
+    const { userId, token } = await account();
+    const boughtAt = Date.now() - 60_000;
+    await deliver(purchase(userId, {
+      type: "NON_RENEWING_PURCHASE", product_id: "lifetime", expiration_at_ms: null,
+      event_timestamp_ms: boughtAt,
+    }));
+    expect((await profile(token)).entitlement.active).toBe(true);
+
+    // The refund ends it AT THE EVENT, so the stored expiry is the moment Apple refunded — which
+    // is in the past by the time the delivery arrives. Timestamps here are real ones for that
+    // reason: an event dated in the future would leave the tier alive until it caught up.
+    const refundedAt = Date.now() - 1_000;
+    await deliver(purchase(userId, {
+      type: "CANCELLATION", product_id: "lifetime", expiration_at_ms: null,
+      event_timestamp_ms: refundedAt,
+    }));
+    const p = await profile(token);
+    expect(p.entitlement.active).toBe(false);
+    // No date, because there is no SUBSCRIPTION to report an end for. The refund cleared the
+    // unlock; it did not invent a subscription that ended.
+    expect(p.entitlement.expiresAt).toBeNull();
+  });
+
+  // The guard that stops the rule above from reaching subscriptions. A CANCELLATION on a running
+  // subscription means "will not renew", NOT "ends now" — the period already paid for is still
+  // owed. Revoking on it would take the app away from somebody mid-month.
+  it("does not let a no-expiry cancellation end a TIMED subscription early", async () => {
+    const { userId, token } = await account();
+    const endsAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    await deliver(purchase(userId, { expiration_at_ms: endsAt }));
+
+    await deliver(purchase(userId, {
+      type: "CANCELLATION", expiration_at_ms: null, event_timestamp_ms: Date.now() + 1000,
+    }));
+    const p = await profile(token);
+    expect(p.entitlement.active).toBe(true);
+    expect(Date.parse(p.entitlement.expiresAt as string)).toBe(endsAt);
+  });
+
+  it("still ignores a no-expiry event that is neither a grant nor a revocation", async () => {
+    const { userId, token } = await account();
+    const endsAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    await deliver(purchase(userId, { expiration_at_ms: endsAt }));
+
+    const res = await deliver(purchase(userId, {
+      type: "BILLING_ISSUE", expiration_at_ms: null, event_timestamp_ms: Date.now() + 1000,
+    }));
+    expect(await res.json()).toEqual({ ok: true, applied: false });
+    expect((await profile(token)).entitlement.active).toBe(true);
+  });
+
+  it("grants nothing when the lifetime product does not carry OUR entitlement", async () => {
+    const { userId, token } = await account();
+    await deliver(purchase(userId, {
+      type: "NON_RENEWING_PURCHASE", entitlement_ids: ["something-else"], expiration_at_ms: null,
+    }));
+    expect((await profile(token)).entitlement.active).toBe(false);
+  });
+
+  it("is refused in sandbox like any other purchase", async () => {
+    const { userId, token } = await account();
+    const res = await deliver(purchase(userId, {
+      type: "NON_RENEWING_PURCHASE", expiration_at_ms: null, environment: "SANDBOX",
+    }));
+    expect(await res.json()).toEqual({ ok: true, applied: false });
+    expect((await profile(token)).entitlement.active).toBe(false);
+  });
+
+  // ORDERING IS PER GRANT, and these two tests are the pair that says so. Within one grant the
+  // newer event wins; ACROSS the two it must not, because the subscription and the unlock are
+  // separate event streams with independent clocks.
+  it("obeys the ordering rule within the unlock's own stream", async () => {
+    const { userId, token } = await account();
+    const now = Date.now();
+    // Bought, then refunded. A re-delivery of the ORIGINAL purchase must not undo the refund.
+    await deliver(purchase(userId, {
+      type: "NON_RENEWING_PURCHASE", product_id: "lifetime",
+      expiration_at_ms: null, event_timestamp_ms: now - 10_000,
+    }));
+    await deliver(purchase(userId, {
+      type: "CANCELLATION", product_id: "lifetime",
+      expiration_at_ms: null, event_timestamp_ms: now,
+    }));
+    const res = await deliver(purchase(userId, {
+      type: "NON_RENEWING_PURCHASE", product_id: "lifetime",
+      expiration_at_ms: null, event_timestamp_ms: now - 5_000,
+    }));
+    expect(await res.json()).toEqual({ ok: true, applied: false });
+    expect((await profile(token)).entitlement.active).toBe(false);
+  });
+
+  // The money case: a lifetime purchase delivered after an unrelated, newer subscription event.
+  // One clock for both grants dropped it outright — charged, and the unlock never delivered.
+  it("does not let a newer subscription event refuse an older lifetime purchase", async () => {
+    const { userId, token } = await account();
+    const now = Date.now();
+    await deliver(purchase(userId, {
+      type: "CANCELLATION", product_id: "monthly",
+      expiration_at_ms: now - 1000, event_timestamp_ms: now,
+    }));
+    const res = await deliver(purchase(userId, {
+      type: "NON_RENEWING_PURCHASE", product_id: "lifetime",
+      expiration_at_ms: null, event_timestamp_ms: now - 5000,
+    }));
+    expect(await res.json()).toEqual({ ok: true, applied: true });
+    expect((await profile(token)).entitlement.active).toBe(true);
+  });
+
+  // And its mirror: a renewal generated before the unlock but delivered after it must still record
+  // the subscription's real end, or refunding the unlock leaves a paid month unrecorded.
+  it("does not let a newer lifetime purchase refuse an older renewal", async () => {
+    const { userId, token } = await account();
+    const now = Date.now();
+    const monthEnd = now + 20 * 24 * 60 * 60 * 1000;
+    await deliver(purchase(userId, {
+      type: "NON_RENEWING_PURCHASE", product_id: "lifetime",
+      expiration_at_ms: null, event_timestamp_ms: now,
+    }));
+    await deliver(purchase(userId, {
+      type: "RENEWAL", product_id: "monthly",
+      expiration_at_ms: monthEnd, event_timestamp_ms: now - 5000,
+    }));
+    // Refund the unlock. The monthly it never knew about must be what keeps them in.
+    await deliver(purchase(userId, {
+      type: "CANCELLATION", product_id: "lifetime",
+      expiration_at_ms: null, event_timestamp_ms: now + 5000,
+    }));
+    const p = await profile(token);
+    expect(p.entitlement.active).toBe(true);
+    expect(Date.parse(p.entitlement.expiresAt as string)).toBe(monthEnd);
+  });
+
+  it("parses the event type, and tolerates a delivery that omits it", () => {
+    const withType = parseRevenueCatEvent({ event: {
+      type: "NON_RENEWING_PURCHASE", app_user_id: crypto.randomUUID(),
+      entitlement_ids: ["ieat_fit_pro"], expiration_at_ms: null, event_timestamp_ms: Date.now(),
+    } });
+    expect(withType?.type).toBe("NON_RENEWING_PURCHASE");
+
+    const withoutType = parseRevenueCatEvent({ event: {
+      app_user_id: crypto.randomUUID(), entitlement_ids: ["ieat_fit_pro"],
+      expiration_at_ms: null, event_timestamp_ms: Date.now(),
+    } });
+    expect(withoutType?.type).toBe("");
+  });
+});
+
+// ── A lifetime unlock and a subscription on the SAME entitlement ───────────────────────────────
+//
+// All three products grant `ieat_fit_pro`, and the store holds ONE record per account. So a
+// subscription's ordinary lifecycle events name the same entitlement a lifetime unlock does, and
+// "the newest event wins" is not enough on its own: the newest event about a MONTHLY plan says
+// nothing about a lifetime the customer already owns.
+describe("a lifetime unlock alongside a subscription", () => {
+  it("is not overwritten by a subscription renewal, and survives that subscription lapsing", async () => {
+    const { userId, token } = await account();
+    const t0 = Date.now() - 60_000;
+
+    await deliver(purchase(userId, {
+      type: "NON_RENEWING_PURCHASE", product_id: "lifetime",
+      expiration_at_ms: null, event_timestamp_ms: t0,
+    }));
+    expect((await profile(token)).entitlement.expiresAt).toBeNull();
+
+    // They also hold a monthly plan. Its renewal carries a period end — which must NOT become the
+    // end of an entitlement they own outright.
+    await deliver(purchase(userId, {
+      type: "RENEWAL", product_id: "monthly",
+      expiration_at_ms: t0 + 30 * 24 * 60 * 60 * 1000, event_timestamp_ms: t0 + 1_000,
+    }));
+    // The renewal records the MONTHLY's end, which is true and useful — they do hold a monthly.
+    // What it must not do is speak for the unlock, and it does not: they stay entitled below,
+    // after that same plan lapses.
+    const afterRenewal = await profile(token);
+    expect(afterRenewal.entitlement.active).toBe(true);
+
+    // And when the monthly plan finally lapses, the lifetime is still a lifetime. This is the one
+    // that costs real money to get wrong: they paid once, forever, and a plan they also happened
+    // to hold ran out.
+    await deliver(purchase(userId, {
+      type: "EXPIRATION", product_id: "monthly",
+      expiration_at_ms: Date.now() - 1_000, event_timestamp_ms: Date.now() - 500,
+    }));
+    const afterLapse = await profile(token);
+    expect(afterLapse.entitlement.active).toBe(true);
+  });
+
+  it("still lets the lifetime's OWN refund revoke it", async () => {
+    const { userId, token } = await account();
+    const t0 = Date.now() - 60_000;
+    await deliver(purchase(userId, {
+      type: "NON_RENEWING_PURCHASE", product_id: "lifetime",
+      expiration_at_ms: null, event_timestamp_ms: t0,
+    }));
+    await deliver(purchase(userId, {
+      type: "CANCELLATION", product_id: "lifetime",
+      expiration_at_ms: null, event_timestamp_ms: Date.now() - 1_000,
+    }));
+    expect((await profile(token)).entitlement.active).toBe(false);
+  });
+
+  it("lets a subscription behave normally when no lifetime is held", async () => {
+    const { userId, token } = await account();
+    const endsAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    await deliver(purchase(userId, { type: "RENEWAL", product_id: "monthly", expiration_at_ms: endsAt }));
+    expect((await profile(token)).entitlement.active).toBe(true);
+
+    await deliver(purchase(userId, {
+      type: "EXPIRATION", product_id: "monthly",
+      expiration_at_ms: Date.now() - 1_000, event_timestamp_ms: Date.now() + 1_000,
+    }));
+    expect((await profile(token)).entitlement.active).toBe(false);
+  });
+});
+
+// ── The misconfiguration alarm ─────────────────────────────────────────────────────────────────
+//
+// The identifier this server checks lives in config; the identifier RevenueCat grants lives in a
+// dashboard somebody else can rename. When they disagree, every real purchase is charged and grants
+// nothing — and before this warning existed, the log said exactly the same thing as it does on a
+// quiet day. It was found by auditing the dashboard by hand, which is not a control.
+describe("a live purchase that grants an entitlement this server does not know", () => {
+  it("says so, naming OUR identifier and nothing from the payload", async () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { userId } = await account();
+      await deliver(purchase(userId, { entitlement_ids: ["someone-elses-identifier"] }));
+      const said = warn.mock.calls.flat().join(" ");
+      expect(said).toContain("no entitlement this server knows");
+      expect(said).toContain("ieat_fit_pro");
+      // The payload is not log material, here least of all.
+      expect(said).not.toContain("someone-elses-identifier");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("stays quiet for sandbox, and for events that grant nothing at all", async () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { userId } = await account();
+      // Staging points a second webhook here with sandbox events; it must not warn all day.
+      await deliver(purchase(userId, { entitlement_ids: ["other"], environment: "SANDBOX" }));
+      // A dashboard test ping, a transfer, an alias: they grant nothing, so they say nothing.
+      await deliver(purchase(userId, { type: "TEST", entitlement_ids: [] }));
+      const said = warn.mock.calls.flat().join(" ");
+      expect(said).not.toContain("no entitlement this server knows");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+});
+
+// The sequence that made the two grants separate columns: buy a monthly, upgrade to the lifetime
+// unlock, then refund the unlock inside Apple's window while the monthly is still running.
+describe("refunding the lifetime unlock while a subscription is still paid for", () => {
+  it("leaves the subscription entitled to the end of the period it paid for", async () => {
+    const { userId, token } = await account();
+    const now = Date.now();
+    const monthEnd = now + 20 * 24 * 60 * 60 * 1000;
+
+    await deliver(purchase(userId, {
+      type: "RENEWAL", product_id: "monthly",
+      expiration_at_ms: monthEnd, event_timestamp_ms: now - 10 * 24 * 60 * 60 * 1000,
+    }));
+    await deliver(purchase(userId, {
+      type: "NON_RENEWING_PURCHASE", product_id: "lifetime",
+      expiration_at_ms: null, event_timestamp_ms: now - 5 * 24 * 60 * 60 * 1000,
+    }));
+    await deliver(purchase(userId, {
+      type: "CANCELLATION", product_id: "lifetime",
+      expiration_at_ms: null, event_timestamp_ms: now - 1 * 24 * 60 * 60 * 1000,
+    }));
+
+    const p = await profile(token);
+    expect(p.entitlement.active).toBe(true);
+    expect(Date.parse(p.entitlement.expiresAt as string)).toBe(monthEnd);
+  });
+});
+
+// The quiet period exists so a project with a second entitlement does not warn on every event for
+// it. Nothing exercised it — every test mounts a fresh router, so the suppression branch and its
+// expiry were both unreached, and deleting the whole mechanism would not have failed anything.
+describe("the misconfiguration warning's quiet period", () => {
+  const deps = () => ({
+    store: memoryStore(), config: { ...base, revenueCatWebhookToken: TOKEN },
+    llm: demoPorts(), mailer: fakeMailer(),
+  }) as unknown as EngineDeps;
+
+  const post = (event: unknown) =>
+    new Request(`http://localhost${REVENUECAT_WEBHOOK_PATH}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: TOKEN },
+      body: JSON.stringify({ api_version: "1.0", event }),
+    });
+
+  const said = async (latch: { matched(): boolean; markMatched(): void }) => {
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { revenueCatWebhook } = await import("./revenuecat.ts");
+      await revenueCatWebhook(post({
+        type: "INITIAL_PURCHASE", app_user_id: crypto.randomUUID(),
+        entitlement_ids: ["somebody-elses"], product_id: "yearly",
+        expiration_at_ms: Date.now() + 1000, event_timestamp_ms: Date.now(),
+      }), deps(), latch);
+      return warn.mock.calls.flat().join(" ");
+    } finally { warn.mockRestore(); }
+  };
+
+  it("warns while nothing has matched recently", async () => {
+    expect(await said({ matched: () => false, markMatched: () => {} }))
+      .toContain("no entitlement this server knows");
+  });
+
+  it("stays silent while a recent delivery has matched", async () => {
+    expect(await said({ matched: () => true, markMatched: () => {} }))
+      .not.toContain("no entitlement this server knows");
+  });
+
+  // End to end through the factory: a real match quiets the next mismatch, which is the whole
+  // behaviour and the part no unit-level stub can vouch for.
+  it("quiets itself after a delivery actually matches", async () => {
+    const handle = createRevenueCatWebhook();
+    const d = deps();
+    // The id RevenueCat names is OUR account id, which upsert returns — not the device id.
+    const { userId } = await d.store.upsertDeviceUser(
+      crypto.randomUUID() + crypto.randomUUID(), "en");
+
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await handle(post({
+        type: "INITIAL_PURCHASE", app_user_id: userId, entitlement_ids: ["ieat_fit_pro"],
+        product_id: "yearly", expiration_at_ms: Date.now() + 1000, event_timestamp_ms: Date.now(),
+      }), d);
+      await handle(post({
+        type: "INITIAL_PURCHASE", app_user_id: crypto.randomUUID(),
+        entitlement_ids: ["somebody-elses"], product_id: "yearly",
+        expiration_at_ms: Date.now() + 1000, event_timestamp_ms: Date.now(),
+      }), d);
+      expect(warn.mock.calls.flat().join(" ")).not.toContain("no entitlement this server knows");
+    } finally { warn.mockRestore(); }
   });
 });

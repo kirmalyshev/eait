@@ -128,6 +128,12 @@ export interface Config {
   /**
    * WHICH RevenueCat entitlement grants the paid tier.
    *
+   * The DEFAULT IS THE IDENTIFIER THAT ACTUALLY EXISTS in the RevenueCat project (`ieat_fit_pro`,
+   * project ieat․fit), not a generic `pro`. There is exactly one entitlement there and all three
+   * products hang off it, so a default that names anything else means every purchase is read as
+   * `other-entitlement` and silently grants nothing — charged, and no tier. It was `pro` for a day
+   * on the strength of a document rather than the dashboard.
+   *
    * A project can carry several — a lifetime unlock, a legacy plan, an internal comp — and an
    * event names the ones it affects. Matching on a configured id rather than "any entitlement at
    * all" is what stops a product nobody meant to sell the paid tier from selling it.
@@ -300,7 +306,7 @@ export function configDefaults(): Config {
     googleAudiences: [],
     adminToken: "",
     revenueCatWebhookToken: "",
-    revenueCatEntitlementId: "pro",
+    revenueCatEntitlementId: "ieat_fit_pro",
     revenueCatAcceptSandbox: false,
     subscribeDailyCap: 200,
     subscribeConfirmTtlDays: 7,
