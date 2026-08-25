@@ -146,8 +146,9 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   // the cache existed, and the budget is what stops that coming back.
   today: { paintMs: 100, readyMs: 250 },
 
-  // An empty thread and a text box. There is no history to load — deliberately.
-  chat: { paintMs: 100, readyMs: 100 },
+  // The thread, seeded from the cache's last page. The allowance is for the cold case: first open
+  // of the session, nothing cached, one page fetched. Same shape and number as the diary.
+  chat: { paintMs: 100, readyMs: 250 },
 
   // Renders the profile that is already in the session.
   settings: { paintMs: 100, readyMs: 100 },

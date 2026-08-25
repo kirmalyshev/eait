@@ -20,7 +20,7 @@ import { HEALTH_FIELDS, emptyHealthDay } from "@ieat/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
-import {
+import { type ChatMessage,
   blankProfile, type FunnelAggregate, type MealPatch, type PendingMeal, type ProfilePatch,
   type Store, type StoreOptions,
 } from "./store.ts";
@@ -47,6 +47,9 @@ const HEALTH_UPSERT = `
   on conflict (user_id, date) do update set
     ${HEALTH_COLUMNS.map((c) => `${c} = excluded.${c}`).join(", ")},
     updated_at = now()`;
+
+/** Shape check for ids that get spliced into an array literal; every id here is one we issued. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const SCHEMA = `
 create table if not exists users (
@@ -88,6 +91,8 @@ alter table users add column if not exists weight_measured_at timestamptz;
 -- (No backticks anywhere in here: this is a template literal and one would end it.)
 alter table users add column if not exists entitlement_expires_at timestamptz;
 alter table users add column if not exists entitlement_product_id text;
+-- When Spud spoke the first verdict. Null until then; the claim is one atomic update.
+alter table users add column if not exists first_verdict_at timestamptz;
 alter table users add column if not exists entitlement_event_at   timestamptz;
 
 -- Bearer tokens, as SHA-256 hashes.
@@ -239,6 +244,33 @@ create table if not exists onboarding_events (
 create index if not exists onboarding_events_received_idx on onboarding_events(received_at);
 create index if not exists onboarding_events_session_idx on onboarding_events(session_id);
 create index if not exists onboarding_events_user_idx on onboarding_events(user_id);
+
+-- The thread. One row per line of the conversation, in the order it happened. meal_id is a
+-- reference, not a copy: the card is read from meals on request, so it always shows the meal as
+-- it is now, and goes null (not missing) if the meal ever goes. Erased with the user — it holds
+-- what a person typed at the assistant, including the medical free text.
+create table if not exists chat_messages (
+  seq     bigserial primary key,
+  id      uuid not null unique,
+  user_id uuid not null references users(id) on delete cascade,
+  ts      timestamptz not null default now(),
+  role    text not null,
+  kind    text not null,
+  text    text,
+  -- No foreign key on purpose: the id must outlive the meal (a card whose meal is gone still names
+  -- what it was), and the memory store keeps it too. getMeals simply omits an id that is gone.
+  meal_id uuid,
+  event   text,
+  -- The phone's id for a turn, on a user text line: how it tells its own bubble from a repeat.
+  client_id text,
+  -- On a proposal's user line: the proposal's id, which is the meal's id once confirmed.
+  pending_id uuid
+);
+alter table chat_messages drop constraint if exists chat_messages_meal_id_fkey;
+drop index if exists chat_messages_meal_idx;
+alter table chat_messages add column if not exists client_id text;
+alter table chat_messages add column if not exists pending_id uuid;
+create index if not exists chat_messages_user_seq_idx on chat_messages(user_id, seq desc);
 
 -- The mailing list, from the landing page.
 --
@@ -593,6 +625,12 @@ export async function postgresStore(
           update meals set user_id = ${intoUserId} where user_id = ${fromUserId} returning id`;
         await tx`update pendings set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         await tx`update analyses set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        await tx`update chat_messages set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        // The greeting travels with the thread that holds it, or Spud says "First one in." twice.
+        await tx`
+          update users set first_verdict_at = coalesce(
+            first_verdict_at, (select first_verdict_at from users where id = ${fromUserId}))
+          where id = ${intoUserId}`;
         // Funnel rows move too: signing in halfway through onboarding is normal, and a run split
         // across two user ids reads as two abandoned runs.
         await tx`update onboarding_events set user_id = ${intoUserId} where user_id = ${fromUserId}`;
@@ -788,7 +826,7 @@ export async function postgresStore(
     async onboardingFunnel(days): Promise<FunnelAggregate> {
       // `days` is an integer chosen by the engine, never a raw request value, and it is bound as a
       // parameter regardless.
-      const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+      const since = new Date(now() - days * 24 * 60 * 60 * 1000).toISOString();
 
       const totals = await sql`
         select count(distinct session_id)::int as sessions,
@@ -825,7 +863,7 @@ export async function postgresStore(
     },
 
     async insertMeal(m) {
-      await sql`
+      const rows = await sql`
         insert into meals (id, user_id, ts, date, is_food, items, kcal, protein_g, carbs_g, fat_g,
                            satfat_g, fiber_g, sugar_g, sodium_mg, verdicts, confidence, notes,
                            corrected, model)
@@ -833,16 +871,31 @@ export async function postgresStore(
                 ${JSON.stringify(m.items)}, ${m.kcal}, ${m.protein_g}, ${m.carbs_g}, ${m.fat_g},
                 ${m.satfat_g}, ${m.fiber_g}, ${m.sugar_g}, ${m.sodium_mg},
                 ${JSON.stringify(m.verdicts)}, ${m.confidence}, ${m.notes}, ${m.corrected},
-                ${m.model})`;
+                ${m.model})
+        on conflict (id) do nothing returning id`;
+      return rows.length > 0;
+    },
+
+    async getMeals(userId, mealIds) {
+      if (mealIds.length === 0) return [];
+      // Scoped exactly like getMeal; the id list only narrows within this user's rows.
+      // Bun.sql sends a JS array as a bare comma list, which Postgres rejects as an array literal;
+      // the literal is built by hand. Only UUIDs reach it: the ids came out of this store.
+      const literal = `{${mealIds.filter((id) => UUID.test(id)).join(",")}}`;
+      const rows = await sql`select * from meals where user_id = ${userId} and id = any(${literal}::uuid[])`;
+      return rows.map(toMeal);
     },
 
     async getMeal(userId, mealId) {
+      // A client-supplied id: absent, not a type error at the column (the memory store says null).
+      if (!UUID.test(mealId)) return null;
       // Never widen this beyond `id = ? and user_id = ?`.
       const rows = await sql`select * from meals where id = ${mealId} and user_id = ${userId}`;
       return rows.length > 0 ? toMeal(rows[0]) : null;
     },
 
     async updateMeal(userId, mealId, patch: MealPatch) {
+      if (!UUID.test(mealId)) return null;
       const entries = Object.keys(MEAL_COLUMNS)
         .filter((k) => (patch as Record<string, unknown>)[k] !== undefined)
         .map((k) => {
@@ -891,12 +944,13 @@ export async function postgresStore(
     },
 
     async getPending(userId, pendingId) {
+      if (!UUID.test(pendingId)) return null;
       const rows = await sql`
         select * from pendings where id = ${pendingId} and user_id = ${userId}`;
       if (rows.length === 0) return null;
       const r = rows[0];
       const expiresAt = new Date(r.expires_at as string).getTime();
-      if (expiresAt <= Date.now()) {
+      if (expiresAt <= now()) {
         await sql`delete from pendings where id = ${pendingId} and user_id = ${userId}`;
         return null;
       }
@@ -906,8 +960,74 @@ export async function postgresStore(
       };
     },
 
+    async pruneExpiredPendings() {
+      const rows = await sql`delete from pendings where expires_at <= ${new Date(now())} returning id`;
+      return rows.length;
+    },
+
     async dropPending(userId, pendingId) {
-      await sql`delete from pendings where id = ${pendingId} and user_id = ${userId}`;
+      if (!UUID.test(pendingId)) return false;
+      const rows = await sql`delete from pendings where id = ${pendingId} and user_id = ${userId} and expires_at > ${new Date(now())} returning id`;
+      return rows.length > 0;
+    },
+
+    async appendChat(userId, lines) {
+      if (lines.length === 0) return;
+      // One transaction, and the account's row locked for its length: a bubble and its card land
+      // together or not at all, and — because bigserial hands out numbers outside any transaction —
+      // the lock is what keeps a concurrent turn of the same account from taking a seq between them.
+      await sql.begin(async (tx) => {
+        await tx`select id from users where id = ${userId} for update`;
+        for (const line of lines) {
+          await tx`
+            insert into chat_messages (id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id)
+            values (${crypto.randomUUID()}, ${userId}, ${new Date(now())}, ${line.role}, ${line.kind},
+                    ${"text" in line ? line.text : null},
+                    ${line.kind === "meal" ? line.mealId : null},
+                    ${line.kind === "meal" ? line.event : null},
+                    ${line.role === "user" && line.kind === "text" ? line.clientId ?? null : null},
+                    ${line.role === "user" && line.kind === "text" ? line.pendingId ?? null : null})`;
+        }
+      });
+    },
+
+    async chatBefore(userId, before, limit) {
+      const rows = before === null
+        ? await sql`
+            select seq, id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id from chat_messages
+            where user_id = ${userId} order by seq desc limit ${limit}`
+        : await sql`
+            select seq, id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id from chat_messages
+            where user_id = ${userId} and seq < ${before} order by seq desc limit ${limit}`;
+      return (rows as Record<string, unknown>[]).map((r) => ({
+        id: r.id as string,
+        userId: r.user_id as string,
+        seq: num(r.seq),
+        ts: new Date(r.ts as string).toISOString(),
+        role: r.role as ChatMessage["role"],
+        kind: r.kind as ChatMessage["kind"],
+        text: (r.text as string | null) ?? null,
+        mealId: (r.meal_id as string | null) ?? null,
+        event: (r.event as ChatMessage["event"]) ?? null,
+        clientId: (r.client_id as string | null) ?? null,
+        pendingId: (r.pending_id as string | null) ?? null,
+      }));
+    },
+
+    async countUserChat(userId) {
+      const rows = await sql`select count(*)::int as n from chat_messages where user_id = ${userId}`;
+      return num(rows[0].n);
+    },
+
+    async releaseFirstVerdict(userId) {
+      await sql`update users set first_verdict_at = null where id = ${userId}`;
+    },
+
+    async claimFirstVerdict(userId) {
+      const rows = await sql`
+        update users set first_verdict_at = ${new Date(now())}
+        where id = ${userId} and first_verdict_at is null returning id`;
+      return rows.length > 0;
     },
 
     async countUserPhotos(userId, date) {
@@ -956,7 +1076,7 @@ export async function postgresStore(
     },
 
     async deleteUser(userId) {
-      // `on delete cascade` clears tokens, meals, pendings, analyses AND onboarding events with the
+      // `on delete cascade` clears tokens, meals, pendings, analyses, the chat thread AND onboarding events with the
       // row. The last one is deliberate — see the note on `deleteUser` in the port.
       await sql`delete from users where id = ${userId}`;
     },

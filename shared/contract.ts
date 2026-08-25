@@ -12,6 +12,7 @@ import type { TargetBasis } from "./targets.ts";
 import type { ConfirmMealResult, HandleTextResult, LogPhotoResult, MealUpdated, TargetGone } from "./results.ts";
 import type { HealthDay } from "./health.ts";
 import type { Entitlement } from "./entitlement.ts";
+import type { ScriptedLineId } from "./chat.ts";
 import type { FoodTargets } from "./types.ts";
 
 /** Bumped when a change is not backwards compatible. Shipped apps outlive the server they were built against. */
@@ -83,7 +84,10 @@ export const ROUTES = {
   /** POST — a batch of onboarding funnel events. Fire-and-forget from the app's point of view. */
   onboardingEvents: "/v1/onboarding/events",
   photo: "/v1/meals/photo",
+  /** POST — one turn. GET `?before=<seq>&limit=N` — the thread, newest page first. */
   messages: "/v1/messages",
+  /** POST — the user's own words and Spud's SCRIPTED lines by id. See `AppendLinesRequest`. */
+  messagesLines: "/v1/messages/lines",
   /** PATCH — the manual edit path. See `EditMealRequest`. */
   meal: (id: string) => `/v1/meals/${encodeURIComponent(id)}`,
   pendingConfirm: (id: string) => `/v1/meals/pending/${encodeURIComponent(id)}/confirm`,
@@ -312,9 +316,66 @@ export const MAX_ONBOARDING_EVENTS_PER_BATCH = 100;
 
 // ── Meals ────────────────────────────────────────────────────────────────────────────────────
 
+/** How a meal card came to be in the thread. Wording only; the card reads the meal as it is now. */
+export type ChatEvent = "logged" | "updated" | "redated";
+
+/**
+ * One line of the conversation, as the SERVER kept it.
+ *
+ * The thread is stored server-side and the Chat tab is its continuation, so a reinstall or a second
+ * device opens on the same conversation. A photo is a bubble with no bytes behind it — the image
+ * was analyzed and dropped, and nothing here can bring it back. A meal card carries the meal's
+ * CURRENT record (or null once it is gone), never a copy taken at the time: a stored verdict
+ * would describe numbers that have since changed. A proposal's words are in the thread when they are
+ * said; its card only once confirmed. `seq` is an opaque cursor, monotonic across the whole store:
+ * treat it as an ordering, never as a count of anything.
+ */
+export type ChatEntry =
+  /** `pendingId`: set when this turn proposed a meal; the confirmed meal carries the same id, so "was it logged" is "is there a card with it". */
+  | { id: string; seq: number; ts: string; role: "user"; kind: "text"; text: string; clientId: string | null; pendingId: string | null }
+  | { id: string; seq: number; ts: string; role: "user"; kind: "photo"; text: string | null }
+  | { id: string; seq: number; ts: string; role: "assistant"; kind: "text"; text: string }
+  /** `mealId` outlives the meal: `meal` is null once it is deleted, and "was this proposal logged" reads the id. */
+  | { id: string; seq: number; ts: string; role: "assistant"; kind: "meal"; event: ChatEvent; mealId: string | null; meal: MealRecord | null };
+
+export interface ChatHistoryResponse {
+  /** Oldest first within the page. */
+  entries: ChatEntry[];
+  /** Pass back as `before` for the next older page; null once the start of the thread is in hand. */
+  before: number | null;
+}
+
+/**
+ * `POST /v1/messages/lines`. What the APP may put in the thread without a model turn: the user's
+ * own words (an onboarding answer, a choice) and Spud's scripted lines BY ID — never assistant
+ * prose from the client. All-or-nothing: one bad line and nothing is written.
+ */
+export interface AppendLinesRequest {
+  lines: AppendLine[];
+}
+/** One batch's bound — an onboarding's worth of turns. Over it, the whole batch is refused. */
+export const MAX_APPEND_LINES_PER_BATCH = 50;
+/** One user line — an onboarding answer or a sentence at Spud. The composer and the caption cap at it. */
+export const MAX_USER_LINE = 500;
+/** A profile free-text field (the medical free text, allergies, avoided products): prose, not a line. */
+export const MAX_PROFILE_TEXT = 2000;
+export type AppendLine =
+  | { role: "user"; text: string }
+  | { role: "assistant"; scripted: ScriptedLineId; params?: Record<string, string> };
+export interface AppendLinesResponse {
+  appended: number;
+  /** Why nothing was appended: a line the client should fix, or a thread that is full and must stop. */
+  reason?: "bad-line" | "thread-full";
+}
+
+/** A client id on a turn: ≤ `MAX_CLIENT_ID` chars, echoed on the stored user line so the phone can tell its own bubble from a repeat of the same words. */
+export const MAX_CLIENT_ID = 64;
+
 /** `POST /v1/messages`. `focusMealId` names the meal a correction applies to. */
 export interface MessageRequest {
   text: string;
+  /** The phone's id for this turn. Stored on the user line and returned in `ChatEntry`; never interpreted. */
+  clientId?: string;
   /**
    * Safe to accept from the client because every engine read is user-scoped: naming someone else's
    * meal resolves to nothing rather than to their row. Asserted by test in the backend.
@@ -341,6 +402,39 @@ export interface EditMealRequest {
   fiber_g?: number;
   sugar_g?: number;
   sodium_mg?: number;
+}
+
+const EDIT_NUMBERS = ["kcal", "protein_g", "carbs_g", "fat_g", "satfat_g", "fiber_g", "sugar_g", "sodium_mg"] as const;
+const ITEM_NUMBERS = ["kcal", "protein_g", "carbs_g", "fat_g", "kcal_per_100g"] as const;
+const ITEM_KEYS: ReadonlySet<string> = new Set(["name", "grams", "name_en", ...ITEM_NUMBERS]);
+/** An edit's items are bounded like every other client string: their names reach every later prompt that day. */
+export const MAX_MEAL_ITEMS = 50;
+export const MAX_ITEM_NAME = 120;
+/** A ceiling on any amount an edit carries: it ends up in a verdict and in a stored sentence. */
+export const MAX_MEAL_AMOUNT = 1_000_000;
+const amount = (v: unknown): boolean => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= MAX_MEAL_AMOUNT;
+
+/** A body is a cast, not a validation: the numbers here end up in a verdict and in a stored sentence. */
+export function isEditMealRequest(body: unknown): body is EditMealRequest {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) return false;
+  const b = body as Record<string, unknown>;
+  for (const k of EDIT_NUMBERS) {
+    const v = b[k];
+    if (v !== undefined && !amount(v)) return false;
+  }
+  if (b.items !== undefined) {
+    if (!Array.isArray(b.items) || b.items.length > MAX_MEAL_ITEMS) return false;
+    for (const i of b.items as unknown[]) {
+      if (typeof i !== "object" || i === null) return false;
+      const item = i as Record<string, unknown>;
+      // Stored as given, so an undeclared key would be a body of any size that passes every bound.
+      if (Object.keys(item).some((k) => !ITEM_KEYS.has(k))) return false;
+      if (typeof item.name !== "string" || item.name.length > MAX_ITEM_NAME || !amount(item.grams)) return false;
+      if (item.name_en !== undefined && (typeof item.name_en !== "string" || item.name_en.length > MAX_ITEM_NAME)) return false;
+      for (const k of ITEM_NUMBERS) if (item[k] !== undefined && !amount(item[k])) return false;
+    }
+  }
+  return true;
 }
 
 export type EditMealResponse = MealUpdated | TargetGone;

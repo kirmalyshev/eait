@@ -111,6 +111,8 @@ export interface Config {
    * disables it.
    */
   healthSyncRateLimitPerHour: number;
+  /** `POST /v1/messages/lines` and `PATCH /v1/meals/:id` per address per hour — one allowance, two counters. Unbilled and unmetered otherwise; same argument as the health sync. Zero disables it. */
+  linesRateLimitPerHour: number;
 
   /**
    * The shared secret RevenueCat presents on its webhook, in the `Authorization` header.
@@ -258,6 +260,7 @@ export function configDefaults(): Config {
     analysisRateLimitPerDay: 60,
     subscribeRateLimitPerHour: 5,
     healthSyncRateLimitPerHour: 120,
+    linesRateLimitPerHour: 120,
     appleAudiences: [],
     googleAudiences: [],
     adminToken: "",
@@ -337,6 +340,7 @@ export function loadConfig(): Config {
     analysisRateLimitPerDay: int("EAIT__BACKEND__ANALYSIS_RATE_LIMIT_PER_DAY", d.analysisRateLimitPerDay),
     subscribeRateLimitPerHour: int("EAIT__BACKEND__SUBSCRIBE_RATE_LIMIT_PER_HOUR", d.subscribeRateLimitPerHour),
     healthSyncRateLimitPerHour: int("EAIT__BACKEND__HEALTH_SYNC_RATE_LIMIT_PER_HOUR", d.healthSyncRateLimitPerHour),
+    linesRateLimitPerHour: int("EAIT__BACKEND__LINES_RATE_LIMIT_PER_HOUR", d.linesRateLimitPerHour),
     appleAudiences: list("EAIT__BACKEND__APPLE_AUDIENCES"),
     googleAudiences: list("EAIT__BACKEND__GOOGLE_AUDIENCES"),
     adminToken: adminTokenFromEnv(),

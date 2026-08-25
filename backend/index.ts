@@ -58,6 +58,8 @@ const mailer = chooseMailer(config, demo);
 // the largest thing in it.
 const pruned = await store.pruneExpiredTokens();
 if (pruned > 0) console.log(`[ieat] pruned ${pruned} idle session token(s) at startup`);
+const stale = await store.pruneExpiredPendings();
+if (stale > 0) console.log(`[ieat] pruned ${stale} expired proposal(s) at startup`);
 const deps: EngineDeps = {
   store,
   config,

@@ -15,9 +15,9 @@
 //    encoder cannot drift.
 
 import {
-  REFUSAL_STATUS, ROUTES,
+  MAX_CLIENT_ID, MAX_USER_LINE, REFUSAL_STATUS, ROUTES, isEditMealRequest,
   type AuthDeviceRequest, type AuthDeviceResponse, type AuthProviderRequest,
-  type AuthProviderResponse, type EditMealRequest, type IdentitiesResponse, type Lang,
+  type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang,
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
   type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
   type HealthDaysRequest, type HealthDaysResponse, type HealthResponse,
@@ -28,7 +28,7 @@ import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
 import { isCalendarDate } from "@ieat/shared";
 import type { Store } from "../store.ts";
 import {
-  MAX_TREND_DAYS, MAX_WINDOW_DAYS, cancelPendingMeal, confirmPendingMeal, day, editMeal, handleText,
+  MAX_TREND_DAYS, MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
   healthTrend, identitiesFor, logPhotoMeal, onboardingContent, patchProfile, profileView,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, type EngineDeps,
 } from "../engine/index.ts";
@@ -411,6 +411,8 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
           return json({ error: "too large" }, 413);
         }
         const caption = form.get("caption");
+        // A caption is a line in the thread; the shared cap the app applies is enforced here.
+        if (typeof caption === "string" && caption.length > MAX_USER_LINE) return json({ error: "caption too long" }, 400);
 
         const result = await logPhotoMeal(deps, userId, {
           // Several files are ANGLES OF ONE MEAL, not several meals. Thunks, so nothing is read
@@ -422,14 +424,38 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
       }
 
       // ── Chat ──────────────────────────────────────────────────────────────────────────────
+      if (req.method === "GET" && pathname === ROUTES.messages) {
+        const before = Number(url.searchParams.get("before"));
+        const pageLimit = Number(url.searchParams.get("limit"));
+        return json(await chatHistory(deps, userId, {
+          before: Number.isInteger(before) && before > 0 ? before : null,
+          ...(Number.isInteger(pageLimit) && pageLimit > 0 ? { limit: pageLimit } : {}),
+        }));
+      }
+      // The app's own lines: the user's words and Spud's scripted lines by id. All-or-nothing, and
+      // a rejected batch is a 400 rather than a partial thread.
+      if (req.method === "POST" && pathname === ROUTES.messagesLines) {
+        // Unbilled, so no cap reaches it; per address, like the health sync, and BEFORE the body.
+        const wait = limit(req, peer, "lines", deps.config.linesRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: "rate-limited" });
+        const body = await req.json() as AppendLinesRequest;
+        if (!Array.isArray(body?.lines)) return json({ error: "lines required" }, 400);
+        const out = await appendLines(deps, userId, body.lines);
+        if (body.lines.length > 0 && out.appended === 0) return json({ error: out.reason ?? "bad-line" }, 400);
+        return json(out satisfies AppendLinesResponse);
+      }
       if (req.method === "POST" && pathname === ROUTES.messages) {
         const body = await req.json() as MessageRequest;
         if (typeof body.text !== "string" || !body.text.trim()) {
           return json({ error: "text required" }, 400);
         }
+        // A turn is a line in the thread; the shared cap the composer applies is enforced here.
+        if (body.text.length > MAX_USER_LINE) return json({ error: "text too long" }, 400);
         const result = await handleText(deps, userId, {
           text: body.text,
           ...(typeof body.focusMealId === "string" ? { focusMealId: body.focusMealId } : {}),
+          // Stored, never interpreted; an over-long one is dropped rather than refused.
+          ...(typeof body.clientId === "string" && body.clientId.length <= MAX_CLIENT_ID ? { clientId: body.clientId } : {}),
         });
         if (result.kind === "target-gone") return json({ error: "target-gone", on: result.on }, 409);
         return isRefusal(result) ? refusal(result) : json(result);
@@ -438,7 +464,12 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
       // ── Manual edit ───────────────────────────────────────────────────────────────────────
       const mealMatch = /^\/v1\/meals\/([^/]+)$/.exec(pathname);
       if (req.method === "PATCH" && mealMatch) {
-        const body = await req.json() as EditMealRequest;
+        // Unbilled and behind no cap, but it writes the thread: per address, the same allowance as
+        // `/lines` but its own counter, so an onboarding's burst of lines cannot spend the editor's.
+        const wait = limit(req, peer, "meal-edit", deps.config.linesRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: "rate-limited" });
+        const body: unknown = await req.json();
+        if (!isEditMealRequest(body)) return json({ error: "bad-edit" }, 400);
         const result = await editMeal(deps, userId, decodeURIComponent(mealMatch[1]!), body);
         return result.kind === "target-gone"
           ? json({ error: "target-gone", on: result.on }, 409)
@@ -451,7 +482,7 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
         const id = decodeURIComponent(pending[1]!);
         if (pending[2] === "cancel") {
           const res = await cancelPendingMeal(deps, userId, id);
-          return res.kind === "cancelled" ? json(res) : json({ error: "expired" }, 410);
+          return res.kind === "expired" ? json({ error: "expired" }, 410) : json(res);
         }
         const res = await confirmPendingMeal(deps, userId, id);
         if (res.kind === "expired") return json({ error: "expired" }, 410);

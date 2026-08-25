@@ -12,8 +12,7 @@
 
 import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, OnboardingContent, OnboardingEvent, Profile,
-  Provider,
-} from "@ieat/shared";
+  Provider, ChatEvent } from "@ieat/shared";
 
 /** A text meal awaiting confirmation. Not in the diary yet, and expires. */
 export interface PendingMeal {
@@ -42,6 +41,31 @@ export interface StoredEntitlement {
   expiresAt: string;
   productId: string;
   eventAt: string;
+}
+
+/** A line to append to the thread. The shapes are the wire's (`ChatEntry`), minus what the store assigns. */
+export type ChatAppend =
+  | { role: "user"; kind: "text"; text: string; clientId?: string | null; pendingId?: string | null }
+  /** No bytes, ever. `text` is the caption, if there was one. */
+  | { role: "user"; kind: "photo"; text: string | null }
+  | { role: "assistant"; kind: "text"; text: string }
+  | { role: "assistant"; kind: "meal"; mealId: string; event: ChatEvent };
+
+/** A stored line. `seq` is the paging cursor: monotonic per STORE, never reused — so its gaps reflect every account's writes, and it is on the wire as an opaque cursor, not as a count. */
+export interface ChatMessage {
+  id: string;
+  userId: string;
+  seq: number;
+  ts: string;
+  role: "user" | "assistant";
+  kind: "text" | "photo" | "meal";
+  text: string | null;
+  mealId: string | null;
+  event: ChatEvent | null;
+  /** The phone's id for the turn, on a user text line; null otherwise. */
+  clientId: string | null;
+  /** On the user line of a proposal: the proposal's id, which is the meal's id once confirmed. */
+  pendingId: string | null;
 }
 
 /**
@@ -278,19 +302,50 @@ export interface Store {
   pruneUnconfirmedSubscribers(beforeIso: string): Promise<number>;
 
   // ── Meals ──────────────────────────────────────────────────────────────────────────────────
-  insertMeal(record: MealRecord): Promise<void>;
+  /** False when a meal with this id already exists — a confirm racing itself; the first one won. */
+  insertMeal(record: MealRecord): Promise<boolean>;
   /** Scoped: another user's meal id resolves to null, not to their row. */
   getMeal(userId: string, mealId: string): Promise<MealRecord | null>;
+  /** Scoped, several at once; ids that are not this user's are simply absent. Any order. */
+  getMeals(userId: string, mealIds: string[]): Promise<MealRecord[]>;
   /** Scoped. Returns null when the row vanished between lookup and write (a delete race). */
   updateMeal(userId: string, mealId: string, patch: MealPatch): Promise<MealRecord | null>;
   mealsForDate(userId: string, date: string): Promise<MealRecord[]>;
   /** Most recent first, `since` inclusive. Feeds the week view and the chat router's context. */
   totalsSince(userId: string, since: string): Promise<DayTotals[]>;
 
+  // ── The thread ─────────────────────────────────────────────────────────────────────────────
+  /**
+   * Append lines, in order, as ONE write. A photo bubble and its card are one moment; two writes
+   * could leave the bubble without the card, or interleave with a chat turn from the same account.
+   * `seq` and `ts` are the store's; the caller never orders the thread.
+   */
+  appendChat(userId: string, lines: ChatAppend[]): Promise<void>;
+  /** Scoped. Newest first, `seq < before` (all when null), at most `limit`. */
+  chatBefore(userId: string, before: number | null, limit: number): Promise<ChatMessage[]>;
+  /** Lines this account has in the thread. `remember` and `appendLines` refuse past the bound. */
+  countUserChat(userId: string): Promise<number>;
+  /**
+   * True exactly once per account: the first verdict is spoken by whoever wins this. An atomic
+   * claim, not a count — two first meals racing, or a first meal dated to another day, would
+   * otherwise burn or double the one greeting. Goes with the account.
+   */
+  claimFirstVerdict(userId: string): Promise<boolean>;
+  /** Give the claim back — the greeting could not be written, so the next meal may take it. */
+  releaseFirstVerdict(userId: string): Promise<void>;
+
   // ── Pending text meals ─────────────────────────────────────────────────────────────────────
   putPending(pending: PendingMeal): Promise<void>;
   getPending(userId: string, pendingId: string): Promise<PendingMeal | null>;
-  dropPending(userId: string, pendingId: string): Promise<void>;
+  /** True when this call removed a LIVE row. The drop is the CLAIM on a proposal: confirm and cancel both take it first, and whoever gets false lost the race — or found it expired, which nobody may claim. */
+  dropPending(userId: string, pendingId: string): Promise<boolean>;
+  /**
+   * Delete every proposal past its expiry. Returns how many went. A proposal nobody confirmed or
+   * cancelled is never read again, so `getPending`'s lazy delete never reaches it; the rows are an
+   * analysis and a date that stopped meaning anything. Swept at startup and with every new
+   * proposal; there is no scheduler in this process.
+   */
+  pruneExpiredPendings(): Promise<number>;
 
   // ── Caps ───────────────────────────────────────────────────────────────────────────────────
   /**

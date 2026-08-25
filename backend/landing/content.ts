@@ -295,7 +295,7 @@ export const privacySection = {
     {
       title: "Deletion means deletion.",
       body:
-        "Delete the account and the meals, the profile and the product analytics go with it. The " +
+        "Delete the account and the meals, the profile, the conversation and the product analytics go with it. The " +
         "analytics being in that list costs us the ability to measure anything historical. That " +
         "was the trade we chose.",
     },

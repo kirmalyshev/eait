@@ -24,8 +24,8 @@ import {
   explainTargets, verdictsFromTargets, visibleVerdicts,
   type Lang, type MealItem, type MealRecord,
 } from "@ieat/shared";
-import { localDate, dateMinus, emptyHealthDay, type HealthDay } from "@ieat/shared";
-import type { ProfilePatch, Store } from "../store.ts";
+import { localDate, dateMinus, emptyHealthDay, firstVerdictLines, type HealthDay } from "@ieat/shared";
+import type { ChatAppend, ProfilePatch, Store } from "../store.ts";
 
 /**
  * A device id that is stable across runs, unguessable, and recognisable in a `psql` session.
@@ -206,6 +206,7 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
     const { targets } = explainTargets(profile);
 
     let meals = 0;
+    const thread: { back: number; record: MealRecord; lines: ChatAppend[] }[] = [];
     for (let back = 0; back < persona.days; back++) {
       const date = dateMinus(today, back);
       for (const slot of SLOTS) {
@@ -258,9 +259,34 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
           model: "seed",
         };
         await store.insertMeal(record);
+        // The thread is what the Chat tab opens on; a persona with a diary and no thread would open
+        // Chat on its empty state, which is the one thing a fixture must not do. Collected here and
+        // written after the loop, oldest day first — this loop runs newest-first, and seq is the
+        // thread's order.
+        thread.push({ back, record, lines: [
+          { role: "user", kind: "photo", text: null },
+          { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
+        ] });
         meals++;
       }
     }
+
+    thread.sort((a, b) => b.back - a.back);
+    // The greeting is IN the thread, at the oldest meal — a flag with no transcript behind it would
+    // be the one thing this thread exists to make impossible.
+    const oldest = thread[0];
+    if (oldest) {
+      oldest.lines.push(...firstVerdictLines({
+        goal: profile.goal ?? "maintain", targets, via: "photo", verdicts: oldest.record.verdicts,
+        meal: { kcal: oldest.record.kcal, confidence: oldest.record.confidence },
+        eatenToday: { kcal: oldest.record.kcal, protein_g: oldest.record.protein_g },
+      }).map((text) => ({ role: "assistant", kind: "text", text } as const)));
+    }
+    for (const t of thread) await store.appendChat(userId, t.lines);
+
+    // A week-old account has heard its first verdict. Without this, its next meal would be greeted
+    // as the first — a fixture disagreeing with the product.
+    if (meals > 0) await store.claimFirstVerdict(userId);
 
     // ── the health trend ──
     //

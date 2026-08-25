@@ -9,10 +9,12 @@ import {
   type HandleTextResult, type MealAnalysis, type MealProposed, type MealRedated,
   explainTargets,
 } from "@ieat/shared";
-import { dateMinus, localDate } from "@ieat/shared";
+import { dateMinus, isRefusal, localDate } from "@ieat/shared";
 import type { EngineDeps } from "./deps.ts";
+import type { ChatAppend } from "../store.ts";
 import { checkCaps } from "./caps.ts";
 import { applyCorrection, gatedVerdicts, sumTotals, toAnalysis } from "./meals.ts";
+import { afterCorrection, remember } from "./chat.ts";
 
 // How long a proposed text meal stays confirmable is `config.pendingTtlMs` (`EAIT__BACKEND__PENDING_TTL_MINUTES`),
 // read from deps at the point of use rather than frozen into a module constant here.
@@ -30,6 +32,8 @@ export interface HandleTextInput {
    * refused when it is absent. Asserted by test.
    */
   focusMealId?: string;
+  /** The phone's id for this turn, stored on the user line. Never interpreted. */
+  clientId?: string;
 }
 
 export async function handleText(
@@ -55,7 +59,7 @@ export async function handleText(
   const week = await deps.store.totalsSince(userId, dateMinus(today, CONTEXT_DAYS));
   const { targets } = explainTargets(profile);
 
-  let routed;
+  let routed: Awaited<ReturnType<typeof deps.llm.routeText>>;
   try {
     routed = await deps.llm.routeText({
       text: input.text, profile, targets,
@@ -70,51 +74,100 @@ export async function handleText(
     return { kind: "analysis-failed" };
   }
 
-  switch (routed.intent) {
-    case "answer":
-      return { kind: "answered", text: routed.text };
+  const result = await route();
+  await keep(deps, userId, input.text, result, input.clientId ?? null);
+  return result;
 
-    case "meal": {
-      // Confirm-first. The model just turned prose into numbers, and the user is the only one who
-      // knows whether it understood them — so nothing is written until they say so. The prompt
-      // NAMES the resolved date, which is the misparse guard for "yesterday" and friends.
-      const date = dateMinus(today, routed.dayOffset);
-      const pendingId = crypto.randomUUID();
-      // The verdicts are DERIVED here, because the analyzer does not supply them and this result
-      // does not pass through a store row that would. Attached before the pending is written so the
-      // card the user confirms carries the same judgement as the card they were shown; the write
-      // itself recomputes anyway, since the caps can move while a proposal sits.
-      const analysis: MealAnalysis = {
-        ...routed.analysis,
-        verdicts: await gatedVerdicts(deps, userId, routed.analysis),
-      };
-      await deps.store.putPending({
-        id: pendingId, userId, analysis, date,
-        expiresAt: Date.now() + deps.config.pendingTtlMs,
-      });
-      return { kind: "proposed", pendingId, analysis, date } satisfies MealProposed;
-    }
+  async function route(): Promise<HandleTextResult> {
+    switch (routed.intent) {
+      case "answer":
+        return { kind: "answered", text: routed.text };
 
-    case "correction": {
-      // Unreachable without a focus meal — the provider degrades the intent to `answer` when none
-      // was supplied — but guarded anyway, because that guarantee lives in another file.
-      if (!focus) return { kind: "answered", text: "" };
-      // No verdict repair needed on this branch: `applyCorrection` writes through `editMeal`, which
-      // recomputes them from the stored row like every other write.
-      return applyCorrection(deps, userId, focus.id, routed.analysis);
-    }
+      case "meal": {
+        // Confirm-first. The model just turned prose into numbers, and the user is the only one who
+        // knows whether it understood them — so nothing is written until they say so. The prompt
+        // NAMES the resolved date, which is the misparse guard for "yesterday" and friends.
+        const date = dateMinus(today, routed.dayOffset);
+        const pendingId = crypto.randomUUID();
+        // The verdicts are DERIVED here, because the analyzer does not supply them and this result
+        // does not pass through a store row that would. Attached before the pending is written so the
+        // card the user confirms carries the same judgement as the card they were shown; the write
+        // itself recomputes anyway, since the caps can move while a proposal sits.
+        // copy.md § Step 17: a typed meal is rough by construction — the portions are a guess however
+        // sure the model is of the dish — and the card's "rough estimate" pill reads this field.
+        const analysis: MealAnalysis = {
+          ...routed.analysis,
+          confidence: "low",
+          verdicts: await gatedVerdicts(deps, userId, routed.analysis),
+        };
+        // Every new proposal sweeps the expired ones: their words have no reason to stay. Housekeeping,
+        // so it can never fail the turn it rides on — that turn is already billed.
+        await deps.store.pruneExpiredPendings().catch((e) => {
+          console.error(`[ieat] pending sweep failed: ${(e as Error)?.message ?? e}`);
+        });
+        await deps.store.putPending({
+          id: pendingId, userId, analysis, date,
+          expiresAt: Date.now() + deps.config.pendingTtlMs,
+        });
+        return { kind: "proposed", pendingId, analysis, date } satisfies MealProposed;
+      }
 
-    case "redate": {
-      if (!focus) return { kind: "answered", text: "" };
-      const date = dateMinus(today, routed.dayOffset);
-      // The ONE sanctioned way a meal's date changes. Macros are untouched; a manual edit cannot
-      // reach this field at all, because `EditMealRequest` has no date on it.
-      const moved = await deps.store.updateMeal(userId, focus.id, { date });
-      if (!moved) return { kind: "target-gone", on: "redate" };
-      const totals = sumTotals(await deps.store.mealsForDate(userId, date));
-      return {
-        kind: "redated", mealId: moved.id, analysis: toAnalysis(moved), totals, date,
-      } satisfies MealRedated;
+      case "correction": {
+        // Unreachable without a focus meal — the provider degrades the intent to `answer` when none
+        // was supplied — but guarded anyway, because that guarantee lives in another file. A refusal
+        // the screen can word, never an empty 200: the analysis is charged by now, and a turn that
+        // renders nothing leaves the user with a spent sample and no idea why.
+        if (!focus) return { kind: "target-gone", on: "correction" };
+        // No verdict repair needed on this branch: `applyCorrection` writes through `editMeal`, which
+        // recomputes them from the stored row like every other write.
+        return applyCorrection(deps, userId, focus.id, routed.analysis);
+      }
+
+      case "redate": {
+        if (!focus) return { kind: "target-gone", on: "redate" };
+        const date = dateMinus(today, routed.dayOffset);
+        // The ONE sanctioned way a meal's date changes. Macros are untouched; a manual edit cannot
+        // reach this field at all, because `EditMealRequest` has no date on it.
+        const moved = await deps.store.updateMeal(userId, focus.id, { date });
+        if (!moved) return { kind: "target-gone", on: "redate" };
+        const totals = sumTotals(await deps.store.mealsForDate(userId, date));
+        return {
+          kind: "redated", mealId: moved.id, analysis: toAnalysis(moved), totals, date,
+        } satisfies MealRedated;
+      }
     }
   }
+}
+
+/**
+ * What of this turn goes in the thread. The user's words (the turn happened); the answer as text; a
+ * correction or re-date as the meal it changed (`editMeal` does not write for the chat path — the
+ * words must come first). A proposal writes the words and nothing else: it is not a meal until
+ * confirmed, and `confirmPendingMeal` keeps the card then.
+ */
+async function keep(deps: EngineDeps, userId: string, text: string, result: HandleTextResult, clientId: string | null): Promise<void> {
+  // A refusal never was a turn; a correction whose meal is gone changed nothing, and the app says
+  // so in a notice that is not a line.
+  if (result.kind === "target-gone" || isRefusal(result)) return;
+  // An answer that came back empty is no turn: a sentence with nothing in it is not kept.
+  if (result.kind === "answered" && result.text === "") return;
+  await remember(deps, userId, async () => {
+    // The words go in when they are said, so a turn taken while a proposal sits lands after them.
+    // The MEAL is not written until confirmed; `confirmPendingMeal` keeps the card then.
+    const lines: ChatAppend[] = [{
+      role: "user", kind: "text", text, clientId,
+      // A proposal's line names its proposal; the meal takes that id when confirmed.
+      pendingId: result.kind === "proposed" ? result.pendingId : null,
+    }];
+    if (result.kind === "answered") {
+      lines.push({ role: "assistant", kind: "text", text: result.text });
+    } else if (result.kind === "updated" || result.kind === "redated") {
+      lines.push({ role: "assistant", kind: "meal", mealId: result.mealId, event: result.kind });
+      if (result.kind === "updated") {
+        const meal = await deps.store.getMeal(userId, result.mealId);
+        if (meal) lines.push(...(await afterCorrection(deps, userId, meal, result.totals)));
+      }
+    }
+    return lines;
+  });
 }

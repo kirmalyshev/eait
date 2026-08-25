@@ -26,6 +26,30 @@ describe("seedDevData", () => {
     }
   });
 
+  test("a persona's thread holds its meals, and its first verdict is already spoken", async () => {
+    const store = memoryStore();
+    const seeded = await seedDevData(store, { timezone: TZ, today: TODAY });
+    for (const s of seeded) {
+      const lines = await store.chatBefore(s.userId, null, 1000);
+      const cards = lines.filter((m) => m.kind === "meal");
+      if (cards.length === 0) continue; // a persona without meals has nothing to say yet
+      expect(lines.some((m) => m.kind === "photo")).toBe(true);
+      // Oldest first, like a conversation: the newest card (highest seq) is today's meal.
+      const newest = lines[0]!; // chatBefore is newest-first
+      const meal = (await store.getMeals(s.userId, [newest.kind === "meal" ? newest.mealId! : cards[0]!.mealId!]))[0]!;
+      expect(newest.kind).toBe("meal");
+      expect(meal.date).toBe(TODAY);
+      // Spud does not greet a week-old account as if this were its first meal — because the greeting
+      // is already IN the thread, at its oldest meal, not merely flagged as spoken.
+      expect(await store.claimFirstVerdict(s.userId)).toBe(false);
+      const oldestFirst = [...lines].reverse();
+      const greeting = oldestFirst.find((m) => m.role === "assistant" && m.kind === "text");
+      expect(greeting?.text).toMatch(/^First one in\.|^Honest answer:/);
+      expect(oldestFirst.indexOf(greeting!)).toBeLessThan(4);
+    }
+    expect(seeded.some((s) => s.meals > 0)).toBe(true);
+  });
+
   test("the pinned device id is deterministic and long enough to be an account key", () => {
     // 32 characters is the server's floor — see `POST /v1/auth/device`. Stability matters because
     // the value is compiled into a build: a device id that moved between two builds would silently

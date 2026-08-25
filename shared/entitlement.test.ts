@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { NO_ENTITLEMENT, entitlementActive } from "./entitlement.ts";
+import { NO_ENTITLEMENT, entitlementActive, sampleSpent } from "./entitlement.ts";
 
 const NOW = Date.parse("2026-08-24T12:00:00.000Z");
 
@@ -32,5 +32,17 @@ describe("entitlementActive", () => {
   test("the never-purchased constant is inert", () => {
     expect(NO_ENTITLEMENT.active).toBe(false);
     expect(entitlementActive(NO_ENTITLEMENT.expiresAt, NOW)).toBe(false);
+  });
+});
+
+// The one predicate every surface reads before inviting a retry of a failed analysis: on the
+// sample, the cap was charged before the model was asked, and the retry would meet a 402.
+describe("sampleSpent", () => {
+  test("is the sample used with no entitlement to fall back on, and nothing without a profile", () => {
+    expect(sampleSpent({ limits: { sampleUsed: true }, entitlement: { active: false } })).toBe(true);
+    expect(sampleSpent({ limits: { sampleUsed: true }, entitlement: { active: true } })).toBe(false);
+    expect(sampleSpent({ limits: { sampleUsed: false }, entitlement: { active: false } })).toBe(false);
+    expect(sampleSpent(null)).toBe(false);
+    expect(sampleSpent(undefined)).toBe(false);
   });
 });

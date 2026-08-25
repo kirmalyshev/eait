@@ -12,6 +12,7 @@ export {
   toAnalysis, type LogPhotoInput,
 } from "./meals.ts";
 export { handleText, type HandleTextInput } from "./text.ts";
+export { appendLines, chatHistory } from "./chat.ts";
 export { day, week, MAX_WINDOW_DAYS } from "./diary.ts";
 export { profileView, patchProfile, classifyRestrictions, type PatchOutcome } from "./profile.ts";
 export { recordHealthDays, healthTrend, MAX_TREND_DAYS } from "./health.ts";

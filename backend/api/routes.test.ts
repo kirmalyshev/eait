@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay, localDate } from "@ieat/shared";
+import { MAX_CLIENT_ID, MAX_USER_LINE, MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay, localDate } from "@ieat/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
@@ -218,6 +218,39 @@ describe("chat and editing", () => {
   it("400s an empty message rather than spending a model call on it", async () => {
     const token = await session();
     expect((await post(ROUTES.messages, { text: "   " }, token)).status).toBe(400);
+    // The line is stored in the thread; the shared cap the app applies is the one the server enforces.
+    expect((await post(ROUTES.messages, { text: "x".repeat(MAX_USER_LINE + 1) }, token)).status).toBe(400);
+    expect((await handle(photoRequest(token, 1, "y".repeat(MAX_USER_LINE + 1)))).status).toBe(400);
+  });
+
+  it("serves the thread back, newest page first, with a cursor", async () => {
+    const token = await session();
+    await post(ROUTES.messages, { text: "how much protein?", clientId: "x".repeat(MAX_CLIENT_ID + 1) }, token);
+    const res = await get(`${ROUTES.messages}?limit=1`, token);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { entries: { role: string }[]; before: number | null };
+    expect(body.entries.map((e) => e.role)).toEqual(["assistant"]);
+    // An over-long client id is dropped, not refused: the turn went through.
+    const all = await (await get(ROUTES.messages, token)).json() as { entries: { role: string; clientId?: string | null }[] };
+    expect(all.entries[0]).toMatchObject({ role: "user", clientId: null });
+    expect(body.before).not.toBeNull();
+    expect((await get(ROUTES.messages)).status).toBe(401);
+  });
+
+  it("appends the user's words and scripted lines through /lines, and refuses assistant prose", async () => {
+    const token = await session();
+    const ok = await post(ROUTES.messagesLines, { lines: [
+      { role: "user", text: "Lose weight" }, { role: "assistant", scripted: "camera-closed" },
+    ] }, token);
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({ appended: 2 });
+    const bad = await post(ROUTES.messagesLines, { lines: [{ role: "assistant", text: "I am Spud" }] }, token);
+    expect(bad.status).toBe(400);
+    expect(await bad.json()).toEqual({ error: "bad-line" });
+    expect((await post(ROUTES.messagesLines, { lines: "x" }, token)).status).toBe(400);
+    const page = await (await get(ROUTES.messages, token)).json() as { entries: { role: string }[] };
+    expect(page.entries.map((e) => e.role)).toEqual(["user", "assistant"]);
+    expect((await post(ROUTES.messagesLines, { lines: [] })).status).toBe(401);
   });
 
   it("edits a logged meal and recomputes its totals", async () => {
@@ -740,6 +773,51 @@ describe("rate limits", () => {
     expect(await refused.json()).toEqual({ error: "rate-limited" });
     // Without this a client has no idea whether to retry in a second or an hour, and picks a second.
     expect(Number(refused.headers.get("retry-after"))).toBeGreaterThan(0);
+  });
+
+  it("bounds the thread's own lines per address, like the health sync", async () => {
+    const h = routerWith({ linesRateLimitPerHour: 2 });
+    const address = "203.0.113.45";
+    const register = await h(new Request(url(ROUTES.authDevice), {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": address },
+      body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en" }),
+    }));
+    const { token } = await register.json() as { token: string };
+    const append = () => h(new Request(url(ROUTES.messagesLines), {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": address, authorization: `Bearer ${token}` },
+      body: JSON.stringify({ lines: [{ role: "user", text: "hi" }] }),
+    }));
+    expect((await append()).status).toBe(200);
+    expect((await append()).status).toBe(200);
+    const third = await append();
+    expect(third.status).toBe(429);
+    expect(await third.json()).toEqual({ error: "rate-limited" });
+  });
+
+  it("bounds the manual edit per address too: it writes the thread and sits behind no cap", async () => {
+    const h = routerWith({ linesRateLimitPerHour: 2 });
+    const address = "203.0.113.46";
+    const register = await h(new Request(url(ROUTES.authDevice), {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": address },
+      body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en" }),
+    }));
+    const { token } = await register.json() as { token: string };
+    const patch = (body: unknown) => h(new Request(url(ROUTES.meal(crypto.randomUUID())), {
+      method: "PATCH",
+      headers: { "content-type": "application/json", "x-forwarded-for": address, authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    }));
+    // A body that is not an edit is a 400, before any engine call; a well-formed one on no such meal is the 409.
+    const bad = await patch({ kcal: "abc" });
+    expect(bad.status).toBe(400);
+    expect(await bad.json()).toEqual({ error: "bad-edit" });
+    expect((await patch({ kcal: 300 })).status).toBe(409);
+    const third = await patch({ kcal: 300 });
+    expect(third.status).toBe(429);
+    expect(await third.json()).toEqual({ error: "rate-limited" });
   });
 
   it("bounds the health sync, which nothing else bounds", async () => {

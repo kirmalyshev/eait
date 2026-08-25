@@ -6,9 +6,9 @@
 // re-ask, and the target-weight one is a safety guard — a client that decided to skip it would
 // simply be told no.
 
-import {
+import { MAX_PROFILE_TEXT,
   ACTIVITY_LEVELS, LANGS, PACES, RESTRICTION_TAGS, checkTargetWeight, explainTargets,
-  isAcceptableWeightKg, isRestrictionTag,
+  isAcceptableWeightKg,
   type ActivityLevel, type Lang, type Pace, type PatchProfileRequest, type Profile,
   type Limits, type ProfileRejected, type ProfileResponse,
 } from "@ieat/shared";
@@ -65,6 +65,7 @@ export async function patchProfile(
   if (!current) return null;
 
   const patch: ProfilePatch = {};
+  const MAX_COUNTRY = 64;
   const reject = (field: keyof PatchProfileRequest, reason: ProfileRejected["reason"], extra?: Partial<ProfileRejected>): PatchOutcome =>
     ({ ok: false, rejected: { error: "invalid-profile", field, reason, ...extra } });
 
@@ -92,7 +93,7 @@ export async function patchProfile(
     patch.birth_year = req.birth_year;
   }
   if (req.height_cm !== undefined) {
-    if (req.height_cm !== null && (req.height_cm < 100 || req.height_cm > 250)) {
+    if (req.height_cm !== null && (!Number.isFinite(req.height_cm) || req.height_cm < 100 || req.height_cm > 250)) {
       return reject("height_cm", "out-of-range");
     }
     patch.height_cm = req.height_cm;
@@ -109,7 +110,7 @@ export async function patchProfile(
   }
   if (req.target_weight_kg !== undefined) {
     if (req.target_weight_kg !== null) {
-      if (req.target_weight_kg < 30 || req.target_weight_kg > 400) {
+      if (!Number.isFinite(req.target_weight_kg) || req.target_weight_kg < 30 || req.target_weight_kg > 400) {
         return reject("target_weight_kg", "out-of-range");
       }
       // Checked against the height being SET in this same patch when there is one, so a client that
@@ -134,15 +135,26 @@ export async function patchProfile(
     }
     patch.pace = req.pace as Pace | null;
   }
-  if (req.country !== undefined) patch.country = req.country;
+  if (req.country !== undefined) {
+    if (req.country !== null && (typeof req.country !== "string" || req.country.length > MAX_COUNTRY)) {
+      return reject("country", "out-of-range");
+    }
+    patch.country = req.country;
+  }
   if (req.restrictions !== undefined) {
+    if (!Array.isArray(req.restrictions)) return reject("restrictions", "out-of-range");
     // Filtered against the CLOSED vocabulary rather than rejected: an unknown tag is a client that
     // is ahead of or behind the server, and dropping it is recoverable where a 422 is not. Anything
-    // outside the list is meaningless to `targetsFor` and to the prompt anyway.
-    patch.restrictions = req.restrictions.filter((t): t is string => isRestrictionTag(t));
+    // outside the list is meaningless to `targetsFor` and to the prompt anyway. Walking the
+    // vocabulary rather than the body bounds, dedupes and orders the result in one step.
+    const given = req.restrictions as unknown[];
+    patch.restrictions = RESTRICTION_TAGS.filter((t) => given.includes(t));
   }
   for (const f of ["medical_limitations", "food_allergies", "product_limitations"] as const) {
-    if (req[f] !== undefined) patch[f] = req[f];
+    if (req[f] === undefined) continue;
+    // Prose about a person's body, bounded like everything else that crosses this boundary.
+    if (req[f] !== null && (typeof req[f] !== "string" || req[f].length > MAX_PROFILE_TEXT)) return reject(f, "out-of-range");
+    patch[f] = req[f];
   }
 
   if (req.complete_onboarding) {

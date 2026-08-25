@@ -18,6 +18,8 @@ import {
 import { localDate, localTime } from "@ieat/shared";
 import type { EngineDeps } from "./deps.ts";
 import { checkCaps } from "./caps.ts";
+import { afterCorrection, firstVerdict, remember } from "./chat.ts";
+import { scriptedLine } from "@ieat/shared";
 import type { AnalyzedMeal } from "../llm/port.ts";
 
 /** Images arrive as thunks so nothing is READ until the caps have passed. */
@@ -119,6 +121,19 @@ export async function logPhotoMeal(
   await deps.store.insertMeal(record);
 
   const totals = sumTotals(await deps.store.mealsForDate(userId, date));
+  // The bubble is the photo's only trace: no bytes, just that one was sent, and the caption. Then
+  // the card, then — on the account's first meal only — Spud's verdict in the design's words.
+  await remember(deps, userId, async () => {
+    const greeting = await firstVerdict(deps, userId, profile, record, totals, "photo", input.caption ?? null);
+    return {
+      lines: [
+        { role: "user", kind: "photo", text: input.caption ?? null },
+        { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
+        ...greeting.lines,
+      ],
+      ...(greeting.undo ? { undo: greeting.undo } : {}),
+    };
+  });
   return {
     kind: "logged", mealId: record.id, analysis: { ...analysis, verdicts: record.verdicts },
     totals, date, hint: hintFor(analysis),
@@ -137,6 +152,9 @@ export async function editMeal(
   userId: string,
   mealId: string,
   patch: EditMealRequest,
+  // The chat path writes its own card AFTER the user's words; the editor has no words, so the card
+  // is written here. One write path, two thread shapes — copy.md offers both corrections as equals.
+  opts: { thread?: boolean } = {},
 ): Promise<MealUpdated | TargetGone> {
   const existing = await deps.store.getMeal(userId, mealId);
   // Scoped read: another user's meal id resolves to null here, indistinguishable from a deleted one.
@@ -164,6 +182,12 @@ export async function editMeal(
   if (!updated) return { kind: "target-gone", on: "correction" };
 
   const totals = sumTotals(await deps.store.mealsForDate(userId, updated.date));
+  if (opts.thread !== false) {
+    await remember(deps, userId, async () => [
+      { role: "assistant", kind: "meal", mealId, event: "updated" },
+      ...(await afterCorrection(deps, userId, updated, totals)),
+    ]);
+  }
   return { kind: "updated", mealId, analysis: toAnalysis(updated), totals, date: updated.date, via: "manual" };
 }
 
@@ -178,7 +202,7 @@ export async function applyCorrection(
     items: analysis.items, kcal: analysis.kcal, protein_g: analysis.protein_g,
     carbs_g: analysis.carbs_g, fat_g: analysis.fat_g, satfat_g: analysis.satfat_g,
     fiber_g: analysis.fiber_g, sugar_g: analysis.sugar_g, sodium_mg: analysis.sodium_mg,
-  });
+  }, { thread: false });
   return res.kind === "updated" ? { ...res, via: "nl" } : res;
 }
 
@@ -192,30 +216,73 @@ export function toAnalysis(m: MealRecord): MealAnalysis {
   };
 }
 
+/**
+ * The meal takes the proposal's id, so a confirm whose RESPONSE was lost — or one racing itself, or a
+ * cancel that came after it — is answered with the meal already logged, not "expired", which would
+ * send the user to describe it a second time, at a second billed call, into a duplicate. Any meal of
+ * the caller's with that id answers this way, a photo meal's included: the id is theirs, nothing is
+ * written, and "logged" is the true state of it.
+ */
+async function loggedAs(deps: EngineDeps, userId: string, id: string): Promise<MealLogged | null> {
+  const already = await deps.store.getMeal(userId, id);
+  if (!already) return null;
+  const totals = sumTotals(await deps.store.mealsForDate(userId, already.date));
+  return { kind: "logged", mealId: already.id, analysis: toAnalysis(already), totals, date: already.date, hint: hintFor(already) };
+}
+
 export async function confirmPendingMeal(
   deps: EngineDeps,
   userId: string,
   pendingId: string,
 ): Promise<ConfirmMealResult | { kind: "expired" }> {
   const pending = await deps.store.getPending(userId, pendingId);
-  if (!pending) return { kind: "expired" };
+  const alreadyLogged = () => loggedAs(deps, userId, pendingId);
+  if (!pending) return (await alreadyLogged()) ?? { kind: "expired" };
+  // The drop is the claim. A confirm and a cancel racing on one proposal must reach ONE outcome,
+  // so whichever removes the row decides it; the other finds it gone and answers with what stands.
+  if (!(await deps.store.dropPending(userId, pendingId))) return (await alreadyLogged()) ?? { kind: "expired" };
 
-  const record: MealRecord = {
-    ...pending.analysis,
-    id: crypto.randomUUID(),
-    user_id: userId,
-    ts: new Date().toISOString(),
-    date: pending.date,
-    verdicts: await gatedVerdicts(deps, userId, pending.analysis),
-    corrected: false,
-    model: deps.config.llmModel,
-  };
-  await deps.store.insertMeal(record);
-  // Confirm and drop collapse: this response IS the delivery, so there is no window in which the
-  // meal is logged but the user has seen nothing.
-  await deps.store.dropPending(userId, pendingId);
+  let record: MealRecord;
+  let inserted: boolean;
+  try {
+    record = {
+      ...pending.analysis,
+      id: pendingId,
+      user_id: userId,
+      ts: new Date().toISOString(),
+      date: pending.date,
+      verdicts: await gatedVerdicts(deps, userId, pending.analysis),
+      corrected: false,
+      model: deps.config.llmModel,
+    };
+    inserted = await deps.store.insertMeal(record);
+  } catch (e) {
+    // The claim was taken and nothing was written: hand the proposal back, so the retry the screen
+    // offers on this failure can log it instead of meeting "expired" for a sentence already billed.
+    // Logged if even that fails: the symptom is a later "expired" on a sentence already billed.
+    await deps.store.putPending(pending).catch((err) => {
+      console.error(`[ieat] pending restore failed: ${(err as Error)?.message ?? err}`);
+    });
+    throw e;
+  }
+  // Cannot lose to another confirm now (the claim above is exclusive); kept as the last guard on
+  // the one id two rows may never share. Answered OUTSIDE the restore's reach: the meal is there,
+  // and a proposal put back for a logged meal would let a later "no" drop what stays logged.
+  if (!inserted) return (await alreadyLogged()) ?? { kind: "expired" };
 
   const totals = sumTotals(await deps.store.mealsForDate(userId, pending.date));
+  await remember(deps, userId, async () => {
+    const profile = await deps.store.getProfile(userId);
+    const greeting = profile ? await firstVerdict(deps, userId, profile, record, totals, "text") : { lines: [] };
+    return {
+      // The words were kept when they were said; this is the card, and on a first meal the verdict.
+      lines: [
+        { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
+        ...greeting.lines,
+      ],
+      ...(greeting.undo ? { undo: greeting.undo } : {}),
+    };
+  });
   return {
     kind: "logged", mealId: record.id, analysis: { ...pending.analysis, verdicts: record.verdicts },
     totals, date: pending.date, hint: hintFor(pending.analysis),
@@ -226,10 +293,15 @@ export async function cancelPendingMeal(
   deps: EngineDeps,
   userId: string,
   pendingId: string,
-): Promise<{ kind: "cancelled" } | { kind: "expired" }> {
-  const pending = await deps.store.getPending(userId, pendingId);
-  if (!pending) return { kind: "expired" };
-  await deps.store.dropPending(userId, pendingId);
+): Promise<{ kind: "cancelled" } | { kind: "expired" } | MealLogged> {
+  // The drop is the claim (see `confirmPendingMeal`): a "no" that finds the row gone lost to a
+  // confirm, or came after one whose response was lost, or is late. The meal is logged under the
+  // proposal's id and nothing here un-logs it, so the honest answer is the meal, not "expired".
+  // ponytail: a confirm that has claimed but not yet inserted answers this as "expired" for those
+  // milliseconds; the next page load shows the card. Exact would be a row-level state, not worth it.
+  if (!(await deps.store.dropPending(userId, pendingId))) return (await loggedAs(deps, userId, pendingId)) ?? { kind: "expired" };
+  // A "no" is a turn too: the words are already there; this is the answer. An expiry adds nothing.
+  await remember(deps, userId, [{ role: "assistant", kind: "text", text: scriptedLine("dropped") }]);
   return { kind: "cancelled" };
 }
 

@@ -10,7 +10,7 @@ import type {
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
-import {
+import { type ChatMessage,
   blankProfile, type FunnelAggregate, type MealPatch, type PendingMeal, type ProfilePatch,
   type StoredEntitlement, type Store, type StoreOptions,
 } from "./store.ts";
@@ -76,6 +76,11 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const tokens = new Map<string, { userId: string; lastUsedAt: number }>();
   const meals = new Map<string, MealRecord>(); // mealId -> record
   const pendings = new Map<string, PendingMeal>(); // pendingId -> pending
+  // Append-only; `seq` comes from a monotonic counter, never reused, the same way the Postgres
+  // bigserial is. Rows of a deleted user are removed, so it gaps.
+  const chat: ChatMessage[] = [];
+  let chatSeq = 0;
+  const firstVerdictSpoken = new Set<string>();
   const analyses: { userId: string; date: string; scope: "photo" | "text" }[] = [];
   const identities: { userId: string; provider: Provider; subject: string; linkedAt: string }[] = [];
   const onboardingEvents = new Map<string, StoredEvent>(); // event id -> event
@@ -205,6 +210,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         if (!healthDays.has(target)) healthDays.set(target, { ...d, userId: intoUserId });
       }
       for (const a of analyses) if (a.userId === fromUserId) a.userId = intoUserId;
+      for (const m of chat) if (m.userId === fromUserId) m.userId = intoUserId;
+      // The greeting travels with the thread that holds it, or Spud says "First one in." twice.
+      if (firstVerdictSpoken.delete(fromUserId)) firstVerdictSpoken.add(intoUserId);
       // Funnel rows move with the account. Signing in halfway through onboarding is a normal thing
       // to do, and a run split across two user ids reads as two abandoned runs.
       for (const e of onboardingEvents.values()) if (e.userId === fromUserId) e.userId = intoUserId;
@@ -275,14 +283,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         // Keyed on the CLIENT's id, so a retried batch overwrites nothing and adds nothing. The
         // Postgres implementation gets the same behaviour from a primary key.
         if (onboardingEvents.has(e.id)) continue;
-        onboardingEvents.set(e.id, { ...clone(e), userId, receivedAt: Date.now() });
+        onboardingEvents.set(e.id, { ...clone(e), userId, receivedAt: now() });
         added++;
       }
       return added;
     },
 
     async onboardingFunnel(days) {
-      const since = Date.now() - days * 24 * 60 * 60 * 1000;
+      const since = now() - days * 24 * 60 * 60 * 1000;
       return aggregateFunnel([...onboardingEvents.values()].filter((e) => e.receivedAt >= since));
     },
 
@@ -349,7 +357,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     },
 
     async insertMeal(record) {
+      if (meals.has(record.id)) return false;
       meals.set(record.id, clone(record));
+      return true;
+    },
+
+    async getMeals(userId, mealIds) {
+      const want = new Set(mealIds);
+      return [...meals.values()].filter((m) => m.user_id === userId && want.has(m.id)).map(clone);
     },
 
     async getMeal(userId, mealId) {
@@ -396,16 +411,59 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     async getPending(userId, pendingId) {
       const p = pendings.get(pendingId);
       if (!p || p.userId !== userId) return null;
-      if (p.expiresAt <= Date.now()) {
+      if (p.expiresAt <= now()) {
         pendings.delete(pendingId);
         return null;
       }
       return clone(p);
     },
 
+    async pruneExpiredPendings() {
+      let n = 0;
+      for (const [id, p] of pendings) if (p.expiresAt <= now()) { pendings.delete(id); n++; }
+      return n;
+    },
+
     async dropPending(userId, pendingId) {
       const p = pendings.get(pendingId);
-      if (p && p.userId === userId) pendings.delete(pendingId);
+      return p !== undefined && p.userId === userId && p.expiresAt > now() && pendings.delete(pendingId);
+    },
+
+    async appendChat(userId, lines) {
+      const ts = new Date(now()).toISOString();
+      for (const line of lines) {
+        chat.push({
+          id: crypto.randomUUID(), userId, seq: ++chatSeq, ts, role: line.role, kind: line.kind,
+          text: "text" in line ? line.text : null,
+          mealId: line.kind === "meal" ? line.mealId : null,
+          event: line.kind === "meal" ? line.event : null,
+          clientId: line.role === "user" && line.kind === "text" ? line.clientId ?? null : null,
+          pendingId: line.role === "user" && line.kind === "text" ? line.pendingId ?? null : null,
+        });
+      }
+    },
+
+    async chatBefore(userId, before, limit) {
+      const out: ChatMessage[] = [];
+      for (let i = chat.length - 1; i >= 0 && out.length < limit; i--) {
+        const m = chat[i]!;
+        if (m.userId === userId && (before === null || m.seq < before)) out.push(clone(m));
+      }
+      return out;
+    },
+
+    async countUserChat(userId) {
+      return chat.filter((m) => m.userId === userId).length;
+    },
+
+    async claimFirstVerdict(userId) {
+      if (!users.has(userId) || firstVerdictSpoken.has(userId)) return false;
+      firstVerdictSpoken.add(userId);
+      return true;
+    },
+
+    async releaseFirstVerdict(userId) {
+      firstVerdictSpoken.delete(userId);
     },
 
     async countUserPhotos(userId, date) {
@@ -449,6 +507,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       for (const [h, row] of tokens) if (row.userId === userId) tokens.delete(h);
       for (const [id, m] of meals) if (m.user_id === userId) meals.delete(id);
       for (const [id, p] of pendings) if (p.userId === userId) pendings.delete(id);
+      // The thread holds the medical free text a person typed at Spud. It goes with the account.
+      for (let i = chat.length - 1; i >= 0; i--) if (chat[i]!.userId === userId) chat.splice(i, 1);
+      firstVerdictSpoken.delete(userId);
       for (let i = analyses.length - 1; i >= 0; i--) {
         if (analyses[i]!.userId === userId) analyses.splice(i, 1);
       }

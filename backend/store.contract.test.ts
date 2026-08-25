@@ -178,6 +178,15 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.userIdForToken("never-issued")).toBeNull();
     });
 
+    it("inserts a meal once: a second insert with the same id is refused, not duplicated", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const m = meal(u);
+      expect(await s.insertMeal(m)).toBe(true);
+      expect(await s.insertMeal({ ...m, kcal: 1 })).toBe(false);
+      expect((await s.getMeal(u, m.id))!.kcal).toBe(260);
+    });
+
     it("scopes a meal read to its owner", async () => {
       const s = await open();
       const a = (await s.upsertDeviceUser(device(), "en")).userId;
@@ -189,6 +198,103 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.getMeal(b, m.id)).toBeNull();
       expect(await s.updateMeal(b, m.id, { kcal: 1 })).toBeNull();
       expect((await s.getMeal(a, m.id))!.kcal).toBe(260);
+    });
+
+    it("keeps the chat in order, scoped, newest page first", async () => {
+      const s = await open();
+      const a = (await s.upsertDeviceUser(device(), "en")).userId;
+      const b = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.appendChat(a, [
+        { role: "user", kind: "text", text: "hi", clientId: "phone-1", pendingId: "0b0a3f3e-2c3a-4d4e-9f1a-1c2d3e4f5a6b" },
+        { role: "assistant", kind: "text", text: "hello" },
+        { role: "user", kind: "photo", text: null },
+      ]);
+      await s.appendChat(b, [{ role: "user", kind: "text", text: "not yours" }]);
+
+      const page = await s.chatBefore(a, null, 2);
+      expect(page.map((m) => m.kind)).toEqual(["photo", "text"]); // newest first
+      expect(page[0]!.seq).toBeGreaterThan(page[1]!.seq);
+      const older = await s.chatBefore(a, page[1]!.seq, 2);
+      expect(older.map((m) => m.text)).toEqual(["hi"]);
+      expect(older[0]!.clientId).toBe("phone-1");
+      // The proposal's id rides on the line too: it is what "was this proposal logged" reads.
+      expect(older[0]!.pendingId).toBe("0b0a3f3e-2c3a-4d4e-9f1a-1c2d3e4f5a6b");
+      expect(page[1]!.clientId).toBeNull();
+      expect(await s.chatBefore(b, null, 10)).toHaveLength(1);
+      expect((await s.chatBefore(b, null, 10))[0]!.userId).toBe(b);
+      // A page is a copy. Mutating it must not reach the store — Postgres could never do that.
+      page[0]!.text = "tampered";
+      expect((await s.chatBefore(a, null, 1))[0]!.text).toBeNull();
+    });
+
+    it("hands out the first verdict exactly once per account", async () => {
+      const s = await open();
+      const a = (await s.upsertDeviceUser(device(), "en")).userId;
+      const b = (await s.upsertDeviceUser(device(), "en")).userId;
+      expect(await s.claimFirstVerdict(a)).toBe(true);
+      expect(await s.claimFirstVerdict(a)).toBe(false);
+      expect(await s.claimFirstVerdict(b)).toBe(true);
+      // Released when the greeting could not be written: the next meal may take it again.
+      await s.releaseFirstVerdict(a);
+      expect(await s.claimFirstVerdict(a)).toBe(true);
+    });
+
+    it("carries the first-verdict claim through an anonymous → real merge", async () => {
+      const s = await open();
+      const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real = (await s.upsertDeviceUser(device(), "en")).userId;
+      expect(await s.claimFirstVerdict(anon)).toBe(true);
+      await s.mergeUsers(anon, real);
+      expect(await s.claimFirstVerdict(real)).toBe(false);
+    });
+
+    it("sweeps expired proposals, which carry the user's words", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const live = { id: crypto.randomUUID(), userId: u, analysis: meal(u), date: "2026-08-01", expiresAt: Date.now() + 60_000 };
+      const dead = { ...live, id: crypto.randomUUID(), expiresAt: Date.now() - 1_000 };
+      await s.putPending(live);
+      await s.putPending(dead);
+      expect(await s.pruneExpiredPendings()).toBeGreaterThanOrEqual(1);
+      expect((await s.getPending(u, live.id))?.id).toBe(live.id);
+      expect(await s.pruneExpiredPendings()).toBe(0);
+    });
+
+    it("counts the thread per account", async () => {
+      const s = await open();
+      const a = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.appendChat(a, [{ role: "user", kind: "text", text: "one" }, { role: "assistant", kind: "text", text: "two" }]);
+      expect(await s.countUserChat(a)).toBe(2);
+      expect(await s.countUserChat((await s.upsertDeviceUser(device(), "en")).userId)).toBe(0);
+    });
+
+    it("erases the thread with the account", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.appendChat(u, [{ role: "user", kind: "text", text: "my kidneys" }]);
+      await s.deleteUser(u);
+      expect(await s.chatBefore(u, null, 10)).toEqual([]);
+    });
+
+    it("reads several meals at once, scoped, in one call", async () => {
+      const s = await open();
+      const a = (await s.upsertDeviceUser(device(), "en")).userId;
+      const b = (await s.upsertDeviceUser(device(), "en")).userId;
+      const m1 = meal(a); const m2 = meal(a); const theirs = meal(b);
+      await s.insertMeal(m1); await s.insertMeal(m2); await s.insertMeal(theirs);
+      const got = await s.getMeals(a, [m1.id, theirs.id, m2.id, crypto.randomUUID()]);
+      expect(got.map((m) => m.id).sort()).toEqual([m1.id, m2.id].sort());
+      expect(await s.getMeals(a, [])).toEqual([]);
+    });
+
+    it("moves the chat with an anonymous → real merge", async () => {
+      const s = await open();
+      const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.appendChat(anon, [{ role: "user", kind: "text", text: "before signing in" }]);
+      await s.mergeUsers(anon, real);
+      expect((await s.chatBefore(real, null, 10)).map((m) => m.text)).toEqual(["before signing in"]);
+      expect(await s.chatBefore(anon, null, 10)).toEqual([]);
     });
 
     it("patches only the fields given", async () => {
@@ -250,6 +356,32 @@ function contract(name: string, make: () => Promise<Store>) {
       await s.putPending(dead);
       expect((await s.getPending(u, live.id))?.id).toBe(live.id);
       expect(await s.getPending(u, dead.id)).toBeNull();
+    });
+
+    it("answers an id that is not a uuid as absent, never as an error, in both implementations", async () => {
+      // A client-supplied id reaches these four; Postgres would refuse a non-uuid at the column and
+      // turn a 404-shaped question into a 500 — after the analysis was charged, on `/v1/messages`.
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      expect(await s.getMeal(u, "not-a-uuid")).toBeNull();
+      expect(await s.updateMeal(u, "not-a-uuid", { kcal: 1 })).toBeNull();
+      expect(await s.getPending(u, "not-a-uuid")).toBeNull();
+      expect(await s.dropPending(u, "not-a-uuid")).toBe(false);
+    });
+
+    it("drops a pending once: the first drop says so, a second one says it was already gone", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const other = (await s.upsertDeviceUser(device(), "en")).userId;
+      const live = { id: crypto.randomUUID(), userId: u, analysis: meal(u), date: "2026-08-01", expiresAt: Date.now() + 60_000 };
+      await s.putPending(live);
+      expect(await s.dropPending(other, live.id)).toBe(false);
+      expect(await s.dropPending(u, live.id)).toBe(true);
+      expect(await s.dropPending(u, live.id)).toBe(false);
+      // An expired row cannot be claimed either: a "no" to a proposal that timed out is not a cancel.
+      const dead = { ...live, id: crypto.randomUUID(), expiresAt: Date.now() - 1_000 };
+      await s.putPending(dead);
+      expect(await s.dropPending(u, dead.id)).toBe(false);
     });
 
     it("counts photo analyses per user but every analysis globally", async () => {
@@ -546,10 +678,52 @@ function tokenLifetime(name: string, make: (opts: StoreOptions) => Promise<Store
   });
 }
 
+/**
+ * The proposal's lifetime under an injected clock. Every pending path — the lookup's lazy expiry,
+ * the claim's refusal of an expired row, the sweep — must read the store's clock, or a test cannot
+ * move time for it and the two implementations can drift apart on the one path a race depends on.
+ */
+function pendingLifetime(name: string, make: (opts: StoreOptions) => Promise<Store>) {
+  describe(`pending meals — ${name}`, () => {
+    let clock = Date.parse("2026-08-01T12:00:00Z");
+    let store: Store | null = null;
+    const open = async () => (store ??= await make({ now: () => clock }));
+    afterAll(async () => { await store?.close(); });
+
+    it("expires, refuses the claim, and sweeps on the store's clock, not the wall's", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const row = { id: crypto.randomUUID(), userId: u, analysis: meal(u), date: "2026-08-01", expiresAt: clock + 60_000 };
+      await s.putPending(row);
+      expect((await s.getPending(u, row.id))?.id).toBe(row.id);
+      clock += 61_000;
+      // Still on disk (nothing swept it), and every path now calls it expired.
+      expect(await s.dropPending(u, row.id)).toBe(false);
+      expect(await s.getPending(u, row.id)).toBeNull();
+      const live = { ...row, id: crypto.randomUUID(), expiresAt: clock + 60_000 };
+      const dead = { ...row, id: crypto.randomUUID(), expiresAt: clock - 1 };
+      await s.putPending(live);
+      await s.putPending(dead);
+      clock += 30_000;
+      expect(await s.pruneExpiredPendings()).toBeGreaterThanOrEqual(1);
+      expect(await s.dropPending(u, live.id)).toBe(true);
+    });
+
+    it("stamps the lines it writes from the store's clock, which is what the app shows as the time", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.appendChat(u, [{ role: "user", kind: "text", text: "hi" }]);
+      expect((await s.chatBefore(u, null, 1))[0]!.ts).toBe(new Date(clock).toISOString());
+    });
+  });
+}
+
 tokenLifetime("memory", async (o) => memoryStore(o));
+pendingLifetime("memory", async (o) => memoryStore(o));
 
 if (PG_URL) {
   tokenLifetime("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
+  pendingLifetime("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
 
   // The reason the column is a hash, stated as an assertion rather than as a comment.
   //

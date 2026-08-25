@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { isMeal, type MealAnalysis } from "@ieat/shared";
+import { MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, type MealAnalysis } from "@ieat/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { LlmPorts } from "../llm/port.ts";
@@ -7,9 +7,10 @@ import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { localDate } from "@ieat/shared";
 import { fakeMailer } from "../mail/fake.ts";
+import { remember } from "./chat.ts";
 import {
-  applyCorrection, cancelPendingMeal, confirmPendingMeal, day, editMeal, handleText, logPhotoMeal,
-  nextStep, patchProfile, profileView, week, type EngineDeps,
+  appendLines, applyCorrection, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
+  logPhotoMeal, nextStep, patchProfile, profileView, week, type EngineDeps,
 } from "./index.ts";
 
 const CONFIG: Config = {
@@ -114,7 +115,7 @@ describe("onboarding", () => {
 
   it("drops restriction tags outside the closed vocabulary instead of 422-ing", async () => {
     const userId = await onboard({ restrictions: ["ldl", "wizardry", "kidneys"] });
-    expect((await store.getProfile(userId))!.restrictions).toEqual(["ldl", "kidneys"]);
+    expect((await store.getProfile(userId))!.restrictions).toEqual(RESTRICTION_TAGS.filter((t) => t === "ldl" || t === "kidneys"));
   });
 
   it("will not complete onboarding without a goal and a bodyweight", async () => {
@@ -292,6 +293,43 @@ describe("the sample", () => {
   });
 });
 
+describe("profile free text", () => {
+  it("refuses the medical free text past its bound, on the server too", async () => {
+    const userId = await onboard();
+    const out = await patchProfile(deps, userId, { medical_limitations: "x".repeat(MAX_PROFILE_TEXT + 1) });
+    expect(out && !out.ok && out.rejected.field).toBe("medical_limitations");
+    const ok = await patchProfile(deps, userId, { medical_limitations: "x".repeat(MAX_PROFILE_TEXT) });
+    expect(ok && ok.ok).toBe(true);
+  });
+
+  it("refuses a non-string in the medical free text: a body is a cast, not a validation", async () => {
+    const userId = await onboard();
+    const shaped = await patchProfile(deps, userId, { medical_limitations: ["x".repeat(5000)] as unknown as string });
+    expect(shaped && !shaped.ok && shaped.rejected.field).toBe("medical_limitations");
+    const cleared = await patchProfile(deps, userId, { medical_limitations: null });
+    expect(cleared && cleared.ok).toBe(true);
+  });
+
+  it("refuses a non-number where a number belongs, and a non-array of restrictions", async () => {
+    const userId = await onboard();
+    const field = async (req: Record<string, unknown>) => {
+      const out = await patchProfile(deps, userId, req as never);
+      return out && !out.ok ? out.rejected.field : "accepted";
+    };
+    // NaN passes both sides of a range check; these must be refused, not stored or thrown on.
+    expect(await field({ height_cm: "abc" })).toBe("height_cm");
+    expect(await field({ target_weight_kg: {} })).toBe("target_weight_kg");
+    expect(await field({ country: 5 })).toBe("country");
+    expect(await field({ country: "x".repeat(65) })).toBe("country");
+    expect(await field({ restrictions: "vegan" })).toBe("restrictions");
+  });
+
+  it("stores restrictions as the closed vocabulary's subset: deduped, canonical order, bounded", async () => {
+    const userId = await onboard({ restrictions: ["kidneys", "ldl", "kidneys", ...Array.from({ length: 1000 }, () => "ldl")] });
+    expect((await store.getProfile(userId))!.restrictions).toEqual(RESTRICTION_TAGS.filter((t) => t === "ldl" || t === "kidneys"));
+  });
+});
+
 describe("verdict gating", () => {
   it("emits no medical verdict for a user who declared none", async () => {
     const userId = await onboard({ restrictions: [] });
@@ -460,9 +498,11 @@ describe("chat", () => {
     expect(ok.kind).toBe("logged");
     expect((await day(deps, userId))!.meals).toHaveLength(1);
 
-    // The pending is dropped with the write, so a duplicate confirm cannot log the meal twice.
+    // The pending is dropped with the write, so a duplicate confirm cannot log the meal twice — it
+    // answers with the meal already logged (the meal took the proposal's id), never "expired".
     const again = await confirmPendingMeal(deps, userId, res.pendingId);
-    expect(again.kind).toBe("expired");
+    expect(again.kind).toBe("logged");
+    if (again.kind === "logged") expect(again.mealId).toBe(res.pendingId);
     expect((await day(deps, userId))!.meals).toHaveLength(1);
   });
 
@@ -508,6 +548,398 @@ describe("chat", () => {
     await handleText(d, userId, { text: "and yesterday?" });
     // Chat did not eat the photo the user could still log.
     expect((await logPhotoMeal(d, userId, photo())).kind).toBe("logged");
+  });
+});
+
+// The conversation is stored on the server. The Chat tab is its continuation — the onboarding's
+// verdict, every question, every meal since, from any device — so the app never has a thread the
+// server does not, and a reinstall does not open on an empty screen.
+describe("the thread", () => {
+  const thread = async (userId: string) => (await chatHistory(deps, userId, {})).entries;
+  const text = (e: { kind: string }) => ("text" in e ? (e as { text: string | null }).text : null);
+
+  it("keeps a question and its answer, oldest first", async () => {
+    const userId = await onboard();
+    await handleText(deps, userId, { text: "how much protein have I had?" });
+    const t = await thread(userId);
+    expect(t.map((e) => [e.role, e.kind])).toEqual([["user", "text"], ["assistant", "text"]]);
+    expect(text(t[0]!)).toBe("how much protein have I had?");
+    expect(text(t[1]!)!.length).toBeGreaterThan(0);
+  });
+
+  it("keeps a photo as a bubble without bytes, and its verdict as the meal itself", async () => {
+    const userId = await onboard();
+    const res = await logPhotoMeal(deps, userId, { ...photo(), caption: "with extra rice" });
+    if (res.kind !== "logged") throw new Error("expected logged");
+    const t = await thread(userId);
+    expect(t[0]).toMatchObject({ role: "user", kind: "photo", text: "with extra rice" });
+    expect(t[1]).toMatchObject({ role: "assistant", kind: "meal", event: "logged" });
+    const card = t[1];
+    if (!card || card.kind !== "meal") throw new Error("expected meal");
+    expect(card.meal?.id).toBe(res.mealId);
+    expect(card.meal?.kcal).toBe(res.analysis.kcal);
+    expect(JSON.stringify(t)).not.toContain("image");
+  });
+
+  it("keeps the words when they are said, and the meal when it is confirmed — in that order", async () => {
+    const userId = await onboard();
+    const res = await handleText(deps, userId, { text: "two eggs and toast" });
+    if (res.kind !== "proposed") throw new Error("expected proposed");
+    expect((await thread(userId)).map((e) => [e.role, e.kind])).toEqual([["user", "text"]]);
+    // A question asked while the card sits lands AFTER the words that produced the card.
+    await handleText(deps, userId, { text: "how much protein today?" });
+    await confirmPendingMeal(deps, userId, res.pendingId);
+    const t = await thread(userId);
+    expect(t.map((e) => [e.role, e.kind])).toEqual([
+      ["user", "text"], ["user", "text"], ["assistant", "text"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"],
+    ]);
+    expect(text(t[0]!)).toBe("two eggs and toast");
+    expect(text(t[4]!)).toContain("Typed, not photographed");
+  });
+
+  it("names its proposal on the user line, and a racing confirm answers with the meal the other one logged", async () => {
+    const userId = await onboard();
+    const res = await handleText(deps, userId, { text: "two eggs and toast" });
+    if (res.kind !== "proposed") throw new Error("expected proposed");
+    expect((await thread(userId))[0]).toMatchObject({ role: "user", pendingId: res.pendingId });
+    // The card names its meal by id, beside the record: the id is what "was it logged" reads.
+    await confirmPendingMeal(deps, userId, res.pendingId);
+    expect((await thread(userId)).find((e) => e.kind === "meal")).toMatchObject({ mealId: res.pendingId });
+    // A FRESH proposal whose insert reports "already there": the last guard on one id, two rows.
+    const second = await handleText(deps, userId, { text: "a banana" });
+    if (second.kind !== "proposed") throw new Error("expected proposed");
+    const beaten: Store = { ...store, insertMeal: async () => false };
+    const again = await confirmPendingMeal({ ...deps, store: beaten }, userId, second.pendingId);
+    expect(again.kind).toBe("expired");
+    expect((await thread(userId)).filter((e) => e.kind === "meal")).toHaveLength(1);
+  });
+
+  it("does not put a proposal back when the meal is already there and only the answer failed", async () => {
+    // The restore is right for "nothing was written"; a meal that IS logged must not get a live
+    // proposal again, or a later "no" would write "Dropped it." beside it.
+    const userId = await onboard();
+    const res = await handleText(deps, userId, { text: "two eggs and toast" });
+    if (res.kind !== "proposed") throw new Error("expected proposed");
+    const beaten: Store = {
+      ...store,
+      insertMeal: async () => false,
+      getMeal: async () => { throw new Error("connection reset"); },
+    };
+    await expect(confirmPendingMeal({ ...deps, store: beaten }, userId, res.pendingId)).rejects.toThrow("connection reset");
+    expect(await store.getPending(userId, res.pendingId)).toBeNull();
+  });
+
+  it("puts a claimed proposal back when its write fails, so the retry the screen offers can log it", async () => {
+    const userId = await onboard();
+    const res = await handleText(deps, userId, { text: "two eggs and toast" });
+    if (res.kind !== "proposed") throw new Error("expected proposed");
+    let once = true;
+    const flaky: Store = {
+      ...store,
+      insertMeal: async (r) => { if (once) { once = false; throw new Error("connection reset"); } return store.insertMeal(r); },
+    };
+    await expect(confirmPendingMeal({ ...deps, store: flaky }, userId, res.pendingId)).rejects.toThrow("connection reset");
+    const retry = await confirmPendingMeal(deps, userId, res.pendingId);
+    expect(retry.kind).toBe("logged");
+    expect((await day(deps, userId))!.meals).toHaveLength(1);
+  });
+
+  it("proposes a typed meal as a rough one: the portions are a guess, and the card says so", async () => {
+    const userId = await onboard();
+    const res = await handleText(deps, userId, { text: "two eggs and toast" });
+    if (res.kind !== "proposed") throw new Error("expected proposed");
+    expect(res.analysis.confidence).toBe("low");
+  });
+
+  it("confirms the same proposal twice without logging twice — a lost response is answered again", async () => {
+    const userId = await onboard();
+    const res = await handleText(deps, userId, { text: "two eggs and toast" });
+    if (res.kind !== "proposed") throw new Error("expected proposed");
+    const first = await confirmPendingMeal(deps, userId, res.pendingId);
+    const second = await confirmPendingMeal(deps, userId, res.pendingId);
+    if (first.kind !== "logged" || second.kind !== "logged") throw new Error("expected logged twice");
+    expect(second.mealId).toBe(first.mealId);
+    expect((await day(deps, userId))!.meals).toHaveLength(1);
+    // Nothing new in the thread either: the second answer is a repeat, not a turn.
+    expect((await thread(userId)).filter((e) => e.kind === "meal")).toHaveLength(1);
+  });
+
+  it("answers a 'no' after a lost confirm response with the meal it logged, not 'expired'", async () => {
+    const userId = await onboard();
+    const res = await handleText(deps, userId, { text: "two eggs and toast" });
+    if (res.kind !== "proposed") throw new Error("expected proposed");
+    const logged = await confirmPendingMeal(deps, userId, res.pendingId);
+    const no = await cancelPendingMeal(deps, userId, res.pendingId);
+    expect(no.kind).toBe("logged");
+    if (no.kind === "logged" && logged.kind === "logged") expect(no.mealId).toBe(logged.mealId);
+    expect((await day(deps, userId))!.meals).toHaveLength(1);
+    expect((await thread(userId)).some((e) => e.kind === "text" && e.text === "Dropped it.")).toBe(false);
+  });
+
+  it("lets a confirm and a cancel race to ONE outcome: never a logged meal beside 'Dropped it.'", async () => {
+    const userId = await onboard();
+    const res = await handleText(deps, userId, { text: "two eggs and toast" });
+    if (res.kind !== "proposed") throw new Error("expected proposed");
+    const [yes, no] = await Promise.all([
+      confirmPendingMeal(deps, userId, res.pendingId),
+      cancelPendingMeal(deps, userId, res.pendingId),
+    ]);
+    const logged = (await day(deps, userId))!.meals.length;
+    const dropped = (await thread(userId)).some((e) => e.kind === "text" && e.text === "Dropped it.");
+    if (yes.kind === "logged") {
+      expect(logged).toBe(1);
+      expect(dropped).toBe(false);
+      expect(no.kind).not.toBe("cancelled");
+    } else {
+      expect(no.kind).toBe("cancelled");
+      expect(logged).toBe(0);
+      expect(dropped).toBe(true);
+    }
+  });
+
+  it("keeps a cancelled proposal as the words and 'Dropped it.'; an expired one keeps only the words", async () => {
+    const userId = await onboard();
+    const res = await handleText(deps, userId, { text: "two eggs and toast" });
+    if (res.kind !== "proposed") throw new Error("expected proposed");
+    await cancelPendingMeal(deps, userId, res.pendingId);
+    expect((await thread(userId)).map(text)).toEqual(["two eggs and toast", "Dropped it."]);
+
+    const gone = await handleText(makeDeps({ pendingTtlMs: -1 }), userId, { text: "a banana" });
+    if (gone.kind !== "proposed") throw new Error("expected proposed");
+    // Cancel and confirm agree about an expired proposal, and neither writes a line for it.
+    expect((await cancelPendingMeal(deps, userId, gone.pendingId)).kind).toBe("expired");
+    expect((await confirmPendingMeal(deps, userId, gone.pendingId)).kind).toBe("expired");
+    expect((await thread(userId)).map(text)).toEqual(["two eggs and toast", "Dropped it.", "a banana"]);
+  });
+
+  it("keeps a manual edit from the editor as an updated card, like a correction from chat", async () => {
+    const userId = await onboard();
+    const meal = await logPhotoMeal(deps, userId, photo());
+    if (meal.kind !== "logged") throw new Error("expected logged");
+    await editMeal(deps, userId, meal.mealId, { kcal: 100 });
+    const cards = (await thread(userId)).flatMap((e) => (e.kind === "meal" ? [e] : []));
+    expect(cards.map((c) => c.event)).toEqual(["logged", "updated"]);
+    expect(cards[1]!.meal!.kcal).toBe(100);
+  });
+
+  it("never fails the turn when even the release fails: logged, not thrown", async () => {
+    const userId = await onboard();
+    await expect(remember(deps, userId, async () => ({ lines: [], undo: async () => { throw new Error("x"); } }))).resolves.toBeUndefined();
+  });
+
+  it("hands a claim back when the thunk built nothing to write", async () => {
+    // Every early exit of `remember` returns what the thunk claimed; a thunk that claims and yields
+    // no lines must not burn the one greeting silently.
+    const userId = await onboard();
+    let released = 0;
+    await remember(deps, userId, async () => ({ lines: [], undo: async () => { released++; } }));
+    expect(released).toBe(1);
+    expect(await thread(userId)).toHaveLength(0);
+  });
+
+  it("speaks the first verdict once, in the design's words, and never again", async () => {
+    const userId = await onboard();
+    // The demo analyzer derives confidence from the bytes; pin it, or this asserts a file size.
+    const sure: LlmPorts = { ...demoPorts(), analyzePhoto: async (i) => ({ ...(await demoPorts().analyzePhoto(i)), confidence: "high" }) };
+    const d = makeDeps({}, sure);
+    const first = await logPhotoMeal(d, userId, photo());
+    if (first.kind !== "logged") throw new Error("expected logged");
+    const t = await thread(userId);
+    expect(t.map((e) => [e.role, e.kind])).toEqual([["user", "photo"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"]]);
+    expect(text(t[2]!)).toMatch(/^First one in\. [\d,]+ kcal — /);
+    expect(text(t[3]!)).toContain("If anything's off");
+    await logPhotoMeal(d, userId, photo());
+    expect((await thread(userId)).slice(4).map((e) => e.kind)).toEqual(["photo", "meal"]);
+  });
+
+  it("does not fail a turn because the thread could not be written — nor because its lines could not be built", async () => {
+    const userId = await onboard();
+    const broken: Store = { ...store, appendChat: async () => { throw new Error("disk full"); } };
+    const res = await logPhotoMeal({ ...deps, store: broken }, userId, photo());
+    expect(res.kind).toBe("logged");
+    expect((await day(deps, userId))!.meals).toHaveLength(1);
+
+    // The first verdict needs a claim and a profile; a store that fails THOSE must not fail the meal either.
+    const flaky: Store = { ...store, claimFirstVerdict: async () => { throw new Error("timeout"); } };
+    expect((await logPhotoMeal({ ...deps, store: flaky }, userId, photo())).kind).toBe("logged");
+    const typed = await handleText(deps, userId, { text: "an apple" });
+    if (typed.kind !== "proposed") throw new Error("expected proposed");
+    expect((await confirmPendingMeal({ ...deps, store: flaky }, userId, typed.pendingId)).kind).toBe("logged");
+  });
+
+  it("keeps a correction's words, its card, and the design's 'Updated —' line, from chat and from the editor alike", async () => {
+    const userId = await onboard();
+    const meal = await logPhotoMeal(deps, userId, photo());
+    if (meal.kind !== "logged") throw new Error("expected logged");
+    await handleText(deps, userId, { text: "half that", focusMealId: meal.mealId });
+    let t = await thread(userId);
+    expect(t.slice(-3).map((e) => [e.role, e.kind])).toEqual([["user", "text"], ["assistant", "meal"], ["assistant", "text"]]);
+    expect(text(t.at(-1)!)).toMatch(/^Updated — [\d,]+ kcal\. .* of the [\d,]+ g protein\.$/);
+    await editMeal(deps, userId, meal.mealId, { kcal: 100 });
+    t = await thread(userId);
+    expect(t.slice(-2).map((e) => [e.role, e.kind])).toEqual([["assistant", "meal"], ["assistant", "text"]]);
+    expect(text(t.at(-1)!)).toMatch(/^Updated — 100 kcal\./);
+  });
+
+  it("says nothing about today for a meal that is not today's", async () => {
+    const userId = await onboard();
+    const meal = await logPhotoMeal(deps, userId, photo());
+    if (meal.kind !== "logged") throw new Error("expected logged");
+    const moved = await handleText(deps, userId, { text: "that was yesterday", focusMealId: meal.mealId });
+    expect(moved.kind).toBe("redated");
+    await handleText(deps, userId, { text: "half that", focusMealId: meal.mealId });
+    const t = await thread(userId);
+    // words, updated card — and no "left today" line about yesterday's budget.
+    expect(t.slice(-2).map((e) => [e.role, e.kind])).toEqual([["user", "text"], ["assistant", "meal"]]);
+  });
+
+  it("saves the first verdict for the first meal that IS today's, and still says it once", async () => {
+    const userId = await onboard();
+    const back = await handleText(deps, userId, { text: "a burger yesterday" });
+    if (back.kind !== "proposed") throw new Error("expected proposed");
+    await confirmPendingMeal(deps, userId, back.pendingId);
+    expect((await thread(userId)).filter((e) => e.kind === "text" && e.role === "assistant")).toHaveLength(0);
+    const sure: LlmPorts = { ...demoPorts(), analyzePhoto: async (i) => ({ ...(await demoPorts().analyzePhoto(i)), confidence: "high" }) };
+    await logPhotoMeal(makeDeps({}, sure), userId, photo());
+    const spoken = (await thread(userId)).filter((e) => e.kind === "text" && e.role === "assistant");
+    expect(text(spoken[0]!)).toMatch(/^First one in\./);
+    await logPhotoMeal(makeDeps({}, sure), userId, photo());
+    expect((await thread(userId)).filter((e) => e.kind === "text" && e.role === "assistant")).toHaveLength(spoken.length);
+  });
+
+  it("keeps a full thread from growing on ANY path, and never fails the turn for it", async () => {
+    const userId = await onboard();
+    const full: Store = { ...store, countUserChat: async () => 10_000 };
+    const before = (await thread(userId)).length;
+    expect((await logPhotoMeal({ ...deps, store: full }, userId, photo())).kind).toBe("logged");
+    expect(await thread(userId)).toHaveLength(before);
+    // The editor's PATCH is the path behind no cap and no limiter; the bound holds there too.
+    const meal = await logPhotoMeal(deps, userId, photo());
+    if (meal.kind !== "logged") throw new Error("expected logged");
+    const after = (await thread(userId)).length;
+    expect((await editMeal({ ...deps, store: full }, userId, meal.mealId, { kcal: 100 })).kind).toBe("updated");
+    expect(await thread(userId)).toHaveLength(after);
+  });
+
+  it("refuses to grow a thread past its bound, and says which refusal it is", async () => {
+    const userId = await onboard();
+    const full: Store = { ...store, countUserChat: async () => 10_000 };
+    expect(await appendLines({ ...deps, store: full }, userId, [{ role: "user", text: "one more" }])).toEqual({ appended: 0, reason: "thread-full" });
+    expect(await appendLines(deps, userId, [{ role: "user", text: "x".repeat(MAX_USER_LINE + 1) }])).toEqual({ appended: 0, reason: "bad-line" });
+  });
+
+  it("does not spend the greeting on a write that failed", async () => {
+    const userId = await onboard();
+    const sure: LlmPorts = { ...demoPorts(), analyzePhoto: async (i) => ({ ...(await demoPorts().analyzePhoto(i)), confidence: "high" }) };
+    const broken: Store = { ...store, appendChat: async () => { throw new Error("disk full"); } };
+    expect((await logPhotoMeal({ ...makeDeps({}, sure), store: broken }, userId, photo())).kind).toBe("logged");
+    await logPhotoMeal(makeDeps({}, sure), userId, photo());
+    const spoken = (await thread(userId)).filter((e) => e.role === "assistant" && e.kind === "text");
+    expect(text(spoken[0]!)).toMatch(/^First one in\./);
+  });
+
+  it("still proposes when the sweep of expired proposals fails — housekeeping never fails a billed turn", async () => {
+    const userId = await onboard();
+    const stuck: Store = { ...store, pruneExpiredPendings: async () => { throw new Error("deadlock detected"); } };
+    const res = await handleText({ ...deps, store: stuck }, userId, { text: "two eggs and toast" });
+    expect(res.kind).toBe("proposed");
+  });
+
+  it("keeps nothing of a correction routed with no meal in focus, and refuses it as target-gone", async () => {
+    const userId = await onboard();
+    // Never an empty 200: the analysis is charged by now, and a turn that renders nothing leaves
+    // the user with a spent sample and no idea why. The thread must not carry it either.
+    const before = (await thread(userId)).length;
+    const empty: LlmPorts = { ...demoPorts(), routeText: async (i) => ({ ...(await demoPorts().routeText(i)), intent: "correction" as const, analysis: (await demoPorts().analyzePhoto({ images: [], profile: i.profile, targets: i.targets, localTime: "12:00", repertoire: [] })) }) };
+    const res = await handleText(makeDeps({}, empty), userId, { text: "half that" });
+    expect(res).toEqual({ kind: "target-gone", on: "correction" });
+    expect(await thread(userId)).toHaveLength(before);
+  });
+
+  it("echoes the phone's id for a turn on the stored user line, and drops an over-long one", async () => {
+    const userId = await onboard();
+    await handleText(deps, userId, { text: "how much protein?", clientId: "phone-1" });
+    const t = await thread(userId);
+    expect(t[0]).toMatchObject({ role: "user", kind: "text", clientId: "phone-1" });
+    expect(t[1]).toMatchObject({ role: "assistant", kind: "text" });
+    await handleText(deps, userId, { text: "and carbs?" });
+    expect((await thread(userId))[2]).toMatchObject({ role: "user", clientId: null });
+  });
+
+  it("keeps nothing when the meal a correction named is gone", async () => {
+    const userId = await onboard();
+    const meal = await logPhotoMeal(deps, userId, photo());
+    if (meal.kind !== "logged") throw new Error("expected logged");
+    const before = (await thread(userId)).length;
+    const gone: Store = { ...store, updateMeal: async () => null };
+    const res = await handleText({ ...deps, store: gone }, userId, { text: "half that", focusMealId: meal.mealId });
+    expect(res.kind).toBe("target-gone");
+    expect(await thread(userId)).toHaveLength(before);
+  });
+
+  it("appends the user's own words and a scripted line by id, never assistant prose from the client", async () => {
+    const userId = await onboard();
+    expect(await appendLines(deps, userId, [
+      { role: "user", text: "Lose weight" },
+      { role: "assistant", scripted: "camera-closed" },
+    ])).toEqual({ appended: 2 });
+    const t = await thread(userId);
+    expect(t.map(text)).toEqual(["Lose weight", expect.stringContaining("No rush.")]);
+    expect(await appendLines(deps, userId, [{ role: "assistant", scripted: "not-a-line" } as never])).toEqual({ appended: 0, reason: "bad-line" });
+    expect(await appendLines(deps, userId, [{ role: "assistant", text: "prose" } as never])).toEqual({ appended: 0, reason: "bad-line" });
+    expect(await appendLines(deps, userId, [{ role: "user", text: "   " }])).toEqual({ appended: 0, reason: "bad-line" });
+    // Parameters are the one place client text reaches an assistant line: only declared keys, short.
+    expect(await appendLines(deps, userId, [{ role: "assistant", scripted: "trial-started", params: { price: "€39.99 a year" } }])).toEqual({ appended: 1 });
+    expect(await appendLines(deps, userId, [{ role: "assistant", scripted: "trial-started", params: { price: "x".repeat(65) } }])).toEqual({ appended: 0, reason: "bad-line" });
+    expect(await appendLines(deps, userId, [{ role: "assistant", scripted: "camera-closed", params: { price: "prose" } }])).toEqual({ appended: 0, reason: "bad-line" });
+    expect(await appendLines(deps, userId, Array.from({ length: MAX_APPEND_LINES_PER_BATCH + 1 }, () => ({ role: "user" as const, text: "x" })))).toEqual({ appended: 0, reason: "bad-line" });
+    expect(await thread(userId)).toHaveLength(3);
+  });
+
+  it("keeps a correction as an updated card, and both cards read the meal as it is now", async () => {
+    const userId = await onboard();
+    const meal = await logPhotoMeal(deps, userId, photo());
+    if (meal.kind !== "logged") throw new Error("expected logged");
+    await handleText(deps, userId, { text: "half that", focusMealId: meal.mealId });
+    const cards = (await thread(userId)).flatMap((e) => (e.kind === "meal" ? [e] : []));
+    expect(cards.map((c) => c.event)).toEqual(["logged", "updated"]);
+    // One meal, two moments, read on request: a stored verdict would describe numbers since changed.
+    expect(cards[0]!.meal!.kcal).toBe(cards[1]!.meal!.kcal);
+    expect(cards[0]!.meal!.kcal).toBeLessThan(meal.analysis.kcal);
+  });
+
+  it("keeps nothing from a refused turn", async () => {
+    const userId = await onboard();
+    const one = makeDeps({ freeAnalyses: 1 });
+    await handleText(one, userId, { text: "how much protein?" });
+    expect((await handleText(one, userId, { text: "and carbs?" })).kind).toBe("subscription-required");
+    expect(await thread(userId)).toHaveLength(2);
+    // The verdict prose is the design's; an ordinary question gets the model's answer and no more.
+    expect((await thread(userId)).map((e) => e.kind)).toEqual(["text", "text"]);
+  });
+
+  it("is scoped, and erased with the account", async () => {
+    const a = await onboard();
+    const b = await onboard();
+    await handleText(deps, a, { text: "how much protein?" });
+    expect(await thread(b)).toEqual([]);
+    await store.deleteUser(a);
+    expect(await thread(a)).toEqual([]);
+  });
+
+  it("pages backwards from the newest, and says when the start is reached", async () => {
+    const userId = await onboard();
+    for (const q of ["how much one?", "how much two?", "how much three?"]) {
+      await handleText(deps, userId, { text: q });
+    }
+    const last = await chatHistory(deps, userId, { limit: 4 });
+    expect(last.entries).toHaveLength(4);
+    expect(text(last.entries[0]!)).toBe("how much two?");
+    expect(last.before).not.toBeNull();
+    const older = await chatHistory(deps, userId, { before: last.before!, limit: 4 });
+    expect(older.entries.map((e) => e.role)).toEqual(["user", "assistant"]);
+    expect(text(older.entries[0]!)).toBe("how much one?");
+    expect(older.before).toBeNull();
   });
 });
 

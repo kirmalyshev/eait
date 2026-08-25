@@ -27,6 +27,16 @@ export interface Entitlement {
 export const NO_ENTITLEMENT: Entitlement = { active: false, expiresAt: null };
 
 /**
+ * Whether a failed analysis just spent the free sample. A cap is charged before the model is asked
+ * (a cap that only counts successes is one a retry loop walks through), so on the sample an
+ * upstream failure spends it, and every surface that invites a retry must say so instead — the
+ * retry would meet a 402. One predicate, so the surfaces that word it cannot disagree on the fact.
+ */
+export const sampleSpent = (
+  p: { limits: { sampleUsed: boolean }; entitlement: { active: boolean } } | null | undefined,
+): boolean => !!p && p.limits.sampleUsed && !p.entitlement.active;
+
+/**
  * Is an entitlement expiring at `expiresAt` still live at `now`?
  *
  * The store's own grace and billing-retry periods are already baked into the expiry RevenueCat
