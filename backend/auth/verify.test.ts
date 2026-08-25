@@ -7,7 +7,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { SignJWT, exportJWK, generateKeyPair, type CryptoKey } from "jose";
-import { AuthError, remoteVerifier, type IdentityVerifier } from "./verify.ts";
+import { AuthError, remoteVerifier, type Verifier } from "./verify.ts";
 
 const APPLE_ISS = "https://appleid.apple.com";
 const GOOGLE_ISS = "https://accounts.google.com";
@@ -18,7 +18,7 @@ let privateKey: CryptoKey;
 /** The key pair nobody published — used to forge a correctly-shaped token with a bad signature. */
 let attackerKey: CryptoKey;
 let server: ReturnType<typeof Bun.serve>;
-let verifier: IdentityVerifier;
+let verifier: Verifier;
 
 /** Mint a token. Every parameter is a knob an attacker would want to turn. */
 async function token(opts: {
@@ -219,6 +219,99 @@ describe("subject", () => {
     } catch (e) {
       expect(e).toBeInstanceOf(AuthError);
       expect((e as AuthError).reason).toBe("apple-token-invalid");
+      expect((e as AuthError).message).not.toContain(forged.slice(0, 20));
+    }
+  });
+});
+
+// ── Apple's server-to-server notifications ───────────────────────────────────────────────────
+//
+// A different message from the same signer: Apple tells us a user revoked Sign in with Apple or
+// deleted their Apple Account. It carries no `sub` of its own — the subject is inside the `events`
+// claim — so the checks that make it trustworthy are exactly signature, issuer and audience, and
+// every test below is a way somebody ends someone else's session if one of them is missing.
+
+/** Mint a notification. `events` is deliberately `unknown`: Apple sends a JSON-encoded STRING. */
+async function notification(opts: { events?: unknown; aud?: string; iss?: string; key?: CryptoKey } = {}) {
+  const events = opts.events !== undefined
+    ? opts.events
+    : JSON.stringify({ type: "consent-revoked", sub: "apple-user-1", event_time: 1735689600000 });
+  return new SignJWT({ events, jti: "notification-1" })
+    .setProtectedHeader({ alg: "RS256", kid: "test-key-1" })
+    .setIssuer(opts.iss ?? APPLE_ISS)
+    .setAudience(opts.aud ?? APPLE_AUD)
+    .setIssuedAt()
+    .setExpirationTime("5m")
+    .sign(opts.key ?? privateKey);
+}
+
+describe("apple server-to-server notifications", () => {
+  it("returns the events claim of a properly signed notification, unread", async () => {
+    const events = await verifier.verifyAppleNotification(await notification());
+    expect(JSON.parse(String(events))).toMatchObject({ type: "consent-revoked", sub: "apple-user-1" });
+  });
+
+  it("hands back a malformed events claim rather than judging it", async () => {
+    // Shape is the caller's problem — this function's whole job is deciding whether Apple signed
+    // it. A verifier that also refused unfamiliar shapes would answer 401 to a message that WAS
+    // Apple's, and 401 is what makes Apple retry.
+    const events = await verifier.verifyAppleNotification(await notification({ events: { type: "consent-revoked" } }));
+    expect(typeof events).toBe("object");
+  });
+
+  it("rejects a notification signed by a key that is not in the JWKS", async () => {
+    expect(verifier.verifyAppleNotification(await notification({ key: attackerKey }))).rejects.toThrow(AuthError);
+  });
+
+  it("rejects a notification issued by someone other than Apple", async () => {
+    expect(verifier.verifyAppleNotification(await notification({ iss: "https://evil.example.com" })))
+      .rejects.toThrow(AuthError);
+  });
+
+  it("rejects a notification minted for a different app", async () => {
+    // Genuinely Apple-signed, genuinely about a real user, addressed to somebody else's App ID.
+    // Without the audience check this endpoint ends sessions on request from any Apple developer.
+    expect(verifier.verifyAppleNotification(await notification({ aud: "com.someone.else" })))
+      .rejects.toThrow(AuthError);
+  });
+
+  it("refuses outright when no audience is configured", async () => {
+    const unconfigured = remoteVerifier({
+      appleAudiences: [], googleAudiences: [],
+      apple: { jwksUri: `http://127.0.0.1:${server.port}/keys`, issuer: APPLE_ISS },
+      google: { jwksUri: `http://127.0.0.1:${server.port}/keys`, issuer: GOOGLE_ISS },
+    });
+    expect(unconfigured.verifyAppleNotification(await notification())).rejects.toThrow(/not-configured/);
+  });
+
+  it("accepts the shape Apple actually sends, which carries no exp", async () => {
+    // `iss`, `aud`, `iat`, `jti`, `events`. A suite that only ever mints tokens with an expiry is
+    // green about a token that never arrives — this one has none, and an `iat` from last year.
+    const t = await new SignJWT({
+      events: JSON.stringify({ type: "account-delete", sub: "apple-user-2" }),
+      jti: "n-1",
+    })
+      .setProtectedHeader({ alg: "RS256", kid: "test-key-1" })
+      .setIssuer(APPLE_ISS).setAudience(APPLE_AUD)
+      .setIssuedAt(Math.floor(Date.now() / 1000) - 365 * 24 * 3600)
+      .sign(privateKey);
+    expect(JSON.parse(String(await verifier.verifyAppleNotification(t)))).toMatchObject({
+      type: "account-delete", sub: "apple-user-2",
+    });
+  });
+
+  it("rejects a structurally invalid payload", async () => {
+    expect(verifier.verifyAppleNotification("not.a.jwt")).rejects.toThrow(AuthError);
+    expect(verifier.verifyAppleNotification("")).rejects.toThrow(AuthError);
+  });
+
+  it("never leaks the payload in the error", async () => {
+    const forged = await notification({ key: attackerKey });
+    try {
+      await verifier.verifyAppleNotification(forged);
+      throw new Error("should have rejected");
+    } catch (e) {
+      expect(e).toBeInstanceOf(AuthError);
       expect((e as AuthError).message).not.toContain(forged.slice(0, 20));
     }
   });

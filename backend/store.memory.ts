@@ -123,15 +123,56 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     return removed;
   };
 
+  /**
+   * Erase one account and everything hanging off it.
+   *
+   * A closure rather than a method, because `removeIdentity` erases in the same step it
+   * removes the last identity — the whole point of that step being one step — and reaching
+   * it through `this` would break the moment a caller detached the method, which callers do.
+   */
+  const eraseUser = (userId: string): void => {
+    users.delete(userId);
+    // Goes with the account. In Postgres this is a column on `users` and needs no statement at
+    // all; here it is a second map, so it needs this line to keep the two stores honest.
+    entitlements.delete(userId);
+    for (const [d, u] of devices) if (u === userId) devices.delete(d);
+    for (const [h, row] of tokens) if (row.userId === userId) tokens.delete(h);
+    for (const [id, m] of meals) if (m.user_id === userId) meals.delete(id);
+    for (const [id, p] of pendings) if (p.userId === userId) pendings.delete(id);
+    // The thread holds the medical free text a person typed at Spud. It goes with the account.
+    for (let i = chat.length - 1; i >= 0; i--) if (chat[i]!.userId === userId) chat.splice(i, 1);
+    firstVerdictSpoken.delete(userId);
+    for (let i = analyses.length - 1; i >= 0; i--) {
+      if (analyses[i]!.userId === userId) analyses.splice(i, 1);
+    }
+    // Identities go too, so deleting an account genuinely releases the Apple/Google subject
+    // rather than leaving a row that would collide when the same person signs in again.
+    for (let i = identities.length - 1; i >= 0; i--) {
+      if (identities[i]!.userId === userId) identities.splice(i, 1);
+    }
+    // And the funnel rows. See the note on `deleteUser` in the port: onboarding promises erasure
+    // while asking about the user's kidneys, so the analytics table is not an exception to it.
+    for (const [id, e] of onboardingEvents) if (e.userId === userId) onboardingEvents.delete(id);
+    // Health days are the most sensitive rows here — bodyweight, sleep, heart rate. Erasure that
+    // left them would make the settings screen's promise false in the one place it matters most.
+    for (const [k, d] of healthDays) if (d.userId === userId) healthDays.delete(k);
+  };
+
   return {
     async upsertDeviceUser(deviceId, lang: Lang) {
       const existing = devices.get(deviceId);
-      if (existing) return { userId: existing, created: false };
-      const userId = crypto.randomUUID();
-      devices.set(deviceId, userId);
-      users.set(userId, blankProfile(userId, lang));
-      identities.push({ userId, provider: "device", subject: deviceId, linkedAt: new Date().toISOString() });
-      return { userId, created: true };
+      const userId = existing ?? crypto.randomUUID();
+      if (existing === undefined) {
+        devices.set(deviceId, userId);
+        users.set(userId, blankProfile(userId, lang));
+      }
+      // Re-asserted on every device auth, matching Postgres: the device map is what this method
+      // resolves through and the identity row is what "is anything else still linked" counts, so
+      // the two disagreeing is an account device auth can open and `removeIdentity` would delete.
+      if (!identities.some((i) => i.provider === "device" && i.subject === deviceId)) {
+        identities.push({ userId, provider: "device", subject: deviceId, linkedAt: new Date().toISOString() });
+      }
+      return { userId, created: existing === undefined };
     },
 
     async createUser(lang: Lang) {
@@ -177,6 +218,11 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return identities.find((i) => i.provider === provider && i.subject === subject)?.userId ?? null;
     },
 
+    async identityFor(provider, subject) {
+      const row = identities.find((i) => i.provider === provider && i.subject === subject);
+      return row ? { userId: row.userId, linkedAt: row.linkedAt } : null;
+    },
+
     async addIdentity(userId, provider, subject) {
       const clash = identities.find((i) => i.provider === provider && i.subject === subject);
       // Uniqueness is enforced here, not merely expected — the Postgres implementation has a
@@ -184,6 +230,25 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (clash && clash.userId !== userId) throw new Error("identity already linked to another account");
       if (clash) return;
       identities.push({ userId, provider, subject, linkedAt: new Date().toISOString() });
+    },
+
+    async removeIdentity(userId, provider, subject) {
+      // Matched on all three, exactly like the Postgres predicate — an identity is removable only
+      // by the account that holds it.
+      const at = identities.findIndex(
+        (i) => i.userId === userId && i.provider === provider && i.subject === subject);
+      if (at < 0) return "not-found";
+      identities.splice(at, 1);
+
+      // Synchronous from here to the erase, which is what makes this the same single step the
+      // Postgres transaction is: nothing can interleave between the test and the delete.
+      if (identities.some((i) => i.userId === userId)) return "removed";
+      eraseUser(userId);
+      return "account-deleted";
+    },
+
+    async revokeTokensFor(userId) {
+      for (const [hash, row] of tokens) if (row.userId === userId) tokens.delete(hash);
     },
 
     async listIdentities(userId) {
@@ -499,31 +564,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     },
 
     async deleteUser(userId) {
-      users.delete(userId);
-      // Goes with the account. In Postgres this is a column on `users` and needs no statement at
-      // all; here it is a second map, so it needs this line to keep the two stores honest.
-      entitlements.delete(userId);
-      for (const [d, u] of devices) if (u === userId) devices.delete(d);
-      for (const [h, row] of tokens) if (row.userId === userId) tokens.delete(h);
-      for (const [id, m] of meals) if (m.user_id === userId) meals.delete(id);
-      for (const [id, p] of pendings) if (p.userId === userId) pendings.delete(id);
-      // The thread holds the medical free text a person typed at Spud. It goes with the account.
-      for (let i = chat.length - 1; i >= 0; i--) if (chat[i]!.userId === userId) chat.splice(i, 1);
-      firstVerdictSpoken.delete(userId);
-      for (let i = analyses.length - 1; i >= 0; i--) {
-        if (analyses[i]!.userId === userId) analyses.splice(i, 1);
-      }
-      // Identities go too, so deleting an account genuinely releases the Apple/Google subject
-      // rather than leaving a row that would collide when the same person signs in again.
-      for (let i = identities.length - 1; i >= 0; i--) {
-        if (identities[i]!.userId === userId) identities.splice(i, 1);
-      }
-      // And the funnel rows. See the note on `deleteUser` in the port: onboarding promises erasure
-      // while asking about the user's kidneys, so the analytics table is not an exception to it.
-      for (const [id, e] of onboardingEvents) if (e.userId === userId) onboardingEvents.delete(id);
-      // Health days are the most sensitive rows here — bodyweight, sleep, heart rate. Erasure that
-      // left them would make the settings screen's promise false in the one place it matters most.
-      for (const [k, d] of healthDays) if (d.userId === userId) healthDays.delete(k);
+      eraseUser(userId);
     },
 
     async close() {},

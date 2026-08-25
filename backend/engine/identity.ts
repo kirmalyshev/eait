@@ -89,3 +89,88 @@ export async function identitiesFor(
 ): Promise<{ provider: Provider; linkedAt: string }[]> {
   return deps.store.listIdentities(userId);
 }
+
+/**
+ * How far an event may predate the link it names before it is treated as a copy of an old message.
+ *
+ * A real revocation always happens after the sign-in it revokes, so this margin exists only for
+ * clock skew between Apple and this server. Five minutes is far beyond any plausible drift, and
+ * what it gives up is narrow: a user who revokes and then re-links within five minutes while a
+ * delivery is still being retried gets the fresh link torn down. Erring the other way — refusing a
+ * genuine revocation because our clock runs fast — leaves a session alive that somebody asked to
+ * end, and that is the failure this whole endpoint exists to prevent.
+ */
+const STALE_MARGIN_MS = 5 * 60 * 1000;
+
+/**
+ * Sign in with Apple was revoked for this subject, or the Apple Account behind it was deleted.
+ *
+ * ONE function for both, because the consequence is identical: that identity can never
+ * authenticate here again. Apple's guidance for receiving the notification is to sign the user
+ * out, so this ends every session the account has anywhere — not the one that happens to be in
+ * front of us, because there is no request in front of us at all.
+ *
+ * The account itself survives IF something else can still reach it (a Google identity, or the
+ * device it started on). If nothing can, it is deleted: an account nobody will ever open again,
+ * holding what somebody typed about their kidneys, is special-category data kept with no basis
+ * and no way for its owner to ask for it back. That test and that deletion are ONE store call, for
+ * the reason its port comment gives — asked as two, a second delivery lands between them and
+ * erases an account a device could still reach.
+ *
+ * AN EVENT OLDER THAN THE LINK IT NAMES IS IGNORED. Apple's notifications carry no expiry, and its
+ * deliveries are neither ordered nor once-only, so a redelivery of a revocation the user has since
+ * undone arrives looking exactly like a fresh one. Applied, it tears down a link that was
+ * re-granted after the revocation — and on an account whose only way in is Apple, it erases
+ * everything logged since. This is the rule `putEntitlement` and `weight_measured_at` already
+ * enforce elsewhere: apply an event only when it is newer than what is stored. An event with no
+ * usable time is applied, because a revocation that cannot be ordered is still a revocation and
+ * refusing it would leave the session alive.
+ *
+ * THE ORDER IS THE OTHER CORRECTNESS PROPERTY, because there is no transaction spanning these
+ * calls and Apple's answer to a 500 is to send the message again. The `identities` row is the
+ * lookup key this function resolves through, so whatever destroys it goes LAST: revoking tokens
+ * first is idempotent, and a redelivery after any failure resolves the same account and repeats
+ * the sequence. Dropping the identity first instead would leave the retry resolving nothing,
+ * answering 200, and the session the user revoked alive — silently, since the log would read
+ * exactly like an unknown subject. `identity.test.ts` fails each step in turn and asserts the
+ * redelivery finishes the job.
+ *
+ * ONE WINDOW IS LEFT OPEN, deliberately, and it is worth describing accurately. BETWEEN the token
+ * revocation and the removal the identity row is still there, so a sign-in landing in that gap
+ * resolves the ORIGINAL account and mints a fresh session for it — reviving exactly the access the
+ * revocation just ended. AFTER the removal, the same sign-in instead creates a new, empty account
+ * for the same subject (`signInWithProvider` above), which holds nothing.
+ *
+ * Both need an Apple ID token minted before the revocation — they live minutes and Apple publishes
+ * no revocation list — landing inside a window measured in milliseconds. Folding these two writes
+ * into one transaction would NARROW the first case and not close it: the sign-in's own read and its
+ * token insert are not serialized against this either, so a token issued from a read taken before
+ * the commit survives regardless. Closing it means the sign-in path locking the identity row, which
+ * is more machinery than this is worth.
+ *
+ * `subject` is the ONE user-identifying value in this engine that did not come from a session. It
+ * is safe because it arrived inside a signature-verified message from Apple — see
+ * `api/apple-notifications.ts` — and because an unknown one resolves to no account and does
+ * nothing. Nothing here creates a user.
+ */
+export async function revokeAppleIdentity(
+  deps: EngineDeps,
+  subject: string,
+  /** Apple's `event_time`, in epoch milliseconds, or null when it did not send a usable one. */
+  eventTimeMs: number | null,
+): Promise<"unknown" | "stale" | "unlinked" | "deleted"> {
+  const identity = await deps.store.identityFor("apple", subject);
+  if (identity === null) return "unknown";
+
+  const linkedAt = Date.parse(identity.linkedAt);
+  if (eventTimeMs !== null && Number.isFinite(linkedAt) && eventTimeMs + STALE_MARGIN_MS < linkedAt) {
+    return "stale";
+  }
+
+  await deps.store.revokeTokensFor(identity.userId);
+
+  // `not-found` is a concurrent delivery having removed the row first. Nothing left to do, and
+  // nothing to report differently: the identity is gone either way.
+  const removed = await deps.store.removeIdentity(identity.userId, "apple", subject);
+  return removed === "account-deleted" ? "deleted" : "unlinked";
+}

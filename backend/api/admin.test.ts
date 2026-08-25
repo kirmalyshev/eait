@@ -13,13 +13,14 @@ import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import type { EngineDeps } from "../engine/index.ts";
-import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
+import { AuthError, type Verifier } from "../auth/verify.ts";
 import { createRouter } from "./routes.ts";
 
 const EAIT__BACKEND__ADMIN_TOKEN = "test-admin-token-that-is-long-enough";
 
-const verifier: IdentityVerifier = {
+const verifier: Verifier = {
   async verify() { throw new AuthError("not-used-here"); },
+  async verifyAppleNotification() { throw new AuthError("not-used-here"); },
 };
 
 const base: Config = {

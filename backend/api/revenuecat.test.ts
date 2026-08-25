@@ -15,12 +15,13 @@ import type { EngineDeps } from "../engine/index.ts";
 import { createRouter } from "./routes.ts";
 import { fakeMailer } from "../mail/fake.ts";
 import { REVENUECAT_WEBHOOK_PATH, parseRevenueCatEvent } from "./revenuecat.ts";
-import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
+import { AuthError, type Verifier } from "../auth/verify.ts";
 
 const TOKEN = "rc-webhook-secret-token-long-enough";
 
-const verifier: IdentityVerifier = {
+const verifier: Verifier = {
   async verify() { throw new AuthError("invalid"); },
+  async verifyAppleNotification() { throw new AuthError("invalid"); },
 };
 
 const base: Config = {

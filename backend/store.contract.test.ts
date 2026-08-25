@@ -429,6 +429,138 @@ function contract(name: string, make: () => Promise<Store>) {
       expect((await s.listIdentities(u)).filter((i) => i.provider === "google")).toHaveLength(1);
     });
 
+    it("reports when an identity was linked, alongside the account it belongs to", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const before = Date.now();
+      await s.addIdentity(u, "apple", subject("dated"));
+
+      const found = await s.identityFor("apple", subject("dated"));
+      expect(found?.userId).toBe(u);
+      // The link time is what tells a revocation whether it predates the link it names.
+      expect(Date.parse(found?.linkedAt ?? "")).toBeGreaterThanOrEqual(before - 1000);
+      expect(await s.identityFor("apple", subject("never-linked"))).toBeNull();
+    });
+
+    it("deletes the account in the SAME step when the identity was the last way in", async () => {
+      // Not two calls. Two deliveries for one subject interleave between a read and a write, and
+      // the account that gets erased is one a device could still have reached.
+      const s = await open();
+      const alone = await s.createUser("en");
+      await s.addIdentity(alone, "apple", subject("last-way-in"));
+
+      expect(await s.removeIdentity(alone, "apple", subject("last-way-in"))).toBe("account-deleted");
+      expect(await s.getProfile(alone)).toBeNull();
+      expect(await s.userIdForIdentity("apple", subject("last-way-in"))).toBeNull();
+    });
+
+    it("restores a device identity row that went missing under the account", async () => {
+      // `users.device_id` is what device auth resolves through, and the `identities` row is what
+      // "is anything else still linked" counts. They are two writes, so they can disagree — and
+      // once they do, revoking Apple deletes an account whose device could still open it. Every
+      // device auth re-asserts the row rather than only the first one.
+      const s = await open();
+      const dev = device();
+      const u = (await s.upsertDeviceUser(dev, "en")).userId;
+      await s.addIdentity(u, "apple", subject("still-here"));
+      expect(await s.removeIdentity(u, "device", dev)).toBe("removed");
+      expect((await s.listIdentities(u)).map((i) => i.provider)).toEqual(["apple"]);
+
+      const back = await s.upsertDeviceUser(dev, "en");
+
+      expect(back.userId).toBe(u);
+      expect(back.created).toBe(false);
+      expect((await s.listIdentities(u)).map((i) => i.provider).sort()).toEqual(["apple", "device"]);
+    });
+
+    it("deletes the account when two identities are removed at the same moment", async () => {
+      // The other direction of the same race, and the one no serial test can see. Each removal
+      // must not conclude "something else is still linked" from a row the other has already
+      // deleted: an account left with no identity at all cannot be signed into by any path and
+      // cannot be deleted by any path either, so it keeps its owner's medical free text forever.
+      const s = await open();
+      const u = await s.createUser("en");
+      await s.addIdentity(u, "apple", subject("both-at-once-1"));
+      await s.addIdentity(u, "apple", subject("both-at-once-2"));
+
+      const outcomes = await Promise.all([
+        s.removeIdentity(u, "apple", subject("both-at-once-1")),
+        s.removeIdentity(u, "apple", subject("both-at-once-2")),
+      ]);
+
+      expect(outcomes.filter((o) => o === "account-deleted")).toHaveLength(1);
+      expect(await s.getProfile(u)).toBeNull();
+    });
+
+    it("does not touch the account when nothing matched", async () => {
+      // The account behind a stranger's id must not be deleted because it happens to have no
+      // identity of its own yet — the conditional delete runs only when a row was really removed.
+      const s = await open();
+      const bare = await s.createUser("en");
+      expect(await s.removeIdentity(bare, "apple", subject("not-linked-here"))).toBe("not-found");
+      expect(await s.getProfile(bare)).not.toBeNull();
+    });
+
+    it("removes ONE identity and leaves the account and its other identities alone", async () => {
+      // Sign in with Apple revoked on an account that also has a device: the account survives, the
+      // Apple subject is released, and everything the person logged is still theirs.
+      const s = await open();
+      const dev = device();
+      const u = (await s.upsertDeviceUser(dev, "en")).userId;
+      await s.addIdentity(u, "apple", subject("revoked-apple"));
+      await s.insertMeal(meal(u, { kcal: 444 }));
+
+      expect(await s.removeIdentity(u, "apple", subject("revoked-apple"))).toBe("removed");
+
+      expect(await s.userIdForIdentity("apple", subject("revoked-apple"))).toBeNull();
+      expect((await s.listIdentities(u)).map((i) => i.provider)).toEqual(["device"]);
+      expect(await s.userIdForIdentity("device", dev)).toBe(u);
+      expect(await s.mealsForDate(u, "2026-08-01")).toHaveLength(1);
+    });
+
+    it("refuses to remove an identity that belongs to another account", async () => {
+      // The scoping rule, on the one write a third party's message can reach. Apple names a
+      // subject; the account is resolved FROM that subject, so a removal that ignored `userId`
+      // would be a delete keyed on an argument nobody checked.
+      const s = await open();
+      const owner = (await s.upsertDeviceUser(device(), "en")).userId;
+      const stranger = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.addIdentity(owner, "apple", subject("not-yours"));
+
+      expect(await s.removeIdentity(stranger, "apple", subject("not-yours"))).toBe("not-found");
+
+      expect(await s.userIdForIdentity("apple", subject("not-yours"))).toBe(owner);
+      expect(await s.getProfile(stranger)).not.toBeNull();
+    });
+
+    it("is idempotent when the identity is already gone", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.addIdentity(u, "apple", subject("twice-removed"));
+      expect(await s.removeIdentity(u, "apple", subject("twice-removed"))).toBe("removed");
+      expect(await s.removeIdentity(u, "apple", subject("twice-removed"))).toBe("not-found");
+      expect(await s.userIdForIdentity("apple", subject("twice-removed"))).toBeNull();
+    });
+
+    it("revokes every session of one account and nobody else's", async () => {
+      // Revoking Sign in with Apple is a sign-out everywhere, which means every device — so this
+      // is the whole account's tokens, not the one that happens to be in front of us.
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const other = (await s.upsertDeviceUser(device(), "en")).userId;
+      const phone = await s.issueToken(u);
+      const tablet = await s.issueToken(u);
+      const untouched = await s.issueToken(other);
+
+      await s.revokeTokensFor(u);
+
+      expect(await s.userIdForToken(phone)).toBeNull();
+      expect(await s.userIdForToken(tablet)).toBeNull();
+      expect(await s.userIdForToken(untouched)).toBe(other);
+      // The account itself is untouched — this is a sign-out, not an erasure.
+      expect(await s.getProfile(u)).not.toBeNull();
+    });
+
     it("MERGES meals across and DROPS the anonymous device identity", async () => {
       // The exact divergence that shipped between these two implementations. Dropping is required:
       // repointing would let plain device auth walk back in after a sign-out.

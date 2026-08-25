@@ -16,7 +16,7 @@ export { appendLines, chatHistory } from "./chat.ts";
 export { day, week, MAX_WINDOW_DAYS } from "./diary.ts";
 export { profileView, patchProfile, classifyRestrictions, type PatchOutcome } from "./profile.ts";
 export { recordHealthDays, healthTrend, MAX_TREND_DAYS } from "./health.ts";
-export { signInWithProvider, identitiesFor, isAnonymous } from "./identity.ts";
+export { signInWithProvider, identitiesFor, isAnonymous, revokeAppleIdentity } from "./identity.ts";
 export {
   onboardingContent, saveOnboardingContent, resetOnboardingContent, recordOnboardingEvents,
   onboardingFunnel,

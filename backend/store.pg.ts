@@ -524,21 +524,29 @@ export async function postgresStore(
 
   return {
     async upsertDeviceUser(deviceId, lang: Lang) {
-      const found = await sql`select * from users where device_id = ${deviceId}`;
-      if (found.length > 0) return { userId: String(found[0].id), created: false };
-      const id = crypto.randomUUID();
-      await sql`insert into users (id, device_id, lang) values (${id}, ${deviceId}, ${lang})
-                on conflict (device_id) do nothing`;
-      // The conflict branch is a genuine race (two cold starts of the same app), not paranoia:
-      // re-reading is what makes the second one return the FIRST one's user rather than throwing.
-      const row = await sql`select id from users where device_id = ${deviceId}`;
-      const userId = String(row[0].id);
-      const created = userId === id;
-      if (created) {
-        await sql`insert into identities (provider, subject, user_id)
-                  values ('device', ${deviceId}, ${userId})
-                  on conflict (provider, subject) do nothing`;
+      const found = await sql`select id from users where device_id = ${deviceId}`;
+      let userId: string;
+      let created = false;
+      if (found.length > 0) {
+        userId = String(found[0].id);
+      } else {
+        const id = crypto.randomUUID();
+        await sql`insert into users (id, device_id, lang) values (${id}, ${deviceId}, ${lang})
+                  on conflict (device_id) do nothing`;
+        // The conflict branch is a genuine race (two cold starts of the same app), not paranoia:
+        // re-reading is what makes the second one return the FIRST one's user rather than throwing.
+        const row = await sql`select id from users where device_id = ${deviceId}`;
+        userId = String(row[0].id);
+        created = userId === id;
       }
+      // EVERY device auth, not only the first. `users.device_id` is what this method resolves
+      // through and the identity row is what "is anything else still linked" counts, so a users
+      // row whose identity insert never landed is an account device auth can open and
+      // `removeIdentity` would delete. `on conflict do nothing` makes this a no-op in the healthy
+      // case and a repair in the other one.
+      await sql`insert into identities (provider, subject, user_id)
+                values ('device', ${deviceId}, ${userId})
+                on conflict (provider, subject) do nothing`;
       return { userId, created };
     },
 
@@ -595,6 +603,17 @@ export async function postgresStore(
       return rows.length > 0 ? String(rows[0].user_id) : null;
     },
 
+    async identityFor(provider, subject) {
+      const rows = await sql`
+        select user_id, linked_at from identities
+        where provider = ${provider} and subject = ${subject}`;
+      if (rows.length === 0) return null;
+      return {
+        userId: String(rows[0].user_id),
+        linkedAt: new Date(rows[0].linked_at as string).toISOString(),
+      };
+    },
+
     async addIdentity(userId, provider, subject) {
       // `do nothing` then re-read, rather than upsert: a conflict here means the identity belongs
       // to a DIFFERENT account, and silently repointing it would hand one person another's diary.
@@ -606,6 +625,46 @@ export async function postgresStore(
       if (String(rows[0].user_id) !== userId) {
         throw new Error("identity already linked to another account");
       }
+    },
+
+    async removeIdentity(userId, provider, subject) {
+      // One transaction, for the reason `mergeUsers` has one: the removal and the "was that the
+      // last way in" test are a single decision, and a delivery that interleaves between them
+      // deletes an account somebody can still reach.
+      return await sql.begin(async (tx) => {
+        // The account row, LOCKED, before anything is read or written.
+        //
+        // `sql.begin` is READ COMMITTED, where every statement takes a fresh snapshot and another
+        // transaction's uncommitted delete is still visible. Without this line the `not exists`
+        // below sees a row a concurrent removal has already deleted, both removals conclude
+        // something is still linked, and the account survives with no identity on it — which no
+        // login path can reach and no deletion path can erase. `for update` also conflicts with
+        // the `for key share` an `insert into identities` takes, so a sign-in linking a second
+        // provider cannot land inside this either.
+        await tx`select 1 from users where id = ${userId} for update`;
+
+        // `user_id` is in the WHERE clause, not merely assumed: the primary key is
+        // `(provider, subject)`, so without it this is a delete keyed on an argument that arrived
+        // in a message rather than in a session.
+        const removed = await tx`
+          delete from identities
+          where provider = ${provider} and subject = ${subject} and user_id = ${userId}
+          returning subject`;
+        if (removed.length === 0) return "not-found";
+
+        // Only now, and only when something was actually removed. An account may hold no
+        // identities for a moment, and deleting on that alone would erase it.
+        const deleted = await tx`
+          delete from users u
+          where u.id = ${userId}
+            and not exists (select 1 from identities where user_id = ${userId})
+          returning id`;
+        return deleted.length > 0 ? "account-deleted" : "removed";
+      });
+    },
+
+    async revokeTokensFor(userId) {
+      await sql`delete from tokens where user_id = ${userId}`;
     },
 
     async listIdentities(userId) {

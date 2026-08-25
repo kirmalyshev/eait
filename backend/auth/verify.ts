@@ -30,6 +30,30 @@ export interface IdentityVerifier {
   verify(provider: "apple" | "google", idToken: string, nonce?: string): Promise<VerifiedIdentity>;
 }
 
+/**
+ * The other thing Apple signs: the server-to-server notification.
+ *
+ * A separate port from `IdentityVerifier` because the engine's sign-in path must not depend on it
+ * — nothing about linking accounts needs to know this endpoint exists.
+ */
+export interface AppleNotificationVerifier {
+  /**
+   * Check that Apple signed this notification, and return its `events` claim UNREAD.
+   *
+   * Unread is the point. This function answers one question — did Apple sign this, for us — and
+   * the shape of what is inside is the caller's problem. A verifier that also refused unfamiliar
+   * events would answer 401 to a message that genuinely was Apple's, and a non-2xx is what makes
+   * Apple retry it all day.
+   *
+   * There is no `sub` at the top level of these tokens, so the checks below are the ONLY thing
+   * standing between this endpoint and any Apple developer ending any of our users' sessions.
+   */
+  verifyAppleNotification(payloadJws: string): Promise<unknown>;
+}
+
+/** Everything the HTTP layer needs from a verifier. The real one does both. */
+export interface Verifier extends IdentityVerifier, AppleNotificationVerifier {}
+
 export class AuthError extends Error {
   constructor(readonly reason: string) {
     super(reason);
@@ -67,7 +91,7 @@ async function sha256Hex(input: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export function remoteVerifier(config: VerifierConfig): IdentityVerifier {
+export function remoteVerifier(config: VerifierConfig): Verifier {
   const appleCfg = config.apple ?? { jwksUri: APPLE_JWKS, issuer: APPLE_ISSUER };
   const googleCfg = config.google ?? { jwksUri: GOOGLE_JWKS, issuer: GOOGLE_ISSUERS };
 
@@ -120,6 +144,35 @@ export function remoteVerifier(config: VerifierConfig): IdentityVerifier {
       }
 
       return { provider, subject };
+    },
+
+    async verifyAppleNotification(payloadJws) {
+      if (!payloadJws || typeof payloadJws !== "string") throw new AuthError("missing-token");
+      // Same rule as sign-in: an unconfigured audience list is OFF, not permissive.
+      if (config.appleAudiences.length === 0) throw new AuthError("apple-not-configured");
+
+      let payload: JWTPayload;
+      try {
+        ({ payload } = await jwtVerify(payloadJws, apple, {
+          issuer: appleCfg.issuer,
+          // The PRIMARY App ID. A Service ID in this list is harmless and a wrong id here is an
+          // endpoint that accepts another developer's notifications about their own users.
+          audience: config.appleAudiences,
+          clockTolerance: 30,
+        }));
+      } catch (e) {
+        throw new AuthError("apple-notification-invalid");
+      }
+
+      // NOTHING HERE BOUNDS THE TOKEN'S AGE, and that is not an oversight to fix with a flag.
+      // Apple sends `iss`, `aud`, `iat`, `jti` and `events` — no `exp` — so jose has no expiry to
+      // enforce, and `maxTokenAge` would make every notification depend on `iat` being present and
+      // on this server's clock: get either wrong and every revocation is refused, silently, which
+      // is the failure this endpoint exists to prevent. A late delivery is Apple's normal
+      // behaviour. What makes an OLD one harmless is the ordering rule in `revokeAppleIdentity`:
+      // an event that predates the link it names does nothing.
+
+      return payload.events;
     },
   };
 }

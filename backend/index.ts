@@ -6,7 +6,7 @@
 // UI change gets reviewed without spending money on vision calls.
 
 import { adminTokenFromEnv, configDefaults, loadConfig, redact, type Config } from "./config.ts";
-import { AuthError, remoteVerifier, type IdentityVerifier } from "./auth/verify.ts";
+import { AuthError, remoteVerifier, type Verifier } from "./auth/verify.ts";
 import { createRouter } from "./api/routes.ts";
 import { demoPorts } from "./llm/demo.ts";
 import { chooseMailer } from "./mail/choose.ts";
@@ -77,13 +77,17 @@ const deps: EngineDeps = {
 // In demo mode the verifier trusts a token of the form `demo:<provider>:<subject>` so the sign-in
 // flows can be driven without Apple or Google credentials. It is wired ONLY under `--demo`; the
 // real verifier checks signature, issuer, audience and expiry against the provider's JWKS.
-const verifier: IdentityVerifier = demo
+const verifier: Verifier = demo
   ? {
       async verify(provider, idToken) {
         const [marker, p, subject] = idToken.split(":");
         if (marker !== "demo" || p !== provider || !subject) throw new AuthError("demo-token-invalid");
         return { provider, subject };
       },
+      // Not faked. Apple's notification is a signature from Apple or it is nothing, and a demo
+      // server that accepted an unsigned one would be a place to develop against a check that
+      // does not exist. The route is 404 anyway unless an audience is configured.
+      async verifyAppleNotification() { throw new AuthError("demo-notification-unsupported"); },
     }
   : remoteVerifier({
       appleAudiences: config.appleAudiences,

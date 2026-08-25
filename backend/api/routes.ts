@@ -24,7 +24,7 @@ import {
   MAX_HEALTH_DAYS_PER_BATCH,
 } from "@ieat/shared";
 import { LANGS } from "@ieat/shared";
-import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
+import { AuthError, type Verifier } from "../auth/verify.ts";
 import { isCalendarDate } from "@ieat/shared";
 import type { Store } from "../store.ts";
 import {
@@ -35,6 +35,7 @@ import {
 import { confirmSubscription, subscribe, unsubscribe } from "../engine/subscribe.ts";
 import { adminRoutes } from "./admin.ts";
 import { REVENUECAT_WEBHOOK_PATH, revenueCatWebhook } from "./revenuecat.ts";
+import { APPLE_NOTIFICATIONS_PATH, appleNotifications } from "./apple-notifications.ts";
 import { clientAddress, rateLimiter } from "./ratelimit.ts";
 
 const json = (body: unknown, status = 200): Response =>
@@ -80,7 +81,7 @@ export interface PeerSource {
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
-export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityVerifier) {
+export function createRouter(deps: EngineDeps, store: Store, verifier: Verifier) {
   const bearer = (req: Request): string | null => {
     const header = req.headers.get("authorization");
     return header?.startsWith("Bearer ") ? header.slice(7) : null;
@@ -173,6 +174,17 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: IdentityV
       // the path answers 404 and no account can ever become paid.
       if (pathname === REVENUECAT_WEBHOOK_PATH) {
         return await revenueCatWebhook(req, deps);
+      }
+
+      // Apple's server-to-server notifications, on the SIGNATURE as their credential and before
+      // any user is resolved.
+      //
+      // Same authority argument again: Apple is reporting that a person withdrew consent, not
+      // asking as one of our users, and a bearer token buys nothing here. Off entirely unless
+      // `EAIT__BACKEND__APPLE_AUDIENCES` is set — with no audience there is nothing to verify a
+      // token against, and verifying without one would accept any Apple developer's notifications.
+      if (pathname === APPLE_NOTIFICATIONS_PATH) {
+        return await appleNotifications(req, deps, verifier);
       }
 
       // ── The mailing list ──────────────────────────────────────────────────────────────────

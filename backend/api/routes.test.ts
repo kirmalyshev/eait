@@ -5,7 +5,7 @@ import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import type { EngineDeps } from "../engine/index.ts";
-import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
+import { AuthError, type Verifier } from "../auth/verify.ts";
 import { createRouter } from "./routes.ts";
 import { fakeMailer } from "../mail/fake.ts";
 
@@ -16,13 +16,16 @@ import { fakeMailer } from "../mail/fake.ts";
  * tests are about — what IS tested here is the link/merge/switch logic that runs on the far side
  * of a successful verification, which is where this product's own bugs would live.
  */
-const testVerifier: IdentityVerifier = {
+const testVerifier: Verifier = {
   async verify(provider, idToken, nonce) {
     const [marker, p, subject] = idToken.split(":");
     if (marker !== "ok" || p !== provider || !subject) throw new AuthError("invalid");
     if (nonce !== undefined && nonce !== "good-nonce") throw new AuthError("nonce-mismatch");
     return { provider, subject };
   },
+  // Apple's server-to-server notifications have their own suite against the REAL verifier and a
+  // real key set — `apple-notifications.test.ts`. A fake here would prove nothing about them.
+  async verifyAppleNotification() { throw new AuthError("not-in-these-tests"); },
 };
 
 const CONFIG: Config = {

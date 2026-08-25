@@ -190,8 +190,62 @@ export interface Store {
   // ── Federated identities ───────────────────────────────────────────────────────────────────
   /** The account behind a verified `(provider, subject)`, or null. */
   userIdForIdentity(provider: Provider, subject: string): Promise<string | null>;
+  /**
+   * The same row, plus WHEN it was linked.
+   *
+   * `linked_at` is what makes a revocation orderable. Apple's notifications carry no expiry and its
+   * deliveries are not ordered, so the only thing separating "this user just revoked" from "this is
+   * a copy of a message about a link that has since been replaced" is whether the event predates
+   * the link it names. Same rule as `putEntitlement` and `weight_measured_at`: apply an event only
+   * when it is newer than what is stored.
+   */
+  identityFor(
+    provider: Provider,
+    subject: string,
+  ): Promise<{ userId: string; linkedAt: string } | null>;
   /** Attach a verified identity to an account. Unique on `(provider, subject)`. */
   addIdentity(userId: string, provider: Provider, subject: string): Promise<void>;
+  /**
+   * Detach one identity from one account AND delete the account when that was the last way into
+   * it — as one atomic step. Idempotent, and SCOPED BY `userId` like every other write here.
+   *
+   * The scope is not decoration. This is reached from Apple's server-to-server notification, where
+   * the subject arrives in a signed message rather than from a session — the caller resolves the
+   * account from that subject and passes both, so a row can only ever be removed by the account
+   * that owns it.
+   *
+   * THE DELETION IS HERE RATHER THAN IN THE ENGINE because "is anything else still linked" is a
+   * read, and a read followed by a separate delete is two deliveries away from erasing an account
+   * somebody can still reach: one removes the Apple row, the other then sees a single remaining
+   * row, assumes it is the one it came to remove, and deletes a user whose device identity was
+   * working. Asked as one step, the condition is "no identities at all", which no interleaving can
+   * make wrong.
+   *
+   * `not-found` means the row was already gone — a concurrent delivery got there first. Nothing is
+   * deleted in that case, and that guard is load-bearing: an account can legitimately hold zero
+   * identities for a moment, and a conditional delete that ran anyway would erase it.
+   *
+   * ONE STEP MEANS A LOCK, not just a transaction. Postgres runs this at READ COMMITTED, where
+   * every statement takes a fresh snapshot, so two removals of DIFFERENT rows on one account each
+   * see the other's row and neither deletes the account — leaving one with no identity at all,
+   * which no login path can reach and no deletion path can erase. The implementation takes the
+   * account row `for update` first, which serialises those and also blocks a sign-in linking a
+   * second provider from landing inside. A contract test runs two removals at once; the memory
+   * store passed it for free and Postgres did not.
+   */
+  removeIdentity(
+    userId: string,
+    provider: Provider,
+    subject: string,
+  ): Promise<"removed" | "account-deleted" | "not-found">;
+  /**
+   * Drop every token of one account. Sign-out on every device the person ever used.
+   *
+   * `revokeToken` ends one session because someone pressed a button in it. This ends all of them
+   * because the account's right to be signed in has been withdrawn — which is what revoking Sign
+   * in with Apple means, and Apple's own guidance for receiving that notification.
+   */
+  revokeTokensFor(userId: string): Promise<void>;
   /** What is linked to this account — for the settings screen, and for the merge guard. */
   listIdentities(userId: string): Promise<{ provider: Provider; linkedAt: string }[]>;
   /**
