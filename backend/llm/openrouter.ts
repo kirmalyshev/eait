@@ -19,6 +19,8 @@ interface Options {
   baseUrl: string;
   /** How long one call may hang. From `EAIT__BACKEND__LLM_TIMEOUT_MS`. */
   timeoutMs: number;
+  /** The completion bound for one call. From `EAIT__BACKEND__LLM_MAX_TOKENS`. */
+  maxTokens: number;
   /** Injected in tests so the ports can be exercised without a billed call. */
   fetchImpl?: typeof fetch;
 }
@@ -51,7 +53,9 @@ export function openRouterPorts(opts: Options): LlmPorts {
    * prose where an object was demanded must fail loudly here rather than three layers down where
    * the failure looks like a database problem. Second, a validation failure gets exactly ONE retry,
    * with the errors fed back: retrying forever on a model that cannot satisfy the schema burns the
-   * user's cap on a request that was never going to succeed.
+   * user's cap on a request that was never going to succeed. A reply the provider cut off at
+   * `max_tokens` gets ZERO retries — see the `finish_reason` handling below for why that one is
+   * different.
    */
   async function complete<T>(
     system: string,
@@ -65,6 +69,12 @@ export function openRouterPorts(opts: Options): LlmPorts {
     for (let attempt = 0; attempt < 2; attempt++) {
       const body = {
         model: opts.model,
+        // Named on every call, because omitting it does not mean "no limit". The provider fills in
+        // the model's own ceiling — 65536, forty times a measured analysis — and reserves credit
+        // for the whole of it before routing, so an unbounded request is refused (402) on a balance
+        // that would have paid for the real call eighteen times over. That is what happened to the
+        // first real user's first photo.
+        max_tokens: opts.maxTokens,
         messages: attempt === 0 ? messages : [
           ...messages,
           {
@@ -111,17 +121,39 @@ export function openRouterPorts(opts: Options): LlmPorts {
         throw new Error(`llm http ${res.status}: ${detail}`);
       }
 
-      const payload = await res.json() as { choices?: { message?: { content?: string } }[] };
-      const raw = payload.choices?.[0]?.message?.content ?? "";
+      const payload = await res.json() as {
+        choices?: { finish_reason?: string; message?: { content?: string } }[];
+      };
+      const choice = payload.choices?.[0];
+      // `length` means generation stopped at the bound. It is checked only where the reply turned
+      // out to be UNUSABLE, never before the parse: with a JSON schema the model writes its closing
+      // brace and then a newline, so a cut landing in that whitespace flags a complete answer — and
+      // a gateway behind `baseUrl` may flag conservatively. Refusing one of those would fail an
+      // analysis that had already been charged, over trailing whitespace.
+      //
+      // Where the reply IS unusable, the bound is terminal rather than another attempt: the retry
+      // re-sends a LONGER prompt against the SAME bound with no instruction to be shorter. Reasoning
+      // length varies, so such a retry is not impossible — it is unreliable, and it costs a second
+      // bound's worth of billed tokens to end in "not valid JSON", which sends the next reader to
+      // the model instead of to the setting. Naming the bound once beats paying to guess twice.
+      const truncated = choice?.finish_reason === "length";
+      const bail: () => never = () => {
+        throw new Error(
+          `llm truncated ${schemaName} at max_tokens=${opts.maxTokens}; raise EAIT__BACKEND__LLM_MAX_TOKENS`,
+        );
+      };
+      const raw = choice?.message?.content ?? "";
       let parsed: unknown;
       try {
         parsed = JSON.parse(raw);
       } catch {
+        if (truncated) bail();
         lastError = "not valid JSON";
         continue;
       }
       const result = schema.safeParse(parsed);
       if (result.success) return result.data;
+      if (truncated) bail();
       lastError = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ").slice(0, 300);
     }
     throw new Error(`llm did not satisfy ${schemaName}: ${lastError}`);

@@ -21,6 +21,7 @@ import { configDefaults, loadConfig, redact } from "./config.ts";
  */
 const VARS = [
   "EAIT__BACKEND__DATABASE_URL", "EAIT__BACKEND__LLM_API_KEY", "EAIT__BACKEND__LLM_BASE_URL", "EAIT__BACKEND__LLM_TIMEOUT_MS", "EAIT__BACKEND__LLM_MODEL", "EAIT__BACKEND__LLM_PROVIDER",
+  "EAIT__BACKEND__LLM_MAX_TOKENS",
   "EAIT__BACKEND__PENDING_TTL_MINUTES", "EAIT__BACKEND__MAX_UPLOAD_MB", "EAIT__BACKEND__MAX_PHOTOS_PER_MEAL", "EAIT__BACKEND__PORT", "EAIT__BACKEND__HOST", "EAIT__BACKEND__TZ_NAME",
   "EAIT__BACKEND__FREE_ANALYSES", "EAIT__BACKEND__GLOBAL_DAILY_ANALYSIS_CAP", "EAIT__BACKEND__APPLE_AUDIENCES", "EAIT__BACKEND__GOOGLE_AUDIENCES",
   "EAIT__BACKEND__SESSION_TTL_DAYS", "EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR", "EAIT__BACKEND__ANALYSIS_RATE_LIMIT_PER_DAY",
@@ -63,12 +64,14 @@ describe("loadConfig", () => {
     expect(c.maxPhotosPerMeal).toBe(d.maxPhotosPerMeal);
     expect(c.llmBaseUrl).toBe(d.llmBaseUrl);
     expect(c.llmTimeoutMs).toBe(d.llmTimeoutMs);
+    expect(c.llmMaxTokens).toBe(d.llmMaxTokens);
   });
 
   it("reads every environment-specific knob from the environment", () => {
     withRequired({
       EAIT__BACKEND__LLM_BASE_URL: "https://gateway.internal/v1/chat/completions",
       EAIT__BACKEND__LLM_TIMEOUT_MS: "45000",
+      EAIT__BACKEND__LLM_MAX_TOKENS: "12345",
       EAIT__BACKEND__PENDING_TTL_MINUTES: "5",
       EAIT__BACKEND__MAX_UPLOAD_MB: "8",
       EAIT__BACKEND__MAX_PHOTOS_PER_MEAL: "2",
@@ -81,6 +84,7 @@ describe("loadConfig", () => {
     const c = loadConfig();
     expect(c.llmBaseUrl).toBe("https://gateway.internal/v1/chat/completions");
     expect(c.llmTimeoutMs).toBe(45_000);
+    expect(c.llmMaxTokens).toBe(12345);
     expect(c.pendingTtlMs).toBe(5 * 60 * 1000);
     expect(c.maxUploadBytes).toBe(8 * 1024 * 1024);
     expect(c.maxPhotosPerMeal).toBe(2);
@@ -89,6 +93,22 @@ describe("loadConfig", () => {
     expect(c.timezone).toBe("America/New_York");
     expect(c.port).toBe(9999);
     expect(c.host).toBe("0.0.0.0");
+  });
+
+  // Zero is the local idiom for "no limit" — the caps and the rate limits in this same file all
+  // document it that way. It cannot mean that here: `max_tokens: 0` is a bound OF zero, so every
+  // call returns nothing and the whole app is down with no startup error to explain it.
+  it("refuses a completion bound of zero, which the neighbouring settings would read as 'off'", () => {
+    withRequired({ EAIT__BACKEND__LLM_MAX_TOKENS: "0" });
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_MAX_TOKENS/);
+  });
+
+  // 1614 is what one real meal analysis measured, reasoning included. A bound under that does not
+  // fail some calls, it fails EVERY call — and now terminally, since truncation stopped being
+  // retried. So the floor has to sit above the measurement, not merely above zero.
+  it("refuses a completion bound under what a measured analysis needs", () => {
+    withRequired({ EAIT__BACKEND__LLM_MAX_TOKENS: "1200" });
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_MAX_TOKENS/);
   });
 
   it("rejects a nonsense number rather than coercing it", () => {
