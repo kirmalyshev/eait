@@ -118,7 +118,9 @@ export const ADMIN_PAGE = `<!doctype html>
   <h2>The welcome screen</h2>
   <p class="muted">
     The first thing anyone sees. The lines under the title are what we do NOT ask for — do not name a
-    competitor there, and do not write "free"; the claim is "no card to start", which is checkable.
+    competitor there, do not write "free", and do not promise away the card, the trial or the
+    cancelling: the app sells a subscription behind a seven-day trial, so those are no longer true.
+    "No email, no name" is, and always will be.
   </p>
   <div id="welcome"></div>
 

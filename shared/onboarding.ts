@@ -331,14 +331,21 @@ export interface OnboardingScreenContent {
  *
  * This app has no email field and never will. It DOES get a paywall (decision 2026-08-24,
  * marketing/DECISIONS.md): at the very end, after the first photo's verdict, behind a 7-day trial —
- * never in front of the number or the first verdict, which is what §3 says must not be withheld. The shipped content below still
- * describes the pre-paywall flow; the chat onboarding design in product/design/onboarding/ is the
- * target, and its welcome says "no email, no name" rather than "no card".
+ * never in front of the number or the first verdict, which is what §3 says must not be withheld.
  *
- * TWO RULES ON THE WORDING, both from §5 of that doc and both enforced by a test:
+ * THE BILLING BEAT INVERTED WHEN THAT SHIPPED, and the copy below has caught up. "No card, no
+ * email, no name — nothing to cancel later" was the welcome's first trust point and was true right
+ * up until a seven-day trial existed; a trial takes a card, and there is then something to cancel.
+ * What survives is the half that is still true and always will be: no email, no name.
+ *
+ * THREE RULES ON THE WORDING, all enforced by a test over the whole of the content below:
  *   - never name a competitor. All seven have the complaint; naming one invites a fair-comparison
  *     argument we lose.
- *   - never claim "free". The claim is "no card to start", which is true and checkable today.
+ *   - never claim "free". §5 of the cross-read rules out an unqualified free claim by name.
+ *   - never promise away the card, the trial, or the cancelling. This is the rule that did not
+ *     exist, which is how a sentence contradicting docs/PAYWALL.md survived the merge that added
+ *     the paywall — asserted in four E2E flows the whole time, one of which shoots the App Store
+ *     screenshots. A promise about billing is the one kind of copy a reviewer's memory cannot hold.
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
 export interface OnboardingWelcomeContent {
@@ -462,8 +469,11 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // contentVersion they were recorded against, so "did the new copy help" is a question the data can
   // answer instead of a matter of opinion. v2 added the safety promise to the goal screen. v3 led
   // the welcome with the outcome, cut the goal screen's promise to one glance, and moved activity
-  // ahead of the target screen so the pace picker can show an honest date.
-  version: 3,
+  // ahead of the target screen so the pace picker can show an honest date. v4 cut "No card ...
+  // nothing to cancel later" from the welcome: the hard paywall (docs/PAYWALL.md) sells a
+  // subscription behind a seven-day trial, and a trial takes a card, so the line became false the
+  // day that shipped. What survives is the half that is still true — no email, no name.
+  version: 4,
   welcome: {
     title: "Photograph what you eat. Get an honest answer.",
     // The outcome, before the first question. The trust points below say what is ABSENT — card,
@@ -472,7 +482,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
     subtitle: "Three minutes of questions, and you leave with your plan — daily calories, protein, and what's realistic by when.",
     mascot: { mood: "wave", line: "Hi, I'm Spud. I'll judge your dinner, never you." },
     points: [
-      "No card, no email, no name — nothing to cancel later.",
+      "No email, no name — we never ask who you are.",
       "Your photos are read, judged, and dropped. Never stored.",
     ],
     cta: "Start",
@@ -505,7 +515,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       id: "about",
       title: "A little about you",
       subtitle: "Two things every calorie formula needs.",
-      mascot: { mood: "happy", line: "No email, no card, no name. Just enough to do the maths." },
+      mascot: { mood: "happy", line: "No email, no name. Just enough to do the maths." },
       why: "Every published formula for basal metabolic rate needs sex and age. The minimum we will ever set you differs by 300 kcal between them.",
       options: {
         female: { label: "Female" },

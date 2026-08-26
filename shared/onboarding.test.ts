@@ -357,22 +357,30 @@ describe("the interstitials", () => {
     bad((c) => { c.building.cta = ""; return c; });
   });
 
-  // The billing beat is the largest complaint cluster in the category cross-read, and the wording
-  // rule from that doc is specific: "no card to start" is true and checkable; "free" is not, and
-  // naming a competitor invites a comparison argument we lose.
-  it("say what we do not ask for, without naming anyone or claiming free", () => {
-    const words = [
-      DEFAULT_ONBOARDING_CONTENT.welcome.title,
-      ...DEFAULT_ONBOARDING_CONTENT.welcome.points,
-      DEFAULT_ONBOARDING_CONTENT.welcome.mascot.line,
-    ].join(" ").toLowerCase();
+  // The billing beat is the largest complaint cluster in the category cross-read, and until
+  // 2026-08-24 the wording rule read the other way round: this test asserted the welcome DID say
+  // "card", because "no card to start" was true and checkable. The hard paywall made it false — a
+  // seven-day trial takes a card, and there is then something to cancel — so the assertion is
+  // inverted rather than deleted. Deleting it would have left the gap that let the old sentence
+  // survive the merge which introduced the contradiction.
+  //
+  // Scanned over the WHOLE of the content, not just the welcome. The same claim was also on the
+  // "about" screen's mascot line, and a rule that reads one screen is a rule that moves the
+  // sentence to the next one.
+  it("says what we do not ask for, and promises nothing about billing", () => {
+    const words = JSON.stringify(DEFAULT_ONBOARDING_CONTENT).toLowerCase();
 
-    expect(words).toContain("card");
+    expect(words).toContain("no email");
     for (const competitor of ["cal ai", "calai", "myfitnesspal", "noom", "yazio", "lose it"]) {
       expect(words).not.toContain(competitor);
     }
     // An unqualified "free" is the one claim DECISIONS.md rules out by name.
     expect(words).not.toMatch(/\bfree\b/);
+    // And the three the paywall ruled out. Narrow on purpose: a checker that flagged every
+    // occurrence of "card" would fail on a future screen that legitimately explains the price.
+    for (const promise of [/\bno card\b/, /\bno trial\b/, /nothing to cancel/]) {
+      expect(words).not.toMatch(promise);
+    }
   });
 
   it("fills a missing interstitial from the default without discarding the revision", () => {
