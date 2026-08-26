@@ -5,7 +5,7 @@
 // honest about not being configurable, while this looks configured and is not.
 
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { configDefaults, loadConfig, redact } from "./config.ts";
+import { configDefaults, demoConfig, loadConfig, redact } from "./config.ts";
 
 /**
  * EVERY variable `loadConfig` reads, cleared before AND after each test.
@@ -248,5 +248,44 @@ describe("notifications", () => {
     const printed = JSON.stringify(redact(loadConfig()));
     expect(printed).not.toContain("expo-token-not-real");
     expect(printed).toContain("***");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// A DEMO HAS EXACTLY ONE ADDRESS, SO A PER-ADDRESS LIMIT THERE REFUSES THE TEST SUITE.
+//
+// `api/ratelimit.ts` bounds the billed routes and the account-minting route per address, because
+// `POST /v1/auth/device` mints an account for anybody with a 32-character string. That is the right
+// control on a public instance and it is meaningless on a local demo, where every request comes off
+// 127.0.0.1 — one bucket for the whole simulator.
+//
+// `bun run e2e` clears state and mints a fresh account per flow, three flows run 01-onboarding as a
+// subflow, and a failed flow is retried once — so a single suite spends well past the production
+// default of 20 sign-ins an hour. What the developer then sees is the app's own "Too many sign-ins
+// from this network just now", six flows red, and every message naming an app string. A gate that
+// fails on its own load, in words that describe the product, is worse than no gate.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+describe("demo mode", () => {
+  it("does not rate-limit by address, because a demo is one address", () => {
+    const d = demoConfig();
+    // A full suite is ~15 mints and a few hundred requests; these have to be out of reach of any
+    // number of local runs, not merely larger than one.
+    expect(d.authRateLimitPerHour).toBeGreaterThanOrEqual(100_000);
+    expect(d.linesRateLimitPerHour).toBeGreaterThanOrEqual(100_000);
+    expect(d.healthSyncRateLimitPerHour).toBeGreaterThanOrEqual(100_000);
+    expect(d.analysisRateLimitPerDay).toBeGreaterThanOrEqual(100_000);
+  });
+
+  it("still starts from the shared defaults, so a new setting is present rather than absent", () => {
+    const d = demoConfig();
+    expect(d.databaseUrl).toBe("memory://demo");
+    expect(d.llmProvider).toBe("demo");
+    expect(d.maxPhotosPerMeal).toBe(configDefaults().maxPhotosPerMeal);
+  });
+
+  it("leaves the production defaults alone", () => {
+    const p = configDefaults();
+    expect(p.authRateLimitPerHour).toBe(20);
+    expect(p.linesRateLimitPerHour).toBe(120);
   });
 });

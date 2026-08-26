@@ -6,7 +6,7 @@
 // UI change gets reviewed without spending money on vision calls.
 
 import {
-  adminTokenFromEnv, configDefaults, eveningLineTimeFromEnv, loadConfig, redact, type Config,
+  demoConfig, loadConfig, redact, type Config,
 } from "./config.ts";
 import { AuthError, remoteVerifier, type Verifier } from "./auth/verify.ts";
 import { createRouter } from "./api/routes.ts";
@@ -22,36 +22,7 @@ import type { Store } from "./store.ts";
 
 const demo = process.argv.includes("--demo");
 
-// Demo starts from the shared defaults and overrides only what demo mode changes, so a new
-// setting picks up its default here instead of being silently absent.
-const config: Config = demo
-  ? {
-      ...configDefaults(),
-      port: Number(process.env.EAIT__BACKEND__PORT ?? 8787),
-      host: process.env.EAIT__BACKEND__HOST ?? "127.0.0.1",
-      databaseUrl: "memory://demo",
-      llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-      // No paywall in the demo — the E2E flows log several meals per account — and unmetered
-      // globally: it is a local demo, not a public instance. The sheet itself is exercised against
-      // RevenueCat's Test Store, not here.
-      freeAnalyses: 100_000, globalDailyAnalysisCap: 0,
-      timezone: process.env.EAIT__BACKEND__TZ_NAME ?? "Europe/Berlin",
-      // Read from the environment here too, and validated by the same function: the admin is how
-      // onboarding copy is edited, and "works in demo, untested in production" is the shape of
-      // every configuration bug that ships.
-      adminToken: adminTokenFromEnv(),
-      // Same argument. The subscribe form's redirect is the one behaviour that cannot be checked
-      // by reading the code — you have to POST the form and watch where the browser goes — and a
-      // demo that always answered JSON would make that untestable outside production.
-      landingUrl: (process.env.EAIT__BACKEND__LANDING_URL ?? "").replace(/\/$/, ""),
-      // And the same argument again for the notification sweep. `choosePush` gives a demo the
-      // LOGGING implementation whatever these say, so nothing can leave the machine — but the
-      // scheduler, the sweep and the composed sentence are only reachable by hand if these are
-      // readable here. Set EAIT__BACKEND__EVENING_LINE_TIME to a minute from now and watch it run.
-      pushEnabled: ["1", "true"].includes(process.env.EAIT__BACKEND__PUSH_ENABLED ?? ""),
-      eveningLineTime: eveningLineTimeFromEnv(),
-    }
-  : loadConfig();
+const config: Config = demo ? demoConfig() : loadConfig();
 
 // The session lifetime reaches the store the same way every other setting reaches the engine: as an
 // argument from the composition root, never as a module constant either side could disagree about.
