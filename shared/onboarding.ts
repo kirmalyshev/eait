@@ -287,12 +287,22 @@ export interface OnboardingScreenContent {
  * marketing/DECISIONS.md): at the very end, after the first photo's verdict, behind a 7-day trial —
  * never in front of the number or the first verdict, which is what §3 says must not be withheld.
  *
- * THREE RULES ON THE WORDING, all enforced by a test:
+ * THE BILLING BEAT INVERTED WHEN THE PAYWALL SHIPPED, and the copy below has caught up. "No card,
+ * no email, no name — nothing to cancel later" was the welcome's first trust point and was true
+ * right up until a seven-day trial existed; a trial takes a card, and there is then something to
+ * cancel. What survives is the half that is still true and always will be: no email, no name.
+ *
+ * THREE RULES ON THE WORDING, all enforced by a test over the WHOLE of the content below — a rule
+ * that reads one screen is a rule that moves the sentence to the next one:
  *   - never name a competitor. All seven have the complaint; naming one invites a fair-comparison
  *     argument we lose.
- *   - never claim "free" bare. "Seven days free" and "free to try" are true and checkable; "free"
- *     alone stopped being true the day the paywall shipped.
- *   - never claim "no card". It is false from step 18 onward, where the App Store asks for one.
+ *   - never claim "free" bare. `copy.md` allows exactly two qualified forms, "free to try" and
+ *     "N days free"; §5 of the cross-read rules out the unqualified claim by name.
+ *   - never promise away the card, the trial, or the cancelling. This is the rule that did not
+ *     exist, which is how a sentence contradicting docs/PAYWALL.md survived the merge that added
+ *     the paywall — asserted in four E2E flows the whole time, one of which shoots the App Store
+ *     screenshots. A promise about billing is the one kind of copy a reviewer's memory cannot hold.
+
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
 export interface OnboardingWelcomeContent {
@@ -421,14 +431,22 @@ export const SCREEN_OPTIONS: Partial<Record<OnboardingScreenId, readonly string[
 export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // Bumped whenever a word below changes, which is what makes the funnel readable: events carry the
   // contentVersion they were recorded against, so "did the new copy help" is a question the data
-  // can answer instead of a matter of opinion. v4 is the chat flow — the copy is Spud's side of a
-  // conversation now, so the screens carry `asks` and nothing that described a screen.
-  version: 4,
+  // can answer instead of a matter of opinion. v4 cut "No card … nothing to cancel later" from the
+  // welcome — the hard paywall sells a subscription behind a seven-day trial, and a trial takes a
+  // card, so the line became false the day that shipped. v5 IS THE CHAT FLOW: the copy is Spud's
+  // side of a conversation now, so the screens carry `asks` and nothing that described a screen.
+  //
+  // FIVE, NOT FOUR, AND THE MERGE IS WHY. Both this branch and the paywall's copy fix landed on
+  // "4", and the version is the join key between a funnel row and the words that produced it —
+  // two different flows sharing one number is exactly the meaningless average the counter exists
+  // to prevent.
+  version: 5,
   welcome: {
     lines: [
       "Hi, I'm Spud. Photograph what you eat, get an honest answer — that's the whole app.",
       "Three minutes of questions, and you leave with your plan — daily calories, protein, and what's realistic by when.",
       "No email, no name. You see your plan before anything is asked; the rest is a week free to try. Ready?",
+
     ],
     cta: "Let's go",
   },
@@ -453,6 +471,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
           placeholder: "e.g. 1990",
         },
       },
+
       options: {
         female: { label: "Female" },
         male: { label: "Male" },

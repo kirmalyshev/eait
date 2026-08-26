@@ -93,14 +93,32 @@ describe("the shipped copy", () => {
     }
   });
 
-  it("names no competitor and never claims 'free' or 'no card' bare", () => {
-    // §5 of the billing cross-read, and the two wording rules the paywall added. "Free to try" and
-    // "a week free" are true; "free" alone and "no card" stopped being true at step 18.
+  it("names no competitor, and promises nothing about billing", () => {
+    // Scanned over the WHOLE of the content, not just the welcome: the "no card" claim used to sit
+    // on the about screen's mascot line as well, and a rule that reads one screen is a rule that
+    // moves the sentence to the next one. It survived the merge that introduced the paywall it
+    // contradicted, asserted by four E2E flows the whole time — one of which shoots the App Store
+    // screenshots.
     const words = JSON.stringify(DEFAULT_ONBOARDING_CONTENT).toLowerCase();
-    for (const name of ["myfitnesspal", "lose it", "noom", "cal ai", "yazio", "lifesum"]) {
-      expect(words).not.toContain(name);
+
+    expect(words).toContain("no email");
+    for (const competitor of ["cal ai", "calai", "myfitnesspal", "noom", "yazio", "lose it"]) {
+      expect(words).not.toContain(competitor);
     }
-    expect(words).not.toContain("no card");
+    // The three the paywall ruled out. Narrow on purpose: a checker that flagged every occurrence
+    // of "card" would fail on a future screen that legitimately explains the price.
+    for (const promise of [/\bno card\b/, /\bno trial\b/, /nothing to cancel/]) {
+      expect(words).not.toMatch(promise);
+    }
+    // An unqualified "free" is the one claim DECISIONS.md rules out by name. copy.md allows exactly
+    // two forms — "free to try" and "N days free" — so those are stripped before looking, which is
+    // what keeps this enforceable rather than a comment somebody has to remember.
+    const unqualified = words
+      .replace(/\bfree to try\b/g, "")
+      .replace(/\b(a week|\d+ days?) free\b/g, "")
+      // "Free text welcome too" is an instruction about a box, not a claim about a price.
+      .replace(/\bfree text\b/g, "");
+    expect(unqualified).not.toMatch(/\bfree\b/);
     expect(DEFAULT_ONBOARDING_CONTENT.welcome.lines.join(" ")).toContain("free to try");
   });
 
