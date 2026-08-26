@@ -156,10 +156,16 @@ export async function appendLines(deps: EngineDeps, userId: string, lines: Appen
 /**
  * Resolve an onboarding question's coordinate into the sentence this server would ask.
  *
- * `askLines` is the SAME function the app renders from — shared, so the thread cannot hold a
- * question worded differently from the one that was on screen. It reads the profile for the one
- * substitution the shipped copy has (`{loseTail}`, the pace warning that belongs only to somebody
- * losing weight), which is why the profile is fetched here rather than assumed.
+ * `askLines` is the SAME function the app renders from — shared, so the thread holds the question
+ * as this server words it rather than as a phone claims it was worded. The two agree on every
+ * revision both sides have; they can differ for the few hundred milliseconds before the fetched
+ * content reaches the app, which renders its compiled-in copy first by design. Both sentences are
+ * legitimate copy for the same question, and the alternative — trusting the phone's text — is the
+ * thing this route exists to prevent.
+ *
+ * It reads the profile for the one substitution the shipped copy has (`{loseTail}`, the pace
+ * warning that belongs only to somebody losing weight), which is why the profile is fetched here
+ * rather than assumed — and why `switchGoal` drains the queue before it patches the goal.
  *
  * Returns null for anything out of range, and the caller refuses the whole batch: a line index past
  * the end of an ask is a client and a server that disagree about the copy, and guessing which
