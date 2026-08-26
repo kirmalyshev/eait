@@ -9,14 +9,25 @@
 import { describe, expect, test } from "bun:test";
 import { openRouterPorts } from "./openrouter.ts";
 
+/** A payload the provider stopped at the completion bound. `partial` is what it had written. */
+const truncated = (partial: string) => ({ __finish_reason: "length", __raw: partial });
+
+/** Stopped at the bound, but the cut landed after the last brace — the object is whole. */
+const cutAfterTheBrace = (payload: unknown) =>
+  ({ __finish_reason: "length", __raw: JSON.stringify(payload) + "\n" });
+
 /** A fetch that replays the given assistant payloads, one per call, and records the requests. */
 function fakeFetch(payloads: unknown[]) {
   const bodies: Record<string, unknown>[] = [];
   const impl = (async (_url: string, init: RequestInit) => {
     bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
     const payload = payloads[Math.min(bodies.length - 1, payloads.length - 1)];
+    const cut = payload as { __finish_reason?: string; __raw?: string };
+    const choice = cut?.__finish_reason
+      ? { finish_reason: cut.__finish_reason, message: { content: cut.__raw } }
+      : { finish_reason: "stop", message: { content: JSON.stringify(payload) } };
     return new Response(
-      JSON.stringify({ choices: [{ message: { content: JSON.stringify(payload) } }] }),
+      JSON.stringify({ choices: [choice] }),
       { status: 200, headers: { "content-type": "application/json" } },
     );
   }) as unknown as typeof fetch;
@@ -28,7 +39,8 @@ function ports(payloads: unknown[]) {
   return {
     llm: openRouterPorts({
       apiKey: "test-key-not-a-secret", model: "test-model",
-      baseUrl: "https://example.invalid/v1/chat/completions", timeoutMs: 5000, fetchImpl: impl,
+      baseUrl: "https://example.invalid/v1/chat/completions", timeoutMs: 5000, maxTokens: 4321,
+      fetchImpl: impl,
     }),
     bodies,
   };
@@ -111,5 +123,72 @@ describe("routeText", () => {
     // that into `analysis-failed`, which the app renders as a real message.
     const { llm } = ports([{ intent: "redate", dayOffset: 1 }]);
     await expect(llm.routeText(ROUTE_INPUT)).rejects.toThrow(/empty/i);
+  });
+});
+
+// A request that names no completion bound is not an unbounded request — the provider substitutes
+// the model's own ceiling, and OpenRouter reserves the whole of it against the balance before it
+// will route the call. On 2026-08-26 that is what refused the first real user's first photo:
+// "You requested up to 65536 tokens, but can only afford 34361" (HTTP 402), on a request whose
+// measured completion was 1614 tokens. Nothing was analyzed, and the account's one free sample was
+// already charged. The bound belongs on every call the loop makes, not only the first: the body is
+// rebuilt each attempt, and a bound moved out of that literal would be lost on the retry alone.
+describe("completion bound", () => {
+  test("every call names its own completion bound", async () => {
+    const { llm, bodies } = ports([{ intent: "answer", text: "ok" }]);
+    await llm.routeText(ROUTE_INPUT);
+    expect(bodies[0]).toHaveProperty("max_tokens", 4321);
+  });
+
+  test("the schema retry carries it too", async () => {
+    // First reply fails the schema, so `complete` retries. Both bodies must be bounded.
+    const { llm, bodies } = ports([{ nope: true }, { intent: "answer", text: "ok" }]);
+    await llm.routeText(ROUTE_INPUT);
+    expect(bodies.length).toBe(2);
+    for (const b of bodies) expect(b).toHaveProperty("max_tokens", 4321);
+  });
+});
+
+// The bound's own failure mode, and the one retry not worth paying for.
+//
+// A completion cut off at `max_tokens` comes back as HTTP 200 with `finish_reason: "length"` and a
+// half-written object. Parsed as a schema miss it would be retried with a LONGER prompt, the same
+// bound and no instruction to be shorter — a second billed call generating another full bound's
+// worth of tokens, ending in `llm did not satisfy …: not valid JSON`. That message sends the next
+// reader to the model or the schema. The bound is the actual cause and the log has to say so,
+// because by then the user's analysis has already been charged.
+describe("truncation at the bound", () => {
+  test("a completion cut off at the bound says so, naming the setting", async () => {
+    const { llm } = ports([truncated('{"intent":"answer","text":"You have had 0 g of pro')]);
+    await expect(llm.routeText(ROUTE_INPUT)).rejects.toThrow(/truncated.*EAIT__BACKEND__LLM_MAX_TOKENS/s);
+  });
+
+  // The other direction, and the reason the check cannot come before the parse. `length` says
+  // generation stopped at the bound, not that the object is unusable: with a JSON schema the model
+  // emits its closing brace and a trailing newline, and a cut in that whitespace leaves a complete
+  // answer flagged as truncated. A gateway behind EAIT__BACKEND__LLM_BASE_URL may flag
+  // conservatively too. Refusing a reply that parses and validates would fail the analysis — and
+  // the analysis is charged before the call — over trailing whitespace.
+  test("an answer that is whole is returned, whatever the bound flag says", async () => {
+    const { llm, bodies } = ports([cutAfterTheBrace({ intent: "answer", text: "You have had 0 g of protein." })]);
+    const out = await llm.routeText(ROUTE_INPUT);
+    expect(out).toEqual({ intent: "answer", text: "You have had 0 g of protein." });
+    expect(bodies.length).toBe(1);
+  });
+
+  // The other unusable shape, and the one a mutation test found unpinned: a reply cut where the
+  // object happens to close, so it PARSES and then misses the schema. Without the second check it
+  // falls through to `lastError` and buys another bound's worth of tokens to end in
+  // "did not satisfy", which is the message this whole guard exists to stop producing.
+  test("a truncated reply that parses but misses the schema is terminal too", async () => {
+    const { llm, bodies } = ports([{ __finish_reason: "length", __raw: '{"nope":true}' }]);
+    await expect(llm.routeText(ROUTE_INPUT)).rejects.toThrow(/truncated.*EAIT__BACKEND__LLM_MAX_TOKENS/s);
+    expect(bodies.length).toBe(1);
+  });
+
+  test("it does not spend a second call retrying into the same bound", async () => {
+    const { llm, bodies } = ports([truncated('{"intent":"answ')]);
+    await expect(llm.routeText(ROUTE_INPUT)).rejects.toThrow();
+    expect(bodies.length).toBe(1);
   });
 });

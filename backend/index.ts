@@ -83,6 +83,7 @@ const deps: EngineDeps = {
         model: config.llmModel,
         baseUrl: config.llmBaseUrl,
         timeoutMs: config.llmTimeoutMs,
+        maxTokens: config.llmMaxTokens,
       }),
 };
 

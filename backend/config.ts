@@ -28,6 +28,27 @@ export interface Config {
    */
   llmTimeoutMs: number;
   /**
+   * The completion bound sent with every model call.
+   *
+   * A request that names none is not unbounded — the provider substitutes the model's own ceiling
+   * (65536 on OpenRouter) and reserves the whole of it against the balance BEFORE it will route the
+   * call. So an omitted bound is not a generous default, it is a demand for ~40x the tokens the
+   * call will actually generate, refused as a 402 with nothing analyzed.
+   *
+   * The default is ~10x the 1614 completion tokens a real meal analysis measured on grok-4.5 —
+   * 80% of which were REASONING tokens, which count against this and vary far more than the answer
+   * does. Generous on purpose: the bound is reserved, not charged — the incident's own numbers put
+   * completion at ~$6/M, so 16000 bills ~$0.01 and merely requires ~$0.096 of balance to route,
+   * against ~$0.39 for the 65536 it replaces. That is the real cost of raising it: not the bill,
+   * but the balance below which every call 402s again. Worth it, because a bound that is too tight
+   * truncates the JSON and returns `analysis-failed` with the user's analysis already charged.
+   *
+   * It is a variable because the right number is a property of the model, and `llmModel` is a
+   * variable. It is not a variable that has to be SET: this default is what ships, and deleting the
+   * env line falls back to it rather than to no bound at all.
+   */
+  llmMaxTokens: number;
+  /**
    * Analyses an account gets before an entitlement is required. THERE IS NO FREE TIER: this is
    * the onboarding's sample — one verdict, photo or typed — and the default is 1. Lifetime, not
    * per day. A demo instance sets it high rather than growing a second code path.
@@ -261,12 +282,40 @@ function required(name: string): string {
   return v;
 }
 
-function int(name: string, fallback: number): number {
+/**
+ * A non-negative integer from the environment, or the fallback.
+ *
+ * Exported because `scripts/` reads the same variables without `loadConfig`, and hand-rolling the
+ * read there is how a present-but-empty variable became `Number("")` — zero — and a typo became
+ * `NaN`, which `JSON.stringify` writes as `null` and a provider reads as "not sent".
+ */
+export function int(name: string, fallback: number): number {
   const raw = process.env[name];
   if (raw === undefined || raw === "") return fallback;
   const n = Number(raw);
   if (!Number.isInteger(n) || n < 0) throw new Error(`[ieat] ${name} must be a non-negative integer`);
   return n;
+}
+
+/**
+ * The completion bound, read and floored — the ONE way anything reads this variable.
+ *
+ * `int` alone is not enough, and sharing only `int` is what let these two diverge: it accepts an
+ * explicit `0`, so the server refused to start while `scripts/eval-photos.ts` sent `max_tokens: 0`
+ * on every billed call. Zero is "no limit" for every cap and rate limit in this file and cannot
+ * mean that here — it is a bound OF zero, so every reply comes back empty.
+ *
+ * The floor is ABOVE the 1614 completion tokens a real analysis measured, not merely above zero. A
+ * bound under the measurement does not fail some calls, it fails every one of them, and since
+ * truncation is terminal rather than retried it fails them deterministically: this incident again,
+ * from a value the validator had called acceptable.
+ */
+export function llmMaxTokensFromEnv(fallback: number): number {
+  const value = int("EAIT__BACKEND__LLM_MAX_TOKENS", fallback);
+  if (value < 2000) {
+    throw new Error("[ieat] EAIT__BACKEND__LLM_MAX_TOKENS must be at least 2000; one measured analysis is 1614 completion tokens, and 0 is a bound of zero rather than 'unbounded'");
+  }
+  return value;
 }
 
 /**
@@ -289,6 +338,7 @@ export function configDefaults(): Config {
     llmApiKey: "",
     llmBaseUrl: "https://openrouter.ai/api/v1/chat/completions",
     llmTimeoutMs: 90_000,
+    llmMaxTokens: 16_000,
     freeAnalyses: 1,
     paidDailyPhotoCap: 200,
     globalDailyAnalysisCap: 500,
@@ -347,6 +397,8 @@ export function loadConfig(): Config {
   const freeAnalyses = int("EAIT__BACKEND__FREE_ANALYSES", d.freeAnalyses);
   const paidDailyPhotoCap = int("EAIT__BACKEND__PAID_DAILY_PHOTO_CAP", d.paidDailyPhotoCap);
 
+  const llmMaxTokens = llmMaxTokensFromEnv(d.llmMaxTokens);
+
   const subscribeConfirmTtlDays = int("EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS", d.subscribeConfirmTtlDays);
   if (subscribeConfirmTtlDays < 1) {
     throw new Error("[ieat] EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS must be at least 1");
@@ -375,6 +427,7 @@ export function loadConfig(): Config {
     llmApiKey: required("EAIT__BACKEND__LLM_API_KEY"),
     llmBaseUrl: process.env.EAIT__BACKEND__LLM_BASE_URL ?? d.llmBaseUrl,
     llmTimeoutMs: int("EAIT__BACKEND__LLM_TIMEOUT_MS", d.llmTimeoutMs),
+    llmMaxTokens,
     freeAnalyses,
     paidDailyPhotoCap,
     globalDailyAnalysisCap: int("EAIT__BACKEND__GLOBAL_DAILY_ANALYSIS_CAP", d.globalDailyAnalysisCap),
