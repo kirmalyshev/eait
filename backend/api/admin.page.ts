@@ -95,9 +95,10 @@ export const ADMIN_PAGE = `<!doctype html>
 <div class="wrap hidden" id="app">
   <h1>Onboarding</h1>
   <p class="sub">
-    Every word the app shows during onboarding. The <em>questions</em> are fixed in code — they feed
-    the calorie target — but the wording, the order, the mascot lines and the option labels are all
-    from here. Saving bumps the content version, which is what the funnel below is grouped by.
+    Every word Spud says to POSE a question, plus the option labels, the front door and the plan.
+    The <em>questions</em> are fixed in code — they feed the calorie target — and so is their order,
+    and so are Spud's replies and the support cards, which carry citations. Saving bumps the content
+    version, which is what the funnel below is grouped by.
   </p>
 
   <h2>Funnel <span class="pill" id="funnel-window"></span></h2>
@@ -211,7 +212,7 @@ export const ADMIN_PAGE = `<!doctype html>
     return input;
   }
 
-  function screenCard(screen, index) {
+  function screenCard(screen) {
     var info = meta.screens.filter(function (s) { return s.id === screen.id; })[0] || { options: [], optional: false };
     var card = document.createElement("div");
     card.className = "card";
@@ -374,7 +375,7 @@ export const ADMIN_PAGE = `<!doctype html>
   function render() {
     var host = $("screens");
     host.textContent = "";
-    content.screens.forEach(function (s, i) { host.appendChild(screenCard(s, i)); });
+    content.screens.forEach(function (s) { host.appendChild(screenCard(s)); });
     var one = function (id, build) {
       var host = $(id);
       host.textContent = "";
