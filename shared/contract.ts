@@ -13,6 +13,7 @@ import type { ConfirmMealResult, HandleTextResult, LogPhotoResult, MealUpdated, 
 import type { HealthDay } from "./health.ts";
 import type { Entitlement } from "./entitlement.ts";
 import type { ScriptedLineId } from "./chat.ts";
+import type { ChatPromptId } from "./onboarding-chat.ts";
 import type { FoodTargets } from "./types.ts";
 
 /** Bumped when a change is not backwards compatible. Shipped apps outlive the server they were built against. */
@@ -368,7 +369,18 @@ export const MAX_USER_LINE = 500;
 export const MAX_PROFILE_TEXT = 2000;
 export type AppendLine =
   | { role: "user"; text: string }
-  | { role: "assistant"; scripted: ScriptedLineId; params?: Record<string, string> };
+  | { role: "assistant"; scripted: ScriptedLineId; params?: Record<string, string> }
+  /**
+   * One QUESTION from onboarding, by coordinate — never by text.
+   *
+   * The chat flow asks in the app and the words come from `GET /v1/onboarding`, so the phone is
+   * repeating a sentence the server already served. It still may not SEND that sentence: the rule
+   * is that a client names a line and the server owns the words, and a route that took onboarding
+   * prose on trust would be a route that takes any prose on trust. So the phone names which prompt
+   * and which of its bubbles, and the server looks the text up in its OWN copy — which also means
+   * an admin edit lands in the thread rather than the string a stale app had cached.
+   */
+  | { role: "assistant"; ask: { prompt: ChatPromptId; line: number } };
 export interface AppendLinesResponse {
   appended: number;
   /** Why nothing was appended: a line the client should fix, or a thread that is full and must stop. */

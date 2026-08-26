@@ -19,7 +19,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
-  MASCOT_MOODS, NOTIFICATION_IDS, NOTIFICATION_PLACEHOLDERS, ONBOARDING_SCREENS, SCREEN_OPTIONS,
+  NOTIFICATION_IDS, NOTIFICATION_PLACEHOLDERS, ONBOARDING_SCREENS, SCREEN_FIELDS, SCREEN_OPTIONS,
   screenIsOptional,
 } from "@ieat/shared";
 import {
@@ -35,13 +35,19 @@ const json = (body: unknown, status = 200): Response =>
 
 const notFound = () => json({ error: "not found" }, 404);
 
-/** What the editor needs in order to render the right controls for each screen. */
+/**
+ * What the editor needs in order to render the right controls for each group.
+ *
+ * `fields` is the list the editor draws an ask box for, and it comes from `SCREEN_FIELDS` rather
+ * than from whatever the stored copy happens to carry — so a question added in code shows up in the
+ * admin as an empty box to fill rather than as a save that is refused for a reason nobody can see.
+ */
 function editorMeta() {
   return {
-    moods: MASCOT_MOODS,
     screens: ONBOARDING_SCREENS.map((id) => ({
       id,
       optional: screenIsOptional(id),
+      fields: SCREEN_FIELDS[id],
       options: SCREEN_OPTIONS[id] ?? [],
     })),
   };

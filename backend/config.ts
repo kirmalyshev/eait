@@ -552,3 +552,58 @@ export function redact(c: Config): Record<string, unknown> {
     expoPushAccessToken: c.expoPushAccessToken === "" ? "(unset — pushes are logged)" : "***",
   };
 }
+
+/**
+ * The configuration `--demo` runs on.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ * IT STARTS FROM `configDefaults()` AND OVERRIDES ONLY WHAT DEMO MODE CHANGES, so a new setting
+ * picks up its default here instead of being silently absent.
+ *
+ * It lives beside `loadConfig` rather than in the composition root because it is the same kind of
+ * decision — which numbers this process runs on — and because a composition root cannot be tested
+ * without starting a server, which is how the per-address limits below stayed at their production
+ * values long after they had begun failing the E2E suite.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ */
+export function demoConfig(): Config {
+  return {
+    ...configDefaults(),
+    port: Number(process.env.EAIT__BACKEND__PORT ?? 8787),
+    host: process.env.EAIT__BACKEND__HOST ?? "127.0.0.1",
+    databaseUrl: "memory://demo",
+    llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
+    // No paywall in the demo — the E2E flows log several meals per account — and unmetered
+    // globally: it is a local demo, not a public instance. The sheet itself is exercised against
+    // RevenueCat's Test Store, not here.
+    freeAnalyses: 100_000, globalDailyAnalysisCap: 0,
+    // AND UNMETERED PER ADDRESS, for a reason the global cap does not cover. `api/ratelimit.ts`
+    // keys on the client address, and a demo has exactly one: every request the simulator makes
+    // comes off 127.0.0.1 and lands in the same bucket. `bun run e2e` clears state and mints a
+    // fresh account per flow, three flows run 01-onboarding as a subflow, and a failed flow is
+    // retried once — comfortably past the production default of 20 sign-ins an hour. The suite then
+    // goes red from the sixth flow on, showing the app's own "Too many sign-ins from this network
+    // just now", and every failure names a product string rather than the limiter. A gate that
+    // fails under its own load, in words that describe the app, is worse than no gate at all.
+    authRateLimitPerHour: 1_000_000,
+    analysisRateLimitPerDay: 1_000_000,
+    subscribeRateLimitPerHour: 1_000_000,
+    healthSyncRateLimitPerHour: 1_000_000,
+    linesRateLimitPerHour: 1_000_000,
+    timezone: process.env.EAIT__BACKEND__TZ_NAME ?? "Europe/Berlin",
+    // Read from the environment here too, and validated by the same function: the admin is how
+    // onboarding copy is edited, and "works in demo, untested in production" is the shape of
+    // every configuration bug that ships.
+    adminToken: adminTokenFromEnv(),
+    // Same argument. The subscribe form's redirect is the one behaviour that cannot be checked
+    // by reading the code — you have to POST the form and watch where the browser goes — and a
+    // demo that always answered JSON would make that untestable outside production.
+    landingUrl: (process.env.EAIT__BACKEND__LANDING_URL ?? "").replace(/\/$/, ""),
+    // And the same argument again for the notification sweep. `choosePush` gives a demo the
+    // LOGGING implementation whatever these say, so nothing can leave the machine — but the
+    // scheduler, the sweep and the composed sentence are only reachable by hand if these are
+    // readable here. Set EAIT__BACKEND__EVENING_LINE_TIME to a minute from now and watch it run.
+    pushEnabled: ["1", "true"].includes(process.env.EAIT__BACKEND__PUSH_ENABLED ?? ""),
+    eveningLineTime: eveningLineTimeFromEnv(),
+  };
+}

@@ -8,11 +8,12 @@
 
 import {
   type AppendLine, type AppendLinesResponse, type ChatEntry, type ChatHistoryResponse, type MealRecord, type Profile,
-  type DailyTotals, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, correctionLine, explainTargets, firstVerdictLines,
-  isScriptedLineId, localDate, scriptedLine, scriptedParams,
+  type DailyTotals, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, correctionLine, explainTargets, firstVerdictLines,
+  isScriptedLineId, localDate, promptById, scriptedLine, scriptedParams,
 } from "@ieat/shared";
 import type { ChatAppend, ChatMessage } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
+import { onboardingContent } from "./onboarding.ts";
 
 const PAGE_DEFAULT = 50;
 const PAGE_MAX = 100;
@@ -122,6 +123,11 @@ export async function appendLines(deps: EngineDeps, userId: string, lines: Appen
   if (lines.length > 0 && (await deps.store.countUserChat(userId)) + lines.length > MAX_THREAD_LINES) {
     return { appended: 0, reason: "thread-full" };
   }
+  // Looked up ONCE, and only when a batch actually names an onboarding question — the notification
+  // primer and the camera lines are the common case and must not pay for a profile read.
+  const needsAsk = lines.some((l) => typeof l === "object" && l !== null && l.role === "assistant" && "ask" in l);
+  const asked = needsAsk ? await askResolver(deps, userId) : null;
+
   const out: ChatAppend[] = [];
   for (const l of lines) {
     if (typeof l !== "object" || l === null) return bad;
@@ -133,12 +139,54 @@ export async function appendLines(deps: EngineDeps, userId: string, lines: Appen
       const params = scriptedParams(l.scripted, l.params ?? {});
       if (params === null) return bad;
       out.push({ role: "assistant", kind: "text", text: scriptedLine(l.scripted, params) });
+    } else if (l.role === "assistant" && "ask" in l && asked) {
+      // A coordinate, not a sentence. The words come from THIS server's copy of the onboarding
+      // content, so nothing the phone sends can reach the thread as prose.
+      const text = asked(l.ask);
+      if (text === null) return bad;
+      out.push({ role: "assistant", kind: "text", text });
     } else {
       return bad;
     }
   }
   if (out.length > 0) await deps.store.appendChat(userId, out);
   return { appended: out.length };
+}
+
+/**
+ * Resolve an onboarding question's coordinate into the sentence this server would ask.
+ *
+ * `askLines` is the SAME function the app renders from — shared, so the thread holds the question
+ * as this server words it rather than as a phone claims it was worded. The two agree on every
+ * revision both sides have; they can differ for the few hundred milliseconds before the fetched
+ * content reaches the app, which renders its compiled-in copy first by design. Both sentences are
+ * legitimate copy for the same question, and the alternative — trusting the phone's text — is the
+ * thing this route exists to prevent.
+ *
+ * It reads the profile for the one substitution the shipped copy has (`{loseTail}`, the pace
+ * warning that belongs only to somebody losing weight), which is why the profile is fetched here
+ * rather than assumed — and why `switchGoal` drains the queue before it patches the goal.
+ *
+ * Returns null for anything out of range, and the caller refuses the whole batch: a line index past
+ * the end of an ask is a client and a server that disagree about the copy, and guessing which
+ * sentence was meant would put a question in the thread that nobody was asked.
+ */
+async function askResolver(
+  deps: EngineDeps,
+  userId: string,
+): Promise<(ref: { prompt: string; line: number }) => string | null> {
+  const [profile, content] = await Promise.all([
+    deps.store.getProfile(userId),
+    onboardingContent(deps),
+  ]);
+  return (ref) => {
+    if (!profile) return null;
+    if (typeof ref !== "object" || ref === null) return null;
+    if (!Number.isInteger(ref.line) || ref.line < 0) return null;
+    const prompt = promptById(ref.prompt as never);
+    if (!prompt) return null;
+    return askLines(prompt, content, profile)[ref.line] ?? null;
+  };
 }
 
 /**

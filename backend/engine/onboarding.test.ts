@@ -8,7 +8,7 @@ import { fakePush } from "../push/fake.ts";
 // text, is not hypothetical once the API is public.
 
 import { beforeEach, describe, expect, it } from "bun:test";
-import { DEFAULT_ONBOARDING_CONTENT, type OnboardingContent } from "@ieat/shared";
+import { ONBOARDING_PLACES, DEFAULT_ONBOARDING_CONTENT, type OnboardingContent } from "@ieat/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
@@ -59,7 +59,7 @@ describe("content", () => {
     const before = (await onboardingContent(deps)).version;
     const payload = clone(DEFAULT_ONBOARDING_CONTENT);
     payload.version = 99; // an admin's stale copy, or a hand-edited JSON
-    payload.screens[0]!.title = "Why are you here?";
+    payload.screens[0]!.asks.goal!.lines = ["Why are you here?"];
 
     const saved = await saveOnboardingContent(deps, payload);
     expect(saved.ok).toBe(true);
@@ -67,7 +67,7 @@ describe("content", () => {
     // the client's number would let two different flows share one, which silently averages two
     // experiments into one meaningless number.
     expect(saved.ok && saved.content.version).toBe(before + 1);
-    expect((await onboardingContent(deps)).screens[0]!.title).toBe("Why are you here?");
+    expect((await onboardingContent(deps)).screens[0]!.asks.goal!.lines).toEqual(["Why are you here?"]);
   });
 
   it("refuses invalid copy and stores nothing", async () => {
@@ -83,11 +83,12 @@ describe("content", () => {
 
   it("restores the defaults with a version ahead of the edit it replaces", async () => {
     const edited = clone(DEFAULT_ONBOARDING_CONTENT);
-    edited.screens[0]!.title = "Broken but valid";
+    edited.screens[0]!.asks.goal!.lines = ["Broken but valid"];
     await saveOnboardingContent(deps, edited);
 
     const restored = await resetOnboardingContent(deps);
-    expect(restored.screens[0]!.title).toBe(DEFAULT_ONBOARDING_CONTENT.screens[0]!.title);
+    expect(restored.screens[0]!.asks.goal!.lines)
+      .toEqual(DEFAULT_ONBOARDING_CONTENT.screens[0]!.asks.goal!.lines);
     // Ahead, not back to 1. An app that cached the bad copy compares versions, and a lower number
     // would leave it showing the thing the admin just undid.
     expect(restored.version).toBeGreaterThan(DEFAULT_ONBOARDING_CONTENT.version + 1);
@@ -209,12 +210,11 @@ describe("the funnel", () => {
   it("lists every place in order, including ones nobody reached", async () => {
     const f = await onboardingFunnel(deps, 30);
     const places = f.rows.map((r) => r.place);
-    // The order a person meets them in — the welcome beat, the questions, the plan being built,
-    // the plan. A drop between two adjacent rows is only readable as a drop if the rows are in
-    // the order they happened.
-    expect(places).toEqual([
-      "welcome", ...DEFAULT_ONBOARDING_CONTENT.screens.map((s) => s.id), "building", "summary",
-    ]);
+    // The order a person meets them in — the welcome beat, the questions (the profile ones and the
+    // four that are conversation), the plan being built, the plan. A drop between two adjacent rows
+    // is only readable as a drop if the rows are in the order they happened. Fixed in code: the
+    // chat asks in an order its own replies depend on, so there is no admin ordering to follow.
+    expect(places).toEqual([...ONBOARDING_PLACES]);
     // A screen with no events is a row of zeroes, not a missing row: "nobody got here" is the most
     // important thing a funnel can say, and it cannot say it by omission.
     expect(f.rows.find((r) => r.place === "country")!.views).toBe(0);

@@ -7,6 +7,7 @@ export * from "./targets.ts";
 export * from "./projection.ts";
 export * from "./results.ts";
 export * from "./onboarding.ts";
+export * from "./onboarding-chat.ts";
 export * from "./contract.ts";
 export * from "./perf.ts";
 export * from "./dates.ts";

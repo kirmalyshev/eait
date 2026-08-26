@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { ONBOARDING_SCREENS } from "./onboarding.ts";
 import {
   PERF_SCREENS, walkableScreens, SCREEN_BUDGETS, isPerfScreen, summarize, type ScreenSample,
 } from "./perf.ts";
@@ -38,21 +37,23 @@ describe("budgets", () => {
     }
   });
 
-  test("every onboarding screen is measured", () => {
-    // The link that stops a new onboarding question from arriving unmeasured. Adding one to
-    // `ONBOARDING_SCREENS` without a budget here would let the harness report a complete run over a
-    // screen it never timed — which is the exact failure `missing` exists to make impossible.
-    for (const id of ONBOARDING_SCREENS) {
-      expect(PERF_SCREENS).toContain(`onboarding:${id}`);
-    }
-    expect(PERF_SCREENS).toContain("onboarding:summary");
+  test("onboarding is measured, once", () => {
+    // Onboarding is one conversation on one route, so it is one entry. It used to be eleven, back
+    // when it was eleven mounts. See the note on `PERF_SCREENS`: a per-question budget over a list
+    // that is already on screen would be timing a `setState`, and a budget that cannot fail reads
+    // as coverage without being any.
+    expect(PERF_SCREENS).toContain("onboarding");
+    expect(PERF_SCREENS.filter((s) => s.startsWith("onboarding"))).toEqual(["onboarding"]);
   });
 });
 
 describe("isPerfScreen", () => {
   test("accepts a known screen and rejects anything else", () => {
     expect(isPerfScreen("today")).toBe(true);
-    expect(isPerfScreen("onboarding:summary")).toBe(true);
+    expect(isPerfScreen("onboarding")).toBe(true);
+    // The eleven `onboarding:*` ids a build from before the chat flow reported. Dropped rather than
+    // thrown on — the report script and the binary that produced the file are versioned separately.
+    expect(isPerfScreen("onboarding:summary")).toBe(false);
     expect(isPerfScreen("nope")).toBe(false);
     expect(isPerfScreen("")).toBe(false);
   });
@@ -150,21 +151,12 @@ describe("summarize", () => {
   });
 });
 
-describe("a screen the flow cannot reach", () => {
-  test("is not graded, but keeps its budget", () => {
-    // `country` ships disabled — the field is read from the device's region instead of asked for —
-    // so no walk can open it, and grading it would report `incomplete` on every single run over a
-    // question nobody is asked.
-    expect(walkableScreens()).not.toContain("onboarding:country");
-    // The entry and its budget STAY. It is a question an admin can switch back on, and the budget
-    // has to be waiting when they do — this is the difference between "not asked today" and "not
-    // measured", and only the first of those is acceptable.
-    expect(PERF_SCREENS).toContain("onboarding:country");
-    expect(SCREEN_BUDGETS["onboarding:country"].paintMs).toBeLessThanOrEqual(100);
-  });
-
-  test("every screen the walk CAN reach is still graded", () => {
-    for (const s of walkableScreens()) expect(PERF_SCREENS).toContain(s);
-    expect(walkableScreens().length).toBe(PERF_SCREENS.length - 1);
+describe("what the walk is expected to reach", () => {
+  test("is every screen, now that nothing can be switched off", () => {
+    // It used to be every screen but one: `country` shipped disabled, so no walk could open it and
+    // grading it would have reported `incomplete` on every run over a question nobody is asked.
+    // With onboarding a single conversation there is no per-question entry left to disable, so a
+    // missing sample is a real gap rather than a configuration.
+    expect([...walkableScreens()]).toEqual([...PERF_SCREENS]);
   });
 });

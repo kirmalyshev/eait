@@ -95,9 +95,10 @@ export const ADMIN_PAGE = `<!doctype html>
 <div class="wrap hidden" id="app">
   <h1>Onboarding</h1>
   <p class="sub">
-    Every word the app shows during onboarding. The <em>questions</em> are fixed in code — they feed
-    the calorie target — but the wording, the order, the mascot lines and the option labels are all
-    from here. Saving bumps the content version, which is what the funnel below is grouped by.
+    Every word Spud says to POSE a question, plus the option labels, the front door and the plan.
+    The <em>questions</em> are fixed in code — they feed the calorie target — and so is their order,
+    and so are Spud's replies and the support cards, which carry citations. Saving bumps the content
+    version, which is what the funnel below is grouped by.
   </p>
 
   <h2>Funnel <span class="pill" id="funnel-window"></span></h2>
@@ -211,23 +212,7 @@ export const ADMIN_PAGE = `<!doctype html>
     return input;
   }
 
-  function moodSelect(parent, value, onChange) {
-    var l = document.createElement("label");
-    l.textContent = "Mascot mood";
-    var sel = document.createElement("select");
-    meta.moods.forEach(function (m) {
-      var o = document.createElement("option");
-      o.value = m;
-      o.textContent = m;
-      if (m === value) o.selected = true;
-      sel.appendChild(o);
-    });
-    sel.addEventListener("change", function () { onChange(sel.value); });
-    parent.appendChild(l);
-    parent.appendChild(sel);
-  }
-
-  function screenCard(screen, index) {
+  function screenCard(screen) {
     var info = meta.screens.filter(function (s) { return s.id === screen.id; })[0] || { options: [], optional: false };
     var card = document.createElement("div");
     card.className = "card";
@@ -259,41 +244,41 @@ export const ADMIN_PAGE = `<!doctype html>
     var grow = document.createElement("span");
     grow.className = "grow";
     head.appendChild(grow);
-
-    var up = document.createElement("button");
-    up.className = "small";
-    up.textContent = "↑";
-    up.disabled = index === 0;
-    up.addEventListener("click", function () { move(index, -1); });
-    var down = document.createElement("button");
-    down.className = "small";
-    down.textContent = "↓";
-    down.disabled = index === content.screens.length - 1;
-    down.addEventListener("click", function () { move(index, 1); });
-    head.appendChild(up);
-    head.appendChild(down);
     card.appendChild(head);
 
-    field(card, "Title", screen.title, function (v) { screen.title = v; });
-    field(card, "Subtitle (optional)", screen.subtitle, function (v) {
-      if (v) screen.subtitle = v; else delete screen.subtitle;
-    });
-
-    var row = document.createElement("div");
-    row.className = "row";
-    var left = document.createElement("div");
-    var right = document.createElement("div");
-    moodSelect(left, screen.mascot.mood, function (v) { screen.mascot.mood = v; });
-    field(right, "Mascot line", screen.mascot.line, function (v) { screen.mascot.line = v; });
-    row.appendChild(left);
-    row.appendChild(right);
-    card.appendChild(row);
-
-    field(card, "Why we ask (optional)", screen.why, function (v) {
-      if (v) screen.why = v; else delete screen.why;
-    }, true);
-    field(card, "Button label (optional)", screen.cta, function (v) {
-      if (v) screen.cta = v; else delete screen.cta;
+    // What Spud SAYS to ask each field. One box per bubble: the flow is a conversation, so a
+    // question can be one sentence or three, and each entry is one thing he sends.
+    screen.asks = screen.asks || {};
+    info.fields.forEach(function (fieldName) {
+      var ask = screen.asks[fieldName] = screen.asks[fieldName] || { lines: [""] };
+      if (!Array.isArray(ask.lines) || !ask.lines.length) ask.lines = [""];
+      var block = document.createElement("div");
+      block.className = "options";
+      var name = document.createElement("div");
+      name.className = "muted";
+      name.textContent = "Asks " + fieldName;
+      block.appendChild(name);
+      ask.lines.forEach(function (line, i) {
+        field(block, "Bubble " + (i + 1), line, function (v) { ask.lines[i] = v; }, true);
+      });
+      if (ask.lines.length < 4) {
+        var add = document.createElement("button");
+        add.className = "small";
+        add.textContent = "+ bubble";
+        add.addEventListener("click", function () { ask.lines.push(""); render(); });
+        block.appendChild(add);
+      }
+      if (ask.lines.length > 1) {
+        var drop = document.createElement("button");
+        drop.className = "small";
+        drop.textContent = "− bubble";
+        drop.addEventListener("click", function () { ask.lines.pop(); render(); });
+        block.appendChild(drop);
+      }
+      field(block, "Placeholder (optional — typed answers only)", ask.placeholder, function (v) {
+        if (v) ask.placeholder = v; else delete ask.placeholder;
+      });
+      card.appendChild(block);
     });
 
     if (info.options.length) {
@@ -335,49 +320,22 @@ export const ADMIN_PAGE = `<!doctype html>
     return card;
   }
 
-  function move(index, delta) {
-    var next = index + delta;
-    if (next < 0 || next >= content.screens.length) return;
-    var tmp = content.screens[index];
-    content.screens[index] = content.screens[next];
-    content.screens[next] = tmp;
-    render();
-  }
-
-  /** Mood on the left, the line it says on the right — the pairing every card uses. */
-  function mascotRow(card, m) {
-    var row = document.createElement("div");
-    row.className = "row";
-    var left = document.createElement("div");
-    var right = document.createElement("div");
-    moodSelect(left, m.mood, function (v) { m.mood = v; });
-    field(right, "Mascot line", m.line, function (v) { m.line = v; });
-    row.appendChild(left);
-    row.appendChild(right);
-    card.appendChild(row);
-  }
-
   function welcomeCard() {
     var w = content.welcome;
     var card = document.createElement("div");
     card.className = "card";
-    field(card, "Title", w.title, function (v) { w.title = v; });
-    field(card, "Subtitle (optional)", w.subtitle, function (v) {
-      if (v.trim() === "") delete w.subtitle; else w.subtitle = v;
-    });
-    mascotRow(card, w.mascot);
-    // Rendered from the array each time, so removing a line is emptying its box rather than
+    // Rendered from the array each time, so removing a bubble is emptying its box rather than
     // hunting for a delete control. The validator refuses an empty list, which is the guard.
-    w.points.forEach(function (pt, i) {
-      field(card, "Line " + (i + 1), pt, function (v) { w.points[i] = v; });
+    w.lines.forEach(function (line, i) {
+      field(card, "Bubble " + (i + 1), line, function (v) { w.lines[i] = v; }, true);
     });
-    if (w.points.length < 4) {
+    if (w.lines.length < 4) {
       var add = document.createElement("button");
-      add.textContent = "Add a line";
-      add.addEventListener("click", function () { w.points.push(""); render(); });
+      add.textContent = "Add a bubble";
+      add.addEventListener("click", function () { w.lines.push(""); render(); });
       card.appendChild(add);
     }
-    field(card, "Button label", w.cta, function (v) { w.cta = v; });
+    field(card, "Quick reply that starts the flow", w.cta, function (v) { w.cta = v; });
     return card;
   }
 
@@ -385,13 +343,15 @@ export const ADMIN_PAGE = `<!doctype html>
     var b = content.building;
     var card = document.createElement("div");
     card.className = "card";
-    field(card, "Title", b.title, function (v) { b.title = v; });
-    mascotRow(card, b.mascot);
+    b.lines.forEach(function (line, i) {
+      field(card, "Bubble " + (i + 1), line, function (v) { b.lines[i] = v; }, true);
+    });
     field(card, "Resting burn", b.restLabel, function (v) { b.restLabel = v; });
     field(card, "With activity", b.activityLabel, function (v) { b.activityLabel = v; });
     field(card, "Pace adjustment", b.paceLabel, function (v) { b.paceLabel = v; });
     field(card, "Safety floor", b.floorLabel, function (v) { b.floorLabel = v; });
-    field(card, "Button label", b.cta, function (v) { b.cta = v; });
+    field(card, "Floor card title — {floor} is the number", b.floorTitle, function (v) { b.floorTitle = v; });
+    field(card, "Floor card body", b.floorBody, function (v) { b.floorBody = v; }, true);
     return card;
   }
 
@@ -399,11 +359,15 @@ export const ADMIN_PAGE = `<!doctype html>
     var s = content.summary;
     var card = document.createElement("div");
     card.className = "card";
-    field(card, "Title", s.title, function (v) { s.title = v; });
-    mascotRow(card, s.mascot);
+    s.lines.forEach(function (line, i) {
+      field(card, "Bubble " + (i + 1), line, function (v) { s.lines[i] = v; }, true);
+    });
+    field(card, "Under the number", s.kcalLabel, function (v) { s.kcalLabel = v; });
+    field(card, "Protein row", s.proteinLabel, function (v) { s.proteinLabel = v; });
     field(card, "Button label", s.cta, function (v) { s.cta = v; });
-    field(card, "Projection", s.projection, function (v) { s.projection = v; });
+    field(card, "Projection — {weeks} {month} {target}", s.projection, function (v) { s.projection = v; });
     field(card, "Projection past two years", s.projectionFar, function (v) { s.projectionFar = v; });
+    field(card, "Capped pace note — {share} is the percentage", s.capNote, function (v) { s.capNote = v; }, true);
     field(card, "Disclaimer", s.disclaimer, function (v) { s.disclaimer = v; }, true);
     return card;
   }
@@ -411,7 +375,7 @@ export const ADMIN_PAGE = `<!doctype html>
   function render() {
     var host = $("screens");
     host.textContent = "";
-    content.screens.forEach(function (s, i) { host.appendChild(screenCard(s, i)); });
+    content.screens.forEach(function (s) { host.appendChild(screenCard(s)); });
     var one = function (id, build) {
       var host = $(id);
       host.textContent = "";
