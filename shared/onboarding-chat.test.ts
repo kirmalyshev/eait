@@ -120,6 +120,15 @@ describe("what Spud asks", () => {
     expect(askPlaceholder(promptById("goal"), content)).toBeNull();
   });
 
+  it("asks the front door from the content, and asks nothing on the two cards", () => {
+    // `welcome` is the one prompt with no field and no constant — it reads `content.welcome.lines`.
+    // The version that fell through to the constants threw on the very first render.
+    expect(askLines(promptById("welcome"), content, profile())).toEqual(content.welcome.lines);
+    for (const id of ["building", "summary"] as const) {
+      expect(askLines(promptById(id), content, profile())).toEqual([]);
+    }
+  });
+
   it("asks the conversation questions from code, not from the admin", () => {
     expect(askLines(promptById("struggles"), content, profile())[0]).toContain("What's been hard?");
   });

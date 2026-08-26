@@ -218,6 +218,8 @@ function askContent(content: OnboardingContent, field: OnboardingStep) {
  * reply written for nobody.
  */
 export function askLines(prompt: ChatPrompt, content: OnboardingContent, p: Profile): string[] {
+  // The front door is content too, and it is the one prompt with no field and no constant.
+  if (prompt.id === "welcome") return [...content.welcome.lines];
   if (prompt.field) {
     const ask = askContent(content, prompt.field);
     // Never empty: `usableContent` drops a whole revision that is missing an ask, so reaching this
@@ -228,7 +230,9 @@ export function askLines(prompt: ChatPrompt, content: OnboardingContent, p: Prof
       p.goal === "lose" ? " Faster isn't better here — it's just harder to keep." : "",
     ));
   }
-  return [...CONVERSATION_ASKS[prompt.id as keyof typeof CONVERSATION_ASKS]];
+  // `building` and `summary` ask nothing — they are cards Spud draws — so an empty list is the
+  // right answer for them rather than a throw, and a coordinate naming one is refused by the caller.
+  return [...(CONVERSATION_ASKS[prompt.id as keyof typeof CONVERSATION_ASKS] ?? [])];
 }
 
 /** The composer's placeholder while a prompt is open, or null when there is nothing to type. */
