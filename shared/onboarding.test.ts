@@ -9,7 +9,7 @@ import { describe, expect, it } from "bun:test";
 import {
   DEFAULT_ONBOARDING_CONTENT, ONBOARDING_PLACES, ONBOARDING_SCREENS, ONBOARDING_STEPS,
   KCAL_FLOOR, COUNTRY_CODES, countryFromRegion,
-  REPORTABLE_FIELDS, SCREEN_FIELDS, disabledScreens, nextStep,
+  REPORTABLE_FIELDS, SCREEN_FIELDS, disabledScreens,
   screenForStep, usableContent, validateOnboardingContent,
   type OnboardingContent, type Profile,
 } from "./index.ts";
@@ -298,34 +298,6 @@ describe("validation allows what an admin is meant to do", () => {
       delete x.screens.find((s) => s.id === "activity")!.options!.moderate!.hint;
       return x;
     });
-  });
-});
-
-describe("which question comes next", () => {
-  it("starts at the first one", () => {
-    expect(nextStep(profile())).toBe("goal");
-  });
-
-  it("is derived from the fields, not from a counter", () => {
-    // Height answered but weight not: still the weight question, which is what makes a mid-flow
-    // kill resume correctly rather than skipping a question the target math needs.
-    const p = profile({ goal: "lose", sex: "male", birth_year: 1990, height_cm: 183 });
-    expect(nextStep(p)).toBe("weight_kg");
-  });
-
-  it("skips the goal weight and the pace for a maintainer", () => {
-    const p = profile({ goal: "maintain", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 93 });
-    expect(nextStep(p)).toBe("activity");
-  });
-
-  it("stops on restrictions until onboarding is completed, even with every field set", () => {
-    // An empty restriction list is a real answer, indistinguishable from "never asked" — so the
-    // completion flag carries that bit and this is the last stop rather than being skipped.
-    expect(nextStep(ANSWERED)).toBe("restrictions");
-  });
-
-  it("ends once onboarding is complete", () => {
-    expect(nextStep(profile({ ...ANSWERED, onboarded_at: new Date().toISOString() }))).toBeNull();
   });
 });
 

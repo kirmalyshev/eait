@@ -73,22 +73,6 @@ export function stepApplies(step: OnboardingStep, p: Profile): boolean {
   return true;
 }
 
-/**
- * The next unanswered question, or null when the profile is complete.
- *
- * `restrictions` is last and is always considered unanswered until onboarding is marked complete:
- * an empty array is a real answer ("none of these"), indistinguishable from "never asked" by
- * inspection, so the completion flag carries that bit instead.
- */
-export function nextStep(p: Profile): OnboardingStep | null {
-  for (const step of ONBOARDING_STEPS) {
-    if (!stepApplies(step, p)) continue;
-    if (step === "restrictions") continue;
-    if (p[step] === null) return step;
-  }
-  return p.onboarded_at === null ? "restrictions" : null;
-}
-
 // ── Screens: how the fields are grouped ──────────────────────────────────────────────────────
 
 /**
@@ -151,8 +135,9 @@ export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
 /**
  * Which fields each group collects, in the order Spud asks them.
  *
- * This is the mapping that makes the flow safe to resume: the question to ask is `nextStep`, and
- * everything before it has an answer already on the profile.
+ * This is the mapping that makes the flow safe to resume: the question to ask is the first one the
+ * profile has no answer for (`resumeAt`, in `onboarding-chat.ts`), and everything before it has an
+ * answer already on the profile.
  *
  * AT MOST TWO ENTRY FIELDS PER GROUP, and the cap outlived the screens that needed it. It is
  * trivially satisfied by a chat, which has one composer and asks one thing at a time — that is

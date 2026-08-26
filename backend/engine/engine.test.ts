@@ -11,7 +11,7 @@ import { fakePush } from "../push/fake.ts";
 import { remember } from "./chat.ts";
 import {
   appendLines, applyCorrection, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
-  logPhotoMeal, nextStep, patchProfile, profileView, week, type EngineDeps,
+  logPhotoMeal, patchProfile, profileView, stepApplies, week, type EngineDeps,
 } from "./index.ts";
 
 const CONFIG: Config = {
@@ -66,26 +66,35 @@ describe("onboarding", () => {
     expect((await handleText(deps, userId, { text: "hi" })).kind).toBe("not-onboarded");
   });
 
-  it("derives the next question from the fields, not from a counter", async () => {
+  it("writes each answer, so the question to ask next is derived from the fields", async () => {
+    // The conversation picks its next question with `resumeAt` over the PROFILE — never a counter —
+    // so what the engine owes it is that a patch lands on exactly the fields it names.
     const { userId } = await store.upsertDeviceUser("e".repeat(40), "en");
     const blank = (await store.getProfile(userId))!;
-    expect(nextStep(blank)).toBe("goal");
+    expect(blank.goal).toBeNull();
 
     await patchProfile(deps, userId, { goal: "lose" });
-    expect(nextStep((await store.getProfile(userId))!)).toBe("sex");
+    expect((await store.getProfile(userId))!.goal).toBe("lose");
+    expect((await store.getProfile(userId))!.sex).toBeNull();
 
     await patchProfile(deps, userId, { sex: "male", birth_year: 1988, height_cm: 180 });
-    expect(nextStep((await store.getProfile(userId))!)).toBe("weight_kg");
+    const p = (await store.getProfile(userId))!;
+    expect([p.sex, p.birth_year, p.height_cm]).toEqual(["male", 1988, 180]);
+    expect(p.weight_kg).toBeNull();
   });
 
-  it("skips target weight and pace for a maintaining user", async () => {
+  it("leaves target weight and pace unset for a maintaining user", async () => {
     const { userId } = await store.upsertDeviceUser("f".repeat(40), "en");
     await patchProfile(deps, userId, {
       goal: "maintain", sex: "male", birth_year: 1988, height_cm: 180, weight_kg: 80,
       activity: "light",
     });
-    // Neither target_weight_kg nor pace is asked; the next unanswered field is country.
-    expect(nextStep((await store.getProfile(userId))!)).toBe("country");
+    // `stepApplies` is what drops both questions from the conversation; nothing writes them here.
+    const p = (await store.getProfile(userId))!;
+    expect(stepApplies("target_weight_kg", p)).toBe(false);
+    expect(stepApplies("pace", p)).toBe(false);
+    expect(p.target_weight_kg).toBeNull();
+    expect(p.pace).toBeNull();
   });
 
   it("REFUSES a target weight below the healthy BMI band, and says what it would accept", async () => {
