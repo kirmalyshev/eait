@@ -1,0 +1,420 @@
+// The conversation: its order, its branches, and the three rules every reply obeys.
+//
+// This is the file that stands in for a simulator. The replies read answers given ten questions
+// earlier, and the failures they guard against are all silent: a gainer told that losing weight is
+// hard to keep, a statistic delivered twice in a row, a plan aimed at a number below where the
+// person already is. None of those throws, none shows up in a screenshot, and all three shipped in
+// the design's own drafts before the context pass caught them.
+
+import { describe, expect, it } from "bun:test";
+import {
+  CHAT_PROMPTS, DEFAULT_ONBOARDING_CONTENT, EMPTY_RUN, ONBOARDING_STEPS, GAIN_PACE_CARD, GOAL_CARDS,
+  MAX_STRUGGLE_CARDS, MAX_SURPLUS_SHARE, MAX_DEFICIT_SHARE, MIN_AGE, MIN_WEIGHT_KG, STRUGGLES,
+  answerLabel, askLines, askPlaceholder, capNote, checkDirection, checkNumber, eatoutReply,
+  isAnswered, minHealthyKg, momentFromText, momentReply, promptsFor, restrictionsReply, resumeAt,
+  struggleCard, strugglesCloser, switchedLine, weightAck, whyBucket, whyReply,
+  type ChatPromptId, type Profile, type RunState, type Struggle,
+} from "./index.ts";
+
+function profile(over: Partial<Profile> = {}): Profile {
+  return {
+    user_id: "u1", lang: "en", goal: null, sex: null, birth_year: null, height_cm: null,
+    weight_kg: null, weight_measured_at: null, target_weight_kg: null, activity: null, pace: null,
+    country: null,
+    restrictions: [], medical_limitations: null, food_allergies: null, product_limitations: null,
+    onboarded_at: null,
+    ...over,
+  };
+}
+
+const run = (over: Partial<RunState> = {}): RunState => ({ ...EMPTY_RUN, ...over });
+const ids = (p: Profile, off: "country"[] = ["country"]) => promptsFor(p, off).map((x) => x.id);
+const content = DEFAULT_ONBOARDING_CONTENT;
+const promptById = (id: ChatPromptId) => CHAT_PROMPTS.find((p) => p.id === id)!;
+
+describe("the order of the conversation", () => {
+  it("is the design's", () => {
+    expect(ids(profile())).toEqual([
+      "welcome", "goal", "why", "sex", "birth_year", "height_cm", "weight_kg",
+      "target_weight_kg", "pace", "activity", "struggles", "moment", "eatout",
+      "restrictions", "building", "summary",
+    ]);
+  });
+
+  it("drops the goal weight and the pace for a maintainer, and nothing else", () => {
+    const maintaining = ids(profile({ goal: "maintain" }));
+    expect(maintaining).not.toContain("target_weight_kg");
+    expect(maintaining).not.toContain("pace");
+    // The empathy layer stays: a maintainer gets the same support and the same plan.
+    expect(maintaining).toContain("struggles");
+    expect(maintaining).toContain("summary");
+  });
+
+  it("asks the country only when the admin has switched it back on", () => {
+    expect(ids(profile(), ["country"])).not.toContain("country");
+    expect(ids(profile(), [])).toContain("country");
+  });
+
+  it("asks every profile field the calorie target needs", () => {
+    const fields = promptsFor(profile(), []).flatMap((p) => (p.field ? [p.field] : []));
+    for (const step of ONBOARDING_STEPS) expect(fields).toContain(step);
+  });
+});
+
+describe("where a killed run picks up", () => {
+  const prompts = () => promptsFor(profile(), ["country"]);
+
+  it("starts on the front door when nothing has been answered", () => {
+    expect(resumeAt(prompts(), profile())).toBe(0);
+  });
+
+  it("resumes at the first unanswered field, never past it", () => {
+    const p = profile({ goal: "lose", sex: "male", birth_year: 1990, height_cm: 183 });
+    expect(promptsFor(p, ["country"])[resumeAt(promptsFor(p, ["country"]), p)]!.id).toBe("weight_kg");
+  });
+
+  it("skips a conversation question that sits before the resume point", () => {
+    // `why` is not a profile column, so re-asking is the only way to have it — and re-asking "what
+    // made you decide to start now?" after a kill is worse than never asking. Everything before the
+    // resume point is replayed from the profile, and `why` has nothing to replay.
+    const p = profile({ goal: "lose", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 93 });
+    const list = promptsFor(p, ["country"]);
+    const at = resumeAt(list, p);
+    expect(list.slice(at).map((x) => x.id)).not.toContain("why");
+    // The ones AFTER the resume point are still asked — they are conversation, not history.
+    expect(list.slice(at).map((x) => x.id)).toContain("struggles");
+  });
+
+  it("holds on restrictions until onboarding is completed", () => {
+    const p = profile({
+      goal: "lose", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 93,
+      target_weight_kg: 88, pace: "steady", activity: "moderate",
+    });
+    const list = promptsFor(p, ["country"]);
+    expect(list[resumeAt(list, p)]!.id).toBe("restrictions");
+    expect(isAnswered(promptById("restrictions"), p)).toBe(false);
+    expect(isAnswered(promptById("restrictions"), profile({ ...p, onboarded_at: "2026-01-01T00:00:00Z" }))).toBe(true);
+  });
+});
+
+describe("what Spud asks", () => {
+  it("reads the admin's words for a profile question", () => {
+    expect(askLines(promptById("goal"), content, profile())[0]).toContain("what are you here to do");
+  });
+
+  it("warns about pace only when the goal is to lose", () => {
+    // Rule 1. "Faster isn't better here — it's just harder to keep" is a warning about losing
+    // weight; said to somebody gaining it is a reply written for no one.
+    const asked = (goal: Profile["goal"]) =>
+      askLines(promptById("target_weight_kg"), content, profile({ goal })).join(" ");
+    expect(asked("lose")).toContain("Faster isn't better");
+    expect(asked("gain")).not.toContain("Faster isn't better");
+    // And the substitution never leaks its own placeholder.
+    expect(asked("gain")).not.toContain("{loseTail}");
+    expect(asked("lose")).not.toContain("{loseTail}");
+  });
+
+  it("carries a placeholder for everything typed and none for what is tapped", () => {
+    expect(askPlaceholder(promptById("birth_year"), content)).toBe("e.g. 1990");
+    expect(askPlaceholder(promptById("why"), content)).toBe("In your own words…");
+    expect(askPlaceholder(promptById("goal"), content)).toBeNull();
+  });
+
+  it("asks the conversation questions from code, not from the admin", () => {
+    expect(askLines(promptById("struggles"), content, profile())[0]).toContain("What's been hard?");
+  });
+});
+
+describe("the answer a resumed run draws back", () => {
+  it("writes an enumerated answer the way it was labelled", () => {
+    expect(answerLabel(promptById("goal"), profile({ goal: "lose" }), content)).toBe("Lose weight");
+    expect(answerLabel(promptById("activity"), profile({ activity: "moderate" }), content)).toBe("Moderate");
+  });
+
+  it("writes a number the way it was typed", () => {
+    expect(answerLabel(promptById("weight_kg"), profile({ weight_kg: 93 }), content)).toBe("93");
+  });
+
+  it("says nothing for an unanswered question", () => {
+    expect(answerLabel(promptById("weight_kg"), profile(), content)).toBeNull();
+    expect(answerLabel(promptById("welcome"), profile(), content)).toBeNull();
+  });
+
+  it("names the restrictions picked, or says none applied", () => {
+    const done = { onboarded_at: "2026-01-01T00:00:00Z" };
+    expect(answerLabel(promptById("restrictions"), profile({ ...done, restrictions: ["kidneys", "ldl"] }), content))
+      .toBe("Kidney condition · High cholesterol");
+    expect(answerLabel(promptById("restrictions"), profile({ ...done, restrictions: [] }), content))
+      .toBe("Nothing applies");
+  });
+});
+
+describe("why now", () => {
+  it("keeps a declined answer nobody's business", () => {
+    expect(whyBucket("", true)).toBe("private");
+    expect(whyReply("private", "lose")).toContain("stays your business");
+  });
+
+  it("does not tell a gainer they will lose more", () => {
+    // Rule 1, and the leak the design's context pass found: the medical finding is about weight
+    // LOSS, so quoting it to somebody gaining is a citation bent to fit.
+    expect(whyReply("medical", "lose")).toContain("lose more");
+    expect(whyReply("medical", "gain")).not.toContain("lose more");
+    expect(whyReply("medical", "maintain")).not.toContain("lose more");
+  });
+
+  it("buckets what people actually type", () => {
+    expect(whyBucket("my doctor told me my cholesterol is high", false)).toBe("medical");
+    expect(whyBucket("wedding in October", false)).toBe("event");
+    expect(whyBucket("I'm tired all the time", false)).toBe("energy");
+    expect(whyBucket("just felt like it", false)).toBe("other");
+  });
+
+  it("never turns the reason into a slogan", () => {
+    expect(whyReply("other", "lose")).toContain("won't turn it into a slogan");
+  });
+});
+
+describe("the numbers", () => {
+  const today = new Date("2026-08-26T00:00:00Z");
+
+  it("takes a plain number and a comma decimal", () => {
+    expect(checkNumber("weight_kg", "93", today)).toEqual({ ok: true, value: 93 });
+    expect(checkNumber("weight_kg", "93,5", today)).toEqual({ ok: true, value: 93.5 });
+    expect(checkNumber("height_cm", "183 cm", today)).toEqual({ ok: true, value: 183 });
+  });
+
+  it("refuses in the design's words rather than the server's", () => {
+    expect(checkNumber("height_cm", "6", today)).toEqual({ ok: false, line: "In centimetres — something like 175." });
+    expect(checkNumber("weight_kg", "nope", today)).toEqual({ ok: false, line: "In kilograms — roughly is fine." });
+    expect(checkNumber("target_weight_kg", "900", today)).toEqual({ ok: false, line: "A number in kg — like 70." });
+  });
+
+  it("never accepts a value the server would refuse without words", () => {
+    // The client band is a SUBSET of the server's, so the only refusals a user can meet are the two
+    // that have sentences written for them.
+    expect(checkNumber("weight_kg", String(MIN_WEIGHT_KG - 1), today).ok).toBe(false);
+    expect(checkNumber("target_weight_kg", String(MIN_WEIGHT_KG - 1), today).ok).toBe(false);
+    expect(checkNumber("height_cm", "99", today).ok).toBe(false);
+    expect(checkNumber("height_cm", "251", today).ok).toBe(false);
+  });
+
+  it("reads a year, and says so when it is not one", () => {
+    expect(checkNumber("birth_year", "1990", today)).toEqual({ ok: true, value: 1990 });
+    expect(checkNumber("birth_year", "90", today)).toEqual({
+      ok: false, line: "That doesn't look like a year — try something like 1990.",
+    });
+    expect(checkNumber("birth_year", "2100", today).ok).toBe(false);
+  });
+
+  it("stops on a year under sixteen rather than refusing it as a bad number", () => {
+    const under = checkNumber("birth_year", String(today.getUTCFullYear() - MIN_AGE + 1), today);
+    expect(under).toEqual({ ok: false, underAge: true });
+    // And sixteen exactly is in.
+    expect(checkNumber("birth_year", String(today.getUTCFullYear() - MIN_AGE), today).ok).toBe(true);
+  });
+});
+
+describe("the goal weight", () => {
+  it("catches a target that is not in the direction of the goal", () => {
+    const gain = checkDirection("gain", 93, 88)!;
+    expect(gain.line).toContain("that's not a gain from here");
+    expect(gain.switchTo).toBe("lose");
+    const lose = checkDirection("lose", 93, 95)!;
+    expect(lose.line).toContain("that's not a loss from here");
+    expect(lose.switchTo).toBe("gain");
+  });
+
+  it("catches the equal case, which is neither", () => {
+    expect(checkDirection("gain", 93, 93)).not.toBeNull();
+    expect(checkDirection("lose", 93, 93)).not.toBeNull();
+  });
+
+  it("lets a real target through", () => {
+    expect(checkDirection("lose", 93, 88)).toBeNull();
+    expect(checkDirection("gain", 60, 66)).toBeNull();
+    // A maintainer is never asked, so there is nothing to check.
+    expect(checkDirection("maintain", 93, 93)).toBeNull();
+  });
+
+  it("re-asks in the words of the goal it was switched to", () => {
+    expect(switchedLine("lose")).toContain("Faster isn't better");
+    expect(switchedLine("gain")).not.toContain("Faster isn't better");
+  });
+
+  it("agrees with the guard that will refuse it", () => {
+    // `minHealthyKg` is what Spud quotes; `checkTargetWeight` is what refuses. Two numbers that
+    // must agree, so they are computed the same way and asserted against each other here.
+    expect(minHealthyKg(155)).toBe(45);
+    expect(minHealthyKg(183)).toBe(62);
+  });
+});
+
+describe("the support cards", () => {
+  it("gives every goal its own card, with a source", () => {
+    for (const goal of ["lose", "gain", "maintain"] as const) {
+      expect(GOAL_CARDS[goal].source, goal).toBeTruthy();
+      expect(GOAL_CARDS[goal].body.length).toBeGreaterThan(40);
+    }
+  });
+
+  it("gives every struggle a card", () => {
+    for (const s of STRUGGLES) {
+      expect(struggleCard(s, "lose").title, s).not.toBe("");
+      expect(struggleCard(s, "lose").body, s).not.toBe("");
+    }
+  });
+
+  it("never quotes the regain study at somebody gaining", () => {
+    // Rule 1 as a citation rule: the meta-analysis is about weight LOSS. The gain variant says the
+    // weaker thing that is true, and carries no source, because there is not one for it.
+    const losing = struggleCard("diets", "lose");
+    const gaining = struggleCard("diets", "gain");
+    expect(losing.source).toBeTruthy();
+    expect(losing.body).toContain("80%");
+    expect(gaining.source).toBeUndefined();
+    expect(gaining.body).not.toContain("80%");
+  });
+
+  it("quotes the surplus cap from the constant that enforces it", () => {
+    expect(GAIN_PACE_CARD.body).toContain(`${Math.round(MAX_SURPLUS_SHARE * 100)}%`);
+  });
+
+  it("shows at most two", () => {
+    expect(MAX_STRUGGLE_CARDS).toBe(2);
+  });
+
+  it("closes on the number picked", () => {
+    expect(strugglesCloser(0)).toContain("Even better");
+    expect(strugglesCloser(1)).toContain("about that");
+    expect(strugglesCloser(3)).toContain("each of these");
+  });
+});
+
+describe("the hardest moment", () => {
+  it("matches what people type onto the four buckets", () => {
+    expect(momentFromText("usually late at night")).toBe("evening");
+    expect(momentFromText("deadline weeks")).toBe("stress");
+    expect(momentFromText("when I skip lunch")).toBe("skipped");
+    expect(momentFromText("at my mother's")).toBe("other");
+  });
+
+  it("delivers the 8pm statistic once", () => {
+    // Rule 2. The night-snacking CARD carries the same number; delivered twice it reads as a script
+    // that is not listening.
+    const fresh = momentReply("evening", "lose", run());
+    const carded = momentReply("evening", "lose", run({ cardsShown: ["night"] }));
+    expect(fresh).toContain("60%");
+    expect(carded).not.toContain("60%");
+    expect(carded).toContain("covered the 8pm crowd");
+    // Both still say what actually happens about it.
+    expect(fresh).toContain("evening budget");
+    expect(carded).toContain("evening budget");
+  });
+
+  it("tells a gainer the evening is an asset", () => {
+    const gain = momentReply("evening", "gain", run());
+    expect(gain).toContain("asset");
+    expect(gain).not.toContain("60%");
+  });
+
+  it("tells a gainer a skipped meal is a surplus that never happened", () => {
+    expect(momentReply("skipped", "gain", run())).toContain("surplus that never happened");
+    expect(momentReply("skipped", "lose", run())).toContain("borrowing from the evening");
+  });
+
+  it("tells a tapped 'somewhere else' from a typed answer nothing matched", () => {
+    expect(momentReply("other", "lose", run(), false)).toContain("the map fills in");
+    expect(momentReply("other", "lose", run(), true)).toContain("now it's on the map");
+  });
+});
+
+describe("eating out", () => {
+  it("never repeats the card it was promised by", () => {
+    // Rule 2's closest call: the "Eating out a lot" card says almost exactly what the Most-days
+    // reply says, so firing both is the same sentence twice with a question in between.
+    expect(eatoutReply("most", run())).toContain("drift most");
+    expect(eatoutReply("most", run({ cardsShown: ["eatout"] }))).toContain("As promised");
+    expect(eatoutReply("most", run({ cardsShown: ["eatout"] }))).not.toContain("drift most");
+  });
+
+  it("notices when 'rarely' contradicts the card that was shown", () => {
+    expect(eatoutReply("rarely", run({ cardsShown: ["eatout"] }))).toContain("Rarer than");
+    expect(eatoutReply("rarely", run())).toContain("Home cooking");
+  });
+
+  it("has a reply for the middle", () => {
+    expect(eatoutReply("sometimes", run())).toContain("both ends");
+  });
+});
+
+describe("restrictions", () => {
+  it("says only what was declared gets scored", () => {
+    expect(restrictionsReply([], false).join(" ")).toContain("undeclared things never are");
+  });
+
+  it("chains the cholesterol line onto the kidney one, never alone", () => {
+    // "too" and "same rule" refer to a sentence that has to be there.
+    const both = restrictionsReply(["kidneys", "ldl"], false);
+    expect(both[0]).toContain("Sodium");
+    expect(both[1]).toContain("too");
+    const alone = restrictionsReply(["ldl"], false);
+    expect(alone[0]).toContain("Saturated fat gets scored from here on");
+    expect(alone[0]).not.toContain("too");
+  });
+
+  it("acknowledges free text without quoting it", () => {
+    // The medical free text is the most sensitive thing anybody types here; it goes on the profile
+    // and is never read back into a bubble.
+    const lines = restrictionsReply(["kidneys"], true).join(" ");
+    expect(lines).toContain("free text");
+  });
+
+  it("has something to say for a tag with no scoring line of its own", () => {
+    expect(restrictionsReply(["vegan"], false)[0]).toContain("only they get scored");
+  });
+});
+
+describe("the plan", () => {
+  it("quotes the cap from the constant for the direction taken", () => {
+    const template = content.summary.capNote;
+    expect(capNote(template, "lose")).toContain(`${Math.round(MAX_DEFICIT_SHARE * 100)}%`);
+    expect(capNote(template, "gain")).toContain(`${Math.round(MAX_SURPLUS_SHARE * 100)}%`);
+    expect(capNote(template, "lose")).not.toContain("{share}");
+  });
+
+  it("gives the first number the moment the weight lands", () => {
+    expect(weightAck(1900).join(" ")).toContain("1,900 kcal");
+    // And says nothing about a number that could not be computed, rather than "about null".
+    expect(weightAck(null)).toHaveLength(1);
+  });
+});
+
+describe("what the conversation never does", () => {
+  const everySentence = () => {
+    const out: string[] = [];
+    for (const goal of ["lose", "gain", "maintain"] as const) {
+      out.push(...askLines(promptById("target_weight_kg"), content, profile({ goal })));
+      out.push(whyReply("medical", goal), whyReply("event", goal), whyReply("other", goal));
+      for (const m of ["evening", "stress", "skipped", "other"] as const) {
+        out.push(momentReply(m, goal, run()), momentReply(m, goal, run({ cardsShown: ["night", "eatout"] })));
+      }
+      for (const s of STRUGGLES) out.push(struggleCard(s as Struggle, goal).body);
+    }
+    out.push(...Object.values(content.welcome.lines));
+    return out;
+  };
+
+  it("mentions a step, a screen or a number of questions", () => {
+    // Rule 3. The user experiences one chat, not the step diagram this was designed against.
+    for (const line of everySentence()) {
+      // "screen positive" is a clinical verb in the binge card, so the screen check is the UI noun.
+      expect(line.toLowerCase(), line)
+        .not.toMatch(/\bstep \d|\bquestion \d|\b(this|next|last|previous|the) screen\b/);
+    }
+  });
+
+  it("leaves no placeholder unfilled", () => {
+    for (const line of everySentence()) expect(line, line).not.toMatch(/\{[a-z]+\}/i);
+  });
+});

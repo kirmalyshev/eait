@@ -40,29 +40,22 @@
 /**
  * Every screen a user can be looking at, as they experience it.
  *
- * The onboarding entries are steps of one route, and they are here as separate screens because that
- * is what they are to the person answering them — seven stops, each of which can be slow on its own.
+ * ONBOARDING IS ONE ENTRY NOW, and that is a statement about the app rather than a loosening of the
+ * gate. It used to be eleven, because it used to be eleven routes' worth of screens in one route,
+ * and each of them mounted, laid out and could be slow on its own. It is a conversation now: one
+ * mount, one list that grows, and every later question is a row appended to a list that is already
+ * on screen. Timing "the moment the pace question appears" would measure a `setState`, not a screen
+ * opening — and a budget that cannot fail is worse than no budget, because it reads as coverage.
  *
  * This list is the definition of "every screen" that `scripts/perf.sh` validates against. Adding a
  * screen to the app without adding it here means the harness reports a complete run that never
  * looked at it, so the list and `SCREEN_BUDGETS` are checked against each other by a test.
  */
-import { DEFAULT_ONBOARDING_CONTENT } from "./onboarding.ts";
-
 export const PERF_SCREENS = [
   // Cold launch: process start → the first screen a user can act on.
   "boot",
   "signin",
-  "onboarding:welcome",
-  "onboarding:goal",
-  "onboarding:about",
-  "onboarding:body",
-  "onboarding:target",
-  "onboarding:activity",
-  "onboarding:country",
-  "onboarding:restrictions",
-  "onboarding:building",
-  "onboarding:summary",
+  "onboarding",
   "today",
   "chat",
   "settings",
@@ -102,30 +95,16 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   // Static copy and two buttons. Nothing is fetched, so there is nothing to be slow.
   signin: { paintMs: 100, readyMs: 100 },
 
-  // Onboarding renders the COMPILED-IN copy immediately and upgrades when the server's arrives, so
-  // no onboarding screen is ever waiting on a request — that is a design rule in `onboarding.tsx`
-  // and these budgets are what enforces it. A screen here that misses `readyMs` has started
-  // blocking on the network, which is the regression to catch.
-  // The front door. Static copy compiled into the binary — there is nothing to fetch and nothing
-  // to compute, which is the point: the first frame of the app is the first frame of the app.
-  "onboarding:welcome": { paintMs: 100, readyMs: 100 },
-  "onboarding:goal": { paintMs: 100, readyMs: 100 },
-  "onboarding:about": { paintMs: 100, readyMs: 100 },
-  "onboarding:body": { paintMs: 100, readyMs: 100 },
-  "onboarding:target": { paintMs: 100, readyMs: 100 },
-  "onboarding:activity": { paintMs: 100, readyMs: 100 },
-  "onboarding:country": { paintMs: 100, readyMs: 100 },
-  "onboarding:restrictions": { paintMs: 100, readyMs: 100 },
-  // The plan being worked out.
+  // The conversation. It opens on the COMPILED-IN copy and upgrades in place when the server's
+  // arrives, so it is never waiting on a request — that is a design rule in `onboarding.tsx` and
+  // `readyMs === paintMs` is what enforces it. A miss here means somebody made the first bubble
+  // wait for `GET /v1/onboarding`, which turns the first impression of the app into a spinner.
   //
-  // THE DWELL ON THIS SCREEN IS NOT A WAIT, and this budget is where that claim is enforced. Every
-  // figure it stages comes from `profile.basis`, which the patch that finished onboarding already
-  // returned — so the screen is complete on its first frame and is graded as such. The staging is
-  // a reveal over content that is already there, and a tap skips it. If somebody ever makes this
-  // screen fetch anything, `readyMs` is what fails.
-  "onboarding:building": { paintMs: 100, readyMs: 100 },
-  // The plan. Reads `profile.targets`, which boot already fetched — no request of its own.
-  "onboarding:summary": { paintMs: 100, readyMs: 100 },
+  // It is also the ONE budget that covers the plan. The calc card and the plan card are messages in
+  // this same list, drawn from `profile.basis` and `profile.targets`, which the patch that finished
+  // onboarding already returned — nothing is fetched to reveal them, and a reveal over content
+  // that is already there is an animation, not a wait.
+  onboarding: { paintMs: 100, readyMs: 100 },
 
   // Apple Health. Seeded from the trend cache, so a second visit is instant; the allowance above
   // paintMs is for the cold case — one read of at most thirty daily rows — and for nothing else.
@@ -238,24 +217,15 @@ function median(sorted: number[]): number {
  * place for a real spike to hide.
  */
 /**
- * The screens THIS BUILD's onboarding can actually reach.
+ * The screens a walk is expected to reach, which is now all of them.
  *
- * `PERF_SCREENS` is every screen that exists; a screen switched off in the content is one no walk
- * can open, and reporting it `incomplete` would fail every run over a question nobody is asked.
- * Keeping the entry and its budget is still right — `country` is a question an admin can switch
- * back on, and it must have a budget waiting when they do.
- *
- * Read from `DEFAULT_ONBOARDING_CONTENT` rather than taken as an argument, because that is the copy
- * the perf walk actually runs against: `scripts/perf.sh` points the app at a backend with no admin
- * row, and `getContent` serves the compiled-in default when none exists.
+ * It used to filter: an onboarding question the admin had switched off was one no walk could open,
+ * and reporting it `incomplete` would have failed every run over a question nobody is asked. With
+ * onboarding a single conversation there is nothing left to switch off, so every entry is reachable
+ * and a missing sample is a real gap in the run.
  */
 export function walkableScreens(): readonly PerfScreen[] {
-  const off = new Set(
-    DEFAULT_ONBOARDING_CONTENT.screens
-      .filter((s) => s.enabled === false)
-      .map((s) => `onboarding:${s.id}`),
-  );
-  return PERF_SCREENS.filter((s) => !off.has(s));
+  return PERF_SCREENS;
 }
 
 export function summarize(samples: readonly ScreenSample[]): PerfSummary {

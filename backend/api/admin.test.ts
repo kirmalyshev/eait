@@ -111,10 +111,16 @@ describe("the admin credential", () => {
   it("accepts the right one", async () => {
     const res = await admin("GET", "/admin/api/content");
     expect(res.status).toBe(200);
-    const body = await res.json() as { content: OnboardingContent; meta: { moods: string[] } };
+    const body = await res.json() as {
+      content: OnboardingContent;
+      meta: { screens: { id: string; fields: string[]; options: string[] }[] };
+    };
     expect(body.content.screens).toHaveLength(DEFAULT_ONBOARDING_CONTENT.screens.length);
-    // The editor needs the vocabulary in order to render the right controls.
-    expect(body.meta.moods.length).toBeGreaterThan(0);
+    // The editor needs the FIELDS in order to draw an ask box for each, and the option vocabulary
+    // in order to render the right chips. Both come from code, not from the stored copy — so a
+    // question added in code shows up as an empty box rather than as a refused save.
+    expect(body.meta.screens.find((s2) => s2.id === "body")!.fields).toEqual(["height_cm", "weight_kg"]);
+    expect(body.meta.screens.find((s2) => s2.id === "goal")!.options.length).toBeGreaterThan(0);
   });
 });
 
@@ -123,8 +129,7 @@ describe("editing the copy", () => {
 
   it("saves a rewrite and serves it to the app", async () => {
     const content = structuredClone(DEFAULT_ONBOARDING_CONTENT);
-    content.screens.find((s) => s.id === "goal")!.title = "What brings you here?";
-    content.screens.find((s) => s.id === "goal")!.mascot.line = "One tap and we're moving.";
+    content.screens.find((s) => s.id === "goal")!.asks.goal!.lines = ["What brings you here?"];
 
     expect((await admin("PUT", "/admin/api/content", { content })).status).toBe(200);
 
@@ -135,14 +140,13 @@ describe("editing the copy", () => {
       headers: { authorization: `Bearer ${token}` },
     }));
     const body = await res.json() as { content: OnboardingContent };
-    expect(body.content.screens.find((s) => s.id === "goal")!.title).toBe("What brings you here?");
+    expect(body.content.screens.find((s) => s.id === "goal")!.asks.goal!.lines).toEqual(["What brings you here?"]);
     expect(body.content.version).toBe(DEFAULT_ONBOARDING_CONTENT.version + 1);
   });
 
   it("saves the interstitials and serves them to the app", async () => {
     const content = structuredClone(DEFAULT_ONBOARDING_CONTENT);
-    content.welcome.title = "Photograph dinner. Get a straight answer.";
-    content.welcome.points = ["No card to start.", "No email."];
+    content.welcome.lines = ["Photograph dinner. Get a straight answer.", "No email, no name."];
     content.building.floorLabel = "Stopped at your floor";
     content.summary.projection = "Roughly {weeks} weeks — {month}.";
 
@@ -153,25 +157,24 @@ describe("editing the copy", () => {
       headers: { authorization: `Bearer ${token}` },
     }));
     const body = await res.json() as { content: OnboardingContent };
-    expect(body.content.welcome.title).toBe("Photograph dinner. Get a straight answer.");
-    expect(body.content.welcome.points).toEqual(["No card to start.", "No email."]);
+    expect(body.content.welcome.lines).toEqual(["Photograph dinner. Get a straight answer.", "No email, no name."]);
     expect(body.content.building.floorLabel).toBe("Stopped at your floor");
     expect(body.content.summary.projection).toBe("Roughly {weeks} weeks — {month}.");
   });
 
   it("422s an interstitial the app could not render", async () => {
     const content = structuredClone(DEFAULT_ONBOARDING_CONTENT);
-    content.welcome.points = [];
+    content.welcome.lines = [];
 
     const res = await admin("PUT", "/admin/api/content", { content });
     expect(res.status).toBe(422);
-    expect((await res.json() as { errors: string[] }).errors.join(" ")).toContain("welcome.points");
+    expect((await res.json() as { errors: string[] }).errors.join(" ")).toContain("welcome.lines");
   });
 
   it("422s a save that would break the app, with every reason", async () => {
     const content = structuredClone(DEFAULT_ONBOARDING_CONTENT);
     content.screens.find((s) => s.id === "activity")!.enabled = false;
-    content.screens.find((s) => s.id === "goal")!.title = "";
+    content.screens.find((s) => s.id === "goal")!.asks.goal!.lines = [""];
 
     const res = await admin("PUT", "/admin/api/content", { content });
     expect(res.status).toBe(422);
@@ -182,13 +185,14 @@ describe("editing the copy", () => {
 
   it("restores the shipped copy", async () => {
     const content = structuredClone(DEFAULT_ONBOARDING_CONTENT);
-    content.screens[0]!.title = "Regrettable";
+    content.screens[0]!.asks.goal!.lines = ["Regrettable"];
     await admin("PUT", "/admin/api/content", { content });
 
     const res = await admin("POST", "/admin/api/content/reset", {});
     expect(res.status).toBe(200);
     const body = await res.json() as { content: OnboardingContent };
-    expect(body.content.screens[0]!.title).toBe(DEFAULT_ONBOARDING_CONTENT.screens[0]!.title);
+    expect(body.content.screens[0]!.asks.goal!.lines)
+      .toEqual(DEFAULT_ONBOARDING_CONTENT.screens[0]!.asks.goal!.lines);
   });
 });
 

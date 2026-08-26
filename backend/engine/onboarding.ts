@@ -9,7 +9,7 @@
 
 import {
   DEFAULT_ONBOARDING_CONTENT, MAX_ONBOARDING_EVENTS_PER_BATCH, ONBOARDING_ACTIONS,
-  ONBOARDING_PLACES, isReportableField, validateOnboardingContent,
+  ONBOARDING_PLACES, isReportableField, usableContent, validateOnboardingContent,
   type ContentValidation, type FunnelRow, type OnboardingContent, type OnboardingEvent,
   type OnboardingFunnel, type OnboardingPlace,
 } from "@ieat/shared";
@@ -24,10 +24,16 @@ const PLACES: readonly string[] = ONBOARDING_PLACES;
  * Falls back to the compiled-in default when nothing has been saved, so a fresh database serves a
  * complete flow rather than an empty one. The app has the same default compiled in — this is what
  * makes the fetch an enhancement rather than a dependency.
+ *
+ * THROUGH `usableContent`, WHICH IS THE SAME GUARD THE APP RUNS, and it earns its place here for a
+ * case the app's copy cannot cover: a row saved by an OLDER BUILD of this server. The app would
+ * discard such a revision on arrival and fall back — but the admin editor would load it, an admin
+ * would edit two words in it, and the save would be refused for a question that has been missing
+ * since before they opened the page. Serving the default instead means the editor opens on
+ * something that can be saved.
  */
 export async function onboardingContent(deps: EngineDeps): Promise<OnboardingContent> {
-  const stored = await deps.store.getOnboardingContent();
-  return stored ?? DEFAULT_ONBOARDING_CONTENT;
+  return usableContent(await deps.store.getOnboardingContent());
 }
 
 /**
@@ -126,9 +132,9 @@ export async function onboardingFunnel(deps: EngineDeps, days: number): Promise<
   const agg = await deps.store.onboardingFunnel(days);
   const content = await onboardingContent(deps);
   // The order a person meets them in, which is what makes a drop between two rows readable as a
-  // drop. `welcome` first and `building` last are fixed; the screens between them are in whatever
-  // order the admin put them.
-  const order = ["welcome", ...content.screens.map((s) => s.id), "building", "summary"] as OnboardingPlace[];
+  // drop. It is fixed in code now: the chat asks in an order its own replies depend on, so there is
+  // no admin ordering left to follow.
+  const order = ONBOARDING_PLACES as readonly OnboardingPlace[];
   const byPlace = new Map(agg.rows.map((r) => [r.place, r]));
 
   const rows: FunnelRow[] = order.map((place) => {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, type MealAnalysis } from "@ieat/shared";
+import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, type MealAnalysis } from "@ieat/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { LlmPorts } from "../llm/port.ts";
@@ -895,6 +895,42 @@ describe("the thread", () => {
     expect(await appendLines(deps, userId, [{ role: "assistant", scripted: "camera-closed", params: { price: "prose" } }])).toEqual({ appended: 0, reason: "bad-line" });
     expect(await appendLines(deps, userId, Array.from({ length: MAX_APPEND_LINES_PER_BATCH + 1 }, () => ({ role: "user" as const, text: "x" })))).toEqual({ appended: 0, reason: "bad-line" });
     expect(await thread(userId)).toHaveLength(3);
+  });
+
+  it("appends an onboarding question by coordinate, worded from the server's own copy", async () => {
+    // The chat flow asks in the app; the thread has to hold the same conversation, and the phone
+    // still may not send prose. So it names a prompt and a bubble index, and the words come from
+    // here — which also means an admin edit lands in the thread rather than a stale app's cache.
+    const userId = await onboard();
+    expect(await appendLines(deps, userId, [
+      { role: "assistant", ask: { prompt: "goal", line: 0 } },
+      { role: "user", text: "Lose weight" },
+    ])).toEqual({ appended: 2 });
+    const t = await thread(userId);
+    expect(t.map(text)).toEqual([
+      DEFAULT_ONBOARDING_CONTENT.screens.find((x) => x.id === "goal")!.asks.goal!.lines[0]!,
+      "Lose weight",
+    ]);
+
+    // A coordinate that does not exist is a client and a server that disagree about the copy, and
+    // guessing which sentence was meant would put a question in the thread nobody was asked.
+    for (const ref of [{ prompt: "goal", line: 9 }, { prompt: "nope", line: 0 }, { prompt: "goal", line: -1 }, { prompt: "goal", line: 1.5 }]) {
+      expect(await appendLines(deps, userId, [{ role: "assistant", ask: ref } as never]))
+        .toEqual({ appended: 0, reason: "bad-line" });
+    }
+    expect(await thread(userId)).toHaveLength(2);
+  });
+
+  it("words the goal-weight question for the goal that was chosen", async () => {
+    // Rule 1 of copy.md's context model, enforced on the STORED line too: "faster isn't better" is
+    // a warning about losing weight, and the thread must not show it to somebody who is gaining.
+    const userId = await onboard();
+    await patchProfile(deps, userId, { goal: "gain" });
+    await appendLines(deps, userId, [{ role: "assistant", ask: { prompt: "target_weight_kg", line: 0 } }]);
+    const stored = (await thread(userId)).map(text).join(" ");
+    expect(stored).toContain("Where would you like to be");
+    expect(stored).not.toContain("Faster isn't better");
+    expect(stored).not.toContain("{loseTail}");
   });
 
   it("keeps a correction as an updated card, and both cards read the meal as it is now", async () => {

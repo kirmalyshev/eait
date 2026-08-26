@@ -46,9 +46,9 @@ export const KCAL_FLOOR: Record<Sex, number> = { female: 1200, male: 1500 };
 export const KCAL_FLOOR_UNKNOWN = 1500;
 
 /** The largest share of maintenance we will subtract. 20% is the standard "moderate deficit" band. */
-const MAX_DEFICIT_SHARE = 0.2;
+export const MAX_DEFICIT_SHARE = 0.2;
 /** Surpluses are capped tighter: past this, the surplus is fat, not muscle. */
-const MAX_SURPLUS_SHARE = 0.15;
+export const MAX_SURPLUS_SHARE = 0.15;
 
 /** Weekly rate of change per pace, in kg/week. `push` sits at the top of the sustainable band. */
 const PACE_KG_PER_WEEK: Record<Pace, number> = { easy: 0.25, steady: 0.5, push: 0.75 };
