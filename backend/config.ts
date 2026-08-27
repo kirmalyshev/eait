@@ -573,10 +573,17 @@ export function demoConfig(): Config {
     host: process.env.EAIT__BACKEND__HOST ?? "127.0.0.1",
     databaseUrl: "memory://demo",
     llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
-    // No paywall in the demo — the E2E flows log several meals per account — and unmetered
-    // globally: it is a local demo, not a public instance. The sheet itself is exercised against
-    // RevenueCat's Test Store, not here.
-    freeAnalyses: 100_000, globalDailyAnalysisCap: 0,
+    // No paywall in the demo BY DEFAULT — the E2E flows log several meals per account — and
+    // unmetered globally: it is a local demo, not a public instance. The sheet itself is exercised
+    // against RevenueCat's Test Store, not here.
+    //
+    // OVERRIDABLE, for the one runner that needs the production value. `scripts/e2e-paywall.sh`
+    // starts a demo with `EAIT__BACKEND__FREE_ANALYSES=1`, because the refusal that opens the
+    // paywall is `subscription-required` and nothing produces it while the sample is effectively
+    // unlimited. It cannot be the default: the suite's other flows log two or three analyses per
+    // account and would all end on a paywall instead of on what they test.
+    freeAnalyses: Number(process.env.EAIT__BACKEND__FREE_ANALYSES ?? 100_000),
+    globalDailyAnalysisCap: 0,
     // AND UNMETERED PER ADDRESS, for a reason the global cap does not cover. `api/ratelimit.ts`
     // keys on the client address, and a demo has exactly one: every request the simulator makes
     // comes off 127.0.0.1 and lands in the same bucket. `bun run e2e` clears state and mints a
@@ -605,5 +612,14 @@ export function demoConfig(): Config {
     // readable here. Set EAIT__BACKEND__EVENING_LINE_TIME to a minute from now and watch it run.
     pushEnabled: ["1", "true"].includes(process.env.EAIT__BACKEND__PUSH_ENABLED ?? ""),
     eveningLineTime: eveningLineTimeFromEnv(),
+    // The same argument once more, for the paid tier. The webhook is the ONLY way an account
+    // becomes paid, and RevenueCat cannot reach a laptop — so a paywall flow has to post the
+    // delivery itself, through the real route, past the real credential check. Unset here means
+    // the route 404s exactly as it does in production, which is the state every other run wants.
+    revenueCatWebhookToken: revenueCatWebhookTokenFromEnv(),
+    // A Test Store purchase is delivered as `environment: SANDBOX`, and a demo that dropped those
+    // would be a demo where no purchase can be exercised at all. Never a default in production:
+    // there, sandbox deliveries are how somebody grants themselves a subscription for free.
+    revenueCatAcceptSandbox: true,
   };
 }

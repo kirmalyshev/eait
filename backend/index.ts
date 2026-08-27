@@ -116,7 +116,37 @@ if (config.pushEnabled) {
   arm();
 }
 
-const handle = createRouter(deps, store, verifier);
+const router = createRouter(deps, store, verifier);
+
+// ── The demo-only account lookup ─────────────────────────────────────────────────────────────
+//
+// `GET /demo/user-id?provider=apple&subject=…` → `{ "userId": "…" }`, or 404.
+//
+// WHY IT EXISTS. A RevenueCat delivery names the account by OUR user id, and RevenueCat cannot
+// reach a laptop — so the paywall E2E flow has to post that delivery itself, through the real
+// route, past the real credential check. Nothing in the app shows a user id (deliberately: it is
+// an account key, not a support code), so the flow has no way to learn which account it is in.
+// This answers that, for an identity the flow itself chose a moment earlier by signing in.
+//
+// WHY IT IS SAFE. It is composed in HERE, under `--demo`, and `api/routes.ts` has never heard of
+// it: a production process does not route this path at all, it 404s in the router like any other
+// unknown one. It reads, and only a user id — which on a demo server names an in-memory account
+// created by the flow itself, thirty seconds earlier, holding canned data.
+const handle: typeof router = demo
+  ? async (req, server) => {
+      const url = new URL(req.url);
+      if (url.pathname !== "/demo/user-id") return router(req, server);
+      const provider = url.searchParams.get("provider");
+      const subject = url.searchParams.get("subject") ?? "";
+      if ((provider !== "apple" && provider !== "google") || subject === "") {
+        return new Response("bad request", { status: 400 });
+      }
+      const userId = await store.userIdForIdentity(provider, subject);
+      return userId === null
+        ? new Response("not found", { status: 404 })
+        : Response.json({ userId });
+    }
+  : router;
 
 const server = Bun.serve({
   port: config.port,
