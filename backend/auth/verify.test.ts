@@ -11,7 +11,7 @@ import { AuthError, remoteVerifier, type Verifier } from "./verify.ts";
 
 const APPLE_ISS = "https://appleid.apple.com";
 const GOOGLE_ISS = "https://accounts.google.com";
-const APPLE_AUD = "app.ieat";
+const APPLE_AUD = "com.eait.fit.ios";
 const GOOGLE_AUD = "1234.apps.googleusercontent.com";
 
 let privateKey: CryptoKey;
@@ -129,11 +129,11 @@ describe("audience — the check that gets skipped", () => {
 
   it("accepts any audience in the configured list", async () => {
     const multi = remoteVerifier({
-      appleAudiences: ["app.ieat", "app.ieat.service"], googleAudiences: [GOOGLE_AUD],
+      appleAudiences: ["com.eait.fit.ios", "com.eait.fit.ios.service"], googleAudiences: [GOOGLE_AUD],
       apple: { jwksUri: `http://127.0.0.1:${server.port}/keys`, issuer: APPLE_ISS },
       google: { jwksUri: `http://127.0.0.1:${server.port}/keys`, issuer: GOOGLE_ISS },
     });
-    const t = await token({ aud: "app.ieat.service", sub: "s" });
+    const t = await token({ aud: "com.eait.fit.ios.service", sub: "s" });
     expect((await multi.verify("apple", t)).subject).toBe("s");
   });
 });

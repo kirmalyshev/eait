@@ -122,9 +122,9 @@ describe("loadConfig", () => {
   });
 
   it("splits audience lists and drops the empties", () => {
-    withRequired({ EAIT__BACKEND__APPLE_AUDIENCES: "app.ieat, app.ieat.dev ,", EAIT__BACKEND__GOOGLE_AUDIENCES: "" });
+    withRequired({ EAIT__BACKEND__APPLE_AUDIENCES: "com.eait.fit.ios, com.eait.fit.ios.dev ,", EAIT__BACKEND__GOOGLE_AUDIENCES: "" });
     const c = loadConfig();
-    expect(c.appleAudiences).toEqual(["app.ieat", "app.ieat.dev"]);
+    expect(c.appleAudiences).toEqual(["com.eait.fit.ios", "com.eait.fit.ios.dev"]);
     // Empty means the provider is OFF, and its route refuses rather than verifying without an
     // audience check. It must never become `[""]`, which would be an audience nothing matches.
     expect(c.googleAudiences).toEqual([]);
@@ -287,5 +287,41 @@ describe("demo mode", () => {
     const p = configDefaults();
     expect(p.authRateLimitPerHour).toBe(20);
     expect(p.linesRateLimitPerHour).toBe(120);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// THE ENTITLEMENT IDENTIFIER, IN THE THREE PLACES A DEPLOY CAN READ IT FROM
+//
+// `applyRevenueCatEvent` acts on one identifier and ignores every delivery that does not carry it,
+// answering 200 to each — so a host configured with the wrong one takes real money and grants
+// nothing, on every purchase, with one warning line per event as the only trace.
+//
+// All three said `pro`, which has never existed in the RevenueCat project: the ansible default
+// (which is what actually renders `.env.prod`), the compose fallback, and the example file people
+// copy. Only `config.ts` was right. This is the test that stops them drifting apart again.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+describe("the RevenueCat entitlement identifier", () => {
+  const expected = configDefaults().revenueCatEntitlementId;
+
+  it("is what the ansible role deploys", async () => {
+    const yaml = await Bun.file(
+      new URL("./iac/roles/ieat_app/defaults/main.yml", import.meta.url),
+    ).text();
+    expect(yaml).toContain(`ieat_revenuecat_entitlement_id: ${expected}`);
+  });
+
+  it("is the compose fallback", async () => {
+    const compose = await Bun.file(
+      new URL("../../deploy/docker-compose.prod.yml", import.meta.url),
+    ).text();
+    expect(compose).toContain(`\${EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID:-${expected}}`);
+  });
+
+  it("is what the example env file hands somebody starting from it", async () => {
+    const example = await Bun.file(
+      new URL("../../deploy/.env.prod.example", import.meta.url),
+    ).text();
+    expect(example).toContain(`EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID=${expected}`);
   });
 });

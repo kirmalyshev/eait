@@ -24,7 +24,7 @@ import { createRouter } from "./routes.ts";
 import { APPLE_NOTIFICATIONS_PATH } from "./apple-notifications.ts";
 
 const APPLE_ISS = "https://appleid.apple.com";
-const APPLE_AUD = "app.ieat";
+const APPLE_AUD = "com.eait.fit.ios";
 const GOOGLE_ISS = "https://accounts.google.com";
 const GOOGLE_AUD = "1234.apps.googleusercontent.com";
 
