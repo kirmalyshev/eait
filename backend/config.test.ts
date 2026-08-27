@@ -289,3 +289,39 @@ describe("demo mode", () => {
     expect(p.linesRateLimitPerHour).toBe(120);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// THE ENTITLEMENT IDENTIFIER, IN THE THREE PLACES A DEPLOY CAN READ IT FROM
+//
+// `applyRevenueCatEvent` acts on one identifier and ignores every delivery that does not carry it,
+// answering 200 to each — so a host configured with the wrong one takes real money and grants
+// nothing, on every purchase, with one warning line per event as the only trace.
+//
+// All three said `pro`, which has never existed in the RevenueCat project: the ansible default
+// (which is what actually renders `.env.prod`), the compose fallback, and the example file people
+// copy. Only `config.ts` was right. This is the test that stops them drifting apart again.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+describe("the RevenueCat entitlement identifier", () => {
+  const expected = configDefaults().revenueCatEntitlementId;
+
+  it("is what the ansible role deploys", async () => {
+    const yaml = await Bun.file(
+      new URL("./iac/roles/ieat_app/defaults/main.yml", import.meta.url),
+    ).text();
+    expect(yaml).toContain(`ieat_revenuecat_entitlement_id: ${expected}`);
+  });
+
+  it("is the compose fallback", async () => {
+    const compose = await Bun.file(
+      new URL("../../deploy/docker-compose.prod.yml", import.meta.url),
+    ).text();
+    expect(compose).toContain(`\${EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID:-${expected}}`);
+  });
+
+  it("is what the example env file hands somebody starting from it", async () => {
+    const example = await Bun.file(
+      new URL("../../deploy/.env.prod.example", import.meta.url),
+    ).text();
+    expect(example).toContain(`EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID=${expected}`);
+  });
+});
