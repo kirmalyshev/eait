@@ -50,7 +50,7 @@ let eventSeq = 0;
  */
 async function entitle(userId: string, expiresAt: string, trial = false): Promise<void> {
   await store.putEntitlement(userId, {
-    expiresAt, productId: "app.ieat.yearly", trial,
+    expiresAt, productId: "com.eait.fit.ios.yearly", trial,
     eventAt: new Date(Date.now() + ++eventSeq * 1000).toISOString(),
   });
 }

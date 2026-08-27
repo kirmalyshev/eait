@@ -34,7 +34,7 @@ const CONFIG: Config = {
   port: 0, databaseUrl: "memory://test",
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
   freeAnalyses: 5, globalDailyAnalysisCap: 0,
-  appleAudiences: ["app.ieat"], googleAudiences: ["test.apps.googleusercontent.com"],
+  appleAudiences: ["com.eait.fit.ios"], googleAudiences: ["test.apps.googleusercontent.com"],
 };
 
 let store: Store;

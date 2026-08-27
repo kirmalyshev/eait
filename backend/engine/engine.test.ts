@@ -20,7 +20,7 @@ const CONFIG: Config = {
   llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
   // Most tests chain several analyses on one account; the sample rule has its own describe.
   freeAnalyses: 100, globalDailyAnalysisCap: 10,
-  appleAudiences: ["app.ieat"], googleAudiences: ["test.apps.googleusercontent.com"],
+  appleAudiences: ["com.eait.fit.ios"], googleAudiences: ["test.apps.googleusercontent.com"],
 };
 
 let store: Store;
@@ -49,7 +49,7 @@ let eventSeq = 0;
 async function entitle(userId: string, expiresInMs = 86_400_000): Promise<void> {
   await store.putEntitlement(userId, {
     expiresAt: new Date(Date.now() + expiresInMs).toISOString(),
-    productId: "app.ieat.yearly",
+    productId: "com.eait.fit.ios.yearly",
     eventAt: new Date(Date.now() + ++eventSeq * 1000).toISOString(),
   });
 }

@@ -122,9 +122,9 @@ describe("loadConfig", () => {
   });
 
   it("splits audience lists and drops the empties", () => {
-    withRequired({ EAIT__BACKEND__APPLE_AUDIENCES: "app.ieat, app.ieat.dev ,", EAIT__BACKEND__GOOGLE_AUDIENCES: "" });
+    withRequired({ EAIT__BACKEND__APPLE_AUDIENCES: "com.eait.fit.ios, com.eait.fit.ios.dev ,", EAIT__BACKEND__GOOGLE_AUDIENCES: "" });
     const c = loadConfig();
-    expect(c.appleAudiences).toEqual(["app.ieat", "app.ieat.dev"]);
+    expect(c.appleAudiences).toEqual(["com.eait.fit.ios", "com.eait.fit.ios.dev"]);
     // Empty means the provider is OFF, and its route refuses rather than verifying without an
     // audience check. It must never become `[""]`, which would be an audience nothing matches.
     expect(c.googleAudiences).toEqual([]);
