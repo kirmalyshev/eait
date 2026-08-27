@@ -20,7 +20,7 @@ import {
   primaryAction, primaryCta, secondaryCta, surfaceNote, START_CODES, type CtaPlacement,
   type LandingConfig,
 } from "./config.ts";
-import { color } from "./tokens.ts";
+import { color, dark, light } from "./tokens.ts";
 import { spudSvg, type LandingMood } from "./mascot.ts";
 import { OG_HEIGHT, OG_WIDTH } from "./images.ts";
 
@@ -32,6 +32,25 @@ export function esc(value: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
+/**
+ * The theme control.
+ *
+ * A BUTTON with `aria-pressed`, not a checkbox and not a link: it changes the appearance of the
+ * page it is on, which is what a toggle button is for. The label and the pressed state are written
+ * by `theme.js` on load, because only the browser knows whether an unset preference currently
+ * resolves to dark. The static markup carries the light-theme answer so a visitor with JavaScript
+ * off still gets a labelled control rather than an unnamed square — it will not do anything, which
+ * is the honest state of a remembered setting with no script to remember it.
+ *
+ * `type="button"` because one of the pages that carries it also carries a form, and a bare button
+ * inside a form submits it.
+ */
+const themeToggle = (): string => `
+      <button class="theme-toggle" type="button" data-theme-toggle
+              aria-pressed="false" aria-label="Switch to the dark theme">
+        <span class="theme-toggle-mark" aria-hidden="true"></span>
+      </button>`;
 
 const n = (value: number) => value.toLocaleString("en-GB");
 
@@ -272,10 +291,12 @@ export function renderOutcome(
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${esc(`${outcome.title} — ${brand.name}`)}</title>
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="${esc(color.bg)}">
+<meta name="theme-color" content="${esc(light.bg)}" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="${esc(dark.bg)}" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/favicon.ico" sizes="64x64">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
+<script src="/theme.js"></script>
 </head>
 <body>
 <header class="masthead">
@@ -284,7 +305,7 @@ export function renderOutcome(
     <nav class="masthead-links" aria-label="Legal and support">
       <a href="/privacy">Privacy</a>
       <a href="/support">Support</a>
-    </nav>
+    </nav>${themeToggle()}
   </div>
 </header>
 <main class="outcome">
@@ -340,12 +361,14 @@ export function renderLanding(config: LandingConfig): string {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${esc(brand.title)}</title>
 <meta name="description" content="${esc(metaDescription())}">
-<meta name="theme-color" content="${esc(color.bg)}">
+<meta name="theme-color" content="${esc(light.bg)}" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="${esc(dark.bg)}" media="(prefers-color-scheme: dark)">
 <link rel="canonical" href="${esc(config.siteUrl)}/">
 ${robotsMeta(config)}<link rel="icon" href="/favicon.ico" sizes="64x64">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/styles.css">
+<script src="/theme.js"></script>
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="${esc(brand.name)}">
 <meta property="og:locale" content="en_GB">
@@ -369,7 +392,7 @@ ${jsonLd(config)}
     <nav class="masthead-links" aria-label="Legal and support">
       <a href="${privacyHref}">Privacy</a>
       <a href="${supportHref}">Support</a>
-    </nav>
+    </nav>${themeToggle()}
   </div>
 </header>
 
