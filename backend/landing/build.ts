@@ -27,6 +27,7 @@ import {
 import { faviconIco, markPng, ogPng } from "./images.ts";
 import { iconSvg, outcomePages, renderLanding } from "./render.ts";
 import { styles } from "./styles.ts";
+import { themeScript } from "./theme-script.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 /** Repository root: src/backend/landing → src/backend → src → root. */
@@ -71,6 +72,7 @@ export async function buildLanding(
 
   await write("index.html", html);
   await write("styles.css", styles);
+  await write("theme.js", themeScript);
   await write("robots.txt", robots(config));
 
   // The three pages the subscribe form's redirects land on. Built whenever the form is — a form

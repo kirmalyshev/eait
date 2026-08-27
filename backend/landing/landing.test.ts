@@ -11,7 +11,7 @@ import {
 import { iconSvg, outcomePages, renderLanding } from "./render.ts";
 import { buildLanding } from "./build.ts";
 import { faviconIco, ogPng, OG_HEIGHT, OG_WIDTH } from "./images.ts";
-import { color, TOKEN_SOURCE } from "./tokens.ts";
+import { color, dark, light, TOKEN_SOURCE } from "./tokens.ts";
 import { BODY, MASCOT_SOURCE, MOUTHS, SHEEN } from "./mascot.ts";
 import { styles } from "./styles.ts";
 import { faqs, founder, measured, refusals, floorSection, sample } from "./content.ts";
@@ -156,13 +156,36 @@ describe("the numbers on the page are the numbers in the code", () => {
 });
 
 describe("palette", () => {
-  test("every token matches src/mobile/lib/theme.ts", () => {
-    const theme = readFileSync(resolve(REPO_ROOT, TOKEN_SOURCE), "utf8");
-    for (const [name, value] of Object.entries(color)) {
-      const declared = theme.match(new RegExp(`\\b${name}:\\s*"(#[0-9A-Fa-f]{6})"`));
-      expect(declared, `${name} is not declared in ${TOKEN_SOURCE}`).not.toBeNull();
-      expect(declared![1]!.toUpperCase()).toBe(value.toUpperCase());
-    }
+  /**
+   * The two palettes as `theme.ts` declares them, split on the `const DARK` line.
+   *
+   * Split rather than one regex over the file, because every token name now appears TWICE and a
+   * first match would silently check the light value against both copies — passing while the dark
+   * page rendered whatever it liked.
+   */
+  const themeBlocks = (): { light: string; dark: string } => {
+    const source = readFileSync(resolve(REPO_ROOT, TOKEN_SOURCE), "utf8");
+    const at = source.indexOf("const DARK = {");
+    expect(at, `${TOKEN_SOURCE} no longer declares a DARK palette`).toBeGreaterThan(0);
+    return { light: source.slice(0, at), dark: source.slice(at) };
+  };
+
+  for (const [theme, expected] of Object.entries({ light, dark })) {
+    test(`every ${theme} token matches src/mobile/lib/theme.ts`, () => {
+      const block = themeBlocks()[theme as "light" | "dark"];
+      for (const [name, value] of Object.entries(expected)) {
+        const declared = block.match(new RegExp(`\\b${name}:\\s*"(#[0-9A-Fa-f]{6})"`));
+        expect(declared, `${name} is not declared in the ${theme} palette of ${TOKEN_SOURCE}`).not.toBeNull();
+        expect(declared![1]!.toUpperCase()).toBe(value.toUpperCase());
+      }
+    });
+  }
+
+  test("the two palettes name exactly the same tokens", () => {
+    // A name in one and not the other is a CSS variable that keeps its light value on the dark
+    // page — invisible in the theme it was authored in, which is the one it gets looked at in.
+    expect(Object.keys(dark)).toEqual(Object.keys(light));
+    expect(Object.keys(color)).toEqual(Object.keys(light));
   });
 
   test("the app's faintest text colour is never used on this page", () => {
@@ -200,11 +223,25 @@ describe("the rendered page", () => {
     expect([...html.matchAll(/<h1\b/g)]).toHaveLength(1);
   });
 
-  test("carries no executable script at all, which is what lets the CSP forbid one", () => {
-    // The one <script> allowed is the JSON-LD data block: `type="application/ld+json"` is data a
-    // crawler reads, never code a browser runs, and CSP's script-src does not govern it.
+  test("runs one same-origin script and nothing else, which is what the CSP allows", () => {
+    // This page carried NO executable script until the theme toggle, and the policy said so:
+    // `default-src 'none'` with no `script-src` at all. A remembered choice needs somewhere to
+    // remember it, so the policy is now `script-src 'self'` and this test is what keeps that
+    // sentence exactly as narrow as it was written.
+    //
+    // Two shapes are allowed and no third. The JSON-LD block is DATA — `application/ld+json` is
+    // read by a crawler, never run by a browser, and `script-src` does not govern it. `/theme.js`
+    // is our own file, same origin, no attributes beyond its src.
+    //
+    // Everything else stays forbidden, and the two assertions at the bottom are the ones that
+    // matter most: an inline handler or a `javascript:` href would need `unsafe-inline`, which is
+    // the thing `script-src 'self'` exists to avoid.
     const scripts = [...html.matchAll(/<script\b[^>]*>/g)].map((m) => m[0]);
-    for (const tag of scripts) expect(tag).toContain('type="application/ld+json"');
+    for (const tag of scripts) {
+      const allowed = tag.includes('type="application/ld+json"') || tag === '<script src="/theme.js">';
+      expect(allowed, `unexpected script tag: ${tag}`).toBe(true);
+    }
+    expect(scripts.filter((s) => s.includes("theme.js"))).toHaveLength(1);
     expect(html).not.toMatch(/\son[a-z]+=/i);
     expect(html).not.toContain("javascript:");
   });

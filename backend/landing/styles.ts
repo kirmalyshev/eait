@@ -1,16 +1,18 @@
 // The stylesheet, as a string, emitted to `styles.css` beside the page.
 //
 // EXTERNAL RATHER THAN INLINE, for one reason: it lets the Content-Security-Policy served with the
-// page be `default-src 'none'; style-src 'self'` with no `unsafe-inline` anywhere and no
-// `script-src` at all. There is no JavaScript on this page — the one animated moment is CSS, the
-// FAQ is `<details>` — so the strictest possible policy is also an accurate description of it. A
-// page whose entire pitch is "we do not keep anything of yours" should not be loading a script.
+// page be `default-src 'none'; style-src 'self'; script-src 'self'` with no `unsafe-inline`
+// anywhere. Almost nothing on this page is JavaScript — the one animated moment is CSS and the FAQ
+// is `<details>` — and the single exception is `/theme.js`, which remembers whether the visitor
+// chose the light page or the dark one. That file is same-origin, sends nothing anywhere and
+// stores one word in this browser, which is the most a page whose pitch is "we do not keep
+// anything of yours" should be doing with a script.
 //
 // The tokens are `src/mobile/lib/theme.ts`, transcribed. A test asserts they still match, because
 // two files holding one palette is the shape of a drift, and the accent going stale here would be
 // the first thing a visitor coming from the App Store screenshots notices.
 
-import { color } from "./tokens.ts";
+import { color, dark, light } from "./tokens.ts";
 import { sample } from "./content.ts";
 
 /**
@@ -54,50 +56,98 @@ function derivedRules(): string {
   ].join("\n");
 }
 
-const sheet = `
-/* ── Tokens ─────────────────────────────────────────────────────────────────────────────── */
-:root {
-  --ink: ${color.bg};
-  --panel: ${color.surface};
-  --raised: ${color.surfaceRaised};
-  --line: ${color.border};
-  --line-strong: ${color.borderStrong};
+/**
+ * Every variable the dark theme redefines, as one string reused by both dark selectors.
+ *
+ * Written out rather than derived from the object so a value that has no dark counterpart is a
+ * COMPILE error here and not a light colour surviving onto a dark page. `--dim` is raised the same
+ * way it is on light, for the same reason and to the same ratio.
+ */
+const darkVars = `
+  --ink: ${dark.bg};
+  --panel: ${dark.surface};
+  --raised: ${dark.surfaceRaised};
+  --line: ${dark.border};
+  --line-strong: ${dark.borderStrong};
+  --text: ${dark.text};
+  --muted: ${dark.textMuted};
+  --faint: ${dark.textFaint};
+  --dim: #7C838B;
+  --accent: ${dark.accent};
+  --accent-ink: ${dark.accentText};
+  --good: ${dark.good};
+  --warn: ${dark.warn};
+  --bad: ${dark.bad};
+  --care: ${dark.care};
+  color-scheme: dark;
+`;
 
-  --text: ${color.text};
-  --muted: ${color.textMuted};
-  --faint: ${color.textFaint};
+const sheet = `
+/* ── Tokens ─────────────────────────────────────────────────────────────────────────────────
+   TWO THEMES, THREE SELECTORS, AND THE ORDER MATTERS.
+
+   :root                                 the light values, and the fallback for everything below
+   @media (prefers-color-scheme: dark)   the visitor's OS, honoured unless they said otherwise
+     :root:not([data-theme="light"])     ...which is what that :not() is: an explicit Light wins
+   :root[data-theme="dark"]              an explicit Dark, on a machine set to light
+
+   The last one cannot be folded into the media query — it has to apply outside it — and the media
+   query cannot be dropped, or a dark-set visitor gets a light page until they find the toggle.
+
+   --dim is the one value that is not a straight copy of a token; see its comment below. It is
+   declared in all three places for the same reason every other variable is. */
+:root {
+  --ink: ${light.bg};
+  --panel: ${light.surface};
+  --raised: ${light.surfaceRaised};
+  --line: ${light.border};
+  --line-strong: ${light.borderStrong};
+
+  --text: ${light.text};
+  --muted: ${light.textMuted};
+  --faint: ${light.textFaint};
 
   /* The app's third text colour, RAISED for this page — and the one place a token deliberately
      differs from theme.ts rather than tracking it.
 
-     ${color.textFaint} on ${color.bg} computes to 4.0:1, which is under WCAG AA's 4.5:1 for text
-     below 24px. In the app that is a caption glanced at for a second inside a screen the user
-     chose to open. Here it would be the small print under the button, the receipt line on every
-     refusal, and the whole footer — read once, by a stranger, deciding whether to trust a health
-     app. This value is 5.1:1 on the page background and 4.8:1 on the floor section's panel, and it
-     keeps the three-level hierarchy the app has.
+     --faint was 4.2:1 on the page background when this page was written, under WCAG AA's 4.5:1
+     for text below 24px, and this variable was the fix. The app has since raised its own value —
+     Apple's audit failed it on every input placeholder — so --faint now clears AA on its own and
+     this is no longer a correction.
+
+     It stays, as MARGIN rather than as a fix. The app spends its faintest colour on a caption
+     glanced at for a second inside a screen the user chose to open; this page spends it on the
+     small print under the button, the receipt line on every refusal, and the whole footer — read
+     once, by a stranger, deciding whether to trust a health app. That deserves more than the
+     minimum. It is also what keeps three levels of hierarchy from collapsing into two, now that
+     --faint and --muted are closer together than they were.
 
      A test asserts that --faint is not used for anything on this page, so the app's value cannot
      creep back in by being the obvious token to reach for. */
-  --dim: #7C838B;
+  --dim: #666C75;
 
   /* One accent, spent on exactly one thing per screen: the primary action. Same rule as the app. */
-  --accent: ${color.accent};
-  --accent-ink: ${color.accentText};
+  --accent: ${light.accent};
+  --accent-ink: ${light.accentText};
 
-  --good: ${color.good};
-  --warn: ${color.warn};
-  --bad: ${color.bad};
+  --good: ${light.good};
+  --warn: ${light.warn};
+  --bad: ${light.bad};
   /* Reserved for the floor and nothing else, so a blue tick anywhere means "we stopped you". */
-  --care: ${color.care};
+  --care: ${light.care};
 
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
   --wrap: 68rem;
   --gutter: clamp(1.25rem, 5vw, 3rem);
-  color-scheme: dark;
+  color-scheme: light;
 }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { ${darkVars} }
+}
+:root[data-theme="dark"] { ${darkVars} }
 
 /* ── Reset ──────────────────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
@@ -147,6 +197,30 @@ a { color: inherit; }
   font-size: 1.125rem; font-weight: 700; letter-spacing: -0.04em; text-decoration: none;
 }
 .wordmark-dot { width: .4375rem; height: .4375rem; border-radius: 50%; background: var(--accent); }
+/* The theme toggle. A 32px target with a mark that is a filled disc on light and a crescent on
+   dark — one element and a box-shadow, because an icon swap needs either two SVGs or a script that
+   writes markup, and this needs neither. currentColor throughout, so it follows --muted. */
+.theme-toggle {
+  display: inline-grid; place-items: center;
+  width: 2.25rem; height: 2.25rem; margin-left: .75rem; padding: 0;
+  border: 1px solid var(--line); border-radius: 999px;
+  background: transparent; color: var(--muted); cursor: pointer;
+}
+.theme-toggle:hover { color: var(--text); border-color: var(--line-strong); }
+/* --text and not --accent: the accent is spent on the primary action and nothing else, and a
+   focus ring wants the highest contrast available rather than the brand colour anyway. */
+.theme-toggle:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.theme-toggle-mark {
+  width: .875rem; height: .875rem; border-radius: 999px;
+  background: currentColor;
+}
+/* Pressed means the page is dark, so the mark becomes a crescent: a ring with an offset shadow
+   biting a piece out of it. */
+.theme-toggle[aria-pressed="true"] .theme-toggle-mark {
+  background: transparent;
+  box-shadow: inset -.3125rem -.125rem 0 0 currentColor;
+}
+
 .masthead-links { display: flex; gap: 1.5rem; font-size: .875rem; color: var(--muted); }
 .masthead-links a { text-decoration: none; }
 .masthead-links a:hover { color: var(--text); }
