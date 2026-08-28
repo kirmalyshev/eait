@@ -46,3 +46,23 @@ export function isCalendarDate(v: string): boolean {
   const d = new Date(`${v}T00:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
 }
+
+/**
+ * How a stored `YYYY-MM-DD` is spoken to a person.
+ *
+ * An ISO date is a machine's format. "Logging to 2026-08-27 — look right?" asks the user to parse a
+ * timestamp in order to answer a yes/no question about their lunch, and the diary's own header said
+ * the same thing.
+ *
+ * Sentence form ("today", not "Today"), because most uses here are mid-sentence; a heading applies
+ * `textTransform: "capitalize"` rather than this returning two shapes.
+ */
+export function dayLabel(date: string, today: string): string {
+  if (date === today) return "today";
+  if (date === dateMinus(today, 1)) return "yesterday";
+  // Midday UTC, so the label cannot slip a day on either side of the date line while formatting a
+  // value that carries no time at all.
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "UTC", weekday: "short", day: "numeric", month: "short",
+  }).format(new Date(`${date}T12:00:00Z`)).replace(",", "");
+}

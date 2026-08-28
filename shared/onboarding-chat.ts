@@ -745,3 +745,53 @@ export function answerLabel(prompt: ChatPrompt, p: Profile, content: OnboardingC
   }
   return String(raw);
 }
+
+/**
+ * What an edit to goal, weight or target weight should actually do.
+ *
+ * `checkDirection` answers "do these three disagree"; this answers "and so what", which is a
+ * different question at every one of the three edit sites and was previously answered only inside
+ * onboarding's chat flow. Settings edits the same fields later, so it needs the same answers — and
+ * the server validates RANGES but not COHERENCE, so nothing else is going to stop "gain to 80 kg"
+ * from 94.
+ *
+ * The three cases differ because the fields differ in kind:
+ *  - the TARGET is a choice, so a contradictory one is refused and re-asked;
+ *  - the GOAL is a statement of intent, so it wins and takes the now-meaningless target with it;
+ *  - the WEIGHT is a FACT and is always recorded. Refusing to store what someone weighs because it
+ *    disagrees with a goal they set months ago is the app arguing with a scale.
+ */
+export interface GoalEdit {
+  /** The patch to send, or null when the edit is refused. */
+  patch: Partial<Pick<Profile, "goal" | "weight_kg">> & { target_weight_kg?: number | null } | null;
+  /** What to tell the user. Null when there is nothing worth saying. */
+  note: string | null;
+}
+
+export function reconcileGoalEdit(
+  current: Pick<Profile, "goal" | "weight_kg" | "target_weight_kg">,
+  patch: { goal?: Goal; weight_kg?: number; target_weight_kg?: number },
+): GoalEdit {
+  const goal = patch.goal ?? current.goal;
+  const weightKg = patch.weight_kg ?? current.weight_kg;
+  const targetKg = patch.target_weight_kg ?? current.target_weight_kg;
+
+  if (goal == null || goal === "maintain" || weightKg == null || targetKg == null) {
+    return { patch, note: null };
+  }
+  if (!checkDirection(goal, weightKg, targetKg)) return { patch, note: null };
+
+  if (patch.target_weight_kg !== undefined) {
+    return { patch: null, note: checkDirection(goal, weightKg, targetKg)!.line };
+  }
+  if (patch.goal !== undefined) {
+    return {
+      patch: { ...patch, target_weight_kg: null },
+      note: "Your target weight no longer fitted that goal, so it's cleared — set a new one.",
+    };
+  }
+  return {
+    patch,
+    note: "Recorded. Your target weight no longer fits your goal, though — worth setting a new one.",
+  };
+}

@@ -172,6 +172,22 @@ export function fieldsWithData(
   return fieldsInGroup(group).filter((f) => days.some((d) => d[f.key] != null));
 }
 
+/**
+ * One reading, as a person reads it.
+ *
+ * Minutes are the unit HealthKit stores sleep in and they are not a unit anybody thinks in: the
+ * screen printed "Asleep 387 min" and "In bed 427 min", which is a subtraction and a division away
+ * from the two numbers the user came for. Everything else keeps its own unit — 11 minutes of
+ * exercise is 11 minutes, and a step count is a count.
+ */
+export function formatHealthValue(spec: HealthFieldSpec, value: number): string {
+  if (spec.unit === "min" && value >= 60) {
+    const whole = Math.round(value);
+    return `${Math.floor(whole / 60)} h ${whole % 60} m`;
+  }
+  return `${value.toFixed(spec.decimals)}${spec.unit ? ` ${spec.unit}` : ""}`;
+}
+
 /** What one metric's row on the trend screen shows. See `metricTrend`. */
 export interface MetricTrend {
   /** The most recent reading in the window, from the most recent day that HAS one. */

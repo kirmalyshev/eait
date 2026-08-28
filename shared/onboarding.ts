@@ -391,6 +391,19 @@ export function countryFromRegion(region: string | null | undefined): CountryCod
     : "other";
 }
 
+/**
+ * The per-option labels for one group, from the content. A stale cache falls back to the raw value.
+ *
+ * Here rather than in the chat screen because settings edits the same fields with the same
+ * vocabulary, and two copies of this lookup is two places for a group to lose its labels.
+ */
+export function screenOptions(
+  content: OnboardingContent,
+  id: OnboardingScreenId,
+): Record<string, OnboardingOptionContent> {
+  return content.screens.find((x) => x.id === id)?.options ?? {};
+}
+
 export const SCREEN_OPTIONS: Partial<Record<OnboardingScreenId, readonly string[]>> = {
   goal: ["lose", "maintain", "gain"],
   about: ["female", "male"],

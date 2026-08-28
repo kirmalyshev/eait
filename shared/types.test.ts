@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test";
-import { renderableVerdicts } from "./types.ts";
+import { describe, expect, it, test } from "bun:test";
+import { VERDICT_DIMENSIONS, renderableVerdicts, verdictPillLabel } from "./types.ts";
 
 // These tests are about a RENDER boundary, not about domain logic. `verdicts` is the one field on a
 // meal analysis that no analyzer supplies and every write recomputes, so it crosses more hands than
@@ -35,5 +35,22 @@ describe("renderableVerdicts", () => {
 
   it("ignores dimensions this build does not render", () => {
     expect(renderableVerdicts({ weight: "good", cholesterol: "bad" })).toEqual(["weight"]);
+  });
+});
+
+describe("verdictPillLabel", () => {
+  test("every dimension and verdict names the judgement in words", () => {
+    for (const d of VERDICT_DIMENSIONS) {
+      const labels = (["good", "warn", "bad"] as const).map((v) => verdictPillLabel(d, v));
+      // Three distinct sentences: the pill must not rely on its colour to say which one it is.
+      expect(new Set(labels).size).toBe(3);
+      for (const l of labels) expect(l.split(" ").length).toBeGreaterThan(1);
+    }
+  });
+
+  test("the noun stays the dimension's own", () => {
+    expect(verdictPillLabel("weight", "good")).toBe("Calories on plan");
+    expect(verdictPillLabel("ldl", "warn")).toBe("Saturated fat high");
+    expect(verdictPillLabel("kidneys", "bad")).toBe("Sodium very high");
   });
 });

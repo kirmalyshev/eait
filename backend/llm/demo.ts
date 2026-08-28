@@ -29,7 +29,10 @@ const PLATES = [
 
 function plateFor(seed: number): AnalyzedMeal {
   const count = 2 + (seed % 2);
-  const items = Array.from({ length: count }, (_, i) => PLATES[(seed + i * 3) % PLATES.length]!);
+  // The stride must not wrap onto itself within `count` steps: `i * 3` over six plates put i=0 and
+  // i=2 on the same entry, so every three-item meal was [X, Y, X] — the duplicated row in every
+  // screenshot this repo has ever taken. A test pins the distinctness rather than the stride.
+  const items = Array.from({ length: count }, (_, i) => PLATES[(seed + i * 2) % PLATES.length]!);
   const scaled = items.map((it) => ({
     name: it.name,
     name_en: it.name_en,

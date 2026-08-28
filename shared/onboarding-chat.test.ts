@@ -6,12 +6,13 @@
 // person already is. None of those throws, none shows up in a screenshot, and all three shipped in
 // the design's own drafts before the context pass caught them.
 
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, test } from "bun:test";
 import {
   CHAT_PROMPTS, DEFAULT_ONBOARDING_CONTENT, EMPTY_RUN, ONBOARDING_STEPS, GAIN_PACE_CARD, GOAL_CARDS,
   MAX_STRUGGLE_CARDS, MAX_SURPLUS_SHARE, MAX_DEFICIT_SHARE, MIN_AGE, MIN_WEIGHT_KG, STRUGGLES,
   answerLabel, askLines, askPlaceholder, capNote, checkDirection, checkNumber, eatoutReply,
-  isAnswered, minHealthyKg, momentFromText, momentReply, promptsFor, restrictionsReply, resumeAt,
+  isAnswered, minHealthyKg, momentFromText, momentReply, promptsFor, reconcileGoalEdit,
+  restrictionsReply, resumeAt,
   struggleCard, strugglesCloser, switchedLine, weightAck, whyBucket, whyReply,
   type ChatPromptId, type Profile, type RunState, type Struggle,
 } from "./index.ts";
@@ -425,5 +426,70 @@ describe("what the conversation never does", () => {
 
   it("leaves no placeholder unfilled", () => {
     for (const line of everySentence()) expect(line, line).not.toMatch(/\{[a-z]+\}/i);
+  });
+});
+
+describe("reconcileGoalEdit", () => {
+  const losing = { goal: "lose" as const, weight_kg: 94, target_weight_kg: 88 };
+
+  test("a coherent edit passes straight through", () => {
+    expect(reconcileGoalEdit(losing, { target_weight_kg: 85 }))
+      .toEqual({ patch: { target_weight_kg: 85 }, note: null });
+  });
+
+  test("a contradictory TARGET is refused, in the words onboarding already uses", () => {
+    const out = reconcileGoalEdit(losing, { target_weight_kg: 99 });
+    expect(out.patch).toBeNull();
+    expect(out.note).toContain("that's not a loss from here");
+  });
+
+  test("a contradictory GOAL wins and clears the target it invalidated", () => {
+    const out = reconcileGoalEdit(losing, { goal: "gain" });
+    expect(out.patch).toEqual({ goal: "gain", target_weight_kg: null });
+    expect(out.note).toContain("cleared");
+  });
+
+  test("WEIGHT is a fact and is always recorded, even when it strands the target", () => {
+    // Someone who set out to lose from 94 to 88 and now weighs 86 has met their goal. Refusing to
+    // store the scale reading because it disagrees with an old target is the app arguing with it.
+    const out = reconcileGoalEdit(losing, { weight_kg: 86 });
+    expect(out.patch).toEqual({ weight_kg: 86 });
+    expect(out.note).toContain("worth setting a new one");
+  });
+
+  test("maintain has no target to contradict, and a half-filled profile is left alone", () => {
+    expect(reconcileGoalEdit({ goal: "maintain", weight_kg: 94, target_weight_kg: 88 }, { weight_kg: 99 }).note)
+      .toBeNull();
+    expect(reconcileGoalEdit({ goal: "lose", weight_kg: null, target_weight_kg: null }, { goal: "gain" }).note)
+      .toBeNull();
+  });
+});
+
+describe("checkNumber as the guard in front of a profile patch", () => {
+  // The settings editor called `Number(draft)` raw. `NumberField` filters to digits and dots, so
+  // ".", "94.." and "9.4.5" all arrive as NaN — and NaN is `null` once `JSON.stringify` has been
+  // over it. `patchProfile` reads an explicit null as "clear this field", so it SKIPS the range
+  // check, answers 200, and wipes `weight_kg` and `weight_measured_at`: silent loss of the one
+  // number the calorie target is computed from, reported as a successful save.
+  test("never yields a value that would reach the wire as null", () => {
+    for (const raw of [".", "..", "94..", "9.4.5", "  ", "", "abc", "-", ".5.", "1e9"]) {
+      const out = checkNumber("weight_kg", raw);
+      // Either refused, or salvaged into a real number — never NaN, which `JSON.stringify` turns
+      // into `null`, which `patchProfile` reads as "clear this field".
+      if (out.ok) {
+        expect(Number.isFinite(out.value)).toBe(true);
+        expect(JSON.parse(JSON.stringify({ v: out.value })).v).not.toBeNull();
+      }
+      // What `Number(raw)` would have sent instead, which is the bug this guard exists in front of.
+      if (!Number.isFinite(Number(raw)) && raw.trim() !== "") {
+        expect(JSON.parse(JSON.stringify({ v: Number(raw) })).v).toBeNull();
+      }
+    }
+  });
+
+  test("still takes the numbers a person actually types", () => {
+    expect(checkNumber("weight_kg", "93")).toEqual({ ok: true, value: 93 });
+    expect(checkNumber("weight_kg", "93,5")).toEqual({ ok: true, value: 93.5 });
+    expect(checkNumber("target_weight_kg", "88.4")).toEqual({ ok: true, value: 88.4 });
   });
 });
