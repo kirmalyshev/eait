@@ -1,12 +1,19 @@
 // Diary reads. No writes, no model calls, no caps — the cheapest thing the API does.
 
-import { explainTargets, type DayResponse, type DayTotals } from "@ieat/shared";
+import { DIARY_WINDOW_DAYS, explainTargets, type DayResponse, type DayTotals } from "@ieat/shared";
 import { dateMinus, localDate } from "@ieat/shared";
 import type { EngineDeps } from "./deps.ts";
 import { sumTotals } from "./meals.ts";
 
-/** Longest window the week view will return. A client asking for a year is a client with a bug. */
-export const MAX_WINDOW_DAYS = 90;
+/**
+ * Longest window the week view will return.
+ *
+ * Re-exported from the contract rather than declared here, because the app is TOLD this number —
+ * `Limits.diaryWindowDays` — so the diary's date picker knows where its marks stop being real.
+ * Two copies of a bound one side enforces and the other draws is a picker that lies at exactly the
+ * month the server starts refusing.
+ */
+export const MAX_WINDOW_DAYS = DIARY_WINDOW_DAYS;
 
 /** One day. Null when the user has no profile — the surface turns that into a 403. */
 export async function day(

@@ -16,6 +16,7 @@ import { MIN_AGE } from "@ieat/shared";
 import type { ProfilePatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { dailyPhotoCap, entitlementFor } from "./entitlement.ts";
+import { MAX_WINDOW_DAYS } from "./diary.ts";
 
 /**
  * The limits THIS server enforces, so the client stops guessing at them.
@@ -31,6 +32,9 @@ async function limitsOf(deps: EngineDeps, userId: string): Promise<Limits> {
     // app promising an allowance the server will not honour.
     dailyPhotoCap: dailyPhotoCap(deps.config),
     sampleUsed: (await deps.store.countUserAnalyses(userId)) >= deps.config.freeAnalyses,
+    // The SAME bound `/v1/diary/week` refuses with, for the same reason `dailyPhotoCap` is sent:
+    // the date picker draws months from it and must not offer one the server will not answer for.
+    diaryWindowDays: MAX_WINDOW_DAYS,
   };
 }
 

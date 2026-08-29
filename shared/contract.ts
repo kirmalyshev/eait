@@ -63,12 +63,27 @@ export interface Limits {
    * refusal — but the refusal is the authority, and the sheet is only its rendering.
    */
   sampleUsed: boolean;
+  /**
+   * How many days back the diary can be asked about, counting today.
+   *
+   * The date picker draws a month at a time and marks the days that have meals on them, and both
+   * come from `GET /v1/diary/week`, which refuses a window wider than this. Sent rather than
+   * compiled in: a picker that pages to a month the server will not answer for shows a month with
+   * no meals on it, which is not "no meals" — it is the app inventing an answer the server never
+   * gave. The picker stops where this stops.
+   */
+  diaryWindowDays: number;
 }
 
 /** Fallback only — see `Limits`. Total upload size, above which a large POST is a DoS. */
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 /** Fallback only — see `Limits`. Several angles of ONE plate, one analysis, one billed call. */
 export const MAX_PHOTOS_PER_MEAL = 4;
+/**
+ * How far back the diary answers for. THE AUTHORITY, imported by the route that enforces it and
+ * sent to the app in `Limits.diaryWindowDays` — one number, not a matched pair.
+ */
+export const DIARY_WINDOW_DAYS = 90;
 
 export const ROUTES = {
   health: "/health",

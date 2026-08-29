@@ -66,3 +66,58 @@ export function dayLabel(date: string, today: string): string {
     timeZone: "UTC", weekday: "short", day: "numeric", month: "short",
   }).format(new Date(`${date}T12:00:00Z`)).replace(",", "");
 }
+
+// ── Months ───────────────────────────────────────────────────────────────────────────────────
+//
+// The diary's date picker needs a month at a time. All of it is pure calendar arithmetic on a
+// `YYYY-MM` — no zone is involved once "today" has been resolved in one, which `localDate` does.
+// It lives here rather than in the component because a grid that silently drops 29 February, or
+// puts a month's first day in the wrong column, is wrong in a way nobody notices by looking.
+
+/** The `YYYY-MM` a stored date falls in. */
+export function monthOf(date: string): string {
+  return date.slice(0, 7);
+}
+
+/** Step whole months. Negative goes back. Crosses the year without special-casing it. */
+export function monthShift(month: string, months: number): string {
+  const [y, m] = month.split("-").map(Number) as [number, number];
+  // Month index arithmetic rather than +/- on the number: `Date.UTC` normalises month 12 to
+  // January of the next year and month -1 to the previous December, which is the whole problem.
+  const at = new Date(Date.UTC(y, m - 1 + months, 1));
+  return at.toISOString().slice(0, 7);
+}
+
+/**
+ * Every date the picker draws for a month: whole weeks, Monday first.
+ *
+ * It runs from the Monday on or before the 1st to the Sunday on or after the last day, so each
+ * column is one weekday and the rows are contiguous days. The cells outside the month are real
+ * dates and are drawn muted rather than blank — a blank is a hole the eye has to step over, and
+ * tapping one is a reasonable thing to want.
+ *
+ * MONDAY, not Sunday: this app's zone is Europe/Berlin and ISO-8601 weeks start on Monday.
+ */
+export function monthGrid(month: string): string[] {
+  const [y, m] = month.split("-").map(Number) as [number, number];
+  const first = new Date(Date.UTC(y, m - 1, 1));
+  // getUTCDay is 0 for Sunday; shift so Monday is 0 and Sunday is 6.
+  const lead = (first.getUTCDay() + 6) % 7;
+  const start = new Date(Date.UTC(y, m - 1, 1 - lead));
+  // ALWAYS SIX ROWS, padded rather than fitted. Five rows suit some months and six others, and a
+  // card that changes height as you page months reads as a glitch rather than as a shorter month.
+  // Six is the most any month can need — a 31-day month starting on a Sunday spans 37 cells — so
+  // this never truncates.
+  const cells = 6 * 7;
+  return Array.from({ length: cells }, (_, i) =>
+    new Date(Date.UTC(
+      start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate() + i,
+    )).toISOString().slice(0, 10));
+}
+
+/** How a `YYYY-MM` is spoken to a person. */
+export function monthLabel(month: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "UTC", month: "long", year: "numeric",
+  }).format(new Date(`${month}-01T12:00:00Z`));
+}
