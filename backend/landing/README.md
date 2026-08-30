@@ -4,7 +4,7 @@ The marketing page at the app's own domain. One static HTML file, one stylesheet
 
 ```sh
 make landing                     # build it and serve it on http://localhost:4173
-bun test src/backend/landing     # the claims gate, the config refusals, the palette check
+bun test ./src/backend/landing   # the claims gate, the config refusals, the palette check
 ```
 
 > **`make landing` is a preview, not a rehearsal.** It serves the files with no headers, and the

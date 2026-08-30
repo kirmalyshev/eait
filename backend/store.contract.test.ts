@@ -10,7 +10,7 @@
 // Postgres is SKIPPED, loudly, when `TEST_DATABASE_URL` is unset — a silently skipped test is a
 // test that reads as passing. Run it with:
 //   sh scripts/db.sh up
-//   TEST_DATABASE_URL=postgres://ieat:ieat@127.0.0.1:5433/ieat bun test src/backend/store.contract.test.ts
+//   TEST_DATABASE_URL=postgres://ieat:ieat@127.0.0.1:5433/ieat bun test ./src/backend/store.contract.test.ts
 
 import { afterAll, describe, expect, it } from "bun:test";
 import { SQL } from "bun";

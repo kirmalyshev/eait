@@ -42,7 +42,7 @@ Everything is exported through `index.ts` (`export *`), so a new export needs no
 
 ## Testing
 
-`bun test src/shared` — no database, no simulator. Every file here has a `.test.ts` beside it and
+`bun test ./src/shared` — no database, no simulator. Every file here has a `.test.ts` beside it and
 that is the expectation for anything added: this is the layer where a rule can be proven cheaply,
 so a rule that is only exercised through the app is in the wrong place.
 
