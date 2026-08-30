@@ -4,7 +4,7 @@
 import { expect, test } from "bun:test";
 import { explainTargets } from "@ieat/shared";
 import type { Profile } from "@ieat/shared";
-import { demoPorts } from "./demo.ts";
+import { DEMO_NOT_FOOD, demoPorts } from "./demo.ts";
 
 // The canned analyzer reads only the caption and the bytes, but `PhotoInput` is the real port's
 // shape and a test that invented a narrower one would stop compiling against the port it checks.
@@ -35,4 +35,33 @@ test("a canned plate never lists the same food twice", async () => {
 
 test("the same input still produces the same plate", async () => {
   expect(await analyze("stable")).toEqual(await analyze("stable"));
+});
+
+const profile = { } as never;
+const targets = { } as never;
+const shot = { images: [new Uint8Array([1, 2, 3])], profile, targets };
+
+// `not-food` is a real branch on both sides — the engine refuses before charging anything and the
+// camera draws a panel from it — and until this caption existed nothing could reach either.
+test("answers not-food when the caption says there is none", async () => {
+  const out = await analyze(DEMO_NOT_FOOD);
+  expect(out.isFood).toBe(false);
+  expect(out.items).toEqual([]);
+  expect(out.kcal).toBe(0);
+});
+
+test("matches case-insensitively and inside a longer caption", async () => {
+  for (const caption of [DEMO_NOT_FOOD.toUpperCase(), `my desk, ${DEMO_NOT_FOOD}`]) {
+    expect((await analyze(caption)).isFood).toBe(false);
+  }
+});
+
+test("every other caption is still food, including ones that merely mention it", async () => {
+  // "no food yesterday" is the near miss worth pinning: a looser match on "no food" would refuse a
+  // perfectly good plate because of what somebody wrote in the note.
+  for (const caption of ["", "lunch", "no food yesterday", "food"]) {
+    const out = await analyze(caption);
+    expect(out.isFood).toBe(true);
+    expect(out.kcal).toBeGreaterThan(0);
+  }
 });

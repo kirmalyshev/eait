@@ -66,11 +66,15 @@ export interface Limits {
   /**
    * How many days back the diary can be asked about, counting today.
    *
-   * The date picker draws a month at a time and marks the days that have meals on them, and both
-   * come from `GET /v1/diary/week`, which refuses a window wider than this. Sent rather than
-   * compiled in: a picker that pages to a month the server will not answer for shows a month with
-   * no meals on it, which is not "no meals" — it is the app inventing an answer the server never
-   * gave. The picker stops where this stops.
+   * IT BOUNDS THE MARKS, NOT THE DAYS. The date picker draws a month at a time and marks the days
+   * that have meals on them; the marks come from `GET /v1/diary/week`, which refuses a window
+   * wider than this. `GET /v1/diary/day` refuses nothing — it validates the shape of a date and
+   * no more — so a day outside this window is still perfectly viewable, and the picker still
+   * offers it. What the picker cannot do out there is say whether it has meals on it.
+   *
+   * Sent rather than compiled in, because that boundary is where the app is most tempted to
+   * invent: a month drawn with no dots is indistinguishable from a month nobody ate in, and
+   * neither the label nor the footer may claim the second when it only knows the first.
    */
   diaryWindowDays: number;
 }

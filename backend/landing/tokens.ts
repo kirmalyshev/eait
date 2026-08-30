@@ -45,7 +45,7 @@ export const dark = {
 
   text: "#F4F4F5",
   textMuted: "#9BA1AA",
-  textFaint: "#767D86",
+  textFaint: "#828993",
 
   accent: "#C8F751",
   accentText: "#10130A",

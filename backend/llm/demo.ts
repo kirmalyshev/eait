@@ -63,8 +63,38 @@ function plateFor(seed: number): AnalyzedMeal {
   };
 }
 
+/**
+ * The caption that makes this analyzer say there is no food in the picture.
+ *
+ * `not-food` is a real branch on both sides and nothing could reach either of them. `logPhotoMeal`
+ * returns `{ kind: "not-food" }` before it charges anything, and the camera draws a panel from it
+ * ("No food in that one") — while this analyzer answered `isFood: true` to every image ever handed
+ * to it, so the whole path was dead code to every test and every demo.
+ *
+ * KEYED ON THE CAPTION BECAUSE THE CAPTION IS ALL THERE IS. This analyzer cannot see the picture —
+ * it seeds from the caption and two byte counts — so the caption is the only channel a test has for
+ * saying "there is no food in this one", and `routeText` below already branches on what the user
+ * wrote for the same reason. The real analyzer reaches the same verdict by looking, which is the
+ * difference between a fake that is POORER than the real thing and one that behaves differently:
+ * the refusal, the uncharged cap and the panel are all the production ones.
+ */
+export const DEMO_NOT_FOOD = "no food in this one";
+
+/** Zero everything. What the real analyzer is told to return for an image with no food in it. */
+function nothingOnThePlate(): AnalyzedMeal {
+  return {
+    isFood: false,
+    items: [],
+    kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0,
+    satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0,
+    confidence: "high",
+    notes: "Demo analyzer — no food in this image.",
+  };
+}
+
 export function demoPorts(): LlmPorts {
   const analyzePhoto: AnalyzePhoto = async (input) => {
+    if ((input.caption ?? "").toLowerCase().includes(DEMO_NOT_FOOD)) return nothingOnThePlate();
     const seed = hash((input.caption ?? "") + input.images.length + (input.images[0]?.byteLength ?? 0));
     return plateFor(seed);
   };

@@ -32,8 +32,8 @@ async function limitsOf(deps: EngineDeps, userId: string): Promise<Limits> {
     // app promising an allowance the server will not honour.
     dailyPhotoCap: dailyPhotoCap(deps.config),
     sampleUsed: (await deps.store.countUserAnalyses(userId)) >= deps.config.freeAnalyses,
-    // The SAME bound `/v1/diary/week` refuses with, for the same reason `dailyPhotoCap` is sent:
-    // the date picker draws months from it and must not offer one the server will not answer for.
+    // The SAME bound `/v1/diary/week` refuses with. It governs which days can be MARKED, not which
+    // can be opened: `/v1/diary/day` answers for any date, and the picker offers every past one.
     diaryWindowDays: MAX_WINDOW_DAYS,
   };
 }
