@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@ieat/shared": "workspace:*",
-    "jose": "^6.2.6",
-    "zod": "^4.1.13"
+    "jose": "^6.2.10",
+    "zod": "^4.5.4"
   }
 }
