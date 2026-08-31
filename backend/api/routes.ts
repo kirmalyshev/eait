@@ -34,6 +34,8 @@ import {
 } from "../engine/index.ts";
 import { confirmSubscription, subscribe, unsubscribe } from "../engine/subscribe.ts";
 import { adminRoutes } from "./admin.ts";
+import { googleCodeExchange, type GoogleCodeExchange } from "../auth/google-web.ts";
+import { isStartPath, startRoutes } from "../web/start.ts";
 import { REVENUECAT_WEBHOOK_PATH, createRevenueCatWebhook } from "./revenuecat.ts";
 import { APPLE_NOTIFICATIONS_PATH, appleNotifications } from "./apple-notifications.ts";
 import { clientAddress, rateLimiter } from "./ratelimit.ts";
@@ -81,8 +83,21 @@ export interface PeerSource {
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
-export function createRouter(deps: EngineDeps, store: Store, verifier: Verifier) {
+/** What a test replaces. Everything else this router needs, it builds from `deps.config`. */
+export interface RouterOptions {
+  /** Google's token endpoint, for the web onboarding's callback. See `auth/google-web.ts`. */
+  googleExchange?: GoogleCodeExchange;
+}
+
+export function createRouter(
+  deps: EngineDeps,
+  store: Store,
+  verifier: Verifier,
+  options: RouterOptions = {},
+) {
   const handleRevenueCat = createRevenueCatWebhook();
+  const googleExchange = options.googleExchange
+    ?? googleCodeExchange(deps.config.googleWebClientId, deps.config.googleWebClientSecret);
   const bearer = (req: Request): string | null => {
     const header = req.headers.get("authorization");
     return header?.startsWith("Bearer ") ? header.slice(7) : null;
@@ -166,6 +181,17 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: Verifier)
       // an admin surface every user has. Off entirely unless `EAIT__BACKEND__ADMIN_TOKEN` is set.
       if (pathname === "/admin" || pathname.startsWith("/admin/")) {
         return await adminRoutes(req, url, deps);
+      }
+
+      // Onboarding in a browser, on ITS OWN session cookie and before any user is resolved.
+      //
+      // The cookie is read inside that module and nowhere else, which is the point: `resolveUserId`
+      // below stays bearer-only, because an API that accepts a cookie is an API another origin can
+      // post to on a signed-in browser. Off entirely unless the Google web client is configured.
+      if (isStartPath(pathname)) {
+        return await startRoutes(req, url, {
+          deps, store, verifier, exchange: googleExchange, origin: publicOrigin(req),
+        });
       }
 
       // The purchase webhook, on ITS OWN credential and before any user is resolved.

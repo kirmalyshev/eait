@@ -90,6 +90,29 @@ export interface Config {
   appleAudiences: string[];
   /** Every Google OAuth client id that may sign in: iOS, web, Android. Empty = Google is off. */
   googleAudiences: string[];
+  /**
+   * The Google OAuth WEB client, for onboarding in a browser (`docs/WEB_ONBOARDING.md`).
+   *
+   * BOTH OR NEITHER. With either one empty every path under `/start` answers 404 — the same shape
+   * as the admin and the purchase webhook, and for the same reason: a half-configured sign-up is a
+   * button that fails after somebody has already chosen their Google account.
+   *
+   * The id must ALSO appear in `googleAudiences`, or the token this flow gets back fails the
+   * audience check on its way in. The secret is Google's requirement for a web client at the token
+   * endpoint; the native flow has none, which is why the app carries none.
+   */
+  googleWebClientId: string;
+  googleWebClientSecret: string;
+  /**
+   * Where a finished web onboarding sends somebody to subscribe. Empty = the plan page offers
+   * nothing and the account stays on the free sample until it is opened in the app.
+   *
+   * A TEMPLATE containing `{userId}` — a RevenueCat Web Billing paywall link, or anything else that
+   * ends in a delivery to `/v1/revenuecat/webhook`. The id has to be in it: the webhook is the only
+   * thing that can grant an entitlement, `app_user_id` is how it names the account, and it refuses
+   * an id this server never issued.
+   */
+  webCheckoutUrl: string;
 
   /**
    * How many days a bearer token survives WITHOUT BEING USED.
@@ -355,6 +378,9 @@ export function configDefaults(): Config {
     linesRateLimitPerHour: 120,
     appleAudiences: [],
     googleAudiences: [],
+    googleWebClientId: "",
+    googleWebClientSecret: "",
+    webCheckoutUrl: "",
     adminToken: "",
     revenueCatWebhookToken: "",
     revenueCatEntitlementId: "ieat_fit_pro",
@@ -445,6 +471,9 @@ export function loadConfig(): Config {
     linesRateLimitPerHour: int("EAIT__BACKEND__LINES_RATE_LIMIT_PER_HOUR", d.linesRateLimitPerHour),
     appleAudiences: list("EAIT__BACKEND__APPLE_AUDIENCES"),
     googleAudiences: list("EAIT__BACKEND__GOOGLE_AUDIENCES"),
+    googleWebClientId: process.env.EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID ?? d.googleWebClientId,
+    googleWebClientSecret: process.env.EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET ?? d.googleWebClientSecret,
+    webCheckoutUrl: webCheckoutUrlFromEnv(),
     adminToken: adminTokenFromEnv(),
     revenueCatWebhookToken: revenueCatWebhookTokenFromEnv(),
     revenueCatEntitlementId:
@@ -603,6 +632,12 @@ export function demoConfig(): Config {
     // onboarding copy is edited, and "works in demo, untested in production" is the shape of
     // every configuration bug that ships.
     adminToken: adminTokenFromEnv(),
+    // And the same argument for the web onboarding. `--demo` is where `/start` is developed and
+    // looked at; a demo that always answered 404 there would make the one surface with no app in
+    // front of it unreachable without a database and a deploy.
+    googleWebClientId: process.env.EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID ?? "",
+    googleWebClientSecret: process.env.EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET ?? "",
+    webCheckoutUrl: webCheckoutUrlFromEnv(),
     // Same argument. The subscribe form's redirect is the one behaviour that cannot be checked
     // by reading the code — you have to POST the form and watch where the browser goes — and a
     // demo that always answered JSON would make that untestable outside production.
@@ -623,4 +658,22 @@ export function demoConfig(): Config {
     // there, sandbox deliveries are how somebody grants themselves a subscription for free.
     revenueCatAcceptSandbox: true,
   };
+}
+
+/**
+ * The web checkout link, validated at boot.
+ *
+ * REFUSED WITHOUT `{userId}` rather than accepted and silently useless. A paywall link with no
+ * account id in it produces a RevenueCat delivery naming an anonymous customer, which
+ * `api/revenuecat.ts` refuses outright — so the purchase succeeds, the money moves, and the
+ * entitlement never lands anywhere. That failure is invisible from this end and expensive at the
+ * other, which is exactly the kind that belongs in a startup check.
+ */
+export function webCheckoutUrlFromEnv(): string {
+  const raw = process.env.EAIT__BACKEND__WEB_CHECKOUT_URL ?? "";
+  if (raw === "") return "";
+  if (!raw.includes("{userId}")) {
+    throw new Error("EAIT__BACKEND__WEB_CHECKOUT_URL must contain {userId} — see docs/WEB_ONBOARDING.md");
+  }
+  return raw;
 }
