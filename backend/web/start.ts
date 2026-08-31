@@ -19,9 +19,9 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
-  RESTRICTION_TAGS, SCREEN_OPTIONS, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines, askPlaceholder,
-  checkDirection, checkNumber, disabledScreens, isAnswered, promptsFor, screenForStep,
-  screenOptions, switchedLine,
+  AMBIGUOUS_AGE, RESTRICTION_TAGS, SCREEN_OPTIONS, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
+  askPlaceholder, checkDirection, checkNumber, disabledScreens, isAnswered, promptsFor,
+  screenForStep, screenOptions, switchedLine,
   type ChatPrompt, type Goal, type NumberField, type OnboardingContent, type PatchProfileRequest,
   type Profile,
 } from "@ieat/shared";
@@ -151,6 +151,8 @@ type Answered =
   | { kind: "refuse"; line: string; switchTo?: Goal }
   /** Under sixteen. Not a validation failure — a stop, and the account goes with it. */
   | { kind: "under-age" }
+  /** A high two-digit answer that could be a year typed short. Asked, never guessed. */
+  | { kind: "ambiguous-age"; age: number }
   | { kind: "missing" };
 
 /**
@@ -179,8 +181,18 @@ function answerFor(prompt: ChatPrompt, answers: string[], profile: Profile): Ans
   if (prompt.kind === "number") {
     const checked = checkNumber(field as NumberField, value);
     if (!checked.ok) {
-      return "underAge" in checked ? { kind: "under-age" } : { kind: "refuse", line: checked.line };
+      if ("underAge" in checked) return { kind: "under-age" };
+      // "90" is 1990 typed the short way, or somebody who is ninety. Computing the wrong one is
+      // computing a stranger's calorie target, so it is asked rather than guessed.
+      if ("ambiguousAge" in checked) return { kind: "ambiguous-age", age: checked.ambiguousAge };
+      return { kind: "refuse", line: checked.line };
     }
+    // THE AGE TRAVELS, NOT THE YEAR. `checkNumber` returns an age for this field — a four-digit
+    // answer included — and `patchProfile` does the subtraction with the SERVER's clock, because a
+    // client sitting across a UTC year boundary derived a year off by one and got a legitimate
+    // sixteen-year-old refused. Sending `birth_year` from here would put that clock back.
+    if (field === "birth_year") return { kind: "patch", patch: { age: checked.value } };
+
     // The wrong-direction check, which the server cannot make: `explainTargets` would accept a
     // surplus aimed at a number below the current weight and produce a plan that cannot arrive,
     // with nothing on any screen to say so.
@@ -342,6 +354,15 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         return seeOther(`${START_PREFIX}/q?switched=1`);
       }
 
+      // The ambiguity resolved as an age. Trusted only because it is one of the values
+      // `checkNumber` itself named ambiguous, and re-checked below like any other answer.
+      const asAge = form.get("age");
+      if (typeof asAge === "string" && /^\d{2}$/.test(asAge)) {
+        const outcome = await patchProfile(ctx.deps, userId, { age: Number(asAge) });
+        if (outcome && !outcome.ok) return ask(refusalText(outcome.rejected));
+        return seeOther(`${START_PREFIX}/q`);
+      }
+
       // The under-sixteen stop, taken. The account goes: "nothing you told me is kept" is a
       // promise, and the goal and the sex answered a minute ago are already rows.
       if (form.get("confirm") === "under-age") {
@@ -354,6 +375,12 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       const answers = form.getAll("answer").filter((v): v is string => typeof v === "string");
       const answer = answerFor(open, answers, profile);
       if (answer.kind === "missing") return ask("That one needs an answer.");
+      if (answer.kind === "ambiguous-age") {
+        // The quick reply takes it as an age; four digits in the box take it as the year.
+        return ask(AMBIGUOUS_AGE.line(answer.age), [
+          { name: "age", value: String(answer.age), label: AMBIGUOUS_AGE.confirm(answer.age) },
+        ]);
+      }
       if (answer.kind === "under-age") {
         // Offered ONCE, in case a typo got us here. Confirming is what takes the stop.
         return ask(UNDER_AGE_LINES.ask, [

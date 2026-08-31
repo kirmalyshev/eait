@@ -8,8 +8,8 @@
 
 import { beforeEach, describe, expect, it } from "bun:test";
 import {
-  DEFAULT_ONBOARDING_CONTENT, UNDER_AGE_CARD, UNDER_AGE_LINES, disabledScreens, explainTargets,
-  lintCopy, type Profile,
+  AMBIGUOUS_AGE, DEFAULT_ONBOARDING_CONTENT, UNDER_AGE_CARD, UNDER_AGE_LINES, disabledScreens,
+  explainTargets, lintCopy, type Profile,
 } from "@ieat/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -512,6 +512,25 @@ describe("the numbers go through the shared checks, not this page's own", () => 
     await post("/start/q", { prompt: "birth_year", answer: "1990" }, session);
     const userId = (await store.userIdForToken(session.split("=")[1]!))!;
     expect((await store.getProfile(userId))!.birth_year).toBe(1990);
+  });
+
+  it("asks rather than guesses when two digits could be a year typed short", async () => {
+    const session = await signIn();
+    await post("/start/q", { prompt: "goal", answer: "lose" }, session);
+    await post("/start/q", { prompt: "sex", answer: "female" }, session);
+    // "90" is 1990 typed the short way, or somebody who is ninety. Guessing computes a stranger's
+    // calorie target.
+    const asked = await post("/start/q", { prompt: "birth_year", answer: "90" }, session);
+    expect(asked.status).toBe(200);
+    const html = await asked.text();
+    expect(html).toContain(AMBIGUOUS_AGE.line(90));
+    expect(html).toContain('name="age" value="90"');
+    const userId = (await store.userIdForToken(session.split("=")[1]!))!;
+    expect((await store.getProfile(userId))!.birth_year).toBeNull();
+
+    // The quick reply takes it as an age, and the SERVER does the subtraction.
+    await post("/start/q", { prompt: "birth_year", age: "90" }, session);
+    expect((await store.getProfile(userId))!.birth_year).toBe(new Date().getUTCFullYear() - 90);
   });
 
   it("refuses a height in the shared band, in the shared words", async () => {
