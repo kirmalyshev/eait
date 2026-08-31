@@ -46,8 +46,8 @@ import { RESTRICTION_TAGS } from "./targets.ts";
  * are, then your numbers, then where you want to be and how fast, then how you move. Two things
  * downstream depend on it and would be wrong if it changed:
  *
- *   - the BMR quick win is spoken the moment weight lands (step 5), which needs sex, year of birth
- *     and height already answered;
+ *   - the BMR quick win is spoken the moment weight lands (step 5), which needs sex, age and
+ *     height already answered;
  *   - the wrong-direction check on the goal weight ("you're at 93 and asked to lose to 95") reads
  *     the current weight, so weight comes first.
  *
@@ -232,8 +232,8 @@ export interface OnboardingOptionContent {
  * What Spud says to pose ONE question, and what the input looks like while it is open.
  *
  * `lines` is a list because Spud sends bubbles, not paragraphs: "A little about you — two things
- * every calorie formula needs. Which fits?" is one bubble, and the year of birth that follows it is
- * another. One entry, one bubble.
+ * every calorie formula needs. Which fits?" is one bubble, and the age that follows it is another.
+ * One entry, one bubble.
  */
 export interface OnboardingAskContent {
   lines: string[];
@@ -437,8 +437,8 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // FIVE, NOT FOUR, AND THE MERGE IS WHY. Both this branch and the paywall's copy fix landed on
   // "4", and the version is the join key between a funnel row and the words that produced it —
   // two different flows sharing one number is exactly the meaningless average the counter exists
-  // to prevent.
-  version: 5,
+  // to prevent. v6 asks for an age rather than a year of birth.
+  version: 6,
   welcome: {
     lines: [
       "Hi, I'm Spud. Photograph what you eat, get an honest answer — that's the whole app.",
@@ -464,9 +464,10 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       id: "about",
       asks: {
         sex: { lines: ["A little about you — two things every calorie formula needs. Which fits?"] },
+        // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["And your year of birth? Roughly your age is all the maths wants."],
-          placeholder: "e.g. 1990",
+          lines: ["And how old are you? Roughly is all the maths wants."],
+          placeholder: "Your age",
         },
       },
 
