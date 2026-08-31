@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { dateMinus, emptyHealthDay, localDate, type HealthDay } from "@ieat/shared";
+import { HEALTH_RETENTION_DAYS, dateMinus, emptyHealthDay, localDate, type HealthDay } from "@ieat/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
@@ -131,9 +131,20 @@ describe("recordHealthDays", () => {
   it("accepts today, and yesterday, and the far edge of the window", async () => {
     const userId = await onboard();
     const out = await recordHealthDays(deps, userId, [
-      day(ago(0), { steps: 1 }), day(ago(1), { steps: 2 }), day(ago(729), { steps: 3 }),
+      day(ago(0), { steps: 1 }), day(ago(1), { steps: 2 }),
+      day(ago(HEALTH_RETENTION_DAYS), { steps: 3 }),
     ]);
     expect(out!.accepted).toBe(3);
+  });
+
+  it("keeps five years, because the year view draws one point per stored year", async () => {
+    const userId = await onboard();
+    const out = await recordHealthDays(deps, userId, [
+      day(ago(4 * 365), { weight_kg: 80 }),
+      day(ago(HEALTH_RETENTION_DAYS + 1), { weight_kg: 81 }), // one day past the edge
+    ]);
+    expect(out!.accepted).toBe(1);
+    expect(HEALTH_RETENTION_DAYS).toBeGreaterThanOrEqual(5 * 365);
   });
 
   it("refuses an account that has not onboarded", async () => {

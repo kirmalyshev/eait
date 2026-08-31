@@ -21,14 +21,14 @@ import {
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
   type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
   type HealthDaysRequest, type HealthDaysResponse, type HealthResponse,
-  MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, type PushTokenResponse,
+  HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, type PushTokenResponse,
 } from "@ieat/shared";
 import { LANGS } from "@ieat/shared";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { isCalendarDate } from "@ieat/shared";
 import type { Store } from "../store.ts";
 import {
-  MAX_TREND_DAYS, MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
+  MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
   healthTrend, identitiesFor, logPhotoMeal, onboardingContent, patchProfile, profileView,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, type EngineDeps,
 } from "../engine/index.ts";
@@ -585,8 +585,8 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: Verifier)
 
       if (req.method === "GET" && pathname === ROUTES.healthTrend) {
         const days = Number(url.searchParams.get("days") ?? 30);
-        if (!Number.isInteger(days) || days < 1 || days > MAX_TREND_DAYS) {
-          return json({ error: `days must be an integer in [1, ${MAX_TREND_DAYS}]` }, 400);
+        if (!Number.isInteger(days) || days < 1 || days > HEALTH_RETENTION_DAYS) {
+          return json({ error: `days must be an integer in [1, ${HEALTH_RETENTION_DAYS}]` }, 400);
         }
         const out = await healthTrend(deps, userId, days);
         return out ? json(out satisfies HealthResponse) : json({ error: "not-onboarded" }, 403);

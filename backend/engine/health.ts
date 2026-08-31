@@ -12,27 +12,15 @@
 // `targets.ts` is untouched by this file.
 
 import {
-  dateMinus, isAcceptableWeightKg, localDate, sanitizeHealthDay,
+  HEALTH_RETENTION_DAYS, dateMinus, isAcceptableWeightKg, localDate, sanitizeHealthDay,
   type HealthDay, type HealthDaysResponse, type HealthResponse,
 } from "@ieat/shared";
 import type { EngineDeps } from "./deps.ts";
 import { profileView } from "./profile.ts";
 
-/** The longest trend a client may ask for. A year of daily rows is already a large response. */
-export const MAX_TREND_DAYS = 365;
-
-/**
- * How far back a day may be dated and still be stored. Two years.
- *
- * THIS IS WHAT BOUNDS ROWS PER USER. Accounts are free and this route is not billed, so without a
- * window a client can write four hundred distinct dates per request, spanning centuries, for as
- * long as it cares to. The `(user_id, date)` key stops one date being stored twice; it does nothing
- * about a client that simply never repeats one.
- *
- * Two years is also the honest limit of the product's interest: nothing here reads further back
- * than a year, and a health row from 2004 is not a trend, it is ballast.
- */
-export const MAX_HEALTH_AGE_DAYS = 730;
+// How far back a day may be dated and still be stored, and the widest trend a client may read, are
+// both `HEALTH_RETENTION_DAYS` — the contract owns that number because the phone's first sync and
+// the diary's window have to agree with it. Its comment there is where the bound is justified.
 
 /**
  * Store a batch of days, and sync the weight if this batch carries a newer one.
@@ -60,7 +48,7 @@ export async function recordHealthDays(
   // a wrong clock is the usual cause, and filing today's steps under tomorrow makes the row wrong
   // when tomorrow actually arrives.
   const today = localDate(deps.config.timezone);
-  const oldest = dateMinus(today, MAX_HEALTH_AGE_DAYS);
+  const oldest = dateMinus(today, HEALTH_RETENTION_DAYS);
 
   // Every day is validated here, on the server. A metric outside its plausible range is nulled and
   // the rest of the day survives; a day with no usable date, nothing in it at all, or a date
@@ -109,7 +97,7 @@ export async function healthTrend(
   const profile = await deps.store.getProfile(userId);
   if (!profile || profile.onboarded_at === null) return null;
 
-  const window = Math.max(1, Math.min(MAX_TREND_DAYS, Math.floor(days) || 1));
+  const window = Math.max(1, Math.min(HEALTH_RETENTION_DAYS, Math.floor(days) || 1));
   const since = dateMinus(localDate(deps.config.timezone), window - 1);
   return { days: await deps.store.healthDaysSince(userId, since) };
 }

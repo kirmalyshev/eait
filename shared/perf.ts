@@ -107,9 +107,12 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   onboarding: { paintMs: 100, readyMs: 100 },
 
   // Apple Health. Seeded from the trend cache, so a second visit is instant; the allowance above
-  // paintMs is for the cold case — one read of at most thirty daily rows — and for nothing else.
-  // The permission sheet and the sample read both happen AFTER the first frame, deliberately: this
-  // screen must draw its copy and its connect button without waiting on a native module.
+  // paintMs is for the cold case — two reads, the stored health rows and the diary's per-day
+  // totals, each up to five years of small rows — and for nothing else. The permission sheet and
+  // the sample read both happen AFTER the first frame, deliberately: this screen must draw its
+  // copy and its connect button without waiting on a native module. The paint number is the one
+  // to watch here: the screen draws six SVG charts on its first frame once it has data, and
+  // `bucketSeries` runs over every stored day for each of them.
   //
   // WHAT THIS NUMBER DOES NOT COVER: the harness runs with EXPO_PUBLIC_EAIT__FRONTEND__HEALTH_FAKE=1, because the
   // simulator has HealthKit and no Health app and a real read there is empty forever. The fake

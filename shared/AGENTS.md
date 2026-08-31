@@ -14,6 +14,7 @@ a third implementation instead of the agreement between two.
 | `targets.ts` | the calorie target and **the floor**. Read its header before touching any of it. |
 | `dates.ts` | calendar maths in a named zone. The phone aggregates health into days, so both sides compute dates. |
 | `health.ts` | `HEALTH_FIELDS` + `aggregateDays`. Day attribution is tested with no simulator. |
+| `trend.ts` | a daily series by day/week/month/year, and Pearson between two of them. Every number on a health chart. |
 | `onboarding.ts`, `onboarding-chat.ts` | the question set and the branch logic. |
 | `perf.ts` | `PERF_SCREENS` and every screen's budget. |
 | `entitlement.ts`, `chat.ts`, `thread.ts`, `projection.ts`, `claims.ts`, `notifications.ts` | same rule: one definition, two consumers. |

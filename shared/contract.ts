@@ -84,10 +84,28 @@ export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 /** Fallback only — see `Limits`. Several angles of ONE plate, one analysis, one billed call. */
 export const MAX_PHOTOS_PER_MEAL = 4;
 /**
- * How far back the diary answers for. THE AUTHORITY, imported by the route that enforces it and
- * sent to the app in `Limits.diaryWindowDays` — one number, not a matched pair.
+ * How far back this product looks, in days: five years.
+ *
+ * ONE NUMBER, FOUR JOBS, and they must agree. It is how old a health row may be and still be
+ * stored (`engine/health.ts`), the widest trend a client may read back, how far the phone's FIRST
+ * sync reaches into the health store (`lib/health/index.ts`), and — below — how far the diary's
+ * per-day totals can be asked for, because the health screen draws intake on the same axis as
+ * energy burned and two series with two horizons is a chart whose left half is silent about food.
+ *
+ * Five years rather than the two it used to be because the screen has a year view now, and a year
+ * view over two years is two points. It is also what bounds rows per user: accounts are free and
+ * the health route is not billed, so without a window a client could write four hundred distinct
+ * dates per request, spanning centuries, for as long as it cared to. The `(user_id, date)` key
+ * stops one date being stored twice; it does nothing about a client that simply never repeats one.
  */
-export const DIARY_WINDOW_DAYS = 90;
+export const HEALTH_RETENTION_DAYS = 5 * 365 + 1;
+
+/**
+ * How far back the diary answers for. THE AUTHORITY, imported by the route that enforces it and
+ * sent to the app in `Limits.diaryWindowDays` — one number, not a matched pair. Tied to the
+ * health horizon for the reason given there.
+ */
+export const DIARY_WINDOW_DAYS = HEALTH_RETENTION_DAYS;
 
 export const ROUTES = {
   health: "/health",
@@ -570,25 +588,30 @@ export interface HealthResponse {
   days: HealthDay[];
 }
 
-/** Bounded so one client cannot post a decade in a single request. A rolling sync sends days, not years. */
+/**
+ * Bounded so one request cannot carry a decade. A rolling sync sends days; the FIRST sync sends
+ * `HEALTH_RETENTION_DAYS` of them and goes through `healthDayBatches` to fit.
+ */
 export const MAX_HEALTH_DAYS_PER_BATCH = 400;
 
-/** The window the app re-reads on every sync. See `HealthDaysRequest` for why it looks backwards. */
-export const HEALTH_SYNC_LOOKBACK_DAYS = 7;
+/** `days` split into requests the route will accept, in order. Empty in, nothing out. */
+export function healthDayBatches(days: readonly HealthDay[]): HealthDay[][] {
+  const out: HealthDay[][] = [];
+  for (let i = 0; i < days.length; i += MAX_HEALTH_DAYS_PER_BATCH) {
+    out.push(days.slice(i, i + MAX_HEALTH_DAYS_PER_BATCH));
+  }
+  return out;
+}
 
 /**
- * The window the app reads ONCE, the first time a process finds nothing stored.
+ * The window the app re-reads on every sync. See `HealthDaysRequest` for why it looks backwards.
  *
- * The rolling window above is the steady state and is deliberately short — it exists to catch data
- * that arrived late, not to move history. But it also means a user who connects Health today gets a
- * screen showing seven days of a trend the screen renders thirty of, and it fills in over a month
- * of app launches. Their health store already HAS those thirty days; nothing was missing except a
- * wider first read.
- *
- * Matched to the trend the screen asks for. Bounded by `MAX_HEALTH_DAYS_PER_BATCH` with room to
- * spare, and by `MAX_HEALTH_AGE_DAYS` on the server, which refuses anything older regardless.
+ * The FIRST sync of a process reads `HEALTH_RETENTION_DAYS` instead — the rolling window is the
+ * steady state and is deliberately short, it exists to catch data that arrived late, not to move
+ * history. But a user who connects Health today has years of it already, and a year view that
+ * fills in one day per launch is a year view nobody will ever see filled.
  */
-export const HEALTH_FIRST_SYNC_DAYS = 30;
+export const HEALTH_SYNC_LOOKBACK_DAYS = 7;
 
 // ── Diary ────────────────────────────────────────────────────────────────────────────────────
 

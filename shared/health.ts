@@ -180,7 +180,10 @@ export function fieldsWithData(
  * from the two numbers the user came for. Everything else keeps its own unit — 11 minutes of
  * exercise is 11 minutes, and a step count is a count.
  */
-export function formatHealthValue(spec: HealthFieldSpec, value: number): string {
+export function formatHealthValue(
+  spec: Pick<HealthFieldSpec, "unit" | "decimals">,
+  value: number,
+): string {
   if (spec.unit === "min" && value >= 60) {
     const whole = Math.round(value);
     return `${Math.floor(whole / 60)} h ${whole % 60} m`;

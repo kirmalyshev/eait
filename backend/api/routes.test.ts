@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { MAX_CLIENT_ID, MAX_USER_LINE, MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay, localDate } from "@ieat/shared";
+import {
+  HEALTH_RETENTION_DAYS, MAX_CLIENT_ID, MAX_USER_LINE, MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay,
+  localDate,
+} from "@ieat/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
@@ -314,7 +317,9 @@ describe("diary", () => {
   it("400s an out-of-range week window", async () => {
     const token = await session();
     expect((await get(`${ROUTES.week}?days=0`, token)).status).toBe(400);
-    expect((await get(`${ROUTES.week}?days=900`, token)).status).toBe(400);
+    expect((await get(`${ROUTES.week}?days=${HEALTH_RETENTION_DAYS + 1}`, token)).status).toBe(400);
+    // The intake series on the health screen covers the same span as the health rows.
+    expect((await get(`${ROUTES.week}?days=${HEALTH_RETENTION_DAYS}`, token)).status).toBe(200);
   });
 });
 
@@ -343,8 +348,10 @@ describe("health", () => {
   it("400s an out-of-range trend window", async () => {
     const token = await session();
     expect((await get(`${ROUTES.healthTrend}?days=0`, token)).status).toBe(400);
-    expect((await get(`${ROUTES.healthTrend}?days=9000`, token)).status).toBe(400);
+    expect((await get(`${ROUTES.healthTrend}?days=${HEALTH_RETENTION_DAYS + 1}`, token)).status).toBe(400);
     expect((await get(`${ROUTES.healthTrend}?days=nope`, token)).status).toBe(400);
+    // Everything the server keeps, in one read: what the year view asks for.
+    expect((await get(`${ROUTES.healthTrend}?days=${HEALTH_RETENTION_DAYS}`, token)).status).toBe(200);
   });
 
   it("403s an account that has not onboarded", async () => {

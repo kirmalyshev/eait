@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
-  dateMinus, dayLabel, isCalendarDate, localDate, localTime, monthGrid, monthLabel, monthOf, monthShift,
+  dateMinus, dayLabel, isCalendarDate, localDate, localTime, monthGrid, monthLabel, monthOf, monthShift, zonedMidnight,
 } from "./dates.ts";
 
 describe("dayLabel", () => {
@@ -83,5 +83,21 @@ describe("the month grid the diary's date picker is drawn from", () => {
   test("spells the month for a person, never as an ISO string", () => {
     expect(monthLabel("2026-08")).toBe("August 2026");
     expect(monthLabel("2026-08")).not.toContain("-");
+  });
+});
+
+describe("zonedMidnight", () => {
+  test("is the instant a calendar day begins in the zone, summer and winter", () => {
+    expect(zonedMidnight("Europe/Berlin", "2026-08-31").toISOString()).toBe("2026-08-30T22:00:00.000Z");
+    expect(zonedMidnight("Europe/Berlin", "2026-01-15").toISOString()).toBe("2026-01-14T23:00:00.000Z");
+    expect(zonedMidnight("UTC", "2026-08-31").toISOString()).toBe("2026-08-31T00:00:00.000Z");
+    expect(zonedMidnight("America/New_York", "2026-08-31").toISOString()).toBe("2026-08-31T04:00:00.000Z");
+  });
+
+  test("is right on the day the clocks change", () => {
+    // Berlin springs forward on 2026-03-29 at 02:00 CET. Midnight is still CET (+1).
+    expect(zonedMidnight("Europe/Berlin", "2026-03-29").toISOString()).toBe("2026-03-28T23:00:00.000Z");
+    // And the day after is CEST (+2).
+    expect(zonedMidnight("Europe/Berlin", "2026-03-30").toISOString()).toBe("2026-03-29T22:00:00.000Z");
   });
 });

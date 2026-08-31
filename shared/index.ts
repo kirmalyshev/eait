@@ -12,6 +12,7 @@ export * from "./contract.ts";
 export * from "./perf.ts";
 export * from "./dates.ts";
 export * from "./health.ts";
+export * from "./trend.ts";
 export * from "./entitlement.ts";
 export * from "./chat.ts";
 export * from "./thread.ts";

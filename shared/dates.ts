@@ -40,6 +40,36 @@ export function dateMinus(date: string, days: number): string {
   return shifted.toISOString().slice(0, 10);
 }
 
+/** The wall clock `zone` shows for an instant, re-read as if it were UTC. Its distance from the real instant is the zone's offset. */
+function wallClockAsUtc(zone: string, at: Date): number {
+  const p: Record<string, string> = {};
+  for (const part of new Intl.DateTimeFormat("en-US", {
+    timeZone: zone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).formatToParts(at)) p[part.type] = part.value;
+  return Date.UTC(+p.year!, +p.month! - 1, +p.day!, +p.hour!, +p.minute!, +p.second!);
+}
+
+/**
+ * The instant a calendar day BEGINS in `zone`.
+ *
+ * The other direction from `localDate`, and needed for the same reason it exists: the phone reads
+ * its health store from "the start of the oldest day the server keeps", and that start is the
+ * server's midnight, not the device's. A read that began at the device's midnight — or seven times
+ * twenty-four hours before now — takes a partial first day and upserts it over a complete one.
+ *
+ * Found by offset: midnight UTC of the date, shifted by what the zone's clock shows at that instant,
+ * then checked once more at the answer in case the offset changed in between — which it does on the
+ * two days a year the clocks move, and those are exactly the days a fixed offset gets wrong.
+ */
+export function zonedMidnight(zone: string, date: string): Date {
+  const utc = Date.parse(`${date}T00:00:00Z`);
+  let at = utc - (wallClockAsUtc(zone, new Date(utc)) - utc);
+  const offsetAtAnswer = wallClockAsUtc(zone, new Date(at)) - at;
+  if (at + offsetAtAnswer !== utc) at = utc - offsetAtAnswer;
+  return new Date(at);
+}
+
 /** `YYYY-MM-DD`, and a real calendar date — `2026-02-31` parses as a string and is not a day. */
 export function isCalendarDate(v: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
