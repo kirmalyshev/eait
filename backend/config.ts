@@ -278,7 +278,7 @@ function list(name: string): string[] {
 
 function required(name: string): string {
   const v = process.env[name];
-  if (!v) throw new Error(`[ieat] ${name} is required and not set`);
+  if (!v) throw new Error(`[eait] ${name} is required and not set`);
   return v;
 }
 
@@ -293,7 +293,7 @@ export function int(name: string, fallback: number): number {
   const raw = process.env[name];
   if (raw === undefined || raw === "") return fallback;
   const n = Number(raw);
-  if (!Number.isInteger(n) || n < 0) throw new Error(`[ieat] ${name} must be a non-negative integer`);
+  if (!Number.isInteger(n) || n < 0) throw new Error(`[eait] ${name} must be a non-negative integer`);
   return n;
 }
 
@@ -313,7 +313,7 @@ export function int(name: string, fallback: number): number {
 export function llmMaxTokensFromEnv(fallback: number): number {
   const value = int("EAIT__BACKEND__LLM_MAX_TOKENS", fallback);
   if (value < 2000) {
-    throw new Error("[ieat] EAIT__BACKEND__LLM_MAX_TOKENS must be at least 2000; one measured analysis is 1614 completion tokens, and 0 is a bound of zero rather than 'unbounded'");
+    throw new Error("[eait] EAIT__BACKEND__LLM_MAX_TOKENS must be at least 2000; one measured analysis is 1614 completion tokens, and 0 is a bound of zero rather than 'unbounded'");
   }
   return value;
 }
@@ -379,18 +379,18 @@ export function loadConfig(): Config {
   const d = configDefaults();
 
   const maxPhotosPerMeal = int("EAIT__BACKEND__MAX_PHOTOS_PER_MEAL", d.maxPhotosPerMeal);
-  if (maxPhotosPerMeal < 1) throw new Error("[ieat] EAIT__BACKEND__MAX_PHOTOS_PER_MEAL must be at least 1");
+  if (maxPhotosPerMeal < 1) throw new Error("[eait] EAIT__BACKEND__MAX_PHOTOS_PER_MEAL must be at least 1");
 
   // Zero passes `int` — it is a non-negative integer — and would expire every token the instant it
   // was issued, which presents as an app that cannot stay signed in and as nothing in any log.
   const sessionTtlDays = int("EAIT__BACKEND__SESSION_TTL_DAYS", d.sessionTtlDays);
-  if (sessionTtlDays < 1) throw new Error("[ieat] EAIT__BACKEND__SESSION_TTL_DAYS must be at least 1");
+  if (sessionTtlDays < 1) throw new Error("[eait] EAIT__BACKEND__SESSION_TTL_DAYS must be at least 1");
 
   // The free DAILY cap described a tier that no longer exists. A host provisioned before the
   // change still spells it; refusing is what gets it removed rather than silently ignored.
   if (process.env.EAIT__BACKEND__USER_DAILY_PHOTO_CAP !== undefined) {
     throw new Error(
-      "[ieat] EAIT__BACKEND__USER_DAILY_PHOTO_CAP is retired: there is no free tier. " +
+      "[eait] EAIT__BACKEND__USER_DAILY_PHOTO_CAP is retired: there is no free tier. " +
       "EAIT__BACKEND__FREE_ANALYSES is the sample size (default 1).",
     );
   }
@@ -401,7 +401,7 @@ export function loadConfig(): Config {
 
   const subscribeConfirmTtlDays = int("EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS", d.subscribeConfirmTtlDays);
   if (subscribeConfirmTtlDays < 1) {
-    throw new Error("[ieat] EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS must be at least 1");
+    throw new Error("[eait] EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS must be at least 1");
   }
 
   // An unknown provider is a STARTUP ERROR, not a fallback to `log`. Falling back would mean a
@@ -409,10 +409,10 @@ export function loadConfig(): Config {
   // container log instead of sending them, and the only symptom is a list that stops growing.
   const mailProvider = (process.env.EAIT__BACKEND__MAIL_PROVIDER ?? d.mailProvider) as Config["mailProvider"];
   if (mailProvider !== "log" && mailProvider !== "resend") {
-    throw new Error(`[ieat] EAIT__BACKEND__MAIL_PROVIDER must be "log" or "resend", not "${mailProvider}"`);
+    throw new Error(`[eait] EAIT__BACKEND__MAIL_PROVIDER must be "log" or "resend", not "${mailProvider}"`);
   }
   if (mailProvider === "resend" && !process.env.EAIT__BACKEND__RESEND_API_KEY) {
-    throw new Error("[ieat] EAIT__BACKEND__MAIL_PROVIDER=resend needs EAIT__BACKEND__RESEND_API_KEY");
+    throw new Error("[eait] EAIT__BACKEND__MAIL_PROVIDER=resend needs EAIT__BACKEND__RESEND_API_KEY");
   }
 
   const eveningLineTime = eveningLineTimeFromEnv();
@@ -478,7 +478,7 @@ export function eveningLineTimeFromEnv(): { hour: number; minute: number } {
   const raw = process.env.EAIT__BACKEND__EVENING_LINE_TIME;
   if (raw === undefined || raw === "") return { ...configDefaults().eveningLineTime };
   const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(raw.trim());
-  if (!m) throw new Error(`[ieat] EAIT__BACKEND__EVENING_LINE_TIME must be HH:MM, not "${raw}"`);
+  if (!m) throw new Error(`[eait] EAIT__BACKEND__EVENING_LINE_TIME must be HH:MM, not "${raw}"`);
   return { hour: Number(m[1]), minute: Number(m[2]) };
 }
 
@@ -496,7 +496,7 @@ export function eveningLineTimeFromEnv(): { hour: number; minute: number } {
 export function adminTokenFromEnv(): string {
   const raw = process.env.EAIT__BACKEND__ADMIN_TOKEN ?? "";
   if (raw !== "" && raw.length < 24) {
-    throw new Error("[ieat] EAIT__BACKEND__ADMIN_TOKEN must be at least 24 characters (or unset to disable /admin)");
+    throw new Error("[eait] EAIT__BACKEND__ADMIN_TOKEN must be at least 24 characters (or unset to disable /admin)");
   }
   return raw;
 }
@@ -518,11 +518,11 @@ export function revenueCatWebhookTokenFromEnv(): string {
   if (raw === "") return raw;
   if (raw.length < 24) {
     throw new Error(
-      "[ieat] EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN must be at least 24 characters (or unset to disable the webhook)",
+      "[eait] EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN must be at least 24 characters (or unset to disable the webhook)",
     );
   }
   if (/\s/.test(raw)) {
-    throw new Error("[ieat] EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN must not contain whitespace");
+    throw new Error("[eait] EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN must not contain whitespace");
   }
   return raw;
 }

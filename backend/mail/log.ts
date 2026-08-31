@@ -17,7 +17,7 @@ export function logMailer(): Mailer {
   return {
     async sendConfirmation(_to, confirmUrl) {
       const { subject } = confirmationMessage(confirmUrl);
-      console.log(`[ieat] mail (log provider) "${subject}" -> ${confirmUrl}`);
+      console.log(`[eait] mail (log provider) "${subject}" -> ${confirmUrl}`);
     },
   };
 }

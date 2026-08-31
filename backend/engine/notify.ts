@@ -218,7 +218,7 @@ export async function eveningSweep(
     } catch (e) {
       // The message, never the account and never the device. What is useful here is that a number
       // of accounts failed, and tomorrow's sweep will try them again.
-      console.error(`[ieat] evening sweep: composing failed for one account: ${(e as Error)?.message ?? e}`);
+      console.error(`[eait] evening sweep: composing failed for one account: ${(e as Error)?.message ?? e}`);
       broken++;
     }
   }
@@ -232,7 +232,7 @@ export async function eveningSweep(
   // the part with nothing else watching it.
   const report = () => {
     console.log(
-      `[ieat] evening sweep ${opts.date}: ${result.users} account(s) with a device, `
+      `[eait] evening sweep ${opts.date}: ${result.users} account(s) with a device, `
       + `${result.sent} sent, ${result.skipped} skipped, ${result.failed} failed, `
       + `${result.dropped} token(s) dropped`,
     );
@@ -248,7 +248,7 @@ export async function eveningSweep(
     // A push service that is down is not a reason for the sweep to be down. Every message in the
     // batch is counted as failed and tomorrow's sweep tries again; there is no queue, on purpose —
     // a stale 20:30 line delivered the following afternoon is worse than one that never arrives.
-    console.error(`[ieat] evening sweep: push send failed for ${messages.length} message(s): ${(e as Error)?.message ?? e}`);
+    console.error(`[eait] evening sweep: push send failed for ${messages.length} message(s): ${(e as Error)?.message ?? e}`);
     result.failed += messages.length;
     return report();
   }
@@ -289,7 +289,7 @@ export async function collectPushReceipts(deps: EngineDeps, tickets: SweptTicket
   try {
     receipts = await deps.push.receipts(ids);
   } catch (e) {
-    console.error(`[ieat] push receipts failed for ${ids.length} ticket(s): ${(e as Error)?.message ?? e}`);
+    console.error(`[eait] push receipts failed for ${ids.length} ticket(s): ${(e as Error)?.message ?? e}`);
     return 0;
   }
 
@@ -299,7 +299,7 @@ export async function collectPushReceipts(deps: EngineDeps, tickets: SweptTicket
     if (receipts.get(ticket.id) !== "device-not-registered") continue;
     if (await deps.store.dropPushToken(ticket.userId, ticket.token)) dropped++;
   }
-  if (dropped > 0) console.log(`[ieat] push receipts: dropped ${dropped} token(s) for devices that are gone`);
+  if (dropped > 0) console.log(`[eait] push receipts: dropped ${dropped} token(s) for devices that are gone`);
   return dropped;
 }
 

@@ -106,7 +106,7 @@ export function clampDayOffset(v: unknown): number {
   const n = Math.round(Number(v ?? 0));
   if (!Number.isFinite(n)) return 0;
   if (n < 0 || n > MAX_DAY_OFFSET) {
-    console.warn(`[ieat] dayOffset out of contract: ${String(v)} -> clamped`);
+    console.warn(`[eait] dayOffset out of contract: ${String(v)} -> clamped`);
     return Math.min(MAX_DAY_OFFSET, Math.max(0, n));
   }
   return n;

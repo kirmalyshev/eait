@@ -232,7 +232,7 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: Verifier)
         // `capped` is logged rather than merely redirected: it is the only one of these the
         // operator can do something about, and it is invisible from the outside by design.
         if (!result.ok && result.reason === "capped") {
-          console.warn("[ieat] subscribe refused: the daily list cap is spent");
+          console.warn("[eait] subscribe refused: the daily list cap is spent");
         }
         //
         // The success page is CHECK-YOUR-EMAIL, not "you are on the list". A pending row is not a
@@ -242,7 +242,7 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: Verifier)
         // the same event: nothing was saved and it was not their fault. The pending row is left to
         // be swept.
         if (!result.ok && result.reason === "capped") {
-          console.warn("[ieat] subscribe refused: the daily list cap is spent");
+          console.warn("[eait] subscribe refused: the daily list cap is spent");
         }
         const path = !result.ok
           ? (result.reason === "invalid" ? "/not-subscribed"
@@ -333,7 +333,7 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: Verifier)
         } catch (e) {
           if (e instanceof AuthError) {
             // The reason is logged, never returned — it can quote the token.
-            console.error(`[ieat] ${provider} sign-in rejected: ${e.reason}`);
+            console.error(`[eait] ${provider} sign-in rejected: ${e.reason}`);
             return json({ error: "sign-in-failed" }, 401);
           }
           throw e;
@@ -602,7 +602,7 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: Verifier)
 
       return json({ error: "not found" }, 404);
     } catch (e) {
-      console.error(`[ieat] api ${req.method} ${pathname} failed: ${(e as Error)?.message ?? e}`);
+      console.error(`[eait] api ${req.method} ${pathname} failed: ${(e as Error)?.message ?? e}`);
       return json({ error: "internal" }, 500);
     }
   };

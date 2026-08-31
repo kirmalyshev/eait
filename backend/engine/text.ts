@@ -73,7 +73,7 @@ export async function handleText(
     // Given back when the gateway refused before generating anything — the same rule as the photo
     // path, and it must be, or a typed first meal burns a sample a photo would have kept.
     const refunded = await refundGatewayRefusal(deps, userId, today, "text", e);
-    console.error(`[ieat] text routing failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
+    console.error(`[eait] text routing failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
     return { kind: "analysis-failed" };
   }
 
@@ -106,7 +106,7 @@ export async function handleText(
         // Every new proposal sweeps the expired ones: their words have no reason to stay. Housekeeping,
         // so it can never fail the turn it rides on — that turn is already billed.
         await deps.store.pruneExpiredPendings().catch((e) => {
-          console.error(`[ieat] pending sweep failed: ${(e as Error)?.message ?? e}`);
+          console.error(`[eait] pending sweep failed: ${(e as Error)?.message ?? e}`);
         });
         await deps.store.putPending({
           id: pendingId, userId, analysis, date,

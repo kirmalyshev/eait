@@ -16,6 +16,7 @@ import { BODY, MASCOT_SOURCE, MOUTHS, SHEEN } from "./mascot.ts";
 import { styles } from "./styles.ts";
 import { faqs, founder, measured, refusals, floorSection, sample } from "./content.ts";
 import { KCAL_FLOOR } from "@ieat/shared";
+import { configDefaults } from "../config.ts";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -146,6 +147,20 @@ describe("the numbers on the page are the numbers in the code", () => {
     expect(floorCopy).toContain(KCAL_FLOOR.female.toLocaleString("en-GB"));
     expect(floorCopy).toContain(KCAL_FLOOR.male.toLocaleString("en-GB"));
     expect(sample.target.floorKcal).toBe(KCAL_FLOOR.female);
+  });
+
+  test("the sample the copy promises is the sample the server gives", () => {
+    // The first refusal and the cost question both describe what an account gets before the app
+    // asks for money. That number is `EAIT__BACKEND__FREE_ANALYSES`, and it used to be described by
+    // three sentences saying there was no paid tier at all — which stayed on the page after the
+    // paywall shipped. Quoting the constant is what stops the copy outliving the product a second
+    // time, exactly as the floor section quotes KCAL_FLOOR.
+    expect(configDefaults().freeAnalyses).toBe(1);
+    const billing = refusals[0]!.body + " " + faqs.map((f) => f.a).join(" ");
+    expect(billing).toContain("That first answer is yours");
+    // And the claim that replaced it has to still be true of the product: a card is asked for, but
+    // only after that first answer, and never by this page.
+    expect(billing).not.toContain("no paid tier");
   });
 
   test("the hero's sample target sits above its own floor", () => {
@@ -544,7 +559,7 @@ describe("the mailing list on the page", () => {
   test("the page says out loud that deleting an account does not leave the list", () => {
     // The surprising consequence of keeping them separate. Burying it is how a privacy promise
     // becomes a complaint.
-    expect(withForm).toContain("Deleting an ieat account does not remove an address from this list");
+    expect(withForm).toContain("Deleting an eait account does not remove an address from this list");
   });
 });
 

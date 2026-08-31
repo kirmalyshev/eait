@@ -81,7 +81,7 @@ export async function refundGatewayRefusal(
 ): Promise<boolean> {
   if (!(e instanceof GatewayRefusal)) return false;
   return await deps.store.undoAnalysis(userId, date, scope).catch((x: unknown) => {
-    console.error(`[ieat] refund failed: ${(x as Error)?.message ?? x}`);
+    console.error(`[eait] refund failed: ${(x as Error)?.message ?? x}`);
     return false;
   });
 }

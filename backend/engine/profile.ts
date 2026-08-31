@@ -194,7 +194,7 @@ export async function classifyRestrictions(deps: EngineDeps, text: string): Prom
     // two paths cannot disagree about what a valid tag is.
     return tags.filter((t) => (RESTRICTION_TAGS as string[]).includes(t));
   } catch (e) {
-    console.error(`[ieat] restriction classification failed: ${(e as Error).message}`);
+    console.error(`[eait] restriction classification failed: ${(e as Error).message}`);
     return [];
   }
 }

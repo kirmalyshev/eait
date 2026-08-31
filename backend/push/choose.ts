@@ -25,7 +25,7 @@ export function choosePush(config: PushConfig, demo: boolean): PushPort {
   if (demo || !config.pushEnabled) return logPush();
   if (config.expoPushAccessToken === "") {
     console.warn(
-      "[ieat] EAIT__BACKEND__PUSH_ENABLED is on without EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN: "
+      "[eait] EAIT__BACKEND__PUSH_ENABLED is on without EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN: "
       + "notifications will be logged, not sent. Expo accepts unauthenticated sends and this "
       + "server will not make one.",
     );

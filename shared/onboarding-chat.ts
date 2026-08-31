@@ -377,7 +377,7 @@ export const GAIN_PACE_CARD: SupportCard = {
 
 /** copy.md § Step 04 — the under-16 stop. The refusal is the server's; this is how it reads. */
 export const UNDER_AGE_CARD: SupportCard = {
-  title: `ieat is for ${MIN_AGE} and over`,
+  title: `eait is for ${MIN_AGE} and over`,
   body: "The way this app sets calorie targets is not designed for a body that is still growing.",
 };
 
@@ -397,7 +397,7 @@ export const UNDER_AGE_LINES = {
     "Then this is where we stop. Nothing you told me is kept, and nothing was sent anywhere — there is no account to delete.",
     `Come back at ${MIN_AGE} and I'll be around.`,
   ],
-  endedPlaceholder: `ieat is for ${MIN_AGE} and over`,
+  endedPlaceholder: `eait is for ${MIN_AGE} and over`,
 } as const;
 
 /** copy.md § Step 06 — the target below a healthy BMI. The server refuses it; this explains it. */

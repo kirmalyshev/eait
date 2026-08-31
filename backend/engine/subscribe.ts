@@ -135,7 +135,7 @@ export async function subscribe(
     // request contains the address. The pending row is left alone — it cannot be confirmed, so the
     // sweep removes it within the week, which is the right end state for an address nobody agreed
     // to.
-    console.error(`[ieat] subscribe: confirmation send failed: ${(e as Error)?.message ?? e}`);
+    console.error(`[eait] subscribe: confirmation send failed: ${(e as Error)?.message ?? e}`);
     return { ok: false, reason: "send-failed" };
   }
 

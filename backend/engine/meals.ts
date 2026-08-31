@@ -104,7 +104,7 @@ export async function logPhotoMeal(
     const refunded = await refundGatewayRefusal(deps, userId, date, "photo", e);
     // Logged, never returned: the message can carry the prompt, and the prompt carries the user's
     // medical free text.
-    console.error(`[ieat] photo analysis failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
+    console.error(`[eait] photo analysis failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
     return { kind: "analysis-failed" };
   }
   // `images` goes out of scope here and is never written anywhere. That is the whole mechanism.
@@ -264,7 +264,7 @@ export async function confirmPendingMeal(
     // offers on this failure can log it instead of meeting "expired" for a sentence already billed.
     // Logged if even that fails: the symptom is a later "expired" on a sentence already billed.
     await deps.store.putPending(pending).catch((err) => {
-      console.error(`[ieat] pending restore failed: ${(err as Error)?.message ?? err}`);
+      console.error(`[eait] pending restore failed: ${(err as Error)?.message ?? err}`);
     });
     throw e;
   }

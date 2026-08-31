@@ -179,13 +179,13 @@ export async function revenueCatWebhook(
   // A delivery this server cannot read is still a delivery it should stop being sent. 200, because
   // a 400 buys retries of a message that will never parse any differently.
   if (!event) {
-    console.warn("[ieat] revenuecat: unreadable delivery ignored");
+    console.warn("[eait] revenuecat: unreadable delivery ignored");
     return json({ ok: true, applied: false });
   }
 
   const outcome = await applyRevenueCatEvent(deps, event);
   if (outcome.applied) {
-    console.log("[ieat] revenuecat: entitlement updated");
+    console.log("[eait] revenuecat: entitlement updated");
     latch.markMatched();
   }
   // THE ONE REFUSAL THAT IS ALMOST NEVER ORDINARY.
@@ -209,7 +209,7 @@ export async function revenueCatWebhook(
     event.entitlementIds.length > 0 && !latch.matched()
   ) {
     console.warn(
-      `[ieat] revenuecat: a live purchase granted no entitlement this server knows — ` +
+      `[eait] revenuecat: a live purchase granted no entitlement this server knows — ` +
       `expected ${deps.config.revenueCatEntitlementId}. Check the RevenueCat dashboard.`,
     );
   }

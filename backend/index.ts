@@ -39,9 +39,9 @@ const push = choosePush(config, demo);
 // with a token being issued; there is no scheduler in this process and adding one for this would be
 // the largest thing in it.
 const pruned = await store.pruneExpiredTokens();
-if (pruned > 0) console.log(`[ieat] pruned ${pruned} idle session token(s) at startup`);
+if (pruned > 0) console.log(`[eait] pruned ${pruned} idle session token(s) at startup`);
 const stale = await store.pruneExpiredPendings();
-if (stale > 0) console.log(`[ieat] pruned ${stale} expired proposal(s) at startup`);
+if (stale > 0) console.log(`[eait] pruned ${stale} expired proposal(s) at startup`);
 const deps: EngineDeps = {
   store,
   config,
@@ -98,20 +98,20 @@ if (config.pushEnabled) {
       if (result.tickets.length > 0) {
         setTimeout(() => {
           void collectPushReceipts(deps, result.tickets).catch((e) => {
-            console.error(`[ieat] push receipts failed: ${(e as Error)?.message ?? e}`);
+            console.error(`[eait] push receipts failed: ${(e as Error)?.message ?? e}`);
           });
         }, RECEIPT_DELAY_MS).unref?.();
       }
     } catch (e) {
       // One bad night must not take the timer with it, or the loop stops silently until a restart.
-      console.error(`[ieat] evening sweep failed: ${(e as Error)?.message ?? e}`);
+      console.error(`[eait] evening sweep failed: ${(e as Error)?.message ?? e}`);
     }
     arm();
   };
   const arm = () => {
     const wait = msUntilNextEveningLine(config.timezone, config.eveningLineTime);
     setTimeout(() => { void runSweep(); }, wait);
-    console.log(`[ieat] next evening line in ${Math.round(wait / 60_000)} minute(s)`);
+    console.log(`[eait] next evening line in ${Math.round(wait / 60_000)} minute(s)`);
   };
   arm();
 }
@@ -163,8 +163,8 @@ const server = Bun.serve({
   fetch: (req, server) => handle(req, server),
 });
 
-console.log(`[ieat] listening on http://${server.hostname}:${server.port}${demo ? " (demo: in-memory store, canned analyzer)" : ""}`);
-console.log(`[ieat] config ${JSON.stringify(redact(config))}`);
+console.log(`[eait] listening on http://${server.hostname}:${server.port}${demo ? " (demo: in-memory store, canned analyzer)" : ""}`);
+console.log(`[eait] config ${JSON.stringify(redact(config))}`);
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, async () => {

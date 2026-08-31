@@ -35,7 +35,7 @@ export function chooseMailer(config: MailConfig, demo: boolean): Mailer {
   if (config.landingUrl === "" || LOCAL_LANDING.test(config.landingUrl)) return logMailer();
 
   console.warn(
-    "[ieat] EAIT__BACKEND__MAIL_PROVIDER=log with a public landing page: every subscribe submission will be "
+    "[eait] EAIT__BACKEND__MAIL_PROVIDER=log with a public landing page: every subscribe submission will be "
     + "refused (/try-later) until EAIT__BACKEND__MAIL_PROVIDER=resend and EAIT__BACKEND__RESEND_API_KEY are set.",
   );
   return {

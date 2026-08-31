@@ -28,7 +28,7 @@ export interface Remembered {
 
 // The only claim an `undo` hands back is the once-per-account greeting: a release that fails
 // spends it with nothing written, so it is the one failure here worth a line in the log.
-const release = (e: unknown) => console.error(`[ieat] claim release failed: ${(e as Error)?.message ?? e}`);
+const release = (e: unknown) => console.error(`[eait] claim release failed: ${(e as Error)?.message ?? e}`);
 
 /**
  * Append lines in order. NEVER fails the turn that called it: the meal is written by then, and a
@@ -54,13 +54,13 @@ export async function remember(
     // ponytail: count-then-write, so two concurrent turns can overshoot by one batch. The bound is
     // against runaway growth, not a quota; a count under the account lock if exactness ever matters.
     if ((await deps.store.countUserChat(userId)) + r.lines.length > MAX_THREAD_LINES) {
-      console.error(`[ieat] thread full for one account; ${r.lines.length} line(s) not kept`);
+      console.error(`[eait] thread full for one account; ${r.lines.length} line(s) not kept`);
       await undo?.().catch(release);
       return;
     }
     await deps.store.appendChat(userId, r.lines);
   } catch (e) {
-    console.error(`[ieat] thread write failed: ${(e as Error)?.message ?? e}`);
+    console.error(`[eait] thread write failed: ${(e as Error)?.message ?? e}`);
     // The one thing a failed write must not keep: a claim on words that never landed.
     await undo?.().catch(release);
   }

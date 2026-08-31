@@ -154,13 +154,13 @@ export async function appleNotifications(
     // The reason is logged and never returned: it can echo the token. 401 rather than 200 because
     // a message this server cannot attribute to Apple is one it should be sent again if it really
     // was Apple's and something here was momentarily wrong.
-    console.warn(`[ieat] apple: notification rejected (${e instanceof AuthError ? e.reason : "unreadable"})`);
+    console.warn(`[eait] apple: notification rejected (${e instanceof AuthError ? e.reason : "unreadable"})`);
     return json({ error: "unauthorized" }, 401);
   }
 
   const event = parseAppleEvent(events);
   if (event === null) {
-    console.warn("[ieat] apple: unreadable notification ignored");
+    console.warn("[eait] apple: unreadable notification ignored");
     return json({ ok: true });
   }
 
@@ -170,7 +170,7 @@ export async function appleNotifications(
   // acts on what it understands and stops being told the rest.
   if (REVOCATIONS.has(event.type)) {
     const outcome = await revokeAppleIdentity(deps, event.subject, event.eventTimeMs);
-    console.log(`[ieat] apple: ${event.type} → ${outcome}`);
+    console.log(`[eait] apple: ${event.type} → ${outcome}`);
   }
 
   return json({ ok: true });

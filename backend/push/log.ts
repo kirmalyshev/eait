@@ -14,7 +14,7 @@ export function logPush(): PushPort {
   let seq = 0;
   return {
     async send(messages) {
-      console.log(`[ieat] push (log only): ${messages.length} message(s) would be sent`);
+      console.log(`[eait] push (log only): ${messages.length} message(s) would be sent`);
       return messages.map((m) => ({ token: m.to, id: `log-${++seq}`, error: null }));
     },
     async receipts(ids) {

@@ -85,7 +85,7 @@ export function expoPush(opts: ExpoPushOptions): PushPort {
         } catch (e) {
           // The status, never the body — `post` has already stripped it. This chunk's messages get
           // "other", which keeps their tokens: a provider having a bad night is not a dead device.
-          console.error(`[ieat] expo push: a batch of ${chunk.length} failed: ${(e as Error)?.message ?? e}`);
+          console.error(`[eait] expo push: a batch of ${chunk.length} failed: ${(e as Error)?.message ?? e}`);
           for (const m of chunk) tickets.push({ token: m.to, id: null, error: "other" });
           continue;
         }

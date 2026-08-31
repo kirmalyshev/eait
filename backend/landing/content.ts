@@ -6,12 +6,29 @@
 // reasoning is in that file's header and `marketing/DECISIONS.md`.
 //
 // Citations: verdict-over-counting lead — `marketing/research/2026-07-26-meta-ad-teardown.md` §6
-// (angle A2) · no-card refusal — `marketing/research/2026-07-28-calai-app-store-review-brief.md`
+// (angle A2) · billing refusal — `marketing/research/2026-07-28-calai-app-store-review-brief.md`
 // §5 and `…-category-billing-crossread.md` · floor section — that brief's §3.4, numbers read from
 // `src/shared/targets.ts` · accuracy section — `marketing/research/2026-07-26-ad-angle-bank.md`
 // Angle 2.
+//
+// THE FIRST REFUSAL USED TO SAY THERE WAS NO PAID TIER, AND THE PAID TIER SHIPPED. Three places
+// said it — the refusal, the cost question and the closing line — and every one of them became
+// false the day `checkCaps` started answering `subscription-required`. The angle survives, because
+// the 864-review corpus is about charges nobody agreed to rather than about price: what the product
+// still refuses is taking a card BEFORE it has shown you an answer. The claim is now the narrower
+// true one, and `landing.test.ts` fails if the copy and `configDefaults().freeAnalyses` disagree.
+//
+// NO PRICE IS PRINTED HERE, and that is deliberate rather than coy. The products are priced per
+// territory — 175 of them, equalized from a euro base — so any single figure on this page is the
+// wrong figure for most of the people reading it, and the App Store shows each of them their own
+// before they agree to anything. A number on this page would also be a second copy of one that
+// lives in App Store Connect, which is the drift `KCAL_FLOOR` is quoted to avoid.
 
 import { KCAL_FLOOR } from "@ieat/shared";
+import { configDefaults } from "../config.ts";
+
+/** What an account gets before the app asks. The server's own number, not a sentence about it. */
+const SAMPLE_ANALYSES = configDefaults().freeAnalyses;
 
 export interface Refusal {
   /** The promise, phrased as the thing that will not happen. */
@@ -126,11 +143,13 @@ export const refusalsSection = {
 
 export const refusals: readonly Refusal[] = [
   {
-    title: "It will not ask for a card.",
+    title: "It will not ask for a card before it has answered you.",
     body:
-      "There is no trial to start and none to forget to cancel. You open it, answer a few " +
-      "questions about your body, and send a meal. There is no paid tier today and no card on " +
-      "file, so there is nothing that can quietly begin charging one.",
+      "You open it, answer a few questions about your body, and send a meal — no account, no " +
+      `email, no card. ${SAMPLE_ANALYSES === 1 ? "That first answer is yours" : `The first ${SAMPLE_ANALYSES} answers are yours`} ` +
+      "before anything is asked of you. Only then does it ask, and what it asks for is a " +
+      "subscription with a free week in front of it, bought through the App Store and cancelled " +
+      "there. No charge starts on its own.",
     proof: "The largest complaint in this category, by a factor of four, is a charge nobody agreed to.",
   },
   {
@@ -308,8 +327,11 @@ export const faqs: readonly Faq[] = [
   {
     q: "What does it cost?",
     a:
-      "There is no paid tier today and no card on file. If that ever changes it will be a thing " +
-      "you decide to do, not a charge that appears because a trial you forgot about ended.",
+      "Your first analysis costs nothing and needs no card, so you can see what it actually says " +
+      "about your food before deciding anything. After that it is a subscription, with a free " +
+      "week before the first charge. It is bought in the App Store, which shows you the price in " +
+      "your own currency before you agree, and cancelled in the same place — Settings, your name, " +
+      "Subscriptions. There is no charge that appears without you having agreed to it.",
   },
   {
     q: "Do I have to make an account?",
@@ -341,7 +363,7 @@ export const faqs: readonly Faq[] = [
 
 export const closing = {
   headline: "One photo. Then an answer you can act on.",
-  sub: "No card, nothing to cancel, and nothing kept afterwards. Find out whether you like it before you tell it anything about yourself.",
+  sub: "No account, no email and no card to see it work — and nothing kept afterwards. Find out whether you like it before you pay for it or tell it who you are.",
 } as const;
 
 /**
@@ -395,7 +417,7 @@ export const subscribeSection = {
    */
   honeypotLabel: "Company (leave this empty)",
   note:
-    "Deleting an ieat account does not remove an address from this list — they are separate " +
+    "Deleting an eait account does not remove an address from this list — they are separate " +
     "things, deliberately, and the unsubscribe link is how you leave.",
   /** The only place the page asks the reader for something, which is exactly Spud's job. */
   mascot: "One message. I will not make a habit of it.",
