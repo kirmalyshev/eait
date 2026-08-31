@@ -1,20 +1,20 @@
 // The conversation: its order, its branches, and the three rules every reply obeys.
 //
-// This is the file that stands in for a simulator. The replies read answers given ten questions
+// This is the file that stands in for a simulator. The replies read answers given six questions
 // earlier, and the failures they guard against are all silent: a gainer told that losing weight is
-// hard to keep, a statistic delivered twice in a row, a plan aimed at a number below where the
-// person already is. None of those throws, none shows up in a screenshot, and all three shipped in
-// the design's own drafts before the context pass caught them.
+// hard to keep, a citation bent to fit the wrong direction, a plan aimed at a number below where
+// the person already is. None of those throws, none shows up in a screenshot, and all three shipped
+// in the design's own drafts before the context pass caught them.
 
 import { describe, expect, it, test } from "bun:test";
 import {
-  CHAT_PROMPTS, DEFAULT_ONBOARDING_CONTENT, EMPTY_RUN, ONBOARDING_STEPS, GAIN_PACE_CARD, GOAL_CARDS,
+  CHAT_PROMPTS, DEFAULT_ONBOARDING_CONTENT, ONBOARDING_STEPS, GAIN_PACE_CARD, GOAL_CARDS,
   MAX_STRUGGLE_CARDS, MAX_SURPLUS_SHARE, MAX_DEFICIT_SHARE, MIN_AGE, MIN_WEIGHT_KG, STRUGGLES,
-  answerLabel, askLines, askPlaceholder, capNote, checkDirection, checkNumber, eatoutReply,
-  isAnswered, minHealthyKg, momentFromText, momentReply, promptsFor, reconcileGoalEdit,
+  answerLabel, askLines, askPlaceholder, capNote, checkDirection, checkNumber,
+  isAnswered, minHealthyKg, promptsFor, reconcileGoalEdit,
   restrictionsReply, resumeAt,
-  struggleCard, strugglesCloser, switchedLine, weightAck, whyBucket, whyReply,
-  type ChatPromptId, type Profile, type RunState, type Struggle,
+  struggleCard, strugglesCloser, switchedLine, weightAck,
+  type ChatPromptId, type Profile, type Struggle,
 } from "./index.ts";
 
 function profile(over: Partial<Profile> = {}): Profile {
@@ -28,7 +28,6 @@ function profile(over: Partial<Profile> = {}): Profile {
   };
 }
 
-const run = (over: Partial<RunState> = {}): RunState => ({ ...EMPTY_RUN, ...over });
 const ids = (p: Profile, off: "country"[] = ["country"]) => promptsFor(p, off).map((x) => x.id);
 const content = DEFAULT_ONBOARDING_CONTENT;
 const promptById = (id: ChatPromptId) => CHAT_PROMPTS.find((p) => p.id === id)!;
@@ -36,8 +35,8 @@ const promptById = (id: ChatPromptId) => CHAT_PROMPTS.find((p) => p.id === id)!;
 describe("the order of the conversation", () => {
   it("is the design's", () => {
     expect(ids(profile())).toEqual([
-      "welcome", "goal", "why", "sex", "birth_year", "height_cm", "weight_kg",
-      "target_weight_kg", "pace", "activity", "struggles", "moment", "eatout",
+      "welcome", "goal", "sex", "birth_year", "height_cm", "weight_kg",
+      "target_weight_kg", "pace", "activity", "struggles",
       "restrictions", "building", "summary",
     ]);
   });
@@ -75,15 +74,24 @@ describe("where a killed run picks up", () => {
   });
 
   it("skips a conversation question that sits before the resume point", () => {
-    // `why` is not a profile column, so re-asking is the only way to have it — and re-asking "what
-    // made you decide to start now?" after a kill is worse than never asking. Everything before the
-    // resume point is replayed from the profile, and `why` has nothing to replay.
-    const p = profile({ goal: "lose", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 93 });
+    // `struggles` is not a profile column, so re-asking is the only way to have it — and re-asking
+    // "what's been hard?" after a kill is worse than never asking. Everything before the resume
+    // point is replayed from the profile, and `struggles` has nothing to replay.
+    const p = profile({
+      goal: "lose", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 93,
+      target_weight_kg: 88, pace: "steady", activity: "moderate",
+    });
     const list = promptsFor(p, ["country"]);
     const at = resumeAt(list, p);
-    expect(list.slice(at).map((x) => x.id)).not.toContain("why");
-    // The ones AFTER the resume point are still asked — they are conversation, not history.
-    expect(list.slice(at).map((x) => x.id)).toContain("struggles");
+    expect(list[at]!.id).toBe("restrictions");
+    expect(list.slice(at).map((x) => x.id)).not.toContain("struggles");
+  });
+
+  it("still asks a conversation question that sits after the resume point", () => {
+    // It is conversation, not history: the run has not reached it, so it is asked.
+    const p = profile({ goal: "lose", sex: "male", birth_year: 1990, height_cm: 183 });
+    const list = promptsFor(p, ["country"]);
+    expect(list.slice(resumeAt(list, p)).map((x) => x.id)).toContain("struggles");
   });
 
   it("holds on restrictions until onboarding is completed", () => {
@@ -117,8 +125,9 @@ describe("what Spud asks", () => {
 
   it("carries a placeholder for everything typed and none for what is tapped", () => {
     expect(askPlaceholder(promptById("birth_year"), content)).toBe("Your age");
-    expect(askPlaceholder(promptById("why"), content)).toBe("In your own words…");
     expect(askPlaceholder(promptById("goal"), content)).toBeNull();
+    // No question that collects nothing takes typed input any more.
+    expect(askPlaceholder(promptById("struggles"), content)).toBeNull();
   });
 
   it("asks the front door from the content, and asks nothing on the two cards", () => {
@@ -130,7 +139,7 @@ describe("what Spud asks", () => {
     }
   });
 
-  it("asks the conversation questions from code, not from the admin", () => {
+  it("asks the conversation question from code, not from the admin", () => {
     expect(askLines(promptById("struggles"), content, profile())[0]).toContain("What's been hard?");
   });
 });
@@ -166,32 +175,6 @@ describe("the answer a resumed run draws back", () => {
       .toBe("Kidney condition · High cholesterol");
     expect(answerLabel(promptById("restrictions"), profile({ ...done, restrictions: [] }), content))
       .toBe("Nothing applies");
-  });
-});
-
-describe("why now", () => {
-  it("keeps a declined answer nobody's business", () => {
-    expect(whyBucket("", true)).toBe("private");
-    expect(whyReply("private", "lose")).toContain("stays your business");
-  });
-
-  it("does not tell a gainer they will lose more", () => {
-    // Rule 1, and the leak the design's context pass found: the medical finding is about weight
-    // LOSS, so quoting it to somebody gaining is a citation bent to fit.
-    expect(whyReply("medical", "lose")).toContain("lose more");
-    expect(whyReply("medical", "gain")).not.toContain("lose more");
-    expect(whyReply("medical", "maintain")).not.toContain("lose more");
-  });
-
-  it("buckets what people actually type", () => {
-    expect(whyBucket("my doctor told me my cholesterol is high", false)).toBe("medical");
-    expect(whyBucket("wedding in October", false)).toBe("event");
-    expect(whyBucket("I'm tired all the time", false)).toBe("energy");
-    expect(whyBucket("just felt like it", false)).toBe("other");
-  });
-
-  it("never turns the reason into a slogan", () => {
-    expect(whyReply("other", "lose")).toContain("won't turn it into a slogan");
   });
 });
 
@@ -333,67 +316,13 @@ describe("the support cards", () => {
     expect(MAX_STRUGGLE_CARDS).toBe(2);
   });
 
-  it("closes on the number picked", () => {
+  it("closes on the number picked, and promises only what is still coming", () => {
     expect(strugglesCloser(0)).toContain("Even better");
-    expect(strugglesCloser(1)).toContain("about that");
+    expect(strugglesCloser(1)).toContain("with that");
     expect(strugglesCloser(3)).toContain("each of these");
-  });
-});
-
-describe("the hardest moment", () => {
-  it("matches what people type onto the four buckets", () => {
-    expect(momentFromText("usually late at night")).toBe("evening");
-    expect(momentFromText("deadline weeks")).toBe("stress");
-    expect(momentFromText("when I skip lunch")).toBe("skipped");
-    expect(momentFromText("at my mother's")).toBe("other");
-  });
-
-  it("delivers the 8pm statistic once", () => {
-    // Rule 2. The night-snacking CARD carries the same number; delivered twice it reads as a script
-    // that is not listening.
-    const fresh = momentReply("evening", "lose", run());
-    const carded = momentReply("evening", "lose", run({ cardsShown: ["night"] }));
-    expect(fresh).toContain("60%");
-    expect(carded).not.toContain("60%");
-    expect(carded).toContain("covered the 8pm crowd");
-    // Both still say what actually happens about it.
-    expect(fresh).toContain("evening budget");
-    expect(carded).toContain("evening budget");
-  });
-
-  it("tells a gainer the evening is an asset", () => {
-    const gain = momentReply("evening", "gain", run());
-    expect(gain).toContain("asset");
-    expect(gain).not.toContain("60%");
-  });
-
-  it("tells a gainer a skipped meal is a surplus that never happened", () => {
-    expect(momentReply("skipped", "gain", run())).toContain("surplus that never happened");
-    expect(momentReply("skipped", "lose", run())).toContain("borrowing from the evening");
-  });
-
-  it("tells a tapped 'somewhere else' from a typed answer nothing matched", () => {
-    expect(momentReply("other", "lose", run(), false)).toContain("the map fills in");
-    expect(momentReply("other", "lose", run(), true)).toContain("now it's on the map");
-  });
-});
-
-describe("eating out", () => {
-  it("never repeats the card it was promised by", () => {
-    // Rule 2's closest call: the "Eating out a lot" card says almost exactly what the Most-days
-    // reply says, so firing both is the same sentence twice with a question in between.
-    expect(eatoutReply("most", run())).toContain("drift most");
-    expect(eatoutReply("most", run({ cardsShown: ["eatout"] }))).toContain("As promised");
-    expect(eatoutReply("most", run({ cardsShown: ["eatout"] }))).not.toContain("drift most");
-  });
-
-  it("notices when 'rarely' contradicts the card that was shown", () => {
-    expect(eatoutReply("rarely", run({ cardsShown: ["eatout"] }))).toContain("Rarer than");
-    expect(eatoutReply("rarely", run())).toContain("Home cooking");
-  });
-
-  it("has a reply for the middle", () => {
-    expect(eatoutReply("sometimes", run())).toContain("both ends");
+    // It used to promise "one more question about them" — the hardest-moment question, which is
+    // gone. A closer that names a beat the flow no longer has is the flow lying about itself.
+    for (const n of [1, 3]) expect(strugglesCloser(n)).toContain("Two quick ones left");
   });
 });
 
@@ -444,12 +373,10 @@ describe("what the conversation never does", () => {
     const out: string[] = [];
     for (const goal of ["lose", "gain", "maintain"] as const) {
       out.push(...askLines(promptById("target_weight_kg"), content, profile({ goal })));
-      out.push(whyReply("medical", goal), whyReply("event", goal), whyReply("other", goal));
-      for (const m of ["evening", "stress", "skipped", "other"] as const) {
-        out.push(momentReply(m, goal, run()), momentReply(m, goal, run({ cardsShown: ["night", "eatout"] })));
-      }
       for (const s of STRUGGLES) out.push(struggleCard(s as Struggle, goal).body);
     }
+    out.push(...askLines(promptById("struggles"), content, profile()));
+    for (const n of [0, 1, 3]) out.push(strugglesCloser(n));
     out.push(...Object.values(content.welcome.lines));
     return out;
   };

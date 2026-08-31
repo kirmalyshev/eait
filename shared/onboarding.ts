@@ -104,18 +104,22 @@ export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
  * before they existed. Adding a place a user can BE does not add a place a calorie target can come
  * from.
  *
- * `why`, `struggles`, `moment` and `eatout` are questions to the USER — the empathy layer of
- * `copy.md` steps 3, 8, 10 and 11 — and they are here rather than in `ONBOARDING_STEPS` because
- * nothing they collect is stored on the profile or reaches `explainTargets`. Their answers live in
- * the conversation, which IS the record: the thread is stored server-side and erased with the
- * account. See `onboarding-chat.ts`.
+ * `struggles` is a question to the USER — the empathy layer of `copy.md` step 7 — and it is here
+ * rather than in `ONBOARDING_STEPS` because nothing it collects is stored on the profile or reaches
+ * `explainTargets`. Its answer lives in the conversation, which IS the record: the thread is stored
+ * server-side and erased with the account. See `onboarding-chat.ts`.
+ *
+ * There were four. `why`, `moment` and `eatout` were cut on 2026-08-26 by copy.md's second rule — a
+ * question earns its place by having a reader, and each of those three wrote something nothing in
+ * `src/` read back. `struggles` is the one that survives it: it picks the support cards a sentence
+ * later, which the user sees.
  *
  * They are all places analytics counts, because the funnel's job is to price them. A beat that
  * costs more people than it convinces has to be visible as a drop between two rows.
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
 export const ONBOARDING_INTERSTITIALS = [
-  "welcome", "why", "struggles", "moment", "eatout", "building", "summary",
+  "welcome", "struggles", "building", "summary",
 ] as const;
 export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
 
@@ -127,8 +131,8 @@ export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
  * in an order the replies depend on, so an admin cannot reorder them.
  */
 export const ONBOARDING_PLACES = [
-  "welcome", "goal", "why", "about", "body", "target", "activity",
-  "struggles", "moment", "eatout", "country", "restrictions", "building", "summary",
+  "welcome", "goal", "about", "body", "target", "activity",
+  "struggles", "country", "restrictions", "building", "summary",
 ] as const;
 export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
 
@@ -440,8 +444,12 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // to prevent. v6 asks for an age rather than a year of birth — and predates the first shipped
   // binary, so the REVERSE dead end (age-worded copy on a binary whose parser wanted a year) has
   // no installed base; reword this question again after launch only behind a client-version gate,
-  // because `usableContent` checks structure, not meaning, in that direction.
-  version: 6,
+  // because `usableContent` checks structure, not meaning, in that direction. v7 is three
+  // questions shorter — why now, the hardest moment and eating out are gone, so a v6 funnel has
+  // rows a v7 one cannot, and reading the two under one number would compare a fourteen-place
+  // flow with an eleven-place one. The words did not change; the FLOW they are counted against
+  // did, and that is the same join the number exists for.
+  version: 7,
   welcome: {
     lines: [
       "Hi, I'm Spud. Photograph what you eat, get an honest answer — that's the whole app.",
@@ -879,10 +887,10 @@ export type OnboardingAction = (typeof ONBOARDING_ACTIONS)[number];
  * know a question WAS answered, not what with — so `value` carries an enumerated choice (`lose`,
  * `moderate`, `de`) and nothing else, and the numeric questions send no value at all.
  *
- * The four conversation questions (`why`, `struggles`, `moment`, `eatout`) send no value either,
- * and the strongest case is `struggles`: "binge episodes" is a disclosure, not a preference.
- * `REPORTABLE_FIELDS` is keyed by `OnboardingStep`, so those fields are not on it and their answers
- * are dropped by construction rather than by anybody remembering.
+ * `struggles`, the one question that collects nothing, sends no value either, and it is the
+ * strongest case of the lot: "binge episodes" is a disclosure, not a preference. `REPORTABLE_FIELDS`
+ * is keyed by `OnboardingStep`, so that field is not on it and its answers are dropped by
+ * construction rather than by anybody remembering.
  *
  * This is not a nicety. Analytics rows outlive the account that produced them in most systems, and
  * the account here can be deleted on demand under 5.1.1(v); a funnel that had recorded someone's
