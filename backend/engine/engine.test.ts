@@ -3,6 +3,7 @@ import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEX
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { LlmPorts } from "../llm/port.ts";
+import { GatewayRefusal } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { localDate } from "@ieat/shared";
@@ -288,6 +289,48 @@ describe("the sample", () => {
     expect((await logPhotoMeal(one, userId, photo())).kind).toBe("logged");
     await entitle(userId, -1000);
     expect(await logPhotoMeal(one, userId, photo())).toEqual({ kind: "subscription-required" });
+  });
+
+  // Issue #32: this happened, in production, to the first real user — an expired OpenRouter balance
+  // answered 402 seconds after they finished onboarding, and the account was paywalled forever
+  // having never seen one analysis. The sample IS the funnel: there is no free tier, so an upstream
+  // outage otherwise converts every account created during it into permanent churn.
+  it("gives the analysis back when the gateway refused before generating anything", async () => {
+    const refused = makeDeps({ freeAnalyses: 1 }, {
+      ...demoPorts(),
+      analyzePhoto: async () => { throw new GatewayRefusal(402, "llm http 402: out of credits"); },
+      routeText: async () => { throw new GatewayRefusal(503, "llm http 503: no provider"); },
+    });
+    const userId = await onboard();
+    expect((await logPhotoMeal(refused, userId, photo())).kind).toBe("analysis-failed");
+    expect((await handleText(refused, userId, { text: "two eggs on toast" })).kind).toBe("analysis-failed");
+    // Nothing spent, by either route, so the app shows "try again" rather than the paywall.
+    expect((await profileView(one, userId))!.limits.sampleUsed).toBe(false);
+    // And the sample is still there to be spent on an analysis that works.
+    expect((await logPhotoMeal(one, userId, photo())).kind).toBe("logged");
+    expect((await profileView(one, userId))!.limits.sampleUsed).toBe(true);
+  });
+
+  it("still words the failure when the refund itself cannot be written", async () => {
+    // The refund runs inside the catch that turns a failed analysis into a refusal the screen can
+    // word. A store that cannot delete must not escalate that into a 500 — the app would show
+    // "couldn't reach ieat" over an upstream that answered — and must not eat the log line either.
+    const brokenStore: Store = {
+      ...store,
+      undoAnalysis: async () => { throw new Error("delete failed"); },
+    };
+    const refused: EngineDeps = {
+      ...makeDeps({ freeAnalyses: 1 }, {
+        ...demoPorts(),
+        analyzePhoto: async () => { throw new GatewayRefusal(402, "llm http 402: out of credits"); },
+      }),
+      store: brokenStore,
+    };
+    const userId = await onboard();
+    expect((await logPhotoMeal(refused, userId, photo())).kind).toBe("analysis-failed");
+    // Nothing was given back, so the charge stands — the safe direction when the store is the thing
+    // that is broken.
+    expect((await profileView(one, userId))!.limits.sampleUsed).toBe(true);
   });
 
   it("tells the app whether the sample is spent, beside the entitlement", async () => {

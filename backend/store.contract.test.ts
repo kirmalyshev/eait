@@ -679,6 +679,25 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.countGlobalAnalyses(RUN_DATE)).toBe(before + 3);
     });
 
+    it("gives back one analysis, and only one, scoped like every other read", async () => {
+      const s = await open();
+      const a = (await s.upsertDeviceUser(device(), "en")).userId;
+      const b = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.recordAnalysis(a, RUN_DATE, "photo");
+      await s.recordAnalysis(a, RUN_DATE, "photo");
+      await s.recordAnalysis(a, RUN_DATE, "text");
+      await s.recordAnalysis(b, RUN_DATE, "photo");
+      expect(await s.undoAnalysis(a, RUN_DATE, "photo")).toBe(true);
+      expect(await s.countUserPhotos(a, RUN_DATE)).toBe(1); // one of the two, never both
+      expect(await s.countUserAnalyses(a)).toBe(2);         // the text turn is untouched
+      expect(await s.countUserPhotos(b, RUN_DATE)).toBe(1); // and never another account's
+      expect(await s.undoAnalysis(a, RUN_DATE, "photo")).toBe(true);
+      // Nothing left to give back is an answer, not a throw — and not a row from another day.
+      expect(await s.undoAnalysis(a, RUN_DATE, "photo")).toBe(false);
+      expect(await s.undoAnalysis(a, "2020-01-01", "text")).toBe(false);
+      expect(await s.countUserAnalyses(a)).toBe(1);
+    });
+
     // ── identities ────────────────────────────────────────────────────────────────────────────
 
     it("links an identity and finds the account behind it", async () => {

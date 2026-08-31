@@ -1327,6 +1327,20 @@ export async function postgresStore(
       await sql`insert into analyses (user_id, date, scope) values (${userId}, ${date}, ${scope})`;
     },
 
+    async undoAnalysis(userId, date, scope) {
+      // One statement, so the row is chosen and deleted atomically: a concurrent undo either
+      // deletes a different row or deletes nothing and says so, and neither can refund twice.
+      // The newest is taken rather than a remembered id because these rows carry no identity beyond
+      // (user, date, scope) — every one is interchangeable, so "the one just charged" is any of them.
+      const rows = await sql`
+        delete from analyses where id = (
+          select id from analyses
+          where user_id = ${userId} and date = ${date} and scope = ${scope}
+          order by id desc limit 1
+        ) returning id`;
+      return rows.length > 0;
+    },
+
     async putHealthDays(userId, days) {
       if (days.length === 0) return 0;
       // One transaction: a partially applied batch would leave a day updated and the next one not,

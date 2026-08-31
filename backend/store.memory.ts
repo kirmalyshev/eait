@@ -672,6 +672,19 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       analyses.push({ userId, date, scope });
     },
 
+    async undoAnalysis(userId, date, scope) {
+      // The newest match, like the Postgres one. Analysis rows carry no identity beyond user, date
+      // and scope, so "the one just charged" and "the newest" are the same row by construction.
+      for (let i = analyses.length - 1; i >= 0; i--) {
+        const a = analyses[i]!;
+        if (a.userId === userId && a.date === date && a.scope === scope) {
+          analyses.splice(i, 1);
+          return true;
+        }
+      }
+      return false;
+    },
+
     async putHealthDays(userId, days) {
       let written = 0;
       for (const day of days) {

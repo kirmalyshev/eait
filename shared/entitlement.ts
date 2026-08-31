@@ -55,8 +55,10 @@ export const NO_ENTITLEMENT: Entitlement = { active: false, expiresAt: null, tri
 /**
  * Whether a failed analysis just spent the free sample. A cap is charged before the model is asked
  * (a cap that only counts successes is one a retry loop walks through), so on the sample an
- * upstream failure spends it, and every surface that invites a retry must say so instead — the
- * retry would meet a 402. One predicate, so the surfaces that word it cannot disagree on the fact.
+ * upstream failure MAY spend it — the server gives it back only when the gateway refused before
+ * generating anything. Which happened is not knowable here, so every surface that invites a retry
+ * reads a profile fetched at the failure and words itself from THAT: the retry meets a 402 or it
+ * does not. One predicate, so the surfaces cannot disagree on the fact.
  */
 // OPTIONAL ALL THE WAY DOWN, even though the types say these fields are required. A shipped app
 // outlives its server, and a server that predates the paid tier answers /v1/profile with no

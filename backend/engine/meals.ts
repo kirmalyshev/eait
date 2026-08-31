@@ -17,7 +17,7 @@ import {
 } from "@ieat/shared";
 import { localDate, localTime } from "@ieat/shared";
 import type { EngineDeps } from "./deps.ts";
-import { checkCaps } from "./caps.ts";
+import { checkCaps, refundGatewayRefusal } from "./caps.ts";
 import { afterCorrection, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@ieat/shared";
 import type { AnalyzedMeal } from "../llm/port.ts";
@@ -99,9 +99,12 @@ export async function logPhotoMeal(
       repertoire: await buildRepertoire(deps, userId, date),
     });
   } catch (e) {
+    // A gateway refusal generated nothing and was billed nothing, so the analysis charged above is
+    // given back. Every other failure may have cost real money and stays charged.
+    const refunded = await refundGatewayRefusal(deps, userId, date, "photo", e);
     // Logged, never returned: the message can carry the prompt, and the prompt carries the user's
     // medical free text.
-    console.error(`[ieat] photo analysis failed: ${(e as Error).message}`);
+    console.error(`[ieat] photo analysis failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
     return { kind: "analysis-failed" };
   }
   // `images` goes out of scope here and is never written anywhere. That is the whole mechanism.

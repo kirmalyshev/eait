@@ -12,7 +12,7 @@ import {
 import { dateMinus, isRefusal, localDate } from "@ieat/shared";
 import type { EngineDeps } from "./deps.ts";
 import type { ChatAppend } from "../store.ts";
-import { checkCaps } from "./caps.ts";
+import { checkCaps, refundGatewayRefusal } from "./caps.ts";
 import { applyCorrection, gatedVerdicts, sumTotals, toAnalysis } from "./meals.ts";
 import { afterCorrection, remember } from "./chat.ts";
 
@@ -70,7 +70,10 @@ export async function handleText(
       ...(focus ? { focusMeal: toAnalysis(focus) } : {}),
     });
   } catch (e) {
-    console.error(`[ieat] text routing failed: ${(e as Error).message}`);
+    // Given back when the gateway refused before generating anything — the same rule as the photo
+    // path, and it must be, or a typed first meal burns a sample a photo would have kept.
+    const refunded = await refundGatewayRefusal(deps, userId, today, "text", e);
+    console.error(`[ieat] text routing failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
     return { kind: "analysis-failed" };
   }
 

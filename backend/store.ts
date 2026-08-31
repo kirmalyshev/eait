@@ -532,6 +532,16 @@ export interface Store {
   countUserAnalyses(userId: string): Promise<number>;
   /** Recorded BEFORE the model is called: a failed call still costs money. */
   recordAnalysis(userId: string, date: string, scope: "photo" | "text"): Promise<void>;
+  /**
+   * Give one analysis back. True when a row was deleted, false when there was nothing to give.
+   *
+   * The counterpart to charging before the call: a gateway refusal that generated nothing was
+   * billed nothing, so the account keeps its analysis. Deletes at most ONE row, matching the
+   * user, date and scope, in the store's own guarded statement — the engine never reads first and
+   * then decides, because two deliveries can be concurrent and a decision made from a stale read
+   * is a refund granted twice.
+   */
+  undoAnalysis(userId: string, date: string, scope: "photo" | "text"): Promise<boolean>;
 
   // ── Health ─────────────────────────────────────────────────────────────────────────────────
   //

@@ -7,6 +7,7 @@
 
 import type { Refusal } from "@ieat/shared";
 import type { EngineDeps } from "./deps.ts";
+import { GatewayRefusal } from "../llm/port.ts";
 import { dailyPhotoCap, entitlementFor } from "./entitlement.ts";
 
 export type CapScope = "photo" | "text";
@@ -56,4 +57,31 @@ export async function checkCaps(
   }
 
   return null;
+}
+
+/**
+ * The other half of charging before the call: give the analysis back when the gateway refused
+ * before generating anything, and only then.
+ *
+ * Lives beside `checkCaps` because it is the same rule read backwards, and because both charge
+ * sites must answer it identically — a typed first meal that burns a sample a photo would have kept
+ * is the bug this exists to prevent. Anything that is not a `GatewayRefusal` may have cost real
+ * money and stays charged.
+ *
+ * Never throws. The caller is already inside a catch, handling a failure it is about to word for
+ * the user; a store that cannot delete must not turn that handled failure into a 500 — and must not
+ * swallow the log line the caller writes after it.
+ */
+export async function refundGatewayRefusal(
+  deps: EngineDeps,
+  userId: string,
+  date: string,
+  scope: CapScope,
+  e: unknown,
+): Promise<boolean> {
+  if (!(e instanceof GatewayRefusal)) return false;
+  return await deps.store.undoAnalysis(userId, date, scope).catch((x: unknown) => {
+    console.error(`[ieat] refund failed: ${(x as Error)?.message ?? x}`);
+    return false;
+  });
 }

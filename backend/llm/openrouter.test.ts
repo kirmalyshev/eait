@@ -8,6 +8,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { openRouterPorts } from "./openrouter.ts";
+import { GatewayRefusal } from "./port.ts";
 
 /** A payload the provider stopped at the completion bound. `partial` is what it had written. */
 const truncated = (partial: string) => ({ __finish_reason: "length", __raw: partial });
@@ -190,5 +191,66 @@ describe("truncation at the bound", () => {
     const { llm, bodies } = ports([truncated('{"intent":"answ')]);
     await expect(llm.routeText(ROUTE_INPUT)).rejects.toThrow();
     expect(bodies.length).toBe(1);
+  });
+});
+
+describe("a non-200 from the gateway", () => {
+  /** A gateway that answers one status and routes nothing. */
+  const refusing = (status: number) => openRouterPorts({
+    apiKey: "test-key-not-a-secret", model: "test-model",
+    baseUrl: "https://example.invalid/v1/chat/completions", timeoutMs: 5000, maxTokens: 4321,
+    fetchImpl: (async () => new Response('{"error":{"message":"nope"}}', { status })) as unknown as typeof fetch,
+  });
+
+  const thrown = async (status: number) =>
+    await refusing(status).routeText(ROUTE_INPUT).then(() => null, (e: unknown) => e);
+
+  // The status is the whole decision about whether the account keeps its lifetime analysis, so it
+  // is asserted per code rather than read out of a message. A 402 is what bricked the first real
+  // user: charged for a call OpenRouter refused before any model saw it (issue #32).
+  test.each([401, 402, 429, 503])("%i never reached a model, so it was billed nothing", async (status) => {
+    const err = await thrown(status);
+    expect(err).toBeInstanceOf(GatewayRefusal);
+    expect((err as GatewayRefusal).status).toBe(status);
+    expect((err as Error).message).toContain(`llm http ${status}`);
+  });
+
+  // Charging on ambiguity is the safe direction: the alternative gives back calls we paid for.
+  test.each([400, 408, 500, 502])("%i may name a model that already ran, and stays charged", async (status) => {
+    const err = await thrown(status);
+    expect(err).toBeInstanceOf(Error);
+    expect(err).not.toBeInstanceOf(GatewayRefusal);
+  });
+
+  /** A gateway that answers one completion and then refuses everything after it. */
+  const thenRefusing = (first: unknown, status: number) => {
+    let n = 0;
+    return openRouterPorts({
+      apiKey: "test-key-not-a-secret", model: "test-model",
+      baseUrl: "https://example.invalid/v1/chat/completions", timeoutMs: 5000, maxTokens: 4321,
+      fetchImpl: (async () => (n++ === 0
+        ? new Response(
+            JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(first) } }] }),
+            { status: 200, headers: { "content-type": "application/json" } })
+        : new Response('{"error":{"message":"nope"}}', { status }))) as unknown as typeof fetch,
+    });
+  };
+
+  // ONE charged analysis pays for as many calls as this transport makes, and the status is only
+  // half the question: a 402 on the SECOND call refuses a request whose first call already
+  // generated tokens and was billed. Refunding that gives back a call this instance paid for —
+  // the expensive direction of issue #32's fix, and the one no status code can distinguish.
+  test("a refusal on the focused second call stays charged: the router call was billed", async () => {
+    const err = await thenRefusing({ intent: "meal", dayOffset: 0 }, 402)
+      .routeText(ROUTE_INPUT).then(() => null, (e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err).not.toBeInstanceOf(GatewayRefusal);
+  });
+
+  test("a refusal on the schema retry stays charged: the reply it retries was billed", async () => {
+    const err = await thenRefusing({ nope: true }, 429)
+      .routeText(ROUTE_INPUT).then(() => null, (e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err).not.toBeInstanceOf(GatewayRefusal);
   });
 });

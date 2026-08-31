@@ -6,7 +6,7 @@
 
 import { z } from "zod";
 import type { AnalyzePhoto, ClassifyRestrictions, LlmPorts, RouteResult, RouteText } from "./port.ts";
-import { clampDayOffset } from "./port.ts";
+import { GatewayRefusal, clampDayOffset } from "./port.ts";
 import {
   ClassifySchema, MealAnalysisSchema, RouteSchema, SYSTEM, SYSTEM_CLASSIFY, SYSTEM_ROUTE,
   SYSTEM_TEXT_MEAL, buildClassifyText, buildRouteText, buildTextMealText, buildUserText,
@@ -27,6 +27,22 @@ interface Options {
 
 type Content = string | ({ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } })[];
 interface Message { role: "system" | "user"; content: Content }
+
+/**
+ * Statuses OpenRouter answers with BEFORE it routes the request to a model: bad credentials, no
+ * credit, rate limited, no provider available. Nothing was generated, so nothing was billed, and
+ * the account's analysis is given back rather than spent (`GatewayRefusal`).
+ *
+ * Deliberately short. A 408 or a 502 may name a model that already ran, and charging on ambiguity
+ * is the safe direction here — the alternative refunds calls this instance actually paid for.
+ *
+ * The status is only half the question. One engine charge can pay for SEVERAL calls — the schema
+ * retry below, and `routeText`'s focused second call — and the ones after the first follow a 200
+ * that generated tokens. A gateway status there is a refusal of a call we had already paid for, so
+ * it stays a plain `Error`: `billed` is what carries that, and it is why the class is raised here
+ * rather than derived from a status by the engine.
+ */
+const UNROUTED = new Set([401, 402, 429, 503]);
 
 /**
  * Data URL for one image. The mime type is read from the magic bytes rather than trusted from the
@@ -62,6 +78,8 @@ export function openRouterPorts(opts: Options): LlmPorts {
     content: Content,
     schema: z.ZodType<T>,
     schemaName: string,
+    /** A call in this turn has already generated, so nothing here can be given back. */
+    billed = false,
   ): Promise<T> {
     const messages: Message[] = [{ role: "system", content: system }, { role: "user", content }];
     let lastError = "";
@@ -118,7 +136,11 @@ export function openRouterPorts(opts: Options): LlmPorts {
         // The status and a short body go to the log; neither reaches the client. An upstream error
         // string can echo the prompt, which carries the user's medical free text.
         const detail = (await res.text()).slice(0, 500);
-        throw new Error(`llm http ${res.status}: ${detail}`);
+        const message = `llm http ${res.status}: ${detail}`;
+        // `attempt > 0` means the first attempt answered 200 and was billed for a reply that missed
+        // the schema. Nothing after that first completion is free, whatever the status says.
+        const unrouted = UNROUTED.has(res.status) && !billed && attempt === 0;
+        throw unrouted ? new GatewayRefusal(res.status, message) : new Error(message);
       }
 
       const payload = await res.json() as {
@@ -195,6 +217,9 @@ export function openRouterPorts(opts: Options): LlmPorts {
         buildTextMealText({ text: input.text, profile: input.profile, targets: input.targets }),
         MealAnalysisSchema,
         "text-meal",
+        // The router call above already generated and was billed, so a gateway refusal on this one
+        // is not free and the turn stays charged.
+        true,
       );
       out = { ...out, analysis };
     }

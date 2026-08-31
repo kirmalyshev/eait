@@ -30,7 +30,11 @@ route. A route that computes is a rule the tests cannot reach.
   NO ROW. Anything reading it is reading "days that have something", and treating a missing row as
   a zero is a claim the query never made.
 - **A cap is charged before the model call, not after.** A cap counting only successes is one a
-  retry loop walks through.
+  retry loop walks through. Except a `GatewayRefusal` — a status that provably generated nothing
+  (401, 402, 429, 503) was billed nothing, and `store.undoAnalysis` gives the analysis back. Charge
+  on ambiguity: a timeout or a truncation may have run — and so does a gateway status on any call
+  but the FIRST of a turn (the schema retry, `routeText`'s focused second call), because those
+  follow a completion that was billed.
 - **Errors are logged, never returned.** An error string from deep in the stack can carry the
   prompt, and the prompt carries the user's medical free text. Config goes through `redact()`.
 - **Never log the API key, the database URL with credentials, or raw image bytes.**

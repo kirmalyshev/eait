@@ -27,6 +27,27 @@ import type { MealAnalysis, Profile, FoodTargets, DayTotals } from "@ieat/shared
  */
 export type AnalyzedMeal = Omit<MealAnalysis, "verdicts">;
 
+/**
+ * The gateway refused before any tokens were generated, so the call was billed NOTHING.
+ *
+ * The engine charges an analysis BEFORE the model is asked, because a call that ran costs money
+ * whether or not it returned anything usable — and a cap that only counts successes is a cap a
+ * retry loop walks straight through. That reasoning does not reach a request the gateway turned
+ * away: no inference happened, no invoice moved, and the account is given its analysis back
+ * (`store.undoAnalysis`). Anything else — a timeout, a truncation, a reply that would not parse —
+ * may have cost real money and stays charged.
+ *
+ * It is a TYPE rather than a status field on the message because the engine must not decide this
+ * by reading an error string, and only the implementation that saw the response knows which
+ * statuses of its own gateway mean "never routed" (`openrouter.ts`).
+ */
+export class GatewayRefusal extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+    this.name = "GatewayRefusal";
+  }
+}
+
 export interface PhotoInput {
   /** Several images are ANGLES OF ONE MEAL, not several meals. One analysis, one billed call. */
   images: Uint8Array[];
