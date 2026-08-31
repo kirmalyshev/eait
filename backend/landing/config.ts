@@ -17,6 +17,14 @@ export interface LandingConfig {
   appStoreUrl: string | null;
   /** The Telegram bot. The zero-install surface; carries the CTA while the listing does not exist. */
   telegramUrl: string | null;
+  /**
+   * Where somebody can onboard without installing anything — the backend's `/start`.
+   *
+   * Absent means this page says nothing about it, which is the correct rendering of a backend that
+   * has no Google web client configured: the surface answers 404 there, and a page linking to a 404
+   * is worse than a page with one fewer option.
+   */
+  startUrl: string | null;
   /** Where support mail goes. Rendered as a mailto:, never as a raw string anywhere else. */
   supportEmail: string;
   /**
@@ -107,6 +115,11 @@ export function loadLandingConfig(env: Record<string, string | undefined>): Land
     ? requireUrl("EAIT__BACKEND__LANDING_TELEGRAM_URL", telegramRaw, { hosts: TELEGRAM_HOSTS })
     : null;
 
+  // Any host, unlike the two above: this one points at our own API, whose hostname differs per
+  // environment and is not a fixed third party we can name a list of.
+  const startRaw = env.EAIT__BACKEND__LANDING_START_URL?.trim();
+  const startUrl = startRaw ? requireUrl("EAIT__BACKEND__LANDING_START_URL", startRaw) : null;
+
   // No API, no form. Rendering one that posts nowhere would be worse than not asking: it collects
   // an address, loses it, and shows an error to somebody who had already agreed.
   const apiRaw = env.EAIT__BACKEND__LANDING_API_URL?.trim();
@@ -137,7 +150,7 @@ export function loadLandingConfig(env: Record<string, string | undefined>): Land
   // finding its hostname in a search result.
   const indexable = env.EAIT__BACKEND__LANDING_INDEXABLE?.trim().toLowerCase() === "true";
 
-  return { siteUrl, appStoreUrl, telegramUrl, supportEmail, updatedAt, indexable, apiUrl };
+  return { siteUrl, appStoreUrl, telegramUrl, startUrl, supportEmail, updatedAt, indexable, apiUrl };
 }
 
 /** Bumped by hand when the copy changes. See `LandingConfig.updatedAt` for why it is not a clock. */
@@ -215,11 +228,21 @@ export function primaryCta(
   };
 }
 
-/** The other one, if there is another one. */
+/**
+ * The other one, if there is another one.
+ *
+ * THE WEB SIGN-UP OUTRANKS THE BOT wherever it exists, and the reason is what each one produces. The
+ * bot is a demonstration; `/start` creates the ACCOUNT — the same account the app opens into, with
+ * the plan already computed and, where a checkout is configured, already paid for. A visitor who
+ * cannot install an iPhone app today is exactly who this link is for.
+ */
 export function secondaryCta(
   config: LandingConfig,
   placement: CtaPlacement,
 ): { href: string; label: string } | null {
+  if (config.startUrl) {
+    return { href: config.startUrl, label: "or set up your plan on the web" };
+  }
   if (config.appStoreUrl && config.telegramUrl) {
     return { href: withStartCode(config.telegramUrl, placement), label: "or try it in Telegram first" };
   }

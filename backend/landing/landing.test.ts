@@ -86,6 +86,21 @@ describe("config", () => {
     expect(secondaryCta(preLaunch, "hero")).toBeNull();
   });
 
+  test("the web sign-up is the second action wherever it exists, and outranks the bot", () => {
+    const withStart = loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_START_URL: "https://api.eait.fit/start" });
+    // Not the bot, even though the bot is configured: `/start` creates the ACCOUNT the app opens
+    // into, and the bot is a demonstration.
+    expect(secondaryCta(withStart, "hero")?.href).toBe("https://api.eait.fit/start");
+    expect(renderLanding(withStart)).toContain("https://api.eait.fit/start");
+    // And the primary is untouched — the store still wins the accent.
+    expect(primaryCta(withStart, "hero").href).toBe(ENV.EAIT__BACKEND__LANDING_APP_STORE_URL);
+  });
+
+  test("says nothing about a web sign-up that is not configured", () => {
+    expect(secondaryCta(config, "hero")?.href).not.toContain("/start");
+    expect(html).not.toContain("set up your plan on the web");
+  });
+
   test("a copy-review date is a date", () => {
     expect(() => loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_UPDATED: "yesterday" })).toThrow(/YYYY-MM-DD/);
   });
