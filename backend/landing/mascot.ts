@@ -1,31 +1,33 @@
 // Spud, on the web.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────
-// WHERE HE IS ALLOWED TO BE, AND WHY IT IS NOT EVERYWHERE
+// WHERE HE IS ALLOWED TO BE, AND WHY IT IS STILL NOT EVERYWHERE
 //
-// `src/mobile/lib/components/mascot.tsx` states his rule in the app: he appears in ONE place —
-// onboarding — because his job there is to make a questionnaire about your body feel like it is
-// being asked by someone rather than by a form. He says why a question is asked, he says "roughly
-// is fine", and he tells you when the app refused something and why. Then he goes away. He is not
-// on the diary, not on a meal card, and he never congratulates anyone for logging lunch.
+// `src/mobile/lib/components/mascot.tsx` states his rule in the app: he makes a questionnaire
+// about your body feel asked by someone, he says "roughly is fine", and he tells you when the
+// app refused something and why. The category's failure mode is REWARD THEATRE — the loudest
+// complaint in the incumbent's review corpus is "a noisy, badge collecting, pop up heavy game
+// that happens to involve some food tracking" — and a landing page that sprinkled a cartoon
+// potato over every section would be exactly that, on the surface where a skeptic decides
+// whether this is a serious instrument.
 //
-// The whole point of that rule is that the category's failure mode is REWARD THEATRE — the loudest
-// articulate complaint in the incumbent's review corpus is "a noisy, badge collecting, pop up heavy
-// game that happens to involve some food tracking". A landing page that sprinkled a cartoon potato
-// over every section would be exactly that, on the surface where a skeptic decides whether this is
-// a serious instrument or another gamified tracker.
+// The rule is therefore not a count (it was "three times and no more" until 2026-08-31, when the
+// owner asked for the mascot's variations). EVERY APPEARANCE IS A JOB HE ALREADY DOES IN THE APP,
+// and an appearance that cannot name its job does not ship:
 //
-// So he appears three times, and each one is a job he already does in the app:
+//   • `idle`, INSIDE the hero instrument — the correction note under the meal card is his line
+//     in the product, so the drawn phone shows who does the talking there.
+//   • `think`, beside ACCURACY — being corrected is his job; the section is about arguing with him.
+//   • `care`, beside THE FLOOR — naming a refusal and why is his actual role.
+//   • `wave`, beside THE FORM — the page's one question, and making a question feel asked by
+//     someone is the reason he exists.
+//   • `wave`/`happy`/`think`/`care` on the outcome pages — a human moment, no product claim.
 //
-//   • `care`, beside THE FLOOR — the section where the product refuses something. Telling you what
-//     was refused and why is his actual role, and the floor is the page's one refusal.
-//   • `wave`, beside THE FORM — the only place the page asks the reader for anything. Making a
-//     question feel asked by someone is the reason he exists.
-//   • `wave`, on the page somebody lands on after subscribing — a human moment with no product
-//     claim attached to it.
-//
-// And nowhere else. NOT the hero, which carries the instrument and would read as a game with a
-// mascot pasted on it. NOT beside the verdict card. NOT anywhere he would be congratulating.
+// Still banned: `cheer` (he never congratulates — sparkles and both arms up is reward theatre
+// in one drawing, and its sparkles are accent-coloured on a page that spends the accent once),
+// and any appearance whose only job is "this section felt bare". Beside the instrument in the
+// hero grid he is still out: inside the device he is the product's own voice; pasted next to
+// it he is a mascot on an instrument.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // WHY THE GEOMETRY IS COPIED RATHER THAN IMPORTED
@@ -36,8 +38,8 @@
 // it, the same guard `tokens.ts` has against the palette. A potato that is subtly the wrong potato
 // on the page immediately before the App Store screenshots is worse than no potato.
 
-/** The moods this page uses. The app has six; three of them have no job here. */
-export type LandingMood = "care" | "wave" | "think";
+/** The moods this page uses. The app has six; the one still missing is `cheer`, on purpose. */
+export type LandingMood = "care" | "wave" | "think" | "idle" | "happy";
 
 const SKIN_LIGHT = "#E8BE83";
 const SKIN_DARK = "#C08B4E";
@@ -66,6 +68,10 @@ export const MOUTHS: Record<LandingMood, string> = {
   care: "M51 75 Q59 80 67 75",
   wave: "M46 71 Q59 84 72 71",
   think: "M52 77 Q59 72 68 76",
+  // The resting face and the warm one. `happy` is `wave`'s mouth without the arm — that is how the
+  // app itself defines it — and both take the default eyes: no lids, no brows, no pupil offset.
+  idle: "M50 73 Q59 80 68 73",
+  happy: "M46 71 Q59 84 72 71",
 };
 
 /**
@@ -83,12 +89,17 @@ function eyes(mood: LandingMood): string {
       ? `<g stroke="${FACE}" stroke-width="2.6" stroke-linecap="round" fill="none" opacity=".85">` +
         `<path d="M40 51 Q47 48 54 51"/><path d="M64 51 Q71 48 78 51"/></g>`
       : "";
+  // Grouped so the stylesheet can blink him — the app blinks on a 4.2s timer (mascot.tsx), and a
+  // scaleY squash on the whole eye group is the closest a page with no script can come to its two
+  // discrete frames. Care's lids squash with the eyes, which reads fine at these sizes.
   return (
+    `<g class="spud-eyes">` +
     `<ellipse cx="47" cy="57" rx="6.2" ry="${ry}" fill="${FACE}"/>` +
     `<ellipse cx="71" cy="57" rx="6.2" ry="${ry}" fill="${FACE}"/>` +
     `<circle cx="${49 + dx}" cy="${54.6 + dy}" r="2.1" fill="#FFFFFF" opacity=".92"/>` +
     `<circle cx="${73 + dx}" cy="${54.6 + dy}" r="2.1" fill="#FFFFFF" opacity=".92"/>` +
-    lids
+    lids +
+    `</g>`
   );
 }
 

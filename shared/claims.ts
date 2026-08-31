@@ -58,6 +58,11 @@ const RULES: readonly Rule[] = [
   // standard response. `marketing/DECISIONS.md` (2026-07-26) retired a caption for exactly
   // this after the repo's own research disproved it.
   { name: "exclusivity", re: /\bthe\s+only\s+(?:app|tracker|one)\b|\bno\s+other\s+app\b/gi },
+  // The negative-universal form of the same claim — "nobody in this category publishes anything" —
+  // slipped this gate on the landing page and was caught by a red-team pass, not by the build.
+  // Falsifiable by one counterexample, actionable the same way; "we could not find one who does"
+  // is the version that survives. Tight on purpose: "a guard nobody is told about" must not match.
+  { name: "exclusivity", re: /\b(?:nobody|no\s*one)\s+(?:else\s+)?in\s+(?:this|the)\s+category\b/gi },
   { name: "superiority", re: /\bevery\s+other\s+app\b|\bbetter\s+than\s+(?:any|every|all)\b/gi },
 ];
 

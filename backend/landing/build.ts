@@ -14,7 +14,7 @@
 // the API host serve the same bytes. Two copies of a privacy policy diverge, and the one that
 // diverges silently is the one nobody is reading.
 
-import { mkdir, copyFile, writeFile, rm } from "node:fs/promises";
+import { mkdir, copyFile, stat, writeFile, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,7 +22,7 @@ import { fileURLToPath } from "node:url";
 import { assertClean, copyFromHtml } from "./claims.ts";
 import { loadLandingConfig, type LandingConfig } from "./config.ts";
 import {
-  accuracySection, brand, faqs, forSection, hero, measured, refusals, steps,
+  accuracySection, brand, faqs, forSection, hero, measured, refusals, shots, steps,
 } from "./content.ts";
 import { faviconIco, markPng, ogPng } from "./images.ts";
 import { iconSvg, outcomePages, renderLanding } from "./render.ts";
@@ -91,6 +91,35 @@ export async function buildLanding(
   await writeBinary("apple-touch-icon.png", markPng(180));
   await writeBinary("og.png", ogPng());
 
+  // The screenshots, copied rather than generated: they are `docs/screenshots/` resized once and
+  // committed under `assets/`, so the page and the App Store listing show the same frames.
+  //
+  // LOUD WHEN ONE IS MISSING, like the shared pages below. An `<img>` whose file was never written
+  // is a broken frame in the middle of the section that exists to prove the app is real, and it
+  // fails at exactly the moment nobody is looking — a deploy — rather than here.
+  await mkdir(join(outDir, "assets"), { recursive: true });
+  for (const shot of shots) {
+    const source = join(HERE, "assets", shot.file);
+    if (!existsSync(source)) {
+      throw new Error(
+        `src/backend/landing/assets/${shot.file} is missing, and the page renders an <img> for it.`,
+      );
+    }
+    await copyFile(source, join(outDir, "assets", shot.file));
+    files.push(`assets/${shot.file}`);
+    bytes += (await stat(source)).size;
+  }
+
+  // The one typeface, and its licence — the OFL requires the licence text to travel with the font.
+  await mkdir(join(outDir, "assets/fonts"), { recursive: true });
+  for (const name of ["space-grotesk-latin.woff2", "OFL.txt"] as const) {
+    const source = join(HERE, "assets/fonts", name);
+    if (!existsSync(source)) throw new Error(`src/backend/landing/assets/fonts/${name} is missing.`);
+    await copyFile(source, join(outDir, "assets/fonts", name));
+    files.push(`assets/fonts/${name}`);
+    bytes += (await stat(source)).size;
+  }
+
   // A sitemap for a build nobody may index would be an invitation contradicting the two refusals
   // beside it. Emitted only when the build is the one that should be found.
   if (config.indexable) await write("sitemap.xml", sitemap(config));
@@ -116,6 +145,7 @@ export async function buildLanding(
     }
     await copyFile(source, join(outDir, page));
     files.push(page);
+    bytes += (await stat(source)).size;
   }
 
   return { outDir, files, bytes };
