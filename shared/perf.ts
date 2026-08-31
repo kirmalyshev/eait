@@ -110,9 +110,16 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   // paintMs is for the cold case — two reads, the stored health rows and the diary's per-day
   // totals, each up to five years of small rows — and for nothing else. The permission sheet and
   // the sample read both happen AFTER the first frame, deliberately: this screen must draw its
-  // copy and its connect button without waiting on a native module. The paint number is the one
-  // to watch here: the screen draws six SVG charts on its first frame once it has data, and
-  // `bucketSeries` runs over every stored day for each of them.
+  // copy and its connect button without waiting on a native module.
+  //
+  // BOTH NUMBERS COVER THE CHARTS, and three separate things had to be true for that. `ready` is
+  // the ROWS, not the availability flag — that resolved off a local module in a few milliseconds
+  // and reported a screen whose charts had not been drawn. `TrendChart` seeds its width from the
+  // last measurement instead of drawing an empty box until `onLayout` answers, so the SVGs are on
+  // the frame `paintMs` times. And `e2e/perf.yaml` CONNECTS Health and opens the screen a second
+  // time, because the first open of a fresh account is the connect card and there is nothing on it
+  // to measure; the median of two samples is the worse one, so the charted visit is the one judged.
+  // What that visit costs is six runs of `bucketSeries` over every stored day.
   //
   // WHAT THIS NUMBER DOES NOT COVER: the harness runs with EXPO_PUBLIC_EAIT__FRONTEND__HEALTH_FAKE=1, because the
   // simulator has HealthKit and no Health app and a real read there is empty forever. The fake
