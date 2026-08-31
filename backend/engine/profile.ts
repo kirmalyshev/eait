@@ -85,6 +85,15 @@ export async function patchProfile(
     if (req.sex !== null && !["female", "male"].includes(req.sex)) return reject("sex", "out-of-range");
     patch.sex = req.sex;
   }
+  // Asked as an AGE; the server does the subtraction, with its own clock — see the contract's
+  // comment on `age`. The reject names `birth_year` because that is the field the app's stop
+  // handler and the editor's copy are keyed by.
+  if (req.age !== undefined) {
+    if (!Number.isInteger(req.age) || req.age < MIN_AGE || req.age > 100) {
+      return reject("birth_year", "age-below-minimum");
+    }
+    patch.birth_year = new Date().getUTCFullYear() - req.age;
+  }
   if (req.birth_year !== undefined) {
     if (req.birth_year !== null) {
       const age = new Date().getUTCFullYear() - req.birth_year;

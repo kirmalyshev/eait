@@ -124,6 +124,20 @@ describe("onboarding", () => {
     if (!out!.ok) expect(out!.rejected.reason).toBe("age-below-minimum");
   });
 
+  it("derives the year from a typed age with the server's own clock", async () => {
+    // The device's clock can sit across a UTC year boundary from the server's; the server is the
+    // authority, so the app sends the AGE and the subtraction happens here.
+    const { userId } = await store.upsertDeviceUser("j".repeat(40), "en");
+    const out = await patchProfile(deps, userId, { age: 36 });
+    expect(out!.ok).toBe(true);
+    expect((await store.getProfile(userId))!.birth_year).toBe(new Date().getUTCFullYear() - 36);
+    const under = await patchProfile(deps, userId, { age: 15 });
+    expect(under!.ok).toBe(false);
+    if (!under!.ok) expect(under!.rejected.reason).toBe("age-below-minimum");
+    const junk = await patchProfile(deps, userId, { age: 36.5 });
+    expect(junk!.ok).toBe(false);
+  });
+
   it("drops restriction tags outside the closed vocabulary instead of 422-ing", async () => {
     const userId = await onboard({ restrictions: ["ldl", "wizardry", "kidneys"] });
     expect((await store.getProfile(userId))!.restrictions).toEqual(RESTRICTION_TAGS.filter((t) => t === "ldl" || t === "kidneys"));

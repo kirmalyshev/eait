@@ -353,9 +353,14 @@ export function visibleVerdicts(
  * A POLICY CHOICE, not a measurement. The reasoning is arithmetic rather than clinical: roughly
  * three meals make a day, so a meal at a third of the allowance is on plan, and one carrying more
  * than half the day's budget is not — whatever the remaining meals look like.
+ *
+ * EXPORTED because the landing page's hero card hand-writes a sample meal and the three verdicts
+ * beside it, and a typed verdict that disagrees with the numbers next to it is exactly what
+ * `verdictsFromTargets` exists to prevent everywhere else. Its test reconciles the two against
+ * these, so the marketing page cannot show a judgement the engine would not produce.
  */
-const WARN_SHARE = 1 / 3;
-const BAD_SHARE = 1 / 2;
+export const WARN_SHARE = 1 / 3;
+export const BAD_SHARE = 1 / 2;
 
 function shareVerdict(value: number, dailyAllowance: number): Verdict {
   const share = value / dailyAllowance;

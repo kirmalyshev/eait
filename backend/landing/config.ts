@@ -152,13 +152,21 @@ export const DEFAULT_UPDATED_AT = "2026-08-02";
  * bucket and the page could not be judged at all. `web_*` is a new prefix in that scheme; record it
  * in that repo's convention when you next touch it.
  *
- * Two codes rather than one, because the difference between them is the only cheap read available
- * on whether the page's argument is doing any work: a tap at the top is the headline converting,
- * and a tap at the bottom is someone who read 1,200 words first.
+ * One code per ask, because the difference between them is the only cheap read available on whether
+ * the page's argument is doing any work: a tap at the top is the headline converting, a tap at the
+ * bottom is someone who read 1,200 words first, and the three in between say WHICH argument did it.
+ * That last part is why the page repeats the ask rather than keeping two — a convinced reader used
+ * to have to scroll past every proof block to reach a form, and nothing recorded that they had.
  *
- * Telegram accepts `[A-Za-z0-9_-]{1,64}` as a start payload; both of these are well inside it.
+ * Telegram accepts `[A-Za-z0-9_-]{1,64}` as a start payload; all of these are well inside it.
  */
-export const START_CODES = { hero: "web_hero", footer: "web_foot" } as const;
+export const START_CODES = {
+  hero: "web_hero",
+  steps: "web_step",
+  floor: "web_floor",
+  faq: "web_faq",
+  footer: "web_foot",
+} as const;
 export type CtaPlacement = keyof typeof START_CODES;
 
 /**

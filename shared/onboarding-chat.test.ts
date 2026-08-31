@@ -145,11 +145,14 @@ describe("the answer a resumed run draws back", () => {
     expect(answerLabel(promptById("weight_kg"), profile({ weight_kg: 93 }), content)).toBe("93");
   });
 
-  it("draws the year of birth back as the age that was typed", () => {
-    // The user typed an age; the column holds the year it implied. Replaying the column raw would
-    // show them a year they never said.
-    const age = new Date().getUTCFullYear() - 1990;
-    expect(answerLabel(promptById("birth_year"), profile({ birth_year: 1990 }), content)).toBe(String(age));
+  it("draws the year of birth back as an age, plain arithmetic, no eligibility band", () => {
+    // The user typed an age; the column holds the year. Replaying the column raw would show them a
+    // year they never said — and routing the replay through `ageFrom` would too, at the band's
+    // edge: an accepted 100-year-old crosses New Year, ageFrom(101) is null, and the fallback drew
+    // the raw year. Display is subtraction, not eligibility.
+    const year = new Date().getUTCFullYear();
+    expect(answerLabel(promptById("birth_year"), profile({ birth_year: 1990 }), content)).toBe(String(year - 1990));
+    expect(answerLabel(promptById("birth_year"), profile({ birth_year: year - 101 }), content)).toBe("101");
   });
 
   it("says nothing for an unanswered question", () => {
@@ -216,30 +219,48 @@ describe("the numbers", () => {
     expect(checkNumber("height_cm", "251", today).ok).toBe(false);
   });
 
-  it("reads an age, stores the year it implies, and says so when it is not one", () => {
-    // The question is "how old are you?"; the column is `birth_year`, because an age stored as a
-    // number is wrong within twelve months. The conversion happens here, once, and in one direction.
-    expect(checkNumber("birth_year", "36", today)).toEqual({ ok: true, value: 1990 });
-    expect(checkNumber("birth_year", "36 years", today)).toEqual({ ok: true, value: 1990 });
-    // A FOUR-DIGIT ANSWER IS THE YEAR, AND IT IS TAKEN. Copy saved on a server (or cached on a
-    // phone) before this question changed still asks for the year, and its version number cannot
-    // be told from the new default's — a save on the old server stamped it 6 too. No age is a
-    // thousand and no birth year is under one, so nothing can be misread.
-    expect(checkNumber("birth_year", "1990", today)).toEqual({ ok: true, value: 1990 });
+  it("reads an age and says so when the input is not one", () => {
+    // The question is "how old are you?" and the AGE is what travels: the server derives the year
+    // with its own clock (`engine/profile.ts`), because the device's can be wrong.
+    expect(checkNumber("birth_year", "36", today)).toEqual({ ok: true, value: 36 });
+    expect(checkNumber("birth_year", "36 years", today)).toEqual({ ok: true, value: 36 });
     expect(checkNumber("birth_year", "nope", today).ok).toBe(false);
     expect(checkNumber("birth_year", "-3", today).ok).toBe(false);
     expect(checkNumber("birth_year", "500", today).ok).toBe(false);
+  });
+
+  it("takes a four-digit year as the year itself, whatever separator it came with", () => {
+    // Copy saved before this question changed still asks for a year, and people type years out of
+    // habit under the age question too. "1.990" is how a German writes 1990; the comma form is the
+    // US thousands separator. Both are the year, never age 1.99 — which used to reach the STOP.
+    expect(checkNumber("birth_year", "1990", today)).toEqual({ ok: true, value: 36 });
+    expect(checkNumber("birth_year", "1.990", today)).toEqual({ ok: true, value: 36 });
+    expect(checkNumber("birth_year", "1,990", today)).toEqual({ ok: true, value: 36 });
     expect(checkNumber("birth_year", "1800", today).ok).toBe(false);
   });
 
-  it("stops on an age under sixteen rather than refusing it as a bad number", () => {
+  it("stops on a plausible child's age and refuses a typo as a typo", () => {
+    // The stop's quick reply DELETES THE ACCOUNT, so it is reserved for answers that plausibly
+    // mean a child (5-15). "0", "-0.4" and a premature send of "3" are typos: they get the retry
+    // line, from which nothing worse than retyping can happen.
     expect(checkNumber("birth_year", String(MIN_AGE - 1), today)).toEqual({ ok: false, underAge: true });
-    // Typed as a year, the same stop.
-    expect(checkNumber("birth_year", String(today.getUTCFullYear() - MIN_AGE + 1), today)).toEqual({ ok: false, underAge: true });
-    // And sixteen exactly is in.
-    expect(checkNumber("birth_year", String(MIN_AGE), today)).toEqual({
-      ok: true, value: today.getUTCFullYear() - MIN_AGE,
-    });
+    expect(checkNumber("birth_year", "5", today)).toEqual({ ok: false, underAge: true });
+    expect(checkNumber("birth_year", String(MIN_AGE), today)).toEqual({ ok: true, value: MIN_AGE });
+    for (const typo of ["0", "4", "-0.4", "3"]) {
+      const out = checkNumber("birth_year", typo, today);
+      expect(out.ok).toBe(false);
+      expect("underAge" in out).toBe(false);
+    }
+  });
+
+  it("asks before taking a high two-digit answer that could be a year shorthand", () => {
+    // "90" under year-worded copy means 1990; typed by a 90-year-old it means 90. Neither reading
+    // may be guessed: one wrongly computes a nonagenarian's target, the other a 36-year-old's.
+    expect(checkNumber("birth_year", "90", today)).toEqual({ ok: false, ambiguousAge: 90 });
+    expect(checkNumber("birth_year", "85", today)).toEqual({ ok: false, ambiguousAge: 85 });
+    // 100 is three digits — no shorthand reading — and 84 is below the band.
+    expect(checkNumber("birth_year", "100", today)).toEqual({ ok: true, value: 100 });
+    expect(checkNumber("birth_year", "84", today)).toEqual({ ok: true, value: 84 });
   });
 });
 

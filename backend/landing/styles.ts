@@ -53,6 +53,12 @@ function derivedRules(): string {
     // The two cards, then the verdict pills, in the order the app itself resolves them.
     stagger(".deal", 2, (i) => i * 110),
     stagger(".pill", meal.verdicts.length, (i) => 560 + i * 90),
+    // The answer, last — one pill-slot after the last pill STARTS, so it is the final thing to
+    // move. Its delay is derived from theirs rather than typed, so adding a fourth verdict cannot
+    // make the sentence land in the middle of them.
+    `.mcard-verdict { animation-delay: ${560 + meal.verdicts.length * 90 + 120}ms; }`,
+    // And his note arrives last of all, under the card, the way the app resolves a turn.
+    `.device-inner .spud-says { animation-delay: ${560 + meal.verdicts.length * 90 + 320}ms; }`,
   ].join("\n");
 }
 
@@ -148,6 +154,22 @@ const sheet = `
 
 :root[data-theme="dark"] { ${darkVars} }
 
+/* ── The one typeface this page owns ────────────────────────────────────────────────────── */
+/* Space Grotesk, variable, latin subset, 22KB, SELF-HOSTED — the design review's verdict was that
+   the identity was entirely rented from Apple, and type is the one thing a competitor cannot copy
+   out of this CSS. Same-origin under font-src self, so the page still loads nothing from anyone
+   else; the OFL licence text travels beside the file, as that licence requires. Headlines and the
+   wordmark only — body copy stays on the system stack, which is what keeps this 22KB, not a family. */
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/assets/fonts/space-grotesk-latin.woff2") format("woff2");
+  font-weight: 300 700;
+  font-display: swap;
+}
+.hero-title, .section-title, .closing-title, .outcome-title, .wordmark {
+  font-family: "Space Grotesk", var(--sans);
+}
+
 /* ── Reset ──────────────────────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -165,6 +187,9 @@ ul { padding: 0; list-style: none; }
 img, svg { display: block; max-width: 100%; }
 a { color: inherit; }
 :focus-visible { outline: 2px solid var(--care); outline-offset: 3px; border-radius: 4px; }
+/* Text selection in Spud's own skin tone — the one warm colour this page owns that is not the
+   accent. Small, and met by anybody who drags a cursor through the copy. */
+::selection { background: rgb(232 190 131 / .35); }
 
 /* Every number on this page is monospaced and tabular. The product's claim is that it hands you a
    figure you can act on; a figure that reflows as it changes does not read like one. */
@@ -181,6 +206,16 @@ a { color: inherit; }
 .eyebrow::before { content: ""; width: 1.75rem; height: 1px; background: var(--line-strong); flex: none; }
 
 .section { padding: clamp(4rem, 9vw, 7rem) 0; border-top: 1px solid var(--line); }
+/* THE RUNNING MARGIN. Every section used to be the same left rail on an empty field — eyebrow,
+   title, intro, grid, all on one axis, with the right third of the page blank from ACCURACY down.
+   On a wide screen the eyebrow now lives in a margin column and rides with the section as it
+   scrolls, the way a printed spread carries a marginal label; everything else takes the wide
+   column. Below 62rem nothing changes. */
+@media (min-width: 62rem) {
+  .section > .wrap { display: grid; grid-template-columns: 11rem minmax(0, 1fr); column-gap: 4.5rem; }
+  .section .eyebrow { grid-column: 1; margin: 0; position: sticky; top: 1.75rem; align-self: start; }
+  .section > .wrap > :not(.eyebrow) { grid-column: 2; }
+}
 .section-head { max-width: 46ch; margin-bottom: clamp(2.5rem, 5vw, 3.5rem); }
 .section-title {
   font-size: clamp(1.75rem, 3.6vw, 2.6rem); font-weight: 700;
@@ -225,8 +260,18 @@ a { color: inherit; }
 .masthead-links a:hover { color: var(--text); }
 
 /* ── Hero ───────────────────────────────────────────────────────────────────────────────── */
-.hero { padding: clamp(2.5rem, 6vw, 4.5rem) 0 clamp(4rem, 8vw, 6rem); }
-.hero-grid { display: grid; gap: clamp(3rem, 6vw, 4.5rem); align-items: center; }
+.hero {
+  padding: clamp(2.5rem, 6vw, 4.5rem) 0 clamp(4rem, 8vw, 6rem);
+  /* A barely-there wash of the mascot's skin tone behind the device, on both themes. Warmth is
+     what a grey page with one lime button cannot fake; the accent test is untouched because this
+     is a literal, like the pill tints, and never the accent variable. */
+  /* Centres sit far enough in that both ellipses fade before the section's edges — parked near
+     the top they clipped against the masthead boundary and the wash read as a painted rectangle. */
+  background:
+    radial-gradient(52rem 22rem at 76% 38%, rgb(232 190 131 / .22), transparent 62%),
+    radial-gradient(40rem 20rem at 68% 72%, rgb(151 178 201 / .10), transparent 70%);
+}
+.hero-grid { display: grid; gap: clamp(3rem, 6vw, 4.5rem); align-items: start; }
 @media (min-width: 62rem) { .hero-grid { grid-template-columns: 1.02fr .98fr; } }
 
 .hero-title {
@@ -264,6 +309,13 @@ a { color: inherit; }
   margin: 0 auto; width: 100%; max-width: 22.5rem;
   border: 1px solid var(--line-strong); border-radius: 2.25rem;
   padding: .6875rem; background: linear-gradient(160deg, var(--raised), var(--panel) 55%);
+  /* On light the bezel was a white blob on an off-white field — surfaces 1.5% apart with a 1px
+     border doing all the work. A real shadow stack makes the object sit IN the page; low-alpha
+     literals, like the pill tints, never the accent. Dark never needed it and barely shows it. */
+  box-shadow:
+    0 2px 4px -2px rgb(19 20 23 / .06),
+    0 28px 56px -28px rgb(19 20 23 / .30),
+    0 72px 120px -72px rgb(19 20 23 / .38);
 }
 .device-inner {
   background: var(--ink); border-radius: 1.75rem; padding: 1.375rem 1.125rem 1.5rem;
@@ -312,7 +364,25 @@ a { color: inherit; }
 .pill-warn { color: var(--warn); background: rgb(251 191 36 / .10); border-color: rgb(251 191 36 / .30); }
 .pill-bad  { color: var(--bad);  background: rgb(248 113 113 / .10); border-color: rgb(248 113 113 / .30); }
 
-.mcard-note { margin-top: .875rem; font-size: .75rem; line-height: 1.5; color: var(--dim); }
+/* THE ANSWER. The eyebrow promises a verdict and the card used to end on a legend of coloured
+   chips, which is the taxonomy of one. Set at body weight in full text colour, above the small
+   print, because it is the single sentence the whole page is arguing it can produce. */
+.mcard-verdict {
+  margin-top: .875rem; padding-top: .875rem; border-top: 1px solid var(--line);
+  font-size: .875rem; font-weight: 600; line-height: 1.45; letter-spacing: -0.01em;
+}
+/* Spud INSIDE the drawn phone, at the app's own 28-point avatar size, saying the correction note
+   that used to be a grey paragraph on the card. The one place the page shows who does the talking
+   in the product itself; everywhere else he sits beside sections. */
+.device-inner .spud-says {
+  margin-top: 0; gap: .5rem; max-width: none;
+  animation: deal .42s cubic-bezier(.2, .7, .3, 1) backwards;
+}
+.device-inner .spud { width: 2.5rem; height: 2.5rem; }
+.device-inner .spud-line {
+  font-size: .75rem; line-height: 1.5; color: var(--muted);
+  padding: .5rem .75rem; background: var(--panel);
+}
 
 /* One orchestrated arrival, in the order the app itself resolves: the target you were given, then
    the meal, then the judgement on it. Nothing else on the page moves. */
@@ -320,9 +390,10 @@ a { color: inherit; }
 @keyframes deal { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .pill { animation: resolve .34s cubic-bezier(.2, .7, .3, 1) backwards; }
 @keyframes resolve { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: none; } }
+.mcard-verdict { animation: deal .42s cubic-bezier(.2, .7, .3, 1) backwards; }
 
 @media (prefers-reduced-motion: reduce) {
-  .deal, .pill { animation: none; }
+  .deal, .pill, .mcard-verdict, .device-inner .spud-says, .spud-eyes { animation: none; }
   .cta { transition: none; }
 }
 
@@ -345,6 +416,64 @@ a { color: inherit; }
 .step-ordinal { font-family: var(--mono); font-size: .8125rem; color: var(--dim); letter-spacing: .06em; }
 .step-title { font-size: 1.1875rem; font-weight: 600; letter-spacing: -0.02em; }
 .step-body { color: var(--muted); font-size: .9375rem; max-width: 60ch; }
+
+/* ── The one emphasised span per block ──────────────────────────────────────────────────── */
+/* Body copy is --muted; the load-bearing sentence steps up to --text as well as to 600. Weight
+   alone is nearly invisible at 15px in a colour already two steps down, which is how a page ends up
+   with emphasis nobody can see. Read the header of content.ts before adding a second one to a
+   block: two is none. */
+strong { font-weight: 600; color: var(--text); }
+
+/* ── The screenshots ────────────────────────────────────────────────────────────────────── */
+/* The app, photographed. Three frames on one row on a wide screen, and a horizontal scroller on a
+   phone rather than three full-height images stacked into a mile of page. */
+.shots { display: grid; gap: clamp(2rem, 4vw, 3rem); }
+@media (min-width: 52rem) { .shots { grid-template-columns: repeat(3, 1fr); } }
+.shot { margin: 0; }
+/* The frame is the same construction as the hero device, one size down, so the screenshots and the
+   drawn card read as the same object rather than as a photo pasted next to an illustration. */
+.shot-frame {
+  border: 1px solid var(--line-strong); border-radius: 1.75rem; padding: .5rem;
+  background: linear-gradient(160deg, var(--raised), var(--panel) 55%);
+}
+/* The shot is a light-theme capture, so on the dark page it needs its own rounded mask rather than
+   bleeding into the frame. display:block is the reset's; the radius is one notch inside the
+   frame's so the two curves are concentric. */
+.shot-img { width: 100%; height: auto; border-radius: 1.375rem; }
+.shot-caption { margin-top: 1.25rem; }
+.shot-title { font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.02em; }
+.shot-body { margin-top: .5rem; color: var(--muted); font-size: .9375rem; }
+
+/* ── The numbers, set large ─────────────────────────────────────────────────────────────── */
+/* Every one of these is argued in a sentence further down. This is the version for the reader who
+   scrolls, and the values are read from the code that produces them — see content.ts. */
+.figures { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 1.25rem; overflow: hidden; }
+@media (min-width: 40rem) { .figures { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 64rem) { .figures { grid-template-columns: repeat(4, 1fr); } }
+.figure { background: var(--ink); padding: clamp(1.5rem, 3vw, 2rem); }
+.figure-value {
+  display: block; font-size: clamp(1.75rem, 3.4vw, 2.375rem); font-weight: 700; line-height: 1;
+}
+.figure-unit {
+  display: block; margin-top: .5rem;
+  font-family: var(--sans); font-size: .6875rem; font-weight: 500; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--dim);
+}
+.figure-label { margin-top: 1rem; color: var(--muted); font-size: .875rem; line-height: 1.5; }
+
+/* ── The repeated ask ───────────────────────────────────────────────────────────────────── */
+/* Not a section: an interruption between two of them, on the raised surface so its three
+   appearances read as ONE object recurring rather than as different offers. */
+.ask { background: var(--panel); border-top: 1px solid var(--line); padding: clamp(2rem, 4vw, 2.75rem) 0; }
+.ask-row { display: grid; gap: 1.25rem; align-items: center; }
+@media (min-width: 58rem) { .ask-row { grid-template-columns: minmax(0, 20rem) minmax(0, 1fr); gap: 2.5rem; } }
+.ask-line { color: var(--text); font-size: 1rem; font-weight: 500; letter-spacing: -0.015em; max-width: 30ch; }
+/* The label above the field is redundant here — the line to its left has just said what this is —
+   so it is kept for assistive technology and taken off the page. */
+.ask .subscribe-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.ask .subscribe { max-width: none; }
+.ask .cta-row { margin-top: 0; }
+.ask .cta-note { margin-top: .75rem; max-width: 52ch; }
 
 /* ── The floor ──────────────────────────────────────────────────────────────────────────── */
 /* The one section that sits on a different surface. Not for variety — this is the only section
@@ -380,7 +509,9 @@ a { color: inherit; }
 }
 .measured-body { margin-top: .625rem; color: var(--muted); font-size: .9375rem; }
 
-.founder { max-width: 44ch; margin: 0 auto clamp(2.5rem, 5vw, 3.5rem); }
+/* Beside the measured numbers now, not at the foot of the page: self-measured error plus one
+   human voice makes a single credible proof block, where apart they were two weak halves. */
+.founder { max-width: 52ch; margin: 2.5rem 0 0; }
 .founder-line {
   margin: 0; font-size: 1.0625rem; line-height: 1.55; color: var(--muted);
   border-left: 2px solid var(--line-strong); padding-left: 1.25rem; text-align: left;
@@ -414,6 +545,10 @@ a { color: inherit; }
 
 /* ── The subscribe form ─────────────────────────────────────────────────────────────────── */
 .subscribe { max-width: 34rem; }
+/* In the hero the form REPLACES the CTA row, and it did not inherit the space that row had: the
+   EMAIL ADDRESS label sat hard against the bottom of the care-blue callout above it and read as
+   part of the quote. Matches .cta-row's own margin, because it is standing in the same place. */
+.hero .subscribe { margin-top: 2.5rem; }
 .hero-audience {
   margin-top: .875rem; font-size: .9375rem; line-height: 1.6; color: var(--dim); max-width: 54ch;
 }
@@ -477,11 +612,36 @@ a { color: inherit; }
    vertically, so the potato itself lands near 49px — the same optical weight beside 15px body copy
    that the badge has beside 13px caption text on a phone. */
 .spud { width: 4.5rem; height: 4.5rem; flex: none; }
+/* HE SPEAKS FROM A BUBBLE, the way he does on every screen of the app.
+   Beside a bare paragraph he read as a sticker somebody had left on the page — a potato, alone, in
+   the middle of a section about calorie floors, with no indication that he is the character who
+   does the talking in the product. lib/components/bubble.tsx is the shape being copied: avatar
+   left, panel right, one corner squared off towards him so the line is visibly his. */
 .spud-says {
-  display: flex; align-items: center; gap: 1rem;
-  margin-top: 2.5rem; max-width: 44ch;
+  display: flex; align-items: flex-end; gap: .75rem;
+  margin-top: 2.5rem; max-width: 46ch;
 }
-.spud-line { color: var(--muted); font-size: .9375rem; line-height: 1.5; }
+.spud-line {
+  color: var(--text); font-size: .9375rem; line-height: 1.5;
+  background: var(--raised); border: 1px solid var(--line);
+  border-radius: 1.125rem 1.125rem 1.125rem .25rem;
+  padding: .875rem 1.125rem;
+}
+/* THE ONE LARGE APPEARANCE. Everywhere else he is a 4.5rem aside; at the floor — the section whose
+   subject is him saying no — he is the page's single drawn moment, bled past the left gutter into
+   the margin column so the emptiness there finally pays rent. One size override, no new rule:
+   an appearance still names its job, and this is the job that was always his. */
+.floor-section .spud { width: clamp(7rem, 12vw, 13rem); height: clamp(7rem, 12vw, 13rem); }
+.floor-section .spud-says { align-items: center; margin-top: 3rem; max-width: 56ch; gap: 1.25rem; }
+@media (min-width: 62rem) { .floor-section .spud-says { margin-left: -4rem; } }
+/* On the raised surface of the floor section the bubble takes the page ground — but on light those
+   two surfaces are 1.5% apart, so without a stronger border the bubble read as a smudge. */
+.floor-section .spud-line { background: var(--ink); border-color: var(--line-strong); }
+/* The blink. The app closes his eyes for 130ms every 4.2s on a timer; this is the same cadence as
+   one keyframe cycle, and a scaleY squash instead of a path swap because a stylesheet cannot swap
+   paths. transform-box makes the squash happen about the eye group's own centre. */
+.spud-eyes { transform-box: fill-box; transform-origin: 50% 50%; animation: spud-blink 4.2s infinite; }
+@keyframes spud-blink { 0%, 96.4% { transform: none; } 98.2% { transform: scaleY(.06); } 100% { transform: none; } }
 
 .outcome .spud { width: 6rem; height: 6rem; margin-bottom: 1rem; margin-left: -.5rem; }
 

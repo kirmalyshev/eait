@@ -437,7 +437,10 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // FIVE, NOT FOUR, AND THE MERGE IS WHY. Both this branch and the paywall's copy fix landed on
   // "4", and the version is the join key between a funnel row and the words that produced it —
   // two different flows sharing one number is exactly the meaningless average the counter exists
-  // to prevent. v6 asks for an age rather than a year of birth.
+  // to prevent. v6 asks for an age rather than a year of birth — and predates the first shipped
+  // binary, so the REVERSE dead end (age-worded copy on a binary whose parser wanted a year) has
+  // no installed base; reword this question again after launch only behind a client-version gate,
+  // because `usableContent` checks structure, not meaning, in that direction.
   version: 6,
   welcome: {
     lines: [
