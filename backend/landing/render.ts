@@ -8,13 +8,16 @@
 //   • Every interpolated value goes through `esc`. The copy contains apostrophes and quotation
 //     marks and one day it will contain an ampersand, and a landing page that renders `&` as a
 //     broken entity is a landing page nobody trusts with their photographs.
-//   • The primary action appears exactly twice — top and bottom — and nothing else on the page is
-//     accent-coloured. That is the app's own rule about the accent, applied here.
+//   • There is exactly ONE action on this page, and it appears five times: the hero, after how it
+//     works, after the floor, after the questions, and at the foot. Nothing else is accent-coloured
+//     — that is the app's own rule about the accent, and repeating one ask does not break it the way
+//     a second, different ask would. It was two for a long while, top and bottom, which meant a
+//     reader convinced by the third of eight sections had to scroll past the other five to act.
 
 import {
-  accuracySection, brand, closing, faqSection, faqs, floorSection, footer, forSection, hero,
-  privacySection, founder, outcomes, refusals, refusalsSection, sample, steps, stepsSection,
-  subscribeSection,
+  accuracySection, brand, closing, faqSection, faqs, figures, figuresSection, floorSection, footer,
+  forSection, hero, privacySection, founder, outcomes, refusals, refusalsSection, sample,
+  screensSection, shots, steps, stepsSection, subscribeSection,
 } from "./content.ts";
 import {
   primaryAction, primaryCta, secondaryCta, surfaceNote, START_CODES, type CtaPlacement,
@@ -31,6 +34,18 @@ export function esc(value: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+/**
+ * Copy with its one emphasised span, as HTML.
+ *
+ * ESCAPE FIRST, THEN MARK UP — never the other way round. `esc` runs over the whole string, so any
+ * `<` a writer types is already `&lt;` by the time the marker is looked for, and the only tag that
+ * can reach the page is the one this function writes. The convention (`**like this**`, at most once
+ * per block) and the reason for it are in the header of content.ts.
+ */
+export function emphasis(value: string): string {
+  return esc(value).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 }
 
 /**
@@ -151,7 +166,11 @@ function heroInstrument(): string {
         `A daily target of ${n(target.kcal)} kilocalories with the ${n(target.floorKcal)} ` +
           `kilocalorie floor marked below it, and one logged meal — ${meal.title}, ` +
           `${n(meal.kcal)} kilocalories — carrying three separate verdicts: ` +
-          meal.verdicts.map((v) => `${v.label} ${v.verdict}`).join(", ") + ".",
+          meal.verdicts.map((v) => `${v.label} ${v.verdict}`).join(", ") +
+          `. The card's answer reads: ${meal.verdict} ` +
+          // The figure is role="img", which hides its inner text from assistive technology, so the
+          // one line rendered outside the cards has to travel in the label too.
+          `Beneath the card, a note: ${meal.note}`,
       )}">
         <div class="device-inner">
           <div class="device-bar"></div>
@@ -183,8 +202,9 @@ function heroInstrument(): string {
             </div>
             <div class="pills">${pills}
             </div>
-            <p class="mcard-note">${esc(meal.note)}</p>
+            <p class="mcard-verdict">${esc(meal.verdict)}</p>
           </div>
+${spud("idle", "spud-hero", meal.note)}
         </div>
       </figure>`;
 }
@@ -207,6 +227,14 @@ function ctaBlock(config: LandingConfig, placement: CtaPlacement): string {
 /**
  * Spud with a line, as he appears in the app: a potato and something he is saying.
  *
+ * IT IS A SPEECH BUBBLE, and that is the whole of the fix. He was a 72-pixel potato beside a run of
+ * grey body text, twice on a page of eight sections — which reads as a stray emoji somebody left
+ * behind rather than as the character who does the talking in the product. In the app he is always
+ * an avatar to the left of a white bubble (`lib/components/bubble.tsx`, and the screenshots on this
+ * page show it), so the page now draws him the same way. Nothing about how OFTEN he appears
+ * changed: the rule in mascot.ts is that he shows up for a refusal and for a question and nowhere
+ * else, because the category's failure mode is reward theatre and a potato in every section IS it.
+ *
  * `id` makes the gradient's id unique. Two inline SVGs sharing one `<linearGradient id>` in a single
  * document is not a duplicate-id warning, it is a second potato with no fill.
  */
@@ -216,6 +244,96 @@ function spud(mood: LandingMood, id: string, says: string): string {
         ${spudSvg(mood, id)}
         <p class="spud-line">${esc(says)}</p>
       </div>`;
+}
+
+/**
+ * The ask, repeated mid-page.
+ *
+ * Rendered after each of the three blocks that actually do the convincing — how it works, the
+ * floor, and the questions — because until this existed the page asked twice in eight thousand
+ * pixels and a reader convinced by the third section had to scroll past four more to act on it.
+ *
+ * It is the SAME ask, deliberately: whichever action is primary for this build, with the same
+ * words, the same field and the same button. A band that invented its own wording per position
+ * would be five offers rather than one asked five times, and the start code is what makes the
+ * positions distinguishable afterwards without changing anything a reader can see.
+ */
+function askBand(config: LandingConfig, placement: CtaPlacement): string {
+  const isForm = primaryAction(config) === "form";
+  const body = isForm ? subscribeFormEl(config, placement) : ctaBlock(config, placement);
+  const line = isForm ? subscribeSection.bandLine.form : subscribeSection.bandLine.action;
+  // The body is wrapped, because `ctaBlock` returns TWO elements — the row and its note — and two
+  // children in a two-column grid puts the note in the next row's first column, under the sentence
+  // it is not about.
+  return `
+  <aside class="ask">
+    <div class="wrap ask-row">
+      <p class="ask-line">${esc(line)}</p>
+      <div class="ask-body">${body}</div>
+    </div>
+  </aside>
+`;
+}
+
+/**
+ * The screenshots: the app, photographed, at the three moments the page has been describing.
+ *
+ * `loading="lazy"` and explicit dimensions on every one — the width and height are in `shots` and
+ * come from the files, so the browser reserves the box before the bytes arrive and nothing below
+ * jumps. They are same-origin under `img-src 'self'`, like everything else here.
+ */
+function screens(): string {
+  return `
+  <section class="section screens-section">
+    <div class="wrap">
+      <p class="eyebrow">${esc(screensSection.eyebrow)}</p>
+      <div class="section-head">
+        <h2 class="section-title">${esc(screensSection.headline)}</h2>
+        <p class="section-intro">${esc(screensSection.intro)}</p>
+      </div>
+      <div class="shots">
+${shots
+  .map(
+    (s) => `        <figure class="shot">
+          <div class="shot-frame">
+            <img class="shot-img" src="/assets/${esc(s.file)}" width="${s.width}" height="${s.height}"
+                 loading="lazy" decoding="async" alt="${esc(s.alt)}">
+          </div>
+          <figcaption class="shot-caption">
+            <h3 class="shot-title">${esc(s.title)}</h3>
+            <p class="shot-body">${emphasis(s.body)}</p>
+          </figcaption>
+        </figure>`,
+  )
+  .join("\n")}
+      </div>
+    </div>
+  </section>
+`;
+}
+
+/** The four numbers, set large. Every value is read from the code that produces it — see content.ts. */
+function figuresBand(): string {
+  return `
+  <section class="section figures-section">
+    <div class="wrap">
+      <p class="eyebrow">${esc(figuresSection.eyebrow)}</p>
+      <div class="section-head">
+        <h2 class="section-title">${esc(figuresSection.headline)}</h2>
+      </div>
+      <dl class="figures">
+${figures
+  .map(
+    (f) => `        <div class="figure">
+          <dt class="figure-value num">${esc(f.value)}<span class="figure-unit">${esc(f.unit)}</span></dt>
+          <dd class="figure-label">${esc(f.label)}</dd>
+        </div>`,
+  )
+  .join("\n")}
+      </dl>
+    </div>
+  </section>
+`;
 }
 
 /**
@@ -231,10 +349,11 @@ function spud(mood: LandingMood, id: string, says: string): string {
  * code the CTA carries.
  */
 function subscribeFormEl(config: LandingConfig, placement: CtaPlacement): string {
-  // Two placements can render on one page, so ids are suffixed per placement — duplicate ids break
-  // the label-for pairing exactly where a screen reader needs it. The source code per placement is
-  // the same top-versus-bottom read the CTA has always carried.
-  const suf = placement === "hero" ? "-hero" : "";
+  // FIVE placements render on one page, so ids are suffixed per placement — duplicate ids break the
+  // label-for pairing exactly where a screen reader needs it, and the version that suffixed only
+  // the hero was already one form short of being wrong. Derived from the placement rather than
+  // listed, so a sixth ask cannot be added without its own id.
+  const suf = `-${placement}`;
   // When the form IS the page's primary action it wears the accent — the same one-accent rule the
   // CTA followed. The error line is CSS-revealed on :user-invalid, so a typo is named inline, in
   // this page's voice, before the browser's own bubble gets involved.
@@ -261,8 +380,8 @@ function subscribeForm(config: LandingConfig): string {
   return `
   <section class="section">
     <div class="wrap">
+      <p class="eyebrow">${esc(subscribeSection.eyebrow)}</p>
       <div class="section-head">
-        <p class="eyebrow">${esc(subscribeSection.eyebrow)}</p>
         <h2 class="section-title">${esc(subscribeSection.headline)}</h2>
         <p class="section-intro">${esc(subscribeSection.body)}</p>
       </div>
@@ -294,6 +413,7 @@ export function renderOutcome(
 <meta name="theme-color" content="${esc(light.bg)}">
 <link rel="icon" href="/favicon.ico" sizes="64x64">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/styles.css">
 <script src="/theme.js"></script>
 </head>
@@ -365,6 +485,7 @@ export function renderLanding(config: LandingConfig): string {
 ${robotsMeta(config)}<link rel="icon" href="/favicon.ico" sizes="64x64">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/styles.css">
 <script src="/theme.js"></script>
 <meta property="og:type" content="website">
@@ -421,8 +542,8 @@ ${heroInstrument()}
 
   <section class="section">
     <div class="wrap">
+      <p class="eyebrow">${esc(forSection.eyebrow)}</p>
       <div class="section-head">
-        <p class="eyebrow">${esc(forSection.eyebrow)}</p>
         <h2 class="section-title">${esc(forSection.headline)}</h2>
       </div>
       <div class="facts">
@@ -430,7 +551,7 @@ ${forSection.rows
   .map(
     (r) => `        <div>
           <h3 class="fact-title">${esc(r.title)}</h3>
-          <p class="fact-body">${esc(r.body)}</p>
+          <p class="fact-body">${emphasis(r.body)}</p>
         </div>`,
   )
   .join("\n")}
@@ -440,8 +561,8 @@ ${forSection.rows
 
   <section class="section">
     <div class="wrap">
+      <p class="eyebrow">${esc(refusalsSection.eyebrow)}</p>
       <div class="section-head">
-        <p class="eyebrow">${esc(refusalsSection.eyebrow)}</p>
         <h2 class="section-title">${esc(refusalsSection.headline)}</h2>
       </div>
       <div class="refusals">
@@ -449,7 +570,7 @@ ${refusals
   .map(
     (r) => `        <div class="refusal">
           <h3 class="refusal-title">${esc(r.title)}</h3>
-          <p class="refusal-body">${esc(r.body)}</p>
+          <p class="refusal-body">${emphasis(r.body)}</p>
           <p class="refusal-proof">${esc(r.proof)}</p>
         </div>`,
   )
@@ -458,10 +579,11 @@ ${refusals
     </div>
   </section>
 
+${figuresBand()}
   <section class="section">
     <div class="wrap">
+      <p class="eyebrow">${esc(stepsSection.eyebrow)}</p>
       <div class="section-head">
-        <p class="eyebrow">${esc(stepsSection.eyebrow)}</p>
         <h2 class="section-title">${esc(stepsSection.headline)}</h2>
       </div>
       <div class="steps">
@@ -470,7 +592,7 @@ ${steps
     (s) => `        <div class="step">
           <span class="step-ordinal">${esc(s.ordinal)}</span>
           <h3 class="step-title">${esc(s.title)}</h3>
-          <p class="step-body">${esc(s.body)}</p>
+          <p class="step-body">${emphasis(s.body)}</p>
         </div>`,
   )
   .join("\n")}
@@ -478,12 +600,14 @@ ${steps
     </div>
   </section>
 
+${screens()}
+${askBand(config, "steps")}
   <section class="section">
     <div class="wrap">
+      <p class="eyebrow">${esc(accuracySection.eyebrow)}</p>
       <div class="section-head">
-        <p class="eyebrow">${esc(accuracySection.eyebrow)}</p>
         <h2 class="section-title">${esc(accuracySection.headline)}</h2>
-        <p class="section-intro">${esc(accuracySection.intro)}</p>
+        <p class="section-intro">${emphasis(accuracySection.intro)}</p>
       </div>
       <div class="prose">
 ${accuracySection.body.map((p) => `        <p>${esc(p)}</p>`).join("\n")}
@@ -492,13 +616,18 @@ ${accuracySection.body.map((p) => `        <p>${esc(p)}</p>`).join("\n")}
         <p class="measured-label">${esc(accuracySection.proof.label)}</p>
         <p class="measured-body">${esc(accuracySection.proof.body)}</p>
       </div>
+      <figure class="founder">
+        <blockquote class="founder-line">${esc(founder.line)}</blockquote>
+        <figcaption class="founder-by">${esc(founder.by)}</figcaption>
+      </figure>
+${spud("think", "spud-accuracy", accuracySection.mascot)}
     </div>
   </section>
 
   <section class="section floor-section">
     <div class="wrap">
+      <p class="eyebrow">${esc(floorSection.eyebrow)}</p>
       <div class="section-head">
-        <p class="eyebrow">${esc(floorSection.eyebrow)}</p>
         <h2 class="section-title">${esc(floorSection.headline)}</h2>
         <p class="section-intro">${esc(floorSection.intro)}</p>
       </div>
@@ -517,10 +646,11 @@ ${spud("care", "spud-floor", floorSection.mascot)}
     </div>
   </section>
 
+${askBand(config, "floor")}
   <section class="section">
     <div class="wrap">
+      <p class="eyebrow">${esc(privacySection.eyebrow)}</p>
       <div class="section-head">
-        <p class="eyebrow">${esc(privacySection.eyebrow)}</p>
         <h2 class="section-title">${esc(privacySection.headline)}</h2>
       </div>
       <div class="facts">
@@ -528,7 +658,7 @@ ${privacySection.facts
   .map(
     (f) => `        <div>
           <h3 class="fact-title">${esc(f.title)}</h3>
-          <p class="fact-body">${esc(f.body)}</p>
+          <p class="fact-body">${emphasis(f.body)}</p>
         </div>`,
   )
   .join("\n")}
@@ -538,8 +668,8 @@ ${privacySection.facts
 
   <section class="section">
     <div class="wrap">
+      <p class="eyebrow">${esc(faqSection.eyebrow)}</p>
       <div class="section-head">
-        <p class="eyebrow">${esc(faqSection.eyebrow)}</p>
         <h2 class="section-title">${esc(faqSection.headline)}</h2>
       </div>
       <div class="faq">
@@ -555,22 +685,20 @@ ${faqs
     </div>
   </section>
 
-${subscribeForm(config)}
+${askBand(config, "faq")}
   <section class="closing">
     <div class="wrap">
-      <figure class="founder">
-        <blockquote class="founder-line">${esc(founder.line)}</blockquote>
-        <figcaption class="founder-by">${esc(founder.by)}</figcaption>
-      </figure>
       <h2 class="closing-title">${esc(closing.headline)}</h2>
       <p class="closing-sub">${esc(closing.sub)}</p>${
-        // In form mode the bottom action is the subscribe section directly above this one; a second
-        // copy of the form here would be a third accent and a duplicate ask on one screen.
+        // In form mode the ask under this headline is the subscribe SECTION, which now follows the
+        // closing instead of preceding it — the design review found the page's last screen was a
+        // dead end: quote, title, sub, footer, and nothing to do. In the other modes the CTA
+        // renders here as before.
         primaryAction(config) === "form" ? "" : `\n${ctaBlock(config, "footer")}`
       }
     </div>
   </section>
-
+${subscribeForm(config)}
 </main>
 
 <footer class="footer">

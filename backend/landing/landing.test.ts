@@ -8,14 +8,17 @@ import { assertClean, ClaimsError, copyFromHtml, lintCopy } from "./claims.ts";
 import {
   loadLandingConfig, LandingConfigError, primaryAction, primaryCta, secondaryCta, surfaceNote, START_CODES,
 } from "./config.ts";
-import { iconSvg, outcomePages, renderLanding } from "./render.ts";
+import { emphasis, esc, iconSvg, outcomePages, renderLanding } from "./render.ts";
 import { buildLanding } from "./build.ts";
 import { faviconIco, ogPng, OG_HEIGHT, OG_WIDTH } from "./images.ts";
 import { color, dark, light, TOKEN_SOURCE } from "./tokens.ts";
 import { BODY, MASCOT_SOURCE, MOUTHS, SHEEN } from "./mascot.ts";
 import { styles } from "./styles.ts";
-import { faqs, founder, measured, refusals, floorSection, sample } from "./content.ts";
-import { FREE_ANALYSES, KCAL_FLOOR } from "@ieat/shared";
+import {
+  faqs, figures, figuresSection, founder, measured, refusals, floorSection, sample, screensSection,
+  shots, subscribeSection,
+} from "./content.ts";
+import { BAD_SHARE, FREE_ANALYSES, KCAL_FLOOR, MAX_DEFICIT_SHARE, WARN_SHARE } from "@ieat/shared";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -136,6 +139,16 @@ describe("claims gate", () => {
           "reaching your target weight, healthy BMI, preventable is an ordinary word",
       }),
     ).toEqual([]);
+  });
+
+  test("it catches the negative-universal form, which slipped it once", () => {
+    // "Nobody in this category publishes anything" reached the deployed page: same
+    // Alleinstellungsbehauptung as "the only app", in a shape the regexes did not cover. A
+    // red-team pass caught it, not the build — this is the regression test for the gate hole.
+    expect(() => assertClean({ body: "nobody in this category publishes anything" })).toThrow(/exclusivity/);
+    expect(() => assertClean({ body: "no one else in the category does this" })).toThrow(/exclusivity/);
+    // The floor outro's "a guard nobody is told about" is ordinary language, not a market claim.
+    expect(lintCopy({ body: "A guard nobody is told about protects no one." })).toEqual([]);
   });
 
   test("it sees through an invisible-character split", () => {
@@ -304,23 +317,29 @@ describe("the rendered page", () => {
 
   test("loads nothing from another origin", () => {
     // A page that promises no third-party anything must not fetch a font from a CDN. Every URL in
-    // the document is either relative, a mailto, or one of the two configured destinations.
+    // the document is either relative, a mailto, or one of the configured destinations — one per
+    // ask, and the screenshots are same-origin files under /assets like everything else.
     const urls = [...html.matchAll(/(?:href|src)="([^"]+)"/g)].map((m) => m[1]!);
     const external = [...new Set(urls.filter((u) => /^[a-z]+:\/\//i.test(u)))];
     expect(external.sort()).toEqual(
       [
         config.appStoreUrl!,
         `${config.siteUrl}/`,
-        `${config.telegramUrl!}?start=web_hero`,
-        `${config.telegramUrl!}?start=web_foot`,
+        ...Object.values(START_CODES).map((code) => `${config.telegramUrl!}?start=${code}`),
       ].sort(),
     );
   });
 
-  test("the primary action appears twice — top and bottom — and always resolves", () => {
+  test("the primary action appears once per ask, and every one of them resolves", () => {
+    // It was two — the hero and the foot — across eight thousand pixels, so a reader convinced by
+    // the third of eight sections had to scroll past the other five to act on it. There is one ask
+    // per placement now, and START_CODES is the list: adding a band without a code, or a code
+    // without a band, fails here rather than in an attribution report three weeks later.
     const ctas = [...html.matchAll(/class="cta"/g)];
-    expect(ctas).toHaveLength(2);
-    expect(html).toContain(`href="${primaryCta(config, "hero").href}"`);
+    expect(ctas).toHaveLength(Object.keys(START_CODES).length);
+    for (const placement of Object.keys(START_CODES) as (keyof typeof START_CODES)[]) {
+      expect(html).toContain(`href="${primaryCta(config, placement).href}"`);
+    }
   });
 
   test("privacy and support are reachable from the page", () => {
@@ -448,9 +467,12 @@ describe("attribution", () => {
     // Without these the page converts into the organic bucket and cannot be judged at all —
     // which is the one thing `eait-marketer` built an attribution convention to avoid.
     const bot = [...html.matchAll(/https:\/\/t\.me\/[^"]*/g)].map((m) => m[0]);
-    expect(bot.length).toBeGreaterThanOrEqual(2);
-    for (const href of bot) expect(href).toMatch(/\?start=web_(hero|foot)$/);
-    expect(new Set(bot).size).toBe(2);
+    const codes = Object.values(START_CODES);
+    expect(bot.length).toBeGreaterThanOrEqual(codes.length);
+    for (const href of bot) expect(codes).toContain(href.split("?start=")[1] as never);
+    // One distinct code per ask. Two bands sharing a code is a report that cannot tell which
+    // argument converted, which is the only reason the codes exist.
+    expect(new Set(bot).size).toBe(codes.length);
   });
 
   test("start codes are payloads Telegram will accept", () => {
@@ -612,19 +634,27 @@ describe("Spud", () => {
     for (const mouth of Object.values(MOUTHS)) expect(mascotSource).toContain(mouth);
   });
 
-  test("he appears exactly three times, and never in the hero", () => {
-    // His rule in the app is one place only, because the category's failure is reward theatre and
-    // a potato sprinkled over every section IS that. Three jobs here: a refusal, a question, and a
-    // greeting on the page after the form.
-    expect([...withApi.matchAll(/class="spud"/g)]).toHaveLength(2);
-    const hero = withApi.slice(withApi.indexOf('class="hero"'), withApi.indexOf('class="section"'));
-    expect(hero).not.toContain('class="spud"');
+  test("every appearance is a job, and the count is the job list", () => {
+    // The count doctrine changed on the owner's instruction (2026-08-31: use the mascot's
+    // variations) — but the anti-reward-theatre rule underneath it did not. Four appearances on
+    // the page, each one a thing he already does in the product: the correction note inside the
+    // drawn phone, being argued with at accuracy, the refusal at the floor, the question at the
+    // form. A fifth needs a JOB, not a gap it could decorate.
+    expect([...withApi.matchAll(/class="spud"/g)]).toHaveLength(4);
+    for (const id of ["spud-hero", "spud-accuracy", "spud-floor", "spud-subscribe"]) {
+      expect(withApi).toContain(`<linearGradient id="${id}"`);
+    }
   });
 
-  test("he is beside the floor and beside the form, which are his two jobs here", () => {
-    const floor = withApi.slice(withApi.indexOf("floor-outro"), withApi.indexOf("floor-outro") + 2000);
-    expect(floor).toContain("spud-floor");
-    expect(withApi).toContain("spud-subscribe");
+  test("in the hero he is INSIDE the instrument, speaking the note — not pasted beside it", () => {
+    // The old rule was "never in the hero", to keep the page from reading as a game with a mascot
+    // stapled on. What replaced it is narrower: he may appear where the app itself would show him,
+    // and in the drawn phone that is the correction note under the card.
+    const device = withApi.slice(withApi.indexOf('class="device"'), withApi.indexOf("</figure>"));
+    expect(device).toContain("spud-hero");
+    const heroOutsideDevice =
+      withApi.slice(withApi.indexOf('class="hero"'), withApi.indexOf('class="device"'));
+    expect(heroOutsideDevice).not.toContain('class="spud"');
   });
 
   test("each appearance has its own gradient id", () => {
@@ -645,11 +675,12 @@ describe("Spud", () => {
   });
 
   test("he never congratulates anyone", () => {
-    // The rule from mascot.tsx, kept. `cheer` is the mood with sparkles and both arms up; it has
-    // no job on this page and is not one of the moods this module can even draw.
+    // The rule from mascot.tsx, kept THROUGH the variations instruction: `cheer` is the mood with
+    // sparkles and both arms up, its sparkles are accent-coloured on a page that spends the accent
+    // once, and it is reward theatre in one drawing. Five moods now, and still not that one.
     const moods: string[] = Object.keys(MOUTHS);
     expect(moods).not.toContain("cheer");
-    expect(moods.sort()).toEqual(["care", "think", "wave"]);
+    expect(moods.sort()).toEqual(["care", "happy", "idle", "think", "wave"]);
   });
 });
 
@@ -721,9 +752,12 @@ describe("the email form is the primary action while nothing else exists", () =>
     expect(hero).toContain(`value="${START_CODES.hero}"`);
   });
 
-  test("two forms on one page do not share input ids", () => {
-    expect(formHtml).toContain('id="email-hero"');
-    expect(formHtml).toContain('id="email"');
+  test("five forms on one page do not share input ids", () => {
+    // The id is derived from the placement rather than listed, so a sixth ask cannot be added
+    // without one. Duplicate ids break the label-for pairing exactly where a screen reader needs it.
+    for (const placement of Object.keys(START_CODES)) {
+      expect(formHtml).toContain(`id="email-${placement}"`);
+    }
     const ids = [...formHtml.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -758,5 +792,171 @@ describe("the form looks like the primary action when it is one", () => {
     expect(formHtml).toContain("subscribe-error");
     expect(formHtml).toContain("you@example.com");
     expect(styles).toContain(":user-invalid");
+  });
+});
+
+describe("emphasis", () => {
+  test("escapes before it marks up, so copy cannot smuggle a tag onto the page", () => {
+    // The order is the whole safety property. Mark up first and a `<script>` in a content string
+    // would survive into the document; escape first and the only tag this can ever emit is the one
+    // it writes itself.
+    expect(emphasis("a **strong** b")).toBe("a <strong>strong</strong> b");
+    expect(emphasis("**<script>alert(1)</script>**")).toBe(
+      "<strong>&lt;script&gt;alert(1)&lt;/script&gt;</strong>",
+    );
+    expect(emphasis("2 * 3 * 4")).toBe("2 * 3 * 4");
+  });
+
+  test("every marker in the copy resolves, and no marker reaches the page", () => {
+    // A stray `**` is a typo that renders as two asterisks in the middle of a marketing sentence.
+    expect(html).not.toContain("**");
+    expect(html).toContain("<strong>");
+  });
+
+  test("no block carries more than one emphasised span", () => {
+    // Two is none: the point is that a reader skimming can lift the load-bearing sentence out of
+    // each block, and a block with half of it bold gives them nothing to lift.
+    for (const [, inner] of html.matchAll(/<p class="(?:(?:fact|refusal|step|shot)-body|section-intro)">(.*?)<\/p>/gs)) {
+      expect([...inner!.matchAll(/<strong>/g)].length).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+describe("the typeface", () => {
+  test("is self-hosted, preloaded, and travels with its licence", () => {
+    // The one deliberate CSP widening of the design pass: font-src 'self'. The font must exist,
+    // the stylesheet may reference nothing but same-origin urls, and the OFL's licence text has to
+    // ship beside the file — that is a term of the licence, not a courtesy.
+    for (const name of ["space-grotesk-latin.woff2", "OFL.txt"]) {
+      expect(existsSync(resolve(REPO_ROOT, "src/backend/landing/assets/fonts", name))).toBe(true);
+    }
+    expect(html).toContain('rel="preload" href="/assets/fonts/space-grotesk-latin.woff2"');
+    for (const [, url] of styles.matchAll(/url\(["']?([^)"']+)["']?\)/g)) {
+      expect(url!.startsWith("/")).toBe(true);
+    }
+  });
+});
+
+describe("the screenshots", () => {
+  test("every shot named in the copy is a file that exists", () => {
+    // The build throws on a missing one, but it throws at deploy time. This says so here.
+    for (const shot of shots) {
+      expect(existsSync(resolve(REPO_ROOT, "src/backend/landing/assets", shot.file))).toBe(true);
+    }
+  });
+
+  test("each is same-origin, sized, lazy and described", () => {
+    // Dimensions so the box is reserved before the bytes land and nothing below jumps; alt text
+    // because these are the only images on the page carrying an argument.
+    for (const shot of shots) {
+      expect(html).toContain(`src="/assets/${shot.file}"`);
+      expect(html).toContain(`width="${shot.width}" height="${shot.height}"`);
+      expect(html).toContain(`alt="${shot.alt.replace(/"/g, "&quot;")}"`);
+    }
+    expect([...html.matchAll(/<img class="shot-img"/g)]).toHaveLength(shots.length);
+    expect([...html.matchAll(/loading="lazy"/g)]).toHaveLength(shots.length);
+  });
+
+  test("none of the analyzer frames is on the page", () => {
+    // `docs/screenshots/06`–`08` carry "Demo analyzer — these numbers are canned" in shot, and 06
+    // shows a card that does not match what was typed into it. docs/RELEASE.md says otherwise; the
+    // committed pixels are what this trusts. They may go on the page when they are reshot.
+    //
+    // CHECKED AGAINST THE SOURCE FRAME, not the asset name. `app-chat.webp` cannot begin with a
+    // digit, so the version of this that read `s.file` could not fail whatever was put behind it —
+    // it would have passed a page carrying all three barred frames. Resolving the source on disk is
+    // also what stops the bar being answered with a name nothing produced.
+    for (const shot of shots) {
+      expect(existsSync(resolve(REPO_ROOT, "docs/screenshots", shot.source))).toBe(true);
+      expect(shot.source).not.toMatch(/^0[678]-/);
+    }
+  });
+});
+
+describe("counts typed in headlines", () => {
+  test("the spelled-out counts match the arrays they describe", () => {
+    // "Four figures…" and "…in three screens." are numbers in public copy, and the rule is that
+    // such a number is read from the code that produces it. The words cannot be, so this binds
+    // them: add a shot or a figure and the headline goes red here instead of lying on the page.
+    const words = ["zero", "one", "two", "three", "four", "five", "six"] as const;
+    expect(figuresSection.headline.toLowerCase()).toContain(words[figures.length]!);
+    expect(screensSection.headline.toLowerCase()).toContain(words[shots.length]!);
+  });
+});
+
+describe("the numbers set large", () => {
+  test("every figure is read from the code that produces it", () => {
+    // The repo's rule, and a band of large numbers is the worst place to break it. A figure typed
+    // by hand here is a public claim with nothing holding it to the product.
+    const values = figures.map((f) => f.value);
+    expect(values).toContain(KCAL_FLOOR.female.toLocaleString("en-GB"));
+    // The men's floor is in the label rather than the figure, and it is still read from the code.
+    expect(figures.map((f) => f.label).join(" ")).toContain(KCAL_FLOOR.male.toLocaleString("en-GB"));
+    expect(values).toContain(`${Math.round(MAX_DEFICIT_SHARE * 100)}%`);
+    expect(values).toContain(`${measured.medianErrorPct}%`);
+    expect(figures.find((f) => f.value === `${measured.medianErrorPct}%`)!.unit)
+      .toContain(String(measured.dishes));
+    for (const figure of figures) expect(html).toContain(figure.value);
+  });
+});
+
+describe("the hero says what the verdict is", () => {
+  test("the kcal it says are left is the target minus the meal", () => {
+    // The card promised photo → numbers → verdict and ended on three coloured chips. The sentence
+    // that fixes that quotes arithmetic, in the hero, which is the worst possible place for a
+    // stale number — so it is computed here rather than read.
+    const left = sample.target.kcal - sample.meal.kcal;
+    expect(sample.meal.verdict).toContain(left.toLocaleString("en-GB"));
+    expect(html).toContain(`<p class="mcard-verdict">${sample.meal.verdict}</p>`);
+  });
+
+  test("the hero's Calories pill is the verdict the engine would compute", () => {
+    // The hero card TYPES its three verdicts, which is the one place in this product a verdict is
+    // not derived — and the sentence under them summarises what they say. That is how the summary
+    // came to read "Fits your day" beside a Calories pill reading `warn`. Reconciling the typed
+    // pill against `WARN_SHARE`/`BAD_SHARE` is what stops the marketing page showing a judgement
+    // the engine would never produce.
+    const share = sample.meal.kcal / sample.target.kcal;
+    const computed = share > BAD_SHARE ? "bad" : share > WARN_SHARE ? "warn" : "good";
+    expect(sample.meal.verdicts.find((v) => v.label === "Calories")!.verdict).toBe(computed as never);
+    // And the summary says so in words. `warn` on calories means the meal took more than
+    // WARN_SHARE of the day, which is the fact the sentence states.
+    expect(WARN_SHARE).toBe(1 / 3);
+    expect(sample.meal.verdict).toContain("third");
+  });
+
+  test("a screen reader gets the sentence too, not just the chips", () => {
+    const label = html.match(/class="device" role="img" aria-label="([^"]+)"/)![1]!;
+    expect(label).toContain(esc(sample.meal.verdict));
+  });
+});
+
+describe("the repeated ask", () => {
+  const botOnly = renderLanding(
+    loadLandingConfig({
+      EAIT__BACKEND__LANDING_SITE_URL: ENV.EAIT__BACKEND__LANDING_SITE_URL,
+      EAIT__BACKEND__LANDING_TELEGRAM_URL: ENV.EAIT__BACKEND__LANDING_TELEGRAM_URL,
+    }),
+  );
+  // No store URL: the store wins whenever it exists, and this fixture is the build eait.fit
+  // actually runs — the form is the primary action while the listing does not exist.
+  const withApi = renderLanding(
+    loadLandingConfig({
+      EAIT__BACKEND__LANDING_SITE_URL: ENV.EAIT__BACKEND__LANDING_SITE_URL,
+      EAIT__BACKEND__LANDING_API_URL: "https://api.eait.fit",
+    }),
+  );
+
+  test("there are three bands, between the blocks that do the convincing", () => {
+    expect([...html.matchAll(/<aside class="ask">/g)]).toHaveLength(3);
+  });
+
+  test("the band says what it is actually asking for", () => {
+    // The form line beside a button that opens Telegram would be the page describing an ask its own
+    // button does not make — which is the exact failure `surfaceNote` exists to prevent elsewhere.
+    expect(withApi).toContain(subscribeSection.bandLine.form);
+    expect(withApi).not.toContain(subscribeSection.bandLine.action);
+    expect(botOnly).toContain(subscribeSection.bandLine.action);
+    expect(botOnly).not.toContain(subscribeSection.bandLine.form);
   });
 });

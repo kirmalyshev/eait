@@ -19,13 +19,15 @@ A generator, not a page. `build.ts` renders `render.ts(config)` into a directory
 serves that directory with nginx. There is no framework and no runtime: the output is 15 KB of HTML
 and 9 KB of CSS, the single animated moment is a CSS keyframe, and the FAQ is `<details>`.
 
-That is not minimalism for its own sake. A page with no script at all can be served under
-`default-src 'none'` with no `script-src` — see `deploy/nginx/nginx.conf` — and a page whose whole
-argument is "we keep nothing of yours" has no business loading a third-party font.
+That is not minimalism for its own sake. A page whose whole argument is "we keep nothing of
+yours" has no business loading anything from a third party — and it doesn't: the one typeface
+(Space Grotesk, 22KB, headlines only) is self-hosted under `font-src 'self'`, with its OFL licence
+beside it, and everything else is the system stack.
 
 | File | |
 |---|---|
 | `content.ts` | Every word. The header explains which research each section came from and what may not appear. |
+| `assets/` | The three screenshots the page shows, resized once from `docs/screenshots/` and committed. `build.ts` copies them to `/assets/` and throws if one is missing. |
 | `config.ts` | What the page cannot know about itself: origin, store link, bot link. Refuses a build it cannot make work. |
 | `render.ts` | Content + config → HTML. |
 | `styles.ts` | The stylesheet, as a string. |
@@ -33,6 +35,27 @@ argument is "we keep nothing of yours" has no business loading a third-party fon
 | `claims.ts` | The health-claims and exclusivity gate. Fails the build; does not warn. |
 | `build.ts` | Validate → render → lint → write. Nothing is written until all three pass. |
 | `images.ts` | The favicon, touch icon and share card, drawn from the app icon's own coordinates. |
+
+## The three things that changed after the teardown
+
+**The ask is repeated, not multiplied.** `START_CODES` in `config.ts` is the list of places the page
+asks: the hero, after *How it works*, after *The floor*, after the FAQ, and at the foot. Every one
+renders the SAME action with the same words — `askBand()` — and differs only by its start code, so a
+report can say which argument converted without a reader seeing five different offers. It was two,
+top and bottom, across eight thousand pixels: a reader convinced by the third of eight sections had
+to scroll past the other five to act on it. Adding a band without a code, or a code without a band,
+fails a test.
+
+**Emphasis is `**like this**`, once per block.** `emphasis()` in `render.ts` escapes first and marks
+up second, so copy cannot put a tag on the page. The convention exists because 1,600 words of even
+grey read as an essay and this page is read standing in a kitchen. A block with two emphasised spans
+has none, and a test enforces it.
+
+**The screenshots are the app, and three of the ten cannot be used.** `docs/screenshots/06`–`08`
+carry "Demo analyzer — these numbers are canned" in shot, and `06` shows a card that does not match
+what was typed into it. `docs/RELEASE.md` states all ten were reshot against a real analyzer and
+that none of them carries that line; the committed pixels disagree. Until they are reshot, the page
+shows only frames that never reach the analyzer — a test names the three that are barred.
 
 ## The rules this page is written under
 

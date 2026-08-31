@@ -116,7 +116,7 @@ describe("what Spud asks", () => {
   });
 
   it("carries a placeholder for everything typed and none for what is tapped", () => {
-    expect(askPlaceholder(promptById("birth_year"), content)).toBe("e.g. 1990");
+    expect(askPlaceholder(promptById("birth_year"), content)).toBe("Your age");
     expect(askPlaceholder(promptById("why"), content)).toBe("In your own words…");
     expect(askPlaceholder(promptById("goal"), content)).toBeNull();
   });
@@ -143,6 +143,13 @@ describe("the answer a resumed run draws back", () => {
 
   it("writes a number the way it was typed", () => {
     expect(answerLabel(promptById("weight_kg"), profile({ weight_kg: 93 }), content)).toBe("93");
+  });
+
+  it("draws the year of birth back as the age that was typed", () => {
+    // The user typed an age; the column holds the year it implied. Replaying the column raw would
+    // show them a year they never said.
+    const age = new Date().getUTCFullYear() - 1990;
+    expect(answerLabel(promptById("birth_year"), profile({ birth_year: 1990 }), content)).toBe(String(age));
   });
 
   it("says nothing for an unanswered question", () => {
@@ -209,19 +216,30 @@ describe("the numbers", () => {
     expect(checkNumber("height_cm", "251", today).ok).toBe(false);
   });
 
-  it("reads a year, and says so when it is not one", () => {
+  it("reads an age, stores the year it implies, and says so when it is not one", () => {
+    // The question is "how old are you?"; the column is `birth_year`, because an age stored as a
+    // number is wrong within twelve months. The conversion happens here, once, and in one direction.
+    expect(checkNumber("birth_year", "36", today)).toEqual({ ok: true, value: 1990 });
+    expect(checkNumber("birth_year", "36 years", today)).toEqual({ ok: true, value: 1990 });
+    // A FOUR-DIGIT ANSWER IS THE YEAR, AND IT IS TAKEN. Copy saved on a server (or cached on a
+    // phone) before this question changed still asks for the year, and its version number cannot
+    // be told from the new default's — a save on the old server stamped it 6 too. No age is a
+    // thousand and no birth year is under one, so nothing can be misread.
     expect(checkNumber("birth_year", "1990", today)).toEqual({ ok: true, value: 1990 });
-    expect(checkNumber("birth_year", "90", today)).toEqual({
-      ok: false, line: "That doesn't look like a year — try something like 1990.",
-    });
-    expect(checkNumber("birth_year", "2100", today).ok).toBe(false);
+    expect(checkNumber("birth_year", "nope", today).ok).toBe(false);
+    expect(checkNumber("birth_year", "-3", today).ok).toBe(false);
+    expect(checkNumber("birth_year", "500", today).ok).toBe(false);
+    expect(checkNumber("birth_year", "1800", today).ok).toBe(false);
   });
 
-  it("stops on a year under sixteen rather than refusing it as a bad number", () => {
-    const under = checkNumber("birth_year", String(today.getUTCFullYear() - MIN_AGE + 1), today);
-    expect(under).toEqual({ ok: false, underAge: true });
+  it("stops on an age under sixteen rather than refusing it as a bad number", () => {
+    expect(checkNumber("birth_year", String(MIN_AGE - 1), today)).toEqual({ ok: false, underAge: true });
+    // Typed as a year, the same stop.
+    expect(checkNumber("birth_year", String(today.getUTCFullYear() - MIN_AGE + 1), today)).toEqual({ ok: false, underAge: true });
     // And sixteen exactly is in.
-    expect(checkNumber("birth_year", String(today.getUTCFullYear() - MIN_AGE), today).ok).toBe(true);
+    expect(checkNumber("birth_year", String(MIN_AGE), today)).toEqual({
+      ok: true, value: today.getUTCFullYear() - MIN_AGE,
+    });
   });
 });
 

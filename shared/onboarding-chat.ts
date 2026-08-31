@@ -33,7 +33,7 @@
 // not a preference.
 
 import {
-  MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MIN_AGE, MIN_TARGET_BMI, MIN_WEIGHT_KG,
+  MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MIN_AGE, MIN_TARGET_BMI, MIN_WEIGHT_KG, ageFrom,
   type RestrictionTag,
 } from "./targets.ts";
 import type { Goal, Profile } from "./types.ts";
@@ -383,9 +383,9 @@ export const UNDER_AGE_CARD: SupportCard = {
 
 export const UNDER_AGE_LINES = {
   /** Offered once, in case a typo got us here. */
-  ask: "Sorry — I have to stop here. If a typo got us here, just send the right year.",
-  confirm: "That's my real year",
-  placeholder: "Year of birth",
+  ask: "Sorry — I have to stop here. If a typo got us here, just send your real age.",
+  confirm: "That's my real age",
+  placeholder: "Your age",
   /**
    * The stop, taken.
    *
@@ -588,7 +588,7 @@ export type NumberAnswer =
   | { ok: true; value: number }
   /** The value is not one this app takes, and `line` is what Spud says instead of taking it. */
   | { ok: false; line: string }
-  /** The year says under sixteen. Not a validation failure — a stop. See `UNDER_AGE_CARD`. */
+  /** The age says under sixteen. Not a validation failure — a stop. See `UNDER_AGE_CARD`. */
   | { ok: false; underAge: true };
 
 /**
@@ -604,14 +604,24 @@ export function checkNumber(field: NumberField, raw: string, today = new Date())
   const match = raw.match(/-?\d+(?:[.,]\d+)?/);
   const value = match ? Number(match[0].replace(",", ".")) : NaN;
 
+  // THE QUESTION IS AN AGE, THE COLUMN IS A YEAR. "How old are you?" is what people answer without
+  // arithmetic; `birth_year` is what the profile stores, because an age stored as a number is wrong
+  // within twelve months (`types.ts`). This is the one place the two meet: the typed age becomes the
+  // year it implies, and `answerLabel` turns it back on a replay.
   if (field === "birth_year") {
-    const year = Math.trunc(value);
-    const age = today.getUTCFullYear() - year;
-    if (!Number.isFinite(value) || year < 1900 || age > 100 || age < 0) {
-      return { ok: false, line: "That doesn't look like a year — try something like 1990." };
+    // A FOUR-DIGIT ANSWER IS THE YEAR ITSELF, AND IT IS TAKEN. The words are fetched at runtime, so
+    // copy saved on a server — or cached on the phone — before this question changed still asks
+    // "your year of birth?", and its version cannot be told from the new default's: a save on the
+    // old server stamped it 6 too. Refusing "1990" under that question is a dead end with a hint
+    // ("34") that contradicts the bubble above it. No age is a thousand and no birth year is under
+    // one, so the two cannot be misread.
+    const typed = Math.trunc(value);
+    const age = typed >= 1000 ? today.getUTCFullYear() - typed : typed;
+    if (!Number.isFinite(value) || age < 0 || age > 100) {
+      return { ok: false, line: "That doesn't look like an age — try something like 34." };
     }
     if (age < MIN_AGE) return { ok: false, underAge: true };
-    return { ok: true, value: year };
+    return { ok: true, value: today.getUTCFullYear() - age };
   }
 
   if (!Number.isFinite(value)) return { ok: false, line: INVALID[field] };
@@ -738,6 +748,8 @@ export function answerLabel(prompt: ChatPrompt, p: Profile, content: OnboardingC
     return tags.map((t) => opts[t]?.label ?? t).join(" · ");
   }
   if (raw === null) return null;
+  // Typed as an age, stored as a year: drawn back as what was typed. See `checkNumber`.
+  if (prompt.field === "birth_year") return String(ageFrom(raw as number) ?? raw);
   if (prompt.options) {
     const id = screenForStep(prompt.field);
     const opts = content.screens.find((s) => isKnownScreen(s.id) && s.id === id)?.options ?? {};
