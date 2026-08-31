@@ -51,8 +51,20 @@ export interface StartContext {
   store: Store;
   verifier: IdentityVerifier;
   exchange: GoogleCodeExchange;
-  /** This server's public origin. The redirect URI is built from it, never from a request header. */
+  /**
+   * This server's public origin — `EAIT__BACKEND__PUBLIC_API_URL` where it is set, which is what
+   * every deployed host does (`iac/.../env.prod.j2`). The redirect URI is built from it.
+   */
   origin: string;
+  /**
+   * The per-address sign-in allowance, the SAME one `/v1/auth/*` takes. Null means go ahead;
+   * a number is the seconds to wait.
+   *
+   * The callback below is the fourth route on this server that mints a session, and the only one
+   * that spends an outbound call to Google's token endpoint — ten seconds of a request handler —
+   * before anybody is authenticated. Without this it is the one unbounded route on the box.
+   */
+  limitAuth: () => number | null;
 }
 
 const notFound = (): Response =>
@@ -67,12 +79,29 @@ const seeOther = (location: string, cookies: string[] = []): Response => {
   return new Response(null, { status: 303, headers });
 };
 
+/**
+ * FIRST WINS, and it is not a preference. RFC 6265 orders cookies most-specific first, and a
+ * browser will happily send two named `eait_web` — ours on `Path=/start`, and one set for
+ * `Domain=eait.fit` from anywhere else on the domain, including the landing host. Last-wins hands
+ * the session to whichever of those was written second, which is the one an attacker controls.
+ *
+ * A value that is not valid percent-encoding is DROPPED rather than thrown on: `decodeURIComponent`
+ * raises `URIError` on a bare `%`, which reaches the router's outer catch and answers a JSON 500 on
+ * an HTML surface — for as long as that cookie survives in the browser, which is until somebody
+ * clears it by hand.
+ */
 function cookieHeader(req: Request): Record<string, string> {
   const out: Record<string, string> = {};
   for (const part of (req.headers.get("cookie") ?? "").split(";")) {
     const eq = part.indexOf("=");
     if (eq < 1) continue;
-    out[part.slice(0, eq).trim()] = decodeURIComponent(part.slice(eq + 1).trim());
+    const name = part.slice(0, eq).trim();
+    if (name in out) continue;
+    try {
+      out[name] = decodeURIComponent(part.slice(eq + 1).trim());
+    } catch {
+      // Not ours, or corrupted. Either way there is nothing to read out of it.
+    }
   }
   return out;
 }
@@ -196,6 +225,18 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     // what makes a callback replayed from somewhere else useless.
     if (!state || !nonce || code === "" || url.searchParams.get("state") !== state) return failed();
 
+    // Charged HERE — after the state check, so a scanner cannot spend a shared CGNAT address's
+    // allowance with requests that were never going to reach Google, and before the exchange, which
+    // is the part that costs a socket and ten seconds. Never before the 404 gate at the top of this
+    // function: a 429 from an unconfigured host would say the surface exists.
+    const wait = ctx.limitAuth();
+    if (wait !== null) {
+      return new Response("Too many sign-in attempts from this address. Try again shortly.\n", {
+        status: 429,
+        headers: { "content-type": "text/plain; charset=utf-8", "retry-after": String(wait) },
+      });
+    }
+
     let token: string;
     try {
       const idToken = await ctx.exchange.exchange(code, redirectUri);
@@ -276,7 +317,10 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       // delivery this server refuses — see `api/revenuecat.ts`.
       checkoutUrl: config.webCheckoutUrl === ""
         ? null
-        : config.webCheckoutUrl.replace("{userId}", encodeURIComponent(userId)),
+        // `replaceAll`: a template naming the placeholder twice — a path segment and a query
+        // parameter, which is a shape real checkout links take — would otherwise ship the second
+        // one literally.
+        : config.webCheckoutUrl.replaceAll("{userId}", encodeURIComponent(userId)),
     }));
   }
 

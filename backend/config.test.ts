@@ -32,6 +32,7 @@ const VARS = [
   "EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID", "EAIT__BACKEND__USER_DAILY_PHOTO_CAP",
   "EAIT__BACKEND__PUSH_ENABLED", "EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN", "EAIT__BACKEND__PUSH_TIMEOUT_MS",
   "EAIT__BACKEND__EVENING_LINE_TIME",
+  "EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID", "EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET", "EAIT__BACKEND__WEB_CHECKOUT_URL",
 ] as const;
 
 /** The two without defaults. Set for every test so `loadConfig` gets past its required checks. */
@@ -138,6 +139,51 @@ describe("redact", () => {
     expect(printed).not.toContain("test-key-not-real");
     expect(printed).not.toContain(":p@");
     expect(printed).toContain("***");
+  });
+
+  it("keeps the Google web client secret out of it too", () => {
+    withRequired({
+      EAIT__BACKEND__GOOGLE_AUDIENCES: "web.apps.googleusercontent.com",
+      EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID: "web.apps.googleusercontent.com",
+      EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET: "GOCSPX-not-a-real-secret",
+    });
+    const printed = JSON.stringify(redact(loadConfig()));
+    expect(printed).not.toContain("GOCSPX-not-a-real-secret");
+    // The id is not a secret and is worth reading in a boot log — it says which client /start uses.
+    expect(printed).toContain("web.apps.googleusercontent.com");
+  });
+});
+
+// ── Onboarding in a browser ──────────────────────────────────────────────────────────────────
+//
+// Both refusals below have the same shape and the same reason: a `/start` that renders, consents
+// and then fails is worse than one that answers 404, and neither failure is visible from outside.
+describe("the web onboarding", () => {
+  it("refuses a web client id that is not in the audience list", () => {
+    withRequired({
+      EAIT__BACKEND__GOOGLE_AUDIENCES: "ios.apps.googleusercontent.com",
+      EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID: "web.apps.googleusercontent.com",
+      EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET: "s",
+    });
+    expect(() => loadConfig()).toThrow(/GOOGLE_AUDIENCES/);
+  });
+
+  it("accepts one that is, and stays off when no id is set at all", () => {
+    withRequired({
+      EAIT__BACKEND__GOOGLE_AUDIENCES: "ios.apps.googleusercontent.com, web.apps.googleusercontent.com",
+      EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID: "web.apps.googleusercontent.com",
+    });
+    expect(loadConfig().googleWebClientId).toBe("web.apps.googleusercontent.com");
+    withRequired({ EAIT__BACKEND__GOOGLE_AUDIENCES: "" });
+    delete process.env.EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID;
+    expect(loadConfig().googleWebClientId).toBe("");
+  });
+
+  it("refuses a checkout link with no {userId} in it", () => {
+    withRequired({ EAIT__BACKEND__WEB_CHECKOUT_URL: "https://pay.rev.cat/eait" });
+    expect(() => loadConfig()).toThrow(/\{userId\}/);
+    withRequired({ EAIT__BACKEND__WEB_CHECKOUT_URL: "https://pay.rev.cat/eait/{userId}" });
+    expect(loadConfig().webCheckoutUrl).toBe("https://pay.rev.cat/eait/{userId}");
   });
 });
 

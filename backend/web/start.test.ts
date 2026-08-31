@@ -60,10 +60,16 @@ let store: Store;
 let deps: EngineDeps;
 let handle: (req: Request) => Promise<Response>;
 
+/**
+ * ONE router per test, not one per request. `createRouter` holds the per-address rate limiter, so a
+ * harness that rebuilt it on every call would hand every request a fresh allowance — a limiter that
+ * is present, configured and untestable, which is the shape the real server never has.
+ */
 function router(config: Config) {
   store = memoryStore();
   deps = { store, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
-  handle = (req) => createRouter(deps, store, testVerifier, { googleExchange: exchange })(req);
+  const handler = createRouter(deps, store, testVerifier, { googleExchange: exchange });
+  handle = (req) => handler(req);
 }
 
 const get = (path: string, cookie?: string) =>
@@ -220,6 +226,39 @@ describe("signing in", () => {
     // The account it named is reachable with the same token the app would use.
     const token = session.split(";")[0]!.split("=")[1]!;
     expect(await store.userIdForToken(decodeURIComponent(token))).toBeTruthy();
+  });
+
+  /**
+   * The callback is the fourth route on this server that mints a session, and the only one that
+   * spends an outbound call to Google before anybody is authenticated. The three in `api/routes.ts`
+   * are bounded per address; this proves this one is too, on the same allowance.
+   */
+  it("bounds the callback by address, on the same allowance the app's sign-in routes take", async () => {
+    router({ ...CONFIG, authRateLimitPerHour: 1 });
+    await signIn("first");
+    const start = await get("/start/auth/google");
+    const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
+    const res = await get(
+      `/start/auth/google/callback?code=second&state=${encodeURIComponent(state)}`,
+      cookieFrom(start, "eait_oauth"),
+    );
+    expect(res.status).toBe(429);
+    expect(res.headers.get("retry-after")).toBeTruthy();
+    expect(res.headers.getSetCookie().some((c) => c.startsWith("eait_web="))).toBe(false);
+  });
+
+  it("does not spend that allowance on a callback that never passed the state check", async () => {
+    router({ ...CONFIG, authRateLimitPerHour: 1 });
+    // A scanner's request, and one address can be thousands of people behind carrier-grade NAT.
+    expect((await get("/start/auth/google/callback?code=x&state=junk")).status).toBe(303);
+    await signIn("still-allowed");
+  });
+
+  it("404s an unconfigured host however often it is asked, rather than 429ing it", async () => {
+    router({ ...CONFIG, googleWebClientId: "", googleWebClientSecret: "", authRateLimitPerHour: 1 });
+    for (let i = 0; i < 3; i++) {
+      expect((await get("/start/auth/google/callback?code=x&state=y")).status).toBe(404);
+    }
   });
 
   it("sends a failed exchange back to the front door without a session", async () => {
@@ -394,5 +433,44 @@ describe("the copy this surface writes", () => {
    */
   it("passes the claims gate", () => {
     expect(lintCopy({ ...PAGE_COPY })).toEqual([]);
+  });
+});
+
+describe("the cookie is this surface's alone", () => {
+  /**
+   * Security rule 2 of `web/start.ts`, asserted rather than trusted.
+   *
+   * It is the invariant most likely to be undone by a later "just read the cookie too" edit in
+   * `resolveUserId`, and the cost of that edit is every authenticated route becoming postable from
+   * another origin on a signed-in browser. Five lines is cheap insurance for it.
+   */
+  it("buys nothing on the API", async () => {
+    const session = await signIn();
+    const res = await handle(new Request("https://api.eait.fit/v1/profile", { headers: { cookie: session } }));
+    expect(res.status).toBe(401);
+    // And the same token in the header the API DOES read works, so this proves the cookie was
+    // ignored rather than that the token was bad.
+    const token = session.split("=")[1]!;
+    const asBearer = await handle(new Request("https://api.eait.fit/v1/profile", {
+      headers: { authorization: `Bearer ${token}` },
+    }));
+    expect(asBearer.status).toBe(200);
+  });
+
+  it("takes the FIRST of two cookies with the same name, not the last", async () => {
+    const session = await signIn();
+    // What a browser sends when something on the parent domain sets its own `eait_web`: ours is
+    // more specific and comes first. Last-wins would hand the session to the other one.
+    const shadowed = `${session}; eait_web=someone-elses-token`;
+    const res = await get("/start/q", shadowed);
+    expect(res.status).toBe(200);
+  });
+
+  it("does not answer 500 to a cookie that is not valid percent-encoding", async () => {
+    const res = await get("/start/q", "eait_web=%");
+    // Back to the front door, like any other unusable session — `decodeURIComponent` throwing here
+    // would reach the router's outer catch and answer a JSON 500 on an HTML surface.
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start");
   });
 });

@@ -97,9 +97,10 @@ export interface Config {
    * as the admin and the purchase webhook, and for the same reason: a half-configured sign-up is a
    * button that fails after somebody has already chosen their Google account.
    *
-   * The id must ALSO appear in `googleAudiences`, or the token this flow gets back fails the
-   * audience check on its way in. The secret is Google's requirement for a web client at the token
-   * endpoint; the native flow has none, which is why the app carries none.
+   * The id must ALSO appear in `googleAudiences`, and `loadConfig` refuses to start otherwise: the
+   * token this flow gets back carries it as `aud`, so the two disagreeing is a surface that renders,
+   * consents, and then fails every callback. The secret is Google's requirement for a web client at
+   * the token endpoint; the native flow has none, which is why the app carries none.
    */
   googleWebClientId: string;
   googleWebClientSecret: string;
@@ -426,6 +427,23 @@ export function loadConfig(): Config {
 
   const llmMaxTokens = llmMaxTokensFromEnv(d.llmMaxTokens);
 
+  // The web sign-in's audience, checked at BOOT rather than at the end of somebody's first sign-up.
+  //
+  // `auth/verify.ts` refuses a token whose `aud` is not in this list, and the token `/start` gets
+  // back carries the web client id. Set one and forget the other and the surface renders, the button
+  // works, Google shows its consent screen — and then every callback fails, for everybody,
+  // permanently, with the only trace in this process's log. That is the same failure the both-or-
+  // neither rule and the `{userId}` check refuse: configuration that looks complete and breaks after
+  // the user has already chosen their Google account.
+  const googleAudiences = list("EAIT__BACKEND__GOOGLE_AUDIENCES");
+  const googleWebClientId = process.env.EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID ?? d.googleWebClientId;
+  if (googleWebClientId !== "" && !googleAudiences.includes(googleWebClientId)) {
+    throw new Error(
+      "[eait] EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID must also be listed in EAIT__BACKEND__GOOGLE_AUDIENCES, " +
+      "or every /start sign-in fails audience verification — see docs/WEB_ONBOARDING.md",
+    );
+  }
+
   const subscribeConfirmTtlDays = int("EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS", d.subscribeConfirmTtlDays);
   if (subscribeConfirmTtlDays < 1) {
     throw new Error("[eait] EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS must be at least 1");
@@ -470,8 +488,8 @@ export function loadConfig(): Config {
     healthSyncRateLimitPerHour: int("EAIT__BACKEND__HEALTH_SYNC_RATE_LIMIT_PER_HOUR", d.healthSyncRateLimitPerHour),
     linesRateLimitPerHour: int("EAIT__BACKEND__LINES_RATE_LIMIT_PER_HOUR", d.linesRateLimitPerHour),
     appleAudiences: list("EAIT__BACKEND__APPLE_AUDIENCES"),
-    googleAudiences: list("EAIT__BACKEND__GOOGLE_AUDIENCES"),
-    googleWebClientId: process.env.EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID ?? d.googleWebClientId,
+    googleAudiences,
+    googleWebClientId,
     googleWebClientSecret: process.env.EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET ?? d.googleWebClientSecret,
     webCheckoutUrl: webCheckoutUrlFromEnv(),
     adminToken: adminTokenFromEnv(),
@@ -564,7 +582,7 @@ export function revenueCatWebhookTokenFromEnv(): string {
 export function redact(c: Config): Record<string, unknown> {
   const {
     llmApiKey: _k, adminToken: _a, resendApiKey: _r, revenueCatWebhookToken: _rc,
-    expoPushAccessToken: _e, databaseUrl,
+    expoPushAccessToken: _e, googleWebClientSecret: _g, databaseUrl,
     ...rest
   } = c;
   return {
@@ -580,6 +598,10 @@ export function redact(c: Config): Record<string, unknown> {
     revenueCatWebhookToken: c.revenueCatWebhookToken === "" ? "(disabled)" : "***",
     // Whether this server can send a notification at all is the thing worth reading in a boot log.
     expoPushAccessToken: c.expoPushAccessToken === "" ? "(unset — pushes are logged)" : "***",
+    // Google's web client secret. A real secret — ansible carries it `no_log` and reads it back off
+    // the host rather than re-deriving it — and this line is the only thing between it and every
+    // container log, because `...rest` above would print it verbatim on every boot.
+    googleWebClientSecret: c.googleWebClientSecret === "" ? "(unset — /start is off)" : "***",
   };
 }
 
