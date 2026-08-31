@@ -7,7 +7,8 @@
 
 import { describe, expect, it } from "bun:test";
 import {
-  DEFAULT_ONBOARDING_CONTENT, ONBOARDING_PLACES, ONBOARDING_SCREENS, ONBOARDING_STEPS,
+  DEFAULT_ONBOARDING_CONTENT, ONBOARDING_INTERSTITIALS, ONBOARDING_PLACES, ONBOARDING_SCREENS,
+  ONBOARDING_STEPS,
   KCAL_FLOOR, COUNTRY_CODES, countryFromRegion,
   REPORTABLE_FIELDS, SCREEN_FIELDS, disabledScreens,
   screenForStep, usableContent, validateOnboardingContent,
@@ -358,29 +359,35 @@ describe("content from a server this binary does not match", () => {
 describe("the interstitials", () => {
   // None of these collects a profile field, so they stay out of ONBOARDING_SCREENS and
   // SCREEN_FIELDS — which is what keeps the three-layer boundary the same shape it was before they
-  // existed. `why`, `struggles`, `moment` and `eatout` are questions to the USER; nothing they
-  // collect reaches `explainTargets`.
+  // existed. `struggles` is a question to the USER; nothing it collects reaches `explainTargets`.
 
   it("are not screens", () => {
-    for (const id of ["welcome", "why", "struggles", "moment", "eatout", "building", "summary"]) {
+    for (const id of ONBOARDING_INTERSTITIALS) {
       expect(ONBOARDING_SCREENS as readonly string[]).not.toContain(id);
     }
   });
 
   it("are places", () => {
-    for (const place of ["welcome", "why", "struggles", "moment", "eatout", "building", "summary"] as const) {
-      expect(ONBOARDING_PLACES).toContain(place);
-    }
+    for (const place of ONBOARDING_INTERSTITIALS) expect(ONBOARDING_PLACES).toContain(place);
     for (const id of ONBOARDING_SCREENS) expect(ONBOARDING_PLACES).toContain(id);
+  });
+
+  it("no longer counts the three questions that had no reader", () => {
+    // Cut on 2026-08-26: why now, the hardest moment, eating out. A place that is still counted is
+    // a funnel row for a beat nobody meets, which reads as a cliff rather than as an absence.
+    for (const gone of ["why", "moment", "eatout"]) {
+      expect(ONBOARDING_PLACES as readonly string[]).not.toContain(gone);
+      expect(ONBOARDING_INTERSTITIALS as readonly string[]).not.toContain(gone);
+    }
   });
 
   it("are counted in the order a person meets them", () => {
     const at = (s: string) => (ONBOARDING_PLACES as readonly string[]).indexOf(s);
     expect(at("welcome")).toBe(0);
-    expect(at("goal")).toBeLessThan(at("why"));
-    expect(at("why")).toBeLessThan(at("about"));
+    expect(at("goal")).toBeLessThan(at("about"));
     expect(at("target")).toBeLessThan(at("activity"));
-    expect(at("struggles")).toBeLessThan(at("moment"));
+    expect(at("activity")).toBeLessThan(at("struggles"));
+    expect(at("struggles")).toBeLessThan(at("restrictions"));
     expect(at("restrictions")).toBeLessThan(at("building"));
     expect(at("building")).toBeLessThan(at("summary"));
   });
@@ -398,12 +405,10 @@ describe("the analytics vocabulary", () => {
     }
   });
 
-  it("has no room for a struggle, a moment or a reason", () => {
+  it("has no room for a struggle", () => {
     // The strongest case in the whole list: "binge episodes" is a disclosure, not a preference.
-    // These are not `OnboardingStep`s, so they cannot be on `REPORTABLE_FIELDS` by construction.
-    for (const f of ["struggles", "moment", "eatout", "why"]) {
-      expect(REPORTABLE_FIELDS as readonly string[]).not.toContain(f);
-    }
+    // It is not an `OnboardingStep`, so it cannot be on `REPORTABLE_FIELDS` by construction.
+    expect(REPORTABLE_FIELDS as readonly string[]).not.toContain("struggles");
   });
 });
 

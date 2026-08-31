@@ -211,7 +211,7 @@ describe("the funnel", () => {
     const f = await onboardingFunnel(deps, 30);
     const places = f.rows.map((r) => r.place);
     // The order a person meets them in — the welcome beat, the questions (the profile ones and the
-    // four that are conversation), the plan being built, the plan. A drop between two adjacent rows
+    // one that is conversation), the plan being built, the plan. A drop between two adjacent rows
     // is only readable as a drop if the rows are in the order they happened. Fixed in code: the
     // chat asks in an order its own replies depend on, so there is no admin ordering to follow.
     expect(places).toEqual([...ONBOARDING_PLACES]);
