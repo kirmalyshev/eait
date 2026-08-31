@@ -4,9 +4,9 @@
 // WHY THIS IS SHARED AND PURE, AND WHY IT IS NOT ADMIN-EDITABLE
 //
 // SHARED, because it is where the branch logic lives, and branch logic is exactly the part that
-// `bun test` has to be able to reach without a simulator. The reply to "when is it hardest?" reads
-// the goal chosen ten steps earlier and the support cards already shown; that is a rule, and a rule
-// nobody can run is a rule that drifts.
+// `bun test` has to be able to reach without a simulator. The support card for "diets that didn't
+// stick" reads the goal chosen six steps earlier and swaps its citation for one that is about the
+// direction taken; that is a rule, and a rule nobody can run is a rule that drifts.
 //
 // NOT EDITABLE, because these sentences carry SOURCED STATISTICS — "about 42% of adults", "n =
 // 1.18M", "2.8% of adults meet the criteria". `product/design/onboarding/copy.md` states the rule
@@ -18,19 +18,22 @@
 // THE THREE RULES EVERY REPLY OBEYS (copy.md § Context model), each with a test:
 //   1. Speak to the branch taken, never to "whatever" was chosen. A reply that works for any goal
 //      is a reply written for no one.
-//   2. A stat is delivered once. If a support card already carried it, later replies reference it
-//      ("we've covered the 8pm crowd") and never repeat it.
+//   2. A question earns its place by having a reader. Asking for something nothing consumes is the
+//      most expensive line in an onboarding — the user pays for it and never sees it come back.
 //   3. Never lean on structure the user cannot see. No step numbers, and nothing about an answer
 //      that has not been given yet.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 //
 // WHAT IS STORED AND WHAT IS NOT. `goal`, `sex`, `birth_year`, `height_cm`, `weight_kg`,
 // `target_weight_kg`, `pace`, `activity`, `country` and `restrictions` are profile columns, and
-// they are the whole input to `explainTargets`. The four conversation questions — why now, what has
-// been hard, the hardest moment, eating out — are NOT stored on the profile: nothing reads them
-// yet, they are answered into the thread (which is the record, and is erased with the account), and
-// `REPORTABLE_FIELDS` has no room for them, which is the point. "Binge episodes" is a disclosure,
-// not a preference.
+// they are the whole input to `explainTargets`. The one conversation question — what has been hard
+// — is NOT stored on the profile: it is answered into the thread (which is the record, and is
+// erased with the account), and `REPORTABLE_FIELDS` has no room for it, which is the point. "Binge
+// episodes" is a disclosure, not a preference.
+//
+// THERE WERE FOUR. "Why now", "the hardest moment" and "eating out" were cut on 2026-08-26 under
+// rule 2: each wrote a value — a bucket, a moment, a frequency — that nothing in `src/` ever read
+// back. `struggles` stayed because it picks the support cards that appear one sentence later.
 
 import {
   MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MIN_AGE, MIN_TARGET_BMI, MIN_WEIGHT_KG, ageFrom,
@@ -45,15 +48,15 @@ import {
 // ── The prompts ──────────────────────────────────────────────────────────────────────────────
 
 /**
- * Everything Spud asks or shows, in the order of `copy.md` steps 1–15.
+ * Everything Spud asks or shows, in the order of `copy.md` steps 1–12.
  *
  * A prompt with a `field` fills a profile column and its answer survives the app being killed. A
  * prompt without one is conversation: asked while the run is live, skipped on a resume that has
  * already passed it (see `resumeAt`).
  */
 export type ChatPromptId =
-  | "welcome" | "goal" | "why" | "sex" | "birth_year" | "height_cm" | "weight_kg"
-  | "target_weight_kg" | "pace" | "activity" | "struggles" | "moment" | "eatout"
+  | "welcome" | "goal" | "sex" | "birth_year" | "height_cm" | "weight_kg"
+  | "target_weight_kg" | "pace" | "activity" | "struggles"
   | "country" | "restrictions" | "building" | "summary";
 
 /**
@@ -79,7 +82,7 @@ export interface ChatPrompt {
   options?: readonly string[];
 }
 
-/** The struggle chips of copy.md § Step 8. A closed vocabulary, because § Step 9 keys cards off it. */
+/** The struggle chips of copy.md § Step 07. A closed vocabulary, because § Step 08 keys cards off it. */
 export const STRUGGLES = [
   "stress", "night", "binge", "diets", "eatout", "energy", "body", "metabolism",
 ] as const;
@@ -96,31 +99,9 @@ export const STRUGGLE_LABELS: Record<Struggle, string> = {
   metabolism: "Metabolism worry",
 };
 
-/** copy.md § Step 10. Typed answers are keyword-matched onto the same four. */
-export const MOMENTS = ["evening", "stress", "skipped", "other"] as const;
-export type Moment = (typeof MOMENTS)[number];
-
-export const MOMENT_LABELS: Record<Moment, string> = {
-  evening: "Evenings and late nights",
-  stress: "Stressful days",
-  skipped: "When I've skipped meals",
-  other: "Somewhere else",
-};
-
-/** copy.md § Step 11. */
-export const EATOUTS = ["rarely", "sometimes", "most"] as const;
-export type EatOut = (typeof EATOUTS)[number];
-
-export const EATOUT_LABELS: Record<EatOut, string> = {
-  rarely: "Rarely",
-  sometimes: "A few times a week",
-  most: "Most days",
-};
-
 export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   { id: "welcome", place: "welcome", kind: "start" },
   { id: "goal", place: "goal", field: "goal", kind: "choice", options: ["lose", "maintain", "gain"] },
-  { id: "why", place: "why", kind: "text" },
   { id: "sex", place: "about", field: "sex", kind: "choice", options: ["female", "male"] },
   { id: "birth_year", place: "about", field: "birth_year", kind: "number" },
   { id: "height_cm", place: "body", field: "height_cm", kind: "number" },
@@ -129,8 +110,6 @@ export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   { id: "pace", place: "target", field: "pace", kind: "choice", options: ["easy", "steady", "push"] },
   { id: "activity", place: "activity", field: "activity", kind: "choice", options: ["sedentary", "light", "moderate", "active", "athlete"] },
   { id: "struggles", place: "struggles", kind: "chips", options: STRUGGLES },
-  { id: "moment", place: "moment", kind: "text", options: MOMENTS },
-  { id: "eatout", place: "eatout", kind: "choice", options: EATOUTS },
   { id: "country", place: "country", field: "country", kind: "choice", options: ["de", "gb", "us", "ru", "other"] },
   { id: "restrictions", place: "restrictions", field: "restrictions", kind: "chips" },
   { id: "building", place: "building", kind: "auto" },
@@ -169,10 +148,10 @@ export function promptsFor(p: Profile, disabled: readonly OnboardingScreenId[] =
  * replayed as a transcript — Spud's question and the answer already on the profile — so the user
  * arrives back in a conversation rather than at a bare prompt.
  *
- * The four conversation questions are SKIPPED when they sit before the resume point. They are not
- * on the profile, so re-asking them would be the only way to have them, and re-asking "what made
- * you decide to start now?" after the app was killed is worse than never asking: the answer was
- * given, the user remembers giving it, and nothing downstream needs it.
+ * A conversation question is SKIPPED when it sits before the resume point. It is not on the
+ * profile, so re-asking is the only way to have it, and re-asking "what's been hard?" after the app
+ * was killed is worse than never asking: the answer was given, the user remembers giving it, and
+ * nothing downstream needs it a second time.
  *
  * A run with nothing answered at all starts at zero, on the front door. Anybody with one answer has
  * been past it.
@@ -212,10 +191,10 @@ function askContent(content: OnboardingContent, field: OnboardingStep) {
 /**
  * What Spud says to pose one prompt, as bubbles.
  *
- * The profile questions read the ADMIN'S words; the four conversation questions read the constants
- * below. `{loseTail}` is the one substitution in the shipped copy, and it exists because "faster
- * isn't better here" is a warning about losing weight: said to somebody gaining, it is rule 1's
- * reply written for nobody.
+ * The profile questions read the ADMIN'S words; the conversation question reads the constant below.
+ * `{loseTail}` is the one substitution in the shipped copy, and it exists because "faster isn't
+ * better here" is a warning about losing weight: said to somebody gaining, it is rule 1's reply
+ * written for nobody.
  */
 export function askLines(prompt: ChatPrompt, content: OnboardingContent, p: Profile): string[] {
   // The front door is content too, and it is the one prompt with no field and no constant.
@@ -235,30 +214,25 @@ export function askLines(prompt: ChatPrompt, content: OnboardingContent, p: Prof
   return [...(CONVERSATION_ASKS[prompt.id as keyof typeof CONVERSATION_ASKS] ?? [])];
 }
 
-/** The composer's placeholder while a prompt is open, or null when there is nothing to type. */
+/**
+ * The composer's placeholder while a prompt is open, or null when there is nothing to type.
+ *
+ * Only a profile question takes typed input now — `struggles` is chips and a quick reply — so the
+ * admin's word is the only source there is.
+ */
 export function askPlaceholder(prompt: ChatPrompt, content: OnboardingContent): string | null {
-  if (prompt.field) return askContent(content, prompt.field)?.placeholder ?? null;
-  return CONVERSATION_PLACEHOLDERS[prompt.id as keyof typeof CONVERSATION_PLACEHOLDERS] ?? null;
+  return prompt.field ? askContent(content, prompt.field)?.placeholder ?? null : null;
 }
 
 /** The idle placeholder, everywhere a prompt does not name its own. copy.md § Step 01. */
 export const IDLE_PLACEHOLDER = "Message Spud…";
 
 const CONVERSATION_ASKS = {
-  why: ["What made you decide to start now? A sentence is plenty — it's the one answer I'll remind you of when a week goes sideways."],
   struggles: ["Now the part most apps skip. What's been hard? Pick any — or none. This shapes support, never judgement."],
-  moment: ["When is it hardest? Pick the moment — I'll build the day around it."],
-  eatout: ["How often do you eat food you didn't cook — restaurants, delivery, the office canteen?"],
-} as const;
-
-const CONVERSATION_PLACEHOLDERS = {
-  why: "In your own words…",
-  moment: "Or type it — the hour, the place…",
 } as const;
 
 /** The quick replies beside the composer, per prompt. copy.md, verbatim. */
 export const QUICK_REPLIES = {
-  why: ["I'd rather not say"],
   struggles: ["Done", "None of these"],
   restrictions: ["Finish", "Nothing applies"],
 } as const;
@@ -305,7 +279,7 @@ export const GOAL_FOLLOWUPS: Partial<Record<Goal, string>> = {
 };
 
 /**
- * copy.md § Step 09 — one card per struggle picked, at most two.
+ * copy.md § Step 08 — one card per struggle picked, at most two.
  *
  * `diets` is the one that branches, and it branches on a citation rather than on tone: the regain
  * meta-analysis is about weight LOSS, so quoting it to somebody gaining would be bending it. The
@@ -363,7 +337,7 @@ const STRUGGLE_CARDS: Record<Struggle, SupportCard> = {
 };
 
 /**
- * copy.md § Step 06 — the gain support card.
+ * copy.md § Step 05 — the gain support card.
  *
  * The percentage is READ FROM `MAX_SURPLUS_SHARE`, not typed. A safety guarantee described in copy
  * that the arithmetic does not implement is the worst sentence this repo could ship, and the way
@@ -375,7 +349,7 @@ export const GAIN_PACE_CARD: SupportCard = {
   source: "Survey of 168 athletic adults attempting weight gain",
 };
 
-/** copy.md § Step 04 — the under-16 stop. The refusal is the server's; this is how it reads. */
+/** copy.md § Step 03 — the under-16 stop. The refusal is the server's; this is how it reads. */
 export const UNDER_AGE_CARD: SupportCard = {
   title: `eait is for ${MIN_AGE} and over`,
   body: "The way this app sets calorie targets is not designed for a body that is still growing.",
@@ -400,7 +374,7 @@ export const UNDER_AGE_LINES = {
   endedPlaceholder: `eait is for ${MIN_AGE} and over`,
 } as const;
 
-/** copy.md § Step 06 — the target below a healthy BMI. The server refuses it; this explains it. */
+/** copy.md § Step 05 — the target below a healthy BMI. The server refuses it; this explains it. */
 export function belowHealthyCard(minHealthyKg: number): SupportCard {
   return {
     title: "I can't set that as a target",
@@ -410,55 +384,10 @@ export function belowHealthyCard(minHealthyKg: number): SupportCard {
 
 // ── What Spud says back ──────────────────────────────────────────────────────────────────────
 
-/** The state a run accumulates that is NOT on the profile. See the header. */
-export interface RunState {
-  /** Everything picked at step 8, in the order picked. */
-  struggles: Struggle[];
-  /** The first two, which are the ones that got a card. Step 10 and 11 dedupe against this. */
-  cardsShown: Struggle[];
-}
-
-export const EMPTY_RUN: RunState = { struggles: [], cardsShown: [] };
-
 /** How many support cards a multi-select gets. Two is the design's number: three is a lecture. */
 export const MAX_STRUGGLE_CARDS = 2;
 
-/**
- * copy.md § Step 03 — the reply to "what made you start now".
- *
- * Keyword-matched into five buckets, and the medical one reads the goal: "people who start for a
- * medical reason tend to lose more" is a finding about weight LOSS, and saying it to somebody
- * gaining is rule 1 again.
- */
-export type WhyBucket = "private" | "medical" | "event" | "energy" | "other";
-
-export function whyBucket(text: string, declined: boolean): WhyBucket {
-  if (declined) return "private";
-  const t = text.toLowerCase();
-  if (/(doctor|blood|pressure|health|medic|cholesterol|diabet)/.test(t)) return "medical";
-  if (/(wedding|holiday|summer|event|birthday|beach|vacation)/.test(t)) return "event";
-  if (/(tired|energy|sleep)/.test(t)) return "energy";
-  return "other";
-}
-
-export function whyReply(bucket: WhyBucket, goal: Goal | null): string {
-  switch (bucket) {
-    case "private":
-      return "Fair. It stays your business — the plan works either way.";
-    case "medical":
-      return goal === "lose"
-        ? "A strong reason, and a common one. People who start for a medical reason tend to lose more and keep more of it off — we'll keep it steady, not dramatic."
-        : "A strong reason, and a common one. Changes started on a doctor's word tend to stick — we'll keep it steady, not dramatic.";
-    case "event":
-      return "A date on the calendar is honest fuel. I'll show you what's realistic by then — and what's worth keeping after it.";
-    case "energy":
-      return "Energy is the honest metric — food is half of it. We'll watch the shape of your days, not just the total.";
-    case "other":
-      return "Good reason. I'll hold onto that — and I won't turn it into a slogan.";
-  }
-}
-
-/** copy.md § Step 05 — the acknowledgement, and the first real number ten steps early. */
+/** copy.md § Step 04 — the acknowledgement, and the first real number six steps early. */
 export function weightAck(bmr: number | null): string[] {
   const lines = ["Noted — honest numbers make an honest plan."];
   // Only when there is one. `basalMetabolicRate` returns null for anthropometrics it will not
@@ -469,7 +398,7 @@ export function weightAck(bmr: number | null): string[] {
   return lines;
 }
 
-/** copy.md § Step 07 — one reply per activity level. `athlete` is this binary's fifth. */
+/** copy.md § Step 06 — one reply per activity level. `athlete` is this binary's fifth. */
 export const ACTIVITY_REPLIES: Record<string, string> = {
   sedentary: "Thanks for the honest answer — most people overshoot this one, and then the target overshoots them.",
   light: "Good — walks count for more than people think.",
@@ -478,84 +407,21 @@ export const ACTIVITY_REPLIES: Record<string, string> = {
   athlete: "Then the number has real work to fuel. I'd rather feed it properly than guess low.",
 };
 
-/** copy.md § Step 08 — the line after the cards, or the line when nothing was picked. */
+/**
+ * copy.md § Step 08 — the line after the cards, or the line when nothing was picked.
+ *
+ * It NAMES WHAT IS LEFT, and the number has to be right: it used to promise "one more question
+ * about them", which was the hardest-moment question, and that question is gone.
+ */
 export function strugglesCloser(picked: number): string {
   if (picked === 0) return "Even better. If something turns up later, tell me in the chat — the plan can bend.";
   return picked > 1
-    ? "We know how to work with each of these. One more question about them, then back to the easy stuff."
-    : "One more question about that, then back to the easy stuff.";
+    ? "We know how to work with each of these — the plan gets built around them, not in spite of them. Two quick ones left."
+    : "We know how to work with that — the plan gets built around it, not in spite of it. Two quick ones left.";
 }
 
 /**
- * copy.md § Step 10 — the hardest moment.
- *
- * Rule 2 lives here in its clearest form: the evening reply carries the 8pm statistic, and the
- * night-snacking CARD carries the same statistic. Delivered twice it reads as a script that is not
- * listening, so when the card has already been shown the reply references it and goes straight to
- * what happens about it.
- */
-export function momentFromText(text: string): Moment {
-  const t = text.toLowerCase();
-  if (/(evening|night|late|bed|tv|couch)/.test(t)) return "evening";
-  if (/(stress|work|deadline|delivery|order)/.test(t)) return "stress";
-  if (/(skip|miss|forget|one meal)/.test(t)) return "skipped";
-  return "other";
-}
-
-export function momentReply(
-  moment: Moment,
-  goal: Goal | null,
-  run: RunState,
-  /** True when the user typed something the four buckets did not match. */
-  unmatched = false,
-): string {
-  switch (moment) {
-    case "evening":
-      if (goal === "gain") {
-        return "Good news: for you the evening is an asset — it's where the surplus gets finished. We'll put the hour to work.";
-      }
-      return run.cardsShown.includes("night")
-        ? "We've covered the 8pm crowd — so, concretely: I'll keep an evening budget in view, and the hour loses its teeth."
-        : "The classic hour — over 60% of adults eat something after 8pm. You're not the exception; you're the rule. We don't score when you eat, only what the day adds up to. I'll keep an evening budget in view so the hour loses its teeth.";
-    case "stress":
-      // No dedupe needed: the stress card carries no overlapping statistic.
-      return "A hard day's meal isn't a failure — it's a meal. Photograph it like any other. The days people skip logging are the days the log would help most, so I'll make the honest answer the easy one: one photo, no forms.";
-    case "skipped":
-      return goal === "gain"
-        ? "That's where gaining stalls — a skipped meal is surplus that never happened. Spreading meals through the day is the whole game for you."
-        : "That's the day borrowing from the evening. People eating one meal a day are markedly more likely to snack late — spreading the same calories earlier usually beats willpower at 11pm.";
-    case "other":
-      return unmatched
-        ? "That's a real moment, and now it's on the map. We'll build the day around it rather than pretending it won't happen."
-        : "Fair — the map fills in as you log. If a pattern shows up, I'll name it and we'll build around it.";
-  }
-}
-
-/**
- * copy.md § Step 11 — eating out.
- *
- * Rule 2 again, and this one is the closest call in the whole flow: the "Eating out a lot" card
- * says almost exactly what the Most-days reply says, so firing both is the same sentence twice with
- * a question in between.
- */
-export function eatoutReply(choice: EatOut, run: RunState): string {
-  const carded = run.cardsShown.includes("eatout");
-  switch (choice) {
-    case "most":
-      return carded
-        ? "As promised — photos handle exactly that. Snap the plate, I do the rest."
-        : "Then photos are your friend — restaurant plates are where estimates drift most, and a photo beats a menu's guess. When I'm unsure, I'll say so instead of pretending.";
-    case "rarely":
-      return carded
-        ? "Rarer than 'eating out a lot' suggested — take it. Photos cover the exceptions when they happen."
-        : "Home cooking makes my job easier — portions in your own bowls are the most accurate thing I read.";
-    case "sometimes":
-      return "A good mix. Photos handle both ends — your bowls and their plates.";
-  }
-}
-
-/**
- * copy.md § Step 13 — what gets scored, and only what was declared.
+ * copy.md § Step 10 — what gets scored, and only what was declared.
  *
  * The cholesterol line CHAINS onto the kidney one ("too", "same rule"), so it must never fire
  * without it — which is why this returns the whole reply rather than one line per tag.
@@ -669,7 +535,7 @@ const INVALID: Record<Exclude<NumberField, "birth_year">, string> = {
 };
 
 /**
- * copy.md § Step 06 — the wrong-direction check.
+ * copy.md § Step 05 — the wrong-direction check.
  *
  * The tree remembers what was chosen at step 02. Asking to "gain" to a number below the current
  * weight used to be accepted, and `explainTargets` then added a surplus aimed at a lower number:
@@ -722,7 +588,7 @@ export function minHealthyKg(heightCm: number): number {
 // ── The plan ─────────────────────────────────────────────────────────────────────────────────
 
 /**
- * copy.md § Step 15 — the share-cap note, with the percentage read from the constant.
+ * copy.md § Step 12 — the share-cap note, with the percentage read from the constant.
  *
  * "maintenance" is a word the chat never introduced, so the sentence says "what your body burns in
  * a day" — which is the label on the row directly above it in the calc card.
