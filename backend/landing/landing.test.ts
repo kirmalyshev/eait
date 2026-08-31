@@ -15,8 +15,7 @@ import { color, dark, light, TOKEN_SOURCE } from "./tokens.ts";
 import { BODY, MASCOT_SOURCE, MOUTHS, SHEEN } from "./mascot.ts";
 import { styles } from "./styles.ts";
 import { faqs, founder, measured, refusals, floorSection, sample } from "./content.ts";
-import { KCAL_FLOOR } from "@ieat/shared";
-import { configDefaults } from "../config.ts";
+import { FREE_ANALYSES, KCAL_FLOOR } from "@ieat/shared";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -155,7 +154,7 @@ describe("the numbers on the page are the numbers in the code", () => {
     // three sentences saying there was no paid tier at all — which stayed on the page after the
     // paywall shipped. Quoting the constant is what stops the copy outliving the product a second
     // time, exactly as the floor section quotes KCAL_FLOOR.
-    expect(configDefaults().freeAnalyses).toBe(1);
+    expect(FREE_ANALYSES).toBe(1);
     const billing = refusals[0]!.body + " " + faqs.map((f) => f.a).join(" ");
     expect(billing).toContain("That first answer is yours");
     // And the claim that replaced it has to still be true of the product: a card is asked for, but

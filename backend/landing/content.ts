@@ -24,11 +24,10 @@
 // before they agree to anything. A number on this page would also be a second copy of one that
 // lives in App Store Connect, which is the drift `KCAL_FLOOR` is quoted to avoid.
 
-import { KCAL_FLOOR } from "@ieat/shared";
-import { configDefaults } from "../config.ts";
+import { FREE_ANALYSES, KCAL_FLOOR } from "@ieat/shared";
 
 /** What an account gets before the app asks. The server's own number, not a sentence about it. */
-const SAMPLE_ANALYSES = configDefaults().freeAnalyses;
+const SAMPLE_ANALYSES = FREE_ANALYSES;
 
 export interface Refusal {
   /** The promise, phrased as the thing that will not happen. */

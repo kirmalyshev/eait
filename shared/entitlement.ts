@@ -50,6 +50,17 @@ export interface Entitlement {
 }
 
 /** What an account that has never purchased looks like. The overwhelmingly common case. */
+/**
+ * What an account gets before the app asks for money — the sample, over its whole lifetime.
+ *
+ * It lives here rather than in the server's `configDefaults()` because the LANDING PAGE quotes it,
+ * and the landing image ships `src/shared` and not `src/backend`: importing the server config from
+ * the copy broke `docker build` with `Cannot find module '../config.ts'` and nothing before it.
+ * Same reason `KCAL_FLOOR` is here. `EAIT__BACKEND__FREE_ANALYSES` still overrides it per instance;
+ * this is the default the copy is written against.
+ */
+export const FREE_ANALYSES = 1;
+
 export const NO_ENTITLEMENT: Entitlement = { active: false, expiresAt: null, trial: false };
 
 /**

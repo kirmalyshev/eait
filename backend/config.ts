@@ -1,4 +1,4 @@
-import { REMINDER_TIME } from "@ieat/shared";
+import { REMINDER_TIME, FREE_ANALYSES } from "@ieat/shared";
 import { DEFAULT_SESSION_TTL_MS } from "./auth/tokens.ts";
 
 // Configuration, loaded once at startup and validated loudly.
@@ -339,7 +339,7 @@ export function configDefaults(): Config {
     llmBaseUrl: "https://openrouter.ai/api/v1/chat/completions",
     llmTimeoutMs: 90_000,
     llmMaxTokens: 16_000,
-    freeAnalyses: 1,
+    freeAnalyses: FREE_ANALYSES,
     paidDailyPhotoCap: 200,
     globalDailyAnalysisCap: 500,
     timezone: "Europe/Berlin",
