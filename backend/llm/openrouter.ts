@@ -122,7 +122,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
           headers: {
             authorization: `Bearer ${opts.apiKey}`,
             "content-type": "application/json",
-            "x-title": "ieat",
+            "x-title": "eait",
           },
           body: JSON.stringify(body),
           signal: abort.signal,

@@ -570,7 +570,7 @@ export function createRouter(deps: EngineDeps, store: Store, verifier: Verifier)
           // `rate-limited`, the same code the other per-address limiter uses, and NOT a sentence.
           // The client switches on this string (`ApiError.isRefusal`) to tell a refusal the server
           // meant from a request that never arrived; an unrecognised code is shown to the user as
-          // "couldn't reach ieat". Not `cap-exceeded` either: nothing has been spent here.
+          // "couldn't reach eait". Not `cap-exceeded` either: nothing has been spent here.
           return tooManyRequests(wait, { error: "rate-limited" });
         }
 

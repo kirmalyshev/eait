@@ -362,7 +362,7 @@ export function configDefaults(): Config {
     subscribeDailyCap: 200,
     subscribeConfirmTtlDays: 7,
     mailProvider: "log",
-    mailFrom: "ieat <lets@eait.fit>",
+    mailFrom: "eait <lets@eait.fit>",
     resendApiKey: "",
     resendBaseUrl: "https://api.resend.com",
     mailTimeoutMs: 15_000,

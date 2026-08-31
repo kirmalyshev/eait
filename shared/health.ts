@@ -383,7 +383,7 @@ export function sanitizeHealthDay(day: HealthDay): HealthDay | null {
 
 // ── Writing back ─────────────────────────────────────────────────────────────────────────────
 //
-// The other direction: the nutrition ieat logs, mirrored into the phone's health store so the
+// The other direction: the nutrition eait logs, mirrored into the phone's health store so the
 // user's own nutrition ring reflects what they ate. Platform-neutral on purpose — the mapping from
 // these names to `HKQuantityTypeIdentifier` lives on the phone, because HealthKit is not something
 // this package is allowed to know about.

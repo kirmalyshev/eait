@@ -38,9 +38,9 @@ export interface Mailer {
  */
 export function confirmationMessage(confirmUrl: string): { subject: string; text: string } {
   return {
-    subject: "Confirm your email for ieat",
+    subject: "Confirm your email for eait",
     text: [
-      "Somebody — probably you — asked to hear from ieat when the iPhone app is out.",
+      "Somebody — probably you — asked to hear from eait when the iPhone app is out.",
       "",
       "Confirm that this address is yours:",
       confirmUrl,

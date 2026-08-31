@@ -873,7 +873,7 @@ describe("rate limits", () => {
     expect(refused.status).toBe(429);
     expect(Number(refused.headers.get("retry-after"))).toBeGreaterThan(0);
     // A CODE, not a sentence. `ApiError.isRefusal` on the client switches on this string, and an
-    // error it does not recognise is reported to the user as "couldn't reach ieat" — for a request
+    // error it does not recognise is reported to the user as "couldn't reach eait" — for a request
     // that arrived, was understood, and was answered. Same code as the other per-address limit:
     // nothing has been spent, so it is not `cap-exceeded`.
     expect(await refused.json()).toEqual({ error: "rate-limited" });

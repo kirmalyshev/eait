@@ -35,7 +35,7 @@ export type Lang = (typeof LANGS)[number];
  * DIFFERS FROM eait: `sex`, `birth_year`, `height_cm`, `activity` and `pace` are new. eait bands
  * calories by goal alone (1800/2100/2400 flat) and says in a comment that a bodyweight-delta
  * formula is out of scope for a photo logger. For an App Store product that is too blunt — the
- * category's users expect a personal number — so ieat computes one. That is the whole reason
+ * category's users expect a personal number — so eait computes one. That is the whole reason
  * `targets.ts` carries a floor: computing a target is what creates the risk of computing an
  * unsafe one.
  */

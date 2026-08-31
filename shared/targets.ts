@@ -7,7 +7,7 @@
 // bodyweight-delta formula is "out of scope (it needs safe-rate-of-loss logic this photo-logger has
 // no business inventing)". That is a correct call for a Telegram bot. It is not a viable call for
 // an App Store product in the health & fitness category, where a personal number is the thing users
-// arrive for. So ieat computes one — and computing one is precisely what creates the failure mode
+// arrive for. So eait computes one — and computing one is precisely what creates the failure mode
 // that put eleven one-star reviews on the incumbent:
 //
 //   "Went through the onboarding and was then given a daily calorie goal of 569. In what world is

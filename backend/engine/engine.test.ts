@@ -441,7 +441,7 @@ describe("the sample", () => {
   it("still words the failure when the refund itself cannot be written", async () => {
     // The refund runs inside the catch that turns a failed analysis into a refusal the screen can
     // word. A store that cannot delete must not escalate that into a 500 — the app would show
-    // "couldn't reach ieat" over an upstream that answered — and must not eat the log line either.
+    // "couldn't reach eait" over an upstream that answered — and must not eat the log line either.
     const brokenStore: Store = {
       ...store,
       undoAnalysis: async () => { throw new Error("delete failed"); },
