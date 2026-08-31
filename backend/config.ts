@@ -269,6 +269,7 @@ export interface Config {
    * redirecting, which is what a `curl` and a backend deployed without a landing page both want.
    */
   landingUrl: string;
+
 }
 
 /** Comma-separated env list → trimmed array, empties dropped. */

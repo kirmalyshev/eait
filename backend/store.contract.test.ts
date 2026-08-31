@@ -586,6 +586,23 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(updated!.items).toEqual(m.items); // jsonb round-trips
     });
 
+    it("holds the question asked about a meal, and lets one write clear it", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const asked = meal(u, { question: { text: "Cooked in oil, or dry?", options: ["In oil", "Dry"] } });
+      await s.insertMeal(asked);
+      expect((await s.getMeal(u, asked.id))!.question).toEqual(asked.question!);
+      // One question per meal, asked once: the correction that answers it carries `question: null`
+      // in the same patch that changes the numbers, so a re-render cannot offer the chips again.
+      expect((await s.updateMeal(u, asked.id, { question: null }))!.question).toBeNull();
+      expect((await s.getMeal(u, asked.id))!.question).toBeNull();
+      // Nothing asked reads back as nothing — null on both, never absent on one and null on the
+      // other, because that difference is a key the app sees on one deployment and not the other.
+      const plain = meal(u);
+      await s.insertMeal(plain);
+      expect((await s.getMeal(u, plain.id))!.question).toBeNull();
+    });
+
     it("sums a day and a window per user", async () => {
       const s = await open();
       const u = (await s.upsertDeviceUser(device(), "en")).userId;
@@ -904,6 +921,104 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.userIdForToken(token)).toBeNull();
       // Released, so signing in again is a NEW account rather than a resurrection.
       expect(await s.userIdForIdentity("apple", subject("to-be-released"))).toBeNull();
+    });
+
+    // ── Portion corrections ────────────────────────────────────────────────────────────────
+    //
+    // The prior these produce is fed to the analyzer and is allowed to change its grams, so a
+    // divergence between the implementations is a difference in the numbers a user is shown. The
+    // median is the part most likely to drift — `percentile_cont` interpolates and a reducer that
+    // took the lower of two middles would not — which is why neither store computes it in its own
+    // idiom and both hand their rows to `portionPriorsFrom`.
+
+    it("learns a portion prior as the median of a food's corrected ratios", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.recordPortionCorrections(userId, [
+        { name_en: "rice", grams_before: 100, grams_after: 125 },
+        { name_en: "rice", grams_before: 200, grams_after: 300 },
+      ]);
+      // A second edit, so the rows do not all arrive in one call.
+      await s.recordPortionCorrections(userId, [
+        { name_en: "rice", grams_before: 100, grams_after: 175 },
+        { name_en: "rice", grams_before: 100, grams_after: 200 },
+      ]);
+      // 1.25, 1.5, 1.75, 2 — an even sample, so the answer is the mean of the two middles and not
+      // either of them. Every ratio here is exact in binary on purpose: this asserts the rule, not
+      // the last bit of a float.
+      expect(await s.portionPriors(userId)).toEqual([{ name: "rice", ratio: 1.625, n: 4 }]);
+    });
+
+    it("keeps a food out of the prior until it has been corrected enough times", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.recordPortionCorrections(userId, [
+        { name_en: "bread", grams_before: 100, grams_after: 150 },
+        { name_en: "bread", grams_before: 100, grams_after: 150 },
+      ]);
+      // Two corrections is one afternoon, not a habit.
+      expect(await s.portionPriors(userId)).toEqual([]);
+      expect(await s.portionPriors(userId, 2)).toEqual([{ name: "bread", ratio: 1.5, n: 2 }]);
+    });
+
+    it("orders by how often a food was corrected and honours the limit", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const rows = [
+        ...Array.from({ length: 4 }, () => ({ name_en: "pasta", grams_before: 100, grams_after: 150 })),
+        ...Array.from({ length: 3 }, () => ({ name_en: "salad", grams_before: 100, grams_after: 50 })),
+      ];
+      await s.recordPortionCorrections(userId, rows);
+      expect((await s.portionPriors(userId)).map((p) => p.name)).toEqual(["pasta", "salad"]);
+      expect((await s.portionPriors(userId, 3, 1)).map((p) => p.name)).toEqual(["pasta"]);
+    });
+
+    it("never records a correction there is nothing to learn from", async () => {
+      // A zero before is not a small portion, it is a division by zero — and one Infinity in the
+      // sample takes the median with it.
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.recordPortionCorrections(userId, [
+        { name_en: "soup", grams_before: 0, grams_after: 300 },
+        { name_en: "soup", grams_before: 100, grams_after: 150 },
+        { name_en: "soup", grams_before: 100, grams_after: 150 },
+        { name_en: "soup", grams_before: 100, grams_after: 150 },
+      ]);
+      expect(await s.portionPriors(userId)).toEqual([{ name: "soup", ratio: 1.5, n: 3 }]);
+    });
+
+    it("scopes the prior to the account that was corrected", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const { userId: other } = await s.upsertDeviceUser(device(), "en");
+      await s.recordPortionCorrections(userId, Array.from({ length: 3 }, () => ({
+        name_en: "rice", grams_before: 100, grams_after: 200,
+      })));
+      expect(await s.portionPriors(other)).toEqual([]);
+    });
+
+    it("carries portion corrections through an anonymous → real merge", async () => {
+      // They are learned before anybody signs in — the camera is the first screen after onboarding
+      // — so a merge that dropped them would throw away every measurement the app has of this
+      // person's portions, at the moment they finally have an account to keep it on.
+      const s = await open();
+      const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.recordPortionCorrections(anon, Array.from({ length: 3 }, () => ({
+        name_en: "rice", grams_before: 100, grams_after: 150,
+      })));
+      await s.mergeUsers(anon, real);
+      expect(await s.portionPriors(real)).toEqual([{ name: "rice", ratio: 1.5, n: 3 }]);
+    });
+
+    it("erases portion corrections with the account", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.recordPortionCorrections(userId, Array.from({ length: 3 }, () => ({
+        name_en: "rice", grams_before: 100, grams_after: 150,
+      })));
+      await s.deleteUser(userId);
+      expect(await s.portionPriors(userId)).toEqual([]);
     });
 
     // ── Onboarding ─────────────────────────────────────────────────────────────────────────

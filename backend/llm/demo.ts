@@ -27,16 +27,34 @@ const PLATES = [
   { name: "Greek yoghurt", name_en: "greek yoghurt, plain", grams: 170, per100: 59, p: 10, c: 3.6, f: 0.4 },
 ];
 
+/**
+ * Fat the cook used, as its own row.
+ *
+ * The prompt now tells the real analyzer to list what it infers from sheen or dressing rather than
+ * fold it into another item's numbers, so the canned one does the same. A fake may be poorer than
+ * the real thing; it may not answer a different shape, or the row nothing renders is the row nothing
+ * ever notices.
+ */
+const COOKING_FAT = {
+  name: "Olive oil (cooking)", name_en: "cooking oil", grams: 10, per100: 884, p: 0, c: 0, f: 100,
+  role: "cooking-fat",
+} as const;
+
 function plateFor(seed: number): AnalyzedMeal {
   const count = 2 + (seed % 2);
   // The stride must not wrap onto itself within `count` steps: `i * 3` over six plates put i=0 and
   // i=2 on the same entry, so every three-item meal was [X, Y, X] — the duplicated row in every
   // screenshot this repo has ever taken. A test pins the distinctness rather than the stride.
-  const items = Array.from({ length: count }, (_, i) => PLATES[(seed + i * 2) % PLATES.length]!);
+  const items: ((typeof PLATES)[number] | typeof COOKING_FAT)[] =
+    Array.from({ length: count }, (_, i) => PLATES[(seed + i * 2) % PLATES.length]!);
+  // Every fourth plate was cooked in something. Pushed BEFORE the sums, so the totals still describe
+  // the items — the thing `prepareAnalysis` checks.
+  if (seed % 4 === 0) items.push(COOKING_FAT);
   const scaled = items.map((it) => ({
     name: it.name,
     name_en: it.name_en,
     grams: it.grams,
+    ...("role" in it ? { role: it.role } : {}),
     kcal: Math.round((it.per100 * it.grams) / 100),
     protein_g: Math.round((it.p * it.grams) / 100 * 10) / 10,
     carbs_g: Math.round((it.c * it.grams) / 100 * 10) / 10,
@@ -49,6 +67,9 @@ function plateFor(seed: number): AnalyzedMeal {
   const kcal = sum("kcal");
   return {
     isFood: true,
+    // What it says it measured against — null on one plate in five, because "nothing in the frame
+    // gave me a reference" is an answer the real analyzer is told to give and the app has to survive.
+    scale: seed % 5 === 2 ? null : { reference: "dinner plate", plate_diameter_cm: 27 },
     items: scaled,
     kcal,
     protein_g: sum("protein_g"),
@@ -59,6 +80,13 @@ function plateFor(seed: number): AnalyzedMeal {
     sugar_g: Math.round(sum("carbs_g") * 0.15 * 10) / 10,
     sodium_mg: 300 + (seed % 700),
     confidence: seed % 5 === 0 ? "low" : seed % 3 === 0 ? "medium" : "high",
+    // The plate it is least sure of is the one worth a question — the same plate `logPhotoMeal`
+    // would put one to a user about, which is what makes the chips reachable from `--demo` and
+    // from the E2E suite. Keyed off the same fifth as the confidence above, and not separately:
+    // a question on a plate the card calls confident is a question nothing would ever ask.
+    ...(seed % 5 === 0
+      ? { question: { text: "Was it cooked in oil, or dry?", options: ["In oil", "Dry"] } }
+      : {}),
     notes: "Demo analyzer — these numbers are canned, not an estimate of a real photograph.",
   };
 }
@@ -108,11 +136,20 @@ export function demoPorts(): LlmPorts {
       // `verdicts` is dropped deliberately: a real analyzer has none, and a fake that supplies
       // one cannot fail the way the real one does. That difference hid a crash for a whole day.
       const { verdicts: _drop, ...f } = input.focusMeal;
+      // Each item's NUMBERS move with its grams. Halving the portion and leaving the item's kcal
+      // where it was produces a plate whose rows no longer add up to its totals — which is the exact
+      // shape `prepareAnalysis` reconciles, so the fake would be manufacturing the defect and every
+      // demo correction would come back downgraded and re-totalled.
+      const cut = (n?: number) => (n === undefined ? undefined : Math.round(n * scale * 10) / 10);
       return {
         intent: "correction",
         analysis: {
           ...f,
-          items: f.items.map((i) => ({ ...i, grams: Math.round(i.grams * scale) })),
+          items: f.items.map((i) => ({
+            ...i, grams: Math.round(i.grams * scale),
+            // The density is a property of the food, not of how much of it is on the plate.
+            kcal: cut(i.kcal), protein_g: cut(i.protein_g), carbs_g: cut(i.carbs_g), fat_g: cut(i.fat_g),
+          })),
           kcal: Math.round(f.kcal * scale),
           protein_g: Math.round(f.protein_g * scale * 10) / 10,
           carbs_g: Math.round(f.carbs_g * scale * 10) / 10,

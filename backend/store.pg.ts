@@ -13,7 +13,7 @@
 
 import { SQL } from "bun";
 import type {
-  DayTotals, HealthDay, Lang, MealItem, MealRecord, MealVerdicts, NotificationCopy,
+  DayTotals, HealthDay, Lang, MealItem, MealQuestion, MealRecord, MealVerdicts, NotificationCopy,
   OnboardingContent, Profile, Provider,
 } from "@ieat/shared";
 import { HEALTH_FIELDS, emptyHealthDay } from "@ieat/shared";
@@ -21,8 +21,9 @@ import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
 import { type ChatMessage,
-  blankProfile, type FunnelAggregate, type MealPatch, type PendingMeal, type ProfilePatch,
-  type PushPlatform, type Store, type StoreOptions,
+  PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type FunnelAggregate, type MealPatch,
+  type PendingMeal, type PortionCorrection, type ProfilePatch, type PushPlatform, type Store,
+  type StoreOptions,
 } from "./store.ts";
 
 /**
@@ -275,6 +276,9 @@ create table if not exists meals (
   model         text
 );
 create index if not exists meals_user_date_idx on meals(user_id, date);
+-- The question still open on a meal. Nullable and unread by every query but the row's own read:
+-- a host that predates it has meals nobody was asked about, which is exactly what null means.
+alter table meals add column if not exists question jsonb;
 
 create table if not exists pendings (
   id         uuid primary key,
@@ -283,6 +287,23 @@ create table if not exists pendings (
   date       text not null,
   expires_at timestamptz not null
 );
+
+-- What a user's own edits say about their portions. One row per corrected item per edit, kept raw
+-- rather than as a running ratio: the summary is a median, and a median cannot be updated in place
+-- without keeping what it was computed from.
+--
+-- The median is NOT computed here. percentile_cont interpolates and the memory store does not, and
+-- the number decides the grams the model answers with -- see portionPriorsFrom in store.ts.
+-- (No backticks in this string: it is a template literal, and one would end it.)
+create table if not exists portion_corrections (
+  id           uuid primary key,
+  user_id      uuid not null references users(id) on delete cascade,
+  name_en      text not null,
+  grams_before double precision not null,
+  grams_after  double precision not null,
+  created_at   timestamptz not null default now()
+);
+create index if not exists portion_corrections_user_name_idx on portion_corrections(user_id, name_en);
 
 create table if not exists analyses (
   id      bigserial primary key,
@@ -537,6 +558,7 @@ function toMeal(r: MealRow): MealRecord {
     notes: (r.notes ?? "") as string,
     corrected: Boolean(r.corrected),
     model: (r.model ?? null) as string | null,
+    question: json<MealQuestion | null>(r.question, null),
   };
 }
 
@@ -552,10 +574,11 @@ const MEAL_COLUMNS: Record<string, string> = {
   items: "items", kcal: "kcal", protein_g: "protein_g", carbs_g: "carbs_g", fat_g: "fat_g",
   satfat_g: "satfat_g", fiber_g: "fiber_g", sugar_g: "sugar_g", sodium_mg: "sodium_mg",
   verdicts: "verdicts", notes: "notes", corrected: "corrected", date: "date",
+  question: "question",
 };
 
 /** Columns that are `jsonb` and must be cast as such in a dynamic update. */
-const JSON_COLUMNS = new Set(["items", "verdicts"]);
+const JSON_COLUMNS = new Set(["items", "verdicts", "question"]);
 
 /**
  * A JS array → a Postgres array literal, e.g. `{"ldl","kidneys"}`.
@@ -794,6 +817,8 @@ export async function postgresStore(
           update meals set user_id = ${intoUserId} where user_id = ${fromUserId} returning id`;
         await tx`update pendings set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         await tx`update analyses set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        // What the app has learned about this person's portions is learned before they sign in.
+        await tx`update portion_corrections set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         await tx`update chat_messages set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         // The greeting travels with the thread that holds it, or Spud says "First one in." twice.
         await tx`
@@ -1111,12 +1136,12 @@ export async function postgresStore(
       const rows = await sql`
         insert into meals (id, user_id, ts, date, is_food, items, kcal, protein_g, carbs_g, fat_g,
                            satfat_g, fiber_g, sugar_g, sodium_mg, verdicts, confidence, notes,
-                           corrected, model)
+                           corrected, model, question)
         values (${m.id}, ${m.user_id}, ${m.ts}, ${m.date}, ${m.isFood},
                 ${JSON.stringify(m.items)}, ${m.kcal}, ${m.protein_g}, ${m.carbs_g}, ${m.fat_g},
                 ${m.satfat_g}, ${m.fiber_g}, ${m.sugar_g}, ${m.sodium_mg},
                 ${JSON.stringify(m.verdicts)}, ${m.confidence}, ${m.notes}, ${m.corrected},
-                ${m.model})
+                ${m.model}, ${JSON.stringify(m.question ?? null)})
         on conflict (id) do nothing returning id`;
       return rows.length > 0;
     },
@@ -1145,7 +1170,11 @@ export async function postgresStore(
         .filter((k) => (patch as Record<string, unknown>)[k] !== undefined)
         .map((k) => {
           const v = (patch as Record<string, unknown>)[k];
-          return [MEAL_COLUMNS[k]!, k === "items" || k === "verdicts" ? JSON.stringify(v) : v] as const;
+          // Asked of the COLUMN, not of a second list of key names: `question` is patchable and
+          // jsonb, and a hand-kept list of which keys to stringify is one edit away from writing
+          // `[object Object]` into a column that round-trips it without complaint.
+          const col = MEAL_COLUMNS[k]!;
+          return [col, JSON_COLUMNS.has(col) ? JSON.stringify(v) : v] as const;
         });
       if (entries.length > 0) {
         // `::jsonb` for the JSON columns, same reason as `::text[]` above: an untyped parameter in
@@ -1179,6 +1208,30 @@ export async function postgresStore(
       return rows.map((r: Record<string, unknown>): DayTotals => ({
         date: String(r.date), kcal: num(r.kcal), protein_g: num(r.protein_g),
       }));
+    },
+
+    async recordPortionCorrections(userId, rows) {
+      // One statement per row, as `recordOnboardingEvents` does: an edit corrects a handful of
+      // items at most. A zero before is a division by zero rather than a small portion, and is
+      // refused here as well as at the call site so no such row can exist to poison a median. The
+      // memory store refuses it identically.
+      for (const r of rows) {
+        if (!(r.grams_before > 0)) continue;
+        await sql`
+          insert into portion_corrections (id, user_id, name_en, grams_before, grams_after)
+          values (${crypto.randomUUID()}, ${userId}, ${r.name_en}, ${r.grams_before}, ${r.grams_after})`;
+      }
+    },
+
+    async portionPriors(userId, minCount, limit) {
+      const rows = await sql`
+        select name_en, grams_before, grams_after from portion_corrections
+        where user_id = ${userId} order by created_at desc limit ${PORTION_PRIOR_ROWS}`;
+      return portionPriorsFrom(rows.map((r: Record<string, unknown>): PortionCorrection => ({
+        name_en: String(r.name_en),
+        grams_before: num(r.grams_before),
+        grams_after: num(r.grams_after),
+      })), minCount, limit);
     },
 
     async putPending(p: PendingMeal) {
@@ -1365,8 +1418,8 @@ export async function postgresStore(
     },
 
     async deleteUser(userId) {
-      // `on delete cascade` clears tokens, push tokens, meals, pendings, analyses, the chat thread AND onboarding events with the
-      // row. The last one is deliberate — see the note on `deleteUser` in the port.
+      // `on delete cascade` clears tokens, push tokens, meals, pendings, analyses, portion
+      // corrections, the chat thread AND onboarding events with the row. The last one is deliberate — see the note on `deleteUser` in the port.
       await sql`delete from users where id = ${userId}`;
     },
 

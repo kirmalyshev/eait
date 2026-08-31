@@ -9,7 +9,8 @@ import type { AnalyzePhoto, ClassifyRestrictions, LlmPorts, RouteResult, RouteTe
 import { GatewayRefusal, clampDayOffset } from "./port.ts";
 import {
   ClassifySchema, MealAnalysisSchema, RouteSchema, SYSTEM, SYSTEM_CLASSIFY, SYSTEM_ROUTE,
-  SYSTEM_TEXT_MEAL, buildClassifyText, buildRouteText, buildTextMealText, buildUserText,
+  SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL, buildClassifyText, buildRouteText,
+  buildTextCorrectionText, buildTextMealText, buildUserText,
 } from "./prompt.ts";
 
 interface Options {
@@ -93,6 +94,9 @@ export function openRouterPorts(opts: Options): LlmPorts {
         // that would have paid for the real call eighteen times over. That is what happened to the
         // first real user's first photo.
         max_tokens: opts.maxTokens,
+        // Named on every call, so the provider's own default cannot drift under us: every call
+        // this app makes wants the same answer twice.
+        temperature: 0.2,
         messages: attempt === 0 ? messages : [
           ...messages,
           {
@@ -187,10 +191,11 @@ export function openRouterPorts(opts: Options): LlmPorts {
         ...(input.caption !== undefined ? { caption: input.caption } : {}),
         ...(input.localTime !== undefined ? { localTime: input.localTime } : {}),
         ...(input.repertoire !== undefined ? { repertoire: input.repertoire } : {}),
+        ...(input.portionPriors !== undefined ? { portionPriors: input.portionPriors } : {}),
       }) },
       ...input.images.map((b) => ({ type: "image_url" as const, image_url: { url: toDataUrl(b) } })),
     ];
-    return complete(SYSTEM, content, MealAnalysisSchema, "meal_analysis");
+    return await complete(SYSTEM, content, MealAnalysisSchema, "meal_analysis");
   };
 
   const routeText: RouteText = async (input) => {
@@ -198,6 +203,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       text: input.text, profile: input.profile, targets: input.targets,
       todayMeals: input.todayMeals, week: input.week,
       ...(input.focusMeal !== undefined ? { focusMeal: input.focusMeal } : {}),
+      ...(input.question !== undefined ? { question: input.question } : {}),
     });
     let out = await complete(SYSTEM_ROUTE, text, RouteSchema, "route");
 
@@ -211,7 +217,28 @@ export function openRouterPorts(opts: Options): LlmPorts {
     //
     // Deliberately not the default path: a router that supplies the analysis costs one call, and
     // this only spends a second one when the first came back without it.
-    if ((out.intent === "meal" || out.intent === "correction") && !out.analysis) {
+    //
+    // A CORRECTION GETS ITS OWN PROMPT, and the difference is not cosmetic. The meal prompt carries
+    // the user's message and nothing else, so a chip's "In oil" analysed as a meal is a plate
+    // consisting of one serving of oil — which `applyCorrection` then writes over the food they
+    // actually ate. The correction prompt is handed the plate and the standing question instead.
+    // With no focus meal there is nothing to correct, the switch below degrades to `answer`
+    // whatever comes back, and buying an analysis first is buying one to throw away.
+    if (out.intent === "correction" && !out.analysis && input.focusMeal) {
+      const analysis = await complete(
+        SYSTEM_TEXT_CORRECTION,
+        buildTextCorrectionText({
+          text: input.text, profile: input.profile, targets: input.targets,
+          focusMeal: input.focusMeal,
+          ...(input.question !== undefined ? { question: input.question } : {}),
+        }),
+        MealAnalysisSchema,
+        "text-correction",
+        // The router call above already generated and was billed — the same rule as the meal branch.
+        true,
+      );
+      out = { ...out, analysis };
+    } else if (out.intent === "meal" && !out.analysis) {
       const analysis = await complete(
         SYSTEM_TEXT_MEAL,
         buildTextMealText({ text: input.text, profile: input.profile, targets: input.targets }),

@@ -444,7 +444,7 @@ export interface EditMealRequest {
 
 const EDIT_NUMBERS = ["kcal", "protein_g", "carbs_g", "fat_g", "satfat_g", "fiber_g", "sugar_g", "sodium_mg"] as const;
 const ITEM_NUMBERS = ["kcal", "protein_g", "carbs_g", "fat_g", "kcal_per_100g"] as const;
-const ITEM_KEYS: ReadonlySet<string> = new Set(["name", "grams", "name_en", ...ITEM_NUMBERS]);
+const ITEM_KEYS: ReadonlySet<string> = new Set(["name", "grams", "name_en", "role", ...ITEM_NUMBERS]);
 /** An edit's items are bounded like every other client string: their names reach every later prompt that day. */
 export const MAX_MEAL_ITEMS = 50;
 export const MAX_ITEM_NAME = 120;
@@ -469,6 +469,10 @@ export function isEditMealRequest(body: unknown): body is EditMealRequest {
       if (Object.keys(item).some((k) => !ITEM_KEYS.has(k))) return false;
       if (typeof item.name !== "string" || item.name.length > MAX_ITEM_NAME || !amount(item.grams)) return false;
       if (item.name_en !== undefined && (typeof item.name_en !== "string" || item.name_en.length > MAX_ITEM_NAME)) return false;
+      // Allowed through so an edit can KEEP the role the analyzer gave an item, checked against the
+      // one value the type has rather than bounded as a string: it is stored as given, and a row
+      // claiming a role nothing implements is a lie the repertoire and every later reader believe.
+      if (item.role !== undefined && item.role !== "cooking-fat") return false;
       for (const k of ITEM_NUMBERS) if (item[k] !== undefined && !amount(item[k])) return false;
     }
   }

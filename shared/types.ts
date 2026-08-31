@@ -97,7 +97,7 @@ export interface MealItem {
   /** Display name, in the user's language. This is what renders on the meal card. */
   name: string;
   grams: number;
-  /** Canonical English lookup key for a composition table — never displayed. */
+  /** Canonical English key the repertoire and the portion priors group by — never displayed. */
   name_en?: string | undefined;
   kcal?: number | undefined;
   protein_g?: number | undefined;
@@ -105,6 +105,12 @@ export interface MealItem {
   fat_g?: number | undefined;
   /** The item's density — what a substitution rescales by when the user edits grams. */
   kcal_per_100g?: number | undefined;
+  /**
+   * Fat the dish was cooked or dressed with, listed as its own row rather than folded into another
+   * item's numbers — so the user can see it, and take it off. Absent on plain food, and on every
+   * row stored before this existed.
+   */
+  role?: "cooking-fat" | undefined;
 }
 
 /** Per-dimension verdicts. Only dimensions relevant to the user's profile are ever set. */
@@ -191,6 +197,17 @@ export interface MealAnalysis {
   notes: string;
 }
 
+/**
+ * The one closed question the model may ask about an estimate, and the taps that answer it.
+ *
+ * Two to four options, because the answer is a chip and a chip row is what a phone can put under a
+ * card. `text` is in the user's reply language, like every other sentence the model writes.
+ */
+export interface MealQuestion {
+  text: string;
+  options: string[];
+}
+
 /** A persisted meal row. */
 export interface MealRecord extends MealAnalysis {
   id: string; // UUID — never a timestamp
@@ -200,6 +217,14 @@ export interface MealRecord extends MealAnalysis {
   /** True once the user has corrected it — the signal the correction loop is measured by. */
   corrected: boolean;
   model: string | null;
+  /**
+   * The question still open on this meal, or null once it has been answered.
+   *
+   * On the ROW rather than on `MealAnalysis`, because it is not part of the meal: it describes what
+   * would improve the estimate, and `toAnalysis` leaves it behind. One question per meal, asked
+   * once — the correction that answers it clears this with the same write that changes the numbers.
+   */
+  question?: MealQuestion | null;
 }
 
 export interface DailyTotals {

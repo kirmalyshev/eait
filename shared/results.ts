@@ -9,7 +9,7 @@
 // `hint` is a CODE, not copy, for exactly that reason: `"lowConfidence"` resolves to one string in
 // the bot and another in this app, and neither has to agree with the other about wording.
 
-import type { DailyTotals, MealAnalysis } from "./types.ts";
+import type { DailyTotals, MealAnalysis, MealQuestion } from "./types.ts";
 import { REFUSAL_STATUS } from "./contract.ts";
 
 /** Which correction nudge the surface should show under a logged meal. */
@@ -24,6 +24,15 @@ export interface MealLogged {
   totals: DailyTotals;
   date: string;
   hint: MealHint;
+  /**
+   * The one thing Spud would ask about this plate, when there is one worth asking.
+   *
+   * ABSENT is the normal case, and the surface must render nothing for it: the engine only asks
+   * about a low-confidence plate, past an account's first meal, when the account could afford the
+   * reply. The answer goes back through the ordinary text turn with this meal in focus, so the
+   * chips are a shortcut for typing rather than a route of their own.
+   */
+  question?: MealQuestion;
 }
 
 /**

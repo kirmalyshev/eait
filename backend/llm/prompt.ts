@@ -14,6 +14,7 @@
 
 import { z } from "zod";
 import type { FoodTargets, Profile } from "@ieat/shared";
+import type { PortionPrior } from "../store.ts";
 import { RESTRICTION_TAGS } from "@ieat/shared";
 
 // ── Containment ──────────────────────────────────────────────────────────────────────────────
@@ -49,19 +50,49 @@ export function normalizePromptText(raw: string, maxLen = 300): string {
 
 // ── Schemas ──────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Every item carries its own numbers. Not optional, and that is the change.
+ *
+ * The engine reconciles the totals against the sum of these (`prepareAnalysis`), and the editor
+ * rescales a substituted item by `kcal_per_100g` when the user changes its grams. An item that is
+ * only a name and a weight is a row neither can use — and while these were optional, the model was
+ * free to answer with a plate whose parts did not add up to it. The shared `MealItem` keeps them
+ * optional, because rows written before this did not have them.
+ */
 export const MealItemSchema = z.object({
   name: z.string().min(1),
   grams: z.number().nonnegative(),
   name_en: z.string().optional(),
-  kcal: z.number().nonnegative().optional(),
-  protein_g: z.number().nonnegative().optional(),
-  carbs_g: z.number().nonnegative().optional(),
-  fat_g: z.number().nonnegative().optional(),
-  kcal_per_100g: z.number().nonnegative().optional(),
+  kcal: z.number().nonnegative(),
+  protein_g: z.number().nonnegative(),
+  carbs_g: z.number().nonnegative(),
+  fat_g: z.number().nonnegative(),
+  kcal_per_100g: z.number().nonnegative(),
+  // Cooking fat is an ITEM, never a silent addition to another item's numbers. The user has to be
+  // able to see it before they can take it off.
+  role: z.enum(["cooking-fat"]).optional(),
 });
+
+/**
+ * What one question and one option may be.
+ *
+ * The schema below enforces them on a model's answer. `logPhotoMeal` applies them AGAIN at the
+ * sink, because `demo.ts` never passes through this schema and because a stored question is read
+ * back into a prompt — the same reason `normalizePromptText` is re-applied there.
+ */
+export const MAX_QUESTION = 120;
+export const MAX_OPTION = 24;
 
 export const MealAnalysisSchema = z.object({
   isFood: z.boolean(),
+  // BEFORE `items`, deliberately: a model fills a JSON schema roughly in the order it declares its
+  // properties, so naming the reference it is measuring against comes before the weights measured
+  // against it. Prompt-side only — `prepareAnalysis` strips it, because it explains an estimate
+  // rather than describing the meal, and nothing is stored that a meal card cannot show.
+  scale: z.object({
+    reference: z.string(),
+    plate_diameter_cm: z.number().positive().optional(),
+  }).nullable().optional(),
   items: z.array(MealItemSchema),
   kcal: z.number().nonnegative(),
   protein_g: z.number().nonnegative(),
@@ -73,6 +104,14 @@ export const MealAnalysisSchema = z.object({
   sodium_mg: z.number().nonnegative(),
   confidence: z.enum(["low", "medium", "high"]),
   notes: z.string(),
+  // LAST, for the mirror of `scale`'s reason: declared after everything it could improve, so the
+  // model decides what it would ask having already committed to the estimate — never instead of
+  // one. Prompt-side like `scale`, so `prepareAnalysis` takes it off; whether it is ever put to
+  // anybody is `logPhotoMeal`'s decision and nothing here promises it will be.
+  question: z.object({
+    text: z.string().min(1).max(MAX_QUESTION),
+    options: z.array(z.string().min(1).max(MAX_OPTION)).min(2).max(4),
+  }).nullable().optional(),
 });
 
 export const RouteSchema = z.object({
@@ -93,7 +132,9 @@ export const RouteSchema = z.object({
 // loud failure; it never produced a meal.
 //
 // So the invariant moved from "reject a router that leaves the analysis out" to "get the analysis
-// anyway": `routeText` follows up with a focused `SYSTEM_TEXT_MEAL` call. See the note there.
+// anyway": `routeText` follows up with a focused second call — `SYSTEM_TEXT_MEAL` for a meal,
+// `SYSTEM_TEXT_CORRECTION` for a correction, which is a different prompt and not a variation on
+// one. See the notes there.
 
 export const ClassifySchema = z.object({ tags: z.array(z.string()) });
 
@@ -105,14 +146,17 @@ You are looking at ONE meal. Several images are different angles of that same me
 
 Work in this order:
 1. Identify every distinct food and drink you can see. Name each one in the user's language.
-2. Estimate the cooked, edible weight of each in grams. Use the plate, cutlery, hands and containers in the frame for scale. State weights for what is actually visible — do not assume a standard portion when the photo shows otherwise.
+2. Name the object you are measuring against in scale — a plate, a bowl, cutlery, a hand, packaging, a product you recognise — and, if it is a plate, its likely diameter in centimetres. If no scale reference is visible at all, set scale to null and say so in notes; never invent one. Then estimate the cooked, edible weight of each item in grams against that reference. State weights for what is actually visible — do not assume a standard portion when the photo shows otherwise.
 3. Compute nutrition per item, then the totals as the sum across items. Include fats used in cooking that you can see evidence of (sheen, frying, dressing) even when no oil is visible as an item.
 4. Give an honest confidence: "low" when the food is ambiguous, partly hidden, or the scale is unclear; "high" only when identification and portion are both plain.
 
 Rules:
 - If the image contains no food or drink, set isFood to false, return zero totals and an empty items array, and say what you saw in notes.
-- Estimate. Do not refuse and do not ask questions — you will never get an answer, and a refusal reads to the user as a broken app.
+- Estimate. Never refuse and never hold the estimate back for something you would rather know first — a refusal reads to the user as a broken app.
+- If ONE answer from the eater would change the numbers most, put it in question — the question in the reply language, 2–4 short options, the most likely first. Examples: cooked in oil or dry; small, medium or large plate; chicken or turkey. Otherwise null. Never ask about the user's body or goals.
 - Weights are grams of the food as served. Liquids in grams too.
+- Large or heaped portions are usually under-read: food behind the front row is hidden. When items overlap or the plate is heaped, estimate depth, not just area.
+- When you infer cooking fat from sheen, frying or dressing, list it as its own item with role: "cooking-fat" (for example name "Olive oil (cooking)", name_en "cooking oil"), never folded silently into another item's numbers.
 - name is what the user reads, and it MUST be written in the requested reply language — whatever country the user eats in, and whatever language the food's name comes from. A user reading English gets "Roast chicken", never "Gebratenes Hähnchen". name_en is a separate canonical English name used only for lookups and is never displayed.
 - notes is at most two short sentences: what drove the estimate, or what you were unsure about. No preamble, no advice, no disclaimers.
 - Never comment on the user's body, their weight, or whether they should be eating this.`;
@@ -122,6 +166,7 @@ export function buildUserText(profile: Profile, targets: FoodTargets, opts: {
   caption?: string;
   localTime?: string;
   repertoire?: readonly string[];
+  portionPriors?: readonly PortionPrior[];
 } = {}): string {
   const lines = [
     `Reply in this language: ${profile.lang}.`,
@@ -167,6 +212,23 @@ export function buildUserText(profile: Profile, targets: FoodTargets, opts: {
       `Use this ONLY to help identify what you are looking at. Never let it change a number.`,
     );
   }
+  if (opts.portionPriors && opts.portionPriors.length > 0) {
+    // THE ONE PRIOR HERE THAT MAY MOVE A NUMBER, and it says so in the same breath as the
+    // repertoire line above says it may not. They are different evidence: the repertoire is what
+    // this person eats, and a model handed a list of foods will copy their numbers if it is not
+    // stopped; this is what this person's portions of those foods actually weighed, measured by
+    // their own corrections to earlier reads of the same food. Kept as a SEPARATE line for that
+    // reason — qualifying the repertoire's rule instead would weaken it for every other food.
+    lines.push(
+      `This user's own corrections to your earlier reads, most corrected first: ` +
+      `${opts.portionPriors.map((p) =>
+        // A stored name is model output read back later — same sink, same containment.
+        `${normalizePromptText(p.name, 60)}: usually ×${p.ratio.toFixed(1)} (${p.n} corrections)`,
+      ).join("; ")}. ` +
+      `Unlike the list of frequent foods, this MAY change your grams for exactly these foods — ` +
+      `it is what this person actually eats.`,
+    );
+  }
   return lines.join("\n");
 }
 
@@ -192,6 +254,7 @@ Producing an analysis (for "meal" and "correction"):
 3. Compute nutrition per item, then the totals as the sum across items. Include the fat a dish is normally cooked with unless they said otherwise.
 4. Give an honest confidence: "low" when the quantity is vague or the dish could mean very different things; "high" only when both the food and the amount are plain.
 - Do not invent food they did not mention, and do not drop food they did.
+- Every item carries grams, kcal, protein_g, carbs_g, fat_g and kcal_per_100g. There is no photo, so scale is null.
 - name is what the user reads and MUST be in the reply language; name_en is a canonical English name used only for lookups and is never displayed.
 - notes is at most two short sentences. No preamble, no advice, no disclaimers.
 - Estimate. Do not refuse and do not ask questions — you will never get an answer.`;
@@ -221,6 +284,7 @@ Rules:
 - Estimate. Do not refuse and do not ask questions — you will never get an answer, and a refusal reads to the user as a broken app.
 - Do not invent food they did not mention, and do not drop food they did.
 - Weights are grams of the food as served. Liquids in grams too.
+- Every item carries grams, kcal, protein_g, carbs_g, fat_g and kcal_per_100g. There is no photo, so scale is null.
 - name is what the user reads, and it MUST be written in the requested reply language. name_en is a separate canonical English name used only for lookups and is never displayed.
 - notes is at most two short sentences: what drove the estimate, or what you were unsure about. No preamble, no advice, no disclaimers.
 - Never comment on the user's body, their weight, or whether they should be eating this.`;
@@ -238,6 +302,68 @@ export function buildTextMealText(input: {
   ].join("\n");
 }
 
+/**
+ * Correcting a meal that is already logged, as its own turn.
+ *
+ * The same fallback `SYSTEM_TEXT_MEAL` is, for the other intent that carries an analysis — and the
+ * one where sending the meal prompt is not a degraded answer but a wrong write. A chip's whole
+ * message is two words: analysed as a MEAL, "In oil" is a plate consisting of one serving of oil,
+ * and `applyCorrection` writes it over the food the user actually ate, marked `corrected: true`.
+ *
+ * So this prompt is given the plate and told to change only what the words change. Everything below
+ * step 1 is `SYSTEM_TEXT_MEAL`'s rules verbatim, because the answer is the same shape and the two
+ * must not drift into producing different analyses of the same sentence.
+ */
+export const SYSTEM_TEXT_CORRECTION = `You correct a meal that is already logged, using the user's own words about it.
+
+Work in this order:
+1. Start from the meal you are given. Change ONLY what the user's words change — keep every item and every number you were not told to change — and produce the CORRECTED full analysis: every field, not just the changed one.
+2. Take any new weight in grams from what they said. Where they gave a household measure ("a slice", "a bowl", "two eggs"), convert it to the usual cooked, edible weight for that item.
+3. Compute nutrition per item, then the totals as the sum across items.
+4. Give an honest confidence: "low" when what they said leaves the quantity or the food vague; "high" only when both are plain.
+
+Rules:
+- isFood is true: this meal was logged as food and the correction is to the food, never to whether there was any.
+- Estimate. Do not refuse and do not ask questions — you will never get an answer, and a refusal reads to the user as a broken app.
+- Do not invent food they did not mention, and do not drop food they did not take off.
+- Weights are grams of the food as served. Liquids in grams too.
+- Every item carries grams, kcal, protein_g, carbs_g, fat_g and kcal_per_100g. There is no photo, so scale is null.
+- name is what the user reads, and it MUST be written in the requested reply language. name_en is a separate canonical English name used only for lookups and is never displayed.
+- notes is at most two short sentences: what drove the estimate, or what you were unsure about. No preamble, no advice, no disclaimers.
+- Never comment on the user's body, their weight, or whether they should be eating this.`;
+
+/**
+ * What Spud asked, and that this message is the answer to it.
+ *
+ * ONE wording, used by the router and by the correction prompt behind it. Two copies would let a
+ * chip mean one thing to the call that decides what it is and another to the call that does the
+ * work — and the second call only happens because the first left the analysis out, which is the
+ * common path rather than the rare one.
+ */
+function questionLine(question: { text: string; options: string[] }): string {
+  return `Spud asked about this meal: "${normalizePromptText(question.text, MAX_QUESTION)}" ` +
+    `(options: ${question.options.map((o) => normalizePromptText(o, MAX_OPTION)).join(" / ")}). ` +
+    `The user's message is the answer; treat it as a correction of the focus meal.`;
+}
+
+/** The user-side text for a correction: who is eating, the plate, and the words to change it by. */
+export function buildTextCorrectionText(input: {
+  text: string;
+  profile: Profile;
+  targets: FoodTargets;
+  focusMeal: unknown;
+  question?: { text: string; options: string[] } | undefined;
+}): string {
+  const lines = [
+    buildUserText(input.profile, input.targets, {}),
+    "",
+    `The meal currently logged (correct THIS, keep every item you were not told to change):\n${JSON.stringify(input.focusMeal)}`,
+  ];
+  if (input.question) lines.push(questionLine(input.question));
+  lines.push(`The user said: ${normalizePromptText(input.text, 1000)}`);
+  return lines.join("\n");
+}
+
 export function buildRouteText(input: {
   text: string;
   profile: Profile;
@@ -245,6 +371,8 @@ export function buildRouteText(input: {
   todayMeals: { items: string[]; kcal: number; protein_g: number }[];
   week: { date: string; kcal: number; protein_g: number }[];
   focusMeal?: unknown;
+  /** The question Spud asked about the focus meal and has not had an answer to. */
+  question?: { text: string; options: string[] } | undefined;
 }): string {
   const { profile, targets } = input;
   const lines = [
@@ -277,6 +405,10 @@ export function buildRouteText(input: {
   if (profile.food_allergies) lines.push(`Allergies: "${normalizePromptText(profile.food_allergies)}"`);
   if (profile.product_limitations) lines.push(`Avoids: "${normalizePromptText(profile.product_limitations)}"`);
 
+  // A chip's words are two of them. "In oil" against a meal in focus and nothing else routes to
+  // `answer` — or, worse, to a new meal made out of the answer — because nothing in the prompt says
+  // it is an answer to anything. Named immediately before the message it explains.
+  if (input.question) lines.push(questionLine(input.question));
   lines.push(`The user's message: "${normalizePromptText(input.text, 1000)}"`);
   return lines.join("\n");
 }

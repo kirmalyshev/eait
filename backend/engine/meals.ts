@@ -12,11 +12,13 @@
 
 import {
   type DailyTotals, type EditMealRequest, type LogPhotoResult, type MealAnalysis, type MealHint,
-  type MealItem, type MealLogged, type MealRecord, type MealUpdated, type TargetGone,
-  type ConfirmMealResult, explainTargets, verdictsFromTargets, visibleVerdicts,
+  type MealItem, type MealLogged, type MealQuestion, type MealRecord, type MealUpdated,
+  type TargetGone, type ConfirmMealResult, explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@ieat/shared";
 import { localDate, localTime } from "@ieat/shared";
 import type { EngineDeps } from "./deps.ts";
+import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
+import { prepareAnalysis } from "./analysis.ts";
 import { checkCaps, refundGatewayRefusal } from "./caps.ts";
 import { afterCorrection, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@ieat/shared";
@@ -97,6 +99,9 @@ export async function logPhotoMeal(
       ...(input.caption !== undefined ? { caption: input.caption } : {}),
       localTime: localTime(zone),
       repertoire: await buildRepertoire(deps, userId, date),
+      // What this person's own corrections say about their portions. Unlike the repertoire, this
+      // one is allowed to move the grams — see `buildUserText`.
+      portionPriors: await deps.store.portionPriors(userId),
     });
   } catch (e) {
     // A gateway refusal generated nothing and was billed nothing, so the analysis charged above is
@@ -109,7 +114,16 @@ export async function logPhotoMeal(
   }
   // `images` goes out of scope here and is never written anywhere. That is the whole mechanism.
 
+  // Nothing an analyzer returns is stored unreconciled: the totals are checked against the items
+  // and the prompt-side fields come off. Before the `isFood` gate, so both answers get the same
+  // treatment. `question` is handed back rather than dropped — it is the only one of the two that
+  // has anywhere to go.
+  const prepared = prepareAnalysis(analysis);
+  analysis = prepared.analysis;
+
   if (!analysis.isFood) return { kind: "not-food" };
+
+  const question = await mayAsk(deps, userId, date, analysis, prepared.question);
 
   const record: MealRecord = {
     ...analysis,
@@ -120,6 +134,10 @@ export async function logPhotoMeal(
     verdicts: await gatedVerdicts(deps, userId, analysis),
     corrected: false,
     model: deps.config.llmModel,
+    // Stored, because the answer arrives as its own turn and has to find the question again — and
+    // named explicitly rather than left to the spread, which would carry the analyzer's raw one
+    // past every condition `mayAsk` just applied.
+    question,
   };
   await deps.store.insertMeal(record);
 
@@ -133,6 +151,10 @@ export async function logPhotoMeal(
         { role: "user", kind: "photo", text: input.caption ?? null },
         { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
         ...greeting.lines,
+        // LAST, and a plain assistant line like any other model prose in this thread: the estimate
+        // is delivered, then queried. There is no line kind for it, because a question that needed
+        // one would be a question the Chat tab could not show when the app scrolls back to it.
+        ...(question ? [{ role: "assistant", kind: "text", text: question.text } as const] : []),
       ],
       ...(greeting.undo ? { undo: greeting.undo } : {}),
     };
@@ -140,7 +162,44 @@ export async function logPhotoMeal(
   return {
     kind: "logged", mealId: record.id, analysis: { ...analysis, verdicts: record.verdicts },
     totals, date, hint: hintFor(analysis),
+    ...(question ? { question } : {}),
   } satisfies MealLogged;
+}
+
+/**
+ * Whether the model's one question may actually be put to this user, and the question if so.
+ *
+ * Four conditions, and every one of them is about whether an answer could help rather than about
+ * whether the model wanted to ask:
+ *
+ *  - LOW CONFIDENCE ONLY. A question under a plate the card calls confident reads as the app
+ *    doubting an estimate it just presented as good.
+ *  - NOT THE FIRST MEAL. copy.md gives the first card Spud's verdict, and an interrogation on top
+ *    of the one screen that has to show what this product does is one screen doing two jobs.
+ *  - THE ACCOUNT CAN AFFORD THE REPLY. A tapped chip is a billed correction, so `checkCaps` is
+ *    asked — as a dry check, which it is: it reads and never charges — with the TEXT scope the
+ *    answer will actually spend. Asking somebody whose sample is gone opens chips onto a 402.
+ *  - IT IS SAFE TO REPEAT. The text and the options go through `normalizePromptText` because both
+ *    become a line in the thread and, on the reply, a quoted span in the next prompt.
+ *
+ * The first-meal test counts analyses AFTER this photo's own charge, so `1` is this one and `> 1`
+ * means the account has done something before. A text turn before the first photo counts as that,
+ * which is the intended reading: the introduction has happened.
+ */
+async function mayAsk(
+  deps: EngineDeps,
+  userId: string,
+  date: string,
+  analysis: AnalyzedMeal,
+  question: MealQuestion | null,
+): Promise<MealQuestion | null> {
+  if (!question || analysis.confidence !== "low") return null;
+  if ((await deps.store.countUserAnalyses(userId)) <= 1) return null;
+  if (await checkCaps(deps, userId, date, "text")) return null;
+  return {
+    text: normalizePromptText(question.text, MAX_QUESTION),
+    options: question.options.map((o) => normalizePromptText(o, MAX_OPTION)),
+  };
 }
 
 /**
@@ -157,7 +216,13 @@ export async function editMeal(
   patch: EditMealRequest,
   // The chat path writes its own card AFTER the user's words; the editor has no words, so the card
   // is written here. One write path, two thread shapes — copy.md offers both corrections as equals.
-  opts: { thread?: boolean } = {},
+  //
+  // `measure` is off for the natural-language path, and that is the whole reason it exists: an NL
+  // correction is a fresh re-analysis of the WHOLE plate by the text model, so every item it
+  // re-emits with different grams would be recorded as this person's portion — when it is one
+  // estimator disagreeing with the other. The prior learns from the manual editor only, where every
+  // changed number is one a person typed.
+  opts: { thread?: boolean; measure?: boolean } = {},
 ): Promise<MealUpdated | TargetGone> {
   const existing = await deps.store.getMeal(userId, mealId);
   // Scoped read: another user's meal id resolves to null here, indistinguishable from a deleted one.
@@ -179,10 +244,26 @@ export async function editMeal(
     ...merged,
     verdicts: await gatedVerdicts(deps, userId, merged),
     corrected: true,
+    // One question per meal, asked once. Cleared by the write that answers it — and by a manual
+    // edit too, which is the same write: once the user has changed the numbers themselves, the
+    // question is about a plate that no longer exists, and the next `GET /day` would offer the
+    // chips again over an answer already given.
+    question: null,
   });
   // Not redundant with the read above: the row can vanish between the two (a concurrent account
   // delete). A correction that silently succeeded against nothing is worse than one that says so.
   if (!updated) return { kind: "target-gone", on: "correction" };
+
+  // What the edit measured. AFTER the write and never able to undo it: the correction is what the
+  // user asked for, and the measurement is only what we get out of it.
+  if (patch.items && opts.measure !== false) {
+    const corrections = portionCorrections(existing.items, patch.items);
+    if (corrections.length > 0) {
+      await deps.store.recordPortionCorrections(userId, corrections).catch((e: unknown) => {
+        console.error(`[eait] portion correction not recorded: ${(e as Error)?.message ?? e}`);
+      });
+    }
+  }
 
   const totals = sumTotals(await deps.store.mealsForDate(userId, updated.date));
   if (opts.thread !== false) {
@@ -192,6 +273,34 @@ export async function editMeal(
     ]);
   }
   return { kind: "updated", mealId, analysis: toAnalysis(updated), totals, date: updated.date, via: "manual" };
+}
+
+/**
+ * What an edit changed about the portions, item by item.
+ *
+ * Matched on `name_en ?? name` — the same key `buildRepertoire` groups by, so both priors talk
+ * about the same foods — and one stored item answers at most one edited item, or a plate listing a
+ * food twice would measure the same before against two afters.
+ *
+ * A zero before is a division by zero rather than a small portion, and is dropped here as well as
+ * in the store: this is the only caller, and no such row may exist to poison a median.
+ */
+function portionCorrections(before: readonly MealItem[], after: readonly MealItem[]) {
+  const was = new Map<string, number>();
+  for (const it of before) {
+    const key = it.name_en ?? it.name;
+    if (!was.has(key)) was.set(key, it.grams);
+  }
+  const out: { name_en: string; grams_before: number; grams_after: number }[] = [];
+  for (const it of after) {
+    const key = it.name_en ?? it.name;
+    const grams_before = was.get(key);
+    if (grams_before === undefined) continue;
+    was.delete(key);
+    if (grams_before <= 0 || grams_before === it.grams) continue;
+    out.push({ name_en: key, grams_before, grams_after: it.grams });
+  }
+  return out;
 }
 
 /** Apply an LLM-produced correction. Same write path as a manual edit; only `via` differs. */
@@ -205,7 +314,7 @@ export async function applyCorrection(
     items: analysis.items, kcal: analysis.kcal, protein_g: analysis.protein_g,
     carbs_g: analysis.carbs_g, fat_g: analysis.fat_g, satfat_g: analysis.satfat_g,
     fiber_g: analysis.fiber_g, sugar_g: analysis.sugar_g, sodium_mg: analysis.sodium_mg,
-  }, { thread: false });
+  }, { thread: false, measure: false });
   return res.kind === "updated" ? { ...res, via: "nl" } : res;
 }
 
@@ -323,6 +432,10 @@ async function buildRepertoire(deps: EngineDeps, userId: string, today: string):
   for (const d of days) {
     for (const meal of await deps.store.mealsForDate(userId, d.date)) {
       for (const item of meal.items) {
+        // Fat inferred from a sheen is in every meal and chosen in none of them. Fed back as a
+        // frequent food it becomes the top of the list, and a prior meant to help identify what is
+        // on the plate starts arguing for oil on plates that have none.
+        if (item.role === "cooking-fat") continue;
         const key = item.name_en ?? item.name;
         counts.set(key, (counts.get(key) ?? 0) + 1);
       }

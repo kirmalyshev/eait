@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, type MealAnalysis } from "@ieat/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
-import type { LlmPorts } from "../llm/port.ts";
+import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
 import { GatewayRefusal } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
@@ -255,6 +255,133 @@ describe("photo logging", () => {
   });
 });
 
+// ONE closed question, and only AFTER the estimate is on screen. The model is never allowed to
+// withhold the numbers for something it would rather know first, so this is a continuation of a
+// card the user already has — which is also why every condition below is about whether asking
+// could possibly help, not about whether the model wanted to.
+describe("the question after the card", () => {
+  const QUESTION = { text: "Cooked in oil, or dry?", options: ["In oil", "Dry"] };
+
+  /** An analyzer that asks on every plate. `over` bends one field of the answer. */
+  const asks = (over: Partial<AnalyzedMeal> = {}): LlmPorts => ({
+    ...demoPorts(),
+    analyzePhoto: async (i) => ({
+      ...(await demoPorts().analyzePhoto(i)), confidence: "low", question: QUESTION, ...over,
+    }),
+  });
+
+  /** Log one photo past the account's first, and hand back what the second answered. */
+  async function second(d: EngineDeps, userId: string) {
+    await logPhotoMeal(d, userId, photo(4));
+    const res = await logPhotoMeal(d, userId, photo(8));
+    if (!isMeal(res) || res.kind !== "logged") throw new Error(`expected logged, got ${res.kind}`);
+    return res;
+  }
+
+  it("asks it, stores it on the meal, and puts it in the thread under the card", async () => {
+    const userId = await onboard();
+    const d = makeDeps({}, asks());
+    const res = await second(d, userId);
+    expect(res.question).toEqual(QUESTION);
+    // On the ROW, because the answer arrives as a separate turn and has to find the question again.
+    expect((await store.getMeal(userId, res.mealId))!.question).toEqual(QUESTION);
+    // Last in the thread, after this meal's card: the estimate is delivered before it is queried.
+    const { entries } = await chatHistory(d, userId, { limit: 10 });
+    const last = entries[entries.length - 1]!;
+    const beforeIt = entries[entries.length - 2]!;
+    expect(last).toMatchObject({ role: "assistant", kind: "text", text: QUESTION.text });
+    expect(beforeIt).toMatchObject({ role: "assistant", kind: "meal", mealId: res.mealId });
+  });
+
+  it("says nothing on the account's first meal", async () => {
+    // The first card is the introduction — copy.md gives it Spud's verdict, and a question on top
+    // of that is an interrogation before the product has shown what it does.
+    const userId = await onboard();
+    const d = makeDeps({}, asks());
+    const res = await logPhotoMeal(d, userId, photo());
+    if (!isMeal(res) || res.kind !== "logged") throw new Error("expected logged");
+    expect(res.question).toBeUndefined();
+    expect((await store.getMeal(userId, res.mealId))!.question).toBeNull();
+    expect((await chatHistory(d, userId, { limit: 10 })).entries.some((e) => "text" in e && e.text === QUESTION.text)).toBe(false);
+  });
+
+  it("never asks somebody who could not afford to answer", async () => {
+    // A reply is a billed correction. With the sample spent by this very photo, chips would open
+    // onto a 402 — a question Spud asked and then refused to hear the answer to.
+    const userId = await onboard();
+    const res = await second(makeDeps({ freeAnalyses: 2 }, asks()), userId);
+    expect(res.question).toBeUndefined();
+  });
+
+  it("asks only about a plate it is unsure of", async () => {
+    for (const confidence of ["medium", "high"] as const) {
+      const userId = await onboard();
+      const res = await second(makeDeps({}, asks({ confidence })), userId);
+      expect(res.question).toBeUndefined();
+    }
+  });
+
+  it("normalizes the question and its options before either becomes a line", async () => {
+    // Model prose, on its way into the thread and back out into a later prompt. Same sink as every
+    // other free text this app puts in front of a model.
+    const userId = await onboard();
+    const llm = asks({ question: { text: `Two "plates"?\nOr one?`, options: [`  In "oil" `, "Dry"] } });
+    const res = await second(makeDeps({}, llm), userId);
+    expect(res.question).toEqual({ text: "Two 'plates'? Or one?", options: ["In 'oil'", "Dry"] });
+  });
+
+  /** An analyzer that asks, plus a router that answers whatever it is given and keeps its input. */
+  function watched(seen: TextInput[]): LlmPorts {
+    return {
+      ...asks(),
+      routeText: async (i) => { seen.push(i); return { intent: "answer", text: "Noted." }; },
+    };
+  }
+
+  it("frames the turn that answers it — and only that turn", async () => {
+    // THE FRAMING IS THE DANGEROUS HALF. "The user's message is the answer; treat it as a
+    // correction" standing over every later message would turn "how much protein have I had
+    // today?" into a silent edit of their lunch. A chip sends its option verbatim, so the message
+    // being one of the options IS the test — case and stray whitespace aside.
+    const userId = await onboard();
+    const seen: TextInput[] = [];
+    const d = makeDeps({}, watched(seen));
+    const res = await second(d, userId);
+    await handleText(d, userId, { text: "how much protein have I had today?", focusMealId: res.mealId });
+    expect(seen[0]!.question).toBeUndefined();
+    // Unanswered, so it still stands: a message that was not the answer must not spend it either.
+    expect((await store.getMeal(userId, res.mealId))!.question).toEqual(QUESTION);
+
+    await handleText(d, userId, { text: "  IN   OIL ", focusMealId: res.mealId });
+    expect(seen[1]!.question).toEqual(QUESTION);
+  });
+
+  it("spends the question on the framed turn, whatever the router made of it", async () => {
+    // The intent must not decide this. `editMeal` clears it on a correction, but a chip answer the
+    // router read as a plain answer would otherwise leave the framing standing for good.
+    const userId = await onboard();
+    const seen: TextInput[] = [];
+    const d = makeDeps({}, watched(seen));
+    const res = await second(d, userId);
+    expect((await handleText(d, userId, { text: "Dry", focusMealId: res.mealId })).kind).toBe("answered");
+    expect((await store.getMeal(userId, res.mealId))!.question).toBeNull();
+    // And the turn after it is an ordinary turn again.
+    await handleText(d, userId, { text: "In oil", focusMealId: res.mealId });
+    expect(seen[1]!.question).toBeUndefined();
+  });
+
+  it("clears the question once a correction lands, so it is asked exactly once", async () => {
+    const userId = await onboard();
+    const d = makeDeps({}, asks());
+    const res = await second(d, userId);
+    // The demo router reads "half" as a correction, which is `applyCorrection` — the same write a
+    // manual edit makes, which is why one `question: null` in `editMeal` covers both. Not an
+    // option, so nothing framed it; the write that changed the numbers is what spent it.
+    expect((await handleText(d, userId, { text: "half of that", focusMealId: res.mealId })).kind).toBe("updated");
+    expect((await store.getMeal(userId, res.mealId))!.question).toBeNull();
+  });
+});
+
 // No free tier. An account gets ONE analysis — photo, library or typed — and every later one is
 // refused until the RevenueCat webhook has written an entitlement. The sheet in the app renders
 // this refusal; it never decides it.
@@ -414,6 +541,242 @@ describe("verdict gating", () => {
     const res = await logPhotoMeal(makeDeps({}, llm), userId, photo());
     if (!isMeal(res)) throw new Error("expected a meal");
     expect(res.analysis.verdicts).toEqual({ weight: res.analysis.verdicts.weight! });
+  });
+});
+
+// The items are the working the model showed. A total that disagrees loudly with them is a card
+// whose rows add up to one number under a header saying another — and the diary agrees with the
+// header, so the whole day is wrong from a plate the user could see was right.
+describe("reconciling what the model answered", () => {
+  /** Itemised correctly, then totalled as something else. The rows come to 557 kcal. */
+  const DISAGREEING: AnalyzedMeal = {
+    isFood: true,
+    items: [
+      { name: "Basmati rice", grams: 200, kcal: 260, protein_g: 5, carbs_g: 56, fat_g: 0.6, kcal_per_100g: 130 },
+      { name: "Grilled chicken", grams: 180, kcal: 297, protein_g: 56, carbs_g: 0, fat_g: 6.5, kcal_per_100g: 165 },
+    ],
+    kcal: 1100, protein_g: 90, carbs_g: 120, fat_g: 40,
+    satfat_g: 4, fiber_g: 3, sugar_g: 2, sodium_mg: 500,
+    confidence: "high", notes: "",
+  };
+
+  it("stores a photo meal at the sum of its items, and says it is less sure", async () => {
+    const llm: LlmPorts = { ...demoPorts(), analyzePhoto: async () => DISAGREEING };
+    const userId = await onboard();
+    const res = await logPhotoMeal(makeDeps({}, llm), userId, photo());
+    if (res.kind !== "logged") throw new Error("expected logged");
+    expect(res.analysis.kcal).toBe(557);
+    expect(res.analysis.protein_g).toBe(61);
+    // The row the diary reads, not just the one the camera drew.
+    expect((await store.getMeal(userId, res.mealId))!.kcal).toBe(557);
+    expect(res.analysis.confidence).toBe("medium");
+  });
+
+  it("proposes a typed meal at the sum of its items", async () => {
+    const llm: LlmPorts = {
+      ...demoPorts(),
+      routeText: async () => ({ intent: "meal", analysis: DISAGREEING, dayOffset: 0 }),
+    };
+    const userId = await onboard();
+    const res = await handleText(makeDeps({}, llm), userId, { text: "rice and chicken" });
+    if (res.kind !== "proposed") throw new Error("expected proposed");
+    expect(res.analysis.kcal).toBe(557);
+  });
+
+  it("leaves a demo correction alone when its items carry no numbers to sum", async () => {
+    // `--demo`'s correction maps over the STORED items, so an item that never carried a kcal comes
+    // back without one. Summed as zero, halving a 320 kcal soup would delete its calories instead.
+    const bare: LlmPorts = {
+      ...demoPorts(),
+      analyzePhoto: async () => ({ ...DISAGREEING, items: [{ name: "Soup", grams: 400 }], kcal: 320 }),
+    };
+    const userId = await onboard();
+    const first = await logPhotoMeal(makeDeps({}, bare), userId, photo());
+    if (first.kind !== "logged") throw new Error("expected logged");
+    expect(first.analysis.kcal).toBe(320);
+
+    const res = await handleText(deps, userId, { text: "half that", focusMealId: first.mealId });
+    if (res.kind !== "updated") throw new Error("expected updated");
+    expect(res.analysis.kcal).toBe(160);
+  });
+
+  it("applies a correction at the sum of its items", async () => {
+    const userId = await onboard();
+    const first = await logPhotoMeal(deps, userId, photo());
+    if (first.kind !== "logged") throw new Error("expected logged");
+    const llm: LlmPorts = {
+      ...demoPorts(),
+      routeText: async () => ({ intent: "correction", analysis: DISAGREEING }),
+    };
+    const res = await handleText(makeDeps({}, llm), userId, { text: "half that", focusMealId: first.mealId });
+    if (res.kind !== "updated") throw new Error("expected updated");
+    expect(res.analysis.kcal).toBe(557);
+    expect((await store.getMeal(userId, first.mealId))!.kcal).toBe(557);
+  });
+});
+
+// The repertoire is an IDENTIFICATION prior — the twenty things this person actually eats, handed
+// to the model so "rice" can become "the bulgur he has four times a week".
+describe("the repertoire", () => {
+  const FATTY: AnalyzedMeal = {
+    isFood: true,
+    items: [
+      { name: "Basmati rice", name_en: "basmati rice", grams: 200, kcal: 260, protein_g: 5, carbs_g: 56, fat_g: 0.6, kcal_per_100g: 130 },
+      { name: "Olive oil (cooking)", name_en: "cooking oil", grams: 10, kcal: 88, protein_g: 0, carbs_g: 0, fat_g: 10, kcal_per_100g: 884, role: "cooking-fat" },
+    ],
+    kcal: 348, protein_g: 5, carbs_g: 56, fat_g: 10.6,
+    satfat_g: 2, fiber_g: 1, sugar_g: 1, sodium_mg: 200,
+    confidence: "high", notes: "",
+  };
+
+  it("never offers cooking fat back as something this person eats", async () => {
+    // Fat inferred from a sheen is in every meal by construction and in none of them because the
+    // user chose it. Fed back as a frequent food it becomes the most-eaten thing on the list, and
+    // the prior starts arguing for oil on plates that have none.
+    const userId = await onboard();
+    await logPhotoMeal(makeDeps({}, { ...demoPorts(), analyzePhoto: async () => FATTY }), userId, photo());
+
+    let seen: readonly string[] | undefined;
+    const spy: LlmPorts = {
+      ...demoPorts(),
+      analyzePhoto: async (i) => { seen = i.repertoire; return FATTY; },
+    };
+    await logPhotoMeal(makeDeps({}, spy), userId, photo(9));
+    expect(seen).toContain("basmati rice");
+    expect(seen).not.toContain("cooking oil");
+  });
+});
+
+// Every edit to an item's grams is a measurement: this person's portion against the model's first
+// read of it. Recorded on the way past, summarised as a median, and handed back to the analyzer.
+describe("the correction-learned portion prior", () => {
+  const PLATE: AnalyzedMeal = {
+    isFood: true,
+    items: [
+      { name: "Basmati rice", name_en: "basmati rice", grams: 100, kcal: 130, protein_g: 2.7, carbs_g: 28, fat_g: 0.3, kcal_per_100g: 130 },
+      { name: "Olive oil (cooking)", name_en: "cooking oil", grams: 10, kcal: 88, protein_g: 0, carbs_g: 0, fat_g: 10, kcal_per_100g: 884, role: "cooking-fat" },
+    ],
+    kcal: 218, protein_g: 2.7, carbs_g: 28, fat_g: 10.3,
+    satfat_g: 2, fiber_g: 1, sugar_g: 1, sodium_mg: 200,
+    confidence: "high", notes: "",
+  };
+  const rice = PLATE.items[0]!;
+  const oil = PLATE.items[1]!;
+
+  /** That plate, logged. A fixed analysis, so the grams a correction is measured against are known. */
+  async function plated(userId: string, bytes = 8) {
+    const res = await logPhotoMeal(
+      makeDeps({}, { ...demoPorts(), analyzePhoto: async () => PLATE }), userId, photo(bytes));
+    if (res.kind !== "logged") throw new Error("expected logged");
+    return res;
+  }
+
+  it("records the ratio for an item whose grams the user changed", async () => {
+    const userId = await onboard();
+    const meal = await plated(userId);
+    await editMeal(deps, userId, meal.mealId, { items: [{ ...rice, grams: 150 }, oil] });
+    // Read at minCount 1: the evidence bar belongs to the prior, not to the recording.
+    expect(await store.portionPriors(userId, 1)).toEqual([{ name: "basmati rice", ratio: 1.5, n: 1 }]);
+  });
+
+  it("records the cooking fat the user took off, which is the rate worth watching", async () => {
+    // Fat inferred from a sheen is the item most often wrong and the one a user is most likely to
+    // zero. A prior that never learned that would keep adding it to plates that have none.
+    const userId = await onboard();
+    const meal = await plated(userId);
+    await editMeal(deps, userId, meal.mealId, { items: [rice, { ...oil, grams: 0 }] });
+    expect(await store.portionPriors(userId, 1)).toEqual([{ name: "cooking oil", ratio: 0, n: 1 }]);
+  });
+
+  it("matches on the display name when an item carries no canonical one", async () => {
+    const userId = await onboard();
+    const bare: AnalyzedMeal = {
+      ...PLATE, items: [{ name: "Soup", grams: 400, kcal: 320, protein_g: 5, carbs_g: 30, fat_g: 10, kcal_per_100g: 80 }],
+      kcal: 320, protein_g: 5, carbs_g: 30, fat_g: 10,
+    };
+    const res = await logPhotoMeal(
+      makeDeps({}, { ...demoPorts(), analyzePhoto: async () => bare }), userId, photo());
+    if (res.kind !== "logged") throw new Error("expected logged");
+    await editMeal(deps, userId, res.mealId, { items: [{ ...bare.items[0]!, grams: 200 }] });
+    expect(await store.portionPriors(userId, 1)).toEqual([{ name: "Soup", ratio: 0.5, n: 1 }]);
+  });
+
+  it("records nothing for the items an edit left alone", async () => {
+    const userId = await onboard();
+    const meal = await plated(userId);
+    await editMeal(deps, userId, meal.mealId, { items: [{ ...rice, grams: 150 }, oil] });
+    expect(await store.portionPriors(userId, 1)).toHaveLength(1);
+  });
+
+  it("learns nothing from a natural-language correction, which is another estimator", async () => {
+    // "no oil" comes back as a whole re-analysis from the TEXT model, against a plate the PHOTO
+    // model read. The oil going to zero is the user; the rice moving 100 -> 115 g in the same reply
+    // is one estimator disagreeing with the other, and stored as a portion it would teach the
+    // prompt to move grams that nobody ever weighed.
+    const userId = await onboard();
+    const meal = await plated(userId);
+    await applyCorrection(deps, userId, meal.mealId, {
+      ...PLATE,
+      items: [{ ...rice, grams: 115 }, { ...oil, grams: 0 }],
+    });
+    expect(await store.portionPriors(userId, 1)).toEqual([]);
+    // The correction itself still landed.
+    expect((await store.getMeal(userId, meal.mealId))!.items[0]!.grams).toBe(115);
+  });
+
+  it("records nothing when the edit does not touch the items at all", async () => {
+    // The manual editor sends the numbers it changed. A kcal correction says nothing about a
+    // portion, and counting it as one would teach the prior from an edit that never weighed
+    // anything.
+    const userId = await onboard();
+    const meal = await plated(userId);
+    await editMeal(deps, userId, meal.mealId, { kcal: 300 });
+    expect(await store.portionPriors(userId, 1)).toEqual([]);
+  });
+
+  it("hands the analyzer what this person's corrections say, once there are enough of them", async () => {
+    const userId = await onboard();
+    let seen: readonly { name: string; ratio: number; n: number }[] | undefined;
+    const spy: LlmPorts = {
+      ...demoPorts(),
+      analyzePhoto: async (i) => { seen = i.portionPriors; return PLATE; },
+    };
+
+    // Two corrections is not yet evidence, and the prompt says nothing about the food.
+    for (const bytes of [1, 2]) {
+      const meal = await plated(userId, bytes);
+      await editMeal(deps, userId, meal.mealId, { items: [{ ...rice, grams: 150 }, oil] });
+    }
+    await logPhotoMeal(makeDeps({}, spy), userId, photo(3));
+    expect(seen).toEqual([]);
+
+    const third = await plated(userId, 4);
+    await editMeal(deps, userId, third.mealId, { items: [{ ...rice, grams: 150 }, oil] });
+    await logPhotoMeal(makeDeps({}, spy), userId, photo(5));
+    expect(seen).toEqual([{ name: "basmati rice", ratio: 1.5, n: 3 }]);
+  });
+
+  it("still applies the correction when the measurement cannot be stored", async () => {
+    // The edit is what the user asked for; the measurement is what we get out of it. Losing the
+    // second must never cost the first.
+    const userId = await onboard();
+    const meal = await plated(userId);
+    const failing = { ...store, recordPortionCorrections: async () => { throw new Error("boom"); } };
+
+    const lines: string[] = [];
+    const err = console.error;
+    console.error = (...args: unknown[]) => { lines.push(args.join(" ")); };
+    let out;
+    try {
+      out = await editMeal({ ...deps, store: failing }, userId, meal.mealId, {
+        items: [{ ...rice, grams: 150 }, oil],
+      });
+    } finally {
+      console.error = err;
+    }
+    expect(out.kind).toBe("updated");
+    expect(lines.join("\n")).toContain("portion correction not recorded");
+    expect((await store.getMeal(userId, meal.mealId))!.items[0]!.grams).toBe(150);
   });
 });
 

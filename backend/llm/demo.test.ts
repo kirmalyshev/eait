@@ -65,3 +65,55 @@ test("every other caption is still food, including ones that merely mention it",
     expect(out.kcal).toBeGreaterThan(0);
   }
 });
+
+// The schema the real analyzer answers now asks for per-item numbers, a scale reference and cooking
+// fat as its own row. A fake that answered a poorer shape than the real one would let every test and
+// every screenshot pass over a field the production path depends on.
+test("every canned plate says what it measured against, and one says nothing", async () => {
+  const scales = [];
+  for (let i = 0; i < 200; i++) {
+    const meal = await analyze(`plate-${i}`);
+    expect(meal).toHaveProperty("scale");
+    scales.push(meal.scale);
+  }
+  expect(scales.some((s) => s === null)).toBe(true);
+  expect(scales.some((s) => s?.reference)).toBe(true);
+});
+
+test("some canned plates were cooked in something, and it is its own row", async () => {
+  const fats = [];
+  for (let i = 0; i < 200; i++) {
+    for (const item of (await analyze(`plate-${i}`)).items) {
+      if (item.role === "cooking-fat") fats.push(item);
+    }
+  }
+  expect(fats.length).toBeGreaterThan(0);
+  // Poorer than the real analyzer is fine; a row the reconciler cannot sum is not.
+  for (const f of fats) expect(f.kcal_per_100g).toBeGreaterThan(0);
+});
+
+test("the plates it is least sure of are the ones carrying a question", async () => {
+  // `logPhotoMeal` puts a question to nobody unless the confidence is low, so a canned question on
+  // a confident plate would be a question no demo and no E2E flow could ever reach the chips of.
+  const asked = [];
+  for (let i = 0; i < 200; i++) {
+    const meal = await analyze(`plate-${i}`);
+    if (!meal.question) continue;
+    expect(meal.confidence).toBe("low");
+    asked.push(meal.question);
+  }
+  expect(asked.length).toBeGreaterThan(0);
+  // Two chips at least: one option is not a choice.
+  for (const q of asked) expect(q!.options.length).toBeGreaterThanOrEqual(2);
+});
+
+test("a canned plate's items still add up to its totals", async () => {
+  // `prepareAnalysis` takes the totals from the items, so a fake whose parts did not add up would
+  // be silently re-totalled — and downgraded — in every demo and every test that binds to it.
+  for (let i = 0; i < 200; i++) {
+    const meal = await analyze(`plate-${i}`);
+    for (const k of ["kcal", "protein_g", "carbs_g", "fat_g"] as const) {
+      expect(meal.items.reduce((n, it) => n + (it[k] ?? 0), 0)).toBeCloseTo(meal[k], 5);
+    }
+  }
+});

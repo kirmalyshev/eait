@@ -12,8 +12,9 @@ import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
 import { type ChatMessage,
-  blankProfile, type FunnelAggregate, type MealPatch, type PendingMeal, type ProfilePatch,
-  type PushPlatform, type PushToken, type StoredEntitlement, type Store, type StoreOptions,
+  PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type FunnelAggregate, type MealPatch,
+  type PendingMeal, type PortionCorrection, type ProfilePatch, type PushPlatform, type PushToken,
+  type StoredEntitlement, type Store, type StoreOptions,
 } from "./store.ts";
 
 /** A stored funnel event: what the client sent, plus who and when we received it. */
@@ -104,6 +105,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // a second account moves it rather than adding a row.
   const pushTokens = new Map<string, { userId: string; platform: PushPlatform }>();
   const analyses: { userId: string; date: string; scope: "photo" | "text" }[] = [];
+  // Append-only and read newest-first, which is the order Postgres reads them in.
+  const portionCorrections: (PortionCorrection & { userId: string })[] = [];
   const identities: { userId: string; provider: Provider; subject: string; linkedAt: string }[] = [];
   const onboardingEvents = new Map<string, StoredEvent>(); // event id -> event
   // `${userId}\n${date}` -> the day. One row per user per date, exactly as in Postgres, so the
@@ -178,6 +181,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     // A device the account no longer has is a device this server would still push to. In here
     // rather than in `deleteUser`, so the Apple server-to-server revocation path erases it too.
     for (const [token, row] of pushTokens) if (row.userId === userId) pushTokens.delete(token);
+    for (let i = portionCorrections.length - 1; i >= 0; i--) {
+      if (portionCorrections[i]!.userId === userId) portionCorrections.splice(i, 1);
+    }
     // Health days are the most sensitive rows here — bodyweight, sleep, heart rate. Erasure that
     // left them would make the settings screen's promise false in the one place it matters most.
     for (const [k, d] of healthDays) if (d.userId === userId) healthDays.delete(k);
@@ -300,6 +306,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         if (!healthDays.has(target)) healthDays.set(target, { ...d, userId: intoUserId });
       }
       for (const a of analyses) if (a.userId === fromUserId) a.userId = intoUserId;
+      // What the app has learned about this person's portions is learned before they sign in.
+      for (const c of portionCorrections) if (c.userId === fromUserId) c.userId = intoUserId;
       for (const m of chat) if (m.userId === fromUserId) m.userId = intoUserId;
       // The greeting travels with the thread that holds it, or Spud says "First one in." twice.
       if (firstVerdictSpoken.delete(fromUserId)) firstVerdictSpoken.add(intoUserId);
@@ -548,7 +556,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async insertMeal(record) {
       if (meals.has(record.id)) return false;
-      meals.set(record.id, clone(record));
+      // `?? null` so a meal nobody was asked a question about reads back the same shape it does out
+      // of Postgres, where an unwritten jsonb column is null and never an absent key.
+      meals.set(record.id, clone({ ...record, question: record.question ?? null }));
       return true;
     },
 
@@ -592,6 +602,20 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         byDate.set(m.date, row);
       }
       return [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date));
+    },
+
+    async recordPortionCorrections(userId, rows) {
+      // A zero before is a division by zero, not a small portion. Refused here as well as at the
+      // call site, so no such row can exist to poison a median. Postgres refuses it identically.
+      for (const r of rows) if (r.grams_before > 0) portionCorrections.push({ ...r, userId });
+    },
+
+    async portionPriors(userId, minCount, limit) {
+      const mine: PortionCorrection[] = [];
+      for (let i = portionCorrections.length - 1; i >= 0 && mine.length < PORTION_PRIOR_ROWS; i--) {
+        if (portionCorrections[i]!.userId === userId) mine.push(portionCorrections[i]!);
+      }
+      return portionPriorsFrom(mine, minCount, limit);
     },
 
     async putPending(pending) {

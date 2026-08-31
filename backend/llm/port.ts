@@ -6,6 +6,7 @@
 // verdict gating and the correction loop be tested without a billed call.
 
 import type { MealAnalysis, Profile, FoodTargets, DayTotals } from "@ieat/shared";
+import type { PortionPrior } from "../store.ts";
 
 /**
  * What an analyzer returns: every number, and NO verdicts.
@@ -25,7 +26,20 @@ import type { MealAnalysis, Profile, FoodTargets, DayTotals } from "@ieat/shared
  * Saying what an analyzer really returns makes "an analysis reached a client unrepaired" a compile
  * error, which is the only version of this guarantee that holds.
  */
-export type AnalyzedMeal = Omit<MealAnalysis, "verdicts">;
+export type AnalyzedMeal = Omit<MealAnalysis, "verdicts"> & {
+  /**
+   * What the model measured the portions against, when anything in the frame gave it a reference.
+   * `null` when nothing did — which is a real answer, and a better one than an invented plate.
+   */
+  scale?: { reference: string; plate_diameter_cm?: number | undefined } | null | undefined;
+  /** The one thing the model would ask to make the estimate better, if it may ask at all. */
+  question?: { text: string; options: string[] } | null | undefined;
+};
+// Both live in an intersection rather than on the shared `MealAnalysis`, and that is the point of
+// them being here: they are PROMPT-SIDE. They explain or continue an estimate rather than describing
+// the meal, so `prepareAnalysis` strips them and no stored row, no meal card and no client ever sees
+// one. Putting them on the shared type would have made every store implementation responsible for a
+// field with nothing to say.
 
 /**
  * The gateway refused before any tokens were generated, so the call was billed NOTHING.
@@ -59,6 +73,14 @@ export interface PhotoInput {
   /** Foods this user has logged before, most-eaten first. A prior for IDENTIFICATION only; it must
    *  never touch a number. */
   repertoire?: readonly string[];
+  /**
+   * What this user's own corrections say their portions of a food weigh, most corrected first.
+   *
+   * The one prior here that MAY change a number, and the reason it may is that the numbers are the
+   * user's, measured against the model's earlier reads of the same food. The store's type, because
+   * a second shape for three fields is a second thing to keep in step.
+   */
+  portionPriors?: readonly PortionPrior[];
 }
 
 export type AnalyzePhoto = (input: PhotoInput) => Promise<AnalyzedMeal>;
@@ -86,6 +108,13 @@ export interface TextInput {
   week: DayTotals[];
   /** The meal a correction would apply to. Absent means corrections are not available this turn. */
   focusMeal?: MealAnalysis;
+  /**
+   * The question Spud asked about that meal, still unanswered.
+   *
+   * Present only when there is one to answer, because the prompt line it produces tells the model
+   * this message IS the answer — a standing instruction to read every message as a correction.
+   */
+  question?: { text: string; options: string[] };
 }
 
 export type RouteText = (input: TextInput) => Promise<RouteResult>;

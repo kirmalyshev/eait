@@ -129,13 +129,81 @@ export interface ChatMessage {
  * `verdicts` is here because the ENGINE recomputes it on every write — no caller supplies one.
  * `date` is here for the re-date path ONLY; `EditMealRequest` deliberately has no date field, so a
  * manual edit cannot reach it and the "a meal moves days only by asking" rule holds by typing
- * rather than by convention.
+ * rather than by convention. `question` is here so the write that answers it is the write that
+ * clears it: one question per meal, asked once, and never two statements that can disagree.
  */
 export type MealPatch = Partial<
   Pick<MealRecord,
     "items" | "kcal" | "protein_g" | "carbs_g" | "fat_g" | "satfat_g" | "fiber_g" | "sugar_g" |
-    "sodium_mg" | "verdicts" | "notes" | "corrected" | "date">
+    "sodium_mg" | "verdicts" | "notes" | "corrected" | "date" | "question">
 >;
+
+/**
+ * One measurement of how this person's portions differ from the model's first read.
+ *
+ * `name_en` is the item's canonical English name, or its display name when it carried none — the
+ * same key `buildRepertoire` groups by, so the two priors talk about the same foods.
+ */
+export interface PortionCorrection {
+  name_en: string;
+  grams_before: number;
+  grams_after: number;
+}
+
+/** What those corrections add up to for one food. */
+export interface PortionPrior {
+  name: string;
+  /** Median `grams_after / grams_before`: 1.4 means this person's portion runs 40% over the read. */
+  ratio: number;
+  /** How many corrections it was computed from. The list is ordered by this, most corrected first. */
+  n: number;
+}
+
+/** Defaults for `portionPriors`, applied in `portionPriorsFrom` so both stores mean the same thing. */
+export const PORTION_PRIOR_MIN_COUNT = 3;
+export const PORTION_PRIOR_LIMIT = 10;
+/**
+ * How many corrections either store reads back before computing the prior, most recent first.
+ *
+ * A bound rather than the whole table, because this read is on the path of every billed photo and
+ * the table only ever grows. Recency is the right thing to drop, too: a portion habit from a year
+ * ago is not evidence about the plate in front of the camera today.
+ */
+export const PORTION_PRIOR_ROWS = 500;
+
+/**
+ * The prior, computed from raw rows — in TypeScript, for BOTH implementations.
+ *
+ * A median Postgres interpolates (`percentile_cont`) and a median a hand-written reducer picks are
+ * two different numbers on every even-sized sample, and this one changes the grams the model
+ * answers with. So neither store computes it: they fetch rows and call this. Same reason
+ * `aggregateFunnel` exists, and the funnel's median is where that lesson was learned.
+ */
+export function portionPriorsFrom(
+  rows: readonly PortionCorrection[],
+  minCount = PORTION_PRIOR_MIN_COUNT,
+  limit = PORTION_PRIOR_LIMIT,
+): PortionPrior[] {
+  const byName = new Map<string, number[]>();
+  for (const r of rows) {
+    const ratios = byName.get(r.name_en) ?? [];
+    ratios.push(r.grams_after / r.grams_before);
+    byName.set(r.name_en, ratios);
+  }
+  const out: PortionPrior[] = [];
+  for (const [name, ratios] of byName) {
+    if (ratios.length < minCount) continue;
+    ratios.sort((a, b) => a - b);
+    const mid = ratios.length >> 1;
+    out.push({
+      name,
+      ratio: ratios.length % 2 === 1 ? ratios[mid]! : (ratios[mid - 1]! + ratios[mid]!) / 2,
+      n: ratios.length,
+    });
+  }
+  // The name settles ties, so the two stores answer in one order whatever order their rows arrive in.
+  return out.sort((a, b) => b.n - a.n || a.name.localeCompare(b.name)).slice(0, limit);
+}
 
 /**
  * The onboarding funnel, aggregated by the store.
@@ -480,6 +548,26 @@ export interface Store {
   /** Most recent first, `since` inclusive. Feeds the week view and the chat router's context. */
   totalsSince(userId: string, since: string): Promise<DayTotals[]>;
 
+  // ── Portion corrections ────────────────────────────────────────────────────────────────────
+  //
+  // Every time a user changes an item's grams they are measuring the gap between their portion and
+  // the model's first read of it. Kept as raw pairs rather than as a running ratio: the summary is
+  // a median, and a median cannot be updated in place without keeping what it was computed from.
+
+  /**
+   * Record what an edit changed. Scoped, and never a reason for the edit to fail — the caller logs
+   * a failure and carries on, because a lost measurement is worth less than the correction itself.
+   */
+  recordPortionCorrections(userId: string, rows: PortionCorrection[]): Promise<void>;
+  /**
+   * What this user's own corrections say about their portions, most corrected first.
+   *
+   * `minCount` is the evidence bar: below it a "prior" is one afternoon's typo fed back into every
+   * later estimate. Both stores read raw rows and hand them to `portionPriorsFrom`, so the number
+   * that reaches the prompt cannot depend on which implementation is running.
+   */
+  portionPriors(userId: string, minCount?: number, limit?: number): Promise<PortionPrior[]>;
+
   // ── The thread ─────────────────────────────────────────────────────────────────────────────
   /**
    * Append lines, in order, as ONE write. A photo bubble and its card are one moment; two writes
@@ -522,7 +610,7 @@ export interface Store {
    * not to use the chat. The global budget counts both, because both cost money.
    */
   countUserPhotos(userId: string, date: string): Promise<number>;
-  /** Every analysis the instance has spent on `date`, whatever its scope. */
+  /** Every analysis the instance has spent on `date`, whatever its scope — see `recordAnalysis`. */
   countGlobalAnalyses(date: string): Promise<number>;
   /**
    * Every analysis this account has EVER spent, photo or text. The sample rule reads it: one

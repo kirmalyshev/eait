@@ -12,6 +12,8 @@ import {
 import { dateMinus, isRefusal, localDate } from "@ieat/shared";
 import type { EngineDeps } from "./deps.ts";
 import type { ChatAppend } from "../store.ts";
+import { normalizePromptText } from "../llm/prompt.ts";
+import { prepareAnalysis } from "./analysis.ts";
 import { checkCaps, refundGatewayRefusal } from "./caps.ts";
 import { applyCorrection, gatedVerdicts, sumTotals, toAnalysis } from "./meals.ts";
 import { afterCorrection, remember } from "./chat.ts";
@@ -21,6 +23,20 @@ import { afterCorrection, remember } from "./chat.ts";
 
 /** Days of history handed to the router as context. */
 const CONTEXT_DAYS = 7;
+
+/**
+ * Is this message one of the options Spud offered, rather than something the user wrote?
+ *
+ * Compared through `normalizePromptText` — the same sink the options were stored through — then
+ * lower-cased, so case and stray whitespace do not decide it. A chip sends its option verbatim, so
+ * this is exact-match on the designed path; a person who happens to TYPE "in oil" has answered the
+ * question too, and gets the same reading.
+ */
+function isOneOf(text: string, options: readonly string[]): boolean {
+  const key = (s: string) => normalizePromptText(s).toLowerCase();
+  const said = key(text);
+  return said !== "" && options.some((o) => key(o) === said);
+}
 
 export interface HandleTextInput {
   text: string;
@@ -55,6 +71,15 @@ export async function handleText(
     ? await deps.store.getMeal(userId, input.focusMealId)
     : null;
 
+  // The framing below is only ever attached to a turn that IS the answer, and the chips send an
+  // option verbatim — so "is this message one of the options" is the whole test. Anything the user
+  // typed themselves goes to the router exactly as it did before the question existed, which is
+  // what stops "how much protein have I had today?" being read as a correction of their lunch
+  // because a question happened to be standing on it.
+  const answering = focus?.question && isOneOf(input.text, focus.question.options)
+    ? focus.question
+    : null;
+
   const todayRows = await deps.store.mealsForDate(userId, today);
   const week = await deps.store.totalsSince(userId, dateMinus(today, CONTEXT_DAYS));
   const { targets } = explainTargets(profile);
@@ -68,6 +93,9 @@ export async function handleText(
       })),
       week,
       ...(focus ? { focusMeal: toAnalysis(focus) } : {}),
+      // A chip's words are two of them. "In oil" says nothing on its own, and without the question
+      // beside it the router reads it as a new meal or as small talk.
+      ...(answering ? { question: answering } : {}),
     });
   } catch (e) {
     // Given back when the gateway refused before generating anything — the same rule as the photo
@@ -78,6 +106,15 @@ export async function handleText(
   }
 
   const result = await route();
+  // ONE QUESTION, ONE FRAMED TURN. Spent by the turn that was framed as its answer, whatever the
+  // router made of it — a correction clears it through `editMeal` anyway, and every other intent
+  // would otherwise leave the framing standing over the next message, and the one after that.
+  // Housekeeping, so it can never fail the turn it rides on: that turn is already billed.
+  if (answering && focus) {
+    await deps.store.updateMeal(userId, focus.id, { question: null }).catch((e) => {
+      console.error(`[eait] question clear failed: ${(e as Error)?.message ?? e}`);
+    });
+  }
   await keep(deps, userId, input.text, result, input.clientId ?? null);
   return result;
 
@@ -98,10 +135,11 @@ export async function handleText(
         // itself recomputes anyway, since the caps can move while a proposal sits.
         // copy.md § Step 17: a typed meal is rough by construction — the portions are a guess however
         // sure the model is of the dish — and the card's "rough estimate" pill reads this field.
+        const { analysis: reconciled } = prepareAnalysis(routed.analysis);
         const analysis: MealAnalysis = {
-          ...routed.analysis,
+          ...reconciled,
           confidence: "low",
-          verdicts: await gatedVerdicts(deps, userId, routed.analysis),
+          verdicts: await gatedVerdicts(deps, userId, reconciled),
         };
         // Every new proposal sweeps the expired ones: their words have no reason to stay. Housekeeping,
         // so it can never fail the turn it rides on — that turn is already billed.
@@ -122,8 +160,10 @@ export async function handleText(
         // renders nothing leaves the user with a spent sample and no idea why.
         if (!focus) return { kind: "target-gone", on: "correction" };
         // No verdict repair needed on this branch: `applyCorrection` writes through `editMeal`, which
-        // recomputes them from the stored row like every other write.
-        return applyCorrection(deps, userId, focus.id, routed.analysis);
+        // recomputes them from the stored row like every other write. The totals still need
+        // reconciling — a correction is an analysis like any other.
+        const { analysis: reconciled } = prepareAnalysis(routed.analysis);
+        return applyCorrection(deps, userId, focus.id, reconciled);
       }
 
       case "redate": {

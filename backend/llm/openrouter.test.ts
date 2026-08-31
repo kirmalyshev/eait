@@ -8,6 +8,7 @@
 
 import { describe, expect, test } from "bun:test";
 import { openRouterPorts } from "./openrouter.ts";
+import { SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL } from "./prompt.ts";
 import { GatewayRefusal } from "./port.ts";
 
 /** A payload the provider stopped at the completion bound. `partial` is what it had written. */
@@ -17,12 +18,15 @@ const truncated = (partial: string) => ({ __finish_reason: "length", __raw: part
 const cutAfterTheBrace = (payload: unknown) =>
   ({ __finish_reason: "length", __raw: JSON.stringify(payload) + "\n" });
 
+
 /** A fetch that replays the given assistant payloads, one per call, and records the requests. */
 function fakeFetch(payloads: unknown[]) {
   const bodies: Record<string, unknown>[] = [];
   const impl = (async (_url: string, init: RequestInit) => {
     bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
     const payload = payloads[Math.min(bodies.length - 1, payloads.length - 1)];
+    const status = (payload as { __status?: number })?.__status;
+    if (status) return new Response("upstream said no", { status });
     const cut = payload as { __finish_reason?: string; __raw?: string };
     const choice = cut?.__finish_reason
       ? { finish_reason: cut.__finish_reason, message: { content: cut.__raw } }
@@ -66,6 +70,25 @@ const ANALYSIS = {
   sugar_g: 1.1, sodium_mg: 124, confidence: "medium", notes: "",
 };
 
+/** A meal already on the plate, and the question Spud asked about it. A chip answers these. */
+const FOCUS = {
+  isFood: true,
+  items: [{ name: "Fried potatoes", name_en: "fried potatoes", grams: 250, kcal: 380,
+    protein_g: 6, carbs_g: 60, fat_g: 14, kcal_per_100g: 152 }],
+  kcal: 380, protein_g: 6, carbs_g: 60, fat_g: 14, satfat_g: 2, fiber_g: 5,
+  sugar_g: 2, sodium_mg: 300, confidence: "medium", notes: "",
+};
+
+const CHIP_INPUT = {
+  ...ROUTE_INPUT, text: "In oil", focusMeal: FOCUS,
+  question: { text: "Cooked in oil, or dry?", options: ["In oil", "Dry"] },
+} as unknown as Parameters<ReturnType<typeof openRouterPorts>["routeText"]>[0];
+
+const schemaOf = (body: Record<string, unknown>) =>
+  (body as unknown as { response_format: { json_schema: { name: string } } }).response_format.json_schema.name;
+const messagesOf = (body: Record<string, unknown>) =>
+  body.messages as { role: string; content: string }[];
+
 describe("routeText", () => {
   test("a food message is routed to a meal", async () => {
     const { llm } = ports([{ intent: "meal", analysis: ANALYSIS, dayOffset: 0 }]);
@@ -99,8 +122,35 @@ describe("routeText", () => {
     expect(out).toHaveProperty("analysis.kcal", 155);
     // The second call asks for the ANALYSIS schema, not the route schema. That is the whole point.
     expect(bodies.length).toBe(2);
-    expect((bodies[1] as { response_format: { json_schema: { name: string } } })
-      .response_format.json_schema.name).toBe("text-meal");
+    expect(schemaOf(bodies[1]!)).toBe("text-meal");
+    expect(messagesOf(bodies[1]!)[0]!.content).toBe(SYSTEM_TEXT_MEAL);
+  });
+
+  // The same fallback on a CORRECTION, where sending the meal prompt is not a degraded answer but a
+  // wrong write. A chip's whole message is two words: `SYSTEM_TEXT_MEAL` + "In oil" is a meal made
+  // of one serving of oil, and `applyCorrection` puts it over the plate the user actually ate.
+  test("a correction without the analysis is corrected FROM the logged meal", async () => {
+    const { llm, bodies } = ports([{ intent: "correction" }, ANALYSIS]);
+    const out = await llm.routeText(CHIP_INPUT);
+
+    expect(out.intent).toBe("correction");
+    expect(bodies.length).toBe(2);
+    expect(schemaOf(bodies[1]!)).toBe("text-correction");
+    const [system, user] = messagesOf(bodies[1]!);
+    expect(system!.content).toBe(SYSTEM_TEXT_CORRECTION);
+    // The plate it must correct, and the question its two words are the answer to.
+    expect(user!.content).toContain("Fried potatoes");
+    expect(user!.content).toContain(`Spud asked about this meal: "Cooked in oil, or dry?"`);
+    expect(user!.content).toContain("The user said: In oil");
+  });
+
+  test("a correction with nothing to correct spends no second call", async () => {
+    // No focus meal, so there is no correction to make and the switch below degrades to `answer`
+    // whatever comes back. Paying for an analysis first is paying to throw one away.
+    const { llm, bodies } = ports([{ intent: "correction", text: "Which meal did you mean?" }]);
+    const out = await llm.routeText(ROUTE_INPUT);
+    expect(out).toEqual({ intent: "answer", text: "Which meal did you mean?" });
+    expect(bodies.length).toBe(1);
   });
 
   test("a focused analysis that also fails throws rather than answering with nothing", async () => {
@@ -194,6 +244,28 @@ describe("truncation at the bound", () => {
   });
 });
 
+// Grams first. Every item carries its own numbers or the reply is not an analysis.
+//
+// The engine now sums the items and checks the model's totals against that sum, so an item missing
+// its numbers is not a cosmetic gap — it is a row the sum cannot include, and `kcal_per_100g` is
+// what a substitution rescales by when the user edits the grams. `complete()` feeds the zod error
+// back once; a model that still leaves the field out has not produced an analysis, and saying so is
+// better than storing a meal whose parts do not add up to it.
+describe("per-item numbers", () => {
+  const PHOTO_INPUT = {
+    images: [new Uint8Array([0xff, 0xd8, 0x00, 0x01])],
+    profile: ROUTE_INPUT.profile,
+    targets: ROUTE_INPUT.targets,
+  } satisfies Parameters<ReturnType<typeof openRouterPorts>["analyzePhoto"]>[0];
+
+  test("an item without its per-100g density is retried once, then refused", async () => {
+    const { kcal_per_100g: _drop, ...item } = ANALYSIS.items[0]!;
+    const { llm, bodies } = ports([{ ...ANALYSIS, items: [item] }]);
+    await expect(llm.analyzePhoto(PHOTO_INPUT)).rejects.toThrow(/kcal_per_100g/);
+    expect(bodies.length).toBe(2);
+  });
+});
+
 describe("a non-200 from the gateway", () => {
   /** A gateway that answers one status and routes nothing. */
   const refusing = (status: number) => openRouterPorts({
@@ -247,10 +319,30 @@ describe("a non-200 from the gateway", () => {
     expect(err).not.toBeInstanceOf(GatewayRefusal);
   });
 
+  test("a refusal on the correction call stays charged: the router call was billed", async () => {
+    const err = await thenRefusing({ intent: "correction", dayOffset: 0 }, 402)
+      .routeText(CHIP_INPUT).then(() => null, (e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err).not.toBeInstanceOf(GatewayRefusal);
+  });
+
   test("a refusal on the schema retry stays charged: the reply it retries was billed", async () => {
     const err = await thenRefusing({ nope: true }, 429)
       .routeText(ROUTE_INPUT).then(() => null, (e: unknown) => e);
     expect(err).toBeInstanceOf(Error);
     expect(err).not.toBeInstanceOf(GatewayRefusal);
+  });
+});
+
+// Named on every request rather than left to the provider's default, which can change under us.
+// Every call this app makes wants the same answer twice.
+describe("temperature", () => {
+  test("every request names it", async () => {
+    const { llm, bodies } = ports([{ intent: "answer", text: "You have had 0 g of protein." }]);
+    await llm.routeText(ROUTE_INPUT);
+    const classify = ports([{ tags: [] }]);
+    await classify.llm.classifyRestrictions("no pork");
+    expect(bodies[0]!.temperature).toBe(0.2);
+    expect(classify.bodies[0]!.temperature).toBe(0.2);
   });
 });
