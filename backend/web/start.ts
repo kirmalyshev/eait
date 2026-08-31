@@ -267,9 +267,15 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   const userId = session === "" ? null : await ctx.store.userIdForToken(session);
   if (userId === null) return seeOther(START_PREFIX);
 
+  // Read once, and NOT non-null asserted. A token can outlive the profile it names — an erasure
+  // racing this request, and `deleteUser` revokes tokens rather than waiting for them — and the
+  // assertion turned that into a TypeError, which the router's outer catch answers as a JSON 500 on
+  // an HTML surface. The front door with the cookie cleared is what that session actually is.
+  const profile = await ctx.store.getProfile(userId);
+  if (profile === null) return seeOther(START_PREFIX, [clearCookie(SESSION_COOKIE, secure)]);
+
   const view = async (): Promise<{ profile: Profile; content: OnboardingContent }> => ({
-    profile: (await ctx.store.getProfile(userId))!,
-    content: await onboardingContent(ctx.deps),
+    profile, content: await onboardingContent(ctx.deps),
   });
 
   if (pathname === `${START_PREFIX}/q`) {

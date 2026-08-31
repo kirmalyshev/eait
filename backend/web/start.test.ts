@@ -466,6 +466,17 @@ describe("the cookie is this surface's alone", () => {
     expect(res.status).toBe(200);
   });
 
+  it("survives a token that outlived its account", async () => {
+    const session = await signIn();
+    const userId = (await store.userIdForToken(session.split("=")[1]!))!;
+    // Erasure racing this request: `deleteUser` revokes the tokens, but one already in a browser
+    // still gets sent. A non-null assertion on the profile answered a JSON 500 on an HTML surface.
+    await store.deleteUser(userId);
+    const res = await get("/start/q", session);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start");
+  });
+
   it("does not answer 500 to a cookie that is not valid percent-encoding", async () => {
     const res = await get("/start/q", "eait_web=%");
     // Back to the front door, like any other unusable session — `decodeURIComponent` throwing here

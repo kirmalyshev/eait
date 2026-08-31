@@ -241,7 +241,14 @@ export function secondaryCta(
   placement: CtaPlacement,
 ): { href: string; label: string } | null {
   if (config.startUrl) {
-    return { href: config.startUrl, label: "or set up your plan on the web" };
+    // WITH THE PLACEMENT CODE, like the bot link beside it. The two codes exist to answer the one
+    // cheap question this page can be asked — did the headline convert, or did somebody read 1,200
+    // words first — and a CTA that carries neither is a CTA whose performance is unreadable. The
+    // read here is the API's own access log rather than eait-marketer's, because this destination
+    // is ours. `URL` rather than a string append: the origin may already carry a query.
+    const to = new URL(config.startUrl);
+    to.searchParams.set("start", START_CODES[placement]);
+    return { href: to.toString(), label: "or set up your plan on the web" };
   }
   if (config.appStoreUrl && config.telegramUrl) {
     return { href: withStartCode(config.telegramUrl, placement), label: "or try it in Telegram first" };

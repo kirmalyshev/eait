@@ -90,8 +90,11 @@ describe("config", () => {
     const withStart = loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_START_URL: "https://api.eait.fit/start" });
     // Not the bot, even though the bot is configured: `/start` creates the ACCOUNT the app opens
     // into, and the bot is a demonstration.
-    expect(secondaryCta(withStart, "hero")?.href).toBe("https://api.eait.fit/start");
-    expect(renderLanding(withStart)).toContain("https://api.eait.fit/start");
+    // Carrying its placement code, like the bot link does: the difference between a tap at the top
+    // and one at the bottom is the only cheap read on whether the page's argument is doing any work.
+    expect(secondaryCta(withStart, "hero")?.href).toBe("https://api.eait.fit/start?start=web_hero");
+    expect(secondaryCta(withStart, "footer")?.href).toBe("https://api.eait.fit/start?start=web_foot");
+    expect(renderLanding(withStart)).toContain("https://api.eait.fit/start?start=web_hero");
     // And the primary is untouched — the store still wins the accent.
     expect(primaryCta(withStart, "hero").href).toBe(ENV.EAIT__BACKEND__LANDING_APP_STORE_URL);
   });
