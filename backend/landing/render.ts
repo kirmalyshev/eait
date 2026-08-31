@@ -75,7 +75,7 @@ export function iconSvg(): string {
 }
 
 function metaDescription(): string {
-  return `${hero.headline} ${brand.tagline} No card, no trial, and photos are never stored.`;
+  return `${hero.headline} ${brand.tagline} Your first analysis needs no card, and photos are never stored.`;
 }
 
 /**
@@ -291,8 +291,7 @@ export function renderOutcome(
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${esc(`${outcome.title} — ${brand.name}`)}</title>
 <meta name="robots" content="noindex">
-<meta name="theme-color" content="${esc(light.bg)}" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="${esc(dark.bg)}" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="${esc(light.bg)}">
 <link rel="icon" href="/favicon.ico" sizes="64x64">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/styles.css">
@@ -361,8 +360,7 @@ export function renderLanding(config: LandingConfig): string {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>${esc(brand.title)}</title>
 <meta name="description" content="${esc(metaDescription())}">
-<meta name="theme-color" content="${esc(light.bg)}" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="${esc(dark.bg)}" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="${esc(light.bg)}">
 <link rel="canonical" href="${esc(config.siteUrl)}/">
 ${robotsMeta(config)}<link rel="icon" href="/favicon.ico" sizes="64x64">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">

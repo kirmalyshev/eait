@@ -84,15 +84,17 @@ const darkVars = `
 
 const sheet = `
 /* ── Tokens ─────────────────────────────────────────────────────────────────────────────────
-   TWO THEMES, THREE SELECTORS, AND THE ORDER MATTERS.
+   TWO THEMES, TWO SELECTORS.
 
-   :root                                 the light values, and the fallback for everything below
-   @media (prefers-color-scheme: dark)   the visitor's OS, honoured unless they said otherwise
-     :root:not([data-theme="light"])     ...which is what that :not() is: an explicit Light wins
-   :root[data-theme="dark"]              an explicit Dark, on a machine set to light
+   :root                       the light values, and what every visitor gets until they say otherwise
+   :root[data-theme="dark"]    dark, and ONLY on an explicit choice
 
-   The last one cannot be folded into the media query — it has to apply outside it — and the media
-   query cannot be dropped, or a dark-set visitor gets a light page until they find the toggle.
+   THE OS PREFERENCE IS DELIBERATELY NOT CONSULTED. It used to be a prefers-color-scheme: dark
+   block handed a dark page to every visitor whose machine is set that way, which is most phones
+   after sunset. This is a marketing page rather than an app: it is the first thing anyone sees of
+   the product, the photography and the mascot were drawn against the light ground, and half the
+   audience arriving to a different page than the other half is not a feature. Dark stays one click
+   away and is remembered; it is just not assumed.
 
    --dim is the one value that is not a straight copy of a token; see its comment below. It is
    declared in all three places for the same reason every other variable is. */
@@ -144,9 +146,6 @@ const sheet = `
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { ${darkVars} }
-}
 :root[data-theme="dark"] { ${darkVars} }
 
 /* ── Reset ──────────────────────────────────────────────────────────────────────────────── */

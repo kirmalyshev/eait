@@ -148,7 +148,7 @@ function llmsTxt(config: LandingConfig): string {
   const lines: string[] = [
     `# ${brand.name}`,
     "",
-    `> ${brand.tagline} ${hero.headline} No card, no trial, and photos are never stored.`,
+    `> ${brand.tagline} ${hero.headline} Your first analysis needs no card, and photos are never stored.`,
     "",
     hero.sub,
     "",

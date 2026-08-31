@@ -160,6 +160,10 @@ describe("the numbers on the page are the numbers in the code", () => {
     // And the claim that replaced it has to still be true of the product: a card is asked for, but
     // only after that first answer, and never by this page.
     expect(billing).not.toContain("no paid tier");
+    // "No trial" is the version of the same promise that survived three edits — it was in the CTA
+    // note under the button and in the meta description search results show, neither of which reads
+    // like copy while you are editing the sections. There IS a trial; it is a week long.
+    expect(html.toLowerCase()).not.toContain("no trial");
   });
 
   test("the hero's sample target sits above its own floor", () => {

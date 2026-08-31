@@ -25,6 +25,8 @@
 // is warranted for four statements.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
+import { dark as darkTokens, light as lightTokens } from "./tokens.ts";
+
 /** The localStorage key. Namespaced so it cannot collide on a shared origin. */
 export const THEME_KEY = "ieat.theme";
 
@@ -40,13 +42,18 @@ export const themeScript = `(function () {
     catch (e) { return null; }
   }
 
-  // No stored choice means NO data-theme attribute, which is what lets the media query in the
-  // stylesheet decide. Writing "light" here instead would override the OS preference of every
-  // visitor who has never touched the toggle.
+  // No stored choice means NO data-theme attribute, and the stylesheet's bare :root is light. The
+  // OS preference is deliberately not consulted here either — see the token block in styles.ts —
+  // so "nothing stored" and "light" are the same page, and dark is only ever an explicit choice.
+  //
+  // The theme-color meta moves with it. It cannot key off an attribute the way CSS does, so a
+  // page left with a dark meta would paint the browser's own chrome dark around a light page.
   function paint(theme) {
     if (theme) root.setAttribute("data-theme", theme);
     else root.removeAttribute("data-theme");
-    var dark = theme ? theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    var dark = theme === "dark";
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", dark ? ${JSON.stringify(darkTokens.bg)} : ${JSON.stringify(lightTokens.bg)});
     var buttons = document.querySelectorAll("[data-theme-toggle]");
     for (var i = 0; i < buttons.length; i++) {
       buttons[i].setAttribute("aria-pressed", dark ? "true" : "false");
