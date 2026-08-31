@@ -6,7 +6,7 @@
 // because the alternative is RevenueCat retrying a message that will never mean anything different.
 
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { ROUTES, entitlementActive, type ProfileResponse } from "@ieat/shared";
+import { ROUTES, entitlementActive, type ProfileResponse } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
@@ -71,7 +71,7 @@ const profile = async (token: string): Promise<ProfileResponse> => {
 const purchase = (userId: string, over: Record<string, unknown> = {}) => ({
   type: "INITIAL_PURCHASE",
   app_user_id: userId,
-  entitlement_ids: ["ieat_fit_pro"],
+  entitlement_ids: ["eait_fit_pro"],
   product_id: "yearly",
   expiration_at_ms: Date.now() + 30 * 24 * 60 * 60 * 1000,
   event_timestamp_ms: Date.now(),
@@ -173,7 +173,7 @@ describe("deliveries this server ignores", () => {
   it("honours a configured entitlement id other than the default", async () => {
     mount({ ...base, revenueCatWebhookToken: TOKEN, revenueCatEntitlementId: "lifetime" });
     const { userId, token } = await account();
-    await deliver(purchase(userId, { entitlement_ids: ["ieat_fit_pro"] }));
+    await deliver(purchase(userId, { entitlement_ids: ["eait_fit_pro"] }));
     expect((await profile(token)).entitlement.active).toBe(false);
     await deliver(purchase(userId, { entitlement_ids: ["lifetime"] }));
     expect((await profile(token)).entitlement.active).toBe(true);
@@ -231,17 +231,17 @@ describe("parseRevenueCatEvent", () => {
   // drop purchases and nothing would say why.
   it("reads the deprecated singular entitlement_id too", () => {
     const e = parseRevenueCatEvent({ event: {
-      app_user_id: id, entitlement_id: "ieat_fit_pro", product_id: "p", event_timestamp_ms: 1,
+      app_user_id: id, entitlement_id: "eait_fit_pro", product_id: "p", event_timestamp_ms: 1,
       expiration_at_ms: 2,
     } });
-    expect(e?.entitlementIds).toEqual(["ieat_fit_pro"]);
+    expect(e?.entitlementIds).toEqual(["eait_fit_pro"]);
   });
 
   // Without one, nothing can be ordered against what is already stored — which is what makes
   // out-of-order delivery safe.
   it("refuses a delivery with no event timestamp", () => {
     expect(parseRevenueCatEvent({ event: {
-      app_user_id: id, entitlement_ids: ["ieat_fit_pro"], product_id: "p", expiration_at_ms: 2,
+      app_user_id: id, entitlement_ids: ["eait_fit_pro"], product_id: "p", expiration_at_ms: 2,
     } })).toBeNull();
   });
 
@@ -251,7 +251,7 @@ describe("parseRevenueCatEvent", () => {
   // what makes RevenueCat redeliver, forever, an event that will never parse any differently.
   it("refuses an out-of-range timestamp rather than throwing on it", () => {
     expect(parseRevenueCatEvent({ event: {
-      app_user_id: id, entitlement_ids: ["ieat_fit_pro"], product_id: "p", event_timestamp_ms: 1e20,
+      app_user_id: id, entitlement_ids: ["eait_fit_pro"], product_id: "p", event_timestamp_ms: 1e20,
     } })).toBeNull();
 
     // An out-of-range EXPIRY refuses the whole delivery too, and that is a deliberate change:
@@ -259,7 +259,7 @@ describe("parseRevenueCatEvent", () => {
     // non-consumable sends — so reading a broken value as absent would turn a provider bug into a
     // lifetime grant, or into the refund of one.
     expect(parseRevenueCatEvent({ event: {
-      app_user_id: id, entitlement_ids: ["ieat_fit_pro"], product_id: "p", event_timestamp_ms: 1,
+      app_user_id: id, entitlement_ids: ["eait_fit_pro"], product_id: "p", event_timestamp_ms: 1,
       expiration_at_ms: 1e20,
     } })).toBeNull();
   });
@@ -280,7 +280,7 @@ describe("parseRevenueCatEvent", () => {
 
   it("treats a missing expiry as no expiry rather than as zero", () => {
     const e = parseRevenueCatEvent({ event: {
-      app_user_id: id, entitlement_ids: ["ieat_fit_pro"], product_id: "p", event_timestamp_ms: 1,
+      app_user_id: id, entitlement_ids: ["eait_fit_pro"], product_id: "p", event_timestamp_ms: 1,
     } });
     expect(e?.expirationAtMs).toBeNull();
   });
@@ -444,12 +444,12 @@ describe("a lifetime purchase", () => {
   it("parses the event type, and tolerates a delivery that omits it", () => {
     const withType = parseRevenueCatEvent({ event: {
       type: "NON_RENEWING_PURCHASE", app_user_id: crypto.randomUUID(),
-      entitlement_ids: ["ieat_fit_pro"], expiration_at_ms: null, event_timestamp_ms: Date.now(),
+      entitlement_ids: ["eait_fit_pro"], expiration_at_ms: null, event_timestamp_ms: Date.now(),
     } });
     expect(withType?.type).toBe("NON_RENEWING_PURCHASE");
 
     const withoutType = parseRevenueCatEvent({ event: {
-      app_user_id: crypto.randomUUID(), entitlement_ids: ["ieat_fit_pro"],
+      app_user_id: crypto.randomUUID(), entitlement_ids: ["eait_fit_pro"],
       expiration_at_ms: null, event_timestamp_ms: Date.now(),
     } });
     expect(withoutType?.type).toBe("");
@@ -458,7 +458,7 @@ describe("a lifetime purchase", () => {
 
 // ── A lifetime unlock and a subscription on the SAME entitlement ───────────────────────────────
 //
-// All three products grant `ieat_fit_pro`, and the store holds ONE record per account. So a
+// All three products grant `eait_fit_pro`, and the store holds ONE record per account. So a
 // subscription's ordinary lifecycle events name the same entitlement a lifetime unlock does, and
 // "the newest event wins" is not enough on its own: the newest event about a MONTHLY plan says
 // nothing about a lifetime the customer already owns.
@@ -538,7 +538,7 @@ describe("a live purchase that grants an entitlement this server does not know",
       await deliver(purchase(userId, { entitlement_ids: ["someone-elses-identifier"] }));
       const said = warn.mock.calls.flat().join(" ");
       expect(said).toContain("no entitlement this server knows");
-      expect(said).toContain("ieat_fit_pro");
+      expect(said).toContain("eait_fit_pro");
       // The payload is not log material, here least of all.
       expect(said).not.toContain("someone-elses-identifier");
     } finally {
@@ -640,7 +640,7 @@ describe("the misconfiguration warning's quiet period", () => {
     const warn = spyOn(console, "warn").mockImplementation(() => {});
     try {
       await handle(post({
-        type: "INITIAL_PURCHASE", app_user_id: userId, entitlement_ids: ["ieat_fit_pro"],
+        type: "INITIAL_PURCHASE", app_user_id: userId, entitlement_ids: ["eait_fit_pro"],
         product_id: "yearly", expiration_at_ms: Date.now() + 1000, event_timestamp_ms: Date.now(),
       }), d);
       await handle(post({

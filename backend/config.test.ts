@@ -176,7 +176,7 @@ describe("the paid tier", () => {
 
   it("names which entitlement grants the tier, defaulting to pro", () => {
     withRequired();
-    expect(loadConfig().revenueCatEntitlementId).toBe("ieat_fit_pro");
+    expect(loadConfig().revenueCatEntitlementId).toBe("eait_fit_pro");
     withRequired({ EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID: "lifetime" });
     expect(loadConfig().revenueCatEntitlementId).toBe("lifetime");
   });
@@ -306,9 +306,9 @@ describe("the RevenueCat entitlement identifier", () => {
 
   it("is what the ansible role deploys", async () => {
     const yaml = await Bun.file(
-      new URL("./iac/roles/ieat_app/defaults/main.yml", import.meta.url),
+      new URL("./iac/roles/eait_app/defaults/main.yml", import.meta.url),
     ).text();
-    expect(yaml).toContain(`ieat_revenuecat_entitlement_id: ${expected}`);
+    expect(yaml).toContain(`eait_revenuecat_entitlement_id: ${expected}`);
   });
 
   it("is the compose fallback", async () => {

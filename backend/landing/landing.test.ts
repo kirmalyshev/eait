@@ -15,7 +15,7 @@ import { color, dark, light, TOKEN_SOURCE } from "./tokens.ts";
 import { BODY, MASCOT_SOURCE, MOUTHS, SHEEN } from "./mascot.ts";
 import { styles } from "./styles.ts";
 import { faqs, founder, measured, refusals, floorSection, sample } from "./content.ts";
-import { FREE_ANALYSES, KCAL_FLOOR } from "@ieat/shared";
+import { FREE_ANALYSES, KCAL_FLOOR } from "@eait/shared";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 

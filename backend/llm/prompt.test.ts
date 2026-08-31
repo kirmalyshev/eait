@@ -5,7 +5,7 @@
 // for. One sentence in each, worded identically, is what stops that being discovered in production.
 
 import { expect, test } from "bun:test";
-import type { FoodTargets, Profile } from "@ieat/shared";
+import type { FoodTargets, Profile } from "@eait/shared";
 import { blankProfile } from "../store.ts";
 import {
   MealAnalysisSchema, SYSTEM, SYSTEM_ROUTE, SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL,

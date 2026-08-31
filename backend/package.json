@@ -1,5 +1,5 @@
 {
-  "name": "@ieat/backend",
+  "name": "@eait/backend",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "demo": "bun run index.ts --demo"
   },
   "dependencies": {
-    "@ieat/shared": "workspace:*",
+    "@eait/shared": "workspace:*",
     "jose": "^6.2.10",
     "zod": "^4.5.4"
   }

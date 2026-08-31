@@ -23,8 +23,8 @@
 import {
   explainTargets, verdictsFromTargets, visibleVerdicts,
   type Lang, type MealItem, type MealRecord,
-} from "@ieat/shared";
-import { localDate, dateMinus, emptyHealthDay, firstVerdictLines, type HealthDay } from "@ieat/shared";
+} from "@eait/shared";
+import { localDate, dateMinus, emptyHealthDay, firstVerdictLines, type HealthDay } from "@eait/shared";
 import type { ChatAppend, ProfilePatch, Store } from "../store.ts";
 
 /**
@@ -36,7 +36,7 @@ import type { ChatAppend, ProfilePatch, Store } from "../store.ts";
  * account anybody who reads this file can log into on any host that ever ran the seeder.
  */
 export function seedDeviceId(key: string): string {
-  const digest = new Bun.CryptoHasher("sha256").update(`ieat-dev-seed:${key}`).digest("hex");
+  const digest = new Bun.CryptoHasher("sha256").update(`eait-dev-seed:${key}`).digest("hex");
   return `5eed${digest.slice(4)}`;
 }
 

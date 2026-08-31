@@ -11,7 +11,7 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { SignJWT, exportJWK, generateKeyPair, type CryptoKey } from "jose";
-import { ROUTES } from "@ieat/shared";
+import { ROUTES } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";

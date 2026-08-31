@@ -12,7 +12,7 @@
 
 import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, OnboardingContent,
-  OnboardingEvent, Profile, Provider, ChatEvent } from "@ieat/shared";
+  OnboardingEvent, Profile, Provider, ChatEvent } from "@eait/shared";
 
 /** A text meal awaiting confirmation. Not in the diary yet, and expires. */
 export interface PendingMeal {
@@ -33,7 +33,7 @@ export type ProfilePatch = Partial<Omit<Profile, "user_id">>;
  * because every product grants the same entitlement. One field cannot carry both: it did once, and
  * refunding a lifetime then revoked a monthly plan that was still paid for.
  *
- * Turn this into a yes/no with `entitlementLive` from `@ieat/shared` and with nothing else.
+ * Turn this into a yes/no with `entitlementLive` from `@eait/shared` and with nothing else.
  * `entitlementActive` answers only the subscription half, and a lifetime holder reads as unentitled
  * through it — which is exactly the mistake the Postgres reader made in its first version.
  *

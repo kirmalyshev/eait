@@ -14,14 +14,14 @@ import {
   type DailyTotals, type EditMealRequest, type LogPhotoResult, type MealAnalysis, type MealHint,
   type MealItem, type MealLogged, type MealQuestion, type MealRecord, type MealUpdated,
   type TargetGone, type ConfirmMealResult, explainTargets, verdictsFromTargets, visibleVerdicts,
-} from "@ieat/shared";
-import { localDate, localTime } from "@ieat/shared";
+} from "@eait/shared";
+import { localDate, localTime } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
 import { prepareAnalysis } from "./analysis.ts";
 import { checkCaps, refundGatewayRefusal } from "./caps.ts";
 import { afterCorrection, firstVerdict, remember } from "./chat.ts";
-import { scriptedLine } from "@ieat/shared";
+import { scriptedLine } from "@eait/shared";
 import type { AnalyzedMeal } from "../llm/port.ts";
 
 /** Images arrive as thunks so nothing is READ until the caps have passed. */
@@ -425,7 +425,7 @@ export async function cancelPendingMeal(
  * "the bulgur he has four times a week". It must never touch a number.
  */
 async function buildRepertoire(deps: EngineDeps, userId: string, today: string): Promise<string[]> {
-  const { dateMinus } = await import("@ieat/shared");
+  const { dateMinus } = await import("@eait/shared");
   const since = dateMinus(today, 30);
   const days = await deps.store.totalsSince(userId, since);
   const counts = new Map<string, number>();

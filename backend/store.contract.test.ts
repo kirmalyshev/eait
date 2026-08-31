@@ -10,11 +10,11 @@
 // Postgres is SKIPPED, loudly, when `TEST_DATABASE_URL` is unset — a silently skipped test is a
 // test that reads as passing. Run it with:
 //   sh scripts/db.sh up
-//   TEST_DATABASE_URL=postgres://ieat:ieat@127.0.0.1:5433/ieat bun test ./src/backend/store.contract.test.ts
+//   TEST_DATABASE_URL=postgres://eait:eait@127.0.0.1:5433/eait bun test ./src/backend/store.contract.test.ts
 
 import { afterAll, describe, expect, it } from "bun:test";
 import { SQL } from "bun";
-import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, type MealRecord } from "@ieat/shared";
+import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, type MealRecord } from "@eait/shared";
 import { hashToken } from "./auth/tokens.ts";
 import { memoryStore } from "./store.memory.ts";
 import { postgresStore } from "./store.pg.ts";
@@ -259,7 +259,7 @@ function contract(name: string, make: () => Promise<Store>) {
       const { userId } = await s.upsertDeviceUser(device(), "en");
       const e = {
         expiresAt: "2027-01-01T00:00:00.000Z",
-        productId: "ieat_pro_yearly",
+        productId: "eait_pro_yearly",
         eventAt: "2026-08-24T10:00:00.000Z",
         trial: false,
       };
@@ -283,11 +283,11 @@ function contract(name: string, make: () => Promise<Store>) {
       const s = await open();
       const { userId } = await s.upsertDeviceUser(device(), "en");
       const renewal = {
-        expiresAt: "2027-01-01T00:00:00.000Z", productId: "ieat_pro_yearly",
+        expiresAt: "2027-01-01T00:00:00.000Z", productId: "eait_pro_yearly",
         eventAt: "2026-08-24T10:00:00.000Z", trial: false,
       };
       const staleCancellation = {
-        expiresAt: "2026-08-24T09:00:00.000Z", productId: "ieat_pro_yearly",
+        expiresAt: "2026-08-24T09:00:00.000Z", productId: "eait_pro_yearly",
         eventAt: "2026-08-24T09:30:00.000Z",
       };
       expect(await s.putEntitlement(userId, renewal)).toBe(true);
@@ -300,7 +300,7 @@ function contract(name: string, make: () => Promise<Store>) {
       const s = await open();
       const { userId } = await s.upsertDeviceUser(device(), "en");
       const e = {
-        expiresAt: "2027-01-01T00:00:00.000Z", productId: "ieat_pro_yearly",
+        expiresAt: "2027-01-01T00:00:00.000Z", productId: "eait_pro_yearly",
         eventAt: "2026-08-24T10:00:00.000Z",
       };
       expect(await s.putEntitlement(userId, e)).toBe(true);
@@ -312,11 +312,11 @@ function contract(name: string, make: () => Promise<Store>) {
       const s = await open();
       const { userId } = await s.upsertDeviceUser(device(), "en");
       await s.putEntitlement(userId, {
-        expiresAt: "2027-01-01T00:00:00.000Z", productId: "ieat_pro_yearly",
+        expiresAt: "2027-01-01T00:00:00.000Z", productId: "eait_pro_yearly",
         eventAt: "2026-08-24T10:00:00.000Z",
       });
       const revoked = {
-        expiresAt: "2026-08-24T11:00:00.000Z", productId: "ieat_pro_yearly",
+        expiresAt: "2026-08-24T11:00:00.000Z", productId: "eait_pro_yearly",
         eventAt: "2026-08-24T11:00:00.000Z", trial: false,
       };
       expect(await s.putEntitlement(userId, revoked)).toBe(true);
@@ -328,7 +328,7 @@ function contract(name: string, make: () => Promise<Store>) {
     it("will not write an entitlement for an unknown account", async () => {
       const s = await open();
       expect(await s.putEntitlement(crypto.randomUUID(), {
-        expiresAt: "2027-01-01T00:00:00.000Z", productId: "ieat_pro_yearly",
+        expiresAt: "2027-01-01T00:00:00.000Z", productId: "eait_pro_yearly",
         eventAt: "2026-08-24T10:00:00.000Z",
       })).toBe(false);
     });
@@ -337,7 +337,7 @@ function contract(name: string, make: () => Promise<Store>) {
       const s = await open();
       const { userId } = await s.upsertDeviceUser(device(), "en");
       await s.putEntitlement(userId, {
-        expiresAt: "2027-01-01T00:00:00.000Z", productId: "ieat_pro_yearly",
+        expiresAt: "2027-01-01T00:00:00.000Z", productId: "eait_pro_yearly",
         eventAt: "2026-08-24T10:00:00.000Z",
       });
       await s.deleteUser(userId);

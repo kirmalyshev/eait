@@ -5,7 +5,7 @@
 // engine's tests bind fakes to the same three signatures — which is what lets cap enforcement,
 // verdict gating and the correction loop be tested without a billed call.
 
-import type { MealAnalysis, Profile, FoodTargets, DayTotals } from "@ieat/shared";
+import type { MealAnalysis, Profile, FoodTargets, DayTotals } from "@eait/shared";
 import type { PortionPrior } from "../store.ts";
 
 /**

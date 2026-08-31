@@ -2,8 +2,8 @@
 // fixtures is a defect in every picture of this product.
 
 import { expect, test } from "bun:test";
-import { explainTargets } from "@ieat/shared";
-import type { Profile } from "@ieat/shared";
+import { explainTargets } from "@eait/shared";
+import type { Profile } from "@eait/shared";
 import { DEMO_NOT_FOOD, demoPorts } from "./demo.ts";
 
 // The canned analyzer reads only the caption and the bytes, but `PhotoInput` is the real port's

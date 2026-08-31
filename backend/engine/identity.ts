@@ -9,7 +9,7 @@
 // real identity does not — it just switches. That asymmetry is the whole design, and it is the
 // reason `isAnonymous` exists rather than the code merging whenever two accounts meet.
 
-import type { AuthProviderResponse, LinkOutcome, Provider } from "@ieat/shared";
+import type { AuthProviderResponse, LinkOutcome, Provider } from "@eait/shared";
 import type { IdentityVerifier } from "../auth/verify.ts";
 import type { EngineDeps } from "./deps.ts";
 

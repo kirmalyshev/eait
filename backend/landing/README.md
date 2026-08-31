@@ -50,7 +50,7 @@ is a deliberate copy of `eait-marketer/src/claims.ts` — see the header of `cla
 change both if you change either.
 
 **Numbers on the page are numbers in the code.** The floor section quotes `KCAL_FLOOR` from
-`@ieat/shared`, and a test fails if the copy and the constant disagree. The whole legitimacy of that
+`@eait/shared`, and a test fails if the copy and the constant disagree. The whole legitimacy of that
 section is that it describes what actually runs.
 
 **Copy is fetched by nobody at runtime.** Unlike the onboarding content, this is baked at build
@@ -113,9 +113,9 @@ The nginx service sits behind a compose **profile**, so it starts only under `--
 That is what lets one description of the stack cover a host that serves the marketing site and a
 host that serves only the API.
 
-Ansible drives all three from one variable. `ieat_landing_enabled` decides whether the profile is
+Ansible drives all three from one variable. `eait_landing_enabled` decides whether the profile is
 passed, whether Caddy gets a site block, and whether the environment file carries the values the
-image is built from; `roles/ieat_app/tasks/landing.yml` is where they are kept in agreement, and it
+image is built from; `roles/eait_app/tasks/landing.yml` is where they are kept in agreement, and it
 removes the site block when the flag goes back to false so turning the page off is not an edit
 somebody has to remember to revert.
 

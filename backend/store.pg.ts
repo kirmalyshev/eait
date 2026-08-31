@@ -15,8 +15,8 @@ import { SQL } from "bun";
 import type {
   DayTotals, HealthDay, Lang, MealItem, MealQuestion, MealRecord, MealVerdicts, NotificationCopy,
   OnboardingContent, Profile, Provider,
-} from "@ieat/shared";
-import { HEALTH_FIELDS, emptyHealthDay } from "@ieat/shared";
+} from "@eait/shared";
+import { HEALTH_FIELDS, emptyHealthDay } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";

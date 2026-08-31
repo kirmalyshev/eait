@@ -10,7 +10,7 @@
 // can grant itself an entitlement, and there must never be one: the app's copy of its own
 // subscription comes from the purchases SDK and is a rendering hint, not a credential.
 
-import { entitlementActive, entitlementLive, type Entitlement } from "@ieat/shared";
+import { entitlementActive, entitlementLive, type Entitlement } from "@eait/shared";
 import type { Config } from "../config.ts";
 import type { EntitlementPatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
@@ -125,7 +125,7 @@ export async function applyRevenueCatEvent(
   }
 
   // A simulated purchase grants nothing real. The deployed host opts in only while purchases are
-  // exercised from development and TestFlight builds (`ieat_revenuecat_accept_sandbox`), and must
+  // exercised from development and TestFlight builds (`eait_revenuecat_accept_sandbox`), and must
   // opt out the day the listing goes live.
   if (event.sandbox && !deps.config.revenueCatAcceptSandbox) return { applied: false, reason: "sandbox" };
 
