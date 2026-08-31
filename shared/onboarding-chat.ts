@@ -589,7 +589,20 @@ export type NumberAnswer =
   /** The value is not one this app takes, and `line` is what Spud says instead of taking it. */
   | { ok: false; line: string }
   /** The age says under sixteen. Not a validation failure — a stop. See `UNDER_AGE_CARD`. */
-  | { ok: false; underAge: true };
+  | { ok: false; underAge: true }
+  /** A high two-digit answer that could be a year typed the short way. Asked, never guessed. */
+  | { ok: false; ambiguousAge: number };
+
+/**
+ * The clarifying exchange for that ambiguity. "90" typed under year-worded copy means 1990; typed
+ * by a ninety-year-old it means ninety. Guessing either way computes somebody else's target, so
+ * Spud asks — the quick reply takes it as an age, four digits take it as the year.
+ */
+export const AMBIGUOUS_AGE = {
+  line: (age: number) =>
+    `Want to be sure I read that right — if you meant the year ${age + 1900}, send all four digits.`,
+  confirm: (age: number) => `I'm ${age}`,
+};
 
 /**
  * A typed number, checked before it costs a round trip.
@@ -600,30 +613,41 @@ export type NumberAnswer =
  * screen accepts is one the server accepts too, so the only refusals a user can meet are the two
  * that have words: the age minimum and the healthy-BMI floor.
  */
-export function checkNumber(field: NumberField, raw: string, today = new Date()): NumberAnswer {
-  const match = raw.match(/-?\d+(?:[.,]\d+)?/);
-  const value = match ? Number(match[0].replace(",", ".")) : NaN;
+const INVALID_AGE = "That doesn't look like an age — try something like 34.";
 
-  // THE QUESTION IS AN AGE, THE COLUMN IS A YEAR. "How old are you?" is what people answer without
-  // arithmetic; `birth_year` is what the profile stores, because an age stored as a number is wrong
-  // within twelve months (`types.ts`). This is the one place the two meet: the typed age becomes the
-  // year it implies, and `answerLabel` turns it back on a replay.
+const parseNumber = (s: string): number => {
+  const match = s.match(/-?\d+(?:[.,]\d+)?/);
+  return match ? Number(match[0].replace(",", ".")) : NaN;
+};
+
+export function checkNumber(field: NumberField, raw: string, today = new Date()): NumberAnswer {
+  // THE QUESTION IS AN AGE, AND THE AGE IS WHAT TRAVELS. "How old are you?" is what people answer
+  // without arithmetic; `birth_year` is what the profile stores, because an age stored as a number
+  // is wrong within twelve months (`types.ts`). The subtraction happens in `engine/profile.ts`,
+  // with the SERVER's clock — a device sitting across a UTC year boundary derived a year off by
+  // one and got a legitimate sixteen-year-old refused.
+  //
+  // A FOUR-DIGIT ANSWER IS THE YEAR ITSELF. Copy saved before this question changed still asks for
+  // one, and people type years out of habit anyway. The thousands separator is stripped FIRST:
+  // "1.990" is how a German writes 1990 and "1,990" is the US form, and read as decimals they were
+  // age 1 — which reached the account-deleting stop from a typo.
   if (field === "birth_year") {
-    // A FOUR-DIGIT ANSWER IS THE YEAR ITSELF, AND IT IS TAKEN. The words are fetched at runtime, so
-    // copy saved on a server — or cached on the phone — before this question changed still asks
-    // "your year of birth?", and its version cannot be told from the new default's: a save on the
-    // old server stamped it 6 too. Refusing "1990" under that question is a dead end with a hint
-    // ("34") that contradicts the bubble above it. No age is a thousand and no birth year is under
-    // one, so the two cannot be misread.
-    const typed = Math.trunc(value);
+    const typed = Math.trunc(parseNumber(raw.replace(/(\d)[.,](\d{3})(?!\d)/g, "$1$2")));
     const age = typed >= 1000 ? today.getUTCFullYear() - typed : typed;
-    if (!Number.isFinite(value) || age < 0 || age > 100) {
-      return { ok: false, line: "That doesn't look like an age — try something like 34." };
+    if (!Number.isFinite(age) || age < 0 || age > 100) {
+      return { ok: false, line: INVALID_AGE };
     }
-    if (age < MIN_AGE) return { ok: false, underAge: true };
-    return { ok: true, value: today.getUTCFullYear() - age };
+    // THE STOP IS FOR ANSWERS THAT PLAUSIBLY MEAN A CHILD. Its quick reply deletes the account, so
+    // "0", "-0.4" and a premature send of "3" — typos, not toddlers — get the retry line instead,
+    // from which nothing worse than retyping can happen.
+    if (age < MIN_AGE) {
+      return age >= 5 ? { ok: false, underAge: true } : { ok: false, line: INVALID_AGE };
+    }
+    if (typed >= 85 && typed <= 99) return { ok: false, ambiguousAge: typed };
+    return { ok: true, value: age };
   }
 
+  const value = parseNumber(raw);
   if (!Number.isFinite(value)) return { ok: false, line: INVALID[field] };
   const [lo, hi] = BANDS[field];
   if (value < lo || value > hi) return { ok: false, line: INVALID[field] };
@@ -748,8 +772,10 @@ export function answerLabel(prompt: ChatPrompt, p: Profile, content: OnboardingC
     return tags.map((t) => opts[t]?.label ?? t).join(" · ");
   }
   if (raw === null) return null;
-  // Typed as an age, stored as a year: drawn back as what was typed. See `checkNumber`.
-  if (prompt.field === "birth_year") return String(ageFrom(raw as number) ?? raw);
+  // Typed as an age, stored as a year: drawn back as what was typed. Plain subtraction, NOT
+  // `ageFrom` — that is an eligibility band, and at its edge (an accepted 100-year-old crossing
+  // New Year) it returned null and the fallback drew the raw year in the user's own bubble.
+  if (prompt.field === "birth_year") return String(new Date().getUTCFullYear() - (raw as number));
   if (prompt.options) {
     const id = screenForStep(prompt.field);
     const opts = content.screens.find((s) => isKnownScreen(s.id) && s.id === id)?.options ?? {};

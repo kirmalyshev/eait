@@ -301,6 +301,12 @@ export interface PatchProfileRequest {
   goal?: Goal | null;
   sex?: Sex | null;
   birth_year?: number | null;
+  /**
+   * The age typed in onboarding. The server derives `birth_year` from it with ITS clock — a device
+   * sitting across a UTC year boundary derived a year off by one and got a legitimate
+   * sixteen-year-old refused. Never null: clearing the field goes through `birth_year: null`.
+   */
+  age?: number;
   height_cm?: number | null;
   weight_kg?: number | null;
   target_weight_kg?: number | null;
