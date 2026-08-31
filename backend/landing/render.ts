@@ -532,7 +532,20 @@ ${jsonLd(config)}
 ${
           primaryAction(config) === "form"
             ? `      ${subscribeFormEl(config, "hero")}
-      <p class="cta-note">${esc(subscribeSection.heroNote)}</p>`
+      <p class="cta-note">${esc(subscribeSection.heroNote)}</p>${
+                // THE ONE PLACE THE WEB SIGN-UP APPEARS IN A FORM BUILD, and it has to appear
+                // somewhere: `ctaBlock` is what carries `secondaryCta`, and a build with no store
+                // listing renders the form instead of it — so the link vanished in exactly the
+                // configuration where `/start` is the only place anybody can onboard at all.
+                //
+                // Once, in the hero, rather than under all five asks. The repetition on this page
+                // is ONE offer asked five times; a second offer beside each of them is a different
+                // page, and the argument for the repetition would stop being true.
+                secondaryCta(config, "hero")
+                  ? `
+      <p class="cta-note"><a class="cta-alt-inline" href="${esc(secondaryCta(config, "hero")!.href)}">${esc(secondaryCta(config, "hero")!.label)}</a></p>`
+                  : ""
+              }`
             : ctaBlock(config, "hero")
         }
       </div>

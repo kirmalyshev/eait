@@ -102,6 +102,23 @@ describe("config", () => {
     expect(primaryCta(withStart, "hero").href).toBe(ENV.EAIT__BACKEND__LANDING_APP_STORE_URL);
   });
 
+  test("offers the web sign-up in a FORM build too, where it is the only way in", () => {
+    // The configuration production is in today: no listing, so the hero renders the mailing-list
+    // form instead of `ctaBlock` — which is what carries `secondaryCta`. The link vanished here,
+    // in exactly the build where `/start` is the only place anybody can onboard at all.
+    const preLaunch = loadLandingConfig({
+      EAIT__BACKEND__LANDING_SITE_URL: ENV.EAIT__BACKEND__LANDING_SITE_URL,
+      EAIT__BACKEND__LANDING_API_URL: "https://api.eait.fit",
+      EAIT__BACKEND__LANDING_START_URL: "https://api.eait.fit/start",
+    });
+    expect(primaryAction(preLaunch)).toBe("form");
+    const page = renderLanding(preLaunch);
+    expect(page).toContain("https://api.eait.fit/start?start=web_hero");
+    // ONCE. The repetition on this page is one offer asked five times; a second offer beside each
+    // of them is a different page.
+    expect(page.match(/api\.eait\.fit\/start/g)).toHaveLength(1);
+  });
+
   test("says nothing about a web sign-up that is not configured", () => {
     expect(secondaryCta(config, "hero")?.href).not.toContain("/start");
     expect(html).not.toContain("set up your plan on the web");

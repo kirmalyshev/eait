@@ -297,7 +297,11 @@ a { color: inherit; }
 }
 .cta:hover { transform: translateY(-1px); box-shadow: 0 8px 28px -12px var(--accent); }
 .cta:active { transform: translateY(0); }
-.cta-alt { color: var(--muted); font-size: .9375rem; text-decoration: none; border-bottom: 1px solid var(--line-strong); padding-bottom: 2px; }
+.cta-alt-inline {
+    color: var(--accent);
+    text-underline-offset: .2em;
+  }
+  .cta-alt { color: var(--muted); font-size: .9375rem; text-decoration: none; border-bottom: 1px solid var(--line-strong); padding-bottom: 2px; }
 .cta-alt:hover { color: var(--text); border-bottom-color: var(--care); }
 .cta-note { margin-top: 1.25rem; font-size: .875rem; color: var(--dim); max-width: 40ch; }
 

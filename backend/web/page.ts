@@ -121,8 +121,12 @@ export function shell(title: string, body: string): string {
 </head><body><main>${body}</main></body></html>`;
 }
 
-export function html(body: string, status = 200): Response {
-  return new Response(body, {
+export function html(
+  body: string,
+  status = 200,
+  opts: { cookies?: readonly string[] } = {},
+): Response {
+  const res = new Response(body, {
     status,
     headers: {
       "content-type": "text/html; charset=utf-8",
@@ -134,6 +138,8 @@ export function html(body: string, status = 200): Response {
       "cache-control": "no-store",
     },
   });
+  for (const cookie of opts.cookies ?? []) res.headers.append("set-cookie", cookie);
+  return res;
 }
 
 const spud = `<div class="spud" role="img" aria-label="Spud, the eait mascot">${spudSvg("wave", "spud-start")}</div>`;
@@ -163,6 +169,12 @@ export interface QuestionView {
   placeholder: string | null;
   /** The server's own refusal, rendered rather than re-implemented. */
   error: string | null;
+  /**
+   * Extra submit buttons above the normal control — the app's quick replies, which is what they
+   * are: "Switch to losing" when the target runs the wrong way, "That's my real age" when the year
+   * says under sixteen. A refusal whose words offer a way out has to carry the way out.
+   */
+  actions: readonly { name: string; value: string; label: string }[];
   step: number;
   total: number;
 }
@@ -187,11 +199,30 @@ export function question(v: QuestionView): string {
       `${escape(o.label)}</label>`).join("") +
       `<button class="primary" type="submit">Continue</button>`;
   }
+  const actions = v.actions.map((a) =>
+    `<button type="submit" name="${escape(a.name)}" value="${escape(a.value)}">${escape(a.label)}</button>`,
+  ).join("");
   return shell("eait", `
 <p class="progress">QUESTION ${v.step} OF ${v.total}</p>
 ${v.error ? `<p class="notice">${escape(v.error)}</p>` : ""}
 ${bubbles(v.lines)}
-<form method="post" action="/start/q">${hidden}${controls}</form>
+<form method="post" action="/start/q">${hidden}${actions}${controls}</form>
+`);
+}
+
+/**
+ * The end of the road, and the only page here with nothing to press.
+ *
+ * Its one caller is the under-sixteen stop, whose words promise that nothing was kept — so the
+ * account is deleted before this renders. A page that said it while a row survived would be the
+ * worst sentence on this surface.
+ */
+export function stopped(title: string, body: string, lines: readonly string[]): string {
+  return shell(title, `
+${spud}
+<h1>${escape(title)}</h1>
+<p class="muted">${escape(body)}</p>
+${bubbles(lines)}
 `);
 }
 

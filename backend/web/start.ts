@@ -19,9 +19,11 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
-  RESTRICTION_TAGS, SCREEN_OPTIONS, askLines, askPlaceholder, disabledScreens, isAnswered,
-  promptsFor, screenForStep, screenOptions,
-  type ChatPrompt, type OnboardingContent, type PatchProfileRequest, type Profile,
+  RESTRICTION_TAGS, SCREEN_OPTIONS, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines, askPlaceholder,
+  checkDirection, checkNumber, disabledScreens, isAnswered, promptsFor, screenForStep,
+  screenOptions, switchedLine,
+  type ChatPrompt, type Goal, type NumberField, type OnboardingContent, type PatchProfileRequest,
+  type Profile,
 } from "@ieat/shared";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
 import type { GoogleCodeExchange } from "../auth/google-web.ts";
@@ -29,7 +31,9 @@ import {
   onboardingContent, patchProfile, profileView, signInWithProvider, type EngineDeps,
 } from "../engine/index.ts";
 import type { Store } from "../store.ts";
-import { frontDoor, html, plan, question, PAGE_COPY, type QuestionOption } from "./page.ts";
+import {
+  frontDoor, html, plan, question, stopped, PAGE_COPY, type QuestionOption,
+} from "./page.ts";
 
 export type { GoogleCodeExchange } from "../auth/google-web.ts";
 
@@ -141,26 +145,52 @@ function optionsFor(prompt: ChatPrompt, content: OnboardingContent): QuestionOpt
   }));
 }
 
-/** What the app's own composer would send for this question. */
-function patchFor(prompt: ChatPrompt, answers: string[]): PatchProfileRequest | null {
+type Answered =
+  | { kind: "patch"; patch: PatchProfileRequest }
+  /** Refused before it costs a round trip, in the words `src/shared` wrote for it. */
+  | { kind: "refuse"; line: string; switchTo?: Goal }
+  /** Under sixteen. Not a validation failure — a stop, and the account goes with it. */
+  | { kind: "under-age" }
+  | { kind: "missing" };
+
+/**
+ * What the app's own composer would send for this question — through the SAME shared checks.
+ *
+ * `checkNumber` is not optional politeness here, it is the only thing that makes the answer mean
+ * what the question asked. The `birth_year` prompt ASKS FOR AN AGE and the column stores a year;
+ * that conversion lives in `src/shared` and nowhere else, so a web page doing its own `Number()`
+ * would take "34" and store it as a birth year — a person aged 1,992, refused by the server with a
+ * sentence about the year, under a bubble that asked how old they are. The bands it enforces are
+ * likewise a deliberate subset of the server's, so the only refusals anybody can meet are the two
+ * that have words written for them.
+ */
+function answerFor(prompt: ChatPrompt, answers: string[], profile: Profile): Answered {
   const field = prompt.field!;
   if (field === "restrictions") {
     const tags = answers.filter((a) => (RESTRICTION_TAGS as readonly string[]).includes(a));
     // The last question, so it is also the one that finishes onboarding — the same patch the app's
     // restrictions screen sends. No free-text box here: the app's is unstructured medical prose,
     // and a public web form is not where to start collecting it.
-    return { restrictions: tags, complete_onboarding: true };
+    return { kind: "patch", patch: { restrictions: tags, complete_onboarding: true } };
   }
   const value = answers[0];
-  if (value === undefined || value === "") return null;
+  if (value === undefined || value === "") return { kind: "missing" };
+
   if (prompt.kind === "number") {
-    const n = Number(value);
-    // Refused here rather than sent: `patchProfile` would reject a NaN with `out-of-range`, which
-    // is a true answer to the wrong question — the user typed something that is not a number.
-    if (!Number.isFinite(n)) return null;
-    return { [field]: field === "birth_year" ? Math.trunc(n) : n } as PatchProfileRequest;
+    const checked = checkNumber(field as NumberField, value);
+    if (!checked.ok) {
+      return "underAge" in checked ? { kind: "under-age" } : { kind: "refuse", line: checked.line };
+    }
+    // The wrong-direction check, which the server cannot make: `explainTargets` would accept a
+    // surplus aimed at a number below the current weight and produce a plan that cannot arrive,
+    // with nothing on any screen to say so.
+    if (field === "target_weight_kg" && profile.goal !== null && profile.weight_kg !== null) {
+      const wrong = checkDirection(profile.goal, profile.weight_kg, checked.value);
+      if (wrong) return { kind: "refuse", line: wrong.line, switchTo: wrong.switchTo };
+    }
+    return { kind: "patch", patch: { [field]: checked.value } as PatchProfileRequest };
   }
-  return { [field]: value } as PatchProfileRequest;
+  return { kind: "patch", patch: { [field]: value } as PatchProfileRequest };
 }
 
 /**
@@ -283,9 +313,17 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     const questions = questionsFor(profile, content);
     const openIndex = questions.findIndex((p) => !isAnswered(p, profile));
 
+    const ask = (error: string | null, actions: Action[] = []) =>
+      html(renderQuestion(questions, openIndex, profile, content, error, actions));
+
     if (req.method === "GET") {
       if (openIndex === -1) return seeOther(`${START_PREFIX}/plan`);
-      return html(renderQuestion(questions, openIndex, profile, content, null));
+      // The goal was just flipped mid-question, so the target is asked again in the words the app
+      // uses for it rather than in silence.
+      const switched = url.searchParams.has("switched") && profile.goal !== null
+        ? switchedLine(profile.goal)
+        : null;
+      return ask(switched);
     }
 
     if (req.method === "POST") {
@@ -297,15 +335,42 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       // in the app, and a stale tab must not be able to write an answer to a question already past.
       if (form?.get("prompt") !== open.id) return seeOther(`${START_PREFIX}/q`);
 
+      // The wrong-direction refusal's own escape: usually the goal was mistapped, not the number.
+      const switchTo = form.get("switch");
+      if (typeof switchTo === "string" && (switchTo === "lose" || switchTo === "gain")) {
+        await patchProfile(ctx.deps, userId, { goal: switchTo });
+        return seeOther(`${START_PREFIX}/q?switched=1`);
+      }
+
+      // The under-sixteen stop, taken. The account goes: "nothing you told me is kept" is a
+      // promise, and the goal and the sex answered a minute ago are already rows.
+      if (form.get("confirm") === "under-age") {
+        await ctx.store.deleteUser(userId);
+        return html(stopped(UNDER_AGE_CARD.title, UNDER_AGE_CARD.body, UNDER_AGE_LINES.stopped), 200, {
+          cookies: [clearCookie(SESSION_COOKIE, secure)],
+        });
+      }
+
       const answers = form.getAll("answer").filter((v): v is string => typeof v === "string");
-      const patch = patchFor(open, answers);
-      if (patch === null) {
-        return html(renderQuestion(questions, openIndex, profile, content, "That one needs an answer."));
+      const answer = answerFor(open, answers, profile);
+      if (answer.kind === "missing") return ask("That one needs an answer.");
+      if (answer.kind === "under-age") {
+        // Offered ONCE, in case a typo got us here. Confirming is what takes the stop.
+        return ask(UNDER_AGE_LINES.ask, [
+          { name: "confirm", value: "under-age", label: UNDER_AGE_LINES.confirm },
+        ]);
       }
-      const outcome = await patchProfile(ctx.deps, userId, patch);
-      if (outcome && !outcome.ok) {
-        return html(renderQuestion(questions, openIndex, profile, content, refusalText(outcome.rejected)));
+      if (answer.kind === "refuse") {
+        return ask(answer.line, answer.switchTo
+          ? [{
+              name: "switch",
+              value: answer.switchTo,
+              label: answer.switchTo === "lose" ? "Switch to losing" : "Switch to gaining",
+            }]
+          : []);
       }
+      const outcome = await patchProfile(ctx.deps, userId, answer.patch);
+      if (outcome && !outcome.ok) return ask(refusalText(outcome.rejected));
       return seeOther(`${START_PREFIX}/q`);
     }
   }
@@ -333,12 +398,16 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   return notFound();
 }
 
+/** A quick reply: an extra submit button beside the answer. */
+interface Action { name: string; value: string; label: string }
+
 function renderQuestion(
   questions: readonly ChatPrompt[],
   index: number,
   profile: Profile,
   content: OnboardingContent,
   error: string | null,
+  actions: Action[] = [],
 ): string {
   const prompt = questions[index]!;
   return question({
@@ -348,6 +417,7 @@ function renderQuestion(
     options: prompt.kind === "number" ? [] : optionsFor(prompt, content),
     placeholder: askPlaceholder(prompt, content),
     error,
+    actions,
     step: index + 1,
     total: questions.length,
   });

@@ -8,7 +8,8 @@
 
 import { beforeEach, describe, expect, it } from "bun:test";
 import {
-  DEFAULT_ONBOARDING_CONTENT, disabledScreens, explainTargets, lintCopy, type Profile,
+  DEFAULT_ONBOARDING_CONTENT, UNDER_AGE_CARD, UNDER_AGE_LINES, disabledScreens, explainTargets,
+  lintCopy, type Profile,
 } from "@ieat/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -124,7 +125,7 @@ async function answerAll(session: string, answers: Record<string, string | strin
 const ANSWERS: Record<string, string | string[]> = {
   goal: "lose",
   sex: "female",
-  birth_year: "1990",
+  birth_year: "34",
   height_cm: "170",
   weight_kg: "80",
   target_weight_kg: "70",
@@ -483,5 +484,119 @@ describe("the cookie is this surface's alone", () => {
     // would reach the router's outer catch and answer a JSON 500 on an HTML surface.
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/start");
+  });
+});
+
+describe("the numbers go through the shared checks, not this page's own", () => {
+  /**
+   * The one that would have shipped silently after the merge that made this question an age.
+   *
+   * The bubble asks how old you are; the column stores a year. `checkNumber` is the single place
+   * those meet, and a web page calling `Number()` instead would have stored 34 as a birth year — a
+   * person aged nearly two thousand, refused by the server with a sentence about the year, under a
+   * bubble that asked for an age.
+   */
+  it("stores the year a typed age implies", async () => {
+    const session = await signIn();
+    await post("/start/q", { prompt: "goal", answer: "lose" }, session);
+    await post("/start/q", { prompt: "sex", answer: "female" }, session);
+    await post("/start/q", { prompt: "birth_year", answer: "34" }, session);
+    const userId = (await store.userIdForToken(session.split("=")[1]!))!;
+    expect((await store.getProfile(userId))!.birth_year).toBe(new Date().getUTCFullYear() - 34);
+  });
+
+  it("still takes a four-digit year, for copy that still asks for one", async () => {
+    const session = await signIn();
+    await post("/start/q", { prompt: "goal", answer: "lose" }, session);
+    await post("/start/q", { prompt: "sex", answer: "female" }, session);
+    await post("/start/q", { prompt: "birth_year", answer: "1990" }, session);
+    const userId = (await store.userIdForToken(session.split("=")[1]!))!;
+    expect((await store.getProfile(userId))!.birth_year).toBe(1990);
+  });
+
+  it("refuses a height in the shared band, in the shared words", async () => {
+    const session = await signIn();
+    await post("/start/q", { prompt: "goal", answer: "lose" }, session);
+    await post("/start/q", { prompt: "sex", answer: "female" }, session);
+    await post("/start/q", { prompt: "birth_year", answer: "34" }, session);
+    const res = await post("/start/q", { prompt: "height_cm", answer: "500" }, session);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain("In centimetres");
+    const userId = (await store.userIdForToken(session.split("=")[1]!))!;
+    expect((await store.getProfile(userId))!.height_cm).toBeNull();
+  });
+});
+
+describe("the under-sixteen stop", () => {
+  const toAge = async (session: string, age: string) => {
+    await post("/start/q", { prompt: "goal", answer: "lose" }, session);
+    await post("/start/q", { prompt: "sex", answer: "female" }, session);
+    return post("/start/q", { prompt: "birth_year", answer: age }, session);
+  };
+
+  it("offers the typo once rather than stopping on the first answer", async () => {
+    const session = await signIn();
+    const html = await (await toAge(session, "12")).text();
+    expect(html).toContain(UNDER_AGE_LINES.ask);
+    expect(html).toContain('name="confirm" value="under-age"');
+    // Nothing written: the age was refused, not stored.
+    const userId = (await store.userIdForToken(session.split("=")[1]!))!;
+    expect((await store.getProfile(userId))!.birth_year).toBeNull();
+  });
+
+  it("DELETES the account when the age is confirmed, because the words promise it", async () => {
+    const session = await signIn();
+    await toAge(session, "12");
+    const userId = (await store.userIdForToken(session.split("=")[1]!))!;
+    const res = await post("/start/q", { prompt: "birth_year", confirm: "under-age" }, session);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain(UNDER_AGE_CARD.title);
+    expect(html).toContain(UNDER_AGE_LINES.stopped[0]!);
+    // "Nothing you told me is kept, and there is no account to delete" — so there must not be one.
+    expect(await store.getProfile(userId)).toBeNull();
+    expect(await store.userIdForToken(session.split("=")[1]!)).toBeNull();
+    expect(res.headers.getSetCookie().some((c) => c.startsWith("eait_web=;"))).toBe(true);
+  });
+});
+
+describe("a target that runs the wrong way", () => {
+  const toTarget = async (session: string) => {
+    for (const [prompt, answer] of [
+      ["goal", "lose"], ["sex", "female"], ["birth_year", "34"],
+      ["height_cm", "170"], ["weight_kg", "80"],
+    ] as const) {
+      await post("/start/q", { prompt, answer }, session);
+    }
+  };
+
+  it("is refused with the offer to switch the goal, and writes nothing", async () => {
+    const session = await signIn();
+    await toTarget(session);
+    // Losing, to a number above the current weight. `explainTargets` would take it and produce a
+    // plan that cannot arrive, with nothing on any screen to say so.
+    const res = await post("/start/q", { prompt: "target_weight_kg", answer: "90" }, session);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("not a loss from here");
+    expect(html).toContain('name="switch" value="gain"');
+    const userId = (await store.userIdForToken(session.split("=")[1]!))!;
+    expect((await store.getProfile(userId))!.target_weight_kg).toBeNull();
+  });
+
+  it("flips the goal and asks again in the words the app uses", async () => {
+    const session = await signIn();
+    await toTarget(session);
+    await post("/start/q", { prompt: "target_weight_kg", answer: "90" }, session);
+    const switched = await post("/start/q", { prompt: "target_weight_kg", switch: "gain" }, session);
+    expect(switched.status).toBe(303);
+    expect(switched.headers.get("location")).toBe("/start/q?switched=1");
+    const userId = (await store.userIdForToken(session.split("=")[1]!))!;
+    expect((await store.getProfile(userId))!.goal).toBe("gain");
+    const again = await (await get("/start/q?switched=1", session)).text();
+    expect(again).toContain("Switched — gaining it is");
+    // And the number that was refused a moment ago is now the right direction.
+    await post("/start/q", { prompt: "target_weight_kg", answer: "90" }, session);
+    expect((await store.getProfile(userId))!.target_weight_kg).toBe(90);
   });
 });
