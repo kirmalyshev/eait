@@ -89,13 +89,62 @@ export function iconSvg(): string {
 `;
 }
 
+/**
+ * The `description` meta, the `og:description`, and the description on three JSON-LD nodes.
+ *
+ * It does not rank, and it is not written as though it might. What it does is decide whether the
+ * result gets clicked, and a search engine bolds the words in it that match what was typed — so it
+ * leads with what the product IS in the words the category is searched by (`photograph`,
+ * `calories`, `protein`), and spends the rest on the two refusals that separate it from every
+ * other result on the page. It was assembled from the headline and the tagline before, which meant
+ * a snippet reading `The meal-verdict app` — a category of one, invented here, with no search
+ * volume anywhere.
+ *
+ * Kept near 155 characters, which is roughly where Google truncates on desktop.
+ */
 function metaDescription(): string {
-  return `${hero.headline} ${brand.tagline} Your first analysis needs no card, and photos are never stored.`;
+  return (
+    "Photograph a meal and get its calories, protein and a verdict against targets computed for " +
+    "your body. No card for the first one. Photos are never stored."
+  );
 }
 
 /**
- * Structured data for search and answer engines: the organisation, the site, and the FAQ — the one
- * section of the page already written as questions with self-contained answers.
+ * The numeric App Store id, read out of the listing URL rather than configured a second time.
+ *
+ * `https://apps.apple.com/app/eait/id6749…` → `6749…`. Null while there is no listing, which is
+ * what keeps the smart banner and the app's structured data off a page that cannot honour them.
+ */
+function appStoreId(config: LandingConfig): string | null {
+  return config.appStoreUrl?.match(/\/id(\d+)/)?.[1] ?? null;
+}
+
+/**
+ * Structured data for search and answer engines: the organisation, its founder, the site, this
+ * page, the app, and the FAQ.
+ *
+ * **`FAQPage` earns no rich result and has not since 7 May 2026**, when Google retired the feature
+ * for every site — it had already been restricted to authoritative government and health domains
+ * in August 2023. It stays because the job it does here is the other one: it hands a retrieval
+ * system five questions with self-contained answers, already separated from the page's prose,
+ * which is the shape an answer engine can quote. Nobody should expect a dropdown in a search
+ * result, and a future reader should not add `aggregateRating` hoping to revive one.
+ *
+ * **The app node appears only once the listing does.** Everything else here describes something
+ * that exists whatever state the release is in; a `MobileApplication` does not, and declaring one
+ * for an app nobody can install is the machine-readable version of the mismatch `surfaceNote`
+ * exists to confess in prose. It switches itself on with `EAIT__BACKEND__LANDING_APP_STORE_URL`,
+ * the same way the primary button does.
+ *
+ * **The app node is retrieval-only too, and it will never earn a rich result.** Google requires
+ * `name`, `offers.price`, and ONE of `aggregateRating`/`review`
+ * (developers.google.com/search/docs/appearance/structured-data/software-app, current as of
+ * 2025-12-10). We emit neither of the last two and will not: a rating nobody has given us is
+ * fabricated, and `offers.price: 0` is an unqualified "free" — the exact claim content.ts bars
+ * from this page, since one analysis then a subscription is not a free app. Missing required
+ * properties makes a node INELIGIBLE, not invalid; nothing is penalised and nothing breaks. It
+ * stays for the same reason `FAQPage` does: it tells a retriever what this software is, what it
+ * runs on and where it installs from. Do not "fix" the eligibility by inventing the two numbers.
  *
  * A data block, not a script — CSP's `script-src` governs execution and this never executes — but
  * it still lives inside a `<script>` element, so a literal `<` in an answer could end the element
@@ -103,37 +152,104 @@ function metaDescription(): string {
  */
 function jsonLd(config: LandingConfig): string {
   const site = config.siteUrl;
-  const graph = {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "Organization",
-        "@id": `${site}/#org`,
-        name: brand.name,
-        url: `${site}/`,
-        logo: `${site}/apple-touch-icon.png`,
-        email: config.supportEmail,
+  // `sameAs` is the App Store listing and NOTHING ELSE. It is an identity claim — "this
+  // organisation is also that profile" — and the bot link is not one: every `t.me` URL the page
+  // emits carries a `?start=` attribution code (`withStartCode`), and declaring one of those as
+  // the org's canonical identity would put a campaign parameter in the knowledge graph. A bot link
+  // WITHOUT the code would meanwhile be the one unattributed bot link on the page, which a test
+  // in landing.test.ts exists to prevent.
+  const sameAs = config.appStoreUrl ? [config.appStoreUrl] : [];
+  const graph: Record<string, unknown>[] = [
+    {
+      "@type": "Organization",
+      "@id": `${site}/#org`,
+      name: brand.name,
+      url: `${site}/`,
+      logo: `${site}/apple-touch-icon.png`,
+      email: config.supportEmail,
+      founder: { "@id": `${site}/#founder` },
+      ...(sameAs.length ? { sameAs } : {}),
+    },
+    {
+      // The one E-E-A-T signal this page can make honestly.
+      //
+      // It is a health-adjacent page, which is the category where Google and every answer engine
+      // weight who is behind the words most heavily — and the competitors that get cited invest
+      // exactly here: Lose It! declares dietitian authorship inside its own llms.txt, Simple ships
+      // an Editorial Guidelines page and a Scientific Review Process page. We cannot claim any of
+      // that and must not. What is true is that a named person builds this, uses it on himself,
+      // and is already named as the data controller in the privacy policy; `founder.line` is that
+      // claim in his own words and this is the same claim in a machine-readable one.
+      //
+      // NO POSTAL ADDRESS, and that is deliberate rather than an omission. The privacy policy
+      // carries one because the law requires it of a natural person acting as controller; putting
+      // it in JSON-LD would additionally publish a home address in the format built for
+      // harvesting, buying nothing a name does not already buy.
+      "@type": "Person",
+      "@id": `${site}/#founder`,
+      name: founder.by.split(",")[0]!.trim(),
+      description: founder.line,
+      worksFor: { "@id": `${site}/#org` },
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${site}/#website`,
+      url: `${site}/`,
+      name: brand.name,
+      description: metaDescription(),
+      publisher: { "@id": `${site}/#org` },
+    },
+    {
+      // `dateModified` is the copy-review date, for the same reason the sitemap's `lastmod` is —
+      // see `LandingConfig.updatedAt`. Answer engines weight recency, and a redeploy that changed
+      // nothing must not claim to be news.
+      "@type": "WebPage",
+      "@id": `${site}/#webpage`,
+      url: `${site}/`,
+      name: brand.title,
+      description: metaDescription(),
+      inLanguage: "en",
+      isPartOf: { "@id": `${site}/#website` },
+      dateModified: config.updatedAt,
+      // An ImageObject rather than a bare URL: schema.org's range for this property is the object,
+      // and a string here is the commonest reason a page validates with a warning nobody reads.
+      primaryImageOfPage: {
+        "@type": "ImageObject",
+        url: `${site}/og.png`,
+        width: OG_WIDTH,
+        height: OG_HEIGHT,
       },
-      {
-        "@type": "WebSite",
-        "@id": `${site}/#website`,
-        url: `${site}/`,
-        name: brand.name,
-        description: metaDescription(),
-        publisher: { "@id": `${site}/#org` },
-      },
-      {
-        "@type": "FAQPage",
-        "@id": `${site}/#faq`,
-        mainEntity: faqs.map((f) => ({
-          "@type": "Question",
-          name: f.q,
-          acceptedAnswer: { "@type": "Answer", text: f.a },
-        })),
-      },
-    ],
-  };
-  return `<script type="application/ld+json">${JSON.stringify(graph).replace(/</g, "\\u003c")}</script>`;
+    },
+    {
+      // Retired as a rich result in May 2026 (see the header). Kept for retrieval, not for SERP.
+      "@type": "FAQPage",
+      "@id": `${site}/#faq`,
+      mainEntity: faqs.map((f) => ({
+        "@type": "Question",
+        name: f.q,
+        acceptedAnswer: { "@type": "Answer", text: f.a },
+      })),
+    },
+  ];
+
+  if (config.appStoreUrl) {
+    graph.push({
+      "@type": "MobileApplication",
+      "@id": `${site}/#app`,
+      name: brand.name,
+      url: config.appStoreUrl,
+      installUrl: config.appStoreUrl,
+      description: metaDescription(),
+      applicationCategory: "HealthApplication",
+      operatingSystem: "iOS",
+      publisher: { "@id": `${site}/#org` },
+      // The frames the page itself shows, so what a rich result renders is what a visitor sees.
+      screenshot: shots.map((s) => `${site}/assets/${s.file}`),
+    });
+  }
+
+  const graphDoc = { "@context": "https://schema.org", "@graph": graph };
+  return `<script type="application/ld+json">${JSON.stringify(graphDoc).replace(/</g, "\\u003c")}</script>`;
 }
 
 function heroInstrument(): string {
@@ -466,7 +582,25 @@ export function outcomePages(config: LandingConfig): Record<string, string> {
  * fetched. `noindex` in the document is what removes it once it has been.
  */
 function robotsMeta(config: LandingConfig): string {
-  return config.indexable ? "" : '<meta name="robots" content="noindex, nofollow">\n';
+  if (!config.indexable) return '<meta name="robots" content="noindex, nofollow">\n';
+  // An indexable build says something too, and it is not "index, follow" — that is the default and
+  // writing it down changes nothing. `max-image-preview:large` is the one that does: without it
+  // Google serves a STANDARD thumbnail, which is what disqualifies a page from the large-image
+  // treatment in Discover. The share card is already 1200×630, so the size bar was met and the
+  // format forfeited on a missing directive. `max-snippet:-1` lifts the snippet length cap, which
+  // matters on a page whose FAQ answers are written to be quoted whole.
+  return '<meta name="robots" content="max-image-preview:large, max-snippet:-1">\n';
+}
+
+/**
+ * Safari's Smart App Banner, which is the one install surface a static page gets for free.
+ *
+ * Emitted only when the listing exists — the id comes out of that URL, so there is no second place
+ * to keep it in agreement. Apple resolves the banner itself; nothing is fetched by the page.
+ */
+function smartBanner(config: LandingConfig): string {
+  const id = appStoreId(config);
+  return id ? `<meta name="apple-itunes-app" content="app-id=${esc(id)}">\n` : "";
 }
 
 export function renderLanding(config: LandingConfig): string {
@@ -482,7 +616,7 @@ export function renderLanding(config: LandingConfig): string {
 <meta name="description" content="${esc(metaDescription())}">
 <meta name="theme-color" content="${esc(light.bg)}">
 <link rel="canonical" href="${esc(config.siteUrl)}/">
-${robotsMeta(config)}<link rel="icon" href="/favicon.ico" sizes="64x64">
+${robotsMeta(config)}${smartBanner(config)}<link rel="icon" href="/favicon.ico" sizes="64x64">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preload" href="/assets/fonts/space-grotesk-latin.woff2" as="font" type="font/woff2" crossorigin>

@@ -57,8 +57,24 @@ export interface Faq {
 
 export const brand = {
   name: "eait",
-  /** Used as the document title and the og:title. Kept under 60 characters for search results. */
-  title: "eait — will this meal fit your day?",
+  /**
+   * The document title and the og:title, under 60 characters so a search result does not truncate
+   * it.
+   *
+   * **The category name comes first and the brand comes last, and that ordering is the whole
+   * point.** It read `eait — will this meal fit your day?` for a long while: the brand voice, and
+   * two things nobody types into a search box. A page for an unknown product whose title carries
+   * only its own name can be found by people who already know the name, which is nobody. The
+   * rendered page uses the words `nutrition`, `macro`, `calorie counter` and `food tracker` a
+   * combined zero times; this is the one element where that is not survivable, because the title
+   * is the highest-weighted text on the page.
+   *
+   * `photo calorie tracker` is how the category is actually searched. `with a verdict` is the
+   * positioning `marketing/research/2026-07-26-meta-ad-teardown.md` §6 found nobody selling, and
+   * it is the H1's promise in three words. Neither is a health claim, so `claims.ts` permits both
+   * — `lose weight` is what it would refuse, and that is not a sentence this product needs.
+   */
+  title: "Photo calorie tracker with a verdict — eait",
   /** The positioning line the review panel found the page never says in one sentence. */
   tagline: "The meal-verdict app: it answers before it asks.",
 } as const;

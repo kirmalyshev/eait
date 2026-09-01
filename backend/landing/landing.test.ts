@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 
 import { assertClean, ClaimsError, copyFromHtml, lintCopy } from "./claims.ts";
 import {
-  loadLandingConfig, LandingConfigError, primaryAction, primaryCta, secondaryCta, surfaceNote, START_CODES,
+  DEFAULT_UPDATED_AT, loadLandingConfig, LandingConfigError, primaryAction, primaryCta, secondaryCta,
+  surfaceNote, START_CODES,
 } from "./config.ts";
 import { emphasis, esc, iconSvg, outcomePages, renderLanding } from "./render.ts";
 import { buildLanding } from "./build.ts";
@@ -15,8 +16,8 @@ import { color, dark, light, TOKEN_SOURCE } from "./tokens.ts";
 import { BODY, MASCOT_SOURCE, MOUTHS, SHEEN } from "./mascot.ts";
 import { styles } from "./styles.ts";
 import {
-  faqs, figures, figuresSection, founder, measured, refusals, floorSection, sample, screensSection,
-  shots, subscribeSection,
+  brand, faqs, figures, figuresSection, founder, measured, refusals, floorSection, sample,
+  screensSection, shots, subscribeSection,
 } from "./content.ts";
 import { BAD_SHARE, FREE_ANALYSES, KCAL_FLOOR, MAX_DEFICIT_SHARE, WARN_SHARE } from "@eait/shared";
 
@@ -414,9 +415,14 @@ describe("indexing is opt-in per environment", () => {
     expect(html).toContain('<meta name="robots" content="noindex, nofollow">');
   });
 
-  test("the production build carries no such meta", () => {
+  test("the production build refuses nothing and asks for a large image preview", () => {
+    // It used to carry no `robots` meta at all, which is not the same as carrying a permissive
+    // one: absent means Google's default, and the default serves a STANDARD image preview, which
+    // is what disqualifies a page from Discover's large-image treatment. The share card is already
+    // 1200×630, so the size bar was met and the format forfeited on a missing directive.
     const indexed = renderLanding(loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_INDEXABLE: "true" }));
-    expect(indexed).not.toContain('name="robots"');
+    expect(indexed).toContain('<meta name="robots" content="max-image-preview:large, max-snippet:-1">');
+    expect(indexed).not.toContain("noindex");
   });
 });
 
@@ -437,6 +443,20 @@ describe("the build output", () => {
     const robots = readFileSync(join(dir, "robots.txt"), "utf8");
     expect(robots).toContain("Allow: /");
     expect(robots).toContain("Sitemap: https://eait.fit/sitemap.xml");
+    // The answer engines are named because group matching is EXCLUSIVE (RFC 9309 §2.2.1): a bot
+    // that finds its own group ignores `*`. Naming them is what stops a later `Disallow:` under
+    // `*` taking them out of every AI answer as a side effect nobody meant.
+    for (const bot of ["GPTBot", "ClaudeBot", "PerplexityBot", "OAI-SearchBot", "Google-Extended"]) {
+      expect(robots).toContain(`User-agent: ${bot}\nAllow: /`);
+    }
+    // Every group ends up allowed, and there is exactly one Sitemap line for all of them.
+    expect(robots.match(/^Disallow:/m)).toBeNull();
+    // BINGBOT MUST NOT BE NAMED. The exclusivity that protects the answer engines would exempt a
+    // general crawler from a `Disallow:` added to `*` later, and Bing is the name here with real
+    // index volume. It reads the `*` group, where `Allow: /` already covers it. It was listed for
+    // one commit.
+    expect(robots).not.toContain("Bingbot");
+    expect(robots.match(/Sitemap:/g)!.length).toBe(1);
     expect(result.files).toContain("sitemap.xml");
     rmSync(dir, { recursive: true, force: true });
   });
@@ -722,6 +742,95 @@ describe("search and LLM engines", () => {
     expect(faqNode.mainEntity[0]!.name).toBe(faqs[0]!.q);
   });
 
+  /** The graph, parsed, for whichever config is asked about. */
+  const graphOf = (env: Record<string, string | undefined>) => {
+    const doc = renderLanding(loadLandingConfig(env));
+    const block = doc.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)![1]!;
+    return (JSON.parse(block) as { "@graph": Array<Record<string, unknown>> })["@graph"];
+  };
+
+  test("the title sells the category, not only the brand", () => {
+    // The failure this replaces: `eait — will this meal fit your day?`, which is the brand voice
+    // and two phrases nobody types. A title is the highest-weighted text on the page, and spending
+    // all of it on an unknown name means the page can only be found by people who know the name.
+    expect(brand.title.length).toBeLessThanOrEqual(60);
+    expect(brand.title.toLowerCase()).toContain("calorie");
+    expect(brand.title.toLowerCase()).toContain("tracker");
+    // Still ours: the differentiator and the brand both survive the rewrite.
+    expect(brand.title.toLowerCase()).toContain("verdict");
+    expect(brand.title).toContain(brand.name);
+    expect(html).toContain(`<title>${brand.title}</title>`);
+  });
+
+  test("the description is snippet-length and says what the thing is", () => {
+    const description = html.match(/<meta name="description" content="([^"]+)">/)![1]!;
+    // Google truncates around 155 on desktop; a snippet cut mid-clause is a wasted one.
+    expect(description.length).toBeGreaterThan(120);
+    expect(description.length).toBeLessThanOrEqual(160);
+    // `The meal-verdict app` was in here: a category of one, invented on this page, searched for
+    // by nobody. The words that replaced it are the ones a search engine can bold.
+    expect(description).not.toContain("meal-verdict");
+    for (const word of ["Photograph", "calories", "protein"]) expect(description).toContain(word);
+    // og: and the JSON-LD descriptions are the same string, never a second copy.
+    expect(html).toContain(`<meta property="og:description" content="${description}">`);
+  });
+
+  test("a named person stands behind a health-adjacent page", () => {
+    // The one E-E-A-T claim this page can make honestly. Competitors that get cited invest here —
+    // Lose It! declares dietitian authorship in its own llms.txt — and we cannot claim that. What
+    // is true is that a named person builds it and is already the named data controller.
+    const person = graphOf(ENV).find((node) => node["@type"] === "Person") as
+      | { name: string; description: string }
+      | undefined;
+    expect(person).toBeDefined();
+    expect(person!.name).toBe("Kirill");
+    expect(person!.description).toBe(founder.line);
+    const org = graphOf(ENV).find((node) => node["@type"] === "Organization")!;
+    expect(org.founder).toEqual({ "@id": "https://eait.fit/#founder" });
+    // NO POSTAL ADDRESS. The privacy policy carries one because the law requires it of a natural
+    // person; JSON-LD would publish a home address in the format built for harvesting.
+    expect(JSON.stringify(graphOf(ENV))).not.toContain("Lisa-Fittko");
+    expect(JSON.stringify(graphOf(ENV))).not.toContain("address");
+  });
+
+  test("the page node carries the copy-review date, not the build clock", () => {
+    // Answer engines weight recency, so this is the one date on the page — and it must be the
+    // date the WORDS changed. A nightly redeploy that changed nothing must not read as news.
+    // Same value, same reason, as the sitemap's `lastmod`.
+    const page = graphOf(ENV).find((node) => node["@type"] === "WebPage")!;
+    expect(page.dateModified).toBe(DEFAULT_UPDATED_AT);
+    expect(page.dateModified).toBe(loadLandingConfig(ENV).updatedAt);
+  });
+
+  test("the app's structured data and its install banner appear only once the listing does", () => {
+    // A `MobileApplication` for an app nobody can install is the machine-readable version of the
+    // mismatch `surfaceNote` confesses in prose — and it would be read back to somebody by an
+    // answer engine as a recommendation to go and install it. Both switch on with the store URL.
+    const withStore = graphOf(ENV);
+    const app = withStore.find((node) => node["@type"] === "MobileApplication") as
+      | { operatingSystem: string; installUrl: string; screenshot: string[] }
+      | undefined;
+    expect(app).toBeDefined();
+    expect(app!.operatingSystem).toBe("iOS");
+    expect(app!.installUrl).toBe(ENV.EAIT__BACKEND__LANDING_APP_STORE_URL);
+    expect(app!.screenshot.length).toBe(shots.length);
+    expect(html).toContain('<meta name="apple-itunes-app" content="app-id=0000000000">');
+
+    const preLaunch = { ...ENV, EAIT__BACKEND__LANDING_APP_STORE_URL: undefined };
+    expect(graphOf(preLaunch).map((node) => node["@type"])).not.toContain("MobileApplication");
+    expect(renderLanding(loadLandingConfig(preLaunch))).not.toContain("apple-itunes-app");
+  });
+
+  test("no price and no rating are ever asserted", () => {
+    // The price is per-territory and lives in App Store Connect (content.ts header); a rating we
+    // have not received is a fabricated one. Both are penalised in rich results and both are the
+    // kind of claim `claims.ts` exists to keep off this page.
+    const serialised = JSON.stringify(graphOf(ENV));
+    expect(serialised).not.toContain("aggregateRating");
+    expect(serialised).not.toContain("offers");
+    expect(serialised).not.toContain("priceCurrency");
+  });
+
   test("an indexable build ships llms.txt; a private one does not", async () => {
     const dir = outDir();
     const result = await buildLanding({ ...ENV, EAIT__BACKEND__LANDING_INDEXABLE: "true" }, dir);
@@ -738,6 +847,113 @@ describe("search and LLM engines", () => {
     const hidden = await buildLanding(ENV, dark);
     expect(hidden.files).not.toContain("llms.txt");
     rmSync(dark, { recursive: true, force: true });
+  });
+
+  test("llms.txt says whether the app can actually be installed yet", async () => {
+    // Everything under it describes an iPhone app. Read by an answer engine while that app is
+    // unreleased, the sections alone tell somebody to go and install it — the same mismatch
+    // `surfaceNote` exists to confess on the page, in the file a model quotes verbatim.
+    const dir = outDir();
+    const preLaunch = {
+      EAIT__BACKEND__LANDING_SITE_URL: ENV.EAIT__BACKEND__LANDING_SITE_URL,
+      EAIT__BACKEND__LANDING_TELEGRAM_URL: ENV.EAIT__BACKEND__LANDING_TELEGRAM_URL,
+      EAIT__BACKEND__LANDING_INDEXABLE: "true",
+    };
+    const text = readFileSync(
+      join((await buildLanding(preLaunch, dir)).outDir, "llms.txt"),
+      "utf8",
+    );
+    expect(text).toContain("## Availability");
+    expect(text).toContain(surfaceNote(loadLandingConfig(preLaunch))!);
+    expect(text).toContain(`Last reviewed: ${DEFAULT_UPDATED_AT}`);
+    rmSync(dir, { recursive: true, force: true });
+
+    const launched = outDir();
+    const shipped = readFileSync(
+      join((await buildLanding({ ...ENV, EAIT__BACKEND__LANDING_INDEXABLE: "true" }, launched)).outDir, "llms.txt"),
+      "utf8",
+    );
+    expect(shipped).not.toContain("## Availability");
+    rmSync(launched, { recursive: true, force: true });
+  });
+
+  test("the IndexNow key file is written only where a submission would be legitimate", async () => {
+    // The file at `/<key>.txt` is the whole verification mechanism: publishing it is what proves
+    // the key belongs to whoever submits URLs for this host. A preview container publishing one
+    // could push URLs on the real domain's behalf, so it is gated on `indexable` like the sitemap,
+    // and written by the build because `rm(outDir)` deletes anything placed by hand.
+    const key = "eait-indexnow-abc123";
+    const dir = outDir();
+    const built = await buildLanding(
+      { ...ENV, EAIT__BACKEND__LANDING_INDEXABLE: "true", EAIT__BACKEND__LANDING_INDEXNOW_KEY: key },
+      dir,
+    );
+    expect(built.files).toContain(`${key}.txt`);
+    expect(readFileSync(join(dir, `${key}.txt`), "utf8")).toBe(key);
+    rmSync(dir, { recursive: true, force: true });
+
+    const preview = outDir();
+    const hidden = await buildLanding({ ...ENV, EAIT__BACKEND__LANDING_INDEXNOW_KEY: key }, preview);
+    expect(hidden.files).not.toContain(`${key}.txt`);
+    rmSync(preview, { recursive: true, force: true });
+  });
+
+  test("a key that would become a bad filename is refused, not sanitised", () => {
+    // It becomes a filename on this origin, so a slash or a dot writes somewhere nobody intended —
+    // and IndexNow itself only accepts 8-128 of [A-Za-z0-9-], so a bad key is a submission that
+    // fails at the engine with a 403 nobody is watching for.
+    for (const bad of ["short", "has/slash", "has.dot", "has space", "a".repeat(129)]) {
+      expect(() => loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_INDEXNOW_KEY: bad })).toThrow(
+        LandingConfigError,
+      );
+    }
+    expect(loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_INDEXNOW_KEY: "abcd-1234" }).indexNowKey)
+      .toBe("abcd-1234");
+    expect(loadLandingConfig(ENV).indexNowKey).toBeNull();
+  });
+
+  test("the two shared pages name the landing host as their canonical copy", async () => {
+    // `privacy.html` and `support.html` are served here AND on the API domain (deploy/Caddyfile) —
+    // App Store Connect requires both URLs and there is exactly one copy of the bytes. Without
+    // this the product has each of its legal pages indexed twice on two hostnames, competing:
+    // the failure `EAIT__BACKEND__LANDING_INDEXABLE` prevents for the marketing page.
+    const dir = outDir();
+    await buildLanding({ ...ENV, EAIT__BACKEND__LANDING_INDEXABLE: "true" }, dir);
+    for (const [page, path] of [["privacy.html", "/privacy"], ["support.html", "/support"]]) {
+      const doc = readFileSync(join(dir, page!), "utf8");
+      expect(doc).toContain(`<link rel="canonical" href="https://eait.fit${path}">`);
+      // The path the sitemap and the page's own footer link to — extensionless, as nginx serves it.
+      expect(readFileSync(join(dir, "sitemap.xml"), "utf8")).toContain(`https://eait.fit${path}<`);
+      // A description, because these two are indexable pages and a search result with none is a
+      // snippet the engine writes for you out of the first sentence it finds.
+      expect(doc).toMatch(/<meta name="description" content="[^"]{80,}">/);
+    }
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  test("the API host lets a crawler IN so it can read the noindex", () => {
+    // The trap this is the regression test for. A bare `Disallow: /` on that host looks stricter
+    // and is strictly worse: the crawler never fetches, so it never reads `X-Robots-Tag` or the
+    // canonical, while the URL can still be indexed title-only from a link elsewhere — and App
+    // Store Connect publishes exactly these two URLs, so that link exists. The `Allow:` lines
+    // must precede the `Disallow:`, and the header must still be set on the pages they open up.
+    const caddyfile = readFileSync(join(REPO_ROOT, "deploy/Caddyfile"), "utf8");
+    expect(caddyfile).toContain("handle /robots.txt");
+    const robots = caddyfile.slice(caddyfile.indexOf("handle /robots.txt"));
+    const allowPrivacy = robots.indexOf("Allow: /privacy");
+    const allowSupport = robots.indexOf("Allow: /support");
+    const disallow = robots.indexOf("Disallow: /\n");
+    expect(allowPrivacy).toBeGreaterThan(0);
+    expect(allowSupport).toBeGreaterThan(0);
+    expect(disallow).toBeGreaterThan(allowPrivacy);
+    expect(disallow).toBeGreaterThan(allowSupport);
+    expect(caddyfile).toContain('X-Robots-Tag "noindex"');
+    // An exact-path matcher, never a prefix: a prefix answered 200 for `/privacyanything`, which
+    // is unbounded duplicate URL space on a host that is now deliberately crawlable there.
+    expect(caddyfile).toContain("@legal path /privacy /privacy.html /support /support.html");
+    // Asserted on the DIRECTIVES rather than on the string, which also appears in prose above.
+    const directives = caddyfile.split("\n").filter((line) => !line.trim().startsWith("#"));
+    expect(directives.some((line) => /^\s*handle\s+\/(privacy|support)\*/.test(line))).toBe(false);
   });
 });
 

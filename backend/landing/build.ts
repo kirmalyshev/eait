@@ -11,16 +11,18 @@
 //
 // The two static pages App Store Connect requires — `deploy/public/privacy.html` and
 // `support.html` — are copied in beside the index rather than re-authored, so the landing host and
-// the API host serve the same bytes. Two copies of a privacy policy diverge, and the one that
-// diverges silently is the one nobody is reading.
+// the API host serve the same words. Two copies of a privacy policy diverge, and the one that
+// diverges silently is the one nobody is reading. The one thing added on the way through is a
+// canonical URL, which is the one fact a file served from two hostnames cannot state itself —
+// `canonicalised()`.
 
-import { mkdir, copyFile, stat, writeFile, rm } from "node:fs/promises";
+import { mkdir, copyFile, readFile, stat, writeFile, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assertClean, copyFromHtml } from "./claims.ts";
-import { loadLandingConfig, type LandingConfig } from "./config.ts";
+import { loadLandingConfig, surfaceNote, type LandingConfig } from "./config.ts";
 import {
   accuracySection, brand, faqs, forSection, hero, measured, refusals, shots, steps,
 } from "./content.ts";
@@ -124,8 +126,23 @@ export async function buildLanding(
   // beside it. Emitted only when the build is the one that should be found.
   if (config.indexable) await write("sitemap.xml", sitemap(config));
 
-  // llms.txt for answer engines, under the same opt-in as the sitemap and the same claims gate as
-  // the page — it is public copy, and copy for machines is quoted back to people verbatim.
+  // The IndexNow key file, under the same opt-in and for a stronger reason than the sitemap's: the
+  // file at this path is what PROVES the key belongs to whoever submits it, so a non-canonical host
+  // publishing one could push URLs on this domain's behalf. Written HERE rather than placed by hand
+  // because `rm(outDir)` above deletes anything a person put in the directory.
+  if (config.indexable && config.indexNowKey) {
+    await write(`${config.indexNowKey}.txt`, config.indexNowKey);
+  }
+
+  // llms.txt, under the same opt-in as the sitemap and the same claims gate as the page: it is
+  // public copy, and copy for machines is quoted back to people verbatim.
+  //
+  // IT IS A HEDGE, NOT A CHANNEL, and nothing downstream should be planned as though it were.
+  // Google has said plainly that no Search system reads or acts on it, and as of early 2026 no
+  // major lab has committed to acting on it in production either; crawlers have been observed
+  // fetching it occasionally, which is not the same as it changing an answer. It costs one
+  // generated file assembled from constants that already exist, it is genuinely read by developer
+  // tooling pointed at a domain, and it is free to be right early. That is the whole case.
   if (config.indexable) {
     const text = llmsTxt(config);
     assertClean({ "llms.txt": text });
@@ -143,12 +160,34 @@ export async function buildLanding(
           `it is not optional and there is no fallback copy.`,
       );
     }
-    await copyFile(source, join(outDir, page));
-    files.push(page);
-    bytes += (await stat(source)).size;
+    await write(page, canonicalised(await readFile(source, "utf8"), config, page));
   }
 
   return { outDir, files, bytes };
+}
+
+/**
+ * The two shared pages, given the one thing a file served from two hostnames cannot carry: which
+ * of them is the address of record.
+ *
+ * `deploy/public/privacy.html` and `support.html` are served BOTH here and, by Caddy, on the API
+ * domain — App Store Connect requires the URLs and there must be exactly one copy of the bytes
+ * (`docs/RELEASE.md`). Two hostnames serving identical documents is a duplicate the domain has to
+ * compete with, which is the failure `LandingConfig.indexable` exists to prevent for the landing
+ * page itself; a canonical is that same fix for these two. It is INJECTED rather than written into
+ * the file because the origin is configuration — a canonical guessed wrong is silently wrong in
+ * every search result, so the source file states no origin at all and the build states the one it
+ * was given.
+ *
+ * The API host's copies are additionally answered with `X-Robots-Tag: noindex` (deploy/Caddyfile),
+ * because a crawler that never indexes them never has to be told which one wins.
+ */
+function canonicalised(html: string, config: LandingConfig, page: string): string {
+  if (!html.includes("</head>")) {
+    throw new Error(`deploy/public/${page} has no </head>, so the canonical URL cannot be added.`);
+  }
+  const path = `/${page.replace(/\.html$/, "")}`;
+  return html.replace("</head>", `<link rel="canonical" href="${config.siteUrl}${path}">\n</head>`);
 }
 
 /**
@@ -163,7 +202,29 @@ function robots(config: LandingConfig): string {
   if (!config.indexable) {
     return "# Not the canonical deployment of this page. See EAIT__BACKEND__LANDING_INDEXABLE.\nUser-agent: *\nDisallow: /\n";
   }
-  return `User-agent: *\nAllow: /\nSitemap: ${config.siteUrl}/sitemap.xml\n`;
+  // The answer engines are named, and it is NOT decoration. robots.txt group matching is
+  // exclusive: a crawler obeys the most specific `User-agent` group that names it and IGNORES the
+  // `*` group entirely (RFC 9309 §2.2.1). So while `Allow: /` under `*` permits all of these
+  // today, a later `Disallow:` added to `*` — a template, a WAF's "block AI bots" toggle, a path
+  // somebody wants out of search — would silently take them with it. These groups are what make
+  // that a deliberate act rather than a side effect. Safe to keep exclusive because the whole site
+  // is three public URLs and there is nothing here to hide from a reader.
+  //
+  // `Google-Extended` and `Applebot-Extended` are opt-OUT tokens rather than crawlers: absence
+  // already means allowed. They are listed anyway, so that the decision has one home.
+  const answerEngines = [
+    "GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-SearchBot", "Claude-User",
+    "PerplexityBot", "Perplexity-User", "Google-Extended", "Applebot-Extended", "CCBot",
+    "meta-externalagent",
+  ];
+  // BINGBOT IS DELIBERATELY NOT IN THAT LIST, and it was for one commit. The exclusivity that
+  // protects the answer engines is the same exclusivity that would exempt a general search
+  // crawler from a `Disallow:` added to `*` later, and Bing is the one name here with real index
+  // volume behind it — the worst possible place to lose a rule silently. It reads the `*` group,
+  // where `Allow: /` already covers it.
+  const groups = ["User-agent: *", "Allow: /", ""];
+  for (const bot of answerEngines) groups.push(`User-agent: ${bot}`, "Allow: /", "");
+  return `${groups.join("\n")}\nSitemap: ${config.siteUrl}/sitemap.xml\n`;
 }
 
 /**
@@ -175,6 +236,7 @@ function robots(config: LandingConfig): string {
  * model quotes verbatim to somebody who never opens the page.
  */
 function llmsTxt(config: LandingConfig): string {
+  const availability = surfaceNote(config);
   const lines: string[] = [
     `# ${brand.name}`,
     "",
@@ -184,6 +246,11 @@ function llmsTxt(config: LandingConfig): string {
     "",
     hero.audience,
     "",
+    // The one fact a model gets wrong for free. Everything below describes an iPhone app; while
+    // that app is unreleased, an answer engine reading only the sections would tell somebody to go
+    // and install it. `surfaceNote` is the same sentence the page prints for the same reason, and
+    // it returns null on the day the listing exists.
+    ...(availability ? ["## Availability", "", availability, ""] : []),
     "## Who it is for",
     "",
     ...forSection.rows.map((r) => `- ${r.title} ${r.body}`),
@@ -219,7 +286,9 @@ function llmsTxt(config: LandingConfig): string {
   if (config.appStoreUrl) {
     lines.push(`- [iPhone app](${config.appStoreUrl}): on the App Store`);
   }
-  lines.push("");
+  // Recency is a ranking input for answer engines, and this is the honest date: when the copy was
+  // last reviewed, not when the container was last rebuilt. Same value as the sitemap's `lastmod`.
+  lines.push("", `Last reviewed: ${config.updatedAt}`, "");
   return lines.join("\n");
 }
 

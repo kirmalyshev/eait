@@ -47,6 +47,18 @@ export interface LandingConfig {
    */
   indexable: boolean;
   /**
+   * The IndexNow key, or null. Absent means no key file and no submission.
+   *
+   * IndexNow is a push: instead of waiting to be crawled, the deploy tells the engines which URLs
+   * changed. Bing, Yandex, Naver and Seznam act on it; **Google does not and has said so**, so this
+   * buys nothing on the engine that matters most and is worth having anyway — a domain with no
+   * authority is crawled by Bing rarely enough that "rarely" and "never" are hard to tell apart.
+   *
+   * A key, not a secret. It is published at `/<key>.txt` on this very origin, which is the whole
+   * verification mechanism: only somebody who can write to the site can prove the key is theirs.
+   */
+  indexNowKey: string | null;
+  /**
    * The API origin the subscribe form posts to. Absent means the page renders no form at all.
    *
    * Separate from everything else here because it is the one value that makes the page do
@@ -150,11 +162,35 @@ export function loadLandingConfig(env: Record<string, string | undefined>): Land
   // finding its hostname in a search result.
   const indexable = env.EAIT__BACKEND__LANDING_INDEXABLE?.trim().toLowerCase() === "true";
 
-  return { siteUrl, appStoreUrl, telegramUrl, startUrl, supportEmail, updatedAt, indexable, apiUrl };
+  // Refused rather than sanitised, like every other value here. The key becomes a FILENAME on this
+  // origin, so a value carrying a slash or a dot writes somewhere nobody intended; and IndexNow
+  // itself requires 8–128 characters of `[A-Za-z0-9-]`, so a rejected key is a submission that
+  // fails at the engine with a 403 nobody is watching for.
+  const indexNowRaw = env.EAIT__BACKEND__LANDING_INDEXNOW_KEY?.trim();
+  if (indexNowRaw && !/^[A-Za-z0-9-]{8,128}$/.test(indexNowRaw)) {
+    throw new LandingConfigError(
+      "EAIT__BACKEND__LANDING_INDEXNOW_KEY must be 8-128 characters of A-Z, a-z, 0-9 or '-'. It " +
+        "becomes a filename on this origin and IndexNow rejects anything else.",
+    );
+  }
+  const indexNowKey = indexNowRaw || null;
+
+  return {
+    siteUrl, appStoreUrl, telegramUrl, startUrl, supportEmail, updatedAt, indexable, apiUrl,
+    indexNowKey,
+  };
 }
 
-/** Bumped by hand when the copy changes. See `LandingConfig.updatedAt` for why it is not a clock. */
-export const DEFAULT_UPDATED_AT = "2026-08-02";
+/**
+ * Bumped by hand when the copy changes. See `LandingConfig.updatedAt` for why it is not a clock.
+ *
+ * It is a hand-bumped date precisely so that it can be WRONG, and it was: the title, the meta
+ * description and the two shared pages' descriptions all changed while this still read
+ * `2026-08-02`, which put a stale `dateModified` on the page and a stale `lastmod` in the sitemap
+ * on the one day the copy had actually moved. Changing public words and not touching this line is
+ * the mistake to watch for.
+ */
+export const DEFAULT_UPDATED_AT = "2026-09-01";
 
 /**
  * Attribution codes, appended to the bot link as `?start=<code>`.

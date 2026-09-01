@@ -80,6 +80,62 @@ section is that it describes what actually runs.
 time. There is no admin for it, and there should not be: a marketing page is reviewed before it
 ships, not edited live.
 
+## Being found — by search engines and by answer engines
+
+All of it is opt-in per environment, behind `EAIT__BACKEND__LANDING_INDEXABLE`, for the reason in
+`config.ts`: a second host serving this same page on a real certificate is a duplicate competing
+with the domain, and undoing that costs weeks.
+
+| Emitted | What it is for |
+|---|---|
+| `<title>`, `description`, `rel=canonical` | The result itself. The canonical is the configured origin — never guessed. |
+| `og:*` + `twitter:card` | The share card. `og:image` is absolute; a relative one silently unfurls with no image. |
+| `robots.txt` + `sitemap.xml` | `Disallow: /` unless this is the build that should be found. `lastmod` is the copy-review date, not the build clock. |
+| `<meta name=robots>` | Only on a build nobody may index. It does the job `robots.txt` cannot: a URL discovered elsewhere is indexable without ever being fetched. |
+| `llms.txt` | The page's facts in the shape llmstxt.org proposes, assembled from the SAME constants the page renders. Through the claims gate, because copy for machines is quoted back to people verbatim. **A hedge, not a channel** — see below. |
+| JSON-LD | `Organization`, `Person` (the founder), `WebSite`, `WebPage`, `FAQPage`, and — once the listing exists — `MobileApplication`. |
+| `apple-itunes-app` | Safari's Smart App Banner. The id is read out of the store URL, so there is no second copy to keep in agreement. |
+
+**Two of these buy less than they look like they buy, and both are worth keeping anyway.**
+`FAQPage` earns no rich result and has not since **7 May 2026**, when Google retired the feature for
+every site (it had been restricted to authoritative government and health domains since August
+2023). It stays because its other job is real: it hands a retrieval system five questions with
+self-contained answers, already separated from the page's prose. And `llms.txt` is read by no
+production answer engine that has said so — Google has stated plainly that no Search system acts on
+it, and no major lab had committed to it as of early 2026. It costs one generated file assembled
+from constants that already exist, developer tooling genuinely reads it, and being right early is
+free. Plan nothing on either.
+
+**The title carries the category and the brand comes last**, because for an unknown product the
+reverse is a page findable only by people who already know the name. The rendered copy uses
+`nutrition`, `macro`, `calorie counter` and `food tracker` a combined zero times; the title is the
+one element where that is not survivable. `photo calorie tracker` is how the category is searched
+and `with a verdict` is the positioning — neither is a health claim, so `claims.ts` permits both.
+
+**A `Person` node names the founder, and carries no address.** It is a health-adjacent page, the
+category where who stands behind the words counts most, and the competitors that get cited invest
+heavily here (Lose It! declares dietitian authorship inside its own `llms.txt`). We cannot claim
+that and must not. What is true is that a named person builds this and is already the named data
+controller. The postal address in the privacy policy stays there: the law requires it of a natural
+person, and repeating it in JSON-LD would publish a home address in the format built for harvesting.
+
+**Three things are deliberately absent.** No `offers` and no `aggregateRating`: the price is
+per-territory and lives in App Store Connect, and a rating we have not received is a fabricated
+one — a test fails if either appears. No `MobileApplication` node and no install banner until
+`EAIT__BACKEND__LANDING_APP_STORE_URL` is set, because structured data for an app nobody can
+install is the machine-readable form of the mismatch `surfaceNote` confesses in prose; `llms.txt`
+carries that same sentence under **Availability** while it applies. And no `User-agent` block
+naming individual AI crawlers: `Allow: /` already permits every one of them, and the opt-out
+tokens (`Google-Extended`, `Applebot-Extended`) mean *allowed* by absence.
+
+**The two shared pages are served from two hostnames, so the build gives them a canonical.**
+`privacy.html` and `support.html` are the same bytes on the landing host and on the API domain —
+App Store Connect requires both URLs. `canonicalised()` injects `rel=canonical` naming the landing
+origin on the way out (injected, not written into the file, because the origin is configuration),
+and `deploy/Caddyfile` answers the API host's copies with `X-Robots-Tag: noindex` plus a
+`Disallow: /` robots.txt for that domain — which otherwise has none at all, the backend answering
+404 for it.
+
 ## The mailing list
 
 The one place this product holds an email address, and the reason it can go on saying the app does
