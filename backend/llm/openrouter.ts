@@ -92,12 +92,12 @@ export function openRouterPorts(opts: Options): LlmPorts {
    * and the coach loop, so there is one place a hung provider is abandoned and one place a
    * gateway status becomes a refund or does not.
    */
-  async function send(body: unknown, billed: boolean): Promise<{ choices?: Choice[] }> {
+  async function send(body: unknown, billed: boolean, budgetMs = opts.timeoutMs): Promise<{ choices?: Choice[] }> {
     // A model call that hangs used to hang FOREVER: the provider accepts the connection, never
     // answers, and holds the request, the photo and a worker slot until the process restarts.
     // Vision inference is slow, so the budget is generous — but it is finite.
     const abort = new AbortController();
-    const timer = setTimeout(() => abort.abort(), opts.timeoutMs);
+    const timer = setTimeout(() => abort.abort(), budgetMs);
     let res: Response;
     try {
       res = await doFetch(url, {
@@ -113,7 +113,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
     } catch (e) {
       // Reported as a timeout rather than as whatever the runtime called it, because the caller
       // turns this into "the analysis didn't come back" and the log is where the detail belongs.
-      if (abort.signal.aborted) throw new Error(`llm timeout after ${opts.timeoutMs}ms`);
+      if (abort.signal.aborted) throw new Error(`llm timeout after ${budgetMs}ms`);
       throw e;
     } finally {
       clearTimeout(timer);
@@ -314,9 +314,15 @@ export function openRouterPorts(opts: Options): LlmPorts {
    * reply ends it, a tool call is executed through the engine's closure and its result appended,
    * and the round after `MAX_COACH_ROUNDS` is sent with `tool_choice: "none"` so the model has to
    * answer with what it has. Every call is billed — the router already generated this turn.
+   *
+   * THE WHOLE TURN SHARES ONE `timeoutMs`, not one per call. The phone gives up at twice the
+   * server's budget — a router call and one behind it — and five calls each allowed the full
+   * budget would keep this process working, and paying, for minutes after the app had stopped
+   * waiting. A round that finds the budget spent throws, and `handleText` answers from the router.
    */
   const coach: Coach = async (input, tools) => {
     const defs = COACH_TOOL_DEFS.filter((d) => Object.hasOwn(tools, d.function.name));
+    const deadline = Date.now() + opts.timeoutMs;
     const messages: AgentMessage[] = [
       { role: "system", content: `${SYSTEM_COACH}\n\n${buildCoachContext(input.context)}` },
       ...input.history.map((h): AgentMessage => ({ role: h.role, content: coachLine(h.text) })),
@@ -341,7 +347,9 @@ export function openRouterPorts(opts: Options): LlmPorts {
         ...(defs.length > 0 ? { tools: defs } : {}),
         ...(defs.length > 0 && last ? { tool_choice: "none" as const } : {}),
       };
-      const choice = (await send(body, true)).choices?.[0];
+      const left = deadline - Date.now();
+      if (left <= 0) throw new Error(`coach ran past ${opts.timeoutMs}ms over ${round} tool round(s)`);
+      const choice = (await send(body, true, left)).choices?.[0];
       const calls = choice?.message?.tool_calls ?? [];
       if (calls.length > 0 && !last) {
         messages.push({ role: "assistant", content: choice?.message?.content ?? null, tool_calls: calls });
@@ -355,6 +363,8 @@ export function openRouterPorts(opts: Options): LlmPorts {
       if (raw === "") throw new Error(`coach returned an empty reply after ${round} tool round(s)`);
       let parsed: unknown = null;
       try { parsed = JSON.parse(raw); } catch { /* prose, handled below */ }
+      // A model that answered with a bare JSON string said a sentence, in quotes. Take the sentence.
+      if (typeof parsed === "string") parsed = { reply: parsed };
       if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
         const p = parsed as Record<string, unknown>;
         const reply = typeof p.reply === "string" ? p.reply.trim() : "";

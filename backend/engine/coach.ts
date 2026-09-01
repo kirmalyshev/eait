@@ -8,21 +8,17 @@
 
 import {
   type Answered, type MealRecord, type Profile, HEALTH_FIELDS, dateMinus, explainTargets,
-  isCalendarDate, localDate, localTime, projectGoal, projectionMonth,
+  isCalendarDate, localTime, projectGoal, projectionMonth,
 } from "@eait/shared";
 import type { ChatMessage } from "../store.ts";
 import type { CoachContext, CoachHistoryLine, CoachTools } from "../llm/port.ts";
+import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "../llm/port.ts";
 import type { EngineDeps } from "./deps.ts";
 import { toAnalysis } from "./meals.ts";
 
 /** Thread lines replayed to the coach, and the few of them the router sees. */
 export const COACH_HISTORY_LINES = 20;
 export const ROUTER_RECENT_LINES = 6;
-/** The widest window and the most rows one `get_meals` may return. */
-export const COACH_MEALS_WINDOW_DAYS = 31;
-export const COACH_MEALS_LIMIT = 60;
-/** The furthest back `get_health` reaches. */
-export const COACH_HEALTH_DAYS = 90;
 
 export interface CoachTurnInput {
   text: string;
@@ -32,6 +28,8 @@ export interface CoachTurnInput {
   week: { date: string; kcal: number; protein_g: number }[];
   /** Oldest first — what `recentLines` returned for this turn. */
   history: CoachHistoryLine[];
+  /** The caller's date for the turn — the one the analysis was charged to, never re-derived. */
+  today: string;
 }
 
 /**
@@ -58,8 +56,8 @@ function noteFor(m: ChatMessage, meals: Map<string, MealRecord>): string | null 
   const meal = m.mealId ? meals.get(m.mealId) : undefined;
   if (!meal) return "[a meal that was later deleted]";
   const what = meal.items.map((i) => i.name).join(", ") || "a meal";
-  const verb = m.event === "updated" ? "meal updated" : m.event === "redated" ? `meal moved to ${meal.date}` : "logged";
-  return `[${verb}: ${what} — ${Math.round(meal.kcal)} kcal, ${Math.round(meal.protein_g)} g protein${meal.date ? `, ${meal.date}` : ""}]`;
+  const verb = m.event === "updated" ? "meal updated" : m.event === "redated" ? "meal moved" : "logged";
+  return `[${verb}: ${what} — ${Math.round(meal.kcal)} kcal, ${Math.round(meal.protein_g)} g protein, ${meal.date}]`;
 }
 
 /**
@@ -68,7 +66,7 @@ function noteFor(m: ChatMessage, meals: Map<string, MealRecord>): string | null 
  */
 export async function coachTurn(deps: EngineDeps, userId: string, input: CoachTurnInput): Promise<Answered> {
   const zone = deps.config.timezone;
-  const today = localDate(zone);
+  const { today } = input;
   const { targets, basis } = explainTargets(input.profile);
   const projected = projectGoal(input.profile, basis);
   const context: CoachContext = {
@@ -111,12 +109,15 @@ export function coachTools(deps: EngineDeps, userId: string, today: string): Coa
       const asked = Number(args.days);
       const days = Number.isFinite(asked) ? Math.min(COACH_HEALTH_DAYS, Math.max(1, Math.floor(asked))) : 30;
       const rows = await deps.store.healthDaysSince(userId, dateMinus(today, days - 1));
-      // Only the readings a day carries: a row of nulls is noise the model pays for by the token.
-      return rows.map((d) => {
-        const out: Record<string, unknown> = { date: d.date };
-        for (const f of HEALTH_FIELDS) if (d[f.key] !== null) out[f.key] = d[f.key];
-        return out;
-      });
+      // Only the readings a day carries, and only days that carry one: a row of nulls is noise the
+      // model pays for by the token, and the definition promises it is not sent.
+      const out: Record<string, unknown>[] = [];
+      for (const d of rows) {
+        const row: Record<string, unknown> = { date: d.date };
+        for (const f of HEALTH_FIELDS) if (typeof d[f.key] === "number") row[f.key] = d[f.key];
+        if (Object.keys(row).length > 1) out.push(row);
+      }
+      return out;
     },
   };
 }

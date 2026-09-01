@@ -7,6 +7,7 @@
 import { expect, test } from "bun:test";
 import type { FoodTargets, Profile } from "@eait/shared";
 import { blankProfile } from "../store.ts";
+import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "./port.ts";
 import {
   COACH_TOOL_DEFS, CoachReplySchema, MealAnalysisSchema, SYSTEM, SYSTEM_COACH, SYSTEM_ROUTE,
   SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL, buildCoachContext, buildRouteText,
@@ -153,7 +154,8 @@ test("the coach prompt states Spud's rules", () => {
     "No medical advice",
     "No markdown",
     "Only what the user declared is scored",
-    "suggestions",
+    "suggestions are up to",
+    "never a question back at them",
   ]) expect(SYSTEM_COACH).toContain(rule);
 });
 
@@ -192,8 +194,15 @@ test("the coach reply schema takes a reply and short suggestions, and nothing el
   expect(CoachReplySchema.safeParse({ reply: "ok" }).success).toBe(true);
 });
 
-test("every coach tool the engine can supply has a definition the model reads", () => {
+test("every coach tool the engine can supply has a definition the model reads, stating the bound the engine enforces", () => {
   expect(COACH_TOOL_DEFS.map((t) => t.function.name)).toEqual(["get_meals", "get_health"]);
+  const meals = COACH_TOOL_DEFS.find((t) => t.function.name === "get_meals")!;
+  const health = COACH_TOOL_DEFS.find((t) => t.function.name === "get_health")!;
+  expect(meals.function.description).toContain(`at most ${COACH_MEALS_WINDOW_DAYS} days`);
+  // The row cap too: a model not told it sums the newest 60 as though they were the month.
+  expect(meals.function.description).toContain(`At most ${COACH_MEALS_LIMIT} meals`);
+  expect(health.function.description).toContain(`at most ${COACH_HEALTH_DAYS}`);
+  expect(JSON.stringify(health.function.parameters)).toContain(`"maximum":${COACH_HEALTH_DAYS}`);
 });
 
 test("the router prompt carries the thread's tail, contained, before the message", () => {

@@ -17,6 +17,7 @@ import type { FoodTargets, Profile } from "@eait/shared";
 import type { PortionPrior } from "../store.ts";
 import { MAX_SUGGESTION, MAX_SUGGESTIONS, MAX_USER_LINE, RESTRICTION_TAGS } from "@eait/shared";
 import type { CoachContext } from "./port.ts";
+import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "./port.ts";
 
 // ── Containment ──────────────────────────────────────────────────────────────────────────────
 
@@ -471,7 +472,7 @@ export const COACH_TOOL_DEFS = [
     type: "function" as const,
     function: {
       name: "get_meals",
-      description: "The user's logged meals in a date window (both ends inclusive, at most 31 days), newest first: every item with grams, the totals, the verdicts. Use it for any question about what they ate on days other than today.",
+      description: `The user's logged meals in a date window (both ends inclusive, at most ${COACH_MEALS_WINDOW_DAYS} days), newest first: every item with grams, the totals, the verdicts. At most ${COACH_MEALS_LIMIT} meals come back, the newest — a reply of exactly ${COACH_MEALS_LIMIT} is a window that was cut short, so narrow it before summing. Use it for any question about what they ate on days other than today.`,
       parameters: {
         type: "object",
         properties: {
@@ -487,10 +488,10 @@ export const COACH_TOOL_DEFS = [
     type: "function" as const,
     function: {
       name: "get_health",
-      description: "The user's health data from their phone — weight, body fat, steps, active and resting energy, exercise, sleep — one row per day, newest first, for the last N days (at most 90). Only days that carry a reading are returned.",
+      description: `The user's health data from their phone — weight, body fat, steps, active and resting energy, exercise, sleep — one row per day, newest first, for the last N days (at most ${COACH_HEALTH_DAYS}). Only days that carry a reading are returned.`,
       parameters: {
         type: "object",
-        properties: { days: { type: "integer", description: "How many days back, 1–90.", minimum: 1, maximum: 90 } },
+        properties: { days: { type: "integer", description: `How many days back, 1–${COACH_HEALTH_DAYS}.`, minimum: 1, maximum: COACH_HEALTH_DAYS } },
         required: ["days"],
         additionalProperties: false,
       },

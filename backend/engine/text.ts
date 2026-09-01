@@ -1,9 +1,11 @@
 // Free text: the chat surface's whole engine.
 //
-// One turn is one model call that decides among four intents, rather than a keyword router that
-// guesses. The context it decides with — today's meals, the week's sums, the focused meal — is
-// assembled here as STRUCTURED data, not as a replayed transcript: the question people actually ask
-// is "how much protein have I had", and a transcript answers that far worse than the rows do.
+// One turn starts with one model call that decides among four intents, rather than a keyword
+// router that guesses. The context it decides with — today's meals, the week's sums, the focused
+// meal, the thread's tail — is assembled here as STRUCTURED data, not as a replayed transcript: the
+// question people actually ask is "how much protein have I had", and a transcript answers that far
+// worse than the rows do. A question then goes to the coach (`coach.ts`), which is the one intent
+// that may spend more calls: the thread, the plan, and two tools over the user's own rows.
 
 import {
   type HandleTextResult, type MealAnalysis, type MealProposed, type MealRedated,
@@ -132,7 +134,7 @@ export async function handleText(
         // The router's own sentence is the FALLBACK, so a coach that fails degrades to the chat as
         // it was rather than to `analysis-failed` on a turn already charged.
         try {
-          return await coachTurn(deps, userId, { text: input.text, profile, focus, todayRows, week, history });
+          return await coachTurn(deps, userId, { text: input.text, profile, focus, todayRows, week, history, today });
         } catch (e) {
           console.error(`[eait] coach failed, answering from the router: ${(e as Error)?.message ?? e}`);
           return { kind: "answered", text: routed.text };

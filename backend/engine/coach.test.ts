@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { HEALTH_RETENTION_DAYS, type HealthDay, type MealRecord, dateMinus, localDate } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
-import type { CoachInput, CoachTools, LlmPorts } from "../llm/port.ts";
+import type { CoachInput, CoachTools, LlmPorts, TextInput } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { fakeMailer } from "../mail/fake.ts";
@@ -48,8 +48,14 @@ const meal = (userId: string, over: Partial<MealRecord> = {}): MealRecord => ({
 /** A coach that records what it was handed and answers a fixed line. */
 function recordingCoach(reply = "Here is the answer.", suggestions = ["And protein?"]) {
   const seen: { input: CoachInput; tools: CoachTools }[] = [];
-  const llm: LlmPorts = { ...demoPorts(), coach: async (input, tools) => { seen.push({ input, tools }); return { reply, suggestions }; } };
-  return { llm, seen };
+  const routed: TextInput[] = [];
+  const demo = demoPorts();
+  const llm: LlmPorts = {
+    ...demo,
+    routeText: async (i) => { routed.push(i); return demo.routeText(i); },
+    coach: async (input, tools) => { seen.push({ input, tools }); return { reply, suggestions }; },
+  };
+  return { llm, seen, routed };
 }
 
 beforeEach(() => {
@@ -92,7 +98,7 @@ describe("the coach turn", () => {
   });
 
   it("replays the thread oldest first, cards as notes about the meal as it is now, without the message itself", async () => {
-    const { llm, seen } = recordingCoach();
+    const { llm, seen, routed } = recordingCoach();
     const d = makeDeps(llm);
     const userId = await onboard();
     const m = meal(userId);
@@ -115,6 +121,7 @@ describe("the coach turn", () => {
       { role: "user", text: "thanks" },
     ]);
     // And the router saw the tail too, so a follow-up can route as one.
+    expect(routed[0]!.recent).toEqual(h.slice(-6));
   });
 
   it("bounds the history to the newest lines", async () => {
@@ -195,10 +202,11 @@ describe("the coach's tools", () => {
       active_kcal: null, resting_kcal: null, steps: null, exercise_minutes: null, workouts: null,
       distance_km: null, asleep_minutes: null, ...over,
     } as HealthDay);
-    await store.putHealthDays(userId, [day(t, { weight_kg: 69.5, steps: 8000 }), day(dateMinus(t, 100), { weight_kg: 72 })]);
+    await store.putHealthDays(userId, [day(t, { weight_kg: 69.5, steps: 8000 }), day(dateMinus(t, 100), { weight_kg: 72 }), day(dateMinus(t, 1))]);
     await store.putHealthDays(other, [day(t, { weight_kg: 90 })]);
     const tools = coachTools(deps, userId, t);
     const rows = await tools.get_health!({ days: 5000 }) as Record<string, unknown>[];
+    // The day with no readings at all is not a row: the definition says so, and a bare date is noise.
     expect(rows).toEqual([{ date: t, weight_kg: 69.5, steps: 8000 }]);
     expect(await tools.get_health!({ days: "junk" })).toHaveLength(1);
     expect(await tools.get_health!({ days: 0 })).toHaveLength(1);

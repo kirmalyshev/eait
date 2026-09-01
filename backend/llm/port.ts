@@ -2,8 +2,8 @@
 //
 // The engine depends on these FUNCTION TYPES, never on a vendor SDK. Swapping OpenRouter for
 // anything else is one file (`openrouter.ts`) plus one line in the composition root, and the
-// engine's tests bind fakes to the same three signatures — which is what lets cap enforcement,
-// verdict gating and the correction loop be tested without a billed call.
+// engine's tests bind fakes to the same four signatures — which is what lets cap enforcement,
+// verdict gating, the correction loop and the coach's tools be tested without a billed call.
 
 import type { DayTotals, FoodTargets, MealAnalysis, Profile, TargetBasis } from "@eait/shared";
 import type { PortionPrior } from "../store.ts";
@@ -189,6 +189,18 @@ export type Coach = (input: CoachInput, tools: CoachTools) => Promise<CoachReply
  * window do not need more than this to answer any question this product asks.
  */
 export const MAX_COACH_ROUNDS = 4;
+
+/**
+ * The tools' bounds, here because two files read them: the engine's closures enforce them
+ * (`engine/coach.ts`) and the definitions the model reads state them (`prompt.ts`). A bound the
+ * model is not told is one it cannot respect — and a row cap it is not told is a partial window
+ * summed as a whole one.
+ */
+/** The widest `get_meals` window, and the most rows one call returns — the newest. */
+export const COACH_MEALS_WINDOW_DAYS = 31;
+export const COACH_MEALS_LIMIT = 60;
+/** The furthest back `get_health` reaches. */
+export const COACH_HEALTH_DAYS = 90;
 
 export interface LlmPorts {
   analyzePhoto: AnalyzePhoto;
