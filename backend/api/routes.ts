@@ -22,10 +22,10 @@ import {
   type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
   type HealthDaysRequest, type HealthDaysResponse, type HealthResponse,
   HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, type PushTokenResponse,
-} from "@ieat/shared";
-import { LANGS } from "@ieat/shared";
+} from "@eait/shared";
+import { LANGS } from "@eait/shared";
 import { AuthError, type Verifier } from "../auth/verify.ts";
-import { isCalendarDate } from "@ieat/shared";
+import { isCalendarDate } from "@eait/shared";
 import type { Store } from "../store.ts";
 import {
   MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,

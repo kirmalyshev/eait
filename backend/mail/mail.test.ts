@@ -26,7 +26,7 @@ describe("the confirmation message", () => {
 
 describe("resendMailer", () => {
   const opts = {
-    apiKey: "test-key", from: "ieat <lets@eait.fit>",
+    apiKey: "test-key", from: "eait <lets@eait.fit>",
     baseUrl: "https://api.resend.test", timeoutMs: 5_000,
   };
 
@@ -45,7 +45,7 @@ describe("resendMailer", () => {
     expect(seen!.url).toBe("https://api.resend.test/emails");
     const body = JSON.parse(String(seen!.init.body));
     expect(body.to).toEqual(["reader@example.com"]);
-    expect(body.from).toBe("ieat <lets@eait.fit>");
+    expect(body.from).toBe("eait <lets@eait.fit>");
     expect(body.text).toContain(URL_);
     // No `html` field at all, rather than an empty one: a provider that receives both picks the
     // HTML part, and then there is a document to put a pixel in.
@@ -105,7 +105,7 @@ describe("logMailer", () => {
 
 describe("chooseMailer", () => {
   const base = {
-    mailProvider: "log" as const, mailFrom: "ieat <lets@eait.fit>", resendApiKey: "",
+    mailProvider: "log" as const, mailFrom: "eait <lets@eait.fit>", resendApiKey: "",
     resendBaseUrl: "https://api.resend.test", mailTimeoutMs: 1_000, landingUrl: "",
   };
   const quiet = async (fn: () => Promise<void>) => {

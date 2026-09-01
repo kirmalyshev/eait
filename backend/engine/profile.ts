@@ -1,6 +1,6 @@
 // Profile reads and writes, and the validation that makes onboarding safe.
 //
-// The onboarding SEQUENCE lives in `@ieat/shared` (`onboarding.ts`) because the app needs the same
+// The onboarding SEQUENCE lives in `@eait/shared` (`onboarding.ts`) because the app needs the same
 // answer to "what comes next" in order to render without a round trip. What lives HERE is the part
 // that must not be client-side: the validation. Every rejection below is a refusal the app has to
 // re-ask, and the target-weight one is a safety guard — a client that decided to skip it would
@@ -11,8 +11,8 @@ import { MAX_PROFILE_TEXT,
   isAcceptableWeightKg,
   type ActivityLevel, type Lang, type Pace, type PatchProfileRequest, type Profile,
   type Limits, type ProfileRejected, type ProfileResponse,
-} from "@ieat/shared";
-import { MIN_AGE } from "@ieat/shared";
+} from "@eait/shared";
+import { MIN_AGE } from "@eait/shared";
 import type { ProfilePatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { dailyPhotoCap, entitlementFor } from "./entitlement.ts";
@@ -194,7 +194,7 @@ export async function patchProfile(
 
 /** Free text → tags, keyword pass first, LLM only when it found nothing. */
 export async function classifyRestrictions(deps: EngineDeps, text: string): Promise<string[]> {
-  const { parseRestrictions } = await import("@ieat/shared");
+  const { parseRestrictions } = await import("@eait/shared");
   const keyword = parseRestrictions(text);
   if (keyword.length > 0) return keyword;
   try {

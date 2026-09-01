@@ -1,4 +1,4 @@
-import { REMINDER_TIME, FREE_ANALYSES } from "@ieat/shared";
+import { REMINDER_TIME, FREE_ANALYSES } from "@eait/shared";
 import { DEFAULT_SESSION_TTL_MS } from "./auth/tokens.ts";
 
 // Configuration, loaded once at startup and validated loudly.
@@ -149,8 +149,8 @@ export interface Config {
   /**
    * WHICH RevenueCat entitlement grants the paid tier.
    *
-   * The DEFAULT IS THE IDENTIFIER THAT ACTUALLY EXISTS in the RevenueCat project (`ieat_fit_pro`,
-   * project ieat․fit), not a generic `pro`. There is exactly one entitlement there and all three
+   * The DEFAULT IS THE IDENTIFIER THAT ACTUALLY EXISTS in the RevenueCat project (`eait_fit_pro`,
+   * project eait․fit), not a generic `pro`. There is exactly one entitlement there and all three
    * products hang off it, so a default that names anything else means every purchase is read as
    * `other-entitlement` and silently grants nothing — charged, and no tier. It was `pro` for a day
    * on the strength of a document rather than the dashboard.
@@ -164,7 +164,7 @@ export interface Config {
    * Accept webhook events from RevenueCat's SANDBOX environment (App Store sandbox, Test Store).
    * OFF by default: a simulated purchase must not grant a real entitlement. The one deployed host
    * opts in while purchases are exercised from development and TestFlight builds, and must switch
-   * it OFF the day the listing goes live (`ieat_revenuecat_accept_sandbox`).
+   * it OFF the day the listing goes live (`eait_revenuecat_accept_sandbox`).
    */
   revenueCatAcceptSandbox: boolean;
 
@@ -252,7 +252,7 @@ export interface Config {
    * When the evening line goes out, in this server's `timezone`.
    *
    * Configurable so a staging instance can reach the path without waiting until the evening. The
-   * DEFAULT is `REMINDER_TIME` from `@ieat/shared`, which is the 20:30 the onboarding copy promises
+   * DEFAULT is `REMINDER_TIME` from `@eait/shared`, which is the 20:30 the onboarding copy promises
    * — move it in production and step 18's promise becomes false.
    */
   eveningLineTime: { hour: number; minute: number };
@@ -357,7 +357,7 @@ export function configDefaults(): Config {
     googleAudiences: [],
     adminToken: "",
     revenueCatWebhookToken: "",
-    revenueCatEntitlementId: "ieat_fit_pro",
+    revenueCatEntitlementId: "eait_fit_pro",
     revenueCatAcceptSandbox: false,
     subscribeDailyCap: 200,
     subscribeConfirmTtlDays: 7,

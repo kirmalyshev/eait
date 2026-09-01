@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { HEALTH_RETENTION_DAYS, dateMinus, emptyHealthDay, localDate, type HealthDay } from "@ieat/shared";
+import { HEALTH_RETENTION_DAYS, dateMinus, emptyHealthDay, localDate, type HealthDay } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";

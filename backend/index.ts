@@ -15,7 +15,7 @@ import { chooseMailer } from "./mail/choose.ts";
 import { choosePush } from "./push/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import { collectPushReceipts, eveningSweep, msUntilNextEveningLine, RECEIPT_DELAY_MS, type EngineDeps } from "./engine/index.ts";
-import { localDate } from "@ieat/shared";
+import { localDate } from "@eait/shared";
 import { memoryStore } from "./store.memory.ts";
 import { postgresStore } from "./store.pg.ts";
 import type { Store } from "./store.ts";

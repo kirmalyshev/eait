@@ -4,7 +4,7 @@
 // THE BUDGET IS THE PRODUCT RULE, AND IT IS ENFORCED HERE
 //
 // R1 (`marketing/specs/2026-07-22-retention-plan.md` § 5) is one outbound message a day, INCLUDING
-// the two trial reminders. `dailyMessage` in `@ieat/shared` decides which one a day gets; this
+// the two trial reminders. `dailyMessage` in `@eait/shared` decides which one a day gets; this
 // module is what obeys it. On a reminder day the server stays SILENT — the phone scheduled that
 // notification locally at trial start, off `entitlement.expiresAt`, and pushing the evening line as
 // well would be two messages on the two days somebody is deciding whether to keep the app.
@@ -31,7 +31,7 @@ import {
   eveningPrescription,
   explainTargets, fillNotification, localDate, trialReminders, validateNotificationCopy,
   type NotificationCopy, type NotificationCopyValidation, type NotificationId,
-} from "@ieat/shared";
+} from "@eait/shared";
 import type { PushMessage, PushTicket } from "../push/port.ts";
 import { sumTotals } from "./meals.ts";
 import type { EngineDeps } from "./deps.ts";

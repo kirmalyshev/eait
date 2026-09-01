@@ -8,7 +8,7 @@ import { fakePush } from "../push/fake.ts";
 // exactly nothing here, and an unconfigured deployment must not have this surface at all.
 
 import { beforeEach, describe, expect, it } from "bun:test";
-import { DEFAULT_ONBOARDING_CONTENT, ROUTES, type OnboardingContent } from "@ieat/shared";
+import { DEFAULT_ONBOARDING_CONTENT, ROUTES, type OnboardingContent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";

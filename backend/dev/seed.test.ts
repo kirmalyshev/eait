@@ -1,7 +1,7 @@
 // The seeder, against the memory store. No database, no docker, runs on every `bun test`.
 
 import { describe, expect, test } from "bun:test";
-import { HEALTH_FIELDS } from "@ieat/shared";
+import { HEALTH_FIELDS } from "@eait/shared";
 import { memoryStore } from "../store.memory.ts";
 import { DEFAULT_SEED_PERSONA, SEED_PERSONAS, seedDeviceId, seedDevData } from "./seed.ts";
 

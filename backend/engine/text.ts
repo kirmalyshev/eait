@@ -8,8 +8,8 @@
 import {
   type HandleTextResult, type MealAnalysis, type MealProposed, type MealRedated,
   explainTargets,
-} from "@ieat/shared";
-import { dateMinus, isRefusal, localDate } from "@ieat/shared";
+} from "@eait/shared";
+import { dateMinus, isRefusal, localDate } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import type { ChatAppend } from "../store.ts";
 import { normalizePromptText } from "../llm/prompt.ts";

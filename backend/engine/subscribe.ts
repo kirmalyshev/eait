@@ -18,7 +18,7 @@
 //     deleting an account you may not have.
 //
 // The cost, stated plainly because it is the kind of thing that surprises people later: deleting
-// an ieat account does NOT remove an address from this list. The privacy policy says that.
+// an eait account does NOT remove an address from this list. The privacy policy says that.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // A ROW IS NOT A SUBSCRIBER. THE CONFIRMATION IS.

@@ -31,7 +31,7 @@
 // skimming should be able to take the load-bearing sentence out of each block without reading the
 // rest of it. A block with everything bold has nothing bold.
 
-import { FREE_ANALYSES, KCAL_FLOOR, MAX_DEFICIT_SHARE } from "@ieat/shared";
+import { FREE_ANALYSES, KCAL_FLOOR, MAX_DEFICIT_SHARE } from "@eait/shared";
 
 /** What an account gets before the app asks. The server's own number, not a sentence about it. */
 const SAMPLE_ANALYSES = FREE_ANALYSES;

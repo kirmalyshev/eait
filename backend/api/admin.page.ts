@@ -19,7 +19,7 @@ export const ADMIN_PAGE = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ieat — onboarding admin</title>
+<title>eait — onboarding admin</title>
 <style>
   :root {
     --bg: #0B0B0C; --surface: #141517; --raised: #1C1E21; --border: #26292E;
@@ -85,7 +85,7 @@ export const ADMIN_PAGE = `<!doctype html>
 <body>
 
 <div class="wrap gate" id="gate">
-  <h1>ieat admin</h1>
+  <h1>eait admin</h1>
   <p class="sub">Paste the admin token. It stays in this tab and is not written to disk.</p>
   <input type="password" id="token" placeholder="admin token" autocomplete="off">
   <p id="gate-error" class="hidden" style="color:var(--bad);font-size:13px"></p>
@@ -171,7 +171,7 @@ export const ADMIN_PAGE = `<!doctype html>
 (function () {
   "use strict";
 
-  var TOKEN_KEY = "ieat.admin.token";
+  var TOKEN_KEY = "eait.admin.token";
   var token = sessionStorage.getItem(TOKEN_KEY) || "";
   var content = null;
   var meta = null;

@@ -8,7 +8,7 @@ import { fakePush } from "../push/fake.ts";
 // text, is not hypothetical once the API is public.
 
 import { beforeEach, describe, expect, it } from "bun:test";
-import { ONBOARDING_PLACES, DEFAULT_ONBOARDING_CONTENT, type OnboardingContent } from "@ieat/shared";
+import { ONBOARDING_PLACES, DEFAULT_ONBOARDING_CONTENT, type OnboardingContent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";

@@ -18,7 +18,7 @@ import {
   faqs, figures, figuresSection, founder, measured, refusals, floorSection, sample, screensSection,
   shots, subscribeSection,
 } from "./content.ts";
-import { BAD_SHARE, FREE_ANALYSES, KCAL_FLOOR, MAX_DEFICIT_SHARE, WARN_SHARE } from "@ieat/shared";
+import { BAD_SHARE, FREE_ANALYSES, KCAL_FLOOR, MAX_DEFICIT_SHARE, WARN_SHARE } from "@eait/shared";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 

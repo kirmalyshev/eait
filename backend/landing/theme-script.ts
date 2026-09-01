@@ -28,7 +28,7 @@
 import { dark as darkTokens, light as lightTokens } from "./tokens.ts";
 
 /** The localStorage key. Namespaced so it cannot collide on a shared origin. */
-export const THEME_KEY = "ieat.theme";
+export const THEME_KEY = "eait.theme";
 
 export const themeScript = `(function () {
   var KEY = ${JSON.stringify(THEME_KEY)};
