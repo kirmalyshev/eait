@@ -22,9 +22,10 @@ import { createRouter } from "../api/routes.ts";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { PAGE_COPY } from "./page.ts";
-import type { GoogleCodeExchange } from "./start.ts";
+import type { WebProvider, WebSignInProvider } from "../auth/web-oauth.ts";
 
 const WEB_CLIENT = "web.apps.googleusercontent.com";
+const SERVICE_ID = "fit.eait.web";
 
 /** Every nonce the verifier was handed, so a test can prove the one from the cookie arrived. */
 let noncesSeen: (string | undefined)[] = [];
@@ -39,12 +40,20 @@ const testVerifier: Verifier = {
   async verifyAppleNotification() { throw new AuthError("not-in-these-tests"); },
 };
 
-/** Google's token endpoint, and the only thing here that is not real. */
-const exchange: GoogleCodeExchange = {
+/** The two token endpoints, and the only thing here that is not real. */
+const fakeProvider = (name: WebProvider, clientId: string): WebSignInProvider => ({
+  clientId,
+  authorizeEndpoint: `https://${name}.example/authorize`,
+  extraAuthorizeParams: name === "google" ? { prompt: "select_account" } : {},
   async exchange(code) {
     if (code === "bad-code") throw new Error("invalid_grant");
-    return `ok:google:${code}`;
+    return `ok:${name}:${code}`;
   },
+});
+
+const PROVIDERS: Partial<Record<WebProvider, WebSignInProvider>> = {
+  apple: fakeProvider("apple", SERVICE_ID),
+  google: fakeProvider("google", WEB_CLIENT),
 };
 
 const CONFIG: Config = {
@@ -54,6 +63,11 @@ const CONFIG: Config = {
   googleAudiences: [WEB_CLIENT],
   googleWebClientId: WEB_CLIENT,
   googleWebClientSecret: "web-secret",
+  appleAudiences: [SERVICE_ID],
+  appleServiceId: SERVICE_ID,
+  appleTeamId: "TEAM123456",
+  appleKeyId: "KEY1234567",
+  applePrivateKey: "-----BEGIN " + "PRIVATE KEY-----\nunused-by-the-fake\n-----END " + "PRIVATE KEY-----",
   publicApiUrl: "https://api.eait.fit",
 };
 
@@ -66,10 +80,10 @@ let handle: (req: Request) => Promise<Response>;
  * harness that rebuilt it on every call would hand every request a fresh allowance — a limiter that
  * is present, configured and untestable, which is the shape the real server never has.
  */
-function router(config: Config) {
+function router(config: Config, providers = PROVIDERS) {
   store = memoryStore();
   deps = { store, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
-  const handler = createRouter(deps, store, testVerifier, { googleExchange: exchange });
+  const handler = createRouter(deps, store, testVerifier, { webProviders: providers });
   handle = (req) => handler(req);
 }
 
@@ -97,11 +111,12 @@ function cookieFrom(res: Response, name: string): string {
 }
 
 /** Sign in the way a browser would: start, follow to Google, come back with a code. */
-async function signIn(subject = "web-subject"): Promise<string> {
-  const start = await get("/start/auth/google");
+async function signIn(subject = "web-subject", name: WebProvider = "google"): Promise<string> {
+  const start = await get(`/start/auth/${name}`);
   const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
   const oauth = cookieFrom(start, "eait_oauth");
-  const back = await get(`/start/auth/google/callback?code=${subject}&state=${encodeURIComponent(state)}`, oauth);
+  const back = await get(
+    `/start/auth/${name}/callback?code=${subject}&state=${encodeURIComponent(state)}`, oauth);
   expect(back.status).toBe(303);
   return cookieFrom(back, "eait_web");
 }
@@ -141,43 +156,90 @@ beforeEach(() => {
 });
 
 describe("the surface is off unless it is configured", () => {
-  it("404s every path when there is no web client id", async () => {
-    router({ ...CONFIG, googleWebClientId: "", googleWebClientSecret: "" });
-    for (const path of ["/start", "/start/q", "/start/plan", "/start/auth/google"]) {
+  it("404s every path when no provider is configured", async () => {
+    router(CONFIG, {});
+    for (const path of ["/start", "/start/q", "/start/plan", "/start/auth/google", "/start/auth/apple"]) {
       expect((await get(path)).status).toBe(404);
     }
   });
 
-  it("404s when the id is set and the secret is not, rather than half-working", async () => {
-    router({ ...CONFIG, googleWebClientSecret: "" });
-    expect((await get("/start")).status).toBe(404);
+  it("404s the routes of a provider this host does not offer, and only those", async () => {
+    router(CONFIG, { google: PROVIDERS.google! });
+    expect((await get("/start")).status).toBe(200);
+    expect((await get("/start/auth/google")).status).toBe(303);
+    // Not a redirect back to the front door: an unconfigured provider does not exist here, which
+    // is the answer every other unconfigured surface on this server gives.
+    expect((await get("/start/auth/apple")).status).toBe(404);
+    expect((await get("/start/auth/apple/callback?code=c&state=s")).status).toBe(404);
   });
 });
 
 describe("the front door", () => {
-  it("renders the welcome copy and one way in", async () => {
+  it("renders the welcome copy and one button per provider, Apple first", async () => {
     const res = await get("/start");
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/html");
     const html = await res.text();
+    expect(html).toContain("/start/auth/apple");
     expect(html).toContain("/start/auth/google");
+    expect(html).toContain("Continue with Apple");
+    expect(html).toContain("Continue with Google");
+    // Apple first, as on the app's sign-in screen: the option that asks for the least must not be
+    // the one that looks like the afterthought.
+    expect(html.indexOf("/start/auth/apple")).toBeLessThan(html.indexOf("/start/auth/google"));
     expect(html).toContain("Spud");
   });
 
+  it("offers only what is configured", async () => {
+    router(CONFIG, { apple: PROVIDERS.apple! });
+    const html = await (await get("/start")).text();
+    expect(html).toContain("Continue with Apple");
+    expect(html).not.toContain("Continue with Google");
+  });
 });
 
 describe("signing in", () => {
-  it("sends the browser to Google asking for openid and nothing else", async () => {
-    const res = await get("/start/auth/google");
-    expect(res.status).toBe(303);
-    const to = new URL(res.headers.get("location")!);
-    expect(to.origin + to.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
-    expect(to.searchParams.get("client_id")).toBe(WEB_CLIENT);
-    expect(to.searchParams.get("response_type")).toBe("code");
+  it.each(["apple", "google"] as const)(
+    "sends the browser to %s asking for openid and nothing else",
+    async (name) => {
+      const res = await get(`/start/auth/${name}`);
+      expect(res.status).toBe(303);
+      const to = new URL(res.headers.get("location")!);
+      expect(to.origin + to.pathname).toBe(`https://${name}.example/authorize`);
+      expect(to.searchParams.get("client_id")).toBe(name === "apple" ? SERVICE_ID : WEB_CLIENT);
+      expect(to.searchParams.get("response_type")).toBe("code");
+      // The whole of what is asked for. `profile` and `email` are what both vendors' own defaults
+      // add, and either would put "See your primary email address" on the consent screen of a
+      // product whose first promise is that it asks for neither.
+      expect(to.searchParams.get("scope")).toBe("openid");
+      expect(to.searchParams.get("redirect_uri"))
+        .toBe(`https://api.eait.fit/start/auth/${name}/callback`);
+      expect(to.searchParams.get("state")).toBeTruthy();
+      expect(to.searchParams.get("nonce")).toBeTruthy();
+    },
+  );
+
+  it("does not let a provider's own params overwrite the state or the scope", async () => {
+    // The extras are spread FIRST for this reason. A provider that could overwrite `state` would
+    // switch off the CSRF defence, and one that could overwrite `scope` would put "See your primary
+    // email address" on the consent screen — both silently, in a URL nobody reads.
+    router(CONFIG, {
+      google: {
+        ...PROVIDERS.google!,
+        extraAuthorizeParams: { state: "attacker", scope: "openid email profile", nonce: "fixed" },
+      },
+    });
+    const to = new URL((await get("/start/auth/google")).headers.get("location")!);
+    expect(to.searchParams.get("state")).not.toBe("attacker");
+    expect(to.searchParams.get("nonce")).not.toBe("fixed");
     expect(to.searchParams.get("scope")).toBe("openid");
-    expect(to.searchParams.get("redirect_uri")).toBe("https://api.eait.fit/start/auth/google/callback");
-    expect(to.searchParams.get("state")).toBeTruthy();
-    expect(to.searchParams.get("nonce")).toBeTruthy();
+  });
+
+  it("never sets response_mode, because a form_post callback would not carry the Lax cookie", async () => {
+    for (const name of ["apple", "google"] as const) {
+      const to = new URL((await get(`/start/auth/${name}`)).headers.get("location")!);
+      expect(to.searchParams.get("response_mode")).toBeNull();
+    }
   });
 
   it("writes the state cookie HttpOnly, Lax and Secure", async () => {
@@ -256,10 +318,37 @@ describe("signing in", () => {
   });
 
   it("404s an unconfigured host however often it is asked, rather than 429ing it", async () => {
-    router({ ...CONFIG, googleWebClientId: "", googleWebClientSecret: "", authRateLimitPerHour: 1 });
+    router({ ...CONFIG, authRateLimitPerHour: 1 }, {});
     for (let i = 0; i < 3; i++) {
       expect((await get("/start/auth/google/callback?code=x&state=y")).status).toBe(404);
     }
+  });
+
+  it("will not spend a state minted for one provider at the other's callback", async () => {
+    // The provider is in the cookie as well as in the path. Without that, a state issued on the way
+    // to Google is a state Apple's callback would accept — a stranger's half-finished sign-in
+    // completing against whichever provider they can produce a code for.
+    const start = await get("/start/auth/google");
+    const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
+    const res = await get(
+      `/start/auth/apple/callback?code=whoever&state=${encodeURIComponent(state)}`,
+      cookieFrom(start, "eait_oauth"),
+    );
+    expect(res.headers.getSetCookie().some((c) => c.startsWith("eait_web="))).toBe(false);
+    expect(res.headers.get("location")).toContain("/start?error=");
+  });
+
+  it("keeps the two providers' subjects apart, even when they are the same string", async () => {
+    // One subject under two providers is two identities and so two accounts. It is the same rule
+    // the E2E flows rely on, and it is what makes the wrong button in the app a real hazard rather
+    // than a cosmetic one.
+    const viaApple = await signIn("same-string", "apple");
+    const viaGoogle = await signIn("same-string", "google");
+    const a = await store.userIdForToken(viaApple.split("=")[1]!);
+    const g = await store.userIdForToken(viaGoogle.split("=")[1]!);
+    expect(a).toBeTruthy();
+    expect(g).toBeTruthy();
+    expect(a).not.toBe(g);
   });
 
   it("sends a failed exchange back to the front door without a session", async () => {
@@ -401,6 +490,23 @@ describe("the plan", () => {
     const html = await (await get("/start/plan", second)).text();
     expect(html).toContain(`https://pay.rev.cat/eait/${userId}`);
   });
+
+  // THE SENTENCE THIS WHOLE PROVIDER PAIR EXISTS FOR. The app offers both buttons and the wrong one
+  // does not find this account — it attaches to the anonymous one the install already has, so
+  // onboarding runs again and this plan, plus anything bought from it, stays on an account the
+  // phone is no longer in. `engine/identity.ts` never merges two real identities, so there is no
+  // repair downstream of getting this wrong.
+  it.each(["apple", "google"] as const)(
+    "tells a %s signup to press that same button in the app, not the other one",
+    async (name) => {
+      const session = await signIn(`sub-${name}`, name);
+      await answerAll(session, ANSWERS);
+      const html = await (await get("/start/plan", session)).text();
+      const [used, other] = name === "apple" ? ["Apple", "Google"] : ["Google", "Apple"];
+      expect(html).toContain(`Sign in with ${used}`);
+      expect(html).not.toContain(`Sign in with ${other}`);
+    },
+  );
 
   it("sends an unfinished profile back to the questions", async () => {
     const session = await signIn();

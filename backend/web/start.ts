@@ -26,7 +26,7 @@ import {
   type Profile,
 } from "@eait/shared";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
-import type { GoogleCodeExchange } from "../auth/google-web.ts";
+import type { WebProvider, WebSignInProvider } from "../auth/web-oauth.ts";
 import {
   onboardingContent, patchProfile, profileView, signInWithProvider, type EngineDeps,
 } from "../engine/index.ts";
@@ -35,11 +35,23 @@ import {
   frontDoor, html, plan, question, stopped, PAGE_COPY, type QuestionOption,
 } from "./page.ts";
 
-export type { GoogleCodeExchange } from "../auth/google-web.ts";
-
 export const START_PREFIX = "/start";
-const CALLBACK_PATH = "/start/auth/google/callback";
-const AUTHORIZE_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";
+
+/**
+ * `/start/auth/<provider>` and `/start/auth/<provider>/callback`.
+ *
+ * ONE PATH PER PROVIDER rather than one shared callback with the provider in the state, because
+ * each one has to be registered as an authorized redirect URI with its own console anyway — and a
+ * URL a person has to copy into Apple's developer portal by hand should be readable enough that
+ * they can tell whether they pasted the right one.
+ */
+const AUTH_PATH = /^\/start\/auth\/(apple|google)(\/callback)?$/;
+
+/** The label on each button, and the order they are offered in — Apple first, as in the app. */
+const PROVIDER_LABEL: Record<WebProvider, string> = {
+  apple: "Continue with Apple",
+  google: "Continue with Google",
+};
 
 /** The session, and the ten minutes of OAuth state that precedes it. */
 const SESSION_COOKIE = "eait_web";
@@ -54,7 +66,12 @@ export interface StartContext {
   deps: EngineDeps;
   store: Store;
   verifier: IdentityVerifier;
-  exchange: GoogleCodeExchange;
+  /**
+   * The providers this host can sign somebody in with, built from config by `webProviders`. An
+   * EMPTY record is what makes `/start` answer 404 on every path: a sign-up page with no way to
+   * sign up is not a degraded page, it is a page that does not exist.
+   */
+  providers: Partial<Record<WebProvider, WebSignInProvider>>;
   /**
    * This server's public origin — `EAIT__BACKEND__PUBLIC_API_URL` where it is set, which is what
    * every deployed host does (`iac/.../env.prod.j2`). The redirect URI is built from it.
@@ -221,56 +238,76 @@ function refusalText(r: { reason: string; minHealthyKg?: number }): string {
 
 export async function startRoutes(req: Request, url: URL, ctx: StartContext): Promise<Response> {
   const { config } = ctx.deps;
-  if (config.googleWebClientId === "" || config.googleWebClientSecret === "") return notFound();
+  const offered = (Object.keys(ctx.providers) as WebProvider[]);
+  if (offered.length === 0) return notFound();
 
   const { pathname } = url;
   const secure = ctx.origin.startsWith("https://");
   const cookies = cookieHeader(req);
-  const redirectUri = `${ctx.origin}${CALLBACK_PATH}`;
 
   // ── The front door ────────────────────────────────────────────────────────────────────────
   if (req.method === "GET" && (pathname === START_PREFIX || pathname === `${START_PREFIX}/`)) {
     const content = await onboardingContent(ctx.deps);
     const error = url.searchParams.has("error") ? PAGE_COPY.errorSignIn : null;
-    return html(frontDoor(content.welcome.lines, `${START_PREFIX}/auth/google`, error));
+    return html(frontDoor(content.welcome.lines, offered.map((p) => ({
+      href: `${START_PREFIX}/auth/${p}`, label: PROVIDER_LABEL[p],
+    })), error));
   }
 
   // ── Sign in ───────────────────────────────────────────────────────────────────────────────
-  if (req.method === "GET" && pathname === `${START_PREFIX}/auth/google`) {
-    const state = randomToken();
-    const nonce = randomToken();
-    const to = new URL(AUTHORIZE_ENDPOINT);
-    to.search = new URLSearchParams({
-      client_id: config.googleWebClientId,
-      redirect_uri: redirectUri,
-      response_type: "code",
-      // OPENID AND NOTHING ELSE. `profile` and `email` are what Google's own libraries add by
-      // default, and asking for either would put "See your primary email address" on the consent
-      // screen of a product whose first promise is that it asks for neither.
-      scope: "openid",
-      nonce,
-      state,
-      // The account chooser rather than a silent re-use: several people share a browser, and a
-      // sign-up that silently picks the last Google account creates the wrong one's diary.
-      prompt: "select_account",
-    }).toString();
-    return seeOther(to.toString(), [
-      setCookie(OAUTH_COOKIE, `${state}.${nonce}`, { secure, maxAge: OAUTH_TTL_S }),
-    ]);
-  }
+  const authMatch = req.method === "GET" ? AUTH_PATH.exec(pathname) : null;
+  if (authMatch) {
+    const name = authMatch[1] as WebProvider;
+    const provider = ctx.providers[name];
+    // A provider this host has not configured does not exist here — 404, the same answer every
+    // other unconfigured surface gives, and not a redirect back to a page offering one button.
+    if (!provider) return notFound();
+    const redirectUri = `${ctx.origin}${START_PREFIX}/auth/${name}/callback`;
 
-  if (req.method === "GET" && pathname === CALLBACK_PATH) {
+    if (authMatch[2] === undefined) {
+      const state = randomToken();
+      const nonce = randomToken();
+      const to = new URL(provider.authorizeEndpoint);
+      to.search = new URLSearchParams({
+        // The provider's own extras FIRST, so nothing it adds can override one of the six below.
+        // `state` is the CSRF defence and `scope` is the privacy promise; a provider that could
+        // overwrite either would do it silently, in a URL nobody reads.
+        ...provider.extraAuthorizeParams,
+        client_id: provider.clientId,
+        redirect_uri: redirectUri,
+        response_type: "code",
+        // OPENID AND NOTHING ELSE, for BOTH of them. `profile` and `email` are what Google's own
+        // libraries add by default and what Apple's documentation shows first, and asking for
+        // either would put "See your primary email address" on the consent screen of a product
+        // whose first promise is that it asks for neither.
+        //
+        // For Apple it is load-bearing twice over: a non-empty scope obliges `response_mode=
+        // form_post`, and a cross-site POST carries no `SameSite=Lax` cookie — see
+        // `auth/web-oauth.ts`.
+        scope: "openid",
+        nonce,
+        state,
+      }).toString();
+      return seeOther(to.toString(), [
+        // THE PROVIDER IS IN THE COOKIE, not only in the path. Without it a state minted on the way
+        // to one provider is spendable at the other's callback, which is a stranger's half-finished
+        // sign-in completing against whichever provider they can produce a code for.
+        setCookie(OAUTH_COOKIE, `${name}.${state}.${nonce}`, { secure, maxAge: OAUTH_TTL_S }),
+      ]);
+    }
+
     const failed = () => seeOther(`${START_PREFIX}?error=1`, [clearCookie(OAUTH_COOKIE, secure)]);
-    const [state, nonce] = (cookies[OAUTH_COOKIE] ?? "").split(".");
+    const [forProvider, state, nonce] = (cookies[OAUTH_COOKIE] ?? "").split(".");
     const code = url.searchParams.get("code") ?? "";
     // Everything about this comparison is the CSRF defence. An absent cookie fails it too, which is
     // what makes a callback replayed from somewhere else useless.
-    if (!state || !nonce || code === "" || url.searchParams.get("state") !== state) return failed();
+    if (!state || !nonce || forProvider !== name || code === "") return failed();
+    if (url.searchParams.get("state") !== state) return failed();
 
     // Charged HERE — after the state check, so a scanner cannot spend a shared CGNAT address's
-    // allowance with requests that were never going to reach Google, and before the exchange, which
-    // is the part that costs a socket and ten seconds. Never before the 404 gate at the top of this
-    // function: a 429 from an unconfigured host would say the surface exists.
+    // allowance with requests that were never going to reach a provider, and before the exchange,
+    // which is the part that costs a socket and ten seconds. Never before the gate at the top of
+    // this function: a 429 from an unconfigured host would say the surface exists.
     const wait = ctx.limitAuth();
     if (wait !== null) {
       return new Response("Too many sign-in attempts from this address. Try again shortly.\n", {
@@ -281,11 +318,11 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
 
     let token: string;
     try {
-      const idToken = await ctx.exchange.exchange(code, redirectUri);
+      const idToken = await provider.exchange(code, redirectUri);
       // The SAME verifier the app's route uses. Nothing about this being a browser makes the
       // signature, the issuer, the audience or the nonce optional.
       ({ token } = await signInWithProvider(
-        ctx.deps, ctx.verifier, "google", idToken, nonce,
+        ctx.deps, ctx.verifier, name, idToken, nonce,
         // No account is carried into this: a browser arriving here has no anonymous session to
         // merge, and there is nothing on this surface that could have created one.
         null,
@@ -405,7 +442,17 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   if (req.method === "GET" && pathname === `${START_PREFIX}/plan`) {
     const full = await profileView(ctx.deps, userId);
     if (!full || !full.onboarded) return seeOther(`${START_PREFIX}/q`);
+    // WHICH BUTTON TO PRESS IN THE APP, named rather than guessed, and the reason this page reads
+    // identities at all. The app offers both, and pressing the other one does not find this
+    // account: it attaches to the anonymous one the install already had, so onboarding runs a
+    // second time and the plan on this page — and any subscription bought from it — stays on an
+    // account the phone is no longer in. `engine/identity.ts` will not merge two real identities,
+    // so nothing downstream can repair it. One sentence naming the right button is what prevents it.
+    const identities = await ctx.store.listIdentities(userId);
+    const signedInWith = identities
+      .map((i) => i.provider).find((p): p is WebProvider => p === "apple" || p === "google") ?? null;
     return html(plan({
+      signedInWith,
       kcal: full.targets.kcal,
       proteinG: full.targets.protein_g,
       floorApplied: full.basis.floorApplied,

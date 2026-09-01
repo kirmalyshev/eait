@@ -34,7 +34,7 @@ import {
 } from "../engine/index.ts";
 import { confirmSubscription, subscribe, unsubscribe } from "../engine/subscribe.ts";
 import { adminRoutes } from "./admin.ts";
-import { googleCodeExchange, type GoogleCodeExchange } from "../auth/google-web.ts";
+import { webProviders, type WebProvider, type WebSignInProvider } from "../auth/web-oauth.ts";
 import { isStartPath, startRoutes } from "../web/start.ts";
 import { REVENUECAT_WEBHOOK_PATH, createRevenueCatWebhook } from "./revenuecat.ts";
 import { APPLE_NOTIFICATIONS_PATH, appleNotifications } from "./apple-notifications.ts";
@@ -85,8 +85,11 @@ const DAY = 24 * HOUR;
 
 /** What a test replaces. Everything else this router needs, it builds from `deps.config`. */
 export interface RouterOptions {
-  /** Google's token endpoint, for the web onboarding's callback. See `auth/google-web.ts`. */
-  googleExchange?: GoogleCodeExchange;
+  /**
+   * The web onboarding's sign-in providers. See `auth/web-oauth.ts`; a test replaces them so
+   * `/start` can be driven end to end without Apple or Google being reachable.
+   */
+  webProviders?: Partial<Record<WebProvider, WebSignInProvider>>;
 }
 
 export function createRouter(
@@ -96,8 +99,7 @@ export function createRouter(
   options: RouterOptions = {},
 ) {
   const handleRevenueCat = createRevenueCatWebhook();
-  const googleExchange = options.googleExchange
-    ?? googleCodeExchange(deps.config.googleWebClientId, deps.config.googleWebClientSecret);
+  const providers = options.webProviders ?? webProviders(deps.config);
   const bearer = (req: Request): string | null => {
     const header = req.headers.get("authorization");
     return header?.startsWith("Bearer ") ? header.slice(7) : null;
@@ -187,10 +189,11 @@ export function createRouter(
       //
       // The cookie is read inside that module and nowhere else, which is the point: `resolveUserId`
       // below stays bearer-only, because an API that accepts a cookie is an API another origin can
-      // post to on a signed-in browser. Off entirely unless the Google web client is configured.
+      // post to on a signed-in browser. Off entirely unless at least one web provider is
+      // configured — Apple, Google, or both.
       if (isStartPath(pathname)) {
         return await startRoutes(req, url, {
-          deps, store, verifier, exchange: googleExchange, origin: publicOrigin(req),
+          deps, store, verifier, providers, origin: publicOrigin(req),
           // The SAME per-address allowance the three sign-in routes below take, handed in rather
           // than taken here: that module spends it on its OAuth callback only, and only after the
           // gate that makes an unconfigured host answer 404 on every path under `/start`.

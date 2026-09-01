@@ -29,18 +29,27 @@ export function escape(text: string): string {
 export const PAGE_COPY = {
   frontDoorLead:
     "Set up your account here, then open the app already signed in. It takes about a minute.",
-  frontDoorButton: "Continue with Google",
   frontDoorPrivacy:
-    "We ask Google for an identifier and nothing else — no email address, no name, no contacts.",
+    "We ask for an identifier and nothing else — no email address, no name, no contacts.",
   planHeading: "Your plan",
   planLead: "This is what the app will hold you to. You can change any answer later, in the app.",
   planFloor:
     "This is the lowest daily intake this app will set, so the number is the floor rather than the " +
     "arithmetic. Eating under it is not something we will help you plan.",
   planAppHeading: "Now get the app",
+  /**
+   * The `{provider}` is filled in with the one they actually used. THIS SENTENCE IS THE FEATURE:
+   * the app offers both buttons, and the other one lands in a different account with onboarding to
+   * do again and this plan — and anything bought from it — left behind on an account nothing can
+   * merge into. Naming the right button is the only thing standing in front of that.
+   */
   planAppBody:
-    "Install eait for iPhone and choose Sign in with Google. It is the same account — your answers " +
-    "and your plan are already on it.",
+    "Install eait for iPhone and choose Sign in with {provider}. It is the same account — your " +
+    "answers and your plan are already on it.",
+  /** No identity at all, which the plan page can only reach through a state nothing produces. */
+  planAppBodyGeneric:
+    "Install eait for iPhone and sign in the same way you did here. It is the same account — your " +
+    "answers and your plan are already on it.",
   planCheckout: "Set up your subscription",
   errorSignIn: "That sign-in didn't complete. Try again.",
 } as const;
@@ -147,14 +156,27 @@ const spud = `<div class="spud" role="img" aria-label="Spud, the eait mascot">${
 const bubbles = (lines: readonly string[]): string =>
   lines.map((line) => `<p class="bubble">${escape(line)}</p>`).join("");
 
-export function frontDoor(welcome: readonly string[], signInHref: string, error: string | null): string {
+export interface SignInButton { href: string; label: string }
+
+/**
+ * The front door. ONE BUTTON PER CONFIGURED PROVIDER, in the order the caller gives them.
+ *
+ * The FIRST is the primary one, which is how the app's sign-in screen reads too: Apple, then
+ * Google. That ordering is not house style — the one that asks for the least should not be the
+ * button that looks like the afterthought.
+ */
+export function frontDoor(
+  welcome: readonly string[], buttons: readonly SignInButton[], error: string | null,
+): string {
   return shell("Start with eait", `
 ${spud}
 <h1>eait</h1>
 ${error ? `<p class="notice">${escape(error)}</p>` : ""}
 ${bubbles(welcome)}
 <p class="muted">${escape(PAGE_COPY.frontDoorLead)}</p>
-<a class="button primary" href="${escape(signInHref)}">${escape(PAGE_COPY.frontDoorButton)}</a>
+${buttons.map((b, i) =>
+  `<a class="button${i === 0 ? " primary" : ""}" href="${escape(b.href)}">${escape(b.label)}</a>`,
+).join("\n")}
 <p class="small muted">${escape(PAGE_COPY.frontDoorPrivacy)}</p>
 `);
 }
@@ -227,6 +249,8 @@ ${bubbles(lines)}
 }
 
 export interface PlanView {
+  /** Which provider signed this account in, so the app instruction can name that button. */
+  signedInWith: "apple" | "google" | null;
   kcal: number;
   proteinG: number;
   floorApplied: boolean;
@@ -249,6 +273,8 @@ ${v.checkoutUrl
   ? `<a class="button primary" href="${escape(v.checkoutUrl)}">${escape(PAGE_COPY.planCheckout)}</a>`
   : ""}
 <h2>${escape(PAGE_COPY.planAppHeading)}</h2>
-<p class="muted">${escape(PAGE_COPY.planAppBody)}</p>
+<p class="muted">${escape(v.signedInWith === null
+  ? PAGE_COPY.planAppBodyGeneric
+  : PAGE_COPY.planAppBody.replace("{provider}", v.signedInWith === "apple" ? "Apple" : "Google"))}</p>
 `);
 }

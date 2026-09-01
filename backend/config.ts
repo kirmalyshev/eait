@@ -116,6 +116,26 @@ export interface Config {
   webCheckoutUrl: string;
 
   /**
+   * Sign in with Apple, in a browser (`docs/WEB_ONBOARDING.md`). ALL FOUR OR NONE — with any of
+   * them empty the Apple button is not offered on `/start` and its two routes 404 with everything
+   * else that does not exist.
+   *
+   * IT IS A DIFFERENT CLIENT FROM THE APP'S, and that is Apple's design rather than ours: the app
+   * authorises as its BUNDLE ID and a browser authorises as a SERVICE ID. So the token that comes
+   * back here carries the Service ID as its `aud`, and `appleServiceId` must appear in
+   * `appleAudiences` — `loadConfig` refuses to start otherwise, for the reason the Google web
+   * client id has the same check.
+   *
+   * `applePrivateKey` is the `.p8` in PKCS#8 PEM, and it is the one credential here that is a
+   * SECRET. Apple does not issue a client secret; it issues this key, and the secret is a
+   * short-lived ES256 JWT minted from it per request (`auth/web-oauth.ts`).
+   */
+  appleServiceId: string;
+  appleTeamId: string;
+  appleKeyId: string;
+  applePrivateKey: string;
+
+  /**
    * How many days a bearer token survives WITHOUT BEING USED.
    *
    * Idle time, not absolute age — `auth/tokens.ts` has the argument. Configurable because the right
@@ -382,6 +402,10 @@ export function configDefaults(): Config {
     googleWebClientId: "",
     googleWebClientSecret: "",
     webCheckoutUrl: "",
+    appleServiceId: "",
+    appleTeamId: "",
+    appleKeyId: "",
+    applePrivateKey: "",
     adminToken: "",
     revenueCatWebhookToken: "",
     revenueCatEntitlementId: "eait_fit_pro",
@@ -444,6 +468,36 @@ export function loadConfig(): Config {
     );
   }
 
+  // Sign in with Apple on the web, checked the same way and for the same reasons.
+  //
+  // THE SERVICE ID IS A SECOND AUDIENCE, not a replacement for the bundle id: the app keeps signing
+  // in as `com.eait.fit.ios` while a browser signs in as the Service ID, so both belong in the list
+  // and dropping either one silently switches off one of the two surfaces.
+  const appleServiceId = process.env.EAIT__BACKEND__APPLE_SERVICE_ID ?? d.appleServiceId;
+  const appleWebParts = {
+    EAIT__BACKEND__APPLE_SERVICE_ID: appleServiceId,
+    EAIT__BACKEND__APPLE_TEAM_ID: process.env.EAIT__BACKEND__APPLE_TEAM_ID ?? d.appleTeamId,
+    EAIT__BACKEND__APPLE_KEY_ID: process.env.EAIT__BACKEND__APPLE_KEY_ID ?? d.appleKeyId,
+    EAIT__BACKEND__APPLE_PRIVATE_KEY: applePrivateKeyFromEnv(),
+  };
+  const appleWebSet = Object.entries(appleWebParts).filter(([, v]) => v !== "");
+  // ALL FOUR OR NONE, checked rather than tolerated. Three of the four is a host where the button
+  // renders and the exchange fails with Apple's `invalid_client`, which says nothing about which of
+  // them is missing.
+  if (appleWebSet.length > 0 && appleWebSet.length < 4) {
+    const missing = Object.entries(appleWebParts).filter(([, v]) => v === "").map(([k]) => k);
+    throw new Error(
+      `[eait] Sign in with Apple on /start needs all four of its settings or none; missing: ` +
+      `${missing.join(", ")} — see docs/WEB_ONBOARDING.md`,
+    );
+  }
+  if (appleServiceId !== "" && !list("EAIT__BACKEND__APPLE_AUDIENCES").includes(appleServiceId)) {
+    throw new Error(
+      "[eait] EAIT__BACKEND__APPLE_SERVICE_ID must also be listed in EAIT__BACKEND__APPLE_AUDIENCES, " +
+      "or every /start sign-in with Apple fails audience verification — see docs/WEB_ONBOARDING.md",
+    );
+  }
+
   const subscribeConfirmTtlDays = int("EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS", d.subscribeConfirmTtlDays);
   if (subscribeConfirmTtlDays < 1) {
     throw new Error("[eait] EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS must be at least 1");
@@ -491,6 +545,10 @@ export function loadConfig(): Config {
     googleAudiences,
     googleWebClientId,
     googleWebClientSecret: process.env.EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET ?? d.googleWebClientSecret,
+    appleServiceId,
+    appleTeamId: process.env.EAIT__BACKEND__APPLE_TEAM_ID ?? d.appleTeamId,
+    appleKeyId: process.env.EAIT__BACKEND__APPLE_KEY_ID ?? d.appleKeyId,
+    applePrivateKey: applePrivateKeyFromEnv(),
     webCheckoutUrl: webCheckoutUrlFromEnv(),
     adminToken: adminTokenFromEnv(),
     revenueCatWebhookToken: revenueCatWebhookTokenFromEnv(),
@@ -582,7 +640,7 @@ export function revenueCatWebhookTokenFromEnv(): string {
 export function redact(c: Config): Record<string, unknown> {
   const {
     llmApiKey: _k, adminToken: _a, resendApiKey: _r, revenueCatWebhookToken: _rc,
-    expoPushAccessToken: _e, googleWebClientSecret: _g, databaseUrl,
+    expoPushAccessToken: _e, googleWebClientSecret: _g, applePrivateKey: _ap, databaseUrl,
     ...rest
   } = c;
   return {
@@ -601,7 +659,11 @@ export function redact(c: Config): Record<string, unknown> {
     // Google's web client secret. A real secret — ansible carries it `no_log` and reads it back off
     // the host rather than re-deriving it — and this line is the only thing between it and every
     // container log, because `...rest` above would print it verbatim on every boot.
-    googleWebClientSecret: c.googleWebClientSecret === "" ? "(unset — /start is off)" : "***",
+    googleWebClientSecret: c.googleWebClientSecret === "" ? "(unset — Google is off on /start)" : "***",
+    // The Apple `.p8`. Destructured out above for the same reason and reinstated the same way: it
+    // is a multi-line PEM, so `...rest` would not merely leak it, it would leak it across twenty
+    // lines of a boot log where nobody reads to the end.
+    applePrivateKey: c.applePrivateKey === "" ? "(unset — Apple is off on /start)" : "***",
   };
 }
 
@@ -654,11 +716,19 @@ export function demoConfig(): Config {
     // onboarding copy is edited, and "works in demo, untested in production" is the shape of
     // every configuration bug that ships.
     adminToken: adminTokenFromEnv(),
-    // And the same argument for the web onboarding. `--demo` is where `/start` is developed and
-    // looked at; a demo that always answered 404 there would make the one surface with no app in
-    // front of it unreachable without a database and a deploy.
+    // And the same argument for the web onboarding, except that `--demo` no longer needs any of
+    // these to reach `/start` at all: `index.ts` gives it canned providers, because the surface's
+    // first act is to send the browser to Google or Apple and neither will authorise against a
+    // client id that does not exist. These are still read so a demo can be pointed at a REAL client
+    // when the thing being checked is the redirect itself. Nothing is weakened by the canned pair —
+    // the demo verifier a few lines below already accepts `demo:<provider>:<subject>` from anybody
+    // who can reach the process, which is why a demo server is a loopback thing and always was.
     googleWebClientId: process.env.EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID ?? "",
     googleWebClientSecret: process.env.EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET ?? "",
+    appleServiceId: process.env.EAIT__BACKEND__APPLE_SERVICE_ID ?? "",
+    appleTeamId: process.env.EAIT__BACKEND__APPLE_TEAM_ID ?? "",
+    appleKeyId: process.env.EAIT__BACKEND__APPLE_KEY_ID ?? "",
+    applePrivateKey: applePrivateKeyFromEnv(),
     webCheckoutUrl: webCheckoutUrlFromEnv(),
     // Same argument. The subscribe form's redirect is the one behaviour that cannot be checked
     // by reading the code — you have to POST the form and watch where the browser goes — and a
@@ -691,6 +761,30 @@ export function demoConfig(): Config {
  * entitlement never lands anywhere. That failure is invisible from this end and expensive at the
  * other, which is exactly the kind that belongs in a startup check.
  */
+/**
+ * The Apple `.p8`, read from the environment with its newlines put back.
+ *
+ * `\n` IS ACCEPTED AS AN ESCAPE, and it is not a convenience. This value is a multi-line PEM and
+ * it travels through a `.env` file, a compose `environment:` block and an ansible template, none of
+ * which carry a literal newline in a value without quoting rules that differ between all three. The
+ * single-line form is what every one of them can hold, so it is what the deploy writes.
+ *
+ * A value that is not a PKCS#8 PEM is a STARTUP ERROR rather than a callback that fails later:
+ * `importPKCS8` would throw inside a request handler, after Apple's consent screen, for everybody.
+ */
+export function applePrivateKeyFromEnv(): string {
+  const raw = (process.env.EAIT__BACKEND__APPLE_PRIVATE_KEY ?? "").replace(/\\n/g, "\n").trim();
+  if (raw === "") return "";
+  if (!raw.startsWith("-----BEGIN " + "PRIVATE KEY-----") || !raw.endsWith("-----END " + "PRIVATE KEY-----")) {
+    throw new Error(
+      "[eait] EAIT__BACKEND__APPLE_PRIVATE_KEY is not a PKCS#8 PEM — it must be the .p8 Apple " +
+      "downloads, whole, BEGIN and END lines included (newlines may be written as \\n). " +
+      "See docs/WEB_ONBOARDING.md",
+    );
+  }
+  return raw;
+}
+
 export function webCheckoutUrlFromEnv(): string {
   const raw = process.env.EAIT__BACKEND__WEB_CHECKOUT_URL ?? "";
   if (raw === "") return "";

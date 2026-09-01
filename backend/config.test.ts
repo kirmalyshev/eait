@@ -33,7 +33,19 @@ const VARS = [
   "EAIT__BACKEND__PUSH_ENABLED", "EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN", "EAIT__BACKEND__PUSH_TIMEOUT_MS",
   "EAIT__BACKEND__EVENING_LINE_TIME",
   "EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID", "EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET", "EAIT__BACKEND__WEB_CHECKOUT_URL",
+  "EAIT__BACKEND__APPLE_SERVICE_ID", "EAIT__BACKEND__APPLE_TEAM_ID", "EAIT__BACKEND__APPLE_KEY_ID",
+  "EAIT__BACKEND__APPLE_PRIVATE_KEY",
 ] as const;
+
+/** A syntactically real PKCS#8 PEM. Nothing here signs with it — `web-oauth.test.ts` does that. */
+const P8 = "-----BEGIN " + "PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49\n-----END " + "PRIVATE KEY-----";
+const APPLE_WEB = {
+  EAIT__BACKEND__APPLE_AUDIENCES: "com.eait.fit.ios, fit.eait.web",
+  EAIT__BACKEND__APPLE_SERVICE_ID: "fit.eait.web",
+  EAIT__BACKEND__APPLE_TEAM_ID: "TEAM123456",
+  EAIT__BACKEND__APPLE_KEY_ID: "KEY1234567",
+  EAIT__BACKEND__APPLE_PRIVATE_KEY: P8,
+};
 
 /** The two without defaults. Set for every test so `loadConfig` gets past its required checks. */
 function withRequired(extra: Record<string, string> = {}) {
@@ -177,6 +189,63 @@ describe("the web onboarding", () => {
     withRequired({ EAIT__BACKEND__GOOGLE_AUDIENCES: "" });
     delete process.env.EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID;
     expect(loadConfig().googleWebClientId).toBe("");
+  });
+
+  // Sign in with Apple in a browser is a SECOND CLIENT — a Service ID, not the bundle id — so it
+  // has its own audience, its own key, and its own version of every way to configure it half-way.
+  it("accepts the four Apple web settings together", () => {
+    withRequired(APPLE_WEB);
+    const c = loadConfig();
+    expect(c.appleServiceId).toBe("fit.eait.web");
+    expect(c.appleTeamId).toBe("TEAM123456");
+    expect(c.appleKeyId).toBe("KEY1234567");
+    expect(c.applePrivateKey).toContain("BEGIN PRIVATE KEY");
+    // The bundle id is still in the list. The app signs in as that and a browser as the Service ID;
+    // dropping either silently switches off one of the two surfaces.
+    expect(c.appleAudiences).toContain("com.eait.fit.ios");
+  });
+
+  it("refuses three of the four, naming the one that is missing", () => {
+    const { EAIT__BACKEND__APPLE_KEY_ID: _omitted, ...three } = APPLE_WEB;
+    withRequired(three);
+    expect(() => loadConfig()).toThrow(/APPLE_KEY_ID/);
+  });
+
+  it("refuses a Service ID that is not in the Apple audience list", () => {
+    withRequired({ ...APPLE_WEB, EAIT__BACKEND__APPLE_AUDIENCES: "com.eait.fit.ios" });
+    expect(() => loadConfig()).toThrow(/APPLE_AUDIENCES/);
+  });
+
+  it("refuses a private key that is not a PKCS#8 PEM, at boot rather than mid-callback", () => {
+    withRequired({ ...APPLE_WEB, EAIT__BACKEND__APPLE_PRIVATE_KEY: "MIGHAgEAMBMGByqGSM49" });
+    expect(() => loadConfig()).toThrow(/PKCS#8/);
+  });
+
+  it("puts the newlines back into a key written on one line", () => {
+    // Which is how it has to travel: a `.env` file, a compose `environment:` block and an ansible
+    // template have three different answers to a literal newline in a value, and one answer to
+    // `\n`.
+    withRequired({
+      ...APPLE_WEB,
+      EAIT__BACKEND__APPLE_PRIVATE_KEY: P8.replace(/\n/g, "\\n"),
+    });
+    expect(loadConfig().applePrivateKey).toBe(P8);
+  });
+
+  it("keeps the Apple private key out of a printed config", () => {
+    withRequired(APPLE_WEB);
+    const printed = JSON.stringify(redact(loadConfig()));
+    expect(printed).not.toContain("MIGHAgEAMBMGByqGSM49");
+    // The Service ID, the team and the key id are not secrets and say which client /start uses.
+    expect(printed).toContain("fit.eait.web");
+    expect(printed).toContain("KEY1234567");
+  });
+
+  it("stays off when none of the four is set, which is every host that has not created one", () => {
+    withRequired();
+    const c = loadConfig();
+    expect(c.appleServiceId).toBe("");
+    expect(c.applePrivateKey).toBe("");
   });
 
   it("refuses a checkout link with no {userId} in it", () => {

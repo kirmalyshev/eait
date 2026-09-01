@@ -10,6 +10,7 @@ import {
 } from "./config.ts";
 import { AuthError, remoteVerifier, type Verifier } from "./auth/verify.ts";
 import { createRouter } from "./api/routes.ts";
+import type { WebProvider, WebSignInProvider } from "./auth/web-oauth.ts";
 import { demoPorts } from "./llm/demo.ts";
 import { chooseMailer } from "./mail/choose.ts";
 import { choosePush } from "./push/choose.ts";
@@ -116,7 +117,33 @@ if (config.pushEnabled) {
   arm();
 }
 
-const router = createRouter(deps, store, verifier);
+/**
+ * The web onboarding's providers, canned under `--demo` for the same reason the verifier above is.
+ *
+ * The verifier alone was not enough to make `/start` walkable without credentials: the first thing
+ * that surface does is send the browser to Google or Apple, and neither of them will authorise
+ * against a client id that does not exist. So the authorize endpoint is this process's own
+ * `/demo/authorize`, which bounces straight back to the callback, and the exchange returns the token
+ * shape the demo verifier above accepts.
+ *
+ * THE SUBJECT IS THE CODE, which is what makes the flow useful rather than merely green: signing in
+ * twice with the same subject is the returning user, and two subjects are two accounts. Wired ONLY
+ * under `--demo`; a production process builds these from real credentials in `createRouter`.
+ */
+const demoProviders: Partial<Record<WebProvider, WebSignInProvider>> = {
+  apple: demoProvider("apple"),
+  google: demoProvider("google"),
+};
+function demoProvider(name: WebProvider): WebSignInProvider {
+  return {
+    clientId: `demo-${name}`,
+    authorizeEndpoint: `http://${config.host}:${config.port}/demo/authorize`,
+    extraAuthorizeParams: { provider: name },
+    async exchange(code) { return `demo:${name}:${code}`; },
+  };
+}
+
+const router = createRouter(deps, store, verifier, demo ? { webProviders: demoProviders } : {});
 
 // ── The demo-only account lookup ─────────────────────────────────────────────────────────────
 //
@@ -135,6 +162,39 @@ const router = createRouter(deps, store, verifier);
 const handle: typeof router = demo
   ? async (req, server) => {
       const url = new URL(req.url);
+
+      // The canned consent screen. It echoes `state` — which is the whole of what the callback
+      // checks — and hands back a code that IS the subject.
+      //
+      // IT ASKS WHO YOU ARE, because on a demo server the subject is the account: signing in twice
+      // with the same one is the returning user, two are two accounts, and the same string under
+      // both providers is TWO accounts rather than one. That is the behaviour `/start` exists to be
+      // walked against, and a page that picked a fixed subject would hide all of it. `?subject=`
+      // skips the form, which is what a script uses.
+      if (url.pathname === "/demo/authorize") {
+        const subject = url.searchParams.get("subject");
+        const provider = url.searchParams.get("provider") ?? "";
+        if (subject === null) {
+          const hidden = ["redirect_uri", "state", "provider"].map((k) =>
+            `<input type="hidden" name="${k}" value="${(url.searchParams.get(k) ?? "")
+              .replace(/&/g, "&amp;").replace(/"/g, "&quot;")}">`).join("");
+          return new Response(
+            `<!doctype html><meta name=viewport content="width=device-width,initial-scale=1">`
+            + `<body style="font:16px system-ui;max-width:22rem;margin:3rem auto">`
+            + `<h1 style="font-size:1.1rem">Demo ${provider} sign-in</h1>`
+            + `<p>Any string. The same one twice is the same account.</p>`
+            + `<form>${hidden}<input name=subject value="demo-subject" autofocus `
+            + `style="font:inherit;width:100%;padding:.5rem"><button style="font:inherit;`
+            + `margin-top:.5rem;padding:.5rem 1rem">Continue</button></form>`,
+            { headers: { "content-type": "text/html; charset=utf-8" } },
+          );
+        }
+        const back = new URL(url.searchParams.get("redirect_uri") ?? "");
+        back.searchParams.set("state", url.searchParams.get("state") ?? "");
+        back.searchParams.set("code", subject === "" ? "demo-subject" : subject);
+        return new Response(null, { status: 303, headers: { location: back.toString() } });
+      }
+
       if (url.pathname !== "/demo/user-id") return router(req, server);
       const provider = url.searchParams.get("provider");
       const subject = url.searchParams.get("subject") ?? "";
