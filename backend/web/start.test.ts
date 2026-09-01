@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import {
   AMBIGUOUS_AGE, DEFAULT_ONBOARDING_CONTENT, UNDER_AGE_CARD, UNDER_AGE_LINES, disabledScreens,
   explainTargets, lintCopy, type Profile,
-} from "@ieat/shared";
+} from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";

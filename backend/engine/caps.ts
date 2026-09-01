@@ -5,7 +5,7 @@
 // an allowlist — which matters, because the funnel this app sits at the end of requires strangers
 // to be able to use it without gatekeeping.
 
-import type { Refusal } from "@ieat/shared";
+import type { Refusal } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { GatewayRefusal } from "../llm/port.ts";
 import { dailyPhotoCap, entitlementFor } from "./entitlement.ts";

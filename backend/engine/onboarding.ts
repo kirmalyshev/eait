@@ -4,7 +4,7 @@
 // words, the app reports what happened to them, and the funnel says whether the edit helped. A
 // version number rides on every event so those two facts can actually be joined.
 //
-// What is NOT here is the sequence — that lives in `@ieat/shared/onboarding.ts`, because the app
+// What is NOT here is the sequence — that lives in `@eait/shared/onboarding.ts`, because the app
 // derives the same "what comes next" without asking. This module owns storage and aggregation only.
 
 import {
@@ -12,7 +12,7 @@ import {
   ONBOARDING_PLACES, isReportableField, usableContent, validateOnboardingContent,
   type ContentValidation, type FunnelRow, type OnboardingContent, type OnboardingEvent,
   type OnboardingFunnel, type OnboardingPlace,
-} from "@ieat/shared";
+} from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 
 /** Every place an event may name — the questions, and the three places that are not questions. */

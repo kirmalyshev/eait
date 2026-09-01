@@ -21,7 +21,7 @@
 import {
   NOTIFICATION_IDS, NOTIFICATION_PLACEHOLDERS, ONBOARDING_SCREENS, SCREEN_FIELDS, SCREEN_OPTIONS,
   screenIsOptional,
-} from "@ieat/shared";
+} from "@eait/shared";
 import {
   notificationCopy, onboardingContent, onboardingFunnel, resetNotificationCopy,
   resetOnboardingContent, saveNotificationCopy, saveOnboardingContent,

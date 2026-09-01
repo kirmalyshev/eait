@@ -10,7 +10,7 @@ import {
   type AppendLine, type AppendLinesResponse, type ChatEntry, type ChatHistoryResponse, type MealRecord, type Profile,
   type DailyTotals, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, correctionLine, explainTargets, firstVerdictLines,
   isScriptedLineId, localDate, promptById, scriptedLine, scriptedParams,
-} from "@ieat/shared";
+} from "@eait/shared";
 import type { ChatAppend, ChatMessage } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { onboardingContent } from "./onboarding.ts";

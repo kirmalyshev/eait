@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import {
   HEALTH_RETENTION_DAYS, MAX_CLIENT_ID, MAX_USER_LINE, MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay,
   localDate,
-} from "@ieat/shared";
+} from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";

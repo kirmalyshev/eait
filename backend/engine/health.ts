@@ -1,6 +1,6 @@
 // Health metrics imported from the user's phone, and the one thing they are allowed to change.
 //
-// The arithmetic that turns raw samples into days lives in `@ieat/shared` and runs on the phone —
+// The arithmetic that turns raw samples into days lives in `@eait/shared` and runs on the phone —
 // see `health.ts` there for why. What lives HERE is the part that must not be client-side: the
 // validation, the user scoping, and the single rule about when an imported weight may move the
 // calorie target.
@@ -14,7 +14,7 @@
 import {
   HEALTH_RETENTION_DAYS, dateMinus, isAcceptableWeightKg, localDate, sanitizeHealthDay,
   type HealthDay, type HealthDaysResponse, type HealthResponse,
-} from "@ieat/shared";
+} from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { profileView } from "./profile.ts";
 

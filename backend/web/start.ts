@@ -24,7 +24,7 @@ import {
   screenForStep, screenOptions, switchedLine,
   type ChatPrompt, type Goal, type NumberField, type OnboardingContent, type PatchProfileRequest,
   type Profile,
-} from "@ieat/shared";
+} from "@eait/shared";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
 import type { GoogleCodeExchange } from "../auth/google-web.ts";
 import {

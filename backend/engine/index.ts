@@ -26,6 +26,6 @@ export {
   onboardingContent, saveOnboardingContent, resetOnboardingContent, recordOnboardingEvents,
   onboardingFunnel,
 } from "./onboarding.ts";
-// The onboarding sequence lives in `@ieat/shared` so the app derives the same "what's next" the
+// The onboarding sequence lives in `@eait/shared` so the app derives the same "what's next" the
 // server validates against. Re-exported here only so engine callers have one import.
-export { stepApplies, ONBOARDING_STEPS, type OnboardingStep } from "@ieat/shared";
+export { stepApplies, ONBOARDING_STEPS, type OnboardingStep } from "@eait/shared";

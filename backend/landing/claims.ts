@@ -10,7 +10,7 @@
 // $50,120 per violation, and EU Reg 1924/2006 treats marketing copy about food much like a product
 // label. A reviewer's memory is not a control; a failing exit code is.
 
-import { lintCopy, type ClaimViolation } from "@ieat/shared";
+import { lintCopy, type ClaimViolation } from "@eait/shared";
 
 export { lintCopy, type ClaimViolation };
 

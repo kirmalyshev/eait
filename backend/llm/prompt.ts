@@ -13,9 +13,9 @@
 // edits them.
 
 import { z } from "zod";
-import type { FoodTargets, Profile } from "@ieat/shared";
+import type { FoodTargets, Profile } from "@eait/shared";
 import type { PortionPrior } from "../store.ts";
-import { RESTRICTION_TAGS } from "@ieat/shared";
+import { RESTRICTION_TAGS } from "@eait/shared";
 
 // ── Containment ──────────────────────────────────────────────────────────────────────────────
 

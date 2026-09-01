@@ -13,7 +13,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
-import type { Provider } from "@ieat/shared";
+import type { Provider } from "@eait/shared";
 
 /** A verified identity. Deliberately just the subject — see the note on email below. */
 export interface VerifiedIdentity {

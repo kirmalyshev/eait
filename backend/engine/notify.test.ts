@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { DEFAULT_NOTIFICATION_COPY, NOTIFICATION_IDS, lintCopy } from "@ieat/shared";
+import { DEFAULT_NOTIFICATION_COPY, NOTIFICATION_IDS, lintCopy } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { fakeMailer } from "../mail/fake.ts";
