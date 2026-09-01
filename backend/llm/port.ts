@@ -5,7 +5,7 @@
 // engine's tests bind fakes to the same three signatures — which is what lets cap enforcement,
 // verdict gating and the correction loop be tested without a billed call.
 
-import type { MealAnalysis, Profile, FoodTargets, DayTotals } from "@eait/shared";
+import type { DayTotals, FoodTargets, MealAnalysis, Profile, TargetBasis } from "@eait/shared";
 import type { PortionPrior } from "../store.ts";
 
 /**
@@ -115,6 +115,12 @@ export interface TextInput {
    * this message IS the answer — a standing instruction to read every message as a correction.
    */
   question?: { text: string; options: string[] };
+  /**
+   * The last few lines of the thread, oldest first, so "what about dinner?" after a meal routes
+   * as a question rather than as a plate called "dinner". Context for the DECISION only; the
+   * coach gets the longer window.
+   */
+  recent?: CoachHistoryLine[];
 }
 
 export type RouteText = (input: TextInput) => Promise<RouteResult>;
@@ -123,10 +129,72 @@ export type RouteText = (input: TextInput) => Promise<RouteResult>;
  *  vocabulary by the caller; anything outside it is dropped. */
 export type ClassifyRestrictions = (text: string) => Promise<string[]>;
 
+// ── The coach ────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * What the coach knows before it reads the message: the plan and why it is what it is, the day
+ * so far, the week's sums, the meal in focus, and the clock. Everything else it asks a tool for.
+ */
+export interface CoachContext {
+  profile: Profile;
+  targets: FoodTargets;
+  basis: TargetBasis;
+  /** The server's calendar date and local time — "tonight" has to mean something. */
+  today: string;
+  localTime: string;
+  todayMeals: { items: string[]; kcal: number; protein_g: number }[];
+  week: DayTotals[];
+  focusMeal?: MealAnalysis;
+  /** "around March 2027", or null when no honest projection exists. */
+  projection: string | null;
+}
+
+/** One replayed line of the thread. A card or a photo is already a one-line note by here. */
+export interface CoachHistoryLine {
+  role: "user" | "assistant";
+  text: string;
+}
+
+export interface CoachInput {
+  text: string;
+  context: CoachContext;
+  /** Oldest first, and never including the message itself. */
+  history: CoachHistoryLine[];
+}
+
+/**
+ * The tools, as closures the ENGINE built: each is already scoped to the one account whose turn
+ * this is, so the port never sees a user id and cannot reach a row on its own. Keyed by the name
+ * the model calls, which must be one `COACH_TOOL_DEFS` describes. Arguments arrive parsed but
+ * unvalidated; every closure validates its own.
+ */
+export type CoachTools = Record<string, (args: Record<string, unknown>) => Promise<unknown>>;
+
+export interface CoachReply {
+  reply: string;
+  /** Already through `cleanSuggestions`: chips, or none. */
+  suggestions: string[];
+}
+
+/**
+ * The agent behind a question. Runs the model against the context and the history, executes the
+ * tool calls it makes through `tools`, and returns what it finally said. Every call it makes is
+ * billed — the router already generated this turn — so a gateway status here is a plain error.
+ */
+export type Coach = (input: CoachInput, tools: CoachTools) => Promise<CoachReply>;
+
+/**
+ * Tool rounds one turn may take before the model is made to answer. The bound on a tool-happy
+ * model running the meter: each round is a billed completion, and two tools over a bounded
+ * window do not need more than this to answer any question this product asks.
+ */
+export const MAX_COACH_ROUNDS = 4;
+
 export interface LlmPorts {
   analyzePhoto: AnalyzePhoto;
   routeText: RouteText;
   classifyRestrictions: ClassifyRestrictions;
+  coach: Coach;
 }
 
 /** Clamp to an integer in `[0, MAX_DAY_OFFSET]`, warning when the value was out of contract. */

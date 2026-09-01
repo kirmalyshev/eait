@@ -592,6 +592,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         .map(clone);
     },
 
+    async mealsSince(userId, from, to, limit) {
+      return [...meals.values()]
+        .filter((m) => m.user_id === userId && m.date >= from && m.date <= to)
+        .sort((a, b) => b.date.localeCompare(a.date) || b.ts.localeCompare(a.ts))
+        .slice(0, Math.max(0, limit))
+        .map(clone);
+    },
+
     async totalsSince(userId, since) {
       const byDate = new Map<string, DayTotals>();
       for (const m of meals.values()) {

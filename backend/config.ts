@@ -13,7 +13,14 @@ export interface Config {
   host: string;
   databaseUrl: string;
   llmProvider: string;
+  /** The analyzer and the router. Needs vision. */
   llmModel: string;
+  /**
+   * The coach — the model behind a question in chat. Text only, so it need not be the vision
+   * model, and its own setting so the two can move independently: the analyzer is judged on
+   * grams, the coach on prose and tool use, and the best model at one is not the best at the other.
+   */
+  llmChatModel: string;
   llmApiKey: string;
   /**
    * Where the chat-completions call goes. Env-configurable so a test instance can point at a proxy, a
@@ -380,6 +387,7 @@ export function configDefaults(): Config {
     databaseUrl: "",
     llmProvider: "openrouter",
     llmModel: "x-ai/grok-4.5",
+    llmChatModel: "x-ai/grok-4.6",
     llmApiKey: "",
     llmBaseUrl: "https://openrouter.ai/api/v1/chat/completions",
     llmTimeoutMs: 90_000,
@@ -523,6 +531,7 @@ export function loadConfig(): Config {
     databaseUrl: required("EAIT__BACKEND__DATABASE_URL"),
     llmProvider: process.env.EAIT__BACKEND__LLM_PROVIDER ?? d.llmProvider,
     llmModel: process.env.EAIT__BACKEND__LLM_MODEL ?? d.llmModel,
+    llmChatModel: process.env.EAIT__BACKEND__LLM_CHAT_MODEL ?? d.llmChatModel,
     llmApiKey: required("EAIT__BACKEND__LLM_API_KEY"),
     llmBaseUrl: process.env.EAIT__BACKEND__LLM_BASE_URL ?? d.llmBaseUrl,
     llmTimeoutMs: int("EAIT__BACKEND__LLM_TIMEOUT_MS", d.llmTimeoutMs),
@@ -686,7 +695,7 @@ export function demoConfig(): Config {
     port: Number(process.env.EAIT__BACKEND__PORT ?? 8787),
     host: process.env.EAIT__BACKEND__HOST ?? "127.0.0.1",
     databaseUrl: "memory://demo",
-    llmProvider: "demo", llmModel: "demo", llmApiKey: "unused",
+    llmProvider: "demo", llmModel: "demo", llmChatModel: "demo", llmApiKey: "unused",
     // No paywall in the demo BY DEFAULT — the E2E flows log several meals per account — and
     // unmetered globally: it is a local demo, not a public instance. The sheet itself is exercised
     // against RevenueCat's Test Store, not here.

@@ -1200,6 +1200,13 @@ export async function postgresStore(
       return rows.map(toMeal);
     },
 
+    async mealsSince(userId, from, to, limit) {
+      const rows = await sql`
+        select * from meals where user_id = ${userId} and date >= ${from} and date <= ${to}
+        order by date desc, ts desc limit ${Math.max(0, limit)}`;
+      return rows.map(toMeal);
+    },
+
     async totalsSince(userId, since) {
       const rows = await sql`
         select date, sum(kcal) as kcal, sum(protein_g) as protein_g

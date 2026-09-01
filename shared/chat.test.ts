@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, correctionLine, firstVerdictLines, isScriptedLineId, scriptedLine, scriptedParams } from "./chat.ts";
+import { COACH_STARTERS, MAX_SUGGESTION, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, cleanSuggestions, correctionLine, firstVerdictLines, isScriptedLineId, scriptedLine, scriptedParams } from "./chat.ts";
 
 describe("scripted lines", () => {
   it("fills parameters and leaves nothing unfilled", () => {
@@ -130,5 +130,24 @@ describe("the first verdict", () => {
     expect(firstVerdictLines({ ...base, verdicts: { kidneys: "warn" } }).at(-1)).toBe("Sodium runs high on this one. Scored only because you asked me to.");
     expect(firstVerdictLines({ ...base, verdicts: { ldl: "bad" } }).at(-1)).toBe("Saturated fat runs high on this one. Scored only because you asked me to.");
     expect(firstVerdictLines({ ...base, verdicts: { kidneys: "good" } })).toHaveLength(2);
+  });
+});
+
+describe("coach", () => {
+  it("offers a few starters, each short enough to be a chip and worded as the user would send it", () => {
+    expect(COACH_STARTERS.length).toBeGreaterThanOrEqual(3);
+    for (const s of COACH_STARTERS) {
+      expect(s.length).toBeLessThanOrEqual(MAX_SUGGESTION);
+      expect(s.trim()).toBe(s);
+    }
+  });
+
+  it("keeps only the suggestions a chip can carry: strings, short, distinct, at most three", () => {
+    expect(cleanSuggestions(["What should I eat tonight?", "x".repeat(MAX_SUGGESTION + 1), 5, "", "  What should I eat tonight?  ", "How's my week?", "Protein?", "Fifth"]))
+      .toEqual(["What should I eat tonight?", "How's my week?", "Protein?"]);
+    expect(cleanSuggestions(undefined)).toEqual([]);
+    expect(cleanSuggestions("not a list")).toEqual([]);
+    // Flattened like every other client-bound string: a suggestion cannot draw two lines on a chip.
+    expect(cleanSuggestions(["a\n\nb"])).toEqual(["a b"]);
   });
 });

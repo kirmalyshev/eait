@@ -5,17 +5,22 @@
 // two transports without wondering whether they were asked different questions.
 
 import { z } from "zod";
-import type { AnalyzePhoto, ClassifyRestrictions, LlmPorts, RouteResult, RouteText } from "./port.ts";
-import { GatewayRefusal, clampDayOffset } from "./port.ts";
+import { cleanSuggestions } from "@eait/shared";
+import type { AnalyzePhoto, ClassifyRestrictions, Coach, CoachTools, LlmPorts, RouteResult, RouteText } from "./port.ts";
+import { GatewayRefusal, MAX_COACH_ROUNDS, clampDayOffset } from "./port.ts";
 import {
-  ClassifySchema, MealAnalysisSchema, RouteSchema, SYSTEM, SYSTEM_CLASSIFY, SYSTEM_ROUTE,
-  SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL, buildClassifyText, buildRouteText,
-  buildTextCorrectionText, buildTextMealText, buildUserText,
+  COACH_TOOL_DEFS, ClassifySchema, CoachReplySchema, MealAnalysisSchema, RouteSchema, SYSTEM,
+  SYSTEM_CLASSIFY, SYSTEM_COACH, SYSTEM_ROUTE, SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL,
+  buildClassifyText, buildCoachContext, buildRouteText, buildTextCorrectionText, buildTextMealText,
+  buildUserText, coachLine,
 } from "./prompt.ts";
 
 interface Options {
   apiKey: string;
+  /** The analyzer and the router. Needs vision. */
   model: string;
+  /** The coach. Text only, and its own setting — `EAIT__BACKEND__LLM_CHAT_MODEL`. */
+  chatModel: string;
   /** Where the chat-completions call goes. From `EAIT__BACKEND__LLM_BASE_URL`; the composition root supplies it. */
   baseUrl: string;
   /** How long one call may hang. From `EAIT__BACKEND__LLM_TIMEOUT_MS`. */
@@ -28,6 +33,14 @@ interface Options {
 
 type Content = string | ({ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } })[];
 interface Message { role: "system" | "user"; content: Content }
+
+/** A tool call as the API reports it, and the messages of an agent turn. */
+interface ToolCall { id: string; type: "function"; function: { name: string; arguments: string } }
+type AgentMessage =
+  | { role: "system" | "user"; content: string }
+  | { role: "assistant"; content: string | null; tool_calls?: ToolCall[] }
+  | { role: "tool"; tool_call_id: string; content: string };
+interface Choice { finish_reason?: string; message?: { content?: string | null; tool_calls?: ToolCall[] } }
 
 /**
  * Statuses OpenRouter answers with BEFORE it routes the request to a model: bad credentials, no
@@ -74,6 +87,49 @@ export function openRouterPorts(opts: Options): LlmPorts {
    * `max_tokens` gets ZERO retries — see the `finish_reason` handling below for why that one is
    * different.
    */
+  /**
+   * One HTTP round trip: the timeout, the status handling, the parse. Shared by the schema calls
+   * and the coach loop, so there is one place a hung provider is abandoned and one place a
+   * gateway status becomes a refund or does not.
+   */
+  async function send(body: unknown, billed: boolean): Promise<{ choices?: Choice[] }> {
+    // A model call that hangs used to hang FOREVER: the provider accepts the connection, never
+    // answers, and holds the request, the photo and a worker slot until the process restarts.
+    // Vision inference is slow, so the budget is generous — but it is finite.
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), opts.timeoutMs);
+    let res: Response;
+    try {
+      res = await doFetch(url, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${opts.apiKey}`,
+          "content-type": "application/json",
+          "x-title": "eait",
+        },
+        body: JSON.stringify(body),
+        signal: abort.signal,
+      });
+    } catch (e) {
+      // Reported as a timeout rather than as whatever the runtime called it, because the caller
+      // turns this into "the analysis didn't come back" and the log is where the detail belongs.
+      if (abort.signal.aborted) throw new Error(`llm timeout after ${opts.timeoutMs}ms`);
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!res.ok) {
+      // The status and a short body go to the log; neither reaches the client. An upstream error
+      // string can echo the prompt, which carries the user's medical free text.
+      const detail = (await res.text()).slice(0, 500);
+      const message = `llm http ${res.status}: ${detail}`;
+      const unrouted = UNROUTED.has(res.status) && !billed;
+      throw unrouted ? new GatewayRefusal(res.status, message) : new Error(message);
+    }
+    return await res.json() as { choices?: Choice[] };
+  }
+
   async function complete<T>(
     system: string,
     content: Content,
@@ -110,46 +166,9 @@ export function openRouterPorts(opts: Options): LlmPorts {
         },
       };
 
-      // A model call that hangs used to hang FOREVER: the provider accepts the connection, never
-      // answers, and holds the request, the photo and a worker slot until the process restarts.
-      // Vision inference is slow, so the budget is generous — but it is finite.
-      const abort = new AbortController();
-      const timer = setTimeout(() => abort.abort(), opts.timeoutMs);
-      let res: Response;
-      try {
-        res = await doFetch(url, {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${opts.apiKey}`,
-            "content-type": "application/json",
-            "x-title": "eait",
-          },
-          body: JSON.stringify(body),
-          signal: abort.signal,
-        });
-      } catch (e) {
-        // Reported as a timeout rather than as whatever the runtime called it, because the caller
-        // turns this into "the analysis didn't come back" and the log is where the detail belongs.
-        if (abort.signal.aborted) throw new Error(`llm timeout after ${opts.timeoutMs}ms`);
-        throw e;
-      } finally {
-        clearTimeout(timer);
-      }
-
-      if (!res.ok) {
-        // The status and a short body go to the log; neither reaches the client. An upstream error
-        // string can echo the prompt, which carries the user's medical free text.
-        const detail = (await res.text()).slice(0, 500);
-        const message = `llm http ${res.status}: ${detail}`;
-        // `attempt > 0` means the first attempt answered 200 and was billed for a reply that missed
-        // the schema. Nothing after that first completion is free, whatever the status says.
-        const unrouted = UNROUTED.has(res.status) && !billed && attempt === 0;
-        throw unrouted ? new GatewayRefusal(res.status, message) : new Error(message);
-      }
-
-      const payload = await res.json() as {
-        choices?: { finish_reason?: string; message?: { content?: string } }[];
-      };
+      // `attempt > 0` means the first attempt answered 200 and was billed for a reply that missed
+      // the schema. Nothing after that first completion is free, whatever the status says.
+      const payload = await send(body, billed || attempt > 0);
       const choice = payload.choices?.[0];
       // `length` means generation stopped at the bound. It is checked only where the reply turned
       // out to be UNUSABLE, never before the parse: with a JSON schema the model writes its closing
@@ -204,6 +223,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       todayMeals: input.todayMeals, week: input.week,
       ...(input.focusMeal !== undefined ? { focusMeal: input.focusMeal } : {}),
       ...(input.question !== undefined ? { question: input.question } : {}),
+      ...(input.recent !== undefined ? { recent: input.recent } : {}),
     });
     let out = await complete(SYSTEM_ROUTE, text, RouteSchema, "route");
 
@@ -289,5 +309,93 @@ export function openRouterPorts(opts: Options): LlmPorts {
     return out.tags;
   };
 
-  return { analyzePhoto, routeText, classifyRestrictions };
+  /**
+   * The agent loop. System (rules + context), the replayed thread, the message; then rounds: a
+   * reply ends it, a tool call is executed through the engine's closure and its result appended,
+   * and the round after `MAX_COACH_ROUNDS` is sent with `tool_choice: "none"` so the model has to
+   * answer with what it has. Every call is billed — the router already generated this turn.
+   */
+  const coach: Coach = async (input, tools) => {
+    const defs = COACH_TOOL_DEFS.filter((d) => Object.hasOwn(tools, d.function.name));
+    const messages: AgentMessage[] = [
+      { role: "system", content: `${SYSTEM_COACH}\n\n${buildCoachContext(input.context)}` },
+      ...input.history.map((h): AgentMessage => ({ role: h.role, content: coachLine(h.text) })),
+      { role: "user", content: coachLine(input.text) },
+    ];
+    for (let round = 0; ; round++) {
+      const last = round >= MAX_COACH_ROUNDS;
+      const body = {
+        model: opts.chatModel,
+        max_tokens: opts.maxTokens,
+        // Warmer than the analyzer's 0.2: this is prose, and the same sentence twice is not the
+        // goal. Low, still — the numbers in it are the context's, not the sampler's.
+        temperature: 0.4,
+        // A chat answer wants seconds. OpenRouter normalises this across the providers that
+        // reason and ignores it on the ones that do not.
+        reasoning: { effort: "low" },
+        messages,
+        response_format: {
+          type: "json_schema" as const,
+          json_schema: { name: "coach_reply", schema: z.toJSONSchema(CoachReplySchema, { io: "output" }) },
+        },
+        ...(defs.length > 0 ? { tools: defs } : {}),
+        ...(defs.length > 0 && last ? { tool_choice: "none" as const } : {}),
+      };
+      const choice = (await send(body, true)).choices?.[0];
+      const calls = choice?.message?.tool_calls ?? [];
+      if (calls.length > 0 && !last) {
+        messages.push({ role: "assistant", content: choice?.message?.content ?? null, tool_calls: calls });
+        for (const call of calls) {
+          messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(await runTool(tools, call)) });
+        }
+        continue;
+      }
+
+      const raw = (choice?.message?.content ?? "").trim();
+      if (raw === "") throw new Error(`coach returned an empty reply after ${round} tool round(s)`);
+      let parsed: unknown = null;
+      try { parsed = JSON.parse(raw); } catch { /* prose, handled below */ }
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        const p = parsed as Record<string, unknown>;
+        const reply = typeof p.reply === "string" ? p.reply.trim() : "";
+        if (reply === "") throw new Error("coach returned JSON with an empty reply");
+        return { reply, suggestions: cleanSuggestions(p.suggestions) };
+      }
+      // A reply cut off mid-JSON is not prose; it is a bound too tight, and naming it beats
+      // rendering half an object as a sentence.
+      if (choice?.finish_reason === "length") {
+        throw new Error(`llm truncated coach_reply at max_tokens=${opts.maxTokens}; raise EAIT__BACKEND__LLM_MAX_TOKENS`);
+      }
+      // Prose where JSON was asked for: still the answer. The chips are the only thing lost.
+      return { reply: raw, suggestions: [] };
+    }
+  };
+
+  return { analyzePhoto, routeText, classifyRestrictions, coach };
+}
+
+/**
+ * One tool call, executed — or refused in a shape the model can read and recover from.
+ *
+ * Nothing here throws: a tool the engine did not supply, arguments that are not JSON, or a
+ * closure that failed all become `{ error }` on the tool message, and the model answers with
+ * what it has. The failure's own text goes to the log and not to the model, because it can carry
+ * a query and the query can carry the user's medical free text.
+ */
+async function runTool(tools: CoachTools, call: ToolCall): Promise<unknown> {
+  const fn = tools[call.function.name];
+  if (!fn) return { error: "unknown tool" };
+  let args: unknown;
+  try {
+    args = JSON.parse(call.function.arguments || "{}");
+  } catch {
+    return { error: "arguments were not valid JSON" };
+  }
+  if (typeof args !== "object" || args === null || Array.isArray(args)) return { error: "arguments must be an object" };
+  try {
+    return await fn(args as Record<string, unknown>);
+  } catch (e) {
+    console.error(`[eait] coach tool ${call.function.name} failed: ${(e as Error)?.message ?? e}`);
+    return { error: "the tool failed" };
+  }
 }

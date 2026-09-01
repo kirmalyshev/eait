@@ -53,6 +53,7 @@ const deps: EngineDeps = {
     : openRouterPorts({
         apiKey: config.llmApiKey,
         model: config.llmModel,
+        chatModel: config.llmChatModel,
         baseUrl: config.llmBaseUrl,
         timeoutMs: config.llmTimeoutMs,
         maxTokens: config.llmMaxTokens,

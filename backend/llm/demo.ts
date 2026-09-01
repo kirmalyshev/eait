@@ -5,7 +5,8 @@
 // pretends to be accurate — the notes say what it is, because a demo that looks like a real
 // estimate is a demo someone eventually screenshots as evidence the product works.
 
-import type { AnalyzedMeal, AnalyzePhoto, ClassifyRestrictions, LlmPorts, RouteText } from "./port.ts";
+import { dateMinus } from "@eait/shared";
+import type { AnalyzedMeal, AnalyzePhoto, ClassifyRestrictions, Coach, LlmPorts, RouteText } from "./port.ts";
 import { clampDayOffset } from "./port.ts";
 
 /** Stable small integer from a string — the seed for every canned number below. */
@@ -187,5 +188,43 @@ export function demoPorts(): LlmPorts {
 
   const classifyRestrictions: ClassifyRestrictions = async () => [];
 
-  return { analyzePhoto, routeText, classifyRestrictions };
+  /**
+   * The canned coach. It reaches for a tool on the questions a real one would — the week and
+   * other days, weight and sleep and steps — so the tool path is walked by `--demo`, the engine
+   * tests and the E2E flow; and it answers from what came back, marked as canned, because a demo
+   * sentence that reads like advice is a demo sentence somebody screenshots.
+   */
+  const coach: Coach = async (input, tools) => {
+    const text = input.text.toLowerCase();
+    const { targets, today, todayMeals } = input.context;
+    const suggestions = ["What should I eat tonight?", "Am I getting enough protein?", "How's my week going?"];
+
+    if (tools.get_meals && /week|yesterday|last |days|неделя|вчера|woche|gestern/.test(text)) {
+      const rows = await tools.get_meals({ from: dateMinus(today, 6), to: today }) as { kcal: number }[];
+      const kcal = Math.round(rows.reduce((n, m) => n + m.kcal, 0));
+      return {
+        reply: rows.length === 0
+          ? `Nothing logged in the last seven days. Your target is ${targets.kcal} kcal a day. (Demo answer.)`
+          : `${rows.length} meal(s) in the last seven days, ${kcal} kcal in total against ${targets.kcal} a day. (Demo answer.)`,
+        suggestions,
+      };
+    }
+    if (tools.get_health && /weight|sleep|steps|scale|вес|сон|шаг|gewicht|schlaf|schritt/.test(text)) {
+      const rows = await tools.get_health({ days: 30 }) as { date: string; weight_kg?: number | null }[];
+      const weighed = rows.find((r) => typeof r.weight_kg === "number");
+      return {
+        reply: weighed
+          ? `Latest weight ${weighed.weight_kg} kg on ${weighed.date}, from ${rows.length} day(s) of health data. (Demo answer.)`
+          : "No health data in the last 30 days — connect Apple Health on the health screen. (Demo answer.)",
+        suggestions,
+      };
+    }
+    const eaten = Math.round(todayMeals.reduce((n, m) => n + m.kcal, 0));
+    return {
+      reply: `You are at ${eaten} kcal today — ${Math.max(0, targets.kcal - eaten)} left of your ${targets.kcal}, and ${targets.protein_g} g protein is the day's aim. (Demo answer.)`,
+      suggestions,
+    };
+  };
+
+  return { analyzePhoto, routeText, classifyRestrictions, coach };
 }
