@@ -399,15 +399,22 @@ export function openRouterPorts(opts: Options): LlmPorts {
  * a query and the query can carry the user's medical free text.
  */
 async function runTool(tools: CoachTools, call: ToolCall): Promise<unknown> {
+  // A refused call is logged by name and reason, never by its arguments: a model that keeps
+  // sending calls this loop cannot run is invisible from the outside otherwise — every turn still
+  // answers, just without the data — and the arguments are model output that may quote the user.
+  const refuse = (error: string) => {
+    console.warn(`[eait] coach tool call refused: ${call.function.name} — ${error}`);
+    return { error };
+  };
   const fn = tools[call.function.name];
-  if (!fn) return { error: "unknown tool" };
+  if (!fn) return refuse("unknown tool");
   let args: unknown;
   try {
     args = JSON.parse(call.function.arguments || "{}");
   } catch {
-    return { error: "arguments were not valid JSON" };
+    return refuse("arguments were not valid JSON");
   }
-  if (typeof args !== "object" || args === null || Array.isArray(args)) return { error: "arguments must be an object" };
+  if (typeof args !== "object" || args === null || Array.isArray(args)) return refuse("arguments must be an object");
   try {
     return await fn(args as Record<string, unknown>);
   } catch (e) {
