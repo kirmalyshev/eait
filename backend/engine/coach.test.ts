@@ -147,6 +147,20 @@ describe("the coach turn", () => {
     expect((await store.chatBefore(userId, null, 10))).toHaveLength(2);
   });
 
+  it("refuses as analysis-failed when the coach fails and the router had nothing to say either", async () => {
+    // Neither side produced a sentence. An empty `answered` would be filtered out of the thread
+    // and off the screen — a turn that vanished — so it is the refusal the app words instead.
+    const llm: LlmPorts = {
+      ...demoPorts(),
+      routeText: async () => ({ intent: "answer", text: "" }),
+      coach: async () => { throw new Error("the coach is down"); },
+    };
+    const d = makeDeps(llm);
+    const userId = await onboard();
+    expect((await handleText(d, userId, { text: "how much protein have I had?" })).kind).toBe("analysis-failed");
+    expect(await store.chatBefore(userId, null, 10)).toHaveLength(0);
+  });
+
   it("never reaches the coach on a refused turn: the sample rule and the caps stand in front of it", async () => {
     const { llm, seen } = recordingCoach();
     const d = makeDeps(llm, { freeAnalyses: 0 });

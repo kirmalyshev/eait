@@ -168,12 +168,12 @@ describe("routeText", () => {
     expect(out).toEqual({ intent: "answer", text: "Which meal did you mean?" });
   });
 
-  test("no branch may resolve to an empty answer", async () => {
-    // The invariant that makes the blank bubble impossible. This transport owns HTTP and nothing
-    // else, so it does not invent a sentence to fill the gap — it refuses, and `handleText` turns
-    // that into `analysis-failed`, which the app renders as a real message.
+  test("an empty answer passes through: the coach is the reply now, and the engine refuses only when it fails too", async () => {
+    // The blank-bubble invariant moved to `handleText` (see engine/coach.test.ts): the router's
+    // sentence is a fallback, and a router that decided "question" with nothing to say must not
+    // stop the coach from answering it.
     const { llm } = ports([{ intent: "redate", dayOffset: 1 }]);
-    await expect(llm.routeText(ROUTE_INPUT)).rejects.toThrow(/empty/i);
+    expect(await llm.routeText(ROUTE_INPUT)).toEqual({ intent: "answer", text: "" });
   });
 });
 

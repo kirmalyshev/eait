@@ -276,13 +276,13 @@ export function openRouterPorts(opts: Options): LlmPorts {
     // meal — degrades to `answer` rather than throwing, because the model usually explains itself
     // in `text` and an exception is a worse reply than that explanation.
     //
-    // What it may NOT do is degrade to an EMPTY reply. That is what it used to do, and it is how a
-    // model omitting `analysis` on a `meal` turned every "two boiled eggs and a slice of rye bread"
-    // into a blank chat bubble — no error, no log, and a user who reasonably concluded their food
-    // had been understood. `RouteSchema` now refuses that response so `complete()` retries it, and
-    // the guard below refuses to invent a reply when there is genuinely nothing to say: this
-    // transport owns HTTP and image encoding and nothing else, so it raises, and `handleText`
-    // turns that into `analysis-failed` — which the app renders as an actual message.
+    // An EMPTY `text` on an `answer` is passed through, not refused here. It used to be refused,
+    // because the router's sentence was the reply and an empty one reached the phone as a blank
+    // bubble. The reply is the coach's now, and the router's sentence is only its fallback — so the
+    // decision "is there anything to say" belongs to `handleText`, which has the coach's answer in
+    // hand: it refuses with `analysis-failed` only when the coach failed AND this text is empty.
+    // A small router model answers `answer` with no text often enough that refusing here would
+    // take the coach down with it.
     switch (out.intent) {
       case "meal":
         if (!out.analysis) break;
@@ -297,11 +297,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
         break;
     }
 
-    const reply = out.text ?? "";
-    if (reply.trim() === "") {
-      throw new Error(`route returned intent "${out.intent}" with an empty answer and nothing to act on`);
-    }
-    return { intent: "answer", text: reply } satisfies RouteResult;
+    return { intent: "answer", text: (out.text ?? "").trim() } satisfies RouteResult;
   };
 
   const classifyRestrictions: ClassifyRestrictions = async (text) => {

@@ -136,6 +136,12 @@ export async function handleText(
         try {
           return await coachTurn(deps, userId, { text: input.text, profile, focus, todayRows, week, history, today });
         } catch (e) {
+          // With nothing from either, this is a failed analysis and the app says so: an empty
+          // `answered` would render as no turn at all, which is the blank bubble by another name.
+          if (routed.text.trim() === "") {
+            console.error(`[eait] coach failed and the router had no answer either: ${(e as Error)?.message ?? e}`);
+            return { kind: "analysis-failed" };
+          }
           console.error(`[eait] coach failed, answering from the router: ${(e as Error)?.message ?? e}`);
           return { kind: "answered", text: routed.text };
         }
