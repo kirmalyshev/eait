@@ -28,7 +28,7 @@ export function escape(text: string): string {
  */
 export const PAGE_COPY = {
   frontDoorLead:
-    "Set up your account here, then open the app already signed in. It takes about a minute.",
+    "Set up your account here, then open the app already signed in. It takes about three minutes.",
   frontDoorPrivacy:
     "We ask for an identifier and nothing else — no email address, no name, no contacts.",
   planHeading: "Your plan",

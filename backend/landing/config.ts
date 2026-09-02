@@ -190,7 +190,7 @@ export function loadLandingConfig(env: Record<string, string | undefined>): Land
  * on the one day the copy had actually moved. Changing public words and not touching this line is
  * the mistake to watch for.
  */
-export const DEFAULT_UPDATED_AT = "2026-09-01";
+export const DEFAULT_UPDATED_AT = "2026-09-02";
 
 /**
  * Attribution codes, appended to the bot link as `?start=<code>`.
