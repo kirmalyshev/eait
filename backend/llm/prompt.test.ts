@@ -148,32 +148,64 @@ test("the coach prompt states Spud's rules", () => {
   for (const rule of [
     "Reply in the user's language",
     "Never invent a number",
-    "get_meals",
-    "get_health",
-    "Never comment on the user's body unless they ask",
+    "needs get_meals, today included",
+    "needs get_health",
+    // Unconditional, as copy.md has it ("numbers about food, never comments about your body"):
+    // the first draft said "unless they ask", and "am I fat?" got "within a healthy range".
+    "Never comment on the user's body, even when they ask",
     "No medical advice",
+    "Do not explain the medication",
     "No markdown",
     "Only what the user declared is scored",
+    "never suggest a food a declared restriction rules out",
+    "never overrule it",
+    // The register, quoted from the design rather than described: the adjectives alone gave
+    // "let's see how we can adjust" and "keep up with your current habits".
+    "eggs or skyr at breakfast closes it",
+    "tomorrow is a fresh number",
+    "[logged:",
+    "only the JSON object",
+    "never inside reply",
     "suggestions are up to",
     "as the user speaking to you",
     "never a question back at them",
   ]) expect(SYSTEM_COACH).toContain(rule);
+  expect(SYSTEM_COACH).not.toContain("unless they ask");
+  // An example chip that names a cap is a cap the model will suggest to everybody.
+  expect(SYSTEM_COACH).not.toContain("sodium option");
 });
 
-test("the coach context carries the plan, the day, the week and the declared restrictions", () => {
+test("the coach context carries the plan, the day with what is left, the week against the target, and every declared restriction", () => {
   const text = buildCoachContext(coachInput());
   expect(text).toContain("Reply in this language: de.");
   expect(text).toContain("Today is 2026-09-02, local time 19:10.");
   expect(text).toContain("1680 kcal, 110 g protein");
-  expect(text).toContain("Sodium cap: 2000 mg");
+  expect(text).toContain("Declared restrictions: kidney condition.");
+  expect(text).toContain("sodium at most 2000 mg a day (kidney condition)");
+  expect(text).not.toContain("blood pressure");
   expect(text).toContain("Goal: lose");
+  // The subtraction is done here, never left to the model.
+  expect(text).toContain("Left today: 1040 kcal, 68 g protein.");
+  expect(text).toContain("- 2026-09-01: 1900 kcal (+220 vs target), 95 g protein");
   expect(text).toContain("around March 2027");
+  expect(text).toContain("not a forecast");
   expect(text).toContain("Rice, Chicken — 640 kcal, 42 g protein");
-  expect(text).toContain("2026-09-01: 1900 kcal, 95 g protein");
   expect(text).toContain('Food allergies (safety-critical): "peanuts"');
   // The share cap bit and the floor did not; the prose must be able to say which.
   expect(text).toContain("capped");
   expect(text).not.toContain("floor of");
+});
+
+test("a declared restriction without a cap still reaches the coach, and the profile weight is dated", () => {
+  const text = buildCoachContext(coachInput({
+    profile: { ...PROFILE, restrictions: ["vegan", "lowsugar"], weight_kg: 93, weight_measured_at: "2026-01-15T09:00:00.000Z" },
+    targets: { kcal: 1680, protein_g: 110 },
+  }));
+  expect(text).toContain("Declared restrictions: vegan, diabetes risk (low sugar).");
+  expect(text).toContain("Scored against them: nothing beyond kcal and protein.");
+  expect(text).toContain("last known weight 93 kg (measured 2026-01-15; the trend is in get_health)");
+  const bare = buildCoachContext(coachInput({ profile: { ...PROFILE, restrictions: [] }, targets: { kcal: 1680, protein_g: 110 } }));
+  expect(bare).toContain("Declared restrictions: none.");
 });
 
 test("the coach context names the floor when it is the reason for the number", () => {
@@ -202,6 +234,9 @@ test("every coach tool the engine can supply has a definition the model reads, s
   expect(meals.function.description).toContain(`at most ${COACH_MEALS_WINDOW_DAYS} days`);
   // The row cap too: a model not told it sums the newest 60 as though they were the month.
   expect(meals.function.description).toContain(`At most ${COACH_MEALS_LIMIT} meals`);
+  // Today is not "already here": the context has kcal and protein, the rows have the rest.
+  expect(meals.function.description).toContain("today included");
+  expect(meals.function.description).not.toContain("days other than today");
   expect(health.function.description).toContain(`at most ${COACH_HEALTH_DAYS}`);
   expect(JSON.stringify(health.function.parameters)).toContain(`"maximum":${COACH_HEALTH_DAYS}`);
 });
