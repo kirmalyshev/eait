@@ -43,7 +43,11 @@ async function onboard(over: Record<string, unknown> = {}): Promise<string> {
   return userId;
 }
 
-const photo = (bytes = 8) => ({ images: [async () => new Uint8Array(bytes).fill(1)] });
+const photo = (bytes = 8) => ({ images: [async () => jpeg(bytes)] });
+/** JPEG by magic bytes, which is what the engine now insists on. */
+const jpeg = (bytes = 8) => { const b = new Uint8Array(2 + bytes).fill(1); b[0] = 0xff; b[1] = 0xd8; return b; };
+/** `ftypheic` — what an iPhone set to High Efficiency captures. */
+const heic = () => new Uint8Array([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63, 1, 1, 1, 1]);
 
 /** A live entitlement, as the RevenueCat webhook would have written it. Each call is a newer event. */
 let eventSeq = 0;
@@ -209,6 +213,14 @@ describe("photo logging", () => {
     };
     const userId = await onboard();
     expect((await logPhotoMeal(makeDeps({}, llm), userId, photo())).kind).toBe("analysis-failed");
+  });
+
+  it("refuses HEIC before the sample is charged, so the next JPEG still goes through", async () => {
+    const userId = await onboard();
+    const d = makeDeps({ freeAnalyses: 1 });
+    expect((await logPhotoMeal(d, userId, { images: [async () => heic()] })).kind).toBe("unsupported-image");
+    expect((await logPhotoMeal(d, userId, { images: [async () => jpeg(), async () => heic()] })).kind).toBe("unsupported-image");
+    expect((await logPhotoMeal(d, userId, photo())).kind).toBe("logged");
   });
 
   it("charges the cap even when the model call fails", async () => {

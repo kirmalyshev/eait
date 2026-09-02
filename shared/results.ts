@@ -60,7 +60,9 @@ export type Refusal =
    */
   | { kind: "subscription-required" }
   /** The engine failed to produce an analysis. Already logged; the surface just apologises. */
-  | { kind: "analysis-failed" };
+  | { kind: "analysis-failed" }
+  /** The upload is not a JPEG, PNG or WebP. Refused before anything is charged. */
+  | { kind: "unsupported-image" };
 
 export type LogPhotoResult = MealLogged | Refusal;
 
