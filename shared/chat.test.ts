@@ -149,5 +149,7 @@ describe("coach", () => {
     expect(cleanSuggestions("not a list")).toEqual([]);
     // Flattened like every other client-bound string: a suggestion cannot draw two lines on a chip.
     expect(cleanSuggestions(["a\n\nb"])).toEqual(["a b"]);
+    // A replayed note is not a thing anybody sends.
+    expect(cleanSuggestions(["[photo]", "[logged: eggs — 155 kcal]", "And yesterday?"])).toEqual(["And yesterday?"]);
   });
 });

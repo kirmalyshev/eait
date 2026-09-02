@@ -155,6 +155,7 @@ test("the coach prompt states Spud's rules", () => {
     "No markdown",
     "Only what the user declared is scored",
     "suggestions are up to",
+    "as the user speaking to you",
     "never a question back at them",
   ]) expect(SYSTEM_COACH).toContain(rule);
 });

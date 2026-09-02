@@ -326,6 +326,14 @@ export function openRouterPorts(opts: Options): LlmPorts {
     ];
     for (let round = 0; ; round++) {
       const last = round >= MAX_COACH_ROUNDS;
+      // THE SCHEMA AND THE TOOLS DO NOT GO TOGETHER. A JSON schema is enforced as a grammar over
+      // the content, and a tool call is not content — so a request carrying both cannot make one,
+      // and every round answered with a sentence about the data it would have fetched. Measured
+      // against a local model, 0 tool calls in 12 questions; without the schema, the first reply
+      // was the call. So the schema rides only where no tool may be called: the forced last
+      // round, and a turn that has no tools at all. The system prompt asks for the JSON shape on
+      // every round, and prose is tolerated below, so the chips are the most a free round can lose.
+      const mayCallTools = defs.length > 0 && !last;
       const body = {
         model: opts.chatModel,
         max_tokens: opts.maxTokens,
@@ -336,10 +344,12 @@ export function openRouterPorts(opts: Options): LlmPorts {
         // reason and ignores it on the ones that do not.
         reasoning: { effort: "low" },
         messages,
-        response_format: {
-          type: "json_schema" as const,
-          json_schema: { name: "coach_reply", schema: z.toJSONSchema(CoachReplySchema, { io: "output" }) },
-        },
+        ...(mayCallTools ? {} : {
+          response_format: {
+            type: "json_schema" as const,
+            json_schema: { name: "coach_reply", schema: z.toJSONSchema(CoachReplySchema, { io: "output" }) },
+          },
+        }),
         ...(defs.length > 0 ? { tools: defs } : {}),
         ...(defs.length > 0 && last ? { tool_choice: "none" as const } : {}),
       };

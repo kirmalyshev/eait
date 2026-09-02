@@ -118,6 +118,9 @@ export function cleanSuggestions(raw: unknown): string[] {
     if (typeof v !== "string") continue;
     const flat = neutral(v);
     if (flat === "" || flat.length > MAX_SUGGESTION || out.includes(flat)) continue;
+    // A bracketed line is a note the thread replays ("[photo]", "[logged: …]"), copied back by a
+    // model that mistook the history for a menu. Nobody sends one.
+    if (/^\[.*\]$/.test(flat)) continue;
     out.push(flat);
     if (out.length === MAX_SUGGESTIONS) break;
   }

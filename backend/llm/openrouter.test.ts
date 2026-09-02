@@ -404,7 +404,7 @@ const toolsOf = (body: Record<string, unknown>) =>
   (body.tools as { function: { name: string } }[] | undefined)?.map((t) => t.function.name);
 
 describe("coach", () => {
-  test("a JSON reply is parsed, and the request carries the history, the tools and the reply schema", async () => {
+  test("a JSON reply is parsed, and the request carries the history and the tools", async () => {
     const { llm, bodies } = coachPorts([{ content: { reply: "Fine week.", suggestions: ["And protein?", "What's for dinner?"] } }]);
     const out = await llm.coach(COACH_INPUT, { get_meals: async () => [], get_health: async () => [] });
     expect(out).toEqual({ reply: "Fine week.", suggestions: ["And protein?", "What's for dinner?"] });
@@ -412,7 +412,8 @@ describe("coach", () => {
     const body = bodies[0]!;
     expect(body.model).toBe("test-chat-model");
     expect(toolsOf(body)).toEqual(["get_meals", "get_health"]);
-    expect(schemaOf(body)).toBe("coach_reply");
+    // No schema beside the tools: a grammar over the content is a round that cannot call one.
+    expect(body.response_format).toBeUndefined();
     const msgs = messagesOf(body);
     expect(msgs.map((m) => m.role)).toEqual(["system", "user", "assistant", "user"]);
     expect(msgs[1]!.content).toBe("two eggs");
@@ -425,6 +426,18 @@ describe("coach", () => {
     const { llm, bodies } = coachPorts([{ content: { reply: "ok", suggestions: [] } }]);
     await llm.coach(COACH_INPUT, { get_health: async () => [] });
     expect(toolsOf(bodies[0]!)).toEqual(["get_health"]);
+  });
+
+  test("the reply schema rides only where no tool may be called: a turn with no tools, and the forced last round", async () => {
+    const { llm: bare, bodies: bareBodies } = coachPorts([{ content: { reply: "ok", suggestions: [] } }]);
+    await bare.coach(COACH_INPUT, {});
+    expect(schemaOf(bareBodies[0]!)).toBe("coach_reply");
+    const call = { tool_calls: [{ id: "c", name: "get_health", arguments: "{}" }] };
+    const { llm, bodies } = coachPorts([call, call, call, call, { content: { reply: "done", suggestions: [] } }]);
+    await llm.coach(COACH_INPUT, { get_health: async () => [] });
+    for (const b of bodies.slice(0, -1)) expect(b.response_format).toBeUndefined();
+    expect(schemaOf(bodies[bodies.length - 1]!)).toBe("coach_reply");
+    expect(bodies[bodies.length - 1]!.tool_choice).toBe("none");
   });
 
   test("a tool call is executed through the closure and its result goes back to the model", async () => {
