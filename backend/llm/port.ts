@@ -55,6 +55,19 @@ export type AnalyzedMeal = Omit<MealAnalysis, "verdicts"> & {
  * by reading an error string, and only the implementation that saw the response knows which
  * statuses of its own gateway mean "never routed" (`openrouter.ts`).
  */
+/**
+ * The image formats the provider decodes, read from the magic bytes and never from a filename or
+ * a content-type header. HEIC — what an iPhone set to High Efficiency captures — is not one of
+ * them, and the provider answers it with a 400 that stays charged.
+ */
+export function imageMime(bytes: Uint8Array): "image/jpeg" | "image/png" | "image/webp" | null {
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) return "image/jpeg";
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "image/png";
+  if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46
+    && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return "image/webp";
+  return null;
+}
+
 export class GatewayRefusal extends Error {
   constructor(readonly status: number, message: string) {
     super(message);

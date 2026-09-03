@@ -22,7 +22,7 @@ import { prepareAnalysis } from "./analysis.ts";
 import { checkCaps, refundGatewayRefusal } from "./caps.ts";
 import { afterCorrection, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
-import type { AnalyzedMeal } from "../llm/port.ts";
+import { imageMime, type AnalyzedMeal } from "../llm/port.ts";
 
 /** Images arrive as thunks so nothing is READ until the caps have passed. */
 export interface LogPhotoInput {
@@ -85,11 +85,17 @@ export async function logPhotoMeal(
   const refusal = await checkCaps(deps, userId, date, "photo");
   if (refusal) return refusal;
 
+  // Sniffed AFTER the cap (a refused account never has its bytes read) and BEFORE the charge: the
+  // provider rejects HEIC with a 400 that stays charged, and HEIC is what an iPhone hands over
+  // unless the capture is re-encoded — without this the first real photo spent the sample and
+  // logged nothing.
+  const images = await Promise.all(input.images.map((read) => read()));
+  if (images.some((b) => imageMime(b) === null)) return { kind: "unsupported-image" };
+
   // Recorded BEFORE the call. A failed model call still costs money, so a cap that only counts
   // successes is a cap a retry loop walks straight through.
   await deps.store.recordAnalysis(userId, date, "photo");
 
-  const images = await Promise.all(input.images.map((read) => read()));
   const { targets } = explainTargets(profile);
 
   let analysis: AnalyzedMeal;
