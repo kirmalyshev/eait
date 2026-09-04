@@ -1,9 +1,11 @@
 // Free text: the chat surface's whole engine.
 //
-// One turn is one model call that decides among four intents, rather than a keyword router that
-// guesses. The context it decides with — today's meals, the week's sums, the focused meal — is
-// assembled here as STRUCTURED data, not as a replayed transcript: the question people actually ask
-// is "how much protein have I had", and a transcript answers that far worse than the rows do.
+// One turn starts with one model call that decides among four intents, rather than a keyword
+// router that guesses. The context it decides with — today's meals, the week's sums, the focused
+// meal, the thread's tail — is assembled here as STRUCTURED data, not as a replayed transcript: the
+// question people actually ask is "how much protein have I had", and a transcript answers that far
+// worse than the rows do. A question then goes to the coach (`coach.ts`), which is the one intent
+// that may spend more calls: the thread, the plan, and two tools over the user's own rows.
 
 import {
   type HandleTextResult, type MealAnalysis, type MealProposed, type MealRedated,
@@ -17,6 +19,7 @@ import { prepareAnalysis } from "./analysis.ts";
 import { checkCaps, refundGatewayRefusal } from "./caps.ts";
 import { applyCorrection, gatedVerdicts, sumTotals, toAnalysis } from "./meals.ts";
 import { afterCorrection, remember } from "./chat.ts";
+import { ROUTER_RECENT_LINES, coachTurn, recentLines } from "./coach.ts";
 
 // How long a proposed text meal stays confirmable is `config.pendingTtlMs` (`EAIT__BACKEND__PENDING_TTL_MINUTES`),
 // read from deps at the point of use rather than frozen into a module constant here.
@@ -57,8 +60,10 @@ export async function handleText(
   userId: string,
   input: HandleTextInput,
 ): Promise<HandleTextResult> {
-  const profile = await deps.store.getProfile(userId);
-  if (!profile || profile.onboarded_at === null) return { kind: "not-onboarded" };
+  const found = await deps.store.getProfile(userId);
+  if (!found || found.onboarded_at === null) return { kind: "not-onboarded" };
+  // Bound after the check, so the hoisted `route` below sees a `Profile` and never a null.
+  const profile = found;
 
   const zone = deps.config.timezone;
   const today = localDate(zone);
@@ -83,6 +88,9 @@ export async function handleText(
   const todayRows = await deps.store.mealsForDate(userId, today);
   const week = await deps.store.totalsSince(userId, dateMinus(today, CONTEXT_DAYS));
   const { targets } = explainTargets(profile);
+  // Read ONCE for the turn: the router sees the tail, the coach the window. The message itself is
+  // not in it — `keep` writes it after the turn — so neither has to skip it.
+  const history = await recentLines(deps, userId);
 
   let routed: Awaited<ReturnType<typeof deps.llm.routeText>>;
   try {
@@ -96,6 +104,7 @@ export async function handleText(
       // A chip's words are two of them. "In oil" says nothing on its own, and without the question
       // beside it the router reads it as a new meal or as small talk.
       ...(answering ? { question: answering } : {}),
+      recent: history.slice(-ROUTER_RECENT_LINES),
     });
   } catch (e) {
     // Given back when the gateway refused before generating anything — the same rule as the photo
@@ -120,8 +129,23 @@ export async function handleText(
 
   async function route(): Promise<HandleTextResult> {
     switch (routed.intent) {
-      case "answer":
-        return { kind: "answered", text: routed.text };
+      case "answer": {
+        // The router said it is a question; the coach answers it, with the thread and the tools.
+        // The router's own sentence is the FALLBACK, so a coach that fails degrades to the chat as
+        // it was rather than to `analysis-failed` on a turn already charged.
+        try {
+          return await coachTurn(deps, userId, { text: input.text, profile, focus, todayRows, week, history, today });
+        } catch (e) {
+          // With nothing from either, this is a failed analysis and the app says so: an empty
+          // `answered` would render as no turn at all, which is the blank bubble by another name.
+          if (routed.text.trim() === "") {
+            console.error(`[eait] coach failed and the router had no answer either: ${(e as Error)?.message ?? e}`);
+            return { kind: "analysis-failed" };
+          }
+          console.error(`[eait] coach failed, answering from the router: ${(e as Error)?.message ?? e}`);
+          return { kind: "answered", text: routed.text };
+        }
+      }
 
       case "meal": {
         // Confirm-first. The model just turned prose into numbers, and the user is the only one who

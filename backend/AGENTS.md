@@ -8,7 +8,8 @@ The server. Root `AGENTS.md` covers the repo; this covers this workspace.
 api/routes.ts     one handler per route; it calls ONE engine function and returns
 engine/           all product logic — day/week, meals, chat, identity, entitlement, onboarding
 store.ts          the port; store.pg.ts is what runs, store.memory.ts is what tests run against
-llm/              port.ts + prompt.ts + openrouter.ts + demo.ts. Prompts are authored ONCE, in prompt.ts
+llm/              port.ts + prompt.ts + openrouter.ts + demo.ts. Prompts are authored ONCE, in prompt.ts.
+                  `coach` is the agent loop; its tools are closures the ENGINE builds (engine/coach.ts)
 auth/             token issue/verify. Tokens are stored as sha256, never in the clear
 config.ts         configDefaults() is the single source of defaults; loadConfig() layers env over it
 landing/          a generator, not a page. Read landing/README.md before touching copy

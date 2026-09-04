@@ -5,17 +5,22 @@
 // two transports without wondering whether they were asked different questions.
 
 import { z } from "zod";
-import type { AnalyzePhoto, ClassifyRestrictions, LlmPorts, RouteResult, RouteText } from "./port.ts";
-import { GatewayRefusal, clampDayOffset, imageMime } from "./port.ts";
+import { cleanSuggestions } from "@eait/shared";
+import type { AnalyzePhoto, ClassifyRestrictions, Coach, CoachTools, LlmPorts, RouteResult, RouteText } from "./port.ts";
+import { GatewayRefusal, MAX_COACH_ROUNDS, clampDayOffset, imageMime } from "./port.ts";
 import {
-  ClassifySchema, MealAnalysisSchema, RouteSchema, SYSTEM, SYSTEM_CLASSIFY, SYSTEM_ROUTE,
-  SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL, buildClassifyText, buildRouteText,
-  buildTextCorrectionText, buildTextMealText, buildUserText,
+  COACH_TOOL_DEFS, ClassifySchema, CoachReplySchema, MealAnalysisSchema, RouteSchema, SYSTEM,
+  SYSTEM_CLASSIFY, SYSTEM_COACH, SYSTEM_ROUTE, SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL,
+  buildClassifyText, buildCoachContext, buildRouteText, buildTextCorrectionText, buildTextMealText,
+  buildUserText, coachLine,
 } from "./prompt.ts";
 
 interface Options {
   apiKey: string;
+  /** The analyzer and the router. Needs vision. */
   model: string;
+  /** The coach. Text only, and its own setting — `EAIT__BACKEND__LLM_CHAT_MODEL`. */
+  chatModel: string;
   /** Where the chat-completions call goes. From `EAIT__BACKEND__LLM_BASE_URL`; the composition root supplies it. */
   baseUrl: string;
   /** How long one call may hang. From `EAIT__BACKEND__LLM_TIMEOUT_MS`. */
@@ -28,6 +33,14 @@ interface Options {
 
 type Content = string | ({ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } })[];
 interface Message { role: "system" | "user"; content: Content }
+
+/** A tool call as the API reports it, and the messages of an agent turn. */
+interface ToolCall { id: string; type: "function"; function: { name: string; arguments: string } }
+type AgentMessage =
+  | { role: "system" | "user"; content: string }
+  | { role: "assistant"; content: string | null; tool_calls?: ToolCall[] }
+  | { role: "tool"; tool_call_id: string; content: string };
+interface Choice { finish_reason?: string; message?: { content?: string | null; tool_calls?: ToolCall[] } }
 
 /**
  * Statuses OpenRouter answers with BEFORE it routes the request to a model: bad credentials, no
@@ -71,6 +84,49 @@ export function openRouterPorts(opts: Options): LlmPorts {
    * `max_tokens` gets ZERO retries — see the `finish_reason` handling below for why that one is
    * different.
    */
+  /**
+   * One HTTP round trip: the timeout, the status handling, the parse. Shared by the schema calls
+   * and the coach loop, so there is one place a hung provider is abandoned and one place a
+   * gateway status becomes a refund or does not.
+   */
+  async function send(body: unknown, billed: boolean, budgetMs = opts.timeoutMs): Promise<{ choices?: Choice[] }> {
+    // A model call that hangs used to hang FOREVER: the provider accepts the connection, never
+    // answers, and holds the request, the photo and a worker slot until the process restarts.
+    // Vision inference is slow, so the budget is generous — but it is finite.
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), budgetMs);
+    let res: Response;
+    try {
+      res = await doFetch(url, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${opts.apiKey}`,
+          "content-type": "application/json",
+          "x-title": "eait",
+        },
+        body: JSON.stringify(body),
+        signal: abort.signal,
+      });
+    } catch (e) {
+      // Reported as a timeout rather than as whatever the runtime called it, because the caller
+      // turns this into "the analysis didn't come back" and the log is where the detail belongs.
+      if (abort.signal.aborted) throw new Error(`llm timeout after ${budgetMs}ms`);
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!res.ok) {
+      // The status and a short body go to the log; neither reaches the client. An upstream error
+      // string can echo the prompt, which carries the user's medical free text.
+      const detail = (await res.text()).slice(0, 500);
+      const message = `llm http ${res.status}: ${detail}`;
+      const unrouted = UNROUTED.has(res.status) && !billed;
+      throw unrouted ? new GatewayRefusal(res.status, message) : new Error(message);
+    }
+    return await res.json() as { choices?: Choice[] };
+  }
+
   async function complete<T>(
     system: string,
     content: Content,
@@ -107,46 +163,9 @@ export function openRouterPorts(opts: Options): LlmPorts {
         },
       };
 
-      // A model call that hangs used to hang FOREVER: the provider accepts the connection, never
-      // answers, and holds the request, the photo and a worker slot until the process restarts.
-      // Vision inference is slow, so the budget is generous — but it is finite.
-      const abort = new AbortController();
-      const timer = setTimeout(() => abort.abort(), opts.timeoutMs);
-      let res: Response;
-      try {
-        res = await doFetch(url, {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${opts.apiKey}`,
-            "content-type": "application/json",
-            "x-title": "eait",
-          },
-          body: JSON.stringify(body),
-          signal: abort.signal,
-        });
-      } catch (e) {
-        // Reported as a timeout rather than as whatever the runtime called it, because the caller
-        // turns this into "the analysis didn't come back" and the log is where the detail belongs.
-        if (abort.signal.aborted) throw new Error(`llm timeout after ${opts.timeoutMs}ms`);
-        throw e;
-      } finally {
-        clearTimeout(timer);
-      }
-
-      if (!res.ok) {
-        // The status and a short body go to the log; neither reaches the client. An upstream error
-        // string can echo the prompt, which carries the user's medical free text.
-        const detail = (await res.text()).slice(0, 500);
-        const message = `llm http ${res.status}: ${detail}`;
-        // `attempt > 0` means the first attempt answered 200 and was billed for a reply that missed
-        // the schema. Nothing after that first completion is free, whatever the status says.
-        const unrouted = UNROUTED.has(res.status) && !billed && attempt === 0;
-        throw unrouted ? new GatewayRefusal(res.status, message) : new Error(message);
-      }
-
-      const payload = await res.json() as {
-        choices?: { finish_reason?: string; message?: { content?: string } }[];
-      };
+      // `attempt > 0` means the first attempt answered 200 and was billed for a reply that missed
+      // the schema. Nothing after that first completion is free, whatever the status says.
+      const payload = await send(body, billed || attempt > 0);
       const choice = payload.choices?.[0];
       // `length` means generation stopped at the bound. It is checked only where the reply turned
       // out to be UNUSABLE, never before the parse: with a JSON schema the model writes its closing
@@ -201,6 +220,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       todayMeals: input.todayMeals, week: input.week,
       ...(input.focusMeal !== undefined ? { focusMeal: input.focusMeal } : {}),
       ...(input.question !== undefined ? { question: input.question } : {}),
+      ...(input.recent !== undefined ? { recent: input.recent } : {}),
     });
     let out = await complete(SYSTEM_ROUTE, text, RouteSchema, "route");
 
@@ -253,13 +273,13 @@ export function openRouterPorts(opts: Options): LlmPorts {
     // meal — degrades to `answer` rather than throwing, because the model usually explains itself
     // in `text` and an exception is a worse reply than that explanation.
     //
-    // What it may NOT do is degrade to an EMPTY reply. That is what it used to do, and it is how a
-    // model omitting `analysis` on a `meal` turned every "two boiled eggs and a slice of rye bread"
-    // into a blank chat bubble — no error, no log, and a user who reasonably concluded their food
-    // had been understood. `RouteSchema` now refuses that response so `complete()` retries it, and
-    // the guard below refuses to invent a reply when there is genuinely nothing to say: this
-    // transport owns HTTP and image encoding and nothing else, so it raises, and `handleText`
-    // turns that into `analysis-failed` — which the app renders as an actual message.
+    // An EMPTY `text` on an `answer` is passed through, not refused here. It used to be refused,
+    // because the router's sentence was the reply and an empty one reached the phone as a blank
+    // bubble. The reply is the coach's now, and the router's sentence is only its fallback — so the
+    // decision "is there anything to say" belongs to `handleText`, which has the coach's answer in
+    // hand: it refuses with `analysis-failed` only when the coach failed AND this text is empty.
+    // A small router model answers `answer` with no text often enough that refusing here would
+    // take the coach down with it.
     switch (out.intent) {
       case "meal":
         if (!out.analysis) break;
@@ -274,11 +294,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
         break;
     }
 
-    const reply = out.text ?? "";
-    if (reply.trim() === "") {
-      throw new Error(`route returned intent "${out.intent}" with an empty answer and nothing to act on`);
-    }
-    return { intent: "answer", text: reply } satisfies RouteResult;
+    return { intent: "answer", text: (out.text ?? "").trim() } satisfies RouteResult;
   };
 
   const classifyRestrictions: ClassifyRestrictions = async (text) => {
@@ -286,5 +302,120 @@ export function openRouterPorts(opts: Options): LlmPorts {
     return out.tags;
   };
 
-  return { analyzePhoto, routeText, classifyRestrictions };
+  /**
+   * The agent loop. System (rules + context), the replayed thread, the message; then rounds: a
+   * reply ends it, a tool call is executed through the engine's closure and its result appended,
+   * and the round after `MAX_COACH_ROUNDS` is sent with `tool_choice: "none"` so the model has to
+   * answer with what it has. Every call is billed — the router already generated this turn.
+   *
+   * THE WHOLE TURN SHARES ONE `timeoutMs`, not one per call. The phone gives up at twice the
+   * server's budget — a router call and one behind it — and five calls each allowed the full
+   * budget would keep this process working, and paying, for minutes after the app had stopped
+   * waiting. A round that finds the budget spent throws, and `handleText` answers from the router.
+   */
+  const coach: Coach = async (input, tools) => {
+    const defs = COACH_TOOL_DEFS.filter((d) => Object.hasOwn(tools, d.function.name));
+    const deadline = Date.now() + opts.timeoutMs;
+    const messages: AgentMessage[] = [
+      { role: "system", content: `${SYSTEM_COACH}\n\n${buildCoachContext(input.context)}` },
+      ...input.history.map((h): AgentMessage => ({ role: h.role, content: coachLine(h.text) })),
+      { role: "user", content: coachLine(input.text) },
+    ];
+    for (let round = 0; ; round++) {
+      const last = round >= MAX_COACH_ROUNDS;
+      // THE SCHEMA AND THE TOOLS DO NOT GO TOGETHER. A JSON schema is enforced as a grammar over
+      // the content, and a tool call is not content — so a request carrying both cannot make one,
+      // and every round answered with a sentence about the data it would have fetched. Measured
+      // against a local model, 0 tool calls in 12 questions; without the schema, the first reply
+      // was the call. So the schema rides only where no tool may be called: the forced last
+      // round, and a turn that has no tools at all. The system prompt asks for the JSON shape on
+      // every round, and prose is tolerated below, so the chips are the most a free round can lose.
+      const mayCallTools = defs.length > 0 && !last;
+      const body = {
+        model: opts.chatModel,
+        max_tokens: opts.maxTokens,
+        // Warmer than the analyzer's 0.2: this is prose, and the same sentence twice is not the
+        // goal. Low, still — the numbers in it are the context's, not the sampler's.
+        temperature: 0.4,
+        // A chat answer wants seconds. OpenRouter normalises this across the providers that
+        // reason and ignores it on the ones that do not.
+        reasoning: { effort: "low" },
+        messages,
+        ...(mayCallTools ? {} : {
+          response_format: {
+            type: "json_schema" as const,
+            json_schema: { name: "coach_reply", schema: z.toJSONSchema(CoachReplySchema, { io: "output" }) },
+          },
+        }),
+        ...(defs.length > 0 ? { tools: defs } : {}),
+        ...(defs.length > 0 && last ? { tool_choice: "none" as const } : {}),
+      };
+      const left = deadline - Date.now();
+      if (left <= 0) throw new Error(`coach ran past ${opts.timeoutMs}ms over ${round} tool round(s)`);
+      const choice = (await send(body, true, left)).choices?.[0];
+      const calls = choice?.message?.tool_calls ?? [];
+      if (calls.length > 0 && !last) {
+        messages.push({ role: "assistant", content: choice?.message?.content ?? null, tool_calls: calls });
+        for (const call of calls) {
+          messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(await runTool(tools, call)) });
+        }
+        continue;
+      }
+
+      const raw = (choice?.message?.content ?? "").trim();
+      if (raw === "") throw new Error(`coach returned an empty reply after ${round} tool round(s)`);
+      let parsed: unknown = null;
+      try { parsed = JSON.parse(raw); } catch { /* prose, handled below */ }
+      // A model that answered with a bare JSON string said a sentence, in quotes. Take the sentence.
+      if (typeof parsed === "string") parsed = { reply: parsed };
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        const p = parsed as Record<string, unknown>;
+        const reply = typeof p.reply === "string" ? p.reply.trim() : "";
+        if (reply === "") throw new Error("coach returned JSON with an empty reply");
+        return { reply, suggestions: cleanSuggestions(p.suggestions) };
+      }
+      // A reply cut off mid-JSON is not prose; it is a bound too tight, and naming it beats
+      // rendering half an object as a sentence.
+      if (choice?.finish_reason === "length") {
+        throw new Error(`llm truncated coach_reply at max_tokens=${opts.maxTokens}; raise EAIT__BACKEND__LLM_MAX_TOKENS`);
+      }
+      // Prose where JSON was asked for: still the answer. The chips are the only thing lost.
+      return { reply: raw, suggestions: [] };
+    }
+  };
+
+  return { analyzePhoto, routeText, classifyRestrictions, coach };
+}
+
+/**
+ * One tool call, executed — or refused in a shape the model can read and recover from.
+ *
+ * Nothing here throws: a tool the engine did not supply, arguments that are not JSON, or a
+ * closure that failed all become `{ error }` on the tool message, and the model answers with
+ * what it has. The failure's own text goes to the log and not to the model, because it can carry
+ * a query and the query can carry the user's medical free text.
+ */
+async function runTool(tools: CoachTools, call: ToolCall): Promise<unknown> {
+  // A refused call is logged by name and reason, never by its arguments: a model that keeps
+  // sending calls this loop cannot run is invisible from the outside otherwise — every turn still
+  // answers, just without the data — and the arguments are model output that may quote the user.
+  const refuse = (error: string) => {
+    console.warn(`[eait] coach tool call refused: ${call.function.name} — ${error}`);
+    return { error };
+  };
+  const fn = tools[call.function.name];
+  if (!fn) return refuse("unknown tool");
+  let args: unknown;
+  try {
+    args = JSON.parse(call.function.arguments || "{}");
+  } catch {
+    return refuse("arguments were not valid JSON");
+  }
+  if (typeof args !== "object" || args === null || Array.isArray(args)) return refuse("arguments must be an object");
+  try {
+    return await fn(args as Record<string, unknown>);
+  } catch (e) {
+    console.error(`[eait] coach tool ${call.function.name} failed: ${(e as Error)?.message ?? e}`);
+    return { error: "the tool failed" };
+  }
 }

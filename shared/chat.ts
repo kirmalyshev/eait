@@ -89,6 +89,44 @@ export function scriptedLine(id: ScriptedLineId, params: Record<string, string> 
   return SCRIPTED_LINES[id].replace(/\{(\w+)\}/g, (_, k: string) => params[k] ?? "");
 }
 
+// ── The coach ────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * What the Chat tab offers when nothing live is on screen: three things the coach can do, worded
+ * as the user would send them, because a tap sends the words verbatim. Shared so the server can
+ * one day suggest the same ones; today only the app reads them.
+ */
+export const COACH_STARTERS: readonly string[] = [
+  "How's my week going?",
+  "What should I eat tonight?",
+  "Am I getting enough protein?",
+];
+
+/** Chips under a live answer: at most this many, each at most this long. */
+export const MAX_SUGGESTIONS = 3;
+export const MAX_SUGGESTION = 60;
+
+/**
+ * The model's follow-up suggestions, fit for chips: strings only, flattened, non-empty, within the
+ * bound, distinct, and no more than `MAX_SUGGESTIONS`. Anything else is dropped rather than drawn —
+ * a chip is a button, and a button with two lines of model prose on it is not one.
+ */
+export function cleanSuggestions(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const v of raw) {
+    if (typeof v !== "string") continue;
+    const flat = neutral(v);
+    if (flat === "" || flat.length > MAX_SUGGESTION || out.includes(flat)) continue;
+    // A bracketed line is a note the thread replays ("[photo]", "[logged: …]"), copied back by a
+    // model that mistook the history for a menu. Nobody sends one.
+    if (/^\[.*\]$/.test(flat)) continue;
+    out.push(flat);
+    if (out.length === MAX_SUGGESTIONS) break;
+  }
+  return out;
+}
+
 /** copy.md § Step 17 · after a correction, from chat or from the editor. `eatenToday` is after it. */
 export function correctionLine(i: { targets: FoodTargets; meal: { kcal: number }; eatenToday: { kcal: number; protein_g: number } }): string {
   return `Updated — ${n(i.meal.kcal)} kcal. ${n(i.targets.kcal - i.eatenToday.kcal)} of your ${n(i.targets.kcal)} left today, ${n(i.eatenToday.protein_g)} of the ${n(i.targets.protein_g)} g protein.`;
