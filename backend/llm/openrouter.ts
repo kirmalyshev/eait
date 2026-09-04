@@ -6,7 +6,7 @@
 
 import { z } from "zod";
 import type { AnalyzePhoto, ClassifyRestrictions, LlmPorts, RouteResult, RouteText } from "./port.ts";
-import { GatewayRefusal, clampDayOffset } from "./port.ts";
+import { GatewayRefusal, clampDayOffset, imageMime } from "./port.ts";
 import {
   ClassifySchema, MealAnalysisSchema, RouteSchema, SYSTEM, SYSTEM_CLASSIFY, SYSTEM_ROUTE,
   SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL, buildClassifyText, buildRouteText,
@@ -48,14 +48,11 @@ const UNROUTED = new Set([401, 402, 429, 503]);
 /**
  * Data URL for one image. The mime type is read from the magic bytes rather than trusted from the
  * upload's filename: a client that mislabels a PNG as JPEG gets a silent model-side decode failure,
- * which surfaces as "the AI is bad at my food" rather than as an error anyone can act on.
+ * which surfaces as "the AI is bad at my food" rather than as an error anyone can act on. Unknown
+ * bytes never get here — `logPhotoMeal` refuses them before the analysis is charged.
  */
 function toDataUrl(bytes: Uint8Array): string {
-  const mime =
-    bytes[0] === 0xff && bytes[1] === 0xd8 ? "image/jpeg"
-    : bytes[0] === 0x89 && bytes[1] === 0x50 ? "image/png"
-    : bytes[0] === 0x52 && bytes[1] === 0x49 ? "image/webp"
-    : "image/jpeg";
+  const mime = imageMime(bytes) ?? "image/jpeg";
   return `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
 }
 

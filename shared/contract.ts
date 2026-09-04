@@ -31,6 +31,7 @@ export const REFUSAL_STATUS = {
   "cap-exceeded": 429,
   "subscription-required": 402,
   "analysis-failed": 502,
+  "unsupported-image": 415,
 } as const;
 export type RefusalKind = keyof typeof REFUSAL_STATUS;
 
