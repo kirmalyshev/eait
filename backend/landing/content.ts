@@ -9,7 +9,8 @@
 // (angle A2) · billing refusal — `marketing/research/2026-07-28-calai-app-store-review-brief.md`
 // §5 and `…-category-billing-crossread.md` · floor section — that brief's §3.4, numbers read from
 // `src/shared/targets.ts` · accuracy section — `marketing/research/2026-07-26-ad-angle-bank.md`
-// Angle 2.
+// Angle 2 · hero no-card line, the two FAQ additions and the copy-editing pass —
+// `marketing/research/2026-09-02-landing-cro-audit.md`.
 //
 // THE FIRST REFUSAL USED TO SAY THERE WAS NO PAID TIER, AND THE PAID TIER SHIPPED. Three places
 // said it — the refusal, the cost question and the closing line — and every one of them became
@@ -84,9 +85,9 @@ export const hero = {
   // Angle A2 phrased as the reader's moment, not a thesis — see marketing/README.md.
   headline: "Will this meal fit your day?",
   sub:
-    "Photograph the plate. eait reads it — calories, protein, saturated fat, salt — and answers " +
+    "Photograph the plate. eait reads it — calories, protein, saturated fat, sodium — and answers " +
     "against targets computed from your body and your goal. Seconds, no weighing, no database " +
-    "search.",
+    "search, and no card until it has answered you.",
   // The Tier-1 segment, never the restricted-diet reader, and no medication named —
   // `marketing/research/2026-07-26-ad-angle-bank.md` Angle 3; liability: redteam-positioning.md.
   audience:
@@ -153,7 +154,7 @@ export const sample = {
  */
 export const forSection = {
   eyebrow: "Who it's for",
-  headline: "One question at the table, three people asking it.",
+  headline: "If one of these is you.",
   rows: [
     {
       title: "You've carried the same few kilos for years.",
@@ -191,8 +192,8 @@ export const refusals: readonly Refusal[] = [
       "You open it, answer a few questions about your body, and send a meal — **no account, no " +
       `email, no card.** ${SAMPLE_ANALYSES === 1 ? "That first answer is yours" : `The first ${SAMPLE_ANALYSES} answers are yours`} ` +
       "before anything is asked of you. Only then does it ask, and what it asks for is a " +
-      "subscription that opens with a free week, bought through the App Store and cancelled " +
-      "there, before a cent moves if you decide against it.",
+      "subscription that opens with a free week, bought in the App Store and cancelled there. " +
+      "Nothing is charged unless you let that week run out.",
     proof:
       "In the 864 App Store reviews we read across this category, the biggest complaint, four " +
       "times the size of the next, is a charge nobody agreed to.",
@@ -241,7 +242,7 @@ export const steps: readonly Step[] = [
     title: "Get the verdict.",
     body:
       "The meal is scored against your targets, on the dimensions that apply to you. Calories " +
-      "always. Saturated fat if you said you are watching your LDL. Sodium if you said you are " +
+      "always. Saturated fat if you said you are watching your cholesterol. Sodium if you said you are " +
       "watching your kidneys. **Three separate judgements, because one meal can be fine on one and " +
       "not on another.**",
   },
@@ -342,9 +343,9 @@ export const floorSection = {
   eyebrow: "The floor",
   headline: "The one number it will not compute its way past.",
   intro:
-    "An app that hands you a daily calorie target is doing the single most consequential thing in " +
-    "this category, and the arithmetic that produces it will happily produce a dangerous answer " +
-    "for a small person in a hurry. So three guards run, in this order, every time:",
+    "A daily calorie target is the most consequential thing an app like this produces, and the " +
+    "arithmetic behind it will happily hand a small person in a hurry a dangerous number. So " +
+    "three guards run, in this order, every time:",
   guards: [
     {
       title: "The deficit is capped at a share of maintenance.",
@@ -488,10 +489,10 @@ export const privacySection = {
       // this page. It is still true of the APP, which is the part that holds your meals, and the
       // honest version says which is which rather than hoping nobody reads both sections.
       body:
-        "**Sign in with Apple asks for no email scope at all**, and whatever a provider volunteers in " +
-        "its token is discarded before anything is written. The account key is the anonymous " +
-        "subject identifier and nothing else. If you give us an address on this website, it lives " +
-        "on a list that touches none of that, and one click removes it.",
+        "**Sign in with Apple or Google is asked for an identifier and nothing else**: no email, no " +
+        "name. Whatever a provider volunteers anyway is discarded before anything is written. If " +
+        "you give us an address on this website, it lives on a list that touches none of that, " +
+        "and one click removes it.",
     },
     {
       title: "No photographs.",
@@ -526,6 +527,22 @@ export const faqs: readonly Faq[] = [
       "Subscriptions. There is no charge that appears without you having agreed to it.",
   },
   {
+    q: "Why isn't it free?",
+    a:
+      "Because every analysis after the first runs through a model we pay for, per plate. The " +
+      "first one costs you nothing so you can see what it says before deciding; after that the " +
+      "App Store shows you the price in your own currency before you agree to anything.",
+  },
+  {
+    q: "How accurate is it?",
+    a:
+      `A photo is an estimate. On ${measured.dishes} reference dishes with weighed ingredients ` +
+      `the median error was about ${measured.medianErrorPct}%, which is a smoke test rather than ` +
+      "a study, and we say so. The app shows what it assumed about each item, and when that is " +
+      "wrong you say so in a sentence — “half that”, “no oil” — and the numbers and the verdict " +
+      "are recomputed.",
+  },
+  {
     q: "Do I have to make an account?",
     a:
       "No. The app creates a device identity for itself and works immediately. Sign in with Apple " +
@@ -555,7 +572,7 @@ export const faqs: readonly Faq[] = [
 
 export const closing = {
   headline: "One photo. Then an answer you can act on.",
-  sub: "Seeing it work costs nothing and identifies nobody, and nothing is kept afterwards. Find out whether you like it before you pay for it or tell it who you are.",
+  sub: "Seeing it work costs nothing, identifies nobody, and keeps nothing. Find out whether you like it before you pay for it or tell it who you are.",
 } as const;
 
 /**
@@ -581,13 +598,13 @@ export const founder = {
  * favour and this should be an exchange.
  */
 export const subscribeSection = {
-  eyebrow: "If not today",
+  eyebrow: "The mailing list",
   headline: "Hear when the iPhone app is out.",
   body:
     "One address, on a list that lives on this website and nowhere near your meals. It is not " +
-    "connected to an account, it is not used for anything else, and every message carries a link " +
-    "that removes you in one click with no login and no questions. You will get one email asking " +
-    "you to confirm; until you do, the address is on no list at all, and if you never do it is " +
+    "connected to an account or used for anything else, and every message carries a link that " +
+    "removes you in one click, with no login and no questions. First you get one email asking " +
+    "you to confirm. Until you do, the address is on no list at all, and if you never do it is " +
     "deleted within a week.",
   label: "Email address",
   placeholder: "you@example.com",
