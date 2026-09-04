@@ -448,14 +448,15 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // questions shorter — why now, the hardest moment and eating out are gone, so a v6 funnel has
   // rows a v7 one cannot, and reading the two under one number would compare a fourteen-place
   // flow with an eleven-place one. The words did not change; the FLOW they are counted against
-  // did, and that is the same join the number exists for.
-  version: 7,
+  // did, and that is the same join the number exists for. v8 rewrites the welcome's second and
+  // third lines: the verdict is named before the questions, and the billing sentence is the
+  // landing's.
+  version: 8,
   welcome: {
     lines: [
       "Hi, I'm Spud. Photograph what you eat, get an honest answer — that's the whole app.",
-      "Three minutes of questions, and you leave with your plan — daily calories, protein, and what's realistic by when.",
-      "No email, no name. You see your plan before anything is asked; the rest is a week free to try. Ready?",
-
+      "Three minutes of questions, then your plan — daily calories, protein, what's realistic by when — and a verdict on your first meal.",
+      "No email, no name. Nothing to pay until you've seen the plan and that first verdict; after that it's a week free to try. Ready?",
     ],
     cta: "Let's go",
   },
