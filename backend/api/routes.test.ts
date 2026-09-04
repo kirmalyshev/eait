@@ -234,6 +234,13 @@ describe("chat and editing", () => {
 
   it("400s an empty message rather than spending a model call on it", async () => {
     const token = await session();
+    // A question comes back with the coach's chips, bounded like every other client-bound list.
+    const asked = await (await post(ROUTES.messages, { text: "how's my week going?" }, token)).json() as
+      { kind: string; text: string; suggestions?: string[] };
+    expect(asked.kind).toBe("answered");
+    expect(asked.text).toContain("Demo");
+    expect(asked.suggestions!.length).toBeGreaterThan(0);
+    expect(asked.suggestions!.length).toBeLessThanOrEqual(3);
     expect((await post(ROUTES.messages, { text: "   " }, token)).status).toBe(400);
     // The line is stored in the thread; the shared cap the app applies is the one the server enforces.
     expect((await post(ROUTES.messages, { text: "x".repeat(MAX_USER_LINE + 1) }, token)).status).toBe(400);

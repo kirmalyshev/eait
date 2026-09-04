@@ -545,6 +545,14 @@ export interface Store {
   /** Scoped. Returns null when the row vanished between lookup and write (a delete race). */
   updateMeal(userId: string, mealId: string, patch: MealPatch): Promise<MealRecord | null>;
   mealsForDate(userId: string, date: string): Promise<MealRecord[]>;
+  /**
+   * The meals dated within `[from, to]`, both inclusive, NEWEST first, at most `limit`.
+   *
+   * The coach's window onto what was actually eaten — dishes, not sums — for "what did I have
+   * last week that ran the sodium up". Bounded by the caller and by the store both: the bound
+   * keeps the newest rows, because a question about lately is a question about the near end.
+   */
+  mealsSince(userId: string, from: string, to: string, limit: number): Promise<MealRecord[]>;
   /** Most recent first, `since` inclusive. Feeds the week view and the chat router's context. */
   totalsSince(userId: string, since: string): Promise<DayTotals[]>;
 

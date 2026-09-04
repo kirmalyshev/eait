@@ -117,3 +117,43 @@ test("a canned plate's items still add up to its totals", async () => {
     }
   }
 });
+
+// ── The canned coach ─────────────────────────────────────────────────────────────────────────
+
+const COACH = {
+  context: {
+    profile: PROFILE, targets: explainTargets(PROFILE).targets, basis: explainTargets(PROFILE).basis,
+    today: "2026-09-02", localTime: "12:00", todayMeals: [], week: [], projection: null,
+  },
+  history: [],
+};
+
+test("the canned coach reaches for the meals tool on a question about the week, and says so", async () => {
+  const asked: string[] = [];
+  const out = await demoPorts().coach({ ...COACH, text: "how did my week go?" }, {
+    get_meals: async (args) => { asked.push(`meals ${JSON.stringify(args)}`); return [{ date: "2026-09-01", kcal: 640, items: [{ name: "Rice", grams: 200 }] }]; },
+    get_health: async () => { asked.push("health"); return []; },
+  });
+  expect(asked).toEqual([`meals ${JSON.stringify({ from: "2026-08-27", to: "2026-09-02" })}`]);
+  expect(out.reply).toContain("640");
+  expect(out.reply).toContain("Demo");
+  expect(out.suggestions.length).toBeLessThanOrEqual(3);
+});
+
+test("the canned coach reaches for the health tool on a question about weight or sleep", async () => {
+  const asked: string[] = [];
+  const out = await demoPorts().coach({ ...COACH, text: "how is my weight trending?" }, {
+    get_meals: async () => { asked.push("meals"); return []; },
+    get_health: async (args) => { asked.push(`health ${JSON.stringify(args)}`); return [{ date: "2026-09-01", weight_kg: 93.4 }]; },
+  });
+  expect(asked).toEqual([`health ${JSON.stringify({ days: 30 })}`]);
+  expect(out.reply).toContain("93.4");
+});
+
+test("the canned coach answers a plain question from the context alone", async () => {
+  const out = await demoPorts().coach({ ...COACH, text: "is pizza ok tonight?" }, {
+    get_meals: async () => { throw new Error("must not be called"); },
+    get_health: async () => { throw new Error("must not be called"); },
+  });
+  expect(out.reply).toContain(String(COACH.context.targets.kcal));
+});

@@ -62,8 +62,10 @@ shows only frames that never reach the analyzer — a test names the three that 
 **Positioning is not taste.** `../../../marketing/research/` is where every section comes
 from, and `content.ts` cites which document for which. The lead sells judgement rather than
 measurement because a 163-ad scrape of the category found nobody selling it. The first refusal is
-about billing because that is the largest complaint cluster in an 864-review corpus, four times the
-size of accuracy, and a category tax rather than one vendor's mistake.
+about billing because that is the largest complaint cluster for every one of seven apps read —
+2,792 low-star reviews, with billing's share of complaints never under 15% and 27% at the median
+(`2026-07-28-category-billing-crossread.md` §1) — a category tax rather than one vendor's mistake.
+On Cal AI alone (864 reviews, the 2026-07-28 review brief) it is four times the size of accuracy.
 
 **The claims gate blocks the build.** Health claims (`lose weight`, `guaranteed`, `lowers
 cholesterol`, `detox`…) and exclusivity claims (`the only app`, `every other app`) fail

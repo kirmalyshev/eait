@@ -615,6 +615,24 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(totals[0]!.kcal).toBe(300);
     });
 
+    it("lists the meals in a window, newest first, bounded, and only this user's", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const other = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.insertMeal(meal(u, { date: "2026-08-01", ts: "2026-08-01T08:00:00.000Z", kcal: 1 }));
+      await s.insertMeal(meal(u, { date: "2026-08-01", ts: "2026-08-01T13:00:00.000Z", kcal: 2 }));
+      await s.insertMeal(meal(u, { date: "2026-07-30", ts: "2026-07-30T13:00:00.000Z", kcal: 3 }));
+      await s.insertMeal(meal(u, { date: "2026-08-03", ts: "2026-08-03T13:00:00.000Z", kcal: 4 }));
+      await s.insertMeal(meal(other, { date: "2026-08-01", kcal: 99 }));
+      // Both ends inclusive; the day after the window is out, the day before it is out.
+      const rows = await s.mealsSince(u, "2026-07-31", "2026-08-02", 10);
+      expect(rows.map((m) => m.kcal)).toEqual([2, 1]);
+      // The bound keeps the NEWEST, because "what did I eat lately" is what the window is asked for.
+      const all = await s.mealsSince(u, "2026-07-01", "2026-08-31", 2);
+      expect(all.map((m) => m.kcal)).toEqual([4, 2]);
+      expect(await s.mealsSince(other, "2026-07-01", "2026-08-31", 10)).toHaveLength(1);
+    });
+
     it("keeps a profile patch's absent fields untouched", async () => {
       const s = await open();
       const u = (await s.upsertDeviceUser(device(), "en")).userId;
