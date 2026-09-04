@@ -7,7 +7,8 @@
 //
 // Citations: verdict-over-counting lead — `marketing/research/2026-07-26-meta-ad-teardown.md` §6
 // (angle A2) · billing refusal — `marketing/research/2026-07-28-calai-app-store-review-brief.md`
-// §5 and `…-category-billing-crossread.md` · floor section — that brief's §3.4, numbers read from
+// §5 (the angle) and `…-category-billing-crossread.md` §1 (the proof line: seven apps, 2,792
+// low-star reviews, billing the largest cluster in all seven — the 864 is Cal AI's alone) · floor section — that brief's §3.4, numbers read from
 // `src/shared/targets.ts` · accuracy section — `marketing/research/2026-07-26-ad-angle-bank.md`
 // Angle 2 · hero no-card line, the two FAQ additions and the copy-editing pass —
 // `marketing/research/2026-09-02-landing-cro-audit.md`.
@@ -15,7 +16,7 @@
 // THE FIRST REFUSAL USED TO SAY THERE WAS NO PAID TIER, AND THE PAID TIER SHIPPED. Three places
 // said it — the refusal, the cost question and the closing line — and every one of them became
 // false the day `checkCaps` started answering `subscription-required`. The angle survives, because
-// the 864-review corpus is about charges nobody agreed to rather than about price: what the product
+// the 864-review Cal AI corpus is about charges nobody agreed to rather than about price: what the product
 // still refuses is taking a card BEFORE it has shown you an answer. The claim is now the narrower
 // true one, and `landing.test.ts` fails if the copy and `configDefaults().freeAnalyses` disagree.
 //
@@ -195,8 +196,8 @@ export const refusals: readonly Refusal[] = [
       "subscription that opens with a free week, bought in the App Store and cancelled there. " +
       "Nothing is charged unless you let that week run out.",
     proof:
-      "In the 864 App Store reviews we read across this category, the biggest complaint, four " +
-      "times the size of the next, is a charge nobody agreed to.",
+      "In 2,792 low-star App Store reviews across seven apps in this category, the biggest " +
+      "complaint, for every one of the seven, is a charge nobody agreed to.",
   },
   {
     title: "It will not keep your photo.",
