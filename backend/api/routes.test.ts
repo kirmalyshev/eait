@@ -13,6 +13,9 @@ import { createRouter } from "./routes.ts";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 
+/** 64 bytes that pass the engine's magic-byte check as a JPEG. */
+const jpegBytes = (fill: number) => { const b = new Uint8Array(64).fill(fill); b[0] = 0xff; b[1] = 0xd8; return b; };
+
 /**
  * A stand-in verifier. Accepts `ok:<provider>:<subject>` and rejects everything else.
  *
@@ -85,7 +88,7 @@ async function session(): Promise<string> {
 function photoRequest(token: string, files = 1, caption?: string): Request {
   const form = new FormData();
   for (let i = 0; i < files; i++) {
-    form.append("photo", new File([new Uint8Array(64).fill(i + 1)], `m${i}.jpg`, { type: "image/jpeg" }));
+    form.append("photo", new File([jpegBytes(i + 1)], `m${i}.jpg`, { type: "image/jpeg" }));
   }
   if (caption) form.append("caption", caption);
   return new Request(url(ROUTES.photo), {
@@ -928,7 +931,7 @@ describe("rate limits", () => {
 
     const photo = (token: string) => {
       const form = new FormData();
-      form.append("photo", new File([new Uint8Array(64).fill(7)], "m.jpg", { type: "image/jpeg" }));
+      form.append("photo", new File([jpegBytes(7)], "m.jpg", { type: "image/jpeg" }));
       return h(new Request(url(ROUTES.photo), {
         method: "POST",
         headers: { authorization: `Bearer ${token}`, "x-forwarded-for": address },
