@@ -344,6 +344,73 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.getEntitlement(userId)).toBeNull();
     });
 
+    // ── Photos ─────────────────────────────────────────────────────────────────────────────
+    //
+    // The bytes live with the meal and are read by `meal_id AND user_id`, never by a guessable
+    // path. Another user's meal id is empty here for the same reason it is null in `getMeal`.
+    const jpeg = (fill: number) => { const b = new Uint8Array(16).fill(fill); b[0] = 0xff; b[1] = 0xd8; return b; };
+
+    it("stores a meal's photos in order, counts them on the row, and scopes every read", async () => {
+      const s = await open();
+      const a = (await s.upsertDeviceUser(device(), "en")).userId;
+      const b = (await s.upsertDeviceUser(device(), "en")).userId;
+      const m = meal(a);
+      await s.insertMeal(m);
+      await s.putPhotos(a, m.id, [{ mime: "image/jpeg", bytes: jpeg(1) }, { mime: "image/png", bytes: jpeg(2) }]);
+
+      const got = await s.getPhotos(a, m.id);
+      expect(got.map((p) => p.position)).toEqual([0, 1]);
+      expect(got[0]!.mime).toBe("image/jpeg");
+      expect(Array.from(got[1]!.bytes)).toEqual(Array.from(jpeg(2)));
+      expect((await s.getPhoto(a, m.id, 1))?.mime).toBe("image/png");
+      expect((await s.getMeal(a, m.id))?.photos).toBe(2);
+
+      expect(await s.getPhotos(b, m.id)).toEqual([]);
+      expect(await s.getPhoto(b, m.id, 0)).toBeNull();
+      expect(await s.getPhoto(a, m.id, 2)).toBeNull();
+    });
+
+    it("writes nothing for a meal that is not the caller's", async () => {
+      const s = await open();
+      const a = (await s.upsertDeviceUser(device(), "en")).userId;
+      const b = (await s.upsertDeviceUser(device(), "en")).userId;
+      const m = meal(a);
+      await s.insertMeal(m);
+      await s.putPhotos(b, m.id, [{ mime: "image/jpeg", bytes: jpeg(1) }]);
+      expect(await s.getPhotos(a, m.id)).toEqual([]);
+      expect((await s.getMeal(a, m.id))?.photos ?? 0).toBe(0);
+    });
+
+    it("is idempotent per position: a second write changes neither the count nor the bytes", async () => {
+      const s = await open();
+      const a = (await s.upsertDeviceUser(device(), "en")).userId;
+      const m = meal(a);
+      await s.insertMeal(m);
+      await s.putPhotos(a, m.id, [{ mime: "image/jpeg", bytes: jpeg(1) }]);
+      await s.putPhotos(a, m.id, [{ mime: "image/jpeg", bytes: jpeg(9) }]);
+      const got = await s.getPhotos(a, m.id);
+      expect(got.length).toBe(1);
+      expect(Array.from(got[0]!.bytes)).toEqual(Array.from(jpeg(1)));
+      expect((await s.getMeal(a, m.id))?.photos).toBe(1);
+    });
+
+    it("erases photos with the account and moves them with a merge", async () => {
+      const s = await open();
+      const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real = (await s.upsertDeviceUser(device(), "en")).userId;
+      const m = meal(anon);
+      await s.insertMeal(m);
+      await s.putPhotos(anon, m.id, [{ mime: "image/jpeg", bytes: jpeg(3) }]);
+
+      await s.mergeUsers(anon, real);
+      expect((await s.getPhotos(real, m.id)).length).toBe(1);
+      expect(await s.getPhotos(anon, m.id)).toEqual([]);
+
+      await s.deleteUser(real);
+      expect(await s.getPhotos(real, m.id)).toEqual([]);
+      expect(await s.getPhoto(real, m.id, 0)).toBeNull();
+    });
+
     // ── Push tokens ────────────────────────────────────────────────────────────────────────
     //
     // One row per DEVICE, keyed on the token itself. A token is an installation, not an account:

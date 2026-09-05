@@ -31,6 +31,7 @@ import {
   MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
   healthTrend, identitiesFor, logPhotoMeal, onboardingContent, patchProfile, profileView,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, type EngineDeps,
+  reanalyzeMeal,
 } from "../engine/index.ts";
 import { confirmSubscription, subscribe, unsubscribe } from "../engine/subscribe.ts";
 import { adminRoutes } from "./admin.ts";
@@ -107,6 +108,8 @@ export interface RouterOptions {
  * keeps every hop between here and the phone from calling the stream dead.
  */
 export const STREAM_KEEPALIVE_MS = 5_000;
+
+const REANALYZE_PATH = /^\/v1\/meals\/([^/]+)\/reanalyze$/;
 
 export function createRouter(
   deps: EngineDeps,
@@ -394,8 +397,8 @@ export function createRouter(
 
       // ── The billed routes, bounded by ADDRESS as well as by account ───────────────────────
       //
-      // Checked here, after authentication and before any handler, because it applies to both
-      // routes that call the model and neither should be able to forget it.
+      // Checked here, after authentication and before any handler, because it applies to every
+      // route that calls the model and none of them should be able to forget it.
       //
       // This is the cap that closes the bypass. A per-account allowance is only a limit while
       // accounts are scarce, and they are not: the route above hands one to anybody. Counting per
@@ -404,7 +407,7 @@ export function createRouter(
       // Reported as `cap-exceeded` with `scope: "address"` rather than as a bare 429, so it travels
       // the refusal path the app already renders — and is worded as what it is. Saying "your daily
       // allowance is spent" to somebody on a carrier network who has logged one meal would be a lie.
-      if (req.method === "POST" && (pathname === ROUTES.photo || pathname === ROUTES.messages)) {
+      if (req.method === "POST" && (pathname === ROUTES.photo || pathname === ROUTES.messages || REANALYZE_PATH.test(pathname))) {
         const wait = limit(req, peer, "analysis", deps.config.analysisRateLimitPerDay, DAY);
         if (wait !== null) {
           return tooManyRequests(wait, { error: "cap-exceeded", scope: "address" });
@@ -590,6 +593,26 @@ export function createRouter(
       }
 
       // ── Manual edit ───────────────────────────────────────────────────────────────────────
+      const photoMatch = /^\/v1\/meals\/([^/]+)\/photos\/(\d{1,2})$/.exec(pathname);
+      if (req.method === "GET" && photoMatch) {
+        const p = await deps.store.getPhoto(userId, decodeURIComponent(photoMatch[1]!), Number(photoMatch[2]));
+        if (!p) return json({ error: "not found" }, 404);
+        return new Response(p.bytes, {
+          headers: {
+            "content-type": p.mime,
+            "content-length": String(p.bytes.byteLength),
+            "cache-control": "private, max-age=31536000, immutable",
+          },
+        });
+      }
+
+      const reanalyzeMatch = REANALYZE_PATH.exec(pathname);
+      if (req.method === "POST" && reanalyzeMatch) {
+        const result = await reanalyzeMeal(deps, userId, decodeURIComponent(reanalyzeMatch[1]!));
+        if (result.kind === "target-gone") return json({ error: "target-gone", on: result.on }, 409);
+        return isRefusal(result) ? refusal(result) : json(result);
+      }
+
       const mealMatch = /^\/v1\/meals\/([^/]+)$/.exec(pathname);
       if (req.method === "PATCH" && mealMatch) {
         // Unbilled and behind no cap, but it writes the thread: per address, the same allowance as

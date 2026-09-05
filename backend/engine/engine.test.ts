@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, type MealAnalysis, type MealLogged, type PhotoEvent } from "@eait/shared";
+import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
@@ -12,7 +12,7 @@ import { fakePush } from "../push/fake.ts";
 import { remember } from "./chat.ts";
 import {
   appendLines, applyCorrection, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
-  logPhotoMeal, patchProfile, profileView, stepApplies, week, type EngineDeps,
+  logPhotoMeal, patchProfile, profileView, reanalyzeMeal, stepApplies, week, type EngineDeps,
 } from "./index.ts";
 
 const CONFIG: Config = {
@@ -1520,5 +1520,135 @@ describe("the streamed photo turn", () => {
     const refused = await logPhotoMeal(makeDeps({ freeAnalyses: 1 }), userId, photo(), (e) => events.push(e));
     expect(refused.kind).toBe("subscription-required");
     expect(events.filter((e) => e.kind === "glance").length).toBe(1);
+  });
+});
+
+describe("photo storage", () => {
+  it("keeps a logged meal's photos, in order, and puts the meal id on the photo bubble", async () => {
+    const userId = await onboard();
+    const res = await logPhotoMeal(deps, userId, { images: [async () => jpeg(8), async () => jpeg(12)] });
+    expect(res.kind).toBe("logged");
+    const mealId = (res as MealLogged).mealId;
+    const stored = await store.getPhotos(userId, mealId);
+    expect(stored.map((p) => p.position)).toEqual([0, 1]);
+    expect(stored[0]!.mime).toBe("image/jpeg");
+    expect(stored[1]!.bytes.byteLength).toBe(14);
+    expect((await store.getMeal(userId, mealId))?.photos).toBe(2);
+    const { entries } = await chatHistory(deps, userId, {});
+    const bubble = entries.find((e) => e.role === "user" && e.kind === "photo");
+    expect(bubble && bubble.role === "user" && bubble.kind === "photo" ? bubble.mealId : null).toBe(mealId);
+  });
+
+  it("stores nothing when the analysis is not food or fails", async () => {
+    const userId = await onboard();
+    const base = demoPorts();
+    const notFood: LlmPorts = { ...base, analyzePhoto: async (i, d) => ({ ...(await base.analyzePhoto(i, d)), isFood: false }) };
+    expect((await logPhotoMeal(makeDeps({}, notFood), userId, photo())).kind).toBe("not-food");
+    const failing: LlmPorts = { ...base, analyzePhoto: async () => { throw new Error("boom"); } };
+    expect((await logPhotoMeal(makeDeps({}, failing), userId, photo())).kind).toBe("analysis-failed");
+    const today = localDate(deps.config.timezone);
+    expect(await store.mealsForDate(userId, today)).toEqual([]);
+  });
+
+  it("still logs the meal when the photo store fails", async () => {
+    const userId = await onboard();
+    const broken: Store = { ...store, putPhotos: async () => { throw new Error("disk full"); } };
+    const res = await logPhotoMeal({ ...deps, store: broken }, userId, photo());
+    expect(res.kind).toBe("logged");
+    expect((await store.getMeal(userId, (res as MealLogged).mealId))?.photos ?? 0).toBe(0);
+    // And the bubble names no meal, so the app draws no frame for a photo that is not there.
+    const { entries } = await chatHistory(deps, userId, {});
+    const bubble = entries.find((e) => e.role === "user" && e.kind === "photo");
+    expect(bubble && bubble.role === "user" && bubble.kind === "photo" ? bubble.mealId : "missing").toBeNull();
+  });
+});
+
+describe("corrections re-see the photo", () => {
+  it("hands the stored photos to the router for a correction, and nothing for a text meal", async () => {
+    const userId = await onboard();
+    const seen: (Uint8Array[] | undefined)[] = [];
+    const spy: LlmPorts = { ...demoPorts(), routeText: async (i) => { seen.push(i.loadFocusImages ? await i.loadFocusImages() : undefined); return demoPorts().routeText(i); } };
+    const d = makeDeps({}, spy);
+    const logged = await logPhotoMeal(d, userId, photo(8)) as MealLogged;
+    await handleText(d, userId, { text: "half that", focusMealId: logged.mealId });
+    expect(seen[0]?.length).toBe(1);
+    expect(seen[0]?.[0]?.byteLength).toBe(10);
+
+    const proposed = await handleText(d, userId, { text: "a bowl of rice" });
+    const textMeal = await confirmPendingMeal(d, userId, (proposed as { pendingId: string }).pendingId) as MealLogged;
+    await handleText(d, userId, { text: "half that", focusMealId: textMeal.mealId });
+    expect(seen[2]).toBeUndefined();
+  });
+});
+
+describe("re-analysis", () => {
+  it("re-reads the stored photo, charged like a photo, and replaces the numbers without marking a correction", async () => {
+    const userId = await onboard();
+    const logged = await logPhotoMeal(deps, userId, photo(8)) as MealLogged;
+    await editMeal(deps, userId, logged.mealId, { kcal: 999 });
+    expect((await store.getMeal(userId, logged.mealId))!.corrected).toBe(true);
+
+    const res = await reanalyzeMeal(makeDeps({ llmModel: "demo-2" }), userId, logged.mealId);
+    expect(res.kind).toBe("updated");
+    expect((res as MealUpdated).via).toBe("reanalysis");
+    const after = (await store.getMeal(userId, logged.mealId))!;
+    expect(after.kcal).not.toBe(999);
+    expect(after.corrected).toBe(false);
+    expect(after.model).toBe("demo-2");
+    expect(after.photos).toBe(1);
+    const { entries } = await chatHistory(deps, userId, {});
+    const last = entries.at(-1);
+    expect(last && last.role === "assistant" && last.kind === "meal" ? last.event : null).toBe("updated");
+  });
+
+  it("is charged before the call: the sample is spent by it", async () => {
+    const userId = await onboard();
+    const d = makeDeps({ freeAnalyses: 2 });
+    const logged = await logPhotoMeal(d, userId, photo(8)) as MealLogged;
+    expect((await reanalyzeMeal(d, userId, logged.mealId)).kind).toBe("updated");
+    expect((await reanalyzeMeal(d, userId, logged.mealId)).kind).toBe("subscription-required");
+  });
+
+  it("refuses a meal with no photo and another user's meal", async () => {
+    const userId = await onboard();
+    const proposed = await handleText(deps, userId, { text: "a bowl of rice" });
+    const textMeal = await confirmPendingMeal(deps, userId, (proposed as { pendingId: string }).pendingId) as MealLogged;
+    expect((await reanalyzeMeal(deps, userId, textMeal.mealId)).kind).toBe("no-photo");
+
+    const other = await onboard();
+    const logged = await logPhotoMeal(deps, userId, photo(8)) as MealLogged;
+    expect((await reanalyzeMeal(deps, other, logged.mealId)).kind).toBe("target-gone");
+  });
+
+  it("leaves the meal alone when the analyzer fails or sees no food", async () => {
+    const userId = await onboard();
+    const logged = await logPhotoMeal(deps, userId, photo(8)) as MealLogged;
+    const before = (await store.getMeal(userId, logged.mealId))!;
+    const base = demoPorts();
+    const failing: LlmPorts = { ...base, analyzePhoto: async () => { throw new Error("boom"); } };
+    expect((await reanalyzeMeal(makeDeps({}, failing), userId, logged.mealId)).kind).toBe("analysis-failed");
+    const notFood: LlmPorts = { ...base, analyzePhoto: async (i, d) => ({ ...(await base.analyzePhoto(i, d)), isFood: false }) };
+    expect((await reanalyzeMeal(makeDeps({}, notFood), userId, logged.mealId)).kind).toBe("not-food");
+    expect((await store.getMeal(userId, logged.mealId))!.kcal).toBe(before.kcal);
+  });
+
+  it("replaces the confidence with the new read's, so the pill describes the numbers on the card", async () => {
+    const userId = await onboard();
+    const base = demoPorts();
+    const logged = await logPhotoMeal(deps, userId, photo(8)) as MealLogged;
+    const unsure: LlmPorts = { ...base, analyzePhoto: async (i, d) => ({ ...(await base.analyzePhoto(i, d)), confidence: "low" }) };
+    expect((await reanalyzeMeal(makeDeps({}, unsure), userId, logged.mealId)).kind).toBe("updated");
+    expect((await store.getMeal(userId, logged.mealId))!.confidence).toBe("low");
+  });
+
+  it("gives the analysis back when the gateway refused before routing", async () => {
+    const userId = await onboard();
+    const d = makeDeps({ freeAnalyses: 2 });
+    const logged = await logPhotoMeal(d, userId, photo(8)) as MealLogged;
+    const refused: LlmPorts = { ...demoPorts(), analyzePhoto: async () => { throw new GatewayRefusal(402, "llm http 402: out of credits"); } };
+    expect((await reanalyzeMeal(makeDeps({ freeAnalyses: 2 }, refused), userId, logged.mealId)).kind).toBe("analysis-failed");
+    // Refunded: the second of two analyses is still available.
+    expect((await reanalyzeMeal(d, userId, logged.mealId)).kind).toBe("updated");
+    expect((await reanalyzeMeal(d, userId, logged.mealId)).kind).toBe("subscription-required");
   });
 });

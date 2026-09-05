@@ -129,6 +129,22 @@ describe("routeText", () => {
   // The same fallback on a CORRECTION, where sending the meal prompt is not a degraded answer but a
   // wrong write. A chip's whole message is two words: `SYSTEM_TEXT_MEAL` + "In oil" is a meal made
   // of one serving of oil, and `applyCorrection` puts it over the plate the user actually ate.
+  // The stored photograph goes back with the words, as image parts on the CORRECTION call and
+  // never on the routing call — that one runs on every text turn from a meal screen.
+  test("a correction with stored photos attaches them to the correction call only", async () => {
+    const { llm, bodies } = ports([{ intent: "correction" }, ANALYSIS]);
+    const photo = new Uint8Array([0xff, 0xd8, 1, 2, 3]);
+    let loads = 0;
+    await llm.routeText({ ...CHIP_INPUT, loadFocusImages: async () => { loads++; return [photo]; } });
+    expect(loads).toBe(1);
+    expect(bodies.length).toBe(2);
+    expect(typeof messagesOf(bodies[0]!)[1]!.content).toBe("string");
+    const parts = messagesOf(bodies[1]!)[1]!.content as unknown as { type: string; text?: string; image_url?: { url: string } }[];
+    expect(parts.length).toBe(2);
+    expect(parts[0]!.text).toContain("The photograph of the plate is attached");
+    expect(parts[1]!.image_url!.url.startsWith("data:image/jpeg;base64,")).toBe(true);
+  });
+
   test("a correction without the analysis is corrected FROM the logged meal", async () => {
     const { llm, bodies } = ports([{ intent: "correction" }, ANALYSIS]);
     const out = await llm.routeText(CHIP_INPUT);

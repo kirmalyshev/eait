@@ -240,7 +240,7 @@ function llmsTxt(config: LandingConfig): string {
   const lines: string[] = [
     `# ${brand.name}`,
     "",
-    `> ${brand.tagline} ${hero.headline} Your first analysis needs no card, and photos are never stored.`,
+    `> ${brand.tagline} ${hero.headline} Your first analysis needs no card, and a photo stays with the meal it logged.`,
     "",
     hero.sub,
     "",

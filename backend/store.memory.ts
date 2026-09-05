@@ -14,7 +14,7 @@ import {
 import { type ChatMessage,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type FunnelAggregate, type MealPatch,
   type PendingMeal, type PortionCorrection, type ProfilePatch, type PushPlatform, type PushToken,
-  type StoredEntitlement, type Store, type StoreOptions,
+  type StoredEntitlement, type Store, type StoreOptions, type StoredPhoto,
 } from "./store.ts";
 
 /** A stored funnel event: what the client sent, plus who and when we received it. */
@@ -94,6 +94,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // where the sign-in flows get driven, so it is the environment where that would be noticed last.
   const tokens = new Map<string, { userId: string; lastUsedAt: number }>();
   const meals = new Map<string, MealRecord>(); // mealId -> record
+  const photos = new Map<string, (StoredPhoto & { userId: string })[]>(); // mealId -> in position order
   const pendings = new Map<string, PendingMeal>(); // pendingId -> pending
   // Append-only; `seq` comes from a monotonic counter, never reused, the same way the Postgres
   // bigserial is. Rows of a deleted user are removed, so it gaps.
@@ -163,6 +164,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     for (const [d, u] of devices) if (u === userId) devices.delete(d);
     for (const [h, row] of tokens) if (row.userId === userId) tokens.delete(h);
     for (const [id, m] of meals) if (m.user_id === userId) meals.delete(id);
+    for (const [id, list] of photos) if (list.some((p) => p.userId === userId)) photos.delete(id);
     for (const [id, p] of pendings) if (p.userId === userId) pendings.delete(id);
     // The thread holds the medical free text a person typed at Spud. It goes with the account.
     for (let i = chat.length - 1; i >= 0; i--) if (chat[i]!.userId === userId) chat.splice(i, 1);
@@ -296,6 +298,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         moved++;
       }
       for (const p of pendings.values()) if (p.userId === fromUserId) p.userId = intoUserId;
+      for (const list of photos.values()) for (const p of list) if (p.userId === fromUserId) p.userId = intoUserId;
       // Health days move, but NEVER over a day the real account already has. The merge direction is
       // anonymous -> real, and the real account's own history is the one with a person's deliberate
       // corrections in it. Filling gaps is a gift; overwriting is data loss with no undo.
@@ -600,6 +603,30 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         .map(clone);
     },
 
+    async putPhotos(userId, mealId, input) {
+      const m = meals.get(mealId);
+      if (!m || m.user_id !== userId || input.length === 0) return;
+      const list = photos.get(mealId) ?? [];
+      for (const [i, p] of input.entries()) {
+        if (list.some((q) => q.position === i)) continue;
+        list.push({ userId, position: i, mime: p.mime, bytes: new Uint8Array(p.bytes) });
+      }
+      list.sort((a, b) => a.position - b.position);
+      photos.set(mealId, list);
+      meals.set(mealId, { ...m, photos: list.length });
+    },
+
+    async getPhotos(userId, mealId) {
+      return (photos.get(mealId) ?? [])
+        .filter((p) => p.userId === userId)
+        .map(({ position, mime, bytes }) => ({ position, mime, bytes: new Uint8Array(bytes) }));
+    },
+
+    async getPhoto(userId, mealId, position) {
+      const p = (photos.get(mealId) ?? []).find((q) => q.userId === userId && q.position === position);
+      return p ? { position: p.position, mime: p.mime, bytes: new Uint8Array(p.bytes) } : null;
+    },
+
     async totalsSince(userId, since) {
       const byDate = new Map<string, DayTotals>();
       for (const m of meals.values()) {
@@ -657,7 +684,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         chat.push({
           id: crypto.randomUUID(), userId, seq: ++chatSeq, ts, role: line.role, kind: line.kind,
           text: "text" in line ? line.text : null,
-          mealId: line.kind === "meal" ? line.mealId : null,
+          mealId: line.kind === "meal" ? line.mealId : line.kind === "photo" ? line.mealId ?? null : null,
           event: line.kind === "meal" ? line.event : null,
           clientId: line.role === "user" && line.kind === "text" ? line.clientId ?? null : null,
           pendingId: line.role === "user" && line.kind === "text" ? line.pendingId ?? null : null,

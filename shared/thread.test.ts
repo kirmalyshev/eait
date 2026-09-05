@@ -152,12 +152,21 @@ describe("lastMealId", () => {
 
 describe("fromHistory", () => {
   it("renders a stored photo as a glyph-only bubble, with its caption when it had one", () => {
-    const shot = (text: string | null): ChatEntry => ({ ...base(), role: "user", kind: "photo", text });
+    const shot = (text: string | null): ChatEntry => ({ ...base(), role: "user", kind: "photo", text, mealId: null });
     expect(fromHistory([shot(null), shot("lunch")])).toMatchObject([
       { role: "user", photo: true, text: null, stored: true },
       { role: "user", photo: true, text: "lunch", stored: true },
     ]);
     // A text line keeps the ids the screen reads back: which bubble it landed for, and what it proposed.
     expect(fromHistory([userLine("hi", { clientId: "c1", pendingId: "p1" })])[0]).toMatchObject({ role: "user", clientId: "c1", pendingId: "p1" });
+  });
+});
+
+describe("fromHistory — photo bubbles", () => {
+  it("carries the meal id on a stored photo bubble, so the screen can fetch the picture", () => {
+    const [e] = fromHistory([
+      { id: "l1", seq: 1, ts: "2026-09-05T10:00:00.000Z", role: "user", kind: "photo", text: null, mealId: "m1" },
+    ]);
+    expect(e).toEqual({ id: "l1", role: "user", text: null, photo: true, stored: true, mealId: "m1" });
   });
 });

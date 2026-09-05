@@ -429,6 +429,15 @@ describe("indexing is opt-in per environment", () => {
 describe("the build output", () => {
   const outDir = () => mkdtempSync(join(tmpdir(), "landing-"));
 
+  test("no rendered output still promises that photos are never stored", async () => {
+    const dir = outDir();
+    await buildLanding({ ...ENV, EAIT__BACKEND__LANDING_INDEXABLE: "true" }, dir);
+    const gone = /never stored|deleted once|no bytes behind|no photographs|analysed, dropped/i;
+    expect(html).not.toMatch(gone);
+    expect(readFileSync(join(dir, "llms.txt"), "utf8")).not.toMatch(gone);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
   test("a non-indexable build disallows crawlers and ships no sitemap", async () => {
     const dir = outDir();
     const result = await buildLanding(ENV, dir);

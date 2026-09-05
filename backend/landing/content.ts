@@ -200,12 +200,14 @@ export const refusals: readonly Refusal[] = [
       "complaint, for every one of the seven, is a charge nobody agreed to.",
   },
   {
-    title: "It will not keep your photo.",
+    title: "It keeps your photo with the meal, and nowhere else.",
     body:
-      "The image is read into memory, analysed, and dropped, on the phone and again on the " +
-      "server. **Nothing is written to disk**, there is no bucket, there is no staging folder “just " +
-      "for retries”, and no row in any table holds a path to a picture of your food.",
-    proof: "Nothing to retain. The photo never exists long enough to need a policy.",
+      "The picture is stored with the meal it logged, on our server in Germany, so the diary can " +
+      "show it back to you and the app can re-read it when you correct the numbers. **Erase the " +
+      "account and the photo goes with it.** No bucket, no advertising pipeline, no " +
+      "data set sold on: we check corrected meals against their photos to keep the estimates " +
+      "honest, and that is the whole list.",
+    proof: "One table, one rule: a photo lives exactly as long as the account that logged it.",
   },
   {
     title: "It will not put your target under the floor.",
@@ -437,9 +439,9 @@ export const figures = [
     label: "The deepest cut it will compute, whatever pace was asked for.",
   },
   {
-    value: "0",
-    unit: "photos kept",
-    label: "Read into memory, analysed, dropped. On the phone and again on the server.",
+    value: "1",
+    unit: "tap erases them",
+    label: "Delete the account in Settings and every photo goes with it — from the diary, and from the backups on their schedule.",
   },
   {
     value: `${measured.medianErrorPct}%`,
@@ -494,10 +496,6 @@ export const privacySection = {
         "name. Whatever a provider volunteers anyway is discarded before anything is written. If " +
         "you give us an address on this website, it lives on a list that touches none of that, " +
         "and one click removes it.",
-    },
-    {
-      title: "No photographs.",
-      body: "**Read, analysed, dropped.** Both ends. There is nothing to leak and nothing to request.",
     },
     {
       title: "No account, until you want one.",
@@ -716,6 +714,6 @@ export const footer = {
   // get quoted — it was false on its face, on a page carrying three email forms. The one sentence
   // that dropped the app-vs-website distinction the privacy section is built on.
   note:
-    "eait is built in Berlin. No photo is stored, the app never asks for an email address, and no " +
-    "advertising, cookie or third-party script runs on this page.",
+    "eait is built in Berlin. Your photos stay with your diary and leave with it, the app never asks " +
+    "for an email address, and no advertising, cookie or third-party script runs on this page.",
 } as const;

@@ -105,7 +105,7 @@ export function iconSvg(): string {
 function metaDescription(): string {
   return (
     "Photograph a meal and get its calories, protein and a verdict against targets computed for " +
-    "your body. No card for the first one. Photos are never stored."
+    "your body. No card for the first one. Photos stay with the meal."
   );
 }
 

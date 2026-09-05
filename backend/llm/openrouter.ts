@@ -325,13 +325,25 @@ export function openRouterPorts(opts: Options): LlmPorts {
     // With no focus meal there is nothing to correct, the switch below degrades to `answer`
     // whatever comes back, and buying an analysis first is buying one to throw away.
     if (out.intent === "correction" && !out.analysis && input.focusMeal) {
+      // The stored photographs ride along as image parts, and ONLY here: the routing call above
+      // runs on every text turn from a meal screen and must not pay for images. A meal with none
+      // sends the plain string it always did.
+      const images = input.loadFocusImages ? await input.loadFocusImages() : [];
+      const correction = buildTextCorrectionText({
+        text: input.text, profile: input.profile, targets: input.targets,
+        focusMeal: input.focusMeal,
+        ...(input.question !== undefined ? { question: input.question } : {}),
+        ...(images.length ? { photos: images.length } : {}),
+      });
+      const content: Content = images.length
+        ? [
+          { type: "text", text: correction },
+          ...images.map((b) => ({ type: "image_url" as const, image_url: { url: toDataUrl(b) } })),
+        ]
+        : correction;
       const analysis = await complete(
         SYSTEM_TEXT_CORRECTION,
-        buildTextCorrectionText({
-          text: input.text, profile: input.profile, targets: input.targets,
-          focusMeal: input.focusMeal,
-          ...(input.question !== undefined ? { question: input.question } : {}),
-        }),
+        content,
         MealAnalysisSchema,
         "text-correction",
         // The router call above already generated and was billed — the same rule as the meal branch.

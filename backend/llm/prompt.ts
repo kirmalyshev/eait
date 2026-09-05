@@ -329,7 +329,7 @@ Rules:
 - Estimate. Do not refuse and do not ask questions — you will never get an answer, and a refusal reads to the user as a broken app.
 - Do not invent food they did not mention, and do not drop food they did not take off.
 - Weights are grams of the food as served. Liquids in grams too.
-- Every item carries grams, kcal, protein_g, carbs_g, fat_g and kcal_per_100g. There is no photo, so scale is null.
+- Every item carries grams, kcal, protein_g, carbs_g, fat_g and kcal_per_100g. scale is null unless a photograph is attached and gives one.
 - name is what the user reads, and it MUST be written in the requested reply language. name_en is a separate canonical English name used only for lookups and is never displayed.
 - notes is at most two short sentences: what drove the estimate, or what you were unsure about. No preamble, no advice, no disclaimers.
 - Never comment on the user's body, their weight, or whether they should be eating this.`;
@@ -355,12 +355,18 @@ export function buildTextCorrectionText(input: {
   targets: FoodTargets;
   focusMeal: unknown;
   question?: { text: string; options: string[] } | undefined;
+  /** How many photographs of the plate ride along as image parts. Absent or 0: none, and no sentence about them. */
+  photos?: number | undefined;
 }): string {
   const lines = [
     buildUserText(input.profile, input.targets, {}),
     "",
     `The meal currently logged (correct THIS, keep every item you were not told to change):\n${JSON.stringify(input.focusMeal)}`,
   ];
+  if (input.photos) {
+    const one = input.photos === 1;
+    lines.push(`The ${one ? "photograph" : `${input.photos} photographs`} of the plate ${one ? "is" : "are"} attached. Read the correction against what is visible: the words say what changes, the picture says how much was there.`);
+  }
   if (input.question) lines.push(questionLine(input.question));
   lines.push(`The user said: ${normalizePromptText(input.text, 1000)}`);
   return lines.join("\n");

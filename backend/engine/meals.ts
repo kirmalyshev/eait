@@ -2,10 +2,10 @@
 //
 // TWO INVARIANTS THIS FILE CARRIES:
 //
-//  1. IMAGES ARE EPHEMERAL. Bytes are read into memory, handed to the analyzer, and dropped. No
-//     disk write, no object store, no staging directory "just for retries". This is the product's
-//     invariant, not the Telegram bot's, and a second front end is exactly where it would quietly
-//     be broken.
+//  1. PHOTOS LIVE WITH THE MEAL. Bytes are read into memory, handed to the analyzer, and — only
+//     once the meal is logged — stored in `meal_photos`, read back by `meal_id AND user_id`,
+//     erased with the meal or the account. Nothing is written for a refused or failed turn, and a
+//     store failure never fails the turn. Never on disk, never logged, never in a result.
 //  2. VERDICTS ARE COMPUTED HERE, NEVER ACCEPTED. Not from the model, and not from the client. They
 //     are derived from the user's caps after every write — including every manual edit — so a
 //     verdict can never describe numbers that have since changed.
@@ -13,7 +13,7 @@
 import {
   type DailyTotals, type EditMealRequest, type LogPhotoResult, type MealAnalysis, type MealHint,
   type MealItem, type MealLogged, type MealQuestion, type MealRecord, type MealUpdated, type PhotoEvent,
-  type TargetGone, type ConfirmMealResult, explainTargets, verdictsFromTargets, visibleVerdicts,
+  type TargetGone, type ConfirmMealResult, type Refusal, explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
 import { localDate, localTime } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
@@ -138,7 +138,7 @@ export async function logPhotoMeal(
     console.error(`[eait] photo analysis failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
     return { kind: "analysis-failed" };
   }
-  // `images` goes out of scope here and is never written anywhere. That is the whole mechanism.
+  // `images` is still in scope: it is stored below, after the meal it belongs to exists, and only then.
 
   // Nothing an analyzer returns is stored unreconciled: the totals are checked against the items
   // and the prompt-side fields come off. Before the `isFood` gate, so both answers get the same
@@ -166,15 +166,21 @@ export async function logPhotoMeal(
     question,
   };
   await deps.store.insertMeal(record);
+  // Stored AFTER the meal is inserted and never for a refused or failed turn — there is no row for
+  // those to belong to. A store failure is a log line, not a failed turn: the meal is logged and the
+  // user has their card, the same rule the thread write follows.
+  const stored = await deps.store.putPhotos(userId, record.id, images.map((b) => ({ mime: imageMime(b)!, bytes: b })))
+    .then(() => true, (e: unknown) => { console.error(`[eait] photos not stored: ${(e as Error)?.message ?? e}`); return false; });
 
   const totals = sumTotals(await deps.store.mealsForDate(userId, date));
-  // The bubble is the photo's only trace: no bytes, just that one was sent, and the caption. Then
-  // the card, then — on the account's first meal only — Spud's verdict in the design's words.
+  // The bubble names the meal; the bytes are fetched through the scoped route, never carried in a
+  // line. Then the card, then — on the account's first meal only — Spud's verdict in the design's words.
   await remember(deps, userId, async () => {
     const greeting = await firstVerdict(deps, userId, profile, record, totals, "photo", input.caption ?? null);
     return {
       lines: [
-        { role: "user", kind: "photo", text: input.caption ?? null },
+        // A bubble that names a meal with no photo behind it is an empty frame in the thread.
+        { role: "user", kind: "photo", text: input.caption ?? null, mealId: stored ? record.id : null },
         { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
         ...greeting.lines,
         // LAST, and a plain assistant line like any other model prose in this thread: the estimate
@@ -342,6 +348,66 @@ export async function applyCorrection(
     fiber_g: analysis.fiber_g, sugar_g: analysis.sugar_g, sodium_mg: analysis.sodium_mg,
   }, { thread: false, measure: false });
   return res.kind === "updated" ? { ...res, via: "nl" } : res;
+}
+
+/**
+ * The analyzer reads the stored photos again and replaces the numbers. Charged like a photo
+ * (today's cap, refunded on a gateway refusal), written like an edit but with `corrected: false`
+ * and the current model — one estimator replacing itself is not a person correcting it — and
+ * never through `editMeal`, which would record portion corrections from a re-read.
+ */
+export async function reanalyzeMeal(
+  deps: EngineDeps,
+  userId: string,
+  mealId: string,
+): Promise<MealUpdated | TargetGone | Refusal> {
+  const existing = await deps.store.getMeal(userId, mealId);
+  if (!existing) return { kind: "target-gone", on: "correction" };
+  if ((existing.photos ?? 0) === 0) return { kind: "no-photo" };
+  const profile = await deps.store.getProfile(userId);
+  if (!profile || profile.onboarded_at === null) return { kind: "not-onboarded" };
+
+  const zone = deps.config.timezone;
+  const today = localDate(zone);
+  const refusal = await checkCaps(deps, userId, today, "photo");
+  if (refusal) return refusal;
+  await deps.store.recordAnalysis(userId, today, "photo");
+  // Read once the turn is paid for: a refused tap must not pull the bytes.
+  const images = (await deps.store.getPhotos(userId, mealId)).map((p) => p.bytes);
+  if (images.length === 0) {
+    await deps.store.undoAnalysis(userId, today, "photo");
+    return { kind: "no-photo" };
+  }
+
+  const { targets } = explainTargets(profile);
+  let analysis: AnalyzedMeal;
+  try {
+    analysis = await deps.llm.analyzePhoto({
+      images, profile, targets,
+      localTime: localTime(zone),
+      repertoire: await buildRepertoire(deps, userId, today),
+      portionPriors: await deps.store.portionPriors(userId),
+    });
+  } catch (e) {
+    const refunded = await refundGatewayRefusal(deps, userId, today, "photo", e);
+    console.error(`[eait] re-analysis failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
+    return { kind: "analysis-failed" };
+  }
+  analysis = prepareAnalysis(analysis).analysis;
+  if (!analysis.isFood) return { kind: "not-food" };
+
+  const updated = await deps.store.updateMeal(userId, mealId, {
+    items: analysis.items, kcal: analysis.kcal, protein_g: analysis.protein_g, carbs_g: analysis.carbs_g,
+    fat_g: analysis.fat_g, satfat_g: analysis.satfat_g, fiber_g: analysis.fiber_g, sugar_g: analysis.sugar_g,
+    sodium_mg: analysis.sodium_mg, notes: analysis.notes,
+    verdicts: await gatedVerdicts(deps, userId, analysis),
+    confidence: analysis.confidence, corrected: false, model: deps.config.llmModel, question: null,
+  });
+  if (!updated) return { kind: "target-gone", on: "correction" };
+
+  const totals = sumTotals(await deps.store.mealsForDate(userId, updated.date));
+  await remember(deps, userId, [{ role: "assistant", kind: "meal", mealId, event: "updated" }]);
+  return { kind: "updated", mealId, analysis: toAnalysis(updated), totals, date: updated.date, via: "reanalysis" };
 }
 
 /** A stored row, back to the analysis shape a card renders. */

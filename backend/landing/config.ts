@@ -260,7 +260,7 @@ export function primaryCta(
     return {
       href: withStartCode(config.appStoreUrl, placement),
       label: "Get eait for iPhone",
-      note: "No card to see it work. Photos are deleted once they have been read.",
+      note: "No card to see it work. Your photo stays with the meal, erased with your account.",
     };
   }
   return {

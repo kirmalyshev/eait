@@ -14,13 +14,13 @@ import {
   buildTextCorrectionText, buildUserText,
 } from "./prompt.ts";
 
-const ITEM_FIELDS =
-  "Every item carries grams, kcal, protein_g, carbs_g, fat_g and kcal_per_100g. There is no photo, so scale is null.";
+const ITEM_FIELDS = "Every item carries grams, kcal, protein_g, carbs_g, fat_g and kcal_per_100g.";
 
 test("every text prompt asks for the per-item numbers the schema requires", () => {
-  expect(SYSTEM_TEXT_MEAL).toContain(ITEM_FIELDS);
-  expect(SYSTEM_TEXT_CORRECTION).toContain(ITEM_FIELDS);
-  expect(SYSTEM_ROUTE).toContain(ITEM_FIELDS);
+  expect(SYSTEM_TEXT_MEAL).toContain(`${ITEM_FIELDS} There is no photo, so scale is null.`);
+  expect(SYSTEM_ROUTE).toContain(`${ITEM_FIELDS} There is no photo, so scale is null.`);
+  // The correction may carry the stored photograph, so its scale rule is conditional.
+  expect(SYSTEM_TEXT_CORRECTION).toContain(`${ITEM_FIELDS} scale is null unless a photograph is attached and gives one.`);
 });
 
 // The one prior in this prompt that is ALLOWED to move a number, and the only reason it may is that
@@ -123,6 +123,16 @@ test("the correction prompt words the question exactly as the router does", () =
   expect(text).toContain("The user said: In oil");
   // A typed correction has no standing question, and the line must not appear for one.
   expect(buildTextCorrectionText(input)).not.toContain("Spud asked");
+});
+
+// The stored photo goes back to the model with the words, and the prompt says so only when it does:
+// a text-logged meal has no picture, and a sentence claiming one is attached would send the model
+// looking for what is not there.
+test("the correction prompt says the photographs are attached only when they are", () => {
+  const input = { text: "half that", profile: QPROFILE, targets: QTARGETS, focusMeal: { kcal: 400 } };
+  expect(buildTextCorrectionText(input)).not.toContain("photograph");
+  expect(buildTextCorrectionText({ ...input, photos: 1 })).toContain("The photograph of the plate is attached");
+  expect(buildTextCorrectionText({ ...input, photos: 2 })).toContain("The 2 photographs of the plate are attached");
 });
 
 // ── The coach ────────────────────────────────────────────────────────────────────────────────

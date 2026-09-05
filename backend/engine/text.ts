@@ -75,6 +75,10 @@ export async function handleText(
   const focus = input.focusMealId
     ? await deps.store.getMeal(userId, input.focusMealId)
     : null;
+  // The stored photos, for the correction call only — `routeText` decides where they go.
+  const loadFocusImages = focus && (focus.photos ?? 0) > 0
+    ? () => deps.store.getPhotos(userId, focus.id).then((ps) => ps.map((p) => p.bytes))
+    : undefined;
 
   // The framing below is only ever attached to a turn that IS the answer, and the chips send an
   // option verbatim — so "is this message one of the options" is the whole test. Anything the user
@@ -101,6 +105,7 @@ export async function handleText(
       })),
       week,
       ...(focus ? { focusMeal: toAnalysis(focus) } : {}),
+      ...(loadFocusImages ? { loadFocusImages } : {}),
       // A chip's words are two of them. "In oil" says nothing on its own, and without the question
       // beside it the router reads it as a new meal or as small talk.
       ...(answering ? { question: answering } : {}),

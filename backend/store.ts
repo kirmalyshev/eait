@@ -101,8 +101,8 @@ export interface PushToken {
 /** A line to append to the thread. The shapes are the wire's (`ChatEntry`), minus what the store assigns. */
 export type ChatAppend =
   | { role: "user"; kind: "text"; text: string; clientId?: string | null; pendingId?: string | null }
-  /** No bytes, ever. `text` is the caption, if there was one. */
-  | { role: "user"; kind: "photo"; text: string | null }
+  /** No bytes, ever. `text` is the caption, if there was one; `mealId` the meal it logged, so the bubble can show it. */
+  | { role: "user"; kind: "photo"; text: string | null; mealId?: string | null }
   | { role: "assistant"; kind: "text"; text: string }
   | { role: "assistant"; kind: "meal"; mealId: string; event: ChatEvent };
 
@@ -135,8 +135,15 @@ export interface ChatMessage {
 export type MealPatch = Partial<
   Pick<MealRecord,
     "items" | "kcal" | "protein_g" | "carbs_g" | "fat_g" | "satfat_g" | "fiber_g" | "sugar_g" |
-    "sodium_mg" | "verdicts" | "notes" | "corrected" | "date" | "question">
+    "sodium_mg" | "verdicts" | "notes" | "corrected" | "date" | "question" | "model" | "confidence">
 >;
+
+/** One stored photo of a meal. `position` is its order on the plate, 0-based, as uploaded. */
+export interface StoredPhoto {
+  position: number;
+  mime: string;
+  bytes: Uint8Array;
+}
 
 /**
  * One measurement of how this person's portions differ from the model's first read.
@@ -373,7 +380,7 @@ export interface Store {
   listIdentities(userId: string): Promise<{ provider: Provider; linkedAt: string }[]>;
   /**
    * Move everything owned by `fromUserId` onto `intoUserId`, then delete the empty account.
-   * Returns the number of meals moved.
+   * Returns the number of meals moved. Photos move with their meals.
    *
    * Called in exactly one situation: an ANONYMOUS session signs in with an identity that already
    * has an account. Merging two real accounts is a different problem and is not attempted — the
@@ -553,6 +560,17 @@ export interface Store {
    * keeps the newest rows, because a question about lately is a question about the near end.
    */
   mealsSince(userId: string, from: string, to: string, limit: number): Promise<MealRecord[]>;
+
+  // ── Photos ─────────────────────────────────────────────────────────────────────────────────
+  /**
+   * Keep a logged meal's photos, in upload order, and set `meals.photos` to the count. Writes
+   * NOTHING when the meal is not the caller's. Idempotent per position.
+   */
+  putPhotos(userId: string, mealId: string, photos: { mime: string; bytes: Uint8Array }[]): Promise<void>;
+  /** Scoped: another user's meal id is an empty list. Position ascending. */
+  getPhotos(userId: string, mealId: string): Promise<StoredPhoto[]>;
+  /** Scoped: null for another user's meal, and for a position that does not exist. */
+  getPhoto(userId: string, mealId: string, position: number): Promise<StoredPhoto | null>;
   /** Most recent first, `since` inclusive. Feeds the week view and the chat router's context. */
   totalsSince(userId: string, since: string): Promise<DayTotals[]>;
 

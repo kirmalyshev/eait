@@ -23,7 +23,7 @@ import {
 import { type ChatMessage,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type FunnelAggregate, type MealPatch,
   type PendingMeal, type PortionCorrection, type ProfilePatch, type PushPlatform, type Store,
-  type StoreOptions,
+  type StoreOptions, type StoredPhoto,
 } from "./store.ts";
 
 /**
@@ -279,6 +279,22 @@ create index if not exists meals_user_date_idx on meals(user_id, date);
 -- The question still open on a meal. Nullable and unread by every query but the row's own read:
 -- a host that predates it has meals nobody was asked about, which is exactly what null means.
 alter table meals add column if not exists question jsonb;
+
+-- The photo lives with the meal. user_id is on the row as well as reachable through the meal, so
+-- a read is meal_id AND user_id with no join, and the cascade from users erases it even if a
+-- meal were ever orphaned. Bytes as uploaded (1280 px JPEG from the app); no thumbnail column.
+create table if not exists meal_photos (
+  id         uuid primary key,
+  meal_id    uuid not null references meals(id) on delete cascade,
+  user_id    uuid not null references users(id) on delete cascade,
+  position   integer not null,
+  mime       text not null,
+  bytes      bytea not null,
+  created_at timestamptz not null default now(),
+  unique (meal_id, position)
+);
+create index if not exists meal_photos_user_meal_idx on meal_photos(user_id, meal_id);
+alter table meals add column if not exists photos integer not null default 0;
 
 create table if not exists pendings (
   id         uuid primary key,
@@ -559,8 +575,19 @@ function toMeal(r: MealRow): MealRecord {
     corrected: Boolean(r.corrected),
     model: (r.model ?? null) as string | null,
     question: json<MealQuestion | null>(r.question, null),
+    photos: num(r.photos),
   };
 }
+
+/** bytea comes back from Bun.sql as a Buffer; the `\\x…` hex form is accepted in case a driver answers that way. */
+function toBytes(v: unknown): Uint8Array {
+  if (v instanceof Uint8Array) return new Uint8Array(v);
+  if (typeof v === "string" && v.startsWith("\\x")) return Uint8Array.from(Buffer.from(v.slice(2), "hex"));
+  throw new Error("bytea column came back in an unexpected shape");
+}
+
+const toPhoto = (r: Record<string, unknown>): StoredPhoto =>
+  ({ position: Number(r.position), mime: String(r.mime), bytes: toBytes(r.bytes) });
 
 /** The profile columns a patch may write. A key outside this list is ignored, not interpolated. */
 const PROFILE_COLUMNS = [
@@ -574,7 +601,7 @@ const MEAL_COLUMNS: Record<string, string> = {
   items: "items", kcal: "kcal", protein_g: "protein_g", carbs_g: "carbs_g", fat_g: "fat_g",
   satfat_g: "satfat_g", fiber_g: "fiber_g", sugar_g: "sugar_g", sodium_mg: "sodium_mg",
   verdicts: "verdicts", notes: "notes", corrected: "corrected", date: "date",
-  question: "question",
+  question: "question", model: "model", confidence: "confidence",
 };
 
 /** Columns that are `jsonb` and must be cast as such in a dynamic update. */
@@ -815,6 +842,7 @@ export async function postgresStore(
       return await sql.begin(async (tx) => {
         const moved = await tx`
           update meals set user_id = ${intoUserId} where user_id = ${fromUserId} returning id`;
+        await tx`update meal_photos set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         await tx`update pendings set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         await tx`update analyses set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         // What the app has learned about this person's portions is learned before they sign in.
@@ -1207,6 +1235,37 @@ export async function postgresStore(
       return rows.map(toMeal);
     },
 
+    async putPhotos(userId, mealId, input) {
+      if (input.length === 0) return;
+      await sql.begin(async (tx) => {
+        const owned = await tx`select 1 from meals where id = ${mealId} and user_id = ${userId}`;
+        if (owned.length === 0) return;
+        for (const [i, p] of input.entries()) {
+          await tx`
+            insert into meal_photos (id, meal_id, user_id, position, mime, bytes)
+            values (${crypto.randomUUID()}, ${mealId}, ${userId}, ${i}, ${p.mime}, ${Buffer.from(p.bytes)})
+            on conflict (meal_id, position) do nothing`;
+        }
+        await tx`
+          update meals set photos = (select count(*) from meal_photos where meal_id = ${mealId})
+          where id = ${mealId} and user_id = ${userId}`;
+      });
+    },
+
+    async getPhotos(userId, mealId) {
+      const rows = await sql`
+        select position, mime, bytes from meal_photos
+        where meal_id = ${mealId} and user_id = ${userId} order by position asc`;
+      return rows.map((r: Record<string, unknown>) => toPhoto(r));
+    },
+
+    async getPhoto(userId, mealId, position) {
+      const rows = await sql`
+        select position, mime, bytes from meal_photos
+        where meal_id = ${mealId} and user_id = ${userId} and position = ${position}`;
+      return rows.length > 0 ? toPhoto(rows[0]) : null;
+    },
+
     async totalsSince(userId, since) {
       const rows = await sql`
         select date, sum(kcal) as kcal, sum(protein_g) as protein_g
@@ -1318,7 +1377,7 @@ export async function postgresStore(
             insert into chat_messages (id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id)
             values (${crypto.randomUUID()}, ${userId}, ${new Date(now())}, ${line.role}, ${line.kind},
                     ${"text" in line ? line.text : null},
-                    ${line.kind === "meal" ? line.mealId : null},
+                    ${line.kind === "meal" ? line.mealId : line.kind === "photo" ? line.mealId ?? null : null},
                     ${line.kind === "meal" ? line.event : null},
                     ${line.role === "user" && line.kind === "text" ? line.clientId ?? null : null},
                     ${line.role === "user" && line.kind === "text" ? line.pendingId ?? null : null})`;

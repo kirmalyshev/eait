@@ -8,7 +8,7 @@ export {
   type ApplyOutcome, type RevenueCatEvent,
 } from "./entitlement.ts";
 export {
-  logPhotoMeal, editMeal, applyCorrection, confirmPendingMeal, cancelPendingMeal, sumTotals,
+  logPhotoMeal, editMeal, applyCorrection, confirmPendingMeal, cancelPendingMeal, reanalyzeMeal, sumTotals,
   toAnalysis, type LogPhotoInput,
 } from "./meals.ts";
 export { handleText, type HandleTextInput } from "./text.ts";

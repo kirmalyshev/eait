@@ -32,6 +32,7 @@ export const REFUSAL_STATUS = {
   "subscription-required": 402,
   "analysis-failed": 502,
   "unsupported-image": 415,
+  "no-photo": 404,
 } as const;
 export type RefusalKind = keyof typeof REFUSAL_STATUS;
 
@@ -136,6 +137,10 @@ export const ROUTES = {
   pushToken: "/v1/push/token",
   /** PATCH — the manual edit path. See `EditMealRequest`. */
   meal: (id: string) => `/v1/meals/${encodeURIComponent(id)}`,
+  /** One stored photo of one of the caller's meals, by position. Bytes with their mime; 404 otherwise. */
+  mealPhoto: (id: string, n: number) => `/v1/meals/${encodeURIComponent(id)}/photos/${n}`,
+  /** Run the analyzer again over the stored photos. Charged like a photo. */
+  mealReanalyze: (id: string) => `/v1/meals/${encodeURIComponent(id)}/reanalyze`,
   pendingConfirm: (id: string) => `/v1/meals/pending/${encodeURIComponent(id)}/confirm`,
   pendingCancel: (id: string) => `/v1/meals/pending/${encodeURIComponent(id)}/cancel`,
   day: "/v1/diary/day",
@@ -375,8 +380,8 @@ export type ChatEvent = "logged" | "updated" | "redated";
  * One line of the conversation, as the SERVER kept it.
  *
  * The thread is stored server-side and the Chat tab is its continuation, so a reinstall or a second
- * device opens on the same conversation. A photo is a bubble with no bytes behind it — the image
- * was analyzed and dropped, and nothing here can bring it back. A meal card carries the meal's
+ * device opens on the same conversation. A photo is a bubble that names its meal — the bytes are
+ * fetched through the scoped photo route and never carried in a line. A meal card carries the meal's
  * CURRENT record (or null once it is gone), never a copy taken at the time: a stored verdict
  * would describe numbers that have since changed. A proposal's words are in the thread when they are
  * said; its card only once confirmed. `seq` is an opaque cursor, monotonic across the whole store:
@@ -385,7 +390,8 @@ export type ChatEvent = "logged" | "updated" | "redated";
 export type ChatEntry =
   /** `pendingId`: set when this turn proposed a meal; the confirmed meal carries the same id, so "was it logged" is "is there a card with it". */
   | { id: string; seq: number; ts: string; role: "user"; kind: "text"; text: string; clientId: string | null; pendingId: string | null }
-  | { id: string; seq: number; ts: string; role: "user"; kind: "photo"; text: string | null }
+  /** `mealId`: the meal the photo logged, so the bubble can fetch the picture; null on lines from before photos were kept. */
+  | { id: string; seq: number; ts: string; role: "user"; kind: "photo"; text: string | null; mealId: string | null }
   | { id: string; seq: number; ts: string; role: "assistant"; kind: "text"; text: string }
   /** `mealId` outlives the meal: `meal` is null once it is deleted, and "was this proposal logged" reads the id. */
   | { id: string; seq: number; ts: string; role: "assistant"; kind: "meal"; event: ChatEvent; mealId: string | null; meal: MealRecord | null };

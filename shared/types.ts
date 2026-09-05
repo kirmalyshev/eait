@@ -179,7 +179,7 @@ export interface MealContext {
   localTime?: string;
 }
 
-/** The analyzer's validated output for one photo. No photo path — images are ephemeral. */
+/** The analyzer's validated output for one photo. No photo path — the bytes live in `meal_photos`, reached by meal id. */
 export interface MealAnalysis {
   isFood: boolean;
   items: MealItem[];
@@ -225,6 +225,8 @@ export interface MealRecord extends MealAnalysis {
    * once — the correction that answers it clears this with the same write that changes the numbers.
    */
   question?: MealQuestion | null;
+  /** How many photos are stored for it. Absent on rows from before photos existed, and in fixtures — read as 0. */
+  photos?: number;
 }
 
 export interface DailyTotals {

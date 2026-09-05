@@ -217,7 +217,7 @@ function toEntry(m: ChatMessage, meals: Map<string, MealRecord>): ChatEntry {
   const base = { id: m.id, seq: m.seq, ts: m.ts };
   if (m.role === "user") {
     return m.kind === "photo"
-      ? { ...base, role: "user", kind: "photo", text: m.text }
+      ? { ...base, role: "user", kind: "photo", text: m.text, mealId: m.mealId }
       : { ...base, role: "user", kind: "text", text: m.text ?? "", clientId: m.clientId, pendingId: m.pendingId };
   }
   if (m.kind === "meal") {

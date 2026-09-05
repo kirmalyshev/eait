@@ -136,6 +136,12 @@ export interface TextInput {
   /** The meal a correction would apply to. Absent means corrections are not available this turn. */
   focusMeal?: MealAnalysis;
   /**
+   * Loads the focus meal's stored photos; present only when it has some. A loader rather than the
+   * bytes because the port attaches them to the CORRECTION call only — a question asked while a
+   * meal stands in focus must not read a row of them.
+   */
+  loadFocusImages?: () => Promise<Uint8Array[]>;
+  /**
    * The question Spud asked about that meal, still unanswered.
    *
    * Present only when there is one to answer, because the prompt line it produces tells the model

@@ -33,7 +33,7 @@ export const SCRIPTED_LINES = {
   /** Step 18 · a restored purchase. */
   "restored": "Restored — you're in. A photo or a sentence both log a meal.",
   /** Step 16 · before the OS asks for the camera, once. */
-  "camera-primer": "One thing first: iOS will ask for the camera. I use it for the plate and nothing else — the photo is analyzed and deleted, never saved to your phone or kept on our servers.",
+  "camera-primer": "One thing first: iOS will ask for the camera. I use it for the plate and nothing else — the photo is kept with the meal so you can see it in your diary, and erased with your account.",
   /** Step 17 · the user tapped "Fix the numbers" / "Check the grams". */
   "fix-prompt": "Tell me what's off — \"half the rice\", \"no avocado\", \"it was 500\" all work. Or open the card and edit the grams yourself.",
   /** Step 17 · the first verdict accepted by an account that is already subscribed. */

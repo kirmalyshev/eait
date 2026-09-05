@@ -23,6 +23,8 @@ export type ThreadEntry =
    */
   | {
       id: string; role: "user"; text: string | null; photo?: boolean; stored?: boolean; failed?: boolean;
+      /** On a stored photo bubble: the meal it logged, which is how the picture is fetched. */
+      mealId?: string | null;
       /** On a stored text line: the bubble it landed for, and the proposal it made — what the screen reads back. */
       clientId?: string | null; pendingId?: string | null;
     }
@@ -36,7 +38,7 @@ export function fromHistory(entries: ChatEntry[]): ThreadEntry[] {
   return entries.map((e): ThreadEntry => {
     if (e.role === "user") {
       return e.kind === "photo"
-        ? { id: e.id, role: "user", text: e.text, photo: true, stored: true }
+        ? { id: e.id, role: "user", text: e.text, photo: true, stored: true, mealId: e.mealId }
         : { id: e.id, role: "user", text: e.text, stored: true, clientId: e.clientId, pendingId: e.pendingId };
     }
     if (e.kind === "meal") return { id: e.id, role: "card", event: e.event, mealId: e.mealId, meal: e.meal, stored: true };

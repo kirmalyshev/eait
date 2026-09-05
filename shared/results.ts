@@ -62,7 +62,9 @@ export type Refusal =
   /** The engine failed to produce an analysis. Already logged; the surface just apologises. */
   | { kind: "analysis-failed" }
   /** The upload is not a JPEG, PNG or WebP. Refused before anything is charged. */
-  | { kind: "unsupported-image" };
+  | { kind: "unsupported-image" }
+  /** A re-analysis of a meal that has no stored photo. */
+  | { kind: "no-photo" };
 
 export type LogPhotoResult = MealLogged | Refusal;
 
@@ -93,8 +95,8 @@ export interface MealUpdated {
   analysis: MealAnalysis;
   totals: DailyTotals;
   date: string;
-  /** How the change was made. `manual` = the user edited numbers; `nl` = they described the fix. */
-  via: "manual" | "nl";
+  /** How the change was made. `manual` = the user edited numbers; `nl` = they described the fix; `reanalysis` = the analyzer re-read the stored photo. */
+  via: "manual" | "nl" | "reanalysis";
 }
 
 /**

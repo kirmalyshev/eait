@@ -959,6 +959,33 @@ describe("rate limits", () => {
     expect(await refused.json()).toEqual({ error: "cap-exceeded", scope: "address" });
   });
 
+  it("bounds a re-analysis by address in the same bucket as the photo it re-reads", async () => {
+    const h = routerWith({ analysisRateLimitPerDay: 2, freeAnalyses: 99 });
+    const address = "203.0.113.10";
+    const { token } = await (await registerFrom(h, address)).json() as { token: string };
+    await h(new Request(url(ROUTES.profile), {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
+        target_weight_kg: 65, activity: "moderate", pace: "steady", country: "gb",
+        restrictions: [], complete_onboarding: true,
+      }),
+    }));
+    const form = new FormData();
+    form.append("photo", new File([jpegBytes(7)], "m.jpg", { type: "image/jpeg" }));
+    const logged = await (await h(new Request(url(ROUTES.photo), {
+      method: "POST", headers: { authorization: `Bearer ${token}`, "x-forwarded-for": address }, body: form,
+    }))).json() as { mealId: string };
+    const reanalyze = () => h(new Request(url(ROUTES.mealReanalyze(logged.mealId)), {
+      method: "POST", headers: { authorization: `Bearer ${token}`, "x-forwarded-for": address },
+    }));
+    expect((await reanalyze()).status).toBe(200);
+    const refused = await reanalyze();
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toEqual({ error: "cap-exceeded", scope: "address" });
+  });
+
   it("is off when the limit is zero, and says so by allowing the request", async () => {
     // An escape hatch that has to be typed, rather than one that happens when a variable is missing.
     const h = routerWith({ authRateLimitPerHour: 0 });
@@ -1215,5 +1242,37 @@ describe("the stream's keepalive", () => {
     expect(raw.filter((l) => l === "").length).toBeGreaterThanOrEqual(3);
     const lines = raw.filter(Boolean).map((l) => JSON.parse(l) as PhotoEvent);
     expect(lines.at(-1)!.kind).toBe("logged");
+  });
+});
+
+describe("GET /v1/meals/:id/photos/:n", () => {
+  it("returns the caller's photo with its sniffed mime, and nothing to anyone else", async () => {
+    const token = await session();
+    const logged = await (await handle(photoRequest(token, 2))).json() as { mealId: string };
+    const res = await get(ROUTES.mealPhoto(logged.mealId, 1), token);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/jpeg");
+    expect(res.headers.get("cache-control")).toBe("private, max-age=31536000, immutable");
+    expect(Array.from(new Uint8Array(await res.arrayBuffer()))).toEqual(Array.from(jpegBytes(2)));
+
+    expect((await get(ROUTES.mealPhoto(logged.mealId, 2), token)).status).toBe(404);
+    expect((await get(ROUTES.mealPhoto(logged.mealId, 0), await session())).status).toBe(404);
+    expect((await get(ROUTES.mealPhoto(logged.mealId, 0))).status).toBe(401);
+  });
+});
+
+describe("POST /v1/meals/:id/reanalyze", () => {
+  it("re-reads the photo for the owner and 404s a meal with none", async () => {
+    const token = await session();
+    const logged = await (await handle(photoRequest(token))).json() as { mealId: string };
+    const res = await post(ROUTES.mealReanalyze(logged.mealId), {}, token);
+    expect(res.status).toBe(200);
+    expect((await res.json() as { via: string }).via).toBe("reanalysis");
+    expect((await post(ROUTES.mealReanalyze(logged.mealId), {}, await session())).status).toBe(409);
+    const proposed = await (await post(ROUTES.messages, { text: "a bowl of rice" }, token)).json() as { pendingId: string };
+    const textMeal = await (await post(ROUTES.pendingConfirm(proposed.pendingId), {}, token)).json() as { mealId: string };
+    const none = await post(ROUTES.mealReanalyze(textMeal.mealId), {}, token);
+    expect(none.status).toBe(404);
+    expect((await none.json() as { error: string }).error).toBe("no-photo");
   });
 });
