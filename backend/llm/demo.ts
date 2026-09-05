@@ -6,7 +6,7 @@
 // estimate is a demo someone eventually screenshots as evidence the product works.
 
 import { dateMinus } from "@eait/shared";
-import type { AnalyzedMeal, AnalyzePhoto, ClassifyRestrictions, Coach, LlmPorts, RouteText } from "./port.ts";
+import type { AnalyzedMeal, AnalyzePhoto, ClassifyRestrictions, Coach, GlancePhoto, LlmPorts, RouteText } from "./port.ts";
 import { clampDayOffset } from "./port.ts";
 
 /** Stable small integer from a string — the seed for every canned number below. */
@@ -122,10 +122,31 @@ function nothingOnThePlate(): AnalyzedMeal {
 }
 
 export function demoPorts(): LlmPorts {
-  const analyzePhoto: AnalyzePhoto = async (input) => {
-    if ((input.caption ?? "").toLowerCase().includes(DEMO_NOT_FOOD)) return nothingOnThePlate();
-    const seed = hash((input.caption ?? "") + input.images.length + (input.images[0]?.byteLength ?? 0));
-    return plateFor(seed);
+  const analyzePhoto: AnalyzePhoto = async (input, onDelta) => {
+    const meal = (input.caption ?? "").toLowerCase().includes(DEMO_NOT_FOOD)
+      ? nothingOnThePlate()
+      : plateFor(hash((input.caption ?? "") + input.images.length + (input.images[0]?.byteLength ?? 0)));
+    if (onDelta) {
+      // The real analyzer writes its JSON over seconds; the pending card is visible in `--demo`
+      // and under every e2e flow only if this one does too, in pieces, with a beat between them.
+      const text = JSON.stringify(meal);
+      const step = Math.ceil(text.length / 6);
+      for (let i = 0; i < text.length; i += step) {
+        await new Promise((r) => setTimeout(r, 150));
+        onDelta(text.slice(i, i + step));
+      }
+    }
+    return meal;
+  };
+
+  const glancePhoto: GlancePhoto = async (input) => {
+    // The analyzer's own seed for an uncaptioned photo of the same bytes, so the sentence names
+    // the plate the card will show. A short wait, so `--demo` shows the choreography rather than
+    // everything at once.
+    const seed = hash("" + input.images.length + (input.images[0]?.byteLength ?? 0));
+    await new Promise((r) => setTimeout(r, 120));
+    const names = plateFor(seed).items.slice(0, 2).map((i) => i.name.toLowerCase());
+    return `Looks like ${names.join(" and ")}.`;
   };
 
   const routeText: RouteText = async (input) => {
@@ -226,5 +247,5 @@ export function demoPorts(): LlmPorts {
     };
   };
 
-  return { analyzePhoto, routeText, classifyRestrictions, coach };
+  return { analyzePhoto, glancePhoto, routeText, classifyRestrictions, coach };
 }

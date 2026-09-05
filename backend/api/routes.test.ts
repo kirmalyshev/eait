@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import {
   HEALTH_RETENTION_DAYS, MAX_CLIENT_ID, MAX_USER_LINE, MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay,
-  localDate,
+  localDate, NDJSON, type PhotoEvent, type MealLogged,
 } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
-import { demoPorts } from "../llm/demo.ts";
+import { DEMO_NOT_FOOD, demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import type { EngineDeps } from "../engine/index.ts";
+import type { LlmPorts } from "../llm/port.ts";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { createRouter } from "./routes.ts";
 import { fakeMailer } from "../mail/fake.ts";
@@ -1123,5 +1124,96 @@ describe("push tokens", () => {
       method: "DELETE", headers: { authorization: `Bearer ${t}` },
     }));
     expect(await store.pushTokensFor(userId)).toEqual([]);
+  });
+});
+
+describe("the streamed photo route", () => {
+  /** The stream, read whole and parsed line by line. */
+  async function ndjson(res: Response): Promise<PhotoEvent[]> {
+    return (await res.text()).split("\n").filter(Boolean).map((l) => JSON.parse(l) as PhotoEvent);
+  }
+  const streamed = (token: string, files = 1, caption?: string) => {
+    const req = photoRequest(token, files, caption);
+    req.headers.set("accept", NDJSON);
+    return handle(req);
+  };
+
+  it("streams NDJSON when asked: glance, items, then the result as the last line", async () => {
+    const token = await session();
+    const res = await streamed(token);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe(NDJSON);
+    const events = await ndjson(res);
+    expect(events[0]!.kind).toBe("glance");
+    const last = events.at(-1) as MealLogged;
+    expect(last.kind).toBe("logged");
+    expect(events.filter((e) => e.kind === "item").length).toBe(last.analysis.items.length);
+  });
+
+  it("answers JSON, as before, without the accept header", async () => {
+    const token = await session();
+    const res = await handle(photoRequest(token));
+    expect(res.headers.get("content-type")).toBe("application/json");
+    expect(((await res.json()) as { kind: string }).kind).toBe("logged");
+  });
+
+  it("puts an engine refusal on the last line of a 200 stream", async () => {
+    const token = await session();
+    const res = await streamed(token, 1, DEMO_NOT_FOOD);
+    expect(res.status).toBe(200);
+    const events = await ndjson(res);
+    expect(events.at(-1)).toEqual({ kind: "not-food" });
+  });
+
+  it("logs the meal even when the reader cancels after the first line — the charge stood, so the diary must too", async () => {
+    const token = await session();
+    const reader = (await streamed(token)).body!.getReader();
+    expect((await reader.read()).done).toBe(false);
+    await reader.cancel();
+    // The demo analyzer is still streaming its chunks into a closed stream. The meal lands anyway.
+    for (let i = 0; i < 40; i++) {
+      const day = await (await get(ROUTES.day, token)).json() as { meals: unknown[] };
+      if (day.meals.length === 1) return;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    throw new Error("the meal never landed after the reader cancelled");
+  });
+
+  it("still 413s an oversized body on the streaming path", async () => {
+    const token = await session();
+    const res = await handle(new Request(url(ROUTES.photo), {
+      method: "POST", body: new FormData(),
+      headers: { authorization: `Bearer ${token}`, accept: NDJSON, "content-length": String(50 * 1024 * 1024) },
+    }));
+    expect(res.status).toBe(413);
+  });
+});
+
+describe("the stream's keepalive", () => {
+  it("writes blank lines while the analyzer is silent, and the client's splitter ignores them", async () => {
+    const slow: LlmPorts = {
+      ...demoPorts(),
+      analyzePhoto: async (input, onDelta) => {
+        await new Promise((r) => setTimeout(r, 120));
+        return demoPorts().analyzePhoto(input, onDelta);
+      },
+    };
+    const deps: EngineDeps = { store, config: CONFIG, llm: slow, mailer: fakeMailer(), push: fakePush() };
+    const h = createRouter(deps, store, testVerifier, { streamKeepaliveMs: 20 });
+    const res = await post(ROUTES.authDevice, { deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en-GB" });
+    const { token } = await res.json() as { token: string };
+    await patch(ROUTES.profile, {
+      goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
+      target_weight_kg: 65, activity: "moderate", pace: "steady", country: "gb",
+      restrictions: [], complete_onboarding: true,
+    }, token);
+    const req = photoRequest(token);
+    req.headers.set("accept", NDJSON);
+    const text = await (await h(req)).text();
+    const raw = text.split("\n");
+    // At least three blank lines in ~120 ms of silence, and the last line is still the result.
+    expect(raw.filter((l) => l === "").length).toBeGreaterThanOrEqual(3);
+    const lines = raw.filter(Boolean).map((l) => JSON.parse(l) as PhotoEvent);
+    expect(lines.at(-1)!.kind).toBe("logged");
   });
 });

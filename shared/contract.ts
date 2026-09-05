@@ -641,5 +641,17 @@ export interface ErrorResponse {
 
 // Response aliases, so a handler and a client method can be declared against the same name.
 export type PhotoResponse = LogPhotoResult;
+
+/** The streamed shape of `POST /v1/meals/photo` when `accept` includes `NDJSON`. */
+export const NDJSON = "application/x-ndjson";
+/**
+ * One line of the stream. Zero or one `glance`, zero or more `item`, then the `LogPhotoResult`
+ * as the LAST line — refusals included, because the 200 went out with the first byte. An
+ * `item` with `index: 0` after others means the analyzer started over (a schema retry).
+ */
+export type PhotoEvent =
+  | { kind: "glance"; text: string }
+  | { kind: "item"; index: number; item: MealItem }
+  | LogPhotoResult;
 export type MessageResponse = HandleTextResult;
 export type PendingResponse = ConfirmMealResult | { kind: "cancelled" } | { kind: "expired" };

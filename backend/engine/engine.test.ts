@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, type MealAnalysis } from "@eait/shared";
+import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, type MealAnalysis, type MealLogged, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
@@ -1455,5 +1455,70 @@ describe("erasure", () => {
     await store.deleteUser(userId);
     expect(await store.getProfile(userId)).toBeNull();
     expect(await store.mealsForDate(userId, localDate("Europe/Berlin"))).toHaveLength(0);
+  });
+});
+
+describe("the streamed photo turn", () => {
+  it("streams the glance and every item to onEvent before returning the result", async () => {
+    const userId = await onboard();
+    const events: PhotoEvent[] = [];
+    const res = await logPhotoMeal(deps, userId, photo(), (e) => events.push(e));
+    expect(res.kind).toBe("logged");
+    const kinds = events.map((e) => e.kind);
+    expect(kinds).toContain("glance");
+    expect(kinds.filter((k) => k === "item").length).toBe((res as MealLogged).analysis.items.length);
+    // The streamed rows are the rows the card carries, in order.
+    const streamed = events.flatMap((e) => (e.kind === "item" ? [e.item.name] : []));
+    expect(streamed).toEqual((res as MealLogged).analysis.items.map((i) => i.name));
+    // The glance is live-turn only: not in the meal, not in the thread.
+    const glance = events.find((e) => e.kind === "glance") as { text: string };
+    const thread = await chatHistory(deps, userId, {});
+    expect(JSON.stringify(thread)).not.toContain(glance.text);
+    expect(JSON.stringify(res)).not.toContain(glance.text);
+  });
+
+  it("makes no glance call without onEvent", async () => {
+    const userId = await onboard();
+    let called = 0;
+    const llm: LlmPorts = { ...demoPorts(), glancePhoto: async () => { called++; return "x"; } };
+    await logPhotoMeal(makeDeps({}, llm), userId, photo());
+    expect(called).toBe(0);
+  });
+
+  it("makes no glance call when no glance model is configured", async () => {
+    const userId = await onboard();
+    let called = 0;
+    const llm: LlmPorts = { ...demoPorts(), glancePhoto: async () => { called++; return "x"; } };
+    await logPhotoMeal(makeDeps({ llmGlanceModel: "" }, llm), userId, photo(), () => {});
+    expect(called).toBe(0);
+  });
+
+  it("a glance that hangs does not hold the result back", async () => {
+    const userId = await onboard();
+    const llm: LlmPorts = { ...demoPorts(), glancePhoto: () => new Promise(() => {}) };
+    const t0 = Date.now();
+    const res = await logPhotoMeal(makeDeps({}, llm), userId, photo(), () => {});
+    expect(res.kind).toBe("logged");
+    // The demo analyzer streams in about a second; a result gated on the glance never returns.
+    expect(Date.now() - t0).toBeLessThan(5_000);
+  });
+
+  it("a glance that throws does not fail the turn", async () => {
+    const userId = await onboard();
+    const llm: LlmPorts = { ...demoPorts(), glancePhoto: async () => { throw new Error("boom"); } };
+    const events: PhotoEvent[] = [];
+    const res = await logPhotoMeal(makeDeps({}, llm), userId, photo(), (e) => events.push(e));
+    expect(res.kind).toBe("logged");
+    expect(events.some((e) => e.kind === "glance")).toBe(false);
+  });
+
+  it("a refused turn emits nothing", async () => {
+    const userId = await onboard();
+    const events: PhotoEvent[] = [];
+    const res = await logPhotoMeal(deps, userId, photo(), (e) => events.push(e));
+    expect(res.kind).toBe("logged");
+    const refused = await logPhotoMeal(makeDeps({ freeAnalyses: 1 }), userId, photo(), (e) => events.push(e));
+    expect(refused.kind).toBe("subscription-required");
+    expect(events.filter((e) => e.kind === "glance").length).toBe(1);
   });
 });

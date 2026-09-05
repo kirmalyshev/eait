@@ -54,6 +54,8 @@ const deps: EngineDeps = {
         apiKey: config.llmApiKey,
         model: config.llmModel,
         chatModel: config.llmChatModel,
+        glanceModel: config.llmGlanceModel,
+        reasoningEffort: config.llmReasoningEffort,
         baseUrl: config.llmBaseUrl,
         timeoutMs: config.llmTimeoutMs,
         maxTokens: config.llmMaxTokens,

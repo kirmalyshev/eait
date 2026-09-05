@@ -12,7 +12,7 @@
 
 import {
   type DailyTotals, type EditMealRequest, type LogPhotoResult, type MealAnalysis, type MealHint,
-  type MealItem, type MealLogged, type MealQuestion, type MealRecord, type MealUpdated,
+  type MealItem, type MealLogged, type MealQuestion, type MealRecord, type MealUpdated, type PhotoEvent,
   type TargetGone, type ConfirmMealResult, explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
 import { localDate, localTime } from "@eait/shared";
@@ -23,6 +23,7 @@ import { checkCaps, refundGatewayRefusal } from "./caps.ts";
 import { afterCorrection, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
 import { imageMime, type AnalyzedMeal } from "../llm/port.ts";
+import { itemScanner } from "../llm/partial.ts";
 
 /** Images arrive as thunks so nothing is READ until the caps have passed. */
 export interface LogPhotoInput {
@@ -75,6 +76,12 @@ export async function logPhotoMeal(
   deps: EngineDeps,
   userId: string,
   input: LogPhotoInput,
+  /**
+   * The live turn's side channel: the glance, and each item as the analyzer closes it. The
+   * result is still the return value — the route writes it as the stream's last line. Without
+   * it nothing streams and no glance call is made: a JSON caller pays for exactly what it did.
+   */
+  onEvent?: (event: PhotoEvent) => void,
 ): Promise<LogPhotoResult> {
   const profile = await deps.store.getProfile(userId);
   if (!profile || profile.onboarded_at === null) return { kind: "not-onboarded" };
@@ -98,6 +105,19 @@ export async function logPhotoMeal(
 
   const { targets } = explainTargets(profile);
 
+  // THE GLANCE RUNS BESIDE THE ANALYZER, on a model that does not reason, and is the first thing
+  // the user reads. Fired only when somebody is listening and a glance model is configured; its
+  // failure is a log line and never a refusal — the analysis is what this turn is for — and its
+  // text goes through `onEvent` and nowhere else. NEVER AWAITED: the result is the analyzer's, and
+  // a glance that hangs for its whole budget must not hold a finished card back. One that lands
+  // after the route has closed the stream is dropped there, not written anywhere.
+  if (onEvent && deps.config.llmGlanceModel) {
+    void deps.llm.glancePhoto({ images, lang: profile.lang })
+      .then((text) => onEvent({ kind: "glance", text }))
+      .catch((e: unknown) => console.warn(`[eait] glance failed: ${(e as Error)?.message ?? e}`));
+  }
+  const onDelta = onEvent ? itemScanner((index, item) => onEvent({ kind: "item", index, item })) : undefined;
+
   let analysis: AnalyzedMeal;
   try {
     analysis = await deps.llm.analyzePhoto({
@@ -108,7 +128,7 @@ export async function logPhotoMeal(
       // What this person's own corrections say about their portions. Unlike the repertoire, this
       // one is allowed to move the grams — see `buildUserText`.
       portionPriors: await deps.store.portionPriors(userId),
-    });
+    }, onDelta);
   } catch (e) {
     // A gateway refusal generated nothing and was billed nothing, so the analysis charged above is
     // given back. Every other failure may have cost real money and stays charged.

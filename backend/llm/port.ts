@@ -96,7 +96,21 @@ export interface PhotoInput {
   portionPriors?: readonly PortionPrior[];
 }
 
-export type AnalyzePhoto = (input: PhotoInput) => Promise<AnalyzedMeal>;
+/**
+ * `onDelta` receives each piece of VISIBLE content as the model writes it — never reasoning —
+ * so the engine can show item rows before the reply is whole. Optional: without it the call is
+ * one request and one reply, as it was.
+ */
+export type AnalyzePhoto = (input: PhotoInput, onDelta?: (text: string) => void) => Promise<AnalyzedMeal>;
+
+/** What the glance needs: the same images, and the language to answer in. */
+export interface GlanceInput { images: Uint8Array[]; lang: string }
+/**
+ * One sentence about the plate, from a call built to be fast — a model that does not reason,
+ * beside the analyzer, never instead of it. Its failure never fails a turn, and its text is never
+ * stored: it belongs to the live turn, like the coach's suggestion chips.
+ */
+export type GlancePhoto = (input: GlanceInput) => Promise<string>;
 
 /**
  * What free text turned out to mean.
@@ -217,6 +231,7 @@ export const COACH_HEALTH_DAYS = 90;
 
 export interface LlmPorts {
   analyzePhoto: AnalyzePhoto;
+  glancePhoto: GlancePhoto;
   routeText: RouteText;
   classifyRestrictions: ClassifyRestrictions;
   coach: Coach;

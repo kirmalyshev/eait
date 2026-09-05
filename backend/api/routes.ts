@@ -15,7 +15,7 @@
 //    encoder cannot drift.
 
 import {
-  MAX_CLIENT_ID, MAX_USER_LINE, REFUSAL_STATUS, ROUTES, isEditMealRequest,
+  MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, REFUSAL_STATUS, ROUTES, isEditMealRequest,
   type AuthDeviceRequest, type AuthDeviceResponse, type AuthProviderRequest,
   type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang,
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
@@ -90,7 +90,23 @@ export interface RouterOptions {
    * `/start` can be driven end to end without Apple or Google being reachable.
    */
   webProviders?: Partial<Record<WebProvider, WebSignInProvider>>;
+  /**
+   * How often the streamed photo route writes a blank line while the analyzer is silent. A test
+   * shortens it; nothing else sets it. See `STREAM_KEEPALIVE_MS`.
+   */
+  streamKeepaliveMs?: number;
 }
+
+/**
+ * THE ANALYZER IS SILENT FOR TENS OF SECONDS, AND AN IDLE SOCKET IS A CLOSED SOCKET. After the
+ * glance (~2 s) grok-4.5 reasons for 10–40 s with nothing on the wire; `Bun.serve` closes a
+ * connection idle for 10 s by default and iOS gives up on one idle for 60 s. Measured 2026-09-05:
+ * the phone reported "the analysis didn't come back" at 12 s while the server, whose `line()`
+ * swallows a gone reader, went on to log the meal — a charged turn the user was told failed. A
+ * blank line every few seconds is nothing to the client (`splitLines` drops empty lines) and
+ * keeps every hop between here and the phone from calling the stream dead.
+ */
+export const STREAM_KEEPALIVE_MS = 5_000;
 
 export function createRouter(
   deps: EngineDeps,
@@ -453,19 +469,54 @@ export function createRouter(
         const files = form.getAll("photo").flatMap((f) => (typeof f === "string" ? [] : [f]));
         if (files.length === 0) return json({ error: "no photo" }, 400);
         if (files.length > deps.config.maxPhotosPerMeal) return json({ error: "too many photos" }, 400);
-        if (files.reduce((n, f) => n + f.size, 0) > deps.config.maxUploadBytes) {
-          return json({ error: "too large" }, 413);
-        }
+        const uploadBytes = files.reduce((n, f) => n + f.size, 0);
+        if (uploadBytes > deps.config.maxUploadBytes) return json({ error: "too large" }, 413);
+        console.log(`[eait] photo upload: ${files.length} file(s), ${uploadBytes} B`);
         const caption = form.get("caption");
         // A caption is a line in the thread; the shared cap the app applies is enforced here.
         if (typeof caption === "string" && caption.length > MAX_USER_LINE) return json({ error: "caption too long" }, 400);
 
-        const result = await logPhotoMeal(deps, userId, {
+        const input = {
           // Several files are ANGLES OF ONE MEAL, not several meals. Thunks, so nothing is read
           // until the engine has passed the caps.
           images: files.map((f) => async () => new Uint8Array(await f.arrayBuffer())),
           ...(typeof caption === "string" && caption ? { caption } : {}),
-        });
+        };
+        // THE STREAM. One JSON object per line — the glance, each item as the analyzer closes it
+        // — and the result LAST, refusals included, because the 200 has gone out with the first
+        // byte. Everything refused above this point is still an HTTP status: nothing has been
+        // written yet. Without the header this is the JSON route it always was.
+        if ((req.headers.get("accept") ?? "").includes(NDJSON)) {
+          const encoder = new TextEncoder();
+          const keepaliveMs = options.streamKeepaliveMs ?? STREAM_KEEPALIVE_MS;
+          const body = new ReadableStream<Uint8Array>({
+            async start(ctrl) {
+              // THE READER CAN BE GONE BEFORE THE TURN IS — the phone timed out or lost the
+              // network — and Bun then throws on every enqueue. A throw here would surface inside
+              // the analyzer's delta loop and abandon a call already charged, so a line nobody can
+              // read is dropped and the turn finishes for the diary regardless: leaving the screen
+              // mid-stream logs the meal, as it did before the route streamed.
+              const line = (e: unknown) => {
+                try { ctrl.enqueue(encoder.encode(JSON.stringify(e) + "\n")); } catch { /* reader gone */ }
+              };
+              const keepalive = setInterval(() => {
+                try { ctrl.enqueue(encoder.encode("\n")); } catch { /* reader gone */ }
+              }, keepaliveMs);
+              try {
+                line(await logPhotoMeal(deps, userId, input, line));
+              } catch (e) {
+                // The JSON path's 500, in-band: logged, never worded to the client.
+                console.error(`[eait] api ${req.method} ${pathname} failed mid-stream: ${(e as Error)?.message ?? e}`);
+                line({ kind: "analysis-failed" });
+              } finally {
+                clearInterval(keepalive);
+                try { ctrl.close(); } catch { /* the reader's cancel closed it first */ }
+              }
+            },
+          });
+          return new Response(body, { status: 200, headers: { "content-type": NDJSON, "cache-control": "no-store" } });
+        }
+        const result = await logPhotoMeal(deps, userId, input);
         return isRefusal(result) ? refusal(result) : json(result);
       }
 

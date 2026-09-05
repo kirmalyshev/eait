@@ -18,3 +18,4 @@ export * from "./chat.ts";
 export * from "./thread.ts";
 export * from "./notifications.ts";
 export * from "./claims.ts";
+export * from "./stream.ts";

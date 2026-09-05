@@ -435,6 +435,20 @@ export function buildClassifyText(text: string): string {
   return `The user said: "${normalizePromptText(text, 500)}"`;
 }
 
+// ── The glance ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * One sentence, fast. Runs on a model that does not reason, in parallel with the analyzer, so the
+ * user reads what Spud sees about a second after the upload. Never numbers: the numbers are the
+ * analyzer's, and a figure here that the card then contradicts is a figure the user remembers.
+ */
+export const SYSTEM_GLANCE = `You name what is on the plate. Reply with ONE short sentence, at most ten words, naming the main foods you see, in the requested language. No numbers, no advice, no preamble.`;
+/** A sentence's worth. The bound is reserved against the balance before routing, so it stays small. */
+export const GLANCE_MAX_TOKENS = 60;
+export function buildGlanceText(lang: string): string {
+  return `Reply in this language: ${lang}. Name the plate.`;
+}
+
 // ── The coach ────────────────────────────────────────────────────────────────────────────────
 
 /**

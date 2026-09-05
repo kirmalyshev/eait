@@ -20,6 +20,7 @@ import { configDefaults, demoConfig, loadConfig, redact } from "./config.ts";
  * make a test read the ambient environment again.
  */
 const VARS = [
+  "EAIT__BACKEND__LLM_GLANCE_MODEL", "EAIT__BACKEND__LLM_REASONING_EFFORT",
   "EAIT__BACKEND__DATABASE_URL", "EAIT__BACKEND__LLM_API_KEY", "EAIT__BACKEND__LLM_BASE_URL", "EAIT__BACKEND__LLM_TIMEOUT_MS", "EAIT__BACKEND__LLM_MODEL", "EAIT__BACKEND__LLM_PROVIDER",
   "EAIT__BACKEND__LLM_MAX_TOKENS", "EAIT__BACKEND__LLM_CHAT_MODEL",
   "EAIT__BACKEND__PENDING_TTL_MINUTES", "EAIT__BACKEND__MAX_UPLOAD_MB", "EAIT__BACKEND__MAX_PHOTOS_PER_MEAL", "EAIT__BACKEND__PORT", "EAIT__BACKEND__HOST", "EAIT__BACKEND__TZ_NAME",
@@ -66,6 +67,21 @@ describe("loadConfig", () => {
     expect(() => loadConfig()).toThrow(/EAIT__BACKEND__DATABASE_URL/);
     process.env.EAIT__BACKEND__DATABASE_URL = "postgres://u:p@localhost:5432/db";
     expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_API_KEY/);
+  });
+
+  it("reads the glance model and the reasoning effort, with a glance model by default and no effort by default", () => {
+    const d = configDefaults();
+    expect(d.llmGlanceModel).toBe("x-ai/grok-4.3");
+    expect(d.llmReasoningEffort).toBe("");
+    withRequired({ EAIT__BACKEND__LLM_GLANCE_MODEL: "", EAIT__BACKEND__LLM_REASONING_EFFORT: "low" });
+    const c = loadConfig();
+    expect(c.llmGlanceModel).toBe("");
+    expect(c.llmReasoningEffort).toBe("low");
+  });
+
+  it("refuses a reasoning effort the provider would 400 on every charged call", () => {
+    withRequired({ EAIT__BACKEND__LLM_REASONING_EFFORT: "lo" });
+    expect(() => loadConfig()).toThrow(/LLM_REASONING_EFFORT/);
   });
 
   it("falls back to the shared defaults when nothing else is set", () => {

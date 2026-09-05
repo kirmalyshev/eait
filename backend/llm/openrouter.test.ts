@@ -560,3 +560,113 @@ describe("coach", () => {
     expect(out.suggestions).toEqual(["a", "b c", "d"]);
   });
 });
+
+// ── Streaming and the reasoning knob ─────────────────────────────────────────────────────────
+
+/** A fetch that answers a streamed completion, one SSE `data:` line per chunk of `content`. */
+function sseFetch(chunks: string[], finish = "stop") {
+  const bodies: Record<string, unknown>[] = [];
+  const impl = (async (_url: string, init: RequestInit) => {
+    bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+    const lines = [
+      ": OPENROUTER PROCESSING\n\n",
+      // A reasoning delta first, which must never reach `onDelta`.
+      `data: ${JSON.stringify({ choices: [{ delta: { reasoning: "hmm" } }] })}\n\n`,
+      ...chunks.map((c) => `data: ${JSON.stringify({ choices: [{ delta: { content: c } }] })}\n\n`),
+      `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: finish }], usage: { completion_tokens: 7 } })}\n\n`,
+      "data: [DONE]\n\n",
+    ];
+    const body = new ReadableStream<Uint8Array>({
+      start(ctrl) { for (const l of lines) ctrl.enqueue(new TextEncoder().encode(l)); ctrl.close(); },
+    });
+    return new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } });
+  }) as unknown as typeof fetch;
+  return { impl, bodies };
+}
+
+const streamPorts = (impl: typeof fetch, over: { reasoningEffort?: string; glanceModel?: string } = {}) => openRouterPorts({
+  apiKey: "test-key-not-a-secret", model: "test-model", chatModel: "test-chat-model",
+  baseUrl: "https://example.invalid/v1/chat/completions", timeoutMs: 5000, maxTokens: 4321,
+  fetchImpl: impl, ...over,
+});
+
+const PHOTO_INPUT = {
+  images: [new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], profile: ROUTE_INPUT.profile, targets: ROUTE_INPUT.targets,
+} as Parameters<ReturnType<typeof openRouterPorts>["analyzePhoto"]>[0];
+
+const MEAL = {
+  isFood: true,
+  items: [{ name: "Egg", grams: 60, kcal: 90, protein_g: 7, carbs_g: 0, fat_g: 6, kcal_per_100g: 150 }],
+  kcal: 90, protein_g: 7, carbs_g: 0, fat_g: 6, satfat_g: 2, fiber_g: 0, sugar_g: 0, sodium_mg: 100,
+  confidence: "high", notes: "",
+};
+
+describe("streaming", () => {
+  test("analyzePhoto with onDelta streams: every content delta is delivered, nothing else is, and the reply parses", async () => {
+    const text = JSON.stringify(MEAL);
+    const { impl, bodies } = sseFetch([text.slice(0, 10), text.slice(10, 40), text.slice(40)]);
+    const seen: string[] = [];
+    const out = await streamPorts(impl).analyzePhoto(PHOTO_INPUT, (d) => seen.push(d));
+    expect(seen).toEqual([text.slice(0, 10), text.slice(10, 40), text.slice(40)]);
+    expect(out.items[0]!.name).toBe("Egg");
+    expect(bodies[0]!.stream).toBe(true);
+  });
+
+  test("without onDelta the request does not stream", async () => {
+    const { bodies, llm } = ports([MEAL]);
+    await llm.analyzePhoto(PHOTO_INPUT);
+    expect(bodies[0]!.stream).toBeUndefined();
+  });
+
+  test("a streamed reply cut at max_tokens is reported as truncation, not retried", async () => {
+    const { impl, bodies } = sseFetch(['{"isFood":true,"items":['], "length");
+    await expect(streamPorts(impl).analyzePhoto(PHOTO_INPUT, () => {})).rejects.toThrow(/truncated/);
+    expect(bodies).toHaveLength(1);
+  });
+});
+
+describe("reasoning effort", () => {
+  test("is absent from the body unless configured", async () => {
+    const { bodies, llm } = ports([MEAL]);
+    await llm.analyzePhoto(PHOTO_INPUT);
+    expect(bodies[0]!.reasoning).toBeUndefined();
+  });
+
+  test("rides on every complete() call when configured", async () => {
+    const { impl, bodies } = fakeFetch([MEAL]);
+    await streamPorts(impl, { reasoningEffort: "low" }).analyzePhoto(PHOTO_INPUT);
+    expect(bodies[0]!.reasoning).toEqual({ effort: "low" });
+  });
+});
+
+// ── The glance ───────────────────────────────────────────────────────────────────────────────
+
+describe("glancePhoto", () => {
+  const reply = (content: string) => (async (_url: string, init: RequestInit) => {
+    bodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
+    return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
+  }) as unknown as typeof fetch;
+  const bodies: Record<string, unknown>[] = [];
+  const GLANCE_INPUT = { images: [new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], lang: "de" };
+
+  test("asks the glance model, reasoning off, a small bound, no stream, in the user's language", async () => {
+    bodies.length = 0;
+    const llm = streamPorts(reply("Steak und Fleischbällchen."), { glanceModel: "glance-model" });
+    expect(await llm.glancePhoto(GLANCE_INPUT)).toBe("Steak und Fleischbällchen.");
+    const body = bodies[0]!;
+    expect(body.model).toBe("glance-model");
+    expect(body.reasoning).toEqual({ enabled: false });
+    expect(body.max_tokens).toBe(60);
+    expect(body.stream).toBeUndefined();
+    expect(JSON.stringify(body.messages)).toContain("Reply in this language: de");
+  });
+
+  test("returns the trimmed first line of the reply", async () => {
+    const llm = streamPorts(reply("  Grilled steak and meatballs. \nSecond line"), { glanceModel: "g" });
+    expect(await llm.glancePhoto(GLANCE_INPUT)).toBe("Grilled steak and meatballs.");
+  });
+
+  test("throws when no glance model is configured", async () => {
+    await expect(streamPorts(reply("x")).glancePhoto(GLANCE_INPUT)).rejects.toThrow(/disabled/);
+  });
+});

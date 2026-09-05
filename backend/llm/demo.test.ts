@@ -157,3 +157,21 @@ test("the canned coach answers a plain question from the context alone", async (
   });
   expect(out.reply).toContain(String(COACH.context.targets.kcal));
 });
+
+test("glancePhoto names the first two plates of the meal the analyzer will return for the same bytes", async () => {
+  const ports = demoPorts();
+  const images = [new Uint8Array([1, 2, 3])];
+  const [glance, meal] = await Promise.all([
+    ports.glancePhoto({ images, lang: "en" }),
+    ports.analyzePhoto({ images, profile: PROFILE, targets: explainTargets(PROFILE).targets }),
+  ]);
+  expect(glance).toBe(`Looks like ${meal.items.slice(0, 2).map((i) => i.name.toLowerCase()).join(" and ")}.`);
+});
+
+test("analyzePhoto feeds the same JSON to onDelta that it returns, in more than one chunk", async () => {
+  const input = { images: [new Uint8Array([1, 2, 3])], profile: PROFILE, targets: explainTargets(PROFILE).targets };
+  const chunks: string[] = [];
+  const meal = await demoPorts().analyzePhoto(input, (d) => chunks.push(d));
+  expect(chunks.length).toBeGreaterThan(1);
+  expect(JSON.parse(chunks.join(""))).toEqual(JSON.parse(JSON.stringify(meal)));
+});

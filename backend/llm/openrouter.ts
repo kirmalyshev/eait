@@ -5,13 +5,13 @@
 // two transports without wondering whether they were asked different questions.
 
 import { z } from "zod";
-import { cleanSuggestions } from "@eait/shared";
-import type { AnalyzePhoto, ClassifyRestrictions, Coach, CoachTools, LlmPorts, RouteResult, RouteText } from "./port.ts";
+import { cleanSuggestions, splitLines } from "@eait/shared";
+import type { AnalyzePhoto, ClassifyRestrictions, Coach, CoachTools, GlancePhoto, LlmPorts, RouteResult, RouteText } from "./port.ts";
 import { GatewayRefusal, MAX_COACH_ROUNDS, clampDayOffset, imageMime } from "./port.ts";
 import {
-  COACH_TOOL_DEFS, ClassifySchema, CoachReplySchema, MealAnalysisSchema, RouteSchema, SYSTEM,
-  SYSTEM_CLASSIFY, SYSTEM_COACH, SYSTEM_ROUTE, SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL,
-  buildClassifyText, buildCoachContext, buildRouteText, buildTextCorrectionText, buildTextMealText,
+  COACH_TOOL_DEFS, ClassifySchema, CoachReplySchema, GLANCE_MAX_TOKENS, MealAnalysisSchema, RouteSchema, SYSTEM,
+  SYSTEM_CLASSIFY, SYSTEM_COACH, SYSTEM_GLANCE, SYSTEM_ROUTE, SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL,
+  buildClassifyText, buildCoachContext, buildGlanceText, buildRouteText, buildTextCorrectionText, buildTextMealText,
   buildUserText, coachLine,
 } from "./prompt.ts";
 
@@ -21,12 +21,24 @@ interface Options {
   model: string;
   /** The coach. Text only, and its own setting — `EAIT__BACKEND__LLM_CHAT_MODEL`. */
   chatModel: string;
+  /**
+   * The glance — one sentence while the analyzer works, on a model that does NOT reason.
+   * `EAIT__BACKEND__LLM_GLANCE_MODEL`; empty or absent disables the port (it throws, and the
+   * engine never calls it then).
+   */
+  glanceModel?: string | undefined;
   /** Where the chat-completions call goes. From `EAIT__BACKEND__LLM_BASE_URL`; the composition root supplies it. */
   baseUrl: string;
   /** How long one call may hang. From `EAIT__BACKEND__LLM_TIMEOUT_MS`. */
   timeoutMs: number;
   /** The completion bound for one call. From `EAIT__BACKEND__LLM_MAX_TOKENS`. */
   maxTokens: number;
+  /**
+   * Sent as `reasoning: { effort }` on every schema call when set. From
+   * `EAIT__BACKEND__LLM_REASONING_EFFORT`; empty means the model decides, which is what measured
+   * at a median 37 s to first token on grok-4.5 (2026-09-05, docs/ACCURACY.md).
+   */
+  reasoningEffort?: string | undefined;
   /** Injected in tests so the ports can be exercised without a billed call. */
   fetchImpl?: typeof fetch;
 }
@@ -57,6 +69,9 @@ interface Choice { finish_reason?: string; message?: { content?: string | null; 
  * rather than derived from a status by the engine.
  */
 const UNROUTED = new Set([401, 402, 429, 503]);
+
+/** How long the glance may take. Measured at 0.9 s; past this the card has long overtaken it. */
+const GLANCE_TIMEOUT_MS = 15_000;
 
 /**
  * Data URL for one image. The mime type is read from the magic bytes rather than trusted from the
@@ -89,7 +104,13 @@ export function openRouterPorts(opts: Options): LlmPorts {
    * and the coach loop, so there is one place a hung provider is abandoned and one place a
    * gateway status becomes a refund or does not.
    */
-  async function send(body: unknown, billed: boolean, budgetMs = opts.timeoutMs): Promise<{ choices?: Choice[] }> {
+  async function send(
+    body: unknown,
+    billed: boolean,
+    budgetMs = opts.timeoutMs,
+    /** Given, the call streams and every VISIBLE content delta is handed here as it arrives. */
+    onDelta?: (text: string) => void,
+  ): Promise<{ choices?: Choice[] }> {
     // A model call that hangs used to hang FOREVER: the provider accepts the connection, never
     // answers, and holds the request, the photo and a worker slot until the process restarts.
     // Vision inference is slow, so the budget is generous — but it is finite.
@@ -104,9 +125,52 @@ export function openRouterPorts(opts: Options): LlmPorts {
           "content-type": "application/json",
           "x-title": "eait",
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(onDelta ? { ...(body as object), stream: true } : body),
         signal: abort.signal,
       });
+
+      if (!res.ok) {
+        // The status and a short body go to the log; neither reaches the client. An upstream error
+        // string can echo the prompt, which carries the user's medical free text.
+        const detail = (await res.text()).slice(0, 500);
+        const message = `llm http ${res.status}: ${detail}`;
+        const unrouted = UNROUTED.has(res.status) && !billed;
+        throw unrouted ? new GatewayRefusal(res.status, message) : new Error(message);
+      }
+      if (!onDelta) return await res.json() as { choices?: Choice[] };
+
+      // THE STREAMED SHAPE IS REASSEMBLED INTO THE NON-STREAMED ONE, so `complete()` validates and
+      // retries exactly as before. `reasoning` deltas are never forwarded: they are the model's
+      // thinking, and the pending card must show only what the card will. The abort timer stays
+      // armed until the last chunk, because a provider can open the stream and then stall.
+      let content = "";
+      let finish: string | undefined;
+      let carry = "";
+      const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const split = splitLines(carry, value);
+        carry = split.carry;
+        for (const line of split.lines) {
+          if (!line.startsWith("data:")) continue;
+          const data = line.slice(5).trim();
+          if (data === "[DONE]") continue;
+          let j: { choices?: { delta?: { content?: string | null }; finish_reason?: string | null }[]; error?: unknown };
+          try { j = JSON.parse(data); } catch { continue; }
+          // A mid-stream error is a status that never had a status line: the content stops, the
+          // parse below fails, and without this the log says "not valid JSON" and nothing else.
+          if (j.error) console.error(`[eait] llm stream error: ${JSON.stringify(j.error).slice(0, 300)}`);
+          const ch = j.choices?.[0];
+          if (!ch) continue;
+          if (typeof ch.delta?.content === "string" && ch.delta.content !== "") {
+            content += ch.delta.content;
+            onDelta(ch.delta.content);
+          }
+          if (ch.finish_reason) finish = ch.finish_reason;
+        }
+      }
+      return { choices: [{ ...(finish ? { finish_reason: finish } : {}), message: { content } }] };
     } catch (e) {
       // Reported as a timeout rather than as whatever the runtime called it, because the caller
       // turns this into "the analysis didn't come back" and the log is where the detail belongs.
@@ -115,16 +179,6 @@ export function openRouterPorts(opts: Options): LlmPorts {
     } finally {
       clearTimeout(timer);
     }
-
-    if (!res.ok) {
-      // The status and a short body go to the log; neither reaches the client. An upstream error
-      // string can echo the prompt, which carries the user's medical free text.
-      const detail = (await res.text()).slice(0, 500);
-      const message = `llm http ${res.status}: ${detail}`;
-      const unrouted = UNROUTED.has(res.status) && !billed;
-      throw unrouted ? new GatewayRefusal(res.status, message) : new Error(message);
-    }
-    return await res.json() as { choices?: Choice[] };
   }
 
   async function complete<T>(
@@ -134,6 +188,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
     schemaName: string,
     /** A call in this turn has already generated, so nothing here can be given back. */
     billed = false,
+    onDelta?: (text: string) => void,
   ): Promise<T> {
     const messages: Message[] = [{ role: "system", content: system }, { role: "user", content }];
     let lastError = "";
@@ -150,6 +205,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
         // Named on every call, so the provider's own default cannot drift under us: every call
         // this app makes wants the same answer twice.
         temperature: 0.2,
+        ...(opts.reasoningEffort ? { reasoning: { effort: opts.reasoningEffort } } : {}),
         messages: attempt === 0 ? messages : [
           ...messages,
           {
@@ -165,7 +221,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
 
       // `attempt > 0` means the first attempt answered 200 and was billed for a reply that missed
       // the schema. Nothing after that first completion is free, whatever the status says.
-      const payload = await send(body, billed || attempt > 0);
+      const payload = await send(body, billed || attempt > 0, undefined, onDelta);
       const choice = payload.choices?.[0];
       // `length` means generation stopped at the bound. It is checked only where the reply turned
       // out to be UNUSABLE, never before the parse: with a JSON schema the model writes its closing
@@ -201,7 +257,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
     throw new Error(`llm did not satisfy ${schemaName}: ${lastError}`);
   }
 
-  const analyzePhoto: AnalyzePhoto = async (input) => {
+  const analyzePhoto: AnalyzePhoto = async (input, onDelta) => {
     const content: Content = [
       { type: "text", text: buildUserText(input.profile, input.targets, {
         ...(input.caption !== undefined ? { caption: input.caption } : {}),
@@ -211,7 +267,34 @@ export function openRouterPorts(opts: Options): LlmPorts {
       }) },
       ...input.images.map((b) => ({ type: "image_url" as const, image_url: { url: toDataUrl(b) } })),
     ];
-    return await complete(SYSTEM, content, MealAnalysisSchema, "meal_analysis");
+    return await complete(SYSTEM, content, MealAnalysisSchema, "meal_analysis", false, onDelta);
+  };
+
+  const glancePhoto: GlancePhoto = async (input) => {
+    if (!opts.glanceModel) throw new Error("glance disabled");
+    const body = {
+      model: opts.glanceModel,
+      max_tokens: GLANCE_MAX_TOKENS,
+      temperature: 0.2,
+      // The whole point of this call. A model that reasons here answers after the analyzer does;
+      // grok-4.3 with this off measured 0.9 s to first token, grok-4.5 refuses the setting.
+      reasoning: { enabled: false },
+      messages: [
+        { role: "system" as const, content: SYSTEM_GLANCE },
+        { role: "user" as const, content: [
+          { type: "text" as const, text: buildGlanceText(input.lang) },
+          ...input.images.map((b) => ({ type: "image_url" as const, image_url: { url: toDataUrl(b) } })),
+        ] },
+      ],
+    };
+    // `billed: true`: the analysis beside this call is charged whatever this one does, so a gateway
+    // status here is a plain error and refunds nothing. Its own budget, well under the analyzer's:
+    // a glance that has not answered in fifteen seconds is one nobody is waiting for any more, and
+    // the call is holding the image bytes until it settles.
+    const raw = (await send(body, true, GLANCE_TIMEOUT_MS)).choices?.[0]?.message?.content ?? "";
+    const line = raw.split("\n")[0]!.trim();
+    if (line === "") throw new Error("glance returned nothing");
+    return line;
   };
 
   const routeText: RouteText = async (input) => {
@@ -384,7 +467,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
     }
   };
 
-  return { analyzePhoto, routeText, classifyRestrictions, coach };
+  return { analyzePhoto, glancePhoto, routeText, classifyRestrictions, coach };
 }
 
 /**
