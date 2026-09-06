@@ -16,7 +16,7 @@ import { z } from "zod";
 import type { FoodTargets, Profile } from "@eait/shared";
 import type { PortionPrior } from "../store.ts";
 import { MAX_SUGGESTION, MAX_SUGGESTIONS, MAX_USER_LINE, RESTRICTION_TAGS } from "@eait/shared";
-import type { CoachContext } from "./port.ts";
+import type { CoachContext, CoachHistoryLine } from "./port.ts";
 import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "./port.ts";
 
 // ── Containment ──────────────────────────────────────────────────────────────────────────────
@@ -382,7 +382,7 @@ export function buildRouteText(input: {
   /** The question Spud asked about the focus meal and has not had an answer to. */
   question?: { text: string; options: string[] } | undefined;
   /** The thread's tail, oldest first, so a follow-up routes as what it is. */
-  recent?: { role: "user" | "assistant"; text: string }[] | undefined;
+  recent?: CoachHistoryLine[] | undefined;
 }): string {
   const { profile, targets } = input;
   const lines = [
@@ -419,7 +419,7 @@ export function buildRouteText(input: {
   // Each line contained: the thread holds words the model wrote and words the user typed.
   if (input.recent && input.recent.length > 0) {
     lines.push(`The conversation just before this message:\n${input.recent
-      .map((l) => `- ${l.role === "user" ? "user" : "Spud"}: ${coachLine(l.text)}`).join("\n")}`);
+      .map((l) => `- ${l.role === "user" ? "user" : l.speaker === "gabie" ? "Gabie" : "Spud"}: ${coachLine(l.text)}`).join("\n")}`);
   }
   // A chip's words are two of them. "In oil" against a meal in focus and nothing else routes to
   // `answer` — or, worse, to a new meal made out of the answer — because nothing in the prompt says
@@ -458,14 +458,18 @@ export function buildGlanceText(lang: string): string {
 // ── The coach ────────────────────────────────────────────────────────────────────────────────
 
 /**
- * Spud, answering a question. The persona is `product/design/onboarding/copy.md`'s — honest
- * numbers, no cheering, no shame, one concrete thing — and every rule below has a test naming it.
+ * Gabie, answering a question. Spud logs, Gabie advises: he is the host who speaks the verdicts
+ * and the app's notes, she is the nutritionist behind the Chat tab. Her rules are
+ * `product/design/onboarding/copy.md`'s — honest numbers, no cheering, no shame, one concrete
+ * thing — and every rule below has a test naming it.
  *
  * The tools are described to the model in `COACH_TOOL_DEFS`; the prompt only says WHEN to reach
  * for one. A model told to "use tools" uses them on every turn, which is a billed round trip to
  * learn what the context already said.
  */
-export const SYSTEM_COACH = `You are Spud, the nutritionist inside a photo-first food diary. The user is talking to you in the app's chat. You know their plan, what they have eaten today, their recent days, and you can look up their logged meals and their health data with tools.
+export const SYSTEM_COACH = `You are Gabie, the user's personal nutritionist inside a photo-first food diary. The user is talking to you in the app's chat. You know their plan, what they have eaten today, their recent days, and you can look up their logged meals and their health data with tools. Warm and direct, like a nutritionist who has read the diary before the appointment; you speak as yourself, in the first person, and you never ask for their name.
+
+Who else is in the thread: Spud, the app's host, logs the meals and speaks the verdicts and the app's own notes. An earlier assistant line that speaks as Spud is his, not yours; you are not Spud and never say you are.
 
 How to answer:
 - Reply in the user's language, as a chat message: short, plain sentences, usually two to five of them. No markdown, no headers, no bullet symbols — a short list only when you are listing options, one per line.

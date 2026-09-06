@@ -1115,3 +1115,43 @@ describe("chat on the web: a turn that needs a meal in focus", () => {
     expect(PAGE_COPY.chatNoFocusCorrection).not.toBe(PAGE_COPY.chatNoFocusRedate);
   });
 });
+
+describe("chat on the web: who said it", () => {
+  it("puts Gabie's name on her answers, and nothing on Spud's", async () => {
+    const { session, userId } = await onboarded();
+    await store.appendChat(userId, [
+      { role: "assistant", kind: "text", text: "First one in. 612 kcal." },
+      { role: "user", kind: "text", text: "how much protein have I had?" },
+      { role: "assistant", kind: "text", text: "About 40 g so far.", speaker: "gabie" },
+    ]);
+    const page = await (await get("/start/chat", session)).text();
+    // Her name leads her bubble; his lines are unlabelled, because his is the voice the page
+    // opens in and a name on every line reads as two strangers rather than one conversation.
+    expect(page).toContain('<p class="who">Gabie</p><p class="bubble">About 40 g so far.</p>');
+    expect(page).toContain('<p class="bubble">First one in. 612 kcal.</p>');
+    expect(page.match(/class="who"/g)).toHaveLength(1);
+  });
+});
+
+describe("the web surface and the landing are one product", () => {
+  it("draws its pages from the landing's own tokens and typeface", async () => {
+    const { session } = await onboarded();
+    const page = await (await get("/start/chat", session)).text();
+    // The landing's palette, by variable name, rather than a second copy of the hexes.
+    expect(page).toContain("--accent-ink:");
+    expect(page).toContain('font-family: "Space Grotesk"');
+    // Light unless somebody says otherwise, which is the landing's rule: the OS is not consulted.
+    expect(page).not.toContain("prefers-color-scheme");
+  });
+
+  it("serves that typeface itself, cached, so the page loads nothing from anyone else", async () => {
+    const res = await get("/start/assets/space-grotesk-latin.woff2");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("font/woff2");
+    expect(res.headers.get("cache-control")).toContain("immutable");
+    expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(10_000);
+    // And the policy that allows it is same-origin only.
+    const front = await get("/start");
+    expect(front.headers.get("content-security-policy")).toContain("font-src 'self'");
+  });
+});

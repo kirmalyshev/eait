@@ -13,7 +13,7 @@ import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
-import { COACH_HISTORY_LINES, coachTools, handleText, patchProfile, recentLines, type EngineDeps } from "./index.ts";
+import { COACH_HISTORY_LINES, chatHistory, coachTools, handleText, patchProfile, recentLines, type EngineDeps } from "./index.ts";
 
 const CONFIG: Config = {
   ...configDefaults(), port: 0, databaseUrl: "memory://test",
@@ -69,12 +69,13 @@ describe("the coach turn", () => {
     const d = makeDeps(llm);
     const userId = await onboard();
     const res = await handleText(d, userId, { text: "how much protein have I had?" });
-    expect(res).toEqual({ kind: "answered", text: "Here is the answer.", suggestions: ["And protein?"] });
+    expect(res).toEqual({ kind: "answered", text: "Here is the answer.", suggestions: ["And protein?"], speaker: "gabie" });
     expect(seen).toHaveLength(1);
     const lines = (await store.chatBefore(userId, null, 10)).reverse();
-    expect(lines.map((l) => [l.role, l.text])).toEqual([
-      ["user", "how much protein have I had?"], ["assistant", "Here is the answer."],
+    expect(lines.map((l) => [l.role, l.text, l.speaker])).toEqual([
+      ["user", "how much protein have I had?", null], ["assistant", "Here is the answer.", "gabie"],
     ]);
+    expect((await chatHistory(d, userId, {})).entries.at(-1)).toMatchObject({ kind: "text", speaker: "gabie" });
   });
 
   it("hands the coach the plan, the day, the week, the focus meal and the clock", async () => {
@@ -110,15 +111,17 @@ describe("the coach turn", () => {
       { role: "assistant", kind: "meal", mealId: gone.id, event: "updated" },
       { role: "assistant", kind: "text", text: "First one in." },
       { role: "user", kind: "text", text: "thanks" },
+      { role: "assistant", kind: "text", text: "About 40 g.", speaker: "gabie" },
     ]);
     await handleText(d, userId, { text: "what did I eat?" });
     const h = seen[0]!.input.history;
-    expect(h).toEqual([
+    expect(h).toStrictEqual([
       { role: "user", text: "[photo] with sauce" },
       { role: "assistant", text: `[logged: Rice, Chicken — 500 kcal, 40 g protein, ${today()}]` },
       { role: "assistant", text: "[a meal that was later deleted]" },
       { role: "assistant", text: "First one in." },
       { role: "user", text: "thanks" },
+      { role: "assistant", text: "About 40 g.", speaker: "gabie" },
     ]);
     // And the router saw the tail too, so a follow-up can route as one.
     expect(routed[0]!.recent).toEqual(h.slice(-6));
@@ -143,8 +146,12 @@ describe("the coach turn", () => {
     if (res.kind === "answered") {
       expect(res.text).toContain("Demo answer");
       expect(res.suggestions).toBeUndefined();
+      // The question was asked of Gabie, so the answer is hers even when the coach is down.
+      expect(res.speaker).toBe("gabie");
     }
-    expect((await store.chatBefore(userId, null, 10))).toHaveLength(2);
+    const lines = await store.chatBefore(userId, null, 10);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]!.speaker).toBe("gabie");
   });
 
   it("refuses as analysis-failed when the coach fails and the router had nothing to say either", async () => {

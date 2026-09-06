@@ -77,10 +77,15 @@ export interface MealProposed {
   date: string;
 }
 
+/** Who said an assistant line. Absent is Spud, the host; `gabie` is the nutritionist, and only a coach answer carries it. */
+export type ChatSpeaker = "gabie";
+
 export interface Answered {
   kind: "answered";
   /** Model prose in the user's language. Content, not copy — it passes through unrendered. */
   text: string;
+  /** Who answered. A coach turn is Gabie's, fallback included; absent or null is Spud. */
+  speaker?: ChatSpeaker | null;
   /**
    * What the user might ask next, in their own words, as chips under the answer. Live turn only:
    * the thread stores the sentence and never the chips, so a stored line carries none. Absent

@@ -596,6 +596,17 @@ function contract(name: string, make: () => Promise<Store>) {
       expect((await s.chatBefore(a, null, 1))[0]!.text).toBeNull();
     });
 
+    it("keeps who spoke an assistant line, and Spud is the default", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.appendChat(u, [
+        { role: "assistant", kind: "text", text: "Hi, I'm Gabie.", speaker: "gabie" },
+        { role: "assistant", kind: "text", text: "Logged." },
+        { role: "user", kind: "text", text: "thanks" },
+      ]);
+      expect((await s.chatBefore(u, null, 3)).map((m) => m.speaker)).toEqual([null, null, "gabie"]);
+    });
+
     it("hands out the first verdict exactly once per account", async () => {
       const s = await open();
       const a = (await s.upsertDeviceUser(device(), "en")).userId;

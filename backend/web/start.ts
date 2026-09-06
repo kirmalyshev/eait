@@ -34,7 +34,7 @@ import {
 } from "../engine/index.ts";
 import type { Store } from "../store.ts";
 import {
-  chat, frontDoor, html, plan, question, stopped, PAGE_COPY,
+  chat, frontDoor, html, plan, question, stopped, FONT_PATH, PAGE_COPY,
   type ChatLine, type ChatProposal, type QuestionOption,
 } from "./page.ts";
 
@@ -324,6 +324,19 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     return html(frontDoor(content.welcome.lines, offered.map((p) => ({
       href: `${START_PREFIX}/auth/${p}`, label: PROVIDER_LABEL[p],
     })), error));
+  }
+
+  // The typeface, on this origin, which is what lets the CSP stay at `font-src 'self'` and load
+  // nothing from anyone else. Before the session gate: a font is not somebody's data, and a
+  // sign-in page that cannot draw its own headings is the first thing a visitor sees.
+  if (req.method === "GET" && pathname === FONT_PATH) {
+    return new Response(Bun.file(new URL("../landing/assets/fonts/space-grotesk-latin.woff2", import.meta.url)), {
+      headers: {
+        "content-type": "font/woff2",
+        // Immutable because the name is the file: a new cut of the typeface is a new path.
+        "cache-control": "public, max-age=31536000, immutable",
+      },
+    });
   }
 
   if (req.method === "GET" && pathname === CHAT_ALIAS) return seeOther(CHAT_PATH);
@@ -718,7 +731,8 @@ function noticeFor(result: { kind: string; scope?: string; on?: string }): strin
  *
  * A card is resolved from the meal as it is NOW (`chatHistory` does the read), so a verdict on this
  * page never describes numbers that have since changed — and a meal that is gone says so rather
- * than rendering a stale one. `who` stays null until the thread carries a speaker per line.
+ * than rendering a stale one. `who` is the stored speaker: Gabie answers questions, and everything
+ * else is Spud, whose name the page does not repeat because he is the voice it opens in.
  */
 function threadLine(e: ChatEntry): ChatLine {
   if (e.role === "user") {
@@ -726,7 +740,7 @@ function threadLine(e: ChatEntry): ChatLine {
       ? { kind: "user", text: e.text, photo: true }
       : { kind: "user", text: e.text };
   }
-  if (e.kind === "text") return { kind: "said", who: null, text: e.text };
+  if (e.kind === "text") return { kind: "said", who: e.speaker === "gabie" ? "Gabie" : null, text: e.text };
   const meal = e.meal;
   if (!meal) return { kind: "card", card: null };
   return {

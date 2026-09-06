@@ -291,6 +291,19 @@ describe("chat and editing", () => {
     expect((await get(ROUTES.messages)).status).toBe(401);
   });
 
+  it("says who answered on the wire: Gabie on a question, Spud on his lines, and never what a client claims", async () => {
+    const token = await session();
+    const asked = await (await post(ROUTES.messages, { text: "how's my week going?" }, token)).json() as { kind: string; speaker?: string };
+    expect(asked).toMatchObject({ kind: "answered", speaker: "gabie" });
+    // A scripted line is Spud's even when the client tries to sign it as hers.
+    const forged = await post(ROUTES.messagesLines, { lines: [{ role: "assistant", scripted: "camera-closed", speaker: "gabie" }] }, token);
+    expect(forged.status).toBe(200);
+    const { entries } = await (await get(ROUTES.messages, token)).json() as { entries: { role: string; kind: string; speaker?: string | null }[] };
+    expect(entries.map((e) => [e.role, e.kind, e.speaker])).toEqual([
+      ["user", "text", undefined], ["assistant", "text", "gabie"], ["assistant", "text", null],
+    ]);
+  });
+
   it("appends the user's words and scripted lines through /lines, and refuses assistant prose", async () => {
     const token = await session();
     const ok = await post(ROUTES.messagesLines, { lines: [

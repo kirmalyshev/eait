@@ -398,6 +398,7 @@ alter table chat_messages drop constraint if exists chat_messages_meal_id_fkey;
 drop index if exists chat_messages_meal_idx;
 alter table chat_messages add column if not exists client_id text;
 alter table chat_messages add column if not exists pending_id uuid;
+alter table chat_messages add column if not exists speaker text;
 create index if not exists chat_messages_user_seq_idx on chat_messages(user_id, seq desc);
 
 -- Push tokens. ONE ROW PER DEVICE, keyed on the token itself rather than on (user, token).
@@ -1390,13 +1391,14 @@ export async function postgresStore(
         await tx`select id from users where id = ${userId} for update`;
         for (const line of lines) {
           await tx`
-            insert into chat_messages (id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id)
+            insert into chat_messages (id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id, speaker)
             values (${crypto.randomUUID()}, ${userId}, ${new Date(now())}, ${line.role}, ${line.kind},
                     ${"text" in line ? line.text : null},
                     ${line.kind === "meal" ? line.mealId : line.kind === "photo" ? line.mealId ?? null : null},
                     ${line.kind === "meal" ? line.event : null},
                     ${line.role === "user" && line.kind === "text" ? line.clientId ?? null : null},
-                    ${line.role === "user" && line.kind === "text" ? line.pendingId ?? null : null})`;
+                    ${line.role === "user" && line.kind === "text" ? line.pendingId ?? null : null},
+                    ${line.role === "assistant" && line.kind === "text" ? line.speaker ?? null : null})`;
         }
       });
     },
@@ -1404,10 +1406,10 @@ export async function postgresStore(
     async chatBefore(userId, before, limit) {
       const rows = before === null
         ? await sql`
-            select seq, id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id from chat_messages
+            select seq, id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id, speaker from chat_messages
             where user_id = ${userId} order by seq desc limit ${limit}`
         : await sql`
-            select seq, id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id from chat_messages
+            select seq, id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id, speaker from chat_messages
             where user_id = ${userId} and seq < ${before} order by seq desc limit ${limit}`;
       return (rows as Record<string, unknown>[]).map((r) => ({
         id: r.id as string,
@@ -1421,6 +1423,7 @@ export async function postgresStore(
         event: (r.event as ChatMessage["event"]) ?? null,
         clientId: (r.client_id as string | null) ?? null,
         pendingId: (r.pending_id as string | null) ?? null,
+        speaker: (r.speaker as ChatMessage["speaker"]) ?? null,
       }));
     },
 

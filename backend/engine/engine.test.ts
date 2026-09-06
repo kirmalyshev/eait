@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
+import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MEET_GABIE, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, isMeal, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
@@ -315,7 +315,7 @@ describe("the question after the card", () => {
     const { entries } = await chatHistory(d, userId, { limit: 10 });
     const last = entries[entries.length - 1]!;
     const beforeIt = entries[entries.length - 2]!;
-    expect(last).toMatchObject({ role: "assistant", kind: "text", text: QUESTION.text });
+    expect(last).toMatchObject({ role: "assistant", kind: "text", text: QUESTION.text, speaker: null });
     expect(beforeIt).toMatchObject({ role: "assistant", kind: "meal", mealId: res.mealId });
   });
 
@@ -1046,10 +1046,12 @@ describe("the thread", () => {
     await confirmPendingMeal(deps, userId, res.pendingId);
     const t = await thread(userId);
     expect(t.map((e) => [e.role, e.kind])).toEqual([
-      ["user", "text"], ["user", "text"], ["assistant", "text"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"],
+      ["user", "text"], ["user", "text"], ["assistant", "text"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"], ["assistant", "text"],
     ]);
     expect(text(t[0]!)).toBe("two eggs and toast");
     expect(text(t[4]!)).toContain("Typed, not photographed");
+    // The first verdict ends by introducing the coach, in Spud's voice, with his face.
+    expect(t[6]).toMatchObject({ kind: "text", text: MEET_GABIE, speaker: null });
   });
 
   it("names its proposal on the user line, and a racing confirm answers with the meal the other one logged", async () => {
@@ -1200,11 +1202,12 @@ describe("the thread", () => {
     const first = await logPhotoMeal(d, userId, photo());
     if (first.kind !== "logged") throw new Error("expected logged");
     const t = await thread(userId);
-    expect(t.map((e) => [e.role, e.kind])).toEqual([["user", "photo"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"]]);
+    expect(t.map((e) => [e.role, e.kind])).toEqual([["user", "photo"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"], ["assistant", "text"]]);
     expect(text(t[2]!)).toMatch(/^First one in\. [\d,]+ kcal — /);
     expect(text(t[3]!)).toContain("If anything's off");
+    expect(text(t[4]!)).toBe(MEET_GABIE);
     await logPhotoMeal(d, userId, photo());
-    expect((await thread(userId)).slice(4).map((e) => e.kind)).toEqual(["photo", "meal"]);
+    expect((await thread(userId)).slice(5).map((e) => e.kind)).toEqual(["photo", "meal"]);
   });
 
   it("does not fail a turn because the thread could not be written — nor because its lines could not be built", async () => {

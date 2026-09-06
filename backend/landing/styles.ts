@@ -88,7 +88,14 @@ function derivedRules(): string {
  * app's value cannot creep back in by being the obvious token to reach for; it stays declared so
  * the block still mirrors the app.
  */
-const vars = (t: Record<ColorName, string>, dim: string, scheme: "light" | "dark") => `
+/**
+ * The custom properties both public surfaces are drawn from.
+ *
+ * EXPORTED so `web/page.ts` can build its pages out of the same names: the landing and `/start`
+ * are one product to whoever is looking at them, and two copies of a palette is how they stopped
+ * being one. The web pages import `lightVars`/`darkVars` and nothing else from this file.
+ */
+export const vars = (t: Record<ColorName, string>, dim: string, scheme: "light" | "dark") => `
   --ink: ${t.bg};
   --panel: ${t.surface};
   --raised: ${t.surfaceRaised};
@@ -107,8 +114,8 @@ const vars = (t: Record<ColorName, string>, dim: string, scheme: "light" | "dark
   color-scheme: ${scheme};
 `;
 
-const lightVars = vars(light, "#666C75", "light");
-const darkVars = vars(dark, "#7C838B", "dark");
+export const lightVars = vars(light, "#666C75", "light");
+export const darkVars = vars(dark, "#7C838B", "dark");
 
 const sheet = `
 /* ── Tokens ─────────────────────────────────────────────────────────────────────────────────

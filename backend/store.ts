@@ -12,7 +12,7 @@
 
 import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, OnboardingContent,
-  OnboardingEvent, Profile, Provider, ChatEvent } from "@eait/shared";
+  OnboardingEvent, Profile, Provider, ChatEvent, ChatSpeaker } from "@eait/shared";
 
 /** A text meal awaiting confirmation. Not in the diary yet, and expires. */
 export interface PendingMeal {
@@ -103,7 +103,7 @@ export type ChatAppend =
   | { role: "user"; kind: "text"; text: string; clientId?: string | null; pendingId?: string | null }
   /** No bytes, ever. `text` is the caption, if there was one; `mealId` the meal it logged, so the bubble can show it. */
   | { role: "user"; kind: "photo"; text: string | null; mealId?: string | null }
-  | { role: "assistant"; kind: "text"; text: string }
+  | { role: "assistant"; kind: "text"; text: string; speaker?: ChatSpeaker | null }
   | { role: "assistant"; kind: "meal"; mealId: string; event: ChatEvent };
 
 /** A stored line. `seq` is the paging cursor: monotonic per STORE, never reused — so its gaps reflect every account's writes, and it is on the wire as an opaque cursor, not as a count. */
@@ -121,6 +121,8 @@ export interface ChatMessage {
   clientId: string | null;
   /** On the user line of a proposal: the proposal's id, which is the meal's id once confirmed. */
   pendingId: string | null;
+  /** On an assistant text line: who said it. Null is Spud, so every line from before Gabie stays his. */
+  speaker: ChatSpeaker | null;
 }
 
 /**

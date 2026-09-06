@@ -9,7 +9,7 @@ import type {
 } from "./types.ts";
 import type { OnboardingContent, OnboardingEvent } from "./onboarding.ts";
 import type { TargetBasis } from "./targets.ts";
-import type { ConfirmMealResult, HandleTextResult, LogPhotoResult, MealUpdated, TargetGone } from "./results.ts";
+import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, LogPhotoResult, MealUpdated, TargetGone } from "./results.ts";
 import type { HealthDay } from "./health.ts";
 import type { Entitlement } from "./entitlement.ts";
 import type { ScriptedLineId } from "./chat.ts";
@@ -426,7 +426,8 @@ export type ChatEntry =
   | { id: string; seq: number; ts: string; role: "user"; kind: "text"; text: string; clientId: string | null; pendingId: string | null }
   /** `mealId`: the meal the photo logged, so the bubble can fetch the picture; null on lines from before photos were kept. */
   | { id: string; seq: number; ts: string; role: "user"; kind: "photo"; text: string | null; mealId: string | null }
-  | { id: string; seq: number; ts: string; role: "assistant"; kind: "text"; text: string }
+  /** `speaker`: who said it. Null is Spud; `gabie` is a coach answer, and the app draws her face on it. */
+  | { id: string; seq: number; ts: string; role: "assistant"; kind: "text"; text: string; speaker: ChatSpeaker | null }
   /** `mealId` outlives the meal: `meal` is null once it is deleted, and "was this proposal logged" reads the id. */
   | { id: string; seq: number; ts: string; role: "assistant"; kind: "meal"; event: ChatEvent; mealId: string | null; meal: MealRecord | null };
 

@@ -5,7 +5,7 @@
 // engine's tests bind fakes to the same four signatures — which is what lets cap enforcement,
 // verdict gating, the correction loop and the coach's tools be tested without a billed call.
 
-import type { DayTotals, FoodTargets, MealAnalysis, Profile, TargetBasis } from "@eait/shared";
+import type { ChatSpeaker, DayTotals, FoodTargets, MealAnalysis, Profile, TargetBasis } from "@eait/shared";
 import type { PortionPrior } from "../store.ts";
 
 /**
@@ -186,6 +186,8 @@ export interface CoachContext {
 export interface CoachHistoryLine {
   role: "user" | "assistant";
   text: string;
+  /** On an assistant line: who said it. Absent is Spud. */
+  speaker?: ChatSpeaker;
 }
 
 export interface CoachInput {

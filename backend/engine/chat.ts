@@ -226,5 +226,5 @@ function toEntry(m: ChatMessage, meals: Map<string, MealRecord>): ChatEntry {
       meal: (m.mealId && meals.get(m.mealId)) || null,
     };
   }
-  return { ...base, role: "assistant", kind: "text", text: m.text ?? "" };
+  return { ...base, role: "assistant", kind: "text", text: m.text ?? "", speaker: m.speaker };
 }

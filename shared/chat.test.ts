@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { COACH_STARTERS, MAX_SUGGESTION, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, cleanSuggestions, correctionLine, firstVerdictLines, isScriptedLineId, scriptedLine, scriptedParams } from "./chat.ts";
+import { COACH_STARTERS, MAX_SUGGESTION, MEET_GABIE, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, cleanSuggestions, correctionLine, firstVerdictLines, isScriptedLineId, scriptedLine, scriptedParams } from "./chat.ts";
 
 describe("scripted lines", () => {
   it("fills parameters and leaves nothing unfilled", () => {
@@ -45,7 +45,21 @@ describe("the first verdict", () => {
     });
     expect(lines[0]).toBe("First one in. 612 kcal — that leaves 842 of your 1,454 for the rest of today, and 38 of the 110 g protein. On plan.");
     expect(lines[1]).toContain("If anything's off, say so");
-    expect(lines).toHaveLength(2);
+    expect(lines[2]).toBe(MEET_GABIE);
+    expect(lines).toHaveLength(3);
+  });
+
+  it("introduces Gabie last, on every branch, because the first verdict is the one line spoken once", () => {
+    const base = { targets, meal, eatenToday: { kcal: 612, protein_g: 38 }, verdicts: {} } as const;
+    for (const lines of [
+      firstVerdictLines({ ...base, goal: "lose", via: "photo" }),
+      firstVerdictLines({ ...base, goal: "gain", via: "photo" }),
+      firstVerdictLines({ ...base, goal: "lose", via: "text" }),
+      firstVerdictLines({ ...base, goal: "lose", via: "photo", meal: { ...meal, confidence: "low" } }),
+    ]) expect(lines[lines.length - 1]).toBe(MEET_GABIE);
+    expect(MEET_GABIE).toContain("Gabie");
+    // Spud's voice, still: he does not cheer her either.
+    expect(MEET_GABIE).not.toMatch(/!/);
   });
 
   it("keeps the arithmetic when over, and only swaps the closing clause — the prototype's shape", () => {
@@ -73,7 +87,7 @@ describe("the first verdict", () => {
     });
     expect(lines[0]).toBe("Honest answer: I couldn't read that plate well. Take 480 as a rough guess and check the grams before you trust the total. A second angle next time helps.");
     expect(lines[1]).toBe("Even rough, it counts: about 974 of your 1,454 left today.");
-    expect(lines).toHaveLength(2);
+    expect(lines).toHaveLength(3);
     // Rule 1 holds on this branch too: a gain plan is filled, not left.
     const gain = firstVerdictLines({
       goal: "gain", targets: { kcal: 2900, protein_g: 150 }, meal: { ...meal, kcal: 480, confidence: "low" }, eatenToday: { kcal: 480, protein_g: 21 }, via: "photo", verdicts: {},
@@ -127,9 +141,10 @@ describe("the first verdict", () => {
 
   it("mentions sodium or saturated fat only when the user asked for it, and only when it ran high", () => {
     const base = { goal: "lose" as const, targets, meal, eatenToday: { kcal: 612, protein_g: 38 }, via: "photo" as const };
-    expect(firstVerdictLines({ ...base, verdicts: { kidneys: "warn" } }).at(-1)).toBe("Sodium runs high on this one. Scored only because you asked me to.");
-    expect(firstVerdictLines({ ...base, verdicts: { ldl: "bad" } }).at(-1)).toBe("Saturated fat runs high on this one. Scored only because you asked me to.");
-    expect(firstVerdictLines({ ...base, verdicts: { kidneys: "good" } })).toHaveLength(2);
+    // Before the introduction, which stays last on every branch.
+    expect(firstVerdictLines({ ...base, verdicts: { kidneys: "warn" } }).at(-2)).toBe("Sodium runs high on this one. Scored only because you asked me to.");
+    expect(firstVerdictLines({ ...base, verdicts: { ldl: "bad" } }).at(-2)).toBe("Saturated fat runs high on this one. Scored only because you asked me to.");
+    expect(firstVerdictLines({ ...base, verdicts: { kidneys: "good" } })).toHaveLength(3);
   });
 });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { ChatEntry } from "./contract.ts";
+import type { ChatSpeaker } from "./results.ts";
 import type { MealRecord } from "./types.ts";
 import { fromHistory, landedLine, lastMealId, mergeThread, reconcilePage, unansweredFor, withUnanswered, type ThreadEntry } from "./thread.ts";
 
@@ -15,7 +16,7 @@ let seq = 0;
 const base = () => ({ id: `s${++seq}`, seq, ts: "2026-08-25T12:00:00.000Z" });
 const userLine = (text: string, o: { clientId?: string; pendingId?: string } = {}): ChatEntry =>
   ({ ...base(), role: "user", kind: "text", text, clientId: o.clientId ?? null, pendingId: o.pendingId ?? null });
-const said = (text: string): ChatEntry => ({ ...base(), role: "assistant", kind: "text", text });
+const said = (text: string, speaker: ChatSpeaker | null = null): ChatEntry => ({ ...base(), role: "assistant", kind: "text", text, speaker });
 const card = (m: MealRecord | null, mealId = m?.id ?? null): ChatEntry => ({ ...base(), role: "assistant", kind: "meal", event: "logged", mealId, meal: m });
 
 describe("reconcilePage", () => {
@@ -115,6 +116,14 @@ describe("mergeThread", () => {
     const page = [userLine("hi")];
     const next = mergeThread(fromHistory(page), [proposal, asked, error], new Set(["c9"]));
     expect(next.map((e) => e.id)).toEqual([page[0]!.id, "a1", "c9"]);
+  });
+});
+
+describe("fromHistory", () => {
+  it("keeps who said an assistant line, so Gabie's answers wear her face after a reload", () => {
+    const [spud, gabie] = fromHistory([said("Logged."), said("About 40 g.", "gabie")]);
+    expect(spud).toMatchObject({ role: "assistant", stored: true, result: { kind: "answered", text: "Logged.", speaker: null } });
+    expect(gabie).toMatchObject({ role: "assistant", stored: true, result: { kind: "answered", text: "About 40 g.", speaker: "gabie" } });
   });
 });
 

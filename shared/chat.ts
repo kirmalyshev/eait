@@ -96,6 +96,14 @@ export function scriptedLine(id: ScriptedLineId, params: Record<string, string> 
  * as the user would send them, because a tap sends the words verbatim. Shared so the server can
  * one day suggest the same ones; today only the app reads them.
  */
+/**
+ * Spud introduces the coach, once: the last line of the first verdict, which is the one thing he
+ * says exactly once per account (copy.md § Step 14). Gabie answers questions in Chat and nothing
+ * else — Spud logs, Gabie advises — and this is the one user-visible sentence that calls her a
+ * nutritionist.
+ */
+export const MEET_GABIE = "Questions go to Gabie, the nutritionist here — what to eat tonight, how the week's going. Same chat; she reads your diary before she answers. I log, she advises.";
+
 export const COACH_STARTERS: readonly string[] = [
   "How's my week going?",
   "What should I eat tonight?",
@@ -205,5 +213,6 @@ export function firstVerdictLines(i: FirstVerdictInput): string[] {
   // cannot draw a second line inside the bubble or impersonate the sentence that follows.
   const note = quotable(i.caption);
   if (note) lines.unshift(`“${note}” — noted, it's in the numbers.`);
+  lines.push(MEET_GABIE);
   return lines;
 }

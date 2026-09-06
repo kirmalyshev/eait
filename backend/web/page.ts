@@ -7,7 +7,7 @@
 // third-party origin to allow in its own CSP.
 
 import { MAX_USER_LINE } from "@eait/shared";
-import { dark, light, type ColorName } from "../landing/tokens.ts";
+import { darkVars, lightVars } from "../landing/styles.ts";
 import { spudSvg } from "../landing/mascot.ts";
 
 export function escape(text: string): string {
@@ -82,72 +82,129 @@ export const PAGE_COPY = {
   errorSignIn: "That sign-in didn't complete. Try again.",
 } as const;
 
-const VARS = (t: Record<ColorName, string>) => `
-    --bg:${t.bg}; --surface:${t.surface}; --raised:${t.surfaceRaised};
-    --border:${t.border}; --border-strong:${t.borderStrong};
-    --text:${t.text}; --muted:${t.textMuted};
-    --accent:${t.accent}; --accent-text:${t.accentText}; --warn:${t.warn}; --care:${t.care};`;
+/** Where the typeface is served from, on this origin, so the CSP needs `font-src 'self'` and no more. */
+export const FONT_PATH = "/start/assets/space-grotesk-latin.woff2";
 
 const STYLES = `
-  :root {${VARS(light)} }
-  @media (prefers-color-scheme: dark) { :root {${VARS(dark)} } }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }
-  main { max-width: 34rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
-  h1 { font-size: 1.6rem; line-height: 1.25; margin: 0 0 .75rem; letter-spacing: -.01em; }
-  h2 { font-size: 1.05rem; margin: 2rem 0 .5rem; }
-  p { margin: 0 0 1rem; }
-  .muted { color: var(--muted); }
-  .small { font-size: .875rem; }
-  .card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 14px; padding: 1.25rem; margin: 0 0 1rem;
-  }
-  .bubble {
-    background: var(--raised); border: 1px solid var(--border); border-radius: 14px;
-    padding: .75rem 1rem; margin: 0 0 .5rem;
-  }
-  .spud { width: 64px; height: 64px; display: block; margin: 0 0 1rem; }
-  .bubble.you {
-    background: var(--accent); color: var(--accent-text); border-color: var(--accent);
-    margin-left: 2.5rem;
-  }
-  .who { color: var(--muted); font-size: .8rem; margin: 0 0 .2rem; letter-spacing: .03em; }
-  .pill {
-    display: inline-block; border: 1px solid var(--border-strong); border-radius: 999px;
-    padding: .1rem .6rem; margin: .35rem .35rem 0 0; font-size: .8rem; color: var(--muted);
-  }
-  form { margin: 0; }
-  button, .button {
-    display: block; width: 100%; text-align: left; cursor: pointer;
-    font: inherit; color: var(--text); background: var(--raised);
-    border: 1px solid var(--border-strong); border-radius: 12px;
-    padding: .8rem 1rem; margin: 0 0 .5rem; text-decoration: none;
-  }
-  button.primary, .button.primary {
-    background: var(--accent); color: var(--accent-text); border-color: var(--accent);
-    text-align: center; font-weight: 600;
-  }
-  button .hint { display: block; color: var(--muted); font-size: .85rem; }
-  button.primary .hint { color: inherit; opacity: .8; }
-  input[type=file] { display: block; width: 100%; margin: 0 0 .75rem; font: inherit; color: var(--text); }
-  input[type=number], input[type=text] {
-    width: 100%; font: inherit; color: var(--text); background: var(--raised);
-    border: 1px solid var(--border-strong); border-radius: 12px;
-    padding: .8rem 1rem; margin: 0 0 .75rem;
-  }
-  label.check {
-    display: block; background: var(--raised); border: 1px solid var(--border-strong);
-    border-radius: 12px; padding: .7rem 1rem; margin: 0 0 .5rem; cursor: pointer;
-  }
-  .notice { border-left: 3px solid var(--warn); padding-left: .9rem; margin: 0 0 1rem; }
-  .care { border-left-color: var(--care); }
-  .progress { color: var(--muted); font-size: .8rem; margin: 0 0 1rem; letter-spacing: .04em; }
-  .figure { font-size: 2.2rem; font-weight: 650; letter-spacing: -.02em; }
+/* ── Tokens, the landing's own ───────────────────────────────────────────────────────────────
+   IMPORTED RATHER THAN RETYPED. This surface and the landing page are one product to whoever is
+   looking at them, and they had drifted into two: the landing is light with Space Grotesk on its
+   headings, and these pages were a system-font sheet following the OS, so a visitor on a dark
+   machine met a light marketing page and a black sign-up.
+
+   THE OS PREFERENCE IS NOT CONSULTED HERE EITHER, for the landing's reason: light is what every
+   visitor gets until they choose otherwise. These pages carry no JavaScript and therefore no
+   toggle, so data-theme="dark" is set by nothing today — it is here so that the day one exists
+   the values are already right. */
+:root {
+  ${lightVars}
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
+  --display: "Space Grotesk", var(--sans);
+  --warm: 232 190 131;
+  --haze: .16;
+}
+:root[data-theme="dark"] { ${darkVars} --haze: .10; }
+
+/* The one typeface, self-hosted on this origin — the landing's file, served by the route beside
+   this module so nothing is loaded from anyone else. Its OFL licence travels with the source. */
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("${FONT_PATH}") format("woff2");
+  font-weight: 300 700;
+  font-display: swap;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  /* The same warm haze the landing lays over its first screen, so arriving here reads as the next
+     page of one site rather than as another site. */
+  background: linear-gradient(180deg, rgb(var(--warm) / var(--haze)), transparent 46rem) var(--ink);
+  color: var(--text);
+  font-family: var(--sans); font-size: 17px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+main { max-width: 34rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+h1, h2 { font-family: var(--display); letter-spacing: -0.02em; }
+h1 { font-size: 2rem; line-height: 1.1; margin: 0 0 .75rem; }
+h2 { font-size: 1.125rem; margin: 2.5rem 0 .75rem; }
+p { margin: 0 0 1rem; }
+.muted { color: var(--muted); }
+.small { font-size: .875rem; }
+img, svg { display: block; max-width: 100%; }
+
+.card {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 20px; padding: 1.25rem; margin: 0 0 .75rem;
+  box-shadow: 0 1px 2px rgb(19 20 23 / .04);
+}
+.bubble {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 20px; border-bottom-left-radius: 6px;
+  padding: .8rem 1.1rem; margin: 0 0 .5rem;
+  box-shadow: 0 1px 2px rgb(19 20 23 / .04);
+}
+.bubble.you {
+  background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+  border-bottom-left-radius: 20px; border-bottom-right-radius: 6px;
+  margin-left: auto; max-width: 85%;
+  box-shadow: 0 12px 32px -20px rgb(19 20 23 / .45);
+}
+.who {
+  font-family: var(--display); font-size: .8125rem; font-weight: 600; letter-spacing: -0.01em;
+  color: var(--dim); margin: 0 0 .25rem .25rem;
+}
+.pill {
+  display: inline-block; border: 1px solid var(--line-strong); border-radius: 999px;
+  padding: .15rem .7rem; margin: .4rem .4rem 0 0;
+  font-size: .8125rem; color: var(--muted);
+}
+.spud { width: 64px; height: 64px; display: block; margin: 0 0 1rem; }
+
+form { margin: 0; }
+/* Pill buttons and pill fields, which is the shape the landing's calls to action are. */
+button, .button {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  font: inherit; font-family: var(--display); font-weight: 600; letter-spacing: -0.01em;
+  color: var(--text); background: var(--raised);
+  border: 1px solid var(--line-strong); border-radius: 999px;
+  padding: .9375rem 1.375rem; margin: 0 0 .625rem; text-decoration: none;
+  transition: border-color .15s ease, transform .18s ease, box-shadow .18s ease;
+}
+button:hover, .button:hover { border-color: var(--text); }
+button.primary, .button.primary {
+  background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+  text-align: center;
+  box-shadow: 0 12px 32px -16px rgb(19 20 23 / .45);
+}
+button.primary:hover, .button.primary:hover { transform: translateY(-2px); box-shadow: 0 16px 36px -14px var(--accent); }
+button .hint { display: block; font-family: var(--sans); font-weight: 400; color: var(--muted); font-size: .875rem; }
+button.primary .hint { color: inherit; opacity: .85; }
+input[type=number], input[type=text] {
+  width: 100%; font: inherit; color: var(--text); background: var(--raised);
+  border: 1px solid var(--line-strong); border-radius: 999px;
+  padding: .9375rem 1.375rem; margin: 0 0 .625rem;
+  box-shadow: 0 1px 2px rgb(19 20 23 / .04);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+input::placeholder { color: var(--dim); }
+input:focus { border-color: var(--care); outline: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--care) 18%, transparent); }
+input[type=file] {
+  display: block; width: 100%; margin: 0 0 .625rem; font: inherit; font-size: .9375rem;
+  color: var(--muted);
+}
+label.check {
+  display: block; background: var(--raised); border: 1px solid var(--line-strong);
+  border-radius: 20px; padding: .8rem 1.25rem; margin: 0 0 .625rem; cursor: pointer;
+}
+.notice { border-left: 3px solid var(--warn); padding-left: 1rem; margin: 0 0 1.25rem; color: var(--muted); }
+.care { border-left-color: var(--care); }
+.progress {
+  font-family: var(--display); color: var(--dim); font-size: .75rem;
+  margin: 0 0 1rem; letter-spacing: .08em; text-transform: uppercase;
+}
+.figure { font-family: var(--display); font-size: 2.6rem; font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
 `;
 
 /**
@@ -178,7 +235,7 @@ export function html(
     headers: {
       "content-type": "text/html; charset=utf-8",
       "content-security-policy":
-        "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; form-action 'self'",
+        "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; font-src 'self'; form-action 'self'",
       "referrer-policy": "no-referrer",
       "x-frame-options": "DENY",
       // A sign-up in progress is per-person and per-session. Nothing here may sit in a shared cache.

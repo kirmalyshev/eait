@@ -150,7 +150,7 @@ export async function handleText(
             return { kind: "analysis-failed" };
           }
           console.error(`[eait] coach failed, answering from the router: ${(e as Error)?.message ?? e}`);
-          return { kind: "answered", text: routed.text };
+          return { kind: "answered", text: routed.text, speaker: "gabie" };
         }
       }
 
@@ -234,7 +234,7 @@ async function keep(deps: EngineDeps, userId: string, text: string, result: Hand
       pendingId: result.kind === "proposed" ? result.pendingId : null,
     }];
     if (result.kind === "answered") {
-      lines.push({ role: "assistant", kind: "text", text: result.text });
+      lines.push({ role: "assistant", kind: "text", text: result.text, speaker: result.speaker ?? null });
     } else if (result.kind === "updated" || result.kind === "redated") {
       lines.push({ role: "assistant", kind: "meal", mealId: result.mealId, event: result.kind });
       if (result.kind === "updated") {

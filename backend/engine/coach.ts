@@ -45,7 +45,7 @@ export async function recentLines(deps: EngineDeps, userId: string, limit = COAC
   const out: CoachHistoryLine[] = [];
   for (const m of rows) {
     const text = noteFor(m, meals);
-    if (text !== null) out.push({ role: m.role, text });
+    if (text !== null) out.push({ role: m.role, text, ...(m.speaker ? { speaker: m.speaker } : {}) });
   }
   return out;
 }
@@ -79,7 +79,7 @@ export async function coachTurn(deps: EngineDeps, userId: string, input: CoachTu
       : `around ${projectionMonth(new Date(), projected.weeks)}`,
   };
   const out = await deps.llm.coach({ text: input.text, context, history: input.history }, coachTools(deps, userId, today));
-  return { kind: "answered", text: out.reply, suggestions: out.suggestions };
+  return { kind: "answered", text: out.reply, suggestions: out.suggestions, speaker: "gabie" };
 }
 
 /**

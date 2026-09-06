@@ -42,7 +42,7 @@ export function fromHistory(entries: ChatEntry[]): ThreadEntry[] {
         : { id: e.id, role: "user", text: e.text, stored: true, clientId: e.clientId, pendingId: e.pendingId };
     }
     if (e.kind === "meal") return { id: e.id, role: "card", event: e.event, mealId: e.mealId, meal: e.meal, stored: true };
-    return { id: e.id, role: "assistant", result: { kind: "answered", text: e.text }, stored: true };
+    return { id: e.id, role: "assistant", result: { kind: "answered", text: e.text, speaker: e.speaker }, stored: true };
   });
 }
 
