@@ -7,8 +7,8 @@
 // the model would be the one place in this codebase a model output chose whose rows to read.
 
 import {
-  type Answered, type MealRecord, type Profile, HEALTH_FIELDS, dateMinus, explainTargets,
-  isCalendarDate, localTime, projectGoal, projectionMonth,
+  explainTargets, HEALTH_FIELDS, isCalendarDate, localTime, projectGoal, projectionMonth,
+  windowStart, type Answered, type MealRecord, type Profile,
 } from "@eait/shared";
 import type { ChatMessage } from "../store.ts";
 import type { CoachContext, CoachHistoryLine, CoachTools } from "../llm/port.ts";
@@ -94,7 +94,9 @@ export function coachTools(deps: EngineDeps, userId: string, today: string): Coa
       const to = typeof args.to === "string" ? args.to : "";
       if (!isCalendarDate(from) || !isCalendarDate(to)) return { error: "from and to must be YYYY-MM-DD" };
       if (from > to) return { error: "from must not be after to" };
-      if (dateMinus(to, COACH_MEALS_WINDOW_DAYS - 1) > from) return { error: `the window is at most ${COACH_MEALS_WINDOW_DAYS} days` };
+      if (windowStart(to, COACH_MEALS_WINDOW_DAYS) > from) {
+        return { error: `the window is at most ${COACH_MEALS_WINDOW_DAYS} days` };
+      }
       const rows = await deps.store.mealsSince(userId, from, to, COACH_MEALS_LIMIT);
       return rows.map((m) => ({
         date: m.date, time: localTime(deps.config.timezone, new Date(m.ts)),
@@ -108,7 +110,7 @@ export function coachTools(deps: EngineDeps, userId: string, today: string): Coa
     async get_health(args) {
       const asked = Number(args.days);
       const days = Number.isFinite(asked) ? Math.min(COACH_HEALTH_DAYS, Math.max(1, Math.floor(asked))) : 30;
-      const rows = await deps.store.healthDaysSince(userId, dateMinus(today, days - 1));
+      const rows = await deps.store.healthDaysSince(userId, windowStart(today, days));
       // Only the readings a day carries, and only days that carry one: a row of nulls is noise the
       // model pays for by the token, and the definition promises it is not sent.
       const out: Record<string, unknown>[] = [];

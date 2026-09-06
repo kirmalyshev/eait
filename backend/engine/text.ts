@@ -24,7 +24,7 @@ import { ROUTER_RECENT_LINES, coachTurn, recentLines } from "./coach.ts";
 // How long a proposed text meal stays confirmable is `config.pendingTtlMs` (`EAIT__BACKEND__PENDING_TTL_MINUTES`),
 // read from deps at the point of use rather than frozen into a module constant here.
 
-/** Days of history handed to the router as context. */
+/** Days of history handed to the router as context. Eight days, counting today — see the read. */
 const CONTEXT_DAYS = 7;
 
 /**
@@ -90,6 +90,8 @@ export async function handleText(
     : null;
 
   const todayRows = await deps.store.mealsForDate(userId, today);
+  // `dateMinus`, not `windowStart`: EIGHT days counting today. Changing what every text turn's
+  // routing and coaching prompt sees is not this PR's business, and is filed.
   const week = await deps.store.totalsSince(userId, dateMinus(today, CONTEXT_DAYS));
   const { targets } = explainTargets(profile);
   // Read ONCE for the turn: the router sees the tail, the coach the window. The message itself is

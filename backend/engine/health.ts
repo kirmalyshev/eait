@@ -13,14 +13,18 @@
 
 import {
   HEALTH_RETENTION_DAYS, dateMinus, isAcceptableWeightKg, localDate, sanitizeHealthDay,
+  windowStart,
   type HealthDay, type HealthDaysResponse, type HealthResponse,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { profileView } from "./profile.ts";
 
-// How far back a day may be dated and still be stored, and the widest trend a client may read, are
-// both `HEALTH_RETENTION_DAYS` — the contract owns that number because the phone's first sync and
-// the diary's window have to agree with it. Its comment there is where the bound is justified.
+// How far back a day may be dated and still be stored is `dateMinus(today, HEALTH_RETENTION_DAYS)`,
+// and the widest trend a client may read is `windowStart(today, HEALTH_RETENTION_DAYS)` — ONE DAY
+// NARROWER, which is not a typo. The ingest slack absorbs the phone-server midnight race described
+// at the bound itself. The consequence is that the oldest storable day is not servable, which is
+// real and is filed, not fixed here. The contract owns the number because the phone's first sync
+// and the diary's window have to agree with it.
 
 /**
  * Store a batch of days, and sync the weight if this batch carries a newer one.
@@ -48,6 +52,12 @@ export async function recordHealthDays(
   // a wrong clock is the usual cause, and filing today's steps under tomorrow makes the row wrong
   // when tomorrow actually arrives.
   const today = localDate(deps.config.timezone);
+  // ONE DAY WIDER THAN `healthTrend` SERVES, AND LEFT THAT WAY DELIBERATELY. The slack absorbs the
+  // phone-server midnight race: a first sync started at 23:59:58 reads five years of samples and
+  // posts five batches, and the server's `today` can roll over before the first one lands. Without
+  // the extra day the oldest day is then dropped with no signal, and `syncHealth` sets its
+  // first-sync flag unconditionally, so the wide read is never retried for the life of the
+  // process. Narrowing it to `windowStart` is filed rather than done here.
   const oldest = dateMinus(today, HEALTH_RETENTION_DAYS);
 
   // Every day is validated here, on the server. A metric outside its plausible range is nulled and
@@ -98,7 +108,7 @@ export async function healthTrend(
   if (!profile || profile.onboarded_at === null) return null;
 
   const window = Math.max(1, Math.min(HEALTH_RETENTION_DAYS, Math.floor(days) || 1));
-  const since = dateMinus(localDate(deps.config.timezone), window - 1);
+  const since = windowStart(localDate(deps.config.timezone), window);
   return { days: await deps.store.healthDaysSince(userId, since) };
 }
 

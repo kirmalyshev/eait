@@ -151,3 +151,58 @@ export function monthLabel(month: string): string {
     timeZone: "UTC", month: "long", year: "numeric",
   }).format(new Date(`${month}-01T12:00:00Z`));
 }
+
+/**
+ * The widest window this file will build, in days.
+ *
+ * Not a product rule — a hundred years is far past anything the app asks for, and the only job of
+ * the number is to keep a bad one out of `Date.UTC`, where it stops being a date and starts being
+ * `"-000712-10"` or a RangeError.
+ */
+const MAX_WINDOW_DAYS = 100 * 366;
+
+/**
+ * The oldest day a window of `days` covers, counting today as one of them.
+ *
+ * ONE EXPRESSION FOR THE READERS THAT SHARE A WINDOW, because the same fencepost was spelled two
+ * ways: `dateMinus(today, days)` in some readers and `dateMinus(today, days - 1)` in others. The
+ * health screen built its year axis from the wider one, which put a permanently empty leading bar
+ * on the chart on 31 December 2025, 2026, 2027 and 2029, and on 30 December 2028 — breaking
+ * `trendBuckets`'s promise that the axis never offers a year the store cannot have a row for.
+ *
+ * IT DOES NOT UNIFY EVERY WINDOW IN THE CODEBASE, and claiming so here would be worse than not
+ * having the function. The health INGEST bound is deliberately one day wider than the read, to
+ * absorb the phone-server midnight race; `engine/meals.ts` `buildRepertoire` and `engine/text.ts`
+ * still spell their own, and both are filed rather than changed, because altering what a prompt
+ * or an analyzer prior sees is not a fencepost cleanup.
+ *
+ * The narrow form is the correct one: a request for N days must answer with N days. So
+ * `windowStart(d, 1)` is `d` itself, and that is the property everything here turns on.
+ *
+ * THERE IS NO DEFAULT FOR `days`, deliberately. One caller wants the retention window, another the
+ * diary window, another thirty days for a row's arrow; a default meant `windowStart(today)` read
+ * as "the obvious window" at four call sites that did not agree on which one that was.
+ *
+ * CLAMPED AT BOTH ENDS, AND THE VALUE IS SERVER-SUPPLIED. `days` reaches here from
+ * `Limits.diaryWindowDays`, read during render on the diary tab, and per the root AGENTS.md an
+ * unhandled render error is a PROCESS ABORT in a Release build — a crash to springboard whose
+ * report names an innocent subsystem. Measured, all from this function:
+ *
+ *   0            tomorrow, a boundary in the future. `mergeSince` cannot double a row on that (it
+ *                excludes every date the fresh read returned, deliberately) but it keeps every
+ *                cached row older than the boundary, so days the fresh read has DELETED come back
+ *                on screen until the cache is cleared.
+ *   1e6          "-000712-10", which is not a date and compares wrong under the string comparisons
+ *                every caller uses.
+ *   1e9, 2^31    RangeError: Invalid Date.
+ *   Infinity     `Number.isFinite` is false, so the old guard answered with today itself — a
+ *                ONE-day window where the caller meant the widest one there is.
+ *
+ * So the range is [1, MAX_WINDOW_DAYS] and anything outside it is pulled to the nearest end, with
+ * a non-finite number treated as the widest rather than the narrowest. Clamped rather than thrown
+ * throughout: a bad number from a server is not a reason to take a screen down.
+ */
+export function windowStart(today: string, days: number): string {
+  const whole = Number.isNaN(days) ? 1 : Math.floor(days);
+  return dateMinus(today, Math.min(MAX_WINDOW_DAYS, Math.max(1, whole)) - 1);
+}

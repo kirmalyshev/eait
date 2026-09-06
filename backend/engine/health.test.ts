@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { HEALTH_RETENTION_DAYS, dateMinus, emptyHealthDay, localDate, type HealthDay } from "@eait/shared";
+import {
+  HEALTH_RETENTION_DAYS, dateMinus, emptyHealthDay, localDate, windowStart, type HealthDay,
+} from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
@@ -135,6 +137,28 @@ describe("recordHealthDays", () => {
       day(ago(HEALTH_RETENTION_DAYS), { steps: 3 }),
     ]);
     expect(out!.accepted).toBe(3);
+  });
+
+  // THE READ WINDOW IS ONE DAY NARROWER THAN THE INGEST WINDOW, deliberately — the ingest slack
+  // absorbs the phone-server midnight race, and the cost is that the oldest STORABLE day is not
+  // SERVABLE. Filed rather than reconciled here.
+  //
+  // The assertion has to catch a WIDENING, and the obvious form does not: `healthTrend` asks the
+  // store for rows at or after its own bound, so checking that every served row is inside that
+  // bound is true by construction whatever the bound is. The out-of-window row therefore goes in
+  // through the STORE, past the ingest guard, and the read is the only thing that can leave it out.
+  it("serves from `windowStart`, and never the day before it", async () => {
+    const userId = await onboard();
+    const today = localDate(deps.config.timezone);
+    const edge = windowStart(today, HEALTH_RETENTION_DAYS);
+    await store.putHealthDays(userId, [
+      day(edge, { steps: 3 }),
+      day(dateMinus(edge, 1), { steps: 4 }),
+    ]);
+
+    const served = await healthTrend(deps, userId, HEALTH_RETENTION_DAYS);
+    expect(served!.days.map((d) => d.date)).toContain(edge);
+    expect(served!.days.map((d) => d.date)).not.toContain(dateMinus(edge, 1));
   });
 
   it("keeps five years, because the year view draws one point per stored year", async () => {

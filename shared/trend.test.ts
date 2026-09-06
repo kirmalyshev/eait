@@ -1,47 +1,52 @@
 import { describe, expect, test } from "bun:test";
-import { emptyHealthDay, type HealthDay } from "./health.ts";
+import { HEALTH_FIELDS, emptyHealthDay, type HealthDay, type HealthMetric } from "./health.ts";
 import {
   COMPARE_SERIES, TREND_PERIODS, bucketSeries, compareSeries, correlate, correlationWords,
   mergeSince, metricSeries, trendBuckets, trendEndpoints, trendSummary, type DailyPoint,
-  type TrendPoint,
+  type TrendBucket, type TrendPeriod, type TrendPoint,
 } from "./trend.ts";
+import { HEALTH_RETENTION_DAYS } from "./contract.ts";
+import { dateMinus, windowStart } from "./dates.ts";
 
 // 2026-08-31 is a Monday; 2026-09-02 a Wednesday. Both are asserted below rather than assumed.
 const MON = "2026-08-31";
 const WED = "2026-09-02";
-const OLDEST = "2021-08-31";
+// The window as a LENGTH, which is what `trendBuckets` takes: five years and a day, the same
+// number the server retains. Only the years axis reads it — the other three periods have a fixed
+// bucket count — and from either date below it starts in 2021, which is what those tests assert.
+const WINDOW = HEALTH_RETENTION_DAYS;
 
 describe("trendBuckets", () => {
   test("days: the last 30 calendar days, one each, ending today", () => {
-    const b = trendBuckets("days", MON, OLDEST);
+    const b = trendBuckets("days", MON, WINDOW);
     expect(b).toHaveLength(30);
     expect(b[0]).toEqual({ start: "2026-08-02", end: "2026-08-02", label: "2 Aug" });
     expect(b[29]).toEqual({ start: MON, end: MON, label: "31 Aug" });
   });
 
   test("weeks: 26 Monday-to-Sunday weeks, the last one containing today", () => {
-    const b = trendBuckets("weeks", WED, OLDEST);
+    const b = trendBuckets("weeks", WED, WINDOW);
     expect(b).toHaveLength(26);
     // The week today falls in, even though it has not finished.
     expect(b[25]).toEqual({ start: "2026-08-31", end: "2026-09-06", label: "31 Aug" });
     expect(b[24]).toEqual({ start: "2026-08-24", end: "2026-08-30", label: "24 Aug" });
     expect(b[0]!.start).toBe("2026-03-09");
     // A Monday is the first day of its own week, not the last of the previous one.
-    expect(trendBuckets("weeks", MON, OLDEST)[25]!.start).toBe(MON);
+    expect(trendBuckets("weeks", MON, WINDOW)[25]!.start).toBe(MON);
   });
 
   test("months: 12 calendar months, the last one containing today", () => {
-    const b = trendBuckets("months", MON, OLDEST);
+    const b = trendBuckets("months", MON, WINDOW);
     expect(b).toHaveLength(12);
     expect(b[0]).toEqual({ start: "2025-09-01", end: "2025-09-30", label: "Sep" });
     expect(b[11]).toEqual({ start: "2026-08-01", end: "2026-08-31", label: "Aug" });
     // A leap February ends on the 29th, not on a hard-coded 28.
-    const leap = trendBuckets("months", "2028-03-15", OLDEST);
+    const leap = trendBuckets("months", "2028-03-15", WINDOW);
     expect(leap[10]).toEqual({ start: "2028-02-01", end: "2028-02-29", label: "Feb" });
   });
 
-  test("years: every calendar year from the oldest stored day to today", () => {
-    const b = trendBuckets("years", MON, OLDEST);
+  test("years: every calendar year the window reaches, to today", () => {
+    const b = trendBuckets("years", MON, WINDOW);
     expect(b.map((x) => x.label)).toEqual(["2021", "2022", "2023", "2024", "2025", "2026"]);
     expect(b[0]).toEqual({ start: "2021-01-01", end: "2021-12-31", label: "2021" });
     expect(b[5]).toEqual({ start: "2026-01-01", end: "2026-12-31", label: "2026" });
@@ -49,7 +54,7 @@ describe("trendBuckets", () => {
 
   test("every period's buckets are contiguous and oldest first", () => {
     for (const period of ["days", "weeks", "months", "years"] as const) {
-      const b = trendBuckets(period, WED, OLDEST);
+      const b = trendBuckets(period, WED, WINDOW);
       for (let i = 1; i < b.length; i++) {
         expect(b[i]!.start > b[i - 1]!.end).toBe(true);
         // No gap: the day after one bucket's end is the next bucket's start.
@@ -62,7 +67,7 @@ describe("trendBuckets", () => {
 });
 
 describe("bucketSeries", () => {
-  const buckets = trendBuckets("weeks", MON, OLDEST);
+  const buckets = trendBuckets("weeks", MON, WINDOW);
   const last = buckets[25]!;
   const prev = buckets[24]!;
 
@@ -198,7 +203,7 @@ describe("trendEndpoints and trendSummary", () => {
       { date: "2026-08-03", value: 94.1 }, { date: "2026-08-12", value: 92.0 },
       { date: "2026-08-20", value: 90.8 }, { date: "2026-08-31", value: 91.2 },
     ],
-    trendBuckets("weeks", "2026-08-31", "2021-08-31"),
+    trendBuckets("weeks", "2026-08-31", WINDOW),
     1,
   );
   const kg = (v: number) => `${v.toFixed(1)} kg`;
@@ -250,5 +255,321 @@ describe("mergeSince", () => {
     const cached = [row("2026-08-31", 1)];
     const fresh = [row("2026-08-01", 5), row("2026-08-31", 2)];
     expect(mergeSince(cached, fresh, "2026-08-25")).toEqual([row("2026-08-31", 2), row("2026-08-01", 5)]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// THE CHART ARITHMETIC: ITS COMPLEXITY CLASS, NOT ITS CLOCK
+//
+// `bun run perf` grades the health screen on a device, and since #60 both of its numbers genuinely
+// cover the charts. But that needs a Mac and a simulator, so it runs neither in CI nor on a Linux
+// checkout — and this is the one screen whose render cost SCALES: `bucketSeries` runs once per
+// charted series over every stored day, up to `HEALTH_RETENTION_DAYS` of them, which is five years.
+//
+// SO WHAT IS ASSERTED IS THE SCALING LAW, AND NOTHING ABOUT MILLISECONDS. `bucketSeries` is
+// O(days × buckets): every day is placed by scanning a bucket list whose length the period fixes.
+// A regression nests a second scan inside that one and makes it O(days²), which is visible with no
+// calibrated machine at all — run the workload over N days and over 2N and compare the work done.
+//
+// THE WORK IS COUNTED, NOT TIMED, and that is what makes this a gate rather than a calibration
+// exercise. A wall clock here measures the machine at least as much as the code: on the authoring
+// Mac at load 684 the SAME linear workload gave 2N/N time ratios from 0.05 to 29. An earlier
+// version asserted an absolute millisecond ceiling and was worse still: every number justifying
+// it was measured on an M-series Mac, while `.github/workflows/test.yml` runs `bun run check` on
+// `ubuntu-latest`, the shared-runner class `e2e.yml` explicitly refuses to grade timing on.
+//
+// BOTH SIDES OF THE SCAN ARE COUNTED, because a regression can nest either one. Counting only the
+// bucket boundaries missed a whole shape outright: a dedupe pass over `points` is genuinely
+// O(days²), touches no `b.start` or `b.end`, and read 1.9804 — indistinguishable from linear,
+// while costing 122 ms of render at the real window, over `SCREEN_BUDGETS.health.paintMs` alone.
+// Every point read is tallied too.
+//
+// Measured against five implementations of `bucketSeries`, deterministic to the digit:
+//
+//   linear, as shipped                          1.9903   passes
+//   a bucket scan nested in the days scan        3.9929   fails
+//   a dedupe pass over points, no bucket reads   3.4083   fails
+//   one date→bucket Map, O(days + buckets)       1.7143   passes
+//   COPY the dates out, then scan the COPY       1.9938   PASSES, and should not
+//
+// ─── WHAT THIS GATE DOES NOT SEE, STATED BECAUSE THE LAST ROW IS REAL AND WAS MEASURED ───
+//
+// It counts property READS through a proxy, which is not the same thing as work. A regression that
+// copies the fields into local arrays first — `const ds = points.map(p => p.date)` and then a
+// nested loop over `ds`, which is how somebody would naturally write a dedupe — reads each point
+// exactly once and tallies linear. Two reviewers reproduced that independently, at 1.9938 and at
+// 1.9903, the second digit-for-digit identical to the shipped code. It costs about 60 ms for
+// fifteen metrics at the real 1,826-day window, which is over this screen's whole paint budget.
+//
+// So the honest claim is narrow: THIS GATE CATCHES A NESTED SCAN THAT RE-READS ITS INPUT, on
+// either side. It does not catch one that reads the input once and then works over a copy, and it
+// says nothing at all about a constant-factor slowdown. Making it see the copy is not a matter of
+// counting harder — once the data is in a plain local array, no proxy can observe what is done to
+// it, and the only implementation-agnostic measure left is time. Time was tried and is worse: on
+// the authoring Mac at load 684 the same LINEAR workload gave 2N/N time ratios from 0.05 to 29, so
+// any bound loose enough not to flake is loose enough to miss this.
+//
+// `bun run perf` is what covers the rest, and this is a reason to run it on a change to this
+// screen rather than a reason to skip it. `perf.ts` says the same thing from the other side.
+//
+// The last row is the reason there is no lower bound on the COUNT: a correct implementation that
+// is strictly faster must be able to land. What stops "did less work" from passing as "faster" is
+// the output assertion in the same test — every bucket has to come back filled — not the tally.
+//
+// THE PERIOD HAS TO BE ONE WITH A FIXED BUCKET COUNT, and `days` is one: thirty, whatever the
+// window. `years` grows its axis with N as well, so honest linear code would read ~4x there and
+// this test would call it quadratic. The bucket count is asserted below for that reason.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Small on purpose. The claim is a scaling LAW, which is scale-free, so the fixture only has to be
+ * big enough to make the exponent legible — and small enough that a quadratic regression fails in
+ * under a second rather than making somebody wait to be told. The full window is exercised by the
+ * test below, which does no counting.
+ */
+const SCALING_DAYS = 150;
+
+/**
+ * ONE CONSTANT, READ BY THE MEASUREMENT AND BY THE GUARD THAT MAKES IT MEAN ANYTHING.
+ *
+ * The period has to have a bucket count that does NOT grow with the window, or honest linear code
+ * reads ~4x and this test calls it quadratic. `days` is thirty buckets whatever the window; `years`
+ * grows its axis with N. `scanComparisons` used to name its own period while the guard asserted a
+ * bucket count for `days`, so changing that one literal to `years` would have left the guard green
+ * and the measurement meaningless.
+ */
+const SCALING_PERIOD: TrendPeriod = "days";
+
+/**
+ * A day's readings, at values a person could actually have.
+ *
+ * The first version of this fixture wrote `f.min + (i % 17)` into every field: a 20 kg adult with a
+ * resting heart rate of 20, and `burned` (active + resting energy) exactly twice a modulus of
+ * itself, so `correlate` reported r = 0.31 between one series and its own sawtooth. Nothing
+ * asserted on it, which was the hazard: this is the fixture the next person reaches for when
+ * they want to assert something about a correlation.
+ */
+const TYPICAL: Record<HealthMetric, number> = {
+  weight_kg: 92, height_cm: 183, body_fat_pct: 24, lean_mass_kg: 68,
+  active_kcal: 520, resting_kcal: 1710,
+  steps: 8600, exercise_minutes: 32, workouts: 1, distance_km: 6.4,
+  asleep_minutes: 430, in_bed_minutes: 455,
+  resting_hr_bpm: 58, hrv_ms: 52, vo2max: 40,
+};
+
+/**
+ * `n` days ending on `today`, every metric populated on every one.
+ *
+ * THE SWING PERIOD COMES FROM THE FIELD'S INDEX, not from anything about its name. It was
+ * `3 + (key.length % 7)` first, which collides: weight and height both landed on 5, so they were
+ * exact scalar multiples of each other and `correlate` returned r = 1 for weight against height —
+ * the very fabrication the values above were rewritten to avoid. An index is unique by
+ * construction, which is the property actually needed.
+ *
+ * Rounded to the field's OWN decimals, because `sanitizeHealthDay` does that on every real ingest
+ * path. A flat one decimal put a tenth of a workout and 7,991.9 steps in a fixture whose sibling
+ * assertion is about plausibility.
+ *
+ * Built inside the callers rather than in a `describe` body: bun evaluates those at COLLECTION
+ * time, so a five-year fixture there is paid by every run of this file, including `bun test -t` for
+ * one of the thirty tests that never touch it.
+ */
+function healthDays(n: number, today: string): HealthDay[] {
+  const out: HealthDay[] = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const day = emptyHealthDay(dateMinus(today, i));
+    HEALTH_FIELDS.forEach((f, index) => {
+      const places = 10 ** f.decimals;
+      // AT LEAST ONE UNIT AT THE FIELD'S OWN RESOLUTION. Ten percent of `workouts` is 0.1, which
+      // rounds to the same integer every day — a constant series, which has no variance, so
+      // `correlate` answers null for every pair it is in and the assertion below cannot run.
+      const amplitude = Math.max(TYPICAL[f.key] * 0.1, 1 / places);
+      const period = 3 + index;
+      const value = TYPICAL[f.key] + amplitude * Math.sin(((i % period) / period) * 2 * Math.PI);
+      day[f.key] = Math.round(value * places) / places;
+    });
+    out.push(day);
+  }
+  return out;
+}
+
+/**
+ * Every comparison `bucketSeries` performs over `n` days of every metric.
+ *
+ * Buckets and points both go in behind a proxy, so a scan nested on either side is counted. The
+ * proxies are also what stop the calls being optimised away: `bucketSeries` returns values nothing
+ * here reads, and under a timed version JSC eliminating them would have passed the test
+ * unconditionally with no symptom. A count of zero is a broken measurement, and the test says so.
+ *
+ * THE RESULT MAP IS SUBTRACTED BACK OUT. `bucketSeries` ends with `buckets.map(b => ({...b}))`,
+ * and the spread reads `start`, `end` AND `label` once per bucket — work that does not grow with
+ * the days, so it is a constant added to both sides that drags the ratio toward 1 and toward
+ * passing. Each `label` read marks one such visit and implies exactly one `start` and one `end`,
+ * so the correction is derived from what was observed rather than from a hardcoded 900. If that
+ * spread ever goes away the label count goes to zero and the correction with it.
+ */
+function scanComparisons(n: number, today: string): { work: number; mapVisits: number } {
+  const days = healthDays(n, today);
+  let boundary = 0;
+  let labels = 0;
+  let points = 0;
+  const buckets: TrendBucket[] = trendBuckets(SCALING_PERIOD, today, n).map(
+    (b) => new Proxy(b, {
+      get(target, key, receiver) {
+        if (key === "start" || key === "end") boundary++;
+        else if (key === "label") labels++;
+        return Reflect.get(target, key, receiver);
+      },
+    }),
+  );
+  for (const f of HEALTH_FIELDS) {
+    const series: DailyPoint[] = metricSeries(days, f.key).map(
+      (p) => new Proxy(p, {
+        get(target, key, receiver) {
+          if (key === "date" || key === "value") points++;
+          return Reflect.get(target, key, receiver);
+        },
+      }),
+    );
+    bucketSeries(series, buckets, f.decimals);
+  }
+  return { work: boundary - 2 * labels + points, mapVisits: labels };
+}
+
+describe("the fixture the scaling and window tests are built on", () => {
+  const today = "2026-09-06";
+
+  test("every metric reads plausibly on every generated day, not merely at its base", () => {
+    // OVER THE GENERATED DAYS, not over `TYPICAL`. The values written are the base ±10%, so a
+    // future metric based within 10% of its bound would write one `sanitizeHealthDay` nulls out
+    // while a check on the base alone stayed green.
+    // No key-parity assertion here: `TYPICAL` is a `Record<HealthMetric, number>`, so a missing
+    // or an extra key is a compile error and `bun run typecheck` fails before this runner starts.
+    const days = healthDays(40, today);
+    for (const f of HEALTH_FIELDS) {
+      for (const day of days) {
+        const v = day[f.key];
+        expect(v).not.toBeNull();
+        expect(v!).toBeGreaterThanOrEqual(f.min);
+        expect(v!).toBeLessThanOrEqual(f.max);
+        // As `sanitizeHealthDay` would have stored it.
+        expect(Math.round(v! * 10 ** f.decimals) / 10 ** f.decimals).toBe(v!);
+      }
+    }
+  });
+
+  test("no series is a scalar multiple of another, so a correlation here means something", () => {
+    const days = healthDays(120, today);
+    const buckets = trendBuckets("days", today, 120);
+    // BUILT ONCE. Called inside the loop below, this was 450 full passes for 15 distinct results
+    // on every `bun test ./src/shared`.
+    const byMetric = new Map<HealthMetric, TrendPoint[]>(
+      HEALTH_FIELDS.map((f) => [f.key, bucketSeries(metricSeries(days, f.key), buckets, 2)]),
+    );
+    const series = (m: HealthMetric) => byMetric.get(m)!;
+    // Weight against height was r = 1 under the old key-length period. Same group, and the pair
+    // the review measured, so it is the one pinned here.
+    expect(correlate(series("weight_kg"), series("height_cm"))!.r).toBeLessThan(1);
+    // `correlate` is symmetric, so each unordered pair once.
+    HEALTH_FIELDS.forEach((a, i) => {
+      for (const b of HEALTH_FIELDS.slice(i + 1)) {
+        // Non-null is half the claim: a constant series correlates with nothing at all.
+        const r = correlate(series(a.key), series(b.key));
+        expect(r).not.toBeNull();
+        expect(r!.r).toBeLessThan(1);
+      }
+    });
+  });
+});
+
+describe("chart arithmetic scales with the days it is given", () => {
+  const today = "2026-09-06";
+
+  test("doubling the days doubles the work, and does not quadruple it", () => {
+    // A fixed bucket count is what makes the ratio the days' exponent alone. THIS GUARDS THE
+    // CONSTANT, NOT `trendBuckets`: for `days` the count is thirty by construction and the window
+    // is never an input, so these two can only disagree if `SCALING_PERIOD` is changed to a period
+    // whose axis grows — `years` — which is exactly the change that would make the measurement
+    // meaningless without anything else here noticing.
+    for (const n of [SCALING_DAYS, 2 * SCALING_DAYS]) {
+      expect(trendBuckets(SCALING_PERIOD, today, n)).toHaveLength(30);
+    }
+
+    const small = scanComparisons(SCALING_DAYS, today);
+    const large = scanComparisons(2 * SCALING_DAYS, today);
+    const n = small.work;
+    const doubled = large.work;
+
+    // Zero would mean the scan never ran and the ratio would be meaningless.
+    expect(n).toBeGreaterThan(0);
+
+    // THE CORRECTION TERM, PINNED. Subtracting two boundary reads per map visit is exact only
+    // while the result spread copies exactly `start`, `end` and `label`. Add a fourth property, or
+    // replace the spread with explicit copies, and the constant subtracted stops matching the
+    // constant added — the ratio then drifts toward or away from the threshold with nothing here
+    // failing. One visit per bucket per call, the same on both sides, is what makes it a constant.
+    expect(small.mapVisits).toBe(30 * HEALTH_FIELDS.length);
+    expect(large.mapVisits).toBe(small.mapVisits);
+
+    // 1.99 linear and 1.71 for a correct Map-based rewrite, against 3.41 and 3.99 for the two
+    // quadratic shapes. Three is the empty middle, not a tuned bound, and no timeout is needed to
+    // hold it: the quadratic form fails this in well under a second, because a fixture sized for
+    // an exponent is far smaller than one sized for a stopwatch.
+    expect(doubled / n).toBeLessThan(3);
+  });
+
+  test("and the buckets come back FILLED, which is what a smaller count has to survive", () => {
+    // THE ONLY THING SEPARATING "faster" FROM "did less work". Fewer comparisons pushes the ratio
+    // DOWN, so an implementation that broke out of the scan early and dropped points from their
+    // buckets would satisfy the assertion above. One day per bucket, every bucket, at both sizes.
+    for (const n of [SCALING_DAYS, 2 * SCALING_DAYS]) {
+      const days = healthDays(n, today);
+      const points = bucketSeries(
+        metricSeries(days, "weight_kg"),
+        trendBuckets(SCALING_PERIOD, today, n),
+        1,
+      );
+      expect(points).toHaveLength(30);
+      expect(points.every((p) => p.n === 1)).toBe(true);
+      expect(points.every((p) => p.value !== null)).toBe(true);
+    }
+  });
+});
+
+describe("the five-year window", () => {
+  const today = "2026-09-06";
+
+  test("every period fills every bucket over the whole of what the server serves", () => {
+    const oldest = windowStart(today, HEALTH_RETENTION_DAYS);
+    const days = healthDays(HEALTH_RETENTION_DAYS, today);
+    expect(days[0]!.date).toBe(oldest);
+
+    for (const period of TREND_PERIODS) {
+      const points = bucketSeries(
+        metricSeries(days, "weight_kg"),
+        trendBuckets(period.id, today, HEALTH_RETENTION_DAYS),
+        1,
+      );
+      expect(points.length).toBeGreaterThan(0);
+      expect(points.every((p) => p.value !== null)).toBe(true);
+    }
+  });
+
+  // THE INVARIANT `windowStart` EXISTS FOR: no bucket may lie entirely outside the window a read
+  // can answer from. `app/health.tsx` built its axis from the INGEST window, one day wider, which
+  // broke this on five dates in the supported range — a permanently empty leading year bar. The
+  // screen cannot express that any more: `trendBuckets` takes a LENGTH and derives the date, so
+  // this is now a property of the function rather than a rule its callers have to remember.
+  test("no year bucket falls entirely outside the window a read can answer from", () => {
+    for (const day of ["2025-12-31", "2026-12-31", "2027-12-31", "2028-12-30", "2029-12-31"]) {
+      const served = windowStart(day, HEALTH_RETENTION_DAYS);
+      const axis = trendBuckets("years", day, HEALTH_RETENTION_DAYS);
+      expect(axis.every((b) => b.end >= served)).toBe(true);
+
+      // One day wider — the window the screen used to pass — and a bucket ends before the oldest
+      // row a client can be given, so it is empty forever. Kept as the thing being ruled out.
+      const wider = trendBuckets("years", day, HEALTH_RETENTION_DAYS + 1);
+      expect(wider.some((b) => b.end < served)).toBe(true);
+    }
   });
 });

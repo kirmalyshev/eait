@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
-  dateMinus, dayLabel, isCalendarDate, localDate, localTime, monthGrid, monthLabel, monthOf, monthShift, zonedMidnight,
+  dateMinus, dayLabel, isCalendarDate, localDate, localTime, monthGrid, monthLabel, monthOf,
+  monthShift, windowStart, zonedMidnight,
 } from "./dates.ts";
+import { HEALTH_RETENTION_DAYS } from "./contract.ts";
 
 describe("dayLabel", () => {
   test("names the two days a person has a word for", () => {
@@ -99,5 +101,66 @@ describe("zonedMidnight", () => {
     expect(zonedMidnight("Europe/Berlin", "2026-03-29").toISOString()).toBe("2026-03-28T23:00:00.000Z");
     // And the day after is CEST (+2).
     expect(zonedMidnight("Europe/Berlin", "2026-03-30").toISOString()).toBe("2026-03-29T22:00:00.000Z");
+  });
+});
+
+describe("windowStart", () => {
+  test("a window of N days starts N-1 days back, so one day is today itself", () => {
+    // THE PROPERTY EVERYTHING TURNS ON, and the one that was spelled two different ways before
+    // this function existed. A request for N days must answer with N days.
+    expect(windowStart("2026-09-06", 1)).toBe("2026-09-06");
+    expect(windowStart("2026-09-06", 2)).toBe("2026-09-05");
+    expect(windowStart("2026-09-06", 30)).toBe("2026-08-08");
+    expect(windowStart("2026-09-06", HEALTH_RETENTION_DAYS)).toBe("2021-09-07");
+  });
+
+  test("the window really is that many days long, counted back", () => {
+    for (const days of [1, 2, 7, 30, 365, HEALTH_RETENTION_DAYS]) {
+      const start = windowStart("2026-09-06", days);
+      // Walk from the start to today and count: the two must agree, which is what stops a
+      // fencepost being fixed on one side and reintroduced on the other.
+      let n = 1;
+      for (let d = start; d !== "2026-09-06"; d = dateMinus(d, -1)) n++;
+      expect(n).toBe(days);
+    }
+  });
+
+  test("is DST-safe, because it is calendar arithmetic and not a subtraction of hours", () => {
+    // Berlin springs forward on 2026-03-29. A fixed 24h span across it lands an hour early and
+    // rounds to the previous day; `dateMinus` is calendar subtraction and cannot.
+    expect(windowStart("2026-03-30", 2)).toBe("2026-03-29");
+    expect(windowStart("2026-03-30", 3)).toBe("2026-03-28");
+    // And the autumn change, the other direction.
+    expect(windowStart("2026-10-26", 2)).toBe("2026-10-25");
+  });
+
+  test("never returns a future date, however bad the number it is given", () => {
+    // `days` reaches this from `Limits.diaryWindowDays`, which the SERVER supplies. A zero used to
+    // return tomorrow, and `mergeSince` keeps every cached row older than its boundary — so a
+    // boundary in the future resurrects days the fresh read has since deleted. Clamped, not
+    // thrown: a bad number from a server is not a reason to take a screen down.
+    for (const bad of [0, -1, -5, Number.NaN, -Infinity]) {
+      expect(windowStart("2026-09-06", bad)).toBe("2026-09-06");
+    }
+    // A fractional window is floored to whole days rather than producing an invalid date.
+    expect(windowStart("2026-09-06", 2.9)).toBe("2026-09-05");
+  });
+
+  test("and never a non-date or a throw, however LARGE the number it is given", () => {
+    // The top end is the one that crashes rather than merely misbehaving, and it is reached from
+    // the same server-supplied `diaryWindowDays` — during render, where an unhandled error is a
+    // process abort in a Release build. Measured before the clamp: 1e6 gave "-000712-10", which
+    // is not a date and compares wrong under the string comparisons every caller uses, and 1e9
+    // and 2^31 both threw `RangeError: Invalid Date`.
+    for (const big of [1e6, 1e9, 2 ** 31, Number.MAX_SAFE_INTEGER, Infinity]) {
+      const out = windowStart("2026-09-06", big);
+      expect(out).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(out < "2026-09-06").toBe(true);
+    }
+    // Infinity is the WIDEST window, not the narrowest. `Number.isFinite` is false for it, so the
+    // first version of the guard answered with today itself — one day where the caller asked for
+    // everything, which is the failure that hides rather than crashes.
+    expect(windowStart("2026-09-06", Infinity)).toBe(windowStart("2026-09-06", 1e9));
+    expect(windowStart("2026-09-06", Infinity)).not.toBe("2026-09-06");
   });
 });

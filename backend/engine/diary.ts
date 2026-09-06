@@ -1,7 +1,8 @@
 // Diary reads. No writes, no model calls, no caps — the cheapest thing the API does.
 
-import { DIARY_WINDOW_DAYS, explainTargets, type DayResponse, type DayTotals } from "@eait/shared";
-import { dateMinus, localDate } from "@eait/shared";
+import {
+  DIARY_WINDOW_DAYS, explainTargets, localDate, windowStart, type DayResponse, type DayTotals,
+} from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { sumTotals } from "./meals.ts";
 
@@ -38,5 +39,5 @@ export async function week(
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
   const today = localDate(deps.config.timezone);
-  return deps.store.totalsSince(userId, dateMinus(today, days - 1));
+  return deps.store.totalsSince(userId, windowStart(today, days));
 }

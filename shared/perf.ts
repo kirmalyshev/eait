@@ -119,7 +119,35 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   // the frame `paintMs` times. And `e2e/perf.yaml` CONNECTS Health and opens the screen a second
   // time, because the first open of a fresh account is the connect card and there is nothing on it
   // to measure; the median of two samples is the worse one, so the charted visit is the one judged.
-  // What that visit costs is six runs of `bucketSeries` over every stored day.
+  // What that visit costs is UP TO SEVEN runs of `bucketSeries` over every stored day — one per
+  // charted metric that has data, plus the compare card's two, that card being one chart drawing
+  // two series. It is up to, not seven: `TrendChart` renders only for a field in `fieldsWithData`,
+  // so an account with no scale and no body composition charts one or two things and pays three or
+  // four runs.
+  //
+  // AND `bucketSeries` IS NOT THE ONLY PER-DAY WORK ON THAT FRAME. `fieldsWithData` is a
+  // `days.some` PER FIELD, not per group, so the five group calls cost up to FIFTEEN full window
+  // scans — and `some` short-circuits only for a field that HAS data, so the empty ones are the
+  // ones that scan to the end. That term grows as an account gets SPARSER, the opposite direction
+  // from the charts, and the two move against each other. The `recent` filter walks the window
+  // once more. None of it is `bucketSeries`, and all of it is inside `paintMs`.
+  //
+  // AND IT IS THE ONLY BUDGET HERE THAT NEEDS A SECOND MEASUREMENT ELSEWHERE. This harness needs a
+  // Mac and a simulator, so it runs neither in CI nor on a Linux checkout — while this is the one
+  // screen whose render cost grows with how long the user has had the app.
+  //
+  // BE PRECISE ABOUT WHAT THAT SECOND MEASUREMENT IS, because it is easy to read more into it.
+  // `src/shared/trend.test.ts` asserts `bucketSeries`'s SCALING LAW — the work over N days against
+  // 2N — at 150 and 300 days, by counting property reads rather than timing anything. It catches a
+  // nested scan that RE-READS ITS INPUT, on either side of the placement loop.
+  //
+  // It does NOT catch one that copies the dates into a local array and then scans the copy, which
+  // is measured and written up in that file: genuinely quadratic, about 60 ms at the real window,
+  // and it reads 1.9938 against the shipped code's 1.9903. It is not a millisecond bound, it never
+  // runs at five years, and it says nothing about a constant-factor slowdown. So it is a reason to
+  // run `bun run perf` on a change to this screen and never a reason to skip it. Neither
+  // measurement covers the other — that one has no React under it, and this one is the only one
+  // that draws.
   //
   // WHAT THIS NUMBER DOES NOT COVER: the harness runs with EXPO_PUBLIC_EAIT__FRONTEND__HEALTH_FAKE=1, because the
   // simulator has HealthKit and no Health app and a real read there is empty forever. The fake

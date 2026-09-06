@@ -11,7 +11,7 @@
 // weekly one and say nothing about whether the user moved more. Null stays null: a bucket with no
 // reading is a gap in the line, never a zero, for the same reason `HealthDay` fields are.
 
-import { dateMinus, monthOf, monthShift } from "./dates.ts";
+import { dateMinus, monthOf, monthShift, windowStart } from "./dates.ts";
 import type { HealthDay, HealthMetric } from "./health.ts";
 import type { DayTotals } from "./types.ts";
 
@@ -60,10 +60,18 @@ const monthShort = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "s
  * contains `today`, even when it has not finished.
  *
  * Weeks run Monday to Sunday, matching `monthGrid`: this app's zone is Europe/Berlin and ISO weeks
- * start on Monday. Years run from the year of `oldest` — the earliest day the server keeps — so
- * the axis never offers a year the store cannot have a row for.
+ * start on Monday. Years run from the year of the oldest day the window covers, so the axis never
+ * offers a year the store cannot have a row for.
+ *
+ * THE THIRD ARGUMENT IS A LENGTH IN DAYS, NOT A DATE, AND THAT IS THE WHOLE POINT. It used to be
+ * an `oldest` date, so keeping the promise above was the CALLER's job — and `app/health.tsx` got
+ * it wrong, passing the window rows may be STORED in rather than the one they can be SERVED from.
+ * One day wider, which drew a permanently empty leading year bar on 31 December 2025, 2026, 2027
+ * and 2029, and on 30 December 2028. A grep test was written to police the call sites; taking the
+ * length instead and deriving the date here makes the wrong call unrepresentable, which is
+ * smaller, covers the backend and `scripts/` too, and is checked by `bun run typecheck`.
  */
-export function trendBuckets(period: TrendPeriod, today: string, oldest: string): TrendBucket[] {
+export function trendBuckets(period: TrendPeriod, today: string, days: number): TrendBucket[] {
   switch (period) {
     case "days":
       return Array.from({ length: BUCKETS.days }, (_, i) => {
@@ -86,7 +94,10 @@ export function trendBuckets(period: TrendPeriod, today: string, oldest: string)
         return { start, end: dateMinus(`${monthShift(month, 1)}-01`, 1), label: monthShort.format(noon(start)) };
       });
     case "years": {
-      const from = Number(oldest.slice(0, 4));
+      // Derived HERE and not above: the other three periods have a fixed bucket count and never
+      // read the window, so computing a date for them is a `Date.UTC` and a `toISOString` paid on
+      // every axis rebuild for nothing.
+      const from = Number(windowStart(today, days).slice(0, 4));
       const to = Number(today.slice(0, 4));
       return Array.from({ length: to - from + 1 }, (_, i) => {
         const y = String(from + i);
