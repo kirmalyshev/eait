@@ -80,16 +80,33 @@ describe("config", () => {
     // The store link goes out untouched: Apple takes campaign attribution through pt/ct provider
     // tokens, not a query string of ours.
     expect(primaryCta(config, "hero").href).toBe(ENV.EAIT__BACKEND__LANDING_APP_STORE_URL);
-    expect(secondaryCta(config, "hero")?.href).toBe(`${ENV.EAIT__BACKEND__LANDING_TELEGRAM_URL}?start=web_hero`);
+    // And nothing beneath it: the bot is not marketed here, so a store build with no web sign-up
+    // has one ask rather than two.
+    expect(secondaryCta(config, "hero")).toBeNull();
   });
 
-  test("before the listing exists the bot is primary, not a consolation link", () => {
+  test("before the listing exists the WEB APP is primary, and the bot is not offered at all", () => {
     const preLaunch = loadLandingConfig({
       EAIT__BACKEND__LANDING_SITE_URL: ENV.EAIT__BACKEND__LANDING_SITE_URL,
       EAIT__BACKEND__LANDING_TELEGRAM_URL: ENV.EAIT__BACKEND__LANDING_TELEGRAM_URL,
+      EAIT__BACKEND__LANDING_START_URL: "https://api.eait.fit/start",
     });
-    expect(primaryCta(preLaunch, "hero").href).toBe(`${ENV.EAIT__BACKEND__LANDING_TELEGRAM_URL}?start=web_hero`);
+    expect(primaryAction(preLaunch)).toBe("web");
+    expect(primaryCta(preLaunch, "hero").href).toBe("https://api.eait.fit/start?start=web_hero");
     expect(secondaryCta(preLaunch, "hero")).toBeNull();
+    expect(renderLanding(preLaunch)).not.toContain("t.me");
+  });
+
+  test("the bot is the last resort, for a host configured with nothing else", () => {
+    // Kept in the configuration and nowhere in the copy: an operator who has set only the bot link
+    // still gets a working button, and the page still says nothing about Telegram it does not have.
+    const botOnly = loadLandingConfig({
+      EAIT__BACKEND__LANDING_SITE_URL: ENV.EAIT__BACKEND__LANDING_SITE_URL,
+      EAIT__BACKEND__LANDING_TELEGRAM_URL: ENV.EAIT__BACKEND__LANDING_TELEGRAM_URL,
+    });
+    expect(primaryAction(botOnly)).toBe("telegram");
+    expect(primaryCta(botOnly, "hero").href).toBe(`${ENV.EAIT__BACKEND__LANDING_TELEGRAM_URL}?start=web_hero`);
+    expect(secondaryCta(botOnly, "hero")).toBeNull();
   });
 
   test("the web sign-up is the second action wherever it exists, and outranks the bot", () => {
@@ -100,31 +117,47 @@ describe("config", () => {
     // and one at the bottom is the only cheap read on whether the page's argument is doing any work.
     expect(secondaryCta(withStart, "hero")?.href).toBe("https://api.eait.fit/start?start=web_hero");
     expect(secondaryCta(withStart, "footer")?.href).toBe("https://api.eait.fit/start?start=web_foot");
+    expect(renderLanding(withStart)).not.toContain("t.me");
     expect(renderLanding(withStart)).toContain("https://api.eait.fit/start?start=web_hero");
     // And the primary is untouched — the store still wins the accent.
     expect(primaryCta(withStart, "hero").href).toBe(ENV.EAIT__BACKEND__LANDING_APP_STORE_URL);
   });
 
-  test("offers the web sign-up in a FORM build too, where it is the only way in", () => {
-    // The configuration production is in today: no listing, so the hero renders the mailing-list
-    // form instead of `ctaBlock` — which is what carries `secondaryCta`. The link vanished here,
-    // in exactly the build where `/start` is the only place anybody can onboard at all.
+  test("the web sign-up outranks the mailing list, because one of them is a product", () => {
+    // With no listing and both configured, the page asks for the thing a visitor can use now
+    // rather than for their email address. The list is what is left when there is nothing to use.
     const preLaunch = loadLandingConfig({
       EAIT__BACKEND__LANDING_SITE_URL: ENV.EAIT__BACKEND__LANDING_SITE_URL,
       EAIT__BACKEND__LANDING_API_URL: "https://api.eait.fit",
       EAIT__BACKEND__LANDING_START_URL: "https://api.eait.fit/start",
     });
-    expect(primaryAction(preLaunch)).toBe("form");
+    expect(primaryAction(preLaunch)).toBe("web");
     const page = renderLanding(preLaunch);
     expect(page).toContain("https://api.eait.fit/start?start=web_hero");
-    // ONCE. The repetition on this page is one offer asked five times; a second offer beside each
-    // of them is a different page.
-    expect(page.match(/api\.eait\.fit\/start/g)).toHaveLength(1);
+    // Once per ask, and never twice in one: the repetition on this page is ONE offer asked five
+    // times, and a second link beside each of them would be a different page.
+    expect(page.match(/api\.eait\.fit\/start/g)).toHaveLength(Object.values(START_CODES).length);
+    expect(page).not.toContain("set up your plan on the web");
   });
 
   test("says nothing about a web sign-up that is not configured", () => {
-    expect(secondaryCta(config, "hero")?.href).not.toContain("/start");
+    expect(secondaryCta(config, "hero")).toBeNull();
     expect(html).not.toContain("set up your plan on the web");
+    expect(html).not.toContain("/start");
+  });
+
+  test("takes an http preview URL only where a stranger cannot reach it", () => {
+    // The page is read on a phone, and a phone reaches this machine by its LAN name — 127.0.0.1
+    // there is the phone. Loopback-only refused the one build worth looking at on one.
+    for (const host of ["localhost", "127.0.0.1", "home-ubuntu", "192.168.1.20", "10.0.0.4"]) {
+      const c = loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_START_URL: `http://${host}:8807/start` });
+      expect(c.startUrl).toBe(`http://${host}:8807/start`);
+    }
+    // And nothing a stranger could resolve.
+    for (const host of ["eait.fit", "api.eait.fit", "example.com"]) {
+      expect(() => loadLandingConfig({ ...ENV, EAIT__BACKEND__LANDING_START_URL: `http://${host}/start` }))
+        .toThrow(/must be https/);
+    }
   });
 
   test("a copy-review date is a date", () => {
@@ -385,7 +418,7 @@ describe("the rendered page", () => {
       [
         config.appStoreUrl!,
         `${config.siteUrl}/`,
-        ...Object.values(START_CODES).map((code) => `${config.telegramUrl!}?start=${code}`),
+
       ].sort(),
     );
   });
@@ -554,16 +587,11 @@ describe("the images", () => {
 });
 
 describe("attribution", () => {
-  test("every bot link carries a start code, and they differ by placement", () => {
-    // Without these the page converts into the organic bucket and cannot be judged at all —
-    // which is the one thing `eait-marketer` built an attribution convention to avoid.
-    const bot = [...html.matchAll(/https:\/\/t\.me\/[^"]*/g)].map((m) => m[0]);
-    const codes = Object.values(START_CODES);
-    expect(bot.length).toBeGreaterThanOrEqual(codes.length);
-    for (const href of bot) expect(codes).toContain(href.split("?start=")[1] as never);
-    // One distinct code per ask. Two bands sharing a code is a report that cannot tell which
-    // argument converted, which is the only reason the codes exist.
-    expect(new Set(bot).size).toBe(codes.length);
+  test("no ask on this page opens Telegram", () => {
+    // Decision 2026-09-06: the page markets the web app and the iPhone app. The bot survives in the
+    // configuration as a last-resort button and in nothing a visitor reads.
+    expect(html).not.toContain("t.me");
+    expect(html).not.toContain("Telegram");
   });
 
   test("start codes are payloads Telegram will accept", () => {

@@ -798,9 +798,9 @@ export const subscribeSection = {
     /** When the ask is the mailing list. */
     form: "Do you like it? We'll invite you.",
     /**
-     * When the ask is the store listing or the bot. The form line would be a lie here: nothing on
-     * the page is asking for an address in that build, and a band that says so beside a button that
-     * opens Telegram is the page describing a product its own button does not open.
+     * When the ask is the store listing or the web app. The form line would be a lie here: nothing
+     * on the page is asking for an address in that build, and a band that says so beside a button
+     * that opens a product is the page describing an ask its own button does not make.
      */
     action: "Do you like it? Try it on a real meal right now.",
   },

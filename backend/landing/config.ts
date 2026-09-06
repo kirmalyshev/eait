@@ -80,6 +80,13 @@ export class LandingConfigError extends Error {
 const APP_STORE_HOST = "apps.apple.com";
 const TELEGRAM_HOSTS = ["t.me", "telegram.me"];
 
+/** Loopback, a private address, or a single-label name: somewhere only this network can reach. */
+function isLocalHost(hostname: string): boolean {
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") return true;
+  if (/^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\./.test(hostname)) return true;
+  return !hostname.includes(".");
+}
+
 function requireUrl(name: string, raw: string, opts: { hosts?: string[] } = {}): string {
   let url: URL;
   try {
@@ -89,8 +96,13 @@ function requireUrl(name: string, raw: string, opts: { hosts?: string[] } = {}):
   }
   // http is allowed only for a local preview. Anything reachable by a stranger is https, because a
   // page served over http is a page an ISP can rewrite, and this one exists to be trusted.
-  const localhost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
-  if (url.protocol !== "https:" && !(url.protocol === "http:" && localhost)) {
+  //
+  // A PREVIEW IS NOT ALWAYS ON LOOPBACK. The page is read on a phone more than on a laptop, and the
+  // phone reaches this machine by its LAN name or its private address — never by 127.0.0.1, which
+  // on that device is the phone. Loopback-only refused the one build worth looking at on a phone,
+  // so the carve-out is what a browser itself treats as local: loopback, a private IPv4 range, and
+  // a bare hostname with no dot in it, which cannot be a name the public DNS resolves.
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && isLocalHost(url.hostname))) {
     throw new LandingConfigError(`${name} must be https (got ${url.protocol}//${url.host})`);
   }
   if (opts.hosts && !opts.hosts.includes(url.hostname)) {
@@ -292,9 +304,21 @@ function withStartCode(href: string, placement: CtaPlacement): string {
  * proof of concept and the page no longer sends anybody there; the bot branch survives only for an
  * environment that configures no API at all, where a bot link is still better than a dead page.
  */
-export type PrimaryAction = "store" | "form" | "telegram";
+export type PrimaryAction = "store" | "web" | "form" | "telegram";
+/**
+ * What this page is FOR, in the order the product can actually deliver it.
+ *
+ * The store listing wins whenever it exists. Until then the WEB APP is the ask: it is a product a
+ * visitor can use in the next thirty seconds, and — unlike anything else on this page — it creates
+ * the account the iPhone app later opens into, already onboarded. The mailing list is what is left
+ * when there is nothing to use, and the bot is the last resort for a host configured with neither.
+ *
+ * TELEGRAM IS NO LONGER MARKETED HERE (decision 2026-09-06). It stays in the configuration so a
+ * host that has not set a web sign-up still has a working button, and nowhere else.
+ */
 export function primaryAction(config: LandingConfig): PrimaryAction {
   if (config.appStoreUrl) return "store";
+  if (config.startUrl) return "web";
   if (config.apiUrl) return "form";
   return "telegram";
 }
@@ -303,9 +327,9 @@ export function primaryAction(config: LandingConfig): PrimaryAction {
  * Which button gets the accent.
  *
  * The app's own rule is that the accent colour marks exactly one thing per screen — the primary
- * action (`src/mobile/lib/theme.ts`). The page keeps that rule, so it needs to know which of the two
- * destinations is primary. The App Store wins whenever it exists; before then the bot is not a
- * consolation link, it is the only thing a visitor can actually do.
+ * action (`src/mobile/lib/theme.ts`). The page keeps that rule, so it needs to know which of its
+ * destinations is primary. The App Store wins whenever it exists; before then it is the web app,
+ * which is a whole product rather than a preview of one.
  */
 export function primaryCta(
   config: LandingConfig,
@@ -318,11 +342,21 @@ export function primaryCta(
       note: "See it work before you give a card. Your photo stays with the meal and leaves with your account.",
     };
   }
+  if (config.startUrl) {
+    // `URL` rather than a string append: the origin may already carry a query.
+    const to = new URL(config.startUrl);
+    to.searchParams.set("start", START_CODES[placement]);
+    return {
+      href: to.toString(),
+      // A button that names its destination spends itself on navigation; this one names what
+      // happens next, and the note under it carries the destination.
+      label: "Show your meal",
+      note: "Nothing to install. Sign in, photograph a meal in your browser, and read the answer.",
+    };
+  }
   return {
     href: withStartCode(config.telegramUrl!, placement),
-    // Not "Open the Telegram bot". A button that names the destination spends itself on navigation;
-    // this one names what happens next, and the note under it carries the destination.
-    label: "Send your first meal",
+    label: "Show your meal",
     // NO NOTE. It said "Nothing to install. Send a photo to a Telegram chat and read the answer",
     // which spent three lines explaining the destination the button had deliberately stopped
     // naming — and told a reader who has just been offered one action to think about a second
@@ -335,27 +369,23 @@ export function primaryCta(
 /**
  * The other one, if there is another one.
  *
- * THE WEB SIGN-UP OUTRANKS THE BOT wherever it exists, and the reason is what each one produces. The
- * bot is a demonstration; `/start` creates the ACCOUNT — the same account the app opens into, with
- * the plan already computed and, where a checkout is configured, already paid for. A visitor who
- * cannot install an iPhone app today is exactly who this link is for.
+ * ONLY UNDER THE STORE BUTTON. Once the listing exists the web sign-up is the second-best thing to
+ * offer somebody who cannot install it today — it creates the same account, already onboarded.
+ * Before then the web app IS the primary button and there is nothing to put beneath it: the bot is
+ * not marketed here any more, and a second link would split one ask into two.
  */
 export function secondaryCta(
   config: LandingConfig,
   placement: CtaPlacement,
 ): { href: string; label: string } | null {
-  if (config.startUrl) {
-    // WITH THE PLACEMENT CODE, like the bot link beside it. The two codes exist to answer the one
+  if (config.appStoreUrl && config.startUrl) {
+    // WITH THE PLACEMENT CODE, like the button above it. The two codes exist to answer the one
     // cheap question this page can be asked — did the headline convert, or did somebody read 1,200
     // words first — and a CTA that carries neither is a CTA whose performance is unreadable. The
-    // read here is the API's own access log rather than eait-marketer's, because this destination
-    // is ours. `URL` rather than a string append: the origin may already carry a query.
+    // read here is the API's own access log, because this destination is ours.
     const to = new URL(config.startUrl);
     to.searchParams.set("start", START_CODES[placement]);
     return { href: to.toString(), label: "or set up your plan on the web" };
-  }
-  if (config.appStoreUrl && config.telegramUrl) {
-    return { href: withStartCode(config.telegramUrl, placement), label: "or try it in Telegram first" };
   }
   return null;
 }
@@ -374,8 +404,10 @@ export function secondaryCta(
  */
 export function surfaceNote(config: LandingConfig): string | null {
   if (config.appStoreUrl) return null;
-  if (primaryAction(config) === "form") {
-    return "iOS app coming soon.";
+  const action = primaryAction(config);
+  if (action === "web") {
+    return "The iPhone app is not out yet. It all works in your browser today, on the same account the app will open.";
   }
+  if (action === "form") return "iOS app coming soon.";
   return "The iPhone app is not out yet. The Telegram bot does the same job today, on any phone, from a chat.";
 }
