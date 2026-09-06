@@ -332,9 +332,32 @@ export interface Store {
   identityFor(
     provider: Provider,
     subject: string,
-  ): Promise<{ userId: string; linkedAt: string } | null>;
+  ): Promise<{ userId: string; linkedAt: string; email: string | null } | null>;
   /** Attach a verified identity to an account. Unique on `(provider, subject)`. */
   addIdentity(userId: string, provider: Provider, subject: string): Promise<void>;
+  /**
+   * Record the address the provider vouched for on an identity this account already holds.
+   *
+   * SEPARATE FROM `addIdentity` because the address does not arrive with the link. Apple sends one
+   * only on the FIRST authorization ever, and every account that signed in before the scope was
+   * requested is already linked — so the only chance to store theirs is a later sign-in, which
+   * takes the `switched` or `already` path and adds no identity at all. Google sends one every
+   * time, which is also how a changed address catches up.
+   *
+   * SCOPED BY `userId` like every other write here. The subject comes out of a verified token and
+   * the account comes out of the session; a row whose account disagrees is somebody else's, and
+   * this writes nothing to it. A subject that is not linked at all is likewise a no-op — this
+   * never creates an identity.
+   *
+   * Never called with an absent address: a returning Apple user's token carries none, and writing
+   * that over a stored one would erase the only thing this column is for.
+   */
+  setIdentityEmail(
+    userId: string,
+    provider: Provider,
+    subject: string,
+    email: string,
+  ): Promise<void>;
   /**
    * Detach one identity from one account AND delete the account when that was the last way into
    * it — as one atomic step. Idempotent, and SCOPED BY `userId` like every other write here.

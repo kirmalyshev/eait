@@ -13,7 +13,8 @@ import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
-import { revokeAppleIdentity, type EngineDeps } from "./index.ts";
+import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
+import { revokeAppleIdentity, signInWithProvider, type EngineDeps } from "./index.ts";
 
 const CONFIG: Config = {
   ...configDefaults(),
@@ -184,5 +185,101 @@ describe("two deliveries for the same subject at once", () => {
 
     expect(await store.getProfile(userId)).not.toBeNull();
     expect((await store.listIdentities(userId)).map((i) => i.provider)).toEqual(["device"]);
+  });
+});
+
+/**
+ * The address, and the only thing it is: a column on the identity. It is never an account key —
+ * `subject` still is — so every one of these asserts on what got STORED, not on who was resolved.
+ */
+describe("the address the provider vouched for", () => {
+  /** Accepts `<subject>` and hands back whatever address the test named, verified. */
+  const verifierFor = (email?: string): IdentityVerifier => ({
+    async verify(provider, idToken) {
+      if (idToken === "") throw new AuthError("invalid");
+      return { provider, subject: idToken, ...(email !== undefined ? { email } : {}) };
+    },
+  });
+
+  const emailOf = async (subject: string, s: Store = store) =>
+    (await s.identityFor("apple", subject))?.email ?? null;
+
+  it("stores it on an account created by the sign-in itself", async () => {
+    const deps = depsFor(store);
+    await signInWithProvider(deps, verifierFor("new@example.com"), "apple", "fresh", undefined, null);
+    expect(await emailOf("fresh")).toBe("new@example.com");
+  });
+
+  it("stores it when the identity is linked to the anonymous account already in hand", async () => {
+    const deps = depsFor(store);
+    const anon = (await store.upsertDeviceUser(device(), "en")).userId;
+    const out = await signInWithProvider(deps, verifierFor("link@example.com"), "apple", "linked", undefined, anon);
+    expect(out.outcome).toBe("linked");
+    expect(await emailOf("linked")).toBe("link@example.com");
+  });
+
+  it("stores it on the SURVIVING account when an anonymous session merges into a real one", async () => {
+    // The merge drops the anonymous account's identities, so the address has to land on the one
+    // that is still there afterwards — which is the account the identity resolved to, not the
+    // session that was signed in.
+    const deps = depsFor(store);
+    const real = await store.createUser("en");
+    await store.addIdentity(real, "apple", "merger");
+    const anon = (await store.upsertDeviceUser(device(), "en")).userId;
+
+    const out = await signInWithProvider(deps, verifierFor("merge@example.com"), "apple", "merger", undefined, anon);
+    expect(out.outcome).toBe("merged");
+    expect(out.userId).toBe(real);
+    expect(await emailOf("merger")).toBe("merge@example.com");
+  });
+
+  it("stores it for a returning user, whose sign-in links nothing at all", async () => {
+    // The whole reason this is not folded into `addIdentity`. Every account that signed in before
+    // the scope was requested reaches this path and no other.
+    const deps = depsFor(store);
+    const real = await store.createUser("en");
+    await store.addIdentity(real, "apple", "returning");
+
+    const out = await signInWithProvider(deps, verifierFor("back@example.com"), "apple", "returning", undefined, null);
+    expect(out.outcome).toBe("switched");
+    expect(await emailOf("returning")).toBe("back@example.com");
+  });
+
+  it("keeps the stored address when a later token carries none", async () => {
+    // Apple sends an address on the FIRST authorization only. Every sign-in after that looks like
+    // this, and treating it as "the user has no address" would erase the one we were given.
+    const deps = depsFor(store);
+    await signInWithProvider(deps, verifierFor("first@example.com"), "apple", "once", undefined, null);
+    await signInWithProvider(deps, verifierFor(), "apple", "once", undefined, null);
+    expect(await emailOf("once")).toBe("first@example.com");
+  });
+
+  it("does NOT fail the sign-in when the address write throws, on the path that has already merged", async () => {
+    // The reason this write is guarded at all. By the time it runs the merge has COMMITTED: the
+    // meals have moved and the anonymous device identity is gone. A throw here would surface as a
+    // 500 and "sign-in didn't complete", the retry would take `switched` with the merge already
+    // done, and for Apple the address is spent — it comes in the first authorization only.
+    const store = memoryStore();
+    const real = await store.createUser("en");
+    await store.addIdentity(real, "apple", "guarded");
+    const anon = (await store.upsertDeviceUser(device(), "en")).userId;
+
+    const deps = depsFor(failsOnce(store, "setIdentityEmail"));
+    const out = await signInWithProvider(deps, verifierFor("kept@example.com"), "apple", "guarded", undefined, anon);
+
+    expect(out.outcome).toBe("merged");
+    expect(out.userId).toBe(real);
+    expect(out.token).toBeTruthy();
+    // The merge stands, which is the whole point: `mergeUsers` deleted the anonymous account, so
+    // there is nothing left to retry into and the sign-in had to succeed.
+    expect(await store.getProfile(anon)).toBeNull();
+    // And the address is simply absent rather than the sign-in being lost with it.
+    expect(await emailOf("guarded", store)).toBeNull();
+  });
+
+  it("writes nothing when the provider sent no address at all", async () => {
+    const deps = depsFor(store);
+    await signInWithProvider(deps, verifierFor(), "apple", "silent", undefined, null);
+    expect(await emailOf("silent")).toBeNull();
   });
 });

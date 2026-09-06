@@ -15,11 +15,20 @@
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 import type { Provider } from "@eait/shared";
 
-/** A verified identity. Deliberately just the subject — see the note on email below. */
+/** A verified identity: the account key, and the address it can be reached at. */
 export interface VerifiedIdentity {
   provider: Provider;
   /** The provider's stable, per-app user identifier (`sub`). This is the whole account key. */
   subject: string;
+  /**
+   * The address the provider vouched for, ABSENT unless it also said it was verified.
+   *
+   * Absent is normal and not an error. Apple sends an address only on the FIRST authorization for
+   * an app — a returning user's token carries none, and there is no way to ask for it again short
+   * of the user revoking the app in their Apple Account settings. Google sends one every time.
+   * Nothing downstream may depend on it being here.
+   */
+  email?: string;
 }
 
 /**
@@ -131,7 +140,6 @@ export function remoteVerifier(config: VerifierConfig): Verifier {
       const subject = payload.sub;
       if (typeof subject !== "string" || subject === "") throw new AuthError("no-subject");
 
-      // Apple only: `email_verified` and `email` are deliberately ignored. See below.
       if (nonce !== undefined) {
         const claimed = payload.nonce;
         if (typeof claimed !== "string") throw new AuthError("nonce-missing");
@@ -143,7 +151,8 @@ export function remoteVerifier(config: VerifierConfig): Verifier {
         }
       }
 
-      return { provider, subject };
+      const email = verifiedEmail(payload);
+      return { provider, subject, ...(email !== undefined ? { email } : {}) };
     },
 
     async verifyAppleNotification(payloadJws) {
@@ -178,14 +187,23 @@ export function remoteVerifier(config: VerifierConfig): Verifier {
 }
 
 /**
- * NO EMAIL IS STORED, from either provider.
+ * The address, but only the one the provider says it verified.
  *
- * Apple sends the email only on first authorization (and often a private relay address); Google
- * sends it every time. We take neither. The provider `sub` is a stable per-app key and is all an
- * account needs — signing in with the same Apple ID or Google account restores the account, which
- * is the only thing an email would have been for.
+ * AN UNVERIFIED ADDRESS IS WORSE THAN NONE. It is a string the user typed at some other company,
+ * and the only thing this app does with an address is write to it — so an unverified one is a
+ * bounce at best and mail to a stranger at worst. Google marks its own accounts verified; Apple
+ * marks both a real address and a private relay one. Absent means absent.
  *
- * Not storing it means there is no email to leak, no email to keep lawful, and nothing to explain
- * in a privacy policy. That is consistent with a product whose other headline property is that it
- * never keeps your photographs.
+ * `email_verified` arrives as a BOOLEAN from Google and, historically, as the STRING "true" from
+ * Apple. Accepting only the boolean would silently discard every Apple address ever sent.
+ *
+ * The address is NOT part of the account key and nothing authenticates with it: `subject` is still
+ * the whole identity. See `engine/identity.ts` for where it is stored, and `deploy/public/privacy.html`
+ * for what it is used for.
  */
+function verifiedEmail(payload: JWTPayload): string | undefined {
+  const email = payload.email;
+  if (typeof email !== "string" || email === "") return undefined;
+  const verified = payload.email_verified;
+  return verified === true || verified === "true" ? email : undefined;
+}

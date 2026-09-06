@@ -64,6 +64,19 @@ const RULES: readonly Rule[] = [
   // is the version that survives. Tight on purpose: "a guard nobody is told about" must not match.
   { name: "exclusivity", re: /\b(?:nobody|no\s*one)\s+(?:else\s+)?in\s+(?:this|the)\s+category\b/gi },
   { name: "superiority", re: /\bevery\s+other\s+app\b|\bbetter\s+than\s+(?:any|every|all)\b/gi },
+
+  // ── A promise the product stopped keeping ───────────────────────────────────────────────────
+  //
+  // "No email, no name" was true until issue #95, when sign-in started asking Apple and Google for
+  // the address. It is here rather than in a test because the copy this guards is EDITABLE: the
+  // onboarding welcome is stored per host, so a host whose admin saved the old wording goes on
+  // serving it after the binary that retired it has shipped, and an admin can type it back in at
+  // any time. A false privacy promise is the one claim this product can least afford, on a page
+  // that argues privacy is the product.
+  //
+  // Deliberately narrow. It matches the claim, not the subject: "we email you" and "your email
+  // address" are the true sentences that replaced it and must keep passing.
+  { name: "retired-no-email", re: /\bno\s+e-?mail\b|\bnever\s+asks?\s+for\s+(?:your\s+|an\s+)?e-?mail\b/gi },
 ];
 
 /**
@@ -75,12 +88,24 @@ export function normalizeForMatch(text: string): string {
   return text.normalize("NFKC").replace(/\p{Cf}/gu, "");
 }
 
-/** Returns every violation across every field. Never throws. */
-export function lintCopy(fields: Record<string, string>): ClaimViolation[] {
+/**
+ * Returns every violation across every field. Never throws.
+ *
+ * `only` narrows the rule set BY NAME, and exists for one surface: the onboarding copy, whose own
+ * legitimate answers are "Lose weight" and "Diabetes". `weight-promise` and `disease-term` cannot
+ * tell those from a claim — the root AGENTS.md says so, and it is why the web gate covers
+ * `PAGE_COPY` rather than the rendered page — so that surface opts into the rules that ARE
+ * decidable there rather than being handed the marketing set. Omitted means every rule.
+ */
+export function lintCopy(
+  fields: Record<string, string>,
+  only?: readonly string[],
+): ClaimViolation[] {
   const violations: ClaimViolation[] = [];
+  const rules = only === undefined ? RULES : RULES.filter((r) => only.includes(r.name));
   for (const [field, rawText] of Object.entries(fields)) {
     const text = normalizeForMatch(rawText);
-    for (const rule of RULES) {
+    for (const rule of rules) {
       // Fresh regex per scan: a /g regex carries lastIndex between calls.
       const re = new RegExp(rule.re.source, rule.re.flags);
       let match: RegExpExecArray | null;

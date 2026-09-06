@@ -95,10 +95,18 @@ const post = (path: string, form: Record<string, string | string[]>, cookie?: st
   for (const [k, v] of Object.entries(form)) {
     for (const one of Array.isArray(v) ? v : [v]) body.append(k, one);
   }
+  const encoded = body.toString();
   return handle(new Request(`https://api.eait.fit${path}`, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded", ...(cookie ? { cookie } : {}) },
-    body: body.toString(),
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      // Sent explicitly because `new Request` does not populate it and a real client always does —
+      // and the Apple callback bridge refuses a request that declares no length, since a body it
+      // cannot size is a body it must not buffer.
+      "content-length": String(new TextEncoder().encode(encoded).length),
+      ...(cookie ? { cookie } : {}),
+    },
+    body: encoded,
   }));
 };
 
@@ -208,10 +216,9 @@ describe("signing in", () => {
       expect(to.origin + to.pathname).toBe(`https://${name}.example/authorize`);
       expect(to.searchParams.get("client_id")).toBe(name === "apple" ? SERVICE_ID : WEB_CLIENT);
       expect(to.searchParams.get("response_type")).toBe("code");
-      // The whole of what is asked for. `profile` and `email` are what both vendors' own defaults
-      // add, and either would put "See your primary email address" on the consent screen of a
-      // product whose first promise is that it asks for neither.
-      expect(to.searchParams.get("scope")).toBe("openid");
+      // The whole of what is asked for. `email` since issue #95; `profile` still not, because a
+      // name and a picture are two personal fields nothing in this product reads.
+      expect(to.searchParams.get("scope")).toBe("openid email");
       expect(to.searchParams.get("redirect_uri"))
         .toBe(`https://api.eait.fit/start/auth/${name}/callback`);
       expect(to.searchParams.get("state")).toBeTruthy();
@@ -221,25 +228,112 @@ describe("signing in", () => {
 
   it("does not let a provider's own params overwrite the state or the scope", async () => {
     // The extras are spread FIRST for this reason. A provider that could overwrite `state` would
-    // switch off the CSRF defence, and one that could overwrite `scope` would put "See your primary
-    // email address" on the consent screen — both silently, in a URL nobody reads.
+    // switch off the CSRF defence, and one that could overwrite `scope` would ask for whatever it
+    // liked — both silently, in a URL nobody reads.
     router(CONFIG, {
       google: {
         ...PROVIDERS.google!,
-        extraAuthorizeParams: { state: "attacker", scope: "openid email profile", nonce: "fixed" },
+        extraAuthorizeParams: { state: "attacker", scope: "openid email profile phone", nonce: "fixed" },
       },
     });
     const to = new URL((await get("/start/auth/google")).headers.get("location")!);
     expect(to.searchParams.get("state")).not.toBe("attacker");
     expect(to.searchParams.get("nonce")).not.toBe("fixed");
-    expect(to.searchParams.get("scope")).toBe("openid");
+    expect(to.searchParams.get("scope")).toBe("openid email");
   });
 
-  it("never sets response_mode, because a form_post callback would not carry the Lax cookie", async () => {
-    for (const name of ["apple", "google"] as const) {
-      const to = new URL((await get(`/start/auth/${name}`)).headers.get("location")!);
-      expect(to.searchParams.get("response_mode")).toBeNull();
-    }
+  /**
+   * APPLE'S `form_post` IS WHY THIS EXISTS. Asking for the email scope obliges it, and a form POST
+   * from appleid.apple.com is cross-site — so the `SameSite=Lax` state cookie is not sent with it,
+   * and the CSRF check this whole surface is built on would have nothing to compare against.
+   *
+   * A Lax cookie IS sent on a cross-site top-level GET, which is what the bridge below turns that
+   * POST into. The state check then runs exactly where it always did, on a request that has the
+   * cookie, and nothing about the defence is weakened to `SameSite=None`.
+   */
+  describe("Apple's form_post callback", () => {
+    it("bridges the POST to the GET that has the cookie, granting nothing on the way", async () => {
+      const res = await post("/start/auth/apple/callback", { code: "c", state: "s" });
+      expect(res.status).toBe(303);
+      const to = new URL(res.headers.get("location")!, "https://api.eait.fit");
+      expect(to.pathname).toBe("/start/auth/apple/callback");
+      expect(to.searchParams.get("code")).toBe("c");
+      expect(to.searchParams.get("state")).toBe("s");
+      // It authenticates nobody: no session, and the oauth cookie is untouched.
+      expect(res.headers.getSetCookie()).toEqual([]);
+    });
+
+    it("completes a sign-in that arrives as a POST, exactly as a GET one does", async () => {
+      const start = await get("/start/auth/apple");
+      const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
+      const oauth = cookieFrom(start, "eait_oauth");
+
+      // Apple's POST carries no cookie — cross-site, Lax.
+      const bridged = await post("/start/auth/apple/callback", { code: "posted", state });
+      // The browser then follows it as a top-level GET, which does carry the cookie.
+      const back = await handle(new Request(
+        new URL(bridged.headers.get("location")!, "https://api.eait.fit").toString(),
+        { headers: { cookie: oauth } },
+      ));
+      expect(back.status).toBe(303);
+      expect(back.headers.get("location")).toBe("/start/q");
+      expect(cookieFrom(back, "eait_web")).toBeTruthy();
+    });
+
+    it("still refuses a bridged callback whose state does not match the cookie", async () => {
+      const start = await get("/start/auth/apple");
+      const oauth = cookieFrom(start, "eait_oauth");
+      const bridged = await post("/start/auth/apple/callback", { code: "c", state: "forged" });
+      const back = await handle(new Request(
+        new URL(bridged.headers.get("location")!, "https://api.eait.fit").toString(),
+        { headers: { cookie: oauth } },
+      ));
+      expect(back.headers.get("location")).toBe("/start?error=1");
+    });
+
+    it("refuses an oversized body WITHOUT reading it", async () => {
+      // The whole point of the guard: this route is unauthenticated, cross-site and deliberately
+      // not rate limited, so a body it buffers before checking is free memory for a stranger.
+      // The header is what is checked, so the request never has to carry the bytes to prove it.
+      const res = await handle(new Request("https://api.eait.fit/start/auth/apple/callback", {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          "content-length": String(9 * 1024),
+        },
+        body: "code=c&state=s",
+      }));
+      expect(res.status).toBe(303);
+      // No parameters carried, so the GET takes its own empty-code exit.
+      expect(res.headers.get("location")).toBe("/start/auth/apple/callback");
+    });
+
+    it("refuses a body that is not a urlencoded form", async () => {
+      const res = await handle(new Request("https://api.eait.fit/start/auth/apple/callback", {
+        method: "POST",
+        headers: { "content-type": "application/json", "content-length": "20" },
+        body: JSON.stringify({ code: "c", state: "s" }),
+      }));
+      expect(res.status).toBe(303);
+      expect(res.headers.get("location")).toBe("/start/auth/apple/callback");
+    });
+
+    it("refuses a request that declares no length at all", async () => {
+      // A chunked body carries no `content-length`, and the size check has nothing to read. That
+      // is the one shape that could slip past the guard and be buffered, so absent is refused
+      // rather than treated as zero. Apple always sends the header.
+      const res = await handle(new Request("https://api.eait.fit/start/auth/apple/callback", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+      }));
+      expect(res.headers.get("location")).toBe("/start/auth/apple/callback");
+    });
+
+    it("404s the bridge on a host that does not offer that provider", async () => {
+      router(CONFIG, { google: PROVIDERS.google! });
+      expect((await post("/start/auth/apple/callback", { code: "c", state: "s" })).status)
+        .toBe(404);
+    });
   });
 
   it("writes the state cookie HttpOnly, Lax and Secure", async () => {

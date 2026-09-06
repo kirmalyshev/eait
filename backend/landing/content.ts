@@ -205,8 +205,11 @@ export const refusals: readonly Refusal[] = [
   {
     title: "It will not ask for a card before it has answered you.",
     body:
+      // "no email" stood in this list until issue #95. It was true of the path this paragraph
+      // describes and false of the product, which is exactly how a refusal gets quoted back at
+      // you — the App Store listing dropped it from the identical sentence in the same change.
       "You open it, answer a few questions about your body, and send a meal — **no account, no " +
-      `email, no card.** ${plural(SAMPLE_ANALYSES, "That first answer is yours", `The first ${SAMPLE_ANALYSES} answers are yours`)} ` +
+      `card.** ${plural(SAMPLE_ANALYSES, "That first answer is yours", `The first ${SAMPLE_ANALYSES} answers are yours`)} ` +
       "before anything is asked of you. Only then does it ask, and what it asks for is a " +
       "subscription that opens with a free week, bought in the App Store and cancelled there. " +
       "Nothing is charged unless you let that week run out.",
@@ -363,14 +366,19 @@ export const shots: readonly Shot[] = [
     // the older thing for one commit, which is the page describing a product the app had stopped
     // being. Whenever `sourceSha256` moves, this is what has to be re-read — the hash exists to
     // stop the paste happening without it.
+    // READ OFF THE FRAME AGAIN at issue #95: the welcome's opening bubble changed from "No email,
+    // no name." to "No account needed to start.", because sign-in now asks both providers for the
+    // address. Both sentences below said the retired thing, and the ALT is the one that matters —
+    // it is the only description a screen reader gets of a picture that states a privacy promise.
+    // `sourceSha256` moves with the reshoot, which is what forces this to be re-read.
     body:
-      "One conversation instead of a sign-up form, and it asks for no email and no name. The " +
+      "One conversation instead of a sign-up form, and there is no account to make. The " +
       "plan comes at the end of it, the first verdict after that, and **nothing is to pay until " +
       "you have seen both**.",
     alt:
       "The opening of the eait onboarding chat: Spud introduces himself, says it is three " +
-      "minutes of questions and then a plan and a verdict on your first meal, says no email and " +
-      "no name are asked and there is nothing to pay until both have been seen and a week free " +
+      "minutes of questions and then a plan and a verdict on your first meal, says no account is " +
+      "needed to start and there is nothing to pay until both have been seen and a week free " +
       "to try after that, then asks what you are here to do.",
   },
   {
@@ -571,19 +579,21 @@ export const accuracySection = {
 
 export const privacySection = {
   eyebrow: "Privacy",
-  headline: "What it never has in the first place.",
+  headline: "What it takes, and what it never had.",
   facts: [
     {
-      title: "The app never asks for your email.",
-      // Rewritten when the list below was added, because the old sentence — "there is no address
-      // here to leak" — stopped being true of the whole product the moment there was a form on
-      // this page. It is still true of the APP, which is the part that holds your meals, and the
-      // honest version says which is which rather than hoping nobody reads both sections.
+      title: "Signing in gives us an address. Nothing else does.",
+      // Rewritten TWICE, and both times because a sentence here stopped being true of the shipped
+      // product. First "there is no address here to leak", the moment a form existed on this page.
+      // Then "the app never asks for your email", when sign-in started asking for it (issue #95).
+      // The rule this section is built on has not changed: say which half each claim is about,
+      // rather than hoping nobody reads both.
       body:
-        "**Sign in with Apple or Google is asked for an identifier and nothing else**: no email, no " +
-        "name. Whatever a provider volunteers anyway is discarded before anything is written. If " +
-        "you give us an address on this website, it lives on a list that touches none of that, " +
-        "and one click removes it.",
+        "**Sign in with Apple or Google hands over an identifier and your email address**: no " +
+        "name, no contacts. We write to it about your account, and now and then to ask whether " +
+        "you would talk to us about the app — and it is erased when you delete the account. Use " +
+        "the app without an account and there is no address at all. The list on this website is a " +
+        "separate thing that touches neither, and one click removes you from it.",
     },
     {
       title: "No account, until you want one.",
@@ -683,10 +693,11 @@ export const founder = {
 /**
  * The mailing list.
  *
- * The page's hardest sentence to write, because the section three above it says we never store an
- * email address. Both are true and the copy has to carry the distinction rather than hope nobody
- * notices it: the APP never asks for one and cannot reach one; this is a list on the website, kept
- * apart from the accounts, that you leave with one click and no login.
+ * The page's hardest sentence to write, because the section three above it now says that signing in
+ * DOES give us an address. The copy has to carry the distinction rather than hope nobody notices
+ * it: that one belongs to an account, runs it, and is erased with it; this is a list on the
+ * website, kept apart from the accounts, that you leave with one click and no login. Neither basis
+ * covers the other, which is why no row joins them and why the same address may sit in both.
  *
  * Sold on a specific thing rather than "updates", because "join our newsletter" is a request for a
  * favour and this should be an exchange.
@@ -806,9 +817,11 @@ export const outcomes = {
 
 export const footer = {
   // "no email address is ever kept" stood here until the red-team pass: quoted alone — and footers
-  // get quoted — it was false on its face, on a page carrying three email forms. The one sentence
-  // that dropped the app-vs-website distinction the privacy section is built on.
+  // get quoted — it was false on its face, on a page carrying three email forms. Then "the app
+  // never asks for an email address" went the same way in issue #95, for being false of the app
+  // too. A footer sentence has to survive being quoted with nothing around it, so what is left is
+  // only what holds on its own.
   note:
-    "eait is built in Berlin. Your photos stay with your diary and leave with it, the app never asks " +
-    "for an email address, and no advertising, cookie or third-party script runs on this page.",
+    "eait is built in Berlin. Your photos stay with your diary and leave with it, the app works " +
+    "without an account at all, and no advertising, cookie or third-party script runs on this page.",
 } as const;

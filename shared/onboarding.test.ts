@@ -102,7 +102,10 @@ describe("the shipped copy", () => {
     // screenshots.
     const words = JSON.stringify(DEFAULT_ONBOARDING_CONTENT).toLowerCase();
 
-    expect(words).toContain("no email");
+    // "No email" was a trust point here until issue #95, when sign-in started asking both
+    // providers for the address. A promise the product no longer keeps is worse than no promise,
+    // and this is the copy four E2E flows read — including the one that shoots the screenshots.
+    expect(words).not.toContain("no email");
     for (const competitor of ["cal ai", "calai", "myfitnesspal", "noom", "yazio", "lose it"]) {
       expect(words).not.toContain(competitor);
     }
@@ -256,6 +259,48 @@ describe("validation refuses what would break the app", () => {
     expect(validateOnboardingContent("nope").ok).toBe(false);
     expect(validateOnboardingContent({ version: 1 }).ok).toBe(false);
     expect(validateOnboardingContent({ version: 0, screens: [], summary: {} }).ok).toBe(false);
+  });
+});
+
+describe("the retired privacy promise cannot come back", () => {
+  // Issue #95. Sign-in asks both providers for the address now, so "No email, no name." is false.
+  // It is guarded on the WRITE, because an admin can type it back in, and on the READ, because a
+  // host that saved it BEFORE the binary changed would otherwise serve it for ever — the stored
+  // revision wins over the compiled default, and re-shipping the app does not touch it.
+  const withWelcome = (lines: string[]) => {
+    const c = clone(DEFAULT_ONBOARDING_CONTENT);
+    c.welcome.lines = lines;
+    return c;
+  };
+
+  it("refuses the write, naming the claim", () => {
+    const out = validateOnboardingContent(withWelcome(["No email, no name.", "Ready?"]));
+    expect(out.ok).toBe(false);
+    if (out.ok) return;
+    expect(out.errors.join("\n")).toContain("retired-no-email");
+  });
+
+  it("refuses it anywhere in the revision, not only in the welcome", () => {
+    const c = clone(DEFAULT_ONBOARDING_CONTENT);
+    c.summary.disclaimer = "Estimates. We never ask for your email.";
+    expect(validateOnboardingContent(c).ok).toBe(false);
+  });
+
+  it("falls back to the shipped welcome when a STORED revision still carries it", () => {
+    // The half that repairs a host which saved the sentence before this shipped. Narrow on
+    // purpose: the welcome block is swapped, and the admin's other copy survives.
+    const stored = withWelcome(["No email, no name.", "Ready?"]);
+    stored.summary.cta = "Admin's own words";
+
+    const served = usableContent(stored);
+    expect(served.welcome.lines).toEqual(DEFAULT_ONBOARDING_CONTENT.welcome.lines);
+    expect(served.summary.cta).toBe("Admin's own words");
+  });
+
+  it("leaves the true sentences that replaced it alone", () => {
+    // The rule matches the CLAIM, not the subject. These are what the product says now.
+    const c = withWelcome(["We email you about your account.", "Your email address is erased with it."]);
+    expect(validateOnboardingContent(c).ok).toBe(true);
   });
 });
 

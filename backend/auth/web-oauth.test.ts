@@ -68,13 +68,16 @@ describe("where each one sends a browser", () => {
       .toBe("https://appleid.apple.com/auth/authorize");
   });
 
-  it("asks Google for the account chooser and Apple for nothing extra", () => {
+  it("asks Google for the account chooser and Apple for a form_post callback", () => {
     // Apple's extras are EMPTY on purpose: `response_mode` is the one that matters, and it must
     // stay unset. Apple requires `form_post` the moment a scope is requested, and a cross-site POST
     // carries no SameSite=Lax cookie — which is the state check this surface is built on.
     expect(googleWebProvider(GOOGLE.id, GOOGLE.secret).extraAuthorizeParams)
       .toEqual({ prompt: "select_account" });
-    expect(appleWebProvider({ ...APPLE, privateKeyPem: "pem" }).extraAuthorizeParams).toEqual({});
+    // Apple REQUIRES `form_post` the moment the scope contains `email`, and the callback route
+    // bridges that POST back to a GET so the Lax state cookie is still what guards it.
+    expect(appleWebProvider({ ...APPLE, privateKeyPem: "pem" }).extraAuthorizeParams)
+      .toEqual({ response_mode: "form_post" });
   });
 
   it("uses the Service ID as Apple's client id, which is also the aud it will verify", () => {

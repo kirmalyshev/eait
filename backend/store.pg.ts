@@ -249,6 +249,11 @@ create table if not exists identities (
 );
 create index if not exists identities_user_idx on identities(user_id);
 
+-- The address the provider vouched for, since 2026-09-06 (issue #95). NULLABLE and usually null:
+-- Apple sends one only on the first authorization ever, so every account linked before the scope
+-- was requested has none and never will. Goes with the account, because the row does.
+alter table identities add column if not exists email text;
+
 -- device_id predates the identities table. Kept nullable so a user who signs in with Apple on a
 -- fresh install has an account without a fabricated device id.
 -- (No backticks anywhere in this string: it is a template literal, and one would end it.)
@@ -765,12 +770,13 @@ export async function postgresStore(
 
     async identityFor(provider, subject) {
       const rows = await sql`
-        select user_id, linked_at from identities
+        select user_id, linked_at, email from identities
         where provider = ${provider} and subject = ${subject}`;
       if (rows.length === 0) return null;
       return {
         userId: String(rows[0].user_id),
         linkedAt: new Date(rows[0].linked_at as string).toISOString(),
+        email: (rows[0].email as string | null) ?? null,
       };
     },
 
@@ -785,6 +791,13 @@ export async function postgresStore(
       if (String(rows[0].user_id) !== userId) {
         throw new Error("identity already linked to another account");
       }
+    },
+
+    async setIdentityEmail(userId, provider, subject, email) {
+      // `user_id` in the WHERE, not checked after a read: the scope is what makes this safe, and a
+      // row that belongs to another account simply matches nothing.
+      await sql`update identities set email = ${email}
+                where provider = ${provider} and subject = ${subject} and user_id = ${userId}`;
     },
 
     async removeIdentity(userId, provider, subject) {

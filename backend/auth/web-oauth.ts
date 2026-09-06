@@ -137,13 +137,16 @@ export function appleWebProvider(key: AppleWebKey): WebSignInProvider {
   return {
     clientId: key.serviceId,
     authorizeEndpoint: APPLE_AUTHORIZE,
-    // NO `response_mode`, WHICH IS ONLY LEGAL BECAUSE WE ASK FOR NO SCOPES. Apple requires
-    // `form_post` the moment `scope` contains `name` or `email`, and a form POST from
-    // appleid.apple.com is cross-site, so the `SameSite=Lax` state cookie would not be sent with it
-    // — the CSRF defence this whole surface is built on. Asking for nothing keeps the callback a
-    // plain GET with a query string, identical in shape to Google's. The privacy rule and the
-    // security shape are the same decision.
-    extraAuthorizeParams: {},
+    // `form_post`, WHICH ASKING FOR `email` OBLIGES. Apple requires it the moment `scope` contains
+    // `name` or `email`, and a form POST from appleid.apple.com is cross-site — so the
+    // `SameSite=Lax` state cookie is NOT sent with it, and the CSRF defence this whole surface is
+    // built on would have nothing to compare against.
+    //
+    // What saves it is that Lax cookies ARE sent on a cross-site top-level GET. `/start` answers
+    // this POST with a 303 to the same path as a GET, and the state check runs there, on a request
+    // that has the cookie — see the bridge in `web/start.ts`. The alternative was a
+    // `SameSite=None` state cookie, which weakens every request on this surface to buy back one.
+    extraAuthorizeParams: { response_mode: "form_post" },
     exchange: async (code, redirectUri) => exchangeAt(APPLE_TOKEN, "apple", {
       code,
       client_id: key.serviceId,

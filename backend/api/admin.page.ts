@@ -121,7 +121,8 @@ export const ADMIN_PAGE = `<!doctype html>
     The first thing anyone sees. The lines under the title are what we do NOT ask for — do not name a
     competitor there, do not write "free", and do not promise away the card, the trial or the
     cancelling: the app sells a subscription behind a seven-day trial, so those are no longer true.
-    "No email, no name" is, and always will be.
+    Nor is "no email" — signing in asks Apple and Google for the address. What is still true is that
+    the whole app works without an account at all.
   </p>
   <div id="welcome"></div>
 

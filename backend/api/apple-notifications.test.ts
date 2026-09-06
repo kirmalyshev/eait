@@ -279,8 +279,9 @@ describe("account-delete", () => {
 
 describe("the events this server does not act on", () => {
   it("ignores email-disabled and email-enabled", async () => {
-    // No provider email is ever requested or stored (`requestedScopes: []`), so there is nothing
-    // these could update. They are acknowledged rather than refused, or Apple keeps sending them.
+    // The signal is real since issue #95 — they say whether the relay in front of a stored
+    // address still forwards — and is deliberately not acted on while nothing reads that column.
+    // Acknowledged rather than refused, or Apple keeps sending them.
     const { userId, token } = await appleOnlyAccount("email-sub");
 
     for (const type of ["email-disabled", "email-enabled"]) {

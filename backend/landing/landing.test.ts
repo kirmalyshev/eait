@@ -656,11 +656,16 @@ describe("the mailing list on the page", () => {
     }
   });
 
-  test("the privacy copy no longer claims the product holds no address anywhere", () => {
-    // The old sentence — "there is no address here to leak" — stopped being true the moment a form
-    // existed. The claim has to name which half it is about.
-    expect(html).toContain("The app never asks for your email");
+  test("the privacy copy names what sign-in takes, and claims nothing wider", () => {
+    // Two sentences have been retired here for being false of the shipped product: "there is no
+    // address here to leak" the moment a form existed on this page, and "the app never asks for
+    // your email" when sign-in started asking (issue #95). Neither may come back, in the footer
+    // or anywhere else.
+    expect(html).toContain("hands over an identifier and your email address");
     expect(html).not.toContain("no address here to leak");
+    for (const retired of ["never asks for your email", "never asks for an email address"]) {
+      expect(html).not.toContain(retired);
+    }
   });
 
   test("the page says out loud that deleting an account does not leave the list", () => {

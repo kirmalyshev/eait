@@ -70,6 +70,24 @@ export async function signInWithProvider(
     outcome = "switched";
   }
 
+  // THE ADDRESS, ON WHICHEVER ACCOUNT THE BRANCHES ABOVE LANDED ON. After the branch and not
+  // inside it, because four of the five outcomes can carry one and only two of them link anything
+  // — a returning user (`switched`) adds no identity at all, and that is the ONLY path an account
+  // linked before the scope was requested will ever take again.
+  //
+  // Absent means absent: Apple sends an address on the first authorization and never again, so a
+  // token without one says nothing about the user and must not overwrite what is stored.
+  //
+  // IT NEVER FAILS THE SIGN-IN, the same rule the thread write follows and for a harder reason.
+  // By the time this runs the account has been created, the identity linked, and — on the `merged`
+  // path — the anonymous account's meals MOVED and its device identity dropped. All of that is
+  // committed and none of it is repeatable. A throw here reaches `api/routes.ts` as something
+  // other than an `AuthError`, so the client gets a 500 and "sign-in didn't complete", and the
+  // retry lands on `switched` with the merge already done. For Apple that also spends the address
+  // permanently: it arrives in the FIRST authorization and in no later one. An address is worth
+  // less than the account it belongs to, so a store failure is logged and the turn continues.
+  await recordEmail(deps, userId, provider, verified, outcome);
+
   const token = await deps.store.issueToken(userId);
   const profile = await deps.store.getProfile(userId);
 
@@ -80,6 +98,37 @@ export async function signInWithProvider(
     onboarded: profile?.onboarded_at !== null && profile !== null,
     ...(mergedMeals !== undefined ? { mergedMeals } : {}),
   };
+}
+
+/**
+ * Store the address, and say so in the log when there was not one.
+ *
+ * THE ABSENT PATH IS LOGGED because nothing reads this column back. A client upgrade that stops
+ * requesting the scope, a Google client whose grant changes, or Apple altering the verified-email
+ * shape all land here as a silent false branch on a successful sign-in — and every Apple user who
+ * signs in during that window spends their one first authorization and can never be asked again.
+ * Only `created` and `linked` are worth a line: `switched` and `already` are the ordinary returning
+ * user, whose token carries no Apple address by design and would otherwise log on every sign-in.
+ */
+async function recordEmail(
+  deps: EngineDeps,
+  userId: string,
+  provider: "apple" | "google",
+  verified: { subject: string; email?: string },
+  outcome: LinkOutcome,
+): Promise<void> {
+  if (verified.email === undefined) {
+    if (outcome === "created" || outcome === "linked") {
+      console.warn(`[eait] ${provider} sign-in (${outcome}) carried no verified address`);
+    }
+    return;
+  }
+  try {
+    await deps.store.setIdentityEmail(userId, provider, verified.subject, verified.email);
+  } catch (e) {
+    // Never the address itself in the log — it is the personal datum this whole change is about.
+    console.error(`[eait] ${provider} address not stored: ${(e as Error)?.message ?? e}`);
+  }
 }
 
 /** What is linked to this account, for the settings screen. */

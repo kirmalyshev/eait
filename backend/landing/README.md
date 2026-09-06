@@ -167,10 +167,13 @@ bundle. The API needs `EAIT__BACKEND__LANDING_URL` for that; without it the rout
 Anti-spam is a honeypot field plus a global daily cap. Not a CAPTCHA: that is a third-party script
 on a page whose argument is that it loads none.
 
-**The list is deliberately not joined to accounts.** `subscribers` has no foreign key to `users`,
-which is what keeps "the app never stores your email" literally true — and means deleting an account
-does not leave the list. That is stated on the page and in the privacy policy rather than left to be
-discovered.
+**The list is deliberately not joined to accounts.** `subscribers` has no foreign key to `users`.
+Since issue #95 an account carries an address too, so the two may well hold the same one — and they
+are still separate things, held for different reasons and left in different ways. Neither basis
+covers the other, so nothing reconciles, deduplicates or reads them together, and deleting an
+account does not leave the list. That is stated on the page and in the privacy policy rather than
+left to be discovered. The privacy section's own copy must keep saying which half each claim is
+about; two sentences have already been retired here for being read as the wider one.
 
 ## Configuration
 

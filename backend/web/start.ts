@@ -58,6 +58,16 @@ const SESSION_COOKIE = "eait_web";
 const OAUTH_COOKIE = "eait_oauth";
 const OAUTH_TTL_S = 600;
 
+/**
+ * The most Apple's `form_post` callback may weigh.
+ *
+ * It carries `code`, `state` and, on a first authorization, a small `user` JSON — hundreds of
+ * bytes. 8 KB is generous for that and small enough that the free, unauthenticated, unlimited
+ * calls this route accepts cost nothing to refuse. A body with no declared length is refused too:
+ * the number is what makes the decision cheap, and Apple always sends one.
+ */
+const CALLBACK_MAX_BYTES = 8 * 1024;
+
 export function isStartPath(pathname: string): boolean {
   return pathname === START_PREFIX || pathname.startsWith(`${START_PREFIX}/`);
 }
@@ -144,6 +154,15 @@ const clearCookie = (name: string, secure: boolean): string =>
   `${setCookie(name, "", { secure, maxAge: 0 })}`;
 
 const randomToken = (): string => crypto.randomUUID().replace(/-/g, "");
+
+/**
+ * What a bridged POST that cannot be forwarded answers.
+ *
+ * The same 303 shape as a forwarded one, to the SAME path with no parameters, so the GET below
+ * takes its ordinary `code === ""` exit and lands on the front door with the error. A refusal that
+ * looked different would tell a stranger which of the two rejected them.
+ */
+const failedCallback = (pathname: string): Response => seeOther(pathname);
 
 /** The questions this surface asks: every prompt that fills a profile field, in the app's order. */
 function questionsFor(profile: Profile, content: OnboardingContent): ChatPrompt[] {
@@ -255,6 +274,45 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   }
 
   // ── Sign in ───────────────────────────────────────────────────────────────────────────────
+  // APPLE POSTS ITS CALLBACK, and that POST is cross-site, so it carries no `SameSite=Lax` cookie
+  // and the state check below would have nothing to compare against. Asking for the email scope is
+  // what obliges `response_mode=form_post` (`auth/web-oauth.ts`), so this is not optional.
+  //
+  // The answer is a 303 to the SAME path as a GET: a Lax cookie IS sent on a cross-site top-level
+  // GET, so the browser's next request has it and every check runs unchanged, on the one route
+  // that was already written to expect a `code` and a `state` in the query. Nothing is granted
+  // here — no session, no cookie, not even the rate-limit charge, all of which belong to the
+  // request that can actually be checked. A forged POST therefore buys a redirect to a route that
+  // refuses it.
+  const postedCallback = req.method === "POST" ? AUTH_PATH.exec(pathname) : null;
+  if (postedCallback?.[2] !== undefined) {
+    if (!ctx.providers[postedCallback[1] as WebProvider]) return notFound();
+    // CHECKED BEFORE PARSING, the rule `api/routes.ts` states on the photo route: `req.formData()`
+    // buffers the whole body into memory, so a size check after it has run protects nothing. This
+    // request is unauthenticated, cross-site and — deliberately — not rate limited, because the
+    // allowance belongs to the GET that can actually be checked. That makes it the one route on
+    // this server a stranger can call for free at any rate, so it must stay cheap: Apple posts a
+    // few hundred bytes of urlencoded form, and anything that is not that shape is refused
+    // without being read.
+    const length = req.headers.get("content-length");
+    const declared = length === null ? NaN : Number(length);
+    const contentType = req.headers.get("content-type") ?? "";
+    if (!Number.isFinite(declared) || declared > CALLBACK_MAX_BYTES
+        || !contentType.startsWith("application/x-www-form-urlencoded")) {
+      return failedCallback(pathname);
+    }
+    const form = await req.formData().catch(() => null);
+    const carried = new URLSearchParams();
+    for (const key of ["code", "state", "error"]) {
+      const value = form?.get(key);
+      if (typeof value === "string") carried.set(key, value);
+    }
+    // Apple also posts `user` on the first authorization: the name and address it collected. It is
+    // not read, here or anywhere — the address this product stores comes out of the SIGNED id
+    // token in the exchange, and a JSON blob in a form body is not a claim anybody verified.
+    return seeOther(`${pathname}?${carried.toString()}`);
+  }
+
   const authMatch = req.method === "GET" ? AUTH_PATH.exec(pathname) : null;
   if (authMatch) {
     const name = authMatch[1] as WebProvider;
@@ -276,15 +334,14 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         client_id: provider.clientId,
         redirect_uri: redirectUri,
         response_type: "code",
-        // OPENID AND NOTHING ELSE, for BOTH of them. `profile` and `email` are what Google's own
-        // libraries add by default and what Apple's documentation shows first, and asking for
-        // either would put "See your primary email address" on the consent screen of a product
-        // whose first promise is that it asks for neither.
+        // `openid email`, for BOTH of them, since issue #95 — the address is what makes a
+        // signed-in account reachable. NOT `profile`, which both vendors' own libraries add by
+        // default: it puts a name and a picture on the consent screen and in the token, two
+        // personal fields nothing in this product reads.
         //
-        // For Apple it is load-bearing twice over: a non-empty scope obliges `response_mode=
-        // form_post`, and a cross-site POST carries no `SameSite=Lax` cookie — see
-        // `auth/web-oauth.ts`.
-        scope: "openid",
+        // The email scope is what obliges Apple's `response_mode=form_post`, and the bridge at the
+        // top of this function is what keeps that from costing the Lax state cookie.
+        scope: "openid email",
         nonce,
         state,
       }).toString();

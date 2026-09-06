@@ -840,6 +840,66 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.identityFor("apple", subject("never-linked"))).toBeNull();
     });
 
+    it("stores the address against the identity that carried it", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.addIdentity(u, "apple", subject("mail"));
+      expect((await s.identityFor("apple", subject("mail")))?.email).toBeNull();
+
+      await s.setIdentityEmail(u, "apple", subject("mail"), "a@example.com");
+      expect((await s.identityFor("apple", subject("mail")))?.email).toBe("a@example.com");
+    });
+
+    it("lets a later address replace the one stored", async () => {
+      // Google sends an address in EVERY token, so a changed one catches up on the next sign-in.
+      // The other half of that rule — an ABSENT address must never overwrite a stored one — is not
+      // testable here and is not the store's to keep: this port takes no null, and the caller that
+      // decides is `signInWithProvider`, where `identity.test.ts` pins it.
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.addIdentity(u, "apple", subject("once"));
+      await s.setIdentityEmail(u, "apple", subject("once"), "first@example.com");
+      await s.setIdentityEmail(u, "apple", subject("once"), "second@example.com");
+      expect((await s.identityFor("apple", subject("once")))?.email).toBe("second@example.com");
+    });
+
+    it("never CREATES an identity for a subject nobody has linked", async () => {
+      // The rule the other three tests here do not reach, and the one a rewrite would break:
+      // "record the address" reads like an upsert, and an upsert would fabricate an identity row
+      // whose user id came from a request. Postgres satisfies this because the update matches
+      // nothing and the memory store because a find returns undefined — neither is a guarantee
+      // until something asserts it on both.
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+
+      await s.setIdentityEmail(u, "apple", subject("never-linked-at-all"), "ghost@example.com");
+
+      expect(await s.identityFor("apple", subject("never-linked-at-all"))).toBeNull();
+      expect((await s.listIdentities(u)).some((i) => i.provider === "apple")).toBe(false);
+    });
+
+    it("refuses to write an address onto another account's identity", async () => {
+      // The same scoping rule every other write here follows. The subject arrives from a verified
+      // token, but the account is the caller's, and the two must agree.
+      const s = await open();
+      const mine = (await s.upsertDeviceUser(device(), "en")).userId;
+      const theirs = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.addIdentity(theirs, "google", subject("not-mine"));
+
+      await s.setIdentityEmail(mine, "google", subject("not-mine"), "attacker@example.com");
+      expect((await s.identityFor("google", subject("not-mine")))?.email).toBeNull();
+    });
+
+    it("erases the address with the account", async () => {
+      const s = await open();
+      const u = await s.createUser("en");
+      await s.addIdentity(u, "apple", subject("erased"));
+      await s.setIdentityEmail(u, "apple", subject("erased"), "gone@example.com");
+
+      await s.deleteUser(u);
+      expect(await s.identityFor("apple", subject("erased"))).toBeNull();
+    });
+
     it("deletes the account in the SAME step when the identity was the last way in", async () => {
       // Not two calls. Two deliveries for one subject interleave between a read and a write, and
       // the account that gets erased is one a device could still have reached.

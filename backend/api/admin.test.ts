@@ -146,7 +146,7 @@ describe("editing the copy", () => {
 
   it("saves the interstitials and serves them to the app", async () => {
     const content = structuredClone(DEFAULT_ONBOARDING_CONTENT);
-    content.welcome.lines = ["Photograph dinner. Get a straight answer.", "No email, no name."];
+    content.welcome.lines = ["Photograph dinner. Get a straight answer.", "No account needed to start."];
     content.building.floorLabel = "Stopped at your floor";
     content.summary.projection = "Roughly {weeks} weeks — {month}.";
 
@@ -157,7 +157,7 @@ describe("editing the copy", () => {
       headers: { authorization: `Bearer ${token}` },
     }));
     const body = await res.json() as { content: OnboardingContent };
-    expect(body.content.welcome.lines).toEqual(["Photograph dinner. Get a straight answer.", "No email, no name."]);
+    expect(body.content.welcome.lines).toEqual(["Photograph dinner. Get a straight answer.", "No account needed to start."]);
     expect(body.content.building.floorLabel).toBe("Stopped at your floor");
     expect(body.content.summary.projection).toBe("Roughly {weeks} weeks — {month}.");
   });

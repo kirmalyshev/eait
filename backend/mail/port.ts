@@ -7,10 +7,12 @@
 // vendor, an account or a billed call, and the flow is where this product's own bugs would live.
 // A test that needs an API key is a test that runs on one machine.
 //
-// It is deliberately ONE method. This is not a mail layer and must not become one — the app has no
-// email address for any user (`auth/verify.ts` discards what the providers volunteer), so there is
-// nobody here to send anything to except a person who typed their address into a form on the
-// marketing page and has not yet said they meant it.
+// It is deliberately ONE method. This is not a mail layer and must not become one. An ACCOUNT does
+// carry an address since issue #95, but nothing sends to it from here or on a schedule — it is
+// held to run the account and written to by a person — so the only recipient this port has is
+// somebody who typed their address into a form on the marketing page and has not yet said they
+// meant it. Sending to account addresses from a program is a second basis, a second way out and a
+// second thing to keep lawful; it does not arrive by adding a method here.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 export interface Mailer {

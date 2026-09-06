@@ -30,7 +30,8 @@ export const PAGE_COPY = {
   frontDoorLead:
     "Set up your account here, then open the app already signed in. It takes about three minutes.",
   frontDoorPrivacy:
-    "We ask for an identifier and nothing else — no email address, no name, no contacts.",
+    "We ask for an identifier and your email address — no name, no contacts. We write to it about " +
+    "your account, and now and then to ask whether you would talk to us about the app.",
   planHeading: "Your plan",
   planLead: "This is what the app will hold you to. You can change any answer later, in the app.",
   planFloor:

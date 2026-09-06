@@ -190,10 +190,12 @@ export const ROUTES = {
   // unauthenticated, and they take FORM ENCODING rather than JSON — because the page that posts to
   // them carries no JavaScript, and a plain <form> is the only way to submit without any.
   //
-  // A subscriber is deliberately NOT a user. There is no row linking the two, and there cannot be:
-  // the app's promise is that it never stores an email address, and that stays literally true
-  // because this list lives beside the accounts rather than inside them. It also means leaving the
-  // list is its own action with its own token, not something buried in account deletion.
+  // A subscriber is deliberately NOT a user. There is no row linking the two, and there cannot be.
+  // Since issue #95 an account carries an address as well, and the difference is the whole design:
+  // that one belongs to an account, is held to run it, and is erased with it, while a subscriber
+  // has no account and consented to one specific thing — being told when the app ships. Neither
+  // basis covers the other. It also means leaving the list is its own action with its own token,
+  // not something buried in account deletion.
   /** POST, form-encoded, unauthenticated. Fields: `email`, and the honeypot `company`. */
   subscribe: "/v1/subscribe",
   /**
@@ -217,7 +219,9 @@ export const ROUTES = {
  * a real scheme "is its own decision and its own doc". This is that decision.
  *
  * A client generates a random device id once, keeps it in the Keychain (`expo-secure-store`), and
- * trades it for a bearer token. No email, no password, no card — which is not laziness: the largest
+ * trades it for a bearer token. Nothing is asked of the user on this path — no address, no
+ * password, no card (signing in DOES take an address; this is the path that does not) — which is
+ * not laziness: the largest
  * complaint cluster against the incumbent, by a factor of four, is the card-first trial (238
  * reviews). Nothing to cancel is a product property, and it starts here.
  */

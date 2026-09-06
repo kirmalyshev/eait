@@ -36,6 +36,7 @@
 import type { Profile } from "./types.ts";
 import { ACTIVITY_LEVELS, PACES } from "./types.ts";
 import { RESTRICTION_TAGS } from "./targets.ts";
+import { lintCopy } from "./claims.ts";
 
 // ── Steps: the fields ────────────────────────────────────────────────────────────────────────
 
@@ -272,14 +273,16 @@ export interface OnboardingScreenContent {
  * pattern: the harder a paywall sits in front of first value, the more the reviews reach for
  * "scam", "misleading", "tricked".
  *
- * This app has no email field and never will. It DOES get a paywall (decision 2026-08-24,
+ * This app has no email field of its own. It DOES get a paywall (decision 2026-08-24,
  * marketing/DECISIONS.md): at the very end, after the first photo's verdict, behind a 7-day trial —
  * never in front of the number or the first verdict, which is what §3 says must not be withheld.
  *
- * THE BILLING BEAT INVERTED WHEN THE PAYWALL SHIPPED, and the copy below has caught up. "No card,
- * no email, no name — nothing to cancel later" was the welcome's first trust point and was true
- * right up until a seven-day trial existed; a trial takes a card, and there is then something to
- * cancel. What survives is the half that is still true and always will be: no email, no name.
+ * THE TRUST POINT HAS BEEN NARROWED TWICE, and each time by something that shipped. "No card, no
+ * email, no name — nothing to cancel later" was the welcome's first line: the paywall took the
+ * card and the cancelling (a trial takes one, and there is then something to cancel), and issue
+ * #95 took the email, because sign-in now asks both providers for the address. What is left is the
+ * half that is still true — you can use the whole app without an account at all — and it is the
+ * half that was always doing the work.
  *
  * THREE RULES ON THE WORDING, all enforced by a test over the WHOLE of the content below — a rule
  * that reads one screen is a rule that moves the sentence to the next one:
@@ -450,13 +453,19 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // flow with an eleven-place one. The words did not change; the FLOW they are counted against
   // did, and that is the same join the number exists for. v8 rewrites the welcome's second and
   // third lines: the verdict is named before the questions, and the billing sentence is the
-  // landing's.
-  version: 8,
+  // landing's. v9 (issue #95) replaces the welcome's opening claim: "No email, no name." became
+  // "No account needed to start.", because sign-in now asks Apple and Google for the address and
+  // the old sentence was a privacy promise the product had stopped keeping. It is the most
+  // consequential copy change this file has had, so a funnel row tagged v8 and one tagged v9 were
+  // answering under different promises — which is exactly what this number exists to keep apart.
+  // The claim cannot come back: `retired-no-email` in `claims.ts` refuses it on the admin write,
+  // and `usableWelcome` refuses a stored revision that still carries it on the read.
+  version: 9,
   welcome: {
     lines: [
       "Hi, I'm Spud. Photograph what you eat, get an honest answer — that's the whole app.",
       "Three minutes of questions, then your plan — daily calories, protein, what's realistic by when — and a verdict on your first meal.",
-      "No email, no name. Nothing to pay until you've seen the plan and that first verdict; after that it's a week free to try. Ready?",
+      "No account needed to start. Nothing to pay until you've seen the plan and that first verdict; after that it's a week free to try. Ready?",
     ],
     cta: "Let's go",
   },
@@ -629,6 +638,41 @@ const isStr = (v: unknown): v is string => typeof v === "string";
  *   - an over-long line                   → a bubble clipped on a 5.4-inch phone, invisible on the
  *                                           reviewer's device and on ours
  */
+/**
+ * The claim rules that are DECIDABLE on onboarding copy.
+ *
+ * Not the marketing set: this surface's own honest answers are "Lose weight" and "Diabetes", and
+ * `weight-promise` and `disease-term` cannot tell those from a claim. The root AGENTS.md names
+ * that exact problem as the reason the web gate covers `PAGE_COPY` and not the rendered page.
+ * What IS decidable here is a promise the product has retired, because those are fixed strings
+ * with no legitimate use left.
+ */
+const ONBOARDING_CLAIM_RULES = ["retired-no-email"] as const;
+
+/**
+ * Every sentence in a revision that a user will read, keyed well enough to find it again.
+ *
+ * Walks the whole structure rather than naming fields, because a rule that reads one screen is a
+ * rule that moves the sentence to the next one — the same reason `onboarding.test.ts` scans the
+ * serialized default instead of the welcome alone. Non-strings are skipped; ids and version are
+ * not copy.
+ */
+function claimFields(raw: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  const walk = (node: unknown, at: string) => {
+    if (typeof node === "string") { out[at] = node; return; }
+    if (Array.isArray(node)) { node.forEach((v, i) => walk(v, `${at}[${i}]`)); return; }
+    if (typeof node === "object" && node !== null) {
+      for (const [k, v] of Object.entries(node)) {
+        if (k === "id") continue;
+        walk(v, at === "" ? k : `${at}.${k}`);
+      }
+    }
+  };
+  walk(raw, "");
+  return out;
+}
+
 export function validateOnboardingContent(input: unknown): ContentValidation {
   const errors: string[] = [];
   const push = (m: string) => { errors.push(m); };
@@ -778,6 +822,14 @@ export function validateOnboardingContent(input: unknown): ContentValidation {
     }
   }
 
+  // THE CLAIMS GATE, the same one the notification copy and the landing page run. Onboarding copy
+  // is the third editable public surface: an admin can write anything into it and it reaches every
+  // phone that fetches a revision. `retired-no-email` is why this is here — "No email, no name."
+  // was Spud's third welcome bubble until issue #95, and nothing stopped an admin typing it back.
+  for (const v of lintCopy(claimFields(raw), ONBOARDING_CLAIM_RULES)) {
+    errors.push(`${v.field} contains a ${v.pattern} claim: "${v.span}"`);
+  }
+
   if (errors.length > 0) return { ok: false, errors };
   return {
     ok: true,
@@ -856,9 +908,21 @@ function usableBlock<T extends { lines?: unknown }>(block: T | undefined, keys: 
   return keys.every((k) => typeof b[k] === "string" && b[k] !== "");
 }
 
+/**
+ * A stored welcome is usable when it is shaped right AND makes no claim the product has retired.
+ *
+ * THE SECOND HALF IS THE READ-SIDE HALF OF THE WRITE GATE, and without it the write gate fixes
+ * nothing that is already saved. `onboardingContent` returns the STORED revision and falls back to
+ * the compiled default only when one is unusable, so a host whose admin saved "No email, no name."
+ * before issue #95 would go on serving it after the binary that retired it shipped — indefinitely,
+ * and re-shipping the app would not change it. Refusing it here swaps THAT BLOCK for the shipped
+ * one and leaves the rest of the admin's revision alone, which is the narrowest repair available.
+ */
 function usableWelcome(w: OnboardingWelcomeContent | undefined): w is OnboardingWelcomeContent {
-  return typeof w === "object" && w !== null
-    && Array.isArray(w.lines) && w.lines.length > 0 && typeof w.cta === "string" && w.cta !== "";
+  if (typeof w !== "object" || w === null) return false;
+  if (!Array.isArray(w.lines) || w.lines.length === 0) return false;
+  if (typeof w.cta !== "string" || w.cta === "") return false;
+  return lintCopy(claimFields({ lines: w.lines, cta: w.cta }), ONBOARDING_CLAIM_RULES).length === 0;
 }
 
 // ── Analytics ────────────────────────────────────────────────────────────────────────────────

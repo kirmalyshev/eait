@@ -164,10 +164,18 @@ export async function appleNotifications(
     return json({ ok: true });
   }
 
-  // `email-disabled` and `email-enabled` land here and do nothing, deliberately. No provider email
-  // is ever requested or stored (`requestedScopes: []`), so there is nothing they could update —
-  // and an unknown future type does nothing for the same reason it is acknowledged: this server
-  // acts on what it understands and stops being told the rest.
+  // `email-disabled` and `email-enabled` land here and do nothing. Since issue #95 an Apple
+  // address IS stored, and these say whether the private relay in front of it still forwards — so
+  // the signal is real and is deliberately not acted on yet. Nothing reads the address column at
+  // all: the first outreach round is a person running a query, and a person reading a bounce
+  // learns the same thing.
+  // ponytail: dropped signal, and the ceiling is that a disabled relay is indistinguishable from a
+  // typo or a full mailbox. Store a deliverability flag against the identity when outreach becomes
+  // something a program does — Apple tells us for free and months earlier, so it is worth having
+  // then, and it is a feature with no reader now.
+  //
+  // An unknown future type does nothing for the same reason it is acknowledged: this server acts
+  // on what it understands and stops being told the rest.
   if (REVOCATIONS.has(event.type)) {
     const outcome = await revokeAppleIdentity(deps, event.subject, event.eventTimeMs);
     console.log(`[eait] apple: ${event.type} → ${outcome}`);

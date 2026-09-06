@@ -29,8 +29,14 @@ async function token(opts: {
   expiresIn?: string;
   key?: CryptoKey;
   kid?: string;
+  email?: string;
+  emailVerified?: boolean | string;
 } = {}): Promise<string> {
-  return new SignJWT({ ...(opts.nonce !== undefined ? { nonce: opts.nonce } : {}) })
+  return new SignJWT({
+    ...(opts.nonce !== undefined ? { nonce: opts.nonce } : {}),
+    ...(opts.email !== undefined ? { email: opts.email } : {}),
+    ...(opts.emailVerified !== undefined ? { email_verified: opts.emailVerified } : {}),
+  })
     .setProtectedHeader({ alg: "RS256", kid: opts.kid ?? "test-key-1" })
     .setIssuer(opts.iss ?? APPLE_ISS)
     .setAudience(opts.aud ?? APPLE_AUD)
@@ -80,6 +86,40 @@ describe("the happy path", () => {
   it("accepts a properly signed Google token", async () => {
     const t = await token({ iss: GOOGLE_ISS, aud: GOOGLE_AUD, sub: "google-user-1" });
     expect(await verifier.verify("google", t)).toEqual({ provider: "google", subject: "google-user-1" });
+  });
+});
+
+describe("the email claim", () => {
+  it("returns a verified address", async () => {
+    const t = await token({ sub: "u", email: "a@example.com", emailVerified: true });
+    expect(await verifier.verify("apple", t)).toEqual({
+      provider: "apple", subject: "u", email: "a@example.com",
+    });
+  });
+
+  it("accepts Apple's stringified email_verified", async () => {
+    const t = await token({ sub: "u", email: "a@example.com", emailVerified: "true" });
+    expect((await verifier.verify("apple", t)).email).toBe("a@example.com");
+  });
+
+  it("drops an unverified address rather than storing one that bounces", async () => {
+    const t = await token({ sub: "u", email: "a@example.com", emailVerified: false });
+    expect((await verifier.verify("apple", t)).email).toBeUndefined();
+  });
+
+  it("drops an address with no email_verified claim at all", async () => {
+    const t = await token({ sub: "u", email: "a@example.com" });
+    expect((await verifier.verify("apple", t)).email).toBeUndefined();
+  });
+
+  it("omits the field entirely when the provider sent no address", async () => {
+    const t = await token({ sub: "u" });
+    expect("email" in (await verifier.verify("apple", t))).toBe(false);
+  });
+
+  it("ignores a non-string email", async () => {
+    const t = await token({ sub: "u", email: 42 as unknown as string, emailVerified: true });
+    expect((await verifier.verify("apple", t)).email).toBeUndefined();
   });
 });
 

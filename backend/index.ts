@@ -70,7 +70,13 @@ const verifier: Verifier = demo
       async verify(provider, idToken) {
         const [marker, p, subject] = idToken.split(":");
         if (marker !== "demo" || p !== provider || !subject) throw new AuthError("demo-token-invalid");
-        return { provider, subject };
+        // AN ADDRESS, BECAUSE A REAL TOKEN CARRIES ONE. Without it no demo run, no E2E flow and no
+        // demo `/start` sign-in ever executes the write that stores it — the suite would be green
+        // over a code path it never enters. Same rule the demo analyzer learned: a fake may be
+        // POORER than the real thing, never different in a way a test can see. Derived from the
+        // subject so two demo identities are two addresses, and on `example.com`, which RFC 2606
+        // reserves precisely so nothing can be delivered to it.
+        return { provider, subject, email: `${provider}-${subject}@example.com` };
       },
       // Not faked. Apple's notification is a signature from Apple or it is nothing, and a demo
       // server that accepted an unsigned one would be a place to develop against a check that

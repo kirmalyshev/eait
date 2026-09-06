@@ -1,12 +1,14 @@
 // The mailing list.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────
-// WHY THIS EXISTS AT ALL, ON A PRODUCT THAT REFUSES TO STORE AN EMAIL
+// WHY THIS EXISTS AT ALL, WHEN AN ACCOUNT ALREADY CARRIES AN ADDRESS
 //
-// The app does not ask for an address and never will: `requestedScopes: []`, and `auth/verify.ts`
-// discards whatever a provider volunteers. That is a real promise and the landing page makes it.
+// Since issue #95 signing in stores one. This is still a different thing, and the difference is the
+// whole design: that address belongs to an ACCOUNT, is held to run it, and is erased with it. A
+// subscriber has no account, and consented to one specific thing — being told when the app ships.
 //
-// This is a different thing, and the difference is the whole design. Somebody who reads the page
+// Neither basis covers the other, which is why no row joins them and why the two are never
+// reconciled, deduplicated, or read together. Somebody who reads the page
 // and is not ready to open a chat today has, otherwise, no way to hear about it again — and
 // `marketing/research/2026-07-22-form-factor-research.md` names the list as the only
 // audience asset no platform can take away. So the list exists, and it is kept SEPARATE:

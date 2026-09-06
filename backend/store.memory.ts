@@ -108,7 +108,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const analyses: { userId: string; date: string; scope: "photo" | "text" }[] = [];
   // Append-only and read newest-first, which is the order Postgres reads them in.
   const portionCorrections: (PortionCorrection & { userId: string })[] = [];
-  const identities: { userId: string; provider: Provider; subject: string; linkedAt: string }[] = [];
+  const identities: {
+    userId: string; provider: Provider; subject: string; linkedAt: string; email: string | null;
+  }[] = [];
   const onboardingEvents = new Map<string, StoredEvent>(); // event id -> event
   // `${userId}\n${date}` -> the day. One row per user per date, exactly as in Postgres, so the
   // upsert semantics the tests assert are the semantics production has.
@@ -203,7 +205,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // resolves through and the identity row is what "is anything else still linked" counts, so
       // the two disagreeing is an account device auth can open and `removeIdentity` would delete.
       if (!identities.some((i) => i.provider === "device" && i.subject === deviceId)) {
-        identities.push({ userId, provider: "device", subject: deviceId, linkedAt: new Date().toISOString() });
+        identities.push({
+          userId, provider: "device", subject: deviceId, linkedAt: new Date().toISOString(),
+          email: null,
+        });
       }
       return { userId, created: existing === undefined };
     },
@@ -253,7 +258,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async identityFor(provider, subject) {
       const row = identities.find((i) => i.provider === provider && i.subject === subject);
-      return row ? { userId: row.userId, linkedAt: row.linkedAt } : null;
+      return row ? { userId: row.userId, linkedAt: row.linkedAt, email: row.email } : null;
     },
 
     async addIdentity(userId, provider, subject) {
@@ -262,7 +267,17 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // constraint and the in-memory one must fail the same way or a test proves nothing.
       if (clash && clash.userId !== userId) throw new Error("identity already linked to another account");
       if (clash) return;
-      identities.push({ userId, provider, subject, linkedAt: new Date().toISOString() });
+      identities.push({
+        userId, provider, subject, linkedAt: new Date().toISOString(), email: null,
+      });
+    },
+
+    async setIdentityEmail(userId, provider, subject, email) {
+      // Scoped by `userId`: a row belonging to another account is not this caller's to write.
+      const row = identities.find(
+        (i) => i.provider === provider && i.subject === subject && i.userId === userId,
+      );
+      if (row) row.email = email;
     },
 
     async removeIdentity(userId, provider, subject) {
