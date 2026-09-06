@@ -245,7 +245,7 @@ export function loadLandingConfig(env: Record<string, string | undefined>): Land
  * on the one day the copy had actually moved. Changing public words and not touching this line is
  * the mistake to watch for.
  */
-export const DEFAULT_UPDATED_AT = "2026-09-02";
+export const DEFAULT_UPDATED_AT = "2026-09-06";
 
 /**
  * Attribution codes, appended to the bot link as `?start=<code>`.
@@ -315,7 +315,7 @@ export function primaryCta(
     return {
       href: withStartCode(config.appStoreUrl, placement),
       label: "Get eait for iPhone",
-      note: "No card to see it work. Your photo stays with the meal, erased with your account.",
+      note: "See it work before you give a card. Your photo stays with the meal and leaves with your account.",
     };
   }
   return {
@@ -370,13 +370,7 @@ export function secondaryCta(
 export function surfaceNote(config: LandingConfig): string | null {
   if (config.appStoreUrl) return null;
   if (primaryAction(config) === "form") {
-    return (
-      "The iPhone app is not out yet — everything on this page describes it. Leave an email and " +
-      "you hear the day it ships."
-    );
+    return "iOS app coming soon.";
   }
-  return (
-    "The iPhone app is not out yet — everything below describes it. The Telegram bot does the " +
-    "photo-to-verdict part today, on any phone, with nothing to install."
-  );
+  return "The iPhone app is not out yet. The Telegram bot does the same job today, on any phone, from a chat.";
 }

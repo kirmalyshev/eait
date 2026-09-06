@@ -25,7 +25,8 @@ import { assertClean, copyFromHtml } from "./claims.ts";
 import { hasExpired } from "./expiry.ts";
 import { loadLandingConfig, surfaceNote, type LandingConfig } from "./config.ts";
 import {
-  accuracySection, brand, faqs, forSection, hero, measured, plural, refusals, SAMPLE_ANALYSES, shots, steps,
+  accuracySection, brand, faqs, floorSection, hero, measured, photos, plural, privacySection,
+  problemSection, refusals, SAMPLE_ANALYSES, shots, steps, whatSection,
 } from "./content.ts";
 import { faviconIco, markPng, ogPng } from "./images.ts";
 import { iconSvg, outcomePages, renderLanding } from "./render.ts";
@@ -124,6 +125,15 @@ export async function buildLanding(
     }
     await copyFile(source, join(outDir, "assets", shot.file));
     files.push(`assets/${shot.file}`);
+    bytes += (await stat(source)).size;
+  }
+  for (const photo of Object.values(photos)) {
+    const source = join(HERE, "assets", photo.file);
+    if (!existsSync(source)) {
+      throw new Error(`src/backend/landing/assets/${photo.file} is missing, and the page renders an <img> for it.`);
+    }
+    await copyFile(source, join(outDir, "assets", photo.file));
+    files.push(`assets/${photo.file}`);
     bytes += (await stat(source)).size;
   }
 
@@ -227,10 +237,14 @@ function robots(config: LandingConfig): string {
   //
   // `Google-Extended` and `Applebot-Extended` are opt-OUT tokens rather than crawlers: absence
   // already means allowed. They are listed anyway, so that the decision has one home.
+  //
+  // The last three answer with citations and were missing: DuckDuckGo's assistant, Le Chat, and
+  // Amazon's. A name is added here when an engine both cites its sources and publishes a token —
+  // a training-only crawler earns nothing by being named, because `*` already permits it.
   const answerEngines = [
     "GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-SearchBot", "Claude-User",
     "PerplexityBot", "Perplexity-User", "Google-Extended", "Applebot-Extended", "CCBot",
-    "meta-externalagent",
+    "meta-externalagent", "DuckAssistBot", "MistralAI-User", "Amazonbot",
   ];
   // BINGBOT IS DELIBERATELY NOT IN THAT LIST, and it was for one commit. The exclusivity that
   // protects the answer engines is the same exclusivity that would exempt a general search
@@ -255,30 +269,50 @@ function llmsTxt(config: LandingConfig): string {
   const lines: string[] = [
     `# ${brand.name}`,
     "",
-    `> ${brand.tagline} ${hero.headline} `
+    `> ${hero.headline} ${brand.tagline} `
       + `${plural(SAMPLE_ANALYSES, "Your first analysis needs", `Your first ${SAMPLE_ANALYSES} analyses need`)} `
       + "no card, and a photo stays with the meal it logged.",
     "",
     hero.sub,
     "",
-    hero.audience,
+    hero.promise,
     "",
     // The one fact a model gets wrong for free. Everything below describes an iPhone app; while
     // that app is unreleased, an answer engine reading only the sections would tell somebody to go
     // and install it. `surfaceNote` is the same sentence the page prints for the same reason, and
     // it returns null on the day the listing exists.
     ...(availability ? ["## Availability", "", availability, ""] : []),
-    "## Who it is for",
+    "## The problem",
     "",
-    ...forSection.rows.map((r) => `- ${r.title} ${r.body}`),
+    problemSection.intro,
+    "",
+    ...problemSection.rows.map((r) => `- ${r.title} ${r.body}`),
     "",
     "## How it works",
     "",
     ...steps.map((s) => `- ${s.title} ${s.body}`),
     "",
+    // The inventory, the floor and the privacy facts are HERE for one reason: the sections above
+    // say what the product is for, and a retrieval system asked whether it syncs with Apple Health,
+    // what the floor is, or what happens to an email address answers from what it has. It had the
+    // pitch and none of the specifics, which is the half a person actually asks about.
+    "## What you get",
+    "",
+    ...whatSection.items.map((i) => `- ${i.title} ${i.body}`),
+    "",
     "## What it will not do",
     "",
     ...refusals.map((r) => `- ${r.title} ${r.body}`),
+    "",
+    "## The floor",
+    "",
+    floorSection.intro,
+    "",
+    ...floorSection.guards.map((g) => `- ${g.title} ${g.body}`),
+    "",
+    "## Privacy",
+    "",
+    ...privacySection.facts.map((f) => `- ${f.title} ${f.body}`),
     "",
     "## Measured accuracy",
     "",

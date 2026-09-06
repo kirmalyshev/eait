@@ -16,13 +16,21 @@ bun test ./src/backend/landing   # the claims gate, the config refusals, the pal
 ## What it is
 
 A generator, not a page. `build.ts` renders `render.ts(config)` into a directory, and the deploy
-serves that directory with nginx. There is no framework and no runtime: the output is 15 KB of HTML
-and 9 KB of CSS, the single animated moment is a CSS keyframe, and the FAQ is `<details>`.
+serves that directory with nginx. There is no framework and no runtime: the output is 41 KB of HTML
+and 45 KB of CSS with their comments (about 9 KB and 12 KB gzipped, measured on the build of
+2026-09-06), the one arrival on load is CSS keyframes, and the FAQ is `<details>`.
 
 That is not minimalism for its own sake. A page whose whole argument is "we keep nothing of
 yours" has no business loading anything from a third party — and it doesn't: the one typeface
-(Space Grotesk, 22KB, headlines only) is self-hosted under `font-src 'self'`, with its OFL licence
-beside it, and everything else is the system stack.
+(Space Grotesk, 22KB, every heading, number and label) is self-hosted under `font-src 'self'`, with
+its OFL licence beside it, and body copy is the system stack.
+
+**The 2026-09-06 pass changed the register, not the facts.** Warmer, second-person, lifestyle-first
+copy — agency, consistency, feeling good about dinner — with every number, refusal and sample size
+exactly where the tests hold it; a hero cut to the question, the answer and one thing to do; labels
+in sentence case instead of tracked capitals; one line on the other theme's ground; and one arrival
+on load. "Success in health" on this page is never an outcome, because `claims.ts` refuses
+the words and the product cannot substantiate them.
 
 | File | |
 |---|---|
@@ -107,9 +115,9 @@ with the domain, and undoing that costs weeks.
 |---|---|
 | `<title>`, `description`, `rel=canonical` | The result itself. The canonical is the configured origin — never guessed. |
 | `og:*` + `twitter:card` | The share card. `og:image` is absolute; a relative one silently unfurls with no image. |
-| `robots.txt` + `sitemap.xml` | `Disallow: /` unless this is the build that should be found. `lastmod` is the copy-review date, not the build clock. |
+| `robots.txt` + `sitemap.xml` | `Disallow: /` unless this is the build that should be found. `lastmod` is the copy-review date, not the build clock. The answer engines get their own `User-agent` groups — see below. |
 | `<meta name=robots>` | Only on a build nobody may index. It does the job `robots.txt` cannot: a URL discovered elsewhere is indexable without ever being fetched. |
-| `llms.txt` | The page's facts in the shape llmstxt.org proposes, assembled from the SAME constants the page renders. Through the claims gate, because copy for machines is quoted back to people verbatim. **A hedge, not a channel** — see below. |
+| `llms.txt` | The page's facts in the shape llmstxt.org proposes, assembled from the SAME constants the page renders: the problem, the steps, the six things in the app, the refusals, the floor with its numbers, the privacy facts, the accuracy sample and the FAQ. Through the claims gate, because copy for machines is quoted back to people verbatim. **A hedge, not a channel** — see below. |
 | JSON-LD | `Organization`, `Person` (the founder), `WebSite`, `WebPage`, `FAQPage`, and — once the listing exists — `MobileApplication`. |
 | `apple-itunes-app` | Safari's Smart App Banner. The id is read out of the store URL, so there is no second copy to keep in agreement. |
 
@@ -136,14 +144,25 @@ that and must not. What is true is that a named person builds this and is alread
 controller. The postal address in the privacy policy stays there: the law requires it of a natural
 person, and repeating it in JSON-LD would publish a home address in the format built for harvesting.
 
-**Three things are deliberately absent.** No `offers` and no `aggregateRating`: the price is
+**Two things are deliberately absent.** No `offers` and no `aggregateRating`: the price is
 per-territory and lives in App Store Connect, and a rating we have not received is a fabricated
 one — a test fails if either appears. No `MobileApplication` node and no install banner until
 `EAIT__BACKEND__LANDING_APP_STORE_URL` is set, because structured data for an app nobody can
 install is the machine-readable form of the mismatch `surfaceNote` confesses in prose; `llms.txt`
-carries that same sentence under **Availability** while it applies. And no `User-agent` block
-naming individual AI crawlers: `Allow: /` already permits every one of them, and the opt-out
-tokens (`Google-Extended`, `Applebot-Extended`) mean *allowed* by absence.
+carries that same sentence under **Availability** while it applies.
+
+**Fifteen `User-agent` groups name the answer engines, and this paragraph used to say the opposite.**
+`Allow: /` under `*` does permit every one of them today, which is why naming them looked like
+decoration. It is not: `robots.txt` group matching is exclusive (RFC 9309 §2.2.1), so a crawler
+obeys the most specific group naming it and ignores `*` entirely — and a later `Disallow:` added to
+`*`, by a template, a WAF's "block AI bots" toggle or one path somebody wants out of search, would
+take the answer engines with it silently. The groups make that a deliberate act. A name is added
+when an engine cites its sources and publishes a token, with two exceptions the code states and
+this paragraph once dropped: `Google-Extended` and `Applebot-Extended` are opt-OUT tokens rather
+than crawlers, listed so the decision has one home, and `CCBot` is a training-corpus crawler listed
+because Common Crawl is what half the field trains on. **Bingbot is deliberately not among them** — the same exclusivity
+would exempt the one general search crawler here with real index volume from a rule added later,
+which is the worst place to lose one quietly.
 
 **The two shared pages are served from two hostnames, so the build gives them a canonical.**
 `privacy.html` and `support.html` are the same bytes on the landing host and on the API domain —

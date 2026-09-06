@@ -11,8 +11,19 @@
 // The tokens are `src/mobile/lib/theme.ts`, transcribed. A test asserts they still match, because
 // two files holding one palette is the shape of a drift, and the accent going stale here would be
 // the first thing a visitor coming from the App Store screenshots notices.
+//
+// THE 2026-09-06 PASS, in one paragraph. The page had the palette and the typeface of a premium
+// product and dressed them as a spec sheet: a tracked-out monospace capital label above every
+// block, a 1px grid around every group, numbers in a code font, and a hero carrying six paragraphs
+// before the form. What changed is hierarchy and air, not identity — the same tokens, the same one
+// accent on the one action, the same typeface, now carrying every heading and every number so the
+// drawn phone and the headline read as one object; labels in sentence case at reading weight; the
+// grids replaced by rules and surface where the content is a list and by nothing where it is not;
+// one band in the OTHER theme's palette so the four numbers land like a plate on a dark table; and
+// one arrival on load, words first, then the phone answering. Warmth is still Spud's skin tone at
+// low alpha, and still never the accent.
 
-import { color, dark, light } from "./tokens.ts";
+import { dark, light, type ColorName } from "./tokens.ts";
 import { sample } from "./content.ts";
 
 /**
@@ -50,8 +61,9 @@ function derivedRules(): string {
     "/* ── Generated from content.ts — see derivedRules() ─────────────────────────────────── */",
     `.scale-tick-floor, .scale-label-floor { left: ${scalePercent(target.floorKcal)}; }`,
     `.scale-tick-target, .scale-label-target { left: ${scalePercent(target.kcal)}; }`,
-    // The two cards, then the verdict pills, in the order the app itself resolves them.
-    stagger(".deal", 2, (i) => i * 110),
+    // The words land first (the hero copy rises at 0 and 90ms, below), then the two cards, then the
+    // verdict pills, in the order the app itself resolves them.
+    stagger(".deal", 3, (i) => 200 + i * 120),
     stagger(".pill", meal.verdicts.length, (i) => 560 + i * 90),
     // The answer, last — one pill-slot after the last pill STARTS, so it is the final thing to
     // move. Its delay is derived from theirs rather than typed, so adding a fourth verdict cannot
@@ -63,30 +75,40 @@ function derivedRules(): string {
 }
 
 /**
- * Every variable the dark theme redefines, as one string reused by both dark selectors.
+ * One theme's variables, as a string. Written out per token rather than derived from the object
+ * keys, so a value with no counterpart in the other theme is a COMPILE error here and not a light
+ * colour surviving onto a dark page.
  *
- * Written out rather than derived from the object so a value that has no dark counterpart is a
- * COMPILE error here and not a light colour surviving onto a dark page. `--dim` is raised the same
- * way it is on light, for the same reason and to the same ratio.
+ * `dim` is the one value that is not a straight copy of a token. --faint is the app's third text
+ * colour, spent there on a caption glanced at for a second inside a screen the user chose to open;
+ * this page spends its faintest colour on the small print under the button, the receipt line on
+ * every refusal, and the whole footer — read once, by a stranger, deciding whether to trust a
+ * health app. That deserves margin over the AA minimum, and it is what keeps three levels of
+ * hierarchy from collapsing into two. A test asserts --faint is never USED on this page, so the
+ * app's value cannot creep back in by being the obvious token to reach for; it stays declared so
+ * the block still mirrors the app.
  */
-const darkVars = `
-  --ink: ${dark.bg};
-  --panel: ${dark.surface};
-  --raised: ${dark.surfaceRaised};
-  --line: ${dark.border};
-  --line-strong: ${dark.borderStrong};
-  --text: ${dark.text};
-  --muted: ${dark.textMuted};
-  --faint: ${dark.textFaint};
-  --dim: #7C838B;
-  --accent: ${dark.accent};
-  --accent-ink: ${dark.accentText};
-  --good: ${dark.good};
-  --warn: ${dark.warn};
-  --bad: ${dark.bad};
-  --care: ${dark.care};
-  color-scheme: dark;
+const vars = (t: Record<ColorName, string>, dim: string, scheme: "light" | "dark") => `
+  --ink: ${t.bg};
+  --panel: ${t.surface};
+  --raised: ${t.surfaceRaised};
+  --line: ${t.border};
+  --line-strong: ${t.borderStrong};
+  --text: ${t.text};
+  --muted: ${t.textMuted};
+  --faint: ${t.textFaint};
+  --dim: ${dim};
+  --accent: ${t.accent};
+  --accent-ink: ${t.accentText};
+  --good: ${t.good};
+  --warn: ${t.warn};
+  --bad: ${t.bad};
+  --care: ${t.care};
+  color-scheme: ${scheme};
 `;
+
+const lightVars = vars(light, "#666C75", "light");
+const darkVars = vars(dark, "#7C838B", "dark");
 
 const sheet = `
 /* ── Tokens ─────────────────────────────────────────────────────────────────────────────────
@@ -102,72 +124,40 @@ const sheet = `
    audience arriving to a different page than the other half is not a feature. Dark stays one click
    away and is remembered; it is just not assumed.
 
-   --dim is the one value that is not a straight copy of a token; see its comment below. It is
-   declared in all three places for the same reason every other variable is. */
+   One accent, spent on exactly one thing per screen: the primary action. Same rule as the app.
+   --care is reserved for the floor and nothing else, so a blue mark anywhere means "we stopped
+   you". The warmth on this page is Spud's own skin tone as a low-alpha literal, never the accent. */
 :root {
-  --ink: ${light.bg};
-  --panel: ${light.surface};
-  --raised: ${light.surfaceRaised};
-  --line: ${light.border};
-  --line-strong: ${light.borderStrong};
-
-  --text: ${light.text};
-  --muted: ${light.textMuted};
-  --faint: ${light.textFaint};
-
-  /* The app's third text colour, RAISED for this page — and the one place a token deliberately
-     differs from theme.ts rather than tracking it.
-
-     --faint was 4.2:1 on the page background when this page was written, under WCAG AA's 4.5:1
-     for text below 24px, and this variable was the fix. The app has since raised its own value —
-     Apple's audit failed it on every input placeholder — so --faint now clears AA on its own and
-     this is no longer a correction.
-
-     It stays, as MARGIN rather than as a fix. The app spends its faintest colour on a caption
-     glanced at for a second inside a screen the user chose to open; this page spends it on the
-     small print under the button, the receipt line on every refusal, and the whole footer — read
-     once, by a stranger, deciding whether to trust a health app. That deserves more than the
-     minimum. It is also what keeps three levels of hierarchy from collapsing into two, now that
-     --faint and --muted are closer together than they were.
-
-     A test asserts that --faint is not used for anything on this page, so the app's value cannot
-     creep back in by being the obvious token to reach for. */
-  --dim: #666C75;
-
-  /* One accent, spent on exactly one thing per screen: the primary action. Same rule as the app. */
-  --accent: ${light.accent};
-  --accent-ink: ${light.accentText};
-
-  --good: ${light.good};
-  --warn: ${light.warn};
-  --bad: ${light.bad};
-  /* Reserved for the floor and nothing else, so a blue tick anywhere means "we stopped you". */
-  --care: ${light.care};
-
+  ${lightVars}
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --display: "Space Grotesk", var(--sans);
+  --warm: 232 190 131;
+  /* How much of that warmth lies over the first screen. Lighter on the dark page, where the same
+     alpha over near-black reads as mud rather than as morning. */
+  --haze: .16;
 
-  --wrap: 68rem;
+  --wrap: 70rem;
   --gutter: clamp(1.25rem, 5vw, 3rem);
-  color-scheme: light;
 }
 
-:root[data-theme="dark"] { ${darkVars} }
+:root[data-theme="dark"] { ${darkVars} --haze: .10; }
 
 /* ── The one typeface this page owns ────────────────────────────────────────────────────── */
 /* Space Grotesk, variable, latin subset, 22KB, SELF-HOSTED — the design review's verdict was that
    the identity was entirely rented from Apple, and type is the one thing a competitor cannot copy
    out of this CSS. Same-origin under font-src self, so the page still loads nothing from anyone
-   else; the OFL licence text travels beside the file, as that licence requires. Headlines and the
-   wordmark only — body copy stays on the system stack, which is what keeps this 22KB, not a family. */
+   else; the OFL licence text travels beside the file, as that licence requires. It carries every
+   heading, every number and every label — one file, whatever it is used for — and body copy stays
+   on the system stack, which is where 17px prose reads best on the phone it is mostly read on. */
 @font-face {
   font-family: "Space Grotesk";
   src: url("/assets/fonts/space-grotesk-latin.woff2") format("woff2");
   font-weight: 300 700;
   font-display: swap;
 }
-.hero-title, .section-title, .closing-title, .outcome-title, .wordmark {
-  font-family: "Space Grotesk", var(--sans);
+h1, h2, h3, .wordmark, .num, .eyebrow, .step-ordinal, .ask-line, .founder-line, .faq-q,
+.cta, .subscribe-button, .band-line, .tcard-label, .measured-label, .subscribe-label {
+  font-family: var(--display);
 }
 
 /* ── Reset ──────────────────────────────────────────────────────────────────────────────── */
@@ -175,7 +165,10 @@ const sheet = `
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
-  background: var(--ink);
+  /* The warm haze over the first screen belongs to the BODY rather than the hero, so the masthead
+     sits inside it instead of on a hard edge above it. Bounded in rem, so it ends where the hero
+     does on every width and never reaches the sections below. */
+  background: linear-gradient(180deg, rgb(var(--warm) / var(--haze)), transparent 46rem) var(--ink);
   color: var(--text);
   font-family: var(--sans);
   font-size: 17px;
@@ -189,65 +182,60 @@ a { color: inherit; }
 :focus-visible { outline: 2px solid var(--care); outline-offset: 3px; border-radius: 4px; }
 /* Text selection in Spud's own skin tone — the one warm colour this page owns that is not the
    accent. Small, and met by anybody who drags a cursor through the copy. */
-::selection { background: rgb(232 190 131 / .35); }
+::selection { background: rgb(var(--warm) / .38); }
 
-/* Every number on this page is monospaced and tabular. The product's claim is that it hands you a
-   figure you can act on; a figure that reflows as it changes does not read like one. */
-.num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+/* Every number on this page is tabular and set in the display face, the way the app sets its
+   metrics: the product's claim is that it hands you a figure you can act on, and a figure that
+   reflows as it changes does not read like one. */
+.num { font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
 
 .wrap { width: 100%; max-width: var(--wrap); margin: 0 auto; padding: 0 var(--gutter); }
 
 /* ── Section marker ─────────────────────────────────────────────────────────────────────── */
-.eyebrow {
-  display: flex; align-items: center; gap: .75rem;
-  font-family: var(--mono); font-size: .6875rem; text-transform: uppercase;
-  letter-spacing: .16em; color: var(--dim); margin-bottom: 1.5rem;
-}
-.eyebrow::before { content: ""; width: 1.75rem; height: 1px; background: var(--line-strong); flex: none; }
+/* A running label, in sentence case at reading weight. It was tracked-out monospace capitals
+   behind a dash — the costume of a spec sheet, on a page for somebody deciding what to have for
+   dinner. It names the section; it does not have to shout that it is a label. */
+.eyebrow { font-size: .9375rem; font-weight: 500; color: var(--dim); margin-bottom: 1.5rem; }
 
-.section { padding: clamp(4rem, 9vw, 7rem) 0; border-top: 1px solid var(--line); }
-/* THE RUNNING MARGIN. Every section used to be the same left rail on an empty field — eyebrow,
-   title, intro, grid, all on one axis, with the right third of the page blank from ACCURACY down.
-   On a wide screen the eyebrow now lives in a margin column and rides with the section as it
-   scrolls, the way a printed spread carries a marginal label; everything else takes the wide
-   column. Below 62rem nothing changes. */
+.section { padding: clamp(5rem, 11vw, 9rem) 0; }
+.section + .section { border-top: 1px solid var(--line); }
+/* THE RUNNING MARGIN. On a wide screen the label lives in a margin column and rides with the
+   section as it scrolls, the way a printed spread carries a marginal note; everything else takes
+   the wide column. Below 62rem nothing changes. */
 @media (min-width: 62rem) {
   .section > .wrap { display: grid; grid-template-columns: 11rem minmax(0, 1fr); column-gap: 4.5rem; }
-  .section .eyebrow { grid-column: 1; margin: 0; position: sticky; top: 1.75rem; align-self: start; }
+  .section .eyebrow { grid-column: 1; margin: .5rem 0 0; position: sticky; top: 1.75rem; align-self: start; }
   .section > .wrap > :not(.eyebrow) { grid-column: 2; }
 }
-.section-head { max-width: 46ch; margin-bottom: clamp(2.5rem, 5vw, 3.5rem); }
+.section-head { max-width: 52ch; margin-bottom: clamp(2.75rem, 5vw, 4rem); }
 .section-title {
-  font-size: clamp(1.75rem, 3.6vw, 2.6rem); font-weight: 700;
-  letter-spacing: -0.035em; line-height: 1.08; text-wrap: balance;
+  font-size: clamp(2.125rem, 4.6vw, 3.25rem); font-weight: 700;
+  letter-spacing: -0.04em; line-height: 1.02; text-wrap: balance; max-width: 18ch;
 }
-.section-intro { margin-top: 1.25rem; color: var(--muted); max-width: 56ch; }
+.section-intro { margin-top: 1.5rem; color: var(--muted); font-size: 1.125rem; line-height: 1.55; max-width: 52ch; }
 
 /* ── Masthead ───────────────────────────────────────────────────────────────────────────── */
-.masthead { padding: 1.5rem 0; }
+.masthead { padding: 1.75rem 0; }
 .masthead-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .wordmark {
   display: inline-flex; align-items: baseline; gap: .5rem;
-  font-size: 1.125rem; font-weight: 700; letter-spacing: -0.04em; text-decoration: none;
+  font-size: 1.375rem; font-weight: 700; letter-spacing: -0.045em; text-decoration: none;
 }
-.wordmark-dot { width: .4375rem; height: .4375rem; border-radius: 50%; background: var(--accent); }
-/* The theme toggle. A 32px target with a mark that is a filled disc on light and a crescent on
+.wordmark-dot { width: .5rem; height: .5rem; border-radius: 50%; background: var(--accent); }
+/* The theme toggle. A 36px target with a mark that is a filled disc on light and a crescent on
    dark — one element and a box-shadow, because an icon swap needs either two SVGs or a script that
    writes markup, and this needs neither. currentColor throughout, so it follows --muted. */
 .theme-toggle {
   display: inline-grid; place-items: center;
   width: 2.25rem; height: 2.25rem; margin-left: .75rem; padding: 0;
-  border: 1px solid var(--line); border-radius: 999px;
+  border: 1px solid var(--line-strong); border-radius: 999px;
   background: transparent; color: var(--muted); cursor: pointer;
 }
-.theme-toggle:hover { color: var(--text); border-color: var(--line-strong); }
+.theme-toggle:hover { color: var(--text); border-color: var(--text); }
 /* --text and not --accent: the accent is spent on the primary action and nothing else, and a
    focus ring wants the highest contrast available rather than the brand colour anyway. */
 .theme-toggle:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
-.theme-toggle-mark {
-  width: .875rem; height: .875rem; border-radius: 999px;
-  background: currentColor;
-}
+.theme-toggle-mark { width: .875rem; height: .875rem; border-radius: 999px; background: currentColor; }
 /* Pressed means the page is dark, so the mark becomes a crescent: a ring with an offset shadow
    biting a piece out of it. */
 .theme-toggle[aria-pressed="true"] .theme-toggle-mark {
@@ -255,112 +243,132 @@ a { color: inherit; }
   box-shadow: inset -.3125rem -.125rem 0 0 currentColor;
 }
 
-.masthead-links { display: flex; gap: 1.5rem; font-size: .875rem; color: var(--muted); }
+.masthead-links { display: flex; gap: 1.75rem; font-size: .9375rem; font-weight: 500; color: var(--muted); }
 .masthead-links a { text-decoration: none; }
 .masthead-links a:hover { color: var(--text); }
 
 /* ── Hero ───────────────────────────────────────────────────────────────────────────────── */
+/* The first screen is the question, the answer and one thing to do. The audience line moved down
+   to open WHO IT'S FOR, and the eyebrow went (content.ts says why), so what is left above the fold
+   is a headline, two sentences, the form, and the phone answering. */
 .hero {
-  padding: clamp(2.5rem, 6vw, 4.5rem) 0 clamp(4rem, 8vw, 6rem);
-  /* A barely-there wash of the mascot's skin tone behind the device, on both themes. Warmth is
-     what a grey page with one lime button cannot fake; the accent test is untouched because this
-     is a literal, like the pill tints, and never the accent variable. */
-  /* Centres sit far enough in that both ellipses fade before the section's edges — parked near
-     the top they clipped against the masthead boundary and the wash read as a painted rectangle. */
+  position: relative;
+  padding: clamp(2rem, 5vw, 3.5rem) 0 clamp(4.5rem, 9vw, 7.5rem);
+  /* Warmth behind the device, on both themes, in Spud's skin tone. Centres sit far enough in that
+     both ellipses fade before the section's edges — parked at the boundary they read as a painted
+     rectangle. Never the accent: this is a literal, like the pill tints. */
   background:
-    radial-gradient(52rem 22rem at 76% 38%, rgb(232 190 131 / .22), transparent 62%),
-    radial-gradient(40rem 20rem at 68% 72%, rgb(151 178 201 / .10), transparent 70%);
+    radial-gradient(56rem 30rem at 76% 34%, rgb(var(--warm) / .30), transparent 62%),
+    radial-gradient(40rem 22rem at 66% 82%, rgb(151 178 201 / .12), transparent 70%);
 }
-.hero-grid { display: grid; gap: clamp(3rem, 6vw, 4.5rem); align-items: start; }
-@media (min-width: 62rem) { .hero-grid { grid-template-columns: 1.02fr .98fr; } }
+.hero-grid { display: grid; gap: clamp(3.5rem, 7vw, 5rem); align-items: center; }
+@media (min-width: 62rem) {
+  /* Top-aligned, not centred: the photo column is taller than the copy, and centring dropped the
+     headline to the middle of the fold with the form under it. */
+  .hero-grid { grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); align-items: start; }
+  .hero-grid > :first-child { padding-top: 1.5rem; }
+}
 
 .hero-title {
-  font-size: clamp(2.75rem, 7.4vw, 4.75rem); font-weight: 700;
-  letter-spacing: -0.05em; line-height: .96; text-wrap: balance;
+  font-size: clamp(3rem, 7.4vw, 5.25rem); font-weight: 700;
+  letter-spacing: -0.05em; line-height: .94; text-wrap: balance; max-width: 12ch;
 }
-.hero-sub { margin-top: 1.75rem; font-size: clamp(1.0625rem, 1.6vw, 1.1875rem); color: var(--muted); max-width: 44ch; }
+.hero-sub {
+  margin-top: 1.75rem; font-size: clamp(1.125rem, 1.7vw, 1.3125rem); line-height: 1.5;
+  color: var(--muted); max-width: 40ch;
+}
+/* The three refusals in one line, one step down from the sub — the promise, after the problem. */
+.hero-line { margin-top: 1rem; font-size: 1rem; line-height: 1.5; color: var(--dim); max-width: 40ch; }
 
 /* The line that says which surface the button actually opens. Care-blue rule, because this is the
    same class of statement as the floor — we stopped you to tell you something true. */
 .hero-surface {
-  margin-top: 1.5rem; padding-left: 1rem; border-left: 2px solid var(--care);
-  color: var(--muted); font-size: .9375rem; max-width: 46ch;
+  margin-top: 1.5rem; padding-left: .875rem; border-left: 2px solid var(--care);
+  color: var(--muted); font-size: .9375rem; line-height: 1.5; max-width: 42ch;
 }
 
 .cta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; margin-top: 2.5rem; }
 .cta {
-  display: inline-flex; align-items: center; gap: .625rem;
+  display: inline-flex; align-items: center; justify-content: center; gap: .625rem;
   background: var(--accent); color: var(--accent-ink);
-  font-size: 1rem; font-weight: 600; letter-spacing: -0.01em; text-decoration: none;
-  padding: .9375rem 1.5rem; border-radius: 999px;
-  transition: transform .15s ease, box-shadow .15s ease;
+  font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.01em; text-decoration: none;
+  padding: 1rem 1.75rem; border-radius: 999px;
+  box-shadow: 0 12px 32px -16px rgb(19 20 23 / .45);
+  transition: transform .18s ease, box-shadow .18s ease;
 }
-.cta:hover { transform: translateY(-1px); box-shadow: 0 8px 28px -12px var(--accent); }
+.cta:hover { transform: translateY(-2px); box-shadow: 0 16px 36px -14px var(--accent); }
 .cta:active { transform: translateY(0); }
-.cta-alt-inline {
-    color: var(--accent);
-    text-underline-offset: .2em;
-  }
-  .cta-alt { color: var(--muted); font-size: .9375rem; text-decoration: none; border-bottom: 1px solid var(--line-strong); padding-bottom: 2px; }
+.cta-alt-inline { color: var(--accent); text-underline-offset: .2em; }
+.cta-alt { color: var(--muted); font-size: .9375rem; font-weight: 500; text-decoration: none; border-bottom: 1px solid var(--line-strong); padding-bottom: 2px; }
 .cta-alt:hover { color: var(--text); border-bottom-color: var(--care); }
-.cta-note { margin-top: 1.25rem; font-size: .875rem; color: var(--dim); max-width: 40ch; }
+.cta-note { margin-top: 1.125rem; font-size: .875rem; line-height: 1.5; color: var(--dim); max-width: 40ch; }
 
 /* ── The instrument ─────────────────────────────────────────────────────────────────────── */
-/* A phone-shaped panel drawing the two things the app actually renders: the target it computed
-   for you with the floor marked underneath it, and one meal judged on three dimensions. It is
-   drawn rather than screenshotted so it cannot drift from the palette the app ships. */
-.device {
-  margin: 0 auto; width: 100%; max-width: 22.5rem;
-  border: 1px solid var(--line-strong); border-radius: 2.25rem;
-  padding: .6875rem; background: linear-gradient(160deg, var(--raised), var(--panel) 55%);
-  /* On light the bezel was a white blob on an off-white field — surfaces 1.5% apart with a 1px
-     border doing all the work. A real shadow stack makes the object sit IN the page; low-alpha
-     literals, like the pill tints, never the accent. Dark never needed it and barely shows it. */
+/* A photograph of a plate somebody else cooked, with the app's own cards over it: the target it
+   computed for you at the top, your question beside it, and the meal judged on three dimensions
+   overlapping the bottom edge. The cards are drawn rather than screenshotted so they cannot drift
+   from the palette the app ships; the plate is a real photo, content.ts photos. */
+.device { position: relative; margin: 0 auto; width: 100%; max-width: 26rem; }
+/* HEIGHT: AUTO IS LOAD-BEARING, and its absence is why this photograph was 1,250px tall in a
+   416px-wide frame — a narrow vertical slice of a platter, and a hero 1,694px deep that pushed the
+   next section a screen and a half down while the column beside it ended after the form. The
+   width and height attributes on the img are presentational hints that set the CSS width AND
+   height, so the height attribute won: with both dimensions definite, aspect-ratio is ignored and
+   object-fit cropped to whatever box was left. The screenshots got this right (.shot-img) because
+   they say height: auto; this said it nowhere. */
+.plate {
+  display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 2rem;
   box-shadow:
     0 2px 4px -2px rgb(19 20 23 / .06),
-    0 28px 56px -28px rgb(19 20 23 / .30),
-    0 72px 120px -72px rgb(19 20 23 / .38);
+    0 32px 64px -32px rgb(19 20 23 / .32),
+    0 96px 160px -80px rgb(19 20 23 / .40);
 }
-.device-inner {
-  background: var(--ink); border-radius: 1.75rem; padding: 1.375rem 1.125rem 1.5rem;
-  display: grid; gap: 1rem;
+.device-inner { display: grid; gap: .875rem; padding: 0 1rem; }
+.device .deal-1 {
+  position: absolute; top: 1rem; left: 1rem; width: min(62%, 15rem); padding: .875rem 1rem;
+  background: color-mix(in srgb, var(--raised) 92%, transparent); backdrop-filter: blur(12px);
 }
-.device-bar { width: 5.25rem; height: .25rem; border-radius: 999px; background: var(--line-strong); margin: 0 auto .5rem; }
+.device .deal-1 .tcard-unit { white-space: nowrap; }
+.device .deal-2 { position: absolute; top: 1rem; right: 1rem; }
+.device .deal-3 { position: relative; margin-top: -5.5rem; }
 
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 1.125rem; padding: 1.125rem; }
+.card {
+  background: var(--raised); border: 1px solid var(--line); border-radius: 1.375rem; padding: 1.25rem;
+  box-shadow: 0 1px 2px rgb(19 20 23 / .04);
+}
 
-.tcard-label { font-family: var(--mono); font-size: .625rem; text-transform: uppercase; letter-spacing: .14em; color: var(--dim); }
-.tcard-figure { display: flex; align-items: baseline; gap: .5rem; margin-top: .375rem; }
-.tcard-kcal { font-size: 2.375rem; font-weight: 700; line-height: 1; }
-.tcard-unit { font-size: .8125rem; color: var(--muted); }
-.tcard-basis { margin-top: .875rem; font-size: .75rem; line-height: 1.5; color: var(--dim); }
+.tcard-label { font-size: .8125rem; font-weight: 500; color: var(--dim); }
+.tcard-figure { display: flex; align-items: baseline; gap: .5rem; margin-top: .25rem; }
+.tcard-kcal { font-size: 2.875rem; font-weight: 700; line-height: 1; }
+.tcard-unit { font-size: .875rem; color: var(--muted); }
+.tcard-basis { margin-top: .875rem; font-size: .8125rem; line-height: 1.5; color: var(--dim); }
 
 /* The floor, as a mark on a scale rather than a sentence. Blue is only ever this. */
-.scale { position: relative; height: 4rem; margin-top: 1.25rem; }
-.scale-line { position: absolute; left: 0; right: 0; top: 2rem; height: 1px; background: var(--line-strong); }
-.scale-tick { position: absolute; top: 1.375rem; width: 1px; height: 1.25rem; transform: translateX(-0.5px); }
+.scale { position: relative; height: 4rem; margin-top: 1.125rem; }
+.scale-line { position: absolute; left: 0; right: 0; top: 2rem; height: 2px; border-radius: 1px; background: var(--line-strong); }
+.scale-tick { position: absolute; top: 1.375rem; width: 2px; height: 1.25rem; border-radius: 1px; transform: translateX(-1px); }
 .scale-tick-floor { background: var(--care); }
 .scale-tick-target { background: var(--text); top: 1.125rem; height: 1.5rem; }
 .scale-label {
-  position: absolute; white-space: nowrap; font-family: var(--mono);
-  font-size: .625rem; letter-spacing: .06em; transform: translateX(-50%);
+  position: absolute; white-space: nowrap; font-size: .75rem; font-weight: 500;
+  transform: translateX(-50%);
 }
 .scale-label-floor { top: 2.875rem; color: var(--care); }
 .scale-label-target { top: 0; color: var(--muted); }
 
 .mcard-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
-.mcard-title { font-size: .9375rem; font-weight: 600; letter-spacing: -0.01em; }
-.mcard-kcal { font-size: 1.5rem; font-weight: 700; flex: none; }
-.mcard-kcal-unit { font-size: .75rem; color: var(--dim); margin-left: .25rem; font-family: var(--sans); letter-spacing: 0; }
+.mcard-title { font-size: 1rem; font-weight: 600; letter-spacing: -0.015em; }
+.mcard-kcal { font-size: 1.625rem; font-weight: 700; flex: none; }
+.mcard-kcal-unit { font-size: .8125rem; color: var(--dim); margin-left: .25rem; font-family: var(--sans); font-weight: 500; letter-spacing: 0; }
 
 .macros { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin-top: 1rem; padding-top: .875rem; border-top: 1px solid var(--line); }
-.macro-value { font-size: .9375rem; font-weight: 600; }
-.macro-label { display: block; font-size: .6875rem; color: var(--dim); margin-top: .125rem; }
+.macro-value { font-size: 1rem; font-weight: 600; }
+.macro-label { display: block; font-size: .75rem; color: var(--dim); margin-top: .125rem; }
 
 .pills { display: flex; flex-wrap: wrap; gap: .375rem; margin-top: 1rem; }
 .pill {
   display: inline-flex; align-items: center; gap: .375rem;
-  font-size: .6875rem; font-weight: 500; padding: .3125rem .5625rem; border-radius: 999px;
+  font-size: .75rem; font-weight: 500; padding: .3125rem .625rem; border-radius: 999px;
   border: 1px solid transparent;
 }
 .pill-dot { width: .375rem; height: .375rem; border-radius: 50%; background: currentColor; flex: none; }
@@ -368,12 +376,23 @@ a { color: inherit; }
 .pill-warn { color: var(--warn); background: rgb(251 191 36 / .10); border-color: rgb(251 191 36 / .30); }
 .pill-bad  { color: var(--bad);  background: rgb(248 113 113 / .10); border-color: rgb(248 113 113 / .30); }
 
-/* THE ANSWER. The eyebrow promises a verdict and the card used to end on a legend of coloured
-   chips, which is the taxonomy of one. Set at body weight in full text colour, above the small
-   print, because it is the single sentence the whole page is arguing it can produce. */
+/* THE READER'S OWN LINE, above the meal card: right-aligned, the way the app draws what you sent,
+   so the phone plays the problem (a plate, a question) and then the answer. Text colour on page
+   ground, INVERTED — the app fills this bubble with the accent, and the page spends the accent on
+   the one action only, so the inversion is what says "the other party" here. */
+.you-says { display: flex; justify-content: flex-end; }
+.you-line {
+  max-width: 72%; font-size: .8125rem; line-height: 1.45; font-weight: 500;
+  color: var(--ink); background: var(--text);
+  padding: .5625rem .875rem; border-radius: 1.125rem 1.125rem .25rem 1.125rem;
+}
+
+/* THE ANSWER. The page promises a verdict and the card used to end on a legend of coloured chips,
+   which is the taxonomy of one. Set at body weight in full text colour, above the small print,
+   because it is the single sentence the whole page is arguing it can produce. */
 .mcard-verdict {
   margin-top: .875rem; padding-top: .875rem; border-top: 1px solid var(--line);
-  font-size: .875rem; font-weight: 600; line-height: 1.45; letter-spacing: -0.01em;
+  font-size: .9375rem; font-weight: 600; line-height: 1.45; letter-spacing: -0.01em;
 }
 /* Spud INSIDE the drawn phone, at the app's own 28-point avatar size, saying the correction note
    that used to be a grey paragraph on the card. The one place the page shows who does the talking
@@ -384,110 +403,149 @@ a { color: inherit; }
 }
 .device-inner .spud { width: 2.5rem; height: 2.5rem; }
 .device-inner .spud-line {
-  font-size: .75rem; line-height: 1.5; color: var(--muted);
-  padding: .5rem .75rem; background: var(--panel);
+  font-size: .8125rem; line-height: 1.5; color: var(--muted);
+  padding: .5625rem .8125rem; background: var(--raised);
 }
 
-/* One orchestrated arrival, in the order the app itself resolves: the target you were given, then
-   the meal, then the judgement on it. Nothing else on the page moves. */
+/* ── The one arrival ────────────────────────────────────────────────────────────────────── */
+/* One orchestrated moment on load and nothing else on the page moves: the question and its answer
+   rise, then the phone resolves in the order the app itself does — the target you were given, the
+   meal, the judgement on it, and his note. Sections do not fade in as you scroll; cards do not
+   lift on hover. Motion here answers the page loading, once. */
+.hero-title, .hero-sub, .hero-line { animation: rise .7s cubic-bezier(.2, .7, .2, 1) backwards; }
+.hero-sub { animation-delay: 90ms; }
+.hero-line { animation-delay: 160ms; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .deal { animation: deal .5s cubic-bezier(.2, .7, .3, 1) backwards; }
 @keyframes deal { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .pill { animation: resolve .34s cubic-bezier(.2, .7, .3, 1) backwards; }
 @keyframes resolve { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: none; } }
 .mcard-verdict { animation: deal .42s cubic-bezier(.2, .7, .3, 1) backwards; }
 
-@media (prefers-reduced-motion: reduce) {
-  .deal, .pill, .mcard-verdict, .device-inner .spud-says, .spud-eyes { animation: none; }
-  .cta { transition: none; }
-}
+/* ── The problem, and privacy ───────────────────────────────────────────────────────────── */
+/* Three short arguments, three columns on a wide screen — two left an orphan under the first. */
+.facts { display: grid; gap: 2.25rem; }
+@media (min-width: 48rem) { .facts { grid-template-columns: repeat(2, 1fr); gap: 2.75rem 3rem; } }
+@media (min-width: 64rem) { .facts { grid-template-columns: repeat(3, 1fr); gap: 2.75rem 2.5rem; } }
+/* The three drawings above THE PROBLEM — see illustrations.ts. Every colour is a token, so they
+   recolour with the theme; the "over" bar is the bad tint the hero pills use, and nothing in them
+   is the accent. */
+.ill { width: 100%; max-width: 15rem; height: auto; margin-bottom: 1.25rem; }
+.ill-line { fill: none; stroke: var(--line-strong); stroke-width: 2; }
+.ill-thin { stroke-width: 1.5; }
+.ill-dash { stroke-dasharray: 4 4; }
+.ill-fill { fill: var(--raised); }
+.ill-food { fill: rgb(var(--warm) / .55); stroke: rgb(var(--warm)); stroke-width: 1.5; }
+.ill-text { fill: var(--text); font-family: var(--display); }
+.ill-muted { fill: var(--dim); font-family: var(--display); }
+.ill-label { font-size: 13px; font-weight: 500; }
+.ill-num { font-size: 30px; font-weight: 700; letter-spacing: -1px; }
+.ill-bar { fill: var(--line-strong); }
+.ill-over { fill: rgb(248 113 113 / .35); stroke: var(--bad); stroke-width: 1.5; }
+.ill-target { stroke: var(--text); stroke-width: 1.5; }
+.fact-title { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.025em; line-height: 1.25; }
+.fact-body { margin-top: .625rem; color: var(--muted); font-size: 1rem; max-width: 46ch; }
 
 /* ── Refusals ───────────────────────────────────────────────────────────────────────────── */
-.refusals { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 1.25rem; overflow: hidden; }
-@media (min-width: 56rem) { .refusals { grid-template-columns: repeat(3, 1fr); } }
-.refusal { background: var(--ink); padding: clamp(1.5rem, 3vw, 2.25rem); display: flex; flex-direction: column; gap: .875rem; }
-.refusal-title { font-size: 1.125rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; }
-.refusal-body { color: var(--muted); font-size: .9375rem; }
+/* Three rows under a rule, title left and the promise right, the way a contract sets its clauses.
+   They were three cards in a bordered grid; a promise reads better as a line item than as a tile. */
+.refusals { display: grid; border-top: 1px solid var(--line-strong); }
+.refusal { display: grid; gap: .75rem 3.5rem; padding: clamp(1.75rem, 3.5vw, 2.5rem) 0; border-bottom: 1px solid var(--line); }
+@media (min-width: 56rem) {
+  .refusal { grid-template-columns: minmax(0, 20rem) minmax(0, 1fr); align-items: start; }
+  .refusal-title { grid-column: 1; grid-row: 1 / span 2; }
+}
+.refusal-title { font-size: clamp(1.375rem, 2.2vw, 1.625rem); font-weight: 600; letter-spacing: -0.03em; line-height: 1.2; max-width: 16ch; }
+.refusal-body { color: var(--muted); font-size: 1rem; max-width: 58ch; }
 .refusal-proof {
-  margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--line);
-  font-size: .75rem; line-height: 1.5; color: var(--dim);
+  margin-top: .375rem; padding-left: 1rem; border-left: 2px solid var(--line-strong);
+  font-size: .875rem; line-height: 1.5; color: var(--dim); max-width: 52ch;
 }
 
 /* ── Steps ──────────────────────────────────────────────────────────────────────────────── */
 /* Numbered because this genuinely is a sequence — you cannot get the verdict before the photo. */
-.steps { display: grid; gap: 1px; background: var(--line); }
-.step { background: var(--ink); display: grid; gap: .625rem; padding: clamp(1.75rem, 3vw, 2.25rem) 0; }
-@media (min-width: 56rem) { .step { grid-template-columns: 4rem 18rem 1fr; gap: 2rem; align-items: baseline; } }
-.step-ordinal { font-family: var(--mono); font-size: .8125rem; color: var(--dim); letter-spacing: .06em; }
-.step-title { font-size: 1.1875rem; font-weight: 600; letter-spacing: -0.02em; }
-.step-body { color: var(--muted); font-size: .9375rem; max-width: 60ch; }
+.steps { display: grid; border-top: 1px solid var(--line-strong); }
+.step { display: grid; gap: .625rem; padding: clamp(1.75rem, 3.5vw, 2.5rem) 0; border-bottom: 1px solid var(--line); }
+@media (min-width: 56rem) { .step { grid-template-columns: 4rem 16rem 1fr; gap: 2rem; align-items: baseline; } }
+.step-ordinal { font-size: 1rem; font-weight: 500; color: var(--dim); font-variant-numeric: tabular-nums; }
+.step-title { font-size: 1.375rem; font-weight: 600; letter-spacing: -0.03em; line-height: 1.2; }
+.step-body { color: var(--muted); font-size: 1rem; max-width: 58ch; }
 
 /* ── The one emphasised span per block ──────────────────────────────────────────────────── */
 /* Body copy is --muted; the load-bearing sentence steps up to --text as well as to 600. Weight
-   alone is nearly invisible at 15px in a colour already two steps down, which is how a page ends up
+   alone is nearly invisible at 16px in a colour already two steps down, which is how a page ends up
    with emphasis nobody can see. Read the header of content.ts before adding a second one to a
    block: two is none. */
 strong { font-weight: 600; color: var(--text); }
 
 /* ── The screenshots ────────────────────────────────────────────────────────────────────── */
-/* The app, photographed. One row on a wide screen, one column on a phone rather than full-height
-   images stacked into a mile of page.
-   AUTO-FIT, NOT A COUNT. This was a hardcoded three columns when the strip held three frames, and
-   a fourth frame then sat alone on a second row in the left third of the page, directly under a
-   headline that had just been updated to say "in four screens". The headline is bound to the
-   array by a test; the layout was bound to nothing, so it now takes whatever the array holds and
-   the minimum width decides when a row breaks. The minimum is chosen against the CONTENT
-   COLUMN, and that column has TWO widths: the eyebrow rail appears at 62rem and narrows it to
-   about 744px, while this grid goes multi-column at 52rem, so between those breakpoints it is
-   wider — about 810px at a 900px viewport. Three tracks have to be impossible at BOTH or the
-   fourth frame sits alone in the left third under a headline saying "in four screens". 19rem
-   (304px) needs 984px for three tracks and neither width reaches it, so it is two-by-two above
-   52rem and one column below, and each frame is half again as large as the three used to be.
-   Measured in a browser at 900, 991 and 1440px rather than reasoned about: 11rem gave
-   three-plus-one at every width, and 15rem still gave it at 900. */
-.shots { display: grid; gap: clamp(2rem, 4vw, 3rem); }
-@media (min-width: 52rem) { .shots { grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); } }
-.shot { margin: 0; }
+/* A CAROUSEL, AND CSS IS THE WHOLE OF IT. The frames used to be a grid — two by two above 52rem,
+   one column below — which on a phone was four full-height screenshots stacked into a mile of
+   page. It is now one horizontal strip with scroll snapping: native on a touchscreen, a scrollbar
+   and the arrow keys everywhere else, and no script, which matters because this page loads exactly
+   one (the theme toggle) and a test fails if a second ever appears.
+   NOT PINNED TO A COUNT, like the grid before it: the track is as long as the array, so a fifth
+   frame extends the scroll instead of landing alone on a second row. The slide width is also the
+   affordance — 19rem where there is room, 78vw on a phone — so the next frame is always half
+   visible at the edge and nobody has to be told the strip moves.
+   The CONTAINER scrolls, never the page: overflow-x here is what keeps scrollWidth === clientWidth
+   true on the document at 390px, which a test measures. */
+.shots {
+  display: flex; gap: clamp(1.25rem, 3vw, 2rem);
+  overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  /* Room under the frames for the scrollbar, so it never sits on a caption. */
+  padding-bottom: 1rem;
+  scrollbar-width: thin;
+}
+/* Keyboard: the strip carries tabindex so the arrow keys can move it, and a focus ring is the only
+   thing that tells somebody they have landed on it. */
+.shots:focus-visible { outline: 2px solid var(--text); outline-offset: 6px; border-radius: 1rem; }
+.shot { margin: 0; flex: 0 0 min(19rem, 78vw); scroll-snap-align: start; }
 /* The frame is the same construction as the hero device, one size down, so the screenshots and the
    drawn card read as the same object rather than as a photo pasted next to an illustration. */
 .shot-frame {
-  border: 1px solid var(--line-strong); border-radius: 1.75rem; padding: .5rem;
-  background: linear-gradient(160deg, var(--raised), var(--panel) 55%);
+  border: 1px solid var(--line-strong); border-radius: 2.25rem; padding: .5rem;
+  background: linear-gradient(160deg, var(--raised), var(--panel) 60%);
+  box-shadow: 0 24px 48px -32px rgb(19 20 23 / .30);
 }
 /* The shot is a light-theme capture, so on the dark page it needs its own rounded mask rather than
    bleeding into the frame. display:block is the reset's; the radius is one notch inside the
    frame's so the two curves are concentric. */
-.shot-img { width: 100%; height: auto; border-radius: 1.375rem; }
-.shot-caption { margin-top: 1.25rem; }
-.shot-title { font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.02em; }
+.shot-img { width: 100%; height: auto; border-radius: 1.75rem; }
+.shot-caption { margin-top: 1.5rem; }
+.shot-title { font-size: 1.1875rem; font-weight: 600; letter-spacing: -0.025em; line-height: 1.25; }
 .shot-body { margin-top: .5rem; color: var(--muted); font-size: .9375rem; }
 
-/* ── The numbers, set large ─────────────────────────────────────────────────────────────── */
-/* Every one of these is argued in a sentence further down. This is the version for the reader who
-   scrolls, and the values are read from the code that produces them — see content.ts. */
-.figures { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 1.25rem; overflow: hidden; }
-@media (min-width: 40rem) { .figures { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 64rem) { .figures { grid-template-columns: repeat(4, 1fr); } }
-.figure { background: var(--ink); padding: clamp(1.5rem, 3vw, 2rem); }
-.figure-value {
-  display: block; font-size: clamp(1.75rem, 3.4vw, 2.375rem); font-weight: 700; line-height: 1;
+/* ── What you get ───────────────────────────────────────────────────────────────────────── */
+.what { list-style: none; padding: 0; display: grid; gap: 1rem; }
+@media (min-width: 40rem) { .what { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 64rem) { .what { grid-template-columns: repeat(3, 1fr); } }
+.what-item { padding: 1.5rem; border: 1px solid var(--line); border-radius: 1.375rem; background: var(--raised); }
+.what-title { font-size: 1.125rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; }
+.what-body { margin-top: .5rem; color: var(--muted); font-size: .9375rem; line-height: 1.5; }
+
+/* ── The one raised line ─────────────────────────────────────────────────────────────────── */
+/* The other theme's palette, re-declared rather than restyled, so the band is the page's own
+   other half and never a third colour. One sentence and no label: the one place the page raises
+   its voice. */
+.band { ${darkVars} background: var(--ink); color: var(--text); padding: clamp(4rem, 8vw, 6.5rem) 0; }
+:root[data-theme="dark"] .band { ${lightVars} }
+.section + .band, .band + .section { border-top: 0; }
+.band-line {
+  font-size: clamp(2.25rem, 5vw, 3.75rem); font-weight: 700; letter-spacing: -0.04em;
+  line-height: 1.02; text-wrap: balance; max-width: 16ch;
 }
-.figure-unit {
-  display: block; margin-top: .5rem;
-  font-family: var(--sans); font-size: .6875rem; font-weight: 500; letter-spacing: .1em;
-  text-transform: uppercase; color: var(--dim);
-}
-.figure-label { margin-top: 1rem; color: var(--muted); font-size: .875rem; line-height: 1.5; }
 
 /* ── The repeated ask ───────────────────────────────────────────────────────────────────── */
 /* Not a section: an interruption between two of them, on the raised surface so its three
    appearances read as ONE object recurring rather than as different offers. */
-.ask { background: var(--panel); border-top: 1px solid var(--line); padding: clamp(2rem, 4vw, 2.75rem) 0; }
-.ask-row { display: grid; gap: 1.25rem; align-items: center; }
-@media (min-width: 58rem) { .ask-row { grid-template-columns: minmax(0, 20rem) minmax(0, 1fr); gap: 2.5rem; } }
-.ask-line { color: var(--text); font-size: 1rem; font-weight: 500; letter-spacing: -0.015em; max-width: 30ch; }
-/* The label above the field is redundant here — the line to its left has just said what this is —
-   so it is kept for assistive technology and taken off the page. */
-.ask .subscribe-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.ask { background: var(--panel); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: clamp(2.5rem, 5vw, 3.5rem) 0; }
+.ask + .section, .floor-section + .ask, .ask + .closing { border-top: 0; }
+.closing + .section { border-top: 1px solid var(--line); }
+.ask-row { display: grid; gap: 1.5rem; align-items: center; }
+@media (min-width: 58rem) { .ask-row { grid-template-columns: minmax(0, 22rem) minmax(0, 1fr); gap: 3rem; } }
+.ask-line { color: var(--text); font-size: 1.1875rem; font-weight: 500; letter-spacing: -0.02em; line-height: 1.35; max-width: 26ch; }
 .ask .subscribe { max-width: none; }
 .ask .cta-row { margin-top: 0; }
 .ask .cta-note { margin-top: .75rem; max-width: 52ch; }
@@ -496,110 +554,99 @@ strong { font-weight: 600; color: var(--text); }
 /* The one section that sits on a different surface. Not for variety — this is the only section
    about a guard rather than a feature, and it is the one a reader who is deciding whether to trust
    an app with a daily calorie target has come to find. Everything else is flat by comparison. */
-.floor-section { background: var(--panel); border-top-color: var(--line-strong); }
-.floor-section .guard { border-top-color: var(--line-strong); }
+.floor-section { background: var(--panel); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .floor-section .eyebrow { color: var(--care); }
-.floor-section .eyebrow::before { background: var(--care); }
-.guards { display: grid; gap: 0; margin-top: .5rem; }
-.guard { display: grid; gap: .5rem; padding: 1.75rem 0; border-top: 1px solid var(--line); }
-@media (min-width: 56rem) { .guard { grid-template-columns: 22rem 1fr; gap: 2.5rem; align-items: baseline; } }
-.guard-title { font-size: 1.0625rem; font-weight: 600; letter-spacing: -0.02em; }
-.guard-body { color: var(--muted); font-size: .9375rem; max-width: 60ch; }
+.guards { display: grid; border-top: 1px solid var(--line-strong); }
+.guard { display: grid; gap: .5rem; padding: 1.75rem 0; border-bottom: 1px solid var(--line); }
+@media (min-width: 56rem) { .guard { grid-template-columns: minmax(0, 20rem) 1fr; gap: 3rem; align-items: baseline; } }
+.guard-title { font-size: 1.1875rem; font-weight: 600; letter-spacing: -0.025em; line-height: 1.25; }
+.guard-body { color: var(--muted); font-size: 1rem; max-width: 58ch; }
 .floor-outro {
   margin-top: 2.5rem; padding-left: 1.25rem; border-left: 2px solid var(--care);
-  color: var(--text); font-size: 1.0625rem; max-width: 54ch;
+  color: var(--text); font-size: 1.125rem; line-height: 1.5; max-width: 50ch;
 }
 
 /* ── Prose blocks ───────────────────────────────────────────────────────────────────────── */
-.prose { display: grid; gap: 1.25rem; max-width: 62ch; color: var(--muted); }
+.prose { display: grid; gap: 1.25rem; max-width: 60ch; color: var(--muted); }
 .prose p:first-child { color: var(--text); font-size: 1.0625rem; }
 
 /* The measured numbers. Bordered rather than styled up: it is a receipt, not a badge, and the
    category's habit of putting an accuracy claim in a rosette is the thing it is answering. */
 .measured {
-  margin-top: 2.5rem; padding: 1.25rem 1.5rem; max-width: 62ch;
-  border: 1px solid var(--line); border-radius: 1rem; background: var(--panel);
+  margin-top: 2.5rem; padding: 1.375rem 1.625rem; max-width: 60ch;
+  border: 1px solid var(--line); border-radius: 1.25rem; background: var(--panel);
 }
-.measured-label {
-  font-family: var(--mono); font-size: .625rem; text-transform: uppercase;
-  letter-spacing: .14em; color: var(--dim);
-}
-.measured-body { margin-top: .625rem; color: var(--muted); font-size: .9375rem; }
+.measured-label { font-size: .875rem; font-weight: 500; color: var(--dim); }
+.measured-body { margin-top: .5rem; color: var(--muted); font-size: .9375rem; }
 
 /* Beside the measured numbers now, not at the foot of the page: self-measured error plus one
-   human voice makes a single credible proof block, where apart they were two weak halves. */
-.founder { max-width: 52ch; margin: 2.5rem 0 0; }
+   human voice makes a single credible proof block, where apart they were two weak halves. Set as a
+   pull quote in the display face, with a rule in Spud's skin tone — the page's warm colour, and
+   the closest thing it has to a handwritten margin. */
+.founder { max-width: 36rem; margin: 3rem 0 0; }
 .founder-line {
-  margin: 0; font-size: 1.0625rem; line-height: 1.55; color: var(--muted);
-  border-left: 2px solid var(--line-strong); padding-left: 1.25rem; text-align: left;
+  margin: 0; font-size: clamp(1.25rem, 2vw, 1.5rem); font-weight: 500; letter-spacing: -0.025em;
+  line-height: 1.35; color: var(--text); text-wrap: balance;
+  border-left: 3px solid rgb(var(--warm)); padding-left: 1.25rem; text-align: left;
 }
-.founder-by {
-  margin-top: .75rem; padding-left: 1.3125rem; text-align: left;
-  font-family: var(--mono); font-size: .6875rem; letter-spacing: .12em;
-  text-transform: uppercase; color: var(--dim);
-}
-
-/* ── Privacy ────────────────────────────────────────────────────────────────────────────── */
-.facts { display: grid; gap: 1.75rem; }
-@media (min-width: 48rem) { .facts { grid-template-columns: repeat(2, 1fr); gap: 2.25rem 3rem; } }
-.fact-title { font-size: 1rem; font-weight: 600; letter-spacing: -0.015em; }
-.fact-body { margin-top: .5rem; color: var(--muted); font-size: .9375rem; }
+.founder-by { margin-top: .875rem; padding-left: calc(1.25rem + 3px); text-align: left; font-size: .9375rem; color: var(--dim); }
 
 /* ── FAQ ────────────────────────────────────────────────────────────────────────────────── */
-.faq { border-top: 1px solid var(--line); }
+.faq { border-top: 1px solid var(--line-strong); }
 .faq-item { border-bottom: 1px solid var(--line); }
 .faq-q {
-  cursor: pointer; list-style: none; padding: 1.375rem 2.5rem 1.375rem 0; position: relative;
-  font-size: 1.0625rem; font-weight: 500; letter-spacing: -0.015em;
+  cursor: pointer; list-style: none; padding: 1.5rem 3rem 1.5rem 0; position: relative;
+  font-size: 1.1875rem; font-weight: 500; letter-spacing: -0.025em; line-height: 1.3;
 }
 .faq-q::-webkit-details-marker { display: none; }
+.faq-q:hover { color: var(--text); }
 .faq-q::after {
   content: "+"; position: absolute; right: .25rem; top: 1.25rem;
-  font-family: var(--mono); font-size: 1.125rem; color: var(--dim);
+  font-size: 1.5rem; font-weight: 300; line-height: 1; color: var(--dim);
 }
 .faq-item[open] .faq-q::after { content: "\\2212"; color: var(--care); }
-.faq-a { padding: 0 3rem 1.5rem 0; color: var(--muted); font-size: .9375rem; max-width: 62ch; }
+.faq-a { padding: 0 3rem 1.75rem 0; color: var(--muted); font-size: 1rem; max-width: 60ch; }
 
 /* ── The subscribe form ─────────────────────────────────────────────────────────────────── */
 .subscribe { max-width: 34rem; }
 /* In the hero the form REPLACES the CTA row, and it did not inherit the space that row had: the
-   EMAIL ADDRESS label sat hard against the bottom of the care-blue callout above it and read as
-   part of the quote. Matches .cta-row's own margin, because it is standing in the same place. */
+   label sat hard against the bottom of the care-blue callout above it and read as part of the
+   quote. Matches .cta-row's own margin, because it is standing in the same place. */
 .hero .subscribe { margin-top: 2.5rem; }
-.hero-audience {
-  margin-top: .875rem; font-size: .9375rem; line-height: 1.6; color: var(--dim); max-width: 54ch;
-}
-.subscribe-label {
-  display: block; font-family: var(--mono); font-size: .625rem; text-transform: uppercase;
-  letter-spacing: .14em; color: var(--dim); margin-bottom: .625rem;
-}
+/* The label stays in the markup for assistive technology and comes off the page everywhere: the
+   field's placeholder already says what it is. */
+.subscribe-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .subscribe-row { display: flex; flex-wrap: wrap; gap: .625rem; }
 .subscribe-input {
   flex: 1 1 15rem; min-width: 0;
-  background: var(--panel); border: 1px solid var(--line-strong); border-radius: 999px;
-  color: var(--text); font: inherit; font-size: 1rem; padding: .875rem 1.25rem;
+  background: var(--raised); border: 1px solid var(--line-strong); border-radius: 999px;
+  color: var(--text); font: inherit; font-size: 1.0625rem; padding: .9375rem 1.375rem;
+  box-shadow: 0 1px 2px rgb(19 20 23 / .04);
+  transition: border-color .15s ease, box-shadow .15s ease;
 }
 .subscribe-input::placeholder { color: var(--dim); }
-.subscribe-input:focus { border-color: var(--care); outline: none; }
+.subscribe-input:focus { border-color: var(--care); outline: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--care) 18%, transparent); }
 .subscribe-button {
   flex: none; cursor: pointer;
   /* Quiet by default: in store mode the accent belongs to the CTA, and a second lime button would
      make the page ask for two things at once and get neither. */
   background: transparent; color: var(--text);
   border: 1px solid var(--line-strong); border-radius: 999px;
-  font: inherit; font-size: 1rem; font-weight: 600; padding: .875rem 1.5rem;
-  transition: border-color .15s ease, color .15s ease, transform .15s ease, box-shadow .15s ease;
+  font: inherit; font-family: var(--display); font-size: 1.0625rem; font-weight: 600;
+  letter-spacing: -0.01em; padding: .9375rem 1.625rem;
+  transition: border-color .15s ease, color .15s ease, transform .18s ease, box-shadow .18s ease;
 }
-.subscribe-button:hover { border-color: var(--care); }
+.subscribe-button:hover { border-color: var(--text); }
 
 /* When the form IS the primary action — no store listing, nothing else to tap — its button wears
    the accent, exactly the way the CTA did. Same rule, new owner. */
 .subscribe-primary .subscribe-button {
   background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+  box-shadow: 0 12px 32px -16px rgb(19 20 23 / .45);
 }
 .subscribe-primary .subscribe-button:hover {
-  border-color: var(--accent); transform: translateY(-1px);
-  box-shadow: 0 8px 28px -12px var(--accent);
+  border-color: var(--accent); transform: translateY(-2px);
+  box-shadow: 0 16px 36px -14px var(--accent);
 }
 
 /* Inline validation, CSS only. :user-invalid holds fire until the field has been interacted with,
@@ -612,7 +659,7 @@ strong { font-weight: 600; color: var(--text); }
 }
 .subscribe-input:user-invalid { border-color: var(--bad); }
 .subscribe-input:user-invalid ~ .subscribe-error { display: block; }
-.subscribe-note { margin-top: 1rem; font-size: .8125rem; line-height: 1.55; color: var(--dim); max-width: 52ch; }
+.subscribe-note { margin-top: 1.25rem; font-size: .8125rem; line-height: 1.55; color: var(--dim); max-width: 52ch; }
 
 /* The honeypot. NOT display:none — some bots skip what a browser would not render. Moved off
    screen, taken out of the tab order in the markup, and hidden from assistive technology by
@@ -623,11 +670,11 @@ strong { font-weight: 600; color: var(--text); }
 }
 
 /* ── Spud ───────────────────────────────────────────────────────────────────────────────── */
-/* He appears three times and no more — see the header of mascot.ts. Sized down deliberately: he is
-   a voice beside a paragraph, not an illustration the section is built around. */
-/* 4.5rem, against the app's 50-point badge. The drawing occupies about 82 of its 120 viewBox units
-   vertically, so the potato itself lands near 49px — the same optical weight beside 15px body copy
-   that the badge has beside 13px caption text on a phone. */
+/* Every appearance is a job he already does in the app — see the header of mascot.ts. Sized
+   down deliberately: he is a voice beside a paragraph, not an illustration the section is built
+   around. 4.5rem against the app's 50-point badge: the drawing occupies about 82 of its 120 viewBox
+   units vertically, so the potato lands near 49px, the same optical weight beside body copy that
+   the badge has beside caption text on a phone. */
 .spud { width: 4.5rem; height: 4.5rem; flex: none; }
 /* HE SPEAKS FROM A BUBBLE, the way he does on every screen of the app.
    Beside a bare paragraph he read as a sticker somebody had left on the page — a potato, alone, in
@@ -641,8 +688,9 @@ strong { font-weight: 600; color: var(--text); }
 .spud-line {
   color: var(--text); font-size: .9375rem; line-height: 1.5;
   background: var(--raised); border: 1px solid var(--line);
-  border-radius: 1.125rem 1.125rem 1.125rem .25rem;
+  border-radius: 1.25rem 1.25rem 1.25rem .25rem;
   padding: .875rem 1.125rem;
+  box-shadow: 0 1px 2px rgb(19 20 23 / .04);
 }
 /* THE ONE LARGE APPEARANCE. Everywhere else he is a 4.5rem aside; at the floor — the section whose
    subject is him saying no — he is the page's single drawn moment, bled past the left gutter into
@@ -665,28 +713,46 @@ strong { font-weight: 600; color: var(--text); }
 /* ── Outcome pages ──────────────────────────────────────────────────────────────────────── */
 .outcome { padding: clamp(5rem, 14vw, 10rem) 0; }
 .outcome-title {
-  font-size: clamp(1.875rem, 4.4vw, 2.75rem); font-weight: 700;
-  letter-spacing: -0.04em; line-height: 1.06; max-width: 20ch;
+  font-size: clamp(2.125rem, 4.6vw, 3rem); font-weight: 700;
+  letter-spacing: -0.04em; line-height: 1.04; max-width: 20ch;
 }
-.outcome-body { margin-top: 1.25rem; color: var(--muted); max-width: 48ch; }
+.outcome-body { margin-top: 1.25rem; color: var(--muted); font-size: 1.0625rem; max-width: 46ch; }
 .outcome-back { margin-top: 2rem; font-size: .9375rem; }
 .outcome-back a { color: var(--muted); border-bottom: 1px solid var(--line-strong); text-decoration: none; padding-bottom: 2px; }
 .outcome-back a:hover { color: var(--text); border-bottom-color: var(--care); }
 
 /* ── Closing ────────────────────────────────────────────────────────────────────────────── */
-.closing { text-align: center; padding: clamp(4.5rem, 10vw, 8rem) 0; border-top: 1px solid var(--line); }
-.closing-title { font-size: clamp(1.875rem, 4.4vw, 3rem); font-weight: 700; letter-spacing: -0.04em; line-height: 1.05; text-wrap: balance; }
-.closing-sub { margin: 1.25rem auto 0; color: var(--muted); max-width: 48ch; }
-.closing .cta-row { justify-content: center; margin-top: 2.25rem; }
+/* The warm wash again, as a bookend to the hero's — the page opens and closes on the same light. */
+.closing {
+  position: relative; overflow: hidden; text-align: center; padding: clamp(6rem, 14vw, 11rem) 0;
+  ${darkVars} color: var(--text);
+}
+.closing-plate { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.closing::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgb(12 12 12 / .46), rgb(12 12 12 / .72));
+}
+.closing .wrap { position: relative; z-index: 1; }
+.closing-title { margin: 0 auto; font-size: clamp(2.375rem, 5.6vw, 3.875rem); font-weight: 700; letter-spacing: -0.045em; line-height: 1; text-wrap: balance; max-width: 16ch; }
+.closing-sub { margin: 1.5rem auto 0; color: var(--text); opacity: .86; font-size: 1.125rem; line-height: 1.55; max-width: 42ch; }
+.closing .cta-row { justify-content: center; margin-top: 2.5rem; }
 .closing .cta-note { margin-left: auto; margin-right: auto; text-align: center; }
 
 /* ── Footer ─────────────────────────────────────────────────────────────────────────────── */
-.footer { border-top: 1px solid var(--line); padding: 2.5rem 0 4rem; color: var(--dim); font-size: .8125rem; }
+.footer { border-top: 1px solid var(--line); padding: 2.5rem 0 4rem; color: var(--dim); font-size: .8125rem; line-height: 1.55; }
 .footer-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem 2rem; }
 .footer-links { display: flex; flex-wrap: wrap; gap: 1.5rem; }
 .footer-links a { text-decoration: none; }
 .footer-links a:hover { color: var(--muted); }
 .footer-note { max-width: 52ch; }
+
+/* Last in the sheet on purpose: every selector here ties on specificity with the rule it switches
+   off, so source order is what makes it win. Placed above .spud-eyes it did not, and he blinked. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-title, .hero-sub, .hero-line, .deal, .pill, .mcard-verdict, .device-inner .spud-says, .spud-eyes { animation: none; }
+  .cta, .subscribe-button { transition: none; }
+  .cta:hover, .subscribe-primary .subscribe-button:hover { transform: none; }
+}
 `;
 
 export const styles = `${sheet}\n${derivedRules()}\n`;

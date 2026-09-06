@@ -15,9 +15,9 @@
 //     reader convinced by the third of eight sections had to scroll past the other five to act.
 
 import {
-  accuracySection, brand, closing, faqSection, faqs, figures, figuresSection, floorSection, footer,
-  forSection, hero, privacySection, founder, outcomes, plural, refusals, refusalsSection, sample, SAMPLE_ANALYSES,
-  screensSection, shots, steps, stepsSection, subscribeSection,
+  accuracySection, band, brand, closing, faqSection, faqs, floorSection, footer,
+  hero, privacySection, problemSection, founder, outcomes, plural, refusals, refusalsSection, sample,
+  SAMPLE_ANALYSES, photos, screensSection, shots, steps, stepsSection, subscribeSection, whatSection,
 } from "./content.ts";
 import {
   primaryAction, primaryCta, secondaryCta, surfaceNote, START_CODES, type CtaPlacement,
@@ -25,6 +25,7 @@ import {
 } from "./config.ts";
 import { color, dark, light } from "./tokens.ts";
 import { spudSvg, type LandingMood } from "./mascot.ts";
+import { problemIllustration } from "./illustrations.ts";
 import { OG_HEIGHT, OG_WIDTH } from "./images.ts";
 
 export function esc(value: string): string {
@@ -104,8 +105,8 @@ export function iconSvg(): string {
  */
 function metaDescription(): string {
   return (
-    "Photograph a meal and get its calories, protein and a verdict against targets computed for " +
-    `your body. No card for the first ${plural(SAMPLE_ANALYSES, "one", String(SAMPLE_ANALYSES))}. ` +
+    "Want to eat better? Photograph the plate and get its calories, protein and a verdict " +
+    `against your day. No card for the first ${plural(SAMPLE_ANALYSES, "one", String(SAMPLE_ANALYSES))}. ` +
     "Photos stay with the meal."
   );
 }
@@ -281,16 +282,18 @@ function heroInstrument(): string {
   return `
       <figure class="device" role="img" aria-label="${esc(
         `A daily target of ${n(target.kcal)} kilocalories with the ${n(target.floorKcal)} ` +
-          `kilocalorie floor marked below it, and one logged meal — ${meal.title}, ` +
-          `${n(meal.kcal)} kilocalories — carrying three separate verdicts: ` +
+          `kilocalorie floor marked below it. The reader asks: ${meal.ask} ` +
+          `Then one logged meal, ${meal.title}, ` +
+          `${n(meal.kcal)} kilocalories, carrying three separate verdicts: ` +
           meal.verdicts.map((v) => `${v.label} ${v.verdict}`).join(", ") +
           `. The card's answer reads: ${meal.verdict} ` +
           // The figure is role="img", which hides its inner text from assistive technology, so the
           // one line rendered outside the cards has to travel in the label too.
           `Beneath the card, a note: ${meal.note}`,
       )}">
+        <img class="plate" src="/assets/${esc(photos.hero.file)}" width="${photos.hero.width}"
+             height="${photos.hero.height}" alt="" decoding="async" fetchpriority="high">
         <div class="device-inner">
-          <div class="device-bar"></div>
 
           <div class="card deal deal-1">
             <span class="tcard-label">${esc(target.label)}</span>
@@ -307,10 +310,13 @@ function heroInstrument(): string {
                 target.floorKcal,
               )}</div>
             </div>
-            <p class="tcard-basis">${esc(target.basis)}</p>
           </div>
 
-          <div class="card deal deal-2">
+          <div class="you-says deal deal-2">
+            <p class="you-line">${esc(meal.ask)}</p>
+          </div>
+
+          <div class="card deal deal-3">
             <div class="mcard-head">
               <p class="mcard-title">${esc(meal.title)}</p>
               <span class="mcard-kcal num">${n(meal.kcal)}<span class="mcard-kcal-unit">kcal</span></span>
@@ -399,17 +405,22 @@ function askBand(config: LandingConfig, placement: CtaPlacement): string {
  * `loading="lazy"` and explicit dimensions on every one — the width and height are in `shots` and
  * come from the files, so the browser reserves the box before the bytes arrive and nothing below
  * jumps. They are same-origin under `img-src 'self'`, like everything else here.
+ *
+ * THE STRIP IS A SCROLLING REGION, so it is named and focusable: a scroll container that no key
+ * can reach is content a keyboard cannot read, and the browser only makes one focusable on its own
+ * in some versions. `role=region` plus the label is what puts it in the landmark list under a name
+ * somebody can recognise; the snapping and the slide width are CSS (see `.shots` in styles.ts).
  */
-function screens(): string {
+function screens(config: LandingConfig): string {
   return `
   <section class="section screens-section">
     <div class="wrap">
       <p class="eyebrow">${esc(screensSection.eyebrow)}</p>
       <div class="section-head">
         <h2 class="section-title">${esc(screensSection.headline)}</h2>
-        <p class="section-intro">${esc(screensSection.intro)}</p>
+        <p class="section-intro">${esc(config.appStoreUrl ? screensSection.intro : `${screensSection.intro} ${screensSection.unreleased}`)}</p>
       </div>
-      <div class="shots">
+      <div class="shots" role="region" aria-label="${esc(`${brand.name} screens`)}" tabindex="0">
 ${shots
   .map(
     (s) => `        <figure class="shot">
@@ -425,30 +436,6 @@ ${shots
   )
   .join("\n")}
       </div>
-    </div>
-  </section>
-`;
-}
-
-/** The four numbers, set large. Every value is read from the code that produces it — see content.ts. */
-function figuresBand(): string {
-  return `
-  <section class="section figures-section">
-    <div class="wrap">
-      <p class="eyebrow">${esc(figuresSection.eyebrow)}</p>
-      <div class="section-head">
-        <h2 class="section-title">${esc(figuresSection.headline)}</h2>
-      </div>
-      <dl class="figures">
-${figures
-  .map(
-    (f) => `        <div class="figure">
-          <dt class="figure-value num">${esc(f.value)}<span class="figure-unit">${esc(f.unit)}</span></dt>
-          <dd class="figure-label">${esc(f.label)}</dd>
-        </div>`,
-  )
-  .join("\n")}
-      </dl>
     </div>
   </section>
 `;
@@ -656,10 +643,9 @@ ${jsonLd(config)}
   <section class="hero">
     <div class="wrap hero-grid">
       <div>
-        <p class="eyebrow">${esc(hero.eyebrow)}</p>
         <h1 class="hero-title">${esc(hero.headline)}</h1>
         <p class="hero-sub">${esc(hero.sub)}</p>
-        <p class="hero-audience">${esc(hero.audience)}</p>${
+        <p class="hero-line">${esc(hero.promise)}</p>${
           surfaceNote(config)
             ? `
         <p class="hero-surface">${esc(surfaceNote(config)!)}</p>`
@@ -691,14 +677,16 @@ ${heroInstrument()}
 
   <section class="section">
     <div class="wrap">
-      <p class="eyebrow">${esc(forSection.eyebrow)}</p>
+      <p class="eyebrow">${esc(problemSection.eyebrow)}</p>
       <div class="section-head">
-        <h2 class="section-title">${esc(forSection.headline)}</h2>
+        <h2 class="section-title">${esc(problemSection.headline)}</h2>
+        <p class="section-intro">${esc(problemSection.intro)}</p>
       </div>
       <div class="facts">
-${forSection.rows
+${problemSection.rows
   .map(
-    (r) => `        <div>
+    (r, i) => `        <div>
+          ${problemIllustration(i)}
           <h3 class="fact-title">${esc(r.title)}</h3>
           <p class="fact-body">${emphasis(r.body)}</p>
         </div>`,
@@ -708,27 +696,6 @@ ${forSection.rows
     </div>
   </section>
 
-  <section class="section">
-    <div class="wrap">
-      <p class="eyebrow">${esc(refusalsSection.eyebrow)}</p>
-      <div class="section-head">
-        <h2 class="section-title">${esc(refusalsSection.headline)}</h2>
-      </div>
-      <div class="refusals">
-${refusals
-  .map(
-    (r) => `        <div class="refusal">
-          <h3 class="refusal-title">${esc(r.title)}</h3>
-          <p class="refusal-body">${emphasis(r.body)}</p>
-          <p class="refusal-proof">${esc(r.proof)}</p>
-        </div>`,
-  )
-  .join("\n")}
-      </div>
-    </div>
-  </section>
-
-${figuresBand()}
   <section class="section">
     <div class="wrap">
       <p class="eyebrow">${esc(stepsSection.eyebrow)}</p>
@@ -749,8 +716,53 @@ ${steps
     </div>
   </section>
 
-${screens()}
+  <section class="section">
+    <div class="wrap">
+      <p class="eyebrow">${esc(whatSection.eyebrow)}</p>
+      <div class="section-head">
+        <h2 class="section-title">${esc(whatSection.headline)}</h2>
+      </div>
+      <ul class="what">
+${whatSection.items
+  .map(
+    (i) => `        <li class="what-item">
+          <h3 class="what-title">${esc(i.title)}</h3>
+          <p class="what-body">${esc(i.body)}</p>
+        </li>`,
+  )
+  .join("\n")}
+      </ul>
+    </div>
+  </section>
+
+${screens(config)}
 ${askBand(config, "steps")}
+  <section class="section">
+    <div class="wrap">
+      <p class="eyebrow">${esc(refusalsSection.eyebrow)}</p>
+      <div class="section-head">
+        <h2 class="section-title">${esc(refusalsSection.headline)}</h2>
+      </div>
+      <div class="refusals">
+${refusals
+  .map(
+    (r) => `        <div class="refusal">
+          <h3 class="refusal-title">${esc(r.title)}</h3>
+          <p class="refusal-body">${emphasis(r.body)}</p>
+          <p class="refusal-proof">${esc(r.proof)}</p>
+        </div>`,
+  )
+  .join("\n")}
+      </div>
+    </div>
+  </section>
+
+  <section class="section band">
+    <div class="wrap">
+      <p class="band-line">${esc(band.line)}</p>
+    </div>
+  </section>
+
   <section class="section">
     <div class="wrap">
       <p class="eyebrow">${esc(accuracySection.eyebrow)}</p>
@@ -836,6 +848,8 @@ ${faqs
 
 ${askBand(config, "faq")}
   <section class="closing">
+    <img class="closing-plate" src="/assets/${esc(photos.closing.file)}" width="${photos.closing.width}"
+         height="${photos.closing.height}" alt="" decoding="async">
     <div class="wrap">
       <h2 class="closing-title">${esc(closing.headline)}</h2>
       <p class="closing-sub">${esc(closing.sub)}</p>${

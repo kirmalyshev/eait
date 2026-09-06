@@ -17,11 +17,10 @@ import { color, dark, light, TOKEN_SOURCE } from "./tokens.ts";
 import { BODY, MASCOT_SOURCE, MOUTHS, SHEEN } from "./mascot.ts";
 import { styles } from "./styles.ts";
 import {
-  brand, faqs, figures, figuresSection, founder, measured, plural, refusals, floorSection, sample,
-  SAMPLE_ANALYSES,
-  screensSection, shots, subscribeSection,
+  brand, faqs, founder, measured, plural, privacySection, refusals, floorSection, sample,
+  SAMPLE_ANALYSES, screensSection, shots, subscribeSection, whatSection,
 } from "./content.ts";
-import { BAD_SHARE, FREE_ANALYSES, KCAL_FLOOR, MAX_DEFICIT_SHARE, WARN_SHARE } from "@eait/shared";
+import { BAD_SHARE, FREE_ANALYSES, KCAL_FLOOR, WARN_SHARE } from "@eait/shared";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -473,7 +472,10 @@ describe("the build output", () => {
     // The answer engines are named because group matching is EXCLUSIVE (RFC 9309 §2.2.1): a bot
     // that finds its own group ignores `*`. Naming them is what stops a later `Disallow:` under
     // `*` taking them out of every AI answer as a side effect nobody meant.
-    for (const bot of ["GPTBot", "ClaudeBot", "PerplexityBot", "OAI-SearchBot", "Google-Extended"]) {
+    for (const bot of [
+      "GPTBot", "ClaudeBot", "PerplexityBot", "OAI-SearchBot", "Google-Extended",
+      "DuckAssistBot", "MistralAI-User", "Amazonbot",
+    ]) {
       expect(robots).toContain(`User-agent: ${bot}\nAllow: /`);
     }
     // Every group ends up allowed, and there is exactly one Sitemap line for all of them.
@@ -881,6 +883,26 @@ describe("search and LLM engines", () => {
     rmSync(dark, { recursive: true, force: true });
   });
 
+  test("llms.txt carries every section of the page, not just the pitch", async () => {
+    // The file used to stop at the argument: the problem, the steps, the refusals, the accuracy
+    // and the FAQ. A retrieval system asked whether this thing syncs with Apple Health, what the
+    // floor actually is, or what happens to an email address answered from nothing. Bound to the
+    // constants rather than to strings, so a seventh thing in the app is a failing test here
+    // rather than a fact only the page carries.
+    const dir = outDir();
+    const text = readFileSync(
+      join((await buildLanding({ ...ENV, EAIT__BACKEND__LANDING_INDEXABLE: "true" }, dir)).outDir, "llms.txt"),
+      "utf8",
+    );
+    for (const heading of ["## What you get", "## The floor", "## Privacy"]) {
+      expect(text).toContain(heading);
+    }
+    for (const item of whatSection.items) expect(text).toContain(`- ${item.title} ${item.body}`);
+    for (const guard of floorSection.guards) expect(text).toContain(`- ${guard.title} ${guard.body}`);
+    for (const fact of privacySection.facts) expect(text).toContain(`- ${fact.title} ${fact.body}`);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
   test("llms.txt says whether the app can actually be installed yet", async () => {
     // Everything under it describes an iPhone app. Read by an answer engine while that app is
     // unreleased, the sections alone tell somebody to go and install it — the same mismatch
@@ -1149,17 +1171,37 @@ describe("the screenshots", () => {
     }
   });
 
-  test("the shot grid is not pinned to a number of shots", () => {
+  test("the photographs are sized by CSS, not by their own height attribute", () => {
+    // Both carry width and height attributes so the browser reserves the box before the bytes
+    // arrive. Those attributes are presentational hints that set the CSS width AND height, so a
+    // rule giving only the width leaves the intrinsic height in force: `.plate` rendered 416x1250
+    // — a vertical slice of a platter — and made the hero 1,694px deep, with the column beside it
+    // ending after the form. `height: auto` is what hands the box back to `aspect-ratio`.
+    const plate = styles.match(/\.plate \{([^}]+)\}/);
+    expect(plate).not.toBeNull();
+    expect(plate![1]).toContain("height: auto");
+    expect(styles).toContain(".shot-img { width: 100%; height: auto;");
+  });
+
+  test("the shot strip is a carousel, and not pinned to a number of shots", () => {
     // `.shots` was `repeat(3, 1fr)` and the array grew to four, which put the diary frame alone on
-    // a second row in the left third of the page, under a headline that says "in four screens".
-    // The count test below binds the headline to the array; nothing bound the layout, so it is
-    // written to take whatever the array holds.
-    // AGAINST THE `.shots` RULE ITSELF. `expect(styles).toContain("repeat(auto-fit")` was true of a
-    // stylesheet holding eight other grid rules, so `.shots` could go back to a fixed column count
-    // with any one of them supplying the substring.
-    const rule = styles.match(/\.shots \{ grid-template-columns: ([^}]+); \}/);
+    // a second row in the left third of the page. It is a scroll-snapping strip now, which takes
+    // whatever the array holds for free — but only while it stays one: a grid rule reintroduced
+    // here would silently bring the second row back, and a track width in a fixed column count
+    // would bring back the pinning. Both are asserted against the `.shots` rule itself, because a
+    // substring match would be satisfied by any of the other grid rules in the stylesheet.
+    const rule = styles.match(/\.shots \{([^}]+)\}/);
     expect(rule).not.toBeNull();
-    expect(rule![1]).toMatch(/^repeat\(auto-fit, minmax\(\d+(\.\d+)?rem, 1fr\)\)$/);
+    expect(rule![1]).toContain("overflow-x: auto");
+    expect(rule![1]).toContain("scroll-snap-type: x mandatory");
+    expect(rule![1]).not.toContain("grid-template-columns");
+    // The slide carries the snap point; without it the strip scrolls but stops nowhere.
+    expect(styles).toContain("scroll-snap-align: start");
+    // Reachable by keyboard, and visibly so — a scroll container no key can reach is content a
+    // keyboard cannot read.
+    expect(html).toContain('<div class="shots" role="region"');
+    expect(html).toContain('tabindex="0"');
+    expect(styles).toContain(".shots:focus-visible");
   });
 
   test("none of the analyzer frames is on the page", () => {
@@ -1180,29 +1222,14 @@ describe("the screenshots", () => {
 });
 
 describe("counts typed in headlines", () => {
-  test("the spelled-out counts match the arrays they describe", () => {
-    // "Four figures…" and "…in four screens." are numbers in public copy, and the rule is that
-    // such a number is read from the code that produces it. The words cannot be, so this binds
-    // them: add a shot or a figure and the headline goes red here instead of lying on the page.
+  test("a headline that counts the array counts it correctly", () => {
+    // The screens headline said "…in four screens." until it said "How it looks." — a number in
+    // public copy is read from the code that produces it, and a spelled-out one cannot be, so the
+    // binding is this: state no count and the array is free to grow; state one and it must be the
+    // array's. Add a shot under a headline that says four and this goes red instead of the page.
     const words = ["zero", "one", "two", "three", "four", "five", "six"] as const;
-    expect(figuresSection.headline.toLowerCase()).toContain(words[figures.length]!);
-    expect(screensSection.headline.toLowerCase()).toContain(words[shots.length]!);
-  });
-});
-
-describe("the numbers set large", () => {
-  test("every figure is read from the code that produces it", () => {
-    // The repo's rule, and a band of large numbers is the worst place to break it. A figure typed
-    // by hand here is a public claim with nothing holding it to the product.
-    const values = figures.map((f) => f.value);
-    expect(values).toContain(KCAL_FLOOR.female.toLocaleString("en-GB"));
-    // The men's floor is in the label rather than the figure, and it is still read from the code.
-    expect(figures.map((f) => f.label).join(" ")).toContain(KCAL_FLOOR.male.toLocaleString("en-GB"));
-    expect(values).toContain(`${Math.round(MAX_DEFICIT_SHARE * 100)}%`);
-    expect(values).toContain(`${measured.medianErrorPct}%`);
-    expect(figures.find((f) => f.value === `${measured.medianErrorPct}%`)!.unit)
-      .toContain(String(measured.dishes));
-    for (const figure of figures) expect(html).toContain(figure.value);
+    const stated = words.findIndex((w) => new RegExp(`\\b${w}\\b`).test(screensSection.headline.toLowerCase()));
+    if (stated >= 0) expect(stated).toBe(shots.length);
   });
 });
 
@@ -1260,9 +1287,11 @@ describe("the repeated ask", () => {
   test("the band says what it is actually asking for", () => {
     // The form line beside a button that opens Telegram would be the page describing an ask its own
     // button does not make — which is the exact failure `surfaceNote` exists to prevent elsewhere.
-    expect(withApi).toContain(subscribeSection.bandLine.form);
-    expect(withApi).not.toContain(subscribeSection.bandLine.action);
-    expect(botOnly).toContain(subscribeSection.bandLine.action);
-    expect(botOnly).not.toContain(subscribeSection.bandLine.form);
+    // Through `esc`, because the form line now carries an apostrophe and the page renders one as
+    // `&#39;` — comparing the raw constant would fail on copy that is on the page.
+    expect(withApi).toContain(esc(subscribeSection.bandLine.form));
+    expect(withApi).not.toContain(esc(subscribeSection.bandLine.action));
+    expect(botOnly).toContain(esc(subscribeSection.bandLine.action));
+    expect(botOnly).not.toContain(esc(subscribeSection.bandLine.form));
   });
 });

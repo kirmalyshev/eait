@@ -11,7 +11,14 @@
 // low-star reviews, billing the largest cluster in all seven — the 864 is Cal AI's alone) · floor section — that brief's §3.4, numbers read from
 // `src/shared/targets.ts` · accuracy section — `marketing/research/2026-07-26-ad-angle-bank.md`
 // Angle 2 · hero no-card line, the two FAQ additions and the copy-editing pass —
-// `marketing/research/2026-09-02-landing-cro-audit.md`.
+// `marketing/research/2026-09-02-landing-cro-audit.md` · the 2026-09-06 tone pass (warmer,
+// second-person, lifestyle-first, every fact unchanged) and `problemSection` — the struggling
+// moments SM1 and SM2 and the pushes in `marketing/research/2026-09-02-jtbd.md` §1 and §2, in the
+// order the forces evidence ranks them, and `2026-09-02-positioning-canvas.md` §10.
+//
+// THE TONE IS WARM AND THE FACTS ARE NOT NEGOTIABLE. "Success in health" on this page means agency,
+// consistency and feeling good about dinner — never an outcome. Nothing here promises a result,
+// because `claims.ts` refuses the words and the product cannot substantiate the rest.
 //
 // THE FIRST REFUSAL USED TO SAY THERE WAS NO PAID TIER, AND THE PAID TIER SHIPPED. Three places
 // said it — the refusal, the cost question and the closing line — and every one of them became
@@ -41,8 +48,8 @@ import { configuredSample } from "./config.ts";
  *
  * READ FROM THE INSTANCE, NOT COMPILED IN — `config.ts` explains why, and it is the same rule the
  * rest of this repo applies to every limit the server enforces. The singular branches below are
- * live because of it: a host that pins the knob to 1 gets a page that says so, and production is
- * pinned there today.
+ * live because of it: a host that pins the knob to 1 gets a page that says so. Production is not
+ * that host — it ships the default, which has been fifteen since #204.
  */
 export const SAMPLE_ANALYSES: number = configuredSample();
 
@@ -54,7 +61,7 @@ export const SAMPLE_ANALYSES: number = configuredSample();
 export const plural = (n: number, one: string, many: string): string => (n === 1 ? one : many);
 
 export interface Refusal {
-  /** The promise, phrased as the thing that will not happen. */
+  /** The promise, stated as what happens. */
   title: string;
   body: string;
   /** The one-line receipt: where in the product this is enforced. */
@@ -93,22 +100,41 @@ export const brand = {
    */
   title: "Photo calorie tracker with a verdict — eait",
   /** The positioning line the review panel found the page never says in one sentence. */
-  tagline: "The meal-verdict app: it answers before it asks.",
+  tagline: "Photograph the plate and get a verdict against your own day.",
 } as const;
 
+/**
+ * NO EYEBROW. It read "Photo → numbers → verdict" — the mechanism, which is the commoditised axis
+ * of this category — and the positioning canvas (§10) found it undercut the H1, which already leads
+ * with the answer. The headline is the first thing on the page now.
+ */
 export const hero = {
-  eyebrow: "Photo → numbers → verdict",
-  // Angle A2 phrased as the reader's moment, not a thesis — see marketing/README.md.
-  headline: "Will this meal fit your day?",
-  sub:
-    "Photograph the plate. eait reads it — calories, protein, saturated fat, sodium — and answers " +
-    "against targets computed from your body and your goal. Seconds, no weighing, no database " +
-    "search, and no card until it has answered you.",
-  // The Tier-1 segment, never the restricted-diet reader, and no medication named —
-  // `marketing/research/2026-07-26-ad-angle-bank.md` Angle 3; liability: redteam-positioning.md.
-  audience:
-    "Built for the person who has fought the same few kilos for years. Small deficits have " +
-    "small margins, and one guessed dinner can undo a careful week.",
+  /**
+   * THE HABIT, NOT THE INSTRUMENT. It read "Will this meal fit your day?" — Angle A2 as the
+   * reader's moment — and a cold reader heard a question about time. Kirill's line, 2026-09-06:
+   * the page sells eating better as a habit and a life, and the verdict is how it is kept. The
+   * cost is that this is a sentence any app in the category could open with, so the sub below is
+   * what has to carry the difference: the moment, and the answer that comes back every time.
+   */
+  headline: "Want to eat better?",
+  /**
+   * THE PROBLEM, IN THE READER'S OWN MOMENT, then what eait does about it. This is SM1 from the
+   * JTBD work (the plate you did not cook, a few kilos from the goal, the margin gone in one
+   * guess) and the push away from the usual tools; the last clause is the habit — a verdict on
+   * every plate, and a reason to send the next one. "A few kilos from where you want to be" is
+   * the segment, not a promise.
+   *
+   * No "in seconds": docs/ACCURACY.md measured a 37 s median to the verdict on the reasoning
+   * model. The glance is about a second; the answer is not, and the hero must not say it is.
+   */
+  // Plain statements, short. The first version stacked negations ("no weighing, no database
+  // search, no card"), personified "the usual tools" and closed on a triplet; Kirill called it
+  // slop, and WRITINGSTYLE.md agrees on every count. Nothing here says what eait is not.
+  sub: "Scan your food. We'll do the rest.",
+  /** The no-card promise from the CRO audit, stated as what happens rather than what does not. */
+  promise: plural(SAMPLE_ANALYSES,
+    "You get the first verdict before anyone asks you for a card.",
+    `You get your first ${SAMPLE_ANALYSES} verdicts before anyone asks you for a card.`),
 } as const;
 
 /**
@@ -140,11 +166,18 @@ export const sample = {
       { label: "Saturated fat", verdict: "warn" as const },
       { label: "Sodium", verdict: "bad" as const },
     ],
+    /**
+     * What the reader sends, drawn as their own bubble above the card — so the phone plays the
+     * problem and then the answer, rather than only the output. In the app the photo goes with
+     * it; the page has no meal photograph it may publish (docs/RELEASE.md § A note on the
+     * photos), so the bubble carries the question alone.
+     */
+    ask: "Is this fine?",
     note: "Counted the garlic sauce. Say “no sauce” if there wasn’t any.",
     /**
      * THE ANSWER, IN A SENTENCE — and the thing this card did not have.
      *
-     * The eyebrow promises photo → numbers → verdict. The card delivered a photo's numbers and
+     * The title promises a verdict. The card delivered a photo's numbers and
      * three coloured chips, which is the TAXONOMY of a verdict rather than one: a reader had to
      * decode a pill legend to learn whether the meal was all right. This is the line the app itself
      * ends on ("1168 of your 2393 kcal today — 1225 left"), carrying the one judgement the pills
@@ -160,87 +193,158 @@ export const sample = {
      * `1,140` is `target.kcal − meal.kcal`, and a test computes it rather than reading it, because
      * a hero that quotes arithmetic it got wrong is the worst possible place for a stale number.
      */
-    verdict: "1,140 kcal left — but over a third of your day, and most of your sodium.",
+    verdict: "1,140 kcal left, but over a third of your day and most of your sodium.",
   },
 } as const;
 
 /**
- * Who it's for. Row by row: `marketing/research/2026-07-26-ad-angle-bank.md` Angle 3, Angle 1,
- * and `…-market-research.md` §5 (sell the accountability relationship). No outcome promises.
+ * The problem, stated before anything is asked for. This section was WHO IT'S FOR — three
+ * personas under a label saying the section was about the reader — and the page never said in
+ * plain words why it exists. Each row is a place the usual answer breaks (`2026-09-02-jtbd.md`
+ * §1 SM1–SM2 and the pushes in §2, in the order the forces evidence ranks them: portions and
+ * being wrong, the number with no judgement, the small margin) and closes with the one thing eait
+ * does about it. Sources for the rows themselves: `marketing/research/2026-07-26-ad-angle-bank.md`
+ * Angle 1 and Angle 3, `…-market-research.md` §5. No outcome promises; the third row's margin is
+ * the segment's, and what it promises is a check, not a result.
+ *
+ * The kcal in the second row is the hero card's own meal, read from `sample` rather than typed,
+ * so the number the section argues about is the number the phone above it shows.
  */
-export const forSection = {
-  eyebrow: "Who it's for",
-  headline: "If one of these is you.",
+export const problemSection = {
+  eyebrow: "Struggle",
+  headline: "Tracking breaks in the same three places.",
+  intro: "Food diaries die for three reasons.",
   rows: [
     {
-      title: "You've carried the same few kilos for years.",
+      title: "Portions are a guess.",
       body:
-        "Not a big cut, which is exactly why it is hard. The smaller the deficit, the smaller " +
-        "the margin of error, and **one misjudged meal erases a careful week.** A verdict on every " +
-        "meal is a check built for exactly that margin.",
+        "Nobody weighs a restaurant plate. **eait reads it and shows the portion it assumed.** If that is wrong, say so: half that, no oil.",
     },
     {
-      title: "Logging always died at portions.",
+      title: "The judging is left to you.",
       body:
-        "You logged honestly and still guessed the grams. **Portion size is where every food " +
-        "diary breaks.** eait reads the plate, shows what it assumed, and you correct it in a " +
-        "sentence: “half that”, “no oil”, “that was a small one”.",
+        `A diary writes ${sample.meal.kcal.toLocaleString("en-GB")} kcal and stops. **eait says whether that was fine, in words.**`,
     },
     {
-      title: "You want someone to answer to.",
+      title: "One guessed dinner costs the week.",
       body:
-        "A diary writes things down and never says whether they were fine. **Every meal you send " +
-        "comes back judged against your day**, which is the part a tracker never gave you, and " +
-        "the reason to send the next one.",
+        "A small deficit has a small margin. **A verdict on every meal is a check sized for it.**",
     },
   ],
 } as const;
 
 export const refusalsSection = {
-  eyebrow: "What it will not do",
-  headline: "Three refusals, and they are the product.",
+  eyebrow: "Promises",
+  // NOT "kept in code". That headline was addressed to the wrong reader — it answered a
+  // developer's question about how the promises are enforced, in a section whose whole job is to
+  // tell a visitor what will not happen to them. The enforcement is still real and still tested;
+  // it is simply not the reader's business here.
+  headline: "What you can count on.",
 } as const;
 
 export const refusals: readonly Refusal[] = [
   {
-    title: "It will not ask for a card before it has answered you.",
+    title: plural(SAMPLE_ANALYSES,
+      "You see the first verdict before it asks for a card.",
+      `You see your first ${SAMPLE_ANALYSES} verdicts before it asks for a card.`),
     body:
-      // "no email" stood in this list until issue #95. It was true of the path this paragraph
-      // describes and false of the product, which is exactly how a refusal gets quoted back at
-      // you — the App Store listing dropped it from the identical sentence in the same change.
-      "You open it, answer a few questions about your body, and send a meal — **no account, no " +
-      `card.** ${plural(SAMPLE_ANALYSES, "That first answer is yours", `The first ${SAMPLE_ANALYSES} answers are yours`)} ` +
-      "before anything is asked of you. Only then does it ask, and what it asks for is a " +
-      "subscription that opens with a free week, bought in the App Store and cancelled there. " +
-      "Nothing is charged unless you let that week run out.",
+      "Answer a few questions and send a meal. " +
+      `${plural(SAMPLE_ANALYSES, "That first answer is yours", `The first ${SAMPLE_ANALYSES} answers are yours`)} ` +
+      "before anything is asked of you. Then a free week. **The App Store shows the price in your " +
+      "currency before any charge.**",
     proof:
-      "In 2,792 low-star App Store reviews across seven apps in this category, the biggest " +
-      "complaint, for every one of the seven, is a charge nobody agreed to.",
+      "2,792 low-star App Store reviews across seven apps in this category. The biggest complaint in every one: a charge nobody agreed to.",
   },
   {
-    title: "It keeps your photo with the meal, and nowhere else.",
+    title: "Your photo stays with your meal.",
     body:
-      "The picture is stored with the meal it logged, on our server in Germany, so the diary can " +
-      "show it back to you and the app can re-read it when you correct the numbers. **Erase the " +
-      "account and the photo goes with it.** No bucket, no advertising pipeline, no " +
-      "data set sold on: we check corrected meals against their photos to keep the estimates " +
-      "honest, and that is the whole list.",
-    proof: "One table, one rule: a photo lives exactly as long as the account that logged it.",
+      "Stored beside the meal it logged, on our server in Germany. **Erase the account and the photo goes with it.**",
+    proof: "No second copy, no advertising pipeline, nothing sold on. It lives as long as your account and not a day longer.",
   },
   {
-    title: "It will not put your target under the floor.",
+    title: "There is a number your target never goes under.",
     body:
-      `${KCAL_FLOOR.female.toLocaleString("en-GB")} kcal for women, ` +
-      `${KCAL_FLOOR.male.toLocaleString("en-GB")} for men. Whatever the arithmetic upstream ` +
-      "produced, **the number you are given does not go under it**. When the floor is the reason " +
-      "your target is what it is, the app says so instead of hiding it.",
-    proof: "A daily target is the one output of an app like this that can actually harm someone.",
+      `${KCAL_FLOOR.female.toLocaleString("en-GB")} kcal for women, ${KCAL_FLOOR.male.toLocaleString("en-GB")} for men. ` +
+      "**Whatever the arithmetic said, your number stays above it.**",
+    proof: "No goal and no hurry gets under it, and when the floor is why your number is what it is, the app says so.",
   },
 ];
 
+/**
+ * The one line the page says louder than the rest, on the other theme's ground between the
+ * promises and the accuracy section. The outcome in the reader's own scene, because that is what
+ * the habit is for; no number in it, because the sections either side of it carry the proof.
+ */
+export const band = { line: "Eat out on Friday and the week still adds up." } as const;
+
+/**
+ * The photographs. Real plates, photographed by whoever was about to eat them, from Wikimedia
+ * Commons under CC0, so nothing is owed and nothing is claimed: none of these is a user's meal or
+ * shown as one. The hero's is a chicken shawarma platter because that is the plate the sample
+ * card describes, and the closing's is dinner.
+ */
+export interface Photo {
+  file: string;
+  source: string;
+  license: "CC0";
+  width: number;
+  height: number;
+}
+
+export const photos: { readonly hero: Photo; readonly closing: Photo } = {
+  hero: {
+    file: "plate-shawarma.webp",
+    source: "https://commons.wikimedia.org/wiki/File:Chicken_Shawarma_Platter_-_Lavash_2025-02-10.jpg",
+    license: "CC0",
+    width: 1000,
+    height: 1250,
+  },
+  closing: {
+    file: "plate-dinner.webp",
+    source: "https://commons.wikimedia.org/wiki/File:Poke_Bowl_Losos_Zlaty_Klas_2025.jpg",
+    license: "CC0",
+    width: 1400,
+    height: 875,
+  },
+};
+
+/** The inventory, after the steps: six things, each of them shipped code. */
+export const whatSection = {
+  eyebrow: "What you get",
+  headline: "Scan. Track. Get better.",
+  items: [
+    {
+      title: "A photo or a sentence.",
+      body: "Both go to the same analyzer. No barcode, no database search.",
+    },
+    {
+      title: "Corrections in a sentence.",
+      body: "Half that, no oil. The numbers and the verdict recompute.",
+    },
+    {
+      title: "A verdict on every meal.",
+      body: "Against your own day, in words, on the dimensions you declared.",
+    },
+    {
+      title: "A plan with its arithmetic.",
+      body: "Resting burn, activity, the pace you chose, the floor. Every line on screen.",
+    },
+    {
+      title: "Apple Health, both ways.",
+      body: "Meals go in. Weight, energy, activity and sleep come back, on one screen with your intake.",
+    },
+    // Persona-neutral on purpose: the coach is Spud today and becomes Gabie, the nutritionist,
+    // when that branch ships. The sentence stays true through both.
+    {
+      title: "Ask about your week.",
+      body: "How was my week, what should dinner be. The answer reads your diary first.",
+    },
+  ],
+} as const;
+
 export const stepsSection = {
   eyebrow: "How it works",
-  headline: "Three moves. The third is the one that matters.",
+  headline: "Three steps. The third one is the habit.",
 } as const;
 
 export const steps: readonly Step[] = [
@@ -248,24 +352,19 @@ export const steps: readonly Step[] = [
     ordinal: "01",
     title: "Send the meal.",
     body:
-      "A photo of the plate, or a sentence — “chicken shawarma, large”. Both go to the same " +
-      "place. **Neither needs you to find your food in a database or weigh anything.**",
+      "A photo, or a sentence: chicken shawarma, large. **No scale, no database search.**",
   },
   {
     ordinal: "02",
     title: "Read the numbers.",
     body:
-      "Calories, protein, carbs, fat, saturated fat, fibre, sugar and sodium — broken out per " +
-      "item and totalled, **with what it assumed about each one shown next to it.**",
+      "Calories, protein, carbs, fat, fibre, sugar and sodium, per item and totalled, **with the portion it assumed.** Under them, the verdict against your day.",
   },
   {
     ordinal: "03",
-    title: "Get the verdict.",
+    title: "Get better.",
     body:
-      "The meal is scored against your targets, on the dimensions that apply to you. Calories " +
-      "always. Saturated fat if you said you are watching your cholesterol. Sodium if you said you are " +
-      "watching your kidneys. **Three separate judgements, because one meal can be fine on one and " +
-      "not on another.**",
+      "The verdict says what to change on the next plate. **After a week you see it before the app does.**",
   },
 ];
 
@@ -346,10 +445,10 @@ export interface Shot {
 
 export const screensSection = {
   eyebrow: "The app",
-  headline: "This is the shape of it, in four screens.",
-  intro:
-    "Photographed from the build that goes to the App Store, not drawn for this page. The iPhone " +
-    "app is not out yet; these are it.",
+  headline: "How it looks.",
+  intro: "Photographed from the build that goes to the App Store.",
+  /** Appended while there is no listing. A store build saying this under a store button is a lie. */
+  unreleased: "The iOS app is coming soon. This is it.",
 } as const;
 
 export const shots: readonly Shot[] = [
@@ -372,9 +471,7 @@ export const shots: readonly Shot[] = [
     // it is the only description a screen reader gets of a picture that states a privacy promise.
     // `sourceSha256` moves with the reshoot, which is what forces this to be re-read.
     body:
-      "One conversation instead of a sign-up form, and there is no account to make. The " +
-      "plan comes at the end of it, the first verdict after that, and **nothing is to pay until " +
-      "you have seen both**.",
+      "One conversation, no account to make. **Nothing to pay until you have seen your plan and a first verdict.**",
     alt:
       "The opening of the eait onboarding chat: Spud introduces himself, says it is three " +
       "minutes of questions and then a plan and a verdict on your first meal, says no account is " +
@@ -390,9 +487,7 @@ export const shots: readonly Shot[] = [
     height: 1280,
     title: "Then it shows the arithmetic.",
     body:
-      "Resting burn, the activity on top of it, the adjustment for the pace you chose, and the " +
-      "number that falls out. **A target you can check** rather than one handed down. The " +
-      "numbers differ from the hero card because the body does.",
+      "Resting burn, activity, the pace you chose, the target that falls out. **Every line on screen.** Different numbers from the hero, because it is a different body.",
     alt:
       "The plan screen: resting burn 1,899 kcal, about 2,943 kcal with activity, minus 550 kcal " +
       "for the chosen pace, and a daily target of 2,393 kcal with a protein figure under it.",
@@ -411,12 +506,10 @@ export const shots: readonly Shot[] = [
     height: 1280,
     title: "Say it, and it reads it back.",
     body:
-      "Two boiled eggs and a slice of rye bread, typed as a sentence. It answers with the grams " +
-      "it assumed and **why it assumed them**, before anything is logged \u2014 so a wrong reading is " +
-      "one you can see and correct rather than one you inherit.",
+      "Two eggs and a slice of rye, typed. It answers with the grams it assumed and **why**, before anything is logged.",
     alt:
       "The chat: the sentence \"two boiled eggs and a slice of rye bread\" and the card that comes " +
-      "back \u2014 268 kcal marked as a rough estimate, boiled eggs 100 g, rye bread 45 g, 17 g " +
+      "back: 268 kcal marked as a rough estimate, boiled eggs 100 g, rye bread 45 g, 17 g " +
       "protein, and two verdicts reading calories on plan and saturated fat on plan, scored " +
       "against the high cholesterol declared a few messages earlier. Under it, a note saying two " +
       "large eggs were taken as 100 g total and the rye slice estimated at 45 g.",
@@ -429,8 +522,7 @@ export const shots: readonly Shot[] = [
     height: 1280,
     title: "And the day fills up in front of you.",
     body:
-      "Every meal scored against that number as it lands, with **what is left stated in kcal** " +
-      "rather than in a ring you have to interpret.",
+      "Every meal scored as it lands, **what is left stated in kcal.**",
     alt:
       "The diary screen: 1,168 of 2,393 kcal used today with 1,225 left, and two logged meals " +
       "each carrying its own verdicts.",
@@ -440,37 +532,27 @@ export const shots: readonly Shot[] = [
 
 export const floorSection = {
   eyebrow: "The floor",
-  headline: "The one number it will not compute its way past.",
+  headline: "The number it stays above.",
   intro:
-    "A daily calorie target is the most consequential thing an app like this produces, and the " +
-    "arithmetic behind it will happily hand a small person in a hurry a dangerous number. So " +
-    "three guards run, in this order, every time:",
+    "A daily target is the most consequential number an app like this produces. Three guards run, in this order, every time:",
   guards: [
     {
       title: "The deficit is capped at a share of maintenance.",
       body:
-        "20% at most, so the number scales with the person rather than with how impatient the " +
-        "goal is. A 55 kg woman and a 110 kg man asking for the same pace do not get the same cut.",
+        `${Math.round(MAX_DEFICIT_SHARE * 100)}% of maintenance at most, so the cut scales with the person rather than with the impatience.`,
     },
     {
       title: "The floor is applied last, and unconditionally.",
       body:
-        `${KCAL_FLOOR.female.toLocaleString("en-GB")} kcal for women, ` +
-        `${KCAL_FLOOR.male.toLocaleString("en-GB")} for men — the minimums usually cited for ` +
-        "dieting without supervision. Applied after the cap, never before: apply the cap second " +
-        "and it can pull an already-floored number back under the floor.",
+        `${KCAL_FLOOR.female.toLocaleString("en-GB")} kcal for women, ${KCAL_FLOOR.male.toLocaleString("en-GB")} for men. Applied after the cap, every time.`,
     },
     {
       title: "A target weight under a healthy BMI is refused.",
       body:
-        "Refused outright: no warning, no confirmation dialog. Below a BMI of 18.5 the app " +
-        "will not set the target at all.",
+        "Below a BMI of 18.5 the app declines to set the target. There is no dialog to click through.",
     },
   ],
-  outro:
-    "And when the floor is why your number is what it is, the screen says so. " +
-    "A guard nobody is told about is a guard that only protects the people who were " +
-    "never at risk.",
+  outro: "When the floor is why your number is what it is, the screen says so.",
   /**
    * What Spud says here. Same job as in the app: name the refusal, and why.
    *
@@ -479,8 +561,7 @@ export const floorSection = {
    * as a stray sticker; the app's own first line is "Hi, I'm Spud", and the screenshots two
    * sections above this one now show him doing exactly this job inside the product.
    */
-  mascot:
-    "I'm Spud. This is the bit where I tell you no — it is the only thing I am strict about.",
+  mascot: "I'm Spud. This is the one thing I'm strict about.",
 } as const;
 
 /**
@@ -501,85 +582,32 @@ export const measured = {
   meanSignedErrorPct: 2,
 } as const;
 
-/**
- * The four numbers, pulled out of the prose and set large.
- *
- * Every one of them is already argued further down the page, in a sentence, in body copy — which is
- * the problem this answers. The load-bearing facts of the product were the least visible thing on
- * it, and a reader who scrolls rather than reads left with none of them.
- *
- * READ FROM THE CODE, never typed. `KCAL_FLOOR` and `MAX_DEFICIT_SHARE` come from
- * `src/shared/targets.ts`, and the error figure from `measured`, which a test reconciles against
- * `docs/ACCURACY.md`. The repo's rule is that a number quoted in public copy is read from the code
- * that produces it, and a band of large numbers is the worst place to start breaking it.
- */
-export const figuresSection = {
-  eyebrow: "In numbers",
-  headline: "Four figures the rest of this page is about.",
-} as const;
-
-export const figures = [
-  {
-    // ONE NUMBER IN THE FIGURE, BOTH IN THE LABEL. "1,200 / 1,500" is thirteen monospaced
-    // characters and does not fit a quarter of the wrapper at this size — it wrapped after the
-    // slash and read as a mistake. Shrinking the type to fit would have shrunk all four.
-    value: KCAL_FLOOR.female.toLocaleString("en-GB"),
-    unit: "kcal floor, women",
-    label:
-      `${KCAL_FLOOR.male.toLocaleString("en-GB")} for men. No arithmetic upstream gets a target ` +
-      "under either of them.",
-  },
-  {
-    value: `${Math.round(MAX_DEFICIT_SHARE * 100)}%`,
-    unit: "of maintenance",
-    label: "The deepest cut it will compute, whatever pace was asked for.",
-  },
-  {
-    value: "1",
-    unit: "tap erases them",
-    label: "Delete the account in Settings and every photo goes with it — from the diary, and from the backups on their schedule.",
-  },
-  {
-    value: `${measured.medianErrorPct}%`,
-    unit: `median error, ${measured.dishes} dishes`,
-    label: "Published because we could not find another app that does. A smoke test, and we say so.",
-  },
-] as const;
-
 export const accuracySection = {
   eyebrow: "Accuracy",
   headline: "A photo is an estimate. So it lets you argue with it.",
   // Lifted out of the body and into the section's opening line. It was the strongest sentence on
   // the page and it was the second half of a mid-paragraph clause in the fifth section.
   intro:
-    "Nobody can weigh your lunch from a picture. An app that behaves as though it can is going to " +
-    "be wrong quietly, and **quietly wrong is the failure mode that costs you the month.**",
+    "**Quiet errors are the ones that cost you the month.** So eait shows its working.",
   body: [
-    "So eait shows its working: the items it thinks it saw, and what it assumed about each. When " +
-    "it has that wrong, say so in ordinary words — “half that”, “no oil”, “that is a small one” — " +
-    "or open the item and set the grams yourself. Change one item and its calories rescale by its " +
-    "own density, the totals re-sum, and the verdict is recomputed from your targets.",
-    "That last part is not a detail. A verdict is never carried over from the numbers it was " +
-    "first computed on, so it can never describe a meal that has since changed.",
+    "The items it saw and the portion it assumed, on screen. Say half that, or set the grams, " +
+    "and the verdict is recomputed.",
   ],
   /** His job here is being argued with — the section is about correcting him. */
   mascot: "I would rather be corrected than quietly wrong.",
   proof: {
     label: "What we measured",
     body:
-      `On ${measured.dishes} reference dishes with weighed ingredients, the median error was ` +
-      `about ${measured.medianErrorPct}%, and the mean signed error was ` +
-      `+${measured.meanSignedErrorPct}%, so it is not quietly flattering you. ` +
-      `${measured.dishes} dishes is a smoke test rather than a study, and saying so is the point: ` +
-      "we could not find another app in this category that publishes a number at all. Most of " +
-      "what is left is portion size, " +
-      "which is the one thing a sentence can fix.",
+      `On ${measured.dishes} reference dishes with weighed ingredients: median error about ` +
+      `${measured.medianErrorPct}%, mean signed error +${measured.meanSignedErrorPct}%. ` +
+      `${measured.dishes} dishes is a smoke test rather than a study. We publish it because we ` +
+      "could not find another app in this category that does.",
   },
 } as const;
 
 export const privacySection = {
   eyebrow: "Privacy",
-  headline: "What it takes, and what it never had.",
+  headline: "Yours stays yours.",
   facts: [
     {
       title: "Signing in gives us an address. Nothing else does.",
@@ -589,24 +617,17 @@ export const privacySection = {
       // The rule this section is built on has not changed: say which half each claim is about,
       // rather than hoping nobody reads both.
       body:
-        "**Sign in with Apple or Google hands over an identifier and your email address**: no " +
-        "name, no contacts. We write to it about your account, and now and then to ask whether " +
-        "you would talk to us about the app — and it is erased when you delete the account. Use " +
-        "the app without an account and there is no address at all. The list on this website is a " +
-        "separate thing that touches neither, and one click removes you from it.",
+        "**Sign in with Apple or Google hands over an identifier and your email address**: no name, no contacts. We write to it about your account, and it is erased with the account. Without an account there is no address at all.",
     },
     {
-      title: "No account, until you want one.",
+      title: "An account only when you want one.",
       body:
-        "The app works on a device identity it creates for itself. Sign in only if you want the " +
-        "same history on a second phone; and when you do, what you already logged comes with you.",
+        "The app works on a device identity it creates. Sign in for the same history on a second phone.",
     },
     {
       title: "Deletion means deletion.",
       body:
-        "**Delete the account, and the meals, the profile, the conversation and the product analytics go with it.** The " +
-        "analytics being in that list costs us the ability to measure anything historical. That " +
-        "was the trade we chose.",
+        "**Delete the account and the meals, the profile, the conversation and the product analytics go with it.**",
     },
   ],
 } as const;
@@ -620,11 +641,8 @@ export const faqs: readonly Faq[] = [
       plural(SAMPLE_ANALYSES,
         "Your first analysis costs nothing and needs no card, ",
         `Your first ${SAMPLE_ANALYSES} analyses cost nothing and need no card, `) +
-      "so you can see what it actually says " +
-      "about your food before deciding anything. After that it is a subscription, with a free " +
-      "week before the first charge. It is bought in the App Store, which shows you the price in " +
-      "your own currency before you agree, and cancelled in the same place: Settings, your name, " +
-      "Subscriptions. There is no charge that appears without you having agreed to it.",
+      "then a subscription with a free week. The App Store shows the price in your currency " +
+      "before you agree, and you cancel it there.",
   },
   {
     q: "Why isn't it free?",
@@ -634,49 +652,56 @@ export const faqs: readonly Faq[] = [
           "The first one costs you nothing ",
         `Because every analysis after the first ${SAMPLE_ANALYSES} runs through a model we pay ` +
           `for, per plate. Those first ${SAMPLE_ANALYSES} cost you nothing `) +
-      "so you can see what it says before deciding; after that the " +
-      "App Store shows you the price in your own currency before you agree to anything.",
+      "so you can see what it says before deciding.",
   },
   {
     q: "How accurate is it?",
     a:
-      `A photo is an estimate. On ${measured.dishes} reference dishes with weighed ingredients ` +
-      `the median error was about ${measured.medianErrorPct}%, which is a smoke test rather than ` +
-      "a study, and we say so. The app shows what it assumed about each item, and when that is " +
-      "wrong you say so in a sentence — “half that”, “no oil” — and the numbers and the verdict " +
-      "are recomputed.",
+      `A photo is an estimate: about ${measured.medianErrorPct}% median error on ${measured.dishes} ` +
+      "reference dishes, a smoke test rather than a study. Say what it got wrong and the numbers " +
+      "and the verdict recompute.",
+  },
+  {
+    q: "Do I have to photograph every meal?",
+    a:
+      "Every meal you want in the day's total, as a photo or a sentence. The photo is for the plate you cannot guess.",
+  },
+  {
+    q: "What happens when I miss a day?",
+    a:
+      "Nothing. Each day is judged on its own and the next one starts at zero. No streaks, and Spud does not comment on the gap.",
   },
   {
     q: "Do I have to make an account?",
     a:
-      "No. The app creates a device identity for itself and works immediately. Sign in with Apple " +
-      "or Google only if you want your history on another device.",
+      "No. It works on a device identity it creates. Sign in only to keep your history on another phone.",
   },
   {
     q: "Is this medical advice?",
     a:
-      "No. It computes targets from what you tell it about your body and scores meals against " +
-      "them. It is not supervision and it does not replace a clinician. If you have been given " +
-      "numbers by one, those are the numbers to follow.",
+      "No. It computes targets from what you tell it and scores meals against them. If a clinician gave you numbers, follow those.",
   },
   {
     q: "Does it work outside the United States?",
     a:
-      "It reads what is on the plate rather than looking up a barcode in a product database, so " +
-      "an unfamiliar supermarket is not a wall. Portions and dishes are estimated the same way " +
-      "everywhere, which is to say approximately and correctably.",
+      "Yes. It reads the plate instead of a barcode, so an unfamiliar supermarket is fine.",
   },
   {
     q: "Is there an Android version?",
     a:
-      "Not yet: iPhone first, Android after it has proved itself there. Leave an email on this " +
-      "page and you will hear the day the iPhone app ships.",
+      "iPhone first. Leave your email and we send one message when it ships.",
   },
 ];
 
+/**
+ * "Keeps nothing" left the sub on 2026-09-06: the first analysis logs a meal, and the refusal two
+ * screens up says the photo stays with it. A closing line contradicting the page's own promise is
+ * the worst place to be caught out.
+ */
 export const closing = {
-  headline: "One photo. Then an answer you can act on.",
-  sub: "Seeing it work costs nothing, identifies nobody, and keeps nothing. Find out whether you like it before you pay for it or tell it who you are.",
+  headline: "One photo. A straight answer. Then dinner.",
+  sub:
+    `${plural(SAMPLE_ANALYSES, "Your first verdict costs nothing and needs", `Your first ${SAMPLE_ANALYSES} verdicts cost nothing and need`)} no card or account.`,
 } as const;
 
 /**
@@ -704,22 +729,18 @@ export const founder = {
  */
 export const subscribeSection = {
   eyebrow: "The mailing list",
-  headline: "Hear when the iPhone app is out.",
+  headline: "Hear when the iPhone app ships.",
   body:
-    "One address, on a list that lives on this website and nowhere near your meals. It is not " +
-    "connected to an account or used for anything else, and every message carries a link that " +
-    "removes you in one click, with no login and no questions. First you get one email asking " +
-    "you to confirm. Until you do, the address is on no list at all, and if you never do it is " +
-    "deleted within a week.",
+    "One address, kept apart from your meals and your account. Confirm it once. Every message carries an unsubscribe link, and an unconfirmed address is deleted within a week.",
   label: "Email address",
   placeholder: "you@example.com",
-  button: "Tell me when it ships",
+  button: "I'm in",
   /**
    * Shown by CSS when the address fails the browser's own email check (`:user-invalid`), so the
    * first feedback a typo gets is this sentence rather than the browser's bubble. The example does
    * the explaining; the sentence stays out of the way.
    */
-  invalidHint: "That needs to be an email address — like you@example.com.",
+  invalidHint: "That needs to be an email address, like you@example.com.",
   /**
    * The line above each REPEATED ask, mid-page.
    *
@@ -731,20 +752,16 @@ export const subscribeSection = {
    */
   bandLine: {
     /** When the ask is the mailing list. */
-    form:
-      "Convinced by that bit? The deal: one address now, one email the day it ships, and the " +
-      "app answers you before it asks anything of you.",
+    form: "Do you like it? We'll invite you.",
     /**
      * When the ask is the store listing or the bot. The form line would be a lie here: nothing on
      * the page is asking for an address in that build, and a band that says so beside a button that
      * opens Telegram is the page describing a product its own button does not open.
      */
-    action: "Convinced by that bit? You can try it on a real meal right now.",
+    action: "Do you like it? Try it on a real meal right now.",
   },
   /** Under the hero form, where the CTA note used to sit. Short: the full terms are one scroll down. */
-  heroNote:
-    "One email when the iPhone app is out, a confirmation click first, and a one-click way off " +
-    "the list. Nothing else.",
+  heroNote: "You'll need to verify it.",
   /**
    * The honeypot's visible label. It is hidden from people and read by nothing except a bot that
    * fills every field it finds — which is most of them, and the entire anti-spam story here. A
@@ -752,8 +769,8 @@ export const subscribeSection = {
    */
   honeypotLabel: "Company (leave this empty)",
   note:
-    "Deleting an eait account does not remove an address from this list; they are separate " +
-    "things, deliberately, and the unsubscribe link is how you leave.",
+    "Deleting an eait account does not remove an address from this list. The two are kept " +
+    "apart on purpose, and the unsubscribe link is how you leave.",
   /** The only place the page asks the reader for something, which is exactly Spud's job. */
   mascot: "One message. I will not make a habit of it.",
 } as const;
