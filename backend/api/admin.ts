@@ -24,7 +24,7 @@ import {
 } from "@eait/shared";
 import {
   notificationCopy, onboardingContent, onboardingFunnel, resetNotificationCopy,
-  resetOnboardingContent, saveNotificationCopy, saveOnboardingContent,
+  resetOnboardingContent, saveNotificationCopy, saveOnboardingContent, setUserCap, userCap,
   type EngineDeps,
 } from "../engine/index.ts";
 import { ADMIN_PAGE } from "./admin.page.ts";
@@ -126,6 +126,29 @@ export async function adminRoutes(req: Request, url: URL, deps: EngineDeps): Pro
     // string should show a sensible window, not an error page.
     const days = Number.isFinite(raw) ? Math.min(365, Math.max(1, Math.round(raw))) : 30;
     return json(await onboardingFunnel(deps, days));
+  }
+
+  // ── Per-account sample ─────────────────────────────────────────────────────────────────────
+  //
+  // One account's own sample size over the instance default; null in the body puts it back. The
+  // id must look like one before it reaches Postgres, or a typo is a cast error and a 500.
+  const cap = pathname.match(/^\/admin\/api\/users\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/cap$/);
+  if (cap) {
+    const userId = cap[1]!;
+    if (req.method === "GET") {
+      const view = await userCap(deps, userId);
+      return view ? json(view) : notFound();
+    }
+    if (req.method === "PUT") {
+      const body = await req.json().catch(() => null) as { freeAnalyses?: unknown } | null;
+      const n = body?.freeAnalyses;
+      // Bounded by the column: `free_analyses integer`, and a number past it is a cast error.
+      if (n !== null && !(Number.isInteger(n) && (n as number) >= 0 && (n as number) <= 2_147_483_647)) {
+        return json({ errors: ["freeAnalyses must be a whole number of analyses, or null for the instance default"] }, 422);
+      }
+      const view = await setUserCap(deps, userId, n as number | null);
+      return view ? json(view) : notFound();
+    }
   }
 
   return notFound();

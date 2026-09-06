@@ -282,7 +282,7 @@ describe("the paid tier", () => {
     withRequired();
     const c = loadConfig();
     expect(c.revenueCatWebhookToken).toBe("");
-    expect(c.freeAnalyses).toBe(3);
+    expect(c.freeAnalyses).toBe(15);
     expect(c.revenueCatAcceptSandbox).toBe(false);
   });
 
@@ -530,9 +530,9 @@ describe("the size of the sample", () => {
 
   // THE PRODUCTION INVENTORY IS THE ONE THAT DECIDES, and the three assertions around it did not
   // look at it. Ansible writes its value into the env file compose interpolates, so an inventory
-  // that disagrees with the role default is what api.eait.fit actually serves — which is the case
-  // TODAY, deliberately: production is pinned to 1 while the instance-wide cap is decided (#96),
-  // and the store copy is written against that pin (`scripts/review-notes.test.ts`).
+  // that disagrees with the role default is what api.eait.fit actually serves — which was the case
+  // from #96 to #198, deliberately: production was pinned to 1 while the instance-wide cap was
+  // decided, and the store copy is written against the pin either way (`scripts/review-notes.test.ts`).
   //
   // Asserted as "explicit and reachable", not as a number: the day Kirill raises the cap, the pin
   // moves or comes out, and a test demanding 1 would fail on the correct change. What must never

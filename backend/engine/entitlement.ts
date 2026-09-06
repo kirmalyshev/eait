@@ -25,6 +25,36 @@ export function dailyPhotoCap(config: Config): number {
   return config.paidDailyPhotoCap;
 }
 
+/**
+ * The sample size of THIS account: the admin's own number for it, else the instance default.
+ * Same rule as `dailyPhotoCap` — `checkCaps` refuses with it and `limitsOf` reports it.
+ */
+export async function freeAnalysesFor(deps: EngineDeps, userId: string): Promise<number> {
+  return (await deps.store.getFreeAnalyses(userId)) ?? deps.config.freeAnalyses;
+}
+
+/** One account's sample, as the admin sees it. */
+export interface UserCap {
+  /** The account's own sample size, or null when it takes the instance default. */
+  freeAnalyses: number | null;
+  effective: number;
+  spent: number;
+}
+
+/** Null when there is no such account. */
+export async function userCap(deps: EngineDeps, userId: string): Promise<UserCap | null> {
+  if (!(await deps.store.getProfile(userId))) return null;
+  const [own, spent] = await Promise.all([
+    deps.store.getFreeAnalyses(userId), deps.store.countUserAnalyses(userId),
+  ]);
+  return { freeAnalyses: own, effective: own ?? deps.config.freeAnalyses, spent };
+}
+
+/** Null when there is no such account. `n` null puts the account back on the instance default. */
+export async function setUserCap(deps: EngineDeps, userId: string, n: number | null): Promise<UserCap | null> {
+  return (await deps.store.setFreeAnalyses(userId, n)) ? userCap(deps, userId) : null;
+}
+
 /** This account's paid tier, in the shape the profile response carries. */
 export async function entitlementFor(deps: EngineDeps, userId: string): Promise<Entitlement> {
   const stored = await deps.store.getEntitlement(userId);

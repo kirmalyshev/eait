@@ -116,7 +116,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
  * The copy quoted a compile-time constant while the server enforces `config.freeAnalyses`, read
  * from `EAIT__BACKEND__FREE_ANALYSES` — the documented knob `.env.prod.example` carries and
  * `e2e-paywall.sh` pins to 1. Set it to 1 on a host that also serves this page and the same origin
- * promised three analyses while refusing the second, past the claims gate. AGENTS.md: "A limit the
+ * promised fifteen analyses while refusing the second, past the claims gate. AGENTS.md: "A limit the
  * server enforces is SENT to the client, never compiled into both."
  *
  * The page is a BUILD ARTIFACT, so "sent" means the build is given the value: the compose service

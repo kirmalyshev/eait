@@ -667,6 +667,13 @@ export interface Store {
    * meal is the sample as much as a photographed one, or a sentence is the free way around the ask.
    */
   countUserAnalyses(userId: string): Promise<number>;
+  /**
+   * This account's OWN sample size, or null when it takes the instance default
+   * (`config.freeAnalyses`). Written by the admin only — there is no client route to it.
+   */
+  getFreeAnalyses(userId: string): Promise<number | null>;
+  /** Set this account's own sample size, or clear it with null. False when there is no such user. */
+  setFreeAnalyses(userId: string, n: number | null): Promise<boolean>;
   /** Recorded BEFORE the model is called: a failed call still costs money. */
   recordAnalysis(userId: string, date: string, scope: "photo" | "text"): Promise<void>;
   /**

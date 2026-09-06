@@ -428,6 +428,16 @@ describe("the sample", () => {
     expect(await logPhotoMeal(one, userId, photo())).toEqual({ kind: "subscription-required" });
   });
 
+  it("takes the account's own sample size over the instance default, and reports the same number", async () => {
+    const userId = await onboard();
+    await store.setFreeAnalyses(userId, 1);
+    const d = makeDeps({ freeAnalyses: 15 });
+    expect((await profileView(d, userId))!.limits.sampleRemaining).toBe(1);
+    expect((await logPhotoMeal(d, userId, photo())).kind).toBe("logged");
+    expect(await logPhotoMeal(d, userId, photo())).toEqual({ kind: "subscription-required" });
+    expect((await profileView(d, userId))!.limits).toMatchObject({ sampleUsed: true, sampleRemaining: 0 });
+  });
+
   it("is sized by config, so a demo instance can switch it off without a second code path", async () => {
     const userId = await onboard();
     const d = makeDeps({ freeAnalyses: 3 });

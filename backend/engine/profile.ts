@@ -15,7 +15,7 @@ import { MAX_PROFILE_TEXT,
 import { MIN_AGE } from "@eait/shared";
 import type { ProfilePatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
-import { dailyPhotoCap, entitlementFor } from "./entitlement.ts";
+import { dailyPhotoCap, entitlementFor, freeAnalysesFor } from "./entitlement.ts";
 import { MAX_WINDOW_DAYS } from "./diary.ts";
 
 /**
@@ -54,7 +54,7 @@ async function limitsOf(deps: EngineDeps, userId: string, entitled: boolean): Pr
     // The SAME function and the SAME count `checkCaps` refuses with. Anything else here is the
     // app promising an allowance the server will not honour.
     dailyPhotoCap: dailyPhotoCap(deps.config),
-    ...sampleOf(await deps.store.countUserAnalyses(userId), deps.config.freeAnalyses, entitled),
+    ...sampleOf(await deps.store.countUserAnalyses(userId), await freeAnalysesFor(deps, userId), entitled),
     // The SAME bound `/v1/diary/week` refuses with. It governs which days can be MARKED, not which
     // can be opened: `/v1/diary/day` answers for any date, and the picker offers every past one.
     diaryWindowDays: MAX_WINDOW_DAYS,

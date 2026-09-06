@@ -59,8 +59,8 @@ export interface Limits {
   dailyPhotoCap: number;
   /**
    * Whether this account has spent its sample. There is no free tier: the sample is
-   * `EAIT__BACKEND__FREE_ANALYSES` analyses over the account's lifetime, and every analysis after
-   * them is refused with
+   * `EAIT__BACKEND__FREE_ANALYSES` analyses over the account's lifetime — the instance default;
+   * the admin can give one account its own number — and every analysis after them is refused with
    * `subscription-required` until the RevenueCat webhook has written an entitlement. The app
    * reads this beside `entitlement.active` to open the paywall on launch instead of on the first
    * refusal — but the refusal is the authority, and the sheet is only its rendering.

@@ -81,6 +81,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     lifetimeEventAt: string | null;
   }
   const entitlements = new Map<string, StoredWithClocks>();
+  const freeAnalyses = new Map<string, number>(); // userId -> the admin's own sample size
   /** The later of two instants, tolerating the first not existing yet. */
   const newest = (a: string | undefined, b: string): string =>
     a !== undefined && Date.parse(a) > Date.parse(b) ? a : b;
@@ -163,6 +164,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     // Goes with the account. In Postgres this is a column on `users` and needs no statement at
     // all; here it is a second map, so it needs this line to keep the two stores honest.
     entitlements.delete(userId);
+    freeAnalyses.delete(userId);
     for (const [d, u] of devices) if (u === userId) devices.delete(d);
     for (const [h, row] of tokens) if (row.userId === userId) tokens.delete(h);
     for (const [id, m] of meals) if (m.user_id === userId) meals.delete(id);
@@ -345,6 +347,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         });
         entitlements.delete(fromUserId);
       }
+      // The admin's sample size moves the same way: into a gap, never over the survivor's own.
+      const ownCap = freeAnalyses.get(fromUserId);
+      if (ownCap !== undefined && !freeAnalyses.has(intoUserId)) freeAnalyses.set(intoUserId, ownCap);
+      freeAnalyses.delete(fromUserId);
 
       // Funnel rows move with the account. Signing in halfway through onboarding is a normal thing
       // to do, and a run split across two user ids reads as two abandoned runs.
@@ -740,6 +746,16 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async countUserAnalyses(userId) {
       return analyses.filter((a) => a.userId === userId).length;
+    },
+
+    async getFreeAnalyses(userId) {
+      return freeAnalyses.get(userId) ?? null;
+    },
+
+    async setFreeAnalyses(userId, n) {
+      if (!users.has(userId)) return false;
+      if (n === null) freeAnalyses.delete(userId); else freeAnalyses.set(userId, n);
+      return true;
     },
 
     async recordAnalysis(userId, date, scope) {

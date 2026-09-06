@@ -8,14 +8,14 @@
 import type { Refusal } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { GatewayRefusal } from "../llm/port.ts";
-import { dailyPhotoCap, entitlementFor } from "./entitlement.ts";
+import { dailyPhotoCap, entitlementFor, freeAnalysesFor } from "./entitlement.ts";
 
 export type CapScope = "photo" | "text";
 
 /**
  * Null when the request may proceed, a refusal when it may not.
  *
- * Without an entitlement the account has the SAMPLE and nothing else: `config.freeAnalyses`
+ * Without an entitlement the account has the SAMPLE and nothing else: `freeAnalysesFor`
  * analyses over its lifetime, photo or text alike — a sentence must not be the free way
  * around the ask. With one, photos meet the paid daily cap and text turns meet only the global
  * budget: charging a question against the photo allowance would mean asking "how much protein
@@ -41,7 +41,7 @@ export async function checkCaps(
   const entitled = (await entitlementFor(deps, userId)).active;
   if (!entitled) {
     const spent = await store.countUserAnalyses(userId);
-    return spent >= config.freeAnalyses ? { kind: "subscription-required" } : null;
+    return spent >= (await freeAnalysesFor(deps, userId)) ? { kind: "subscription-required" } : null;
   }
 
   // The paid tier is a BIGGER per-user cap, never an exemption from the global one above — a

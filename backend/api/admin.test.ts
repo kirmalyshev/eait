@@ -68,7 +68,8 @@ describe("the admin is off unless configured", () => {
   it("404s every admin path when EAIT__BACKEND__ADMIN_TOKEN is unset", async () => {
     // 404 rather than 403. "There is an admin here and you cannot have it" is information, and a
     // deployment that never set the variable should look like one that has no such feature.
-    for (const path of ["/admin", "/admin/api/content", "/admin/api/funnel", "/admin/api/notifications"]) {
+    for (const path of ["/admin", "/admin/api/content", "/admin/api/funnel", "/admin/api/notifications",
+      "/admin/api/users/00000000-0000-4000-8000-000000000000/cap"]) {
       expect((await admin("GET", path)).status).toBe(404);
     }
     expect((await admin("PUT", "/admin/api/content", { content: {} })).status).toBe(404);
@@ -330,5 +331,45 @@ describe("the admin page", () => {
     const wanted = Array.from(ADMIN_PAGE.matchAll(/\$\("([\w-]+)"\)/g), (m) => m[1]!);
     expect(wanted.length).toBeGreaterThan(10);
     expect([...new Set(wanted)].filter((id) => !ids.has(id))).toEqual([]);
+  });
+});
+
+describe("the per-account sample", () => {
+  beforeEach(() => { mount({ ...base, adminToken: EAIT__BACKEND__ADMIN_TOKEN }); });
+
+  const user = async () => (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+
+  it("reads the instance default until one is set, sets one, and puts it back with null", async () => {
+    const path = `/admin/api/users/${await user()}/cap`;
+    expect(await (await admin("GET", path)).json()).toEqual({ freeAnalyses: null, effective: base.freeAnalyses, spent: 0 });
+    const put = await admin("PUT", path, { freeAnalyses: 1 });
+    expect(put.status).toBe(200);
+    expect(await put.json()).toEqual({ freeAnalyses: 1, effective: 1, spent: 0 });
+    expect(await (await admin("GET", path)).json()).toMatchObject({ effective: 1 });
+    expect(await (await admin("PUT", path, { freeAnalyses: null })).json())
+      .toEqual({ freeAnalyses: null, effective: base.freeAnalyses, spent: 0 });
+  });
+
+  it("422s anything but a whole number or null", async () => {
+    const path = `/admin/api/users/${await user()}/cap`;
+    for (const freeAnalyses of [-1, 1.5, "1", true, 2_147_483_648]) {
+      expect((await admin("PUT", path, { freeAnalyses })).status).toBe(422);
+    }
+    expect((await admin("PUT", path, {})).status).toBe(422);
+  });
+
+  it("404s an account that does not exist, and an id that could not be one", async () => {
+    expect((await admin("GET", `/admin/api/users/${crypto.randomUUID()}/cap`)).status).toBe(404);
+    expect((await admin("PUT", `/admin/api/users/${crypto.randomUUID()}/cap`, { freeAnalyses: 1 })).status).toBe(404);
+    expect((await admin("GET", "/admin/api/users/not-a-uuid/cap")).status).toBe(404);
+  });
+
+  it("refuses an ordinary user's bearer token", async () => {
+    const path = `/admin/api/users/${await user()}/cap`;
+    const res = await handle(new Request(url(path), {
+      method: "PUT", headers: { authorization: `Bearer ${await session()}`, "content-type": "application/json" },
+      body: JSON.stringify({ freeAnalyses: 1 }),
+    }));
+    expect(res.status).toBe(401);
   });
 });

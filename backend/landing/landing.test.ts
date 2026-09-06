@@ -208,7 +208,7 @@ describe("the numbers on the page are the numbers in the code", () => {
     // THE SHIPPED DEFAULT, asserted on its own. The copy below is checked against the value this
     // build actually resolved (`SAMPLE_ANALYSES`), because `bun test` loads `.env` and a developer
     // who pins the knob there was getting a red suite about landing copy they never touched.
-    expect(FREE_ANALYSES).toBe(3);
+    expect(FREE_ANALYSES).toBe(15);
     const billing = refusals[0]!.body + " " + faqs.map((f) => f.a).join(" ");
     // ALL THREE sentences quote the count, and there are three because a review of this branch
     // found the one this test was not looking at. The cost question and "Why isn't it free?" both

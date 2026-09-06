@@ -1,10 +1,10 @@
 // The sample the page promises, at the values a real host actually sets.
 //
 // `landing.test.ts` checks the copy against whatever THIS build resolved, which is the right shape
-// for a page built per instance and proves nothing about the other configurations. Production is
-// pinned to one analysis (`iac/inventories/production/hosts.yml`) while the instance-wide cap is
-// decided, so the SINGULAR renderings are what the deployed page serves — and they had no test at
-// all, in the one configuration that is live.
+// for a page built per instance and proves nothing about the other configurations. Production was
+// pinned to one analysis (`iac/inventories/production/hosts.yml`) from #96 to #198 while the
+// instance-wide cap was decided, so the SINGULAR renderings were what the deployed page served — and
+// they had no test at all, in the one configuration that was live. `e2e-paywall.sh` still pins one.
 import { describe, expect, test } from "bun:test";
 import { FREE_ANALYSES } from "@eait/shared";
 import { LandingConfigError } from "./config.ts";

@@ -179,6 +179,8 @@ alter table users add column if not exists entitlement_event_at   timestamptz;
 -- this column existed reads as -- and false is the safe direction: a trial reminder that never
 -- arrives beats one telling somebody who pays that "the free week ends".
 alter table users add column if not exists entitlement_trial boolean not null default false;
+-- The admin's per-account sample size. Null means the instance default (EAIT__BACKEND__FREE_ANALYSES).
+alter table users add column if not exists free_analyses integer;
 
 -- Bearer tokens, as SHA-256 hashes.
 --
@@ -883,6 +885,7 @@ export async function postgresStore(
             entitlement_lifetime_product_id = coalesce(into_u.entitlement_lifetime_product_id, from_u.entitlement_lifetime_product_id),
             entitlement_lifetime_event_at = coalesce(into_u.entitlement_lifetime_event_at, from_u.entitlement_lifetime_event_at),
             entitlement_product_id = coalesce(into_u.entitlement_product_id, from_u.entitlement_product_id),
+            free_analyses = coalesce(into_u.free_analyses, from_u.free_analyses),
             entitlement_event_at = greatest(into_u.entitlement_event_at, from_u.entitlement_event_at)
           from users from_u
           where into_u.id = ${intoUserId} and from_u.id = ${fromUserId}`;
@@ -1453,6 +1456,17 @@ export async function postgresStore(
       // Served by the prefix of analyses_user_date_idx (user_id, date, scope).
       const rows = await sql`select count(*)::int as n from analyses where user_id = ${userId}`;
       return num(rows[0].n);
+    },
+
+    async getFreeAnalyses(userId) {
+      const rows = await sql`select free_analyses from users where id = ${userId}`;
+      const v = rows[0]?.free_analyses;
+      return v === null || v === undefined ? null : num(v);
+    },
+
+    async setFreeAnalyses(userId, n) {
+      const rows = await sql`update users set free_analyses = ${n} where id = ${userId} returning id`;
+      return rows.length > 0;
     },
 
     async recordAnalysis(userId, date, scope) {

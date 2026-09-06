@@ -198,6 +198,31 @@ function contract(name: string, make: () => Promise<Store>) {
       expect((await s.getEntitlement(real2))?.expiresAt).toBe("2026-12-01T00:00:00.000Z");
     });
 
+    it("has no sample size of its own until the admin sets one, and the merge carries it", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      expect(await s.getFreeAnalyses(userId)).toBeNull();
+      expect(await s.setFreeAnalyses(userId, 1)).toBe(true);
+      expect(await s.getFreeAnalyses(userId)).toBe(1);
+      expect(await s.setFreeAnalyses(userId, null)).toBe(true);
+      expect(await s.getFreeAnalyses(userId)).toBeNull();
+      expect(await s.setFreeAnalyses(crypto.randomUUID(), 1)).toBe(false);
+
+      const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.setFreeAnalyses(anon, 1);
+      await s.mergeUsers(anon, real);
+      expect(await s.getFreeAnalyses(real)).toBe(1);
+
+      // And never over the survivor's own.
+      const anon2 = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real2 = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.setFreeAnalyses(anon2, 1);
+      await s.setFreeAnalyses(real2, 2);
+      await s.mergeUsers(anon2, real2);
+      expect(await s.getFreeAnalyses(real2)).toBe(2);
+    });
+
     // THE CLOCKS HAVE TO CROSS TOO, and `getEntitlement` hides them — so the only way to see one is
     // to write against it. Without this, deleting both clock lines from the merge leaves the suite
     // green while a stale post-merge delivery silently becomes applicable again.

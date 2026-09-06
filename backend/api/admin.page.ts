@@ -159,6 +159,24 @@ export const ADMIN_PAGE = `<!doctype html>
     <button class="primary" id="notify-save">Save notifications</button>
     <span class="status" id="notify-status"></span>
   </p>
+
+  <h2>Per-account sample</h2>
+  <p class="muted">
+    How many analyses ONE account gets before the paywall, instead of the instance default. Save with
+    the box empty to put the account back on the default.
+  </p>
+  <div class="card">
+    <div class="row">
+      <input type="text" id="cap-user" placeholder="user id" autocomplete="off" spellcheck="false">
+      <button id="cap-load">Load</button>
+    </div>
+    <label for="cap-n">Analyses before the paywall</label>
+    <div class="row">
+      <input type="text" id="cap-n" inputmode="numeric" placeholder="instance default">
+      <button class="primary" id="cap-save">Save</button>
+    </div>
+    <p class="muted" id="cap-status"></p>
+  </div>
 </div>
 
 <div class="bar hidden" id="bar">
@@ -499,6 +517,29 @@ export const ADMIN_PAGE = `<!doctype html>
       renderNotify();
     });
   }
+
+  // ── Per-account sample ─────────────────────────────────────────────────────────────────────
+
+  function capPath() {
+    return "/admin/api/users/" + encodeURIComponent($("cap-user").value.trim()) + "/cap";
+  }
+  function capFailed(e) {
+    $("cap-status").textContent = (e.body && e.body.errors && e.body.errors[0])
+      || (e.status === 404 ? "No such account." : "failed: " + e.message);
+  }
+  function showCap(c, prefix) {
+    $("cap-n").value = c.freeAnalyses === null ? "" : String(c.freeAnalyses);
+    $("cap-status").textContent = (prefix || "") + c.spent + " spent of " + c.effective
+      + (c.freeAnalyses === null ? " (instance default)" : "");
+  }
+  $("cap-load").addEventListener("click", function () {
+    api("GET", capPath()).then(function (c) { showCap(c); }).catch(capFailed);
+  });
+  $("cap-save").addEventListener("click", function () {
+    var raw = $("cap-n").value.trim();
+    api("PUT", capPath(), { freeAnalyses: raw === "" ? null : Number(raw) })
+      .then(function (c) { showCap(c, "saved — "); }).catch(capFailed);
+  });
 
   // ── Wiring ─────────────────────────────────────────────────────────────────────────────────
 
