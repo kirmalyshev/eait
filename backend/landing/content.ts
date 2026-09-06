@@ -244,9 +244,11 @@ export const refusalsSection = {
 
 export const refusals: readonly Refusal[] = [
   {
+    // Kirill's line. The old one described what you SEE and put the card at the end of a
+    // subordinate clause; this one is the deal in two sentences, in the order it happens.
     title: plural(SAMPLE_ANALYSES,
-      "You see the first verdict before it asks for a card.",
-      `You see your first ${SAMPLE_ANALYSES} verdicts before it asks for a card.`),
+      "Analyze a meal. Pay only after.",
+      `Analyze ${SAMPLE_ANALYSES} meals. Pay only after.`),
     body:
       "Answer a few questions and send a meal. " +
       `${plural(SAMPLE_ANALYSES, "That first answer is yours", `The first ${SAMPLE_ANALYSES} answers are yours`)} ` +
@@ -281,7 +283,7 @@ export const band = { line: "Eat out on Friday and the week still adds up." } as
  * The photographs. Real plates, photographed by whoever was about to eat them, from Wikimedia
  * Commons under CC0, so nothing is owed and nothing is claimed: none of these is a user's meal or
  * shown as one. The hero's is a chicken shawarma platter because that is the plate the sample
- * card describes, and the closing's is dinner.
+ * card describes, and the closing's is a plate of pasta, because the line over it ends on dinner.
  */
 export interface Photo {
   file: string;
@@ -291,7 +293,13 @@ export interface Photo {
   height: number;
 }
 
-export const photos: { readonly hero: Photo; readonly closing: Photo } = {
+export const photos: {
+  readonly hero: Photo;
+  readonly problem: Photo;
+  readonly steps: Photo;
+  readonly floor: Photo;
+  readonly closing: Photo;
+} = {
   hero: {
     file: "plate-shawarma.webp",
     source: "https://commons.wikimedia.org/wiki/File:Chicken_Shawarma_Platter_-_Lavash_2025-02-10.jpg",
@@ -299,9 +307,41 @@ export const photos: { readonly hero: Photo; readonly closing: Photo } = {
     width: 1000,
     height: 1250,
   },
+  // The two section bands, each the plate its section is about: a burger and fries nobody weighs,
+  // and a pizza to say what a floor is for. FOOD PEOPLE ACTUALLY EAT, on Kirill's instruction —
+  // the first pair were a restaurant dinner for two and a styled breakfast table, which sold a
+  // lifestyle this page is not selling. Landscape and lazy, because
+  // they sit below the fold and carry no argument of their own — the words above each of them do,
+  // and both are decorative to a screen reader. HOW IT WORKS had a third and lost it: a bowl there
+  // showed a meal the card beside it did not name, so that panel shows the hero's plate instead,
+  // which is the meal the whole page is following.
+  problem: {
+    file: "plate-burger.webp",
+    source: "https://commons.wikimedia.org/wiki/File:Best_Cheeseburger_ever_(Unsplash).jpg",
+    license: "CC0",
+    width: 1400,
+    height: 788,
+  },
+  // The first How-it-works panel. NOT the hero's plate a second time: one photograph doing two jobs
+  // on one page reads as a page that ran out of pictures. A plate being handed over is also the
+  // truer image for "send the meal" than the same overhead shot again.
+  steps: {
+    file: "plate-grill.webp",
+    source: "https://commons.wikimedia.org/wiki/File:Dinner_is_served_(Unsplash).jpg",
+    license: "CC0",
+    width: 960,
+    height: 720,
+  },
+  floor: {
+    file: "plate-pizza.webp",
+    source: "https://commons.wikimedia.org/wiki/File:Pizza_for_High-End_Italian_Restaurant_(Unsplash).jpg",
+    license: "CC0",
+    width: 1400,
+    height: 788,
+  },
   closing: {
-    file: "plate-dinner.webp",
-    source: "https://commons.wikimedia.org/wiki/File:Poke_Bowl_Losos_Zlaty_Klas_2025.jpg",
+    file: "plate-pasta.webp",
+    source: "https://commons.wikimedia.org/wiki/File:The_temptress_(Unsplash).jpg",
     license: "CC0",
     width: 1400,
     height: 875,
@@ -344,24 +384,24 @@ export const whatSection = {
 
 export const stepsSection = {
   eyebrow: "How it works",
-  headline: "Three steps. The third one is the habit.",
+  headline: "3 steps",
 } as const;
 
 export const steps: readonly Step[] = [
   {
-    ordinal: "01",
+    ordinal: "1",
     title: "Send the meal.",
     body:
       "A photo, or a sentence: chicken shawarma, large. **No scale, no database search.**",
   },
   {
-    ordinal: "02",
+    ordinal: "2",
     title: "Read the numbers.",
     body:
       "Calories, protein, carbs, fat, fibre, sugar and sodium, per item and totalled, **with the portion it assumed.** Under them, the verdict against your day.",
   },
   {
-    ordinal: "03",
+    ordinal: "3",
     title: "Get better.",
     body:
       "The verdict says what to change on the next plate. **After a week you see it before the app does.**",
@@ -699,9 +739,13 @@ export const faqs: readonly Faq[] = [
  * the worst place to be caught out.
  */
 export const closing = {
-  headline: "One photo. A straight answer. Then dinner.",
-  sub:
-    `${plural(SAMPLE_ANALYSES, "Your first verdict costs nothing and needs", `Your first ${SAMPLE_ANALYSES} verdicts cost nothing and need`)} no card or account.`,
+  // "One photo. A straight answer. Then dinner." was three fragments in a row doing the job of one
+  // sentence, and "a straight answer" is a phrase that sounds like a promise and names nothing.
+  // What is left is the instruction and the terms, which is what the section is for.
+  headline: "Start with tonight's dinner.",
+  sub: plural(SAMPLE_ANALYSES,
+    "One meal, no card. Then a free week.",
+    `${SAMPLE_ANALYSES} meals, no card. Then a free week.`),
 } as const;
 
 /**
@@ -838,7 +882,12 @@ export const footer = {
   // never asks for an email address" went the same way in issue #95, for being false of the app
   // too. A footer sentence has to survive being quoted with nothing around it, so what is left is
   // only what holds on its own.
+  // The two app-level clauses are gone. They were "your photos stay with your diary and leave with
+  // it" and "the app works without an account at all" — both true of the product, and both claims
+  // a footer cannot carry, because a footer sentence gets quoted with nothing around it and these
+  // two need the PRIVACY section's qualifiers to stay true. What is left is only what this page
+  // can prove about itself, and every clause of it is asserted by a test in landing.test.ts.
   note:
-    "eait is built in Berlin. Your photos stay with your diary and leave with it, the app works " +
-    "without an account at all, and no advertising, cookie or third-party script runs on this page.",
+    "eait is built in Berlin. This page loads one script of its own, calls no third party, and the " +
+    "only thing it stores is whether you chose the dark page.",
 } as const;

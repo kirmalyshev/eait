@@ -18,6 +18,7 @@ import {
   accuracySection, band, brand, closing, faqSection, faqs, floorSection, footer,
   hero, privacySection, problemSection, founder, outcomes, plural, refusals, refusalsSection, sample,
   SAMPLE_ANALYSES, photos, screensSection, shots, steps, stepsSection, subscribeSection, whatSection,
+  type Photo,
 } from "./content.ts";
 import {
   primaryAction, primaryCta, secondaryCta, surfaceNote, START_CODES, type CtaPlacement,
@@ -343,8 +344,12 @@ function ctaBlock(config: LandingConfig, placement: CtaPlacement): string {
         <a class="cta-alt" href="${esc(secondary.href)}">${esc(secondary.label)}</a>`
             : ""
         }
-      </div>
-      <p class="cta-note">${esc(primary.note)}</p>`;
+      </div>${
+        primary.note
+          ? `
+      <p class="cta-note">${esc(primary.note)}</p>`
+          : ""
+      }`;
 }
 
 /**
@@ -411,6 +416,86 @@ function askBand(config: LandingConfig, placement: CtaPlacement): string {
  * in some versions. `role=region` plus the label is what puts it in the landmark list under a name
  * somebody can recognise; the snapping and the slide width are CSS (see `.shots` in styles.ts).
  */
+/**
+ * A section's photograph, under its headline and above its content.
+ *
+ * DECORATIVE, `alt=""`: each one sits under a title and an intro that already say everything it
+ * says, and a screen reader that stopped to describe a plate would be reading furniture. Lazy and
+ * dimensioned, like the screenshots — the width and height are in `photos`, so the box is reserved
+ * before the bytes arrive and nothing below it jumps. `height: auto` in the stylesheet is what
+ * keeps those attributes from becoming the used height; see `.plate`.
+ */
+function sectionPhoto(photo: Photo): string {
+  return `
+      <figure class="section-photo">
+        <img src="/assets/${esc(photo.file)}" width="${photo.width}" height="${photo.height}"
+             alt="" loading="lazy" decoding="async">
+      </figure>`;
+}
+
+/**
+ * The three steps, drawn as the app doing them: the plate you send, the numbers that come back,
+ * and the verdict you act on.
+ *
+ * A photograph of food sat here first, which showed the meal and not the product — the section is
+ * called How it works. These are the SAME cards the hero draws, from the same `sample` constants,
+ * so the numbers are the ones the hero and the tests already agree on and there is no second place
+ * to keep them. Drawn rather than screenshotted for the reason `heroInstrument` gives: a capture
+ * goes stale against the palette, and the App Store frames below already carry the real thing.
+ *
+ * One `role="img"` around all three, like the hero, with the sequence in its label: the panels are
+ * a picture of a process, and read out card by card they are three fragments.
+ */
+function stepsInstrument(): string {
+  const { meal } = sample;
+  const macros = meal.macros
+    .map(
+      (m) => `
+            <div>
+              <span class="macro-value num">${esc(m.value)}</span>
+              <span class="macro-label">${esc(m.label)}</span>
+            </div>`,
+    )
+    .join("");
+  const pills = meal.verdicts
+    .map(
+      (v) => `
+            <span class="pill pill-${v.verdict}"><span class="pill-dot"></span>${esc(v.label)}</span>`,
+    )
+    .join("");
+
+  return `
+      <figure class="step-shots" role="img" aria-label="${esc(
+        `Three panels, in order. One: the plate, photographed, with the reader asking ${meal.ask} ` +
+          `Two: the meal read back as ${meal.title}, ${n(meal.kcal)} kilocalories, with its macros. ` +
+          `Three: the verdict, ${meal.verdicts.map((v) => `${v.label} ${v.verdict}`).join(", ")}, ` +
+          `and the answer: ${meal.verdict}`,
+      )}">
+        <div class="step-shot step-shot-plate">
+          <img src="/assets/${esc(photos.steps.file)}" width="${photos.steps.width}"
+               height="${photos.steps.height}" alt="" loading="lazy" decoding="async">
+          <div class="you-says">
+            <p class="you-line">${esc(meal.ask)}</p>
+          </div>
+        </div>
+
+        <div class="card step-shot">
+          <div class="mcard-head">
+            <p class="mcard-title">${esc(meal.title)}</p>
+            <span class="mcard-kcal num">${n(meal.kcal)}<span class="mcard-kcal-unit">kcal</span></span>
+          </div>
+          <div class="macros">${macros}
+          </div>
+        </div>
+
+        <div class="card step-shot">
+          <div class="pills">${pills}
+          </div>
+          <p class="mcard-verdict">${esc(meal.verdict)}</p>
+        </div>
+      </figure>`;
+}
+
 function screens(config: LandingConfig): string {
   return `
   <section class="section screens-section">
@@ -681,7 +766,7 @@ ${heroInstrument()}
       <div class="section-head">
         <h2 class="section-title">${esc(problemSection.headline)}</h2>
         <p class="section-intro">${esc(problemSection.intro)}</p>
-      </div>
+      </div>${sectionPhoto(photos.problem)}
       <div class="facts">
 ${problemSection.rows
   .map(
@@ -702,6 +787,7 @@ ${problemSection.rows
       <div class="section-head">
         <h2 class="section-title">${esc(stepsSection.headline)}</h2>
       </div>
+${stepsInstrument()}
       <div class="steps">
 ${steps
   .map(
@@ -791,7 +877,7 @@ ${spud("think", "spud-accuracy", accuracySection.mascot)}
       <div class="section-head">
         <h2 class="section-title">${esc(floorSection.headline)}</h2>
         <p class="section-intro">${esc(floorSection.intro)}</p>
-      </div>
+      </div>${sectionPhoto(photos.floor)}
       <div class="guards">
 ${floorSection.guards
   .map(
@@ -849,7 +935,7 @@ ${faqs
 ${askBand(config, "faq")}
   <section class="closing">
     <img class="closing-plate" src="/assets/${esc(photos.closing.file)}" width="${photos.closing.width}"
-         height="${photos.closing.height}" alt="" decoding="async">
+         height="${photos.closing.height}" alt="" loading="lazy" decoding="async">
     <div class="wrap">
       <h2 class="closing-title">${esc(closing.headline)}</h2>
       <p class="closing-sub">${esc(closing.sub)}</p>${
@@ -871,7 +957,6 @@ ${subscribeForm(config)}
       <a href="${privacyHref}">Privacy</a>
       <a href="${supportHref}">Support</a>
       <a href="mailto:${esc(config.supportEmail)}">${esc(config.supportEmail)}</a>
-      <span>Reviewed ${esc(config.updatedAt)}</span>
     </nav>
   </div>
 </footer>

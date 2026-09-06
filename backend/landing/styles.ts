@@ -263,10 +263,14 @@ a { color: inherit; }
 }
 .hero-grid { display: grid; gap: clamp(3.5rem, 7vw, 5rem); align-items: center; }
 @media (min-width: 62rem) {
-  /* Top-aligned, not centred: the photo column is taller than the copy, and centring dropped the
-     headline to the middle of the fold with the form under it. */
-  .hero-grid { grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); align-items: start; }
-  .hero-grid > :first-child { padding-top: 1.5rem; }
+  /* CENTRED, and it was top-aligned for a good reason that stopped being true. The photo column
+     used to be 1,518px tall against 490px of copy, because the plate was rendering at its own
+     intrinsic height, and centring a 490 against a 1,518 put the headline half a screen down with
+     the form below the fold — so the columns were pinned to the top and the copy grew a hole under
+     it instead. With the plate sized by its aspect ratio the column is 788, the imbalance is 298,
+     and half of that above the headline is a margin rather than a drop: the form still lands at
+     787px, inside a 900px fold. */
+  .hero-grid { grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); align-items: center; }
 }
 
 .hero-title {
@@ -477,6 +481,49 @@ a { color: inherit; }
    with emphasis nobody can see. Read the header of content.ts before adding a second one to a
    block: two is none. */
 strong { font-weight: 600; color: var(--text); }
+
+/* ── How it works, drawn ────────────────────────────────────────── */
+/* Three panels, one per step, in the app's own card language: the plate with the reader's question
+   on it, the meal read back, the verdict. One column on a phone, three abreast from 52rem, and
+   they stretch to a common height so the row reads as one object rather than three cards that
+   happen to be next to each other.
+   The plate panel is the only one carrying an image, so it gets the radius and the crop; the other
+   two are .card, which the hero already defines, and inherit everything. */
+.step-shots {
+  display: grid; gap: 1rem; margin: 0 0 clamp(2rem, 4vw, 3rem); align-items: stretch;
+}
+@media (min-width: 52rem) { .step-shots { grid-template-columns: repeat(3, 1fr); gap: 1.25rem; } }
+.step-shot { display: flex; flex-direction: column; justify-content: center; }
+.step-shot-plate {
+  position: relative; justify-content: flex-end; padding: 1rem;
+  border-radius: 1.375rem; overflow: hidden;
+}
+.step-shot-plate img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+}
+/* The question sits on the photograph, so it needs its own ground rather than the page's. */
+.step-shot-plate .you-says { position: relative; }
+.step-shot .macros { margin-top: .875rem; }
+.step-shot .pills { margin-top: 0; }
+.step-shot .mcard-verdict { margin-top: .75rem; }
+/* A phone shows the plate at a readable height; three abreast, the panel takes the row's. */
+@media (max-width: 51.999rem) { .step-shot-plate { min-height: 14rem; } }
+
+/* ── The section photographs ───────────────────────────────────── */
+/* One plate under three of the headlines, in the hero's treatment one notch quieter: the same
+   radius family, a shallower shadow because these sit in the middle of the page rather than at the
+   top of it, and no card over them — the hero's photograph is the instrument, these are the room it
+   happens in.
+   HEIGHT: AUTO, for the reason the .plate rule carries at length: the img states its own width and
+   height so the box is reserved before the bytes land, and those attributes set the CSS height
+   unless this says otherwise. The file is already 1400x788, so nothing is cropped here. */
+.section-photo { margin: 0 0 clamp(2rem, 4vw, 3rem); }
+.section-photo img {
+  display: block; width: 100%; height: auto; border-radius: 1.75rem;
+  box-shadow:
+    0 2px 4px -2px rgb(19 20 23 / .05),
+    0 24px 48px -32px rgb(19 20 23 / .28);
+}
 
 /* ── The screenshots ────────────────────────────────────────────────────────────────────── */
 /* A CAROUSEL, AND CSS IS THE WHOLE OF IT. The frames used to be a grid — two by two above 52rem,

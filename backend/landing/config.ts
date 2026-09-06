@@ -310,7 +310,7 @@ export function primaryAction(config: LandingConfig): PrimaryAction {
 export function primaryCta(
   config: LandingConfig,
   placement: CtaPlacement,
-): { href: string; label: string; note: string } {
+): { href: string; label: string; note: string | null } {
   if (config.appStoreUrl) {
     return {
       href: withStartCode(config.appStoreUrl, placement),
@@ -323,7 +323,12 @@ export function primaryCta(
     // Not "Open the Telegram bot". A button that names the destination spends itself on navigation;
     // this one names what happens next, and the note under it carries the destination.
     label: "Send your first meal",
-    note: "Nothing to install. Send a photo to a Telegram chat and read the answer.",
+    // NO NOTE. It said "Nothing to install. Send a photo to a Telegram chat and read the answer",
+    // which spent three lines explaining the destination the button had deliberately stopped
+    // naming — and told a reader who has just been offered one action to think about a second
+    // product. Cut on Kirill's instruction; the store variant keeps its note, which is about the
+    // card rather than about the plumbing.
+    note: null,
   };
 }
 

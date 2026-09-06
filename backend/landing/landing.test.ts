@@ -16,9 +16,10 @@ import { faviconIco, ogPng, OG_HEIGHT, OG_WIDTH } from "./images.ts";
 import { color, dark, light, TOKEN_SOURCE } from "./tokens.ts";
 import { BODY, MASCOT_SOURCE, MOUTHS, SHEEN } from "./mascot.ts";
 import { styles } from "./styles.ts";
+import { themeScript } from "./theme-script.ts";
 import {
-  brand, faqs, founder, measured, plural, privacySection, refusals, floorSection, sample,
-  SAMPLE_ANALYSES, screensSection, shots, subscribeSection, whatSection,
+  brand, faqs, footer, founder, measured, photos, plural, privacySection, refusals, floorSection,
+  sample, SAMPLE_ANALYSES, screensSection, shots, subscribeSection, whatSection,
 } from "./content.ts";
 import { BAD_SHARE, FREE_ANALYSES, KCAL_FLOOR, WARN_SHARE } from "@eait/shared";
 
@@ -305,6 +306,30 @@ describe("palette", () => {
 describe("the rendered page", () => {
   test("has exactly one h1", () => {
     expect([...html.matchAll(/<h1\b/g)]).toHaveLength(1);
+  });
+
+  test("the footer says only what this page can prove about itself", () => {
+    // It used to say the app keeps your photos with your diary and works without an account at
+    // all. Both are true of the product and neither belongs in a footer: a footer sentence is
+    // quoted with nothing around it, and those two need the qualifiers the PRIVACY section gives
+    // them. What is left is three claims about this page, and this is where each one is bound.
+    expect(footer.note).toContain("loads one script of its own");
+    expect([...html.matchAll(/<script src=/g)]).toHaveLength(1);
+
+    // Calls no third party: every LOADED url — script, stylesheet, font, image — is relative.
+    // Links out to the store or the bot are navigation, not a call, and are not counted.
+    const loaded = [
+      ...[...html.matchAll(/<(?:script|img)\b[^>]*\ssrc="([^"]+)"/g)].map((m) => m[1]!),
+      // `rel=canonical` is metadata and names the origin on purpose; it is not fetched.
+      ...[...html.matchAll(/<link\b(?![^>]*rel="canonical")[^>]*\shref="([^"]+)"/g)].map((m) => m[1]!),
+    ];
+    expect(loaded.length).toBeGreaterThan(5);
+    for (const url of loaded) expect(url.startsWith("/")).toBe(true);
+
+    // And the one thing it stores. `eait.theme` in localStorage, no cookie anywhere.
+    expect(themeScript).toContain("eait.theme");
+    expect(themeScript).not.toContain("document.cookie");
+    expect(html).not.toContain("document.cookie");
   });
 
   test("runs one same-origin script and nothing else, which is what the CSP allows", () => {
@@ -1141,7 +1166,14 @@ describe("the screenshots", () => {
       expect(html).toContain(`alt="${shot.alt.replace(/"/g, "&quot;")}"`);
     }
     expect([...html.matchAll(/<img class="shot-img"/g)]).toHaveLength(shots.length);
-    expect([...html.matchAll(/loading="lazy"/g)]).toHaveLength(shots.length);
+    // Every image below the fold is lazy: the four screenshots, and every photograph except the
+    // hero's. The hero's is NOT lazy and must never be — it is the LCP element, and lazy-loading
+    // it delays the one image the page is judged on, which is why it is asserted eager below by
+    // the attribute that makes it so.
+    const lazyOwners = shots.length + Object.values(photos).filter((p) => p !== photos.hero).length;
+    expect([...html.matchAll(/loading="lazy"/g)]).toHaveLength(lazyOwners);
+    expect([...html.matchAll(/fetchpriority="high"/g)]).toHaveLength(1);
+    expect(html).toContain(`class="plate" src="/assets/${photos.hero.file}"`);
   });
 
   test("every shot is the frame that was audited, byte for byte", () => {
@@ -1169,6 +1201,25 @@ describe("the screenshots", () => {
         );
       }
     }
+  });
+
+  test("every photograph is on the page, and every one of them is CC0 with its source", () => {
+    // The build copies whatever `photos` holds, so an entry that no section renders is bytes in
+    // the deploy nobody sees, and a page referencing a file the object does not name is a broken
+    // frame. Both directions are checked here. The licence matters more than either: these are
+    // other people's photographs, and CC0 with the Commons URL beside it is the whole reason
+    // nothing is owed for them.
+    for (const photo of Object.values(photos)) {
+      expect(html).toContain(`src="/assets/${photo.file}"`);
+      expect(photo.license).toBe("CC0");
+      expect(photo.source).toMatch(/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
+    }
+    // DISTINCT files, not occurrences: the hero's plate is on the page twice on purpose, in the
+    // hero and again as the first of the three How-it-works panels, because it is the meal the
+    // card beside it names. What must not happen is a plate-*.webp reaching the page from anywhere
+    // but `photos`, which is the object carrying the licence and the source.
+    const onPage = new Set([...html.matchAll(/src="\/assets\/(plate-[a-z-]+\.webp)"/g)].map((m) => m[1]));
+    expect([...onPage].sort()).toEqual(Object.values(photos).map((p) => p.file).sort());
   });
 
   test("the photographs are sized by CSS, not by their own height attribute", () => {
