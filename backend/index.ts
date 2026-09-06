@@ -6,7 +6,7 @@
 // UI change gets reviewed without spending money on vision calls.
 
 import {
-  demoConfig, loadConfig, redact, type Config,
+  configDefaults, demoConfig, loadConfig, redact, type Config,
 } from "./config.ts";
 import { AuthError, remoteVerifier, type Verifier } from "./auth/verify.ts";
 import { createRouter } from "./api/routes.ts";
@@ -22,8 +22,41 @@ import { postgresStore } from "./store.pg.ts";
 import type { Store } from "./store.ts";
 
 const demo = process.argv.includes("--demo");
+/**
+ * WHICH ANSWERS THIS SERVER SERVES, independently of which store it holds.
+ *
+ * `--demo` alone is the canned analyzer and the canned coach; `--demo --llm real` is the same
+ * in-memory server answering with the real models, which is the one shape a browser suite needs to
+ * exercise the model's own behaviour without a database or a provider console. `--llm demo` does
+ * the inverse on a real server. One entry point, two kinds of answer, named rather than implied.
+ */
+const llmArg = ((): "demo" | "real" => {
+  const i = process.argv.indexOf("--llm");
+  const v = i >= 0 ? process.argv[i + 1] : undefined;
+  if (v === "demo" || v === "real") return v;
+  return demo ? "demo" : "real";
+})();
+const cannedLlm = llmArg === "demo";
 
 const config: Config = demo ? demoConfig() : loadConfig();
+
+// `--demo --llm real` is the one combination the demo config cannot answer on its own: it names no
+// key, because a demo server never needed one. Taken from the environment here, and refused rather
+// than half-configured — a server that says it is answering with the real model and is not is worse
+// than one that will not start.
+if (demo && llmArg === "real") {
+  const key = process.env.EAIT__BACKEND__LLM_API_KEY ?? "";
+  if (key === "") {
+    console.error("[eait] --llm real needs EAIT__BACKEND__LLM_API_KEY; run without it for the canned answers");
+    process.exit(1);
+  }
+  config.llmApiKey = key;
+  const d = configDefaults();
+  config.llmProvider = "openrouter";
+  config.llmModel = process.env.EAIT__BACKEND__LLM_MODEL ?? d.llmModel;
+  config.llmChatModel = process.env.EAIT__BACKEND__LLM_CHAT_MODEL ?? d.llmChatModel;
+  config.llmGlanceModel = process.env.EAIT__BACKEND__LLM_GLANCE_MODEL ?? d.llmGlanceModel;
+}
 
 // The session lifetime reaches the store the same way every other setting reaches the engine: as an
 // argument from the composition root, never as a module constant either side could disagree about.
@@ -48,7 +81,7 @@ const deps: EngineDeps = {
   config,
   mailer,
   push,
-  llm: demo
+  llm: cannedLlm
     ? demoPorts()
     : openRouterPorts({
         apiKey: config.llmApiKey,
@@ -148,6 +181,10 @@ function demoProvider(name: WebProvider): WebSignInProvider {
     clientId: `demo-${name}`,
     authorizeEndpoint: `http://${config.host}:${config.port}/demo/authorize`,
     extraAuthorizeParams: { provider: name },
+    // Served by this process, so `/start` does not measure it against Apple's and Google's rules
+    // about the origin — the thing that would refuse an http callback is Google, and Google is not
+    // in this flow.
+    local: true,
     async exchange(code) { return `demo:${name}:${code}`; },
   };
 }
@@ -232,7 +269,10 @@ const server = Bun.serve({
   fetch: (req, server) => handle(req, server),
 });
 
-console.log(`[eait] listening on http://${server.hostname}:${server.port}${demo ? " (demo: in-memory store, canned analyzer)" : ""}`);
+// The banner NAMES both halves, because they are chosen separately now: a server that says
+// "canned analyzer" while answering with a billed model is the one line nobody reads twice.
+const mode = demo ? ` (demo: in-memory store, ${cannedLlm ? "canned" : "REAL, BILLED"} model)` : "";
+console.log(`[eait] listening on http://${server.hostname}:${server.port}${mode}`);
 console.log(`[eait] config ${JSON.stringify(redact(config))}`);
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {

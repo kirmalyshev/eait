@@ -319,7 +319,8 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   // says why, in words, rather than leaving somebody to infer it from a missing button.
   const usable = Object.fromEntries(
     (Object.keys(ctx.providers) as WebProvider[])
-      .filter((p) => checkWebProvider(p, ctx.deps.config, ctx.origin).state === "ok")
+      .filter((p) => ctx.providers[p]!.local === true
+        || checkWebProvider(p, ctx.deps.config, ctx.origin).state === "ok")
       .map((p) => [p, ctx.providers[p]!]),
   ) as Partial<Record<WebProvider, WebSignInProvider>>;
   const offered = (Object.keys(usable) as WebProvider[]);
@@ -405,7 +406,10 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     if (authMatch[2] === undefined) {
       const state = randomToken();
       const nonce = randomToken();
-      const to = new URL(provider.authorizeEndpoint);
+      // A local provider names a path on this server, so it is resolved against the origin the
+      // request arrived on rather than one baked in at boot: a demo reached by hostname must not
+      // redirect the browser to loopback.
+      const to = new URL(provider.authorizeEndpoint, ctx.origin);
       to.search = new URLSearchParams({
         // The provider's own extras FIRST, so nothing it adds can override one of the six below.
         // `state` is the CSRF defence and `scope` is the privacy promise; a provider that could

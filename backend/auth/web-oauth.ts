@@ -30,6 +30,13 @@ export interface WebSignInProvider {
   /** Where to send the browser. */
   authorizeEndpoint: string;
   /**
+   * This provider is served by this process, so Apple's and Google's rules about the origin do not
+   * apply to it. Set only by the demo providers in `index.ts`, which is what lets a browser be
+   * driven through the whole sign-in — the state cookie, the callback, the session mint — on a
+   * laptop, where Apple refuses every origin and Google refuses all but loopback.
+   */
+  local?: boolean;
+  /**
    * Anything this provider needs in the authorize URL beyond the six every one of them takes
    * (`client_id`, `redirect_uri`, `response_type`, `scope`, `state`, `nonce`).
    */

@@ -1185,3 +1185,21 @@ describe("a sign-in button is only drawn where it can complete", () => {
     expect(page).toContain("Continue with Google");
   });
 });
+
+describe("a demo server signs somebody in on a laptop", () => {
+  /** What `index.ts` builds under `--demo`: this process serves both ends of the flow. */
+  const localProviders = {
+    apple: { ...PROVIDERS.apple!, local: true },
+    google: { ...PROVIDERS.google!, local: true },
+  };
+
+  it("offers both providers on an origin Apple and Google would refuse", async () => {
+    // The whole point of a demo provider: Google is not in this flow, so Google's rule about http
+    // is not the rule that applies. Without the exemption a demo server showed no buttons at all.
+    router({ ...CONFIG, publicApiUrl: "" }, localProviders);
+    const page = await (await handle(new Request("http://localhost:8787/start"))).text();
+    expect(page).toContain("Continue with Apple");
+    expect(page).toContain("Continue with Google");
+    expect((await handle(new Request("http://localhost:8787/start/auth/apple"))).status).toBe(303);
+  });
+});
