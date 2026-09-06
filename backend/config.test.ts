@@ -416,6 +416,53 @@ describe("demo mode", () => {
     expect(d.maxPhotosPerMeal).toBe(configDefaults().maxPhotosPerMeal);
   });
 
+  // THE ONE RUNNER THAT NEEDS THE PRODUCTION BEHAVIOUR, and the same carve-out `freeAnalyses`
+  // already has. `scripts/e2e-boot.sh` sets the limit to 1 because nothing else in this repo can
+  // produce a 429 at the door: the suite's other flows each mint a token on launch and would all
+  // meet it first. Unset is still a million, so the paragraph above stays true of every other run.
+  it("takes the auth limit from its own variable, and refuses the values that mean 'refuse everyone'", () => {
+    const NAME = "EAIT__BACKEND__E2E_AUTH_RATE_LIMIT_PER_HOUR";
+    const before = process.env[NAME];
+    const beforeProd = process.env.EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR;
+    try {
+      process.env[NAME] = "1";
+      expect(demoConfig().authRateLimitPerHour).toBe(1);
+      delete process.env[NAME];
+      expect(demoConfig().authRateLimitPerHour).toBeGreaterThanOrEqual(100_000);
+
+      // THE PRODUCTION NAME IS NOT READ HERE, and that is the invariant rather than a detail: it
+      // arrives from `.env` and from this machine's shell, so honouring it would mean one stray
+      // value metering every `./dev up --demo`.
+      process.env.EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR = "3";
+      expect(demoConfig().authRateLimitPerHour).toBeGreaterThanOrEqual(100_000);
+      delete process.env.EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR;
+
+      // ZERO, WHICH `int` ACCEPTS. `ratelimit.ts` admits on `count < limit`, so zero refuses the
+      // first sign-in and every one after it — the red suite this whole carve-out is careful about,
+      // reachable by spelling the value rather than by leaving it empty.
+      process.env[NAME] = "0";
+      expect(() => demoConfig()).toThrow(/E2E_AUTH_RATE_LIMIT_PER_HOUR/);
+      // THE TWO CASES THAT TELL THE IMPLEMENTATIONS APART, and the reason this test is worth
+      // having: a valid number and an unset variable both pass under `Number(env ?? default)` as
+      // well as under `int`, so without these the test cannot see the bug. An empty variable there
+      // is `Number("")` — zero — and a limit of zero refuses every sign-in, which fails the whole
+      // suite at the door in the app's own words. A typo is NaN and does the same.
+      process.env[NAME] = "";
+      expect(demoConfig().authRateLimitPerHour).toBeGreaterThanOrEqual(100_000);
+      // NAMED IN THE MATCHER, like every other throw assertion in this file. A bare `toThrow()`
+      // passes on any error, and `demoConfig` reads four other variables that throw on malformed
+      // values — with `bun test` auto-loading `.env`, a machine carrying one bad value would make
+      // this green even if `int` were dropped altogether.
+      process.env[NAME] = "twenty";
+      expect(() => demoConfig()).toThrow(/E2E_AUTH_RATE_LIMIT_PER_HOUR/);
+    } finally {
+      if (before === undefined) delete process.env[NAME];
+      else process.env[NAME] = before;
+      if (beforeProd === undefined) delete process.env.EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR;
+      else process.env.EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR = beforeProd;
+    }
+  });
+
   it("leaves the production defaults alone", () => {
     const p = configDefaults();
     expect(p.authRateLimitPerHour).toBe(20);

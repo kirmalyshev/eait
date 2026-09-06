@@ -714,6 +714,34 @@ export function redact(c: Config): Record<string, unknown> {
  * values long after they had begun failing the E2E suite.
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
+/**
+ * The demo's per-address auth limit: a million, unless one runner says otherwise.
+ *
+ * `scripts/e2e-boot.sh` needs a real one, because a 429 at the door is a screen this app has words
+ * for and nothing else in the repo can reach it. Everything else must stay unmetered for the reason
+ * `demoConfig` states at length: a demo has one address, every flow mints a token on launch, and a
+ * metered demo goes red from the sixth flow on in the app's own words — a failure that names the
+ * product and not the limiter.
+ *
+ * SO IT IS NOT THE PRODUCTION VARIABLE. `EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR` is read from the
+ * ambient environment by `loadConfig`, `bun run --cwd src/backend demo` auto-loads `.env`, and this
+ * machine loads `~/.claude/.env` into every shell — so honouring that name here would mean one
+ * stray value silently metering every `./dev up --demo`. `…__E2E_AUTH_RATE_LIMIT_PER_HOUR` is set
+ * by one script and nothing else, which keeps the carve-out without re-opening that door.
+ *
+ * AND ZERO IS REFUSED. `int` allows it — it guards `n < 0`, and its name says non-negative — while
+ * `ratelimit.ts` admits on `count < limit`, so a limit of zero refuses the FIRST sign-in and every
+ * one after it. That is the same red suite the paragraph above is about, reachable by spelling the
+ * value `0` rather than by leaving it empty.
+ */
+function demoAuthRateLimitPerHour(): number {
+  const n = int("EAIT__BACKEND__E2E_AUTH_RATE_LIMIT_PER_HOUR", 1_000_000);
+  if (n === 0) {
+    throw new Error("[eait] EAIT__BACKEND__E2E_AUTH_RATE_LIMIT_PER_HOUR must be at least 1 — zero refuses every sign-in");
+  }
+  return n;
+}
+
 export function demoConfig(): Config {
   return {
     ...configDefaults(),
@@ -740,7 +768,9 @@ export function demoConfig(): Config {
     // goes red from the sixth flow on, showing the app's own "Too many sign-ins from this network
     // just now", and every failure names a product string rather than the limiter. A gate that
     // fails under its own load, in words that describe the app, is worse than no gate at all.
-    authRateLimitPerHour: 1_000_000,
+    //
+    // OVERRIDABLE, under a name of its own — see `demoAuthRateLimitPerHour` below.
+    authRateLimitPerHour: demoAuthRateLimitPerHour(),
     analysisRateLimitPerDay: 1_000_000,
     subscribeRateLimitPerHour: 1_000_000,
     healthSyncRateLimitPerHour: 1_000_000,
