@@ -6,6 +6,7 @@
 // one more reason — this surface handles POSTs, and a page that needs no script is a page with no
 // third-party origin to allow in its own CSP.
 
+import { MAX_USER_LINE } from "@eait/shared";
 import { dark, light, type ColorName } from "../landing/tokens.ts";
 import { spudSvg } from "../landing/mascot.ts";
 
@@ -52,6 +53,35 @@ export const PAGE_COPY = {
     "Install eait for iPhone and sign in the same way you did here. It is the same account — your " +
     "answers and your plan are already on it.",
   planCheckout: "Set up your subscription",
+  planChat: "Open the chat",
+  chatHeading: "Your chat",
+  chatEmpty: "Nothing here yet. What you say in the app shows up here, and the other way round.",
+  chatMealGone: "That meal is no longer in the diary.",
+  chatPlaceholder: "What did you eat?",
+  chatSend: "Send",
+  chatProposalLead: "Logging this — look right?",
+  chatConfirm: "Log it",
+  chatCancel: "Not this",
+  chatExpired: "That one is no longer being held. Say it again.",
+  chatTooLong: "That message is too long to send.",
+  chatRefusalNetwork: "Too many from this network — not you, this connection. Try again later.",
+  chatRefusalGlobal: "Everyone has used today's allowance. Tomorrow is a fresh number.",
+  chatRefusalDay: "That was your last one today — your daily allowance resets at midnight.",
+  chatNoFocusCorrection:
+    "There is no meal open here to correct. Open it in the app, or say what you ate and log it again.",
+  chatNoFocusRedate:
+    "There is no meal open here to move to another day. Open it in the app to change its day.",
+  chatNotOnboarded: "Answer the plan questions first.",
+  chatRefusalSubscription: "The analyses this account came with are used up. Subscribe to carry on.",
+  chatRefusalFailed: "That did not come back. Try it again.",
+  chatRefusalNotFood: "That did not look like food.",
+  chatRefusalImage: "That file is not a photo this can read. JPEG, PNG or WebP.",
+  chatRefusalNoPhoto: "Choose a photo first.",
+  chatTooMany: "That is more angles than one meal can have.",
+  chatTooLarge: "That photo is too large to send.",
+  chatPhotoLead: "Or photograph it",
+  chatPhotoSend: "Send the photo",
+  chatCaption: "Anything I should know? (optional)",
   errorSignIn: "That sign-in didn't complete. Try again.",
 } as const;
 
@@ -85,6 +115,15 @@ const STYLES = `
     padding: .75rem 1rem; margin: 0 0 .5rem;
   }
   .spud { width: 64px; height: 64px; display: block; margin: 0 0 1rem; }
+  .bubble.you {
+    background: var(--accent); color: var(--accent-text); border-color: var(--accent);
+    margin-left: 2.5rem;
+  }
+  .who { color: var(--muted); font-size: .8rem; margin: 0 0 .2rem; letter-spacing: .03em; }
+  .pill {
+    display: inline-block; border: 1px solid var(--border-strong); border-radius: 999px;
+    padding: .1rem .6rem; margin: .35rem .35rem 0 0; font-size: .8rem; color: var(--muted);
+  }
   form { margin: 0; }
   button, .button {
     display: block; width: 100%; text-align: left; cursor: pointer;
@@ -98,6 +137,7 @@ const STYLES = `
   }
   button .hint { display: block; color: var(--muted); font-size: .85rem; }
   button.primary .hint { color: inherit; opacity: .8; }
+  input[type=file] { display: block; width: 100%; margin: 0 0 .75rem; font: inherit; color: var(--text); }
   input[type=number], input[type=text] {
     width: 100%; font: inherit; color: var(--text); background: var(--raised);
     border: 1px solid var(--border-strong); border-radius: 12px;
@@ -249,6 +289,99 @@ ${bubbles(lines)}
 `);
 }
 
+/** A meal card in the thread: the meal as it is NOW, or null once it is gone. */
+export interface ChatCard {
+  title: string;
+  kcal: number;
+  proteinG: number;
+  verdicts: readonly string[];
+}
+
+export type ChatLine =
+  | { kind: "user"; text: string | null; photo?: boolean }
+  /** `who` names the speaker when there is more than one; null is the app's own voice. */
+  | { kind: "said"; who: string | null; text: string }
+  | { kind: "card"; card: ChatCard | null };
+
+/** A proposal, held server-side and offered until it is confirmed, cancelled or expires. */
+export interface ChatProposal {
+  pendingId: string;
+  title: string;
+  kcal: number;
+  proteinG: number;
+}
+
+export interface ChatView {
+  lines: readonly ChatLine[];
+  /** The page's own words about a refusal or a stale proposal. Never the model's. */
+  notice: string | null;
+  proposal: ChatProposal | null;
+}
+
+/**
+ * The thread, oldest first — the app's conversation, in a browser.
+ *
+ * Rendered from what the SERVER stored and nothing else: a card is the meal as it is now, so a
+ * verdict here never outlives the numbers it describes, and no sentence on this page is written by
+ * the client. Same rule as the app's own thread.
+ */
+export function chat(v: ChatView): string {
+  return shell("Chat", `
+<h1>${escape(PAGE_COPY.chatHeading)}</h1>
+${v.notice ? `<p class="notice">${escape(v.notice)}</p>` : ""}
+${v.lines.length === 0
+  ? `<p class="muted">${escape(PAGE_COPY.chatEmpty)}</p>`
+  : v.lines.map(chatLine).join("\n")}
+${v.proposal ? proposalCard(v.proposal) : ""}
+<form method="post" action="/start/chat/say">
+  <input type="text" name="text" autocomplete="off" maxlength="${MAX_USER_LINE}"
+    placeholder="${escape(PAGE_COPY.chatPlaceholder)}" aria-label="${escape(PAGE_COPY.chatPlaceholder)}">
+  <button class="primary" type="submit">${escape(PAGE_COPY.chatSend)}</button>
+</form>
+<h2>${escape(PAGE_COPY.chatPhotoLead)}</h2>
+<form method="post" action="/start/chat/photo" enctype="multipart/form-data">
+  <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" multiple
+    aria-label="${escape(PAGE_COPY.chatPhotoLead)}">
+  <input type="text" name="caption" autocomplete="off" maxlength="${MAX_USER_LINE}"
+    placeholder="${escape(PAGE_COPY.chatCaption)}" aria-label="${escape(PAGE_COPY.chatCaption)}">
+  <button type="submit">${escape(PAGE_COPY.chatPhotoSend)}</button>
+</form>
+`);
+}
+
+/**
+ * A proposal is CONFIRM-FIRST, here as in the app: a meal nobody photographed is one we inferred,
+ * and it is not written until the person says so. Two forms rather than one with two buttons, so
+ * each posts to the route that names what it does.
+ */
+function proposalCard(p: ChatProposal): string {
+  const id = `<input type="hidden" name="pendingId" value="${escape(p.pendingId)}">`;
+  return `<div class="card">
+  <p class="muted">${escape(PAGE_COPY.chatProposalLead)}</p>
+  <p><strong>${escape(p.title)}</strong></p>
+  <p class="muted">${p.kcal} kcal &middot; ${p.proteinG} g protein</p>
+  <form method="post" action="/start/chat/confirm">${id}<button class="primary" type="submit">${escape(PAGE_COPY.chatConfirm)}</button></form>
+  <form method="post" action="/start/chat/cancel">${id}<button type="submit">${escape(PAGE_COPY.chatCancel)}</button></form>
+</div>`;
+}
+
+function chatLine(line: ChatLine): string {
+  if (line.kind === "user") {
+    const text = line.text ?? "";
+    return `<p class="bubble you">${line.photo ? "\u{1F4F7} " : ""}${escape(text)}</p>`;
+  }
+  if (line.kind === "said") {
+    return `${line.who ? `<p class="who">${escape(line.who)}</p>` : ""}<p class="bubble">${escape(line.text)}</p>`;
+  }
+  if (line.card === null) return `<p class="bubble muted">${escape(PAGE_COPY.chatMealGone)}</p>`;
+  const c = line.card;
+  return `<div class="card">
+  <p><strong>${escape(c.title)}</strong></p>
+  <p class="muted">${c.kcal} kcal &middot; ${c.proteinG} g protein</p>
+  ${c.verdicts.map((w) => `<span class="pill">${escape(w)}</span>`).join("")}
+</div>`;
+}
+
 export interface PlanView {
   /** Which provider signed this account in, so the app instruction can name that button. */
   signedInWith: "apple" | "google" | null;
@@ -273,6 +406,7 @@ ${v.floorApplied
 ${v.checkoutUrl
   ? `<a class="button primary" href="${escape(v.checkoutUrl)}">${escape(PAGE_COPY.planCheckout)}</a>`
   : ""}
+<a class="button" href="/start/chat">${escape(PAGE_COPY.planChat)}</a>
 <h2>${escape(PAGE_COPY.planAppHeading)}</h2>
 <p class="muted">${escape(v.signedInWith === null
   ? PAGE_COPY.planAppBodyGeneric

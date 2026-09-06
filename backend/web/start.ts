@@ -21,18 +21,21 @@
 import {
   AMBIGUOUS_AGE, RESTRICTION_TAGS, SCREEN_OPTIONS, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
   askPlaceholder, checkDirection, checkNumber, disabledScreens, isAnswered, promptsFor,
-  screenForStep, screenOptions, switchedLine,
-  type ChatPrompt, type Goal, type NumberField, type OnboardingContent, type PatchProfileRequest,
-  type Profile,
+  isRefusal, MAX_USER_LINE, renderableVerdicts, screenForStep, screenOptions, switchedLine,
+  verdictPillLabel,
+  type ChatEntry, type ChatPrompt, type Goal, type NumberField, type OnboardingContent,
+  type PatchProfileRequest, type Profile,
 } from "@eait/shared";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
 import type { WebProvider, WebSignInProvider } from "../auth/web-oauth.ts";
 import {
-  onboardingContent, patchProfile, profileView, signInWithProvider, type EngineDeps,
+  cancelPendingMeal, chatHistory, confirmPendingMeal, handleText, logPhotoMeal, onboardingContent,
+  patchProfile, profileView, signInWithProvider, type EngineDeps,
 } from "../engine/index.ts";
 import type { Store } from "../store.ts";
 import {
-  frontDoor, html, plan, question, stopped, PAGE_COPY, type QuestionOption,
+  chat, frontDoor, html, plan, question, stopped, PAGE_COPY,
+  type ChatLine, type ChatProposal, type QuestionOption,
 } from "./page.ts";
 
 export const START_PREFIX = "/start";
@@ -46,6 +49,54 @@ export const START_PREFIX = "/start";
  * they can tell whether they pasted the right one.
  */
 const AUTH_PATH = /^\/start\/auth\/(apple|google)(\/callback)?$/;
+
+/**
+ * The thread, and the short link people can be told out loud.
+ *
+ * UNDER `/start` LIKE EVERYTHING ELSE, because the session cookie is `Path=/start` and widening it
+ * would hand the cookie to every path on this origin, the JSON API included — the one thing rule 2
+ * at the top of this file exists to prevent. `/chat` is a redirect and nothing more: it carries no
+ * session and decides nothing.
+ */
+const CHAT_PATH = `${START_PREFIX}/chat`;
+const CHAT_ALIAS = "/chat";
+
+/** Thread lines rendered on one page. No pagination here yet: the composer is what people came for. */
+const CHAT_PAGE_LINES = 50;
+
+/**
+ * What `?notice=` may say, and the words for each.
+ *
+ * A CODE IN THE QUERY, NEVER A SENTENCE: the redirect that carries it is a URL anybody can hand
+ * somebody else, and a page that rendered arbitrary text from one would put a stranger's words in
+ * the product's voice. Every key here is a refusal the engine produced or a state this page knows.
+ *
+ * READ WITH `Object.hasOwn`, because a plain object inherits from `Object.prototype`: `?notice=
+ * constructor` on a bare lookup returns a FUNCTION, which is truthy, survives the `?? null`, and
+ * throws inside `escape` — a crafted link that turns this page into a 500.
+ *
+ * THE THREE CAPS ARE THREE SENTENCES. The engine already distinguishes them (`caps.ts` answers
+ * `cap-exceeded` with a scope) and so does the app (`lib/meal-refusal.ts`). "Your allowance is
+ * spent" is a lie to somebody on a carrier network who has logged one meal, and a lie again when
+ * what ran out is the instance's budget.
+ */
+const CHAT_NOTICE: Record<string, string> = {
+  expired: PAGE_COPY.chatExpired,
+  "too-long": PAGE_COPY.chatTooLong,
+  "cap-address": PAGE_COPY.chatRefusalNetwork,
+  "cap-global": PAGE_COPY.chatRefusalGlobal,
+  "cap-user": PAGE_COPY.chatRefusalDay,
+  "subscription-required": PAGE_COPY.chatRefusalSubscription,
+  "analysis-failed": PAGE_COPY.chatRefusalFailed,
+  "not-food": PAGE_COPY.chatRefusalNotFood,
+  "no-focus-correction": PAGE_COPY.chatNoFocusCorrection,
+  "no-focus-redate": PAGE_COPY.chatNoFocusRedate,
+  "not-onboarded": PAGE_COPY.chatNotOnboarded,
+  "unsupported-image": PAGE_COPY.chatRefusalImage,
+  "no-photo": PAGE_COPY.chatRefusalNoPhoto,
+  "too-many": PAGE_COPY.chatTooMany,
+  "too-large": PAGE_COPY.chatTooLarge,
+};
 
 /** The label on each button, and the order they are offered in — Apple first, as in the app. */
 const PROVIDER_LABEL: Record<WebProvider, string> = {
@@ -69,7 +120,7 @@ const OAUTH_TTL_S = 600;
 const CALLBACK_MAX_BYTES = 8 * 1024;
 
 export function isStartPath(pathname: string): boolean {
-  return pathname === START_PREFIX || pathname.startsWith(`${START_PREFIX}/`);
+  return pathname === START_PREFIX || pathname.startsWith(`${START_PREFIX}/`) || pathname === CHAT_ALIAS;
 }
 
 export interface StartContext {
@@ -96,6 +147,8 @@ export interface StartContext {
    * before anybody is authenticated. Without this it is the one unbounded route on the box.
    */
   limitAuth: () => number | null;
+  /** The billed allowance, spent on a chat turn exactly as the API's message route spends it. */
+  limitAnalysis?: (() => number | null) | undefined;
 }
 
 const notFound = (): Response =>
@@ -272,6 +325,8 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       href: `${START_PREFIX}/auth/${p}`, label: PROVIDER_LABEL[p],
     })), error));
   }
+
+  if (req.method === "GET" && pathname === CHAT_ALIAS) return seeOther(CHAT_PATH);
 
   // ── Sign in ───────────────────────────────────────────────────────────────────────────────
   // APPLE POSTS ITS CALLBACK, and that POST is cross-site, so it carries no `SameSite=Lax` cookie
@@ -496,6 +551,111 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     }
   }
 
+  // ── The thread ────────────────────────────────────────────────────────────────────────────
+  if (pathname === CHAT_PATH || pathname.startsWith(`${CHAT_PATH}/`)) {
+    // Onboarding first, exactly as the app has it: the engine answers `not-onboarded` to every turn
+    // until the plan exists, and a chat page that could only refuse is a page with nothing on it.
+    const full = await profileView(ctx.deps, userId);
+    if (!full || !full.onboarded) return seeOther(`${START_PREFIX}/q`);
+
+    if (req.method === "GET" && pathname === CHAT_PATH) {
+      const { entries } = await chatHistory(ctx.deps, userId, { limit: CHAT_PAGE_LINES });
+      // The proposal is not a thread line until it is confirmed, so it is carried across the
+      // redirect by id and read back HERE — through the user-scoped `getPending`, which is what
+      // makes an id from a query string safe: another account's proposal simply resolves to null.
+      const held = url.searchParams.get("pending");
+      const pending = held === null ? null : await ctx.store.getPending(userId, held);
+      const proposal: ChatProposal | null = pending === null ? null : {
+        pendingId: pending.id,
+        title: pending.analysis.items.map((i) => i.name).join(", ") || "A meal",
+        kcal: Math.round(pending.analysis.kcal),
+        proteinG: Math.round(pending.analysis.protein_g),
+      };
+      return html(chat({
+        lines: entries.map(threadLine),
+        notice: noticeText(url.searchParams.get("notice")),
+        proposal,
+      }));
+    }
+
+    // EVERY WRITE IS A POST ANSWERING 303, and both halves of that are load-bearing. A POST is what
+    // a `SameSite=Lax` cookie is not sent with cross-site, which is this surface's CSRF defence;
+    // the redirect is what stops a refresh re-sending the turn, on a page whose only control is a
+    // form and whose user has no undo.
+    const back = (notice?: string | undefined) =>
+      seeOther(notice ? `${CHAT_PATH}?notice=${notice}` : CHAT_PATH);
+    if (req.method !== "POST") return notFound();
+
+    // CHECKED BEFORE PARSING, the rule the photo route in `api/routes.ts` states: `req.formData()`
+    // buffers the whole body, so a size check after it has run protects nothing — the allocation it
+    // was meant to prevent has already happened.
+    const declared = Number(req.headers.get("content-length") ?? 0);
+    if (declared > ctx.deps.config.maxUploadBytes) return back("too-large");
+
+    // The billed routes take the address allowance BEFORE the body is read, which is where
+    // `api/routes.ts` takes it too: an address that is already over should not be able to make this
+    // server buffer a multipart upload to find that out. Confirm and cancel are not billed and do
+    // not take it — they write no analysis.
+    const billed = pathname === `${CHAT_PATH}/say` || pathname === `${CHAT_PATH}/photo`;
+    if (billed && ctx.limitAnalysis?.() != null) return back("cap-address");
+
+    const form = await req.formData().catch(() => null);
+    const field = (name: string): string => {
+      const v = form?.get(name);
+      return typeof v === "string" ? v.trim() : "";
+    };
+
+    if (pathname === `${CHAT_PATH}/photo`) {
+      // flatMap rather than a filter predicate: it narrows the element type without asserting one,
+      // so a string-valued "photo" field is dropped as the malformed input it is — and so is the
+      // empty part a browser sends when the file chooser was never opened.
+      const files = form?.getAll("photo").flatMap((f) => (typeof f === "string" || f.size === 0 ? [] : [f])) ?? [];
+      if (files.length === 0) return back("no-photo");
+      if (files.length > ctx.deps.config.maxPhotosPerMeal) return back("too-many");
+      if (files.reduce((n, f) => n + f.size, 0) > ctx.deps.config.maxUploadBytes) return back("too-large");
+      const caption = field("caption");
+      if (caption.length > MAX_USER_LINE) return back("too-long");
+
+      // Several files are ANGLES OF ONE MEAL. Thunks, so nothing is read until the engine has
+      // passed the caps — and the JPEG sniff inside it still runs before the charge, which is what
+      // keeps a HEIC from spending somebody's sample. No streaming here: with no JavaScript on this
+      // page there is nothing to deliver a glance to.
+      const result = await logPhotoMeal(ctx.deps, userId, {
+        images: files.map((f) => async () => new Uint8Array(await f.arrayBuffer())),
+        ...(caption ? { caption } : {}),
+      });
+      return back(noticeFor(result));
+    }
+
+    if (pathname === `${CHAT_PATH}/say`) {
+      const text = field("text");
+      // Neither of these reaches the engine, so neither spends an analysis: an empty submit is a
+      // stray Enter, and a body past the cap is refused by the same number the app enforces.
+      if (text === "") return back();
+      if (text.length > MAX_USER_LINE) return back("too-long");
+
+      const result = await handleText(ctx.deps, userId, { text });
+      if (result.kind === "proposed") {
+        return seeOther(`${CHAT_PATH}?pending=${encodeURIComponent(result.pendingId)}`);
+      }
+      return back(noticeFor(result));
+    }
+
+    if (pathname === `${CHAT_PATH}/confirm` || pathname === `${CHAT_PATH}/cancel`) {
+      const pendingId = field("pendingId");
+      if (pendingId === "") return back("expired");
+      const result = pathname.endsWith("/confirm")
+        ? await confirmPendingMeal(ctx.deps, userId, pendingId)
+        : await cancelPendingMeal(ctx.deps, userId, pendingId);
+      // `expired` is also what another account's id resolves to, and deliberately reads the same:
+      // the page must not become a way to ask whether some proposal exists somewhere.
+      if (result.kind === "expired") return back("expired");
+      return back(noticeFor(result));
+    }
+
+    return notFound();
+  }
+
   if (req.method === "GET" && pathname === `${START_PREFIX}/plan`) {
     const full = await profileView(ctx.deps, userId);
     if (!full || !full.onboarded) return seeOther(`${START_PREFIX}/q`);
@@ -527,6 +687,57 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   }
 
   return notFound();
+}
+
+/** The words for a code, and nothing at all for a code this page does not know. */
+function noticeText(code: string | null): string | null {
+  return code !== null && Object.hasOwn(CHAT_NOTICE, code) ? CHAT_NOTICE[code]! : null;
+}
+
+/**
+ * The code for an engine result: a refusal by name, a cap by the allowance that actually ran out,
+ * and nothing for a turn that worked.
+ *
+ * `target-gone` IS NOT A REFUSAL and has to be named separately — `REFUSAL_STATUS` does not carry
+ * it, so gating on `isRefusal` alone read it as a turn that worked. `keep()` writes no line for
+ * one either, so a page with no notice is a submit that appears to have done nothing at all.
+ *
+ * AND IT MEANS SOMETHING ELSE HERE. This page never sends a `focusMealId` — there is no way to open
+ * a meal on it — so the meal did not vanish mid-turn as it can in the app: nothing was ever in
+ * focus. Saying "that meal was deleted" would assert an event that did not happen, so the code
+ * carries `on` and the words say what is actually true of this surface.
+ */
+function noticeFor(result: { kind: string; scope?: string; on?: string }): string | undefined {
+  if (result.kind === "target-gone") return `no-focus-${result.on ?? "correction"}`;
+  if (!isRefusal(result)) return undefined;
+  return result.kind === "cap-exceeded" ? `cap-${result.scope ?? "user"}` : result.kind;
+}
+
+/**
+ * One stored line, in the shape the page draws.
+ *
+ * A card is resolved from the meal as it is NOW (`chatHistory` does the read), so a verdict on this
+ * page never describes numbers that have since changed — and a meal that is gone says so rather
+ * than rendering a stale one. `who` stays null until the thread carries a speaker per line.
+ */
+function threadLine(e: ChatEntry): ChatLine {
+  if (e.role === "user") {
+    return e.kind === "photo"
+      ? { kind: "user", text: e.text, photo: true }
+      : { kind: "user", text: e.text };
+  }
+  if (e.kind === "text") return { kind: "said", who: null, text: e.text };
+  const meal = e.meal;
+  if (!meal) return { kind: "card", card: null };
+  return {
+    kind: "card",
+    card: {
+      title: meal.items.map((i) => i.name).join(", ") || "A meal",
+      kcal: Math.round(meal.kcal),
+      proteinG: Math.round(meal.protein_g),
+      verdicts: renderableVerdicts(meal.verdicts).map((d) => verdictPillLabel(d, meal.verdicts[d]!)),
+    },
+  };
 }
 
 /** A quick reply: an extra submit button beside the answer. */

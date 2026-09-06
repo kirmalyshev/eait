@@ -9,7 +9,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import {
   AMBIGUOUS_AGE, DEFAULT_ONBOARDING_CONTENT, UNDER_AGE_CARD, UNDER_AGE_LINES, disabledScreens,
-  explainTargets, lintCopy, type Profile,
+  explainTargets, lintCopy, MAX_USER_LINE, type Profile,
 } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -17,7 +17,7 @@ import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import type { EngineDeps } from "../engine/index.ts";
 import { AuthError, type Verifier } from "../auth/verify.ts";
-import { saveOnboardingContent } from "../engine/index.ts";
+import { day, handleText, saveOnboardingContent } from "../engine/index.ts";
 import { createRouter } from "../api/routes.ts";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
@@ -80,9 +80,9 @@ let handle: (req: Request) => Promise<Response>;
  * harness that rebuilt it on every call would hand every request a fresh allowance — a limiter that
  * is present, configured and untestable, which is the shape the real server never has.
  */
-function router(config: Config, providers = PROVIDERS) {
+function router(config: Config, providers = PROVIDERS, llm = demoPorts()) {
   store = memoryStore();
-  deps = { store, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+  deps = { store, config, llm, mailer: fakeMailer(), push: fakePush() };
   const handler = createRouter(deps, store, testVerifier, { webProviders: providers });
   handle = (req) => handler(req);
 }
@@ -817,5 +817,301 @@ describe("a target that runs the wrong way", () => {
     // And the number that was refused a moment ago is now the right direction.
     await post("/start/q", { prompt: "target_weight_kg", answer: "90" }, session);
     expect((await store.getProfile(userId))!.target_weight_kg).toBe(90);
+  });
+});
+
+// ── Chat ──────────────────────────────────────────────────────────────────────────────────────
+//
+// The same conversation the app shows, in a browser, under the account the cookie names. Every
+// engine call here is the one `api/routes.ts` makes; what is new is the rendering and the forms.
+
+/** Sign in and finish onboarding, and hand back the session cookie and the account it names. */
+async function onboarded(subject = "web-subject"): Promise<{ session: string; userId: string }> {
+  const session = await signIn(subject);
+  await answerAll(session, ANSWERS);
+  const userId = (await store.userIdForToken(session.split("=")[1]!))!;
+  return { session, userId };
+}
+
+describe("chat on the web", () => {
+  it("404s with no provider configured, and sends a stranger to the front door", async () => {
+    router(CONFIG, {});
+    expect((await get("/start/chat")).status).toBe(404);
+    expect((await get("/chat")).status).toBe(404);
+    router(CONFIG);
+    const res = await get("/start/chat");
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start");
+  });
+
+  it("redirects the short link to the thread", async () => {
+    const res = await get("/chat");
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start/chat");
+  });
+
+  it("renders the account's own thread, oldest first, and nobody else's", async () => {
+    const { session, userId } = await onboarded();
+    const other = await onboarded("someone-else");
+    await handleText(deps, userId, { text: "how much protein have I had?" });
+    await handleText(deps, other.userId, { text: "not yours" });
+
+    const page = await (await get("/start/chat", session)).text();
+    expect(page).toContain("how much protein have I had?");
+    expect(page).toContain("Demo");
+    expect(page).not.toContain("not yours");
+    expect(page.indexOf("how much protein have I had?")).toBeLessThan(page.indexOf("Demo"));
+  });
+
+  it("sends somebody who has not finished onboarding back to the questions", async () => {
+    const session = await signIn();
+    const res = await get("/start/chat", session);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start/q");
+  });
+});
+
+describe("chat on the web: saying something", () => {
+  it("shows the composer, and keeps both sides of a question", async () => {
+    const { session } = await onboarded();
+    expect(await (await get("/start/chat", session)).text()).toContain('action="/start/chat/say"');
+
+    const res = await post("/start/chat/say", { text: "how much protein have I had?" }, session);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start/chat");
+    const after = await (await get("/start/chat", session)).text();
+    expect(after).toContain("how much protein have I had?");
+    expect(after).toContain("Demo");
+  });
+
+  it("proposes a typed meal, holds it across the redirect, and logs it when confirmed", async () => {
+    const { session, userId } = await onboarded();
+    const res = await post("/start/chat/say", { text: "two boiled eggs and a slice of rye bread" }, session);
+    expect(res.status).toBe(303);
+    const to = res.headers.get("location")!;
+    // The proposal is not a thread line until it is confirmed, so its id rides the redirect and is
+    // read back through the user-scoped `getPending` — the one place a client-named id is safe.
+    expect(to).toMatch(/^\/start\/chat\?pending=[0-9a-f-]{36}$/);
+    const pendingId = new URL(to, "https://api.eait.fit").searchParams.get("pending")!;
+    const page = await (await get(to, session)).text();
+    expect(page).toContain(PAGE_COPY.chatConfirm);
+    expect(page).toContain(pendingId);
+    expect((await day(deps, userId))!.meals).toHaveLength(0);
+
+    const done = await post("/start/chat/confirm", { pendingId }, session);
+    expect(done.status).toBe(303);
+    expect(done.headers.get("location")).toBe("/start/chat");
+    expect((await day(deps, userId))!.meals).toHaveLength(1);
+    // And the card is in the thread, with the verdict in words rather than in a colour.
+    const thread = await (await get("/start/chat", session)).text();
+    expect(thread).toContain("kcal");
+    expect(thread).not.toContain(PAGE_COPY.chatConfirm);
+  });
+
+  it("drops a proposal that is cancelled, and logs nothing", async () => {
+    const { session, userId } = await onboarded();
+    const to = (await post("/start/chat/say", { text: "two boiled eggs" }, session)).headers.get("location")!;
+    const pendingId = new URL(to, "https://api.eait.fit").searchParams.get("pending")!;
+    const res = await post("/start/chat/cancel", { pendingId }, session);
+    expect(res.status).toBe(303);
+    expect((await day(deps, userId))!.meals).toHaveLength(0);
+    expect(await (await get(to, session)).text()).not.toContain(PAGE_COPY.chatConfirm);
+  });
+
+  it("never reaches the engine with an empty message, or with one past the line cap", async () => {
+    const { session, userId } = await onboarded();
+    expect((await post("/start/chat/say", { text: "   " }, session)).headers.get("location")).toBe("/start/chat");
+    const long = await post("/start/chat/say", { text: "x".repeat(MAX_USER_LINE + 1) }, session);
+    expect(long.headers.get("location")).toBe("/start/chat?notice=too-long");
+    expect(await store.chatBefore(userId, null, 10)).toEqual([]);
+    expect(await (await get("/start/chat?notice=too-long", session)).text()).toContain(PAGE_COPY.chatTooLong);
+  });
+
+  it("cannot confirm somebody else's proposal, and says only that it is not held", async () => {
+    const { session } = await onboarded();
+    const other = await onboarded("someone-else");
+    const to = (await post("/start/chat/say", { text: "two boiled eggs" }, other.session)).headers.get("location")!;
+    const pendingId = new URL(to, "https://api.eait.fit").searchParams.get("pending")!;
+
+    const res = await post("/start/chat/confirm", { pendingId }, session);
+    expect(res.headers.get("location")).toBe("/start/chat?notice=expired");
+    expect((await day(deps, other.userId))!.meals).toHaveLength(0);
+    expect(await (await get("/start/chat?notice=expired", session)).text()).toContain(PAGE_COPY.chatExpired);
+  });
+
+  it("renders the server's refusal rather than a blank page", async () => {
+    router({ ...CONFIG, freeAnalyses: 1 });
+    const { session } = await onboarded();
+    await post("/start/chat/say", { text: "how much protein have I had?" }, session);
+    const spent = await post("/start/chat/say", { text: "and yesterday?" }, session);
+    expect(spent.headers.get("location")).toBe("/start/chat?notice=subscription-required");
+    expect(await (await get("/start/chat?notice=subscription-required", session)).text())
+      .toContain(PAGE_COPY.chatRefusalSubscription);
+  });
+});
+
+describe("chat on the web: the address allowance", () => {
+  it("bounds chat turns per address, in the same bucket the app's route takes", async () => {
+    router({ ...CONFIG, analysisRateLimitPerDay: 1 });
+    const { session, userId } = await onboarded();
+    expect((await post("/start/chat/say", { text: "how much protein?" }, session)).headers.get("location"))
+      .toBe("/start/chat");
+    const spent = await post("/start/chat/say", { text: "and yesterday?" }, session);
+    expect(spent.headers.get("location")).toBe("/start/chat?notice=cap-address");
+    // Refused before the engine, so the second turn is not in the thread and cost nothing.
+    expect((await store.chatBefore(userId, null, 10)).filter((l) => l.role === "user")).toHaveLength(1);
+  });
+});
+
+/** A JPEG's magic bytes and nothing else: the sniff in front of the charge is what reads them. */
+const jpegBytes = (fill: number) => { const b = new Uint8Array(64).fill(fill); b[0] = 0xff; b[1] = 0xd8; return b; };
+
+const upload = (files: Uint8Array[], cookie: string, opts: { type?: string; caption?: string } = {}) => {
+  const form = new FormData();
+  files.forEach((bytes, i) => {
+    form.append("photo", new File([bytes], `m${i}.jpg`, { type: opts.type ?? "image/jpeg" }));
+  });
+  if (opts.caption !== undefined) form.append("caption", opts.caption);
+  return handle(new Request("https://api.eait.fit/start/chat/photo", {
+    method: "POST", headers: { cookie }, body: form,
+  }));
+};
+
+describe("chat on the web: photos", () => {
+  it("logs a photographed meal, with its caption, and puts it in the thread", async () => {
+    const { session, userId } = await onboarded();
+    expect(await (await get("/start/chat", session)).text()).toContain('enctype="multipart/form-data"');
+
+    const res = await upload([jpegBytes(1)], session, { caption: "with sauce" });
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start/chat");
+    expect((await day(deps, userId))!.meals).toHaveLength(1);
+    const page = await (await get("/start/chat", session)).text();
+    expect(page).toContain("with sauce");
+    expect(page).toContain("kcal");
+  });
+
+  it("refuses anything that is not an image we can read, before the sample is charged", async () => {
+    const { session, userId } = await onboarded();
+    // No JPEG/PNG/WebP magic: what an iPhone on High Efficiency hands over, and what the provider
+    // answers with a status that stays charged.
+    const res = await upload([new Uint8Array(64).fill(9)], session, { type: "image/heic" });
+    expect(res.headers.get("location")).toBe("/start/chat?notice=unsupported-image");
+    expect((await day(deps, userId))!.meals).toHaveLength(0);
+    // The sniff is in front of the charge: a file we cannot read costs the account nothing.
+    expect(await store.countUserAnalyses(userId)).toBe(0);
+    expect(await (await get("/start/chat?notice=unsupported-image", session)).text())
+      .toContain(PAGE_COPY.chatRefusalImage);
+  });
+
+  it("refuses a submit with no file, and more angles than a meal may have", async () => {
+    const { session, userId } = await onboarded();
+    expect((await upload([], session)).headers.get("location")).toBe("/start/chat?notice=no-photo");
+    const many = Array.from({ length: CONFIG.maxPhotosPerMeal + 1 }, (_, i) => jpegBytes(i + 1));
+    expect((await upload(many, session)).headers.get("location")).toBe("/start/chat?notice=too-many");
+    expect((await day(deps, userId))!.meals).toHaveLength(0);
+  });
+
+  it("refuses an upload larger than the configured cap before it is buffered", async () => {
+    const { session } = await onboarded();
+    const res = await handle(new Request("https://api.eait.fit/start/chat/photo", {
+      method: "POST",
+      headers: { cookie: session, "content-type": "multipart/form-data; boundary=x", "content-length": String(CONFIG.maxUploadBytes + 1) },
+      body: "--x--",
+    }));
+    expect(res.headers.get("location")).toBe("/start/chat?notice=too-large");
+  });
+});
+
+describe("chat on the web: the way in", () => {
+  it("offers the chat from the plan page, which is where a finished account lands", async () => {
+    const { session } = await onboarded();
+    // Signing in again with a finished profile: the questions are done, so /q hands over to /plan.
+    const q = await get("/start/q", session);
+    expect(q.status).toBe(303);
+    expect(q.headers.get("location")).toBe("/start/plan");
+    const plan = await (await get("/start/plan", session)).text();
+    expect(plan).toContain('href="/start/chat"');
+    expect(plan).toContain(PAGE_COPY.planChat);
+  });
+});
+
+describe("chat on the web: what a notice may say", () => {
+  it("ignores a notice code that is only a property of every object", async () => {
+    const { session } = await onboarded();
+    // A plain object literal inherits from Object.prototype, so a lookup on one of these returns a
+    // function rather than undefined — and the page then renders whatever that is. The link is one
+    // a stranger can hand somebody, so the miss has to be a miss.
+    for (const key of ["constructor", "__proto__", "toString", "valueOf", "hasOwnProperty"]) {
+      const res = await get(`/start/chat?notice=${encodeURIComponent(key)}`, session);
+      expect(res.status).toBe(200);
+      expect(await res.text()).not.toContain('class="notice"');
+    }
+  });
+
+  it("says which allowance ran out, because the server distinguishes three", async () => {
+    router({ ...CONFIG, analysisRateLimitPerDay: 1 });
+    const first = await onboarded();
+    await post("/start/chat/say", { text: "how much protein?" }, first.session);
+    // The ADDRESS limit: not this account's day, and saying so would be a lie to somebody on a
+    // carrier network who has logged one meal.
+    const address = await post("/start/chat/say", { text: "and yesterday?" }, first.session);
+    expect(address.headers.get("location")).toBe("/start/chat?notice=cap-address");
+    expect(await (await get("/start/chat?notice=cap-address", first.session)).text())
+      .toContain(PAGE_COPY.chatRefusalNetwork);
+
+    // The INSTANCE budget, which is not about this account at all.
+    router({ ...CONFIG, globalDailyAnalysisCap: 1 });
+    const second = await onboarded();
+    await post("/start/chat/say", { text: "how much protein?" }, second.session);
+    const global = await post("/start/chat/say", { text: "and yesterday?" }, second.session);
+    expect(global.headers.get("location")).toBe("/start/chat?notice=cap-global");
+    // The apostrophe is escaped in the page, so the assertion is on the half that is not.
+    expect(await (await get("/start/chat?notice=cap-global", second.session)).text())
+      .toContain("Tomorrow is a fresh number.");
+  });
+
+  it("refuses a photo on the address allowance before it buffers the upload", async () => {
+    router({ ...CONFIG, analysisRateLimitPerDay: 1 });
+    const { session } = await onboarded();
+    await post("/start/chat/say", { text: "how much protein?" }, session);
+    // An empty submit, which the parsed form would answer with `no-photo`. The allowance answering
+    // first is what proves nothing was buffered to find that out.
+    expect((await upload([], session)).headers.get("location")).toBe("/start/chat?notice=cap-address");
+  });
+});
+
+describe("chat on the web: a turn that needs a meal in focus", () => {
+  // This page never sends a `focusMealId` — there is no way to open a meal on it — so the engine's
+  // `target-gone` cannot mean what it means in the app, where a meal vanished mid-turn. Here it can
+  // only mean nothing was in focus, and the page must not claim a deletion that never happened.
+  //
+  // Reached with a stubbed router intent, which is the only way: the restriction that makes it
+  // unreachable is a sentence in the prompt, not a schema, so a model that ignores it lands here.
+  const routed = (r: unknown) => ({ ...demoPorts(), routeText: async () => r as never });
+
+  it("says nothing is open to move, and does not claim the meal was deleted", async () => {
+    router(CONFIG, PROVIDERS, routed({ intent: "redate", dayOffset: -1 }));
+    const { session, userId } = await onboarded();
+
+    const res = await post("/start/chat/say", { text: "that was yesterday" }, session);
+    expect(res.headers.get("location")).toBe("/start/chat?notice=no-focus-redate");
+    // The engine writes no line for it either, which is why the notice is the only thing the
+    // person can be told: a silent reload is a submit that appears to have done nothing.
+    expect(await store.chatBefore(userId, null, 10)).toEqual([]);
+    const page = await (await get("/start/chat?notice=no-focus-redate", session)).text();
+    expect(page).toContain(PAGE_COPY.chatNoFocusRedate);
+    expect(page).not.toContain("deleted");
+  });
+
+  it("says something different about a correction, which is a different thing to be told", async () => {
+    router(CONFIG, PROVIDERS, routed({ intent: "correction", analysis: { items: [] } }));
+    const { session } = await onboarded();
+
+    const res = await post("/start/chat/say", { text: "half the rice" }, session);
+    expect(res.headers.get("location")).toBe("/start/chat?notice=no-focus-correction");
+    expect(await (await get("/start/chat?notice=no-focus-correction", session)).text())
+      .toContain(PAGE_COPY.chatNoFocusCorrection);
+    expect(PAGE_COPY.chatNoFocusCorrection).not.toBe(PAGE_COPY.chatNoFocusRedate);
   });
 });

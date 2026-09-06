@@ -232,6 +232,9 @@ export function createRouter(
           // than taken here: that module spends it on its OAuth callback only, and only after the
           // gate that makes an unconfigured host answer 404 on every path under `/start`.
           limitAuth: () => limit(req, peer, "auth", deps.config.authRateLimitPerHour, HOUR),
+          // And the BILLED allowance, for the chat turns that surface takes. The same bucket the
+          // message and photo routes below take, so a browser and a phone on one address share it.
+          limitAnalysis: () => limit(req, peer, "analysis", deps.config.analysisRateLimitPerDay, DAY),
         });
       }
 
