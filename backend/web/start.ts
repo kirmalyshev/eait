@@ -28,6 +28,7 @@ import {
 } from "@eait/shared";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
 import type { WebProvider, WebSignInProvider } from "../auth/web-oauth.ts";
+import { checkWebProvider } from "../auth/web-auth-check.ts";
 import {
   cancelPendingMeal, chatHistory, confirmPendingMeal, handleText, logPhotoMeal, onboardingContent,
   patchProfile, profileView, signInWithProvider, type EngineDeps,
@@ -310,7 +311,18 @@ function refusalText(r: { reason: string; minHealthyKg?: number }): string {
 
 export async function startRoutes(req: Request, url: URL, ctx: StartContext): Promise<Response> {
   const { config } = ctx.deps;
-  const offered = (Object.keys(ctx.providers) as WebProvider[]);
+  // A BUTTON THAT CANNOT WORK IS WORSE THAN NO BUTTON. Both providers refuse origins a laptop can
+  // offer — Apple wants https on a domain it can resolve, Google takes http on loopback only — and
+  // a redirect they reject fails on THEIR error page, after the person has left this site. So a
+  // provider that is configured but cannot complete the flow here is not offered here, and its two
+  // routes answer 404 like a provider that was never configured at all. `make auth-check` is what
+  // says why, in words, rather than leaving somebody to infer it from a missing button.
+  const usable = Object.fromEntries(
+    (Object.keys(ctx.providers) as WebProvider[])
+      .filter((p) => checkWebProvider(p, ctx.deps.config, ctx.origin).state === "ok")
+      .map((p) => [p, ctx.providers[p]!]),
+  ) as Partial<Record<WebProvider, WebSignInProvider>>;
+  const offered = (Object.keys(usable) as WebProvider[]);
   if (offered.length === 0) return notFound();
 
   const { pathname } = url;
@@ -354,7 +366,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   // refuses it.
   const postedCallback = req.method === "POST" ? AUTH_PATH.exec(pathname) : null;
   if (postedCallback?.[2] !== undefined) {
-    if (!ctx.providers[postedCallback[1] as WebProvider]) return notFound();
+    if (!usable[postedCallback[1] as WebProvider]) return notFound();
     // CHECKED BEFORE PARSING, the rule `api/routes.ts` states on the photo route: `req.formData()`
     // buffers the whole body into memory, so a size check after it has run protects nothing. This
     // request is unauthenticated, cross-site and — deliberately — not rate limited, because the
@@ -384,7 +396,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   const authMatch = req.method === "GET" ? AUTH_PATH.exec(pathname) : null;
   if (authMatch) {
     const name = authMatch[1] as WebProvider;
-    const provider = ctx.providers[name];
+    const provider = usable[name];
     // A provider this host has not configured does not exist here — 404, the same answer every
     // other unconfigured surface gives, and not a redirect back to a page offering one button.
     if (!provider) return notFound();

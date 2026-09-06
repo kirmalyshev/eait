@@ -1155,3 +1155,33 @@ describe("the web surface and the landing are one product", () => {
     expect(front.headers.get("content-security-policy")).toContain("font-src 'self'");
   });
 });
+
+describe("a sign-in button is only drawn where it can complete", () => {
+  /** No `publicApiUrl`, so the origin is the request's own — which is how a laptop runs. */
+  const atOrigin = (origin: string, path: string) =>
+    handle(new Request(`${origin}${path}`, { redirect: "manual" }));
+
+  it("drops Apple on an origin Apple refuses, and keeps Google on loopback", async () => {
+    router({ ...CONFIG, publicApiUrl: "" });
+    const page = await (await atOrigin("http://localhost:8787", "/start")).text();
+    // Apple wants https on a domain it can resolve; Google takes http on loopback.
+    expect(page).not.toContain("Continue with Apple");
+    expect(page).toContain("Continue with Google");
+    // And the routes of the provider that cannot work answer 404, like one never configured.
+    expect((await atOrigin("http://localhost:8787", "/start/auth/apple")).status).toBe(404);
+    expect((await atOrigin("http://localhost:8787", "/start/auth/google")).status).toBe(303);
+  });
+
+  it("drops Google too on a LAN name, which Google refuses over http", async () => {
+    router({ ...CONFIG, publicApiUrl: "" });
+    // Both gone means the surface is gone: 404, the shape it takes when nothing is configured.
+    expect((await atOrigin("http://home-ubuntu:8807", "/start")).status).toBe(404);
+  });
+
+  it("offers both once the origin is https", async () => {
+    router({ ...CONFIG, publicApiUrl: "" });
+    const page = await (await atOrigin("https://api.eait.fit", "/start")).text();
+    expect(page).toContain("Continue with Apple");
+    expect(page).toContain("Continue with Google");
+  });
+});
