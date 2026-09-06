@@ -109,7 +109,24 @@ export const HEALTH_RETENTION_DAYS = 5 * 365 + 1;
  */
 export const DIARY_WINDOW_DAYS = HEALTH_RETENTION_DAYS;
 
+/**
+ * What the liveness probe answers.
+ *
+ * DECLARED HERE BECAUSE A SHELL SCRIPT PARSES IT. `scripts/screenshots.sh` reads `demo` to decide
+ * whether it may take the App Store frames that reach the analyzer: the canned one writes "Demo
+ * analyzer — these numbers are canned" into the meal card, and that sentence then lives in a
+ * picture no test can read (#66). For a fortnight the only statement of this shape anywhere was a
+ * `case` in that script.
+ *
+ * `demo` is read off the LLM ports rather than off config — see the note at the route.
+ */
+export interface LivenessResponse {
+  ok: true;
+  demo: boolean;
+}
+
 export const ROUTES = {
+  /** Liveness, unauthenticated. Answers {@link LivenessResponse}. */
   health: "/health",
   authDevice: "/v1/auth/device",
   authApple: "/v1/auth/apple",

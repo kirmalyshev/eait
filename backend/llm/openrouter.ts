@@ -479,7 +479,8 @@ export function openRouterPorts(opts: Options): LlmPorts {
     }
   };
 
-  return { analyzePhoto, glancePhoto, routeText, classifyRestrictions, coach };
+  // Not canned: these answers cost money and describe the photograph. `GET /health` reports it.
+  return { analyzePhoto, glancePhoto, routeText, classifyRestrictions, coach, canned: false };
 }
 
 /**

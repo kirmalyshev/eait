@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -1099,10 +1100,51 @@ describe("the screenshots", () => {
     expect([...html.matchAll(/loading="lazy"/g)]).toHaveLength(shots.length);
   });
 
+  test("every shot is the frame that was audited, byte for byte", () => {
+    // THE ASSET IS A COPY, AND A COPY OF A FILE THAT IS REGULARLY RESHOT. `03` and `05` were
+    // reshot with new in-app copy while `app-chat.webp` and `app-plan.webp` were left alone, so the
+    // page published "You see your plan before anything is asked" while the app and the App Store
+    // listing said something else about when you pay. The old test asserted the source EXISTED,
+    // which that passes.
+    //
+    // It is also what forces a re-audit. The bar below, the figures in `body` and `alt`, and the
+    // dates recorded in `scripts/store-frames.ts` are all statements about specific pixels; a
+    // reshoot replaces them and nothing else in this suite can tell.
+    for (const shot of shots) {
+      const file = resolve(REPO_ROOT, "docs/screenshots", shot.source);
+      expect(existsSync(file)).toBe(true);
+      const actual = createHash("sha256").update(readFileSync(file)).digest("hex");
+      if (actual !== shot.sourceSha256) {
+        throw new Error(
+          `docs/screenshots/${shot.source} is not the frame ${shot.file} was audited against.\n` +
+            `  audited ${shot.sourceSha256}\n  on disk  ${actual}\n` +
+            "If it was reshot: look at the new frame, check it carries no demo disclaimer and that\n" +
+            "the numbers in its title/body/alt still match the card, then regenerate the asset\n" +
+            "(src/backend/landing/README.md has the one command) and paste the new hash into\n" +
+            "content.ts in the same commit.",
+        );
+      }
+    }
+  });
+
+  test("the shot grid is not pinned to a number of shots", () => {
+    // `.shots` was `repeat(3, 1fr)` and the array grew to four, which put the diary frame alone on
+    // a second row in the left third of the page, under a headline that says "in four screens".
+    // The count test below binds the headline to the array; nothing bound the layout, so it is
+    // written to take whatever the array holds.
+    // AGAINST THE `.shots` RULE ITSELF. `expect(styles).toContain("repeat(auto-fit")` was true of a
+    // stylesheet holding eight other grid rules, so `.shots` could go back to a fixed column count
+    // with any one of them supplying the substring.
+    const rule = styles.match(/\.shots \{ grid-template-columns: ([^}]+); \}/);
+    expect(rule).not.toBeNull();
+    expect(rule![1]).toMatch(/^repeat\(auto-fit, minmax\(\d+(\.\d+)?rem, 1fr\)\)$/);
+  });
+
   test("none of the analyzer frames is on the page", () => {
-    // `docs/screenshots/06`–`08` carry "Demo analyzer — these numbers are canned" in shot, and 06
-    // shows a card that does not match what was typed into it. docs/RELEASE.md says otherwise; the
-    // committed pixels are what this trusts. They may go on the page when they are reshot.
+    // `docs/screenshots/07`–`08` carry "Demo analyzer — these numbers are canned" in shot.
+    // docs/RELEASE.md says otherwise; the committed pixels are what this trusts. `06` was in this
+    // bar until 2026-09-06, when it was reshot against the production analyzer and stopped
+    // carrying the line — which is the only thing that lifts the bar on one of these.
     //
     // CHECKED AGAINST THE SOURCE FRAME, not the asset name. `app-chat.webp` cannot begin with a
     // digit, so the version of this that read `s.file` could not fail whatever was put behind it —
@@ -1110,14 +1152,14 @@ describe("the screenshots", () => {
     // also what stops the bar being answered with a name nothing produced.
     for (const shot of shots) {
       expect(existsSync(resolve(REPO_ROOT, "docs/screenshots", shot.source))).toBe(true);
-      expect(shot.source).not.toMatch(/^0[678]-/);
+      expect(shot.source).not.toMatch(/^0[78]-/);
     }
   });
 });
 
 describe("counts typed in headlines", () => {
   test("the spelled-out counts match the arrays they describe", () => {
-    // "Four figures…" and "…in three screens." are numbers in public copy, and the rule is that
+    // "Four figures…" and "…in four screens." are numbers in public copy, and the rule is that
     // such a number is read from the code that produces it. The words cannot be, so this binds
     // them: add a shot or a figure and the headline goes red here instead of lying on the page.
     const words = ["zero", "one", "two", "three", "four", "five", "six"] as const;

@@ -22,6 +22,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { assertClean, copyFromHtml } from "./claims.ts";
+import { hasExpired } from "./expiry.ts";
 import { loadLandingConfig, surfaceNote, type LandingConfig } from "./config.ts";
 import {
   accuracySection, brand, faqs, forSection, hero, measured, refusals, shots, steps,
@@ -53,6 +54,20 @@ export async function buildLanding(
 
   // The gate runs on what a reader sees, not on the source strings — see `copyFromHtml`.
   assertClean(copyFromHtml(html));
+
+  // A CLAIM IN A PICTURE, WHICH `assertClean` ABOVE CANNOT SEE. `05-your-target-and-why.png` prints
+  // "you'd be at 88 kg around November 2026" in its pixels, and the gate one line up reads text.
+  // Refused BEFORE anything is written, alongside the copy gate, because a deploy is exactly when
+  // nobody is looking — and the release preflight guarding the App Store side would have left this
+  // page serving the stale frame indefinitely while iOS builds stopped.
+  const stale = shots.filter((s) => s.expires && hasExpired(s.expires, Date.now()));
+  if (stale.length > 0) {
+    throw new Error(
+      `${stale.map((s) => s.source).join(", ")}: the date baked into the picture has passed, and ` +
+      "this page publishes it. Reshoot the frame, regenerate the asset (README has the command), " +
+      "then update `sourceSha256` and `expires` together — docs/RELEASE.md has the walk.",
+    );
+  }
 
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });

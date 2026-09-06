@@ -241,6 +241,29 @@ export interface LlmPorts {
   routeText: RouteText;
   classifyRestrictions: ClassifyRestrictions;
   coach: Coach;
+  /**
+   * True when these ports invent their answers — set by `demoPorts()` and by nothing else.
+   *
+   * IT LIVES ON THE PORTS BECAUSE THE PORTS ARE WHAT ANSWER. The canned analyzer writes "Demo
+   * analyzer — these numbers are canned, not an estimate of a real photograph" into the meal card,
+   * so a store screenshot taken against it carries that sentence in the PICTURE, where no test and
+   * no claims gate can read it. `GET /health` reports this so `scripts/screenshots.sh` can refuse
+   * to take those frames (#66).
+   *
+   * The first version read `config.llmProvider`, which is written by `demoConfig()` and read by
+   * NOTHING: `index.ts` picks the ports from `process.argv` alone, so
+   * `EAIT__BACKEND__LLM_PROVIDER=demo` would have made the probe answer `demo:true` while the real,
+   * billed analyzer served every request. A flag on the object that does the work cannot disagree
+   * with the work.
+   *
+   * REQUIRED, NOT OPTIONAL, AND THAT IS THE WHOLE VALUE OF IT. `routes.ts` reads it as
+   * `canned === true`, so an absent field means "real" — and the next canned implementation that
+   * forgets to set it (an offline provider, an e2e stub, a fallback) makes the probe answer
+   * `demo:false` from a process serving invented meals, the screenshot walk take the analyzer
+   * frames, and "Demo analyzer — these numbers are canned" ship to App Store Connect and the
+   * landing page. That is #66 exactly. Required makes forgetting a compile error instead.
+   */
+  canned: boolean;
 }
 
 /** Clamp to an integer in `[0, MAX_DAY_OFFSET]`, warning when the value was out of contract. */

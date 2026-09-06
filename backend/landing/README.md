@@ -27,7 +27,7 @@ beside it, and everything else is the system stack.
 | File | |
 |---|---|
 | `content.ts` | Every word. The header explains which research each section came from and what may not appear. |
-| `assets/` | The three screenshots the page shows, resized once from `docs/screenshots/` and committed. `build.ts` copies them to `/assets/` and throws if one is missing. |
+| `assets/` | The four screenshots the page shows, resized from `docs/screenshots/` and committed. `build.ts` copies them to `/assets/` and throws if one is missing. **Regenerate with the command below whenever the source frame is reshot** — a test pins each shot to the sha256 of the frame it was audited against, because the copy went stale once and published a payment promise the app had stopped making. |
 | `config.ts` | What the page cannot know about itself: origin, store link, bot link. Refuses a build it cannot make work. |
 | `render.ts` | Content + config → HTML. |
 | `styles.ts` | The stylesheet, as a string. |
@@ -51,11 +51,26 @@ up second, so copy cannot put a tag on the page. The convention exists because 1
 grey read as an essay and this page is read standing in a kitchen. A block with two emphasised spans
 has none, and a test enforces it.
 
-**The screenshots are the app, and three of the ten cannot be used.** `docs/screenshots/06`–`08`
-carry "Demo analyzer — these numbers are canned" in shot, and `06` shows a card that does not match
-what was typed into it. `docs/RELEASE.md` states all ten were reshot against a real analyzer and
-that none of them carries that line; the committed pixels disagree. Until they are reshot, the page
-shows only frames that never reach the analyzer — a test names the three that are barred.
+**Regenerating an asset**, whenever its `docs/screenshots/` frame is reshot:
+
+```sh
+cwebp -quiet -q 82 -resize 589 1280 docs/screenshots/06-just-say-what-you-ate.png \
+  -o src/backend/landing/assets/app-say.webp
+shasum -a 256 docs/screenshots/06-just-say-what-you-ate.png   # paste into content.ts sourceSha256
+```
+
+589×1280 is the `Shot`'s declared size and every asset here is made this way, so the command
+reproduces any of them by swapping the two filenames. There is no script: one line that is read
+before it is run beats a wrapper around one line, and the test names this file when it goes red.
+
+**The screenshots are the app, and two of the ten cannot be used.** `docs/screenshots/07`–`08` carry
+"Demo analyzer — these numbers are canned" in shot, so they appear nowhere a customer looks. `06`
+was barred with them until 2026-09-06, when it was reshot against the production analyzer: the card
+now reads back the meal that was typed, with no line under it, and it is the fourth shot here.
+Reshooting `07`–`08` needs a real meal photograph, which since the meal keeps its picture is
+published rather than merely an input — `docs/RELEASE.md` § *A note on the photos* says whose it may
+be. The bar is a test, and it reads the SOURCE frame rather than the asset name, because an asset
+name cannot begin with a digit and so could never fail.
 
 ## The rules this page is written under
 

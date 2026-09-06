@@ -247,5 +247,6 @@ export function demoPorts(): LlmPorts {
     };
   };
 
-  return { analyzePhoto, glancePhoto, routeText, classifyRestrictions, coach };
+  // `canned` is what `GET /health` reports and what the screenshot walk refuses to shoot against.
+  return { analyzePhoto, glancePhoto, routeText, classifyRestrictions, coach, canned: true };
 }

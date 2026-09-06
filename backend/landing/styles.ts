@@ -429,10 +429,23 @@ a { color: inherit; }
 strong { font-weight: 600; color: var(--text); }
 
 /* ── The screenshots ────────────────────────────────────────────────────────────────────── */
-/* The app, photographed. Three frames on one row on a wide screen, and a horizontal scroller on a
-   phone rather than three full-height images stacked into a mile of page. */
+/* The app, photographed. One row on a wide screen, one column on a phone rather than full-height
+   images stacked into a mile of page.
+   AUTO-FIT, NOT A COUNT. This was a hardcoded three columns when the strip held three frames, and
+   a fourth frame then sat alone on a second row in the left third of the page, directly under a
+   headline that had just been updated to say "in four screens". The headline is bound to the
+   array by a test; the layout was bound to nothing, so it now takes whatever the array holds and
+   the minimum width decides when a row breaks. The minimum is chosen against the CONTENT
+   COLUMN, and that column has TWO widths: the eyebrow rail appears at 62rem and narrows it to
+   about 744px, while this grid goes multi-column at 52rem, so between those breakpoints it is
+   wider — about 810px at a 900px viewport. Three tracks have to be impossible at BOTH or the
+   fourth frame sits alone in the left third under a headline saying "in four screens". 19rem
+   (304px) needs 984px for three tracks and neither width reaches it, so it is two-by-two above
+   52rem and one column below, and each frame is half again as large as the three used to be.
+   Measured in a browser at 900, 991 and 1440px rather than reasoned about: 11rem gave
+   three-plus-one at every width, and 15rem still gave it at 900. */
 .shots { display: grid; gap: clamp(2rem, 4vw, 3rem); }
-@media (min-width: 52rem) { .shots { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 52rem) { .shots { grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); } }
 .shot { margin: 0; }
 /* The frame is the same construction as the hero device, one size down, so the screenshots and the
    drawn card read as the same object rather than as a photo pasted next to an illustration. */

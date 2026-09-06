@@ -263,11 +263,13 @@ export const steps: readonly Step[] = [
  * `assets/` — the same frames App Store Connect gets, which is what makes them worth putting here:
  * a landing page whose screenshots differ from the listing's is a page selling a different app.
  *
- * WHICH THREE, AND WHY NOT THE OTHERS. The set's analyzer frames (`06`–`08`) carry "Demo analyzer —
- * these numbers are canned" in shot, and `06` shows a card that does not match what was typed into
- * it. `docs/RELEASE.md` says all ten were reshot against a real analyzer and none of them carries
- * that line; the committed pixels disagree, and until they are reshot those three cannot appear
- * anywhere a customer looks. These three never reach the analyzer and are honest as they stand.
+ * WHICH FOUR, AND WHY NOT THE OTHERS. `06` was reshot against the production analyzer on
+ * 2026-09-06 and is here because of it: the card now reads back the meal that was typed, in the
+ * model's own words, with no disclaimer under it. `07` and `08` are still the 27 Aug set and still
+ * carry "Demo analyzer — these numbers are canned" in shot, so they cannot appear anywhere a
+ * customer looks; reshooting them needs a real meal photograph, which since the meal keeps its
+ * picture is IN FRAME and therefore published rather than merely an input. `docs/RELEASE.md` says
+ * so and says whose photograph it may be.
  *
  * The alt text is COPY: `claims.ts` reads attributes, so a health claim in an alt fails the build
  * exactly as one in a paragraph does.
@@ -278,11 +280,45 @@ export interface Shot {
   /**
    * The `docs/screenshots/` frame this is a resize of.
    *
-   * NAMED RATHER THAN IMPLIED, because the bar on `06`–`08` is a rule about the SOURCE and `file`
+   * NAMED RATHER THAN IMPLIED, because the bar on `07`–`08` is a rule about the SOURCE and `file`
    * cannot carry it: no name in the `app-*.webp` scheme can begin with a digit, so a check written
    * against the asset name passes whatever is put behind it. A test resolves this one on disk.
    */
   source: string;
+  /**
+   * The sha256 of that frame AS AUDITED — the pixels a person looked at before this shot was
+   * allowed onto the page.
+   *
+   * THE ASSET IS A COPY AND COPIES GO STALE. `03` and `05` were reshot with new in-app copy and
+   * their `.webp`s were not regenerated, so for one commit the page published a payment promise the
+   * app no longer made, on the same page that says a landing whose screenshots differ from the
+   * listing's is a page selling a different app. Nothing bound the two: the test asserted only that
+   * the source file existed.
+   *
+   * It is also the re-audit trigger. Everything a human verified about these frames — that no demo
+   * disclaimer is in the picture, that the numbers quoted in `body` and `alt` are the ones on the
+   * card, that a baked date has not passed — is true of a specific set of pixels and of no other.
+   * A reshoot changes the hash, this goes red, and the copy and the bar are read again rather than
+   * inherited. Regenerate with the command in `README.md` and paste the new hash here in the same
+   * commit as the reshoot.
+   *
+   * IT DOES NOT BIND THE ASSET TO THE SOURCE, and #168 is that gap: both sides of the comparison
+   * are edited by the same hand in the same commit, so a reshoot with the hash pasted and the
+   * `cwebp` line forgotten still passes. The four reproduce byte-for-byte today; deriving them in
+   * `build.ts` is what would make that enforced rather than true.
+   */
+  sourceSha256: string;
+  /**
+   * The first day this frame's pixels stop being true, `YYYY-MM-DD`. Absent when nothing in it
+   * dates.
+   *
+   * `05` prints a projection month — "you'd be at 88 kg around November 2026" — and reshooting does
+   * not clear it: the projection is about ten weeks out from whenever the walk runs, so a reshoot
+   * moves the month and re-arms the same problem. `build.ts` REFUSES to write the page once the day
+   * arrives, because the alternative is eait.fit serving a false projection until somebody happens
+   * to look. `scripts/store-frames.ts` reads this too, for the same frames on the App Store side.
+   */
+  expires?: string;
   width: number;
   height: number;
   title: string;
@@ -292,7 +328,7 @@ export interface Shot {
 
 export const screensSection = {
   eyebrow: "The app",
-  headline: "This is the shape of it, in three screens.",
+  headline: "This is the shape of it, in four screens.",
   intro:
     "Photographed from the build that goes to the App Store, not drawn for this page. The iPhone " +
     "app is not out yet; these are it.",
@@ -302,19 +338,31 @@ export const shots: readonly Shot[] = [
   {
     file: "app-chat.webp",
     source: "03-onboarding.png",
+    sourceSha256: "f0480f516552638ff00f5e84395edd552f4d34bbdd4e8141b58a4bb161cbb168",
     width: 589,
     height: 1280,
     title: "It asks. You answer.",
+    // READ OFF THE FRAME, not carried over. The 2026-09-06 reshoot changed what this screen
+    // promises: it used to say "You see your plan before anything is asked", and now says
+    // "Nothing to pay until you've seen the plan and that first verdict". The sentence below said
+    // the older thing for one commit, which is the page describing a product the app had stopped
+    // being. Whenever `sourceSha256` moves, this is what has to be re-read — the hash exists to
+    // stop the paste happening without it.
     body:
-      "One conversation instead of a sign-up form, with **nothing asked of you first**. The " +
-      "plan arrives at the end of it, and only then does the asking start.",
+      "One conversation instead of a sign-up form, and it asks for no email and no name. The " +
+      "plan comes at the end of it, the first verdict after that, and **nothing is to pay until " +
+      "you have seen both**.",
     alt:
-      "The opening of the eait onboarding chat: Spud introduces himself, says the app " +
-      "takes three minutes of questions, and asks the first one.",
+      "The opening of the eait onboarding chat: Spud introduces himself, says it is three " +
+      "minutes of questions and then a plan and a verdict on your first meal, says no email and " +
+      "no name are asked and there is nothing to pay until both have been seen and a week free " +
+      "to try after that, then asks what you are here to do.",
   },
   {
     file: "app-plan.webp",
     source: "05-your-target-and-why.png",
+    expires: "2026-11-01",
+    sourceSha256: "30efaa5a0fdf8e526b68e9b78d8a70b650766717a14ee9c0bac09bc3ad2762f8",
     width: 589,
     height: 1280,
     title: "Then it shows the arithmetic.",
@@ -327,8 +375,33 @@ export const shots: readonly Shot[] = [
       "for the chosen pace, and a daily target of 2,393 kcal with a protein figure under it.",
   },
   {
+    file: "app-say.webp",
+    // KNOWN AND NOT A REGRESSION: the frame opens on a clipped bubble and a half-drawn avatar,
+    // because the thread is scrolled mid-sentence when the card lands. `docs/RELEASE.md` has
+    // carried the note since the 27 August set; it is repeated here because this is the surface
+    // the defect is newest on, and because the next person to re-audit this shot after a reshoot
+    // would otherwise read it as something they had just broken. Fixing it means scrolling the
+    // thread before the capture, the way `04` and `05` already do.
+    source: "06-just-say-what-you-ate.png",
+    sourceSha256: "51cf984dba593c682d3e7232c1c3ac13b0285ac229b98b1d2d259e65a8d4d2be",
+    width: 589,
+    height: 1280,
+    title: "Say it, and it reads it back.",
+    body:
+      "Two boiled eggs and a slice of rye bread, typed as a sentence. It answers with the grams " +
+      "it assumed and **why it assumed them**, before anything is logged \u2014 so a wrong reading is " +
+      "one you can see and correct rather than one you inherit.",
+    alt:
+      "The chat: the sentence \"two boiled eggs and a slice of rye bread\" and the card that comes " +
+      "back \u2014 268 kcal marked as a rough estimate, boiled eggs 100 g, rye bread 45 g, 17 g " +
+      "protein, and two verdicts reading calories on plan and saturated fat on plan, scored " +
+      "against the high cholesterol declared a few messages earlier. Under it, a note saying two " +
+      "large eggs were taken as 100 g total and the rye slice estimated at 45 g.",
+  },
+  {
     file: "app-day.webp",
     source: "09-diary.png",
+    sourceSha256: "04ec2b133ab1389cccbca32ff33d32ffca6102ea3900ca4c9abfb7c95b1e2470",
     width: 589,
     height: 1280,
     title: "And the day fills up in front of you.",

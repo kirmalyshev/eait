@@ -109,6 +109,35 @@ describe("auth", () => {
     expect(res.status).toBe(200);
   });
 
+  it("says the analyzer is canned only when the canned PORTS are the ones answering", async () => {
+    // THE FIELD THIS ONCE READ WAS DECORATIVE. It was `config.llmProvider`, which `demoConfig()`
+    // writes and nothing in `src/` reads — `index.ts` chooses the ports from `process.argv` alone.
+    // `EAIT__BACKEND__LLM_PROVIDER=demo` would therefore have produced `demo:true` from a process
+    // serving every request through the real, billed analyzer, and `scripts/screenshots.sh` would
+    // then refuse App Store frames it could have taken honestly. This is that case: config still
+    // says demo, the ports answering do not.
+    const real = { ...demoPorts(), canned: false };
+    const handleReal = createRouter(
+      { store, config: CONFIG, llm: real, mailer: fakeMailer(), push: fakePush() },
+      store, testVerifier,
+    );
+    expect(CONFIG.llmProvider).toBe("demo");
+    expect(await (await handleReal(new Request(url(ROUTES.health)))).json()).toEqual({ ok: true, demo: false });
+  });
+
+  it("says on health whether the analyzer is the canned one", async () => {
+    // `scripts/screenshots.sh` is the caller that needs this and the reason it exists. A frame
+    // shot against the demo analyzer carries "Demo analyzer — these numbers are canned" in the
+    // picture, and that frame goes to App Store Connect and onto the landing page; #66 is what
+    // that costs. The script cannot see pixels and could not see the backend either, so the walk
+    // was guarded by a comment. It is a boolean and not the provider's name: which vendor is
+    // answering is nobody's business on an unauthenticated probe, and canned-or-not is the only
+    // part the caller can act on.
+    // The harness runs `demoPorts()`, which is the canned analyzer itself.
+    const res = await get(ROUTES.health);
+    expect(await res.json()).toEqual({ ok: true, demo: true });
+  });
+
   it("401s every other route without a token", async () => {
     for (const p of [ROUTES.profile, ROUTES.day, ROUTES.week]) {
       expect((await get(p)).status).toBe(401);

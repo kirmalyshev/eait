@@ -392,7 +392,8 @@ function askBand(config: LandingConfig, placement: CtaPlacement): string {
 }
 
 /**
- * The screenshots: the app, photographed, at the three moments the page has been describing.
+ * The screenshots: the app, photographed, at the moments the page has been describing — as many
+ * as `shots` holds, which a test binds to the headline's spelled-out count.
  *
  * `loading="lazy"` and explicit dimensions on every one — the width and height are in `shots` and
  * come from the files, so the browser reserves the box before the bytes arrive and nothing below

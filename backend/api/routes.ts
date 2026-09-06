@@ -20,7 +20,7 @@ import {
   type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang,
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
   type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
-  type HealthDaysRequest, type HealthDaysResponse, type HealthResponse,
+  type HealthDaysRequest, type HealthDaysResponse, type HealthResponse, type LivenessResponse,
   HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, type PushTokenResponse,
 } from "@eait/shared";
 import { LANGS } from "@eait/shared";
@@ -192,7 +192,22 @@ export function createRouter(
 
     // Unauthenticated, deliberately: a liveness probe that requires a session cannot tell a dead
     // process from an expired token.
-    if (pathname === ROUTES.health) return json({ ok: true });
+    //
+    // `demo` IS FOR THE SCREENSHOT WALK, and it is the only thing outside this process that can
+    // tell the two analyzers apart before a frame is taken. The canned one writes "Demo analyzer —
+    // these numbers are canned" INTO the meal card, so a store screenshot shot against it carries
+    // that sentence in the picture, where no test and no claims gate can read it — which is #66,
+    // and which sat on the App Store listing for a fortnight. `scripts/screenshots.sh` reads this
+    // and refuses to take the analyzer frames when it is true. A boolean rather than the provider
+    // name: which vendor answers is nobody's business on an unauthenticated probe, and canned-or-
+    // not is the whole of what a caller can act on.
+    //
+    // READ OFF THE PORTS, NOT OFF THE CONFIG. `config.llmProvider` is written by `demoConfig()` and
+    // by `EAIT__BACKEND__LLM_PROVIDER`, and read by nothing: `index.ts` chooses the ports from
+    // `process.argv` alone. Setting that variable would have made this answer `demo:true` while the
+    // real, billed analyzer served every request — and the walk would then refuse frames it could
+    // have taken honestly. `llm.canned` is set by `demoPorts()` and cannot disagree with itself.
+    if (pathname === ROUTES.health) return json({ ok: true, demo: deps.llm.canned === true } satisfies LivenessResponse);
 
     try {
       // The admin, on its OWN credential.
