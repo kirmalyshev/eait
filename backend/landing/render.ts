@@ -16,7 +16,7 @@
 
 import {
   accuracySection, brand, closing, faqSection, faqs, figures, figuresSection, floorSection, footer,
-  forSection, hero, privacySection, founder, outcomes, refusals, refusalsSection, sample,
+  forSection, hero, privacySection, founder, outcomes, plural, refusals, refusalsSection, sample, SAMPLE_ANALYSES,
   screensSection, shots, steps, stepsSection, subscribeSection,
 } from "./content.ts";
 import {
@@ -105,7 +105,8 @@ export function iconSvg(): string {
 function metaDescription(): string {
   return (
     "Photograph a meal and get its calories, protein and a verdict against targets computed for " +
-    "your body. No card for the first one. Photos stay with the meal."
+    `your body. No card for the first ${plural(SAMPLE_ANALYSES, "one", String(SAMPLE_ANALYSES))}. ` +
+    "Photos stay with the meal."
   );
 }
 

@@ -25,7 +25,7 @@ import { assertClean, copyFromHtml } from "./claims.ts";
 import { hasExpired } from "./expiry.ts";
 import { loadLandingConfig, surfaceNote, type LandingConfig } from "./config.ts";
 import {
-  accuracySection, brand, faqs, forSection, hero, measured, refusals, shots, steps,
+  accuracySection, brand, faqs, forSection, hero, measured, plural, refusals, SAMPLE_ANALYSES, shots, steps,
 } from "./content.ts";
 import { faviconIco, markPng, ogPng } from "./images.ts";
 import { iconSvg, outcomePages, renderLanding } from "./render.ts";
@@ -255,7 +255,9 @@ function llmsTxt(config: LandingConfig): string {
   const lines: string[] = [
     `# ${brand.name}`,
     "",
-    `> ${brand.tagline} ${hero.headline} Your first analysis needs no card, and a photo stays with the meal it logged.`,
+    `> ${brand.tagline} ${hero.headline} `
+      + `${plural(SAMPLE_ANALYSES, "Your first analysis needs", `Your first ${SAMPLE_ANALYSES} analyses need`)} `
+      + "no card, and a photo stays with the meal it logged.",
     "",
     hero.sub,
     "",

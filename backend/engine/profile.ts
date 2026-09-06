@@ -19,19 +19,42 @@ import { dailyPhotoCap, entitlementFor } from "./entitlement.ts";
 import { MAX_WINDOW_DAYS } from "./diary.ts";
 
 /**
+ * The sample, as the app is told about it: spent or not, and how much is left.
+ *
+ * ONE COUNT, READ ONCE. Two `countUserAnalyses` calls for two fields could disagree with each
+ * other across a concurrent analysis, and the app would render "spent" beside "2 left".
+ *
+ * AN ENTITLED ACCOUNT HAS NONE OF IT LEFT, whatever it has spent. The sample is not what a
+ * subscriber is drawing on — `checkCaps` never reaches the sample branch for them — so reporting
+ * three remaining to somebody who subscribed before logging anything is a promise about an
+ * allowance that does not apply, and `contract.ts` says so in as many words.
+ */
+function sampleOf(
+  spent: number,
+  sample: number,
+  entitled: boolean,
+): Pick<Limits, "sampleUsed" | "sampleRemaining"> {
+  return {
+    sampleUsed: spent >= sample,
+    sampleRemaining: entitled ? 0 : Math.max(0, sample - spent),
+  };
+}
+
+/**
  * The limits THIS server enforces, so the client stops guessing at them.
  *
- * Both are env-configured and therefore differ per environment. Sending them is what keeps the app
- * from offering four photo slots to a server that accepts two.
+ * Every one of them is env-configured and therefore differs per environment. Sending them is what
+ * keeps the app from offering four photo slots to a server that accepts two, or counting down a
+ * sample whose size it guessed.
  */
-async function limitsOf(deps: EngineDeps, userId: string): Promise<Limits> {
+async function limitsOf(deps: EngineDeps, userId: string, entitled: boolean): Promise<Limits> {
   return {
     maxUploadBytes: deps.config.maxUploadBytes,
     maxPhotosPerMeal: deps.config.maxPhotosPerMeal,
     // The SAME function and the SAME count `checkCaps` refuses with. Anything else here is the
     // app promising an allowance the server will not honour.
     dailyPhotoCap: dailyPhotoCap(deps.config),
-    sampleUsed: (await deps.store.countUserAnalyses(userId)) >= deps.config.freeAnalyses,
+    ...sampleOf(await deps.store.countUserAnalyses(userId), deps.config.freeAnalyses, entitled),
     // The SAME bound `/v1/diary/week` refuses with. It governs which days can be MARKED, not which
     // can be opened: `/v1/diary/day` answers for any date, and the picker offers every past one.
     diaryWindowDays: MAX_WINDOW_DAYS,
@@ -45,7 +68,7 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
   const entitlement = await entitlementFor(deps, userId);
   return {
     profile, targets, basis, onboarded: profile.onboarded_at !== null,
-    limits: await limitsOf(deps, userId), timezone: deps.config.timezone, entitlement,
+    limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
   };
 }
 
@@ -187,7 +210,7 @@ export async function patchProfile(
     ok: true,
     view: {
       profile, targets, basis, onboarded: profile.onboarded_at !== null,
-      limits: await limitsOf(deps, userId), timezone: deps.config.timezone, entitlement,
+      limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
     },
   };
 }

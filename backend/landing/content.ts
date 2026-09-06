@@ -33,10 +33,25 @@
 // skimming should be able to take the load-bearing sentence out of each block without reading the
 // rest of it. A block with everything bold has nothing bold.
 
-import { FREE_ANALYSES, KCAL_FLOOR, MAX_DEFICIT_SHARE } from "@eait/shared";
+import { KCAL_FLOOR, MAX_DEFICIT_SHARE } from "@eait/shared";
+import { configuredSample } from "./config.ts";
 
-/** What an account gets before the app asks. The server's own number, not a sentence about it. */
-const SAMPLE_ANALYSES = FREE_ANALYSES;
+/**
+ * What an account gets before the app asks. The server's own number, not a sentence about it.
+ *
+ * READ FROM THE INSTANCE, NOT COMPILED IN — `config.ts` explains why, and it is the same rule the
+ * rest of this repo applies to every limit the server enforces. The singular branches below are
+ * live because of it: a host that pins the knob to 1 gets a page that says so, and production is
+ * pinned there today.
+ */
+export const SAMPLE_ANALYSES: number = configuredSample();
+
+/**
+ * The one place the singular/plural choice is made. FIVE sites had hand-written it, in three
+ * different phrasings, and the fifth — the meta description, which is the Google snippet — was
+ * found by a review rather than by the test.
+ */
+export const plural = (n: number, one: string, many: string): string => (n === 1 ? one : many);
 
 export interface Refusal {
   /** The promise, phrased as the thing that will not happen. */
@@ -191,7 +206,7 @@ export const refusals: readonly Refusal[] = [
     title: "It will not ask for a card before it has answered you.",
     body:
       "You open it, answer a few questions about your body, and send a meal — **no account, no " +
-      `email, no card.** ${SAMPLE_ANALYSES === 1 ? "That first answer is yours" : `The first ${SAMPLE_ANALYSES} answers are yours`} ` +
+      `email, no card.** ${plural(SAMPLE_ANALYSES, "That first answer is yours", `The first ${SAMPLE_ANALYSES} answers are yours`)} ` +
       "before anything is asked of you. Only then does it ask, and what it asks for is a " +
       "subscription that opens with a free week, bought in the App Store and cancelled there. " +
       "Nothing is charged unless you let that week run out.",
@@ -592,7 +607,10 @@ export const faqs: readonly Faq[] = [
   {
     q: "What does it cost?",
     a:
-      "Your first analysis costs nothing and needs no card, so you can see what it actually says " +
+      plural(SAMPLE_ANALYSES,
+        "Your first analysis costs nothing and needs no card, ",
+        `Your first ${SAMPLE_ANALYSES} analyses cost nothing and need no card, `) +
+      "so you can see what it actually says " +
       "about your food before deciding anything. After that it is a subscription, with a free " +
       "week before the first charge. It is bought in the App Store, which shows you the price in " +
       "your own currency before you agree, and cancelled in the same place: Settings, your name, " +
@@ -601,8 +619,12 @@ export const faqs: readonly Faq[] = [
   {
     q: "Why isn't it free?",
     a:
-      "Because every analysis after the first runs through a model we pay for, per plate. The " +
-      "first one costs you nothing so you can see what it says before deciding; after that the " +
+      plural(SAMPLE_ANALYSES,
+        "Because every analysis after the first runs through a model we pay for, per plate. " +
+          "The first one costs you nothing ",
+        `Because every analysis after the first ${SAMPLE_ANALYSES} runs through a model we pay ` +
+          `for, per plate. Those first ${SAMPLE_ANALYSES} cost you nothing `) +
+      "so you can see what it says before deciding; after that the " +
       "App Store shows you the price in your own currency before you agree to anything.",
   },
   {

@@ -10,6 +10,8 @@
 // dead primary button looks fine to every other check we have and is broken for every visitor.
 
 /** Where the built page will actually live, and what it links to. */
+import { FREE_ANALYSES } from "@eait/shared";
+
 export interface LandingConfig {
   /** Canonical origin, no trailing slash. Used for `<link rel=canonical>` and og:url. */
   siteUrl: string;
@@ -107,6 +109,59 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
  * Takes the environment as an argument rather than reaching for `process.env`, so a test can prove
  * the refusals without mutating the process it runs in.
  */
+/**
+ * The sample size THIS instance serves, validated. Called by `loadLandingConfig`, so a bad value
+ * fails the build the same one-line way every other check in this file does.
+ *
+ * The copy quoted a compile-time constant while the server enforces `config.freeAnalyses`, read
+ * from `EAIT__BACKEND__FREE_ANALYSES` — the documented knob `.env.prod.example` carries and
+ * `e2e-paywall.sh` pins to 1. Set it to 1 on a host that also serves this page and the same origin
+ * promised three analyses while refusing the second, past the claims gate. AGENTS.md: "A limit the
+ * server enforces is SENT to the client, never compiled into both."
+ *
+ * The page is a BUILD ARTIFACT, so "sent" means the build is given the value: the compose service
+ * passes it as a build arg and `Dockerfile.landing` puts it in the environment this reads. Unset —
+ * a laptop, a test — is the shipped default, which is what an unconfigured server would also serve.
+ *
+ * A value that is not a positive integer FAILS THE BUILD, like every other check in this file: a
+ * page quoting NaN is worse than one that did not build.
+ */
+export function sampleAnalyses(env: Record<string, string | undefined> = process.env): number {
+  const raw = env.EAIT__BACKEND__FREE_ANALYSES?.trim();
+  if (!raw) return FREE_ANALYSES;
+  const n = Number(raw);
+  // `< 1`, NOT `< 0`. Zero is a legitimate BACKEND value — `int()` accepts it and it means an
+  // instance that hands out no free analyses at all — but there is no honest way to write this
+  // page for it: every sentence promises a visitor something, and "The first 0 answers are yours"
+  // rendered in the refusal copy, both FAQs and the Google snippet. A host that wants no sample
+  // does not want this page.
+  if (!Number.isInteger(n) || n < 1) {
+    throw new LandingConfigError(
+      `EAIT__BACKEND__FREE_ANALYSES is "${raw}", which is not a number of analyses this page can `
+        + "promise anybody. It quotes the value as what a visitor gets before the app asks for money.",
+    );
+  }
+  return n;
+}
+
+/**
+ * The same value, never throwing — for the module-level constant the copy is written against.
+ *
+ * `content.ts` reads this while it is being IMPORTED, which is before `build.ts` has entered the
+ * try/catch that turns a `LandingConfigError` into one line an operator can act on. A throw there
+ * escaped as a raw stack trace ending inside a copy file. So the validation lives in
+ * `sampleAnalyses` above, which `loadLandingConfig` calls from inside that try, and this one falls
+ * back rather than exploding: whenever the build proceeds, the two have read the same variable and
+ * agree.
+ */
+export function configuredSample(env: Record<string, string | undefined> = process.env): number {
+  try {
+    return sampleAnalyses(env);
+  } catch {
+    return FREE_ANALYSES;
+  }
+}
+
 export function loadLandingConfig(env: Record<string, string | undefined>): LandingConfig {
   const siteRaw = env.EAIT__BACKEND__LANDING_SITE_URL?.trim();
   if (!siteRaw) {

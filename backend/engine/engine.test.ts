@@ -459,6 +459,9 @@ describe("the sample", () => {
     expect((await handleText(refused, userId, { text: "two eggs on toast" })).kind).toBe("analysis-failed");
     // Nothing spent, by either route, so the app shows "try again" rather than the paywall.
     expect((await profileView(one, userId))!.limits.sampleUsed).toBe(false);
+    // The count the app words its sentences from. One read of `countUserAnalyses` produces both,
+    // so "spent" can never render beside "1 left".
+    expect((await profileView(one, userId))!.limits.sampleRemaining).toBe(1);
     // And the sample is still there to be spent on an analysis that works.
     expect((await logPhotoMeal(one, userId, photo())).kind).toBe("logged");
     expect((await profileView(one, userId))!.limits.sampleUsed).toBe(true);

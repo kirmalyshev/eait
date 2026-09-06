@@ -58,13 +58,26 @@ export interface Limits {
    */
   dailyPhotoCap: number;
   /**
-   * Whether this account has spent its one sample analysis. There is no free tier: the sample is
-   * the onboarding's first verdict, and every analysis after it is refused with
+   * Whether this account has spent its sample. There is no free tier: the sample is
+   * `EAIT__BACKEND__FREE_ANALYSES` analyses over the account's lifetime, and every analysis after
+   * them is refused with
    * `subscription-required` until the RevenueCat webhook has written an entitlement. The app
    * reads this beside `entitlement.active` to open the paywall on launch instead of on the first
    * refusal — but the refusal is the authority, and the sheet is only its rendering.
    */
   sampleUsed: boolean;
+  /**
+   * How many of the sample's analyses are LEFT. Zero whenever `sampleUsed` is true.
+   *
+   * `sampleUsed` alone was the whole story while the sample was one analysis: false meant "all of
+   * it is there". At three it means "one or two or three of it is there", and every surface that
+   * tried to word that from the boolean either lied ("your sample is unspent" to somebody two
+   * meals in) or went vague. The server knows the number, so it sends it — the same rule as
+   * `dailyPhotoCap` right above, and the reason neither is compiled into the app.
+   *
+   * An entitled account gets 0 here too: the sample is not what it is spending.
+   */
+  sampleRemaining: number;
   /**
    * How many days back the diary can be asked about, counting today.
    *

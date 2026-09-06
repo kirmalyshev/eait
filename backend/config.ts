@@ -467,7 +467,7 @@ export function loadConfig(): Config {
   if (process.env.EAIT__BACKEND__USER_DAILY_PHOTO_CAP !== undefined) {
     throw new Error(
       "[eait] EAIT__BACKEND__USER_DAILY_PHOTO_CAP is retired: there is no free tier. " +
-      "EAIT__BACKEND__FREE_ANALYSES is the sample size (default 1).",
+      `EAIT__BACKEND__FREE_ANALYSES is the sample size (default ${FREE_ANALYSES}).`,
     );
   }
   const freeAnalyses = int("EAIT__BACKEND__FREE_ANALYSES", d.freeAnalyses);
@@ -725,7 +725,7 @@ export function demoConfig(): Config {
     // unmetered globally: it is a local demo, not a public instance. The sheet itself is exercised
     // against RevenueCat's Test Store, not here.
     //
-    // OVERRIDABLE, for the one runner that needs the production value. `scripts/e2e-paywall.sh`
+    // OVERRIDABLE, for the one runner that needs a sample it can spend. `scripts/e2e-paywall.sh`
     // starts a demo with `EAIT__BACKEND__FREE_ANALYSES=1`, because the refusal that opens the
     // paywall is `subscription-required` and nothing produces it while the sample is effectively
     // unlimited. It cannot be the default: the suite's other flows log two or three analyses per

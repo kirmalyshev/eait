@@ -17,7 +17,8 @@ import { color, dark, light, TOKEN_SOURCE } from "./tokens.ts";
 import { BODY, MASCOT_SOURCE, MOUTHS, SHEEN } from "./mascot.ts";
 import { styles } from "./styles.ts";
 import {
-  brand, faqs, figures, figuresSection, founder, measured, refusals, floorSection, sample,
+  brand, faqs, figures, figuresSection, founder, measured, plural, refusals, floorSection, sample,
+  SAMPLE_ANALYSES,
   screensSection, shots, subscribeSection,
 } from "./content.ts";
 import { BAD_SHARE, FREE_ANALYSES, KCAL_FLOOR, MAX_DEFICIT_SHARE, WARN_SHARE } from "@eait/shared";
@@ -204,9 +205,25 @@ describe("the numbers on the page are the numbers in the code", () => {
     // three sentences saying there was no paid tier at all — which stayed on the page after the
     // paywall shipped. Quoting the constant is what stops the copy outliving the product a second
     // time, exactly as the floor section quotes KCAL_FLOOR.
-    expect(FREE_ANALYSES).toBe(1);
+    // THE SHIPPED DEFAULT, asserted on its own. The copy below is checked against the value this
+    // build actually resolved (`SAMPLE_ANALYSES`), because `bun test` loads `.env` and a developer
+    // who pins the knob there was getting a red suite about landing copy they never touched.
+    expect(FREE_ANALYSES).toBe(3);
     const billing = refusals[0]!.body + " " + faqs.map((f) => f.a).join(" ");
-    expect(billing).toContain("That first answer is yours");
+    // ALL THREE sentences quote the count, and there are three because a review of this branch
+    // found the one this test was not looking at. The cost question and "Why isn't it free?" both
+    // hardcoded the singular while the refusal above them was already derived, so the day the
+    // sample became three the page contradicted itself twice inside one section.
+    expect(billing).toContain(plural(SAMPLE_ANALYSES,
+      "That first answer is yours", `The first ${SAMPLE_ANALYSES} answers are yours`));
+    expect(billing).toContain(plural(SAMPLE_ANALYSES,
+      "Your first analysis costs nothing", `Your first ${SAMPLE_ANALYSES} analyses cost nothing`));
+    expect(billing).toContain(plural(SAMPLE_ANALYSES,
+      "The first one costs you nothing", `Those first ${SAMPLE_ANALYSES} cost you nothing`));
+    // A FOURTH, found by the next review round: the meta description is the snippet Google shows,
+    // and it was the one sentence quoting the sample that neither derived from the constant nor
+    // appeared in `billing`. It is rendered rather than exported, so it is read off the page.
+    expect(html).toContain(`No card for the first ${plural(SAMPLE_ANALYSES, "one", String(SAMPLE_ANALYSES))}.`);
     // And the claim that replaced it has to still be true of the product: a card is asked for, but
     // only after that first answer, and never by this page.
     expect(billing).not.toContain("no paid tier");

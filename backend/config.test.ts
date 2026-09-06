@@ -104,7 +104,7 @@ describe("loadConfig", () => {
       EAIT__BACKEND__PENDING_TTL_MINUTES: "5",
       EAIT__BACKEND__MAX_UPLOAD_MB: "8",
       EAIT__BACKEND__MAX_PHOTOS_PER_MEAL: "2",
-      EAIT__BACKEND__FREE_ANALYSES: "3",
+      EAIT__BACKEND__FREE_ANALYSES: "7",
       EAIT__BACKEND__GLOBAL_DAILY_ANALYSIS_CAP: "7",
       EAIT__BACKEND__TZ_NAME: "America/New_York",
       EAIT__BACKEND__PORT: "9999",
@@ -117,7 +117,7 @@ describe("loadConfig", () => {
     expect(c.pendingTtlMs).toBe(5 * 60 * 1000);
     expect(c.maxUploadBytes).toBe(8 * 1024 * 1024);
     expect(c.maxPhotosPerMeal).toBe(2);
-    expect(c.freeAnalyses).toBe(3);
+    expect(c.freeAnalyses).toBe(7);
     expect(c.globalDailyAnalysisCap).toBe(7);
     expect(c.timezone).toBe("America/New_York");
     expect(c.port).toBe(9999);
@@ -278,22 +278,24 @@ describe("the web onboarding", () => {
 // webhook, grants nobody anything, and gives every account the free cap — which is exactly what
 // every deployment did before any of this existed.
 describe("the paid tier", () => {
-  it("is dormant by default: no webhook, one sample analysis, sandbox refused", () => {
+  it("is dormant by default: no webhook, the sample and nothing more, sandbox refused", () => {
     withRequired();
     const c = loadConfig();
     expect(c.revenueCatWebhookToken).toBe("");
-    expect(c.freeAnalyses).toBe(1);
+    expect(c.freeAnalyses).toBe(3);
     expect(c.revenueCatAcceptSandbox).toBe(false);
   });
 
   it("reads the sample size, the paid cap and the sandbox switch", () => {
     withRequired({
-      EAIT__BACKEND__FREE_ANALYSES: "3",
+      // NOT 3, which is the default: an override test that asserts the default passes just as
+      // happily when the override is deleted. This is the one knob the sample change turns.
+      EAIT__BACKEND__FREE_ANALYSES: "7",
       EAIT__BACKEND__PAID_DAILY_PHOTO_CAP: "99",
       EAIT__BACKEND__REVENUECAT_ACCEPT_SANDBOX: "1",
     });
     const c = loadConfig();
-    expect(c.freeAnalyses).toBe(3);
+    expect(c.freeAnalyses).toBe(7);
     expect(c.paidDailyPhotoCap).toBe(99);
     expect(c.revenueCatAcceptSandbox).toBe(true);
   });
@@ -454,5 +456,63 @@ describe("the RevenueCat entitlement identifier", () => {
       new URL("../../deploy/.env.prod.example", import.meta.url),
     ).text();
     expect(example).toContain(`EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID=${expected}`);
+  });
+});
+
+// THE SAME FOUR-WAY DRIFT, ON THE NUMBER #96 IS ABOUT. `deploy/.env.prod.example` still said 1
+// after the constant went to 3, and it is not a harmless stale example: `docs/DEPLOY.md` says to
+// copy it to `deploy/.env.prod` and pass it with `--env-file`, which feeds compose INTERPOLATION —
+// so a variable set there wins over `${EAIT__BACKEND__FREE_ANALYSES:-3}` and the instance serves
+// one analysis while the landing page it also serves promises three.
+describe("the size of the sample", () => {
+  const expected = configDefaults().freeAnalyses;
+
+  it("is what the ansible role deploys", async () => {
+    const yaml = await Bun.file(
+      new URL("./iac/roles/eait_app/defaults/main.yml", import.meta.url),
+    ).text();
+    expect(yaml).toContain(`eait_free_analyses: ${expected}`);
+  });
+
+  it("is the compose fallback", async () => {
+    const compose = await Bun.file(
+      new URL("../../deploy/docker-compose.prod.yml", import.meta.url),
+    ).text();
+    expect(compose).toContain(`\${EAIT__BACKEND__FREE_ANALYSES:-${expected}}`);
+  });
+
+  // THE PRODUCTION INVENTORY IS THE ONE THAT DECIDES, and the three assertions around it did not
+  // look at it. Ansible writes its value into the env file compose interpolates, so an inventory
+  // that disagrees with the role default is what api.eait.fit actually serves — which is the case
+  // TODAY, deliberately: production is pinned to 1 while the instance-wide cap is decided (#96),
+  // and the store copy is written against that pin (`scripts/review-notes.test.ts`).
+  //
+  // Asserted as "explicit and reachable", not as a number: the day Kirill raises the cap, the pin
+  // moves or comes out, and a test demanding 1 would fail on the correct change. What must never
+  // happen quietly is the inventory pinning a value nobody can find.
+  it("is pinned explicitly by the production inventory, whatever the default becomes", async () => {
+    const inventory = await Bun.file(
+      new URL("./iac/inventories/production/hosts.yml", import.meta.url),
+    ).text();
+    const pinned = inventory.match(/^\s*eait_free_analyses:\s*(\d+)/m)?.[1];
+    expect(pinned).toBeDefined();
+    expect(Number.isInteger(Number(pinned))).toBe(true);
+    // And when it agrees with the default it is redundant, which is worth saying out loud rather
+    // than leaving two numbers to drift back apart.
+    if (Number(pinned) === expected) {
+      expect(inventory).toContain("eait_free_analyses");
+    }
+  });
+
+  // NOT SET in the example, and that is the assertion. `docs/DEPLOY.md` says to copy that file and
+  // pass it with `--env-file`, which feeds compose interpolation — so a value there wins over the
+  // fallback and freezes into the host on the day it was copied, which is exactly how it went on
+  // saying 1 after the default moved to 3. An operator pinning a host below the default uncomments
+  // it deliberately; nobody should inherit a number by copying a file.
+  it("is not frozen into the example env file operators copy", async () => {
+    const example = await Bun.file(
+      new URL("../../deploy/.env.prod.example", import.meta.url),
+    ).text();
+    expect(example).not.toMatch(/^EAIT__BACKEND__FREE_ANALYSES=/m);
   });
 });

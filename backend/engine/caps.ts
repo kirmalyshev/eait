@@ -16,7 +16,7 @@ export type CapScope = "photo" | "text";
  * Null when the request may proceed, a refusal when it may not.
  *
  * Without an entitlement the account has the SAMPLE and nothing else: `config.freeAnalyses`
- * analyses (one) over its lifetime, photo or text alike — a sentence must not be the free way
+ * analyses over its lifetime, photo or text alike — a sentence must not be the free way
  * around the ask. With one, photos meet the paid daily cap and text turns meet only the global
  * budget: charging a question against the photo allowance would mean asking "how much protein
  * have I had" costs the user a meal they could have logged, which quietly teaches people not to

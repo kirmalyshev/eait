@@ -58,8 +58,16 @@ export interface Entitlement {
  * the copy broke `docker build` with `Cannot find module '../config.ts'` and nothing before it.
  * Same reason `KCAL_FLOOR` is here. `EAIT__BACKEND__FREE_ANALYSES` still overrides it per instance;
  * this is the default the copy is written against.
+ *
+ * THREE, NOT ONE, since 2026-09-02 (#96, decided in the review of #92). One analysis answers "what
+ * does it say about my food" and nothing else; a day of meals is what lets the sample show the
+ * diary filling up against the target, which is the diary screen's own argument. The anxiety it
+ * buys off — "I will be charged again" — is the largest complaint cluster in the review corpus,
+ * and one answer resolving it scored LOW (`marketing/research/2026-09-02-jtbd.md` J4). The cost is
+ * more billed calls per non-payer, still bounded by the paid daily cap and by
+ * `globalDailyAnalysisCap`. It is a LIFETIME count, not a per-day one.
  */
-export const FREE_ANALYSES = 1;
+export const FREE_ANALYSES = 3;
 
 export const NO_ENTITLEMENT: Entitlement = { active: false, expiresAt: null, trial: false };
 
