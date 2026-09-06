@@ -686,6 +686,24 @@ export type PhotoResponse = LogPhotoResult;
 /** The streamed shape of `POST /v1/meals/photo` when `accept` includes `NDJSON`. */
 export const NDJSON = "application/x-ndjson";
 /**
+ * How long the app waits on a model-bound request before deciding nothing is coming.
+ *
+ * IT IS HERE RATHER THAN IN THE CLIENT BECAUSE A HARNESS HAS TO KNOW IT TOO, and that is the whole
+ * of why it moved. `device-walk.ts` gave up on a photo verdict after 90 s of its own while the app
+ * was still streaming, so three times a slow analysis produced "the analysis never came back at
+ * all" from a walk standing in front of an app that had refused nothing (#120). A harness may be
+ * more patient than the app; it may never be less, and it cannot be either against a number it
+ * cannot read.
+ *
+ * THE VALUE IS UNCHANGED AND IS KNOWN TO BE WRONG. It is the literal `api.ts` has carried, and a
+ * review of #127 established that it sits under the server's own worst case — a turn can spend
+ * four model calls, because `complete()` retries a schema failure with a fresh budget and
+ * `routeText` calls it twice — so the phone abandons turns the backend is still running and still
+ * billing. Fixing that is #175: it moves an app-facing number, it needs the server to send its
+ * real budget rather than the app compiling one in, and it is not what this ticket is about.
+ */
+export const DEFAULT_MODEL_TIMEOUT_MS = 140_000;
+/**
  * One line of the stream. Zero or one `glance`, zero or more `item`, then the `LogPhotoResult`
  * as the LAST line — refusals included, because the 200 went out with the first byte. An
  * `item` with `index: 0` after others means the analyzer started over (a schema retry).
