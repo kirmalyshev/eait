@@ -109,23 +109,41 @@ export async function buildLanding(
   await writeBinary("apple-touch-icon.png", markPng(180));
   await writeBinary("og.png", ogPng());
 
-  // The screenshots, copied rather than generated: they are `docs/screenshots/` resized once and
-  // committed under `assets/`, so the page and the App Store listing show the same frames.
+  // The screenshots, DERIVED from `docs/screenshots/` at build time rather than copied from a
+  // committed webp (#168) — the committed copy could go stale without the `cwebp` regeneration
+  // step, since nothing bound the two together. Deriving removes the class: the asset IS the
+  // source, resized, every build.
   //
-  // LOUD WHEN ONE IS MISSING, like the shared pages below. An `<img>` whose file was never written
-  // is a broken frame in the middle of the section that exists to prove the app is real, and it
-  // fails at exactly the moment nobody is looking — a deploy — rather than here.
+  // LOUD WHEN THE SOURCE IS MISSING, like the shared pages below. An `<img>` whose file was never
+  // written is a broken frame in the middle of the section that exists to prove the app is real,
+  // and it fails at exactly the moment nobody is looking — a deploy — rather than here.
   await mkdir(join(outDir, "assets"), { recursive: true });
+  const cwebp = Bun.which("cwebp");
+  if (!cwebp) {
+    throw new Error(
+      "cwebp is not on PATH. scripts/install.sh installs it (apt `webp`, dnf/apk/zypper " +
+        "`libwebp-tools`, pacman `libwebp`, brew `webp`).",
+    );
+  }
   for (const shot of shots) {
-    const source = join(HERE, "assets", shot.file);
+    const source = join(REPO_ROOT, "docs/screenshots", shot.source);
     if (!existsSync(source)) {
       throw new Error(
-        `src/backend/landing/assets/${shot.file} is missing, and the page renders an <img> for it.`,
+        `docs/screenshots/${shot.source} is missing, and the page renders an <img> for it.`,
       );
     }
-    await copyFile(source, join(outDir, "assets", shot.file));
+    const dest = join(outDir, "assets", shot.file);
+    const run = Bun.spawnSync([
+      cwebp, "-quiet", "-q", "82", "-resize", String(shot.width), String(shot.height), source, "-o", dest,
+    ]);
+    if (run.exitCode !== 0) {
+      throw new Error(
+        `cwebp failed deriving assets/${shot.file} from docs/screenshots/${shot.source}: ` +
+          new TextDecoder().decode(run.stderr),
+      );
+    }
     files.push(`assets/${shot.file}`);
-    bytes += (await stat(source)).size;
+    bytes += (await stat(dest)).size;
   }
   for (const photo of Object.values(photos)) {
     const source = join(HERE, "assets", photo.file);

@@ -35,7 +35,7 @@ the words and the product cannot substantiate them.
 | File | |
 |---|---|
 | `content.ts` | Every word. The header explains which research each section came from and what may not appear. |
-| `assets/` | The four screenshots the page shows, resized from `docs/screenshots/` and committed. `build.ts` copies them to `/assets/` and throws if one is missing. **Regenerate with the command below whenever the source frame is reshot** — a test pins each shot to the sha256 of the frame it was audited against, because the copy went stale once and published a payment promise the app had stopped making. |
+| `assets/` | The screenshots the page shows, DERIVED from `docs/screenshots/` at build time with `cwebp` (#168) — nothing here is committed any more, so there is no copy to go stale. `build.ts` throws if the source frame is missing or `cwebp` is not on PATH. A test still pins each shot to the sha256 of the frame it was audited against, because a reshoot is still a reason to re-read the copy and the bar even though the pixels regenerate on their own. |
 | `config.ts` | What the page cannot know about itself: origin, store link, bot link. Refuses a build it cannot make work. |
 | `render.ts` | Content + config → HTML. |
 | `styles.ts` | The stylesheet, as a string. |
@@ -59,17 +59,12 @@ up second, so copy cannot put a tag on the page. The convention exists because 1
 grey read as an essay and this page is read standing in a kitchen. A block with two emphasised spans
 has none, and a test enforces it.
 
-**Regenerating an asset**, whenever its `docs/screenshots/` frame is reshot:
-
-```sh
-cwebp -quiet -q 82 -resize 589 1280 docs/screenshots/06-just-say-what-you-ate.png \
-  -o src/backend/landing/assets/app-say.webp
-shasum -a 256 docs/screenshots/06-just-say-what-you-ate.png   # paste into content.ts sourceSha256
-```
-
-589×1280 is the `Shot`'s declared size and every asset here is made this way, so the command
-reproduces any of them by swapping the two filenames. There is no script: one line that is read
-before it is run beats a wrapper around one line, and the test names this file when it goes red.
+**Nothing to regenerate any more (#168).** Every build derives `assets/*.webp` fresh from
+`docs/screenshots/` with the same `cwebp -quiet -q 82 -resize <w> <h>` call `build.ts` runs — 589×1280
+is the `Shot`'s declared size. Reshooting a frame is still a reason to look again: read the new
+pixels, check the bar and the copy in `content.ts` still describe them, then paste the new
+`shasum -a 256 docs/screenshots/<file>` into `sourceSha256` in the same commit — the hash is what
+proves the frame on disk is the one a human read, not what regenerates the asset.
 
 **The screenshots are the app, and two of the ten cannot be used.** `docs/screenshots/07`–`08` carry
 "Demo analyzer — these numbers are canned" in shot, so they appear nowhere a customer looks. `06`

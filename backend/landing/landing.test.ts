@@ -1178,11 +1178,20 @@ describe("the typeface", () => {
 });
 
 describe("the screenshots", () => {
-  test("every shot named in the copy is a file that exists", () => {
-    // The build throws on a missing one, but it throws at deploy time. This says so here.
+  test("every shot named in the copy is derived by the build", async () => {
+    // Nothing is committed under assets/ any more (#168) — the build derives each frame from
+    // docs/screenshots/ with cwebp. This proves the derivation runs and produces a real webp,
+    // not that some old copy is still sitting on disk.
+    const dir = mkdtempSync(join(tmpdir(), "landing-"));
+    await buildLanding(ENV, dir);
     for (const shot of shots) {
-      expect(existsSync(resolve(REPO_ROOT, "src/backend/landing/assets", shot.file))).toBe(true);
+      const file = join(dir, "assets", shot.file);
+      expect(existsSync(file)).toBe(true);
+      const bytes = readFileSync(file);
+      expect(bytes.subarray(0, 4).toString("ascii")).toBe("RIFF");
+      expect(bytes.subarray(8, 12).toString("ascii")).toBe("WEBP");
     }
+    rmSync(dir, { recursive: true, force: true });
   });
 
   test("each is same-origin, sized, lazy and described", () => {
@@ -1191,10 +1200,14 @@ describe("the screenshots", () => {
     for (const shot of shots) {
       expect(html).toContain(`src="/assets/${shot.file}"`);
       expect(html).toContain(`width="${shot.width}" height="${shot.height}"`);
-      expect(html).toContain(`alt="${shot.alt.replace(/"/g, "&quot;")}"`);
+      // `esc`, THE RENDERER'S OWN, not a hand-rolled quote swap. It escapes five characters and
+      // this replaced one of them, so the first alt carrying an apostrophe — `app-chat`'s, added
+      // back with #249's reshoot — failed a test that was asserting a string the page never had
+      // any reason to contain.
+      expect(html).toContain(`alt="${esc(shot.alt)}"`);
     }
     expect([...html.matchAll(/<img class="shot-img"/g)]).toHaveLength(shots.length);
-    // Every image below the fold is lazy: the four screenshots, and every photograph except the
+    // Every image below the fold is lazy: the screenshots, and every photograph except the
     // hero's. The hero's is NOT lazy and must never be — it is the LCP element, and lazy-loading
     // it delays the one image the page is judged on, which is why it is asserted eager below by
     // the attribute that makes it so.

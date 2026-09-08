@@ -459,10 +459,8 @@ export interface Shot {
    * inherited. Regenerate with the command in `README.md` and paste the new hash here in the same
    * commit as the reshoot.
    *
-   * IT DOES NOT BIND THE ASSET TO THE SOURCE, and #168 is that gap: both sides of the comparison
-   * are edited by the same hand in the same commit, so a reshoot with the hash pasted and the
-   * `cwebp` line forgotten still passes. The four reproduce byte-for-byte today; deriving them in
-   * `build.ts` is what would make that enforced rather than true.
+   * THE ASSET IS DERIVED FROM THIS SOURCE AT BUILD TIME (`build.ts`, #168), so the two cannot drift
+   * apart on their own; this hash still exists to say the frame on disk is the one that was read.
    */
   sourceSha256: string;
   /**
@@ -493,36 +491,33 @@ export const screensSection = {
 
 export const shots: readonly Shot[] = [
   {
+    // BACK, and this is the commit #185 said would reverse it (#249). It was dropped rather than
+    // reshot because the frame audited at `f0480f51…` opened on "No email, no name." — the promise
+    // issue #95 retired — and that picture was live on eait.fit; reshooting needs a Mac, and the
+    // false claim could not wait for one. The frame below opens on "No account needed to start."
+    // and was shot on the same walk as `01`, `02` and `05`, 8 Sep 2026.
     file: "app-chat.webp",
     source: "03-onboarding.png",
-    sourceSha256: "f0480f516552638ff00f5e84395edd552f4d34bbdd4e8141b58a4bb161cbb168",
+    sourceSha256: "4a3471a4b5b6190a8d8ec43bd598c1c6e2de5c81cd5596d65a855873209a60ed",
     width: 589,
     height: 1280,
-    title: "It asks. You answer.",
-    // READ OFF THE FRAME, not carried over. The 2026-09-06 reshoot changed what this screen
-    // promises: it used to say "You see your plan before anything is asked", and now says
-    // "Nothing to pay until you've seen the plan and that first verdict". The sentence below said
-    // the older thing for one commit, which is the page describing a product the app had stopped
-    // being. Whenever `sourceSha256` moves, this is what has to be re-read — the hash exists to
-    // stop the paste happening without it.
-    // READ OFF THE FRAME AGAIN at issue #95: the welcome's opening bubble changed from "No email,
-    // no name." to "No account needed to start.", because sign-in now asks both providers for the
-    // address. Both sentences below said the retired thing, and the ALT is the one that matters —
-    // it is the only description a screen reader gets of a picture that states a privacy promise.
-    // `sourceSha256` moves with the reshoot, which is what forces this to be re-read.
+    title: "It asks, in words.",
     body:
-      "One conversation, no account to make. **Nothing to pay until you have seen your plan and a first verdict.**",
+      "Three minutes of questions and no form. **What it will cost you is on the first screen**, before a single answer is taken.",
+    // NO GOAL BUTTON IS QUOTED HERE, and that is the claims gate rather than taste: the first
+    // chip reads "Lose weight", which `weight-promise` cannot tell from a promise, and an alt
+    // attribute is copy the gate reads (`copyFromHtml`). The screen is described instead.
     alt:
-      "The opening of the eait onboarding chat: Spud introduces himself, says it is three " +
-      "minutes of questions and then a plan and a verdict on your first meal, says no account is " +
-      "needed to start and there is nothing to pay until both have been seen and a week free " +
-      "to try after that, then asks what you are here to do.",
+      "The onboarding chat: Spud's three opening lines — photograph what you eat and get an " +
+      "honest answer, three minutes of questions and then your plan, and no account needed to " +
+      "start with nothing to pay until the plan and the first verdict — then the first question, " +
+      "what are you here to do, with the three goal answers listed under it.",
   },
   {
     file: "app-plan.webp",
     source: "05-your-target-and-why.png",
     expires: "2026-11-01",
-    sourceSha256: "30efaa5a0fdf8e526b68e9b78d8a70b650766717a14ee9c0bac09bc3ad2762f8",
+    sourceSha256: "944aaeb309498e9f0f6d3f9c262facb5b75be579a7dc92617591ef39ca638641",
     width: 589,
     height: 1280,
     title: "Then it shows the arithmetic.",
