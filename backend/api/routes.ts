@@ -15,7 +15,7 @@
 //    encoder cannot drift.
 
 import {
-  MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, REFUSAL_STATUS, ROUTES, isEditMealRequest,
+  MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, RATE_LIMITED, REFUSAL_STATUS, ROUTES, isEditMealRequest,
   type AuthDeviceRequest, type AuthDeviceResponse, type AuthProviderRequest,
   type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang,
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
@@ -366,7 +366,7 @@ export function createRouter(
         if (wait !== null) {
           // A distinct error from `cap-exceeded`: nothing has been spent, and the app words the two
           // differently — one is "your day is used up", this one is "slow down".
-          return tooManyRequests(wait, { error: "rate-limited" });
+          return tooManyRequests(wait, { error: RATE_LIMITED });
         }
       }
 
@@ -457,7 +457,7 @@ export function createRouter(
       // which is why the check is here rather than in the block above.
       if (req.method === "POST" && pathname === ROUTES.authPair) {
         const wait = limit(req, peer, "auth", deps.config.authRateLimitPerHour, HOUR);
-        if (wait !== null) return tooManyRequests(wait, { error: "rate-limited" });
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
         return json(await mintPairingCode(deps, userId) satisfies PairCodeResponse);
       }
 
@@ -574,7 +574,7 @@ export function createRouter(
         // invent as many valid-looking tokens as it likes, each one a row that lives until the
         // account is deleted.
         const wait = limit(req, peer, "push-token", deps.config.linesRateLimitPerHour, HOUR);
-        if (wait !== null) return tooManyRequests(wait, { error: "rate-limited" });
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
         const body = await req.json().catch(() => null);
         if (req.method === "POST") {
           if (!isPushTokenRequest(body)) return json({ error: "push token required" }, 400);
@@ -603,7 +603,7 @@ export function createRouter(
       if (req.method === "POST" && pathname === ROUTES.messagesLines) {
         // Unbilled, so no cap reaches it; per address, like the health sync, and BEFORE the body.
         const wait = limit(req, peer, "lines", deps.config.linesRateLimitPerHour, HOUR);
-        if (wait !== null) return tooManyRequests(wait, { error: "rate-limited" });
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
         const body = await req.json() as AppendLinesRequest;
         if (!Array.isArray(body?.lines)) return json({ error: "lines required" }, 400);
         const out = await appendLines(deps, userId, body.lines);
@@ -653,7 +653,7 @@ export function createRouter(
         // Unbilled and behind no cap, but it writes the thread: per address, the same allowance as
         // `/lines` but its own counter, so an onboarding's burst of lines cannot spend the editor's.
         const wait = limit(req, peer, "meal-edit", deps.config.linesRateLimitPerHour, HOUR);
-        if (wait !== null) return tooManyRequests(wait, { error: "rate-limited" });
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
         const body: unknown = await req.json();
         if (!isEditMealRequest(body)) return json({ error: "bad-edit" }, 400);
         const result = await editMeal(deps, userId, decodeURIComponent(mealMatch[1]!), body);
@@ -713,7 +713,7 @@ export function createRouter(
           // The client switches on this string (`ApiError.isRefusal`) to tell a refusal the server
           // meant from a request that never arrived; an unrecognised code is shown to the user as
           // "couldn't reach eait". Not `cap-exceeded` either: nothing has been spent here.
-          return tooManyRequests(wait, { error: "rate-limited" });
+          return tooManyRequests(wait, { error: RATE_LIMITED });
         }
 
         const body = await req.json() as HealthDaysRequest;

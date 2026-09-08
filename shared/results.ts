@@ -144,3 +144,47 @@ export const isMeal = (r: { kind: string }): r is MealLogged | MealUpdated | Mea
  * short, and a refusal it did not name left the server as a 200 with the refusal in the body.
  */
 export const isRefusal = (r: { kind: string }): r is Refusal => Object.hasOwn(REFUSAL_STATUS, r.kind);
+
+/** Whose cap was reached. `unknown` is the honest answer for a scope that is absent or new. */
+export type CapScope = "address" | "global" | "user" | "unknown";
+
+/**
+ * ONE DECISION ABOUT AN UNNAMED CAP, made here rather than three times in three screens.
+ *
+ * The camera, the chat and the meal screen each word `cap-exceeded` for what the user was doing
+ * there — three sentences, deliberately. What is NOT theirs to decide separately is what an absent
+ * or unrecognised scope means, and they had already drifted: two of them reached the per-user
+ * sentence as their default branch, so "your daily allowance is spent" was said about a cap that
+ * may be the shared budget (also per-day) or a carrier network everyone behind one address shares.
+ *
+ * `unknown` is what an unnamed cap is. A surface answers it by not claiming whose it was (#158).
+ */
+export const capScope = (scope: string | null | undefined): CapScope =>
+  scope === "address" || scope === "global" || scope === "user" ? scope : "unknown";
+
+/**
+ * The one 429 body that is not a refusal kind: a per-address limiter saying "slow down".
+ *
+ * Nothing is spent and nothing is refused, which is why it is not in `REFUSAL_STATUS` — and why it
+ * needs a name of its own. Six routes send it and every consumer switches on it; each spelling of
+ * the string was a place to typo it into a body nobody recognises, which the client reports as
+ * "couldn't reach eait" for a request that arrived and was answered.
+ */
+export const RATE_LIMITED = "rate-limited";
+
+/**
+ * True when the body came from a server that UNDERSTOOD the request — every refusal, plus the one
+ * 429 that is not one.
+ *
+ * DERIVED, like `isRefusal` above and for the same reason. `ApiError.isRefusal` used to spell the
+ * rule out, so a second consumer had to spell it out too, and the next non-refusal body the server
+ * grows would have to be added to both: whichever copy forgot would report an answered request as
+ * "couldn't reach eait" — a regression `api.ts` records having already been fixed once. Adding a
+ * body here is the whole change.
+ *
+ * Not the negation of "offline": `internal`, `bad-edit` and `unauthenticated` are false here and
+ * still arrived. This answers whether the body is one the client has a design for, and a surface
+ * that needs "did it reach the server" asks the transport, not this.
+ */
+const ANSWER_STATUS: Record<string, number> = { ...REFUSAL_STATUS, [RATE_LIMITED]: 429 };
+export const isServerAnswer = (r: { kind: string }): boolean => Object.hasOwn(ANSWER_STATUS, r.kind);
