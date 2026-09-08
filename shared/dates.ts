@@ -172,9 +172,10 @@ const MAX_WINDOW_DAYS = 100 * 366;
  *
  * IT DOES NOT UNIFY EVERY WINDOW IN THE CODEBASE, and claiming so here would be worse than not
  * having the function. The health INGEST bound is deliberately one day wider than the read, to
- * absorb the phone-server midnight race; `engine/meals.ts` `buildRepertoire` and `engine/text.ts`
- * still spell their own, and both are filed rather than changed, because altering what a prompt
- * or an analyzer prior sees is not a fencepost cleanup.
+ * absorb the phone-server midnight race. `engine/meals.ts` `buildRepertoire` and `engine/text.ts`
+ * spelled their own until #184 and #182: both were one day wider than the constant naming them,
+ * both fed a prompt, and neither had a test on the length — which is what let a fencepost live
+ * inside an identification prior and inside every routing decision.
  *
  * The narrow form is the correct one: a request for N days must answer with N days. So
  * `windowStart(d, 1)` is `d` itself, and that is the property everything here turns on.

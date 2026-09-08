@@ -6,7 +6,7 @@ import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
 import { GatewayRefusal } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
-import { localDate } from "@eait/shared";
+import { dateMinus, localDate } from "@eait/shared";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { remember } from "./chat.ts";
@@ -683,6 +683,43 @@ describe("the repertoire", () => {
     await logPhotoMeal(makeDeps({}, spy), userId, photo(9));
     expect(seen).toContain("basmati rice");
     expect(seen).not.toContain("cooking oil");
+  });
+});
+
+// A window under a constant named N must be N days long, and nothing asserted that until now —
+// which is exactly how `CONTEXT_DAYS = 7` came to produce eight and `buildRepertoire`'s thirty to
+// produce thirty-one. Both feed a prompt: the router's and coach's context, and the analyzer's
+// identification prior. The assertion is on the LENGTH rather than on the expression, because the
+// expression is the thing that was wrong.
+describe("the windows a prompt sees are as long as their constants say", () => {
+  /** Days from `since` to `today` inclusive — what "a seven-day window" means to anyone reading it. */
+  function windowDays(since: string, today: string): number {
+    for (let n = 1; n <= 400; n++) if (dateMinus(today, n - 1) === since) return n;
+    throw new Error(`${since} is not within 400 days of ${today}`);
+  }
+
+  /** Every `since` the engine asks the store for, in order. */
+  function watchTotalsSince(): string[] {
+    const seen: string[] = [];
+    const real = store.totalsSince.bind(store);
+    store.totalsSince = async (userId, since) => { seen.push(since); return real(userId, since); };
+    return seen;
+  }
+
+  it("hands the router and the coach seven days of context, not eight", async () => {
+    const userId = await onboard();
+    const seen = watchTotalsSince();
+    await handleText(deps, userId, { text: "how much protein have I had today?" });
+    expect(seen.length).toBe(1);
+    expect(windowDays(seen[0]!, localDate(CONFIG.timezone))).toBe(7);
+  });
+
+  it("builds the repertoire from thirty days, not thirty-one", async () => {
+    const userId = await onboard();
+    const seen = watchTotalsSince();
+    await logPhotoMeal(deps, userId, photo());
+    expect(seen.length).toBe(1);
+    expect(windowDays(seen[0]!, localDate(CONFIG.timezone))).toBe(30);
   });
 });
 

@@ -86,6 +86,16 @@ async function session(): Promise<string> {
   return token;
 }
 
+/**
+ * A declared body length, because since #208 these routes refuse a request that declares none.
+ *
+ * `new Request(url, { body: form })` sets no `content-length` — the header is added by the network
+ * layer on the way out, and `Bun.serve` parses it back off the wire, so a handler in production
+ * always sees one and a synthetic Request here does not. The value only has to be under the cap;
+ * what is under test is the guard, not the arithmetic.
+ */
+const DECLARED_LENGTH = "1024";
+
 /** A multipart photo upload. */
 function photoRequest(token: string, files = 1, caption?: string): Request {
   const form = new FormData();
@@ -94,7 +104,7 @@ function photoRequest(token: string, files = 1, caption?: string): Request {
   }
   if (caption) form.append("caption", caption);
   return new Request(url(ROUTES.photo), {
-    method: "POST", headers: { authorization: `Bearer ${token}` }, body: form,
+    method: "POST", headers: { authorization: `Bearer ${token}`, "content-length": DECLARED_LENGTH }, body: form,
   });
 }
 
@@ -210,7 +220,7 @@ describe("photo", () => {
   it("400s an upload with no photo part", async () => {
     const token = await session();
     const res = await handle(new Request(url(ROUTES.photo), {
-      method: "POST", headers: { authorization: `Bearer ${token}` }, body: new FormData(),
+      method: "POST", headers: { authorization: `Bearer ${token}`, "content-length": DECLARED_LENGTH }, body: new FormData(),
     }));
     expect(res.status).toBe(400);
   });
@@ -228,6 +238,19 @@ describe("photo", () => {
       body: new FormData(),
     }));
     expect(res.status).toBe(413);
+  });
+
+  it("411s a request that declares no length at all, rather than reading it as zero", async () => {
+    // `Number(null)` is 0, so a chunked body with no `content-length` passed the guard and reached
+    // `req.formData()` — the buffering the guard exists to prevent (#208). Absent is refused, the
+    // same call `web/start.ts` already makes on the Apple callback. `maxRequestBodySize` is still
+    // the real backstop; this is the cheap early refusal.
+    const token = await session();
+    const res = await handle(new Request(url(ROUTES.photo), {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "multipart/form-data; boundary=x" },
+    }));
+    expect(res.status).toBe(411);
   });
 
   it("402s once the sample is spent — the status the app opens the paywall on", async () => {
@@ -1048,7 +1071,7 @@ describe("rate limits", () => {
       form.append("photo", new File([jpegBytes(7)], "m.jpg", { type: "image/jpeg" }));
       return h(new Request(url(ROUTES.photo), {
         method: "POST",
-        headers: { authorization: `Bearer ${token}`, "x-forwarded-for": address },
+        headers: { authorization: `Bearer ${token}`, "x-forwarded-for": address, "content-length": DECLARED_LENGTH },
         body: form,
       }));
     };
@@ -1081,7 +1104,7 @@ describe("rate limits", () => {
     const form = new FormData();
     form.append("photo", new File([jpegBytes(7)], "m.jpg", { type: "image/jpeg" }));
     const logged = await (await h(new Request(url(ROUTES.photo), {
-      method: "POST", headers: { authorization: `Bearer ${token}`, "x-forwarded-for": address }, body: form,
+      method: "POST", headers: { authorization: `Bearer ${token}`, "x-forwarded-for": address, "content-length": DECLARED_LENGTH }, body: form,
     }))).json() as { mealId: string };
     const reanalyze = () => h(new Request(url(ROUTES.mealReanalyze(logged.mealId)), {
       method: "POST", headers: { authorization: `Bearer ${token}`, "x-forwarded-for": address },

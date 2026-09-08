@@ -1,4 +1,4 @@
-import { REMINDER_TIME, FREE_ANALYSES } from "@eait/shared";
+import { MIN_MODEL_CALL_TIMEOUT_MS, REMINDER_TIME, FREE_ANALYSES, SERVER_LLM_TIMEOUT_MS } from "@eait/shared";
 import { DEFAULT_SESSION_TTL_MS } from "./auth/tokens.ts";
 
 // Configuration, loaded once at startup and validated loudly.
@@ -366,6 +366,28 @@ export function int(name: string, fallback: number): number {
 }
 
 /**
+ * The per-model-call budget, read and floored — the ONE way anything reads this variable.
+ *
+ * The same lesson as `llmMaxTokensFromEnv` directly below, and deliberately the same shape. `int()`
+ * accepts an explicit `0`, and zero here is not "no limit": it is a budget of nothing, so every
+ * model call aborts before it starts. Since #175 this number is also SENT to the phone
+ * (`Limits.modelCallTimeoutMs`), which makes a zero worse than a dead server — the client's wait
+ * becomes the transfer margin alone while this process keeps running the call and keeps paying for
+ * it, with nothing logged as wrong on either side.
+ *
+ * `MIN_MODEL_CALL_TIMEOUT_MS` is in `src/shared` because the phone applies the same floor to the
+ * number it receives. A shipped app outlives the server it was built against, and a proxy or an
+ * older server can put anything in that field.
+ */
+export function llmTimeoutMsFromEnv(fallback: number): number {
+  const value = int("EAIT__BACKEND__LLM_TIMEOUT_MS", fallback);
+  if (value < MIN_MODEL_CALL_TIMEOUT_MS) {
+    throw new Error(`[eait] EAIT__BACKEND__LLM_TIMEOUT_MS must be at least ${MIN_MODEL_CALL_TIMEOUT_MS}; the glance alone is allowed 15s and a photo analysis measured a median 37s to its first token, and 0 is a budget of nothing rather than 'unbounded'`);
+  }
+  return value;
+}
+
+/**
  * The completion bound, read and floored — the ONE way anything reads this variable.
  *
  * `int` alone is not enough, and sharing only `int` is what let these two diverge: it accepts an
@@ -408,7 +430,7 @@ export function configDefaults(): Config {
     llmReasoningEffort: "",
     llmApiKey: "",
     llmBaseUrl: "https://openrouter.ai/api/v1/chat/completions",
-    llmTimeoutMs: 90_000,
+    llmTimeoutMs: SERVER_LLM_TIMEOUT_MS,
     llmMaxTokens: 16_000,
     freeAnalyses: FREE_ANALYSES,
     paidDailyPhotoCap: 200,
@@ -561,7 +583,7 @@ export function loadConfig(): Config {
     llmReasoningEffort,
     llmApiKey: required("EAIT__BACKEND__LLM_API_KEY"),
     llmBaseUrl: process.env.EAIT__BACKEND__LLM_BASE_URL ?? d.llmBaseUrl,
-    llmTimeoutMs: int("EAIT__BACKEND__LLM_TIMEOUT_MS", d.llmTimeoutMs),
+    llmTimeoutMs: llmTimeoutMsFromEnv(d.llmTimeoutMs),
     llmMaxTokens,
     freeAnalyses,
     paidDailyPhotoCap,

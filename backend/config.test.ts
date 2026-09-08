@@ -140,6 +140,22 @@ describe("loadConfig", () => {
     expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_MAX_TOKENS/);
   });
 
+  // Same shape, one variable over, and now user-visible: the per-call budget is SENT to the phone
+  // (`Limits.modelCallTimeoutMs`), so a zero here makes every client's wait the transfer margin
+  // alone while this server keeps running the call and keeps paying for it — silently, on both
+  // sides. Zero is "no limit" for every cap in this file and cannot mean it for a budget.
+  it("refuses a model-call budget of zero, which the neighbouring settings would read as 'off'", () => {
+    withRequired({ EAIT__BACKEND__LLM_TIMEOUT_MS: "0" });
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_TIMEOUT_MS/);
+  });
+
+  // Above anything real, not merely above nothing: the glance alone is allowed 15 s and a photo
+  // analysis measured a median 37 s to its first visible token.
+  it("refuses a model-call budget under what a measured analysis needs", () => {
+    withRequired({ EAIT__BACKEND__LLM_TIMEOUT_MS: "5000" });
+    expect(() => loadConfig()).toThrow(/EAIT__BACKEND__LLM_TIMEOUT_MS/);
+  });
+
   it("rejects a nonsense number rather than coercing it", () => {
     withRequired({ EAIT__BACKEND__MAX_UPLOAD_MB: "twenty" });
     expect(() => loadConfig()).toThrow(/EAIT__BACKEND__MAX_UPLOAD_MB/);

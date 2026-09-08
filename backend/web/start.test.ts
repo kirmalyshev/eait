@@ -1122,7 +1122,9 @@ const upload = (files: Uint8Array[], cookie: string, opts: { type?: string; capt
   });
   if (opts.caption !== undefined) form.append("caption", opts.caption);
   return handle(new Request("https://api.eait.fit/start/chat/photo", {
-    method: "POST", headers: { cookie }, body: form,
+    // A declared length, because since #208 this route refuses a request that has none: a synthetic
+    // `Request` carries no `content-length`, while a browser's multipart POST always does.
+    method: "POST", headers: { cookie, "content-length": "1024" }, body: form,
   }));
 };
 
@@ -1167,6 +1169,18 @@ describe("chat on the web: photos", () => {
       method: "POST",
       headers: { cookie: session, "content-type": "multipart/form-data; boundary=x", "content-length": String(CONFIG.maxUploadBytes + 1) },
       body: "--x--",
+    }));
+    expect(res.headers.get("location")).toBe("/start/chat?notice=too-large");
+  });
+
+  it("refuses a chat POST that declares no length at all", async () => {
+    // `Number(null)` is 0, so a chunked body passed the guard and reached `req.formData()` (#208).
+    // The same call the Apple callback in this file already makes, and the notice is `too-large`
+    // because it is the honest one: the size is unknown, so it cannot be allowed.
+    const { session } = await onboarded();
+    const res = await handle(new Request("https://api.eait.fit/start/chat/photo", {
+      method: "POST",
+      headers: { cookie: session, "content-type": "multipart/form-data; boundary=x" },
     }));
     expect(res.headers.get("location")).toBe("/start/chat?notice=too-large");
   });

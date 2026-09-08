@@ -200,6 +200,65 @@ describe("routeText", () => {
 // measured completion was 1614 tokens. Nothing was analyzed, and the account's one free sample was
 // already charged. The bound belongs on every call the loop makes, not only the first: the body is
 // rebuilt each attempt, and a bound moved out of that literal would be lost on the retry alone.
+// #153. `coach` has always bounded its whole turn with one deadline and says why: five calls each
+// allowed the full budget keep this process working, and paying, for minutes after the app stopped
+// waiting. Everything else spent a fresh `opts.timeoutMs` per HTTP call — the schema retry inside
+// `complete()`, and `routeText`'s second focused call — so one text turn could legitimately occupy
+// four of them, 360 s at the shipped 90 s, every second billed while the phone gave up at 140 s.
+describe("one deadline per turn, not one per call", () => {
+  /** Replays payloads, each after `delayMs`, and does NOT honour the abort signal — so a call that
+   * outlives the budget still RESOLVES, which is the only way to observe what the next one is given. */
+  function slowPorts(payloads: { delayMs: number; body: unknown }[], timeoutMs: number) {
+    const bodies: unknown[] = [];
+    const impl = (async (_url: string, init: RequestInit) => {
+      const at = Math.min(bodies.length, payloads.length - 1);
+      bodies.push(JSON.parse(String(init.body)));
+      await Bun.sleep(payloads[at]!.delayMs);
+      return new Response(
+        JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(payloads[at]!.body) } }] }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }) as unknown as typeof fetch;
+    const llm = openRouterPorts({
+      apiKey: "test-key-not-a-secret", model: "test-model", chatModel: "test-chat-model",
+      baseUrl: "https://example.invalid/v1/chat/completions", timeoutMs, maxTokens: 4321,
+      fetchImpl: impl,
+    });
+    return { llm, bodies };
+  }
+
+  test("routeText's focused second call finds the turn's budget spent rather than a fresh one", async () => {
+    // The routing call answers `meal` with no analysis — the branch that buys a second call — but
+    // it took longer than the whole turn was allowed. A second call here is one the app has already
+    // stopped waiting for, and it would be billed anyway.
+    const { llm, bodies } = slowPorts(
+      [{ delayMs: 120, body: { intent: "meal", dayOffset: 0 } }, { delayMs: 0, body: { isFood: true } }],
+      60,
+    );
+    await expect(llm.routeText(ROUTE_INPUT as never)).rejects.toThrow(/ran past/);
+    expect(bodies.length).toBe(1);
+  });
+
+  test("a schema retry gets what is LEFT of the budget, not another whole one", async () => {
+    // `complete()` retries a validation failure exactly once. Sharing the deadline is what stops
+    // one `analyzePhoto` costing two full budgets of wall clock the client will not wait through.
+    const { llm, bodies } = slowPorts([{ delayMs: 120, body: { not: "an analysis" } }], 60);
+    await expect(llm.analyzePhoto({
+      images: [new Uint8Array([0xff, 0xd8, 1, 1])], profile: ROUTE_INPUT.profile, targets: ROUTE_INPUT.targets,
+    } as never)).rejects.toThrow(/ran past/);
+    expect(bodies.length).toBe(1);
+  });
+
+  test("a turn inside its budget still gets both calls", async () => {
+    const { llm, bodies } = slowPorts([
+      { delayMs: 0, body: { intent: "meal", dayOffset: 0 } },
+      { delayMs: 0, body: ANALYSIS },
+    ], 5000);
+    expect((await llm.routeText(ROUTE_INPUT as never)).intent).toBe("meal");
+    expect(bodies.length).toBe(2);
+  });
+});
+
 describe("completion bound", () => {
   test("every call names its own completion bound", async () => {
     const { llm, bodies } = ports([{ intent: "answer", text: "ok" }]);

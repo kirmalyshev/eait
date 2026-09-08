@@ -58,6 +58,11 @@ async function limitsOf(deps: EngineDeps, userId: string, entitled: boolean): Pr
     // The SAME bound `/v1/diary/week` refuses with. It governs which days can be MARKED, not which
     // can be opened: `/v1/diary/day` answers for any date, and the picker offers every past one.
     diaryWindowDays: MAX_WINDOW_DAYS,
+    // THE RUNNING SERVER'S PER-CALL BUDGET, not the one the app was compiled against.
+    // `EAIT__BACKEND__LLM_TIMEOUT_MS` is set explicitly in production, so this is the only channel
+    // by which a phone can learn it — and it is sent PER CALL because how many budgets a turn
+    // spends depends on the route, which only the caller knows.
+    modelCallTimeoutMs: deps.config.llmTimeoutMs,
   };
 }
 

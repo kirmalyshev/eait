@@ -15,7 +15,7 @@ import {
   type MealItem, type MealLogged, type MealQuestion, type MealRecord, type MealUpdated, type PhotoEvent,
   type TargetGone, type ConfirmMealResult, type Refusal, explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
-import { localDate, localTime } from "@eait/shared";
+import { localDate, localTime, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
 import { prepareAnalysis } from "./analysis.ts";
@@ -509,16 +509,22 @@ export async function cancelPendingMeal(
   return { kind: "cancelled" };
 }
 
+/** Days of the user's own history the identification prior is built from, counting today. */
+const REPERTOIRE_DAYS = 30;
+
 /**
  * Foods this user logs most often, most frequent first.
  *
  * An IDENTIFICATION prior and nothing else — the prompt says so explicitly. It exists because the
  * same person eats the same twenty things, and knowing that is the difference between "rice" and
  * "the bulgur he has four times a week". It must never touch a number.
+ *
+ * `windowStart`, because it is the expression that means a LENGTH. `dateMinus(today, 30)` was
+ * thirty-one days under a comment that said thirty (#184), and there was no test on the length —
+ * the same fencepost, at a second call site, found the same way.
  */
 async function buildRepertoire(deps: EngineDeps, userId: string, today: string): Promise<string[]> {
-  const { dateMinus } = await import("@eait/shared");
-  const since = dateMinus(today, 30);
+  const since = windowStart(today, REPERTOIRE_DAYS);
   const days = await deps.store.totalsSince(userId, since);
   const counts = new Map<string, number>();
   for (const d of days) {

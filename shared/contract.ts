@@ -92,6 +92,22 @@ export interface Limits {
    * neither the label nor the footer may claim the second when it only knows the first.
    */
   diaryWindowDays: number;
+  /**
+   * The server's budget for ONE model call, in ms — `EAIT__BACKEND__LLM_TIMEOUT_MS` as this server
+   * is actually running it.
+   *
+   * SENT, BECAUSE IT IS ENV-CONFIGURED. It differs between environments and production sets it
+   * explicitly, so an app that computed its wait from a number compiled into its binary is the
+   * second copy this interface exists to abolish — and the failure is silent in the worst
+   * direction: the phone abandons a turn the server is still running and still billing, with no
+   * error on either side.
+   *
+   * THE PER-CALL NUMBER RATHER THAN A WAIT, because how many budgets a turn spends depends on the
+   * ROUTE and only the client knows which one it is about to call. `clientModelTimeoutMs` turns it
+   * into a wait with `PHOTO_MODEL_CALLS` or `TEXT_MODEL_CALLS`; `DEFAULT_MODEL_TIMEOUT_MS` is the
+   * fallback for a client with no profile yet, exactly as `maxPhotosPerMeal` is.
+   */
+  modelCallTimeoutMs: number;
 }
 
 /** Fallback only — see `Limits`. Total upload size, above which a large POST is a DoS. */
@@ -710,7 +726,77 @@ export type PhotoResponse = LogPhotoResult;
 /** The streamed shape of `POST /v1/meals/photo` when `accept` includes `NDJSON`. */
 export const NDJSON = "application/x-ndjson";
 /**
- * How long the app waits on a model-bound request before deciding nothing is coming.
+ * The server's budget for ONE model call — `EAIT__BACKEND__LLM_TIMEOUT_MS`'s DEFAULT, which
+ * `config.ts` reads and `deploy/docker-compose.prod.yml` falls back to.
+ *
+ * It is the default and NOT the authority: production sets that variable explicitly, so the budget
+ * the running server is actually using can only be known by asking it. That is what
+ * `Limits.modelCallTimeoutMs` is for, and why a number compiled into a binary cannot be one.
+ */
+export const SERVER_LLM_TIMEOUT_MS = 90_000;
+
+/**
+ * The least a per-model-call budget can be and still describe a real call.
+ *
+ * ZERO IS THE ONE THAT GETS THROUGH. `int()` in `config.ts` accepts any non-negative integer, so
+ * `EAIT__BACKEND__LLM_TIMEOUT_MS=0` started a server whose every model call aborts instantly — and
+ * once that number is SENT to the phone it also makes every client wait the transfer margin alone.
+ * Zero is "no limit" for every cap and rate limit in that file and cannot mean it here: it is a
+ * budget of nothing. This codebase has paid for the same lesson one variable over —
+ * `llmMaxTokensFromEnv` exists because `int()` accepted a bound of zero and `eval-photos.ts`
+ * shipped `max_tokens: 0` on every billed call.
+ *
+ * Ten seconds is below anything real rather than merely above nothing: the glance alone is allowed
+ * fifteen, and a photo analysis measured a median 37 s to its first visible token
+ * (`docs/ACCURACY.md`, 2026-09-05).
+ */
+export const MIN_MODEL_CALL_TIMEOUT_MS = 10_000;
+
+/**
+ * The round trip the server's own timer does not cover: the upload of a photo on a mobile uplink,
+ * the queue, and the stream framing either side of the model calls.
+ */
+const TRANSFER_MARGIN_MS = 20_000;
+
+/**
+ * How many per-call budgets one turn can spend, PER ROUTE.
+ *
+ * SINCE #153 A MODEL-CALLING FUNCTION BOUNDS ITSELF WITH ONE DEADLINE, not one per call. So these
+ * count FUNCTIONS, not HTTP calls: `complete()` shares one deadline with its own schema retry, and
+ * `routeText` shares one across the routing call and the focused analysis behind it.
+ *
+ * `POST /v1/meals/photo` and `POST /v1/meals/:id/reanalyze` are one `analyzePhoto`, so ONE. The
+ * glance runs on its own fifteen-second budget beside it and is never the long pole.
+ *
+ * `POST /v1/messages` is `routeText`, and behind an `answer` intent also `coach` — which has
+ * bounded its whole turn with one deadline since it was written. Two functions, two deadlines, so
+ * TWO. A `meal`, `correction` or `redate` turn is one of them and could wait less; it is not worth
+ * a third constant to say so, because the phone cannot know which intent it is about to get.
+ *
+ * ONE FACTOR FOR BOTH IS THE WRONG DEPTH IN BOTH DIRECTIONS, which is why there are two. Sized for
+ * the photo route it abandons corrections the server is still paying for; sized for the text route
+ * it leaves somebody watching "Analyzing…" on a stalled upload, on a screen whose only way out is
+ * closing it.
+ */
+export const PHOTO_MODEL_CALLS = 1;
+export const TEXT_MODEL_CALLS = 2;
+
+/**
+ * How long a client should wait on one model-bound request.
+ *
+ * The budgets THAT ROUTE can spend, plus the round trip the server's own timer does not cover.
+ *
+ * ONE FUNCTION, EVERY CALLER, AND THAT IS THE POINT. `limitsOf` sends the running server's per-call
+ * budget and each caller applies its own route's count. The literal this replaced was 140_000 —
+ * right for the 60 s server it was written against, short of the real worst case once the server
+ * became 90 s, and nothing anywhere went red.
+ */
+export const clientModelTimeoutMs = (serverLlmTimeoutMs: number, calls: number): number =>
+  calls * serverLlmTimeoutMs + TRANSFER_MARGIN_MS;
+
+/**
+ * The wait for a client that has no profile yet, and the number anything DRIVING the app reasons
+ * from.
  *
  * IT IS HERE RATHER THAN IN THE CLIENT BECAUSE A HARNESS HAS TO KNOW IT TOO, and that is the whole
  * of why it moved. `device-walk.ts` gave up on a photo verdict after 90 s of its own while the app
@@ -719,14 +805,13 @@ export const NDJSON = "application/x-ndjson";
  * more patient than the app; it may never be less, and it cannot be either against a number it
  * cannot read.
  *
- * THE VALUE IS UNCHANGED AND IS KNOWN TO BE WRONG. It is the literal `api.ts` has carried, and a
- * review of #127 established that it sits under the server's own worst case — a turn can spend
- * four model calls, because `complete()` retries a schema failure with a fresh budget and
- * `routeText` calls it twice — so the phone abandons turns the backend is still running and still
- * billing. Fixing that is #175: it moves an app-facing number, it needs the server to send its
- * real budget rather than the app compiling one in, and it is not what this ticket is about.
+ * A FALLBACK, NOT THE RULE. The authority is `Limits.modelCallTimeoutMs`, which is the budget the
+ * running server actually has; this is what the app uses before its first profile lands and
+ * whenever the number on the wire is unusable, exactly as `maxPhotosPerMeal` works. In practice no
+ * model-bound route is reachable before a profile has landed — onboarding comes first — so what
+ * this number really sizes is the harness, which reads it for the photo route. Hence that count.
  */
-export const DEFAULT_MODEL_TIMEOUT_MS = 140_000;
+export const DEFAULT_MODEL_TIMEOUT_MS = clientModelTimeoutMs(SERVER_LLM_TIMEOUT_MS, PHOTO_MODEL_CALLS);
 /**
  * One line of the stream. Zero or one `glance`, zero or more `item`, then the `LogPhotoResult`
  * as the LAST line — refusals included, because the 200 went out with the first byte. An

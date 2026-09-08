@@ -181,6 +181,21 @@ export function openRouterPorts(opts: Options): LlmPorts {
     }
   }
 
+  /**
+   * ONE DEADLINE, NOT ONE PER CALL — the rule `coach` has always followed, applied here (#153).
+   *
+   * `send` used to be given `opts.timeoutMs` afresh for every HTTP call, so the schema retry below
+   * doubled the wall clock a single `complete()` could occupy, and `routeText` calling `complete()`
+   * twice doubled it again: four calls, 360 s at the shipped 90 s budget, every second billed while
+   * the phone had stopped waiting long before. A caller that spans several calls passes its own
+   * deadline and each call gets whatever is left; one that does not gets a budget of its own, which
+   * is what the default expresses.
+   *
+   * It changes WHICH turns fail rather than making slow ones faster: a routing call that takes most
+   * of the budget followed by an analysis that needs the rest is refused now where it used to
+   * succeed. That is the trade, and it is the one #153 asked for — a turn nobody is waiting for is
+   * not worth paying for.
+   */
   async function complete<T>(
     system: string,
     content: Content,
@@ -189,6 +204,8 @@ export function openRouterPorts(opts: Options): LlmPorts {
     /** A call in this turn has already generated, so nothing here can be given back. */
     billed = false,
     onDelta?: (text: string) => void,
+    /** When the whole turn must be done. Defaults to one budget for this `complete()` alone. */
+    deadline = Date.now() + opts.timeoutMs,
   ): Promise<T> {
     const messages: Message[] = [{ role: "system", content: system }, { role: "user", content }];
     let lastError = "";
@@ -221,7 +238,9 @@ export function openRouterPorts(opts: Options): LlmPorts {
 
       // `attempt > 0` means the first attempt answered 200 and was billed for a reply that missed
       // the schema. Nothing after that first completion is free, whatever the status says.
-      const payload = await send(body, billed || attempt > 0, undefined, onDelta);
+      const left = deadline - Date.now();
+      if (left <= 0) throw new Error(`llm ran past ${opts.timeoutMs}ms before ${schemaName}`);
+      const payload = await send(body, billed || attempt > 0, left, onDelta);
       const choice = payload.choices?.[0];
       // `length` means generation stopped at the bound. It is checked only where the reply turned
       // out to be UNUSABLE, never before the parse: with a JSON schema the model writes its closing
@@ -305,7 +324,12 @@ export function openRouterPorts(opts: Options): LlmPorts {
       ...(input.question !== undefined ? { question: input.question } : {}),
       ...(input.recent !== undefined ? { recent: input.recent } : {}),
     });
-    let out = await complete(SYSTEM_ROUTE, text, RouteSchema, "route");
+    // THE WHOLE TURN SHARES ONE DEADLINE, the shape `coach` below already has (#153). The routing
+    // call and the focused analysis behind it are one turn to the user and one wait on the phone,
+    // so they are one budget here — `undefined` in each call below is the `onDelta` this route has
+    // never had, and the argument after it is the deadline.
+    const deadline = Date.now() + opts.timeoutMs;
+    let out = await complete(SYSTEM_ROUTE, text, RouteSchema, "route", false, undefined, deadline);
 
     // The decision and the work, separated — but only when the model made us.
     //
@@ -348,6 +372,8 @@ export function openRouterPorts(opts: Options): LlmPorts {
         "text-correction",
         // The router call above already generated and was billed — the same rule as the meal branch.
         true,
+        undefined,
+        deadline,
       );
       out = { ...out, analysis };
     } else if (out.intent === "meal" && !out.analysis) {
@@ -359,6 +385,8 @@ export function openRouterPorts(opts: Options): LlmPorts {
         // The router call above already generated and was billed, so a gateway refusal on this one
         // is not free and the turn stays charged.
         true,
+        undefined,
+        deadline,
       );
       out = { ...out, analysis };
     }

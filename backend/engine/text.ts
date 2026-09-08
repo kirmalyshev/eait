@@ -11,7 +11,7 @@ import {
   type HandleTextResult, type MealAnalysis, type MealProposed, type MealRedated,
   explainTargets,
 } from "@eait/shared";
-import { dateMinus, isRefusal, localDate } from "@eait/shared";
+import { dateMinus, isRefusal, localDate, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import type { ChatAppend } from "../store.ts";
 import { normalizePromptText } from "../llm/prompt.ts";
@@ -24,7 +24,7 @@ import { ROUTER_RECENT_LINES, coachTurn, recentLines } from "./coach.ts";
 // How long a proposed text meal stays confirmable is `config.pendingTtlMs` (`EAIT__BACKEND__PENDING_TTL_MINUTES`),
 // read from deps at the point of use rather than frozen into a module constant here.
 
-/** Days of history handed to the router as context. Eight days, counting today — see the read. */
+/** Days of history handed to the router as context, counting today. */
 const CONTEXT_DAYS = 7;
 
 /**
@@ -90,9 +90,11 @@ export async function handleText(
     : null;
 
   const todayRows = await deps.store.mealsForDate(userId, today);
-  // `dateMinus`, not `windowStart`: EIGHT days counting today. Changing what every text turn's
-  // routing and coaching prompt sees is not this PR's business, and is filed.
-  const week = await deps.store.totalsSince(userId, dateMinus(today, CONTEXT_DAYS));
+  // `windowStart`, not `dateMinus`: it is the expression that MEANS a length, so `CONTEXT_DAYS`
+  // days counting today. `dateMinus(today, CONTEXT_DAYS)` was one day wider than its own constant
+  // said, and nothing tested the length — which is the whole of why it survived (#182). The router
+  // and the coach now reason over the same seven days the sentence "this week" claims.
+  const week = await deps.store.totalsSince(userId, windowStart(today, CONTEXT_DAYS));
   const { targets } = explainTargets(profile);
   // Read ONCE for the turn: the router sees the tail, the coach the window. The message itself is
   // not in it — `keep` writes it after the turn — so neither has to skip it.

@@ -667,9 +667,14 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
 
     // CHECKED BEFORE PARSING, the rule the photo route in `api/routes.ts` states: `req.formData()`
     // buffers the whole body, so a size check after it has run protects nothing — the allocation it
-    // was meant to prevent has already happened.
-    const declared = Number(req.headers.get("content-length") ?? 0);
-    if (declared > ctx.deps.config.maxUploadBytes) return back("too-large");
+    // was meant to prevent has already happened. Absent is refused rather than read as zero, the
+    // same call the Apple callback above makes and for the same reason (#208): `Number(null)` is 0,
+    // so a chunked body was the one shape that walked past this. `too-large` is the notice because
+    // it is the only honest one — a length nobody declared cannot be allowed — and inventing a
+    // second notice would put a new sentence in front of a user for a request a browser never sends.
+    const length = req.headers.get("content-length");
+    const declared = length === null ? NaN : Number(length);
+    if (!Number.isFinite(declared) || declared > ctx.deps.config.maxUploadBytes) return back("too-large");
 
     // The billed routes take the address allowance BEFORE the body is read, which is where
     // `api/routes.ts` takes it too: an address that is already over should not be able to make this

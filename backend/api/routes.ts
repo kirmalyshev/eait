@@ -498,7 +498,15 @@ export function createRouter(
         // check after it has run protects nothing — the allocation it was meant to prevent has
         // already happened. `maxRequestBodySize` on the server is the real backstop (a client can
         // lie about Content-Length); this is the early, cheap, honest-client rejection.
-        const declared = Number(req.headers.get("content-length") ?? 0);
+        //
+        // ABSENT IS REFUSED, NOT READ AS ZERO. `Number(null)` is 0, so a `Transfer-Encoding:
+        // chunked` body with no length passed this guard and went straight into `formData()` —
+        // exactly the buffering above (#208). The same call `web/start.ts` already makes on the
+        // Apple callback, and 411 rather than 413 because the size is unknown rather than known
+        // to be too big: a 413 in a log would read as a user's photo being oversized.
+        const length = req.headers.get("content-length");
+        const declared = length === null ? NaN : Number(length);
+        if (!Number.isFinite(declared)) return json({ error: "length required" }, 411);
         if (declared > deps.config.maxUploadBytes) return json({ error: "too large" }, 413);
 
         const form = await req.formData();
