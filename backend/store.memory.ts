@@ -97,6 +97,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const meals = new Map<string, MealRecord>(); // mealId -> record
   const photos = new Map<string, (StoredPhoto & { userId: string })[]>(); // mealId -> in position order
   const pendings = new Map<string, PendingMeal>(); // pendingId -> pending
+  // Keyed by the HASH of the code, exactly as Postgres is — a demo store that held the code
+  // itself would be the one environment where a dump is a way in, and demo mode is where this
+  // flow gets driven.
+  const pairingCodes = new Map<string, { userId: string; expiresAt: number }>();
   // Append-only; `seq` comes from a monotonic counter, never reused, the same way the Postgres
   // bigserial is. Rows of a deleted user are removed, so it gaps.
   const chat: ChatMessage[] = [];
@@ -170,6 +174,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     for (const [id, m] of meals) if (m.user_id === userId) meals.delete(id);
     for (const [id, list] of photos) if (list.some((p) => p.userId === userId)) photos.delete(id);
     for (const [id, p] of pendings) if (p.userId === userId) pendings.delete(id);
+    // In Postgres this is the cascade on the foreign key; here it is this line. A code that
+    // outlived its account would mint a session for a user id nothing resolves.
+    for (const [h, c] of pairingCodes) if (c.userId === userId) pairingCodes.delete(h);
     // The thread holds the medical free text a person typed at Spud. It goes with the account.
     for (let i = chat.length - 1; i >= 0; i--) if (chat[i]!.userId === userId) chat.splice(i, 1);
     firstVerdictSpoken.delete(userId);
@@ -697,6 +704,24 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     async dropPending(userId, pendingId) {
       const p = pendings.get(pendingId);
       return p !== undefined && p.userId === userId && p.expiresAt > now() && pendings.delete(pendingId);
+    },
+
+    async putPairingCode(userId, codeHash, expiresAt) {
+      // The account's previous code and every expired one, then the insert — the same order and
+      // the same lazy sweep as the Postgres statement.
+      for (const [h, c] of pairingCodes) {
+        if (c.userId === userId || c.expiresAt <= now()) pairingCodes.delete(h);
+      }
+      pairingCodes.set(codeHash, { userId, expiresAt });
+    },
+
+    async claimPairingCode(codeHash) {
+      const row = pairingCodes.get(codeHash);
+      // Deleted whether or not it is spendable, exactly as the Postgres delete-returning is: an
+      // expired row that survived its refusal is a row a backwards clock would make live again.
+      if (row === undefined) return null;
+      pairingCodes.delete(codeHash);
+      return row.expiresAt > now() ? row.userId : null;
     },
 
     async appendChat(userId, lines) {

@@ -1455,12 +1455,126 @@ function pendingLifetime(name: string, make: (opts: StoreOptions) => Promise<Sto
   });
 }
 
+/**
+ * The pairing code's lifetime, under an injected clock.
+ *
+ * A pairing code is a credential a person types, so the store owes it exactly what it owes a bearer
+ * token: it is written down as a HASH, it is claimable ONCE, and an expired one is
+ * indistinguishable from one that never existed. The claim is a single guarded delete for the same
+ * reason `dropPending` is — read-then-delete is two deliveries away from handing one account's
+ * session to two browsers.
+ */
+function pairingCodes(name: string, make: (opts: StoreOptions) => Promise<Store>) {
+  describe(`pairing codes — ${name}`, () => {
+    let clock = Date.parse("2026-09-07T12:00:00Z");
+    let store: Store | null = null;
+    const open = async () => (store ??= await make({ now: () => clock }));
+    afterAll(async () => { await store?.close(); });
+
+    /** A hash-shaped value, since that is all the store is ever handed. */
+    const codeHash = () => hashToken(crypto.randomUUID());
+
+    it("round trips once — the code resolves to its account, and never a second time", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const hash = await codeHash();
+      await s.putPairingCode(userId, hash, clock + 60_000);
+      expect(await s.claimPairingCode(hash)).toBe(userId);
+      // The single-use property, and it is the store's rather than the engine's: whoever wins the
+      // delete gets the account, and there is no second winner.
+      expect(await s.claimPairingCode(hash)).toBeNull();
+    });
+
+    it("never claims an expired code, and takes the row with it", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const hash = await codeHash();
+      await s.putPairingCode(userId, hash, clock + 60_000);
+      clock += 61_000;
+      expect(await s.claimPairingCode(hash)).toBeNull();
+      // Gone rather than merely refused: a row that survived a refusal is a row a clock moving
+      // backwards would make live again.
+      expect(await s.claimPairingCode(hash)).toBeNull();
+    });
+
+    it("holds ONE live code per account — a new mint kills the old one", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const first = await codeHash();
+      const second = await codeHash();
+      await s.putPairingCode(userId, first, clock + 60_000);
+      await s.putPairingCode(userId, second, clock + 60_000);
+      expect(await s.claimPairingCode(first)).toBeNull();
+      expect(await s.claimPairingCode(second)).toBe(userId);
+    });
+
+    it("sweeps expired codes on mint, so the table stays bounded without a scheduler", async () => {
+      const s = await open();
+      const mine = (await s.upsertDeviceUser(device(), "en")).userId;
+      const other = (await s.upsertDeviceUser(device(), "en")).userId;
+      const abandoned = await codeHash();
+      await s.putPairingCode(other, abandoned, clock + 60_000);
+
+      clock += 61_000;
+      // Somebody else's mint is what sweeps it. Nothing here calls a prune method, because there
+      // is not one: minting is rare and is the write path that can afford the sweep.
+      await s.putPairingCode(mine, await codeHash(), clock + 60_000);
+      expect(await s.claimPairingCode(abandoned)).toBeNull();
+    });
+
+    it("goes with the account", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const hash = await codeHash();
+      await s.putPairingCode(userId, hash, clock + 60_000);
+      await s.deleteUser(userId);
+      // A code outliving its account is a code that would mint a session for a user id nothing
+      // resolves — and in Postgres it is a foreign key nobody swept.
+      expect(await s.claimPairingCode(hash)).toBeNull();
+    });
+  });
+}
+
 tokenLifetime("memory", async (o) => memoryStore(o));
 pendingLifetime("memory", async (o) => memoryStore(o));
+pairingCodes("memory", async (o) => memoryStore(o));
 
 if (PG_URL) {
   tokenLifetime("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
   pendingLifetime("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
+  pairingCodes("postgres", (o) => postgresStore(PG_URL, { ...o, maxConnections: TEST_POOL }));
+
+  // The same question the tokens table is asked below, for the same reason: a pairing code is a
+  // credential, the nightly dump leaves this box, and a column holding the value a person types
+  // would make that file a set of live sessions for every account currently pairing.
+  describe("pairing codes at rest — postgres", () => {
+    it("keeps a hash, and nothing a dump could type into the form", async () => {
+      const s = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const code = "ABCD2345";
+      await s.putPairingCode(userId, await hashToken(code), Date.now() + 60_000);
+
+      const sql = new SQL(PG_URL, { max: TEST_POOL });
+      try {
+        const columns = (await sql`
+          select column_name from information_schema.columns
+          where table_schema = current_schema() and table_name = 'pairing_codes'`)
+          .map((r: { column_name: string }) => r.column_name);
+        expect(columns.sort()).toEqual(["code_hash", "expires_at", "user_id"]);
+
+        const rows = await sql`
+          select code_hash from pairing_codes where user_id = ${userId}::uuid`;
+        expect(rows.length).toBe(1);
+        expect(String(rows[0].code_hash)).toMatch(/^[0-9a-f]{64}$/);
+        // And the value a person would type appears nowhere in the table.
+        const byRaw = await sql`select count(*)::int as n from pairing_codes where code_hash = ${code}`;
+        expect(byRaw[0].n).toBe(0);
+      } finally {
+        await sql.close();
+        await s.close();
+      }
+    });
+  });
 
   // The reason the column is a hash, stated as an assertion rather than as a comment.
   //

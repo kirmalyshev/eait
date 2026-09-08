@@ -80,6 +80,22 @@ export const PAGE_COPY = {
   chatPhotoSend: "Send the photo",
   chatCaption: "Anything I should know? (optional)",
   errorSignIn: "That sign-in didn't complete. Try again.",
+  /**
+   * The pairing form, on the front door rather than on a page of its own.
+   *
+   * Somebody who already has an account is not signing up, so the two sign-in buttons are not for
+   * them — and a second page they would have to be told the address of defeats the point of a code
+   * short enough to read out loud. One field under the buttons is the whole surface.
+   *
+   * IT DESCRIBES THE CODE, NOT WHERE TO GET ONE, because today there is nowhere: the app cannot
+   * show a code yet (that control is its own ticket). Words naming a button that does not exist
+   * would be false now and would have to be rewritten on a guarded surface later.
+   */
+  pairHeading: "Have a pairing code?",
+  pairLead: "A code signs this browser into the account that made it. It works once, and only for five minutes.",
+  pairLabel: "Your pairing code",
+  pairButton: "Connect this browser",
+  errorPair: "That code did not work. A code works once, and only for five minutes after it is made.",
 } as const;
 
 /** Where the typeface is served from, on this origin, so the CSP needs `font-src 'self'` and no more. */
@@ -272,6 +288,14 @@ ${bubbles(welcome)}
 ${buttons.map((b, i) =>
   `<a class="button${i === 0 ? " primary" : ""}" href="${escape(b.href)}">${escape(b.label)}</a>`,
 ).join("\n")}
+<h2>${escape(PAGE_COPY.pairHeading)}</h2>
+<p class="muted">${escape(PAGE_COPY.pairLead)}</p>
+<form method="post" action="/start/pair">
+  <input type="text" name="code" autocomplete="off" autocapitalize="characters" spellcheck="false"
+    maxlength="16" placeholder="${escape(PAGE_COPY.pairLabel)}"
+    aria-label="${escape(PAGE_COPY.pairLabel)}">
+  <button type="submit">${escape(PAGE_COPY.pairButton)}</button>
+</form>
 `);
 }
 

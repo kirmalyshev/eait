@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import {
   HEALTH_RETENTION_DAYS, MAX_CLIENT_ID, MAX_USER_LINE, MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay,
-  localDate, NDJSON, type PhotoEvent, type MealLogged,
+  localDate, NDJSON, type PairCodeResponse, type PhotoEvent, type MealLogged,
 } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { DEMO_NOT_FOOD, demoPorts } from "../llm/demo.ts";
@@ -11,6 +11,7 @@ import type { EngineDeps } from "../engine/index.ts";
 import type { LlmPorts } from "../llm/port.ts";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { createRouter } from "./routes.ts";
+import { redeemPairingCode } from "../engine/pairing.ts";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 
@@ -671,6 +672,69 @@ describe("sign-out after a merge", () => {
     expect(dayView.meals).toHaveLength(0);
     const view = await (await get(ROUTES.profile, back.token)).json() as { onboarded: boolean };
     expect(view.onboarded).toBe(false);
+  });
+});
+
+describe("POST /v1/auth/pair", () => {
+  it("mints a code and says when it dies", async () => {
+    const token = await session();
+    const res = await post(ROUTES.authPair, {}, token);
+    expect(res.status).toBe(200);
+    const body = await res.json() as PairCodeResponse;
+    expect(body.code).toMatch(/^[0-9A-HJKMNP-TV-Z]{8}$/);
+    expect(Date.parse(body.expiresAt)).toBeGreaterThan(Date.now());
+  });
+
+  it("needs a bearer — there is nothing here for an unauthenticated caller", async () => {
+    const res = await post(ROUTES.authPair, {});
+    expect(res.status).toBe(401);
+  });
+
+  /**
+   * THE INVARIANT, with a crafted body.
+   *
+   * `userId` is resolved from the credential and passed as an argument; a request that names
+   * somebody else names nothing. This is the assertion that would fail the day a handler starts
+   * reading the body, and it is worth more here than anywhere else on the server, because what this
+   * route hands out is a way into an account.
+   */
+  it("mints for the BEARER's account even when the body names another user", async () => {
+    const mine = await session();
+    const theirs = await session();
+    const victim = (await (await get(ROUTES.profile, theirs)).json() as { profile: { user_id: string } })
+      .profile.user_id;
+
+    const { code } = await (await post(ROUTES.authPair, { userId: victim }, mine)).json() as PairCodeResponse;
+    const paired = await redeemPairingCode(
+      { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() },
+      code,
+    );
+    const landedOn = await store.userIdForToken(paired!);
+    expect(landedOn).not.toBe(victim);
+    expect(landedOn).toBe(await store.userIdForToken(mine));
+  });
+
+  it("takes the session-minting allowance, because it mints the thing that mints a session", async () => {
+    const s = memoryStore();
+    const config: Config = { ...CONFIG, authRateLimitPerHour: 2 };
+    const h = createRouter(
+      { store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
+    const address = "203.0.113.77";
+    const reg = await h(new Request(url(ROUTES.authDevice), {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-forwarded-for": address },
+      body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID() }),
+    }));
+    const { token } = await reg.json() as { token: string };
+    const pair = () => h(new Request(url(ROUTES.authPair), {
+      method: "POST",
+      headers: { "x-forwarded-for": address, authorization: `Bearer ${token}` },
+    }));
+    // The registration above already spent one of the two.
+    expect((await pair()).status).toBe(200);
+    const refused = await pair();
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toEqual({ error: "rate-limited" });
   });
 });
 

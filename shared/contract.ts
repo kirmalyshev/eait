@@ -146,6 +146,15 @@ export const ROUTES = {
   authGoogle: "/v1/auth/google",
   /** Drops the caller's own token. Sign-out, not account deletion. */
   authSignOut: "/v1/auth/signout",
+  /**
+   * POST, under a bearer — mints a short-lived code that hands a BROWSER a session on the caller's
+   * own account. Answers {@link PairCodeResponse}.
+   *
+   * The account it names is the caller's, resolved from the token like every other route here; the
+   * body is not read at all. Redemption is `POST /start/pair`, which mints the ordinary session
+   * token the OAuth callback mints, so nothing downstream learns a new auth path.
+   */
+  authPair: "/v1/auth/pair",
   /** The identities linked to this account, so settings can show what is connected. */
   identities: "/v1/auth/identities",
   profile: "/v1/profile",
@@ -291,6 +300,21 @@ export interface AuthProviderResponse {
 
 export interface IdentitiesResponse {
   identities: { provider: Provider; linkedAt: string }[];
+}
+
+/**
+ * A pairing code, and when it stops working.
+ *
+ * `expiresAt` IS SENT rather than compiled into both sides. The TTL is a limit the server enforces
+ * — a redemption after it is refused there — and a client that carried its own copy of the number
+ * would eventually disagree with the one doing the refusing, which the user meets as a code that
+ * looks live and is not.
+ */
+export interface PairCodeResponse {
+  /** Eight Crockford base32 symbols. Shown to a person, typed by a person; case is not significant. */
+  code: string;
+  /** ISO 8601. */
+  expiresAt: string;
 }
 
 // ── Profile ──────────────────────────────────────────────────────────────────────────────────

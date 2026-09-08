@@ -31,7 +31,7 @@ import type { WebProvider, WebSignInProvider } from "../auth/web-oauth.ts";
 import { checkWebProvider } from "../auth/web-auth-check.ts";
 import {
   cancelPendingMeal, chatHistory, confirmPendingMeal, handleText, logPhotoMeal, onboardingContent,
-  patchProfile, profileView, signInWithProvider, type EngineDeps,
+  patchProfile, profileView, redeemPairingCode, signInWithProvider, type EngineDeps,
 } from "../engine/index.ts";
 import type { Store } from "../store.ts";
 import {
@@ -155,6 +155,20 @@ export interface StartContext {
 const notFound = (): Response =>
   new Response(JSON.stringify({ error: "not found" }), {
     status: 404, headers: { "content-type": "application/json" },
+  });
+
+/**
+ * The per-address refusal, in plain text because both routes that give it are reached by a browser
+ * following a form or a redirect, not by anything that parses JSON.
+ *
+ * ONE SHAPE FOR BOTH. The OAuth callback and the pairing form spend the SAME allowance, so a
+ * caller that could tell the two refusals apart would be learning which route it hit rather than
+ * what to do about it — and the thing to do is the same either way.
+ */
+const tooManyAttempts = (wait: number): Response =>
+  new Response("Too many attempts from this address. Try again shortly.\n", {
+    status: 429,
+    headers: { "content-type": "text/plain; charset=utf-8", "retry-after": String(wait) },
   });
 
 /** 303 and not 302: a POST followed with GET, so a reload does not re-submit the answer. */
@@ -333,7 +347,12 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   // ── The front door ────────────────────────────────────────────────────────────────────────
   if (req.method === "GET" && (pathname === START_PREFIX || pathname === `${START_PREFIX}/`)) {
     const content = await onboardingContent(ctx.deps);
-    const error = url.searchParams.has("error") ? PAGE_COPY.errorSignIn : null;
+    // A CODE, NEVER A SENTENCE — the same rule `?notice=` follows on the chat page. `error=code`
+    // is the pairing form's refusal and anything else is the sign-in's, which is what the OAuth
+    // failure path already sets.
+    const error = url.searchParams.get("error") === "code" ? PAGE_COPY.errorPair
+      : url.searchParams.has("error") ? PAGE_COPY.errorSignIn
+      : null;
     return html(frontDoor(content.welcome.lines, offered.map((p) => ({
       href: `${START_PREFIX}/auth/${p}`, label: PROVIDER_LABEL[p],
     })), error));
@@ -451,10 +470,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     // this function: a 429 from an unconfigured host would say the surface exists.
     const wait = ctx.limitAuth();
     if (wait !== null) {
-      return new Response("Too many sign-in attempts from this address. Try again shortly.\n", {
-        status: 429,
-        headers: { "content-type": "text/plain; charset=utf-8", "retry-after": String(wait) },
-      });
+      return tooManyAttempts(wait);
     }
 
     let token: string;
@@ -478,6 +494,40 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       clearCookie(OAUTH_COOKIE, secure),
       // No Max-Age: a session cookie, gone when the browser closes. The token itself expires on
       // idle time server-side, which is the authority.
+      setCookie(SESSION_COOKIE, token, { secure }),
+    ]);
+  }
+
+  // ── Pairing: a browser trades a code for a session ────────────────────────────────────────
+  //
+  // Unauthenticated by necessity — this is where the browser's session comes from — and therefore
+  // rate limited by address before the body is read, on the same allowance the OAuth callback and
+  // the app's three sign-in routes take.
+  //
+  // A POST AND ONLY A POST. There is no GET here, and that is the design rather than an omission:
+  // a GET that minted a session from `?code=` is a link a stranger can send, after which the
+  // victim's browser is signed into the ATTACKER's account and the victim types their weight into
+  // it — rule 3 at the top of this file, and the reason every state change on this surface is a
+  // form somebody pressed.
+  //
+  // The account comes out of the STORE, by the hash of the code. Nothing in this body names a user
+  // and nothing here would read it if it did.
+  if (req.method === "POST" && pathname === `${START_PREFIX}/pair`) {
+    const wait = ctx.limitAuth();
+    if (wait !== null) {
+      return tooManyAttempts(wait);
+    }
+    const form = await req.formData().catch(() => null);
+    const code = form?.get("code");
+    const token = await redeemPairingCode(ctx.deps, typeof code === "string" ? code : "");
+    // ONE ANSWER for unknown, spent, expired and malformed. Anything else is an oracle for which
+    // codes are live, and the person holding a dead code has the same thing to do in every case.
+    if (token === null) return seeOther(`${START_PREFIX}?error=code`);
+    return seeOther(CHAT_PATH, [
+      // The callback's cookie, verbatim: same name, same flags, no Max-Age. A paired browser holds
+      // an ordinary session and nothing downstream can tell it apart from a signed-in one — which
+      // is the point, and is why `/start/chat` needs no branch for it (an un-onboarded account is
+      // bounced to `/start/q` there, so a browser can even finish onboarding).
       setCookie(SESSION_COOKIE, token, { secure }),
     ]);
   }

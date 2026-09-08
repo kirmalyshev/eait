@@ -403,6 +403,40 @@ export interface Store {
   revokeTokensFor(userId: string): Promise<void>;
   /** What is linked to this account — for the settings screen, and for the merge guard. */
   listIdentities(userId: string): Promise<{ provider: Provider; linkedAt: string }[]>;
+
+  // ── Pairing codes ──────────────────────────────────────────────────────────────────────────
+  //
+  // A short-lived credential an authenticated app session mints so that a BROWSER can be handed an
+  // ordinary session on the same account. It is not an identity and it never becomes one: nothing
+  // here creates a user, links a provider, or merges anything.
+  //
+  // Stored as a HASH, for the reason `auth/tokens.ts` gives about tokens — the nightly dump leaves
+  // this box, and a column holding the eight characters a person types would make that file a way
+  // into every account that is pairing right now.
+
+  /**
+   * Hold `codeHash` for `userId` until `expiresAt` (epoch ms), replacing whatever that account had.
+   *
+   * ONE LIVE CODE PER ACCOUNT is the point of the replacement, not an optimisation: a person who
+   * presses the button twice because the first code did not arrive should be left with exactly the
+   * code in front of them, and the one they walked away from should stop working immediately.
+   *
+   * Sweeps every expired row on the way through — the lazy sweep `issueToken` does, and for the
+   * same reason: minting is rare, and this process has no scheduler.
+   */
+  putPairingCode(userId: string, codeHash: string, expiresAt: number): Promise<void>;
+  /**
+   * Spend a code: delete the row and return the account it named, or null.
+   *
+   * ONE GUARDED DELETE, like `dropPending`. Reading the row and then deleting it would be two
+   * statements a second redemption can interleave between, and the thing being handed out twice is
+   * a session on somebody's account.
+   *
+   * Null covers three cases the caller must not be able to tell apart: never minted, already
+   * spent, and expired. An expired row is DELETED as it is refused, so a clock that moves backwards
+   * cannot make it live again.
+   */
+  claimPairingCode(codeHash: string): Promise<string | null>;
   /**
    * Move everything owned by `fromUserId` onto `intoUserId`, then delete the empty account.
    * Returns the number of meals moved. Photos move with their meals.

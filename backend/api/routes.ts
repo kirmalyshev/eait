@@ -22,6 +22,7 @@ import {
   type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
   type HealthDaysRequest, type HealthDaysResponse, type HealthResponse, type LivenessResponse,
   HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, type PushTokenResponse,
+  type PairCodeResponse,
 } from "@eait/shared";
 import { LANGS } from "@eait/shared";
 import { AuthError, type Verifier } from "../auth/verify.ts";
@@ -29,7 +30,7 @@ import { isCalendarDate } from "@eait/shared";
 import type { Store } from "../store.ts";
 import {
   MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
-  healthTrend, identitiesFor, logPhotoMeal, onboardingContent, patchProfile, profileView,
+  healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, profileView,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, type EngineDeps,
   reanalyzeMeal,
 } from "../engine/index.ts";
@@ -442,6 +443,22 @@ export function createRouter(
 
       if (req.method === "GET" && pathname === ROUTES.identities) {
         return json({ identities: await identitiesFor(deps, userId) } satisfies IdentitiesResponse);
+      }
+
+      // Pair a browser with THIS account. Issue #209.
+      //
+      // Under the bearer like every route below it, and the body is not read at all: the account
+      // this mints for is the one `resolveUserId` returned, and a request naming somebody else
+      // names nothing. There is a test with a crafted body that says so.
+      //
+      // ON THE SESSION-MINTING ALLOWANCE, not the billed one. What comes out of here is redeemable
+      // for a session, so it belongs in the same bucket as the three routes that mint one directly
+      // — and this is the only one of the four that is reached with a credential already in hand,
+      // which is why the check is here rather than in the block above.
+      if (req.method === "POST" && pathname === ROUTES.authPair) {
+        const wait = limit(req, peer, "auth", deps.config.authRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: "rate-limited" });
+        return json(await mintPairingCode(deps, userId) satisfies PairCodeResponse);
       }
 
       // ── Profile ───────────────────────────────────────────────────────────────────────────

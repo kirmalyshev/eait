@@ -311,6 +311,21 @@ create table if not exists pendings (
   expires_at timestamptz not null
 );
 
+-- Browser pairing codes, as SHA-256 hashes. Issue #209.
+--
+-- Same rule as tokens: the column is code_hash and there is no column holding the code itself, so
+-- the nightly dump names accounts that were pairing and does not let its reader pair with them.
+--
+-- user_id is UNIQUE, which is what makes "one live code per account" a constraint rather than a
+-- convention -- the replacement happens in putPairingCode, and this is what says so even if a
+-- second write path is ever added. The cascade is what stops a code outliving its account.
+-- (No backticks in this string: it is a template literal, and one would end it.)
+create table if not exists pairing_codes (
+  code_hash  text primary key,
+  user_id    uuid not null unique references users(id) on delete cascade,
+  expires_at timestamptz not null
+);
+
 -- What a user's own edits say about their portions. One row per corrected item per edit, kept raw
 -- rather than as a running ratio: the summary is a median, and a median cannot be updated in place
 -- without keeping what it was computed from.
@@ -1350,6 +1365,26 @@ export async function postgresStore(
       if (!UUID.test(pendingId)) return false;
       const rows = await sql`delete from pendings where id = ${pendingId} and user_id = ${userId} and expires_at > ${new Date(now())} returning id`;
       return rows.length > 0;
+    },
+
+    async putPairingCode(userId, codeHash, expiresAt) {
+      // The account's previous code AND every expired one, in the statement before the insert.
+      // Minting is rare enough to afford the sweep and there is no scheduler in this process --
+      // the same bargain `issueToken` makes with the tokens table.
+      await sql`delete from pairing_codes
+                where user_id = ${userId} or expires_at <= ${new Date(now())}`;
+      await sql`insert into pairing_codes (code_hash, user_id, expires_at)
+                values (${codeHash}, ${userId}, ${new Date(expiresAt)})`;
+    },
+
+    async claimPairingCode(codeHash) {
+      // The delete is unconditional and the EXPIRY decides what it returns. One statement means
+      // exactly one caller can win the row, which is the single-use guarantee; taking the expired
+      // row out on the way past is what stops a backwards clock reviving it.
+      const rows = await sql`
+        delete from pairing_codes where code_hash = ${codeHash} returning user_id, expires_at`;
+      if (rows.length === 0) return null;
+      return new Date(rows[0].expires_at as string).getTime() > now() ? String(rows[0].user_id) : null;
     },
 
     async putPushToken(userId, token, platform) {
