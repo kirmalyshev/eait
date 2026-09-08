@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { ChatEntry } from "./contract.ts";
 import type { ChatSpeaker } from "./results.ts";
 import type { MealRecord } from "./types.ts";
-import { fromHistory, keepsItsWords, landedLine, lastMealId, mergeThread, reconcilePage, unansweredFor, withUnanswered, type ThreadEntry } from "./thread.ts";
+import { fromHistory, keepsItsWords, landedLine, lastMealId, mergeThread, oneCardPerMeal, reconcilePage, unansweredFor, withUnanswered, type ThreadEntry } from "./thread.ts";
 
 // The Chat screen's reconciliation of three sources of truth — the fetched page, what is on screen,
 // and the turns still in flight. Pure, so every rule the design notes record as hard-won is pinned
@@ -224,5 +224,50 @@ describe("keepsItsWords — #261", () => {
     const page = [userLine("two boiled eggs")];
     const { next } = reconcilePage(page, [ask], new Set(), false);
     expect(next.map((e) => e.id)).toEqual([page[0]!.id]);
+  });
+});
+
+describe("oneCardPerMeal — #301", () => {
+  // One meal, one place in the thread. The stored thread keeps a card per EVENT — logging writes
+  // one, each correction another — and `chatHistory` resolves every one of them to the meal as it
+  // is NOW, so two cards for one meal are the same numbers printed twice.
+  const upd = (m: MealRecord | null, mealId = m?.id ?? null): ChatEntry =>
+    ({ ...base(), role: "assistant", kind: "meal", event: "updated", mealId, meal: m });
+
+  it("keeps only the newest card for a meal, in the newest one's place", () => {
+    const first = card(meal("m1", 300));
+    const between = said("Anything else?");
+    const second = upd(meal("m1", 870));
+    const kept = oneCardPerMeal(fromHistory([first, between, second]));
+    expect(kept.map((e) => e.id)).toEqual([between.id, second.id]);
+  });
+
+  it("drops the stored card under a live result for the same meal, and keeps the live one", () => {
+    // The window the screen is actually in between a correction landing and its page arriving.
+    const stored = fromHistory([card(meal("m1", 300))]);
+    const live: ThreadEntry = {
+      id: "a1", role: "assistant",
+      result: { kind: "updated", mealId: "m1", analysis: meal("m1", 870), totals: { kcal: 870, protein_g: 40, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 }, date: "2026-08-25", via: "nl" },
+    };
+    expect(oneCardPerMeal([...stored, live]).map((e) => e.id)).toEqual(["a1"]);
+  });
+
+  it("leaves two different meals, and every line that is not a meal, alone", () => {
+    const a = card(meal("m1", 300));
+    const b = card(meal("m2", 500));
+    const line = userLine("and a coffee");
+    const entries = fromHistory([a, line, b]);
+    expect(oneCardPerMeal(entries)).toEqual(entries);
+  });
+
+  it("keeps every card whose meal is unknown — nothing says they are the same one", () => {
+    const gone = fromHistory([card(null), card(null)]);
+    expect(oneCardPerMeal(gone)).toHaveLength(2);
+  });
+
+  it("treats a re-date as the meal's newest mention, gone meal included", () => {
+    const logged = card(meal("m1", 300));
+    const moved: ChatEntry = { ...base(), role: "assistant", kind: "meal", event: "redated", mealId: "m1", meal: null };
+    expect(oneCardPerMeal(fromHistory([logged, moved])).map((e) => e.id)).toEqual([moved.id]);
   });
 });

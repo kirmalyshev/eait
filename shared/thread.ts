@@ -215,3 +215,40 @@ export function lastMealId(entries: ChatEntry[], today: string): string | null |
   }
   return undefined; // no card on this page at all — says nothing about the focus
 }
+
+/**
+ * The meal an entry is ABOUT: a stored card's, or a live result that logged, corrected or moved one.
+ * Null for every other line — a line that is not about a meal cannot duplicate one.
+ */
+export function mealIdOf(e: ThreadEntry): string | null {
+  if (e.role === "card") return e.mealId;
+  if (e.role !== "assistant") return null;
+  const k = e.result.kind;
+  return k === "logged" || k === "updated" || k === "redated" ? e.result.mealId : null;
+}
+
+/**
+ * One meal, one place in the thread — its NEWEST mention, and nothing above it (#301).
+ *
+ * The stored thread keeps a card per EVENT: logging writes one, every correction and re-date writes
+ * another. `chatHistory` resolves each of them to the meal as it is NOW, so two cards for one meal
+ * are not a history — they are the same numbers, the same verdicts and the same picture printed
+ * twice, and one correction made the screen read as though the meal had been logged again. The live
+ * result the screen renders before its page arrives is the same meal too, and is deduplicated here
+ * against the stored card rather than by the accident of `mergeThread` dropping every live line.
+ *
+ * At render, not on the way in: the entries are what the server sent and what a page will reconcile
+ * against, and a rule about what a reader may see twice belongs where the reader is.
+ */
+export function oneCardPerMeal(entries: ThreadEntry[]): ThreadEntry[] {
+  const newest = new Map<string, number>();
+  entries.forEach((e, i) => {
+    const id = mealIdOf(e);
+    if (id !== null) newest.set(id, i);
+  });
+  if (newest.size === 0) return entries;
+  return entries.filter((e, i) => {
+    const id = mealIdOf(e);
+    return id === null || newest.get(id) === i;
+  });
+}
