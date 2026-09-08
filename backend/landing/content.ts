@@ -667,7 +667,7 @@ export const privacySection = {
   ],
 } as const;
 
-export const faqSection = { eyebrow: "Questions", headline: "Before you tap." } as const;
+export const faqSection = { eyebrow: "Questions", headline: "Q&A" } as const;
 
 export const faqs: readonly Faq[] = [
   {
