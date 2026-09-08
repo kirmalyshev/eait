@@ -24,7 +24,7 @@ import {
   explainTargets, verdictsFromTargets, visibleVerdicts,
   type Lang, type MealItem, type MealRecord,
 } from "@eait/shared";
-import { localDate, dateMinus, emptyHealthDay, firstVerdictLines, type HealthDay } from "@eait/shared";
+import { localDate, dateMinus, emptyHealthDay, firstVerdictLines, FIXTURE_THREAD, type HealthDay } from "@eait/shared";
 import type { ChatAppend, ProfilePatch, Store } from "../store.ts";
 
 /**
@@ -54,6 +54,13 @@ export interface SeedPersona {
   profile: ProfilePatch | null;
   /** How many calendar days of meals to write, counting back from today. */
   days: number;
+  /**
+   * A fixed thread to write as the user's own lines, instead of one derived from meals.
+   *
+   * For the persona that has to look identical on every run — see `FIXTURE_THREAD`. A persona with
+   * `days > 0` gets its thread from its meals and wants none of this.
+   */
+  thread?: readonly string[];
 }
 
 /**
@@ -91,6 +98,33 @@ export const SEED_PERSONAS: readonly SeedPersona[] = [
     summary: "never onboarded — for driving the onboarding flow repeatedly",
     days: 0,
     profile: null,
+  },
+  {
+    // LAST, and it matters: `seed.test.ts` finds the persona with no health rows by taking the
+    // FIRST with `healthDays === 0`, which is `fresh`. Putting this one ahead of it would silently
+    // change which account that assertion is about.
+    key: "chat",
+    summary: "onboarded, no meals, a fixed thread — the Chat the visual checkpoints baseline (#257)",
+    days: 0,
+    thread: FIXTURE_THREAD,
+    // The answers `app/e2e.tsx` writes, so this persona and the account the E2E button mints read
+    // the same plan — the checkpoints are taken against one of them and looked at in the other.
+    profile: {
+      goal: "lose",
+      sex: "male",
+      birth_year: 1990,
+      height_cm: 183,
+      weight_kg: 93,
+      target_weight_kg: 88,
+      activity: "moderate",
+      pace: "steady",
+      country: "de",
+      restrictions: ["ldl"],
+      medical_limitations: null,
+      food_allergies: null,
+      product_limitations: null,
+      onboarded_at: new Date("2026-01-15T09:00:00.000Z").toISOString(),
+    },
   },
 ];
 
@@ -283,6 +317,15 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
       }).map((text) => ({ role: "assistant", kind: "text", text } as const)));
     }
     for (const t of thread) await store.appendChat(userId, t.lines);
+
+    // The fixed thread, for the persona whose whole job is to look the same on every run. Written
+    // as the user's own lines through the same store interface as everything else in this file, so
+    // `bun test` covers it with no database — and there is nothing to compute, which is the point.
+    if (persona.thread) {
+      await store.appendChat(userId, persona.thread.map(
+        (text) => ({ role: "user", kind: "text", text } as const),
+      ));
+    }
 
     // A week-old account has heard its first verdict. Without this, its next meal would be greeted
     // as the first — a fixture disagreeing with the product.

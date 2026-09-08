@@ -1,7 +1,7 @@
 // The seeder, against the memory store. No database, no docker, runs on every `bun test`.
 
 import { describe, expect, test } from "bun:test";
-import { HEALTH_FIELDS } from "@eait/shared";
+import { FIXTURE_THREAD, HEALTH_FIELDS } from "@eait/shared";
 import { memoryStore } from "../store.memory.ts";
 import { DEFAULT_SEED_PERSONA, SEED_PERSONAS, seedDeviceId, seedDevData } from "./seed.ts";
 
@@ -193,6 +193,44 @@ describe("seedDevData", () => {
     const onboarded = second.find((s) => s.key === DEFAULT_SEED_PERSONA)!;
     expect((await store.mealsForDate(onboarded.userId, TODAY)).length).toBe(3);
     expect(onboarded.meals).toBe(21);
+  });
+
+  // ── the baselineable Chat (#257) ──
+
+  test("the chat persona is onboarded, has a fixed thread, and has nothing that moves", async () => {
+    const store = memoryStore();
+    const [seeded] = await seedDevData(store, { timezone: TZ, today: TODAY, only: ["chat"] });
+    expect(seeded).toBeDefined();
+
+    // Onboarded, so the app opens on the thread rather than on the questions.
+    expect((await store.getProfile(seeded!.userId))?.onboarded_at).not.toBeNull();
+
+    // And carrying NOTHING a screenshot cannot be compared against: no meals means no card and no
+    // photo bubble, so no analyzer numbers and no date on the screen. That is the whole point of
+    // the persona — `assertScreenshot` is disqualified from Chat today by exactly those.
+    expect(seeded!.meals).toBe(0);
+    expect(seeded!.healthDays).toBe(0);
+
+    const lines = await store.chatBefore(seeded!.userId, null, 1000);
+    expect(lines.length).toBe(FIXTURE_THREAD.length);
+    expect(lines.some((m) => m.kind === "meal" || m.kind === "photo")).toBe(false);
+    expect(lines.every((m) => m.role === "user" && m.kind === "text")).toBe(true);
+    // `chatBefore` is newest-first; the thread reads in the order the constant declares.
+    expect([...lines].reverse().map((m) => m.text)).toEqual([...FIXTURE_THREAD]);
+  });
+
+  test("the fixture thread does not depend on the day it was seeded", async () => {
+    // The property that makes it baselineable at all. A thread that differed between two seedings
+    // would be a checkpoint that goes red on a date rather than on a defect — which is the rule
+    // `subflow-visual-check.yaml` states and the reason Chat had no baseline before this.
+    const a = memoryStore();
+    const b = memoryStore();
+    const [today] = await seedDevData(a, { timezone: TZ, today: TODAY, only: ["chat"] });
+    const [muchLater] = await seedDevData(b, { timezone: TZ, today: "2027-03-01", only: ["chat"] });
+
+    const linesOf = async (store: ReturnType<typeof memoryStore>, userId: string) =>
+      (await store.chatBefore(userId, null, 1000)).map((m) => m.text);
+    expect(await linesOf(a, today!.userId)).toEqual(await linesOf(b, muchLater!.userId));
   });
 
   test("an account created by hand survives a re-seed", async () => {

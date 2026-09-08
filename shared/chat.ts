@@ -110,6 +110,39 @@ export const COACH_STARTERS: readonly string[] = [
   "Am I getting enough protein?",
 ];
 
+/**
+ * The fixed thread the deterministic Chat is seeded with. Issue #257.
+ *
+ * WHY IT EXISTS. Nothing in the suite can tell a correctly pinned thread from one whose newest line
+ * is under the dock (#146): `assertVisible` passes on text under the keyboard or behind the tab bar,
+ * `scrollUntilVisible` reports the same PASS whether it swiped or not, and `assertScreenshot` — the
+ * answer `e2e/AGENTS.md` gives for exactly this class — is disqualified from Chat by the rule beside
+ * it, because the screen carries dates and a model's output. So the screen is given a thread that
+ * carries neither, and then it can be baselined like the four that already are.
+ *
+ * EVERY LINE IS THE USER'S, and that is a constraint rather than a style. `POST /v1/messages/lines`
+ * takes arbitrary text for the user's own words only; an assistant line has to name a
+ * `ScriptedLineId`, and borrowing an onboarding or paywall line here would put those words in a
+ * thread that never onboarded and never saw the sheet. What the checkpoints are about is the
+ * GEOMETRY of the newest line against a dock that changes height, and a user line is a line.
+ *
+ * NOTHING IN IT MAY MOVE. No dates, no analyzer numbers, no model output — a checkpoint that went
+ * red at a month boundary is the failure `subflow-visual-check.yaml`'s header describes. There is a
+ * test that seeds it on two different days and compares.
+ *
+ * It is fixture data, and it is here rather than beside either consumer because BOTH sides need the
+ * identical thread: `src/backend/dev/seed.ts` writes it through the store for `--demo`, and
+ * `app/e2e.tsx` appends it through the real route behind `AUTH_FAKE`. Two copies would be a
+ * baseline taken against one of them and checked against the other.
+ */
+export const FIXTURE_THREAD: readonly string[] = [
+  "porridge with berries and a spoon of yoghurt",
+  "flat white, oat milk",
+  "grilled chicken, brown rice and a green salad",
+  "an apple and a small handful of almonds",
+  "baked salmon, roast potatoes, broccoli",
+];
+
 /** Chips under a live answer: at most this many, each at most this long. */
 export const MAX_SUGGESTIONS = 3;
 export const MAX_SUGGESTION = 60;
