@@ -508,10 +508,14 @@ function screens(config: LandingConfig): string {
       <div class="shots" role="region" aria-label="${esc(`${brand.name} screens`)}" tabindex="0">
 ${shots
   .map(
-    (s) => `        <figure class="shot">
+    // THE FIRST SHOT IS EAGER, and the rest are not. This section sits directly under the hero, so
+    // shot one is the first proof a reader meets and it is roughly a screen from the fold — a lazy
+    // image there is a blank card while somebody is deciding whether this is a real product. The
+    // other three are a horizontal scroll away and stay lazy, which is what keeps the section cheap.
+    (s, i) => `        <figure class="shot">
           <div class="shot-frame">
             <img class="shot-img" src="/assets/${esc(s.file)}" width="${s.width}" height="${s.height}"
-                 loading="lazy" decoding="async" alt="${esc(s.alt)}">
+                 ${i === 0 ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" alt="${esc(s.alt)}">
           </div>
           <figcaption class="shot-caption">
             <h3 class="shot-title">${esc(s.title)}</h3>
@@ -760,6 +764,7 @@ ${heroInstrument()}
     </div>
   </section>
 
+${screens(config)}
   <section class="section">
     <div class="wrap">
       <p class="eyebrow">${esc(problemSection.eyebrow)}</p>
@@ -821,7 +826,6 @@ ${whatSection.items
     </div>
   </section>
 
-${screens(config)}
 ${askBand(config, "steps")}
   <section class="section">
     <div class="wrap">

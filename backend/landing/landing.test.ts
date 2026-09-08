@@ -1207,14 +1207,29 @@ describe("the screenshots", () => {
       expect(html).toContain(`alt="${esc(shot.alt)}"`);
     }
     expect([...html.matchAll(/<img class="shot-img"/g)]).toHaveLength(shots.length);
-    // Every image below the fold is lazy: the screenshots, and every photograph except the
-    // hero's. The hero's is NOT lazy and must never be — it is the LCP element, and lazy-loading
-    // it delays the one image the page is judged on, which is why it is asserted eager below by
-    // the attribute that makes it so.
-    const lazyOwners = shots.length + Object.values(photos).filter((p) => p !== photos.hero).length;
+    // Every image below the fold is lazy, and TWO are deliberately not.
+    //
+    // The hero's photograph never may be: it is the LCP element, and lazy-loading it delays the one
+    // image the page is judged on.
+    //
+    // THE FIRST SCREENSHOT IS THE SECOND EXCEPTION, and it became one when this section moved
+    // directly under the hero. It is now the first proof a reader meets, about a screen from the
+    // fold, and a lazy image there is a blank card while somebody is deciding whether this is a
+    // real product — which is the whole reason the section was moved up. The rest are a horizontal
+    // scroll away and stay lazy, which is what keeps the section cheap.
+    //
+    // So this counts `shots.length - 1` rather than a number: main has already changed how many
+    // shots there are once. If a later change moves the section back down, the first shot goes
+    // back to lazy and the subtraction goes away — the attribute follows the position.
+    const lazyOwners =
+      shots.length - 1 + Object.values(photos).filter((p) => p !== photos.hero).length;
     expect([...html.matchAll(/loading="lazy"/g)]).toHaveLength(lazyOwners);
-    expect([...html.matchAll(/fetchpriority="high"/g)]).toHaveLength(1);
+    expect([...html.matchAll(/fetchpriority="high"/g)]).toHaveLength(2);
     expect(html).toContain(`class="plate" src="/assets/${photos.hero.file}"`);
+    // The eager one is the FIRST shot specifically, not whichever shot happens to be eager.
+    expect(html).toMatch(
+      new RegExp(`src="/assets/${shots[0]!.file}"[^>]*fetchpriority="high"`),
+    );
   });
 
   test("every shot is the frame that was audited, byte for byte", () => {
