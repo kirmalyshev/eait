@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { HEALTH_FIELDS, emptyHealthDay, type HealthDay, type HealthMetric } from "./health.ts";
 import {
   COMPARE_SERIES, TREND_PERIODS, bucketSeries, compareSeries, correlate, correlationWords,
-  mergeSince, metricSeries, trendBuckets, trendEndpoints, trendSummary, type DailyPoint,
+  mergeSince, metricSeries, oldestDate, trendBuckets, trendEndpoints, trendSummary, type DailyPoint,
   type TrendBucket, type TrendPeriod, type TrendPoint,
 } from "./trend.ts";
 import { HEALTH_RETENTION_DAYS } from "./contract.ts";
@@ -571,5 +571,74 @@ describe("the five-year window", () => {
       const wider = trendBuckets("years", day, HEALTH_RETENTION_DAYS + 1);
       expect(wider.some((b) => b.end < served)).toBe(true);
     }
+  });
+});
+
+// #183 — a new account drew five permanently empty leading year bars, because the years axis was
+// built from the retention window alone and knew nothing about when the account's rows START.
+// The fourth argument narrows the axis to the account's own history; it can never widen it past
+// the window a read can be answered from, which is the invariant above.
+describe("trendBuckets, years, clamped to the account's oldest row", () => {
+  test("a one-day-old account gets one bar, not six", () => {
+    const b = trendBuckets("years", "2026-09-06", WINDOW, "2026-09-05");
+    expect(b.map((x) => x.label)).toEqual(["2026"]);
+  });
+
+  test("two years of rows get three bars", () => {
+    const b = trendBuckets("years", "2026-09-06", WINDOW, "2024-03-01");
+    expect(b.map((x) => x.label)).toEqual(["2024", "2025", "2026"]);
+  });
+
+  test("a row older than the served window does not widen the axis", () => {
+    const b = trendBuckets("years", MON, WINDOW, "2015-01-01");
+    expect(b.map((x) => x.label)).toEqual(["2021", "2022", "2023", "2024", "2025", "2026"]);
+  });
+
+  test("no oldest row leaves the axis exactly as it was", () => {
+    expect(trendBuckets("years", MON, WINDOW, undefined)).toEqual(trendBuckets("years", MON, WINDOW));
+  });
+
+  // A phone whose clock runs ahead of the server can hold a row dated after `today`. The axis must
+  // still end on today's year rather than count backwards into an empty array.
+  test("a row dated after today still leaves the bucket today falls in", () => {
+    const b = trendBuckets("years", MON, WINDOW, "2027-04-01");
+    expect(b.map((x) => x.label)).toEqual(["2026"]);
+  });
+
+  // The one that catches an axis built from health rows alone: intake rows can be older, and
+  // `bucketSeries` drops a row no bucket contains (`trend.ts`, `if (i === -1) continue`) without
+  // saying so.
+  test("every row of BOTH series lands in a bucket", () => {
+    const health = [{ date: "2026-01-05", value: 90 }, { date: "2025-06-01", value: 91 }];
+    const intake = [{ date: "2024-02-02", value: 2000 }, { date: "2026-02-02", value: 2100 }];
+    const oldest = oldestDate(health, intake);
+    expect(oldest).toBe("2024-02-02");
+    const axis = trendBuckets("years", MON, WINDOW, oldest);
+    for (const series of [health, intake]) {
+      const n = bucketSeries(series, axis, 0).reduce((s, p) => s + p.n, 0);
+      expect(n).toBe(series.length);
+    }
+  });
+
+  test("days, weeks and months ignore the oldest row", () => {
+    for (const period of ["days", "weeks", "months"] as const) {
+      expect(trendBuckets(period, MON, WINDOW, "2026-08-30")).toEqual(trendBuckets(period, MON, WINDOW));
+    }
+  });
+});
+
+describe("oldestDate", () => {
+  test("the minimum date across every series, whatever order they arrive in", () => {
+    // Newest-first is what the screen holds: rows come back `order by date desc`.
+    const days = [{ date: "2026-09-01" }, { date: "2026-08-01" }];
+    const intake = [{ date: "2026-09-02" }, { date: "2025-12-31" }];
+    expect(oldestDate(days, intake)).toBe("2025-12-31");
+    expect(oldestDate(intake, days)).toBe("2025-12-31");
+  });
+
+  test("undefined when there is nothing to be oldest", () => {
+    expect(oldestDate()).toBeUndefined();
+    expect(oldestDate([], [])).toBeUndefined();
+    expect(oldestDate([], [{ date: "2026-01-01" }])).toBe("2026-01-01");
   });
 });

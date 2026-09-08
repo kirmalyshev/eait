@@ -70,8 +70,14 @@ const monthShort = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "s
  * and 2029, and on 30 December 2028. A grep test was written to police the call sites; taking the
  * length instead and deriving the date here makes the wrong call unrepresentable, which is
  * smaller, covers the backend and `scripts/` too, and is checked by `bun run typecheck`.
+ *
+ * THE FOURTH IS THE ACCOUNT'S OLDEST ROW, AND IT ONLY EVER NARROWS THE YEARS AXIS. A new account
+ * drew five permanently empty leading bars, because the axis knew the window but not when the
+ * rows START. It cannot widen the axis past the served window — the promise above outranks it —
+ * so the two clamps compose rather than fight. Pass every series the chart draws (`oldestDate`):
+ * an axis derived from one of them silently drops the other's older rows in `bucketSeries`.
  */
-export function trendBuckets(period: TrendPeriod, today: string, days: number): TrendBucket[] {
+export function trendBuckets(period: TrendPeriod, today: string, days: number, oldestRow?: string): TrendBucket[] {
   switch (period) {
     case "days":
       return Array.from({ length: BUCKETS.days }, (_, i) => {
@@ -97,14 +103,29 @@ export function trendBuckets(period: TrendPeriod, today: string, days: number): 
       // Derived HERE and not above: the other three periods have a fixed bucket count and never
       // read the window, so computing a date for them is a `Date.UTC` and a `toISOString` paid on
       // every axis rebuild for nothing.
-      const from = Number(windowStart(today, days).slice(0, 4));
+      const served = Number(windowStart(today, days).slice(0, 4));
       const to = Number(today.slice(0, 4));
+      // `Math.min` with today's year is not belt-and-braces: a phone whose clock runs behind the
+      // server holds a row dated after `today`, and without it the axis counts backwards to
+      // nothing and every chart reads "Nothing in this period".
+      const from = Math.min(to, oldestRow ? Math.max(served, Number(oldestRow.slice(0, 4))) : served);
       return Array.from({ length: to - from + 1 }, (_, i) => {
         const y = String(from + i);
         return { start: `${y}-01-01`, end: `${y}-12-31`, label: y };
       });
     }
   }
+}
+
+/**
+ * The earliest date across several daily series, or undefined when all of them are empty — what
+ * `trendBuckets` wants for its fourth argument. Rows arrive newest-first, so this is a `min` and
+ * not a `[0]`.
+ */
+export function oldestDate(...series: readonly (readonly { date: string }[])[]): string | undefined {
+  let oldest: string | undefined;
+  for (const rows of series) for (const r of rows) if (oldest === undefined || r.date < oldest) oldest = r.date;
+  return oldest;
 }
 
 /** Mean of the known days in each bucket, rounded to `decimals`. See the header for why a mean. */
