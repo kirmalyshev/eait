@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type { ChatEntry } from "./contract.ts";
 import type { ChatSpeaker } from "./results.ts";
 import type { MealRecord } from "./types.ts";
-import { fromHistory, landedLine, lastMealId, mergeThread, reconcilePage, unansweredFor, withUnanswered, type ThreadEntry } from "./thread.ts";
+import { fromHistory, keepsItsWords, landedLine, lastMealId, mergeThread, reconcilePage, unansweredFor, withUnanswered, type ThreadEntry } from "./thread.ts";
 
 // The Chat screen's reconciliation of three sources of truth — the fetched page, what is on screen,
 // and the turns still in flight. Pure, so every rule the design notes record as hard-won is pinned
@@ -177,5 +177,52 @@ describe("fromHistory — photo bubbles", () => {
       { id: "l1", seq: 1, ts: "2026-09-05T10:00:00.000Z", role: "user", kind: "photo", text: null, mealId: "m1" },
     ]);
     expect(e).toEqual({ id: "l1", role: "user", text: null, photo: true, stored: true, mealId: "m1" });
+  });
+});
+
+describe("keepsItsWords — #261", () => {
+  it("keeps the words of the one refusal a purchase can answer, and of no other", () => {
+    expect(keepsItsWords("subscription-required")).toBe(true);
+    // Final for this turn: a retry under either cannot work, so a kept bubble would invite one.
+    expect(keepsItsWords("cap-exceeded")).toBe(false);
+    expect(keepsItsWords("no-food")).toBe(false);
+    // Never reaches the question — it takes the `failed` path, where "not sent" is true.
+    expect(keepsItsWords("analysis-failed")).toBe(false);
+  });
+
+  it("a refused bubble survives the page that drops every other live line, and earns no notice", () => {
+    // What the screen holds after a 402: the words, marked, with the id still in flight — and the
+    // refusal notice beside them, which IS a moment and goes with the page.
+    const refused: ThreadEntry = { id: "c1", role: "user", text: "a bowl of porridge with blueberries", refused: true };
+    const notice: ThreadEntry = { id: "e1", role: "error", refusal: "subscription-required" };
+    // The server kept no line for a refused turn, so the page that lands seconds later carries the
+    // meal BEFORE it and nothing of this one. That page is what used to take the words away.
+    const page = [userLine("two boiled eggs"), said("Logged.")];
+    const { next, superseded } = reconcilePage(page, [refused, notice], new Set(["c1"]), false);
+    expect(next.map((e) => e.id)).toEqual([page[0]!.id, page[1]!.id, "c1"]);
+    // Nothing settled it: only a stored line carrying its id can, and a refusal leaves none.
+    expect(superseded).toEqual([]);
+    // And no "unanswered" notice — that belongs to a turn that LANDED and proposed nothing.
+    expect(next.some((e) => e.role === "error" && e.refusal === "unanswered")).toBe(false);
+  });
+
+  it("keeps the ask with the words it answers, and drops a notice belonging to nothing", () => {
+    const refused: ThreadEntry = { id: "c1", role: "user", text: "porridge", refused: true };
+    // The ask under those words: it carries the buy button, and after the purchase it is the only
+    // confirmation the screen gives. Taking it while keeping the words left exactly that hole.
+    const ask: ThreadEntry = { id: "e1", role: "error", refusal: "subscription-required", for: "c1" };
+    // A moment, belonging to no kept bubble: it goes with the page, the way every notice used to.
+    const moment: ThreadEntry = { id: "e2", role: "error", refusal: "cap-exceeded" };
+    const page = [userLine("two boiled eggs"), said("Logged.")];
+    const { next } = reconcilePage(page, [refused, ask, moment], new Set(["c1"]), false);
+    expect(next.map((e) => e.id)).toEqual([page[0]!.id, page[1]!.id, "c1", "e1"]);
+  });
+
+  it("drops the ask once its bubble is retried — one tap takes both", () => {
+    // `retry` drains the id and removes the bubble; the ask has nothing left to belong to.
+    const ask: ThreadEntry = { id: "e1", role: "error", refusal: "subscription-required", for: "c1" };
+    const page = [userLine("two boiled eggs")];
+    const { next } = reconcilePage(page, [ask], new Set(), false);
+    expect(next.map((e) => e.id)).toEqual([page[0]!.id]);
   });
 });

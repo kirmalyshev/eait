@@ -20,9 +20,16 @@ export type ThreadEntry =
   /**
    * A photo bubble has no bytes and may have no caption: `text` null, glyph only. `failed`: the
    * turn did not come back; the bubble stays, marked, until the user taps it to retry.
+   *
+   * `refused`: the turn WAS answered — with a 402 — and the words are kept anyway, because the
+   * answer is one the user can act on. Distinct from `failed` and never worded as "not sent": that
+   * would offer a retry of a turn the server read and decided about. The bubble survives the page
+   * the same way, by its id staying in the screen's in-flight set; `reconcilePage` only supersedes
+   * a kept bubble when the page carries a stored line for it, and a refused turn leaves none, so
+   * this earns no "unanswered" notice either. See `keepsItsWords`.
    */
   | {
-      id: string; role: "user"; text: string | null; photo?: boolean; stored?: boolean; failed?: boolean;
+      id: string; role: "user"; text: string | null; photo?: boolean; stored?: boolean; failed?: boolean; refused?: boolean;
       /** On a stored photo bubble: the meal it logged, which is how the picture is fetched. */
       mealId?: string | null;
       /** On a stored text line: the bubble it landed for, and the proposal it made — what the screen reads back. */
@@ -31,7 +38,15 @@ export type ThreadEntry =
   | { id: string; role: "assistant"; result: ChatResult; stored?: boolean }
   /** A card from the stored thread: the meal as it is NOW, or gone. */
   | { id: string; role: "card"; event: ChatEvent; mealId: string | null; meal: MealRecord | null; stored: true }
-  | { id: string; role: "error"; refusal: string; scope?: string | undefined };
+  /**
+   * A moment: the notice a turn earned, derived from the bubble it answers, gone with the next page.
+   *
+   * `for` is the exception and names the bubble it belongs to. An ask the user can ACT on is not a
+   * moment — `subscription-required` carries the button that takes their money, and its answer once
+   * they have is the only confirmation the screen gives — so it lives exactly as long as the words
+   * it sits under (`keepsItsWords`), and goes when they do.
+   */
+  | { id: string; role: "error"; refusal: string; scope?: string | undefined; for?: string };
 
 /** The server's thread in the screen's shape. Ids are the server's, so a page never duplicates. */
 export function fromHistory(entries: ChatEntry[]): ThreadEntry[] {
@@ -74,7 +89,15 @@ export function mergeThread(page: ThreadEntry[], prev: ThreadEntry[], inflight: 
       const now = e.role === "card" && e.mealId ? fresh.get(e.mealId) : undefined;
       return now === undefined ? e : { ...e, meal: now };
     });
-  const live = prev.filter((e) => !seen.has(e.id) && !("stored" in e && e.stored) && (proposals.includes(e) || (e.role === "user" && inflight.has(e.id))));
+  // An error entry with `for` is kept exactly while the bubble it answers is: the ask and the words
+  // it sits under are one thing to a reader, and a page that took only one of them left either a
+  // meal nobody could act on or — the way this was found — a purchase with no confirmation on the
+  // screen it was made from.
+  const live = prev.filter((e) => !seen.has(e.id) && !("stored" in e && e.stored) && (
+    proposals.includes(e)
+    || (e.role === "user" && inflight.has(e.id))
+    || (e.role === "error" && e.for !== undefined && inflight.has(e.for))
+  ));
   return [...older, ...page, ...live];
 }
 
@@ -130,6 +153,20 @@ export function reconcilePage(
   });
   return { next, linesChanged, changed: linesChanged || recordsChanged, superseded: superseded.map((e) => e.id) };
 }
+
+/**
+ * Whether a refusal leaves the user's words worth keeping on screen.
+ *
+ * ONLY THE ONE THE USER CAN ANSWER. `subscription-required` is refused now and allowed after a
+ * purchase, and the purchase is made from the ask rendered directly under those words — so dropping
+ * them means somebody who has just paid has to retype the meal they already typed (#261). Every
+ * other refusal is final for this turn: a spent daily cap resets at midnight and a network cap is
+ * not about this account, so a bubble kept under either is a retry that cannot work.
+ *
+ * `analysis-failed` is not here because it never reaches this question: it is not a refusal of the
+ * turn but an upstream that fell over, and it takes the `failed` path, where "not sent" is true.
+ */
+export const keepsItsWords = (error: string): boolean => error === "subscription-required";
 
 /** The stored line a bubble landed as: the one carrying the id the phone sent with the turn. */
 export function landedLine(entries: ThreadEntry[], clientId: string): (ThreadEntry & { role: "user" }) | undefined {
