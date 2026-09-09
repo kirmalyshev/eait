@@ -98,7 +98,7 @@ export const brand = {
    * it is the H1's promise in three words. Neither is a health claim, so `claims.ts` permits both
    * — `lose weight` is what it would refuse, and that is not a sentence this product needs.
    */
-  title: "Photo calorie tracker with a verdict — eait",
+  title: "AI calorie tracker with a verdict — eait",
   /** The positioning line the review panel found the page never says in one sentence. */
   tagline: "Photograph the plate and get a verdict against your own day.",
 } as const;
