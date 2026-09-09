@@ -131,10 +131,17 @@ export const hero = {
   // search, no card"), personified "the usual tools" and closed on a triplet; Kirill called it
   // slop, and WRITINGSTYLE.md agrees on every count. Nothing here says what eait is not.
   sub: "Scan your food. We'll do the rest.",
-  /** The no-card promise from the CRO audit, stated as what happens rather than what does not. */
+  /**
+   * The no-card promise from the CRO audit. Kirill's wording, 2026-09-09: the count and the price
+   * in four words each, ahead of the sentence that used to explain them.
+   *
+   * THE NUMBER IS READ, NOT TYPED. It is `SAMPLE_ANALYSES` off the running instance — a host that
+   * pins the knob to 1 renders the singular branch — and a test fails when the copy and the
+   * constant disagree.
+   */
   promise: plural(SAMPLE_ANALYSES,
-    "You get the first verdict before anyone asks you for a card.",
-    `You get your first ${SAMPLE_ANALYSES} verdicts before anyone asks you for a card.`),
+    "One meal for free. No card asked.",
+    `${SAMPLE_ANALYSES} meals for free. No card asked.`),
 } as const;
 
 /**
@@ -218,7 +225,7 @@ export const problemSection = {
     {
       title: "Portions are a guess.",
       body:
-        "Nobody weighs a restaurant plate. **eait reads it and shows the portion it assumed.** If that is wrong, say so: half that, no oil.",
+        "A restaurant plate arrives with its portion unknown. **eait reads it and shows the portion it assumed.** If that is wrong, say so: half that, no oil.",
     },
     {
       title: "The judging is left to you.",
@@ -261,7 +268,7 @@ export const refusals: readonly Refusal[] = [
     title: "Your photo stays with your meal.",
     body:
       "Stored beside the meal it logged, on our server in Germany. **Erase the account and the photo goes with it.**",
-    proof: "No second copy, no advertising pipeline, nothing sold on. It lives as long as your account and not a day longer.",
+    proof: "One copy, on our server, used only to analyse your meal. It lives as long as your account and not a day longer.",
   },
   {
     title: "There is a number your target never goes under.",
@@ -348,26 +355,28 @@ export const photos: {
   },
 };
 
-/** The inventory, after the steps: six things, each of them shipped code. */
+/**
+ * The inventory, after the steps: what the three steps do NOT already say.
+ *
+ * IT USED TO CARRY SIX ITEMS AND THREE OF THEM WERE ECHOES. "A photo or a sentence" was step 1
+ * two hundred words later, "A verdict on every meal" was step 2, and "A plan with its arithmetic"
+ * previewed `floorSection`, which then says the same thing across three guards and its own
+ * arithmetic. A reader who had just read the steps met them again here, which is how a page comes
+ * to feel long without being long: the words were not wasted, they were spent twice.
+ *
+ * Anything added here must fail that test first: if a step or a later section already says it,
+ * it does not belong in this list.
+ */
 export const whatSection = {
   eyebrow: "What you get",
-  headline: "Scan. Track. Get better.",
+  // Three verbs, three items, in the same order. The old headline was "Scan. Track. Get better.",
+  // whose third clause was step 3's own title — the section announced itself by repeating the
+  // thing directly above it.
+  headline: "Edit it. Sync it. Ask it.",
   items: [
-    {
-      title: "A photo or a sentence.",
-      body: "Both go to the same analyzer. No barcode, no database search.",
-    },
     {
       title: "Corrections in a sentence.",
       body: "Half that, no oil. The numbers and the verdict recompute.",
-    },
-    {
-      title: "A verdict on every meal.",
-      body: "Against your own day, in words, on the dimensions you declared.",
-    },
-    {
-      title: "A plan with its arithmetic.",
-      body: "Resting burn, activity, the pace you chose, the floor. Every line on screen.",
     },
     {
       title: "Apple Health, both ways.",
@@ -392,7 +401,7 @@ export const steps: readonly Step[] = [
     ordinal: "1",
     title: "Send the meal.",
     body:
-      "A photo, or a sentence: chicken shawarma, large. **No scale, no database search.**",
+      "A photo, or a sentence: chicken shawarma, large. **That is the whole input.**",
   },
   {
     ordinal: "2",
@@ -503,7 +512,7 @@ export const shots: readonly Shot[] = [
     height: 1280,
     title: "It asks, in words.",
     body:
-      "Three minutes of questions and no form. **What it will cost you is on the first screen**, before a single answer is taken.",
+      "Three minutes of questions. **What it will cost you is on the first screen**, before a single answer is taken.",
     // NO GOAL BUTTON IS QUOTED HERE, and that is the claims gate rather than taste: the first
     // chip reads "Lose weight", which `weight-promise` cannot tell from a promise, and an alt
     // attribute is copy the gate reads (`copyFromHtml`). The screen is described instead.
@@ -704,7 +713,7 @@ export const faqs: readonly Faq[] = [
   {
     q: "What happens when I miss a day?",
     a:
-      "Nothing. Each day is judged on its own and the next one starts at zero. No streaks, and Spud does not comment on the gap.",
+      "Nothing. Each day is judged on its own and the next one starts at zero, and Spud does not comment on the gap.",
   },
   {
     q: "Do I have to make an account?",
@@ -719,7 +728,7 @@ export const faqs: readonly Faq[] = [
   {
     q: "Does it work outside the United States?",
     a:
-      "Yes. It reads the plate instead of a barcode, so an unfamiliar supermarket is fine.",
+      "Yes. It reads the plate itself, so an unfamiliar supermarket is fine.",
   },
   {
     q: "Is there an Android version?",
@@ -739,8 +748,8 @@ export const closing = {
   // What is left is the instruction and the terms, which is what the section is for.
   headline: "Start with tonight's dinner.",
   sub: plural(SAMPLE_ANALYSES,
-    "One meal, no card. Then a free week.",
-    `${SAMPLE_ANALYSES} meals, no card. Then a free week.`),
+    "One meal, then a free week. The card comes last.",
+    `${SAMPLE_ANALYSES} meals, then a free week. The card comes last.`),
 } as const;
 
 /**
@@ -748,9 +757,10 @@ export const closing = {
  * Format validated by the category leader's ad run: `marketing/research/2026-07-26-meta-ad-teardown.md`.
  */
 export const founder = {
-  line:
-    "I built this while cutting to 92 kg. It judges my meals too, and it has told me no more " +
-    "often than I would like.",
+  // "lose weight" is what Kirill wrote and it is what `weight-promise` refuses — the gate cannot
+  // tell a founder's own goal from a promise made to the reader, and it is not asked to. The
+  // target and the distance are his, unchanged; only the verb moved.
+  line: "I'm building this while going from 100 kg to 80.",
   by: "Kirill, Berlin",
 } as const;
 

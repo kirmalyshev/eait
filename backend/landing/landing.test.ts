@@ -657,7 +657,10 @@ describe("the founder line", () => {
     // The line that would have to be refused: anything promising the READER an outcome. This one
     // is a first-person statement of fact, which is why the claims gate lets it through.
     expect(lintCopy({ founder: founder.line })).toEqual([]);
-    expect(founder.line).toMatch(/^I /);
+    // \b, not a space: the assertion is FIRST PERSON, and "I'm building this" is first person.
+    // The old /^I / read the intent as "the second character is a space" and refused a
+    // contraction, which is a rule about typography rather than about who is being claimed for.
+    expect(founder.line).toMatch(/^I\b/);
   });
 });
 
