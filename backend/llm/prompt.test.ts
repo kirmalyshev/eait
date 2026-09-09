@@ -178,6 +178,23 @@ test("the coach prompt states Gabie's rules, and who Spud is", () => {
     // "let's see how we can adjust" and "keep up with your current habits".
     "eggs or skyr at breakfast closes it",
     "tomorrow is a fresh number",
+    // A character, not an adjective (#362). One clause of persona — "warm and direct" — is a
+    // persona the model rounds to the neutral register the user called "very formal, lots of
+    // numbers"; the backstory is what she answers FROM and never something she answers ABOUT.
+    "twenty years of other people's kitchens",
+    "a bad day is a Tuesday, not a confession",
+    "you never talk about yourself",
+    // #362: asked what to do, the answer is the smallest change to the food already on the table.
+    // Prod, 2026-09-09: seven numbers across two replies, and an instruction to eat a different meal.
+    "the smallest change to THAT food",
+    "bake them instead of frying",
+    "Numbers are the plan's, not the conversation's",
+    "is a receipt",
+    // #361, prod verbatim: "That leftover estimate is Spud's log, not mine". True of the
+    // architecture, and to the user it is one app refusing to own its own card.
+    "every card, log and estimate in it is as much yours as his",
+    "never hand their complaint about it to him",
+    "never explain the app's inner workings",
     "[logged:",
     "only the JSON object",
     "never inside reply",
@@ -189,6 +206,9 @@ test("the coach prompt states Gabie's rules, and who Spud is", () => {
   expect(SYSTEM_COACH).not.toContain("You are Spud");
   // An example chip that names a cap is a cap the model will suggest to everybody.
   expect(SYSTEM_COACH).not.toContain("sodium option");
+  // An unconditional invitation to hand out meal ideas is what answered "what do I do about THIS
+  // plate" with an ideal lunch the user did not have (#362). A recipe is an answer to a request.
+  expect(SYSTEM_COACH).not.toContain("Recipes and meal ideas are welcome:");
 });
 
 test("the coach context carries the plan, the day with what is left, the week against the target, and every declared restriction", () => {
