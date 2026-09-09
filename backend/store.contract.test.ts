@@ -886,6 +886,28 @@ function contract(name: string, make: () => Promise<Store>) {
       expect((await s.identityFor("apple", subject("mail")))?.email).toBe("a@example.com");
     });
 
+    it("hands back one address for the account, the oldest that has one", async () => {
+      // `/start` reads this to guess a country before it asks for one (#365). Two identities is the
+      // ordinary shape of an account that signed in twice, and Apple's relay means the one with an
+      // address is often not the first one linked — so "the oldest that HAS one" is the rule, and
+      // an account with none answers null rather than throwing.
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      expect(await s.emailForUser(u)).toBeNull();
+
+      await s.addIdentity(u, "apple", subject("relay"));
+      expect(await s.emailForUser(u)).toBeNull();
+
+      await s.addIdentity(u, "google", subject("addressed"));
+      await s.setIdentityEmail(u, "google", subject("addressed"), "someone@gmx.de");
+      expect(await s.emailForUser(u)).toBe("someone@gmx.de");
+
+      // Another account's address is another account's, on the one lookup whose whole purpose is
+      // to read a stranger's personal data if it is scoped wrong.
+      const other = (await s.upsertDeviceUser(device(), "en")).userId;
+      expect(await s.emailForUser(other)).toBeNull();
+    });
+
     it("lets a later address replace the one stored", async () => {
       // Google sends an address in EVERY token, so a changed one catches up on the next sign-in.
       // The other half of that rule — an ABSENT address must never overwrite a stored one — is not

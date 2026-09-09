@@ -87,8 +87,10 @@ function router(config: Config, providers = PROVIDERS, llm = demoPorts()) {
   handle = (req) => handler(req);
 }
 
-const get = (path: string, cookie?: string) =>
-  handle(new Request(`https://api.eait.fit${path}`, { headers: cookie ? { cookie } : {} }));
+const get = (path: string, cookie?: string, headers: Record<string, string> = {}) =>
+  handle(new Request(`https://api.eait.fit${path}`, {
+    headers: { ...(cookie ? { cookie } : {}), ...headers },
+  }));
 
 const post = (path: string, form: Record<string, string | string[]>, cookie?: string) => {
   const body = new URLSearchParams();
@@ -111,6 +113,13 @@ const post = (path: string, form: Record<string, string | string[]>, cookie?: st
 };
 
 /** The `name=value` of one Set-Cookie, for handing back on the next request. */
+/** The account behind a `eait_web=<token>` cookie line, for a test that reads what a page wrote. */
+async function webUser(sessionCookie: string): Promise<string> {
+  const userId = await store.userIdForToken(sessionCookie.split("=")[1]!);
+  if (!userId) throw new Error("that session has no account");
+  return userId;
+}
+
 function cookieFrom(res: Response, name: string): string {
   const all = res.headers.getSetCookie();
   const line = all.find((c) => c.startsWith(`${name}=`));
@@ -484,14 +493,55 @@ describe("the questions", () => {
       asked.push(id);
       await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
     }
-    // No `country`: it is the one OPTIONAL screen and the shipped content has it switched off, so
-    // the app does not ask it either. Asserted rather than assumed — a question this surface asked
-    // and the app did not would be two different onboardings behind one profile.
-    expect(disabledScreens(DEFAULT_ONBOARDING_CONTENT)).toContain("country");
+    // `country` IS asked here, and only because this request says nothing about where it is from:
+    // `get` sends no `Accept-Language` and the account has no address. That is the whole rule —
+    // the question is put to exactly the clients that could not answer it (#365). A browser that
+    // does answer it is the test below, and the app applies the same rule from `getLocales()`.
+    expect(disabledScreens(DEFAULT_ONBOARDING_CONTENT)).toEqual([]);
     expect(asked).toEqual([
       "goal", "sex", "birth_year", "height_cm", "weight_kg",
-      "target_weight_kg", "pace", "activity", "restrictions",
+      "target_weight_kg", "pace", "activity", "country", "restrictions",
     ]);
+  });
+
+  it("does not ask a browser that already says where it is, and writes what it said", async () => {
+    const session = await signIn();
+    const asked: string[] = [];
+    for (let i = 0; i < 20; i++) {
+      const page = await get("/start/q", session, { "accept-language": "de-DE,de;q=0.9,en;q=0.8" });
+      if (page.status === 303) break;
+      const html = await page.text();
+      const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
+      asked.push(id);
+      await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+    }
+    expect(asked).not.toContain("country");
+    // NOT ASKED IS NOT THE SAME AS NOT ANSWERED. The value is what the analyzer reads, so a
+    // question skipped because the browser knew the answer has to leave that answer behind — the
+    // whole of #359 was a country field nothing filled and nothing asked for.
+    expect((await store.getProfile(await webUser(session)))!.country).toBe("de");
+  });
+
+  it("offers the country the sign-in address names, first, when nothing else could tell", async () => {
+    const session = await signIn();
+    const userId = await webUser(session);
+    await store.setIdentityEmail(userId, "google", "web-subject", "someone@gmx.de");
+
+    // No `Accept-Language`, so the address is all there is — a HINT, which orders the options and
+    // does not answer them. Walk up to the country question rather than through it.
+    let html = "";
+    for (let i = 0; i < 20; i++) {
+      const page = await get("/start/q", session);
+      html = await page.text();
+      const id = html.match(/name="prompt" value="([a-z_]+)"/)?.[1];
+      if (id === undefined || id === "country") break;
+      await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+    }
+    expect(html).toContain('name="prompt" value="country"');
+    const order = [...html.matchAll(/value="(de|gb|us|ru|other)"/g)].map((m) => m[1]);
+    expect(order[0]).toBe("de");
+    // An ORDER, not an answer: the field is still empty, and it is the user who fills it.
+    expect((await store.getProfile(userId))!.country).toBeNull();
   });
 
   it("asks a screen the admin switches back on", async () => {

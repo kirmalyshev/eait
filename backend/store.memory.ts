@@ -314,6 +314,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         .map((i) => ({ provider: i.provider, linkedAt: i.linkedAt }));
     },
 
+    async emailForUser(userId) {
+      // Same order as Postgres: the oldest identity that has one. Sorted rather than assumed —
+      // the array is append-ordered today and a merge already reassigns rows in it.
+      return identities
+        .filter((i) => i.userId === userId && i.email)
+        .sort((a, b) => a.linkedAt.localeCompare(b.linkedAt))[0]?.email ?? null;
+    },
+
     async mergeUsers(fromUserId, intoUserId) {
       let moved = 0;
       for (const [id, m] of meals) {

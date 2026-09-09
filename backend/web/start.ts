@@ -21,7 +21,8 @@
 import {
   AMBIGUOUS_AGE, RESTRICTION_TAGS, SCREEN_OPTIONS, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
   askPlaceholder, checkDirection, checkNumber, disabledScreens, isAnswered, promptsFor,
-  isRefusal, MAX_USER_LINE, renderableVerdicts, screenForStep, screenOptions, switchedLine,
+  isRefusal, MAX_USER_LINE, renderableVerdicts, resolveCountry, screenForStep, screenOptions,
+  suggestionFirst, switchedLine,
   verdictPillLabel,
   type ChatEntry, type ChatPrompt, type Goal, type NumberField, type OnboardingContent,
   type PatchProfileRequest, type Profile,
@@ -232,15 +233,41 @@ const randomToken = (): string => crypto.randomUUID().replace(/-/g, "");
  */
 const failedCallback = (pathname: string): Response => seeOther(pathname);
 
-/** The questions this surface asks: every prompt that fills a profile field, in the app's order. */
-function questionsFor(profile: Profile, content: OnboardingContent): ChatPrompt[] {
-  return promptsFor(profile, disabledScreens(content)).filter((p) => p.field !== undefined);
+/**
+ * The questions this surface asks: every prompt that fills a profile field, in the app's order.
+ *
+ * `askCountry` is the browser's half of the rule the phone applies in `onboarding.tsx` — the group
+ * is switched on now, and what decides who meets it is whether the client could answer it. Two
+ * surfaces asking different questions behind one profile is the thing the test below has an
+ * assertion against, so this takes the decision as an argument rather than making a second one.
+ */
+function questionsFor(profile: Profile, content: OnboardingContent, askCountry = true): ChatPrompt[] {
+  const off = disabledScreens(content);
+  return promptsFor(profile, askCountry ? off : [...off, "country"])
+    .filter((p) => p.field !== undefined);
 }
 
+/**
+ * The language tags this browser asked for, best first.
+ *
+ * The `q` weights are dropped rather than sorted on: browsers send the list in descending order
+ * already, and a header that does not is a header whose own order is the best evidence there is.
+ */
+export function acceptLanguageTags(header: string | null | undefined): string[] {
+  return (header ?? "")
+    .split(",")
+    .map((part) => part.split(";")[0]!.trim())
+    .filter((tag) => tag !== "" && tag !== "*");
+}
+
+/** A tag's region: the first two-letter subtag after the language, so "zh-Hans-CN" still answers. */
+const regionOf = (tag: string): string | undefined =>
+  tag.split("-").slice(1).find((part) => /^[A-Za-z]{2}$/.test(part));
+
 /** The values a choice or chips question offers, with the admin's labels on them. */
-function optionsFor(prompt: ChatPrompt, content: OnboardingContent): QuestionOption[] {
+function optionsFor(prompt: ChatPrompt, content: OnboardingContent, suggested: string | null = null): QuestionOption[] {
   const screen = screenForStep(prompt.field!);
-  const values = prompt.options ?? SCREEN_OPTIONS[screen] ?? [];
+  const values = suggestionFirst(prompt.options ?? SCREEN_OPTIONS[screen] ?? [], suggested);
   const labels = screenOptions(content, screen);
   return values.map((value) => ({
     value,
@@ -550,11 +577,31 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
 
   if (pathname === `${START_PREFIX}/q`) {
     const { profile, content } = await view();
-    const questions = questionsFor(profile, content);
+
+    // THE COUNTRY, DECIDED THE WAY THE PHONE DECIDES IT (#365). The browser's own languages answer
+    // it for most people and it is never put to them; the rest are asked, with whatever the header
+    // or their sign-in address hinted at offered first. Resolved once, only while the field is
+    // still empty — the write below fills it, and every later render takes this branch no further.
+    //
+    // The address is read HERE and goes no further: `emailForUser` exists so that its ANSWER, a
+    // country code, is the only thing that leaves the server. See the note on the port.
+    const tags = acceptLanguageTags(req.headers.get("accept-language"));
+    const resolved = profile.country === null
+      ? resolveCountry({
+          regions: tags.map(regionOf),
+          languages: tags,
+          email: await ctx.store.emailForUser(userId),
+        })
+      : null;
+    // The app's `fillCountryFromDevice`, on this surface. Awaited but not checked: a lost country
+    // is a correctable one, and a question we have decided not to ask is not worth an error page.
+    if (resolved && !resolved.ask) await patchProfile(ctx.deps, userId, { country: resolved.country });
+
+    const questions = questionsFor(profile, content, resolved === null || resolved.ask);
     const openIndex = questions.findIndex((p) => !isAnswered(p, profile));
 
     const ask = (error: string | null, actions: Action[] = []) =>
-      html(renderQuestion(questions, openIndex, profile, content, error, actions));
+      html(renderQuestion(questions, openIndex, profile, content, error, actions, resolved?.country ?? null));
 
     if (req.method === "GET") {
       if (openIndex === -1) return seeOther(`${START_PREFIX}/plan`);
@@ -835,13 +882,14 @@ function renderQuestion(
   content: OnboardingContent,
   error: string | null,
   actions: Action[] = [],
+  suggested: string | null = null,
 ): string {
   const prompt = questions[index]!;
   return question({
     promptId: prompt.id,
     kind: prompt.kind === "chips" ? "chips" : prompt.kind === "number" ? "number" : "choice",
     lines: askLines(prompt, content, profile),
-    options: prompt.kind === "number" ? [] : optionsFor(prompt, content),
+    options: prompt.kind === "number" ? [] : optionsFor(prompt, content, suggested),
     placeholder: askPlaceholder(prompt, content),
     error,
     actions,

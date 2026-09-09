@@ -9,7 +9,8 @@ import { describe, expect, it } from "bun:test";
 import {
   DEFAULT_ONBOARDING_CONTENT, ONBOARDING_INTERSTITIALS, ONBOARDING_PLACES, ONBOARDING_SCREENS,
   ONBOARDING_STEPS,
-  KCAL_FLOOR, COUNTRY_CODES, countryFromRegion,
+  KCAL_FLOOR, COUNTRY_CODES, countryFromRegion, resolveCountry, suggestionFirst,
+  type CountrySignals,
   REPORTABLE_FIELDS, SCREEN_FIELDS, disabledScreens,
   screenForStep, usableContent, validateOnboardingContent,
   type OnboardingContent, type Profile,
@@ -474,5 +475,69 @@ describe("the country the phone already knows", () => {
     for (const r of ["DE", "gb", "us", "RU", "zz", "", null]) {
       expect(COUNTRY_CODES as readonly string[]).toContain(countryFromRegion(r));
     }
+  });
+});
+
+describe("resolving the country, and deciding whether to ask", () => {
+  it("takes a curated region and does not ask", () => {
+    expect(resolveCountry({ regions: ["DE"] })).toEqual({ country: "de", ask: false });
+    // Every locale the phone lists, not only the first: an expat's second locale is the one that
+    // knows where they are. This is the c91f16b7 case — a US App Store region on a phone whose
+    // other locale is German (#359).
+    expect(resolveCountry({ regions: [null, "zz", "gb"] })).toEqual({ country: "gb", ask: false });
+  });
+
+  it("asks when nothing answers, and suggests nothing", () => {
+    expect(resolveCountry({})).toEqual({ country: "other", ask: true });
+    expect(resolveCountry({ regions: ["BR", "FR"] })).toEqual({ country: "other", ask: true });
+  });
+
+  it("suggests from the language, and still asks", () => {
+    // A language is a hint, never an answer: it says which supermarket they might know, not which
+    // one they are standing in. So it seeds the question rather than skipping it.
+    expect(resolveCountry({ regions: ["BR"], languages: ["de"] })).toEqual({ country: "de", ask: true });
+    expect(resolveCountry({ languages: ["ru-RU"] })).toEqual({ country: "ru", ask: true });
+    // English cannot tell gb from us, so it suggests neither.
+    expect(resolveCountry({ languages: ["en"] })).toEqual({ country: "other", ask: true });
+  });
+
+  it("suggests from the email's own country, and still asks", () => {
+    expect(resolveCountry({ email: "someone@gmx.de" })).toEqual({ country: "de", ask: true });
+    expect(resolveCountry({ email: "SOMEONE@Mail.RU" })).toEqual({ country: "ru", ask: true });
+    expect(resolveCountry({ email: "someone@bbc.co.uk" })).toEqual({ country: "gb", ask: true });
+    // The addresses most people actually have say nothing, and neither does Apple's relay.
+    expect(resolveCountry({ email: "someone@gmail.com" })).toEqual({ country: "other", ask: true });
+    expect(resolveCountry({ email: "x@privaterelay.appleid.com" })).toEqual({ country: "other", ask: true });
+    expect(resolveCountry({ email: "not an address" })).toEqual({ country: "other", ask: true });
+    expect(resolveCountry({ email: null })).toEqual({ country: "other", ask: true });
+  });
+
+  it("prefers the region to every hint, and the language to the email", () => {
+    expect(resolveCountry({ regions: ["US"], languages: ["de"], email: "a@b.ru" }))
+      .toEqual({ country: "us", ask: false });
+    expect(resolveCountry({ languages: ["de"], email: "a@b.ru" }))
+      .toEqual({ country: "de", ask: true });
+  });
+
+  it("only ever answers with a code the profile accepts", () => {
+    const cases: CountrySignals[] = [
+      {}, { regions: ["zz"] }, { languages: ["xx"] }, { email: "a@b.zz" },
+      { email: "@" }, { regions: [undefined], languages: [null], email: "" },
+    ];
+    for (const c of cases) expect(COUNTRY_CODES as readonly string[]).toContain(resolveCountry(c).country);
+  });
+});
+
+describe("the suggested answer, offered first", () => {
+  it("moves the suggestion to the front and keeps everything else in order", () => {
+    expect(suggestionFirst(COUNTRY_CODES, "ru")).toEqual(["ru", "de", "gb", "us", "other"]);
+  });
+
+  it("changes nothing when there is no suggestion, or it is the sentinel", () => {
+    expect(suggestionFirst(COUNTRY_CODES, null)).toEqual([...COUNTRY_CODES]);
+    // "Somewhere else" promoted to the top is a suggestion to give up, and it is already the
+    // value we are trying to get away from.
+    expect(suggestionFirst(COUNTRY_CODES, "other")).toEqual([...COUNTRY_CODES]);
+    expect(suggestionFirst(COUNTRY_CODES, "zz")).toEqual([...COUNTRY_CODES]);
   });
 });

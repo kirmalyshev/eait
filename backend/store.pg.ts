@@ -867,6 +867,14 @@ export async function postgresStore(
       }));
     },
 
+    async emailForUser(userId) {
+      const rows = await sql`
+        select email from identities
+        where user_id = ${userId} and email is not null
+        order by linked_at asc limit 1`;
+      return (rows[0]?.email as string | undefined) ?? null;
+    },
+
     async mergeUsers(fromUserId, intoUserId) {
       // One transaction. A half-applied merge leaves meals owned by a user row that is about to be
       // deleted, and `on delete cascade` would then destroy the data this operation exists to save.

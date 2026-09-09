@@ -399,6 +399,118 @@ export function countryFromRegion(region: string | null | undefined): CountryCod
 }
 
 /**
+ * Everything that might say where somebody shops, in the order it deserves to be believed.
+ *
+ * A REGION IS AN ANSWER; A LANGUAGE AND AN ADDRESS ARE HINTS. That distinction is the whole design.
+ * The region is a setting the user chose about where they are, so it skips the question. A language
+ * says which supermarket they might know, not which one they are standing in, and an email domain
+ * says where they opened an account once — both are worth SEEDING the question with and neither is
+ * worth answering it with. A hint that skipped the question would be the #359 defect again, wearing
+ * a better guess.
+ */
+export type CountrySignals = {
+  /** Region codes the device or the browser reported, strongest first. */
+  regions?: readonly (string | null | undefined)[];
+  /** Language codes or tags, same order. A tag's region half is read too. */
+  languages?: readonly (string | null | undefined)[];
+  /** The address the account signs in with. NEVER leaves the server — see `suggestFromEmail`. */
+  email?: string | null;
+};
+
+export type CountryResolution = {
+  /** The best answer we have. `other` means we have nothing, not that they live nowhere. */
+  country: CountryCode;
+  /** Put the question to the user. False only when a region answered it outright. */
+  ask: boolean;
+};
+
+/**
+ * What we know about where this user shops, and whether it is good enough not to ask.
+ *
+ * WHY THE ASK CAME BACK. `country = other` reached prod on an account in Germany (#359): the phone
+ * reported a region outside the curated four — an expat with a US App Store region and a German SIM
+ * is the ordinary case, not the exotic one — and nothing asked, because the question was switched
+ * off wholesale on the strength of the device knowing the answer. It does not always know.
+ *
+ * So the question is asked EXACTLY when the device could not answer it. That is the cheap half of
+ * the trade the original note priced: asked of everybody it cost roughly a seventh of the people
+ * still in the flow, and asked only of the people it is load-bearing for it costs that fraction of
+ * a much smaller group. `onboarding_events` can measure the real number.
+ */
+export function resolveCountry(signals: CountrySignals): CountryResolution {
+  for (const region of signals.regions ?? []) {
+    const code = countryFromRegion(region);
+    if (code !== "other") return { country: code, ask: false };
+  }
+  return { country: suggestCountry(signals), ask: true };
+}
+
+/**
+ * The best HINT, when no region answered. Language before email: it is a live setting on the device
+ * in front of them, where an address is where they opened an account years ago.
+ */
+function suggestCountry(signals: CountrySignals): CountryCode {
+  for (const tag of signals.languages ?? []) {
+    // A tag carries its own region ("de-AT", "en-GB"), and that half is a region like any other.
+    // Read as the first two-letter subtag AFTER the language, so a script subtag ("zh-Hans-CN")
+    // does not hide it — the same rule `/start` applies to `Accept-Language`.
+    const [language, ...rest] = (tag ?? "").trim().toLowerCase().split(/[-_]/);
+    const fromRegion = countryFromRegion(rest.find((part) => /^[a-z]{2}$/.test(part)));
+    if (fromRegion !== "other") return fromRegion;
+    const fromLanguage = LANGUAGE_COUNTRY[language ?? ""];
+    if (fromLanguage) return fromLanguage;
+  }
+  return suggestFromEmail(signals.email);
+}
+
+/**
+ * The only two languages in the curated four that name one country.
+ *
+ * English names two of them and therefore suggests neither — a coin flip between the United Kingdom
+ * and the United States is not a suggestion, it is a wrong answer half the time, pre-selected.
+ */
+const LANGUAGE_COUNTRY: Record<string, CountryCode | undefined> = { de: "de", ru: "ru" };
+
+/**
+ * The country an email address names, or `other`.
+ *
+ * THE ADDRESS ITSELF NEVER TRAVELS. This runs where the address already is — the server, which
+ * holds it on `identities` — and only its answer, a two-letter code the user is about to be shown
+ * as a chip, goes anywhere. The app is never told the address (`/v1/auth/identities` returns the
+ * provider and a date), and this must not become the reason it is.
+ *
+ * IT USUALLY SAYS NOTHING, and that is expected rather than a gap to close. Gmail, Outlook and
+ * Apple's private relay are most addresses and carry no country; the domains that do are the
+ * country-coded ones, which is why this is a TLD read and not a directory of providers. Add a
+ * provider only when a real address has been seen to miss.
+ */
+function suggestFromEmail(email: string | null | undefined): CountryCode {
+  const domain = (email ?? "").trim().toLowerCase().split("@")[1] ?? "";
+  const tld = domain.split(".").pop() ?? "";
+  // `.uk` is the country's own top level; `gb` is the code the profile stores.
+  return countryFromRegion(tld === "uk" ? "gb" : tld);
+}
+
+/**
+ * The option list with the suggestion at the front.
+ *
+ * The whole of how a suggestion is expressed, on both surfaces: the app's chips and the browser's
+ * radio list both render this array in order, so the first entry is the one under the thumb. No
+ * pre-selection, no second piece of state, and nothing on screen that says where the guess came
+ * from — a chip labelled "from your email" would tell the user something about their address that
+ * they did not ask us to work out.
+ *
+ * `other` is never promoted. It is a suggestion to give up, and it is the value #359 is about.
+ */
+export function suggestionFirst<T extends string>(
+  values: readonly T[],
+  suggested: string | null | undefined,
+): T[] {
+  if (!suggested || suggested === "other" || !values.includes(suggested as T)) return [...values];
+  return [suggested as T, ...values.filter((v) => v !== suggested)];
+}
+
+/**
  * The per-option labels for one group, from the content. A stale cache falls back to the raw value.
  *
  * Here rather than in the chat screen because settings edits the same fields with the same
@@ -548,14 +660,20 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       asks: {
         country: { lines: ["Where do you eat? So I know your supermarket, not somebody else's."] },
       },
-      // OFF BY DEFAULT, AND STILL PRESENT. `validateOnboardingContent` requires every known screen
-      // in the payload, so this is disabled rather than deleted — and an admin who wants the
-      // question back has a switch rather than a deploy.
+      // ON, AND ASKED OF ALMOST NOBODY. `enabled` is the admin's switch — "this question may be
+      // asked at all" — and it is no longer what decides who meets it. `resolveCountry` does, on
+      // both surfaces: a device or a browser that reports a curated region answers the question and
+      // it is never put, and only the users whose region we have not tuned for are asked. That is
+      // roughly the cost of the old off-switch for almost everyone, and an answer for the people
+      // the guess was failing.
       //
-      // The value is not lost with the question: `countryFromRegion` fills it from the device's own
-      // region at first load, and settings is where it is corrected. This is the one group that may
-      // be switched off, because it is the one whose field never reaches `explainTargets`.
-      enabled: false,
+      // IT WAS OFF, AND THAT SHIPPED `country = other` TO PROD. An account in Germany was analysed
+      // against a country called "other" because the phone reported a region outside the four and
+      // nothing asked (#359, #365). Settings could always correct it; nobody knew to.
+      //
+      // Still the one group that may be switched off at all, because it is the one whose field
+      // never reaches `explainTargets`. An admin who switches it off gets the old behaviour back.
+      enabled: true,
       options: {
         de: { label: "Germany" },
         gb: { label: "United Kingdom" },

@@ -403,6 +403,16 @@ export interface Store {
   revokeTokensFor(userId: string): Promise<void>;
   /** What is linked to this account — for the settings screen, and for the merge guard. */
   listIdentities(userId: string): Promise<{ provider: Provider; linkedAt: string }[]>;
+  /**
+   * The account's sign-in address, or null — the oldest identity that carries one.
+   *
+   * SEPARATE FROM `listIdentities` ON PURPOSE, and it must stay separate. That one feeds
+   * `/v1/auth/identities`, which the APP reads: adding an `email` field to it would put the address
+   * on a phone, and the settings screen ships a promise that the address runs the account and
+   * nothing else. This one is read on the server, by `/start` alone, and only its ANSWER — a
+   * two-letter country code the user is about to be shown as an option — leaves the process.
+   */
+  emailForUser(userId: string): Promise<string | null>;
 
   // ── Pairing codes ──────────────────────────────────────────────────────────────────────────
   //
