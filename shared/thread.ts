@@ -7,6 +7,7 @@
 
 import { scriptedLine } from "./chat.ts";
 import type { ChatEntry, ChatEvent } from "./contract.ts";
+import type { MascotMood } from "./onboarding.ts";
 import type { ConfirmMealResult, HandleTextResult } from "./results.ts";
 import type { MealRecord } from "./types.ts";
 
@@ -295,4 +296,92 @@ export function oneLiveProposal(entries: ThreadEntry[]): ThreadEntry[] {
   return entries.map((e) => (pendingIdOf(e) !== null && e !== newest
     ? { id: e.id, role: "assistant", result: { kind: "answered", text: scriptedLine("dropped") } }
     : e));
+}
+
+/**
+ * The rows a reader may see, from the rows the thread holds.
+ *
+ * An answered turn that changed nothing has no line, and the server keeps none for it either.
+ * Dropped HERE rather than returned as null from the row, because the avatar and the spacing are
+ * decided from the PREVIOUS row: with an invisible entry in the data, the reply after it lost
+ * Spud's face and was grouped as though he had already been speaking.
+ *
+ * AND ONE CARD PER MEAL, for the reason `oneCardPerMeal` gives.
+ */
+export function visibleEntries(entries: ThreadEntry[]): ThreadEntry[] {
+  return oneCardPerMeal(entries.filter((e) => !(e.role === "assistant" && e.result.kind === "answered" && e.result.text === "")));
+}
+
+/**
+ * Whether the newest visible row is a live answer carrying chips — the coach's starters step aside
+ * for those. Live only: the thread stores the sentence and never the chips, so a stored line never
+ * carries any whatever its shape says.
+ */
+export function hasLiveSuggestions(visible: ThreadEntry[]): boolean {
+  const tail = visible[visible.length - 1];
+  return tail !== undefined && tail.role === "assistant" && !tail.stored
+    && tail.result.kind === "answered" && (tail.result.suggestions?.length ?? 0) > 0;
+}
+
+/** Who a row belongs to: the user, Gabie on her answers, and Spud on everything else he says or shows. */
+export function speakerOf(entry: ThreadEntry): "user" | "spud" | "gabie" {
+  if (entry.role === "user") return "user";
+  if (entry.role === "assistant" && entry.result.kind === "answered" && entry.result.speaker === "gabie") return "gabie";
+  return "spud";
+}
+
+/**
+ * The face beside a bubble, decided from what the bubble IS — the same rule as onboarding's
+ * `moodFor`: a reaction to what just happened, not a property of the copy.
+ */
+export function moodFor(entry: ThreadEntry): MascotMood {
+  if (entry.role === "error") return "care";
+  if (entry.role === "card") return "cheer";
+  if (entry.role === "assistant") {
+    // Listed individually, with no default, for the reason `entryBody`'s switch has none: a new
+    // result kind should be a compile error here rather than a face somebody picked by accident.
+    switch (entry.result.kind) {
+      case "logged": case "updated": case "redated": return "cheer";
+      case "proposed": return "think";
+      case "answered": return "idle";
+      case "expired": case "target-gone": case "not-onboarded": case "not-food":
+      case "cap-exceeded": case "subscription-required": case "analysis-failed": return "care";
+    }
+  }
+  return "idle";
+}
+
+/**
+ * Every edit the screen makes to the list, as data.
+ *
+ * A page landing is NOT here: `reconcilePage` answers more than the list — the ids it settled and
+ * whether the LINES moved — and the caller drains its in-flight set from that, which an updater may
+ * not do. These are the transitions that are a pure function of the previous list, so a renderer
+ * calls them from inside a React updater and a test calls them with no renderer at all.
+ */
+export type ThreadEvent =
+  | { kind: "push"; entry: ThreadEntry }
+  /** In place: a confirmed proposal is spent and has to stop looking like an offer. */
+  | { kind: "replace"; id: string; entry: ThreadEntry }
+  /** The bubble goes; its words are the caller's to put back in the composer. */
+  | { kind: "remove"; id: string }
+  /** `failed` never reached the server; `refused` was read and answered, and is never worded "not sent". */
+  | { kind: "mark"; id: string; as: "failed" | "refused" }
+  /** An older page, prepended above what is on screen and deduplicated by id. */
+  | { kind: "earlier"; page: ChatEntry[] }
+  | { kind: "unanswered"; clientId: string; scope?: "sample" | undefined };
+
+/** The list after one edit. Pure, so it is legal inside a React updater. */
+export function threadReducer(entries: ThreadEntry[], event: ThreadEvent): ThreadEntry[] {
+  switch (event.kind) {
+    case "push": return [...entries, event.entry];
+    case "replace": return entries.map((e) => (e.id === event.id ? event.entry : e));
+    case "remove": return entries.filter((e) => e.id !== event.id);
+    case "mark": return entries.map((e) => (e.id === event.id && e.role === "user" ? { ...e, [event.as]: true } : e));
+    case "earlier": {
+      const seen = new Set(entries.map((e) => e.id));
+      return [...fromHistory(event.page).filter((e) => !seen.has(e.id)), ...entries];
+    }
+    case "unanswered": return withUnanswered(entries, event.clientId, event.scope);
+  }
 }

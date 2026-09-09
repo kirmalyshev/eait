@@ -3,7 +3,7 @@ import type { ChatEntry } from "./contract.ts";
 import type { ChatSpeaker } from "./results.ts";
 import type { MealRecord } from "./types.ts";
 import { scriptedLine } from "./chat.ts";
-import { fromHistory, keepsItsWords, landedLine, lastMealId, mergeThread, oneCardPerMeal, oneLiveProposal, pendingIdOf, reconcilePage, unansweredFor, withUnanswered, type ThreadEntry } from "./thread.ts";
+import { fromHistory, hasLiveSuggestions, keepsItsWords, landedLine, lastMealId, mergeThread, moodFor, oneCardPerMeal, oneLiveProposal, pendingIdOf, reconcilePage, speakerOf, threadReducer, unansweredFor, visibleEntries, withUnanswered, type ChatResult, type ThreadEntry } from "./thread.ts";
 
 // The Chat screen's reconciliation of three sources of truth — the fetched page, what is on screen,
 // and the turns still in flight. Pure, so every rule the design notes record as hard-won is pinned
@@ -315,5 +315,117 @@ describe("oneLiveProposal / pendingIdOf — #360", () => {
   it("leaves a thread with one live estimate exactly as it is", () => {
     const entries = [...fromHistory([userLine("two eggs"), said("Anything else?")]), proposal("a1", "p1")];
     expect(oneLiveProposal(entries)).toBe(entries);
+  });
+});
+
+// The rows a renderer draws, and who they belong to. Pure functions of an entry, so the rule about
+// whose face a bubble carries is checked here rather than only on a simulator.
+
+/** An assistant row of any result kind, for the exhaustive walks below. */
+const spoke = (result: ChatResult, id = "a1"): ThreadEntry => ({ id, role: "assistant", result });
+const proposal: ChatResult = { kind: "proposed", pendingId: "p1", analysis: meal("p1", 300), date: "2026-08-25" };
+const landed: ChatResult = {
+  kind: "logged", mealId: "m1", analysis: meal("m1", 300), date: "2026-08-25", hint: "correction",
+  totals: { kcal: 300, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 },
+};
+
+describe("speakerOf", () => {
+  it("names the user, Gabie on her answers, and Spud on everything else he says or shows", () => {
+    expect(speakerOf({ id: "u1", role: "user", text: "hi" })).toBe("user");
+    expect(speakerOf(spoke({ kind: "answered", text: "hi", speaker: "gabie" }))).toBe("gabie");
+    // Absent or null is Spud, the host — the rule `ChatSpeaker` states.
+    expect(speakerOf(spoke({ kind: "answered", text: "hi" }))).toBe("spud");
+    expect(speakerOf(spoke({ kind: "answered", text: "hi", speaker: null }))).toBe("spud");
+    // A card, a refusal and a proposal are Spud showing something, never Gabie answering.
+    expect(speakerOf(fromHistory([card(meal("m1", 300))])[0]!)).toBe("spud");
+    expect(speakerOf({ id: "e1", role: "error", refusal: "offline" })).toBe("spud");
+    expect(speakerOf(spoke(proposal))).toBe("spud");
+  });
+});
+
+describe("moodFor", () => {
+  it("reads the mood off what the bubble IS, not off the copy", () => {
+    expect(moodFor({ id: "e1", role: "error", refusal: "offline" })).toBe("care");
+    expect(moodFor(fromHistory([card(meal("m1", 300))])[0]!)).toBe("cheer");
+    expect(moodFor({ id: "u1", role: "user", text: "hi" })).toBe("idle");
+    expect(moodFor(spoke(landed))).toBe("cheer");
+    expect(moodFor(spoke(proposal))).toBe("think");
+    expect(moodFor(spoke({ kind: "answered", text: "hi" }))).toBe("idle");
+    expect(moodFor(spoke({ kind: "expired" }))).toBe("care");
+    expect(moodFor(spoke({ kind: "not-food" }))).toBe("care");
+    expect(moodFor(spoke({ kind: "cap-exceeded", scope: "user" }))).toBe("care");
+    expect(moodFor(spoke({ kind: "subscription-required" }))).toBe("care");
+    expect(moodFor(spoke({ kind: "analysis-failed" }))).toBe("care");
+    expect(moodFor(spoke({ kind: "not-onboarded" }))).toBe("care");
+  });
+});
+
+describe("visibleEntries", () => {
+  it("drops an answered turn that changed nothing — the server keeps no line for it either", () => {
+    const kept = spoke({ kind: "answered", text: "Updated." }, "a1");
+    const silent = spoke({ kind: "answered", text: "" }, "a2");
+    expect(visibleEntries([kept, silent]).map((e) => e.id)).toEqual(["a1"]);
+  });
+
+  it("keeps a photo bubble with no caption — an empty answer is the assistant's case, not the user's", () => {
+    const photo: ThreadEntry = { id: "u1", role: "user", text: null, photo: true };
+    expect(visibleEntries([photo])).toEqual([photo]);
+  });
+
+  it("shows one card per meal, so a corrected meal is not announced twice", () => {
+    const entries = fromHistory([card(meal("m1", 300)), card(meal("m1", 150))]);
+    expect(visibleEntries(entries)).toHaveLength(1);
+  });
+});
+
+describe("hasLiveSuggestions", () => {
+  const withChips = (suggestions: string[]): ThreadEntry => spoke({ kind: "answered", text: "hi", suggestions });
+
+  it("is true only when the NEWEST row is a live answer carrying chips", () => {
+    expect(hasLiveSuggestions([withChips(["what next?"])])).toBe(true);
+    expect(hasLiveSuggestions([])).toBe(false);
+    expect(hasLiveSuggestions([spoke({ kind: "answered", text: "hi" })])).toBe(false);
+    expect(hasLiveSuggestions([withChips([])])).toBe(false);
+    // A stored line never carried any, whatever its shape says.
+    expect(hasLiveSuggestions([{ id: "a1", role: "assistant", result: { kind: "answered", text: "hi", suggestions: ["x"] }, stored: true }])).toBe(false);
+    // Once the user has sent again the row is gone.
+    expect(hasLiveSuggestions([withChips(["x"]), { id: "u1", role: "user", text: "more" }])).toBe(false);
+  });
+});
+
+describe("threadReducer", () => {
+  const one: ThreadEntry = { id: "a", role: "user", text: "one" };
+  const two: ThreadEntry = { id: "b", role: "user", text: "two" };
+
+  it("pushes, replaces in place and removes, without touching the list it was given", () => {
+    const prev = [one];
+    expect(threadReducer(prev, { kind: "push", entry: two })).toEqual([one, two]);
+    const swap = spoke({ kind: "answered", text: "hi" }, "a");
+    expect(threadReducer([one, two], { kind: "replace", id: "a", entry: swap })).toEqual([swap, two]);
+    expect(threadReducer([one, two], { kind: "remove", id: "a" })).toEqual([two]);
+    expect(prev).toEqual([one]);
+  });
+
+  it("marks one user bubble, and never an assistant line that happens to share the id", () => {
+    // Two markers, two sentences: `failed` never reached the server, `refused` was read and answered.
+    expect(threadReducer([one, two], { kind: "mark", id: "a", as: "failed" })).toEqual([{ ...one, failed: true }, two]);
+    expect(threadReducer([one, two], { kind: "mark", id: "b", as: "refused" })).toEqual([one, { ...two, refused: true }]);
+    const said = spoke({ kind: "answered", text: "hi" }, "a");
+    expect(threadReducer([said], { kind: "mark", id: "a", as: "failed" })).toEqual([said]);
+  });
+
+  it("prepends an older page, dropping anything already on screen", () => {
+    const older = [userLine("older"), userLine("overlap")];
+    const onScreen = fromHistory([older[1]!]);
+    const next = threadReducer(onScreen, { kind: "earlier", page: older });
+    expect(next.map((e) => e.id)).toEqual([older[0]!.id, older[1]!.id]);
+  });
+
+  it("places the notice a landed turn earns under the line it answers, and gives the same list back when there is none", () => {
+    const thread = fromHistory([userLine("two eggs", { clientId: "c1", pendingId: "p1" })]);
+    expect(threadReducer(thread, { kind: "unanswered", clientId: "c1" }).at(-1))
+      .toMatchObject({ id: "unanswered:c1", role: "error", refusal: "unanswered" });
+    const plain = fromHistory([userLine("hi", { clientId: "c2" })]);
+    expect(threadReducer(plain, { kind: "unanswered", clientId: "c2" })).toBe(plain);
   });
 });
