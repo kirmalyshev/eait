@@ -65,6 +65,23 @@ const store: Store = demo
   ? memoryStore(storeOptions)
   : await postgresStore(config.databaseUrl, storeOptions);
 
+// THE ADMIN IS GRANTED HERE OR NOWHERE (#391a).
+//
+// Out of band, at boot, from a UUID in configuration — never from a request, and never by a
+// self-service path. Idempotent on purpose: the off-site backup is restored on every deploy, so a
+// grant applied once by hand would vanish under a pre-role dump and leave an instance nobody can
+// administer.
+//
+// A LOUD FAILURE WHEN THE ID NAMES NOTHING. `setRole` creates no account, so a typo would
+// otherwise be silence — and an admin nobody can sign in as reads exactly like a working one.
+if (config.adminBootstrapUserId !== "") {
+  const granted = await store.setRole(config.adminBootstrapUserId, "admin");
+  console.log(granted
+    ? `[eait] admin role held by ${config.adminBootstrapUserId}`
+    : `[eait] ADMIN BOOTSTRAP FAILED: no account ${config.adminBootstrapUserId}. `
+      + "Nobody has been made an admin. Sign in once to create the account, then use its user id.");
+}
+
 const mailer = chooseMailer(config, demo);
 const push = choosePush(config, demo);
 
@@ -225,7 +242,12 @@ const handle: typeof router = demo
             `<input type="hidden" name="${k}" value="${(url.searchParams.get(k) ?? "")
               .replace(/&/g, "&amp;").replace(/"/g, "&quot;")}">`).join("");
           return new Response(
-            `<!doctype html><meta name=viewport content="width=device-width,initial-scale=1">`
+            // The empty data: icon the other three shells carry, for the same reason: without it
+            // Chrome asks this origin for /favicon.ico, `resolveUserId` answers 401 before anything
+            // can 404 it, and every local sign-in leaves an error in the console. A console that
+            // always has an error in it is a console nobody reads.
+            `<!doctype html><meta name=viewport content="width=device-width,initial-scale=1">` +
+            `<link rel="icon" href="data:,">`
             + `<body style="font:16px system-ui;max-width:22rem;margin:3rem auto">`
             + `<h1 style="font-size:1.1rem">Demo ${provider} sign-in</h1>`
             + `<p>Any string. The same one twice is the same account.</p>`

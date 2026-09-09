@@ -185,6 +185,38 @@ describe("seedDevData", () => {
     expect(await store.healthDaysSince(fresh!.userId, "2020-01-01")).toEqual([]);
   });
 
+  test("seeds exactly one admin, and three accounts that are not", async () => {
+    // What `./dev seed` is for: a database somebody can open the admin in. The role is the only
+    // way in since #391b, so a development database with nobody holding it has an admin surface
+    // that answers 404 — correct, and unusable.
+    const store = memoryStore();
+    const seeded = await seedDevData(store, { timezone: TZ, today: TODAY });
+    const admins = seeded.filter((s) => s.admin);
+    expect(admins).toHaveLength(1);
+    expect(await store.roleOf(admins[0]!.userId)).toBe("admin");
+    expect(await store.hasAdmin()).toBe(true);
+
+    // And the other three are ordinary, because an instance where everybody is an admin proves
+    // nothing about the gate.
+    const others = seeded.filter((s) => !s.admin);
+    expect(others).toHaveLength(3);
+    for (const p of others) expect(await store.roleOf(p.userId)).toBe("user");
+  });
+
+  test("re-seeding does not leave the old admin holding the role", async () => {
+    // Each persona is deleted and rebuilt, which mints a NEW user id. A grant that was not
+    // re-applied would leave the database with an admin nobody can sign in as — and `hasAdmin`
+    // true, so the surface would exist with no way through it.
+    const store = memoryStore();
+    const first = await seedDevData(store, { timezone: TZ, today: TODAY });
+    const second = await seedDevData(store, { timezone: TZ, today: TODAY });
+    const before = first.find((s) => s.admin)!;
+    const after = second.find((s) => s.admin)!;
+    expect(after.userId).not.toBe(before.userId);
+    expect(await store.roleOf(before.userId)).toBeNull();
+    expect(await store.roleOf(after.userId)).toBe("admin");
+  });
+
   test("seeding twice leaves one week of meals, not two", async () => {
     const store = memoryStore();
     await seedDevData(store, { timezone: TZ, today: TODAY });

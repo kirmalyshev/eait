@@ -76,6 +76,76 @@ function contract(name: string, make: () => Promise<Store>) {
       expect((await s.listIdentities(first.userId)).map((i) => i.provider)).toEqual(["device"]);
     });
 
+    // ── The role ───────────────────────────────────────────────────────────────────────────
+    //
+    // #391a. The admin stops being a shared secret and becomes something an ACCOUNT carries, so
+    // every one of these is a rule about who can become one. Both implementations answer them for
+    // the usual reason: the memory store is what every engine test runs against, so a rule it
+    // enforces and Postgres does not is a rule that passes everywhere and fails in production only.
+
+    it("makes every new account a plain user", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      // Not `undefined`, and this is the point rather than tidiness: a gate written
+      // `role !== "user"` would read an absent field as an admin. There is nothing absent.
+      expect(await s.roleOf(userId)).toBe("user");
+    });
+
+    it("has no admin until one is made, which is what switches the surface off", async () => {
+      const s = await open();
+      await s.upsertDeviceUser(device(), "en");
+      expect(await s.hasAdmin()).toBe(false);
+    });
+
+    it("grants and revokes, idempotently, and says so", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      expect(await s.setRole(userId, "admin")).toBe(true);
+      expect(await s.setRole(userId, "admin")).toBe(true);
+      expect(await s.roleOf(userId)).toBe("admin");
+      expect(await s.hasAdmin()).toBe(true);
+
+      expect(await s.setRole(userId, "user")).toBe(true);
+      expect(await s.roleOf(userId)).toBe("user");
+      expect(await s.hasAdmin()).toBe(false);
+    });
+
+    it("refuses to grant to an account that does not exist", async () => {
+      const s = await open();
+      // The bootstrap names a UUID from a config file. A typo in it must not create anything, and
+      // must not report success — an admin nobody can sign in as reads exactly like a working one.
+      expect(await s.setRole("00000000-0000-4000-8000-000000000000", "admin")).toBe(false);
+      expect(await s.roleOf("00000000-0000-4000-8000-000000000000")).toBeNull();
+    });
+
+    it("does not carry a role through a merge", async () => {
+      // `mergeUsers` copies an explicit column list, and the role is deliberately not on it: a
+      // merge is anonymous→real, so the account that survives is the real one and its own role is
+      // the answer. This is here so that nobody adds the role to the `coalesce` block six lines
+      // from the entitlement's — which WOULD let an anonymous session carry an admin grant into
+      // somebody else's account.
+      const s = await open();
+      const { userId: anon } = await s.upsertDeviceUser(device(), "en");
+      const { userId: real } = await s.upsertDeviceUser(device(), "en");
+      await s.setRole(anon, "admin");
+
+      await s.mergeUsers(anon, real);
+      expect(await s.roleOf(real)).toBe("user");
+      expect(await s.roleOf(anon)).toBeNull();
+    });
+
+    it("cannot be written through the profile", async () => {
+      // The structural half of the same rule. Postgres allowlists the columns `patchProfile` may
+      // touch; the memory store writes every key it is handed. Keeping the role OUT of `Profile`
+      // entirely is what makes those two agree — a role that lived on the profile object would be
+      // settable by a PATCH on one implementation and not the other.
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.patchProfile(userId, { role: "admin" } as never);
+      expect(await s.roleOf(userId)).toBe("user");
+      expect((await s.getProfile(userId)) as unknown as Record<string, unknown>).not.toHaveProperty("role");
+    });
+
     // ── The paid tier ──────────────────────────────────────────────────────────────────────
     //
     // Both implementations must agree here for the same reason they must agree about merging: the

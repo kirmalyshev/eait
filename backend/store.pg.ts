@@ -79,6 +79,16 @@ create table if not exists users (
 -- Added separately so a host deployed before this exists gains it on the next boot.
 alter table users add column if not exists weight_measured_at timestamptz;
 
+-- WHAT THIS ACCOUNT IS ALLOWED TO BE (#391a). 'user' or 'admin', defaulted and NOT NULL, so an
+-- account can never present an absent role: a gate written role <> 'user' would otherwise read a
+-- null as an admin. Deliberately absent from PROFILE_COLUMNS, so nothing a request carries may
+-- write it, and absent from the column list mergeUsers copies, so a merge cannot carry a grant
+-- from an anonymous session into somebody else's account. Granted out of band only, at boot, from
+-- a UUID in configuration.
+--
+-- (No backticks anywhere in this file's SQL: it is one template literal, and a backtick ends it.)
+alter table users add column if not exists role text not null default 'user';
+
 -- The paid tier, on the user row rather than in a subscriptions table.
 --
 -- Three columns because the resolved state is all anything asks for: when it lapses, what was
@@ -731,6 +741,24 @@ export async function postgresStore(
                 values ('device', ${deviceId}, ${userId})
                 on conflict (provider, subject) do nothing`;
       return { userId, created };
+    },
+
+    async roleOf(userId) {
+      const rows = await sql`select role from users where id = ${userId}`;
+      const row = rows[0] as { role: string } | undefined;
+      return row ? (row.role === "admin" ? "admin" : "user") : null;
+    },
+
+    async setRole(userId, role) {
+      // `returning` rather than a count: an id that names no account must answer false rather than
+      // succeed silently, because the only caller is a bootstrap reading a UUID somebody typed.
+      const rows = await sql`update users set role = ${role} where id = ${userId} returning id`;
+      return rows.length > 0;
+    },
+
+    async hasAdmin() {
+      const rows = await sql`select 1 from users where role = 'admin' limit 1`;
+      return rows.length > 0;
     },
 
     async createUser(lang: Lang) {

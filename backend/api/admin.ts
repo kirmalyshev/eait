@@ -3,19 +3,41 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // FOUR RULES, ALL OF THEM SECURITY
 //
-//  1. OFF BY DEFAULT. No `EAIT__BACKEND__ADMIN_TOKEN` in the environment and every path here answers 404 — not
-//     403, because "there is an admin and you cannot have it" is information. A deployment that
-//     never sets the variable has no admin surface at all.
-//  2. ITS OWN CREDENTIAL. A user's bearer token is worthless here. `routes.ts` reaches this before
-//     it resolves a user, precisely so the two authorities cannot be confused.
-//  3. CONSTANT-TIME COMPARISON. A `===` on a secret leaks its prefix to anyone patient enough to
-//     time the answers.
-//  4. VALIDATED ON THE WRITE. `saveOnboardingContent` refuses copy the app cannot render. Broken
-//     content that reached a phone is a broken onboarding for that user until the next fetch, and
-//     no amount of client tolerance recovers the screen they were on.
+// Rewritten in #391b, when the admin stopped being a shared secret typed into a box and became a
+// ROLE AN ACCOUNT CARRIES. Three of the four changed meaning and one was retired outright; the
+// replacements are not weaker, and saying which is which is the point of writing them down.
 //
-// The page itself is served without a token — it holds no data, it only asks for one. Serving it
-// behind auth would mean an admin needs a token to see the box that asks for the token.
+//  1. OFF UNLESS SOMEBODY HOLDS THE ROLE. `store.hasAdmin()` is false and every path here answers
+//     404 — not 403, because "there is an admin and you cannot have it" is information. This is
+//     stronger than the variable it replaces: deleting the last admin account switches the surface
+//     off, which no environment variable could do.
+//  2. THE ROLE IS GRANTED OUT OF BAND, AND ONLY OUT OF BAND. Nothing reachable over HTTP writes
+//     `users.role`. It is set at boot from `EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID` — a user id,
+//     never a provider subject, because `identities` is keyed (provider, subject) and a device
+//     identity's subject is any string a client chose. It is not on `Profile`, so `patchProfile`
+//     cannot reach it in either store implementation; it is not in the column list `mergeUsers`
+//     copies, so an anonymous session cannot carry a grant into somebody else's account.
+//  3. THE CHECK IS `=== "admin"`, NEVER `!== "user"`. The negative form reads a missing role as an
+//     admin, and a missing role is what a new field, a new store or a bad migration produces.
+//     (This replaces the constant-time comparison, which had nothing left to compare: a bearer is
+//     looked up by SHA-256 in `auth/tokens.ts`, and that lookup is the timing-safe one now.)
+//  4. VALIDATED ON THE WRITE. Unchanged. `saveOnboardingContent` refuses copy the app cannot
+//     render. Broken content that reached a phone is a broken onboarding for that user until the
+//     next fetch, and no amount of client tolerance recovers the screen they were on.
+//
+// WHAT THIS COST, STATED RATHER THAN DISCOVERED LATER: the admin used to be independent of user
+// authentication entirely. It is now exactly as strong as Apple/Google verification plus the token
+// store plus the merge logic — and `EAIT__BACKEND__APPLE_AUDIENCES` accepts the preview and dev
+// bundle ids, so a development build signed in as the admin's Apple ID is the admin. That is the
+// same person today. It stops being acceptable on the day real users' data is on this host, which
+// is the day the audience list is meant to be revisited anyway.
+//
+// An ANONYMOUS request gets 401 and an ordinary SIGNED-IN one gets 404. The page below is public
+// and already proves the route exists, so confusing the person who is allowed in buys nothing —
+// but an identified ordinary user learning "there is an admin here and you are not it" is the one
+// piece of information worth withholding.
+//
+// The page itself is served without a credential — it holds no data, it only offers a way in.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
@@ -27,8 +49,7 @@ import {
   resetOnboardingContent, saveNotificationCopy, saveOnboardingContent, setUserCap, userCap,
   type EngineDeps,
 } from "../engine/index.ts";
-import { ADMIN_PAGE } from "./admin.page.ts";
-import { timingSafeEqual } from "../auth/timingsafe.ts";
+import { adminPage } from "./admin.page.ts";
 
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -53,34 +74,60 @@ function editorMeta() {
   };
 }
 
-export async function adminRoutes(req: Request, url: URL, deps: EngineDeps): Promise<Response> {
-  const configured = deps.config.adminToken !== "";
-  if (!configured) return notFound();
+/**
+ * @param userId The account behind the request's bearer, or null if there is no valid one.
+ *   Resolved by `routes.ts` — this module never reads a credential itself, and there is no second
+ *   path from a request to an identity in this process.
+ */
+export async function adminRoutes(
+  req: Request,
+  url: URL,
+  deps: EngineDeps,
+  userId: string | null,
+): Promise<Response> {
+  // Rule 1. Nobody holds the role, so there is no such feature here.
+  if (!await deps.store.hasAdmin()) return notFound();
 
   const { pathname } = url;
 
-  // The page. No data on it, so no token needed to fetch it.
+  // The page. No data on it, so no credential needed to fetch it.
   if (req.method === "GET" && (pathname === "/admin" || pathname === "/admin/")) {
-    return new Response(ADMIN_PAGE, {
+    const nonce = crypto.randomUUID();
+    return new Response(adminPage(nonce), {
       headers: {
         "content-type": "text/html; charset=utf-8",
         // The page is inline-only and talks to its own origin. Saying so means a future edit that
         // reaches for a CDN fails loudly here rather than quietly shipping a third party an admin
         // token typed into this form.
+        // A NONCE, NOT 'unsafe-inline' (#391b). This page holds a bearer for a real account now,
+        // on an origin that also serves the web application and the API, so an injected script here
+        // is worth every credential at once. The policy names the same nonce the page's one script
+        // and one style carry, and nothing else can run.
         "content-security-policy":
-          "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'",
+          `default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}'; `
+          // `img-src data:` for the empty favicon in the head and nothing else — without it
+          // `default-src 'none'` refuses even that, which is one console error per page load.
+          + "connect-src 'self'; img-src data:; base-uri 'none'; form-action 'none'; "
+          + "frame-ancestors 'none'",
         "referrer-policy": "no-referrer",
         "x-frame-options": "DENY",
       },
     });
   }
 
-  const presented = req.headers.get("x-admin-token") ?? "";
-  if (!timingSafeEqual(presented, deps.config.adminToken)) {
-    // 401 with no hint about what was wrong. The route exists — the page above proves that much —
-    // so hiding it here would only confuse the person who is allowed in.
-    return json({ error: "unauthorized" }, 401);
-  }
+  // ── Rules 2 and 3 ─────────────────────────────────────────────────────────────────────────
+  //
+  // No credential at all: 401, with no hint about what was wrong. The route exists — the page above
+  // proves that much — so hiding it here would only confuse the person who is allowed in.
+  if (userId === null) return json({ error: "unauthorized" }, 401);
+
+  // A credential that names an ordinary account: 404, the same answer an instance with no admin
+  // gives. This person is IDENTIFIED, and "there is an admin here and you are not it" is the one
+  // thing worth withholding from them.
+  //
+  // `=== "admin"` and never `!== "user"`: the negative form reads a missing role as an admin, and a
+  // missing role is what a new field, a new store or a bad migration produces.
+  if (await deps.store.roleOf(userId) !== "admin") return notFound();
 
   if (req.method === "GET" && pathname === "/admin/api/content") {
     return json({ content: await onboardingContent(deps), meta: editorMeta() });

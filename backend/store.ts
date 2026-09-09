@@ -282,6 +282,15 @@ export interface SubscriberUpsert {
   created: boolean;
 }
 
+/**
+ * What an account is allowed to be.
+ *
+ * SERVER STATE, and deliberately not in `src/shared`: the phone has no use for the word, and a
+ * type both sides import is a type the client eventually sends. It is also deliberately NOT a
+ * field on `Profile` — see `roleOf` below.
+ */
+export type Role = "user" | "admin";
+
 export interface Store {
   // ── Identity ───────────────────────────────────────────────────────────────────────────────
   /** Find or create the user behind a device id. Returns whether the row was created. */
@@ -456,6 +465,35 @@ export interface Store {
    * caller checks that before getting here.
    */
   mergeUsers(fromUserId: string, intoUserId: string): Promise<number>;
+
+  // ── The role ───────────────────────────────────────────────────────────────────────────────
+  //
+  // #391a. The admin is becoming something an account carries rather than a shared secret typed
+  // into a box, and these three are the whole of what the store knows about it.
+  //
+  // IT IS NOT PART OF `Profile`, and that is structural rather than stylistic. Postgres allowlists
+  // the columns `patchProfile` may write; the memory store writes every key it is handed. A role
+  // on the profile object would therefore be settable by a PATCH on one implementation and refused
+  // on the other — a divergence in the one direction that matters. Keeping it out of `Profile`
+  // means neither can write it, and a contract test says so.
+
+  /** The account's role, or null if there is no such account. Never `undefined`. */
+  roleOf(userId: string): Promise<Role | null>;
+  /**
+   * Grant or revoke, idempotently. `false` means there is no such account — nothing was created.
+   *
+   * A grant is an OUT-OF-BAND act: the caller is the boot-time bootstrap reading a UUID from
+   * configuration, never a request. Nothing reachable from the network calls this.
+   */
+  setRole(userId: string, role: Role): Promise<boolean>;
+  /**
+   * Whether any admin exists at all.
+   *
+   * This is what lets the admin surface keep the property its shared-token version had: with
+   * nobody holding the role, every path under it answers 404 rather than 403, because "there is an
+   * admin and you cannot have it" is information. Deleting the last admin switches the surface off.
+   */
+  hasAdmin(): Promise<boolean>;
 
   // ── Profile ────────────────────────────────────────────────────────────────────────────────
   getProfile(userId: string): Promise<Profile | null>;

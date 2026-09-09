@@ -14,13 +14,26 @@
 // String concatenation rather than template literals inside the script, because this whole file is
 // a template literal and nesting them is how a page ends up half-evaluated on the server.
 
-export const ADMIN_PAGE = `<!doctype html>
+/**
+ * The page, under a nonce.
+ *
+ * A FUNCTION SINCE #391b, and the reason is the credential it now holds. This page used to take a
+ * string somebody typed; it now obtains a BEARER for an account, on an origin that also serves the
+ * web application and the API. A script injected here is therefore worth every credential at once,
+ * so the policy on the response is `default-src 'none'` with a per-request nonce and NO
+ * `'unsafe-inline'` — and a nonce cannot come from a constant.
+ */
+export const adminPage = (nonce: string): string => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>eait — onboarding admin</title>
-<style>
+<!-- Empty data: icon. An anonymous request for an unknown path on this origin is answered 401
+     by resolveUserId before anything can 404 it, so /favicon.ico logged a console error on every
+     page load. A console that always has an error in it is a console nobody reads. -->
+<link rel="icon" href="data:,">
+<style nonce="${nonce}">
   :root {
     --bg: #0B0B0C; --surface: #141517; --raised: #1C1E21; --border: #26292E;
     --text: #F4F4F5; --muted: #9BA1AA; --faint: #6B7178;
@@ -80,16 +93,20 @@ export const ADMIN_PAGE = `<!doctype html>
   .gate { max-width: 420px; margin: 15vh auto; }
   .hidden { display: none; }
   .muted { color: var(--muted); font-size: 13px; }
+/* WAS AN INLINE style="" ATTRIBUTE, and a nonce does not cover one: a nonce authorises <style>
+   and <script> ELEMENTS, never a style attribute, so the browser refused it and the error text
+   rendered unstyled. Found by driving real Chrome — the unit tests assert the policy string and
+   cannot see what it forbids. */
+.gate-error { color: var(--bad); font-size: 13px; }
 </style>
 </head>
 <body>
 
 <div class="wrap gate" id="gate">
   <h1>eait admin</h1>
-  <p class="sub">Paste the admin token. It stays in this tab and is not written to disk.</p>
-  <input type="password" id="token" placeholder="admin token" autocomplete="off">
-  <p id="gate-error" class="hidden" style="color:var(--bad);font-size:13px"></p>
-  <p><button class="primary" id="unlock">Unlock</button></p>
+  <p class="sub">Sign in with the account that holds the admin role. There is no separate password.</p>
+  <p id="gate-error" class="hidden gate-error"></p>
+  <p><a class="primary" id="signin" href="/start">Sign in</a></p>
 </div>
 
 <div class="wrap hidden" id="app">
@@ -186,12 +203,20 @@ export const ADMIN_PAGE = `<!doctype html>
   <button class="primary" id="save">Save</button>
 </div>
 
-<script>
+<script nonce="${nonce}">
 (function () {
   "use strict";
 
-  var TOKEN_KEY = "eait.admin.token";
-  var token = sessionStorage.getItem(TOKEN_KEY) || "";
+  // NOT IN sessionStorage ANY MORE (#391b). What this holds is a bearer for a real account rather
+  // than a shared string, and one in storage survives the tab and is readable by any script that
+  // ever runs on this origin — an origin that now also serves the web application. A variable in
+  // this closure is gone when the tab is; the cost is one round trip after a reload, which is the
+  // correct price. /start/session/token is where it comes from, and the HttpOnly session cookie
+  // set by /start is what authorises that call.
+  //
+  // (No backticks anywhere inside this page: the whole document is one template literal, and a
+  // backtick ends it. The failure is a TypeScript parse error a hundred lines away.)
+  var token = "";
   var content = null;
   var meta = null;
   var notify = null;
@@ -203,8 +228,8 @@ export const ADMIN_PAGE = `<!doctype html>
     return fetch(path, {
       method: method,
       headers: body
-        ? { "x-admin-token": token, "content-type": "application/json" }
-        : { "x-admin-token": token },
+        ? { authorization: "Bearer " + token, "content-type": "application/json" }
+        : { authorization: "Bearer " + token },
       body: body ? JSON.stringify(body) : undefined
     }).then(function (res) {
       return res.text().then(function (text) {
@@ -552,24 +577,40 @@ export const ADMIN_PAGE = `<!doctype html>
     });
   }
 
-  function unlock() {
-    token = $("token").value.trim();
-    if (!token) return;
-    load().then(function () {
-      sessionStorage.setItem(TOKEN_KEY, token);
+  function enter() {
+    // Trade the /start session cookie for a bearer. A POST, because SameSite=Lax withholds the
+    // cookie from a cross-site POST and that is what guards it; the token comes back in the body,
+    // never in a URL.
+    // redirect: "manual", and it is the difference between two very different messages. With no
+    // session the route answers 303 to /start; fetch FOLLOWS that by default, gets 200 HTML back,
+    // and res.ok is true — so the JSON parse threw and the catch below told an administrator their
+    // account could not administer this instance. An opaque redirect is a signed-out browser.
+    return fetch("/start/session/token", { method: "POST", redirect: "manual" }).then(function (res) {
+      if (res.type === "opaqueredirect" || res.status === 0 || res.status === 303) throw new Error("signed-out");
+      if (!res.ok) throw new Error("signed-out");
+      return res.json();
+    }).then(function (body) {
+      token = body.token;
+      return load();
+    }).then(function () {
       $("gate").classList.add("hidden");
       $("app").classList.remove("hidden");
       $("bar").classList.remove("hidden");
     }).catch(function (e) {
+      token = "";
       var msg = $("gate-error");
-      msg.textContent = e.status === 401 ? "That token was not accepted." : "Could not load: " + e.message;
-      msg.classList.remove("hidden");
-      sessionStorage.removeItem(TOKEN_KEY);
+      // 404 is what an account without the role gets, and it is deliberately the same answer an
+      // instance with no admin at all gives. Say the one true thing rather than guessing which.
+      msg.textContent = e.message === "signed-out"
+        ? ""
+        : "That account cannot administer this instance.";
+      if (msg.textContent) msg.classList.remove("hidden");
     });
   }
 
-  $("unlock").addEventListener("click", unlock);
-  $("token").addEventListener("keydown", function (e) { if (e.key === "Enter") unlock(); });
+  // Try on load: somebody arriving here from /start is already signed in, and asking them to press
+  // a button to discover that is a button with no question behind it.
+  enter();
 
   $("save").addEventListener("click", function () {
     status("saving…");
@@ -622,10 +663,6 @@ export const ADMIN_PAGE = `<!doctype html>
     load().then(function () { status("reloaded — version " + content.version); });
   });
 
-  if (token) {
-    $("token").value = token;
-    unlock();
-  }
 })();
 </script>
 </body>

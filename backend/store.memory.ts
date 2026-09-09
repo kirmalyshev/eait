@@ -12,7 +12,7 @@ import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
 import { type ChatMessage,
-  PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type FunnelAggregate, type MealPatch,
+  PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type FunnelAggregate, type MealPatch, type Role,
   type PendingMeal, type PortionCorrection, type ProfilePatch, type PushPlatform, type PushToken,
   type StoredEntitlement, type Store, type StoreOptions, type StoredPhoto,
 } from "./store.ts";
@@ -70,6 +70,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const now = opts.now ?? Date.now;
 
   const users = new Map<string, Profile>();
+  /**
+   * Roles, in their own map rather than on the profile (#391a).
+   *
+   * Kept apart for the same reason Postgres keeps the column out of its profile allowlist: a role
+   * that lived on the `Profile` object would be writable by `patchProfile` here — this store writes
+   * every key it is handed — and refused there. An absent entry is "user", never `undefined`.
+   */
+  const roles = new Map<string, Role>();
   /**
    * The stored record PLUS the two per-grant ordering clocks, which are this store's own
    * bookkeeping and never leave it — `getEntitlement` projects them away. Postgres keeps the same
@@ -168,6 +176,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     // Goes with the account. In Postgres this is a column on `users` and needs no statement at
     // all; here it is a second map, so it needs this line to keep the two stores honest.
     entitlements.delete(userId);
+    // Same argument, same reason: a column there, a map here. An admin grant that outlived its
+    // account would be handed to whoever the id belonged to next.
+    roles.delete(userId);
     freeAnalyses.delete(userId);
     for (const [d, u] of devices) if (u === userId) devices.delete(d);
     for (const [h, row] of tokens) if (row.userId === userId) tokens.delete(h);
@@ -220,6 +231,22 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         });
       }
       return { userId, created: existing === undefined };
+    },
+
+    async roleOf(userId) {
+      if (!users.has(userId)) return null;
+      return roles.get(userId) ?? "user";
+    },
+
+    async setRole(userId, role) {
+      if (!users.has(userId)) return false;
+      if (role === "user") roles.delete(userId); else roles.set(userId, role);
+      return true;
+    },
+
+    async hasAdmin() {
+      for (const [id, role] of roles) if (role === "admin" && users.has(id)) return true;
+      return false;
     },
 
     async createUser(lang: Lang) {
@@ -395,6 +422,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // rather than silently start addressing someone else's diary.
       for (const [h, row] of tokens) if (row.userId === fromUserId) tokens.delete(h);
       users.delete(fromUserId);
+      // NOT MOVED, deleted with the account. A merge is anonymous→real, so the surviving account's
+      // own role is the answer; carrying one across would let an anonymous session hand an admin
+      // grant to somebody else's account. Postgres gets this for free by not listing the column.
+      roles.delete(fromUserId);
       return moved;
     },
 
@@ -408,9 +439,15 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (!current) throw new Error("no such user");
       // Explicit key iteration, not a spread of `patch`: a spread would copy keys whose value is
       // `undefined` and overwrite a stored value with nothing. Absent means "leave alone".
+      //
+      // AND ONLY KEYS A PROFILE ALREADY HAS. Postgres allowlists the columns it will write
+      // (`PROFILE_COLUMNS`); without the same rule here this store accepted any key at all and put
+      // it on the object `getProfile` hands back — so the two disagreed about what a profile even
+      // IS, which is the divergence class the contract suite exists to catch. Found by the test
+      // that patches `{ role: "admin" }`: Postgres dropped it, this kept it.
       const next: Profile = { ...current };
       for (const [k, v] of Object.entries(patch)) {
-        if (v !== undefined) (next as unknown as Record<string, unknown>)[k] = v;
+        if (v !== undefined && k in current) (next as unknown as Record<string, unknown>)[k] = v;
       }
       users.set(userId, next);
       return clone(next);

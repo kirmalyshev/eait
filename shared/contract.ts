@@ -344,6 +344,19 @@ export interface ProfileResponse {
   /** Null until onboarding completes. */
   onboarded: boolean;
   /**
+   * Whether this account holds the admin role (#391b).
+   *
+   * A BOOLEAN, and deliberately not the role itself: what a client needs is "may I offer the admin
+   * section", and a role string invites a client to reason about roles it was never told the rules
+   * for. It is also why `role` is not on `Profile` — a field there would be writable by `PATCH` in
+   * one store implementation and refused in the other.
+   *
+   * ADVISORY, NEVER AN AUTHORITY. This decides whether a link is drawn. Every path under `/admin`
+   * checks the role again, server-side, on every request; a client that set this to true itself
+   * would gain a menu entry and nothing behind it.
+   */
+  isAdmin: boolean;
+  /**
    * What this server will actually accept. Carried here because the profile is fetched at boot and
    * on every refresh, so the app learns the limits of the environment it is talking to instead of
    * assuming the ones it was compiled with.

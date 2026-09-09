@@ -73,6 +73,7 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
   const entitlement = await entitlementFor(deps, userId);
   return {
     profile, targets, basis, onboarded: profile.onboarded_at !== null,
+    isAdmin: await deps.store.roleOf(userId) === "admin",
     limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
   };
 }
@@ -215,6 +216,7 @@ export async function patchProfile(
     ok: true,
     view: {
       profile, targets, basis, onboarded: profile.onboarded_at !== null,
+      isAdmin: await deps.store.roleOf(userId) === "admin",
       limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
     },
   };

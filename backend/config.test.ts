@@ -27,8 +27,9 @@ const VARS = [
   "EAIT__BACKEND__FREE_ANALYSES", "EAIT__BACKEND__GLOBAL_DAILY_ANALYSIS_CAP", "EAIT__BACKEND__APPLE_AUDIENCES", "EAIT__BACKEND__GOOGLE_AUDIENCES",
   "EAIT__BACKEND__SESSION_TTL_DAYS", "EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR", "EAIT__BACKEND__ANALYSIS_RATE_LIMIT_PER_DAY",
   "EAIT__BACKEND__SUBSCRIBE_RATE_LIMIT_PER_HOUR", "EAIT__BACKEND__LINES_RATE_LIMIT_PER_HOUR", "EAIT__BACKEND__SUBSCRIBE_DAILY_CAP", "EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS",
-  "EAIT__BACKEND__ADMIN_TOKEN", "EAIT__BACKEND__MAIL_PROVIDER", "EAIT__BACKEND__MAIL_FROM", "EAIT__BACKEND__RESEND_API_KEY", "EAIT__BACKEND__RESEND_BASE_URL",
-  "EAIT__BACKEND__MAIL_TIMEOUT_MS", "EAIT__BACKEND__PUBLIC_API_URL", "EAIT__BACKEND__LANDING_URL",
+  "EAIT__BACKEND__ADMIN_TOKEN", "EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID", "EAIT__BACKEND__MAIL_PROVIDER", "EAIT__BACKEND__MAIL_FROM", "EAIT__BACKEND__RESEND_API_KEY", "EAIT__BACKEND__RESEND_BASE_URL",
+  "EAIT__BACKEND__MAIL_TIMEOUT_MS", "EAIT__BACKEND__PUBLIC_API_URL", "EAIT__BACKEND__PUBLIC_WEB_URL",
+  "EAIT__BACKEND__LANDING_URL",
   "EAIT__BACKEND__PAID_DAILY_PHOTO_CAP", "EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN", "EAIT__BACKEND__REVENUECAT_ACCEPT_SANDBOX",
   "EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID", "EAIT__BACKEND__USER_DAILY_PHOTO_CAP",
   "EAIT__BACKEND__PUSH_ENABLED", "EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN", "EAIT__BACKEND__PUSH_TIMEOUT_MS",
@@ -423,6 +424,24 @@ describe("demo mode", () => {
     expect(d.linesRateLimitPerHour).toBeGreaterThanOrEqual(100_000);
     expect(d.healthSyncRateLimitPerHour).toBeGreaterThanOrEqual(100_000);
     expect(d.analysisRateLimitPerDay).toBeGreaterThanOrEqual(100_000);
+  });
+
+  it("knows the browser's origin, which is a different application on a different port", () => {
+    // `./dev up --demo --web` runs the web application beside this backend, and `worktree.sh`
+    // derives both ports. A demo that ignored this variable answered `/start` itself and offered no
+    // diary on the plan page — a stack that looked configured and sent nobody anywhere.
+    const before = process.env.EAIT__BACKEND__PUBLIC_WEB_URL;
+    try {
+      process.env.EAIT__BACKEND__PUBLIC_WEB_URL = "http://127.0.0.1:8798/";
+      // The trailing slash goes, exactly as `loadConfig` drops it — this value is concatenated with
+      // a pathname, and two slashes there is a redirect to a URL no route matches.
+      expect(demoConfig().publicWebUrl).toBe("http://127.0.0.1:8798");
+      delete process.env.EAIT__BACKEND__PUBLIC_WEB_URL;
+      expect(demoConfig().publicWebUrl).toBe("");
+    } finally {
+      if (before === undefined) delete process.env.EAIT__BACKEND__PUBLIC_WEB_URL;
+      else process.env.EAIT__BACKEND__PUBLIC_WEB_URL = before;
+    }
   });
 
   it("still starts from the shared defaults, so a new setting is present rather than absent", () => {

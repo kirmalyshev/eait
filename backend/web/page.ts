@@ -35,6 +35,16 @@ export const PAGE_COPY = {
   planFloor:
     "This is the lowest daily intake this app will set, so the number is the floor rather than the " +
     "arithmetic. Eating under it is not something we will help you plan.",
+  /**
+   * The handover to the web application (#394).
+   *
+   * FIRST ON THE PAGE, ahead of the App Store, and that ordering is the decision: somebody who has
+   * just answered eight questions in a browser can use the product in that same browser, and being
+   * told to install something instead is being told the thing they just did was a form.
+   */
+  planDiary: "Open your diary",
+  planDiaryBody:
+    "Nothing to install. Photograph a meal in this browser and read the answer, on the same account.",
   planAppHeading: "Now get the app",
   /**
    * The `{provider}` is filled in with the one they actually used. THIS SENTENCE IS THE FEATURE:
@@ -237,6 +247,10 @@ export function shell(title: string, body: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>${escape(title)}</title>
+<!-- Empty data: icon. An anonymous request for an unknown path on this origin is answered 401
+     by resolveUserId before anything can 404 it, so /favicon.ico logged a console error on every
+     page load. A console that always has an error in it is a console nobody reads. -->
+<link rel="icon" href="data:,">
 <style>${STYLES}</style>
 </head><body><main>${body}</main></body></html>`;
 }
@@ -467,6 +481,13 @@ export interface PlanView {
   floorApplied: boolean;
   floorKcal: number;
   checkoutUrl: string | null;
+  /**
+   * Whether there is a web application to hand over to.
+   *
+   * A button to a 404 is worse than no button, so a deployment that never built one says nothing
+   * about a diary — the same rule the `/start` front door follows before it redirects.
+   */
+  hasWebApp: boolean;
 }
 
 export function plan(v: PlanView): string {
@@ -479,6 +500,10 @@ export function plan(v: PlanView): string {
 </div>
 ${v.floorApplied
   ? `<p class="notice care">${escape(PAGE_COPY.planFloor)} The floor is ${v.floorKcal} kcal.</p>`
+  : ""}
+${v.hasWebApp
+  ? `<p class="muted">${escape(PAGE_COPY.planDiaryBody)}</p>
+<a class="button${v.checkoutUrl ? "" : " primary"}" href="/">${escape(PAGE_COPY.planDiary)}</a>`
   : ""}
 ${v.checkoutUrl
   ? `<a class="button primary" href="${escape(v.checkoutUrl)}">${escape(PAGE_COPY.planCheckout)}</a>`

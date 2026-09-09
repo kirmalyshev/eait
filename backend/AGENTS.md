@@ -44,9 +44,17 @@ route. A route that computes is a rule the tests cannot reach.
 - **State conditions live in the store's own guarded statements**, never in a read the engine did
   first: deliveries can be concurrent, nothing is transactional, and a decision made from a stale
   read is dropped permanently.
-- **The admin is its own authority** (`EAIT__BACKEND__ADMIN_TOKEN`, ≥24 chars, constant-time,
-  checked before any user is resolved). Unset means the surface does not exist — every path under
-  it answers 404, not 403. Set it and open `/admin` to edit the onboarding copy.
+- **The admin is a ROLE an account carries** (`users.role`, checked `=== "admin"` AFTER the user is
+  resolved). It was its own authority — a shared `EAIT__BACKEND__ADMIN_TOKEN` reached before any
+  user existed — until #391b; that token is retired, because a replayable secret in a header and a
+  role are two ways in, and two ways in must not survive a deploy. What did not change: nobody
+  holding the role means the surface does not exist, and every path under it answers 404, not 403.
+  An identified ordinary account gets 404 as well; only an anonymous request gets 401, because the
+  public page already proves the route exists. **The role is granted OUT OF BAND and only out of
+  band** — `EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID`, a user id and never a provider subject, applied
+  at boot. It is not on `Profile`, so no `PATCH` can write it in either store; it is not in the
+  column list `mergeUsers` copies, so no merge can carry it. Deleting the last admin switches the
+  surface off, which the variable never could.
 
 ## Windows and bounds
 

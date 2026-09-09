@@ -68,9 +68,10 @@ function isLoopback(hostname: string): boolean {
 /**
  * One provider's verdict at one origin.
  *
- * `origin` is what the callback URL is built from — `EAIT__BACKEND__PUBLIC_API_URL` where it is
- * set, and the request's own scheme and host otherwise. Pass it and the answer is about a real
- * deployment; omit it and the answer is only about the variables.
+ * `origin` is what the callback URL is built from — `EAIT__BACKEND__PUBLIC_WEB_URL` where it is
+ * set, else `EAIT__BACKEND__PUBLIC_API_URL`, else the request's own scheme and host (#406: the
+ * browser's origin and the API's are two settings now, because they became two hosts). Pass it and
+ * the answer is about a real deployment; omit it and the answer is only about the variables.
  */
 export function checkWebProvider(
   provider: WebProvider,
@@ -100,7 +101,7 @@ export function checkWebProvider(
   if (provider === "apple" && !https) {
     return {
       provider, state: "unusable", missing: [], callbackUrl,
-      reason: "Apple requires an https Return URL, and refuses localhost — put an https tunnel in front of this origin and point EAIT__BACKEND__PUBLIC_API_URL at it",
+      reason: "Apple requires an https Return URL, and refuses localhost — put an https tunnel in front of this origin and point EAIT__BACKEND__PUBLIC_WEB_URL (or PUBLIC_API_URL) at it",
     };
   }
   if (provider === "apple" && loopback) {

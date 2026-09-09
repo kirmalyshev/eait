@@ -245,7 +245,7 @@ export interface Config {
    *
    * A secret, and it is treated as one — `redact()` masks it, and nothing prints it.
    */
-  adminToken: string;
+  // RETIRED in #391b — the admin is a role on an account. See `adminBootstrapUserId`.
 
   /**
    * How many addresses the landing page's form may add in a rolling day, across everyone.
@@ -290,6 +290,37 @@ export interface Config {
    * built from a header is a link an attacker can influence the hostname of.
    */
   publicApiUrl: string;
+
+  /**
+   * The origin a BROWSER is on, when it is not this API's own.
+   *
+   * Split out of `publicApiUrl` in #406, because one value cannot name two origins and the
+   * reshuffle needs it to: `app.eait.fit` serves people, `api.eait.fit` serves the phone. The
+   * OAuth `redirect_uri` is where a provider returns a person, so it follows THIS; the
+   * confirmation link in an email is a path on the API, so it follows `publicApiUrl`. Flipping the
+   * single old value would have pointed every double-opt-in link at a host that answers 404 on
+   * `/v1/subscribe/confirm`, and the mailing list would have stopped growing in silence.
+   *
+   * Empty means "the same origin as the API", which is what every host did before this existed —
+   * so an environment that never sets it is unchanged.
+   */
+  publicWebUrl: string;
+
+  /**
+   * The ONE account made an admin at boot, by UUID, or empty for none (#391a).
+   *
+   * A UUID and never a provider `sub`, and that is a security property rather than a preference:
+   * `identities` is keyed `(provider, subject)` and `upsertDeviceUser` writes
+   * `('device', <any client-supplied string of 32+ characters>)`. An Apple subject is about 44
+   * characters, so a grant keyed on the subject alone would be claimable by anybody willing to
+   * mint a device account carrying it. The user id is ours, is a uuid column, and no request can
+   * choose it.
+   *
+   * Applied on every boot, idempotently, because it must survive a restore: the off-site backup is
+   * restored on every deploy, and a one-shot command run once against a database that is later
+   * replaced by a pre-role dump leaves an instance nobody can administer.
+   */
+  adminBootstrapUserId: string;
 
   // ── Notifications ────────────────────────────────────────────────────────────────────────
   //
@@ -454,7 +485,6 @@ export function configDefaults(): Config {
     appleTeamId: "",
     appleKeyId: "",
     applePrivateKey: "",
-    adminToken: "",
     revenueCatWebhookToken: "",
     revenueCatEntitlementId: "eait_fit_pro",
     revenueCatAcceptSandbox: false,
@@ -466,6 +496,8 @@ export function configDefaults(): Config {
     resendBaseUrl: "https://api.resend.com",
     mailTimeoutMs: 15_000,
     publicApiUrl: "",
+    publicWebUrl: "",
+    adminBootstrapUserId: "",
     landingUrl: "",
     pushEnabled: false,
     expoPushAccessToken: "",
@@ -608,7 +640,6 @@ export function loadConfig(): Config {
     appleKeyId: process.env.EAIT__BACKEND__APPLE_KEY_ID ?? d.appleKeyId,
     applePrivateKey: applePrivateKeyFromEnv(),
     webCheckoutUrl: webCheckoutUrlFromEnv(),
-    adminToken: adminTokenFromEnv(),
     revenueCatWebhookToken: revenueCatWebhookTokenFromEnv(),
     revenueCatEntitlementId:
       process.env.EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID ?? d.revenueCatEntitlementId,
@@ -621,6 +652,8 @@ export function loadConfig(): Config {
     resendBaseUrl: (process.env.EAIT__BACKEND__RESEND_BASE_URL ?? d.resendBaseUrl).replace(/\/$/, ""),
     mailTimeoutMs: int("EAIT__BACKEND__MAIL_TIMEOUT_MS", d.mailTimeoutMs),
     publicApiUrl: (process.env.EAIT__BACKEND__PUBLIC_API_URL ?? d.publicApiUrl).replace(/\/$/, ""),
+    publicWebUrl: (process.env.EAIT__BACKEND__PUBLIC_WEB_URL ?? d.publicWebUrl).replace(/\/$/, ""),
+    adminBootstrapUserId: (process.env.EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID ?? d.adminBootstrapUserId).trim(),
     // No validation beyond "looks like an origin": a wrong value here sends somebody to the wrong
     // page, which is visible, rather than corrupting anything, which is not.
     landingUrl: (process.env.EAIT__BACKEND__LANDING_URL ?? d.landingUrl).replace(/\/$/, ""),
@@ -647,23 +680,12 @@ export function eveningLineTimeFromEnv(): { hour: number; minute: number } {
 }
 
 /**
- * The admin credential, refused if it is too short to be one.
+ * There WAS an `adminTokenFromEnv` here, and #391b retired it.
  *
- * A short admin token is a guessable admin token, and this one edits what every new user reads
- * while answering questions about their health. Unset is fine and means "no admin"; set-and-weak
- * is a startup error, because it looks protected and is not.
- *
- * Exported so `--demo` reads it the same way. Demo mode is a real server on a real port, and an
- * admin surface that validates its credential differently there is an admin surface whose only
- * tested path is the one nobody ships.
+ * The admin is a role an account carries; there is no shared secret left to validate, and a
+ * variable that still existed would be a second way in that nobody was watching. What replaced it
+ * is `adminBootstrapUserId` above, which grants the role at boot and is not a credential.
  */
-export function adminTokenFromEnv(): string {
-  const raw = process.env.EAIT__BACKEND__ADMIN_TOKEN ?? "";
-  if (raw !== "" && raw.length < 24) {
-    throw new Error("[eait] EAIT__BACKEND__ADMIN_TOKEN must be at least 24 characters (or unset to disable /admin)");
-  }
-  return raw;
-}
 
 /**
  * The RevenueCat webhook credential, refused if it is too short to be one.
@@ -697,7 +719,7 @@ export function revenueCatWebhookTokenFromEnv(): string {
  */
 export function redact(c: Config): Record<string, unknown> {
   const {
-    llmApiKey: _k, adminToken: _a, resendApiKey: _r, revenueCatWebhookToken: _rc,
+    llmApiKey: _k, resendApiKey: _r, revenueCatWebhookToken: _rc,
     expoPushAccessToken: _e, googleWebClientSecret: _g, applePrivateKey: _ap, databaseUrl,
     ...rest
   } = c;
@@ -709,7 +731,6 @@ export function redact(c: Config): Record<string, unknown> {
     // this log by being forgotten — the omission is the default and the disclosure is the edit.
     resendApiKey: c.resendApiKey === "" ? "(unset)" : "***",
     // Whether the admin is ON is worth seeing in a boot log; the token itself never is.
-    adminToken: c.adminToken === "" ? "(disabled)" : "***",
     // Same again: whether purchases can be reported at all is the thing worth reading in a log.
     revenueCatWebhookToken: c.revenueCatWebhookToken === "" ? "(disabled)" : "***",
     // Whether this server can send a notification at all is the thing worth reading in a boot log.
@@ -803,7 +824,6 @@ export function demoConfig(): Config {
     // Read from the environment here too, and validated by the same function: the admin is how
     // onboarding copy is edited, and "works in demo, untested in production" is the shape of
     // every configuration bug that ships.
-    adminToken: adminTokenFromEnv(),
     // And the same argument for the web onboarding, except that `--demo` no longer needs any of
     // these to reach `/start` at all: `index.ts` gives it canned providers, because the surface's
     // first act is to send the browser to Google or Apple and neither will authorise against a
@@ -811,6 +831,13 @@ export function demoConfig(): Config {
     // when the thing being checked is the redirect itself. Nothing is weakened by the canned pair —
     // the demo verifier a few lines below already accepts `demo:<provider>:<subject>` from anybody
     // who can reach the process, which is why a demo server is a loopback thing and always was.
+    // AND THE BROWSER'S ORIGIN, for the reason the paragraph above gives about the admin: "works in
+    // demo, untested in production" is the shape of every configuration bug that ships. Two things
+    // read it and both are silent when it is wrong — the `/start` front door, which sends a
+    // returning person to the diary instead of asking the questions again, and the plan page, which
+    // offers the diary at all. `./dev up --demo --web` had a web application answering on the very
+    // next port and a demo that could not tell it apart from itself, so it did neither.
+    publicWebUrl: (process.env.EAIT__BACKEND__PUBLIC_WEB_URL ?? "").replace(/\/$/, ""),
     googleWebClientId: process.env.EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID ?? "",
     googleWebClientSecret: process.env.EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET ?? "",
     appleServiceId: process.env.EAIT__BACKEND__APPLE_SERVICE_ID ?? "",

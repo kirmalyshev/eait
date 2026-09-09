@@ -55,6 +55,16 @@ export interface SeedPersona {
   /** How many calendar days of meals to write, counting back from today. */
   days: number;
   /**
+   * Whether this persona holds the admin role (#391b).
+   *
+   * EXACTLY ONE PERSONA DOES, and a development database needs it: the role is the only way into
+   * `/admin` now, so a seeded database with nobody holding it has an admin surface that answers
+   * 404 — correct, and unusable. It is re-applied on every seed because each run deletes the
+   * account and mints a NEW user id; a grant left on the old one would be an admin nobody can sign
+   * in as, while `hasAdmin()` still said the surface exists.
+   */
+  admin?: true;
+  /**
    * A fixed thread to write as the user's own lines, instead of one derived from meals.
    *
    * For the persona that has to look identical on every run — see `FIXTURE_THREAD`. A persona with
@@ -100,9 +110,11 @@ export const SEED_PERSONAS: readonly SeedPersona[] = [
     profile: null,
   },
   {
-    // LAST, and it matters: `seed.test.ts` finds the persona with no health rows by taking the
-    // FIRST with `healthDays === 0`, which is `fresh`. Putting this one ahead of it would silently
-    // change which account that assertion is about.
+    // AFTER `fresh`, and it matters: `seed.test.ts` finds the persona with no health rows by
+    // taking the FIRST with `healthDays === 0`, which is `fresh`. A second such persona ahead of it
+    // would silently change which account that assertion is about. (This said "last" until the
+    // admin persona was appended below; that one has meals, so it has health rows and can never be
+    // the one that assertion finds.)
     key: "chat",
     summary: "onboarded, no meals, a fixed thread — the Chat the visual checkpoints baseline (#257)",
     days: 0,
@@ -120,6 +132,34 @@ export const SEED_PERSONAS: readonly SeedPersona[] = [
       pace: "steady",
       country: "de",
       restrictions: ["ldl"],
+      medical_limitations: null,
+      food_allergies: null,
+      product_limitations: null,
+      onboarded_at: new Date("2026-01-15T09:00:00.000Z").toISOString(),
+    },
+  },
+  {
+    // THE ONE ACCOUNT THAT CAN OPEN /admin (#391b).
+    //
+    // It has meals and a plan like any other, deliberately: the admin is an ordinary account that
+    // happens to hold a role, and a persona with nothing in it would hide every place the panel
+    // renders against real numbers. It is also the account to sign in as when driving the web app,
+    // because the Admin tab is only drawn for it.
+    key: "admin",
+    summary: "onboarded, 7 days of meals, HOLDS THE ADMIN ROLE — the account /admin opens for",
+    days: 7,
+    admin: true,
+    profile: {
+      goal: "maintain",
+      sex: "female",
+      birth_year: 1988,
+      height_cm: 168,
+      weight_kg: 62,
+      target_weight_kg: 62,
+      activity: "light",
+      pace: "steady",
+      country: "de",
+      restrictions: [],
       medical_limitations: null,
       food_allergies: null,
       product_limitations: null,
@@ -148,6 +188,8 @@ export interface SeededPersona {
   meals: number;
   /** Health days written. Zero for a persona with no profile — see `seedDevData`. */
   healthDays: number;
+  /** Whether this account holds the admin role. Exactly one seeded persona does. */
+  admin: boolean;
 }
 
 /** One plate: a name, and the share of the meal's calories it accounts for. */
@@ -229,9 +271,14 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
     await store.deleteUser(existing.userId);
     const { userId } = await store.upsertDeviceUser(deviceId, lang);
 
+    // The role, before anything else. `setRole` refuses an id that names no account, so it goes
+    // after the account exists and before the `continue` below can skip past it.
+    if (persona.admin) await store.setRole(userId, "admin");
+
     if (persona.profile === null) {
       out.push({
         key: persona.key, deviceId, userId, summary: persona.summary, meals: 0, healthDays: 0,
+        admin: persona.admin === true,
       });
       continue;
     }
@@ -384,6 +431,7 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
     out.push({
       key: persona.key, deviceId, userId, summary: persona.summary, meals,
       healthDays: healthDays.length,
+      admin: persona.admin === true,
     });
   }
 

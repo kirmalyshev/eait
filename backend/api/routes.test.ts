@@ -851,6 +851,115 @@ describe("the mailing list", () => {
     expect(mailer.sent[0]!.confirmUrl).toStartWith("https://api.eait.fit/v1/subscribe/confirm?t=");
   });
 
+  it("answers /api/v1/* itself, because development has no Caddy in front of it", async () => {
+    // #393 put the prefix strip in a `handle_path` at the edge, and DRIVING REAL CHROME is what
+    // found the hole: `./dev up` runs this process directly, so every call the web app makes went
+    // to `/api/v1/profile` and got a 404. The bundle is served by this same process — if it can be
+    // fetched from here, its API must answer from here too.
+    //
+    // ONE ROUTE TABLE STILL. The prefix is stripped before dispatch, so `/api/v1/profile` and
+    // `/v1/profile` reach the same handler and `src/shared/contract.ts` stays the only place a
+    // route is named.
+    const s = memoryStore();
+    const h = createRouter({ store: s, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
+
+    const token = (await (await h(new Request(url(ROUTES.authDevice), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en" }),
+    }))).json() as { token: string }).token;
+
+    const direct = await h(new Request(url("/v1/profile"), { headers: { authorization: `Bearer ${token}` } }));
+    const prefixed = await h(new Request(url("/api/v1/profile"), { headers: { authorization: `Bearer ${token}` } }));
+    expect(prefixed.status).toBe(direct.status);
+    expect(prefixed.status).toBe(200);
+  });
+
+  it("does not answer /api for the machine-to-machine paths", async () => {
+    // The edge refuses these on the browser's name (#393) and so does this: a webhook reachable
+    // under two spellings is a webhook whose name nobody can answer from the path alone.
+    const s = memoryStore();
+    const h = createRouter({ store: s, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
+    for (const p of ["/api/v1/revenuecat/webhook", "/api/v1/apple/notifications"]) {
+      expect(`${p}: ${(await h(new Request(url(p), { method: "POST" }))).status}`).toBe(`${p}: 404`);
+    }
+  });
+
+  it("sends a browser that asked the API for /start to the web origin instead", async () => {
+    // #392/#408. Shipped iOS builds print `api.eait.fit/start` on the Settings screen as the
+    // pairing address (`settings.tsx`), and a binary already on a phone cannot be told otherwise.
+    // So the API's name never stops answering /start — it answers 301, permanently, and every
+    // build keeps working.
+    const s = memoryStore();
+    const config: Config = { ...CONFIG, publicWebUrl: "https://app.eait.fit" };
+    const h = createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
+
+    const res = await h(new Request("https://api.eait.fit/start?src=x", { redirect: "manual" }));
+    expect(res.status).toBe(301);
+    expect(res.headers.get("location")).toBe("https://app.eait.fit/start?src=x");
+
+    // The alias moves with it — it is the same surface under a shorter name.
+    const chat = await h(new Request("https://api.eait.fit/chat", { redirect: "manual" }));
+    expect(chat.headers.get("location")).toBe("https://app.eait.fit/chat");
+  });
+
+  it("redirects a GET and never a POST, because Apple's callback is a POST", async () => {
+    // A 301 turns a POST into a GET in every browser, and Apple returns from Sign in with Apple by
+    // POSTing the form to its registered Return URL. Redirecting that would drop the body and lose
+    // the sign-in — so whichever host Apple was told about keeps handling its own callback, and
+    // only navigations move.
+    const s = memoryStore();
+    const config: Config = { ...CONFIG, publicWebUrl: "https://app.eait.fit" };
+    const h = createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
+
+    const res = await h(new Request("https://api.eait.fit/start/auth/apple/callback", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ code: "c", state: "s" }),
+      redirect: "manual",
+    }));
+    expect(res.status).not.toBe(301);
+  });
+
+  it("does not redirect when the browser is already on the web origin", async () => {
+    const s = memoryStore();
+    const config: Config = { ...CONFIG, publicWebUrl: "https://app.eait.fit" };
+    const h = createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
+    const res = await h(new Request("https://app.eait.fit/start", { redirect: "manual" }));
+    expect(res.status).not.toBe(301);
+  });
+
+  it("does not redirect at all until a web origin is configured", async () => {
+    // Which is every host today, and every host that never moves its browser surface.
+    const s = memoryStore();
+    const config: Config = { ...CONFIG, publicWebUrl: "" };
+    const h = createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
+    const res = await h(new Request("https://api.eait.fit/start", { redirect: "manual" }));
+    expect(res.status).not.toBe(301);
+  });
+
+  it("keeps the email link on the API's origin when the browser has moved to another", async () => {
+    // #406. One value named both origins until app.eait.fit existed, and `confirmUrl` hardcodes
+    // `${base}/v1/subscribe/confirm` — so pointing the browser's origin at the web app would have
+    // pointed every double-opt-in link at a host that answers 404 on that path, and the list would
+    // have stopped growing in silence. The two origins are now separate settings.
+    const s = memoryStore();
+    const mailer = fakeMailer();
+    const config: Config = {
+      ...CONFIG,
+      landingUrl: "https://eait.fit",
+      publicApiUrl: "https://api.eait.fit",
+      publicWebUrl: "https://app.eait.fit",
+    };
+    const h = createRouter({ store: s, config, llm: demoPorts(), mailer, push: fakePush() }, s, testVerifier);
+
+    await h(new Request("https://app.eait.fit/v1/subscribe", {
+      method: "POST",
+      body: new URLSearchParams({ email: "split@example.com" }),
+    }));
+    expect(mailer.sent[0]!.confirmUrl).toStartWith("https://api.eait.fit/v1/subscribe/confirm?t=");
+  });
+
   it("needs no token, which is the entire point", async () => {
     // A subscriber is not a user. Requiring auth here would mean the list could only hold people
     // who already signed up for the thing the list exists to tell them about.

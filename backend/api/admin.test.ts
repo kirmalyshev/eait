@@ -3,9 +3,15 @@ import { fakePush } from "../push/fake.ts";
 // The onboarding API, and the admin behind it.
 //
 // This file is mostly about who is allowed to do what. The admin edits the first thing every new
-// user reads, on a route that sits in the same process as the user API, so the tests that matter
-// are the ones proving the two authorities do not overlap: an ordinary session token must be worth
-// exactly nothing here, and an unconfigured deployment must not have this surface at all.
+// user reads, on a route in the same process as the user API, so the tests that matter are the ones
+// about who gets in.
+//
+// SINCE #391b THE ADMIN IS A ROLE AN ACCOUNT CARRIES, not a shared secret typed into a box. That
+// inverts the old rule rather than weakening it: an ordinary session token used to be worth
+// exactly nothing here, and it still is — what changed is that the thing making it worthless is
+// `users.role` rather than a separate credential. The tests below say so from both directions: a
+// signed-in ordinary user gets 404, and an instance where nobody holds the role has no surface at
+// all.
 
 import { beforeEach, describe, expect, it } from "bun:test";
 import { DEFAULT_ONBOARDING_CONTENT, ROUTES, type OnboardingContent } from "@eait/shared";
@@ -16,9 +22,10 @@ import type { Store } from "../store.ts";
 import type { EngineDeps } from "../engine/index.ts";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { createRouter } from "./routes.ts";
-import { ADMIN_PAGE } from "./admin.page.ts";
+import { adminPage } from "./admin.page.ts";
 
-const EAIT__BACKEND__ADMIN_TOKEN = "test-admin-token-that-is-long-enough";
+/** The page as it is served, with a nonce standing in for the per-request one. */
+const ADMIN_PAGE = adminPage("test-nonce");
 
 const verifier: Verifier = {
   async verify() { throw new AuthError("not-used-here"); },
@@ -33,6 +40,8 @@ const base: Config = {
 
 let store: Store;
 let handle: (req: Request) => Promise<Response>;
+/** The bearer of an account holding the admin role. Re-minted per test by `mountWithAdmin`. */
+let adminBearer: string;
 
 const url = (p: string) => `http://localhost${p}`;
 
@@ -42,15 +51,28 @@ function mount(config: Config) {
   handle = createRouter(deps, store, verifier);
 }
 
-const admin = (method: string, path: string, body?: unknown, token = EAIT__BACKEND__ADMIN_TOKEN) =>
+const admin = (method: string, path: string, body?: unknown, token = adminBearer) =>
   handle(new Request(url(path), {
     method,
     headers: {
       "content-type": "application/json",
-      ...(token === "" ? {} : { "x-admin-token": token }),
+      // ONE KIND OF CREDENTIAL ON THIS SERVER NOW. The admin presents the same bearer an ordinary
+      // request does; what separates them is the role on the account behind it.
+      ...(token === "" ? {} : { authorization: `Bearer ${token}` }),
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   }));
+
+/** A session whose account holds the admin role — the only way in since #391b. */
+async function mountWithAdmin(config: Config = base): Promise<void> {
+  mount(config);
+  const token = await session();
+  const userId = (await store.userIdForToken(token))!;
+  // Out of band, exactly as the boot-time bootstrap does it. Nothing reachable over HTTP grants
+  // this, and there is no route that could.
+  await store.setRole(userId, "admin");
+  adminBearer = token;
+}
 
 /** A device session — an ordinary user's bearer token. */
 async function session(): Promise<string> {
@@ -62,12 +84,15 @@ async function session(): Promise<string> {
   return (await res.json() as { token: string }).token;
 }
 
-describe("the admin is off unless configured", () => {
+describe("the admin is off unless somebody holds the role", () => {
   beforeEach(() => { mount(base); });
 
-  it("404s every admin path when EAIT__BACKEND__ADMIN_TOKEN is unset", async () => {
-    // 404 rather than 403. "There is an admin here and you cannot have it" is information, and a
-    // deployment that never set the variable should look like one that has no such feature.
+  it("404s every admin path when no account is an admin", async () => {
+    // 404 rather than 403. "There is an admin here and you cannot have it" is information, and an
+    // instance where nobody holds the role should look like one that has no such feature.
+    //
+    // The property survives the move from a shared token, and gains something: deleting the last
+    // admin account switches the surface off, which no environment variable could do.
     for (const path of ["/admin", "/admin/api/content", "/admin/api/funnel", "/admin/api/notifications",
       "/admin/api/users/00000000-0000-4000-8000-000000000000/cap"]) {
       expect((await admin("GET", path)).status).toBe(404);
@@ -77,36 +102,68 @@ describe("the admin is off unless configured", () => {
 });
 
 describe("the admin credential", () => {
-  beforeEach(() => { mount({ ...base, adminToken: EAIT__BACKEND__ADMIN_TOKEN }); });
+  beforeEach(async () => { await mountWithAdmin(); });
 
-  it("serves the page without a token, because the page is where you type one", async () => {
+  it("serves the page without a credential, because the page is where you sign in", async () => {
     const res = await admin("GET", "/admin", undefined, "");
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/html");
-    // Inline-only, so a future edit that reaches for a CDN fails here rather than quietly shipping
-    // a third party the token typed into this form.
-    expect(res.headers.get("content-security-policy")).toContain("default-src 'none'");
+    // No inline script, and a nonce on the one there is. The page holds a BEARER now rather than a
+    // string somebody typed, on an origin that also serves the web application — so an injected
+    // script here is worth every credential at once, and `unsafe-inline` is not available to it.
+    const csp = res.headers.get("content-security-policy")!;
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).not.toContain("unsafe-inline");
   });
 
-  it("refuses the API without a token", async () => {
+  it("refuses the API without a credential", async () => {
     expect((await admin("GET", "/admin/api/content", undefined, "")).status).toBe(401);
   });
 
-  it("refuses a wrong token", async () => {
+  it("refuses a token that names no session", async () => {
     expect((await admin("GET", "/admin/api/content", undefined, "wrong")).status).toBe(401);
-    // Including one that is a prefix of the real thing — the comparison is constant-time, and this
-    // asserts the behaviour rather than the timing.
-    expect((await admin("GET", "/admin/api/content", undefined, EAIT__BACKEND__ADMIN_TOKEN.slice(0, -1))).status).toBe(401);
   });
 
-  it("refuses an ordinary user's bearer token", async () => {
-    // THE ONE THAT MATTERS. Two authorities in one process: if a session token reached this, every
-    // user of the app could rewrite the onboarding every other user reads.
+  it("gives an ORDINARY signed-in user a 404, not a 403", async () => {
+    // THE ONE THAT MATTERS, and the shape of the answer is half of it.
+    //
+    // The old rule was that a user's bearer could never be an admin credential because the two were
+    // separate authorities. They are one authority now, and what separates them is `users.role` —
+    // so this is the test that says the inversion did not hand every user the panel.
+    //
+    // 404 rather than 403 or 401: this person IS identified, and telling an identified ordinary
+    // user "there is an admin here and you are not it" is the one piece of information worth
+    // withholding. An anonymous request gets 401 above, because the public page already proves the
+    // route exists and confusing the person who IS allowed in buys nothing.
     const token = await session();
+    for (const path of ["/admin/api/content", "/admin/api/funnel", "/admin/api/notifications"]) {
+      const res = await handle(new Request(url(path), {
+        headers: { authorization: `Bearer ${token}` },
+      }));
+      expect(`${path}: ${res.status}`).toBe(`${path}: 404`);
+    }
+  });
+
+  it("checks for the admin role exactly, never for 'not a user'", async () => {
+    // A gate written `role !== "user"` reads an account with no role as an admin. There is no such
+    // account — the column is NOT NULL with a default — but the memory store would happily hold one
+    // if somebody added a field, and this is the assertion that would go red rather than open.
+    const token = await session();
+    const userId = (await store.userIdForToken(token))!;
+    await store.setRole(userId, "user");
     const res = await handle(new Request(url("/admin/api/content"), {
       headers: { authorization: `Bearer ${token}` },
     }));
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(404);
+  });
+
+  it("stops working the moment the role is taken away", async () => {
+    // No cached decision, no session that outlives the grant: revoking is a write to one row and
+    // the next request is refused.
+    expect((await admin("GET", "/admin/api/content")).status).toBe(200);
+    const userId = (await store.userIdForToken(adminBearer))!;
+    await store.setRole(userId, "user");
+    expect((await admin("GET", "/admin/api/content")).status).toBe(404);
   });
 
   it("accepts the right one", async () => {
@@ -126,7 +183,7 @@ describe("the admin credential", () => {
 });
 
 describe("editing the copy", () => {
-  beforeEach(() => { mount({ ...base, adminToken: EAIT__BACKEND__ADMIN_TOKEN }); });
+  beforeEach(async () => { await mountWithAdmin(); });
 
   it("saves a rewrite and serves it to the app", async () => {
     const content = structuredClone(DEFAULT_ONBOARDING_CONTENT);
@@ -198,7 +255,7 @@ describe("editing the copy", () => {
 });
 
 describe("the app's onboarding routes", () => {
-  beforeEach(() => { mount({ ...base, adminToken: EAIT__BACKEND__ADMIN_TOKEN }); });
+  beforeEach(async () => { await mountWithAdmin(); });
 
   it("needs a session", async () => {
     expect((await handle(new Request(url(ROUTES.onboarding)))).status).toBe(401);
@@ -254,7 +311,7 @@ describe("the app's onboarding routes", () => {
 // validation runs on the WRITE. A lock screen is the one surface where "we will fix it in the next
 // fetch" is not available — the message has already been delivered.
 describe("editing the notification copy", () => {
-  beforeEach(() => { mount({ ...base, adminToken: EAIT__BACKEND__ADMIN_TOKEN }); });
+  beforeEach(async () => { await mountWithAdmin(); });
 
   it("serves the shipped copy and the placeholders the editor needs", async () => {
     const res = await admin("GET", "/admin/api/notifications");
@@ -306,12 +363,14 @@ describe("editing the notification copy", () => {
     expect(after.copy["trial-day5"]!.title).toBe("Two days left");
   });
 
-  it("refuses an ordinary user's bearer token here too", async () => {
+  it("gives an ordinary user's bearer token a 404 here too", async () => {
+    // Same rule, same answer, on every path under /admin — see "the admin credential" above for
+    // why an identified non-admin is told nothing rather than told no.
     const token = await session();
     const res = await handle(new Request(url("/admin/api/notifications"), {
       headers: { authorization: `Bearer ${token}` },
     }));
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(404);
   });
 });
 
@@ -320,22 +379,22 @@ describe("editing the notification copy", () => {
 // console message in one browser. These two assertions are what stands in for a bundler.
 describe("the admin page", () => {
   it("parses as JavaScript", () => {
-    const script = /<script>([\s\S]*?)<\/script>/.exec(ADMIN_PAGE)?.[1];
+    const script = /<script nonce="[^"]*">([\s\S]*?)<\/script>/.exec(ADMIN_PAGE)?.[1];
     expect(script).toBeTruthy();
     // Parses without executing — there is no DOM here, and a parse is what this is checking.
     expect(() => new Function(script!)).not.toThrow();
   });
 
   it("only reaches for elements that exist on it", () => {
-    const ids = new Set(Array.from(ADMIN_PAGE.matchAll(/id="([\w-]+)"/g), (m) => m[1]!));
-    const wanted = Array.from(ADMIN_PAGE.matchAll(/\$\("([\w-]+)"\)/g), (m) => m[1]!);
+    const ids = new Set(Array.from(ADMIN_PAGE.matchAll(/id="([\w-]+)"/g), (m: RegExpMatchArray) => m[1]!));
+    const wanted = Array.from(ADMIN_PAGE.matchAll(/\$\("([\w-]+)"\)/g), (m: RegExpMatchArray) => m[1]!);
     expect(wanted.length).toBeGreaterThan(10);
     expect([...new Set(wanted)].filter((id) => !ids.has(id))).toEqual([]);
   });
 });
 
 describe("the per-account sample", () => {
-  beforeEach(() => { mount({ ...base, adminToken: EAIT__BACKEND__ADMIN_TOKEN }); });
+  beforeEach(async () => { await mountWithAdmin(); });
 
   const user = async () => (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
 
@@ -364,12 +423,14 @@ describe("the per-account sample", () => {
     expect((await admin("GET", "/admin/api/users/not-a-uuid/cap")).status).toBe(404);
   });
 
-  it("refuses an ordinary user's bearer token", async () => {
+  it("gives an ordinary user's bearer token a 404 on a WRITE", async () => {
+    // The write is the one worth stating separately: setting another account's sample size is the
+    // only thing on this surface that changes what a stranger is allowed to spend.
     const path = `/admin/api/users/${await user()}/cap`;
     const res = await handle(new Request(url(path), {
       method: "PUT", headers: { authorization: `Bearer ${await session()}`, "content-type": "application/json" },
       body: JSON.stringify({ freeAnalyses: 1 }),
     }));
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(404);
   });
 });

@@ -136,6 +136,14 @@ export interface StartContext {
    */
   providers: Partial<Record<WebProvider, WebSignInProvider>>;
   /**
+   * Whether this deployment has a web application to send anybody to.
+   *
+   * From the same one read of the bundle that serves it, so this and `/` cannot disagree. False
+   * means every path here behaves as it did before the web app existed — a deployment that never
+   * built one must not bounce people into a 404.
+   */
+  hasWebApp: boolean;
+  /**
    * This server's public origin — `EAIT__BACKEND__PUBLIC_API_URL` where it is set, which is what
    * every deployed host does (`iac/.../env.prod.j2`). The redirect URI is built from it.
    */
@@ -373,6 +381,22 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
 
   // ── The front door ────────────────────────────────────────────────────────────────────────
   if (req.method === "GET" && (pathname === START_PREFIX || pathname === `${START_PREFIX}/`)) {
+    // ALREADY SIGNED IN AND ALREADY FINISHED → THE DIARY, not the questions a second time.
+    //
+    // This surface exists to get somebody to the point of using the product, and for a returning
+    // person that point is behind them. The front door renders before the session is ever read
+    // further down, so without this it showed the sign-in buttons to somebody who was signed in.
+    //
+    // ONBOARDED, not merely signed in: a half-answered profile has no plan behind it, so the diary
+    // would be a screen of zeroes with no route back to the questions. And only when there IS a web
+    // app — bouncing somebody into a 404 is worse than asking them again.
+    if (ctx.hasWebApp) {
+      const session = cookies[SESSION_COOKIE] ?? "";
+      const already = session === "" ? null : await ctx.store.userIdForToken(session);
+      if (already !== null && (await ctx.store.getProfile(already))?.onboarded_at) {
+        return seeOther("/");
+      }
+    }
     const content = await onboardingContent(ctx.deps);
     // A CODE, NEVER A SENTENCE — the same rule `?notice=` follows on the chat page. `error=code`
     // is the pairing form's refusal and anything else is the sign-in's, which is what the OAuth
@@ -570,6 +594,53 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   // an HTML surface. The front door with the cookie cleared is what that session actually is.
   const profile = await ctx.store.getProfile(userId);
   if (profile === null) return seeOther(START_PREFIX, [clearCookie(SESSION_COOKIE, secure)]);
+
+  // ── THE BEARER THIS PAGE'S JAVASCRIPT MAY HOLD (#407) ─────────────────────────────────────
+  //
+  // The web app on this origin talks to `/api/v1/*`, and that API is bearer-only — deliberately,
+  // because an API that accepts a cookie is an API another origin can post to on a signed-in
+  // browser. So the bundle needs a token, and this is the one place it can get one.
+  //
+  // A SECOND TOKEN, NOT THE COOKIE'S OWN VALUE. The session cookie is HttpOnly precisely so script
+  // cannot read it; handing its value back would undo that. A separate token means the cookie
+  // never enters JavaScript and the two can be revoked apart.
+  //
+  // IN THE BODY, NEVER IN A URL. A bearer in a query string lands in history, in a `Referer` and in
+  // every log between here and the browser — the thing this document refuses by name.
+  //
+  // A POST, so `SameSite=Lax` is the guard. A cross-site GET navigation carries a Lax cookie and a
+  // cross-site POST does not, which is why every write on this surface is a POST; minting a
+  // credential is a write.
+  // ── ENDING THE SESSION, WHICH IS A SERVER-SIDE ACT ───────────────────────────────────────
+  //
+  // The web app's Sign out cleared a variable in its own module and nothing else. The cookie is
+  // HttpOnly, so script cannot clear it, and it stayed valid — the very next press of "Sign in"
+  // answered 303 to the diary and minted a fresh bearer from the SAME session. On a shared browser
+  // that is the next person reading the last person's diary, having supplied no credential.
+  //
+  // `revokeTokensFor`, not `revokeToken`: the page holds a SECOND credential minted from this same
+  // session above, and there is no way for it to hand that one back. "Sign out of this browser"
+  // that leaves a live bearer behind is a promise the product does not keep.
+  //
+  // A POST, like every other write here: a GET that ends a session is a session another site can
+  // end with an <img> tag.
+  if (req.method === "POST" && pathname === `${START_PREFIX}/session/signout`) {
+    await ctx.store.revokeTokensFor(userId);
+    const headers = new Headers({ "content-type": "application/json", "cache-control": "no-store" });
+    // Cleared on the way out, so the browser stops presenting a token that is already dead.
+    headers.append("set-cookie", clearCookie(SESSION_COOKIE, secure));
+    return new Response(JSON.stringify({ ok: true }), { headers });
+  }
+
+  if (req.method === "POST" && pathname === `${START_PREFIX}/session/token`) {
+    return new Response(JSON.stringify({ token: await ctx.store.issueToken(userId) }), {
+      headers: {
+        "content-type": "application/json",
+        // Not a page, and not something an intermediary may keep.
+        "cache-control": "no-store",
+      },
+    });
+  }
 
   const view = async (): Promise<{ profile: Profile; content: OnboardingContent }> => ({
     profile, content: await onboardingContent(ctx.deps),
@@ -801,6 +872,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       .map((i) => i.provider).find((p): p is WebProvider => p === "apple" || p === "google") ?? null;
     return html(plan({
       signedInWith,
+      hasWebApp: ctx.hasWebApp,
       kcal: full.targets.kcal,
       proteinG: full.targets.protein_g,
       floorApplied: full.basis.floorApplied,

@@ -6,7 +6,10 @@
 // else. The verifier, the sign-in, the profile validation, the target arithmetic and the rendering
 // are all the real ones.
 
-import { beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, beforeEach, describe, expect, it } from "bun:test";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   AMBIGUOUS_AGE, DEFAULT_ONBOARDING_CONTENT, UNDER_AGE_CARD, UNDER_AGE_LINES, disabledScreens,
   explainTargets, lintCopy, MAX_USER_LINE, type Profile,
@@ -80,9 +83,31 @@ let handle: (req: Request) => Promise<Response>;
  * harness that rebuilt it on every call would hand every request a fresh allowance — a limiter that
  * is present, configured and untestable, which is the shape the real server never has.
  */
-function router(config: Config, providers = PROVIDERS, llm = demoPorts()) {
+/**
+ * WHAT "THIS DEPLOYMENT HAS A WEB APPLICATION" IS, NOW THAT THIS PROCESS DOES NOT SERVE IT.
+ *
+ * It used to be a bundle on disk, written by this file into a temporary directory and handed to the
+ * router — because the backend served the page itself. #423 moved the web application into its own
+ * container on its own port, so the signal is the variable that says a browser origin exists.
+ *
+ * THE VALUE IS THE HOST THESE TESTS REQUEST. `routes.ts` answers `/start` with a 301 when the
+ * request arrives on a host that is not `publicWebUrl`, so naming `app.eait.fit` here would redirect
+ * every request this file makes instead of serving it — a deployment that has not split its two
+ * names is the honest way to say "there is a web app" without also saying "and you are on the wrong
+ * host". The tests that mean the 301 set `publicWebUrl` themselves.
+ */
+const WEB_ORIGIN = "https://api.eait.fit";
+
+function router(
+  config: Config,
+  providers = PROVIDERS,
+  llm = demoPorts(),
+  webApp = false,
+) {
   store = memoryStore();
-  deps = { store, config, llm, mailer: fakeMailer(), push: fakePush() };
+  // Only when asked for: a test that sets `publicWebUrl` itself means what it set.
+  const withWeb = webApp ? { ...config, publicWebUrl: WEB_ORIGIN } : config;
+  deps = { store, config: withWeb, llm, mailer: fakeMailer(), push: fakePush() };
   const handler = createRouter(deps, store, testVerifier, { webProviders: providers });
   handle = (req) => handler(req);
 }
@@ -1366,6 +1391,215 @@ describe("the web surface and the landing are one product", () => {
     // And the policy that allows it is same-origin only.
     const front = await get("/start");
     expect(front.headers.get("content-security-policy")).toContain("font-src 'self'");
+  });
+});
+
+describe("signing out of this browser", () => {
+  /** Sign in and finish, then hand back the cookie and a bearer minted from it. */
+  const session = async (): Promise<{ cookie: string; bearer: string; userId: string }> => {
+    const start = await get("/start/auth/google");
+    const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
+    const res = await get(
+      `/start/auth/google/callback?code=signout-subject&state=${encodeURIComponent(state)}`,
+      cookieFrom(start, "eait_oauth"),
+    );
+    const cookie = res.headers.getSetCookie().find((c) => c.startsWith("eait_web="))!.split(";")[0]!;
+    const userId = (await store.userIdForToken(decodeURIComponent(cookie.split("=")[1]!)))!;
+    await store.patchProfile(userId, { onboarded_at: new Date().toISOString() });
+    const bearer = (await (await post("/start/session/token", {}, cookie)).json() as { token: string }).token;
+    return { cookie, bearer, userId };
+  };
+
+  it("revokes the session, so the next person at this browser is not the last one", async () => {
+    // THE FAILURE THIS EXISTS FOR. The web app's Sign out cleared a variable in its own module and
+    // nothing else: the HttpOnly cookie survived, so the very next press of "Sign in" answered
+    // 303 → / and minted a fresh bearer from the SAME session. On a shared browser that is the next
+    // person reading the last person's diary, having supplied no credential at all.
+    router({ ...CONFIG }, undefined, undefined, true);
+    const { cookie, bearer } = await session();
+
+    const out = await post("/start/session/signout", {}, cookie);
+    expect(out.status).toBe(200);
+    // The cookie is cleared on the way out, so the browser stops presenting it.
+    expect(out.headers.getSetCookie().some((c) => c.startsWith("eait_web=") && /Max-Age=0/.test(c))).toBe(true);
+
+    // And the credential itself is dead, not merely forgotten by the page.
+    expect(await store.userIdForToken(decodeURIComponent(cookie.split("=")[1]!))).toBeNull();
+    // The bearer the page was holding dies with it — it is a second credential on the same session.
+    expect(await store.userIdForToken(bearer)).toBeNull();
+
+    // The front door no longer knows them: the questions, not a redirect into somebody's diary.
+    const back = await get("/start", cookie);
+    expect(back.status).toBe(200);
+  });
+
+  it("is a POST, like every other write on this surface", async () => {
+    // A GET that ends a session is a session another site can end with an <img> tag.
+    const { cookie } = await session();
+    expect((await get("/start/session/signout", cookie)).status).not.toBe(200);
+  });
+
+  it("says nothing useful to a request with no session", async () => {
+    expect((await post("/start/session/signout", {})).status).not.toBe(200);
+  });
+});
+
+describe("the funnel actually reaches the web application", () => {
+  /** Sign in and finish onboarding, which is the state a returning person is in. */
+  const onboarded = async (): Promise<string> => {
+    const start = await get("/start/auth/google");
+    const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
+    const res = await get(
+      `/start/auth/google/callback?code=returning-subject&state=${encodeURIComponent(state)}`,
+      cookieFrom(start, "eait_oauth"),
+    );
+    const cookie = res.headers.getSetCookie().find((c) => c.startsWith("eait_web="))!.split(";")[0]!;
+    const userId = (await store.userIdForToken(decodeURIComponent(cookie.split("=")[1]!)))!;
+    await store.patchProfile(userId, { onboarded_at: new Date().toISOString() });
+    return cookie;
+  };
+
+  it("sends a signed-in, onboarded browser to the diary instead of the questions again", async () => {
+    // The whole reason this surface exists is to get somebody to the point of using the product.
+    // Answering the questions a second time is not that, and it is what the front door did to
+    // anybody who came back — because it renders before the session is ever read.
+    router({ ...CONFIG }, undefined, undefined, true);
+    const res = await get("/start", await onboarded());
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/");
+  });
+
+  it("does not send anybody to a diary that was never built", async () => {
+    // `/` answers 404 on a deployment with no bundle, and bouncing a signed-in person into that is
+    // worse than showing them the questions.
+    router({ ...CONFIG }, undefined, undefined, false);
+    const res = await get("/start", await onboarded());
+    expect(res.status).toBe(200);
+  });
+
+  it("leaves somebody mid-onboarding where they were", async () => {
+    // Signed in is not the same as finished. A half-answered profile has no plan behind it, so the
+    // diary would be a screen of zeroes and no way back to the questions.
+    router({ ...CONFIG }, undefined, undefined, true);
+    const start = await get("/start/auth/google");
+    const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
+    const cb = await get(
+      `/start/auth/google/callback?code=halfway-subject&state=${encodeURIComponent(state)}`,
+      cookieFrom(start, "eait_oauth"),
+    );
+    const cookie = cb.headers.getSetCookie().find((c) => c.startsWith("eait_web="))!.split(";")[0]!;
+    const res = await get("/start", cookie);
+    expect(res.headers.get("location")).not.toBe("/");
+  });
+});
+
+describe("the plan page hands over to the product", () => {
+  const planFor = async (webApp: boolean): Promise<string> => {
+    router({ ...CONFIG }, undefined, undefined, webApp);
+    const start = await get("/start/auth/google");
+    const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
+    const cb = await get(
+      `/start/auth/google/callback?code=plan-subject&state=${encodeURIComponent(state)}`,
+      cookieFrom(start, "eait_oauth"),
+    );
+    const cookie = cb.headers.getSetCookie().find((c) => c.startsWith("eait_web="))!.split(";")[0]!;
+    const userId = (await store.userIdForToken(decodeURIComponent(cookie.split("=")[1]!)))!;
+    await store.patchProfile(userId, {
+      sex: "female", birth_year: 1990, height_cm: 170, weight_kg: 70, target_weight_kg: 65,
+      activity: "light", pace: "steady", goal: "lose", onboarded_at: new Date().toISOString(),
+    });
+    return await (await get("/start/plan", cookie)).text();
+  };
+
+  it("offers the diary, and offers it before the App Store", async () => {
+    // The page ended on "Now get the app", which was the only next step when the only client was an
+    // iPhone. There is a web application now, and a person who has just answered eight questions in
+    // a browser can use it in the same browser — so the handover comes first and installing is what
+    // it says after.
+    const html = await planFor(true);
+    expect(html).toContain('href="/"');
+    expect(html.indexOf('href="/"')).toBeLessThan(html.indexOf("Now get the app"));
+  });
+
+  it("says nothing about a diary on a deployment that has none", async () => {
+    // A button to a 404 is worse than no button, and this is the same rule the front door follows.
+    const html = await planFor(false);
+    expect(html).not.toContain('href="/"');
+    expect(html).toContain("Now get the app");
+  });
+});
+
+describe("handing the browser's own JavaScript a bearer", () => {
+  /** Sign in for real and return the session cookie, because that is the only way to get one. */
+  const signedIn = async (): Promise<string> => {
+    const start = await get("/start/auth/google");
+    const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
+    const res = await get(
+      `/start/auth/google/callback?code=bearer-subject&state=${encodeURIComponent(state)}`,
+      cookieFrom(start, "eait_oauth"),
+    );
+    return res.headers.getSetCookie().find((c) => c.startsWith("eait_web="))!.split(";")[0]!;
+  };
+
+  it("mints a SECOND token rather than handing over the cookie's own", async () => {
+    // #407. The bundle needs a bearer, and the session cookie is HttpOnly precisely so script
+    // cannot read it. Minting a separate token means the cookie's value never enters JavaScript and
+    // the two can be revoked independently.
+    const cookie = await signedIn();
+    const res = await post("/start/session/token", {}, cookie);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { token: string };
+    expect(body.token).toBeTruthy();
+    expect(cookie).not.toContain(body.token);
+    // And it addresses the same account.
+    const cookieToken = decodeURIComponent(cookie.split("=")[1]!);
+    expect(await store.userIdForToken(body.token))
+      .toBe((await store.userIdForToken(cookieToken))!);
+  });
+
+  it("is in the body and never in a URL", async () => {
+    // docs/WEB_ONBOARDING.md refuses a bearer secret in a URL: it lands in history, in a Referer
+    // and in every log between here and the browser.
+    const res = await post("/start/session/token", {}, await signedIn());
+    expect(res.headers.get("location")).toBeNull();
+    expect(res.headers.get("content-type")).toContain("application/json");
+  });
+
+  it("gives nothing to a request with no session", async () => {
+    const res = await post("/start/session/token", {});
+    expect(res.status).not.toBe(200);
+    expect(await res.text()).not.toContain("token");
+  });
+
+  it("is a POST, so SameSite=Lax is what guards it", async () => {
+    // A cross-site GET navigation carries a Lax cookie and a cross-site POST does not. Every write
+    // on this surface is a POST for that reason, and minting a credential is a write.
+    const res = await get("/start/session/token", await signedIn());
+    expect(res.status).not.toBe(200);
+  });
+});
+
+describe("the origin the browser is sent back to", () => {
+  it("is the web origin, not the API's", async () => {
+    // #406. The redirect_uri is where the provider returns the person, so it belongs to whichever
+    // host is serving them — and that is no longer the host the confirmation emails point at.
+    router({ ...CONFIG, publicWebUrl: "https://app.eait.fit" });
+    const res = await handle(new Request("https://app.eait.fit/start/auth/google", {
+      method: "GET", redirect: "manual",
+    }));
+    const to = new URL(res.headers.get("location")!);
+    expect(to.searchParams.get("redirect_uri"))
+      .toBe("https://app.eait.fit/start/auth/google/callback");
+  });
+
+  it("falls back to the API's origin, so a host that never sets it is unchanged", async () => {
+    router({ ...CONFIG, publicWebUrl: "" });
+    const res = await handle(new Request("https://api.eait.fit/start/auth/google", {
+      method: "GET", redirect: "manual",
+    }));
+    const to = new URL(res.headers.get("location")!);
+    expect(to.searchParams.get("redirect_uri"))
+      .toBe("https://api.eait.fit/start/auth/google/callback");
   });
 });
 

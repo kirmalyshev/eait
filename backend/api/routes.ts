@@ -87,6 +87,7 @@ const DAY = 24 * HOUR;
 
 /** What a test replaces. Everything else this router needs, it builds from `deps.config`. */
 export interface RouterOptions {
+
   /**
    * The web onboarding's sign-in providers. See `auth/web-oauth.ts`; a test replaces them so
    * `/start` can be driven end to end without Apple or Google being reachable.
@@ -174,6 +175,20 @@ export function createRouter(
     return `${proto}://${here.host}`;
   };
 
+  /**
+   * The origin a PERSON is on, which is not the same question (#406).
+   *
+   * `publicOrigin` above answers "where is this API", and it is what an emailed link is built from.
+   * This answers "where is the browser", and it is what an OAuth `redirect_uri` is built from —
+   * because that is where the provider sends the person back to. The two were one value until
+   * `app.eait.fit` existed, and flipping that one value would have moved the confirmation links
+   * with the sign-in.
+   *
+   * Falls back to the API's origin, so a host that never sets `EAIT__BACKEND__PUBLIC_WEB_URL`
+   * behaves exactly as it did before the split.
+   */
+  const webOrigin = (req: Request): string => deps.config.publicWebUrl || publicOrigin(req);
+
   const subscribeDeps = (req: Request) => ({
     store,
     mailer: deps.mailer,
@@ -189,7 +204,28 @@ export function createRouter(
 
   return async function handle(req: Request, peer?: PeerSource): Promise<Response> {
     const url = new URL(req.url);
-    const { pathname } = url;
+
+    // ── `/api` COMES OFF HERE, NOT AT THE EDGE (#393) ─────────────────────────────────────────
+    //
+    // The web app calls `/api/v1/...` because that is what its own origin serves. A Caddy
+    // `handle_path` strips the prefix in production — and DEVELOPMENT HAS NO CADDY: `./dev up`
+    // runs this process directly, so every call the bundle made answered 404. Driving real Chrome
+    // is what found it; the container proved the deployed shape and nothing proved the shape
+    // everybody actually runs.
+    //
+    // ONE ROUTE TABLE. This is a rename of the incoming path before dispatch, not a second set of
+    // routes: `/api/v1/profile` and `/v1/profile` reach the same handler, and
+    // `src/shared/contract.ts` stays the only place an endpoint is named. Caddy still strips it at
+    // the edge, which is now belt and braces rather than the only mechanism.
+    //
+    // THE TWO MACHINE PATHS ARE NOT REACHABLE THIS WAY. RevenueCat and Apple post to the API's own
+    // name on their own credentials; a webhook answering under two spellings is a webhook nobody
+    // can name from the path alone, which is the whole point of the split.
+    const prefixed = url.pathname.startsWith("/api/");
+    const pathname = prefixed ? url.pathname.slice("/api".length) : url.pathname;
+    if (prefixed && (pathname === REVENUECAT_WEBHOOK_PATH || pathname === APPLE_NOTIFICATIONS_PATH)) {
+      return json({ error: "not found" }, 404);
+    }
 
     // Unauthenticated, deliberately: a liveness probe that requires a session cannot tell a dead
     // process from an expired token.
@@ -211,13 +247,41 @@ export function createRouter(
     if (pathname === ROUTES.health) return json({ ok: true, demo: deps.llm.canned === true } satisfies LivenessResponse);
 
     try {
-      // The admin, on its OWN credential.
+      // The admin, on a ROLE the account carries (#391b).
       //
-      // Handled before `resolveUserId` and never reachable with a user's bearer token — the two
-      // are separate authorities, and an admin surface that accepts an ordinary session token is
-      // an admin surface every user has. Off entirely unless `EAIT__BACKEND__ADMIN_TOKEN` is set.
+      // THIS USED TO BE HANDLED BEFORE `resolveUserId`, DELIBERATELY, so that a user's bearer could
+      // never be an admin credential. The inversion is the whole of #391b: there is one authority
+      // now, and what separates an admin from everybody else is `users.role`. The identity is
+      // resolved by the SAME function every other route uses — there is no second path from a
+      // request to a userId in this process, and adding one is how the two would drift apart.
+      //
+      // `adminRoutes` answers 404 to an ordinary account and to an instance where nobody holds the
+      // role at all, so this line hands it the identity and decides nothing itself.
       if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-        return await adminRoutes(req, url, deps);
+        return await adminRoutes(req, url, deps, await resolveUserId(req));
+      }
+
+      // THE BROWSER SURFACE HAS A HOST OF ITS OWN, AND THIS NAME KEEPS ANSWERING ANYWAY (#392).
+      //
+      // 301, permanently, rather than removing the route — because `PAIR_ADDRESS` in the app's
+      // Settings screen is built from the compiled-in API URL and printed to the user as the
+      // address to type ("open api.eait.fit/start and type a pairing code"). Every build already on
+      // a phone says that, and a binary cannot be told otherwise; `src/shared/contract.ts` states
+      // the rule this obeys — shipped apps outlive the server. So this name answers /start forever,
+      // with a redirect, and the app's own copy stops being a lie the day it is wrong.
+      //
+      // GET AND HEAD ONLY. A 301 turns a POST into a GET in every browser, and Apple returns from
+      // Sign in with Apple by POSTing its form to the Return URL registered with Apple. Moving that
+      // would drop the body and lose the sign-in — so whichever host a provider was told about
+      // keeps handling its own callback, and only navigations move.
+      //
+      // Inert until `EAIT__BACKEND__PUBLIC_WEB_URL` names a different host, which is every
+      // deployment that has not moved its browser surface.
+      if ((req.method === "GET" || req.method === "HEAD") && isStartPath(pathname)) {
+        const web = deps.config.publicWebUrl;
+        if (web && new URL(web).host !== url.host) {
+          return Response.redirect(`${web}${pathname}${url.search}`, 301);
+        }
       }
 
       // Onboarding in a browser, on ITS OWN session cookie and before any user is resolved.
@@ -228,7 +292,15 @@ export function createRouter(
       // configured — Apple, Google, or both.
       if (isStartPath(pathname)) {
         return await startRoutes(req, url, {
-          deps, store, verifier, providers, origin: publicOrigin(req),
+          deps, store, verifier, providers, origin: webOrigin(req),
+          // WHETHER THERE IS A DIARY TO SEND ANYBODY TO, and this process no longer holds the
+          // answer in its own filesystem. Until #423 it did: the shell and the bundle were served
+          // from here, so "is there a web app" was "is there a file". The web application is its
+          // own container on its own port now, and the honest signal left is the one variable that
+          // already means "a browser origin exists" — `roles/eait_app` asserts that
+          // `eait_public_web_url` and `eait_app_domain` move together, and that hostname is where
+          // the web container is. One value rather than two that must agree.
+          hasWebApp: deps.config.publicWebUrl !== "",
           // The SAME per-address allowance the three sign-in routes below take, handed in rather
           // than taken here: that module spends it on its OAuth callback only, and only after the
           // gate that makes an unconfigured host answer 404 on every path under `/start`.
