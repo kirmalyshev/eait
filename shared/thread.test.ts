@@ -2,7 +2,8 @@ import { describe, expect, it } from "bun:test";
 import type { ChatEntry } from "./contract.ts";
 import type { ChatSpeaker } from "./results.ts";
 import type { MealRecord } from "./types.ts";
-import { fromHistory, keepsItsWords, landedLine, lastMealId, mergeThread, oneCardPerMeal, reconcilePage, unansweredFor, withUnanswered, type ThreadEntry } from "./thread.ts";
+import { scriptedLine } from "./chat.ts";
+import { fromHistory, keepsItsWords, landedLine, lastMealId, mergeThread, oneCardPerMeal, oneLiveProposal, pendingIdOf, reconcilePage, unansweredFor, withUnanswered, type ThreadEntry } from "./thread.ts";
 
 // The Chat screen's reconciliation of three sources of truth — the fetched page, what is on screen,
 // and the turns still in flight. Pure, so every rule the design notes record as hard-won is pinned
@@ -269,5 +270,50 @@ describe("oneCardPerMeal — #301", () => {
     const logged = card(meal("m1", 300));
     const moved: ChatEntry = { ...base(), role: "assistant", kind: "meal", event: "redated", mealId: "m1", meal: null };
     expect(oneCardPerMeal(fromHistory([logged, moved])).map((e) => e.id)).toEqual([moved.id]);
+  });
+});
+
+describe("oneLiveProposal / pendingIdOf — #360", () => {
+  const proposal = (id: string, pendingId: string): ThreadEntry =>
+    ({ id, role: "assistant", result: { kind: "proposed", pendingId, analysis: meal(pendingId, 1106), date: "2026-08-25" } });
+  const totals = { kcal: 1106, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 };
+  /** The screen's `replace` on a confirm: the entry becomes the logged card, in its own place. */
+  const confirm = (entries: ThreadEntry[], id: string, pendingId: string): ThreadEntry[] => {
+    // Annotated, never cast: a field this result grows must break here rather than typecheck green.
+    const logged: ThreadEntry = {
+      id, role: "assistant",
+      result: { kind: "logged", mealId: pendingId, analysis: meal(pendingId, 1106), totals, date: "2026-08-25", hint: "correction" },
+    };
+    return entries.map((e) => (e.id === id ? logged : e));
+  };
+
+  it("leaves one card and no live 'Log it' when a second estimate is confirmed", () => {
+    // The prod turn in #360, verbatim: one plate estimated twice, then "Log it" on the second. The
+    // first bubble kept its buttons for a `pendingId` the server had already forgotten about.
+    const first = [...fromHistory([userLine("4 chicken nuggets, 3 breads with humus")]), proposal("a1", "p1")];
+    const again = oneLiveProposal([...first, ...fromHistory([userLine("the same plate")]), proposal("a2", "p2")]);
+    const after = confirm(again, "a2", "p2");
+    expect(after.filter((e) => e.role === "assistant" && e.result.kind === "proposed")).toEqual([]);
+    expect(after.filter((e) => e.role === "assistant" && e.result.kind === "logged")).toHaveLength(1);
+  });
+
+  it("retires the superseded estimate in its own place, saying so — never a silent vanish", () => {
+    const retired = oneLiveProposal([proposal("a1", "p1"), proposal("a2", "p2")]);
+    expect(retired.map((e) => e.id)).toEqual(["a1", "a2"]);
+    expect(retired[0]).toEqual({ id: "a1", role: "assistant", result: { kind: "answered", text: scriptedLine("dropped") } });
+    expect(retired[1]).toEqual(proposal("a2", "p2"));
+  });
+
+  it("names the pending to cancel, so the words are the server's rather than the app's", () => {
+    // Nothing expires a proposal early, so a bubble the app merely stops offering is a row
+    // `POST /confirm` would still honour. `send` reads this to make the cancel the "No" button makes.
+    const entries = [...fromHistory([userLine("two eggs"), card(meal("m1", 300))]), proposal("a1", "p1")];
+    expect(entries.map(pendingIdOf).find((id) => id !== null)).toBe("p1");
+    expect(fromHistory([card(meal("m1", 300))]).map(pendingIdOf)).toEqual([null]);
+  });
+
+  it("leaves a thread with one live estimate exactly as it is", () => {
+    const entries = [...fromHistory([userLine("two eggs"), said("Anything else?")]), proposal("a1", "p1")];
+    expect(oneLiveProposal(entries)).toBe(entries);
   });
 });

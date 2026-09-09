@@ -5,6 +5,7 @@
 // command reaches it — the reconciliation below is the most intricate logic the screen has, and a
 // rule that only holds in a component nobody's runner executes is a rule nobody has checked.
 
+import { scriptedLine } from "./chat.ts";
 import type { ChatEntry, ChatEvent } from "./contract.ts";
 import type { ConfirmMealResult, HandleTextResult } from "./results.ts";
 import type { MealRecord } from "./types.ts";
@@ -251,4 +252,47 @@ export function oneCardPerMeal(entries: ThreadEntry[]): ThreadEntry[] {
     const id = mealIdOf(e);
     return id === null || newest.get(id) === i;
   });
+}
+
+/**
+ * The proposal an entry is offering, if it is one — the id its "Log it" would confirm. Null for
+ * every other line. The counterpart of `mealIdOf`, and for the same reason: a proposal is the one
+ * answer the server keeps no card for, so `mealId` cannot name it and `pendingId` is all there is.
+ */
+export const pendingIdOf = (e: ThreadEntry): string | null =>
+  e.role === "assistant" && e.result.kind === "proposed" ? e.result.pendingId : null;
+
+/**
+ * One live estimate, and it is the newest — every older one retired to the words a cancel writes (#360).
+ *
+ * A proposal is client-only until it is confirmed, so the server has no card for it and
+ * `oneCardPerMeal` cannot see it: that filter keys on `mealId` and a proposal has only a
+ * `pendingId`. Nothing else superseded one either — `mergeThread` drops a proposal on exactly one
+ * condition, a card arriving for its OWN id — so two estimates of one plate both stayed, and
+ * confirming one left the other offering a "Log it" for a pending the server no longer held. That
+ * tap answers 410 and draws "only held for a while" over a meal that logged perfectly well.
+ *
+ * RETIRED, NOT REMOVED. The bubble keeps its id and its place and says "Dropped it." — the same
+ * words and the same shape the "No" button produces. Filtering it out instead would take a card
+ * out from under the reader's eye at the moment the new one lands, which is its own defect.
+ *
+ * THE WORDS ARE ONLY TRUE IF THE CALLER CANCELS THE PENDING, and it must: nothing on the server
+ * expires a proposal early, so a client that merely stops offering it has hidden a row that
+ * `POST /confirm` would still honour, and said "Dropped it." about it. `cancelPendingMeal` drops
+ * the row and writes this same scripted line into the thread, which is also what makes the line
+ * SURVIVE — the one rendered here is live, and every live line goes with the next page.
+ * `pendingIdOf` names the id to cancel.
+ *
+ * Applied where a proposal ENTERS the list, which is the only place one can arrive: `mergeThread`
+ * runs on a page, and a proposed turn fetches none. Nothing repairs a two-proposal state that
+ * arises some other way — there is no such path today, and a second copy of this rule in the merge
+ * would be a second thing to keep in agreement rather than a safety net.
+ */
+export function oneLiveProposal(entries: ThreadEntry[]): ThreadEntry[] {
+  const live = entries.filter((e) => pendingIdOf(e) !== null);
+  if (live.length < 2) return entries;
+  const newest = live[live.length - 1];
+  return entries.map((e) => (pendingIdOf(e) !== null && e !== newest
+    ? { id: e.id, role: "assistant", result: { kind: "answered", text: scriptedLine("dropped") } }
+    : e));
 }
