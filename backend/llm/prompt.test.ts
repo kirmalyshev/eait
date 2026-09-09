@@ -272,3 +272,24 @@ test("the router prompt carries the thread's tail, contained, before the message
   expect(text.indexOf("just before")).toBeLessThan(text.indexOf("The user's message"));
   expect(buildRouteText({ ...input, recent: [] })).not.toContain("just before");
 });
+
+// ── The country that is not a place ──────────────────────────────────────────────────────────
+//
+// `other` is what `countryFromRegion` answers for a region we have not tuned for, and it is the
+// value a device outside the curated four leaves on the profile without anybody being asked. Both
+// prompts read it with a bare `if (profile.country)`, so a truthy sentinel was rendered as a place:
+// "The user shops and eats in: other." That is not the absence of a hint, it is a fake one — the
+// model is told to judge brands and portions by a country called "other". Account c91f16b7 ate
+// German supermarket food against it and said so in prod (#359).
+
+test("the untuned country is left out of both prompts, and a real one still reaches them", () => {
+  const withCountry = (country: string | null) => ({ ...PROFILE, country });
+
+  expect(buildUserText(withCountry("other"), TARGETS)).not.toContain("shops and eats in");
+  expect(buildCoachContext(coachInput({ profile: withCountry("other") }))).not.toContain("shops and eats in");
+
+  expect(buildUserText(withCountry("de"), TARGETS)).toContain("The user shops and eats in: de.");
+  expect(buildCoachContext(coachInput({ profile: withCountry("de") }))).toContain("The user shops and eats in: de.");
+  // The absent case was already right and must stay that way.
+  expect(buildUserText(withCountry(null), TARGETS)).not.toContain("shops and eats in");
+});

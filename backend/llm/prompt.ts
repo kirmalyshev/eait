@@ -163,6 +163,23 @@ Rules:
 - notes is at most two short sentences: what drove the estimate, or what you were unsure about. No preamble, no advice, no disclaimers.
 - Never comment on the user's body, their weight, or whether they should be eating this.`;
 
+/**
+ * The country, when it names a place the analyzer can use.
+ *
+ * `other` is what `countryFromRegion` answers for a region we have not tuned for, and — with the
+ * country question shipped disabled — it is what every device outside the curated four leaves on
+ * the profile without anybody being asked. It is a sentinel, not a place, and a bare
+ * `if (profile.country)` is true for it: both prompts read one and told the model "the user shops
+ * and eats in: other", over the exact line that decides which brands and portions are expected on
+ * the plate. That is a WRONG hint where there was meant to be none, and it is what account
+ * c91f16b7 was analysed against while eating German supermarket food (#359).
+ *
+ * One function for both prompts: the rule is "other is not a place", and two copies of it is one
+ * prompt that eventually keeps sending the sentinel.
+ */
+const foodCountry = (profile: Profile): string | null =>
+  profile.country && profile.country !== "other" ? profile.country : null;
+
 /** The user-side text for a photo turn. The image parts are attached by the provider. */
 export function buildUserText(profile: Profile, targets: FoodTargets, opts: {
   caption?: string;
@@ -194,14 +211,15 @@ export function buildUserText(profile: Profile, targets: FoodTargets, opts: {
   // Country is an identification aid with a measured payoff: the incumbent's recognition
   // complaints skew GB/AU ("wasn't even recognised" — Oatly, Marmite, M&S items), which is the
   // gap a non-US-first push attacks. See the App Store review brief §3.3.
-  if (profile.country) {
+  const country = foodCountry(profile);
+  if (country) {
     // The "not a language instruction" clause is not defensive padding — it is a measured fix.
     // Without it, `country: de` made the model return `Gebratenes Hähnchenfleisch` and
     // `Maiskolben` to a user whose profile said `lang: en`, on 2 of 8 photos in the first eval
     // run. A country is a hint about which foods are on the plate, and models read it as a hint
     // about which language to answer in.
     lines.push(
-      `The user shops and eats in: ${profile.country}. Use this ONLY to judge which products, ` +
+      `The user shops and eats in: ${country}. Use this ONLY to judge which products, ` +
       `brands and portion conventions are likely on the plate. It is NOT a language instruction — ` +
       `write every name in ${profile.lang} regardless.`,
     );
@@ -595,7 +613,8 @@ export function buildCoachContext(c: CoachContext): string {
   if (profile.medical_limitations) lines.push(`Medical conditions or needs: "${normalizePromptText(profile.medical_limitations)}"`);
   if (profile.food_allergies) lines.push(`Food allergies (safety-critical): "${normalizePromptText(profile.food_allergies)}"`);
   if (profile.product_limitations) lines.push(`Products the user avoids: "${normalizePromptText(profile.product_limitations)}"`);
-  if (profile.country) lines.push(`The user shops and eats in: ${profile.country}.`);
+  const country = foodCountry(profile);
+  if (country) lines.push(`The user shops and eats in: ${country}.`);
   return lines.join("\n");
 }
 
