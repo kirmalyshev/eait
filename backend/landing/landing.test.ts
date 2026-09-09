@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { assertClean, ClaimsError, copyFromHtml, lintCopy } from "./claims.ts";
 import {
   DEFAULT_UPDATED_AT, loadLandingConfig, LandingConfigError, primaryAction, primaryCta, secondaryCta,
-  surfaceNote, START_CODES,
+  surfaceNote, ASK_CODES, START_CODES,
 } from "./config.ts";
 import { emphasis, esc, iconSvg, outcomePages, renderLanding } from "./render.ts";
 import { buildLanding } from "./build.ts";
@@ -136,7 +136,12 @@ describe("config", () => {
     expect(page).toContain("https://api.eait.fit/start?start=web_hero");
     // Once per ask, and never twice in one: the repetition on this page is ONE offer asked five
     // times, and a second link beside each of them would be a different page.
-    expect(page.match(/api\.eait\.fit\/start/g)).toHaveLength(Object.values(START_CODES).length);
+    //
+    // PLUS TWO DOORS (#426), which are not asks: the masthead, and the line beside the footer's
+    // address field. Counted explicitly rather than by `START_CODES.length`, so a fourth door
+    // cannot appear here without somebody saying where it is.
+    expect(page.match(/api\.eait\.fit\/start/g))
+      .toHaveLength(Object.keys(ASK_CODES).length + 2);
     expect(page).not.toContain("set up your plan on the web");
   });
 
@@ -429,7 +434,7 @@ describe("the rendered page", () => {
     // per placement now, and START_CODES is the list: adding a band without a code, or a code
     // without a band, fails here rather than in an attribution report three weeks later.
     const ctas = [...html.matchAll(/class="cta"/g)];
-    expect(ctas).toHaveLength(Object.keys(START_CODES).length);
+    expect(ctas).toHaveLength(Object.keys(ASK_CODES).length);
     for (const placement of Object.keys(START_CODES) as (keyof typeof START_CODES)[]) {
       expect(html).toContain(`href="${primaryCta(config, placement).href}"`);
     }
@@ -1098,7 +1103,7 @@ describe("the email form is the primary action while nothing else exists", () =>
   test("five forms on one page do not share input ids", () => {
     // The id is derived from the placement rather than listed, so a sixth ask cannot be added
     // without one. Duplicate ids break the label-for pairing exactly where a screen reader needs it.
-    for (const placement of Object.keys(START_CODES)) {
+    for (const placement of Object.keys(ASK_CODES)) {
       expect(formHtml).toContain(`id="email-${placement}"`);
     }
     const ids = [...formHtml.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
@@ -1403,5 +1408,99 @@ describe("the repeated ask", () => {
     expect(withApi).not.toContain(esc(subscribeSection.bandLine.action));
     expect(botOnly).toContain(esc(subscribeSection.bandLine.action));
     expect(botOnly).not.toContain(esc(subscribeSection.bandLine.form));
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// A WAY INTO THE PRODUCT, FROM THE TOP OF EVERY PAGE AND FROM BESIDE EVERY ADDRESS FIELD (#426).
+//
+// The page argued for eait in eight thousand pixels and its only doors were the ask bands. A reader
+// past the hero had nothing to act on until the next one, and somebody who had just typed an email
+// address — the warmest reader this page ever gets — was shown a mailing list and no product.
+//
+// Measured on the live site before this landed: `curl https://eait.fit/ | grep -c '/start'` → 0,
+// with five subscribe forms on the page. The start URL was empty in that deploy, which is its own
+// bug; these tests are about the builds where it is SET and the links were still missing.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+
+/** A build with a web app to send people to, and the store listing that outranks it in the hero. */
+const withApp = loadLandingConfig({
+  ...ENV,
+  EAIT__BACKEND__LANDING_API_URL: "https://api.eait.fit",
+  EAIT__BACKEND__LANDING_START_URL: "https://app.eait.fit/start",
+});
+const appHtml = renderLanding(withApp);
+
+describe("the masthead offers the app, on every page it appears on", () => {
+  test("the landing carries it, with a placement code of its own", () => {
+    expect(appHtml).toContain('href="https://app.eait.fit/start?start=web_top"');
+  });
+
+  test("so does every outcome page, which is where a submitted address lands", () => {
+    // `/check-your-email` is the page somebody sees the moment they hand over an address. It said
+    // "Back to the page" and nothing else, which sends the one reader who has proved interest back
+    // to the argument that already convinced them.
+    for (const [name, page] of Object.entries(outcomePages(withApp))) {
+      expect(`${name}: ${page.includes("app.eait.fit/start")}`).toBe(`${name}: true`);
+    }
+  });
+
+  test("it does not take the accent, which belongs to the one primary action", () => {
+    // `src/mobile/lib/theme.ts`'s rule, which this page keeps: the accent marks exactly one thing.
+    // A masthead link wearing `cta` would put two primaries above the fold.
+    const masthead = /<header class="masthead">[\s\S]*?<\/header>/.exec(appHtml)![0];
+    expect(masthead).toContain("web_top");
+    expect(masthead).not.toContain('class="cta"');
+  });
+
+  test("a build with no web app has no such link, rather than a dead one", () => {
+    // The store-only build: `startUrl` is null, so there is nothing to open in a browser.
+    const storeOnly = loadLandingConfig(ENV);
+    const masthead = /<header class="masthead">[\s\S]*?<\/header>/.exec(renderLanding(storeOnly))![0];
+    expect(masthead).not.toContain("/start");
+  });
+});
+
+describe("every place the page asks for an email address also offers the app", () => {
+  test("one link per form, wherever the forms are", () => {
+    // COUNTED RATHER THAN SPOT-CHECKED. The forms move: five of them in a mailing-list build, one
+    // in the footer of a store build, and `askBand` decides per placement. A test that named the
+    // footer would have passed while four asks stayed doorless.
+    const forms = appHtml.match(/<form class="subscribe/g) ?? [];
+    const links = appHtml.match(/start=web_mail/g) ?? [];
+    expect(forms.length).toBeGreaterThan(0);
+    expect(`forms ${forms.length} / links ${links.length}`).toBe(`forms ${forms.length} / links ${forms.length}`);
+  });
+
+  test("the mailing-list build gets one beside each of its five asks", () => {
+    // No store listing and no web app is the build that CANNOT have this link — but a build with a
+    // web app and no listing renders the CTA in the bands and the form in the footer, and a build
+    // with both renders the store button and the form. Either way every form gets its own.
+    const webFirst = loadLandingConfig({
+      EAIT__BACKEND__LANDING_SITE_URL: ENV.EAIT__BACKEND__LANDING_SITE_URL,
+      EAIT__BACKEND__LANDING_TELEGRAM_URL: ENV.EAIT__BACKEND__LANDING_TELEGRAM_URL,
+      EAIT__BACKEND__LANDING_API_URL: "https://api.eait.fit",
+      EAIT__BACKEND__LANDING_START_URL: "https://app.eait.fit/start",
+    });
+    const page = renderLanding(webFirst);
+    const forms = page.match(/<form class="subscribe/g) ?? [];
+    const links = page.match(/start=web_mail/g) ?? [];
+    expect(links.length).toBe(forms.length);
+  });
+
+  test("a build with no web app leaves the forms alone", () => {
+    const noApp = loadLandingConfig(ENV);
+    expect(renderLanding(noApp)).not.toContain("web_mail");
+  });
+});
+
+describe("the new links say nothing the claims gate would refuse", () => {
+  test("the page and every outcome page still pass", () => {
+    // The gate reads the RENDERED page, so these labels are covered by it automatically — this is
+    // the assertion that says so out loud rather than leaving it to the build.
+    expect(lintCopy(copyFromHtml(appHtml))).toEqual([]);
+    for (const [name, page] of Object.entries(outcomePages(withApp))) {
+      expect(`${name}: ${JSON.stringify(lintCopy(copyFromHtml(page)))}`).toBe(`${name}: []`);
+    }
   });
 });

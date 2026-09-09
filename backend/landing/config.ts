@@ -276,13 +276,40 @@ export const DEFAULT_UPDATED_AT = "2026-09-06";
  *
  * Telegram accepts `[A-Za-z0-9_-]{1,64}` as a start payload; all of these are well inside it.
  */
-export const START_CODES = {
+/**
+ * THE ASKS. One per band, and the band is the page stopping to ask for something.
+ *
+ * A test counts these against the bands on the rendered page, so a band added without a code — or a
+ * code without a band — fails there rather than in an attribution report three weeks later.
+ */
+export const ASK_CODES = {
   hero: "web_hero",
   steps: "web_step",
   floor: "web_floor",
   faq: "web_faq",
   footer: "web_foot",
 } as const;
+
+/**
+ * THE DOORS, which are not asks (#426).
+ *
+ * The masthead, which is on every page at every scroll position; the line beside each address
+ * field, where somebody has just proved more interest than anybody else on the page and was being
+ * offered only a mailing list; and the outcome pages the form redirects to, which said "back to the
+ * page" and nothing else.
+ *
+ * SEPARATE FROM THE ASKS ON PURPOSE. They are the same destination reached from where a reader
+ * already is, not a sixth, seventh and eighth time of asking — and the counting tests would
+ * otherwise read three doors as three missing bands. Codes of their own all the same, because "did
+ * the top bar work" and "did the hero work" are different questions.
+ */
+export const DOOR_CODES = {
+  masthead: "web_top",
+  subscribe: "web_mail",
+  outcome: "web_done",
+} as const;
+
+export const START_CODES = { ...ASK_CODES, ...DOOR_CODES } as const;
 export type CtaPlacement = keyof typeof START_CODES;
 
 /**
@@ -295,6 +322,22 @@ export type CtaPlacement = keyof typeof START_CODES;
 function withStartCode(href: string, placement: CtaPlacement): string {
   if (!TELEGRAM_HOSTS.includes(new URL(href).hostname)) return href;
   return `${href}?start=${START_CODES[placement]}`;
+}
+
+/**
+ * The web application, with this position's code on it, or null when this build has none.
+ *
+ * ONE BUILDER, because there were two already and #426 would have made it five. `primaryCta` and
+ * `secondaryCta` both open `/start` and both append a start code; the masthead, the line beside
+ * every address field and the outcome pages do the same. A second spelling of "append the code" is
+ * how one of the five ends up unreadable in the log.
+ */
+export function webAppLink(config: LandingConfig, placement: CtaPlacement): string | null {
+  if (!config.startUrl) return null;
+  // `URL` rather than a string append: the origin may already carry a query.
+  const to = new URL(config.startUrl);
+  to.searchParams.set("start", START_CODES[placement]);
+  return to.toString();
 }
 
 /**
@@ -343,11 +386,8 @@ export function primaryCta(
     };
   }
   if (config.startUrl) {
-    // `URL` rather than a string append: the origin may already carry a query.
-    const to = new URL(config.startUrl);
-    to.searchParams.set("start", START_CODES[placement]);
     return {
-      href: to.toString(),
+      href: webAppLink(config, placement)!,
       // A button that names its destination spends itself on navigation; this one names what
       // happens next, and the note under it carries the destination.
       label: "Show your meal",
@@ -383,9 +423,7 @@ export function secondaryCta(
     // cheap question this page can be asked — did the headline convert, or did somebody read 1,200
     // words first — and a CTA that carries neither is a CTA whose performance is unreadable. The
     // read here is the API's own access log, because this destination is ours.
-    const to = new URL(config.startUrl);
-    to.searchParams.set("start", START_CODES[placement]);
-    return { href: to.toString(), label: "or set up your plan on the web" };
+    return { href: webAppLink(config, placement)!, label: "or set up your plan on the web" };
   }
   return null;
 }

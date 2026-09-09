@@ -15,13 +15,13 @@
 //     reader convinced by the third of eight sections had to scroll past the other five to act.
 
 import {
-  accuracySection, band, brand, closing, faqSection, faqs, floorSection, footer,
+  accuracySection, appDoor, band, brand, closing, faqSection, faqs, floorSection, footer,
   hero, privacySection, problemSection, founder, outcomes, plural, refusals, refusalsSection, sample,
   SAMPLE_ANALYSES, photos, screensSection, shots, steps, stepsSection, subscribeSection, whatSection,
   type Photo,
 } from "./content.ts";
 import {
-  primaryAction, primaryCta, secondaryCta, surfaceNote, START_CODES, type CtaPlacement,
+  primaryAction, primaryCta, secondaryCta, surfaceNote, webAppLink, START_CODES, type CtaPlacement,
   type LandingConfig,
 } from "./config.ts";
 import { color, dark, light } from "./tokens.ts";
@@ -375,6 +375,33 @@ function spud(mood: LandingMood, id: string, says: string): string {
 }
 
 /**
+ * The top bar, and the one door that is on every page at every scroll position (#426).
+ *
+ * ONE FUNCTION FOR BOTH SHELLS. The landing and the outcome pages had a copy each, identical apart
+ * from whitespace, so a link added to one reached half the site — and the half it missed is exactly
+ * where somebody who has just handed over an email address lands.
+ *
+ * The app link goes INSIDE the nav, which is why the nav's label is no longer "Legal and support":
+ * it is navigation, and a label that lists two of its three destinations is worse than none. It
+ * does not wear the accent — that belongs to the hero's own button, one per screen.
+ */
+function masthead(config: LandingConfig): string {
+  const door = webAppLink(config, "masthead");
+  return `<header class="masthead">
+  <div class="wrap masthead-row">
+    <a class="wordmark" href="/"><span class="wordmark-dot"></span>${esc(brand.name)}</a>
+    <nav class="masthead-links" aria-label="Site">
+      <a href="/privacy">Privacy</a>
+      <a href="/support">Support</a>${
+        door ? `
+      <a class="masthead-app" href="${esc(door)}">${esc(appDoor.masthead)}</a>` : ""
+      }
+    </nav>${themeToggle()}
+  </div>
+</header>`;
+}
+
+/**
  * The ask, repeated mid-page.
  *
  * Rendered after each of the three blocks that actually do the convincing — how it works, the
@@ -542,6 +569,19 @@ ${shots
  * `source` travels with it so a subscription can be told from a bare visit later, using the same
  * code the CTA carries.
  */
+/**
+ * The door as a line of body text, for the two places that are not the top bar.
+ *
+ * `cta-note` + `cta-alt-inline` already exist and are already used together for exactly this — the
+ * hero's second link — so this is a third caller rather than a third pair of class names.
+ */
+function appDoorLink(placement: CtaPlacement, label: string, config: LandingConfig): string {
+  const href = webAppLink(config, placement);
+  if (!href) return "";
+  return `
+        <p class="cta-note"><a class="cta-alt-inline" href="${esc(href)}">${esc(label)}</a></p>`;
+}
+
 function subscribeFormEl(config: LandingConfig, placement: CtaPlacement): string {
   // FIVE placements render on one page, so ids are suffixed per placement — duplicate ids break the
   // label-for pairing exactly where a screen reader needs it, and the version that suffixed only
@@ -565,7 +605,14 @@ function subscribeFormEl(config: LandingConfig, placement: CtaPlacement): string
         <div class="honeypot" aria-hidden="true">
           <label for="company${suf}">${esc(subscribeSection.honeypotLabel)}</label>
           <input id="company${suf}" name="company" type="text" tabindex="-1" autocomplete="off">
-        </div>
+        </div>${
+        // INSIDE THE FORM, so it travels with every one of them (#426). The forms move — five in a
+        // mailing-list build, one in the footer of a store build, and `askBand` decides per
+        // placement — so a link placed beside ONE of them is a link four asks do not get. A `<p>`
+        // is valid inside a form and `.subscribe` is a plain block, so nothing here changes layout.
+        // Reuses the hero's own pair of classes rather than inventing a third.
+        appDoorLink("subscribe", appDoor.subscribe, config)
+      }
       </form>`;
 }
 
@@ -612,20 +659,18 @@ export function renderOutcome(
 <script src="/theme.js"></script>
 </head>
 <body>
-<header class="masthead">
-  <div class="wrap masthead-row">
-    <a class="wordmark" href="/"><span class="wordmark-dot"></span>${esc(brand.name)}</a>
-    <nav class="masthead-links" aria-label="Legal and support">
-      <a href="/privacy">Privacy</a>
-      <a href="/support">Support</a>
-    </nav>${themeToggle()}
-  </div>
-</header>
+${masthead(config)}
 <main class="outcome">
   <div class="wrap">
     ${spudSvg(outcome.mascot, "spud-outcome")}
     <h1 class="outcome-title">${esc(outcome.title)}</h1>
     <p class="outcome-body">${esc(outcome.body)}</p>
+${
+      // BEFORE the way back, not after it. The warmest reader this site gets is the one who has
+      // just submitted the form, and the only thing this page offered them was a link to the
+      // argument that had already convinced them. The forward action goes first.
+      appDoorLink("outcome", appDoor.outcome, config)
+    }
     <p class="outcome-back"><a href="/">Back to the page</a></p>
   </div>
 </main>
@@ -715,17 +760,7 @@ ${jsonLd(config)}
 </head>
 <body>
 
-<header class="masthead">
-  <div class="wrap masthead-row">
-    <a class="wordmark" href="/">
-      <span class="wordmark-dot"></span>${esc(brand.name)}
-    </a>
-    <nav class="masthead-links" aria-label="Legal and support">
-      <a href="${privacyHref}">Privacy</a>
-      <a href="${supportHref}">Support</a>
-    </nav>${themeToggle()}
-  </div>
-</header>
+${masthead(config)}
 
 <main>
 

@@ -253,6 +253,18 @@ a { color: inherit; }
 .masthead-links { display: flex; gap: 1.75rem; font-size: .9375rem; font-weight: 500; color: var(--muted); }
 .masthead-links a { text-decoration: none; }
 .masthead-links a:hover { color: var(--text); }
+/* The door into the product, in the top bar (#426). Outlined rather than filled: the accent marks
+   exactly one thing per screen and that is the hero's own button, so this reads as available
+   without competing with it. It sits in the nav because it IS navigation, and the nav's label says
+   so. */
+.masthead-app {
+  color: var(--text); border: 1px solid var(--line-strong); border-radius: 999px;
+  padding: .3rem .8rem;
+}
+/* NOT the accent on hover, which the primary action owns alone. A styles test in landing.test.ts
+   enforces that and was right to: a top-bar link lighting up in the hero's colour is a second
+   primary. (No backticks in this file - it is one template literal.) */
+.masthead-app:hover { color: var(--text); border-color: var(--line-strong); }
 
 /* ── Hero ───────────────────────────────────────────────────────────────────────────────── */
 /* The first screen is the question, the answer and one thing to do. The audience line moved down

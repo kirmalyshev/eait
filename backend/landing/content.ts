@@ -824,6 +824,37 @@ export const subscribeSection = {
   mascot: "One message. I will not make a habit of it.",
 } as const;
 
+/**
+ * The three doors that are not the ask (#426).
+ *
+ * NONE OF THESE SAY "THE APP", and that is the whole constraint on the wording. This page spends
+ * eight thousand pixels arguing for an iPhone app it has not shipped — there is an FAQ answer about
+ * Android on it — so a link labelled "open the app" promises the thing the page is about and
+ * delivers a browser. "In your browser" is three words and cannot be misread.
+ *
+ * They are also not a second offer. The page's ask is whatever `primaryCta` says it is; these are
+ * the same destination, reachable from where a reader already is.
+ */
+export const appDoor = {
+  /** In the masthead, beside Privacy and Support, on every page that has one. */
+  masthead: "Open in browser",
+  /**
+   * Beside every address field.
+   *
+   * Somebody typing an email address has proved more interest than anybody else on the page and was
+   * being handed the slowest thing on it — a list that mails them when the iPhone app ships. The
+   * product they can have instead is one click away and was not offered.
+   */
+  subscribe: "Or try it on a real meal right now, in your browser",
+  /**
+   * On the pages the form's redirect lands on — /check-your-email and the two refusals.
+   *
+   * "While you wait" is only true on the first of those, so it is not said. The three share a
+   * sentence because they share a reader: one who has just submitted the form and has nothing to do.
+   */
+  outcome: "Try it on a real meal in your browser",
+} as const;
+
 /** The pages the form's redirects land on. Static, no JavaScript, same shell as the page. */
 export const outcomes = {
   /** After the CONFIRMATION link, not after the form. That is what makes the title true. */
