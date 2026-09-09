@@ -12,7 +12,6 @@ llm/              port.ts + prompt.ts + openrouter.ts + demo.ts. Prompts are aut
                   `coach` is the agent loop; its tools are closures the ENGINE builds (engine/coach.ts)
 auth/             token issue/verify. Tokens are stored as sha256, never in the clear
 config.ts         configDefaults() is the single source of defaults; loadConfig() layers env over it
-landing/          a generator, not a page. Read landing/README.md before touching copy
 mail/, push/      outbound. dev/seed.ts is fixtures, written against the Store INTERFACE
 ```
 
@@ -97,11 +96,6 @@ one in `demo.ts` so the tests still run.
   other's routes 404. Apple's client secret is not a stored string — it is a five-minute ES256 JWT
   minted per exchange from the `.p8`, and the Service ID (not the bundle id) is what its token
   carries as `aud`. Design and configuration: `docs/WEB_ONBOARDING.md`.
-- **The landing page is `src/backend/landing/`, and `make landing` builds and serves it on the
-  worktree's landing port (:4173 in the main one).**
-  It is a generator, not a page: `build.ts` validates config, renders, runs the claims gate, and
-  only then writes. Nothing about it is fetched at runtime and there is no admin for it. Read
-  `src/backend/landing/README.md` before touching the copy.
 
 - **Photos live with the meal.** A logged meal's photos are stored in `meal_photos` (bytea, cascade
   from `meals` and `users`), written by `logPhotoMeal` AFTER the caps are charged and the meal is
@@ -253,7 +247,7 @@ one in `demo.ts` so the tests still run.
 - **Prompts and schemas are authored once**, in `src/backend/llm/prompt.ts`. No prompt string is
   written anywhere else.
 - **Public copy passes a claims gate before it is written, not before it is reviewed.**
-  `src/backend/landing/claims.ts` fails the build on a health claim (`lose weight`, `guaranteed`,
+  `src/landing/claims.ts` fails the build on a health claim (`lose weight`, `guaranteed`,
   `lowers cholesterol`, `detox`) and on a superiority or exclusivity claim (`the only app`, `every
   other app`). FTC substantiation is per claim; an unsubstantiated "the only" is an
   *Alleinstellungsbehauptung* under §5 UWG and actionable by any competitor. The rule set is a

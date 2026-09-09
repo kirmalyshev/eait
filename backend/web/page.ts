@@ -7,8 +7,8 @@
 // third-party origin to allow in its own CSP.
 
 import { MAX_USER_LINE } from "@eait/shared";
-import { darkVars, lightVars } from "../landing/styles.ts";
-import { spudSvg } from "../landing/mascot.ts";
+import { darkVars, lightVars } from "@eait/landing/styles.ts";
+import { spudSvg } from "@eait/landing/mascot.ts";
 
 export function escape(text: string): string {
   return text

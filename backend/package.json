@@ -10,6 +10,7 @@
     "demo": "bun run index.ts --demo"
   },
   "dependencies": {
+    "@eait/landing": "workspace:*",
     "@eait/shared": "workspace:*",
     "jose": "^6.2.12",
     "zod": "^4.5.4"

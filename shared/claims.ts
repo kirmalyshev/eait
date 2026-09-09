@@ -7,7 +7,7 @@
 // marketing checkout being present. Change one, change both.
 //
 // IT LIVES IN SHARED BECAUSE TWO SURFACES PUBLISH COPY NOW. The landing page was the first
-// (`src/backend/landing/claims.ts` renders HTML, lints the rendered text, and only then writes);
+// (`src/landing/claims.ts` renders HTML, lints the rendered text, and only then writes);
 // the notification copy is the second, and it is admin-editable, so its gate runs on the WRITE.
 // A third copy of the word list inside `src/shared` would be the one that drifts.
 //
