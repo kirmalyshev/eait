@@ -16,7 +16,7 @@ import type { EngineDeps } from "./deps.ts";
 import type { ChatAppend } from "../store.ts";
 import { normalizePromptText } from "../llm/prompt.ts";
 import { prepareAnalysis } from "./analysis.ts";
-import { checkCaps, refundGatewayRefusal } from "./caps.ts";
+import { charge, checkCaps, refundGatewayRefusal } from "./caps.ts";
 import { applyCorrection, gatedVerdicts, sumTotals, toAnalysis } from "./meals.ts";
 import { afterCorrection, remember } from "./chat.ts";
 import { ROUTER_RECENT_LINES, coachTurn, recentLines } from "./coach.ts";
@@ -70,7 +70,7 @@ export async function handleText(
 
   const refusal = await checkCaps(deps, userId, today, "text");
   if (refusal) return refusal;
-  await deps.store.recordAnalysis(userId, today, "text");
+  const onCost = await charge(deps, userId, today, "text");
 
   const focus = input.focusMealId
     ? await deps.store.getMeal(userId, input.focusMealId)
@@ -114,6 +114,7 @@ export async function handleText(
       // beside it the router reads it as a new meal or as small talk.
       ...(answering ? { question: answering } : {}),
       recent: history.slice(-ROUTER_RECENT_LINES),
+      onCost,
     });
   } catch (e) {
     // Given back when the gateway refused before generating anything — the same rule as the photo
@@ -143,7 +144,7 @@ export async function handleText(
         // The router's own sentence is the FALLBACK, so a coach that fails degrades to the chat as
         // it was rather than to `analysis-failed` on a turn already charged.
         try {
-          return await coachTurn(deps, userId, { text: input.text, profile, focus, todayRows, week, history, today });
+          return await coachTurn(deps, userId, { text: input.text, profile, focus, todayRows, week, history, today, onCost });
         } catch (e) {
           // With nothing from either, this is a failed analysis and the app says so: an empty
           // `answered` would render as no turn at all, which is the blank bubble by another name.

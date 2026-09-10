@@ -7,7 +7,7 @@
 
 import type { Refusal } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
-import { GatewayRefusal } from "../llm/port.ts";
+import { GatewayRefusal, type OnCost } from "../llm/port.ts";
 import { dailyPhotoCap, entitlementFor, freeAnalysesFor } from "./entitlement.ts";
 
 export type CapScope = "photo" | "text";
@@ -57,6 +57,24 @@ export async function checkCaps(
   }
 
   return null;
+}
+
+/**
+ * Charge one analysis, BEFORE the model is asked, and return where its calls report their cost.
+ *
+ * The cost arrives after the charge and is ADDED to it, because one charge pays for several calls
+ * — a schema retry, the router's second call, the coach's rounds, the glance — and the glance lands
+ * whenever it lands. A write that fails is a log line: the turn is paid for either way (#484).
+ */
+export async function charge(deps: EngineDeps, userId: string, date: string, scope: CapScope): Promise<OnCost> {
+  const id = await deps.store.recordAnalysis(userId, date, scope);
+  return (usd) => {
+    void deps.store.addCost(userId, id, usd).then(
+      // Refunded or merged away while a call was still out — the glance beside a refused analyzer.
+      (landed) => { if (!landed) console.error(`[eait] cost not recorded: analysis ${id} is gone (${usd ?? "unpriced"})`); },
+      (e: unknown) => { console.error(`[eait] cost not recorded: ${(e as Error)?.message ?? e}`); },
+    );
+  };
 }
 
 /**

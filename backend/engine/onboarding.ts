@@ -139,10 +139,9 @@ export async function recordOnboardingEvents(
  * `globalDailyAnalysisCap` is the instance's budget, zero means unbounded, and the panel must not
  * hold a second copy of that rule.
  *
- * WHAT IS MISSING AND CANNOT BE SUPPLIED: spend per day, in money. Nothing records what a model
- * call cost — `openrouter.ts` never reads `usage` off the response and no column holds one (#484).
- * A count is what there is, and a count is a proxy that a model change silently reprices, so this
- * reports analyses and says the cap in the same units rather than inventing a price.
+ * SPEND IS WHAT THE PROVIDER REPORTED (#484), per day beside the count: `costUsd` is a floor
+ * whenever `unpriced` is not zero, and nothing here prices a call itself. The cap stays in COUNTS,
+ * because that is the unit `globalDailyAnalysisCap` is set in.
  */
 export async function adminMetrics(
   deps: EngineDeps,

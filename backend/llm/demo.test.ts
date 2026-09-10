@@ -5,6 +5,7 @@ import { expect, test } from "bun:test";
 import { explainTargets } from "@eait/shared";
 import type { Profile } from "@eait/shared";
 import { DEMO_NOT_FOOD, demoPorts } from "./demo.ts";
+import type { CoachContext } from "./port.ts";
 
 // The canned analyzer reads only the caption and the bytes, but `PhotoInput` is the real port's
 // shape and a test that invented a narrower one would stop compiling against the port it checks.
@@ -174,4 +175,19 @@ test("analyzePhoto feeds the same JSON to onDelta that it returns, in more than 
   const meal = await demoPorts().analyzePhoto(input, (d) => chunks.push(d));
   expect(chunks.length).toBeGreaterThan(1);
   expect(JSON.parse(chunks.join(""))).toEqual(JSON.parse(JSON.stringify(meal)));
+});
+
+test("the canned ports report what each call cost — nothing — so --demo walks the same record", async () => {
+  const seen: (number | null)[] = [];
+  const onCost = (c: number | null) => { seen.push(c); };
+  const { targets } = explainTargets(PROFILE);
+  const llm = demoPorts();
+  await llm.analyzePhoto({ images: [new Uint8Array([1, 2, 3])], profile: PROFILE, targets, onCost });
+  await llm.glancePhoto({ images: [new Uint8Array([1, 2, 3])], lang: "en", onCost });
+  await llm.routeText({ text: "rice", profile: PROFILE, targets, todayMeals: [], week: [], onCost });
+  await llm.coach({
+    text: "how am I doing?", history: [], onCost,
+    context: { targets, today: "2026-09-10", todayMeals: [] } as unknown as CoachContext,
+  }, {});
+  expect(seen).toEqual([0, 0, 0, 0]);
 });

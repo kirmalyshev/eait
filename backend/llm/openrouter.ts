@@ -6,7 +6,7 @@
 
 import { z } from "zod";
 import { cleanSuggestions, splitLines } from "@eait/shared";
-import type { AnalyzePhoto, ClassifyRestrictions, Coach, CoachTools, GlancePhoto, LlmPorts, RouteResult, RouteText } from "./port.ts";
+import type { AnalyzePhoto, ClassifyRestrictions, Coach, CoachTools, GlancePhoto, LlmPorts, OnCost, RouteResult, RouteText } from "./port.ts";
 import { GatewayRefusal, MAX_COACH_ROUNDS, clampDayOffset, imageMime } from "./port.ts";
 import {
   COACH_TOOL_DEFS, ClassifySchema, CoachReplySchema, GLANCE_MAX_TOKENS, MealAnalysisSchema, RouteSchema, SYSTEM,
@@ -84,6 +84,16 @@ function toDataUrl(bytes: Uint8Array): string {
   return `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;
 }
 
+/**
+ * OpenRouter's `usage.cost` — credits, which are US dollars — or null when a reply carried none.
+ * Null on a BYOK request too: there `cost` is only OpenRouter's fee and the inference is billed
+ * upstream, so it would read as a whole bill that is a few percent of one.
+ */
+function costOf(usage: unknown): number | null {
+  const u = usage as { cost?: unknown; is_byok?: unknown } | null | undefined;
+  return typeof u?.cost === "number" && u.is_byok !== true ? u.cost : null;
+}
+
 export function openRouterPorts(opts: Options): LlmPorts {
   const doFetch = opts.fetchImpl ?? fetch;
   const url = opts.baseUrl;
@@ -110,6 +120,8 @@ export function openRouterPorts(opts: Options): LlmPorts {
     budgetMs = opts.timeoutMs,
     /** Given, the call streams and every VISIBLE content delta is handed here as it arrives. */
     onDelta?: (text: string) => void,
+    /** Told what the provider said this call cost — once, however the call ends. */
+    onCost?: OnCost,
   ): Promise<{ choices?: Choice[] }> {
     // A model call that hangs used to hang FOREVER: the provider accepts the connection, never
     // answers, and holds the request, the photo and a worker slot until the process restarts.
@@ -117,6 +129,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), budgetMs);
     let res: Response;
+    let cost: number | null = null;
     try {
       res = await doFetch(url, {
         method: "POST",
@@ -137,7 +150,11 @@ export function openRouterPorts(opts: Options): LlmPorts {
         const unrouted = UNROUTED.has(res.status) && !billed;
         throw unrouted ? new GatewayRefusal(res.status, message) : new Error(message);
       }
-      if (!onDelta) return await res.json() as { choices?: Choice[] };
+      if (!onDelta) {
+        const payload = await res.json() as { choices?: Choice[]; usage?: unknown };
+        cost = costOf(payload.usage);
+        return payload;
+      }
 
       // THE STREAMED SHAPE IS REASSEMBLED INTO THE NON-STREAMED ONE, so `complete()` validates and
       // retries exactly as before. `reasoning` deltas are never forwarded: they are the model's
@@ -156,11 +173,13 @@ export function openRouterPorts(opts: Options): LlmPorts {
           if (!line.startsWith("data:")) continue;
           const data = line.slice(5).trim();
           if (data === "[DONE]") continue;
-          let j: { choices?: { delta?: { content?: string | null }; finish_reason?: string | null }[]; error?: unknown };
+          let j: { choices?: { delta?: { content?: string | null }; finish_reason?: string | null }[]; error?: unknown; usage?: unknown };
           try { j = JSON.parse(data); } catch { continue; }
           // A mid-stream error is a status that never had a status line: the content stops, the
           // parse below fails, and without this the log says "not valid JSON" and nothing else.
           if (j.error) console.error(`[eait] llm stream error: ${JSON.stringify(j.error).slice(0, 300)}`);
+          // Every stream ends with one chunk carrying the request's usage, just before [DONE].
+          if (j.usage !== undefined) cost = costOf(j.usage);
           const ch = j.choices?.[0];
           if (!ch) continue;
           if (typeof ch.delta?.content === "string" && ch.delta.content !== "") {
@@ -178,6 +197,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       throw e;
     } finally {
       clearTimeout(timer);
+      onCost?.(cost);
     }
   }
 
@@ -206,6 +226,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
     onDelta?: (text: string) => void,
     /** When the whole turn must be done. Defaults to one budget for this `complete()` alone. */
     deadline = Date.now() + opts.timeoutMs,
+    onCost?: OnCost,
   ): Promise<T> {
     const messages: Message[] = [{ role: "system", content: system }, { role: "user", content }];
     let lastError = "";
@@ -240,7 +261,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       // the schema. Nothing after that first completion is free, whatever the status says.
       const left = deadline - Date.now();
       if (left <= 0) throw new Error(`llm ran past ${opts.timeoutMs}ms before ${schemaName}`);
-      const payload = await send(body, billed || attempt > 0, left, onDelta);
+      const payload = await send(body, billed || attempt > 0, left, onDelta, onCost);
       const choice = payload.choices?.[0];
       // `length` means generation stopped at the bound. It is checked only where the reply turned
       // out to be UNUSABLE, never before the parse: with a JSON schema the model writes its closing
@@ -286,7 +307,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       }) },
       ...input.images.map((b) => ({ type: "image_url" as const, image_url: { url: toDataUrl(b) } })),
     ];
-    return await complete(SYSTEM, content, MealAnalysisSchema, "meal_analysis", false, onDelta);
+    return await complete(SYSTEM, content, MealAnalysisSchema, "meal_analysis", false, onDelta, undefined, input.onCost);
   };
 
   const glancePhoto: GlancePhoto = async (input) => {
@@ -310,7 +331,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
     // status here is a plain error and refunds nothing. Its own budget, well under the analyzer's:
     // a glance that has not answered in fifteen seconds is one nobody is waiting for any more, and
     // the call is holding the image bytes until it settles.
-    const raw = (await send(body, true, GLANCE_TIMEOUT_MS)).choices?.[0]?.message?.content ?? "";
+    const raw = (await send(body, true, GLANCE_TIMEOUT_MS, undefined, input.onCost)).choices?.[0]?.message?.content ?? "";
     const line = raw.split("\n")[0]!.trim();
     if (line === "") throw new Error("glance returned nothing");
     return line;
@@ -329,7 +350,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
     // so they are one budget here — `undefined` in each call below is the `onDelta` this route has
     // never had, and the argument after it is the deadline.
     const deadline = Date.now() + opts.timeoutMs;
-    let out = await complete(SYSTEM_ROUTE, text, RouteSchema, "route", false, undefined, deadline);
+    let out = await complete(SYSTEM_ROUTE, text, RouteSchema, "route", false, undefined, deadline, input.onCost);
 
     // The decision and the work, separated — but only when the model made us.
     //
@@ -374,6 +395,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
         true,
         undefined,
         deadline,
+        input.onCost,
       );
       out = { ...out, analysis };
     } else if (out.intent === "meal" && !out.analysis) {
@@ -387,6 +409,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
         true,
         undefined,
         deadline,
+        input.onCost,
       );
       out = { ...out, analysis };
     }
@@ -475,7 +498,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       };
       const left = deadline - Date.now();
       if (left <= 0) throw new Error(`coach ran past ${opts.timeoutMs}ms over ${round} tool round(s)`);
-      const choice = (await send(body, true, left)).choices?.[0];
+      const choice = (await send(body, true, left, undefined, input.onCost)).choices?.[0];
       const calls = choice?.message?.tool_calls ?? [];
       if (calls.length > 0 && !last) {
         messages.push({ role: "assistant", content: choice?.message?.content ?? null, tool_calls: calls });

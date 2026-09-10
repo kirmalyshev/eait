@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MEET_GABIE, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, explainTargets, isMeal, proposalLive, runningLine, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -10,6 +10,7 @@ import { dateMinus, localDate } from "@eait/shared";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { remember } from "./chat.ts";
+import { charge } from "./caps.ts";
 import {
   appendLines, applyCorrection, attachPhotos, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
   logPhotoMeal, patchProfile, profileView, reanalyzeMeal, stepApplies, week, type EngineDeps,
@@ -1831,5 +1832,89 @@ describe("re-analysis", () => {
     // Refunded: the second of two analyses is still available.
     expect((await reanalyzeMeal(d, userId, logged.mealId)).kind).toBe("updated");
     expect((await reanalyzeMeal(d, userId, logged.mealId)).kind).toBe("subscription-required");
+  });
+});
+
+// ── What each analysis cost (#484) ───────────────────────────────────────────────────────────
+
+describe("what each analysis cost", () => {
+  const spend = async () => {
+    const zone = deps.config.timezone;
+    return (await store.adminMetrics({ days: 1, today: localDate(zone), timezone: zone })).days[0]!;
+  };
+
+  it("adds every call a photo turn made to the analysis it charged", async () => {
+    const userId = await onboard();
+    const llm: LlmPorts = {
+      ...demoPorts(),
+      analyzePhoto: async (i) => { i.onCost?.(0.25); i.onCost?.(0.5); return await demoPorts().analyzePhoto(i); },
+    };
+    expect((await logPhotoMeal(makeDeps({}, llm), userId, photo())).kind).toBe("logged");
+    const d = await spend();
+    expect(d.analyses).toBe(1);
+    expect(d.costUsd).toBeCloseTo(0.75, 9);
+    expect(d.unpriced).toBe(0);
+  });
+
+  it("prices a question as the router's calls and the coach's, on one analysis", async () => {
+    const userId = await onboard();
+    const llm: LlmPorts = {
+      ...demoPorts(),
+      routeText: async (i) => { i.onCost?.(0.25); return { intent: "answer", text: "From the router." }; },
+      coach: async (i) => { i.onCost?.(0.5); return { reply: "From the coach.", suggestions: [] }; },
+    };
+    expect((await handleText(makeDeps({}, llm), userId, { text: "how is my week?" })).kind).toBe("answered");
+    const d = await spend();
+    expect(d.analyses).toBe(1);
+    expect(d.costUsd).toBeCloseTo(0.75, 9);
+  });
+
+  it("keeps a failed turn charged, and its cost marked as a floor", async () => {
+    const userId = await onboard();
+    const llm: LlmPorts = {
+      ...demoPorts(),
+      analyzePhoto: async (i) => { i.onCost?.(0.25); i.onCost?.(null); throw new Error("llm timeout after 90000ms"); },
+    };
+    expect((await logPhotoMeal(makeDeps({}, llm), userId, photo())).kind).toBe("analysis-failed");
+    const d = await spend();
+    expect(d.analyses).toBe(1);
+    expect(d.costUsd).toBeCloseTo(0.25, 9);
+    expect(d.unpriced).toBe(1);
+  });
+
+  it("charges the glance to the photo it glanced at", async () => {
+    const userId = await onboard();
+    const llm: LlmPorts = { ...demoPorts(), glancePhoto: async (i) => { i.onCost?.(0.125); return "Eggs."; } };
+    await logPhotoMeal(makeDeps({ llmGlanceModel: "glance" }, llm), userId, photo(), () => {});
+    const d = await spend();
+    expect(d.analyses).toBe(1);
+    expect(d.costUsd).toBeCloseTo(0.125, 9);
+  });
+
+  it("says so in the log when a cost finds no analysis left to land on", async () => {
+    const userId = await onboard();
+    const today = localDate(deps.config.timezone);
+    const onCost = await charge(deps, userId, today, "photo");
+    // Refunded while a call was still out — the glance beside a refused analyzer, or a merge.
+    await store.undoAnalysis(userId, today, "photo");
+    const errors = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      onCost(0.125);
+      await new Promise((r) => setTimeout(r, 0));
+      expect(errors).toHaveBeenCalledTimes(1);
+      expect(String(errors.mock.calls[0]![0])).toContain("cost not recorded");
+    } finally {
+      errors.mockRestore();
+    }
+  });
+
+  it("prices a re-read like the photo it re-reads", async () => {
+    const userId = await onboard();
+    const logged = await logPhotoMeal(deps, userId, photo()) as MealLogged;
+    const llm: LlmPorts = { ...demoPorts(), analyzePhoto: async (i) => { i.onCost?.(0.5); return await demoPorts().analyzePhoto(i); } };
+    expect((await reanalyzeMeal(makeDeps({}, llm), userId, logged.mealId)).kind).toBe("updated");
+    const d = await spend();
+    expect(d.analyses).toBe(2);
+    expect(d.costUsd).toBeCloseTo(0.5, 9);
   });
 });

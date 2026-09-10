@@ -648,7 +648,7 @@ function sseFetch(chunks: string[], finish = "stop") {
       // A reasoning delta first, which must never reach `onDelta`.
       `data: ${JSON.stringify({ choices: [{ delta: { reasoning: "hmm" } }] })}\n\n`,
       ...chunks.map((c) => `data: ${JSON.stringify({ choices: [{ delta: { content: c } }] })}\n\n`),
-      `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: finish }], usage: { completion_tokens: 7 } })}\n\n`,
+      `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: finish }], usage: { completion_tokens: 7, cost: 0.0011 } })}\n\n`,
       "data: [DONE]\n\n",
     ];
     const body = new ReadableStream<Uint8Array>({
@@ -743,5 +743,76 @@ describe("glancePhoto", () => {
 
   test("throws when no glance model is configured", async () => {
     await expect(streamPorts(reply("x")).glancePhoto(GLANCE_INPUT)).rejects.toThrow(/disabled/);
+  });
+});
+
+// ── What each call cost (#484) ───────────────────────────────────────────────────────────────
+
+describe("cost", () => {
+  /** A reply with the `usage` block OpenRouter attaches to every response — or with none. */
+  const answer = (message: object, cost?: number) => new Response(JSON.stringify({
+    choices: [{ finish_reason: "stop", message }],
+    ...(cost === undefined ? {} : { usage: { prompt_tokens: 1000, completion_tokens: 200, cost } }),
+  }), { status: 200, headers: { "content-type": "application/json" } });
+  const json = (content: unknown, cost?: number) => answer({ content: JSON.stringify(content) }, cost);
+  const replies = (rs: (() => Response)[]) => {
+    let i = 0;
+    return (async () => rs[Math.min(i++, rs.length - 1)]!()) as unknown as typeof fetch;
+  };
+  const collect = () => {
+    const seen: (number | null)[] = [];
+    return { seen, onCost: (c: number | null) => { seen.push(c); } };
+  };
+
+  test("every call reports what the provider said it cost, the schema retry included", async () => {
+    const { seen, onCost } = collect();
+    await streamPorts(replies([() => json({ nope: true }, 0.25), () => json(MEAL, 0.5)]))
+      .analyzePhoto({ ...PHOTO_INPUT, onCost });
+    expect(seen).toEqual([0.25, 0.5]);
+  });
+
+  test("a reply with no price and a call that failed report null, never zero", async () => {
+    const { seen, onCost } = collect();
+    const llm = streamPorts(replies([() => json({ nope: true }), () => new Response("upstream said no", { status: 500 })]));
+    await expect(llm.analyzePhoto({ ...PHOTO_INPUT, onCost })).rejects.toThrow(/500/);
+    expect(seen).toEqual([null, null]);
+  });
+
+  test("a BYOK reply reports null: its `cost` is OpenRouter's fee, not the bill", async () => {
+    const { seen, onCost } = collect();
+    const byok = () => new Response(JSON.stringify({
+      choices: [{ finish_reason: "stop", message: { content: JSON.stringify(MEAL) } }],
+      usage: { prompt_tokens: 1000, completion_tokens: 200, cost: 0.95, is_byok: true, cost_details: { upstream_inference_cost: 19 } },
+    }), { status: 200, headers: { "content-type": "application/json" } });
+    await streamPorts(replies([byok])).analyzePhoto({ ...PHOTO_INPUT, onCost });
+    expect(seen).toEqual([null]);
+  });
+
+  test("a streamed call reports the price in its final chunk", async () => {
+    const { seen, onCost } = collect();
+    await streamPorts(sseFetch([JSON.stringify(MEAL)]).impl).analyzePhoto({ ...PHOTO_INPUT, onCost }, () => {});
+    expect(seen).toEqual([0.0011]);
+  });
+
+  test("the router's focused second call reports as well as the first", async () => {
+    const { seen, onCost } = collect();
+    await streamPorts(replies([() => json({ intent: "meal", dayOffset: 0 }, 0.25), () => json(ANALYSIS, 0.5)]))
+      .routeText({ ...ROUTE_INPUT, onCost });
+    expect(seen).toEqual([0.25, 0.5]);
+  });
+
+  test("every coach round reports, the tool round included", async () => {
+    const { seen, onCost } = collect();
+    const toolCall = { content: "", tool_calls: [{ id: "c1", type: "function", function: { name: "get_meals", arguments: "{}" } }] };
+    await streamPorts(replies([() => answer(toolCall, 0.25), () => json({ reply: "Fine week.", suggestions: [] }, 0.5)]))
+      .coach({ ...COACH_INPUT, onCost }, { get_meals: async () => [] });
+    expect(seen).toEqual([0.25, 0.5]);
+  });
+
+  test("the glance reports", async () => {
+    const { seen, onCost } = collect();
+    await streamPorts(replies([() => answer({ content: "Eggs." }, 0.125)]), { glanceModel: "g" })
+      .glancePhoto({ images: PHOTO_INPUT.images, lang: "en", onCost });
+    expect(seen).toEqual([0.125]);
   });
 });

@@ -375,6 +375,10 @@ create table if not exists analyses (
 );
 create index if not exists analyses_date_idx on analyses(date);
 create index if not exists analyses_user_date_idx on analyses(user_id, date, scope);
+-- What the provider said the calls behind an analysis cost, summed (#484): null until one is
+-- priced. unpriced_calls counts the calls that ended without a price, which makes the sum a floor.
+alter table analyses add column if not exists cost_usd double precision;
+alter table analyses add column if not exists unpriced_calls integer not null default 0;
 
 -- The admin-edited onboarding copy. ONE row, pinned to id = 1.
 --
@@ -1030,7 +1034,8 @@ export async function postgresStore(
                and (onboarded_at at time zone ${timezone})::date >= ${from}::date
              group by 1`,
         // Both scopes: a typed meal costs money and the global cap counts it.
-        sql`select date as d, count(*)::int as n
+        sql`select date as d, count(*)::int as n, sum(cost_usd) as cost,
+                   count(*) filter (where cost_usd is null or unpriced_calls > 0)::int as unpriced
               from analyses where date >= ${from} and date <= ${today}
              group by 1`,
       ]);
@@ -1040,6 +1045,8 @@ export async function postgresStore(
       const signupsBy = by(signups as never);
       const activationsBy = by(activations as never);
       const spentBy = by(spent as never);
+      const pricedBy = new Map((spent as unknown as { d: unknown; cost: unknown; unpriced: unknown }[])
+        .map((r) => [String(r.d), { cost: r.cost === null ? null : Number(r.cost), unpriced: num(r.unpriced) }]));
 
       /**
        * How many accounts could have come back on their nth day, and how many did.
@@ -1072,6 +1079,8 @@ export async function postgresStore(
           signups: signupsBy.get(date) ?? 0,
           activations: activationsBy.get(date) ?? 0,
           analyses: spentBy.get(date) ?? 0,
+          costUsd: pricedBy.get(date)?.cost ?? null,
+          unpriced: pricedBy.get(date)?.unpriced ?? 0,
         })),
         d1,
         d7,
@@ -1751,14 +1760,26 @@ export async function postgresStore(
     },
 
     async recordAnalysis(userId, date, scope) {
-      await sql`insert into analyses (user_id, date, scope) values (${userId}, ${date}, ${scope})`;
+      const rows = await sql`
+        insert into analyses (user_id, date, scope) values (${userId}, ${date}, ${scope}) returning id`;
+      return String(rows[0].id);
+    },
+
+    async addCost(userId, analysisId, usd) {
+      const rows = usd === null
+        ? await sql`update analyses set unpriced_calls = unpriced_calls + 1
+                     where id = ${analysisId} and user_id = ${userId} returning id`
+        : await sql`update analyses set cost_usd = coalesce(cost_usd, 0) + ${usd}::float8
+                     where id = ${analysisId} and user_id = ${userId} returning id`;
+      return rows.length > 0;
     },
 
     async undoAnalysis(userId, date, scope) {
       // One statement, so the row is chosen and deleted atomically: a concurrent undo either
       // deletes a different row or deletes nothing and says so, and neither can refund twice.
-      // The newest is taken rather than a remembered id because these rows carry no identity beyond
-      // (user, date, scope) — every one is interchangeable, so "the one just charged" is any of them.
+      // The newest is taken, not the id just charged: a refund follows a call nobody priced.
+      // ponytail: a concurrent same-scope turn can have ITS row taken instead, cost and all —
+      // refund by the charged id if that race ever shows in the spend.
       const rows = await sql`
         delete from analyses where id = (
           select id from analyses

@@ -1143,6 +1143,41 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.countUserAnalyses(a)).toBe(1);
     });
 
+    // #484. One charge pays for several calls, so what the provider reported for each is ADDED to
+    // the analysis — and a call that ended without a price is counted, so a day's sum reads as the
+    // floor it is rather than as the bill.
+    it("adds what each call cost to the analysis that paid for it, scoped by account", async () => {
+      const s = await open();
+      const a = (await s.upsertDeviceUser(device(), "en")).userId;
+      const b = (await s.upsertDeviceUser(device(), "en")).userId;
+      const day = async () => (await s.adminMetrics({ days: 1, today: RUN_DATE, timezone: "UTC" })).days[0]!;
+      const before = await day();
+
+      const whole = await s.recordAnalysis(a, RUN_DATE, "text");
+      const floor = await s.recordAnalysis(a, RUN_DATE, "photo");
+      await s.recordAnalysis(b, RUN_DATE, "photo");
+      expect(await s.addCost(a, whole, 0.25)).toBe(true);
+      expect(await s.addCost(a, whole, 0.5)).toBe(true);
+      expect(await s.addCost(a, floor, 0.125)).toBe(true);
+      expect(await s.addCost(a, floor, null)).toBe(true);
+      // Another account's analysis is not a row this account can write to.
+      expect(await s.addCost(b, whole, 100)).toBe(false);
+      expect(await s.addCost(b, whole, null)).toBe(false);
+
+      const after = await day();
+      expect(after.analyses - before.analyses).toBe(3);
+      expect((after.costUsd ?? 0) - (before.costUsd ?? 0)).toBeCloseTo(0.875, 9);
+      // `floor` and b's never-reported one. `whole` is known to the last call.
+      expect(after.unpriced - before.unpriced).toBe(2);
+    });
+
+    it("reports a day with no priced analysis as unknown, never as free", async () => {
+      const s = await open();
+      const [d] = (await s.adminMetrics({ days: 1, today: "2019-03-03", timezone: "UTC" })).days;
+      expect(d!.costUsd).toBeNull();
+      expect(d!.unpriced).toBe(0);
+    });
+
     // ── identities ────────────────────────────────────────────────────────────────────────────
 
     it("links an identity and finds the account behind it", async () => {

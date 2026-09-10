@@ -68,6 +68,13 @@ export function imageMime(bytes: Uint8Array): "image/jpeg" | "image/png" | "imag
   return null;
 }
 
+/**
+ * Told, once per HTTP call, what the provider said that call cost in US dollars — OpenRouter's
+ * `usage.cost`, in credits, which are dollars — or null when the call ended without saying: an
+ * error status, a timeout, a gateway that does not price. Never an estimate (#484).
+ */
+export type OnCost = (usd: number | null) => void;
+
 export class GatewayRefusal extends Error {
   constructor(readonly status: number, message: string) {
     super(message);
@@ -94,6 +101,7 @@ export interface PhotoInput {
    * a second shape for three fields is a second thing to keep in step.
    */
   portionPriors?: readonly PortionPrior[];
+  onCost?: OnCost | undefined;
 }
 
 /**
@@ -104,7 +112,7 @@ export interface PhotoInput {
 export type AnalyzePhoto = (input: PhotoInput, onDelta?: (text: string) => void) => Promise<AnalyzedMeal>;
 
 /** What the glance needs: the same images, and the language to answer in. */
-export interface GlanceInput { images: Uint8Array[]; lang: string }
+export interface GlanceInput { images: Uint8Array[]; lang: string; onCost?: OnCost | undefined }
 /**
  * One sentence about the plate, from a call built to be fast — a model that does not reason,
  * beside the analyzer, never instead of it. Its failure never fails a turn, and its text is never
@@ -154,6 +162,7 @@ export interface TextInput {
    * coach gets the longer window.
    */
   recent?: CoachHistoryLine[];
+  onCost?: OnCost | undefined;
 }
 
 export type RouteText = (input: TextInput) => Promise<RouteResult>;
@@ -195,6 +204,7 @@ export interface CoachInput {
   context: CoachContext;
   /** Oldest first, and never including the message itself. */
   history: CoachHistoryLine[];
+  onCost?: OnCost | undefined;
 }
 
 /**

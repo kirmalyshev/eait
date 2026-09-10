@@ -19,7 +19,7 @@ import { localDate, localTime, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
 import { prepareAnalysis } from "./analysis.ts";
-import { checkCaps, refundGatewayRefusal } from "./caps.ts";
+import { charge, checkCaps, refundGatewayRefusal } from "./caps.ts";
 import { afterCorrection, afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
 import { imageMime, type AnalyzedMeal } from "../llm/port.ts";
@@ -101,7 +101,7 @@ export async function logPhotoMeal(
 
   // Recorded BEFORE the call. A failed model call still costs money, so a cap that only counts
   // successes is a cap a retry loop walks straight through.
-  await deps.store.recordAnalysis(userId, date, "photo");
+  const onCost = await charge(deps, userId, date, "photo");
 
   const { targets } = explainTargets(profile);
 
@@ -112,7 +112,7 @@ export async function logPhotoMeal(
   // a glance that hangs for its whole budget must not hold a finished card back. One that lands
   // after the route has closed the stream is dropped there, not written anywhere.
   if (onEvent && deps.config.llmGlanceModel) {
-    void deps.llm.glancePhoto({ images, lang: profile.lang })
+    void deps.llm.glancePhoto({ images, lang: profile.lang, onCost })
       .then((text) => onEvent({ kind: "glance", text }))
       .catch((e: unknown) => console.warn(`[eait] glance failed: ${(e as Error)?.message ?? e}`));
   }
@@ -121,7 +121,7 @@ export async function logPhotoMeal(
   let analysis: AnalyzedMeal;
   try {
     analysis = await deps.llm.analyzePhoto({
-      images, profile, targets,
+      images, profile, targets, onCost,
       ...(input.caption !== undefined ? { caption: input.caption } : {}),
       localTime: localTime(zone),
       repertoire: await buildRepertoire(deps, userId, date),
@@ -424,7 +424,7 @@ export async function reanalyzeMeal(
   const today = localDate(zone);
   const refusal = await checkCaps(deps, userId, today, "photo");
   if (refusal) return refusal;
-  await deps.store.recordAnalysis(userId, today, "photo");
+  const onCost = await charge(deps, userId, today, "photo");
   // Read once the turn is paid for: a refused tap must not pull the bytes.
   const images = (await deps.store.getPhotos(userId, mealId)).map((p) => p.bytes);
   if (images.length === 0) {
@@ -436,7 +436,7 @@ export async function reanalyzeMeal(
   let analysis: AnalyzedMeal;
   try {
     analysis = await deps.llm.analyzePhoto({
-      images, profile, targets,
+      images, profile, targets, onCost,
       localTime: localTime(zone),
       repertoire: await buildRepertoire(deps, userId, today),
       portionPriors: await deps.store.portionPriors(userId),

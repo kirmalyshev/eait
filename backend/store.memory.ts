@@ -126,7 +126,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // Keyed by the TOKEN, exactly as Postgres is: a token is an installation, so registering it under
   // a second account moves it rather than adding a row.
   const pushTokens = new Map<string, { userId: string; platform: PushPlatform }>();
-  const analyses: { userId: string; date: string; scope: "photo" | "text" }[] = [];
+  const analyses: {
+    id: string; userId: string; date: string; scope: "photo" | "text"; costUsd: number | null; unpricedCalls: number;
+  }[] = [];
+  let analysisSeq = 0;
   // Append-only and read newest-first, which is the order Postgres reads them in.
   const portionCorrections: (PortionCorrection & { userId: string })[] = [];
   const identities: {
@@ -463,7 +466,13 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         if (on) bump(activations, dayOf(Date.parse(on)));
       }
       const spent = new Map<string, number>();
-      for (const a of analyses) bump(spent, a.date);
+      const cost = new Map<string, number>();
+      const unpriced = new Map<string, number>();
+      for (const a of analyses) {
+        bump(spent, a.date);
+        if (a.costUsd !== null) cost.set(a.date, (cost.get(a.date) ?? 0) + a.costUsd);
+        if (a.costUsd === null || a.unpricedCalls > 0) bump(unpriced, a.date);
+      }
 
       // Who logged something on which day, so a return is one lookup rather than a scan per user.
       const active = new Map<string, Set<string>>();
@@ -490,6 +499,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
           signups: signups.get(date) ?? 0,
           activations: activations.get(date) ?? 0,
           analyses: spent.get(date) ?? 0,
+          costUsd: cost.get(date) ?? null,
+          unpriced: unpriced.get(date) ?? 0,
         })),
         d1: cohort(1),
         d7: cohort(7),
@@ -997,12 +1008,21 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     },
 
     async recordAnalysis(userId, date, scope) {
-      analyses.push({ userId, date, scope });
+      const id = String(++analysisSeq);
+      analyses.push({ id, userId, date, scope, costUsd: null, unpricedCalls: 0 });
+      return id;
+    },
+
+    async addCost(userId, analysisId, usd) {
+      const a = analyses.find((x) => x.id === analysisId && x.userId === userId);
+      if (!a) return false;
+      if (usd === null) a.unpricedCalls++;
+      else a.costUsd = (a.costUsd ?? 0) + usd;
+      return true;
     },
 
     async undoAnalysis(userId, date, scope) {
-      // The newest match, like the Postgres one. Analysis rows carry no identity beyond user, date
-      // and scope, so "the one just charged" and "the newest" are the same row by construction.
+      // The newest match, like the Postgres one — and with the same ponytail about a concurrent turn.
       for (let i = analyses.length - 1; i >= 0; i--) {
         const a = analyses[i]!;
         if (a.userId === userId && a.date === date && a.scope === scope) {

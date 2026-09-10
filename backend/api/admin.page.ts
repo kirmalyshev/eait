@@ -128,7 +128,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   <p class="muted" id="metrics-summary">Loading…</p>
   <table id="metrics">
     <thead>
-      <tr><th>Day</th><th>Signups</th><th>Activated</th><th>Analyses</th></tr>
+      <tr><th>Day</th><th>Signups</th><th>Activated</th><th>Analyses</th><th>Spend</th></tr>
     </thead>
     <tbody></tbody>
   </table>
@@ -531,6 +531,12 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     return whole ? Math.round((part / whole) * 100) + "%" : "—";
   }
 
+  // What the provider priced — a floor while any analysis that day went unpriced (#484).
+  function spend(d) {
+    var usd = d.costUsd === null ? "—" : "$" + d.costUsd.toFixed(4);
+    return d.unpriced ? usd + " · " + d.unpriced + " unpriced" : usd;
+  }
+
   function loadMetrics() {
     return api("GET", "/admin/api/metrics?days=30").then(function (m) {
       $("metrics-window").textContent = "last " + m.days.length + " days";
@@ -546,7 +552,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       // Newest first on screen; the server sends oldest first because that is the order a window is.
       m.days.slice().reverse().forEach(function (d) {
         var tr = document.createElement("tr");
-        [d.date, String(d.signups), String(d.activations), String(d.analyses)].forEach(function (t, i) {
+        [d.date, String(d.signups), String(d.activations), String(d.analyses), spend(d)].forEach(function (t, i) {
           var td = document.createElement("td");
           td.textContent = t;
           // The one number that can hit a wall, marked when it is at it.

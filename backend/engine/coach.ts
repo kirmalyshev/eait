@@ -11,7 +11,7 @@ import {
   windowStart, type Answered, type MealRecord, type Profile,
 } from "@eait/shared";
 import type { ChatMessage } from "../store.ts";
-import type { CoachContext, CoachHistoryLine, CoachTools } from "../llm/port.ts";
+import type { CoachContext, CoachHistoryLine, CoachTools, OnCost } from "../llm/port.ts";
 import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "../llm/port.ts";
 import type { EngineDeps } from "./deps.ts";
 import { toAnalysis } from "./meals.ts";
@@ -30,6 +30,8 @@ export interface CoachTurnInput {
   history: CoachHistoryLine[];
   /** The caller's date for the turn — the one the analysis was charged to, never re-derived. */
   today: string;
+  /** Where the coach's calls report their cost: the analysis this turn was charged. */
+  onCost?: OnCost | undefined;
 }
 
 /**
@@ -78,7 +80,10 @@ export async function coachTurn(deps: EngineDeps, userId: string, input: CoachTu
       : projected.beyondHorizon ? "in more than two years at this pace"
       : `around ${projectionMonth(new Date(), projected.weeks)}`,
   };
-  const out = await deps.llm.coach({ text: input.text, context, history: input.history }, coachTools(deps, userId, today));
+  const out = await deps.llm.coach(
+    { text: input.text, context, history: input.history, onCost: input.onCost },
+    coachTools(deps, userId, today),
+  );
   return { kind: "answered", text: out.reply, suggestions: out.suggestions, speaker: "gabie" };
 }
 

@@ -370,6 +370,13 @@ export interface AdminDay {
   activations: number;
   /** Analyses spent that day, both scopes — what the bill and `globalDailyAnalysisCap` count. */
   analyses: number;
+  /**
+   * What the provider said that day's analyses cost, in US dollars, or null when it priced none.
+   * A FLOOR whenever `unpriced` is not zero. Never a local price table (#484).
+   */
+  costUsd: number | null;
+  /** Analyses that day with a call the provider did not price — a timeout, an error, or before #484. */
+  unpriced: number;
 }
 
 /**
@@ -914,8 +921,14 @@ export interface Store {
   getFreeAnalyses(userId: string): Promise<number | null>;
   /** Set this account's own sample size, or clear it with null. False when there is no such user. */
   setFreeAnalyses(userId: string, n: number | null): Promise<boolean>;
-  /** Recorded BEFORE the model is called: a failed call still costs money. */
-  recordAnalysis(userId: string, date: string, scope: "photo" | "text"): Promise<void>;
+  /** Recorded BEFORE the model is called: a failed call still costs money. Returns the row's id. */
+  recordAnalysis(userId: string, date: string, scope: "photo" | "text"): Promise<string>;
+  /**
+   * Add what one model call cost to the analysis that paid for it, as the provider reported it —
+   * or, given null, count a call it did not price. ADDED, because one charge pays for several calls
+   * and they land in any order. Scoped `id = ? AND user_id = ?`; false when no such row is theirs.
+   */
+  addCost(userId: string, analysisId: string, usd: number | null): Promise<boolean>;
   /**
    * Give one analysis back. True when a row was deleted, false when there was nothing to give.
    *

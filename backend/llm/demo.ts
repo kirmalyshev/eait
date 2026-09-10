@@ -123,6 +123,9 @@ function nothingOnThePlate(): AnalyzedMeal {
 
 export function demoPorts(): LlmPorts {
   const analyzePhoto: AnalyzePhoto = async (input, onDelta) => {
+    // A canned answer costs nothing and says so, once per call like the real ports, so `--demo`
+    // and every engine test walk the same record (#484).
+    input.onCost?.(0);
     const meal = (input.caption ?? "").toLowerCase().includes(DEMO_NOT_FOOD)
       ? nothingOnThePlate()
       : plateFor(hash((input.caption ?? "") + input.images.length + (input.images[0]?.byteLength ?? 0)));
@@ -140,6 +143,7 @@ export function demoPorts(): LlmPorts {
   };
 
   const glancePhoto: GlancePhoto = async (input) => {
+    input.onCost?.(0);
     // The analyzer's own seed for an uncaptioned photo of the same bytes, so the sentence names
     // the plate the card will show. A short wait, so `--demo` shows the choreography rather than
     // everything at once.
@@ -150,6 +154,7 @@ export function demoPorts(): LlmPorts {
   };
 
   const routeText: RouteText = async (input) => {
+    input.onCost?.(0);
     const text = input.text.toLowerCase();
     const asks = /\?|how much|how many|what|why|should i|сколько|что|wie viel|was /.test(text);
 
@@ -216,6 +221,7 @@ export function demoPorts(): LlmPorts {
    * sentence that reads like advice is a demo sentence somebody screenshots.
    */
   const coach: Coach = async (input, tools) => {
+    input.onCost?.(0);
     const text = input.text.toLowerCase();
     const { targets, today, todayMeals } = input.context;
     const suggestions = ["What should I eat tonight?", "Am I getting enough protein?", "How's my week going?"];
