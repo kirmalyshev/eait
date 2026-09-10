@@ -90,6 +90,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   .line .who { flex: 0 0 52px; color: var(--muted); }
   .line .when { margin-left: auto; color: var(--faint); white-space: nowrap; }
   .line.them .who { color: var(--care); }
+  img.shot { max-width: 260px; border-radius: 8px; margin: 8px 8px 0 0; vertical-align: top; }
   th, td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--border); }
   th:first-child, td:first-child { text-align: left; }
   th { color: var(--muted); font-weight: 500; }
@@ -219,6 +220,27 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       <span class="status" id="chat-status">Choose an account above.</span>
     </p>
   </div>
+  <h2>Diary <span class="pill" id="diary-who"></span></h2>
+  <p class="muted">
+    <strong>This shows a real person's photographs and what they ate.</strong> It is here so that
+    "the analysis was wrong" can be answered, and for nothing else. Choose an account above; a meal
+    row opens the pictures behind it.
+  </p>
+  <div class="card">
+    <div class="row">
+      <input type="text" id="diary-from" placeholder="from (YYYY-MM-DD)" autocomplete="off" spellcheck="false">
+      <input type="text" id="diary-to" placeholder="to (YYYY-MM-DD)" autocomplete="off" spellcheck="false">
+      <button id="diary-load">Load</button>
+    </div>
+    <p class="muted" id="diary-status">Choose an account above.</p>
+  </div>
+  <table id="diary">
+    <thead>
+      <tr><th>When</th><th>What</th><th>kcal</th><th>Verdicts</th><th>Model</th><th>Confidence</th><th>Photos</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <div id="photos"></div>
 
   <h2>Per-account sample</h2>
   <p class="muted">
@@ -657,6 +679,12 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       // typing a uuid off a screen.
       loadChat(u.userId, false);
       $("chat-who").scrollIntoView({ block: "center" });
+      // AND the diary, because #375's whole point is that you reach it from the list rather than
+      // by typing a uuid off a screen.
+      $("diary-from").value = "";
+      $("diary-to").value = "";
+      loadDiary(u.userId);
+      // ONE scroll, to the thread above: two would fight, and the diary sits right below it.
     });
     return tr;
   }
@@ -746,6 +774,114 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   }
 
   $("chat-older").addEventListener("click", function () { loadChat(null, true); });
+  // ── One account's diary, and the pictures behind a meal (#375) ─────────────────────────────
+  //
+  // READ-ONLY, and rendered rather than recomputed: the verdicts drawn here are the ones the row
+  // carries, which are the ones the person saw. Computing our own would show a verdict that never
+  // existed, on the one screen whose whole purpose is seeing what they saw.
+  //
+  // THE PHOTOGRAPHS ARE FETCHED, NEVER LINKED. An <img src> cannot carry the bearer, and the
+  // alternative — a signed URL — is a second credential for the most sensitive bytes this product
+  // holds, travelling in a query string. So the bytes come back through the same api() call
+  // everything else uses and become a blob: URL that exists only in this tab.
+
+  var diaryUser = null;
+  var photoUrls = [];
+
+  function releasePhotos() {
+    photoUrls.forEach(function (u) { URL.revokeObjectURL(u); });
+    photoUrls = [];
+    $("photos").textContent = "";
+  }
+
+  function photoBytes(mealId, n) {
+    return fetch("/admin/api/users/" + diaryUser + "/meals/" + mealId + "/photos/" + n, {
+      headers: { authorization: "Bearer " + token }
+    }).then(function (res) { return res.ok ? res.blob() : null; });
+  }
+
+  function showPhotos(meal) {
+    releasePhotos();
+    var count = meal.photos || 0;
+    if (!count) { $("photos").textContent = ""; return; }
+    var box = document.createElement("div");
+    box.className = "card";
+    var note = document.createElement("p");
+    note.className = "muted";
+    note.textContent = "What they photographed — " + count + (count === 1 ? " picture" : " pictures") + ".";
+    box.appendChild(note);
+    $("photos").appendChild(box);
+    for (var n = 0; n < count; n++) {
+      (function (position) {
+        photoBytes(meal.id, position).then(function (blob) {
+          if (!blob) return;
+          var url = URL.createObjectURL(blob);
+          photoUrls.push(url);
+          var img = document.createElement("img");
+          img.className = "shot";
+          img.alt = "Photograph " + (position + 1) + " of a meal logged on " + meal.date;
+          img.src = url;
+          box.appendChild(img);
+        });
+      })(n);
+    }
+  }
+
+  function mealRow(m) {
+    var tr = document.createElement("tr");
+    var names = (m.items || []).map(function (i) { return i.name; }).join(", ");
+    var verdicts = Object.keys(m.verdicts || {}).map(function (k) {
+      return k + ": " + m.verdicts[k];
+    }).join(", ");
+    var cells = [
+      m.ts.slice(0, 16).replace("T", " "),
+      (names || (m.isFood ? "Meal" : "Not food")) + (m.corrected ? " (corrected)" : ""),
+      String(Math.round(m.kcal)),
+      verdicts || "—",
+      m.model || "—",
+      m.confidence || "—",
+      String(m.photos || 0)
+    ];
+    cells.forEach(function (text) {
+      var td = document.createElement("td");
+      td.textContent = text;
+      tr.appendChild(td);
+    });
+    tr.addEventListener("click", function () { showPhotos(m); });
+    return tr;
+  }
+
+  function loadDiary(userId) {
+    if (userId) diaryUser = userId;
+    if (!diaryUser) { $("diary-status").textContent = "Choose an account above."; return Promise.resolve(); }
+    releasePhotos();
+    var path = "/admin/api/users/" + diaryUser + "/meals";
+    var from = $("diary-from").value.trim();
+    var to = $("diary-to").value.trim();
+    var query = [];
+    if (from) query.push("from=" + encodeURIComponent(from));
+    if (to) query.push("to=" + encodeURIComponent(to));
+    if (query.length) path += "?" + query.join("&");
+    $("diary-who").textContent = diaryUser.slice(0, 8);
+    return api("GET", path).then(function (view) {
+      var body = $("diary").querySelector("tbody");
+      body.textContent = "";
+      view.meals.forEach(function (m) { body.appendChild(mealRow(m)); });
+      $("diary-from").value = view.from;
+      $("diary-to").value = view.to;
+      // The plan the verdicts were judged by. Recomputed from the profile as it is NOW, which is
+      // said out loud rather than left for somebody to assume it was stored per meal.
+      var plan = view.targets
+        ? " · plan today: " + Math.round(view.targets.kcal) + " kcal, "
+          + Math.round(view.targets.protein_g) + " g protein"
+        : " · not onboarded";
+      $("diary-status").textContent = view.meals.length === 0
+        ? "Nothing logged in that window." + plan
+        : view.meals.length + " meals" + plan;
+    }).catch(function (e) { $("diary-status").textContent = "failed: " + e.message; });
+  }
+
+  $("diary-load").addEventListener("click", function () { loadDiary(null); });
 
   // ── Wiring ─────────────────────────────────────────────────────────────────────────────────
 

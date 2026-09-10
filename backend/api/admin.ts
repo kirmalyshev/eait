@@ -42,10 +42,11 @@
 
 import {
   NOTIFICATION_IDS, NOTIFICATION_PLACEHOLDERS, ONBOARDING_SCREENS, SCREEN_FIELDS, SCREEN_OPTIONS,
-  screenIsOptional,
+  isCalendarDate, screenIsOptional,
 } from "@eait/shared";
 import {
-  adminUserChat, adminUsers, notificationCopy, onboardingContent, onboardingFunnel, resetNotificationCopy,
+  adminUserChat, adminUserDiary, adminUsers, notificationCopy, onboardingContent, onboardingFunnel,
+  resetNotificationCopy,
   resetOnboardingContent, saveNotificationCopy, saveOnboardingContent, setUserCap, userCap,
   type EngineDeps,
 } from "../engine/index.ts";
@@ -55,6 +56,15 @@ const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
 const notFound = () => json({ error: "not found" }, 404);
+
+/**
+ * A calendar date, or nothing.
+ *
+ * The window is a dashboard control: an unparseable `from` falls back to the default rather than
+ * becoming an error page, and it never reaches the store — `mealsSince` compares `date` as text,
+ * so a string that is not a date is a comparison against arbitrary input.
+ */
+const isDate = (v: string | null): v is string => v !== null && isCalendarDate(v);
 
 /**
  * What the editor needs in order to render the right controls for each group.
@@ -105,9 +115,16 @@ export async function adminRoutes(
         // and one style carry, and nothing else can run.
         "content-security-policy":
           `default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}'; `
-          // `img-src data:` for the empty favicon in the head and nothing else — without it
-          // `default-src 'none'` refuses even that, which is one console error per page load.
-          + "connect-src 'self'; img-src data:; base-uri 'none'; form-action 'none'; "
+          // `img-src data:` for the empty favicon in the head, and `blob:` for the photographs
+          // (#375) — without the first, `default-src 'none'` refuses even the favicon, which is one
+          // console error per page load.
+          //
+          // `blob:` AND NOT `'self'`: the panel fetches a photo with the bearer it already holds and
+          // renders the bytes it got back, so nothing addressable ever exists. An `<img src>` on
+          // this origin could not carry the credential anyway, and the alternative — a signed URL —
+          // would put a second credential for the most sensitive thing this product holds into a
+          // query string, which is where #372 measured one being written into a log in full.
+          + "connect-src 'self'; img-src data: blob:; base-uri 'none'; form-action 'none'; "
           + "frame-ancestors 'none'",
         "referrer-policy": "no-referrer",
         "x-frame-options": "DENY",
@@ -224,6 +241,52 @@ export async function adminRoutes(
     if (!view) return notFound();
     return new Response(JSON.stringify(view), {
       headers: { "content-type": "application/json", "cache-control": "no-store, private" },
+    });
+  }
+
+  // ── ONE ACCOUNT'S DIARY, AND THE PHOTOGRAPHS BEHIND IT ─────────────────────────────────────
+  //
+  // #375. "The analysis was wrong" is answerable now: the meal row, what the model said, the
+  // verdicts the person saw, and the picture they took.
+  //
+  // THE ACCOUNT COMES OUT OF THE PATH AND THE ROWS COME OUT OF A SCOPED READ. `mealsSince` and
+  // `getPhoto` are the same methods the app's own routes call, with the same `userId` argument;
+  // what the role buys is the right to NAME an account, never a widened query. So an admin cannot
+  // pair one account's id with another's meal — both go to the scoped read and a mismatch is a 404.
+  //
+  // The uuid is matched before it reaches Postgres, like the cap route below: a typo is otherwise a
+  // cast error and a 500.
+  const diary = pathname.match(/^\/admin\/api\/users\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/meals$/);
+  if (diary && req.method === "GET") {
+    const view = await adminUserDiary(deps, diary[1]!, {
+      ...(isDate(url.searchParams.get("from")) ? { from: url.searchParams.get("from")! } : {}),
+      ...(isDate(url.searchParams.get("to")) ? { to: url.searchParams.get("to")! } : {}),
+    });
+    return view ? json(view) : notFound();
+  }
+
+  // One stored photograph, by position — the same shape the app's own `/v1/meals/:id/photos/:n`
+  // has, on the admin's credential and for an account the admin named.
+  //
+  // THE BYTES, NOT A LINK TO THEM. A signed URL would be a second credential for the most sensitive
+  // thing this product holds, and it would travel in a query string — which is where a bearer is
+  // refused for landing in history, in a `Referer` and in every log between here and the browser
+  // (#372 measured exactly that). The panel fetches these with the bearer it already holds and
+  // renders a `blob:` URL, so nothing addressable ever exists.
+  const photo = pathname.match(
+    /^\/admin\/api\/users\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/meals\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/photos\/(\d{1,2})$/);
+  if (photo && req.method === "GET") {
+    const stored = await deps.store.getPhoto(photo[1]!, photo[2]!, Number(photo[3]));
+    if (!stored) return notFound();
+    return new Response(new Uint8Array(stored.bytes), {
+      headers: {
+        "content-type": stored.mime,
+        // NEVER STORED BY ANYTHING IN BETWEEN. A cached photograph of somebody's meal is a copy
+        // nobody knows about and nobody can erase.
+        "cache-control": "no-store, private",
+        "content-security-policy": "default-src 'none'; sandbox",
+        "x-content-type-options": "nosniff",
+      },
     });
   }
 

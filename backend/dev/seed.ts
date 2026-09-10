@@ -35,6 +35,19 @@ import type { ChatAppend, ProfilePatch, Store } from "../store.ts";
  * credential — `POST /v1/auth/device` asks for nothing else — and a guessable one would be an
  * account anybody who reads this file can log into on any host that ever ran the seeder.
  */
+/**
+ * The photograph every seeded meal has: a 16×16 solid square in the product's accent colour.
+ *
+ * SMALL AND REAL, in that order. It is 79 bytes, so seeding is not slower for it; it is a valid PNG
+ * rather than a placeholder string, because `imageMime` sniffs magic bytes and a browser has to
+ * render it. Nothing about it looks like food, deliberately — a fixture that looked like a
+ * photograph of a meal is a fixture somebody eventually ships in a screenshot.
+ */
+const SEED_PHOTO = Uint8Array.from(Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR42mM48T2QJMQwqmFUw/DVAAApdxAfIDFTpwAAAABJRU5ErkJggg==",
+  "base64",
+));
+
 export function seedDeviceId(key: string): string {
   const digest = new Bun.CryptoHasher("sha256").update(`eait-dev-seed:${key}`).digest("hex");
   return `5eed${digest.slice(4)}`;
@@ -340,6 +353,12 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
           model: "seed",
         };
         await store.insertMeal(record);
+        // A PICTURE, because the fixture already claims there is one. The thread line written two
+        // lines below is `kind: "photo"`, and every seeded meal has said so since the thread was
+        // seeded at all — with no bytes behind it, so the Chat tab's photo bubble and (since #375)
+        // the admin's diary both point at a 404. A fake may be poorer than the real thing and never
+        // different in a way a test or a screen can see.
+        await store.putPhotos(userId, record.id, [{ mime: "image/png", bytes: SEED_PHOTO }]);
         // The thread is what the Chat tab opens on; a persona with a diary and no thread would open
         // Chat on its empty state, which is the one thing a fixture must not do. Collected here and
         // written after the loop, oldest day first — this loop runs newest-first, and seq is the

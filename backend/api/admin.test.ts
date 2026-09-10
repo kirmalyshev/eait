@@ -581,6 +581,155 @@ describe("reading one account's thread", () => {
   });
 });
 
+describe("inspecting one account's diary", () => {
+  beforeEach(async () => { await mountWithAdmin(); });
+
+  const user = async () => (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+
+  /** A logged meal on `date`, with its verdicts already computed — as the engine writes one. */
+  const meal = async (userId: string, date: string, over: Record<string, unknown> = {}) => {
+    const row = {
+      id: crypto.randomUUID(), user_id: userId, ts: `${date}T12:00:00.000Z`, date,
+      isFood: true, items: [{ name: "Rice", grams: 200, name_en: "rice" }], kcal: 260,
+      protein_g: 5, carbs_g: 56, fat_g: 1, satfat_g: 0.2, fiber_g: 1, sugar_g: 0.1, sodium_mg: 5,
+      verdicts: { weight: "good" }, confidence: "high", notes: "", corrected: false,
+      model: "x-ai/grok-4.5", ...over,
+    };
+    await store.insertMeal(row as never);
+    return row;
+  };
+
+  const diary = (userId: string, query = "") =>
+    admin("GET", `/admin/api/users/${userId}/meals${query}`);
+
+  it("answers the diary as the app sees it, newest first, with the model that answered", async () => {
+    const userId = await user();
+    await store.patchProfile(userId, { onboarded_at: new Date().toISOString(), height_cm: 180, weight_kg: 80, birth_year: 1990, sex: "male", goal: "lose", activity: "moderate", pace: "steady" });
+    await meal(userId, "2026-09-01");
+    await meal(userId, "2026-09-03", { model: "openai/gpt-5" });
+
+    const res = await diary(userId, "?from=2026-08-25&to=2026-09-10");
+    expect(res.status).toBe(200);
+    const body = await res.json() as {
+      meals: { id: string; date: string; model: string | null; verdicts: Record<string, string> }[];
+      targets: { kcal: number } | null;
+    };
+    expect(body.meals.map((m) => m.date)).toEqual(["2026-09-03", "2026-09-01"]);
+    expect(body.meals[0]!.model).toBe("openai/gpt-5");
+    // RENDERED, NEVER RECOMPUTED. The verdicts on the row are what `verdictsFromTargets` →
+    // `visibleVerdicts` wrote when the meal was logged; a panel that computed its own would show a
+    // verdict the user never saw.
+    expect(body.meals[1]!.verdicts).toEqual({ weight: "good" });
+    // The targets those verdicts were judged against, so a "bad" is readable rather than a colour.
+    expect(body.targets?.kcal).toBeGreaterThan(0);
+  });
+
+  it("shows one account's meals and NEVER another's", async () => {
+    // The scoping invariant, at the surface that deliberately names an account it does not own.
+    // `mealsSince` takes the id as an argument and the admin route resolves it from the PATH; the
+    // widening is which id may be named, never which rows a query returns.
+    const [a, b] = [await user(), await user()];
+    await meal(a, "2026-09-01");
+    await meal(b, "2026-09-01");
+
+    const body = await (await diary(a, "?from=2026-08-01&to=2026-09-30")).json() as {
+      meals: { user_id: string }[];
+    };
+    expect(body.meals).toHaveLength(1);
+    expect(body.meals.every((m) => m.user_id === a)).toBe(true);
+  });
+
+  it("404s an account that does not exist, and an id that could not be one", async () => {
+    expect((await diary(crypto.randomUUID())).status).toBe(404);
+    expect((await diary("not-a-uuid")).status).toBe(404);
+  });
+
+  it("defaults its window rather than refusing a request without one", async () => {
+    const userId = await user();
+    expect((await diary(userId)).status).toBe(200);
+  });
+
+  it("is a READ", async () => {
+    const userId = await user();
+    for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+      expect((await admin(method, `/admin/api/users/${userId}/meals`, {})).status).toBe(404);
+    }
+  });
+
+  it("gives an ordinary signed-in user a 404, and no meals", async () => {
+    const userId = await user();
+    await meal(userId, "2026-09-01");
+    const res = await handle(new Request(url(`/admin/api/users/${userId}/meals`), {
+      headers: { authorization: `Bearer ${await session()}` },
+    }));
+    expect(res.status).toBe(404);
+    expect(await res.text()).not.toContain("Rice");
+  });
+});
+
+describe("the photographs behind one meal", () => {
+  beforeEach(async () => { await mountWithAdmin(); });
+
+  const user = async () => (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+  const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+
+  const withPhoto = async (userId: string) => {
+    const id = crypto.randomUUID();
+    await store.insertMeal({
+      id, user_id: userId, ts: "2026-09-01T12:00:00.000Z", date: "2026-09-01",
+      isFood: true, items: [], kcal: 1, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0,
+      fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, confidence: "high", notes: "",
+      corrected: false, model: null,
+    } as never);
+    await store.putPhotos(userId, id, [{ mime: "image/jpeg", bytes: JPEG }]);
+    return id;
+  };
+
+  it("serves the bytes with their mime, under the admin's own credential", async () => {
+    const userId = await user();
+    const mealId = await withPhoto(userId);
+    const res = await admin("GET", `/admin/api/users/${userId}/meals/${mealId}/photos/0`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/jpeg");
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(JPEG);
+  });
+
+  it("is never cached and never stored by anything in between", async () => {
+    // The most sensitive bytes this product holds. A caching intermediary keeping a photograph of
+    // somebody's meal is a copy nobody knows about and nobody can erase.
+    const userId = await user();
+    const mealId = await withPhoto(userId);
+    const res = await admin("GET", `/admin/api/users/${userId}/meals/${mealId}/photos/0`);
+    expect(res.headers.get("cache-control")).toContain("no-store");
+  });
+
+  it("refuses a meal that is not that account's, even to an admin", async () => {
+    // THE SCOPE HOLDS EVEN HERE. The admin chooses WHICH account to look at; it does not get to
+    // pair one account's id with another's meal. `getPhoto` is scoped and the route hands it both.
+    const [a, b] = [await user(), await user()];
+    const mealOfB = await withPhoto(b);
+    expect((await admin("GET", `/admin/api/users/${a}/meals/${mealOfB}/photos/0`)).status).toBe(404);
+  });
+
+  it("404s a position that does not exist", async () => {
+    const userId = await user();
+    const mealId = await withPhoto(userId);
+    expect((await admin("GET", `/admin/api/users/${userId}/meals/${mealId}/photos/3`)).status).toBe(404);
+  });
+
+  it("gives an ordinary signed-in user a 404 and no bytes", async () => {
+    const userId = await user();
+    const mealId = await withPhoto(userId);
+    const res = await handle(new Request(url(`/admin/api/users/${userId}/meals/${mealId}/photos/0`), {
+      headers: { authorization: `Bearer ${await session()}` },
+    }));
+    expect(res.status).toBe(404);
+    // A refusal, not an image: the answer is JSON and carries none of the bytes.
+    expect(res.headers.get("content-type")).toContain("application/json");
+    expect(await res.text()).toBe(JSON.stringify({ error: "not found" }));
+  });
+});
+
 describe("the per-account sample", () => {
   beforeEach(async () => { await mountWithAdmin(); });
 
