@@ -31,7 +31,11 @@ route. A route that computes is a rule the tests cannot reach.
   a zero is a claim the query never made.
 - **A cap is charged before the model call, not after.** A cap counting only successes is one a
   retry loop walks through. Except a `GatewayRefusal` — a status that provably generated nothing
-  (401, 402, 429, 503) was billed nothing, and `store.undoAnalysis` gives the analysis back. Charge
+  (401, 402, 429, 503) was billed nothing, and `store.undoAnalysis` gives the analysis back. One
+  exception is accepted (#523): on a streamed photo turn the glance runs beside the analyzer on its
+  own model and may already be billed when the analyzer is refused. The analysis is given back
+  anyway — one bounded glance is worth less than a user's analysis — and the glance's cost, finding
+  no row, reaches only the `cost not recorded` log line. Charge
   on ambiguity: a timeout or a truncation may have run — and so does a gateway status on any call
   but the FIRST of a turn (the schema retry, `routeText`'s focused second call), because those
   follow a completion that was billed.
