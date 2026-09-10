@@ -1079,6 +1079,21 @@ describe("chat on the web", () => {
     expect(res.headers.get("location")).toBe("/start/chat");
   });
 
+  it("sends both ways in to the web application's chat, where there is one (#499)", async () => {
+    // One chat on the web: where this deployment has a web application, its chat is the chat.
+    router({ ...CONFIG }, undefined, undefined, true);
+    const { session } = await onboarded();
+    for (const path of ["/chat", "/start/chat", "/start/chat?notice=expired"]) {
+      const res = await get(path, session);
+      expect(res.status).toBe(303);
+      expect(res.headers.get("location")).toBe("/#/chat");
+    }
+    // Signed out as well: the web application has its own way to sign somebody in.
+    expect((await get("/start/chat")).headers.get("location")).toBe("/#/chat");
+    // A tab opened before this change still posts here, and is still answered.
+    expect((await post("/start/chat/say", { text: "   " }, session)).status).toBe(303);
+  });
+
   it("renders the account's own thread, oldest first, and nobody else's", async () => {
     const { session, userId } = await onboarded();
     const other = await onboarded("someone-else");
@@ -1537,6 +1552,13 @@ describe("the plan page hands over to the product", () => {
     const html = await planFor(false);
     expect(html).not.toContain('href="/"');
     expect(html).toContain("Now get the app");
+  });
+
+  it("opens the web application's chat where there is one, and its own where there is not (#499)", async () => {
+    const withApp = await planFor(true);
+    expect(withApp).toContain('href="/#/chat"');
+    expect(withApp).not.toContain('href="/start/chat"');
+    expect(await planFor(false)).toContain('href="/start/chat"');
   });
 });
 

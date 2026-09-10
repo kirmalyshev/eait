@@ -441,6 +441,13 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     });
   }
 
+  // ONE CHAT ON THE WEB (#499). Where this deployment has a web application, ITS chat is the chat:
+  // the short link and this page's own address both send people there, signed in or not — it has
+  // its own way to sign somebody in. The page below stays for a deployment with no web application,
+  // and the POSTs under it stay for a tab opened before this, which still posts to them.
+  if (req.method === "GET" && ctx.hasWebApp && (pathname === CHAT_ALIAS || pathname === CHAT_PATH)) {
+    return seeOther("/#/chat");
+  }
   if (req.method === "GET" && pathname === CHAT_ALIAS) return seeOther(CHAT_PATH);
 
   // ── Sign in ───────────────────────────────────────────────────────────────────────────────

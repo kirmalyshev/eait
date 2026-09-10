@@ -508,7 +508,7 @@ ${v.hasWebApp
 ${v.checkoutUrl
   ? `<a class="button primary" href="${escape(v.checkoutUrl)}">${escape(PAGE_COPY.planCheckout)}</a>`
   : ""}
-<a class="button" href="/start/chat">${escape(PAGE_COPY.planChat)}</a>
+<a class="button" href="${v.hasWebApp ? "/#/chat" : "/start/chat"}">${escape(PAGE_COPY.planChat)}</a>
 <h2>${escape(PAGE_COPY.planAppHeading)}</h2>
 <p class="muted">${escape(v.signedInWith === null
   ? PAGE_COPY.planAppBodyGeneric
