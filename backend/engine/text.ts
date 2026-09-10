@@ -179,11 +179,14 @@ export async function handleText(
         await deps.store.pruneExpiredPendings().catch((e) => {
           console.error(`[eait] pending sweep failed: ${(e as Error)?.message ?? e}`);
         });
-        await deps.store.putPending({
-          id: pendingId, userId, analysis, date,
-          expiresAt: Date.now() + deps.config.pendingTtlMs,
-        });
-        return { kind: "proposed", pendingId, analysis, date } satisfies MealProposed;
+        // ONE MOMENT, WRITTEN ONCE AND SENT (#367). The row is refused after it and the card stops
+        // offering its button at it, so the two must be the same instant rather than two calls to
+        // the clock a few milliseconds apart.
+        const expiresAt = Date.now() + deps.config.pendingTtlMs;
+        await deps.store.putPending({ id: pendingId, userId, analysis, date, expiresAt });
+        return {
+          kind: "proposed", pendingId, analysis, date, expiresAt: new Date(expiresAt).toISOString(),
+        } satisfies MealProposed;
       }
 
       case "correction": {

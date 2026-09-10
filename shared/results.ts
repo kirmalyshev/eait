@@ -75,6 +75,17 @@ export interface MealProposed {
   analysis: MealAnalysis;
   /** The resolved calendar date, so the confirm prompt can NAME it — the misparse guard. */
   date: string;
+  /**
+   * ISO 8601. When this estimate stops being confirmable, SENT rather than compiled into both
+   * sides — the rule `PairCodeResponse.expiresAt` states, and the same reason: the TTL
+   * (`EAIT__BACKEND__PENDING_TTL_MINUTES`) is a limit the server enforces, and a client carrying
+   * its own copy of the number eventually disagrees with the one doing the refusing.
+   *
+   * A surface reads it to stop OFFERING a confirm it cannot honour (`proposalLive`, #367). It is a
+   * courtesy and never the guarantee: the row is swept on the next proposal and deleted lazily on
+   * read, and `POST /confirm` answers 410 either way.
+   */
+  expiresAt: string;
 }
 
 /** Who said an assistant line. Absent is Spud, the host; `gabie` is the nutritionist, and only a coach answer carries it. */

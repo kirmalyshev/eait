@@ -267,6 +267,24 @@ export const pendingIdOf = (e: ThreadEntry): string | null =>
   e.role === "assistant" && e.result.kind === "proposed" ? e.result.pendingId : null;
 
 /**
+ * Whether a proposal may still be confirmed, as far as the CLIENT can tell (#367).
+ *
+ * A COURTESY, NOT THE GUARANTEE. The server stays the authority: `getPending` deletes an expired
+ * row lazily and `POST /confirm` answers 410, and that path is untouched. What this stops is the
+ * app offering a button that was never going to work — a proposal nobody supersedes keeps its
+ * "Log it" until somebody presses it, and the way they find out is the refusal.
+ *
+ * AN UNREADABLE MOMENT IS LIVE — the opposite fallback to `entitlementLive`, and deliberately. There
+ * an unreadable date must not unlock a paid feature; here it must not retire a proposal the server
+ * would still honour, because the analysis behind that card is already billed and describing the
+ * plate again spends another one. Erring toward the button costs a 410 the screen already words.
+ */
+export const proposalLive = (expiresAt: string, now: number): boolean => {
+  const at = Date.parse(expiresAt);
+  return Number.isNaN(at) || at > now;
+};
+
+/**
  * One live estimate, and it is the newest — every older one retired to the words a cancel writes (#360).
  *
  * A proposal is client-only until it is confirmed, so the server has no card for it and

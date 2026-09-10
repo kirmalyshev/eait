@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MEET_GABIE, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, explainTargets, isMeal, runningLine, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
+import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MEET_GABIE, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, explainTargets, isMeal, proposalLive, runningLine, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
@@ -964,6 +964,27 @@ describe("chat", () => {
     if (res.kind !== "proposed") throw new Error("expected proposed");
     expect(res.date).toBe(localDate("Europe/Berlin"));
     expect((await day(deps, userId))!.meals).toHaveLength(0);
+  });
+
+  it("tells the client when the estimate dies, so the card stops offering a button it cannot honour", async () => {
+    // #367: the TTL is a limit the SERVER enforces, so the moment travels rather than being
+    // compiled into both sides — the same rule `PairCodeResponse.expiresAt` states, and for the
+    // same reason: a client carrying its own copy of the number eventually disagrees with the one
+    // doing the refusing.
+    const userId = await onboard();
+    const before = Date.now();
+    const res = await handleText(deps, userId, { text: "two eggs and toast" });
+    if (res.kind !== "proposed") throw new Error("expected proposed");
+    const at = Date.parse(res.expiresAt);
+    expect(at).toBeGreaterThanOrEqual(before + deps.config.pendingTtlMs);
+    expect(at).toBeLessThanOrEqual(Date.now() + deps.config.pendingTtlMs);
+    expect(proposalLive(res.expiresAt, Date.now())).toBe(true);
+
+    // And it is the configured moment, not a constant: the one the store was given to refuse by.
+    const gone = await handleText(makeDeps({ pendingTtlMs: -1 }), userId, { text: "a banana" });
+    if (gone.kind !== "proposed") throw new Error("expected proposed");
+    expect(proposalLive(gone.expiresAt, Date.now())).toBe(false);
+    expect((await confirmPendingMeal(deps, userId, gone.pendingId)).kind).toBe("expired");
   });
 
   it("computes the proposal's verdicts rather than shipping the analyzer's output raw", async () => {

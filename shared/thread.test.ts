@@ -3,7 +3,7 @@ import type { ChatEntry } from "./contract.ts";
 import type { ChatSpeaker } from "./results.ts";
 import type { MealRecord } from "./types.ts";
 import { scriptedLine } from "./chat.ts";
-import { fromHistory, hasLiveSuggestions, keepsItsWords, landedLine, lastMealId, mergeThread, moodFor, oneCardPerMeal, oneLiveProposal, pendingIdOf, reconcilePage, speakerOf, threadReducer, unansweredFor, visibleEntries, withUnanswered, type ChatResult, type ThreadEntry } from "./thread.ts";
+import { fromHistory, hasLiveSuggestions, keepsItsWords, landedLine, lastMealId, mergeThread, moodFor, oneCardPerMeal, oneLiveProposal, pendingIdOf, proposalLive, reconcilePage, speakerOf, threadReducer, unansweredFor, visibleEntries, withUnanswered, type ChatResult, type ThreadEntry } from "./thread.ts";
 
 // The Chat screen's reconciliation of three sources of truth — the fetched page, what is on screen,
 // and the turns still in flight. Pure, so every rule the design notes record as hard-won is pinned
@@ -13,6 +13,8 @@ const meal = (id: string, kcal: number, date = "2026-08-25"): MealRecord => ({
   id, user_id: "u", ts: "2026-08-25T12:00:00.000Z", date, isFood: true, items: [], kcal, protein_g: 0, carbs_g: 0, fat_g: 0,
   satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, confidence: "high", notes: "", corrected: false, model: null,
 });
+/** Far enough out that these fixtures are about what they are about, never about the clock (#367). */
+const LIVE = "2099-01-01T00:00:00.000Z";
 let seq = 0;
 const base = () => ({ id: `s${++seq}`, seq, ts: "2026-08-25T12:00:00.000Z" });
 const userLine = (text: string, o: { clientId?: string; pendingId?: string } = {}): ChatEntry =>
@@ -49,7 +51,7 @@ describe("reconcilePage", () => {
     const none = reconcilePage([userLine("two eggs", { clientId: "c1", pendingId: "p1" })], [failed], new Set(["c1"]), false);
     expect(none.next.at(-1)).toMatchObject({ id: "unanswered:c1", role: "error", kind: "unanswered" });
     // Beside the line it answers — not after a later turn's proposal, where it would read as that turn's.
-    const later: ThreadEntry = { id: "a2", role: "assistant", result: { kind: "proposed", pendingId: "p2", analysis: meal("p2", 1), date: "2026-08-25" } };
+    const later: ThreadEntry = { id: "a2", role: "assistant", result: { kind: "proposed", pendingId: "p2", analysis: meal("p2", 1), date: "2026-08-25", expiresAt: LIVE } };
     const page = [userLine("two eggs", { clientId: "c1", pendingId: "p1" }), said("unrelated")];
     const placed = reconcilePage(page, [failed, later], new Set(["c1"]), false);
     expect(placed.next.map((e) => e.id)).toEqual([page[0]!.id, "unanswered:c1", page[1]!.id, "a2"]);
@@ -103,15 +105,15 @@ describe("mergeThread", () => {
   it("drops a live proposal once the page carries the card its confirm wrote", () => {
     // A page fetched while the confirm is in flight already has the card (the meal takes the
     // proposal's id); the bubble with its buttons must not stay beside it.
-    const proposal: ThreadEntry = { id: "a1", role: "assistant", result: { kind: "proposed", pendingId: "p1", analysis: meal("p1", 1), date: "2026-08-25" } };
-    const other: ThreadEntry = { id: "a2", role: "assistant", result: { kind: "proposed", pendingId: "p2", analysis: meal("p2", 1), date: "2026-08-25" } };
+    const proposal: ThreadEntry = { id: "a1", role: "assistant", result: { kind: "proposed", pendingId: "p1", analysis: meal("p1", 1), date: "2026-08-25", expiresAt: LIVE } };
+    const other: ThreadEntry = { id: "a2", role: "assistant", result: { kind: "proposed", pendingId: "p2", analysis: meal("p2", 1), date: "2026-08-25", expiresAt: LIVE } };
     const logged = card(meal("p1", 300));
     const next = mergeThread(fromHistory([logged]), [proposal, other], new Set());
     expect(next.map((e) => e.id)).toEqual([logged.id, "a2"]);
   });
 
   it("keeps a live proposal and a bubble still in flight, and lets an error bubble go with the page", () => {
-    const proposal: ThreadEntry = { id: "a1", role: "assistant", result: { kind: "proposed", pendingId: "p1", analysis: meal("p1", 1), date: "2026-08-25" } };
+    const proposal: ThreadEntry = { id: "a1", role: "assistant", result: { kind: "proposed", pendingId: "p1", analysis: meal("p1", 1), date: "2026-08-25", expiresAt: LIVE } };
     const asked: ThreadEntry = { id: "c9", role: "user", text: "and a coffee" };
     const error: ThreadEntry = { id: "e1", role: "error", kind: "analysis-failed" };
     const page = [userLine("hi")];
@@ -140,7 +142,7 @@ describe("landedLine / unansweredFor", () => {
   });
 
   it("places the notice right under the line it answers, and changes nothing when there is none to give", () => {
-    const later: ThreadEntry = { id: "a2", role: "assistant", result: { kind: "proposed", pendingId: "p2", analysis: meal("p2", 1), date: "2026-08-25" } };
+    const later: ThreadEntry = { id: "a2", role: "assistant", result: { kind: "proposed", pendingId: "p2", analysis: meal("p2", 1), date: "2026-08-25", expiresAt: LIVE } };
     const entries = [...fromHistory([userLine("two eggs", { clientId: "c1", pendingId: "p1" }), said("unrelated")]), later];
     expect(withUnanswered(entries, "c1").map((e) => e.id)).toEqual([entries[0]!.id, "unanswered:c1", entries[1]!.id, "a2"]);
     expect(withUnanswered(entries, "c9")).toBe(entries);
@@ -275,7 +277,7 @@ describe("oneCardPerMeal — #301", () => {
 
 describe("oneLiveProposal / pendingIdOf — #360", () => {
   const proposal = (id: string, pendingId: string): ThreadEntry =>
-    ({ id, role: "assistant", result: { kind: "proposed", pendingId, analysis: meal(pendingId, 1106), date: "2026-08-25" } });
+    ({ id, role: "assistant", result: { kind: "proposed", pendingId, analysis: meal(pendingId, 1106), date: "2026-08-25", expiresAt: LIVE } });
   const totals = { kcal: 1106, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 };
   /** The screen's `replace` on a confirm: the entry becomes the logged card, in its own place. */
   const confirm = (entries: ThreadEntry[], id: string, pendingId: string): ThreadEntry[] => {
@@ -323,7 +325,7 @@ describe("oneLiveProposal / pendingIdOf — #360", () => {
 
 /** An assistant row of any result kind, for the exhaustive walks below. */
 const spoke = (result: ChatResult, id = "a1"): ThreadEntry => ({ id, role: "assistant", result });
-const proposal: ChatResult = { kind: "proposed", pendingId: "p1", analysis: meal("p1", 300), date: "2026-08-25" };
+const proposal: ChatResult = { kind: "proposed", pendingId: "p1", analysis: meal("p1", 300), date: "2026-08-25", expiresAt: LIVE };
 const landed: ChatResult = {
   kind: "logged", mealId: "m1", analysis: meal("m1", 300), date: "2026-08-25", hint: "correction",
   totals: { kcal: 300, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 },
@@ -427,5 +429,24 @@ describe("threadReducer", () => {
       .toMatchObject({ id: "unanswered:c1", role: "error", kind: "unanswered" });
     const plain = fromHistory([userLine("hi", { clientId: "c2" })]);
     expect(threadReducer(plain, { kind: "unanswered", clientId: "c2" })).toBe(plain);
+  });
+});
+
+describe("proposalLive — #367", () => {
+  const at = Date.parse("2026-08-25T12:30:00.000Z");
+
+  it("stops offering the button once the moment the server named has passed", () => {
+    expect(proposalLive("2026-08-25T12:30:00.001Z", at)).toBe(true);
+    // The boundary belongs to the server: at the instant it named, `getPending` already refuses.
+    expect(proposalLive("2026-08-25T12:30:00.000Z", at)).toBe(false);
+    expect(proposalLive("2026-08-25T12:00:00.000Z", at)).toBe(false);
+  });
+
+  it("keeps the button when the moment cannot be read, because the server is the authority", () => {
+    // The opposite fallback to `entitlementLive`, deliberately. There, an unreadable date must not
+    // unlock a paid feature; here it must not RETIRE a proposal the server would still honour —
+    // the analysis behind it is already billed, and re-describing the plate spends another.
+    expect(proposalLive("not a date", at)).toBe(true);
+    expect(proposalLive("", at)).toBe(true);
   });
 });
