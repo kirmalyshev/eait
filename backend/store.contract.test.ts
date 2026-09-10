@@ -9,8 +9,10 @@
 //
 // Postgres is SKIPPED, loudly, when `TEST_DATABASE_URL` is unset — a silently skipped test is a
 // test that reads as passing. Run it with:
-//   sh scripts/db.sh up
-//   TEST_DATABASE_URL=postgres://eait:eait@127.0.0.1:5433/eait bun test ./src/backend/store.contract.test.ts
+//   sh scripts/db.sh up && sh scripts/db.sh create
+//   bun run test:pg
+// which points it at THIS worktree's database (`EAIT_DATABASE_URL`, written by `make env`), never at
+// slot 0's `eait`: that is the main checkout's dev data (#495). `TEST_DATABASE_URL` still wins.
 
 import { afterAll, describe, expect, it } from "bun:test";
 import { SQL } from "bun";
