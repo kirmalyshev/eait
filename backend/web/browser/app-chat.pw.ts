@@ -276,3 +276,61 @@ test("a stream that ends with no answer reads as a turn that may have landed", a
   await page.getByRole("button", { name: "Send the photo" }).click();
   await expect(page.locator(".notice")).toHaveText(MAYBE_LANDED);
 });
+
+test("a turn still out when the screen is rebuilt offers no second send, and its answer reaches the new screen", async ({ inWebApp: page }) => {
+  // The tabs and Back stay live while a turn is out, and rebuilding the chat drew a fresh composer:
+  // a second photo of the same meal, a second paid analysis, and the first one's answer on a screen
+  // nobody could see any more (#529).
+  let release!: () => void;
+  const gate = new Promise<void>((r) => { release = r; });
+  await page.route("**/api/v1/meals/photo", async (r) => {
+    await gate;
+    await r.fulfill({ status: 200, contentType: "application/x-ndjson", body: `${JSON.stringify({ kind: "not-food" })}\n` });
+  });
+  await page.locator('input[type="file"]').setInputFiles(FIXTURE);
+  await page.getByRole("button", { name: "Send the photo" }).click();
+  await page.getByRole("link", { name: "Diary" }).click();
+  await page.getByRole("link", { name: "Chat" }).click();
+  await expect(page.getByRole("button", { name: "Send the photo" })).toHaveCount(0);
+  release();
+  await expect(page.locator(".notice")).toHaveText("That did not look like food.");
+  await expect(page.getByRole("button", { name: "Send the photo" })).toBeEnabled();
+});
+
+test("a Not this whose answer never arrived drops the card, because nothing is logged without a confirm", async ({ inWebApp: page }) => {
+  await page.getByPlaceholder("What did you eat?").fill("a banana");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Not this" })).toBeVisible();
+  await page.route("**/api/v1/meals/pending/*/cancel", async (r) => { await r.fetch(); await r.abort("connectionreset"); });
+  await page.getByRole("button", { name: "Not this" }).click();
+  // Pressed or not, landed or not, the outcome is the one asked for; offering the card again would
+  // put it back under the server's own "Dropped it.".
+  await expect(page.getByRole("button", { name: "Not this" })).toHaveCount(0);
+  await expect(page.locator(".notice")).toBeHidden();
+});
+
+test("a re-mint that loses the network reads as a lost answer, not as signed out", async ({ inWebApp: page }) => {
+  await page.getByPlaceholder("What did you eat?").fill("a banana");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
+  // The bearer has lapsed (12 hours) and the connection drops as the page asks for another: the
+  // session behind it is still alive, so the sign-in screen would be a lie that wipes the card.
+  await page.route("**/api/v1/meals/pending/*/confirm", (r) => r.fulfill({
+    status: 401, contentType: "application/json", body: JSON.stringify({ error: "unauthenticated" }),
+  }));
+  await page.route("**/start/session/token", (r) => r.abort("connectionreset"));
+  await page.getByRole("button", { name: "Log it" }).click();
+  await expect(page.locator(".notice")).toHaveText("No answer came back. Press Log it again: it cannot log the meal twice.");
+  await expect(page.getByRole("link", { name: "Sign in" })).toHaveCount(0);
+});
+
+test("a confirm that worked leaves no card offering it, even when the redraw after it fails", async ({ inWebApp: page }) => {
+  await page.getByPlaceholder("What did you eat?").fill("a banana");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
+  await page.route((url) => url.pathname.endsWith("/api/v1/messages") && url.searchParams.has("limit"),
+    (r) => r.request().method() === "GET" ? r.abort("connectionreset") : r.fallback());
+  await page.getByRole("button", { name: "Log it" }).click();
+  await expect(page.locator(".notice")).toHaveText("Sent. Reload to see the conversation.");
+  await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
+});
