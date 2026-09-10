@@ -37,9 +37,12 @@ let noncesSeen: (string | undefined)[] = [];
 const testVerifier: Verifier = {
   async verify(provider, idToken, nonce) {
     noncesSeen.push(nonce);
-    const [marker, p, subject] = idToken.split(":");
+    // `ok:<provider>:<subject>` or `ok:<provider>:<subject>:<email>`. The address is OPTIONAL
+    // because absent is the normal case: Apple sends one on the first authorization for an app and
+    // never again, so a fake that always supplied one would be a fake no returning user resembles.
+    const [marker, p, subject, email] = idToken.split(":");
     if (marker !== "ok" || p !== provider || !subject) throw new AuthError("invalid");
-    return { provider, subject };
+    return { provider, subject, ...(email ? { email } : {}) };
   },
   async verifyAppleNotification() { throw new AuthError("not-in-these-tests"); },
 };
@@ -1601,6 +1604,126 @@ describe("handing the browser's own JavaScript a bearer", () => {
     // again and gets another one.
     expect(await store.userIdForToken(cookieToken)).not.toBeNull();
     expect((await post("/start/session/token", {}, cookie)).status).toBe(200);
+  });
+});
+
+describe("Sign in with Apple, in both places (#476)", () => {
+  // ── THE SUBJECT IS THE ACCOUNT. THE AUDIENCE IS NOT. ────────────────────────────────────────
+  //
+  // The app authorises as its BUNDLE ID and a browser as the SERVICE ID — Apple's design, not
+  // ours, and the reason `config.ts` insists the Service ID appears in `appleAudiences` BESIDE the
+  // bundle id rather than instead of it. Two audiences, one `sub`, and the person expects one
+  // diary.
+  //
+  // Nothing in the identity path reads `aud`: `verify.ts` checks it and then returns
+  // `{ provider, subject }`, and `identities` is keyed `(provider, subject)`. These say so from
+  // both directions rather than leaving it to be inferred from that — the day somebody adds the
+  // audience to the identity key to "separate the surfaces", every web sign-in becomes a second
+  // account holding none of the person's meals.
+
+  /** The app's own route, as `lib/api.ts` calls it. */
+  const nativeSignIn = (subject: string, bearer?: string, email?: string) =>
+    handle(new Request("https://api.eait.fit/v1/auth/apple", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
+      },
+      body: JSON.stringify({ idToken: `ok:apple:${subject}${email ? `:${email}` : ""}` }),
+    }));
+
+  /** The browser's, through the real front door: authorize, then the callback with its state. */
+  const webSignIn = async (subject: string, email?: string): Promise<string> => {
+    const start = await get("/start/auth/apple");
+    const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
+    const code = `${subject}${email ? `:${email}` : ""}`;
+    const res = await get(
+      `/start/auth/apple/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`,
+      cookieFrom(start, "eait_oauth"),
+    );
+    const cookie = res.headers.getSetCookie().find((c) => c.startsWith("eait_web="))!;
+    return decodeURIComponent(cookie.split(";")[0]!.split("=")[1]!);
+  };
+
+  beforeEach(() => { router(CONFIG); });
+
+  it("lands the app and the browser on the SAME account, in that order", async () => {
+    const subject = "apple-both-places";
+    const app = await nativeSignIn(subject).then((r) => r.json()) as { userId: string; outcome: string };
+    expect(app.outcome).toBe("created");
+
+    const web = await webSignIn(subject);
+    expect(await store.userIdForToken(web)).toBe(app.userId);
+  });
+
+  it("and in the other order, because whichever came first is the account", async () => {
+    const subject = "apple-browser-first";
+    const web = await webSignIn(subject);
+    const first = (await store.userIdForToken(web))!;
+
+    const app = await nativeSignIn(subject).then((r) => r.json()) as { userId: string; outcome: string };
+    expect(app.userId).toBe(first);
+    // Not `created`: the account already existed, and a returning user links nothing.
+    expect(app.outcome).toBe("switched");
+  });
+
+  it("adds no second identity, whichever surface signs in again", async () => {
+    const subject = "apple-one-identity";
+    const app = await nativeSignIn(subject).then((r) => r.json()) as { userId: string };
+    await webSignIn(subject);
+    await nativeSignIn(subject);
+
+    const linked = await store.listIdentities(app.userId);
+    expect(linked.filter((i) => i.provider === "apple")).toHaveLength(1);
+  });
+
+  it("keeps the anonymous account's meals when the browser is not where it started", async () => {
+    // The app is where somebody logs meals anonymously, so the merge is the app's path — signing in
+    // there carries the diary onto the Apple account. The browser then reaches that same account
+    // rather than a second empty one, which is the whole of what "both places" has to mean.
+    const anon = await handle(new Request("https://api.eait.fit/v1/auth/device", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en" }),
+    })).then((r) => r.json()) as { token: string; userId: string };
+
+    const linkedIn = await nativeSignIn("apple-merge-subject", anon.token)
+      .then((r) => r.json()) as { userId: string; outcome: string };
+    expect(linkedIn.outcome).toBe("linked");
+    expect(linkedIn.userId).toBe(anon.userId);
+
+    const web = await webSignIn("apple-merge-subject");
+    expect(await store.userIdForToken(web)).toBe(anon.userId);
+  });
+
+  it("joins on the subject when the two surfaces carry two DIFFERENT addresses", async () => {
+    // THE PRIVATE RELAY IS NOT AN IDENTITY. Somebody who picks "Hide My Email" gets a relay address
+    // rather than their own, and Apple mints it per client — so the app (authorising as the bundle
+    // id) and a browser (authorising as the Service ID) can legitimately arrive with two addresses
+    // for one person. An identity keyed on the address, or a lookup that fell back to it when the
+    // subject missed, would make that TWO accounts holding half a diary each, indistinguishable
+    // afterwards from two real people.
+    //
+    // The addresses below are as far apart as they can be — a real one and a relay — and the only
+    // thing the two sign-ins share is the `sub`. One row is the assertion.
+    const subject = "apple-hide-my-email";
+    const app = await nativeSignIn(subject, undefined, "person@example.com")
+      .then((r) => r.json()) as { userId: string; outcome: string };
+    expect(app.outcome).toBe("created");
+
+    const web = await webSignIn(subject, "9q7zx3k2m1@privaterelay.appleid.com");
+    expect(await store.userIdForToken(web)).toBe(app.userId);
+    // And no second identity was created to hold the second address.
+    expect(await store.listIdentities(app.userId)).toHaveLength(1);
+  });
+
+  it("is offered on the page whenever its four settings are set, beside Google", async () => {
+    // The browser half is dark in production for one reason and it is configuration, not code:
+    // `webProviders()` registers Apple only when all four are non-empty. This is the assertion that
+    // the code half is finished — a host that sets them gets the button.
+    const html = await (await get("/start")).text();
+    expect(html).toContain("/start/auth/apple");
+    expect(html).toContain("Continue with Apple");
   });
 });
 
