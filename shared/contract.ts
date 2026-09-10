@@ -232,6 +232,18 @@ export const ROUTES = {
   subscribeConfirm: "/v1/subscribe/confirm",
   /** GET `?t=<token>`. The withdrawal half — one click, no login, no confirmation screen. */
   unsubscribe: "/v1/unsubscribe",
+
+  /**
+   * The browser onboarding, and the ONE route here that is not part of the JSON API.
+   *
+   * It is a page, not an endpoint: server-rendered HTML with no JavaScript, and the app never
+   * fetches it. It is in this table because it is the string the phone PRINTS — "open
+   * <host>/start and type a pairing code" — and because `POST /start/pair` above is where
+   * `authPair`'s code is redeemed. One spelling of the path, imported by the module that serves
+   * it and by the one that composes {@link ProfileResponse.pairAddress}, rather than a literal in
+   * each (#408).
+   */
+  webStart: "/start",
 } as const;
 
 // ── Auth ─────────────────────────────────────────────────────────────────────────────────────
@@ -381,6 +393,23 @@ export interface ProfileResponse {
    * one refusing requests. `limits.dailyPhotoCap` above is already computed from this.
    */
   entitlement: Entitlement;
+  /**
+   * Where to send a browser to pair with this account — host and path, no scheme (#408).
+   *
+   * SENT, NEVER COMPOSED BY THE CLIENT, for the reason {@link API_VERSION} states: shipped apps
+   * outlive the server they were built against. Every build before this field derived the address
+   * from its own compiled-in `API_URL` and printed `api.eait.fit/start`; that name becomes a 301
+   * to the browser's own host and eventually stops serving the page, and a binary already on a
+   * phone cannot be told. Reading it off the profile means the next move of this surface needs no
+   * new build — which is the whole point, and is why the path is here too and not just the host.
+   *
+   * NO SCHEME, because it is read off a phone screen and typed into an address bar by hand.
+   *
+   * EMPTY when the server has been told neither origin, which is development. The client then
+   * keeps its own answer: the host it is already talking to is the right one there, and a guess
+   * invented server-side would be wrong on every worktree at once.
+   */
+  pairAddress: string;
 }
 
 /**

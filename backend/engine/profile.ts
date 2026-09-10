@@ -11,6 +11,7 @@ import { MAX_PROFILE_TEXT,
   isAcceptableWeightKg,
   type ActivityLevel, type Lang, type Pace, type PatchProfileRequest, type Profile,
   type Limits, type ProfileRejected, type ProfileResponse,
+  ROUTES,
 } from "@eait/shared";
 import { MIN_AGE } from "@eait/shared";
 import type { ProfilePatch } from "../store.ts";
@@ -66,6 +67,27 @@ async function limitsOf(deps: EngineDeps, userId: string, entitled: boolean): Pr
   };
 }
 
+/**
+ * Where a browser pairs with an account, as the phone should PRINT it (#408).
+ *
+ * Two origins, and this is the browser's one: `publicWebUrl` is where a person signs in, and
+ * `publicApiUrl` is where an emailed link points (#406). A pairing address is something somebody
+ * types into an address bar, so it follows the browser — and it falls back to the API's own name,
+ * which is where `/start` is still served on every host that has not moved yet.
+ *
+ * EMPTY WHEN NEITHER IS SET, rather than derived from the request. This value is composed once per
+ * response and handed to a client that already knows which host it dialled; a server that has not
+ * been told its public name cannot improve on the client's own answer, and inventing one would put
+ * a wrong hostname in front of a person as an instruction.
+ */
+function pairAddressOf(config: { publicWebUrl: string; publicApiUrl: string }): string {
+  const origin = config.publicWebUrl || config.publicApiUrl;
+  if (!origin) return "";
+  // The scheme is dropped because this is read aloud off a screen; the trailing slash because
+  // `https://host/` + `/start` is `host//start`, which is a 404 nobody would suspect.
+  return `${origin.replace(/^https?:\/\//, "").replace(/\/+$/, "")}${ROUTES.webStart}`;
+}
+
 export async function profileView(deps: EngineDeps, userId: string): Promise<ProfileResponse | null> {
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
@@ -75,6 +97,7 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
     profile, targets, basis, onboarded: profile.onboarded_at !== null,
     isAdmin: await deps.store.roleOf(userId) === "admin",
     limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
+    pairAddress: pairAddressOf(deps.config),
   };
 }
 
@@ -218,6 +241,7 @@ export async function patchProfile(
       profile, targets, basis, onboarded: profile.onboarded_at !== null,
       isAdmin: await deps.store.roleOf(userId) === "admin",
       limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
+      pairAddress: pairAddressOf(deps.config),
     },
   };
 }

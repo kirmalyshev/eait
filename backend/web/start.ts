@@ -21,7 +21,7 @@
 import {
   AMBIGUOUS_AGE, RESTRICTION_TAGS, SCREEN_OPTIONS, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
   askPlaceholder, checkDirection, checkNumber, disabledScreens, isAnswered, promptsFor,
-  isRefusal, MAX_USER_LINE, renderableVerdicts, resolveCountry, screenForStep, screenOptions,
+  isRefusal, MAX_USER_LINE, renderableVerdicts, resolveCountry, ROUTES, screenForStep, screenOptions,
   suggestionFirst, switchedLine,
   verdictPillLabel,
   type ChatEntry, type ChatPrompt, type Goal, type NumberField, type OnboardingContent,
@@ -40,7 +40,12 @@ import {
   type ChatLine, type ChatProposal, type QuestionOption,
 } from "./page.ts";
 
-export const START_PREFIX = "/start";
+/**
+ * Re-exported from the contract, which is where the one spelling lives (#408): the phone is told
+ * this path in `ProfileResponse.pairAddress` and prints it, so a second literal here is a second
+ * literal that can drift from the address people are asked to type.
+ */
+export const START_PREFIX = ROUTES.webStart;
 
 /**
  * `/start/auth/<provider>` and `/start/auth/<provider>/callback`.
