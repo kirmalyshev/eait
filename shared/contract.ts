@@ -185,6 +185,18 @@ export const ROUTES = {
   authPair: "/v1/auth/pair",
   /** The identities linked to this account, so settings can show what is connected. */
   identities: "/v1/auth/identities",
+  /**
+   * DELETE, under the bearer — unlink one provider from the caller's own account (#246).
+   *
+   * The provider is in the PATH and the subject is never in the request: the server resolves it
+   * from the caller's own identities, so a body naming somebody else's link names nothing.
+   *
+   * REMOVING THE LAST WAY IN ERASES THE ACCOUNT, atomically, and the answer says which happened —
+   * see {@link UnlinkResponse}. `device` is refused: it is the anonymous credential the install
+   * was born with rather than something a person linked, and dropping it would let a signed-out
+   * session be locked out of an account that still exists.
+   */
+  identity: (provider: Provider) => `/v1/auth/identities/${encodeURIComponent(provider)}`,
   profile: "/v1/profile",
   /** GET — the onboarding copy this server is currently serving. Editable in the admin. */
   onboarding: "/v1/onboarding",
@@ -348,6 +360,20 @@ export interface AuthProviderResponse {
 
 export interface IdentitiesResponse {
   identities: { provider: Provider; linkedAt: string }[];
+}
+
+/**
+ * What an unlink did.
+ *
+ * `deleted` is the whole reason this is not a bare 204. `Store.removeIdentity` erases the account
+ * when the identity it removed was the last one — the check and the delete are one statement, so
+ * nothing can interleave — and the app has to know whether the session it is holding still names
+ * anything. The remaining identities come back too, so settings re-renders from the server's answer
+ * rather than from what it assumed happened.
+ */
+export interface UnlinkResponse {
+  identities: { provider: Provider; linkedAt: string }[];
+  deleted: boolean;
 }
 
 /**

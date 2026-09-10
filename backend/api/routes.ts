@@ -18,6 +18,7 @@ import {
   MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, RATE_LIMITED, REFUSAL_STATUS, ROUTES, isEditMealRequest,
   type AuthDeviceRequest, type AuthDeviceResponse, type AuthProviderRequest,
   type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang,
+  type UnlinkResponse,
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
   type AttachPhotosResponse, type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
   type HealthDaysRequest, type HealthDaysResponse, type HealthResponse, type LivenessResponse,
@@ -31,6 +32,7 @@ import type { Store } from "../store.ts";
 import {
   MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
   healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, profileView,
+  unlinkIdentity,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, type EngineDeps,
   attachPhotos,
   reanalyzeMeal,
@@ -533,6 +535,28 @@ export function createRouter(
 
       if (req.method === "GET" && pathname === ROUTES.identities) {
         return json({ identities: await identitiesFor(deps, userId) } satisfies IdentitiesResponse);
+      }
+
+      // Unlink one provider from THIS account (#246).
+      //
+      // The provider is in the PATH and the subject is never read from the request — the engine
+      // resolves it from the caller's own identities, so a crafted body names nothing. There is a
+      // test that says so.
+      //
+      // REMOVING THE LAST WAY IN ERASES THE ACCOUNT, atomically, inside `Store.removeIdentity`. The
+      // answer says which happened, because a phone holding a session for an account that no longer
+      // exists should learn it from this response rather than from its next 401.
+      if (req.method === "DELETE" && pathname.startsWith(`${ROUTES.identities}/`)) {
+        const provider = decodeURIComponent(pathname.slice(ROUTES.identities.length + 1));
+        const result = await unlinkIdentity(deps, userId, provider);
+        if (!result.ok) {
+          // 404 for both: "there is no such provider" and "you have not linked it" are the same
+          // thing to a caller, and telling them apart is an oracle for nothing useful.
+          return json({ error: result.reason }, 404);
+        }
+        return json({
+          identities: result.identities, deleted: result.deleted,
+        } satisfies UnlinkResponse);
       }
 
       // Pair a browser with THIS account. Issue #209.

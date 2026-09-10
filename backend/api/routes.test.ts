@@ -700,6 +700,87 @@ describe("sign in with apple / google", () => {
     expect(await store.userIdForToken(token)).not.toBeNull();
   });
 
+  // ── Unlinking (#246) ─────────────────────────────────────────────────────────────────────
+
+  it("unlinks one provider and leaves the account and its other ways in", async () => {
+    const a = await (await signIn("apple", "apple-unlink-1")).json() as { token: string; userId: string };
+    await signIn("google", "google-unlink-1", a.token);
+
+    const res = await del(ROUTES.identity("google"), {}, a.token);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { identities: { provider: string }[]; deleted: boolean };
+    expect(body.deleted).toBe(false);
+    expect(body.identities.map((i) => i.provider).sort()).toEqual(["apple"]);
+    // The session still works: the account is there and Apple still opens it.
+    expect((await get(ROUTES.identities, a.token)).status).toBe(200);
+  });
+
+  it("NEVER takes the subject from the request", async () => {
+    // The rule the whole route rests on. A body naming somebody else's link names nothing: the
+    // subject is resolved from the CALLER's own identities, and the provider is in the path.
+    const victim = await (await signIn("apple", "apple-victim")).json() as { token: string };
+    const attacker = await (await signIn("google", "google-attacker")).json() as { token: string };
+
+    const res = await del(
+      ROUTES.identity("apple"),
+      { subject: "apple-victim", userId: "whatever" },
+      attacker.token,
+    );
+    // The attacker has no Apple link of their own, so there is nothing to remove — and the
+    // victim's is untouched.
+    expect(res.status).toBe(404);
+    const still = await (await get(ROUTES.identities, victim.token)).json() as
+      { identities: { provider: string }[] };
+    expect(still.identities.map((i) => i.provider)).toContain("apple");
+  });
+
+  it("erases the account when the identity removed was the last way in, and says so", async () => {
+    // The delete-when-last rule is `Store.removeIdentity`'s and is left alone: a paired browser
+    // session is not an identity and does not count as "this account is reachable" (#209). What is
+    // added is that the caller is TOLD, rather than finding out from the next 401.
+    const a = await (await signIn("apple", "apple-only-way-in")).json() as { token: string };
+    const res = await del(ROUTES.identity("apple"), {}, a.token);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ identities: [], deleted: true });
+    // The session names nothing now.
+    expect((await get(ROUTES.identities, a.token)).status).toBe(401);
+  });
+
+  it("keeps an account whose device identity is still there", async () => {
+    // Signing in from an install that has a device identity LINKS rather than switches, so the
+    // device row is still a way in and removing the provider does not erase anything.
+    const token = await session();
+    const linked = await (await signIn("google", "google-keeps-device", token)).json() as
+      { outcome: string };
+    expect(linked.outcome).toBe("linked");
+
+    const body = await (await del(ROUTES.identity("google"), {}, token)).json() as
+      { deleted: boolean; identities: { provider: string }[] };
+    expect(body.deleted).toBe(false);
+    expect(body.identities.map((i) => i.provider)).toEqual(["device"]);
+    expect((await get(ROUTES.identities, token)).status).toBe(200);
+  });
+
+  it("refuses to unlink the device identity", async () => {
+    // It is the anonymous credential the install was born with rather than something a person
+    // linked, and dropping it would lock a signed-out session out of an account that still exists.
+    const token = await session();
+    expect((await del(ROUTES.identity("device"), {}, token)).status).toBe(404);
+    const { identities } = await (await get(ROUTES.identities, token)).json() as
+      { identities: { provider: string }[] };
+    expect(identities.map((i) => i.provider)).toEqual(["device"]);
+  });
+
+  it("404s a provider this server has never heard of, and one that is not linked", async () => {
+    const token = await session();
+    expect((await del(ROUTES.identity("facebook" as never), {}, token)).status).toBe(404);
+    expect((await del(ROUTES.identity("apple"), {}, token)).status).toBe(404);
+  });
+
+  it("needs a session of its own", async () => {
+    expect((await del(ROUTES.identity("google"), {})).status).toBe(401);
+  });
+
   it("is a no-op when the identity is already on this account", async () => {
     const a = await (await signIn("apple", "apple-sub-8")).json() as { token: string };
     const again = await (await signIn("apple", "apple-sub-8", a.token)).json() as { outcome: string };

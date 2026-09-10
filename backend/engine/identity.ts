@@ -9,6 +9,7 @@
 // real identity does not — it just switches. That asymmetry is the whole design, and it is the
 // reason `isAnonymous` exists rather than the code merging whenever two accounts meet.
 
+import { PROVIDERS } from "@eait/shared";
 import type { AuthProviderResponse, LinkOutcome, Provider } from "@eait/shared";
 import type { IdentityVerifier } from "../auth/verify.ts";
 import type { EngineDeps } from "./deps.ts";
@@ -137,6 +138,49 @@ export async function identitiesFor(
   userId: string,
 ): Promise<{ provider: Provider; linkedAt: string }[]> {
   return deps.store.listIdentities(userId);
+}
+
+/**
+ * Unlink one provider from the caller's own account (#246).
+ *
+ * THE SUBJECT COMES OUT OF THE STORE, never out of the request. The route knows a provider and the
+ * caller's own `userId`; the subject is resolved from the account's own identities, so there is no
+ * shape of body that could name somebody else's link. `removeIdentity` is scoped as well, which
+ * makes it two independent reasons rather than one.
+ *
+ * `device` IS REFUSED. It is the anonymous credential the install was born with rather than
+ * something a person linked, the settings list does not render it, and dropping it would leave a
+ * signed-out session locked out of an account that still exists.
+ *
+ * REMOVING THE LAST WAY IN ERASES THE ACCOUNT — that is `removeIdentity`'s own rule and it is one
+ * atomic step, so nothing can interleave between "is anything else linked" and the delete. It is
+ * left alone deliberately: a paired browser session is NOT an identity and does not count as "this
+ * account is reachable", which was decided when #209 was designed. What is added here is that the
+ * caller is TOLD, so a phone holding a session for an account that no longer exists finds out from
+ * the answer rather than from the next 401.
+ */
+export async function unlinkIdentity(
+  deps: EngineDeps,
+  userId: string,
+  provider: string,
+): Promise<{ ok: true; deleted: boolean; identities: { provider: Provider; linkedAt: string }[] }
+  | { ok: false; reason: "unsupported-provider" | "not-linked" }> {
+  if (provider === "device" || !(PROVIDERS as readonly string[]).includes(provider)) {
+    return { ok: false, reason: "unsupported-provider" };
+  }
+  const subject = await deps.store.identitySubject(userId, provider as Provider);
+  if (subject === null) return { ok: false, reason: "not-linked" };
+
+  const outcome = await deps.store.removeIdentity(userId, provider as Provider, subject);
+  // `not-found` is a concurrent delivery having got there first — Apple's revocation notification
+  // reaches the same method. Nothing was removed and nothing was deleted, and the account is in the
+  // state the caller asked for either way.
+  if (outcome === "not-found") return { ok: false, reason: "not-linked" };
+  return {
+    ok: true,
+    deleted: outcome === "account-deleted",
+    identities: outcome === "account-deleted" ? [] : await deps.store.listIdentities(userId),
+  };
 }
 
 /**

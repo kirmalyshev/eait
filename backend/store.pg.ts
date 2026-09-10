@@ -1003,6 +1003,12 @@ export async function postgresStore(
       };
     },
 
+    async identitySubject(userId, provider) {
+      const rows = await sql`
+        select subject from identities where user_id = ${userId} and provider = ${provider}`;
+      return rows.length > 0 ? String(rows[0].subject) : null;
+    },
+
     async emailForUser(userId) {
       const rows = await sql`
         select email from identities

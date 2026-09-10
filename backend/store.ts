@@ -472,6 +472,17 @@ export interface Store {
   /** What is linked to this account — for the settings screen, and for the merge guard. */
   listIdentities(userId: string): Promise<{ provider: Provider; linkedAt: string }[]>;
   /**
+   * The SUBJECT this account holds at one provider, or null (#246).
+   *
+   * SEPARATE FROM `listIdentities` for the same reason `emailForUser` is: that one feeds
+   * `/v1/auth/identities`, which the APP reads, and a subject added to it is a provider's opaque
+   * account id shipped to a phone that has no use for one. This is read on the server only, by the
+   * unlink route, and only so that `removeIdentity` can be handed a subject the SERVER resolved —
+   * the alternative being a subject out of a request body, which is the one thing that route may
+   * never do.
+   */
+  identitySubject(userId: string, provider: Provider): Promise<string | null>;
+  /**
    * THE ONE READ IN THIS PORT THAT IS NOT SCOPED TO A USER (#374). The admin's list of accounts.
    *
    * `AGENTS.md`: every read is scoped by a `userId` resolved from credentials. This one is not, and

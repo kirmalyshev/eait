@@ -1075,6 +1075,20 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.userIdForIdentity("google", subject("apple-sub"))).toBeNull(); // separate namespaces
     });
 
+    it("gives back the subject it holds at one provider, and only to that account", async () => {
+      const s2 = await open();
+      const { userId } = await s2.upsertDeviceUser(device(), "en");
+      const other = (await s2.upsertDeviceUser(device(), "en")).userId;
+      const sub = subject("unlink-me");
+      await s2.addIdentity(userId, "google", sub);
+
+      expect(await s2.identitySubject(userId, "google")).toBe(sub);
+      // Scoped like every other read: another account's link is not this account's business, and
+      // the unlink route hands whatever comes back to `removeIdentity`.
+      expect(await s2.identitySubject(other, "google")).toBeNull();
+      expect(await s2.identitySubject(userId, "apple")).toBeNull();
+    });
+
     it("refuses to move an identity to a second account", async () => {
       const s = await open();
       const a = (await s.upsertDeviceUser(device(), "en")).userId;

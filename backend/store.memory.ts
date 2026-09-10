@@ -442,6 +442,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       };
     },
 
+    async identitySubject(userId, provider) {
+      return identities.find((i) => i.userId === userId && i.provider === provider)?.subject ?? null;
+    },
+
     async emailForUser(userId) {
       // Same order as Postgres: the oldest identity that has one. Sorted rather than assumed —
       // the array is append-ordered today and a merge already reassigns rows in it.
