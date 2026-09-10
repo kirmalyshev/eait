@@ -6,12 +6,12 @@
 
 import { z } from "zod";
 import { cleanSuggestions, splitLines } from "@eait/shared";
-import type { AnalyzePhoto, ClassifyRestrictions, Coach, CoachTools, GlancePhoto, LlmPorts, OnCost, RouteResult, RouteText } from "./port.ts";
+import type { AnalyzePhoto, Coach, CoachTools, GlancePhoto, LlmPorts, OnCost, RouteResult, RouteText } from "./port.ts";
 import { GatewayRefusal, MAX_COACH_ROUNDS, clampDayOffset, imageMime } from "./port.ts";
 import {
-  COACH_TOOL_DEFS, ClassifySchema, CoachReplySchema, GLANCE_MAX_TOKENS, MealAnalysisSchema, RouteSchema, SYSTEM,
-  SYSTEM_CLASSIFY, SYSTEM_COACH, SYSTEM_GLANCE, SYSTEM_ROUTE, SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL,
-  buildClassifyText, buildCoachContext, buildGlanceText, buildRouteText, buildTextCorrectionText, buildTextMealText,
+  COACH_TOOL_DEFS, CoachReplySchema, GLANCE_MAX_TOKENS, MealAnalysisSchema, RouteSchema, SYSTEM,
+  SYSTEM_COACH, SYSTEM_GLANCE, SYSTEM_ROUTE, SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL,
+  buildCoachContext, buildGlanceText, buildRouteText, buildTextCorrectionText, buildTextMealText,
   buildUserText, coachLine,
 } from "./prompt.ts";
 
@@ -443,11 +443,6 @@ export function openRouterPorts(opts: Options): LlmPorts {
     return { intent: "answer", text: (out.text ?? "").trim() } satisfies RouteResult;
   };
 
-  const classifyRestrictions: ClassifyRestrictions = async (text) => {
-    const out = await complete(SYSTEM_CLASSIFY, buildClassifyText(text), ClassifySchema, "restrictions");
-    return out.tags;
-  };
-
   /**
    * The agent loop. System (rules + context), the replayed thread, the message; then rounds: a
    * reply ends it, a tool call is executed through the engine's closure and its result appended,
@@ -531,7 +526,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
   };
 
   // Not canned: these answers cost money and describe the photograph. `GET /health` reports it.
-  return { analyzePhoto, glancePhoto, routeText, classifyRestrictions, coach, canned: false };
+  return { analyzePhoto, glancePhoto, routeText, coach, canned: false };
 }
 
 /**

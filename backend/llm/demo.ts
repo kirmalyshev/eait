@@ -6,7 +6,7 @@
 // estimate is a demo someone eventually screenshots as evidence the product works.
 
 import { dateMinus } from "@eait/shared";
-import type { AnalyzedMeal, AnalyzePhoto, ClassifyRestrictions, Coach, GlancePhoto, LlmPorts, RouteText } from "./port.ts";
+import type { AnalyzedMeal, AnalyzePhoto, Coach, GlancePhoto, LlmPorts, RouteText } from "./port.ts";
 import { clampDayOffset } from "./port.ts";
 
 /** Stable small integer from a string — the seed for every canned number below. */
@@ -212,8 +212,6 @@ export function demoPorts(): LlmPorts {
     };
   };
 
-  const classifyRestrictions: ClassifyRestrictions = async () => [];
-
   /**
    * The canned coach. It reaches for a tool on the questions a real one would — the week and
    * other days, weight and sleep and steps — so the tool path is walked by `--demo`, the engine
@@ -254,5 +252,5 @@ export function demoPorts(): LlmPorts {
   };
 
   // `canned` is what `GET /health` reports and what the screenshot walk refuses to shoot against.
-  return { analyzePhoto, glancePhoto, routeText, classifyRestrictions, coach, canned: true };
+  return { analyzePhoto, glancePhoto, routeText, coach, canned: true };
 }

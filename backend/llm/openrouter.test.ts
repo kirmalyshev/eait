@@ -415,10 +415,7 @@ describe("temperature", () => {
   test("every request names it", async () => {
     const { llm, bodies } = ports([{ intent: "answer", text: "You have had 0 g of protein." }]);
     await llm.routeText(ROUTE_INPUT);
-    const classify = ports([{ tags: [] }]);
-    await classify.llm.classifyRestrictions("no pork");
     expect(bodies[0]!.temperature).toBe(0.2);
-    expect(classify.bodies[0]!.temperature).toBe(0.2);
   });
 });
 

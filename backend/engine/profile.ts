@@ -245,19 +245,3 @@ export async function patchProfile(
     },
   };
 }
-
-/** Free text → tags, keyword pass first, LLM only when it found nothing. */
-export async function classifyRestrictions(deps: EngineDeps, text: string): Promise<string[]> {
-  const { parseRestrictions } = await import("@eait/shared");
-  const keyword = parseRestrictions(text);
-  if (keyword.length > 0) return keyword;
-  try {
-    const tags = await deps.llm.classifyRestrictions(text);
-    // Validated against the same closed list the keyword pass uses — one source of truth, so the
-    // two paths cannot disagree about what a valid tag is.
-    return tags.filter((t) => (RESTRICTION_TAGS as string[]).includes(t));
-  } catch (e) {
-    console.error(`[eait] restriction classification failed: ${(e as Error).message}`);
-    return [];
-  }
-}

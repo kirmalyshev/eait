@@ -15,7 +15,7 @@
 import { z } from "zod";
 import type { FoodTargets, Profile } from "@eait/shared";
 import type { PortionPrior } from "../store.ts";
-import { MAX_SUGGESTION, MAX_SUGGESTIONS, MAX_USER_LINE, RESTRICTION_TAGS } from "@eait/shared";
+import { MAX_SUGGESTION, MAX_SUGGESTIONS, MAX_USER_LINE } from "@eait/shared";
 import type { CoachContext, CoachHistoryLine } from "./port.ts";
 import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "./port.ts";
 
@@ -137,8 +137,6 @@ export const RouteSchema = z.object({
 // anyway": `routeText` follows up with a focused second call — `SYSTEM_TEXT_MEAL` for a meal,
 // `SYSTEM_TEXT_CORRECTION` for a correction, which is a different prompt and not a variation on
 // one. See the notes there.
-
-export const ClassifySchema = z.object({ tags: z.array(z.string()) });
 
 // ── Photo analysis ───────────────────────────────────────────────────────────────────────────
 
@@ -445,18 +443,6 @@ export function buildRouteText(input: {
   if (input.question) lines.push(questionLine(input.question));
   lines.push(`The user's message: "${normalizePromptText(input.text, 1000)}"`);
   return lines.join("\n");
-}
-
-// ── Restriction classification ───────────────────────────────────────────────────────────────
-
-export const SYSTEM_CLASSIFY = `The user described their dietary situation in their own words. Return the tags from this closed list that apply, and nothing else.
-
-${RESTRICTION_TAGS.map((t) => `- ${t}`).join("\n")}
-
-Return an empty array when none apply. Never invent a tag outside the list.`;
-
-export function buildClassifyText(text: string): string {
-  return `The user said: "${normalizePromptText(text, 500)}"`;
 }
 
 // ── The glance ───────────────────────────────────────────────────────────────────────────────

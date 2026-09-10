@@ -167,10 +167,6 @@ export interface TextInput {
 
 export type RouteText = (input: TextInput) => Promise<RouteResult>;
 
-/** Free text → restriction tags, when the keyword pass found nothing. Validated against the closed
- *  vocabulary by the caller; anything outside it is dropped. */
-export type ClassifyRestrictions = (text: string) => Promise<string[]>;
-
 // ── The coach ────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -251,7 +247,6 @@ export interface LlmPorts {
   analyzePhoto: AnalyzePhoto;
   glancePhoto: GlancePhoto;
   routeText: RouteText;
-  classifyRestrictions: ClassifyRestrictions;
   coach: Coach;
   /**
    * True when these ports invent their answers — set by `demoPorts()` and by nothing else.
