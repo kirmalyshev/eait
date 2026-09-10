@@ -47,7 +47,7 @@ describe("reconcilePage", () => {
   it("calls a landed proposal unanswered exactly when no card carries its id", () => {
     const failed: ThreadEntry = { id: "c1", role: "user", text: "two eggs", failed: true };
     const none = reconcilePage([userLine("two eggs", { clientId: "c1", pendingId: "p1" })], [failed], new Set(["c1"]), false);
-    expect(none.next.at(-1)).toMatchObject({ id: "unanswered:c1", role: "error", refusal: "unanswered" });
+    expect(none.next.at(-1)).toMatchObject({ id: "unanswered:c1", role: "error", kind: "unanswered" });
     // Beside the line it answers — not after a later turn's proposal, where it would read as that turn's.
     const later: ThreadEntry = { id: "a2", role: "assistant", result: { kind: "proposed", pendingId: "p2", analysis: meal("p2", 1), date: "2026-08-25" } };
     const page = [userLine("two eggs", { clientId: "c1", pendingId: "p1" }), said("unrelated")];
@@ -113,7 +113,7 @@ describe("mergeThread", () => {
   it("keeps a live proposal and a bubble still in flight, and lets an error bubble go with the page", () => {
     const proposal: ThreadEntry = { id: "a1", role: "assistant", result: { kind: "proposed", pendingId: "p1", analysis: meal("p1", 1), date: "2026-08-25" } };
     const asked: ThreadEntry = { id: "c9", role: "user", text: "and a coffee" };
-    const error: ThreadEntry = { id: "e1", role: "error", refusal: "analysis-failed" };
+    const error: ThreadEntry = { id: "e1", role: "error", kind: "analysis-failed" };
     const page = [userLine("hi")];
     const next = mergeThread(fromHistory(page), [proposal, asked, error], new Set(["c9"]));
     expect(next.map((e) => e.id)).toEqual([page[0]!.id, "a1", "c9"]);
@@ -133,7 +133,7 @@ describe("landedLine / unansweredFor", () => {
     const entries = fromHistory([userLine("two eggs", { clientId: "c1", pendingId: "p1" }), userLine("hi", { clientId: "c2" })]);
     expect(landedLine(entries, "c1")?.text).toBe("two eggs");
     expect(landedLine(entries, "c9")).toBeUndefined();
-    expect(unansweredFor(entries, "c1")).toMatchObject({ id: "unanswered:c1", role: "error", refusal: "unanswered" });
+    expect(unansweredFor(entries, "c1")).toMatchObject({ id: "unanswered:c1", role: "error", kind: "unanswered" });
     expect(unansweredFor(entries, "c2")).toBeNull();
     const logged = fromHistory([userLine("two eggs", { clientId: "c1", pendingId: "p1" }), card(null, "p1")]);
     expect(unansweredFor(logged, "c1")).toBeNull();
@@ -145,8 +145,8 @@ describe("landedLine / unansweredFor", () => {
     expect(withUnanswered(entries, "c1").map((e) => e.id)).toEqual([entries[0]!.id, "unanswered:c1", entries[1]!.id, "a2"]);
     expect(withUnanswered(entries, "c9")).toBe(entries);
     // The fact that the turn spent the sample rides on the notice, like it does on "analysis-failed".
-    expect(withUnanswered(entries, "c1", "sample")[1]).toMatchObject({ refusal: "unanswered", scope: "sample" });
-    expect(reconcilePage([userLine("two eggs", { clientId: "c1", pendingId: "p1" })], [{ id: "c1", role: "user", text: "two eggs", failed: true }], new Set(["c1"]), false, "sample").next[1]).toMatchObject({ refusal: "unanswered", scope: "sample" });
+    expect(withUnanswered(entries, "c1", "sample")[1]).toMatchObject({ kind: "unanswered", scope: "sample" });
+    expect(reconcilePage([userLine("two eggs", { clientId: "c1", pendingId: "p1" })], [{ id: "c1", role: "user", text: "two eggs", failed: true }], new Set(["c1"]), false, "sample").next[1]).toMatchObject({ kind: "unanswered", scope: "sample" });
   });
 });
 
@@ -195,7 +195,7 @@ describe("keepsItsWords — #261", () => {
     // What the screen holds after a 402: the words, marked, with the id still in flight — and the
     // refusal notice beside them, which IS a moment and goes with the page.
     const refused: ThreadEntry = { id: "c1", role: "user", text: "a bowl of porridge with blueberries", refused: true };
-    const notice: ThreadEntry = { id: "e1", role: "error", refusal: "subscription-required" };
+    const notice: ThreadEntry = { id: "e1", role: "error", kind: "subscription-required" };
     // The server kept no line for a refused turn, so the page that lands seconds later carries the
     // meal BEFORE it and nothing of this one. That page is what used to take the words away.
     const page = [userLine("two boiled eggs"), said("Logged.")];
@@ -204,16 +204,16 @@ describe("keepsItsWords — #261", () => {
     // Nothing settled it: only a stored line carrying its id can, and a refusal leaves none.
     expect(superseded).toEqual([]);
     // And no "unanswered" notice — that belongs to a turn that LANDED and proposed nothing.
-    expect(next.some((e) => e.role === "error" && e.refusal === "unanswered")).toBe(false);
+    expect(next.some((e) => e.role === "error" && e.kind === "unanswered")).toBe(false);
   });
 
   it("keeps the ask with the words it answers, and drops a notice belonging to nothing", () => {
     const refused: ThreadEntry = { id: "c1", role: "user", text: "porridge", refused: true };
     // The ask under those words: it carries the buy button, and after the purchase it is the only
     // confirmation the screen gives. Taking it while keeping the words left exactly that hole.
-    const ask: ThreadEntry = { id: "e1", role: "error", refusal: "subscription-required", for: "c1" };
+    const ask: ThreadEntry = { id: "e1", role: "error", kind: "subscription-required", for: "c1" };
     // A moment, belonging to no kept bubble: it goes with the page, the way every notice used to.
-    const moment: ThreadEntry = { id: "e2", role: "error", refusal: "cap-exceeded" };
+    const moment: ThreadEntry = { id: "e2", role: "error", kind: "cap-exceeded" };
     const page = [userLine("two boiled eggs"), said("Logged.")];
     const { next } = reconcilePage(page, [refused, ask, moment], new Set(["c1"]), false);
     expect(next.map((e) => e.id)).toEqual([page[0]!.id, page[1]!.id, "c1", "e1"]);
@@ -221,7 +221,7 @@ describe("keepsItsWords — #261", () => {
 
   it("drops the ask once its bubble is retried — one tap takes both", () => {
     // `retry` drains the id and removes the bubble; the ask has nothing left to belong to.
-    const ask: ThreadEntry = { id: "e1", role: "error", refusal: "subscription-required", for: "c1" };
+    const ask: ThreadEntry = { id: "e1", role: "error", kind: "subscription-required", for: "c1" };
     const page = [userLine("two boiled eggs")];
     const { next } = reconcilePage(page, [ask], new Set(), false);
     expect(next.map((e) => e.id)).toEqual([page[0]!.id]);
@@ -338,14 +338,14 @@ describe("speakerOf", () => {
     expect(speakerOf(spoke({ kind: "answered", text: "hi", speaker: null }))).toBe("spud");
     // A card, a refusal and a proposal are Spud showing something, never Gabie answering.
     expect(speakerOf(fromHistory([card(meal("m1", 300))])[0]!)).toBe("spud");
-    expect(speakerOf({ id: "e1", role: "error", refusal: "offline" })).toBe("spud");
+    expect(speakerOf({ id: "e1", role: "error", kind: "offline" })).toBe("spud");
     expect(speakerOf(spoke(proposal))).toBe("spud");
   });
 });
 
 describe("moodFor", () => {
   it("reads the mood off what the bubble IS, not off the copy", () => {
-    expect(moodFor({ id: "e1", role: "error", refusal: "offline" })).toBe("care");
+    expect(moodFor({ id: "e1", role: "error", kind: "offline" })).toBe("care");
     expect(moodFor(fromHistory([card(meal("m1", 300))])[0]!)).toBe("cheer");
     expect(moodFor({ id: "u1", role: "user", text: "hi" })).toBe("idle");
     expect(moodFor(spoke(landed))).toBe("cheer");
@@ -424,7 +424,7 @@ describe("threadReducer", () => {
   it("places the notice a landed turn earns under the line it answers, and gives the same list back when there is none", () => {
     const thread = fromHistory([userLine("two eggs", { clientId: "c1", pendingId: "p1" })]);
     expect(threadReducer(thread, { kind: "unanswered", clientId: "c1" }).at(-1))
-      .toMatchObject({ id: "unanswered:c1", role: "error", refusal: "unanswered" });
+      .toMatchObject({ id: "unanswered:c1", role: "error", kind: "unanswered" });
     const plain = fromHistory([userLine("hi", { clientId: "c2" })]);
     expect(threadReducer(plain, { kind: "unanswered", clientId: "c2" })).toBe(plain);
   });

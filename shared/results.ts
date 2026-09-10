@@ -188,3 +188,37 @@ export const RATE_LIMITED = "rate-limited";
  */
 const ANSWER_STATUS: Record<string, number> = { ...REFUSAL_STATUS, [RATE_LIMITED]: 429 };
 export const isServerAnswer = (r: { kind: string }): boolean => Object.hasOwn(ANSWER_STATUS, r.kind);
+
+/** One refused turn, as every surface names it: `kind` is `"offline"` when nothing reached the server. */
+export interface RefusedTurn {
+  kind: string;
+  scope?: string;
+}
+
+/**
+ * WHAT THE SERVER ANSWERED, extracted once (#145).
+ *
+ * The same decision was written out five times across three screens — `meal/[id].tsx` twice,
+ * `camera.tsx` twice, `chat.tsx` once — as a ternary on `instanceof ApiError` plus a defensive read
+ * of `scope`, under three different key names for the same thing (`kind`, `error`, `refusal`). So
+ * the next body shape the server grows had to be threaded through five hand-written copies, and the
+ * one that was missed would report a designed answer as "Couldn't reach eait." — which
+ * `ApiError.isRefusal` already records having happened once.
+ *
+ * TAKES THE BODY, NOT THE THROWN VALUE, so the rule is testable where the test command reaches:
+ * `instanceof ApiError` is the transport's question and lives in the client (`refusalOf`), and this
+ * is the only part with a decision in it.
+ *
+ * NULL IS THE ONE THING THAT MEANS OFFLINE. A body with no `error` in it still ARRIVED — the server
+ * answered something this client has no design for, which is a different fact from the request
+ * never landing, and wording it as a connection problem sends somebody to check a connection that
+ * is fine. `scope` is ABSENT rather than undefined when there is none: the callers spread this into
+ * objects under `exactOptionalPropertyTypes`, where those are not the same thing.
+ */
+export function refusalFrom(body: { error?: unknown; scope?: unknown } | null | undefined): RefusedTurn {
+  if (body === null || body === undefined) return { kind: "offline" };
+  return {
+    kind: String(body.error),
+    ...(typeof body.scope === "string" ? { scope: body.scope } : {}),
+  };
+}

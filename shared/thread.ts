@@ -43,12 +43,15 @@ export type ThreadEntry =
   /**
    * A moment: the notice a turn earned, derived from the bubble it answers, gone with the next page.
    *
+   * `kind` is the ONE name this has across all three refusal surfaces (#145) — the camera spelled
+   * it `error` and this spelled it `refusal`, for the same string out of the same extractor.
+   *
    * `for` is the exception and names the bubble it belongs to. An ask the user can ACT on is not a
    * moment — `subscription-required` carries the button that takes their money, and its answer once
    * they have is the only confirmation the screen gives — so it lives exactly as long as the words
    * it sits under (`keepsItsWords`), and goes when they do.
    */
-  | { id: string; role: "error"; refusal: string; scope?: string | undefined; for?: string };
+  | { id: string; role: "error"; kind: string; scope?: string | undefined; for?: string };
 
 /** The server's thread in the screen's shape. Ids are the server's, so a page never duplicates. */
 export function fromHistory(entries: ChatEntry[]): ThreadEntry[] {
@@ -187,7 +190,7 @@ export function unansweredFor(entries: ThreadEntry[], clientId: string, scope?: 
   if (!proposed) return null;
   if (entries.some((e) => e.role === "card" && e.mealId === proposed)) return null;
   // `scope: "sample"`: the turn was charged, and on the sample the retry the notice invites meets a 402.
-  return { id: `unanswered:${clientId}`, role: "error", refusal: "unanswered", ...(scope ? { scope } : {}) };
+  return { id: `unanswered:${clientId}`, role: "error", kind: "unanswered", ...(scope ? { scope } : {}) };
 }
 
 /**

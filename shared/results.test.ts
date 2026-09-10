@@ -3,7 +3,7 @@
 // the hand-written list is what shipped one kind short and answered a 200 with a refusal inside it.
 
 import { describe, expect, it } from "bun:test";
-import { RATE_LIMITED, capScope, isRefusal, isServerAnswer } from "./results.ts";
+import { RATE_LIMITED, capScope, isRefusal, isServerAnswer, refusalFrom } from "./results.ts";
 import { REFUSAL_STATUS } from "./contract.ts";
 
 describe("RATE_LIMITED", () => {
@@ -61,5 +61,30 @@ describe("isServerAnswer", () => {
   it("is false for a request that never arrived, and for a body nobody here knows", () => {
     expect(isServerAnswer({ kind: "offline" })).toBe(false);
     expect(isServerAnswer({ kind: "bad-edit" })).toBe(false);
+  });
+});
+
+describe("refusalFrom — #145", () => {
+  it("reads the kind and the scope the server sent, and never invents one", () => {
+    expect(refusalFrom({ error: "cap-exceeded", scope: "address" })).toEqual({ kind: "cap-exceeded", scope: "address" });
+    // Most refusals carry no scope, and the key is ABSENT rather than undefined: the screens spread
+    // this into objects under `exactOptionalPropertyTypes`, where the two are not the same thing.
+    expect(refusalFrom({ error: "not-food" })).toEqual({ kind: "not-food" });
+    expect(Object.hasOwn(refusalFrom({ error: "not-food" }), "scope")).toBe(false);
+    // A scope that is not a string is not a scope. The five hand-written ternaries this replaces
+    // each had their own defensive read of it, and each could have drifted from the others.
+    expect(refusalFrom({ error: "cap-exceeded", scope: 7 })).toEqual({ kind: "cap-exceeded" });
+    expect(refusalFrom({ error: "cap-exceeded", scope: null })).toEqual({ kind: "cap-exceeded" });
+  });
+
+  it("says 'offline' for a throw that carried no body at all, and only for that", () => {
+    // The ONE thing that means the request never landed. An `ApiError` with any body arrived and
+    // was answered, so blaming the connection for it is the regression `ApiError.isRefusal`
+    // already records having happened once.
+    expect(refusalFrom(null)).toEqual({ kind: "offline" });
+    expect(refusalFrom(undefined)).toEqual({ kind: "offline" });
+    // A body with no `error` DID arrive; it is not offline, and stringifying keeps that true.
+    expect(refusalFrom({})).toEqual({ kind: "undefined" });
+    expect(refusalFrom({ error: 500 })).toEqual({ kind: "500" });
   });
 });
