@@ -70,7 +70,7 @@ export async function handleText(
 
   const refusal = await checkCaps(deps, userId, today, "text");
   if (refusal) return refusal;
-  const onCost = await charge(deps, userId, today, "text");
+  const { analysisId, onCost } = await charge(deps, userId, today, "text");
 
   const focus = input.focusMealId
     ? await deps.store.getMeal(userId, input.focusMealId)
@@ -136,7 +136,7 @@ export async function handleText(
       console.error(`[eait] question clear failed: ${(e as Error)?.message ?? e}`);
     });
   }
-  await keep(deps, userId, input.text, result, input.clientId ?? null, { intent: routed.intent, model: answeredBy });
+  await keep(deps, userId, input.text, result, input.clientId ?? null, { intent: routed.intent, model: answeredBy, analysisId });
   return result;
 
   async function route(): Promise<HandleTextResult> {
@@ -233,7 +233,8 @@ export async function handleText(
 async function keep(
   deps: EngineDeps, userId: string, text: string, result: HandleTextResult, clientId: string | null,
   // #486: the router's decision rides on the words it read, the model on the words it wrote.
-  how: { intent: ChatIntent; model: string | null },
+  // #525: and the words name the analysis that paid for the turn.
+  how: { intent: ChatIntent; model: string | null; analysisId: string },
 ): Promise<void> {
   // A refusal never was a turn; a correction whose meal is gone changed nothing, and the app says
   // so in a notice that is not a line.
@@ -244,7 +245,7 @@ async function keep(
     // The words go in when they are said, so a turn taken while a proposal sits lands after them.
     // The MEAL is not written until confirmed; `confirmPendingMeal` keeps the card then.
     const lines: ChatAppend[] = [{
-      role: "user", kind: "text", text, clientId, intent: how.intent,
+      role: "user", kind: "text", text, clientId, intent: how.intent, analysisId: how.analysisId,
       // A proposal's line names its proposal; the meal takes that id when confirmed.
       pendingId: result.kind === "proposed" ? result.pendingId : null,
     }];

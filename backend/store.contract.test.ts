@@ -939,6 +939,39 @@ function contract(name: string, make: () => Promise<Store>) {
       ]);
     });
 
+    // #525. The line that opened a charged turn names the analysis that paid for it, and the cost
+    // is read back through that id — scoped, so another account's analysis is never a row here, and
+    // a refunded one is simply absent rather than a zero.
+    it("links the line that opened a charged turn to its analysis, and reads the cost through it", async () => {
+      const s = await open();
+      const a = (await s.upsertDeviceUser(device(), "en")).userId;
+      const b = (await s.upsertDeviceUser(device(), "en")).userId;
+      const typed = await s.recordAnalysis(a, RUN_DATE, "text");
+      const snapped = await s.recordAnalysis(a, RUN_DATE, "photo");
+      const refunded = await s.recordAnalysis(a, RUN_DATE, "photo");
+      const theirs = await s.recordAnalysis(b, RUN_DATE, "text");
+      await s.addCost(a, typed, 0.25);
+      await s.addCost(a, snapped, 0.5);
+      await s.addCost(a, snapped, null);
+      expect(await s.undoAnalysis(a, RUN_DATE, "photo")).toBe(true); // the newest: `refunded`
+      await s.appendChat(a, [
+        { role: "user", kind: "text", text: "how is my week?", analysisId: typed },
+        { role: "assistant", kind: "text", text: "Fine." },
+        { role: "user", kind: "photo", text: null, analysisId: snapped },
+        { role: "user", kind: "text", text: "typed during onboarding" },
+      ]);
+      const lines = (await s.chatBefore(a, null, 4)).reverse();
+      expect(lines.map((m) => m.analysisId)).toEqual([typed, null, snapped, null]);
+
+      const costs = await s.analysisCosts(a, [typed, snapped, refunded, theirs]);
+      expect(costs.sort((x, y) => Number(x.id) - Number(y.id))).toEqual([
+        { id: typed, costUsd: 0.25, unpricedCalls: 0 },
+        { id: snapped, costUsd: 0.5, unpricedCalls: 1 },
+      ]);
+      expect(await s.analysisCosts(b, [typed])).toEqual([]);
+      expect(await s.analysisCosts(a, [])).toEqual([]);
+    });
+
     it("hands out the first verdict exactly once per account", async () => {
       const s = await open();
       const a = (await s.upsertDeviceUser(device(), "en")).userId;

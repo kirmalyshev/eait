@@ -94,15 +94,16 @@ export async function adminUserDiary(
  * `toEntry` AND NOT A SECOND RENDERING. The requirement is that what the operator reads is what the
  * user saw, and that is only true if it is ONE function: a panel with its own projection would
  * drift the first time a line kind was added, and drift silently, because nothing would compare the
- * two. `chatHistoryWithProvenance` is the app's page plus two fields, and a test asserts that this
- * response with `intent` and `model` taken off equals `GET /v1/messages` for the same account.
+ * two. `chatHistoryWithProvenance` is the app's page plus four admin-only fields, and a test asserts
+ * that this response with those taken off equals `GET /v1/messages` for the same account.
  *
  * It also inherits the property that makes the Chat tab honest — a meal card is resolved on READ,
  * so it shows the meal as it is NOW and a verdict never outlives the numbers it described.
  *
- * The two fields are how a line was produced (#486): the router's intent on the words it read, the
- * model on the words a model wrote, and null on every other line and on every line from before.
- * WHAT IS STILL NOT HERE is what a turn cost: see #484 (PR #519) and #525.
+ * The four fields: how a line was produced (#486) — the router's intent on the words it read, the
+ * model on the words a model wrote — and, on the line that opened a charged turn, the analysis that
+ * paid for it and what it cost (#525), with no cost when that analysis has no row any more (#537).
+ * All four are null on every other line and on every line written before them.
  */
 export async function adminUserChat(
   deps: EngineDeps,

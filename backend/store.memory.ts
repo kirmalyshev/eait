@@ -960,6 +960,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
           speaker: line.role === "assistant" && line.kind === "text" ? line.speaker ?? null : null,
           intent: line.role === "user" && line.kind === "text" ? line.intent ?? null : null,
           model: line.role === "assistant" && line.kind === "text" ? line.model ?? null : null,
+          analysisId: line.role === "user" ? line.analysisId ?? null : null,
         });
       }
     },
@@ -1021,6 +1022,12 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (usd === null) a.unpricedCalls++;
       else a.costUsd = (a.costUsd ?? 0) + usd;
       return true;
+    },
+
+    async analysisCosts(userId, analysisIds) {
+      return analyses
+        .filter((a) => a.userId === userId && analysisIds.includes(a.id))
+        .map((a) => ({ id: a.id, costUsd: a.costUsd, unpricedCalls: a.unpricedCalls }));
     },
 
     async undoAnalysis(userId, date, scope) {

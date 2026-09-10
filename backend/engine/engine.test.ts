@@ -1894,7 +1894,7 @@ describe("what each analysis cost", () => {
   it("says so in the log when a cost finds no analysis left to land on", async () => {
     const userId = await onboard();
     const today = localDate(deps.config.timezone);
-    const onCost = await charge(deps, userId, today, "photo");
+    const { onCost } = await charge(deps, userId, today, "photo");
     // Refunded while a call was still out — the glance beside a refused analyzer, or a merge.
     await store.undoAnalysis(userId, today, "photo");
     const errors = spyOn(console, "error").mockImplementation(() => {});
@@ -1963,5 +1963,41 @@ describe("how a turn was produced", () => {
     expect(said.at(-1)).toMatchObject({ text: "Cooked in oil, or dry?", model: "vision-model" });
     expect(said.length).toBeGreaterThan(1);
     expect(said.slice(0, -1).every((m) => m.model === null)).toBe(true);
+  });
+});
+
+// ── The analysis behind a turn (#525) ─────────────────────────────────────────────────────────
+
+describe("the analysis behind a turn", () => {
+  const said = async (userId: string) => (await store.chatBefore(userId, null, 50)).reverse();
+
+  it("names the analysis a question was charged to, on the words that asked it", async () => {
+    const userId = await onboard();
+    const llm: LlmPorts = {
+      ...demoPorts(),
+      routeText: async (i) => { i.onCost?.(0.25); return { intent: "answer", text: "From the router." }; },
+      coach: async (i) => { i.onCost?.(0.5); return { reply: "From the coach.", suggestions: [] }; },
+    };
+    expect((await handleText(makeDeps({}, llm), userId, { text: "how is my week?" })).kind).toBe("answered");
+    const [asked] = await said(userId);
+    expect(asked!.analysisId).not.toBeNull();
+    expect(await store.analysisCosts(userId, [asked!.analysisId!]))
+      .toEqual([{ id: asked!.analysisId!, costUsd: 0.75, unpricedCalls: 0 }]);
+  });
+
+  it("names it on the photo bubble and on a described meal's words, and on no line no charge opened", async () => {
+    const userId = await onboard();
+    await logPhotoMeal(deps, userId, photo());
+    expect((await handleText(deps, userId, { text: "two eggs and toast" })).kind).toBe("proposed");
+    await appendLines(deps, userId, [{ role: "user", text: "typed during onboarding" }]);
+    const lines = await said(userId);
+    const opened = lines.filter((m) => m.role === "user");
+    expect(opened.map((m) => m.kind)).toEqual(["photo", "text", "text"]);
+    expect(opened[0]!.analysisId).not.toBeNull();
+    expect(opened[1]!.analysisId).not.toBeNull();
+    expect(opened[1]!.analysisId).not.toBe(opened[0]!.analysisId);
+    expect(opened[2]!.analysisId).toBeNull();
+    // The assistant's side of a turn carries none: the line that opened it is the one that does.
+    expect(lines.filter((m) => m.role === "assistant").every((m) => m.analysisId === null)).toBe(true);
   });
 });

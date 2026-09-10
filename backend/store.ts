@@ -104,9 +104,9 @@ export interface PushToken {
 export type ChatIntent = RouteResult["intent"];
 
 export type ChatAppend =
-  | { role: "user"; kind: "text"; text: string; clientId?: string | null; pendingId?: string | null; intent?: ChatIntent | null }
+  | { role: "user"; kind: "text"; text: string; clientId?: string | null; pendingId?: string | null; intent?: ChatIntent | null; analysisId?: string | null }
   /** No bytes, ever. `text` is the caption, if there was one; `mealId` the meal it logged, so the bubble can show it. */
-  | { role: "user"; kind: "photo"; text: string | null; mealId?: string | null }
+  | { role: "user"; kind: "photo"; text: string | null; mealId?: string | null; analysisId?: string | null }
   | { role: "assistant"; kind: "text"; text: string; speaker?: ChatSpeaker | null; model?: string | null }
   | { role: "assistant"; kind: "meal"; mealId: string; event: ChatEvent };
 
@@ -131,6 +131,8 @@ export interface ChatMessage {
   intent: ChatIntent | null;
   /** On an assistant text line a model wrote: which model. Null is code — a scripted line — or before #486. */
   model: string | null;
+  /** On the user line that opened a charged turn: the analysis that paid for it. Null anywhere else, and before #525. */
+  analysisId: string | null;
 }
 
 /**
@@ -937,6 +939,11 @@ export interface Store {
    * and they land in any order. Scoped `id = ? AND user_id = ?`; false when no such row is theirs.
    */
   addCost(userId: string, analysisId: string, usd: number | null): Promise<boolean>;
+  /**
+   * What each of these analyses cost, for the admin's thread (#525). Scoped: only this account's
+   * rows, and an id with no row — refunded, or not theirs — is simply absent, never a zero.
+   */
+  analysisCosts(userId: string, analysisIds: string[]): Promise<{ id: string; costUsd: number | null; unpricedCalls: number }[]>;
   /**
    * Give one analysis back. True when a row was deleted, false when there was nothing to give.
    *

@@ -445,6 +445,10 @@ alter table chat_messages add column if not exists speaker text;
 -- a model wrote. Nullable and never backfilled: a line from before this has no honest answer.
 alter table chat_messages add column if not exists intent text;
 alter table chat_messages add column if not exists model text;
+-- The analysis that paid for the turn this line opened (#525). No foreign key, on purpose, like
+-- meal_id: if that row goes the line keeps naming it, and the admin reads "analysis gone" rather
+-- than a turn that cost nothing. Today only a refund meant for another turn does that (#537).
+alter table chat_messages add column if not exists analysis_id bigint;
 create index if not exists chat_messages_user_seq_idx on chat_messages(user_id, seq desc);
 
 -- Push tokens. ONE ROW PER DEVICE, keyed on the token itself rather than on (user, token).
@@ -1682,7 +1686,7 @@ export async function postgresStore(
         await tx`select id from users where id = ${userId} for update`;
         for (const line of lines) {
           await tx`
-            insert into chat_messages (id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id, speaker, intent, model)
+            insert into chat_messages (id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id, speaker, intent, model, analysis_id)
             values (${crypto.randomUUID()}, ${userId}, ${new Date(now())}, ${line.role}, ${line.kind},
                     ${"text" in line ? line.text : null},
                     ${line.kind === "meal" ? line.mealId : line.kind === "photo" ? line.mealId ?? null : null},
@@ -1691,7 +1695,8 @@ export async function postgresStore(
                     ${line.role === "user" && line.kind === "text" ? line.pendingId ?? null : null},
                     ${line.role === "assistant" && line.kind === "text" ? line.speaker ?? null : null},
                     ${line.role === "user" && line.kind === "text" ? line.intent ?? null : null},
-                    ${line.role === "assistant" && line.kind === "text" ? line.model ?? null : null})`;
+                    ${line.role === "assistant" && line.kind === "text" ? line.model ?? null : null},
+                    ${line.role === "user" ? line.analysisId ?? null : null})`;
         }
       });
     },
@@ -1699,10 +1704,10 @@ export async function postgresStore(
     async chatBefore(userId, before, limit) {
       const rows = before === null
         ? await sql`
-            select seq, id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id, speaker, intent, model from chat_messages
+            select seq, id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id, speaker, intent, model, analysis_id from chat_messages
             where user_id = ${userId} order by seq desc limit ${limit}`
         : await sql`
-            select seq, id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id, speaker, intent, model from chat_messages
+            select seq, id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id, speaker, intent, model, analysis_id from chat_messages
             where user_id = ${userId} and seq < ${before} order by seq desc limit ${limit}`;
       return (rows as Record<string, unknown>[]).map((r) => ({
         id: r.id as string,
@@ -1719,6 +1724,7 @@ export async function postgresStore(
         speaker: (r.speaker as ChatMessage["speaker"]) ?? null,
         intent: (r.intent as ChatMessage["intent"]) ?? null,
         model: (r.model as string | null) ?? null,
+        analysisId: r.analysis_id === null || r.analysis_id === undefined ? null : String(r.analysis_id),
       }));
     },
 
@@ -1780,6 +1786,22 @@ export async function postgresStore(
         : await sql`update analyses set cost_usd = coalesce(cost_usd, 0) + ${usd}::float8
                      where id = ${analysisId} and user_id = ${userId} returning id`;
       return rows.length > 0;
+    },
+
+    async analysisCosts(userId, analysisIds) {
+      // Built by hand for the reason `getMeals` gives. Only digits reach it: the ids came out of this
+      // store, and anything else is dropped rather than cast.
+      const ids = analysisIds.filter((id) => /^\d+$/.test(id));
+      if (ids.length === 0) return [];
+      const literal = `{${ids.join(",")}}`;
+      const rows = await sql`
+        select id, cost_usd, unpriced_calls from analyses
+        where user_id = ${userId} and id = any(${literal}::bigint[])`;
+      return (rows as Record<string, unknown>[]).map((r) => ({
+        id: String(r.id),
+        costUsd: r.cost_usd === null ? null : Number(r.cost_usd),
+        unpricedCalls: num(r.unpriced_calls),
+      }));
     },
 
     async undoAnalysis(userId, date, scope) {

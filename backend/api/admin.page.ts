@@ -811,6 +811,14 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       how.textContent = t;
       row.appendChild(how);
     });
+    // What the turn cost (#525), on the line that opened it — and "analysis gone" when the row it
+    // names does not exist any more, which is never a cost of zero (#537).
+    if (e.analysisId) {
+      var cost = document.createElement("span");
+      cost.className = "how";
+      cost.textContent = e.cost ? spend({ costUsd: e.cost.usd, unpriced: e.cost.unpricedCalls }) : "analysis gone";
+      row.appendChild(cost);
+    }
     return row;
   }
 

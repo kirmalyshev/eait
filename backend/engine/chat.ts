@@ -240,13 +240,23 @@ export async function chatHistory(
   return { entries: page.map((m) => toEntry(m, meals)), before };
 }
 
-/** A line as the admin's thread reads it: the app's entry, plus how it was produced (#486). */
-export type AdminChatEntry = ChatEntry & { intent: ChatIntent | null; model: string | null };
+/**
+ * A line as the admin's thread reads it: the app's entry, plus how it was produced (#486), and — on
+ * the line that opened a charged turn — the analysis that paid for it and what it cost (#525).
+ * `cost` is null when the named analysis has no row any more — today only when a refund meant for
+ * another turn took it (`undoAnalysis` takes the newest, #537).
+ */
+export type AdminChatEntry = ChatEntry & {
+  intent: ChatIntent | null;
+  model: string | null;
+  analysisId: string | null;
+  cost: { usd: number | null; unpricedCalls: number } | null;
+};
 
 /**
- * The same page with how each line was produced — for the admin's thread and nothing else (#486).
- * The entries are `toEntry`'s, so the panel still reads what the person saw; the app is never sent
- * the two fields, because it has no use for either.
+ * The same page with how each line was produced and what its turn cost — for the admin's thread and
+ * nothing else (#486, #525). The entries are `toEntry`'s, so the panel still reads what the person
+ * saw; the app is never sent these fields, because it has no use for any of them.
  */
 export async function chatHistoryWithProvenance(
   deps: EngineDeps,
@@ -254,7 +264,18 @@ export async function chatHistoryWithProvenance(
   opts: { before?: number | null; limit?: number },
 ): Promise<{ entries: AdminChatEntry[]; before: number | null }> {
   const { page, meals, before } = await chatPage(deps, userId, opts);
-  return { entries: page.map((m) => ({ ...toEntry(m, meals), intent: m.intent, model: m.model })), before };
+  const paid = page.flatMap((m) => (m.analysisId ? [m.analysisId] : []));
+  const costs = new Map((paid.length > 0 ? await deps.store.analysisCosts(userId, paid) : []).map((c) => [c.id, c]));
+  return {
+    entries: page.map((m) => {
+      const c = m.analysisId ? costs.get(m.analysisId) : undefined;
+      return {
+        ...toEntry(m, meals), intent: m.intent, model: m.model, analysisId: m.analysisId,
+        cost: c ? { usd: c.costUsd, unpricedCalls: c.unpricedCalls } : null,
+      };
+    }),
+    before,
+  };
 }
 
 async function chatPage(deps: EngineDeps, userId: string, opts: { before?: number | null; limit?: number }) {

@@ -520,8 +520,12 @@ describe("reading one account's thread", () => {
       headers: { authorization: `Bearer ${token}` },
     })).then((r) => r.json());
     const theirs = await (await thread(userId)).json() as { entries: Record<string, unknown>[]; before: number | null };
-    // The app's entries, plus how each line was produced (#486) — and nothing else.
-    const stripped: unknown = { ...theirs, entries: theirs.entries.map(({ intent: _i, model: _m, ...e }) => e) };
+    // The app's entries, plus how each line was produced (#486) and what its turn cost (#525) —
+    // and nothing else.
+    const stripped: unknown = {
+      ...theirs,
+      entries: theirs.entries.map(({ intent: _i, model: _m, analysisId: _a, cost: _c, ...e }) => e),
+    };
     expect(stripped).toEqual(mine);
   });
 
@@ -540,6 +544,33 @@ describe("reading one account's thread", () => {
     }))).text();
     expect(mine).not.toContain("x-ai/grok-4.6");
     expect(mine).not.toContain("intent");
+  });
+
+  it("reads a turn's cost through the line that opened it, and the app is never told (#525)", async () => {
+    const userId = await user();
+    const paid = await store.recordAnalysis(userId, "2026-09-10", "text");
+    await store.addCost(userId, paid, 0.0042);
+    const gone = await store.recordAnalysis(userId, "2026-09-10", "photo");
+    await store.undoAnalysis(userId, "2026-09-10", "photo");
+    await store.appendChat(userId, [
+      { role: "user", kind: "text", text: "how is my week?", intent: "answer", analysisId: paid },
+      { role: "user", kind: "photo", text: null, analysisId: gone },
+      { role: "assistant", kind: "text", text: "Fine.", speaker: "gabie", model: "x-ai/grok-4.6" },
+    ]);
+    const theirs = await (await thread(userId)).json() as { entries: { analysisId: string | null; cost: unknown }[] };
+    // An analysis with no row reads as gone (today only #537's race gets here) — never as $0.
+    expect(theirs.entries.map((e) => [e.analysisId, e.cost])).toEqual([
+      [paid, { usd: 0.0042, unpricedCalls: 0 }],
+      [gone, null],
+      [null, null],
+    ]);
+
+    const token = await store.issueToken(userId);
+    const mine = await (await handle(new Request(url(ROUTES.messages), {
+      headers: { authorization: `Bearer ${token}` },
+    }))).text();
+    expect(mine).not.toContain("analysisId");
+    expect(mine).not.toContain("0.0042");
   });
 
   it("pages backwards with the cursor the page itself returns", async () => {

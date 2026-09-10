@@ -60,21 +60,24 @@ export async function checkCaps(
 }
 
 /**
- * Charge one analysis, BEFORE the model is asked, and return where its calls report their cost.
+ * Charge one analysis, BEFORE the model is asked, and return its id — the line that opens the turn
+ * names it (#525) — and where its calls report their cost.
  *
  * The cost arrives after the charge and is ADDED to it, because one charge pays for several calls
  * — a schema retry, the router's second call, the coach's rounds, the glance — and the glance lands
  * whenever it lands. A write that fails is a log line: the turn is paid for either way (#484).
  */
-export async function charge(deps: EngineDeps, userId: string, date: string, scope: CapScope): Promise<OnCost> {
+export async function charge(
+  deps: EngineDeps, userId: string, date: string, scope: CapScope,
+): Promise<{ analysisId: string; onCost: OnCost }> {
   const id = await deps.store.recordAnalysis(userId, date, scope);
-  return (usd) => {
+  return { analysisId: id, onCost: (usd) => {
     void deps.store.addCost(userId, id, usd).then(
       // Refunded or merged away while a call was still out — the glance beside a refused analyzer.
       (landed) => { if (!landed) console.error(`[eait] cost not recorded: analysis ${id} is gone (${usd ?? "unpriced"})`); },
       (e: unknown) => { console.error(`[eait] cost not recorded: ${(e as Error)?.message ?? e}`); },
     );
-  };
+  } };
 }
 
 /**

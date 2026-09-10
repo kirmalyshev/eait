@@ -101,7 +101,7 @@ export async function logPhotoMeal(
 
   // Recorded BEFORE the call. A failed model call still costs money, so a cap that only counts
   // successes is a cap a retry loop walks straight through.
-  const onCost = await charge(deps, userId, date, "photo");
+  const { analysisId, onCost } = await charge(deps, userId, date, "photo");
 
   const { targets } = explainTargets(profile);
 
@@ -180,7 +180,7 @@ export async function logPhotoMeal(
     return {
       lines: [
         // A bubble that names a meal with no photo behind it is an empty frame in the thread.
-        { role: "user", kind: "photo", text: input.caption ?? null, mealId: stored ? record.id : null },
+        { role: "user", kind: "photo", text: input.caption ?? null, mealId: stored ? record.id : null, analysisId },
         { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
         ...greeting.lines,
         // Where the DAY now stands (#306) — the sentence a correction already got, on every meal
@@ -424,7 +424,7 @@ export async function reanalyzeMeal(
   const today = localDate(zone);
   const refusal = await checkCaps(deps, userId, today, "photo");
   if (refusal) return refusal;
-  const onCost = await charge(deps, userId, today, "photo");
+  const { onCost } = await charge(deps, userId, today, "photo");
   // Read once the turn is paid for: a refused tap must not pull the bytes.
   const images = (await deps.store.getPhotos(userId, mealId)).map((p) => p.bytes);
   if (images.length === 0) {
