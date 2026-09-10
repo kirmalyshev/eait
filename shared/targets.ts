@@ -1,4 +1,4 @@
-// Per-user daily targets, the safety floor, restriction parsing, and the verdict-visibility gate.
+// Per-user daily targets, the safety floor, the restriction vocabulary, and the verdict-visibility gate.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // WHY THIS FILE IS THE MOST SAFETY-CRITICAL ONE IN THE REPO
@@ -279,25 +279,18 @@ export function weightRemainingKg(p: Profile): number | null {
 
 // ── Restrictions ─────────────────────────────────────────────────────────────────────────────
 
-// Ordered so output tags are stable regardless of input order. Substring match catches inflected
-// forms (почками, сахара, cholesterol) without a full morphology pass.
-const RESTRICTION_MAP = [
-  { tag: "kidneys", keywords: ["почк", "kidney", "ckd", "renal", "niere"] },
-  { tag: "ldl", keywords: ["холестер", "ldl", "cholesterol", "cholesterin"] },
-  { tag: "vegan", keywords: ["веган", "vegan"] },
-  { tag: "lowsugar", keywords: ["сахар", "sugar", "zucker", "diabet"] },
-] as const satisfies ReadonlyArray<{ tag: string; keywords: readonly string[] }>;
-
 /**
  * The complete restriction vocabulary. Anything outside it is meaningless to `targetsFor` and to
- * the analyzer prompt, so the LLM classifier validates against this exact list — one source of
- * truth, no drift between the keyword pass and the fallback.
+ * the analyzer prompt, so `patchProfile` stores only tags from this exact list.
+ *
+ * Ordered so stored tags are stable regardless of input order: `patchProfile` walks this list
+ * rather than the request, and onboarding offers the options in it.
  */
-export const RESTRICTION_TAGS = RESTRICTION_MAP.map((r) => r.tag) as RestrictionTag[];
-export type RestrictionTag = (typeof RESTRICTION_MAP)[number]["tag"];
+export const RESTRICTION_TAGS = ["kidneys", "ldl", "vegan", "lowsugar"] as const;
+export type RestrictionTag = (typeof RESTRICTION_TAGS)[number];
 
 export function isRestrictionTag(v: string): v is RestrictionTag {
-  return (RESTRICTION_TAGS as string[]).includes(v);
+  return (RESTRICTION_TAGS as readonly string[]).includes(v);
 }
 
 // ── Verdicts ─────────────────────────────────────────────────────────────────────────────────
