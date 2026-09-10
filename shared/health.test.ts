@@ -39,6 +39,13 @@ describe("HEALTH_FIELDS", () => {
     for (const f of HEALTH_FIELDS) expect(f.min).toBeLessThan(f.max);
   });
 
+  test("every typical day is a day the field would store", () => {
+    for (const f of HEALTH_FIELDS) {
+      const [lo, hi] = f.typical;
+      expect(`${f.key}: ${f.min <= lo && lo <= hi && hi <= f.max}`).toBe(`${f.key}: true`);
+    }
+  });
+
   test("a field with no unit is a whole-number count of things", () => {
     // Steps and workouts are counts and genuinely have no unit. Anything else without one is a
     // number rendered next to nothing, which is a number the user has to guess at.

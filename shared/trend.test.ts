@@ -341,29 +341,12 @@ const SCALING_DAYS = 150;
 const SCALING_PERIOD: TrendPeriod = "days";
 
 /**
- * A day's readings, at values a person could actually have.
- *
- * The first version of this fixture wrote `f.min + (i % 17)` into every field: a 20 kg adult with a
- * resting heart rate of 20, and `burned` (active + resting energy) exactly twice a modulus of
- * itself, so `correlate` reported r = 0.31 between one series and its own sawtooth. Nothing
- * asserted on it, which was the hazard: this is the fixture the next person reaches for when
- * they want to assert something about a correlation.
- */
-const TYPICAL: Record<HealthMetric, number> = {
-  weight_kg: 92, height_cm: 183, body_fat_pct: 24, lean_mass_kg: 68,
-  active_kcal: 520, resting_kcal: 1710,
-  steps: 8600, exercise_minutes: 32, workouts: 1, distance_km: 6.4,
-  asleep_minutes: 430, in_bed_minutes: 455,
-  resting_hr_bpm: 58, hrv_ms: 52, vo2max: 40,
-};
-
-/**
  * `n` days ending on `today`, every metric populated on every one.
  *
  * THE SWING PERIOD COMES FROM THE FIELD'S INDEX, not from anything about its name. It was
  * `3 + (key.length % 7)` first, which collides: weight and height both landed on 5, so they were
  * exact scalar multiples of each other and `correlate` returned r = 1 for weight against height —
- * the very fabrication the values above were rewritten to avoid. An index is unique by
+ * the very fabrication this fixture is built to avoid. An index is unique by
  * construction, which is the property actually needed.
  *
  * Rounded to the field's OWN decimals, because `sanitizeHealthDay` does that on every real ingest
@@ -380,12 +363,13 @@ function healthDays(n: number, today: string): HealthDay[] {
     const day = emptyHealthDay(dateMinus(today, i));
     HEALTH_FIELDS.forEach((f, index) => {
       const places = 10 ** f.decimals;
-      // AT LEAST ONE UNIT AT THE FIELD'S OWN RESOLUTION. Ten percent of `workouts` is 0.1, which
-      // rounds to the same integer every day — a constant series, which has no variance, so
-      // `correlate` answers null for every pair it is in and the assertion below cannot run.
-      const amplitude = Math.max(TYPICAL[f.key] * 0.1, 1 / places);
+      // A BAND OF ONE VALUE STILL MOVES ONE UNIT. Height's is 183 to 183, and a constant series has
+      // no variance, so `correlate` answers null for every pair it is in and the assertion below
+      // cannot run.
+      const [lo, hi] = f.typical;
+      const amplitude = (hi - lo) / 2 || 1 / places;
       const period = 3 + index;
-      const value = TYPICAL[f.key] + amplitude * Math.sin(((i % period) / period) * 2 * Math.PI);
+      const value = (lo + hi) / 2 + amplitude * Math.sin(((i % period) / period) * 2 * Math.PI);
       day[f.key] = Math.round(value * places) / places;
     });
     out.push(day);
@@ -440,11 +424,9 @@ describe("the fixture the scaling and window tests are built on", () => {
   const today = "2026-09-06";
 
   test("every metric reads plausibly on every generated day, not merely at its base", () => {
-    // OVER THE GENERATED DAYS, not over `TYPICAL`. The values written are the base ±10%, so a
-    // future metric based within 10% of its bound would write one `sanitizeHealthDay` nulls out
-    // while a check on the base alone stayed green.
-    // No key-parity assertion here: `TYPICAL` is a `Record<HealthMetric, number>`, so a missing
-    // or an extra key is a compile error and `bun run typecheck` fails before this runner starts.
+    // OVER THE GENERATED DAYS, not over the bands, because the days are what `sanitizeHealthDay`
+    // would see. No key-parity assertion: `typical` is required by `HealthFieldSpec`, so a field
+    // without one is a compile error and `bun run typecheck` fails before this runner starts.
     const days = healthDays(40, today);
     for (const f of HEALTH_FIELDS) {
       for (const day of days) {
@@ -452,6 +434,9 @@ describe("the fixture the scaling and window tests are built on", () => {
         expect(v).not.toBeNull();
         expect(v!).toBeGreaterThanOrEqual(f.min);
         expect(v!).toBeLessThanOrEqual(f.max);
+        const [lo, hi] = f.typical;
+        const unit = 1 / 10 ** f.decimals;
+        expect(`${f.key} ${day.date}: ${v! >= lo - unit && v! <= hi + unit}`).toBe(`${f.key} ${day.date}: true`);
         // As `sanitizeHealthDay` would have stored it.
         expect(Math.round(v! * 10 ** f.decimals) / 10 ** f.decimals).toBe(v!);
       }
