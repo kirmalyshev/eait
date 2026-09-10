@@ -21,7 +21,7 @@
 // worse than one that was never claimed. The durable answer is a `last_notified_date` on the user
 // row, claimed atomically before the send.
 //
-// AND IT IS WHAT A SUBSCRIPTION BUYS. copy.md § Step 18 lists "The 20:30 line — one a day" on the
+// AND IT IS WHAT A SUBSCRIPTION BUYS. copy.md § Step 15 lists "The 20:30 line — one a day" on the
 // card, so an account with no live entitlement is not swept. That also disposes of the win-back
 // question: this is not a re-engagement channel pointed at people who stopped paying.
 // ─────────────────────────────────────────────────────────────────────────────────────────────

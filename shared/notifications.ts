@@ -1,6 +1,6 @@
 // The three messages this product is allowed to send, and the arithmetic that decides which.
 //
-// copy.md § Step 18 promises exactly three: "I'll remind you on day five and the day before it
+// copy.md § Step 15 promises exactly three: "I'll remind you on day five and the day before it
 // ends, never the day after", and "At 20:30 you get one line — today against the plan, and one
 // concrete thing for tomorrow." Nothing else may be sent, and R1's budget
 // (`marketing/specs/2026-07-22-retention-plan.md` § 5) is one outbound message a day INCLUDING the
@@ -65,7 +65,7 @@ export const MAX_NOTIFICATION_BODY = 240;
  * The shipped words.
  *
  * The two reminders say what happens and how to stop it, and nothing else: no countdown, no
- * "you'll lose your progress", no second pitch. Step 18's rules for the sheet apply to the
+ * "you'll lose your progress", no second pitch. Step 15's rules for the sheet apply to the
  * messages that follow from it — the trial was sold once, and a reminder that sells it again is
  * the reason people turn notifications off.
  */

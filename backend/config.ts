@@ -351,7 +351,7 @@ export interface Config {
    *
    * Configurable so a staging instance can reach the path without waiting until the evening. The
    * DEFAULT is `REMINDER_TIME` from `@eait/shared`, which is the 20:30 the onboarding copy promises
-   * — move it in production and step 18's promise becomes false.
+   * — move it in production and step 15's promise becomes false.
    */
   eveningLineTime: { hour: number; minute: number };
 

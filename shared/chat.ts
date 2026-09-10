@@ -2,7 +2,7 @@
 //
 // Both live here, in shared, because both sides need them to be the same sentences: the server
 // writes them into the thread, the app may render one before the round trip lands. The design is
-// `product/design/onboarding/copy.md` (steps 16–18); a sentence changed here is a sentence changed
+// `product/design/onboarding/copy.md` (steps 13–15); a sentence changed here is a sentence changed
 // in the product, so change the design first.
 
 import type { FoodTargets, Goal, MealVerdicts } from "./types.ts";
@@ -13,15 +13,15 @@ import type { FoodTargets, Goal, MealVerdicts } from "./types.ts";
  * `{name}` placeholders are filled from `params`.
  */
 export const SCRIPTED_LINES = {
-  /** Step 16 · the camera closed without a photo. */
+  /** Step 13 · the camera closed without a photo. */
   "camera-closed": "No rush. The plan is on your diary — photograph the next meal when it happens. That's the whole habit, and I'll say so once tomorrow if it hasn't.",
-  /** Step 18 · the trial started. `price` is StoreKit's string for the chosen plan. */
+  /** Step 15 · the trial started. `price` is StoreKit's string for the chosen plan. */
   "trial-started": "Trial's on. Seven days, then {price} unless you stop it — I'll remind you on day five and the day before it ends, never the day after.",
   "trial-day-one": "Your first day is started. At 20:30 you get one line — today against the plan, and one concrete thing for tomorrow. Nothing before that.",
   /**
-   * Step 18 · before iOS asks for notifications, once, after the trial starts.
+   * Step 15 · before iOS asks for notifications, once, after the trial starts.
    *
-   * The camera primer's pattern from § Step 16: say what the permission is for, and what the
+   * The camera primer's pattern from § Step 13: say what the permission is for, and what the
    * limit is, BEFORE the OS dialog — because the OS dialog is asked once and a refusal there is
    * final. What it promises is R1's budget, which `dailyMessage` in `notifications.ts` enforces.
    *
@@ -30,17 +30,17 @@ export const SCRIPTED_LINES = {
    * reminders would be describing messages that are not coming.
    */
   "notify-primer": "One more thing iOS is about to ask about: notifications. One a day and never more — the 20:30 line, plus two reminders before the free week ends if you're on it. Nothing else, ever.",
-  /** Step 18 · a restored purchase. */
+  /** Step 15 · a restored purchase. */
   "restored": "Restored — you're in. A photo or a sentence both log a meal.",
-  /** Step 16 · before the OS asks for the camera, once. */
+  /** Step 13 · before the OS asks for the camera, once. */
   "camera-primer": "One thing first: iOS will ask for the camera. I use it for the plate and nothing else — the photo is kept with the meal so you can see it in your diary, and erased with your account.",
-  /** Step 17 · the user tapped "Fix the numbers" / "Check the grams". */
+  /** Step 14 · the user tapped "Fix the numbers" / "Check the grams". */
   "fix-prompt": "Tell me what's off — \"half the rice\", \"no avocado\", \"it was 500\" all work. Or open the card and edit the grams yourself.",
-  /** Step 17 · the first verdict accepted by an account that is already subscribed. */
+  /** Step 14 · the first verdict accepted by an account that is already subscribed. */
   "already-in": "Good. I'm here in Chat whenever — a photo or a sentence both log a meal.",
-  /** Step 16 · the camera permission was refused. */
+  /** Step 13 · the camera permission was refused. */
   "camera-denied": "No camera, no problem. Pick a photo from your library, or just tell me what you ate — both get a verdict.",
-  /** Step 17 · the bridge into the paywall, after the first verdict is accepted. */
+  /** Step 14 · the bridge into the paywall, after the first verdict is accepted. */
   "onboarding-done": "Good — that's onboarding done, and the first day started. One more thing before you go, and it's the only time I'll ask.",
   /** A proposed meal the user said no to. The words the app already shows. */
   "dropped": "Dropped it.",
@@ -171,7 +171,7 @@ export function cleanSuggestions(raw: unknown): string[] {
 /**
  * WHERE THE DAY STANDS, said the same way whatever put the meal there (#306).
  *
- * copy.md § Step 17's arithmetic clause, on its own. It was reachable only through
+ * copy.md § Step 14's arithmetic clause, on its own. It was reachable only through
  * `correctionLine`, so a corrected meal was followed by the day's numbers and a logged one by
  * nothing — #301's "three consecutive meals look like three different features", in the half #301
  * did not touch. Worse, the account's FIRST meal does say the arithmetic (`firstVerdictLines`), so
@@ -190,7 +190,7 @@ export function runningLine(i: { targets: FoodTargets; eatenToday: { kcal: numbe
 }
 
 /**
- * copy.md § Step 17 · after a correction, from chat or from the editor. `eatenToday` is after it.
+ * copy.md § Step 14 · after a correction, from chat or from the editor. `eatenToday` is after it.
  *
  * The changed number in front of the day's, because a correction's whole point is that the meal's
  * kcal MOVED — the one thing the re-rendered card cannot say by itself. The clause behind it is
@@ -222,14 +222,14 @@ export interface FirstVerdictInput {
   eatenToday: { kcal: number; protein_g: number };
   via: "photo" | "text";
   verdicts: MealVerdicts;
-  /** The camera note, quoted back first — copy.md § Step 16. */
+  /** The camera note, quoted back first — copy.md § Step 13. */
   caption?: string | null;
 }
 
 const n = (x: number) => Math.round(x).toLocaleString("en-US");
 
 /**
- * Spud's first verdict — copy.md § Step 17, word for word. Spoken ONCE, on the account's first
+ * Spud's first verdict — copy.md § Step 14, word for word. Spoken ONCE, on the account's first
  * meal; later meals get the card and, in time, the 20:30 line. Deterministic on purpose: the model
  * is never asked for a verdict, and neither is it asked for these sentences.
  */

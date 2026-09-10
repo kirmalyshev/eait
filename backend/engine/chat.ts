@@ -89,7 +89,7 @@ async function dayStanding(
   };
 }
 
-/** copy.md § Step 17's "Updated — …" line, after a correction. Empty when there is no today to speak of. */
+/** copy.md § Step 14's "Updated — …" line, after a correction. Empty when there is no today to speak of. */
 export async function afterCorrection(
   deps: EngineDeps,
   userId: string,
@@ -121,7 +121,7 @@ export async function afterLog(
 }
 
 /**
- * Spud's first verdict, as lines for the thread — copy.md § Step 17. Spoken on the account's FIRST
+ * Spud's first verdict, as lines for the thread — copy.md § Step 14. Spoken on the account's FIRST
  * meal only; every later meal is the card. `totals` are the day's after the meal.
  */
 export async function firstVerdict(

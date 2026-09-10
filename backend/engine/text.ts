@@ -167,7 +167,7 @@ export async function handleText(
         // does not pass through a store row that would. Attached before the pending is written so the
         // card the user confirms carries the same judgement as the card they were shown; the write
         // itself recomputes anyway, since the caps can move while a proposal sits.
-        // copy.md § Step 17: a typed meal is rough by construction — the portions are a guess however
+        // copy.md § Step 14: a typed meal is rough by construction — the portions are a guess however
         // sure the model is of the dish — and the card's "rough estimate" pill reads this field.
         const { analysis: reconciled } = prepareAnalysis(routed.analysis);
         const analysis: MealAnalysis = {
