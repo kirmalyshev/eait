@@ -81,11 +81,8 @@ export async function ask(page: Page, text: string): Promise<string> {
  * is the account that just signed in, writing its own profile.
  */
 export async function onboardFast(page: Page) {
-  const jar = await page.context().cookies();
-  const token = jar.find((c) => c.name === "eait_web")?.value;
-  if (!token) throw new Error("no session cookie: sign in first");
   const res = await page.request.patch("/v1/profile", {
-    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    headers: { authorization: `Bearer ${await sessionToken(page)}`, "content-type": "application/json" },
     data: {
       goal: "lose", sex: "male", birth_year: 1988, height_cm: 182, weight_kg: 98,
       target_weight_kg: 92, activity: "moderate", pace: "steady", country: "de",
@@ -95,12 +92,27 @@ export async function onboardFast(page: Page) {
   expect(res.status()).toBe(200);
 }
 
-export const test = base.extend<{ signedIn: Page }>({
+/** The signed-in account's session cookie, which IS a session token — see `onboardFast`. */
+export async function sessionToken(page: Page): Promise<string> {
+  const jar = await page.context().cookies();
+  const token = jar.find((c) => c.name === "eait_web")?.value;
+  if (!token) throw new Error("no session cookie: sign in first");
+  return token;
+}
+
+export const test = base.extend<{ signedIn: Page; inWebApp: Page }>({
   /** A fresh account per test: the subject is unique, so nothing leaks between them. */
   signedIn: async ({ page }, use, testInfo) => {
     await signIn(page, `pw-${testInfo.testId}-${Date.now()}`);
     await onboardFast(page);
     await page.goto("/start/chat");
+    await use(page);
+  },
+  /** The same, landed in the web APPLICATION's chat rather than `/start`'s. The `app` project's specs. */
+  inWebApp: async ({ page }, use, testInfo) => {
+    await signIn(page, `pw-${testInfo.testId}-${Date.now()}`);
+    await onboardFast(page);
+    await page.goto("/#/chat");
     await use(page);
   },
 });
