@@ -286,21 +286,27 @@ function contract(name: string, make: () => Promise<Store>) {
       const today = new Date().toISOString().slice(0, 10);
       const on = (m: { days: { date: string; analyses: number }[] }) =>
         m.days.find((d) => d.date === RUN_DATE)?.analyses ?? 0;
+      // EACH READ ENDS ON THE DAY IT ASSERTS ABOUT (#506). One window ending at the real today used
+      // to serve both, so whenever `RUN_DATE` fell after today — about 30% of runs on 2026-09-10 —
+      // the analyses were outside it and the delta read 0, in both stores. From 2027 it would have
+      // come back the other way, as early-2026 dates fell off the far end. What day a window ends
+      // on is the point; its size never was.
+      const runDay = () => s2.adminMetrics({ days: 400, today: RUN_DATE, timezone: "UTC" });
       // A DELTA, not an absolute. This suite shares one store and Postgres persists between runs,
       // so the day's total belongs to whatever else has run — measuring the change is the only
       // version of this that is about the method rather than about the database.
-      const before = on(await s2.adminMetrics({ days: 400, today, timezone: "UTC" }));
+      const before = on(await runDay());
 
       const { userId } = await s2.upsertDeviceUser(device(), "en");
       await s2.patchProfile(userId, { onboarded_at: new Date().toISOString() });
       await s2.recordAnalysis(userId, RUN_DATE, "photo");
       await s2.recordAnalysis(userId, RUN_DATE, "text");
 
-      const m = await s2.adminMetrics({ days: 400, today, timezone: "UTC" });
       // BOTH SCOPES. A typed meal costs money and spends the sample exactly as a photograph does,
       // and `globalDailyAnalysisCap` counts both — so a per-day number that dropped the text turns
       // would be a bill missing a line.
-      expect(on(m) - before).toBe(2);
+      expect(on(await runDay()) - before).toBe(2);
+      const m = await s2.adminMetrics({ days: 400, today, timezone: "UTC" });
       const now = m.days.find((d) => d.date === today)!;
       expect(now.signups).toBeGreaterThanOrEqual(1);
       expect(now.activations).toBeGreaterThanOrEqual(1);
