@@ -8,7 +8,7 @@
 
 import {
   type AppendLine, type AppendLinesResponse, type ChatEntry, type ChatHistoryResponse, type MealRecord, type Profile,
-  type DailyTotals, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, correctionLine, explainTargets, firstVerdictLines,
+  type DailyTotals, type FoodTargets, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, correctionLine, explainTargets, firstVerdictLines, runningLine,
   isScriptedLineId, localDate, promptById, scriptedLine, scriptedParams,
 } from "@eait/shared";
 import type { ChatAppend, ChatMessage } from "../store.ts";
@@ -66,22 +66,58 @@ export async function remember(
   }
 }
 
-/** copy.md § Step 17's "Updated — …" line, after a correction. Null when the profile is unreadable. */
+/**
+ * The day's numbers a thread line needs, or null when there is nothing true to say about today.
+ *
+ * Both guards belong to the SENTENCE rather than to either caller: every line built from this says
+ * "left today", so a meal on another day has nothing to say and an unreadable profile has no
+ * targets to say it against. Written once because the two callers must never disagree about when
+ * the thread stays quiet.
+ */
+async function dayStanding(
+  deps: EngineDeps,
+  userId: string,
+  meal: MealRecord,
+  totals: DailyTotals,
+): Promise<{ targets: FoodTargets; eatenToday: { kcal: number; protein_g: number } } | null> {
+  if (meal.date !== localDate(deps.config.timezone)) return null;
+  const profile = await deps.store.getProfile(userId);
+  if (!profile) return null;
+  return {
+    targets: explainTargets(profile).targets,
+    eatenToday: { kcal: totals.kcal, protein_g: totals.protein_g },
+  };
+}
+
+/** copy.md § Step 17's "Updated — …" line, after a correction. Empty when there is no today to speak of. */
 export async function afterCorrection(
   deps: EngineDeps,
   userId: string,
   meal: MealRecord,
   totals: DailyTotals,
 ): Promise<ChatAppend[]> {
-  // The line says "left today". A meal re-dated to another day has nothing to say about today.
-  if (meal.date !== localDate(deps.config.timezone)) return [];
-  const profile = await deps.store.getProfile(userId);
-  if (!profile) return [];
-  const { targets } = explainTargets(profile);
-  return [{
-    role: "assistant", kind: "text",
-    text: correctionLine({ targets, meal: { kcal: meal.kcal }, eatenToday: { kcal: totals.kcal, protein_g: totals.protein_g } }),
-  }];
+  const day = await dayStanding(deps, userId, meal, totals);
+  if (!day) return [];
+  return [{ role: "assistant", kind: "text", text: correctionLine({ ...day, meal: { kcal: meal.kcal } }) }];
+}
+
+/**
+ * Where the day stands after a meal LANDED (#306) — the sentence a correction already got.
+ *
+ * NOT ON THE ACCOUNT'S FIRST MEAL: `firstVerdictLines` carries the same arithmetic inside the
+ * greeting, and saying it twice under one card is the defect this fixes wearing the other hat. The
+ * callers pass this only when the greeting produced no lines, which is exactly "the greeting is
+ * spent" — one condition, read where it is already known, rather than a second claim lookup here.
+ */
+export async function afterLog(
+  deps: EngineDeps,
+  userId: string,
+  meal: MealRecord,
+  totals: DailyTotals,
+): Promise<ChatAppend[]> {
+  const day = await dayStanding(deps, userId, meal, totals);
+  if (!day) return [];
+  return [{ role: "assistant", kind: "text", text: runningLine(day) }];
 }
 
 /**

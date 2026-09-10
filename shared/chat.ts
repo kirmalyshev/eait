@@ -168,9 +168,36 @@ export function cleanSuggestions(raw: unknown): string[] {
   return out;
 }
 
-/** copy.md § Step 17 · after a correction, from chat or from the editor. `eatenToday` is after it. */
+/**
+ * WHERE THE DAY STANDS, said the same way whatever put the meal there (#306).
+ *
+ * copy.md § Step 17's arithmetic clause, on its own. It was reachable only through
+ * `correctionLine`, so a corrected meal was followed by the day's numbers and a logged one by
+ * nothing — #301's "three consecutive meals look like three different features", in the half #301
+ * did not touch. Worse, the account's FIRST meal does say the arithmetic (`firstVerdictLines`), so
+ * the very next meal broke an expectation the product had just set.
+ *
+ * NO VERB, AND NO MEAL KCAL. The card under it already carries the meal's own numbers, and #301
+ * removed the "Logged." caption for exactly that reason — `LandedMeal` says the running arithmetic
+ * "must not come here … a caption repeating any part of it is a second place for numbers that have
+ * to agree". This sentence is the day, and only the day.
+ *
+ * THE NEGATIVE IS DELIBERATE. Over target this reads "-146 of your 1,454 left today", which is what
+ * `firstVerdictLines` already ships: "a number is honest where a euphemism is not".
+ */
+export function runningLine(i: { targets: FoodTargets; eatenToday: { kcal: number; protein_g: number } }): string {
+  return `${n(i.targets.kcal - i.eatenToday.kcal)} of your ${n(i.targets.kcal)} left today, ${n(i.eatenToday.protein_g)} of the ${n(i.targets.protein_g)} g protein.`;
+}
+
+/**
+ * copy.md § Step 17 · after a correction, from chat or from the editor. `eatenToday` is after it.
+ *
+ * The changed number in front of the day's, because a correction's whole point is that the meal's
+ * kcal MOVED — the one thing the re-rendered card cannot say by itself. The clause behind it is
+ * `runningLine`, shared with every landed meal so the two can never disagree about one day.
+ */
 export function correctionLine(i: { targets: FoodTargets; meal: { kcal: number }; eatenToday: { kcal: number; protein_g: number } }): string {
-  return `Updated — ${n(i.meal.kcal)} kcal. ${n(i.targets.kcal - i.eatenToday.kcal)} of your ${n(i.targets.kcal)} left today, ${n(i.eatenToday.protein_g)} of the ${n(i.targets.protein_g)} g protein.`;
+  return `Updated — ${n(i.meal.kcal)} kcal. ${runningLine(i)}`;
 }
 
 /**

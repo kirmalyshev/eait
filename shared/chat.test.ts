@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { COACH_STARTERS, MAX_SUGGESTION, MEET_GABIE, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, cleanSuggestions, correctionLine, firstVerdictLines, isScriptedLineId, scriptedLine, scriptedParams } from "./chat.ts";
+import { COACH_STARTERS, MAX_SUGGESTION, MEET_GABIE, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, cleanSuggestions, correctionLine, firstVerdictLines, isScriptedLineId, runningLine, scriptedLine, scriptedParams } from "./chat.ts";
 
 describe("scripted lines", () => {
   it("fills parameters and leaves nothing unfilled", () => {
@@ -72,6 +72,24 @@ describe("the first verdict", () => {
   it("reads a correction back in the design's words", () => {
     expect(correctionLine({ targets, meal: { kcal: 306 }, eatenToday: { kcal: 306, protein_g: 19 } }))
       .toBe("Updated — 306 kcal. 1,148 of your 1,454 left today, 19 of the 110 g protein.");
+  });
+
+  it("says where the day stands in ONE sentence, whatever put the meal there (#306)", () => {
+    // The clause a correction already ended with, on its own. A log had nothing after its card, so
+    // one meal in the thread was followed by the day's arithmetic and the next by silence.
+    expect(runningLine({ targets, eatenToday: { kcal: 306, protein_g: 19 } }))
+      .toBe("1,148 of your 1,454 left today, 19 of the 110 g protein.");
+    // And a correction is that sentence with the changed number in front of it — one arithmetic
+    // clause, one place to change it, so the two lines can never disagree about the same day.
+    expect(correctionLine({ targets, meal: { kcal: 306 }, eatenToday: { kcal: 306, protein_g: 19 } }))
+      .toBe(`Updated — 306 kcal. ${runningLine({ targets, eatenToday: { kcal: 306, protein_g: 19 } })}`);
+  });
+
+  it("says the honest negative when the day is over, as the first verdict already does", () => {
+    // `firstVerdictLines` ships "that leaves -146 of your 1,454" by design — "a number is honest
+    // where a euphemism is not". The log line is the same arithmetic and reads the same way.
+    expect(runningLine({ targets, eatenToday: { kcal: 1600, protein_g: 38 } }))
+      .toBe("-146 of your 1,454 left today, 38 of the 110 g protein.");
   });
 
   it("fills rather than leaves for a gain goal", () => {

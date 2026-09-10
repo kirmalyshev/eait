@@ -20,7 +20,7 @@ import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
 import { prepareAnalysis } from "./analysis.ts";
 import { checkCaps, refundGatewayRefusal } from "./caps.ts";
-import { afterCorrection, firstVerdict, remember } from "./chat.ts";
+import { afterCorrection, afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
 import { imageMime, type AnalyzedMeal } from "../llm/port.ts";
 import { itemScanner } from "../llm/partial.ts";
@@ -183,6 +183,10 @@ export async function logPhotoMeal(
         { role: "user", kind: "photo", text: input.caption ?? null, mealId: stored ? record.id : null },
         { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
         ...greeting.lines,
+        // Where the DAY now stands (#306) — the sentence a correction already got, on every meal
+        // that is not the account's first. The greeting carries the same arithmetic, so an empty
+        // greeting is exactly the condition for saying it here, and it is already known.
+        ...(greeting.lines.length === 0 ? await afterLog(deps, userId, record, totals) : []),
         // LAST, and a plain assistant line like any other model prose in this thread: the estimate
         // is delivered, then queried. There is no line kind for it, because a question that needed
         // one would be a question the Chat tab could not show when the app scrolls back to it.
@@ -483,6 +487,8 @@ export async function confirmPendingMeal(
       lines: [
         { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
         ...greeting.lines,
+        // The same line a photo meal gets (#306): a confirmed estimate is a landed meal.
+        ...(greeting.lines.length === 0 ? await afterLog(deps, userId, record, totals) : []),
       ],
       ...(greeting.undo ? { undo: greeting.undo } : {}),
     };
