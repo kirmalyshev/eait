@@ -147,6 +147,28 @@ export async function adminRoutes(
   // missing role is what a new field, a new store or a bad migration produces.
   if (await deps.store.roleOf(userId) !== "admin") return notFound();
 
+  // ── The audit line (#443) ──────────────────────────────────────────────────────────────────
+  //
+  // One line per WRITE — the copy, the notification copy, both resets, the per-account cap —
+  // naming the account, the route and what came of it. Reads would drown it. NEVER THE PAYLOAD: a
+  // route and a subject id, never what changed, which is the hazard "errors are logged, never
+  // returned" exists for. NEVER THE BEARER: `userId` is what it resolved to, and the path goes in
+  // without its query string (#372).
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) return await behindTheRole(req, url, deps);
+  let outcome: number | "threw" = "threw";
+  try {
+    const res = await behindTheRole(req, url, deps);
+    outcome = res.status;
+    return res;
+  } finally {
+    console.log(`[eait] admin write: ${userId} ${req.method} ${pathname} -> ${outcome}`);
+  }
+}
+
+/** Every route behind the role. `adminRoutes` is its only caller, and only after the check. */
+async function behindTheRole(req: Request, url: URL, deps: EngineDeps): Promise<Response> {
+  const { pathname } = url;
+
   if (req.method === "GET" && pathname === "/admin/api/content") {
     return json({ content: await onboardingContent(deps), meta: editorMeta() });
   }

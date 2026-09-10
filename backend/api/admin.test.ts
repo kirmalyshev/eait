@@ -13,7 +13,7 @@ import { fakePush } from "../push/fake.ts";
 // signed-in ordinary user gets 404, and an instance where nobody holds the role has no surface at
 // all.
 
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { DEFAULT_ONBOARDING_CONTENT, ROUTES, type OnboardingContent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -578,6 +578,83 @@ describe("reading one account's thread", () => {
     }));
     expect(res.status).toBe(404);
     expect(await res.text()).not.toContain("coeliac");
+  });
+});
+
+// ── The audit line (#443) ─────────────────────────────────────────────────────────────────────
+//
+// Every admin request resolves to a user id now, so a write can say WHO. What it must never say is
+// what was written, nor the bearer that wrote it.
+
+describe("the audit line", () => {
+  beforeEach(async () => { await mountWithAdmin(); });
+
+  /** Every line written to the log while `run` ran. */
+  async function logged(run: () => Promise<unknown>): Promise<string[]> {
+    const spy = spyOn(console, "log").mockImplementation(() => {});
+    try {
+      await run();
+      return spy.mock.calls.map((c) => c.map(String).join(" "));
+    } finally {
+      spy.mockRestore();
+    }
+  }
+  const audit = (lines: string[]) => lines.filter((l) => l.includes("admin write"));
+
+  it("writes one line per write, naming the account, the route and the outcome — and none for a read", async () => {
+    const adminId = (await store.userIdForToken(adminBearer))!;
+    const subject = (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+    const lines = await logged(async () => {
+      await admin("GET", "/admin/api/content");
+      await admin("PUT", "/admin/api/content", { content: structuredClone(DEFAULT_ONBOARDING_CONTENT) });
+      await admin("POST", "/admin/api/content/reset", {});
+      const { copy } = await (await admin("GET", "/admin/api/notifications")).json() as { copy: Record<string, unknown> };
+      await admin("PUT", "/admin/api/notifications", {
+        copy: { ...copy, evening: { title: "Evening", body: "{weight} today.", emptyBody: "Nothing." } },
+      });
+      await admin("POST", "/admin/api/notifications/reset", {});
+      await admin("GET", `/admin/api/users/${subject}/cap`);
+      await admin("PUT", `/admin/api/users/${subject}/cap`, { freeAnalyses: 40 });
+    });
+    expect(audit(lines)).toEqual([
+      `[eait] admin write: ${adminId} PUT /admin/api/content -> 200`,
+      `[eait] admin write: ${adminId} POST /admin/api/content/reset -> 200`,
+      `[eait] admin write: ${adminId} PUT /admin/api/notifications -> 422`,
+      `[eait] admin write: ${adminId} POST /admin/api/notifications/reset -> 200`,
+      `[eait] admin write: ${adminId} PUT /admin/api/users/${subject}/cap -> 200`,
+    ]);
+  });
+
+  it("never quotes the payload, and never the bearer", async () => {
+    const content = structuredClone(DEFAULT_ONBOARDING_CONTENT);
+    content.welcome.lines = ["Photograph dinner, marker q7x.", "No account needed to start."];
+    const lines = await logged(async () => {
+      expect((await admin("PUT", "/admin/api/content", { content })).status).toBe(200);
+      await admin("PUT", "/admin/api/notifications?note=q7x", { copy: {} });
+    });
+    expect(audit(lines)).toHaveLength(2);
+    expect(lines.join("\n")).not.toContain("q7x");
+    expect(lines.join("\n")).not.toContain(adminBearer);
+  });
+
+  it("counts only the verbs that can write: not HEAD, not OPTIONS", async () => {
+    const lines = await logged(async () => {
+      await admin("HEAD", "/admin/api/content");
+      await admin("OPTIONS", "/admin/api/content");
+      await admin("DELETE", "/admin/api/content");
+    });
+    expect(audit(lines)).toEqual([expect.stringContaining("DELETE /admin/api/content -> 404")]);
+  });
+
+  it("still writes the line when the write throws, and says it threw", async () => {
+    const lines = await logged(async () => {
+      await handle(new Request(url("/admin/api/content"), {
+        method: "PUT",
+        headers: { "content-type": "application/json", authorization: `Bearer ${adminBearer}` },
+        body: "{ not json",
+      })).catch(() => null);
+    });
+    expect(audit(lines)).toEqual([expect.stringContaining("PUT /admin/api/content -> threw")]);
   });
 });
 
