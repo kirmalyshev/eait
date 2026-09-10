@@ -480,6 +480,107 @@ describe("the account list", () => {
   });
 });
 
+describe("reading one account's thread", () => {
+  beforeEach(async () => { await mountWithAdmin(); });
+
+  const user = async () => (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+  const thread = (userId: string, query = "") =>
+    admin("GET", `/admin/api/users/${userId}/chat${query}`);
+
+  it("reads the turn back as the app renders it, oldest first, with who spoke", async () => {
+    const userId = await user();
+    await store.appendChat(userId, [
+      { role: "user", kind: "text", text: "how much protein have I had", clientId: "phone-1" },
+      { role: "assistant", kind: "text", text: "About 90 g so far today.", speaker: "gabie" },
+    ]);
+    await store.appendChat(userId, [{ role: "assistant", kind: "text", text: "Nice one." }]);
+
+    const res = await thread(userId);
+    expect(res.status).toBe(200);
+    const body = await res.json() as {
+      entries: { role: string; kind: string; text?: string; speaker?: string | null }[];
+    };
+    expect(body.entries.map((e) => e.text))
+      .toEqual(["how much protein have I had", "About 90 g so far today.", "Nice one."]);
+    // `speaker` is the whole of "who answered": null is Spud, so every line from before Gabie
+    // existed stays his.
+    expect(body.entries[1]!.speaker).toBe("gabie");
+    expect(body.entries[2]!.speaker ?? null).toBeNull();
+  });
+
+  it("is the SAME projection the app gets, not a second rendering of the thread", async () => {
+    // "Rendered as the app renders it, so what the operator reads is what the user saw" — which is
+    // only true if it is one function. A panel with its own toEntry would drift the first time a
+    // line kind was added, and drift silently, because nothing compares the two.
+    const userId = await user();
+    await store.appendChat(userId, [{ role: "assistant", kind: "text", text: "one" }]);
+    const token = await store.issueToken(userId);
+
+    const mine = await handle(new Request(url(ROUTES.messages), {
+      headers: { authorization: `Bearer ${token}` },
+    })).then((r) => r.json());
+    const theirs = await (await thread(userId)).json();
+    expect(theirs).toEqual(mine);
+  });
+
+  it("pages backwards with the cursor the page itself returns", async () => {
+    const userId = await user();
+    for (let i = 0; i < 5; i++) {
+      await store.appendChat(userId, [{ role: "user", kind: "text", text: `line ${i}` }]);
+    }
+    const first = await (await thread(userId, "?limit=2")).json() as {
+      entries: { text?: string }[]; before: number | null;
+    };
+    expect(first.entries).toHaveLength(2);
+    expect(first.before).not.toBeNull();
+    const older = await (await thread(userId, `?limit=2&before=${first.before}`)).json() as {
+      entries: { text?: string }[];
+    };
+    expect(older.entries.map((e) => e.text)).not.toEqual(first.entries.map((e) => e.text));
+  });
+
+  it("shows one account's thread and NEVER another's", async () => {
+    const [a, b] = [await user(), await user()];
+    await store.appendChat(a, [{ role: "user", kind: "text", text: "mine" }]);
+    await store.appendChat(b, [{ role: "user", kind: "text", text: "theirs" }]);
+    const body = await (await thread(a)).text();
+    expect(body).toContain("mine");
+    expect(body).not.toContain("theirs");
+  });
+
+  it("is never cached, because of what it renders", async () => {
+    // The most sensitive surface in the product: the onboarding chat collects medical free text,
+    // and `deploy/Caddyfile` deliberately does not log request bodies for that reason. A response
+    // an intermediary may keep is a copy of that text nobody knows about.
+    const res = await thread(await user());
+    expect(res.headers.get("cache-control")).toContain("no-store");
+  });
+
+  it("404s an account that does not exist, and an id that could not be one", async () => {
+    expect((await thread(crypto.randomUUID())).status).toBe(404);
+    expect((await thread("not-a-uuid")).status).toBe(404);
+  });
+
+  it("is a READ. The admin does not send a message as the coach", async () => {
+    const userId = await user();
+    for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+      expect((await admin(method, `/admin/api/users/${userId}/chat`, { text: "hello" })).status)
+        .toBe(404);
+    }
+    expect(await store.countUserChat(userId)).toBe(0);
+  });
+
+  it("gives an ordinary signed-in user a 404, and none of the words", async () => {
+    const userId = await user();
+    await store.appendChat(userId, [{ role: "user", kind: "text", text: "coeliac disease" }]);
+    const res = await handle(new Request(url(`/admin/api/users/${userId}/chat`), {
+      headers: { authorization: `Bearer ${await session()}` },
+    }));
+    expect(res.status).toBe(404);
+    expect(await res.text()).not.toContain("coeliac");
+  });
+});
+
 describe("the per-account sample", () => {
   beforeEach(async () => { await mountWithAdmin(); });
 

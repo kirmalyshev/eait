@@ -85,6 +85,11 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   .errors ul { margin: 6px 0 0; padding-left: 18px; }
   .errors li { color: var(--bad); font-size: 13px; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .line { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .line:last-child { border-bottom: 0; }
+  .line .who { flex: 0 0 52px; color: var(--muted); }
+  .line .when { margin-left: auto; color: var(--faint); white-space: nowrap; }
+  .line.them .who { color: var(--care); }
   th, td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--border); }
   th:first-child, td:first-child { text-align: left; }
   th { color: var(--muted); font-weight: 500; }
@@ -200,6 +205,20 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   <p>
     <button id="users-more" class="hidden">Load more</button>
   </p>
+
+  <h2>Thread <span class="pill" id="chat-who"></span></h2>
+  <p class="muted">
+    <strong>This is somebody's conversation, and onboarding collects medical free text.</strong>
+    Read it to answer a question about a reply that was wrong, and nothing else. It is what they
+    saw, rendered the way their app renders it. There is no way to write here, deliberately.
+  </p>
+  <div class="card">
+    <div id="chat"></div>
+    <p>
+      <button id="chat-older" class="hidden">Older</button>
+      <span class="status" id="chat-status">Choose an account above.</span>
+    </p>
+  </div>
 
   <h2>Per-account sample</h2>
   <p class="muted">
@@ -633,8 +652,11 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     // becomes a cap set on a stranger.
     tr.addEventListener("click", function () {
       $("cap-user").value = u.userId;
-      $("cap-user").scrollIntoView({ block: "center" });
       api("GET", capPath()).then(function (c) { showCap(c); }).catch(capFailed);
+      // AND the thread, because #376's point is that you reach it from the list rather than by
+      // typing a uuid off a screen.
+      loadChat(u.userId, false);
+      $("chat-who").scrollIntoView({ block: "center" });
     });
     return tr;
   }
@@ -661,6 +683,69 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     if (e.key === "Enter") { usersCursor = null; loadUsers(false); }
   });
   $("users-more").addEventListener("click", function () { loadUsers(true); });
+
+  // ── One account's thread (#376) ────────────────────────────────────────────────────────────
+  //
+  // The same entries "GET /v1/messages" returns, so what is read here is what the person saw. Every
+  // sentence goes through textContent like everything else on this page: the thread holds words the
+  // model wrote and words somebody typed, and neither is markup.
+  //
+  // NO WRITE, and no control that could become one. The admin does not send a message as the coach.
+
+  var chatUser = null;
+  var chatBefore = null;
+
+  function chatLine(e) {
+    var row = document.createElement("div");
+    row.className = "line " + (e.role === "user" ? "them" : "us");
+    var who = document.createElement("span");
+    who.className = "who";
+    // "speaker" is the whole of who answered: null is Spud, so every line from before Gabie stays
+    // his rather than becoming hers.
+    who.textContent = e.role === "user" ? "them"
+      : (e.kind === "meal" ? "card" : (e.speaker || "spud"));
+    row.appendChild(who);
+    var body = document.createElement("span");
+    if (e.kind === "meal") {
+      body.textContent = e.meal
+        ? (e.event || "logged") + ": " + (e.meal.items || []).map(function (i) { return i.name; }).join(", ")
+          + " — " + Math.round(e.meal.kcal) + " kcal"
+        : (e.event || "logged") + ": (the meal is gone)";
+    } else if (e.kind === "photo") {
+      body.textContent = e.text || "(a photograph)";
+    } else {
+      body.textContent = e.text || "";
+    }
+    row.appendChild(body);
+    var when = document.createElement("span");
+    when.className = "when";
+    when.textContent = e.ts.slice(0, 16).replace("T", " ");
+    row.appendChild(when);
+    return row;
+  }
+
+  function loadChat(userId, older) {
+    if (userId) { chatUser = userId; chatBefore = null; }
+    if (!chatUser) { $("chat-status").textContent = "Choose an account above."; return Promise.resolve(); }
+    var path = "/admin/api/users/" + chatUser + "/chat?limit=50";
+    if (older && chatBefore) path += "&before=" + chatBefore;
+    $("chat-who").textContent = chatUser.slice(0, 8);
+    return api("GET", path).then(function (view) {
+      var host = $("chat");
+      if (!older) host.textContent = "";
+      var frag = document.createDocumentFragment();
+      view.entries.forEach(function (e) { frag.appendChild(chatLine(e)); });
+      // An older page goes on TOP, because the thread reads oldest-first downwards.
+      if (older) host.insertBefore(frag, host.firstChild); else host.appendChild(frag);
+      chatBefore = view.before;
+      $("chat-older").classList.toggle("hidden", !view.before);
+      $("chat-status").textContent = host.childElementCount === 0
+        ? "Nothing said yet."
+        : host.childElementCount + " lines";
+    }).catch(function (e) { $("chat-status").textContent = "failed: " + e.message; });
+  }
+
+  $("chat-older").addEventListener("click", function () { loadChat(null, true); });
 
   // ── Wiring ─────────────────────────────────────────────────────────────────────────────────
 

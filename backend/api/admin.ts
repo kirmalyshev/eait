@@ -45,7 +45,7 @@ import {
   screenIsOptional,
 } from "@eait/shared";
 import {
-  adminUsers, notificationCopy, onboardingContent, onboardingFunnel, resetNotificationCopy,
+  adminUserChat, adminUsers, notificationCopy, onboardingContent, onboardingFunnel, resetNotificationCopy,
   resetOnboardingContent, saveNotificationCopy, saveOnboardingContent, setUserCap, userCap,
   type EngineDeps,
 } from "../engine/index.ts";
@@ -197,6 +197,34 @@ export async function adminRoutes(
       ...(q === "" ? {} : { q }),
       ...(cursor === "" ? {} : { cursor }),
     }));
+  }
+
+  // ── ONE ACCOUNT'S THREAD ───────────────────────────────────────────────────────────────────
+  //
+  // #376. Gabie and Spud answer in the app's chat thread, and when a reply is wrong, embarrassing
+  // or just strange there was no way to read the turn back — which meant `docker compose logs` and
+  // hope.
+  //
+  // THE MOST SENSITIVE SURFACE IN THE PRODUCT. The onboarding chat collects medical free text, and
+  // `deploy/Caddyfile` deliberately does not log request bodies for that reason. So this response
+  // is `no-store`: an intermediary that kept a copy would be a copy of that text nobody knows about
+  // and nobody can erase.
+  //
+  // READ-ONLY, and that is the interesting half: there is no method here but GET, so the admin
+  // cannot send a message as the coach. A phone cannot put a sentence in Spud's mouth
+  // (`POST /v1/messages/lines` takes scripted ids only) and neither can this.
+  const chat = pathname.match(/^\/admin\/api\/users\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/chat$/);
+  if (chat && req.method === "GET") {
+    const before = Number(url.searchParams.get("before"));
+    const limit = Number(url.searchParams.get("limit"));
+    const view = await adminUserChat(deps, chat[1]!, {
+      ...(Number.isSafeInteger(before) && before > 0 ? { before } : {}),
+      ...(Number.isSafeInteger(limit) && limit > 0 ? { limit } : {}),
+    });
+    if (!view) return notFound();
+    return new Response(JSON.stringify(view), {
+      headers: { "content-type": "application/json", "cache-control": "no-store, private" },
+    });
   }
 
   // ── Per-account sample ─────────────────────────────────────────────────────────────────────

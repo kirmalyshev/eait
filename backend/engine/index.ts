@@ -3,6 +3,7 @@
 
 export type { EngineDeps } from "./deps.ts";
 export { checkCaps, type CapScope } from "./caps.ts";
+export { adminUserChat } from "./admin.ts";
 export {
   adminUsers, applyRevenueCatEvent, dailyPhotoCap, entitlementFor, freeAnalysesFor, setUserCap,
   userCap,
