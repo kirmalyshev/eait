@@ -97,20 +97,25 @@ export interface RouterOptions {
    */
   webProviders?: Partial<Record<WebProvider, WebSignInProvider>>;
   /**
-   * How often the streamed photo route writes a blank line while the analyzer is silent. A test
-   * shortens it; nothing else sets it. See `STREAM_KEEPALIVE_MS`.
+   * How often a streamed route writes a blank line while the model is silent. A test shortens it;
+   * nothing else sets it. See `STREAM_KEEPALIVE_MS`.
    */
   streamKeepaliveMs?: number;
 }
 
 /**
- * THE ANALYZER IS SILENT FOR TENS OF SECONDS, AND AN IDLE SOCKET IS A CLOSED SOCKET. After the
- * glance (~2 s) grok-4.5 reasons for 10–40 s with nothing on the wire; `Bun.serve` closes a
- * connection idle for 10 s by default and iOS gives up on one idle for 60 s. Measured 2026-09-05:
- * the phone reported "the analysis didn't come back" at 12 s while the server, whose `line()`
- * swallows a gone reader, went on to log the meal — a charged turn the user was told failed. A
- * blank line every few seconds is nothing to the client (`splitLines` drops empty lines) and
- * keeps every hop between here and the phone from calling the stream dead.
+ * THE MODEL IS SILENT FOR TENS OF SECONDS, AND AN IDLE CONNECTION IS ONE SOMETHING WILL CALL DEAD.
+ * After the glance (~2 s) grok-4.5 reasons for 10–40 s with nothing on the wire, and a routed text
+ * turn with the coach behind it can be as quiet. iOS gives up on a request idle for 60 s. Measured
+ * 2026-09-05: the phone reported "the analysis didn't come back" at 12 s while the server, whose
+ * `line()` swallows a gone reader, went on to log the meal — a charged turn the user was told
+ * failed. A blank line every few seconds is nothing to the client (`splitLines` drops empty lines)
+ * and keeps every hop between here and the phone from calling the stream dead.
+ *
+ * BUN'S OWN IDLE CUT IS NOT WHAT THIS RESTS ON. On Bun 1.4.0 its 10 s cut took a bodiless GET (at
+ * 12 s) and left a POST whose body had been read alone (delivered at 20 s; measured 2026-09-10,
+ * #508). That is one version's behaviour, not a promise, so both billed routes stream anyway: for
+ * the phone's 60 s, and for the Bun upgrade that changes it.
  */
 export const STREAM_KEEPALIVE_MS = 5_000;
 
@@ -163,6 +168,47 @@ export function createRouter(
       status: 429,
       headers: { "content-type": "application/json", "retry-after": String(retryAfter) },
     });
+
+  const wantsStream = (req: Request): boolean => (req.headers.get("accept") ?? "").includes(NDJSON);
+
+  /**
+   * A billed turn as a STREAM: `200` at once, a blank line every `STREAM_KEEPALIVE_MS` while the
+   * model is silent, and the result as the LAST line — refusals included, because the status went
+   * out with the first byte. `run` may write lines of its own before it returns (the photo route's
+   * glance and items); the text route writes none (#508). ONE of these for both routes, because the
+   * idle connection it exists for is the same for both.
+   */
+  const stream = (req: Request, pathname: string, run: (line: (e: unknown) => void) => Promise<unknown>): Response => {
+    const encoder = new TextEncoder();
+    const keepaliveMs = options.streamKeepaliveMs ?? STREAM_KEEPALIVE_MS;
+    const body = new ReadableStream<Uint8Array>({
+      async start(ctrl) {
+        // THE READER CAN BE GONE BEFORE THE TURN IS — the phone timed out or lost the network —
+        // and Bun then throws on every enqueue. A throw here would surface inside the analyzer's
+        // delta loop and abandon a call already charged, so a line nobody can read is dropped and
+        // the turn finishes regardless: leaving the screen mid-stream still logs the meal, as it
+        // did before the routes streamed.
+        const line = (e: unknown) => {
+          try { ctrl.enqueue(encoder.encode(JSON.stringify(e) + "\n")); } catch { /* reader gone */ }
+        };
+        const keepalive = setInterval(() => {
+          try { ctrl.enqueue(encoder.encode("\n")); } catch { /* reader gone */ }
+        }, keepaliveMs);
+        try {
+          line(await run(line));
+        } catch (e) {
+          // The JSON path's 500, in-band: logged, never worded to the client. Never
+          // `analysis-failed` either: the throw can come after the meal was inserted (#514).
+          console.error(`[eait] api ${req.method} ${pathname} failed mid-stream: ${(e as Error)?.message ?? e}`);
+          line({ kind: OUTCOME_UNKNOWN });
+        } finally {
+          clearInterval(keepalive);
+          try { ctrl.close(); } catch { /* the reader's cancel closed it first */ }
+        }
+      },
+    });
+    return new Response(body, { status: 200, headers: { "content-type": NDJSON, "cache-control": "no-store" } });
+  };
 
   /**
    * This server's public origin, for the confirmation link.
@@ -646,37 +692,7 @@ export function createRouter(
         // — and the result LAST, refusals included, because the 200 has gone out with the first
         // byte. Everything refused above this point is still an HTTP status: nothing has been
         // written yet. Without the header this is the JSON route it always was.
-        if ((req.headers.get("accept") ?? "").includes(NDJSON)) {
-          const encoder = new TextEncoder();
-          const keepaliveMs = options.streamKeepaliveMs ?? STREAM_KEEPALIVE_MS;
-          const body = new ReadableStream<Uint8Array>({
-            async start(ctrl) {
-              // THE READER CAN BE GONE BEFORE THE TURN IS — the phone timed out or lost the
-              // network — and Bun then throws on every enqueue. A throw here would surface inside
-              // the analyzer's delta loop and abandon a call already charged, so a line nobody can
-              // read is dropped and the turn finishes for the diary regardless: leaving the screen
-              // mid-stream logs the meal, as it did before the route streamed.
-              const line = (e: unknown) => {
-                try { ctrl.enqueue(encoder.encode(JSON.stringify(e) + "\n")); } catch { /* reader gone */ }
-              };
-              const keepalive = setInterval(() => {
-                try { ctrl.enqueue(encoder.encode("\n")); } catch { /* reader gone */ }
-              }, keepaliveMs);
-              try {
-                line(await logPhotoMeal(deps, userId, input, line));
-              } catch (e) {
-                // The JSON path's 500, in-band: logged, never worded to the client. Never
-                // `analysis-failed` either: the throw can come after the meal was inserted (#514).
-                console.error(`[eait] api ${req.method} ${pathname} failed mid-stream: ${(e as Error)?.message ?? e}`);
-                line({ kind: OUTCOME_UNKNOWN });
-              } finally {
-                clearInterval(keepalive);
-                try { ctrl.close(); } catch { /* the reader's cancel closed it first */ }
-              }
-            },
-          });
-          return new Response(body, { status: 200, headers: { "content-type": NDJSON, "cache-control": "no-store" } });
-        }
+        if (wantsStream(req)) return stream(req, pathname, (line) => logPhotoMeal(deps, userId, input, line));
         const result = await logPhotoMeal(deps, userId, input);
         return isRefusal(result) ? refusal(result) : json(result);
       }
@@ -740,12 +756,19 @@ export function createRouter(
         }
         // A turn is a line in the thread; the shared cap the composer applies is enforced here.
         if (body.text.length > MAX_USER_LINE) return json({ error: "text too long" }, 400);
-        const result = await handleText(deps, userId, {
+        const input = {
           text: body.text,
           ...(typeof body.focusMealId === "string" ? { focusMealId: body.focusMealId } : {}),
           // Stored, never interpreted; an over-long one is dropped rather than refused.
           ...(typeof body.clientId === "string" && body.clientId.length <= MAX_CLIENT_ID ? { clientId: body.clientId } : {}),
-        });
+        };
+        // THE STREAM, when asked (#508). A routed turn with the coach behind it can be silent for
+        // longer than iOS keeps an idle request open (60 s), and it is billed either way: cut off
+        // there, the phone reports a failure for a turn the server went on running. `target-gone`
+        // and the refusals arrive as the last line, like everything else once the 200 has gone out.
+        // Without the header this is the JSON route it always was, for every app already shipped.
+        if (wantsStream(req)) return stream(req, pathname, () => handleText(deps, userId, input));
+        const result = await handleText(deps, userId, input);
         if (result.kind === "target-gone") return json({ error: "target-gone", on: result.on }, 409);
         return isRefusal(result) ? refusal(result) : json(result);
       }

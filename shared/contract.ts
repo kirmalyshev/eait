@@ -37,8 +37,9 @@ export const REFUSAL_STATUS = {
 export type RefusalKind = keyof typeof REFUSAL_STATUS;
 
 /**
- * The streamed photo route's LAST line when the server itself failed mid-turn (#514): the JSON
- * path's 500 `internal`, in-band because the 200 went out with the first byte.
+ * A streamed route's LAST line when the server itself failed mid-turn (#514): the JSON path's 500
+ * `internal`, in-band because the 200 went out with the first byte. The photo route writes it, and
+ * so does the text turn since it streams too (#508).
  *
  * NOT A REFUSAL, AND NOT `analysis-failed`. The throw can come after the meal was inserted, so
  * nobody knows whether it was logged, and every client words it that way: "try again" would pay
@@ -214,7 +215,11 @@ export const ROUTES = {
   /** POST — a batch of onboarding funnel events. Fire-and-forget from the app's point of view. */
   onboardingEvents: "/v1/onboarding/events",
   photo: "/v1/meals/photo",
-  /** POST — one turn. GET `?before=<seq>&limit=N` — the thread, newest page first. */
+  /**
+   * POST — one turn; with `accept: NDJSON` it STREAMS (#508): a blank keepalive line while the model
+   * is silent, then the {@link MessageResponse} as the last line, refusals and `target-gone` included.
+   * GET `?before=<seq>&limit=N` — the thread, newest page first.
+   */
   messages: "/v1/messages",
   /** POST — the user's own words and Spud's SCRIPTED lines by id. See `AppendLinesRequest`. */
   messagesLines: "/v1/messages/lines",
@@ -843,7 +848,15 @@ export interface ErrorResponse {
 // Response aliases, so a handler and a client method can be declared against the same name.
 export type PhotoResponse = LogPhotoResult;
 
-/** The streamed shape of `POST /v1/meals/photo` when `accept` includes `NDJSON`. */
+/**
+ * The streamed shape of `POST /v1/meals/photo` and `POST /v1/messages` when `accept` includes it.
+ *
+ * BOTH BILLED TURNS STREAM (#508): a model can be silent for tens of seconds, iOS gives up on a
+ * request idle for 60 s, and Bun's own idle cut is one version's behaviour rather than a promise
+ * (`STREAM_KEEPALIVE_MS` in `api/routes.ts`). The answer is the LAST line; a blank line is a
+ * keepalive. Without the header each route is the JSON route it always was, because an app already
+ * on a phone never sends it.
+ */
 export const NDJSON = "application/x-ndjson";
 /**
  * The server's budget for ONE model call — `EAIT__BACKEND__LLM_TIMEOUT_MS`'s DEFAULT, which

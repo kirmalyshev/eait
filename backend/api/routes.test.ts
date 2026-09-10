@@ -1731,6 +1731,51 @@ describe("the stream's keepalive", () => {
   });
 });
 
+describe("the text turn, streamed (#508)", () => {
+  it("answers as its last line, past the keepalives", async () => {
+    const slow: LlmPorts = {
+      ...demoPorts(),
+      routeText: async (...args) => {
+        await new Promise((r) => setTimeout(r, 120));
+        return demoPorts().routeText(...args);
+      },
+    };
+    const deps: EngineDeps = { store, config: CONFIG, llm: slow, mailer: fakeMailer(), push: fakePush() };
+    const h = createRouter(deps, store, testVerifier, { streamKeepaliveMs: 20 });
+    const res = await h(new Request(url(ROUTES.messages), {
+      method: "POST",
+      headers: { authorization: `Bearer ${await session()}`, "content-type": "application/json", accept: NDJSON },
+      body: JSON.stringify({ text: "how did my week go?" }),
+    }));
+    expect(res.headers.get("content-type")).toBe(NDJSON);
+    const raw = (await res.text()).split("\n");
+    expect(raw.filter((l) => l === "").length).toBeGreaterThanOrEqual(3);
+    expect((JSON.parse(raw.filter(Boolean).at(-1)!) as { kind: string }).kind).toBe("answered");
+  });
+
+  it("refuses in-band once the stream has begun, and with a status before it", async () => {
+    // A fresh device account has no profile, and the ENGINE is what says so, after the 200 went out.
+    const minted = await post(ROUTES.authDevice, { deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en-GB" });
+    const { token } = await minted.json() as { token: string };
+    const turn = (text: string) => handle(new Request(url(ROUTES.messages), {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json", accept: NDJSON },
+      body: JSON.stringify({ text }),
+    }));
+    const streamed = await turn("two eggs");
+    expect(streamed.status).toBe(200);
+    expect(JSON.parse((await streamed.text()).trim().split("\n").at(-1)!)).toEqual({ kind: "not-onboarded" });
+    // What the route refuses before the engine runs is still a status, stream or no stream.
+    expect((await turn(" ")).status).toBe(400);
+  });
+
+  it("answers JSON, as before, without the accept header", async () => {
+    const res = await post(ROUTES.messages, { text: "how did my week go?" }, await session());
+    expect(res.headers.get("content-type")).toBe("application/json");
+    expect(((await res.json()) as { kind: string }).kind).toBe("answered");
+  });
+});
+
 describe("GET /v1/meals/:id/photos/:n", () => {
   it("returns the caller's photo with its sniffed mime, and nothing to anyone else", async () => {
     const token = await session();
