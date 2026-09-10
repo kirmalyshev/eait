@@ -276,6 +276,84 @@ function contract(name: string, make: () => Promise<Store>) {
         .toBeLessThanOrEqual(200);
     });
 
+    // ── The numbers past the funnel ────────────────────────────────────────────────────────
+    //
+    // #377, and the SECOND unscoped read in this port. Every assertion here is about a number an
+    // operator would act on, so each one is about what the number MEANS as much as what it is.
+
+    it("counts signups, activations and analyses on the instance's own calendar", async () => {
+      const s2 = await open();
+      const today = new Date().toISOString().slice(0, 10);
+      const on = (m: { days: { date: string; analyses: number }[] }) =>
+        m.days.find((d) => d.date === RUN_DATE)?.analyses ?? 0;
+      // A DELTA, not an absolute. This suite shares one store and Postgres persists between runs,
+      // so the day's total belongs to whatever else has run — measuring the change is the only
+      // version of this that is about the method rather than about the database.
+      const before = on(await s2.adminMetrics({ days: 400, today, timezone: "UTC" }));
+
+      const { userId } = await s2.upsertDeviceUser(device(), "en");
+      await s2.patchProfile(userId, { onboarded_at: new Date().toISOString() });
+      await s2.recordAnalysis(userId, RUN_DATE, "photo");
+      await s2.recordAnalysis(userId, RUN_DATE, "text");
+
+      const m = await s2.adminMetrics({ days: 400, today, timezone: "UTC" });
+      // BOTH SCOPES. A typed meal costs money and spends the sample exactly as a photograph does,
+      // and `globalDailyAnalysisCap` counts both — so a per-day number that dropped the text turns
+      // would be a bill missing a line.
+      expect(on(m) - before).toBe(2);
+      const now = m.days.find((d) => d.date === today)!;
+      expect(now.signups).toBeGreaterThanOrEqual(1);
+      expect(now.activations).toBeGreaterThanOrEqual(1);
+    });
+
+    it("gives every day in the window a row, including the empty ones", async () => {
+      const s2 = await open();
+      const today = "2026-06-15";
+      const m = await s2.adminMetrics({ days: 7, today, timezone: "UTC" });
+      // `totalsSince` groups by date and a day with nothing produces NO ROW — the trap
+      // `AGENTS.md` names. A chart with holes in it is read as a drop rather than as silence, so
+      // this one fills them.
+      expect(m.days).toHaveLength(7);
+      expect(m.days[m.days.length - 1]!.date).toBe(today);
+      expect(m.days[0]!.date).toBe("2026-06-09");
+      expect(m.days.every((d) => Number.isInteger(d.analyses))).toBe(true);
+    });
+
+    it("counts a return as an analysis on the day after signing up", async () => {
+      const s2 = await open();
+      const { userId } = await s2.upsertDeviceUser(device(), "en");
+      const today = new Date().toISOString().slice(0, 10);
+      const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+      await s2.recordAnalysis(userId, tomorrow, "photo");
+
+      // The account signed up today and logged something "tomorrow", so from a vantage point two
+      // days on it is a D1 return.
+      const after = new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10);
+      const m = await s2.adminMetrics({ days: 30, today: after, timezone: "UTC" });
+      expect(m.d1.returned).toBeGreaterThanOrEqual(1);
+      expect(m.d1.eligible).toBeGreaterThanOrEqual(1);
+      expect(m.d1.returned).toBeLessThanOrEqual(m.d1.eligible);
+      // Nothing on day 7, so it counts as eligible-and-did-not rather than as a return.
+      expect(m.d7.returned).toBe(0);
+    });
+
+    it("does not count an account that has not HAD its second day yet", async () => {
+      const s2 = await open();
+      await s2.upsertDeviceUser(device(), "en");
+      const today = new Date().toISOString().slice(0, 10);
+      const m = await s2.adminMetrics({ days: 30, today, timezone: "UTC" });
+      // Signed up today. Counting it as "did not return" is what drags a retention number down as
+      // a product grows, and it is the most common way one is reported wrong.
+      expect(m.d1.eligible).toBe(0);
+      expect(m.d7.eligible).toBe(0);
+    });
+
+    it("bounds the window whatever it is asked for", async () => {
+      const s2 = await open();
+      const m = await s2.adminMetrics({ days: 10_000, today: "2026-06-15", timezone: "UTC" });
+      expect(m.days.length).toBeLessThanOrEqual(400);
+    });
+
     // ── The paid tier ──────────────────────────────────────────────────────────────────────
     //
     // Both implementations must agree here for the same reason they must agree about merging: the

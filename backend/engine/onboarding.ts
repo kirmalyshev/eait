@@ -9,11 +9,12 @@
 
 import {
   DEFAULT_ONBOARDING_CONTENT, MAX_ONBOARDING_EVENTS_PER_BATCH, ONBOARDING_ACTIONS,
-  ONBOARDING_PLACES, isReportableField, usableContent, validateOnboardingContent,
+  ONBOARDING_PLACES, isReportableField, localDate, usableContent, validateOnboardingContent,
   type ContentValidation, type FunnelRow, type OnboardingContent, type OnboardingEvent,
   type OnboardingFunnel, type OnboardingPlace,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
+import type { AdminMetrics } from "../store.ts";
 
 /** Every place an event may name — the questions, and the three places that are not questions. */
 const PLACES: readonly string[] = ONBOARDING_PLACES;
@@ -125,6 +126,48 @@ export async function recordOnboardingEvents(
 
   if (clean.length === 0) return 0;
   return deps.store.recordOnboardingEvents(userId, clean);
+}
+
+/**
+ * The numbers past the funnel (#377).
+ *
+ * ONE PAIR THAT MATTERS, not a wall. The funnel answers how far into onboarding people get and
+ * nothing else; these answer the two questions an operator acts on — **what is being spent** (the
+ * bill, and how close the instance is to its own budget) and **whether anybody came back**.
+ *
+ * THE CAP HEADROOM IS COMPUTED HERE because the cap is configuration and the store has none:
+ * `globalDailyAnalysisCap` is the instance's budget, zero means unbounded, and the panel must not
+ * hold a second copy of that rule.
+ *
+ * WHAT IS MISSING AND CANNOT BE SUPPLIED: spend per day, in money. Nothing records what a model
+ * call cost — `openrouter.ts` never reads `usage` off the response and no column holds one (#484).
+ * A count is what there is, and a count is a proxy that a model change silently reprices, so this
+ * reports analyses and says the cap in the same units rather than inventing a price.
+ */
+export async function adminMetrics(
+  deps: EngineDeps,
+  days: number,
+): Promise<AdminMetricsView> {
+  const cap = deps.config.globalDailyAnalysisCap;
+  const metrics = await deps.store.adminMetrics({
+    days,
+    today: localDate(deps.config.timezone),
+    timezone: deps.config.timezone,
+  });
+  return {
+    ...metrics,
+    dailyAnalysisCap: cap,
+    // Zero is "no instance budget at all", which is not the same as a budget with nothing left —
+    // and reporting it as 0 headroom would read as the instance being full.
+    headroom: cap === 0 ? null : Math.max(0, cap - (metrics.days[metrics.days.length - 1]?.analyses ?? 0)),
+  };
+}
+
+export interface AdminMetricsView extends AdminMetrics {
+  /** The instance's daily budget in analyses. Zero means there is none. */
+  dailyAnalysisCap: number;
+  /** What is left of today's budget, or null when there is no budget. */
+  headroom: number | null;
 }
 
 /** The funnel, in the order the screens are actually shown. */

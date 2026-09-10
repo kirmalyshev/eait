@@ -16,12 +16,12 @@ import type {
   DayTotals, HealthDay, Lang, MealItem, MealQuestion, MealRecord, MealVerdicts, NotificationCopy,
   OnboardingContent, Profile, Provider,
 } from "@eait/shared";
-import { HEALTH_FIELDS, emptyHealthDay } from "@eait/shared";
+import { HEALTH_FIELDS, dateMinus, emptyHealthDay } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
 import { type ChatMessage,
-  ADMIN_USER_PAGE_MAX,
+  ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
   type MealPatch,
   type PendingMeal, type PortionCorrection, type ProfilePatch, type PushPlatform, type Store,
@@ -1007,6 +1007,75 @@ export async function postgresStore(
       const rows = await sql`
         select subject from identities where user_id = ${userId} and provider = ${provider}`;
       return rows.length > 0 ? String(rows[0].subject) : null;
+    },
+
+    async adminMetrics({ days, today, timezone }) {
+      const window = Math.min(Math.max(1, Math.trunc(days)), ADMIN_METRICS_MAX_DAYS);
+      const dates: string[] = [];
+      for (let i = window - 1; i >= 0; i--) dates.push(dateMinus(today, i));
+      const from = dates[0]!;
+
+      // `at time zone` turns the instant into the INSTANCE's calendar day, which is the calendar
+      // `analyses.date` is already written on. Counting signups by their UTC date and analyses by
+      // their local one puts the two columns of one row on different days, and the gap shows up
+      // only as a row that does not add up, in the hours either side of midnight.
+      const [signups, activations, spent] = await Promise.all([
+        sql`select (created_at at time zone ${timezone})::date::text as d, count(*)::int as n
+              from users
+             where (created_at at time zone ${timezone})::date >= ${from}::date
+             group by 1`,
+        sql`select (onboarded_at at time zone ${timezone})::date::text as d, count(*)::int as n
+              from users
+             where onboarded_at is not null
+               and (onboarded_at at time zone ${timezone})::date >= ${from}::date
+             group by 1`,
+        // Both scopes: a typed meal costs money and the global cap counts it.
+        sql`select date as d, count(*)::int as n
+              from analyses where date >= ${from} and date <= ${today}
+             group by 1`,
+      ]);
+
+      const by = (rows: { d: unknown; n: unknown }[]) =>
+        new Map(rows.map((r) => [String(r.d), num(r.n)]));
+      const signupsBy = by(signups as never);
+      const activationsBy = by(activations as never);
+      const spentBy = by(spent as never);
+
+      /**
+       * How many accounts could have come back on their nth day, and how many did.
+       *
+       * `eligible` excludes anybody whose nth day has not arrived — counting yesterday's signups as
+       * people who did not return is what drags a retention number down as a product grows, and it
+       * is the most common way one is reported wrong.
+       */
+      const cohort = async (n: number): Promise<{ eligible: number; returned: number }> => {
+        const rows = await sql`
+          select count(*)::int as eligible,
+                 count(*) filter (where exists (
+                   select 1 from analyses a
+                    where a.user_id = u.id
+                      and a.date = (((u.created_at at time zone ${timezone})::date + ${n})::text)
+                 ))::int as returned
+            from users u
+           where (u.created_at at time zone ${timezone})::date >= ${from}::date
+             and (u.created_at at time zone ${timezone})::date <= (${today}::date - ${n})`;
+        return { eligible: num(rows[0]?.eligible), returned: num(rows[0]?.returned) };
+      };
+
+      const [d1, d7] = await Promise.all([cohort(1), cohort(7)]);
+      return {
+        // EVERY DAY GETS A ROW, including the empty ones. A `group by` produces no row for a day
+        // with nothing on it — the trap `AGENTS.md` names about `totalsSince` — and a chart with
+        // holes in it is read as a drop rather than as silence.
+        days: dates.map((date) => ({
+          date,
+          signups: signupsBy.get(date) ?? 0,
+          activations: activationsBy.get(date) ?? 0,
+          analyses: spentBy.get(date) ?? 0,
+        })),
+        d1,
+        d7,
+      };
     },
 
     async emailForUser(userId) {

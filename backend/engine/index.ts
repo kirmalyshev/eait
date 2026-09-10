@@ -30,6 +30,7 @@ export {
 } from "./identity.ts";
 export {
   onboardingContent, saveOnboardingContent, resetOnboardingContent, recordOnboardingEvents,
+  adminMetrics, type AdminMetricsView,
   onboardingFunnel,
 } from "./onboarding.ts";
 // The onboarding sequence lives in `@eait/shared` so the app derives the same "what's next" the

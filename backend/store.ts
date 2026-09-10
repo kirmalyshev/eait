@@ -344,6 +344,57 @@ export interface AdminUserPage {
 /** Nothing may ask for a bigger page than this, whatever it passes. */
 export const ADMIN_USER_PAGE_MAX = 200;
 
+/**
+ * The longest window the metrics may cover, whatever is asked for.
+ *
+ * Just over a year, so "the same week last year" is reachable and a runaway parameter is not a scan
+ * of a table that only grows.
+ */
+export const ADMIN_METRICS_MAX_DAYS = 400;
+
+export interface AdminMetricsQuery {
+  /** How many days back, ending today. Bounded by the caller AND by the implementation. */
+  days: number;
+  /** The instance's today. A store has no calendar. */
+  today: string;
+  /** The instance's zone, for turning `users.created_at` into the same day `analyses.date` is. */
+  timezone: string;
+}
+
+/** One day, on the instance's own calendar. */
+export interface AdminDay {
+  date: string;
+  /** Accounts created that day — every account, including the anonymous ones a device auth mints. */
+  signups: number;
+  /** Accounts that FINISHED onboarding that day. A signup is not a user of anything yet. */
+  activations: number;
+  /** Analyses spent that day, both scopes — what the bill and `globalDailyAnalysisCap` count. */
+  analyses: number;
+}
+
+/**
+ * How many accounts came back, and what "came back" is allowed to mean.
+ *
+ * IT MEANS "SPENT AN ANALYSIS", and that is narrower than opening the app. It is also the only
+ * thing this database can answer historically: `tokens.last_used_at` is slid forward on every
+ * request and keeps only the LAST one, so it cannot say what happened on somebody's second day.
+ * `analyses` has a row per billed call with the day on it, which is a trace that survives.
+ *
+ * `eligible` is the accounts that COULD have come back — created inside the window and at least N
+ * days ago. Reporting a rate without it would count yesterday's signups as people who did not
+ * return, which drags every number down as the product grows.
+ */
+export interface AdminReturn {
+  eligible: number;
+  returned: number;
+}
+
+export interface AdminMetrics {
+  days: AdminDay[];
+  d1: AdminReturn;
+  d7: AdminReturn;
+}
+
 export interface Store {
   // ── Identity ───────────────────────────────────────────────────────────────────────────────
   /** Find or create the user behind a device id. Returns whether the row was created. */
@@ -684,6 +735,19 @@ export interface Store {
   recordOnboardingEvents(userId: string, events: OnboardingEvent[]): Promise<number>;
   /** The funnel over the last `days`, aggregated. Reads every user — this is the admin's view. */
   onboardingFunnel(days: number): Promise<FunnelAggregate>;
+  /**
+   * The numbers past the funnel (#377), over a window. Reads every user, like `onboardingFunnel`.
+   *
+   * THE SECOND UNSCOPED READ IN THIS PORT, and named like the first (`adminListUsers`) for the same
+   * reason: an aggregate is still a query over other people's rows, so the widening is visible in
+   * this interface and reachable only from `adminRoutes`.
+   *
+   * THE TIMEZONE IS AN ARGUMENT because the day is the PRODUCT's day. `analyses.date` is already a
+   * calendar date in the instance's zone, and `users.created_at` is an instant — counting signups
+   * by its UTC date and analyses by their local one would put the two on different calendars, and
+   * the gap only shows up as a row that does not add up, hours either side of midnight.
+   */
+  adminMetrics(query: AdminMetricsQuery): Promise<AdminMetrics>;
 
   // ── The mailing list ───────────────────────────────────────────────────────────────────────
   //

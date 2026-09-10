@@ -124,6 +124,21 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     version, which is what the funnel below is grouped by.
   </p>
 
+  <h2>The numbers <span class="pill" id="metrics-window"></span></h2>
+  <p class="muted" id="metrics-summary">Loading…</p>
+  <table id="metrics">
+    <thead>
+      <tr><th>Day</th><th>Signups</th><th>Activated</th><th>Analyses</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <p class="muted">
+    <strong>Analyses, not money.</strong> Nothing records what a model call cost, so this counts
+    calls and states the cap in the same units — the instance's budget is a count too. Came back
+    means <em>logged something</em> on that day, which is narrower than opening the app and is the
+    only version of it this database can answer about a day in the past.
+  </p>
+
   <h2>Funnel <span class="pill" id="funnel-window"></span></h2>
   <p class="muted" id="funnel-summary">Loading…</p>
   <table id="funnel">
@@ -512,6 +527,37 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
   // ── Funnel ─────────────────────────────────────────────────────────────────────────────────
 
+  function pct(part, whole) {
+    return whole ? Math.round((part / whole) * 100) + "%" : "—";
+  }
+
+  function loadMetrics() {
+    return api("GET", "/admin/api/metrics?days=30").then(function (m) {
+      $("metrics-window").textContent = "last " + m.days.length + " days";
+      var today = m.days[m.days.length - 1] || { analyses: 0 };
+      var budget = m.dailyAnalysisCap
+        ? today.analyses + " of " + m.dailyAnalysisCap + " analyses today · " + m.headroom + " left"
+        : today.analyses + " analyses today · no instance cap";
+      $("metrics-summary").textContent = budget
+        + " · came back next day " + m.d1.returned + "/" + m.d1.eligible + " (" + pct(m.d1.returned, m.d1.eligible) + ")"
+        + " · on day 7 " + m.d7.returned + "/" + m.d7.eligible + " (" + pct(m.d7.returned, m.d7.eligible) + ")";
+      var body = $("metrics").querySelector("tbody");
+      body.textContent = "";
+      // Newest first on screen; the server sends oldest first because that is the order a window is.
+      m.days.slice().reverse().forEach(function (d) {
+        var tr = document.createElement("tr");
+        [d.date, String(d.signups), String(d.activations), String(d.analyses)].forEach(function (t, i) {
+          var td = document.createElement("td");
+          td.textContent = t;
+          // The one number that can hit a wall, marked when it is at it.
+          if (i === 3 && m.dailyAnalysisCap && d.analyses >= m.dailyAnalysisCap) td.className = "drop";
+          tr.appendChild(td);
+        });
+        body.appendChild(tr);
+      });
+    }).catch(function (e) { $("metrics-summary").textContent = "failed: " + e.message; });
+  }
+
   function loadFunnel() {
     return api("GET", "/admin/api/funnel?days=30").then(function (f) {
       $("funnel-window").textContent = "last " + f.days + " days · content v" + f.contentVersion;
@@ -890,7 +936,8 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       content = res.content;
       meta = res.meta;
       render();
-      return loadNotify().then(loadFunnel).then(function () { return loadUsers(false); });
+      return loadNotify().then(loadMetrics).then(loadFunnel)
+        .then(function () { return loadUsers(false); });
     });
   }
 

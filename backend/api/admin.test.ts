@@ -730,6 +730,79 @@ describe("the photographs behind one meal", () => {
   });
 });
 
+describe("the numbers past the funnel", () => {
+  beforeEach(async () => { await mountWithAdmin(); });
+
+  const metrics = (query = "") =>
+    admin("GET", `/admin/api/metrics${query}`);
+  type View = {
+    days: { date: string; signups: number; activations: number; analyses: number }[];
+    d1: { eligible: number; returned: number };
+    d7: { eligible: number; returned: number };
+    dailyAnalysisCap: number;
+    headroom: number | null;
+  };
+
+  it("answers a row per day, the two return cohorts, and the instance's budget", async () => {
+    const userId = (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+    await store.patchProfile(userId, { onboarded_at: new Date().toISOString() });
+    await store.recordAnalysis(userId, new Date().toISOString().slice(0, 10), "photo");
+
+    const body = await (await metrics("?days=7")).json() as View;
+    expect(body.days).toHaveLength(7);
+    const today = body.days[body.days.length - 1]!;
+    expect(today.signups).toBeGreaterThanOrEqual(1);
+    expect(today.activations).toBeGreaterThanOrEqual(1);
+    expect(today.analyses).toBeGreaterThanOrEqual(1);
+    expect(body.d1.eligible).toBe(0);
+    expect(body.dailyAnalysisCap).toBe(base.globalDailyAnalysisCap);
+  });
+
+  it("says there is no budget rather than saying there is none LEFT", async () => {
+    // Zero means the instance has no daily cap at all. Reporting that as `headroom: 0` reads as
+    // "full", which is the opposite of what it means and the number somebody would act on.
+    mount({ ...base, globalDailyAnalysisCap: 0 });
+    const token = await session();
+    await store.setRole((await store.userIdForToken(token))!, "admin");
+    const res = await handle(new Request(url("/admin/api/metrics"), {
+      headers: { authorization: `Bearer ${token}` },
+    }));
+    expect((await res.json() as View).headroom).toBeNull();
+  });
+
+  it("counts today's spend against the cap", async () => {
+    await mountWithAdmin({ ...base, globalDailyAnalysisCap: 10 });
+    const userId = (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+    for (let i = 0; i < 3; i++) {
+      await store.recordAnalysis(userId, new Date().toISOString().slice(0, 10), "photo");
+    }
+    const body = await (await metrics()).json() as View;
+    expect(body.headroom).toBe(7);
+  });
+
+  it("clamps the window instead of refusing it", async () => {
+    for (const q of ["?days=0", "?days=99999", "?days=nonsense", "?days=-3"]) {
+      expect((await metrics(q)).status).toBe(200);
+    }
+    expect(((await (await metrics("?days=99999")).json()) as View).days.length)
+      .toBeLessThanOrEqual(400);
+  });
+
+  it("is a READ", async () => {
+    for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+      expect((await admin(method, "/admin/api/metrics", {})).status).toBe(404);
+    }
+  });
+
+  it("gives an ordinary signed-in user a 404", async () => {
+    // An aggregate is still a query over other people's rows.
+    const res = await handle(new Request(url("/admin/api/metrics"), {
+      headers: { authorization: `Bearer ${await session()}` },
+    }));
+    expect(res.status).toBe(404);
+  });
+});
+
 describe("the per-account sample", () => {
   beforeEach(async () => { await mountWithAdmin(); });
 

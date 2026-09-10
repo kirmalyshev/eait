@@ -4,6 +4,7 @@
 // are enforced here exactly as they are in Postgres, so a test that proves "another user's meal id
 // resolves to null" is proving something about the engine rather than about a mock's mood.
 
+import { dateMinus, localDate } from "@eait/shared";
 import type {
   DayTotals, HealthDay, Lang, MealRecord, NotificationCopy, OnboardingContent, OnboardingEvent,
   Profile, Provider,
@@ -12,7 +13,7 @@ import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
 import { type ChatMessage,
-  ADMIN_USER_PAGE_MAX,
+  ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
   type MealPatch, type Role,
   type PendingMeal, type PortionCorrection, type ProfilePatch, type PushPlatform, type PushToken,
@@ -444,6 +445,55 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async identitySubject(userId, provider) {
       return identities.find((i) => i.userId === userId && i.provider === provider)?.subject ?? null;
+    },
+
+    async adminMetrics({ days, today, timezone }) {
+      const window = Math.min(Math.max(1, Math.trunc(days)), ADMIN_METRICS_MAX_DAYS);
+      const dayOf = (at: number) => localDate(timezone, new Date(at));
+
+      const dates: string[] = [];
+      for (let i = window - 1; i >= 0; i--) dates.push(dateMinus(today, i));
+
+      const signups = new Map<string, number>();
+      const activations = new Map<string, number>();
+      const bump = (m: Map<string, number>, d: string) => m.set(d, (m.get(d) ?? 0) + 1);
+      for (const [id, at] of createdAt) {
+        bump(signups, dayOf(at));
+        const on = users.get(id)?.onboarded_at;
+        if (on) bump(activations, dayOf(Date.parse(on)));
+      }
+      const spent = new Map<string, number>();
+      for (const a of analyses) bump(spent, a.date);
+
+      // Who logged something on which day, so a return is one lookup rather than a scan per user.
+      const active = new Map<string, Set<string>>();
+      for (const a of analyses) {
+        if (!active.has(a.userId)) active.set(a.userId, new Set());
+        active.get(a.userId)!.add(a.date);
+      }
+      const cohort = (n: number) => {
+        let eligible = 0;
+        let returned = 0;
+        for (const [id, at] of createdAt) {
+          const born = dayOf(at);
+          // Inside the window, and old enough to have HAD its nth day.
+          if (born < dates[0]! || dateMinus(today, n) < born) continue;
+          eligible++;
+          if (active.get(id)?.has(dateMinus(born, -n))) returned++;
+        }
+        return { eligible, returned };
+      };
+
+      return {
+        days: dates.map((date) => ({
+          date,
+          signups: signups.get(date) ?? 0,
+          activations: activations.get(date) ?? 0,
+          analyses: spent.get(date) ?? 0,
+        })),
+        d1: cohort(1),
+        d7: cohort(7),
+      };
     },
 
     async emailForUser(userId) {

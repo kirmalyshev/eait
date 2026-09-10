@@ -45,7 +45,8 @@ import {
   isCalendarDate, screenIsOptional,
 } from "@eait/shared";
 import {
-  adminUserChat, adminUserDiary, adminUsers, notificationCopy, onboardingContent, onboardingFunnel,
+  adminMetrics, adminUserChat, adminUserDiary, adminUsers, notificationCopy, onboardingContent,
+  onboardingFunnel,
   resetNotificationCopy,
   resetOnboardingContent, saveNotificationCopy, saveOnboardingContent, setUserCap, userCap,
   type EngineDeps,
@@ -288,6 +289,18 @@ export async function adminRoutes(
         "x-content-type-options": "nosniff",
       },
     });
+  }
+
+  // ── THE NUMBERS PAST THE FUNNEL (#377) ─────────────────────────────────────────────────────
+  //
+  // The funnel says how far into onboarding people get. These say what is being spent and whether
+  // anybody came back — the two an operator acts on. An aggregate is still a query over other
+  // people's rows, so it is behind the same role as everything else here.
+  if (req.method === "GET" && pathname === "/admin/api/metrics") {
+    const raw = Number(url.searchParams.get("days") ?? 30);
+    // Clamped rather than rejected, exactly as the funnel's own `days` is.
+    const days = Number.isFinite(raw) ? Math.min(400, Math.max(1, Math.round(raw))) : 30;
+    return json(await adminMetrics(deps, days));
   }
 
   // ── Per-account sample ─────────────────────────────────────────────────────────────────────
