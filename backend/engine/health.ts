@@ -55,9 +55,9 @@ export async function recordHealthDays(
   // ONE DAY WIDER THAN `healthTrend` SERVES, AND LEFT THAT WAY DELIBERATELY. The slack absorbs the
   // phone-server midnight race: a first sync started at 23:59:58 reads five years of samples and
   // posts five batches, and the server's `today` can roll over before the first one lands. Without
-  // the extra day the oldest day is then dropped with no signal, and `syncHealth` sets its
-  // first-sync flag unconditionally, so the wide read is never retried for the life of the
-  // process. Narrowing it to `windowStart` is filed rather than done here.
+  // the extra day the oldest day is then dropped, and the only signal is a short `accepted`, which
+  // `syncHealth` reads as a sync to retry wide (`healthSyncLanded`). Narrowing it to `windowStart`
+  // is #544.
   const oldest = dateMinus(today, HEALTH_RETENTION_DAYS);
 
   // Every day is validated here, on the server. A metric outside its plausible range is nulled and

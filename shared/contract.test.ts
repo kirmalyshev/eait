@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   MAX_HEALTH_DAYS_PER_BATCH, MAX_ITEM_NAME, MAX_MEAL_AMOUNT, MAX_MEAL_ITEMS, healthDayBatches,
-  isEditMealRequest,
+  healthSyncLanded, isEditMealRequest,
 } from "./contract.ts";
 import { emptyHealthDay } from "./health.ts";
 
@@ -58,5 +58,22 @@ describe("healthDayBatches", () => {
     const out = healthDayBatches(all);
     expect(out.map((b) => b.length)).toEqual([MAX_HEALTH_DAYS_PER_BATCH, MAX_HEALTH_DAYS_PER_BATCH, 1]);
     expect(out.flat()).toEqual(all);
+  });
+});
+
+// Whether the phone's wide first sync may stop being wide. Here, tested, because the app's
+// workspace has no test runner.
+describe("healthSyncLanded", () => {
+  const day = (date: string) => ({ ...emptyHealthDay(date), steps: 1 });
+  const read = [day("2026-09-10"), day("2026-09-09"), day("2021-09-10")];
+
+  it("is every day of the window, not any day: the midnight race drops ONE", () => {
+    expect(healthSyncLanded(read, "2021-09-10", 3)).toBe(true);
+    expect(healthSyncLanded(read, "2021-09-10", 2)).toBe(false);
+  });
+
+  it("does not count a day from before the window, which the server never keeps", () => {
+    const withEdge = [...read, day("2021-09-09")];
+    expect(healthSyncLanded(withEdge, "2021-09-10", 3)).toBe(true);
   });
 });

@@ -803,6 +803,15 @@ export function healthDayBatches(days: readonly HealthDay[]): HealthDay[][] {
 }
 
 /**
+ * Whether a sync that read from `oldest` had every day of that window stored. EVERY day, not any:
+ * the midnight race drops one. A day before `oldest` is not counted — a sample overlapping the
+ * window's first midnight dates there, and a first sync's server never keeps it.
+ */
+export function healthSyncLanded(days: readonly HealthDay[], oldest: string, accepted: number): boolean {
+  return accepted === days.filter((d) => d.date >= oldest).length;
+}
+
+/**
  * The window the app re-reads on every sync. See `HealthDaysRequest` for why it looks backwards.
  *
  * The FIRST sync of a process reads `HEALTH_RETENTION_DAYS` instead — the rolling window is the

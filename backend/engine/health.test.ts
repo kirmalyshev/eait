@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import {
-  HEALTH_RETENTION_DAYS, dateMinus, emptyHealthDay, localDate, windowStart, type HealthDay,
+  HEALTH_RETENTION_DAYS, aggregateDays, dateMinus, emptyHealthDay, healthDayBatches,
+  healthSyncLanded, localDate, windowStart, zonedMidnight, type HealthDay, type HealthSample,
 } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -174,6 +175,48 @@ describe("recordHealthDays", () => {
   it("refuses an account that has not onboarded", async () => {
     const { userId } = await store.upsertDeviceUser("d".repeat(40), "en");
     expect(await recordHealthDays(deps, userId, [day(ago(1), { steps: 1 })])).toBeNull();
+  });
+});
+
+// `syncHealth` reads wide until a sync lands in full. A first sync the server shortens for any
+// reason but the race is therefore never done, and every sync after it reads five years again.
+describe("counting a first sync as landed", () => {
+  it("lands a first sync built the way the phone builds it", async () => {
+    const userId = await onboard();
+    const oldest = windowStart(TODAY, HEALTH_RETENTION_DAYS + 1);
+    const from = zonedMidnight(ZONE, oldest);
+    const samples: HealthSample[] = [];
+    for (let d = 0; d <= HEALTH_RETENTION_DAYS; d++) {
+      const noon = new Date(zonedMidnight(ZONE, ago(d)).getTime() + 12 * 3_600_000).toISOString();
+      samples.push({ metric: "steps", start: noon, end: noon, value: 5000 });
+    }
+    // Across the window's first midnight. The read passes no strict-start option, so HealthKit
+    // returns it, and it dates by its START to the day before the window.
+    samples.push({
+      metric: "workouts", value: 1,
+      start: new Date(from.getTime() - 30 * 60_000).toISOString(),
+      end: new Date(from.getTime() + 15 * 60_000).toISOString(),
+    });
+
+    const days = aggregateDays(samples, ZONE);
+    let accepted = 0;
+    for (const batch of healthDayBatches(days)) {
+      accepted += (await recordHealthDays(deps, userId, batch))!.accepted;
+    }
+    expect(days).toHaveLength(HEALTH_RETENTION_DAYS + 2);
+    expect(accepted).toBe(HEALTH_RETENTION_DAYS + 1);
+    expect(healthSyncLanded(days, oldest, accepted)).toBe(true);
+  });
+
+  it("does not land one that lost the midnight race", async () => {
+    // Read before midnight, landed after it: the server's today, and its bound, moved a day.
+    const userId = await onboard();
+    const phoneToday = ago(1);
+    const oldest = windowStart(phoneToday, HEALTH_RETENTION_DAYS + 1);
+    const days = [day(phoneToday, { steps: 2 }), day(oldest, { steps: 1 })];
+    const out = await recordHealthDays(deps, userId, days);
+    expect(out!.accepted).toBe(1);
+    expect(healthSyncLanded(days, oldest, out!.accepted)).toBe(false);
   });
 });
 
