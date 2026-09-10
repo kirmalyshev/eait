@@ -146,6 +146,136 @@ function contract(name: string, make: () => Promise<Store>) {
       expect((await s.getProfile(userId)) as unknown as Record<string, unknown>).not.toHaveProperty("role");
     });
 
+    // ── The admin's user list ──────────────────────────────────────────────────────────────
+    //
+    // #374, and it is the ONE READ IN THIS PORT THAT IS NOT SCOPED TO A USER. That makes it a
+    // deliberate widening with a name of its own rather than a relaxed `WHERE` on something the
+    // product calls: `AGENTS.md` says every read is scoped by a userId resolved from credentials,
+    // and the way to add an exception is to make it visible in the interface, test it here, and
+    // put it behind the admin role. Nothing on the product's own paths may call this.
+
+    it("lists the accounts newest first, with what the admin came to see", async () => {
+      const s = await open();
+      const d = device();
+      const { userId } = await s.upsertDeviceUser(d, "en");
+      await s.addIdentity(userId, "google", subject("list-one"));
+      await s.setIdentityEmail(userId, "google", subject("list-one"), "Listed@Example.test");
+      await s.setFreeAnalyses(userId, 7);
+      await s.recordAnalysis(userId, RUN_DATE, "photo");
+      await s.recordAnalysis(userId, RUN_DATE, "text");
+      await s.issueToken(userId);
+
+      const page = await s.adminListUsers({ limit: 50, today: RUN_DATE });
+      const row = page.rows.find((r) => r.userId === userId)!;
+      expect(row).toBeDefined();
+      expect(row.createdAt).toBeTruthy();
+      // Every provider on the account, and `device` is one: an anonymous install is a fact about
+      // the account, not the absence of one.
+      expect([...row.providers].sort()).toEqual(["device", "google"]);
+      expect(row.email).toBe("Listed@Example.test");
+      expect(row.freeAnalyses).toBe(7);
+      // Both scopes, because the sample is spent by a typed meal as much as by a photograph.
+      expect(row.analysesToday).toBe(2);
+      expect(row.spent).toBe(2);
+      expect(row.lastSeen).toBeTruthy();
+    });
+
+    it("says nothing an account does not have, rather than guessing", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const row = (await s.adminListUsers({ limit: 50, today: RUN_DATE })).rows
+        .find((r) => r.userId === userId)!;
+      expect(row.email).toBeNull();
+      // Null is "this account takes the instance default", which is a different fact from a number.
+      expect(row.freeAnalyses).toBeNull();
+      expect(row.analysesToday).toBe(0);
+      expect(row.spent).toBe(0);
+      // Never signed in on any device, so there is no session to have been seen in.
+      expect(row.lastSeen).toBeNull();
+      expect(row.entitlement).toBeNull();
+      expect(row.onboardedAt).toBeNull();
+    });
+
+    it("carries the entitlement as stored, and computes nothing about it", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const expires = new Date(Date.now() + 86_400_000).toISOString();
+      await s.putEntitlement(userId, { expiresAt: expires, productId: "monthly", eventAt: new Date().toISOString() });
+      const row = (await s.adminListUsers({ limit: 50, today: RUN_DATE })).rows
+        .find((r) => r.userId === userId)!;
+      // The store hands back the record; whether it is LIVE is `entitlementLive`'s answer and the
+      // engine's to ask. Two places deciding what "paid" means is how the panel and the refusal
+      // come to disagree.
+      expect(row.entitlement?.expiresAt).toBe(expires);
+      expect(row.entitlement?.productId).toBe("monthly");
+    });
+
+    it("pages with a cursor rather than an offset, and says when there is no more", async () => {
+      const s = await open();
+      const mine: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        mine.push((await s.upsertDeviceUser(device(), "en")).userId);
+        // A REAL PAUSE, because the order under test is by creation time. Three accounts made in
+        // one millisecond are ordered by their ids, which are random — so without this the
+        // assertion below is a coin toss rather than a check on the sort.
+        await new Promise((r) => setTimeout(r, 2));
+      }
+
+      // An OFFSET pages wrong the moment a row is inserted mid-walk — which on this table is
+      // somebody signing up. The cursor is the last row's own position.
+      const first = await s.adminListUsers({ limit: 1, today: RUN_DATE });
+      expect(first.rows).toHaveLength(1);
+      expect(first.nextCursor).not.toBeNull();
+      const second = await s.adminListUsers({ limit: 1, cursor: first.nextCursor!, today: RUN_DATE });
+      expect(second.rows).toHaveLength(1);
+      expect(second.rows[0]!.userId).not.toBe(first.rows[0]!.userId);
+
+      // Newest first, so the three just made come back in the reverse of the order they were made.
+      const all = await s.adminListUsers({ limit: 100, today: RUN_DATE });
+      const seen = all.rows.map((r) => r.userId).filter((id) => mine.includes(id));
+      expect(seen).toEqual([...mine].reverse());
+    });
+
+    it("finds one account by its exact address, case-folded", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const sub = subject("find-by-email");
+      await s.addIdentity(userId, "apple", sub);
+      await s.setIdentityEmail(userId, "apple", sub, `Person.${RUN}@Example.test`);
+
+      const found = await s.adminListUsers({ q: `person.${RUN}@example.TEST`, limit: 50, today: RUN_DATE });
+      expect(found.rows.map((r) => r.userId)).toEqual([userId]);
+    });
+
+    it("finds one account by an id prefix, and NEVER by a substring of one", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+
+      expect((await s.adminListUsers({ q: userId.slice(0, 8), limit: 50, today: RUN_DATE }))
+        .rows.map((r) => r.userId)).toEqual([userId]);
+      // A prefix is an index seek; a substring is a scan of every account in the table, and it is
+      // the shape that turns a support question into a table scan on the box that serves the app.
+      expect((await s.adminListUsers({ q: userId.slice(9, 17), limit: 50, today: RUN_DATE })).rows)
+        .toEqual([]);
+    });
+
+    it("answers a query that is neither with no rows, never with everything", async () => {
+      const s = await open();
+      await s.upsertDeviceUser(device(), "en");
+      // The failure this is against: a `q` the implementation does not recognise falling through to
+      // an unfiltered list, so a typo in a support ticket dumps the user table.
+      expect((await s.adminListUsers({ q: "not an id or an address", limit: 50, today: RUN_DATE })).rows)
+        .toEqual([]);
+    });
+
+    it("bounds the page whatever it is asked for", async () => {
+      const s = await open();
+      await s.upsertDeviceUser(device(), "en");
+      // The route clamps too, and this is the half that holds when something else calls it.
+      expect((await s.adminListUsers({ limit: 10_000, today: RUN_DATE })).rows.length)
+        .toBeLessThanOrEqual(200);
+    });
+
     // ── The paid tier ──────────────────────────────────────────────────────────────────────
     //
     // Both implementations must agree here for the same reason they must agree about merging: the

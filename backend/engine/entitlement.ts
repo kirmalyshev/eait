@@ -10,9 +10,9 @@
 // can grant itself an entitlement, and there must never be one: the app's copy of its own
 // subscription comes from the purchases SDK and is a rendering hint, not a credential.
 
-import { entitlementActive, entitlementLive, type Entitlement } from "@eait/shared";
+import { entitlementActive, entitlementLive, localDate, type Entitlement } from "@eait/shared";
 import type { Config } from "../config.ts";
-import type { EntitlementPatch } from "../store.ts";
+import type { AdminUserRow, EntitlementPatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 
 /**
@@ -53,6 +53,52 @@ export async function userCap(deps: EngineDeps, userId: string): Promise<UserCap
 /** Null when there is no such account. `n` null puts the account back on the instance default. */
 export async function setUserCap(deps: EngineDeps, userId: string, n: number | null): Promise<UserCap | null> {
   return (await deps.store.setFreeAnalyses(userId, n)) ? userCap(deps, userId) : null;
+}
+
+/**
+ * One row of the admin's account list (#374) — the store's row with the two questions answered
+ * that only this layer may answer.
+ *
+ * `entitled` is `entitlementLive` and nothing else, for the reason at the top of this file: the
+ * panel must not be a second opinion about what "paid" means, or it will eventually disagree with
+ * the refusal. `effective` is the same `own ?? default` that `checkCaps` refuses with.
+ */
+export interface AdminUser extends AdminUserRow {
+  entitled: boolean;
+  effective: number;
+}
+
+export interface AdminUsers {
+  users: AdminUser[];
+  nextCursor: string | null;
+  /** The instance default, so the panel can say what a null cap resolves to. */
+  defaultFreeAnalyses: number;
+}
+
+/**
+ * The accounts, newest first. READ-ONLY, and the one place the store's unscoped read is called.
+ *
+ * `today` comes from the instance's own timezone rather than from the caller: an admin in another
+ * country asking "how many analyses today" means this server's day, which is the day the cap is
+ * counted against.
+ */
+export async function adminUsers(
+  deps: EngineDeps,
+  query: { q?: string; limit: number; cursor?: string },
+): Promise<AdminUsers> {
+  const page = await deps.store.adminListUsers({
+    ...query, today: localDate(deps.config.timezone),
+  });
+  const now = Date.now();
+  return {
+    users: page.rows.map((row) => ({
+      ...row,
+      entitled: entitlementLive(row.entitlement, now),
+      effective: row.freeAnalyses ?? deps.config.freeAnalyses,
+    })),
+    nextCursor: page.nextCursor,
+    defaultFreeAnalyses: deps.config.freeAnalyses,
+  };
 }
 
 /** This account's paid tier, in the shape the profile response carries. */

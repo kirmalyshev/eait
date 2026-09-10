@@ -45,7 +45,7 @@ import {
   screenIsOptional,
 } from "@eait/shared";
 import {
-  notificationCopy, onboardingContent, onboardingFunnel, resetNotificationCopy,
+  adminUsers, notificationCopy, onboardingContent, onboardingFunnel, resetNotificationCopy,
   resetOnboardingContent, saveNotificationCopy, saveOnboardingContent, setUserCap, userCap,
   type EngineDeps,
 } from "../engine/index.ts";
@@ -173,6 +173,30 @@ export async function adminRoutes(
     // string should show a sensible window, not an error page.
     const days = Number.isFinite(raw) ? Math.min(365, Math.max(1, Math.round(raw))) : 30;
     return json(await onboardingFunnel(deps, days));
+  }
+
+  // ── The accounts ───────────────────────────────────────────────────────────────────────────
+  //
+  // #374, and it is THE WIDEST READ IN THE PRODUCT: every account, with the address on it. What
+  // stands between it and any signed-in phone is the role checked above, and nothing else — which
+  // is why the store method it calls is named for what it does rather than being a relaxed `WHERE`
+  // on something the app already calls.
+  //
+  // READ-ONLY. A list is a read; deleting an account or granting an entitlement is a separate
+  // decision with a separate blast radius, and neither has been made. There is no method here but
+  // GET, so the four others fall through to the 404 at the bottom of this function.
+  if (req.method === "GET" && pathname === "/admin/api/users") {
+    const raw = Number(url.searchParams.get("limit") ?? 50);
+    // Clamped rather than rejected, the same way the funnel's `days` is: this is a dashboard
+    // control, and a silly number in a query string should show a sensible page.
+    const limit = Number.isFinite(raw) ? Math.min(200, Math.max(1, Math.round(raw))) : 50;
+    const q = url.searchParams.get("q") ?? "";
+    const cursor = url.searchParams.get("cursor") ?? "";
+    return json(await adminUsers(deps, {
+      limit,
+      ...(q === "" ? {} : { q }),
+      ...(cursor === "" ? {} : { cursor }),
+    }));
   }
 
   // ── Per-account sample ─────────────────────────────────────────────────────────────────────

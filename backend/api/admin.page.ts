@@ -177,6 +177,30 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     <span class="status" id="notify-status"></span>
   </p>
 
+  <h2>Accounts</h2>
+  <p class="muted">
+    <strong>These are real people.</strong> Every row is somebody's account and the address they
+    signed in with. Read it to answer a question somebody asked you, and close it afterwards.
+    Search takes a whole email address or the beginning of a user id — nothing else matches.
+  </p>
+  <div class="card">
+    <div class="row">
+      <input type="text" id="users-q" placeholder="email address, or the start of a user id"
+             autocomplete="off" spellcheck="false">
+      <button id="users-search">Search</button>
+    </div>
+    <p class="muted" id="users-status">Loading…</p>
+  </div>
+  <table id="users">
+    <thead>
+      <tr><th>Account</th><th>Signed up</th><th>Via</th><th>Paid</th><th>Sample</th><th>Today</th><th>Last seen</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <p>
+    <button id="users-more" class="hidden">Load more</button>
+  </p>
+
   <h2>Per-account sample</h2>
   <p class="muted">
     How many analyses ONE account gets before the paywall, instead of the instance default. Save with
@@ -566,6 +590,78 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       .then(function (c) { showCap(c, "saved — "); }).catch(capFailed);
   });
 
+  // ── Accounts (#374) ────────────────────────────────────────────────────────────────────────
+  //
+  // A READ, and the widest one in the product: every account, with the address on it. The server
+  // checks the role on every request under /admin, so nothing here is a permission — it is a table.
+  //
+  // Every value reaches the DOM through textContent, like everything else on this page. An address
+  // somebody typed at a provider is still somebody's text.
+
+  var usersCursor = null;
+
+  function shortId(id) { return id.slice(0, 8); }
+
+  function ago(iso) {
+    if (!iso) return "never";
+    var days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+    if (days <= 0) return "today";
+    if (days === 1) return "yesterday";
+    return days + "d ago";
+  }
+
+  function userRow(u) {
+    var tr = document.createElement("tr");
+    var cells = [
+      u.email || shortId(u.userId),
+      u.createdAt.slice(0, 10),
+      (u.providers || []).join(", ") || "—",
+      u.entitled ? "yes" : (u.onboardedAt ? "no" : "not onboarded"),
+      // The number that is actually enforced, with the account's own beside it when it has one:
+      // "effective" is what checkCaps refuses with, and the panel must not compute a second answer.
+      u.spent + " / " + u.effective + (u.freeAnalyses === null ? " (default)" : ""),
+      String(u.analysesToday),
+      ago(u.lastSeen)
+    ];
+    cells.forEach(function (text, i) {
+      var td = document.createElement("td");
+      td.textContent = text;
+      if (i === 0) td.title = u.userId;
+      tr.appendChild(td);
+    });
+    // The id is what the sample box below takes, and typing a uuid off a screen is how a typo
+    // becomes a cap set on a stranger.
+    tr.addEventListener("click", function () {
+      $("cap-user").value = u.userId;
+      $("cap-user").scrollIntoView({ block: "center" });
+      api("GET", capPath()).then(function (c) { showCap(c); }).catch(capFailed);
+    });
+    return tr;
+  }
+
+  function loadUsers(append) {
+    var q = $("users-q").value.trim();
+    var path = "/admin/api/users?limit=50";
+    if (q) path += "&q=" + encodeURIComponent(q);
+    if (append && usersCursor) path += "&cursor=" + encodeURIComponent(usersCursor);
+    return api("GET", path).then(function (page) {
+      var body = $("users").querySelector("tbody");
+      if (!append) body.textContent = "";
+      page.users.forEach(function (u) { body.appendChild(userRow(u)); });
+      usersCursor = page.nextCursor;
+      $("users-more").classList.toggle("hidden", !page.nextCursor);
+      $("users-status").textContent = body.childElementCount === 0
+        ? (q ? "Nothing matches that. It takes a whole address, or the start of an id." : "No accounts yet.")
+        : body.childElementCount + " shown · sample is out of " + page.defaultFreeAnalyses + " by default";
+    }).catch(function (e) { $("users-status").textContent = "failed: " + e.message; });
+  }
+
+  $("users-search").addEventListener("click", function () { usersCursor = null; loadUsers(false); });
+  $("users-q").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { usersCursor = null; loadUsers(false); }
+  });
+  $("users-more").addEventListener("click", function () { loadUsers(true); });
+
   // ── Wiring ─────────────────────────────────────────────────────────────────────────────────
 
   function load() {
@@ -573,7 +669,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       content = res.content;
       meta = res.meta;
       render();
-      return loadNotify().then(loadFunnel);
+      return loadNotify().then(loadFunnel).then(function () { return loadUsers(false); });
     });
   }
 

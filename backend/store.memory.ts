@@ -12,7 +12,9 @@ import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
 import { type ChatMessage,
-  PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type FunnelAggregate, type MealPatch, type Role,
+  ADMIN_USER_PAGE_MAX,
+  PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
+  type MealPatch, type Role,
   type PendingMeal, type PortionCorrection, type ProfilePatch, type PushPlatform, type PushToken,
   type StoredEntitlement, type Store, type StoreOptions, type StoredPhoto,
 } from "./store.ts";
@@ -69,6 +71,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const now = opts.now ?? Date.now;
 
   const users = new Map<string, Profile>();
+  // WHEN the account was made. A column on `users` in Postgres and a second map here, like the
+  // entitlement and the role — the admin's list (#374) is the only reader, and a store that could
+  // not answer it would be a store the panel had to guess against.
+  const createdAt = new Map<string, number>();
   /**
    * Roles, in their own map rather than on the profile (#391a).
    *
@@ -174,6 +180,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
    */
   const eraseUser = (userId: string): void => {
     users.delete(userId);
+    createdAt.delete(userId);
     // Goes with the account. In Postgres this is a column on `users` and needs no statement at
     // all; here it is a second map, so it needs this line to keep the two stores honest.
     entitlements.delete(userId);
@@ -214,6 +221,46 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     for (const [k, d] of healthDays) if (d.userId === userId) healthDays.delete(k);
   };
 
+  /**
+   * The page cursor: where one row sits in the order, and nothing else.
+   *
+   * Both stores spell it the same way because it crosses the port — a page taken from one and
+   * continued against the other has to mean the same thing, and the contract test runs the same
+   * assertions against both.
+   */
+  const cursorOf = (userId: string, at: number): string => `${new Date(at).toISOString()}~${userId}`;
+
+  /**
+   * The accounts a `q` names, or null for "no filter". An EMPTY array means it named none.
+   *
+   * Exact address or id prefix, and nothing else — never a substring. The distinction is the whole
+   * point: both questions the admin actually asks are an index seek, and a substring is a scan of
+   * every account on the box that serves the app.
+   */
+  const matchingUsers = (q: string | undefined): string[] | null => {
+    const needle = (q ?? "").trim();
+    if (needle === "") return null;
+    const byEmail = identities
+      .filter((i) => i.email !== null && i.email.toLowerCase() === needle.toLowerCase())
+      .map((i) => i.userId);
+    if (byEmail.length > 0) return [...new Set(byEmail)];
+    // A prefix of a uuid, which is what a crash report or a support thread carries. Anything that
+    // is not one matches nothing — never everything, which is what a `q` falling through to an
+    // unfiltered list would do.
+    if (!/^[0-9a-f-]{4,36}$/i.test(needle)) return [];
+    return [...users.keys()].filter((id) => id.startsWith(needle.toLowerCase()));
+  };
+
+  /** `getEntitlement`'s answer without the await, for the admin list's row builder. */
+  const storedEntitlement = (userId: string): StoredEntitlement | null => {
+    const e = entitlements.get(userId);
+    if (!e) return null;
+    return {
+      expiresAt: e.expiresAt, lifetimeProductId: e.lifetimeProductId,
+      productId: e.productId, eventAt: e.eventAt, trial: e.trial === true,
+    };
+  };
+
   return {
     async upsertDeviceUser(deviceId, lang: Lang) {
       const existing = devices.get(deviceId);
@@ -221,6 +268,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (existing === undefined) {
         devices.set(deviceId, userId);
         users.set(userId, blankProfile(userId, lang));
+        createdAt.set(userId, now());
       }
       // Re-asserted on every device auth, matching Postgres: the device map is what this method
       // resolves through and the identity row is what "is anything else still linked" counts, so
@@ -253,6 +301,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     async createUser(lang: Lang) {
       const userId = crypto.randomUUID();
       users.set(userId, blankProfile(userId, lang));
+      createdAt.set(userId, now());
       return userId;
     },
 
@@ -348,6 +397,51 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         .map((i) => ({ provider: i.provider, linkedAt: i.linkedAt }));
     },
 
+    async adminListUsers({ q, limit, cursor, today }) {
+      const bounded = Math.min(Math.max(1, Math.trunc(limit)), ADMIN_USER_PAGE_MAX);
+      const wanted = matchingUsers(q);
+      if (wanted !== null && wanted.length === 0) return { rows: [], nextCursor: null };
+
+      const ordered = [...users.keys()]
+        .filter((id) => wanted === null || wanted.includes(id))
+        .map((id) => ({ id, at: createdAt.get(id) ?? 0 }))
+        // Newest first, the id settling a tie, exactly as Postgres orders it — two accounts made in
+        // the same millisecond must come back in ONE order or the cursor skips a row.
+        .sort((a, b) => b.at - a.at || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
+
+      const after = cursor === undefined ? 0
+        : ordered.findIndex((r) => cursorOf(r.id, r.at) === cursor) + 1;
+      // An unknown cursor is an empty page, never the first one: paging from the top again would
+      // walk the whole table a second time and look like it worked.
+      if (cursor !== undefined && after === 0) return { rows: [], nextCursor: null };
+
+      const page = ordered.slice(after, after + bounded);
+      const rows = page.map(({ id, at }): AdminUserRow => {
+        const mine = identities
+          .filter((i) => i.userId === id)
+          .sort((a, b) => a.linkedAt.localeCompare(b.linkedAt));
+        const sessions = [...tokens.values()].filter((t) => t.userId === id);
+        return {
+          userId: id,
+          createdAt: new Date(at).toISOString(),
+          onboardedAt: users.get(id)?.onboarded_at ?? null,
+          providers: mine.map((i) => i.provider),
+          email: mine.find((i) => i.email)?.email ?? null,
+          entitlement: storedEntitlement(id),
+          freeAnalyses: freeAnalyses.get(id) ?? null,
+          analysesToday: analyses.filter((a) => a.userId === id && a.date === today).length,
+          spent: analyses.filter((a) => a.userId === id).length,
+          lastSeen: sessions.length === 0 ? null
+            : new Date(Math.max(...sessions.map((t) => t.lastUsedAt))).toISOString(),
+        };
+      });
+      const last = page[page.length - 1];
+      return {
+        rows,
+        nextCursor: ordered.length > after + page.length && last ? cursorOf(last.id, last.at) : null,
+      };
+    },
+
     async emailForUser(userId) {
       // Same order as Postgres: the oldest identity that has one. Sorted rather than assumed —
       // the array is append-ordered today and a merge already reassigns rows in it.
@@ -429,6 +523,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // rather than silently start addressing someone else's diary.
       for (const [h, row] of tokens) if (row.userId === fromUserId) tokens.delete(h);
       users.delete(fromUserId);
+      // Goes with the row, exactly as `eraseUser` takes it. Postgres gets both of these for free —
+      // one is a column on a deleted row, the other is a column this method never copies.
+      createdAt.delete(fromUserId);
       // NOT MOVED, deleted with the account. A merge is anonymous→real, so the surviving account's
       // own role is the answer; carrying one across would let an anonymous session hand an admin
       // grant to somebody else's account. Postgres gets this for free by not listing the column.
@@ -461,15 +558,11 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     },
 
     async getEntitlement(userId) {
-      const e = entitlements.get(userId);
       // The per-grant clocks are the store's own bookkeeping and are deliberately NOT part of
       // `StoredEntitlement`: nothing outside here may order events, and a field that escapes the
-      // port is a field somebody will branch on.
-      if (!e) return null;
-      return {
-        expiresAt: e.expiresAt, lifetimeProductId: e.lifetimeProductId,
-        productId: e.productId, eventAt: e.eventAt, trial: e.trial === true,
-      };
+      // port is a field somebody will branch on. `storedEntitlement` is that projection, shared
+      // with the admin list so the two cannot disagree about which fields leave.
+      return storedEntitlement(userId);
     },
 
     async putEntitlement(userId, patch) {

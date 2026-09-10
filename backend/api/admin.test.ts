@@ -393,6 +393,93 @@ describe("the admin page", () => {
   });
 });
 
+describe("the account list", () => {
+  beforeEach(async () => { await mountWithAdmin(); });
+
+  const user = async () => (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
+  const list = async (query = "") =>
+    await (await admin("GET", `/admin/api/users${query}`)).json() as {
+      users: { userId: string; providers: string[]; entitled: boolean; effective: number;
+               freeAnalyses: number | null; spent: number; analysesToday: number }[];
+      nextCursor: string | null;
+      defaultFreeAnalyses: number;
+    };
+
+  it("answers who signed up, what they are entitled to and what their cap is", async () => {
+    const userId = await user();
+    await store.setFreeAnalyses(userId, 3);
+    await store.recordAnalysis(userId, new Date().toISOString().slice(0, 10), "photo");
+
+    const body = await list();
+    const row = body.users.find((u) => u.userId === userId)!;
+    expect(row).toBeDefined();
+    expect(row.providers).toContain("device");
+    // Never entitled without a webhook: there is no client route that grants one and no admin
+    // route either, and this is the panel reading the same record the refusal reads.
+    expect(row.entitled).toBe(false);
+    expect(row.freeAnalyses).toBe(3);
+    expect(row.effective).toBe(3);
+    expect(body.defaultFreeAnalyses).toBe(base.freeAnalyses);
+  });
+
+  it("resolves the instance default rather than making the panel do it", async () => {
+    const userId = await user();
+    const row = (await list()).users.find((u) => u.userId === userId)!;
+    // Two answers to "what is this account's cap" is how the panel and `checkCaps` come to
+    // disagree — `freeAnalysesFor` is `own ?? default` and so is this.
+    expect(row.freeAnalyses).toBeNull();
+    expect(row.effective).toBe(base.freeAnalyses);
+  });
+
+  it("clamps the page size instead of refusing it", async () => {
+    // A dashboard control. A silly number in a query string should show a sensible page, the way
+    // the funnel's `days` is clamped rather than rejected.
+    for (const q of ["?limit=0", "?limit=99999", "?limit=nonsense", "?limit=-4"]) {
+      expect((await admin("GET", `/admin/api/users${q}`)).status).toBe(200);
+    }
+    await user(); await user(); await user();
+    expect((await list("?limit=2")).users.length).toBeLessThanOrEqual(2);
+  });
+
+  it("finds an account by an id prefix and by its address", async () => {
+    const userId = await user();
+    const sub = crypto.randomUUID();
+    await store.addIdentity(userId, "google", sub);
+    await store.setIdentityEmail(userId, "google", sub, "Support.Case@example.test");
+
+    expect((await list(`?q=${userId.slice(0, 8)}`)).users.map((u) => u.userId)).toEqual([userId]);
+    expect((await list("?q=support.case@EXAMPLE.test")).users.map((u) => u.userId)).toEqual([userId]);
+  });
+
+  it("answers a query that names nothing with no accounts, never with all of them", async () => {
+    await user(); await user();
+    expect((await list("?q=a support ticket pasted whole")).users).toEqual([]);
+  });
+
+  it("is a READ, and the only write here is still the cap", async () => {
+    // #374 is deliberately read-only. Deleting an account or granting an entitlement is a separate
+    // decision with a separate blast radius, and neither has been made.
+    for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+      expect((await admin(method, "/admin/api/users", {})).status).toBe(404);
+    }
+  });
+
+  it("gives an ordinary signed-in user a 404, like every other admin path", async () => {
+    // THE ONE THAT MATTERS. This is the widest read in the product — every account, with the
+    // address on it — and what stands between it and any signed-in phone is `users.role`.
+    const res = await handle(new Request(url("/admin/api/users"), {
+      headers: { authorization: `Bearer ${await session()}` },
+    }));
+    expect(res.status).toBe(404);
+    expect(await res.text()).not.toContain("userId");
+  });
+
+  it("gives an anonymous request a 401 and no rows", async () => {
+    const res = await admin("GET", "/admin/api/users", undefined, "");
+    expect(res.status).toBe(401);
+  });
+});
+
 describe("the per-account sample", () => {
   beforeEach(async () => { await mountWithAdmin(); });
 

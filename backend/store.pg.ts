@@ -21,7 +21,9 @@ import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
 import { type ChatMessage,
-  PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type FunnelAggregate, type MealPatch,
+  ADMIN_USER_PAGE_MAX,
+  PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
+  type MealPatch,
   type PendingMeal, type PortionCorrection, type ProfilePatch, type PushPlatform, type Store,
   type StoreOptions, type StoredPhoto,
 } from "./store.ts";
@@ -915,6 +917,90 @@ export async function postgresStore(
         provider: String(r.provider) as Provider,
         linkedAt: new Date(r.linked_at as string).toISOString(),
       }));
+    },
+
+    async adminListUsers({ q, limit, cursor, today }) {
+      const bounded = Math.min(Math.max(1, Math.trunc(limit)), ADMIN_USER_PAGE_MAX);
+
+      // ── THE FILTER, AND WHY IT IS TWO EXACT MATCHES ────────────────────────────────────────
+      //
+      // An address is compared folded and WHOLE; an id is matched by PREFIX. Neither is a
+      // `like '%…%'`, which is a sequential scan of every account on the box that also serves the
+      // app — and neither question the admin actually asks needs one.
+      //
+      // A `q` that is neither shape matches NOTHING. Falling through to an unfiltered list would
+      // turn a typo in a support ticket into a dump of the user table.
+      const needle = (q ?? "").trim();
+      const isPrefix = needle !== "" && /^[0-9a-f-]{4,36}$/i.test(needle);
+      const filtered = needle !== "";
+      if (filtered && !isPrefix && !needle.includes("@")) return { rows: [], nextCursor: null };
+
+      // The cursor is `(created_at, id)` — a KEYSET, never an offset. An offset pages wrong the
+      // moment a row is inserted mid-walk, and on this table that is somebody signing up.
+      const at = cursor === undefined ? null : cursor.slice(0, cursor.lastIndexOf("~"));
+      const afterId = cursor === undefined ? null : cursor.slice(cursor.lastIndexOf("~") + 1);
+      if (cursor !== undefined && (at === "" || afterId === "" || !UUID.test(afterId!))) {
+        return { rows: [], nextCursor: null };
+      }
+
+      // One statement and one round trip. The five sub-selects are each an index seek on a column
+      // that already has an index (`identities_user_idx`, `analyses_user_date_idx`, the tokens
+      // primary key's table) — the alternative is a query per row, which is what makes an admin
+      // list slow enough that somebody eventually adds a cache to it.
+      const rows = await sql`
+        select u.id, u.created_at, u.onboarded_at, u.free_analyses,
+               u.entitlement_expires_at, u.entitlement_lifetime_product_id,
+               u.entitlement_product_id, u.entitlement_event_at, u.entitlement_trial,
+               (select array_agg(i.provider order by i.linked_at asc)
+                  from identities i where i.user_id = u.id) as providers,
+               (select i.email from identities i
+                 where i.user_id = u.id and i.email is not null
+                 order by i.linked_at asc limit 1) as email,
+               (select max(t.last_used_at) from tokens t where t.user_id = u.id) as last_seen,
+               (select count(*) from analyses a where a.user_id = u.id) as spent,
+               (select count(*) from analyses a
+                 where a.user_id = u.id and a.date = ${today}) as today
+          from users u
+         where (${!filtered}
+                or (${isPrefix} and u.id::text like ${needle.toLowerCase() + "%"})
+                or exists (select 1 from identities i
+                            where i.user_id = u.id and lower(i.email) = ${needle.toLowerCase()}))
+           and (${cursor === undefined}
+                or (u.created_at, u.id::text) < (${at}::timestamptz, ${afterId}))
+         order by u.created_at desc, u.id desc
+         limit ${bounded + 1}`;
+
+      const page = rows.slice(0, bounded);
+      const more = rows.length > bounded;
+      const last = page[page.length - 1] as Record<string, unknown> | undefined;
+      return {
+        rows: page.map((r: Record<string, unknown>): AdminUserRow => ({
+          userId: String(r.id),
+          createdAt: new Date(r.created_at as string).toISOString(),
+          onboardedAt: r.onboarded_at === null ? null : new Date(r.onboarded_at as string).toISOString(),
+          providers: ((r.providers as string[] | null) ?? []).map((x) => x as Provider),
+          email: r.email === null ? null : String(r.email),
+          // Null when nothing has ever been written: `entitlement_event_at` is the record's
+          // existence marker, exactly as `getEntitlement` reads it.
+          entitlement: r.entitlement_event_at === null ? null : {
+            expiresAt: r.entitlement_expires_at === null ? null
+              : new Date(r.entitlement_expires_at as string).toISOString(),
+            lifetimeProductId: r.entitlement_lifetime_product_id === null ? null
+              : String(r.entitlement_lifetime_product_id),
+            productId: String(r.entitlement_product_id ?? ""),
+            eventAt: new Date(r.entitlement_event_at as string).toISOString(),
+            trial: r.entitlement_trial === true,
+          },
+          freeAnalyses: r.free_analyses === null || r.free_analyses === undefined
+            ? null : num(r.free_analyses),
+          analysesToday: num(r.today),
+          spent: num(r.spent),
+          lastSeen: r.last_seen === null ? null : new Date(r.last_seen as string).toISOString(),
+        })),
+        nextCursor: more && last
+          ? `${new Date(last.created_at as string).toISOString()}~${String(last.id)}`
+          : null,
+      };
     },
 
     async emailForUser(userId) {

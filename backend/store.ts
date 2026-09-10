@@ -291,6 +291,59 @@ export interface SubscriberUpsert {
  */
 export type Role = "user" | "admin";
 
+/**
+ * One account as the admin's list shows it (#374).
+ *
+ * RAW, and computing nothing. Whether an entitlement is LIVE is `entitlementLive`'s answer and the
+ * engine's to ask — a store that decided it here would be a second definition of "paid", and the
+ * panel and the refusal would eventually disagree about one account.
+ */
+export interface AdminUserRow {
+  userId: string;
+  createdAt: string;
+  onboardedAt: string | null;
+  /** Every provider linked to the account, oldest link first. `device` is an anonymous install. */
+  providers: Provider[];
+  /** The address the oldest identity carrying one vouches for, or null. */
+  email: string | null;
+  /** What the account has bought, or null. Read `entitlementLive` for whether it is live. */
+  entitlement: StoredEntitlement | null;
+  /** The account's own sample size, or null when it takes the instance default. */
+  freeAnalyses: number | null;
+  /** Analyses of BOTH scopes on the day asked for — the sample counts a typed meal too. */
+  analysesToday: number;
+  /** Every analysis this account has ever spent. The number the sample is spent against. */
+  spent: number;
+  /** The most recent use of any of this account's sessions, or null if it has never held one. */
+  lastSeen: string | null;
+}
+
+/** What the admin's list was asked for. */
+export interface AdminUserQuery {
+  /**
+   * An exact address or an id PREFIX. Anything else matches nothing.
+   *
+   * Never a substring and never a `LIKE '%…%'`: both are a scan of every account on the box that
+   * serves the app, and the questions this exists for — "which account is this support email",
+   * "is this the id in the crash report" — are both answered by an index seek.
+   */
+  q?: string;
+  limit: number;
+  /** The last row of the previous page, opaque. Keyset, never an offset — see the contract test. */
+  cursor?: string;
+  /** The instance's today, in its own timezone. Passed in, because a store has no calendar. */
+  today: string;
+}
+
+export interface AdminUserPage {
+  rows: AdminUserRow[];
+  /** Null when this was the last page. */
+  nextCursor: string | null;
+}
+
+/** Nothing may ask for a bigger page than this, whatever it passes. */
+export const ADMIN_USER_PAGE_MAX = 200;
+
 export interface Store {
   // ── Identity ───────────────────────────────────────────────────────────────────────────────
   /** Find or create the user behind a device id. Returns whether the row was created. */
@@ -418,6 +471,17 @@ export interface Store {
   revokeTokensFor(userId: string): Promise<void>;
   /** What is linked to this account — for the settings screen, and for the merge guard. */
   listIdentities(userId: string): Promise<{ provider: Provider; linkedAt: string }[]>;
+  /**
+   * THE ONE READ IN THIS PORT THAT IS NOT SCOPED TO A USER (#374). The admin's list of accounts.
+   *
+   * `AGENTS.md`: every read is scoped by a `userId` resolved from credentials. This one is not, and
+   * that is why it has a name of its own rather than a relaxed `WHERE` on something the product
+   * already calls — the widening is visible in this interface, proven by its own contract tests,
+   * and reachable only from `adminRoutes`, which answers 404 to an account without the role.
+   *
+   * READ-ONLY, newest first, bounded by `ADMIN_USER_PAGE_MAX` whatever is asked for.
+   */
+  adminListUsers(query: AdminUserQuery): Promise<AdminUserPage>;
   /**
    * The account's sign-in address, or null — the oldest identity that carries one.
    *
