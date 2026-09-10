@@ -1942,7 +1942,11 @@ if (PG_URL) {
     it("keeps a hash, and nothing a dump could type into the form", async () => {
       const s = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
       const { userId } = await s.upsertDeviceUser(device(), "en");
-      const code = "ABCD2345";
+      // MINTED PER RUN. `pairing_codes` is keyed on `code_hash` alone, so a fixed code is a global
+      // singleton in the database: the row lives its 60 s, and the next run inside that window —
+      // or any run after one that died before the sweep — fails on the primary key (#461). Hex is
+      // a subset of the pairing alphabet, so this is still a code the server could have minted.
+      const code = crypto.randomUUID().slice(0, 8).toUpperCase();
       await s.putPairingCode(userId, await hashToken(code), Date.now() + 60_000);
 
       const sql = new SQL(PG_URL, { max: TEST_POOL });
