@@ -163,6 +163,18 @@ export const ROUTES = {
   /** Drops the caller's own token. Sign-out, not account deletion. */
   authSignOut: "/v1/auth/signout",
   /**
+   * POST, under a bearer — drops EVERY token of the caller's account (#247).
+   *
+   * The mitigation for the one risk pairing codes introduce: an intercepted code buys a full
+   * session until it idles out, and until this there was no way to end it. Same answer for a lost
+   * phone, and for a browser paired on a machine somebody no longer has.
+   *
+   * It signs the CALLING device out too, which is correct and has to be said on the button: there
+   * is no way to end every other session without ending this one, because nothing about a token
+   * says which device is holding it.
+   */
+  authSignOutEverywhere: "/v1/auth/signout/all",
+  /**
    * POST, under a bearer — mints a short-lived code that hands a BROWSER a session on the caller's
    * own account. Answers {@link PairCodeResponse}.
    *

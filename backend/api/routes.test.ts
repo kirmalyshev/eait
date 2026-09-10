@@ -652,6 +652,54 @@ describe("sign in with apple / google", () => {
     expect(identities.map((i) => i.provider).sort()).toEqual(["apple", "google"]);
   });
 
+  // ── Signing out everywhere (#247) ────────────────────────────────────────────────────────
+
+  it("ends every session of this account, including the one that asked", async () => {
+    // THE MITIGATION FOR #209. An intercepted pairing code buys a full session until it idles out;
+    // this is the only thing that ends it.
+    const a = await (await signIn("apple", "apple-signout-all")).json() as { token: string; userId: string };
+    // A second session on the same account, the way a browser gets one.
+    const second = await store.issueToken(a.userId);
+    expect(await store.userIdForToken(second)).toBe(a.userId);
+
+    const res = await post(ROUTES.authSignOutEverywhere, {}, a.token);
+    expect(res.status).toBe(200);
+
+    expect(await store.userIdForToken(second)).toBeNull();
+    // The calling device too, which is correct and is what the button has to say.
+    expect(await store.userIdForToken(a.token)).toBeNull();
+    expect((await get(ROUTES.identities, a.token)).status).toBe(401);
+  });
+
+  it("is not account deletion: signing in again gets everything back", async () => {
+    const a = await (await signIn("apple", "apple-signout-keeps")).json() as { token: string; userId: string };
+    await post(ROUTES.authSignOutEverywhere, {}, a.token);
+    // Signed out for real — otherwise the sign-in below would prove nothing.
+    expect(await store.userIdForToken(a.token)).toBeNull();
+
+    const again = await (await signIn("apple", "apple-signout-keeps")).json() as
+      { userId: string; outcome: string };
+    expect(again.userId).toBe(a.userId);
+    expect(again.outcome).toBe("switched");
+  });
+
+  it("touches nobody else's sessions", async () => {
+    const a = await (await signIn("apple", "apple-signout-mine")).json() as { token: string };
+    const b = await (await signIn("google", "google-signout-theirs")).json() as { token: string };
+    await post(ROUTES.authSignOutEverywhere, {}, a.token);
+    expect((await get(ROUTES.identities, b.token)).status).toBe(200);
+  });
+
+  it("needs a session of its own", async () => {
+    expect((await post(ROUTES.authSignOutEverywhere, {})).status).toBe(401);
+  });
+
+  it("is a POST, so nothing else can end a session on somebody's behalf", async () => {
+    const token = await session();
+    expect((await get(ROUTES.authSignOutEverywhere, token)).status).not.toBe(200);
+    expect(await store.userIdForToken(token)).not.toBeNull();
+  });
+
   it("is a no-op when the identity is already on this account", async () => {
     const a = await (await signIn("apple", "apple-sub-8")).json() as { token: string };
     const again = await (await signIn("apple", "apple-sub-8", a.token)).json() as { outcome: string };

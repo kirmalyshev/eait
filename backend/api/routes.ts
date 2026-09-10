@@ -516,6 +516,21 @@ export function createRouter(
         return json({ signedOut: true });
       }
 
+      // Sign out EVERYWHERE (#247) — every token of this account, this device's included.
+      //
+      // The mitigation for the one risk #209's pairing codes introduce: an intercepted code buys a
+      // full session until it idles out, and there was no way to notice or to end it. Same answer
+      // for a lost phone and for a browser paired on a machine somebody no longer has.
+      //
+      // NOT ACCOUNT DELETION. The data is untouched; signing in again gets all of it back. It is
+      // also NOT a session list — `tokens` holds `created_at` and `last_used_at` and nothing that
+      // names a device, so "end that one" is not a question this schema can answer. That is the
+      // bigger ticket this one deliberately is not.
+      if (req.method === "POST" && pathname === ROUTES.authSignOutEverywhere) {
+        await store.revokeTokensFor(userId);
+        return json({ signedOut: true });
+      }
+
       if (req.method === "GET" && pathname === ROUTES.identities) {
         return json({ identities: await identitiesFor(deps, userId) } satisfies IdentitiesResponse);
       }
