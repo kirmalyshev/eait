@@ -206,10 +206,10 @@ test("a proposal whose confirm landed without its answer is not offered again af
   await expect(page.locator(".thread li", { hasText: / — \d+ kcal$/ })).toHaveCount(1);
 });
 
-test("an analysis the stream calls failed may still have landed, so it is not worded as a failure", async ({ inWebApp: page }) => {
-  // The route writes `analysis-failed` for a throw that can come after the meal was logged (#514).
+test("a stream the server could not finish may still have landed, so it is not worded as a failure", async ({ inWebApp: page }) => {
+  // The route writes this for a throw that can come after the meal was logged (#514).
   await page.route("**/api/v1/meals/photo", (r) => r.fulfill({
-    status: 200, contentType: "application/x-ndjson", body: `${JSON.stringify({ kind: "analysis-failed" })}\n`,
+    status: 200, contentType: "application/x-ndjson", body: `${JSON.stringify({ kind: "outcome-unknown" })}\n`,
   }));
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
   await page.getByRole("button", { name: "Send the photo" }).click();
@@ -217,6 +217,17 @@ test("an analysis the stream calls failed may still have landed, so it is not wo
   await expect(page.locator(".notice")).toHaveText(
     "That did not finish cleanly, and it may still have been logged. Reload to check before sending it again.",
   );
+});
+
+test("an analysis the stream calls failed is a failed analysis, and says so", async ({ inWebApp: page }) => {
+  // Since #514 the route writes `analysis-failed` for the engine's own refusal and nothing else:
+  // charged, nothing logged, so trying again is safe.
+  await page.route("**/api/v1/meals/photo", (r) => r.fulfill({
+    status: 200, contentType: "application/x-ndjson", body: `${JSON.stringify({ kind: "analysis-failed" })}\n`,
+  }));
+  await page.locator('input[type="file"]').setInputFiles(FIXTURE);
+  await page.getByRole("button", { name: "Send the photo" }).click();
+  await expect(page.locator(".notice")).toHaveText("That did not come back. Try it again.");
 });
 
 test("Not this on an estimate that was already logged says so", async ({ inWebApp: page }) => {

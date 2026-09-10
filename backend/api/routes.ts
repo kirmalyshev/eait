@@ -15,7 +15,7 @@
 //    encoder cannot drift.
 
 import {
-  MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, RATE_LIMITED, REFUSAL_STATUS, ROUTES, isEditMealRequest,
+  MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, isEditMealRequest,
   type AuthDeviceRequest, type AuthDeviceResponse, type AuthProviderRequest,
   type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang,
   type UnlinkResponse,
@@ -665,9 +665,10 @@ export function createRouter(
               try {
                 line(await logPhotoMeal(deps, userId, input, line));
               } catch (e) {
-                // The JSON path's 500, in-band: logged, never worded to the client.
+                // The JSON path's 500, in-band: logged, never worded to the client. Never
+                // `analysis-failed` either: the throw can come after the meal was inserted (#514).
                 console.error(`[eait] api ${req.method} ${pathname} failed mid-stream: ${(e as Error)?.message ?? e}`);
-                line({ kind: "analysis-failed" });
+                line({ kind: OUTCOME_UNKNOWN });
               } finally {
                 clearInterval(keepalive);
                 try { ctrl.close(); } catch { /* the reader's cancel closed it first */ }

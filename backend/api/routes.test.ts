@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import {
   HEALTH_RETENTION_DAYS, MAX_CLIENT_ID, MAX_USER_LINE, MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay,
-  localDate, NDJSON, type PairCodeResponse, type PhotoEvent, type MealLogged, type ProfileResponse,
+  localDate, NDJSON, OUTCOME_UNKNOWN, type PairCodeResponse, type PhotoEvent, type MealLogged, type ProfileResponse,
 } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { DEMO_NOT_FOOD, demoPorts } from "../llm/demo.ts";
@@ -1663,6 +1663,19 @@ describe("the streamed photo route", () => {
     expect(res.status).toBe(200);
     const events = await ndjson(res);
     expect(events.at(-1)).toEqual({ kind: "not-food" });
+  });
+
+  it("words a throw after the meal was logged as an unknown outcome, never as a failed analysis (#514)", async () => {
+    const token = await session();
+    // The day's totals are read AFTER the insert, so a store failing there fails a turn whose meal
+    // is already in the diary.
+    const read = store.mealsForDate;
+    store.mealsForDate = async () => { throw new Error("the database went away"); };
+    const events = await ndjson(await streamed(token));
+    store.mealsForDate = read;
+    expect(events.at(-1)).toEqual({ kind: OUTCOME_UNKNOWN });
+    const day = await (await get(ROUTES.day, token)).json() as { meals: unknown[] };
+    expect(day.meals.length).toBe(1);
   });
 
   it("logs the meal even when the reader cancels after the first line — the charge stood, so the diary must too", async () => {

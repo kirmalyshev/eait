@@ -37,6 +37,17 @@ export const REFUSAL_STATUS = {
 export type RefusalKind = keyof typeof REFUSAL_STATUS;
 
 /**
+ * The streamed photo route's LAST line when the server itself failed mid-turn (#514): the JSON
+ * path's 500 `internal`, in-band because the 200 went out with the first byte.
+ *
+ * NOT A REFUSAL, AND NOT `analysis-failed`. The throw can come after the meal was inserted, so
+ * nobody knows whether it was logged, and every client words it that way: "try again" would pay
+ * for the meal twice and log it twice. A stream that closes with no last line is the same unknown.
+ * `analysis-failed` stays what the engine returns and nothing else.
+ */
+export const OUTCOME_UNKNOWN = "outcome-unknown";
+
+/**
  * The server's effective limits, as told to the client.
  *
  * These are ENV-CONFIGURED on the server (`EAIT__BACKEND__MAX_UPLOAD_MB`, `EAIT__BACKEND__MAX_PHOTOS_PER_MEAL`) and therefore
@@ -913,13 +924,15 @@ export const clientModelTimeoutMs = (serverLlmTimeoutMs: number, calls: number):
  */
 export const DEFAULT_MODEL_TIMEOUT_MS = clientModelTimeoutMs(SERVER_LLM_TIMEOUT_MS, PHOTO_MODEL_CALLS);
 /**
- * One line of the stream. Zero or one `glance`, zero or more `item`, then the `LogPhotoResult`
- * as the LAST line — refusals included, because the 200 went out with the first byte. An
- * `item` with `index: 0` after others means the analyzer started over (a schema retry).
+ * One line of the stream. Zero or one `glance`, zero or more `item`, then `PhotoLast` as the
+ * LAST line — refusals included, because the 200 went out with the first byte. An `item` with
+ * `index: 0` after others means the analyzer started over (a schema retry).
  */
 export type PhotoEvent =
   | { kind: "glance"; text: string }
   | { kind: "item"; index: number; item: MealItem }
-  | LogPhotoResult;
+  | PhotoLast;
+/** The stream's last line: the result, or the server's own failure mid-turn (`OUTCOME_UNKNOWN`). */
+export type PhotoLast = LogPhotoResult | { kind: typeof OUTCOME_UNKNOWN };
 export type MessageResponse = HandleTextResult;
 export type PendingResponse = ConfirmMealResult | { kind: "cancelled" } | { kind: "expired" };
