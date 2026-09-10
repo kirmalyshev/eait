@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   KCAL_FLOOR, KCAL_FLOOR_UNKNOWN, MIN_TARGET_BMI, ageFrom, basalMetabolicRate, bmi,
-  checkTargetWeight, explainTargets, parseRestrictions, targetsFor, verdictsFromTargets,
+  checkTargetWeight, explainTargets, targetsFor, verdictsFromTargets,
   visibleVerdicts, weightRemainingKg,
 } from "./targets.ts";
 import type { Profile } from "./types.ts";
@@ -219,23 +219,6 @@ describe("restriction caps", () => {
     const t = targetsFor(profile({ restrictions: ["vegan", "lowsugar"] }), TODAY);
     expect(t.satfat_g).toBeUndefined();
     expect(t.sodium_mg).toBeUndefined();
-  });
-});
-
-describe("parseRestrictions", () => {
-  it("matches inflected forms across all three languages", () => {
-    expect(parseRestrictions("проблемы с почками")).toEqual(["kidneys"]);
-    expect(parseRestrictions("high cholesterol")).toEqual(["ldl"]);
-    expect(parseRestrictions("Cholesterin zu hoch")).toEqual(["ldl"]);
-    expect(parseRestrictions("I'm vegan and diabetic")).toEqual(["vegan", "lowsugar"]);
-  });
-
-  it("returns stable order regardless of input order", () => {
-    expect(parseRestrictions("vegan, kidney disease")).toEqual(["kidneys", "vegan"]);
-  });
-
-  it("drops words outside the closed vocabulary", () => {
-    expect(parseRestrictions("I don't like mushrooms")).toEqual([]);
   });
 });
 

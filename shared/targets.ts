@@ -300,16 +300,6 @@ export function isRestrictionTag(v: string): v is RestrictionTag {
   return (RESTRICTION_TAGS as string[]).includes(v);
 }
 
-/** Free text → tags. Unknown words are dropped; the LLM classifier is the fallback. */
-export function parseRestrictions(text: string): string[] {
-  const hay = text.toLowerCase();
-  const tags: string[] = [];
-  for (const { tag, keywords } of RESTRICTION_MAP) {
-    if (keywords.some((k) => hay.includes(k))) tags.push(tag);
-  }
-  return tags;
-}
-
 // ── Verdicts ─────────────────────────────────────────────────────────────────────────────────
 
 /**
