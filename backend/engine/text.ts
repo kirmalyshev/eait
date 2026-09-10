@@ -119,7 +119,7 @@ export async function handleText(
   } catch (e) {
     // Given back when the gateway refused before generating anything — the same rule as the photo
     // path, and it must be, or a typed first meal burns a sample a photo would have kept.
-    const refunded = await refundGatewayRefusal(deps, userId, today, "text", e);
+    const refunded = await refundGatewayRefusal(deps, userId, analysisId, e);
     console.error(`[eait] text routing failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
     return { kind: "analysis-failed" };
   }

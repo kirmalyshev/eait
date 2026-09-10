@@ -1894,9 +1894,9 @@ describe("what each analysis cost", () => {
   it("says so in the log when a cost finds no analysis left to land on", async () => {
     const userId = await onboard();
     const today = localDate(deps.config.timezone);
-    const { onCost } = await charge(deps, userId, today, "photo");
+    const { analysisId, onCost } = await charge(deps, userId, today, "photo");
     // Refunded while a call was still out — the glance beside a refused analyzer, or a merge.
-    await store.undoAnalysis(userId, today, "photo");
+    await store.undoAnalysis(userId, analysisId);
     const errors = spyOn(console, "error").mockImplementation(() => {});
     try {
       onCost(0.125);
@@ -1906,6 +1906,28 @@ describe("what each analysis cost", () => {
     } finally {
       errors.mockRestore();
     }
+  });
+
+  it("refunds the refused turn's own analysis, never a concurrent turn's (#537)", async () => {
+    const userId = await onboard();
+    let secondCharged!: () => void;
+    const charged = new Promise<void>((r) => { secondCharged = r; });
+    let calls = 0;
+    const llm: LlmPorts = {
+      ...demoPorts(),
+      analyzePhoto: async (i) => {
+        if (++calls === 1) { await charged; throw new GatewayRefusal(429, "llm http 429: rate limited"); }
+        secondCharged();
+        i.onCost?.(0.5);
+        return await demoPorts().analyzePhoto(i);
+      },
+    };
+    const d = makeDeps({}, llm);
+    const turns = await Promise.all([logPhotoMeal(d, userId, photo()), logPhotoMeal(d, userId, photo())]);
+    expect(turns.map((t) => t.kind).sort()).toEqual(["analysis-failed", "logged"]);
+    const day = await spend();
+    expect(day.analyses).toBe(1);
+    expect(day.costUsd).toBeCloseTo(0.5, 9);
   });
 
   it("prices a re-read like the photo it re-reads", async () => {

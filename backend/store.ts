@@ -945,15 +945,15 @@ export interface Store {
    */
   analysisCosts(userId: string, analysisIds: string[]): Promise<{ id: string; costUsd: number | null; unpricedCalls: number }[]>;
   /**
-   * Give one analysis back. True when a row was deleted, false when there was nothing to give.
+   * Give back the analysis a refused turn charged. True when that row was deleted, false when there
+   * was nothing to give.
    *
    * The counterpart to charging before the call: a gateway refusal that generated nothing was
-   * billed nothing, so the account keeps its analysis. Deletes at most ONE row, matching the
-   * user, date and scope, in the store's own guarded statement — the engine never reads first and
-   * then decides, because two deliveries can be concurrent and a decision made from a stale read
-   * is a refund granted twice.
+   * billed nothing, so the account keeps its analysis. Deletes the ONE row the turn charged, scoped
+   * `id = ? AND user_id = ?` — never the newest of its day, which a concurrent turn on the same
+   * scope may own, cost and all (#537).
    */
-  undoAnalysis(userId: string, date: string, scope: "photo" | "text"): Promise<boolean>;
+  undoAnalysis(userId: string, analysisId: string): Promise<boolean>;
 
   // ── Health ─────────────────────────────────────────────────────────────────────────────────
   //

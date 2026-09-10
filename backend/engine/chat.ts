@@ -243,8 +243,7 @@ export async function chatHistory(
 /**
  * A line as the admin's thread reads it: the app's entry, plus how it was produced (#486), and — on
  * the line that opened a charged turn — the analysis that paid for it and what it cost (#525).
- * `cost` is null when the named analysis has no row any more — today only when a refund meant for
- * another turn took it (`undoAnalysis` takes the newest, #537).
+ * `cost` is null when the named analysis has no row any more.
  */
 export type AdminChatEntry = ChatEntry & {
   intent: ChatIntent | null;

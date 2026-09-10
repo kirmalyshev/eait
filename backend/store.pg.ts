@@ -447,7 +447,7 @@ alter table chat_messages add column if not exists intent text;
 alter table chat_messages add column if not exists model text;
 -- The analysis that paid for the turn this line opened (#525). No foreign key, on purpose, like
 -- meal_id: if that row goes the line keeps naming it, and the admin reads "analysis gone" rather
--- than a turn that cost nothing. Today only a refund meant for another turn does that (#537).
+-- than a turn that cost nothing.
 alter table chat_messages add column if not exists analysis_id bigint;
 create index if not exists chat_messages_user_seq_idx on chat_messages(user_id, seq desc);
 
@@ -1804,18 +1804,9 @@ export async function postgresStore(
       }));
     },
 
-    async undoAnalysis(userId, date, scope) {
-      // One statement, so the row is chosen and deleted atomically: a concurrent undo either
-      // deletes a different row or deletes nothing and says so, and neither can refund twice.
-      // The newest is taken, not the id just charged: a refund follows a call nobody priced.
-      // ponytail: a concurrent same-scope turn can have ITS row taken instead, cost and all —
-      // refund by the charged id if that race ever shows in the spend.
+    async undoAnalysis(userId, analysisId) {
       const rows = await sql`
-        delete from analyses where id = (
-          select id from analyses
-          where user_id = ${userId} and date = ${date} and scope = ${scope}
-          order by id desc limit 1
-        ) returning id`;
+        delete from analyses where id = ${analysisId} and user_id = ${userId} returning id`;
       return rows.length > 0;
     },
 

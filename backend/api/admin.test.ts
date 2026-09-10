@@ -551,14 +551,14 @@ describe("reading one account's thread", () => {
     const paid = await store.recordAnalysis(userId, "2026-09-10", "text");
     await store.addCost(userId, paid, 0.0042);
     const gone = await store.recordAnalysis(userId, "2026-09-10", "photo");
-    await store.undoAnalysis(userId, "2026-09-10", "photo");
+    await store.undoAnalysis(userId, gone);
     await store.appendChat(userId, [
       { role: "user", kind: "text", text: "how is my week?", intent: "answer", analysisId: paid },
       { role: "user", kind: "photo", text: null, analysisId: gone },
       { role: "assistant", kind: "text", text: "Fine.", speaker: "gabie", model: "x-ai/grok-4.6" },
     ]);
     const theirs = await (await thread(userId)).json() as { entries: { analysisId: string | null; cost: unknown }[] };
-    // An analysis with no row reads as gone (today only #537's race gets here) — never as $0.
+    // An analysis with no row reads as gone — never as $0.
     expect(theirs.entries.map((e) => [e.analysisId, e.cost])).toEqual([
       [paid, { usd: 0.0042, unpricedCalls: 0 }],
       [gone, null],

@@ -812,7 +812,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       row.appendChild(how);
     });
     // What the turn cost (#525), on the line that opened it — and "analysis gone" when the row it
-    // names does not exist any more, which is never a cost of zero (#537).
+    // names does not exist any more, which is never a cost of zero.
     if (e.analysisId) {
       var cost = document.createElement("span");
       cost.className = "how";

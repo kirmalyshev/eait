@@ -1030,16 +1030,11 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         .map((a) => ({ id: a.id, costUsd: a.costUsd, unpricedCalls: a.unpricedCalls }));
     },
 
-    async undoAnalysis(userId, date, scope) {
-      // The newest match, like the Postgres one — and with the same ponytail about a concurrent turn.
-      for (let i = analyses.length - 1; i >= 0; i--) {
-        const a = analyses[i]!;
-        if (a.userId === userId && a.date === date && a.scope === scope) {
-          analyses.splice(i, 1);
-          return true;
-        }
-      }
-      return false;
+    async undoAnalysis(userId, analysisId) {
+      const i = analyses.findIndex((a) => a.id === analysisId && a.userId === userId);
+      if (i < 0) return false;
+      analyses.splice(i, 1);
+      return true;
     },
 
     async putHealthDays(userId, days) {

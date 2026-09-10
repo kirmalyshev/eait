@@ -132,7 +132,7 @@ export async function logPhotoMeal(
   } catch (e) {
     // A gateway refusal generated nothing and was billed nothing, so the analysis charged above is
     // given back. Every other failure may have cost real money and stays charged.
-    const refunded = await refundGatewayRefusal(deps, userId, date, "photo", e);
+    const refunded = await refundGatewayRefusal(deps, userId, analysisId, e);
     // Logged, never returned: the message can carry the prompt, and the prompt carries the user's
     // medical free text.
     console.error(`[eait] photo analysis failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
@@ -424,11 +424,11 @@ export async function reanalyzeMeal(
   const today = localDate(zone);
   const refusal = await checkCaps(deps, userId, today, "photo");
   if (refusal) return refusal;
-  const { onCost } = await charge(deps, userId, today, "photo");
+  const { analysisId, onCost } = await charge(deps, userId, today, "photo");
   // Read once the turn is paid for: a refused tap must not pull the bytes.
   const images = (await deps.store.getPhotos(userId, mealId)).map((p) => p.bytes);
   if (images.length === 0) {
-    await deps.store.undoAnalysis(userId, today, "photo");
+    await deps.store.undoAnalysis(userId, analysisId);
     return { kind: "no-photo" };
   }
 
@@ -442,7 +442,7 @@ export async function reanalyzeMeal(
       portionPriors: await deps.store.portionPriors(userId),
     });
   } catch (e) {
-    const refunded = await refundGatewayRefusal(deps, userId, today, "photo", e);
+    const refunded = await refundGatewayRefusal(deps, userId, analysisId, e);
     console.error(`[eait] re-analysis failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
     return { kind: "analysis-failed" };
   }

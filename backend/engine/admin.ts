@@ -102,7 +102,7 @@ export async function adminUserDiary(
  *
  * The four fields: how a line was produced (#486) — the router's intent on the words it read, the
  * model on the words a model wrote — and, on the line that opened a charged turn, the analysis that
- * paid for it and what it cost (#525), with no cost when that analysis has no row any more (#537).
+ * paid for it and what it cost (#525), with no cost when that analysis has no row any more.
  * All four are null on every other line and on every line written before them.
  */
 export async function adminUserChat(

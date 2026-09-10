@@ -953,7 +953,7 @@ function contract(name: string, make: () => Promise<Store>) {
       await s.addCost(a, typed, 0.25);
       await s.addCost(a, snapped, 0.5);
       await s.addCost(a, snapped, null);
-      expect(await s.undoAnalysis(a, RUN_DATE, "photo")).toBe(true); // the newest: `refunded`
+      expect(await s.undoAnalysis(a, refunded)).toBe(true);
       await s.appendChat(a, [
         { role: "user", kind: "text", text: "how is my week?", analysisId: typed },
         { role: "assistant", kind: "text", text: "Fine." },
@@ -1182,22 +1182,20 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.countGlobalAnalyses(RUN_DATE)).toBe(before + 3);
     });
 
-    it("gives back one analysis, and only one, scoped like every other read", async () => {
+    it("gives back the analysis it is named, once, and never another account's", async () => {
       const s = await open();
       const a = (await s.upsertDeviceUser(device(), "en")).userId;
       const b = (await s.upsertDeviceUser(device(), "en")).userId;
-      await s.recordAnalysis(a, RUN_DATE, "photo");
-      await s.recordAnalysis(a, RUN_DATE, "photo");
-      await s.recordAnalysis(a, RUN_DATE, "text");
-      await s.recordAnalysis(b, RUN_DATE, "photo");
-      expect(await s.undoAnalysis(a, RUN_DATE, "photo")).toBe(true);
-      expect(await s.countUserPhotos(a, RUN_DATE)).toBe(1); // one of the two, never both
-      expect(await s.countUserAnalyses(a)).toBe(2);         // the text turn is untouched
-      expect(await s.countUserPhotos(b, RUN_DATE)).toBe(1); // and never another account's
-      expect(await s.undoAnalysis(a, RUN_DATE, "photo")).toBe(true);
-      // Nothing left to give back is an answer, not a throw — and not a row from another day.
-      expect(await s.undoAnalysis(a, RUN_DATE, "photo")).toBe(false);
-      expect(await s.undoAnalysis(a, "2020-01-01", "text")).toBe(false);
+      const refused = await s.recordAnalysis(a, RUN_DATE, "photo");
+      const concurrent = await s.recordAnalysis(a, RUN_DATE, "photo");
+      const theirs = await s.recordAnalysis(b, RUN_DATE, "photo");
+      await s.addCost(a, concurrent, 0.5);
+      expect(await s.undoAnalysis(b, refused)).toBe(false);
+      expect(await s.undoAnalysis(a, theirs)).toBe(false);
+      expect(await s.undoAnalysis(a, refused)).toBe(true);
+      expect(await s.analysisCosts(a, [refused, concurrent])).toEqual([{ id: concurrent, costUsd: 0.5, unpricedCalls: 0 }]);
+      expect(await s.countUserAnalyses(b)).toBe(1);
+      expect(await s.undoAnalysis(a, refused)).toBe(false);
       expect(await s.countUserAnalyses(a)).toBe(1);
     });
 

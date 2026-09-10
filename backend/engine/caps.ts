@@ -96,12 +96,11 @@ export async function charge(
 export async function refundGatewayRefusal(
   deps: EngineDeps,
   userId: string,
-  date: string,
-  scope: CapScope,
+  analysisId: string,
   e: unknown,
 ): Promise<boolean> {
   if (!(e instanceof GatewayRefusal)) return false;
-  return await deps.store.undoAnalysis(userId, date, scope).catch((x: unknown) => {
+  return await deps.store.undoAnalysis(userId, analysisId).catch((x: unknown) => {
     console.error(`[eait] refund failed: ${(x as Error)?.message ?? x}`);
     return false;
   });
