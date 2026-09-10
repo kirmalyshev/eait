@@ -13,7 +13,7 @@ import {
 } from "@eait/shared";
 import { dateMinus, isRefusal, localDate, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
-import type { ChatAppend } from "../store.ts";
+import type { ChatAppend, ChatIntent } from "../store.ts";
 import { normalizePromptText } from "../llm/prompt.ts";
 import { prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal } from "./caps.ts";
@@ -124,6 +124,8 @@ export async function handleText(
     return { kind: "analysis-failed" };
   }
 
+  // The model that wrote the answer, when there is one — the coach's, or the router's own sentence.
+  let answeredBy: string | null = null;
   const result = await route();
   // ONE QUESTION, ONE FRAMED TURN. Spent by the turn that was framed as its answer, whatever the
   // router made of it — a correction clears it through `editMeal` anyway, and every other intent
@@ -134,7 +136,7 @@ export async function handleText(
       console.error(`[eait] question clear failed: ${(e as Error)?.message ?? e}`);
     });
   }
-  await keep(deps, userId, input.text, result, input.clientId ?? null);
+  await keep(deps, userId, input.text, result, input.clientId ?? null, { intent: routed.intent, model: answeredBy });
   return result;
 
   async function route(): Promise<HandleTextResult> {
@@ -144,7 +146,9 @@ export async function handleText(
         // The router's own sentence is the FALLBACK, so a coach that fails degrades to the chat as
         // it was rather than to `analysis-failed` on a turn already charged.
         try {
-          return await coachTurn(deps, userId, { text: input.text, profile, focus, todayRows, week, history, today, onCost });
+          const answered = await coachTurn(deps, userId, { text: input.text, profile, focus, todayRows, week, history, today, onCost });
+          answeredBy = deps.config.llmChatModel;
+          return answered;
         } catch (e) {
           // With nothing from either, this is a failed analysis and the app says so: an empty
           // `answered` would render as no turn at all, which is the blank bubble by another name.
@@ -153,6 +157,7 @@ export async function handleText(
             return { kind: "analysis-failed" };
           }
           console.error(`[eait] coach failed, answering from the router: ${(e as Error)?.message ?? e}`);
+          answeredBy = deps.config.llmModel;
           return { kind: "answered", text: routed.text, speaker: "gabie" };
         }
       }
@@ -225,7 +230,11 @@ export async function handleText(
  * words must come first). A proposal writes the words and nothing else: it is not a meal until
  * confirmed, and `confirmPendingMeal` keeps the card then.
  */
-async function keep(deps: EngineDeps, userId: string, text: string, result: HandleTextResult, clientId: string | null): Promise<void> {
+async function keep(
+  deps: EngineDeps, userId: string, text: string, result: HandleTextResult, clientId: string | null,
+  // #486: the router's decision rides on the words it read, the model on the words it wrote.
+  how: { intent: ChatIntent; model: string | null },
+): Promise<void> {
   // A refusal never was a turn; a correction whose meal is gone changed nothing, and the app says
   // so in a notice that is not a line.
   if (result.kind === "target-gone" || isRefusal(result)) return;
@@ -235,12 +244,12 @@ async function keep(deps: EngineDeps, userId: string, text: string, result: Hand
     // The words go in when they are said, so a turn taken while a proposal sits lands after them.
     // The MEAL is not written until confirmed; `confirmPendingMeal` keeps the card then.
     const lines: ChatAppend[] = [{
-      role: "user", kind: "text", text, clientId,
+      role: "user", kind: "text", text, clientId, intent: how.intent,
       // A proposal's line names its proposal; the meal takes that id when confirmed.
       pendingId: result.kind === "proposed" ? result.pendingId : null,
     }];
     if (result.kind === "answered") {
-      lines.push({ role: "assistant", kind: "text", text: result.text, speaker: result.speaker ?? null });
+      lines.push({ role: "assistant", kind: "text", text: result.text, speaker: result.speaker ?? null, model: how.model });
     } else if (result.kind === "updated" || result.kind === "redated") {
       lines.push({ role: "assistant", kind: "meal", mealId: result.mealId, event: result.kind });
       if (result.kind === "updated") {

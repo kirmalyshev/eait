@@ -190,7 +190,7 @@ export async function logPhotoMeal(
         // LAST, and a plain assistant line like any other model prose in this thread: the estimate
         // is delivered, then queried. There is no line kind for it, because a question that needed
         // one would be a question the Chat tab could not show when the app scrolls back to it.
-        ...(question ? [{ role: "assistant", kind: "text", text: question.text } as const] : []),
+        ...(question ? [{ role: "assistant", kind: "text", text: question.text, model: deps.config.llmModel } as const] : []),
       ],
       ...(greeting.undo ? { undo: greeting.undo } : {}),
     };

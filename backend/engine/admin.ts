@@ -34,9 +34,9 @@
 
 import {
   explainTargets, localDate, windowStart,
-  type ChatHistoryResponse, type FoodTargets, type MealRecord,
+  type FoodTargets, type MealRecord,
 } from "@eait/shared";
-import { chatHistory } from "./chat.ts";
+import { chatHistoryWithProvenance, type AdminChatEntry } from "./chat.ts";
 import type { EngineDeps } from "./deps.ts";
 
 /**
@@ -91,26 +91,26 @@ export async function adminUserDiary(
 /**
  * One account's thread, read back (#376).
  *
- * `chatHistory` AND NOT A SECOND RENDERING. The requirement is that what the operator reads is what
- * the user saw, and that is only true if it is ONE function: a panel with its own projection would
+ * `toEntry` AND NOT A SECOND RENDERING. The requirement is that what the operator reads is what the
+ * user saw, and that is only true if it is ONE function: a panel with its own projection would
  * drift the first time a line kind was added, and drift silently, because nothing would compare the
- * two. A test asserts that this response and `GET /v1/messages` are equal for the same account.
+ * two. `chatHistoryWithProvenance` is the app's page plus two fields, and a test asserts that this
+ * response with `intent` and `model` taken off equals `GET /v1/messages` for the same account.
  *
  * It also inherits the property that makes the Chat tab honest — a meal card is resolved on READ,
  * so it shows the meal as it is NOW and a verdict never outlives the numbers it described.
  *
- * WHAT IS NOT HERE, and it is two of the four things #376 asked for: the intent the router chose,
- * and what the turn cost. Neither is written down anywhere — `routeText` decides an intent and
- * returns it, `openrouter.ts` never reads `usage` off the response, and `chat_messages` has a
- * column for neither. A panel column that is null for every row is worse than a stated gap.
+ * The two fields are how a line was produced (#486): the router's intent on the words it read, the
+ * model on the words a model wrote, and null on every other line and on every line from before.
+ * WHAT IS STILL NOT HERE is what a turn cost: see #484 (PR #519) and #525.
  */
 export async function adminUserChat(
   deps: EngineDeps,
   userId: string,
   opts: { before?: number | null; limit?: number },
-): Promise<ChatHistoryResponse | null> {
+): Promise<{ entries: AdminChatEntry[]; before: number | null } | null> {
   // An account that does not exist is a 404 rather than an empty thread: "no such person" and "this
   // person has said nothing" are different answers to a support question.
   if (await deps.store.getProfile(userId) === null) return null;
-  return chatHistory(deps, userId, opts);
+  return chatHistoryWithProvenance(deps, userId, opts);
 }

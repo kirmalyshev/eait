@@ -13,6 +13,7 @@
 import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, OnboardingContent,
   OnboardingEvent, Profile, Provider, ChatEvent, ChatSpeaker } from "@eait/shared";
+import type { RouteResult } from "./llm/port.ts";
 
 /** A text meal awaiting confirmation. Not in the diary yet, and expires. */
 export interface PendingMeal {
@@ -99,11 +100,14 @@ export interface PushToken {
 }
 
 /** A line to append to the thread. The shapes are the wire's (`ChatEntry`), minus what the store assigns. */
+/** What the router decided a user's words were — the branch the turn took (#486). */
+export type ChatIntent = RouteResult["intent"];
+
 export type ChatAppend =
-  | { role: "user"; kind: "text"; text: string; clientId?: string | null; pendingId?: string | null }
+  | { role: "user"; kind: "text"; text: string; clientId?: string | null; pendingId?: string | null; intent?: ChatIntent | null }
   /** No bytes, ever. `text` is the caption, if there was one; `mealId` the meal it logged, so the bubble can show it. */
   | { role: "user"; kind: "photo"; text: string | null; mealId?: string | null }
-  | { role: "assistant"; kind: "text"; text: string; speaker?: ChatSpeaker | null }
+  | { role: "assistant"; kind: "text"; text: string; speaker?: ChatSpeaker | null; model?: string | null }
   | { role: "assistant"; kind: "meal"; mealId: string; event: ChatEvent };
 
 /** A stored line. `seq` is the paging cursor: monotonic per STORE, never reused — so its gaps reflect every account's writes, and it is on the wire as an opaque cursor, not as a count. */
@@ -123,6 +127,10 @@ export interface ChatMessage {
   pendingId: string | null;
   /** On an assistant text line: who said it. Null is Spud, so every line from before Gabie stays his. */
   speaker: ChatSpeaker | null;
+  /** On a user text line the router read: what it decided the words were. Null anywhere else, and before #486. */
+  intent: ChatIntent | null;
+  /** On an assistant text line a model wrote: which model. Null is code — a scripted line — or before #486. */
+  model: string | null;
 }
 
 /**

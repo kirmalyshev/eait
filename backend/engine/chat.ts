@@ -11,7 +11,7 @@ import {
   type DailyTotals, type FoodTargets, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, correctionLine, explainTargets, firstVerdictLines, runningLine,
   isScriptedLineId, localDate, promptById, scriptedLine, scriptedParams,
 } from "@eait/shared";
-import type { ChatAppend, ChatMessage } from "../store.ts";
+import type { ChatAppend, ChatIntent, ChatMessage } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { onboardingContent } from "./onboarding.ts";
 
@@ -236,6 +236,28 @@ export async function chatHistory(
   userId: string,
   opts: { before?: number | null; limit?: number },
 ): Promise<ChatHistoryResponse> {
+  const { page, meals, before } = await chatPage(deps, userId, opts);
+  return { entries: page.map((m) => toEntry(m, meals)), before };
+}
+
+/** A line as the admin's thread reads it: the app's entry, plus how it was produced (#486). */
+export type AdminChatEntry = ChatEntry & { intent: ChatIntent | null; model: string | null };
+
+/**
+ * The same page with how each line was produced — for the admin's thread and nothing else (#486).
+ * The entries are `toEntry`'s, so the panel still reads what the person saw; the app is never sent
+ * the two fields, because it has no use for either.
+ */
+export async function chatHistoryWithProvenance(
+  deps: EngineDeps,
+  userId: string,
+  opts: { before?: number | null; limit?: number },
+): Promise<{ entries: AdminChatEntry[]; before: number | null }> {
+  const { page, meals, before } = await chatPage(deps, userId, opts);
+  return { entries: page.map((m) => ({ ...toEntry(m, meals), intent: m.intent, model: m.model })), before };
+}
+
+async function chatPage(deps: EngineDeps, userId: string, opts: { before?: number | null; limit?: number }) {
   const limit = Math.min(PAGE_MAX, Math.max(1, opts.limit ?? PAGE_DEFAULT));
   // One more than asked, to know whether an older page exists without a second query.
   const rows = await deps.store.chatBefore(userId, opts.before ?? null, limit + 1);
@@ -243,10 +265,7 @@ export async function chatHistory(
   const page = rows.slice(0, limit).reverse();
   const ids = [...new Set(page.flatMap((m) => (m.kind === "meal" && m.mealId ? [m.mealId] : [])))];
   const meals = new Map((await deps.store.getMeals(userId, ids)).map((m) => [m.id, m]));
-  return {
-    entries: page.map((m) => toEntry(m, meals)),
-    before: more && page.length > 0 ? page[0]!.seq : null,
-  };
+  return { page, meals, before: more && page.length > 0 ? page[0]!.seq : null };
 }
 
 function toEntry(m: ChatMessage, meals: Map<string, MealRecord>): ChatEntry {

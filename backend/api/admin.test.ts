@@ -519,8 +519,27 @@ describe("reading one account's thread", () => {
     const mine = await handle(new Request(url(ROUTES.messages), {
       headers: { authorization: `Bearer ${token}` },
     })).then((r) => r.json());
-    const theirs = await (await thread(userId)).json();
-    expect(theirs).toEqual(mine);
+    const theirs = await (await thread(userId)).json() as { entries: Record<string, unknown>[]; before: number | null };
+    // The app's entries, plus how each line was produced (#486) — and nothing else.
+    const stripped: unknown = { ...theirs, entries: theirs.entries.map(({ intent: _i, model: _m, ...e }) => e) };
+    expect(stripped).toEqual(mine);
+  });
+
+  it("says how each line was produced, and the app is never told (#486)", async () => {
+    const userId = await user();
+    await store.appendChat(userId, [
+      { role: "user", kind: "text", text: "how is my week?", intent: "answer" },
+      { role: "assistant", kind: "text", text: "Fine.", speaker: "gabie", model: "x-ai/grok-4.6" },
+    ]);
+    const theirs = await (await thread(userId)).json() as { entries: { intent: string | null; model: string | null }[] };
+    expect(theirs.entries.map((e) => [e.intent, e.model])).toEqual([["answer", null], [null, "x-ai/grok-4.6"]]);
+
+    const token = await store.issueToken(userId);
+    const mine = await (await handle(new Request(url(ROUTES.messages), {
+      headers: { authorization: `Bearer ${token}` },
+    }))).text();
+    expect(mine).not.toContain("x-ai/grok-4.6");
+    expect(mine).not.toContain("intent");
   });
 
   it("pages backwards with the cursor the page itself returns", async () => {

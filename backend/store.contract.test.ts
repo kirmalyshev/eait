@@ -922,6 +922,23 @@ function contract(name: string, make: () => Promise<Store>) {
       expect((await s.chatBefore(u, null, 3)).map((m) => m.speaker)).toEqual([null, null, "gabie"]);
     });
 
+    // #486. Nullable and never invented: a line no router read has no intent, and a line code wrote
+    // has no model — so "null" means "nothing produced this", never "we forgot".
+    it("keeps how a line was produced: the router's intent on the words, the model on the reply", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.appendChat(u, [
+        { role: "user", kind: "text", text: "how is my week?", intent: "answer" },
+        { role: "assistant", kind: "text", text: "Fine.", speaker: "gabie", model: "x-ai/grok-4.6" },
+        { role: "assistant", kind: "text", text: "Logged." },
+        { role: "user", kind: "text", text: "thanks" },
+      ]);
+      const lines = (await s.chatBefore(u, null, 4)).reverse();
+      expect(lines.map((m) => [m.intent, m.model])).toEqual([
+        ["answer", null], [null, "x-ai/grok-4.6"], [null, null], [null, null],
+      ]);
+    });
+
     it("hands out the first verdict exactly once per account", async () => {
       const s = await open();
       const a = (await s.upsertDeviceUser(device(), "en")).userId;

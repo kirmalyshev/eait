@@ -1918,3 +1918,50 @@ describe("what each analysis cost", () => {
     expect(d.costUsd).toBeCloseTo(0.5, 9);
   });
 });
+
+// ── How a turn was produced (#486) ────────────────────────────────────────────────────────────
+
+describe("how a turn was produced", () => {
+  const MODELS = { llmModel: "vision-model", llmChatModel: "chat-model" };
+  const lines = async (userId: string) => (await store.chatBefore(userId, null, 50)).reverse();
+
+  it("keeps the router's intent on the words and the coach's model on the answer", async () => {
+    const userId = await onboard();
+    expect((await handleText(makeDeps(MODELS), userId, { text: "how much protein have I had?" })).kind).toBe("answered");
+    const [asked, answered] = await lines(userId);
+    expect([asked!.intent, asked!.model]).toEqual(["answer", null]);
+    expect([answered!.intent, answered!.model]).toEqual([null, "chat-model"]);
+  });
+
+  it("names the router's model when the coach failed and the router's sentence answered", async () => {
+    const userId = await onboard();
+    const llm: LlmPorts = { ...demoPorts(), coach: async () => { throw new Error("the coach is down"); } };
+    expect((await handleText(makeDeps(MODELS, llm), userId, { text: "how much protein have I had?" })).kind).toBe("answered");
+    expect((await lines(userId))[1]!.model).toBe("vision-model");
+  });
+
+  it("keeps a described meal's intent on its words, and none on words no router read", async () => {
+    const userId = await onboard();
+    expect((await handleText(makeDeps(MODELS), userId, { text: "two eggs and toast" })).kind).toBe("proposed");
+    await appendLines(deps, userId, [{ role: "user", text: "typed during onboarding" }]);
+    expect((await lines(userId)).map((m) => m.intent)).toEqual(["meal", null]);
+  });
+
+  it("names the analyzer's model on the question it asked, and none on the scripted lines", async () => {
+    const userId = await onboard();
+    const asks: LlmPorts = {
+      ...demoPorts(),
+      analyzePhoto: async (i) => ({
+        ...(await demoPorts().analyzePhoto(i)), confidence: "low",
+        question: { text: "Cooked in oil, or dry?", options: ["In oil", "Dry"] },
+      }),
+    };
+    const d = makeDeps(MODELS, asks);
+    await logPhotoMeal(d, userId, photo());
+    await logPhotoMeal(d, userId, photo(9));
+    const said = (await lines(userId)).filter((m) => m.role === "assistant" && m.kind === "text");
+    expect(said.at(-1)).toMatchObject({ text: "Cooked in oil, or dry?", model: "vision-model" });
+    expect(said.length).toBeGreaterThan(1);
+    expect(said.slice(0, -1).every((m) => m.model === null)).toBe(true);
+  });
+});

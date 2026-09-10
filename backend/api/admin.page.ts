@@ -89,6 +89,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   .line:last-child { border-bottom: 0; }
   .line .who { flex: 0 0 52px; color: var(--muted); }
   .line .when { margin-left: auto; color: var(--faint); white-space: nowrap; }
+  .line .how { color: var(--faint); white-space: nowrap; }
   .line.them .who { color: var(--care); }
   img.shot { max-width: 260px; border-radius: 8px; margin: 8px 8px 0 0; vertical-align: top; }
   th, td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--border); }
@@ -801,6 +802,15 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     when.className = "when";
     when.textContent = e.ts.slice(0, 16).replace("T", " ");
     row.appendChild(when);
+    // How the line was produced (#486): the router's intent on words it read, the model on words a
+    // model wrote. Blank on a scripted line, and on every line from before either was kept.
+    [e.intent, e.model].forEach(function (t) {
+      if (!t) return;
+      var how = document.createElement("span");
+      how.className = "how";
+      how.textContent = t;
+      row.appendChild(how);
+    });
     return row;
   }
 

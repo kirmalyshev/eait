@@ -958,6 +958,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
           clientId: line.role === "user" && line.kind === "text" ? line.clientId ?? null : null,
           pendingId: line.role === "user" && line.kind === "text" ? line.pendingId ?? null : null,
           speaker: line.role === "assistant" && line.kind === "text" ? line.speaker ?? null : null,
+          intent: line.role === "user" && line.kind === "text" ? line.intent ?? null : null,
+          model: line.role === "assistant" && line.kind === "text" ? line.model ?? null : null,
         });
       }
     },
