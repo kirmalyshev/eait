@@ -355,6 +355,55 @@ export async function applyCorrection(
 }
 
 /**
+ * ANOTHER ANGLE OF A MEAL ALREADY LOGGED. Stored, never re-analyzed, never charged (#304).
+ *
+ * The camera's pending screen is on the phone while the multipart request is still on the wire
+ * with its photos in it, so a second shot cannot join it — the note beside it is queued and applied
+ * as an ordinary correction, and this is the other half of that screen. Three ways out were
+ * considered (#304); this is the one that costs the user nothing and moves no number under them.
+ *
+ * WHAT IT DELIBERATELY DOES NOT DO: ask the analyzer, touch the caps, recompute a verdict, or write
+ * a line into the thread. The meal's numbers are exactly what they were, and `PhotoStrip` on the
+ * meal screen renders the new angle the moment `photos` goes up. Making the numbers move is the
+ * meal screen's existing "Re-read" — `reanalyzeMeal`, which IS charged, is a deliberate tap, and
+ * already re-reads every stored photo, this one included.
+ *
+ * THE LIMIT IS COUNTED AGAINST WHAT IS ALREADY STORED, which is why the server decides it: the app
+ * knows `limits.maxPhotosPerMeal` and the meal's own count and should refuse first, but two numbers
+ * that must agree eventually will not. The JPEG sniff runs before anything is written, the same
+ * guard `logPhotoMeal` puts in front of the charge.
+ */
+export async function attachPhotos(
+  deps: EngineDeps,
+  userId: string,
+  mealId: string,
+  images: Uint8Array[],
+): Promise<
+  | { kind: "attached"; mealId: string; photos: number }
+  | { kind: "too-many"; limit: number }
+  | TargetGone
+  | { kind: "unsupported-image" }
+> {
+  // Scoped, like every other read: another account's meal id resolves to null, never to their row.
+  const existing = await deps.store.getMeal(userId, mealId);
+  if (!existing) return { kind: "target-gone", on: "correction" };
+  if (images.length === 0) return { kind: "attached", mealId, photos: existing.photos ?? 0 };
+
+  const typed = images.map((bytes) => ({ mime: imageMime(bytes), bytes }));
+  if (typed.some((p) => p.mime === null)) return { kind: "unsupported-image" };
+
+  const limit = deps.config.maxPhotosPerMeal;
+  const held = existing.photos ?? 0;
+  if (held + images.length > limit) return { kind: "too-many", limit };
+
+  const photos = await deps.store.appendPhotos(userId, mealId, typed.map((p) => ({ mime: p.mime!, bytes: p.bytes })));
+  // 0 means the meal stopped being the caller's between the read above and the write — deleted, in
+  // practice. Answered as the delete race it is, not as a successful attach of nothing.
+  if (photos === 0) return { kind: "target-gone", on: "correction" };
+  return { kind: "attached", mealId, photos };
+}
+
+/**
  * The analyzer reads the stored photos again and replaces the numbers. Charged like a photo
  * (today's cap, refunded on a gateway refusal), written like an edit but with `corrected: false`
  * and the current model — one estimator replacing itself is not a person correcting it — and

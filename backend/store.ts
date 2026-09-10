@@ -744,6 +744,17 @@ export interface Store {
    * NOTHING when the meal is not the caller's. Idempotent per position.
    */
   putPhotos(userId: string, mealId: string, photos: { mime: string; bytes: Uint8Array }[]): Promise<void>;
+  /**
+   * Add more angles to a meal that already has some, AFTER the ones it holds. Returns the new
+   * count; 0 when the meal is not the caller's, so nothing was written.
+   *
+   * Separate from `putPhotos` rather than a flag on it, because the two want opposite things and
+   * one of them is load-bearing: the log path writes positions from 0 and must stay idempotent per
+   * position, while appending is by definition not idempotent — calling it twice adds twice, which
+   * is what a second photo of one plate means. Making `putPhotos` offset by the current count would
+   * have given the log path the append behaviour too, silently.
+   */
+  appendPhotos(userId: string, mealId: string, photos: { mime: string; bytes: Uint8Array }[]): Promise<number>;
   /** Scoped: another user's meal id is an empty list. Position ascending. */
   getPhotos(userId: string, mealId: string): Promise<StoredPhoto[]>;
   /** Scoped: null for another user's meal, and for a position that does not exist. */

@@ -19,7 +19,7 @@ import {
   type AuthDeviceRequest, type AuthDeviceResponse, type AuthProviderRequest,
   type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang,
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
-  type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
+  type AttachPhotosResponse, type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
   type HealthDaysRequest, type HealthDaysResponse, type HealthResponse, type LivenessResponse,
   HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, type PushTokenResponse,
   type PairCodeResponse,
@@ -32,6 +32,7 @@ import {
   MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
   healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, profileView,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, type EngineDeps,
+  attachPhotos,
   reanalyzeMeal,
 } from "../engine/index.ts";
 import { confirmSubscription, subscribe, unsubscribe } from "../engine/subscribe.ts";
@@ -112,6 +113,8 @@ export interface RouterOptions {
 export const STREAM_KEEPALIVE_MS = 5_000;
 
 const REANALYZE_PATH = /^\/v1\/meals\/([^/]+)\/reanalyze$/;
+/** `POST /v1/meals/:id/photos` — one segment shorter than the GET that reads one by position. */
+const ATTACH_PATH = /^\/v1\/meals\/([^/]+)\/photos$/;
 
 export function createRouter(
   deps: EngineDeps,
@@ -719,6 +722,33 @@ export function createRouter(
             "cache-control": "private, max-age=31536000, immutable",
           },
         });
+      }
+
+      // ANOTHER ANGLE OF A LOGGED MEAL (#304). Multipart like `ROUTES.photo` and guarded the same
+      // way — the length header first, because `formData()` buffers the whole body — but nothing
+      // downstream is charged: it stores bytes and never asks the analyzer, so there is no cap to
+      // check and no sample to spend. `MAX_PHOTOS_PER_MEAL` is counted by the ENGINE, against what
+      // the meal already holds, which is a number only the server has.
+      const attachMatch = ATTACH_PATH.exec(pathname);
+      if (req.method === "POST" && attachMatch) {
+        const length = req.headers.get("content-length");
+        const declared = length === null ? NaN : Number(length);
+        if (!Number.isFinite(declared)) return json({ error: "length required" }, 411);
+        if (declared > deps.config.maxUploadBytes) return json({ error: "too large" }, 413);
+
+        const form = await req.formData();
+        const files = form.getAll("photo").flatMap((f) => (typeof f === "string" ? [] : [f]));
+        if (files.length === 0) return json({ error: "no photo" }, 400);
+        if (files.reduce((n, f) => n + f.size, 0) > deps.config.maxUploadBytes) return json({ error: "too large" }, 413);
+
+        const images = await Promise.all(files.map(async (f) => new Uint8Array(await f.arrayBuffer())));
+        const result = await attachPhotos(deps, userId, decodeURIComponent(attachMatch[1]!), images);
+        if (result.kind === "target-gone") return json({ error: "target-gone", on: result.on }, 409);
+        // Not a refusal kind: nothing was refused about the ACCOUNT, and the app knows the limit
+        // (`limits.maxPhotosPerMeal`) and the meal's own count, so it should never reach this.
+        if (result.kind === "too-many") return json({ error: "too-many-photos", limit: result.limit }, 400);
+        if (isRefusal(result)) return refusal(result);
+        return json({ mealId: result.mealId, photos: result.photos } satisfies AttachPhotosResponse);
       }
 
       const reanalyzeMatch = REANALYZE_PATH.exec(pathname);

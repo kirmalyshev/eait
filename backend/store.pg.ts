@@ -1427,6 +1427,30 @@ export async function postgresStore(
           where id = ${mealId} and user_id = ${userId}`;
       });
     },
+    async appendPhotos(userId, mealId, input) {
+      // A CLIENT-SUPPLIED ID, so the same guard `getMeal` and `updateMeal` carry: absent, not a
+      // type error at the column. Without it Postgres raises 22P02 on anything that is not a UUID
+      // and the route answers 500 to what is really "no such meal".
+      if (!UUID.test(mealId)) return 0;
+      // One transaction, and the next position is read INSIDE it: two attaches racing would
+      // otherwise compute the same offset and one would lose to `on conflict do nothing`, dropping
+      // a photo the user watched being taken.
+      return await sql.begin(async (tx) => {
+        const owned = await tx`select 1 from meals where id = ${mealId} and user_id = ${userId} for update`;
+        if (owned.length === 0) return 0;
+        const held = await tx`select coalesce(max(position) + 1, 0) as next from meal_photos where meal_id = ${mealId}`;
+        let next = Number(held[0]?.next ?? 0);
+        for (const p of input) {
+          await tx`
+            insert into meal_photos (id, meal_id, user_id, position, mime, bytes)
+            values (${crypto.randomUUID()}, ${mealId}, ${userId}, ${next++}, ${p.mime}, ${Buffer.from(p.bytes)})`;
+        }
+        const counted = await tx`
+          update meals set photos = (select count(*) from meal_photos where meal_id = ${mealId})
+          where id = ${mealId} and user_id = ${userId} returning photos`;
+        return Number(counted[0]?.photos ?? 0);
+      });
+    },
 
     async getPhotos(userId, mealId) {
       const rows = await sql`

@@ -619,6 +619,35 @@ function contract(name: string, make: () => Promise<Store>) {
       expect((await s.getMeal(a, m.id))?.photos).toBe(1);
     });
 
+    it("appends another angle AFTER the ones a meal holds, and is scoped like every other write", async () => {
+      // #304: the pending screen's second photo cannot join the request already on the wire, so it
+      // arrives after the card. `putPhotos` numbers from 0 and is idempotent per position, so it
+      // silently does nothing here — this is the other operation, and it is not idempotent by
+      // design: two photos of one plate mean two rows.
+      const s = await open();
+      const a = (await s.upsertDeviceUser(device(), "en")).userId;
+      const b = (await s.upsertDeviceUser(device(), "en")).userId;
+      const m = meal(a);
+      await s.insertMeal(m);
+      await s.putPhotos(a, m.id, [{ mime: "image/jpeg", bytes: jpeg(1) }]);
+
+      expect(await s.appendPhotos(a, m.id, [{ mime: "image/png", bytes: jpeg(2) }])).toBe(2);
+      const got = await s.getPhotos(a, m.id);
+      expect(got.map((p) => p.position)).toEqual([0, 1]);
+      expect(got[1]!.mime).toBe("image/png");
+      expect(Array.from(got[0]!.bytes)).toEqual(Array.from(jpeg(1)));
+      expect((await s.getMeal(a, m.id))?.photos).toBe(2);
+
+      // Appending again keeps going rather than overwriting: this is the non-idempotent one.
+      expect(await s.appendPhotos(a, m.id, [{ mime: "image/jpeg", bytes: jpeg(3) }])).toBe(3);
+      expect((await s.getPhotos(a, m.id)).map((p) => p.position)).toEqual([0, 1, 2]);
+
+      // Another account's meal id writes nothing and says so with 0.
+      expect(await s.appendPhotos(b, m.id, [{ mime: "image/jpeg", bytes: jpeg(4) }])).toBe(0);
+      expect((await s.getMeal(a, m.id))?.photos).toBe(3);
+      expect(await s.appendPhotos(a, "no-such-meal", [{ mime: "image/jpeg", bytes: jpeg(4) }])).toBe(0);
+    });
+
     it("erases photos with the account and moves them with a merge", async () => {
       const s = await open();
       const anon = (await s.upsertDeviceUser(device(), "en")).userId;

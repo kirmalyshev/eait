@@ -11,7 +11,7 @@ import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { remember } from "./chat.ts";
 import {
-  appendLines, applyCorrection, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
+  appendLines, applyCorrection, attachPhotos, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
   logPhotoMeal, patchProfile, profileView, reanalyzeMeal, stepApplies, week, type EngineDeps,
 } from "./index.ts";
 
@@ -1001,6 +1001,51 @@ describe("chat", () => {
     expect(again.kind).toBe("logged");
     if (again.kind === "logged") expect(again.mealId).toBe(res.pendingId);
     expect((await day(deps, userId))!.meals).toHaveLength(1);
+  });
+
+  it("attaches another angle of a meal already logged, without charging for it (#304)", async () => {
+    // The pending screen's second photo cannot join the request that is already on the wire, so it
+    // arrives after the card. Storing it costs nothing — the analyzer is not asked again — and the
+    // numbers do not move under the user. Re-reading them is the meal screen's existing "Re-read",
+    // which is charged, says so, and is the user's own deliberate tap.
+    const userId = await onboard();
+    const meal = await logPhotoMeal(deps, userId, photo());
+    if (meal.kind !== "logged") throw new Error("expected logged");
+    const spent = await store.countUserAnalyses(userId);
+
+    const res = await attachPhotos(deps, userId, meal.mealId, [jpeg(9)]);
+    expect(res).toEqual({ kind: "attached", mealId: meal.mealId, photos: 2 });
+    expect((await store.getPhotos(userId, meal.mealId))).toHaveLength(2);
+    // Not a single analysis more, and the meal's numbers are exactly what they were.
+    expect(await store.countUserAnalyses(userId)).toBe(spent);
+    const after = (await store.getMeal(userId, meal.mealId))!;
+    expect(after.kcal).toBe(meal.analysis.kcal);
+    expect(after.corrected).toBe(false);
+  });
+
+  it("refuses a photo that is not one, and never past the meal's limit", async () => {
+    const userId = await onboard();
+    const meal = await logPhotoMeal(deps, userId, photo());
+    if (meal.kind !== "logged") throw new Error("expected logged");
+    // The sniff that already guards the charge guards this too: a HEIC never reaches the store.
+    expect((await attachPhotos(deps, userId, meal.mealId, [heic()])).kind).toBe("unsupported-image");
+    expect(await store.getPhotos(userId, meal.mealId)).toHaveLength(1);
+    // Counted against what is ALREADY stored, which is the whole reason the server decides it.
+    const limit = deps.config.maxPhotosPerMeal;
+    expect(await attachPhotos(deps, userId, meal.mealId, Array.from({ length: limit }, () => jpeg(9))))
+      .toEqual({ kind: "too-many", limit });
+    expect(await store.getPhotos(userId, meal.mealId)).toHaveLength(1);
+  });
+
+  it("cannot attach to another user's meal, or to one that is gone", async () => {
+    const a = await onboard();
+    const b = await onboard();
+    const meal = await logPhotoMeal(deps, a, photo());
+    if (meal.kind !== "logged") throw new Error("expected logged");
+    // The scoping rule, asserted rather than assumed: another account's id resolves to nothing.
+    expect(await attachPhotos(deps, b, meal.mealId, [jpeg(9)])).toEqual({ kind: "target-gone", on: "correction" });
+    expect(await store.getPhotos(a, meal.mealId)).toHaveLength(1);
+    expect(await attachPhotos(deps, a, "no-such-meal", [jpeg(9)])).toEqual({ kind: "target-gone", on: "correction" });
   });
 
   it("cancels a proposal without writing", async () => {

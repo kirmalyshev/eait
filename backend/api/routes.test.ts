@@ -217,6 +217,59 @@ describe("photo", () => {
     expect(dayView.meals).toHaveLength(1); // one meal, not three
   });
 
+  it("attaches another angle to a logged meal, and charges nothing for it (#304)", async () => {
+    const token = await session();
+    const logged = await (await handle(photoRequest(token))).json() as { mealId: string };
+
+    const form = new FormData();
+    form.append("photo", new File([jpegBytes(7)], "second.jpg", { type: "image/jpeg" }));
+    const res = await handle(new Request(url(ROUTES.mealPhotos(logged.mealId)), {
+      method: "POST", headers: { authorization: `Bearer ${token}`, "content-length": DECLARED_LENGTH }, body: form,
+    }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ mealId: logged.mealId, photos: 2 });
+    // The GET by position — the route `PhotoStrip` fetches — now answers for the new one.
+    expect((await handle(new Request(url(ROUTES.mealPhoto(logged.mealId, 1)), {
+      headers: { authorization: `Bearer ${token}` },
+    }))).status).toBe(200);
+  });
+
+  it("guards the attach like the upload it is: length, size, a part, and the meal's owner", async () => {
+    const token = await session();
+    const logged = await (await handle(photoRequest(token))).json() as { mealId: string };
+    const at = url(ROUTES.mealPhotos(logged.mealId));
+    const auth = { authorization: `Bearer ${token}` };
+    const withPhoto = () => {
+      const f = new FormData();
+      f.append("photo", new File([jpegBytes(7)], "s.jpg", { type: "image/jpeg" }));
+      return f;
+    };
+
+    // No length at all is refused rather than read as zero — the #208 guard, on this route too.
+    expect((await handle(new Request(at, { method: "POST", headers: { ...auth, "content-type": "multipart/form-data; boundary=x" } }))).status).toBe(411);
+    expect((await handle(new Request(at, { method: "POST", headers: { ...auth, "content-length": String(50 * 1024 * 1024) }, body: new FormData() }))).status).toBe(413);
+    expect((await handle(new Request(at, { method: "POST", headers: { ...auth, "content-length": DECLARED_LENGTH }, body: new FormData() }))).status).toBe(400);
+
+    // Another account's meal id is 409 target-gone, never a hint that the meal exists.
+    const other = await session();
+    const res = await handle(new Request(at, { method: "POST", headers: { authorization: `Bearer ${other}`, "content-length": DECLARED_LENGTH }, body: withPhoto() }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: "target-gone" });
+
+    // Past the meal's own limit: a 400 naming the limit, and nothing stored.
+    const many = new FormData();
+    for (let i = 0; i < CONFIG.maxPhotosPerMeal; i++) many.append("photo", new File([jpegBytes(i + 20)], `x${i}.jpg`, { type: "image/jpeg" }));
+    const over = await handle(new Request(at, { method: "POST", headers: { ...auth, "content-length": DECLARED_LENGTH }, body: many }));
+    expect(over.status).toBe(400);
+    expect(await over.json()).toEqual({ error: "too-many-photos", limit: CONFIG.maxPhotosPerMeal });
+
+    // A HEIC is 415, the same status and the same sniff that guards the charge on the upload route.
+    const heicForm = new FormData();
+    heicForm.append("photo", new File([new Uint8Array([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63])], "s.heic", { type: "image/heic" }));
+    const bad = await handle(new Request(at, { method: "POST", headers: { ...auth, "content-length": DECLARED_LENGTH }, body: heicForm }));
+    expect(bad.status).toBe(415);
+  });
+
   it("400s an upload with no photo part", async () => {
     const token = await session();
     const res = await handle(new Request(url(ROUTES.photo), {

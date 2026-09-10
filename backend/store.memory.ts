@@ -788,6 +788,19 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       photos.set(mealId, list);
       meals.set(mealId, { ...m, photos: list.length });
     },
+    async appendPhotos(userId, mealId, input) {
+      const m = meals.get(mealId);
+      if (!m || m.user_id !== userId) return 0;
+      const list = photos.get(mealId) ?? [];
+      let next = list.reduce((n, q) => Math.max(n, q.position + 1), 0);
+      for (const p of input) {
+        list.push({ userId, position: next++, mime: p.mime, bytes: new Uint8Array(p.bytes) });
+      }
+      list.sort((a, b) => a.position - b.position);
+      photos.set(mealId, list);
+      meals.set(mealId, { ...m, photos: list.length });
+      return list.length;
+    },
 
     async getPhotos(userId, mealId) {
       return (photos.get(mealId) ?? [])

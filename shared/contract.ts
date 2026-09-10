@@ -194,6 +194,14 @@ export const ROUTES = {
   meal: (id: string) => `/v1/meals/${encodeURIComponent(id)}`,
   /** One stored photo of one of the caller's meals, by position. Bytes with their mime; 404 otherwise. */
   mealPhoto: (id: string, n: number) => `/v1/meals/${encodeURIComponent(id)}/photos/${n}`,
+  /**
+   * POST — another angle of a meal already logged (#304). Multipart, `photo` fields, like
+   * `ROUTES.photo`. STORED, NOT ANALYZED, and therefore not charged and behind no cap: the meal's
+   * numbers do not move. Making them move is `mealReanalyze`, which is charged and is the user's
+   * own deliberate tap. Same path as `mealPhoto` one segment shorter — that reads a photo by
+   * position, this adds to the collection.
+   */
+  mealPhotos: (id: string) => `/v1/meals/${encodeURIComponent(id)}/photos`,
   /** Run the analyzer again over the stored photos. Charged like a photo. */
   mealReanalyze: (id: string) => `/v1/meals/${encodeURIComponent(id)}/reanalyze`,
   pendingConfirm: (id: string) => `/v1/meals/pending/${encodeURIComponent(id)}/confirm`,
@@ -338,6 +346,18 @@ export interface IdentitiesResponse {
  * would eventually disagree with the one doing the refusing, which the user meets as a code that
  * looks live and is not.
  */
+/**
+ * What `POST /v1/meals/:id/photos` answers: the meal, and how many photos it now holds.
+ *
+ * `photos` is the COUNT the server ended up with, not the number sent — the app renders the strip
+ * from it (`PhotoStrip`), and a client that added its own upload to its own stale count would draw
+ * a frame for a photo that is not there.
+ */
+export interface AttachPhotosResponse {
+  mealId: string;
+  photos: number;
+}
+
 export interface PairCodeResponse {
   /** Eight Crockford base32 symbols. Shown to a person, typed by a person; case is not significant. */
   code: string;
