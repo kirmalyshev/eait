@@ -17,6 +17,7 @@ export * from "./entitlement.ts";
 export * from "./chat.ts";
 export * from "./lang.ts";
 export * from "./thread.ts";
+export * from "./chat-core.ts";
 export * from "./notifications.ts";
 export * from "./claims.ts";
 export * from "./stream.ts";
