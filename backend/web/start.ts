@@ -28,6 +28,7 @@ import {
   type PatchProfileRequest, type Profile,
 } from "@eait/shared";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
+import { BROWSER_SESSION_TTL_MS } from "../auth/tokens.ts";
 import type { WebProvider, WebSignInProvider } from "../auth/web-oauth.ts";
 import { checkWebProvider } from "../auth/web-auth-check.ts";
 import {
@@ -638,7 +639,11 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   }
 
   if (req.method === "POST" && pathname === `${START_PREFIX}/session/token`) {
-    return new Response(JSON.stringify({ token: await ctx.store.issueToken(userId) }), {
+    // WITH A LIFETIME OF ITS OWN, not the phone's six idle months. This token is re-minted from the
+    // cookie on every page load and after any 401, so the long one buys the browser nothing and
+    // leaves a working credential behind for every tab anybody ever opened — on the origin that
+    // also serves the admin. See `BROWSER_SESSION_TTL_MS`.
+    return new Response(JSON.stringify({ token: await ctx.store.issueToken(userId, BROWSER_SESSION_TTL_MS) }), {
       headers: {
         "content-type": "application/json",
         // Not a page, and not something an intermediary may keep.

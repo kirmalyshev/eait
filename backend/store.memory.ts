@@ -66,7 +66,6 @@ export function aggregateFunnel(events: StoredEvent[]): FunnelAggregate {
 
 export function memoryStore(opts: StoreOptions = {}): Store {
   const sessionTtlMs = opts.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS;
-  const refreshAfterMs = sessionRefreshAfterMs(sessionTtlMs);
   const now = opts.now ?? Date.now;
 
   const users = new Map<string, Profile>();
@@ -101,7 +100,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // Keyed by the HASH of the token, exactly as Postgres is. Storing the raw value here would make
   // demo mode the one environment where a token is recoverable from the store — and demo mode is
   // where the sign-in flows get driven, so it is the environment where that would be noticed last.
-  const tokens = new Map<string, { userId: string; lastUsedAt: number }>();
+  // `ttlMs` is the row's OWN idle lifetime and undefined means the store's (#407). Postgres holds
+  // the same thing in a nullable column, so both implementations answer the same question.
+  const tokens = new Map<string, { userId: string; lastUsedAt: number; ttlMs?: number }>();
   const meals = new Map<string, MealRecord>(); // mealId -> record
   const photos = new Map<string, (StoredPhoto & { userId: string })[]>(); // mealId -> in position order
   const pendings = new Map<string, PendingMeal>(); // pendingId -> pending
@@ -156,7 +157,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     const at = now();
     let removed = 0;
     for (const [hash, row] of tokens) {
-      if (at - row.lastUsedAt > sessionTtlMs) {
+      if (at - row.lastUsedAt > (row.ttlMs ?? sessionTtlMs)) {
         tokens.delete(hash);
         removed++;
       }
@@ -255,9 +256,11 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return userId;
     },
 
-    async issueToken(userId) {
+    async issueToken(userId, ttlMs) {
       const token = newSessionToken();
-      tokens.set(await hashToken(token), { userId, lastUsedAt: now() });
+      tokens.set(await hashToken(token), {
+        userId, lastUsedAt: now(), ...(ttlMs === undefined ? {} : { ttlMs }),
+      });
       prune();
       return token;
     },
@@ -267,16 +270,20 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (!row) return null;
 
       const at = now();
+      // THE ROW'S lifetime, not the store's — see `issueToken`.
+      const ttl = row.ttlMs ?? sessionTtlMs;
       // Idle past its lifetime is indistinguishable from never issued, and deliberately so. The row
       // is dropped on the way out rather than left for the next prune: a token that has just been
       // refused must not be answerable again if the clock moves backwards.
-      if (at - row.lastUsedAt > sessionTtlMs) {
+      if (at - row.lastUsedAt > ttl) {
         tokens.delete(await hashToken(token));
         return null;
       }
 
       // Slide the deadline, but only once the value is actually stale. See `sessionRefreshAfterMs`.
-      if (at - row.lastUsedAt >= refreshAfterMs) row.lastUsedAt = at;
+      // Computed from the ROW's lifetime: an eighth of the store's would never come around inside
+      // a short-lived token's life, so it would expire mid-use however often it was presented.
+      if (at - row.lastUsedAt >= sessionRefreshAfterMs(ttl)) row.lastUsedAt = at;
       return row.userId;
     },
 

@@ -303,8 +303,14 @@ export interface Store {
    * This is the ONLY moment the token exists in a readable form on this side of the wire. What the
    * store keeps is `hashToken()` of it — see `auth/tokens.ts` — so nothing that can read the
    * database, a dump, or a backup can present a token back.
+   *
+   * `ttlMs` is THIS token's idle lifetime, and it is stored on the row. Absent means the store's
+   * own `sessionTtlMs`, which is what the phone gets. The browser's bearer passes
+   * `BROWSER_SESSION_TTL_MS` (#407): it is re-minted from the session cookie on every page load,
+   * so six idle months would be a credential nobody needs outliving the tab it was made for — and
+   * it is minted on the origin that also serves the admin.
    */
-  issueToken(userId: string): Promise<string>;
+  issueToken(userId: string, ttlMs?: number): Promise<string>;
   /**
    * Resolve a bearer token to a user id, or null. The ONLY way a request becomes a userId.
    *

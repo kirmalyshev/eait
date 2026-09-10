@@ -58,6 +58,26 @@ export async function hashToken(token: string): Promise<string> {
 export const DEFAULT_SESSION_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 
 /**
+ * How long the BROWSER's bearer survives without being used (#407).
+ *
+ * A different credential with a different holder, so a different number. The phone keeps its token
+ * in the Keychain and is the same device for years; the web app keeps its in a closure in
+ * `api.ts` that dies with the tab, and re-fills it from the `/start` session cookie on every page
+ * load and after any 401. So the lifetime above buys the browser nothing it can use, and costs
+ * something real: a token minted per page view, on the origin that also serves the admin, live for
+ * six idle months. Every tab anybody ever opened would leave a working credential behind.
+ *
+ * Twelve hours is a working day. Longer than any gap inside a sitting, so nobody meets it while
+ * they are looking; shorter than a night, so a bearer that leaked stops working before the next
+ * one starts. Meeting it costs one POST and is invisible — that is what `api.ts`'s retry is for,
+ * and it is why this can be short without being a sign-out.
+ *
+ * A CONSTANT, NOT CONFIGURATION, for the same reason `PAIR_TTL_MS` is one: nothing about it differs
+ * between a laptop and production, and it is a security parameter rather than an environment one.
+ */
+export const BROWSER_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+
+/**
  * How stale `last_used_at` may get before a request writes it forward.
  *
  * Sliding expiry means every authenticated request could touch the row, and a write on the read

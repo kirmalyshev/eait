@@ -207,6 +207,17 @@ create table if not exists tokens (
   created_at   timestamptz not null default now(),
   last_used_at timestamptz not null default now()
 );
+-- THIS token's idle lifetime, in milliseconds. NULL is the store's own, which is what every phone
+-- holds; a number is a token minted to live less long than that (#407) — the browser's bearer,
+-- which is re-minted from the session cookie on every page load and never needs six idle months.
+--
+-- bigint rather than integer: the shipped default is 180 days, which is 15.5 billion milliseconds
+-- and eight times what int4 holds. Nothing writes that value here today, since the column is for
+-- the SHORTER lifetimes — but a column whose type cannot hold the default is one that fails the
+-- first time somebody stores it explicitly.
+--
+-- Added separately, like every other column here, so a host deployed before this gains it on boot.
+alter table tokens add column if not exists ttl_ms bigint;
 -- Migration off the plaintext column, for a host deployed before this existed.
 --
 -- Lossless on purpose: the old rows hold the token itself, so its hash is computable and every
@@ -698,7 +709,6 @@ export async function postgresStore(
   await sql.unsafe(SUBSCRIBER_MIGRATION);
 
   const sessionTtlMs = opts.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS;
-  const refreshAfterMs = sessionRefreshAfterMs(sessionTtlMs);
   const now = opts.now ?? Date.now;
 
   /**
@@ -709,8 +719,13 @@ export async function postgresStore(
    * move it forward for the prune is a test of half the behaviour.
    */
   const prune = async (): Promise<number> => {
+    // `coalesce(ttl_ms, …)` rather than one cutoff for the whole table: a row may carry its own
+    // lifetime (#407), and a sweep that used the store's would leave a short-lived token in the
+    // table for six months after it stopped working.
     const rows = await sql`
-      delete from tokens where last_used_at <= ${new Date(now() - sessionTtlMs)}
+      delete from tokens
+      where last_used_at + make_interval(secs => coalesce(ttl_ms, ${sessionTtlMs}) / 1000.0)
+            <= ${new Date(now())}
       returning token_hash`;
     return rows.length;
   };
@@ -767,11 +782,11 @@ export async function postgresStore(
       return id;
     },
 
-    async issueToken(userId) {
+    async issueToken(userId, ttlMs) {
       const token = newSessionToken();
       const at = new Date(now());
-      await sql`insert into tokens (token_hash, user_id, created_at, last_used_at)
-                values (${await hashToken(token)}, ${userId}, ${at}, ${at})`;
+      await sql`insert into tokens (token_hash, user_id, created_at, last_used_at, ttl_ms)
+                values (${await hashToken(token)}, ${userId}, ${at}, ${at}, ${ttlMs ?? null})`;
       // Minting is rare — a first launch, a sign-in, a 401 recovery — so this is the one write path
       // that can afford to sweep, and it means the table stays bounded without a scheduler.
       await prune();
@@ -786,15 +801,22 @@ export async function postgresStore(
       // the answer takes — and one query with one predicate is the only version of that which
       // cannot drift.
       const rows = await sql`
-        select user_id, last_used_at from tokens
-        where token_hash = ${hash} and last_used_at > ${new Date(at - sessionTtlMs)}`;
+        select user_id, last_used_at, ttl_ms from tokens
+        where token_hash = ${hash}
+          and last_used_at + make_interval(secs => coalesce(ttl_ms, ${sessionTtlMs}) / 1000.0)
+              > ${new Date(at)}`;
       if (rows.length === 0) return null;
 
       // Slide the deadline, but only once the stored value is genuinely stale. Writing on every
       // authenticated request would put an UPDATE on the read path of every screen in the app for
       // no additional security — see `sessionRefreshAfterMs`.
+      //
+      // The interval is an eighth of THIS ROW's lifetime. An eighth of the store's would never come
+      // around inside a short-lived token's life, so such a token would expire mid-use however
+      // often it was presented.
       const lastUsed = new Date(rows[0].last_used_at as string).getTime();
-      if (at - lastUsed >= refreshAfterMs) {
+      const ttl = rows[0].ttl_ms === null ? sessionTtlMs : Number(rows[0].ttl_ms);
+      if (at - lastUsed >= sessionRefreshAfterMs(ttl)) {
         await sql`update tokens set last_used_at = ${new Date(at)} where token_hash = ${hash}`;
       }
       return String(rows[0].user_id);

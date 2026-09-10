@@ -17,9 +17,10 @@ import {
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
-import type { Store } from "../store.ts";
+import type { Store, StoreOptions } from "../store.ts";
 import type { EngineDeps } from "../engine/index.ts";
 import { AuthError, type Verifier } from "../auth/verify.ts";
+import { BROWSER_SESSION_TTL_MS } from "../auth/tokens.ts";
 import { chatHistory, day, handleText, saveOnboardingContent } from "../engine/index.ts";
 import { createRouter } from "../api/routes.ts";
 import { fakeMailer } from "../mail/fake.ts";
@@ -103,8 +104,9 @@ function router(
   providers = PROVIDERS,
   llm = demoPorts(),
   webApp = false,
+  storeOpts: StoreOptions = {},
 ) {
-  store = memoryStore();
+  store = memoryStore(storeOpts);
   // Only when asked for: a test that sets `publicWebUrl` itself means what it set.
   const withWeb = webApp ? { ...config, publicWebUrl: WEB_ORIGIN } : config;
   deps = { store, config: withWeb, llm, mailer: fakeMailer(), push: fakePush() };
@@ -1576,6 +1578,29 @@ describe("handing the browser's own JavaScript a bearer", () => {
     // on this surface is a POST for that reason, and minting a credential is a write.
     const res = await get("/start/session/token", await signedIn());
     expect(res.status).not.toBe(200);
+  });
+
+  it("gives it a lifetime of hours, while the session behind it keeps the phone's months", async () => {
+    // #407's remaining half. The two credentials on one session are not the same kind of thing:
+    // the cookie is HttpOnly and a browser holds it, the bearer sits in a closure that this page
+    // re-fills from that cookie on every load. Six idle months is what a phone's Keychain needs;
+    // handing the same lifetime to a token minted per page view leaves a working credential for
+    // every tab anybody ever opened, on the origin that also serves the admin.
+    let clock = Date.parse("2026-09-09T09:00:00Z");
+    router({ ...CONFIG }, undefined, undefined, false, { now: () => clock });
+    const cookie = await signedIn();
+    const bearer = (await (await post("/start/session/token", {}, cookie)).json() as { token: string }).token;
+    const cookieToken = decodeURIComponent(cookie.split("=")[1]!);
+    expect(await store.userIdForToken(bearer)).not.toBeNull();
+
+    // Past the bearer's lifetime and nowhere near the session's.
+    clock += BROWSER_SESSION_TTL_MS + 1_000;
+
+    expect(await store.userIdForToken(bearer)).toBeNull();
+    // The session itself is untouched, which is what makes the expiry invisible: the page asks
+    // again and gets another one.
+    expect(await store.userIdForToken(cookieToken)).not.toBeNull();
+    expect((await post("/start/session/token", {}, cookie)).status).toBe(200);
   });
 });
 

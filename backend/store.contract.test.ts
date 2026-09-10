@@ -1504,6 +1504,54 @@ function tokenLifetime(name: string, make: (opts: StoreOptions) => Promise<Store
       expect(await s.pruneExpiredTokens()).toBe(0);
       expect(await s.userIdForToken(abandoned)).toBeNull();
     });
+
+    // ── A LIFETIME OF ITS OWN (#407) ────────────────────────────────────────────────────────
+    //
+    // The browser's bearer is re-minted from the session cookie on every page load, so it never
+    // needs the phone's six idle months — and it lives in a closure on an origin that also serves
+    // the admin. `issueToken` therefore takes a lifetime, and these say the store honours it on
+    // every path the store-wide one is honoured on: the lookup, the slide, and the sweep.
+
+    it("honours a token's own lifetime rather than the store's", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const ordinary = await s.issueToken(userId);
+      const brief = await s.issueToken(userId, Math.floor(TTL / 4));
+
+      clock += Math.floor(TTL / 2);
+
+      // Both were minted at the same moment and neither has been used since. The only thing that
+      // separates them is the number handed to `issueToken`.
+      expect(await s.userIdForToken(brief)).toBeNull();
+      expect(await s.userIdForToken(ordinary)).toBe(userId);
+    });
+
+    it("slides a short-lived token on its OWN schedule", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const brief = await s.issueToken(userId, Math.floor(TTL / 4));
+
+      // Three quarters of ITS lifetime, then a request, twice — past where its original deadline
+      // was. A refresh interval computed from the store's lifetime instead of the row's would not
+      // write the row forward here, and the second lookup would fail.
+      clock += Math.floor(TTL / 4 * 0.75);
+      expect(await s.userIdForToken(brief)).toBe(userId);
+      clock += Math.floor(TTL / 4 * 0.75);
+      expect(await s.userIdForToken(brief)).toBe(userId);
+    });
+
+    it("sweeps a short-lived token as soon as ITS lifetime is up", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      const brief = await s.issueToken(userId, Math.floor(TTL / 4));
+      const ordinary = await s.issueToken(userId);
+
+      clock += Math.floor(TTL / 4) + 1_000;
+
+      expect(await s.pruneExpiredTokens()).toBeGreaterThanOrEqual(1);
+      expect(await s.userIdForToken(brief)).toBeNull();
+      expect(await s.userIdForToken(ordinary)).toBe(userId);
+    });
   });
 }
 
