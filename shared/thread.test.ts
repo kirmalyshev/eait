@@ -3,7 +3,7 @@ import type { ChatEntry } from "./contract.ts";
 import type { ChatSpeaker } from "./results.ts";
 import type { MealRecord } from "./types.ts";
 import { scriptedLine } from "./chat.ts";
-import { fromHistory, hasLiveSuggestions, keepsItsWords, landedLine, lastMealId, mergeThread, moodFor, oneCardPerMeal, oneLiveProposal, pendingIdOf, proposalLive, reconcilePage, speakerOf, threadReducer, unansweredFor, visibleEntries, withUnanswered, type ChatResult, type ThreadEntry } from "./thread.ts";
+import { fromHistory, hasLiveSuggestions, keepsItsWords, landedLine, lastMealId, mergeThread, moodFor, oneCardPerMeal, oneLiveProposal, pendingIdOf, proposalLive, reconcilePage, speakerOf, supersededPendings, threadReducer, unansweredFor, visibleEntries, withUnanswered, type ChatResult, type ThreadEntry } from "./thread.ts";
 
 // The Chat screen's reconciliation of three sources of truth — the fetched page, what is on screen,
 // and the turns still in flight. Pure, so every rule the design notes record as hard-won is pinned
@@ -289,21 +289,35 @@ describe("oneLiveProposal / pendingIdOf — #360", () => {
     return entries.map((e) => (e.id === id ? logged : e));
   };
 
-  it("leaves one card and no live 'Log it' when a second estimate is confirmed", () => {
+  it("leaves one card and no UNMARKED second 'Log it' when a second estimate is confirmed", () => {
     // The prod turn in #360, verbatim: one plate estimated twice, then "Log it" on the second. The
-    // first bubble kept its buttons for a `pendingId` the server had already forgotten about.
+    // first bubble kept its buttons for a `pendingId` the server had already forgotten about — two
+    // offers that looked identical, and nothing said which one the thread was waiting on.
     const first = [...fromHistory([userLine("4 chicken nuggets, 3 breads with humus")]), proposal("a1", "p1")];
     const again = oneLiveProposal([...first, ...fromHistory([userLine("the same plate")]), proposal("a2", "p2")]);
     const after = confirm(again, "a2", "p2");
-    expect(after.filter((e) => e.role === "assistant" && e.result.kind === "proposed")).toEqual([]);
     expect(after.filter((e) => e.role === "assistant" && e.result.kind === "logged")).toHaveLength(1);
+    // ONE meal in the diary. The leftover is still a proposal (#385: its analysis was billed, and
+    // the client cannot know these two were one plate) — but it is MARKED, so the renderer draws a
+    // leftover that names the collision rather than a twin of the offer just taken.
+    const live = after.filter((e) => e.role === "assistant" && e.result.kind === "proposed");
+    expect(live).toHaveLength(1);
+    expect(live[0]).toMatchObject({ id: "a1", superseded: true });
+    // Never an unmarked one: an unmarked proposal beside a landed card is the #360 defect exactly.
+    expect(live.filter((e) => !("superseded" in e && e.superseded))).toEqual([]);
   });
 
-  it("retires the superseded estimate in its own place, saying so — never a silent vanish", () => {
+  it("retires in place, saying so — never a silent vanish, at either step", () => {
+    // #360's rule, now reached one estimate later (#385): the bubble keeps its id and its place
+    // whichever way it is retired. Filtering it out instead would take a card out from under the
+    // reader's eye at the moment the new one lands, which is its own defect.
     const retired = oneLiveProposal([proposal("a1", "p1"), proposal("a2", "p2")]);
     expect(retired.map((e) => e.id)).toEqual(["a1", "a2"]);
-    expect(retired[0]).toEqual({ id: "a1", role: "assistant", result: { kind: "answered", text: scriptedLine("dropped") } });
+    expect(retired[0]).toMatchObject({ id: "a1", superseded: true });
     expect(retired[1]).toEqual(proposal("a2", "p2"));
+    const dropped = oneLiveProposal([...retired, proposal("a3", "p3")]);
+    expect(dropped.map((e) => e.id)).toEqual(["a1", "a2", "a3"]);
+    expect(dropped[0]).toEqual({ id: "a1", role: "assistant", result: { kind: "answered", text: scriptedLine("dropped") } });
   });
 
   it("names the pending to cancel, so the words are the server's rather than the app's", () => {
@@ -312,6 +326,39 @@ describe("oneLiveProposal / pendingIdOf — #360", () => {
     const entries = [...fromHistory([userLine("two eggs"), card(meal("m1", 300))]), proposal("a1", "p1")];
     expect(entries.map(pendingIdOf).find((id) => id !== null)).toBe("p1");
     expect(fromHistory([card(meal("m1", 300))]).map(pendingIdOf)).toEqual([null]);
+  });
+
+  it("keeps the superseded estimate confirmable, because its analysis was already billed (#385)", () => {
+    // #360 retired every older estimate to "Dropped it." and cancelled it for real. It supersedes on
+    // ORDER ALONE — nothing tells the client two estimates are one plate — so describing a SECOND
+    // meal before confirming the first threw the first away, and its analysis was already charged
+    // and already counted against the day's cap.
+    const [first, second] = oneLiveProposal([proposal("a1", "p1"), proposal("a2", "p2")]);
+    expect(pendingIdOf(second!)).toBe("p2");
+    expect(second).toEqual(proposal("a2", "p2"));
+    // The card and its pending SURVIVE: retired from being the live offer, not thrown away.
+    expect(pendingIdOf(first!)).toBe("p1");
+    expect(first).toMatchObject({ id: "a1", superseded: true });
+    // Named as the one a THIRD estimate would drop — nothing cancels it while it is still on screen
+    // offering itself, and `send` reads this only when it is about to push it past the bound.
+    expect(supersededPendings([first!, second!])).toEqual(["p1"]);
+  });
+
+  it("drops the estimate that a THIRD one pushes past, and names it for the caller to cancel", () => {
+    // Two live cards is the bound. A third estimate means the oldest has been passed over twice,
+    // and it goes the way #360 sent it — the words the "No" button writes, and a real cancel, so
+    // "Dropped it." is true rather than a row the server would still honour.
+    const two = oneLiveProposal([proposal("a1", "p1"), proposal("a2", "p2")]);
+    // What `send` cancels, read BEFORE the new estimate is appended: exactly the one about to be
+    // pushed past the bound, and never the one still offering itself on screen.
+    expect(supersededPendings(two)).toEqual(["p1"]);
+    const three = oneLiveProposal([...two, proposal("a3", "p3")]);
+    expect(three.map((e) => e.id)).toEqual(["a1", "a2", "a3"]);
+    expect(three[0]).toEqual({ id: "a1", role: "assistant", result: { kind: "answered", text: scriptedLine("dropped") } });
+    expect(three[1]).toMatchObject({ id: "a2", superseded: true });
+    expect(three[2]).toEqual(proposal("a3", "p3"));
+    // The dropped one is no longer a proposal, so it is not offered again for cancelling.
+    expect(supersededPendings(three)).toEqual(["p2"]);
   });
 
   it("leaves a thread with one live estimate exactly as it is", () => {
