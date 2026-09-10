@@ -233,6 +233,19 @@ function setCookie(name: string, value: string, opts: { secure: boolean; maxAge?
   return parts.join("; ");
 }
 
+/**
+ * No live session, told to a SCRIPT rather than a person (#457) — see where the session is read.
+ *
+ * The mint's own shape with no token in it, so its one caller reads one field either way. The
+ * cookie is cleared: whatever the browser presented is not a session, and presenting it again on
+ * the next load buys nothing.
+ */
+const noSession = (secure: boolean): Response => {
+  const headers = new Headers({ "content-type": "application/json", "cache-control": "no-store" });
+  headers.append("set-cookie", clearCookie(SESSION_COOKIE, secure));
+  return new Response(JSON.stringify({ token: null }), { headers });
+};
+
 const clearCookie = (name: string, secure: boolean): string =>
   `${setCookie(name, "", { secure, maxAge: 0 })}`;
 
@@ -590,16 +603,27 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   }
 
   // ── Everything past here needs the session ────────────────────────────────────────────────
+  //
+  // A PAGE WITH NO SESSION GOES TO THE FRONT DOOR; A SCRIPT IS TOLD SO IN JSON (#457). The two
+  // `session/*` routes below are called by the web app with `fetch` and read as JSON, never
+  // navigated to, so a 303 is not an answer they can take: `api.ts` does not follow it, and Chrome
+  // records its target as a failed request — one red line in every anonymous visitor's console. A
+  // 401 is no better, Chrome logs "Failed to load resource" for it. A 200 whose body carries no
+  // token logs nothing, and says exactly what is true. All three measured in Chrome, 2026-09-10.
+  const scripted = req.method === "POST"
+    && (pathname === `${START_PREFIX}/session/token` || pathname === `${START_PREFIX}/session/signout`);
   const session = cookies[SESSION_COOKIE] ?? "";
   const userId = session === "" ? null : await ctx.store.userIdForToken(session);
-  if (userId === null) return seeOther(START_PREFIX);
+  if (userId === null) return scripted ? noSession(secure) : seeOther(START_PREFIX);
 
   // Read once, and NOT non-null asserted. A token can outlive the profile it names — an erasure
   // racing this request, and `deleteUser` revokes tokens rather than waiting for them — and the
   // assertion turned that into a TypeError, which the router's outer catch answers as a JSON 500 on
   // an HTML surface. The front door with the cookie cleared is what that session actually is.
   const profile = await ctx.store.getProfile(userId);
-  if (profile === null) return seeOther(START_PREFIX, [clearCookie(SESSION_COOKIE, secure)]);
+  if (profile === null) {
+    return scripted ? noSession(secure) : seeOther(START_PREFIX, [clearCookie(SESSION_COOKIE, secure)]);
+  }
 
   // ── THE BEARER THIS PAGE'S JAVASCRIPT MAY HOLD (#407) ─────────────────────────────────────
   //

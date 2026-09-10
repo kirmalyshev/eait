@@ -1444,8 +1444,14 @@ describe("signing out of this browser", () => {
     expect((await get("/start/session/signout", cookie)).status).not.toBe(200);
   });
 
-  it("says nothing useful to a request with no session", async () => {
-    expect((await post("/start/session/signout", {})).status).not.toBe(200);
+  it("ends nothing for a request with no session, and answers a script in JSON rather than a redirect (#457)", async () => {
+    // Called with `fetch` like the mint, so a 303 here is the same red line in the console.
+    const res = await post("/start/session/signout", {}, "eait_web=not-a-session");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("location")).toBeNull();
+    expect(await res.json()).toEqual({ token: null });
+    // Whatever the browser was presenting is not a session, so it stops presenting it.
+    expect(res.headers.getSetCookie().some((c) => c.startsWith("eait_web=") && /Max-Age=0/.test(c))).toBe(true);
   });
 });
 
@@ -1570,10 +1576,18 @@ describe("handing the browser's own JavaScript a bearer", () => {
     expect(res.headers.get("content-type")).toContain("application/json");
   });
 
-  it("gives nothing to a request with no session", async () => {
-    const res = await post("/start/session/token", {});
-    expect(res.status).not.toBe(200);
-    expect(await res.text()).not.toContain("token");
+  it("gives nothing to a request with no session, and says so in JSON rather than a redirect (#457)", async () => {
+    // `api.ts` asks this with `fetch` on every page load, `redirect: "manual"`. A 303 is not
+    // followed, and Chrome records its target as a failed request — a red line in every anonymous
+    // visitor's console. A 401 is no better: Chrome logs "Failed to load resource" for that. A 200
+    // whose body says there is no session logs nothing (all three measured in Chrome, 2026-09-10).
+    for (const cookie of [undefined, "eait_web=not-a-session"]) {
+      const res = await post("/start/session/token", {}, cookie);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+      expect(res.headers.get("cache-control")).toBe("no-store");
+      expect(await res.json()).toEqual({ token: null });
+    }
   });
 
   it("is a POST, so SameSite=Lax is what guards it", async () => {
