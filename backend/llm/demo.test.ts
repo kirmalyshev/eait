@@ -4,7 +4,7 @@
 import { expect, test } from "bun:test";
 import { explainTargets } from "@eait/shared";
 import type { Profile } from "@eait/shared";
-import { DEMO_NOT_FOOD, demoPorts } from "./demo.ts";
+import { DEMO_HOLD, DEMO_NOT_FOOD, demoPieceDelayMs, demoPorts } from "./demo.ts";
 import type { CoachContext } from "./port.ts";
 
 // The canned analyzer reads only the caption and the bytes, but `PhotoInput` is the real port's
@@ -55,6 +55,21 @@ test("matches case-insensitively and inside a longer caption", async () => {
   for (const caption of [DEMO_NOT_FOOD.toUpperCase(), `my desk, ${DEMO_NOT_FOOD}`]) {
     expect((await analyze(caption)).isFood).toBe(false);
   }
+});
+
+// The a11y walk holds the camera's pending screen open with this caption (#305). Everything else
+// keeps the 150 ms beat the pending card's choreography was built on.
+test("the hold caption spaces the pieces 8 s apart, matched like the not-food one", () => {
+  for (const caption of [DEMO_HOLD, DEMO_HOLD.toUpperCase(), `lunch, ${DEMO_HOLD}`]) {
+    expect(demoPieceDelayMs(caption)).toBe(8_000);
+  }
+  for (const caption of ["lunch at the desk", "", undefined]) {
+    expect(demoPieceDelayMs(caption)).toBe(150);
+  }
+});
+
+test("and a held plate is still food", async () => {
+  expect((await analyze(DEMO_HOLD)).isFood).toBe(true);
 });
 
 test("every other caption is still food, including ones that merely mention it", async () => {

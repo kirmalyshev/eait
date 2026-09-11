@@ -109,6 +109,22 @@ function plateFor(seed: number): AnalyzedMeal {
  */
 export const DEMO_NOT_FOOD = "no food in this one";
 
+/**
+ * A caption that holds the answer open: the pieces arrive 8 s apart instead of 150 ms (#305).
+ *
+ * The camera's pending state (the photo strip, Spud's row, the empty card and the note field under
+ * it) is on screen only between Analyze and the card, about a second against this analyzer, and an
+ * accessibility audit racing a one-second window is a flaky gate. The a11y walk types this caption
+ * so the screen stays pending long enough to audit. Keyed on the caption for the reason
+ * `DEMO_NOT_FOOD` is: it is the only channel a test has into a fake that cannot see the picture.
+ */
+export const DEMO_HOLD = "hold the plate";
+
+/** The beat between the pieces `analyzePhoto` writes, for this caption. */
+export function demoPieceDelayMs(caption: string | undefined): number {
+  return (caption ?? "").toLowerCase().includes(DEMO_HOLD) ? 8_000 : 150;
+}
+
 /** Zero everything. What the real analyzer is told to return for an image with no food in it. */
 function nothingOnThePlate(): AnalyzedMeal {
   return {
@@ -135,7 +151,7 @@ export function demoPorts(): LlmPorts {
       const text = JSON.stringify(meal);
       const step = Math.ceil(text.length / 6);
       for (let i = 0; i < text.length; i += step) {
-        await new Promise((r) => setTimeout(r, 150));
+        await new Promise((r) => setTimeout(r, demoPieceDelayMs(input.caption)));
         onDelta(text.slice(i, i + step));
       }
     }
