@@ -897,6 +897,11 @@ export interface Store {
   // ── Pending text meals ─────────────────────────────────────────────────────────────────────
   putPending(pending: PendingMeal): Promise<void>;
   getPending(userId: string, pendingId: string): Promise<PendingMeal | null>;
+  /**
+   * The account's LIVE proposals, oldest first (#530): what a page that lost its card reads back.
+   * Scoped by `user_id` like every read here, and never an expired row, which nobody may confirm.
+   */
+  pendingsFor(userId: string): Promise<PendingMeal[]>;
   /** True when this call removed a LIVE row. The drop is the CLAIM on a proposal: confirm and cancel both take it first, and whoever gets false lost the race — or found it expired, which nobody may claim. */
   dropPending(userId: string, pendingId: string): Promise<boolean>;
   /**

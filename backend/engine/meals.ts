@@ -12,7 +12,7 @@
 
 import {
   type DailyTotals, type EditMealRequest, type LogPhotoResult, type MealAnalysis, type MealHint,
-  type MealItem, type MealLogged, type MealQuestion, type MealRecord, type MealUpdated, type PhotoEvent,
+  type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord, type MealUpdated, type PhotoEvent,
   type TargetGone, type ConfirmMealResult, type Refusal, explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
 import { localDate, localTime, windowStart } from "@eait/shared";
@@ -562,6 +562,17 @@ export async function cancelPendingMeal(
   // A "no" is a turn too: the words are already there; this is the answer. An expiry adds nothing.
   await remember(deps, userId, [{ role: "assistant", kind: "text", text: scriptedLine("dropped") }]);
   return { kind: "cancelled" };
+}
+
+/**
+ * The account's live proposals, oldest first, as their turns sent them (#530): what a page that lost
+ * its card reads back, so "Log it" comes back over the numbers it was offered for. Charges nothing
+ * and writes nothing; an expired one is not offered, because nobody may confirm it.
+ */
+export async function pendingMeals(deps: EngineDeps, userId: string): Promise<MealProposed[]> {
+  return (await deps.store.pendingsFor(userId)).map((p) => ({
+    kind: "proposed", pendingId: p.id, analysis: p.analysis, date: p.date, expiresAt: new Date(p.expiresAt).toISOString(),
+  } satisfies MealProposed));
 }
 
 /** Days of the user's own history the identification prior is built from, counting today. */

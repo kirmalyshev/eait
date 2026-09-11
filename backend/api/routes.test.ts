@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import {
   HEALTH_RETENTION_DAYS, MAX_CLIENT_ID, MAX_USER_LINE, MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay,
   localDate, NDJSON, OUTCOME_UNKNOWN, type PairCodeResponse, type PhotoEvent, type MealLogged, type ProfileResponse,
+  type MealProposed, type PendingMealsResponse,
 } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { DEMO_NOT_FOOD, demoPorts } from "../llm/demo.ts";
@@ -337,6 +338,18 @@ describe("chat and editing", () => {
   it("410s a confirm for a pending meal that is already gone", async () => {
     const token = await session();
     expect((await post(ROUTES.pendingConfirm(crypto.randomUUID()), {}, token)).status).toBe(410);
+  });
+
+  it("lists the caller's live proposals as their turns sent them, and forgets one once logged (#530)", async () => {
+    const token = await session();
+    const proposed = await (await post(ROUTES.messages, { text: "two eggs and toast" }, token)).json() as MealProposed;
+    expect(proposed.kind).toBe("proposed");
+    const listed = async (t: string) => (await (await get(ROUTES.pending, t)).json() as PendingMealsResponse).proposals;
+    expect(await listed(token)).toEqual([proposed]);
+    // Scoped by the caller: another account sees none of it.
+    expect(await listed(await session())).toEqual([]);
+    await post(ROUTES.pendingConfirm(proposed.pendingId), {}, token);
+    expect(await listed(token)).toEqual([]);
   });
 
   it("400s an empty message rather than spending a model call on it", async () => {

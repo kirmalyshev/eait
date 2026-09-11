@@ -23,7 +23,7 @@ import {
   type AttachPhotosResponse, type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
   type HealthDaysRequest, type HealthDaysResponse, type HealthResponse, type LivenessResponse,
   HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, type PushTokenResponse,
-  type PairCodeResponse,
+  type PairCodeResponse, type PendingMealsResponse,
 } from "@eait/shared";
 import { LANGS } from "@eait/shared";
 import { AuthError, type Verifier } from "../auth/verify.ts";
@@ -31,7 +31,7 @@ import { isCalendarDate } from "@eait/shared";
 import type { Store } from "../store.ts";
 import {
   MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
-  healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, profileView,
+  healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, pendingMeals, profileView,
   unlinkIdentity,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, type EngineDeps,
   attachPhotos,
@@ -836,6 +836,10 @@ export function createRouter(
       }
 
       // ── Pending text meals ────────────────────────────────────────────────────────────────
+      // The caller's live proposals (#530), for a page that lost its card. A read: nothing charged.
+      if (req.method === "GET" && pathname === ROUTES.pending) {
+        return json({ proposals: await pendingMeals(deps, userId) } satisfies PendingMealsResponse);
+      }
       const pending = /^\/v1\/meals\/pending\/([^/]+)\/(confirm|cancel)$/.exec(pathname);
       if (req.method === "POST" && pending) {
         const id = decodeURIComponent(pending[1]!);

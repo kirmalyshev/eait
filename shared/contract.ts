@@ -9,7 +9,7 @@ import type {
 } from "./types.ts";
 import type { OnboardingContent, OnboardingEvent } from "./onboarding.ts";
 import type { TargetBasis } from "./targets.ts";
-import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, LogPhotoResult, MealUpdated, TargetGone } from "./results.ts";
+import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, LogPhotoResult, MealProposed, MealUpdated, TargetGone } from "./results.ts";
 import type { HealthDay } from "./health.ts";
 import type { Entitlement } from "./entitlement.ts";
 import type { ScriptedLineId } from "./chat.ts";
@@ -246,6 +246,8 @@ export const ROUTES = {
   mealReanalyze: (id: string) => `/v1/meals/${encodeURIComponent(id)}/reanalyze`,
   pendingConfirm: (id: string) => `/v1/meals/pending/${encodeURIComponent(id)}/confirm`,
   pendingCancel: (id: string) => `/v1/meals/pending/${encodeURIComponent(id)}/cancel`,
+  /** GET — the caller's live proposals, oldest first (#530): a page that lost its card reads them back. */
+  pending: "/v1/meals/pending",
   day: "/v1/diary/day",
   week: "/v1/diary/week",
   account: "/v1/account",
@@ -958,3 +960,7 @@ export type PhotoEvent =
 export type PhotoLast = LogPhotoResult | { kind: typeof OUTCOME_UNKNOWN };
 export type MessageResponse = HandleTextResult;
 export type PendingResponse = ConfirmMealResult | { kind: "cancelled" } | { kind: "expired" };
+/** `GET /v1/meals/pending`: the caller's live proposals, oldest first, each as its turn sent it (#530). */
+export interface PendingMealsResponse {
+  proposals: MealProposed[];
+}

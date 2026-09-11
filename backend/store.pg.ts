@@ -1616,6 +1616,17 @@ export async function postgresStore(
       };
     },
 
+    async pendingsFor(userId) {
+      const rows = await sql`
+        select * from pendings where user_id = ${userId} and expires_at > ${new Date(now())}
+        order by expires_at`;
+      return rows.map((r: Record<string, unknown>): PendingMeal => ({
+        id: String(r.id), userId: String(r.user_id),
+        analysis: json<PendingMeal["analysis"]>(r.analysis, {} as PendingMeal["analysis"]), date: String(r.date),
+        expiresAt: new Date(r.expires_at as string).getTime(),
+      }));
+    },
+
     async pruneExpiredPendings() {
       const rows = await sql`delete from pendings where expires_at <= ${new Date(now())} returning id`;
       return rows.length;

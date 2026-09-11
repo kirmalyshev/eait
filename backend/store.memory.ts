@@ -918,6 +918,13 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return clone(p);
     },
 
+    async pendingsFor(userId) {
+      return [...pendings.values()]
+        .filter((p) => p.userId === userId && p.expiresAt > now())
+        .sort((a, b) => a.expiresAt - b.expiresAt)
+        .map((p) => clone(p));
+    },
+
     async pruneExpiredPendings() {
       let n = 0;
       for (const [id, p] of pendings) if (p.expiresAt <= now()) { pendings.delete(id); n++; }

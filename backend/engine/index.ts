@@ -10,7 +10,7 @@ export {
   type AdminUser, type AdminUsers, type ApplyOutcome, type RevenueCatEvent, type UserCap,
 } from "./entitlement.ts";
 export {
-  logPhotoMeal, editMeal, applyCorrection, attachPhotos, confirmPendingMeal, cancelPendingMeal, reanalyzeMeal, sumTotals,
+  logPhotoMeal, editMeal, applyCorrection, attachPhotos, confirmPendingMeal, cancelPendingMeal, pendingMeals, reanalyzeMeal, sumTotals,
   toAnalysis, type LogPhotoInput,
 } from "./meals.ts";
 export { handleText, type HandleTextInput } from "./text.ts";

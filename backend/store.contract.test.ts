@@ -1138,6 +1138,24 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.getPending(u, dead.id)).toBeNull();
     });
 
+    it("lists an account's live proposals, oldest first, and nobody else's (#530)", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const other = (await s.upsertDeviceUser(device(), "en")).userId;
+      const first = { id: crypto.randomUUID(), userId: u, analysis: meal(u), date: "2026-08-01", expiresAt: Date.now() + 60_000 };
+      const second = { ...first, id: crypto.randomUUID(), expiresAt: Date.now() + 120_000 };
+      const dead = { ...first, id: crypto.randomUUID(), expiresAt: Date.now() - 1_000 };
+      const theirs = { ...first, id: crypto.randomUUID(), userId: other };
+      for (const p of [second, dead, theirs, first]) await s.putPending(p);
+      const mine = await s.pendingsFor(u);
+      expect(mine.map((p) => p.id)).toEqual([first.id, second.id]);
+      expect(mine[0]!.analysis).toEqual(first.analysis);
+      // A claimed proposal is no longer offered.
+      expect(await s.dropPending(u, first.id)).toBe(true);
+      expect((await s.pendingsFor(u)).map((p) => p.id)).toEqual([second.id]);
+      expect((await s.pendingsFor(other)).map((p) => p.id)).toEqual([theirs.id]);
+    });
+
     it("answers an id that is not a uuid as absent, never as an error, in both implementations", async () => {
       // A client-supplied id reaches these four; Postgres would refuse a non-uuid at the column and
       // turn a 404-shaped question into a 500 — after the analysis was charged, on `/v1/messages`.

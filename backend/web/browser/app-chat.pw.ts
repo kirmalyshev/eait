@@ -117,6 +117,18 @@ test("a proposal the server no longer holds stops offering Log it", async ({ inW
   await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
 });
 
+test("a held proposal survives a reload, and Log it still logs it (#530)", async ({ inWebApp: page }) => {
+  await page.getByPlaceholder("What did you eat?").fill("a banana");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
+  // The page's memory is gone; the server holds the proposal until it expires.
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
+  await page.getByRole("button", { name: "Log it" }).click();
+  await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
+  await expect(page.locator(".thread li", { hasText: / — \d+ kcal$/ })).toHaveCount(1);
+});
+
 test("dropping a proposal the server no longer holds is what was asked, and says nothing", async ({ inWebApp: page }) => {
   await page.getByPlaceholder("What did you eat?").fill("a banana");
   await page.getByRole("button", { name: "Send", exact: true }).click();
