@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import {
-  HEALTH_RETENTION_DAYS, aggregateDays, dateMinus, emptyHealthDay, healthDayBatches,
-  healthSyncLanded, localDate, windowStart, zonedMidnight, type HealthDay, type HealthSample,
+  HEALTH_RETENTION_DAYS, HEALTH_SYNC_LOOKBACK_DAYS, aggregateDays, dateMinus, emptyHealthDay,
+  healthDayBatches, healthDaysFrom, healthSyncLanded, localDate, windowStart, zonedMidnight,
+  type HealthDay, type HealthSample,
 } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -325,6 +326,33 @@ describe("weight sync", () => {
     const userId = await onboard();
     await recordHealthDays(deps, userId, [day(ago(0), { weight_kg: 25 })], await measuredNow());
     expect((await store.getProfile(userId))!.weight_kg).toBe(70);
+  });
+});
+
+// A day dated before the window the phone read is partial by construction, and the upsert replaces
+// a whole row, so sending it would wipe what is already stored for that day.
+describe("what the phone sends", () => {
+  it("leaves the day before a steady-state window whole", async () => {
+    const userId = await onboard();
+    const oldest = windowStart(TODAY, HEALTH_SYNC_LOOKBACK_DAYS + 1);
+    const before = dateMinus(oldest, 1);
+    await recordHealthDays(deps, userId, [day(before, { steps: 9000, asleep_minutes: 420 })]);
+
+    const from = zonedMidnight(ZONE, oldest);
+    const noon = new Date(from.getTime() + 12 * 3_600_000).toISOString();
+    const samples: HealthSample[] = [
+      { metric: "steps", start: noon, end: noon, value: 5000 },
+      // Across the window's first midnight: the read returns it, and its START dates it to `before`.
+      {
+        metric: "workouts", value: 1,
+        start: new Date(from.getTime() - 30 * 60_000).toISOString(),
+        end: new Date(from.getTime() + 15 * 60_000).toISOString(),
+      },
+    ];
+    await recordHealthDays(deps, userId, healthDaysFrom(aggregateDays(samples, ZONE), oldest));
+
+    const stored = (await store.healthDaysSince(userId, before)).find((d) => d.date === before);
+    expect(stored).toMatchObject({ steps: 9000, asleep_minutes: 420, workouts: null });
   });
 });
 

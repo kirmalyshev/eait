@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   MAX_HEALTH_DAYS_PER_BATCH, MAX_ITEM_NAME, MAX_MEAL_AMOUNT, MAX_MEAL_ITEMS, healthDayBatches,
-  healthSyncLanded, isEditMealRequest,
+  healthDaysFrom, healthSyncLanded, isEditMealRequest,
 } from "./contract.ts";
 import { emptyHealthDay } from "./health.ts";
 
@@ -75,5 +75,15 @@ describe("healthSyncLanded", () => {
   it("does not count a day from before the window, which the server never keeps", () => {
     const withEdge = [...read, day("2021-09-09")];
     expect(healthSyncLanded(withEdge, "2021-09-10", 3)).toBe(true);
+  });
+});
+
+// What the phone sends is the window it read. A day before it comes from a sample overlapping the
+// window's first midnight, and carries that sample and nothing else.
+describe("healthDaysFrom", () => {
+  it("drops every day before the window and keeps the rest, in order", () => {
+    const d = (date: string) => ({ ...emptyHealthDay(date), steps: 1 });
+    const days = [d("2026-09-10"), d("2026-09-04"), d("2026-09-03")];
+    expect(healthDaysFrom(days, "2026-09-04").map((x) => x.date)).toEqual(["2026-09-10", "2026-09-04"]);
   });
 });

@@ -819,6 +819,15 @@ export function healthSyncLanded(days: readonly HealthDay[], oldest: string, acc
 }
 
 /**
+ * The days a sync that read from `oldest` sends: none dated before it. A sample overlapping the
+ * window's first midnight dates there by its start, carrying that sample alone, and the store
+ * replaces a whole row, so sending it would wipe the day already stored.
+ */
+export function healthDaysFrom(days: readonly HealthDay[], oldest: string): HealthDay[] {
+  return days.filter((d) => d.date >= oldest);
+}
+
+/**
  * The window the app re-reads on every sync. See `HealthDaysRequest` for why it looks backwards.
  *
  * The FIRST sync of a process reads `HEALTH_RETENTION_DAYS` instead — the rolling window is the
