@@ -795,8 +795,8 @@ export interface HealthResponse {
 }
 
 /**
- * Bounded so one request cannot carry a decade. A rolling sync sends days; the FIRST sync sends
- * `HEALTH_RETENTION_DAYS` of them and goes through `healthDayBatches` to fit.
+ * Bounded so one request cannot carry a decade. A rolling sync sends days; the first FULL sync of
+ * a process sends `HEALTH_RETENTION_DAYS` of them and goes through `healthDayBatches` to fit.
  */
 export const MAX_HEALTH_DAYS_PER_BATCH = 400;
 
@@ -830,10 +830,11 @@ export function healthDaysFrom(days: readonly HealthDay[], oldest: string): Heal
 /**
  * The window the app re-reads on every sync. See `HealthDaysRequest` for why it looks backwards.
  *
- * The FIRST sync of a process reads `HEALTH_RETENTION_DAYS` instead — the rolling window is the
- * steady state and is deliberately short, it exists to catch data that arrived late, not to move
- * history. But a user who connects Health today has years of it already, and a year view that
- * fills in one day per launch is a year view nobody will ever see filled.
+ * The first FULL sync of a process (the Health screen's, never the launch sync's `rollingOnly`)
+ * reads `HEALTH_RETENTION_DAYS` instead — the rolling window is the steady state and is
+ * deliberately short, it exists to catch data that arrived late, not to move history. But a user
+ * who connects Health today has years of it already, and a year view that fills in one day per
+ * launch is a year view nobody will ever see filled.
  */
 export const HEALTH_SYNC_LOOKBACK_DAYS = 7;
 
