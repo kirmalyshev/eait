@@ -10,7 +10,7 @@
 // the bot and another in this app, and neither has to agree with the other about wording.
 
 import type { DailyTotals, MealAnalysis, MealQuestion } from "./types.ts";
-import { REFUSAL_STATUS } from "./contract.ts";
+import { OUTCOME_UNKNOWN, REFUSAL_STATUS } from "./contract.ts";
 
 /** Which correction nudge the surface should show under a logged meal. */
 export type MealHint = "lowConfidence" | "correction";
@@ -199,6 +199,15 @@ export const RATE_LIMITED = "rate-limited";
  */
 const ANSWER_STATUS: Record<string, number> = { ...REFUSAL_STATUS, [RATE_LIMITED]: 429 };
 export const isServerAnswer = (r: { kind: string }): boolean => Object.hasOwn(ANSWER_STATUS, r.kind);
+
+/**
+ * True when the server GOT the turn and failed on it, so nobody knows what it did (#546): the JSON
+ * path's 500 `internal`, and a stream's `OUTCOME_UNKNOWN` (#514). Neither is "offline", because the
+ * request arrived, and neither is a refusal the server meant. A surface words it as "it may have
+ * gone through, check before sending it again", never as a connection problem: a correction may
+ * have applied, and a resend of one that did applies it twice.
+ */
+export const outcomeUnknown = (kind: string): boolean => kind === "internal" || kind === OUTCOME_UNKNOWN;
 
 /** One refused turn, as every surface names it: `kind` is `"offline"` when nothing reached the server. */
 export interface RefusedTurn {

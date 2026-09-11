@@ -3,8 +3,8 @@
 // the hand-written list is what shipped one kind short and answered a 200 with a refusal inside it.
 
 import { describe, expect, it } from "bun:test";
-import { RATE_LIMITED, capScope, isRefusal, isServerAnswer, refusalFrom } from "./results.ts";
-import { REFUSAL_STATUS } from "./contract.ts";
+import { RATE_LIMITED, capScope, isRefusal, isServerAnswer, outcomeUnknown, refusalFrom } from "./results.ts";
+import { OUTCOME_UNKNOWN, REFUSAL_STATUS } from "./contract.ts";
 
 describe("RATE_LIMITED", () => {
   it("is the string the routes actually send", () => {
@@ -61,6 +61,21 @@ describe("isServerAnswer", () => {
   it("is false for a request that never arrived, and for a body nobody here knows", () => {
     expect(isServerAnswer({ kind: "offline" })).toBe(false);
     expect(isServerAnswer({ kind: "bad-edit" })).toBe(false);
+  });
+});
+
+// #546: the chat worded a turn the server got and failed on as "Couldn't reach eait".
+describe("outcomeUnknown — #546", () => {
+  it("is true for a turn the server got and failed on, answered as JSON or in a stream", () => {
+    expect(outcomeUnknown("internal")).toBe(true);
+    expect(outcomeUnknown(OUTCOME_UNKNOWN)).toBe(true);
+  });
+
+  it("is false for a request that never arrived, and for every refusal the server meant", () => {
+    expect(outcomeUnknown("offline")).toBe(false);
+    for (const kind of Object.keys(REFUSAL_STATUS)) {
+      expect(`${kind}: ${outcomeUnknown(kind)}`).toBe(`${kind}: false`);
+    }
   });
 });
 
