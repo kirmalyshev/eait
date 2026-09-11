@@ -86,6 +86,14 @@ describe("the shipped copy", () => {
     }
   });
 
+  it("says the iPhone app can keep the weight current from Apple Health (#609)", () => {
+    // The phone syncs a newer weight on every launch and it moves the target, so somebody typing
+    // one into a browser is told where the next one can come from.
+    const ask = DEFAULT_ONBOARDING_CONTENT.screens.find((s) => s.id === "body")!.asks.weight_kg!.lines.join(" ");
+    expect(ask).toContain("iPhone app");
+    expect(ask).toContain("Apple Health");
+  });
+
   it("labels every option the app can render", () => {
     for (const screen of DEFAULT_ONBOARDING_CONTENT.screens) {
       if (!screen.options) continue;

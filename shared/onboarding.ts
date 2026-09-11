@@ -571,8 +571,10 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // consequential copy change this file has had, so a funnel row tagged v8 and one tagged v9 were
   // answering under different promises — which is exactly what this number exists to keep apart.
   // The claim cannot come back: `retired-no-email` in `claims.ts` refuses it on the admin write,
-  // and `usableWelcome` refuses a stored revision that still carries it on the read.
-  version: 9,
+  // and `usableWelcome` refuses a stored revision that still carries it on the read. v10 (#609)
+  // adds one clause to the weight question: the iPhone app keeps that number current from Apple
+  // Health, and a newer one moves the target on every surface, the browser included.
+  version: 10,
   welcome: {
     lines: [
       "Hi, I'm Spud. Photograph what you eat, get an honest answer — that's the whole app.",
@@ -617,7 +619,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
           placeholder: "Height in cm",
         },
         weight_kg: {
-          lines: ["And your weight now, in kg?"],
+          lines: ["And your weight now, in kg? The eait iPhone app can keep it updated from Apple Health."],
           placeholder: "Weight in kg",
         },
       },
