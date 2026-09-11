@@ -110,14 +110,18 @@ export async function entitlementFor(deps: EngineDeps, userId: string): Promise<
   // the record — and reporting it raw made the settings screen say "Active until 3 January" beside
   // a "Manage subscription" button opening a Customer Center with no subscription in it. The three
   // states `Entitlement` documents are the three the app is allowed to see.
+  const active = entitlementLive(stored, now);
   return {
-    active: entitlementLive(stored, now),
+    active,
     expiresAt: entitlementActive(stored?.expiresAt, now) ? stored?.expiresAt ?? null : null,
     // The trial is a property of the SUBSCRIPTION period, so it is only claimed while that period
     // is live — and never for a lifetime holder, whose reminders would announce a charge that will
     // not happen.
     trial: stored?.trial === true && stored?.lifetimeProductId === null &&
       entitlementActive(stored?.expiresAt, now),
+    // Bought once and nothing live now: the app asks to RESUBSCRIBE. The record's existence is what
+    // means "has bought something" (`entitlement_event_at`), so this is exact rather than a guess.
+    lapsed: !!stored && !active,
   };
 }
 

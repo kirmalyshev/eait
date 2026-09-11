@@ -460,6 +460,18 @@ describe("the sample", () => {
     expect(await logPhotoMeal(one, userId, photo())).toEqual({ kind: "subscription-required" });
   });
 
+  it("tells the app a subscription ENDED, so it can ask to resubscribe rather than to subscribe", async () => {
+    const userId = await onboard();
+    // Never bought: the ask is "subscribe".
+    expect((await profileView(one, userId))!.entitlement.lapsed).toBe(false);
+    await entitle(userId);
+    expect((await profileView(one, userId))!.entitlement.lapsed).toBe(false);
+    // Bought, and over — `expiresAt` is blanked by then, so this is the only thing that says so.
+    await entitle(userId, -1000);
+    const view = (await profileView(one, userId))!;
+    expect(view.entitlement).toMatchObject({ active: false, expiresAt: null, lapsed: true });
+  });
+
   // Issue #32: this happened, in production, to the first real user — an expired OpenRouter balance
   // answered 402 seconds after they finished onboarding, and the account was paywalled forever
   // having never seen one analysis. The sample IS the funnel: there is no free tier, so an upstream

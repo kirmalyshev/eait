@@ -21,7 +21,7 @@
 
 import { scriptedLine } from "./chat.ts";
 import type { ChatEntry, ChatHistoryResponse, ProfileResponse } from "./contract.ts";
-import { sampleSpent } from "./entitlement.ts";
+import { mayHaveSpentSample, sampleSpent } from "./entitlement.ts";
 import type { ConfirmMealResult, HandleTextResult, MealLogged } from "./results.ts";
 import {
   fromHistory, keepsItsWords, landedLine, lastMealId, oneLiveProposal, reconcilePage, supersededPendings,
@@ -296,6 +296,10 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
           // Awaited, so the composer stays busy until it lands and nothing typed meanwhile is dropped.
           if (result.kind === "updated") await load(() => true);
         }
+        // THE TURN THAT SPENT THE LAST ANALYSIS turns the composer into the ask (`blockedAsk`), and
+        // nothing else re-reads the profile when a turn succeeds. Not awaited: the answer is on
+        // screen, and the composer's turn is over either way.
+        if (mayHaveSpentSample(deps.profile())) void deps.refreshProfile();
       } catch (e) {
         // A racing page may have superseded the bubble before the request failed in transport: the
         // words are on screen from the page, and so is the reply if the turn had one (written in the
@@ -323,6 +327,8 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
             push({ id: uid(), role: "error", kind: "analysis-failed", ...(sampleSpent(p) ? { scope: "sample" } : {}) });
           } else {
             pushFailure(e, keepsItsWords(failure.kind) ? asked : undefined);
+            // The server has just said the sample is spent; the profile the composer reads has not.
+            if (failure.kind === "subscription-required") void deps.refreshProfile();
           }
           if (failure.refusal && failure.kind !== "analysis-failed") {
             // A refusal IS the answer: the turn was sent, read, and refused on purpose, and the

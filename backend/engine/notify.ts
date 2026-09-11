@@ -125,7 +125,7 @@ export async function dailyNotification(
   // through `reminderPlan`, which is what keeps "the day the server is silent" and "the day the
   // device speaks" the same day.
   const which = dailyMessage(date, trialReminders(
-    { active: true, expiresAt: stored?.expiresAt ?? null, trial: stored?.trial === true },
+    { active: true, expiresAt: stored?.expiresAt ?? null, trial: stored?.trial === true, lapsed: false },
     deps.config.timezone, now,
   ));
   if (which !== "evening") return null;

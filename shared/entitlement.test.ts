@@ -1,5 +1,7 @@
 import { describe, expect, it, test } from "bun:test";
-import { NO_ENTITLEMENT, entitlementActive, entitlementLive, sampleSpent } from "./entitlement.ts";
+import {
+  NO_ENTITLEMENT, blockedAsk, entitlementActive, entitlementLive, mayHaveSpentSample, sampleSpent,
+} from "./entitlement.ts";
 
 const NOW = Date.parse("2026-08-24T12:00:00.000Z");
 
@@ -50,6 +52,41 @@ describe("sampleSpent", () => {
 // `entitlementLive` is the single yes/no authority for the paid tier, and the only place that
 // knows a customer can hold two grants at once. Tested directly rather than only through the
 // backend, because every one of these cases is a different person being let in or refused.
+describe("blockedAsk", () => {
+  // What stands where the camera and the composer were, once the account cannot log a meal.
+  test("nothing, while the account can still log one", () => {
+    expect(blockedAsk({ limits: { sampleUsed: false }, entitlement: { active: false, lapsed: false } })).toBeNull();
+    expect(blockedAsk({ limits: { sampleUsed: true }, entitlement: { active: true, lapsed: false } })).toBeNull();
+    expect(blockedAsk(null)).toBeNull();
+    expect(blockedAsk(undefined)).toBeNull();
+  });
+
+  test("subscribe, for a spent sample and nothing ever bought", () => {
+    expect(blockedAsk({ limits: { sampleUsed: true }, entitlement: { active: false, lapsed: false } })).toBe("subscribe");
+    // A server older than `lapsed` sends none, and subscribe is the ask that is true of both people.
+    expect(blockedAsk({ limits: { sampleUsed: true }, entitlement: { active: false } })).toBe("subscribe");
+  });
+
+  test("resubscribe, for a spent sample after a subscription ended", () => {
+    expect(blockedAsk({ limits: { sampleUsed: true }, entitlement: { active: false, lapsed: true } })).toBe("resubscribe");
+  });
+});
+
+describe("mayHaveSpentSample", () => {
+  test("an unentitled account on its last analysis, or one whose profile cannot count", () => {
+    expect(mayHaveSpentSample({ limits: { sampleRemaining: 1 }, entitlement: { active: false } })).toBe(true);
+    expect(mayHaveSpentSample({ limits: { sampleRemaining: 0 }, entitlement: { active: false } })).toBe(true);
+    // A server older than the count: re-read, which is the safe direction.
+    expect(mayHaveSpentSample({ limits: {}, entitlement: { active: false } })).toBe(true);
+  });
+
+  test("not with analyses to spare, and never for an entitled account", () => {
+    expect(mayHaveSpentSample({ limits: { sampleRemaining: 2 }, entitlement: { active: false } })).toBe(false);
+    expect(mayHaveSpentSample({ limits: { sampleRemaining: 0 }, entitlement: { active: true } })).toBe(false);
+    expect(mayHaveSpentSample(null)).toBe(false);
+  });
+});
+
 describe("entitlementLive", () => {
   const now = Date.parse("2026-08-25T12:00:00.000Z");
   const future = "2026-09-25T12:00:00.000Z";

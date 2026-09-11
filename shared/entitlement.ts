@@ -47,6 +47,17 @@ export interface Entitlement {
    * arrive, not a wrong one that does.
    */
   trial: boolean;
+  /**
+   * Whether this account bought something once and nothing it bought keeps it in now — a
+   * subscription that ended, or a lifetime unlock that was refunded. The app asks it to RESUBSCRIBE
+   * rather than to subscribe, and nothing on the phone could tell the two apart without this: the
+   * server blanks `expiresAt` the moment a grant stops keeping somebody in.
+   *
+   * False for an account that never bought anything and for one entitled now. OPTIONAL because a
+   * server older than the field sends none, which the app reads as false: "subscribe" is the ask
+   * true of both people. `entitlementFor` always sends it.
+   */
+  lapsed?: boolean;
 }
 
 /** What an account that has never purchased looks like. The overwhelmingly common case. */
@@ -70,7 +81,27 @@ export interface Entitlement {
  */
 export const FREE_ANALYSES = 15;
 
-export const NO_ENTITLEMENT: Entitlement = { active: false, expiresAt: null, trial: false };
+export const NO_ENTITLEMENT: Entitlement = { active: false, expiresAt: null, trial: false, lapsed: false };
+
+/**
+ * What the app offers where the camera button and the composer were, once this account cannot log
+ * a meal: `"resubscribe"` once something it bought has ended, `"subscribe"` otherwise, and null while
+ * a meal can still be logged. Read off the SERVER's profile, like `sampleSpent`, never the SDK's.
+ */
+export const blockedAsk = (
+  p: { limits?: { sampleUsed?: boolean }; entitlement?: { active?: boolean; lapsed?: boolean } } | null | undefined,
+): "subscribe" | "resubscribe" | null =>
+  !sampleSpent(p) ? null : p?.entitlement?.lapsed ? "resubscribe" : "subscribe";
+
+/**
+ * Whether the turn that just finished may have spent the last of the sample, so the profile is worth
+ * re-reading: `blockedAsk` is read off it, and nothing re-reads it when an analysis SUCCEEDS. An
+ * unentitled account with at most one analysis left — or a profile too old to carry the count, which
+ * re-reads, the safe direction.
+ */
+export const mayHaveSpentSample = (
+  p: { limits?: { sampleRemaining?: number }; entitlement?: { active?: boolean } } | null | undefined,
+): boolean => !!p && !p.entitlement?.active && (p.limits?.sampleRemaining ?? 0) <= 1;
 
 /**
  * Whether a failed analysis just spent the free sample. A cap is charged before the model is asked

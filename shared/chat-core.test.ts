@@ -196,3 +196,29 @@ describe("the store", () => {
     expect(core.state).toBe(before);
   });
 });
+
+describe("the composer can turn into the ask", () => {
+  // The screen swaps the camera and the composer for "Subscribe" once the profile says the sample is
+  // spent, and nothing re-reads the profile when a turn SUCCEEDS — so the turn that may have spent
+  // the last analysis re-reads it here, or the next thing the user met would be a refusal.
+  const lastOne = { limits: { sampleUsed: false, sampleRemaining: 1 }, entitlement: { active: false } } as ProfileResponse;
+  const plenty = { limits: { sampleUsed: false, sampleRemaining: 9 }, entitlement: { active: false } } as ProfileResponse;
+
+  it("a turn that may have spent the last of the sample re-reads the profile", async () => {
+    const { core, fake } = harness({ profile: lastOne });
+    await core.send("two eggs and toast"); await settle();
+    expect(fake.refreshes).toBe(1);
+  });
+
+  it("a turn with analyses to spare does not", async () => {
+    const { core, fake } = harness({ profile: plenty });
+    await core.send("two eggs and toast"); await settle();
+    expect(fake.refreshes).toBe(0);
+  });
+
+  it("a subscription-required refusal re-reads it, so the ask replaces the composer", async () => {
+    const { core, fake } = harness({ profile: plenty, send: () => Promise.reject(refused("subscription-required")) });
+    await core.send("two eggs and toast"); await settle();
+    expect(fake.refreshes).toBe(1);
+  });
+});
