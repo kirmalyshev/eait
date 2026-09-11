@@ -229,6 +229,23 @@ describe("aggregateDays across several recording sources", () => {
     expect(days[0]!.asleep_minutes).toBe(450);
   });
 
+  test("sends only what the server keeps: a total past its range is nulled on the phone too (#557)", () => {
+    // Every SAMPLE is in range and the day's TOTAL is not: one source's overlapping nights. The
+    // server checks the total (`sanitizeHealthDay`), so a day whose only metric this was went out,
+    // was dropped, and every first sync that sent it came back one day short.
+    const night = (start: string, end: string): HealthSample =>
+      ({ metric: "asleep_minutes", start, end, value: 800, source: "watch" });
+    const nights = [
+      night("2026-03-09T20:00:00Z", "2026-03-10T09:20:00Z"),
+      night("2026-03-09T21:00:00Z", "2026-03-10T10:20:00Z"),
+    ];
+    expect(aggregateDays(nights, BERLIN)).toEqual([]);
+
+    const days = aggregateDays([...nights, at("steps", "2026-03-10T12:00:00Z", 5000)], BERLIN);
+    expect(days.map((d) => [d.asleep_minutes, d.steps])).toEqual([[null, 5000]]);
+    for (const d of days) expect(sanitizeHealthDay(d)).toEqual(d);
+  });
+
   test("a body metric still takes the latest reading, whichever source it came from", () => {
     const days = aggregateDays([
       from("scale", "weight_kg", "2026-03-10T06:00:00Z", 94),

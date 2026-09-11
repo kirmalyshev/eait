@@ -76,6 +76,11 @@ describe("healthSyncLanded", () => {
     const withEdge = [...read, day("2021-09-09")];
     expect(healthSyncLanded(withEdge, "2021-09-10", 3)).toBe(true);
   });
+
+  it("is AT LEAST the window: a server whose day has not turned yet may keep one more (#558)", () => {
+    const withEdge = [...read, day("2021-09-09")];
+    expect(healthSyncLanded(withEdge, "2021-09-10", 4)).toBe(true);
+  });
 });
 
 // What the phone sends is the window it read. A day before it comes from a sample overlapping the

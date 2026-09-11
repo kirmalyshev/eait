@@ -981,6 +981,22 @@ export interface Store {
   putHealthDays(userId: string, days: HealthDay[]): Promise<number>;
   /** Scoped. `since` inclusive, most recent first — the same shape as `totalsSince`. */
   healthDaysSince(userId: string, since: string): Promise<HealthDay[]>;
+  /**
+   * Delete every health row dated before `before`, for EVERY account. Returns how many went.
+   *
+   * The one write in this port that is not scoped by `userId`, and it has to be: retention is a
+   * property of the data, not of an account, so a sweep that needed a user id would keep the rows
+   * of everybody who stopped opening the app — the accounts whose data is least defensible to hold.
+   * It takes a DATE rather than a day count so the caller owns the boundary, which is the same
+   * `windowStart(today, HEALTH_RETENTION_DAYS)` `recordHealthDays` refuses on ingest.
+   *
+   * Nothing served changes: every read is already inside that window. What changes is what is KEPT.
+   * `HEALTH_RETENTION_DAYS` is documented as how old a row may be and still be stored, and until
+   * this existed only the ingest bound enforced it — so an account open for six years held six
+   * years of special-category data of which five were servable and the sixth was reachable by
+   * nothing but a database dump (#562).
+   */
+  pruneHealthDaysBefore(before: string): Promise<number>;
 
   // ── Erasure ────────────────────────────────────────────────────────────────────────────────
   /**

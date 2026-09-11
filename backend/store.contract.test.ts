@@ -16,7 +16,7 @@
 
 import { afterAll, describe, expect, it } from "bun:test";
 import { SQL } from "bun";
-import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, type MealRecord } from "@eait/shared";
+import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, emptyHealthDay, type MealRecord } from "@eait/shared";
 import { hashToken } from "./auth/tokens.ts";
 import { memoryStore } from "./store.memory.ts";
 import { postgresStore } from "./store.pg.ts";
@@ -1763,6 +1763,19 @@ function contract(name: string, make: () => Promise<Store>) {
       // Back to where it started. Onboarding promises erasure while asking about the user's
       // kidneys; the analytics table is not an exception to that sentence.
       expect(await views()).toBe(before);
+    });
+
+    it("prunes health rows dated before a day, for every account, and keeps that day (#562)", async () => {
+      const s = await open();
+      const a = (await s.upsertDeviceUser(device(), "en")).userId;
+      const b = (await s.upsertDeviceUser(device(), "en")).userId;
+      const day = (date: string) => ({ ...emptyHealthDay(date), steps: 1 });
+      // Dates no other test stores: the prune is global by definition, like the retention it keeps.
+      await s.putHealthDays(a, [day("2001-01-02"), day("2001-01-01")]);
+      await s.putHealthDays(b, [day("2000-12-31")]);
+      expect(await s.pruneHealthDaysBefore("2001-01-02")).toBeGreaterThanOrEqual(2);
+      expect((await s.healthDaysSince(a, "0000-01-01")).map((d) => d.date)).toEqual(["2001-01-02"]);
+      expect(await s.healthDaysSince(b, "0000-01-01")).toEqual([]);
     });
   });
 }

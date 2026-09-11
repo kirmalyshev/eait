@@ -309,7 +309,13 @@ export function aggregateDays(samples: readonly HealthSample[], zone: string): H
       const spec = FIELD_BY_KEY.get(metric)!;
       day[metric] = reduceSamples(list, spec);
     }
-    if (!healthDayIsEmpty(day)) days.push(day);
+    // THE SERVER'S OWN VALIDATOR, on what the phone is about to send. The range above is checked
+    // per SAMPLE, and a day's total can still pass its maximum — one source's overlapping nights
+    // past 1440 minutes. The server nulls that total and drops a day left with nothing, so a day
+    // whose only metric it was went out, came back unstored, and kept every first sync that sent it
+    // one day short of landing (#557). One rule, run on both sides, and they cannot disagree.
+    const ok = sanitizeHealthDay(day);
+    if (ok) days.push(ok);
   }
 
   // Most recent first, matching `totalsSince` — the other per-day series in this product.

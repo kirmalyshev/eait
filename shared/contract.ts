@@ -135,6 +135,11 @@ export const MAX_PHOTOS_PER_MEAL = 4;
  * per-day totals can be asked for, because the health screen draws intake on the same axis as
  * energy burned and two series with two horizons is a chart whose left half is silent about food.
  *
+ * THE FIRST JOB IS TWO BOUNDS, not one. `recordHealthDays` refuses a day older than this on the way
+ * IN, and `pruneAgedHealthDays` deletes a stored day once it ages past it — at startup and once a
+ * day. Only the ingest bound existed until #562, so "still be stored" was true of what the product
+ * would serve and false of what the database held: a day accepted five years ago simply stayed.
+ *
  * Five years rather than the two it used to be because the screen has a year view now, and a year
  * view over two years is two points. It is also what bounds rows per user: accounts are free and
  * the health route is not billed, so without a window a client could write four hundred distinct
@@ -812,10 +817,15 @@ export function healthDayBatches(days: readonly HealthDay[]): HealthDay[][] {
 /**
  * Whether a sync that read from `oldest` had every day of that window stored. EVERY day, not any:
  * the midnight race drops one. A day before `oldest` is not counted — a sample overlapping the
- * window's first midnight dates there, and a first sync's server never keeps it.
+ * window's first midnight dates there.
+ *
+ * AT LEAST the window, not exactly it (#558). A server whose clock has not yet passed the phone's
+ * midnight keeps a day from before the phone's window if one is sent, and `accepted` then comes back
+ * one higher. That server is BEHIND the phone, so it refused no day of the window for its age, and
+ * reading the extra day as "not landed" would cost the user one more five-year read for nothing.
  */
 export function healthSyncLanded(days: readonly HealthDay[], oldest: string, accepted: number): boolean {
-  return accepted === days.filter((d) => d.date >= oldest).length;
+  return accepted >= days.filter((d) => d.date >= oldest).length;
 }
 
 /**

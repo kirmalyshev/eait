@@ -1844,6 +1844,16 @@ export async function postgresStore(
       return rows.map((r: Record<string, unknown>) => toHealthDay(r));
     },
 
+    async pruneHealthDaysBefore(before) {
+      // Across every account, deliberately — see the port. `returning date` rather than a count
+      // query first: one statement, and nothing between a read and the delete it decided.
+      // ponytail: seq scan, the primary key is (user_id, date) and there is no index on date
+      // alone. It runs once a day over a table bounded by five years per account, and adding an
+      // index to speed up a daily delete would cost every upsert on the sync path.
+      const rows = await sql`delete from health_days where date < ${before} returning date`;
+      return rows.length;
+    },
+
     async deleteUser(userId) {
       // `on delete cascade` clears tokens, push tokens, meals, pendings, analyses, portion
       // corrections, the chat thread AND onboarding events with the row. The last one is deliberate — see the note on `deleteUser` in the port.

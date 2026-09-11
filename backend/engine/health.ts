@@ -94,6 +94,30 @@ export async function recordHealthDays(
   return { accepted: clean.length, ...(view ? { profile: view } : {}) };
 }
 
+/**
+ * Delete every stored day that has aged out of the retention window. Returns how many went.
+ *
+ * THE SAME BOUND `recordHealthDays` REFUSES ON, computed here so there is one expression rather
+ * than two — a sweep with its own idea of the window is one that eventually deletes a day the
+ * trend still serves. It reads no account: retention belongs to the data, and a sweep that walked
+ * users would skip the dormant ones, whose health is the least defensible of all to keep holding.
+ *
+ * Nothing servable is lost, because every read is already inside this window (`healthTrend`). What
+ * this changes is what is KEPT: until it existed only the INGEST bound enforced the number, so a
+ * day accepted five years ago simply stayed, and `HEALTH_RETENTION_DAYS` described a limit that
+ * held for what the product would show and not for what the database held (#562). Health data is
+ * special-category and the basis for holding it is one consent given at onboarding; that basis
+ * covers what the product serves, and holding more than that is a decision nobody made.
+ *
+ * Called at startup and once a day after that (`index.ts`). It is idempotent and cheap when there
+ * is nothing to delete, so a run that overlaps another, or a process that restarts hourly, costs
+ * nothing but the statement.
+ */
+export async function pruneAgedHealthDays(deps: EngineDeps): Promise<number> {
+  const oldest = windowStart(localDate(deps.config.timezone), HEALTH_RETENTION_DAYS);
+  return await deps.store.pruneHealthDaysBefore(oldest);
+}
+
 /** The trend this account has stored. Scoped, most recent first. Null when not onboarded. */
 export async function healthTrend(
   deps: EngineDeps,

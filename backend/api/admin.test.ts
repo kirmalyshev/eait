@@ -14,7 +14,7 @@ import { fakePush } from "../push/fake.ts";
 // all.
 
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { DEFAULT_ONBOARDING_CONTENT, ROUTES, type OnboardingContent } from "@eait/shared";
+import { DEFAULT_ONBOARDING_CONTENT, ROUTES, localDate, type OnboardingContent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
@@ -408,7 +408,7 @@ describe("the account list", () => {
   it("answers who signed up, what they are entitled to and what their cap is", async () => {
     const userId = await user();
     await store.setFreeAnalyses(userId, 3);
-    await store.recordAnalysis(userId, new Date().toISOString().slice(0, 10), "photo");
+    await store.recordAnalysis(userId, localDate(base.timezone), "photo");
 
     const body = await list();
     const row = body.users.find((u) => u.userId === userId)!;
@@ -873,7 +873,7 @@ describe("the numbers past the funnel", () => {
   it("answers a row per day, the two return cohorts, and the instance's budget", async () => {
     const userId = (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
     await store.patchProfile(userId, { onboarded_at: new Date().toISOString() });
-    await store.recordAnalysis(userId, new Date().toISOString().slice(0, 10), "photo");
+    await store.recordAnalysis(userId, localDate(base.timezone), "photo");
 
     const body = await (await metrics("?days=7")).json() as View;
     expect(body.days).toHaveLength(7);
@@ -901,7 +901,7 @@ describe("the numbers past the funnel", () => {
     await mountWithAdmin({ ...base, globalDailyAnalysisCap: 10 });
     const userId = (await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en")).userId;
     for (let i = 0; i < 3; i++) {
-      await store.recordAnalysis(userId, new Date().toISOString().slice(0, 10), "photo");
+      await store.recordAnalysis(userId, localDate(base.timezone), "photo");
     }
     const body = await (await metrics()).json() as View;
     expect(body.headroom).toBe(7);

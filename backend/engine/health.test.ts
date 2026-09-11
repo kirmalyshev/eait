@@ -10,7 +10,7 @@ import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
-import { healthTrend, recordHealthDays } from "./health.ts";
+import { healthTrend, pruneAgedHealthDays, recordHealthDays } from "./health.ts";
 import { patchProfile, type EngineDeps } from "./index.ts";
 
 const CONFIG: Config = {
@@ -371,5 +371,32 @@ describe("healthTrend", () => {
     const theirs = await onboard();
     await recordHealthDays(deps, mine, [day(ago(1), { steps: 3 })]);
     expect((await healthTrend(deps, theirs, 30))!.days).toEqual([]);
+  });
+});
+
+describe("pruneAgedHealthDays", () => {
+  it("deletes what the ingest bound would now refuse, and keeps the window's first day (#562)", async () => {
+    // The bound is the SAME expression `recordHealthDays` refuses on, which is the whole reason
+    // this lives beside it: two places computing `windowStart(today, HEALTH_RETENTION_DAYS)` is a
+    // window that eventually serves a day it has already deleted.
+    const userId = await onboard();
+    const oldest = windowStart(TODAY, HEALTH_RETENTION_DAYS);
+    // Written PAST the bound, which the engine cannot do — that is the point. Rows dated inside
+    // the window on the day they arrived are what age out of it later.
+    await store.putHealthDays(userId, [
+      emptyHealthDay(dateMinus(oldest, 1)), emptyHealthDay(oldest),
+    ].map((d) => ({ ...d, steps: 1 })));
+
+    expect(await pruneAgedHealthDays(deps)).toBe(1);
+    expect((await store.healthDaysSince(userId, "0000-01-01")).map((d) => d.date)).toEqual([oldest]);
+  });
+
+  it("reaches an account nobody is signed in to, because retention is not a per-user read", async () => {
+    const dormant = await onboard();
+    await store.putHealthDays(dormant, [
+      { ...emptyHealthDay(dateMinus(windowStart(TODAY, HEALTH_RETENTION_DAYS), 400)), steps: 1 },
+    ]);
+    expect(await pruneAgedHealthDays(deps)).toBe(1);
+    expect(await store.healthDaysSince(dormant, "0000-01-01")).toEqual([]);
   });
 });

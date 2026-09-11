@@ -15,8 +15,8 @@ import { demoPorts } from "./llm/demo.ts";
 import { chooseMailer } from "./mail/choose.ts";
 import { choosePush } from "./push/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
-import { collectPushReceipts, eveningSweep, msUntilNextEveningLine, RECEIPT_DELAY_MS, type EngineDeps } from "./engine/index.ts";
-import { localDate } from "@eait/shared";
+import { collectPushReceipts, eveningSweep, msUntilNextEveningLine, pruneAgedHealthDays, RECEIPT_DELAY_MS, type EngineDeps } from "./engine/index.ts";
+import { HEALTH_RETENTION_DAYS, localDate } from "@eait/shared";
 import { memoryStore } from "./store.memory.ts";
 import { postgresStore } from "./store.pg.ts";
 import type { Store } from "./store.ts";
@@ -111,6 +111,30 @@ const deps: EngineDeps = {
         maxTokens: config.llmMaxTokens,
       }),
 };
+
+// ── Health retention ─────────────────────────────────────────────────────────────────────────
+//
+// `HEALTH_RETENTION_DAYS` says how old a health row may be AND STILL BE STORED. Only the ingest
+// bound enforced that, so a day accepted inside the window stayed there forever once it left it:
+// an account open for six years held six years of special-category data, five of them servable and
+// the sixth reachable by nothing but a database dump (#562).
+//
+// AT STARTUP AND ONCE A DAY, which is the first scheduled work in this process that is not the
+// evening line. A plain interval rather than a timer to a wall-clock hour: the 20:30 line re-arms
+// because an hour's DST drift is visible to the people receiving it, and the only thing that can
+// see this one drift is a row that leaves a day later than it might have.
+const DAY_MS = 24 * 60 * 60 * 1000;
+const sweepHealthRetention = async () => {
+  try {
+    const gone = await pruneAgedHealthDays(deps);
+    if (gone > 0) console.log(`[eait] pruned ${gone} health row(s) past ${HEALTH_RETENTION_DAYS} days`);
+  } catch (e) {
+    // One failed sweep must not take the interval with it, for the reason the evening line says.
+    console.error(`[eait] health retention sweep failed: ${(e as Error)?.message ?? e}`);
+  }
+};
+await sweepHealthRetention();
+setInterval(() => { void sweepHealthRetention(); }, DAY_MS).unref?.();
 
 // In demo mode the verifier trusts a token of the form `demo:<provider>:<subject>` so the sign-in
 // flows can be driven without Apple or Google credentials. It is wired ONLY under `--demo`; the

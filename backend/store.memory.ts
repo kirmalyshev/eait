@@ -1060,6 +1060,15 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         .map(({ userId: _u, ...day }) => clone(day as HealthDay));
     },
 
+    async pruneHealthDaysBefore(before) {
+      // Across every account, like the statement it stands in for — see the port.
+      let gone = 0;
+      for (const [key, day] of healthDays) {
+        if (day.date < before) { healthDays.delete(key); gone++; }
+      }
+      return gone;
+    },
+
     async deleteUser(userId) {
       eraseUser(userId);
     },
