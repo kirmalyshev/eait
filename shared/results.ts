@@ -242,3 +242,17 @@ export function refusalFrom(body: { error?: unknown; scope?: unknown } | null | 
     ...(typeof body.scope === "string" ? { scope: body.scope } : {}),
   };
 }
+
+/** A turn whose request reached the server and whose answer never came back (#540). */
+export const UNANSWERED = "unanswered";
+
+/**
+ * WHAT A REQUEST THAT LOST ITS ANSWER WAS, from how far it got (#540).
+ *
+ * `reached` is the furthest `XMLHttpRequest.readyState` the request got to before it failed. At
+ * `HEADERS_RECEIVED` (2) the server had the whole upload and had sent its status, and the streamed
+ * photo turn runs to the end whatever happens to the socket, so the meal may well be logged. Before
+ * that, nothing ran. Only the second is "offline": worded as a connection problem, the first invited
+ * a second photo, which is a second charge and the same meal logged twice.
+ */
+export const lostAt = (reached: number): RefusedTurn => (reached >= 2 ? { kind: UNANSWERED } : { kind: "offline" });

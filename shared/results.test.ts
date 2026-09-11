@@ -3,7 +3,7 @@
 // the hand-written list is what shipped one kind short and answered a 200 with a refusal inside it.
 
 import { describe, expect, it } from "bun:test";
-import { RATE_LIMITED, capScope, isRefusal, isServerAnswer, outcomeUnknown, refusalFrom } from "./results.ts";
+import { RATE_LIMITED, UNANSWERED, capScope, isRefusal, isServerAnswer, lostAt, outcomeUnknown, refusalFrom } from "./results.ts";
 import { OUTCOME_UNKNOWN, REFUSAL_STATUS } from "./contract.ts";
 
 describe("RATE_LIMITED", () => {
@@ -101,5 +101,23 @@ describe("refusalFrom — #145", () => {
     // A body with no `error` DID arrive; it is not offline, and stringifying keeps that true.
     expect(refusalFrom({})).toEqual({ kind: "undefined" });
     expect(refusalFrom({ error: 500 })).toEqual({ kind: "500" });
+  });
+});
+
+// #540: a photo stream that lost its answer said "Couldn't reach eait. Nothing was logged." even
+// after the server had the upload, and the streamed turn runs on without the phone.
+describe("lostAt — #540", () => {
+  it("is offline only while the server has not sent its status", () => {
+    expect(lostAt(0)).toEqual({ kind: "offline" }); // UNSENT
+    expect(lostAt(1)).toEqual({ kind: "offline" }); // OPENED: the upload may not even have finished
+  });
+
+  it("is unanswered once the server has sent its status: it had the upload, and the turn runs", () => {
+    expect(lostAt(2)).toEqual({ kind: UNANSWERED }); // HEADERS_RECEIVED
+    expect(lostAt(3)).toEqual({ kind: UNANSWERED }); // LOADING: the stream had begun
+  });
+
+  it("is no body a server sends, so no answer it gave can be mistaken for it", () => {
+    expect(isServerAnswer({ kind: UNANSWERED })).toBe(false);
   });
 });
