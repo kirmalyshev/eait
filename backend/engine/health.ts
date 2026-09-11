@@ -12,19 +12,16 @@
 // `targets.ts` is untouched by this file.
 
 import {
-  HEALTH_RETENTION_DAYS, dateMinus, isAcceptableWeightKg, localDate, sanitizeHealthDay,
-  windowStart,
+  HEALTH_RETENTION_DAYS, isAcceptableWeightKg, localDate, sanitizeHealthDay, windowStart,
   type HealthDay, type HealthDaysResponse, type HealthResponse,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { profileView } from "./profile.ts";
 
-// How far back a day may be dated and still be stored is `dateMinus(today, HEALTH_RETENTION_DAYS)`,
-// and the widest trend a client may read is `windowStart(today, HEALTH_RETENTION_DAYS)` — ONE DAY
-// NARROWER, which is not a typo. The ingest slack absorbs the phone-server midnight race described
-// at the bound itself. The consequence is that the oldest storable day is not servable, which is
-// real and is filed, not fixed here. The contract owns the number because the phone's first sync
-// and the diary's window have to agree with it.
+// How far back a day may be dated and still be accepted, and the widest trend a client may read,
+// are ONE bound: `windowStart(today, HEALTH_RETENTION_DAYS)`, so every day accepted is servable
+// when it is accepted. The contract owns the number because the phone's first sync and the diary's
+// window have to agree with it.
 
 /**
  * Store a batch of days, and sync the weight if this batch carries a newer one.
@@ -52,13 +49,12 @@ export async function recordHealthDays(
   // a wrong clock is the usual cause, and filing today's steps under tomorrow makes the row wrong
   // when tomorrow actually arrives.
   const today = localDate(deps.config.timezone);
-  // ONE DAY WIDER THAN `healthTrend` SERVES, AND LEFT THAT WAY DELIBERATELY. The slack absorbs the
-  // phone-server midnight race: a first sync started at 23:59:58 reads five years of samples and
-  // posts five batches, and the server's `today` can roll over before the first one lands. Without
-  // the extra day the oldest day is then dropped, and the only signal is a short `accepted`, which
-  // `syncHealth` reads as a sync to retry wide (`healthSyncLanded`). Narrowing it to `windowStart`
-  // is #544.
-  const oldest = dateMinus(today, HEALTH_RETENTION_DAYS);
+  // EXACTLY WHAT `healthTrend` SERVES. A first sync started at 23:59:58 reads five years and posts
+  // five batches, and the server's `today` can roll over before one lands: the bound then moves a
+  // day, and the phone's oldest day, which has just left the servable window, is dropped. Nothing
+  // that could ever be shown is lost, and the short `accepted` is what `syncHealth` reads as a sync
+  // to retry wide (`healthSyncLanded`).
+  const oldest = windowStart(today, HEALTH_RETENTION_DAYS);
 
   // Every day is validated here, on the server. A metric outside its plausible range is nulled and
   // the rest of the day survives; a day with no usable date, nothing in it at all, or a date

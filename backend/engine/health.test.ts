@@ -135,14 +135,14 @@ describe("recordHealthDays", () => {
     const userId = await onboard();
     const out = await recordHealthDays(deps, userId, [
       day(ago(0), { steps: 1 }), day(ago(1), { steps: 2 }),
-      day(ago(HEALTH_RETENTION_DAYS), { steps: 3 }),
+      day(ago(HEALTH_RETENTION_DAYS - 1), { steps: 3 }),
+      day(ago(HEALTH_RETENTION_DAYS), { steps: 4 }), // the day before it, which could never be served
     ]);
     expect(out!.accepted).toBe(3);
   });
 
-  // THE READ WINDOW IS ONE DAY NARROWER THAN THE INGEST WINDOW, deliberately — the ingest slack
-  // absorbs the phone-server midnight race, and the cost is that the oldest STORABLE day is not
-  // SERVABLE. Filed rather than reconciled here.
+  // THE READ WINDOW IS THE INGEST WINDOW, `windowStart(today, HEALTH_RETENTION_DAYS)`, so every day
+  // accepted can be served on the day it is accepted.
   //
   // The assertion has to catch a WIDENING, and the obvious form does not: `healthTrend` asks the
   // store for rows at or after its own bound, so checking that every served row is inside that
@@ -166,7 +166,7 @@ describe("recordHealthDays", () => {
     const userId = await onboard();
     const out = await recordHealthDays(deps, userId, [
       day(ago(4 * 365), { weight_kg: 80 }),
-      day(ago(HEALTH_RETENTION_DAYS + 1), { weight_kg: 81 }), // one day past the edge
+      day(ago(HEALTH_RETENTION_DAYS), { weight_kg: 81 }), // one day past the edge
     ]);
     expect(out!.accepted).toBe(1);
     expect(HEALTH_RETENTION_DAYS).toBeGreaterThanOrEqual(5 * 365);
@@ -183,10 +183,10 @@ describe("recordHealthDays", () => {
 describe("counting a first sync as landed", () => {
   it("lands a first sync built the way the phone builds it", async () => {
     const userId = await onboard();
-    const oldest = windowStart(TODAY, HEALTH_RETENTION_DAYS + 1);
+    const oldest = windowStart(TODAY, HEALTH_RETENTION_DAYS);
     const from = zonedMidnight(ZONE, oldest);
     const samples: HealthSample[] = [];
-    for (let d = 0; d <= HEALTH_RETENTION_DAYS; d++) {
+    for (let d = 0; d < HEALTH_RETENTION_DAYS; d++) {
       const noon = new Date(zonedMidnight(ZONE, ago(d)).getTime() + 12 * 3_600_000).toISOString();
       samples.push({ metric: "steps", start: noon, end: noon, value: 5000 });
     }
@@ -203,8 +203,8 @@ describe("counting a first sync as landed", () => {
     for (const batch of healthDayBatches(days)) {
       accepted += (await recordHealthDays(deps, userId, batch))!.accepted;
     }
-    expect(days).toHaveLength(HEALTH_RETENTION_DAYS + 2);
-    expect(accepted).toBe(HEALTH_RETENTION_DAYS + 1);
+    expect(days).toHaveLength(HEALTH_RETENTION_DAYS + 1);
+    expect(accepted).toBe(HEALTH_RETENTION_DAYS);
     expect(healthSyncLanded(days, oldest, accepted)).toBe(true);
   });
 
@@ -212,7 +212,7 @@ describe("counting a first sync as landed", () => {
     // Read before midnight, landed after it: the server's today, and its bound, moved a day.
     const userId = await onboard();
     const phoneToday = ago(1);
-    const oldest = windowStart(phoneToday, HEALTH_RETENTION_DAYS + 1);
+    const oldest = windowStart(phoneToday, HEALTH_RETENTION_DAYS);
     const days = [day(phoneToday, { steps: 2 }), day(oldest, { steps: 1 })];
     const out = await recordHealthDays(deps, userId, days);
     expect(out!.accepted).toBe(1);
