@@ -8,7 +8,9 @@
     "./types": "./types.ts",
     "./targets": "./targets.ts",
     "./results": "./results.ts",
-    "./contract": "./contract.ts"
+    "./contract": "./contract.ts",
+    "./palette": "./palette.ts",
+    "./mascot": "./mascot.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

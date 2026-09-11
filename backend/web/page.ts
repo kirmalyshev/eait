@@ -10,8 +10,8 @@
 
 import { MAX_USER_LINE, TYPE_MS_PER_CHAR } from "@eait/shared";
 import { createHash } from "node:crypto";
-import { darkVars, lightVars } from "@eait/landing/styles.ts";
-import { spudSvg } from "@eait/landing/mascot.ts";
+import { darkVars, lightVars } from "@eait/shared/palette";
+import { spudSvg } from "@eait/shared/mascot";
 
 export function escape(text: string): string {
   return text
