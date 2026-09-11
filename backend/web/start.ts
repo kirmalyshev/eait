@@ -432,7 +432,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   // nothing from anyone else. Before the session gate: a font is not somebody's data, and a
   // sign-in page that cannot draw its own headings is the first thing a visitor sees.
   if (req.method === "GET" && pathname === FONT_PATH) {
-    return new Response(Bun.file(new URL("../../landing/assets/fonts/space-grotesk-latin.woff2", import.meta.url)), {
+    return new Response(Bun.file(new URL("../../shared/assets/fonts/space-grotesk-latin.woff2", import.meta.url)), {
       headers: {
         "content-type": "font/woff2",
         // Immutable because the name is the file: a new cut of the typeface is a new path.

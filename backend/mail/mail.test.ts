@@ -121,7 +121,7 @@ describe("chooseMailer", () => {
         .sendConfirmation("reader@example.com", URL_);
       await chooseMailer({ ...base, landingUrl: "http://192.168.1.5:4173" }, false)
         .sendConfirmation("reader@example.com", URL_);
-      await chooseMailer({ ...base, landingUrl: "http://kirills-mbp.local:4173" }, false)
+      await chooseMailer({ ...base, landingUrl: "http://dev-laptop.local:4173" }, false)
         .sendConfirmation("reader@example.com", URL_);
     });
   });
