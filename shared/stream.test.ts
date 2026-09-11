@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { OUTCOME_UNKNOWN } from "./contract.ts";
+import { OUTCOME_UNKNOWN, type PhotoEvent } from "./contract.ts";
 import type { MealLogged } from "./results.ts";
-import { lastLine, splitLines, streamEnd } from "./stream.ts";
+import { advancePending, lastLine, pendingLine, splitLines, streamEnd, type PendingPhoto } from "./stream.ts";
+import type { MealItem } from "./types.ts";
 
 // The phone throws everything but an answer, and what it throws picks the words. #514 was a server
 // failure mid-turn arriving as `analysis-failed`, which the camera words "Nothing was logged. Try
@@ -61,5 +62,44 @@ describe("splitLines", () => {
 
   test("drops blank lines and tolerates CRLF", () => {
     expect(splitLines("", "x\r\n\r\ny\n").lines).toEqual(["x", "y"]);
+  });
+});
+
+// #607. The pending photo screen has ONE bubble, and it moves on only when the stream does: our
+// words when the request goes, the glance when it lands, the portions once the analyzer closes a
+// row. It never steps back — a glance that lands after a row is late, not news.
+describe("the pending photo turn", () => {
+  const start: PendingPhoto = { glance: null, items: [] };
+  const rice: MealItem = { name: "Rice", grams: 150 };
+  const egg: MealItem = { name: "Egg", grams: 50 };
+  const run = (...events: PhotoEvent[]) => events.reduce(advancePending, start);
+
+  test("before anything arrives, Spud is reading the plate", () => {
+    expect(pendingLine(start)).toBe("Reading the plate…");
+  });
+
+  test("the glance replaces it", () => {
+    expect(pendingLine(run({ kind: "glance", text: "Looks like rice." }))).toBe("Looks like rice.");
+  });
+
+  test("the first row moves it on to the portions", () => {
+    const p = run({ kind: "glance", text: "Looks like rice." }, { kind: "item", index: 0, item: rice });
+    expect(pendingLine(p)).toBe("Weighing portions…");
+    expect(p.items).toEqual([rice]);
+  });
+
+  test("a glance that lands after a row does not step back", () => {
+    const p = run({ kind: "item", index: 0, item: rice }, { kind: "glance", text: "Looks like rice." });
+    expect(pendingLine(p)).toBe("Weighing portions…");
+  });
+
+  test("a schema retry resets the rows and stays on the portions", () => {
+    const p = run(
+      { kind: "item", index: 0, item: rice },
+      { kind: "item", index: 1, item: egg },
+      { kind: "item", index: 0, item: egg },
+    );
+    expect(p.items).toEqual([egg]);
+    expect(pendingLine(p)).toBe("Weighing portions…");
   });
 });

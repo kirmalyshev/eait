@@ -1,8 +1,9 @@
 // One line, one event. Both billed routes speak NDJSON (#508), and the splitter, the last line and
 // what it means are the pieces of the client's stream path that can be tested without a phone.
 
-import { OUTCOME_UNKNOWN, REFUSAL_STATUS, type ErrorResponse } from "./contract.ts";
+import { OUTCOME_UNKNOWN, REFUSAL_STATUS, type ErrorResponse, type PhotoEvent } from "./contract.ts";
 import { isRefusal, type Refusal } from "./results.ts";
+import type { MealItem } from "./types.ts";
 
 /** Split `carry + chunk` into complete lines; the unterminated tail comes back as `carry`. */
 export function splitLines(carry: string, chunk: string): { lines: string[]; carry: string } {
@@ -38,4 +39,29 @@ export function streamEnd<T extends { kind: string }>(
     return { status: REFUSAL_STATUS[last.kind], body: { error: last.kind, ...("scope" in last ? { scope: last.scope } : {}) } };
   }
   return { answer: last as T };
+}
+
+/**
+ * A photo turn between Analyze and the card, as the phone draws it (#607): the glance, once one
+ * landed, and the rows the analyzer has closed so far.
+ */
+export interface PendingPhoto { glance: string | null; items: MealItem[] }
+
+/**
+ * One stream event applied. `index: 0` after others is the analyzer starting over (a schema
+ * retry): replace, never append.
+ */
+export function advancePending(p: PendingPhoto, e: PhotoEvent): PendingPhoto {
+  if (e.kind === "glance") return { ...p, glance: e.text };
+  if (e.kind === "item") return { ...p, items: [...(e.index === 0 ? [] : p.items.slice(0, e.index)), e.item] };
+  return p;
+}
+
+/**
+ * Spud's one line while the turn is pending, and it only moves forward: a row outranks the glance
+ * whichever arrived first, and a schema retry still holds a row. The stream carries nothing between
+ * the last row and the answer, so there is no later step to show — the card replaces the line.
+ */
+export function pendingLine(p: PendingPhoto): string {
+  return p.items.length > 0 ? "Weighing portions…" : p.glance ?? "Reading the plate…";
 }
