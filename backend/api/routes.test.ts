@@ -1194,7 +1194,7 @@ describe("the mailing list", () => {
     // fetched from here, its API must answer from here too.
     //
     // ONE ROUTE TABLE STILL. The prefix is stripped before dispatch, so `/api/v1/profile` and
-    // `/v1/profile` reach the same handler and `src/shared/contract.ts` stays the only place a
+    // `/v1/profile` reach the same handler and `shared/contract.ts` stays the only place a
     // route is named.
     const s = memoryStore();
     const h = createRouter({ store: s, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);

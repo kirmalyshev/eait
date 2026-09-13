@@ -2,7 +2,7 @@
 //
 // This is the reason the repo is a monorepo. In two repos the contract is a document that goes
 // stale; here, renaming a field breaks `bun run typecheck` in the app and the backend in the same
-// command. Nothing in this file may import from `src/backend` or `src/mobile`.
+// command. Nothing in this file may import from `backend` or `src/mobile`.
 
 import type {
   ActivityLevel, DailyTotals, DayTotals, Goal, Lang, MealItem, MealRecord, Pace, Profile, Sex,

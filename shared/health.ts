@@ -7,7 +7,7 @@
 // DST boundary, a scale that reported twice, a watch that backfilled a week late. None of that
 // should need a simulator to test, so none of it lives on the phone side of the port.
 //
-// Nothing here imports from `src/backend` or `src/mobile`. The app aggregates, the server
+// Nothing here imports from `backend` or `src/mobile`. The app aggregates, the server
 // validates, and both do it with this file.
 
 import { isCalendarDate, localDate } from "./dates.ts";

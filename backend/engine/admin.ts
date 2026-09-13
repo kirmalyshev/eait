@@ -83,7 +83,7 @@ export async function adminUserDiary(
     to,
     meals: await deps.store.mealsSince(userId, from, to, ADMIN_MEAL_ROWS),
     // `explainTargets` is the one path to a kcal target — the floor is applied inside it, and a
-    // second route to one is what `src/shared/targets.ts` refuses in its header.
+    // second route to one is what `shared/targets.ts` refuses in its header.
     targets: profile.onboarded_at === null ? null : explainTargets(profile).targets,
   };
 }

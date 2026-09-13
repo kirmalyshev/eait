@@ -247,7 +247,7 @@ label.check {
  */
 /**
  * Spud types his onboarding lines out, one after another, one character per beat — the pace the
- * app's onboarding keeps (`src/shared/typing.ts`), so the two surfaces read the same. THE WHOLE LINE
+ * app's onboarding keeps (`shared/typing.ts`), so the two surfaces read the same. THE WHOLE LINE
  * IS IN THE MARKUP from the first byte: a line not yet typed is drawn transparent at its final size,
  * so nothing moves, a screen reader has every word, and a browser with no script sees the page whole.
  * `prefers-reduced-motion` shows the lines at once. Only `.bubble.typed` is touched — the chat

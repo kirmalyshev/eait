@@ -406,7 +406,7 @@ export function int(name: string, fallback: number): number {
  * becomes the transfer margin alone while this process keeps running the call and keeps paying for
  * it, with nothing logged as wrong on either side.
  *
- * `MIN_MODEL_CALL_TIMEOUT_MS` is in `src/shared` because the phone applies the same floor to the
+ * `MIN_MODEL_CALL_TIMEOUT_MS` is in `shared` because the phone applies the same floor to the
  * number it receives. A shipped app outlives the server it was built against, and a proxy or an
  * older server can put anything in that field.
  */
@@ -769,7 +769,7 @@ export function redact(c: Config): Record<string, unknown> {
  * product and not the limiter.
  *
  * SO IT IS NOT THE PRODUCTION VARIABLE. `EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR` is read from the
- * ambient environment by `loadConfig`, `bun run --cwd src/backend demo` auto-loads `.env`, and this
+ * ambient environment by `loadConfig`, `bun run --cwd backend demo` auto-loads `.env`, and this
  * machine loads `~/.claude/.env` into every shell — so honouring that name here would mean one
  * stray value silently metering every `./dev up --demo`. `…__E2E_AUTH_RATE_LIMIT_PER_HOUR` is set
  * by one script and nothing else, which keeps the carve-out without re-opening that door.

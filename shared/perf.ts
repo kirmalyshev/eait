@@ -137,7 +137,7 @@ export const SCREEN_BUDGETS: Record<PerfScreen, ScreenBudget> = {
   // screen whose render cost grows with how long the user has had the app.
   //
   // BE PRECISE ABOUT WHAT THAT SECOND MEASUREMENT IS, because it is easy to read more into it.
-  // `src/shared/trend.test.ts` asserts `bucketSeries`'s SCALING LAW — the work over N days against
+  // `shared/trend.test.ts` asserts `bucketSeries`'s SCALING LAW — the work over N days against
   // 2N — at 150 and 300 days, by counting property reads rather than timing anything. It catches a
   // nested scan that RE-READS ITS INPUT, on either side of the placement loop.
   //

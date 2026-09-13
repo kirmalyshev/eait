@@ -305,7 +305,7 @@ function optionsFor(prompt: ChatPrompt, content: OnboardingContent, suggested: s
 
 type Answered =
   | { kind: "patch"; patch: PatchProfileRequest }
-  /** Refused before it costs a round trip, in the words `src/shared` wrote for it. */
+  /** Refused before it costs a round trip, in the words `shared` wrote for it. */
   | { kind: "refuse"; line: string; switchTo?: Goal }
   /** Under sixteen. Not a validation failure — a stop, and the account goes with it. */
   | { kind: "under-age" }
@@ -318,7 +318,7 @@ type Answered =
  *
  * `checkNumber` is not optional politeness here, it is the only thing that makes the answer mean
  * what the question asked. The `birth_year` prompt ASKS FOR AN AGE and the column stores a year;
- * that conversion lives in `src/shared` and nowhere else, so a web page doing its own `Number()`
+ * that conversion lives in `shared` and nowhere else, so a web page doing its own `Number()`
  * would take "34" and store it as a birth year — a person aged 1,992, refused by the server with a
  * sentence about the year, under a bubble that asked how old they are. The bands it enforces are
  * likewise a deliberate subset of the server's, so the only refusals anybody can meet are the two

@@ -4,7 +4,7 @@
 // keeps `no card, no trial` literally true — and RevenueCat is what tells THIS server about it.
 // So the only thing an entitlement is, here, is an instant it lapses at.
 //
-// This lives in `src/shared` rather than in the backend because it is a rule both sides state:
+// This lives in `shared` rather than in the backend because it is a rule both sides state:
 // the server decides `active` and enforces the cap that follows from it, and the app renders what
 // it was told. Neither may invent its own answer — a client that computed its own entitlement
 // would be a client that could grant itself one.
@@ -65,7 +65,7 @@ export interface Entitlement {
  * What an account gets before the app asks for money — the sample, over its whole lifetime.
  *
  * It lives here rather than in the server's `configDefaults()` because the LANDING PAGE quotes it,
- * and the landing image ships `src/shared` and not `src/backend`: importing the server config from
+ * and the landing image ships `shared` and not `backend`: importing the server config from
  * the copy broke `docker build` with `Cannot find module '../config.ts'` and nothing before it.
  * Same reason `KCAL_FLOOR` is here. `EAIT__BACKEND__FREE_ANALYSES` still overrides it per instance;
  * this is the default the copy is written against.

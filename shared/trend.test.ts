@@ -447,7 +447,7 @@ describe("the fixture the scaling and window tests are built on", () => {
     const days = healthDays(120, today);
     const buckets = trendBuckets("days", today, 120);
     // BUILT ONCE. Called inside the loop below, this was 450 full passes for 15 distinct results
-    // on every `bun test ./src/shared`.
+    // on every `bun test ./shared`.
     const byMetric = new Map<HealthMetric, TrendPoint[]>(
       HEALTH_FIELDS.map((f) => [f.key, bucketSeries(metricSeries(days, f.key), buckets, 2)]),
     );

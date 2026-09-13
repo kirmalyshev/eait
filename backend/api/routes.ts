@@ -269,7 +269,7 @@ export function createRouter(
     //
     // ONE ROUTE TABLE. This is a rename of the incoming path before dispatch, not a second set of
     // routes: `/api/v1/profile` and `/v1/profile` reach the same handler, and
-    // `src/shared/contract.ts` stays the only place an endpoint is named. Caddy still strips it at
+    // `shared/contract.ts` stays the only place an endpoint is named. Caddy still strips it at
     // the edge, which is now belt and braces rather than the only mechanism.
     //
     // THE TWO MACHINE PATHS ARE NOT REACHABLE THIS WAY. RevenueCat and Apple post to the API's own
@@ -320,7 +320,7 @@ export function createRouter(
       // 301, permanently, rather than removing the route — because `PAIR_ADDRESS` in the app's
       // Settings screen is built from the compiled-in API URL and printed to the user as the
       // address to type ("open api.eait.fit/start and type a pairing code"). Every build already on
-      // a phone says that, and a binary cannot be told otherwise; `src/shared/contract.ts` states
+      // a phone says that, and a binary cannot be told otherwise; `shared/contract.ts` states
       // the rule this obeys — shipped apps outlive the server. So this name answers /start forever,
       // with a redirect, and the app's own copy stops being a lie the day it is wrong.
       //

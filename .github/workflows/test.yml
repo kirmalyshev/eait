@@ -1,0 +1,39 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: eait
+          POSTGRES_PASSWORD: eait
+          POSTGRES_DB: eait_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U eait -d eait_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # The store contract suite runs against BOTH implementations when this is set, and skips
+      # Postgres loudly when it is not.
+      TEST_DATABASE_URL: postgres://eait:eait@127.0.0.1:5432/eait_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.0"
+      - run: bun install --frozen-lockfile
+      - run: bun run check

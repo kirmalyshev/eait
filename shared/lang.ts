@@ -2,13 +2,13 @@
 // through here, and nothing else does.
 //
 // NO FRAMEWORK, AND THAT IS THE DESIGN RATHER THAN A SHORTCUT. This repo already stores copy as
-// typed constants in `src/shared` that both clients import, and `Lang` already exists — so the
+// typed constants in `shared` that both clients import, and `Lang` already exists — so the
 // change is to KEY those constants by language. An i18next or an ICU catalogue buys plural rules
 // and runtime loading, neither of which three compiled-in languages need, and each costs an
 // extraction step plus `.json` bundles to keep in sync with the code that reads them.
 //
 // THE UNIT SYSTEM IS NOT THE LANGUAGE. `de` is metric, `en` is not automatically imperial, and
-// nothing here may reach `src/shared/targets.ts`. A string table must never move the arithmetic.
+// nothing here may reach `shared/targets.ts`. A string table must never move the arithmetic.
 //
 // Numbers and dates are `Intl.NumberFormat` / `Intl.DateTimeFormat`, which Hermes and bun both
 // have. There is nothing to add here for them.

@@ -233,7 +233,7 @@ export type NotificationCopyValidation =
  *
  * On the WRITE, never on the read — a phone that has already been handed a broken template shows a
  * literal `{plan}` on a lock screen and no client-side tolerance recovers it. The claims gate is
- * the same one the landing page's build runs (`src/shared/claims.ts`): a notification is public
+ * the same one the landing page's build runs (`shared/claims.ts`): a notification is public
  * copy that arrives unasked, on the device of somebody who told us about their kidneys.
  *
  * Every error, not the first: an editor that reports one problem per save takes six saves to fix

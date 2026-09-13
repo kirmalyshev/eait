@@ -295,7 +295,7 @@ export interface SubscriberUpsert {
 /**
  * What an account is allowed to be.
  *
- * SERVER STATE, and deliberately not in `src/shared`: the phone has no use for the word, and a
+ * SERVER STATE, and deliberately not in `shared`: the phone has no use for the word, and a
  * type both sides import is a type the client eventually sends. It is also deliberately NOT a
  * field on `Profile` — see `roleOf` below.
  */

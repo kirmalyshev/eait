@@ -3,7 +3,7 @@
 // here, a second renderer drives the same orchestration instead of writing a second copy of it.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────
-// SHAPED LIKE `src/backend/store.ts`'S PORT: what it talks to is an ARGUMENT. The API client, the
+// SHAPED LIKE `backend/store.ts`'S PORT: what it talks to is an ARGUMENT. The API client, the
 // thread cache and the session come in as `ChatCoreDeps`; the renderer subscribes to `state` and
 // draws it. No React here — `scripts/shared-no-react.test.ts` holds the line.
 //

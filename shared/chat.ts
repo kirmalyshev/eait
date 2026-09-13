@@ -131,7 +131,7 @@ export const COACH_STARTERS: readonly string[] = [
  * test that seeds it on two different days and compares.
  *
  * It is fixture data, and it is here rather than beside either consumer because BOTH sides need the
- * identical thread: `src/backend/dev/seed.ts` writes it through the store for `--demo`, and
+ * identical thread: `backend/dev/seed.ts` writes it through the store for `--demo`, and
  * `app/e2e.tsx` appends it through the real route behind `AUTH_FAKE`. Two copies would be a
  * baseline taken against one of them and checked against the other.
  */

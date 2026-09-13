@@ -9,7 +9,7 @@
 // IT LIVES IN SHARED BECAUSE TWO SURFACES PUBLISH COPY NOW. The landing page was the first
 // (`src/landing/claims.ts` renders HTML, lints the rendered text, and only then writes);
 // the notification copy is the second, and it is admin-editable, so its gate runs on the WRITE.
-// A third copy of the word list inside `src/shared` would be the one that drifts.
+// A third copy of the word list inside `shared` would be the one that drifts.
 //
 // WHY IT BLOCKS RATHER THAN WARNS. FTC substantiation applies per claim, at up to $50,120 per
 // violation, and EU Reg 1924/2006 treats marketing copy about food much like a product label. A

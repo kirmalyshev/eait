@@ -1,4 +1,6 @@
-# AGENTS.md — src/backend
+# AGENTS.md — backend
+
+> This workspace also lives inside a private monorepo (the app, the web client, the landing, the deploy tree). Paths such as `src/mobile/…`, `docs/…`, `scripts/…`, `deploy/…` and `#NNN` issue references point there; the rules they support hold here regardless.
 
 The server. Root `AGENTS.md` covers the repo; this covers this workspace.
 
@@ -68,7 +70,7 @@ covering more than it does is how a client comes to refuse something the server 
 
 ## Testing
 
-`bun test ./src/backend` — no database needed, because the memory store is a real implementation of
+`bun test ./backend` — no database needed, because the memory store is a real implementation of
 the port rather than a mock. `EAIT__BACKEND__DATABASE_URL` is only for `make run-backend`.
 
 The demo analyzer (`llm/demo.ts`) must stay **as poor as the real one**. A fake may be poorer than
@@ -77,7 +79,7 @@ real analyzer supplies none, so `--demo` could not reproduce a crash that hit ev
 
 ## Adding to this workspace
 
-New endpoint → the route in `src/shared/contract.ts` FIRST, then one handler here that calls one
+New endpoint → the route in `shared/contract.ts` FIRST, then one handler here that calls one
 engine function, then a client method. New product logic → `engine/`. New LLM capability → a port
 type in `llm/port.ts`, a prompt in `prompt.ts`, an implementation in `openrouter.ts`, and a canned
 one in `demo.ts` so the tests still run.
@@ -86,10 +88,10 @@ one in `demo.ts` so the tests still run.
 
 > Moved verbatim from the root `AGENTS.md`, which is the router and no longer carries the detail.
 
-- **Onboarding also happens in a browser, at `/start`.** `src/backend/web/`, served by the backend,
+- **Onboarding also happens in a browser, at `/start`.** `backend/web/`, served by the backend,
   server-rendered, no JavaScript and no build step — so the page and the form handler are the same
   origin and there is no CORS to add to an API that deliberately has none. Sign in with Apple or
-  Google, answer the same questions `src/shared` defines, read the plan, and subscribe through a
+  Google, answer the same questions `shared` defines, read the plan, and subscribe through a
   checkout link that carries the user id. **It offers the SAME PAIR the app does, and that is the
   point rather than symmetry**: the app shows two buttons, and pressing the other one lands in a
   different account — it attaches to the anonymous one the install already has, so onboarding runs
@@ -110,7 +112,7 @@ one in `demo.ts` so the tests still run.
   `scripts/export-photos.ts` is the one cross-user read and is host-side only. Design:
   `docs/superpowers/specs/2026-09-05-photo-storage-design.md`.
 - **A session token is stored as a hash, and expires when it stops being used.**
-  `src/backend/auth/tokens.ts`. The `tokens` table holds `sha256(token)` and there is no column
+  `backend/auth/tokens.ts`. The `tokens` table holds `sha256(token)` and there is no column
   holding the token — a dump names accounts and login times without letting the reader become any of
   them, which matters because a dump runs nightly by cron and is rsynced off the box on purpose.
   Expiry is IDLE time, not age: 180 days without a request, slid forward on use. An absolute one
@@ -154,7 +156,7 @@ one in `demo.ts` so the tests still run.
 - **A cap on an account is not a cap while accounts are free.** `POST /v1/auth/device` mints one for
   anybody with a 32-character string, so the sample (`EAIT__BACKEND__FREE_ANALYSES`, fifteen analyses per account)
   costs an attacker one HTTP call to reset — and the only remaining bound, the instance budget, is the thing they are trying to exhaust.
-  `src/backend/api/ratelimit.ts` bounds the billed routes PER ADDRESS as well. The address is the
+  `backend/api/ratelimit.ts` bounds the billed routes PER ADDRESS as well. The address is the
   **last** `X-Forwarded-For` value, never the first: a proxy appends what it saw, so everything left
   of it was written by the client. IPv6 keys on the /64. In memory, so a restart forgives everyone
   and a second replica would double every limit — both stated, neither discovered.
@@ -185,7 +187,7 @@ one in `demo.ts` so the tests still run.
   `Store.appendChat`, written by the engine function that PRODUCED the turn (`handleText`,
   `logPhotoMeal`, `confirmPendingMeal`, `cancelPendingMeal`, `editMeal` via `engine/chat.ts`).
   The app may add ONLY through `POST /v1/messages/lines`: the user's own words, and Spud's scripted
-  lines BY ID (`SCRIPTED_LINES` in `src/shared/chat.ts`) — never assistant prose from a client,
+  lines BY ID (`SCRIPTED_LINES` in `shared/chat.ts`) — never assistant prose from a client,
   because a phone must not be able to put a sentence in Spud's mouth. Spud's first verdict is
   `firstVerdictLines`, deterministic and spoken once. The Chat tab (`GET /v1/messages`) is the
   thread's continuation, so it never shows a line the server does not have. A photo bubble carries
@@ -215,7 +217,7 @@ one in `demo.ts` so the tests still run.
   `EAIT__BACKEND__LLM_CHAT_MODEL` (text only; the analyzer keeps the vision one), and the
   persona and its rules are one prompt, `SYSTEM_COACH`, with a test naming each rule. Design:
   `docs/superpowers/specs/2026-09-02-coach-chat-design.md`.
-- **The web session cookie is `/start`'s alone.** `src/backend/web/start.ts` reads it and nothing
+- **The web session cookie is `/start`'s alone.** `backend/web/start.ts` reads it and nothing
   else does — `resolveUserId` in `api/routes.ts` stays bearer-only, because an API that accepts a
   cookie is an API another origin can post to on a signed-in browser. `SameSite=Lax` is what
   protects the forms (a cross-site POST carries no Lax cookie), which is why every state change
@@ -248,7 +250,7 @@ one in `demo.ts` so the tests still run.
   The redirect is the BUNDLE ID scheme, the one of Google's two accepted forms that Expo's
   scheme plugin already registers; writing `ios.infoPlist.CFBundleURLTypes` to take the other turns
   that plugin off and drops the app's own deep links.
-- **Prompts and schemas are authored once**, in `src/backend/llm/prompt.ts`. No prompt string is
+- **Prompts and schemas are authored once**, in `backend/llm/prompt.ts`. No prompt string is
   written anywhere else.
 - **Public copy passes a claims gate before it is written, not before it is reviewed.**
   `src/landing/claims.ts` fails the build on a health claim (`lose weight`, `guaranteed`,
