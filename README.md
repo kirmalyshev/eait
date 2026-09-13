@@ -8,6 +8,7 @@ Two workspaces:
 | Workspace | What it is |
 |---|---|
 | `shared/` | The contract: HTTP routes and types (`contract.ts`), the health arithmetic, the calorie floor (`targets.ts`), onboarding, chat orchestration. No renderer, no server — both clients and the backend import it. |
+| `openapi.json` | The HTTP surface as OpenAPI 3.1, generated from `shared/openapi.ts` and the types it names by `bun run openapi`. Committed, and `bun run check` fails when it is stale. |
 | `backend/` | The server. One handler per route, all product logic in `engine/`, a store port with a Postgres implementation and an in-memory one the tests run against, an LLM port with an OpenRouter implementation and a canned one. |
 
 The iOS app, the web client and the landing page are separate products that consume this
@@ -32,7 +33,7 @@ bun run start         # migrate() creates the tables; it never creates the datab
 ## Check it
 
 ```sh
-bun run check         # typecheck both workspaces, then the unit suites
+bun run check         # typecheck, the unit suites, and that openapi.json is current
 TEST_DATABASE_URL=postgres://… bun test ./backend/store.contract.test.ts   # both stores, same suite
 ```
 
