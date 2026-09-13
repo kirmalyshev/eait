@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, test } from "bun:test";
 import type { ChatEntry } from "./contract.ts";
 import type { ChatSpeaker } from "./results.ts";
 import type { MealRecord } from "./types.ts";
@@ -495,5 +495,41 @@ describe("proposalLive — #367", () => {
     // the analysis behind it is already billed, and re-describing the plate spends another.
     expect(proposalLive("not a date", at)).toBe(true);
     expect(proposalLive("", at)).toBe(true);
+  });
+});
+
+// #608. A line the server deleted goes, and so does every card that answered it — a delete on a
+// photo line is a delete of the meal. A text line takes nothing with it.
+describe("line-removed", () => {
+  const meal = { id: "m1", user_id: "u", ts: "2026-09-11T10:00:00.000Z", date: "2026-09-11", isFood: true, items: [], kcal: 1, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, confidence: "high" as const, notes: "", corrected: false, model: "t" };
+  const entries: ThreadEntry[] = [
+    { id: "p1", role: "user", text: null, photo: true, stored: true, mealId: "m1" },
+    { id: "c1", role: "card", event: "logged", mealId: "m1", meal, stored: true },
+    { id: "t1", role: "user", text: "half that", stored: true, clientId: null, pendingId: null },
+    { id: "c2", role: "card", event: "updated", mealId: "m1", meal, stored: true },
+    { id: "a1", role: "assistant", result: { kind: "answered", text: "ok" }, stored: true },
+  ];
+
+  test("a photo line takes its meal's cards with it", () => {
+    const next = threadReducer(entries, { kind: "line-removed", id: "p1", mealId: "m1" });
+    expect(next.map((e) => e.id)).toEqual(["t1", "a1"]);
+  });
+
+  test("a text line goes alone", () => {
+    const next = threadReducer(entries, { kind: "line-removed", id: "t1", mealId: null });
+    expect(next.map((e) => e.id)).toEqual(["p1", "c1", "c2", "a1"]);
+  });
+});
+
+// #608. An edited caption is the same line with new words: the page carries it, and the screen
+// must repaint it rather than keep the stale text because no line was added or removed.
+describe("reconcilePage repaints an edited user line", () => {
+  test("a stored user line whose text changed is a change", () => {
+    const current: ThreadEntry[] = [{ id: "p1", role: "user", text: "rice", photo: true, stored: true, mealId: "m1" }];
+    const page: ChatEntry[] = [{ id: "p1", seq: 1, ts: "2026-09-11T10:00:00.000Z", role: "user", kind: "photo", text: "rice, and an egg", mealId: "m1" }];
+    const r = reconcilePage(page, current, new Set(), false, undefined);
+    expect(r.changed).toBe(true);
+    const line = r.next.find((e) => e.id === "p1");
+    expect(line && line.role === "user" ? line.text : null).toBe("rice, and an egg");
   });
 });

@@ -1790,9 +1790,28 @@ describe("re-analysis", () => {
     expect(after.corrected).toBe(false);
     expect(after.model).toBe("demo-2");
     expect(after.photos).toBe(1);
-    const { entries } = await chatHistory(deps, userId, {});
-    const last = entries.at(-1);
-    expect(last && last.role === "assistant" && last.kind === "meal" ? last.event : null).toBe("updated");
+  });
+
+  it("a re-read changes the numbers in place and appends nothing (#608)", async () => {
+    const userId = await onboard();
+    const meal = await logPhotoMeal(deps, userId, photo());
+    if (meal.kind !== "logged") throw new Error(meal.kind);
+    const before = (await chatHistory(deps, userId, {})).entries;
+    const out = await reanalyzeMeal(deps, userId, meal.mealId);
+    expect(out.kind).toBe("updated");
+    const after = (await chatHistory(deps, userId, {})).entries;
+    expect(after.map((e) => e.id)).toEqual(before.map((e) => e.id));
+  });
+
+  it("a re-read hands the analyzer the photo line's words as the caption", async () => {
+    const seen: (string | undefined)[] = [];
+    const llm: LlmPorts = { ...demoPorts(), analyzePhoto: async (input) => { seen.push(input.caption); return demoPorts().analyzePhoto(input); } };
+    const d = makeDeps({}, llm);
+    const userId = await onboard();
+    const meal = await logPhotoMeal(d, userId, { ...photo(), caption: "rice, not couscous" });
+    if (meal.kind !== "logged") throw new Error(meal.kind);
+    await reanalyzeMeal(d, userId, meal.mealId);
+    expect(seen).toEqual(["rice, not couscous", "rice, not couscous"]);
   });
 
   it("is charged before the call: the sample is spent by it", async () => {

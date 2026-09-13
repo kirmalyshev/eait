@@ -20,9 +20,9 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import { scriptedLine } from "./chat.ts";
-import type { ChatEntry, ChatHistoryResponse, ProfileResponse } from "./contract.ts";
+import type { ChatEntry, ChatHistoryResponse, DeleteLineResponse, ProfileResponse } from "./contract.ts";
 import { mayHaveSpentSample, sampleSpent } from "./entitlement.ts";
-import type { ConfirmMealResult, HandleTextResult, MealLogged } from "./results.ts";
+import type { ConfirmMealResult, HandleTextResult, MealLogged, TargetGone } from "./results.ts";
 import {
   fromHistory, keepsItsWords, landedLine, lastMealId, oneLiveProposal, reconcilePage, supersededPendings,
   threadReducer, type ThreadEntry,
@@ -34,6 +34,8 @@ export interface ChatClient {
   sendMessage(text: string, focusMealId?: string, clientId?: string): Promise<HandleTextResult>;
   confirmPending(pendingId: string): Promise<ConfirmMealResult>;
   cancelPending(pendingId: string): Promise<{ kind: "cancelled" | "expired" } | MealLogged>;
+  /** `DELETE /v1/messages/:id` (#608). A 409 `target-gone` comes back as the typed result, like `sendMessage`'s. */
+  deleteLine(id: string): Promise<DeleteLineResponse | TargetGone>;
 }
 
 /**
@@ -105,6 +107,11 @@ export interface ChatCore {
   retry(entryId: string): void;
   /** A live line in the app's own voice: the notification primer's. */
   say(text: string): void;
+  /**
+   * Delete one of the user's own stored lines (#608). Resolves to the date whose meal went with
+   * it — the caller refreshes that day — or null when only a line went, or nothing did.
+   */
+  deleteLine(entryId: string): Promise<string | null>;
 }
 
 const randomId = () => `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
@@ -413,6 +420,28 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
     }
   };
 
+  const deleteLine = async (entryId: string): Promise<string | null> => {
+    // Marked in flight before the await, like a confirm: a second long-press meets inert actions.
+    settling(entryId, true);
+    // The composer waits: a message sent while the delete is out could land under a line that is
+    // about to go.
+    begin();
+    try {
+      const res = await deps.client().deleteLine(entryId);
+      // Gone on the server either way — deleted now, or already deleted elsewhere — so gone here.
+      const mealId = res.kind === "deleted" ? res.mealId : null;
+      edit((prev) => threadReducer(prev, { kind: "line-removed", id: entryId, mealId }));
+      if (focusMealId !== null && focusMealId === mealId) focusMealId = null;
+      return res.kind === "deleted" ? res.date : null;
+    } catch (e) {
+      pushFailure(e);
+      return null;
+    } finally {
+      end();
+      settling(entryId, false);
+    }
+  };
+
   const retry = (entryId: string): void => {
     inflightIds.delete(entryId);
     edit((prev) => threadReducer(prev, { kind: "remove", id: entryId }));
@@ -426,6 +455,6 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
       listeners.add(listener);
       return () => { listeners.delete(listener); };
     },
-    refresh, loadEarlier, send, confirm, cancel, retry, say,
+    refresh, loadEarlier, send, confirm, cancel, retry, say, deleteLine,
   };
 }

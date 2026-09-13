@@ -820,6 +820,8 @@ export interface Store {
   getMeals(userId: string, mealIds: string[]): Promise<MealRecord[]>;
   /** Scoped. Returns null when the row vanished between lookup and write (a delete race). */
   updateMeal(userId: string, mealId: string, patch: MealPatch): Promise<MealRecord | null>;
+  /** The meal and its photos (#608). True when this call removed the caller's meal. */
+  deleteMeal(userId: string, mealId: string): Promise<boolean>;
   mealsForDate(userId: string, date: string): Promise<MealRecord[]>;
   /**
    * The meals dated within `[from, to]`, both inclusive, NEWEST first, at most `limit`.
@@ -885,6 +887,16 @@ export interface Store {
   chatBefore(userId: string, before: number | null, limit: number): Promise<ChatMessage[]>;
   /** Lines this account has in the thread. `remember` and `appendLines` refuse past the bound. */
   countUserChat(userId: string): Promise<number>;
+  /** One line by id, the caller's or null (#608): another account's id is indistinguishable from none. */
+  getLine(userId: string, lineId: string): Promise<ChatMessage | null>;
+  /** The caller's photo line for a meal, or null: where the caption an edit re-reads with lives. */
+  photoLineFor(userId: string, mealId: string): Promise<ChatMessage | null>;
+  /** True when this call removed the caller's line. */
+  deleteLine(userId: string, lineId: string): Promise<boolean>;
+  /** Every `kind: "meal"` line for the caller's meal; how many went. The engine cascades, not the schema, so the memory store cannot drift from Postgres. */
+  deleteMealLines(userId: string, mealId: string): Promise<number>;
+  /** True when the caller's line existed and now holds `text`. */
+  updateLineText(userId: string, lineId: string, text: string | null): Promise<boolean>;
   /**
    * True exactly once per account: the first verdict is spoken by whoever wins this. An atomic
    * claim, not a count — two first meals racing, or a first meal dated to another day, would

@@ -1054,6 +1054,94 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(updated!.items).toEqual(m.items); // jsonb round-trips
     });
 
+    // #608. Lines by id, scoped; a delete takes exactly what the engine asked for and nothing else.
+    describe("lines by id", () => {
+      const user = async () => (await (await open()).upsertDeviceUser(device(), "en")).userId;
+      const lines = async (u: string) => (await (await open()).chatBefore(u, null, 50)).reverse();
+
+      it("reads a line by id for its owner only", async () => {
+        const s = await open();
+        const u = await user(); const other = await user();
+        await s.appendChat(u, [{ role: "user", kind: "text", text: "hi" }]);
+        const [l] = await lines(u);
+        expect((await s.getLine(u, l!.id))?.text).toBe("hi");
+        expect(await s.getLine(other, l!.id)).toBeNull();
+        expect(await s.getLine(u, "not-a-uuid")).toBeNull();
+      });
+
+      it("finds the photo line of a meal", async () => {
+        const s = await open();
+        const u = await user(); const other = await user();
+        const m = meal(u); await s.insertMeal(m);
+        await s.appendChat(u, [
+          { role: "user", kind: "photo", text: "rice", mealId: m.id },
+          { role: "assistant", kind: "meal", mealId: m.id, event: "logged" },
+        ]);
+        expect((await s.photoLineFor(u, m.id))?.text).toBe("rice");
+        expect(await s.photoLineFor(u, crypto.randomUUID())).toBeNull();
+        expect(await s.photoLineFor(other, m.id)).toBeNull();
+      });
+
+      it("deletes one line, for its owner only", async () => {
+        const s = await open();
+        const u = await user(); const other = await user();
+        await s.appendChat(u, [{ role: "user", kind: "text", text: "a" }, { role: "user", kind: "text", text: "b" }]);
+        const [a] = await lines(u);
+        expect(await s.deleteLine(other, a!.id)).toBe(false);
+        expect(await s.deleteLine(u, a!.id)).toBe(true);
+        expect(await s.deleteLine(u, a!.id)).toBe(false);
+        expect((await lines(u)).map((l) => l.text)).toEqual(["b"]);
+      });
+
+      it("deletes every card of a meal and no other line", async () => {
+        const s = await open();
+        const u = await user(); const other = await user();
+        const m = meal(u); const n = meal(u); await s.insertMeal(m); await s.insertMeal(n);
+        const om = meal(other); await s.insertMeal(om);
+        await s.appendChat(u, [
+          { role: "user", kind: "photo", text: null, mealId: m.id },
+          { role: "assistant", kind: "meal", mealId: m.id, event: "logged" },
+          { role: "user", kind: "text", text: "half that" },
+          { role: "assistant", kind: "meal", mealId: m.id, event: "updated" },
+          { role: "assistant", kind: "meal", mealId: n.id, event: "logged" },
+        ]);
+        await s.appendChat(other, [
+          { role: "user", kind: "photo", text: null, mealId: om.id },
+          { role: "assistant", kind: "meal", mealId: om.id, event: "logged" },
+        ]);
+        expect(await s.deleteMealLines(other, m.id)).toBe(0);
+        expect(await s.deleteMealLines(u, m.id)).toBe(2);
+        expect((await lines(u)).map((l) => [l.kind, l.mealId])).toEqual([["photo", m.id], ["text", null], ["meal", n.id]]);
+        expect((await lines(other)).map((l) => [l.kind, l.mealId])).toEqual([["photo", om.id], ["meal", om.id]]);
+      });
+
+      it("replaces a line's text, for its owner only", async () => {
+        const s = await open();
+        const u = await user(); const other = await user();
+        const m = meal(u); await s.insertMeal(m);
+        await s.appendChat(u, [{ role: "user", kind: "photo", text: "rice", mealId: m.id }]);
+        const [l] = await lines(u);
+        expect(await s.updateLineText(other, l!.id, "x")).toBe(false);
+        expect(await s.updateLineText(u, l!.id, "rice, and an egg")).toBe(true);
+        expect((await s.getLine(u, l!.id))?.text).toBe("rice, and an egg");
+        expect(await s.updateLineText(u, l!.id, null)).toBe(true);
+        expect((await s.getLine(u, l!.id))?.text).toBeNull();
+      });
+
+      it("deletes a meal with its photos, for its owner only", async () => {
+        const s = await open();
+        const u = await user(); const other = await user();
+        const m = meal(u); await s.insertMeal(m);
+        await s.putPhotos(u, m.id, [{ mime: "image/jpeg", bytes: new Uint8Array([0xff, 0xd8, 1]) }]);
+        expect(await s.deleteMeal(other, m.id)).toBe(false);
+        expect(await s.getMeal(u, m.id)).not.toBeNull();
+        expect(await s.deleteMeal(u, m.id)).toBe(true);
+        expect(await s.getMeal(u, m.id)).toBeNull();
+        expect(await s.getPhotos(u, m.id)).toEqual([]);
+        expect(await s.deleteMeal(u, m.id)).toBe(false);
+      });
+    });
+
     it("holds the question asked about a meal, and lets one write clear it", async () => {
       const s = await open();
       const u = (await s.upsertDeviceUser(device(), "en")).userId;

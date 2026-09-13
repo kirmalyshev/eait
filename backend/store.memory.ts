@@ -815,6 +815,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return m && m.user_id === userId ? clone(m) : null;
     },
 
+    async deleteMeal(userId, mealId) {
+      const m = meals.get(mealId);
+      if (!m || m.user_id !== userId) return false;
+      meals.delete(mealId);
+      photos.delete(mealId);
+      return true;
+    },
+
     async updateMeal(userId, mealId, patch: MealPatch) {
       const m = meals.get(mealId);
       if (!m || m.user_id !== userId) return null;
@@ -983,6 +991,38 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async countUserChat(userId) {
       return chat.filter((m) => m.userId === userId).length;
+    },
+
+    async getLine(userId, lineId) {
+      const m = chat.find((l) => l.id === lineId);
+      return m && m.userId === userId ? clone(m) : null;
+    },
+    async photoLineFor(userId, mealId) {
+      for (let i = chat.length - 1; i >= 0; i--) {
+        const m = chat[i]!;
+        if (m.userId === userId && m.kind === "photo" && m.mealId === mealId) return clone(m);
+      }
+      return null;
+    },
+    async deleteLine(userId, lineId) {
+      const i = chat.findIndex((l) => l.id === lineId && l.userId === userId);
+      if (i === -1) return false;
+      chat.splice(i, 1);
+      return true;
+    },
+    async deleteMealLines(userId, mealId) {
+      let n = 0;
+      for (let i = chat.length - 1; i >= 0; i--) {
+        const m = chat[i]!;
+        if (m.userId === userId && m.kind === "meal" && m.mealId === mealId) { chat.splice(i, 1); n++; }
+      }
+      return n;
+    },
+    async updateLineText(userId, lineId, text) {
+      const m = chat.find((l) => l.id === lineId && l.userId === userId);
+      if (!m) return false;
+      m.text = text;
+      return true;
     },
 
     async claimFirstVerdict(userId) {

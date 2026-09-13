@@ -637,6 +637,26 @@ function toMeal(r: MealRow): MealRecord {
   };
 }
 
+function toChat(r: Record<string, unknown>): ChatMessage {
+  return {
+    id: r.id as string,
+    userId: r.user_id as string,
+    seq: num(r.seq),
+    ts: new Date(r.ts as string).toISOString(),
+    role: r.role as ChatMessage["role"],
+    kind: r.kind as ChatMessage["kind"],
+    text: (r.text as string | null) ?? null,
+    mealId: (r.meal_id as string | null) ?? null,
+    event: (r.event as ChatMessage["event"]) ?? null,
+    clientId: (r.client_id as string | null) ?? null,
+    pendingId: (r.pending_id as string | null) ?? null,
+    speaker: (r.speaker as ChatMessage["speaker"]) ?? null,
+    intent: (r.intent as ChatMessage["intent"]) ?? null,
+    model: (r.model as string | null) ?? null,
+    analysisId: r.analysis_id === null || r.analysis_id === undefined ? null : String(r.analysis_id),
+  };
+}
+
 /** bytea comes back from Bun.sql as a Buffer; the `\\x…` hex form is accepted in case a driver answers that way. */
 function toBytes(v: unknown): Uint8Array {
   if (v instanceof Uint8Array) return new Uint8Array(v);
@@ -1460,6 +1480,13 @@ export async function postgresStore(
       return rows.length > 0 ? toMeal(rows[0]) : null;
     },
 
+    async deleteMeal(userId, mealId) {
+      if (!UUID.test(mealId)) return false;
+      // `meal_photos.meal_id` cascades from `meals`, so the photos go with the row.
+      const rows = await sql`delete from meals where id = ${mealId} and user_id = ${userId} returning id`;
+      return rows.length > 0;
+    },
+
     async updateMeal(userId, mealId, patch: MealPatch) {
       if (!UUID.test(mealId)) return null;
       const entries = Object.keys(MEAL_COLUMNS)
@@ -1715,33 +1742,43 @@ export async function postgresStore(
     async chatBefore(userId, before, limit) {
       const rows = before === null
         ? await sql`
-            select seq, id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id, speaker, intent, model, analysis_id from chat_messages
+            select * from chat_messages
             where user_id = ${userId} order by seq desc limit ${limit}`
         : await sql`
-            select seq, id, user_id, ts, role, kind, text, meal_id, event, client_id, pending_id, speaker, intent, model, analysis_id from chat_messages
+            select * from chat_messages
             where user_id = ${userId} and seq < ${before} order by seq desc limit ${limit}`;
-      return (rows as Record<string, unknown>[]).map((r) => ({
-        id: r.id as string,
-        userId: r.user_id as string,
-        seq: num(r.seq),
-        ts: new Date(r.ts as string).toISOString(),
-        role: r.role as ChatMessage["role"],
-        kind: r.kind as ChatMessage["kind"],
-        text: (r.text as string | null) ?? null,
-        mealId: (r.meal_id as string | null) ?? null,
-        event: (r.event as ChatMessage["event"]) ?? null,
-        clientId: (r.client_id as string | null) ?? null,
-        pendingId: (r.pending_id as string | null) ?? null,
-        speaker: (r.speaker as ChatMessage["speaker"]) ?? null,
-        intent: (r.intent as ChatMessage["intent"]) ?? null,
-        model: (r.model as string | null) ?? null,
-        analysisId: r.analysis_id === null || r.analysis_id === undefined ? null : String(r.analysis_id),
-      }));
+      return (rows as Record<string, unknown>[]).map(toChat);
     },
 
     async countUserChat(userId) {
       const rows = await sql`select count(*)::int as n from chat_messages where user_id = ${userId}`;
       return num(rows[0].n);
+    },
+
+    async getLine(userId, lineId) {
+      if (!UUID.test(lineId)) return null;
+      const rows = await sql`select * from chat_messages where id = ${lineId} and user_id = ${userId}`;
+      return rows.length > 0 ? toChat(rows[0] as Record<string, unknown>) : null;
+    },
+    async photoLineFor(userId, mealId) {
+      if (!UUID.test(mealId)) return null;
+      const rows = await sql`select * from chat_messages where user_id = ${userId} and kind = 'photo' and meal_id = ${mealId} order by seq desc limit 1`;
+      return rows.length > 0 ? toChat(rows[0] as Record<string, unknown>) : null;
+    },
+    async deleteLine(userId, lineId) {
+      if (!UUID.test(lineId)) return false;
+      const rows = await sql`delete from chat_messages where id = ${lineId} and user_id = ${userId} returning id`;
+      return rows.length > 0;
+    },
+    async deleteMealLines(userId, mealId) {
+      if (!UUID.test(mealId)) return 0;
+      const rows = await sql`delete from chat_messages where user_id = ${userId} and kind = 'meal' and meal_id = ${mealId} returning id`;
+      return rows.length;
+    },
+    async updateLineText(userId, lineId, text) {
+      if (!UUID.test(lineId)) return false;
+      const rows = await sql`update chat_messages set text = ${text} where id = ${lineId} and user_id = ${userId} returning id`;
+      return rows.length > 0;
     },
 
     async releaseFirstVerdict(userId) {

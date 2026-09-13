@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { createChatCore, type ChatClient, type ChatCore, type Failure } from "./chat-core.ts";
-import type { ChatEntry, ChatHistoryResponse, ProfileResponse } from "./contract.ts";
-import type { HandleTextResult } from "./results.ts";
+import type { ChatEntry, ChatHistoryResponse, DeleteLineResponse, ProfileResponse } from "./contract.ts";
+import type { HandleTextResult, TargetGone } from "./results.ts";
 import type { ThreadEntry } from "./thread.ts";
 
 // The Chat screen's async half (#381), driven with a fake client and no renderer: the four ways a
@@ -37,6 +37,7 @@ function harness(o: {
   send?: () => Promise<HandleTextResult>;
   pages?: (ChatHistoryResponse | Promise<ChatHistoryResponse>)[];
   profile?: ProfileResponse | null;
+  del?: (id: string) => Promise<DeleteLineResponse | TargetGone>;
 } = {}) {
   const fake = { pages: o.pages ?? [], refreshes: 0 };
   const client: ChatClient = {
@@ -44,6 +45,7 @@ function harness(o: {
     sendMessage: o.send ?? (() => Promise.resolve({ kind: "answered", text: "ok" })),
     confirmPending: () => Promise.reject(new Error("not in these tests")),
     cancelPending: () => Promise.resolve({ kind: "cancelled" }),
+    deleteLine: o.del ?? (() => Promise.reject(new Error("not in these tests"))),
   };
   const profile = o.profile ?? null;
   let n = 0;
@@ -220,5 +222,50 @@ describe("the composer can turn into the ask", () => {
     const { core, fake } = harness({ profile: plenty, send: () => Promise.reject(refused("subscription-required")) });
     await core.send("two eggs and toast"); await settle();
     expect(fake.refreshes).toBe(1);
+  });
+});
+
+// #608. A delete is a server write and a local removal: the line goes, its meal's cards go, the
+// composer waits while it is out, and a line the server no longer has goes just the same.
+describe("deleteLine", () => {
+  const meal = { id: "m1", user_id: "u", ts: "2026-09-11T10:00:00.000Z", date: TODAY, isFood: true, items: [], kcal: 1, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, confidence: "high" as const, notes: "", corrected: false, model: "t" };
+  const seeded = (): ChatHistoryResponse => ({ before: null, entries: [
+    { id: "p1", seq: 1, ts: meal.ts, role: "user", kind: "photo", text: "rice", mealId: "m1" },
+    { id: "c1", seq: 2, ts: meal.ts, role: "assistant", kind: "meal", event: "logged", mealId: "m1", meal },
+    { id: "t1", seq: 3, ts: meal.ts, role: "user", kind: "text", text: "hi", clientId: null, pendingId: null },
+  ] });
+
+  it("a photo line: the line and its card go, and the day is the answer", async () => {
+    const asked: string[] = [];
+    const { core } = harness({ pages: [seeded()], del: async (id) => { asked.push(id); return { kind: "deleted", mealId: "m1", date: TODAY }; } });
+    core.refresh(); await settle();
+    expect(await core.deleteLine("p1")).toBe(TODAY);
+    expect(asked).toEqual(["p1"]);
+    expect(core.state.entries.map((e) => e.id)).toEqual(["t1"]);
+    expect(core.state.busy).toBe(false);
+  });
+
+  it("a text line goes alone and answers null", async () => {
+    const { core } = harness({ pages: [seeded()], del: async () => ({ kind: "deleted", mealId: null, date: null }) });
+    core.refresh(); await settle();
+    expect(await core.deleteLine("t1")).toBeNull();
+    expect(core.state.entries.map((e) => e.id)).toEqual(["p1", "c1"]);
+  });
+
+  it("target-gone: the line was already gone elsewhere, so it goes here too", async () => {
+    const { core } = harness({ pages: [seeded()], del: async () => ({ kind: "target-gone", on: "correction" }) });
+    core.refresh(); await settle();
+    expect(await core.deleteLine("t1")).toBeNull();
+    expect(core.state.entries.map((e) => e.id)).toEqual(["p1", "c1"]);
+  });
+
+  it("a failure is a bubble, and the line stays", async () => {
+    const { core } = harness({ pages: [seeded()], del: async () => { throw { kind: "offline" }; } });
+    core.refresh(); await settle();
+    expect(await core.deleteLine("t1")).toBeNull();
+    // The minted error-bubble id follows the harness's own `uid` counter (`c${++n}`), not the
+    // brief's `c4` — nothing else in this test calls `uid()` before the failed delete.
+    expect(core.state.entries.map((e) => e.id)).toEqual(["p1", "c1", "t1", "c1"]);
+    expect(core.state.entries.at(-1)).toMatchObject({ role: "error", kind: "offline" });
   });
 });

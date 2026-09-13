@@ -159,7 +159,9 @@ export function reconcilePage(
   // reference, since a fresh fetch carries new objects for the same record.
   const recordsChanged = !linesChanged && next.some((e, i) => {
     const p = prev[i]!;
-    return e.role === "card" && p.role === "card" && JSON.stringify(e.meal) !== JSON.stringify(p.meal);
+    return (e.role === "card" && p.role === "card" && JSON.stringify(e.meal) !== JSON.stringify(p.meal))
+      // An edited caption (#608): the same line, new words, no line added or removed.
+      || (e.role === "user" && p.role === "user" && e.text !== p.text);
   });
   return { next, linesChanged, changed: linesChanged || recordsChanged, superseded: superseded.map((e) => e.id) };
 }
@@ -417,7 +419,9 @@ export type ThreadEvent =
   | { kind: "mark"; id: string; as: "failed" | "refused" }
   /** An older page, prepended above what is on screen and deduplicated by id. */
   | { kind: "earlier"; page: ChatEntry[] }
-  | { kind: "unanswered"; clientId: string; scope?: "sample" | undefined };
+  | { kind: "unanswered"; clientId: string; scope?: "sample" | undefined }
+  /** The server deleted a line (#608). With a `mealId`, every card for that meal goes too: the meal is gone. */
+  | { kind: "line-removed"; id: string; mealId: string | null };
 
 /** The list after one edit. Pure, so it is legal inside a React updater. */
 export function threadReducer(entries: ThreadEntry[], event: ThreadEvent): ThreadEntry[] {
@@ -425,6 +429,8 @@ export function threadReducer(entries: ThreadEntry[], event: ThreadEvent): Threa
     case "push": return [...entries, event.entry];
     case "replace": return entries.map((e) => (e.id === event.id ? event.entry : e));
     case "remove": return entries.filter((e) => e.id !== event.id);
+    case "line-removed":
+      return entries.filter((e) => e.id !== event.id && !(event.mealId !== null && e.role === "card" && e.mealId === event.mealId));
     case "mark": return entries.map((e) => (e.id === event.id && e.role === "user" ? { ...e, [event.as]: true } : e));
     case "earlier": {
       const seen = new Set(entries.map((e) => e.id));

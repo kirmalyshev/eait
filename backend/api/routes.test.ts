@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import {
   HEALTH_RETENTION_DAYS, MAX_CLIENT_ID, MAX_USER_LINE, MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay,
-  localDate, NDJSON, OUTCOME_UNKNOWN, type PairCodeResponse, type PhotoEvent, type MealLogged, type ProfileResponse,
-  type MealProposed, type PendingMealsResponse,
+  localDate, NDJSON, OUTCOME_UNKNOWN, type ChatHistoryResponse, type PairCodeResponse, type PhotoEvent, type MealLogged,
+  type ProfileResponse, type MealProposed, type PendingMealsResponse,
 } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { DEMO_NOT_FOOD, demoPorts } from "../llm/demo.ts";
@@ -447,6 +447,94 @@ describe("chat and editing", () => {
     const b = await session();
     const meal = await (await handle(photoRequest(a))).json() as { mealId: string };
     expect((await patch(ROUTES.meal(meal.mealId), { kcal: 1 }, b)).status).toBe(409);
+  });
+
+  // #608. A user's own lines, by id. Both routes are scoped: another account's id is 409, never 404.
+  //
+  // There is no `GET /v1/meals/:id` route — only `PATCH` matches `mealMatch` in routes.ts, so a GET
+  // on that path falls through to the router's own 404 regardless of whether the meal exists. The
+  // brief's tests read the meal back that way; here they read it through `store.getMeal` instead,
+  // resolving `userId` the way the file's other tests do (`store.userIdForToken`).
+  describe("DELETE and PATCH /v1/messages/:id", () => {
+    /** One photo turn; the user's photo line id and its meal id. */
+    async function photoLine(token: string, caption?: string) {
+      const logged = await (await handle(photoRequest(token, 1, caption))).json() as { kind: string; mealId: string };
+      expect(logged.kind).toBe("logged");
+      const { entries } = await (await get(ROUTES.messages, token)).json() as ChatHistoryResponse;
+      const line = entries.find((e) => e.role === "user" && e.kind === "photo");
+      if (!line) throw new Error("no photo line");
+      return { lineId: line.id, mealId: logged.mealId, entries };
+    }
+    function editRequest(token: string, lineId: string, text: string, files = 0, stream = false): Request {
+      const form = new FormData();
+      form.append("text", text);
+      for (let i = 0; i < files; i++) form.append("photo", new File([jpegBytes(i + 7)], `a${i}.jpg`, { type: "image/jpeg" }));
+      return new Request(url(ROUTES.message(lineId)), {
+        method: "PATCH", body: form,
+        headers: { authorization: `Bearer ${token}`, "content-length": DECLARED_LENGTH, ...(stream ? { accept: "application/x-ndjson" } : {}) },
+      });
+    }
+
+    it("deletes a photo line with its meal and cards; another account's id is 409", async () => {
+      const token = await session();
+      const { lineId, mealId } = await photoLine(token);
+      expect((await del(ROUTES.message(lineId), {}, await session())).status).toBe(409);
+      const res = await del(ROUTES.message(lineId), {}, token);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({ kind: "deleted", mealId });
+      const { entries } = await (await get(ROUTES.messages, token)).json() as ChatHistoryResponse;
+      expect(entries.some((e) => e.id === lineId || (e.kind === "meal" && e.mealId === mealId))).toBe(false);
+      const userId = (await store.userIdForToken(token))!;
+      expect(await store.getMeal(userId, mealId)).toBeNull();
+    });
+
+    it("refuses to delete an assistant line", async () => {
+      const token = await session();
+      const { entries } = await photoLine(token);
+      const card = entries.find((e) => e.role === "assistant")!;
+      expect((await del(ROUTES.message(card.id), {}, token)).status).toBe(400);
+    });
+
+    it("edits a photo line: the numbers and the words change in place, as a stream", async () => {
+      const token = await session();
+      const { lineId, mealId, entries: before } = await photoLine(token, "rice");
+      const res = await handle(editRequest(token, lineId, "rice, and an egg", 1, true));
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("application/x-ndjson");
+      const lines = (await res.text()).split("\n").filter((l) => l.trim() !== "").map((l) => JSON.parse(l) as { kind: string });
+      expect(lines.some((l) => l.kind === "item")).toBe(true);
+      expect(lines.at(-1)).toMatchObject({ kind: "updated", mealId, via: "reanalysis" });
+      const { entries } = await (await get(ROUTES.messages, token)).json() as ChatHistoryResponse;
+      expect(entries.map((e) => e.id)).toEqual(before.map((e) => e.id));
+      const line = entries.find((e) => e.id === lineId);
+      expect(line && line.kind === "photo" ? line.text : null).toBe("rice, and an egg");
+      const userId = (await store.userIdForToken(token))!;
+      const meal = await store.getMeal(userId, mealId);
+      expect(meal?.photos).toBe(2);
+      expect(meal?.corrected).toBe(false);
+    });
+
+    it("answers JSON without the accept header, and 400 on a text line, 409 on another account's", async () => {
+      const token = await session();
+      const { lineId } = await photoLine(token);
+      expect((await handle(editRequest(token, lineId, "x"))).status).toBe(200);
+      expect((await handle(editRequest(await session(), lineId, "x"))).status).toBe(409);
+      await post(ROUTES.messages, { text: "what is a good breakfast?" }, token);
+      const { entries } = await (await get(ROUTES.messages, token)).json() as ChatHistoryResponse;
+      const text = entries.findLast((e) => e.role === "user" && e.kind === "text")!;
+      expect((await handle(editRequest(token, text.id, "y"))).status).toBe(400);
+    });
+
+    it("caps the words and the angles, and needs a length", async () => {
+      const token = await session();
+      const { lineId } = await photoLine(token);
+      expect((await handle(editRequest(token, lineId, "x".repeat(MAX_USER_LINE + 1)))).status).toBe(400);
+      const many = await handle(editRequest(token, lineId, "x", CONFIG.maxPhotosPerMeal));
+      expect(many.status).toBe(400);
+      expect(await many.json()).toMatchObject({ error: "too-many-photos" });
+      const noLength = new Request(url(ROUTES.message(lineId)), { method: "PATCH", headers: { authorization: `Bearer ${token}`, "content-type": "multipart/form-data; boundary=x" } });
+      expect((await handle(noLength)).status).toBe(411);
+    });
   });
 });
 
@@ -1468,6 +1556,41 @@ describe("rate limits", () => {
     }));
     expect((await reanalyze()).status).toBe(200);
     const refused = await reanalyze();
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toEqual({ error: "cap-exceeded", scope: "address" });
+  });
+
+  it("bounds a message edit by address in the same bucket as the photo it re-reads (#608)", async () => {
+    const h = routerWith({ analysisRateLimitPerDay: 2, freeAnalyses: 99 });
+    const address = "203.0.113.11";
+    const { token } = await (await registerFrom(h, address)).json() as { token: string };
+    await h(new Request(url(ROUTES.profile), {
+      method: "PATCH",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
+        target_weight_kg: 65, activity: "moderate", pace: "steady", country: "gb",
+        restrictions: [], complete_onboarding: true,
+      }),
+    }));
+    const form = new FormData();
+    form.append("photo", new File([jpegBytes(7)], "m.jpg", { type: "image/jpeg" }));
+    await h(new Request(url(ROUTES.photo), {
+      method: "POST", headers: { authorization: `Bearer ${token}`, "x-forwarded-for": address, "content-length": DECLARED_LENGTH }, body: form,
+    }));
+    const { entries } = await (await h(new Request(url(ROUTES.messages), { headers: { authorization: `Bearer ${token}` } }))).json() as ChatHistoryResponse;
+    const line = entries.find((e) => e.role === "user" && e.kind === "photo")!;
+    const edit = () => {
+      const f = new FormData();
+      f.append("text", "x");
+      return h(new Request(url(ROUTES.message(line.id)), {
+        method: "PATCH",
+        headers: { authorization: `Bearer ${token}`, "x-forwarded-for": address, "content-length": DECLARED_LENGTH },
+        body: f,
+      }));
+    };
+    expect((await edit()).status).toBe(200);
+    const refused = await edit();
     expect(refused.status).toBe(429);
     expect(await refused.json()).toEqual({ error: "cap-exceeded", scope: "address" });
   });

@@ -20,7 +20,7 @@ import {
   type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang,
   type UnlinkResponse,
   type MessageRequest, type OnboardingContentResponse, type OnboardingEventsRequest,
-  type AttachPhotosResponse, type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
+  type AttachPhotosResponse, type DeleteLineResponse, type OnboardingEventsResponse, type PatchProfileRequest, isRefusal,
   type HealthDaysRequest, type HealthDaysResponse, type HealthResponse, type LivenessResponse,
   HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, type PushTokenResponse,
   type PairCodeResponse, type PendingMealsResponse,
@@ -30,7 +30,8 @@ import { AuthError, type Verifier } from "../auth/verify.ts";
 import { isCalendarDate } from "@eait/shared";
 import type { Store } from "../store.ts";
 import {
-  MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
+  MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, deleteLine, editLine,
+  editMeal, handleText,
   healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, pendingMeals, profileView,
   unlinkIdentity,
   recordHealthDays, recordOnboardingEvents, signInWithProvider, week, type EngineDeps,
@@ -122,6 +123,8 @@ export const STREAM_KEEPALIVE_MS = 5_000;
 const REANALYZE_PATH = /^\/v1\/meals\/([^/]+)\/reanalyze$/;
 /** `POST /v1/meals/:id/photos` — one segment shorter than the GET that reads one by position. */
 const ATTACH_PATH = /^\/v1\/meals\/([^/]+)\/photos$/;
+/** `DELETE` / `PATCH /v1/messages/:id` (#608). `/v1/messages/lines` is a POST and never reaches this. */
+const MESSAGE_PATH = /^\/v1\/messages\/([^/]+)$/;
 
 export function createRouter(
   deps: EngineDeps,
@@ -549,7 +552,8 @@ export function createRouter(
       // Reported as `cap-exceeded` with `scope: "address"` rather than as a bare 429, so it travels
       // the refusal path the app already renders — and is worded as what it is. Saying "your daily
       // allowance is spent" to somebody on a carrier network who has logged one meal would be a lie.
-      if (req.method === "POST" && (pathname === ROUTES.photo || pathname === ROUTES.messages || REANALYZE_PATH.test(pathname))) {
+      if (req.method === "POST" && (pathname === ROUTES.photo || pathname === ROUTES.messages || REANALYZE_PATH.test(pathname))
+        || (req.method === "PATCH" && MESSAGE_PATH.test(pathname))) {
         const wait = limit(req, peer, "analysis", deps.config.analysisRateLimitPerDay, DAY);
         if (wait !== null) {
           return tooManyRequests(wait, { error: "cap-exceeded", scope: "address" });
@@ -833,6 +837,39 @@ export function createRouter(
         return result.kind === "target-gone"
           ? json({ error: "target-gone", on: result.on }, 409)
           : json(result);
+      }
+
+      const messageMatch = MESSAGE_PATH.exec(pathname);
+      if (req.method === "DELETE" && messageMatch) {
+        // Unbilled, writes the thread: per address, its own counter, like the meal editor's.
+        const wait = limit(req, peer, "message-delete", deps.config.linesRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
+        const result = await deleteLine(deps, userId, decodeURIComponent(messageMatch[1]!));
+        if (result.kind === "target-gone") return json({ error: "target-gone", on: result.on }, 409);
+        if (result.kind === "bad-request") return json({ error: "bad-request" }, 400);
+        return json(result satisfies DeleteLineResponse);
+      }
+      if (req.method === "PATCH" && messageMatch) {
+        // The photo route's guards, for the photo route's body: a length before `formData()`
+        // buffers it, the cap on the bytes, the cap on the words. The per-address analysis limiter
+        // above already covers PATCH on this path — it calls the model too.
+        const length = req.headers.get("content-length");
+        const declared = length === null ? NaN : Number(length);
+        if (!Number.isFinite(declared)) return json({ error: "length required" }, 411);
+        if (declared > deps.config.maxUploadBytes) return json({ error: "too large" }, 413);
+        const form = await req.formData();
+        const files = form.getAll("photo").flatMap((f) => (typeof f === "string" ? [] : [f]));
+        if (files.reduce((n, f) => n + f.size, 0) > deps.config.maxUploadBytes) return json({ error: "too large" }, 413);
+        const text = form.get("text");
+        if (typeof text === "string" && text.length > MAX_USER_LINE) return json({ error: "text too long" }, 400);
+        const input = { text: typeof text === "string" ? text : "", images: files.map((f) => async () => new Uint8Array(await f.arrayBuffer())) };
+        const id = decodeURIComponent(messageMatch[1]!);
+        if (wantsStream(req)) return stream(req, pathname, (line) => editLine(deps, userId, id, input, line));
+        const result = await editLine(deps, userId, id, input);
+        if (result.kind === "target-gone") return json({ error: "target-gone", on: result.on }, 409);
+        if (result.kind === "bad-request") return json({ error: "bad-request" }, 400);
+        if (result.kind === "too-many") return json({ error: "too-many-photos", limit: result.limit }, 400);
+        return isRefusal(result) ? refusal(result) : json(result);
       }
 
       // ── Pending text meals ────────────────────────────────────────────────────────────────

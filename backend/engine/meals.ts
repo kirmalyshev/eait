@@ -13,7 +13,7 @@
 import {
   type DailyTotals, type EditMealRequest, type LogPhotoResult, type MealAnalysis, type MealHint,
   type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord, type MealUpdated, type PhotoEvent,
-  type TargetGone, type ConfirmMealResult, type Refusal, explainTargets, verdictsFromTargets, visibleVerdicts,
+  type Profile, type TargetGone, type ConfirmMealResult, type Refusal, explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
 import { localDate, localTime, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
@@ -72,23 +72,32 @@ export async function gatedVerdicts(deps: EngineDeps, userId: string, a: {
   return visibleVerdicts(verdictsFromTargets(a, targets), profile.restrictions);
 }
 
-export async function logPhotoMeal(
+export interface PhotoRead {
+  kind: "read";
+  analysis: AnalyzedMeal;
+  question: ReturnType<typeof prepareAnalysis>["question"];
+  images: Uint8Array[];
+  analysisId: string;
+}
+
+/**
+ * THE ONE PHOTO TURN, from the caps to a prepared analysis (#608). `logPhotoMeal` logs what it
+ * returns as a new meal; `reanalyzeMeal` and `editLine` write it over an existing one. Caps
+ * first; the bytes are read after them and sniffed before the charge (the provider rejects HEIC
+ * with a 400 that stays charged); the charge before the model call (a failed call still costs
+ * money); the glance beside the analyzer, never awaited; the answer reconciled and gated on
+ * `isFood` before anyone writes a row. A third copy of this was the reason to move it.
+ */
+export async function analyzePhotos(
   deps: EngineDeps,
   userId: string,
-  input: LogPhotoInput,
-  /**
-   * The live turn's side channel: the glance, and each item as the analyzer closes it. The
-   * result is still the return value — the route writes it as the stream's last line. Without
-   * it nothing streams and no glance call is made: a JSON caller pays for exactly what it did.
-   */
+  profile: Profile,
+  date: string,
+  read: () => Promise<Uint8Array[]>,
+  caption: string | undefined,
   onEvent?: (event: PhotoEvent) => void,
-): Promise<LogPhotoResult> {
-  const profile = await deps.store.getProfile(userId);
-  if (!profile || profile.onboarded_at === null) return { kind: "not-onboarded" };
-
+): Promise<PhotoRead | Refusal> {
   const zone = deps.config.timezone;
-  const date = localDate(zone);
-
   const refusal = await checkCaps(deps, userId, date, "photo");
   if (refusal) return refusal;
 
@@ -96,7 +105,8 @@ export async function logPhotoMeal(
   // provider rejects HEIC with a 400 that stays charged, and HEIC is what an iPhone hands over
   // unless the capture is re-encoded — without this the first real photo spent the sample and
   // logged nothing.
-  const images = await Promise.all(input.images.map((read) => read()));
+  const images = await read();
+  if (images.length === 0) return { kind: "no-photo" };
   if (images.some((b) => imageMime(b) === null)) return { kind: "unsupported-image" };
 
   // Recorded BEFORE the call. A failed model call still costs money, so a cap that only counts
@@ -122,7 +132,7 @@ export async function logPhotoMeal(
   try {
     analysis = await deps.llm.analyzePhoto({
       images, profile, targets, onCost,
-      ...(input.caption !== undefined ? { caption: input.caption } : {}),
+      ...(caption !== undefined ? { caption } : {}),
       localTime: localTime(zone),
       repertoire: await buildRepertoire(deps, userId, date),
       // What this person's own corrections say about their portions. Unlike the repertoire, this
@@ -138,7 +148,7 @@ export async function logPhotoMeal(
     console.error(`[eait] photo analysis failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
     return { kind: "analysis-failed" };
   }
-  // `images` is still in scope: it is stored below, after the meal it belongs to exists, and only then.
+  // `images` is returned to the caller, which stores them after the row exists.
 
   // Nothing an analyzer returns is stored unreconciled: the totals are checked against the items
   // and the prompt-side fields come off. Before the `isFood` gate, so both answers get the same
@@ -148,8 +158,30 @@ export async function logPhotoMeal(
   analysis = prepared.analysis;
 
   if (!analysis.isFood) return { kind: "not-food" };
+  return { kind: "read", analysis, question: prepared.question, images, analysisId };
+}
 
-  const question = await mayAsk(deps, userId, date, analysis, prepared.question);
+export async function logPhotoMeal(
+  deps: EngineDeps,
+  userId: string,
+  input: LogPhotoInput,
+  /**
+   * The live turn's side channel: the glance, and each item as the analyzer closes it. The
+   * result is still the return value — the route writes it as the stream's last line. Without
+   * it nothing streams and no glance call is made: a JSON caller pays for exactly what it did.
+   */
+  onEvent?: (event: PhotoEvent) => void,
+): Promise<LogPhotoResult> {
+  const profile = await deps.store.getProfile(userId);
+  if (!profile || profile.onboarded_at === null) return { kind: "not-onboarded" };
+
+  const date = localDate(deps.config.timezone);
+
+  const read = await analyzePhotos(deps, userId, profile, date,
+    () => Promise.all(input.images.map((r) => r())), input.caption, onEvent);
+  if (read.kind !== "read") return read;
+  const { analysis, images, analysisId } = read;
+  const question = await mayAsk(deps, userId, date, analysis, read.question);
 
   const record: MealRecord = {
     ...analysis,
@@ -404,10 +436,9 @@ export async function attachPhotos(
 }
 
 /**
- * The analyzer reads the stored photos again and replaces the numbers. Charged like a photo
- * (today's cap, refunded on a gateway refusal), written like an edit but with `corrected: false`
- * and the current model — one estimator replacing itself is not a person correcting it — and
- * never through `editMeal`, which would record portion corrections from a re-read.
+ * The edit path (`rewriteMeal`) with no new text and no new photos: reads the caption off the
+ * photo line, as the analyzer first saw it, and writes no thread line. The charging and
+ * `corrected: false` prose lives on `rewriteMeal` already.
  */
 export async function reanalyzeMeal(
   deps: EngineDeps,
@@ -420,36 +451,41 @@ export async function reanalyzeMeal(
   const profile = await deps.store.getProfile(userId);
   if (!profile || profile.onboarded_at === null) return { kind: "not-onboarded" };
 
-  const zone = deps.config.timezone;
-  const today = localDate(zone);
-  const refusal = await checkCaps(deps, userId, today, "photo");
-  if (refusal) return refusal;
-  const { analysisId, onCost } = await charge(deps, userId, today, "photo");
-  // Read once the turn is paid for: a refused tap must not pull the bytes.
-  const images = (await deps.store.getPhotos(userId, mealId)).map((p) => p.bytes);
-  if (images.length === 0) {
-    await deps.store.undoAnalysis(userId, analysisId);
-    return { kind: "no-photo" };
-  }
+  // The words that went with the photos, as the analyzer first saw them (#608): a re-read is an
+  // edit that changed nothing, so it reads the same caption the edit path would.
+  const line = await deps.store.photoLineFor(userId, mealId);
+  return rewriteMeal(deps, userId, existing, profile, line?.text ?? undefined, async () => [], undefined);
+}
 
-  const { targets } = explainTargets(profile);
-  let analysis: AnalyzedMeal;
-  try {
-    analysis = await deps.llm.analyzePhoto({
-      images, profile, targets, onCost,
-      localTime: localTime(zone),
-      repertoire: await buildRepertoire(deps, userId, today),
-      portionPriors: await deps.store.portionPriors(userId),
-    });
-  } catch (e) {
-    const refunded = await refundGatewayRefusal(deps, userId, analysisId, e);
-    console.error(`[eait] re-analysis failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
-    return { kind: "analysis-failed" };
-  }
-  analysis = prepareAnalysis(analysis).analysis;
-  if (!analysis.isFood) return { kind: "not-food" };
-
-  const updated = await deps.store.updateMeal(userId, mealId, {
+/**
+ * The analyzer reads a meal's photos again — the stored ones, plus `added` — and replaces the
+ * numbers (#608). Charged like a photo, written like an edit but with `corrected: false` and the
+ * current model: an estimator replacing itself is not a person correcting it. Never through
+ * `editMeal`, which would record portion corrections. WRITES NO THREAD LINE: the meal's card
+ * lines carry its current record, so the card changes where it is.
+ *
+ * `added` is a THUNK, read inside the spine's own `read` callback right alongside the stored
+ * bytes — after the caps, before the charge — so a capped or refused turn never opens an angle
+ * nobody is going to keep. `editLine`'s bytes therefore sit unread in the caller until this point.
+ */
+export async function rewriteMeal(
+  deps: EngineDeps, userId: string, existing: MealRecord, profile: Profile,
+  caption: string | undefined, added: () => Promise<Uint8Array[]>, onEvent: ((event: PhotoEvent) => void) | undefined,
+): Promise<MealUpdated | TargetGone | Refusal> {
+  const today = localDate(deps.config.timezone);
+  // Captured here rather than trusted from `read.images`: the stored count can be stale (another
+  // request mutated it since `existing` was read), so slicing `read.images` by it would risk
+  // taking a stored photo for an added one.
+  let addedBytes: Uint8Array[] = [];
+  const read = await analyzePhotos(deps, userId, profile, today,
+    async () => {
+      addedBytes = await added();
+      return [...(await deps.store.getPhotos(userId, existing.id)).map((p) => p.bytes), ...addedBytes];
+    },
+    caption, onEvent);
+  if (read.kind !== "read") return read;
+  const { analysis } = read;
+  const updated = await deps.store.updateMeal(userId, existing.id, {
     items: analysis.items, kcal: analysis.kcal, protein_g: analysis.protein_g, carbs_g: analysis.carbs_g,
     fat_g: analysis.fat_g, satfat_g: analysis.satfat_g, fiber_g: analysis.fiber_g, sugar_g: analysis.sugar_g,
     sodium_mg: analysis.sodium_mg, notes: analysis.notes,
@@ -457,10 +493,14 @@ export async function reanalyzeMeal(
     confidence: analysis.confidence, corrected: false, model: deps.config.llmModel, question: null,
   });
   if (!updated) return { kind: "target-gone", on: "correction" };
-
+  // Stored AFTER the numbers that describe them, never for a refused turn. A store failure is a
+  // log line, as `putPhotos` is in `logPhotoMeal`.
+  if (addedBytes.length > 0) {
+    await deps.store.appendPhotos(userId, existing.id, addedBytes.map((b) => ({ mime: imageMime(b)!, bytes: b })))
+      .catch((e: unknown) => console.error(`[eait] photos not appended: ${(e as Error)?.message ?? e}`));
+  }
   const totals = sumTotals(await deps.store.mealsForDate(userId, updated.date));
-  await remember(deps, userId, [{ role: "assistant", kind: "meal", mealId, event: "updated" }]);
-  return { kind: "updated", mealId, analysis: toAnalysis(updated), totals, date: updated.date, via: "reanalysis" };
+  return { kind: "updated", mealId: existing.id, analysis: toAnalysis(updated), totals, date: updated.date, via: "reanalysis" };
 }
 
 /** A stored row, back to the analysis shape a card renders. */

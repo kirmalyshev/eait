@@ -9,7 +9,7 @@ import type {
 } from "./types.ts";
 import type { OnboardingContent, OnboardingEvent } from "./onboarding.ts";
 import type { TargetBasis } from "./targets.ts";
-import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, LogPhotoResult, MealProposed, MealUpdated, TargetGone } from "./results.ts";
+import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, LogPhotoResult, MealProposed, MealUpdated, Refusal, TargetGone } from "./results.ts";
 import type { HealthDay } from "./health.ts";
 import type { Entitlement } from "./entitlement.ts";
 import type { ScriptedLineId } from "./chat.ts";
@@ -228,6 +228,15 @@ export const ROUTES = {
   messages: "/v1/messages",
   /** POST — the user's own words and Spud's SCRIPTED lines by id. See `AppendLinesRequest`. */
   messagesLines: "/v1/messages/lines",
+  /**
+   * DELETE — the caller's own line, by id (#608). A photo line is its meal: the meal, its photos
+   * and every card for it go with the line; a text line goes alone. PATCH — multipart like
+   * `ROUTES.photo` (`text`, zero or more `photo` angles to ADD), streams `PhotoProgress` lines,
+   * then `EditLineLast`: the analyzer re-reads every photo with the new text as the caption, the
+   * meal and the line's text change IN PLACE, and no thread line is written. Photo lines only; a
+   * text line is `bad-request`.
+   */
+  message: (id: string) => `/v1/messages/${encodeURIComponent(id)}`,
   /**
    * POST — register this device's Expo push token. DELETE — drop it. See `PushTokenRequest`.
    *
@@ -967,17 +976,29 @@ export const clientModelTimeoutMs = (serverLlmTimeoutMs: number, calls: number):
  * this number really sizes is the harness, which reads it for the photo route. Hence that count.
  */
 export const DEFAULT_MODEL_TIMEOUT_MS = clientModelTimeoutMs(SERVER_LLM_TIMEOUT_MS, PHOTO_MODEL_CALLS);
-/**
- * One line of the stream. Zero or one `glance`, zero or more `item`, then `PhotoLast` as the
- * LAST line — refusals included, because the 200 went out with the first byte. An `item` with
- * `index: 0` after others means the analyzer started over (a schema retry).
- */
-export type PhotoEvent =
+/** The stream's progress lines: zero or one `glance`, zero or more `item`. Shared by the photo turn and an edit (#608). */
+export type PhotoProgress =
   | { kind: "glance"; text: string }
-  | { kind: "item"; index: number; item: MealItem }
-  | PhotoLast;
+  | { kind: "item"; index: number; item: MealItem };
+/**
+ * One line of the photo stream. Progress, then `PhotoLast` as the LAST line — refusals included,
+ * because the 200 went out with the first byte. An `item` with `index: 0` after others means the
+ * analyzer started over (a schema retry).
+ */
+export type PhotoEvent = PhotoProgress | PhotoLast;
 /** The stream's last line: the result, or the server's own failure mid-turn (`OUTCOME_UNKNOWN`). */
 export type PhotoLast = LogPhotoResult | { kind: typeof OUTCOME_UNKNOWN };
+/**
+ * `PATCH /v1/messages/:id` (#608): the same progress, then one of these last. `bad-request` is a
+ * line that cannot be edited (text, or not the caller's kind); `too-many` is the photo bound the
+ * server counts against what is already stored.
+ */
+export type EditLineLast =
+  | MealUpdated | TargetGone | Refusal
+  | { kind: "bad-request" } | { kind: "too-many"; limit: number }
+  | { kind: typeof OUTCOME_UNKNOWN };
+/** `DELETE /v1/messages/:id`. `mealId`/`date` name the meal that went with a photo line, so the client can refresh that day; null when only the line went. */
+export interface DeleteLineResponse { kind: "deleted"; mealId: string | null; date: string | null }
 export type MessageResponse = HandleTextResult;
 export type PendingResponse = ConfirmMealResult | { kind: "cancelled" } | { kind: "expired" };
 /** `GET /v1/meals/pending`: the caller's live proposals, oldest first, each as its turn sent it (#530). */
