@@ -7,12 +7,13 @@
 // are all the real ones.
 
 import { afterAll, beforeEach, describe, expect, it } from "bun:test";
+import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   AMBIGUOUS_AGE, DEFAULT_ONBOARDING_CONTENT, UNDER_AGE_CARD, UNDER_AGE_LINES, disabledScreens,
-  explainTargets, lintCopy, MAX_USER_LINE, type Profile,
+  explainTargets, lintCopy, MAX_USER_LINE, TYPE_MS_PER_CHAR, type Profile,
 } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -242,6 +243,24 @@ describe("the front door", () => {
     const html = await (await get("/start")).text();
     expect(html).toContain("Continue with Apple");
     expect(html).not.toContain("Continue with Google");
+  });
+});
+
+describe("Spud types his lines out", () => {
+  it("ships one first-party script, hashed into the policy, on the shared schedule", async () => {
+    const res = await get("/start");
+    const html = await res.text();
+    const m = html.match(/<script>([\s\S]*?)<\/script>/);
+    expect(m).not.toBeNull();
+    // The hash, not a nonce: the script never changes, so the policy can name it outright and the
+    // page still allows no origin but its own.
+    const hash = createHash("sha256").update(m![1]!).digest("base64");
+    expect(res.headers.get("content-security-policy")).toContain(`script-src 'sha256-${hash}'`);
+    expect(m![1]).toContain(`${TYPE_MS_PER_CHAR}`);
+    // Only the onboarding's lines are marked for typing. The chat thread's are history, drawn whole
+    // (the thread test below asserts the bare class).
+    expect(html).toContain('<p class="bubble typed">');
+    expect(html).not.toContain('<p class="bubble">');
   });
 });
 

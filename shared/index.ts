@@ -21,3 +21,4 @@ export * from "./chat-core.ts";
 export * from "./notifications.ts";
 export * from "./claims.ts";
 export * from "./stream.ts";
+export * from "./typing.ts";
