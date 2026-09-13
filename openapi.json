@@ -1,0 +1,5154 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "eait",
+    "version": "v1",
+    "license": {
+      "name": "AGPL-3.0-only",
+      "identifier": "AGPL-3.0-only"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.eait.fit"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "get_health",
+        "summary": "Liveness. `demo` says whether the canned analyzer is serving.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivenessResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/auth/device": {
+      "post": {
+        "operationId": "post_authDevice",
+        "summary": "Trade a client-generated device id for a bearer token. Creates the account on first sight.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthDeviceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthDeviceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/auth/apple": {
+      "post": {
+        "operationId": "post_authApple",
+        "summary": "Sign in with Apple. With a bearer, links the identity to the current account instead.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthProviderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthProviderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/auth/google": {
+      "post": {
+        "operationId": "post_authGoogle",
+        "summary": "Sign in with Google. With a bearer, links the identity to the current account instead.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthProviderRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthProviderResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {},
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/auth/signout": {
+      "post": {
+        "operationId": "post_authSignOut",
+        "summary": "Drop the caller's own token.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "signedOut": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "signedOut"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/auth/signout/all": {
+      "post": {
+        "operationId": "post_authSignOutEverywhere",
+        "summary": "Drop every token of the caller's account, this one included.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "signedOut": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "signedOut"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/auth/pair": {
+      "post": {
+        "operationId": "post_authPair",
+        "summary": "Mint a short-lived code that hands a browser a session on the caller's account.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PairCodeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/auth/identities": {
+      "get": {
+        "operationId": "get_identities",
+        "summary": "The identities linked to this account.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentitiesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/auth/identities/{provider}": {
+      "delete": {
+        "operationId": "delete_identity",
+        "summary": "Unlink one provider. Removing the last way in erases the account; the answer says which.",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnlinkResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/profile": {
+      "get": {
+        "operationId": "get_profile",
+        "summary": "The caller's profile, targets and limits.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "patch_profile",
+        "summary": "Edit the profile. Targets are recomputed; a rejected field comes back as 422.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileRejected"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/onboarding": {
+      "get": {
+        "operationId": "get_onboarding",
+        "summary": "The onboarding copy this server is serving.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingContentResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/onboarding/events": {
+      "post": {
+        "operationId": "post_onboardingEvents",
+        "summary": "A batch of onboarding funnel events.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnboardingEventsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OnboardingEventsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/meals/photo": {
+      "post": {
+        "operationId": "post_photo",
+        "summary": "Log a meal from one to four photos. Charged. Streams progress with `accept: application/x-ndjson`.",
+        "parameters": [
+          {
+            "name": "accept",
+            "in": "header",
+            "required": false,
+            "description": "`application/x-ndjson` streams one JSON object per line; the last line is the response body.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "application/x-ndjson",
+                "application/json"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "photo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  },
+                  "caption": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoResponse"
+                }
+              },
+              "application/x-ndjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoProgress"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "411": {
+            "description": "Length required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Too large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported image",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/meals/{id}": {
+      "patch": {
+        "operationId": "patch_meal",
+        "summary": "The manual edit. Verdicts are recomputed, never accepted.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditMealRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditMealResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Target gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/meals/{id}/photos/{n}": {
+      "get": {
+        "operationId": "get_mealPhoto",
+        "summary": "One stored photo of one of the caller's meals, by position. Bytes with their mime.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "n",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "image/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/meals/{id}/photos": {
+      "post": {
+        "operationId": "post_mealPhotos",
+        "summary": "Another angle of a logged meal. Stored, not analyzed, not charged.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "photo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachPhotosResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Target gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "411": {
+            "description": "Length required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Too large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported image",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/meals/{id}/reanalyze": {
+      "post": {
+        "operationId": "post_mealReanalyze",
+        "summary": "Run the analyzer again over the stored photos. Charged like a photo.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealUpdated"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Target gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported image",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/meals/pending": {
+      "get": {
+        "operationId": "get_pending",
+        "summary": "The caller's live proposals, oldest first.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingMealsResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/meals/pending/{id}/confirm": {
+      "post": {
+        "operationId": "post_pendingConfirm",
+        "summary": "Log a proposed meal.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmMealResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported image",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/meals/pending/{id}/cancel": {
+      "post": {
+        "operationId": "post_pendingCancel",
+        "summary": "Drop a proposed meal.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "cancelled"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/messages": {
+      "get": {
+        "operationId": "get_messages",
+        "summary": "The thread, newest page first.",
+        "parameters": [
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "description": "Page before this sequence number.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Page size.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatHistoryResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "post_messages",
+        "summary": "One turn. Charged when it reaches the model. Streams with `accept: application/x-ndjson`.",
+        "parameters": [
+          {
+            "name": "accept",
+            "in": "header",
+            "required": false,
+            "description": "`application/x-ndjson` streams one JSON object per line; the last line is the response body.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "application/x-ndjson",
+                "application/json"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              },
+              "application/x-ndjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Target gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported image",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/messages/lines": {
+      "post": {
+        "operationId": "post_messagesLines",
+        "summary": "The user's own words and Spud's scripted lines, by id. Not charged.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppendLinesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppendLinesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/messages/{id}": {
+      "delete": {
+        "operationId": "delete_message",
+        "summary": "Delete the caller's own line. A photo line takes its meal with it.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteLineResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Target gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "patch_message",
+        "summary": "Re-caption a photo line and add angles; the analyzer re-reads every photo. Charged.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accept",
+            "in": "header",
+            "required": false,
+            "description": "`application/x-ndjson` streams one JSON object per line; the last line is the response body.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "application/x-ndjson",
+                "application/json"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "photo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditLineLast"
+                }
+              },
+              "application/x-ndjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/PhotoProgress"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Target gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "411": {
+            "description": "Length required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Too large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported image",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Rejected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/push/token": {
+      "post": {
+        "operationId": "post_pushToken",
+        "summary": "Register this device's Expo push token.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "delete_pushToken",
+        "summary": "Drop a push token.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushTokenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/diary/day": {
+      "get": {
+        "operationId": "get_day",
+        "summary": "One day of the diary.",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "description": "YYYY-MM-DD; today by default.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/diary/week": {
+      "get": {
+        "operationId": "get_week",
+        "summary": "Daily totals over a window.",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "description": "Window length in days.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeekResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/health": {
+      "get": {
+        "operationId": "get_healthTrend",
+        "summary": "The health trend this account has stored. Daily aggregates, never samples.",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "description": "Window length in days.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/health/days": {
+      "post": {
+        "operationId": "post_healthDays",
+        "summary": "A batch of daily health aggregates. Upserted.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HealthDaysRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthDaysResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not onboarded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/account": {
+      "delete": {
+        "operationId": "delete_account",
+        "summary": "Erase the account and everything it holds.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "deleted": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "deleted"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/subscribe": {
+      "post": {
+        "operationId": "post_subscribe",
+        "summary": "Join the list. Double opt-in: the address is on no list until the emailed link is followed. Redirects to the landing.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "description": "The address."
+                  },
+                  "company": {
+                    "type": "string",
+                    "description": "Honeypot; leave empty."
+                  },
+                  "source": {
+                    "type": "string",
+                    "description": "Where the form was."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "303": {
+            "description": "Redirect to the landing page"
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/subscribe/confirm": {
+      "get": {
+        "operationId": "get_subscribeConfirm",
+        "summary": "The link in the confirmation email. Redirects to the landing.",
+        "parameters": [
+          {
+            "name": "t",
+            "in": "query",
+            "required": false,
+            "description": "The token from the email.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "303": {
+            "description": "Redirect to the landing page"
+          }
+        },
+        "security": []
+      }
+    },
+    "/v1/unsubscribe": {
+      "get": {
+        "operationId": "get_unsubscribe",
+        "summary": "Leave the list. One click, no login. Redirects to the landing.",
+        "parameters": [
+          {
+            "name": "t",
+            "in": "query",
+            "required": false,
+            "description": "The token from the email.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "303": {
+            "description": "Redirect to the landing page"
+          }
+        },
+        "security": []
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ActivityLevel": {
+        "type": "string",
+        "enum": [
+          "sedentary",
+          "light",
+          "moderate",
+          "active",
+          "athlete"
+        ]
+      },
+      "Answered": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "answered"
+          },
+          "text": {
+            "type": "string",
+            "description": "Model prose in the user's language. Content, not copy — it passes through unrendered."
+          },
+          "speaker": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ChatSpeaker"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who answered. A coach turn is Gabie's, fallback included; absent or null is Spud."
+          },
+          "suggestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What the user might ask next, in their own words, as chips under the answer. Live turn only: the thread stores the sentence and never the chips, so a stored line carries none. Absent means draw nothing; the app never invents any."
+          }
+        },
+        "required": [
+          "kind",
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "AppendLine": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "user"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "role",
+              "text"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "assistant"
+              },
+              "scripted": {
+                "$ref": "#/components/schemas/ScriptedLineId"
+              },
+              "params": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "role",
+              "scripted"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "role": {
+                "type": "string",
+                "const": "assistant"
+              },
+              "ask": {
+                "type": "object",
+                "properties": {
+                  "prompt": {
+                    "$ref": "#/components/schemas/ChatPromptId"
+                  },
+                  "line": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "prompt",
+                  "line"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "role",
+              "ask"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "AppendLinesRequest": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppendLine"
+            }
+          }
+        },
+        "required": [
+          "lines"
+        ],
+        "additionalProperties": false,
+        "description": "`POST /v1/messages/lines`. What the APP may put in the thread without a model turn: the user's own words (an onboarding answer, a choice) and Spud's scripted lines BY ID — never assistant prose from the client. All-or-nothing: one bad line and nothing is written."
+      },
+      "AppendLinesResponse": {
+        "type": "object",
+        "properties": {
+          "appended": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "bad-line",
+              "thread-full"
+            ],
+            "description": "Why nothing was appended: a line the client should fix, or a thread that is full and must stop."
+          }
+        },
+        "required": [
+          "appended"
+        ],
+        "additionalProperties": false
+      },
+      "AttachPhotosResponse": {
+        "type": "object",
+        "properties": {
+          "mealId": {
+            "type": "string"
+          },
+          "photos": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "mealId",
+          "photos"
+        ],
+        "additionalProperties": false,
+        "description": "What `POST /v1/meals/:id/photos` answers: the meal, and how many photos it now holds.\n\n`photos` is the COUNT the server ended up with, not the number sent — the app renders the strip from it (`PhotoStrip`), and a client that added its own upload to its own stale count would draw a frame for a photo that is not there."
+      },
+      "AuthDeviceRequest": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "description": "Opaque, client-generated, ≥32 chars. The server never derives meaning from it."
+          },
+          "locale": {
+            "type": "string",
+            "description": "BCP-47-ish; the server narrows it to a supported `Lang` and falls back to `en`."
+          }
+        },
+        "required": [
+          "deviceId"
+        ],
+        "additionalProperties": false,
+        "description": "Device-token authentication.\n\neait's API ships with `resolveUserId` deliberately unwired — it returns null so every route answers 401, \"deliberately useless rather than deliberately open\", and its AGENTS.md says wiring a real scheme \"is its own decision and its own doc\". This is that decision.\n\nA client generates a random device id once, keeps it in the Keychain (`expo-secure-store`), and trades it for a bearer token. Nothing is asked of the user on this path — no address, no password, no card (signing in DOES take an address; this is the path that does not) — which is not laziness: the largest complaint cluster against the incumbent, by a factor of four, is the card-first trial (238 reviews). Nothing to cancel is a product property, and it starts here."
+      },
+      "AuthDeviceResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "created": {
+            "type": "boolean",
+            "description": "True the first time this device id was seen — the app routes to onboarding on true."
+          }
+        },
+        "required": [
+          "token",
+          "userId",
+          "created"
+        ],
+        "additionalProperties": false
+      },
+      "AuthProviderRequest": {
+        "type": "object",
+        "properties": {
+          "idToken": {
+            "type": "string",
+            "description": "The provider's ID token (JWT). Verified server-side."
+          },
+          "nonce": {
+            "type": "string",
+            "description": "The raw nonce the client generated for this sign-in, if it used one.\n\nApple puts the SHA-256 of the nonce in the token for native sign-in, so the server compares against both the raw value and its hash. Replay protection is worth the extra field."
+          }
+        },
+        "required": [
+          "idToken"
+        ],
+        "additionalProperties": false,
+        "description": "Sign in with Apple / Google.\n\nThe client sends the provider's ID TOKEN. The server verifies its signature against the provider's JWKS and reads the subject out of the verified claims — it never accepts a client-asserted user id, because a client-asserted identity is not an identity.\n\nIf the request carries a bearer token, this LINKS the identity to that account instead of creating a new one. That is what lets a user try the app anonymously and keep their meals when they sign in — and it is the fix for the anonymous account's real weakness, which is that losing the device loses everything."
+      },
+      "AuthProviderResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/LinkOutcome"
+          },
+          "onboarded": {
+            "type": "boolean",
+            "description": "True when the account still needs onboarding — the app routes on this, not on `outcome`."
+          },
+          "mergedMeals": {
+            "type": "number",
+            "description": "Meals moved from the anonymous account on a `merged` outcome. Shown to the user."
+          }
+        },
+        "required": [
+          "token",
+          "userId",
+          "outcome",
+          "onboarded"
+        ],
+        "additionalProperties": false
+      },
+      "ChatEntry": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "number"
+              },
+              "ts": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "const": "user"
+              },
+              "kind": {
+                "type": "string",
+                "const": "text"
+              },
+              "text": {
+                "type": "string"
+              },
+              "clientId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "pendingId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "seq",
+              "ts",
+              "role",
+              "kind",
+              "text",
+              "clientId",
+              "pendingId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "number"
+              },
+              "ts": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "const": "user"
+              },
+              "kind": {
+                "type": "string",
+                "const": "photo"
+              },
+              "text": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "mealId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "seq",
+              "ts",
+              "role",
+              "kind",
+              "text",
+              "mealId"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "number"
+              },
+              "ts": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "const": "assistant"
+              },
+              "kind": {
+                "type": "string",
+                "const": "text"
+              },
+              "text": {
+                "type": "string"
+              },
+              "speaker": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ChatSpeaker"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "seq",
+              "ts",
+              "role",
+              "kind",
+              "text",
+              "speaker"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "number"
+              },
+              "ts": {
+                "type": "string"
+              },
+              "role": {
+                "type": "string",
+                "const": "assistant"
+              },
+              "kind": {
+                "type": "string",
+                "const": "meal"
+              },
+              "event": {
+                "$ref": "#/components/schemas/ChatEvent"
+              },
+              "mealId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "meal": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/MealRecord"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "seq",
+              "ts",
+              "role",
+              "kind",
+              "event",
+              "mealId",
+              "meal"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "One line of the conversation, as the SERVER kept it.\n\nThe thread is stored server-side and the Chat tab is its continuation, so a reinstall or a second device opens on the same conversation. A photo is a bubble that names its meal — the bytes are fetched through the scoped photo route and never carried in a line. A meal card carries the meal's CURRENT record (or null once it is gone), never a copy taken at the time: a stored verdict would describe numbers that have since changed. A proposal's words are in the thread when they are said; its card only once confirmed. `seq` is an opaque cursor, monotonic across the whole store: treat it as an ordering, never as a count of anything."
+      },
+      "ChatEvent": {
+        "type": "string",
+        "enum": [
+          "logged",
+          "updated",
+          "redated"
+        ],
+        "description": "How a meal card came to be in the thread. Wording only; the card reads the meal as it is now."
+      },
+      "ChatHistoryResponse": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatEntry"
+            },
+            "description": "Oldest first within the page."
+          },
+          "before": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Pass back as `before` for the next older page; null once the start of the thread is in hand."
+          }
+        },
+        "required": [
+          "entries",
+          "before"
+        ],
+        "additionalProperties": false
+      },
+      "ChatPromptId": {
+        "type": "string",
+        "enum": [
+          "welcome",
+          "goal",
+          "sex",
+          "birth_year",
+          "height_cm",
+          "weight_kg",
+          "target_weight_kg",
+          "pace",
+          "activity",
+          "struggles",
+          "country",
+          "restrictions",
+          "building",
+          "summary"
+        ],
+        "description": "Everything Spud asks or shows, in the order of `copy.md` steps 1–12.\n\nA prompt with a `field` fills a profile column and its answer survives the app being killed. A prompt without one is conversation: asked while the run is live, skipped on a resume that has already passed it (see `resumeAt`)."
+      },
+      "ChatSpeaker": {
+        "type": "string",
+        "const": "gabie",
+        "description": "Who said an assistant line. Absent is Spud, the host; `gabie` is the nutritionist, and only a coach answer carries it."
+      },
+      "ConfirmMealResult": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/MealLogged"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "expired"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "$ref": "#/components/schemas/Refusal"
+          }
+        ]
+      },
+      "DailyTotals": {
+        "type": "object",
+        "properties": {
+          "kcal": {
+            "type": "number"
+          },
+          "protein_g": {
+            "type": "number"
+          },
+          "carbs_g": {
+            "type": "number"
+          },
+          "fat_g": {
+            "type": "number"
+          },
+          "satfat_g": {
+            "type": "number"
+          },
+          "fiber_g": {
+            "type": "number"
+          },
+          "sugar_g": {
+            "type": "number"
+          },
+          "sodium_mg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "kcal",
+          "protein_g",
+          "carbs_g",
+          "fat_g",
+          "satfat_g",
+          "fiber_g",
+          "sugar_g",
+          "sodium_mg"
+        ],
+        "additionalProperties": false
+      },
+      "DayResponse": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "meals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MealRecord"
+            }
+          },
+          "totals": {
+            "$ref": "#/components/schemas/DailyTotals"
+          },
+          "targets": {
+            "$ref": "#/components/schemas/FoodTargets"
+          }
+        },
+        "required": [
+          "date",
+          "meals",
+          "totals",
+          "targets"
+        ],
+        "additionalProperties": false
+      },
+      "DayTotals": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "kcal": {
+            "type": "number"
+          },
+          "protein_g": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "kcal",
+          "protein_g"
+        ],
+        "additionalProperties": false,
+        "description": "Per-date sums — the week view's row shape."
+      },
+      "DeleteLineResponse": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "deleted"
+          },
+          "mealId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "date": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "mealId",
+          "date"
+        ],
+        "additionalProperties": false,
+        "description": "`DELETE /v1/messages/:id`. `mealId`/`date` name the meal that went with a photo line, so the client can refresh that day; null when only the line went."
+      },
+      "EditLineLast": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/MealUpdated"
+          },
+          {
+            "$ref": "#/components/schemas/TargetGone"
+          },
+          {
+            "$ref": "#/components/schemas/Refusal"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "bad-request"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "too-many"
+              },
+              "limit": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "kind",
+              "limit"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "outcome-unknown"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "`PATCH /v1/messages/:id` (#608): the same progress, then one of these last. `bad-request` is a line that cannot be edited (text, or not the caller's kind); `too-many` is the photo bound the server counts against what is already stored."
+      },
+      "EditMealRequest": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MealItem"
+            }
+          },
+          "kcal": {
+            "type": "number"
+          },
+          "protein_g": {
+            "type": "number"
+          },
+          "carbs_g": {
+            "type": "number"
+          },
+          "fat_g": {
+            "type": "number"
+          },
+          "satfat_g": {
+            "type": "number"
+          },
+          "fiber_g": {
+            "type": "number"
+          },
+          "sugar_g": {
+            "type": "number"
+          },
+          "sodium_mg": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false,
+        "description": "`PATCH /v1/meals/:id` — the manual edit. The other half of \"you can edit the LLM's answer\", alongside the natural-language path through `/v1/messages`.\n\nThe client sends the numbers it wants stored. It does NOT send `verdicts`, and the field does not exist on this type: verdicts are recomputed server-side from the user's caps after every edit (`verdictsFromTargets` → `visibleVerdicts`). A client that could set them could paint \"good\" over a meal that blows a medical cap, and the person reading that card declared a medical restriction."
+      },
+      "EditMealResponse": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/MealUpdated"
+          },
+          {
+            "$ref": "#/components/schemas/TargetGone"
+          }
+        ]
+      },
+      "Entitlement": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO instant the tier lapses at. Null means never bought, or bought forever — see above."
+          },
+          "trial": {
+            "type": "boolean",
+            "description": "Whether the CURRENT period is a free trial rather than a paid one.\n\nThe store knows and nothing else can work it out: an expiry seven days out and an expiry a year out are the same shape, and two days before a yearly renewal looks exactly like two days before a trial ends. Without this the trial reminders fire before every renewal — telling somebody who pays that \"the free week ends\" and that they can stop it and pay nothing.\n\nFalse for an account that has never bought anything, and false for a stored entitlement written before this field existed. That is the safe direction: the failure is a reminder that does not arrive, not a wrong one that does."
+          },
+          "lapsed": {
+            "type": "boolean",
+            "description": "Whether this account bought something once and nothing it bought keeps it in now — a subscription that ended, or a lifetime unlock that was refunded. The app asks it to RESUBSCRIBE rather than to subscribe, and nothing on the phone could tell the two apart without this: the server blanks `expiresAt` the moment a grant stops keeping somebody in.\n\nFalse for an account that never bought anything and for one entitled now. OPTIONAL because a server older than the field sends none, which the app reads as false: \"subscribe\" is the ask true of both people. `entitlementFor` always sends it."
+          }
+        },
+        "required": [
+          "active",
+          "expiresAt",
+          "trial"
+        ],
+        "additionalProperties": false,
+        "description": "The paid-tier state of one account, as told to the client.\n\n`expiresAt` is present so a settings screen can say when the subscription renews or ends. It is NOT what the app should branch on: `active` is, because the server is the one that knows what \"now\" is and what grace period the store granted.\n\nNULL `expiresAt` MEANS TWO DIFFERENT THINGS AND `active` IS WHAT SEPARATES THEM:\n\n  { active: false, expiresAt: null }  never bought anything — the overwhelmingly common state   { active: true,  expiresAt: null }  the LIFETIME unlock: entitled, with nothing to expire   { active: true,  expiresAt: <date> } a subscription — or a lifetime holder who ALSO has one,                                        which is why the app must branch on `active`, not on the                                        presence of a date\n\nThat is why nothing may infer \"not entitled\" from a missing date, and why a screen renders the date only when there is one. The lifetime product is a non-consumable, so the store itself has no period to report: RevenueCat sends `expiration_at_ms: null` and there is no honest instant to invent. A far-future sentinel was the alternative and was rejected — every reader would have to know the magic value, and the first one that did not would print the year 9999 to a customer."
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": {},
+        "description": "Every error body the API can produce, other than the refusals above."
+      },
+      "FoodTargets": {
+        "type": "object",
+        "properties": {
+          "kcal": {
+            "type": "number"
+          },
+          "protein_g": {
+            "type": "number"
+          },
+          "satfat_g": {
+            "type": "number"
+          },
+          "sodium_mg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "kcal",
+          "protein_g"
+        ],
+        "additionalProperties": false,
+        "description": "The user's daily targets. Caps are present ONLY for restrictions the user declared."
+      },
+      "Goal": {
+        "type": "string",
+        "enum": [
+          "lose",
+          "maintain",
+          "gain"
+        ]
+      },
+      "HandleTextResult": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/Answered"
+          },
+          {
+            "$ref": "#/components/schemas/MealProposed"
+          },
+          {
+            "$ref": "#/components/schemas/MealUpdated"
+          },
+          {
+            "$ref": "#/components/schemas/MealRedated"
+          },
+          {
+            "$ref": "#/components/schemas/TargetGone"
+          },
+          {
+            "$ref": "#/components/schemas/Refusal"
+          }
+        ]
+      },
+      "HealthDay": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "weight_kg": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "height_cm": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "body_fat_pct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lean_mass_kg": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "active_kcal": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "resting_kcal": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "steps": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "exercise_minutes": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "workouts": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "distance_km": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "asleep_minutes": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "in_bed_minutes": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "resting_hr_bpm": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "hrv_ms": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "vo2max": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "weight_kg",
+          "height_cm",
+          "body_fat_pct",
+          "lean_mass_kg",
+          "active_kcal",
+          "resting_kcal",
+          "steps",
+          "exercise_minutes",
+          "workouts",
+          "distance_km",
+          "asleep_minutes",
+          "in_bed_minutes",
+          "resting_hr_bpm",
+          "hrv_ms",
+          "vo2max"
+        ],
+        "additionalProperties": false,
+        "description": "One day's health, as this product keeps it: aggregates only, never raw samples.\n\nWIDE ROW ON PURPOSE, rather than a `(metric, value)` table. Adding a metric here is a column AND a contract field, so it breaks the server and the app in one `bun run typecheck`. An EAV table happily accepts a metric that nothing renders and reports success.\n\nEvery field is `number | null` and null means UNKNOWN, never zero. \"No step data\" and \"did not move\" are different claims, and a trend that renders the first as the second draws a confident line through every day the phone was left at home."
+      },
+      "HealthDaysRequest": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HealthDay"
+            }
+          },
+          "weightMeasuredAt": {
+            "type": "string",
+            "description": "When the newest weight reading was TAKEN, as the phone read it off the sample.\n\nOptional, and the server derives a conservative value from the day's own date when it is absent — never from its own clock, which would let a stale batch replayed later beat a correction the user typed in the meantime. See `engine/health.ts`."
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "additionalProperties": false,
+        "description": "A batch of daily health aggregates, read off the phone's health store.\n\nDAYS, not samples. The phone aggregates first (`aggregateDays` in `health.ts`) and sends the result, so what crosses the wire and what is stored is the handful of numbers this product uses rather than a per-second heart rate series it has no use for. Special-category data that is not needed is data whose only property is risk.\n\nIdempotent: a day already stored is overwritten, not duplicated. The app re-reads a rolling window on every sync — health data arrives late, so a sync that only looks forward misses the scale that synced hours after the weigh-in and the sleep written the next morning."
+      },
+      "HealthDaysResponse": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "number",
+            "description": "How many days were stored. A day carrying nothing usable is dropped, not counted."
+          },
+          "profile": {
+            "$ref": "#/components/schemas/ProfileResponse",
+            "description": "The profile as it stands AFTER the batch, present only when a weight reading moved it.\n\nReturned rather than left for the client to re-fetch because a new weight means a new calorie target, and the alternative is a screen showing the old plan until something else happens to refresh it."
+          }
+        },
+        "required": [
+          "accepted"
+        ],
+        "additionalProperties": false
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HealthDay"
+            },
+            "description": "Most recent first."
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "additionalProperties": false
+      },
+      "IdentitiesResponse": {
+        "type": "object",
+        "properties": {
+          "identities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "provider": {
+                  "$ref": "#/components/schemas/Provider"
+                },
+                "linkedAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "provider",
+                "linkedAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "identities"
+        ],
+        "additionalProperties": false
+      },
+      "Lang": {
+        "type": "string",
+        "enum": [
+          "en",
+          "ru",
+          "de"
+        ]
+      },
+      "Limits": {
+        "type": "object",
+        "properties": {
+          "maxUploadBytes": {
+            "type": "number"
+          },
+          "maxPhotosPerMeal": {
+            "type": "number"
+          },
+          "dailyPhotoCap": {
+            "type": "number",
+            "description": "Photos an ENTITLED account may have analyzed today; zero means no daily cap on this server. Without an entitlement the number is moot — `sampleUsed` is the whole story — and it is sent unconditionally because the app must never work it out: the server decides the tier."
+          },
+          "sampleUsed": {
+            "type": "boolean",
+            "description": "Whether this account has spent its sample. There is no free tier: the sample is `EAIT__BACKEND__FREE_ANALYSES` analyses over the account's lifetime — the instance default; the admin can give one account its own number — and every analysis after them is refused with `subscription-required` until the RevenueCat webhook has written an entitlement. The app reads this beside `entitlement.active` to open the paywall on launch instead of on the first refusal — but the refusal is the authority, and the sheet is only its rendering."
+          },
+          "sampleRemaining": {
+            "type": "number",
+            "description": "How many of the sample's analyses are LEFT. Zero whenever `sampleUsed` is true.\n\n`sampleUsed` alone was the whole story while the sample was one analysis: false meant \"all of it is there\". At three it means \"one or two or three of it is there\", and every surface that tried to word that from the boolean either lied (\"your sample is unspent\" to somebody two meals in) or went vague. The server knows the number, so it sends it — the same rule as `dailyPhotoCap` right above, and the reason neither is compiled into the app.\n\nAn entitled account gets 0 here too: the sample is not what it is spending."
+          },
+          "diaryWindowDays": {
+            "type": "number",
+            "description": "How many days back the diary can be asked about, counting today.\n\nIT BOUNDS THE MARKS, NOT THE DAYS. The date picker draws a month at a time and marks the days that have meals on them; the marks come from `GET /v1/diary/week`, which refuses a window wider than this. `GET /v1/diary/day` refuses nothing — it validates the shape of a date and no more — so a day outside this window is still perfectly viewable, and the picker still offers it. What the picker cannot do out there is say whether it has meals on it.\n\nSent rather than compiled in, because that boundary is where the app is most tempted to invent: a month drawn with no dots is indistinguishable from a month nobody ate in, and neither the label nor the footer may claim the second when it only knows the first."
+          },
+          "modelCallTimeoutMs": {
+            "type": "number",
+            "description": "The server's budget for ONE model call, in ms — `EAIT__BACKEND__LLM_TIMEOUT_MS` as this server is actually running it.\n\nSENT, BECAUSE IT IS ENV-CONFIGURED. It differs between environments and production sets it explicitly, so an app that computed its wait from a number compiled into its binary is the second copy this interface exists to abolish — and the failure is silent in the worst direction: the phone abandons a turn the server is still running and still billing, with no error on either side.\n\nTHE PER-CALL NUMBER RATHER THAN A WAIT, because how many budgets a turn spends depends on the ROUTE and only the client knows which one it is about to call. `clientModelTimeoutMs` turns it into a wait with `PHOTO_MODEL_CALLS` or `TEXT_MODEL_CALLS`; `DEFAULT_MODEL_TIMEOUT_MS` is the fallback for a client with no profile yet, exactly as `maxPhotosPerMeal` is."
+          }
+        },
+        "required": [
+          "maxUploadBytes",
+          "maxPhotosPerMeal",
+          "dailyPhotoCap",
+          "sampleUsed",
+          "sampleRemaining",
+          "diaryWindowDays",
+          "modelCallTimeoutMs"
+        ],
+        "additionalProperties": false,
+        "description": "The server's effective limits, as told to the client.\n\nThese are ENV-CONFIGURED on the server (`EAIT__BACKEND__MAX_UPLOAD_MB`, `EAIT__BACKEND__MAX_PHOTOS_PER_MEAL`) and therefore differ between environments — which is exactly why they are sent rather than compiled into the app. A limit the server enforces and the client separately hardcodes is two numbers that must agree, and the failure when they stop agreeing is a user picking four photos and being refused by a server that allows two.\n\nThe constants below are the DEFAULTS and the fallback for a client that has not loaded a profile yet. They are not the authority; the server is."
+      },
+      "LinkOutcome": {
+        "type": "string",
+        "enum": [
+          "created",
+          "linked",
+          "merged",
+          "switched",
+          "already"
+        ],
+        "description": "What happened to the account when an identity was presented."
+      },
+      "LivenessResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true
+          },
+          "demo": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok",
+          "demo"
+        ],
+        "additionalProperties": false,
+        "description": "What the liveness probe answers.\n\nDECLARED HERE BECAUSE A SHELL SCRIPT PARSES IT. `scripts/screenshots.sh` reads `demo` to decide whether it may take the App Store frames that reach the analyzer: the canned one writes \"Demo analyzer — these numbers are canned\" into the meal card, and that sentence then lives in a picture no test can read (#66). For a fortnight the only statement of this shape anywhere was a `case` in that script.\n\n`demo` is read off the LLM ports rather than off config — see the note at the route."
+      },
+      "LogPhotoResult": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/MealLogged"
+          },
+          {
+            "$ref": "#/components/schemas/Refusal"
+          }
+        ]
+      },
+      "MealAnalysis": {
+        "type": "object",
+        "properties": {
+          "isFood": {
+            "type": "boolean"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MealItem"
+            }
+          },
+          "kcal": {
+            "type": "number"
+          },
+          "protein_g": {
+            "type": "number"
+          },
+          "carbs_g": {
+            "type": "number"
+          },
+          "fat_g": {
+            "type": "number"
+          },
+          "satfat_g": {
+            "type": "number"
+          },
+          "fiber_g": {
+            "type": "number"
+          },
+          "sugar_g": {
+            "type": "number"
+          },
+          "sodium_mg": {
+            "type": "number"
+          },
+          "verdicts": {
+            "$ref": "#/components/schemas/MealVerdicts"
+          },
+          "confidence": {
+            "type": "string",
+            "description": "`low` | `medium` | `high` — drives the correction nudge, so it is read, not just shown."
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "isFood",
+          "items",
+          "kcal",
+          "protein_g",
+          "carbs_g",
+          "fat_g",
+          "satfat_g",
+          "fiber_g",
+          "sugar_g",
+          "sodium_mg",
+          "verdicts",
+          "confidence",
+          "notes"
+        ],
+        "additionalProperties": false,
+        "description": "The analyzer's validated output for one photo. No photo path — the bytes live in `meal_photos`, reached by meal id."
+      },
+      "MealHint": {
+        "type": "string",
+        "enum": [
+          "lowConfidence",
+          "correction"
+        ],
+        "description": "Which correction nudge the surface should show under a logged meal."
+      },
+      "MealItem": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Display name, in the user's language. This is what renders on the meal card."
+          },
+          "grams": {
+            "type": "number"
+          },
+          "name_en": {
+            "type": "string",
+            "description": "Canonical English key the repertoire and the portion priors group by — never displayed."
+          },
+          "kcal": {
+            "type": "number"
+          },
+          "protein_g": {
+            "type": "number"
+          },
+          "carbs_g": {
+            "type": "number"
+          },
+          "fat_g": {
+            "type": "number"
+          },
+          "kcal_per_100g": {
+            "type": "number",
+            "description": "The item's density — what a substitution rescales by when the user edits grams."
+          },
+          "role": {
+            "type": "string",
+            "const": "cooking-fat",
+            "description": "Fat the dish was cooked or dressed with, listed as its own row rather than folded into another item's numbers — so the user can see it, and take it off. Absent on plain food, and on every row stored before this existed."
+          }
+        },
+        "required": [
+          "name",
+          "grams"
+        ],
+        "additionalProperties": false,
+        "description": "One food on the plate.\n\nThe optional fields are written `?: T | undefined` rather than `?: T` on purpose, despite `exactOptionalPropertyTypes`. An item crosses two JSON boundaries — the analyzer's response and this API's — and \"absent\" and \"present but undefined\" are the same value on the far side of both. Claiming the stricter type is what forces a cast at the parser, and a cast at the parser is how a missing field reached a phone once already. Every consumer here already tests `!== undefined`."
+      },
+      "MealLogged": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "logged"
+          },
+          "mealId": {
+            "type": "string"
+          },
+          "analysis": {
+            "$ref": "#/components/schemas/MealAnalysis"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/DailyTotals",
+            "description": "Totals for the meal's OWN date — a back-dated meal is not today's."
+          },
+          "date": {
+            "type": "string"
+          },
+          "hint": {
+            "$ref": "#/components/schemas/MealHint"
+          },
+          "question": {
+            "$ref": "#/components/schemas/MealQuestion",
+            "description": "The one thing Spud would ask about this plate, when there is one worth asking.\n\nABSENT is the normal case, and the surface must render nothing for it: the engine only asks about a low-confidence plate, past an account's first meal, when the account could afford the reply. The answer goes back through the ordinary text turn with this meal in focus, so the chips are a shortcut for typing rather than a route of their own."
+          }
+        },
+        "required": [
+          "kind",
+          "mealId",
+          "analysis",
+          "totals",
+          "date",
+          "hint"
+        ],
+        "additionalProperties": false,
+        "description": "A meal that reached the diary, with everything a card needs to render."
+      },
+      "MealProposed": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "proposed"
+          },
+          "pendingId": {
+            "type": "string"
+          },
+          "analysis": {
+            "$ref": "#/components/schemas/MealAnalysis"
+          },
+          "date": {
+            "type": "string",
+            "description": "The resolved calendar date, so the confirm prompt can NAME it — the misparse guard."
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "ISO 8601. When this estimate stops being confirmable, SENT rather than compiled into both sides — the rule `PairCodeResponse.expiresAt` states, and the same reason: the TTL (`EAIT__BACKEND__PENDING_TTL_MINUTES`) is a limit the server enforces, and a client carrying its own copy of the number eventually disagrees with the one doing the refusing.\n\nA surface reads it to stop OFFERING a confirm it cannot honour (`proposalLive`, #367). It is a courtesy and never the guarantee: the row is swept on the next proposal and deleted lazily on read, and `POST /confirm` answers 410 either way."
+          }
+        },
+        "required": [
+          "kind",
+          "pendingId",
+          "analysis",
+          "date",
+          "expiresAt"
+        ],
+        "additionalProperties": false,
+        "description": "A text meal awaiting confirmation. Nothing is in the diary yet."
+      },
+      "MealQuestion": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "text",
+          "options"
+        ],
+        "additionalProperties": false,
+        "description": "The one closed question the model may ask about an estimate, and the taps that answer it.\n\nTwo to four options, because the answer is a chip and a chip row is what a phone can put under a card. `text` is in the user's reply language, like every other sentence the model writes."
+      },
+      "MealRecord": {
+        "type": "object",
+        "properties": {
+          "isFood": {
+            "type": "boolean"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MealItem"
+            }
+          },
+          "kcal": {
+            "type": "number"
+          },
+          "protein_g": {
+            "type": "number"
+          },
+          "carbs_g": {
+            "type": "number"
+          },
+          "fat_g": {
+            "type": "number"
+          },
+          "satfat_g": {
+            "type": "number"
+          },
+          "fiber_g": {
+            "type": "number"
+          },
+          "sugar_g": {
+            "type": "number"
+          },
+          "sodium_mg": {
+            "type": "number"
+          },
+          "verdicts": {
+            "$ref": "#/components/schemas/MealVerdicts"
+          },
+          "confidence": {
+            "type": "string",
+            "description": "`low` | `medium` | `high` — drives the correction nudge, so it is read, not just shown."
+          },
+          "notes": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "ts": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          },
+          "corrected": {
+            "type": "boolean",
+            "description": "True once the user has corrected it — the signal the correction loop is measured by."
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "question": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MealQuestion"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The question still open on this meal, or null once it has been answered.\n\nOn the ROW rather than on `MealAnalysis`, because it is not part of the meal: it describes what would improve the estimate, and `toAnalysis` leaves it behind. One question per meal, asked once — the correction that answers it clears this with the same write that changes the numbers."
+          },
+          "photos": {
+            "type": "number",
+            "description": "How many photos are stored for it. Absent on rows from before photos existed, and in fixtures — read as 0."
+          }
+        },
+        "required": [
+          "carbs_g",
+          "confidence",
+          "corrected",
+          "date",
+          "fat_g",
+          "fiber_g",
+          "id",
+          "isFood",
+          "items",
+          "kcal",
+          "model",
+          "notes",
+          "protein_g",
+          "satfat_g",
+          "sodium_mg",
+          "sugar_g",
+          "ts",
+          "user_id",
+          "verdicts"
+        ],
+        "additionalProperties": false,
+        "description": "A persisted meal row."
+      },
+      "MealRedated": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "redated"
+          },
+          "mealId": {
+            "type": "string"
+          },
+          "analysis": {
+            "$ref": "#/components/schemas/MealAnalysis"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/DailyTotals"
+          },
+          "date": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "mealId",
+          "analysis",
+          "totals",
+          "date"
+        ],
+        "additionalProperties": false
+      },
+      "MealUpdated": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "updated"
+          },
+          "mealId": {
+            "type": "string"
+          },
+          "analysis": {
+            "$ref": "#/components/schemas/MealAnalysis"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/DailyTotals"
+          },
+          "date": {
+            "type": "string"
+          },
+          "via": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "nl",
+              "reanalysis"
+            ],
+            "description": "How the change was made. `manual` = the user edited numbers; `nl` = they described the fix; `reanalysis` = the analyzer re-read the stored photo."
+          }
+        },
+        "required": [
+          "kind",
+          "mealId",
+          "analysis",
+          "totals",
+          "date",
+          "via"
+        ],
+        "additionalProperties": false
+      },
+      "MealVerdicts": {
+        "type": "object",
+        "properties": {
+          "weight": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "ldl": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "kidneys": {
+            "$ref": "#/components/schemas/Verdict"
+          }
+        },
+        "additionalProperties": false,
+        "description": "Per-dimension verdicts. Only dimensions relevant to the user's profile are ever set."
+      },
+      "MessageRequest": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string",
+            "description": "The phone's id for this turn. Stored on the user line and returned in `ChatEntry`; never interpreted."
+          },
+          "focusMealId": {
+            "type": "string",
+            "description": "Safe to accept from the client because every engine read is user-scoped: naming someone else's meal resolves to nothing rather than to their row. Asserted by test in the backend."
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false,
+        "description": "`POST /v1/messages`. `focusMealId` names the meal a correction applies to."
+      },
+      "MessageResponse": {
+        "$ref": "#/components/schemas/HandleTextResult"
+      },
+      "OnboardingAction": {
+        "type": "string",
+        "enum": [
+          "view",
+          "answer",
+          "back",
+          "reject",
+          "complete"
+        ]
+      },
+      "OnboardingAskContent": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "The composer's placeholder while this question is open. Typed questions only."
+          }
+        },
+        "required": [
+          "lines"
+        ],
+        "additionalProperties": false,
+        "description": "What Spud says to pose ONE question, and what the input looks like while it is open.\n\n`lines` is a list because Spud sends bubbles, not paragraphs: \"A little about you — two things every calorie formula needs. Which fits?\" is one bubble, and the age that follows it is another. One entry, one bubble."
+      },
+      "OnboardingBuildingContent": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What Spud says before the card."
+          },
+          "restLabel": {
+            "type": "string",
+            "description": "The label beside each figure. The figures themselves are not editable — they are computed."
+          },
+          "activityLabel": {
+            "type": "string"
+          },
+          "paceLabel": {
+            "type": "string"
+          },
+          "floorLabel": {
+            "type": "string",
+            "description": "Shown only when the safety floor is the reason the number is what it is."
+          },
+          "floorTitle": {
+            "type": "string",
+            "description": "The floor support card, shown under the arithmetic when the floor bit. `{floor}` is filled."
+          },
+          "floorBody": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "lines",
+          "restLabel",
+          "activityLabel",
+          "paceLabel",
+          "floorLabel",
+          "floorTitle",
+          "floorBody"
+        ],
+        "additionalProperties": false,
+        "description": "The arithmetic being done, as a card in the conversation.\n\nThe incumbent's equivalent is a progress animation over nothing. This one prints the arithmetic from `TargetBasis`, which was computed before the card was drawn. Labels only: every NUMBER on it comes from the profile response, so no admin edit can make it say something that was not computed."
+      },
+      "OnboardingContent": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "number",
+            "description": "Bumped on every admin save.\n\nCarried on every analytics event, so a funnel can be read per version — which is the whole point of making the copy editable. \"Completion went up\" is only a claim if you know which words were on screen."
+          },
+          "welcome": {
+            "$ref": "#/components/schemas/OnboardingWelcomeContent"
+          },
+          "screens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnboardingScreenContent"
+            }
+          },
+          "building": {
+            "$ref": "#/components/schemas/OnboardingBuildingContent"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/OnboardingSummaryContent"
+          }
+        },
+        "required": [
+          "version",
+          "welcome",
+          "screens",
+          "building",
+          "summary"
+        ],
+        "additionalProperties": false
+      },
+      "OnboardingContentResponse": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "$ref": "#/components/schemas/OnboardingContent"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "additionalProperties": false,
+        "description": "The onboarding copy, as this server currently has it.\n\nThe app ships with `DEFAULT_ONBOARDING_CONTENT` compiled in and renders from that immediately, then replaces it when this arrives. So the fetch is an ENHANCEMENT, never a gate: an onboarding that waits for the network is an onboarding that shows a spinner as its first screen."
+      },
+      "OnboardingEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Client-generated. The server upserts on it, so a retried batch is not a doubled funnel."
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "Which run of onboarding this was — a reinstall is a new one."
+          },
+          "place": {
+            "$ref": "#/components/schemas/OnboardingPlace"
+          },
+          "action": {
+            "$ref": "#/components/schemas/OnboardingAction"
+          },
+          "contentVersion": {
+            "type": "number",
+            "description": "Which copy was on screen. The reason `version` exists at all."
+          },
+          "ms": {
+            "type": "number",
+            "description": "Milliseconds this question was on screen before the event. Absent on `view`."
+          },
+          "field": {
+            "type": "string",
+            "description": "The field this event is about, on `answer` and `reject`."
+          },
+          "value": {
+            "type": "string",
+            "description": "ENUMERATED answers only — see the note above. Never a number, never free text."
+          },
+          "at": {
+            "type": "string",
+            "description": "Client clock, ISO. The server stamps its own arrival time separately."
+          }
+        },
+        "required": [
+          "id",
+          "sessionId",
+          "place",
+          "action",
+          "contentVersion",
+          "at"
+        ],
+        "additionalProperties": false,
+        "description": "One thing that happened during onboarding.\n\n───────────────────────────────────────────────────────────────────────────────────────────── WHAT IS DELIBERATELY NOT IN HERE\n\nNo weight, no height, no year of birth, and no free text. Those are the answers, and the answers to this particular questionnaire are health data about an identified person. The funnel needs to know a question WAS answered, not what with — so `value` carries an enumerated choice (`lose`, `moderate`, `de`) and nothing else, and the numeric questions send no value at all.\n\n`struggles`, the one question that collects nothing, sends no value either, and it is the strongest case of the lot: \"binge episodes\" is a disclosure, not a preference. `REPORTABLE_FIELDS` is keyed by `OnboardingStep`, so that field is not on it and its answers are dropped by construction rather than by anybody remembering.\n\nThis is not a nicety. Analytics rows outlive the account that produced them in most systems, and the account here can be deleted on demand under 5.1.1(v); a funnel that had recorded someone's body weight would make that promise false. ─────────────────────────────────────────────────────────────────────────────────────────────"
+      },
+      "OnboardingEventsRequest": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OnboardingEvent"
+            }
+          }
+        },
+        "required": [
+          "events"
+        ],
+        "additionalProperties": false,
+        "description": "A batch of funnel events.\n\nBatched rather than sent per-event because onboarding is exactly when a user is least likely to have a good connection — a fresh install, often on cellular, often walking. The app keeps its own copy on disk and flushes what it can; the ids make a re-flush idempotent."
+      },
+      "OnboardingEventsResponse": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "accepted"
+        ],
+        "additionalProperties": false
+      },
+      "OnboardingInterstitial": {
+        "type": "string",
+        "enum": [
+          "welcome",
+          "struggles",
+          "building",
+          "summary"
+        ]
+      },
+      "OnboardingOptionContent": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "hint": {
+            "type": "string",
+            "description": "The second line under an option. Optional, and worth having wherever a label is ambiguous."
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "additionalProperties": false
+      },
+      "OnboardingPlace": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/OnboardingScreenId"
+          },
+          {
+            "$ref": "#/components/schemas/OnboardingInterstitial"
+          }
+        ]
+      },
+      "OnboardingScreenContent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/OnboardingScreenId"
+          },
+          "asks": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/OnboardingAskContent"
+            },
+            "description": "What Spud says to ask each field in this group, keyed by the field name.\n\nREQUIRED FOR EVERY FIELD THE GROUP COLLECTS. A missing entry is a question with nothing to ask it with, which in a chat is not a degraded screen — it is a conversation that stops."
+          },
+          "options": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/OnboardingOptionContent"
+            },
+            "description": "Per-option copy, keyed by the closed vocabulary for this group."
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Optional screens only — see `OPTIONAL_SCREENS`. Ignored, and forced true, on required ones."
+          }
+        },
+        "required": [
+          "id",
+          "asks"
+        ],
+        "additionalProperties": false
+      },
+      "OnboardingScreenId": {
+        "type": "string",
+        "enum": [
+          "goal",
+          "about",
+          "body",
+          "target",
+          "activity",
+          "country",
+          "restrictions"
+        ]
+      },
+      "OnboardingSummaryContent": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What Spud says before the plan card."
+          },
+          "kcalLabel": {
+            "type": "string"
+          },
+          "proteinLabel": {
+            "type": "string"
+          },
+          "projection": {
+            "type": "string",
+            "description": "The projection, with `{weeks}`, `{month}` and `{target}` substituted.\n\nWeeks and a month name, never a day-precise date: `projection.ts` says why. Absent from the card entirely when `projectGoal` returns null, which is every case where a number would be an invention rather than a calculation."
+          },
+          "projectionFar": {
+            "type": "string",
+            "description": "Replaces `projection` past the two-year horizon, where naming a month stops being useful."
+          },
+          "capNote": {
+            "type": "string",
+            "description": "Shown when the share cap bit — `{share}` is the percentage, filled from `targets.ts`."
+          },
+          "disclaimer": {
+            "type": "string",
+            "description": "The estimates-not-measurements line."
+          },
+          "cta": {
+            "type": "string",
+            "description": "The one button. It opens the camera — see `copy.md` § Step 15."
+          }
+        },
+        "required": [
+          "lines",
+          "kcalLabel",
+          "proteinLabel",
+          "projection",
+          "projectionFar",
+          "capNote",
+          "disclaimer",
+          "cta"
+        ],
+        "additionalProperties": false,
+        "description": "The payoff. Editable too, because it is the most-read thing in the flow."
+      },
+      "OnboardingWelcomeContent": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Spud's opening bubbles. One to four — past that it is a wall, not a front door."
+          },
+          "cta": {
+            "type": "string",
+            "description": "The quick reply that starts the flow."
+          }
+        },
+        "required": [
+          "lines",
+          "cta"
+        ],
+        "additionalProperties": false,
+        "description": "The front door. What this is, before the first question.\n\n───────────────────────────────────────────────────────────────────────────────────────────── WHY THE FIRST THING THE APP SAYS IS WHAT IT WILL NOT ASK FOR\n\nAcross seven calorie apps and 2,792 low-star reviews, the billing cluster is the largest complaint for every single one — floor 15%, median 27%, the category leader at 48% (`marketing/research/2026-07-28-category-billing-crossread.md` §1). The same doc's §3 finds the pattern: the harder a paywall sits in front of first value, the more the reviews reach for \"scam\", \"misleading\", \"tricked\".\n\nThis app has no email field of its own. It DOES get a paywall (decision 2026-08-24, marketing/DECISIONS.md): at the very end, after the first photo's verdict, behind a 7-day trial — never in front of the number or the first verdict, which is what §3 says must not be withheld.\n\nTHE TRUST POINT HAS BEEN NARROWED TWICE, and each time by something that shipped. \"No card, no email, no name — nothing to cancel later\" was the welcome's first line: the paywall took the card and the cancelling (a trial takes one, and there is then something to cancel), and issue #95 took the email, because sign-in now asks both providers for the address. What is left is the half that is still true — you can use the whole app without an account at all — and it is the half that was always doing the work.\n\nTHREE RULES ON THE WORDING, all enforced by a test over the WHOLE of the content below — a rule that reads one screen is a rule that moves the sentence to the next one:   - never name a competitor. All seven have the complaint; naming one invites a fair-comparison     argument we lose.   - never claim \"free\" bare. `copy.md` allows exactly two qualified forms, \"free to try\" and     \"N days free\"; §5 of the cross-read rules out the unqualified claim by name.   - never promise away the card, the trial, or the cancelling. This is the rule that did not     exist, which is how a sentence contradicting docs/PAYWALL.md survived the merge that added     the paywall — asserted in four E2E flows the whole time, one of which shoots the App Store     screenshots. A promise about billing is the one kind of copy a reviewer's memory cannot hold.\n\n─────────────────────────────────────────────────────────────────────────────────────────────"
+      },
+      "Pace": {
+        "type": "string",
+        "enum": [
+          "easy",
+          "steady",
+          "push"
+        ]
+      },
+      "PairCodeResponse": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Eight Crockford base32 symbols. Shown to a person, typed by a person; case is not significant."
+          },
+          "expiresAt": {
+            "type": "string",
+            "description": "ISO 8601."
+          }
+        },
+        "required": [
+          "code",
+          "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "PatchProfileRequest": {
+        "type": "object",
+        "properties": {
+          "lang": {
+            "$ref": "#/components/schemas/Lang"
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Goal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sex": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sex"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "birth_year": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "age": {
+            "type": "number",
+            "description": "The age typed in onboarding. The server derives `birth_year` from it with ITS clock — a device sitting across a UTC year boundary derived a year off by one and got a legitimate sixteen-year-old refused. Never null: clearing the field goes through `birth_year: null`."
+          },
+          "height_cm": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "weight_kg": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "target_weight_kg": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "activity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActivityLevel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Pace"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "country": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "restrictions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "medical_limitations": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "food_allergies": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "product_limitations": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "complete_onboarding": {
+            "type": "boolean",
+            "description": "Set true exactly once, by the last onboarding screen, after consent."
+          }
+        },
+        "additionalProperties": false,
+        "description": "A partial profile update. Every field optional; absent means \"leave alone\", explicit `null` means \"clear\". Onboarding is just a sequence of these — the server derives the next step from which fields are still null rather than trusting a client-side step counter, so a user who kills the app mid-flow resumes where they actually are."
+      },
+      "PendingMealsResponse": {
+        "type": "object",
+        "properties": {
+          "proposals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MealProposed"
+            }
+          }
+        },
+        "required": [
+          "proposals"
+        ],
+        "additionalProperties": false,
+        "description": "`GET /v1/meals/pending`: the caller's live proposals, oldest first, each as its turn sent it (#530)."
+      },
+      "PhotoProgress": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "glance"
+              },
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "text"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "item"
+              },
+              "index": {
+                "type": "number"
+              },
+              "item": {
+                "$ref": "#/components/schemas/MealItem"
+              }
+            },
+            "required": [
+              "kind",
+              "index",
+              "item"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "The stream's progress lines: zero or one `glance`, zero or more `item`. Shared by the photo turn and an edit (#608)."
+      },
+      "PhotoResponse": {
+        "$ref": "#/components/schemas/LogPhotoResult"
+      },
+      "Profile": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string"
+          },
+          "lang": {
+            "$ref": "#/components/schemas/Lang"
+          },
+          "goal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Goal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sex": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sex"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "birth_year": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Year of birth, not age: an age stored as a number is wrong within twelve months."
+          },
+          "height_cm": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "weight_kg": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Kilograms; null = unknown (never asked, or declined)."
+          },
+          "weight_measured_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "ISO instant `weight_kg` was MEASURED — not when the row was written.\n\nExists to settle a race with Apple Health. A manual edit stamps this `now()`; an imported sample stamps it with the sample's own time; and an incoming value wins only if it is strictly newer. Without it, a user types their weight and a sync firing two seconds later silently reverts it to this morning's scale reading — or, just as wrong, a stale import overwrites a correction the user made deliberately.\n\nNever set from `PatchProfileRequest`: the client does not get to assert when something was weighed. The server stamps it on both paths."
+          },
+          "target_weight_kg": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "activity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActivityLevel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Pace"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "country": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Purchase/food country: a curated code (`de`/`us`/…) or a raw string; null = unknown."
+          },
+          "restrictions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "CLOSED four-tag vocabulary — see `RESTRICTION_TAGS`. Each drives a cap AND a verdict key."
+          },
+          "medical_limitations": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Free-text \"food specifics\", prompt-only — everything the closed vocabulary cannot express. Three labelled fields: medical conditions, allergies (safety-critical), avoided products. None drives a numeric cap or a verdict dimension. Required-with-null, so a boundary that forgets to map one fails the build rather than silently dropping it from the prompt."
+          },
+          "food_allergies": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "product_limitations": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "onboarded_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Set once the user has cleared onboarding and consented. Nothing is analyzed before this."
+          }
+        },
+        "required": [
+          "user_id",
+          "lang",
+          "goal",
+          "sex",
+          "birth_year",
+          "height_cm",
+          "weight_kg",
+          "weight_measured_at",
+          "target_weight_kg",
+          "activity",
+          "pace",
+          "country",
+          "restrictions",
+          "medical_limitations",
+          "food_allergies",
+          "product_limitations",
+          "onboarded_at"
+        ],
+        "additionalProperties": false,
+        "description": "A user's profile — the analysis inputs every meal is judged against.\n\nDIFFERS FROM eait: `sex`, `birth_year`, `height_cm`, `activity` and `pace` are new. eait bands calories by goal alone (1800/2100/2400 flat) and says in a comment that a bodyweight-delta formula is out of scope for a photo logger. For an App Store product that is too blunt — the category's users expect a personal number — so eait computes one. That is the whole reason `targets.ts` carries a floor: computing a target is what creates the risk of computing an unsafe one."
+      },
+      "ProfileRejected": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "const": "invalid-profile"
+          },
+          "field": {
+            "type": "string",
+            "enum": [
+              "lang",
+              "goal",
+              "sex",
+              "birth_year",
+              "age",
+              "height_cm",
+              "weight_kg",
+              "target_weight_kg",
+              "activity",
+              "pace",
+              "country",
+              "restrictions",
+              "medical_limitations",
+              "food_allergies",
+              "product_limitations",
+              "complete_onboarding"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "target-weight-below-healthy-bmi",
+              "age-below-minimum",
+              "out-of-range"
+            ]
+          },
+          "minHealthyKg": {
+            "type": "number",
+            "description": "Present for `target-weight-below-healthy-bmi` — what the app shows as the lowest it accepts."
+          }
+        },
+        "required": [
+          "error",
+          "field",
+          "reason"
+        ],
+        "additionalProperties": false,
+        "description": "A rejected profile patch. 422, and the app re-asks the question rather than clicking past it. `target-weight-below-healthy-bmi` is the anorexia guard in `targets.ts`; it is a refusal, not a warning, because a warning is a thing the users it exists for will click past."
+      },
+      "ProfileResponse": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/Profile"
+          },
+          "targets": {
+            "$ref": "#/components/schemas/FoodTargets"
+          },
+          "basis": {
+            "$ref": "#/components/schemas/TargetBasis",
+            "description": "Why the targets are what they are. `basis.floorApplied` MUST be surfaced to the user."
+          },
+          "onboarded": {
+            "type": "boolean",
+            "description": "Null until onboarding completes."
+          },
+          "isAdmin": {
+            "type": "boolean",
+            "description": "Whether this account holds the admin role (#391b).\n\nA BOOLEAN, and deliberately not the role itself: what a client needs is \"may I offer the admin section\", and a role string invites a client to reason about roles it was never told the rules for. It is also why `role` is not on `Profile` — a field there would be writable by `PATCH` in one store implementation and refused in the other.\n\nADVISORY, NEVER AN AUTHORITY. This decides whether a link is drawn. Every path under `/admin` checks the role again, server-side, on every request; a client that set this to true itself would gain a menu entry and nothing behind it."
+          },
+          "limits": {
+            "$ref": "#/components/schemas/Limits",
+            "description": "What this server will actually accept. Carried here because the profile is fetched at boot and on every refresh, so the app learns the limits of the environment it is talking to instead of assuming the ones it was compiled with."
+          },
+          "timezone": {
+            "type": "string",
+            "description": "The IANA zone this server computes calendar dates in.\n\nSent for the same reason `limits` is: it is server configuration the client must agree with rather than assume. The app aggregates health samples into days BEFORE sending them, and if it used the device's zone while the server dated meals in this one, a day's food and that same day's health would describe two different twenty-four-hour windows — on one screen, invisibly, and only for people who travel."
+          },
+          "entitlement": {
+            "$ref": "#/components/schemas/Entitlement",
+            "description": "The paid tier, as the SERVER sees it.\n\nThe store told RevenueCat, RevenueCat told this server by webhook, and this is the answer. The app has its own copy from the purchases SDK and must not branch on it for anything the server enforces: the two disagree for a few seconds after every purchase, and only one of them is the one refusing requests. `limits.dailyPhotoCap` above is already computed from this."
+          },
+          "pairAddress": {
+            "type": "string",
+            "description": "Where to send a browser to pair with this account — host and path, no scheme (#408).\n\nSENT, NEVER COMPOSED BY THE CLIENT, for the reason  {@link  API_VERSION }  states: shipped apps outlive the server they were built against. Every build before this field derived the address from its own compiled-in `API_URL` and printed `api.eait.fit/start`; that name becomes a 301 to the browser's own host and eventually stops serving the page, and a binary already on a phone cannot be told. Reading it off the profile means the next move of this surface needs no new build — which is the whole point, and is why the path is here too and not just the host.\n\nNO SCHEME, because it is read off a phone screen and typed into an address bar by hand.\n\nEMPTY when the server has been told neither origin, which is development. The client then keeps its own answer: the host it is already talking to is the right one there, and a guess invented server-side would be wrong on every worktree at once."
+          }
+        },
+        "required": [
+          "profile",
+          "targets",
+          "basis",
+          "onboarded",
+          "isAdmin",
+          "limits",
+          "timezone",
+          "entitlement",
+          "pairAddress"
+        ],
+        "additionalProperties": false,
+        "description": "Profile plus everything derived from it, so the app never recomputes targets locally."
+      },
+      "Provider": {
+        "type": "string",
+        "enum": [
+          "device",
+          "apple",
+          "google"
+        ]
+      },
+      "PushTokenRequest": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string",
+            "const": "ios"
+          }
+        },
+        "required": [
+          "token",
+          "platform"
+        ],
+        "additionalProperties": false,
+        "description": "One device's push token, as Expo's push service issues it (`ExponentPushToken[...]`).\n\n`POST` registers it and is idempotent per (user, token): the app re-registers on every launch because a token is not stable — it changes on reinstall, on restore from a backup, and whenever Apple decides to reissue one — so a register that duplicated rows would grow a table of devices that answer `DeviceNotRegistered` forever. `DELETE` drops it, and is what the app calls when somebody turns notifications off: a token the server keeps is a message it will try to send.\n\n`platform` is on the wire because the shape of this problem is per-platform and Android will not be a different route. There is exactly one accepted value today."
+      },
+      "PushTokenResponse": {
+        "type": "object",
+        "properties": {
+          "registered": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "registered"
+        ],
+        "additionalProperties": false,
+        "description": "What a register or an unregister answers. `registered` is the state AFTER the call."
+      },
+      "Refusal": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "not-onboarded"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "not-food"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "cap-exceeded"
+              },
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "global",
+                  "address"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "scope"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "subscription-required"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "analysis-failed"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "unsupported-image"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "const": "no-photo"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        ],
+        "description": "Why a request produced no meal. Each maps to one user-facing message, but the mapping lives in the surface — `not-onboarded` is a Telegram prompt in the bot and a navigation push here."
+      },
+      "ScriptedLineId": {
+        "type": "string",
+        "enum": [
+          "camera-closed",
+          "trial-started",
+          "trial-day-one",
+          "notify-primer",
+          "restored",
+          "camera-primer",
+          "fix-prompt",
+          "already-in",
+          "camera-denied",
+          "onboarding-done",
+          "dropped"
+        ]
+      },
+      "Sex": {
+        "type": "string",
+        "enum": [
+          "female",
+          "male"
+        ],
+        "description": "Biological sex. Required by every published BMR equation; asked for that reason and no other."
+      },
+      "TargetBasis": {
+        "type": "object",
+        "properties": {
+          "bmr": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Mifflin-St Jeor basal rate, or null when anthropometrics were incomplete."
+          },
+          "tdee": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Maintenance = BMR × activity factor. Null when BMR is null (flat-band fallback in use)."
+          },
+          "requestedDeltaKcal": {
+            "type": "number",
+            "description": "What the chosen pace asked for, signed: negative cuts, positive adds."
+          },
+          "appliedDeltaKcal": {
+            "type": "number",
+            "description": "What was actually applied after the share cap."
+          },
+          "shareCapApplied": {
+            "type": "boolean",
+            "description": "True when `MAX_DEFICIT_SHARE`/`MAX_SURPLUS_SHARE` bit before the floor did."
+          },
+          "floorKcal": {
+            "type": "number",
+            "description": "The floor that was in force for this user."
+          },
+          "floorApplied": {
+            "type": "boolean",
+            "description": "True when the floor is the reason the number is what it is. The UI MUST surface this."
+          },
+          "usedFallbackBand": {
+            "type": "boolean",
+            "description": "True when no BMR could be computed and the flat goal band was used instead."
+          }
+        },
+        "required": [
+          "bmr",
+          "tdee",
+          "requestedDeltaKcal",
+          "appliedDeltaKcal",
+          "shareCapApplied",
+          "floorKcal",
+          "floorApplied",
+          "usedFallbackBand"
+        ],
+        "additionalProperties": false,
+        "description": "Everything behind the number, so the app can show its work.\n\nThis is not diagnostics. A user who is told \"1,450 kcal\" and nothing else has been handed an assertion; a user who is told \"your maintenance is 2,100, we subtracted 20%, and we stopped at your floor of 1,200\" has been handed a reason. The second is the honest product and it is also the defensible one — `floorApplied` is what the UI reads to explain itself."
+      },
+      "TargetGone": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "target-gone"
+          },
+          "on": {
+            "type": "string",
+            "enum": [
+              "correction",
+              "redate"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "on"
+        ],
+        "additionalProperties": false,
+        "description": "A correction whose target vanished between lookup and write (a delete race).\n\n`on` is not decoration: a failed correction can be rephrased, a failed re-date cannot — nothing the user types brings a deleted row back, so telling them to try again would be a lie."
+      },
+      "UnlinkResponse": {
+        "type": "object",
+        "properties": {
+          "identities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "provider": {
+                  "$ref": "#/components/schemas/Provider"
+                },
+                "linkedAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "provider",
+                "linkedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "deleted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "identities",
+          "deleted"
+        ],
+        "additionalProperties": false,
+        "description": "What an unlink did.\n\n`deleted` is the whole reason this is not a bare 204. `Store.removeIdentity` erases the account when the identity it removed was the last one — the check and the delete are one statement, so nothing can interleave — and the app has to know whether the session it is holding still names anything. The remaining identities come back too, so settings re-renders from the server's answer rather than from what it assumed happened."
+      },
+      "Verdict": {
+        "type": "string",
+        "enum": [
+          "good",
+          "warn",
+          "bad"
+        ]
+      },
+      "WeekResponse": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayTotals"
+            }
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}
