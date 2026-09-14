@@ -182,11 +182,12 @@ export function cleanSuggestions(raw: unknown): string[] {
  * "must not come here … a caption repeating any part of it is a second place for numbers that have
  * to agree". This sentence is the day, and only the day.
  *
- * THE NEGATIVE IS DELIBERATE. Over target this reads "-146 of your 1,454 left today", which is what
- * `firstVerdictLines` already ships: "a number is honest where a euphemism is not".
+ * Over target it says the overshoot, in the first verdict's words — never a signed remainder (#663).
  */
 export function runningLine(i: { targets: FoodTargets; eatenToday: { kcal: number; protein_g: number } }): string {
-  return `${n(i.targets.kcal - i.eatenToday.kcal)} of your ${n(i.targets.kcal)} left today, ${n(i.eatenToday.protein_g)} of the ${n(i.targets.protein_g)} g protein.`;
+  const left = i.targets.kcal - i.eatenToday.kcal;
+  const day = left >= 0 ? `${n(left)} of your ${n(i.targets.kcal)} left today` : `${n(-left)} over your ${n(i.targets.kcal)} today`;
+  return `${day}, ${n(i.eatenToday.protein_g)} of the ${n(i.targets.protein_g)} g protein.`;
 }
 
 /**
@@ -240,14 +241,15 @@ export function firstVerdictLines(i: FirstVerdictInput): string[] {
   const kcal = n(i.meal.kcal);
   const lines: string[] = [];
 
-  // The arithmetic clause is the prototype's, kept whole even when over: only the closing clause
-  // swaps. "that leaves -146" is what the design shows; a number is honest where a euphemism is not.
-  // A gain plan past its target is not "still to fill": rule 1, the branch taken, holds when over too.
+  // Over target says the overshoot ("146 over your 1,454"), never a signed remainder (#663).
+  const over = `${n(-left)} over your ${n(i.targets.kcal)}`;
   const arithmetic = i.goal === "gain"
     ? (left >= 0
       ? `${rest} still to fill today, and ${protein}. Keep going.`
-      : `${n(-left)} over your ${n(i.targets.kcal)} today, and ${protein}. Past it is the point on a gain plan; tomorrow is a fresh number.`)
-    : `that leaves ${rest} for the rest of today, and ${protein}.` + (left >= 0 ? " On plan." : " Over for today — tomorrow is a fresh number.");
+      : `${over} today, and ${protein}. Past it is the point on a gain plan; tomorrow is a fresh number.`)
+    : (left >= 0
+      ? `that leaves ${rest} for the rest of today, and ${protein}. On plan.`
+      : `that puts you ${over} for today, and ${protein}. Tomorrow is a fresh number.`);
 
   if (i.via === "text") {
     lines.push(`Typed, not photographed — so the portions are my guess. Take ${kcal} as rough; if you know the grams, say so and I'll fix it.`);
@@ -255,10 +257,9 @@ export function firstVerdictLines(i: FirstVerdictInput): string[] {
   } else if (i.meal.confidence === "low") {
     // The design's "— sauce over everything" is an example reason; nothing here can name one.
     lines.push(`Honest answer: I couldn't read that plate well. Take ${kcal} as a rough guess and check the grams before you trust the total. A second angle next time helps.`);
-    lines.push(i.goal === "gain" && left < 0
-      ? `Even rough, it counts: about ${n(-left)} over your ${n(i.targets.kcal)} today.`
-      : `Even rough, it counts: about ${n(left)} of your ${n(i.targets.kcal)} ${i.goal === "gain" ? "still to fill today" : "left today"}.`
-        + (i.goal !== "gain" && left < 0 ? " Over for today — tomorrow is a fresh number." : ""));
+    lines.push(left < 0
+      ? `Even rough, it counts: about ${over} today.` + (i.goal === "gain" ? "" : " Tomorrow is a fresh number.")
+      : `Even rough, it counts: about ${rest} ${i.goal === "gain" ? "still to fill today" : "left today"}.`);
   } else {
     lines.push(`First one in. ${kcal} kcal — ${arithmetic}`);
     lines.push("If anything's off, say so — \"half the rice\", \"no avocado\" — or tap the card and change the grams.");

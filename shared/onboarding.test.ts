@@ -504,14 +504,15 @@ describe("resolving the country, and deciding whether to ask", () => {
     // A language is a hint, never an answer: it says which supermarket they might know, not which
     // one they are standing in. So it seeds the question rather than skipping it.
     expect(resolveCountry({ regions: ["BR"], languages: ["de"] })).toEqual({ country: "de", ask: true });
-    expect(resolveCountry({ languages: ["ru-RU"] })).toEqual({ country: "ru", ask: true });
+    // Russian is a language the app speaks, not a country it curates: nothing to suggest.
+    expect(resolveCountry({ languages: ["ru-RU"] })).toEqual({ country: "other", ask: true });
     // English cannot tell gb from us, so it suggests neither.
     expect(resolveCountry({ languages: ["en"] })).toEqual({ country: "other", ask: true });
   });
 
   it("suggests from the email's own country, and still asks", () => {
     expect(resolveCountry({ email: "someone@gmx.de" })).toEqual({ country: "de", ask: true });
-    expect(resolveCountry({ email: "SOMEONE@Mail.RU" })).toEqual({ country: "ru", ask: true });
+    expect(resolveCountry({ email: "SOMEONE@Mail.RU" })).toEqual({ country: "other", ask: true });
     expect(resolveCountry({ email: "someone@bbc.co.uk" })).toEqual({ country: "gb", ask: true });
     // The addresses most people actually have say nothing, and neither does Apple's relay.
     expect(resolveCountry({ email: "someone@gmail.com" })).toEqual({ country: "other", ask: true });
@@ -538,7 +539,7 @@ describe("resolving the country, and deciding whether to ask", () => {
 
 describe("the suggested answer, offered first", () => {
   it("moves the suggestion to the front and keeps everything else in order", () => {
-    expect(suggestionFirst(COUNTRY_CODES, "ru")).toEqual(["ru", "de", "gb", "us", "other"]);
+    expect(suggestionFirst(COUNTRY_CODES, "us")).toEqual(["us", "de", "gb", "other"]);
   });
 
   it("changes nothing when there is no suggestion, or it is the sentinel", () => {

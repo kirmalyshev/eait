@@ -27,8 +27,10 @@ export async function deleteLine(
   const line = await deps.store.getLine(userId, lineId);
   if (!line) return GONE;
   if (line.role !== "user") return { kind: "bad-request" };
-  if (line.kind === "photo" && line.mealId !== null) {
-    const meal = await deps.store.getMeal(userId, line.mealId);
+  // A line is its meal, typed or photographed: a confirmed proposal is stored under the proposal's id.
+  const mealId = line.kind === "photo" ? line.mealId : line.pendingId;
+  if (mealId !== null) {
+    const meal = await deps.store.getMeal(userId, mealId);
     if (meal) {
       // The meal first: a line that outlives its meal reads as a photo of nothing, which the
       // cards already know how to be; a meal that outlives its line is a diary row nobody sent.

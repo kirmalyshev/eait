@@ -137,7 +137,10 @@ one in `demo.ts` so the tests still run.
   page's claims gate does not run over it. `presentPaywallIfNeeded` is never used: it gates on the
   SDK's own `CustomerInfo`, which is the copy this app may not branch on. A purchase ends by polling
   OUR profile until the webhook has landed (`lib/paywall.tsx`), because for those seconds the phone
-  says subscribed and the server still answers 402. **A lifetime unlock and a subscription are SEPARATE grants on one
+  says subscribed and the server still answers 402. **And then the app carries out the action the
+  sheet interrupted** — the photo, the typed meal, the correction, the question — on its own: a gate
+  the user resolves never costs them their input, and never asks for a second attempt (#662). On
+  2026-09-13 a typed meal met the sheet, the purchase went through, and the meal was simply gone. **A lifetime unlock and a subscription are SEPARATE grants on one
   record**, because a customer can hold both: `expiresAt` is the subscription, `lifetimeProductId`
   is the unlock, and `entitlementLive` says entitled if either does. One field carried both once,
   and refunding the lifetime then revoked a monthly plan that was still paid for. Each delivery

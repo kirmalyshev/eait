@@ -65,3 +65,11 @@ export function advancePending(p: PendingPhoto, e: PhotoEvent): PendingPhoto {
 export function pendingLine(p: PendingPhoto): string {
   return p.items.length > 0 ? "Weighing portions…" : p.glance ?? "Reading the plate…";
 }
+
+const PENDING_STEPS = ["Reading the plate", "Naming what's on it", "Weighing portions", "Checking against your plan"] as const;
+
+/** The analyzer's steps as the card lists them: what is done, what is happening, what is left (#663). */
+export function pendingSteps(p: PendingPhoto): { label: string; state: "done" | "now" | "next" }[] {
+  const at = p.items.length > 0 ? 2 : p.glance !== null ? 1 : 0;
+  return PENDING_STEPS.map((label, i) => ({ label, state: i < at ? "done" : i === at ? "now" : "next" }));
+}
