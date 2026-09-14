@@ -62,11 +62,14 @@ describe("the first verdict", () => {
     expect(MEET_GABIE).not.toMatch(/!/);
   });
 
-  it("keeps the arithmetic when over, and only swaps the closing clause — the prototype's shape", () => {
+  it("says how far over the day is, as a number with a direction — never a bare negative", () => {
+    // "-146 of your 1,454 left" is a sign in front of a remainder: honest, and read as a typo by
+    // the person it is for (review recording, 13 Sep 2026: "-569 of your 2,393 left today"). The
+    // gain branch already says "over your"; the lose/maintain one says it the same way.
     const lines = firstVerdictLines({
       goal: "maintain", targets, meal: { ...meal, kcal: 1600 }, eatenToday: { kcal: 1600, protein_g: 38 }, via: "photo", verdicts: {},
     });
-    expect(lines[0]).toBe("First one in. 1,600 kcal — that leaves -146 of your 1,454 for the rest of today, and 38 of the 110 g protein. Over for today — tomorrow is a fresh number.");
+    expect(lines[0]).toBe("First one in. 1,600 kcal — that puts you 146 over your 1,454 for today, and 38 of the 110 g protein. Tomorrow is a fresh number.");
   });
 
   it("reads a correction back in the design's words", () => {
@@ -85,11 +88,12 @@ describe("the first verdict", () => {
       .toBe(`Updated — 306 kcal. ${runningLine({ targets, eatenToday: { kcal: 306, protein_g: 19 } })}`);
   });
 
-  it("says the honest negative when the day is over, as the first verdict already does", () => {
-    // `firstVerdictLines` ships "that leaves -146 of your 1,454" by design — "a number is honest
-    // where a euphemism is not". The log line is the same arithmetic and reads the same way.
+  it("says the overshoot as an overshoot when the day is over, as the first verdict does", () => {
+    // The same arithmetic as the first verdict, worded the same way: a number and a direction.
     expect(runningLine({ targets, eatenToday: { kcal: 1600, protein_g: 38 } }))
-      .toBe("-146 of your 1,454 left today, 38 of the 110 g protein.");
+      .toBe("146 over your 1,454 today, 38 of the 110 g protein.");
+    expect(correctionLine({ targets, meal: { kcal: 306 }, eatenToday: { kcal: 1600, protein_g: 38 } }))
+      .toBe("Updated — 306 kcal. 146 over your 1,454 today, 38 of the 110 g protein.");
   });
 
   it("fills rather than leaves for a gain goal", () => {
@@ -120,9 +124,9 @@ describe("the first verdict", () => {
       goal: "gain", targets: { kcal: 2900, protein_g: 150 }, meal: { ...meal, kcal: 480 }, eatenToday: { kcal: 3100, protein_g: 160 }, via: "photo", verdicts: {},
     });
     expect(sure[0]).toBe("First one in. 480 kcal — 200 over your 2,900 today, and 160 of the 150 g protein. Past it is the point on a gain plan; tomorrow is a fresh number.");
-    // Over target reads as the number it is, like the confident branch — no clamp to zero.
+    // Over target reads as an overshoot, like the confident branch — no clamp to zero, no bare sign.
     const over = firstVerdictLines({ goal: "lose", targets, meal: { ...meal, kcal: 1600, confidence: "low" }, eatenToday: { kcal: 1600, protein_g: 21 }, via: "photo", verdicts: {} });
-    expect(over[1]).toBe("Even rough, it counts: about -146 of your 1,454 left today. Over for today — tomorrow is a fresh number.");
+    expect(over[1]).toBe("Even rough, it counts: about 146 over your 1,454 today. Tomorrow is a fresh number.");
   });
 
   it("says a typed meal is a guess at the portions", () => {

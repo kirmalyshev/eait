@@ -7,7 +7,7 @@ import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
-import { chatHistory, deleteLine, editLine, handleText, logPhotoMeal, patchProfile, sumTotals, type EngineDeps } from "./index.ts";
+import { chatHistory, confirmPendingMeal, deleteLine, editLine, handleText, logPhotoMeal, patchProfile, sumTotals, type EngineDeps } from "./index.ts";
 
 const CONFIG: Config = {
   ...configDefaults(),
@@ -94,6 +94,24 @@ describe("deleteLine", () => {
     expect(await deleteLine(deps, userId, line.id)).toEqual({ kind: "deleted", mealId: null, date: null });
     expect(await store.getPending(userId, line.pendingId)).toBeNull();
     expect((await thread(deps, userId)).map((e) => e.id)).toEqual(others);
+  });
+
+  it("a text line whose proposal was LOGGED takes the meal with it, like a photo line (#608: a line is its meal)", async () => {
+    // Review recording, 13 Sep 2026: long-press on the typed meal bubble offered "Remove this
+    // message? Numbers stay." and left the 388 kcal yogurt in the diary. The confirmed meal carries
+    // the proposal's id, so the line names its meal exactly as a photo line does.
+    const userId = await onboard();
+    await handleText(deps, userId, { text: "two eggs and toast" });
+    const line = (await thread(deps, userId)).findLast((e) => e.role === "user" && e.kind === "text" && e.pendingId !== null);
+    if (!line || line.role !== "user" || line.kind !== "text" || !line.pendingId) throw new Error("no proposal line");
+    const logged = await confirmPendingMeal(deps, userId, line.pendingId);
+    if (logged.kind !== "logged") throw new Error(`not logged: `);
+    expect(await deleteLine(deps, userId, line.id)).toEqual({ kind: "deleted", mealId: logged.mealId, date: logged.date });
+    expect(await store.getMeal(userId, logged.mealId)).toBeNull();
+    const after = await thread(deps, userId);
+    expect(after.some((e) => e.id === line.id)).toBe(false);
+    expect(after.some((e) => e.kind === "meal" && e.mealId === logged.mealId)).toBe(false);
+    expect(sumTotals(await store.mealsForDate(userId, logged.date)).kcal).toBe(0);
   });
 
   it("an assistant line is bad-request", async () => {

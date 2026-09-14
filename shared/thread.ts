@@ -37,12 +37,7 @@ export type ThreadEntry =
       /** On a stored text line: the bubble it landed for, and the proposal it made — what the screen reads back. */
       clientId?: string | null; pendingId?: string | null;
     }
-  /**
-   * `superseded`: a live estimate a NEWER one has passed over (#385). Still a proposal — its card,
-   * its numbers and its `pendingId` are all intact and the server would still honour a confirm —
-   * but it is no longer the offer the thread is waiting on, and the renderer says so.
-   */
-  | { id: string; role: "assistant"; result: ChatResult; stored?: boolean; superseded?: boolean }
+  | { id: string; role: "assistant"; result: ChatResult; stored?: boolean }
   /** A card from the stored thread: the meal as it is NOW, or gone. */
   | { id: string; role: "card"; event: ChatEvent; mealId: string | null; meal: MealRecord | null; stored: true }
   /**
@@ -292,7 +287,7 @@ export const proposalLive = (expiresAt: string, now: number): boolean => {
 };
 
 /**
- * ONE LIVE OFFER, ONE ESTIMATE STILL RECOVERABLE, AND NOTHING OLDER (#360, narrowed by #385).
+ * ONE LIVE OFFER, AND NOTHING OLDER (#360).
  *
  * A proposal is client-only until it is confirmed, so the server has no card for it and
  * `oneCardPerMeal` cannot see it: that filter keys on `mealId` and a proposal has only a
@@ -300,52 +295,26 @@ export const proposalLive = (expiresAt: string, now: number): boolean => {
  * condition, a card arriving for its OWN id — so two estimates of one plate both stayed, and
  * confirming one left the other offering a "Log it" for a pending the server no longer held.
  *
- * #360 answered that by retiring EVERY older estimate to "Dropped it." and cancelling it for real.
- * It supersedes on ORDER ALONE, and nothing tells the client that two estimates are the same plate
- * — that was the premise of #360's transcript, not a property the app can see. So "chicken salad",
- * then "and a flat white" before tapping Log it, threw the salad away: its analysis was already
- * billed, it had already counted against the daily cap, and the only way back was to describe it
- * again and spend another (#385).
- *
- * SO THE OLDER ESTIMATE IS RETIRED FROM BEING THE OFFER, NOT THROWN AWAY. It keeps its card, its
- * numbers and its `pendingId`, and carries `superseded` — the renderer draws it as a leftover the
- * user may still claim, and NAMES the collision, because the reader is the only party who knows
- * whether they described one plate or two. One tap either way, and neither of them silent.
- *
- * TWO IS THE BOUND. An estimate passed over TWICE goes the way #360 sent it, to the words the "No"
- * button writes — `supersededPendings` names it, and the caller MUST cancel it, because nothing on
- * the server expires a proposal early and a client that merely stops offering one has hidden a row
- * `POST /confirm` would still honour. `cancelPendingMeal` drops the row and writes this same
- * scripted line into the thread, which is also what makes the line SURVIVE: the one rendered here
- * is live, and every live line goes with the next page.
- *
- * Applied where a proposal ENTERS the list, which is the only place one can arrive: `mergeThread`
- * runs on a page, and a proposed turn fetches none. Nothing repairs a three-proposal state that
- * arises some other way — there is no such path today, and a second copy of this rule in the merge
- * would be a second thing to keep in agreement rather than a safety net.
+ * Every older estimate is retired in place to the words the "No" button writes, and the caller
+ * cancels it for real (`livePendings`): the server never expires a proposal early. #385's second
+ * card ("Log it too") was two open cards on the phone (#663); its cost stands — a meal described
+ * before the previous one is logged drops it, and a live card stays tappable while a turn is out.
  */
 export function oneLiveProposal(entries: ThreadEntry[]): ThreadEntry[] {
   const live = entries.filter((e) => pendingIdOf(e) !== null);
   if (live.length < 2) return entries;
   const newest = live[live.length - 1];
-  const kept = live[live.length - 2];
   return entries.map((e) => {
     if (pendingIdOf(e) === null || e === newest) return e;
-    if (e === kept) return { ...e, superseded: true } as ThreadEntry;
     return { id: e.id, role: "assistant", result: { kind: "answered", text: scriptedLine("dropped") } };
   });
 }
 
-/**
- * The pendings a new estimate must cancel: the ones a previous estimate already retired.
- *
- * Read BEFORE the new estimate is appended, so it names what `oneLiveProposal` is about to rewrite
- * to "Dropped it." — and those words are only true if the row is really gone.
- */
-export const supersededPendings = (entries: ThreadEntry[]): string[] =>
+/** The pendings a new estimate retires: every live one, read before it is appended. */
+export const livePendings = (entries: ThreadEntry[]): string[] =>
   entries.flatMap((e) => {
     const id = pendingIdOf(e);
-    return id !== null && e.role === "assistant" && e.superseded === true ? [id] : [];
+    return id !== null ? [id] : [];
   });
 
 /**
@@ -438,4 +407,14 @@ export function threadReducer(entries: ThreadEntry[], event: ThreadEvent): Threa
     }
     case "unanswered": return withUnanswered(entries, event.clientId, event.scope);
   }
+}
+
+/**
+ * A line IS its meal (#608): a photo line with a meal, or a typed line whose proposal was logged —
+ * the meal carries the proposal's id. The server's `deleteLine` applies the same rule.
+ */
+export function lineIsMeal(entry: ThreadEntry & { role: "user" }, entries: ThreadEntry[]): boolean {
+  if (entry.photo === true) return !!entry.mealId;
+  const pendingId = entry.pendingId ?? null;
+  return pendingId !== null && entries.some((e) => e.role === "card" && e.mealId === pendingId);
 }

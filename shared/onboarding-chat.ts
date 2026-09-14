@@ -110,7 +110,7 @@ export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   { id: "pace", place: "target", field: "pace", kind: "choice", options: ["easy", "steady", "push"] },
   { id: "activity", place: "activity", field: "activity", kind: "choice", options: ["sedentary", "light", "moderate", "active", "athlete"] },
   { id: "struggles", place: "struggles", kind: "chips", options: STRUGGLES },
-  { id: "country", place: "country", field: "country", kind: "choice", options: ["de", "gb", "us", "ru", "other"] },
+  { id: "country", place: "country", field: "country", kind: "choice", options: ["de", "gb", "us", "other"] },
   { id: "restrictions", place: "restrictions", field: "restrictions", kind: "chips" },
   { id: "building", place: "building", kind: "auto" },
   { id: "summary", place: "summary", kind: "auto" },
@@ -231,10 +231,10 @@ const CONVERSATION_ASKS = {
   struggles: ["Now the part most apps skip. What's been hard? Pick any — or none. This shapes support, never judgement."],
 } as const;
 
-/** The quick replies beside the composer, per prompt. copy.md, verbatim. */
+/** The multi-selects' way out: `finish` is the dock's primary button, `none` a pill. copy.md, verbatim. */
 export const QUICK_REPLIES = {
-  struggles: ["Done", "None of these"],
-  restrictions: ["Finish", "Nothing applies"],
+  struggles: { finish: "Done", none: "None of these" },
+  restrictions: { finish: "Finish", none: "Nothing applies" },
 } as const;
 
 // ── Support cards ────────────────────────────────────────────────────────────────────────────
@@ -593,9 +593,10 @@ export function minHealthyKg(heightCm: number): number {
  * "maintenance" is a word the chat never introduced, so the sentence says "what your body burns in
  * a day" — which is the label on the row directly above it in the calc card.
  */
-export function capNote(template: string, goal: Goal | null): string {
+export function capNote(template: string, goal: Goal | null, kgPerWeek: number | null): string {
   const share = goal === "gain" ? MAX_SURPLUS_SHARE : MAX_DEFICIT_SHARE;
-  return template.replace("{share}", String(Math.round(share * 100)));
+  const base = template.replace("{share}", String(Math.round(share * 100)));
+  return kgPerWeek === null ? base : `${base} That's about ${Math.round(kgPerWeek * 10) / 10} kg a week.`;
 }
 
 /** The projection sentence, or null when a date would be an invention. `projection.ts` says when. */

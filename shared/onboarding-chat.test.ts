@@ -356,9 +356,25 @@ describe("restrictions", () => {
 describe("the plan", () => {
   it("quotes the cap from the constant for the direction taken", () => {
     const template = content.summary.capNote;
-    expect(capNote(template, "lose")).toContain(`${Math.round(MAX_DEFICIT_SHARE * 100)}%`);
-    expect(capNote(template, "gain")).toContain(`${Math.round(MAX_SURPLUS_SHARE * 100)}%`);
-    expect(capNote(template, "lose")).not.toContain("{share}");
+    expect(capNote(template, "lose", null)).toContain(`${Math.round(MAX_DEFICIT_SHARE * 100)}%`);
+    expect(capNote(template, "gain", null)).toContain(`${Math.round(MAX_SURPLUS_SHARE * 100)}%`);
+    expect(capNote(template, "lose", null)).not.toContain("{share}");
+  });
+
+  it("names the safe outcome, not a fault, when the pace was capped", () => {
+    // #676's sibling #675: a person who picked "Steady" was told "You asked to move faster than
+    // would be safe". The card says what they got; it never says they asked for too much.
+    const line = capNote(content.summary.capNote, "lose", null);
+    expect(line).not.toMatch(/you asked/i);
+    expect(line).not.toContain("adjustment");
+    expect(line).toContain("what your body burns in a day");
+  });
+
+  it("gives the resulting pace in kg a week, so a percentage isn't the only answer", () => {
+    // Two independent reviews (13-14 Sep 2026, novice and veteran personas) both read the cap
+    // note's percentage and still didn't know their real weekly pace.
+    const line = capNote(content.summary.capNote, "lose", 0.417);
+    expect(line).toContain("0.4 kg a week");
   });
 
   it("gives the first number the moment the weight lands", () => {

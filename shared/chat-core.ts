@@ -24,7 +24,7 @@ import type { ChatEntry, ChatHistoryResponse, DeleteLineResponse, ProfileRespons
 import { mayHaveSpentSample, sampleSpent } from "./entitlement.ts";
 import type { ConfirmMealResult, HandleTextResult, MealLogged, TargetGone } from "./results.ts";
 import {
-  fromHistory, keepsItsWords, landedLine, lastMealId, oneLiveProposal, reconcilePage, supersededPendings,
+  fromHistory, keepsItsWords, landedLine, lastMealId, oneLiveProposal, reconcilePage, livePendings,
   threadReducer, type ThreadEntry,
 } from "./thread.ts";
 
@@ -287,14 +287,11 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
           // here because this is the only place a proposal enters the list, and a proposed turn
           // fetches no page.
           //
-          // ONLY WHAT IS ABOUT TO BE PUSHED PAST THE BOUND (#385). The estimate this one supersedes
-          // keeps its pending: its analysis was already billed and counted against the cap, and
-          // nothing here can tell a second plate from a second description of the first. What gets
-          // cancelled is the one a PREVIOUS estimate already retired — `supersededPendings`. The
-          // cancel is what makes "Dropped it." true rather than a bubble the app stopped offering.
-          // Fire and forget, and failure is survivable — the same call the "No" button makes.
-          for (const stale of supersededPendings(state.entries)) {
-            void deps.client().cancelPending(stale).catch(() => {});
+          // A new estimate cancels every older one for real; a question leaves them alone.
+          if (result.kind === "proposed") {
+            for (const stale of livePendings(state.entries)) {
+              void deps.client().cancelPending(stale).catch(() => {});
+            }
           }
           const entry: ThreadEntry = { id: uid(), role: "assistant", result };
           edit((prev) => oneLiveProposal([...prev, entry]));

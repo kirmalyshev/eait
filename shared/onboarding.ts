@@ -371,11 +371,11 @@ export interface OnboardingContent {
  * Sourced from the domain constants rather than retyped, so adding a pace or a restriction tag
  * makes the validator demand a label for it instead of letting the app render a blank row.
  */
-export const COUNTRY_CODES = ["de", "gb", "us", "ru", "other"] as const;
+export const COUNTRY_CODES = ["de", "gb", "us", "other"] as const;
 export type CountryCode = (typeof COUNTRY_CODES)[number];
 
 /**
- * The device's region, mapped onto the five countries this app actually curates.
+ * The device's region, mapped onto the four countries this app actually curates.
  *
  * WHY THIS EXISTS AT ALL: the country question is a full stop in front of the payoff that buys the
  * user nothing — it tunes which products the analyzer expects to see, and the phone already knows
@@ -428,7 +428,7 @@ export type CountryResolution = {
  * What we know about where this user shops, and whether it is good enough not to ask.
  *
  * WHY THE ASK CAME BACK. `country = other` reached prod on an account in Germany (#359): the phone
- * reported a region outside the curated four — an expat with a US App Store region and a German SIM
+ * reported a region outside the curated three — an expat with a US App Store region and a German SIM
  * is the ordinary case, not the exotic one — and nothing asked, because the question was switched
  * off wholesale on the strength of the device knowing the answer. It does not always know.
  *
@@ -464,12 +464,12 @@ function suggestCountry(signals: CountrySignals): CountryCode {
 }
 
 /**
- * The only two languages in the curated four that name one country.
+ * The only language in the curated three that names one country.
  *
  * English names two of them and therefore suggests neither — a coin flip between the United Kingdom
  * and the United States is not a suggestion, it is a wrong answer half the time, pre-selected.
  */
-const LANGUAGE_COUNTRY: Record<string, CountryCode | undefined> = { de: "de", ru: "ru" };
+const LANGUAGE_COUNTRY: Record<string, CountryCode | undefined> = { de: "de" };
 
 /**
  * The country an email address names, or `other`.
@@ -670,7 +670,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       // the guess was failing.
       //
       // IT WAS OFF, AND THAT SHIPPED `country = other` TO PROD. An account in Germany was analysed
-      // against a country called "other" because the phone reported a region outside the four and
+      // against a country called "other" because the phone reported a region outside the three and
       // nothing asked (#359, #365). Settings could always correct it; nobody knew to.
       //
       // Still the one group that may be switched off at all, because it is the one whose field
@@ -680,7 +680,6 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
         de: { label: "Germany" },
         gb: { label: "United Kingdom" },
         us: { label: "United States" },
-        ru: { label: "Russia" },
         other: { label: "Somewhere else" },
       },
     },
@@ -689,7 +688,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       asks: {
         restrictions: {
           lines: ["Last one. Anything I should judge your food against? Only what you pick gets scored — skip it freely. Free text welcome too."],
-          placeholder: "Allergies, foods you avoid — your words…",
+          placeholder: "Allergies, foods you avoid…",
         },
       },
       options: {
@@ -715,7 +714,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
     proteinLabel: "Protein to aim for",
     projection: "On this pace you'd be at {target} kg around {month}.",
     projectionFar: "That's a long road — we'll navigate by the next few weeks, not the horizon.",
-    capNote: "You asked to move faster than would be safe to sustain, so we capped the adjustment at {share}% of what your body burns in a day.",
+    capNote: "That pace needs a bigger daily change than is safe to keep up, so yours is the safe version: {share}% of what your body burns in a day.",
     disclaimer: "Estimates, not medical advice. Change any answer in settings.",
     // R0 of the retention plan: onboarding ends with ONE unambiguous instruction, and the thing
     // being asked for is the first photo. "Start logging" points at a diary, which is an empty list

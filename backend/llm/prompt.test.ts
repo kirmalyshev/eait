@@ -296,7 +296,7 @@ test("the router prompt carries the thread's tail, contained, before the message
 // ── The country that is not a place ──────────────────────────────────────────────────────────
 //
 // `other` is what `countryFromRegion` answers for a region we have not tuned for, and it is the
-// value a device outside the curated four leaves on the profile without anybody being asked. Both
+// value a device outside the curated three leaves on the profile without anybody being asked. Both
 // prompts read it with a bare `if (profile.country)`, so a truthy sentinel was rendered as a place:
 // "The user shops and eats in: other." That is not the absence of a hint, it is a fake one — the
 // model is told to judge brands and portions by a country called "other". Account c91f16b7 ate

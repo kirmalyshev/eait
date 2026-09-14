@@ -165,7 +165,7 @@ Rules:
  * The country, when it names a place the analyzer can use.
  *
  * `other` is what `countryFromRegion` answers for a region we have not tuned for, and — with the
- * country question shipped disabled — it is what every device outside the curated four leaves on
+ * country question shipped disabled — it is what every device outside the curated three leaves on
  * the profile without anybody being asked. It is a sentinel, not a place, and a bare
  * `if (profile.country)` is true for it: both prompts read one and told the model "the user shops
  * and eats in: other", over the exact line that decides which brands and portions are expected on

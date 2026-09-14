@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { OUTCOME_UNKNOWN, type PhotoEvent } from "./contract.ts";
 import type { MealLogged } from "./results.ts";
-import { advancePending, lastLine, pendingLine, splitLines, streamEnd, type PendingPhoto } from "./stream.ts";
+import { advancePending, lastLine, pendingLine, pendingSteps, splitLines, streamEnd, type PendingPhoto } from "./stream.ts";
 import type { MealItem } from "./types.ts";
 
 // The phone throws everything but an answer, and what it throws picks the words. #514 was a server
@@ -101,5 +101,20 @@ describe("the pending photo turn", () => {
     );
     expect(p.items).toEqual([egg]);
     expect(pendingLine(p)).toBe("Weighing portions…");
+  });
+});
+
+describe("pendingSteps — what the card shows while the analyzer works (#663)", () => {
+  const start: PendingPhoto = { glance: null, items: [] };
+  const states = (p: PendingPhoto) => pendingSteps(p).map((s) => s.state);
+  test("advances one step per kind of event and never steps back", () => {
+    expect(pendingSteps(start).map((s) => s.label)).toEqual(["Reading the plate", "Naming what's on it", "Weighing portions", "Checking against your plan"]);
+    expect(states(start)).toEqual(["now", "next", "next", "next"]);
+    const glanced = advancePending(start, { kind: "glance", text: "Looks like rice." });
+    expect(states(glanced)).toEqual(["done", "now", "next", "next"]);
+    const row = advancePending(glanced, { kind: "item", index: 0, item: { name: "Rice", grams: 150 } });
+    expect(states(row)).toEqual(["done", "done", "now", "next"]);
+    // A row before any glance still means the plate was read.
+    expect(states(advancePending(start, { kind: "item", index: 0, item: { name: "Rice", grams: 150 } }))).toEqual(["done", "done", "now", "next"]);
   });
 });
