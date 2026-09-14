@@ -42,6 +42,11 @@ TEST_DATABASE_URL=postgres://… bun test ./backend/store.contract.test.ts   # b
 `AGENTS.md` at the root, then the one in each workspace. They are current state: what holds, why,
 and what would falsify it.
 
+## Contributing
+
+`CONTRIBUTING.md` — setup, the rules, what a PR owes. Vulnerabilities go to `SECURITY.md`, not
+the issue tracker. `CODE_OF_CONDUCT.md` is the Contributor Covenant.
+
 ## License
 
 AGPL-3.0 — see `LICENSE`.
