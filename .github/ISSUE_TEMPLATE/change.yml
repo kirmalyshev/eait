@@ -1,0 +1,23 @@
+name: Change
+description: A new capability, an endpoint, a rule — anything that is not a defect.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What should hold that does not today
+      description: State it as a rule or an outcome, not as an implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What it costs today, or what it makes possible.
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: Does it change the contract?
+      description: A new or changed route or type in `shared/contract.ts` also changes the clients, which are not in this repository. Say so, and it gets coordinated before code.
