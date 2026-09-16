@@ -53,6 +53,36 @@ const MAX_EPOCH_MS = 8.64e15;
 const epochMs = (v: unknown): number | null =>
   typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= MAX_EPOCH_MS ? v : null;
 
+/** The `event` object of a delivery, or null if the body is not shaped like one. */
+const eventOf = (body: unknown): Record<string, unknown> | null => {
+  if (typeof body !== "object" || body === null) return null;
+  const event = (body as { event?: unknown }).event;
+  if (typeof event !== "object" || event === null) return null;
+  return event as Record<string, unknown>;
+};
+
+/** The ids in one `transferred_*` array that this server issued. Others are counted, never printed. */
+function accounts(v: unknown): string {
+  const all = Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+  const ours = all.filter((x) => UUID.test(x));
+  const other = all.length - ours.length;
+  return [...ours, ...(other > 0 ? [`${other} not ours`] : [])].join(", ") || "none";
+}
+
+/**
+ * A TRANSFER named for the log, or null if this delivery is not one.
+ *
+ * A transfer is refused for a STRUCTURAL reason — no `app_user_id`, and no product or expiry to
+ * grant from either — and logging that as "unreadable" made it indistinguishable from a malformed
+ * body, which is how it went unnoticed beside a sign-in (#682). The accounts are what a person
+ * repairing a stranded entitlement by hand needs; ours are the only ids printed.
+ */
+export function describeTransfer(body: unknown): string | null {
+  const e = eventOf(body);
+  if (e === null || e.type !== "TRANSFER") return null;
+  return `from ${accounts(e.transferred_from)} to ${accounts(e.transferred_to)}`;
+}
+
 /**
  * A delivery, narrowed to the six fields this server acts on, or null if it is not one.
  *
@@ -71,10 +101,8 @@ const epochMs = (v: unknown): number | null =>
  * still sent, depending on the event. Reading only the plural would silently drop purchases.
  */
 export function parseRevenueCatEvent(body: unknown): RevenueCatEvent | null {
-  if (typeof body !== "object" || body === null) return null;
-  const event = (body as { event?: unknown }).event;
-  if (typeof event !== "object" || event === null) return null;
-  const e = event as Record<string, unknown>;
+  const e = eventOf(body);
+  if (e === null) return null;
 
   const appUserId = e.app_user_id;
   if (typeof appUserId !== "string" || !UUID.test(appUserId)) return null;
@@ -118,9 +146,9 @@ export function parseRevenueCatEvent(body: unknown): RevenueCatEvent | null {
 /**
  * Handle one delivery.
  *
- * Nothing about the event reaches a log line. The payload names a person's purchase, and a log
- * aggregator is not where that belongs; what is logged is whether an entitlement changed, which is
- * the only part anybody debugging this actually needs.
+ * Nothing about the PURCHASE reaches a log line. The payload names what a person bought, and a log
+ * aggregator is not where that belongs; what is logged is whether an entitlement changed, plus the
+ * two account ids of a refused transfer, which name the accounts rather than the purchase.
  */
 /**
  * Build the webhook handler.
@@ -179,7 +207,11 @@ export async function revenueCatWebhook(
   // A delivery this server cannot read is still a delivery it should stop being sent. 200, because
   // a 400 buys retries of a message that will never parse any differently.
   if (!event) {
-    console.warn("[eait] revenuecat: unreadable delivery ignored");
+    const transfer = describeTransfer(body);
+    console.warn(transfer === null
+      ? "[eait] revenuecat: unreadable delivery ignored"
+      : `[eait] revenuecat: a transfer was refused, ${transfer} — the payload carries no product ` +
+        `or expiry, so no entitlement moved (#682)`);
     return json({ ok: true, applied: false });
   }
 

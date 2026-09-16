@@ -15,7 +15,9 @@ import type { EngineDeps } from "../engine/index.ts";
 import { createRouter } from "./routes.ts";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
-import { REVENUECAT_WEBHOOK_PATH, createRevenueCatWebhook, parseRevenueCatEvent } from "./revenuecat.ts";
+import {
+  REVENUECAT_WEBHOOK_PATH, createRevenueCatWebhook, describeTransfer, parseRevenueCatEvent,
+} from "./revenuecat.ts";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 
 const TOKEN = "rc-webhook-secret-token-long-enough";
@@ -221,6 +223,73 @@ describe("deliveries this server ignores", () => {
       body: JSON.stringify({ event: {} }),
     }));
     expect(res.status).toBe(413);
+  });
+});
+
+// ── A transfer ────────────────────────────────────────────────────────────────────────────────
+//
+// `Purchases.logIn` fires a TRANSFER on every sign-in that follows a purchase. It carries no
+// `app_user_id`, so the parser refuses it — correctly, since the payload names no product and no
+// expiry either. What it must not do is look like a malformed body in the log (#682).
+describe("a transfer between accounts", () => {
+  const transfer = (over: Record<string, unknown> = {}) => ({
+    type: "TRANSFER",
+    transferred_from: [crypto.randomUUID()],
+    transferred_to: [crypto.randomUUID()],
+    event_timestamp_ms: Date.now(),
+    ...over,
+  });
+
+  it("is still refused, and still answers 200", async () => {
+    const res = await deliver(transfer());
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, applied: false });
+  });
+
+  // The accounts are the whole point: they are the ids somebody repairing a stranded entitlement
+  // by hand needs, and without them a transfer is a timestamp beside a sign-in.
+  it("says a transfer was refused and names the accounts, rather than 'unreadable'", async () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const from = crypto.randomUUID();
+      const to = crypto.randomUUID();
+      await deliver(transfer({ transferred_from: [from], transferred_to: [to] }));
+      const said = warn.mock.calls.flat().join(" ");
+      expect(said).toContain("transfer");
+      expect(said).toContain(from);
+      expect(said).toContain(to);
+      expect(said).not.toContain("unreadable");
+    } finally { warn.mockRestore(); }
+  });
+
+  it("still calls a malformed delivery unreadable", async () => {
+    const warn = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      await deliver({ type: "INITIAL_PURCHASE", app_user_id: 42 });
+      const said = warn.mock.calls.flat().join(" ");
+      expect(said).toContain("unreadable");
+      expect(said).not.toContain("transfer");
+    } finally { warn.mockRestore(); }
+  });
+});
+
+describe("describeTransfer", () => {
+  // A string from a payload is unbounded, and a log line is not where to find that out.
+  it("counts an id this server never issued rather than printing it", () => {
+    const ours = crypto.randomUUID();
+    const said = describeTransfer({ event: {
+      type: "TRANSFER", transferred_from: ["$RCAnonymousID:8b4f2c"], transferred_to: [ours],
+    } }) ?? "";
+    expect(said).toContain(ours);
+    expect(said).not.toContain("8b4f2c");
+    expect(said).toContain("1 not ours");
+  });
+
+  it("is null for anything that is not a transfer", () => {
+    expect(describeTransfer({ event: { type: "INITIAL_PURCHASE", app_user_id: crypto.randomUUID() } })).toBeNull();
+    expect(describeTransfer({ event: {} })).toBeNull();
+    expect(describeTransfer(null)).toBeNull();
+    expect(describeTransfer({})).toBeNull();
   });
 });
 
