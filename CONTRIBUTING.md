@@ -1,8 +1,8 @@
 # Contributing
 
-Thanks for looking. This is the backend of [eait.fit](https://eait.fit) and the contract its
-clients implement; the iOS app, the web client and the landing page live in a private repository
-that mounts this one as a submodule. That shapes what a contribution here can be.
+Thanks for looking. This is the backend of [eait.fit](https://eait.fit), the contract its
+clients implement, and the web application; the iOS app and the landing page live in a private
+repository that mounts this one as a submodule. That shapes what a contribution here can be.
 
 ## Before you write code
 
@@ -13,15 +13,16 @@ that mounts this one as a submodule. That shapes what a contribution here can be
   you notice on the way is a new issue, not another commit.
 - **The contract is code.** `shared/contract.ts` carries the routes, the types and the refusal→status
   map, and `openapi.json` is generated from it. A change to an endpoint changes the contract first,
-  then the one handler in `backend/api/routes.ts`, then the clients — which are not in this repo,
-  so a contract change is coordinated with the maintainer before it lands.
+  then the one handler in `backend/api/routes.ts`, then the clients — the web one is `web/`, the iOS one is
+  not in this repo, so a contract change is coordinated with the maintainer before it lands.
 
 ## Setting up
 
 ```sh
 bun install
 bun run demo          # canned analyses, seeded fixtures, no database, no model key, on :8787
-bun run check         # typecheck (shared, backend, scripts), the unit suites, openapi.json current
+bun run check         # typecheck (shared, backend, web, scripts), the web build, the unit suites, openapi.json current
+bun run web:e2e       # the browser suite, against the demo model
 ```
 
 `bun` 1.4 or newer: the lockfile is v2. Against Postgres and a real model, copy the example env

@@ -1,4 +1,4 @@
-// `/start/session/token` and `/start/session/signout`, asked the way `src/web/api.ts` asks them.
+// `/start/session/token` and `/start/session/signout`, asked the way `web/api.ts` asks them.
 //
 // #457. Every anonymous load of app.eait.fit left a red line in the console: this route answered a
 // browser with no session with a 303, `api.ts` does not follow it (`redirect: "manual"`), and Chrome
