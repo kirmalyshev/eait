@@ -99,6 +99,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   /** The later of two instants, tolerating the first not existing yet. */
   const newest = (a: string | undefined, b: string): string =>
     a !== undefined && Date.parse(a) > Date.parse(b) ? a : b;
+  /** Whether grant clock `a` beats `b`: an absent `a` never wins, an absent `b` always loses. */
+  const beats = (a: string | null, b: string | null): boolean =>
+    a !== null && (b === null || Date.parse(a) > Date.parse(b));
   const blank = (c: StoredWithClocks | undefined): StoredWithClocks => c ?? {
     expiresAt: null, expiresEventAt: null, lifetimeProductId: null, lifetimeEventAt: null,
     productId: "", eventAt: "", trial: false,
@@ -540,17 +543,21 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // The greeting travels with the thread that holds it, or Spud says "First one in." twice.
       if (firstVerdictSpoken.delete(fromUserId)) firstVerdictSpoken.add(intoUserId);
       // The paid tier moves too — see store.pg.ts for why this is the one entry here that is
-      // somebody's money. Per grant, and only into a gap.
+      // somebody's money. Per grant, NEWER CLOCK WINS, whole grant at a time.
       const from = entitlements.get(fromUserId);
       if (from) {
         const into = entitlements.get(intoUserId);
+        const takeSub = beats(from.expiresEventAt, into?.expiresEventAt ?? null);
+        const takeLife = beats(from.lifetimeEventAt, into?.lifetimeEventAt ?? null);
         entitlements.set(intoUserId, {
-          expiresAt: into?.expiresAt ?? from.expiresAt,
-          expiresEventAt: into?.expiresEventAt ?? from.expiresEventAt,
-          lifetimeProductId: into?.lifetimeProductId ?? from.lifetimeProductId,
-          lifetimeEventAt: into?.lifetimeEventAt ?? from.lifetimeEventAt,
-          // `??`, not `||`: an empty productId is a stored value, and Postgres's coalesce keeps it.
-          productId: into?.productId ?? from.productId,
+          expiresAt: takeSub ? from.expiresAt : into?.expiresAt ?? null,
+          expiresEventAt: takeSub ? from.expiresEventAt : into?.expiresEventAt ?? null,
+          // The period's trial flag belongs to the period, so it travels with it or not at all.
+          trial: takeSub ? from.trial === true : into?.trial === true,
+          lifetimeProductId: takeLife ? from.lifetimeProductId : into?.lifetimeProductId ?? null,
+          lifetimeEventAt: takeLife ? from.lifetimeEventAt : into?.lifetimeEventAt ?? null,
+          // Names whichever grant just travelled; `??` not `||`, an empty productId is a stored value.
+          productId: takeSub || takeLife ? from.productId : into?.productId ?? from.productId,
           eventAt: newest(into?.eventAt, from.eventAt),
         });
         entitlements.delete(fromUserId);
