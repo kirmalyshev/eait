@@ -6,7 +6,7 @@ import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
 import { GatewayRefusal } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
-import { dateMinus, localDate } from "@eait/shared";
+import { dateMinus, localDate, localTime } from "@eait/shared";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { remember } from "./chat.ts";
@@ -1624,6 +1624,27 @@ describe("diary", () => {
     expect(view.meals).toHaveLength(2);
     expect(view.totals.kcal).toBe(view.meals.reduce((n, m) => n + m.kcal, 0));
     expect(view.targets.kcal).toBeGreaterThan(0);
+  });
+
+  it("lists a day in the order of the clock times its rows show, not the instants they were logged", async () => {
+    // A meal logged for yesterday ("I had ramen yesterday", or "move to yesterday") keeps the instant
+    // it was logged, so ordering by instant put this morning's 09:00 after last night's dinner.
+    const userId = await onboard();
+    const logged = await logPhotoMeal(deps, userId, photo());
+    if (logged.kind !== "logged") throw new Error("expected logged");
+    const template = (await day(deps, userId))!.meals[0]!;
+    const on = "2026-08-01";
+    const at = async (ts: string) => {
+      await store.insertMeal({ ...template, id: crypto.randomUUID(), ts, date: on });
+    };
+    await at("2026-08-01T06:00:00.000Z"); // 08:00 in Berlin
+    await at("2026-08-02T07:00:00.000Z"); // 09:00 the NEXT morning, logged for this day
+    await at("2026-08-01T17:00:00.000Z"); // 19:00
+    await at("2026-07-31T20:30:00.000Z"); // 22:30 the evening BEFORE, moved onto this day
+    await at("2026-07-31T22:15:00.000Z"); // 00:15 — this day in Berlin, still the previous one in UTC
+    const view = (await day(deps, userId, on))!;
+    expect(view.meals.map((m) => localTime("Europe/Berlin", new Date(m.ts))))
+      .toEqual(["00:15", "08:00", "09:00", "19:00", "22:30"]);
   });
 
   it("never shows one user another's meals", async () => {
