@@ -1,7 +1,7 @@
 // Diary reads. No writes, no model calls, no caps — the cheapest thing the API does.
 
 import {
-  DIARY_WINDOW_DAYS, explainTargets, localDate, windowStart, type DayResponse, type DayTotals,
+  DIARY_WINDOW_DAYS, explainTargets, localDate, localTime, windowStart, type DayResponse, type DayTotals,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { sumTotals } from "./meals.ts";
@@ -26,7 +26,14 @@ export async function day(
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
   const on = date ?? localDate(deps.config.timezone);
-  const meals = await deps.store.mealsForDate(userId, on);
+  // ORDERED BY THE CLOCK TIME EACH ROW SHOWS, not by the instant it was logged. The two agree for a
+  // meal logged on its own day, and disagree for one that was not: "I had ramen yesterday" typed at
+  // 09:00, or a meal moved to another day, keeps the instant it was logged — so ordering by instant
+  // drew yesterday as 08:00, 19:00, 09:00. The sort is stable, so a tie keeps the store's order.
+  const meals = (await deps.store.mealsForDate(userId, on))
+    .map((m) => ({ m, at: localTime(deps.config.timezone, new Date(m.ts)) }))
+    .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0))
+    .map(({ m }) => m);
   return { date: on, meals, totals: sumTotals(meals), targets: explainTargets(profile).targets };
 }
 
