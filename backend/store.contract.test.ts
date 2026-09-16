@@ -484,6 +484,57 @@ function contract(name: string, make: () => Promise<Store>) {
       expect((await s.getEntitlement(real2))?.expiresAt).toBe("2026-12-01T00:00:00.000Z");
     });
 
+    // The survivor's own is not automatically the true one: a lapsed subscription is still a stored
+    // grant, and gap-filling kept it over the purchase made minutes earlier on the anonymous session.
+    it("takes the newer grant across a merge, not merely the survivor's", async () => {
+      const s = await open();
+      const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.putEntitlement(real, {
+        expiresAt: "2026-09-14T07:12:46.000Z", productId: "yearly",
+        eventAt: "2026-09-13T07:13:22.000Z",
+      });
+      await s.putEntitlement(anon, {
+        expiresAt: "2027-09-14T07:12:46.000Z", productId: "monthly", trial: true,
+        eventAt: "2026-09-14T07:18:30.000Z",
+      });
+
+      await s.mergeUsers(anon, real);
+      const merged = await s.getEntitlement(real);
+      expect(merged?.expiresAt).toBe("2027-09-14T07:12:46.000Z");
+      // The whole grant travels, not the date alone.
+      expect(merged?.productId).toBe("monthly");
+      expect(merged?.trial).toBe(true);
+
+      // And the clock travelled with it, so the grant it replaced cannot be re-applied.
+      expect(await s.putEntitlement(real, {
+        expiresAt: "2026-09-14T07:12:46.000Z", productId: "yearly",
+        eventAt: "2026-09-13T07:13:22.000Z",
+      })).toBe(false);
+    });
+
+    // Same rule on the other grant, which has its own clock.
+    it("takes the newer unlock across a merge", async () => {
+      const s = await open();
+      const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.putEntitlement(real, {
+        lifetimeProductId: "lifetime", productId: "lifetime",
+        eventAt: "2026-08-20T00:00:00.000Z",
+      });
+      await s.putEntitlement(anon, {
+        lifetimeProductId: "lifetime", productId: "lifetime",
+        eventAt: "2026-08-21T00:00:00.000Z",
+      });
+      await s.putEntitlement(anon, {
+        lifetimeProductId: null, productId: "lifetime",
+        eventAt: "2026-08-22T00:00:00.000Z",
+      });
+
+      await s.mergeUsers(anon, real);
+      expect((await s.getEntitlement(real))?.lifetimeProductId).toBeNull();
+    });
+
     it("has no sample size of its own until the admin sets one, and the merge carries it", async () => {
       const s = await open();
       const { userId } = await s.upsertDeviceUser(device(), "en");

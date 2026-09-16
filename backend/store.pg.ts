@@ -1146,17 +1146,37 @@ export async function postgresStore(
         // common direction, not an exotic one: the paywall sells from onboarding and from the
         // camera refusal, both of which happen before anybody signs in.
         //
-        // Per grant, and only into a gap: `coalesce` keeps whatever the surviving account already
-        // has, because overwriting a live subscription with an older one is the same data loss the
-        // health days above are careful about. The clocks travel with their grants, or the next
-        // delivery would be ordered against a timestamp that belongs to a different stream.
+        // PER GRANT, NEWER CLOCK WINS — the same rule `putEntitlement` applies, expressed the same
+        // way: one statement per grant, each ordered against its own stream. `coalesce` was the
+        // rule here until 2026-09-14 and it is not the same test. A LAPSED subscription is still a
+        // stored grant, so gap-filling kept the dead one and silently dropped the purchase made on
+        // the anonymous session minutes before sign-in — seen in production, one account, `yearly`
+        // expired 07:12 kept over a live purchase at 07:18. A grant travels WHOLE: the date, its
+        // clock and its trial flag, or the survivor ends up with one period described by another's.
         await tx`
           update users into_u set
-            entitlement_expires_at = coalesce(into_u.entitlement_expires_at, from_u.entitlement_expires_at),
-            entitlement_expires_event_at = coalesce(into_u.entitlement_expires_event_at, from_u.entitlement_expires_event_at),
-            entitlement_lifetime_product_id = coalesce(into_u.entitlement_lifetime_product_id, from_u.entitlement_lifetime_product_id),
-            entitlement_lifetime_event_at = coalesce(into_u.entitlement_lifetime_event_at, from_u.entitlement_lifetime_event_at),
-            entitlement_product_id = coalesce(into_u.entitlement_product_id, from_u.entitlement_product_id),
+            entitlement_expires_at       = from_u.entitlement_expires_at,
+            entitlement_expires_event_at = from_u.entitlement_expires_event_at,
+            entitlement_trial            = from_u.entitlement_trial,
+            entitlement_product_id       = from_u.entitlement_product_id
+          from users from_u
+          where into_u.id = ${intoUserId} and from_u.id = ${fromUserId}
+            and from_u.entitlement_expires_event_at is not null
+            and (into_u.entitlement_expires_event_at is null
+                 or into_u.entitlement_expires_event_at < from_u.entitlement_expires_event_at)`;
+        await tx`
+          update users into_u set
+            entitlement_lifetime_product_id = from_u.entitlement_lifetime_product_id,
+            entitlement_lifetime_event_at   = from_u.entitlement_lifetime_event_at,
+            entitlement_product_id          = from_u.entitlement_product_id
+          from users from_u
+          where into_u.id = ${intoUserId} and from_u.id = ${fromUserId}
+            and from_u.entitlement_lifetime_event_at is not null
+            and (into_u.entitlement_lifetime_event_at is null
+                 or into_u.entitlement_lifetime_event_at < from_u.entitlement_lifetime_event_at)`;
+        // The existence marker and the admin's sample size, which belong to no grant and always move.
+        await tx`
+          update users into_u set
             free_analyses = coalesce(into_u.free_analyses, from_u.free_analyses),
             entitlement_event_at = greatest(into_u.entitlement_event_at, from_u.entitlement_event_at)
           from users from_u
