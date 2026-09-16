@@ -60,8 +60,8 @@ function shell(nonce: string): string {
      (No backticks in this file's HTML: the document is one template literal.) -->
 <link rel="icon" href="data:,">
 <style nonce="${nonce}">
-:root { color-scheme: light dark; --ink: #16181d; --paper: #fbfbfa; --muted: #6b7280; }
-@media (prefers-color-scheme: dark) { :root { --ink: #f2f3f5; --paper: #14161a; --muted: #9aa1ab; } }
+:root { color-scheme: light dark; --ink: #16181d; --paper: #fbfbfa; --muted: #6b7280; --warn: #8f4e00; }
+@media (prefers-color-scheme: dark) { :root { --ink: #f2f3f5; --paper: #14161a; --muted: #9aa1ab; --warn: #fbbf24; } }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--paper); color: var(--ink);
   font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
@@ -69,6 +69,15 @@ body { margin: 0; background: var(--paper); color: var(--ink);
 h1, h2 { margin: 0 0 .5rem; font-weight: 650; letter-spacing: -.01em; }
 .muted { color: var(--muted); }
 .big { font-size: 1.5rem; font-weight: 650; margin: .25rem 0 0; }
+.hero { font-size: 3.5rem; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.big.warn .hero { color: var(--warn); }
+progress { display: block; width: 100%; height: .6rem; margin: .5rem 0 .25rem; appearance: none; border: 0;
+  border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--ink) 12%, transparent); }
+progress::-webkit-progress-bar { background: transparent; }
+progress::-webkit-progress-value { background: var(--ink); border-radius: 999px; }
+progress::-moz-progress-bar { background: var(--ink); border-radius: 999px; }
+.big.warn + progress::-webkit-progress-value { background: var(--warn); }
+.big.warn + progress::-moz-progress-bar { background: var(--warn); }
 .card { padding: 1rem 1.1rem; border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
   border-radius: 14px; margin-bottom: 1rem; }
 .nav { display: flex; gap: .75rem; align-items: center; margin-bottom: 1.25rem; }

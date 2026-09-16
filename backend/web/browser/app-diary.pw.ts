@@ -5,7 +5,7 @@
 // What the demo server cannot be made to hold on demand — a weighing days old, no weight at all —
 // is answered at the network, in the profile's own shape.
 import type { Page } from "@playwright/test";
-import type { ProfileResponse } from "@eait/shared/contract";
+import type { DayResponse, ProfileResponse } from "@eait/shared/contract";
 import { expect, test } from "./fixtures.ts";
 
 /** The diary, drawn fresh from a profile edited on its way to the page. */
@@ -52,4 +52,33 @@ test("no weight: the diary says how to keep one current", async ({ inWebApp: pag
   await expect(
     page.getByText("Connect Apple Health in the eait iPhone app and your weight keeps this target current."),
   ).toBeVisible();
+});
+
+/** Today's diary, with what was eaten set to `target + delta` on its way to the page. */
+async function dayAt(page: Page, delta: number): Promise<number> {
+  let target = 0;
+  await page.route("**/api/v1/diary/day*", async (route) => {
+    const res = await route.fetch();
+    const body = (await res.json()) as DayResponse;
+    target = body.targets.kcal;
+    body.totals.kcal = target + delta;
+    await route.fulfill({ response: res, json: body });
+  });
+  await page.goto("/#/");
+  await page.reload();
+  await expect(page.locator(".big")).toBeVisible();
+  return target;
+}
+
+test("the headline is what is LEFT today, with eaten and target under it", async ({ inWebApp: page }) => {
+  const target = await dayAt(page, -550);
+  await expect(page.locator(".big")).toHaveText("550 kcal left");
+  await expect(page.locator(".big")).not.toHaveClass(/warn/);
+  await expect(page.getByText(`${target - 550} of ${target} kcal eaten`)).toBeVisible();
+});
+
+test("over target says by how much, as a warning rather than a negative number", async ({ inWebApp: page }) => {
+  await dayAt(page, 310);
+  await expect(page.locator(".big")).toHaveText("310 kcal over");
+  await expect(page.locator(".big")).toHaveClass(/warn/);
 });
