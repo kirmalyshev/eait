@@ -18,6 +18,7 @@
 // `web/AGENTS.md` requires; these two functions are the one runtime piece this page needs, and
 // a relative import of the file they live in costs nothing the Dockerfile does not already pay for.
 import { advancePending, pendingLine } from "../shared/stream.ts";
+import { dayBudget } from "../shared/budget.ts";
 import type { MealProposed, MealRecord, PendingPhoto } from "@eait/shared";
 import type {
   ChatHistoryResponse, DayResponse, DeleteLineResponse, EditLineLast, MessageRequest, MessageResponse, OUTCOME_UNKNOWN,
@@ -124,7 +125,22 @@ async function diaryScreen(): Promise<HTMLElement> {
 
   const head = el("div", "card");
   head.append(el("h2", "", "Today"));
-  head.append(el("p", "big", `${kcal(day.totals.kcal)} of ${kcal(day.targets.kcal)}`));
+  // WHAT IS LEFT IS THE HEADLINE, eaten/target the context under it — the same arithmetic as the
+  // phone's (`dayBudget`), so the two can never round the one number apart.
+  const budget = dayBudget(day, today, me.profile.goal);
+  if (budget.state === "unlogged") {
+    head.append(el("p", "muted", `Target ${kcal(budget.target)} · ${budget.protein.target} g protein`));
+  } else {
+    const big = el("p", budget.warn ? "big warn" : "big");
+    big.append(el("span", "hero", String(budget.kcal)), el("span", "muted", ` kcal ${budget.state}`));
+    // Native, so there is nothing to draw by hand; hidden, because the line under it says it in words.
+    const bar = document.createElement("progress");
+    bar.max = 1;
+    bar.value = budget.fill;
+    bar.setAttribute("aria-hidden", "true");
+    head.append(big, bar, el("p", "muted",
+      `${budget.eaten} of ${kcal(budget.target)} eaten · ${budget.protein.eaten} of ${budget.protein.target} g protein`));
+  }
   // THE FLOOR IS SURFACED, because the contract says it must be. A target that was raised to the
   // floor is a different promise from one the numbers produced, and the app that hides which is
   // the one that ends up quoted in a review.
