@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    // The DOM, and no bun types: the code under this config runs in a BROWSER, and a `Bun.file`
+    // that typechecks here is a `Bun.file` that ships to a page and is undefined. `server/` is
+    // excluded below and has a config of its own with the opposite pair — that directory is this
+    // application's own web server (#397), which runs under bun and touches no DOM. The exclude is
+    // what keeps a new file in this directory browser code by DEFAULT, which is the safe direction.
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": []
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["dist", "server", "test"]
+}

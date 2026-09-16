@@ -4,12 +4,12 @@ Orientation for any coding agent (or human) working in this repo.
 
 ## What this is
 
-`eait-be` — the backend of `eait.fit` and the contract its clients implement. Two workspaces,
-`shared/` and `backend/`. Each carries its own `AGENTS.md` with the rules that bind that workspace
-alone; this file holds what crosses both.
+`eait` — the backend of `eait.fit`, the contract its clients implement, and the web application.
+Three workspaces, `shared/`, `backend/` and `web/`. Each carries its own `AGENTS.md` with the rules
+that bind that workspace alone; this file holds what crosses them.
 
 This repository is also mounted, unchanged, inside a private monorepo that holds the iOS app, the
-web client, the landing page and the deploy tree. A path such as `src/mobile/…`, `docs/…`,
+landing page and the deploy tree. A path such as `src/mobile/…`, `docs/…`,
 `scripts/…` or `deploy/…`, or a `#NNN` issue reference, points there. The rules those references
 support hold here regardless.
 
@@ -19,7 +19,7 @@ would falsify it; the reasoning that reached it belongs in the PR.
 ## Stack & commands
 
 - **Runtime:** TS/bun (`bun` 1.4+ — the lockfile is v2, which bun 1.3 cannot read).
-- **Install:** `bun install` at the root. Workspaces: `shared`, `backend`.
+- **Install:** `bun install` at the root. Workspaces: `shared`, `backend`, `web`.
 - **Typecheck:** `bun run typecheck`. **It is a gate, not a suggestion.** bun executes TypeScript
   *without* checking it, so a type error is invisible to `bun test` and to the running server until
   it crashes on live input.
@@ -104,5 +104,6 @@ already exist. Auto-create shipped once and it was silent data loss.
 
 ## Verify
 
-`bun run check`. The store contract suite runs against Postgres too when `TEST_DATABASE_URL` is
-set, and says loudly that it skipped when it is not.
+`bun run check`, then `bun run web:e2e` when a change can reach a browser — the web application,
+`/start`, or anything they call. The store contract suite runs against Postgres too when
+`TEST_DATABASE_URL` is set, and says loudly that it skipped when it is not.

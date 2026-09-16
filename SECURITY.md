@@ -13,11 +13,12 @@ credited in the fix unless you ask not to be.
 
 ## What is in scope
 
-This repository: the server under `backend/` and the contract under `shared/`. The hosted service
+This repository: the server under `backend/`, the contract under `shared/` and the web application
+under `web/`. The hosted service
 at `api.eait.fit` runs this code; a finding against it is welcome here too, but **do not test
 against other people's accounts or data** — use an account you created, and stop at proof.
 
-Out of scope: the iOS app, the web client and the landing page (separate, private repositories —
+Out of scope: the iOS app and the landing page (a separate, private repository —
 report to the same address), and third-party services this backend calls (OpenRouter, RevenueCat,
 Resend, Apple, Google), which have their own programmes.
 

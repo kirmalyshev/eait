@@ -24,6 +24,13 @@
       "name": "@eait/shared",
       "version": "0.1.0",
     },
+    "web": {
+      "name": "@eait/web",
+      "version": "0.1.0",
+      "dependencies": {
+        "@eait/shared": "workspace:*",
+      },
+    },
   },
   "overrides": {
     "zod": "^4.5.4",
@@ -32,6 +39,8 @@
     "@eait/backend": ["@eait/backend@workspace:backend"],
 
     "@eait/shared": ["@eait/shared@workspace:shared"],
+
+    "@eait/web": ["@eait/web@workspace:web"],
 
     "@playwright/test": ["@playwright/test@1.63.0", "", { "dependencies": { "playwright": "1.63.0" }, "bin": { "playwright": "cli.js" } }, "sha512-oxMK4vllB9RK5NQ2l1pq1IfOf2AvnEuj/vYGDj0H2nMtmtZpKtCwt/l00GEO6xjGfpBNAvjovvYdCm50dRQkpQ=="],
 
