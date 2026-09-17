@@ -47,7 +47,7 @@ test("a proposal that is cancelled logs nothing", async ({ signedIn: page }) => 
 });
 
 test("a photograph logs a meal, with its caption in the thread", async ({ signedIn: page }) => {
-  await page.locator('input[type="file"]').setInputFiles("backend/web/browser/fixture-meal.png");
+  await page.locator('input[type="file"]').setInputFiles("src/backend/web/browser/fixture-meal.png");
   await page.getByPlaceholder("Anything I should know? (optional)").fill("lunch at the desk");
   await page.getByRole("button", { name: "Send the photo" }).click();
   if (REAL_MODEL) {

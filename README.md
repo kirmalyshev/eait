@@ -7,10 +7,10 @@ Three workspaces:
 
 | Workspace | What it is |
 |---|---|
-| `shared/` | The contract: HTTP routes and types (`contract.ts`), the health arithmetic, the calorie floor (`targets.ts`), onboarding, chat orchestration. No renderer, no server — both clients and the backend import it. |
-| `openapi.json` | The HTTP surface as OpenAPI 3.1, generated from `shared/openapi.ts` and the types it names by `bun run openapi`. Committed, and `bun run check` fails when it is stale. |
-| `web/` | The web application: a dependency-free browser client and the small bun server that serves it under a per-response CSP nonce. It calls the backend on one origin with relative paths only. |
-| `backend/` | The server. One handler per route, all product logic in `engine/`, a store port with a Postgres implementation and an in-memory one the tests run against, an LLM port with an OpenRouter implementation and a canned one. |
+| `src/shared/` | The contract: HTTP routes and types (`contract.ts`), the health arithmetic, the calorie floor (`targets.ts`), onboarding, chat orchestration. No renderer, no server — both clients and the backend import it. |
+| `openapi.json` | The HTTP surface as OpenAPI 3.1, generated from `src/shared/openapi.ts` and the types it names by `bun run openapi`. Committed, and `bun run check` fails when it is stale. |
+| `src/frontend/` | The web application: a dependency-free browser client and the small bun server that serves it under a per-response CSP nonce. It calls the backend on one origin with relative paths only. |
+| `src/backend/` | The server. One handler per route, all product logic in `engine/`, a store port with a Postgres implementation and an in-memory one the tests run against, an LLM port with an OpenRouter implementation and a canned one. |
 
 The iOS app and the landing page are separate products that consume this repository; they are not
 in it. Comments and rulebooks here occasionally name files from that
@@ -23,7 +23,7 @@ private repository this backend is developed alongside.
 bun install
 bun run demo          # no database, no model key: canned analyses, seeded fixtures, on :8787
 bun run web:build
-EAIT__WEB__BACKEND_ORIGIN=http://127.0.0.1:8787 bun run web   # the web application on :8788
+EAIT__FRONTEND__BACKEND_ORIGIN=http://127.0.0.1:8787 bun run web   # the web application on :8788
 ```
 
 Open http://127.0.0.1:8788 — the web application, talking to the demo backend through its dev proxy.
@@ -46,7 +46,7 @@ EAIT__BACKEND__TELEGRAM_BOT_TOKEN=… bun run start    # logs "telegram connecto
 ```
 
 A person connects their account with **Connect Telegram** on their plan (`/start/plan`) or in the
-web application. It opens the bot with a one-time code. The rules are in `backend/telegram/AGENTS.md`.
+web application. It opens the bot with a one-time code. The rules are in `src/backend/telegram/AGENTS.md`.
 
 ## Check it
 

@@ -3,7 +3,7 @@
 The web application. The third workspace, the only one whose code runs in somebody's browser, and
 since #423 an application of its own rather than a bundle the backend hands out.
 
-Root `AGENTS.md` covers the repo; this covers this directory. `backend/AGENTS.md` owns the API this talks
+Root `AGENTS.md` covers the repo; this covers this directory. `src/backend/AGENTS.md` owns the API this talks
 to, and `shared` is the contract both implement.
 
 ## What this is
@@ -20,12 +20,12 @@ and no CORS header anywhere. Splitting the two applications did not split the or
 that makes the browser talk to a second one undoes the whole arrangement.
 
 There is no Caddy on a laptop, so `server/index.ts` forwards what is not its own to the backend when
-`EAIT__WEB__BACKEND_ORIGIN` is set — the standard dev-server proxy, and unset in production.
+`EAIT__FRONTEND__BACKEND_ORIGIN` is set — the standard dev-server proxy, and unset in production.
 
 ```
 bun run demo                                   # the backend, in memory, on :8787
-bun run web:build                              # → web/dist/main.js, served at /app.js
-EAIT__WEB__BACKEND_ORIGIN=http://127.0.0.1:8787 bun run web   # this app on :8788, API proxied
+bun run web:build                              # → src/frontend/dist/main.js, served at /app.js
+EAIT__FRONTEND__BACKEND_ORIGIN=http://127.0.0.1:8787 bun run web   # this app on :8788, API proxied
 bun run check                                  # typecheck (all three halves) + the build + tests
 bun run web:e2e                                # the browser suite, against the demo model
 ```
@@ -41,7 +41,7 @@ the exclude is written so a new file in this directory is browser code by defaul
 ## Hard rules
 
 - **No framework, and no dependency that is not `@eait/shared`.** This repo already ships a working
-  client-side application written this way — `backend/api/admin.page.ts` — so the idiom exists
+  client-side application written this way — `src/backend/api/admin.page.ts` — so the idiom exists
   and costs nothing. Five screens that each re-render a container do not need reconciling. If you
   reach for React, you are adding a build toolchain and two packages to avoid writing
   `replaceChildren`.
@@ -90,7 +90,7 @@ twice: that is an endless pair of requests against a server that has already sai
 - A new screen → a function returning an element in `main.ts`, plus a route in `render()`. Screens
   stay thin; anything shared goes beside `el()`.
 - A new server call → a method in `api.ts`. If the endpoint does not exist yet, it goes in
-  `shared/contract.ts` first, then the backend, then here — the order the root `AGENTS.md` sets.
+  `src/shared/contract.ts` first, then the backend, then here — the order the root `AGENTS.md` sets.
 - Styling → the `<style>` block in `server/index.ts`. It is one stylesheet under the nonce; a second
   one is a second thing to keep under a policy.
 - A new path this process answers → a branch in `server/index.ts` AND the `@app` matcher in

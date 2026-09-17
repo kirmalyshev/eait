@@ -1,7 +1,7 @@
-# AGENTS.md — backend/telegram
+# AGENTS.md — src/backend/telegram
 
 The Telegram connector: a second transport onto the same engine, store and chat thread the app and
-the web use. `backend/AGENTS.md` covers the server; this covers this directory.
+the web use. `src/backend/AGENTS.md` covers the server; this covers this directory.
 
 ```
 handlers.ts   NO grammY. Telegram id + message → the account → ONE engine function → plain text
@@ -12,7 +12,7 @@ albums.ts     `AlbumBuffer`, carried over unchanged from the old @eait_bot.
 
 ## Rules
 
-- **Dormant unless configured.** `backend/index.ts` starts it only when
+- **Dormant unless configured.** `src/backend/index.ts` starts it only when
   `EAIT__BACKEND__TELEGRAM_BOT_TOKEN` is set, and never under `--demo`. Either way one boot line says
   which. SIGTERM stops it before the store closes.
 - **grammY stays out of `engine/` and out of `handlers.ts`, and the handlers import the engine only
@@ -78,4 +78,4 @@ already covers.
 
 ## Verify
 
-`bun test backend/telegram`. For a live run you need a bot token (see `README.md`).
+`bun test src/backend/telegram`. For a live run you need a bot token (see `README.md`).

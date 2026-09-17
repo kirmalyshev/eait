@@ -20,4 +20,4 @@ body:
     id: contract
     attributes:
       label: Does it change the contract?
-      description: A new or changed route or type in `shared/contract.ts` also changes the clients, which are not in this repository. Say so, and it gets coordinated before code.
+      description: A new or changed route or type in `src/shared/contract.ts` also changes the clients, which are not in this repository. Say so, and it gets coordinated before code.

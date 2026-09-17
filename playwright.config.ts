@@ -29,7 +29,7 @@ const APP = `http://localhost:${APP_PORT}`;
 const APP_BACKEND_PORT = PORT + 2;
 
 export default defineConfig({
-  testDir: "./backend/web/browser",
+  testDir: "./src/backend/web/browser",
   // NOT `*.spec.ts` or `*.test.ts`: bun's own runner claims both, and `bun test ./backend`
   // would then try to run these as unit tests and fail on the first `page` fixture.
   testMatch: /.*\.pw\.ts$/,
@@ -70,7 +70,7 @@ export default defineConfig({
   webServer: [{
     // ONE ENTRY POINT, the mode named on it. `--demo` is the in-memory store and the demo sign-in;
     // `--llm` decides only which answers come back.
-    command: `bun backend/index.ts --demo --llm ${MODE}`,
+    command: `bun src/backend/index.ts --demo --llm ${MODE}`,
     url: `${BASE}/health`,
     reuseExistingServer: false,
     timeout: 60_000,
@@ -88,7 +88,7 @@ export default defineConfig({
     },
   }, {
     // The `app` project's backend: the same demo server, told the web application is its browser origin.
-    command: `bun backend/index.ts --demo --llm ${MODE}`,
+    command: `bun src/backend/index.ts --demo --llm ${MODE}`,
     url: `http://localhost:${APP_BACKEND_PORT}/health`,
     reuseExistingServer: false,
     timeout: 60_000,
@@ -99,14 +99,14 @@ export default defineConfig({
     },
   }, {
     // BUILT FIRST: with no bundle on disk the shell answers 404, by design (`server/index.ts`).
-    command: "bun run --cwd web build && bun web/server/index.ts",
+    command: "bun run --cwd src/frontend build && bun src/frontend/server/index.ts",
     url: `${APP}/health`,
     reuseExistingServer: false,
     timeout: 60_000,
     env: {
-      EAIT__WEB__PORT: String(APP_PORT),
-      EAIT__WEB__HOST: "127.0.0.1",
-      EAIT__WEB__BACKEND_ORIGIN: `http://127.0.0.1:${APP_BACKEND_PORT}`,
+      EAIT__FRONTEND__PORT: String(APP_PORT),
+      EAIT__FRONTEND__HOST: "127.0.0.1",
+      EAIT__FRONTEND__BACKEND_ORIGIN: `http://127.0.0.1:${APP_BACKEND_PORT}`,
     },
   }],
 });

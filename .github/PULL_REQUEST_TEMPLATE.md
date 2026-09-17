@@ -12,4 +12,4 @@ Closes #
 
 ## Contract
 
-<!-- Delete if untouched. If `shared/contract.ts` or `shared/openapi.ts` changed: what the clients must do, and whether that is agreed. -->
+<!-- Delete if untouched. If `src/shared/contract.ts` or `src/shared/openapi.ts` changed: what the clients must do, and whether that is agreed. -->
