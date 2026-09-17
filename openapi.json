@@ -4826,6 +4826,13 @@
           "pairAddress": {
             "type": "string",
             "description": "Where to send a browser to pair with this account — host and path, no scheme (#408).\n\nSENT, NEVER COMPOSED BY THE CLIENT, for the reason  {@link  API_VERSION }  states: shipped apps outlive the server they were built against. Every build before this field derived the address from its own compiled-in `API_URL` and printed `api.eait.fit/start`; that name becomes a 301 to the browser's own host and eventually stops serving the page, and a binary already on a phone cannot be told. Reading it off the profile means the next move of this surface needs no new build — which is the whole point, and is why the path is here too and not just the host.\n\nNO SCHEME, because it is read off a phone screen and typed into an address bar by hand.\n\nEMPTY when the server has been told neither origin, which is development. The client then keeps its own answer: the host it is already talking to is the right one there, and a guess invented server-side would be wrong on every worktree at once."
+          },
+          "telegramBot": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The username of this server's Telegram bot, for a Connect Telegram link, or null.\n\nNULL WHILE THE CONNECTOR IS OFF — no token, `--demo`, a dead token, or Telegram not reached yet — and a client draws no link then. The link is `https://t.me/<this>?start=<code>`, with a code from  {@link  ROUTES.authPair }  minted at the moment of the tap: a code shown in advance would die on the screen in five minutes."
           }
         },
         "required": [
@@ -4837,7 +4844,8 @@
           "limits",
           "timezone",
           "entitlement",
-          "pairAddress"
+          "pairAddress",
+          "telegramBot"
         ],
         "additionalProperties": false,
         "description": "Profile plus everything derived from it, so the app never recomputes targets locally."
@@ -4847,7 +4855,8 @@
         "enum": [
           "device",
           "apple",
-          "google"
+          "google",
+          "telegram"
         ]
       },
       "PushTokenRequest": {

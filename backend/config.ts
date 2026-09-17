@@ -307,6 +307,23 @@ export interface Config {
   publicWebUrl: string;
 
   /**
+   * The Telegram connector's bot token, from @BotFather. A secret: `redact()` masks it, and a
+   * download URL built from it never reaches an error message (`telegram/bot.ts`).
+   *
+   * EMPTY MEANS THERE IS NO CONNECTOR — no polling loop, no Connect Telegram link, one boot line
+   * saying it is off. `demoConfig` never reads it, so `--demo` never starts one. Prod and dev use
+   * different bots: one token polled from two processes answers 409 to both.
+   */
+  telegramBotToken: string;
+  /**
+   * The connector's bot username, as Telegram's `getMe` answered it. NOT an environment variable:
+   * written by the connector once it has reached Telegram (`index.ts`), and emptied again if the
+   * token turns out dead. Every Connect Telegram link — the `/start` plan page, and the web app via
+   * `ProfileResponse.telegramBot` — is drawn only while this is non-empty.
+   */
+  telegramBotUsername: string;
+
+  /**
    * The ONE account made an admin at boot, by UUID, or empty for none (#391a).
    *
    * A UUID and never a provider `sub`, and that is a security property rather than a preference:
@@ -497,6 +514,8 @@ export function configDefaults(): Config {
     mailTimeoutMs: 15_000,
     publicApiUrl: "",
     publicWebUrl: "",
+    telegramBotToken: "",
+    telegramBotUsername: "",
     adminBootstrapUserId: "",
     landingUrl: "",
     pushEnabled: false,
@@ -653,6 +672,7 @@ export function loadConfig(): Config {
     mailTimeoutMs: int("EAIT__BACKEND__MAIL_TIMEOUT_MS", d.mailTimeoutMs),
     publicApiUrl: (process.env.EAIT__BACKEND__PUBLIC_API_URL ?? d.publicApiUrl).replace(/\/$/, ""),
     publicWebUrl: (process.env.EAIT__BACKEND__PUBLIC_WEB_URL ?? d.publicWebUrl).replace(/\/$/, ""),
+    telegramBotToken: telegramBotTokenFromEnv(),
     adminBootstrapUserId: (process.env.EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID ?? d.adminBootstrapUserId).trim(),
     // No validation beyond "looks like an origin": a wrong value here sends somebody to the wrong
     // page, which is visible, rather than corrupting anything, which is not.
@@ -714,13 +734,25 @@ export function revenueCatWebhookTokenFromEnv(): string {
 }
 
 /**
+ * The Telegram bot token, or empty for no connector.
+ *
+ * TRIMMED, NEVER VALIDATED. A token has no whitespace, so a stray space or newline from an env file
+ * is removed rather than sent. Anything else wrong with it is Telegram's to say: a 401 or 404 stops
+ * the connector with a line naming this variable, and the API keeps serving — a Telegram typo must
+ * not be able to take the product's own server down at boot.
+ */
+export function telegramBotTokenFromEnv(): string {
+  return (process.env.EAIT__BACKEND__TELEGRAM_BOT_TOKEN ?? "").trim();
+}
+
+/**
  * A config safe to print. Never log the raw object — `llmApiKey` is in it, and a config dump in a
  * crash report is one of the commonest ways a key reaches a log aggregator.
  */
 export function redact(c: Config): Record<string, unknown> {
   const {
     llmApiKey: _k, resendApiKey: _r, revenueCatWebhookToken: _rc,
-    expoPushAccessToken: _e, googleWebClientSecret: _g, applePrivateKey: _ap, databaseUrl,
+    expoPushAccessToken: _e, googleWebClientSecret: _g, applePrivateKey: _ap, telegramBotToken: _tg, databaseUrl,
     ...rest
   } = c;
   return {
@@ -743,6 +775,7 @@ export function redact(c: Config): Record<string, unknown> {
     // is a multi-line PEM, so `...rest` would not merely leak it, it would leak it across twenty
     // lines of a boot log where nobody reads to the end.
     applePrivateKey: c.applePrivateKey === "" ? "(unset — Apple is off on /start)" : "***",
+    telegramBotToken: c.telegramBotToken === "" ? "(unset — the Telegram connector is off)" : "***",
   };
 }
 

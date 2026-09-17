@@ -1401,6 +1401,19 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.userIdForIdentity("google", subject("apple-sub"))).toBeNull(); // separate namespaces
     });
 
+    // The Telegram connector's identity: the numeric `from.id` as a string, and nothing else.
+    it("links a Telegram id like any other identity, in a namespace of its own", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const other = (await s.upsertDeviceUser(device(), "en")).userId;
+      const id = String(1_000_000_000 + Math.floor(Math.random() * 1_000_000_000));
+      await s.addIdentity(u, "telegram", id);
+      expect(await s.userIdForIdentity("telegram", id)).toBe(u);
+      expect(await s.userIdForIdentity("apple", id)).toBeNull();
+      expect((await s.listIdentities(u)).map((i) => i.provider)).toContain("telegram");
+      expect(s.addIdentity(other, "telegram", id)).rejects.toThrow();
+    });
+
     it("gives back the subject it holds at one provider, and only to that account", async () => {
       const s2 = await open();
       const { userId } = await s2.upsertDeviceUser(device(), "en");

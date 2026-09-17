@@ -1040,6 +1040,29 @@ describe("POST /v1/auth/pair", () => {
     expect(view.pairAddress).toBe("api.eait.fit/start");
   });
 
+  it("names the Telegram bot only while the connector has reached Telegram, read per request", async () => {
+    // The SAME config object the connector writes the username onto after getMe, and empties again
+    // on a dead token. A copy taken at router construction would keep a link to a bot that is gone.
+    const s = memoryStore();
+    const config: Config = { ...CONFIG };
+    const h = createRouter({ store: s, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() }, s, testVerifier);
+    const res = await h(new Request("https://api.eait.fit" + ROUTES.authDevice, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID() }),
+    }));
+    const { token } = await res.json() as { token: string };
+    const read = async () => (await (await h(new Request("https://api.eait.fit" + ROUTES.profile, {
+      headers: { authorization: `Bearer ${token}` },
+    }))).json() as ProfileResponse).telegramBot;
+
+    expect(await read()).toBeNull();
+    config.telegramBotUsername = "eait_test_bot";
+    expect(await read()).toBe("eait_test_bot");
+    config.telegramBotUsername = "";
+    expect(await read()).toBeNull();
+  });
+
   it("says nothing rather than guessing when this server knows neither origin", async () => {
     // Development, where nobody sets either variable. An empty string is what lets the app keep
     // using the host it is already talking to — a guess made here would be wrong on every

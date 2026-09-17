@@ -13,6 +13,7 @@ import { PROVIDERS } from "@eait/shared";
 import type { AuthProviderResponse, LinkOutcome, Provider } from "@eait/shared";
 import type { IdentityVerifier } from "../auth/verify.ts";
 import type { EngineDeps } from "./deps.ts";
+import { claimCode } from "./pairing.ts";
 
 /** An account is anonymous while `device` is the only thing that identifies it. */
 export async function isAnonymous(deps: EngineDeps, userId: string): Promise<boolean> {
@@ -130,6 +131,30 @@ async function recordEmail(
     // Never the address itself in the log — it is the personal datum this whole change is about.
     console.error(`[eait] ${provider} address not stored: ${(e as Error)?.message ?? e}`);
   }
+}
+
+/**
+ * Attach a Telegram user to the account a pairing code names — the bot's `/start <code>`.
+ *
+ * THE ONLY WAY A `telegram` IDENTITY IS MADE. The code was minted by a signed-in session for its
+ * own account (`mintPairingCode`), so only the account's owner can hand one out, and the subject is
+ * the `from.id` Telegram put on a private-chat update — never a chat id, never text in a message.
+ *
+ * `linked` covers relinking the same pair, which changes nothing. `elsewhere` is a Telegram id that
+ * another account already holds: it is never moved, for the reason `addIdentity` refuses to move
+ * any identity, and the code is spent either way. `invalid` is every code failure, as one answer.
+ */
+export async function linkTelegram(
+  deps: EngineDeps,
+  rawCode: string,
+  telegramUserId: string,
+): Promise<"linked" | "elsewhere" | "invalid"> {
+  const userId = await claimCode(deps, rawCode);
+  if (userId === null) return "invalid";
+  const holder = await deps.store.userIdForIdentity("telegram", telegramUserId);
+  if (holder !== null && holder !== userId) return "elsewhere";
+  await deps.store.addIdentity(userId, "telegram", telegramUserId);
+  return "linked";
 }
 
 /** What is linked to this account, for the settings screen. */

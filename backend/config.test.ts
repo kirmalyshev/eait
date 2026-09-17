@@ -37,6 +37,7 @@ const VARS = [
   "EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID", "EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET", "EAIT__BACKEND__WEB_CHECKOUT_URL",
   "EAIT__BACKEND__APPLE_SERVICE_ID", "EAIT__BACKEND__APPLE_TEAM_ID", "EAIT__BACKEND__APPLE_KEY_ID",
   "EAIT__BACKEND__APPLE_PRIVATE_KEY",
+  "EAIT__BACKEND__TELEGRAM_BOT_TOKEN",
 ] as const;
 
 /** A syntactically real PKCS#8 PEM. Nothing here signs with it — `web-oauth.test.ts` does that. */
@@ -502,5 +503,33 @@ describe("demo mode", () => {
     const p = configDefaults();
     expect(p.authRateLimitPerHour).toBe(20);
     expect(p.linesRateLimitPerHour).toBe(120);
+  });
+});
+
+describe("the Telegram connector's token", () => {
+  // Shaped like a token and not one: this repository is public.
+  const TOKEN = "123456789:not-a-real-token_not-a-real-token";
+
+  it("is off unless set, and never reaches a printable config", () => {
+    withRequired();
+    expect(loadConfig().telegramBotToken).toBe("");
+    expect(JSON.stringify(redact(loadConfig()))).toContain("telegramBotToken");
+
+    withRequired({ EAIT__BACKEND__TELEGRAM_BOT_TOKEN: ` ${TOKEN}\n` });
+    expect(loadConfig().telegramBotToken).toBe(TOKEN);
+    const printed = JSON.stringify(redact(loadConfig()));
+    expect(printed).not.toContain("not-a-real-token");
+    expect(printed).not.toContain("123456789");
+  });
+
+  it("is never read under --demo, which never starts the connector", () => {
+    process.env.EAIT__BACKEND__TELEGRAM_BOT_TOKEN = TOKEN;
+    expect(demoConfig().telegramBotToken).toBe("");
+  });
+
+  it("does not take the bot's username from the environment: getMe is the only source", () => {
+    withRequired({ EAIT__BACKEND__TELEGRAM_BOT_TOKEN: TOKEN });
+    expect(loadConfig().telegramBotUsername).toBe("");
+    expect(configDefaults().telegramBotUsername).toBe("");
   });
 });

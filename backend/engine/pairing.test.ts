@@ -6,7 +6,7 @@ import type { Store } from "../store.ts";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import type { EngineDeps } from "./deps.ts";
-import { identitiesFor, isAnonymous } from "./identity.ts";
+import { identitiesFor, isAnonymous, linkTelegram } from "./identity.ts";
 import { PAIR_TTL_MS, mintPairingCode, redeemPairingCode } from "./pairing.ts";
 
 const CONFIG: Config = {
@@ -150,5 +150,44 @@ describe("what pairing must never do", () => {
     // Nothing about pairing writes an entitlement — only the RevenueCat webhook can.
     expect(await store.getEntitlement(userId)).toBeNull();
     expect(await store.countUserAnalyses(userId)).toBe(0);
+  });
+});
+
+describe("linking Telegram with a code", () => {
+  // A made-up id in Telegram's range. Never a real one: this repository is public.
+  const TG = "7000000001";
+
+  it("attaches the Telegram id to the account that minted the code, and spends the code", async () => {
+    const userId = await anonymous();
+    const { code } = await mintPairingCode(deps, userId);
+
+    expect(await linkTelegram(deps, code, TG)).toBe("linked");
+    expect(await store.userIdForIdentity("telegram", TG)).toBe(userId);
+    expect(await linkTelegram(deps, code, TG)).toBe("invalid");
+  });
+
+  it("takes the code the way the pairing form does, and refuses one nobody minted", async () => {
+    const userId = await anonymous();
+    const { code } = await mintPairingCode(deps, userId);
+    expect(await linkTelegram(deps, "ABCD2345", TG)).toBe("invalid");
+    expect(await linkTelegram(deps, "", TG)).toBe("invalid");
+    expect(await linkTelegram(deps, ` ${code.toLowerCase()} `, TG)).toBe("linked");
+  });
+
+  it("is a no-op success when this Telegram is already on this account", async () => {
+    const userId = await anonymous();
+    await linkTelegram(deps, (await mintPairingCode(deps, userId)).code, TG);
+    expect(await linkTelegram(deps, (await mintPairingCode(deps, userId)).code, TG)).toBe("linked");
+    expect((await identitiesFor(deps, userId)).filter((i) => i.provider === "telegram")).toHaveLength(1);
+  });
+
+  it("never moves a Telegram id that another account already holds", async () => {
+    const first = await anonymous();
+    const second = await anonymous();
+    await linkTelegram(deps, (await mintPairingCode(deps, first)).code, TG);
+
+    expect(await linkTelegram(deps, (await mintPairingCode(deps, second)).code, TG)).toBe("elsewhere");
+    expect(await store.userIdForIdentity("telegram", TG)).toBe(first);
+    expect((await identitiesFor(deps, second)).map((i) => i.provider)).toEqual(["device"]);
   });
 });

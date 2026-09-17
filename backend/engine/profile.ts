@@ -98,6 +98,7 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
     isAdmin: await deps.store.roleOf(userId) === "admin",
     limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
     pairAddress: pairAddressOf(deps.config),
+    telegramBot: deps.config.telegramBotUsername || null,
   };
 }
 
@@ -242,6 +243,7 @@ export async function patchProfile(
       isAdmin: await deps.store.roleOf(userId) === "admin",
       limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
       pairAddress: pairAddressOf(deps.config),
+      telegramBot: deps.config.telegramBotUsername || null,
     },
   };
 }
