@@ -98,6 +98,7 @@ already exist. Auto-create shipped once and it was silent data loss.
 - New health metric → a field on `HealthDay` and an entry in `HEALTH_FIELDS` (`shared/health.ts`).
   The Postgres column and its migration are GENERATED from `HEALTH_FIELDS`, so there is nothing to
   add in `store.pg.ts`; the memory store stores whole days and needs nothing either.
+- New Telegram behaviour → `backend/telegram/`, whose `AGENTS.md` binds it.
 - New development fixture → `backend/dev/seed.ts`, against the `Store` INTERFACE so the tests
   cover it with no database. Verdicts go through `verdictsFromTargets` → `visibleVerdicts` like
   everything else.

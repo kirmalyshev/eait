@@ -15,6 +15,7 @@ llm/              port.ts + prompt.ts + openrouter.ts + demo.ts. Prompts are aut
 auth/             token issue/verify. Tokens are stored as sha256, never in the clear
 config.ts         configDefaults() is the single source of defaults; loadConfig() layers env over it
 mail/, push/      outbound. dev/seed.ts is fixtures, written against the Store INTERFACE
+telegram/         the Telegram connector, a second transport over the engine — telegram/AGENTS.md
 ```
 
 **If a route needs logic the engine does not expose, the logic goes in the engine** — not into the
