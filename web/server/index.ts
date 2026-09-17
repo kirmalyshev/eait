@@ -84,6 +84,7 @@ progress::-moz-progress-bar { background: var(--ink); border-radius: 999px; }
 .tab { color: var(--muted); text-decoration: none; padding: .25rem 0; border-bottom: 2px solid transparent; }
 .tab.on { color: var(--ink); border-bottom-color: var(--ink); }
 .link { margin-left: auto; background: none; border: 0; color: var(--muted); cursor: pointer; font: inherit; }
+.link + .link { margin-left: 1rem; }
 .primary { display: inline-block; margin-top: .75rem; padding: .6rem 1.1rem; border-radius: 999px;
   background: var(--ink); color: var(--paper); text-decoration: none; font-weight: 600; }
 .meals { list-style: none; margin: 0; padding: 0; }

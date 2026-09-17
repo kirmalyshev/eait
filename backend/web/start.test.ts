@@ -22,7 +22,7 @@ import type { Store, StoreOptions } from "../store.ts";
 import type { EngineDeps } from "../engine/index.ts";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { BROWSER_SESSION_TTL_MS } from "../auth/tokens.ts";
-import { chatHistory, day, handleText, saveOnboardingContent } from "../engine/index.ts";
+import { chatHistory, day, handleText, linkTelegram, saveOnboardingContent } from "../engine/index.ts";
 import { createRouter } from "../api/routes.ts";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
@@ -1851,5 +1851,58 @@ describe("a demo server signs somebody in on a laptop", () => {
     expect(page).toContain("Continue with Apple");
     expect(page).toContain("Continue with Google");
     expect((await handle(new Request("http://localhost:8787/start/auth/apple"))).status).toBe(303);
+  });
+});
+
+describe("Connect Telegram", () => {
+  const BOT = "eait_test_bot";
+
+  /** A signed-in, onboarded browser session. */
+  const onboarded = async (): Promise<string> => {
+    const session = await signIn(`tg-${crypto.randomUUID()}`);
+    await answerAll(session, ANSWERS);
+    return session;
+  };
+
+  it("is not on the plan, and is not a route, while the connector is off", async () => {
+    const session = await onboarded();
+    expect(await (await get("/start/plan", session)).text()).not.toContain("/start/telegram");
+    expect((await post("/start/telegram", {}, session)).status).toBe(404);
+  });
+
+  it("mints a code at the tap and sends the browser to the bot with it, for this account only", async () => {
+    router({ ...CONFIG, telegramBotUsername: BOT });
+    const session = await onboarded();
+    const html = await (await get("/start/plan", session)).text();
+    expect(html).toContain('<form method="post" action="/start/telegram">');
+    expect(html).toContain(PAGE_COPY.planTelegram);
+
+    const res = await post("/start/telegram", {}, session);
+    expect(res.status).toBe(303);
+    const to = new URL(res.headers.get("location")!);
+    expect(`${to.origin}${to.pathname}`).toBe(`https://t.me/${BOT}`);
+    const code = to.searchParams.get("start")!;
+    // Telegram's deep-link payload alphabet: A-Z, a-z, 0-9, _ and -, at most 64.
+    expect(code).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
+
+    // The code is this account's, and spending it is what the bot's `/start <code>` does.
+    expect(await linkTelegram(deps, code, "7000000002")).toBe("linked");
+    expect(await store.userIdForIdentity("telegram", "7000000002")).toBe(await webUser(session));
+  });
+
+  it("lets the browser follow that redirect: the page's form-action names t.me", async () => {
+    // A form's redirect is checked against `form-action` too. With 'self' alone the button is
+    // pressed and the browser silently refuses to go anywhere.
+    router({ ...CONFIG, telegramBotUsername: BOT });
+    const session = await onboarded();
+    const csp = (await get("/start/plan", session)).headers.get("content-security-policy")!;
+    expect(csp).toMatch(/form-action 'self' https:\/\/t\.me(;|$)/);
+  });
+
+  it("needs the session, like every other write here", async () => {
+    router({ ...CONFIG, telegramBotUsername: BOT });
+    const res = await post("/start/telegram", {});
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start");
   });
 });

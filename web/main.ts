@@ -22,7 +22,7 @@ import { dayBudget } from "../shared/budget.ts";
 import type { MealProposed, MealRecord, PendingPhoto } from "@eait/shared";
 import type {
   ChatHistoryResponse, DayResponse, DeleteLineResponse, EditLineLast, MessageRequest, MessageResponse, OUTCOME_UNKNOWN,
-  PendingMealsResponse, PendingResponse, PhotoLast, PhotoProgress, ProfileResponse, ROUTES,
+  PairCodeResponse, PendingMealsResponse, PendingResponse, PhotoLast, PhotoProgress, ProfileResponse, ROUTES,
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, apiStream, forget, signIn, signOut, signedIn } from "./api.ts";
 import { COPY } from "./copy.ts";
@@ -78,6 +78,20 @@ function chrome(active: string): HTMLElement {
     const a = el("a", "tab", "Admin") as HTMLAnchorElement;
     a.href = "/admin";
     nav.append(a);
+  }
+  const bot = profileCache?.telegramBot ?? null;
+  if (bot !== null) {
+    // The code is minted at the TAP, not when the page is drawn: it lives five minutes, and the bot
+    // has to receive it inside them. A navigation, so no CSP directive is involved in leaving.
+    const tg = el("button", "link", COPY.connectTelegram) as HTMLButtonElement;
+    tg.addEventListener("click", () => {
+      tg.disabled = true;
+      void api<PairCodeResponse>("/auth/pair", { method: "POST" })
+        .then(({ code }) => { location.assign(`https://t.me/${bot}?start=${code}`); })
+        .catch((err: unknown) => { console.error(err); tg.textContent = COPY.telegramFailed; })
+        .finally(() => { tg.disabled = false; });
+    });
+    nav.append(tg);
   }
   const out = el("button", "link", "Sign out") as HTMLButtonElement;
   out.addEventListener("click", () => {

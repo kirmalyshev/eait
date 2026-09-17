@@ -33,7 +33,7 @@ import type { WebProvider, WebSignInProvider } from "../auth/web-oauth.ts";
 import { checkWebProvider } from "../auth/web-auth-check.ts";
 import {
   cancelPendingMeal, chatHistory, confirmPendingMeal, handleText, logPhotoMeal, onboardingContent,
-  patchProfile, profileView, redeemPairingCode, signInWithProvider, type EngineDeps,
+  mintPairingCode, patchProfile, profileView, redeemPairingCode, signInWithProvider, type EngineDeps,
 } from "../engine/index.ts";
 import type { Store } from "../store.ts";
 import {
@@ -899,6 +899,22 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     return notFound();
   }
 
+  // ── Connect Telegram: a code minted at the tap, and the browser sent to the bot with it ─────
+  //
+  // MINTED HERE, NOT WHEN THE PLAN IS DRAWN. A code lives five minutes (`PAIR_TTL_MS`), and a plan
+  // page is read for longer than that; minted at the press, the bot has it within seconds. A POST
+  // like every other write on this surface, on the session-minting allowance like the app's own
+  // mint route, because the code is redeemable for a session at `/start/pair` too.
+  //
+  // 404 while the connector is off, like every surface here that is not configured.
+  if (req.method === "POST" && pathname === `${START_PREFIX}/telegram`) {
+    if (config.telegramBotUsername === "") return notFound();
+    const wait = ctx.limitAuth();
+    if (wait !== null) return tooManyAttempts(wait);
+    const { code } = await mintPairingCode(ctx.deps, userId);
+    return seeOther(`https://t.me/${config.telegramBotUsername}?start=${code}`);
+  }
+
   if (req.method === "GET" && pathname === `${START_PREFIX}/plan`) {
     const full = await profileView(ctx.deps, userId);
     if (!full || !full.onboarded) return seeOther(`${START_PREFIX}/q`);
@@ -913,6 +929,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       .map((i) => i.provider).find((p): p is WebProvider => p === "apple" || p === "google") ?? null;
     return html(plan({
       signedInWith,
+      telegram: config.telegramBotUsername !== "",
       hasWebApp: ctx.hasWebApp,
       kcal: full.targets.kcal,
       proteinG: full.targets.protein_g,

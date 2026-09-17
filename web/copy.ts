@@ -8,4 +8,6 @@ export const COPY = {
   floor: "Your target sits at the minimum this app will ever suggest.",
   connectHealth:
     "Connect Apple Health in the eait iPhone app and your weight keeps this target current.",
+  connectTelegram: "Connect Telegram",
+  telegramFailed: "No Telegram link this time. Try again.",
 } as const;
