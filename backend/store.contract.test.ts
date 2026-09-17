@@ -1402,6 +1402,22 @@ function contract(name: string, make: () => Promise<Store>) {
     });
 
     // The Telegram connector's identity: the numeric `from.id` as a string, and nothing else.
+    it("drops a telegram link with the rest of the merged-away account's identities", async () => {
+      // A merge moves the DATA and repoints no credential: a device identity dropped rather than
+      // repointed is the rule, and a telegram link is the same kind of thing — whoever holds that
+      // Telegram would otherwise be handed the real account the anonymous one merged into.
+      const s = await open();
+      const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real = await s.createUser("en");
+      await s.addIdentity(real, "apple", subject("merge-target"));
+      const tg = String(5_000_000_000 + Math.floor(Math.random() * 1_000_000_000));
+      await s.moveIdentity(anon, "telegram", tg);
+
+      await s.mergeUsers(anon, real);
+      expect(await s.userIdForIdentity("telegram", tg)).toBeNull();
+      expect((await s.listIdentities(real)).map((i) => i.provider)).toEqual(["apple"]);
+    });
+
     it("links a Telegram id like any other identity, in a namespace of its own", async () => {
       const s = await open();
       const u = (await s.upsertDeviceUser(device(), "en")).userId;
@@ -1412,6 +1428,34 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.userIdForIdentity("apple", id)).toBeNull();
       expect((await s.listIdentities(u)).map((i) => i.provider)).toContain("telegram");
       expect(s.addIdentity(other, "telegram", id)).rejects.toThrow();
+    });
+
+    // #205's `telegram` provider is a TRANSPORT, not a way in: nothing about it can put somebody
+    // into an account. So it must not count as one when the last sign-in identity is removed.
+    it("dies with its last SIGN-IN identity, and takes a telegram row with it", async () => {
+      const s = await open();
+      const web = await s.createUser("en");               // a /start sign-up: no device identity
+      const tg = String(3_000_000_000 + Math.floor(Math.random() * 1_000_000_000));
+      await s.addIdentity(web, "google", subject("only-way-in"));
+      await s.moveIdentity(web, "telegram", tg);
+
+      expect(await s.removeIdentity(web, "google", subject("only-way-in"))).toBe("account-deleted");
+      expect(await s.getProfile(web)).toBeNull();
+      // The transport goes with the account it served. Left behind, it is a row naming a user that
+      // no longer exists — and, before this rule, an account nobody could sign into, pair to, or erase.
+      expect(await s.userIdForIdentity("telegram", tg)).toBeNull();
+    });
+
+    it("survives while any sign-in identity is left, telegram or not", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const tg = String(4_000_000_000 + Math.floor(Math.random() * 1_000_000_000));
+      await s.addIdentity(u, "google", subject("second-way-in"));
+      await s.moveIdentity(u, "telegram", tg);
+
+      expect(await s.removeIdentity(u, "google", subject("second-way-in"))).toBe("removed");
+      expect(await s.getProfile(u)).not.toBeNull();
+      expect(await s.userIdForIdentity("telegram", tg)).toBe(u);
     });
 
     it("moves a claimed identity to the account that claimed it, and erases nothing on the way", async () => {
@@ -1432,14 +1476,11 @@ function contract(name: string, make: () => Promise<Store>) {
       expect((await s.listIdentities(to)).map((i) => i.provider)).toEqual(["device"]);
       expect(await s.getProfile(to)).not.toBeNull();
 
-      // And back, off an account for which it is the ONLY identity. `removeIdentity` would delete
-      // that account here; a move must not, because nobody asked for it to go.
-      const only = (await s.upsertDeviceUser(device(), "en")).userId;
-      const lone = String(2_000_000_000 + Math.floor(Math.random() * 1_000_000_000));
-      await s.moveIdentity(only, "telegram", lone);
-      await s.removeIdentity(only, "device", (await s.identitySubject(only, "device"))!);
-      expect(await s.moveIdentity(to, "telegram", lone)).toBe("moved");
-      expect(await s.getProfile(only)).not.toBeNull();
+      // And back, as often as the person who holds that Telegram wants. A move never deletes the
+      // account it comes off — and there is no longer an account for which a telegram row is the
+      // last identity, because `removeIdentity` takes the account with the last SIGN-IN one.
+      expect(await s.moveIdentity(to, "telegram", id)).toBe("moved");
+      expect(await s.getProfile(from)).not.toBeNull();
     });
 
     it("gives back the subject it holds at one provider, and only to that account", async () => {

@@ -170,7 +170,12 @@ export function telegramHandlers(deps: EngineDeps) {
         const userId = await account(from);
         return userId === null ? stranger(chat) : chat.send(await connected(userId));
       }
-      if (limiter.check(`telegram:${from}`, { limit: config.authRateLimitPerHour, windowMs: HOUR }) !== null) {
+      // Zero means NO LIMIT, the reading `api/routes.ts` and `config.ts` already have. Passed
+      // straight to the limiter it means one an hour, so the setting that switches the allowance
+      // off would have switched the bot off instead.
+      const allowance = config.authRateLimitPerHour;
+      if (allowance > 0
+        && limiter.check(`telegram:${from}`, { limit: allowance, windowMs: HOUR }) !== null) {
         return chat.send(TELEGRAM_COPY.tooManyTries);
       }
       // `moved` is the recovery path and reads exactly like a fresh link: what matters to the

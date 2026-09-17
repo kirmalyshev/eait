@@ -4,7 +4,7 @@
 // are enforced here exactly as they are in Postgres, so a test that proves "another user's meal id
 // resolves to null" is proving something about the engine rather than about a mock's mood.
 
-import { dateMinus, localDate } from "@eait/shared";
+import { dateMinus, localDate, signsIn } from "@eait/shared";
 import type {
   DayTotals, HealthDay, Lang, MealRecord, NotificationCopy, OnboardingContent, OnboardingEvent,
   Profile, Provider,
@@ -402,7 +402,10 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
       // Synchronous from here to the erase, which is what makes this the same single step the
       // Postgres transaction is: nothing can interleave between the test and the delete.
-      if (identities.some((i) => i.userId === userId)) return "removed";
+      //
+      // `signsIn`, not "any row": a `telegram` row is a transport onto this account and cannot put
+      // anybody into it, so an account left holding only that one is an account nobody can reach.
+      if (identities.some((i) => i.userId === userId && signsIn(i.provider))) return "removed";
       eraseUser(userId);
       return "account-deleted";
     },
@@ -585,9 +588,11 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       for (const e of onboardingEvents.values()) if (e.userId === fromUserId) e.userId = intoUserId;
 
       // The merged-away account's identities are DROPPED, not repointed. It is anonymous by the
-      // time we get here, so those are device identities only — and repointing one would mean that
-      // after signing out, plain device auth silently walks back into the full account without any
-      // credential being presented. Sign-out has to mean something.
+      // time we get here, so those are the device identity and, since #205, possibly a `telegram`
+      // row — and repointing either would mean that after signing out, plain device auth silently
+      // walks back into the full account without any credential being presented, or that whoever
+      // holds that Telegram is handed the real account this one merged into. Sign-out has to mean
+      // something, and a connected bot is re-connected in one tap (`linkTelegram` moves a link).
       for (let i = identities.length - 1; i >= 0; i--) {
         if (identities[i]!.userId === fromUserId) identities.splice(i, 1);
       }

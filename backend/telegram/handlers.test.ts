@@ -196,6 +196,18 @@ describe("/start with a code", () => {
     expect(other.sent[0]!.text).toStartWith(TELEGRAM_COPY.connectedLead);
   });
 
+  it("reads a limit of zero the way the API does: no limit at all", async () => {
+    // `EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR=0` disables the allowance (`config.ts`, and
+    // `api/routes.ts` short-circuits on it). The bot calls the limiter directly, where a limit of
+    // zero refuses everything — so the setting that switches the limit off switched the bot off.
+    h = telegramHandlers({ ...deps, config: { ...deps.config, authRateLimitPerHour: 0 } });
+    const from = telegramId();
+    for (let i = 0; i < 5; i++) await h.start(from, "ABCD2345", fakeChat());
+    const chat = fakeChat();
+    await h.start(from, (await mintPairingCode(deps, await account())).code, chat);
+    expect(chat.sent[0]!.text).toStartWith(TELEGRAM_COPY.connectedLead);
+  });
+
   it("tells a connected account which account it is on when it sends a bare /start", async () => {
     const { from } = await linked();
     const chat = fakeChat();

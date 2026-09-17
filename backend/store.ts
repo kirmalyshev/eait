@@ -520,6 +520,10 @@ export interface Store {
    * Detach one identity from one account AND delete the account when that was the last way into
    * it — as one atomic step. Idempotent, and SCOPED BY `userId` like every other write here.
    *
+   * A WAY IN IS `signsIn`, not any row at all. `telegram` mints no session, so an account left
+   * holding only that one is an account no login path can reach and this path can no longer erase;
+   * it is deleted here like any other last-identity removal, and the transport goes with it.
+   *
    * The scope is not decoration. This is reached from Apple's server-to-server notification, where
    * the subject arrives in a signed message rather than from a session — the caller resolves the
    * account from that subject and passes both, so a row can only ever be removed by the account

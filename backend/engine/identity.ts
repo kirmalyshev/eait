@@ -9,16 +9,24 @@
 // real identity does not — it just switches. That asymmetry is the whole design, and it is the
 // reason `isAnonymous` exists rather than the code merging whenever two accounts meet.
 
-import { PROVIDERS } from "@eait/shared";
+import { PROVIDERS, signsIn } from "@eait/shared";
 import type { AuthProviderResponse, LinkOutcome, Provider } from "@eait/shared";
 import type { IdentityVerifier } from "../auth/verify.ts";
 import type { EngineDeps } from "./deps.ts";
 import { claimCode } from "./pairing.ts";
 
-/** An account is anonymous while `device` is the only thing that identifies it. */
+/**
+ * An account is anonymous while `device` is the only thing that SIGNS ANYBODY IN to it.
+ *
+ * A `telegram` row is not a sign-in (`signsIn`), so it must not answer this question either way.
+ * Counted as one, it made a device account with a connected bot read as real, and the first Apple
+ * or Google sign-in then switched away from it instead of merging: the meals, the device and the
+ * link all left behind on an account nothing downstream ever repairs, with the bot still writing
+ * to it.
+ */
 export async function isAnonymous(deps: EngineDeps, userId: string): Promise<boolean> {
   const identities = await deps.store.listIdentities(userId);
-  return identities.every((i) => i.provider === "device");
+  return identities.filter((i) => signsIn(i.provider)).every((i) => i.provider === "device");
 }
 
 export async function signInWithProvider(
