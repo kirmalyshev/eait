@@ -8,8 +8,6 @@ import { expect, test } from "./fixtures.ts";
 
 test("no bot named, no link", async ({ inWebApp: page }) => {
   await page.goto("/#/");
-  // A fresh load: a hash change while the fixture's first render is still out draws the nav twice.
-  await page.reload();
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Telegram" })).toHaveCount(0);
 });

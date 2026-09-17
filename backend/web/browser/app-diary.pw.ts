@@ -82,3 +82,23 @@ test("over target says by how much, as a warning rather than a negative number",
   await expect(page.locator(".big")).toHaveText("310 kcal over");
   await expect(page.locator(".big")).toHaveClass(/warn/);
 });
+
+test("a tab change while the first draw is still loading draws one page, not two", async ({ inWebApp: page }) => {
+  // The first draw waits on the profile. A hash change in that window starts a second draw, and
+  // both used to append their nav and body when they resumed: two tab bars, two screens.
+  let release = () => {};
+  const held = new Promise<void>((r) => { release = r; });
+  await page.route("**/api/v1/profile", async (route) => {
+    await held;
+    await route.continue();
+  });
+  const asked = page.waitForRequest("**/api/v1/profile");
+  await page.reload();
+  await asked;
+  await page.evaluate(`location.hash = "#/"`);
+  release();
+
+  await expect(page.locator(".big")).toBeVisible();
+  await expect(page.locator("nav")).toHaveCount(1);
+  await expect(page.locator(".body")).toHaveCount(1);
+});

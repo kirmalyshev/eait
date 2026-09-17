@@ -610,7 +610,15 @@ function mealLine(meal: MealRecord | null): string {
   return `${names(meal.items)} — ${kcal(meal.kcal)}`;
 }
 
+/**
+ * Which draw owns the page. Every `render()` takes the next number and gives up at each await it
+ * comes back from to find a newer one: a hash change while the first draw was still waiting on the
+ * profile otherwise left BOTH to append their nav and their screen — two tab bars, two bodies.
+ */
+let drawing = 0;
+
 async function render(): Promise<void> {
+  const mine = ++drawing;
   const app = clear(root());
   if (!signedIn()) { app.append(signInScreen()); return; }
 
@@ -620,15 +628,19 @@ async function render(): Promise<void> {
   try {
     await profile();
   } catch (err) {
+    if (mine !== drawing) return;
     if (err instanceof Unauthenticated) { app.append(signInScreen()); return; }
   }
+  if (mine !== drawing) return;
   app.append(chrome(route));
   const body = el("div", "body", "Loading…");
   app.append(body);
   try {
     const screen = route === "#/chat" ? await chatScreen() : await diaryScreen();
+    if (mine !== drawing) return;
     clear(body).append(screen);
   } catch (err) {
+    if (mine !== drawing) return;
     if (err instanceof Unauthenticated) { await render(); return; }
     // The message, not the object: an error from deep in a stack can carry a prompt, and a prompt
     // can carry what somebody typed about their health.
