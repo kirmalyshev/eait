@@ -14,7 +14,7 @@ import { fakePush } from "../push/fake.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
-import { revokeAppleIdentity, signInWithProvider, type EngineDeps } from "./index.ts";
+import { isAnonymous, revokeAppleIdentity, signInWithProvider, type EngineDeps } from "./index.ts";
 
 const CONFIG: Config = {
   ...configDefaults(),
@@ -281,5 +281,54 @@ describe("the address the provider vouched for", () => {
     const deps = depsFor(store);
     await signInWithProvider(deps, verifierFor(), "apple", "silent", undefined, null);
     expect(await emailOf("silent")).toBeNull();
+  });
+});
+
+
+/**
+ * What a `telegram` row is NOT: a way into an account, and a reason to stop merging.
+ *
+ * Both rules below read the identities table and were written before a provider existed that
+ * cannot sign anybody in. `signsIn` is the one predicate they now share.
+ */
+describe("a transport is not a sign-in", () => {
+  const verifier: IdentityVerifier = {
+    async verify(provider, idToken) { return { provider, subject: idToken }; },
+  };
+
+  it("leaves an account with a connected Telegram anonymous, so the first sign-in still MERGES", async () => {
+    const { userId: anon } = await store.upsertDeviceUser(device(), "en");
+    await store.moveIdentity(anon, "telegram", "7000000900");
+    expect(await isAnonymous(depsFor(store), anon)).toBe(true);
+
+    // The account the sign-in lands on already exists, which is the branch that merges.
+    const real = await store.createUser("en");
+    await store.addIdentity(real, "apple", "merge-me");
+    const out = await signInWithProvider(depsFor(store), verifier, "apple", "merge-me", undefined, anon);
+
+    expect(out.outcome).toBe("merged");
+    expect(out.userId).toBe(real);
+    // And the transport does not follow: a merge repoints no credential, `telegram` included.
+    expect(await store.userIdForIdentity("telegram", "7000000900")).toBeNull();
+  });
+
+  it("erases the account when Apple's revocation takes its last sign-in identity", async () => {
+    const web = await store.createUser("en");
+    await store.addIdentity(web, "apple", "revoke-with-telegram");
+    await store.moveIdentity(web, "telegram", "7000000901");
+
+    expect(await revokeAppleIdentity(depsFor(store), "revoke-with-telegram", Date.now())).toBe("deleted");
+    expect(await store.getProfile(web)).toBeNull();
+    expect(await store.userIdForIdentity("telegram", "7000000901")).toBeNull();
+  });
+
+  it("keeps an account a device can still reach", async () => {
+    const { userId } = await store.upsertDeviceUser(device(), "en");
+    await store.addIdentity(userId, "apple", "revoke-keeps");
+    await store.moveIdentity(userId, "telegram", "7000000902");
+
+    expect(await revokeAppleIdentity(depsFor(store), "revoke-keeps", Date.now())).toBe("unlinked");
+    expect(await store.getProfile(userId)).not.toBeNull();
+    expect(await store.userIdForIdentity("telegram", "7000000902")).toBe(userId);
   });
 });

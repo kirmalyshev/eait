@@ -32,8 +32,13 @@ albums.ts     `AlbumBuffer`, carried over unchanged from the old @eait_bot.
   letter (`maskAddress`), and how to move the link if it is the wrong account. Said when the link is
   made and again on a bare `/start`, because noticing at that moment is the whole point. A full
   address is never printed: it would put somebody's email in a stranger's Telegram.
+- **A `telegram` identity is NOT a way into an account** (`signsIn`, beside `PROVIDERS`). The bot
+  mints no session, so it never keeps an account alive when its last sign-in identity goes, and it
+  never makes an account look real to the merge rule. A merge drops the link with the rest of the
+  merged-away account's identities; re-connecting is one tap.
 - **`/start <code>` is rate limited per Telegram id** on `authRateLimitPerHour`, which is the
-  allowance `/start/pair` takes per address. The pairing code's 40-bit arithmetic assumes that limit.
+  allowance `/start/pair` takes per address, and a limit of **zero means no limit**, the reading
+  `api/routes.ts` has. The pairing code's 40-bit arithmetic assumes that limit.
 - **Middleware order: private chats only → `update_id` dedupe → `sequentialize(from.id)`.** The
   filter reads no state, so it goes first. The dedupe must come before anything that does work,
   because a replayed photo is a second paid analysis. The dedupe is in memory, so a crash forgets

@@ -349,6 +349,23 @@ export const PROVIDERS = ["device", "apple", "google", "telegram"] as const;
 export type Provider = (typeof PROVIDERS)[number];
 
 /**
+ * Does this provider put somebody INTO an account?
+ *
+ * `device`, `apple` and `google` each mint a session: the anonymous credential the install was born
+ * with, and the two verified ones. `telegram` does not and must never — it is a transport onto an
+ * account made elsewhere (#205), and the bot issues no token.
+ *
+ * ONE PREDICATE, HERE, because two rules older than `telegram` decide things by counting identity
+ * rows: an account dies when its last way in is removed (`Store.removeIdentity`), and an account is
+ * anonymous until a real one is linked (`isAnonymous`). Counted provider-blind, a telegram row made
+ * both wrong at once — it kept alive an account nobody could ever sign into again, and it stopped
+ * the first sign-in from merging. Anything that reads `identities` to decide who can reach an
+ * account asks this.
+ */
+export const signsIn = (provider: string): boolean =>
+  provider === "device" || provider === "apple" || provider === "google";
+
+/**
  * Sign in with Apple / Google.
  *
  * The client sends the provider's ID TOKEN. The server verifies its signature against the

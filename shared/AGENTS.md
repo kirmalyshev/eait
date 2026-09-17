@@ -34,6 +34,10 @@ Everything is exported through `index.ts` (`export *`), so a new export needs no
   `/v1/diary/week` — which days can be MARKED. It does not bound `/v1/diary/day`, which answers for
   any date. Using it to gate anything else is how the date picker came to refuse days the server
   would happily return.
+- **`signsIn` says which providers put somebody INTO an account**, and it lives here because both
+  sides of the identity graph read it: the store's deletion rule and the engine's merge rule.
+  `telegram` is a transport and answers false. A rule that counts identity rows instead asks a
+  question about storage rather than about access.
 - **Verdicts are computed, never accepted** — not from the model, not from the client.
   `AnalyzedMeal` is `MealAnalysis` minus `verdicts` and the gap must never be closed with a cast.
 - **Dates are computed in the configured zone, never UTC.** Shift a stored `YYYY-MM-DD` with

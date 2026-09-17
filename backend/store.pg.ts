@@ -16,7 +16,7 @@ import type {
   DayTotals, HealthDay, Lang, MealItem, MealQuestion, MealRecord, MealVerdicts, NotificationCopy,
   OnboardingContent, Profile, Provider,
 } from "@eait/shared";
-import { HEALTH_FIELDS, dateMinus, emptyHealthDay } from "@eait/shared";
+import { HEALTH_FIELDS, PROVIDERS, dateMinus, emptyHealthDay, signsIn } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
@@ -724,6 +724,16 @@ function json<T>(v: unknown, fallback: T): T {
   }
 }
 
+/**
+ * The sign-in providers as a SQL array literal, derived from `signsIn` rather than typed out again:
+ * the predicate is the rule, and a second copy of it inside a query is the one that goes stale.
+ *
+ * BUILT BY HAND, like `getMeals`'s id list and for the same reason — Bun.sql sends a JS array as a
+ * bare comma list, which Postgres rejects as an array literal. Every value here is a compile-time
+ * constant from `PROVIDERS`.
+ */
+const SIGN_IN_PROVIDERS = `{${PROVIDERS.filter(signsIn).join(",")}}`;
+
 export async function postgresStore(
   databaseUrl: string,
   opts: StoreOptions = {},
@@ -949,10 +959,17 @@ export async function postgresStore(
 
         // Only now, and only when something was actually removed. An account may hold no
         // identities for a moment, and deleting on that alone would erase it.
+        //
+        // WAYS IN, not rows: `signsIn` says which providers can mint a session, and a `telegram`
+        // row cannot. Left counting rows, this kept alive an account whose only remaining identity
+        // was a transport — unreachable by every login path and by this deletion path too.
         const deleted = await tx`
           delete from users u
           where u.id = ${userId}
-            and not exists (select 1 from identities where user_id = ${userId})
+            and not exists (
+              select 1 from identities
+              where user_id = ${userId} and provider = any(${SIGN_IN_PROVIDERS}::text[])
+            )
           returning id`;
         return deleted.length > 0 ? "account-deleted" : "removed";
       });
@@ -1215,9 +1232,11 @@ export async function postgresStore(
               select 1 from health_days t where t.user_id = ${intoUserId} and t.date = h.date
             )`;
         await tx`update health_days set user_id = ${intoUserId} where user_id = ${fromUserId}`;
-        // DROPPED, not repointed — the merged-away account is anonymous, so these are device
-        // identities only, and repointing one would let plain device auth walk back into the full
-        // account after a sign-out. Matches `store.memory.ts`; a test asserts the behaviour.
+        // DROPPED, not repointed — the merged-away account is anonymous, so these are the device
+        // identity and, since #205, possibly a `telegram` row. Repointing either would let plain
+        // device auth walk back into the full account after a sign-out, or hand whoever holds that
+        // Telegram the account this one merged into. Matches `store.memory.ts`; a test says so, and
+        // a dropped link is re-made in one tap (`linkTelegram` moves it).
         await tx`delete from identities where user_id = ${fromUserId}`;
         // The DEVICE moves with the account. A push token is an address, not a credential: the same
         // phone is now signed into the real account, so its evening line belongs there. It is the

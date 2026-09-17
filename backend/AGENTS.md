@@ -232,6 +232,13 @@ one in `demo.ts` so the tests still run.
 - **An identity comes out of a verified token, never out of a request.** `auth/verify.ts` checks
   signature, issuer, expiry AND audience. Skipping the audience check makes any other app's token a
   valid login here. An unconfigured audience list must refuse the route, never verify without it.
+- **A provider that cannot sign anybody in is not a way into an account.** `signsIn` (in
+  `shared/contract.ts`, beside `PROVIDERS`) is the one predicate, and every rule that reads
+  `identities` to decide who can reach an account asks it: `removeIdentity` deletes the account when
+  the last SIGN-IN identity goes, and `isAnonymous` ignores anything that is not one. `telegram` is
+  a transport onto an account made elsewhere and mints no session. Counted as a way in, one row made
+  two older rules wrong at once — an account survived with nothing that could ever sign into it, and
+  a device account with a bot connected stopped merging on its owner's first real sign-in.
 - **Merging is anonymous→real only.** `engine/identity.ts`. Two accounts that both carry a real
   identity are never merged — there is no safe answer to whose profile survives. And a merge DROPS
   the anonymous device identity rather than repointing it, or signing out would let plain device
