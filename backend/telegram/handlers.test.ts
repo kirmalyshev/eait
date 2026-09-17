@@ -70,6 +70,9 @@ async function linked(over: Record<string, unknown> = {}): Promise<{ userId: str
   return { userId, from };
 }
 
+/** A provider subject that is this test file's own. */
+const subject = (name: string) => `tg-test-${name}`;
+
 const jpeg = () => { const b = new Uint8Array(64).fill(1); b[0] = 0xff; b[1] = 0xd8; b[2] = 0xff; return b; };
 const SIGN_IN = "https://app.eait.fit/start";
 
@@ -111,9 +114,43 @@ describe("/start with a code", () => {
     const chat = fakeChat();
 
     await h.start(from, code, chat);
-    expect(chat.sent).toEqual([{ text: TELEGRAM_COPY.connected }]);
+    expect(chat.sent).toHaveLength(1);
+    expect(chat.sent[0]!.text).toStartWith(TELEGRAM_COPY.connectedLead);
     expect(await store.userIdForIdentity("telegram", String(from))).toBe(userId);
     expect(await store.identitySubject(userId, "telegram")).toBe(String(from));
+  });
+
+  it("names the account it connected to — the provider, and an address masked to its first letter", async () => {
+    // The whole point: somebody who pressed a link another person sent them sees, at that moment,
+    // an account that is not theirs. A full address would put somebody's email into a Telegram chat.
+    const userId = await account();
+    await store.addIdentity(userId, "google", subject("named"));
+    await store.setIdentityEmail(userId, "google", subject("named"), "kirill@example.com");
+    const chat = fakeChat();
+
+    await h.start(telegramId(), (await mintPairingCode(deps, userId)).code, chat);
+    const said = chat.sent[0]!.text;
+    expect(said).toContain("Google");
+    expect(said).toContain("k***@example.com");
+    expect(said).not.toContain("kirill@");
+    // And the way back out, said where the person who did not mean to be here will read it.
+    expect(said).toContain(TELEGRAM_COPY.notYours);
+  });
+
+  it("names an account with no address by how it was made", async () => {
+    const chat = fakeChat();
+    await h.start(telegramId(), (await mintPairingCode(deps, await account())).code, chat);
+    expect(chat.sent[0]!.text).toStartWith(`${TELEGRAM_COPY.connectedLead} ${TELEGRAM_COPY.viaApp}.`);
+  });
+
+  it("masks an address that is too short to keep a letter of", async () => {
+    const userId = await account();
+    await store.addIdentity(userId, "apple", subject("short"));
+    await store.setIdentityEmail(userId, "apple", subject("short"), "k@example.com");
+    const chat = fakeChat();
+    await h.start(telegramId(), (await mintPairingCode(deps, userId)).code, chat);
+    expect(chat.sent[0]!.text).toContain("***@example.com");
+    expect(chat.sent[0]!.text).not.toContain("k@example.com");
   });
 
   it("says the link has expired for a spent, unknown or malformed code", async () => {
@@ -126,12 +163,20 @@ describe("/start with a code", () => {
     }
   });
 
-  it("never moves a Telegram id another account holds", async () => {
+  it("moves a link made onto the wrong account, and says which account it is on now", async () => {
     const { from, userId } = await linked();
+    const mine = await account();
+    await store.addIdentity(mine, "apple", subject("recover"));
+    await store.setIdentityEmail(mine, "apple", subject("recover"), "owner@example.com");
     const chat = fakeChat();
-    await h.start(from, (await mintPairingCode(deps, await account())).code, chat);
-    expect(chat.sent).toEqual([{ text: TELEGRAM_COPY.elsewhere }]);
-    expect(await store.userIdForIdentity("telegram", String(from))).toBe(userId);
+
+    await h.start(from, (await mintPairingCode(deps, mine)).code, chat);
+    expect(await store.userIdForIdentity("telegram", String(from))).toBe(mine);
+    expect(chat.sent[0]!.text).toContain("Apple");
+    expect(chat.sent[0]!.text).toContain("o***@example.com");
+    // The account it came off is untouched — its own data, its own identities.
+    expect(await store.getProfile(userId)).not.toBeNull();
+    expect((await store.listIdentities(userId)).map((i) => i.provider)).toEqual(["device"]);
   });
 
   it("is bounded per Telegram id, on the allowance the pairing form takes, before any code is looked at", async () => {
@@ -148,14 +193,14 @@ describe("/start with a code", () => {
     // Somebody else's allowance is their own.
     const other = fakeChat();
     await h.start(telegramId(), code, other);
-    expect(other.sent).toEqual([{ text: TELEGRAM_COPY.connected }]);
+    expect(other.sent[0]!.text).toStartWith(TELEGRAM_COPY.connectedLead);
   });
 
-  it("greets a connected account that sends a bare /start", async () => {
+  it("tells a connected account which account it is on when it sends a bare /start", async () => {
     const { from } = await linked();
     const chat = fakeChat();
     await h.start(from, "", chat);
-    expect(chat.sent).toEqual([{ text: TELEGRAM_COPY.connected }]);
+    expect(chat.sent[0]!.text).toStartWith(TELEGRAM_COPY.connectedLead);
   });
 });
 

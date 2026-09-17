@@ -181,13 +181,22 @@ describe("linking Telegram with a code", () => {
     expect((await identitiesFor(deps, userId)).filter((i) => i.provider === "telegram")).toHaveLength(1);
   });
 
-  it("never moves a Telegram id that another account already holds", async () => {
+  it("MOVES a Telegram id another account holds, which is how a link made by mistake is undone", async () => {
+    // A code can be sent to somebody and pressed — so a Telegram can end up on a stranger's
+    // account. Moving needs both halves at once: this Telegram, and a code minted inside a session
+    // of the account it moves to. Refusing instead left the stranger receiving the photos forever.
     const first = await anonymous();
     const second = await anonymous();
     await linkTelegram(deps, (await mintPairingCode(deps, first)).code, TG);
 
-    expect(await linkTelegram(deps, (await mintPairingCode(deps, second)).code, TG)).toBe("elsewhere");
+    expect(await linkTelegram(deps, (await mintPairingCode(deps, second)).code, TG)).toBe("moved");
+    expect(await store.userIdForIdentity("telegram", TG)).toBe(second);
+    // The account it came off keeps everything else, and is not erased even if it has nothing left.
+    expect((await identitiesFor(deps, first)).map((i) => i.provider)).toEqual(["device"]);
+    expect(await store.getProfile(first)).not.toBeNull();
+
+    // And back again, because the person who owns the Telegram always can.
+    expect(await linkTelegram(deps, (await mintPairingCode(deps, first)).code, TG)).toBe("moved");
     expect(await store.userIdForIdentity("telegram", TG)).toBe(first);
-    expect((await identitiesFor(deps, second)).map((i) => i.provider)).toEqual(["device"]);
   });
 });

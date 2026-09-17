@@ -21,9 +21,17 @@ albums.ts     `AlbumBuffer`, carried over unchanged from the old @eait_bot.
   username, first name, chat id, or an id in text or callback data. `bot.test.ts` sends a username
   and checks that the store never holds it.
 - **A `telegram` identity comes from spending a pairing code, and only from that.** `/start <code>` →
-  `linkTelegram` (`engine/identity.ts`). An id another account holds is never moved (`elsewhere`).
-  An unknown Telegram user gets `TELEGRAM_COPY.stranger` and a sign-in link, whatever they send.
-  Nothing is charged for that.
+  `linkTelegram` (`engine/identity.ts`). An unknown Telegram user gets `TELEGRAM_COPY.stranger` and a
+  sign-in link, whatever they send. Nothing is charged for that.
+- **A link already on another account MOVES to the code's account** (`store.moveIdentity`), and that
+  is the safer answer, not the looser one: a code can be sent to somebody with a pretext, and
+  refusing to move left that stranger receiving their photos with no way back, since the bot has no
+  `/unlink`. A move needs both halves at once — this Telegram account, and a code minted inside an
+  authenticated session of the account it moves to. It never deletes the account it moves off.
+- **The connected line NAMES the account** — the provider, plus the address masked to its first
+  letter (`maskAddress`), and how to move the link if it is the wrong account. Said when the link is
+  made and again on a bare `/start`, because noticing at that moment is the whole point. A full
+  address is never printed: it would put somebody's email in a stranger's Telegram.
 - **`/start <code>` is rate limited per Telegram id** on `authRateLimitPerHour`, which is the
   allowance `/start/pair` takes per address. The pairing code's 40-bit arithmetic assumes that limit.
 - **Middleware order: private chats only → `update_id` dedupe → `sequentialize(from.id)`.** The

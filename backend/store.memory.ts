@@ -371,6 +371,19 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       });
     },
 
+    async moveIdentity(userId, provider, subject) {
+      const held = identities.find((i) => i.provider === provider && i.subject === subject);
+      if (!held) {
+        identities.push({ userId, provider, subject, linkedAt: new Date().toISOString(), email: null });
+        return "linked";
+      }
+      if (held.userId === userId) return "linked";
+      // The row moves; the account it came off is left exactly as it was, empty of identities or not.
+      held.userId = userId;
+      held.linkedAt = new Date().toISOString();
+      return "moved";
+    },
+
     async setIdentityEmail(userId, provider, subject, email) {
       // Scoped by `userId`: a row belonging to another account is not this caller's to write.
       const row = identities.find(

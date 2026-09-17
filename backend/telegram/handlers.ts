@@ -17,7 +17,8 @@ import {
 import type { Config } from "../config.ts";
 import { rateLimiter } from "../api/ratelimit.ts";
 import {
-  cancelPendingMeal, confirmPendingMeal, day, handleText, linkTelegram, logPhotoMeal, type EngineDeps,
+  cancelPendingMeal, confirmPendingMeal, day, handleText, identitiesFor, linkTelegram, logPhotoMeal,
+  type EngineDeps,
 } from "../engine/index.ts";
 
 /** A button under a message: a tap that comes back as callback data, or a link. */
@@ -49,9 +50,13 @@ export const TELEGRAM_COPY = {
     "This is the new eait. Your meals and photos are kept in your eait account: sign in on the web " +
     "and press Connect Telegram on your plan.",
   signIn: "Sign in",
-  connected: "Connected. Send a photo of a meal, tell me what you ate, or ask Gabie a question.",
+  connectedLead: "Connected to the eait account signed in with",
+  viaApp: "the app",
+  connectedTail: "Send a photo of a meal, tell me what you ate, or ask Gabie a question.",
+  notYours:
+    "Not your account? Sign in to your own on the web and press Connect Telegram there — this "
+    + "Telegram moves to it.",
   codeInvalid: "That link has expired. Open your plan on the web and press Connect Telegram again.",
-  elsewhere: "This Telegram is already connected to a different eait account.",
   tooManyTries: "Too many tries from this Telegram. Wait a while, then press the link again.",
   onTheWeb: "Your profile and settings are on the web.",
   tooLong: "That message is too long to send.",
@@ -82,6 +87,21 @@ const REFUSAL_WORDS: Record<string, string> = {
   "unsupported-image": "That file is not a photo this can read. JPEG, PNG or WebP.",
   "no-photo": "That photo did not come through. Send it again.",
 };
+
+/**
+ * An address with its local part masked: `kirill@example.com` → `k***@example.com`.
+ *
+ * ENOUGH TO RECOGNISE, NOT ENOUGH TO READ. The line exists so somebody who pressed a link another
+ * person sent them sees an account that is not theirs; a full address would put somebody's email in
+ * front of whoever holds that Telegram account, and in Telegram's own storage. Two characters or
+ * fewer keep nothing: one letter of a two-letter local part is most of it.
+ */
+function maskAddress(email: string): string {
+  const at = email.lastIndexOf("@");
+  if (at <= 0) return "***";
+  const local = email.slice(0, at);
+  return `${local.length > 2 ? local[0] : ""}***${email.slice(at)}`;
+}
 
 /** Where a person signs in, finishes onboarding, subscribes and changes settings. */
 function webStart(config: Config): string {
@@ -118,6 +138,23 @@ export function telegramHandlers(deps: EngineDeps) {
 
   const account = (from: number) => store.userIdForIdentity("telegram", String(from));
 
+  /**
+   * "Connected to the eait account signed in with Google, k***@example.com."
+   *
+   * WHICH ACCOUNT, said at the moment it is connected and again on a bare `/start`. A pairing code
+   * can be handed to somebody with a pretext, and "Connected." alone let that go unnoticed for as
+   * long as they kept sending photos. The provider comes from the account's own identities and the
+   * address is masked; neither is anything Telegram told us.
+   */
+  const connected = async (userId: string): Promise<string> => {
+    const providers = (await identitiesFor(deps, userId)).map((i) => i.provider);
+    const named = providers.find((p) => p === "apple" || p === "google");
+    const email = named ? await store.emailForUser(userId) : null;
+    const label = named === "apple" ? "Apple" : named === "google" ? "Google" : TELEGRAM_COPY.viaApp;
+    return `${TELEGRAM_COPY.connectedLead} ${label}${email ? `, ${maskAddress(email)}` : ""}.\n`
+      + `${TELEGRAM_COPY.connectedTail}\n${TELEGRAM_COPY.notYours}`;
+  };
+
   /** The one thing an unconnected Telegram user is told, whatever they sent. */
   const stranger = (chat: Chat) => {
     const url = webStart(config);
@@ -130,14 +167,18 @@ export function telegramHandlers(deps: EngineDeps) {
   return {
     async start(from: number, payload: string, chat: Chat): Promise<void> {
       if (payload.trim() === "") {
-        return (await account(from)) === null ? stranger(chat) : chat.send(TELEGRAM_COPY.connected);
+        const userId = await account(from);
+        return userId === null ? stranger(chat) : chat.send(await connected(userId));
       }
       if (limiter.check(`telegram:${from}`, { limit: config.authRateLimitPerHour, windowMs: HOUR }) !== null) {
         return chat.send(TELEGRAM_COPY.tooManyTries);
       }
-      const outcome = await linkTelegram(deps, payload, String(from));
-      await chat.send(outcome === "linked" ? TELEGRAM_COPY.connected
-        : outcome === "elsewhere" ? TELEGRAM_COPY.elsewhere : TELEGRAM_COPY.codeInvalid);
+      // `moved` is the recovery path and reads exactly like a fresh link: what matters to the
+      // person in front of it is which account they are on now, which the line names either way.
+      if ((await linkTelegram(deps, payload, String(from))) === "invalid") {
+        return chat.send(TELEGRAM_COPY.codeInvalid);
+      }
+      await chat.send(await connected((await account(from))!));
     },
 
     async today(from: number, chat: Chat): Promise<void> {

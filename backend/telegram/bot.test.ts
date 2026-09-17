@@ -170,7 +170,7 @@ describe("connecting", () => {
     const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
     const { code } = await mintPairingCode(deps, userId);
     await bot.handleUpdate(text(from, `/start ${code}`));
-    expect(sent()[1]!.text).toBe(TELEGRAM_COPY.connected);
+    expect(String(sent()[1]!.text)).toStartWith(TELEGRAM_COPY.connectedLead);
 
     const identity = await store.identityFor("telegram", String(from));
     expect(identity).toEqual({ userId, linkedAt: expect.any(String), email: null });
