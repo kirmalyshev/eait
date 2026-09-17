@@ -71,7 +71,7 @@ covering more than it does is how a client comes to refuse something the server 
 
 ## Testing
 
-`bun test ./backend` — no database needed, because the memory store is a real implementation of
+`bun test ./src/backend` — no database needed, because the memory store is a real implementation of
 the port rather than a mock. `EAIT__BACKEND__DATABASE_URL` is only for `make run-backend`.
 
 The demo analyzer (`llm/demo.ts`) must stay **as poor as the real one**. A fake may be poorer than

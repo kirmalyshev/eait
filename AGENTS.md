@@ -19,7 +19,7 @@ would falsify it; the reasoning that reached it belongs in the PR.
 ## Stack & commands
 
 - **Runtime:** TS/bun (`bun` 1.4+ — the lockfile is v2, which bun 1.3 cannot read).
-- **Install:** `bun install` at the root. Workspaces: `shared`, `backend`, `web`.
+- **Install:** `bun install` at the root. Workspaces: `src/shared`, `src/backend`, `src/frontend`.
 - **Typecheck:** `bun run typecheck`. **It is a gate, not a suggestion.** bun executes TypeScript
   *without* checking it, so a type error is invisible to `bun test` and to the running server until
   it crashes on live input.

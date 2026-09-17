@@ -53,7 +53,7 @@ web application. It opens the bot with a one-time code. The rules are in `src/ba
 ```sh
 bun run check         # typecheck, the web build, the unit suites, and that openapi.json is current
 bun run web:e2e       # the browser suite in the Chrome already installed, against the demo model
-TEST_DATABASE_URL=postgres://… bun test ./backend/store.contract.test.ts   # both stores, same suite
+TEST_DATABASE_URL=postgres://… bun test ./src/backend/store.contract.test.ts   # both stores, same suite
 ```
 
 ## Rules
