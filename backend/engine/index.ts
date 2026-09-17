@@ -27,7 +27,7 @@ export { profileView, patchProfile, type PatchOutcome } from "./profile.ts";
 export { mintPairingCode, redeemPairingCode } from "./pairing.ts";
 export { recordHealthDays, healthTrend, pruneAgedHealthDays } from "./health.ts";
 export {
-  signInWithProvider, identitiesFor, isAnonymous, revokeAppleIdentity, unlinkIdentity,
+  signInWithProvider, identitiesFor, isAnonymous, linkTelegram, revokeAppleIdentity, unlinkIdentity,
 } from "./identity.ts";
 export {
   onboardingContent, saveOnboardingContent, resetOnboardingContent, recordOnboardingEvents,

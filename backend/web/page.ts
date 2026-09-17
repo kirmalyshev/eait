@@ -64,6 +64,8 @@ export const PAGE_COPY = {
     "answers and your plan are already on it.",
   planCheckout: "Set up your subscription",
   planChat: "Open the chat",
+  planTelegram: "Connect Telegram",
+  planTelegramBody: "Send meals and questions from Telegram too. Same diary, same chat.",
   chatHeading: "Your chat",
   chatEmpty: "Nothing here yet. What you say in the app shows up here, and the other way round.",
   chatMealGone: "That meal is no longer in the diary.",
@@ -309,7 +311,9 @@ export function html(
       "content-type": "text/html; charset=utf-8",
       "content-security-policy":
         `default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-${TYPING_SCRIPT_HASH}'; ` +
-        "img-src 'self' data:; font-src 'self'; form-action 'self'",
+        // `https://t.me` because Connect Telegram's POST answers with a redirect there, and a form's
+        // redirect is held to this directive as well.
+        "img-src 'self' data:; font-src 'self'; form-action 'self' https://t.me",
       "referrer-policy": "no-referrer",
       "x-frame-options": "DENY",
       // A sign-up in progress is per-person and per-session. Nothing here may sit in a shared cache.
@@ -532,6 +536,8 @@ export interface PlanView {
    * about a diary — the same rule the `/start` front door follows before it redirects.
    */
   hasWebApp: boolean;
+  /** Whether the Telegram connector is on, so Connect Telegram has a bot to send anybody to. */
+  telegram: boolean;
 }
 
 export function plan(v: PlanView): string {
@@ -553,6 +559,10 @@ ${v.checkoutUrl
   ? `<a class="button primary" href="${escape(v.checkoutUrl)}">${escape(PAGE_COPY.planCheckout)}</a>`
   : ""}
 <a class="button" href="${v.hasWebApp ? "/#/chat" : "/start/chat"}">${escape(PAGE_COPY.planChat)}</a>
+${v.telegram
+  ? `<p class="muted">${escape(PAGE_COPY.planTelegramBody)}</p>
+<form method="post" action="/start/telegram"><button class="button">${escape(PAGE_COPY.planTelegram)}</button></form>`
+  : ""}
 <h2>${escape(PAGE_COPY.planAppHeading)}</h2>
 <p class="muted">${escape(v.signedInWith === null
   ? PAGE_COPY.planAppBodyGeneric

@@ -13,6 +13,7 @@ import { PROVIDERS } from "@eait/shared";
 import type { AuthProviderResponse, LinkOutcome, Provider } from "@eait/shared";
 import type { IdentityVerifier } from "../auth/verify.ts";
 import type { EngineDeps } from "./deps.ts";
+import { claimCode } from "./pairing.ts";
 
 /** An account is anonymous while `device` is the only thing that identifies it. */
 export async function isAnonymous(deps: EngineDeps, userId: string): Promise<boolean> {
@@ -130,6 +131,34 @@ async function recordEmail(
     // Never the address itself in the log — it is the personal datum this whole change is about.
     console.error(`[eait] ${provider} address not stored: ${(e as Error)?.message ?? e}`);
   }
+}
+
+/**
+ * Attach a Telegram user to the account a pairing code names — the bot's `/start <code>`.
+ *
+ * THE ONLY WAY A `telegram` IDENTITY IS MADE. The code was minted by a signed-in session for its
+ * own account (`mintPairingCode`), so only the account's owner can hand one out, and the subject is
+ * the `from.id` Telegram put on a private-chat update — never a chat id, never text in a message.
+ *
+ * A LINK ALREADY ON ANOTHER ACCOUNT MOVES, and that is the safe answer rather than the daring one.
+ * A pairing code can be sent to somebody with a pretext, so a person can be talked into linking
+ * their Telegram to a stranger's account; refusing to move it left that stranger receiving their
+ * photos with nothing they could do about it, because there is no `/unlink` in the bot. Moving
+ * needs BOTH halves at once — this Telegram account, and a code minted inside an authenticated
+ * session of the account it moves to — so it takes strictly more than making the link did.
+ * `store.moveIdentity` never deletes the account it moves off, whatever is left on it.
+ *
+ * `linked` is a new link or the same pair again; `moved` came off another account; `invalid` is
+ * every code failure, as one answer. The code is spent either way.
+ */
+export async function linkTelegram(
+  deps: EngineDeps,
+  rawCode: string,
+  telegramUserId: string,
+): Promise<"linked" | "moved" | "invalid"> {
+  const userId = await claimCode(deps, rawCode);
+  if (userId === null) return "invalid";
+  return deps.store.moveIdentity(userId, "telegram", telegramUserId);
 }
 
 /** What is linked to this account, for the settings screen. */

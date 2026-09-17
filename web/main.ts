@@ -22,7 +22,7 @@ import { dayBudget } from "../shared/budget.ts";
 import type { MealProposed, MealRecord, PendingPhoto } from "@eait/shared";
 import type {
   ChatHistoryResponse, DayResponse, DeleteLineResponse, EditLineLast, MessageRequest, MessageResponse, OUTCOME_UNKNOWN,
-  PendingMealsResponse, PendingResponse, PhotoLast, PhotoProgress, ProfileResponse, ROUTES,
+  PairCodeResponse, PendingMealsResponse, PendingResponse, PhotoLast, PhotoProgress, ProfileResponse, ROUTES,
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, apiStream, forget, signIn, signOut, signedIn } from "./api.ts";
 import { COPY } from "./copy.ts";
@@ -78,6 +78,20 @@ function chrome(active: string): HTMLElement {
     const a = el("a", "tab", "Admin") as HTMLAnchorElement;
     a.href = "/admin";
     nav.append(a);
+  }
+  const bot = profileCache?.telegramBot ?? null;
+  if (bot !== null) {
+    // The code is minted at the TAP, not when the page is drawn: it lives five minutes, and the bot
+    // has to receive it inside them. A navigation, so no CSP directive is involved in leaving.
+    const tg = el("button", "link", COPY.connectTelegram) as HTMLButtonElement;
+    tg.addEventListener("click", () => {
+      tg.disabled = true;
+      void api<PairCodeResponse>("/auth/pair", { method: "POST" })
+        .then(({ code }) => { location.assign(`https://t.me/${bot}?start=${code}`); })
+        .catch((err: unknown) => { console.error(err); tg.textContent = COPY.telegramFailed; })
+        .finally(() => { tg.disabled = false; });
+    });
+    nav.append(tg);
   }
   const out = el("button", "link", "Sign out") as HTMLButtonElement;
   out.addEventListener("click", () => {
@@ -596,7 +610,15 @@ function mealLine(meal: MealRecord | null): string {
   return `${names(meal.items)} — ${kcal(meal.kcal)}`;
 }
 
+/**
+ * Which draw owns the page. Every `render()` takes the next number and gives up at each await it
+ * comes back from to find a newer one: a hash change while the first draw was still waiting on the
+ * profile otherwise left BOTH to append their nav and their screen — two tab bars, two bodies.
+ */
+let drawing = 0;
+
 async function render(): Promise<void> {
+  const mine = ++drawing;
   const app = clear(root());
   if (!signedIn()) { app.append(signInScreen()); return; }
 
@@ -606,15 +628,19 @@ async function render(): Promise<void> {
   try {
     await profile();
   } catch (err) {
+    if (mine !== drawing) return;
     if (err instanceof Unauthenticated) { app.append(signInScreen()); return; }
   }
+  if (mine !== drawing) return;
   app.append(chrome(route));
   const body = el("div", "body", "Loading…");
   app.append(body);
   try {
     const screen = route === "#/chat" ? await chatScreen() : await diaryScreen();
+    if (mine !== drawing) return;
     clear(body).append(screen);
   } catch (err) {
+    if (mine !== drawing) return;
     if (err instanceof Unauthenticated) { await render(); return; }
     // The message, not the object: an error from deep in a stack can carry a prompt, and a prompt
     // can carry what somebody typed about their health.

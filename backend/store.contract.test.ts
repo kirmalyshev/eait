@@ -1401,6 +1401,47 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.userIdForIdentity("google", subject("apple-sub"))).toBeNull(); // separate namespaces
     });
 
+    // The Telegram connector's identity: the numeric `from.id` as a string, and nothing else.
+    it("links a Telegram id like any other identity, in a namespace of its own", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const other = (await s.upsertDeviceUser(device(), "en")).userId;
+      const id = String(1_000_000_000 + Math.floor(Math.random() * 1_000_000_000));
+      await s.addIdentity(u, "telegram", id);
+      expect(await s.userIdForIdentity("telegram", id)).toBe(u);
+      expect(await s.userIdForIdentity("apple", id)).toBeNull();
+      expect((await s.listIdentities(u)).map((i) => i.provider)).toContain("telegram");
+      expect(s.addIdentity(other, "telegram", id)).rejects.toThrow();
+    });
+
+    it("moves a claimed identity to the account that claimed it, and erases nothing on the way", async () => {
+      // The recovery path for a Telegram link made with somebody else's pairing code: the id moves,
+      // and the account it moves OFF keeps everything, even when that identity was its last way in.
+      const s = await open();
+      const from = (await s.upsertDeviceUser(device(), "en")).userId;
+      const to = (await s.upsertDeviceUser(device(), "en")).userId;
+      const id = String(1_000_000_000 + Math.floor(Math.random() * 1_000_000_000));
+
+      expect(await s.moveIdentity(to, "telegram", id)).toBe("linked");
+      expect(await s.moveIdentity(to, "telegram", id)).toBe("linked"); // the same pair again: nothing to move
+      await s.addIdentity(from, "apple", subject("mover"));
+
+      // Onto the other account, with the old one still there, still holding its own identity.
+      expect(await s.moveIdentity(from, "telegram", id)).toBe("moved");
+      expect(await s.userIdForIdentity("telegram", id)).toBe(from);
+      expect((await s.listIdentities(to)).map((i) => i.provider)).toEqual(["device"]);
+      expect(await s.getProfile(to)).not.toBeNull();
+
+      // And back, off an account for which it is the ONLY identity. `removeIdentity` would delete
+      // that account here; a move must not, because nobody asked for it to go.
+      const only = (await s.upsertDeviceUser(device(), "en")).userId;
+      const lone = String(2_000_000_000 + Math.floor(Math.random() * 1_000_000_000));
+      await s.moveIdentity(only, "telegram", lone);
+      await s.removeIdentity(only, "device", (await s.identitySubject(only, "device"))!);
+      expect(await s.moveIdentity(to, "telegram", lone)).toBe("moved");
+      expect(await s.getProfile(only)).not.toBeNull();
+    });
+
     it("gives back the subject it holds at one provider, and only to that account", async () => {
       const s2 = await open();
       const { userId } = await s2.upsertDeviceUser(device(), "en");

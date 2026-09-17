@@ -35,6 +35,19 @@ server reads is listed there, with its default — then:
 bun run start         # migrate() creates the tables; it never creates the database
 ```
 
+## Telegram
+
+The backend also runs a Telegram bot, in the same process, when `EAIT__BACKEND__TELEGRAM_BOT_TOKEN`
+is set. Get a token from [@BotFather](https://t.me/BotFather), and use a separate bot for
+development. The bot never runs under `--demo`, so it needs the Postgres-backed server:
+
+```sh
+EAIT__BACKEND__TELEGRAM_BOT_TOKEN=… bun run start    # logs "telegram connector on as @<bot>"
+```
+
+A person connects their account with **Connect Telegram** on their plan (`/start/plan`) or in the
+web application. It opens the bot with a one-time code. The rules are in `backend/telegram/AGENTS.md`.
+
 ## Check it
 
 ```sh

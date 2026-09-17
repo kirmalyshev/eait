@@ -20,6 +20,7 @@ import { HEALTH_RETENTION_DAYS, localDate } from "@eait/shared";
 import { memoryStore } from "./store.memory.ts";
 import { postgresStore } from "./store.pg.ts";
 import type { Store } from "./store.ts";
+import { createBot, superviseBot } from "./telegram/bot.ts";
 
 const demo = process.argv.includes("--demo");
 /**
@@ -321,8 +322,27 @@ const mode = demo ? ` (demo: in-memory store, ${cannedLlm ? "canned" : "REAL, BI
 console.log(`[eait] listening on http://${server.hostname}:${server.port}${mode}`);
 console.log(`[eait] config ${JSON.stringify(redact(config))}`);
 
+// ── The Telegram connector ───────────────────────────────────────────────────────────────────
+//
+// DORMANT UNLESS A TOKEN IS SET, and never under `--demo`: one line says which. It long-polls in this
+// process beside the evening line and the retention sweep, and the supervisor keeps it polling
+// through anything transient. A dead token stops the connector, never this server. The username
+// getMe answers is written onto the config, which is what draws every Connect Telegram link.
+const telegram = demo || config.telegramBotToken === ""
+  ? (console.log(`[eait] telegram connector off (${demo ? "--demo" : "EAIT__BACKEND__TELEGRAM_BOT_TOKEN unset"})`), null)
+  : superviseBot(createBot(deps, config.telegramBotToken), {
+      up(username) {
+        if (config.telegramBotUsername !== username) console.log(`[eait] telegram connector on as @${username}`);
+        config.telegramBotUsername = username;
+      },
+      down() { config.telegramBotUsername = ""; },
+    });
+
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, async () => {
+    // The connector first: a handler still running holds the store, and it must finish its turn
+    // before the pool it writes through is gone.
+    await telegram?.stop();
     await server.stop();
     await store.close();
     process.exit(0);

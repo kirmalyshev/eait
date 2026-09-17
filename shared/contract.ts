@@ -339,8 +339,13 @@ export interface AuthDeviceResponse {
   created: boolean;
 }
 
-/** Where an identity came from. `device` is the anonymous one every install starts with. */
-export const PROVIDERS = ["device", "apple", "google"] as const;
+/**
+ * Where an identity came from. `device` is the anonymous one every install starts with.
+ *
+ * `telegram` is a numeric Telegram user id, as a string, attached by spending a pairing code in the
+ * bot (`linkTelegram`). It is a second transport onto an account made elsewhere, never a sign-in.
+ */
+export const PROVIDERS = ["device", "apple", "google", "telegram"] as const;
 export type Provider = (typeof PROVIDERS)[number];
 
 /**
@@ -500,6 +505,15 @@ export interface ProfileResponse {
    * invented server-side would be wrong on every worktree at once.
    */
   pairAddress: string;
+  /**
+   * The username of this server's Telegram bot, for a Connect Telegram link, or null.
+   *
+   * NULL WHILE THE CONNECTOR IS OFF — no token, `--demo`, a dead token, or Telegram not reached yet —
+   * and a client draws no link then. The link is `https://t.me/<this>?start=<code>`, with a code from
+   * {@link ROUTES.authPair} minted at the moment of the tap: a code shown in advance would die on the
+   * screen in five minutes.
+   */
+  telegramBot: string | null;
 }
 
 /**

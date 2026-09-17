@@ -474,6 +474,26 @@ export interface Store {
   /** Attach a verified identity to an account. Unique on `(provider, subject)`. */
   addIdentity(userId: string, provider: Provider, subject: string): Promise<void>;
   /**
+   * Attach an identity to `userId` EVEN IF another account holds it, and say which happened.
+   *
+   * `addIdentity` refuses that, deliberately: a verified subject arriving from a provider belongs
+   * where it already is, and repointing it would hand one person another's diary. This is the one
+   * identity that is not like that. A `telegram` link is made by spending a pairing code, so a
+   * person can be talked into making one onto SOMEBODY ELSE'S account — and until they can move it
+   * back, that stranger keeps receiving their photos. Moving needs both halves at once: control of
+   * the Telegram account and a code minted inside an authenticated session of the account it moves
+   * to. Only `linkTelegram` calls this.
+   *
+   * IT NEVER DELETES AN ACCOUNT, which is what separates it from `removeIdentity`. That one erases
+   * an account when it takes its last way in, and here the account losing the identity is not the
+   * one asking: an account can be Telegram-only (a web sign-up whose Apple identity was revoked),
+   * and a stranger's move must not take its diary with it.
+   *
+   * ONE STEP, under the same lock `removeIdentity` takes, so a concurrent move or removal cannot
+   * interleave between reading who holds it and writing who holds it now.
+   */
+  moveIdentity(userId: string, provider: Provider, subject: string): Promise<"linked" | "moved">;
+  /**
    * Record the address the provider vouched for on an identity this account already holds.
    *
    * SEPARATE FROM `addIdentity` because the address does not arrive with the link. Apple sends one
@@ -567,8 +587,10 @@ export interface Store {
    * SEPARATE FROM `listIdentities` ON PURPOSE, and it must stay separate. That one feeds
    * `/v1/auth/identities`, which the APP reads: adding an `email` field to it would put the address
    * on a phone, and the settings screen ships a promise that the address runs the account and
-   * nothing else. This one is read on the server, by `/start` alone, and only its ANSWER — a
-   * two-letter country code the user is about to be shown as an option — leaves the process.
+   * nothing else. This is read on the server by two callers: `/start`, where only its ANSWER — a
+   * two-letter country code the user is about to be shown as an option — leaves the process, and
+   * the Telegram connector, which sends it MASKED to its first letter (`maskAddress`) so that a
+   * person who connected the wrong account can see that it is the wrong one.
    */
   emailForUser(userId: string): Promise<string | null>;
 

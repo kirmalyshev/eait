@@ -895,6 +895,26 @@ export async function postgresStore(
       }
     },
 
+    async moveIdentity(userId, provider, subject) {
+      return await sql.begin(async (tx) => {
+        // The account taking the identity, locked first — the same lock `removeIdentity` takes, so
+        // the two serialise against each other and against a sign-in linking a second provider.
+        await tx`select 1 from users where id = ${userId} for update`;
+        const [held] = await tx`
+          select user_id from identities
+          where provider = ${provider} and subject = ${subject} for update`;
+        if (held === undefined) {
+          await tx`insert into identities (provider, subject, user_id)
+                   values (${provider}, ${subject}, ${userId})`;
+          return "linked";
+        }
+        if (String(held.user_id) === userId) return "linked";
+        await tx`update identities set user_id = ${userId}, linked_at = now()
+                 where provider = ${provider} and subject = ${subject}`;
+        return "moved";
+      });
+    },
+
     async setIdentityEmail(userId, provider, subject, email) {
       // `user_id` in the WHERE, not checked after a read: the scope is what makes this safe, and a
       // row that belongs to another account simply matches nothing.

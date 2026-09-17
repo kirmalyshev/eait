@@ -12,7 +12,8 @@
 // redemption is one that already existed.
 // It is NOT an identity: `addIdentity` and `signInWithProvider` are never called either, so a
 // paired account is exactly as anonymous afterwards as it was before, and `engine/identity.ts`'s
-// merge rules are untouched by construction — this file does not import it.
+// merge rules are untouched by construction — this file does not import it. The one consumer that
+// does attach an identity with a code, `linkTelegram`, lives there and spends it through `claimCode`.
 // It is NOT a grant: no entitlement, no cap, no allowance. A paired browser is the same account
 // through a second window.
 //
@@ -85,21 +86,26 @@ export async function mintPairingCode(
 }
 
 /**
- * Spend a code and hand back an ordinary session token, or null.
+ * Spend a code and hand back the account it named, or null.
  *
  * Null is every failure — unknown, already spent, expired, malformed — and deliberately one answer.
- * A caller that could tell them apart is an oracle for which codes are live, and the page that
- * calls this shows one sentence for all of them.
+ * A caller that could tell them apart is an oracle for which codes are live, and every surface that
+ * takes a code shows one sentence for all of them.
  *
  * A MALFORMED CODE NEVER REACHES THE STORE. Uppercasing and dropping spaces and dashes is what a
  * person typing eight characters off a screen actually produces; anything left that is not eight
  * symbols of the alphabet cannot be a code this server minted, so there is nothing to look up and
  * no hash of garbage to compute.
  */
-export async function redeemPairingCode(deps: EngineDeps, raw: string): Promise<string | null> {
+export async function claimCode(deps: EngineDeps, raw: string): Promise<string | null> {
   const code = raw.toUpperCase().replace(/[\s-]/g, "");
   if (!CODE.test(code)) return null;
-  const userId = await deps.store.claimPairingCode(await hashToken(code));
+  return deps.store.claimPairingCode(await hashToken(code));
+}
+
+/** Spend a code and hand back an ordinary session token, or null (see `claimCode`). */
+export async function redeemPairingCode(deps: EngineDeps, raw: string): Promise<string | null> {
+  const userId = await claimCode(deps, raw);
   // `issueToken` and nothing else. The browser gets the same token the app holds and the same one
   // the OAuth callback mints, so no route downstream learns that a session can come from here.
   return userId === null ? null : deps.store.issueToken(userId);
