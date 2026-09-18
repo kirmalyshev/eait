@@ -15,7 +15,7 @@ import {
   type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord, type MealUpdated, type PhotoEvent,
   type Profile, type TargetGone, type ConfirmMealResult, type Refusal, explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
-import { localDate, localTime, windowStart } from "@eait/shared";
+import { PHOTO_MODEL_CALLS, localDate, localTime, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
 import { prepareAnalysis } from "./analysis.ts";
@@ -24,11 +24,16 @@ import { afterCorrection, afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
 import { imageMime, type AnalyzedMeal } from "../llm/port.ts";
 import { itemScanner } from "../llm/partial.ts";
+import { eatenAt, once } from "./turns.ts";
 
 /** Images arrive as thunks so nothing is READ until the caps have passed. */
 export interface LogPhotoInput {
   images: (() => Promise<Uint8Array>)[];
   caption?: string;
+  /** The phone's id for this turn: a second request carrying it is answered from the first (#708). */
+  clientId?: string;
+  /** When the photo was taken. The meal is dated by it; the analysis is charged today. */
+  capturedAt?: string;
 }
 
 /** Sum a day's meals. The single place totals are produced, so two views cannot disagree. */
@@ -96,6 +101,8 @@ export async function analyzePhotos(
   read: () => Promise<Uint8Array[]>,
   caption: string | undefined,
   onEvent?: (event: PhotoEvent) => void,
+  /** When the plate was photographed; the analyzer reads the time of day off it. `date` is the charge's. */
+  eaten: Date = new Date(),
 ): Promise<PhotoRead | Refusal> {
   const zone = deps.config.timezone;
   const refusal = await checkCaps(deps, userId, date, "photo");
@@ -133,8 +140,8 @@ export async function analyzePhotos(
     analysis = await deps.llm.analyzePhoto({
       images, profile, targets, onCost,
       ...(caption !== undefined ? { caption } : {}),
-      localTime: localTime(zone),
-      repertoire: await buildRepertoire(deps, userId, date),
+      localTime: localTime(zone, eaten),
+      repertoire: await buildRepertoire(deps, userId, localDate(zone, eaten)),
       // What this person's own corrections say about their portions. Unlike the repertoire, this
       // one is allowed to move the grams — see `buildUserText`.
       portionPriors: await deps.store.portionPriors(userId),
@@ -172,22 +179,36 @@ export async function logPhotoMeal(
    */
   onEvent?: (event: PhotoEvent) => void,
 ): Promise<LogPhotoResult> {
+  return once(deps, userId, input.clientId, PHOTO_MODEL_CALLS, () => logPhotoTurn(deps, userId, input, onEvent));
+}
+
+async function logPhotoTurn(
+  deps: EngineDeps,
+  userId: string,
+  input: LogPhotoInput,
+  onEvent?: (event: PhotoEvent) => void,
+): Promise<LogPhotoResult> {
   const profile = await deps.store.getProfile(userId);
   if (!profile || profile.onboarded_at === null) return { kind: "not-onboarded" };
 
-  const date = localDate(deps.config.timezone);
+  // TWO DAYS, and they differ for a photo taken offline and sent later (#708). The meal is dated
+  // when it was eaten. The caps and the charge are today's, or a backdated capture would be a way
+  // around a daily allowance.
+  const eaten = eatenAt(input.capturedAt);
+  const date = localDate(deps.config.timezone, eaten);
+  const today = localDate(deps.config.timezone);
 
-  const read = await analyzePhotos(deps, userId, profile, date,
-    () => Promise.all(input.images.map((r) => r())), input.caption, onEvent);
+  const read = await analyzePhotos(deps, userId, profile, today,
+    () => Promise.all(input.images.map((r) => r())), input.caption, onEvent, eaten);
   if (read.kind !== "read") return read;
   const { analysis, images, analysisId } = read;
-  const question = await mayAsk(deps, userId, date, analysis, read.question);
+  const question = await mayAsk(deps, userId, today, analysis, read.question);
 
   const record: MealRecord = {
     ...analysis,
     id: crypto.randomUUID(),
     user_id: userId,
-    ts: new Date().toISOString(),
+    ts: eaten.toISOString(),
     date,
     verdicts: await gatedVerdicts(deps, userId, analysis),
     corrected: false,

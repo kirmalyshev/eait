@@ -16,6 +16,7 @@ import { chooseMailer } from "./mail/choose.ts";
 import { choosePush } from "./push/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
 import { collectPushReceipts, eveningSweep, msUntilNextEveningLine, pruneAgedHealthDays, RECEIPT_DELAY_MS, type EngineDeps } from "./engine/index.ts";
+import { TURN_OUTCOME_TTL_MS } from "./engine/turns.ts";
 import { HEALTH_RETENTION_DAYS, localDate } from "@eait/shared";
 import { memoryStore } from "./store.memory.ts";
 import { postgresStore } from "./store.pg.ts";
@@ -133,6 +134,11 @@ const sweepHealthRetention = async () => {
     // One failed sweep must not take the interval with it, for the reason the evening line says.
     console.error(`[eait] health retention sweep failed: ${(e as Error)?.message ?? e}`);
   }
+  // A turn's answer is kept for a replay of it and no longer (#708); the claim stays. Its own try, so
+  // a failed health sweep does not keep answers past their time.
+  await store.forgetTurnOutcomes(Date.now() - TURN_OUTCOME_TTL_MS).catch((e: unknown) => {
+    console.error(`[eait] turn answer sweep failed: ${(e as Error)?.message ?? e}`);
+  });
 };
 await sweepHealthRetention();
 setInterval(() => { void sweepHealthRetention(); }, DAY_MS).unref?.();

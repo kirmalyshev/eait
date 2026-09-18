@@ -380,6 +380,19 @@ create index if not exists analyses_user_date_idx on analyses(user_id, date, sco
 alter table analyses add column if not exists cost_usd double precision;
 alter table analyses add column if not exists unpriced_calls integer not null default 0;
 
+-- A billed turn, claimed by the client's id for it before anything runs (#708). The primary key IS
+-- the idempotency: a phone that lost an answer re-sends the id, and the second insert does nothing.
+-- outcome is what the turn answered, kept for a replay and nulled after a day by
+-- forgetTurnOutcomes; the claim itself stays, so a late replay is an unknown and never a rerun.
+create table if not exists turns (
+  user_id    uuid not null references users(id) on delete cascade,
+  client_id  text not null,
+  outcome    jsonb,
+  claimed_at timestamptz not null default now(),
+  primary key (user_id, client_id)
+);
+create index if not exists turns_claimed_idx on turns(claimed_at) where outcome is not null;
+
 -- The admin-edited onboarding copy. ONE row, pinned to id = 1.
 --
 -- A single row rather than a version history: the app fetches "what is live", and the thing an
@@ -1169,6 +1182,11 @@ export async function postgresStore(
         await tx`update meal_photos set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         await tx`update pendings set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         await tx`update analyses set user_id = ${intoUserId} where user_id = ${fromUserId}`;
+        // A turn the anonymous session sent is replayed by the same phone under the real account. One
+        // id claimed on both sides keeps the survivor's; the other goes with the anonymous row.
+        await tx`
+          update turns set user_id = ${intoUserId} where user_id = ${fromUserId}
+            and client_id not in (select client_id from turns where user_id = ${intoUserId})`;
         // What the app has learned about this person's portions is learned before they sign in.
         await tx`update portion_corrections set user_id = ${intoUserId} where user_id = ${fromUserId}`;
         await tx`update chat_messages set user_id = ${intoUserId} where user_id = ${fromUserId}`;
@@ -1915,6 +1933,33 @@ export async function postgresStore(
       const rows = await sql`
         delete from analyses where id = ${analysisId} and user_id = ${userId} returning id`;
       return rows.length > 0;
+    },
+
+    async claimTurn(userId, clientId) {
+      const rows = await sql`
+        insert into turns (user_id, client_id, claimed_at) values (${userId}, ${clientId}, ${new Date(now())})
+        on conflict (user_id, client_id) do nothing returning client_id`;
+      return rows.length > 0;
+    },
+
+    async getTurn(userId, clientId) {
+      const rows = await sql`
+        select outcome, claimed_at from turns where user_id = ${userId} and client_id = ${clientId}`;
+      const r = rows[0] as { outcome: unknown; claimed_at: Date } | undefined;
+      if (!r) return null;
+      return { outcome: json<object | null>(r.outcome, null), claimedAt: new Date(r.claimed_at).getTime() };
+    },
+
+    async settleTurn(userId, clientId, outcome) {
+      await sql`
+        update turns set outcome = ${JSON.stringify(outcome)}::jsonb
+        where user_id = ${userId} and client_id = ${clientId}`;
+    },
+
+    async forgetTurnOutcomes(before) {
+      const rows = await sql`
+        update turns set outcome = null where outcome is not null and claimed_at < ${new Date(before)} returning client_id`;
+      return rows.length;
     },
 
     async putHealthDays(userId, days) {

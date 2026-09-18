@@ -20,6 +20,7 @@ a third implementation instead of the agreement between two.
 | `onboarding.ts`, `onboarding-chat.ts` | the question set and the branch logic. |
 | `perf.ts` | `PERF_SCREENS` and every screen's budget. |
 | `entitlement.ts`, `chat.ts`, `thread.ts`, `projection.ts`, `claims.ts`, `notifications.ts` | same rule: one definition, two consumers. |
+| `outbox.ts` | the turns a client could not send (#708): the order, the holds, and what is retried under the same id. The phone and the browser persist it; this decides it. |
 
 Everything is exported through `index.ts` (`export *`), so a new export needs no wiring.
 

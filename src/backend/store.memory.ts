@@ -133,6 +133,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     id: string; userId: string; date: string; scope: "photo" | "text"; costUsd: number | null; unpricedCalls: number;
   }[] = [];
   let analysisSeq = 0;
+  // `${userId}\n${clientId}` -> the claim. The key IS the uniqueness the Postgres primary key gives.
+  const turns = new Map<string, { userId: string; clientId: string; outcome: object | null; claimedAt: number }>();
   // Append-only and read newest-first, which is the order Postgres reads them in.
   const portionCorrections: (PortionCorrection & { userId: string })[] = [];
   const identities: {
@@ -209,6 +211,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     for (let i = analyses.length - 1; i >= 0; i--) {
       if (analyses[i]!.userId === userId) analyses.splice(i, 1);
     }
+    for (const [k, t] of turns) if (t.userId === userId) turns.delete(k);
     // Identities go too, so deleting an account genuinely releases the Apple/Google subject
     // rather than leaving a row that would collide when the same person signs in again.
     for (let i = identities.length - 1; i >= 0; i--) {
@@ -553,6 +556,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         if (!healthDays.has(target)) healthDays.set(target, { ...d, userId: intoUserId });
       }
       for (const a of analyses) if (a.userId === fromUserId) a.userId = intoUserId;
+      // A turn the anonymous session sent is replayed by the same phone under the real account.
+      // One id claimed on both sides keeps the survivor's.
+      for (const [k, t] of turns) {
+        if (t.userId !== fromUserId) continue;
+        turns.delete(k);
+        const into = `${intoUserId}\n${t.clientId}`;
+        if (!turns.has(into)) turns.set(into, { ...t, userId: intoUserId });
+      }
       // What the app has learned about this person's portions is learned before they sign in.
       for (const c of portionCorrections) if (c.userId === fromUserId) c.userId = intoUserId;
       for (const m of chat) if (m.userId === fromUserId) m.userId = intoUserId;
@@ -1107,6 +1118,31 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (i < 0) return false;
       analyses.splice(i, 1);
       return true;
+    },
+
+    async claimTurn(userId, clientId) {
+      const k = `${userId}\n${clientId}`;
+      if (turns.has(k)) return false;
+      turns.set(k, { userId, clientId, outcome: null, claimedAt: now() });
+      return true;
+    },
+
+    async getTurn(userId, clientId) {
+      const t = turns.get(`${userId}\n${clientId}`);
+      return t ? { outcome: t.outcome === null ? null : clone(t.outcome), claimedAt: t.claimedAt } : null;
+    },
+
+    async settleTurn(userId, clientId, outcome) {
+      const t = turns.get(`${userId}\n${clientId}`);
+      if (t) t.outcome = clone(outcome);
+    },
+
+    async forgetTurnOutcomes(before) {
+      let n = 0;
+      for (const t of turns.values()) {
+        if (t.outcome !== null && t.claimedAt < before) { t.outcome = null; n++; }
+      }
+      return n;
     },
 
     async putHealthDays(userId, days) {

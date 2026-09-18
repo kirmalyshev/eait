@@ -998,6 +998,25 @@ export interface Store {
    */
   undoAnalysis(userId: string, analysisId: string): Promise<boolean>;
 
+  // ── Turns (#708) ───────────────────────────────────────────────────────────────────────────
+  //
+  // A billed turn claimed by the client's id for it, BEFORE anything runs or is charged. A phone
+  // that lost the answer re-sends the same id, and the claim is what stops that becoming a second
+  // meal and a second charge. The claim and its check are one statement, so two copies of one
+  // request arriving together cannot both run.
+  /** True when this call made the claim; false when `(userId, clientId)` was already claimed. */
+  claimTurn(userId: string, clientId: string): Promise<boolean>;
+  /** The claim, its answer once settled (null while it runs), and when it was made. Null: never claimed. */
+  getTurn(userId: string, clientId: string): Promise<{ outcome: object | null; claimedAt: number } | null>;
+  /** Record what a claimed turn answered, for a replay to be answered with. */
+  settleTurn(userId: string, clientId: string, outcome: object): Promise<void>;
+  /**
+   * Drop the answers of turns claimed before `before` (epoch ms), keeping the claims. The answer is
+   * a copy of a result — a meal's analysis, a coach's sentence — and is only needed while a lost
+   * answer may still be re-asked for. The claim stays, so a late replay is an unknown, never a rerun.
+   */
+  forgetTurnOutcomes(before: number): Promise<number>;
+
   // ── Health ─────────────────────────────────────────────────────────────────────────────────
   //
   // Daily aggregates read off the user's phone. Scoped like everything else, and stored as one row
