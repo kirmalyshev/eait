@@ -20,20 +20,36 @@ private repository this backend is developed alongside.
 ## Run it
 
 ```sh
-bun install
-bun run demo          # no database, no model key: canned analyses, seeded fixtures, on :8787
-bun run web:build
-EAIT__FRONTEND__BACKEND_ORIGIN=http://127.0.0.1:8787 bun run web   # the web application on :8788
+./dev install         # every tool this needs, on macOS or Linux (--check reports, changes nothing)
+./dev up --demo --web
 ```
 
-Open http://127.0.0.1:8788 — the web application, talking to the demo backend through its dev proxy.
+Open the web application on the port it prints — no database, no model key: canned analyses,
+seeded fixtures, and the app talking to the demo backend through its dev proxy.
 
-Against Postgres and a real model: copy the example env file to a local one — every setting the
-server reads is listed there, with its default — then:
+Against Postgres and a real model, put `EAIT__BACKEND__LLM_API_KEY` in `.env` (`.env.example` is
+the full inventory of what the server reads, with every default), then:
 
 ```sh
-bun run start         # migrate() creates the tables; it never creates the database
+./dev up --all        # Postgres, the backend, the web app — detached, on this worktree's ports
+./dev seed            # the development accounts, including the one that holds the admin role
 ```
+
+`./dev` runs the stack detached and per worktree, so several checkouts coexist: each gets its own
+ports and its own database inside one shared Postgres, derived from a slot number.
+
+| | |
+|---|---|
+| `./dev up [--backend\|--demo] [--web] [--all]` | start, detached |
+| `./dev down` / `./dev restart` | stop this worktree's stack; restart what was last up |
+| `./dev status` / `./dev ls` | this worktree; every worktree on the machine |
+| `./dev logs [service]` | follow |
+| `./dev seed` / `./dev db …` | fixtures; the shared Postgres and this worktree's database |
+| `./dev env` / `./dev url` | what this worktree derives; its API URL, for substitution |
+
+Without it, the plain commands still work — `bun run demo` on :8787, `bun run web:build` then
+`EAIT__FRONTEND__BACKEND_ORIGIN=http://127.0.0.1:8787 bun run web` on :8788, and `bun run start`
+against a real database. `migrate()` creates the tables; it never creates the database.
 
 ## Telegram
 

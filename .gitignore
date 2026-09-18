@@ -8,3 +8,8 @@ node_modules/
 src/frontend/dist/
 test-results/
 playwright-report/
+
+# The dev stack's own state and this worktree's derived configuration.
+.dev/
+.env.worktree
+.eait-slot

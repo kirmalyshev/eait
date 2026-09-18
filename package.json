@@ -17,7 +17,7 @@
     "web:build": "bun run --cwd src/frontend build",
     "web:e2e": "playwright test",
     "typecheck": "bun run --cwd src/shared typecheck && bun run --cwd src/backend typecheck && bun run --cwd src/frontend typecheck && tsc -p scripts",
-    "test": "bun test ./src/shared ./src/backend ./src/frontend",
+    "test": "bun test ./src/shared ./src/backend ./src/frontend ./scripts",
     "check": "bun run typecheck && bun run web:build && bun run test && bun run openapi --check",
     "openapi": "bun run scripts/openapi.ts"
   },

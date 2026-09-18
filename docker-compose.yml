@@ -1,0 +1,41 @@
+# Development Postgres. ONE container for every worktree; one database inside it per worktree.
+#
+# Port 5433, not 5432, so this does not collide with a local Postgres.
+#
+# `name:` is not decoration. Compose otherwise names the project after the DIRECTORY it is run
+# from, so each worktree would be a different project trying to start a container called `eait-db`
+# — and the second one fails with a name conflict rather than reusing the first. Pinning the
+# project name makes every worktree talk to the same server, which is the point: the isolation
+# between worktrees is the DATABASE (`scripts/db.sh` creates one per worktree), not the server.
+#
+# DELIBERATELY THE SAME PROJECT, CONTAINER AND VOLUME as the private monorepo that carries this
+# repository as a submodule. One machine gets one development Postgres either way, and a database
+# per worktree inside it; running `./dev` here and there in turn does not start a second server or
+# strand rows in a volume the other one cannot see.
+name: eait-dev
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: eait-db
+    environment:
+      POSTGRES_USER: eait
+      POSTGRES_PASSWORD: eait
+      # The maintenance database, and slot 0's. `createdb` needs an existing database to connect to
+      # before it can create another one, and this is it.
+      POSTGRES_DB: eait
+    ports:
+      - "5433:5432"
+    volumes:
+      - eait-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eait -d eait"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  # Named explicitly rather than left to compose's `<project>_<volume>` scheme, so the data does not
+  # move the next time the project name does.
+  eait-pgdata:
+    name: eait-pgdata
