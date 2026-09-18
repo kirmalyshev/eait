@@ -10,6 +10,7 @@
 // as an ARGUMENT resolved from credentials — never from a request body, a model output, or a tool
 // call. There is no method here that can reach a row without being told whose it is.
 
+import type { PromptSource } from "./llm/prompt.ts";
 import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, OnboardingContent,
   OnboardingEvent, Profile, Provider, ChatEvent, ChatSpeaker } from "@eait/shared";
@@ -167,6 +168,33 @@ export interface PortionCorrection {
   name_en: string;
   grams_before: number;
   grams_after: number;
+}
+
+/**
+ * One revision of one system prompt.
+ *
+ * `key` is a `PromptKey` (`llm/prompt.ts`) and is typed as a plain string here on purpose: this
+ * port stores rows and does not decide which prompts exist. The code's set is `PROMPT_KEYS`, the
+ * database's is the `llm_prompts` check constraint, and a test compares the two.
+ */
+export interface PromptRevision {
+  key: string;
+  /**
+   * Monotonic per key, assigned by the store. Revision 1 is the SHIPPED text, which every store
+   * comes up holding — an admin's first edit is 2.
+   */
+  version: number;
+  text: string;
+  /**
+   * Who wrote it: `shipped` for the constant in `llm/prompt.ts`, `admin` for a person.
+   *
+   * It is what lets `syncShippedPrompts` carry a changed constant into a store that already has
+   * rows WITHOUT reverting somebody's edit. Without the column the two cases are indistinguishable
+   * and a deploy would have to choose between never updating a prompt and always overwriting one.
+   */
+  source: PromptSource;
+  /** When this revision went live. The other half of "what were we sending on the 3rd". */
+  updated_at: string;
 }
 
 /** What those corrections add up to for one food. */
@@ -769,6 +797,41 @@ export interface Store {
   getNotificationCopy(): Promise<NotificationCopy | null>;
   /** Replace it. Validated by the caller — the store writes what it is given. */
   putNotificationCopy(copy: NotificationCopy): Promise<void>;
+
+  // ── The prompts the model is sent ───────────────────────────────────────────────────────────
+  //
+  // The same shape as the two above — editable words, a shape that is not, a compiled-in default
+  // when nothing has been saved — with one difference: these are APPEND-ONLY. Onboarding copy is
+  // pinned to one row because the thing an admin needs to undo a bad edit is the previous JSON and
+  // the version number in the payload carries it. A prompt has no such payload and a worse failure
+  // mode: it changes what a model was asked, silently, on every later analysis. So every revision
+  // stays, `getPrompts` serves the newest, and `promptRevisions` is how "what were we sending in
+  // August" is answered at all.
+  //
+  // GLOBAL, AND DELIBERATELY SO, in a port whose every other read and write is scoped to an
+  // account. A prompt is not a user's data: it is the instruction this server sends on behalf of
+  // all of them, written by the admin role and read by the LLM transport. No `userId` is taken by
+  // any of the three, so there is no query here to widen past one — the failure the scoping rule
+  // prevents cannot be written. A per-user prompt would be a different feature and would need it.
+
+  /**
+   * The live revision of every prompt.
+   *
+   * Normally six rows: every store comes up holding the shipped text (`syncShippedPrompts`, run by
+   * `postgresStore` at boot and by `memoryStore` at construction), so the stored path is the one a
+   * test and a deployment both exercise. An EMPTY list is still a legal answer and still means
+   * "send the compiled-in prompts" rather than "broken" — a database that refused the sync is a
+   * database this product keeps serving from.
+   */
+  getPrompts(): Promise<PromptRevision[]>;
+  /**
+   * Append a revision and return its version. Validated by the caller
+   * (`validateStoredPrompt`) — the store writes what it is given, as it does for the copy above.
+   * The version is assigned HERE rather than accepted, so two concurrent saves cannot share one.
+   */
+  putPrompt(key: string, text: string, source: PromptSource): Promise<number>;
+  /** Every revision of one prompt, newest first. The audit trail, and the way back. */
+  promptRevisions(key: string): Promise<PromptRevision[]>;
   /**
    * Append funnel events, ignoring ids already stored. Returns how many were new.
    *

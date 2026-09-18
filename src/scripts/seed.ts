@@ -57,6 +57,9 @@ try {
   const seeded = await seedDevData(store, { timezone, only });
 
   console.log(`\n  seeded ${databaseUrl.replace(/\/\/[^@]*@/, "//***@")}\n`);
+  // The prompts are NOT seeded here, and that is not an omission: `postgresStore()` syncs the
+  // shipped text at boot, so opening this store already wrote them. Seeding them again from the
+  // dev fixtures would be a second writer of the same rows.
   for (const s of seeded) {
     console.log(`  ${s.key}`);
     console.log(`    ${s.summary}`);

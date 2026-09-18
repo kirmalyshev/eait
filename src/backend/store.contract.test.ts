@@ -24,11 +24,12 @@
 // A DATABASE OF ITS OWN, and NOT this worktree's dev one. Two assertions here are about a database
 // with NO admin in it (`hasAdmin`), and `./dev seed` writes one — so pointing this at the database
 // you develop against fails those two and nothing else, which reads like a broken store rather
-// than like seeded data. Never slot 0's `eait` either: that is the main checkout's dev data (#495).
+// than like seeded data.
 
 import { afterAll, describe, expect, it } from "bun:test";
 import { SQL } from "bun";
 import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, emptyHealthDay, type MealRecord } from "@eait/shared";
+import { PROMPT_DEFAULTS, PROMPT_KEYS } from "./llm/prompt.ts";
 import { hashToken } from "./auth/tokens.ts";
 import { memoryStore } from "./store.memory.ts";
 import { postgresStore } from "./store.pg.ts";
@@ -77,7 +78,13 @@ function contract(name: string, make: () => Promise<Store>) {
     // Isolation comes from every test minting its own users and device ids instead.
     let store: Store | null = null;
     const open = async () => (store ??= await make());
-    afterAll(async () => { await store?.close(); });
+    afterAll(async () => {
+      // The shipped prompts go back HERE, not at the end of each prompt test: an assertion that
+      // throws skips everything after it, and `stored coach <run>` left behind IS what a server
+      // pointed at this database would then be sending. `finally`, so a restore that fails still
+      // closes the pool.
+      try { if (store) await restorePrompts(store); } finally { await store?.close(); }
+    });
 
     it("creates a device user once and finds it again", async () => {
       const s = await open();
@@ -1964,6 +1971,98 @@ function contract(name: string, make: () => Promise<Store>) {
 
       await s.putOnboardingContent({ ...content, version: 8 });
       expect((await s.getOnboardingContent())?.version).toBe(8);
+    });
+
+    // ── The stored prompts ─────────────────────────────────────────────────────────────────
+    //
+    // GLOBAL ROWS, in a port whose every other read and write is scoped to one account. That is
+    // safe for one reason and it is worth stating: a prompt is not anybody's data. It is the
+    // instruction this server sends on behalf of every user, the same text for all of them, and
+    // it is written only by the admin role and read only by the LLM transport. No `userId` reaches
+    // these three methods, so there is no query here that could be widened past one — the failure
+    // mode the scoping rule exists to prevent cannot be expressed. A per-user prompt would be a
+    // different feature, and it would need the scoping.
+
+    /**
+     * Put the shipped text back as the newest revision.
+     *
+     * THE ONE FIXTURE IN THIS FILE THAT IS GLOBAL AND LIVE. Everything else here is scoped to a
+     * user or made unique per run, so Postgres keeping it between runs costs nothing. A prompt row
+     * is what the server SENDS: left behind, `stored coach <uuid>` is the live coach prompt of
+     * whatever database this suite was pointed at, and the next person to run the backend against
+     * it gets a model answering from a test fixture with nothing on screen to say so.
+     *
+     * Appended rather than deleted, because the table is append-only and this is exactly the event
+     * it records: the text changed, and then it changed back. Called from the suite's `afterAll`,
+     * which a failing assertion cannot skip.
+     */
+    const restorePrompts = async (s: Store) => {
+      for (const key of PROMPT_KEYS) await s.putPrompt(key, PROMPT_DEFAULTS[key], "shipped");
+    };
+
+    it("comes up holding the shipped text for every prompt", async () => {
+      // The invariant both implementations owe, by different means: `memoryStore` writes these rows
+      // in its constructor, `postgresStore` runs `syncShippedPrompts` at boot. If they ever stop
+      // agreeing, every test in this repo is reading prompts out of a store that production does
+      // not resemble.
+      //
+      // Asserted over the HISTORY rather than the live row, so the test does not depend on running
+      // before the ones below that write an admin revision. What it pins is that the shipped text
+      // is in this store and is marked as the shipper's.
+      const s = await open();
+      for (const key of PROMPT_KEYS) {
+        const shipped = (await s.promptRevisions(key))
+          .filter((r) => r.source === "shipped" && r.text === PROMPT_DEFAULTS[key]);
+        expect(shipped.length, `no shipped revision of "${key}" — this store did not seed itself`)
+          .toBeGreaterThan(0);
+      }
+    });
+
+    it("stores and reads back every prompt key the code expects", async () => {
+      const s = await open();
+      // The divergence check with a database behind it: Postgres refuses a key its check
+      // constraint does not carry, so a seventh prompt added to PROMPT_KEYS and not to the schema
+      // fails HERE, naming itself, rather than in production on an admin's first save.
+      for (const key of PROMPT_KEYS) {
+        const text = `stored ${key} ${RUN}`;
+        const version = await s.putPrompt(key, text, "admin").catch((e: unknown) => {
+          throw new Error(`the store refused prompt key "${key}", which the code sends: ${(e as Error)?.message ?? e}`);
+        });
+        expect(version).toBeGreaterThan(0);
+        const live = (await s.getPrompts()).find((p) => p.key === key);
+        expect(live, `prompt key "${key}" did not survive a round trip through the store`).toBeDefined();
+        expect(live!.text).toBe(text);
+      }
+    });
+
+    it("keeps every revision, and serves the newest as live", async () => {
+      const s = await open();
+      // The whole reason this table is append-only. "What prompt produced this analysis" is
+      // unanswerable the moment an edit overwrites its predecessor, and a prompt edit that changes
+      // model behaviour with no record is the failure this storage exists to prevent.
+      const first = await s.putPrompt("glance", `first ${RUN}`, "admin");
+      const second = await s.putPrompt("glance", `second ${RUN}`, "admin");
+      expect(second).toBe(first + 1);
+
+      const live = (await s.getPrompts()).find((p) => p.key === "glance");
+      expect(live!.text).toBe(`second ${RUN}`);
+      expect(live!.version).toBe(second);
+
+      const history = await s.promptRevisions("glance");
+      expect(history[0]!.version).toBe(second);
+      expect(history.map((r) => r.text)).toContain(`first ${RUN}`);
+      // Newest first, and each revision carries when it went live.
+      expect(history[0]!.updated_at >= history[1]!.updated_at).toBe(true);
+    });
+
+    it("gives one prompt per key, and a write to one leaves the others alone", async () => {
+      const s = await open();
+      await s.putPrompt("coach", `coach ${RUN}`, "admin");
+      await s.putPrompt("analysis", `analysis ${RUN}`, "admin");
+      const live = await s.getPrompts();
+      expect(live.filter((p) => p.key === "coach")).toHaveLength(1);
+      expect(live.find((p) => p.key === "coach")!.text).toBe(`coach ${RUN}`);
+      expect(live.find((p) => p.key === "analysis")!.text).toBe(`analysis ${RUN}`);
     });
 
     it("stores notification copy in its own row, not the onboarding one", async () => {

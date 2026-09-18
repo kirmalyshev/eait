@@ -7,6 +7,9 @@
 #   ./dev restart [same flags]       bare: whatever `up` last asked for, including what has crashed
 #   ./dev status                     this worktree
 #   ./dev ls [--plain]               EVERY worktree on this machine, and what each is running
+#   ./dev prompts [list|show|set]    read and edit the system prompts this instance sends; stored,
+#                                    so a save takes effect with no deploy and no restart. Run it
+#                                    with no command to list them.
 #   ./dev seed                       put the development accounts into this worktree's database:
 #                                    the ordinary ones and the account that holds the admin role,
 #                                    which is the only way into /admin. Replaces its own accounts,
@@ -527,6 +530,9 @@ case "${1:-}" in
   # NOT a service: it writes rows and exits. `ensure_env` first, because the database name is
   # derived from this worktree's slot and the seeder would otherwise write into slot 0's.
   seed)    shift; ensure_env; exec bun src/scripts/seed.ts "$@" ;;
+  # Also not a service, and `ensure_env` for the same reason: a prompt is global to a database, so
+  # running this against slot 0's would edit what the MAIN checkout sends.
+  prompts) shift; ensure_env; exec bun src/scripts/prompts.ts "$@" ;;
   # THE ONLY PLACE `TEST_DATABASE_URL` IS SET, and it is set from the derivation, so the contract
   # suite cannot run against a database that missed the slot. It is deliberately not in
   # `package.json`: `bun run test` must keep passing with no Postgres — `bun run check` runs it, and

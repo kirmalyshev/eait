@@ -1,9 +1,26 @@
-// The prompts and the schemas the model's output must satisfy. Authored ONCE, here.
+// The prompts and the schemas the model's output must satisfy. Authored here; a live instance may
+// be serving a stored override of the prose.
 //
-// No prompt string is written anywhere else. If a second engine is ever added (eait keeps a
-// dev-only one purely so its eval harness has something to measure against), it imports these
-// verbatim — otherwise no evaluation can tell a transport regression from an accuracy one, because
-// both move the same numbers.
+// WHAT CHANGED, AND WHAT DID NOT. The six system prompts below are AUTHORED here and SERVED from a
+// row: every store comes up holding them (`syncShippedPrompts` at boot for Postgres, the
+// constructor for the memory store), so the text a model was actually sent can be edited without a
+// deploy, and a test reads it the way production does. These constants stay authoritative through
+// the `source` column — the sync carries a changed constant onto a host that has booted before, and
+// never over a row an admin wrote. Everything a prompt is made OF stays compiled in and reviewed —
+// `normalizePromptText` (a containment boundary), every `build*` function (they interpolate the
+// user's own data and enforce its caps), the Zod schemas, and `COACH_TOOL_DEFS`. Moving any of
+// those into a row would make a stored string a template language, a tool definition, or a parser
+// contract, and none of those three is prose.
+//
+// A PROMPT THAT FAILS TO LOAD IS NOT AN OUTAGE. An empty table, a deleted row, an unreachable
+// database and a row that fails containment all resolve to the constant below, which is what this
+// file alone did before. `loadPrompts` cannot throw, and neither can `syncShippedPrompts` — the
+// fallback is the safety net under the rows rather than the normal path.
+//
+// If a second engine is ever added (eait keeps a dev-only one purely so its eval harness has
+// something to measure against), it resolves prompts the same way — otherwise no evaluation can
+// tell a transport regression from an accuracy one, because both move the same numbers. What it
+// must never do is hold a second copy of the text.
 //
 // NOTE WHAT THE MODEL IS NOT ASKED FOR: verdicts. eait asked the model to judge, then had to build
 // a runtime gate because the model returned cholesterol judgements for users who had never
@@ -619,3 +636,213 @@ export function buildCoachContext(c: CoachContext): string {
 
 /** One replayed line, contained: the thread holds words the model wrote and words the user typed. */
 export const coachLine = (text: string): string => normalizePromptText(text, MAX_USER_LINE);
+
+// ── The stored prompts ───────────────────────────────────────────────────────────────────────
+//
+// The prose above is the SEED AND THE FALLBACK. A row in `llm_prompts` replaces one of these
+// strings by key and nothing else: no builder, no schema, no tool definition, and no part of the
+// message array. What a stored prompt can do is exactly what editing the string above could do,
+// minus the review and the typecheck — which is why the write gate below exists and why the read
+// side re-checks rather than trusting.
+
+/**
+ * Every prompt this code knows how to send, and the one place the set is declared.
+ *
+ * The Postgres check constraint spells the same six out by hand, so the two CAN drift — and
+ * `prompt.schema.test.ts` compares them and fails naming the key. That is deliberate: a constraint
+ * generated from this array could never disagree with it, and could never catch a seventh prompt
+ * that was added here and never given a home in the schema.
+ */
+export const PROMPT_KEYS = ["analysis", "route", "text_meal", "text_correction", "glance", "coach"] as const;
+export type PromptKey = typeof PROMPT_KEYS[number];
+export type Prompts = Record<PromptKey, string>;
+
+/**
+ * The compiled-in text for each key: what a fresh database serves, and what a broken one serves.
+ *
+ * NOTE THE ONE PROMPT THAT IS NOT A CONSTANT STRING. `SYSTEM_COACH` interpolates
+ * `MAX_SUGGESTIONS` and `MAX_SUGGESTION` at module load, so these defaults carry today's numbers.
+ * A row is literal text and carries whatever number was written the day it was saved. For a
+ * SHIPPED row that is handled: moving either constant moves this string, and `syncShippedPrompts`
+ * then writes the new text out. For a row an ADMIN edited it is not, and must not be — their words
+ * outrank a deploy, so their copy of the number goes on being sent while `cleanSuggestions`
+ * enforces the new one. An admin who edits the coach prompt owns its numbers from then on.
+ */
+export const PROMPT_DEFAULTS: Prompts = {
+  analysis: SYSTEM,
+  route: SYSTEM_ROUTE,
+  text_meal: SYSTEM_TEXT_MEAL,
+  text_correction: SYSTEM_TEXT_CORRECTION,
+  glance: SYSTEM_GLANCE,
+  coach: SYSTEM_COACH,
+};
+
+/** Three times the longest shipped prompt (the coach's, 6117 characters) — room to grow one, and a
+ *  bound on what a single edit can cost in tokens on every request after it. */
+export const MAX_PROMPT_LEN = 20_000;
+
+export type PromptValidation =
+  | { ok: true; key: PromptKey; text: string }
+  | { ok: false; errors: string[] };
+
+const isPromptKey = (v: unknown): v is PromptKey =>
+  typeof v === "string" && (PROMPT_KEYS as readonly string[]).includes(v);
+
+/**
+ * What a stored prompt may contain. NOT `normalizePromptText`, and the difference is two things.
+ *
+ * THE SHAPE RULES DIFFER, because that function contains a SPAN — a free-text profile field
+ * interpolated inside quotes, which must stay single-line and quote-free or it closes the span it
+ * sits in. This is the FRAME around such spans: an authored prompt is many lines and quotes its own
+ * JSON examples, and flattening it would destroy every prompt in this file. So newlines and quotes
+ * are kept here and stripped there.
+ *
+ * AND THIS GATE IS STRICTER, because of who reads the result. Text through `normalizePromptText` is
+ * cleaned and then rendered on a meal card, where a person sees it. A stored prompt is read by NO
+ * ONE — it does not meet `tsc`, it does not meet a reviewer, and it goes straight to a model. So
+ * instead of an enumerated handful of invisibles this denies every Unicode format character
+ * (`\p{Cf}`), the two line separators, and the control block; an enumerated list had already missed
+ * the soft hyphen, the word joiner, the Arabic letter mark and the whole U+E0000 tags block, which
+ * is the best-known way to hide an instruction inside text that renders as nothing.
+ *
+ * WHAT SURVIVES: ZWJ and ZWNJ, load-bearing in real words and in emoji sequences, as they are
+ * there; newlines, which a prompt is built out of; and PAIRED surrogates, so a prompt may contain
+ * an emoji. `\p{Cs}` under the `u` flag matches only a LONE surrogate, because a pair is one code
+ * point of some other category — a test pins both halves of that.
+ *
+ * WRITTEN AS ESCAPES AND PROPERTY NAMES, for the reason `normalizePromptText` gives above: a
+ * literal invisible character in source is unreviewable, and this is a security boundary. It
+ * shipped once with the characters themselves in it — a NUL among them, which made `grep -r` call
+ * this file binary.
+ *
+ * REFUSED, NOT REPAIRED. A prompt is prose somebody wrote on purpose, and silently deleting a
+ * character from it changes what a model was asked without telling anyone. The one exception is
+ * `\r\n`, which is a line ending rather than a character: it is canonicalised before this runs,
+ * because refusing a paste from a Windows editor teaches nothing.
+ */
+const FORBIDDEN = /(?![\n\u200C\u200D])[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/u;
+
+export function validateStoredPrompt(key: unknown, text: unknown): PromptValidation {
+  const errors: string[] = [];
+  if (!isPromptKey(key)) {
+    errors.push(`"${String(key)}" is not a prompt this server sends — expected one of ${PROMPT_KEYS.join(", ")}`);
+  }
+  if (typeof text !== "string") {
+    errors.push("a prompt is text");
+    return { ok: false, errors };
+  }
+  const canonical = text.replace(/\r\n?/g, "\n");
+  if (canonical.trim() === "") errors.push("a prompt with nothing in it would leave the model with no instructions at all");
+  if (canonical.length > MAX_PROMPT_LEN) errors.push(`a prompt is at most ${MAX_PROMPT_LEN} characters; this one is ${canonical.length}`);
+  if (FORBIDDEN.test(canonical)) {
+    errors.push(
+      "this prompt carries a control, format, separator or lone-surrogate character — invisible " +
+      "in every diff and every editor, and refused here because a prompt nobody can read is a " +
+      "prompt nobody reviewed. Newlines, emoji and ZWJ/ZWNJ are fine",
+    );
+  }
+  if (errors.length > 0) return { ok: false, errors };
+  return { ok: true, key: key as PromptKey, text: canonical };
+}
+
+/** One live prompt as the store hands it back. `source` is absent only in a hand-made test double. */
+export interface StoredPrompt { key: string; text: string; source?: PromptSource }
+
+/**
+ * Who wrote a revision, and the reason the column exists.
+ *
+ * Every store comes up HOLDING the shipped prompts as rows, so the rows win everywhere and the
+ * constants below would quietly stop being the source of truth: editing one and deploying would
+ * change nothing a running instance sends. `syncShippedPrompts` fixes that by rewriting a row the
+ * SHIPPER wrote when the constant moves — and it can only tell which rows those are because each
+ * one says. It is also the answer to the objection `onboarding_content` records against seeding on
+ * boot ("it makes 'has an admin ever touched this?' unanswerable"): here that question is a column.
+ */
+export type PromptSource = "shipped" | "admin";
+
+/**
+ * The prompts to send, from whatever the store had.
+ *
+ * Key by key, and every fallback is the constant: an unknown key is ignored (a row left behind by
+ * a prompt this build no longer sends), and a row that fails the write gate serves the constant
+ * instead of itself. The second one is the guard `normalizePromptText` describes for its own sink —
+ * a row edited by hand in psql, or written by a build that predates the gate, never passed through
+ * it — and it is why the gate is not the only thing standing between a hostile row and a model.
+ */
+export function promptsFrom(rows: readonly StoredPrompt[]): Prompts {
+  const out: Prompts = { ...PROMPT_DEFAULTS };
+  for (const row of rows) {
+    const result = validateStoredPrompt(row?.key, row?.text);
+    if (result.ok) out[result.key] = result.text;
+    else if (isPromptKey(row?.key)) {
+      console.error(`[eait] stored prompt "${row.key}" refused, serving the compiled-in one: ${result.errors.join("; ")}`);
+    }
+  }
+  return out;
+}
+
+/** The read side of the store, and the only part of it this file needs. */
+export interface PromptReader { getPrompts(): Promise<StoredPrompt[]> }
+
+/** The read and write this file needs to keep a store's shipped rows current. */
+export interface PromptSyncStore extends PromptReader {
+  putPrompt(key: string, text: string, source: PromptSource): Promise<number>;
+}
+
+/**
+ * Put the shipped prompts into a store, and keep them there as the code changes. NEVER THROWS.
+ *
+ * Every store holds these rows — the memory one from the moment it is constructed, Postgres from
+ * `postgresStore()` — so a test and a self-hosted deployment both read a prompt the same way
+ * production does, instead of testing the fallback and shipping the row. The cost of that is this
+ * function: once rows exist, rows win, and without a rule for refreshing them a prompt edited in
+ * `llm/prompt.ts` would never reach an instance that had already booted once.
+ *
+ * TWO RULES, AND THE SECOND IS THE IMPORTANT ONE:
+ *  - a key with no revision gets the shipped text;
+ *  - a key whose LIVE revision the shipper wrote gets a new one when the constant has moved.
+ * A key whose live revision an ADMIN wrote is never touched. A human override outranks a deploy —
+ * otherwise every release would silently revert whatever was edited, which is the failure a person
+ * would report as "the model changed back on its own".
+ *
+ * IT RUNS AT BOOT AND MUST NOT FAIL ONE. Two instances starting together race for the same
+ * `(key, version)` and one loses on the primary key; a read-only or unreachable database refuses
+ * both. Neither is a reason to refuse to serve: the loser's row is already correct, and a store
+ * with no rows at all falls back to these same constants.
+ */
+export async function syncShippedPrompts(store: PromptSyncStore): Promise<PromptKey[]> {
+  const written: PromptKey[] = [];
+  try {
+    const live = await store.getPrompts();
+    for (const key of PROMPT_KEYS) {
+      const row = live.find((r) => r.key === key);
+      if (row && (row.source === "admin" || row.text === PROMPT_DEFAULTS[key])) continue;
+      await store.putPrompt(key, PROMPT_DEFAULTS[key], "shipped");
+      written.push(key);
+    }
+    if (written.length > 0) console.log(`[eait] shipped prompt text written for ${written.join(", ")}`);
+  } catch (e) {
+    // Logged, never fatal: the constants are what a store with nothing in it serves anyway.
+    console.error(`[eait] could not sync the shipped prompts, serving the compiled-in ones: ${(e as Error)?.message ?? e}`);
+  }
+  return written;
+}
+
+/**
+ * The prompts for one call. NEVER THROWS.
+ *
+ * A database that is down must cost this product its editability, not its ability to answer: every
+ * failure here resolves to `PROMPT_DEFAULTS`, which is what this file alone served before there
+ * was a table. Read per call rather than cached at boot, exactly as `onboardingContent` is, so an
+ * edit is live without a restart — it is one indexed read against a request that is about to spend
+ * seconds inside a model.
+ */
+export async function loadPrompts(store: PromptReader): Promise<Prompts> {
+  try {
+    return promptsFrom(await store.getPrompts());
+  } catch (e) {
+    // Logged, never returned: the rule this workspace states for every error string.
+    console.error(`[eait] could not read the stored prompts, using the compiled-in ones: ${(e as Error)?.message ?? e}`);
+    return PROMPT_DEFAULTS;
+  }
+}

@@ -15,6 +15,7 @@ import { demoPorts } from "./llm/demo.ts";
 import { chooseMailer } from "./mail/choose.ts";
 import { choosePush } from "./push/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
+import { loadPrompts } from "./llm/prompt.ts";
 import { collectPushReceipts, eveningSweep, msUntilNextEveningLine, pruneAgedHealthDays, RECEIPT_DELAY_MS, type EngineDeps } from "./engine/index.ts";
 import { TURN_OUTCOME_TTL_MS } from "./engine/turns.ts";
 import { HEALTH_RETENTION_DAYS, localDate } from "@eait/shared";
@@ -111,6 +112,12 @@ const deps: EngineDeps = {
         baseUrl: config.llmBaseUrl,
         timeoutMs: config.llmTimeoutMs,
         maxTokens: config.llmMaxTokens,
+        // The one place the transport is joined to the store. It is a function rather than a value
+        // because an edit must be live without a restart, and it is `loadPrompts` rather than a
+        // bare `store.getPrompts` because that function is the one that cannot throw: an empty
+        // table, a deleted row, a row that fails containment and a database that is down all come
+        // back as the prompts compiled into `llm/prompt.ts`.
+        prompts: () => loadPrompts(store),
       }),
 };
 

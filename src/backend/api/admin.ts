@@ -45,8 +45,9 @@ import {
   isCalendarDate, screenIsOptional,
 } from "@eait/shared";
 import {
-  adminMetrics, adminUserChat, adminUserDiary, adminUsers, notificationCopy, onboardingContent,
-  onboardingFunnel,
+  adminMetrics, adminUserChat, adminUserDiary, adminUsers, livePrompts, notificationCopy,
+  onboardingContent,
+  onboardingFunnel, promptHistory, savePrompt,
   resetNotificationCopy,
   resetOnboardingContent, saveNotificationCopy, saveOnboardingContent, setUserCap, userCap,
   type EngineDeps,
@@ -205,6 +206,39 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps): Promise<
 
   if (req.method === "POST" && pathname === "/admin/api/notifications/reset") {
     return json({ copy: await resetNotificationCopy(deps) });
+  }
+
+  // ── The system prompts ─────────────────────────────────────────────────────────────────────
+  //
+  // API ONLY. `admin.page.ts` has no prompts panel yet, so these two are reached with a bearer and
+  // curl; every comment here says "the caller", not "the screen", until it has one.
+  //
+  // Two verbs, not three. There is no reset, because a reset IS a save: the GET hands back the
+  // compiled-in text for any prompt nobody has edited, so restoring one is saving what the GET just
+  // returned — and doing it that way leaves the restoration in the revision history, where a
+  // third endpoint that deleted rows would have left a gap.
+  //
+  // Validated on the WRITE, like everything else behind this credential, and here that is the only
+  // gate there is: nothing downstream reviews a prompt, and the model reads whatever this accepts.
+  if (req.method === "GET" && pathname === "/admin/api/prompts") {
+    return json({ prompts: await livePrompts(deps) });
+  }
+
+  if (req.method === "PUT" && pathname === "/admin/api/prompts") {
+    const body = await req.json() as { key?: unknown; text?: unknown };
+    const result = await savePrompt(deps, body?.key, body?.text);
+    if (result.ok) return json({ key: result.key, version: result.version });
+    // 409, not 422, when another save won the race: the prose was fine and a retry succeeds. 422
+    // means the text itself was refused, and the editor tells the two apart.
+    return json({ errors: result.errors }, result.conflict ? 409 : 422);
+  }
+
+  // The revisions of one prompt. The append-only table's whole point, and the only way to answer
+  // "what were we sending on the 3rd" without a psql session.
+  const revisions = /^\/admin\/api\/prompts\/([a-z_]+)\/revisions$/.exec(pathname);
+  if (req.method === "GET" && revisions) {
+    const history = await promptHistory(deps, revisions[1]);
+    return history ? json({ key: revisions[1], revisions: history }) : notFound();
   }
 
   if (req.method === "GET" && pathname === "/admin/api/funnel") {
