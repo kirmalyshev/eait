@@ -47,6 +47,10 @@ const notFound = () => new Response(JSON.stringify({ error: "not found" }), {
  */
 function shell(nonce: string): string {
   return `<!doctype html>
+<!-- The shell ships as "en" and the client rewrites it the moment the profile lands
+     (document.documentElement.lang). It cannot be right here: this file is static and is served
+     before anybody is identified. What matters is that it does not STAY wrong — a screen reader
+     picks a voice from this attribute. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -85,6 +89,11 @@ progress::-moz-progress-bar { background: var(--ink); border-radius: 999px; }
 .tab.on { color: var(--ink); border-bottom-color: var(--ink); }
 .link { margin-left: auto; background: none; border: 0; color: var(--muted); cursor: pointer; font: inherit; }
 .link + .link { margin-left: 1rem; }
+/* The language picker, beside the links rather than on a settings screen this client does not
+   have. margin-left:auto on the first .link already pushes the group right; the select sits
+   inside that group and takes the same muted treatment so it reads as chrome, not as a form. */
+.lang { margin-left: auto; background: none; border: 0; color: var(--muted); font: inherit; cursor: pointer; }
+.lang + .link { margin-left: 1rem; }
 .primary { display: inline-block; margin-top: .75rem; padding: .6rem 1.1rem; border-radius: 999px;
   background: var(--ink); color: var(--paper); text-decoration: none; font-weight: 600; }
 .meals { list-style: none; margin: 0; padding: 0; }
