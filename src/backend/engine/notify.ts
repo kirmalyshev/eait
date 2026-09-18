@@ -61,7 +61,7 @@ export interface DailyNotification {
  * copy does. Seeding a row on boot would work and is worse: it makes "has anybody edited this?"
  * unanswerable.
  */
-export async function notificationCopy(deps: EngineDeps, lang: Lang = "en"): Promise<NotificationCopy> {
+export async function notificationCopy(deps: EngineDeps, lang: Lang): Promise<NotificationCopy> {
   const base = notificationCopyFor(lang);
   const stored = storedNotificationCopy(await deps.store.getNotificationCopy())[lang];
   if (!stored) return base;
@@ -91,7 +91,7 @@ export async function notificationCopy(deps: EngineDeps, lang: Lang = "en"): Pro
 export async function saveNotificationCopy(
   deps: EngineDeps,
   input: unknown,
-  lang: Lang = "en",
+  lang: Lang,
 ): Promise<NotificationCopyValidation> {
   const result = validateNotificationCopy(input);
   if (!result.ok) return result;
@@ -103,7 +103,7 @@ export async function saveNotificationCopy(
 }
 
 /** Restore the shipped words for one language. The undo button for an edit that went wrong. */
-export async function resetNotificationCopy(deps: EngineDeps, lang: Lang = "en"): Promise<NotificationCopy> {
+export async function resetNotificationCopy(deps: EngineDeps, lang: Lang): Promise<NotificationCopy> {
   const restored = notificationCopyFor(lang);
   const stored = storedNotificationCopy(await deps.store.getNotificationCopy());
   await deps.store.putNotificationCopy({ ...stored, [lang]: restored });

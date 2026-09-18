@@ -233,7 +233,7 @@ export function correlate(a: readonly TrendPoint[], b: readonly TrendPoint[]): C
  * The relationship in words. A bare "r = 0.46" is a number most people have to look up; the
  * sentence is what the caption prints, and the number sits beside it for those who want it.
  */
-export function correlationWords(r: number, lang: Lang = "en"): string {
+export function correlationWords(r: number, lang: Lang): string {
   const copy = t(lang)(HEALTH_COPY).correlation;
   const size = Math.abs(r);
   if (size < 0.2) return copy.none;

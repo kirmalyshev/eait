@@ -196,7 +196,7 @@ describe("eveningPrescription", () => {
   it("names the protein gap when it is the biggest one", () => {
     const line = eveningPrescription({
       targets, totals: { kcal: 1900, protein_g: 80 }, goal: "lose", meals: 3,
-    });
+    }, "en");
     expect(line).toContain("50");
     expect(line.toLowerCase()).toContain("protein");
   });
@@ -204,21 +204,21 @@ describe("eveningPrescription", () => {
   it("says so when the day went over", () => {
     const line = eveningPrescription({
       targets, totals: { kcal: 2600, protein_g: 140 }, goal: "lose", meals: 4,
-    });
+    }, "en");
     expect(line).toContain("500");
   });
 
   it("has something to say on a day that landed on plan", () => {
     const line = eveningPrescription({
       targets, totals: { kcal: 2050, protein_g: 132 }, goal: "lose", meals: 3,
-    });
+    }, "en");
     expect(line.trim()).not.toBe("");
   });
 
   it("asks for one photo when nothing was logged", () => {
     const line = eveningPrescription({
       targets, totals: { kcal: 0, protein_g: 0 }, goal: "lose", meals: 0,
-    });
+    }, "en");
     // Named, not merely non-empty: delete the `meals === 0` branch and the protein branch answers
     // instead — a different sentence, still non-empty, and the test would have stayed green.
     expect(line).toContain("photo");
@@ -231,7 +231,7 @@ describe("eveningPrescription", () => {
         for (const goal of ["lose", "maintain", "gain"] as const) {
           for (const meals of [0, 1, 5]) {
             fields[`${kcal}-${protein}-${goal}-${meals}`] =
-              eveningPrescription({ targets, totals: { kcal, protein_g: protein }, goal, meals });
+              eveningPrescription({ targets, totals: { kcal, protein_g: protein }, goal, meals }, "en");
           }
         }
       }

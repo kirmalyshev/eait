@@ -98,7 +98,7 @@ export type Struggle = (typeof STRUGGLES)[number];
  * once at module scope, which is exactly how a screen comes to render its labels in whatever
  * language the process started in.
  */
-export const STRUGGLE_LABELS = (lang: Lang = "en"): Record<Struggle, string> =>
+export const STRUGGLE_LABELS = (lang: Lang): Record<Struggle, string> =>
   chatCopyFor(lang).struggles as Record<Struggle, string>;
 
 export const CHAT_PROMPTS: readonly ChatPrompt[] = [
@@ -202,7 +202,7 @@ export function askLines(
   prompt: ChatPrompt,
   content: OnboardingContent,
   p: Profile,
-  lang: Lang = "en",
+  lang: Lang,
 ): string[] {
   // The front door is content too, and it is the one prompt with no field and no constant.
   if (prompt.id === "welcome") return [...content.welcome.lines];
@@ -232,13 +232,13 @@ export function askPlaceholder(prompt: ChatPrompt, content: OnboardingContent): 
 }
 
 /** The idle placeholder, everywhere a prompt does not name its own. copy.md § Step 01. */
-export const IDLE_PLACEHOLDER = (lang: Lang = "en"): string => chatCopyFor(lang).idlePlaceholder;
+export const IDLE_PLACEHOLDER = (lang: Lang): string => chatCopyFor(lang).idlePlaceholder;
 
 const conversationAsks = (lang: Lang): Record<string, readonly string[]> =>
   ({ struggles: chatCopyFor(lang).strugglesAsk });
 
 /** The multi-selects' way out: `finish` is the dock's primary button, `none` a pill. copy.md, verbatim. */
-export const QUICK_REPLIES = (lang: Lang = "en") => chatCopyFor(lang).quick;
+export const QUICK_REPLIES = (lang: Lang) => chatCopyFor(lang).quick;
 
 // ── Support cards ────────────────────────────────────────────────────────────────────────────
 
@@ -257,10 +257,10 @@ export interface SupportCard {
 }
 
 /** copy.md § Step 02 — the card after the goal, one per branch. The words are in `CHAT_COPY`. */
-export const GOAL_CARDS = (lang: Lang = "en"): Record<Goal, SupportCard> => chatCopyFor(lang).goalCards;
+export const GOAL_CARDS = (lang: Lang): Record<Goal, SupportCard> => chatCopyFor(lang).goalCards;
 
 /** The line after the goal card. Reads the branch taken — rule 1. */
-export const GOAL_FOLLOWUPS = (lang: Lang = "en"): Partial<Record<Goal, string>> =>
+export const GOAL_FOLLOWUPS = (lang: Lang): Partial<Record<Goal, string>> =>
   chatCopyFor(lang).goalFollowups;
 
 /**
@@ -271,7 +271,7 @@ export const GOAL_FOLLOWUPS = (lang: Lang = "en"): Partial<Record<Goal, string>>
  * gain variant states the weaker thing that is true, and carries no source, because there is not
  * one for it.
  */
-export function struggleCard(struggle: Struggle, goal: Goal, lang: Lang = "en"): SupportCard {
+export function struggleCard(struggle: Struggle, goal: Goal, lang: Lang): SupportCard {
   const copy = chatCopyFor(lang);
   if (struggle === "diets" && goal === "gain") return copy.dietsGainCard;
   return copy.struggleCards[struggle]!;
@@ -284,11 +284,11 @@ export function struggleCard(struggle: Struggle, goal: Goal, lang: Lang = "en"):
  * that the arithmetic does not implement is the worst sentence this repo could ship, and the way
  * that happens is somebody changing the constant and not the prose.
  */
-export const GAIN_PACE_CARD = (lang: Lang = "en"): SupportCard =>
+export const GAIN_PACE_CARD = (lang: Lang): SupportCard =>
   filled(chatCopyFor(lang).gainPaceCard, { share: String(Math.round(MAX_SURPLUS_SHARE * 100)) });
 
 /** copy.md § Step 03 — the under-16 stop. The refusal is the server's; this is how it reads. */
-export const UNDER_AGE_CARD = (lang: Lang = "en"): SupportCard =>
+export const UNDER_AGE_CARD = (lang: Lang): SupportCard =>
   filled(chatCopyFor(lang).underAgeCard, { age: String(MIN_AGE) });
 
 /**
@@ -298,7 +298,7 @@ export const UNDER_AGE_CARD = (lang: Lang = "en"): SupportCard =>
  * than merely refusing the next write — the goal and the sex answered a minute ago are already
  * rows. See `onboarding.tsx`.
  */
-export const UNDER_AGE_LINES = (lang: Lang = "en") => {
+export const UNDER_AGE_LINES = (lang: Lang) => {
   const copy = chatCopyFor(lang).underAge;
   const age = { age: String(MIN_AGE) };
   return {
@@ -311,7 +311,7 @@ export const UNDER_AGE_LINES = (lang: Lang = "en") => {
 };
 
 /** copy.md § Step 05 — the target below a healthy BMI. The server refuses it; this explains it. */
-export function belowHealthyCard(minHealthyKg: number, lang: Lang = "en"): SupportCard {
+export function belowHealthyCard(minHealthyKg: number, lang: Lang): SupportCard {
   return filled(chatCopyFor(lang).belowHealthy, { kg: numbers(lang)(minHealthyKg) });
 }
 
@@ -337,7 +337,7 @@ const filled = (card: CardCopy, params: Record<string, string>): SupportCard => 
 export const MAX_STRUGGLE_CARDS = 2;
 
 /** copy.md § Step 04 — the acknowledgement, and the first real number six steps early. */
-export function weightAck(bmr: number | null, lang: Lang = "en"): string[] {
+export function weightAck(bmr: number | null, lang: Lang): string[] {
   const copy = chatCopyFor(lang).weightAck;
   const lines = [copy.noted];
   // Only when there is one. `basalMetabolicRate` returns null for anthropometrics it will not
@@ -347,7 +347,7 @@ export function weightAck(bmr: number | null, lang: Lang = "en"): string[] {
 }
 
 /** copy.md § Step 06 — one reply per activity level. `athlete` is this binary's fifth. */
-export const ACTIVITY_REPLIES = (lang: Lang = "en"): Record<string, string> =>
+export const ACTIVITY_REPLIES = (lang: Lang): Record<string, string> =>
   chatCopyFor(lang).activityReplies;
 
 /**
@@ -356,7 +356,7 @@ export const ACTIVITY_REPLIES = (lang: Lang = "en"): Record<string, string> =>
  * It NAMES WHAT IS LEFT, and the number has to be right: it used to promise "one more question
  * about them", which was the hardest-moment question, and that question is gone.
  */
-export function strugglesCloser(picked: number, lang: Lang = "en"): string {
+export function strugglesCloser(picked: number, lang: Lang): string {
   const copy = chatCopyFor(lang).strugglesCloser;
   return picked === 0 ? copy.none : picked > 1 ? copy.many : copy.one;
 }
@@ -370,7 +370,7 @@ export function strugglesCloser(picked: number, lang: Lang = "en"): string {
 export function restrictionsReply(
   tags: readonly RestrictionTag[],
   freeText: boolean,
-  lang: Lang = "en",
+  lang: Lang,
 ): string[] {
   const copy = chatCopyFor(lang).restrictions;
   const lines: string[] = [];
@@ -400,7 +400,7 @@ export type NumberAnswer =
  * by a ninety-year-old it means ninety. Guessing either way computes somebody else's target, so
  * Spud asks — the quick reply takes it as an age, four digits take it as the year.
  */
-export const AMBIGUOUS_AGE = (lang: Lang = "en") => {
+export const AMBIGUOUS_AGE = (lang: Lang) => {
   const copy = chatCopyFor(lang).ambiguousAge;
   const n = numbers(lang);
   return {
@@ -429,8 +429,11 @@ const parseNumber = (s: string): number => {
 export function checkNumber(
   field: NumberField,
   raw: string,
+  lang: Lang,
+  // BEHIND the language, and that is the whole reason it moved. Required-after-optional compiles,
+  // and it made reaching the language cost a `new Date()` the caller did not want to name — so the
+  // call that skipped it read as correct and rendered English.
   today = new Date(),
-  lang: Lang = "en",
 ): NumberAnswer {
   const invalid = chatCopyFor(lang).invalid;
   // THE QUESTION IS AN AGE, AND THE AGE IS WHAT TRAVELS. "How old are you?" is what people answer
@@ -496,7 +499,7 @@ export function checkDirection(
   goal: Goal,
   weightKg: number,
   targetKg: number,
-  lang: Lang = "en",
+  lang: Lang,
 ): DirectionRefusal | null {
   const copy = chatCopyFor(lang).direction;
   const n = numbers(lang);
@@ -521,7 +524,7 @@ export function checkDirection(
 }
 
 /** What Spud says after the goal is flipped mid-question, and the target is asked again. */
-export function switchedLine(goal: Goal, lang: Lang = "en"): string {
+export function switchedLine(goal: Goal, lang: Lang): string {
   const copy = chatCopyFor(lang).switched;
   return goal === "gain" ? copy.gain : copy.lose;
 }
@@ -544,7 +547,7 @@ export function capNote(
   template: string,
   goal: Goal | null,
   kgPerWeek: number | null,
-  lang: Lang = "en",
+  lang: Lang,
 ): string {
   const share = goal === "gain" ? MAX_SURPLUS_SHARE : MAX_DEFICIT_SHARE;
   const base = template.replace("{share}", String(Math.round(share * 100)));
@@ -559,7 +562,7 @@ export function projectionLine(
   p: { beyondHorizon: boolean; weeks: number },
   month: string,
   targetKg: number | null,
-  lang: Lang = "en",
+  lang: Lang,
 ): string {
   if (p.beyondHorizon) return far;
   return template
@@ -580,7 +583,7 @@ export function answerLabel(
   prompt: ChatPrompt,
   p: Profile,
   content: OnboardingContent,
-  lang: Lang = "en",
+  lang: Lang,
 ): string | null {
   if (!prompt.field || !isAnswered(prompt, p)) return null;
   const raw = p[prompt.field];
@@ -628,7 +631,7 @@ export interface GoalEdit {
 export function reconcileGoalEdit(
   current: Pick<Profile, "goal" | "weight_kg" | "target_weight_kg">,
   patch: { goal?: Goal; weight_kg?: number; target_weight_kg?: number },
-  lang: Lang = "en",
+  lang: Lang,
 ): GoalEdit {
   const goal = patch.goal ?? current.goal;
   const weightKg = patch.weight_kg ?? current.weight_kg;

@@ -110,7 +110,7 @@ describe("the readers of those tables", () => {
 
   it("refuses a bad number with words in the reader's language", () => {
     for (const lang of LANGS) {
-      const bad = checkNumber("height_cm", "nonsense", new Date(), lang);
+      const bad = checkNumber("height_cm", "nonsense", lang, new Date());
       expect(bad.ok).toBe(false);
       if (!bad.ok && "line" in bad) expect(bad.line).toBe(chatCopyFor(lang).invalid.height_cm);
     }

@@ -80,7 +80,7 @@ export const VERDICT_COPY: Localized<VerdictCopy> = {
 export function verdictPillLabel(
   dimension: VerdictDimension,
   verdict: Verdict,
-  lang: Lang = "en",
+  lang: Lang,
 ): string {
   const copy = t(lang)(VERDICT_COPY);
   const template = verdict === "good" ? copy.good : verdict === "warn" ? copy.warn : copy.bad;

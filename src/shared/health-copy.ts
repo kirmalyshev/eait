@@ -171,5 +171,5 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
 };
 
 /** What the screen calls one metric or one group. The key itself if a binary is a version behind. */
-export const healthLabel = (key: string, lang: Lang = "en"): string =>
+export const healthLabel = (key: string, lang: Lang): string =>
   t(lang)(HEALTH_COPY).labels[key] ?? key;

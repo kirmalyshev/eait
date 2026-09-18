@@ -78,7 +78,7 @@ export async function coachTurn(deps: EngineDeps, userId: string, input: CoachTu
     ...(input.focus ? { focusMeal: toAnalysis(input.focus) } : {}),
     projection: projected === null ? null
       : projected.beyondHorizon ? "in more than two years at this pace"
-      : `around ${projectionMonth(new Date(), projected.weeks)}`,
+      : `around ${projectionMonth(new Date(), projected.weeks, input.profile.lang)}`,
   };
   const out = await deps.llm.coach(
     { text: input.text, context, history: input.history, onCost: input.onCost },

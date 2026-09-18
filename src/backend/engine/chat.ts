@@ -182,7 +182,7 @@ export async function appendLines(deps: EngineDeps, userId: string, lines: Appen
       // short, or the whole batch is refused.
       const params = scriptedParams(l.scripted, l.params ?? {});
       if (params === null) return bad;
-      out.push({ role: "assistant", kind: "text", text: scriptedLine(l.scripted, params, lang) });
+      out.push({ role: "assistant", kind: "text", text: scriptedLine(l.scripted, lang, params) });
     } else if (l.role === "assistant" && "ask" in l && asked) {
       // A coordinate, not a sentence. The words come from THIS server's copy of the onboarding
       // content, so nothing the phone sends can reach the thread as prose.

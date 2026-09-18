@@ -122,7 +122,7 @@ describe("the 20:30 line", () => {
         body: "Ate {eaten}, planned {plan}. {tomorrow}",
         emptyBody: "Nothing today against {plan}. {tomorrow}",
       },
-    });
+    }, "en");
     const out = (await dailyNotification(deps, userId, DAY, NOW))!;
     expect(out.title).toBe("Your evening line");
     expect(out.body.startsWith("Ate 900, planned ")).toBe(true);
@@ -263,7 +263,7 @@ describe("the evening sweep", () => {
 
 describe("the admin's copy", () => {
   it("serves the compiled-in default until an admin saves something", async () => {
-    expect(await notificationCopy(deps)).toEqual(DEFAULT_NOTIFICATION_COPY);
+    expect(await notificationCopy(deps, "en")).toEqual(DEFAULT_NOTIFICATION_COPY);
   });
 
   it("saves valid copy and serves it", async () => {
@@ -271,25 +271,25 @@ describe("the admin's copy", () => {
       ...DEFAULT_NOTIFICATION_COPY,
       "trial-day5": { title: "Two days to go", body: "Two days before the free week ends." },
     };
-    const out = await saveNotificationCopy(deps, edited);
+    const out = await saveNotificationCopy(deps, edited, "en");
     expect(out.ok).toBe(true);
-    expect((await notificationCopy(deps))["trial-day5"].title).toBe("Two days to go");
+    expect((await notificationCopy(deps, "en"))["trial-day5"].title).toBe("Two days to go");
   });
 
   it("refuses copy the composer cannot fill, and stores nothing", async () => {
     const out = await saveNotificationCopy(deps, {
       ...DEFAULT_NOTIFICATION_COPY,
       evening: { title: "Evening", body: "{eaten} of {plan}.", emptyBody: "Nothing. {plan} {tomorrow}" },
-    });
+    }, "en");
     expect(out.ok).toBe(false);
-    expect(await notificationCopy(deps)).toEqual(DEFAULT_NOTIFICATION_COPY);
+    expect(await notificationCopy(deps, "en")).toEqual(DEFAULT_NOTIFICATION_COPY);
   });
 
   it("refuses a health claim on a lock screen", async () => {
     const out = await saveNotificationCopy(deps, {
       ...DEFAULT_NOTIFICATION_COPY,
       "trial-day6": { title: "Last day", body: "One more week and this reverses your cholesterol." },
-    });
+    }, "en");
     expect(out.ok).toBe(false);
   });
 
@@ -297,9 +297,9 @@ describe("the admin's copy", () => {
     await saveNotificationCopy(deps, {
       ...DEFAULT_NOTIFICATION_COPY,
       "trial-day5": { title: "Edited", body: "Edited body." },
-    });
-    expect(await resetNotificationCopy(deps)).toEqual(DEFAULT_NOTIFICATION_COPY);
-    expect(await notificationCopy(deps)).toEqual(DEFAULT_NOTIFICATION_COPY);
+    }, "en");
+    expect(await resetNotificationCopy(deps, "en")).toEqual(DEFAULT_NOTIFICATION_COPY);
+    expect(await notificationCopy(deps, "en")).toEqual(DEFAULT_NOTIFICATION_COPY);
   });
 
   it("composes a message that would itself pass the claims gate", async () => {
@@ -522,7 +522,7 @@ describe("copy stored before the code that reads it", () => {
 
     // Read as English, because that shape predates the language dimension and English was all
     // there was. A German reading the same host gets the shipped German, not this row.
-    const copy = await notificationCopy(deps);
+    const copy = await notificationCopy(deps, "en");
     expect(Object.keys(copy).sort()).toEqual([...NOTIFICATION_IDS].sort());
     expect((await notificationCopy(deps, "de")).evening.title).toBe(NOTIFICATION_COPY.de!.evening.title);
     expect(copy.evening.title).toBe("Kept");

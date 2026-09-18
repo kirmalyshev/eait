@@ -13,11 +13,11 @@ describe("the thread in eight languages", () => {
   it("says every scripted line, with nothing left unfilled", () => {
     for (const lang of LANGS) {
       for (const id of Object.keys(SCRIPTED_LINES) as ScriptedLineId[]) {
-        const said = scriptedLine(id, id === "trial-started" ? { price: "4,99 €" } : {}, lang);
+        const said = scriptedLine(id, lang, id === "trial-started" ? { price: "4,99 €" } : {});
         expect(said.length, `${lang}.${id}`).toBeGreaterThan(0);
         expect(said, `${lang}.${id}`).not.toMatch(/\{\w+\}/);
       }
-      expect(scriptedLine("trial-started", { price: "4,99 €" }, lang), lang).toContain("4,99 €");
+      expect(scriptedLine("trial-started", lang, { price: "4,99 €" }), lang).toContain("4,99 €");
     }
   });
 
