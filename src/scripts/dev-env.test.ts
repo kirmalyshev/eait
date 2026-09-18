@@ -1,10 +1,13 @@
-// The derivation's own rules. Everything here is pure — no git, no filesystem, no ports — because
-// what can actually go wrong is arithmetic and naming, and both are cheap to prove.
+// The derivation's own rules. Almost everything here is pure — no git, no ports — because what can
+// actually go wrong is arithmetic and naming, and both are cheap to prove. The one exception reads
+// `worktree.sh`, because the thing it proves is that the two files agree about which keys exist.
 
 import { test, expect, describe } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
   PORT_BASE, PORT_STEP, dbNameFor, safeToken, branchDrift, planFor, parseWorktrees,
   resolveSlot, envIsSafe, worktreeEnvValues, carriedOver, parseEnvText, DERIVED_KEYS,
+  TEST_DB_SUFFIX, testDbNameFor,
 } from "./dev-env.ts";
 
 describe("ports", () => {
@@ -51,6 +54,57 @@ describe("database names", () => {
     expect(dbNameFor(1, "x".repeat(200)).length).toBe(63);
   });
 
+  // THE SUFFIX COMES OUT OF THE BUDGET, NOT AFTER IT. Appending to a name already at 63 hands
+  // Postgres 69 characters; it keeps the first 63 and drops the rest with only a NOTICE, and the
+  // first 63 ARE the dev name. So the naive version does not merely collide two test databases —
+  // it points the migrating, writing contract suite at the database you develop in. The second
+  // assertion is the one that catches that.
+  test("a test name is 63 characters INCLUDING the suffix, and is never the dev name", () => {
+    const dev = dbNameFor(1, "x".repeat(200));
+    const name = testDbNameFor(dev);
+    expect([name.length, name.endsWith(TEST_DB_SUFFIX)]).toEqual([63, true]);
+    expect(name).not.toBe(dev);
+  });
+
+  test("slot 0's test database sits beside slot 0's dev one", () => {
+    expect(testDbNameFor(dbNameFor(0, "anything"))).toBe("eait__test");
+    expect(planFor(0, "main").testDbName).toBe("eait__test");
+  });
+
+  // THE TWO NAMESPACES ARE DISJOINT BY CONSTRUCTION, and a single `_test` is what makes that false:
+  // `eait_fix_test` is branch `fix-test`'s DEV database and branch `fix`'s TEST database, and the
+  // contract suite migrates and writes. `dbNameFor` collapses every run of non-alphanumerics to one
+  // underscore, so no dev name it produces can contain `__` — which every test name does.
+  test("a branch named for a test cannot take another worktree's test database", () => {
+    for (const [devBranch, testBranch] of [["fix-test", "fix"], ["test", "main"], ["7-test", "---"]]) {
+      expect(dbNameFor(1, devBranch!)).not.toBe(planFor(2, testBranch!).testDbName);
+    }
+    expect(dbNameFor(7, "---")).not.toBe(planFor(7, "anything").testDbName);
+    // The general rule, rather than the three cases above: a dev name never contains `__`.
+    for (const branch of ["fix--test", "a/__b", "feat/x  y", "__lead", "trail__"]) {
+      expect(dbNameFor(1, branch)).not.toContain("__");
+    }
+  });
+
+  test("no two slots share a database, dev or test, and no dev database is a test one", () => {
+    const seen = new Map<string, string>();
+    for (let slot = 0; slot < 20; slot++) {
+      const p = planFor(slot, `feat/branch-${slot}`);
+      for (const [kind, name] of [["dev", p.dbName], ["test", p.testDbName]] as const) {
+        expect(`${name} ${seen.get(name) ?? "free"}`).toBe(`${name} free`);
+        seen.set(name, `slot${slot}.${kind}`);
+      }
+      expect(p.testDatabaseUrl).toBe(p.databaseUrl.replace(/[^/]+$/, p.testDbName));
+    }
+  });
+
+  // An overridden dev name takes its test database with it. Deriving the test name from the slot
+  // and the branch instead would have left the override pointing at a stranger's rows.
+  test("an overridden database name carries its own test database", () => {
+    const p = planFor(2, "feat/x", { dbName: "borrowed" });
+    expect([p.dbName, p.testDbName]).toEqual(["borrowed", "borrowed__test"]);
+  });
+
   test("a branch with nothing usable in it falls back to the slot", () => {
     expect(dbNameFor(7, "---")).toBe("eait_7");
   });
@@ -79,6 +133,42 @@ describe("what may be written to .env.worktree", () => {
       const values = worktreeEnvValues(planFor(slot, `feat/x-${slot}`));
       for (const v of Object.values(values)) expect(envIsSafe(v)).toBe(true);
     }
+  });
+
+  // THE TWO FILES ARE ONE CONTRACT. `worktree.sh` supplies a slot-0 default per key so a checkout
+  // that never derived behaves as a single checkout always did — which means a key added to the
+  // generator alone reaches a linked worktree as UNSET, and a key defaulted in the shell alone is
+  // slot 0's value everywhere forever. Both are the silent slot-0 fallback, and both read as
+  // working. Nothing else in the repo compares the two lists.
+  test("the generator's keys and worktree.sh's slot-0 defaults are the same set", () => {
+    const sh = readFileSync(new URL("./worktree.sh", import.meta.url), "utf8");
+    const defaulted = [...sh.matchAll(/^([A-Z0-9_]+)="\$\{\1:-/gm)].map((m) => m[1]!);
+    const emitted = Object.keys(worktreeEnvValues(planFor(3, "feat/x")));
+    expect({
+      emittedWithNoShellDefault: emitted.filter((k) => !defaulted.includes(k)),
+      defaultedButNeverEmitted: defaulted.filter((k) => !emitted.includes(k)),
+    }).toEqual({ emittedWithNoShellDefault: [], defaultedButNeverEmitted: [] });
+  });
+
+  // CI IS SLOT 0 AND MUST SAY SO. It sets `TEST_DATABASE_URL` itself, at its own ephemeral Postgres,
+  // so nothing there can collide and nothing there would ever report drift — which is precisely why
+  // the name is worth pinning. A reader copies what CI does; if that name were `eait_test` they
+  // would copy the collision this derivation removed, onto a machine that has worktrees.
+  test("CI runs the contract suite against slot 0's derived test database", () => {
+    const ci = readFileSync(new URL("../../.github/workflows/test.yml", import.meta.url), "utf8");
+    const expected = planFor(0, "main").testDbName;
+    expect(ci).toContain(`TEST_DATABASE_URL: postgres://eait:eait@127.0.0.1:5432/${expected}`);
+    expect(ci).toContain(`POSTGRES_DB: ${expected}`);
+  });
+
+  // Exported, not merely assigned: `db.sh` and `dev.sh` read these out of the environment, and a
+  // variable a sourced script sets without exporting is invisible to the `docker compose exec` and
+  // `bun test` that need it.
+  test("worktree.sh exports every key it defaults", () => {
+    const sh = readFileSync(new URL("./worktree.sh", import.meta.url), "utf8");
+    const exported = sh.slice(sh.lastIndexOf("export ")).split(/\s+/);
+    const defaulted = [...sh.matchAll(/^([A-Z0-9_]+)="\$\{\1:-/gm)].map((m) => m[1]!);
+    expect(defaulted.filter((k) => !exported.includes(k))).toEqual([]);
   });
 });
 

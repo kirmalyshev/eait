@@ -22,6 +22,7 @@ a third implementation instead of the agreement between two.
 | `onboarding-content.ts`, `onboarding-chat-copy.ts`, `chat-copy.ts`, `health-copy.ts`, `verdicts.ts` | the WORDS, keyed by language. The rules stay in the file beside each. |
 | `perf.ts` | `PERF_SCREENS` and every screen's budget. |
 | `entitlement.ts`, `chat.ts`, `thread.ts`, `projection.ts`, `claims.ts`, `notifications.ts` | same rule: one definition, two consumers. |
+| `outbox.ts` | the turns a client could not send (#708): the order, the holds, and what is retried under the same id. The phone and the browser persist it; this decides it. |
 
 Everything is exported through `index.ts` (`export *`), so a new export needs no wiring.
 

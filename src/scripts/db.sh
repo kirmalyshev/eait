@@ -6,10 +6,13 @@
 # and re-onboarded from scratch, with the real rows still in the old database and nothing in any
 # log. An empty database is indistinguishable from every user having been wiped.
 #
-# ONE SERVER, ONE DATABASE PER WORKTREE. `docker-compose.yml` pins the compose project name so every
-# worktree drives the same container; what makes them independent is the database inside it, named
-# after the branch by `src/scripts/dev-env.ts` and created here. Without `.env.worktree` this falls back
-# to `eait`, which is slot 0's database and what this script used before slots existed.
+# ONE SERVER, TWO DATABASES PER WORKTREE. `docker-compose.yml` pins the compose project name so
+# every worktree drives the same container; what makes them independent is the databases inside it,
+# named after the branch by `src/scripts/dev-env.ts` and created here. The dev one is what the
+# server runs against; the test one is what the store contract suite migrates and writes, and it is
+# separate because `./dev seed` puts an admin in the dev one and two of that suite's assertions are
+# about a database with no admin in it. Without `.env.worktree` these fall back to `eait` and
+# `eait__test`, which are slot 0's and what this script used before slots existed.
 #
 #   sh src/scripts/db.sh [up|down|psql|create|drop|list|nuke]     (or: ./dev db …)
 set -eu
@@ -24,6 +27,7 @@ cd "$(dirname "$0")/../.."
 # SLOT 0'S DATABASE.
 . ./src/scripts/worktree.sh
 DB="$EAIT_DB_NAME"
+TEST_DB="$EAIT_TEST_DB_NAME"
 
 # One place that knows how to reach the server, so nothing below repeats the credentials.
 psql_as() {
@@ -39,6 +43,17 @@ psql_maint() {
 
 db_exists() {
   psql_maint -lqt 2>/dev/null | cut -d'|' -f1 | tr -d ' ' | grep -qx "$1"
+}
+
+# One database, created if it is not there. Both names go through this, so neither can acquire a
+# creation path of its own that the other lacks.
+ensure_db() {
+  if db_exists "$1"; then
+    echo "database $1 (exists)"
+  else
+    docker compose exec -T db createdb -U eait "$1"
+    echo "database $1 (created)"
+  fi
 }
 
 # Every `Type YES` prompt reads through this. `read` fails on EOF, and under `set -e` a bare one
@@ -88,20 +103,12 @@ case "${1:-up}" in
     refuse_foreign_container
     docker compose up -d db
     wait_ready
-    if db_exists "$DB"; then
-      echo "database $DB (exists)"
-    else
-      docker compose exec -T db createdb -U eait "$DB"
-      echo "database $DB (created)"
-    fi
+    ensure_db "$DB"
+    ensure_db "$TEST_DB"
     ;;
   create)
-    if db_exists "$DB"; then
-      echo "database $DB already exists"
-    else
-      docker compose exec -T db createdb -U eait "$DB"
-      echo "created $DB"
-    fi
+    ensure_db "$DB"
+    ensure_db "$TEST_DB"
     ;;
   drop)
     # Destructive, so it asks. The seeded fixtures come back with `./dev seed`; anything you created
@@ -109,7 +116,7 @@ case "${1:-up}" in
     #
     # `--yes` is for a caller that has ALREADY asked, naming this same database.
     if [ "${2:-}" != "--yes" ]; then
-      printf 'This deletes the database %s and everything in it. Type YES to continue: ' "$DB"
+      printf 'This deletes the databases %s and %s and everything in them. Type YES to continue: ' "$DB" "$TEST_DB"
       confirm_yes
     fi
     # `create` is always reached through `up`; this is not, and against a stopped container `dropdb`
@@ -117,11 +124,15 @@ case "${1:-up}" in
     refuse_foreign_container
     docker compose up -d db >/dev/null
     wait_ready
-    docker compose exec -T db dropdb -U eait --if-exists "$DB"
-    echo "dropped $DB"
+    # BOTH, because both were derived here and the confirmation above named both. Dropping the dev
+    # one alone would leave a test database nothing in this worktree ever mentions again.
+    for _d in "$DB" "$TEST_DB"; do
+      docker compose exec -T db dropdb -U eait --if-exists "$_d"
+      echo "dropped $_d"
+    done
     ;;
   list)
-    echo "databases on 127.0.0.1:5433 (this worktree uses: $DB)"
+    echo "databases on 127.0.0.1:5433 (this worktree uses: $DB, $TEST_DB)"
     psql_maint -lqt | cut -d'|' -f1 | tr -d ' ' | grep -v '^$' | sed 's/^/  /'
     ;;
   down)
@@ -135,9 +146,9 @@ case "${1:-up}" in
     docker compose exec db psql -U eait -d "$DB" "$@"
     ;;
   nuke)
-    # Destroys the volume — EVERY worktree's database, not just this one. Named `nuke` rather than
-    # `reset` so nobody types it by muscle memory.
-    printf 'This deletes every dev database, for every worktree. Type YES to continue: '
+    # Destroys the volume — every worktree's databases, dev AND test, not just this worktree's.
+    # Named `nuke` rather than `reset` so nobody types it by muscle memory.
+    printf 'This deletes every dev and test database, for every worktree. Type YES to continue: '
     confirm_yes
     docker compose down -v
     ;;

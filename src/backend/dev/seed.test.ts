@@ -4,6 +4,7 @@ import { describe, expect, test } from "bun:test";
 import { FIXTURE_THREAD, HEALTH_FIELDS } from "@eait/shared";
 import { memoryStore } from "../store.memory.ts";
 import { DEFAULT_SEED_PERSONA, SEED_PERSONAS, seedDeviceId, seedDevData } from "./seed.ts";
+import { PROMPT_DEFAULTS, PROMPT_KEYS, loadPrompts } from "../llm/prompt.ts";
 
 const TZ = "Europe/Berlin";
 const TODAY = "2026-08-06";
@@ -276,5 +277,32 @@ describe("seedDevData", () => {
     const after = await store.upsertDeviceUser("a".repeat(64), "en");
     expect(after.created).toBe(false);
     expect((await store.getProfile(mine.userId))?.weight_kg).toBe(71);
+  });
+});
+
+// The prompts a fresh install finds.
+//
+// They are NOT seeded here any more. `memoryStore()` holds them from construction and
+// `postgresStore()` syncs them at boot, so by the time the seeder runs they already exist — and a
+// second writer of the same rows would be a second answer to "what is this instance sending".
+// What this file still owes is the proof that seeding does not disturb them.
+describe("the shipped prompts", () => {
+  test("a seeded database sends the shipped prompts, and seeding twice does not touch them", async () => {
+    const store = memoryStore();
+    await seedDevData(store, { timezone: TZ, today: TODAY });
+    await seedDevData(store, { timezone: TZ, today: TODAY });
+    expect(await loadPrompts(store)).toEqual(PROMPT_DEFAULTS);
+    for (const key of PROMPT_KEYS) {
+      expect(await store.promptRevisions(key), `seeding wrote a revision of "${key}"`).toHaveLength(1);
+    }
+  });
+
+  test("seeding never reverts an edit", async () => {
+    // The seeder replaces its own accounts and leaves everything else. An edited prompt is
+    // everything else.
+    const store = memoryStore();
+    await store.putPrompt("coach", "You are terse.", "admin");
+    await seedDevData(store, { timezone: TZ, today: TODAY });
+    expect((await loadPrompts(store)).coach).toBe("You are terse.");
   });
 });

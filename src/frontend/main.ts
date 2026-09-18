@@ -15,14 +15,15 @@
 // import needs `node_modules/@eait/shared`, which exists only after `bun install`, and
 // `deploy/Dockerfile.web` builds this bundle with no `bun install` and no `node_modules` at all —
 // it copies `shared` in beside `web` for exactly this. `@eait/shared` stays TYPES ONLY, as
-// `web/AGENTS.md` requires; these two functions are the one runtime piece this page needs, and
+// `src/frontend/AGENTS.md` requires; these two functions are the one runtime piece this page needs, and
 // a relative import of the file they live in costs nothing the Dockerfile does not already pay for.
 import { advancePending, pendingLine } from "../shared/stream.ts";
+import { outcomeUnknown } from "../shared/results.ts";
 import { dayBudget } from "../shared/budget.ts";
 import type { MealProposed, MealRecord, PendingPhoto } from "@eait/shared";
 import type {
-  ChatHistoryResponse, DayResponse, DeleteLineResponse, EditLineLast, MessageRequest, MessageResponse, OUTCOME_UNKNOWN,
-  PairCodeResponse, PatchProfileRequest, PendingMealsResponse, PendingResponse, PhotoLast, PhotoProgress, ProfileResponse, ROUTES,
+  ChatEntry, ChatHistoryResponse, DayResponse, DeleteLineResponse, EditLineLast, OUTCOME_UNKNOWN,
+  PairCodeResponse, PatchProfileRequest, PendingMealsResponse, PendingResponse, PhotoProgress, ProfileResponse, ROUTES,
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, apiStream, forget, signIn, signOut, signedIn } from "./api.ts";
 import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
@@ -34,16 +35,18 @@ import type { Lang } from "../shared/types.ts";
  *
  * A MODULE-SCOPE BINDING, deliberately, and set from the profile the moment it arrives. Threading a
  * language through forty render functions in a framework-less client is forty parameters that are
- * always the same value; what makes it safe is that it is written in exactly ONE place — `profile()`
- * below, once per signed-in tab — and that changing it reloads the page rather than re-rendering
- * around it. The page and the picker cannot disagree, because there is nothing to keep in step.
+ * always the same value; what makes one variable safe is that it is written in exactly ONE place —
+ * `profile()` below, once per signed-in tab — and that changing it RELOADS the page rather than
+ * re-rendering around it. The page and the picker cannot disagree, because there is nothing to keep
+ * in step.
  *
  * English until the profile lands, which is what the sign-in screen is drawn in for a person who
  * has no account yet.
  */
 let lang: Lang = "en";
 let COPY: WebCopy = webCopyFor(lang);
-const say = (key: keyof WebCopy): string => COPY[key] as string;
+import { noAnswer, outbox, sendTurn, type WebQueued } from "./outbox.ts";
+import { heldAhead, joinsQueue } from "../shared/outbox.ts";
 
 /**
  * A contract route as `api()` spells it, under `/api/v1`. A TYPE, so the route is checked against
@@ -51,7 +54,6 @@ const say = (key: keyof WebCopy): string => COPY[key] as string;
  * this workspace imports the shared one for types only.
  */
 type Under<P extends string> = P extends `/v1${infer R}` ? R : never;
-const PHOTO: Under<typeof ROUTES.photo> = "/meals/photo";
 const MESSAGES: Under<typeof ROUTES.messages> = "/messages";
 const MESSAGE: (id: string) => `${Under<typeof ROUTES.messages>}/${string}` = (id) => `${MESSAGES}/${encodeURIComponent(id)}`;
 const PENDING: Under<typeof ROUTES.pending> = "/meals/pending";
@@ -121,7 +123,7 @@ function chrome(active: string): HTMLElement {
     nav.append(tg);
   }
   // THE PICKER, in the chrome beside Sign out — this client has no Settings screen, and the nav is
-  // the only place on every page. It writes through `PATCH /v1/profile`, the one path any surface
+  // the only thing on every page. It writes through `PATCH /v1/profile`, the one path any surface
   // uses, and then RELOADS rather than re-rendering: `lang` is read by forty render functions and
   // by `profileCache`, and a reload is the one way to be sure none of them kept the old one.
   //
@@ -161,9 +163,14 @@ function chrome(active: string): HTMLElement {
   const out = el("button", "link", COPY.signOut) as HTMLButtonElement;
   out.addEventListener("click", () => {
     void (async () => {
+      // The turns this browser was keeping are the account's, photos included: they do not stay
+      // behind for whoever uses it next. First, so a sign-out the network refuses still takes them.
+      // A storage that refuses (blocked, corrupt) must not keep the person signed in.
+      await outbox.clear().catch(() => {});
       await signOut();
       profileCache = null;
       held = null;
+      lastThread = [];
       location.hash = "#/";
       await render();
     })();
@@ -185,8 +192,8 @@ function signInScreen(): HTMLElement {
   return box;
 }
 
-// Grouped the reader's way — "1.724 kcal" in German — and rounded, because a kcal from a photo is
-// an estimate and a decimal point on one claims a precision the analyzer does not have.
+// Grouped the reader's way — "1.724 kcal" in German — rounded, because a kcal from a photo is an
+// estimate, and with the language's own spelling of the unit beside it.
 const kcal = (n: number): string => `${wholeNumbers(lang)(n)} ${UNIT_KCAL[lang]}`;
 
 async function diaryScreen(): Promise<HTMLElement> {
@@ -215,10 +222,11 @@ async function diaryScreen(): Promise<HTMLElement> {
     })));
   } else {
     const big = el("p", budget.warn ? "big warn" : "big");
-    // The FIGURE is grouped the reader's way; the state beside it is a word from the table.
+    // The FIGURE is grouped the reader's way, the unit is spelled the reader's way, and the state
+    // beside it is a word from the table.
     big.append(
       el("span", "hero", wholeNumbers(lang)(budget.kcal)),
-      el("span", "muted", ` kcal ${budget.state === "left" ? COPY.budgetLeft : budget.state === "over" ? COPY.budgetOver : COPY.budgetUnder}`),
+      el("span", "muted", ` ${UNIT_KCAL[lang]} ${budget.state === "left" ? COPY.budgetLeft : budget.state === "over" ? COPY.budgetOver : COPY.budgetUnder}`),
     );
     // Native, so there is nothing to draw by hand; hidden, because the line under it says it in words.
     const bar = document.createElement("progress");
@@ -247,8 +255,8 @@ async function diaryScreen(): Promise<HTMLElement> {
   const days = Number.isNaN(weighed) ? null
     : Math.max(0, (Date.parse(today) - Date.parse(calendar.format(weighed))) / 86_400_000);
   // `Intl.RelativeTimeFormat` in the READER's language, not in "en" — it was the one formatter on
-  // this page with a locale hard-coded into it, and "2 days ago" under a German diary is the kind
-  // of thing that reads as a half-finished translation rather than as one missing string.
+  // this page with a locale hard-coded into it, and "2 days ago" under a German diary reads as a
+  // half-finished translation rather than as one missing string.
   head.append(el("p", "muted", kg === null
     ? COPY.connectHealth
     : days === null
@@ -287,6 +295,9 @@ async function diaryScreen(): Promise<HTMLElement> {
  */
 let held: MealProposed | null = null;
 
+/** The thread as the server last sent it, drawn again when it cannot be asked. Cleared on sign-out. */
+let lastThread: ChatEntry[] = [];
+
 /**
  * The turn still out, and what it said if its screen was gone by the time it answered (#529).
  *
@@ -305,6 +316,9 @@ async function chatScreen(): Promise<HTMLElement> {
   // Only the photo checks read it, and the server is their authority either way — so an account the
   // server holds no profile for (403) still gets its thread and its composer.
   const me = await profile().catch(() => null);
+  // Whose turns this browser is keeping (#708). Without a profile nothing is kept: a turn that
+  // cannot be sent is worded as a lost answer, as it was.
+  const uid = me?.profile.user_id ?? null;
   const wrap = el("section", "");
   const thread = el("div", "");
   const notice = el("p", "notice");
@@ -331,8 +345,20 @@ async function chatScreen(): Promise<HTMLElement> {
   // conversation backwards; and `ChatEntry` is a discriminated union whose `meal` arm carries no
   // `text` at all. The root AGENTS.md rule this broke: the HTTP contract is code, both sides import
   // it, and a second copy of a response shape is exactly what that forbids.
+  // THE LAST THREAD THE SERVER SENT, drawn again when it cannot be asked (#708): offline, what the
+  // page already showed stays, and the turns kept for later go under it. A session that is over is
+  // still the sign-in screen.
   const draw = async (): Promise<void> => {
-    const { entries } = await api<ChatHistoryResponse>(`${MESSAGES}?limit=30`);
+    // A failed read is still THROWN, after the drawing: a turn that wrote and could not re-read says
+    // so (#529). Only what is drawn in the meantime changed.
+    let unread: unknown = null;
+    try {
+      lastThread = (await api<ChatHistoryResponse>(`${MESSAGES}?limit=30`)).entries;
+    } catch (err) {
+      if (err instanceof Unauthenticated) throw err;
+      unread = err;
+    }
+    const entries = lastThread;
     const list = el("ul", "thread");
     for (const entry of entries) {
       const li = el("li", entry.role === "user" ? "line mine" : "line theirs");
@@ -363,8 +389,6 @@ async function chatScreen(): Promise<HTMLElement> {
           li.append(edit);
         }
         const del = el("button", "", COPY.delete) as HTMLButtonElement;
-        // THE VERB IS THE BUTTON'S OWN, not an English one beside a translated face: a screen
-        // reader is the one reader who hears only this string.
         del.setAttribute("aria-label", `${COPY.delete}: ${named}`);
         del.addEventListener("click", () => {
           const ok = isMeal ? confirm(COPY.confirmDeleteMeal) : confirm(COPY.confirmDeleteLine);
@@ -378,7 +402,30 @@ async function chatScreen(): Promise<HTMLElement> {
       }
       list.append(li);
     }
-    clear(thread).append(entries.length === 0 ? el("p", "muted", COPY.noMessages) : list);
+    // KEPT FOR LATER, in the order they go, under everything the server has (#708). Waiting says so;
+    // held says what the server said, in the words a live refusal gets, and offers the two ways on.
+    const kept = uid === null ? [] : outbox.entries.filter((e) => e.userId === uid);
+    for (const e of kept) {
+      const li = el("li", "line mine");
+      li.append(el("p", "", e.kind === "photo" ? (e.text ? `Photo: ${e.text}` : COPY.photo) : e.text ?? ""));
+      if (e.held === undefined) {
+        li.append(el("p", "muted", COPY.waitingToSend));
+      } else {
+        // A turn the server may have run is worded as the doubt it is, never as "try again" beside a
+        // button that sends it again under a new id.
+        li.append(el("p", "muted", outcomeUnknown(e.held.kind)
+          ? unclear()
+          : refusalWords(new ApiError(0, { error: e.held.kind, ...(e.held.scope ? { scope: e.held.scope } : {}) }, "held"))));
+        const again = el("button", "", COPY.sendAgain) as HTMLButtonElement;
+        again.addEventListener("click", () => turn(() => outbox.resend(e.id, uid!)));
+        const drop = el("button", "", COPY.discard) as HTMLButtonElement;
+        // Discarding a held head lets whatever waited behind it go.
+        drop.addEventListener("click", () => turn(async () => { await outbox.discard(e.id); void flush(); }));
+        li.append(again, drop);
+      }
+      list.append(li);
+    }
+    clear(thread).append(entries.length === 0 && kept.length === 0 ? el("p", "muted", COPY.noMessages) : list);
     // LOGGED ALREADY: a confirm whose answer was lost can still have landed, and the meal then
     // carries the proposal's id (`ChatEntry`, contract.ts), so the card in the thread is its answer.
     const pending = held?.pendingId;
@@ -387,6 +434,7 @@ async function chatScreen(): Promise<HTMLElement> {
     // (#367). An unreadable moment stays live, as `proposalLive` rules: the analysis is already billed.
     if (held !== null && Date.parse(held.expiresAt) <= Date.now()) held = null;
     if (held !== null) thread.append(proposalCard(held));
+    if (unread !== null) throw unread;
   };
 
   /**
@@ -408,13 +456,21 @@ async function chatScreen(): Promise<HTMLElement> {
     tell(null);
     // To this screen while it is up; carried to the next one when it has been rebuilt meanwhile.
     const report = (words: string): void => {
+      // A kept turn's notice is decided NOW, from what is still waiting: a replay that answered while
+      // this turn was redrawing already took the turn away, and the notice would outlive it.
+      if (words === kept() || words === behind()) {
+        const now = keptNotice(uid);
+        if (now === null) return;
+        words = now;
+      }
       if (wrap.isConnected) tell(words); else carried = words;
     };
     let wrote = false;
+    let said: string | void = undefined;
     const run = (async () => {
       try {
         // A write may answer with words of its own for a turn that WORKED: "already logged".
-        const said = await write();
+        said = await write();
         wrote = true;
         if (wrap.isConnected) await draw();
         if (typeof said === "string") report(said);
@@ -422,8 +478,9 @@ async function chatScreen(): Promise<HTMLElement> {
         // Cleared BEFORE `render()`: a rebuilt chat screen waits on `outstanding`, and this turn is
         // still it, so waiting here would be the turn waiting on itself.
         if (err instanceof Unauthenticated) { outstanding = null; await render(); return; }
-        // A write that landed is never "try again": that would log the meal twice.
-        report(wrote ? COPY.sentReload : refusalWords(err));
+        // A write that landed is never "try again": that would log the meal twice. One that has its
+        // own words — a turn kept for later — says those rather than "sent".
+        report(wrote ? (typeof said === "string" ? said : COPY.sentReload) : refusalWords(err));
         if (!wrote) console.error(err);
       } finally {
         for (const c of controls) c.disabled = false;
@@ -453,8 +510,7 @@ async function chatScreen(): Promise<HTMLElement> {
           if (refusalWords(err) === maybeLanded()) {
             // A lost COPY.notThis needs no second press: nothing is logged without a confirm, so what
             // was asked for holds whether or not it landed — and offering the card again would put
-            // it back under the server's own dropped line — `scriptedLine("dropped")`, written by the
-            // engine, not this client's copy (#529).
+            // it back under the server's own COPY.dropped (#529).
             if (verb === "cancel") { held = null; card.remove(); return; }
             throw new Said(COPY.logRetry);
           }
@@ -485,18 +541,9 @@ async function chatScreen(): Promise<HTMLElement> {
     const text = words.value.trim();
     if (text === "") return;
     turn(async () => {
-      const body: MessageRequest = { text };
-      const r = await api<MessageResponse>(MESSAGES, {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
-      });
+      const saved = await sendOrKeep({ id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [], capturedAt: new Date().toISOString() });
       words.value = "";
-      if (r.kind === "proposed") {
-        // One live estimate, as on the phone (`oneLiveProposal`): the previous one is cancelled for real.
-        if (held !== null && held.pendingId !== r.pendingId) {
-          void api(`/meals/pending/${encodeURIComponent(held.pendingId)}/cancel`, { method: "POST" }).catch(() => {});
-        }
-        held = r;
-      }
+      return saved;
     });
   });
 
@@ -587,17 +634,14 @@ async function chatScreen(): Promise<HTMLElement> {
         arm();
         return;
       }
-      if (caption.value.trim() !== "") form.append("caption", caption.value.trim());
-      const r = await apiStream<PhotoLast>(PHOTO, { method: "POST", body: form });
-      // The server failed mid-turn, maybe after the meal was logged (#514). An answer did come
-      // back, so the doubt is named.
-      if (r.kind === UNKNOWN) throw new Said(unclear());
-      // Refused IN the stream, with the 200 already sent: worded like any other refusal.
-      if (r.kind !== "logged") {
-        throw new ApiError(200, { error: r.kind, ...("scope" in r ? { scope: r.scope } : {}) }, `photo: ${r.kind}`);
-      }
+      // Refused IN the stream, with the 200 already sent, is thrown by `sendTurn` as any other refusal.
+      const saved = await sendOrKeep({
+        id: crypto.randomUUID(), userId: uid ?? "", kind: "photo", text: caption.value.trim() || null, photos: files,
+        capturedAt: new Date().toISOString(),
+      });
       picker.value = "";
       caption.value = "";
+      return saved;
     });
   });
   arm();
@@ -608,10 +652,23 @@ async function chatScreen(): Promise<HTMLElement> {
   // newest the server holds, which `draw` drops like any other once a card in the thread answers it.
   // A failed read is no card, as before.
   if (held === null) held = (await api<PendingMealsResponse>(PENDING).catch(() => null))?.proposals.at(-1) ?? null;
-  await draw();
+  // Offline, the screen still opens: on the thread it last had, the turns it is keeping, and a
+  // composer that keeps what is sent.
+  await draw().catch((err: unknown) => { if (err instanceof Unauthenticated) throw err; });
+  // A queued turn answered while this screen is up redraws it: the logged meal, the held refusal.
+  redraw = async () => {
+    if (!wrap.isConnected) return;
+    await draw();
+    // Nothing of this account's left waiting: the promise the notice made is kept, so it goes.
+    // A kept turn's notice follows the queue, not the moment it was kept: a turn ahead that is held
+    // later means this one now waits on a decision, and nothing left waiting means it went.
+    if (notice.textContent === kept() || notice.textContent === behind()) tell(keptNotice(uid));
+  };
   wrap.append(thread, notice, say, el("h2", "photo-lead", COPY.orPhotograph), shoot, progress);
   // What the turn that was out said, if it answered after its own screen was gone.
-  if (carried !== null) { tell(carried); carried = null; }
+  // A kept turn's notice carried from a screen that is gone is decided again now: minutes may have
+  // passed, and the turn may have gone meanwhile.
+  if (carried !== null) { tell(carried === kept() || carried === behind() ? keptNotice(uid) : carried); carried = null; }
   return wrap;
 }
 
@@ -659,6 +716,9 @@ class Said extends Error {}
 function refusalWords(err: unknown): string {
   if (err instanceof Said) return err.message;
   if (!(err instanceof ApiError)) return maybeLanded();
+  // The server failed mid-turn, maybe after the meal was logged (#514). An answer did come back, so
+  // the doubt is named.
+  if (err.body?.error === UNKNOWN) return unclear();
   const words = refusalWordsFor();
   const said = (code: string): string | undefined =>
     Object.hasOwn(words, code) ? words[code] : undefined;
@@ -680,6 +740,107 @@ function mealLine(meal: MealRecord | null): string {
   if (meal === null) return COPY.mealGone;
   return `${names(meal.items)} — ${kcal(meal.kcal)}`;
 }
+
+/** What a turn kept for later says, once, under the composer (#708). No cause: offline and an edge are both this. */
+const kept = (): string => COPY.kept;
+/** The same, when what is ahead of it waits on a decision rather than on a connection. */
+const behind = (): string => COPY.keptBehind;
+/** A turn that joined the queue without being tried, and could not be saved: nothing went anywhere. */
+const notSaved = (): string => COPY.notSaved;
+
+/** Whether anything of `uid`'s is still waiting to go on its own. */
+const waitingFor = (uid: string | null): boolean => uid !== null && joinsQueue(outbox.entries, uid);
+
+/**
+ * A kept turn's notice, from the queue AS IT IS NOW — never the moment the turn was kept: a turn ahead
+ * held since makes it BEHIND, and nothing left waiting means it went. One decision for the notice a
+ * turn reports and the one a redraw corrects, so the two cannot disagree.
+ */
+const keptNotice = (uid: string | null): string | null =>
+  !waitingFor(uid) ? null : heldAhead(outbox.entries, uid!) ? behind() : kept();
+
+/** The chat screen's redraw while it is up, so a queued turn answered in the background shows. */
+let redraw: (() => Promise<void>) | null = null;
+
+/**
+ * What a turn's answer changes on this page: a proposal is held until it is logged or dropped. A
+ * kept turn cannot answer after a newer one — a turn said while kept ones wait joins their end
+ * (`sendOrKeep`) — so the newest to arrive is the newest asked for, a COPY.sendAgain included.
+ */
+function answered(r: { kind: string }): void {
+  if (r.kind !== "proposed") return;
+  const p = r as MealProposed;
+  // One live estimate, as on the phone (`oneLiveProposal`): the previous one is cancelled for real.
+  if (held !== null && held.pendingId !== p.pendingId) {
+    void api(`/meals/pending/${encodeURIComponent(held.pendingId)}/cancel`, { method: "POST" }).catch(() => {});
+  }
+  held = p;
+}
+
+/**
+ * Send a turn, or KEEP it when it got no answer (#708): offline, a reset connection, an edge with
+ * nothing in its 5xx. Kept, it goes out under the SAME id, so a first attempt that did reach the
+ * server and only lost its answer is answered from it rather than run twice. Anything the server
+ * answered is thrown for the caller to word, as before.
+ */
+async function sendOrKeep(entry: WebQueued): Promise<string | void> {
+  // OLDER KEPT TURNS GO FIRST: with anything of this account's still waiting, this one joins the end
+  // rather than reaching the server ahead of turns said before it (`joinsQueue`).
+  const attempted = entry.userId === "" || !joinsQueue(outbox.entries, entry.userId);
+  if (attempted) {
+    try {
+      answered(await sendTurn(entry));
+      return;
+    } catch (err) {
+      if (entry.userId === "" || !noAnswer(err)) throw err;
+    }
+  }
+  try {
+    await outbox.add(entry);
+  } catch (err) {
+    // Tried and lost: it may have gone through, and the words for that are the caller's. Never tried:
+    // nothing went anywhere, and "check before sending it again" would be the wrong advice.
+    if (!attempted) throw new Said(notSaved());
+    throw err;
+  }
+  // At once, and NOT awaited: `turn()` holds every control until its write settles, and a drain can
+  // be minutes of other turns.
+  void flush();
+  return heldAhead(outbox.entries, entry.userId) ? behind() : kept();
+}
+
+/**
+ * Send what is kept, in order, for whoever is signed in. A turn kept for ANOTHER account goes: its
+ * session ended here without a sign-out, and somebody else is using this browser now.
+ */
+async function flush(): Promise<void> {
+  if (!signedIn() || outbox.entries.length === 0) return;
+  // WHOSE BEARER THIS IS NOW, asked rather than remembered: a 401 re-mints from whatever session the
+  // browser holds, and a sign-in in another tab changes that — this page's profile would still name
+  // the old account, and the drain would send its turns under the new one.
+  const me = await api<ProfileResponse>("/profile").catch(() => null);
+  if (me === null) return;
+  const uid = me.profile.user_id;
+  for (const e of outbox.entries) if (e.userId !== uid) await outbox.discard(e.id).catch(() => {});
+  await outbox.drain(uid);
+}
+
+outbox.subscribe((event) => {
+  if (event?.kind === "sent") answered(event.result);
+  if (event !== undefined) void redraw?.().catch(() => {});
+});
+
+// BACK ONLINE: the session first if this page lost it on the way (a bearer re-mint fails offline),
+// then everything kept. A connection that comes back without the browser noticing — a server that
+// was down, an edge that answered 502 — is what the interval is for.
+addEventListener("online", () => {
+  void (async () => {
+    // Signed out on the way (a re-mint failed offline), or a screen that could not load: drawn again.
+    if (!signedIn() || root().querySelector("p.error")) { if (!signedIn()) await signIn().catch(() => {}); await render(); }
+    await flush();
+  })();
+});
+setInterval(() => { if (outbox.entries.length > 0) void flush(); }, 30_000);
 
 /**
  * Which draw owns the page. Every `render()` takes the next number and gives up at each await it
@@ -710,6 +871,8 @@ async function render(): Promise<void> {
     const screen = route === "#/chat" ? await chatScreen() : await diaryScreen();
     if (mine !== drawing) return;
     clear(body).append(screen);
+    // Whatever was kept the last time this browser had no connection, now that there is a session.
+    void flush();
   } catch (err) {
     if (mine !== drawing) return;
     if (err instanceof Unauthenticated) { await render(); return; }

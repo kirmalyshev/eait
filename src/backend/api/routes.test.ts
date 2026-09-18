@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import {
-  HEALTH_RETENTION_DAYS, MAX_CLIENT_ID, MAX_USER_LINE, MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay,
+  HEALTH_RETENTION_DAYS, IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay,
   localDate, NDJSON, OUTCOME_UNKNOWN, type ChatHistoryResponse, type PairCodeResponse, type PhotoEvent, type MealLogged,
   type ProfileResponse, type MealProposed, type PendingMealsResponse,
 } from "@eait/shared";
@@ -305,6 +305,61 @@ describe("photo", () => {
       headers: { authorization: `Bearer ${token}`, "content-type": "multipart/form-data; boundary=x" },
     }));
     expect(res.status).toBe(411);
+  });
+
+  // #708: the queue re-sends a turn whose answer was lost, under the id it was first sent with.
+  it("answers a re-sent photo or message from the first, logging and charging once", async () => {
+    const token = await session();
+    const userId = (await store.userIdForToken(token))!;
+    const clientId = crypto.randomUUID();
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString();
+    const withId = () => {
+      const form = new FormData();
+      form.append("photo", new File([jpegBytes(1)], "m.jpg", { type: "image/jpeg" }));
+      form.append("clientId", clientId);
+      form.append("capturedAt", yesterday);
+      return new Request(url(ROUTES.photo), {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-length": DECLARED_LENGTH, accept: NDJSON },
+        body: form,
+      });
+    };
+    const last = async (res: Response) => JSON.parse((await res.text()).trim().split("\n").at(-1)!) as { kind: string; date?: string };
+    const first = await last(await handle(withId()));
+    const again = await last(await handle(withId()));
+    expect(first.kind).toBe("logged");
+    expect(again).toEqual(first);
+    // Dated by the capture, in the server's zone.
+    expect(first.date).toBe(localDate(CONFIG.timezone, new Date(yesterday)));
+    expect(await store.countUserAnalyses(userId)).toBe(1);
+
+    const said = crypto.randomUUID();
+    const one = await (await post(ROUTES.messages, { text: "how much protein?", clientId: said }, token)).json();
+    const two = await (await post(ROUTES.messages, { text: "how much protein?", clientId: said }, token)).json();
+    expect(two).toEqual(one);
+    expect(await store.countUserAnalyses(userId)).toBe(2);
+    const thread = await (await get(ROUTES.messages, token)).json() as { entries: { role: string; clientId?: string | null }[] };
+    expect(thread.entries.filter((e) => e.clientId === said)).toHaveLength(1);
+  });
+
+  // A replay calls no model, so the address allowance is not what it spends — and a replay refused
+  // there is held by the client, whose "Send again" is a NEW id: the second meal (#708 review).
+  it("lets a re-sent turn past the address limit that a new turn meets", async () => {
+    const token = await session();
+    const deps: EngineDeps = { store, config: { ...CONFIG, analysisRateLimitPerDay: 1 }, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+    handle = createRouter(deps, store, testVerifier);
+    const said = crypto.randomUUID();
+    const send = (key: string) => handle(new Request(url(ROUTES.messages), {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json", [IDEMPOTENCY_KEY]: key },
+      body: JSON.stringify({ text: "how much protein?", clientId: key }),
+    }));
+    const first = await send(said);
+    expect(first.status).toBe(200);
+    const again = await send(said);
+    expect(again.status).toBe(200);
+    expect(await again.json()).toEqual(await first.json());
+    expect((await send(crypto.randomUUID())).status).toBe(429);
   });
 
   it("402s once the sample is spent — the status the app opens the paywall on", async () => {
@@ -1571,11 +1626,14 @@ describe("rate limits", () => {
     }));
     const form = new FormData();
     form.append("photo", new File([jpegBytes(7)], "m.jpg", { type: "image/jpeg" }));
+    // Under a key, which the photo turn claims — and which must buy a re-analysis nothing: that route
+    // runs the model every time, so a claimed key there is no replay (#708 review, round 2).
+    const key = crypto.randomUUID();
     const logged = await (await h(new Request(url(ROUTES.photo), {
-      method: "POST", headers: { authorization: `Bearer ${token}`, "x-forwarded-for": address, "content-length": DECLARED_LENGTH }, body: form,
+      method: "POST", headers: { authorization: `Bearer ${token}`, "x-forwarded-for": address, "content-length": DECLARED_LENGTH, [IDEMPOTENCY_KEY]: key }, body: form,
     }))).json() as { mealId: string };
     const reanalyze = () => h(new Request(url(ROUTES.mealReanalyze(logged.mealId)), {
-      method: "POST", headers: { authorization: `Bearer ${token}`, "x-forwarded-for": address },
+      method: "POST", headers: { authorization: `Bearer ${token}`, "x-forwarded-for": address, [IDEMPOTENCY_KEY]: key },
     }));
     expect((await reanalyze()).status).toBe(200);
     const refused = await reanalyze();

@@ -27,7 +27,8 @@ bun run web:e2e       # the browser suite, against the demo model
 
 `bun` 1.4 or newer: the lockfile is v2. Against Postgres and a real model, copy the example env
 file to a local one — every setting the server reads is listed there with its default — and
-`bun run start`. The store contract suite runs against both stores when `TEST_DATABASE_URL` is set.
+`bun run start`. The store contract suite runs against both stores under `./dev test`, which sets
+`TEST_DATABASE_URL` to this worktree's own derived test database — do not set it by hand.
 
 ## Writing the change
 

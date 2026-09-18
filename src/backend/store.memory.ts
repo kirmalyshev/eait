@@ -12,11 +12,12 @@ import type {
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
+import { PROMPT_DEFAULTS, PROMPT_KEYS } from "./llm/prompt.ts";
 import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
   type MealPatch, type Role,
-  type PendingMeal, type PortionCorrection, type ProfilePatch, type PushPlatform, type PushToken,
+  type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushToken,
   type StoredEntitlement, type Store, type StoreOptions, type StoredPhoto,
 } from "./store.ts";
 
@@ -133,6 +134,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     id: string; userId: string; date: string; scope: "photo" | "text"; costUsd: number | null; unpricedCalls: number;
   }[] = [];
   let analysisSeq = 0;
+  // `${userId}\n${clientId}` -> the claim. The key IS the uniqueness the Postgres primary key gives.
+  const turns = new Map<string, { userId: string; clientId: string; outcome: object | null; claimedAt: number }>();
   // Append-only and read newest-first, which is the order Postgres reads them in.
   const portionCorrections: (PortionCorrection & { userId: string })[] = [];
   const identities: {
@@ -152,6 +155,22 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     createdAt: number;
   }>();
   let onboardingContent: OnboardingContentSet | null = null;
+  /**
+   * Every prompt revision ever written, exactly as Postgres keeps them: nothing is overwritten and
+   * the newest version per key is the live one. A flat list rather than a map by key, because the
+   * history IS the storage here — a map would hold the live text and quietly drop the audit trail
+   * the Postgres table keeps, and the two implementations would disagree about what the port means.
+   *
+   * IT STARTS WITH THE SHIPPED TEXT, which is what `postgresStore` reaches by running
+   * `syncShippedPrompts` at boot. Synchronous here because this constructor is, and the result is
+   * the same state — a contract test pins it against both. Every test therefore reads its prompts
+   * out of a ROW, the way production does, rather than exercising the fallback and shipping the
+   * other path untested.
+   */
+  const promptRevisionRows: PromptRevision[] = PROMPT_KEYS.map((key) => ({
+    key, version: 1, text: PROMPT_DEFAULTS[key], source: "shipped" as const,
+    updated_at: new Date(now()).toISOString(),
+  }));
 
   /** 256 bits of hex. Used for both subscriber capabilities: confirmation and withdrawal. */
   const randomHex = (): string =>
@@ -209,6 +228,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     for (let i = analyses.length - 1; i >= 0; i--) {
       if (analyses[i]!.userId === userId) analyses.splice(i, 1);
     }
+    for (const [k, t] of turns) if (t.userId === userId) turns.delete(k);
     // Identities go too, so deleting an account genuinely releases the Apple/Google subject
     // rather than leaving a row that would collide when the same person signs in again.
     for (let i = identities.length - 1; i >= 0; i--) {
@@ -553,6 +573,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         if (!healthDays.has(target)) healthDays.set(target, { ...d, userId: intoUserId });
       }
       for (const a of analyses) if (a.userId === fromUserId) a.userId = intoUserId;
+      // A turn the anonymous session sent is replayed by the same phone under the real account.
+      // One id claimed on both sides keeps the survivor's.
+      for (const [k, t] of turns) {
+        if (t.userId !== fromUserId) continue;
+        turns.delete(k);
+        const into = `${intoUserId}\n${t.clientId}`;
+        if (!turns.has(into)) turns.set(into, { ...t, userId: intoUserId });
+      }
       // What the app has learned about this person's portions is learned before they sign in.
       for (const c of portionCorrections) if (c.userId === fromUserId) c.userId = intoUserId;
       for (const m of chat) if (m.userId === fromUserId) m.userId = intoUserId;
@@ -735,6 +763,30 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async getNotificationCopy() {
       return notificationCopy ? clone(notificationCopy) : null;
+    },
+
+    async getPrompts() {
+      const live = new Map<string, PromptRevision>();
+      for (const r of promptRevisionRows) {
+        const seen = live.get(r.key);
+        if (!seen || r.version > seen.version) live.set(r.key, r);
+      }
+      return [...live.values()].map(clone).sort((a, b) => a.key.localeCompare(b.key));
+    },
+
+    async promptRevisions(key) {
+      return promptRevisionRows
+        .filter((r) => r.key === key)
+        .sort((a, b) => b.version - a.version)
+        .map(clone);
+    },
+
+    async putPrompt(key, text, source) {
+      const version = Math.max(0, ...promptRevisionRows.filter((r) => r.key === key).map((r) => r.version)) + 1;
+      // `now()` rather than `new Date()`: every other timestamp in this store comes from the
+      // injectable clock, and a fixture that ignores it is one a time-travelling test cannot pin.
+      promptRevisionRows.push({ key, version, text, source, updated_at: new Date(now()).toISOString() });
+      return version;
     },
 
     async putNotificationCopy(copy) {
@@ -1107,6 +1159,31 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       if (i < 0) return false;
       analyses.splice(i, 1);
       return true;
+    },
+
+    async claimTurn(userId, clientId) {
+      const k = `${userId}\n${clientId}`;
+      if (turns.has(k)) return false;
+      turns.set(k, { userId, clientId, outcome: null, claimedAt: now() });
+      return true;
+    },
+
+    async getTurn(userId, clientId) {
+      const t = turns.get(`${userId}\n${clientId}`);
+      return t ? { outcome: t.outcome === null ? null : clone(t.outcome), claimedAt: t.claimedAt } : null;
+    },
+
+    async settleTurn(userId, clientId, outcome) {
+      const t = turns.get(`${userId}\n${clientId}`);
+      if (t) t.outcome = clone(outcome);
+    },
+
+    async forgetTurnOutcomes(before) {
+      let n = 0;
+      for (const t of turns.values()) {
+        if (t.outcome !== null && t.claimedAt < before) { t.outcome = null; n++; }
+      }
+      return n;
     },
 
     async putHealthDays(userId, days) {

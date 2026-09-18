@@ -3,16 +3,21 @@
 // The prompts and the schemas live in `prompt.ts`; this file never authors either. That split is
 // what makes swapping the provider a one-file change, and it is what lets an accuracy eval compare
 // two transports without wondering whether they were asked different questions.
+//
+// It no longer IMPORTS the six system prompts, because an instance may be serving a stored override
+// of any of them: `opts.prompts` resolves all six once per turn and the composition root is what
+// joins that to a store. Absent, it is `PROMPT_DEFAULTS` — the constants this file used to import,
+// so a test that says nothing about prompts gets exactly what it got before. What did not change is
+// that no prompt string is written HERE.
 
 import { z } from "zod";
 import { cleanSuggestions, splitLines } from "@eait/shared";
 import type { AnalyzePhoto, Coach, CoachTools, GlancePhoto, LlmPorts, OnCost, RouteResult, RouteText } from "./port.ts";
 import { GatewayRefusal, MAX_COACH_ROUNDS, clampDayOffset, imageMime } from "./port.ts";
 import {
-  COACH_TOOL_DEFS, CoachReplySchema, GLANCE_MAX_TOKENS, MealAnalysisSchema, RouteSchema, SYSTEM,
-  SYSTEM_COACH, SYSTEM_GLANCE, SYSTEM_ROUTE, SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL,
-  buildCoachContext, buildGlanceText, buildRouteText, buildTextCorrectionText, buildTextMealText,
-  buildUserText, coachLine,
+  COACH_TOOL_DEFS, CoachReplySchema, GLANCE_MAX_TOKENS, MealAnalysisSchema, PROMPT_DEFAULTS,
+  RouteSchema, buildCoachContext, buildGlanceText, buildRouteText, buildTextCorrectionText,
+  buildTextMealText, buildUserText, coachLine, type Prompts,
 } from "./prompt.ts";
 
 interface Options {
@@ -41,6 +46,15 @@ interface Options {
   reasoningEffort?: string | undefined;
   /** Injected in tests so the ports can be exercised without a billed call. */
   fetchImpl?: typeof fetch;
+  /**
+   * Where the six system prompts come from, resolved once per turn.
+   *
+   * ABSENT MEANS THE COMPILED-IN ONES, which is what this transport sent before there was a table
+   * and is what every test that does not care gets. The composition root supplies
+   * `() => loadPrompts(store)`; this file still does not reach a store, and still authors no
+   * prompt of its own.
+   */
+  prompts?: () => Promise<Prompts>;
 }
 
 type Content = string | ({ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } })[];
@@ -97,6 +111,15 @@ function costOf(usage: unknown): number | null {
 export function openRouterPorts(opts: Options): LlmPorts {
   const doFetch = opts.fetchImpl ?? fetch;
   const url = opts.baseUrl;
+  /**
+   * ONE RESOLUTION PER PORT CALL, not per HTTP request: `routeText` can make two model calls and
+   * resolves once, so a prompt edit landing between them cannot analyse a meal under different
+   * instructions from the ones that classified it. A streamed photo turn is the one place two
+   * resolutions happen — `glancePhoto` and `analyzePhoto` are separate ports on separate models,
+   * and an edit landing between them changes a sentence nobody stores. Never throws:
+   * `loadPrompts` answers with the compiled-in prompts on any failure.
+   */
+  const prompts = opts.prompts ?? (async () => PROMPT_DEFAULTS);
 
   /**
    * One chat completion, validated against `schema`.
@@ -298,6 +321,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
   }
 
   const analyzePhoto: AnalyzePhoto = async (input, onDelta) => {
+    const { analysis } = await prompts();
     const content: Content = [
       { type: "text", text: buildUserText(input.profile, input.targets, {
         ...(input.caption !== undefined ? { caption: input.caption } : {}),
@@ -307,11 +331,12 @@ export function openRouterPorts(opts: Options): LlmPorts {
       }) },
       ...input.images.map((b) => ({ type: "image_url" as const, image_url: { url: toDataUrl(b) } })),
     ];
-    return await complete(SYSTEM, content, MealAnalysisSchema, "meal_analysis", false, onDelta, undefined, input.onCost);
+    return await complete(analysis, content, MealAnalysisSchema, "meal_analysis", false, onDelta, undefined, input.onCost);
   };
 
   const glancePhoto: GlancePhoto = async (input) => {
     if (!opts.glanceModel) throw new Error("glance disabled");
+    const { glance } = await prompts();
     const body = {
       model: opts.glanceModel,
       max_tokens: GLANCE_MAX_TOKENS,
@@ -320,7 +345,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       // grok-4.3 with this off measured 0.9 s to first token, grok-4.5 refuses the setting.
       reasoning: { enabled: false },
       messages: [
-        { role: "system" as const, content: SYSTEM_GLANCE },
+        { role: "system" as const, content: glance },
         { role: "user" as const, content: [
           { type: "text" as const, text: buildGlanceText(input.lang) },
           ...input.images.map((b) => ({ type: "image_url" as const, image_url: { url: toDataUrl(b) } })),
@@ -350,12 +375,13 @@ export function openRouterPorts(opts: Options): LlmPorts {
     // so they are one budget here — `undefined` in each call below is the `onDelta` this route has
     // never had, and the argument after it is the deadline.
     const deadline = Date.now() + opts.timeoutMs;
-    let out = await complete(SYSTEM_ROUTE, text, RouteSchema, "route", false, undefined, deadline, input.onCost);
+    const P = await prompts();
+    let out = await complete(P.route, text, RouteSchema, "route", false, undefined, deadline, input.onCost);
 
     // The decision and the work, separated — but only when the model made us.
     //
-    // `SYSTEM_ROUTE` asks for "a full analysis, same rules as a photo", and those rules live in
-    // `SYSTEM`, which this call never sees. grok-4.5 answers `intent: "meal"` with no analysis on
+    // The router prompt asks for "a full analysis, same rules as a photo", and those rules live in
+    // the ANALYSIS prompt, which this call never sees. grok-4.5 answers `intent: "meal"` with no analysis on
     // every food message, and keeps doing it when `complete()` feeds the validation error back. A
     // second call that asks ONLY for `MealAnalysisSchema` — the shape the photo path gets right
     // every time — is what actually produces the numbers.
@@ -387,7 +413,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
         ]
         : correction;
       const analysis = await complete(
-        SYSTEM_TEXT_CORRECTION,
+        P.text_correction,
         content,
         MealAnalysisSchema,
         "text-correction",
@@ -400,7 +426,7 @@ export function openRouterPorts(opts: Options): LlmPorts {
       out = { ...out, analysis };
     } else if (out.intent === "meal" && !out.analysis) {
       const analysis = await complete(
-        SYSTEM_TEXT_MEAL,
+        P.text_meal,
         buildTextMealText({ text: input.text, profile: input.profile, targets: input.targets }),
         MealAnalysisSchema,
         "text-meal",
@@ -457,8 +483,9 @@ export function openRouterPorts(opts: Options): LlmPorts {
   const coach: Coach = async (input, tools) => {
     const defs = COACH_TOOL_DEFS.filter((d) => Object.hasOwn(tools, d.function.name));
     const deadline = Date.now() + opts.timeoutMs;
+    const { coach: persona } = await prompts();
     const messages: AgentMessage[] = [
-      { role: "system", content: `${SYSTEM_COACH}\n\n${buildCoachContext(input.context)}` },
+      { role: "system", content: `${persona}\n\n${buildCoachContext(input.context)}` },
       ...input.history.map((h): AgentMessage => ({ role: h.role, content: coachLine(h.text) })),
       { role: "user", content: coachLine(input.text) },
     ];
