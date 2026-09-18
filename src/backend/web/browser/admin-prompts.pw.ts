@@ -105,10 +105,21 @@ async function openAdmin(page: import("@playwright/test").Page) {
   await expect(page.locator("#app")).toBeVisible();
 }
 
-/** Console errors are a failure, not noise: this page has no build step to catch them first. */
-function watchConsole(page: import("@playwright/test").Page): string[] {
+/**
+ * Console errors are a failure, not noise: this page has no build step to catch them first.
+ *
+ * `allow` exists for ONE thing, and it is not a general escape hatch: a test that deliberately
+ * stubs a non-2xx answer makes Chrome log the response itself ("Failed to load resource: … 409"),
+ * which is the browser reporting the fixture rather than the page misbehaving. Anything the PAGE
+ * throws is still counted, because `pageerror` is never filtered.
+ */
+function watchConsole(page: import("@playwright/test").Page, allow?: RegExp): string[] {
   const errors: string[] = [];
-  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("console", (m) => {
+    if (m.type() !== "error") return;
+    if (allow && allow.test(m.text())) return;
+    errors.push(m.text());
+  });
   page.on("pageerror", (e) => errors.push(String(e)));
   return errors;
 }
@@ -169,7 +180,9 @@ test("saving asks first, and an unchanged prompt is not a save at all", async ({
 });
 
 test("a 409 lands beside the button, not in the page's error box", async ({ page }) => {
-  const errors = watchConsole(page);
+  // The stubbed 409 is logged by the browser as a failed resource, which is the fixture and not a
+  // defect. Everything else still counts, and a page-level throw counts whatever it says.
+  const errors = watchConsole(page, /Failed to load resource/);
   // A lost race is not a rejected prompt: the words were fine and somebody else got there first.
   // It has to appear next to the button that must be pressed again, not in a box at the top of a
   // page the person has scrolled away from.
