@@ -5,7 +5,7 @@ Orientation for any coding agent (or human) working in this repo.
 ## What this is
 
 `eait` — the backend of `eait.fit`, the contract its clients implement, and the web application.
-Three workspaces, `shared/`, `backend/` and `web/`. Each carries its own `AGENTS.md` with the rules
+Three workspaces, `src/shared/`, `src/backend/` and `src/frontend/`. Each carries its own `AGENTS.md` with the rules
 that bind that workspace alone; this file holds what crosses them.
 
 This repository is also mounted, unchanged, inside a private monorepo that holds the iOS app, the
@@ -19,7 +19,7 @@ would falsify it; the reasoning that reached it belongs in the PR.
 ## Stack & commands
 
 - **Runtime:** TS/bun (`bun` 1.4+ — the lockfile is v2, which bun 1.3 cannot read).
-- **Install:** `bun install` at the root. Workspaces: `shared`, `backend`, `web`.
+- **Install:** `bun install` at the root. Workspaces: `src/shared`, `src/backend`, `src/frontend`.
 - **Typecheck:** `bun run typecheck`. **It is a gate, not a suggestion.** bun executes TypeScript
   *without* checking it, so a type error is invisible to `bun test` and to the running server until
   it crashes on live input.
@@ -41,7 +41,7 @@ would falsify it; the reasoning that reached it belongs in the PR.
 - **`shared` may not import from `backend`.** It is the contract both sides implement, and a
   dependency in either direction makes it a third implementation instead. It holds no renderer:
   the backend imports it, so React there would be React the server loads.
-- **The HTTP contract is code, not a document.** `shared/contract.ts` carries the routes, the
+- **The HTTP contract is code, not a document.** `src/shared/contract.ts` carries the routes, the
   request/response types and the refusal→status map. Every client and this server import it. If
   you change an endpoint and only one side breaks, you changed it in the wrong place.
 - **A photo arrives as JPEG, and the server refuses anything else BEFORE charging.** `logPhotoMeal`
@@ -62,7 +62,7 @@ would falsify it; the reasoning that reached it belongs in the PR.
   while `proposed` shipped `verdicts: undefined` to a client that indexed into it. The demo analyzer
   must stay as poor as the real one — a fake may be poorer than the real thing, never different in a
   way a test can see.
-- **The calorie floor is not negotiable.** `shared/targets.ts` — share cap first, floor second,
+- **The calorie floor is not negotiable.** `src/shared/targets.ts` — share cap first, floor second,
   floor unconditional. Read the header of that file before touching any of it. If you add a code
   path that produces a kcal target, it goes through `explainTargets`.
 - **TDD.** Write the failing test, watch it fail, implement, watch it pass. One logical change per
@@ -70,7 +70,7 @@ would falsify it; the reasoning that reached it belongs in the PR.
 
 ## The store port
 
-`backend/store.ts` is an interface with two implementations: `store.pg.ts` (Postgres via
+`src/backend/store.ts` is an interface with two implementations: `store.pg.ts` (Postgres via
 `Bun.sql`, what runs) and `store.memory.ts` (what the tests and `--demo` run against). The memory
 one enforces the same user-scoping rules, so a test proving "another user's meal id resolves to
 null" proves something about the engine rather than about a mock's mood.
@@ -80,26 +80,26 @@ already exist. Auto-create shipped once and it was silent data loss.
 
 ## Where to add things
 
-- New domain rule or type both sides need → `shared/`, and export it from `index.ts`.
-- New endpoint → the route in `shared/contract.ts` first, then one handler in
-  `backend/api/routes.ts` that calls ONE engine function, then the client method on each client.
-- New product logic → `backend/engine/`. If a route needs logic the engine does not expose, the
+- New domain rule or type both sides need → `src/shared/`, and export it from `index.ts`.
+- New endpoint → the route in `src/shared/contract.ts` first, then one handler in
+  `src/backend/api/routes.ts` that calls ONE engine function, then the client method on each client.
+- New product logic → `src/backend/engine/`. If a route needs logic the engine does not expose, the
   logic goes in the engine.
 - New onboarding question → a field on `Profile`, a step in `ONBOARDING_STEPS` (the order is
   load-bearing — the replies read what came before), an entry in `SCREEN_FIELDS` (respecting the
   two-field cap), an `asks` entry in `DEFAULT_ONBOARDING_CONTENT`, and a prompt in `CHAT_PROMPTS`
   with its `kind`. A question that collects NO profile field needs a READER first, named before it
   is written.
-- New LLM capability → a port type in `backend/llm/port.ts`, a prompt in `prompt.ts`, an
+- New LLM capability → a port type in `src/backend/llm/port.ts`, a prompt in `prompt.ts`, an
   implementation in `openrouter.ts`, and a canned version in `demo.ts` so the tests still run.
-- New paid-tier behaviour → `backend/engine/entitlement.ts`. A new thing the tier unlocks is a
+- New paid-tier behaviour → `src/backend/engine/entitlement.ts`. A new thing the tier unlocks is a
   config value plus a branch in ONE function there, sent to the client through `ProfileResponse`.
   Never a second `entitlementActive` call, and never a check on a client's own SDK state.
-- New health metric → a field on `HealthDay` and an entry in `HEALTH_FIELDS` (`shared/health.ts`).
+- New health metric → a field on `HealthDay` and an entry in `HEALTH_FIELDS` (`src/shared/health.ts`).
   The Postgres column and its migration are GENERATED from `HEALTH_FIELDS`, so there is nothing to
   add in `store.pg.ts`; the memory store stores whole days and needs nothing either.
-- New Telegram behaviour → `backend/telegram/`, whose `AGENTS.md` binds it.
-- New development fixture → `backend/dev/seed.ts`, against the `Store` INTERFACE so the tests
+- New Telegram behaviour → `src/backend/telegram/`, whose `AGENTS.md` binds it.
+- New development fixture → `src/backend/dev/seed.ts`, against the `Store` INTERFACE so the tests
   cover it with no database. Verdicts go through `verdictsFromTargets` → `visibleVerdicts` like
   everything else.
 

@@ -5,19 +5,19 @@
   "packageManager": "bun@1.4.0",
   "description": "eait.fit — the backend, the contract its clients implement, and the web application.",
   "workspaces": [
-    "shared",
-    "backend",
-    "web"
+    "src/shared",
+    "src/backend",
+    "src/frontend"
   ],
   "scripts": {
-    "start": "bun run --cwd backend start",
-    "dev": "bun run --cwd backend dev",
-    "demo": "bun run --cwd backend demo",
-    "web": "bun run --cwd web start",
-    "web:build": "bun run --cwd web build",
+    "start": "bun run --cwd src/backend start",
+    "dev": "bun run --cwd src/backend dev",
+    "demo": "bun run --cwd src/backend demo",
+    "web": "bun run --cwd src/frontend start",
+    "web:build": "bun run --cwd src/frontend build",
     "web:e2e": "playwright test",
-    "typecheck": "bun run --cwd shared typecheck && bun run --cwd backend typecheck && bun run --cwd web typecheck && tsc -p scripts",
-    "test": "bun test ./shared ./backend ./web",
+    "typecheck": "bun run --cwd src/shared typecheck && bun run --cwd src/backend typecheck && bun run --cwd src/frontend typecheck && tsc -p scripts",
+    "test": "bun test ./src/shared ./src/backend ./src/frontend",
     "check": "bun run typecheck && bun run web:build && bun run test && bun run openapi --check",
     "openapi": "bun run scripts/openapi.ts"
   },

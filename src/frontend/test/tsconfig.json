@@ -1,6 +1,6 @@
 {
   "//": "The bun:test half of this workspace: bun types, no DOM, the same pair as ../server/tsconfig.json. The browser config excludes this directory, so a test here can import a module and stub `fetch` without undoing `types: []` for the code that ships to a page.",
-  "extends": "../../tsconfig.json",
+  "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "lib": ["ESNext"],
     "types": ["bun"]

@@ -49,7 +49,7 @@ Everything is exported through `index.ts` (`export *`), so a new export needs no
 
 ## Testing
 
-`bun test ./shared` — no database, no simulator. Every file here has a `.test.ts` beside it and
+`bun test ./src/shared` — no database, no simulator. Every file here has a `.test.ts` beside it and
 that is the expectation for anything added: this is the layer where a rule can be proven cheaply,
 so a rule that is only exercised through the app is in the wrong place.
 
@@ -70,7 +70,7 @@ will ever use it, it does not belong here — put it in that side and keep this 
   sync reaches, and — through `DIARY_WINDOW_DAYS` — how far the diary's per-day totals go, because
   the health screen draws intake on the same axis as energy burned. It was three constants on two
   sides once; the year view is what made the drift visible.
-- **Every number on a health chart is `shared/trend.ts`.** `trendBuckets` (Monday weeks,
+- **Every number on a health chart is `src/shared/trend.ts`.** `trendBuckets` (Monday weeks,
   calendar months, every stored year), `bucketSeries` (the MEAN of the days with a reading — a
   weekly total and a monthly total do not share an axis, an average per day does — and null stays
   null, a gap and never a zero), `correlate` (Pearson over the buckets known on both sides, and no
@@ -97,7 +97,7 @@ will ever use it, it does not belong here — put it in that side and keep this 
   hardest moment and eating out were cut on 2026-08-26 because nothing in `src/` read back what they
   wrote — the user pays for a question like that and never sees it come back. `struggles` survived
   because it picks the support cards a sentence later, which the user does see.
-- **Onboarding: the WORDS are editable, the QUESTIONS are not.** `shared/onboarding.ts` holds
+- **Onboarding: the WORDS are editable, the QUESTIONS are not.** `src/shared/onboarding.ts` holds
   three layers and the line between them is the whole design. STEPS are the profile fields the
   calorie target needs — fixed in code. SCREENS are how those fields are grouped and the unit the
   copy is keyed by — fixed in code, and one may be switched off only when nothing on it reaches
@@ -106,7 +106,7 @@ will ever use it, it does not belong here — put it in that side and keep this 
   backend admin. `validateOnboardingContent` enforces that boundary ON THE WRITE, so bad copy never
   reaches a phone; an admin can rewrite every question and cannot produce a target computed from a
   value nobody chose.
-- **The REPLIES and the support cards are code, not copy.** `shared/onboarding-chat.ts` holds
+- **The REPLIES and the support cards are code, not copy.** `src/shared/onboarding-chat.ts` holds
   the branch logic and every sourced statistic ("about 42% of adults", "n = 1.18M"). An admin text
   box in front of a health statistic is an unsubstantiated claim one typo away from every phone,
   with no gate in front of it — the thing `landing/claims.ts` exists to stop in public copy. Two

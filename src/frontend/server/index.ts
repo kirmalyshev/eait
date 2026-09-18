@@ -252,12 +252,12 @@ export function createWebApp(options: WebAppOptions = {}) {
 }
 
 if (import.meta.main) {
-  const port = Number(process.env.EAIT__WEB__PORT ?? DEFAULT_PORT);
+  const port = Number(process.env.EAIT__FRONTEND__PORT ?? DEFAULT_PORT);
   // 127.0.0.1 on a laptop; the container sets 0.0.0.0, which inside one means "reachable by the
   // other containers on this network", not "reachable by the internet" — compose publishes no port
   // for this service and Caddy is the only route in.
-  const hostname = process.env.EAIT__WEB__HOST ?? "127.0.0.1";
-  const app = createWebApp({ backendOrigin: process.env.EAIT__WEB__BACKEND_ORIGIN ?? "" });
+  const hostname = process.env.EAIT__FRONTEND__HOST ?? "127.0.0.1";
+  const app = createWebApp({ backendOrigin: process.env.EAIT__FRONTEND__BACKEND_ORIGIN ?? "" });
   const server = Bun.serve({ port, hostname, fetch: app.fetch });
   console.log(`[eait-web] ${server.url}`);
 }

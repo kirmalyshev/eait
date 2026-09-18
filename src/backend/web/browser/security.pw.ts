@@ -17,7 +17,7 @@ test("a message is rendered as text, never as markup", async ({ signedIn: page }
 });
 
 test("a caption is rendered as text too, on the bubble the photo made", async ({ signedIn: page }) => {
-  await page.locator('input[type="file"]').setInputFiles("backend/web/browser/fixture-meal.png");
+  await page.locator('input[type="file"]').setInputFiles("src/backend/web/browser/fixture-meal.png");
   await page.getByPlaceholder("Anything I should know? (optional)").fill(XSS);
   await page.getByRole("button", { name: "Send the photo" }).click();
   await expect(page.locator("p.bubble.you, p.notice").last()).toBeVisible();

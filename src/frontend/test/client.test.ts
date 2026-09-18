@@ -85,7 +85,7 @@ describe("the pages that are one template literal contain no backtick", () => {
   // opening one and the closing one. Cheaper than remembering.
   const enclosed: Array<[string, string, RegExp]> = [
     ["backend/api/admin.page.ts", "adminPage", /=> `([\s\S]*)`;\s*$/],
-    ["web/server/index.ts", "shell", /return `<!doctype html>([\s\S]*?)`;\n}/],
+    ["frontend/server/index.ts", "shell", /return `<!doctype html>([\s\S]*?)`;\n}/],
   ];
 
   for (const [file, what, re] of enclosed) {

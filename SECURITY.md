@@ -13,8 +13,8 @@ credited in the fix unless you ask not to be.
 
 ## What is in scope
 
-This repository: the server under `backend/`, the contract under `shared/` and the web application
-under `web/`. The hosted service
+This repository: the server under `src/backend/`, the contract under `src/shared/` and the web application
+under `src/frontend/`. The hosted service
 at `api.eait.fit` runs this code; a finding against it is welcome here too, but **do not test
 against other people's accounts or data** — use an account you created, and stop at proof.
 

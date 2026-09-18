@@ -5,6 +5,6 @@ node_modules/
 *.log
 *.tsbuildinfo
 .DS_Store
-web/dist/
+src/frontend/dist/
 test-results/
 playwright-report/

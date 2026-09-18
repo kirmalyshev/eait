@@ -1,5 +1,5 @@
 {
-  "extends": "../tsconfig.json",
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
     // The DOM, and no bun types: the code under this config runs in a BROWSER, and a `Bun.file`
     // that typechecks here is a `Bun.file` that ships to a page and is undefined. `server/` is

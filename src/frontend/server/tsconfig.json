@@ -1,6 +1,6 @@
 {
   "//": "The SERVER half of this workspace. Bun types, no DOM — the mirror of ../tsconfig.json, which is the browser half and excludes this directory. Two configs rather than one because the guard is real: a `Bun.file` that typechecks in the client is a `Bun.file` that ships to a page and is undefined.",
-  "extends": "../../tsconfig.json",
+  "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "lib": ["ESNext"],
     "types": ["bun"]

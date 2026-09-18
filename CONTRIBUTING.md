@@ -11,9 +11,9 @@ repository that mounts this one as a submodule. That shapes what a contribution 
   refused however green it is.
 - **Open an issue first for anything beyond a small fix.** One ticket, one branch, one PR. A defect
   you notice on the way is a new issue, not another commit.
-- **The contract is code.** `shared/contract.ts` carries the routes, the types and the refusal→status
+- **The contract is code.** `src/shared/contract.ts` carries the routes, the types and the refusal→status
   map, and `openapi.json` is generated from it. A change to an endpoint changes the contract first,
-  then the one handler in `backend/api/routes.ts`, then the clients — the web one is `web/`, the iOS one is
+  then the one handler in `src/backend/api/routes.ts`, then the clients — the web one is `src/frontend/`, the iOS one is
   not in this repo, so a contract change is coordinated with the maintainer before it lands.
 
 ## Setting up
@@ -36,10 +36,10 @@ file to a local one — every setting the server reads is listed there with its 
   reasoning that reached it belongs in the PR, not in `AGENTS.md`.
 - **`userId` is an argument resolved from credentials, never from a request body.** Every store
   read and write is scoped by it. Verdicts are computed, never accepted. The calorie floor in
-  `shared/targets.ts` is not negotiable. These are restated in `AGENTS.md` with their reasons.
-- **A new endpoint** is a route in `shared/contract.ts`, a row in `shared/openapi.ts`, one handler
+  `src/shared/targets.ts` is not negotiable. These are restated in `AGENTS.md` with their reasons.
+- **A new endpoint** is a route in `src/shared/contract.ts`, a row in `src/shared/openapi.ts`, one handler
   that calls one engine function, and `bun run openapi` to regenerate the spec.
-- **A new configuration value** is `EAIT__BACKEND__<KEY>` in `backend/config.ts` with a default,
+- **A new configuration value** is `EAIT__BACKEND__<KEY>` in `src/backend/config.ts` with a default,
   and a line in `.env.example`. Never a module constant for anything that differs between dev and
   prod.
 

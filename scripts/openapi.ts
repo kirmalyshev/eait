@@ -1,4 +1,4 @@
-// Writes `openapi.json` from `shared/openapi.ts` and the types it names.
+// Writes `openapi.json` from `src/shared/openapi.ts` and the types it names.
 //
 // Schemas are derived from the TypeScript types by ts-json-schema-generator, so a type change is a
 // spec change with no second edit. CI regenerates and fails on a diff: the committed file is the
@@ -8,14 +8,14 @@
 //   bun run openapi --check    # exit 1 if the committed file is stale
 
 import { createGenerator, type Schema } from "ts-json-schema-generator";
-import { API, REFUSAL_RESPONSES, type Endpoint } from "../shared/openapi.ts";
-import { API_VERSION, NDJSON } from "../shared/contract.ts";
+import { API, REFUSAL_RESPONSES, type Endpoint } from "../src/shared/openapi.ts";
+import { API_VERSION, NDJSON } from "../src/shared/contract.ts";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const OUT = `${ROOT}openapi.json`;
 
 const gen = createGenerator({
-  path: `${ROOT}shared/index.ts`, tsconfig: `${ROOT}shared/tsconfig.json`,
+  path: `${ROOT}src/shared/index.ts`, tsconfig: `${ROOT}src/shared/tsconfig.json`,
   expose: "export", topRef: true, skipTypeCheck: true, encodeRefs: false,
 });
 

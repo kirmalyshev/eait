@@ -12,7 +12,7 @@
 import type { ProfileResponse } from "@eait/shared/contract";
 import { REAL_MODEL, expect, sessionToken, test } from "./fixtures.ts";
 
-const FIXTURE = "backend/web/browser/fixture-meal.png";
+const FIXTURE = "src/backend/web/browser/fixture-meal.png";
 
 test("a photograph logs a meal, with its caption in the thread", async ({ inWebApp: page }) => {
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
