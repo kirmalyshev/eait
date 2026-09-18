@@ -9,7 +9,7 @@ import { scriptedLine } from "./chat.ts";
 import type { ChatEntry, ChatEvent } from "./contract.ts";
 import type { MascotMood } from "./onboarding.ts";
 import type { ConfirmMealResult, HandleTextResult } from "./results.ts";
-import type { MealRecord } from "./types.ts";
+import type { Lang, MealRecord } from "./types.ts";
 
 /**
  * Everything a live assistant bubble can carry. The union is `HandleTextResult | ConfirmMealResult`
@@ -300,13 +300,13 @@ export const proposalLive = (expiresAt: string, now: number): boolean => {
  * card ("Log it too") was two open cards on the phone (#663); its cost stands — a meal described
  * before the previous one is logged drops it, and a live card stays tappable while a turn is out.
  */
-export function oneLiveProposal(entries: ThreadEntry[]): ThreadEntry[] {
+export function oneLiveProposal(entries: ThreadEntry[], lang: Lang = "en"): ThreadEntry[] {
   const live = entries.filter((e) => pendingIdOf(e) !== null);
   if (live.length < 2) return entries;
   const newest = live[live.length - 1];
   return entries.map((e) => {
     if (pendingIdOf(e) === null || e === newest) return e;
-    return { id: e.id, role: "assistant", result: { kind: "answered", text: scriptedLine("dropped") } };
+    return { id: e.id, role: "assistant", result: { kind: "answered", text: scriptedLine("dropped", {}, lang) } };
   });
 }
 

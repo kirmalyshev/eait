@@ -600,7 +600,12 @@ export async function cancelPendingMeal(
   // milliseconds; the next page load shows the card. Exact would be a row-level state, not worth it.
   if (!(await deps.store.dropPending(userId, pendingId))) return (await loggedAs(deps, userId, pendingId)) ?? { kind: "expired" };
   // A "no" is a turn too: the words are already there; this is the answer. An expiry adds nothing.
-  await remember(deps, userId, [{ role: "assistant", kind: "text", text: scriptedLine("dropped") }]);
+  // A THUNK, so the profile read that words it sits inside `remember`'s guard: the drop has
+  // already happened and a store hiccup here must not turn a cancel into a failure.
+  await remember(deps, userId, async () => [{
+    role: "assistant", kind: "text",
+    text: scriptedLine("dropped", {}, (await deps.store.getProfile(userId))?.lang ?? "en"),
+  }]);
   return { kind: "cancelled" };
 }
 

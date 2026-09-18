@@ -14,14 +14,18 @@ describe("what /start says for itself, in eight languages", () => {
     }
   });
 
-  it("keeps the two placeholders code fills, and introduces none", () => {
+  it("keeps every placeholder code fills, and introduces none", () => {
     for (const lang of LANGS) {
       const copy = pageCopyFor(lang);
       expect(copy.planAppBody, lang).toContain("{provider}");
       expect(copy.belowHealthyTarget, lang).toContain("{kg}");
+      // The plan card's two figures. A translation that drops one renders a sentence with its
+      // number missing, and nothing anywhere would say so.
+      expect(copy.planPerDay, lang).toContain("{protein}");
+      expect(copy.planFloorNumber, lang).toContain("{floor}");
       for (const [k, v] of Object.entries(copy)) {
         for (const m of v.matchAll(/\{(\w+)\}/g)) {
-          expect(["provider", "kg"], `${lang}.${k}`).toContain(m[1] ?? "");
+          expect(["provider", "kg", "protein", "floor"], `${lang}.${k}`).toContain(m[1] ?? "");
         }
       }
     }
@@ -74,6 +78,15 @@ describe("the language picker on the plan page", () => {
     const unready = LANGS.find((l) => !(LANGS_READY as readonly string[]).includes(l));
     if (unready === undefined) return; // every language is ready; nothing to disagree about
     expect(plan({ ...view, lang: unready })).not.toContain("selected");
+  });
+
+  it("writes the card's own sentences in the asked language, with the figures grouped", () => {
+    const de = plan({ ...view, lang: "de", floorApplied: true });
+    expect(de).toContain(pageCopyFor("de").planPerDay.replace("{protein}", "120"));
+    expect(de).toContain(pageCopyFor("de").planFloorNumber.replace("{floor}", "1.500"));
+    expect(de).toContain("1.800 kcal");
+    expect(de).not.toContain("a day, with at least");
+    expect(de).not.toContain("The floor is");
   });
 
   it("posts to the one route, which writes through the profile", () => {

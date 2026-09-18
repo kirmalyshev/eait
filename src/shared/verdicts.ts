@@ -26,7 +26,10 @@ interface VerdictCopy {
  * "sopra", "por encima", "hoch" predicatively, "много"), which is both shorter and correct. That is
  * an adaptation rather than a calque, and it is the kind #358 asks for.
  */
-const VERDICT_COPY: Localized<VerdictCopy> = {
+// EXPORTED, and that is not tidiness. `localizedGaps` walks `import * as shared` — a table nothing
+// exports is a table it cannot see, which is the one way a language is lost quietly, and these are
+// the words on every meal card the phone and Telegram draw.
+export const VERDICT_COPY: Localized<VerdictCopy> = {
   en: {
     noun: { weight: "Calories", ldl: "Saturated fat", kidneys: "Sodium" },
     good: "{noun} on plan", warn: "{noun} high", bad: "{noun} very high",

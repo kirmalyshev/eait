@@ -31,7 +31,7 @@ export function escape(text: string): string {
  * question is not.
  */
 import { PAGE_COPY, pageCopyFor, type PageCopy } from "./copy.ts";
-import { LANGS_READY, LANG_LABEL, type Lang } from "@eait/shared";
+import { LANGS_READY, LANG_LABEL, wholeNumbers, type Lang } from "@eait/shared";
 
 export { PAGE_COPY, PAGE_COPY_BY_LANG, pageCopyFor, type PageCopy } from "./copy.ts";
 
@@ -478,16 +478,21 @@ export interface PlanView {
 }
 
 export function plan(v: PlanView): string {
-  const PAGE_COPY = pageCopyFor(v.lang ?? "en");
+  const lang = v.lang ?? "en";
+  const PAGE_COPY = pageCopyFor(lang);
+  // The FIGURES are grouped the reader's way — "1.800", not "1,800", for half of Europe — and the
+  // sentences around them are the table's. Both were English literals in the markup until #358, on
+  // the one page the language picker sits on.
+  const n = wholeNumbers(lang);
   return shell(PAGE_COPY.titlePlan, `
 <h1>${escape(PAGE_COPY.planHeading)}</h1>
 <p class="muted">${escape(PAGE_COPY.planLead)}</p>
 <div class="card">
-  <p class="figure">${v.kcal} kcal</p>
-  <p class="muted">a day, with at least ${v.proteinG} g of protein</p>
+  <p class="figure">${escape(n(v.kcal))} kcal</p>
+  <p class="muted">${escape(PAGE_COPY.planPerDay.replace("{protein}", n(v.proteinG)))}</p>
 </div>
 ${v.floorApplied
-  ? `<p class="notice care">${escape(PAGE_COPY.planFloor)} The floor is ${v.floorKcal} kcal.</p>`
+  ? `<p class="notice care">${escape(PAGE_COPY.planFloor)} ${escape(PAGE_COPY.planFloorNumber.replace("{floor}", n(v.floorKcal)))}</p>`
   : ""}
 ${v.hasWebApp
   ? `<p class="muted">${escape(PAGE_COPY.planDiaryBody)}</p>

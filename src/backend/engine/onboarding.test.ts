@@ -262,6 +262,28 @@ describe("copy is stored per language, in one row", () => {
     expect((await onboardingContent(deps, "de")).welcome.cta).toBe(ONBOARDING_CONTENT.de!.welcome.cta);
   });
 
+  it("numbers every revision from ONE counter, so two languages never share a version", async () => {
+    // `version` is the join key between a funnel row and the words that produced it. Counting per
+    // language would let a German save and an English save both land on the same number — two
+    // revisions, different words, one row in the funnel.
+    const base = DEFAULT_ONBOARDING_CONTENT.version;
+    const german = clone(ONBOARDING_CONTENT.de!);
+    const english = clone(DEFAULT_ONBOARDING_CONTENT);
+
+    await saveOnboardingContent(deps, german, "de");
+    expect((await onboardingContent(deps, "de")).version).toBe(base + 1);
+    await saveOnboardingContent(deps, english, "en");
+    expect((await onboardingContent(deps, "en")).version).toBe(base + 2);
+    await saveOnboardingContent(deps, german, "de");
+    expect((await onboardingContent(deps, "de")).version).toBe(base + 3);
+
+    // A reset takes a new number too: it is a change to what is live, not a return to an old row.
+    expect((await resetOnboardingContent(deps, "en")).version).toBe(base + 4);
+    // And the funnel names the newest revision in ANY language, not English's.
+    await saveOnboardingContent(deps, german, "de");
+    expect((await onboardingFunnel(deps, 30)).contentVersion).toBe(base + 5);
+  });
+
   it("resets one language and leaves the rest alone", async () => {
     const german = clone(ONBOARDING_CONTENT.de!);
     german.welcome.cta = "Auf geht's";

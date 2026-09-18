@@ -20,6 +20,17 @@ describe("every Localized table in @eait/shared", () => {
   it("is actually being walked — the guard against a test that greens on an empty root", () => {
     // `localizedGaps` reports nothing for a root it found no tables in, which is indistinguishable
     // from a clean one. So: ask for a language nobody has written and assert it finds the tables.
-    expect(localizedGaps(shared, ["en", "zz" as never]).length).toBeGreaterThan(0);
+    //
+    // BY NAME, not by count. A table that stops being exported vanishes from the walk, and a check
+    // that only counts stays green while the language it was hiding is lost — which is exactly how
+    // `VERDICT_COPY`, the words on every meal card, sat outside this check unnoticed. Adding a
+    // table needs no edit here; removing one from the walk fails.
+    const found = new Set(localizedGaps(shared, ["en", "zz" as never]).map((g) => g.table.split(".")[0]));
+    for (const table of [
+      "CHAT_COPY", "THREAD_COPY", "HEALTH_COPY", "VERDICT_COPY",
+      "NOTIFICATION_COPY", "EVENING_PRESCRIPTIONS", "ONBOARDING_CONTENT",
+    ]) {
+      expect(found.has(table), `${table} is not being walked — is it exported?`).toBe(true);
+    }
   });
 });

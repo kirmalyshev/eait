@@ -352,7 +352,7 @@ async function chatScreen(): Promise<HTMLElement> {
         const named = text.length > 40 ? `${text.slice(0, 40)}…` : text;
         if (isMeal && entry.kind === "photo") {
           const edit = el("button", "", COPY.edit) as HTMLButtonElement;
-          edit.setAttribute("aria-label", `Edit: ${named}`);
+          edit.setAttribute("aria-label", `${COPY.edit}: ${named}`);
           edit.addEventListener("click", () => {
             const card = entries.find((e) => e.kind === "meal" && e.mealId === entry.mealId);
             editing = { id: entry.id, photos: (card && card.kind === "meal" ? card.meal?.photos : null) ?? 0 };
@@ -363,7 +363,9 @@ async function chatScreen(): Promise<HTMLElement> {
           li.append(edit);
         }
         const del = el("button", "", COPY.delete) as HTMLButtonElement;
-        del.setAttribute("aria-label", `Delete: ${named}`);
+        // THE VERB IS THE BUTTON'S OWN, not an English one beside a translated face: a screen
+        // reader is the one reader who hears only this string.
+        del.setAttribute("aria-label", `${COPY.delete}: ${named}`);
         del.addEventListener("click", () => {
           const ok = isMeal ? confirm(COPY.confirmDeleteMeal) : confirm(COPY.confirmDeleteLine);
           if (!ok) return;

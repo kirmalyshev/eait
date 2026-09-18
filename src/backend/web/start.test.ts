@@ -13,7 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   AMBIGUOUS_AGE, DEFAULT_ONBOARDING_CONTENT, UNDER_AGE_CARD, UNDER_AGE_LINES, disabledScreens,
-  explainTargets, lintCopy, MAX_USER_LINE, TYPE_MS_PER_CHAR, type Profile,
+  explainTargets, lintCopy, MAX_USER_LINE, TYPE_MS_PER_CHAR, wholeNumbers, type Profile,
 } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -652,7 +652,9 @@ describe("the plan", () => {
     const profile = (await store.getProfile(userId))!;
     expect(profile.onboarded_at).not.toBeNull();
     const { targets } = explainTargets(profile);
-    expect(html).toContain(String(targets.kcal));
+    // GROUPED THE READER'S WAY — "1,686" in English, "1.686" in German. Every figure this product
+    // writes goes through `Intl` (`lang.ts`), and the plan card was the last one that did not.
+    expect(html).toContain(wholeNumbers(profile.lang)(targets.kcal));
     expect(html).toContain("Sign in with Google");
   });
 

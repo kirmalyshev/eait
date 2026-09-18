@@ -1385,7 +1385,9 @@ export async function postgresStore(
       // out of the JSON, per language. It is kept because it is what an operator reads with `psql`
       // in front of them, and the honest value for a set of revisions that share a number is that
       // number: the newest one saved.
-      const version = Math.max(0, ...Object.values(content).map((c) => c.version));
+      const version = Math.max(0, ...Object.values(content)
+        .map((c) => c?.version)
+        .filter((v): v is number => typeof v === "number"));
       // `::jsonb` on the parameter for the same reason the meal update casts: an untyped parameter
       // is text, and a JSON string landing in a jsonb column stores the STRING rather than the
       // object — it round-trips without error and comes back unusable.

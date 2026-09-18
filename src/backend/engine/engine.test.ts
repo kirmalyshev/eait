@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MEET_GABIE, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, explainTargets, isMeal, proposalLive, runningLine, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
+import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MEET_GABIE, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, explainTargets, isMeal, onboardingContentFor, proposalLive, runningLine, scriptedLine, threadCopyFor, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
@@ -1554,6 +1554,40 @@ describe("the thread", () => {
         .toEqual({ appended: 0, reason: "bad-line" });
     }
     expect(await thread(userId)).toHaveLength(2);
+  });
+
+  it("writes every line it composes in the ACCOUNT'S language, never the server's default (#358)", async () => {
+    // The thread is composed HERE and read by the phone and by `/start`, so this is the one place a
+    // German account can be handed English without any surface being able to notice. Asserted
+    // against the tables rather than against prose: what is being proven is that the language
+    // reaches the composer, not what German says.
+    const userId = await onboard({ lang: "de" });
+    const de = threadCopyFor("de");
+
+    // A scripted line, named by the client, worded by the server.
+    expect(await appendLines(deps, userId, [{ role: "assistant", scripted: "camera-closed" }]))
+      .toEqual({ appended: 1 });
+    expect((await thread(userId)).map(text)).toContain(scriptedLine("camera-closed", {}, "de"));
+
+    // An onboarding question by coordinate — the words come from this server's copy, in ITS language.
+    await appendLines(deps, userId, [{ role: "assistant", ask: { prompt: "goal", line: 0 } }]);
+    const askedInGerman = onboardingContentFor("de").screens.find((x) => x.id === "goal")!.asks.goal!.lines[0]!;
+    expect((await thread(userId)).map(text)).toContain(askedInGerman);
+
+    // The first verdict, and then the running line every later meal gets.
+    const first = await logPhotoMeal(deps, userId, photo());
+    if (first.kind !== "logged") throw new Error("expected logged");
+    const spoken = (await thread(userId)).map(text).join("\n");
+    expect(spoken).toContain(de.meetGabie);
+    expect(spoken).not.toContain(MEET_GABIE("en"));
+
+    const second = await logPhotoMeal(deps, userId, photo(9));
+    if (second.kind !== "logged") throw new Error("expected logged");
+    const after = (await thread(userId)).map(text).join("\n");
+    // The German template with its figures in, and not a word of the English one.
+    expect(after).toContain(de.running.left.split("{")[0]!.trim());
+    expect(after).not.toContain("of your");
+    expect(after).not.toContain("left today");
   });
 
   it("words the goal-weight question for the goal that was chosen", async () => {

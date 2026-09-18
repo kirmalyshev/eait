@@ -8,7 +8,7 @@
 // derives the same "what comes next" without asking. This module owns storage and aggregation only.
 
 import {
-  MAX_ONBOARDING_EVENTS_PER_BATCH, ONBOARDING_ACTIONS,
+  DEFAULT_ONBOARDING_CONTENT, MAX_ONBOARDING_EVENTS_PER_BATCH, ONBOARDING_ACTIONS,
   ONBOARDING_PLACES, isReportableField, localDate, onboardingContentFor, storedContentSet,
   usableContentFor, validateOnboardingContent,
   type ContentValidation, type FunnelRow, type Lang, type OnboardingContent, type OnboardingEvent,
@@ -52,6 +52,12 @@ export async function onboardingContent(deps: EngineDeps, lang: Lang = "en"): Pr
  * The version is assigned HERE, not accepted from the admin: it is the join key between a funnel
  * row and the words that produced it, and an admin who saves twice with the same number silently
  * merges two experiments into one meaningless average.
+ *
+ * ONE COUNTER ACROSS ALL EIGHT LANGUAGES, and that is the point of `nextVersion`. Counting per
+ * language would let a German save and an English save both land on 7 — two revisions, different
+ * words, one number — which is the same meaningless average wearing a translation. The compiled-in
+ * revisions share a number because they ARE one editorial revision; every save after that takes the
+ * next number nobody has used, in whichever language it was made.
  */
 export async function saveOnboardingContent(
   deps: EngineDeps,
@@ -59,10 +65,9 @@ export async function saveOnboardingContent(
   lang: Lang = "en",
 ): Promise<ContentValidation> {
   const stored = await deps.store.getOnboardingContent();
-  const current = usableContentFor(lang, stored);
   const withVersion =
     typeof input === "object" && input !== null
-      ? { ...(input as Record<string, unknown>), version: current.version + 1 }
+      ? { ...(input as Record<string, unknown>), version: nextVersion(lang, stored) }
       : input;
 
   const result = validateOnboardingContent(withVersion);
@@ -74,10 +79,23 @@ export async function saveOnboardingContent(
 /** Restore the shipped copy for one language. The undo button for an edit that went wrong. */
 export async function resetOnboardingContent(deps: EngineDeps, lang: Lang = "en"): Promise<OnboardingContent> {
   const stored = await deps.store.getOnboardingContent();
-  const current = usableContentFor(lang, stored);
-  const restored = { ...onboardingContentFor(lang), version: current.version + 1 };
+  const restored = { ...onboardingContentFor(lang), version: nextVersion(lang, stored) };
   await deps.store.putOnboardingContent({ ...storedContentSet(stored), [lang]: restored });
   return restored;
+}
+
+/**
+ * The next number no revision in any language has used.
+ *
+ * The highest across the whole stored set, and the compiled-in revision as the floor so a first
+ * save never lands on the number the shipped copy already carries.
+ */
+function nextVersion(lang: Lang, stored: unknown): number {
+  const set = storedContentSet(stored);
+  const versions = Object.values(set)
+    .map((c) => c?.version)
+    .filter((v): v is number => typeof v === "number");
+  return Math.max(onboardingContentFor(lang).version, ...versions) + 1;
 }
 
 /**
@@ -184,7 +202,14 @@ export interface AdminMetricsView extends AdminMetrics {
 /** The funnel, in the order the screens are actually shown. */
 export async function onboardingFunnel(deps: EngineDeps, days: number): Promise<OnboardingFunnel> {
   const agg = await deps.store.onboardingFunnel(days);
-  const content = await onboardingContent(deps);
+  // THE NEWEST REVISION IN ANY LANGUAGE, because the counter is one counter (`nextVersion`) and
+  // this row names which words the numbers below were collected against. Reading English's alone
+  // would report a stale number on a host whose last edit was German.
+  const set = storedContentSet(await deps.store.getOnboardingContent());
+  const contentVersion = Math.max(
+    DEFAULT_ONBOARDING_CONTENT.version,
+    ...Object.values(set).map((c) => c?.version).filter((v): v is number => typeof v === "number"),
+  );
   // The order a person meets them in, which is what makes a drop between two rows readable as a
   // drop. It is fixed in code now: the chat asks in an order its own replies depend on, so there is
   // no admin ordering left to follow.
@@ -207,7 +232,7 @@ export async function onboardingFunnel(deps: EngineDeps, days: number): Promise<
     sessions: agg.sessions,
     completed: agg.completed,
     days,
-    contentVersion: content.version,
+    contentVersion,
     rows,
   };
 }

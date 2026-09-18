@@ -835,7 +835,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         proteinG: Math.round(pending.analysis.protein_g),
       };
       return html(chat({
-        lines: entries.map(threadLine),
+        lines: entries.map((e) => threadLine(e, profile.lang)),
         notice: noticeText(url.searchParams.get("notice"), profile.lang),
         proposal,
         lang: profile.lang,
@@ -1040,7 +1040,7 @@ function noticeFor(result: { kind: string; scope?: string; on?: string }): strin
  * than rendering a stale one. `who` is the stored speaker: Gabie answers questions, and everything
  * else is Spud, whose name the page does not repeat because he is the voice it opens in.
  */
-function threadLine(e: ChatEntry): ChatLine {
+function threadLine(e: ChatEntry, lang: Lang): ChatLine {
   if (e.role === "user") {
     return e.kind === "photo"
       ? { kind: "user", text: e.text, photo: true }
@@ -1052,10 +1052,10 @@ function threadLine(e: ChatEntry): ChatLine {
   return {
     kind: "card",
     card: {
-      title: meal.items.map((i) => i.name).join(", ") || "A meal",
+      title: meal.items.map((i) => i.name).join(", ") || pageCopyFor(lang).chatAMeal,
       kcal: Math.round(meal.kcal),
       proteinG: Math.round(meal.protein_g),
-      verdicts: renderableVerdicts(meal.verdicts).map((d) => verdictPillLabel(d, meal.verdicts[d]!)),
+      verdicts: renderableVerdicts(meal.verdicts).map((d) => verdictPillLabel(d, meal.verdicts[d]!, lang)),
     },
   };
 }

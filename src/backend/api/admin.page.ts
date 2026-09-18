@@ -125,10 +125,12 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     version, which is what the funnel below is grouped by.
   </p>
   <p class="sub">
-    One language at a time. Every language is the same editorial revision, so the version number
-    and the funnel below cover all of them; what a save replaces is the language in the picker and
-    nothing beside it. A language nobody has saved serves the copy the app ships with, in that
-    language — never English, because half an onboarding in English is worse than none of it.
+    One language at a time. A save replaces the language in the picker and nothing beside it, and
+    takes the next version number — one counter across all eight, so no two revisions ever share
+    one and the funnel below can still say which words it counted. The eight shipped revisions are
+    one editorial revision and share a number; they stop sharing it the first time anybody saves.
+    A language nobody has saved serves the copy the app ships with, in that language — never
+    English, because half an onboarding in English is worse than none of it.
   </p>
 
   <h2>The numbers <span class="pill" id="metrics-window"></span></h2>
