@@ -129,5 +129,15 @@ already exist. Auto-create shipped once and it was silent data loss.
 ## Verify
 
 `bun run check`, then `bun run web:e2e` when a change can reach a browser — the web application,
-`/start`, or anything they call. The store contract suite runs against Postgres too when
-`TEST_DATABASE_URL` is set, and says loudly that it skipped when it is not.
+`/start`, or anything they call. Neither needs Docker: the store contract suite skips its Postgres
+half, loudly, when `TEST_DATABASE_URL` is unset, and `bun run check` is not allowed to start
+depending on a container being up.
+
+**`./dev test` is the opt-in that runs it against real Postgres, and the only thing that sets
+`TEST_DATABASE_URL`.** The value is DERIVED — `src/scripts/dev-env.ts` computes this worktree's
+test database from its slot exactly as it computes the dev one, `./dev db up` creates both, and
+`.env.worktree` carries both. Typing that variable by hand, or creating a database called
+`eait_test` yourself, is the failure this replaced: one fixed name in the docs meant every worktree
+ran a migrating, writing suite against one database. If you add a key to `worktreeEnvValues`,
+`src/scripts/worktree.sh` needs its slot-0 default in the same commit — a key on one side only is
+an unset variable falling back to slot 0, and `src/scripts/dev-env.test.ts` fails and names it.

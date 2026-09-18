@@ -67,18 +67,37 @@ export function parseWorktrees(porcelain: string): WorktreeEntry[] {
 }
 
 /**
- * A branch name as a Postgres database name.
+ * What a test database's name is the dev one's plus.
+ *
+ * Slot 0 therefore keeps `eait_test`, which is the name the README and the contract suite named
+ * back when there was only ever one of them.
+ */
+export const TEST_DB_SUFFIX = "_test";
+
+/**
+ * A branch name as a Postgres database name, optionally suffixed.
  *
  * Slot 0 keeps the plain `eait`, which is the database everything already points at. Every other
  * slot is prefixed, so `psql -l` groups them and so a name starting with a digit — which Postgres
  * would need quoted everywhere — cannot happen.
+ *
+ * THE SUFFIX IS SPENT INSIDE THE 63-CHARACTER BUDGET, NOT AFTER IT. Truncating to 63 first and
+ * appending `_test` afterwards hands Postgres 68 characters, which it truncates back to 63 with
+ * only a NOTICE — and what survives is the first 63, which is the DEV name exactly. Verified
+ * against the real server: a 65-character branch gave `…for_the_alpha__test` → stored as
+ * `…for_the_alpha_`, character for character this function's unsuffixed output. The migrating,
+ * writing contract suite would have run against the database you develop in, and the only thing
+ * that ever said so was a notice on a `createdb` nobody reads twice.
+ *
+ * (Two branches identical in their first 63 characters still collide, as they always did. The
+ * suffix does not make that worse; it does not make it better either.)
  */
-export function dbNameFor(slot: number, branch: string): string {
-  if (slot === 0) return "eait";
+export function dbNameFor(slot: number, branch: string, suffix = ""): string {
+  if (slot === 0) return `eait${suffix}`;
   const cleaned = branch.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   // 63 is Postgres's identifier limit and it truncates silently, which would make two long branch
   // names the same database without saying so.
-  return `eait_${cleaned || String(slot)}`.slice(0, 63);
+  return `eait_${cleaned || String(slot)}`.slice(0, 63 - suffix.length) + suffix;
 }
 
 /**
@@ -119,6 +138,16 @@ export interface WorktreePlan {
   webUrl: string;
   dbName: string;
   databaseUrl: string;
+  /**
+   * The store contract suite's database, and NOT `dbName`.
+   *
+   * That suite migrates and writes, and two of its assertions are about a database with no admin
+   * in it — which `./dev seed` puts into the dev one. Derived rather than hardcoded so it cannot
+   * miss the slot: every worktree following one set of documented instructions against one fixed
+   * `eait_test` is several agents writing the same rows.
+   */
+  testDbName: string;
+  testDatabaseUrl: string;
   apiUrl: string;
 }
 
@@ -132,6 +161,7 @@ export function planFor(slot: number, branch: string, o: PlanOverrides = {}): Wo
   const backendPort = PORT_BASE.backend + slot * PORT_STEP;
   const webPort = PORT_BASE.web + slot * PORT_STEP;
   const dbName = o.dbName || dbNameFor(slot, branch);
+  const testDbName = dbNameFor(slot, branch, TEST_DB_SUFFIX);
   const pgBase = (o.pgBaseUrl || DEFAULT_PG_BASE_URL).replace(/\/+$/, "");
   const apiHost = o.apiHost || "127.0.0.1";
   return {
@@ -142,6 +172,8 @@ export function planFor(slot: number, branch: string, o: PlanOverrides = {}): Wo
     webUrl: `http://${apiHost}:${webPort}`,
     dbName,
     databaseUrl: `${pgBase}/${dbName}`,
+    testDbName,
+    testDatabaseUrl: `${pgBase}/${testDbName}`,
     apiUrl: `http://${apiHost}:${backendPort}`,
   };
 }
@@ -293,6 +325,8 @@ export function worktreeEnvValues(plan: WorktreePlan): Record<string, string> {
     EAIT_WEB_URL: plan.webUrl,
     EAIT_DB_NAME: plan.dbName,
     EAIT_DATABASE_URL: plan.databaseUrl,
+    EAIT_TEST_DB_NAME: plan.testDbName,
+    EAIT_TEST_DATABASE_URL: plan.testDatabaseUrl,
     EAIT_API_URL: plan.apiUrl,
   };
   for (const key of Object.keys(values)) {
@@ -418,6 +452,8 @@ function show(root: string): void {
     ["web", plan.webUrl],
     ["database", plan.dbName],
     ["database url", plan.databaseUrl],
+    ["test database", plan.testDbName],
+    ["test database url", plan.testDatabaseUrl],
     ["worktree", res.entry.path],
   ];
   const w = Math.max(...rows.map(([k]) => k.length));

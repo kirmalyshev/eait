@@ -1,10 +1,13 @@
-// The derivation's own rules. Everything here is pure — no git, no filesystem, no ports — because
-// what can actually go wrong is arithmetic and naming, and both are cheap to prove.
+// The derivation's own rules. Almost everything here is pure — no git, no ports — because what can
+// actually go wrong is arithmetic and naming, and both are cheap to prove. The one exception reads
+// `worktree.sh`, because the thing it proves is that the two files agree about which keys exist.
 
 import { test, expect, describe } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
   PORT_BASE, PORT_STEP, dbNameFor, safeToken, branchDrift, planFor, parseWorktrees,
   resolveSlot, envIsSafe, worktreeEnvValues, carriedOver, parseEnvText, DERIVED_KEYS,
+  TEST_DB_SUFFIX,
 } from "./dev-env.ts";
 
 describe("ports", () => {
@@ -51,6 +54,35 @@ describe("database names", () => {
     expect(dbNameFor(1, "x".repeat(200)).length).toBe(63);
   });
 
+  // THE SUFFIX COMES OUT OF THE BUDGET, NOT AFTER IT. Slicing to 63 and appending `_test` hands
+  // Postgres 68 characters; it keeps the first 63 and drops the rest with only a NOTICE, and the
+  // first 63 ARE the dev name. So the naive version does not merely collide two test databases —
+  // it points the migrating, writing contract suite at the database you develop in. The second
+  // assertion is the one that catches that.
+  test("a suffixed name is 63 characters INCLUDING the suffix, and is never the dev name", () => {
+    const long = "x".repeat(200);
+    const name = dbNameFor(1, long, TEST_DB_SUFFIX);
+    expect([name.length, name.endsWith(TEST_DB_SUFFIX)]).toEqual([63, true]);
+    expect(name).not.toBe(dbNameFor(1, long));
+  });
+
+  test("slot 0's test database is the eait_test everything already documented", () => {
+    expect(dbNameFor(0, "anything", TEST_DB_SUFFIX)).toBe("eait_test");
+    expect(planFor(0, "main").testDbName).toBe("eait_test");
+  });
+
+  test("no two slots share a database, dev or test, and no dev database is a test one", () => {
+    const seen = new Map<string, string>();
+    for (let slot = 0; slot < 20; slot++) {
+      const p = planFor(slot, `feat/branch-${slot}`);
+      for (const [kind, name] of [["dev", p.dbName], ["test", p.testDbName]] as const) {
+        expect(`${name} ${seen.get(name) ?? "free"}`).toBe(`${name} free`);
+        seen.set(name, `slot${slot}.${kind}`);
+      }
+      expect(p.testDatabaseUrl).toBe(p.databaseUrl.replace(/[^/]+$/, p.testDbName));
+    }
+  });
+
   test("a branch with nothing usable in it falls back to the slot", () => {
     expect(dbNameFor(7, "---")).toBe("eait_7");
   });
@@ -79,6 +111,31 @@ describe("what may be written to .env.worktree", () => {
       const values = worktreeEnvValues(planFor(slot, `feat/x-${slot}`));
       for (const v of Object.values(values)) expect(envIsSafe(v)).toBe(true);
     }
+  });
+
+  // THE TWO FILES ARE ONE CONTRACT. `worktree.sh` supplies a slot-0 default per key so a checkout
+  // that never derived behaves as a single checkout always did — which means a key added to the
+  // generator alone reaches a linked worktree as UNSET, and a key defaulted in the shell alone is
+  // slot 0's value everywhere forever. Both are the silent slot-0 fallback, and both read as
+  // working. Nothing else in the repo compares the two lists.
+  test("the generator's keys and worktree.sh's slot-0 defaults are the same set", () => {
+    const sh = readFileSync(new URL("./worktree.sh", import.meta.url), "utf8");
+    const defaulted = [...sh.matchAll(/^([A-Z0-9_]+)="\$\{\1:-/gm)].map((m) => m[1]!);
+    const emitted = Object.keys(worktreeEnvValues(planFor(3, "feat/x")));
+    expect({
+      emittedWithNoShellDefault: emitted.filter((k) => !defaulted.includes(k)),
+      defaultedButNeverEmitted: defaulted.filter((k) => !emitted.includes(k)),
+    }).toEqual({ emittedWithNoShellDefault: [], defaultedButNeverEmitted: [] });
+  });
+
+  // Exported, not merely assigned: `db.sh` and `dev.sh` read these out of the environment, and a
+  // variable a sourced script sets without exporting is invisible to the `docker compose exec` and
+  // `bun test` that need it.
+  test("worktree.sh exports every key it defaults", () => {
+    const sh = readFileSync(new URL("./worktree.sh", import.meta.url), "utf8");
+    const exported = sh.slice(sh.lastIndexOf("export ")).split(/\s+/);
+    const defaulted = [...sh.matchAll(/^([A-Z0-9_]+)="\$\{\1:-/gm)].map((m) => m[1]!);
+    expect(defaulted.filter((k) => !exported.includes(k))).toEqual([]);
   });
 });
 
