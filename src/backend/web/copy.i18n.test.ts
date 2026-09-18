@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { LANGS, LANGS_READY, LANG_LABEL, UNIT_KCAL, lintCopy } from "@eait/shared";
+import { LANGS, LANGS_READY, LANG_LABEL, UNIT_KCAL, lintCopy, wholeNumbers } from "@eait/shared";
 import { PAGE_COPY_BY_LANG, pageCopyFor } from "./copy.ts";
-import { plan, question, shell } from "./page.ts";
+import { chat, plan, question, shell } from "./page.ts";
 
 describe("what /start says for itself, in eight languages", () => {
   it("has every key in every language — the type says so, this says it out loud", () => {
@@ -23,9 +23,13 @@ describe("what /start says for itself, in eight languages", () => {
       // number missing, and nothing anywhere would say so.
       expect(copy.planPerDay, lang).toContain("{protein}");
       expect(copy.planFloorNumber, lang).toContain("{floor}");
+      // A meal card's three. Dropping `{unit}` is how `UNIT_KCAL` and a translation come apart.
+      for (const ph of ["{kcal}", "{unit}", "{protein}"]) {
+        expect(copy.cardMacros, `${lang}.cardMacros`).toContain(ph);
+      }
       for (const [k, v] of Object.entries(copy)) {
         for (const m of v.matchAll(/\{(\w+)\}/g)) {
-          expect(["provider", "kg", "protein", "floor"], `${lang}.${k}`).toContain(m[1] ?? "");
+          expect(["provider", "kg", "protein", "floor", "kcal", "unit"], `${lang}.${k}`).toContain(m[1] ?? "");
         }
       }
     }
@@ -141,5 +145,24 @@ describe("the plan card's two figures", () => {
     }
     expect(plan({ ...view, lang: "ru" })).toContain("ккал</p>");
     expect(plan({ ...view, lang: "ru" })).not.toContain("kcal");
+  });
+
+  it("writes a MEAL CARD's figures in the reader's language too, not only the plan's", () => {
+    // `plan()` was localized and these two were not, in the same file: the proposal card and every
+    // card in the thread interpolated `${kcal} kcal · ${proteinG} g protein` raw. A Russian reader
+    // got `1450 kcal · 30 g protein` underneath a plan page reading `Порог — 1 500 ккал.` — the
+    // wrong unit and the wrong grouping, on the surface where the number is the whole point.
+    const card = { title: "Овсянка", kcal: 1450, proteinG: 30, verdicts: [] };
+    for (const lang of LANGS) {
+      const html = chat({ lines: [{ kind: "card", card }], notice: null, proposal: null, lang });
+      expect(html, lang).toContain(UNIT_KCAL[lang]);
+    }
+    const ru = chat({ lines: [{ kind: "card", card }], notice: null, proposal: null, lang: "ru" });
+    expect(ru).toContain("ккал");
+    expect(ru).not.toContain("kcal");
+    expect(ru).toContain("белка");
+    // Grouped the way every other figure on this page is — never the raw 1450.
+    expect(ru).toContain(wholeNumbers("ru")(1450));
+    expect(ru).not.toMatch(/>1450 /);
   });
 });

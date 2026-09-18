@@ -307,11 +307,11 @@ export interface QuestionView {
   step: number;
   total: number;
   /** Which language to render in. On the VIEW, because every string on the page reads it. */
-  lang?: Lang;
+  lang: Lang;
 }
 
 export function question(v: QuestionView): string {
-  const PAGE_COPY = pageCopyFor(v.lang ?? "en");
+  const PAGE_COPY = pageCopyFor(v.lang);
   const hidden = `<input type="hidden" name="prompt" value="${escape(v.promptId)}">`;
   let controls: string;
   if (v.kind === "choice") {
@@ -389,7 +389,7 @@ export interface ChatView {
   /** The page's own words about a refusal or a stale proposal. Never the model's. */
   notice: string | null;
   proposal: ChatProposal | null;
-  lang?: Lang;
+  lang: Lang;
 }
 
 /**
@@ -400,14 +400,15 @@ export interface ChatView {
  * the client. Same rule as the app's own thread.
  */
 export function chat(v: ChatView): string {
-  const PAGE_COPY = pageCopyFor(v.lang ?? "en");
+  const lang = v.lang;
+  const PAGE_COPY = pageCopyFor(lang);
   return shell(PAGE_COPY.titleChat, `
 <h1>${escape(PAGE_COPY.chatHeading)}</h1>
 ${v.notice ? `<p class="notice">${escape(v.notice)}</p>` : ""}
 ${v.lines.length === 0
   ? `<p class="muted">${escape(PAGE_COPY.chatEmpty)}</p>`
-  : v.lines.map((line) => chatLine(line, PAGE_COPY)).join("\n")}
-${v.proposal ? proposalCard(v.proposal, PAGE_COPY) : ""}
+  : v.lines.map((line) => chatLine(line, PAGE_COPY, lang)).join("\n")}
+${v.proposal ? proposalCard(v.proposal, PAGE_COPY, lang) : ""}
 <form method="post" action="/start/chat/say">
   <input type="text" name="text" autocomplete="off" maxlength="${MAX_USER_LINE}"
     placeholder="${escape(PAGE_COPY.chatPlaceholder)}" aria-label="${escape(PAGE_COPY.chatPlaceholder)}">
@@ -429,18 +430,30 @@ ${v.proposal ? proposalCard(v.proposal, PAGE_COPY) : ""}
  * and it is not written until the person says so. Two forms rather than one with two buttons, so
  * each posts to the route that names what it does.
  */
-function proposalCard(p: ChatProposal, PAGE_COPY: PageCopy): string {
+/**
+ * A card's figures, in the reader's language — the same treatment `plan()` gives the plan's own.
+ *
+ * Raw interpolation is what this replaces: `${p.kcal} kcal` put an English unit and an ungrouped
+ * four-digit number under a plan page that had already said `Порог — 1 500 ккал.`
+ */
+function macros(kcal: number, proteinG: number, PAGE_COPY: PageCopy, lang: Lang): string {
+  const n = wholeNumbers(lang);
+  return PAGE_COPY.cardMacros
+    .replace("{kcal}", n(kcal)).replace("{unit}", UNIT_KCAL[lang]).replace("{protein}", n(proteinG));
+}
+
+function proposalCard(p: ChatProposal, PAGE_COPY: PageCopy, lang: Lang): string {
   const id = `<input type="hidden" name="pendingId" value="${escape(p.pendingId)}">`;
   return `<div class="card">
   <p class="muted">${escape(PAGE_COPY.chatProposalLead)}</p>
   <p><strong>${escape(p.title)}</strong></p>
-  <p class="muted">${p.kcal} kcal &middot; ${p.proteinG} g protein</p>
+  <p class="muted">${escape(macros(p.kcal, p.proteinG, PAGE_COPY, lang))}</p>
   <form method="post" action="/start/chat/confirm">${id}<button class="primary" type="submit">${escape(PAGE_COPY.chatConfirm)}</button></form>
   <form method="post" action="/start/chat/cancel">${id}<button type="submit">${escape(PAGE_COPY.chatCancel)}</button></form>
 </div>`;
 }
 
-function chatLine(line: ChatLine, PAGE_COPY: PageCopy): string {
+function chatLine(line: ChatLine, PAGE_COPY: PageCopy, lang: Lang): string {
   if (line.kind === "user") {
     const text = line.text ?? "";
     return `<p class="bubble you">${line.photo ? "\u{1F4F7} " : ""}${escape(text)}</p>`;
@@ -452,7 +465,7 @@ function chatLine(line: ChatLine, PAGE_COPY: PageCopy): string {
   const c = line.card;
   return `<div class="card">
   <p><strong>${escape(c.title)}</strong></p>
-  <p class="muted">${c.kcal} kcal &middot; ${c.proteinG} g protein</p>
+  <p class="muted">${escape(macros(c.kcal, c.proteinG, PAGE_COPY, lang))}</p>
   ${c.verdicts.map((w) => `<span class="pill">${escape(w)}</span>`).join("")}
 </div>`;
 }
@@ -474,11 +487,11 @@ export interface PlanView {
   hasWebApp: boolean;
   /** Whether the Telegram connector is on, so Connect Telegram has a bot to send anybody to. */
   telegram: boolean;
-  lang?: Lang;
+  lang: Lang;
 }
 
 export function plan(v: PlanView): string {
-  const lang = v.lang ?? "en";
+  const lang = v.lang;
   const PAGE_COPY = pageCopyFor(lang);
   // The FIGURES are grouped the reader's way — "1.800", not "1,800", for half of Europe — and the
   // sentences around them are the table's. Both were English literals in the markup until #358, on

@@ -154,10 +154,10 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
   ru: {
     labels: labels({
       body: "Тело", energy: "Энергия", activity: "Активность", sleep: "Сон", cardio: "Сердце",
-      weight_kg: "Вес", height_cm: "Рост", body_fat_pct: "Жировая масса", lean_mass_kg: "Сухая масса",
+      weight_kg: "Вес", height_cm: "Рост", body_fat_pct: "Процент жира", lean_mass_kg: "Сухая масса",
       active_kcal: "Активная энергия", resting_kcal: "Энергия покоя",
       steps: "Шаги", exercise_minutes: "Нагрузка", workouts: "Тренировки", distance_km: "Дистанция",
-      asleep_minutes: "Сон", in_bed_minutes: "В постели",
+      asleep_minutes: "Во сне", in_bed_minutes: "В постели",
       resting_hr_bpm: "Пульс покоя", hrv_ms: "ВСР", vo2max: "МПК",
     }),
     correlation: {
