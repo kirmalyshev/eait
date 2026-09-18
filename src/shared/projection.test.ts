@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { PROJECTION_HORIZON_WEEKS, projectGoal } from "./projection.ts";
+import { PROJECTION_HORIZON_WEEKS, projectGoal, projectionMonth } from "./projection.ts";
 import type { TargetBasis } from "./targets.ts";
+import { LANGS } from "./types.ts";
 import type { Profile } from "./types.ts";
 
 /** A basis with the fields a projection reads, and defensible values for the rest. */
@@ -200,5 +201,34 @@ describe("projectionMonth", () => {
   it("crosses a year boundary", async () => {
     const { projectionMonth } = await import("./projection.ts");
     expect(projectionMonth(new Date("2026-11-20T12:00:00Z"), 8)).toBe("January 2027");
+  });
+});
+
+describe("the month a projection lands in, in eight languages", () => {
+  it("is CLDR's name and never a table of ours", () => {
+    const from = new Date("2026-09-18T12:00:00Z");
+    expect(projectionMonth(from, 8, "en")).toBe("November 2026");
+    expect(projectionMonth(from, 8, "de")).toBe("November 2026");
+    expect(projectionMonth(from, 8, "fr")).toBe("novembre 2026");
+    expect(projectionMonth(from, 8, "it")).toBe("novembre 2026");
+    // CLDR's own forms, and they are not all "<month> <year>": Spanish inserts "de", Russian
+    // appends "г.", and Vietnamese numbers its months ("tháng 11 năm 2026"). Pinning them here is
+    // the point — a table of ours would have written all three wrong and looked right in review.
+    expect(projectionMonth(from, 8, "es")).toBe("noviembre de 2026");
+    expect(projectionMonth(from, 8, "ru")).toBe("ноябрь 2026 г.");
+    expect(projectionMonth(from, 8, "vi")).toBe("tháng 11 năm 2026");
+    for (const lang of LANGS) {
+      const said = projectionMonth(from, 8, lang);
+      expect(said, lang).toContain("2026");
+      // Never a bare number where a month name belongs — the failure the old table existed to
+      // avoid, now guarded by a test instead of by twelve hard-coded strings.
+      expect(said.replace(/\d/g, "").trim().length, lang).toBeGreaterThan(2);
+    }
+  });
+
+  it("rolls the calendar rather than adding milliseconds, across a DST boundary", () => {
+    // Europe/Berlin leaves summer time on 2026-10-25. Fourteen weeks from mid-October is late
+    // January whichever way you count, and adding 98 × 24 h would land it a day early.
+    expect(projectionMonth(new Date("2026-10-20T12:00:00Z"), 14, "en")).toBe("January 2027");
   });
 });

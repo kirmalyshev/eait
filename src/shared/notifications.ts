@@ -21,7 +21,7 @@
 import { lintCopy } from "./claims.ts";
 import { dateMinus, localDate, localTime } from "./dates.ts";
 import type { Entitlement } from "./entitlement.ts";
-import { numbers, t, type Localized } from "./lang.ts";
+import { wholeNumbers, t, type Localized } from "./lang.ts";
 import type { FoodTargets, Goal, Lang } from "./types.ts";
 
 /** Every message that may be sent. Adding one is a product decision, not a copy edit. */
@@ -564,7 +564,7 @@ export interface EveningInput {
  */
 export function eveningPrescription(i: EveningInput, lang: Lang = "en"): string {
   const say = t(lang)(EVENING_PRESCRIPTIONS);
-  const n = numbers(lang);
+  const n = wholeNumbers(lang);
   if (i.meals === 0) return say.noMeals;
 
   const overBy = i.totals.kcal - i.targets.kcal;

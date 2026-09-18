@@ -1172,7 +1172,7 @@ describe("the thread", () => {
     expect(text(t[0]!)).toBe("two eggs and toast");
     expect(text(t[4]!)).toContain("Typed, not photographed");
     // The first verdict ends by introducing the coach, in Spud's voice, with his face.
-    expect(t[6]).toMatchObject({ kind: "text", text: MEET_GABIE, speaker: null });
+    expect(t[6]).toMatchObject({ kind: "text", text: MEET_GABIE(), speaker: null });
   });
 
   it("names its proposal on the user line, and a racing confirm answers with the meal the other one logged", async () => {
@@ -1326,7 +1326,7 @@ describe("the thread", () => {
     expect(t.map((e) => [e.role, e.kind])).toEqual([["user", "photo"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"], ["assistant", "text"]]);
     expect(text(t[2]!)).toMatch(/^First one in\. [\d,]+ kcal — /);
     expect(text(t[3]!)).toContain("If anything's off");
-    expect(text(t[4]!)).toBe(MEET_GABIE);
+    expect(text(t[4]!)).toBe(MEET_GABIE());
     // The VERDICT is never said again — but the day's standing is, on every meal past the first
     // (#306), which is the one line the greeting's own arithmetic stands in for.
     const second = await logPhotoMeal(d, userId, photo());

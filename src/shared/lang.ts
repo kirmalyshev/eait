@@ -102,10 +102,24 @@ export const LANG_TAG: Record<Lang, string> = {
  * Bound once per surface, like `t`.
  */
 export const numbers = (lang: Lang) => {
-  const whole = new Intl.NumberFormat(LANG_TAG[lang], { maximumFractionDigits: 0 });
+  const whole = wholeNumbers(lang);
   const tenth = new Intl.NumberFormat(LANG_TAG[lang], { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   return (x: number): string =>
-    Math.round(x * 10) % 10 === 0 ? whole.format(Math.round(x)) : tenth.format(Math.round(x * 10) / 10);
+    Math.round(x * 10) % 10 === 0 ? whole(x) : tenth.format(Math.round(x * 10) / 10);
+};
+
+/**
+ * A figure ROUNDED TO A WHOLE NUMBER, which is what the thread and the 20:30 line write.
+ *
+ * TWO HELPERS AND NOT ONE, because the two are about different things. A WEIGHT keeps its tenth —
+ * "93.5 kg" is a number somebody typed and 93 is a different weight. A kcal or a gram of protein
+ * does not: they are estimates from a photo, and "74.8 of the 104 g protein" claims a precision the
+ * analyzer does not have. That distinction was two private `n()` helpers in two files before #358,
+ * and unifying them on the wrong one is how the protein figure grew a decimal point.
+ */
+export const wholeNumbers = (lang: Lang) => {
+  const format = new Intl.NumberFormat(LANG_TAG[lang], { maximumFractionDigits: 0 });
+  return (x: number): string => format.format(Math.round(x));
 };
 
 /**

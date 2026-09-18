@@ -29,8 +29,8 @@
 import {
   NOTIFICATION_IDS, dailyMessage, dateMinus, entitlementActive,
   eveningPrescription,
-  explainTargets, fillNotification, localDate, notificationCopyFor, numbers, storedNotificationCopy,
-  trialReminders, validateNotificationCopy,
+  explainTargets, fillNotification, localDate, notificationCopyFor, storedNotificationCopy,
+  trialReminders, validateNotificationCopy, wholeNumbers,
   type Lang, type NotificationCopy, type NotificationCopyValidation, type NotificationId,
 } from "@eait/shared";
 import type { PushMessage, PushTicket } from "../push/port.ts";
@@ -152,7 +152,7 @@ export async function dailyNotification(
   // English sentence on a lock screen in Jakarta — and the figures in it are grouped the reader's
   // way for the same reason (`numbers`), because "1,900" reads as one point nine to half of Europe.
   const lang = profile.lang;
-  const n = numbers(lang);
+  const n = wholeNumbers(lang);
   const copy = await notificationCopy(deps, lang);
   const filled = fillNotification(copy, "evening", {
     eaten: n(totals.kcal),

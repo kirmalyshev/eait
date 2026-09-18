@@ -158,29 +158,6 @@ export function renderableVerdicts(verdicts: unknown): VerdictDimension[] {
   return VERDICT_DIMENSIONS.filter((d) => typeof v[d] === "string" && VERDICT_VALUES.includes(v[d] as string));
 }
 
-/** What a dimension is called on a card. */
-const VERDICT_NOUN: Record<VerdictDimension, string> = {
-  weight: "Calories", ldl: "Saturated fat", kidneys: "Sodium",
-};
-
-/**
- * The words on a verdict pill — INCLUDING the verdict.
- *
- * The pill used to read "Calories" and carry good/warn/bad in its tint and a coloured dot. That is
- * the whole meaning of the row encoded in hue alone: a red/green colour blindness reads two
- * identically-worded pills, and VoiceOver reads "Calories" and stops. It also lands on a card
- * belonging to somebody who declared a medical restriction, which is the audience least able to
- * afford guessing.
- *
- * Worded from `shareVerdict`'s thresholds — a share of the day's allowance, not a claim about the
- * food itself. "high" is about this meal's place in the day, which is the only thing this product
- * measures.
- */
-export function verdictPillLabel(dimension: VerdictDimension, verdict: Verdict): string {
-  const noun = VERDICT_NOUN[dimension];
-  return verdict === "good" ? `${noun} on plan` : verdict === "warn" ? `${noun} high` : `${noun} very high`;
-}
-
 /** Optional context accompanying a photo. Both fields measurably reduce estimation error. */
 export interface MealContext {
   caption?: string;

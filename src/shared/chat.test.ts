@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { LANGS } from "./types.ts";
+import { threadCopyFor } from "./chat-copy.ts";
 import { COACH_STARTERS, MAX_SUGGESTION, MEET_GABIE, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, cleanSuggestions, correctionLine, firstVerdictLines, isScriptedLineId, runningLine, scriptedLine, scriptedParams } from "./chat.ts";
 
 describe("scripted lines", () => {
@@ -21,10 +23,15 @@ describe("scripted lines", () => {
   });
 
   it("declares exactly the placeholders each line carries, so a renamed one cannot leave a hole", () => {
-    for (const [id, line] of Object.entries(SCRIPTED_LINES)) {
-      const holes = [...line.matchAll(/\{(\w+)\}/g)].map((m) => m[1] ?? "").sort();
-      expect(isScriptedLineId(id)).toBe(true);
-      expect([...SCRIPTED_PARAMS[id as ScriptedLineId]].sort()).toEqual(holes);
+    // In EVERY language: a translation that dropped `{price}` would render "Trial's on. Seven
+    // days, then  unless you stop it", and the only sign of it is a sentence with a gap.
+    for (const lang of LANGS) {
+      for (const id of Object.keys(SCRIPTED_LINES)) {
+        const line = threadCopyFor(lang).scripted[id]!;
+        const holes = [...line.matchAll(/\{(\w+)\}/g)].map((m) => m[1] ?? "").sort();
+        expect(isScriptedLineId(id)).toBe(true);
+        expect([...SCRIPTED_PARAMS[id as ScriptedLineId]].sort(), `${lang}.${id}`).toEqual(holes);
+      }
     }
   });
 
@@ -45,7 +52,7 @@ describe("the first verdict", () => {
     });
     expect(lines[0]).toBe("First one in. 612 kcal — that leaves 842 of your 1,454 for the rest of today, and 38 of the 110 g protein. On plan.");
     expect(lines[1]).toContain("If anything's off, say so");
-    expect(lines[2]).toBe(MEET_GABIE);
+    expect(lines[2]).toBe(MEET_GABIE());
     expect(lines).toHaveLength(3);
   });
 
@@ -56,10 +63,10 @@ describe("the first verdict", () => {
       firstVerdictLines({ ...base, goal: "gain", via: "photo" }),
       firstVerdictLines({ ...base, goal: "lose", via: "text" }),
       firstVerdictLines({ ...base, goal: "lose", via: "photo", meal: { ...meal, confidence: "low" } }),
-    ]) expect(lines[lines.length - 1]).toBe(MEET_GABIE);
-    expect(MEET_GABIE).toContain("Gabie");
+    ]) expect(lines[lines.length - 1]).toBe(MEET_GABIE());
+    expect(MEET_GABIE()).toContain("Gabie");
     // Spud's voice, still: he does not cheer her either.
-    expect(MEET_GABIE).not.toMatch(/!/);
+    expect(MEET_GABIE()).not.toMatch(/!/);
   });
 
   it("says how far over the day is, as a number with a direction — never a bare negative", () => {
@@ -172,8 +179,8 @@ describe("the first verdict", () => {
 
 describe("coach", () => {
   it("offers a few starters, each short enough to be a chip and worded as the user would send it", () => {
-    expect(COACH_STARTERS.length).toBeGreaterThanOrEqual(3);
-    for (const s of COACH_STARTERS) {
+    expect(COACH_STARTERS().length).toBeGreaterThanOrEqual(3);
+    for (const s of COACH_STARTERS()) {
       expect(s.length).toBeLessThanOrEqual(MAX_SUGGESTION);
       expect(s.trim()).toBe(s);
     }
