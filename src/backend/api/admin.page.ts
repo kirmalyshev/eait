@@ -1143,9 +1143,17 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       meta = res.meta;
       // The server decides which language it served — an unknown code is answered with English
       // rather than an error, and the picker has to show what actually came back.
-      lang = res.lang;
-      langs = res.langs;
-      labels = res.labels;
+      // DEFENSIVE, because this page outlives the server it was built against — the same drift
+      // usableContent exists for, one floor down. A server that predates the picker sends none of
+      // these three, and calling forEach on an undefined list does not degrade the picker: it
+      // throws inside load, enter catches it, and the ADMIN is told their account cannot administer
+      // this instance. The whole page, lost to a select box.
+      //
+      // NO BACKTICKS ANYWHERE IN THIS FILE: it is one template literal, and one in a comment ends
+      // it. The server then fails to start, which is how this comment learned its own rule.
+      lang = res.lang || "en";
+      langs = res.langs || [];
+      labels = res.labels || {};
       renderLangs();
       render();
       return loadNotify().then(loadPrompts).then(loadMetrics).then(loadFunnel)
@@ -1155,6 +1163,10 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
   function renderLangs() {
     var select = $("lang");
+    // Nothing to offer is not an error: an older server sends no language list, and one language
+    // is not a choice. Either way the picker is hidden rather than drawn empty.
+    select.hidden = langs.length < 2;
+    if (langs.length === 0) return;
     if (select.options.length !== langs.length) {
       select.textContent = "";
       langs.forEach(function (code) {
