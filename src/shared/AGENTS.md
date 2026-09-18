@@ -18,6 +18,8 @@ a third implementation instead of the agreement between two.
 | `health.ts` | `HEALTH_FIELDS` + `aggregateDays`. Day attribution is tested with no simulator. |
 | `trend.ts` | a daily series by day/week/month/year, and Pearson between two of them. Every number on a health chart. |
 | `onboarding.ts`, `onboarding-chat.ts` | the question set and the branch logic. |
+| `lang.ts` | `Localized<T>`, `t(lang)`, `LANGS_READY`, the two number formatters, and `localizedGaps`. |
+| `onboarding-content.ts`, `onboarding-chat-copy.ts`, `chat-copy.ts`, `health-copy.ts`, `verdicts.ts` | the WORDS, keyed by language. The rules stay in the file beside each. |
 | `perf.ts` | `PERF_SCREENS` and every screen's budget. |
 | `entitlement.ts`, `chat.ts`, `thread.ts`, `projection.ts`, `claims.ts`, `notifications.ts` | same rule: one definition, two consumers. |
 
@@ -46,6 +48,58 @@ Everything is exported through `index.ts` (`export *`), so a new export needs no
   ordering, windows and month arithmetic use plain `<`/`>` rather than parsing.
 - **The calorie floor is unconditional.** Share cap first, floor second. Any new code path that
   produces a kcal target goes through `explainTargets`.
+- **Copy is `Localized<T>`; a rule is not.** A table holds the WORDING of each branch and the code
+  beside it holds which branch a case takes. `eveningPrescription` picks the lever, `checkNumber`
+  decides what is a valid age, `correlationWords` owns the 0.5 that separates weak from moderate —
+  a translator moving any of those would be moving a rule. This is also what makes a translation
+  reviewable: a table diffs as prose.
+- **A sentence is a WHOLE template, never fragments joined by code.** `"{left} of your {plan} left
+  today"` and not `` `${rest} left today` `` with `rest` built elsewhere. The old thread built
+  "930 of your 1,450" in TypeScript and handed it over as one parameter, which is an English
+  genitive compiled into the code and unreachable by any translation.
+
+## Localization (#358)
+
+**The product speaks eight languages: `en`, `fr`, `de`, `it`, `es`, `vi`, `id`, `ru`.** `LANGS`
+(`types.ts`) is what the server stores and the model answers in. `LANGS_READY` (`lang.ts`) is the
+smaller, honest claim — what the app can render ITSELF end to end — and it is what a picker offers.
+They are equal today and are two names because they mean different things: `PATCH /v1/profile`
+accepts any `LANGS` code, because a phone in a language the browser pages have no words in still
+gets its meal names in that language.
+
+- **A new string goes in the `*-copy.ts` beside the module that reads it**, as a key on that
+  module's one `Localized` table, in all eight languages. Not in a `.json` bundle, not behind an
+  extraction step: `lang.ts`'s header says why, and eight compiled-in languages need neither.
+- **`localizedGaps` is what keeps `LANGS_READY` honest.** One test per workspace
+  (`copy.i18n.test.ts`) hands it `import * as everything` and fails by name — "CHAT_COPY has no vi
+  (Tiếng Việt)" — when a table is missing a language the list claims. A table nothing EXPORTS is a
+  table it cannot see, which is the one way a language can be lost quietly; export it.
+- **Fallback happens at the KEY, never at the screen.** `en` is required by `Localized<T>`, so
+  `t(lang)` cannot return undefined. One untranslated button is a wart; a screen that throws is a
+  process abort in a Release build.
+- **THE UNIT SYSTEM IS NOT THE LANGUAGE.** `de` is metric, `en` is not automatically imperial, and
+  nothing in a copy table may reach `targets.ts`. `Intl.NumberFormat` is asked for a decimal, never
+  for a measurement — `LANG_TAG` moves a separator and cannot move a kilogram.
+- **Numbers and dates are `Intl`.** `numbers(lang)` keeps a tenth (a weight somebody typed);
+  `wholeNumbers(lang)` rounds (a kcal from a photo, where a decimal claims a precision the analyzer
+  does not have). `monthYear` is `Intl.DateTimeFormat` — CLDR's forms are not all "<month> <year>",
+  and a table of ours got Spanish, Russian and Vietnamese wrong at once before it was deleted.
+- **`LANG_LABEL` is never translated.** A list of languages written in the language the reader is
+  trying to leave is the one list they cannot read. It is also what the LLM prompt names the reply
+  language with (`languageLine`), because a language's own name is the same string wherever it is
+  read.
+- **The largest text surface is in no table.** Meal names, the coach's answers, the glance and the
+  follow-up chips are written by the model per turn. `languageLine` in `llm/prompt.ts` is the whole
+  of what steers them, and it reaches every prompt that produces words a user reads.
+- **The claims gate (`claims.ts`) is English-only, and that is stated rather than hidden.** It
+  matches English patterns, so running it over the German would pass regardless. What protects the
+  seven translations is that they are translations OF copy that passed it — so the English is the
+  source, and a sentence changes there first.
+- **Admin-editable copy is stored per language in the SAME row.** `onboarding_content` and
+  `notification_copy` hold a `Localized<…>` map rather than one revision: no column, no migration,
+  and a row written before #358 is read as English, which is what it was. A save in one language
+  carries the seven it is not editing. `usableContentFor(lang, stored)` falls back to THAT
+  language's compiled-in copy, never to English.
 
 ## Testing
 

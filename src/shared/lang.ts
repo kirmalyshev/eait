@@ -49,7 +49,7 @@ export const t = (lang: Lang) => <T>(entry: Localized<T>): T => entry[lang] ?? e
  * once every `Localized` table in the codebase carries it, and there is a test per workspace that
  * fails by name when one does not.
  */
-export const LANGS_READY: readonly Lang[] = ["en"];
+export const LANGS_READY: readonly Lang[] = [...LANGS];
 
 /**
  * Each language's name IN ITSELF, and deliberately not `Localized`.

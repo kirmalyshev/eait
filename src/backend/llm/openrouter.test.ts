@@ -730,7 +730,7 @@ describe("glancePhoto", () => {
     expect(body.reasoning).toEqual({ enabled: false });
     expect(body.max_tokens).toBe(60);
     expect(body.stream).toBeUndefined();
-    expect(JSON.stringify(body.messages)).toContain("Reply in this language: de");
+    expect(JSON.stringify(body.messages)).toContain("Reply in this language: Deutsch (de)");
   });
 
   test("returns the trimmed first line of the reply", async () => {

@@ -54,7 +54,9 @@ export interface Mailer {
  * survive.
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
-const CONFIRMATION: Localized<{ subject: string; lines: string[] }> = {
+// EXPORTED so `copy.i18n.test.ts` can walk it. A `Localized` table that nothing exports is a
+// table the check cannot see, which is the one way this product's copy can quietly lose a language.
+export const CONFIRMATION: Localized<{ subject: string; lines: string[] }> = {
   en: {
     subject: "Confirm your email for eait",
     lines: [

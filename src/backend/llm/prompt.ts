@@ -15,7 +15,7 @@
 import { z } from "zod";
 import type { FoodTargets, Profile } from "@eait/shared";
 import type { PortionPrior } from "../store.ts";
-import { MAX_SUGGESTION, MAX_SUGGESTIONS, MAX_USER_LINE } from "@eait/shared";
+import { LANG_LABEL, MAX_SUGGESTION, MAX_SUGGESTIONS, MAX_USER_LINE, narrowLang } from "@eait/shared";
 import type { CoachContext, CoachHistoryLine } from "./port.ts";
 import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "./port.ts";
 
@@ -186,7 +186,7 @@ export function buildUserText(profile: Profile, targets: FoodTargets, opts: {
   portionPriors?: readonly PortionPrior[];
 } = {}): string {
   const lines = [
-    `Reply in this language: ${profile.lang}.`,
+    languageLine(profile.lang),
     `The user's daily targets: ${targets.kcal} kcal, ${targets.protein_g} g protein.`,
   ];
   if (opts.localTime) lines.push(`Local time when the photo was taken: ${opts.localTime}.`);
@@ -219,7 +219,7 @@ export function buildUserText(profile: Profile, targets: FoodTargets, opts: {
     lines.push(
       `The user shops and eats in: ${country}. Use this ONLY to judge which products, ` +
       `brands and portion conventions are likely on the plate. It is NOT a language instruction — ` +
-      `write every name in ${profile.lang} regardless.`,
+      `write every name in ${LANG_LABEL[narrowLang(profile.lang)]} regardless.`,
     );
   }
   if (opts.repertoire && opts.repertoire.length > 0) {
@@ -402,7 +402,7 @@ export function buildRouteText(input: {
 }): string {
   const { profile, targets } = input;
   const lines = [
-    `Reply in this language: ${profile.lang}.`,
+    languageLine(profile.lang),
     `Daily targets: ${targets.kcal} kcal, ${targets.protein_g} g protein.`,
   ];
   if (targets.satfat_g !== undefined) lines.push(`Saturated fat cap: ${targets.satfat_g} g.`);
@@ -452,11 +452,33 @@ export function buildRouteText(input: {
  * user reads what Spud sees about a second after the upload. Never numbers: the numbers are the
  * analyzer's, and a figure here that the card then contradicts is a figure the user remembers.
  */
+/**
+ * The one line that decides what language every generated word in this product comes out in.
+ *
+ * THE LARGEST TEXT SURFACE HERE IS IN NO TABLE. Meal names, the coach's answers, the glance, the
+ * follow-up chips: all of it is written by the model, per turn, and none of it is translated by
+ * anybody. What steers it is this sentence, and it used to be the bare code — `Reply in this
+ * language: vi.` A two-letter code is unambiguous to a compiler and a guess to a model, and the
+ * guess gets worse the further a language sits from the ones an English prompt is mostly about.
+ *
+ * So it names the language IN ITSELF and keeps the code beside it: `Tiếng Việt (vi)`. The endonym
+ * is `LANG_LABEL`, which exists already and is the one table in this repo that is deliberately not
+ * translated — a language's own name is the same string wherever it is read, which is exactly the
+ * property a prompt wants.
+ *
+ * `narrowLang` first, so a stored value this binary does not know still produces a sentence rather
+ * than `undefined (xx)`.
+ */
+export function languageLine(lang: string): string {
+  const code = narrowLang(lang);
+  return `Reply in this language: ${LANG_LABEL[code]} (${code}). Every word you write is read by somebody who asked for that language.`;
+}
+
 export const SYSTEM_GLANCE = `You name what is on the plate. Reply with ONE short sentence, at most ten words, naming the main foods you see, in the requested language. No numbers, no advice, no preamble.`;
 /** A sentence's worth. The bound is reserved against the balance before routing, so it stays small. */
 export const GLANCE_MAX_TOKENS = 60;
 export function buildGlanceText(lang: string): string {
-  return `Reply in this language: ${lang}. Name the plate.`;
+  return `${languageLine(lang)} Name the plate.`;
 }
 
 // ── The coach ────────────────────────────────────────────────────────────────────────────────
@@ -563,7 +585,7 @@ export function buildCoachContext(c: CoachContext): string {
   const { profile, targets, basis } = c;
   const weighed = profile.weight_measured_at ? profile.weight_measured_at.slice(0, 10) : "date unknown";
   const lines = [
-    `Reply in this language: ${profile.lang}.`,
+    languageLine(profile.lang),
     `Today is ${c.today}, local time ${c.localTime}.`,
     `Goal: ${profile.goal ?? "unknown"}${profile.pace ? `, pace ${profile.pace}` : ""}${profile.target_weight_kg !== null ? `, target weight ${profile.target_weight_kg} kg` : ""}${profile.weight_kg !== null ? `, last known weight ${profile.weight_kg} kg (measured ${weighed}; the trend is in get_health)` : ""}.`,
     `Daily targets: ${targets.kcal} kcal, ${targets.protein_g} g protein.`,
