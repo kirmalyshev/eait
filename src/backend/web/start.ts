@@ -579,6 +579,10 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         // No account is carried into this: a browser arriving here has no anonymous session to
         // merge, and there is nothing on this surface that could have created one.
         null,
+        // ...which is why the header decides the language of the account this creates. It is the
+        // SAME reading the front door at `/start` took a moment ago, so the questions continue in
+        // the language the welcome was written in.
+        browserLang(req),
       ));
     } catch (e) {
       // Logged, never shown. The exchange's error quotes the request and the verifier's can quote
