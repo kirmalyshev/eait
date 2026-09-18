@@ -24,7 +24,7 @@ import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
   type MealPatch,
-  type PendingMeal, type PortionCorrection, type ProfilePatch, type PushPlatform, type Store,
+  type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type Store,
   type StoreOptions, type StoredPhoto,
 } from "./store.ts";
 
@@ -54,7 +54,11 @@ const HEALTH_UPSERT = `
 /** Shape check for ids that get spliced into an array literal; every id here is one we issued. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const SCHEMA = `
+/**
+ * The DDL `migrate()` applies, exported so a test can read what the database will accept without
+ * needing a database. `prompt.schema.test.ts` is the one reader.
+ */
+export const SCHEMA = `
 create table if not exists users (
   id                  uuid primary key,
   device_id           text unique not null,
@@ -477,6 +481,43 @@ create table if not exists notification_copy (
   updated_at timestamptz not null default now()
 );
 
+-- The system prompts, when an admin has overridden one. APPEND-ONLY.
+--
+-- (key, version) rather than one row per key, and that is the difference from the two tables
+-- above. Onboarding copy and notification copy are pinned to id = 1 because an admin undoing a bad
+-- edit needs the previous JSON and the payload carries it. A prompt carries nothing: an edit to it
+-- changes what the model was asked, on every analysis after it, with no trace in the analysis rows.
+-- So nothing is ever overwritten here, getPrompts reads the newest version per key, and the
+-- history is what answers "what were we sending in August".
+--
+-- NO user_id, AND THAT IS THE SCHEMA SAYING SO. A prompt is not a user's data — it is the
+-- instruction this server sends on behalf of every account, written by the admin role and read by
+-- the LLM transport. The per-user scoping rule protects queries that could be widened past one
+-- account; there is no account here to widen past. A per-user prompt would need this column and
+-- would be a different feature.
+--
+-- THE KEY LIST IS WRITTEN OUT BY HAND, and it is meant to be. Generated from PROMPT_KEYS it
+-- could never disagree with the code, and so could never catch the thing it is here to catch: a
+-- seventh prompt added to the code and never given a home here, whose first admin save fails in
+-- production. prompt.schema.test.ts compares the two lists and fails naming the key; the store
+-- contract suite proves the same against a real database.
+create table if not exists llm_prompts (
+  key        text not null,
+  version    integer not null,
+  text       text not null,
+  updated_at timestamptz not null default now(),
+  primary key (key, version)
+);
+-- THE KEY LIST IS A NAMED CONSTRAINT, DROPPED AND RE-ADDED ON EVERY MIGRATE, and not an inline
+-- check in the statement above. create table if not exists skips the WHOLE statement on a host
+-- that already has the table, so an inline list would reach a fresh database and never an existing
+-- one -- and the anonymous constraint left over from the first deploy would go on refusing the new
+-- key while the code sent it. Re-adding it here is idempotent, and a row that violates a narrowed
+-- list fails the migration loudly rather than being discovered by an admin's save.
+alter table llm_prompts drop constraint if exists llm_prompts_key_check;
+alter table llm_prompts add constraint llm_prompts_key_check
+  check (key in ('analysis', 'route', 'text_meal', 'text_correction', 'glance', 'coach'));
+
 -- The mailing list, from the landing page.
 --
 -- NO FOREIGN KEY TO users, deliberately. A subscriber is not an account: the app never asks for an
@@ -574,6 +615,14 @@ function newSubscriberToken(): string {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
+
+/** One `llm_prompts` row. `updated_at` is an ISO string on both stores, so the two can be compared. */
+const toPromptRevision = (r: Record<string, unknown>): PromptRevision => ({
+  key: String(r.key),
+  version: Number(r.version),
+  text: String(r.text),
+  updated_at: new Date(r.updated_at as string).toISOString(),
+});
 
 const num = (v: unknown): number => (v === null || v === undefined ? 0 : Number(v));
 const nullableNum = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
@@ -1367,6 +1416,41 @@ export async function postgresStore(
       const rows = await sql`select copy from notification_copy where id = 1`;
       if (rows.length === 0) return null;
       return json<NotificationCopy | null>(rows[0].copy, null);
+    },
+
+    async getPrompts() {
+      // The newest revision of each key, in one statement. `distinct on` is Postgres's own way of
+      // saying "one row per key", and the order is what picks which one — the memory store does
+      // the same with a max.
+      const rows = await sql`
+        select distinct on (key) key, version, text, updated_at
+        from llm_prompts
+        order by key, version desc`;
+      return rows.map(toPromptRevision);
+    },
+
+    async promptRevisions(key) {
+      const rows = await sql`
+        select key, version, text, updated_at
+        from llm_prompts where key = ${key} order by version desc`;
+      return rows.map(toPromptRevision);
+    },
+
+    async putPrompt(key, text) {
+      // THE VERSION IS COMPUTED IN THE STATEMENT, not read first and incremented here: two admins
+      // saving at once would both read the same number, and the second insert would fail on the
+      // primary key rather than silently overwrite — but the rule this workspace states is that a
+      // state condition lives in the store's own guarded statement, and this is one.
+      const rows = await sql`
+        insert into llm_prompts (key, version, text, updated_at)
+        values (
+          ${key},
+          (select coalesce(max(version), 0) + 1 from llm_prompts where key = ${key}),
+          ${text},
+          now()
+        )
+        returning version`;
+      return Number(rows[0]!.version);
     },
 
     async putNotificationCopy(copy) {

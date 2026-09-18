@@ -45,8 +45,9 @@ import {
   isCalendarDate, screenIsOptional,
 } from "@eait/shared";
 import {
-  adminMetrics, adminUserChat, adminUserDiary, adminUsers, notificationCopy, onboardingContent,
-  onboardingFunnel,
+  adminMetrics, adminUserChat, adminUserDiary, adminUsers, livePrompts, notificationCopy,
+  onboardingContent,
+  onboardingFunnel, savePrompt,
   resetNotificationCopy,
   resetOnboardingContent, saveNotificationCopy, saveOnboardingContent, setUserCap, userCap,
   type EngineDeps,
@@ -205,6 +206,25 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps): Promise<
 
   if (req.method === "POST" && pathname === "/admin/api/notifications/reset") {
     return json({ copy: await resetNotificationCopy(deps) });
+  }
+
+  // ── The system prompts ─────────────────────────────────────────────────────────────────────
+  //
+  // Two verbs, not three. There is no reset, because a reset IS a save: the GET hands back the
+  // compiled-in text for any prompt nobody has edited, so restoring one is saving what is already
+  // on the screen — and doing it that way leaves the restoration in the revision history, where a
+  // third endpoint that deleted rows would have left a gap.
+  //
+  // Validated on the WRITE, like everything else behind this credential, and here that is the only
+  // gate there is: nothing downstream reviews a prompt, and the model reads whatever this accepts.
+  if (req.method === "GET" && pathname === "/admin/api/prompts") {
+    return json({ prompts: await livePrompts(deps) });
+  }
+
+  if (req.method === "PUT" && pathname === "/admin/api/prompts") {
+    const body = await req.json() as { key?: unknown; text?: unknown };
+    const result = await savePrompt(deps, body?.key, body?.text);
+    return result.ok ? json({ key: result.key, version: result.version }) : json({ errors: result.errors }, 422);
   }
 
   if (req.method === "GET" && pathname === "/admin/api/funnel") {

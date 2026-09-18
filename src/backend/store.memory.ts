@@ -16,7 +16,7 @@ import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
   type MealPatch, type Role,
-  type PendingMeal, type PortionCorrection, type ProfilePatch, type PushPlatform, type PushToken,
+  type PendingMeal, type PortionCorrection, type ProfilePatch, type PromptRevision, type PushPlatform, type PushToken,
   type StoredEntitlement, type Store, type StoreOptions, type StoredPhoto,
 } from "./store.ts";
 
@@ -152,6 +152,13 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     createdAt: number;
   }>();
   let onboardingContent: OnboardingContent | null = null;
+  /**
+   * Every prompt revision ever written, exactly as Postgres keeps them: nothing is overwritten and
+   * the newest version per key is the live one. A flat list rather than a map by key, because the
+   * history IS the storage here — a map would hold the live text and quietly drop the audit trail
+   * the Postgres table keeps, and the two implementations would disagree about what the port means.
+   */
+  const promptRevisionRows: PromptRevision[] = [];
 
   /** 256 bits of hex. Used for both subscriber capabilities: confirmation and withdrawal. */
   const randomHex = (): string =>
@@ -735,6 +742,28 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async getNotificationCopy() {
       return notificationCopy ? clone(notificationCopy) : null;
+    },
+
+    async getPrompts() {
+      const live = new Map<string, PromptRevision>();
+      for (const r of promptRevisionRows) {
+        const seen = live.get(r.key);
+        if (!seen || r.version > seen.version) live.set(r.key, r);
+      }
+      return [...live.values()].map(clone).sort((a, b) => a.key.localeCompare(b.key));
+    },
+
+    async promptRevisions(key) {
+      return promptRevisionRows
+        .filter((r) => r.key === key)
+        .sort((a, b) => b.version - a.version)
+        .map(clone);
+    },
+
+    async putPrompt(key, text) {
+      const version = Math.max(0, ...promptRevisionRows.filter((r) => r.key === key).map((r) => r.version)) + 1;
+      promptRevisionRows.push({ key, version, text, updated_at: new Date().toISOString() });
+      return version;
     },
 
     async putNotificationCopy(copy) {

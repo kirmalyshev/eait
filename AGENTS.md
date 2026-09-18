@@ -114,7 +114,10 @@ already exist. Auto-create shipped once and it was silent data loss.
   with its `kind`. A question that collects NO profile field needs a READER first, named before it
   is written.
 - New LLM capability → a port type in `src/backend/llm/port.ts`, a prompt in `prompt.ts`, an
-  implementation in `openrouter.ts`, and a canned version in `demo.ts` so the tests still run.
+  implementation in `openrouter.ts`, and a canned version in `demo.ts` so the tests still run. The
+  prompt's TEXT is overridable by a row in `llm_prompts` and `prompt.ts` is the seed and the
+  fallback, so a new prompt needs its key in `PROMPT_KEYS` and in that table's check constraint as
+  well — `src/backend/AGENTS.md` lists the four edits.
 - New paid-tier behaviour → `src/backend/engine/entitlement.ts`. A new thing the tier unlocks is a
   config value plus a branch in ONE function there, sent to the client through `ProfileResponse`.
   Never a second `entitlementActive` call, and never a check on a client's own SDK state.

@@ -15,7 +15,7 @@
 
 import { join } from "node:path";
 import { postgresStore } from "../backend/store.pg.ts";
-import { SEED_PERSONAS, seedDevData } from "../backend/dev/seed.ts";
+import { SEED_PERSONAS, seedDevData, seedPrompts } from "../backend/dev/seed.ts";
 import { readEnvFile } from "./dev-env.ts";
 
 const root = join(import.meta.dir, "..", "..");
@@ -54,9 +54,17 @@ if (unknown.length > 0) {
 // itself. `sh src/scripts/db.sh up` is what creates it. See the header of store.pg.ts for the incident.
 const store = await postgresStore(databaseUrl);
 try {
+  // The prompts go in first, and are reported first, because they are the only thing here that is
+  // not development data: they are the SHIPPED text, written so /admin opens on something editable.
+  const prompts = await seedPrompts(store);
   const seeded = await seedDevData(store, { timezone, only });
 
   console.log(`\n  seeded ${databaseUrl.replace(/\/\/[^@]*@/, "//***@")}\n`);
+  console.log(
+    prompts.length > 0
+      ? `  prompts    wrote the shipped text for ${prompts.join(", ")}\n`
+      : `  prompts    already stored, left alone (an edit is never overwritten)\n`,
+  );
   for (const s of seeded) {
     console.log(`  ${s.key}`);
     console.log(`    ${s.summary}`);

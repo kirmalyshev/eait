@@ -10,7 +10,8 @@ The server. Root `AGENTS.md` covers the repo; this covers this workspace.
 api/routes.ts     one handler per route; it calls ONE engine function and returns
 engine/           all product logic — day/week, meals, chat, identity, entitlement, onboarding
 store.ts          the port; store.pg.ts is what runs, store.memory.ts is what tests run against
-llm/              port.ts + prompt.ts + openrouter.ts + demo.ts. Prompts are authored ONCE, in prompt.ts.
+llm/              port.ts + prompt.ts + openrouter.ts + demo.ts. Prompts are AUTHORED in prompt.ts and
+                  may be OVERRIDDEN by a row in llm_prompts; prompt.ts is the seed and the fallback
                   `coach` is the agent loop; its tools are closures the ENGINE builds (engine/coach.ts)
 auth/             token issue/verify. Tokens are stored as sha256, never in the clear
 config.ts         configDefaults() is the single source of defaults; loadConfig() layers env over it
@@ -87,6 +88,13 @@ New endpoint → the route in `src/shared/contract.ts` FIRST, then one handler h
 engine function, then a client method. New product logic → `engine/`. New LLM capability → a port
 type in `llm/port.ts`, a prompt in `prompt.ts`, an implementation in `openrouter.ts`, and a canned
 one in `demo.ts` so the tests still run.
+
+A SEVENTH SYSTEM PROMPT IS FOUR EDITS, and the tests name the one you forget: the constant and its
+entry in `PROMPT_DEFAULTS`, its key in `PROMPT_KEYS`, the same key in the `llm_prompts_key_check`
+constraint in `store.pg.ts`, and the call site in `openrouter.ts` reading it off `await prompts()`
+rather than importing the constant. Miss the constraint and `prompt.schema.test.ts` fails naming
+the key with no database; miss it and run the store contract suite against Postgres and that fails
+naming it too.
 
 ## Auth, the paid tier, and the surfaces the server owns
 
@@ -264,8 +272,30 @@ one in `demo.ts` so the tests still run.
   The redirect is the BUNDLE ID scheme, the one of Google's two accepted forms that Expo's
   scheme plugin already registers; writing `ios.infoPlist.CFBundleURLTypes` to take the other turns
   that plugin off and drops the app's own deep links.
-- **Prompts and schemas are authored once**, in `src/backend/llm/prompt.ts`. No prompt string is
-  written anywhere else.
+- **A system prompt is AUTHORED in `src/backend/llm/prompt.ts` and may be OVERRIDDEN by a row.** It
+  used to be truer than that — "no prompt string is written anywhere else" — and it stopped being
+  true when the prose moved into `llm_prompts` so it could be edited without a deploy. What still
+  holds: no second prompt string is written in the SOURCE, the six constants are the SEED AND THE
+  FALLBACK, and an empty table, a deleted row, a row that fails containment or a database that is
+  down all resolve back to them (`loadPrompts`, which cannot throw). `PROMPT_KEYS` is the set of
+  prompts that exist; the `llm_prompts` check constraint spells the same six out by hand, and
+  `prompt.schema.test.ts` fails naming the key when the two disagree, so a seventh prompt cannot
+  half-land. What did NOT move, and must not: `normalizePromptText` (a containment boundary, not
+  editable content), every `build*` function (they interpolate the user's own data and enforce its
+  caps — a stored template would be a language this repo then owns), the Zod schemas, and
+  `COACH_TOOL_DEFS` (both are structurally coupled to what the engine parses into). A stored prompt
+  replaces the TEXT of one system message and reaches nothing else: it is JSON-escaped into that
+  field, so text shaped like a second message, a tool definition or a tool result stays text.
+  **Validated on the WRITE** (`validateStoredPrompt`, via `savePrompt`), because a stored prompt
+  meets no reviewer and no typecheck — same character classes `normalizePromptText` strips, minus
+  its shape rules, since a prompt is the frame around a span rather than a span. Refused, never
+  repaired: silently deleting a character changes what the model was asked without telling anyone.
+  The table is **append-only** (`(key, version)`), because an edit that changes model behaviour with
+  no record is the failure mode here — `store.promptRevisions` is the trail. **Global rows, no
+  `user_id`, and that is safe because a prompt is not a user's data**: it is what this server sends
+  on behalf of every account, so there is no query here to widen past one. What would falsify all of
+  this: a per-user prompt (it would need the scoping), or any builder, schema or tool definition
+  following the prose into the table.
 - **Public copy passes a claims gate before it is written, not before it is reviewed.**
   `src/landing/claims.ts` fails the build on a health claim (`lose weight`, `guaranteed`,
   `lowers cholesterol`, `detox`) and on a superiority or exclusivity claim (`the only app`, `every

@@ -34,6 +34,7 @@ export {
   adminMetrics, type AdminMetricsView,
   onboardingFunnel,
 } from "./onboarding.ts";
+export { livePrompts, savePrompt, type PromptView, type PromptSave } from "./prompts.ts";
 // The onboarding sequence lives in `@eait/shared` so the app derives the same "what's next" the
 // server validates against. Re-exported here only so engine callers have one import.
 export { stepApplies, ONBOARDING_STEPS, type OnboardingStep } from "@eait/shared";

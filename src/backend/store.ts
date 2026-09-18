@@ -169,6 +169,22 @@ export interface PortionCorrection {
   grams_after: number;
 }
 
+/**
+ * One revision of one system prompt.
+ *
+ * `key` is a `PromptKey` (`llm/prompt.ts`) and is typed as a plain string here on purpose: this
+ * port stores rows and does not decide which prompts exist. The code's set is `PROMPT_KEYS`, the
+ * database's is the `llm_prompts` check constraint, and a test compares the two.
+ */
+export interface PromptRevision {
+  key: string;
+  /** Monotonic per key, assigned by the store. 1 is the first override ever saved for that key. */
+  version: number;
+  text: string;
+  /** When this revision went live. The other half of "what were we sending on the 3rd". */
+  updated_at: string;
+}
+
 /** What those corrections add up to for one food. */
 export interface PortionPrior {
   name: string;
@@ -769,6 +785,37 @@ export interface Store {
   getNotificationCopy(): Promise<NotificationCopy | null>;
   /** Replace it. Validated by the caller — the store writes what it is given. */
   putNotificationCopy(copy: NotificationCopy): Promise<void>;
+
+  // ── The prompts the model is sent ───────────────────────────────────────────────────────────
+  //
+  // The same shape as the two above — editable words, a shape that is not, a compiled-in default
+  // when nothing has been saved — with one difference: these are APPEND-ONLY. Onboarding copy is
+  // pinned to one row because the thing an admin needs to undo a bad edit is the previous JSON and
+  // the version number in the payload carries it. A prompt has no such payload and a worse failure
+  // mode: it changes what a model was asked, silently, on every later analysis. So every revision
+  // stays, `getPrompts` serves the newest, and `promptRevisions` is how "what were we sending in
+  // August" is answered at all.
+  //
+  // GLOBAL, AND DELIBERATELY SO, in a port whose every other read and write is scoped to an
+  // account. A prompt is not a user's data: it is the instruction this server sends on behalf of
+  // all of them, written by the admin role and read by the LLM transport. No `userId` is taken by
+  // any of the three, so there is no query here to widen past one — the failure the scoping rule
+  // prevents cannot be written. A per-user prompt would be a different feature and would need it.
+
+  /**
+   * The live revision of every prompt that has one. An empty list is the normal state of a fresh
+   * database, and it means "send the compiled-in prompts" rather than "broken" — `loadPrompts`
+   * turns both that and a thrown error into `PROMPT_DEFAULTS`.
+   */
+  getPrompts(): Promise<PromptRevision[]>;
+  /**
+   * Append a revision and return its version. Validated by the caller
+   * (`validateStoredPrompt`) — the store writes what it is given, as it does for the copy above.
+   * The version is assigned HERE rather than accepted, so two concurrent saves cannot share one.
+   */
+  putPrompt(key: string, text: string): Promise<number>;
+  /** Every revision of one prompt, newest first. The audit trail, and the way back. */
+  promptRevisions(key: string): Promise<PromptRevision[]>;
   /**
    * Append funnel events, ignoring ids already stored. Returns how many were new.
    *
