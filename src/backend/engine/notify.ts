@@ -95,18 +95,17 @@ export async function saveNotificationCopy(
 ): Promise<NotificationCopyValidation> {
   const result = validateNotificationCopy(input);
   if (!result.ok) return result;
-  // Read-modify-write over the set, for `saveOnboardingContent`'s reason: one row holds every
-  // language, and a save in one must not blank the seven it is not editing.
-  const stored = storedNotificationCopy(await deps.store.getNotificationCopy());
-  await deps.store.putNotificationCopy({ ...stored, [lang]: result.content });
+  // ONE LANGUAGE, and the store merges it into the other seven. This used to read the set here and
+  // write the whole thing back, which is safe only while nobody else is saving: two admins on two
+  // languages, and the later write carries a snapshot from before the earlier one landed.
+  await deps.store.putNotificationCopy(lang, result.content);
   return result;
 }
 
 /** Restore the shipped words for one language. The undo button for an edit that went wrong. */
 export async function resetNotificationCopy(deps: EngineDeps, lang: Lang): Promise<NotificationCopy> {
   const restored = notificationCopyFor(lang);
-  const stored = storedNotificationCopy(await deps.store.getNotificationCopy());
-  await deps.store.putNotificationCopy({ ...stored, [lang]: restored });
+  await deps.store.putNotificationCopy(lang, restored);
   return restored;
 }
 

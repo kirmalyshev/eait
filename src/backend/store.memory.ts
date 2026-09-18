@@ -126,7 +126,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const chat: ChatMessage[] = [];
   let chatSeq = 0;
   const firstVerdictSpoken = new Set<string>();
-  let notificationCopy: NotificationCopySet | null = null;
+  let notificationCopy = (opts.seed?.notificationCopy ?? null) as NotificationCopySet | null;
   // Keyed by the TOKEN, exactly as Postgres is: a token is an installation, so registering it under
   // a second account moves it rather than adding a row.
   const pushTokens = new Map<string, { userId: string; platform: PushPlatform }>();
@@ -154,7 +154,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     source: string;
     createdAt: number;
   }>();
-  let onboardingContent: OnboardingContentSet | null = null;
+  // `opts.seed` is how a test starts from a row an OLDER server wrote — see `StoreOptions`. Cast
+  // rather than validated, because the whole point of those shapes is that no current type fits.
+  let onboardingContent = (opts.seed?.onboardingContent ?? null) as OnboardingContentSet | null;
   /**
    * Every prompt revision ever written, exactly as Postgres keeps them: nothing is overwritten and
    * the newest version per key is the live one. A flat list rather than a map by key, because the
@@ -757,8 +759,17 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return onboardingContent ? clone(onboardingContent) : null;
     },
 
-    async putOnboardingContent(content) {
-      onboardingContent = clone(content);
+    async putOnboardingContent(lang, content, floorVersion) {
+      // MERGE, not replace — the Postgres one does this with `jsonb_set` on the locked row, and a
+      // memory store that replaced the document instead would prove the engine safe against a race
+      // the real store is the only one that can have.
+      const set = { ...(onboardingContent as Record<string, { version?: number }> | null) };
+      const highest = Math.max(0, ...Object.values(set)
+        .map((c) => c?.version)
+        .filter((v): v is number => typeof v === "number"));
+      const version = Math.max(floorVersion, highest + 1);
+      onboardingContent = clone({ ...set, [lang]: { ...content, version } }) as typeof onboardingContent;
+      return version;
     },
 
     async getNotificationCopy() {
@@ -789,8 +800,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return version;
     },
 
-    async putNotificationCopy(copy) {
-      notificationCopy = clone(copy);
+    async putNotificationCopy(lang, copy) {
+      // Merged, for `putOnboardingContent`'s reason.
+      notificationCopy = clone({ ...notificationCopy, [lang]: copy }) as typeof notificationCopy;
     },
 
     async recordOnboardingEvents(userId, events) {

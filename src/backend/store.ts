@@ -12,7 +12,8 @@
 
 import type { PromptSource } from "./llm/prompt.ts";
 import type {
-  DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopySet, OnboardingContentSet,
+  DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, NotificationCopySet,
+  OnboardingContent, OnboardingContentSet,
   OnboardingEvent, Profile, Provider, ChatEvent, ChatSpeaker } from "@eait/shared";
 import type { RouteResult } from "./llm/port.ts";
 
@@ -291,6 +292,20 @@ export interface StoreOptions {
    * — including the values it writes, so an injected clock governs both sides of a comparison.
    */
   now?: () => number;
+  /**
+   * Documents a row already holds, for a test that must start from what an OLDER SERVER wrote.
+   *
+   * MEMORY STORE ONLY, and deliberately typed `unknown`: the shapes it exists to reproduce are the
+   * ones no current type describes — a bare `OnboardingContent` from before #358 gave the row a
+   * language dimension, a `NotificationCopy` missing a message a later build added, a message a
+   * NEWER build wrote that this one has never heard of. Those are exactly the rows whose handling
+   * has to be tested, and none of them can be written through `putOnboardingContent` any more, now
+   * that the store merges one language at a time instead of taking a document whole.
+   *
+   * It is not on the port and Postgres ignores it. Seeding a real database would be a migration
+   * fixture, which is a different thing and belongs in a different test.
+   */
+  seed?: { onboardingContent?: unknown; notificationCopy?: unknown };
   /**
    * Upper bound on the connection pool, for the implementations that have one.
    *
@@ -788,8 +803,24 @@ export interface Store {
    * which it was, because English was all there was. No column and no migration.
    */
   getOnboardingContent(): Promise<OnboardingContentSet | null>;
-  /** Replace it. Validated by the caller — the store writes what it is given. */
-  putOnboardingContent(content: OnboardingContentSet): Promise<void>;
+  /**
+   * Write ONE language's revision, merging it into whatever the other seven hold.
+   *
+   * THE MERGE IS THE STORE'S, not the engine's, and that is the whole signature. The engine used to
+   * read the set, spread its own language over it and write the lot back — which is safe exactly
+   * while nobody else is saving. Two admins on two languages at once, and the second write carries a
+   * snapshot taken before the first one landed: the first language silently reverts, the write
+   * succeeds, and nothing anywhere says so. `AGENTS.md` states this by name — *state conditions live
+   * in the store's own guarded statements, never in a read the engine did first*.
+   *
+   * `floorVersion` IS A FLOOR, NOT THE ANSWER. The version is one counter across all eight languages
+   * (`nextVersion` in `engine/onboarding.ts` says why), so it has the same problem: computed from a
+   * read, two concurrent saves get the same number, and two revisions with different words share one
+   * funnel row. The store takes `greatest(floorVersion, highest stored + 1)` in the SAME statement
+   * that writes, and RETURNS what it assigned — so the caller reports the number that is actually
+   * in the row rather than the one it hoped for.
+   */
+  putOnboardingContent(lang: Lang, content: OnboardingContent, floorVersion: number): Promise<number>;
 
   // ── Notification copy ──────────────────────────────────────────────────────────────────────
   //
@@ -800,8 +831,12 @@ export interface Store {
 
   /** The admin-edited notification copy, per language, or null when nothing has ever been saved. */
   getNotificationCopy(): Promise<NotificationCopySet | null>;
-  /** Replace it. Validated by the caller — the store writes what it is given. */
-  putNotificationCopy(copy: NotificationCopySet): Promise<void>;
+  /**
+   * Write ONE language's copy, merging it into whatever the other seven hold.
+   *
+   * `putOnboardingContent` above carries the argument; it applies here unchanged, minus the version.
+   */
+  putNotificationCopy(lang: Lang, copy: NotificationCopy): Promise<void>;
 
   // ── The prompts the model is sent ───────────────────────────────────────────────────────────
   //

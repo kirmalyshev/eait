@@ -256,10 +256,13 @@ describe("copy is stored per language, in one row", () => {
     // there was. Adopting it for every language would serve an admin's English to a German.
     const legacy = clone(DEFAULT_ONBOARDING_CONTENT);
     legacy.welcome.cta = "Onwards";
-    await store.putOnboardingContent(legacy as never);
+    // SEEDED, not written: `putOnboardingContent` takes one language now, so the shape this test is
+    // about — a bare revision with no language dimension at all — can no longer be written through
+    // the port. Which is the point: only an older server could have made this row.
+    const legacyDeps = { ...deps, store: memoryStore({ seed: { onboardingContent: legacy } }) };
 
-    expect((await onboardingContent(deps, "en")).welcome.cta).toBe("Onwards");
-    expect((await onboardingContent(deps, "de")).welcome.cta).toBe(ONBOARDING_CONTENT.de!.welcome.cta);
+    expect((await onboardingContent(legacyDeps, "en")).welcome.cta).toBe("Onwards");
+    expect((await onboardingContent(legacyDeps, "de")).welcome.cta).toBe(ONBOARDING_CONTENT.de!.welcome.cta);
   });
 
   it("numbers every revision from ONE counter, so two languages never share a version", async () => {
