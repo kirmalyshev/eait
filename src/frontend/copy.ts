@@ -423,7 +423,7 @@ const VI: WebCopy = {
   budgetLeft: "còn lại", budgetOver: "vượt", budgetUnder: "thiếu",
   targetLine: "Mục tiêu {target} · {protein} g đạm",
   eatenLine: "Đã ăn {eaten} trên {target} · đạm {protein} trên {proteinTarget} g",
-  floor: "Mục tiêu của bạn đang ở mức thấp nhất mà ứng dụng này từng đề xuất.",
+  floor: "Mục tiêu của bạn đang ở mức thấp nhất mà ứng dụng này sẽ đề xuất.",
   connectHealth: "Kết nối Apple Health trong ứng dụng eait trên iPhone để cân nặng giữ mục tiêu này luôn mới.",
   weightLine: "Cân nặng {kg} kg.",
   weightLineWhen: "Cân nặng {kg} kg, cân {when}.",

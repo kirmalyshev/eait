@@ -39,6 +39,13 @@ export interface PageCopy {
   chatMealGone: string;
   chatPlaceholder: string;
   chatSend: string;
+  /**
+   * A meal card's figures: `{kcal}` (already grouped), `{unit}` from `UNIT_KCAL`, `{protein}`.
+   *
+   * The unit is a PLACEHOLDER rather than spelled into each translation, so this key and
+   * `UNIT_KCAL` cannot drift — Russian writes `ккал` in exactly one place.
+   */
+  cardMacros: string;
   chatProposalLead: string;
   /** A proposal whose items the analyzer could not name. */
   chatAMeal: string;
@@ -134,6 +141,7 @@ const EN: PageCopy = {
   chatMealGone: "That meal is no longer in the diary.",
   chatPlaceholder: "What did you eat?",
   chatSend: "Send",
+  cardMacros: "{kcal} {unit} · {protein} g protein",
   chatProposalLead: "Logging this — look right?",
   chatAMeal: "A meal",
   chatConfirm: "Log it",
@@ -214,6 +222,7 @@ const FR: PageCopy = {
   chatMealGone: "Ce repas n'est plus dans le journal.",
   chatPlaceholder: "Tu as mangé quoi ?",
   chatSend: "Envoyer",
+  cardMacros: "{kcal} {unit} · {protein} g de protéines",
   chatProposalLead: "J'enregistre ça — ça te va ?",
   chatAMeal: "Un repas",
   chatConfirm: "Enregistrer",
@@ -277,6 +286,7 @@ const DE: PageCopy = {
   chatMealGone: "Diese Mahlzeit ist nicht mehr im Tagebuch.",
   chatPlaceholder: "Was hast du gegessen?",
   chatSend: "Senden",
+  cardMacros: "{kcal} {unit} · {protein} g Eiweiß",
   chatProposalLead: "Ich trage das ein — passt das?",
   chatAMeal: "Eine Mahlzeit",
   chatConfirm: "Eintragen",
@@ -340,6 +350,7 @@ const IT: PageCopy = {
   chatMealGone: "Quel pasto non è più nel diario.",
   chatPlaceholder: "Cosa hai mangiato?",
   chatSend: "Invia",
+  cardMacros: "{kcal} {unit} · {protein} g di proteine",
   chatProposalLead: "Sto registrando questo — ti torna?",
   chatAMeal: "Un pasto",
   chatConfirm: "Registra",
@@ -403,6 +414,7 @@ const ES: PageCopy = {
   chatMealGone: "Esa comida ya no está en el diario.",
   chatPlaceholder: "¿Qué comiste?",
   chatSend: "Enviar",
+  cardMacros: "{kcal} {unit} · {protein} g de proteína",
   chatProposalLead: "Voy a registrar esto — ¿te cuadra?",
   chatAMeal: "Una comida",
   chatConfirm: "Registrar",
@@ -466,6 +478,7 @@ const VI: PageCopy = {
   chatMealGone: "Bữa đó không còn trong nhật ký nữa.",
   chatPlaceholder: "Bạn đã ăn gì?",
   chatSend: "Gửi",
+  cardMacros: "{kcal} {unit} · {protein} g đạm",
   chatProposalLead: "Mình ghi cái này nhé — có đúng không?",
   chatAMeal: "Một bữa ăn",
   chatConfirm: "Ghi lại",
@@ -529,6 +542,7 @@ const ID: PageCopy = {
   chatMealGone: "Makanan itu sudah tidak ada di buku harian.",
   chatPlaceholder: "Kamu makan apa?",
   chatSend: "Kirim",
+  cardMacros: "{kcal} {unit} · {protein} g protein",
   chatProposalLead: "Aku catat ini — sudah benar?",
   chatAMeal: "Sebuah makanan",
   chatConfirm: "Catat",
@@ -592,6 +606,7 @@ const RU: PageCopy = {
   chatMealGone: "Этого приёма пищи больше нет в дневнике.",
   chatPlaceholder: "Что было на тарелке?",
   chatSend: "Отправить",
+  cardMacros: "{kcal} {unit} · {protein} г белка",
   chatProposalLead: "Записываю вот это — всё верно?",
   chatAMeal: "Приём пищи",
   chatConfirm: "Записать",

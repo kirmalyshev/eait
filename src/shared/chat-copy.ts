@@ -173,7 +173,7 @@ const FR: ThreadCopy = {
 const DE: ThreadCopy = {
   scripted: {
     "camera-closed": "Kein Stress. Der Plan steht in deinem Tagebuch — fotografier die nächste Mahlzeit, wenn sie kommt. Das ist die ganze Gewohnheit, und wenn nichts passiert, sage ich morgen einmal Bescheid.",
-    "trial-started": "Test läuft. Sieben Tage, danach {price}, wenn du nicht stoppst — ich erinnere dich am fünften Tag und am Tag davor, nie am Tag danach.",
+    "trial-started": "Test läuft. Sieben Tage, danach {price}, wenn du nicht stoppst — ich erinnere dich am fünften Tag und am Tag vor dem Ende, nie am Tag danach.",
     "trial-day-one": "Dein erster Tag läuft. Um 20:30 bekommst du eine Zeile — der Tag gegen den Plan, und eine konkrete Sache für morgen. Vorher nichts.",
     "notify-primer": "Noch etwas, wonach iOS gleich fragt: Mitteilungen. Eine am Tag und nie mehr — die 20:30-Zeile, plus zwei Erinnerungen vor Ende der Gratiswoche, wenn du in ihr bist. Sonst nie etwas.",
     "restored": "Wiederhergestellt — du bist drin. Ein Foto oder ein Satz, beides trägt eine Mahlzeit ein.",
