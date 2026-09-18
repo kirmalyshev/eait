@@ -263,7 +263,7 @@ const FR: ChatCopy = {
   },
   goalCards: {
     lose: {
-      title: "Tu es loin d'être seul",
+      title: "Tu es en bonne compagnie",
       body: "Environ 42% des adultes essaient de perdre du poids sur une année donnée. La différence ici : ton objectif est calculé correctement, avec un plancher qu'on ne franchit pas.",
       source: "Revue systématique de 72 études · n = 1,18 M d'adultes",
     },
@@ -294,7 +294,7 @@ const FR: ChatCopy = {
       source: "CivicScience, 1,2 M de réponses",
     },
     binge: {
-      title: "Tu n'es pas seul là-dedans",
+      title: "Ça n'arrive pas qu'à toi",
       body: "L'hyperphagie boulimique est le trouble alimentaire le plus fréquent — environ 2,8% des adultes en remplissent les critères à un moment, et 17% des personnes qui démarrent un programme de poids sont dépistées positives. Si les crises semblent hors de contrôle, un clinicien aide plus que n'importe quelle appli. Ici, une journée difficile est une donnée, jamais un verdict.",
       source: "NIMH (NCS-R) · étude sur 6 930 débuts de programme",
     },
@@ -610,7 +610,7 @@ const IT: ChatCopy = {
       source: "CivicScience, 1,2 mln di risposte",
     },
     binge: {
-      title: "Non sei solo in questo",
+      title: "Non succede solo a te",
       body: "Il disturbo da alimentazione incontrollata è il disturbo alimentare più diffuso — circa il 2,8% degli adulti ne soddisfa i criteri a un certo punto, e il 17% di chi inizia un programma di peso risulta positivo allo screening. Se gli episodi sembrano fuori controllo, un clinico aiuta più di qualsiasi app. Qui una giornata difficile è un dato, mai un verdetto.",
       source: "NIMH (NCS-R) · studio su 6.930 persone all'inizio di un programma",
     },
@@ -768,7 +768,7 @@ const ES: ChatCopy = {
       source: "CivicScience, 1,2 M de respuestas",
     },
     binge: {
-      title: "No estás solo en esto",
+      title: "No te pasa solo a ti",
       body: "El trastorno por atracón es el trastorno alimentario más común — alrededor del 2,8% de los adultos cumple los criterios en algún momento, y el 17% de quienes empiezan un programa de peso da positivo en el cribado. Si los episodios se sienten fuera de control, un profesional ayuda más que cualquier app. Aquí un día duro es un dato, nunca un veredicto.",
       source: "NIMH (NCS-R) · estudio de 6.930 personas al inicio de un programa",
     },
@@ -1242,7 +1242,7 @@ const RU: ChatCopy = {
       source: "CivicScience, 1,2 млн ответов",
     },
     binge: {
-      title: "Ты в этом не один",
+      title: "Так бывает не только у тебя",
       body: "Компульсивное переедание — самое распространённое расстройство пищевого поведения: около 2,8% взрослых в какой-то момент отвечают его критериям, а 17% тех, кто начинает программу по весу, дают положительный скрининг. Если приступы ощущаются неуправляемыми, врач поможет больше любого приложения. Здесь тяжёлый день — это данные, а не приговор.",
       source: "NIMH (NCS-R) · исследование 6 930 начавших программу",
     },
@@ -1253,7 +1253,7 @@ const RU: ChatCopy = {
     },
     eatout: {
       title: "Ресторанные тарелки уводят сильнее всего",
-      body: "Оценки уплывают сильнее всего на еде, которую ты не готовил сам, — и именно с этим фотографии справляются лучше всего. Когда я не уверен, я так и скажу, а не сделаю вид.",
+      body: "Оценки уплывают сильнее всего на еде, которую готовил кто-то другой, — и именно с этим фотографии справляются лучше всего. Когда я не уверен, я так и скажу, а не сделаю вид.",
     },
     energy: {
       title: "Энергия — честная метрика",
@@ -1312,9 +1312,9 @@ const RU: ChatCopy = {
     many: "С каждым из этого мы умеем работать — план строится вокруг, а не вопреки. Осталось два коротких вопроса.",
   },
   restrictions: {
-    kidneys: "Записал. С этого момента натрий оценивается — и только потому, что ты попросил.",
-    ldl: "Записал. С этого момента насыщенные жиры оцениваются — и только потому, что ты попросил.",
-    ldlChained: "Насыщенные жиры тоже оцениваются — правило то же: только то, что ты указал.",
+    kidneys: "Записал. С этого момента натрий оценивается — и только по твоей просьбе.",
+    ldl: "Записал. С этого момента насыщенные жиры оцениваются — и только по твоей просьбе.",
+    ldlChained: "Насыщенные жиры тоже оцениваются — правило то же: только по твоей просьбе.",
     declared: "Записал — это уходит в профиль, и оценивается только оно.",
     none: "Тогда ничего дополнительно не оценивается — неуказанное не оценивается никогда. Добавить можно в любой момент в настройках.",
     freeText: "И свободный текст тоже уходит в профиль.",
@@ -1326,7 +1326,7 @@ const RU: ChatCopy = {
     target_weight_kg: "Число в кг — например 70.",
   },
   ambiguousAge: {
-    line: "Хочу убедиться, что понял правильно: если ты имел в виду {year} год, пришли все четыре цифры.",
+    line: "Хочу убедиться, что понял правильно: если речь про {year} год, пришли все четыре цифры.",
     confirm: "Мне {age}",
   },
   direction: {

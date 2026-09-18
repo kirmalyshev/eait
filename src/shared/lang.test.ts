@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import {
-  LANGS_READY, LANG_LABEL, LANG_TAG, localizedGaps, monthYear, numbers, t, type Localized,
+  LANGS_READY, LANG_LABEL, LANG_TAG, genderedRussian, localizedGaps, monthYear, numbers, t,
+  type Localized,
 } from "./lang.ts";
 
 // The localization spine (#474, slice 1 of #358). Nothing user-visible ships with it: what is
@@ -111,5 +112,27 @@ describe("localizedGaps — the check that keeps this true after everybody leave
     const a: Record<string, unknown> = { name: "a" };
     a.self = a;
     expect(localizedGaps({ a }, ["en"])).toEqual([]);
+  });
+});
+
+describe("genderedRussian — the check no English-reading reviewer could be", () => {
+  it("catches a second-person past tense, which in Russian always picks a gender", () => {
+    // The exact string that shipped on the chat composer, in three surfaces at once.
+    expect(genderedRussian({ placeholder: "Что ты ел?" })).toEqual([{ at: "placeholder", text: "ты ел" }]);
+    expect(genderedRussian({ a: { b: "Скажи, что ты ел, и запиши заново." } })[0]?.at).toBe("a.b");
+  });
+
+  it("catches it across a couple of words, because that is where it hides", () => {
+    expect(genderedRussian(["еда, которую ты не готовил сам"])).toHaveLength(1);
+  });
+
+  it("says nothing about Spud talking about HIMSELF, which is his gender to have", () => {
+    expect(genderedRussian({ x: "Записал. С этого момента натрий оценивается." })).toEqual([]);
+    expect(genderedRussian({ x: "Когда я не уверен, я так и скажу." })).toEqual([]);
+  });
+
+  it("needs no language bucket, because no other language can match it", () => {
+    // Every string in the graph is asked, so a table that stops being `Localized` stays covered.
+    expect(genderedRussian({ de: "Damit bist du nicht allein", fr: "Ça n'arrive pas qu'à toi" })).toEqual([]);
   });
 });

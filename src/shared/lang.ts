@@ -241,3 +241,46 @@ export function localizedGaps(root: unknown, ready: readonly Lang[] = LANGS_READ
 /** `localizedGaps` as a sentence per gap, for a test that has to name what to go and write. */
 export const describeGaps = (gaps: readonly LocalizedGap[]): string[] =>
   gaps.map((g) => `${g.table} has no ${g.lang} (${LANG_LABEL[g.lang]})`);
+
+// ── The check that keeps the Russian from deciding who the reader is ─────────────────────────
+
+/**
+ * A Russian sentence that has picked a gender for the person reading it.
+ *
+ * WHY THIS IS A TEST AND NOT A STYLE NOTE. Russian past tense agrees with the speaker's gender —
+ * there is no neutral form — so `что ты ел?` greets every woman using this app as a man. It shipped
+ * on the chat composer's placeholder, in three surfaces at once, and no reviewer who does not read
+ * Russian could have seen it: the string is correct, idiomatic, complete, and wrong about half the
+ * people who read it. English has nothing that behaves this way, so nothing in the review of the
+ * English source could have caught it either.
+ *
+ * IT NEEDS NO LANGUAGE BUCKET. A string in any other language has no Cyrillic in it, so the pattern
+ * cannot match one — which means this walks every string in the graph and asks the question of all
+ * of them, and a table that stops being `Localized` does not slip out of the check.
+ *
+ * WHAT IT DOES NOT COVER, deliberately: `сам`/`одна` and the short adjectives are gendered too, but
+ * catching them needs a window wide enough to catch ordinary prose with it. The past tense is the
+ * one that is ALWAYS gendered and never ambiguous, and it was every instance this repo had. A
+ * `сам` slipping past is a wart; this was thirteen sentences.
+ */
+// NOT `\b`: JavaScript's word boundary is ASCII, so it never fires between a space and `т`
+// and the whole pattern silently matches nothing. The lookarounds are the Cyrillic version.
+const RU_READER_GENDERED = /(?<![а-яё])ты\s+(?:[а-яё]+\s+){0,2}[а-яё]+л(?:а|о|и|ся|ась)?(?![а-яё])/giu;
+
+/** Every string under `root` that tells a Russian reader what gender they are. */
+export function genderedRussian(root: unknown): { at: string; text: string }[] {
+  const found: { at: string; text: string }[] = [];
+  const seen = new WeakSet<object>();
+  const walk = (node: unknown, at: string): void => {
+    if (typeof node === "string") {
+      for (const m of node.matchAll(RU_READER_GENDERED)) found.push({ at, text: m[0] });
+      return;
+    }
+    if (typeof node !== "object" || node === null || seen.has(node)) return;
+    seen.add(node);
+    if (Array.isArray(node)) { node.forEach((v, i) => { walk(v, `${at}[${i}]`); }); return; }
+    for (const [k, v] of Object.entries(node)) walk(v, at === "" ? k : `${at}.${k}`);
+  };
+  walk(root, "");
+  return found;
+}

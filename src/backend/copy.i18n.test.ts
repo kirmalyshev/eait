@@ -10,7 +10,7 @@
 // the alternative — walking the filesystem at test time — reads worse than it protects.
 
 import { describe, expect, it } from "bun:test";
-import { LANGS_READY, describeGaps, localizedGaps } from "@eait/shared";
+import { LANGS_READY, describeGaps, genderedRussian, localizedGaps } from "@eait/shared";
 import * as page from "./web/copy.ts";
 import * as telegram from "./telegram/copy.ts";
 import * as mail from "./mail/port.ts";
@@ -29,4 +29,11 @@ describe("every Localized table the backend owns", () => {
     const found = new Set(localizedGaps(TABLES, ["en", "zz" as never]).map((g) => g.table.split(".")[0]));
     expect([...found].sort()).toEqual(["mail", "page", "telegram"]);
   });
+  it("never tells a Russian reader what gender they are", () => {
+    // Russian past tense agrees with the speaker's gender and has no neutral form, so `что ты ел?`
+    // greets every woman here as a man. It is invisible to a reviewer who does not read Russian:
+    // the string is correct, idiomatic and complete. See `genderedRussian` in `shared/lang.ts`.
+    expect(genderedRussian(TABLES)).toEqual([]);
+  });
+
 });
