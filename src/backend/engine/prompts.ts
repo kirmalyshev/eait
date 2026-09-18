@@ -46,10 +46,13 @@ export async function livePrompts(deps: EngineDeps): Promise<PromptView[]> {
   return PROMPT_KEYS.map((key) => {
     const row = stored.find((r) => r.key === key);
     // The same guard the read side runs: a row that would not pass the gate is not shown as live,
-    // because it is not what the model is being sent.
-    const usable = row && validateStoredPrompt(key, row.text).ok ? row : undefined;
+    // because it is not what the model is being sent. And what IS shown is the gate's OWN text
+    // rather than the column's — a hand-edited row with CRLF line endings is canonicalised before
+    // it is sent, so showing the raw column would display something the server does not use.
+    const checked = row ? validateStoredPrompt(key, row.text) : undefined;
+    const usable = checked?.ok ? { row: row!, text: checked.text } : undefined;
     return usable
-      ? { key, text: usable.text, version: usable.version, updated_at: usable.updated_at, stored: true }
+      ? { key, text: usable.text, version: usable.row.version, updated_at: usable.row.updated_at, stored: true }
       : { key, text: PROMPT_DEFAULTS[key], version: 0, updated_at: null, stored: false };
   });
 }

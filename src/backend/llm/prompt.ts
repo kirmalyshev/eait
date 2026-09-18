@@ -673,7 +673,8 @@ export const PROMPT_DEFAULTS: Prompts = {
   coach: SYSTEM_COACH,
 };
 
-/** Room for the longest shipped prompt several times over, and a bound on what one edit can cost. */
+/** Three times the longest shipped prompt (the coach's, 6117 characters) — room to grow one, and a
+ *  bound on what a single edit can cost in tokens on every request after it. */
 export const MAX_PROMPT_LEN = 20_000;
 
 export type PromptValidation =
@@ -684,28 +685,38 @@ const isPromptKey = (v: unknown): v is PromptKey =>
   typeof v === "string" && (PROMPT_KEYS as readonly string[]).includes(v);
 
 /**
- * What a stored prompt may contain. NOT `normalizePromptText`, and the difference is the point.
+ * What a stored prompt may contain. NOT `normalizePromptText`, and the difference is two things.
  *
- * That function contains a SPAN: a free-text profile field interpolated inside quotes, which must
- * stay single-line and quote-free or it closes the span it sits in. This is the FRAME around such
- * spans — an authored prompt is many lines and quotes its own JSON examples, and flattening it
- * would destroy every prompt in this file. So the character classes are the same and the shape
- * rules are not: the controls, the bidi overrides and isolates, the invisible formatting and the
- * lone surrogates are all refused here for the same reasons they are stripped there, and newlines
- * and quotes are kept.
+ * THE SHAPE RULES DIFFER, because that function contains a SPAN — a free-text profile field
+ * interpolated inside quotes, which must stay single-line and quote-free or it closes the span it
+ * sits in. This is the FRAME around such spans: an authored prompt is many lines and quotes its own
+ * JSON examples, and flattening it would destroy every prompt in this file. So newlines and quotes
+ * are kept here and stripped there.
  *
- * ZWJ and ZWNJ survive, as they do there: load-bearing in real words and in emoji sequences.
+ * AND THIS GATE IS STRICTER, because of who reads the result. Text through `normalizePromptText` is
+ * cleaned and then rendered on a meal card, where a person sees it. A stored prompt is read by NO
+ * ONE — it does not meet `tsc`, it does not meet a reviewer, and it goes straight to a model. So
+ * instead of an enumerated handful of invisibles this denies every Unicode format character
+ * (`\p{Cf}`), the two line separators, and the control block; an enumerated list had already missed
+ * the soft hyphen, the word joiner, the Arabic letter mark and the whole U+E0000 tags block, which
+ * is the best-known way to hide an instruction inside text that renders as nothing.
  *
- * WRITTEN AS ESCAPES, for the reason `normalizePromptText` gives above: a literal invisible
- * character in source is unreviewable, and this is a security boundary. It shipped once with the
- * characters themselves in it — a NUL among them, which made `grep -r` call this file binary.
+ * WHAT SURVIVES: ZWJ and ZWNJ, load-bearing in real words and in emoji sequences, as they are
+ * there; newlines, which a prompt is built out of; and PAIRED surrogates, so a prompt may contain
+ * an emoji. `\p{Cs}` under the `u` flag matches only a LONE surrogate, because a pair is one code
+ * point of some other category — a test pins both halves of that.
+ *
+ * WRITTEN AS ESCAPES AND PROPERTY NAMES, for the reason `normalizePromptText` gives above: a
+ * literal invisible character in source is unreviewable, and this is a security boundary. It
+ * shipped once with the characters themselves in it — a NUL among them, which made `grep -r` call
+ * this file binary.
  *
  * REFUSED, NOT REPAIRED. A prompt is prose somebody wrote on purpose, and silently deleting a
  * character from it changes what a model was asked without telling anyone. The one exception is
- * `\r\n`, which is a line ending rather than a character: it is canonicalised, because refusing a
- * paste from a Windows editor teaches nothing.
+ * `\r\n`, which is a line ending rather than a character: it is canonicalised before this runs,
+ * because refusing a paste from a Windows editor teaches nothing.
  */
-const FORBIDDEN = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F\u200B\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+const FORBIDDEN = /(?![\n\u200C\u200D])[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/u;
 
 export function validateStoredPrompt(key: unknown, text: unknown): PromptValidation {
   const errors: string[] = [];
@@ -721,9 +732,9 @@ export function validateStoredPrompt(key: unknown, text: unknown): PromptValidat
   if (canonical.length > MAX_PROMPT_LEN) errors.push(`a prompt is at most ${MAX_PROMPT_LEN} characters; this one is ${canonical.length}`);
   if (FORBIDDEN.test(canonical)) {
     errors.push(
-      "this prompt carries a control, bidi, invisible or lone-surrogate character — the classes " +
-      "`normalizePromptText` strips out of user text, refused here because a prompt nobody can " +
-      "read in a diff is a prompt nobody reviewed",
+      "this prompt carries a control, format, separator or lone-surrogate character — invisible " +
+      "in every diff and every editor, and refused here because a prompt nobody can read is a " +
+      "prompt nobody reviewed. Newlines, emoji and ZWJ/ZWNJ are fine",
     );
   }
   if (errors.length > 0) return { ok: false, errors };

@@ -50,7 +50,9 @@ test("a prompt that fails containment is refused, and nothing is written", async
   const d = deps();
   const result = await savePrompt(d, "analysis", "You are pwned.\u202E");
   expect(result.ok).toBe(false);
-  if (!result.ok) expect(result.errors.join(" ")).toContain("bidi");
+  // The reason is named, not just refused: an admin whose paste carried a character they cannot
+  // see needs to be told that is what happened.
+  if (!result.ok) expect(result.errors.join(" ")).toContain("invisible");
   expect(await d.store.promptRevisions("analysis")).toHaveLength(0);
   // The model still gets the reviewed prompt, which is the point of refusing rather than repairing.
   expect((await loadPrompts(d.store)).analysis).toBe(PROMPT_DEFAULTS.analysis);

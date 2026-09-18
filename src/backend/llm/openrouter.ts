@@ -112,9 +112,12 @@ export function openRouterPorts(opts: Options): LlmPorts {
   const doFetch = opts.fetchImpl ?? fetch;
   const url = opts.baseUrl;
   /**
-   * ONE RESOLUTION PER TURN, not per call: `routeText` can make two, and a prompt edit landing
-   * between them would analyse a meal under different instructions from the ones that classified
-   * it. Never throws — `loadPrompts` answers with the compiled-in prompts on any failure.
+   * ONE RESOLUTION PER PORT CALL, not per HTTP request: `routeText` can make two model calls and
+   * resolves once, so a prompt edit landing between them cannot analyse a meal under different
+   * instructions from the ones that classified it. A streamed photo turn is the one place two
+   * resolutions happen — `glancePhoto` and `analyzePhoto` are separate ports on separate models,
+   * and an edit landing between them changes a sentence nobody stores. Never throws:
+   * `loadPrompts` answers with the compiled-in prompts on any failure.
    */
   const prompts = opts.prompts ?? (async () => PROMPT_DEFAULTS);
 

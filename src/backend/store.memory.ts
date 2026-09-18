@@ -762,7 +762,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async putPrompt(key, text) {
       const version = Math.max(0, ...promptRevisionRows.filter((r) => r.key === key).map((r) => r.version)) + 1;
-      promptRevisionRows.push({ key, version, text, updated_at: new Date().toISOString() });
+      // `now()` rather than `new Date()`: every other timestamp in this store comes from the
+      // injectable clock, and a fixture that ignores it is one a time-travelling test cannot pin.
+      promptRevisionRows.push({ key, version, text, updated_at: new Date(now()).toISOString() });
       return version;
     },
 

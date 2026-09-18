@@ -287,9 +287,13 @@ naming it too.
   replaces the TEXT of one system message and reaches nothing else: it is JSON-escaped into that
   field, so text shaped like a second message, a tool definition or a tool result stays text.
   **Validated on the WRITE** (`validateStoredPrompt`, via `savePrompt`), because a stored prompt
-  meets no reviewer and no typecheck — same character classes `normalizePromptText` strips, minus
-  its shape rules, since a prompt is the frame around a span rather than a span. Refused, never
-  repaired: silently deleting a character changes what the model was asked without telling anyone.
+  meets no reviewer and no typecheck. It is not `normalizePromptText` and differs from it twice: the
+  shape rules are dropped (a prompt is the FRAME around a span, so its newlines and quotes survive),
+  and the character rules are STRICTER — every Unicode format character rather than an enumerated
+  handful, because text through that function is rendered on a card where a person sees it, and a
+  stored prompt is read by nobody before a model reads it. Emoji survive; only LONE surrogates are
+  refused. Refused, never repaired: silently deleting a character changes what the model was asked
+  without telling anyone.
   The table is **append-only** (`(key, version)`), because an edit that changes model behaviour with
   no record is the failure mode here — `store.promptRevisions` is the trail. **Global rows, no
   `user_id`, and that is safe because a prompt is not a user's data**: it is what this server sends

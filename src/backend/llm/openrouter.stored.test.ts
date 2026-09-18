@@ -84,10 +84,10 @@ describe("a stored prompt reaches the model", () => {
 
   test("a stored glance prompt is used, and the compiled-in one is not", async () => {
     const { llm, bodies } = ports([{}], { glance: "Two words." });
-    // The glance is not a schema call — it returns the raw line.
-    const impl = bodies;
+    // The glance is not a schema call — it returns the raw line, and an empty one throws. What is
+    // under test is the request, so the rejection is swallowed.
     await llm.glancePhoto({ lang: "en", images: [new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0])] }).catch(() => {});
-    expect(messagesOf(impl[0]!)[0]!.content).toBe("Two words.");
+    expect(messagesOf(bodies[0]!)[0]!.content).toBe("Two words.");
   });
 
   test("a stored coach prompt is the persona; the context under it is still computed", async () => {
