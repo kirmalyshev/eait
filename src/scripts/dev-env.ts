@@ -69,35 +69,54 @@ export function parseWorktrees(porcelain: string): WorktreeEntry[] {
 /**
  * What a test database's name is the dev one's plus.
  *
- * Slot 0 therefore keeps `eait_test`, which is the name the README and the contract suite named
- * back when there was only ever one of them.
+ * A DOUBLE UNDERSCORE, AND THAT IS THE WHOLE COLLISION ARGUMENT. `dbNameFor` collapses every run of
+ * non-alphanumerics to ONE underscore and strips them from both ends, so no dev name it can ever
+ * produce contains `__` — while every name this suffix makes does. The two namespaces are therefore
+ * disjoint by construction rather than by luck.
+ *
+ * A single `_test` is NOT disjoint, and the failure is silent and destructive: `eait_fix_test` is
+ * the dev database of a worktree on branch `fix-test` AND the test database of a worktree on branch
+ * `fix`. The contract suite MIGRATES AND WRITES, so the second worktree's test run rewrites the
+ * first one's development data. `eait_test` itself is the dev name of a branch called plain `test`.
+ * Branches ending in `-test` are not exotic, and nothing would have reported the overlap.
  */
-export const TEST_DB_SUFFIX = "_test";
+export const TEST_DB_SUFFIX = "__test";
 
 /**
- * A branch name as a Postgres database name, optionally suffixed.
+ * A dev database's name → the name of the test database beside it.
+ *
+ * THE SUFFIX IS SPENT INSIDE THE 63-CHARACTER BUDGET, NOT AFTER IT. Appending to a name already at
+ * 63 hands Postgres 69 characters, which it truncates back to 63 with only a NOTICE — and what
+ * survives is the first 63, which is the DEV name exactly. Verified against the real server: a
+ * 65-character branch gave `…for_the_alpha__test` → stored as `…for_the_alpha_`, character for
+ * character the unsuffixed name. The migrating, writing contract suite would have run against the
+ * database you develop in, and the only thing that ever said so was a notice on a `createdb`
+ * nobody reads twice.
+ *
+ * Taking the DEV NAME rather than the slot and the branch is what keeps one rule: an overridden
+ * `dbName` gets the test database that belongs to it, and `src/scripts/worktree.sh` can fall back
+ * to the same value for a `.env.worktree` written before this key existed.
+ *
+ * (Two dev names identical in their first 57 characters share a test database, the same way two
+ * branches identical in their first 63 have always shared a dev one.)
+ */
+export function testDbNameFor(dbName: string): string {
+  return dbName.slice(0, 63 - TEST_DB_SUFFIX.length) + TEST_DB_SUFFIX;
+}
+
+/**
+ * A branch name as a Postgres database name.
  *
  * Slot 0 keeps the plain `eait`, which is the database everything already points at. Every other
  * slot is prefixed, so `psql -l` groups them and so a name starting with a digit — which Postgres
  * would need quoted everywhere — cannot happen.
- *
- * THE SUFFIX IS SPENT INSIDE THE 63-CHARACTER BUDGET, NOT AFTER IT. Truncating to 63 first and
- * appending `_test` afterwards hands Postgres 68 characters, which it truncates back to 63 with
- * only a NOTICE — and what survives is the first 63, which is the DEV name exactly. Verified
- * against the real server: a 65-character branch gave `…for_the_alpha__test` → stored as
- * `…for_the_alpha_`, character for character this function's unsuffixed output. The migrating,
- * writing contract suite would have run against the database you develop in, and the only thing
- * that ever said so was a notice on a `createdb` nobody reads twice.
- *
- * (Two branches identical in their first 63 characters still collide, as they always did. The
- * suffix does not make that worse; it does not make it better either.)
  */
-export function dbNameFor(slot: number, branch: string, suffix = ""): string {
-  if (slot === 0) return `eait${suffix}`;
+export function dbNameFor(slot: number, branch: string): string {
+  if (slot === 0) return "eait";
   const cleaned = branch.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   // 63 is Postgres's identifier limit and it truncates silently, which would make two long branch
   // names the same database without saying so.
-  return `eait_${cleaned || String(slot)}`.slice(0, 63 - suffix.length) + suffix;
+  return `eait_${cleaned || String(slot)}`.slice(0, 63);
 }
 
 /**
@@ -161,7 +180,7 @@ export function planFor(slot: number, branch: string, o: PlanOverrides = {}): Wo
   const backendPort = PORT_BASE.backend + slot * PORT_STEP;
   const webPort = PORT_BASE.web + slot * PORT_STEP;
   const dbName = o.dbName || dbNameFor(slot, branch);
-  const testDbName = dbNameFor(slot, branch, TEST_DB_SUFFIX);
+  const testDbName = testDbNameFor(dbName);
   const pgBase = (o.pgBaseUrl || DEFAULT_PG_BASE_URL).replace(/\/+$/, "");
   const apiHost = o.apiHost || "127.0.0.1";
   return {

@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import {
   PORT_BASE, PORT_STEP, dbNameFor, safeToken, branchDrift, planFor, parseWorktrees,
   resolveSlot, envIsSafe, worktreeEnvValues, carriedOver, parseEnvText, DERIVED_KEYS,
-  TEST_DB_SUFFIX,
+  TEST_DB_SUFFIX, testDbNameFor,
 } from "./dev-env.ts";
 
 describe("ports", () => {
@@ -54,21 +54,36 @@ describe("database names", () => {
     expect(dbNameFor(1, "x".repeat(200)).length).toBe(63);
   });
 
-  // THE SUFFIX COMES OUT OF THE BUDGET, NOT AFTER IT. Slicing to 63 and appending `_test` hands
-  // Postgres 68 characters; it keeps the first 63 and drops the rest with only a NOTICE, and the
+  // THE SUFFIX COMES OUT OF THE BUDGET, NOT AFTER IT. Appending to a name already at 63 hands
+  // Postgres 69 characters; it keeps the first 63 and drops the rest with only a NOTICE, and the
   // first 63 ARE the dev name. So the naive version does not merely collide two test databases —
   // it points the migrating, writing contract suite at the database you develop in. The second
   // assertion is the one that catches that.
-  test("a suffixed name is 63 characters INCLUDING the suffix, and is never the dev name", () => {
-    const long = "x".repeat(200);
-    const name = dbNameFor(1, long, TEST_DB_SUFFIX);
+  test("a test name is 63 characters INCLUDING the suffix, and is never the dev name", () => {
+    const dev = dbNameFor(1, "x".repeat(200));
+    const name = testDbNameFor(dev);
     expect([name.length, name.endsWith(TEST_DB_SUFFIX)]).toEqual([63, true]);
-    expect(name).not.toBe(dbNameFor(1, long));
+    expect(name).not.toBe(dev);
   });
 
-  test("slot 0's test database is the eait_test everything already documented", () => {
-    expect(dbNameFor(0, "anything", TEST_DB_SUFFIX)).toBe("eait_test");
-    expect(planFor(0, "main").testDbName).toBe("eait_test");
+  test("slot 0's test database sits beside slot 0's dev one", () => {
+    expect(testDbNameFor(dbNameFor(0, "anything"))).toBe("eait__test");
+    expect(planFor(0, "main").testDbName).toBe("eait__test");
+  });
+
+  // THE TWO NAMESPACES ARE DISJOINT BY CONSTRUCTION, and a single `_test` is what makes that false:
+  // `eait_fix_test` is branch `fix-test`'s DEV database and branch `fix`'s TEST database, and the
+  // contract suite migrates and writes. `dbNameFor` collapses every run of non-alphanumerics to one
+  // underscore, so no dev name it produces can contain `__` — which every test name does.
+  test("a branch named for a test cannot take another worktree's test database", () => {
+    for (const [devBranch, testBranch] of [["fix-test", "fix"], ["test", "main"], ["7-test", "---"]]) {
+      expect(dbNameFor(1, devBranch!)).not.toBe(planFor(2, testBranch!).testDbName);
+    }
+    expect(dbNameFor(7, "---")).not.toBe(planFor(7, "anything").testDbName);
+    // The general rule, rather than the three cases above: a dev name never contains `__`.
+    for (const branch of ["fix--test", "a/__b", "feat/x  y", "__lead", "trail__"]) {
+      expect(dbNameFor(1, branch)).not.toContain("__");
+    }
   });
 
   test("no two slots share a database, dev or test, and no dev database is a test one", () => {
@@ -81,6 +96,13 @@ describe("database names", () => {
       }
       expect(p.testDatabaseUrl).toBe(p.databaseUrl.replace(/[^/]+$/, p.testDbName));
     }
+  });
+
+  // An overridden dev name takes its test database with it. Deriving the test name from the slot
+  // and the branch instead would have left the override pointing at a stranger's rows.
+  test("an overridden database name carries its own test database", () => {
+    const p = planFor(2, "feat/x", { dbName: "borrowed" });
+    expect([p.dbName, p.testDbName]).toEqual(["borrowed", "borrowed__test"]);
   });
 
   test("a branch with nothing usable in it falls back to the slot", () => {

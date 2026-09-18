@@ -73,13 +73,15 @@ bun run web:e2e       # the browser suite in the Chrome already installed, again
 ```
 
 `bun run check` never needs Docker: the store contract suite skips its Postgres half, loudly, when
-`TEST_DATABASE_URL` is unset. `./dev test` is the opt-in that sets it — to this worktree's own test
-database, `eait_test` in a single checkout and `eait_<branch>_test` in a linked worktree, created
-by `./dev db up` alongside the dev one. Do not set that variable by hand and do not create a
-database called `eait_test` yourself: that suite MIGRATES and WRITES, so a fixed name shared by
-several checkouts is several test runs writing each other's rows. It is also a database of its
-own rather than the one you develop against, because `./dev seed` writes an admin and two of its
-assertions are about a database with none.
+`TEST_DATABASE_URL` is unset (CI sets it too, at a Postgres of its own). `./dev test` is the opt-in
+that sets it here — to this worktree's own test database, `eait__test` in a single checkout and
+`eait_<branch>__test` in a linked worktree, created by `./dev db up` alongside the dev one. Do not
+set that variable by hand and do not create a test database yourself: that suite MIGRATES and
+WRITES, so a fixed name shared by several checkouts is several test runs writing each other's rows.
+It is also a database of its own rather than the one you develop against, because `./dev seed`
+writes an admin and two of its assertions are about a database with none. The double underscore is
+load-bearing — a branch name cannot produce one, so no branch's dev database is another branch's
+test database.
 
 ## Rules
 

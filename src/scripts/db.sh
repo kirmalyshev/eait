@@ -12,7 +12,7 @@
 # server runs against; the test one is what the store contract suite migrates and writes, and it is
 # separate because `./dev seed` puts an admin in the dev one and two of that suite's assertions are
 # about a database with no admin in it. Without `.env.worktree` these fall back to `eait` and
-# `eait_test`, which are slot 0's and what this script used before slots existed.
+# `eait__test`, which are slot 0's and what this script used before slots existed.
 #
 #   sh src/scripts/db.sh [up|down|psql|create|drop|list|nuke]     (or: ./dev db …)
 set -eu

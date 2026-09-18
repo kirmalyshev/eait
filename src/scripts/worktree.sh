@@ -34,10 +34,18 @@ EAIT_DB_NAME="${EAIT_DB_NAME:-eait}"
 EAIT_DATABASE_URL="${EAIT_DATABASE_URL:-postgres://eait:eait@127.0.0.1:5433/$EAIT_DB_NAME}"
 # The store contract suite's database — a SECOND database per worktree, because that suite migrates
 # and writes and two of its assertions want no admin in the rows, which `./dev seed` puts in the dev
-# one. Slot 0's is `eait_test`, the name the docs named before slots existed. The warning above now
-# covers two names: `db.sh drop` in a worktree that never derived drops BOTH of slot 0's.
-EAIT_TEST_DB_NAME="${EAIT_TEST_DB_NAME:-eait_test}"
-EAIT_TEST_DATABASE_URL="${EAIT_TEST_DATABASE_URL:-postgres://eait:eait@127.0.0.1:5433/$EAIT_TEST_DB_NAME}"
+# one. Slot 0's is `eait__test`. The warning above now covers two names: `db.sh drop` in a worktree
+# that never derived drops BOTH of slot 0's.
+#
+# FROM `EAIT_DB_NAME`, NOT FROM A LITERAL, and that is not tidying either. A `.env.worktree` written
+# before this key existed sets the dev name and not this one — a file, so no default above fires —
+# and a literal here would hand every such worktree SLOT 0'S test database while its dev database
+# stayed its own. The silent slot-0 fallback, in the one command that migrates and writes.
+# `%.57s` keeps the budget: 57 + `__test` is 63, and Postgres truncates a longer name to 63 with
+# only a notice — which for a name already at 63 is the dev database, exactly.
+EAIT_TEST_DB_NAME="${EAIT_TEST_DB_NAME:-$(printf '%.57s__test' "$EAIT_DB_NAME")}"
+# Same server as the dev one by construction, so an overridden `EAIT_PG_BASE_URL` reaches both.
+EAIT_TEST_DATABASE_URL="${EAIT_TEST_DATABASE_URL:-${EAIT_DATABASE_URL%/*}/$EAIT_TEST_DB_NAME}"
 
 export EAIT_SLOT EAIT_BRANCH EAIT_BACKEND_PORT EAIT_WEB_PORT EAIT_WEB_URL EAIT_API_URL \
        EAIT_DB_NAME EAIT_DATABASE_URL EAIT_TEST_DB_NAME EAIT_TEST_DATABASE_URL
