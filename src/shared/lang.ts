@@ -133,6 +133,23 @@ export const wholeNumbers = (lang: Lang) => {
 export const monthYear = (lang: Lang, at: Date): string =>
   new Intl.DateTimeFormat(LANG_TAG[lang], { month: "long", year: "numeric", timeZone: "UTC" }).format(at);
 
+/**
+ * A client-supplied locale, narrowed to a language this server stores. Unknown is English.
+ *
+ * ONE COPY, because there were three: `/v1/auth/device` narrowing a phone's locale, `/start`
+ * reading `Accept-Language`, and the Telegram connector reading `from.language_code`. Each took the
+ * first two characters and compared against `LANGS`, and the day a three-letter code or a language
+ * with a script subtag arrives they would have to be fixed three times — in two workspaces.
+ *
+ * It narrows to `LANGS` and NOT to `LANGS_READY`: this is what the server will STORE and what the
+ * model answers in, which is the wider claim. A phone in a language the app has no screens for
+ * still gets its meal names in that language, which is what it got before any of this.
+ */
+export function narrowLang(locale: string | null | undefined): Lang {
+  const head = (locale ?? "").trim().toLowerCase().split(/[-_]/)[0] ?? "";
+  return (LANGS as readonly string[]).includes(head) ? (head as Lang) : "en";
+}
+
 /** Every language, in a stable order, for a picker. `LANGS` is the source; this is its array form. */
 export const ALL_LANGS: readonly Lang[] = LANGS;
 

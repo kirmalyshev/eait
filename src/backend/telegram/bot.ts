@@ -10,7 +10,9 @@ import { run, sequentialize, type RunnerHandle } from "@grammyjs/runner";
 import { Bot, GrammyError, type Api, type Context } from "grammy";
 import type { EngineDeps } from "../engine/index.ts";
 import { AlbumBuffer } from "./albums.ts";
-import { TELEGRAM_COPY, TelegramFileError, telegramHandlers, type Button, type Tap } from "./handlers.ts";
+import { TelegramFileError, telegramHandlers, type Button, type Tap } from "./handlers.ts";
+import { telegramCopyFor } from "./copy.ts";
+import { narrowLang } from "@eait/shared";
 
 /** The Bot API serves a file up to 20 MB through `getFile`, and refuses anything larger. */
 const TELEGRAM_FILE_MAX_BYTES = 20 * 1024 * 1024;
@@ -169,7 +171,10 @@ export function createBot(deps: EngineDeps, token: string, opts: BotOptions = {}
     maxBytes: deps.config.maxUploadBytes, timeoutMs: DOWNLOAD_TIMEOUT_MS, ...(opts.fetch ? { fetch: opts.fetch } : {}),
   });
 
-  interface Part { from: number; read: () => Promise<Uint8Array>; caption: string | undefined; chat: Tap }
+  // `locale` is Telegram's `from.language_code` and is carried, not resolved: the handler prefers
+  // the ACCOUNT's language and reaches for this only when there is no account yet. Resolving it
+  // here would make that preference unexpressible.
+  interface Part { from: number; read: () => Promise<Uint8Array>; caption: string | undefined; chat: Tap; locale?: string | undefined }
   // The flush runs on a timer, outside every handler and outside `bot.catch`, so it says its own
   // failure. It is also outside `sequentialize`: an album and a message sent during its 1.5 s can
   // run side by side, which costs an ordering, never a double charge.
@@ -177,32 +182,35 @@ export function createBot(deps: EngineDeps, token: string, opts: BotOptions = {}
   // flush-on-stop in `AlbumBuffer` if a deploy ever lands on one.
   const albums = new AlbumBuffer<Part>(opts.albumMs ?? ALBUM_FLUSH_MS, (_key, parts) => {
     const first = parts[0]!;
-    return track(h.photos(first.from, parts.map((p) => p.read), parts.find((p) => p.caption)?.caption, first.chat)
+    return track(h.photos(first.from, parts.map((p) => p.read), parts.find((p) => p.caption)?.caption, first.chat, first.locale)
       .catch(async (e: unknown) => {
         console.error(`[eait] telegram album failed: ${describeError(e)}`);
-        await first.chat.send(TELEGRAM_COPY.failed).catch(() => {});
+        // The client's own language and not the account's: this is the LAST-RESORT path, after the
+        // handler that would have read the profile has already thrown.
+        await first.chat.send(telegramCopyFor(narrowLang(first.locale)).failed).catch(() => {});
       }));
   });
 
-  bot.command("start", (ctx) => h.start(ctx.from!.id, ctx.match, portsOf(ctx)));
-  bot.command("today", (ctx) => h.today(ctx.from!.id, portsOf(ctx)));
-  bot.on("callback_query:data", (ctx) => h.tap(ctx.from.id, ctx.callbackQuery.data, portsOf(ctx)));
-  bot.on("message:text", (ctx) => h.text(ctx.from.id, ctx.message.text, portsOf(ctx)));
+  bot.command("start", (ctx) => h.start(ctx.from!.id, ctx.match, portsOf(ctx), ctx.from?.language_code));
+  bot.command("today", (ctx) => h.today(ctx.from!.id, portsOf(ctx), ctx.from?.language_code));
+  bot.on("callback_query:data", (ctx) => h.tap(ctx.from.id, ctx.callbackQuery.data, portsOf(ctx), ctx.from.language_code));
+  bot.on("message:text", (ctx) => h.text(ctx.from.id, ctx.message.text, portsOf(ctx), ctx.from.language_code));
   bot.on("message:photo", async (ctx) => {
     const largest = ctx.message.photo.at(-1)!;
     const part: Part = {
-      from: ctx.from.id, read: download(ctx.api, largest.file_id), caption: ctx.message.caption, chat: portsOf(ctx),
+      from: ctx.from.id, read: download(ctx.api, largest.file_id), caption: ctx.message.caption,
+      chat: portsOf(ctx), locale: ctx.from.language_code,
     };
     const group = ctx.message.media_group_id;
     if (group !== undefined) return albums.add(`${ctx.from.id}:${group}`, part);
-    await h.photos(part.from, [part.read], part.caption, part.chat);
+    await h.photos(part.from, [part.read], part.caption, part.chat, part.locale);
   });
 
   // A failed handler never takes the loop down, and the person hears something. Worded as "it may
   // have gone through": the throw can come after a meal was logged, and "try again" logs it twice.
   bot.catch(async (err) => {
     console.error(`[eait] telegram handler failed (update ${err.ctx.update.update_id}): ${describeError(err.error)}`);
-    await err.ctx.reply(TELEGRAM_COPY.failed).catch(() => {});
+    await err.ctx.reply(telegramCopyFor(narrowLang(err.ctx.from?.language_code)).failed).catch(() => {});
   });
 
   return Object.assign(bot, {

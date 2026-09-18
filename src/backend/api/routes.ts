@@ -25,7 +25,7 @@ import {
   HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, type PushTokenResponse,
   type PairCodeResponse, type PendingMealsResponse,
 } from "@eait/shared";
-import { LANGS } from "@eait/shared";
+import { narrowLang } from "@eait/shared";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { isCalendarDate } from "@eait/shared";
 import type { Store } from "../store.ts";
@@ -55,11 +55,8 @@ function refusal(r: { kind: string; scope?: string }): Response {
   return json({ error: r.kind, ...(r.scope ? { scope: r.scope } : {}) }, status);
 }
 
-/** Narrow a client-supplied locale to a supported language. Unknown falls back to `en`. */
-function toLang(locale: string | undefined): Lang {
-  const head = (locale ?? "en").slice(0, 2).toLowerCase();
-  return (LANGS as readonly string[]).includes(head) ? (head as Lang) : "en";
-}
+/** Narrow a client-supplied locale to a supported language. One copy, in `@eait/shared`. */
+const toLang = narrowLang;
 
 /**
  * Where a browser goes after posting the subscribe form.
@@ -413,7 +410,17 @@ export function createRouter(
         };
         const result = await subscribe(
           subscribeDeps(req),
-          { email: field("email"), honeypot: field("company"), source: field("source") || "web" },
+          {
+            email: field("email"), honeypot: field("company"), source: field("source") || "web",
+            // THE BROWSER'S HEADER, because a subscriber has no account to ask. This is the one
+            // outbound message whose recipient the server knows nothing else about — `store.ts`
+            // forbids joining a subscriber to a user — so the strongest evidence available is the
+            // `Accept-Language` of the browser that posted this form a second ago. The language is
+            // used for the confirmation mail and is NOT stored: `subscribers` holds an address, a
+            // token and a source, and a language column would be one more thing held about
+            // somebody who consented to exactly one message.
+            lang: narrowLang(req.headers.get("accept-language")?.split(",")[0]),
+          },
         );
         // ── Where each outcome goes, and why it is not two branches ─────────────────────────
         //

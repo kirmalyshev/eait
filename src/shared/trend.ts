@@ -13,7 +13,9 @@
 
 import { dateMinus, monthOf, monthShift, windowStart } from "./dates.ts";
 import type { HealthDay, HealthMetric } from "./health.ts";
-import type { DayTotals } from "./types.ts";
+import { HEALTH_COPY } from "./health-copy.ts";
+import { t } from "./lang.ts";
+import type { DayTotals, Lang } from "./types.ts";
 
 /** The four x-axes. `label` is the control; `noun` is what a sentence calls one bucket. */
 export const TREND_PERIODS = [
@@ -231,12 +233,15 @@ export function correlate(a: readonly TrendPoint[], b: readonly TrendPoint[]): C
  * The relationship in words. A bare "r = 0.46" is a number most people have to look up; the
  * sentence is what the caption prints, and the number sits beside it for those who want it.
  */
-export function correlationWords(r: number): string {
+export function correlationWords(r: number, lang: Lang = "en"): string {
+  const copy = t(lang)(HEALTH_COPY).correlation;
   const size = Math.abs(r);
-  if (size < 0.2) return "no clear link";
-  const strength = size < 0.5 ? "weak" : size < 0.8 ? "moderate" : "strong";
-  const direction = r > 0 ? "they tend to rise together" : "one tends to rise as the other falls";
-  return `a ${strength} link — ${direction}`;
+  if (size < 0.2) return copy.none;
+  const strength = size < 0.5 ? copy.weak : size < 0.8 ? copy.moderate : copy.strong;
+  const direction = r > 0 ? copy.together : copy.opposed;
+  // The THRESHOLDS stay here and only the words move: which band a coefficient falls in is a claim
+  // about the arithmetic, and a translator has no business moving 0.5.
+  return copy.sentence.replace("{strength}", strength).replace("{direction}", direction);
 }
 
 /**
