@@ -1,0 +1,80 @@
+# The backend, as it runs in production. Built from the REPOSITORY ROOT:
+#
+#   docker build -f src/iac/Dockerfile.backend .
+#
+# Two stages, so the shipped image carries no lockfile-resolution machinery and no source it does
+# not execute. Bun runs TypeScript directly, so there is no build step to speak of — the "build"
+# here is dependency installation, and separating it is what lets Docker cache it across source
+# edits.
+
+FROM oven/bun:1.4.0-alpine AS deps
+WORKDIR /app
+
+# Manifests before source. A source edit then does not invalidate the dependency layer, which is
+# the slow one.
+#
+# ALL THREE WORKSPACE MANIFESTS, not just the backend's. bun resolves the `workspaces` list in the
+# root package.json BEFORE it applies `--filter`, so a listed directory that does not exist is a
+# hard error ("Workspace not found") even when nothing is going to install it.
+COPY package.json bun.lock ./
+COPY src/shared/package.json src/shared/
+COPY src/backend/package.json src/backend/
+COPY src/frontend/package.json src/frontend/
+
+# `--frozen-lockfile` refuses to silently resolve a different tree than the one that was tested. A
+# deploy that quietly upgrades a transitive dependency is a deploy you cannot reproduce.
+#
+# The syntax is `--filter=@eait/backend`, NOT `--filter '@eait/backend...'`. The trailing `...`
+# ("and its dependencies") is pnpm's; bun reads it as a name that matches no workspace, installs
+# NOTHING, and exits 0. The image then builds clean and dies at startup on a missing module.
+RUN bun install --frozen-lockfile --production --filter=@eait/backend
+
+
+FROM oven/bun:1.4.0-alpine AS runtime
+WORKDIR /app
+
+# NOTHING IS INSTALLED HERE, and that is deliberate. No package manager invocation and no Postgres
+# client, so there is less in the runtime image to have a CVE — and the build does not depend on the
+# Alpine package CDN being reachable, which is a network fetch on the critical path of every deploy
+# for a tool nothing here calls. The healthcheck below uses busybox's wget, from the base image.
+
+ENV NODE_ENV=production
+
+COPY package.json bun.lock ./
+COPY src/shared ./src/shared
+COPY src/backend ./src/backend
+
+# BOTH the hoisted store AND the workspace's own directory.
+#
+# bun does not put a workspace's dependencies in the root `node_modules` where a resolver walking up
+# from `src/backend` would find them. It creates `src/backend/node_modules` containing SYMLINKS into
+# `../../node_modules/.bun/<pkg>@<version>/node_modules/<pkg>`, plus an `@eait` directory linking
+# the sibling workspace. So both are needed: the root holds the real package contents under the
+# hidden `.bun` store — hidden being why a plain `ls node_modules` looks empty and is not — and the
+# workspace directory holds the links that resolve into it.
+#
+# These come AFTER the source copies, because a `COPY src/backend` afterwards would shadow them.
+#
+# `src/shared` gets no such directory and none is copied: it declares no runtime dependencies, only
+# the workspace link the backend resolves through. If it ever gains one, this build fails loudly at
+# the COPY rather than quietly at startup.
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/src/backend/node_modules ./src/backend/node_modules
+
+# `bun` is a non-root user the base image already provides. A container that runs as root is one
+# container escape away from being root on the box, and nothing here needs the privilege.
+USER bun
+
+# Bind every interface INSIDE the container. That is not the same as exposing it: the compose file
+# publishes no port for this service, so the only route in is the reverse proxy on the same Docker
+# network. The default is 127.0.0.1, which inside a container means "reachable by nothing at all".
+ENV EAIT__BACKEND__HOST=0.0.0.0
+ENV EAIT__BACKEND__PORT=8787
+EXPOSE 8787
+
+# Hits the app's own health route, so an unhealthy container is one whose HTTP surface is actually
+# broken — not merely one whose process is alive. `--spider` keeps the body off the disk.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -q --spider http://127.0.0.1:8787/health || exit 1
+
+CMD ["bun", "run", "src/backend/index.ts"]

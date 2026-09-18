@@ -51,6 +51,43 @@ Without it, the plain commands still work — `bun run demo` on :8787, `bun run 
 `EAIT__FRONTEND__BACKEND_ORIGIN=http://127.0.0.1:8787 bun run web` on :8788, and `bun run start`
 against a real database. `migrate()` creates the tables; it never creates the database.
 
+## Host it yourself
+
+`src/iac/` is how eait runs in production: an image for the backend, one for the web application,
+Postgres, and TLS in front of all of it on ONE hostname. That single origin is load-bearing — the
+browser client calls its API with relative paths under `connect-src 'self'` and the backend carries
+no CORS header, so splitting the two across two names breaks the security model, not just the
+routing.
+
+**It ships the application, not the machine.** Bring your own server with Docker on it, a domain
+whose A record already points at that server, and a key from a model provider. Then, on the server:
+
+```sh
+cp .env.prod.example .env.prod && chmod 600 .env.prod   # then fill it in
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+```
+
+That is the whole of it. Caddy gets a Let's Encrypt certificate on the first request for the name;
+the Postgres image creates the database and `migrate()` creates the tables inside it.
+`.env.prod.example` is the inventory of every setting, with the shipped default and a sentence on
+each, and `src/scripts/prod-env.test.ts` fails if it ever stops matching what the server reads.
+Nothing but Caddy publishes a port — reach the database with `docker compose exec db psql`.
+
+Prove it answers, on the one origin:
+
+```sh
+curl -s https://<your domain>/health      # {"ok":true,"demo":false}   the backend
+curl -s https://<your domain>/ | head -3  # the shell                  the web application
+```
+
+**What this does NOT do for you.** It does not touch your server: no provisioning, no hardening, no
+firewall rules, no SSH policy, no unattended upgrades — securing and patching the box is yours, and
+the containers here are not a substitute for it. There are no backups either, so a bad migration or
+a deleted volume loses every user's data; that is the largest thing left to build. Nothing monitors
+the instance between deploys, so one that dies at 02:00 is down until you notice. It does not buy
+the server, register the domain, create the DNS record or install Docker, and it does not register
+OAuth clients, obtain a model key, or pay the bill for what that key spends.
+
 ## Telegram
 
 The backend also runs a Telegram bot, in the same process, when `EAIT__BACKEND__TELEGRAM_BOT_TOKEN`

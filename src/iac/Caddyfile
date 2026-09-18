@@ -1,0 +1,137 @@
+# TLS termination, and the only thing on this box listening to the internet.
+#
+# A TEMPLATE, filled at deploy time — in CADDY's own `{$VAR}` form rather than a templating
+# language, and that is a decision. Anything that had to be RENDERED first would mean
+# `docker compose up` was not enough on its own, and this compose file is the only description of
+# the stack there is. The values come from `.env.prod`; the compose file maps them onto the names
+# below, which Caddy substitutes when it adapts this config INSIDE its container.
+#
+# Caddy issues and renews a Let's Encrypt certificate automatically as soon as the domain's A/AAAA
+# record points at this server. There is no certbot, no cron renewal, and no renewal that silently
+# stopped working eleven months ago — which is the actual failure mode being avoided here.
+{
+	email {$EAIT_ACME_EMAIL}
+
+	# `log_credentials` IS NOT SET, AND MUST NOT BE.
+	#
+	# Caddy redacts the Authorization and Cookie headers in its access log by default, and that
+	# global option is the switch that turns the redaction off. Every authenticated request to this
+	# API carries a bearer token in Authorization; enabling it would write a working credential for
+	# every user into the container log, and from there into whatever collects it.
+}
+
+{$EAIT_DOMAIN} {
+	# ── THIS IS WHERE THE ONE ORIGIN IS COMPOSED ─────────────────────────────────────────────
+	#
+	# The browser sees a single name. Behind it, `/` and `/app.js` are one container and everything
+	# else is another. That is what lets the client call `/api/v1/*` relative under
+	# `connect-src 'self'`, with no CORS header anywhere — and it is why splitting eait into two
+	# applications did not make it two origins. `src/frontend/AGENTS.md` owns that rule.
+	#
+	# TWO EXACT PATHS, NEVER A PREFIX. `/` and `/app.js` are the whole of what the web application
+	# serves; a catch-all here would swallow `/api`, `/start` and `/admin`. The frontend container
+	# answers 404 on both when no bundle was built, so an instance without a web application has
+	# none rather than half of one.
+	#
+	# `path`, NEVER `path_regexp`. Caddy cleans the path before a `path` matcher sees it, so
+	# `/admin/../app.js` cannot reach this block by a spelling the backend would then normalise back.
+	@app path / /app.js
+	handle @app {
+		reverse_proxy frontend:8788
+	}
+
+	# A login box is not something to index, and an API has nothing to index. Without this there is
+	# no robots.txt on this origin at all, which a crawler reads as "help yourself" — and it then
+	# walks an origin whose every useful path needs a bearer token.
+	handle /robots.txt {
+		header Content-Type "text/plain; charset=utf-8"
+		respond <<ROBOTS
+			User-agent: *
+			Disallow: /
+			ROBOTS
+	}
+
+	# ── EVERYTHING ELSE IS THE BACKEND'S ─────────────────────────────────────────────────────
+	#
+	# `/api/v1/*`, `/start`, `/admin`, `/health`, and the machine paths. ONE catch-all rather than a
+	# matcher each, because the backend already owns that decision: it answers 404 on a path it does
+	# not serve, and `/admin` resolves the account behind the bearer and answers 404 unless that
+	# account holds the admin ROLE — and 404, not 403, when nobody holds it at all. A matcher here
+	# would be a second, weaker copy of a rule that is already enforced where it counts.
+	#
+	# NO `handle_path`, so the `/api` prefix is NOT stripped here. `api/routes.ts` strips it itself
+	# and refuses the two machine paths under that spelling, which is what makes development — where
+	# there is no Caddy at all — serve the same shape as this. Stripping it here as well would be a
+	# second mechanism to keep in step with the first.
+	handle {
+		reverse_proxy backend:8787 {
+			# A BACKSTOP, AND IT MUST NEVER BE THE SHORTEST HOP. Three things bound a turn: the
+			# backend bounds each model call (EAIT__BACKEND__LLM_TIMEOUT_MS), the client bounds the
+			# whole turn, and this exists only so a hung backend cannot hold a socket open forever.
+			# Whichever fires first is the one the user experiences — and this one is the only one
+			# that can say nothing useful, because a 504 manufactured here arrives while the backend
+			# is still running the call and still being billed for it.
+			transport http {
+				response_header_timeout {$EAIT_PROXY_TIMEOUT:600s}
+				read_timeout {$EAIT_PROXY_TIMEOUT:600s}
+			}
+		}
+	}
+
+	# Refuse a body larger than the server would accept anyway, at the edge, before it is buffered.
+	# Keep this comfortably above EAIT__BACKEND__MAX_UPLOAD_MB × EAIT__BACKEND__MAX_PHOTOS_PER_MEAL
+	# plus multipart overhead: an edge limit BELOW the server's is a refusal a person meets after
+	# choosing their photos.
+	request_body {
+		max_size 100MB
+	}
+
+	encode zstd gzip
+
+	header {
+		# HSTS. Only meaningful once the certificate works — turning it on before that pins browsers
+		# to an https that is not yet serving. Six months, no preload: preload is very hard to undo.
+		Strict-Transport-Security "max-age=15552000"
+		X-Content-Type-Options "nosniff"
+		# This origin carries a sign-in and an admin, never an embeddable page.
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		-Server
+		# Caddy adds a `Via` on proxied responses, which names the software and its version just as
+		# `Server` did. Removing one and leaving the other is doing half of a small job.
+		-Via
+	}
+
+	# ── THE ACCESS LOG, AND WHAT IT MUST NOT KEEP ────────────────────────────────────────────
+	#
+	# A `log` in the GLOBAL block is not an access log — it configures the default logger. This one
+	# is site-level, which is what actually records requests.
+	#
+	# THE URI IS LOGGED IN FULL, AND THIS API PUTS CAPABILITIES IN IT. `?t=` is the double opt-in
+	# confirmation and the unsubscribe link, each of which works with no login and no confirmation
+	# screen: whoever read this log could confirm a subscription its addressee never agreed to, or
+	# take somebody off the list. `?code=` and `?state=` are the OAuth callback's. Caddy's automatic
+	# redaction reads headers by name and never reads a query, so it does none of this for you. The
+	# rest of the query survives, so `?t=X&keep=yes` logs as `?keep=yes` and the log stays worth
+	# having.
+	#
+	# The CLIENT ADDRESS is kept. It is what makes an abuse report investigable and what the
+	# per-address limits act on — so it earns its place, and because it earns it, whatever privacy
+	# notice this instance publishes has to say so.
+	log {
+		output stdout
+		format filter {
+			wrap console
+			fields {
+				request>uri query {
+					delete t
+					delete code
+					delete state
+				}
+				request>headers>User-Agent delete
+				request>headers>Referer delete
+				request>headers>Cookie delete
+			}
+		}
+	}
+}

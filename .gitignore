@@ -13,3 +13,6 @@ playwright-report/
 .dev/
 .env.worktree
 .eait-slot
+
+# The production environment file. It holds the model key and the database password.
+.env.prod
