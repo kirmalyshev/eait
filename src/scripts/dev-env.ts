@@ -34,8 +34,16 @@ export const PORT_BASE = { backend: 8787, web: 8788 } as const;
  */
 export const PORT_STEP = 10;
 
-/** The dev Postgres `docker-compose.yml` runs — one container, shared by every worktree. */
-export const DEFAULT_PG_BASE_URL = "postgres://eait:eait@127.0.0.1:5433";
+/**
+ * The dev Postgres `docker-compose.yml` runs — one container, shared by every worktree.
+ *
+ * The user is `eait_app`, NOT the `eait` the image creates. `eait` is the image's POSTGRES_USER and
+ * Postgres makes that a superuser, which bypasses row-level security silently — so the backend
+ * connecting as it would make every policy in `store.pg.ts` decorative on a developer's machine.
+ * `src/scripts/db.sh` creates `eait_app` and gives it this worktree's database; `eait` stays the
+ * maintenance role behind `./dev db`.
+ */
+export const DEFAULT_PG_BASE_URL = "postgres://eait_app:eait@127.0.0.1:5433";
 
 /** The file that remembers a worktree's slot. Gitignored; one line; a number. */
 export const SLOT_FILE = ".eait-slot";
@@ -64,6 +72,44 @@ export function parseWorktrees(porcelain: string): WorktreeEntry[] {
   }
   if (current) out.push(current);
   return out;
+}
+
+/**
+ * What a test database's name is the dev one's plus.
+ *
+ * A DOUBLE UNDERSCORE, AND THAT IS THE WHOLE COLLISION ARGUMENT. `dbNameFor` collapses every run of
+ * non-alphanumerics to ONE underscore and strips them from both ends, so no dev name it can ever
+ * produce contains `__` — while every name this suffix makes does. The two namespaces are therefore
+ * disjoint by construction rather than by luck.
+ *
+ * A single `_test` is NOT disjoint, and the failure is silent and destructive: `eait_fix_test` is
+ * the dev database of a worktree on branch `fix-test` AND the test database of a worktree on branch
+ * `fix`. The contract suite MIGRATES AND WRITES, so the second worktree's test run rewrites the
+ * first one's development data. `eait_test` itself is the dev name of a branch called plain `test`.
+ * Branches ending in `-test` are not exotic, and nothing would have reported the overlap.
+ */
+export const TEST_DB_SUFFIX = "__test";
+
+/**
+ * A dev database's name → the name of the test database beside it.
+ *
+ * THE SUFFIX IS SPENT INSIDE THE 63-CHARACTER BUDGET, NOT AFTER IT. Appending to a name already at
+ * 63 hands Postgres 69 characters, which it truncates back to 63 with only a NOTICE — and what
+ * survives is the first 63, which is the DEV name exactly. Verified against the real server: a
+ * 65-character branch gave `…for_the_alpha__test` → stored as `…for_the_alpha_`, character for
+ * character the unsuffixed name. The migrating, writing contract suite would have run against the
+ * database you develop in, and the only thing that ever said so was a notice on a `createdb`
+ * nobody reads twice.
+ *
+ * Taking the DEV NAME rather than the slot and the branch is what keeps one rule: an overridden
+ * `dbName` gets the test database that belongs to it, and `src/scripts/worktree.sh` can fall back
+ * to the same value for a `.env.worktree` written before this key existed.
+ *
+ * (Two dev names identical in their first 57 characters share a test database, the same way two
+ * branches identical in their first 63 have always shared a dev one.)
+ */
+export function testDbNameFor(dbName: string): string {
+  return dbName.slice(0, 63 - TEST_DB_SUFFIX.length) + TEST_DB_SUFFIX;
 }
 
 /**
@@ -119,6 +165,16 @@ export interface WorktreePlan {
   webUrl: string;
   dbName: string;
   databaseUrl: string;
+  /**
+   * The store contract suite's database, and NOT `dbName`.
+   *
+   * That suite migrates and writes, and two of its assertions are about a database with no admin
+   * in it — which `./dev seed` puts into the dev one. Derived rather than hardcoded so it cannot
+   * miss the slot: every worktree following one set of documented instructions against one fixed
+   * `eait_test` is several agents writing the same rows.
+   */
+  testDbName: string;
+  testDatabaseUrl: string;
   apiUrl: string;
 }
 
@@ -132,6 +188,7 @@ export function planFor(slot: number, branch: string, o: PlanOverrides = {}): Wo
   const backendPort = PORT_BASE.backend + slot * PORT_STEP;
   const webPort = PORT_BASE.web + slot * PORT_STEP;
   const dbName = o.dbName || dbNameFor(slot, branch);
+  const testDbName = testDbNameFor(dbName);
   const pgBase = (o.pgBaseUrl || DEFAULT_PG_BASE_URL).replace(/\/+$/, "");
   const apiHost = o.apiHost || "127.0.0.1";
   return {
@@ -142,6 +199,8 @@ export function planFor(slot: number, branch: string, o: PlanOverrides = {}): Wo
     webUrl: `http://${apiHost}:${webPort}`,
     dbName,
     databaseUrl: `${pgBase}/${dbName}`,
+    testDbName,
+    testDatabaseUrl: `${pgBase}/${testDbName}`,
     apiUrl: `http://${apiHost}:${backendPort}`,
   };
 }
@@ -293,6 +352,8 @@ export function worktreeEnvValues(plan: WorktreePlan): Record<string, string> {
     EAIT_WEB_URL: plan.webUrl,
     EAIT_DB_NAME: plan.dbName,
     EAIT_DATABASE_URL: plan.databaseUrl,
+    EAIT_TEST_DB_NAME: plan.testDbName,
+    EAIT_TEST_DATABASE_URL: plan.testDatabaseUrl,
     EAIT_API_URL: plan.apiUrl,
   };
   for (const key of Object.keys(values)) {
@@ -418,6 +479,8 @@ function show(root: string): void {
     ["web", plan.webUrl],
     ["database", plan.dbName],
     ["database url", plan.databaseUrl],
+    ["test database", plan.testDbName],
+    ["test database url", plan.testDatabaseUrl],
     ["worktree", res.entry.path],
   ];
   const w = Math.max(...rows.map(([k]) => k.length));

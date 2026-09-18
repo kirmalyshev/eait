@@ -10,7 +10,8 @@ The server. Root `AGENTS.md` covers the repo; this covers this workspace.
 api/routes.ts     one handler per route; it calls ONE engine function and returns
 engine/           all product logic — day/week, meals, chat, identity, entitlement, onboarding
 store.ts          the port; store.pg.ts is what runs, store.memory.ts is what tests run against
-llm/              port.ts + prompt.ts + openrouter.ts + demo.ts. Prompts are authored ONCE, in prompt.ts.
+llm/              port.ts + prompt.ts + openrouter.ts + demo.ts. Prompts are AUTHORED in prompt.ts and
+                  may be OVERRIDDEN by a row in llm_prompts; prompt.ts is the seed and the fallback
                   `coach` is the agent loop; its tools are closures the ENGINE builds (engine/coach.ts)
 auth/             token issue/verify. Tokens are stored as sha256, never in the clear
 config.ts         configDefaults() is the single source of defaults; loadConfig() layers env over it
@@ -27,8 +28,58 @@ route. A route that computes is a rule the tests cannot reach.
   credentials — never from a request body, a model output, or a tool call. Never widen a meal query
   beyond `id = ? AND user_id = ?`. The one exception is the RevenueCat webhook, where the id IS the
   message, and it is safe only because of the shared secret checked before the body is read.
+- **Row-level security is the second lock, and it is ARMED BY DEFAULT.** Every table whose rows
+  belong to one account has RLS `enable`d AND `force`d, with one policy: a statement sees a row only
+  when it has declared whose row it is, in `app.user_id`, for the length of its transaction. A
+  transaction that declares nothing matches nothing — `app_user_id()` is null, `column = null` is
+  null, and a policy that is not true refuses. So a read that forgets its own `user_id = ?` returns
+  NOTHING rather than returning everybody, which is the whole point of it. Measured, through the
+  live API, by deleting the predicate from `chatBefore`: with the policy on, one account's lines and
+  no others; with it off, 48 lines belonging to three accounts.
+  `RLS_TABLES` in `store.pg.ts` is the list and the DDL is generated from it — `users` (keyed on
+  `id`, the row IS the account), `tokens`, `identities`, `meals`, `meal_photos`, `pendings`,
+  `pairing_codes`, `portion_corrections`, `analyses`, `onboarding_events`, `chat_messages`,
+  `push_tokens`, `health_days`, `turns`. Out of it, because they belong to nobody: `onboarding_content`,
+  `notification_copy`, `subscribers`.
+- **What declares it is the store's own wrapper, and `SCOPE` says what every method may touch.**
+  `postgresStore` wraps each method in a transaction that sets `app.user_id` from the argument
+  holding it — so the ninety-nine statements in that file did not have to be rewritten, and one
+  added tomorrow is covered without being touched. `sql` there is the CURRENT connection, an
+  `AsyncLocalStorage`-backed proxy over the pool; the setting is always `set_config(…, true)`,
+  because `Bun.sql` hands a connection to the next caller the moment a transaction commits and a
+  session-level one would make them that user. A method that belongs to no account says
+  `"unscoped"` in `SCOPE` — resolving a user from a credential, `mergeUsers` and `moveIdentity`
+  (two accounts), `putPushToken` (one installation, deliberately moved between accounts), the admin
+  surface, the sweeps. That escape is explicit, enumerated and argued for one entry at a time, and
+  a test pins the whole list so adding one is a visible edit rather than the easy way past a
+  failure. The same goes for the two places a scoped method holds a global statement: `unscoped()`
+  turns it on for that statement and restores it in a `finally`.
+- **`force` is not decoration, and a superuser escapes it anyway.** The backend creates its own
+  tables and therefore OWNS them, and an owner is exempt from its own policies without `force`. A
+  SUPERUSER is exempt even with it, which is why `src/scripts/db.sh` gives the development database
+  to a plain `eait_app` role rather than the image's `eait`. The deployed role is configured outside
+  this repository, so `postgresStore` asks Postgres at boot and logs `row-level security is INERT`
+  when the connection bypasses — said rather than refused, because an inert lock is no reason to
+  take the product down on a deploy.
+- **Migrations run unscoped, on a connection that is then closed.** The DDL does not care, but the
+  BACKFILLS do: an `update` that repairs old rows would, on every database from its second boot
+  onwards, match nothing and report success. Its own connection, ended in a `finally`, so the escape
+  cannot outlive the migration even if it throws.
+- **None of this replaces `user_id = ?`.** Every predicate stays. A policy is what catches the one
+  that is missing, and two locks are the point. A new user-scoped table adds its line to
+  `RLS_TABLES` beside its `create table`; a new store method adds its line to `SCOPE`, and the
+  construction of the store throws if it does not. THE CHECKS ARE AUTOMATED, in
+  `store.contract.test.ts` → "row-level security": one reads `pg_class.relrowsecurity` /
+  `relforcerowsecurity` and `pg_policies` for every table the CATALOG says carries a `user_id` and
+  fails naming the one without a policy; another proves a connection declaring nobody reads and
+  writes nothing; another fails when a method is missing from `SCOPE` or lingers in it after being
+  renamed.
+
 - **Both store implementations must agree.** `store.contract.test.ts` runs the same suite against
-  each. A rule proven only against the memory store is a rule about a mock's mood.
+  each. A rule proven only against the memory store is a rule about a mock's mood. Its Postgres
+  half runs under `./dev test`, against this worktree's own DERIVED test database — never a
+  hand-created `eait_test`, which several worktrees would share while all of them migrate and
+  write it, and never the dev database, which `./dev seed` puts an admin into.
 - **Empty means absent, not zero.** `totalsSince` groups by date, so a day with no meals produces
   NO ROW. Anything reading it is reading "days that have something", and treating a missing row as
   a zero is a claim the query never made.
@@ -42,6 +93,13 @@ route. A route that computes is a rule the tests cannot reach.
   on ambiguity: a timeout or a truncation may have run — and so does a gateway status on any call
   but the FIRST of a turn (the schema retry, `routeText`'s focused second call), because those
   follow a completion that was billed.
+- **A billed turn runs once per client id** (#708). `logPhotoMeal` and `handleText` claim
+  `(user, clientId)` in `turns` before the caps (`engine/turns.ts`, `once`). A request re-sending the
+  id gets what the first attempt settled, refusals included, or waits for it; it never calls a model,
+  charges or logs. A first attempt that threw, or never settled within its budget, is
+  `OUTCOME_UNKNOWN` to its replay. A new billed route takes a `clientId` and goes through `once`, or
+  the clients' outboxes become the way to log a meal twice. The meal is dated by `capturedAt`; the
+  caps and the charge are the day the turn arrives.
 - **Errors are logged, never returned.** An error string from deep in the stack can carry the
   prompt, and the prompt carries the user's medical free text. Config goes through `redact()`.
 - **Never log the API key, the database URL with credentials, or raw image bytes.**
@@ -74,6 +132,12 @@ covering more than it does is how a client comes to refuse something the server 
 `bun test ./src/backend` — no database needed, because the memory store is a real implementation of
 the port rather than a mock. `EAIT__BACKEND__DATABASE_URL` is only for `make run-backend`.
 
+The Postgres half runs when `TEST_DATABASE_URL` is set and says loudly when it is not. Point it at a
+database of THIS worktree's own — `./dev env show` names the one the backend uses; the test suite
+wants a second one beside it, never slot 0's `eait`. The URL must name the `eait_app` role and not
+`eait`: the row-level-security cases assert that first, because a superuser reads every row whatever
+a policy says.
+
 The demo analyzer (`llm/demo.ts`) must stay **as poor as the real one**. A fake may be poorer than
 the real thing, never different in a way a test can see: it once supplied `verdicts: {}` where the
 real analyzer supplies none, so `--demo` could not reproduce a crash that hit every real run.
@@ -84,6 +148,14 @@ New endpoint → the route in `src/shared/contract.ts` FIRST, then one handler h
 engine function, then a client method. New product logic → `engine/`. New LLM capability → a port
 type in `llm/port.ts`, a prompt in `prompt.ts`, an implementation in `openrouter.ts`, and a canned
 one in `demo.ts` so the tests still run.
+
+A SEVENTH SYSTEM PROMPT IS FOUR EDITS, and the tests name the one you forget: the constant and its
+entry in `PROMPT_DEFAULTS`, its key in `PROMPT_KEYS`, the same key in the `llm_prompts_key_check`
+constraint in `store.pg.ts`, and the call site in `openrouter.ts` reading it off `await prompts()`
+rather than importing the constant. Nothing has to be seeded — every store writes the shipped text
+for a key it does not have, so the new prompt appears in `/admin/api/prompts` on the next boot. Miss the constraint and `prompt.schema.test.ts` fails naming
+the key with no database; miss it and run the store contract suite against Postgres and that fails
+naming it too.
 
 ## Auth, the paid tier, and the surfaces the server owns
 
@@ -181,6 +253,16 @@ one in `demo.ts` so the tests still run.
   refuse path the mail key uses, and every deploy then RESTORES the latest dump back from the
   remote and asserts it is a database dump, because an upload nobody has restored is not a backup.
   `make remote-backup-check` is that same proof on demand.
+- **The dump connects as the SUPERUSER `eait`, never as `eait_app`.** The backend owns its tables
+  and the policies are `force`d, so the owner is subject to them too — and `pg_dump` sets
+  `row_security = off`, which Postgres refuses outright from a role that cannot bypass:
+  `ERROR: query would be affected by row-level security policy for table "meals"`. The repair that
+  suggests itself, `--enable-row-security`, is the dangerous one: the dump session declares no
+  `app.user_id`, so it EXITS 0 AND WRITES A FILE WITH NO ROWS IN IT — measured, 0 of 168 — and the
+  deploy's restore check asserts only that the file is a dump, not that anything is in it. That is
+  the silent-data-loss shape this repository already has scar tissue for. `store.contract.test.ts`
+  pins both halves ("refuses a dump taken as the application role"), so the day somebody points the
+  backup at the application role, a test says which failure they bought.
 - **One health metric has an effect, and it is weight.** It updates `profile.weight_kg` server-side
   through the same range guard the manual form uses, and only when its measurement is NEWER than
   `weight_measured_at` — otherwise a sync firing seconds after the user types their weight silently
@@ -261,8 +343,63 @@ one in `demo.ts` so the tests still run.
   The redirect is the BUNDLE ID scheme, the one of Google's two accepted forms that Expo's
   scheme plugin already registers; writing `ios.infoPlist.CFBundleURLTypes` to take the other turns
   that plugin off and drops the app's own deep links.
-- **Prompts and schemas are authored once**, in `src/backend/llm/prompt.ts`. No prompt string is
-  written anywhere else.
+- **A system prompt is AUTHORED in `src/backend/llm/prompt.ts` and SERVED from a row.** It used to
+  be truer than that — "no prompt string is written anywhere else" — and it stopped being true when
+  the prose moved into `llm_prompts` so it could be edited without a deploy. What still holds: no
+  second prompt string is written in the SOURCE, and the six constants are where the text is
+  authored. **Every store comes up holding them as rows** — `memoryStore` in its constructor,
+  `postgresStore` by running `syncShippedPrompts` at boot — so a test, a `./dev` stack and a
+  self-hosted deployment all read a prompt the way production does instead of testing the fallback
+  and shipping the row. The fallback is still there and still tested: an empty table, a deleted row,
+  a row that fails containment or a database that is down all resolve back to the constants
+  (`loadPrompts`, which cannot throw). It is the safety net now, not the normal state.
+- **A prompt row says WHO wrote it, and that column is what keeps the constants authoritative.**
+  Once rows exist everywhere, rows win — so without `source` a prompt edited in `prompt.ts` could
+  never reach a host that had booted once, and the constants would quietly stop being the source of
+  truth. `syncShippedPrompts` writes a key with no revision, and rewrites one whose LIVE revision
+  the shipper wrote when the constant has moved; a key whose live revision an ADMIN wrote is never
+  touched, because a human override must outrank a deploy. Restoring the shipped text through the
+  admin is a save, so it stays the admin's. The sync runs at startup and **cannot fail a boot**: two
+  instances racing for one `(key, version)` and a read-only database both end at a server that
+  serves. This is also the answer to the objection `onboarding_content` records against seeding on
+  boot — "it makes 'has an admin ever touched this?' unanswerable" — which here is a column.
+- **Three surfaces edit a prompt, and they share one gate.** `GET`/`PUT /admin/api/prompts` and
+  `GET /admin/api/prompts/:key/revisions` behind the admin role; the panel in `api/admin.page.ts`;
+  and `./dev prompts` (`src/scripts/prompts.ts`), which reaches Postgres directly because an
+  operator on the box has the database URL and may not have a bearer. **All three call
+  `savePrompt`** — a second writer would be a second set of rules, and the one it would drift from
+  decides what a model may be told. A save that loses the `(key, version)` race answers **409, not
+  422**: the prose was fine and a retry succeeds, and telling somebody their writing was refused
+  sends them to rewrite a prompt that was never the problem. There is no reset verb, because a
+  restore IS a save — it keeps the row `admin`, so the next deploy still leaves it alone, and it
+  stays in the history where a delete would have left a gap.
+- **The admin page's script is the one code here no gate reads.** The whole document is a template
+  literal, so `tsc` never looks inside it and `bun test` never runs it; a `null` dereference there
+  reaches production with every check green. `web/browser/admin-prompts.pw.ts` is what covers the
+  prompts panel — it fetches the real page and stubs only `/admin/api/*`, so what is under test is
+  the page's own JavaScript. (And: no backtick may appear anywhere inside that literal. The failure
+  is a parse error a hundred lines away.)
+- **What did NOT move, and must not:** `normalizePromptText` (a containment boundary, not editable
+  content), every `build*` function (they interpolate the user's own data and enforce its caps — a
+  stored template would be a language this repo then owns), the Zod schemas, and `COACH_TOOL_DEFS`
+  (both structurally coupled to what the engine parses into). A stored prompt replaces the TEXT of
+  one system message and reaches nothing else: it is JSON-escaped into that field, so text shaped
+  like a second message, a tool definition or a tool result stays text.
+- **Validated on the WRITE** (`validateStoredPrompt`, via `savePrompt`), because a stored prompt
+  meets no reviewer and no typecheck. It is not `normalizePromptText` and differs from it twice: the
+  shape rules are dropped (a prompt is the FRAME around a span, so its newlines and quotes survive),
+  and the character rules are STRICTER — every Unicode format character rather than an enumerated
+  handful, because text through that function is rendered on a card where a person sees it, and a
+  stored prompt is read by nobody before a model reads it. Emoji survive; only LONE surrogates are
+  refused. Refused, never repaired: silently deleting a character changes what the model was asked
+  without telling anyone. The table is **append-only** (`(key, version)`), because an edit that
+  changes model behaviour with no record is the failure mode here — `store.promptRevisions` is the
+  trail. **Global rows, no `user_id`, and that is safe because a prompt is not a user's data**: it
+  is what this server sends on behalf of every account, so there is no query here to widen past one.
+  `PROMPT_KEYS` is the set of prompts that exist; the `llm_prompts` check constraint spells the same
+  six out by hand, and `prompt.schema.test.ts` fails naming the key when the two disagree, so a
+  seventh prompt cannot half-land. What would falsify all of this: a per-user prompt (it would need
+  the scoping), or any builder, schema or tool definition following the prose into the table.
 - **Public copy passes a claims gate before it is written, not before it is reviewed.**
   `src/landing/claims.ts` fails the build on a health claim (`lose weight`, `guaranteed`,
   `lowers cholesterol`, `detox`) and on a superiority or exclusivity claim (`the only app`, `every

@@ -1,0 +1,32 @@
+# The build context is the repository root, so everything not excluded here is uploaded to the
+# daemon on every build — twice, because there are two images.
+#
+# `node_modules` is the one that matters: it is a tree of symlinks into a hidden store, it does not
+# survive the trip, and both images install or skip dependencies themselves.
+
+.git
+node_modules
+**/node_modules
+
+# The dev stack's state and this worktree's derived configuration. `.env*` in particular: a build
+# context carrying a real key bakes it into a layer.
+.env
+.env.*
+.dev
+.eait-slot
+src/frontend/dist
+
+# Nothing the running server reads.
+.github
+test-results
+playwright-report
+*.tsbuildinfo
+*.log
+.DS_Store
+
+# The deploy tree itself: the running server reads none of it. The two Dockerfiles are re-included
+# because they live here — BuildKit reads the `-f` file from outside the context, the classic
+# builder does not, and one negated line costs nothing.
+src/iac
+!src/iac/Dockerfile.backend
+!src/iac/Dockerfile.frontend

@@ -207,6 +207,23 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     <span class="status" id="notify-status"></span>
   </p>
 
+  <h2>System prompts</h2>
+  <p class="muted">
+    <strong>These go straight to a model.</strong> Nothing here is typechecked and nothing is
+    reviewed — what you save is what the next analysis is asked. The six are what the server sends:
+    the photo analyzer, the text router and the two prompts behind it, the one-line glance, and
+    Gabie. They are stored as rows, so a save takes effect on the next request with no deploy.
+  </p>
+  <p class="muted">
+    A prompt marked <em>shipped</em> is the text this build was written with, and a deploy keeps it
+    current. The moment you save one it becomes <em>yours</em>, and no later deploy will touch it —
+    including to carry across a change made in the code. <strong>Restore shipped</strong> puts the
+    build's text back, and is itself a save. Nothing is overwritten: every version is kept, and
+    <strong>History</strong> shows what was being sent and from when.
+  </p>
+  <div id="prompt-errors" class="errors hidden"><strong>Not saved.</strong><ul></ul></div>
+  <div id="prompts"></div>
+
   <h2>Accounts</h2>
   <p class="muted">
     <strong>These are real people.</strong> Every row is somebody's account and the address they
@@ -678,6 +695,154 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     });
   }
 
+
+  // ── System prompts ─────────────────────────────────────────────────────────────────────────
+  //
+  // The one editable surface here whose audience is a MODEL. Every other panel on this page is
+  // read by a person, who notices a broken sentence; a broken prompt is every analysis after it,
+  // and the only thing that shows is worse answers. So this one states provenance on every card,
+  // never hides that a save outranks the deploy, and keeps History one click away.
+
+  var prompts = [];
+
+  function promptErrors(list) {
+    var box = $("prompt-errors");
+    var ul = box.querySelector("ul");
+    ul.textContent = "";
+    if (!list || !list.length) { box.classList.add("hidden"); return; }
+    list.forEach(function (e) {
+      var li = document.createElement("li");
+      li.textContent = e;
+      ul.appendChild(li);
+    });
+    box.classList.remove("hidden");
+    box.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function promptStamp(p) {
+    if (p.source === "admin") {
+      return "yours — version " + p.version
+        + (p.updated_at ? ", saved " + new Date(p.updated_at).toLocaleString() : "")
+        + ". A deploy will not change it."
+        // The one thing an owner of a prompt cannot otherwise see: the build moved on without them.
+        + (p.text !== p.shipped && p.shipped !== undefined
+            ? " The build has since shipped different text — Restore shipped takes it."
+            : "");
+    }
+    if (p.version === 0) return "the build's text — the store could not be read, so this is what is being sent.";
+    return "shipped — version " + p.version + ". A deploy keeps this current.";
+  }
+
+  function promptCard(p) {
+    var card = document.createElement("div");
+    card.className = "card";
+
+    var head = document.createElement("div");
+    head.className = "row";
+    var name = document.createElement("strong");
+    name.textContent = p.key;
+    var stamp = document.createElement("span");
+    stamp.className = "muted";
+    stamp.textContent = promptStamp(p);
+    head.appendChild(name);
+    head.appendChild(stamp);
+    card.appendChild(head);
+
+    var box = document.createElement("textarea");
+    box.rows = 14;
+    box.spellcheck = false;
+    box.value = p.text;
+    box.style.width = "100%";
+    box.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, monospace";
+    card.appendChild(box);
+
+    var actions = document.createElement("p");
+    var save = document.createElement("button");
+    save.className = "primary";
+    save.textContent = "Save " + p.key;
+    var restore = document.createElement("button");
+    restore.textContent = "Restore shipped";
+    var history = document.createElement("button");
+    history.textContent = "History";
+    var status = document.createElement("span");
+    status.className = "status";
+    actions.appendChild(save);
+    actions.appendChild(restore);
+    actions.appendChild(history);
+    actions.appendChild(status);
+    card.appendChild(actions);
+
+    var log = document.createElement("div");
+    log.className = "hidden";
+    card.appendChild(log);
+
+    function put(text, verb) {
+      status.textContent = "saving…";
+      api("PUT", "/admin/api/prompts", { key: p.key, text: text }).then(function () {
+        promptErrors(null);
+        return loadPrompts();
+      }).then(function () {
+        status.textContent = verb;
+      }).catch(function (e) {
+        // A 409 is not a rejected prompt — the words were fine and somebody else simply got there
+        // first. It belongs beside the button that has to be pressed again, not in the error box
+        // at the top of a page the person has scrolled away from.
+        var msgs = (e.body && e.body.errors) || [e.message];
+        if (e.status === 409) { status.textContent = msgs[0]; return; }
+        promptErrors(msgs);
+        status.textContent = "not saved";
+      });
+    }
+
+    save.addEventListener("click", function () {
+      if (box.value === p.text) { status.textContent = "no change"; return; }
+      if (!confirm("Save " + p.key + "? Every analysis after this is asked the new text, and no later deploy will change it back.")) return;
+      put(box.value, "saved");
+    });
+
+    restore.addEventListener("click", function () {
+      if (!confirm("Put the build's own " + p.key + " prompt back? It is saved as a new version; nothing is lost.")) return;
+      put(p.shipped, "restored");
+    });
+
+    history.addEventListener("click", function () {
+      if (!log.classList.contains("hidden")) { log.classList.add("hidden"); return; }
+      status.textContent = "loading…";
+      api("GET", "/admin/api/prompts/" + encodeURIComponent(p.key) + "/revisions").then(function (res) {
+        log.textContent = "";
+        res.revisions.forEach(function (r) {
+          var item = document.createElement("details");
+          var sum = document.createElement("summary");
+          sum.textContent = "version " + r.version + " — " + r.source
+            + " — " + new Date(r.updated_at).toLocaleString();
+          var pre = document.createElement("pre");
+          pre.textContent = r.text;
+          pre.style.whiteSpace = "pre-wrap";
+          item.appendChild(sum);
+          item.appendChild(pre);
+          log.appendChild(item);
+        });
+        log.classList.remove("hidden");
+        status.textContent = res.revisions.length + " version(s)";
+      }).catch(function (e) { status.textContent = "failed: " + e.message; });
+    });
+
+    return card;
+  }
+
+  function renderPrompts() {
+    var host = $("prompts");
+    host.textContent = "";
+    prompts.forEach(function (p) { host.appendChild(promptCard(p)); });
+  }
+
+  function loadPrompts() {
+    return api("GET", "/admin/api/prompts").then(function (res) {
+      prompts = res.prompts;
+      renderPrompts();
+    });
+  }
+
   // ── Per-account sample ─────────────────────────────────────────────────────────────────────
 
   function capPath() {
@@ -983,7 +1148,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       labels = res.labels;
       renderLangs();
       render();
-      return loadNotify().then(loadMetrics).then(loadFunnel)
+      return loadNotify().then(loadPrompts).then(loadMetrics).then(loadFunnel)
         .then(function () { return loadUsers(false); });
     });
   }

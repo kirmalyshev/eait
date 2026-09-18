@@ -15,7 +15,9 @@ import { demoPorts } from "./llm/demo.ts";
 import { chooseMailer } from "./mail/choose.ts";
 import { choosePush } from "./push/choose.ts";
 import { openRouterPorts } from "./llm/openrouter.ts";
+import { loadPrompts } from "./llm/prompt.ts";
 import { collectPushReceipts, eveningSweep, msUntilNextEveningLine, pruneAgedHealthDays, RECEIPT_DELAY_MS, type EngineDeps } from "./engine/index.ts";
+import { TURN_OUTCOME_TTL_MS } from "./engine/turns.ts";
 import { HEALTH_RETENTION_DAYS, localDate } from "@eait/shared";
 import { memoryStore } from "./store.memory.ts";
 import { postgresStore } from "./store.pg.ts";
@@ -61,7 +63,10 @@ if (demo && llmArg === "real") {
 
 // The session lifetime reaches the store the same way every other setting reaches the engine: as an
 // argument from the composition root, never as a module constant either side could disagree about.
-const storeOptions = { sessionTtlMs: config.sessionTtlDays * 24 * 60 * 60 * 1000 };
+const storeOptions = {
+  sessionTtlMs: config.sessionTtlDays * 24 * 60 * 60 * 1000,
+  maxConnections: config.databaseMaxConnections,
+};
 const store: Store = demo
   ? memoryStore(storeOptions)
   : await postgresStore(config.databaseUrl, storeOptions);
@@ -110,6 +115,12 @@ const deps: EngineDeps = {
         baseUrl: config.llmBaseUrl,
         timeoutMs: config.llmTimeoutMs,
         maxTokens: config.llmMaxTokens,
+        // The one place the transport is joined to the store. It is a function rather than a value
+        // because an edit must be live without a restart, and it is `loadPrompts` rather than a
+        // bare `store.getPrompts` because that function is the one that cannot throw: an empty
+        // table, a deleted row, a row that fails containment and a database that is down all come
+        // back as the prompts compiled into `llm/prompt.ts`.
+        prompts: () => loadPrompts(store),
       }),
 };
 
@@ -133,6 +144,11 @@ const sweepHealthRetention = async () => {
     // One failed sweep must not take the interval with it, for the reason the evening line says.
     console.error(`[eait] health retention sweep failed: ${(e as Error)?.message ?? e}`);
   }
+  // A turn's answer is kept for a replay of it and no longer (#708); the claim stays. Its own try, so
+  // a failed health sweep does not keep answers past their time.
+  await store.forgetTurnOutcomes(Date.now() - TURN_OUTCOME_TTL_MS).catch((e: unknown) => {
+    console.error(`[eait] turn answer sweep failed: ${(e as Error)?.message ?? e}`);
+  });
 };
 await sweepHealthRetention();
 setInterval(() => { void sweepHealthRetention(); }, DAY_MS).unref?.();

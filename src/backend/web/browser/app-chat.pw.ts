@@ -142,15 +142,15 @@ test("dropping a proposal the server no longer holds is what was asked, and says
   await expect(page.locator(".notice")).toBeHidden();
 });
 
-test("a turn whose answer never arrived does not invite a second one", async ({ inWebApp: page }) => {
-  // The connection went with the turn still running: the server may have logged it, and a retry
-  // would pay for it twice. So the words say to look before sending again.
+test("a turn whose answer never arrived is kept and sent again, never asked for twice", async ({ inWebApp: page }) => {
+  // The connection went with the turn still running: the server may have logged it. Since #708 the
+  // page keeps the photo and re-sends it under the same id, which the server answers from the first
+  // attempt — so the person is not asked to check and send it again. `app-offline.pw.ts` proves once.
   await page.route("**/api/v1/meals/photo", (r) => r.abort("connectionreset"));
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
   await page.getByRole("button", { name: "Send the photo" }).click();
-  await expect(page.locator(".notice")).toHaveText(
-    "No answer came back, and it may still have gone through. Reload to check before sending it again.",
-  );
+  await expect(page.locator(".notice")).toHaveText(KEPT);
+  await expect(page.locator(".thread li", { hasText: "Waiting to send" })).toHaveCount(1);
 });
 
 test("an account the server holds no profile for still gets its chat", async ({ inWebApp: page }) => {
@@ -164,6 +164,7 @@ test("an account the server holds no profile for still gets its chat", async ({ 
 });
 
 const MAYBE_LANDED = "No answer came back, and it may still have gone through. Reload to check before sending it again.";
+const KEPT = "Saved on this device. It goes on its own as soon as it can.";
 
 test("a Log it whose answer never arrived keeps the card, because pressing it again is safe", async ({ inWebApp: page }) => {
   await page.getByPlaceholder("What did you eat?").fill("a banana");
@@ -273,11 +274,11 @@ test("an estimate past the moment the server stops holding it is not offered", a
   await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
 });
 
-test("an edge that answers 5xx with nothing in it reads as a turn that may have landed", async ({ inWebApp: page }) => {
+test("an edge that answers 5xx with nothing in it got no answer of ours, so the photo is kept for later", async ({ inWebApp: page }) => {
   await page.route("**/api/v1/meals/photo", (r) => r.fulfill({ status: 502, body: "" }));
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
   await page.getByRole("button", { name: "Send the photo" }).click();
-  await expect(page.locator(".notice")).toHaveText(MAYBE_LANDED);
+  await expect(page.locator(".notice")).toHaveText(KEPT);
 });
 
 test("a stream that ends with no answer reads as a turn that may have landed", async ({ inWebApp: page }) => {

@@ -28,3 +28,4 @@ export * from "./claims.ts";
 export * from "./stream.ts";
 export * from "./typing.ts";
 export * from "./budget.ts";
+export * from "./outbox.ts";

@@ -3,7 +3,7 @@ import type { ChatEntry } from "./contract.ts";
 import type { ChatSpeaker } from "./results.ts";
 import type { MealRecord } from "./types.ts";
 import { scriptedLine } from "./chat.ts";
-import { fromHistory, hasLiveSuggestions, keepsItsWords, landedLine, lastMealId, lineIsMeal, mergeThread, moodFor, oneCardPerMeal, oneLiveProposal, pendingIdOf, proposalLive, reconcilePage, livePendings, speakerOf, threadReducer, unansweredFor, visibleEntries, withUnanswered, type ChatResult, type ThreadEntry } from "./thread.ts";
+import { fromHistory, hasLiveSuggestions, queuedEntries, keepsItsWords, landedLine, lastMealId, lineIsMeal, mergeThread, moodFor, oneCardPerMeal, oneLiveProposal, pendingIdOf, proposalLive, reconcilePage, livePendings, speakerOf, threadReducer, unansweredFor, visibleEntries, withUnanswered, type ChatResult, type ThreadEntry } from "./thread.ts";
 
 // The Chat screen's reconciliation of three sources of truth — the fetched page, what is on screen,
 // and the turns still in flight. Pure, so every rule the design notes record as hard-won is pinned
@@ -511,5 +511,35 @@ describe("lineIsMeal — a line IS its meal (#608)", () => {
     expect(lineIsMeal(typed, [photo, typed])).toBe(false);
     expect(lineIsMeal({ id: "u3", role: "user", text: "hello", stored: true }, entries)).toBe(false);
     expect(lineIsMeal({ id: "u4", role: "user", text: null, photo: true, stored: true, mealId: null }, entries)).toBe(false);
+  });
+});
+
+describe("queuedEntries (#708)", () => {
+  it("draws what the outbox holds as the user's own lines, after the thread, waiting or held", () => {
+    const at = "2026-09-17T08:00:00.000Z";
+    const out = queuedEntries([
+      { id: "q1", userId: "u", kind: "photo", text: null, photos: ["file:///a.jpg"], capturedAt: at },
+      { id: "q2", userId: "u", kind: "text", text: "a banana", photos: [], capturedAt: at, held: { kind: "cap-exceeded", scope: "user" } },
+    ]);
+    expect(out).toEqual([
+      { id: "q1", role: "user", text: null, photo: true, queued: { photos: ["file:///a.jpg"] } },
+      { id: "q2", role: "user", text: "a banana", queued: { photos: [], held: { kind: "cap-exceeded", scope: "user" } } },
+    ]);
+    // Not about a meal, and not a stored line: nothing a page reconciles against, nothing to act on.
+    expect(visibleEntries(out)).toEqual(out);
+    expect(out.every((e) => !("stored" in e && e.stored))).toBe(true);
+  });
+
+  it("does not draw a waiting line the thread already has: the first attempt landed, only its answer was lost", () => {
+    const at = "2026-09-17T08:00:00.000Z";
+    const thread = fromHistory([userLine("a banana", { clientId: "q1" })]);
+    const out = queuedEntries([{ id: "q1", userId: "u", kind: "text", text: "a banana", photos: [], capturedAt: at }], thread);
+    expect(out).toEqual([]);
+    // A live bubble still on screen for the same turn is the same line: one row, one entrance.
+    const live = queuedEntries([{ id: "c1", userId: "u", kind: "text", text: "a pear", photos: [], capturedAt: at }], [{ id: "c1", role: "user", text: "a pear" }]);
+    expect(live).toEqual([]);
+    // Held is another matter: it heads the queue and waits on a decision, so it is always drawn.
+    const held = queuedEntries([{ id: "q1", userId: "u", kind: "text", text: "a banana", photos: [], capturedAt: at, held: { kind: "outcome-unknown" } }], thread);
+    expect(held.map((e) => e.id)).toEqual(["q1"]);
   });
 });

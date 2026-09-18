@@ -20,7 +20,7 @@
 
 import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
-import { parseWorktrees, planFor, readEnvFile, SLOT_FILE, type WorktreeEntry } from "./dev-env.ts";
+import { parseWorktrees, planFor, readEnvFile, SLOT_FILE, testDbNameFor, type WorktreeEntry } from "./dev-env.ts";
 
 const SERVICES = ["backend", "web"] as const;
 type Service = (typeof SERVICES)[number];
@@ -332,9 +332,17 @@ function cleanPlan(r: Row): Step[] {
     : [];
 }
 
-/** This worktree's own database, or null when it has never been given one. Never a default. */
-function dbNameOf(path: string): string | null {
-  return readEnvFile(join(path, ".env.worktree")).EAIT_DB_NAME ?? null;
+/**
+ * This worktree's own databases, or empty when it has never been given any. Never a default.
+ *
+ * BOTH, because `db.sh drop` drops both — and a confirmation that names one of two databases is a
+ * confirmation for a different operation than the one that runs. The test name is DERIVED from the
+ * dev one rather than read, so a `.env.worktree` written before that key existed is named here
+ * exactly as `worktree.sh` will fall back to it.
+ */
+function dbNamesOf(path: string): string[] {
+  const dev = readEnvFile(join(path, ".env.worktree")).EAIT_DB_NAME;
+  return dev === undefined ? [] : [dev, testDbNameFor(dev)];
 }
 
 /**
@@ -343,9 +351,10 @@ function dbNameOf(path: string): string | null {
  * THE THREE ACTIONS NEST BY CALLING EACH OTHER, not by resembling each other, so a fix to what
  * stopping or cleaning means reaches retire the same day and cannot reach only two of the three.
  *
- * `dbName` IS NULL FOR A WORKTREE THAT WAS NEVER DERIVED, and the drop step is then left out
- * entirely rather than run against a default. `db.sh` falls back to `eait` without a
- * `.env.worktree` to read — correct for slot 0, which IS that database, and catastrophic here.
+ * THERE ARE NO DATABASE NAMES FOR A WORKTREE THAT WAS NEVER DERIVED, and the drop step is then
+ * left out entirely rather than run against a default. `db.sh` falls back to `eait` and
+ * `eait__test` without a `.env.worktree` to read — correct for slot 0, which IS those databases,
+ * and catastrophic here.
  */
 function retirePlan(r: Row, here: string): Step[] {
   // A worktree whose directory is gone has nothing to stop, drop or clean, and git will not remove
@@ -354,11 +363,11 @@ function retirePlan(r: Row, here: string): Step[] {
   if (!r.exists) {
     return [{ label: "clear the stale worktree entry", cmd: ["git", "worktree", "remove", "--force", r.path], cwd: here }];
   }
-  const db = dbNameOf(r.path);
+  const dbs = dbNamesOf(r.path);
   return [
     ...stopPlan(r),
-    // BEFORE `clean`, which removes the `.env.worktree` that names the database.
-    ...(db === null ? [] : [{ label: `drop the database ${db}`, cmd: ["sh", "src/scripts/db.sh", "drop", "--yes"], cwd: r.path }]),
+    // BEFORE `clean`, which removes the `.env.worktree` that names the databases.
+    ...(dbs.length === 0 ? [] : [{ label: `drop the databases ${dbs.join(" and ")}`, cmd: ["sh", "src/scripts/db.sh", "drop", "--yes"], cwd: r.path }]),
     ...cleanPlan(r),
     { label: "remove the worktree", cmd: ["git", "worktree", "remove", r.path], cwd: here },
   ];
@@ -390,8 +399,8 @@ function retireBlocker(r: Row, mainPath: string, cwd: string): string | null {
 
 /** A plan as the confirmation shows it: the path folded to `<worktree>` so the commands read. */
 function planLines(path: string, steps: Step[]): string[] {
-  // Width from the labels present, not a constant: `drop the database <name>` is as long as the
-  // name, and a fixed column lets the longer ones push their command out of line.
+  // Width from the labels present, not a constant: `drop the databases <names>` is as long as the
+  // names, and a fixed column lets the longer ones push their command out of line.
   const w = Math.max(0, ...steps.map((s) => s.label.length));
   return [
     `<worktree> = ${path}`,

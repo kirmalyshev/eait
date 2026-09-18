@@ -8,8 +8,9 @@
 import { scriptedLine } from "./chat.ts";
 import type { ChatEntry, ChatEvent } from "./contract.ts";
 import type { MascotMood } from "./onboarding.ts";
-import type { ConfirmMealResult, HandleTextResult } from "./results.ts";
-import type { Lang, MealRecord } from "./types.ts";
+import type { Queued } from "./outbox.ts";
+import type { ConfirmMealResult, HandleTextResult, RefusedTurn } from "./results.ts";
+import type { MealRecord } from "./types.ts";
 
 /**
  * Everything a live assistant bubble can carry. The union is `HandleTextResult | ConfirmMealResult`
@@ -36,6 +37,8 @@ export type ThreadEntry =
       mealId?: string | null;
       /** On a stored text line: the bubble it landed for, and the proposal it made — what the screen reads back. */
       clientId?: string | null; pendingId?: string | null;
+      /** A turn the outbox holds (#708): its photos on this phone, and the answer it is held on, if any. */
+      queued?: { photos: string[]; held?: RefusedTurn };
     }
   | { id: string; role: "assistant"; result: ChatResult; stored?: boolean }
   /** A card from the stored thread: the meal as it is NOW, or gone. */
@@ -210,6 +213,25 @@ export function withUnanswered(entries: ThreadEntry[], clientId: string, scope?:
 }
 
 /**
+ * The outbox's turns as the user's own lines (#708), drawn after the thread: they were said after
+ * everything the server has. Waiting, or held on the answer the server gave.
+ */
+export function queuedEntries(entries: readonly Queued<string>[], thread: readonly ThreadEntry[] = []): ThreadEntry[] {
+  // A typed turn whose line the server already has landed; the outbox is only fetching its answer,
+  // and drawing it twice would claim two turns. A photo line carries no client id to match on.
+  const landed = new Set(thread.flatMap((e) => (e.role === "user" && e.stored && e.clientId ? [e.clientId] : [])));
+  // A live bubble for the same turn IS its row until the outbox has taken it over: one key, one
+  // entrance, no frame with neither.
+  const onScreen = new Set(thread.map((e) => e.id));
+  // A HELD one is always drawn: it heads the queue and waits on a decision only it can offer.
+  return entries.filter((e) => !onScreen.has(e.id) && (e.held !== undefined || !landed.has(e.id))).map((e) => ({
+    id: e.id, role: "user", text: e.text,
+    ...(e.kind === "photo" ? { photo: true } : {}),
+    queued: { photos: e.photos, ...(e.held ? { held: e.held } : {}) },
+  }));
+}
+
+/**
  * The newest card's meal, if it is TODAY's — what "half that" corrects. A stored thread reaches
  * back past today, and a correction aimed at yesterday moves nothing on the screen the user is
  * looking at; null beats that.
@@ -300,13 +322,13 @@ export const proposalLive = (expiresAt: string, now: number): boolean => {
  * card ("Log it too") was two open cards on the phone (#663); its cost stands — a meal described
  * before the previous one is logged drops it, and a live card stays tappable while a turn is out.
  */
-export function oneLiveProposal(entries: ThreadEntry[], lang: Lang = "en"): ThreadEntry[] {
+export function oneLiveProposal(entries: ThreadEntry[]): ThreadEntry[] {
   const live = entries.filter((e) => pendingIdOf(e) !== null);
   if (live.length < 2) return entries;
   const newest = live[live.length - 1];
   return entries.map((e) => {
     if (pendingIdOf(e) === null || e === newest) return e;
-    return { id: e.id, role: "assistant", result: { kind: "answered", text: scriptedLine("dropped", {}, lang) } };
+    return { id: e.id, role: "assistant", result: { kind: "answered", text: scriptedLine("dropped") } };
   });
 }
 

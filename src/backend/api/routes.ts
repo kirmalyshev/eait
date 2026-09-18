@@ -15,7 +15,7 @@
 //    encoder cannot drift.
 
 import {
-  MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, isEditMealRequest,
+  IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, NDJSON, OUTCOME_UNKNOWN, RATE_LIMITED, REFUSAL_STATUS, ROUTES, isEditMealRequest,
   type AuthDeviceRequest, type AuthDeviceResponse, type AuthProviderRequest,
   type AppendLinesRequest, type AppendLinesResponse, type AuthProviderResponse, type IdentitiesResponse, type Lang,
   type UnlinkResponse,
@@ -168,6 +168,20 @@ export function createRouter(
       status: 429,
       headers: { "content-type": "application/json", "retry-after": String(retryAfter) },
     });
+
+  /**
+   * A billed turn's two client fields (#708): its id, which makes a re-sent request a replay of the
+   * first, and when it happened. An over-long id is dropped rather than refused — the turn goes
+   * through, only without the replay guarantee — and a capture time is the engine's to judge.
+   */
+  const turnKey = (req: Request): string | undefined => {
+    const key = req.headers.get(IDEMPOTENCY_KEY);
+    return key !== null && key !== "" && key.length <= MAX_CLIENT_ID ? key : undefined;
+  };
+  const turnFields = (clientId: unknown, capturedAt: unknown): { clientId?: string; capturedAt?: string } => ({
+    ...(typeof clientId === "string" && clientId !== "" && clientId.length <= MAX_CLIENT_ID ? { clientId } : {}),
+    ...(typeof capturedAt === "string" ? { capturedAt } : {}),
+  });
 
   const wantsStream = (req: Request): boolean => (req.headers.get("accept") ?? "").includes(NDJSON);
 
@@ -561,7 +575,14 @@ export function createRouter(
       // allowance is spent" to somebody on a carrier network who has logged one meal would be a lie.
       if (req.method === "POST" && (pathname === ROUTES.photo || pathname === ROUTES.messages || REANALYZE_PATH.test(pathname))
         || (req.method === "PATCH" && MESSAGE_PATH.test(pathname))) {
-        const wait = limit(req, peer, "analysis", deps.config.analysisRateLimitPerDay, DAY);
+        // A RE-SENT TURN IS NOT COUNTED (#708): it is answered from the claim and calls no model, and
+        // one refused here is asked again by its client under a NEW id — a second meal. Only on the
+        // two routes that run under `once`, only for a key this account has already claimed, and it
+        // is the key the handler then runs under. A re-analysis or an edit runs the model every time,
+        // so a claimed key there buys nothing.
+        const key = req.method === "POST" && (pathname === ROUTES.photo || pathname === ROUTES.messages) ? turnKey(req) : undefined;
+        const replay = key !== undefined && (await store.getTurn(userId, key)) !== null;
+        const wait = replay ? null : limit(req, peer, "analysis", deps.config.analysisRateLimitPerDay, DAY);
         if (wait !== null) {
           return tooManyRequests(wait, { error: "cap-exceeded", scope: "address" });
         }
@@ -709,6 +730,7 @@ export function createRouter(
           // until the engine has passed the caps.
           images: files.map((f) => async () => new Uint8Array(await f.arrayBuffer())),
           ...(typeof caption === "string" && caption ? { caption } : {}),
+          ...turnFields(turnKey(req) ?? form.get("clientId"), form.get("capturedAt")),
         };
         // THE STREAM. One JSON object per line — the glance, each item as the analyzer closes it
         // — and the result LAST, refusals included, because the 200 has gone out with the first
@@ -781,8 +803,7 @@ export function createRouter(
         const input = {
           text: body.text,
           ...(typeof body.focusMealId === "string" ? { focusMealId: body.focusMealId } : {}),
-          // Stored, never interpreted; an over-long one is dropped rather than refused.
-          ...(typeof body.clientId === "string" && body.clientId.length <= MAX_CLIENT_ID ? { clientId: body.clientId } : {}),
+          ...turnFields(turnKey(req) ?? body.clientId, body.capturedAt),
         };
         // THE STREAM, when asked (#508). A routed turn with the coach behind it can be silent for
         // longer than iOS keeps an idle request open (60 s), and it is billed either way: cut off

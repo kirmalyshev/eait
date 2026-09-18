@@ -7,12 +7,18 @@
 #   ./dev restart [same flags]       bare: whatever `up` last asked for, including what has crashed
 #   ./dev status                     this worktree
 #   ./dev ls [--plain]               EVERY worktree on this machine, and what each is running
+#   ./dev prompts [list|show|set]    read and edit the system prompts this instance sends; stored,
+#                                    so a save takes effect with no deploy and no restart. Run it
+#                                    with no command to list them.
 #   ./dev seed                       put the development accounts into this worktree's database:
 #                                    the ordinary ones and the account that holds the admin role,
 #                                    which is the only way into /admin. Replaces its own accounts,
 #                                    so it is safe to re-run and leaves anything you made by hand.
+#   ./dev test [args…]               the unit suites PLUS the store contract suite against this
+#                                    worktree's own TEST database (`bun run test` leaves that suite
+#                                    skipped, so `bun run check` never needs Docker)
 #   ./dev logs [service]
-#   ./dev db [up|down|psql|…]        the shared Postgres and this worktree's database in it
+#   ./dev db [up|down|psql|…]        the shared Postgres and this worktree's two databases in it
 #   ./dev env | url
 #   ./dev install [--check]          every tool this repo needs, on macOS or Linux. The one command
 #                                    that runs before the checkout works, so it uses no bun.
@@ -524,6 +530,26 @@ case "${1:-}" in
   # NOT a service: it writes rows and exits. `ensure_env` first, because the database name is
   # derived from this worktree's slot and the seeder would otherwise write into slot 0's.
   seed)    shift; ensure_env; exec bun src/scripts/seed.ts "$@" ;;
+  # Also not a service, and `ensure_env` for the same reason: a prompt is global to a database, so
+  # running this against slot 0's would edit what the MAIN checkout sends.
+  prompts) shift; ensure_env; exec bun src/scripts/prompts.ts "$@" ;;
+  # THE ONLY PLACE `TEST_DATABASE_URL` IS SET, and it is set from the derivation, so the contract
+  # suite cannot run against a database that missed the slot. It is deliberately not in
+  # `package.json`: `bun run test` must keep passing with no Postgres — `bun run check` runs it, and
+  # making that depend on Docker being up is not a trade this repo takes. The suite MIGRATES AND
+  # WRITES, which is why it gets a database of its own rather than the one you develop against.
+  #
+  # `db.sh up` first for the same reason `seed` runs `ensure_env`: the database this names must
+  # exist, and the app never creates one.
+  test)
+    shift
+    ensure_env
+    load_env
+    sh src/scripts/db.sh up >/dev/null
+    [ $# -gt 0 ] || set -- ./src
+    echo "TEST_DATABASE_URL=$EAIT_TEST_DATABASE_URL"
+    TEST_DATABASE_URL="$EAIT_TEST_DATABASE_URL" exec bun test "$@"
+    ;;
   env)     shift; exec bun src/scripts/dev-env.ts "${1:-show}" ;;
   url)     load_env; echo "$EAIT_API_URL" ;;
   *)

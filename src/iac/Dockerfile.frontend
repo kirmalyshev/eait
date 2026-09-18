@@ -1,0 +1,63 @@
+# The web application, as it runs in production. Built from the REPOSITORY ROOT:
+#
+#   docker build -f src/iac/Dockerfile.frontend .
+#
+# WHY THIS IS A SEPARATE IMAGE FROM THE BACKEND: because a page and an API are different deploys.
+# `docker compose up -d frontend` replaces the browser client without restarting the container that
+# is currently analysing somebody's dinner, and a broken bundle cannot take the API down with it.
+# They also fail differently — the backend's failure is a 500 and this one's is a blank page.
+#
+# It is NOT a second origin. Caddy composes one hostname out of the two containers; see
+# `src/iac/Caddyfile` and `src/frontend/AGENTS.md`.
+#
+# TWO STAGES. `bun build` produces one browser bundle; the runtime carries that bundle and the
+# server that serves it, and no TypeScript the browser was meant to get. There is no `bun install`
+# in either: this workspace has no dependencies. What it takes from `@eait/shared` is TYPES, erased
+# before anything is resolved, PLUS two modules imported by RELATIVE path (`../shared/stream.ts`,
+# `../shared/budget.ts`) — which is why the `COPY src/shared` below is load-bearing rather than
+# belt-and-braces for the types.
+
+FROM oven/bun:1.4.0-alpine AS build
+WORKDIR /app
+
+COPY package.json bun.lock ./
+COPY src/shared ./src/shared
+COPY src/frontend ./src/frontend
+
+# `test -s` is the whole verification, and it is not decoration. A build that silently produced
+# nothing looks exactly like a deployment that never had a web application: the server answers 404
+# on the shell and the bundle BY DESIGN when no bundle is on disk, so without this the image would
+# come up healthy and serve nothing at all.
+RUN cd src/frontend && bun build ./main.ts --outdir ./dist --target browser --minify \
+ && test -s ./dist/main.js
+
+
+FROM oven/bun:1.4.0-alpine AS runtime
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# The bundle and the server that serves it. NOT `src/frontend` wholesale: `main.ts` and `api.ts` are
+# the browser's source, they are already inside the bundle above, and an image that also carries
+# them is an image shipping the same code twice.
+COPY --from=build /app/src/frontend/dist ./src/frontend/dist
+COPY src/frontend/server ./src/frontend/server
+
+# `bun` is a non-root user the base image already provides.
+USER bun
+
+# Bind every interface INSIDE the container — which means "reachable by the other containers on this
+# network", not "reachable by the internet". The compose file publishes no port for this service and
+# Caddy is the only route in. The default is 127.0.0.1, which inside a container means "reachable by
+# nothing".
+ENV EAIT__FRONTEND__HOST=0.0.0.0
+ENV EAIT__FRONTEND__PORT=8788
+EXPOSE 8788
+
+# Asks whether the PROCESS answers, which is what a healthcheck is for. Deliberately not `/`: that
+# path is 404 until a bundle exists, so a healthcheck on it would restart this container forever
+# over a missing file and read as a crash.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -q --spider http://127.0.0.1:8788/health || exit 1
+
+CMD ["bun", "run", "src/frontend/server/index.ts"]
