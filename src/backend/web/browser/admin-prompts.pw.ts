@@ -20,7 +20,7 @@
 
 import { expect, test } from "@playwright/test";
 import {
-  DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, NOTIFICATION_IDS,
+  DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, LANGS, LANG_LABEL, NOTIFICATION_IDS,
   NOTIFICATION_PLACEHOLDERS, ONBOARDING_SCREENS, SCREEN_FIELDS, SCREEN_OPTIONS, screenIsOptional,
 } from "@eait/shared";
 import { adminPage } from "../../api/admin.page.ts";
@@ -68,12 +68,20 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
   }));
 
   await page.route("**/start/session/token", (r) => r.fulfill(json({ token: "pw-not-a-real-bearer" })));
-  await page.route("**/admin/api/content", (r) => r.fulfill(json({
+  // TRAILING `**` ON BOTH, like the metrics and funnel stubs below: the copy routes carry `?lang=`
+  // since #358, and a glob that ends at the path stops matching the moment a query is added — which
+  // reads on this page as "that account cannot administer this instance", because the throw lands
+  // inside `load` and `enter` catches it.
+  await page.route("**/admin/api/content**", (r) => r.fulfill(json({
     content: DEFAULT_ONBOARDING_CONTENT,
+    lang: "en",
+    langs: LANGS,
+    labels: LANG_LABEL,
     meta: EDITOR_META,
   })));
-  await page.route("**/admin/api/notifications", (r) => r.fulfill(json({
+  await page.route("**/admin/api/notifications**", (r) => r.fulfill(json({
     copy: DEFAULT_NOTIFICATION_COPY,
+    lang: "en",
     meta: { ids: NOTIFICATION_IDS, placeholders: NOTIFICATION_PLACEHOLDERS },
   })));
   await page.route("**/admin/api/metrics**", (r) => r.fulfill(json({
