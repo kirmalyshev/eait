@@ -493,7 +493,7 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
     onPlan: "Dans le plan. Pareil demain.",
   },
   de: {
-    noMeals: "Ein Foto morgen holt den Tag zurück aufs Brett.",
+    noMeals: "Ein Foto morgen, und der Tag zählt wieder.",
     over: "{over} drüber heute — morgen startet wieder bei {plan}.",
     protein: "Beim Eiweiß fehlten {gap} g — Eier oder Skyr zum Frühstück schließen die Lücke.",
     gainUnder: "{under} kcal unter dem Plan — eine Handvoll Nüsse morgen deckt das.",
@@ -533,11 +533,11 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
     onPlan: "Sesuai rencana. Besok sama lagi.",
   },
   ru: {
-    noMeals: "Одно фото завтра вернёт день на доску.",
+    noMeals: "Одно фото завтра — и день снова в счёте.",
     over: "Сегодня {over} сверху — завтра снова стартуешь с {plan}.",
     protein: "Белка не хватило {gap} г — яйца или скир на завтрак закрывают разрыв.",
     gainUnder: "{under} ккал не хватило до плана — горсть орехов завтра это покроет.",
-    under: "{under} ниже плана — съесть завтра всю цифру и есть план, а не срыв.",
+    under: "{under} ниже плана. Съесть завтра всю цифру — это и есть план, а не срыв.",
     onPlan: "В плане. Завтра так же.",
   },
 };
