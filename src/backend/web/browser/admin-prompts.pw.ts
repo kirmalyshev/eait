@@ -5,15 +5,43 @@
 // a `null` dereference in that code. The panel it now carries edits the text a MODEL is sent, which
 // is the last surface here that should ship on the strength of "it looked right in the diff".
 //
-// IT DOES NOT SIGN IN. Reaching /admin for real needs an Apple or Google round trip and an account
-// holding the role, which is the app's e2e problem and not this panel's. The page is served without
-// a credential — it is where you sign in — so the markup and its script are fetched from the real
-// server, and only the four `/admin/api/*` calls are answered here. What is under test is the code
-// in the page: does it render six cards from a response, does it read `source`, does History open,
-// does a 409 land beside the button instead of in the error box. Those are exactly the things the
-// unit tests on the routes cannot see.
+// IT SERVES THE PAGE ITSELF rather than asking the server for it, and that is not a shortcut around
+// the auth — it is what makes the test about the panel. Reaching /admin for real needs an account
+// holding the role, and the demo server this suite runs against has none, so the route answers 404
+// exactly as it would on an instance where nobody is an admin. Fulfilling the navigation with
+// `adminPage()` puts the REAL markup and the REAL script in a real browser, under the REAL
+// content-security-policy, and leaves only the `/admin/api/*` answers to this file. What is under
+// test is the page's own JavaScript: does it render a card per prompt, does it read `source`, does
+// History open, does a 409 land beside the button instead of in the error box.
+//
+// The stubs answer with the SHIPPED defaults where there are any, because `render()` runs before
+// the prompts panel does and a shape it cannot read would leave the gate shut and every assertion
+// below timing out against a hidden page — which is how the first version of this file failed.
 
 import { expect, test } from "@playwright/test";
+import {
+  DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, NOTIFICATION_IDS,
+  NOTIFICATION_PLACEHOLDERS, ONBOARDING_SCREENS, SCREEN_FIELDS, SCREEN_OPTIONS, screenIsOptional,
+} from "@eait/shared";
+import { adminPage } from "../../api/admin.page.ts";
+
+const NONCE = "pw-nonce";
+
+/** The policy `adminRoutes` serves the page under. Copied so a CSP violation still fails here. */
+const CSP =
+  `default-src 'none'; style-src 'nonce-${NONCE}'; script-src 'nonce-${NONCE}'; `
+  + "connect-src 'self'; img-src data: blob:; base-uri 'none'; form-action 'none'; "
+  + "frame-ancestors 'none'";
+
+/** `editorMeta()` in `api/admin.ts`, which is not exported. Same constants, same shape. */
+const EDITOR_META = {
+  screens: ONBOARDING_SCREENS.map((id) => ({
+    id,
+    optional: screenIsOptional(id),
+    fields: SCREEN_FIELDS[id],
+    options: SCREEN_OPTIONS[id as keyof typeof SCREEN_OPTIONS] ?? [],
+  })),
+};
 
 const PROMPTS = [
   { key: "analysis", text: "You estimate the nutritional content of a meal from photographs.", version: 1, source: "shipped", updated_at: "2026-09-18T10:00:00.000Z", shipped: "You estimate the nutritional content of a meal from photographs." },
@@ -24,20 +52,40 @@ const PROMPTS = [
   { key: "coach", text: "You are Gabie.", version: 1, source: "shipped", updated_at: "2026-09-18T10:00:00.000Z", shipped: "You are Gabie." },
 ];
 
-/** Answer the page's own calls, and hand it a bearer so it gets past `enter()`. */
+/** Serve the real page, and answer the calls it makes on the way up. */
 async function stubAdmin(page: import("@playwright/test").Page, over: Record<string, unknown> = {}) {
   const json = (body: unknown, status = 200) =>
     ({ status, contentType: "application/json", body: JSON.stringify(body) });
 
+  // Most-recently-registered wins in Playwright, so the document route goes on FIRST: `**/admin`
+  // ends at /admin and cannot swallow /admin/api/... , but registering it last would still put it
+  // ahead of the API routes for any URL both matched.
+  await page.route("**/admin", (r) => r.fulfill({
+    status: 200,
+    contentType: "text/html; charset=utf-8",
+    headers: { "content-security-policy": CSP },
+    body: adminPage(NONCE),
+  }));
+
   await page.route("**/start/session/token", (r) => r.fulfill(json({ token: "pw-not-a-real-bearer" })));
   await page.route("**/admin/api/content", (r) => r.fulfill(json({
-    content: { version: 1, welcome: { title: "", lines: [] }, asks: {}, building: {}, summary: {} },
-    meta: { screens: [] },
+    content: DEFAULT_ONBOARDING_CONTENT,
+    meta: EDITOR_META,
   })));
-  await page.route("**/admin/api/notifications", (r) => r.fulfill(json({ copy: {}, meta: { ids: [], placeholders: {} } })));
-  await page.route("**/admin/api/metrics**", (r) => r.fulfill(json({ days: [] })));
-  await page.route("**/admin/api/funnel**", (r) => r.fulfill(json({ sessions: 0, completed: 0, rows: [] })));
-  await page.route("**/admin/api/users**", (r) => r.fulfill(json({ users: [], total: 0 })));
+  await page.route("**/admin/api/notifications", (r) => r.fulfill(json({
+    copy: DEFAULT_NOTIFICATION_COPY,
+    meta: { ids: NOTIFICATION_IDS, placeholders: NOTIFICATION_PLACEHOLDERS },
+  })));
+  await page.route("**/admin/api/metrics**", (r) => r.fulfill(json({
+    days: [], dailyAnalysisCap: 0, headroom: 0,
+    d1: { returned: 0, eligible: 0 }, d7: { returned: 0, eligible: 0 },
+  })));
+  await page.route("**/admin/api/funnel**", (r) => r.fulfill(json({
+    days: 30, contentVersion: 1, sessions: 0, completed: 0, rows: [],
+  })));
+  await page.route("**/admin/api/users**", (r) => r.fulfill(json({
+    users: [], nextCursor: null, defaultFreeAnalyses: 15,
+  })));
   await page.route("**/admin/api/prompts/*/revisions", (r) => r.fulfill(json({
     key: "glance",
     revisions: [
@@ -51,6 +99,12 @@ async function stubAdmin(page: import("@playwright/test").Page, over: Record<str
   });
 }
 
+/** The panel lives behind the gate, so every test waits for the page to be let in first. */
+async function openAdmin(page: import("@playwright/test").Page) {
+  await page.goto("/admin");
+  await expect(page.locator("#app")).toBeVisible();
+}
+
 /** Console errors are a failure, not noise: this page has no build step to catch them first. */
 function watchConsole(page: import("@playwright/test").Page): string[] {
   const errors: string[] = [];
@@ -62,7 +116,7 @@ function watchConsole(page: import("@playwright/test").Page): string[] {
 test("the panel renders one card per prompt, and says who wrote each", async ({ page }) => {
   const errors = watchConsole(page);
   await stubAdmin(page);
-  await page.goto("/admin");
+  await openAdmin(page);
 
   const panel = page.locator("#prompts");
   await expect(panel.locator(".card")).toHaveCount(6);
@@ -82,7 +136,7 @@ test("the panel renders one card per prompt, and says who wrote each", async ({ 
 test("History opens the revisions, newest first, with the whole text of each", async ({ page }) => {
   const errors = watchConsole(page);
   await stubAdmin(page);
-  await page.goto("/admin");
+  await openAdmin(page);
 
   const glance = page.locator("#prompts .card").filter({ hasText: "glance" }).first();
   await glance.getByRole("button", { name: "History" }).click();
@@ -98,7 +152,7 @@ test("History opens the revisions, newest first, with the whole text of each", a
 test("saving asks first, and an unchanged prompt is not a save at all", async ({ page }) => {
   const errors = watchConsole(page);
   await stubAdmin(page);
-  await page.goto("/admin");
+  await openAdmin(page);
 
   const glance = page.locator("#prompts .card").filter({ hasText: "glance" }).first();
   // Untouched: the button refuses without a dialog, because there is nothing to confirm.
@@ -122,7 +176,7 @@ test("a 409 lands beside the button, not in the page's error box", async ({ page
   await stubAdmin(page, {
     put: { status: 409, contentType: "application/json", body: JSON.stringify({ errors: ["somebody else saved this prompt a moment ago — reload it and apply your change on top"] }) },
   });
-  await page.goto("/admin");
+  await openAdmin(page);
 
   page.on("dialog", (d) => void d.accept());
   const glance = page.locator("#prompts .card").filter({ hasText: "glance" }).first();
