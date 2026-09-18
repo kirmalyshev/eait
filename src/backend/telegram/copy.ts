@@ -259,7 +259,7 @@ const VI: TelegramCopy = {
   connectedLead: "Đã kết nối với tài khoản eait đăng nhập bằng",
   viaApp: "ứng dụng",
   connectedTail: "Gửi ảnh một bữa ăn, kể mình nghe bạn đã ăn gì, hoặc hỏi Gabie một câu.",
-  notYours: "Không phải tài khoản của bạn? Đăng nhập vào tài khoản của mình trên web rồi bấm Kết nối Telegram ở đó — Telegram này sẽ chuyển sang đó.",
+  notYours: "Không phải tài khoản của bạn? Đăng nhập vào tài khoản của chính bạn trên web rồi bấm Kết nối Telegram ở đó — Telegram này sẽ chuyển sang đó.",
   codeInvalid: "Liên kết đó đã hết hạn. Mở trang kế hoạch trên web rồi bấm Kết nối Telegram lần nữa.",
   tooManyTries: "Thử quá nhiều lần từ Telegram này. Chờ một lát rồi bấm lại liên kết.",
   onTheWeb: "Hồ sơ và cài đặt của bạn nằm trên web.",

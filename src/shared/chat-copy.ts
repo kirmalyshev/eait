@@ -342,9 +342,9 @@ const VI: ThreadCopy = {
   },
   meetGabie: "Câu hỏi thì gửi cho Gabie, chuyên gia dinh dưỡng ở đây — tối nay ăn gì, tuần này ra sao. Vẫn chat này; cô ấy đọc nhật ký của bạn trước khi trả lời. Mình ghi chép, cô ấy tư vấn.",
   coachStarters: [
-    "Tuần này của mình thế nào?",
-    "Tối nay mình nên ăn gì?",
-    "Mình đã đủ đạm chưa?",
+    "Tuần này thế nào?",
+    "Tối nay nên ăn gì?",
+    "Đã đủ đạm chưa?",
   ],
   running: {
     left: "Hôm nay bạn còn {left} trên {plan}, {protein} trên {proteinTarget} g đạm.",
