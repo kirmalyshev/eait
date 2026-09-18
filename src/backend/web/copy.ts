@@ -75,6 +75,16 @@ export interface PageCopy {
   titleChat: string;
   languageLabel: string;
   languageSave: string;
+  /** `{provider}` is Apple or Google — a brand, so it is not translated, only the verb around it. */
+  continueWith: string;
+  /**
+   * The rate limiter's plain-text 429 body.
+   *
+   * NOT A PAGE and deliberately still a string a person can read: a browser renders a raw 429 body,
+   * so somebody who trips this sees exactly this sentence and nothing else. The `retry-after`
+   * header beside it is what a machine reads.
+   */
+  tooManyAttempts: string;
 }
 
 const EN: PageCopy = {
@@ -173,6 +183,8 @@ const EN: PageCopy = {
   /** The picker. Its OPTIONS are `LANG_LABEL` — endonyms, never translated. */
   languageLabel: "Language",
   languageSave: "Save",
+  continueWith: "Continue with {provider}",
+  tooManyAttempts: "Too many attempts from this address. Try again shortly.\n",
 };
 
 const FR: PageCopy = {
@@ -232,6 +244,8 @@ const FR: PageCopy = {
   titleChat: "Chat",
   languageLabel: "Langue",
   languageSave: "Enregistrer",
+  continueWith: "Continuer avec {provider}",
+  tooManyAttempts: "Trop de tentatives depuis cette adresse. Réessaie dans un moment.\n",
 };
 
 const DE: PageCopy = {
@@ -291,6 +305,8 @@ const DE: PageCopy = {
   titleChat: "Chat",
   languageLabel: "Sprache",
   languageSave: "Speichern",
+  continueWith: "Weiter mit {provider}",
+  tooManyAttempts: "Zu viele Versuche von dieser Adresse. Versuch es gleich noch einmal.\n",
 };
 
 const IT: PageCopy = {
@@ -350,6 +366,8 @@ const IT: PageCopy = {
   titleChat: "Chat",
   languageLabel: "Lingua",
   languageSave: "Salva",
+  continueWith: "Continua con {provider}",
+  tooManyAttempts: "Troppi tentativi da questo indirizzo. Riprova tra poco.\n",
 };
 
 const ES: PageCopy = {
@@ -409,6 +427,8 @@ const ES: PageCopy = {
   titleChat: "Chat",
   languageLabel: "Idioma",
   languageSave: "Guardar",
+  continueWith: "Continuar con {provider}",
+  tooManyAttempts: "Demasiados intentos desde esta dirección. Inténtalo dentro de un momento.\n",
 };
 
 const VI: PageCopy = {
@@ -468,6 +488,8 @@ const VI: PageCopy = {
   titleChat: "Chat",
   languageLabel: "Ngôn ngữ",
   languageSave: "Lưu",
+  continueWith: "Tiếp tục với {provider}",
+  tooManyAttempts: "Quá nhiều lần thử từ địa chỉ này. Thử lại sau một lát nhé.\n",
 };
 
 const ID: PageCopy = {
@@ -527,6 +549,8 @@ const ID: PageCopy = {
   titleChat: "Chat",
   languageLabel: "Bahasa",
   languageSave: "Simpan",
+  continueWith: "Lanjutkan dengan {provider}",
+  tooManyAttempts: "Terlalu banyak percobaan dari alamat ini. Coba lagi sebentar.\n",
 };
 
 const RU: PageCopy = {
@@ -586,6 +610,8 @@ const RU: PageCopy = {
   titleChat: "Чат",
   languageLabel: "Язык",
   languageSave: "Сохранить",
+  continueWith: "Продолжить с {provider}",
+  tooManyAttempts: "Слишком много попыток с этого адреса. Попробуй чуть позже.\n",
 };
 
 /** Every sentence `/start` writes for itself, keyed by language. */

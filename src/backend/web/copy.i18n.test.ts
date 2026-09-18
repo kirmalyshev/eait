@@ -95,3 +95,16 @@ describe("the table itself", () => {
     expect(Object.keys(PAGE_COPY_BY_LANG).sort()).toEqual([...LANGS].sort());
   });
 });
+
+describe("the front door's two buttons", () => {
+  it("translate the verb and keep the brand, in every language", () => {
+    // "Weiter mit Apple", never "Weiter mit Apfel". Same rule as `LANG_LABEL` and the product's
+    // own name: a brand is the same string wherever it is read.
+    for (const lang of LANGS) {
+      const said = pageCopyFor(lang).continueWith;
+      expect(said, lang).toContain("{provider}");
+      expect(said.replace("{provider}", "Apple"), lang).toContain("Apple");
+    }
+    expect(pageCopyFor("de").continueWith.replace("{provider}", "Apple")).toBe("Weiter mit Apple");
+  });
+});

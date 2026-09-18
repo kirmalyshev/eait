@@ -108,11 +108,18 @@ const chatNotice = (copy: PageCopy): Record<string, string> => ({
   "too-large": copy.chatTooLarge,
 });
 
-/** The label on each button, and the order they are offered in — Apple first, as in the app. */
-const PROVIDER_LABEL: Record<WebProvider, string> = {
-  apple: "Continue with Apple",
-  google: "Continue with Google",
-};
+/**
+ * The label on each button, and the order they are offered in — Apple first, as in the app.
+ *
+ * The BRAND is not translated and the verb around it is: "Weiter mit Apple", never "Weiter mit
+ * Apfel". Same rule as `LANG_LABEL` and the product's own name.
+ */
+const providerLabel = (p: WebProvider, lang: Lang): string =>
+  pageCopyFor(lang).continueWith.replace("{provider}", p === "apple" ? "Apple" : "Google");
+
+/** What this browser asked for, narrowed. The only language signal there is before a session. */
+const browserLang = (req: Request): Lang =>
+  narrowLang(acceptLanguageTags(req.headers.get("accept-language"))[0]);
 
 /** The session, and the ten minutes of OAuth state that precedes it. */
 const SESSION_COOKIE = "eait_web";
@@ -181,9 +188,13 @@ const notFound = (): Response =>
  * ONE SHAPE FOR BOTH. The OAuth callback and the pairing form spend the SAME allowance, so a
  * caller that could tell the two refusals apart would be learning which route it hit rather than
  * what to do about it — and the thing to do is the same either way.
+ *
+ * WORDED FROM THE HEADER, NEVER FROM THE ACCOUNT. Two of the three callers have no account yet, and
+ * the third is on the path that exists to SHED load — reading a profile to word a rate-limit
+ * refusal is a database query on the one request we have decided not to serve.
  */
-const tooManyAttempts = (wait: number): Response =>
-  new Response("Too many attempts from this address. Try again shortly.\n", {
+const tooManyAttempts = (wait: number, lang: Lang = "en"): Response =>
+  new Response(pageCopyFor(lang).tooManyAttempts, {
     status: 429,
     headers: { "content-type": "text/plain; charset=utf-8", "retry-after": String(wait) },
   });
@@ -432,7 +443,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       : url.searchParams.has("error") ? PAGE_COPY.errorSignIn
       : null;
     return html(frontDoor(content.welcome.lines, offered.map((p) => ({
-      href: `${START_PREFIX}/auth/${p}`, label: PROVIDER_LABEL[p],
+      href: `${START_PREFIX}/auth/${p}`, label: providerLabel(p, lang),
     })), error, lang));
   }
 
@@ -555,7 +566,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     // this function: a 429 from an unconfigured host would say the surface exists.
     const wait = ctx.limitAuth();
     if (wait !== null) {
-      return tooManyAttempts(wait);
+      return tooManyAttempts(wait, browserLang(req));
     }
 
     let token: string;
@@ -600,7 +611,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   if (req.method === "POST" && pathname === `${START_PREFIX}/pair`) {
     const wait = ctx.limitAuth();
     if (wait !== null) {
-      return tooManyAttempts(wait);
+      return tooManyAttempts(wait, browserLang(req));
     }
     const form = await req.formData().catch(() => null);
     const code = form?.get("code");
@@ -925,7 +936,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   if (req.method === "POST" && pathname === `${START_PREFIX}/telegram`) {
     if (config.telegramBotUsername === "") return notFound();
     const wait = ctx.limitAuth();
-    if (wait !== null) return tooManyAttempts(wait);
+    if (wait !== null) return tooManyAttempts(wait, browserLang(req));
     const { code } = await mintPairingCode(ctx.deps, userId);
     return seeOther(`https://t.me/${config.telegramBotUsername}?start=${code}`);
   }
