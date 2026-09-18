@@ -195,12 +195,12 @@ describe("projectionMonth", () => {
   it("names the month the projection lands in", async () => {
     const { projectionMonth } = await import("./projection.ts");
     // 14 weeks from 2026-08-06 is 2026-11-12.
-    expect(projectionMonth(new Date("2026-08-06T12:00:00Z"), 14)).toBe("November 2026");
+    expect(projectionMonth(new Date("2026-08-06T12:00:00Z"), 14, "en")).toBe("November 2026");
   });
 
   it("crosses a year boundary", async () => {
     const { projectionMonth } = await import("./projection.ts");
-    expect(projectionMonth(new Date("2026-11-20T12:00:00Z"), 8)).toBe("January 2027");
+    expect(projectionMonth(new Date("2026-11-20T12:00:00Z"), 8, "en")).toBe("January 2027");
   });
 });
 

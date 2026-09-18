@@ -28,8 +28,12 @@ export interface Mailer {
    * Throwing is meaningful. The caller has already written a PENDING row, so a failure here leaves
    * an address that can never be confirmed and will be swept — which is the correct outcome and
    * must be logged rather than reported to the submitter, who cannot act on it.
+   *
+   * `lang` is REQUIRED and has no default. The one caller has the browser's `Accept-Language` in
+   * hand (`api/routes.ts` — a subscriber has no account to ask), so an optional parameter here
+   * bought nothing but the chance of sending a German reader an English confirmation.
    */
-  sendConfirmation(to: string, confirmUrl: string, lang?: Lang): Promise<void>;
+  sendConfirmation(to: string, confirmUrl: string, lang: Lang): Promise<void>;
 }
 
 /**
@@ -165,7 +169,7 @@ export const CONFIRMATION: Localized<{ subject: string; lines: string[] }> = {
 
 export function confirmationMessage(
   confirmUrl: string,
-  lang: Lang = "en",
+  lang: Lang,
 ): { subject: string; text: string } {
   const copy = t(lang)(CONFIRMATION);
   // The LINE that matters is the fourth from the end: until this link is clicked the address is not

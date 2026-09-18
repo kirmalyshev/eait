@@ -113,7 +113,7 @@ export function previewProjection(p: Profile, targetKg: number, pace: Pace): Goa
  * DST transition lands a day early, twice a year, and never reproducibly. `setDate` rolls the
  * calendar, which is what "fourteen weeks from Thursday" actually means.
  */
-export function projectionMonth(from: Date, weeks: number, lang: Lang = "en"): string {
+export function projectionMonth(from: Date, weeks: number, lang: Lang): string {
   const d = new Date(from.getTime());
   d.setDate(d.getDate() + weeks * 7);
   // UTC in the formatter, and the date was rolled in LOCAL time by `setDate` above — so the pair

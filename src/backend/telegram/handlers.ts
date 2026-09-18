@@ -73,7 +73,7 @@ function webStart(config: Config): string {
 }
 
 /** A refusal as the bot says it: a sentence, then the web link on its own line. */
-export function refusalText(config: Config, r: Refusal, lang: Lang = "en"): string {
+export function refusalText(config: Config, r: Refusal, lang: Lang): string {
   const words = telegramCopyFor(lang).refusals;
   const key = r.kind === "cap-exceeded" ? `cap-${r.scope}` : r.kind;
   // A kind with no sentence falls back to the generic failure rather than to English: a refusal is
@@ -272,7 +272,7 @@ export function telegramHandlers(deps: EngineDeps) {
           : r.kind === "expired" ? copy.expired : refusalText(config, r, lang));
       }
       const r = await cancelPendingMeal(deps, userId, pendingId);
-      return tap.edit(r.kind === "cancelled" ? scriptedLine("dropped", {}, lang)
+      return tap.edit(r.kind === "cancelled" ? scriptedLine("dropped", lang, {})
         : r.kind === "expired" ? copy.expired : `${copy.alreadyLogged}\n${card(r.analysis, lang)}`);
     },
   };

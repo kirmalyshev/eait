@@ -625,7 +625,7 @@ export async function cancelPendingMeal(
   // already happened and a store hiccup here must not turn a cancel into a failure.
   await remember(deps, userId, async () => [{
     role: "assistant", kind: "text",
-    text: scriptedLine("dropped", {}, (await deps.store.getProfile(userId))?.lang ?? "en"),
+    text: scriptedLine("dropped", (await deps.store.getProfile(userId))?.lang ?? "en"),
   }]);
   return { kind: "cancelled" };
 }

@@ -562,7 +562,7 @@ export interface EveningInput {
  * names none. THE ORDER IS NOT TRANSLATABLE and is why the branching stayed here while the wording
  * moved into `EVENING_PRESCRIPTIONS`.
  */
-export function eveningPrescription(i: EveningInput, lang: Lang = "en"): string {
+export function eveningPrescription(i: EveningInput, lang: Lang): string {
   const say = t(lang)(EVENING_PRESCRIPTIONS);
   const n = wholeNumbers(lang);
   if (i.meals === 0) return say.noMeals;

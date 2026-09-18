@@ -466,7 +466,7 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
         // says so, rather than a "Dropped it." the thread will not carry.
         replace(entryId, res.kind === "expired"
           ? { id: entryId, role: "assistant", result: { kind: "expired" } }
-          : { id: entryId, role: "assistant", result: { kind: "answered", text: scriptedLine("dropped", {}, lang()) } });
+          : { id: entryId, role: "assistant", result: { kind: "answered", text: scriptedLine("dropped", lang(), {}) } });
       }
     } catch (e) {
       pushFailure(e);
@@ -512,7 +512,7 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
       // real. A kept turn cannot land after a newer live one — a turn said while kept ones wait joins
       // their end (`waiting`) — so the newest to land is the newest asked for, a Send again included.
       for (const stale of livePendings(state.entries)) void deps.client().cancelPending(stale).catch(() => {});
-      edit((prev) => oneLiveProposal([...prev, { id: uid(), role: "assistant", result }]));
+      edit((prev) => oneLiveProposal([...prev, { id: uid(), role: "assistant", result }], lang()));
     } else if (result.kind === "target-gone") {
       // The server keeps no line for it, so no page would say it — and a page would drop a live
       // notice: the notice a live turn gets, and no reload behind it.

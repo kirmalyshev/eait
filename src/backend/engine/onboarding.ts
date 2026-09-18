@@ -38,7 +38,7 @@ const PLACES: readonly string[] = ONBOARDING_PLACES;
  * missing since before they opened the page. Serving the default instead means the editor opens on
  * something that can be saved.
  */
-export async function onboardingContent(deps: EngineDeps, lang: Lang = "en"): Promise<OnboardingContent> {
+export async function onboardingContent(deps: EngineDeps, lang: Lang): Promise<OnboardingContent> {
   return usableContentFor(lang, await deps.store.getOnboardingContent());
 }
 
@@ -62,7 +62,7 @@ export async function onboardingContent(deps: EngineDeps, lang: Lang = "en"): Pr
 export async function saveOnboardingContent(
   deps: EngineDeps,
   input: unknown,
-  lang: Lang = "en",
+  lang: Lang,
 ): Promise<ContentValidation> {
   const stored = await deps.store.getOnboardingContent();
   const withVersion =
@@ -77,7 +77,7 @@ export async function saveOnboardingContent(
 }
 
 /** Restore the shipped copy for one language. The undo button for an edit that went wrong. */
-export async function resetOnboardingContent(deps: EngineDeps, lang: Lang = "en"): Promise<OnboardingContent> {
+export async function resetOnboardingContent(deps: EngineDeps, lang: Lang): Promise<OnboardingContent> {
   const stored = await deps.store.getOnboardingContent();
   const restored = { ...onboardingContentFor(lang), version: nextVersion(lang, stored) };
   await deps.store.putOnboardingContent({ ...storedContentSet(stored), [lang]: restored });

@@ -93,8 +93,10 @@ export function scriptedParams(id: ScriptedLineId, given: unknown): Record<strin
 
 export function scriptedLine(
   id: ScriptedLineId,
+  lang: Lang,
+  // See `checkNumber`: the optional one goes last so that reaching the language never costs a
+  // caller an argument it has no opinion about.
   params: Record<string, string> = {},
-  lang: Lang = "en",
 ): string {
   // A declared parameter with nothing behind it renders as NOTHING, not as a brace — the rule this
   // function has always had, and the one place in the codebase where an unfilled placeholder is
@@ -116,9 +118,9 @@ export function scriptedLine(
  * else — Spud logs, Gabie advises — and this is the one user-visible sentence that calls her a
  * nutritionist.
  */
-export const MEET_GABIE = (lang: Lang = "en"): string => threadCopyFor(lang).meetGabie;
+export const MEET_GABIE = (lang: Lang): string => threadCopyFor(lang).meetGabie;
 
-export const COACH_STARTERS = (lang: Lang = "en"): readonly string[] =>
+export const COACH_STARTERS = (lang: Lang): readonly string[] =>
   threadCopyFor(lang).coachStarters;
 
 /**
@@ -197,7 +199,7 @@ export function cleanSuggestions(raw: unknown): string[] {
  */
 export function runningLine(
   i: { targets: FoodTargets; eatenToday: { kcal: number; protein_g: number } },
-  lang: Lang = "en",
+  lang: Lang,
 ): string {
   const copy = threadCopyFor(lang).running;
   const left = i.targets.kcal - i.eatenToday.kcal;
@@ -229,7 +231,7 @@ function figures(
  */
 export function correctionLine(
   i: { targets: FoodTargets; meal: { kcal: number }; eatenToday: { kcal: number; protein_g: number } },
-  lang: Lang = "en",
+  lang: Lang,
 ): string {
   return fill(threadCopyFor(lang).correction, {
     kcal: wholeNumbers(lang)(i.meal.kcal),
@@ -274,7 +276,7 @@ export interface FirstVerdictInput {
  * `.replace(/^that/, "That")` over it — an English capitalisation rule living inside a string
  * operation, correct in exactly one language. `arithmeticAlone` is that same pair, said out loud.
  */
-export function firstVerdictLines(i: FirstVerdictInput, lang: Lang = "en"): string[] {
+export function firstVerdictLines(i: FirstVerdictInput, lang: Lang): string[] {
   const copy = threadCopyFor(lang).firstVerdict;
   const f = figures(i, lang);
   const kcal = wholeNumbers(lang)(i.meal.kcal);

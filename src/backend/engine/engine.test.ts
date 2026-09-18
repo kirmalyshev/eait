@@ -1172,7 +1172,7 @@ describe("the thread", () => {
     expect(text(t[0]!)).toBe("two eggs and toast");
     expect(text(t[4]!)).toContain("Typed, not photographed");
     // The first verdict ends by introducing the coach, in Spud's voice, with his face.
-    expect(t[6]).toMatchObject({ kind: "text", text: MEET_GABIE(), speaker: null });
+    expect(t[6]).toMatchObject({ kind: "text", text: MEET_GABIE("en"), speaker: null });
   });
 
   it("names its proposal on the user line, and a racing confirm answers with the meal the other one logged", async () => {
@@ -1326,7 +1326,7 @@ describe("the thread", () => {
     expect(t.map((e) => [e.role, e.kind])).toEqual([["user", "photo"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"], ["assistant", "text"]]);
     expect(text(t[2]!)).toMatch(/^First one in\. [\d,]+ kcal — /);
     expect(text(t[3]!)).toContain("If anything's off");
-    expect(text(t[4]!)).toBe(MEET_GABIE());
+    expect(text(t[4]!)).toBe(MEET_GABIE("en"));
     // The VERDICT is never said again — but the day's standing is, on every meal past the first
     // (#306), which is the one line the greeting's own arithmetic stands in for.
     const second = await logPhotoMeal(d, userId, photo());
@@ -1384,7 +1384,7 @@ describe("the thread", () => {
     expect(text(t.at(-1)!)).toBe(runningLine({
       targets: explainTargets(profile).targets,
       eatenToday: { kcal: second.totals.kcal, protein_g: second.totals.protein_g },
-    }));
+    }, "en"));
 
     // A confirmed text meal is a landed meal too, and reads the same.
     const typed = await handleText(deps, userId, { text: "an apple" });
@@ -1396,7 +1396,7 @@ describe("the thread", () => {
     expect(text(after.at(-1)!)).toBe(runningLine({
       targets: explainTargets(profile).targets,
       eatenToday: { kcal: third.totals.kcal, protein_g: third.totals.protein_g },
-    }));
+    }, "en"));
   });
 
   it("says nothing about today for a meal logged to another day", async () => {
@@ -1567,7 +1567,7 @@ describe("the thread", () => {
     // A scripted line, named by the client, worded by the server.
     expect(await appendLines(deps, userId, [{ role: "assistant", scripted: "camera-closed" }]))
       .toEqual({ appended: 1 });
-    expect((await thread(userId)).map(text)).toContain(scriptedLine("camera-closed", {}, "de"));
+    expect((await thread(userId)).map(text)).toContain(scriptedLine("camera-closed", "de", {}));
 
     // An onboarding question by coordinate — the words come from this server's copy, in ITS language.
     await appendLines(deps, userId, [{ role: "assistant", ask: { prompt: "goal", line: 0 } }]);

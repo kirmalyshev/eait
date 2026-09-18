@@ -147,12 +147,12 @@ describe("correlate", () => {
 
 describe("correlationWords", () => {
   test("names the strength and the direction in words, never as a bare number", () => {
-    expect(correlationWords(0.05)).toBe("no clear link");
-    expect(correlationWords(-0.1)).toBe("no clear link");
-    expect(correlationWords(0.3)).toBe("a weak link — they tend to rise together");
-    expect(correlationWords(-0.3)).toBe("a weak link — one tends to rise as the other falls");
-    expect(correlationWords(0.6)).toBe("a moderate link — they tend to rise together");
-    expect(correlationWords(-0.9)).toBe("a strong link — one tends to rise as the other falls");
+    expect(correlationWords(0.05, "en")).toBe("no clear link");
+    expect(correlationWords(-0.1, "en")).toBe("no clear link");
+    expect(correlationWords(0.3, "en")).toBe("a weak link — they tend to rise together");
+    expect(correlationWords(-0.3, "en")).toBe("a weak link — one tends to rise as the other falls");
+    expect(correlationWords(0.6, "en")).toBe("a moderate link — they tend to rise together");
+    expect(correlationWords(-0.9, "en")).toBe("a strong link — one tends to rise as the other falls");
   });
 });
 

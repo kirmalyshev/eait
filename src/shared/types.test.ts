@@ -43,7 +43,7 @@ describe("renderableVerdicts", () => {
 describe("verdictPillLabel", () => {
   test("every dimension and verdict names the judgement in words", () => {
     for (const d of VERDICT_DIMENSIONS) {
-      const labels = (["good", "warn", "bad"] as const).map((v) => verdictPillLabel(d, v));
+      const labels = (["good", "warn", "bad"] as const).map((v) => verdictPillLabel(d, v, "en"));
       // Three distinct sentences: the pill must not rely on its colour to say which one it is.
       expect(new Set(labels).size).toBe(3);
       for (const l of labels) expect(l.split(" ").length).toBeGreaterThan(1);
@@ -51,9 +51,9 @@ describe("verdictPillLabel", () => {
   });
 
   test("the noun stays the dimension's own", () => {
-    expect(verdictPillLabel("weight", "good")).toBe("Calories on plan");
-    expect(verdictPillLabel("ldl", "warn")).toBe("Saturated fat high");
-    expect(verdictPillLabel("kidneys", "bad")).toBe("Sodium very high");
+    expect(verdictPillLabel("weight", "good", "en")).toBe("Calories on plan");
+    expect(verdictPillLabel("ldl", "warn", "en")).toBe("Saturated fat high");
+    expect(verdictPillLabel("kidneys", "bad", "en")).toBe("Sodium very high");
   });
 });
 

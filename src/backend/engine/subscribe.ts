@@ -100,7 +100,7 @@ export function confirmUrl(base: string, token: string): string {
  */
 export async function subscribe(
   deps: SubscribeDeps,
-  input: { email: string; honeypot?: string; source: string; lang?: Lang },
+  input: { email: string; honeypot?: string; source: string; lang: Lang },
 ): Promise<SubscribeResult> {
   // Checked first and cheapest. A filled honeypot is answered exactly like a success, so a bot
   // learns nothing from the response about whether it was believed.

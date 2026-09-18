@@ -207,7 +207,7 @@ export const TYPING_SCRIPT = `(function () {
 /** What the policy allows to run: that script and nothing else. */
 const TYPING_SCRIPT_HASH = createHash("sha256").update(TYPING_SCRIPT).digest("base64");
 
-export function shell(title: string, body: string, lang: Lang = "en"): string {
+export function shell(title: string, body: string, lang: Lang): string {
   return `<!doctype html>
 <!-- \`lang\` is not decoration: it is what a screen reader picks a voice from and what a browser
      offers to translate. A German page declaring itself English is read aloud in an English
@@ -265,7 +265,7 @@ export interface SignInButton { href: string; label: string }
  */
 export function frontDoor(
   welcome: readonly string[], buttons: readonly SignInButton[], error: string | null,
-  lang: Lang = "en",
+  lang: Lang,
 ): string {
   const PAGE_COPY = pageCopyFor(lang);
   return shell(PAGE_COPY.titleStart, `
@@ -352,7 +352,7 @@ ${bubbles(v.lines)}
  * worst sentence on this surface.
  */
 export function stopped(
-  title: string, body: string, lines: readonly string[], lang: Lang = "en",
+  title: string, body: string, lines: readonly string[], lang: Lang,
 ): string {
   return shell(title, `
 ${spud}

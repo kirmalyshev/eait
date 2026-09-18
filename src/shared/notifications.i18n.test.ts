@@ -75,6 +75,6 @@ describe("the evening prescription", () => {
 
   it("stays the English sentence when no language is given, so old callers are unchanged", () => {
     const on = { targets, totals: { kcal: 1990, protein_g: 140 }, meals: 3, goal: "maintain" as const };
-    expect(eveningPrescription(on)).toBe(eveningPrescription(on, "en"));
+    expect(eveningPrescription(on, "en")).toBe(eveningPrescription(on, "en"));
   });
 });

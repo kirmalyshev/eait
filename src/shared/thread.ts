@@ -322,13 +322,13 @@ export const proposalLive = (expiresAt: string, now: number): boolean => {
  * card ("Log it too") was two open cards on the phone (#663); its cost stands — a meal described
  * before the previous one is logged drops it, and a live card stays tappable while a turn is out.
  */
-export function oneLiveProposal(entries: ThreadEntry[], lang: Lang = "en"): ThreadEntry[] {
+export function oneLiveProposal(entries: ThreadEntry[], lang: Lang): ThreadEntry[] {
   const live = entries.filter((e) => pendingIdOf(e) !== null);
   if (live.length < 2) return entries;
   const newest = live[live.length - 1];
   return entries.map((e) => {
     if (pendingIdOf(e) === null || e === newest) return e;
-    return { id: e.id, role: "assistant", result: { kind: "answered", text: scriptedLine("dropped", {}, lang) } };
+    return { id: e.id, role: "assistant", result: { kind: "answered", text: scriptedLine("dropped", lang, {}) } };
   });
 }
 

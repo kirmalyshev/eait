@@ -295,7 +295,7 @@ describe("tapping Log it / Not this", () => {
     const { from, userId, pendingId } = await proposed();
     const tap = fakeChat();
     await h.tap(from, `no:${pendingId}`, tap);
-    expect(tap.edits).toEqual([scriptedLine("dropped")]);
+    expect(tap.edits).toEqual([scriptedLine("dropped", "en")]);
     expect(await store.pendingsFor(userId)).toEqual([]);
   });
 
@@ -342,7 +342,7 @@ describe("photos", () => {
     const { from } = await linked();
     const chat = fakeChat();
     await h.photos(from, [async () => jpeg()], DEMO_NOT_FOOD, chat);
-    expect(chat.sent).toEqual([{ text: refusalText(deps.config, { kind: "not-food" }) }]);
+    expect(chat.sent).toEqual([{ text: refusalText(deps.config, { kind: "not-food" }, "en") }]);
   });
 
   it("says a download that failed as that, and charges nothing for it", async () => {
@@ -391,7 +391,7 @@ describe("every refusal", () => {
     ];
     const said = new Set<string>();
     for (const r of kinds) {
-      const text = refusalText(CONFIG, r);
+      const text = refusalText(CONFIG, r, "en");
       const [sentence, link, ...rest] = text.split("\n");
       expect(sentence!.length).toBeGreaterThan(10);
       expect(link).toBe(SIGN_IN);
@@ -410,7 +410,7 @@ describe("the copy the bot writes", () => {
     // What protects the seven translations is that they are translations OF copy that passed here.
     expect(lintCopy(flat(telegramCopyFor("en")))).toEqual([]);
     const refusals = Object.fromEntries(Object.keys(REFUSAL_STATUS).map((kind) =>
-      [kind, refusalText(CONFIG, { kind, scope: "user" } as Refusal)]));
+      [kind, refusalText(CONFIG, { kind, scope: "user" } as Refusal, "en")]));
     expect(lintCopy(refusals)).toEqual([]);
   });
 

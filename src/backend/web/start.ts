@@ -193,7 +193,7 @@ const notFound = (): Response =>
  * the third is on the path that exists to SHED load — reading a profile to word a rate-limit
  * refusal is a database query on the one request we have decided not to serve.
  */
-const tooManyAttempts = (wait: number, lang: Lang = "en"): Response =>
+const tooManyAttempts = (wait: number, lang: Lang): Response =>
   new Response(pageCopyFor(lang).tooManyAttempts, {
     status: 429,
     headers: { "content-type": "text/plain; charset=utf-8", "retry-after": String(wait) },
@@ -350,7 +350,7 @@ function answerFor(prompt: ChatPrompt, answers: string[], profile: Profile): Ans
   if (value === undefined || value === "") return { kind: "missing" };
 
   if (prompt.kind === "number") {
-    const checked = checkNumber(field as NumberField, value, new Date(), profile.lang);
+    const checked = checkNumber(field as NumberField, value, profile.lang, new Date());
     if (!checked.ok) {
       if ("underAge" in checked) return { kind: "under-age" };
       // "90" is 1990 typed the short way, or somebody who is ninety. Computing the wrong one is
@@ -382,7 +382,7 @@ function answerFor(prompt: ChatPrompt, answers: string[], profile: Profile): Ans
  * `target-weight-below-healthy-bmi` is the anorexia guard, and the number it carries is the lowest
  * this app will accept. Saying it is the whole point: a refusal with no number is a wall.
  */
-function refusalText(r: { reason: string; minHealthyKg?: number }, lang: Lang = "en"): string {
+function refusalText(r: { reason: string; minHealthyKg?: number }, lang: Lang): string {
   const copy = pageCopyFor(lang);
   if (r.reason === "target-weight-below-healthy-bmi") {
     return copy.belowHealthyTarget.replace("{kg}", numbers(lang)(r.minHealthyKg ?? 0));
@@ -1009,7 +1009,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
 }
 
 /** The words for a code, and nothing at all for a code this page does not know. */
-function noticeText(code: string | null, lang: Lang = "en"): string | null {
+function noticeText(code: string | null, lang: Lang): string | null {
   // `Object.hasOwn` on the CODE, still — the table is built fresh per language now, and building
   // it does not change what the guard is for: `?notice=constructor` on a bare lookup returns a
   // function, survives `?? null`, and throws inside `escape`.

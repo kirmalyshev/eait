@@ -52,29 +52,29 @@ describe("content", () => {
     // Not seeded on boot, deliberately: seeding makes "has an admin ever touched this?"
     // unanswerable, and the answer decides whether a copy change is worth attributing anything to.
     expect(await store.getOnboardingContent()).toBeNull();
-    expect((await onboardingContent(deps)).version).toBe(DEFAULT_ONBOARDING_CONTENT.version);
+    expect((await onboardingContent(deps, "en")).version).toBe(DEFAULT_ONBOARDING_CONTENT.version);
   });
 
   it("bumps the version on save, ignoring whatever the admin sent", async () => {
-    const before = (await onboardingContent(deps)).version;
+    const before = (await onboardingContent(deps, "en")).version;
     const payload = clone(DEFAULT_ONBOARDING_CONTENT);
     payload.version = 99; // an admin's stale copy, or a hand-edited JSON
     payload.screens[0]!.asks.goal!.lines = ["Why are you here?"];
 
-    const saved = await saveOnboardingContent(deps, payload);
+    const saved = await saveOnboardingContent(deps, payload, "en");
     expect(saved.ok).toBe(true);
     // The version is the join key between a funnel row and the words that produced it. Accepting
     // the client's number would let two different flows share one, which silently averages two
     // experiments into one meaningless number.
     expect(saved.ok && saved.content.version).toBe(before + 1);
-    expect((await onboardingContent(deps)).screens[0]!.asks.goal!.lines).toEqual(["Why are you here?"]);
+    expect((await onboardingContent(deps, "en")).screens[0]!.asks.goal!.lines).toEqual(["Why are you here?"]);
   });
 
   it("refuses invalid copy and stores nothing", async () => {
     const payload = clone(DEFAULT_ONBOARDING_CONTENT);
     payload.screens = payload.screens.filter((s) => s.id !== "target");
 
-    const result = await saveOnboardingContent(deps, payload);
+    const result = await saveOnboardingContent(deps, payload, "en");
     expect(result.ok).toBe(false);
     expect(result.ok === false && result.errors.join(" ")).toContain("target");
     // The refusal is total: a half-saved flow is worse than an unsaved one.
@@ -84,9 +84,9 @@ describe("content", () => {
   it("restores the defaults with a version ahead of the edit it replaces", async () => {
     const edited = clone(DEFAULT_ONBOARDING_CONTENT);
     edited.screens[0]!.asks.goal!.lines = ["Broken but valid"];
-    await saveOnboardingContent(deps, edited);
+    await saveOnboardingContent(deps, edited, "en");
 
-    const restored = await resetOnboardingContent(deps);
+    const restored = await resetOnboardingContent(deps, "en");
     expect(restored.screens[0]!.asks.goal!.lines)
       .toEqual(DEFAULT_ONBOARDING_CONTENT.screens[0]!.asks.goal!.lines);
     // Ahead, not back to 1. An app that cached the bad copy compares versions, and a lower number
