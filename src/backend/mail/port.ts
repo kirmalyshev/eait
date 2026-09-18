@@ -170,6 +170,6 @@ export function confirmationMessage(
   const copy = t(lang)(CONFIRMATION);
   // The LINE that matters is the fourth from the end: until this link is clicked the address is not
   // on any list, and saying so is what makes ignoring this email a complete answer. Every
-  // translation keeps it, and `mail.i18n.test.ts` counts the lines rather than trusting that.
+  // translation keeps it, and `port.i18n.test.ts` counts the lines rather than trusting that.
   return { subject: copy.subject, text: copy.lines.join("\n").replace("{url}", confirmUrl) };
 }

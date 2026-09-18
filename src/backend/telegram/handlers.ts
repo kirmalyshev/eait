@@ -11,7 +11,7 @@
 // file resolved, which is why a stale or crafted tap can only ever find "expired".
 
 import {
-  MAX_USER_LINE, localDate, localTime, narrowLang, renderableVerdicts, scriptedLine,
+  MAX_USER_LINE, UNIT_KCAL, localDate, localTime, narrowLang, renderableVerdicts, scriptedLine,
   verdictPillLabel, wholeNumbers,
   type Lang, type MealAnalysis, type Refusal,
 } from "@eait/shared";
@@ -87,7 +87,7 @@ function card(a: MealAnalysis, lang: Lang): string {
   const n = wholeNumbers(lang);
   const g = (x: number) => `${n(x)} g`;
   const lines = [
-    `${a.items.map((i) => i.name).join(", ") || copy.meal} — ${n(a.kcal)} kcal`,
+    `${a.items.map((i) => i.name).join(", ") || copy.meal} — ${n(a.kcal)} ${UNIT_KCAL[lang]}`,
     `${copy.macros.protein} ${g(a.protein_g)} · ${copy.macros.carbs} ${g(a.carbs_g)} · ${copy.macros.fat} ${g(a.fat_g)}`,
   ];
   const verdicts = renderableVerdicts(a.verdicts).map((d) => verdictPillLabel(d, a.verdicts[d]!, lang));
@@ -187,7 +187,7 @@ export function telegramHandlers(deps: EngineDeps) {
         protein: n(totals.protein_g), proteinTarget: n(targets.protein_g),
       });
       const meals = today.meals.map((m) =>
-        `${localTime(config.timezone, new Date(m.ts))} ${m.items.map((i) => i.name).join(", ") || copy.meal} — ${n(m.kcal)} kcal`);
+        `${localTime(config.timezone, new Date(m.ts))} ${m.items.map((i) => i.name).join(", ") || copy.meal} — ${n(m.kcal)} ${UNIT_KCAL[lang]}`);
       await chat.send([head, ...(meals.length > 0 ? meals : [copy.todayEmpty])].join("\n"));
     },
 

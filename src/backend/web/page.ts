@@ -31,7 +31,7 @@ export function escape(text: string): string {
  * question is not.
  */
 import { PAGE_COPY, pageCopyFor, type PageCopy } from "./copy.ts";
-import { LANGS_READY, LANG_LABEL, wholeNumbers, type Lang } from "@eait/shared";
+import { LANGS_READY, LANG_LABEL, UNIT_KCAL, wholeNumbers, type Lang } from "@eait/shared";
 
 export { PAGE_COPY, PAGE_COPY_BY_LANG, pageCopyFor, type PageCopy } from "./copy.ts";
 
@@ -488,7 +488,7 @@ export function plan(v: PlanView): string {
 <h1>${escape(PAGE_COPY.planHeading)}</h1>
 <p class="muted">${escape(PAGE_COPY.planLead)}</p>
 <div class="card">
-  <p class="figure">${escape(n(v.kcal))} kcal</p>
+  <p class="figure">${escape(n(v.kcal))} ${escape(UNIT_KCAL[lang])}</p>
   <p class="muted">${escape(PAGE_COPY.planPerDay.replace("{protein}", n(v.proteinG)))}</p>
 </div>
 ${v.floorApplied

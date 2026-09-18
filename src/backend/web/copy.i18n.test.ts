@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { LANGS, LANGS_READY, LANG_LABEL, lintCopy } from "@eait/shared";
+import { LANGS, LANGS_READY, LANG_LABEL, UNIT_KCAL, lintCopy } from "@eait/shared";
 import { PAGE_COPY_BY_LANG, pageCopyFor } from "./copy.ts";
 import { plan, question, shell } from "./page.ts";
 
@@ -119,5 +119,27 @@ describe("the front door's two buttons", () => {
       expect(said.replace("{provider}", "Apple"), lang).toContain("Apple");
     }
     expect(pageCopyFor("de").continueWith.replace("{provider}", "Apple")).toBe("Weiter mit Apple");
+  });
+});
+
+describe("the plan card's two figures", () => {
+  const view = {
+    signedInWith: "apple" as const, kcal: 1500, proteinG: 120,
+    floorApplied: true, floorKcal: 1500, checkoutUrl: null, hasWebApp: false, telegram: false,
+  };
+
+  it("spell the kilocalorie the same way, on one card, in every language", () => {
+    // A Russian plan card read "1 500 kcal" with "Порог — 1500 ккал." two lines under it. The
+    // sentences carry the word in their own template; the headline concatenates it, and the two
+    // disagreed. `UNIT_KCAL` is the one spelling, and this is the card where it showed.
+    for (const lang of LANGS) {
+      const html = plan({ ...view, lang });
+      expect(html, lang).toContain(`${UNIT_KCAL[lang]}</p>`);
+      // The floor sentence is prose and already carried it; assert they agree rather than assert
+      // either one's contents, so this keeps holding when a translation is reworded.
+      expect(pageCopyFor(lang).planFloorNumber, lang).toContain(UNIT_KCAL[lang]);
+    }
+    expect(plan({ ...view, lang: "ru" })).toContain("ккал</p>");
+    expect(plan({ ...view, lang: "ru" })).not.toContain("kcal");
   });
 });

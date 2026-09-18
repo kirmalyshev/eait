@@ -26,7 +26,7 @@ import type {
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, apiStream, forget, signIn, signOut, signedIn } from "./api.ts";
 import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
-import { LANGS_READY, LANG_LABEL, LANG_TAG, numbers, wholeNumbers } from "../shared/lang.ts";
+import { LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, numbers, wholeNumbers } from "../shared/lang.ts";
 import type { Lang } from "../shared/types.ts";
 
 /**
@@ -187,7 +187,7 @@ function signInScreen(): HTMLElement {
 
 // Grouped the reader's way — "1.724 kcal" in German — and rounded, because a kcal from a photo is
 // an estimate and a decimal point on one claims a precision the analyzer does not have.
-const kcal = (n: number): string => `${wholeNumbers(lang)(n)} kcal`;
+const kcal = (n: number): string => `${wholeNumbers(lang)(n)} ${UNIT_KCAL[lang]}`;
 
 async function diaryScreen(): Promise<HTMLElement> {
   const wrap = el("section", "");
@@ -453,7 +453,8 @@ async function chatScreen(): Promise<HTMLElement> {
           if (refusalWords(err) === maybeLanded()) {
             // A lost COPY.notThis needs no second press: nothing is logged without a confirm, so what
             // was asked for holds whether or not it landed — and offering the card again would put
-            // it back under the server's own COPY.dropped (#529).
+            // it back under the server's own dropped line — `scriptedLine("dropped")`, written by the
+            // engine, not this client's copy (#529).
             if (verb === "cancel") { held = null; card.remove(); return; }
             throw new Said(COPY.logRetry);
           }

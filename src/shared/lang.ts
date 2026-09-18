@@ -123,6 +123,29 @@ export const wholeNumbers = (lang: Lang) => {
 };
 
 /**
+ * How this language SPELLS the kilocalorie, for the four places that concatenate it onto a figure.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ * A SPELLING, NOT A UNIT. This is the same quantity in all eight — nothing here picks a different
+ * unit, and `targets.ts` is as untouched by it as by `LANG_TAG`. Russian writes the kilocalorie in
+ * Cyrillic and the other seven use the Latin symbol; that is the `LANG_LABEL` situation, not the
+ * imperial one, and the distinction is the whole reason this constant is allowed to exist.
+ *
+ * WHY IT EXISTS AT ALL. Every sentence that mentions kcal carries the word in its own template, so
+ * this is only for the figures code builds: the plan card's headline, the diary's, and a Telegram
+ * meal line. Those sat next to translated prose — a Russian plan card read "1 500 kcal" with
+ * "Порог — 1500 ккал." two lines under it, on one card.
+ *
+ * A CHART AXIS IS STILL NOT PROSE. `HEALTH_FIELDS.unit` stays SI (`kg`, `km`, `ms`, `ml/kg/min`)
+ * and this does not license changing it: an axis label is a symbol beside a scale, and what made
+ * these four wrong is that they are read inside a sentence.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ */
+export const UNIT_KCAL: Record<Lang, string> = {
+  en: "kcal", fr: "kcal", de: "kcal", it: "kcal", es: "kcal", vi: "kcal", id: "kcal", ru: "ккал",
+};
+
+/**
  * A month and a year, as the plan's projection names one: "November 2026", "novembre 2026".
  *
  * `Intl.DateTimeFormat` rather than a table of month names. `projection.ts` used to carry twelve

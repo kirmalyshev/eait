@@ -80,6 +80,12 @@ gets its meal names in that language.
 - **THE UNIT SYSTEM IS NOT THE LANGUAGE.** `de` is metric, `en` is not automatically imperial, and
   nothing in a copy table may reach `targets.ts`. `Intl.NumberFormat` is asked for a decimal, never
   for a measurement — `LANG_TAG` moves a separator and cannot move a kilogram.
+- **A unit SYMBOL beside a figure is `UNIT_KCAL`; a unit symbol on an axis is not.** Every sentence
+  carries its own unit word in its template; the four places that CONCATENATE one onto a figure
+  (the plan card, the diary headline, a Telegram meal line) read `UNIT_KCAL`, because a Russian plan
+  card read "1 500 kcal" with "Порог — 1500 ккал." two lines under it. That table is a SPELLING and
+  not a unit: the same quantity in all eight, which is the `LANG_LABEL` situation and not the
+  imperial one. `HEALTH_FIELDS.unit` stays SI and this does not license changing it.
 - **Numbers and dates are `Intl`.** `numbers(lang)` keeps a tenth (a weight somebody typed);
   `wholeNumbers(lang)` rounds (a kcal from a photo, where a decimal claims a precision the analyzer
   does not have). `monthYear` is `Intl.DateTimeFormat` — CLDR's forms are not all "<month> <year>",
