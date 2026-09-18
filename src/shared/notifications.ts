@@ -178,7 +178,7 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       body: "Dua hari lagi minggu gratisnya habis. Kalau lanjut, tidak perlu apa-apa — kalau tidak: Pengaturan › Langganan, dan kamu tidak membayar apa pun.",
     },
     "trial-day6": {
-      title: "Masa coba berakhir besok",
+      title: "Uji coba berakhir besok",
       body: "Besok minggu gratisnya habis. Kalau lanjut, tidak perlu apa-apa; kalau tidak: Pengaturan › Langganan.",
     },
     evening: {

@@ -921,12 +921,12 @@ const VI: ChatCopy = {
       source: "Nghiên cứu toàn quốc tại Mỹ, n = 5.863 · bài tổng quan, 2026",
     },
     night: {
-      title: "Sau 8 giờ tối khá đông vui",
+      title: "Sau 8 giờ tối đông người lắm",
       body: "Hơn 60% người trưởng thành ăn gì đó sau 8 giờ tối, và khoảng 1 trong 4 người hay ăn vặt giờ chủ yếu ăn vào khuya. Chúng mình không chấm giờ bạn ăn — chỉ chấm tổng của cả ngày.",
       source: "CivicScience, 1,2 triệu phản hồi",
     },
     binge: {
-      title: "Bạn không một mình trong chuyện này",
+      title: "Chuyện này không chỉ mình bạn gặp",
       body: "Rối loạn ăn uống vô độ là rối loạn ăn uống phổ biến nhất — khoảng 2,8% người trưởng thành đáp ứng tiêu chuẩn vào một lúc nào đó, và 17% người bắt đầu một chương trình giảm cân có kết quả sàng lọc dương tính. Nếu những cơn đó thấy ngoài tầm kiểm soát, một bác sĩ giúp được nhiều hơn bất kỳ ứng dụng nào. Ở đây, một ngày khó khăn là dữ liệu, không bao giờ là bản án.",
       source: "NIMH (NCS-R) · nghiên cứu trên 6.930 người mới bắt đầu chương trình",
     },
@@ -937,7 +937,7 @@ const VI: ChatCopy = {
     },
     eatout: {
       title: "Đồ ăn nhà hàng lệch nhiều nhất",
-      body: "Ước lượng lệch nhiều nhất với món bạn không tự nấu — và đó đúng là chỗ ảnh chụp làm tốt nhất. Khi không chắc mình sẽ nói thẳng, thay vì làm ra vẻ.",
+      body: "Ước lượng lệch nhiều nhất với món bạn không tự nấu — và đó đúng là chỗ ảnh chụp làm tốt nhất. Khi không chắc, mình sẽ nói thẳng chứ không làm ra vẻ, thay vì làm ra vẻ.",
     },
     energy: {
       title: "Năng lượng là thước đo thành thật",
@@ -986,7 +986,7 @@ const VI: ChatCopy = {
   activityReplies: {
     sedentary: "Cảm ơn vì câu trả lời thành thật — phần lớn mọi người khai quá tay ở chỗ này, rồi con số cũng quá tay với họ.",
     light: "Tốt — đi bộ đáng giá hơn người ta tưởng.",
-    moderate: "Chắc chắn. Con số sẽ giả định là những buổi tập đó có diễn ra — nhớ giữ mình thành thật nhé.",
+    moderate: "Ổn đấy. Con số sẽ giả định là những buổi tập đó có diễn ra — nhớ giữ mình thành thật nhé.",
     active: "Tốt — vậy là bạn được ăn nhiều hơn. Mình thà nạp đủ còn hơn đoán thấp.",
     athlete: "Vậy thì con số này phải nuôi khối lượng vận động thật. Mình thà nạp đủ còn hơn đoán thấp.",
   },
@@ -1005,8 +1005,8 @@ const VI: ChatCopy = {
   },
   invalid: {
     age: "Cái đó trông không giống một số tuổi — thử kiểu như 34 xem.",
-    height_cm: "Tính bằng xăng-ti-mét — kiểu như 175.",
-    weight_kg: "Tính bằng ki-lô-gam — áng chừng là được.",
+    height_cm: "Tính bằng cm — kiểu như 175.",
+    weight_kg: "Tính bằng kg — áng chừng là được.",
     target_weight_kg: "Một số tính bằng kg — ví dụ 70.",
   },
   ambiguousAge: {
@@ -1058,13 +1058,13 @@ const ID: ChatCopy = {
       source: "Tinjauan sistematis 72 studi · n = 1,18 juta orang dewasa",
     },
     gain: {
-      title: "Tidak sejarang yang dikira",
+      title: "Lebih umum dari yang kamu kira",
       body: "Sekitar 23% pria muda dan 6% wanita muda aktif mencoba menaikkan berat badan tahun lalu. Ini tujuan nyata dengan teknik nyata — kami akan menyetel surplus yang lebih banyak membangun daripada menumpuk.",
       source: "Studi dewasa muda di Kanada · n = 976",
     },
     maintain: {
       title: "Tujuan yang jarang disebut",
-      body: "Sekitar 23% orang dewasa aktif berusaha menjaga berat badannya — tujuan yang tidak ada yang posting, dan tetap layak punya rencana. Harimu dinilai dari apakah beratmu bertahan.",
+      body: "Sekitar 23% orang dewasa aktif berusaha menjaga berat badannya — tujuan yang tidak pernah dipamerkan orang, dan tetap layak punya rencana. Harimu dinilai dari apakah beratmu bertahan.",
       source: "Meta-analisis upaya pengendalian berat badan setahun terakhir",
     },
   },
@@ -1085,12 +1085,12 @@ const ID: ChatCopy = {
     },
     binge: {
       title: "Kamu tidak sendirian dalam hal ini",
-      body: "Gangguan makan berlebihan adalah gangguan makan yang paling umum — sekitar 2,8% orang dewasa memenuhi kriterianya pada suatu titik, dan 17% orang yang memulai program berat badan positif saat disaring. Kalau episodenya terasa di luar kendali, seorang klinisi lebih menolong daripada aplikasi mana pun. Di sini, hari yang berat adalah data, bukan vonis.",
+      body: "Gangguan makan berlebihan adalah gangguan makan yang paling umum — sekitar 2,8% orang dewasa memenuhi kriterianya pada suatu titik, dan dan dari orang yang memulai program berat badan, 17% positif saat disaring. Kalau episodenya terasa di luar kendali, seorang klinisi lebih menolong daripada aplikasi mana pun. Di sini, hari yang berat adalah data, bukan vonis.",
       source: "NIMH (NCS-R) · studi terhadap 6.930 orang yang memulai program",
     },
     diets: {
       title: "Naik lagi itu wajar, bukan salahmu",
-      body: "Di 29 studi jangka panjang, lebih dari separuh berat yang turun kembali dalam dua tahun — lebih dari 80% dalam lima tahun. Yang gagal metodenya, bukan orangnya. Rencanamu di sini diukur supaya bisa dijaga, bukan supaya mengesankan.",
+      body: "Di 29 studi jangka panjang, lebih dari separuh berat yang hilang kembali lagi dalam dua tahun — lebih dari 80% dalam lima tahun. Yang gagal metodenya, bukan orangnya. Rencanamu di sini diukur supaya bisa dijaga, bukan supaya mengesankan.",
       source: "Meta-analisis 29 studi penurunan berat badan di AS",
     },
     eatout: {
@@ -1116,7 +1116,7 @@ const ID: ChatCopy = {
   },
   gainPaceCard: {
     title: "Naik yang benar memang pelan",
-    body: "Surplusmu dibatasi sekitar {share}% di atas yang tubuhmu bakar dalam sehari — zona di mana otot masih mengejar timbangan. Kebanyakan yang berhasil memulai dari protein; punyamu kami lacak otomatis.",
+    body: "Surplusmu dibatasi sekitar {share}% di atas yang dibakar tubuhmu dalam sehari — zona di mana otot masih mengejar timbangan. Kebanyakan yang berhasil memulai dari protein; punyamu kami lacak otomatis.",
     source: "Survei terhadap 168 orang dewasa aktif yang berusaha menaikkan berat badan",
   },
   underAgeCard: {
@@ -1128,7 +1128,7 @@ const ID: ChatCopy = {
     confirm: "Itu umur asliku",
     placeholder: "Umurmu",
     stopped: [
-      "Kalau begitu kita berhenti di sini. Tidak ada yang kamu ceritakan yang disimpan, dan tidak ada yang dikirim ke mana pun — tidak ada akun yang perlu dihapus.",
+      "Kalau begitu kita berhenti di sini. Apa pun yang kamu ceritakan tidak disimpan, dan tidak ada yang dikirim ke mana pun — tidak ada akun yang perlu dihapus.",
       "Datang lagi saat {age} tahun, aku akan ada di sini.",
     ],
     endedPlaceholder: "eait untuk usia {age} ke atas",
@@ -1162,8 +1162,8 @@ const ID: ChatCopy = {
     freeText: "Dan teks bebasnya juga masuk ke profilmu.",
   },
   invalid: {
-    age: "Itu tidak kelihatan seperti umur — coba semacam 34.",
-    height_cm: "Dalam sentimeter — semacam 175.",
+    age: "Itu tidak kelihatan seperti umur — coba seperti 34.",
+    height_cm: "Dalam sentimeter — seperti 175.",
     weight_kg: "Dalam kilogram — kira-kira saja tidak apa-apa.",
     target_weight_kg: "Angka dalam kg — misalnya 70.",
   },
