@@ -113,13 +113,24 @@ gets its meal names in that language.
   backend.** `src/mobile` is not in this repo and imports `@eait/shared` from the parent monorepo,
   so a table in `backend/` is a table the phone cannot read. What the app consumes:
   `onboardingContentFor` / `usableContentFor` (the flow), `chatCopyFor` and its readers
-  (`GOAL_CARDS(lang)`, `STRUGGLE_LABELS(lang)`, `checkNumber(…, lang)` and the rest — every one of
-  them takes the language now, and a caller that captures one at module scope renders in whatever
-  language the process started in), `threadCopyFor` / `firstVerdictLines` / `runningLine` /
+  (`GOAL_CARDS(lang)`, `STRUGGLE_LABELS(lang)`, `checkNumber(…, lang, …)` and the rest — every one
+  of them takes the language now, and a caller that captures one at module scope renders in
+  whatever language the process started in), `threadCopyFor` / `firstVerdictLines` / `runningLine` /
   `scriptedLine`, `verdictPillLabel`, `healthLabel`, `correlationWords`, `notificationCopyFor` +
   `eveningPrescription`, `projectionMonth`, and `numbers` / `wholeNumbers` / `monthYear` for every
   figure. The language itself is `ProfileResponse.profile.lang`; the picker writes it with
   `PATCH /v1/profile { lang }` and offers `LANGS_READY` labelled by `LANG_LABEL`.
+- **`lang` IS REQUIRED ON EVERY ONE OF THEM, and that is deliberately a breaking change.** `t()`
+  falls back at the KEY, which is the wart this design accepts; a defaulted PARAMETER falls back at
+  the SCREEN, and it does it where nothing can see — the call site that forgot it compiles, every
+  test passes, and the screen is English. Removing the defaults made the compiler name three live
+  ones no gate here could reach: `oneLiveProposal` in `chat-core.ts` (two call sites, one of them
+  wrong, so every non-English reader saw "dropped" in English), `projectionMonth` in `coach.ts` (an
+  English month handed to a model told to answer in Russian), and `scriptedLine` in `meals.ts`. So a
+  `src/mobile` call site that has no language is a BUILD ERROR rather than a screen somebody
+  eventually notices. Where the optional argument sat in front of the required one — `scriptedLine`,
+  `checkNumber` — the order was swapped, because reaching the language must never cost a caller an
+  argument it has no opinion about.
 - **The phone's two LOCAL notifications must read `notificationCopyFor(lang)`, not the default.**
   `reminderPlan` says WHICH reminders to schedule and the words come from the table; scheduling
   them off `DEFAULT_NOTIFICATION_COPY` is an English lock screen on an account that asked for
