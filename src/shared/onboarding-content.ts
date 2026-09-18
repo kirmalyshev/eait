@@ -551,7 +551,7 @@ const VI: OnboardingContent = {
     {
       id: "activity",
       asks: {
-        activity: { lines: ["Một tuần bình thường bạn vận động nhiều không? Thành thật hơn là mơ mộng — chỗ này làm con số lệch nhiều."] },
+        activity: { lines: ["Một tuần bình thường bạn vận động nhiều không? Cứ thành thật, đừng ước lượng theo mong muốn — chỗ này làm con số lệch nhiều."] },
       },
       options: {
         sedentary: { label: "Chủ yếu ngồi", hint: "ngày làm bàn giấy" },
@@ -592,7 +592,7 @@ const VI: OnboardingContent = {
     lines: ["Vậy là xong. Cho mình một giây — mình đang tính, không phải đoán."],
     restLabel: "Lúc nghỉ, cơ thể bạn đốt",
     activityLabel: "Với mức vận động của bạn, khoảng",
-    paceLabel: "Theo nhịp độ của bạn, điều chỉnh",
+    paceLabel: "Điều chỉnh theo nhịp độ của bạn",
     floorLabel: "Mức sàn không vượt qua",
     floorTitle: "Dừng lại ở {floor} kcal",
     floorBody: "Phép tính muốn xuống thấp hơn. Không có bác sĩ theo dõi thì chúng tôi không đặt mục tiêu thấp hơn mức này, nên của bạn dừng ở đây. Nhật ký cũng sẽ ghi vậy.",
@@ -615,9 +615,9 @@ const ID: OnboardingContent = {
   version: DEFAULT_ONBOARDING_CONTENT.version,
   welcome: {
     lines: [
-      "Hai, aku Spud. Foto apa yang kamu makan, dapat jawaban jujur — isi aplikasinya cuma itu.",
+      "Hai, aku Spud. Foto apa yang kamu makan, dapatkan jawaban jujur — isi aplikasinya cuma itu.",
       "Tiga menit pertanyaan, lalu rencanamu — kalori harian, protein, apa yang realistis dan kapan — plus penilaian untuk makanan pertamamu.",
-      "Mulai tanpa perlu akun. Tidak ada yang dibayar sampai kamu melihat rencananya dan penilaian pertama itu; setelah itu ada satu minggu gratis untuk mencoba. Siap?",
+      "Mulai tanpa perlu akun. Kamu tidak bayar apa pun sampai kamu melihat rencananya dan penilaian pertama itu; setelah itu ada satu minggu gratis untuk mencoba. Siap?",
     ],
     cta: "Ayo mulai",
   },
@@ -643,7 +643,7 @@ const ID: OnboardingContent = {
       id: "body",
       asks: {
         height_cm: {
-          lines: ["Sekarang angka-angkamu. Kira-kira benar-benar cukup — lebih baik mendekati daripada kosong. Tinggimu berapa, dalam cm?"],
+          lines: ["Sekarang angka-angkamu. Perkiraan saja sudah sangat cukup — lebih baik angka kira-kira daripada kosong. Tinggimu berapa, dalam cm?"],
           placeholder: "Tinggi dalam cm",
         },
         weight_kg: {
@@ -692,7 +692,7 @@ const ID: OnboardingContent = {
       id: "restrictions",
       asks: {
         restrictions: {
-          lines: ["Terakhir. Ada sesuatu yang harus jadi patokan aku menilai makananmu? Hanya yang kamu pilih yang dinilai — lewati saja kalau tidak ada. Teks bebas juga boleh."],
+          lines: ["Terakhir. Ada sesuatu yang harus jadi patokan saat aku menilai makananmu? Hanya yang kamu pilih yang dinilai — lewati saja kalau tidak ada. Teks bebas juga boleh."],
           placeholder: "Alergi, makanan yang dihindari…",
         },
       },

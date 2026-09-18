@@ -507,7 +507,7 @@ const ID: WebCopy = {
   photoTooLarge: "Foto itu terlalu besar untuk dikirim.",
   messageGone: "Pesan itu sudah tidak ada.",
   messageNotEditable: "Pesan itu tidak bisa diubah.",
-  orPhotograph: "Atau fotokan saja",
+  orPhotograph: "Atau foto saja",
   mealGone: "Makanan yang sudah tidak tercatat lagi",
   loading: "Memuat…", somethingWrong: "Ada yang salah. Coba lagi.",
   connectTelegram: "Hubungkan Telegram", telegramFailed: "Tautan Telegram belum jadi kali ini. Coba lagi.",
