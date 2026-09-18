@@ -1,7 +1,7 @@
 # This worktree's ports and database, for the shell scripts. SOURCED, never executed:
 #
-#   . ./scripts/worktree.sh                                          # from the repo root
-#   EAIT_ROOT=/path/to/worktree . "$EAIT_ROOT/scripts/worktree.sh"   # from anywhere else
+#   . ./src/scripts/worktree.sh                                          # from the repo root
+#   EAIT_ROOT=/path/to/worktree . "$EAIT_ROOT/src/scripts/worktree.sh"   # from anywhere else
 #
 # A sourced POSIX script cannot find its own path — `$0` still names the caller — so the root is
 # either the working directory or something the caller states. It is never guessed.
@@ -9,7 +9,7 @@
 # `./dev env` writes `.env.worktree`; this fills in the slot-0 defaults when it has not been run, so
 # a checkout that never heard of worktrees behaves exactly as a single checkout always did.
 #
-# Contains nothing secret, by construction: `scripts/dev-env.ts` keeps secrets out of
+# Contains nothing secret, by construction: `src/scripts/dev-env.ts` keeps secrets out of
 # `.env.worktree` precisely so this can be sourced without care.
 
 if [ -f "${EAIT_ROOT:-.}/.env.worktree" ]; then

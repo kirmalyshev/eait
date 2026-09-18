@@ -5,8 +5,8 @@
 // and touches nothing else, so it is safe to re-run and safe to run against a database you have
 // been testing in by hand.
 //
-//   bun scripts/seed.ts                     every persona
-//   bun scripts/seed.ts --only onboarded    just one
+//   bun src/scripts/seed.ts                     every persona
+//   bun src/scripts/seed.ts --only onboarded    just one
 //   ./dev seed                              the same, with the database URL worked out for you
 //
 // The database URL is taken from the environment, then from `.env.worktree`, then from `.env` —
@@ -14,11 +14,11 @@
 // It is never printed with its credentials in it.
 
 import { join } from "node:path";
-import { postgresStore } from "../src/backend/store.pg.ts";
-import { SEED_PERSONAS, seedDevData } from "../src/backend/dev/seed.ts";
+import { postgresStore } from "../backend/store.pg.ts";
+import { SEED_PERSONAS, seedDevData } from "../backend/dev/seed.ts";
 import { readEnvFile } from "./dev-env.ts";
 
-const root = join(import.meta.dir, "..");
+const root = join(import.meta.dir, "..", "..");
 
 function flagList(name: string): string[] {
   const i = process.argv.indexOf(`--${name}`);
@@ -51,7 +51,7 @@ if (unknown.length > 0) {
 }
 
 // The database must already exist — `migrate()` creates TABLES inside one, never the database
-// itself. `sh scripts/db.sh up` is what creates it. See the header of store.pg.ts for the incident.
+// itself. `sh src/scripts/db.sh up` is what creates it. See the header of store.pg.ts for the incident.
 const store = await postgresStore(databaseUrl);
 try {
   const seeded = await seedDevData(store, { timezone, only });

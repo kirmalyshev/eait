@@ -39,8 +39,8 @@ would falsify it; the reasoning that reached it belongs in the PR.
 ## The dev stack
 
 `./dev` runs this repo's two services detached, one pidfile each, on ports derived from a SLOT — so
-several worktrees coexist instead of fighting over 8787. `scripts/dev-env.ts` is the only thing that
-computes a port, a database name or a URL; `scripts/dev.sh` starts and stops and computes none of
+several worktrees coexist instead of fighting over 8787. `src/scripts/dev-env.ts` is the only thing that
+computes a port, a database name or a URL; `src/scripts/dev.sh` starts and stops and computes none of
 them. Ported from the private monorepo with its iOS, Metro and landing halves removed.
 
 - **A service is started from the repo ROOT by entry path**, never `bun run --cwd`. bun loads `.env`

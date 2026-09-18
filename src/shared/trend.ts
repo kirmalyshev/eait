@@ -69,7 +69,7 @@ const monthShort = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "s
  * One day wider, which drew a permanently empty leading year bar on 31 December 2025, 2026, 2027
  * and 2029, and on 30 December 2028. A grep test was written to police the call sites; taking the
  * length instead and deriving the date here makes the wrong call unrepresentable, which is
- * smaller, covers the backend and `scripts/` too, and is checked by `bun run typecheck`.
+ * smaller, covers the backend and `src/scripts/` too, and is checked by `bun run typecheck`.
  *
  * THE FOURTH IS THE ACCOUNT'S OLDEST ROW, AND IT ONLY EVER NARROWS THE YEARS AXIS. A new account
  * drew five permanently empty leading bars, because the axis knew the window but not when the

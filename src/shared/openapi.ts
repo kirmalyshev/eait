@@ -1,7 +1,7 @@
 // The HTTP surface as DATA: method, path, auth, request and response types per route.
 //
 // `ROUTES` names the paths and the doc comments beside them say the rest in prose. This table says
-// the same in a shape a machine can read, and `scripts/openapi.ts` turns it and the types it names
+// the same in a shape a machine can read, and `src/scripts/openapi.ts` turns it and the types it names
 // into `openapi.json`. Nothing here is a second source of truth: the paths come from `ROUTES` (the
 // test checks each template against the function it names), and the schemas come from the types
 // `shared/` already exports. What this adds is the METHOD and the wiring — which the server

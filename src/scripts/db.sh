@@ -8,13 +8,13 @@
 #
 # ONE SERVER, ONE DATABASE PER WORKTREE. `docker-compose.yml` pins the compose project name so every
 # worktree drives the same container; what makes them independent is the database inside it, named
-# after the branch by `scripts/dev-env.ts` and created here. Without `.env.worktree` this falls back
+# after the branch by `src/scripts/dev-env.ts` and created here. Without `.env.worktree` this falls back
 # to `eait`, which is slot 0's database and what this script used before slots existed.
 #
-#   sh scripts/db.sh [up|down|psql|create|drop|list|nuke]     (or: ./dev db …)
+#   sh src/scripts/db.sh [up|down|psql|create|drop|list|nuke]     (or: ./dev db …)
 set -eu
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 # The worktree's database name, if `./dev env` has been run. Not secret; see the header of the file.
 #
@@ -22,7 +22,7 @@ cd "$(dirname "$0")/.."
 # fallback lives there, and this is the one script where a silent slot-0 fallback destroys data
 # rather than merely confusing somebody — `db.sh drop` in a worktree that read nothing would drop
 # SLOT 0'S DATABASE.
-. ./scripts/worktree.sh
+. ./src/scripts/worktree.sh
 DB="$EAIT_DB_NAME"
 
 # One place that knows how to reach the server, so nothing below repeats the credentials.
@@ -142,7 +142,7 @@ case "${1:-up}" in
     docker compose down -v
     ;;
   *)
-    echo "usage: sh scripts/db.sh [up|down|psql|create|drop|list|nuke]" >&2
+    echo "usage: sh src/scripts/db.sh [up|down|psql|create|drop|list|nuke]" >&2
     exit 1
     ;;
 esac

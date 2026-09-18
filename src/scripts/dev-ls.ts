@@ -1,7 +1,7 @@
 // Every worktree of this repo on this machine, and what each one is running.
 //
-//   bun scripts/dev-ls.ts            the table          (or: ./dev ls)
-//   bun scripts/dev-ls.ts --plain    the same, never coloured, for a pipe
+//   bun src/scripts/dev-ls.ts            the table          (or: ./dev ls)
+//   bun src/scripts/dev-ls.ts --plain    the same, never coloured, for a pipe
 //
 // ONE QUESTION THIS ANSWERS AND `./dev status` CANNOT: which OTHER checkout is holding the port
 // you wanted. A backend left running in a worktree you have since moved on from is invisible from

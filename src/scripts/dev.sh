@@ -23,7 +23,7 @@
 # `bun run demo` and `bun run web` each hold a terminal, and with several worktrees checked out
 # that is two windows per checkout — neither of which says which one it belongs to. This starts the
 # same commands detached, one pidfile each, and can then answer what is running and on which port.
-# It ADDS NOTHING to the derivation: every port and database still comes from `scripts/dev-env.ts`
+# It ADDS NOTHING to the derivation: every port and database still comes from `src/scripts/dev-env.ts`
 # through `.env.worktree`, and this file computes none of them.
 #
 # STOPPING ONE KILLS THE TREE IT STARTED — the launching shell and the `bun` under it — and nothing
@@ -36,7 +36,7 @@
 # ─────────────────────────────────────────────────────────────────────────────────────────────
 set -eu
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 # The PHYSICAL path, because it is compared against what `lsof` reports for a running process, and
 # `lsof` resolves symlinks while `cd` keeps the logical path. A worktree reached through a symlink
@@ -53,7 +53,7 @@ die() { echo "dev: $*" >&2; exit 1; }
 
 ensure_env() {
   [ -d node_modules ] || { echo '→ bun install'; bun install; }
-  [ -f .env.worktree ] || { echo '→ deriving this worktree (bun scripts/dev-env.ts setup)'; bun scripts/dev-env.ts setup; }
+  [ -f .env.worktree ] || { echo '→ deriving this worktree (bun src/scripts/dev-env.ts setup)'; bun src/scripts/dev-env.ts setup; }
 }
 
 main_worktree() {
@@ -71,7 +71,7 @@ load_env() {
   if [ ! -f .env.worktree ] && [ "$ROOT" != "$(main_worktree)" ]; then
     die 'this worktree has no .env.worktree, so every port here would be the MAIN worktree'"'"'s. Run `./dev up` (or `./dev env`) first.'
   fi
-  . ./scripts/worktree.sh
+  . ./src/scripts/worktree.sh
 }
 
 # ── The service table ────────────────────────────────────────────────────────────────────────
@@ -313,7 +313,7 @@ wait_for() {
   printf ' ok\n'
 }
 
-warn_branch_drift() { bun scripts/dev-env.ts branch-check || true; }
+warn_branch_drift() { bun src/scripts/dev-env.ts branch-check || true; }
 
 # ── Commands ─────────────────────────────────────────────────────────────────────────────────
 
@@ -419,7 +419,7 @@ do_up() {
   esac
   if [ "$need_db" = 1 ]; then
     echo '→ Shared Postgres + this worktree'"'"'s database'
-    sh scripts/db.sh up >/dev/null
+    sh src/scripts/db.sh up >/dev/null
   fi
 
   if [ -z "$SELECTED" ]; then
@@ -515,16 +515,16 @@ case "${1:-}" in
   down)    cmd_down ;;
   restart) shift; cmd_restart "$@" ;;
   status)  cmd_status ;;
-  ls)      shift; exec bun scripts/dev-ls.ts "$@" ;;
+  ls)      shift; exec bun src/scripts/dev-ls.ts "$@" ;;
   logs)    shift; cmd_logs "$@" ;;
-  db)      shift; exec sh scripts/db.sh "$@" ;;
+  db)      shift; exec sh src/scripts/db.sh "$@" ;;
   # BEFORE `ensure_env`, deliberately: this is what puts bun on the machine, so it cannot be a
   # command that needs bun to have been there already.
-  install) shift; exec sh scripts/install.sh "$@" ;;
+  install) shift; exec sh src/scripts/install.sh "$@" ;;
   # NOT a service: it writes rows and exits. `ensure_env` first, because the database name is
   # derived from this worktree's slot and the seeder would otherwise write into slot 0's.
-  seed)    shift; ensure_env; exec bun scripts/seed.ts "$@" ;;
-  env)     shift; exec bun scripts/dev-env.ts "${1:-show}" ;;
+  seed)    shift; ensure_env; exec bun src/scripts/seed.ts "$@" ;;
+  env)     shift; exec bun src/scripts/dev-env.ts "${1:-show}" ;;
   url)     load_env; echo "$EAIT_API_URL" ;;
   *)
     # The header of this file is the help, so there is one copy of it.

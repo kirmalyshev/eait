@@ -38,7 +38,7 @@ set -eu
 # Resolved BEFORE the cd: `$0` is relative to the invoking directory, so `--help` read it from the
 # wrong place after `cd` and exited non-zero with nothing printed.
 SELF=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 CHECK=0
 for arg in "$@"; do
