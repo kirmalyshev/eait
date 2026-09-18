@@ -485,7 +485,7 @@ const ID: WebCopy = {
   budgetLeft: "tersisa", budgetOver: "lebih", budgetUnder: "kurang",
   targetLine: "Target {target} · {protein} g protein",
   eatenLine: "{eaten} dari {target} dimakan · {protein} dari {proteinTarget} g protein",
-  floor: "Targetmu berada di angka terendah yang akan pernah disarankan aplikasi ini.",
+  floor: "Targetmu berada di angka terendah yang bisa disarankan aplikasi ini.",
   connectHealth: "Hubungkan Apple Health di aplikasi eait untuk iPhone, dan berat badanmu menjaga target ini tetap terkini.",
   weightLine: "Berat {kg} kg.",
   weightLineWhen: "Berat {kg} kg, ditimbang {when}.",

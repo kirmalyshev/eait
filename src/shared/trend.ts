@@ -14,18 +14,23 @@
 import { dateMinus, monthOf, monthShift, windowStart } from "./dates.ts";
 import type { HealthDay, HealthMetric } from "./health.ts";
 import { HEALTH_COPY } from "./health-copy.ts";
-import { t } from "./lang.ts";
+import { LANG_TAG, t } from "./lang.ts";
 import type { DayTotals, Lang } from "./types.ts";
 
-/** The four x-axes. `label` is the control; `noun` is what a sentence calls one bucket. */
-export const TREND_PERIODS = [
-  { id: "days", label: "Days", noun: "day" },
-  { id: "weeks", label: "Weeks", noun: "week" },
-  { id: "months", label: "Months", noun: "month" },
-  { id: "years", label: "Years", noun: "year" },
-] as const;
+/** The four x-axes, as ids. The words for them are per language — see `trendPeriods`. */
+export const TREND_PERIOD_IDS = ["days", "weeks", "months", "years"] as const;
 
-export type TrendPeriod = (typeof TREND_PERIODS)[number]["id"];
+export type TrendPeriod = (typeof TREND_PERIOD_IDS)[number];
+
+/**
+ * The four x-axes WITH THEIR WORDS. A function of the language, not a constant, for the reason
+ * every other table here is one: a constant is what a screen captures at module scope and then
+ * renders in whatever language the process started in. These four shipped as English literals
+ * inside a screen that was otherwise translated, and no check could see it — they are not
+ * `Localized<T>`, so `localizedGaps` walks straight past them.
+ */
+export const trendPeriods = (lang: Lang): readonly { id: TrendPeriod; label: string; noun: string }[] =>
+  TREND_PERIOD_IDS.map((id) => ({ id, ...t(lang)(HEALTH_COPY).periods[id] }));
 
 /** How many buckets each period draws. Years is open-ended: every year that has stored data. */
 const BUCKETS: Record<Exclude<TrendPeriod, "years">, number> = { days: 30, weeks: 26, months: 12 };
@@ -52,10 +57,19 @@ export interface TrendPoint extends TrendBucket {
 
 /** Midday UTC, so a date-only value cannot slip a day while being formatted — as `dayLabel` does. */
 const noon = (date: string) => new Date(`${date}T12:00:00Z`);
-const dayMonth = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", day: "numeric", month: "short" });
-// `en-US`, not `en-GB`: the British short form of September is "Sept", one letter wider than every
-// other month, and it is the one label on an axis of twelve that would then wrap.
-const monthShort = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short" });
+/**
+ * The axis labels, in the reader's own language rather than in en-GB.
+ *
+ * `en-US`, NOT `en-GB`, for English only: the British short form of September is "Sept", one letter
+ * wider than every other month, and it is the one label on an axis of twelve that would then wrap.
+ * `LANG_TAG.en` is `en-GB` because this product is metric and in Berlin, so the exception is spelled
+ * out here rather than fixed there — the date format and the unit system are different questions,
+ * and `targets.ts` is the reason that distinction is kept sharp.
+ */
+const dayMonth = (lang: Lang) =>
+  new Intl.DateTimeFormat(LANG_TAG[lang], { timeZone: "UTC", day: "numeric", month: "short" });
+const monthShort = (lang: Lang) =>
+  new Intl.DateTimeFormat(lang === "en" ? "en-US" : LANG_TAG[lang], { timeZone: "UTC", month: "short" });
 
 /**
  * The buckets a period draws, OLDEST FIRST — chart order, left to right. The last bucket always
@@ -79,19 +93,23 @@ const monthShort = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "s
  * so the two clamps compose rather than fight. Pass every series the chart draws (`oldestDate`):
  * an axis derived from one of them silently drops the other's older rows in `bucketSeries`.
  */
-export function trendBuckets(period: TrendPeriod, today: string, days: number, oldestRow?: string): TrendBucket[] {
+export function trendBuckets(
+  period: TrendPeriod, today: string, days: number, lang: Lang, oldestRow?: string,
+): TrendBucket[] {
+  const dayAxis = dayMonth(lang);
+  const monthAxis = monthShort(lang);
   switch (period) {
     case "days":
       return Array.from({ length: BUCKETS.days }, (_, i) => {
         const date = dateMinus(today, BUCKETS.days - 1 - i);
-        return { start: date, end: date, label: dayMonth.format(noon(date)) };
+        return { start: date, end: date, label: dayAxis.format(noon(date)) };
       });
     case "weeks": {
       // getUTCDay is 0 for Sunday; shift so Monday is 0.
       const monday = dateMinus(today, (noon(today).getUTCDay() + 6) % 7);
       return Array.from({ length: BUCKETS.weeks }, (_, i) => {
         const start = dateMinus(monday, 7 * (BUCKETS.weeks - 1 - i));
-        return { start, end: dateMinus(start, -6), label: dayMonth.format(noon(start)) };
+        return { start, end: dateMinus(start, -6), label: dayAxis.format(noon(start)) };
       });
     }
     case "months":
@@ -99,7 +117,7 @@ export function trendBuckets(period: TrendPeriod, today: string, days: number, o
         const month = monthShift(monthOf(today), i - (BUCKETS.months - 1));
         const start = `${month}-01`;
         // The day before the next month's first: the only way to get February right every year.
-        return { start, end: dateMinus(`${monthShift(month, 1)}-01`, 1), label: monthShort.format(noon(start)) };
+        return { start, end: dateMinus(`${monthShift(month, 1)}-01`, 1), label: monthAxis.format(noon(start)) };
       });
     case "years": {
       // Derived HERE and not above: the other three periods have a fixed bucket count and never
@@ -175,16 +193,23 @@ export function trendSummary(
   period: TrendPeriod,
   points: readonly TrendPoint[],
   format: (value: number) => string,
+  lang: Lang,
 ): string {
-  const noun = TREND_PERIODS.find((p) => p.id === period)!.noun;
+  const copy = t(lang)(HEALTH_COPY);
+  // `per`, not `noun`: Russian's `по` governs the dative plural — see `HealthCopy`.
+  const noun = copy.periods[period].per;
+  const fill = (template: string, into: Record<string, string>) =>
+    Object.entries(into).reduce((out, [k, v]) => out.replaceAll(`{${k}}`, v), template);
+
   const ends = trendEndpoints(points);
-  if (!ends) return `${name} by ${noun}: nothing recorded.`;
+  if (!ends) return fill(copy.summary.empty, { name, noun });
   const values = points.flatMap((p) => (p.value === null ? [] : [p.value]));
-  const lowest = Math.min(...values);
-  const highest = Math.max(...values);
-  return `${name} by ${noun}: from ${format(ends.first.value!)} (${ends.first.label}) to `
-    + `${format(ends.latest.value!)} (${ends.latest.label}). `
-    + `Lowest ${format(lowest)}, highest ${format(highest)}.`;
+  return fill(copy.summary.line, {
+    name, noun,
+    first: format(ends.first.value!), firstAt: ends.first.label,
+    last: format(ends.latest.value!), lastAt: ends.latest.label,
+    low: format(Math.min(...values)), high: format(Math.max(...values)),
+  });
 }
 
 export interface Correlation {

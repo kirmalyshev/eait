@@ -91,6 +91,22 @@ gets its meal names in that language.
   `wholeNumbers(lang)` rounds (a kcal from a photo, where a decimal claims a precision the analyzer
   does not have). `monthYear` is `Intl.DateTimeFormat` — CLDR's forms are not all "<month> <year>",
   and a table of ours got Spanish, Russian and Vietnamese wrong at once before it was deleted.
+- **A TABLE THAT IS NOT `Localized<T>` IS INVISIBLE TO EVERY CHECK HERE.** `localizedGaps` detects
+  a table by SHAPE, so English literals in an ordinary record are not a gap — they are not a table.
+  That is how the whole health-trend screen stayed English inside a translated app: `TREND_PERIODS`
+  held `label`/`noun` as plain strings, the axis formatters were pinned to `en-GB`/`en-US`, and
+  `trendSummary` took no language at all. Making `lang` required repo-wide would not have found it
+  either, because none of those functions HAD a language parameter to make required. The fix is the
+  general one — the words moved into `HEALTH_COPY`, the formatters are built from `LANG_TAG[lang]`,
+  and `trendPeriods(lang)`/`trendBuckets(…, lang)`/`trendSummary(…, lang)` take the language. When
+  you add a surface, ask whether its words are in a `Localized<T>`; if they are not, no test here
+  is watching them.
+- **A sentence is a TEMPLATE, never fragments joined by code.** `trendSummary` built the VoiceOver
+  line by concatenating "by", "from", "to", "Lowest" around the numbers. Word order is not a
+  constant across eight languages, and for a reader with low vision that sentence IS the chart. It
+  is one string per language with named placeholders now. The same rule caught Russian's `по`,
+  which governs the dative plural: `HealthCopy.periods[p].per` exists beside `noun` because one
+  field cannot be both `неделя` and `неделям`.
 - **A test refuses to let the Russian decide who the reader is.** Russian past tense agrees with
   the speaker's gender and has NO neutral form, so `Что ты ел?` greets every woman using this app
   as a man — and it shipped on the chat composer's placeholder, in three surfaces at once. Nothing

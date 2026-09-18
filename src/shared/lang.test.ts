@@ -123,7 +123,25 @@ describe("genderedRussian — the check no English-reading reviewer could be", (
   });
 
   it("catches it across a couple of words, because that is where it hides", () => {
-    expect(genderedRussian(["еда, которую ты не готовил сам"])).toHaveLength(1);
+    // `ты об этом попросил` is the shape a hand search misses: two words between the pronoun and
+    // the verb. Finding it in `THREAD_COPY` is how this check paid for itself on the first run.
+    expect(genderedRussian(["Оценено только потому, что ты об этом попросил."])).toHaveLength(1);
+    // Two hits on one sentence — the past tense and the `сам` — and that is correct.
+    expect(genderedRussian(["еда, которую ты не готовил сам"]).length).toBeGreaterThan(0);
+  });
+
+  it("catches a SHORT ADJECTIVE, which carries no pronoun to search for", () => {
+    // `Готов?` was the last one left after every `ты …л` was fixed. Nothing in it says `ты`.
+    expect(genderedRussian({ cta: "Готов?" })).toEqual([{ at: "cta", text: "Готов" }]);
+    expect(genderedRussian(["поправь граммы сам"])).toHaveLength(1);
+    expect(genderedRussian(["Ты в этом не один"])).toHaveLength(1);
+    // The inversion, where the verb comes first and the check cannot key on `ты …`.
+    expect(genderedRussian(["Если это был не ты, просто не отвечай"])).toHaveLength(1);
+  });
+
+  it("leaves the NUMERAL alone, or it would drown the three real ones", () => {
+    // `один` is only a gender once it is predicated of the reader; everywhere else it is "one".
+    expect(genderedRussian(["один раз в день", "одна порция риса"])).toEqual([]);
   });
 
   it("says nothing about Spud talking about HIMSELF, which is his gender to have", () => {

@@ -717,7 +717,7 @@ const ID: OnboardingContent = {
     lines: ["Ini hasil hitungannya, dikerjakan dengan benar. Ini rencanamu."],
     kcalLabel: "kcal per hari",
     proteinLabel: "Target protein",
-    projection: "Dengan tempo ini kamu ada di {target} kg sekitar {month}.",
+    projection: "Dengan tempo ini kamu akan ada di {target} kg sekitar {month}.",
     projectionFar: "Jalannya panjang — kita berpatokan pada beberapa minggu ke depan, bukan pada cakrawala.",
     capNote: "Tempo itu butuh perubahan harian yang lebih besar daripada yang aman untuk dijaga, jadi punyamu versi amannya: {share}% dari yang tubuhmu bakar dalam sehari.",
     disclaimer: "Perkiraan, bukan nasihat medis. Semua jawaban bisa diubah di pengaturan.",
@@ -733,7 +733,7 @@ const RU: OnboardingContent = {
     lines: [
       "Привет, я Spud. Фотографируй, что ешь, и получай честный ответ — в этом всё приложение.",
       "Три минуты вопросов — и вот твой план: калории на день, белок, что реально и к какому сроку. И вердикт по первому приёму пищи.",
-      "Чтобы начать, аккаунт не нужен. Платить не придётся, пока не увидишь план и тот самый первый вердикт; дальше — неделя бесплатно, чтобы попробовать. Готов?",
+      "Чтобы начать, аккаунт не нужен. Платить не придётся, пока не увидишь план и тот самый первый вердикт; дальше — неделя бесплатно, чтобы попробовать. Начнём?",
     ],
     cta: "Поехали",
   },

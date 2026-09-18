@@ -258,14 +258,31 @@ export const describeGaps = (gaps: readonly LocalizedGap[]): string[] =>
  * cannot match one — which means this walks every string in the graph and asks the question of all
  * of them, and a table that stops being `Localized` does not slip out of the check.
  *
- * WHAT IT DOES NOT COVER, deliberately: `сам`/`одна` and the short adjectives are gendered too, but
- * catching them needs a window wide enough to catch ordinary prose with it. The past tense is the
- * one that is ALWAYS gendered and never ambiguous, and it was every instance this repo had. A
- * `сам` slipping past is a wart; this was thirteen sentences.
+ * WHAT IT COVERS, and why each part earns its place — measured over the whole corpus rather than
+ * guessed, because a check that cries wolf gets deleted:
+ *
+ *   1. SECOND-PERSON PAST TENSE (`ты … ел`). Always gendered, never ambiguous, and thirteen of the
+ *      eighteen instances this repo had. Up to two words may intervene: `ты об этом попросил` is
+ *      the shape a hand search misses and this one does not.
+ *   2. SHORT ADJECTIVES (`готов`, `уверен`, `рад`, `должен`, `сам`) anywhere in the string, since
+ *      `Готов?` carries no `ты` at all — EXCEPT after `я`, because that is Spud talking about
+ *      himself and his gender is his own to have.
+ *   3. `ты … один`, and `был … ты`, whose verb precedes the pronoun.
+ *
+ * `один` alone is NOT a token: it is the numeral, and flagging every `один раз` would drown the
+ * three real ones. It is only caught after `ты`, which is where it stops being a number.
  */
 // NOT `\b`: JavaScript's word boundary is ASCII, so it never fires between a space and `т`
 // and the whole pattern silently matches nothing. The lookarounds are the Cyrillic version.
-const RU_READER_GENDERED = /(?<![а-яё])ты\s+(?:[а-яё]+\s+){0,2}[а-яё]+л(?:а|о|и|ся|ась)?(?![а-яё])/giu;
+const RU_READER_GENDERED = new RegExp([
+  // 1. `ты … <verb>л`
+  "(?<![а-яё])ты\\s+(?:[а-яё]+\\s+){0,2}[а-яё]+л(?:а|о|и|ся|ась)?(?![а-яё])",
+  // 2. a short adjective, but never Spud's own
+  "(?<![а-яё])(?<!я\\s)(?<!я\\sне\\s)(?:готов|уверен|рад|должен|сам)(?:а|ы)?(?![а-яё])",
+  // 3. `ты … один`, and the inversion `был … ты`
+  "(?<![а-яё])ты(?:\\s+[а-яё]+){0,3}\\s+одн?(?:ин|а)(?![а-яё])",
+  "(?<![а-яё])был(?:а)?\\s+(?:не\\s+)?ты(?![а-яё])",
+].join("|"), "giu");
 
 /** Every string under `root` that tells a Russian reader what gender they are. */
 export function genderedRussian(root: unknown): { at: string; text: string }[] {
