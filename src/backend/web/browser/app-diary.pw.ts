@@ -74,7 +74,33 @@ test("the headline is what is LEFT today, with eaten and target under it", async
   const target = await dayAt(page, -550);
   await expect(page.locator(".big")).toHaveText("550 kcal left");
   await expect(page.locator(".big")).not.toHaveClass(/warn/);
-  await expect(page.getByText(`${target - 550} of ${target} kcal eaten`)).toBeVisible();
+  // GROUPED THE READER'S WAY (#358): "1,896 of 2,446 kcal eaten" in English, "1.896 von 2.446" in
+  // German. The account here is English, so the expectation is built with the same formatter the
+  // page uses rather than with string interpolation — which is what it was, and what made the page
+  // and the test agree only for targets under a thousand.
+  const n = (x: number) => new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0 }).format(x);
+  await expect(page.getByText(`${n(target - 550)} of ${n(target)} kcal eaten`)).toBeVisible();
+});
+
+test("the diary is grouped and worded in the account's language, not the browser's", async ({ inWebApp: page }) => {
+  // The picker writes `profile.lang` and every string on the page reads it. Asserted through the
+  // PROFILE rather than through the picker, because what is being checked is that the language
+  // reaches the render — the picker's own write is covered by `copy.i18n.test.ts` and by the unit
+  // tests around `PATCH /v1/profile`.
+  await page.route("**/api/v1/profile", async (route) => {
+    const res = await route.fetch();
+    const body = (await res.json()) as { profile: { lang: string } };
+    body.profile.lang = "de";
+    await route.fulfill({ response: res, json: body });
+  });
+  const target = await dayAt(page, -550);
+  await expect(page.locator(".big")).toHaveText("550 kcal übrig");
+  const de = (x: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(x);
+  await expect(page.getByText(`${de(target - 550)} von ${de(target)} kcal gegessen`, { exact: false })).toBeVisible();
+  // And the document says which language it is in, because a screen reader picks a voice from it.
+  await expect(page.locator("html")).toHaveAttribute("lang", "de");
+  // The picker is in the chrome, showing the language being read.
+  await expect(page.locator("select.lang")).toHaveValue("de");
 });
 
 test("over target says by how much, as a warning rather than a negative number", async ({ inWebApp: page }) => {

@@ -95,6 +95,25 @@ gets its meal names in that language.
   matches English patterns, so running it over the German would pass regardless. What protects the
   seven translations is that they are translations OF copy that passed it — so the English is the
   source, and a sentence changes there first.
+- **THE iOS CLIENT RENDERS FROM THESE TABLES TOO, and that is why they are here rather than in the
+  backend.** `src/mobile` is not in this repo and imports `@eait/shared` from the parent monorepo,
+  so a table in `backend/` is a table the phone cannot read. What the app consumes:
+  `onboardingContentFor` / `usableContentFor` (the flow), `chatCopyFor` and its readers
+  (`GOAL_CARDS(lang)`, `STRUGGLE_LABELS(lang)`, `checkNumber(…, lang)` and the rest — every one of
+  them takes the language now, and a caller that captures one at module scope renders in whatever
+  language the process started in), `threadCopyFor` / `firstVerdictLines` / `runningLine` /
+  `scriptedLine`, `verdictPillLabel`, `healthLabel`, `correlationWords`, `notificationCopyFor` +
+  `eveningPrescription`, `projectionMonth`, and `numbers` / `wholeNumbers` / `monthYear` for every
+  figure. The language itself is `ProfileResponse.profile.lang`; the picker writes it with
+  `PATCH /v1/profile { lang }` and offers `LANGS_READY` labelled by `LANG_LABEL`.
+- **The phone's two LOCAL notifications must read `notificationCopyFor(lang)`, not the default.**
+  `reminderPlan` says WHICH reminders to schedule and the words come from the table; scheduling
+  them off `DEFAULT_NOTIFICATION_COPY` is an English lock screen on an account that asked for
+  Italian, and nothing on the server would ever see it.
+- **`Intl` must be real on the device.** Every figure and every month name goes through it.
+  Hermes ships full ICU on the RN versions this app is built with, and `projection.ts`'s old
+  twelve-month table was written against a build that did not — if a device ever answers a numeric
+  month or an ungrouped thousand, that is the thing to check, not these tables.
 - **Admin-editable copy is stored per language in the SAME row.** `onboarding_content` and
   `notification_copy` hold a `Localized<…>` map rather than one revision: no column, no migration,
   and a row written before #358 is read as English, which is what it was. A save in one language
