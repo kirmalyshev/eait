@@ -8,10 +8,18 @@
 // So the assertions live here once and both implementations answer them.
 //
 // Postgres is SKIPPED, loudly, when `TEST_DATABASE_URL` is unset — a silently skipped test is a
-// test that reads as passing. Run it with:
-//   ./dev db up
-//   ./dev db psql -c 'create database eait_test'
-//   TEST_DATABASE_URL=postgres://eait:eait@127.0.0.1:5433/eait_test bun test ./src/backend/store.contract.test.ts
+// test that reads as passing. `./dev test` is what sets it:
+//   ./dev test                                  these suites, against real Postgres
+//   ./dev test ./src/backend/store.contract.test.ts    this file alone
+//
+// THAT VARIABLE IS DERIVED, NEVER TYPED. `src/scripts/dev-env.ts` computes this worktree's test
+// database from its dev one — `eait__test` in a single checkout, `eait_<branch>__test` in a linked
+// worktree — and `./dev test` passes it in. (The double underscore is load-bearing: a branch name
+// cannot produce one, so no branch's DEV database can ever be another branch's TEST database.)
+// Setting it by hand is
+// how this suite used to be run, and it was wrong in a way nothing reported: the documented value
+// was one fixed `eait_test`, so every worktree following the instructions ran a MIGRATING, WRITING
+// suite against one database. Three branches in flight meant three test runs in each other's rows.
 //
 // A DATABASE OF ITS OWN, and NOT this worktree's dev one. Two assertions here are about a database
 // with NO admin in it (`hasAdmin`), and `./dev seed` writes one — so pointing this at the database
@@ -2011,7 +2019,7 @@ if (PG_URL) {
   contract("postgres", () => postgresStore(PG_URL, { maxConnections: TEST_POOL }));
 } else {
   describe("store contract — postgres", () => {
-    it.skip("SKIPPED: set TEST_DATABASE_URL to run against real Postgres", () => {});
+    it.skip("SKIPPED: run `./dev test` to run against real Postgres", () => {});
   });
 }
 

@@ -129,5 +129,23 @@ already exist. Auto-create shipped once and it was silent data loss.
 ## Verify
 
 `bun run check`, then `bun run web:e2e` when a change can reach a browser — the web application,
-`/start`, or anything they call. The store contract suite runs against Postgres too when
-`TEST_DATABASE_URL` is set, and says loudly that it skipped when it is not.
+`/start`, or anything they call. Neither needs Docker: the store contract suite skips its Postgres
+half, loudly, when `TEST_DATABASE_URL` is unset, and `bun run check` is not allowed to start
+depending on a container being up.
+
+**`./dev test` is the opt-in that runs it against real Postgres, and the only thing on a
+development machine that sets `TEST_DATABASE_URL`** (CI sets it too, at a Postgres of its own —
+`.github/workflows/test.yml`, at slot 0's `eait__test`, and a test in `src/scripts/dev-env.test.ts`
+fails if that name ever drifts from the derivation). The value is DERIVED — `src/scripts/dev-env.ts` computes this
+worktree's test database from its dev one by adding `__test`, `./dev db up` creates both, and
+`.env.worktree` carries both. The DOUBLE underscore is the collision argument: a branch name can
+never produce one, so no branch's dev database can be another branch's test database — with a
+single `_test`, branch `fix-test`'s dev database IS branch `fix`'s test database, and that suite
+migrates and writes. Typing that variable by hand, or creating a test database
+yourself, is the failure this replaced: one fixed name in the docs meant every worktree
+ran a migrating, writing suite against one database. If you add a key to `worktreeEnvValues`,
+`src/scripts/worktree.sh` needs its slot-0 default in the same commit — a key on one side only is
+an unset variable falling back to slot 0, and `src/scripts/dev-env.test.ts` fails and names it.
+And make that default DERIVE FROM A SIBLING KEY wherever it can: a `.env.worktree` generated before
+the key existed is a file, so no "no file" default fires for it, and a literal would hand every
+already-derived worktree slot 0's value for the new key while the old ones stayed its own.

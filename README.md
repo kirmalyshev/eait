@@ -69,10 +69,20 @@ web application. It opens the bot with a one-time code. The rules are in `src/ba
 ```sh
 bun run check         # typecheck, the web build, the unit suites, and that openapi.json is current
 bun run web:e2e       # the browser suite in the Chrome already installed, against the demo model
-./dev db psql -c 'create database eait_test'   # its own database: ./dev seed writes an admin,
-                                              # and two assertions here want none
-TEST_DATABASE_URL=postgres://eait:eait@127.0.0.1:5433/eait_test bun test ./src/backend/store.contract.test.ts
+./dev test            # the same unit suites PLUS the store contract suite, against real Postgres
 ```
+
+`bun run check` never needs Docker: the store contract suite skips its Postgres half, loudly, when
+`TEST_DATABASE_URL` is unset (CI sets it too, at a Postgres of its own, using the same
+`eait__test`). `./dev test` is the opt-in
+that sets it here — to this worktree's own test database, `eait__test` in a single checkout and
+`eait_<branch>__test` in a linked worktree, created by `./dev db up` alongside the dev one. Do not
+set that variable by hand and do not create a test database yourself: that suite MIGRATES and
+WRITES, so a fixed name shared by several checkouts is several test runs writing each other's rows.
+It is also a database of its own rather than the one you develop against, because `./dev seed`
+writes an admin and two of its assertions are about a database with none. The double underscore is
+load-bearing — a branch name cannot produce one, so no branch's dev database is another branch's
+test database.
 
 ## Rules
 

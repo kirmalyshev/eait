@@ -28,7 +28,10 @@ route. A route that computes is a rule the tests cannot reach.
   beyond `id = ? AND user_id = ?`. The one exception is the RevenueCat webhook, where the id IS the
   message, and it is safe only because of the shared secret checked before the body is read.
 - **Both store implementations must agree.** `store.contract.test.ts` runs the same suite against
-  each. A rule proven only against the memory store is a rule about a mock's mood.
+  each. A rule proven only against the memory store is a rule about a mock's mood. Its Postgres
+  half runs under `./dev test`, against this worktree's own DERIVED test database — never a
+  hand-created `eait_test`, which several worktrees would share while all of them migrate and
+  write it, and never the dev database, which `./dev seed` puts an admin into.
 - **Empty means absent, not zero.** `totalsSince` groups by date, so a day with no meals produces
   NO ROW. Anything reading it is reading "days that have something", and treating a missing row as
   a zero is a claim the query never made.
