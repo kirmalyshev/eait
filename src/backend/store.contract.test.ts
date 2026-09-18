@@ -1035,6 +1035,60 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.analysisCosts(a, [])).toEqual([]);
     });
 
+    // #708. A billed turn is claimed by the phone's id for it before anything runs, so a request
+    // that reached the server and lost its answer is replayed from what it settled, never re-run.
+    it("claims a turn once per account and hands back what it settled", async () => {
+      const s = await open();
+      const a = (await s.upsertDeviceUser(device(), "en")).userId;
+      const b = (await s.upsertDeviceUser(device(), "en")).userId;
+      const id = crypto.randomUUID();
+      expect(await s.claimTurn(a, id)).toBe(true);
+      expect(await s.claimTurn(a, id)).toBe(false);
+      // Scoped: the same id on another account is that account's own turn.
+      expect(await s.claimTurn(b, id)).toBe(true);
+      expect((await s.getTurn(a, id))?.outcome).toBeNull();
+      await s.settleTurn(a, id, { kind: "logged", mealId: "m1" });
+      expect((await s.getTurn(a, id))?.outcome).toEqual({ kind: "logged", mealId: "m1" });
+      expect((await s.getTurn(b, id))?.outcome).toBeNull();
+      expect(await s.getTurn(a, crypto.randomUUID())).toBeNull();
+    });
+
+    it("forgets an old turn's answer and keeps its claim", async () => {
+      const s = await open();
+      const a = (await s.upsertDeviceUser(device(), "en")).userId;
+      const id = crypto.randomUUID();
+      await s.claimTurn(a, id);
+      await s.settleTurn(a, id, { kind: "answered", text: "Fine." });
+      const claimedAt = (await s.getTurn(a, id))!.claimedAt;
+      expect(Math.abs(claimedAt - Date.now())).toBeLessThan(60_000);
+      await s.forgetTurnOutcomes(claimedAt - 1_000);
+      expect((await s.getTurn(a, id))?.outcome).toEqual({ kind: "answered", text: "Fine." });
+      expect(await s.forgetTurnOutcomes(claimedAt + 1_000)).toBeGreaterThanOrEqual(1);
+      expect((await s.getTurn(a, id))?.outcome).toBeNull();
+      // The claim outlives its answer: a replay then is an unknown, never a second run.
+      expect(await s.claimTurn(a, id)).toBe(false);
+    });
+
+    it("moves turns with a merge, and a turn goes with its account", async () => {
+      const s = await open();
+      const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real = (await s.upsertDeviceUser(device(), "en")).userId;
+      const id = crypto.randomUUID();
+      const both = crypto.randomUUID();
+      await s.claimTurn(anon, id);
+      await s.settleTurn(anon, id, { kind: "logged", mealId: "m1" });
+      // The same id on both sides cannot happen from one phone, and must not fail a sign-in if it does.
+      await s.claimTurn(anon, both);
+      await s.claimTurn(real, both);
+      await s.settleTurn(real, both, { kind: "answered", text: "theirs" });
+      await s.mergeUsers(anon, real);
+      expect((await s.getTurn(real, id))?.outcome).toEqual({ kind: "logged", mealId: "m1" });
+      expect(await s.claimTurn(real, id)).toBe(false);
+      expect((await s.getTurn(real, both))?.outcome).toEqual({ kind: "answered", text: "theirs" });
+      await s.deleteUser(real);
+      expect(await s.getTurn(real, id)).toBeNull();
+    });
+
     it("hands out the first verdict exactly once per account", async () => {
       const s = await open();
       const a = (await s.upsertDeviceUser(device(), "en")).userId;

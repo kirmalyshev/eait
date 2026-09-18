@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { createChatCore, type ChatClient, type ChatCore, type Failure } from "./chat-core.ts";
+import { createChatCore, type ChatClient, type ChatCore, type Failure, type QueuedTurn } from "./chat-core.ts";
 import type { ChatEntry, ChatHistoryResponse, DeleteLineResponse, ProfileResponse } from "./contract.ts";
 import type { HandleTextResult, TargetGone } from "./results.ts";
 import type { ThreadEntry } from "./thread.ts";
@@ -38,20 +38,23 @@ function harness(o: {
   pages?: (ChatHistoryResponse | Promise<ChatHistoryResponse>)[];
   profile?: ProfileResponse | null;
   del?: (id: string) => Promise<DeleteLineResponse | TargetGone>;
+  enqueue?: (turn: QueuedTurn) => Promise<void>;
+  waiting?: () => boolean;
+  profileFn?: () => ProfileResponse | null;
 } = {}) {
-  const fake = { pages: o.pages ?? [], refreshes: 0 };
+  const fake = { pages: o.pages ?? [], refreshes: 0, cancelled: [] as string[] };
   const client: ChatClient = {
     chatHistory: () => Promise.resolve(fake.pages.shift() ?? page()),
     sendMessage: o.send ?? (() => Promise.resolve({ kind: "answered", text: "ok" })),
     confirmPending: () => Promise.reject(new Error("not in these tests")),
-    cancelPending: () => Promise.resolve({ kind: "cancelled" }),
+    cancelPending: (id) => { fake.cancelled.push(id); return Promise.resolve({ kind: "cancelled" }); },
     deleteLine: o.del ?? (() => Promise.reject(new Error("not in these tests"))),
   };
   const profile = o.profile ?? null;
   let n = 0;
   const core = createChatCore({
     client: () => client,
-    profile: () => profile,
+    profile: o.profileFn ?? (() => profile),
     refreshProfile: async () => { fake.refreshes++; return profile; },
     today: () => TODAY,
     // The fake rejects with the classification itself; the app's adapter derives it from `ApiError`.
@@ -59,6 +62,8 @@ function harness(o: {
     cache: { putChat: () => {}, putMeals: () => {} },
     seed: null,
     uid: () => `c${++n}`,
+    ...(o.enqueue ? { enqueue: o.enqueue } : {}),
+    ...(o.waiting ? { waiting: o.waiting } : {}),
   });
   return { core, fake };
 }
@@ -269,3 +274,102 @@ describe("deleteLine", () => {
     expect(core.state.entries.at(-1)).toMatchObject({ role: "error", kind: "offline" });
   });
 });
+
+describe("the outbox (#708)", () => {
+  const proposed = (pendingId: string): HandleTextResult => ({
+    kind: "proposed", pendingId, date: TODAY, expiresAt: "2099-01-01T00:00:00.000Z",
+    analysis: {
+      isFood: true, items: [], kcal: 100, protein_g: 1, carbs_g: 1, fat_g: 1, satfat_g: 0, fiber_g: 0,
+      sugar_g: 0, sodium_mg: 0, verdicts: {}, confidence: "low", notes: "",
+    },
+  });
+
+  it("a turn that never landed goes to the outbox under its own id, and its bubble is the outbox's now", async () => {
+    const queued: QueuedTurn[] = [];
+    const { core } = harness({ send: () => Promise.reject(offline), enqueue: async (t) => { queued.push(t); } });
+    await core.send("a banana");
+    expect(queued).toEqual([{ id: "c1", userId: null, text: "a banana", capturedAt: expect.any(String) }]);
+    expect(Number.isNaN(Date.parse(queued[0]!.capturedAt))).toBe(false);
+    expect(core.state.entries).toEqual([]);
+    expect(core.state.busy).toBe(false);
+    core.refresh(); await settle();
+    expect(core.state.entries).toEqual([]);
+  });
+
+  it("a turn the server answered but could not finish is not queued: a re-send is answered the same way", async () => {
+    const queued: QueuedTurn[] = [];
+    const { core } = harness({ send: () => Promise.reject({ kind: "outcome-unknown", refusal: false }), enqueue: async (t) => { queued.push(t); } });
+    await core.send("half that");
+    expect(queued).toEqual([]);
+    expect(user(core, "c1")?.failed).toBe(true);
+  });
+
+  it("an outbox that cannot keep it leaves the bubble not sent, as before", async () => {
+    const { core } = harness({ send: () => Promise.reject(offline), enqueue: async () => { throw new Error("disk full"); } });
+    await core.send("a banana");
+    expect(user(core, "c1")?.failed).toBe(true);
+  });
+
+  it("a queued turn that landed as a proposal is offered like a live one, and retires the older offer", async () => {
+    const { core, fake } = harness({ send: async () => proposed("p1") });
+    await core.send("two eggs");
+    fake.pages.push(page([userLine("toast", { clientId: "q1", pendingId: "p2" })]));
+    await core.landed(proposed("p2"));
+    expect(fake.cancelled).toEqual(["p1"]);
+    const offers = core.state.entries.flatMap((e) => (e.role === "assistant" && e.result.kind === "proposed" ? [e.result.pendingId] : []));
+    expect(offers).toEqual(["p2"]);
+    expect(core.state.entries.some((e) => e.role === "user" && e.clientId === "q1")).toBe(true);
+  });
+
+  it("a queued turn that landed as anything else is read back from the thread", async () => {
+    const { core, fake } = harness();
+    fake.pages.push(page([userLine("how much protein?", { clientId: "q1" }), said("About 40 g.")]));
+    await core.landed({ kind: "answered", text: "About 40 g." });
+    expect(core.state.entries.map((e) => e.role)).toEqual(["user", "assistant"]);
+    expect(core.state.entries.every((e) => "stored" in e && e.stored)).toBe(true);
+  });
+
+  it("a new turn joins the end of a queue that is still waiting, rather than reaching the server first", async () => {
+    const queued: QueuedTurn[] = [];
+    let sent = 0;
+    const { core } = harness({
+      send: async () => { sent++; return { kind: "answered", text: "ok" }; },
+      enqueue: async (t) => { queued.push(t); }, waiting: () => true,
+    });
+    await core.send("and a beer");
+    expect(sent).toBe(0);
+    expect(queued.map((t) => t.text)).toEqual(["and a beer"]);
+    expect(core.state.entries).toEqual([]);
+  });
+
+  it("the bubble stays until the outbox has the turn — the row with its id takes over without a gap — and is marked if it cannot", async () => {
+    const seen: string[][] = [];
+    let core!: ChatCore;
+    ({ core } = harness({
+      send: () => Promise.reject(offline),
+      enqueue: async () => { seen.push(core.state.entries.map((e) => e.id)); throw new Error("disk full"); },
+    }));
+    await core.send("a banana");
+    expect(seen).toEqual([["c1"]]);
+    expect(user(core, "c1")?.failed).toBe(true);
+  });
+
+  it("keeps a turn for the account it was said under, not whichever is signed in when it fails", async () => {
+    const queued: QueuedTurn[] = [];
+    const turn = deferred<HandleTextResult>();
+    let profile: ProfileResponse | null = { profile: { user_id: "a" } } as ProfileResponse;
+    const { core } = harness({ send: () => turn.promise, enqueue: async (t) => { queued.push(t); }, profileFn: () => profile });
+    const sending = core.send("a banana")!;
+    profile = { profile: { user_id: "b" } } as ProfileResponse;
+    turn.reject(offline);
+    await sending;
+    expect(queued.map((t) => t.userId)).toEqual(["a"]);
+  });
+
+  it("a queued correction whose meal is gone says so, like a live one", async () => {
+    const { core } = harness();
+    await core.landed({ kind: "target-gone", on: "correction" });
+    expect(core.state.entries.some((e) => e.role === "assistant" && e.result.kind === "target-gone")).toBe(true);
+  });
+});
+

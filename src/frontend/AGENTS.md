@@ -59,6 +59,8 @@ the exclude is written so a new file in this directory is browser code by defaul
   `sessionStorage`, not on `window`. A token in storage survives the tab and is readable by any
   script that ever runs on this origin — and this origin also carries the admin. The cost of the
   closure is one round trip to `/start/session/token` after a reload, which is the right price.
+- **A turn with no answer is kept in IndexedDB (`outbox.ts`), and nothing that authenticates it
+  is** (#708). It waits for a session like every other call, and goes on sign-out.
 - **`textContent`, never `innerHTML`.** Everything on these screens came from a server response or
   from a person, and the shell's CSP has no `'unsafe-inline'` to fall back on: an injected `<script>`
   would not run, but an injected `<img onerror>` is a defence you are relying on rather than a

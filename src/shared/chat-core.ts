@@ -22,6 +22,7 @@
 import { scriptedLine } from "./chat.ts";
 import type { ChatEntry, ChatHistoryResponse, DeleteLineResponse, ProfileResponse } from "./contract.ts";
 import { mayHaveSpentSample, sampleSpent } from "./entitlement.ts";
+import { attemptOf } from "./outbox.ts";
 import type { ConfirmMealResult, HandleTextResult, MealLogged, TargetGone } from "./results.ts";
 import {
   fromHistory, keepsItsWords, landedLine, lastMealId, oneLiveProposal, reconcilePage, livePendings,
@@ -31,7 +32,7 @@ import {
 /** The four calls the orchestration makes. The app's `Client` is one; a test's fake is another. */
 export interface ChatClient {
   chatHistory(before?: number): Promise<ChatHistoryResponse>;
-  sendMessage(text: string, focusMealId?: string, clientId?: string): Promise<HandleTextResult>;
+  sendMessage(text: string, focusMealId?: string, clientId?: string, capturedAt?: string): Promise<HandleTextResult>;
   confirmPending(pendingId: string): Promise<ConfirmMealResult>;
   cancelPending(pendingId: string): Promise<{ kind: "cancelled" | "expired" } | MealLogged>;
   /** `DELETE /v1/messages/:id` (#608). A 409 `target-gone` comes back as the typed result, like `sendMessage`'s. */
@@ -48,6 +49,16 @@ export interface Failure {
   scope?: string | undefined;
   /** The server read the turn and answered it on purpose (`ApiError.isRefusal`). */
   refusal: boolean;
+}
+
+/** A typed turn handed to the outbox: its id is the one it was sent with, so a re-send is a replay (#708). */
+export interface QueuedTurn {
+  id: string;
+  /** The account the turn was SAID under, read at the tap: a sign-out while it is out must not move it. */
+  userId: string | null;
+  text: string;
+  capturedAt: string;
+  focusMealId?: string;
 }
 
 export interface ChatCoreDeps {
@@ -71,8 +82,15 @@ export interface ChatCoreDeps {
   onScroll?: (how: "instant" | "keep") => void;
   /** A live answer has arrived. */
   onAnswer?: () => void;
-  /** Ids for live entries. A test passes a counter. */
+  /** Ids for live entries — and, for a turn, its client id. A test passes a counter. */
   uid?: () => string;
+  /**
+   * Keep a turn that got no answer, to send when there is a connection (#708). Absent, such a turn
+   * is marked "not sent" as it always was. Throws when it cannot keep it, and the bubble then is.
+   */
+  enqueue?: (turn: QueuedTurn) => Promise<void>;
+  /** Whether this account's outbox has turns waiting to go: a new turn then joins the end of it. */
+  waiting?: () => boolean;
 }
 
 export interface ChatState {
@@ -107,6 +125,11 @@ export interface ChatCore {
   retry(entryId: string): void;
   /** A live line in the app's own voice: the notification primer's. */
   say(text: string): void;
+  /**
+   * A queued turn the outbox has sent (#708). A proposal is offered like a live one — the server
+   * keeps no card for it — and the thread is read back for its words and anything said after them.
+   */
+  landed(result: HandleTextResult): Promise<void>;
   /**
    * Delete one of the user's own stored lines (#608). Resolves to the date whose meal went with
    * it — the caller refreshes that day — or null when only a line went, or nothing did.
@@ -267,12 +290,35 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
     const body = text.trim();
     if (!body || inflight > 0) return undefined;
     const asked = uid();
+    // Taken at the tap, with the focus: a turn that ends up queued is sent later as it was said.
+    const capturedAt = new Date().toISOString();
+    const focus = focusMealId ?? undefined;
+    const said = deps.profile()?.profile?.user_id ?? null;
     inflightIds.add(asked);
     push({ id: asked, role: "user", text: body });
     begin();
+    /**
+     * Hand the turn to the outbox under the id it was (or would have been) sent with. The live bubble
+     * stays until the outbox has it — the outbox's row for the same id is not drawn while it is on
+     * screen (`queuedEntries`) — then goes, so the row takes over the same key with no gap. True when kept.
+     */
+    const keep = async (): Promise<boolean> => {
+      if (!deps.enqueue) return false;
+      try {
+        await deps.enqueue({ id: asked, userId: said, text: body, capturedAt, ...(focus !== undefined ? { focusMealId: focus } : {}) });
+      } catch {
+        return false;
+      }
+      inflightIds.delete(asked);
+      edit((prev) => threadReducer(prev, { kind: "remove", id: asked }));
+      return true;
+    };
     return (async () => {
       try {
-        const result = await deps.client().sendMessage(body, focusMealId ?? undefined, asked);
+        // KEPT TURNS GO FIRST (#708): with this account's queue still waiting, a new turn joins its end
+        // rather than reaching the server ahead of turns said before it.
+        if (deps.waiting?.() && await keep()) return;
+        const result = await deps.client().sendMessage(body, focus, asked, capturedAt);
         // A page fetched while this was in flight may already have superseded the bubble — and the
         // server writes the reply in the same batch as the words, so that page carries the reply
         // too. Pushing it again would show the answer twice. A PROPOSAL is the exception: the server
@@ -322,6 +368,10 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
           }
         } else {
           const failure = deps.failureOf(e);
+          // NOTHING ANSWERED IT, so it goes to the outbox under the id it was just sent with (#708):
+          // if it did reach the server, the re-send is answered from that turn rather than run again.
+          // Not kept: the bubble is back, marked below, and its words are one tap from the box.
+          if (attemptOf({ kind: failure.kind }) === "retry" && await keep()) return;
           if (failure.kind === "analysis-failed") {
             // The analysis was charged before the model was asked (a cap that only counts successes
             // is one a retry loop walks through), so on the sample this failure spent it. The fact
@@ -446,12 +496,31 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
 
   const say = (text: string): void => push({ id: uid(), role: "assistant", result: { kind: "answered", text } });
 
+  const landed = async (result: HandleTextResult): Promise<void> => {
+    if ("mealId" in result) focusMealId = result.date === deps.today() ? result.mealId : null;
+    if (result.kind === "proposed") {
+      // The same rule as a live proposal (#360): one live estimate, and the older ones cancelled for
+      // real. A kept turn cannot land after a newer live one — a turn said while kept ones wait joins
+      // their end (`waiting`) — so the newest to land is the newest asked for, a Send again included.
+      for (const stale of livePendings(state.entries)) void deps.client().cancelPending(stale).catch(() => {});
+      edit((prev) => oneLiveProposal([...prev, { id: uid(), role: "assistant", result }]));
+    } else if (result.kind === "target-gone") {
+      // The server keeps no line for it, so no page would say it — and a page would drop a live
+      // notice: the notice a live turn gets, and no reload behind it.
+      push({ id: uid(), role: "assistant", result });
+      deps.onAnswer?.();
+      return;
+    }
+    deps.onAnswer?.();
+    await load(() => true);
+  };
+
   return {
     get state() { return state; },
     subscribe(listener) {
       listeners.add(listener);
       return () => { listeners.delete(listener); };
     },
-    refresh, loadEarlier, send, confirm, cancel, retry, say, deleteLine,
+    refresh, loadEarlier, send, confirm, cancel, retry, say, deleteLine, landed,
   };
 }

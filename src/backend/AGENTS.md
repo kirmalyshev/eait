@@ -45,6 +45,13 @@ route. A route that computes is a rule the tests cannot reach.
   on ambiguity: a timeout or a truncation may have run — and so does a gateway status on any call
   but the FIRST of a turn (the schema retry, `routeText`'s focused second call), because those
   follow a completion that was billed.
+- **A billed turn runs once per client id** (#708). `logPhotoMeal` and `handleText` claim
+  `(user, clientId)` in `turns` before the caps (`engine/turns.ts`, `once`). A request re-sending the
+  id gets what the first attempt settled, refusals included, or waits for it; it never calls a model,
+  charges or logs. A first attempt that threw, or never settled within its budget, is
+  `OUTCOME_UNKNOWN` to its replay. A new billed route takes a `clientId` and goes through `once`, or
+  the clients' outboxes become the way to log a meal twice. The meal is dated by `capturedAt`; the
+  caps and the charge are the day the turn arrives.
 - **Errors are logged, never returned.** An error string from deep in the stack can carry the
   prompt, and the prompt carries the user's medical free text. Config goes through `redact()`.
 - **Never log the API key, the database URL with credentials, or raw image bytes.**

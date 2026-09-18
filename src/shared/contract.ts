@@ -219,6 +219,10 @@ export const ROUTES = {
   onboarding: "/v1/onboarding",
   /** POST — a batch of onboarding funnel events. Fire-and-forget from the app's point of view. */
   onboardingEvents: "/v1/onboarding/events",
+  /**
+   * POST, multipart: `photo` (one to `maxPhotosPerMeal` angles of one meal), `caption`, and the two
+   * fields every billed turn carries — `clientId` and `capturedAt`, as {@link MessageRequest} says.
+   */
   photo: "/v1/meals/photo",
   /**
    * POST — one turn; with `accept: NDJSON` it STREAMS (#508): a blank keepalive line while the model
@@ -678,11 +682,33 @@ export interface AppendLinesResponse {
 /** A client id on a turn: ≤ `MAX_CLIENT_ID` chars, echoed on the stored user line so the phone can tell its own bubble from a repeat of the same words. */
 export const MAX_CLIENT_ID = 64;
 
+/**
+ * The header a billed turn's `clientId` ALSO travels in (#708), and the spelling the server reads
+ * first. A header is there before the body is: the per-address limit runs before a multipart photo
+ * is parsed, and a re-sent turn — which calls no model — must not spend or meet that limit. A
+ * replay refused there is one its client would ask again under a new id, which is the second meal.
+ */
+export const IDEMPOTENCY_KEY = "idempotency-key";
+
 /** `POST /v1/messages`. `focusMealId` names the meal a correction applies to. */
 export interface MessageRequest {
   text: string;
-  /** The phone's id for this turn. Stored on the user line and returned in `ChatEntry`; never interpreted. */
+  /**
+   * The client's id for this turn, and THE TURN'S IDEMPOTENCY KEY (#708). A request carrying an id
+   * this account has already sent is answered with what that turn answered — or waits for it while
+   * it runs — and is never run again: no model call, no charge, no second meal. That is what lets a
+   * client re-send a turn whose answer was lost. It follows that asking again ON PURPOSE (after a
+   * refusal, after a failed analysis) takes a NEW id. Stored on the user line and returned in
+   * `ChatEntry`. Also sent, as a form field, with a photo, and in {@link IDEMPOTENCY_KEY}, which wins.
+   */
   clientId?: string;
+  /**
+   * When the turn happened, ISO 8601 — the photo taken, the words typed. A turn queued offline and
+   * sent later is dated by it: the meal lands on the day it was eaten, and "yesterday" is read
+   * against the day it was said. The caps and the charge are still the day it ARRIVES. Unreadable,
+   * in the future or older than the diary reaches: now. Also sent, as a form field, with a photo.
+   */
+  capturedAt?: string;
   /**
    * Safe to accept from the client because every engine read is user-scoped: naming someone else's
    * meal resolves to nothing rather than to their row. Asserted by test in the backend.

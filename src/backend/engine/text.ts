@@ -11,7 +11,7 @@ import {
   type HandleTextResult, type MealAnalysis, type MealProposed, type MealRedated,
   explainTargets,
 } from "@eait/shared";
-import { dateMinus, isRefusal, localDate, windowStart } from "@eait/shared";
+import { TEXT_MODEL_CALLS, dateMinus, isRefusal, localDate, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import type { ChatAppend, ChatIntent } from "../store.ts";
 import { normalizePromptText } from "../llm/prompt.ts";
@@ -20,6 +20,7 @@ import { charge, checkCaps, refundGatewayRefusal } from "./caps.ts";
 import { applyCorrection, gatedVerdicts, sumTotals, toAnalysis } from "./meals.ts";
 import { afterCorrection, remember } from "./chat.ts";
 import { ROUTER_RECENT_LINES, coachTurn, recentLines } from "./coach.ts";
+import { eatenAt, once } from "./turns.ts";
 
 // How long a proposed text meal stays confirmable is `config.pendingTtlMs` (`EAIT__BACKEND__PENDING_TTL_MINUTES`),
 // read from deps at the point of use rather than frozen into a module constant here.
@@ -51,11 +52,21 @@ export interface HandleTextInput {
    * refused when it is absent. Asserted by test.
    */
   focusMealId?: string;
-  /** The phone's id for this turn, stored on the user line. Never interpreted. */
+  /** The phone's id for this turn, stored on the user line: a second request carrying it is answered from the first (#708). */
   clientId?: string;
+  /** When the words were sent. A queued turn reads "yesterday" against the day it was typed. */
+  capturedAt?: string;
 }
 
 export async function handleText(
+  deps: EngineDeps,
+  userId: string,
+  input: HandleTextInput,
+): Promise<HandleTextResult> {
+  return once(deps, userId, input.clientId, TEXT_MODEL_CALLS, () => textTurn(deps, userId, input));
+}
+
+async function textTurn(
   deps: EngineDeps,
   userId: string,
   input: HandleTextInput,
@@ -66,11 +77,14 @@ export async function handleText(
   const profile = found;
 
   const zone = deps.config.timezone;
-  const today = localDate(zone);
+  // The day the turn was TYPED, which a queued turn sent tomorrow is not (#708): "today" and
+  // "yesterday" in its words mean that day. The caps and the charge are the day it is sent.
+  const today = localDate(zone, eatenAt(input.capturedAt));
+  const chargeDay = localDate(zone);
 
-  const refusal = await checkCaps(deps, userId, today, "text");
+  const refusal = await checkCaps(deps, userId, chargeDay, "text");
   if (refusal) return refusal;
-  const { analysisId, onCost } = await charge(deps, userId, today, "text");
+  const { analysisId, onCost } = await charge(deps, userId, chargeDay, "text");
 
   const focus = input.focusMealId
     ? await deps.store.getMeal(userId, input.focusMealId)

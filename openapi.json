@@ -4034,7 +4034,11 @@
           },
           "clientId": {
             "type": "string",
-            "description": "The phone's id for this turn. Stored on the user line and returned in `ChatEntry`; never interpreted."
+            "description": "The client's id for this turn, and THE TURN'S IDEMPOTENCY KEY (#708). A request carrying an id this account has already sent is answered with what that turn answered — or waits for it while it runs — and is never run again: no model call, no charge, no second meal. That is what lets a client re-send a turn whose answer was lost. It follows that asking again ON PURPOSE (after a refusal, after a failed analysis) takes a NEW id. Stored on the user line and returned in `ChatEntry`. Also sent, as a form field, with a photo, and in  {@link  IDEMPOTENCY_KEY } , which wins."
+          },
+          "capturedAt": {
+            "type": "string",
+            "description": "When the turn happened, ISO 8601 — the photo taken, the words typed. A turn queued offline and sent later is dated by it: the meal lands on the day it was eaten, and \"yesterday\" is read against the day it was said. The caps and the charge are still the day it ARRIVES. Unreadable, in the future or older than the diary reaches: now. Also sent, as a form field, with a photo."
           },
           "focusMealId": {
             "type": "string",
