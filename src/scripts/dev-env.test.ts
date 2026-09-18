@@ -150,6 +150,17 @@ describe("what may be written to .env.worktree", () => {
     }).toEqual({ emittedWithNoShellDefault: [], defaultedButNeverEmitted: [] });
   });
 
+  // CI IS SLOT 0 AND MUST SAY SO. It sets `TEST_DATABASE_URL` itself, at its own ephemeral Postgres,
+  // so nothing there can collide and nothing there would ever report drift — which is precisely why
+  // the name is worth pinning. A reader copies what CI does; if that name were `eait_test` they
+  // would copy the collision this derivation removed, onto a machine that has worktrees.
+  test("CI runs the contract suite against slot 0's derived test database", () => {
+    const ci = readFileSync(new URL("../../.github/workflows/test.yml", import.meta.url), "utf8");
+    const expected = planFor(0, "main").testDbName;
+    expect(ci).toContain(`TEST_DATABASE_URL: postgres://eait:eait@127.0.0.1:5432/${expected}`);
+    expect(ci).toContain(`POSTGRES_DB: ${expected}`);
+  });
+
   // Exported, not merely assigned: `db.sh` and `dev.sh` read these out of the environment, and a
   // variable a sourced script sets without exporting is invisible to the `docker compose exec` and
   // `bun test` that need it.

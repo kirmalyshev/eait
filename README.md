@@ -73,7 +73,8 @@ bun run web:e2e       # the browser suite in the Chrome already installed, again
 ```
 
 `bun run check` never needs Docker: the store contract suite skips its Postgres half, loudly, when
-`TEST_DATABASE_URL` is unset (CI sets it too, at a Postgres of its own). `./dev test` is the opt-in
+`TEST_DATABASE_URL` is unset (CI sets it too, at a Postgres of its own, using the same
+`eait__test`). `./dev test` is the opt-in
 that sets it here — to this worktree's own test database, `eait__test` in a single checkout and
 `eait_<branch>__test` in a linked worktree, created by `./dev db up` alongside the dev one. Do not
 set that variable by hand and do not create a test database yourself: that suite MIGRATES and

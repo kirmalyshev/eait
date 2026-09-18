@@ -135,7 +135,8 @@ depending on a container being up.
 
 **`./dev test` is the opt-in that runs it against real Postgres, and the only thing on a
 development machine that sets `TEST_DATABASE_URL`** (CI sets it too, at a Postgres of its own —
-`.github/workflows/test.yml`). The value is DERIVED — `src/scripts/dev-env.ts` computes this
+`.github/workflows/test.yml`, at slot 0's `eait__test`, and a test in `src/scripts/dev-env.test.ts`
+fails if that name ever drifts from the derivation). The value is DERIVED — `src/scripts/dev-env.ts` computes this
 worktree's test database from its dev one by adding `__test`, `./dev db up` creates both, and
 `.env.worktree` carries both. The DOUBLE underscore is the collision argument: a branch name can
 never produce one, so no branch's dev database can be another branch's test database — with a
