@@ -98,10 +98,17 @@ gets its meal names in that language.
 - **The largest text surface is in no table.** Meal names, the coach's answers, the glance and the
   follow-up chips are written by the model per turn. `languageLine` in `llm/prompt.ts` is the whole
   of what steers them, and it reaches every prompt that produces words a user reads.
-- **The claims gate (`claims.ts`) is English-only, and that is stated rather than hidden.** It
-  matches English patterns, so running it over the German would pass regardless. What protects the
-  seven translations is that they are translations OF copy that passed it — so the English is the
-  source, and a sentence changes there first.
+- **The claims gate (`claims.ts`) is English-only, and it now covers one language in eight.** It
+  matches English patterns, so running it over the German passes regardless. For the COMPILED-IN
+  tables that is survivable: they are translations of English that passed the gate, the English is
+  the source, and a sentence changes there first. It is NOT true of the two DB-stored surfaces —
+  `onboarding_content` and `notification_copy` — where an admin types the words directly and
+  `?lang=` gave them seven more revisions to type into. `validateNotificationCopy` accepts a German
+  push reading *Garantierter Gewichtsverlust*; the English *Guaranteed weight loss* is refused.
+  A push notification arrives unasked, on a lock screen, with no review and no recall, and §5 UWG
+  is the product's own jurisdiction. Open, tracked, and named here rather than left to be
+  rediscovered: what would close it is per-language pattern sets, and what would falsify the
+  framing is the stored surfaces losing their language dimension.
 - **THE iOS CLIENT RENDERS FROM THESE TABLES TOO, and that is why they are here rather than in the
   backend.** `src/mobile` is not in this repo and imports `@eait/shared` from the parent monorepo,
   so a table in `backend/` is a table the phone cannot read. What the app consumes:
