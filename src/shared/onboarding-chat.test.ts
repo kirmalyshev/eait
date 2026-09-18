@@ -285,8 +285,8 @@ describe("the goal weight", () => {
 describe("the support cards", () => {
   it("gives every goal its own card, with a source", () => {
     for (const goal of ["lose", "gain", "maintain"] as const) {
-      expect(GOAL_CARDS[goal].source, goal).toBeTruthy();
-      expect(GOAL_CARDS[goal].body.length).toBeGreaterThan(40);
+      expect(GOAL_CARDS()[goal].source, goal).toBeTruthy();
+      expect(GOAL_CARDS()[goal].body.length).toBeGreaterThan(40);
     }
   });
 
@@ -309,7 +309,7 @@ describe("the support cards", () => {
   });
 
   it("quotes the surplus cap from the constant that enforces it", () => {
-    expect(GAIN_PACE_CARD.body).toContain(`${Math.round(MAX_SURPLUS_SHARE * 100)}%`);
+    expect(GAIN_PACE_CARD().body).toContain(`${Math.round(MAX_SURPLUS_SHARE * 100)}%`);
   });
 
   it("shows at most two", () => {

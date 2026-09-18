@@ -20,6 +20,7 @@
 
 import {
   AMBIGUOUS_AGE, RESTRICTION_TAGS, SCREEN_OPTIONS, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
+  chatCopyFor as CHAT,
   askPlaceholder, checkDirection, checkNumber, disabledScreens, isAnswered, promptsFor,
   isRefusal, MAX_USER_LINE, renderableVerdicts, resolveCountry, ROUTES, screenForStep, screenOptions,
   suggestionFirst, switchedLine,
@@ -337,7 +338,7 @@ function answerFor(prompt: ChatPrompt, answers: string[], profile: Profile): Ans
   if (value === undefined || value === "") return { kind: "missing" };
 
   if (prompt.kind === "number") {
-    const checked = checkNumber(field as NumberField, value);
+    const checked = checkNumber(field as NumberField, value, new Date(), profile.lang);
     if (!checked.ok) {
       if ("underAge" in checked) return { kind: "under-age" };
       // "90" is 1990 typed the short way, or somebody who is ninety. Computing the wrong one is
@@ -355,7 +356,7 @@ function answerFor(prompt: ChatPrompt, answers: string[], profile: Profile): Ans
     // surplus aimed at a number below the current weight and produce a plan that cannot arrive,
     // with nothing on any screen to say so.
     if (field === "target_weight_kg" && profile.goal !== null && profile.weight_kg !== null) {
-      const wrong = checkDirection(profile.goal, profile.weight_kg, checked.value);
+      const wrong = checkDirection(profile.goal, profile.weight_kg, checked.value, profile.lang);
       if (wrong) return { kind: "refuse", line: wrong.line, switchTo: wrong.switchTo };
     }
     return { kind: "patch", patch: { [field]: checked.value } as PatchProfileRequest };
@@ -683,8 +684,11 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     });
   }
 
+  // THE ACCOUNT'S LANGUAGE, and the copy fetched in it. `/start` has a signed-in user by the time
+  // it asks anything, so the browser's `Accept-Language` is not consulted for this — it seeded
+  // `users.lang` at sign-in and the picker in Settings has had every chance to overrule it since.
   const view = async (): Promise<{ profile: Profile; content: OnboardingContent }> => ({
-    profile, content: await onboardingContent(ctx.deps),
+    profile, content: await onboardingContent(ctx.deps, profile.lang),
   });
 
   if (pathname === `${START_PREFIX}/q`) {
@@ -720,7 +724,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       // The goal was just flipped mid-question, so the target is asked again in the words the app
       // uses for it rather than in silence.
       const switched = url.searchParams.has("switched") && profile.goal !== null
-        ? switchedLine(profile.goal)
+        ? switchedLine(profile.goal, profile.lang)
         : null;
       return ask(switched);
     }
@@ -754,7 +758,8 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       // promise, and the goal and the sex answered a minute ago are already rows.
       if (form.get("confirm") === "under-age") {
         await ctx.store.deleteUser(userId);
-        return html(stopped(UNDER_AGE_CARD.title, UNDER_AGE_CARD.body, UNDER_AGE_LINES.stopped), 200, {
+        const card = UNDER_AGE_CARD(profile.lang);
+        return html(stopped(card.title, card.body, UNDER_AGE_LINES(profile.lang).stopped), 200, {
           cookies: [clearCookie(SESSION_COOKIE, secure)],
         });
       }
@@ -764,22 +769,24 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       if (answer.kind === "missing") return ask("That one needs an answer.");
       if (answer.kind === "ambiguous-age") {
         // The quick reply takes it as an age; four digits in the box take it as the year.
-        return ask(AMBIGUOUS_AGE.line(answer.age), [
-          { name: "age", value: String(answer.age), label: AMBIGUOUS_AGE.confirm(answer.age) },
+        const age = AMBIGUOUS_AGE(profile.lang);
+        return ask(age.line(answer.age), [
+          { name: "age", value: String(answer.age), label: age.confirm(answer.age) },
         ]);
       }
       if (answer.kind === "under-age") {
         // Offered ONCE, in case a typo got us here. Confirming is what takes the stop.
-        return ask(UNDER_AGE_LINES.ask, [
-          { name: "confirm", value: "under-age", label: UNDER_AGE_LINES.confirm },
-        ]);
+        const under = UNDER_AGE_LINES(profile.lang);
+        return ask(under.ask, [{ name: "confirm", value: "under-age", label: under.confirm }]);
       }
       if (answer.kind === "refuse") {
         return ask(answer.line, answer.switchTo
           ? [{
               name: "switch",
               value: answer.switchTo,
-              label: answer.switchTo === "lose" ? "Switch to losing" : "Switch to gaining",
+              label: answer.switchTo === "lose"
+                ? CHAT(profile.lang).direction.switchToLose
+                : CHAT(profile.lang).direction.switchToGain,
             }]
           : []);
       }
@@ -1018,7 +1025,7 @@ function renderQuestion(
   return question({
     promptId: prompt.id,
     kind: prompt.kind === "chips" ? "chips" : prompt.kind === "number" ? "number" : "choice",
-    lines: askLines(prompt, content, profile),
+    lines: askLines(prompt, content, profile, profile.lang),
     options: prompt.kind === "number" ? [] : optionsFor(prompt, content, suggested),
     placeholder: askPlaceholder(prompt, content),
     error,

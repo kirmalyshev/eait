@@ -971,7 +971,7 @@ describe("the numbers go through the shared checks, not this page's own", () => 
     const asked = await post("/start/q", { prompt: "birth_year", answer: "90" }, session);
     expect(asked.status).toBe(200);
     const html = await asked.text();
-    expect(html).toContain(AMBIGUOUS_AGE.line(90));
+    expect(html).toContain(AMBIGUOUS_AGE().line(90));
     expect(html).toContain('name="age" value="90"');
     const userId = (await store.userIdForToken(session.split("=")[1]!))!;
     expect((await store.getProfile(userId))!.birth_year).toBeNull();
@@ -1004,7 +1004,7 @@ describe("the under-sixteen stop", () => {
   it("offers the typo once rather than stopping on the first answer", async () => {
     const session = await signIn();
     const html = await (await toAge(session, "12")).text();
-    expect(html).toContain(UNDER_AGE_LINES.ask);
+    expect(html).toContain(UNDER_AGE_LINES().ask);
     expect(html).toContain('name="confirm" value="under-age"');
     // Nothing written: the age was refused, not stored.
     const userId = (await store.userIdForToken(session.split("=")[1]!))!;
@@ -1018,8 +1018,8 @@ describe("the under-sixteen stop", () => {
     const res = await post("/start/q", { prompt: "birth_year", confirm: "under-age" }, session);
     expect(res.status).toBe(200);
     const html = await res.text();
-    expect(html).toContain(UNDER_AGE_CARD.title);
-    expect(html).toContain(UNDER_AGE_LINES.stopped[0]!);
+    expect(html).toContain(UNDER_AGE_CARD().title);
+    expect(html).toContain(UNDER_AGE_LINES().stopped[0]!);
     // "Nothing you told me is kept, and there is no account to delete" — so there must not be one.
     expect(await store.getProfile(userId)).toBeNull();
     expect(await store.userIdForToken(session.split("=")[1]!)).toBeNull();
