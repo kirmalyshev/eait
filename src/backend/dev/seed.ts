@@ -21,9 +21,6 @@
 // against `store.memory.ts` with no database running.
 
 import {
-  PROMPT_DEFAULTS, PROMPT_KEYS, type PromptKey,
-} from "../llm/prompt.ts";
-import {
   explainTargets, verdictsFromTargets, visibleVerdicts,
   type Lang, type MealItem, type MealRecord,
 } from "@eait/shared";
@@ -269,44 +266,8 @@ function jitter(seed: string): number {
   return 0.85 + unitHash(seed) * 0.3;
 }
 
-/**
- * The shipped system prompts, as revision 1, on a database that has none.
- *
- * A clone of this repo answers perfectly well without this — `llm/prompt.ts` is the fallback, and
- * an empty table means "send the compiled-in prompts". What an empty table also means is that
- * `GET /admin/api/prompts` lists six prompts marked compiled-in, which tells a new operator the
- * feature exists and gives them nothing to edit against. Seeding the real text is the difference
- * between reading the prompts and editing them.
- *
- * AND IT FREEZES THEM, which is the cost and is worth knowing before running it. A seeded row is a
- * COPY of the prose, not a subscription to it: after this, editing a constant in `llm/prompt.ts`
- * changes nothing this database sends, because the row wins. That is the intended behaviour of an
- * override and a trap in development — re-seed after editing a prompt, or delete its rows. It is
- * why this is called from the dev seeder and from nothing that runs in production.
- *
- * VERBATIM, AND ONLY WHEN ABSENT. Verbatim, because a seeded paraphrase would make a fresh install
- * a different product from the one the tests cover. Only when absent, for the two reasons this file
- * already states about accounts: re-seeding must not stack revisions of a prompt nobody changed,
- * and it must not overwrite an edit — an edited prompt is exactly the "made by hand" case rule 1
- * promises to leave alone.
- */
-export async function seedPrompts(store: Store): Promise<PromptKey[]> {
-  const existing = new Set((await store.getPrompts()).map((p) => p.key));
-  const written: PromptKey[] = [];
-  for (const key of PROMPT_KEYS) {
-    if (existing.has(key)) continue;
-    await store.putPrompt(key, PROMPT_DEFAULTS[key]);
-    written.push(key);
-  }
-  return written;
-}
-
 export async function seedDevData(store: Store, opts: SeedOptions): Promise<SeededPersona[]> {
   const today = opts.today ?? localDate(opts.timezone);
-  // Before the accounts, and never filtered by `--only`: the prompts are global, and a run that
-  // seeds one persona still wants the editor to open on something. Idempotent, so the CLI calling
-  // it first in order to REPORT what it wrote costs this one a read and writes nothing.
-  await seedPrompts(store);
   const wanted = opts.only && opts.only.length > 0
     ? SEED_PERSONAS.filter((p) => opts.only!.includes(p.key))
     : SEED_PERSONAS;

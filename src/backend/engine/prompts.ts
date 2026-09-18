@@ -11,7 +11,7 @@
 // them, and they would go looking for the change in the model.
 
 import {
-  PROMPT_DEFAULTS, PROMPT_KEYS, type PromptKey, validateStoredPrompt,
+  PROMPT_DEFAULTS, PROMPT_KEYS, type PromptKey, type PromptSource, validateStoredPrompt,
 } from "../llm/prompt.ts";
 import type { EngineDeps } from "./deps.ts";
 
@@ -19,11 +19,14 @@ import type { EngineDeps } from "./deps.ts";
 export interface PromptView {
   key: PromptKey;
   text: string;
-  /** The stored revision's number, or 0 when the compiled-in prompt is what is live. */
+  /**
+   * The live revision's number. Normally 1 or more — every store comes up holding the shipped text
+   * — and 0 only when the store could not be read at all and these are the compiled-in constants.
+   */
   version: number;
   updated_at: string | null;
-  /** False when `text` is the constant from `llm/prompt.ts`. */
-  stored: boolean;
+  /** Who wrote the live text: the shipper, or a person editing it. */
+  source: PromptSource;
 }
 
 export type PromptSave =
@@ -36,7 +39,8 @@ export type PromptSave =
  * Reads the store ONCE and answers for all six, so a caller cannot be handed a half-refreshed set.
  * A store that throws is the compiled-in list with `version: 0`, because a listing that will not
  * answer during a database incident is a listing that is missing exactly when it is wanted — and
- * `version: 0` is not a lie there: the transport is falling back to those same constants.
+ * `version: 0` is not a lie there: no revision is live, and the transport is falling back to those
+ * same constants.
  */
 export async function livePrompts(deps: EngineDeps): Promise<PromptView[]> {
   const stored = await deps.store.getPrompts().catch((e: unknown) => {
@@ -52,8 +56,8 @@ export async function livePrompts(deps: EngineDeps): Promise<PromptView[]> {
     const checked = row ? validateStoredPrompt(key, row.text) : undefined;
     const usable = checked?.ok ? { row: row!, text: checked.text } : undefined;
     return usable
-      ? { key, text: usable.text, version: usable.row.version, updated_at: usable.row.updated_at, stored: true }
-      : { key, text: PROMPT_DEFAULTS[key], version: 0, updated_at: null, stored: false };
+      ? { key, text: usable.text, version: usable.row.version, updated_at: usable.row.updated_at, source: usable.row.source }
+      : { key, text: PROMPT_DEFAULTS[key], version: 0, updated_at: null, source: "shipped" };
   });
 }
 
@@ -68,7 +72,9 @@ export async function savePrompt(deps: EngineDeps, key: unknown, text: unknown):
   const result = validateStoredPrompt(key, text);
   if (!result.ok) return result;
   try {
-    const version = await deps.store.putPrompt(result.key, result.text);
+    // `"admin"` is what protects this text from the next deploy: `syncShippedPrompts` rewrites a
+    // row the shipper wrote and never one a person wrote.
+    const version = await deps.store.putPrompt(result.key, result.text, "admin");
     // The one line that says a prompt changed, and the only record outside the table itself. The
     // text is NOT logged: it is long, and the row is where it lives.
     console.log(`[eait] prompt "${result.key}" saved as version ${version}`);

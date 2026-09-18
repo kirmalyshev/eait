@@ -1943,8 +1943,26 @@ function contract(name: string, make: () => Promise<Store>) {
      * which a failing assertion cannot skip.
      */
     const restorePrompts = async (s: Store) => {
-      for (const key of PROMPT_KEYS) await s.putPrompt(key, PROMPT_DEFAULTS[key]);
+      for (const key of PROMPT_KEYS) await s.putPrompt(key, PROMPT_DEFAULTS[key], "shipped");
     };
+
+    it("comes up holding the shipped text for every prompt", async () => {
+      // The invariant both implementations owe, by different means: `memoryStore` writes these rows
+      // in its constructor, `postgresStore` runs `syncShippedPrompts` at boot. If they ever stop
+      // agreeing, every test in this repo is reading prompts out of a store that production does
+      // not resemble.
+      //
+      // Asserted over the HISTORY rather than the live row, so the test does not depend on running
+      // before the ones below that write an admin revision. What it pins is that the shipped text
+      // is in this store and is marked as the shipper's.
+      const s = await open();
+      for (const key of PROMPT_KEYS) {
+        const shipped = (await s.promptRevisions(key))
+          .filter((r) => r.source === "shipped" && r.text === PROMPT_DEFAULTS[key]);
+        expect(shipped.length, `no shipped revision of "${key}" — this store did not seed itself`)
+          .toBeGreaterThan(0);
+      }
+    });
 
     it("stores and reads back every prompt key the code expects", async () => {
       const s = await open();
@@ -1953,7 +1971,7 @@ function contract(name: string, make: () => Promise<Store>) {
       // fails HERE, naming itself, rather than in production on an admin's first save.
       for (const key of PROMPT_KEYS) {
         const text = `stored ${key} ${RUN}`;
-        const version = await s.putPrompt(key, text).catch((e: unknown) => {
+        const version = await s.putPrompt(key, text, "admin").catch((e: unknown) => {
           throw new Error(`the store refused prompt key "${key}", which the code sends: ${(e as Error)?.message ?? e}`);
         });
         expect(version).toBeGreaterThan(0);
@@ -1968,8 +1986,8 @@ function contract(name: string, make: () => Promise<Store>) {
       // The whole reason this table is append-only. "What prompt produced this analysis" is
       // unanswerable the moment an edit overwrites its predecessor, and a prompt edit that changes
       // model behaviour with no record is the failure this storage exists to prevent.
-      const first = await s.putPrompt("glance", `first ${RUN}`);
-      const second = await s.putPrompt("glance", `second ${RUN}`);
+      const first = await s.putPrompt("glance", `first ${RUN}`, "admin");
+      const second = await s.putPrompt("glance", `second ${RUN}`, "admin");
       expect(second).toBe(first + 1);
 
       const live = (await s.getPrompts()).find((p) => p.key === "glance");
@@ -1985,8 +2003,8 @@ function contract(name: string, make: () => Promise<Store>) {
 
     it("gives one prompt per key, and a write to one leaves the others alone", async () => {
       const s = await open();
-      await s.putPrompt("coach", `coach ${RUN}`);
-      await s.putPrompt("analysis", `analysis ${RUN}`);
+      await s.putPrompt("coach", `coach ${RUN}`, "admin");
+      await s.putPrompt("analysis", `analysis ${RUN}`, "admin");
       const live = await s.getPrompts();
       expect(live.filter((p) => p.key === "coach")).toHaveLength(1);
       expect(live.find((p) => p.key === "coach")!.text).toBe(`coach ${RUN}`);

@@ -20,6 +20,7 @@ import { HEALTH_FIELDS, PROVIDERS, dateMinus, emptyHealthDay, signsIn } from "@e
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
+import { syncShippedPrompts } from "./llm/prompt.ts";
 import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
@@ -505,9 +506,19 @@ create table if not exists llm_prompts (
   key        text not null,
   version    integer not null,
   text       text not null,
+  source     text not null default 'shipped',
   updated_at timestamptz not null default now(),
   primary key (key, version)
 );
+-- WHO WROTE THE REVISION, and the column the sync turns on. Every store comes up holding the
+-- shipped text, so rows win everywhere -- and without this, a prompt edited in llm/prompt.ts could
+-- never reach an instance that had already booted, because nothing could tell a row the shipper
+-- wrote from a row a person wrote. Defaulted to 'shipped' for a host that predates the column: the
+-- only rows it can have are ones postgresStore wrote itself.
+alter table llm_prompts add column if not exists source text not null default 'shipped';
+alter table llm_prompts drop constraint if exists llm_prompts_source_check;
+alter table llm_prompts add constraint llm_prompts_source_check
+  check (source in ('shipped', 'admin'));
 -- THE KEY LIST IS A NAMED CONSTRAINT, DROPPED AND RE-ADDED ON EVERY MIGRATE, and not an inline
 -- check in the statement above. create table if not exists skips the WHOLE statement on a host
 -- that already has the table, so an inline list would reach a fresh database and never an existing
@@ -621,6 +632,7 @@ const toPromptRevision = (r: Record<string, unknown>): PromptRevision => ({
   key: String(r.key),
   version: Number(r.version),
   text: String(r.text),
+  source: (r.source === "admin" ? "admin" : "shipped"),
   updated_at: new Date(r.updated_at as string).toISOString(),
 });
 
@@ -823,7 +835,8 @@ export async function postgresStore(
     return rows.length;
   };
 
-  return {
+  // Declared before the store object so the sync below can be the LAST thing this function does.
+  const store: Store = {
     async upsertDeviceUser(deviceId, lang: Lang) {
       const found = await sql`select id from users where device_id = ${deviceId}`;
       let userId: string;
@@ -1423,7 +1436,7 @@ export async function postgresStore(
       // saying "one row per key", and the order is what picks which one — the memory store does
       // the same with a max.
       const rows = await sql`
-        select distinct on (key) key, version, text, updated_at
+        select distinct on (key) key, version, text, source, updated_at
         from llm_prompts
         order by key, version desc`;
       return rows.map(toPromptRevision);
@@ -1431,22 +1444,23 @@ export async function postgresStore(
 
     async promptRevisions(key) {
       const rows = await sql`
-        select key, version, text, updated_at
+        select key, version, text, source, updated_at
         from llm_prompts where key = ${key} order by version desc`;
       return rows.map(toPromptRevision);
     },
 
-    async putPrompt(key, text) {
+    async putPrompt(key, text, source) {
       // THE VERSION IS COMPUTED IN THE STATEMENT, not read first and incremented here: two admins
       // saving at once would both read the same number, and the second insert would fail on the
       // primary key rather than silently overwrite — but the rule this workspace states is that a
       // state condition lives in the store's own guarded statement, and this is one.
       const rows = await sql`
-        insert into llm_prompts (key, version, text, updated_at)
+        insert into llm_prompts (key, version, text, source, updated_at)
         values (
           ${key},
           (select coalesce(max(version), 0) + 1 from llm_prompts where key = ${key}),
           ${text},
+          ${source},
           now()
         )
         returning version`;
@@ -2044,4 +2058,17 @@ export async function postgresStore(
       await sql.end();
     },
   };
+
+  // THE SHIPPED PROMPTS, BEFORE ANYTHING IS SERVED. This is the self-hosted deployment's copy of
+  // what `memoryStore` does in its constructor: a clone of this repo boots holding the six prompts
+  // as rows, so /admin has something to edit and an operator can read what the server sends. It
+  // also carries a CHANGED constant onto a host that has booted before, without touching a row an
+  // admin wrote — which is the only reason the `source` column exists.
+  //
+  // It cannot throw (see `syncShippedPrompts`), so a read-only database, a lost race with a second
+  // instance, or a missing column on an older host all leave a server that still answers, from the
+  // constants, exactly as it did before there was a table.
+  await syncShippedPrompts(store);
+
+  return store;
 }

@@ -92,7 +92,8 @@ one in `demo.ts` so the tests still run.
 A SEVENTH SYSTEM PROMPT IS FOUR EDITS, and the tests name the one you forget: the constant and its
 entry in `PROMPT_DEFAULTS`, its key in `PROMPT_KEYS`, the same key in the `llm_prompts_key_check`
 constraint in `store.pg.ts`, and the call site in `openrouter.ts` reading it off `await prompts()`
-rather than importing the constant. Miss the constraint and `prompt.schema.test.ts` fails naming
+rather than importing the constant. Nothing has to be seeded — every store writes the shipped text
+for a key it does not have, so the new prompt appears in `/admin/api/prompts` on the next boot. Miss the constraint and `prompt.schema.test.ts` fails naming
 the key with no database; miss it and run the store contract suite against Postgres and that fails
 naming it too.
 
@@ -272,34 +273,47 @@ naming it too.
   The redirect is the BUNDLE ID scheme, the one of Google's two accepted forms that Expo's
   scheme plugin already registers; writing `ios.infoPlist.CFBundleURLTypes` to take the other turns
   that plugin off and drops the app's own deep links.
-- **A system prompt is AUTHORED in `src/backend/llm/prompt.ts` and may be OVERRIDDEN by a row.** It
-  used to be truer than that — "no prompt string is written anywhere else" — and it stopped being
-  true when the prose moved into `llm_prompts` so it could be edited without a deploy. What still
-  holds: no second prompt string is written in the SOURCE, the six constants are the SEED AND THE
-  FALLBACK, and an empty table, a deleted row, a row that fails containment or a database that is
-  down all resolve back to them (`loadPrompts`, which cannot throw). `PROMPT_KEYS` is the set of
-  prompts that exist; the `llm_prompts` check constraint spells the same six out by hand, and
-  `prompt.schema.test.ts` fails naming the key when the two disagree, so a seventh prompt cannot
-  half-land. What did NOT move, and must not: `normalizePromptText` (a containment boundary, not
-  editable content), every `build*` function (they interpolate the user's own data and enforce its
-  caps — a stored template would be a language this repo then owns), the Zod schemas, and
-  `COACH_TOOL_DEFS` (both are structurally coupled to what the engine parses into). A stored prompt
-  replaces the TEXT of one system message and reaches nothing else: it is JSON-escaped into that
-  field, so text shaped like a second message, a tool definition or a tool result stays text.
-  **Validated on the WRITE** (`validateStoredPrompt`, via `savePrompt`), because a stored prompt
+- **A system prompt is AUTHORED in `src/backend/llm/prompt.ts` and SERVED from a row.** It used to
+  be truer than that — "no prompt string is written anywhere else" — and it stopped being true when
+  the prose moved into `llm_prompts` so it could be edited without a deploy. What still holds: no
+  second prompt string is written in the SOURCE, and the six constants are where the text is
+  authored. **Every store comes up holding them as rows** — `memoryStore` in its constructor,
+  `postgresStore` by running `syncShippedPrompts` at boot — so a test, a `./dev` stack and a
+  self-hosted deployment all read a prompt the way production does instead of testing the fallback
+  and shipping the row. The fallback is still there and still tested: an empty table, a deleted row,
+  a row that fails containment or a database that is down all resolve back to the constants
+  (`loadPrompts`, which cannot throw). It is the safety net now, not the normal state.
+- **A prompt row says WHO wrote it, and that column is what keeps the constants authoritative.**
+  Once rows exist everywhere, rows win — so without `source` a prompt edited in `prompt.ts` could
+  never reach a host that had booted once, and the constants would quietly stop being the source of
+  truth. `syncShippedPrompts` writes a key with no revision, and rewrites one whose LIVE revision
+  the shipper wrote when the constant has moved; a key whose live revision an ADMIN wrote is never
+  touched, because a human override must outrank a deploy. Restoring the shipped text through the
+  admin is a save, so it stays the admin's. The sync runs at startup and **cannot fail a boot**: two
+  instances racing for one `(key, version)` and a read-only database both end at a server that
+  serves. This is also the answer to the objection `onboarding_content` records against seeding on
+  boot — "it makes 'has an admin ever touched this?' unanswerable" — which here is a column.
+- **What did NOT move, and must not:** `normalizePromptText` (a containment boundary, not editable
+  content), every `build*` function (they interpolate the user's own data and enforce its caps — a
+  stored template would be a language this repo then owns), the Zod schemas, and `COACH_TOOL_DEFS`
+  (both structurally coupled to what the engine parses into). A stored prompt replaces the TEXT of
+  one system message and reaches nothing else: it is JSON-escaped into that field, so text shaped
+  like a second message, a tool definition or a tool result stays text.
+- **Validated on the WRITE** (`validateStoredPrompt`, via `savePrompt`), because a stored prompt
   meets no reviewer and no typecheck. It is not `normalizePromptText` and differs from it twice: the
   shape rules are dropped (a prompt is the FRAME around a span, so its newlines and quotes survive),
   and the character rules are STRICTER — every Unicode format character rather than an enumerated
   handful, because text through that function is rendered on a card where a person sees it, and a
   stored prompt is read by nobody before a model reads it. Emoji survive; only LONE surrogates are
   refused. Refused, never repaired: silently deleting a character changes what the model was asked
-  without telling anyone.
-  The table is **append-only** (`(key, version)`), because an edit that changes model behaviour with
-  no record is the failure mode here — `store.promptRevisions` is the trail. **Global rows, no
-  `user_id`, and that is safe because a prompt is not a user's data**: it is what this server sends
-  on behalf of every account, so there is no query here to widen past one. What would falsify all of
-  this: a per-user prompt (it would need the scoping), or any builder, schema or tool definition
-  following the prose into the table.
+  without telling anyone. The table is **append-only** (`(key, version)`), because an edit that
+  changes model behaviour with no record is the failure mode here — `store.promptRevisions` is the
+  trail. **Global rows, no `user_id`, and that is safe because a prompt is not a user's data**: it
+  is what this server sends on behalf of every account, so there is no query here to widen past one.
+  `PROMPT_KEYS` is the set of prompts that exist; the `llm_prompts` check constraint spells the same
+  six out by hand, and `prompt.schema.test.ts` fails naming the key when the two disagree, so a
+  seventh prompt cannot half-land. What would falsify all of this: a per-user prompt (it would need
+  the scoping), or any builder, schema or tool definition following the prose into the table.
 - **Public copy passes a claims gate before it is written, not before it is reviewed.**
   `src/landing/claims.ts` fails the build on a health claim (`lose weight`, `guaranteed`,
   `lowers cholesterol`, `detox`) and on a superiority or exclusivity claim (`the only app`, `every

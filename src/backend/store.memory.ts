@@ -12,6 +12,7 @@ import type {
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
+import { PROMPT_DEFAULTS, PROMPT_KEYS } from "./llm/prompt.ts";
 import { type ChatMessage,
   ADMIN_METRICS_MAX_DAYS, ADMIN_USER_PAGE_MAX,
   PORTION_PRIOR_ROWS, blankProfile, portionPriorsFrom, type AdminUserRow, type FunnelAggregate,
@@ -157,8 +158,17 @@ export function memoryStore(opts: StoreOptions = {}): Store {
    * the newest version per key is the live one. A flat list rather than a map by key, because the
    * history IS the storage here — a map would hold the live text and quietly drop the audit trail
    * the Postgres table keeps, and the two implementations would disagree about what the port means.
+   *
+   * IT STARTS WITH THE SHIPPED TEXT, which is what `postgresStore` reaches by running
+   * `syncShippedPrompts` at boot. Synchronous here because this constructor is, and the result is
+   * the same state — a contract test pins it against both. Every test therefore reads its prompts
+   * out of a ROW, the way production does, rather than exercising the fallback and shipping the
+   * other path untested.
    */
-  const promptRevisionRows: PromptRevision[] = [];
+  const promptRevisionRows: PromptRevision[] = PROMPT_KEYS.map((key) => ({
+    key, version: 1, text: PROMPT_DEFAULTS[key], source: "shipped" as const,
+    updated_at: new Date(now()).toISOString(),
+  }));
 
   /** 256 bits of hex. Used for both subscriber capabilities: confirmation and withdrawal. */
   const randomHex = (): string =>
@@ -760,11 +770,11 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         .map(clone);
     },
 
-    async putPrompt(key, text) {
+    async putPrompt(key, text, source) {
       const version = Math.max(0, ...promptRevisionRows.filter((r) => r.key === key).map((r) => r.version)) + 1;
       // `now()` rather than `new Date()`: every other timestamp in this store comes from the
       // injectable clock, and a fixture that ignores it is one a time-travelling test cannot pin.
-      promptRevisionRows.push({ key, version, text, updated_at: new Date(now()).toISOString() });
+      promptRevisionRows.push({ key, version, text, source, updated_at: new Date(now()).toISOString() });
       return version;
     },
 

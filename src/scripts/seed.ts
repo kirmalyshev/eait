@@ -15,7 +15,7 @@
 
 import { join } from "node:path";
 import { postgresStore } from "../backend/store.pg.ts";
-import { SEED_PERSONAS, seedDevData, seedPrompts } from "../backend/dev/seed.ts";
+import { SEED_PERSONAS, seedDevData } from "../backend/dev/seed.ts";
 import { readEnvFile } from "./dev-env.ts";
 
 const root = join(import.meta.dir, "..", "..");
@@ -54,19 +54,12 @@ if (unknown.length > 0) {
 // itself. `sh src/scripts/db.sh up` is what creates it. See the header of store.pg.ts for the incident.
 const store = await postgresStore(databaseUrl);
 try {
-  // The prompts go in first, and are reported first, because they are the only thing here that is
-  // not development data: they are the SHIPPED text, written so `GET /admin/api/prompts` answers
-  // with something editable rather than six rows marked compiled-in. Note what it also does: the
-  // rows now WIN over the constants, so a later edit to `llm/prompt.ts` needs a re-seed to land.
-  const prompts = await seedPrompts(store);
   const seeded = await seedDevData(store, { timezone, only });
 
   console.log(`\n  seeded ${databaseUrl.replace(/\/\/[^@]*@/, "//***@")}\n`);
-  console.log(
-    prompts.length > 0
-      ? `  prompts    wrote the shipped text for ${prompts.join(", ")}\n`
-      : `  prompts    already stored, left alone (an edit is never overwritten)\n`,
-  );
+  // The prompts are NOT seeded here, and that is not an omission: `postgresStore()` syncs the
+  // shipped text at boot, so opening this store already wrote them. Seeding them again from the
+  // dev fixtures would be a second writer of the same rows.
   for (const s of seeded) {
     console.log(`  ${s.key}`);
     console.log(`    ${s.summary}`);

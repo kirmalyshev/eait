@@ -10,6 +10,7 @@
 // as an ARGUMENT resolved from credentials — never from a request body, a model output, or a tool
 // call. There is no method here that can reach a row without being told whose it is.
 
+import type { PromptSource } from "./llm/prompt.ts";
 import type {
   DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, OnboardingContent,
   OnboardingEvent, Profile, Provider, ChatEvent, ChatSpeaker } from "@eait/shared";
@@ -178,9 +179,20 @@ export interface PortionCorrection {
  */
 export interface PromptRevision {
   key: string;
-  /** Monotonic per key, assigned by the store. 1 is the first override ever saved for that key. */
+  /**
+   * Monotonic per key, assigned by the store. Revision 1 is the SHIPPED text, which every store
+   * comes up holding — an admin's first edit is 2.
+   */
   version: number;
   text: string;
+  /**
+   * Who wrote it: `shipped` for the constant in `llm/prompt.ts`, `admin` for a person.
+   *
+   * It is what lets `syncShippedPrompts` carry a changed constant into a store that already has
+   * rows WITHOUT reverting somebody's edit. Without the column the two cases are indistinguishable
+   * and a deploy would have to choose between never updating a prompt and always overwriting one.
+   */
+  source: PromptSource;
   /** When this revision went live. The other half of "what were we sending on the 3rd". */
   updated_at: string;
 }
@@ -803,9 +815,13 @@ export interface Store {
   // prevents cannot be written. A per-user prompt would be a different feature and would need it.
 
   /**
-   * The live revision of every prompt that has one. An empty list is the normal state of a fresh
-   * database, and it means "send the compiled-in prompts" rather than "broken" — `loadPrompts`
-   * turns both that and a thrown error into `PROMPT_DEFAULTS`.
+   * The live revision of every prompt.
+   *
+   * Normally six rows: every store comes up holding the shipped text (`syncShippedPrompts`, run by
+   * `postgresStore` at boot and by `memoryStore` at construction), so the stored path is the one a
+   * test and a deployment both exercise. An EMPTY list is still a legal answer and still means
+   * "send the compiled-in prompts" rather than "broken" — a database that refused the sync is a
+   * database this product keeps serving from.
    */
   getPrompts(): Promise<PromptRevision[]>;
   /**
@@ -813,7 +829,7 @@ export interface Store {
    * (`validateStoredPrompt`) — the store writes what it is given, as it does for the copy above.
    * The version is assigned HERE rather than accepted, so two concurrent saves cannot share one.
    */
-  putPrompt(key: string, text: string): Promise<number>;
+  putPrompt(key: string, text: string, source: PromptSource): Promise<number>;
   /** Every revision of one prompt, newest first. The audit trail, and the way back. */
   promptRevisions(key: string): Promise<PromptRevision[]>;
   /**

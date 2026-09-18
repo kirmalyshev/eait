@@ -315,24 +315,28 @@ describe("the app's onboarding routes", () => {
 describe("editing the system prompts", () => {
   beforeEach(async () => { await mountWithAdmin(); });
 
-  it("serves every prompt the server sends, marked as compiled-in until one is edited", async () => {
+  it("serves every prompt the server sends, as the shipped rows it booted with", async () => {
     const res = await admin("GET", "/admin/api/prompts");
     expect(res.status).toBe(200);
-    const { prompts } = await res.json() as { prompts: { key: string; version: number; stored: boolean; text: string }[] };
+    const { prompts } = await res.json() as { prompts: { key: string; version: number; source: string; text: string }[] };
     expect(prompts.map((p) => p.key).sort()).toEqual(
       ["analysis", "coach", "glance", "route", "text_correction", "text_meal"],
     );
-    expect(prompts.every((p) => p.version === 0 && p.stored === false)).toBe(true);
+    // Rows, not a fallback: the store holds the shipped text from the moment it exists, so this
+    // screen shows the same thing the transport reads.
+    expect(prompts.every((p) => p.version === 1 && p.source === "shipped")).toBe(true);
     expect(prompts.find((p) => p.key === "coach")!.text).toContain("You are Gabie");
   });
 
   it("saves an edit, and serves it back as a stored revision", async () => {
     expect((await admin("PUT", "/admin/api/prompts", { key: "glance", text: "Name the plate. Five words." })).status).toBe(200);
-    const { prompts } = await (await admin("GET", "/admin/api/prompts")).json() as { prompts: { key: string; version: number; stored: boolean; text: string }[] };
+    const { prompts } = await (await admin("GET", "/admin/api/prompts")).json() as { prompts: { key: string; version: number; source: string; text: string }[] };
     const glance = prompts.find((p) => p.key === "glance")!;
     expect(glance.text).toBe("Name the plate. Five words.");
-    expect(glance.version).toBe(1);
-    expect(glance.stored).toBe(true);
+    // 2: the shipped revision is 1, and an admin's edit is the one that outranks it — including
+    // against the next deploy, which is what `source` buys.
+    expect(glance.version).toBe(2);
+    expect(glance.source).toBe("admin");
   });
 
   it("422s a prompt carrying characters a reviewer could not see", async () => {
@@ -341,8 +345,10 @@ describe("editing the system prompts", () => {
     const { errors } = await res.json() as { errors: string[] };
     expect(errors.join(" ")).toContain("invisible");
     // Nothing was written: the model is still being sent the reviewed prompt.
-    const { prompts } = await (await admin("GET", "/admin/api/prompts")).json() as { prompts: { key: string; stored: boolean }[] };
-    expect(prompts.find((p) => p.key === "coach")!.stored).toBe(false);
+    const { prompts } = await (await admin("GET", "/admin/api/prompts")).json() as { prompts: { key: string; source: string; version: number }[] };
+    const coach = prompts.find((p) => p.key === "coach")!;
+    expect(coach.source).toBe("shipped");
+    expect(coach.version).toBe(1);
   });
 
   it("422s a key this server does not send", async () => {

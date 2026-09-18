@@ -280,45 +280,28 @@ describe("seedDevData", () => {
   });
 });
 
-// The prompts a fresh install finds in its admin.
+// The prompts a fresh install finds.
 //
-// A new operator cloning this repo has an empty `llm_prompts` and a model that answers perfectly
-// well, because the constants are the fallback — but the admin screen shows six prompts marked
-// "compiled-in" and nothing to edit against. Seeding the shipped text as revision 1 makes the
-// editor open on the real prompts on the first run.
+// They are NOT seeded here any more. `memoryStore()` holds them from construction and
+// `postgresStore()` syncs them at boot, so by the time the seeder runs they already exist — and a
+// second writer of the same rows would be a second answer to "what is this instance sending".
+// What this file still owes is the proof that seeding does not disturb them.
 describe("the shipped prompts", () => {
-  test("seeding writes every prompt the code sends, verbatim", async () => {
+  test("a seeded database sends the shipped prompts, and seeding twice does not touch them", async () => {
     const store = memoryStore();
     await seedDevData(store, { timezone: TZ, today: TODAY });
-    const stored = await store.getPrompts();
-    expect(stored.map((p) => p.key).sort()).toEqual([...PROMPT_KEYS].sort());
-    for (const row of stored) {
-      // VERBATIM. A seed that paraphrased the prompt would make `--demo` and a fresh install
-      // measure a different product from the one the tests cover.
-      expect(row.text).toBe(PROMPT_DEFAULTS[row.key as keyof typeof PROMPT_DEFAULTS]);
-      expect(row.version).toBe(1);
-    }
-    // And what the transport resolves is unchanged by the seed, which is the point: seeding makes
-    // the text EDITABLE, it does not make it different.
+    await seedDevData(store, { timezone: TZ, today: TODAY });
     expect(await loadPrompts(store)).toEqual(PROMPT_DEFAULTS);
+    for (const key of PROMPT_KEYS) {
+      expect(await store.promptRevisions(key), `seeding wrote a revision of "${key}"`).toHaveLength(1);
+    }
   });
 
-  test("seeding twice does not stack revisions of an untouched prompt", async () => {
-    // Re-seeding is a thing an operator does often, and a version number that climbs every time
-    // makes the history meaningless: nothing changed, so there is nothing to record.
+  test("seeding never reverts an edit", async () => {
+    // The seeder replaces its own accounts and leaves everything else. An edited prompt is
+    // everything else.
     const store = memoryStore();
-    await seedDevData(store, { timezone: TZ, today: TODAY });
-    await seedDevData(store, { timezone: TZ, today: TODAY });
-    const glance = await store.promptRevisions("glance");
-    expect(glance).toHaveLength(1);
-  });
-
-  test("seeding never overwrites an edit", async () => {
-    // The seeder replaces its own accounts and leaves anything made by hand. A prompt somebody
-    // edited is made by hand.
-    const store = memoryStore();
-    await seedDevData(store, { timezone: TZ, today: TODAY });
-    await store.putPrompt("coach", "You are terse.");
+    await store.putPrompt("coach", "You are terse.", "admin");
     await seedDevData(store, { timezone: TZ, today: TODAY });
     expect((await loadPrompts(store)).coach).toBe("You are terse.");
   });

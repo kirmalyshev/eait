@@ -1,10 +1,12 @@
 // The prompts and the schemas the model's output must satisfy. Authored here; a live instance may
 // be serving a stored override of the prose.
 //
-// WHAT CHANGED, AND WHAT DID NOT. The six system prompts below are now the SEED AND THE FALLBACK
-// rather than the last word: a row in `llm_prompts` overrides one of them by key
-// (`PROMPT_DEFAULTS`, `promptsFrom`, `loadPrompts`), so the text a model was actually sent can be
-// edited without a deploy. Everything a prompt is made OF stays compiled in and stays reviewed —
+// WHAT CHANGED, AND WHAT DID NOT. The six system prompts below are AUTHORED here and SERVED from a
+// row: every store comes up holding them (`syncShippedPrompts` at boot for Postgres, the
+// constructor for the memory store), so the text a model was actually sent can be edited without a
+// deploy, and a test reads it the way production does. These constants stay authoritative through
+// the `source` column — the sync carries a changed constant onto a host that has booted before, and
+// never over a row an admin wrote. Everything a prompt is made OF stays compiled in and reviewed —
 // `normalizePromptText` (a containment boundary), every `build*` function (they interpolate the
 // user's own data and enforce its caps), the Zod schemas, and `COACH_TOOL_DEFS`. Moving any of
 // those into a row would make a stored string a template language, a tool definition, or a parser
@@ -12,7 +14,8 @@
 //
 // A PROMPT THAT FAILS TO LOAD IS NOT AN OUTAGE. An empty table, a deleted row, an unreachable
 // database and a row that fails containment all resolve to the constant below, which is what this
-// file alone did before. `loadPrompts` cannot throw.
+// file alone did before. `loadPrompts` cannot throw, and neither can `syncShippedPrompts` — the
+// fallback is the safety net under the rows rather than the normal path.
 //
 // If a second engine is ever added (eait keeps a dev-only one purely so its eval harness has
 // something to measure against), it resolves prompts the same way — otherwise no evaluation can
@@ -659,10 +662,11 @@ export type Prompts = Record<PromptKey, string>;
  *
  * NOTE THE ONE PROMPT THAT IS NOT A CONSTANT STRING. `SYSTEM_COACH` interpolates
  * `MAX_SUGGESTIONS` and `MAX_SUGGESTION` at module load, so these defaults carry today's numbers.
- * A STORED coach prompt is literal text and carries whatever number was written the day it was
- * saved: change either constant and the override keeps telling the model the old one, while
- * `cleanSuggestions` enforces the new one. A stored prompt is a copy of prose, not a subscription
- * to it — see `docs` in the PR body.
+ * A row is literal text and carries whatever number was written the day it was saved. For a
+ * SHIPPED row that is handled: moving either constant moves this string, and `syncShippedPrompts`
+ * then writes the new text out. For a row an ADMIN edited it is not, and must not be — their words
+ * outrank a deploy, so their copy of the number goes on being sent while `cleanSuggestions`
+ * enforces the new one. An admin who edits the coach prompt owns its numbers from then on.
  */
 export const PROMPT_DEFAULTS: Prompts = {
   analysis: SYSTEM,
@@ -741,8 +745,20 @@ export function validateStoredPrompt(key: unknown, text: unknown): PromptValidat
   return { ok: true, key: key as PromptKey, text: canonical };
 }
 
-/** One live prompt as the store hands it back. */
-export interface StoredPrompt { key: string; text: string }
+/** One live prompt as the store hands it back. `source` is absent only in a hand-made test double. */
+export interface StoredPrompt { key: string; text: string; source?: PromptSource }
+
+/**
+ * Who wrote a revision, and the reason the column exists.
+ *
+ * Every store comes up HOLDING the shipped prompts as rows, so the rows win everywhere and the
+ * constants below would quietly stop being the source of truth: editing one and deploying would
+ * change nothing a running instance sends. `syncShippedPrompts` fixes that by rewriting a row the
+ * SHIPPER wrote when the constant moves — and it can only tell which rows those are because each
+ * one says. It is also the answer to the objection `onboarding_content` records against seeding on
+ * boot ("it makes 'has an admin ever touched this?' unanswerable"): here that question is a column.
+ */
+export type PromptSource = "shipped" | "admin";
 
 /**
  * The prompts to send, from whatever the store had.
@@ -767,6 +783,50 @@ export function promptsFrom(rows: readonly StoredPrompt[]): Prompts {
 
 /** The read side of the store, and the only part of it this file needs. */
 export interface PromptReader { getPrompts(): Promise<StoredPrompt[]> }
+
+/** The read and write this file needs to keep a store's shipped rows current. */
+export interface PromptSyncStore extends PromptReader {
+  putPrompt(key: string, text: string, source: PromptSource): Promise<number>;
+}
+
+/**
+ * Put the shipped prompts into a store, and keep them there as the code changes. NEVER THROWS.
+ *
+ * Every store holds these rows — the memory one from the moment it is constructed, Postgres from
+ * `postgresStore()` — so a test and a self-hosted deployment both read a prompt the same way
+ * production does, instead of testing the fallback and shipping the row. The cost of that is this
+ * function: once rows exist, rows win, and without a rule for refreshing them a prompt edited in
+ * `llm/prompt.ts` would never reach an instance that had already booted once.
+ *
+ * TWO RULES, AND THE SECOND IS THE IMPORTANT ONE:
+ *  - a key with no revision gets the shipped text;
+ *  - a key whose LIVE revision the shipper wrote gets a new one when the constant has moved.
+ * A key whose live revision an ADMIN wrote is never touched. A human override outranks a deploy —
+ * otherwise every release would silently revert whatever was edited, which is the failure a person
+ * would report as "the model changed back on its own".
+ *
+ * IT RUNS AT BOOT AND MUST NOT FAIL ONE. Two instances starting together race for the same
+ * `(key, version)` and one loses on the primary key; a read-only or unreachable database refuses
+ * both. Neither is a reason to refuse to serve: the loser's row is already correct, and a store
+ * with no rows at all falls back to these same constants.
+ */
+export async function syncShippedPrompts(store: PromptSyncStore): Promise<PromptKey[]> {
+  const written: PromptKey[] = [];
+  try {
+    const live = await store.getPrompts();
+    for (const key of PROMPT_KEYS) {
+      const row = live.find((r) => r.key === key);
+      if (row && (row.source === "admin" || row.text === PROMPT_DEFAULTS[key])) continue;
+      await store.putPrompt(key, PROMPT_DEFAULTS[key], "shipped");
+      written.push(key);
+    }
+    if (written.length > 0) console.log(`[eait] shipped prompt text written for ${written.join(", ")}`);
+  } catch (e) {
+    // Logged, never fatal: the constants are what a store with nothing in it serves anyway.
+    console.error(`[eait] could not sync the shipped prompts, serving the compiled-in ones: ${(e as Error)?.message ?? e}`);
+  }
+  return written;
+}
 
 /**
  * The prompts for one call. NEVER THROWS.
