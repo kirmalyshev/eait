@@ -1,0 +1,264 @@
+# The production stack: the backend, the web application, Postgres, and TLS in front of all of it.
+#
+#   cp .env.prod.example .env.prod && chmod 600 .env.prod    # then fill it in
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# THIS FILE IS THE WHOLE DESCRIPTION OF THE STACK. There is no provisioning layer behind it and no
+# second definition of what runs — `src/iac/AGENTS.md` says why that line is drawn here. What it
+# means in practice: this is the artefact you read, run and debug, and there is nothing else that
+# could quietly disagree with it.
+#
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+# ONE ORIGIN, COMPOSED AT THE EDGE, AND THAT IS THE PROPERTY TO PROTECT
+#
+# Caddy serves ONE hostname. `/` and `/app.js` come from the `frontend` container; everything else —
+# `/api/v1/*`, `/start`, `/admin`, `/health` — is the backend's, on the same name. That is what lets
+# the browser client call its API with a relative path under `connect-src 'self'` with no CORS
+# header anywhere, which `src/frontend/AGENTS.md` states as a rule. A deployment that puts the two
+# on two hostnames has broken the product's security model, not merely its routing.
+#
+# WHAT IS AND IS NOT EXPOSED
+#
+# Caddy publishes 80 and 443. NOTHING ELSE PUBLISHES A PORT. The backend, the web application and
+# Postgres are reachable only on the `internal` network, which is what makes "the backend binds
+# 0.0.0.0" safe: inside a container that means "reachable by the other containers", not "reachable
+# by the internet".
+#
+# Postgres in particular must never be published. A VPS has a public IPv4, `ports:` binds every
+# interface by default, and Docker writes its own iptables rules that a `ufw deny` does not
+# override — so `- "5432:5432"` here would put this database on the open internet while `ufw status`
+# claimed otherwise. Reach it with `docker compose exec db psql`, or over an SSH tunnel.
+#
+# THE TELEGRAM CONNECTOR NEEDS NO INBOUND ROUTE. It polls api.telegram.org over outbound HTTPS from
+# inside the backend container, so there is no proxy block for it and no port to open.
+#
+# THIRD-PARTY IMAGES KEEP THEIR OWN VARIABLE NAMES. Postgres wants `POSTGRES_PASSWORD` and Caddy
+# reads `{$EAIT_DOMAIN}`; ours are namespaced `EAIT__DEPLOY__*`. The mapping happens HERE, in one
+# place, rather than by spelling a plain `POSTGRES_PASSWORD` in an env file that holds several
+# projects' keys.
+# ─────────────────────────────────────────────────────────────────────────────────────────────
+
+# Pinned, not inferred from the directory. `docker-compose.yml` beside this one is `eait-dev` and
+# holds the development Postgres every worktree shares; a production stack that took its name from
+# wherever it was checked out could collide with it or with itself.
+name: eait-prod
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    # Runs as root because it binds 80 and 443 and writes /data. It keeps exactly the capabilities
+    # that requires and gives up the rest — including CAP_SYS_ADMIN, CAP_NET_RAW and the ability to
+    # load kernel modules, none of which a reverse proxy has any use for.
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID, DAC_OVERRIDE]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./src/iac/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates and ACME account keys. A NAMED VOLUME rather than a bind mount because losing
+      # it means re-issuing from Let's Encrypt, whose duplicate-certificate limit is five per week —
+      # enough to make a couple of careless `down -v` cycles cost you the weekend.
+      - caddy-data:/data
+      - caddy-config:/config
+    environment:
+      # Caddy's own names, mapped from ours. `{$EAIT_DOMAIN}` in the Caddyfile is substituted when
+      # the config is adapted, which happens inside THIS container — so a value that is only in
+      # `.env.prod` and not named here reaches nothing and Caddy keeps its inline default.
+      EAIT_DOMAIN: ${EAIT__DEPLOY__DOMAIN:?set EAIT__DEPLOY__DOMAIN, e.g. eait.example.com}
+      EAIT_ACME_EMAIL: ${EAIT__DEPLOY__ACME_EMAIL:?set EAIT__DEPLOY__ACME_EMAIL for expiry notices}
+      EAIT_PROXY_TIMEOUT: ${EAIT__DEPLOY__PROXY_TIMEOUT:-600s}
+    depends_on:
+      # `service_started`, NOT `service_healthy`. Waiting for health reads as the careful choice and
+      # is the wrong one: a backend that never becomes healthy — a bad migration, a wrong database
+      # URL — would then keep Caddy from starting at all, so the box serves nothing and the ACME
+      # challenge stops being answerable, which means the certificate quietly stops renewing while
+      # there is nothing to notice it by. What this costs is a few seconds of 502 during a cold
+      # boot, which is what a deploy looks like anyway.
+      backend:
+        condition: service_started
+      frontend:
+        condition: service_started
+    networks: [internal]
+    logging:
+      # THE ONE SERVICE WHOSE OUTPUT IS PERSONAL DATA: a line per request, carrying the client
+      # address. An unbounded log of addresses is a retention promise nobody is keeping, and
+      # separately it is the silent disk fill that takes Postgres down with it.
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  backend:
+    build:
+      context: .
+      dockerfile: src/iac/Dockerfile.backend
+    restart: unless-stopped
+    # The strictest of the four: it runs the code this repository wrote and it is the one an
+    # attacker reaches first. Already non-root (`USER bun`); now it also cannot acquire a
+    # capability, cannot gain privileges through a setuid binary, and cannot write to its own image.
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    # The one writable path. Bun needs somewhere for temporary files, and a tmpfs means "in memory,
+    # gone on restart" rather than "a directory in the image a process can leave things in".
+    # `noexec` matters: a writable directory an attacker can also execute from is half an exploit.
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    environment:
+      # Composed here rather than pasted as a URL, so the password appears in exactly one variable
+      # and never in a second place that drifts from it.
+      EAIT__BACKEND__DATABASE_URL: postgres://eait:${EAIT__DEPLOY__POSTGRES_PASSWORD:?set EAIT__DEPLOY__POSTGRES_PASSWORD}@db:5432/eait
+      # Stated rather than inherited from the image, so the port Caddy proxies to is readable here.
+      EAIT__BACKEND__HOST: 0.0.0.0
+      EAIT__BACKEND__PORT: 8787
+
+      # EVERY REMAINING SETTING IS NAMED IN THIS BLOCK, AND THAT IS NOT DECORATION. `--env-file`
+      # feeds compose's INTERPOLATION — the expressions on the right — and never the environment of
+      # this container. A variable an operator sets in `.env.prod` and nobody names here is
+      # deployed, correct and read by nobody, with no error and no log line.
+      # `src/scripts/prod-env.test.ts` is the guard for that.
+      EAIT__BACKEND__LLM_API_KEY: ${EAIT__BACKEND__LLM_API_KEY:?set EAIT__BACKEND__LLM_API_KEY}
+      EAIT__BACKEND__LLM_PROVIDER: ${EAIT__BACKEND__LLM_PROVIDER:-openrouter}
+      EAIT__BACKEND__LLM_MODEL: ${EAIT__BACKEND__LLM_MODEL:-x-ai/grok-4.5}
+      EAIT__BACKEND__LLM_CHAT_MODEL: ${EAIT__BACKEND__LLM_CHAT_MODEL:-x-ai/grok-4.6}
+      EAIT__BACKEND__LLM_GLANCE_MODEL: ${EAIT__BACKEND__LLM_GLANCE_MODEL-x-ai/grok-4.3}
+      EAIT__BACKEND__LLM_REASONING_EFFORT: ${EAIT__BACKEND__LLM_REASONING_EFFORT-}
+      EAIT__BACKEND__LLM_BASE_URL: ${EAIT__BACKEND__LLM_BASE_URL:-https://openrouter.ai/api/v1/chat/completions}
+      EAIT__BACKEND__LLM_TIMEOUT_MS: ${EAIT__BACKEND__LLM_TIMEOUT_MS:-90000}
+      EAIT__BACKEND__LLM_MAX_TOKENS: ${EAIT__BACKEND__LLM_MAX_TOKENS:-16000}
+
+      EAIT__BACKEND__FREE_ANALYSES: ${EAIT__BACKEND__FREE_ANALYSES:-15}
+      EAIT__BACKEND__PAID_DAILY_PHOTO_CAP: ${EAIT__BACKEND__PAID_DAILY_PHOTO_CAP:-200}
+      EAIT__BACKEND__GLOBAL_DAILY_ANALYSIS_CAP: ${EAIT__BACKEND__GLOBAL_DAILY_ANALYSIS_CAP:-500}
+      EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR: ${EAIT__BACKEND__AUTH_RATE_LIMIT_PER_HOUR:-20}
+      EAIT__BACKEND__ANALYSIS_RATE_LIMIT_PER_DAY: ${EAIT__BACKEND__ANALYSIS_RATE_LIMIT_PER_DAY:-60}
+      EAIT__BACKEND__SUBSCRIBE_RATE_LIMIT_PER_HOUR: ${EAIT__BACKEND__SUBSCRIBE_RATE_LIMIT_PER_HOUR:-5}
+      EAIT__BACKEND__HEALTH_SYNC_RATE_LIMIT_PER_HOUR: ${EAIT__BACKEND__HEALTH_SYNC_RATE_LIMIT_PER_HOUR:-120}
+      EAIT__BACKEND__LINES_RATE_LIMIT_PER_HOUR: ${EAIT__BACKEND__LINES_RATE_LIMIT_PER_HOUR:-120}
+
+      EAIT__BACKEND__MAX_UPLOAD_MB: ${EAIT__BACKEND__MAX_UPLOAD_MB:-20}
+      EAIT__BACKEND__MAX_PHOTOS_PER_MEAL: ${EAIT__BACKEND__MAX_PHOTOS_PER_MEAL:-4}
+      EAIT__BACKEND__PENDING_TTL_MINUTES: ${EAIT__BACKEND__PENDING_TTL_MINUTES:-30}
+      EAIT__BACKEND__SESSION_TTL_DAYS: ${EAIT__BACKEND__SESSION_TTL_DAYS:-180}
+      EAIT__BACKEND__TZ_NAME: ${EAIT__BACKEND__TZ_NAME:-Europe/Berlin}
+
+      # Both are this one origin. The server builds a confirmation link from the first and a
+      # sign-in's redirect_uri from the second, rather than from a request header a client can
+      # influence.
+      EAIT__BACKEND__PUBLIC_API_URL: ${EAIT__BACKEND__PUBLIC_API_URL:-}
+      EAIT__BACKEND__PUBLIC_WEB_URL: ${EAIT__BACKEND__PUBLIC_WEB_URL:-}
+
+      # Empty lists mean that provider's route refuses rather than verifying without an audience
+      # check, which is the correct default for an instance that has registered no OAuth client.
+      EAIT__BACKEND__APPLE_AUDIENCES: ${EAIT__BACKEND__APPLE_AUDIENCES:-}
+      EAIT__BACKEND__GOOGLE_AUDIENCES: ${EAIT__BACKEND__GOOGLE_AUDIENCES:-}
+      EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID: ${EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID:-}
+      EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET: ${EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET:-}
+      EAIT__BACKEND__APPLE_SERVICE_ID: ${EAIT__BACKEND__APPLE_SERVICE_ID:-}
+      EAIT__BACKEND__APPLE_TEAM_ID: ${EAIT__BACKEND__APPLE_TEAM_ID:-}
+      EAIT__BACKEND__APPLE_KEY_ID: ${EAIT__BACKEND__APPLE_KEY_ID:-}
+      EAIT__BACKEND__APPLE_PRIVATE_KEY: ${EAIT__BACKEND__APPLE_PRIVATE_KEY:-}
+
+      # The connector ships dormant. Empty means the same process runs no bot at all; it takes no
+      # inbound route either way.
+      EAIT__BACKEND__TELEGRAM_BOT_TOKEN: ${EAIT__BACKEND__TELEGRAM_BOT_TOKEN:-}
+
+      # Unset = nobody holds the admin role and every path under /admin answers 404.
+      EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID: ${EAIT__BACKEND__ADMIN_BOOTSTRAP_USER_ID:-}
+
+      EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN: ${EAIT__BACKEND__REVENUECAT_WEBHOOK_TOKEN:-}
+      EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID: ${EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID:-eait_fit_pro}
+      EAIT__BACKEND__REVENUECAT_ACCEPT_SANDBOX: ${EAIT__BACKEND__REVENUECAT_ACCEPT_SANDBOX:-0}
+      EAIT__BACKEND__WEB_CHECKOUT_URL: ${EAIT__BACKEND__WEB_CHECKOUT_URL:-}
+
+      EAIT__BACKEND__MAIL_PROVIDER: ${EAIT__BACKEND__MAIL_PROVIDER:-log}
+      EAIT__BACKEND__MAIL_FROM: ${EAIT__BACKEND__MAIL_FROM:-eait <lets@example.com>}
+      EAIT__BACKEND__RESEND_API_KEY: ${EAIT__BACKEND__RESEND_API_KEY:-}
+      EAIT__BACKEND__RESEND_BASE_URL: ${EAIT__BACKEND__RESEND_BASE_URL:-https://api.resend.com}
+      EAIT__BACKEND__MAIL_TIMEOUT_MS: ${EAIT__BACKEND__MAIL_TIMEOUT_MS:-15000}
+      EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS: ${EAIT__BACKEND__SUBSCRIBE_CONFIRM_TTL_DAYS:-7}
+      EAIT__BACKEND__SUBSCRIBE_DAILY_CAP: ${EAIT__BACKEND__SUBSCRIBE_DAILY_CAP:-200}
+      EAIT__BACKEND__LANDING_URL: ${EAIT__BACKEND__LANDING_URL:-}
+
+      EAIT__BACKEND__PUSH_ENABLED: ${EAIT__BACKEND__PUSH_ENABLED:-0}
+      EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN: ${EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN:-}
+      EAIT__BACKEND__PUSH_TIMEOUT_MS: ${EAIT__BACKEND__PUSH_TIMEOUT_MS:-15000}
+      EAIT__BACKEND__EVENING_LINE_TIME: ${EAIT__BACKEND__EVENING_LINE_TIME:-20:30}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [internal]
+    logging:
+      # A VPS disk fills silently and then everything fails at once, Postgres included.
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  frontend:
+    build:
+      context: .
+      dockerfile: src/iac/Dockerfile.frontend
+    restart: unless-stopped
+    # As strict as the backend's, and it can afford to be: it holds one bundle and one HTML string,
+    # reads no database, writes nothing and takes no credential.
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    environment:
+      EAIT__FRONTEND__HOST: 0.0.0.0
+      EAIT__FRONTEND__PORT: 8788
+      # EAIT__FRONTEND__BACKEND_ORIGIN IS DELIBERATELY UNSET. It is the LAPTOP's dev proxy — with no
+      # Caddy on a laptop, this process forwards what is not its own to the backend. Setting it here
+      # would put a second, untested path in front of the API on the exact deployment where the edge
+      # is what composes the one origin.
+    # It does not depend on the backend and must not: in production it never calls it. The browser
+    # does, relative, through Caddy.
+    networks: [internal]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    # The image's entrypoint starts as root, chowns the data directory and then drops to `postgres`,
+    # so it needs the capabilities that make those two things possible and nothing else. NOT
+    # read_only, for obvious reasons, and not `cap_drop: [ALL]` without these — the container exits
+    # before Postgres starts, which looks exactly like a corrupt volume from the outside.
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
+    environment:
+      POSTGRES_USER: eait
+      POSTGRES_PASSWORD: ${EAIT__DEPLOY__POSTGRES_PASSWORD:?set EAIT__DEPLOY__POSTGRES_PASSWORD}
+      # THIS IS WHAT CREATES THE DATABASE. The app never does — `migrate()` creates tables inside a
+      # database that must already exist, because eait shipped auto-create once and it was silent
+      # data loss. The image's initdb is the sanctioned "somebody deliberately made a database" step.
+      POSTGRES_DB: eait
+    volumes:
+      - eait-prod-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eait -d eait"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  # Named explicitly rather than left to compose's `<project>_<volume>` scheme, so the data does not
+  # move the next time the project name does.
+  eait-prod-pgdata:
+    name: eait-prod-pgdata
+  caddy-data:
+    name: eait-prod-caddy-data
+  caddy-config:
+    name: eait-prod-caddy-config
