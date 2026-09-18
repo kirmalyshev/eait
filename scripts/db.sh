@@ -128,7 +128,11 @@ case "${1:-up}" in
     docker compose stop db
     ;;
   psql)
-    docker compose exec db psql -U eait -d "$DB"
+    # ANYTHING AFTER `psql` GOES TO psql. Without the passthrough `./dev db psql -c 'select 1'`
+    # silently ignored the flag and opened an interactive session instead — which, with no TTY,
+    # is a non-zero exit and no output, looking exactly like the query having failed.
+    shift || true
+    docker compose exec db psql -U eait -d "$DB" "$@"
     ;;
   nuke)
     # Destroys the volume — EVERY worktree's database, not just this one. Named `nuke` rather than
