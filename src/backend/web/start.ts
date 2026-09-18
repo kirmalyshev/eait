@@ -38,7 +38,11 @@ import {
 } from "../engine/index.ts";
 import type { Store } from "../store.ts";
 import {
-  chat, frontDoor, html, pageCopyFor, plan, question, stopped, FONT_PATH, PAGE_COPY,
+  // NOT `PAGE_COPY`. It is the English alias, and every use here is shadowed by a local
+  // `pageCopyFor(lang)` — so importing it buys nothing and costs a silent English render the
+  // day somebody writes `PAGE_COPY.foo` outside one of those scopes. Unimported, that is a
+  // compile error instead.
+  chat, frontDoor, html, pageCopyFor, plan, question, stopped, FONT_PATH,
   type PageCopy,
   type ChatLine, type ChatProposal, type QuestionOption,
 } from "./page.ts";
@@ -940,7 +944,11 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   if (req.method === "POST" && pathname === `${START_PREFIX}/telegram`) {
     if (config.telegramBotUsername === "") return notFound();
     const wait = ctx.limitAuth();
-    if (wait !== null) return tooManyAttempts(wait, browserLang(req));
+    // THE ACCOUNT'S language, not the browser's. The two callers above are pre-session and have
+    // only the header; this one is behind the cookie and read `profile` a hundred lines ago, so
+    // the argument in `tooManyAttempts` for spending nothing on a request we have decided not to
+    // serve does not apply — there is no query to save.
+    if (wait !== null) return tooManyAttempts(wait, profile.lang);
     const { code } = await mintPairingCode(ctx.deps, userId);
     return seeOther(`https://t.me/${config.telegramBotUsername}?start=${code}`);
   }

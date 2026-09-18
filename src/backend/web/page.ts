@@ -249,7 +249,7 @@ export function html(
   return res;
 }
 
-const spud = `<div class="spud" role="img" aria-label="Spud, the eait mascot">${spudSvg("wave", "spud-start")}</div>`;
+const spud = `<div class="spud" role="img" aria-label="${escape(PAGE_COPY.spudAlt)}">${spudSvg("wave", "spud-start")}</div>`;
 
 const bubbles = (lines: readonly string[]): string =>
   lines.map((line) => `<p class="bubble typed">${escape(line)}</p>`).join("");

@@ -28,6 +28,25 @@ export interface HealthCopy {
     together: string;
     opposed: string;
   };
+  /**
+   * The four x-axes. `label` is the control; `noun` is what a sentence calls one bucket; `per` is
+   * the form the SUMMARY needs after its preposition.
+   *
+   * `per` exists because Russian inflects: `по` governs the dative plural, so "by week" is
+   * `по неделям` while the bucket is still `неделя`. One field cannot be both, and interpolating
+   * the nominative produced `Вес по неделя` — the kind of error that reads as machine output.
+   * For the other seven the two happen to coincide, and they are spelled out anyway rather than
+   * defaulted, so the next language to need a case has somewhere to put it.
+   */
+  periods: Record<"days" | "weeks" | "months" | "years", { label: string; noun: string; per: string }>;
+  /**
+   * The chart as ONE SENTENCE, for VoiceOver — a template, not fragments joined by code.
+   *
+   * `AGENTS.md` forbids the join: word order is not a constant across eight languages, and this
+   * sentence is the only thing a reader with low vision gets from the chart at all. `{name}`,
+   * `{noun}`, `{first}`/`{firstAt}`, `{last}`/`{lastAt}`, `{low}`, `{high}`.
+   */
+  summary: { line: string; empty: string };
 }
 
 /** The English, derived rather than retyped. */
@@ -48,6 +67,10 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       together: "they tend to rise together",
       opposed: "one tends to rise as the other falls",
     },
+    periods: { days: { label: "Days", noun: "day", per: "day" }, weeks: { label: "Weeks", noun: "week", per: "week" },
+      months: { label: "Months", noun: "month", per: "month" }, years: { label: "Years", noun: "year", per: "year" } },
+    summary: { line: "{name} by {noun}: from {first} ({firstAt}) to {last} ({lastAt}). Lowest {low}, highest {high}.",
+      empty: "{name} by {noun}: nothing recorded." },
   },
   fr: {
     labels: labels({
@@ -65,6 +88,10 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       together: "ils montent plutôt ensemble",
       opposed: "l'un monte quand l'autre descend",
     },
+    periods: { days: { label: "Jours", noun: "jour", per: "jour" }, weeks: { label: "Semaines", noun: "semaine", per: "semaine" },
+      months: { label: "Mois", noun: "mois", per: "mois" }, years: { label: "Années", noun: "année", per: "année" } },
+    summary: { line: "{name} par {noun} : de {first} ({firstAt}) à {last} ({lastAt}). Minimum {low}, maximum {high}.",
+      empty: "{name} par {noun} : rien d'enregistré." },
   },
   de: {
     labels: labels({
@@ -82,6 +109,10 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       together: "sie steigen meist gemeinsam",
       opposed: "das eine steigt, während das andere fällt",
     },
+    periods: { days: { label: "Tage", noun: "Tag", per: "Tag" }, weeks: { label: "Wochen", noun: "Woche", per: "Woche" },
+      months: { label: "Monate", noun: "Monat", per: "Monat" }, years: { label: "Jahre", noun: "Jahr", per: "Jahr" } },
+    summary: { line: "{name} pro {noun}: von {first} ({firstAt}) bis {last} ({lastAt}). Tiefstwert {low}, Höchstwert {high}.",
+      empty: "{name} pro {noun}: nichts erfasst." },
   },
   it: {
     labels: labels({
@@ -99,6 +130,10 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       together: "tendono a salire insieme",
       opposed: "uno sale mentre l'altro scende",
     },
+    periods: { days: { label: "Giorni", noun: "giorno", per: "giorno" }, weeks: { label: "Settimane", noun: "settimana", per: "settimana" },
+      months: { label: "Mesi", noun: "mese", per: "mese" }, years: { label: "Anni", noun: "anno", per: "anno" } },
+    summary: { line: "{name} per {noun}: da {first} ({firstAt}) a {last} ({lastAt}). Minimo {low}, massimo {high}.",
+      empty: "{name} per {noun}: nulla registrato." },
   },
   es: {
     labels: labels({
@@ -116,6 +151,10 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       together: "suelen subir juntos",
       opposed: "uno sube mientras el otro baja",
     },
+    periods: { days: { label: "Días", noun: "día", per: "día" }, weeks: { label: "Semanas", noun: "semana", per: "semana" },
+      months: { label: "Meses", noun: "mes", per: "mes" }, years: { label: "Años", noun: "año", per: "año" } },
+    summary: { line: "{name} por {noun}: de {first} ({firstAt}) a {last} ({lastAt}). Mínimo {low}, máximo {high}.",
+      empty: "{name} por {noun}: nada registrado." },
   },
   vi: {
     labels: labels({
@@ -133,6 +172,10 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       together: "hai bên thường cùng tăng",
       opposed: "bên này tăng thì bên kia giảm",
     },
+    periods: { days: { label: "Ngày", noun: "ngày", per: "ngày" }, weeks: { label: "Tuần", noun: "tuần", per: "tuần" },
+      months: { label: "Tháng", noun: "tháng", per: "tháng" }, years: { label: "Năm", noun: "năm", per: "năm" } },
+    summary: { line: "{name} theo {noun}: từ {first} ({firstAt}) đến {last} ({lastAt}). Thấp nhất {low}, cao nhất {high}.",
+      empty: "{name} theo {noun}: chưa ghi gì." },
   },
   id: {
     labels: labels({
@@ -150,6 +193,10 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       together: "keduanya cenderung naik bersama",
       opposed: "yang satu naik saat yang lain turun",
     },
+    periods: { days: { label: "Hari", noun: "hari", per: "hari" }, weeks: { label: "Minggu", noun: "minggu", per: "minggu" },
+      months: { label: "Bulan", noun: "bulan", per: "bulan" }, years: { label: "Tahun", noun: "tahun", per: "tahun" } },
+    summary: { line: "{name} per {noun}: dari {first} ({firstAt}) ke {last} ({lastAt}). Terendah {low}, tertinggi {high}.",
+      empty: "{name} per {noun}: belum ada catatan." },
   },
   ru: {
     labels: labels({
@@ -167,6 +214,10 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       together: "обычно растут вместе",
       opposed: "одно растёт, пока другое падает",
     },
+    periods: { days: { label: "Дни", noun: "день", per: "дням" }, weeks: { label: "Недели", noun: "неделя", per: "неделям" },
+      months: { label: "Месяцы", noun: "месяц", per: "месяцам" }, years: { label: "Годы", noun: "год", per: "годам" } },
+    summary: { line: "{name} по {noun}: с {first} ({firstAt}) до {last} ({lastAt}). Минимум {low}, максимум {high}.",
+      empty: "{name} по {noun}: записей нет." },
   },
 };
 
