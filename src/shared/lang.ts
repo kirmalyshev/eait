@@ -1,27 +1,28 @@
-// The localization spine (#358, slice 1). Everything the app says in more than one language goes
-// through here, and nothing else does.
+// The localization spine (#358). Everything the app says in more than one language goes through
+// here, and nothing else does.
 //
 // NO FRAMEWORK, AND THAT IS THE DESIGN RATHER THAN A SHORTCUT. This repo already stores copy as
 // typed constants in `shared` that both clients import, and `Lang` already exists — so the
 // change is to KEY those constants by language. An i18next or an ICU catalogue buys plural rules
-// and runtime loading, neither of which three compiled-in languages need, and each costs an
+// and runtime loading, neither of which eight compiled-in languages need, and each costs an
 // extraction step plus `.json` bundles to keep in sync with the code that reads them.
 //
 // THE UNIT SYSTEM IS NOT THE LANGUAGE. `de` is metric, `en` is not automatically imperial, and
 // nothing here may reach `shared/targets.ts`. A string table must never move the arithmetic.
 //
 // Numbers and dates are `Intl.NumberFormat` / `Intl.DateTimeFormat`, which Hermes and bun both
-// have. There is nothing to add here for them.
+// have. `numbers` and `monthYear` below are the only two shapes this product needs, and every
+// figure in every sentence goes through one of them rather than through a hand-written table.
 
 import { LANGS, type Lang } from "./types.ts";
 
 /**
  * One phrase in every language it has been written in. `en` is REQUIRED and the rest are optional,
  * which is the type-level statement of the fallback rule below — and what lets a slice land one
- * language at a time instead of demanding all three before anything ships.
+ * surface at a time instead of demanding all eight before anything ships.
  *
  * Holds anything, not only strings: the tables here are the product's typed constants (option
- * lists, arrays of lines), not a flat string catalogue.
+ * lists, arrays of lines, whole content trees), not a flat string catalogue.
  */
 export type Localized<T> = { en: T } & Partial<Record<Lang, T>>;
 
@@ -44,7 +45,9 @@ export const t = (lang: Lang) => <T>(entry: Localized<T>): T => entry[lang] ?? e
  * render ITSELF end to end, and it is what Settings offers: a language that falls back to English
  * on every screen is worse than one that is not on the list, because choosing it looks like a bug.
  *
- * It grows as the slices of #358 land, and the two lists converge when the last one does.
+ * IT IS AN HONEST LIST AND `localizedGaps` IS WHAT KEEPS IT HONEST. A language only belongs here
+ * once every `Localized` table in the codebase carries it, and there is a test per workspace that
+ * fails by name when one does not.
  */
 export const LANGS_READY: readonly Lang[] = ["en"];
 
@@ -57,9 +60,130 @@ export const LANGS_READY: readonly Lang[] = ["en"];
  */
 export const LANG_LABEL: Record<Lang, string> = {
   en: "English",
-  ru: "Русский",
+  fr: "Français",
   de: "Deutsch",
+  it: "Italiano",
+  es: "Español",
+  vi: "Tiếng Việt",
+  id: "Bahasa Indonesia",
+  ru: "Русский",
 };
+
+/**
+ * The BCP-47 tag each language formats numbers and dates with.
+ *
+ * A `Lang` IS NOT A LOCALE, which is why this table exists rather than passing the code straight to
+ * `Intl`. Bare `en` resolves to US conventions in most ICU builds, and this product is metric,
+ * Berlin-based and writes kilograms — so English here is `en-GB`. The rest name their principal
+ * region, so a reader gets their own grouping and their own month names.
+ *
+ * NOT A UNIT SYSTEM. `Intl.NumberFormat` is asked for a decimal, never for a measurement, so
+ * nothing on this line can turn a kilogram into a pound. `targets.ts` is untouched by any of it.
+ */
+export const LANG_TAG: Record<Lang, string> = {
+  en: "en-GB",
+  fr: "fr-FR",
+  de: "de-DE",
+  it: "it-IT",
+  es: "es-ES",
+  vi: "vi-VN",
+  id: "id-ID",
+  ru: "ru-RU",
+};
+
+/**
+ * Every figure in every sentence this product writes.
+ *
+ * ONE SHAPE, because the thread only ever writes one: a whole number, or one decimal place when
+ * there is one to keep ("92.4 kg", never "92.40 kg" and never "1454"). It was
+ * `toLocaleString("en-US")` in four files, which is a German reading their own weight with a
+ * decimal point and their calorie target with a comma for a thousand.
+ *
+ * Bound once per surface, like `t`.
+ */
+export const numbers = (lang: Lang) => {
+  const whole = new Intl.NumberFormat(LANG_TAG[lang], { maximumFractionDigits: 0 });
+  const tenth = new Intl.NumberFormat(LANG_TAG[lang], { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return (x: number): string =>
+    Math.round(x * 10) % 10 === 0 ? whole.format(Math.round(x)) : tenth.format(Math.round(x * 10) / 10);
+};
+
+/**
+ * A month and a year, as the plan's projection names one: "November 2026", "novembre 2026".
+ *
+ * `Intl.DateTimeFormat` rather than a table of month names. `projection.ts` used to carry twelve
+ * English strings and a comment saying Hermes had once answered a numeric month for
+ * `toLocaleString` — that was a reduced-ICU build, both runtimes this ships on carry a full one,
+ * and twelve names in a table is eighty-four names the day a second language lands.
+ */
+export const monthYear = (lang: Lang, at: Date): string =>
+  new Intl.DateTimeFormat(LANG_TAG[lang], { month: "long", year: "numeric", timeZone: "UTC" }).format(at);
 
 /** Every language, in a stable order, for a picker. `LANGS` is the source; this is its array form. */
 export const ALL_LANGS: readonly Lang[] = LANGS;
+
+// ── The check that keeps `LANGS_READY` honest ────────────────────────────────────────────────
+
+/** One table that claims to speak a language it has no words in. */
+export interface LocalizedGap {
+  /** Where it is, as a path through the module's exports: `GOAL_CARDS.lose`. */
+  table: string;
+  lang: Lang;
+}
+
+const IS_LANG = new Set<string>(LANGS);
+
+/**
+ * Every `Localized<T>` under `root` that is missing a language `ready` claims.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ * PROSE IN A MARKDOWN FILE GOES STALE; A RED TEST DOES NOT
+ *
+ * A language reaches `LANGS_READY` when every table has its words, and the only way that stays
+ * true through the next copy change is for the next copy change to fail. So each workspace has one
+ * test that hands this function `import * as everything` and asserts an empty answer — which means
+ * a new table, or a new sentence in an old one, is checked the moment it is exported, with no
+ * registry to remember to add it to and no extraction step to run.
+ *
+ * A TABLE IS DETECTED BY SHAPE, not by a marker: a plain object whose keys are ALL `Lang` codes and
+ * which carries `en`. That is exactly `Localized<T>`, and nothing else in this codebase has that
+ * shape by accident — an ordinary copy record is keyed by its own vocabulary (`title`, `lose`,
+ * `kidneys`), and the one record keyed by every language on purpose (`LANG_LABEL`, `LANG_TAG`) is
+ * complete by construction and so reports nothing.
+ *
+ * Detection STOPS at the table. What sits under `en` is the value, whatever shape it has, and
+ * walking into it would report a sentence twice per language it is written in.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ */
+export function localizedGaps(root: unknown, ready: readonly Lang[] = LANGS_READY): LocalizedGap[] {
+  const gaps: LocalizedGap[] = [];
+  // A module graph has cycles, and `export *` re-exports mean one object is reached twice. Both
+  // would otherwise be an infinite walk or a doubled report.
+  const seen = new WeakSet<object>();
+
+  const walk = (node: unknown, at: string) => {
+    if (typeof node !== "object" || node === null) return;
+    if (seen.has(node)) return;
+    seen.add(node);
+
+    if (Array.isArray(node)) {
+      node.forEach((v, i) => { walk(v, `${at}[${i}]`); });
+      return;
+    }
+
+    const keys = Object.keys(node);
+    if (keys.length > 0 && keys.every((k) => IS_LANG.has(k)) && Object.hasOwn(node, "en")) {
+      for (const lang of ready) if (!Object.hasOwn(node, lang)) gaps.push({ table: at, lang });
+      return;
+    }
+
+    for (const [k, v] of Object.entries(node)) walk(v, at === "" ? k : `${at}.${k}`);
+  };
+
+  walk(root, "");
+  return gaps;
+}
+
+/** `localizedGaps` as a sentence per gap, for a test that has to name what to go and write. */
+export const describeGaps = (gaps: readonly LocalizedGap[]): string[] =>
+  gaps.map((g) => `${g.table} has no ${g.lang} (${LANG_LABEL[g.lang]})`);

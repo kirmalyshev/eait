@@ -26,7 +26,16 @@ export type ActivityLevel = (typeof ACTIVITY_LEVELS)[number];
 export const PACES = ["easy", "steady", "push"] as const;
 export type Pace = (typeof PACES)[number];
 
-export const LANGS = ["en", "ru", "de"] as const;
+/**
+ * Every language the server stores, the model answers in, and the picker offers.
+ *
+ * IN PICKER ORDER, and English first because it is the one `Localized<T>` requires. The rest are
+ * the seven `#358` names, and the order is deliberate rather than alphabetical: it is the order
+ * `LANG_LABEL` renders, and reordering it reorders a settings list somebody has learned.
+ *
+ * What the app can actually RENDER in is `LANGS_READY` (`lang.ts`), which is the smaller claim.
+ */
+export const LANGS = ["en", "fr", "de", "it", "es", "vi", "id", "ru"] as const;
 export type Lang = (typeof LANGS)[number];
 
 /**
