@@ -45,3 +45,32 @@ test("the endonyms are what the picker offers, never a translated list", async (
   await expect(page.getByRole("heading", { name: "Твой план" })).toBeVisible();
   for (const name of names) await expect(page.getByLabel("Язык").getByText(name)).toBeAttached();
 });
+
+// THE REGRESSION. A German browser reaches `/start`, presses the German button, and every question
+// after it must still be in German.
+//
+// This is the one path that had the bug, and no unit test could see it: the tables were complete,
+// `narrowLang` was right, the front door read `Accept-Language` correctly — and then
+// `signInWithProvider` created the account with `"en"` written into it. Onboarding renders from
+// `users.lang`, so the welcome was German and every question English, with the picker that would
+// fix it sitting behind the questions the user could not read. There was no way to reach German
+// onboarding on this surface at all.
+test.describe("a browser that is not English", () => {
+  test.use({ locale: "de-DE" });
+
+  test("signs in and keeps its language through every question", async ({ page }) => {
+    await page.goto("/start");
+    // The front door was always German — that half was never broken.
+    await page.getByRole("link", { name: /Weiter mit google/i }).click();
+    await page.getByRole("textbox").fill(`pw-lang-de-${Date.now()}`);
+    await page.getByRole("button").click();
+    await expect(page).toHaveURL(/\/start\/q/);
+
+    // ...and so is the first question, which is what the account's own language decides.
+    await expect(page.locator("html")).toHaveAttribute("lang", "de");
+    await onboard(page);
+    await expect(page.getByRole("heading", { name: "Dein Plan" })).toBeVisible();
+    // The picker opens on the language they already have, rather than on English.
+    await expect(page.getByLabel("Sprache")).toHaveValue("de");
+  });
+});

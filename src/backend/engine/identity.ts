@@ -10,7 +10,7 @@
 // reason `isAnonymous` exists rather than the code merging whenever two accounts meet.
 
 import { PROVIDERS, signsIn } from "@eait/shared";
-import type { AuthProviderResponse, LinkOutcome, Provider } from "@eait/shared";
+import type { AuthProviderResponse, Lang, LinkOutcome, Provider } from "@eait/shared";
 import type { IdentityVerifier } from "../auth/verify.ts";
 import type { EngineDeps } from "./deps.ts";
 import { claimCode } from "./pairing.ts";
@@ -37,6 +37,20 @@ export async function signInWithProvider(
   nonce: string | undefined,
   /** The account the caller is currently in, if they sent a bearer token. */
   currentUserId: string | null,
+  /**
+   * The language to BIRTH a new account in — the caller's best evidence, and used nowhere else.
+   *
+   * REQUIRED, with no `en` default, because a default here is invisible: four of the five outcomes
+   * ignore this argument entirely, so a call site that forgot it goes on working for every
+   * returning user and silently creates every new account in English. That is exactly what
+   * happened — `/start` reads `Accept-Language` for its front door and then hands the browser to
+   * Apple, and this function created the account with `"en"` hardcoded, which made German web
+   * onboarding unreachable: the picker that would fix it lives behind the questions.
+   *
+   * AN ACCOUNT THAT ALREADY EXISTS IS NEVER RE-DECIDED. `users.lang` is the user's own setting
+   * after the first screen, and a sign-in from a borrowed laptop is not a request to change it.
+   */
+  lang: Lang,
 ): Promise<AuthProviderResponse> {
   // Throws `AuthError` on anything wrong with the token. The route turns that into a 401 and logs
   // the reason; the reason never reaches the client, because it can echo the token.
@@ -54,7 +68,7 @@ export async function signInWithProvider(
       userId = existing;
       outcome = "switched";
     } else {
-      userId = await deps.store.createUser("en");
+      userId = await deps.store.createUser(lang);
       await deps.store.addIdentity(userId, provider, verified.subject);
       outcome = "created";
     }

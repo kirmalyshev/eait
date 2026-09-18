@@ -546,6 +546,12 @@ export function createRouter(
             deps, verifier, provider, body.idToken,
             typeof body.nonce === "string" ? body.nonce : undefined,
             current,
+            // The same field `POST /v1/auth/device` takes, for the same reason and with the same
+            // narrowing. A client that mints its device account first never reaches the branch
+            // this feeds — `current` is set, so the identity is LINKED to an account that already
+            // has a language — but one that signs in on a fresh install does, and an omitted
+            // locale is `en` rather than a refusal.
+            toLang(body.locale),
           );
           return json(result satisfies AuthProviderResponse);
         } catch (e) {
