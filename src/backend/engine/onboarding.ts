@@ -64,24 +64,27 @@ export async function saveOnboardingContent(
   input: unknown,
   lang: Lang,
 ): Promise<ContentValidation> {
-  const stored = await deps.store.getOnboardingContent();
+  // The validator wants a version, so it gets the FLOOR — the compiled-in revision plus one, which
+  // is the lowest number a save may land on. The store decides the real one against the row it is
+  // writing, under its lock, and hands it back; that number is what goes to the admin, because a
+  // concurrent save in another language may legitimately have taken the one asked for.
+  const floor = onboardingContentFor(lang).version + 1;
   const withVersion =
     typeof input === "object" && input !== null
-      ? { ...(input as Record<string, unknown>), version: nextVersion(lang, stored) }
+      ? { ...(input as Record<string, unknown>), version: floor }
       : input;
 
   const result = validateOnboardingContent(withVersion);
   if (!result.ok) return result;
-  await deps.store.putOnboardingContent({ ...storedContentSet(stored), [lang]: result.content });
-  return result;
+  const version = await deps.store.putOnboardingContent(lang, result.content, floor);
+  return { ...result, content: { ...result.content, version } };
 }
 
 /** Restore the shipped copy for one language. The undo button for an edit that went wrong. */
 export async function resetOnboardingContent(deps: EngineDeps, lang: Lang): Promise<OnboardingContent> {
-  const stored = await deps.store.getOnboardingContent();
-  const restored = { ...onboardingContentFor(lang), version: nextVersion(lang, stored) };
-  await deps.store.putOnboardingContent({ ...storedContentSet(stored), [lang]: restored });
-  return restored;
+  const floor = onboardingContentFor(lang).version + 1;
+  const restored = { ...onboardingContentFor(lang), version: floor };
+  return { ...restored, version: await deps.store.putOnboardingContent(lang, restored, floor) };
 }
 
 /**

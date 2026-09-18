@@ -508,17 +508,27 @@ describe("dropping a dead token costs one write, not a scan", () => {
 
 describe("copy stored before the code that reads it", () => {
   it("merges a saved revision over the shipped default, per message and per field", async () => {
+    // What a row saved by an older server looks like once a field or a message is added: read
+    // straight through, `fillNotification` takes `copy[id].title` off `undefined` and the composer
+    // throws for EVERY account, one at a time, logging identical lines that name nothing.
+    //
+    // SEEDED rather than written, and rebuilt BEFORE `onboard()` so the account lands in this
+    // store. `putNotificationCopy` takes one language now, so a bare revision with no language
+    // dimension — and one missing fields this build requires — cannot go through the port at all.
+    // Only an older server could have left this row, which is the case under test.
+    store = memoryStore({
+      seed: {
+        notificationCopy: {
+          evening: { title: "Kept", body: "{eaten}/{plan}. {tomorrow}" },
+          // And a message a NEWER server wrote, which this code knows nothing about. It must not
+          // survive the merge — which is why `merged` starts from the default, not from the row.
+          "trial-day8": { title: "From the future", body: "Nothing here can render this." },
+        },
+      },
+    });
+    deps = { ...deps, store };
     const userId = await onboard();
     await entitle(userId, PAID_UNTIL);
-    // What a row saved by an older server looks like once a field or a message is added: written
-    // straight through, `fillNotification` reads `copy[id].title` off `undefined` and the composer
-    // throws for EVERY account, one at a time, logging identical lines that name nothing.
-    await store.putNotificationCopy({
-      evening: { title: "Kept", body: "{eaten}/{plan}. {tomorrow}" },
-      // And a message a NEWER server wrote, which this code knows nothing about. It must not
-      // survive the merge — which is why `merged` starts from the default rather than from the row.
-      "trial-day8": { title: "From the future", body: "Nothing here can render this." },
-    } as never);
 
     // Read as English, because that shape predates the language dimension and English was all
     // there was. A German reading the same host gets the shipped German, not this row.
