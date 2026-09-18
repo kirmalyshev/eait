@@ -47,7 +47,7 @@ import {
 import {
   adminMetrics, adminUserChat, adminUserDiary, adminUsers, livePrompts, notificationCopy,
   onboardingContent,
-  onboardingFunnel, savePrompt,
+  onboardingFunnel, promptHistory, savePrompt,
   resetNotificationCopy,
   resetOnboardingContent, saveNotificationCopy, saveOnboardingContent, setUserCap, userCap,
   type EngineDeps,
@@ -227,7 +227,18 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps): Promise<
   if (req.method === "PUT" && pathname === "/admin/api/prompts") {
     const body = await req.json() as { key?: unknown; text?: unknown };
     const result = await savePrompt(deps, body?.key, body?.text);
-    return result.ok ? json({ key: result.key, version: result.version }) : json({ errors: result.errors }, 422);
+    if (result.ok) return json({ key: result.key, version: result.version });
+    // 409, not 422, when another save won the race: the prose was fine and a retry succeeds. 422
+    // means the text itself was refused, and the editor tells the two apart.
+    return json({ errors: result.errors }, result.conflict ? 409 : 422);
+  }
+
+  // The revisions of one prompt. The append-only table's whole point, and the only way to answer
+  // "what were we sending on the 3rd" without a psql session.
+  const revisions = /^\/admin\/api\/prompts\/([a-z_]+)\/revisions$/.exec(pathname);
+  if (req.method === "GET" && revisions) {
+    const history = await promptHistory(deps, revisions[1]);
+    return history ? json({ key: revisions[1], revisions: history }) : notFound();
   }
 
   if (req.method === "GET" && pathname === "/admin/api/funnel") {

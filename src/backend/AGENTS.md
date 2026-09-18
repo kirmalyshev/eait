@@ -293,6 +293,22 @@ naming it too.
   instances racing for one `(key, version)` and a read-only database both end at a server that
   serves. This is also the answer to the objection `onboarding_content` records against seeding on
   boot — "it makes 'has an admin ever touched this?' unanswerable" — which here is a column.
+- **Three surfaces edit a prompt, and they share one gate.** `GET`/`PUT /admin/api/prompts` and
+  `GET /admin/api/prompts/:key/revisions` behind the admin role; the panel in `api/admin.page.ts`;
+  and `./dev prompts` (`src/scripts/prompts.ts`), which reaches Postgres directly because an
+  operator on the box has the database URL and may not have a bearer. **All three call
+  `savePrompt`** — a second writer would be a second set of rules, and the one it would drift from
+  decides what a model may be told. A save that loses the `(key, version)` race answers **409, not
+  422**: the prose was fine and a retry succeeds, and telling somebody their writing was refused
+  sends them to rewrite a prompt that was never the problem. There is no reset verb, because a
+  restore IS a save — it keeps the row `admin`, so the next deploy still leaves it alone, and it
+  stays in the history where a delete would have left a gap.
+- **The admin page's script is the one code here no gate reads.** The whole document is a template
+  literal, so `tsc` never looks inside it and `bun test` never runs it; a `null` dereference there
+  reaches production with every check green. `web/browser/admin-prompts.pw.ts` is what covers the
+  prompts panel — it fetches the real page and stubs only `/admin/api/*`, so what is under test is
+  the page's own JavaScript. (And: no backtick may appear anywhere inside that literal. The failure
+  is a parse error a hundred lines away.)
 - **What did NOT move, and must not:** `normalizePromptText` (a containment boundary, not editable
   content), every `build*` function (they interpolate the user's own data and enforce its caps — a
   stored template would be a language this repo then owns), the Zod schemas, and `COACH_TOOL_DEFS`

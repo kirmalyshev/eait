@@ -14,6 +14,7 @@ import {
   PROMPT_DEFAULTS, PROMPT_KEYS, type PromptKey, type PromptSource, validateStoredPrompt,
 } from "../llm/prompt.ts";
 import type { EngineDeps } from "./deps.ts";
+import type { PromptRevision } from "../store.ts";
 
 /** One prompt as the admin sees it: what is live, and whether anybody put it there. */
 export interface PromptView {
@@ -27,11 +28,25 @@ export interface PromptView {
   updated_at: string | null;
   /** Who wrote the live text: the shipper, or a person editing it. */
   source: PromptSource;
+  /**
+   * What THIS BUILD was written with, whatever is live.
+   *
+   * Sent on every view so the editor can offer "restore shipped" without a second round trip, and
+   * so an admin looking at their own edit can see what it replaced. It is also the only way to tell
+   * that a deploy has moved the constant underneath a row somebody owns — the two differ and
+   * nothing else would say so.
+   */
+  shipped: string;
 }
 
 export type PromptSave =
   | { ok: true; key: PromptKey; version: number }
-  | { ok: false; errors: string[] };
+  /**
+   * `conflict` means another save landed between this one's read and its write, NOT that the prose
+   * was unacceptable — the route answers 409 rather than 422, because telling somebody their
+   * writing was refused when a plain retry succeeds sends them to rewrite a prompt that was fine.
+   */
+  | { ok: false; errors: string[]; conflict?: boolean };
 
 /**
  * Every prompt this server sends, with whatever the store has laid over it.
@@ -55,9 +70,10 @@ export async function livePrompts(deps: EngineDeps): Promise<PromptView[]> {
     // it is sent, so showing the raw column would display something the server does not use.
     const checked = row ? validateStoredPrompt(key, row.text) : undefined;
     const usable = checked?.ok ? { row: row!, text: checked.text } : undefined;
+    const shipped = PROMPT_DEFAULTS[key];
     return usable
-      ? { key, text: usable.text, version: usable.row.version, updated_at: usable.row.updated_at, source: usable.row.source }
-      : { key, text: PROMPT_DEFAULTS[key], version: 0, updated_at: null, source: "shipped" };
+      ? { key, text: usable.text, version: usable.row.version, updated_at: usable.row.updated_at, source: usable.row.source, shipped }
+      : { key, text: shipped, version: 0, updated_at: null, source: "shipped", shipped };
   });
 }
 
@@ -81,6 +97,47 @@ export async function savePrompt(deps: EngineDeps, key: unknown, text: unknown):
     return { ok: true, key: result.key, version };
   } catch (e) {
     console.error(`[eait] prompt "${result.key}" could not be saved: ${(e as Error)?.message ?? e}`);
+    // `putPrompt` computes its own version inside the insert, so two saves of one key racing both
+    // compute N and the loser violates the primary key. That is the store's guard working, and the
+    // answer to it is "try again", which is a different sentence from "your prompt is invalid".
+    if (isVersionConflict(e)) {
+      return {
+        ok: false,
+        conflict: true,
+        errors: ["somebody else saved this prompt a moment ago — reload it and apply your change on top"],
+      };
+    }
     return { ok: false, errors: ["this prompt could not be saved — the store refused the write"] };
   }
+}
+
+/**
+ * A unique-violation on `(key, version)`, however the driver reports it.
+ *
+ * Both forms are checked because only one of them is guaranteed: Postgres sends SQLSTATE 23505 and
+ * `Bun.sql` may surface it as `code` or fold it into the message, and the memory store throws a
+ * plain `Error`. Guessing wrong here costs an admin a 422 they cannot act on, so it errs toward
+ * reading an ambiguous failure as the generic one.
+ */
+function isVersionConflict(e: unknown): boolean {
+  const err = e as { code?: unknown; message?: unknown };
+  if (String(err?.code) === "23505") return true;
+  const message = String(err?.message ?? "").toLowerCase();
+  return message.includes("duplicate key") || message.includes("unique constraint");
+}
+
+/**
+ * Every revision of one prompt, newest first — what was being sent, and when it started being sent.
+ *
+ * The reason the table is append-only, finally readable: "which words produced this analysis" is
+ * answered by reading down this list to the revision live on the day. It is the admin's view, so it
+ * carries the whole text of each revision rather than a summary — a diff nobody can open is a diff
+ * nobody reads.
+ */
+export async function promptHistory(deps: EngineDeps, key: unknown): Promise<PromptRevision[] | null> {
+  if (!PROMPT_KEYS.includes(key as PromptKey)) return null;
+  return await deps.store.promptRevisions(key as PromptKey).catch((e: unknown) => {
+    console.error(`[eait] could not read the revisions of "${String(key)}": ${(e as Error)?.message ?? e}`);
+    return [];
+  });
 }

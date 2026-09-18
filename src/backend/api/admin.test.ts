@@ -351,6 +351,36 @@ describe("editing the system prompts", () => {
     expect(coach.version).toBe(1);
   });
 
+  it("serves the revisions of one prompt, newest first", async () => {
+    await admin("PUT", "/admin/api/prompts", { key: "glance", text: "Name the plate. Five words." });
+    const res = await admin("GET", "/admin/api/prompts/glance/revisions");
+    expect(res.status).toBe(200);
+    const { revisions } = await res.json() as { revisions: { version: number; source: string; text: string }[] };
+    // The admin's edit, then the shipped row the store booted with. Append-only, so both are here.
+    expect(revisions.map((r) => r.version)).toEqual([2, 1]);
+    expect(revisions.map((r) => r.source)).toEqual(["admin", "shipped"]);
+    expect(revisions[0]!.text).toBe("Name the plate. Five words.");
+  });
+
+  it("404s the revisions of a prompt this server does not send", async () => {
+    expect((await admin("GET", "/admin/api/prompts/sommelier/revisions")).status).toBe(404);
+  });
+
+  it("409s a save that lost a race, because a retry is what fixes it", async () => {
+    // 422 would tell an admin their writing was refused when the words were fine. The store's
+    // primary key is what detects it; this is the status that says "try again" instead.
+    const patched = store as unknown as { putPrompt: unknown };
+    const original = patched.putPrompt;
+    patched.putPrompt = async () => { throw new Error('duplicate key value violates unique constraint "llm_prompts_pkey"'); };
+    try {
+      const res = await admin("PUT", "/admin/api/prompts", { key: "coach", text: "You are terse." });
+      expect(res.status).toBe(409);
+      expect((await res.json() as { errors: string[] }).errors.join(" ")).toContain("saved this prompt a moment ago");
+    } finally {
+      patched.putPrompt = original;
+    }
+  });
+
   it("422s a key this server does not send", async () => {
     const res = await admin("PUT", "/admin/api/prompts", { key: "sommelier", text: "You pair wines." });
     expect(res.status).toBe(422);
