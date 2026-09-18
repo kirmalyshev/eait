@@ -595,7 +595,7 @@ const VI: OnboardingContent = {
     paceLabel: "Theo nhịp độ của bạn, điều chỉnh",
     floorLabel: "Mức sàn không vượt qua",
     floorTitle: "Dừng lại ở {floor} kcal",
-    floorBody: "Phép tính muốn xuống thấp hơn. Không có bác sĩ theo dõi thì chúng mình không đặt mục tiêu thấp hơn mức này, nên của bạn dừng ở đây. Nhật ký cũng sẽ ghi vậy.",
+    floorBody: "Phép tính muốn xuống thấp hơn. Không có bác sĩ theo dõi thì chúng tôi không đặt mục tiêu thấp hơn mức này, nên của bạn dừng ở đây. Nhật ký cũng sẽ ghi vậy.",
   },
   summary: {
     lines: ["Đây là bạn, tính đâu ra đấy. Kế hoạch của bạn đây."],
@@ -718,7 +718,7 @@ const ID: OnboardingContent = {
     kcalLabel: "kcal per hari",
     proteinLabel: "Target protein",
     projection: "Dengan tempo ini kamu ada di {target} kg sekitar {month}.",
-    projectionFar: "Jalannya panjang — kami berpatokan pada beberapa minggu ke depan, bukan pada cakrawala.",
+    projectionFar: "Jalannya panjang — kita berpatokan pada beberapa minggu ke depan, bukan pada cakrawala.",
     capNote: "Tempo itu butuh perubahan harian yang lebih besar daripada yang aman untuk dijaga, jadi punyamu versi amannya: {share}% dari yang tubuhmu bakar dalam sehari.",
     disclaimer: "Perkiraan, bukan nasihat medis. Semua jawaban bisa diubah di pengaturan.",
     cta: "Foto makanan pertamamu",

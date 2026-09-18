@@ -426,7 +426,7 @@ const DE: ChatCopy = {
       source: "Systematische Übersichtsarbeit über 72 Studien · n = 1,18 Mio. Erwachsene",
     },
     gain: {
-      title: "Seltener gefühlt als tatsächlich",
+      title: "Nicht so selten, wie es sich anfühlt",
       body: "Etwa 23% der jungen Männer und 6% der jungen Frauen haben im letzten Jahr aktiv versucht zuzunehmen. Ein echtes Ziel mit echter Technik — wir setzen einen Überschuss, der mehr aufbaut als anlagert.",
       source: "Kanadische Studie an jungen Erwachsenen · n = 976",
     },
@@ -484,7 +484,7 @@ const DE: ChatCopy = {
   },
   gainPaceCard: {
     title: "Gut zunehmen geht absichtlich langsam",
-    body: "Dein Überschuss wird bei etwa {share}% über dem gedeckelt, was dein Körper am Tag verbrennt — die Zone, in der Muskeln mit der Waage mithalten. Die meisten, die gut zunehmen, führen mit Eiweiß; deins verfolgen wir automatisch.",
+    body: "Dein Überschuss wird bei etwa {share}% über dem gedeckelt, was dein Körper am Tag verbrennt — die Zone, in der Muskeln mit der Waage mithalten. Die meisten, die gut zunehmen, fangen beim Eiweiß an; deins verfolgen wir automatisch.",
     source: "Befragung von 168 sportlichen Erwachsenen mit Zunahme-Ziel",
   },
   underAgeCard: {
@@ -896,7 +896,7 @@ const VI: ChatCopy = {
   goalCards: {
     lose: {
       title: "Bạn không hề đơn độc",
-      body: "Khoảng 42% người trưởng thành cố giảm cân trong một năm bất kỳ. Khác biệt ở đây: mục tiêu của bạn được tính đàng hoàng, với một mức sàn chúng mình không vượt qua.",
+      body: "Khoảng 42% người trưởng thành cố giảm cân trong một năm bất kỳ. Khác biệt ở đây: mục tiêu của bạn được tính đàng hoàng, với một mức sàn chúng tôi không vượt qua.",
       source: "Tổng quan hệ thống 72 nghiên cứu · n = 1,18 triệu người trưởng thành",
     },
     gain: {
@@ -941,7 +941,7 @@ const VI: ChatCopy = {
     },
     energy: {
       title: "Năng lượng là thước đo thành thật",
-      body: "Những ngày ăn thiếu và cảm giác uể oải luôn đi cùng nhau — đó là một lý do chúng mình từ chối mục tiêu dưới mức sàn an toàn. Đồ ăn là một nửa của năng lượng; chúng mình sẽ nhìn dáng của những ngày bạn trải qua.",
+      body: "Những ngày ăn thiếu và cảm giác uể oải luôn đi cùng nhau — đó là một lý do chúng tôi từ chối mục tiêu dưới mức sàn an toàn. Đồ ăn là một nửa của năng lượng; chúng mình sẽ nhìn dáng của những ngày bạn trải qua.",
     },
     body: {
       title: "Ở đây cái cân không phán xét",
@@ -958,7 +958,7 @@ const VI: ChatCopy = {
   },
   gainPaceCard: {
     title: "Tăng tốt thì chậm, và đó là cố ý",
-    body: "Mức dư của bạn được giới hạn ở khoảng {share}% trên mức cơ thể đốt trong một ngày — vùng mà cơ bắp theo kịp cái cân. Hầu hết những người tăng cân thành công đều đi trước bằng đạm; đạm của bạn chúng mình theo dõi tự động.",
+    body: "Mức dư của bạn được giới hạn ở khoảng {share}% trên mức cơ thể đốt trong một ngày — vùng mà cơ bắp theo kịp cái cân. Hầu hết những người tăng cân thành công đều đi trước bằng đạm; đạm của bạn chúng tôi theo dõi tự động.",
     source: "Khảo sát 168 người trưởng thành tập luyện muốn tăng cân",
   },
   underAgeCard: {
@@ -967,17 +967,17 @@ const VI: ChatCopy = {
   },
   underAge: {
     ask: "Xin lỗi — mình phải dừng ở đây. Nếu chỉ là gõ nhầm, bạn gửi lại tuổi thật nhé.",
-    confirm: "Đó là tuổi thật của mình",
+    confirm: "Đó là tuổi thật của tôi",
     placeholder: "Tuổi của bạn",
     stopped: [
-      "Vậy thì chúng ta dừng ở đây. Không điều gì bạn kể được giữ lại, và không có gì được gửi đi đâu cả — không có tài khoản nào để xoá.",
+      "Vậy thì chúng mình dừng ở đây. Không điều gì bạn kể được giữ lại, và không có gì được gửi đi đâu cả — không có tài khoản nào để xoá.",
       "Quay lại khi {age} tuổi nhé, mình vẫn ở đây.",
     ],
     endedPlaceholder: "eait dành cho {age} tuổi trở lên",
   },
   belowHealthy: {
     title: "Mình không đặt được mức đó làm mục tiêu",
-    body: "Cân nặng khoẻ mạnh thấp nhất với chiều cao của bạn là khoảng {kg} kg. Chúng mình không đặt mục tiêu dưới mức đó. Nếu bạn đang theo một hướng khác cùng bác sĩ, hãy nghe bác sĩ chứ đừng nghe ứng dụng này.",
+    body: "Cân nặng khoẻ mạnh thấp nhất với chiều cao của bạn là khoảng {kg} kg. Chúng tôi không đặt mục tiêu dưới mức đó. Nếu bạn đang theo một hướng khác cùng bác sĩ, hãy nghe bác sĩ chứ đừng nghe ứng dụng này.",
   },
   weightAck: {
     noted: "Ghi nhận — số liệu thành thật thì kế hoạch mới thành thật.",
@@ -1011,7 +1011,7 @@ const VI: ChatCopy = {
   },
   ambiguousAge: {
     line: "Mình muốn chắc là đọc đúng — nếu ý bạn là năm {year}, gửi đủ bốn chữ số nhé.",
-    confirm: "Mình {age} tuổi",
+    confirm: "Tôi {age} tuổi",
   },
   direction: {
     gain: "Bạn đang ở {weight} kg mà lại muốn tăng lên {target} — từ đây thì đó không phải là tăng. Nếu mục tiêu đã đổi, chúng mình đổi theo; còn không thì cho mình một số trên {weight}.",
@@ -1216,7 +1216,7 @@ const RU: ChatCopy = {
       source: "Систематический обзор 72 исследований · n = 1,18 млн взрослых",
     },
     gain: {
-      title: "Реже кажется, чем встречается",
+      title: "Не так редко, как кажется",
       body: "Примерно 23% молодых мужчин и 6% молодых женщин за прошлый год осознанно пытались набрать вес. Это настоящая цель с настоящей техникой — мы поставим профицит, который строит больше, чем откладывает.",
       source: "Канадское исследование молодых взрослых · n = 976",
     },
@@ -1234,7 +1234,7 @@ const RU: ChatCopy = {
     stress: {
       title: "Это паттерн, а не изъян характера",
       body: "Около 38% взрослых едят в ответ на чувства хотя бы раз в месяц — примерно у половины из них это происходит еженедельно. Назвать паттерн — уже большая часть работы; остальное делает дневник.",
-      source: "Национальное исследование в США, n = 5863 · обзор, 2026",
+      source: "Национальное исследование в США, n = 5 863 · обзор, 2026",
     },
     night: {
       title: "После восьми вечера людно",
@@ -1244,7 +1244,7 @@ const RU: ChatCopy = {
     binge: {
       title: "Ты в этом не один",
       body: "Компульсивное переедание — самое распространённое расстройство пищевого поведения: около 2,8% взрослых в какой-то момент отвечают его критериям, а 17% тех, кто начинает программу по весу, дают положительный скрининг. Если приступы ощущаются неуправляемыми, врач поможет больше любого приложения. Здесь тяжёлый день — это данные, а не приговор.",
-      source: "NIMH (NCS-R) · исследование 6930 начавших программу",
+      source: "NIMH (NCS-R) · исследование 6 930 начавших программу",
     },
     diets: {
       title: "Возврат веса — это норма, а не твоя вина",
@@ -1261,7 +1261,7 @@ const RU: ChatCopy = {
     },
     body: {
       title: "Здесь весы не судья",
-      body: "Ты будешь получать цифры про еду и никогда — комментарии про своё тело. Цели задаёт твоя задача; здесь ничто не сравнивается ни с кем.",
+      body: "Ты будешь получать цифры про еду и никогда — комментарии про своё тело. Ориентиры задаёт твоя цель; здесь ничто не сравнивается ни с кем.",
     },
     metabolism: {
       title: "Давай измерим, а не будем волноваться",
