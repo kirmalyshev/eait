@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from "bun:test";
 import * as shared from "./index.ts";
-import { LANGS_READY, describeGaps, localizedGaps } from "./lang.ts";
+import { LANGS_READY, describeGaps, genderedRussian, localizedGaps } from "./lang.ts";
 
 describe("every Localized table in @eait/shared", () => {
   it("speaks every language LANGS_READY claims", () => {
@@ -33,4 +33,11 @@ describe("every Localized table in @eait/shared", () => {
       expect(found.has(table), `${table} is not being walked — is it exported?`).toBe(true);
     }
   });
+  it("never tells a Russian reader what gender they are", () => {
+    // Russian past tense agrees with the speaker's gender and has no neutral form, so `что ты ел?`
+    // greets every woman here as a man. It is invisible to a reviewer who does not read Russian:
+    // the string is correct, idiomatic and complete. See `genderedRussian` in `shared/lang.ts`.
+    expect(genderedRussian(shared)).toEqual([]);
+  });
+
 });

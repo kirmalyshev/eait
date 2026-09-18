@@ -91,6 +91,17 @@ gets its meal names in that language.
   `wholeNumbers(lang)` rounds (a kcal from a photo, where a decimal claims a precision the analyzer
   does not have). `monthYear` is `Intl.DateTimeFormat` — CLDR's forms are not all "<month> <year>",
   and a table of ours got Spanish, Russian and Vietnamese wrong at once before it was deleted.
+- **A test refuses to let the Russian decide who the reader is.** Russian past tense agrees with
+  the speaker's gender and has NO neutral form, so `Что ты ел?` greets every woman using this app
+  as a man — and it shipped on the chat composer's placeholder, in three surfaces at once. Nothing
+  about the string is wrong to a reviewer reading it: it is correct, idiomatic and complete, and
+  English has no construction that behaves this way, so reviewing the English source could not
+  catch it either. `genderedRussian` (`lang.ts`) walks every string in the graph — it needs no
+  language bucket, because nothing but Russian has Cyrillic in it — and the three `copy.i18n`
+  tests fail naming the key. Fifteen sentences, four of them in `fr`/`it`/`es`/`ru` where the
+  adjective in "you're not alone" picks a gender too; those were rephrased around the situation
+  rather than the person, which is the move that works in all eight.
+
 - **`LANG_LABEL` is never translated.** A list of languages written in the language the reader is
   trying to leave is the one list they cannot read. It is also what the LLM prompt names the reply
   language with (`languageLine`), because a language's own name is the same string wherever it is
