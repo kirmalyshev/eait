@@ -3,6 +3,7 @@
 //   bun src/scripts/dev-env.ts setup          derive, and write .env.worktree and .env
 //   bun src/scripts/dev-env.ts show           print what this worktree resolves to
 //   bun src/scripts/dev-env.ts branch-check   warn when .env.worktree names another branch
+//   bun src/scripts/dev-env.ts clean          give this worktree's derived identity back
 //
 // Ported from the private monorepo that carries this repository as a submodule, with the iOS,
 // Metro and landing halves removed — this repo is a backend, a contract and a web application, and
@@ -16,7 +17,7 @@
 //   EAIT_API_HOST        the host the generated URLs name, default 127.0.0.1
 
 import { join } from "node:path";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
 // ── The derivation ───────────────────────────────────────────────────────────────────────────
 
@@ -423,6 +424,51 @@ function show(root: string): void {
   for (const [k, v] of rows) console.log(`${k.padEnd(w)}  ${v}`);
 }
 
+/**
+ * Give this worktree's derived identity back: `.env.worktree` and the slot claim.
+ *
+ * NOT `.env`. That file carries the API key and anything else you put there by hand, and the whole
+ * design of `setup` is that re-deriving never eats it — deleting it here would be the one path that
+ * does.
+ *
+ * IT REFUSES WHILE A STACK IS RUNNING, and that refusal is what makes this safe to offer from
+ * `./dev ls` as a single keystroke. Removing `.env.worktree` from under a live backend leaves a
+ * process whose port and database nothing in the repo can name again: `./dev down` would fall back
+ * to slot 0's values and stop nothing. The check is the same one `dev.sh` makes — a `.dev/*.pid`
+ * whose process is still alive.
+ */
+function clean(root: string): number {
+  const live: string[] = [];
+  for (const service of ["backend", "web"]) {
+    const f = join(root, ".dev", `${service}.pid`);
+    if (!existsSync(f)) continue;
+    const pid = Number(readFileSync(f, "utf8").trim());
+    if (!Number.isInteger(pid) || pid <= 0) continue;
+    try {
+      process.kill(pid, 0);
+      live.push(`${service} (pid ${pid})`);
+    } catch {
+      // Not running: a stale pidfile is not a reason to refuse.
+    }
+  }
+  if (live.length > 0) {
+    console.error(`dev-env: ${live.join(", ")} still running here — \`./dev down\` first.`);
+    console.error("dev-env: removing .env.worktree under a live stack leaves a process nothing can name again.");
+    return 1;
+  }
+  let removed = 0;
+  for (const name of [".env.worktree", SLOT_FILE]) {
+    const f = join(root, name);
+    if (!existsSync(f)) continue;
+    rmSync(f);
+    console.log(`removed ${name}`);
+    removed++;
+  }
+  if (removed === 0) console.log("nothing to remove — this worktree has no derived files");
+  else console.log("`./dev env setup` derives them back; the values come from the slot, not the file.");
+  return 0;
+}
+
 /** Non-zero is not failure here: `./dev up` calls it for a warning and carries on regardless. */
 function branchCheck(root: string): number {
   const f = join(root, ".env.worktree");
@@ -442,8 +488,9 @@ if (import.meta.main) {
     if (cmd === "setup") setup(root);
     else if (cmd === "show") show(root);
     else if (cmd === "branch-check") process.exit(branchCheck(root));
+    else if (cmd === "clean") process.exit(clean(root));
     else {
-      console.error(`dev-env: unknown command "${cmd}" — setup | show | branch-check`);
+      console.error(`dev-env: unknown command "${cmd}" — setup | show | branch-check | clean`);
       process.exit(2);
     }
   } catch (e) {

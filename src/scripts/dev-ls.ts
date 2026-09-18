@@ -1,17 +1,20 @@
 // Every worktree of this repo on this machine, and what each one is running.
 //
-//   bun src/scripts/dev-ls.ts            the table          (or: ./dev ls)
-//   bun src/scripts/dev-ls.ts --plain    the same, never coloured, for a pipe
+//   bun src/scripts/dev-ls.ts            interactive on a terminal (or: ./dev ls)
+//   bun src/scripts/dev-ls.ts --plain    the table, printed once, for a pipe
 //
 // ONE QUESTION THIS ANSWERS AND `./dev status` CANNOT: which OTHER checkout is holding the port
 // you wanted. A backend left running in a worktree you have since moved on from is invisible from
 // inside the one you are in — the symptom is `./dev up` refusing a port, with nothing saying who
 // has it.
 //
-// Ported from the private monorepo that carries this repository as a submodule. The interactive
-// half of the original — moving between worktrees, stopping and retiring one from inside the table
-// — is NOT here: it was built around simulators and build slots this repo has none of, and what is
-// left of it is `./dev down` in the worktree itself. This is a reader, and it changes nothing.
+// Ported from the private monorepo that carries this repository as a submodule, minus the
+// simulator and build-slot columns this repo has none of.
+//
+// EVERY ACTION IS THE TARGET WORKTREE'S OWN COMMAND — `<path>/dev down`, its `db.sh drop`, its
+// `dev-env.ts clean` — never a reimplementation of what those do. That is what makes them safe to
+// offer as one keystroke: `clean` refuses while a stack is running and `down` knows how to walk a
+// process tree, so this view does not have to know either rule and cannot get it wrong.
 
 import { join } from "node:path";
 import { existsSync, readFileSync } from "node:fs";
@@ -179,6 +182,253 @@ function pad(s: string, n: number): string {
   return s + " ".repeat(Math.max(0, n - width(s)));
 }
 
+const REVERSE = sgr("\x1b[7m");
+const ALT_ON = "\x1b[?1049h\x1b[?25l";
+const ALT_OFF = "\x1b[?25h\x1b[?1049l";
+
+interface Cursor { at: number; selected: Set<string> }
+
+function renderTable(rows: Row[], cursor?: Cursor, pathWidth = Infinity): string[] {
+  const header = [" ", "slot", "branch", "backend", "web", "worktree"];
+  const body = rows.map((r) => [
+    cursor && cursor.selected.has(r.path) ? `${BOLD}•${OFF}` : r.here ? `${BOLD}▸${OFF}` : " ",
+    r.slot === null ? `${DIM}—${OFF}` : String(r.slot),
+    r.branch,
+    cell(r.ports.backend, r.state.backend),
+    cell(r.ports.web, r.state.web),
+    r.path.length > pathWidth ? `…${r.path.slice(-(pathWidth - 1))}` : r.path,
+  ]);
+  const widths = header.map((h, i) => Math.max(width(h), ...body.map((row) => width(row[i]!))));
+  const line = (cells: string[]) => cells.map((c, i) => pad(c, widths[i]!)).join("  ");
+  const out = [header.map((h, i) => `${DIM}${pad(h, widths[i]!)}${OFF}`).join("  ")];
+  body.forEach((row, i) => {
+    const text = line(row);
+    // Reverse video on the whole row rather than a marker in one column: at a glance the cursor is
+    // where the eye already is.
+    out.push(cursor && cursor.at === i ? `${REVERSE}${text}${OFF}` : text);
+  });
+  return out;
+}
+
+function notes(rows: Row[]): string[] {
+  const out: string[] = [];
+  const foreign = rows.flatMap((r) => SERVICES.filter((s) => r.state[s] === "foreign").map((s) => ({ r, s })));
+  for (const { r, s } of foreign) {
+    out.push(`${YELLOW}?${OFF} ${r.ports[s]} (${s}, slot ${r.slot}) is listening, but no pidfile in ${r.path} names it.`);
+  }
+  if (foreign.length > 0) {
+    out.push(`${DIM}  Either a stack started before its pidfile was lost, or another program. \`lsof -nP -iTCP:<port> -sTCP:LISTEN\` names it.${OFF}`);
+  }
+  const underived = rows.filter((r) => r.slot === null).length;
+  if (underived > 0) out.push(`${DIM}${underived} worktree(s) have never been derived — \`./dev env setup\` in one gives it a slot.${OFF}`);
+  return out;
+}
+
+// ── Acting on a row ──────────────────────────────────────────────────────────────────────────
+
+interface Step { label: string; cmd: string[]; cwd: string }
+
+const exists = (p: string) => existsSync(p);
+/** The directory stands but its `.git` is gone — git refuses to remove such an entry by name. */
+const isHusk = (r: Row) => exists(r.path) && !exists(join(r.path, ".git"));
+
+/** Uncommitted files, or null when git could not be asked. An unanswerable guard is a refusal. */
+function dirtyCount(path: string): number | null {
+  const r = Bun.spawnSync({ cmd: ["git", "status", "--porcelain"], cwd: path, stdout: "pipe", stderr: "pipe" });
+  if (!r.success) return null;
+  return r.stdout.toString().split("\n").filter((l) => l.trim() !== "").length;
+}
+
+function stopPlan(r: Row): Step[] {
+  return exists(join(r.path, ".dev")) ? [{ label: "stop the stack", cmd: [join(r.path, "dev"), "down"], cwd: r.path }] : [];
+}
+
+function cleanPlan(r: Row): Step[] {
+  const has = exists(join(r.path, ".env.worktree")) || exists(join(r.path, SLOT_FILE));
+  return has ? [{ label: "remove its env files", cmd: ["bun", "src/scripts/dev-env.ts", "clean"], cwd: r.path }] : [];
+}
+
+/**
+ * `x`: stop, drop the database, give the env files back, remove the worktree.
+ *
+ * THE THREE ACTIONS NEST BY CALLING EACH OTHER, not by resembling each other, so a fix to what
+ * stopping or cleaning means reaches retire the same day and cannot reach only two of the three.
+ *
+ * THE DROP IS LEFT OUT ENTIRELY when the worktree was never derived. `db.sh` falls back to `eait`
+ * without a `.env.worktree` to read — correct for slot 0, which IS that database, and catastrophic
+ * here: retiring an underived worktree would drop the MAIN worktree's data.
+ */
+function retirePlan(r: Row, here: string): Step[] {
+  if (!exists(r.path)) {
+    return [{ label: "clear the stale worktree entry", cmd: ["git", "worktree", "remove", "--force", r.path], cwd: here }];
+  }
+  return [
+    ...stopPlan(r),
+    // BEFORE `clean`, which removes the `.env.worktree` that names the database.
+    ...(r.slot === null || !exists(join(r.path, ".env.worktree"))
+      ? []
+      : [{ label: `drop the database`, cmd: ["sh", "src/scripts/db.sh", "drop", "--yes"], cwd: r.path }]),
+    ...cleanPlan(r),
+    { label: "remove the worktree", cmd: ["git", "worktree", "remove", r.path], cwd: here },
+  ];
+}
+
+/** Why this row may not be retired, or null when it may. */
+function retireBlocker(r: Row, mainPath: string, cwd: string): string | null {
+  if (r.path === mainPath) return "it is the main worktree";
+  if (r.path === cwd || cwd.startsWith(r.path + "/")) return "you are standing in it";
+  if (isHusk(r)) return "its .git file is gone — delete the directory by hand, then x clears the entry";
+  if (!exists(r.path)) return null;
+  const dirty = dirtyCount(r.path);
+  // "git did not say" and "nothing to lose" must not resolve the same way: the next step drops a
+  // database and removes a directory.
+  if (dirty === null) return "its git status could not be read";
+  if (dirty > 0) return `it has ${dirty} uncommitted change${dirty === 1 ? "" : "s"}`;
+  return null;
+}
+
+function planLines(path: string, steps: Step[]): string[] {
+  const w = Math.max(0, ...steps.map((s) => s.label.length));
+  return [
+    `${DIM}<worktree> = ${path}${OFF}`,
+    ...steps.map((s) => `  ${s.label.padEnd(w)}  ${DIM}${s.cmd.join(" ").replaceAll(path, "<worktree>")}${OFF}`),
+  ];
+}
+
+// ── Interactive ──────────────────────────────────────────────────────────────────────────────
+
+async function interactive(initial: Row[], mainPath: string): Promise<void> {
+  const cwd = process.cwd();
+  let rows = initial;
+  let at = 0;
+  let selected = new Set<string>();
+  let log: string[] = [];
+
+  const stdin = process.stdin;
+  const raw = (on: boolean) => { if (stdin.isRaw !== on) stdin.setRawMode?.(on); };
+  // ONE READER FOR THE WHOLE PROGRAM. `for await (… of stdin) { … break }` looks like the way to
+  // wait for a single key and it destroys the stream — leaving a `for await` early calls the
+  // iterator's `return()`, which closes stdin for everyone, and the next key then aborts.
+  const keys = stdin[Symbol.asyncIterator]();
+  const nextKey = async (): Promise<string> => {
+    raw(true);
+    const { value, done } = await keys.next();
+    return done ? "q" : String(value);
+  };
+
+  const draw = () => {
+    const width = process.stdout.columns ?? 120;
+    const out = [
+      `${BOLD}dev worktrees${OFF}`,
+      "",
+      ...renderTable(rows, { at, selected }, Math.max(24, width - 46)),
+      "",
+      ...notes(rows),
+      "",
+      `${DIM}↑↓/jk move · space select · s stop · c clean · x retire · r refresh · q quit${OFF}`,
+      ...log.slice(-8),
+    ];
+    process.stdout.write("\x1b[H\x1b[2J" + out.join("\n") + "\n");
+  };
+
+  const targets = (): Row[] => {
+    const picked = rows.filter((r) => selected.has(r.path));
+    const here = rows[at];
+    return picked.length > 0 ? picked : here ? [here] : [];
+  };
+
+  const ask = async (question: string, detail: string[]): Promise<boolean> => {
+    log = [];
+    process.stdout.write("\x1b[H\x1b[2J" + [
+      `${BOLD}${question}${OFF}`,
+      "",
+      ...detail,
+      "",
+      `${DIM}y to confirm, anything else to cancel${OFF}`,
+    ].join("\n") + "\n");
+    const k = await nextKey();
+    return k === "y" || k === "Y";
+  };
+
+  const runPlan = async (name: string, steps: Step[]): Promise<void> => {
+    for (const step of steps) {
+      const r = Bun.spawnSync({ cmd: step.cmd, cwd: step.cwd, stdout: "pipe", stderr: "pipe" });
+      if (r.success) {
+        log.push(`${GREEN}✓${OFF} ${name}: ${step.label}`);
+      } else {
+        // STOPS AT ITS OWN FIRST FAILURE. The recoverable half of a sequence that ends in something
+        // irreversible must not run when an earlier step did not do what it said.
+        const why = (r.stderr.toString() || r.stdout.toString()).trim().split("\n").pop() ?? "failed";
+        log.push(`${RED}✗${OFF} ${name}: ${step.label} — ${why}`);
+        return;
+      }
+    }
+  };
+
+  const act = async (kind: "stop" | "clean" | "retire"): Promise<void> => {
+    const chosen = targets();
+    if (chosen.length === 0) return;
+    const plans: Array<[Row, Step[]]> = [];
+    const refused: string[] = [];
+    for (const r of chosen) {
+      if (kind === "retire") {
+        const why = retireBlocker(r, mainPath, cwd);
+        if (why) { refused.push(`${YELLOW}·${OFF} ${r.branch}: ${why}`); continue; }
+      }
+      const steps = kind === "stop" ? stopPlan(r) : kind === "clean" ? cleanPlan(r) : retirePlan(r, mainPath);
+      if (steps.length > 0) plans.push([r, steps]);
+    }
+    if (plans.length === 0) { log = refused.length > 0 ? refused : [`${DIM}nothing to do${OFF}`]; return; }
+    const verb = kind === "retire" ? "Retire" : kind === "stop" ? "Stop" : "Clean";
+    const detail = [...refused, ...(refused.length > 0 ? [""] : []), ...plans.flatMap(([r, st]) => planLines(r.path, st))];
+    const tail = kind === "retire" ? " This cannot be undone." : "";
+    if (!await ask(`${verb} ${plans.map(([r]) => r.branch).join(", ")}?${tail}`, detail)) { log = [`${DIM}cancelled${OFF}`]; return; }
+    log = refused;
+    // Per worktree, so one that fails halfway does not cancel the others.
+    for (const [r, steps] of plans) await runPlan(r.branch, steps);
+  };
+
+  process.stdout.write(ALT_ON);
+  const restore = () => process.stdout.write(ALT_OFF);
+  process.on("exit", restore);
+  draw();
+
+  for (;;) {
+    const key = await nextKey();
+    if (key === "q" || key === "\x03") break;
+    // Both arrow encodings: `ESC [ B` from a terminal in normal cursor mode and `ESC O B` from one
+    // in application mode, which a previous full-screen program can leave switched on.
+    if (key === "\x1b[A" || key === "\x1bOA" || key === "k") at = (at - 1 + rows.length) % rows.length;
+    else if (key === "\x1b[B" || key === "\x1bOB" || key === "j") at = (at + 1) % rows.length;
+    else if (key === " ") {
+      const path = rows[at]?.path;
+      if (path) { if (selected.has(path)) selected.delete(path); else selected.add(path); }
+    } else if (key === "r") {
+      rows = build(parseWorktrees(sh(["git", "worktree", "list", "--porcelain"])));
+      // Clamped: a worktree retired from another terminal shrinks the table, and an unclamped
+      // cursor indexes past its end — `targets()` then returns nothing and s/x silently do nothing.
+      at = Math.min(at, Math.max(0, rows.length - 1));
+    } else if (key === "s" || key === "c" || key === "x") {
+      await act(key === "s" ? "stop" : key === "c" ? "clean" : "retire");
+      // The world moved: re-read it. The selection is keyed by PATH rather than by row index, so
+      // what survives is what still exists rather than whatever now sits at that position.
+      rows = build(parseWorktrees(sh(["git", "worktree", "list", "--porcelain"])));
+      selected = new Set([...selected].filter((p) => rows.some((r) => r.path === p)));
+      at = Math.min(at, Math.max(0, rows.length - 1));
+    }
+    draw();
+  }
+  // QUITTING HAS TO LET GO OF STDIN, or the process does not exit — it hangs, with the terminal
+  // restored and nothing on screen to say why. A raw-mode async iterator holds a REFERENCED handle,
+  // so the event loop stays alive with no work left to do.
+  raw(false);
+  await keys.return?.();
+  stdin.pause();
+  restore();
+}
+
+// ── Entry ────────────────────────────────────────────────────────────────────────────────────
+
 const entries = parseWorktrees(sh(["git", "worktree", "list", "--porcelain"]));
 if (entries.length === 0) {
   console.error("dev-ls: not inside a git repository with worktrees");
@@ -186,31 +436,10 @@ if (entries.length === 0) {
 }
 const rows = build(entries);
 
-const header = ["", "slot", "branch", "backend", "web", "worktree"];
-const table = rows.map((r) => [
-  r.here ? `${BOLD}▸${OFF}` : " ",
-  r.slot === null ? `${DIM}—${OFF}` : String(r.slot),
-  r.branch,
-  cell(r.ports.backend, r.state.backend),
-  cell(r.ports.web, r.state.web),
-  r.path,
-]);
-
-const widths = header.map((h, i) => Math.max(width(h), ...table.map((row) => width(row[i]!))));
-console.log(header.map((h, i) => `${DIM}${pad(h, widths[i]!)}${OFF}`).join("  "));
-for (const row of table) console.log(row.map((c, i) => pad(c, widths[i]!)).join("  "));
-
-const foreign = rows.flatMap((r) => SERVICES.filter((s) => r.state[s] === "foreign").map((s) => ({ r, s })));
-if (foreign.length > 0) {
-  console.log("");
-  for (const { r, s } of foreign) {
-    console.log(`${YELLOW}?${OFF} ${r.ports[s]} (${s}, slot ${r.slot}) is listening, but no pidfile in ${r.path} names it.`);
-  }
-  console.log(`${DIM}  Either a stack started before its pidfile was lost, or another program. \`lsof -nP -iTCP:<port> -sTCP:LISTEN\` names it.${OFF}`);
-}
-
-const undrived = rows.filter((r) => r.slot === null);
-if (undrived.length > 0) {
-  console.log("");
-  console.log(`${DIM}${undrived.length} worktree(s) have never been derived — \`./dev env\` in one gives it a slot.${OFF}`);
+if (PLAIN) {
+  for (const line of renderTable(rows)) console.log(line);
+  const n = notes(rows);
+  if (n.length > 0) { console.log(""); for (const line of n) console.log(line); }
+} else {
+  await interactive(rows, entries[0]!.path);
 }
