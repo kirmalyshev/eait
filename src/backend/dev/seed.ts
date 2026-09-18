@@ -273,10 +273,16 @@ function jitter(seed: string): number {
  * The shipped system prompts, as revision 1, on a database that has none.
  *
  * A clone of this repo answers perfectly well without this — `llm/prompt.ts` is the fallback, and
- * an empty table means "send the compiled-in prompts". What an empty table also means is an admin
- * screen listing six prompts marked compiled-in, which is a screen that tells a new operator the
- * feature exists and gives them nothing to work from. Seeding the real text is the difference
+ * an empty table means "send the compiled-in prompts". What an empty table also means is that
+ * `GET /admin/api/prompts` lists six prompts marked compiled-in, which tells a new operator the
+ * feature exists and gives them nothing to edit against. Seeding the real text is the difference
  * between reading the prompts and editing them.
+ *
+ * AND IT FREEZES THEM, which is the cost and is worth knowing before running it. A seeded row is a
+ * COPY of the prose, not a subscription to it: after this, editing a constant in `llm/prompt.ts`
+ * changes nothing this database sends, because the row wins. That is the intended behaviour of an
+ * override and a trap in development — re-seed after editing a prompt, or delete its rows. It is
+ * why this is called from the dev seeder and from nothing that runs in production.
  *
  * VERBATIM, AND ONLY WHEN ABSENT. Verbatim, because a seeded paraphrase would make a fresh install
  * a different product from the one the tests cover. Only when absent, for the two reasons this file

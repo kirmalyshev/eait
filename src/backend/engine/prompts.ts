@@ -33,9 +33,10 @@ export type PromptSave =
 /**
  * Every prompt this server sends, with whatever the store has laid over it.
  *
- * Reads the store ONCE and answers for all six, so the screen cannot show a half-refreshed set. A
- * store that throws is the compiled-in list with `version: 0`, because an admin screen that will
- * not open during a database incident is a screen that is missing exactly when it is wanted.
+ * Reads the store ONCE and answers for all six, so a caller cannot be handed a half-refreshed set.
+ * A store that throws is the compiled-in list with `version: 0`, because a listing that will not
+ * answer during a database incident is a listing that is missing exactly when it is wanted — and
+ * `version: 0` is not a lie there: the transport is falling back to those same constants.
  */
 export async function livePrompts(deps: EngineDeps): Promise<PromptView[]> {
   const stored = await deps.store.getPrompts().catch((e: unknown) => {

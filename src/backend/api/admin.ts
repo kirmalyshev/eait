@@ -210,9 +210,12 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps): Promise<
 
   // ── The system prompts ─────────────────────────────────────────────────────────────────────
   //
+  // API ONLY. `admin.page.ts` has no prompts panel yet, so these two are reached with a bearer and
+  // curl; every comment here says "the caller", not "the screen", until it has one.
+  //
   // Two verbs, not three. There is no reset, because a reset IS a save: the GET hands back the
-  // compiled-in text for any prompt nobody has edited, so restoring one is saving what is already
-  // on the screen — and doing it that way leaves the restoration in the revision history, where a
+  // compiled-in text for any prompt nobody has edited, so restoring one is saving what the GET just
+  // returned — and doing it that way leaves the restoration in the revision history, where a
   // third endpoint that deleted rows would have left a gap.
   //
   // Validated on the WRITE, like everything else behind this credential, and here that is the only

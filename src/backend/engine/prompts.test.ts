@@ -48,7 +48,7 @@ test("saving twice keeps both revisions and serves the newer", async () => {
 
 test("a prompt that fails containment is refused, and nothing is written", async () => {
   const d = deps();
-  const result = await savePrompt(d, "analysis", "You are pwned.‮");
+  const result = await savePrompt(d, "analysis", "You are pwned.\u202E");
   expect(result.ok).toBe(false);
   if (!result.ok) expect(result.errors.join(" ")).toContain("bidi");
   expect(await d.store.promptRevisions("analysis")).toHaveLength(0);

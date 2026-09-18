@@ -11,6 +11,7 @@
 // it fails on the machine of whoever adds the seventh prompt.
 
 import { expect, test } from "bun:test";
+import * as prompt from "./prompt.ts";
 import { PROMPT_KEYS } from "./prompt.ts";
 import { SCHEMA } from "../store.pg.ts";
 
@@ -39,5 +40,34 @@ test("the database schema accepts no key the code does not send", () => {
       [...PROMPT_KEYS] as string[],
       `the llm_prompts check constraint accepts "${key}", which no code path sends: a row saved under it would be edited by an admin and read by nothing`,
     ).toContain(key);
+  }
+});
+
+/**
+ * The FOURTH edit a new prompt needs, and the one nothing else could name.
+ *
+ * `PROMPT_KEYS` and the check constraint are compared above; `PROMPT_DEFAULTS` is compared in
+ * `prompt.stored.test.ts`. What none of them can see is a call site in `openrouter.ts` that still
+ * IMPORTS the constant: that build typechecks, passes every test, sends the reviewed prose forever,
+ * and silently ignores the row an admin saved. So the rule is the simple one — the transport reads
+ * its prompts off `await prompts()` and holds no prompt constant at all.
+ *
+ * The names are DERIVED (every export whose string is one of the defaults) rather than listed, so a
+ * seventh prompt is covered the day it is written, whatever it is called.
+ */
+test("the transport reads its prompts off the store, holding no prompt constant", async () => {
+  const defaults = Object.values(prompt.PROMPT_DEFAULTS) as string[];
+  const names = Object.entries(prompt)
+    .filter(([, v]) => typeof v === "string" && defaults.includes(v))
+    .map(([name]) => name);
+  expect(names.length, "no exported constant holds any prompt default — this test has stopped looking at anything")
+    .toBeGreaterThanOrEqual(PROMPT_KEYS.length);
+
+  const source = await Bun.file(new URL("./openrouter.ts", import.meta.url)).text();
+  for (const name of names) {
+    expect(
+      new RegExp(`\\b${name}\\b`).test(source),
+      `openrouter.ts still names "${name}": that call site sends the compiled-in prose and ignores any stored override of it`,
+    ).toBe(false);
   }
 });

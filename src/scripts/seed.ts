@@ -55,7 +55,9 @@ if (unknown.length > 0) {
 const store = await postgresStore(databaseUrl);
 try {
   // The prompts go in first, and are reported first, because they are the only thing here that is
-  // not development data: they are the SHIPPED text, written so /admin opens on something editable.
+  // not development data: they are the SHIPPED text, written so `GET /admin/api/prompts` answers
+  // with something editable rather than six rows marked compiled-in. Note what it also does: the
+  // rows now WIN over the constants, so a later edit to `llm/prompt.ts` needs a re-seed to land.
   const prompts = await seedPrompts(store);
   const seeded = await seedDevData(store, { timezone, only });
 

@@ -78,7 +78,13 @@ function contract(name: string, make: () => Promise<Store>) {
     // Isolation comes from every test minting its own users and device ids instead.
     let store: Store | null = null;
     const open = async () => (store ??= await make());
-    afterAll(async () => { await store?.close(); });
+    afterAll(async () => {
+      // The shipped prompts go back HERE, not at the end of each prompt test: an assertion that
+      // throws skips everything after it, and `stored coach <run>` left behind IS what a server
+      // pointed at this database would then be sending. `finally`, so a restore that fails still
+      // closes the pool.
+      try { if (store) await restorePrompts(store); } finally { await store?.close(); }
+    });
 
     it("creates a device user once and finds it again", async () => {
       const s = await open();
@@ -1933,7 +1939,8 @@ function contract(name: string, make: () => Promise<Store>) {
      * it gets a model answering from a test fixture with nothing on screen to say so.
      *
      * Appended rather than deleted, because the table is append-only and this is exactly the event
-     * it records: the text changed, and then it changed back.
+     * it records: the text changed, and then it changed back. Called from the suite's `afterAll`,
+     * which a failing assertion cannot skip.
      */
     const restorePrompts = async (s: Store) => {
       for (const key of PROMPT_KEYS) await s.putPrompt(key, PROMPT_DEFAULTS[key]);
@@ -1954,7 +1961,6 @@ function contract(name: string, make: () => Promise<Store>) {
         expect(live, `prompt key "${key}" did not survive a round trip through the store`).toBeDefined();
         expect(live!.text).toBe(text);
       }
-      await restorePrompts(s);
     });
 
     it("keeps every revision, and serves the newest as live", async () => {
@@ -1975,7 +1981,6 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(history.map((r) => r.text)).toContain(`first ${RUN}`);
       // Newest first, and each revision carries when it went live.
       expect(history[0]!.updated_at >= history[1]!.updated_at).toBe(true);
-      await restorePrompts(s);
     });
 
     it("gives one prompt per key, and a write to one leaves the others alone", async () => {
@@ -1986,7 +1991,6 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(live.filter((p) => p.key === "coach")).toHaveLength(1);
       expect(live.find((p) => p.key === "coach")!.text).toBe(`coach ${RUN}`);
       expect(live.find((p) => p.key === "analysis")!.text).toBe(`analysis ${RUN}`);
-      await restorePrompts(s);
     });
 
     it("stores notification copy in its own row, not the onboarding one", async () => {

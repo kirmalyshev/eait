@@ -696,12 +696,16 @@ const isPromptKey = (v: unknown): v is PromptKey =>
  *
  * ZWJ and ZWNJ survive, as they do there: load-bearing in real words and in emoji sequences.
  *
+ * WRITTEN AS ESCAPES, for the reason `normalizePromptText` gives above: a literal invisible
+ * character in source is unreviewable, and this is a security boundary. It shipped once with the
+ * characters themselves in it — a NUL among them, which made `grep -r` call this file binary.
+ *
  * REFUSED, NOT REPAIRED. A prompt is prose somebody wrote on purpose, and silently deleting a
  * character from it changes what a model was asked without telling anyone. The one exception is
  * `\r\n`, which is a line ending rather than a character: it is canonicalised, because refusing a
  * paste from a Windows editor teaches nothing.
  */
-const FORBIDDEN = /[ -	--​‎‏‪-‮⁦-⁩﻿]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+const FORBIDDEN = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F\u200B\u200E\u200F\u202A-\u202E\u2066-\u2069\uFEFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
 
 export function validateStoredPrompt(key: unknown, text: unknown): PromptValidation {
   const errors: string[] = [];
