@@ -536,7 +536,10 @@ async function interactive(initial: Row[], mainPath: string): Promise<void> {
   process.stdout.write(ALT_ON);
   const restore = () => process.stdout.write(ALT_OFF);
   process.on("exit", restore);
-  log.push(`${DIM}space selects rows · s stops their stacks · c gives back their env files · x retires them (stop, drop the database, remove the worktree)${RESET}`);
+  // The keys bold, their descriptions short: this line is read once, and what has to survive that
+  // reading is which key does what — not a sentence about each.
+  const hint = (k: string, what: string) => `${BOLD}${k}${RESET} ${DIM}${what}${RESET}`;
+  log.push([hint("space", "selects"), hint("s", "stops"), hint("c", "gives env files back"), hint("x", "retires")].join(`${DIM}  ·  ${RESET}`));
   draw();
 
   for (;;) {
