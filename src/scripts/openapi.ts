@@ -8,10 +8,10 @@
 //   bun run openapi --check    # exit 1 if the committed file is stale
 
 import { createGenerator, type Schema } from "ts-json-schema-generator";
-import { API, REFUSAL_RESPONSES, type Endpoint } from "../src/shared/openapi.ts";
-import { API_VERSION, NDJSON } from "../src/shared/contract.ts";
+import { API, REFUSAL_RESPONSES, type Endpoint } from "../shared/openapi.ts";
+import { API_VERSION, NDJSON } from "../shared/contract.ts";
 
-const ROOT = new URL("..", import.meta.url).pathname;
+const ROOT = new URL("../..", import.meta.url).pathname;
 const OUT = `${ROOT}openapi.json`;
 
 const gen = createGenerator({

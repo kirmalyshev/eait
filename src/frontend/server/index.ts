@@ -30,7 +30,7 @@ export const SHELL_PATH = "/";
 export const BUNDLE_PATH = "/app.js";
 export const HEALTH_PATH = "/health";
 
-/** Slot 0's port. Every other slot derives its own — `scripts/dev-env.ts` owns that arithmetic. */
+/** Slot 0's port. Every other slot derives its own — `src/scripts/dev-env.ts` owns that arithmetic. */
 export const DEFAULT_PORT = 8788;
 
 const notFound = () => new Response(JSON.stringify({ error: "not found" }), {

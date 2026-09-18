@@ -36,6 +36,29 @@ would falsify it; the reasoning that reached it belongs in the PR.
   `EAIT__BACKEND__MAX_UPLOAD_MB` and `EAIT__BACKEND__MAX_PHOTOS_PER_MEAL` travel in
   `ProfileResponse.limits`. Two numbers that must agree are two numbers that eventually will not.
 
+## The dev stack
+
+`./dev` runs this repo's two services detached, one pidfile each, on ports derived from a SLOT — so
+several worktrees coexist instead of fighting over 8787. `src/scripts/dev-env.ts` is the only thing that
+computes a port, a database name or a URL; `src/scripts/dev.sh` starts and stops and computes none of
+them. Ported from the private monorepo with its iOS, Metro and landing halves removed.
+
+- **A service is started from the repo ROOT by entry path**, never `bun run --cwd`. bun loads `.env`
+  from its working directory, so `--cwd src/backend` reads `src/backend/.env`, finds nothing, and
+  the server comes up on defaults against no database — which looks exactly like a configuration
+  that was read and ignored.
+- **A pidfile is never trusted on its own.** The pid must be alive, running THIS service, and
+  running it out of THIS worktree (`lsof -d cwd`). Two worktrees run identical commands, so the
+  working directory is the only thing that tells them apart — without it a recycled pid makes
+  `./dev down` here kill a live stack next door.
+- **`down` walks `ppid`, it does not signal a process group.** A nohup'd command is not reliably a
+  group leader, so a group kill signals nothing and leaves the server holding the port.
+- **No key in `.env.worktree` is optional.** That file is sourced; a missing key falls back to the
+  reader's default and every reader here defaults to SLOT 0, so a dropped key silently points a
+  worktree at another one's database. `envIsSafe` refuses at generation time instead.
+- **Re-deriving is lossless.** `./dev env setup` rewrites only `DERIVED_KEYS` in `.env` and carries
+  everything else across, so it can never eat an API key.
+
 ## Hard conventions (do not break)
 
 - **`shared` may not import from `backend`.** It is the contract both sides implement, and a

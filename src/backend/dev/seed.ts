@@ -1,6 +1,6 @@
 // The accounts a freshly-created development database opens with.
 //
-// WHY THIS EXISTS. Every worktree gets its own database (see `scripts/dev-env.ts`), and a database
+// WHY THIS EXISTS. Every worktree gets its own database (see `src/scripts/dev-env.ts`), and a database
 // with no rows in it is a database you cannot look at: the diary is empty, the week view has
 // nothing to draw, and every screen that renders a meal renders the empty state instead. So each
 // database is seeded, and the app is TOLD which account to be — `EXPO_PUBLIC_EAIT__FRONTEND__DEV_DEVICE_ID` on the
