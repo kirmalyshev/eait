@@ -6,7 +6,7 @@
 
 import { dateMinus, localDate, signsIn } from "@eait/shared";
 import type {
-  DayTotals, HealthDay, Lang, MealRecord, NotificationCopy, OnboardingContent, OnboardingEvent,
+  DayTotals, HealthDay, Lang, MealRecord, NotificationCopySet, OnboardingContentSet, OnboardingEvent,
   Profile, Provider,
 } from "@eait/shared";
 import {
@@ -125,7 +125,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const chat: ChatMessage[] = [];
   let chatSeq = 0;
   const firstVerdictSpoken = new Set<string>();
-  let notificationCopy: NotificationCopy | null = null;
+  let notificationCopy: NotificationCopySet | null = null;
   // Keyed by the TOKEN, exactly as Postgres is: a token is an installation, so registering it under
   // a second account moves it rather than adding a row.
   const pushTokens = new Map<string, { userId: string; platform: PushPlatform }>();
@@ -151,7 +151,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     source: string;
     createdAt: number;
   }>();
-  let onboardingContent: OnboardingContent | null = null;
+  let onboardingContent: OnboardingContentSet | null = null;
 
   /** 256 bits of hex. Used for both subscriber capabilities: confirmation and withdrawal. */
   const randomHex = (): string =>

@@ -124,6 +124,12 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     and so are Spud's replies and the support cards, which carry citations. Saving bumps the content
     version, which is what the funnel below is grouped by.
   </p>
+  <p class="sub">
+    One language at a time. Every language is the same editorial revision, so the version number
+    and the funnel below cover all of them; what a save replaces is the language in the picker and
+    nothing beside it. A language nobody has saved serves the copy the app ships with, in that
+    language — never English, because half an onboarding in English is worse than none of it.
+  </p>
 
   <h2>The numbers <span class="pill" id="metrics-window"></span></h2>
   <p class="muted" id="metrics-summary">Loading…</p>
@@ -279,6 +285,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
 <div class="bar hidden" id="bar">
   <span class="status" id="status"></span>
+  <select id="lang" aria-label="Language"></select>
   <button id="reload">Reload</button>
   <button id="reset">Restore defaults</button>
   <button class="primary" id="save">Save</button>
@@ -298,6 +305,11 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   // (No backticks anywhere inside this page: the whole document is one template literal, and a
   // backtick ends it. The failure is a TypeScript parse error a hundred lines away.)
   var token = "";
+  // The language every copy call is about. It rides the query string rather than the body so that
+  // GET, PUT and reset all say it the same way, and so a bookmark opens the page it was left on.
+  var lang = "en";
+  var langs = [];
+  var labels = {};
   var content = null;
   var meta = null;
   var notify = null;
@@ -320,6 +332,9 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       });
     });
   }
+
+  /** A copy path with the language on it. Every read and write of copy goes through this. */
+  function atLang(path) { return path + (path.indexOf("?") === -1 ? "?" : "&") + "lang=" + encodeURIComponent(lang); }
 
   function status(msg) { $("status").textContent = msg; }
 
@@ -654,7 +669,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   }
 
   function loadNotify() {
-    return api("GET", "/admin/api/notifications").then(function (res) {
+    return api("GET", atLang("/admin/api/notifications")).then(function (res) {
       notify = res.copy;
       notifyMeta = res.meta;
       renderNotify();
@@ -956,14 +971,44 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   // ── Wiring ─────────────────────────────────────────────────────────────────────────────────
 
   function load() {
-    return api("GET", "/admin/api/content").then(function (res) {
+    return api("GET", atLang("/admin/api/content")).then(function (res) {
       content = res.content;
       meta = res.meta;
+      // The server decides which language it served — an unknown code is answered with English
+      // rather than an error, and the picker has to show what actually came back.
+      lang = res.lang;
+      langs = res.langs;
+      labels = res.labels;
+      renderLangs();
       render();
       return loadNotify().then(loadMetrics).then(loadFunnel)
         .then(function () { return loadUsers(false); });
     });
   }
+
+  function renderLangs() {
+    var select = $("lang");
+    if (select.options.length !== langs.length) {
+      select.textContent = "";
+      langs.forEach(function (code) {
+        var option = document.createElement("option");
+        option.value = code;
+        // The endonym, which is the one label somebody looking for their own language can read.
+        option.textContent = labels[code] || code;
+        select.appendChild(option);
+      });
+    }
+    select.value = lang;
+  }
+
+  $("lang").addEventListener("change", function () {
+    lang = $("lang").value;
+    status("loading " + (labels[lang] || lang) + "…");
+    // A full reload rather than a swap of the content object: the notification copy is per language
+    // too, and two half-loaded editors on one page is how an admin saves German into Italian.
+    load().then(function () { status(labels[lang] || lang); })
+      .catch(function (e) { status("failed: " + e.message); });
+  });
 
   function enter() {
     // Trade the /start session cookie for a bearer. A POST, because SameSite=Lax withholds the
@@ -1002,7 +1047,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
   $("save").addEventListener("click", function () {
     status("saving…");
-    api("PUT", "/admin/api/content", { content: content }).then(function (res) {
+    api("PUT", atLang("/admin/api/content"), { content: content }).then(function (res) {
       content = res.content;
       showErrors(null);
       render();
@@ -1016,7 +1061,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
   $("reset").addEventListener("click", function () {
     if (!confirm("Restore the copy the app ships with? Your edits are replaced.")) return;
-    api("POST", "/admin/api/content/reset", {}).then(function (res) {
+    api("POST", atLang("/admin/api/content/reset"), {}).then(function (res) {
       content = res.content;
       showErrors(null);
       render();
@@ -1026,7 +1071,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
   $("notify-save").addEventListener("click", function () {
     $("notify-status").textContent = "saving…";
-    api("PUT", "/admin/api/notifications", { copy: notify }).then(function (res) {
+    api("PUT", atLang("/admin/api/notifications"), { copy: notify }).then(function (res) {
       notify = res.copy;
       notifyErrors(null);
       renderNotify();
@@ -1039,7 +1084,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
   $("notify-reset").addEventListener("click", function () {
     if (!confirm("Restore the three messages the app ships with? Your edits are replaced.")) return;
-    api("POST", "/admin/api/notifications/reset", {}).then(function (res) {
+    api("POST", atLang("/admin/api/notifications/reset"), {}).then(function (res) {
       notify = res.copy;
       notifyErrors(null);
       renderNotify();

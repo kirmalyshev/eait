@@ -642,8 +642,19 @@ export function createRouter(
       }
 
       // ── Onboarding ────────────────────────────────────────────────────────────────────────
+      //
+      // `?lang=` FIRST, THE ACCOUNT'S LANGUAGE SECOND (#358). The picker writes the account's
+      // language through `PATCH /v1/profile` and a client re-fetches this to redraw — but a client
+      // that has just switched, or one drawing onboarding before it has a profile worth reading,
+      // knows its own answer sooner than the round trip does. An unknown code is English rather
+      // than an error: this response is an ENHANCEMENT over compiled-in copy and must never be the
+      // thing that stops onboarding.
       if (req.method === "GET" && pathname === ROUTES.onboarding) {
-        return json({ content: await onboardingContent(deps) } satisfies OnboardingContentResponse);
+        const asked = url.searchParams.get("lang");
+        const lang = asked !== null
+          ? toLang(asked)
+          : (await deps.store.getProfile(userId))?.lang ?? "en";
+        return json({ content: await onboardingContent(deps, lang), lang } satisfies OnboardingContentResponse);
       }
 
       // Funnel events. Authenticated, because they are stored against the caller's account and

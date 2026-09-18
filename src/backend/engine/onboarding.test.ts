@@ -8,7 +8,7 @@ import { fakePush } from "../push/fake.ts";
 // text, is not hypothetical once the API is public.
 
 import { beforeEach, describe, expect, it } from "bun:test";
-import { ONBOARDING_PLACES, DEFAULT_ONBOARDING_CONTENT, type OnboardingContent } from "@eait/shared";
+import { ONBOARDING_CONTENT, ONBOARDING_PLACES, DEFAULT_ONBOARDING_CONTENT, type OnboardingContent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
@@ -223,5 +223,55 @@ describe("the funnel", () => {
   it("reports the content version the numbers belong to", async () => {
     const f = await onboardingFunnel(deps, 30);
     expect(f.contentVersion).toBe(DEFAULT_ONBOARDING_CONTENT.version);
+  });
+});
+
+describe("copy is stored per language, in one row", () => {
+  it("serves each language its own compiled-in copy when nothing has been saved", async () => {
+    expect((await onboardingContent(deps, "de")).welcome.lines).toEqual(ONBOARDING_CONTENT.de!.welcome.lines);
+    expect((await onboardingContent(deps, "vi")).summary.cta).toBe(ONBOARDING_CONTENT.vi!.summary.cta);
+  });
+
+  it("does not let a save in one language reach a reader of another", async () => {
+    // The whole reason the row holds a map. An admin editing German must not be able to put German
+    // in front of an Italian, and must not be able to blank the Italian somebody else wrote.
+    const german = clone(ONBOARDING_CONTENT.de!);
+    german.welcome.cta = "Auf geht's";
+    const italian = clone(ONBOARDING_CONTENT.it!);
+    italian.welcome.cta = "Andiamo";
+
+    expect((await saveOnboardingContent(deps, italian, "it")).ok).toBe(true);
+    expect((await saveOnboardingContent(deps, german, "de")).ok).toBe(true);
+
+    expect((await onboardingContent(deps, "de")).welcome.cta).toBe("Auf geht's");
+    expect((await onboardingContent(deps, "it")).welcome.cta).toBe("Andiamo");
+    // Untouched languages are the SHIPPED copy, never the other admin's.
+    expect((await onboardingContent(deps, "fr")).welcome.cta).toBe(ONBOARDING_CONTENT.fr!.welcome.cta);
+    expect((await onboardingContent(deps, "en")).welcome.cta).toBe(DEFAULT_ONBOARDING_CONTENT.welcome.cta);
+    expect(Object.keys((await store.getOnboardingContent())!).sort()).toEqual(["de", "it"]);
+  });
+
+  it("reads a row written before the language dimension as English", async () => {
+    // Every host that pressed Save before #358 has one, and it was English because English was all
+    // there was. Adopting it for every language would serve an admin's English to a German.
+    const legacy = clone(DEFAULT_ONBOARDING_CONTENT);
+    legacy.welcome.cta = "Onwards";
+    await store.putOnboardingContent(legacy as never);
+
+    expect((await onboardingContent(deps, "en")).welcome.cta).toBe("Onwards");
+    expect((await onboardingContent(deps, "de")).welcome.cta).toBe(ONBOARDING_CONTENT.de!.welcome.cta);
+  });
+
+  it("resets one language and leaves the rest alone", async () => {
+    const german = clone(ONBOARDING_CONTENT.de!);
+    german.welcome.cta = "Auf geht's";
+    await saveOnboardingContent(deps, german, "de");
+    const english = clone(DEFAULT_ONBOARDING_CONTENT);
+    english.welcome.cta = "Onwards";
+    await saveOnboardingContent(deps, english, "en");
+
+    await resetOnboardingContent(deps, "de");
+    expect((await onboardingContent(deps, "de")).welcome.cta).toBe(ONBOARDING_CONTENT.de!.welcome.cta);
+    expect((await onboardingContent(deps, "en")).welcome.cta).toBe("Onwards");
   });
 });

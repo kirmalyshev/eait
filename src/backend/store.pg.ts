@@ -13,8 +13,8 @@
 
 import { SQL } from "bun";
 import type {
-  DayTotals, HealthDay, Lang, MealItem, MealQuestion, MealRecord, MealVerdicts, NotificationCopy,
-  OnboardingContent, Profile, Provider,
+  DayTotals, HealthDay, Lang, MealItem, MealQuestion, MealRecord, MealVerdicts, NotificationCopySet,
+  OnboardingContentSet, Profile, Provider,
 } from "@eait/shared";
 import { HEALTH_FIELDS, PROVIDERS, dateMinus, emptyHealthDay, signsIn } from "@eait/shared";
 import {
@@ -385,6 +385,10 @@ alter table analyses add column if not exists unpriced_calls integer not null de
 -- A single row rather than a version history: the app fetches "what is live", and the thing an
 -- admin needs to undo a bad edit is the previous JSON, which is what the version number in the
 -- payload is for. Keeping every revision here would be a second product.
+--
+-- The JSON is a map from language to revision (#358) and was a bare revision before it. No column
+-- and no migration: a row written by the older code is read as ENGLISH, which is what it was, and
+-- every other language falls back to the copy the binary ships with. See usableContentFor.
 create table if not exists onboarding_content (
   id         integer primary key check (id = 1),
   version    integer not null,
@@ -1360,13 +1364,13 @@ export async function postgresStore(
     async getOnboardingContent() {
       const rows = await sql`select content from onboarding_content where id = 1`;
       if (rows.length === 0) return null;
-      return json<OnboardingContent | null>(rows[0].content, null);
+      return json<OnboardingContentSet | null>(rows[0].content, null);
     },
 
     async getNotificationCopy() {
       const rows = await sql`select copy from notification_copy where id = 1`;
       if (rows.length === 0) return null;
-      return json<NotificationCopy | null>(rows[0].copy, null);
+      return json<NotificationCopySet | null>(rows[0].copy, null);
     },
 
     async putNotificationCopy(copy) {
@@ -1377,12 +1381,17 @@ export async function postgresStore(
     },
 
     async putOnboardingContent(content) {
+      // The `version` COLUMN is written and never read back — the revision an app is served comes
+      // out of the JSON, per language. It is kept because it is what an operator reads with `psql`
+      // in front of them, and the honest value for a set of revisions that share a number is that
+      // number: the newest one saved.
+      const version = Math.max(0, ...Object.values(content).map((c) => c.version));
       // `::jsonb` on the parameter for the same reason the meal update casts: an untyped parameter
       // is text, and a JSON string landing in a jsonb column stores the STRING rather than the
       // object — it round-trips without error and comes back unusable.
       await sql`
         insert into onboarding_content (id, version, content, updated_at)
-        values (1, ${content.version}, ${JSON.stringify(content)}::jsonb, now())
+        values (1, ${version}, ${JSON.stringify(content)}::jsonb, now())
         on conflict (id) do update
           set version = excluded.version,
               content = excluded.content,

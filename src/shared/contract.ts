@@ -588,6 +588,15 @@ export interface ProfileRejected {
  */
 export interface OnboardingContentResponse {
   content: OnboardingContent;
+  /**
+   * Which language this revision is in (#358).
+   *
+   * SENT rather than assumed, and it is the same rule `Limits` follows: the client asked with
+   * `?lang=` or let the account answer, and only the server knows which it used. A client that
+   * assumed its own guess came back would cache German copy under `it` the first time a code it
+   * sent was one this server does not carry.
+   */
+  lang: Lang;
 }
 
 /**

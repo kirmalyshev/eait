@@ -20,7 +20,7 @@
 
 import { afterAll, describe, expect, it } from "bun:test";
 import { SQL } from "bun";
-import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, emptyHealthDay, type MealRecord } from "@eait/shared";
+import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, ONBOARDING_CONTENT, emptyHealthDay, type MealRecord } from "@eait/shared";
 import { hashToken } from "./auth/tokens.ts";
 import { memoryStore } from "./store.memory.ts";
 import { postgresStore } from "./store.pg.ts";
@@ -1892,16 +1892,22 @@ function contract(name: string, make: () => Promise<Store>) {
       // between runs, so "nothing has been saved yet" is true exactly once per database — the
       // same trap as the identity subjects above. The null case is covered in the engine tests,
       // which get a fresh store every time.
+      // A SET, one revision per language (#358). The row is still one row; its JSON is a map.
       const content = { ...DEFAULT_ONBOARDING_CONTENT, version: 7 };
-      await s.putOnboardingContent(content);
+      const german = { ...ONBOARDING_CONTENT.de!, version: 7 };
+      await s.putOnboardingContent({ en: content, de: german });
       const back = await s.getOnboardingContent();
       // Deep equality, not "it returned something". A jsonb column that stored the JSON as a
       // STRING round-trips without error and comes back unusable — the same bug the meal items
       // column had.
-      expect(back).toEqual(content);
+      expect(back).toEqual({ en: content, de: german });
 
-      await s.putOnboardingContent({ ...content, version: 8 });
-      expect((await s.getOnboardingContent())?.version).toBe(8);
+      await s.putOnboardingContent({ en: { ...content, version: 8 } });
+      expect((await s.getOnboardingContent())?.en?.version).toBe(8);
+      // And the write REPLACES the row rather than merging into it, which is what makes the engine
+      // responsible for carrying the languages it is not editing. Stated here so the next reader
+      // of `saveOnboardingContent` knows why it reads before it writes.
+      expect((await s.getOnboardingContent())?.de).toBeUndefined();
     });
 
     it("stores notification copy in its own row, not the onboarding one", async () => {
@@ -1910,11 +1916,11 @@ function contract(name: string, make: () => Promise<Store>) {
         ...DEFAULT_NOTIFICATION_COPY,
         evening: { ...DEFAULT_NOTIFICATION_COPY.evening, title: `Evening ${RUN}` },
       };
-      await s.putNotificationCopy(edited);
-      expect((await s.getNotificationCopy())?.evening.title).toBe(`Evening ${RUN}`);
+      await s.putNotificationCopy({ en: edited });
+      expect((await s.getNotificationCopy())?.en?.evening.title).toBe(`Evening ${RUN}`);
       // Saving one must not disturb the other: two admin screens, two rows.
-      await s.putOnboardingContent({ ...DEFAULT_ONBOARDING_CONTENT, version: 99 });
-      expect((await s.getNotificationCopy())?.evening.title).toBe(`Evening ${RUN}`);
+      await s.putOnboardingContent({ en: { ...DEFAULT_ONBOARDING_CONTENT, version: 99 } });
+      expect((await s.getNotificationCopy())?.en?.evening.title).toBe(`Evening ${RUN}`);
     });
 
     it("ignores an onboarding event id it has already stored", async () => {

@@ -8,9 +8,10 @@
 // derives the same "what comes next" without asking. This module owns storage and aggregation only.
 
 import {
-  DEFAULT_ONBOARDING_CONTENT, MAX_ONBOARDING_EVENTS_PER_BATCH, ONBOARDING_ACTIONS,
-  ONBOARDING_PLACES, isReportableField, localDate, usableContent, validateOnboardingContent,
-  type ContentValidation, type FunnelRow, type OnboardingContent, type OnboardingEvent,
+  MAX_ONBOARDING_EVENTS_PER_BATCH, ONBOARDING_ACTIONS,
+  ONBOARDING_PLACES, isReportableField, localDate, onboardingContentFor, storedContentSet,
+  usableContentFor, validateOnboardingContent,
+  type ContentValidation, type FunnelRow, type Lang, type OnboardingContent, type OnboardingEvent,
   type OnboardingFunnel, type OnboardingPlace,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
@@ -20,25 +21,33 @@ import type { AdminMetrics } from "../store.ts";
 const PLACES: readonly string[] = ONBOARDING_PLACES;
 
 /**
- * The copy this server serves.
+ * The copy this server serves, in ONE language.
  *
- * Falls back to the compiled-in default when nothing has been saved, so a fresh database serves a
- * complete flow rather than an empty one. The app has the same default compiled in — this is what
- * makes the fetch an enhancement rather than a dependency.
+ * Falls back to that language's compiled-in copy when nothing has been saved for it, so a fresh
+ * database serves a complete flow rather than an empty one, and a host whose admin has only ever
+ * written German serves German to Germans and the shipped Italian to Italians. The app has the same
+ * defaults compiled in — this is what makes the fetch an enhancement rather than a dependency.
  *
- * THROUGH `usableContent`, WHICH IS THE SAME GUARD THE APP RUNS, and it earns its place here for a
- * case the app's copy cannot cover: a row saved by an OLDER BUILD of this server. The app would
- * discard such a revision on arrival and fall back — but the admin editor would load it, an admin
- * would edit two words in it, and the save would be refused for a question that has been missing
- * since before they opened the page. Serving the default instead means the editor opens on
+ * NOT ENGLISH ON A MISS. Falling back across languages would put English screens in the middle of
+ * an Italian onboarding, which is the failure `LANGS_READY` exists to keep out of the picker.
+ *
+ * THROUGH `usableContentFor`, WHICH WRAPS THE SAME GUARD THE APP RUNS, and it earns its place here
+ * for a case the app's copy cannot cover: a row saved by an OLDER BUILD of this server. The app
+ * would discard such a revision on arrival and fall back — but the admin editor would load it, an
+ * admin would edit two words in it, and the save would be refused for a question that has been
+ * missing since before they opened the page. Serving the default instead means the editor opens on
  * something that can be saved.
  */
-export async function onboardingContent(deps: EngineDeps): Promise<OnboardingContent> {
-  return usableContent(await deps.store.getOnboardingContent());
+export async function onboardingContent(deps: EngineDeps, lang: Lang = "en"): Promise<OnboardingContent> {
+  return usableContentFor(lang, await deps.store.getOnboardingContent());
 }
 
 /**
- * Save admin-edited copy, after validating it.
+ * Save admin-edited copy for ONE language, leaving the other seven exactly as they were.
+ *
+ * READ-MODIFY-WRITE over the whole set, because the row holds all of them. An admin editing German
+ * must not be able to blank the Italian somebody else wrote this morning, and the narrowest way to
+ * guarantee that is for the write to carry the languages it is not editing.
  *
  * The version is assigned HERE, not accepted from the admin: it is the join key between a funnel
  * row and the words that produced it, and an admin who saves twice with the same number silently
@@ -47,8 +56,10 @@ export async function onboardingContent(deps: EngineDeps): Promise<OnboardingCon
 export async function saveOnboardingContent(
   deps: EngineDeps,
   input: unknown,
+  lang: Lang = "en",
 ): Promise<ContentValidation> {
-  const current = await onboardingContent(deps);
+  const stored = await deps.store.getOnboardingContent();
+  const current = usableContentFor(lang, stored);
   const withVersion =
     typeof input === "object" && input !== null
       ? { ...(input as Record<string, unknown>), version: current.version + 1 }
@@ -56,15 +67,16 @@ export async function saveOnboardingContent(
 
   const result = validateOnboardingContent(withVersion);
   if (!result.ok) return result;
-  await deps.store.putOnboardingContent(result.content);
+  await deps.store.putOnboardingContent({ ...storedContentSet(stored), [lang]: result.content });
   return result;
 }
 
-/** Restore the shipped copy. The undo button for an edit that went wrong. */
-export async function resetOnboardingContent(deps: EngineDeps): Promise<OnboardingContent> {
-  const current = await onboardingContent(deps);
-  const restored = { ...DEFAULT_ONBOARDING_CONTENT, version: current.version + 1 };
-  await deps.store.putOnboardingContent(restored);
+/** Restore the shipped copy for one language. The undo button for an edit that went wrong. */
+export async function resetOnboardingContent(deps: EngineDeps, lang: Lang = "en"): Promise<OnboardingContent> {
+  const stored = await deps.store.getOnboardingContent();
+  const current = usableContentFor(lang, stored);
+  const restored = { ...onboardingContentFor(lang), version: current.version + 1 };
+  await deps.store.putOnboardingContent({ ...storedContentSet(stored), [lang]: restored });
   return restored;
 }
 

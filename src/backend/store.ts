@@ -11,7 +11,7 @@
 // call. There is no method here that can reach a row without being told whose it is.
 
 import type {
-  DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopy, OnboardingContent,
+  DayTotals, HealthDay, Lang, MealAnalysis, MealRecord, NotificationCopySet, OnboardingContentSet,
   OnboardingEvent, Profile, Provider, ChatEvent, ChatSpeaker } from "@eait/shared";
 import type { RouteResult } from "./llm/port.ts";
 
@@ -748,15 +748,20 @@ export interface Store {
 
   // ── Onboarding ─────────────────────────────────────────────────────────────────────────────
   /**
-   * The admin-edited onboarding copy, or null when nothing has ever been saved.
+   * The admin-edited onboarding copy, PER LANGUAGE, or null when nothing has ever been saved.
    *
    * Null is a real answer, not an error: a fresh database has no row, and the engine answers with
-   * `DEFAULT_ONBOARDING_CONTENT` rather than refusing. Seeding on boot would work too and is worse
-   * — it makes "has an admin ever touched this?" unanswerable.
+   * the compiled-in copy rather than refusing. Seeding on boot would work too and is worse — it
+   * makes "has an admin ever touched this?" unanswerable.
+   *
+   * STILL ONE ROW. What changed with #358 is the JSON in it: a map from `Lang` to a revision,
+   * rather than one revision. A save in German cannot serve itself to an Italian, and a row written
+   * before that branch is a bare `OnboardingContent` which `usableContentFor` reads as English —
+   * which it was, because English was all there was. No column and no migration.
    */
-  getOnboardingContent(): Promise<OnboardingContent | null>;
+  getOnboardingContent(): Promise<OnboardingContentSet | null>;
   /** Replace it. Validated by the caller — the store writes what it is given. */
-  putOnboardingContent(content: OnboardingContent): Promise<void>;
+  putOnboardingContent(content: OnboardingContentSet): Promise<void>;
 
   // ── Notification copy ──────────────────────────────────────────────────────────────────────
   //
@@ -765,10 +770,10 @@ export interface Store {
   // "broken". Its own row rather than a field on the onboarding content, because the two are edited
   // by different screens and a save of one must not be able to overwrite the other.
 
-  /** The admin-edited notification copy, or null when nothing has ever been saved. */
-  getNotificationCopy(): Promise<NotificationCopy | null>;
+  /** The admin-edited notification copy, per language, or null when nothing has ever been saved. */
+  getNotificationCopy(): Promise<NotificationCopySet | null>;
   /** Replace it. Validated by the caller — the store writes what it is given. */
-  putNotificationCopy(copy: NotificationCopy): Promise<void>;
+  putNotificationCopy(copy: NotificationCopySet): Promise<void>;
   /**
    * Append funnel events, ignoring ids already stored. Returns how many were new.
    *

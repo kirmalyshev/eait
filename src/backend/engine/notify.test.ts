@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { DEFAULT_NOTIFICATION_COPY, NOTIFICATION_IDS, lintCopy } from "@eait/shared";
+import { DEFAULT_NOTIFICATION_COPY, NOTIFICATION_COPY, NOTIFICATION_IDS, lintCopy } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { fakeMailer } from "../mail/fake.ts";
@@ -520,8 +520,11 @@ describe("copy stored before the code that reads it", () => {
       "trial-day8": { title: "From the future", body: "Nothing here can render this." },
     } as never);
 
+    // Read as English, because that shape predates the language dimension and English was all
+    // there was. A German reading the same host gets the shipped German, not this row.
     const copy = await notificationCopy(deps);
     expect(Object.keys(copy).sort()).toEqual([...NOTIFICATION_IDS].sort());
+    expect((await notificationCopy(deps, "de")).evening.title).toBe(NOTIFICATION_COPY.de!.evening.title);
     expect(copy.evening.title).toBe("Kept");
     expect(copy.evening.emptyBody).toBe(DEFAULT_NOTIFICATION_COPY.evening.emptyBody);
     expect(copy["trial-day5"]).toEqual(DEFAULT_NOTIFICATION_COPY["trial-day5"]);
