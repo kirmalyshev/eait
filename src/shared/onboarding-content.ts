@@ -670,7 +670,7 @@ const ID: OnboardingContent = {
         activity: { lines: ["Seberapa banyak kamu bergerak dalam seminggu biasa? Jujur lebih baik daripada ambisius — ini menggeser angkanya jauh."] },
       },
       options: {
-        sedentary: { label: "Lebih banyak duduk", hint: "hari-hari di meja" },
+        sedentary: { label: "Lebih banyak duduk", hint: "hari-hari kerja di meja" },
         light: { label: "Aktivitas ringan", hint: "jalan kaki, urusan harian" },
         moderate: { label: "Aktivitas sedang", hint: "2–3 latihan" },
         active: { label: "Aktivitas tinggi", hint: "hampir tiap hari" },
@@ -705,7 +705,7 @@ const ID: OnboardingContent = {
     },
   ],
   building: {
-    lines: ["Sudah semua. Beri aku sedetik — aku sedang menghitung, bukan menebak."],
+    lines: ["Sudah semua. Sebentar ya — aku sedang menghitung, bukan menebak."],
     restLabel: "Saat istirahat tubuhmu membakar",
     activityLabel: "Dengan aktivitasmu, sekitar",
     paceLabel: "Untuk tempomu, kami sesuaikan",
@@ -714,7 +714,7 @@ const ID: OnboardingContent = {
     floorBody: "Hitungannya ingin turun lebih jauh. Tanpa pengawasan medis kami tidak menetapkan target di bawah ini, jadi punyamu berhenti di sini. Buku harianmu juga akan menyebutkannya.",
   },
   summary: {
-    lines: ["Ini kamu, dihitung dengan benar. Ini rencanamu."],
+    lines: ["Ini hasil hitungannya, dikerjakan dengan benar. Ini rencanamu."],
     kcalLabel: "kcal per hari",
     proteinLabel: "Target protein",
     projection: "Dengan tempo ini kamu ada di {target} kg sekitar {month}.",

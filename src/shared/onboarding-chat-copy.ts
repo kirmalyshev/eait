@@ -427,7 +427,7 @@ const DE: ChatCopy = {
     },
     gain: {
       title: "Nicht so selten, wie es sich anfühlt",
-      body: "Etwa 23% der jungen Männer und 6% der jungen Frauen haben im letzten Jahr aktiv versucht zuzunehmen. Ein echtes Ziel mit echter Technik — wir setzen einen Überschuss, der mehr aufbaut als anlagert.",
+      body: "Etwa 23% der jungen Männer und 6% der jungen Frauen haben im letzten Jahr aktiv versucht zuzunehmen. Ein echtes Ziel mit echter Technik — wir setzen einen Überschuss, der mehr Muskeln aufbaut als Polster.",
       source: "Kanadische Studie an jungen Erwachsenen · n = 976",
     },
     maintain: {
@@ -438,7 +438,7 @@ const DE: ChatCopy = {
   },
   goalFollowups: {
     gain: "Dieselben Regeln wie für alle hier — ehrliche Zahlen, kein Jubeln, keine Scham — nur nach oben statt nach unten gerichtet.",
-    maintain: "Und der bequeme Weg gehört dir: kein Zielgewicht auszusuchen — wir planen ums Halten herum.",
+    maintain: "Und du hast den bequemen Weg: du musst kein Zielgewicht aussuchen — wir planen aufs Halten hin.",
   },
   struggleCards: {
     stress: {
@@ -467,7 +467,7 @@ const DE: ChatCopy = {
     },
     energy: {
       title: "Energie ist die ehrliche Messgröße",
-      body: "Unterversorgte Tage und wenig Energie reisen gemeinsam — einer der Gründe, warum wir Ziele unterhalb der Sicherheitsgrenze ablehnen. Essen ist die Hälfte von Energie; wir schauen auf die Form deiner Tage.",
+      body: "Unterversorgte Tage und wenig Energie gehen Hand in Hand — einer der Gründe, warum wir Ziele unterhalb der Sicherheitsgrenze ablehnen. Essen ist die Hälfte von Energie; wir schauen auf die Form deiner Tage.",
     },
     body: {
       title: "Die Waage ist hier nicht die Richterin",
@@ -510,7 +510,7 @@ const DE: ChatCopy = {
     bmr: "Und hier ist deine erste Zahl: in Ruhe verbrennt dein Körper etwa {bmr} kcal am Tag. Die nächsten Fragen schärfen sie.",
   },
   activityReplies: {
-    sedentary: "Danke für die ehrliche Antwort — die meisten schätzen hier zu hoch, und dann schätzt das Ziel sie zu hoch.",
+    sedentary: "Danke für die ehrliche Antwort — die meisten greifen hier zu hoch, und dann greift das Ziel zu hoch.",
     light: "Gut — Spaziergänge zählen mehr, als man denkt.",
     moderate: "Solide. Die Zahl geht davon aus, dass diese Einheiten stattfinden — halt mich ehrlich.",
     active: "Gut — das bringt dir mehr zu essen. Lieber ordentlich versorgen als zu niedrig raten.",
@@ -941,7 +941,7 @@ const VI: ChatCopy = {
     },
     energy: {
       title: "Năng lượng là thước đo thành thật",
-      body: "Những ngày ăn thiếu và cảm giác uể oải luôn đi cùng nhau — đó là một lý do chúng tôi từ chối mục tiêu dưới mức sàn an toàn. Đồ ăn là một nửa của năng lượng; chúng mình sẽ nhìn dáng của những ngày bạn trải qua.",
+      body: "Những ngày ăn thiếu và cảm giác uể oải luôn đi cùng nhau — đó là một lý do chúng tôi từ chối mục tiêu dưới mức sàn an toàn. Đồ ăn là một nửa của năng lượng; chúng mình sẽ để ý xem ngày của bạn diễn ra thế nào.",
     },
     body: {
       title: "Ở đây cái cân không phán xét",
@@ -987,11 +987,11 @@ const VI: ChatCopy = {
     sedentary: "Cảm ơn vì câu trả lời thành thật — phần lớn mọi người khai quá tay ở chỗ này, rồi con số cũng quá tay với họ.",
     light: "Tốt — đi bộ đáng giá hơn người ta tưởng.",
     moderate: "Chắc chắn. Con số sẽ giả định là những buổi tập đó có diễn ra — nhớ giữ mình thành thật nhé.",
-    active: "Tốt — điều đó mua thêm đồ ăn cho bạn. Mình thà nạp đủ còn hơn đoán thấp.",
-    athlete: "Vậy thì con số có việc thật để nuôi. Mình thà nạp đủ còn hơn đoán thấp.",
+    active: "Tốt — vậy là bạn được ăn nhiều hơn. Mình thà nạp đủ còn hơn đoán thấp.",
+    athlete: "Vậy thì con số này phải nuôi khối lượng vận động thật. Mình thà nạp đủ còn hơn đoán thấp.",
   },
   strugglesCloser: {
-    none: "Càng tốt. Nếu sau này có gì xuất hiện, cứ nói với mình trong chat — kế hoạch uốn được.",
+    none: "Càng tốt. Nếu sau này có gì xuất hiện, cứ nói với mình trong chat — kế hoạch điều chỉnh được.",
     one: "Chuyện đó chúng mình biết cách xử lý — kế hoạch sẽ được dựng quanh nó, chứ không chống lại nó. Còn hai câu ngắn nữa thôi.",
     many: "Từng chuyện một chúng mình đều biết cách xử lý — kế hoạch sẽ được dựng quanh chúng, chứ không chống lại chúng. Còn hai câu ngắn nữa thôi.",
   },
@@ -1064,17 +1064,17 @@ const ID: ChatCopy = {
     },
     maintain: {
       title: "Tujuan yang jarang disebut",
-      body: "Sekitar 23% orang dewasa aktif berusaha menjaga berat badannya — tujuan yang tidak ada yang posting, dan tetap layak punya rencana. Harimu dinilai terhadap tetap di tempat.",
+      body: "Sekitar 23% orang dewasa aktif berusaha menjaga berat badannya — tujuan yang tidak ada yang posting, dan tetap layak punya rencana. Harimu dinilai dari apakah beratmu bertahan.",
       source: "Meta-analisis upaya pengendalian berat badan setahun terakhir",
     },
   },
   goalFollowups: {
     gain: "Aturannya sama seperti untuk semua orang di sini — angka jujur, tanpa sorak-sorai, tanpa rasa malu — hanya arahnya ke atas, bukan ke bawah.",
-    maintain: "Dan jalan mudahnya jadi milikmu: tidak ada berat target yang harus dipilih — kami merencanakan di sekitar tetap di tempat.",
+    maintain: "Dan jalan mudahnya jadi milikmu: tidak ada berat target yang harus dipilih — kami menyusun rencananya untuk mempertahankan beratmu.",
   },
   struggleCards: {
     stress: {
-      title: "Sebuah pola, bukan cacat karakter",
+      title: "Ini pola, bukan cacat karakter",
       body: "Sekitar 38% orang dewasa makan sebagai respons terhadap perasaan setidaknya sebulan sekali — bagi separuhnya, setiap minggu. Menamai polanya sudah sebagian besar pekerjaannya; sisanya dikerjakan catatan.",
       source: "Studi nasional AS, n = 5.863 · tinjauan, 2026",
     },
@@ -1094,12 +1094,12 @@ const ID: ChatCopy = {
       source: "Meta-analisis 29 studi penurunan berat badan di AS",
     },
     eatout: {
-      title: "Piring restoran paling meleset",
+      title: "Porsi restoran paling sulit ditebak",
       body: "Perkiraan paling meleset pada makanan yang bukan kamu masak — dan di situlah foto paling berguna. Kalau aku ragu, aku bilang, bukan pura-pura tahu.",
     },
     energy: {
       title: "Energi adalah ukuran yang jujur",
-      body: "Hari yang kurang asupan dan energi rendah selalu jalan bareng — itu salah satu alasan kami menolak target di bawah batas aman. Makanan adalah separuh dari energi; kami akan memperhatikan bentuk hari-harimu.",
+      body: "Hari yang kurang asupan dan energi rendah selalu jalan bareng — itu salah satu alasan kami menolak target di bawah batas aman. Makanan adalah separuh dari energi; kami akan memperhatikan pola harimu.",
     },
     body: {
       title: "Di sini timbangan bukan hakim",
@@ -1107,7 +1107,7 @@ const ID: ChatCopy = {
     },
     metabolism: {
       title: "Ukur saja daripada cemas",
-      body: "Metabolisme orang berbeda lebih sedikit daripada kata internet — tapi punyamu ya punyamu, dan dua minggu mencatat dengan jujur menunjukkan apa yang sebenarnya terjadi. Itu mengalahkan rumus apa pun, termasuk rumusku.",
+      body: "Metabolisme orang berbeda lebih sedikit daripada yang dibilang internet — tapi punyamu ya punyamu, dan dua minggu mencatat dengan jujur menunjukkan apa yang sebenarnya terjadi. Itu mengalahkan rumus apa pun, termasuk rumusku.",
     },
   },
   dietsGainCard: {
@@ -1142,11 +1142,11 @@ const ID: ChatCopy = {
     bmr: "Dan ini angka pertamamu: saat istirahat, tubuhmu membakar sekitar {bmr} kcal sehari. Pertanyaan berikutnya akan mempertajamnya.",
   },
   activityReplies: {
-    sedentary: "Terima kasih untuk jawaban jujurnya — kebanyakan orang melebih-lebihkan yang satu ini, lalu targetnya ikut melebih-lebihkan mereka.",
+    sedentary: "Terima kasih untuk jawaban jujurnya — kebanyakan orang melebih-lebihkan yang satu ini, lalu targetnya jadi kelewat tinggi buat mereka.",
     light: "Bagus — jalan kaki bernilai lebih dari yang orang kira.",
-    moderate: "Mantap. Angkanya akan berasumsi latihan itu benar-benar terjadi — jaga aku tetap jujur, ya.",
-    active: "Bagus — itu membelikanmu lebih banyak makanan. Aku lebih suka mengisi dengan benar daripada menebak terlalu rendah.",
-    athlete: "Kalau begitu angkanya punya kerja nyata untuk diisi. Aku lebih suka mengisi dengan benar daripada menebak terlalu rendah.",
+    moderate: "Mantap. Angkanya akan berasumsi latihan itu benar-benar terjadi — koreksi aku kalau meleset, ya.",
+    active: "Bagus — itu artinya jatah makanmu lebih banyak. Aku lebih suka mengisi dengan benar daripada menebak terlalu rendah.",
+    athlete: "Kalau begitu angkanya harus menutupi kerja fisik yang nyata. Aku lebih suka mengisi dengan benar daripada menebak terlalu rendah.",
   },
   strugglesCloser: {
     none: "Lebih bagus lagi. Kalau nanti ada yang muncul, bilang di chat — rencananya bisa menyesuaikan.",
@@ -1257,7 +1257,7 @@ const RU: ChatCopy = {
     },
     energy: {
       title: "Энергия — честная метрика",
-      body: "Недоеденные дни и упадок сил ходят вместе — это одна из причин, почему мы отказываемся ставить цели ниже порога безопасности. Еда — половина энергии; будем смотреть на форму твоих дней.",
+      body: "Дни недоедания и упадок сил идут рука об руку — это одна из причин, почему мы отказываемся ставить цели ниже порога безопасности. Еда — половина энергии; будем смотреть на форму твоих дней.",
     },
     body: {
       title: "Здесь весы не судья",
@@ -1300,7 +1300,7 @@ const RU: ChatCopy = {
     bmr: "И вот твоя первая цифра: в покое тело сжигает около {bmr} ккал в день. Следующие вопросы её уточнят.",
   },
   activityReplies: {
-    sedentary: "Спасибо за честный ответ — здесь большинство завышает, а потом цель завышает уже им.",
+    sedentary: "Спасибо за честный ответ — здесь большинство завышает — а потом завышенной оказывается и цель.",
     light: "Хорошо — прогулки значат больше, чем принято думать.",
     moderate: "Солидно. Цифра будет исходить из того, что эти тренировки действительно случаются, — держи меня в честности.",
     active: "Хорошо — это покупает тебе больше еды. Лучше накормить как следует, чем занизить наугад.",
@@ -1308,8 +1308,8 @@ const RU: ChatCopy = {
   },
   strugglesCloser: {
     none: "Тем лучше. Если что-то появится позже, скажи мне в чате — план умеет гнуться.",
-    one: "С этим мы умеем работать — план строится вокруг, а не вопреки. Осталось два коротких вопроса.",
-    many: "С каждым из этого мы умеем работать — план строится вокруг, а не вопреки. Осталось два коротких вопроса.",
+    one: "С этим мы умеем работать — план строится вокруг этого, а не вопреки этому. Осталось два коротких вопроса.",
+    many: "С каждым из них мы умеем работать — план строится вокруг этого, а не вопреки этому. Осталось два коротких вопроса.",
   },
   restrictions: {
     kidneys: "Записал. С этого момента натрий оценивается — и только по твоей просьбе.",
