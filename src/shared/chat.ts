@@ -17,7 +17,15 @@ import type { FoodTargets, Goal, Lang, MealVerdicts } from "./types.ts";
  * is the same in all eight languages and is deliberately NOT `Localized`; what each id SAYS lives
  * in `THREAD_COPY` (`chat-copy.ts`), keyed by language. The values here are `null` because the type
  * is doing the only job left: naming what exists.
+ *
+ * READING A VALUE OFF THIS IS THE ONE MIGRATION THE COMPILER CANNOT REFUSE, so it is marked. Every
+ * other table in this change became a function of the language, which makes an un-migrated call
+ * site a build error; this one kept its shape and lost its words, and `null` is a legal
+ * `ReactNode` — so `<Text>{SCRIPTED_LINES.dropped}</Text>` still typechecks and renders an EMPTY
+ * bubble. Empty is worse than English: nothing looks broken in review. The `@deprecated` below is
+ * the only signal available, and it shows up in an editor where the type cannot.
  */
+/** @deprecated The KEYS are the contract. Read the words with `scriptedLine(id, lang)`. */
 export const SCRIPTED_LINES = {
   /** Step 13 · the camera closed without a photo. */
   "camera-closed": null,

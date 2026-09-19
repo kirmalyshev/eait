@@ -148,18 +148,49 @@ gets its meal names in that language.
   framing is the stored surfaces losing their language dimension.
 - **THE iOS CLIENT RENDERS FROM THESE TABLES TOO, and that is why they are here rather than in the
   backend.** `src/mobile` is not in this repo and imports `@eait/shared` from the parent monorepo,
-  so a table in `backend/` is a table the phone cannot read. What the app consumes:
-  `onboardingContentFor` / `usableContentFor` (the flow), `chatCopyFor` and its readers
-  (`GOAL_CARDS(lang)`, `STRUGGLE_LABELS(lang)`, `checkNumber(…, lang, …)` and the rest — every one
-  of them takes the language now, and a caller that captures one at module scope renders in
-  whatever language the process started in), `threadCopyFor` / `firstVerdictLines` / `runningLine` /
-  `scriptedLine`, `verdictPillLabel`, `healthLabel`, `correlationWords`, `notificationCopyFor` +
-  `eveningPrescription`, `projectionMonth`, `trendPeriods` / `trendBuckets` / `trendSummary` for
-  the health charts, and `numbers` / `wholeNumbers` / `monthYear` for every figure.
-  **`trendSummary`'s `format` callback must spell its unit with `spellUnit(lang, …)`** — that
-  sentence is the chart read aloud, so a raw `HEALTH_FIELDS.unit` puts `kg` in the middle of a
-  Russian clause. The AXIS keeps the SI symbol; only the spoken sentence does not. The language itself is `ProfileResponse.profile.lang`; the picker writes it with
-  `PATCH /v1/profile { lang }` and offers `LANGS_READY` labelled by `LANG_LABEL`.
+  so a table in `backend/` is a table the phone cannot read. **No "and the rest" below** — a client
+  author cannot migrate against that, and the list is the deliverable.
+
+  *Onboarding:* `onboardingContentFor` / `usableContentFor`, `askLines`, `askPlaceholder` (the one
+  with NO language — it reads `content` only), `answerLabel`, `IDLE_PLACEHOLDER`, `QUICK_REPLIES`,
+  `GOAL_CARDS`, `GOAL_FOLLOWUPS`, `STRUGGLE_LABELS`, `struggleCard`, `GAIN_PACE_CARD`,
+  `UNDER_AGE_CARD`, `UNDER_AGE_LINES`, `AMBIGUOUS_AGE`, `ACTIVITY_REPLIES`, `weightAck`,
+  `strugglesCloser`, `restrictionsReply`, `belowHealthyCard`, `checkDirection`, `switchedLine`,
+  `capNote`, `projectionLine`, `reconcileGoalEdit`, `checkNumber`.
+
+  *Chat:* `threadCopyFor`, `scriptedLine`, `firstVerdictLines`, `runningLine`, `MEET_GABIE`,
+  `COACH_STARTERS`, `oneLiveProposal`, `verdictPillLabel`, `pendingLine` / `pendingSteps`.
+  NOT `correctionLine` — `engine/chat.ts` writes that server-side and it arrives as text.
+
+  *Health:* `healthLabel`, `correlationWords`, `trendPeriods`, `trendBuckets`, `trendSummary`,
+  `compareSeriesLabels`, `formatHealthValue`. **This whole surface has zero non-test consumers in
+  this repo** — it is mobile-only, so there is no reference implementation here to copy from and
+  the phone is the only thing that will ever exercise it.
+
+  *Notifications:* `notificationCopyFor` + `eveningPrescription`.
+
+  *Every figure and date:* `numbers` (keeps a tenth — a weight somebody typed), `wholeNumbers`
+  (rounds — a kcal or a gram from a photo), `monthYear`, `projectionMonth`, `UNIT_KCAL` for the
+  places that concatenate the unit onto a figure, and **`LANG_TAG[lang]` for any `Intl` the phone
+  builds itself** — relative times, date pickers, any axis outside `trendBuckets`.
+
+  **`trendSummary`'s `format` callback must spell its unit with `spellUnit(lang, …)`**, which is
+  what `formatHealthValue(spec, value, lang)` does — pass that, not a `toFixed`. The sentence is
+  the chart read aloud, so a raw `HEALTH_FIELDS.unit` puts `kg` in the middle of a Russian clause.
+  The AXIS keeps the SI symbol; only the spoken sentence does not.
+
+  **Where the language comes from, and the one place it is NOT `profile.lang`.** Normally
+  `ProfileResponse.profile.lang`; the picker writes it with `PATCH /v1/profile { lang }` and offers
+  `LANGS_READY` labelled by `LANG_LABEL`. For ONBOARDING it is `OnboardingContentResponse.lang` —
+  `GET /v1/onboarding?lang=` resolves the query FIRST and the account second, which is why that
+  field exists. Pass the response's language into `askLines` / `answerLabel` / `usableContentFor`,
+  or a client that asked `?lang=it` on a `de` account renders Italian questions with German cards.
+  Nothing in the types couples them.
+
+  **`POST /v1/auth/apple` and `/google` MUST SEND `locale`**, exactly as `/v1/auth/device` does. It
+  is optional on the wire and read ONLY when the sign-in creates the account, so a fresh install
+  that signs in before minting a device session and omits it gets `en` written at creation and
+  nothing ever revisits it. No compiler catches an omitted optional field.
 - **`lang` IS REQUIRED ON EVERY ONE OF THEM, and that is deliberately a breaking change.** `t()`
   falls back at the KEY, which is the wart this design accepts; a defaulted PARAMETER falls back at
   the SCREEN, and it does it where nothing can see — the call site that forgot it compiles, every
