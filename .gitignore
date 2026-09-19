@@ -19,3 +19,8 @@ playwright-report/
 
 # The e2e suite runs Chrome out of here, because /tmp is a tmpfs several worktrees share.
 .e2e-tmp/
+
+# Lingui's COMPILED catalogs. Generated from the `.po` by `bun run i18n:compile`, which `check`
+# runs — so they are a build artefact, and committing them would put eight machine-written files
+# in front of every copy review.
+src/shared/locales/*/messages.ts

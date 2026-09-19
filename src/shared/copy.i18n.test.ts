@@ -27,7 +27,11 @@ describe("every Localized table in @eait/shared", () => {
     // table needs no edit here; removing one from the walk fails.
     const found = new Set(localizedGaps(shared, ["en", "zz" as never]).map((g) => g.table.split(".")[0]));
     for (const table of [
-      "CHAT_COPY", "THREAD_COPY", "HEALTH_COPY", "VERDICT_COPY",
+      // `VERDICT_COPY` is NOT here any more, and its absence is the first sign of the migration:
+      // those words live in `locales/*/messages.po` now and their completeness is `lingui compile
+      // --strict`'s job. This list shrinks by one every time a table moves; when it is empty, this
+      // test and `localizedGaps` go with it.
+      "CHAT_COPY", "THREAD_COPY", "HEALTH_COPY",
       "NOTIFICATION_COPY", "EVENING_PRESCRIPTIONS", "ONBOARDING_CONTENT",
     ]) {
       expect(found.has(table), `${table} is not being walked — is it exported?`).toBe(true);
