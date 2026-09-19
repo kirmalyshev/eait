@@ -133,10 +133,25 @@ create table if not exists recipes (
 Five store methods, each written twice (`store.pg.ts`, `store.memory.ts`) and covered by the
 contract suite: `insertRecipe`, `recipesFor(userId, {status?, tag?, limit})`, `recipeFor(userId, id)`,
 `patchRecipe(userId, id, patch)`, `deleteRecipe(userId, id)`. Every one scoped
-`id = ? AND user_id = ?`, and a test that says another account's recipe id resolves to null.
+`id = ? AND user_id = ?`, every one with its own line in `SCOPE`, and a test that says another
+account's recipe id resolves to null.
 
-**Merge-order dependency:** per-user RLS (#13) is not on `main` as of this writing. Whichever of the
-two lands second adds `recipes` to the policy catalog in the same commit.
+**Row-level security is already on `main` (#13), so this table arrives INTO it rather than beside
+it.** Three things follow, and two of them fail loudly on their own:
+
+- `recipes: "user_id"` goes in `RLS_TABLES` (`store.pg.ts`) beside the `create table`. The DDL is
+  generated from that map, so the entry IS the policy. **Do not bump `POLICY_VERSION`** — it marks
+  changes to the policy BODY, and bumping it for a new table makes every existing database drop and
+  recreate all fifteen policies on the next boot.
+- Each of the five new store methods adds its line to `SCOPE`. **Constructing the store throws if
+  one is missing**, so this is enforced rather than reviewed.
+- The contract suite's "row-level security" test reads the live catalog for every table carrying a
+  `user_id` and fails naming the one without a policy. Forgetting the first bullet is a red test,
+  not a silent hole.
+
+The policy is `app_unscoped() or user_id = app_user_id()`, FORCED rather than merely enabled,
+keyed on a transaction-local GUC set inside `pool.begin`. None of it replaces `id = ? AND user_id =
+?` in the queries: every predicate stays, and the policy is what catches the one that goes missing.
 
 ## Engine
 
