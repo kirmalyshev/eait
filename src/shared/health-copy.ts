@@ -82,27 +82,27 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       weight_kg: "Poids", height_cm: "Taille", body_fat_pct: "Masse grasse", lean_mass_kg: "Masse maigre",
       active_kcal: "Énergie active", resting_kcal: "Énergie au repos",
       steps: "Pas", exercise_minutes: "Exercice", workouts: "Séances", distance_km: "Distance",
-      asleep_minutes: "Endormi", in_bed_minutes: "Au lit",
+      asleep_minutes: "Temps de sommeil", in_bed_minutes: "Au lit",
       resting_hr_bpm: "Fréquence cardiaque au repos", hrv_ms: "VFC", vo2max: "VO2 max",
     }),
     correlation: {
       none: "aucun lien net",
       sentence: "un lien {strength} — {direction}",
       weak: "faible", moderate: "modéré", strong: "fort",
-      together: "ils montent plutôt ensemble",
+      together: "ils ont tendance à monter ensemble",
       opposed: "l'un monte quand l'autre descend",
     },
     periods: { days: { label: "Jours", per: "jour" }, weeks: { label: "Semaines", per: "semaine" },
-      months: { label: "Mois", per: "mois" }, years: { label: "Années", per: "année" } },
+      months: { label: "Mois", per: "mois" }, years: { label: "Années", per: "an" } },
     summary: { line: "{name} par {noun} : de {first} ({firstAt}) à {last} ({lastAt}). Minimum {low}, maximum {high}.",
       empty: "{name} par {noun} : rien d'enregistré." },
   },
   de: {
     labels: labels({
       body: "Körper", energy: "Energie", activity: "Aktivität", sleep: "Schlaf", cardio: "Herz",
-      weight_kg: "Gewicht", height_cm: "Größe", body_fat_pct: "Körperfett", lean_mass_kg: "Magermasse",
+      weight_kg: "Gewicht", height_cm: "Körpergröße", body_fat_pct: "Körperfett", lean_mass_kg: "Magere Körpermasse",
       active_kcal: "Aktive Energie", resting_kcal: "Ruheenergie",
-      steps: "Schritte", exercise_minutes: "Bewegung", workouts: "Einheiten", distance_km: "Strecke",
+      steps: "Schritte", exercise_minutes: "Trainingszeit", workouts: "Trainings", distance_km: "Strecke",
       asleep_minutes: "Schlafdauer", in_bed_minutes: "Zeit im Bett",
       resting_hr_bpm: "Ruhepuls", hrv_ms: "HRV", vo2max: "VO2max",
     }),
@@ -113,10 +113,10 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       together: "sie steigen meist gemeinsam",
       opposed: "das eine steigt, während das andere fällt",
     },
-    periods: { days: { label: "Tage", per: "Tag" }, weeks: { label: "Wochen", per: "Woche" },
-      months: { label: "Monate", per: "Monat" }, years: { label: "Jahre", per: "Jahr" } },
-    summary: { line: "{name} pro {noun}: von {first} ({firstAt}) bis {last} ({lastAt}). Tiefstwert {low}, Höchstwert {high}.",
-      empty: "{name} pro {noun}: nichts erfasst." },
+    periods: { days: { label: "Tage", per: "Tagen" }, weeks: { label: "Wochen", per: "Wochen" },
+      months: { label: "Monate", per: "Monaten" }, years: { label: "Jahre", per: "Jahren" } },
+    summary: { line: "{name} nach {noun}: von {first} ({firstAt}) bis {last} ({lastAt}). Tiefstwert {low}, Höchstwert {high}.",
+      empty: "{name} nach {noun}: nichts erfasst." },
   },
   it: {
     labels: labels({
@@ -124,7 +124,7 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       weight_kg: "Peso", height_cm: "Altezza", body_fat_pct: "Massa grassa", lean_mass_kg: "Massa magra",
       active_kcal: "Energia attiva", resting_kcal: "Energia a riposo",
       steps: "Passi", exercise_minutes: "Esercizio", workouts: "Allenamenti", distance_km: "Distanza",
-      asleep_minutes: "Dormito", in_bed_minutes: "A letto",
+      asleep_minutes: "Sonno effettivo", in_bed_minutes: "A letto",
       resting_hr_bpm: "Frequenza a riposo", hrv_ms: "HRV", vo2max: "VO2 max",
     }),
     correlation: {
@@ -145,7 +145,7 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       weight_kg: "Peso", height_cm: "Altura", body_fat_pct: "Grasa corporal", lean_mass_kg: "Masa magra",
       active_kcal: "Energía activa", resting_kcal: "Energía en reposo",
       steps: "Pasos", exercise_minutes: "Ejercicio", workouts: "Entrenamientos", distance_km: "Distancia",
-      asleep_minutes: "Dormido", in_bed_minutes: "En la cama",
+      asleep_minutes: "Tiempo dormido", in_bed_minutes: "En la cama",
       resting_hr_bpm: "Frecuencia en reposo", hrv_ms: "VFC", vo2max: "VO2 máx",
     }),
     correlation: {
@@ -163,10 +163,10 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
   vi: {
     labels: labels({
       body: "Cơ thể", energy: "Năng lượng", activity: "Vận động", sleep: "Giấc ngủ", cardio: "Tim mạch",
-      weight_kg: "Cân nặng", height_cm: "Chiều cao", body_fat_pct: "Mỡ cơ thể", lean_mass_kg: "Khối nạc",
+      weight_kg: "Cân nặng", height_cm: "Chiều cao", body_fat_pct: "Mỡ cơ thể", lean_mass_kg: "Khối lượng nạc",
       active_kcal: "Năng lượng vận động", resting_kcal: "Năng lượng lúc nghỉ",
       steps: "Số bước", exercise_minutes: "Tập luyện", workouts: "Buổi tập", distance_km: "Quãng đường",
-      asleep_minutes: "Ngủ", in_bed_minutes: "Trên giường",
+      asleep_minutes: "Thời gian ngủ", in_bed_minutes: "Thời gian trên giường",
       resting_hr_bpm: "Nhịp tim lúc nghỉ", hrv_ms: "HRV", vo2max: "VO2 max",
     }),
     correlation: {
@@ -179,7 +179,7 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
     periods: { days: { label: "Ngày", per: "ngày" }, weeks: { label: "Tuần", per: "tuần" },
       months: { label: "Tháng", per: "tháng" }, years: { label: "Năm", per: "năm" } },
     summary: { line: "{name} theo {noun}: từ {first} ({firstAt}) đến {last} ({lastAt}). Thấp nhất {low}, cao nhất {high}.",
-      empty: "{name} theo {noun}: chưa ghi gì." },
+      empty: "{name} theo {noun}: chưa có dữ liệu." },
   },
   id: {
     labels: labels({
@@ -187,7 +187,7 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       weight_kg: "Berat", height_cm: "Tinggi", body_fat_pct: "Lemak tubuh", lean_mass_kg: "Massa tanpa lemak",
       active_kcal: "Energi aktif", resting_kcal: "Energi istirahat",
       steps: "Langkah", exercise_minutes: "Olahraga", workouts: "Latihan", distance_km: "Jarak",
-      asleep_minutes: "Tertidur", in_bed_minutes: "Di tempat tidur",
+      asleep_minutes: "Waktu tidur", in_bed_minutes: "Waktu di tempat tidur",
       resting_hr_bpm: "Detak jantung istirahat", hrv_ms: "HRV", vo2max: "VO2 maks",
     }),
     correlation: {
@@ -199,7 +199,7 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
     },
     periods: { days: { label: "Hari", per: "hari" }, weeks: { label: "Minggu", per: "minggu" },
       months: { label: "Bulan", per: "bulan" }, years: { label: "Tahun", per: "tahun" } },
-    summary: { line: "{name} per {noun}: dari {first} ({firstAt}) ke {last} ({lastAt}). Terendah {low}, tertinggi {high}.",
+    summary: { line: "{name} per {noun}: dari {first} ({firstAt}) menjadi {last} ({lastAt}). Terendah {low}, tertinggi {high}.",
       empty: "{name} per {noun}: belum ada catatan." },
   },
   ru: {
@@ -207,8 +207,8 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       body: "Тело", energy: "Энергия", activity: "Активность", sleep: "Сон", cardio: "Сердце",
       weight_kg: "Вес", height_cm: "Рост", body_fat_pct: "Процент жира", lean_mass_kg: "Сухая масса",
       active_kcal: "Активная энергия", resting_kcal: "Энергия покоя",
-      steps: "Шаги", exercise_minutes: "Нагрузка", workouts: "Тренировки", distance_km: "Дистанция",
-      asleep_minutes: "Часы сна", in_bed_minutes: "Часы в постели",
+      steps: "Шаги", exercise_minutes: "Время тренировок", workouts: "Тренировки", distance_km: "Дистанция",
+      asleep_minutes: "Продолжительность сна", in_bed_minutes: "Время в постели",
       resting_hr_bpm: "Пульс покоя", hrv_ms: "ВСР", vo2max: "МПК",
     }),
     correlation: {

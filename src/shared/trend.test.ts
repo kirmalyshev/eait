@@ -230,7 +230,9 @@ describe("trendEndpoints and trendSummary", () => {
     // forbids: word order is not a constant across eight languages, and for a reader with low
     // vision this sentence IS the chart.
     const de = trendSummary("Gewicht", "weeks", points, kg, "de");
-    expect(de).toBe("Gewicht pro Woche: von 94.1 kg (3 Aug) bis 91.2 kg (31 Aug). Tiefstwert 90.8 kg, Höchstwert 94.1 kg.");
+    // `nach`, not `pro`: `pro` states a RATE, so "Gewicht pro Woche" reads as weight gained per
+    // week and is then contradicted by a kg figure. Five of fifteen fields are stocks.
+    expect(de).toBe("Gewicht nach Wochen: von 94.1 kg (3 Aug) bis 91.2 kg (31 Aug). Tiefstwert 90.8 kg, Höchstwert 94.1 kg.");
     expect(de).not.toContain("by week");
     // Russian, where the AXIS LABEL itself moves too — `dayMonth` was pinned to en-GB.
     // Russian inflects after `по`, so the summary says `по неделям` while the bucket stays

@@ -77,7 +77,7 @@ export const CONFIRMATION: Localized<{ subject: string; lines: string[] }> = {
   fr: {
     subject: "Confirme ton adresse e-mail pour eait",
     lines: [
-      "Quelqu'un — probablement toi — a demandé à être prévenu quand l'appli iPhone eait sortira.",
+      "Quelqu'un — probablement toi — a demandé à recevoir un message quand l'appli iPhone eait sortira.",
       "",
       "Confirme que cette adresse est bien la tienne :",
       "{url}",
@@ -103,14 +103,14 @@ export const CONFIRMATION: Localized<{ subject: string; lines: string[] }> = {
   it: {
     subject: "Conferma la tua email per eait",
     lines: [
-      "Qualcuno — probabilmente tu — ha chiesto di essere avvisato quando esce l'app eait per iPhone.",
+      "Qualcuno — probabilmente tu — ha chiesto di ricevere un avviso quando esce l'app eait per iPhone.",
       "",
       "Conferma che questo indirizzo è tuo:",
       "{url}",
       "",
-      "Se non sei stato tu, ignora questo messaggio. Non succede nulla, e l'indirizzo viene cancellato entro una settimana.",
+      "Se non hai fatto tu questa richiesta, ignora questo messaggio. Non succede nulla, e l'indirizzo viene cancellato entro una settimana.",
       "",
-      "Un messaggio quando l'app esce, con la disiscrizione in un clic. Nient'altro, mai.",
+      "Un messaggio quando l'app esce, con un link per disiscriverti in un clic. Nient'altro, mai.",
     ],
   },
   es: {
@@ -123,7 +123,7 @@ export const CONFIRMATION: Localized<{ subject: string; lines: string[] }> = {
       "",
       "Si no fuiste tú, ignora este mensaje. No pasa nada, y la dirección se borra en menos de una semana.",
       "",
-      "Un mensaje cuando salga la app, con baja en un clic dentro. Nada más, nunca.",
+      "Un mensaje cuando salga la app, con un enlace de baja en un clic. Nada más, nunca.",
     ],
   },
   vi: {
@@ -155,7 +155,7 @@ export const CONFIRMATION: Localized<{ subject: string; lines: string[] }> = {
   ru: {
     subject: "Подтверди свою почту для eait",
     lines: [
-      "Кто-то — скорее всего, ты — попросил сообщить, когда выйдет приложение eait для iPhone.",
+      "Кто-то — скорее всего, ты — просит сообщить, когда выйдет приложение eait для iPhone.",
       "",
       "Подтверди, что этот адрес твой:",
       "{url}",

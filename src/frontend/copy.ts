@@ -79,6 +79,16 @@ export interface WebCopy {
   /** The picker in Settings. Its options are `LANG_LABEL` — endonyms, never translated. */
   language: string;
   settings: string;
+  /** The outbox (#708): a turn kept on the device, and the two ways on from a held one. */
+  waitingToSend: string;
+  sendAgain: string;
+  discard: string;
+  /** Said once under the composer when a turn is kept. No cause — offline and an edge are both this. */
+  kept: string;
+  /** The same, when what is ahead of it waits on a DECISION rather than on a connection. */
+  keptBehind: string;
+  /** A turn that could not even be saved: nothing went anywhere. */
+  notSaved: string;
 }
 
 const EN: WebCopy = {
@@ -130,6 +140,12 @@ const EN: WebCopy = {
   telegramFailed: "No Telegram link this time. Try again.",
   language: "Language",
   settings: "Settings",
+  waitingToSend: "Waiting to send",
+  sendAgain: "Send again",
+  discard: "Discard",
+  kept: "Saved on this device. It goes on its own as soon as it can.",
+  keptBehind: "Saved on this device. It goes once the message above that is waiting for you has been sent again or discarded.",
+  notSaved: "That could not be saved on this device, and it was not sent. Try again.",
   refusals: {
     "subscription-required": "The analyses this account came with are used up. Subscribe in the eait app to carry on.",
     "cap-user": "That was your last one today — your daily allowance resets at midnight.",
@@ -159,7 +175,7 @@ const FR: WebCopy = {
   budgetLeft: "restantes", budgetOver: "au-dessus", budgetUnder: "en dessous",
   targetLine: "Objectif {target} · {protein} g de protéines",
   eatenLine: "{eaten} sur {target} mangées · {protein} sur {proteinTarget} g de protéines",
-  floor: "Ton objectif est au minimum que cette appli proposera jamais.",
+  floor: "Ton objectif est fixé au minimum que cette appli puisse proposer.",
   connectHealth: "Connecte Apple Health dans l'appli eait pour iPhone et ton poids garde cet objectif à jour.",
   weightLine: "Poids {kg} kg.",
   weightLineWhen: "Poids {kg} kg, pesé {when}.",
@@ -170,7 +186,7 @@ const FR: WebCopy = {
   noMessages: "Aucun message pour l'instant.",
   sentReload: "Envoyé. Recharge pour voir la conversation.",
   proposalLead: "J'enregistre ça — ça te va ?", logIt: "Enregistrer", notThis: "Pas ça",
-  dropped: "Laissé tomber.",
+  dropped: "Supprimé.",
   logRetry: "Aucune réponse. Appuie de nouveau sur Enregistrer : le repas ne peut pas être enregistré deux fois.",
   sent: "Envoyé", alreadyLogged: "Celui-là était déjà enregistré.",
   composerPlaceholder: "Tu as mangé quoi ?", send: "Envoyer",
@@ -186,6 +202,12 @@ const FR: WebCopy = {
   loading: "Chargement…", somethingWrong: "Quelque chose a échoué. Réessaie.",
   connectTelegram: "Connecter Telegram", telegramFailed: "Pas de lien Telegram cette fois. Réessaie.",
   language: "Langue", settings: "Réglages",
+  waitingToSend: "En attente d'envoi",
+  sendAgain: "Renvoyer",
+  discard: "Abandonner",
+  kept: "Enregistré sur cet appareil. Ça partira tout seul dès que possible.",
+  keptBehind: "Enregistré sur cet appareil. Ça partira une fois que le message au-dessus, qui t'attend, aura été renvoyé ou abandonné.",
+  notSaved: "Ça n'a pas pu être enregistré sur cet appareil, et ça n'a pas été envoyé. Réessaie.",
   refusals: {
     "subscription-required": "Les analyses fournies avec ce compte sont épuisées. Abonne-toi dans l'appli eait pour continuer.",
     "cap-user": "C'était le dernier pour aujourd'hui — ton quota quotidien repart à minuit.",
@@ -227,7 +249,7 @@ const DE: WebCopy = {
   sentReload: "Gesendet. Lad neu, um das Gespräch zu sehen.",
   proposalLead: "Ich trage das ein — passt das?", logIt: "Eintragen", notThis: "Doch nicht",
   dropped: "Verworfen.",
-  logRetry: "Es kam keine Antwort. Drück noch einmal auf Eintragen: doppelt eingetragen werden kann die Mahlzeit dabei nicht.",
+  logRetry: "Es kam keine Antwort. Drück noch einmal auf Eintragen: die Mahlzeit kann dabei nicht doppelt eingetragen werden.",
   sent: "Gesendet", alreadyLogged: "Das war schon eingetragen.",
   composerPlaceholder: "Was hast du gegessen?", send: "Senden",
   photosOfOneMeal: "Fotos einer Mahlzeit",
@@ -242,6 +264,12 @@ const DE: WebCopy = {
   loading: "Lädt…", somethingWrong: "Etwas ist schiefgegangen. Versuch es noch einmal.",
   connectTelegram: "Telegram verbinden", telegramFailed: "Diesmal kein Telegram-Link. Versuch es noch einmal.",
   language: "Sprache", settings: "Einstellungen",
+  waitingToSend: "Wartet aufs Senden",
+  sendAgain: "Erneut senden",
+  discard: "Verwerfen",
+  kept: "Auf diesem Gerät gespeichert. Es geht von selbst raus, sobald es geht.",
+  keptBehind: "Auf diesem Gerät gespeichert. Es geht raus, sobald die Nachricht darüber, die auf dich wartet, erneut gesendet oder verworfen wurde.",
+  notSaved: "Das ließ sich auf diesem Gerät nicht speichern und wurde nicht gesendet. Versuch es noch einmal.",
   refusals: {
     "subscription-required": "Die Analysen, die zu diesem Konto gehörten, sind aufgebraucht. Schließ in der eait-App ein Abo ab, um weiterzumachen.",
     "cap-user": "Das war heute deine letzte — dein Tageskontingent setzt um Mitternacht zurück.",
@@ -271,7 +299,7 @@ const IT: WebCopy = {
   budgetLeft: "rimaste", budgetOver: "sopra", budgetUnder: "sotto",
   targetLine: "Obiettivo {target} · {protein} g di proteine",
   eatenLine: "{eaten} di {target} mangiate · {protein} di {proteinTarget} g di proteine",
-  floor: "Il tuo obiettivo è al minimo che questa app proporrà mai.",
+  floor: "Il tuo obiettivo è al minimo che questa app possa proporre.",
   connectHealth: "Collega Apple Health nell'app eait per iPhone e il tuo peso tiene aggiornato questo obiettivo.",
   weightLine: "Peso {kg} kg.",
   weightLineWhen: "Peso {kg} kg, pesato {when}.",
@@ -282,7 +310,7 @@ const IT: WebCopy = {
   noMessages: "Ancora nessun messaggio.",
   sentReload: "Inviato. Ricarica per vedere la conversazione.",
   proposalLead: "Sto registrando questo — ti torna?", logIt: "Registra", notThis: "Non questo",
-  dropped: "Lasciato perdere.",
+  dropped: "Scartato.",
   logRetry: "Non è arrivata risposta. Premi di nuovo Registra: il pasto non può essere registrato due volte.",
   sent: "Inviato", alreadyLogged: "Quello era già registrato.",
   composerPlaceholder: "Cosa hai mangiato?", send: "Invia",
@@ -298,6 +326,12 @@ const IT: WebCopy = {
   loading: "Caricamento…", somethingWrong: "Qualcosa è andato storto. Riprova.",
   connectTelegram: "Collega Telegram", telegramFailed: "Niente link Telegram stavolta. Riprova.",
   language: "Lingua", settings: "Impostazioni",
+  waitingToSend: "In attesa di invio",
+  sendAgain: "Invia di nuovo",
+  discard: "Scarta",
+  kept: "Salvato su questo dispositivo. Partirà da solo appena possibile.",
+  keptBehind: "Salvato su questo dispositivo. Partirà quando il messaggio qui sopra, che ti aspetta, sarà stato inviato di nuovo o scartato.",
+  notSaved: "Non è stato possibile salvarlo su questo dispositivo, e non è stato inviato. Riprova.",
   refusals: {
     "subscription-required": "Le analisi incluse con questo account sono finite. Abbonati nell'app eait per continuare.",
     "cap-user": "Quella era l'ultima di oggi — il tuo limite giornaliero riparte a mezzanotte.",
@@ -309,7 +343,7 @@ const IT: WebCopy = {
     "analysis-failed": "Non è tornato niente. Riprova.",
     "not-onboarded": "Prima rispondi alle domande del piano.",
     expired: "Quello non è più in attesa. Ridimmelo.",
-    "target-gone": "Qui non c'è nessun pasto aperto da cambiare. Aprilo nell'app, oppure dì cosa hai mangiato e registralo di nuovo.",
+    "target-gone": "Qui non c'è nessun pasto aperto da cambiare. Aprilo nell'app, oppure di' cosa hai mangiato e registralo di nuovo.",
     "too many photos": "Sono più angolazioni di quante un pasto possa averne.",
     "too large": "Quella foto è troppo grande da inviare.",
     "text too long": "Questo messaggio è troppo lungo da inviare.",
@@ -326,8 +360,8 @@ const ES: WebCopy = {
   signIn: "Entrar", today: "Hoy",
   budgetLeft: "restantes", budgetOver: "por encima", budgetUnder: "por debajo",
   targetLine: "Objetivo {target} · {protein} g de proteína",
-  eatenLine: "{eaten} de {target} comidas · {protein} de {proteinTarget} g de proteína",
-  floor: "Tu objetivo está en el mínimo que esta app va a proponer nunca.",
+  eatenLine: "{eaten} de {target} consumidas · {protein} de {proteinTarget} g de proteína",
+  floor: "Tu objetivo está en el mínimo que esta app puede proponer.",
   connectHealth: "Conecta Apple Health en la app eait para iPhone y tu peso mantiene este objetivo al día.",
   weightLine: "Peso {kg} kg.",
   weightLineWhen: "Peso {kg} kg, pesado {when}.",
@@ -340,7 +374,7 @@ const ES: WebCopy = {
   proposalLead: "Voy a registrar esto — ¿te cuadra?", logIt: "Registrar", notThis: "Esto no",
   dropped: "Descartado.",
   logRetry: "No llegó respuesta. Pulsa Registrar otra vez: no puede registrar la comida dos veces.",
-  sent: "Enviado", alreadyLogged: "Ese ya estaba registrado.",
+  sent: "Enviado", alreadyLogged: "Esa ya estaba registrada.",
   composerPlaceholder: "¿Qué comiste?", send: "Enviar",
   photosOfOneMeal: "Fotos de una sola comida",
   caption: "¿Algo que deba saber? (opcional)",
@@ -354,6 +388,12 @@ const ES: WebCopy = {
   loading: "Cargando…", somethingWrong: "Algo salió mal. Inténtalo otra vez.",
   connectTelegram: "Conectar Telegram", telegramFailed: "Sin enlace de Telegram esta vez. Inténtalo otra vez.",
   language: "Idioma", settings: "Ajustes",
+  waitingToSend: "Pendiente de envío",
+  sendAgain: "Enviar otra vez",
+  discard: "Descartar",
+  kept: "Guardado en este dispositivo. Saldrá solo en cuanto pueda.",
+  keptBehind: "Guardado en este dispositivo. Saldrá cuando el mensaje de arriba, que te está esperando, se haya enviado otra vez o descartado.",
+  notSaved: "No se ha podido guardar en este dispositivo, y no se ha enviado. Inténtalo otra vez.",
   refusals: {
     "subscription-required": "Los análisis que traía esta cuenta se han agotado. Suscríbete en la app de eait para seguir.",
     "cap-user": "Esa fue la última de hoy — tu cupo diario se reinicia a medianoche.",
@@ -365,7 +405,7 @@ const ES: WebCopy = {
     "analysis-failed": "No volvió nada. Inténtalo otra vez.",
     "not-onboarded": "Responde primero a las preguntas del plan.",
     expired: "Ese ya no está en espera. Vuelve a decírmelo.",
-    "target-gone": "Aquí no hay ninguna comida abierta que cambiar. Ábrela en la app, o di qué comiste y regístralo otra vez.",
+    "target-gone": "Aquí no hay ninguna comida abierta que cambiar. Ábrela en la app, o di qué comiste y regístrala otra vez.",
     "too many photos": "Son más ángulos de los que puede tener una comida.",
     "too large": "Esa foto es demasiado grande para enviarla.",
     "text too long": "Ese mensaje es demasiado largo para enviarlo.",
@@ -410,6 +450,12 @@ const VI: WebCopy = {
   loading: "Đang tải…", somethingWrong: "Có gì đó trục trặc. Thử lại nhé.",
   connectTelegram: "Kết nối Telegram", telegramFailed: "Lần này chưa có liên kết Telegram. Thử lại nhé.",
   language: "Ngôn ngữ", settings: "Cài đặt",
+  waitingToSend: "Đang chờ gửi",
+  sendAgain: "Gửi lại",
+  discard: "Bỏ đi",
+  kept: "Đã lưu trên máy này. Nó sẽ tự gửi ngay khi có thể.",
+  keptBehind: "Đã lưu trên máy này. Nó sẽ gửi sau khi tin nhắn phía trên — cái đang chờ bạn quyết định — được gửi lại hoặc bỏ đi.",
+  notSaved: "Không lưu được trên máy này, và cũng chưa gửi đi. Thử lại nhé.",
   refusals: {
     "subscription-required": "Số lượt phân tích đi kèm tài khoản này đã dùng hết. Đăng ký trong ứng dụng eait để tiếp tục.",
     "cap-user": "Đó là lần cuối trong hôm nay — hạn mức mỗi ngày của bạn sẽ đặt lại lúc nửa đêm.",
@@ -466,6 +512,12 @@ const ID: WebCopy = {
   loading: "Memuat…", somethingWrong: "Ada yang salah. Coba lagi.",
   connectTelegram: "Hubungkan Telegram", telegramFailed: "Tautan Telegram belum jadi kali ini. Coba lagi.",
   language: "Bahasa", settings: "Pengaturan",
+  waitingToSend: "Menunggu dikirim",
+  sendAgain: "Kirim lagi",
+  discard: "Buang",
+  kept: "Tersimpan di perangkat ini. Akan terkirim sendiri begitu bisa.",
+  keptBehind: "Tersimpan di perangkat ini. Akan terkirim setelah pesan di atas, yang menunggu keputusanmu, dikirim lagi atau dibuang.",
+  notSaved: "Itu tidak bisa disimpan di perangkat ini, dan tidak terkirim. Coba lagi.",
   refusals: {
     "subscription-required": "Jatah analisis akun ini sudah habis. Berlangganan di aplikasi eait untuk melanjutkan.",
     "cap-user": "Itu yang terakhir untuk hari ini — jatah harianmu mulai lagi tengah malam.",
@@ -522,6 +574,12 @@ const RU: WebCopy = {
   loading: "Загрузка…", somethingWrong: "Что-то пошло не так. Попробуй ещё раз.",
   connectTelegram: "Подключить Telegram", telegramFailed: "В этот раз ссылка на Telegram не вышла. Попробуй ещё раз.",
   language: "Язык", settings: "Настройки",
+  waitingToSend: "Ждёт отправки",
+  sendAgain: "Отправить снова",
+  discard: "Отбросить",
+  kept: "Сохранено на этом устройстве. Уйдёт само, как только сможет.",
+  keptBehind: "Сохранено на этом устройстве. Уйдёт, когда сообщение выше — то, что ждёт твоего решения — будет отправлено снова или отброшено.",
+  notSaved: "Это не удалось сохранить на устройстве, и отправлено оно не было. Попробуй ещё раз.",
   refusals: {
     "subscription-required": "Разборы, которые шли с этим аккаунтом, закончились. Оформи подписку в приложении eait, чтобы продолжить.",
     "cap-user": "Это была последняя на сегодня — дневной лимит обнулится в полночь.",

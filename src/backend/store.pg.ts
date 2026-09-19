@@ -1935,6 +1935,10 @@ export async function postgresStore(
           set copy = jsonb_set(
                 case when jsonb_typeof(notification_copy.copy) = 'string'
                      then (notification_copy.copy #>> '{}')::jsonb
+                     when jsonb_typeof(notification_copy.copy) <> 'object' then '{}'::jsonb
+                     -- A bare pre-#358 revision, keyed by message id rather than language.
+                     when notification_copy.copy ?| array['evening','trial-day5','trial-started']
+                     then jsonb_build_object('en', notification_copy.copy)
                      else coalesce(notification_copy.copy, '{}'::jsonb) end,
                 array[${lang}], ${copy}::jsonb, true),
               updated_at = now()`;
@@ -1954,11 +1958,22 @@ export async function postgresStore(
       // silently store text, and for what the `jsonb_typeof` guard is repairing.
       const rows = await sql`
         insert into onboarding_content (id, version, content, updated_at)
-        values (1, ${floorVersion}, jsonb_build_object(${lang}::text, ${content}::jsonb), now())
+        values (1, ${floorVersion}, jsonb_build_object(
+          ${lang}::text, ${content}::jsonb || jsonb_build_object('version', ${floorVersion})), now())
         on conflict (id) do update
           set content = jsonb_set(
                 case when jsonb_typeof(onboarding_content.content) = 'string'
                      then (onboarding_content.content #>> '{}')::jsonb
+                     when jsonb_typeof(onboarding_content.content) <> 'object' then '{}'::jsonb
+                     -- A BARE pre-#358 revision: one OnboardingContent, no language
+                     -- dimension. It is an object, so the guards above pass it through and
+                     -- jsonb_set hangs the language off it beside screens; storedContentSet
+                     -- reads that hybrid as bare English, so every non-English save
+                     -- succeeded, returned a version and was invisible. It was English
+                     -- because English was all there was, so it becomes en.
+                     -- (No backticks in here: this is inside a template literal.)
+                     when onboarding_content.content ? 'screens'
+                     then jsonb_build_object('en', onboarding_content.content)
                      else coalesce(onboarding_content.content, '{}'::jsonb) end,
                 array[${lang}],
                 ${content}::jsonb || jsonb_build_object(

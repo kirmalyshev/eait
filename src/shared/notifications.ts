@@ -21,7 +21,7 @@
 import { lintCopy } from "./claims.ts";
 import { dateMinus, localDate, localTime } from "./dates.ts";
 import type { Entitlement } from "./entitlement.ts";
-import { wholeNumbers, t, type Localized } from "./lang.ts";
+import { genderedRussian, wholeNumbers, t, type Localized } from "./lang.ts";
 import type { FoodTargets, Goal, Lang } from "./types.ts";
 
 /** Every message that may be sent. Adding one is a product decision, not a copy edit. */
@@ -145,7 +145,7 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
   es: {
     "trial-day5": {
       title: "Quedan dos días",
-      body: "Dos días antes de que acabe la semana gratis. Si te quedas, nada que hacer — si no: Ajustes › Suscripciones, y no pagas nada.",
+      body: "Faltan dos días para que acabe la semana gratis. Si te quedas, nada que hacer — si no: Ajustes › Suscripciones, y no pagas nada.",
     },
     "trial-day6": {
       title: "La prueba termina mañana",
@@ -441,6 +441,17 @@ export function validateNotificationCopy(input: unknown): NotificationCopyValida
     errors.push(`${v.field} contains a ${v.pattern} claim: "${v.span}"`);
   }
 
+  // ADMIN-TYPED RUSSIAN GETS THE GENDER CHECK TOO, and this is the only place it can run.
+  //
+  // `genderedRussian` is a build-time guard over the COMPILED-IN tables — and a stored revision
+  // REPLACES those for every user, so without this the whole check was a rule about strings an
+  // admin could overwrite through the editor without anything looking. It needs no `lang`: a
+  // string in any other language has no Cyrillic in it and cannot match.
+  for (const g of genderedRussian(raw)) {
+    errors.push(`${g.at} tells a Russian reader their gender ("${g.text}") — Russian past tense`
+      + " and short adjectives agree, so this greets half your readers as the wrong person");
+  }
+
   if (errors.length > 0) return { ok: false, errors };
   // Every id is present, every field is a string of the right shape: the cast describes what the
   // loop above has just proved.
@@ -485,7 +496,7 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
     onPlan: "On plan. Same again tomorrow.",
   },
   fr: {
-    noMeals: "Une photo demain remet la journée sur le tableau.",
+    noMeals: "Une photo demain remet la journée dans le compte.",
     over: "{over} au-dessus aujourd'hui — demain repart de {plan}.",
     protein: "Il a manqué {gap} g de protéines — des œufs ou du skyr au petit-déjeuner comblent ça.",
     gainUnder: "{under} kcal sous le plan — une poignée de noix demain suffit.",
@@ -501,15 +512,15 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
     onPlan: "Im Plan. Morgen genauso.",
   },
   it: {
-    noMeals: "Una foto domani rimette la giornata sul tabellone.",
+    noMeals: "Una foto domani rimette la giornata nel conteggio.",
     over: "{over} sopra oggi — domani si riparte da {plan}.",
-    protein: "Alle proteine mancavano {gap} g — uova o skyr a colazione chiudono il conto.",
+    protein: "Alle proteine mancavano {gap} g — uova o skyr a colazione bastano a colmarlo.",
     gainUnder: "{under} kcal sotto il piano — una manciata di noci domani copre tutto.",
     under: "{under} sotto il piano — domani mangiare il numero intero è il piano, non uno sgarro.",
     onPlan: "Nel piano. Domani uguale.",
   },
   es: {
-    noMeals: "Una foto mañana devuelve el día al marcador.",
+    noMeals: "Una foto mañana devuelve el día a la cuenta.",
     over: "{over} por encima hoy — mañana vuelve a empezar en {plan}.",
     protein: "Faltaron {gap} g de proteína — huevos o skyr en el desayuno lo cierran.",
     gainUnder: "{under} kcal por debajo del plan — un puñado de frutos secos mañana lo cubre.",
@@ -526,7 +537,7 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
   },
   id: {
     noMeals: "Satu foto besok, dan hari itu terhitung lagi.",
-    over: "Hari ini {over} di atas — besok mulai lagi dari {plan}.",
+    over: "Hari ini {over} di atas rencana — besok mulai lagi dari {plan}.",
     protein: "Protein kurang {gap} g — telur atau yoghurt Yunani saat sarapan menutupnya.",
     gainUnder: "Kurang {under} kcal dari rencana — segenggam kacang besok sudah cukup.",
     under: "Kurang {under} dari rencana — besok makan angka penuhnya itu rencananya, bukan kesalahan.",

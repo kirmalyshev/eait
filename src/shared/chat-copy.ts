@@ -17,6 +17,10 @@
 
 import { t, type Localized } from "./lang.ts";
 import type { Lang } from "./types.ts";
+// Type-only: `chat.ts` imports this file. Keying `scripted` by the id set rather than by
+// `string` is what lets `scriptedLine` drop its `!` — a language that forgets an id is a
+// compile error instead of a TypeError inside a chat bubble.
+import type { ScriptedLineId } from "./chat.ts";
 
 /** The four branches of the running arithmetic: the goal, crossed with whether the day is spent. */
 export interface ArithmeticCopy {
@@ -28,7 +32,7 @@ export interface ArithmeticCopy {
 
 export interface ThreadCopy {
   /** Keyed by `ScriptedLineId`. `{price}` on `trial-started` is the one parameter any of them takes. */
-  scripted: Record<string, string>;
+  scripted: Record<ScriptedLineId, string>;
   meetGabie: string;
   coachStarters: string[];
   /**
@@ -129,12 +133,12 @@ const FR: ThreadCopy = {
     "fix-prompt": "Dis-moi ce qui cloche — \"la moitié du riz\", \"pas d'avocat\", \"c'était 500\" marchent tous. Ou ouvre la fiche et corrige les grammes toi-même.",
     "already-in": "Bien. Je suis dans le chat quand tu veux — une photo ou une phrase, les deux enregistrent un repas.",
     "camera-denied": "Pas d'appareil photo, pas de problème. Choisis une photo dans ta galerie, ou dis-moi simplement ce que tu as mangé — les deux donnent un verdict.",
-    "onboarding-done": "Bien — la mise en route est finie, et le premier jour est lancé. Encore une chose avant que tu files, et c'est la seule fois que je demande.",
-    "dropped": "Laissé tomber.",
+    "onboarding-done": "Bien — la mise en route est finie, et le premier jour est lancé. Encore une chose avant que tu partes, et c'est la seule fois que je demande.",
+    "dropped": "Supprimé.",
   },
   meetGabie: "Les questions vont à Gabie, la nutritionniste ici — quoi manger ce soir, comment se passe la semaine. Même chat ; elle lit ton journal avant de répondre. Moi j'enregistre, elle conseille.",
   coachStarters: [
-    "Ma semaine, elle donne quoi ?",
+    "Ma semaine se passe comment ?",
     "Je mange quoi ce soir ?",
     "J'ai assez de protéines ?",
   ],
@@ -233,8 +237,8 @@ const IT: ThreadCopy = {
     "fix-prompt": "Dimmi cosa non torna — \"metà del riso\", \"niente avocado\", \"erano 500\" vanno tutti bene. Oppure apri la scheda e correggi i grammi da te.",
     "already-in": "Bene. Sono in Chat quando vuoi — una foto o una frase, entrambe registrano un pasto.",
     "camera-denied": "Niente fotocamera, nessun problema. Scegli una foto dalla galleria, o dimmi solo cosa hai mangiato — entrambe ricevono un verdetto.",
-    "onboarding-done": "Bene — la messa in moto è finita, e il primo giorno è partito. Ancora una cosa prima che tu vada, ed è l'unica volta che te lo chiedo.",
-    "dropped": "Lasciato perdere.",
+    "onboarding-done": "Bene — la configurazione iniziale è finita, e il primo giorno è partito. Ancora una cosa prima che tu vada, ed è l'unica volta che te lo chiedo.",
+    "dropped": "Scartato.",
   },
   meetGabie: "Le domande vanno a Gabie, la nutrizionista qui — cosa mangiare stasera, come sta andando la settimana. Stessa chat; legge il tuo diario prima di rispondere. Io registro, lei consiglia.",
   coachStarters: [
@@ -270,7 +274,7 @@ const IT: ThreadCopy = {
     fixHint: "Se qualcosa non torna, dimmelo — \"metà del riso\", \"niente avocado\" — oppure tocca la scheda e cambia i grammi.",
     sodium: "Su questo il sodio va alto. Valutato solo perché me l'hai chiesto tu.",
     satfat: "Su questo i grassi saturi vanno alti. Valutato solo perché me l'hai chiesto tu.",
-    noted: "«{note}» — preso nota, è dentro ai numeri.",
+    noted: "«{note}» — preso nota, è nei numeri.",
   },
 };
 

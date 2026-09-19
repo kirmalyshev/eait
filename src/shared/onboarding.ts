@@ -34,6 +34,7 @@
 // disagree about what "next" means.
 
 import type { Profile } from "./types.ts";
+import { genderedRussian } from "./lang.ts";
 import { ACTIVITY_LEVELS, PACES } from "./types.ts";
 import { RESTRICTION_TAGS } from "./targets.ts";
 import { lintCopy } from "./claims.ts";
@@ -902,6 +903,17 @@ export function validateOnboardingContent(input: unknown): ContentValidation {
 
   for (const id of ONBOARDING_SCREENS) {
     if (!seen.has(id)) push(`screens is missing "${id}"`);
+  }
+
+  // ADMIN-TYPED RUSSIAN GETS THE GENDER CHECK TOO, and this is the only place it can run.
+  //
+  // `genderedRussian` is a build-time guard over the COMPILED-IN tables — and a stored revision
+  // REPLACES those for every user, so without this the whole check was a rule about strings an
+  // admin could overwrite through the editor without anything looking. It needs no `lang`: a
+  // string in any other language has no Cyrillic in it and cannot match.
+  for (const g of genderedRussian(raw)) {
+    push(`${g.at} tells a Russian reader their gender ("${g.text}") — Russian past tense`
+      + " and short adjectives agree, so this greets half your readers as the wrong person");
   }
   // Order is NOT content any more: the chat asks in the order `ONBOARDING_STEPS` fixes, because
   // the replies read answers the earlier questions produced. What is checked here is that every

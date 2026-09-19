@@ -25,7 +25,11 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import { t, type Localized } from "./lang.ts";
-import type { Goal, Lang } from "./types.ts";
+import type { ActivityLevel, Goal, Lang } from "./types.ts";
+// TYPE-ONLY, so the cycle with `onboarding-chat.ts` is erased at build. These records used to be
+// keyed by bare `string`, which is what made the `as Record<Struggle, string>` cast in that file
+// necessary — and the root AGENTS.md forbids exactly that cast by name.
+import type { Struggle } from "./onboarding-chat.ts";
 
 /** A statistic, and where it came from. Mirrors `SupportCard` in `onboarding-chat.ts`. */
 export interface CardCopy {
@@ -37,7 +41,7 @@ export interface CardCopy {
 /** Everything Spud says back, for one language. Branching stays in `onboarding-chat.ts`. */
 export interface ChatCopy {
   idlePlaceholder: string;
-  struggles: Record<string, string>;
+  struggles: Record<Struggle, string>;
   strugglesAsk: string[];
   quick: {
     struggles: { finish: string; none: string };
@@ -45,7 +49,7 @@ export interface ChatCopy {
   };
   goalCards: Record<Goal, CardCopy>;
   goalFollowups: Partial<Record<Goal, string>>;
-  struggleCards: Record<string, CardCopy>;
+  struggleCards: Record<Struggle, CardCopy>;
   /** `diets` told to somebody gaining: the regain meta-analysis is about losing, so it is dropped. */
   dietsGainCard: CardCopy;
   /** `{share}` from `MAX_SURPLUS_SHARE`. */
@@ -57,7 +61,7 @@ export interface ChatCopy {
   belowHealthy: CardCopy;
   /** `{bmr}` is the first real number, spoken six steps early. */
   weightAck: { noted: string; bmr: string };
-  activityReplies: Record<string, string>;
+  activityReplies: Record<ActivityLevel, string>;
   strugglesCloser: { none: string; one: string; many: string };
   restrictions: {
     kidneys: string;
@@ -309,14 +313,14 @@ const FR: ChatCopy = {
     },
     energy: {
       title: "L'énergie est la mesure honnête",
-      body: "Les journées sous-alimentées et le manque d'énergie voyagent ensemble — c'est une des raisons pour lesquelles on refuse les objectifs sous le plancher de sécurité. La nourriture est la moitié de l'énergie ; on regardera la forme de tes journées.",
+      body: "Les journées sous-alimentées et le manque d'énergie vont de pair — c'est une des raisons pour lesquelles on refuse les objectifs sous le plancher de sécurité. La nourriture est la moitié de l'énergie ; on regardera la forme de tes journées.",
     },
     body: {
       title: "Ici, la balance ne juge pas",
       body: "Tu auras des chiffres sur ce que tu manges, jamais de commentaires sur ton corps. C'est ton objectif qui fixe les cibles ; rien ici n'est comparé à qui que ce soit.",
     },
     metabolism: {
-      title: "Mesurons plutôt que de s'inquiéter",
+      title: "Mesurons plutôt que de nous inquiéter",
       body: "Les métabolismes diffèrent moins que ne le dit internet — mais le tien est le tien, et deux semaines de suivi honnête montrent ce qu'il fait vraiment. Ça vaut mieux que n'importe quelle formule, la mienne comprise.",
     },
   },
@@ -345,7 +349,7 @@ const FR: ChatCopy = {
   },
   belowHealthy: {
     title: "Je ne peux pas fixer ça comme objectif",
-    body: "Le poids sain le plus bas pour ta taille est d'environ {kg} kg. On ne fixera pas d'objectif en dessous. Si tu suis autre chose avec un médecin, suis-le lui plutôt que cette appli.",
+    body: "Le poids sain le plus bas pour ta taille est d'environ {kg} kg. On ne fixera pas d'objectif en dessous. Si tu suis autre chose avec un médecin, écoute-le plutôt que cette appli.",
   },
   weightAck: {
     noted: "Noté — des chiffres honnêtes font un plan honnête.",
@@ -354,12 +358,12 @@ const FR: ChatCopy = {
   activityReplies: {
     sedentary: "Merci pour la réponse honnête — la plupart des gens surestiment celle-ci, et c'est ensuite l'objectif qui les surestime.",
     light: "Bien — la marche compte plus qu'on ne le croit.",
-    moderate: "Solide. Le chiffre partira du principe que ces séances ont lieu — tiens-moi honnête.",
-    active: "Bien — ça t'achète plus à manger. Je préfère alimenter correctement que deviner trop bas.",
+    moderate: "Solide. Le chiffre partira du principe que ces séances ont lieu — ne me fais pas mentir.",
+    active: "Bien — ça te donne droit à plus à manger. Je préfère alimenter correctement que deviner trop bas.",
     athlete: "Alors le chiffre a du vrai travail à alimenter. Je préfère nourrir ça correctement que deviner trop bas.",
   },
   strugglesCloser: {
-    none: "Encore mieux. Si quelque chose apparaît plus tard, dis-le-moi dans le chat — le plan peut plier.",
+    none: "Encore mieux. Si quelque chose apparaît plus tard, dis-le-moi dans le chat — le plan peut s'adapter.",
     one: "On sait travailler avec ça — le plan se construit autour, pas contre. Deux petites questions et c'est fini.",
     many: "On sait travailler avec chacun de ces points — le plan se construit autour, pas contre. Deux petites questions et c'est fini.",
   },
@@ -390,7 +394,7 @@ const FR: ChatCopy = {
     below: "Un nombre en dessous de {weight}…",
   },
   switched: {
-    gain: "Basculé — on prend, donc. Où aimerais-tu arriver, en kg ?",
+    gain: "Va pour la prise de poids. Où aimerais-tu arriver, en kg ?",
     lose: "Basculé — on perd, donc. Où aimerais-tu arriver, en kg ? Plus vite n'est pas mieux ici — c'est juste plus dur à tenir.",
   },
   loseTail: " Plus vite n'est pas mieux ici — c'est juste plus dur à tenir.",
@@ -427,7 +431,7 @@ const DE: ChatCopy = {
     },
     gain: {
       title: "Nicht so selten, wie es sich anfühlt",
-      body: "Etwa 23% der jungen Männer und 6% der jungen Frauen haben im letzten Jahr aktiv versucht zuzunehmen. Ein echtes Ziel mit echter Technik — wir setzen einen Überschuss, der mehr Muskeln aufbaut als Polster.",
+      body: "Etwa 23% der jungen Männer und 6% der jungen Frauen haben im letzten Jahr aktiv versucht zuzunehmen. Ein echtes Ziel mit echter Technik — wir setzen den Überschuss so an, dass er mehr Muskeln aufbaut als Polster.",
       source: "Kanadische Studie an jungen Erwachsenen · n = 976",
     },
     maintain: {
@@ -484,7 +488,7 @@ const DE: ChatCopy = {
   },
   gainPaceCard: {
     title: "Gut zunehmen geht absichtlich langsam",
-    body: "Dein Überschuss wird bei etwa {share}% über dem gedeckelt, was dein Körper am Tag verbrennt — die Zone, in der Muskeln mit der Waage mithalten. Die meisten, die gut zunehmen, fangen beim Eiweiß an; deins verfolgen wir automatisch.",
+    body: "Dein Überschuss wird bei etwa {share}% über dem gedeckelt, was dein Körper am Tag verbrennt — die Zone, in der Muskeln mit der Waage mithalten. Die meisten, die gut zunehmen, fangen mit dem Eiweiß an; deins behalten wir automatisch im Blick.",
     source: "Befragung von 168 sportlichen Erwachsenen mit Zunahme-Ziel",
   },
   underAgeCard: {
@@ -510,7 +514,7 @@ const DE: ChatCopy = {
     bmr: "Und hier ist deine erste Zahl: in Ruhe verbrennt dein Körper etwa {bmr} kcal am Tag. Die nächsten Fragen schärfen sie.",
   },
   activityReplies: {
-    sedentary: "Danke für die ehrliche Antwort — die meisten greifen hier zu hoch, und dann greift das Ziel zu hoch.",
+    sedentary: "Danke für die ehrliche Antwort — die meisten schätzen sich hier zu hoch ein, und dann schätzt das Ziel sie zu hoch ein.",
     light: "Gut — Spaziergänge zählen mehr, als man denkt.",
     moderate: "Solide. Die Zahl geht davon aus, dass diese Einheiten stattfinden — halt mich ehrlich.",
     active: "Gut — das bringt dir mehr zu essen. Lieber ordentlich versorgen als zu niedrig raten.",
@@ -574,7 +578,7 @@ const IT: ChatCopy = {
   },
   strugglesAsk: ["Ora la parte che quasi tutte le app saltano. Cosa è stato difficile? Scegli quello che vuoi — o niente. Questo orienta il supporto, mai un giudizio."],
   quick: {
-    struggles: { finish: "Fatto", none: "Niente di questi" },
+    struggles: { finish: "Fatto", none: "Nessuno di questi" },
     restrictions: { finish: "Concludi", none: "Niente di tutto ciò" },
   },
   goalCards: {
@@ -595,7 +599,7 @@ const IT: ChatCopy = {
     },
   },
   goalFollowups: {
-    gain: "Stesse regole che valgono per tutti qui — numeri onesti, niente incoraggiamenti a vuoto, nessuna vergogna — solo puntati in su invece che in giù.",
+    gain: "Stesse regole che valgono per tutti qui — numeri onesti, niente incoraggiamenti a vuoto, nessuna vergogna — solo puntate verso l'alto invece che verso il basso.",
     maintain: "E la strada comoda è la tua: nessun peso obiettivo da scegliere — pianifichiamo attorno al restare dove sei.",
   },
   struggleCards: {
@@ -621,11 +625,11 @@ const IT: ChatCopy = {
     },
     eatout: {
       title: "I piatti del ristorante sono i più imprecisi",
-      body: "Le stime sbandano di più sul cibo che non hai cucinato — ed è esattamente lì che le foto sono brave. Quando non sono sicuro te lo dico, invece di far finta.",
+      body: "Le stime sbandano di più sul cibo che non hai cucinato — ed è esattamente lì che le foto funzionano meglio. Quando non sono sicuro te lo dico, invece di far finta.",
     },
     energy: {
       title: "L'energia è la misura onesta",
-      body: "Giornate sotto-alimentate e poca energia viaggiano insieme — è uno dei motivi per cui rifiutiamo obiettivi sotto la soglia di sicurezza. Il cibo è metà dell'energia; guarderemo la forma delle tue giornate.",
+      body: "Giornate sotto-alimentate e poca energia vanno di pari passo — è uno dei motivi per cui rifiutiamo obiettivi sotto la soglia di sicurezza. Il cibo è metà dell'energia; guarderemo la forma delle tue giornate.",
     },
     body: {
       title: "Qui la bilancia non giudica",
@@ -668,14 +672,14 @@ const IT: ChatCopy = {
     bmr: "Ed ecco il tuo primo numero: a riposo il tuo corpo brucia circa {bmr} kcal al giorno. Le prossime domande lo affinano.",
   },
   activityReplies: {
-    sedentary: "Grazie per la risposta onesta — quasi tutti sparano alto qui, e poi è l'obiettivo a sparare alto su di loro.",
+    sedentary: "Grazie per la risposta onesta — quasi tutti esagerano qui, e poi è l'obiettivo a esagerare con loro.",
     light: "Bene — camminare conta più di quanto si pensi.",
-    moderate: "Solido. Il numero darà per scontato che quegli allenamenti si facciano — tienimi onesto.",
-    active: "Bene — questo ti compra più cibo. Preferisco alimentarti come si deve che tirare basso.",
+    moderate: "Solido. Il numero darà per scontato che quegli allenamenti si facciano — non farmi sbagliare.",
+    active: "Bene — così ti spetta più cibo. Preferisco nutrirti come si deve piuttosto che tirare al ribasso.",
     athlete: "Allora il numero ha del lavoro vero da alimentare. Preferisco nutrirlo come si deve che tirare basso.",
   },
   strugglesCloser: {
-    none: "Meglio ancora. Se salta fuori qualcosa più avanti, dimmelo in chat — il piano sa piegarsi.",
+    none: "Meglio ancora. Se salta fuori qualcosa più avanti, dimmelo in chat — il piano sa adattarsi.",
     one: "Con questo sappiamo lavorare — il piano si costruisce attorno, non contro. Restano due domande veloci.",
     many: "Con ognuno di questi sappiamo lavorare — il piano si costruisce attorno, non contro. Restano due domande veloci.",
   },
@@ -700,21 +704,21 @@ const IT: ChatCopy = {
   direction: {
     gain: "Sei a {weight} kg e chiedi di salire a {target} — da qui non è una crescita. Se l'obiettivo è cambiato possiamo invertirlo; altrimenti dammi un numero sopra {weight}.",
     lose: "Sei a {weight} kg e chiedi di scendere a {target} — da qui non è un calo. Se l'obiettivo è cambiato possiamo invertirlo; altrimenti dammi un numero sotto {weight}.",
-    switchToLose: "Passa a perdere",
-    switchToGain: "Passa a prendere",
+    switchToLose: "Passa a perdere peso",
+    switchToGain: "Passa a prendere peso",
     above: "Un numero sopra {weight}…",
     below: "Un numero sotto {weight}…",
   },
   switched: {
-    gain: "Invertito — si prende, allora. Dove ti piacerebbe arrivare, in kg?",
-    lose: "Invertito — si perde, allora. Dove ti piacerebbe arrivare, in kg? Più veloce qui non è meglio — è solo più difficile da mantenere.",
+    gain: "Invertito — si prende peso, allora. Dove ti piacerebbe arrivare, in kg?",
+    lose: "Invertito — si perde peso, allora. Dove ti piacerebbe arrivare, in kg? Più veloce qui non è meglio — è solo più difficile da mantenere.",
   },
   loseTail: " Più veloce qui non è meglio — è solo più difficile da mantenere.",
   capNoteTail: " Fa circa {kg} kg a settimana.",
   nothingApplies: "Niente di tutto ciò",
   goalEdit: {
-    cleared: "Il tuo peso obiettivo non stava più con quell'obiettivo, quindi è stato azzerato — impostane uno nuovo.",
-    worthSetting: "Registrato. Il tuo peso obiettivo però non sta più con il tuo obiettivo — vale la pena impostarne uno nuovo.",
+    cleared: "Il tuo peso obiettivo non corrispondeva più a quell'obiettivo, quindi è stato azzerato — impostane uno nuovo.",
+    worthSetting: "Registrato. Il tuo peso obiettivo però non corrisponde più al tuo obiettivo — vale la pena impostarne uno nuovo.",
   },
 };
 
@@ -753,7 +757,7 @@ const ES: ChatCopy = {
     },
   },
   goalFollowups: {
-    gain: "Las mismas reglas que para todos aquí — números honestos, sin porras, sin vergüenza — solo apuntando arriba en vez de abajo.",
+    gain: "Las mismas reglas que para todos aquí — números honestos, sin ánimos vacíos, sin vergüenza — solo apuntando arriba en vez de abajo.",
     maintain: "Y el camino fácil es el tuyo: no hay peso objetivo que elegir — planificamos alrededor de quedarte donde estás.",
   },
   struggleCards: {
@@ -763,7 +767,7 @@ const ES: ChatCopy = {
       source: "Estudio nacional de EE. UU., n = 5.863 · revisión, 2026",
     },
     night: {
-      title: "A partir de las 20 h hay cola",
+      title: "Las 20 h son hora punta",
       body: "Más del 60% de los adultos come algo después de las 20 h, y alrededor de 1 de cada 4 personas que pican lo hace ya sobre todo de noche. No puntuamos cuándo comes — solo lo que suma el día.",
       source: "CivicScience, 1,2 M de respuestas",
     },
@@ -783,7 +787,7 @@ const ES: ChatCopy = {
     },
     energy: {
       title: "La energía es la medida honesta",
-      body: "Los días mal alimentados y la falta de energía viajan juntos — es una de las razones por las que rechazamos objetivos por debajo del suelo de seguridad. La comida es la mitad de la energía; miraremos la forma de tus días.",
+      body: "Los días mal alimentados y la falta de energía van de la mano — es una de las razones por las que rechazamos objetivos por debajo del suelo de seguridad. La comida es la mitad de la energía; miraremos la forma de tus días.",
     },
     body: {
       title: "Aquí la báscula no juzga",
@@ -828,12 +832,12 @@ const ES: ChatCopy = {
   activityReplies: {
     sedentary: "Gracias por la respuesta honesta — casi todo el mundo se pasa aquí, y luego el objetivo se pasa con ellos.",
     light: "Bien — caminar cuenta más de lo que la gente cree.",
-    moderate: "Sólido. El número dará por hecho que esos entrenamientos ocurren — mantenme honesto.",
-    active: "Bien — eso te compra más comida. Prefiero alimentarlo bien que quedarme corto.",
+    moderate: "Sólido. El número dará por hecho que esos entrenamientos ocurren — no me dejes mentir.",
+    active: "Bien — eso te da derecho a más comida. Prefiero alimentarlo bien que quedarme corto.",
     athlete: "Entonces el número tiene trabajo de verdad que alimentar. Prefiero alimentarlo bien que quedarme corto.",
   },
   strugglesCloser: {
-    none: "Mejor aún. Si aparece algo más adelante, dímelo en el chat — el plan sabe doblarse.",
+    none: "Mejor aún. Si aparece algo más adelante, dímelo en el chat — el plan sabe adaptarse.",
     one: "Con eso sabemos trabajar — el plan se construye alrededor, no en contra. Quedan dos preguntas rápidas.",
     many: "Con cada una de estas sabemos trabajar — el plan se construye alrededor, no en contra. Quedan dos preguntas rápidas.",
   },
@@ -842,7 +846,7 @@ const ES: ChatCopy = {
     ldl: "Anotado. A partir de ahora se puntúan las grasas saturadas — y solo porque lo has pedido.",
     ldlChained: "Las grasas saturadas también se puntúan — misma regla: solo lo que declares.",
     declared: "Anotado — van a tu perfil, y solo eso se puntúa.",
-    none: "Entonces no se puntúa nada extra — lo que no se declara nunca lo está. Puedes añadir algo cuando quieras en ajustes.",
+    none: "Entonces no se puntúa nada extra — lo que no se declara no se puntúa nunca. Puedes añadir algo cuando quieras en ajustes.",
     freeText: "Y el texto libre va a tu perfil también.",
   },
   invalid: {
@@ -853,13 +857,13 @@ const ES: ChatCopy = {
   },
   ambiguousAge: {
     line: "Quiero estar seguro de haberlo leído bien — si querías decir el año {year}, mándame las cuatro cifras.",
-    confirm: "Tengo {age}",
+    confirm: "Tengo {age} años",
   },
   direction: {
     gain: "Estás en {weight} kg y pides subir hasta {target} — desde aquí eso no es subir. Si el objetivo ha cambiado, lo cambiamos; si no, dame un número por encima de {weight}.",
     lose: "Estás en {weight} kg y pides bajar hasta {target} — desde aquí eso no es bajar. Si el objetivo ha cambiado, lo cambiamos; si no, dame un número por debajo de {weight}.",
-    switchToLose: "Cambiar a perder",
-    switchToGain: "Cambiar a ganar",
+    switchToLose: "Cambiar a perder peso",
+    switchToGain: "Cambiar a ganar peso",
     above: "Un número por encima de {weight}…",
     below: "Un número por debajo de {weight}…",
   },
@@ -872,7 +876,7 @@ const ES: ChatCopy = {
   nothingApplies: "Nada de esto",
   goalEdit: {
     cleared: "Tu peso objetivo ya no encajaba con ese objetivo, así que se ha borrado — pon uno nuevo.",
-    worthSetting: "Registrado. Aunque tu peso objetivo ya no encaja con tu objetivo — merece la pena poner uno nuevo.",
+    worthSetting: "Registrado. Eso sí, tu peso objetivo ya no encaja con tu objetivo — merece la pena poner uno nuevo.",
   },
 };
 
@@ -896,7 +900,7 @@ const VI: ChatCopy = {
   goalCards: {
     lose: {
       title: "Bạn không hề đơn độc",
-      body: "Khoảng 42% người trưởng thành cố giảm cân trong một năm bất kỳ. Khác biệt ở đây: mục tiêu của bạn được tính đàng hoàng, với một mức sàn chúng tôi không vượt qua.",
+      body: "Khoảng 42% người trưởng thành cố giảm cân trong một năm bất kỳ. Khác biệt ở đây: mục tiêu của bạn được tính đàng hoàng, với một mức sàn chúng mình không vượt qua.",
       source: "Tổng quan hệ thống 72 nghiên cứu · n = 1,18 triệu người trưởng thành",
     },
     gain: {
@@ -937,11 +941,11 @@ const VI: ChatCopy = {
     },
     eatout: {
       title: "Đồ ăn nhà hàng lệch nhiều nhất",
-      body: "Ước lượng lệch nhiều nhất với món bạn không tự nấu — và đó đúng là chỗ ảnh chụp làm tốt nhất. Khi không chắc, mình sẽ nói thẳng chứ không làm ra vẻ, thay vì làm ra vẻ.",
+      body: "Ước lượng lệch nhiều nhất với món bạn không tự nấu — và đó đúng là chỗ ảnh chụp làm tốt nhất. Khi không chắc, mình sẽ nói thẳng chứ không làm ra vẻ.",
     },
     energy: {
       title: "Năng lượng là thước đo thành thật",
-      body: "Những ngày ăn thiếu và cảm giác uể oải luôn đi cùng nhau — đó là một lý do chúng tôi từ chối mục tiêu dưới mức sàn an toàn. Đồ ăn là một nửa của năng lượng; chúng mình sẽ để ý xem ngày của bạn diễn ra thế nào.",
+      body: "Những ngày ăn thiếu và cảm giác uể oải luôn đi cùng nhau — đó là một lý do chúng mình từ chối mục tiêu dưới mức sàn an toàn. Đồ ăn là một nửa của năng lượng; chúng mình sẽ để ý xem ngày của bạn diễn ra thế nào.",
     },
     body: {
       title: "Ở đây cái cân không phán xét",
@@ -958,7 +962,7 @@ const VI: ChatCopy = {
   },
   gainPaceCard: {
     title: "Tăng tốt thì chậm, và đó là cố ý",
-    body: "Mức dư của bạn được giới hạn ở khoảng {share}% trên mức cơ thể đốt trong một ngày — vùng mà cơ bắp theo kịp cái cân. Hầu hết những người tăng cân thành công đều đi trước bằng đạm; đạm của bạn chúng tôi theo dõi tự động.",
+    body: "Mức dư của bạn được giới hạn ở khoảng {share}% trên mức cơ thể đốt trong một ngày — vùng mà cơ bắp theo kịp cái cân. Hầu hết những người tăng cân thành công đều đi trước bằng đạm; đạm của bạn chúng mình theo dõi tự động.",
     source: "Khảo sát 168 người trưởng thành tập luyện muốn tăng cân",
   },
   underAgeCard: {
@@ -977,7 +981,7 @@ const VI: ChatCopy = {
   },
   belowHealthy: {
     title: "Mình không đặt được mức đó làm mục tiêu",
-    body: "Cân nặng khoẻ mạnh thấp nhất với chiều cao của bạn là khoảng {kg} kg. Chúng tôi không đặt mục tiêu dưới mức đó. Nếu bạn đang theo một hướng khác cùng bác sĩ, hãy nghe bác sĩ chứ đừng nghe ứng dụng này.",
+    body: "Cân nặng khoẻ mạnh thấp nhất với chiều cao của bạn là khoảng {kg} kg. Chúng mình không đặt mục tiêu dưới mức đó. Nếu bạn đang theo một hướng khác cùng bác sĩ, hãy nghe bác sĩ chứ đừng nghe ứng dụng này.",
   },
   weightAck: {
     noted: "Ghi nhận — số liệu thành thật thì kế hoạch mới thành thật.",
@@ -1085,7 +1089,7 @@ const ID: ChatCopy = {
     },
     binge: {
       title: "Kamu tidak sendirian dalam hal ini",
-      body: "Gangguan makan berlebihan adalah gangguan makan yang paling umum — sekitar 2,8% orang dewasa memenuhi kriterianya pada suatu titik, dan dan dari orang yang memulai program berat badan, 17% positif saat disaring. Kalau episodenya terasa di luar kendali, seorang klinisi lebih menolong daripada aplikasi mana pun. Di sini, hari yang berat adalah data, bukan vonis.",
+      body: "Gangguan makan berlebihan adalah gangguan makan yang paling umum — sekitar 2,8% orang dewasa memenuhi kriterianya pada suatu titik, dan dari orang yang memulai program berat badan, 17% positif saat disaring. Kalau episodenya terasa di luar kendali, seorang klinisi lebih menolong daripada aplikasi mana pun. Di sini, hari yang berat adalah data, bukan vonis.",
       source: "NIMH (NCS-R) · studi terhadap 6.930 orang yang memulai program",
     },
     diets: {
@@ -1300,7 +1304,7 @@ const RU: ChatCopy = {
     bmr: "И вот твоя первая цифра: в покое тело сжигает около {bmr} ккал в день. Следующие вопросы её уточнят.",
   },
   activityReplies: {
-    sedentary: "Спасибо за честный ответ — здесь большинство завышает — а потом завышенной оказывается и цель.",
+    sedentary: "Спасибо за честный ответ — здесь большинство завышает, а потом завышенной оказывается и цель.",
     light: "Хорошо — прогулки значат больше, чем принято думать.",
     moderate: "Солидно. Цифра будет исходить из того, что эти тренировки действительно случаются, — держи меня в честности.",
     active: "Хорошо — это покупает тебе больше еды. Лучше накормить как следует, чем занизить наугад.",
@@ -1314,7 +1318,7 @@ const RU: ChatCopy = {
   restrictions: {
     kidneys: "Записал. С этого момента натрий оценивается — и только по твоей просьбе.",
     ldl: "Записал. С этого момента насыщенные жиры оцениваются — и только по твоей просьбе.",
-    ldlChained: "Насыщенные жиры тоже оцениваются — правило то же: только по твоей просьбе.",
+    ldlChained: "Насыщенные жиры тоже оцениваются — правило то же: только то, что ты указываешь.",
     declared: "Записал — это уходит в профиль, и оценивается только оно.",
     none: "Тогда ничего дополнительно не оценивается — неуказанное не оценивается никогда. Добавить можно в любой момент в настройках.",
     freeText: "И свободный текст тоже уходит в профиль.",

@@ -99,7 +99,7 @@ export type Struggle = (typeof STRUGGLES)[number];
  * language the process started in.
  */
 export const STRUGGLE_LABELS = (lang: Lang): Record<Struggle, string> =>
-  chatCopyFor(lang).struggles as Record<Struggle, string>;
+  chatCopyFor(lang).struggles;
 
 export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   { id: "welcome", place: "welcome", kind: "start" },

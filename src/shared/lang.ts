@@ -161,6 +161,10 @@ export const UNIT_KCAL: Record<Lang, string> = {
 const UNIT_SPELLING: Partial<Record<Lang, Record<string, string>>> = {
   ru: { kg: "кг", cm: "см", km: "км", g: "г", mg: "мг", min: "мин", ms: "мс", bpm: "уд/мин",
         kcal: "ккал", "ml/kg/min": "мл/кг/мин" },
+  // Only the two that are WORDS rather than symbols. `kg`, `cm`, `km`, `ms`, `%` and
+  // `ml/kg/min` are the same in both, and de/fr/it/es need nothing at all.
+  vi: { min: "phút", bpm: "nhịp/phút" },
+  id: { min: "menit", bpm: "denyut/menit" },
 };
 
 export const spellUnit = (lang: Lang, unit: string): string => UNIT_SPELLING[lang]?.[unit] ?? unit;
@@ -187,9 +191,16 @@ export const monthYear = (lang: Lang, at: Date): string =>
  * It narrows to `LANGS` and NOT to `LANGS_READY`: this is what the server will STORE and what the
  * model answers in, which is the wider claim. A phone in a language the app has no screens for
  * still gets its meal names in that language, which is what it got before any of this.
+ *
+ * THE `;q=` IS STRIPPED HERE, not by the caller. An `Accept-Language` entry carries a weight —
+ * `de;q=0.9` — and dropping only the region subtag left the whole tag unrecognised, so a browser
+ * that ranked its languages got English. `/start` had its own parser that handled this and the
+ * subscribe route did not, which is the three-parsers-in-two-workspaces situation this function
+ * was written to end, reappearing inside one binary. Anything after `;` is a parameter, never a
+ * language, so it cannot belong to the caller.
  */
 export function narrowLang(locale: string | null | undefined): Lang {
-  const head = (locale ?? "").trim().toLowerCase().split(/[-_]/)[0] ?? "";
+  const head = (locale ?? "").split(";")[0]!.trim().toLowerCase().split(/[-_]/)[0] ?? "";
   return (LANGS as readonly string[]).includes(head) ? (head as Lang) : "en";
 }
 
@@ -267,56 +278,119 @@ export const describeGaps = (gaps: readonly LocalizedGap[]): string[] =>
 /**
  * A Russian sentence that has picked a gender for the person reading it.
  *
- * WHY THIS IS A TEST AND NOT A STYLE NOTE. Russian past tense agrees with the speaker's gender —
- * there is no neutral form — so `что ты ел?` greets every woman using this app as a man. It shipped
- * on the chat composer's placeholder, in three surfaces at once, and no reviewer who does not read
- * Russian could have seen it: the string is correct, idiomatic, complete, and wrong about half the
- * people who read it. English has nothing that behaves this way, so nothing in the review of the
- * English source could have caught it either.
+ * WHY THIS IS A TEST AND NOT A STYLE NOTE. Russian past tense and short adjectives agree with the
+ * speaker's gender — there is no neutral form — so `что ты ел?` greets every woman using this app
+ * as a man. It shipped on the chat composer's placeholder, in three surfaces at once, and no
+ * reviewer who does not read Russian could have seen it: the string is correct, idiomatic,
+ * complete, and wrong about half the people who read it. English has nothing that behaves this
+ * way, so reviewing the English source could not catch it either.
  *
- * IT NEEDS NO LANGUAGE BUCKET. A string in any other language has no Cyrillic in it, so the pattern
- * cannot match one — which means this walks every string in the graph and asks the question of all
+ * IT NEEDS NO LANGUAGE BUCKET. A string in any other language has no Cyrillic in it, so nothing
+ * here can match one — which means it walks every string in the graph and asks the question of all
  * of them, and a table that stops being `Localized` does not slip out of the check.
  *
- * WHAT IT COVERS, and why each part earns its place — measured over the whole corpus rather than
- * guessed, because a check that cries wolf gets deleted:
+ * HOW IT DECIDES. A gendered WORD is only a defect when it describes the READER, so a hit needs
+ * two things near each other: a gendered form, and a second-person marker (`ты`, `тебе`, `твой`…).
+ * A first-person marker (`я`, `мне`, `мой`) nearer to the word than any second-person one EXEMPTS
+ * it, because that is Spud talking about himself and his gender is his own to have. The window is
+ * counted in TOKENS OF ANY SCRIPT, so `Ты {days} дней подряд записывал еду` and `Ты 5 дней подряд
+ * держался плана` are caught — an earlier version counted Cyrillic words only, which quietly
+ * exempted every templated sentence in the codebase.
  *
- *   1. SECOND-PERSON PAST TENSE (`ты … ел`). Always gendered, never ambiguous, and thirteen of the
- *      eighteen instances this repo had. Up to two words may intervene: `ты об этом попросил` is
- *      the shape a hand search misses and this one does not.
- *   2. SHORT ADJECTIVES (`готов`, `уверен`, `рад`, `должен`, `сам`) anywhere in the string, since
- *      `Готов?` carries no `ты` at all — EXCEPT after `я`, because that is Spud talking about
- *      himself and his gender is his own to have.
- *   3. `ты … один`, and `был … ты`, whose verb precedes the pronoun.
- *
- * `один` alone is NOT a token: it is the numeral, and flagging every `один раз` would drown the
- * three real ones. It is only caught after `ты`, which is where it stops being a number.
+ * WHAT IT CANNOT DO, stated because the alternative is a false claim. Russian drops the pronoun
+ * constantly, and `Отлично справился сегодня` is gendered with no marker of person at all — while
+ * `Записал.` is Spud saying "noted" about himself and is perfectly fine. The two are
+ * indistinguishable without understanding the sentence, so pro-drop is NOT covered and a check
+ * that guessed would fire on Spud's own voice every second line. `validateOnboardingContent` and
+ * `validateNotificationCopy` run this on admin-typed Russian, which is where a human is present to
+ * read the rejection; for the compiled-in tables it is a reviewer's job, and `AGENTS.md` says so.
  */
-// NOT `\b`: JavaScript's word boundary is ASCII, so it never fires between a space and `т`
-// and the whole pattern silently matches nothing. The lookarounds are the Cyrillic version.
-const RU_READER_GENDERED = new RegExp([
-  // 1. `ты … <verb>л`
-  "(?<![а-яё])ты\\s+(?:[а-яё]+\\s+){0,2}[а-яё]+л(?:а|о|и|ся|ась)?(?![а-яё])",
-  // 2. a short adjective, but never Spud's own
-  "(?<![а-яё])(?<!я\\s)(?<!я\\sне\\s)(?:готов|уверен|рад|должен|сам)(?:а|ы)?(?![а-яё])",
-  // 3. `ты … один`, and the inversion `был … ты`
-  "(?<![а-яё])ты(?:\\s+[а-яё]+){0,3}\\s+одн?(?:ин|а)(?![а-яё])",
-  "(?<![а-яё])был(?:а)?\\s+(?:не\\s+)?ты(?![а-яё])",
-].join("|"), "giu");
+// TWO CLASSES, because they need different evidence.
+//
+// GATED: a past-tense verb, and the numeral-adjective `один`. These are only about the reader when
+// a second-person marker is nearby — `один раз` is "once" and `Записал.` is Spud.
+const RU_GENDERED_GATED = new RegExp(
+  "^(?:"
+  + "[а-яё]+л(?:а|ся|ась)?"
+  + "|(?:с?мог|привык|замёрз|исчез|промок|достиг)(?:ла)?|нёс|вёз|пёк"
+  + "|один|одна"
+  + ")$", "iu");
+
+// Nouns that end in `-л` and are not verbs. `ккал` is the one this corpus actually contains; the
+// list is short on purpose, because a long one is a way of not fixing the pattern.
+const RU_NOT_A_VERB = new Set(["ккал", "стол", "угол", "мл", "рубль", "апрель", "июль"]);
+
+// STANDALONE: short adjectives and participles. `Готов?` is a whole screen's call to action and
+// carries no pronoun at all, and `поправь граммы сам` has only an imperative. These are gendered
+// wherever they appear, so they need no second-person marker — only the absence of a first-person
+// one, which is still Spud describing himself.
+const RU_GENDERED_ALONE = new RegExp(
+  "^(?:"
+  + "готов|уверен|рад|должен|должн|сам|сама|прав|голоден|голодн|сыт|занят|доволен|довольн"
+  + "|согласен|согласн|болен|больн|беременн|уставш|одинок|подписан|зарегистрирован|новичок"
+  // ONLY the feminine `-а`. Neuter (`готово`, `само`) describes a thing and never a person, and
+  // `самая` is the superlative particle — both were firing on ordinary copy.
+  + ")а?$", "iu");
+
+// The reader, as a PERSON. Deliberately no possessives: in `твой вес не подходил` the past tense
+// agrees with `вес`, so `твой` marks a masculine THING and says nothing about who is reading.
+const RU_SECOND = /(?<![а-яё])(?:ты|тебе|тебя|тобой)(?![а-яё])/giu;
+const RU_FIRST = /(?<![а-яё])(?:я|мне|меня|мной|мой|моя|моё|мои|моего|мою)(?![а-яё])/giu;
+
+/**
+ * How many tokens either side of a gendered word a person marker still governs it from.
+ *
+ * FOUR, measured rather than picked: the longest real case is `Ты 5 дней подряд держался плана`,
+ * where the verb is four tokens from the pronoun. Five let `первый день начался … прежде чем ты`
+ * match across a sentence boundary — there the verb agrees with `день`, and the reader's gender is
+ * nowhere in it.
+ */
+const RU_WINDOW = 4;
 
 /** Every string under `root` that tells a Russian reader what gender they are. */
 export function genderedRussian(root: unknown): { at: string; text: string }[] {
   const found: { at: string; text: string }[] = [];
   const seen = new WeakSet<object>();
-  const walk = (node: unknown, at: string): void => {
+
+  const hits = (text: string): string[] => {
+    if (!/[а-яё]/i.test(text)) return [];
+    // Split into tokens ONCE and work in token indices, so a `{placeholder}`, a digit or a Latin
+    // word costs exactly one step of the window rather than ending the match.
+    const tokens = text.split(/\s+/);
+    const at = (re: RegExp, i: number): boolean => { re.lastIndex = 0; return re.test(tokens[i] ?? ""); };
+    const nearest = (re: RegExp, i: number): number => {
+      for (let d = 1; d <= RU_WINDOW; d++) {
+        if (at(re, i - d) || at(re, i + d)) return d;
+      }
+      return Infinity;
+    };
+    const out: string[] = [];
+    for (let i = 0; i < tokens.length; i++) {
+      const word = (tokens[i] ?? "").replace(/[^\p{L}]/gu, "");
+      if (RU_NOT_A_VERB.has(word.toLowerCase())) continue;
+      const alone = RU_GENDERED_ALONE.test(word);
+      if (!alone && !RU_GENDERED_GATED.test(word)) continue;
+      const second = nearest(RU_SECOND, i);
+      // A gated word says nothing about the reader unless the reader is in the sentence.
+      if (!alone && second === Infinity) continue;
+      // Spud, about Spud — but only when he is actually there. With NEITHER marker present both
+      // distances are Infinity, and `Infinity <= Infinity` had been exempting every standalone.
+      const first = nearest(RU_FIRST, i);
+      if (first !== Infinity && first <= second) continue;
+      out.push(tokens.slice(Math.max(0, i - 1), i + 1).join(" "));
+    }
+    return out;
+  };
+
+  const walk = (node: unknown, path: string): void => {
     if (typeof node === "string") {
-      for (const m of node.matchAll(RU_READER_GENDERED)) found.push({ at, text: m[0] });
+      for (const h of hits(node)) found.push({ at: path, text: h });
       return;
     }
     if (typeof node !== "object" || node === null || seen.has(node)) return;
     seen.add(node);
-    if (Array.isArray(node)) { node.forEach((v, i) => { walk(v, `${at}[${i}]`); }); return; }
-    for (const [k, v] of Object.entries(node)) walk(v, at === "" ? k : `${at}.${k}`);
+    if (Array.isArray(node)) { node.forEach((v, i) => { walk(v, `${path}[${i}]`); }); return; }
+    for (const [k, v] of Object.entries(node)) walk(v, path === "" ? k : `${path}.${k}`);
   };
   walk(root, "");
   return found;

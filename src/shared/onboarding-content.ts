@@ -63,7 +63,7 @@ const FR: OnboardingContent = {
       id: "body",
       asks: {
         height_cm: {
-          lines: ["Tes chiffres, maintenant. À peu près, c'est vraiment suffisant — je préfère approximatif à vide. Tu mesures combien, en cm ?"],
+          lines: ["Tes chiffres, maintenant. À peu près, c'est vraiment suffisant — je préfère une valeur approximative à rien du tout. Tu mesures combien, en cm ?"],
           placeholder: "Taille en cm",
         },
         weight_kg: {
@@ -112,7 +112,7 @@ const FR: OnboardingContent = {
       id: "restrictions",
       asks: {
         restrictions: {
-          lines: ["Dernière question. Quelque chose à quoi je devrais mesurer ce que tu manges ? Seul ce que tu choisis est noté — tu peux passer. Le texte libre marche aussi."],
+          lines: ["Dernière question. Quelque chose dont je devrais tenir compte pour juger ce que tu manges ? Seul ce que tu choisis est noté — tu peux passer. Le texte libre marche aussi."],
           placeholder: "Allergies, aliments évités…",
         },
       },
@@ -134,7 +134,7 @@ const FR: OnboardingContent = {
     floorBody: "Le calcul voulait descendre plus bas. Sans suivi médical, on ne fixe pas d'objectif en dessous, donc le tien s'arrête ici. Ton journal le dira aussi.",
   },
   summary: {
-    lines: ["Voilà, c'est toi, calculé proprement. Ton plan :"],
+    lines: ["Voilà tes chiffres, calculés proprement. Ton plan :"],
     kcalLabel: "kcal par jour",
     proteinLabel: "Protéines à viser",
     projection: "À ce rythme, tu serais à {target} kg vers {month}.",
@@ -253,7 +253,7 @@ const DE: OnboardingContent = {
     lines: ["Das bist du, sauber durchgerechnet. Hier ist dein Plan."],
     kcalLabel: "kcal pro Tag",
     proteinLabel: "Eiweiß als Ziel",
-    projection: "In diesem Tempo wärst du gegen {month} bei {target} kg.",
+    projection: "In diesem Tempo wärst du bis {month} bei {target} kg.",
     projectionFar: "Das ist ein weiter Weg — wir navigieren nach den nächsten Wochen, nicht nach dem Horizont.",
     capNote: "Dieses Tempo bräuchte eine größere Tagesänderung, als sich sicher durchhalten lässt, also bekommst du die sichere Variante: {share}% dessen, was dein Körper am Tag verbrennt.",
     disclaimer: "Schätzungen, keine medizinische Beratung. Jede Antwort lässt sich in den Einstellungen ändern.",
@@ -269,7 +269,7 @@ const IT: OnboardingContent = {
     lines: [
       "Ciao, sono Spud. Fotografa quello che mangi e ricevi una risposta onesta — l'app è tutta qui.",
       "Tre minuti di domande, poi il tuo piano — calorie al giorno, proteine, cosa è realistico ed entro quando — e un verdetto sul tuo primo pasto.",
-      "Per iniziare non serve un account. Non paghi niente finché non hai visto il piano e quel primo verdetto; poi hai una settimana gratis per provare. Pronti?",
+      "Per iniziare non serve un account. Non paghi niente finché non hai visto il piano e quel primo verdetto; poi hai una settimana gratis per provare. Partiamo?",
     ],
     cta: "Si parte",
   },
@@ -286,7 +286,7 @@ const IT: OnboardingContent = {
     {
       id: "about",
       asks: {
-        sex: { lines: ["Due cose su di te — quelle che serve a ogni formula per le calorie. Cosa corrisponde?"] },
+        sex: { lines: ["Due cose su di te — quelle che servono a ogni formula per le calorie. Cosa corrisponde?"] },
         birth_year: { lines: ["E quanti anni hai? Al calcolo basta un'approssimazione."], placeholder: "La tua età" },
       },
       options: { female: { label: "Donna" }, male: { label: "Uomo" } },
@@ -295,7 +295,7 @@ const IT: OnboardingContent = {
       id: "body",
       asks: {
         height_cm: {
-          lines: ["Ora i tuoi numeri. Approssimare va benissimo — meglio vicino che vuoto. Quanto misuri, in cm?"],
+          lines: ["Ora i tuoi numeri. Approssimare va benissimo — meglio un numero approssimativo che nessuno. Quanto misuri, in cm?"],
           placeholder: "Altezza in cm",
         },
         weight_kg: {
@@ -319,7 +319,7 @@ const IT: OnboardingContent = {
     {
       id: "activity",
       asks: {
-        activity: { lines: ["Quanto ti muovi in una settimana normale? Onesto batte ambizioso — qui il numero cambia parecchio."] },
+        activity: { lines: ["Quanto ti muovi in una settimana normale? Meglio onesto che ambizioso — qui il numero cambia parecchio."] },
       },
       options: {
         sedentary: { label: "Poco movimento", hint: "giornate da scrivania" },
@@ -366,9 +366,9 @@ const IT: OnboardingContent = {
     floorBody: "Il calcolo voleva scendere ancora. Senza controllo medico non fissiamo obiettivi sotto questa soglia, quindi il tuo resta qui. Lo dirà anche il tuo diario.",
   },
   summary: {
-    lines: ["Ecco te, calcolato per bene. Questo è il tuo piano."],
+    lines: ["Ecco i tuoi numeri, calcolati per bene. Questo è il tuo piano."],
     kcalLabel: "kcal al giorno",
-    proteinLabel: "Proteine da puntare",
+    proteinLabel: "Proteine da raggiungere",
     projection: "A questo ritmo saresti a {target} kg verso {month}.",
     projectionFar: "È una strada lunga — navighiamo sulle prossime settimane, non sull'orizzonte.",
     capNote: "Quel ritmo chiederebbe una variazione quotidiana più grande di quanto sia sicuro mantenere, quindi il tuo è la versione sicura: {share}% di quello che il tuo corpo brucia in un giorno.",
@@ -392,7 +392,7 @@ const ES: OnboardingContent = {
   screens: [
     {
       id: "goal",
-      asks: { goal: { lines: ["La pregunta grande: ¿a qué has venido?"] } },
+      asks: { goal: { lines: ["La gran pregunta: ¿a qué has venido?"] } },
       options: {
         lose: { label: "Perder peso" },
         maintain: { label: "Mantener mi peso" },
@@ -411,7 +411,7 @@ const ES: OnboardingContent = {
       id: "body",
       asks: {
         height_cm: {
-          lines: ["Ahora tus números. Aproximar está bien de verdad — prefiero cerca que en blanco. ¿Cuánto mides, en cm?"],
+          lines: ["Ahora tus números. Aproximar está bien de verdad — prefiero un número aproximado a ninguno. ¿Cuánto mides, en cm?"],
           placeholder: "Altura en cm",
         },
         weight_kg: {
@@ -435,14 +435,14 @@ const ES: OnboardingContent = {
     {
       id: "activity",
       asks: {
-        activity: { lines: ["¿Cuánto te mueves en una semana normal? Honesto gana a aspiracional — esto mueve mucho el número."] },
+        activity: { lines: ["¿Cuánto te mueves en una semana normal? Mejor honesto que aspiracional — esto mueve mucho el número."] },
       },
       options: {
         sedentary: { label: "Poco movimiento", hint: "días de escritorio" },
         light: { label: "Actividad ligera", hint: "paseos, recados" },
         moderate: { label: "Actividad moderada", hint: "2–3 entrenamientos" },
         active: { label: "Actividad alta", hint: "casi todos los días" },
-        athlete: { label: "Nivel deportista", hint: "dos entrenamientos al día, o trabajo físico duro" },
+        athlete: { label: "Deportista", hint: "dos entrenamientos al día, o trabajo físico duro" },
       },
     },
     {
@@ -476,19 +476,19 @@ const ES: OnboardingContent = {
     lines: ["Eso es todo. Dame un segundo — estoy calculando, no adivinando."],
     restLabel: "En reposo tu cuerpo quema",
     activityLabel: "Con tu actividad, unas",
-    paceLabel: "Por tu ritmo, ajustamos",
-    floorLabel: "El suelo que no cruzamos",
+    paceLabel: "Para tu ritmo, ajustamos",
+    floorLabel: "El mínimo del que no bajamos",
     floorTitle: "Nos quedamos en {floor} kcal",
     floorBody: "El cálculo quería bajar más. Sin supervisión médica no fijamos objetivos por debajo de esto, así que el tuyo se queda aquí. Tu diario también lo dirá.",
   },
   summary: {
-    lines: ["Esto eres tú, calculado como toca. Aquí está tu plan."],
+    lines: ["Estos son tus números, calculados como toca. Aquí está tu plan."],
     kcalLabel: "kcal al día",
-    proteinLabel: "Proteína a la que apuntar",
+    proteinLabel: "Proteína objetivo",
     projection: "A este ritmo estarías en {target} kg hacia {month}.",
     projectionFar: "Es un camino largo — navegamos por las próximas semanas, no por el horizonte.",
     capNote: "Ese ritmo pediría un cambio diario mayor del que es seguro sostener, así que el tuyo es la versión segura: {share}% de lo que tu cuerpo quema en un día.",
-    disclaimer: "Estimaciones, no consejo médico. Cualquier respuesta se cambia en ajustes.",
+    disclaimer: "Estimaciones, no consejo médico. Cualquier respuesta se cambia en los ajustes.",
     cta: "Fotografía tu primera comida",
   },
 };
@@ -595,7 +595,7 @@ const VI: OnboardingContent = {
     paceLabel: "Điều chỉnh theo nhịp độ của bạn",
     floorLabel: "Mức sàn không vượt qua",
     floorTitle: "Dừng lại ở {floor} kcal",
-    floorBody: "Phép tính muốn xuống thấp hơn. Không có bác sĩ theo dõi thì chúng tôi không đặt mục tiêu thấp hơn mức này, nên của bạn dừng ở đây. Nhật ký cũng sẽ ghi vậy.",
+    floorBody: "Phép tính muốn xuống thấp hơn. Không có bác sĩ theo dõi thì chúng mình không đặt mục tiêu thấp hơn mức này, nên của bạn dừng ở đây. Nhật ký cũng sẽ ghi vậy.",
   },
   summary: {
     lines: ["Đây là bạn, tính đâu ra đấy. Kế hoạch của bạn đây."],
@@ -833,7 +833,7 @@ const RU: OnboardingContent = {
     lines: ["Вот и всё, посчитано как следует. Твой план:"],
     kcalLabel: "ккал в день",
     proteinLabel: "Белок — ориентир",
-    projection: "В таком темпе {target} кг — это примерно {month}",
+    projection: "В таком темпе {target} кг — это примерно {month}.",
     projectionFar: "Дорога долгая — ориентируемся на ближайшие недели, а не на горизонт.",
     capNote: "Такой темп потребовал бы большей дневной разницы, чем безопасно выдерживать, так что у тебя безопасный вариант: {share}% от того, что тело сжигает за день.",
     disclaimer: "Это оценки, а не медицинская рекомендация. Любой ответ можно поменять в настройках.",

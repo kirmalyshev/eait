@@ -126,6 +126,15 @@ export async function patchProfile(
   const reject = (field: keyof PatchProfileRequest, reason: ProfileRejected["reason"], extra?: Partial<ProfileRejected>): PatchOutcome =>
     ({ ok: false, rejected: { error: "invalid-profile", field, reason, ...extra } });
 
+  // `LANGS`, NOT `LANGS_READY`, and the difference is the whole point of there being two lists.
+  //
+  // `LANGS` is what this server STORES and what the model is told to answer in; `LANGS_READY` is
+  // what a client may OFFER in its picker, because every table is complete enough to render it end
+  // to end. They happen to be equal today. Validating the write against the narrower one would
+  // make a language unstorable until the last table was translated — and since fallback happens at
+  // the KEY, a language in `LANGS` but not `LANGS_READY` renders as a few English strings inside
+  // an otherwise translated app, with the coach answering correctly. That is the designed
+  // behaviour, not a bug to refuse at the boundary.
   if (req.lang !== undefined) {
     if (!(LANGS as readonly string[]).includes(req.lang)) return reject("lang", "out-of-range");
     patch.lang = req.lang as Lang;

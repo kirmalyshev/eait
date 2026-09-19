@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import {
   LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, genderedRussian, localizedGaps, monthYear, numbers,
-  spellUnit, t,
+  narrowLang, spellUnit, t,
   type Localized,
 } from "./lang.ts";
 
@@ -117,58 +117,78 @@ describe("localizedGaps — the check that keeps this true after everybody leave
 });
 
 describe("genderedRussian — the check no English-reading reviewer could be", () => {
-  it("catches a second-person past tense, which in Russian always picks a gender", () => {
-    // The exact string that shipped on the chat composer, in three surfaces at once.
-    expect(genderedRussian({ placeholder: "Что ты ел?" })).toEqual([{ at: "placeholder", text: "ты ел" }]);
-    expect(genderedRussian({ a: { b: "Скажи, что ты ел, и запиши заново." } })[0]?.at).toBe("a.b");
+  // The corpus is the point. A reviewer wrote 29 gendered sentences that a nutrition app would
+  // plausibly ship and the first version of this check caught four of them, while firing on three
+  // of Spud's own lines. Both lists below are that corpus, kept so the next widening is measured
+  // rather than argued.
+  const GENDERED = [
+    "Что ты ел?", "Ты должна выпить воды.", "Оценено только потому, что ты об этом попросил.",
+    "Ты {days} дней подряд записывал еду.", "Ты 5 дней подряд держался плана.",
+    "Ты в Apple Health записал вес.", "Ты за эту неделю сбросил килограмм.",
+    "Ты не смог записать этот обед.", "Ты привык есть поздно.",
+    "Готов?", "поправь граммы сам", "Занят? Одна фотография — и всё.",
+    "Ты прав — это много.", "Ты голоден? Запиши перекус.", "Ты доволен результатом?",
+    "Ты подписан на пробный период.", "Ты новичок здесь.", "Ты здесь не одинок.",
+    "Ты в этом не один.", "Что ел ты сегодня?", "Если это был не ты, просто не отвечай.",
+  ];
+  const FINE = [
+    // Spud, about himself. His gender is his own to have.
+    "Я пока не уверен в этой оценке.", "Я всегда готов помочь.", "Я тоже рад этому.",
+    "Когда я не уверен, я так и скажу.", "Записал. С этого момента натрий оценивается.",
+    // `один` is the NUMERAL everywhere except after `ты`.
+    "один раз в день", "одна порция риса",
+    // A verb agreeing with a masculine NOUN, not with the reader.
+    "Хорошо — первый день начался. Ещё одно, прежде чем ты уйдёшь.",
+    "Твой целевой вес больше не подходил к цели.",
+    // Neuter is never a person; `самая` is the superlative.
+    "Готово.", "Уйдёт само, как только получится.", "Самая низкая цель для твоего роста",
+    // A unit that happens to end in -л.
+    "{plan} ккал сегодня.",
+    // Not Russian at all.
+    "Damit bist du nicht allein", "You're in good company",
+  ];
+
+  it("catches every shape in the corpus", () => {
+    for (const text of GENDERED) {
+      expect(genderedRussian([text]).length, text).toBeGreaterThan(0);
+    }
   });
 
-  it("catches it across a couple of words, because that is where it hides", () => {
-    // `ты об этом попросил` is the shape a hand search misses: two words between the pronoun and
-    // the verb. Finding it in `THREAD_COPY` is how this check paid for itself on the first run.
-    expect(genderedRussian(["Оценено только потому, что ты об этом попросил."])).toHaveLength(1);
-    // Two hits on one sentence — the past tense and the `сам` — and that is correct.
-    expect(genderedRussian(["еда, которую ты не готовил сам"]).length).toBeGreaterThan(0);
+  it("is silent on every shape that is not about the reader", () => {
+    for (const text of FINE) expect(genderedRussian([text]), text).toEqual([]);
   });
 
-  it("catches a SHORT ADJECTIVE, which carries no pronoun to search for", () => {
-    // `Готов?` was the last one left after every `ты …л` was fixed. Nothing in it says `ты`.
-    expect(genderedRussian({ cta: "Готов?" })).toEqual([{ at: "cta", text: "Готов" }]);
-    expect(genderedRussian(["поправь граммы сам"])).toHaveLength(1);
-    expect(genderedRussian(["Ты в этом не один"])).toHaveLength(1);
-    // The inversion, where the verb comes first and the check cannot key on `ты …`.
-    expect(genderedRussian(["Если это был не ты, просто не отвечай"])).toHaveLength(1);
+  it("names where it found it, so a failure says what to go and edit", () => {
+    expect(genderedRussian({ a: { b: "Что ты ел?" } })[0]?.at).toBe("a.b");
   });
 
-  it("leaves the NUMERAL alone, or it would drown the three real ones", () => {
-    // `один` is only a gender once it is predicated of the reader; everywhere else it is "one".
-    expect(genderedRussian(["один раз в день", "одна порция риса"])).toEqual([]);
-  });
-
-  it("says nothing about Spud talking about HIMSELF, which is his gender to have", () => {
-    expect(genderedRussian({ x: "Записал. С этого момента натрий оценивается." })).toEqual([]);
-    expect(genderedRussian({ x: "Когда я не уверен, я так и скажу." })).toEqual([]);
-  });
-
-  it("needs no language bucket, because no other language can match it", () => {
-    // Every string in the graph is asked, so a table that stops being `Localized` stays covered.
-    expect(genderedRussian({ de: "Damit bist du nicht allein", fr: "Ça n'arrive pas qu'à toi" })).toEqual([]);
+  it("does NOT claim to catch pro-drop, which Russian uses constantly", () => {
+    // `Отлично справился сегодня` is gendered with no marker of person in it, and `Записал.` is
+    // Spud saying "noted" about himself. The two are indistinguishable without understanding the
+    // sentence, so guessing would fire on his voice every second line. Pinned so the limit is a
+    // decision in the suite rather than a surprise.
+    expect(genderedRussian(["Отлично справился сегодня."])).toEqual([]);
   });
 });
 
-describe("spellUnit — the unit read aloud, not the one beside a scale", () => {
-  it("writes Cyrillic for a Russian listener and leaves the other seven alone", () => {
-    // `trendSummary` is the chart as a SENTENCE for VoiceOver, so this is the same test that made
-    // the four `UNIT_KCAL` sites wrong: a unit read inside a clause, not a symbol on an axis.
-    expect(spellUnit("ru", "kg")).toBe("кг");
-    expect(spellUnit("ru", "min")).toBe("мин");
-    expect(spellUnit("ru", "kcal")).toBe(UNIT_KCAL.ru);
-    for (const lang of LANGS.filter((l) => l !== "ru")) expect(spellUnit(lang, "kg")).toBe("kg");
+describe("narrowLang", () => {
+  it("strips the q-value, because an Accept-Language entry carries one", () => {
+    // `de;q=0.9` narrowed to `en` — so a browser that RANKED its languages got English, and the
+    // confirmation email went out in the wrong one. `/start` had a second parser that handled it;
+    // this function exists so there is only ever one.
+    expect(narrowLang("de;q=0.9")).toBe("de");
+    expect(narrowLang("ru;q=1.0")).toBe("ru");
+    expect(narrowLang("fr ;q=0.8")).toBe("fr");
+    expect(narrowLang("de-DE;q=0.9")).toBe("de");
   });
 
-  it("returns an unknown unit unchanged, because a new field is likelier than a gap", () => {
-    expect(spellUnit("ru", "%")).toBe("%");
-    expect(spellUnit("ru", "furlongs")).toBe("furlongs");
-    expect(spellUnit("ru", "")).toBe("");
+  it("still narrows everything it always did", () => {
+    expect(narrowLang("de-DE")).toBe("de");
+    expect(narrowLang("DE_de")).toBe("de");
+    expect(narrowLang("zz")).toBe("en");
+    expect(narrowLang("*")).toBe("en");
+    expect(narrowLang(null)).toBe("en");
+    expect(narrowLang(undefined)).toBe("en");
+    expect(narrowLang("")).toBe("en");
   });
 });

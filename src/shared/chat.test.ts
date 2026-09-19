@@ -26,11 +26,11 @@ describe("scripted lines", () => {
     // In EVERY language: a translation that dropped `{price}` would render "Trial's on. Seven
     // days, then  unless you stop it", and the only sign of it is a sentence with a gap.
     for (const lang of LANGS) {
-      for (const id of Object.keys(SCRIPTED_LINES)) {
-        const line = threadCopyFor(lang).scripted[id]!;
+      for (const id of Object.keys(SCRIPTED_LINES) as ScriptedLineId[]) {
+        const line = threadCopyFor(lang).scripted[id];
         const holes = [...line.matchAll(/\{(\w+)\}/g)].map((m) => m[1] ?? "").sort();
         expect(isScriptedLineId(id)).toBe(true);
-        expect([...SCRIPTED_PARAMS[id as ScriptedLineId]].sort(), `${lang}.${id}`).toEqual(holes);
+        expect([...SCRIPTED_PARAMS[id]].sort(), `${lang}.${id}`).toEqual(holes);
       }
     }
   });

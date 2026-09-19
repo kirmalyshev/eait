@@ -90,9 +90,9 @@ const EN: TelegramCopy = {
 };
 
 const FR: TelegramCopy = {
-  stranger: "Voici le nouveau eait. Tes repas et tes photos sont gardés dans ton compte eait : connecte-toi sur le web et appuie sur Connecter Telegram depuis ton plan.",
+  stranger: "Voici le nouvel eait. Tes repas et tes photos sont gardés dans ton compte eait : connecte-toi sur le web et appuie sur Connecter Telegram depuis ton plan.",
   signIn: "Se connecter",
-  connectedLead: "Connecté au compte eait ouvert avec",
+  connectedLead: "Ce Telegram est connecté au compte eait ouvert avec",
   viaApp: "l'appli",
   connectedTail: "Envoie la photo d'un repas, dis-moi ce que tu as mangé, ou pose une question à Gabie.",
   notYours: "Ce n'est pas ton compte ? Connecte-toi au tien sur le web et appuie sur Connecter Telegram là-bas — ce Telegram bascule dessus.",
@@ -116,7 +116,7 @@ const FR: TelegramCopy = {
   todayEmpty: "Rien d'enregistré aujourd'hui pour l'instant.",
   meal: "Repas",
   macros: { protein: "Protéines", carbs: "Glucides", fat: "Lipides" },
-  failed: "Quelque chose a échoué, et c'est peut-être quand même passé. Vérifie /today avant de renvoyer.",
+  failed: "Quelque chose a échoué, et c'est peut-être quand même passé. Vérifie /today avant de le renvoyer.",
   refusals: {
     "not-onboarded": "Réponds d'abord aux questions du plan sur le web.",
     "not-food": "Ça ne ressemblait pas à de la nourriture.",
@@ -174,7 +174,7 @@ const DE: TelegramCopy = {
 const IT: TelegramCopy = {
   stranger: "Questo è il nuovo eait. I tuoi pasti e le tue foto stanno nel tuo account eait: accedi sul web e premi Collega Telegram dal tuo piano.",
   signIn: "Accedi",
-  connectedLead: "Collegato all'account eait con cui hai fatto accesso tramite",
+  connectedLead: "Questo Telegram è collegato all'account eait con cui hai fatto accesso tramite",
   viaApp: "l'app",
   connectedTail: "Manda la foto di un pasto, dimmi cosa hai mangiato, o fai una domanda a Gabie.",
   notYours: "Non è il tuo account? Accedi al tuo sul web e premi Collega Telegram lì — questo Telegram passa a quello.",
@@ -215,7 +215,7 @@ const IT: TelegramCopy = {
 const ES: TelegramCopy = {
   stranger: "Este es el nuevo eait. Tus comidas y tus fotos se guardan en tu cuenta de eait: entra en la web y pulsa Conectar Telegram en tu plan.",
   signIn: "Entrar",
-  connectedLead: "Conectado a la cuenta de eait iniciada con",
+  connectedLead: "Este Telegram está conectado a la cuenta de eait con la que entraste usando",
   viaApp: "la app",
   connectedTail: "Manda la foto de una comida, dime qué comiste, o hazle una pregunta a Gabie.",
   notYours: "¿No es tu cuenta? Entra en la tuya en la web y pulsa Conectar Telegram allí — este Telegram se pasa a ella.",
@@ -228,11 +228,11 @@ const ES: TelegramCopy = {
   logIt: "Registrar",
   notThis: "Esto no",
   logged: "Registrado.",
-  alreadyLogged: "Ese ya estaba registrado.",
+  alreadyLogged: "Esa ya estaba registrada.",
   expired: "Ese ya no está en espera. Vuelve a decírmelo.",
   updated: "Actualizado.",
   moved: "Movido.",
-  targetGone: "Aquí no hay ninguna comida abierta que cambiar. Dime qué comiste y regístralo otra vez.",
+  targetGone: "Aquí no hay ninguna comida abierta que cambiar. Dime qué comiste y regístrala otra vez.",
   downloadFailed: "Esa foto no llegó desde Telegram. Mándala otra vez.",
   tooLarge: "Esa foto es demasiado grande para enviarla.",
   todayHead: "Hoy: {eaten} de {plan} kcal, {protein} de {proteinTarget} g de proteína",
@@ -279,7 +279,7 @@ const VI: TelegramCopy = {
   todayHead: "Hôm nay: {eaten} trên {plan} kcal, {protein} trên {proteinTarget} g đạm",
   todayEmpty: "Hôm nay chưa ghi gì cả.",
   meal: "Bữa ăn",
-  macros: { protein: "Đạm", carbs: "Tinh bột đường", fat: "Chất béo" },
+  macros: { protein: "Đạm", carbs: "Bột đường", fat: "Chất béo" },
   failed: "Có gì đó trục trặc, và cũng có thể nó vẫn đi qua. Kiểm tra /today trước khi gửi lại.",
   refusals: {
     "not-onboarded": "Hãy trả lời các câu hỏi lập kế hoạch trên web trước.",

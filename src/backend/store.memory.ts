@@ -68,6 +68,28 @@ export function aggregateFunnel(events: StoredEvent[]): FunnelAggregate {
   };
 }
 
+/**
+ * A stored copy document as a LANGUAGE MAP, whatever shape an older build left behind.
+ *
+ * Three shapes reach this. A language map is returned as it is. A JSON STRING is what
+ * `${JSON.stringify(doc)}::jsonb` used to write — bun's driver already encodes a bound value, so
+ * the cast was a no-op — and spreading one scatters it into numeric keys. A BARE revision predates
+ * the language dimension entirely and was English, because English was all there was.
+ *
+ * The Postgres statements repair both on write; this exists so the two implementations agree,
+ * which is the whole contract `store.contract.test.ts` is for.
+ */
+function legacyLanguageMap(stored: unknown): Record<string, unknown> {
+  if (stored === null || stored === undefined) return {};
+  if (typeof stored === "string") {
+    try { return legacyLanguageMap(JSON.parse(stored)); } catch { return {}; }
+  }
+  if (typeof stored !== "object" || Array.isArray(stored)) return {};
+  const o = stored as Record<string, unknown>;
+  const bare = Array.isArray(o.screens) || typeof o.evening === "object";
+  return bare ? { en: o } : o;
+}
+
 export function memoryStore(opts: StoreOptions = {}): Store {
   const sessionTtlMs = opts.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS;
   const now = opts.now ?? Date.now;
@@ -763,7 +785,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       // MERGE, not replace — the Postgres one does this with `jsonb_set` on the locked row, and a
       // memory store that replaced the document instead would prove the engine safe against a race
       // the real store is the only one that can have.
-      const set = { ...(onboardingContent as Record<string, { version?: number }> | null) };
+      //
+      // AND IT MIGRATES THE TWO LEGACY SHAPES, because Postgres does. A spread of a STRING scatters
+      // it character by character into numeric keys and destroys the revision under it; a spread of
+      // a BARE pre-#358 revision hangs the language off it beside `screens`, which `usableContentFor`
+      // then reads as bare English forever. Both were live here while the Postgres statement
+      // repaired them, so `--demo` and every engine test ran against behaviour the real store does
+      // not have — which is worse than a bug, because it is a bug that proves things.
+      const set = { ...legacyLanguageMap(onboardingContent) } as Record<string, { version?: number }>;
       const highest = Math.max(0, ...Object.values(set)
         .map((c) => c?.version)
         .filter((v): v is number => typeof v === "number"));
@@ -801,8 +830,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     },
 
     async putNotificationCopy(lang, copy) {
-      // Merged, for `putOnboardingContent`'s reason.
-      notificationCopy = clone({ ...notificationCopy, [lang]: copy }) as typeof notificationCopy;
+      // Merged and migrated, for `putOnboardingContent`'s reasons.
+      notificationCopy = clone({ ...legacyLanguageMap(notificationCopy), [lang]: copy }) as typeof notificationCopy;
     },
 
     async recordOnboardingEvents(userId, events) {
