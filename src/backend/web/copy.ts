@@ -51,6 +51,8 @@ export interface PageCopy {
    * `shell()` has declared `lang="ru"` gives the wrong voice to the one element that cannot be
    * skimmed past.
    */
+  /** `{step}` and `{total}`. Rendered uppercase by CSS, so the copy is written in sentence case. */
+  progress: string;
   spudAlt: string;
   cardMacros: string;
   chatProposalLead: string;
@@ -148,6 +150,7 @@ const EN: PageCopy = {
   chatMealGone: "That meal is no longer in the diary.",
   chatPlaceholder: "What did you eat?",
   chatSend: "Send",
+  progress: "Question {step} of {total}",
   spudAlt: "Spud, the eait mascot",
   cardMacros: "{kcal} {unit} · {protein} g protein",
   chatProposalLead: "Logging this — look right?",
@@ -230,6 +233,7 @@ const FR: PageCopy = {
   chatMealGone: "Ce repas n'est plus dans le journal.",
   chatPlaceholder: "Tu as mangé quoi ?",
   chatSend: "Envoyer",
+  progress: "Question {step} sur {total}",
   spudAlt: "Spud, la mascotte d'eait",
   cardMacros: "{kcal} {unit} · {protein} g de protéines",
   chatProposalLead: "J'enregistre ça — ça te va ?",
@@ -295,6 +299,7 @@ const DE: PageCopy = {
   chatMealGone: "Diese Mahlzeit ist nicht mehr im Tagebuch.",
   chatPlaceholder: "Was hast du gegessen?",
   chatSend: "Senden",
+  progress: "Frage {step} von {total}",
   spudAlt: "Spud, das eait-Maskottchen",
   cardMacros: "{kcal} {unit} · {protein} g Eiweiß",
   chatProposalLead: "Ich trage das ein — passt das?",
@@ -360,6 +365,7 @@ const IT: PageCopy = {
   chatMealGone: "Quel pasto non è più nel diario.",
   chatPlaceholder: "Cosa hai mangiato?",
   chatSend: "Invia",
+  progress: "Domanda {step} di {total}",
   spudAlt: "Spud, la mascotte di eait",
   cardMacros: "{kcal} {unit} · {protein} g di proteine",
   chatProposalLead: "Sto registrando questo — ti torna?",
@@ -425,6 +431,7 @@ const ES: PageCopy = {
   chatMealGone: "Esa comida ya no está en el diario.",
   chatPlaceholder: "¿Qué comiste?",
   chatSend: "Enviar",
+  progress: "Pregunta {step} de {total}",
   spudAlt: "Spud, la mascota de eait",
   cardMacros: "{kcal} {unit} · {protein} g de proteína",
   chatProposalLead: "Voy a registrar esto — ¿te cuadra?",
@@ -490,6 +497,7 @@ const VI: PageCopy = {
   chatMealGone: "Bữa đó không còn trong nhật ký nữa.",
   chatPlaceholder: "Bạn đã ăn gì?",
   chatSend: "Gửi",
+  progress: "Câu hỏi {step}/{total}",
   spudAlt: "Spud, linh vật của eait",
   cardMacros: "{kcal} {unit} · {protein} g đạm",
   chatProposalLead: "Mình ghi cái này nhé — có đúng không?",
@@ -555,6 +563,7 @@ const ID: PageCopy = {
   chatMealGone: "Makanan itu sudah tidak ada di buku harian.",
   chatPlaceholder: "Kamu makan apa?",
   chatSend: "Kirim",
+  progress: "Pertanyaan {step} dari {total}",
   spudAlt: "Spud, maskot eait",
   cardMacros: "{kcal} {unit} · {protein} g protein",
   chatProposalLead: "Aku catat ini — sudah benar?",
@@ -620,6 +629,7 @@ const RU: PageCopy = {
   chatMealGone: "Этого приёма пищи больше нет в дневнике.",
   chatPlaceholder: "Что было на тарелке?",
   chatSend: "Отправить",
+  progress: "Вопрос {step} из {total}",
   spudAlt: "Спад, маскот eait",
   cardMacros: "{kcal} {unit} · {protein} г белка",
   chatProposalLead: "Записываю вот это — всё верно?",

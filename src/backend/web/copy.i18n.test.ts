@@ -27,9 +27,14 @@ describe("what /start says for itself, in eight languages", () => {
       for (const ph of ["{kcal}", "{unit}", "{protein}"]) {
         expect(copy.cardMacros, `${lang}.cardMacros`).toContain(ph);
       }
+      // "QUESTION 3 OF 10" was English on every question page, under an `<html lang="de">`.
+      for (const ph of ["{step}", "{total}"]) {
+        expect(copy.progress, `${lang}.progress`).toContain(ph);
+      }
       for (const [k, v] of Object.entries(copy)) {
         for (const m of v.matchAll(/\{(\w+)\}/g)) {
-          expect(["provider", "kg", "protein", "floor", "kcal", "unit"], `${lang}.${k}`).toContain(m[1] ?? "");
+          expect(["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total"], `${lang}.${k}`)
+          .toContain(m[1] ?? "");
         }
       }
     }
