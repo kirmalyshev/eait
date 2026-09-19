@@ -148,12 +148,22 @@ gets its meal names in that language.
   - NO LANGUAGE IS THREADED IN. Every pattern runs over every string, exactly as `genderedRussian`
     does — `garantiert` cannot match English and `guaranteed` cannot match German, so the sets do
     not interfere, and an admin who types German into the English slot is still caught.
-  - THE FALSE-POSITIVE HALF IS THE ONE THAT DECIDES THIS. `claims.test.ts` pins both directions,
-    and its last two tests run every shipped string in all eight through the gate its own surface
-    uses. A pattern too broad fails there, on a language nobody was thinking about. Vietnamese
-    `đảm bảo` is "make sure" and the product writes it legitimately, so the guarantee pattern
-    requires an outcome beside it; `senkt` alone is not a marker claim, because the app lowers a
-    target.
+  - THE FALSE-POSITIVE HALF IS THE ONE THAT DECIDES THIS, and native review moved three rules.
+    `guarantee` is OUTCOME-BOUND in every language, not just Vietnamese: the bare stem is the
+    consumer-law noun a paid iOS app has to write (*Garantie légale de conformité*) and it is also
+    this product's own voice (*Rien n'est garanti ici — ce sont des estimations*). Both were
+    refused by the first draft, which is the sentence that gets a linter switched off. `lowers-
+    marker` is decided by the MARKER and never the verb — Spanish `baja` is also an instruction,
+    `tensión` is also stress, `pressione` is ordinary pressure and Russian `сахар` is the food, so
+    the qualified form is required where English disambiguates itself. And `weight-promise` stops
+    short of the PROGRESSIVE: `Estás adelgazando` describes, `adelgazar` promises, and that line is
+    the best either Romance language offers.
+  - `CHAT_COPY` AND `onboarding-chat-copy.ts` ARE NOT SWEPT, deliberately. The full set goes red on
+    ten legitimate lines there — `Giảm cân` and `Похудеть` are the goal BUTTON, and neither
+    language has a neutral/promissory split for it. They sit exactly where English's `lose weight`
+    does, which is what `ONBOARDING_CLAIM_RULES` exists for; they are also code, reviewed in a PR
+    rather than typed by an admin. Adding them would force the patterns to be narrowed until they
+    stopped catching a marketer.
   - `\w` AND `\b` ARE ASCII IN JAVASCRIPT. `\bгарантия` and `сниж\w*` both silently match
     nothing. Cyrillic patterns use lookarounds and `[а-яё]`, which is the same trap
     `genderedRussian` fell into first.

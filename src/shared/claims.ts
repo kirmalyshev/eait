@@ -98,39 +98,58 @@ const RULES: readonly Rule[] = [
   // beside it. Same reason `senkt` alone is not `lowers-marker`: the app lowers a target, and only
   // a biomarker beside the verb makes it a claim.
 
-  // guarantee
-  { name: "guarantee", re: /\bgaranti(?:e|s|es|r)?\b/gi },
-  { name: "guarantee", re: /\bgarantiert\w*|\bGarantie\b/gi },
-  { name: "guarantee", re: /\bgarantit[oaie]\b|\bgaranzia\b/gi },
-  { name: "guarantee", re: /\bgarantizad[oa]s?\b|\bgarant[ií]a\b/gi },
-  { name: "guarantee", re: /(?:cam kết|đảm bảo)\s+(?:giảm cân|kết quả|thành công|hiệu quả)/giu },
-  { name: "guarantee", re: /\b(?:dijamin|terjamin|jaminan\s+hasil|garansi)\b/gi },
-  { name: "guarantee", re: /(?<![а-яё])гаранти(?:я|и|ю|ей|рован[а-яё]*|рует|руем)(?![а-яё])/giu },
+  // guarantee — OUTCOME-BOUND IN EVERY LANGUAGE, and that is the whole design of this family.
+  //
+  // The bare stem is the consumer-law noun a paid iOS app has to write ("Garantie légale de
+  // conformité : deux ans") and it is also this product's own voice ("Rien n'est garanti ici — ce
+  // sont des estimations"). Both were refused by the first version, which is precisely the
+  // sentence that gets a linter switched off. So the stem only counts with a RESULT beside it,
+  // within two words, either side — because German puts "Erfolg" first and French puts
+  // "résultats" last.
+  { name: "guarantee", re: /(?:r[ée]sultats?|perte\s+de\s+poids|succ[èe]s|kg)(?:\s+\S+){0,2}\s+garanti\w*|garanti\w*(?:\s+\S+){0,2}\s+(?:r[ée]sultats?|perte\s+de\s+poids|succ[èe]s|kg)/gi },
+  { name: "guarantee", re: /(?:erfolg|ergebnis\w*|gewichtsverlust|gewichtsabnahme|abnehmen|kg)(?:\s+\S+){0,2}\s+garanti\w*|garanti\w*(?:\s+\S+){0,2}\s+(?:erfolg|ergebnis\w*|gewichtsverlust|gewichtsabnahme|abnehmen|kg)|\berfolgsgarantie\b/gi },
+  { name: "guarantee", re: /(?:risultat\w*|perdita\s+di\s+peso|successo|kg)(?:\s+\S+){0,2}\s+garanti\w*|garanti\w*(?:\s+\S+){0,2}\s+(?:risultat\w*|perdita\s+di\s+peso|successo|kg)/gi },
+  { name: "guarantee", re: /(?:resultados?|p[ée]rdida\s+de\s+peso|[ée]xito|kg)(?:\s+\S+){0,2}\s+garantiz\w*|garantiz\w*(?:\s+\S+){0,2}\s+(?:resultados?|p[ée]rdida\s+de\s+peso|[ée]xito|kg)/gi },
+  { name: "guarantee", re: /(?:cam kết|đảm bảo|bảo đảm)\s+(?:giảm cân|kết quả|thành công|hiệu quả)/giu },
+  { name: "guarantee", re: /\b(?:men|di|ter)?jamin\w*(?:\s+\S+){0,2}\s+(?:hasil\w*|berat\s+badan|sukses)|(?:hasil\w*|berat\s+badan|sukses)(?:\s+\S+){0,2}\s+(?:di|ter)?jamin\w*|\bgaransi\s+hasil\b/gi },
+  { name: "guarantee", re: /(?<![а-яё])(?:результат[а-яё]*|похуден[а-яё]*|вес|кг)(?:\s+\S+){0,2}\s+гаранти[а-яё]*|(?<![а-яё])гаранти[а-яё]*(?:\s+\S+){0,2}\s+(?:результат[а-яё]*|похуден[а-яё]*|вес|кг)/giu },
 
-  // weight-promise
-  { name: "weight-promise", re: /\bperd(?:re|ez|s|ons)\s+(?:du\s+poids|\d+\s*kg)|\bperte\s+de\s+poids\b/gi },
-  { name: "weight-promise", re: /\bgewicht\s+(?:zu\s+)?verlieren\b|\bgewichtsverlust\b|\d+\s*kg\s+ab\b/gi },
-  { name: "weight-promise", re: /\bperd(?:ere|i|e)\s+peso\b|\bperdita\s+di\s+peso\b|\bdimagri\w*/gi },
-  { name: "weight-promise", re: /\bpierd(?:e|es|a)\s+peso\b|\bperder\s+peso\b|\bp[ée]rdida\s+de\s+peso\b|\badelgaz\w*/gi },
-  { name: "weight-promise", re: /giảm\s+cân|giảm\s+\d+\s*kg/giu },
-  { name: "weight-promise", re: /\b(?:me|di)?turunkan?\s+berat\s+badan\b|\bturun\s+\d+\s*kg\b/gi },
-  { name: "weight-promise", re: /(?<![а-яё])(?:похуде[а-яё]*|сброс(?:ить|ь|им)\s+(?:вес|\d+\s*кг)|потеря\s+веса)/giu },
+  // weight-promise — the stems, and DELIBERATELY NOT the progressive.
+  //
+  // `Estás adelgazando a 0,5 kg por semana` and `Stai dimagrendo` describe what is happening;
+  // `adelgazar` and `dimagrire` promise it. That line is the best either language offers, and it
+  // is the same undecidability English has — which is why this family is the one the onboarding
+  // surface opts out of by name. A goal button says "Perdre du poids" and must keep saying it.
+  { name: "weight-promise", re: /\bperd(?:re|ez|s|ons|ras|rez)\s+(?:du\s+poids|\d+\s*kg)|\bperte\s+de\s+poids\b|\bmaigrir\b|\bmincir\b|\bamincissement\b/gi },
+  { name: "weight-promise", re: /\bgewicht\s+(?:zu\s+)?verlieren\b|\bgewichts(?:verlust|abnahme)\b|\d+\s*(?:kg|kilo\w*|pfund)\s+ab(?:nehmen|zunehmen)?\b/gi },
+  { name: "weight-promise", re: /\bperd(?:ere|i|e|erai|erete)\s+(?:peso|\d+\s*kg)\b|\bperdita\s+di\s+peso\b|\bdimagri\w*/gi },
+  { name: "weight-promise", re: /\b(?:pierd(?:e|es|a)|perder[áa]s?|bajar?)\s+(?:de\s+)?(?:peso|\d+\s*kg)\b|\bp[ée]rdida\s+de\s+peso\b|\badelgazar?\b|\badelgaza\b/gi },
+  { name: "weight-promise", re: /giảm\s+cân|giảm\s+\d+\s*(?:kg|ký)/giu },
+  { name: "weight-promise", re: /\b(?:me)?nurunkan\s+berat\s+badan\b|\b(?:di)?turunkan?\s+berat\s+badan\b|\bpenurunan\s+berat\s+badan\b|\bturun\s+\d+\s*kg\b/gi },
+  { name: "weight-promise", re: /(?<![а-яё])(?:похуде[а-яё]*|снижение\s+веса|с(?:брос|кинут)[а-яё]*\s+(?:вес|\d+\s*кг)|потеря\s+веса|минус\s+\d+\s*кг)/giu },
 
-  // lowers-marker
-  { name: "lowers-marker", re: /\b(?:fait\s+)?baisse[rz]?\s+(?:l[ae]\s+|du\s+)?(?:cholest[ée]rol|glyc[ée]mie|tension)\b/gi },
-  { name: "lowers-marker", re: /\bsenkt\s+(?:den\s+|das\s+|die\s+)?(?:cholesterin\w*|blutzucker|blutdruck)\b/gi },
-  { name: "lowers-marker", re: /\babbassa\s+(?:il\s+|la\s+)?(?:colesterolo|glicemia|pressione)\b/gi },
-  { name: "lowers-marker", re: /\bbaja\s+(?:el\s+|la\s+)?(?:colesterol|az[úu]car|tensi[óo]n)\b/gi },
-  { name: "lowers-marker", re: /giảm\s+(?:cholesterol|đường\s+huyết|huyết\s+áp)/giu },
+  // lowers-marker — the MARKER decides, never the verb.
+  //
+  // Spanish `baja` is also an instruction and `tensión` is also stress; `pressione` and `tension`
+  // are ordinary pressure; Russian `сахар` is the food. English `blood sugar` disambiguates
+  // itself and these do not, so the qualified form is required where the bare noun is ambiguous.
+  { name: "lowers-marker", re: /\b(?:fait\s+)?(?:baisse[rz]?|r[ée]du(?:it|ire)|diminue[rz]?)\s+(?:l[ae]\s+|du\s+|ton\s+|ta\s+|votre\s+)?(?:cholest[ée]rol|glyc[ée]mie|tension\s+art[ée]rielle)\b/gi },
+  { name: "lowers-marker", re: /\bsenkt\s+(?:den\s+|das\s+|die\s+|deinen\s+)?(?:cholesterin\w*|blutzucker|blutdruck)\b|\b(?:cholesterin\w*|blutzucker|blutdruck)(?:\s+\S+){0,3}\s+(?:zu\s+)?senken\b/gi },
+  { name: "lowers-marker", re: /\b(?:abbassa|riduce|ridurre|fa\s+scendere)\s+(?:il\s+|la\s+|il\s+tuo\s+|la\s+tua\s+)?(?:colesterolo|glicemia|pressione\s+sanguigna)\b/gi },
+  { name: "lowers-marker", re: /\b(?:baja|reduce|reducir|hace\s+bajar)\s+(?:el\s+|la\s+|tu\s+)?(?:colesterol|glucosa|az[úu]car\s+en\s+sangre|tensi[óo]n\s+arterial)\b/gi },
+  { name: "lowers-marker", re: /(?:giảm|hạ)\s+(?:cholesterol|đường\s+huyết|huyết\s+áp|mỡ\s+máu)/giu },
   { name: "lowers-marker", re: /\bmenurunkan\s+(?:kolesterol|gula\s+darah|tekanan\s+darah)\b/gi },
-  { name: "lowers-marker", re: /(?<![а-яё])сниж[а-яё]*\s+(?:холестерин[а-яё]*|сахар[а-яё]*|давлени[а-яё]*)/giu },
+  { name: "lowers-marker", re: /(?<![а-яё])сни[жз][а-яё]*\s+(?:холестерин[а-яё]*|давлени[а-яё]*|сахар[а-яё]*\s+в\s+крови)|(?<![а-яё])(?:холестерин|давление)\s+сни[жз][а-яё]*/giu },
 
-  // detox — the English rule already catches the bare Latin "detox", which fr/it/es/vi/id share.
+  // detox — the Latin word is the one a Romance marketer does not need.
   { name: "detox", re: /\bd[ée]tox\w*/gi },
   { name: "detox", re: /\bentgift\w*/gi },
-  { name: "detox", re: /\bdisintossic\w*/gi },
-  { name: "detox", re: /\bdesintoxic\w*/gi },
-  { name: "detox", re: /thải\s+độc/giu },
+  { name: "detox", re: /\bdisintossic\w*|\belimina\s+le\s+tossine\b/gi },
+  { name: "detox", re: /\bdesintoxic\w*|\belimina\s+las\s+toxinas\b|\bdepura\w*\s+(?:tu\s+|el\s+)?organismo\b|\blimpieza\s+de\s+colon\b/gi },
+  // NOT `\b[ée]limine`: a leading `É` is not an ASCII word character, so the boundary never
+  // matches at the start of a sentence. Third time that trap has appeared in this branch.
+  { name: "detox", re: /(?<![a-zà-ÿ])[ée]limine\s+les\s+toxines|\bpurifie\w*\s+(?:ton\s+|l['’])?organisme\b/giu },
+  { name: "detox", re: /thải\s+độc|giải\s+độc/giu },
   { name: "detox", re: /\bdetoks\w*/gi },
   { name: "detox", re: /(?<![а-яё])детокс[а-яё]*/giu },
 

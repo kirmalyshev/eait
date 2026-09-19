@@ -26,41 +26,61 @@ import { ONBOARDING_CONTENT } from "./onboarding-content.ts";
 const BANNED: Record<string, Partial<Record<(typeof LANGS)[number], string[]>>> = {
   guarantee: {
     en: ["Guaranteed results in a week."],
-    fr: ["Perte de poids garantie.", "Résultats garantis."],
-    de: ["Garantierter Gewichtsverlust.", "Erfolg garantiert."],
-    it: ["Perdita di peso garantita.", "Risultati garantiti."],
-    es: ["Pérdida de peso garantizada.", "Resultados garantizados."],
-    vi: ["Cam kết giảm cân.", "Đảm bảo kết quả trong một tuần."],
-    id: ["Dijamin turun berat badan.", "Hasil terjamin."],
+    fr: ["Perte de poids garantie.", "Résultats garantis.",
+      "Nous te garantissons des résultats.", "Cette appli garantit tes résultats."],
+    de: ["Garantierter Gewichtsverlust.", "Erfolg garantiert.",
+      // German puts the verb at the end, and builds nouns: neither is an inflection.
+      "Wir garantieren dir Erfolg.", "Erfolgsgarantie inklusive."],
+    it: ["Perdita di peso garantita.", "Risultati garantiti.", "Ti garantiamo risultati."],
+    es: ["Pérdida de peso garantizada.", "Resultados garantizados.",
+      "Te garantizamos resultados."],
+    vi: ["Cam kết giảm cân.", "Đảm bảo kết quả trong một tuần.", "Bảo đảm giảm cân."],
+    id: ["Dijamin turun berat badan.", "Hasil terjamin.", "Kami menjamin hasilnya."],
     ru: ["Гарантированное похудение.", "Результат гарантирован."],
   },
   "weight-promise": {
     en: ["Lose weight fast.", "Lose 5 kg this month."],
-    fr: ["Perdez du poids vite.", "Perdre 5 kg ce mois-ci."],
-    de: ["Nimm 5 kg ab.", "Gewicht verlieren, schnell."],
-    it: ["Perdi peso in fretta.", "Dimagrire di 5 kg."],
-    es: ["Pierde peso rápido.", "Adelgazar 5 kg."],
-    vi: ["Giảm cân nhanh.", "Giảm 5 kg trong tháng này."],
-    id: ["Turunkan berat badan dengan cepat."],
-    ru: ["Похудей быстро.", "Сбросить 5 кг за месяц."],
+    fr: ["Perdez du poids vite.", "Perdre 5 kg ce mois-ci.", "Tu perdras du poids.",
+      "Maigrir sans effort.", "Mincir durablement.", "Amincissement rapide."],
+    de: ["Nimm 5 kg ab.", "Gewicht verlieren, schnell.",
+      // `\bab\b` has no boundary inside `abnehmen`, so only the SEPARABLE form fired.
+      "Mit eait 5 kg abnehmen.", "Gewichtsabnahme ohne Hunger."],
+    it: ["Perdi peso in fretta.", "Dimagrire di 5 kg.", "Perderai peso.",
+      "Perdi 5 kg in un mese."],
+    es: ["Pierde peso rápido.", "Adelgazar 5 kg.", "Perderás peso.",
+      "Baja de peso sin esfuerzo.", "Pierde 5 kg en un mes."],
+    vi: ["Giảm cân nhanh.", "Giảm 5 kg trong tháng này.", "Giảm 5 ký trong tháng này."],
+    id: ["Turunkan berat badan dengan cepat.",
+      // me- ASSIMILATES the t, so `menurunkan` contains no `turun` at all — and this is the
+      // standard Indonesian phrase AND the shipped goal button.
+      "Menurunkan berat badan dengan cepat.", "Penurunan berat badan terjamin."],
+    ru: ["Похудей быстро.", "Сбросить 5 кг за месяц.",
+      // The standard Russian marketing noun. `потеря веса` is the calque nobody writes.
+      "Снижение веса за месяц.", "Скинуть вес быстро.", "Минус 10 кг за месяц."],
   },
   "lowers-marker": {
     en: ["Lowers cholesterol."],
-    fr: ["Fait baisser le cholestérol."],
-    de: ["Senkt den Cholesterinspiegel.", "Senkt den Blutdruck."],
-    it: ["Abbassa il colesterolo."],
-    es: ["Baja el colesterol."],
-    vi: ["Giảm cholesterol."],
+    fr: ["Fait baisser le cholestérol.", "Réduit le cholestérol.",
+      "Diminue la tension artérielle.", "Baisse ton cholestérol."],
+    de: ["Senkt den Cholesterinspiegel.", "Senkt den Blutdruck.",
+      "Hilft, den Cholesterinspiegel zu senken."],
+    it: ["Abbassa il colesterolo.", "Riduce il colesterolo.", "Fa scendere la glicemia.",
+      "Abbassa il tuo colesterolo."],
+    es: ["Baja el colesterol.", "Reduce el colesterol.", "Hace bajar la glucosa.",
+      "Baja tu colesterol."],
+    vi: ["Giảm cholesterol.", "Hạ đường huyết.", "Giảm mỡ máu."],
     id: ["Menurunkan kolesterol."],
-    ru: ["Снижает холестерин.", "Снижает давление."],
+    ru: ["Снижает холестерин.", "Снижает давление.",
+      // The PERFECTIVE is how a promise is phrased, and `сниж[а-яё]*` matched only the ж stem.
+      "Снизит холестерин.", "Снизить давление за месяц."],
   },
   detox: {
     en: ["A detox week."],
-    fr: ["Une semaine détox."],
+    fr: ["Une semaine détox.", "Élimine les toxines.", "Purifie ton organisme."],
     de: ["Eine Woche Entgiftung."],
-    it: ["Una settimana disintossicante."],
-    es: ["Una semana de desintoxicación."],
-    vi: ["Một tuần thải độc."],
+    it: ["Una settimana disintossicante.", "Elimina le tossine."],
+    es: ["Una semana de desintoxicación.", "Elimina las toxinas.", "Depura tu organismo."],
+    vi: ["Một tuần thải độc.", "Một tuần giải độc."],
     id: ["Seminggu detoksifikasi."],
     ru: ["Неделя детокса."],
   },
@@ -89,6 +109,27 @@ const FINE = [
   // `lowers-marker`'s neighbours: the app lowers a TARGET, not a biomarker.
   "Das Ziel senkt sich nicht unter diese Grenze.",
   "Снижать цель ниже этого порога мы не будем.",
+  // `сахар` alone is the food. English `blood sugar` disambiguates and Russian does not, so the
+  // marker pattern needs `в крови` beside it — otherwise ordinary dietary advice is a claim.
+  "Снижай сахар постепенно, а не за один день.",
+  // THE ONE THAT WOULD HAVE GOT THIS SWITCHED OFF. A paid iOS app writes the consumer-law noun,
+  // and this product's own voice is the honest denial — both are the guarantee STEM with no
+  // outcome anywhere near it, which is why every language's pattern is outcome-bound.
+  "Garantie légale de conformité : deux ans.",
+  "Garanzia legale di conformità: due anni.",
+  "Garantía legal de conformidad: dos años.",
+  "Rien n'est garanti ici — ce sont des estimations.",
+  "Niente è garantito qui — sono stime.",
+  "Nada está garantizado aquí — son estimaciones.",
+  // A marker verb on something that is not a marker. Spanish `baja` is also an instruction and
+  // `tensión` is also stress; `pressione`/`tension` are also pressure of the ordinary kind.
+  "Baja el azúcar del desayuno y verás la diferencia.",
+  "Baisse la tension du quotidien : mange sans te presser.",
+  "Abbassa la pressione del lavoro, non quella del sangue.",
+  // Describing what is happening, not promising it. The progressive is the descriptive form in
+  // both, which is why the stems stop short of it.
+  "Estás adelgazando a 0,5 kg por semana.",
+  "Stai dimagrendo di 0,5 kg a settimana.",
 ];
 
 describe("the claims gate reads all eight languages", () => {
@@ -128,6 +169,21 @@ describe("every sentence this product ships", () => {
       expect(lintCopy(fields).map((v) => `${v.field}: ${v.pattern} "${v.span}"`), lang).toEqual([]);
     }
   });
+
+  // WHY `CHAT_COPY` AND `onboarding-chat-copy.ts` ARE NOT SWEPT HERE, and must not be added
+  // without changing the patterns first.
+  //
+  // Both reviewers measured it: running the FULL set over them goes red on ten lines, every one
+  // legitimate — `Giảm cân` and `Похудеть` are `options.lose.label`, the goal button, plus the
+  // switch-goal lines and two citation strings. Vietnamese and Russian have no neutral/promissory
+  // split for "lose weight"; it is the one word either language has. So those strings are exactly
+  // where English's `lose weight` is: undecidable on a surface that carries the user's own goal,
+  // which is why `ONBOARDING_CLAIM_RULES` exists at all.
+  //
+  // They are also CODE — reviewed in a pull request, not typed into a text box by an admin — so
+  // the gate is not what stands between them and a user. Adding them to this sweep would force
+  // the `weight-promise` patterns to be narrowed until they stopped catching a marketer, which is
+  // the trade this file exists to refuse.
 
   it("passes the onboarding gate, in all eight, under the rules that surface opts into", () => {
     // NOT the full set: "Lose weight" is a goal a user picks and "Diabetes" is a restriction they
