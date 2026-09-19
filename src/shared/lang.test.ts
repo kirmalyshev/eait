@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
-import { LANGS_READY, LANG_LABEL, t, type Localized } from "./lang.ts";
+import {
+  LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, genderedRussian, localizedGaps, monthYear, numbers,
+  spellUnit, t,
+  type Localized,
+} from "./lang.ts";
 
 // The localization spine (#474, slice 1 of #358). Nothing user-visible ships with it: what is
 // pinned here is the fallback rule, because getting it wrong is a crash rather than a wart.
@@ -33,10 +37,11 @@ describe("t", () => {
 });
 
 describe("what the product claims to speak", () => {
+  it("is the eight Kirill named, in the order the picker shows them", () => {
+    expect(LANGS).toEqual(["en", "fr", "de", "it", "es", "vi", "id", "ru"]);
+  });
+
   it("names only languages whose tables are populated", () => {
-    // `LANGS` is what the SERVER accepts and the model already answers in. `LANGS_READY` is what
-    // the app has words for, and offering a language that falls back to English on every screen is
-    // worse than not offering it. They converge as the later slices land.
     expect(LANGS_READY.every((l) => (LANGS as readonly string[]).includes(l))).toBe(true);
     expect(LANGS_READY).toContain("en");
     expect(new Set(LANGS_READY).size).toBe(LANGS_READY.length);
@@ -48,5 +53,122 @@ describe("what the product claims to speak", () => {
     for (const lang of LANGS) expect(LANG_LABEL[lang].length).toBeGreaterThan(0);
     expect(LANG_LABEL.ru).toBe("Русский");
     expect(LANG_LABEL.de).toBe("Deutsch");
+    expect(LANG_LABEL.fr).toBe("Français");
+    expect(LANG_LABEL.it).toBe("Italiano");
+    expect(LANG_LABEL.es).toBe("Español");
+    expect(LANG_LABEL.vi).toBe("Tiếng Việt");
+    expect(LANG_LABEL.id).toBe("Bahasa Indonesia");
+  });
+
+  it("carries a BCP-47 tag for every language, because Intl takes a tag and not a Lang", () => {
+    for (const lang of LANGS) expect(LANG_TAG[lang].startsWith(lang)).toBe(true);
+  });
+});
+
+describe("numbers and dates", () => {
+  it("are Intl's, so a German reads 1.454 and a Frenchman 1 454", () => {
+    expect(numbers("en")(1454)).toBe("1,454");
+    expect(numbers("de")(1454)).toBe("1.454");
+    // French groups with a narrow no-break space (U+202F in modern CLDR); assert the digits and
+    // that it is NOT a comma rather than pinning a space character ICU has moved once already.
+    expect(numbers("fr")(1454)).toMatch(/^1\D454$/);
+    expect(numbers("ru")(1454)).toMatch(/^1\D454$/);
+  });
+
+  it("rounds to whole numbers, and keeps one decimal when there is one", () => {
+    expect(numbers("en")(92.04)).toBe("92");
+    expect(numbers("en")(92.35)).toBe("92.4");
+    expect(numbers("de")(92.35)).toBe("92,4");
+  });
+
+  it("names a month in the reader's language, from Intl and never from a table", () => {
+    const at = new Date("2026-11-15T12:00:00Z");
+    expect(monthYear("en", at)).toBe("November 2026");
+    expect(monthYear("de", at)).toBe("November 2026");
+    expect(monthYear("fr", at)).toBe("novembre 2026");
+    expect(monthYear("vi", at)).toContain("2026");
+  });
+});
+
+describe("localizedGaps — the check that keeps this true after everybody leaves", () => {
+  it("names the table AND the language when one is missing", () => {
+    const gaps = localizedGaps({ GREETING: { en: "hi", de: "hallo" } }, ["en", "de", "fr"]);
+    expect(gaps).toEqual([{ table: "GREETING", lang: "fr" }]);
+  });
+
+  it("finds a table nested inside another export, because most of them are", () => {
+    const gaps = localizedGaps({ CARDS: { lose: { en: "a" }, gain: { en: "b", ru: "б" } } }, ["en", "ru"]);
+    expect(gaps).toEqual([{ table: "CARDS.lose", lang: "ru" }]);
+  });
+
+  it("says nothing about a complete table", () => {
+    expect(localizedGaps({ X: { en: 1, de: 2 } }, ["en", "de"])).toEqual([]);
+  });
+
+  it("is not fooled by an ordinary object that happens to hold prose", () => {
+    expect(localizedGaps({ CARD: { title: "x", body: "y" } }, ["en", "de"])).toEqual([]);
+  });
+
+  it("survives a cycle, because a module graph has them", () => {
+    const a: Record<string, unknown> = { name: "a" };
+    a.self = a;
+    expect(localizedGaps({ a }, ["en"])).toEqual([]);
+  });
+});
+
+describe("genderedRussian — the check no English-reading reviewer could be", () => {
+  it("catches a second-person past tense, which in Russian always picks a gender", () => {
+    // The exact string that shipped on the chat composer, in three surfaces at once.
+    expect(genderedRussian({ placeholder: "Что ты ел?" })).toEqual([{ at: "placeholder", text: "ты ел" }]);
+    expect(genderedRussian({ a: { b: "Скажи, что ты ел, и запиши заново." } })[0]?.at).toBe("a.b");
+  });
+
+  it("catches it across a couple of words, because that is where it hides", () => {
+    // `ты об этом попросил` is the shape a hand search misses: two words between the pronoun and
+    // the verb. Finding it in `THREAD_COPY` is how this check paid for itself on the first run.
+    expect(genderedRussian(["Оценено только потому, что ты об этом попросил."])).toHaveLength(1);
+    // Two hits on one sentence — the past tense and the `сам` — and that is correct.
+    expect(genderedRussian(["еда, которую ты не готовил сам"]).length).toBeGreaterThan(0);
+  });
+
+  it("catches a SHORT ADJECTIVE, which carries no pronoun to search for", () => {
+    // `Готов?` was the last one left after every `ты …л` was fixed. Nothing in it says `ты`.
+    expect(genderedRussian({ cta: "Готов?" })).toEqual([{ at: "cta", text: "Готов" }]);
+    expect(genderedRussian(["поправь граммы сам"])).toHaveLength(1);
+    expect(genderedRussian(["Ты в этом не один"])).toHaveLength(1);
+    // The inversion, where the verb comes first and the check cannot key on `ты …`.
+    expect(genderedRussian(["Если это был не ты, просто не отвечай"])).toHaveLength(1);
+  });
+
+  it("leaves the NUMERAL alone, or it would drown the three real ones", () => {
+    // `один` is only a gender once it is predicated of the reader; everywhere else it is "one".
+    expect(genderedRussian(["один раз в день", "одна порция риса"])).toEqual([]);
+  });
+
+  it("says nothing about Spud talking about HIMSELF, which is his gender to have", () => {
+    expect(genderedRussian({ x: "Записал. С этого момента натрий оценивается." })).toEqual([]);
+    expect(genderedRussian({ x: "Когда я не уверен, я так и скажу." })).toEqual([]);
+  });
+
+  it("needs no language bucket, because no other language can match it", () => {
+    // Every string in the graph is asked, so a table that stops being `Localized` stays covered.
+    expect(genderedRussian({ de: "Damit bist du nicht allein", fr: "Ça n'arrive pas qu'à toi" })).toEqual([]);
+  });
+});
+
+describe("spellUnit — the unit read aloud, not the one beside a scale", () => {
+  it("writes Cyrillic for a Russian listener and leaves the other seven alone", () => {
+    // `trendSummary` is the chart as a SENTENCE for VoiceOver, so this is the same test that made
+    // the four `UNIT_KCAL` sites wrong: a unit read inside a clause, not a symbol on an axis.
+    expect(spellUnit("ru", "kg")).toBe("кг");
+    expect(spellUnit("ru", "min")).toBe("мин");
+    expect(spellUnit("ru", "kcal")).toBe(UNIT_KCAL.ru);
+    for (const lang of LANGS.filter((l) => l !== "ru")) expect(spellUnit(lang, "kg")).toBe("kg");
+  });
+
+  it("returns an unknown unit unchanged, because a new field is likelier than a gap", () => {
+    expect(spellUnit("ru", "%")).toBe("%");
+    expect(spellUnit("ru", "furlongs")).toBe("furlongs");
+    expect(spellUnit("ru", "")).toBe("");
   });
 });

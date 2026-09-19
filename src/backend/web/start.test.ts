@@ -13,7 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   AMBIGUOUS_AGE, DEFAULT_ONBOARDING_CONTENT, UNDER_AGE_CARD, UNDER_AGE_LINES, disabledScreens,
-  explainTargets, lintCopy, MAX_USER_LINE, TYPE_MS_PER_CHAR, type Profile,
+  explainTargets, lintCopy, MAX_USER_LINE, TYPE_MS_PER_CHAR, wholeNumbers, type Profile,
 } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -599,7 +599,7 @@ describe("the questions", () => {
       screens: DEFAULT_ONBOARDING_CONTENT.screens.map((screen) =>
         screen.id === "country" ? { ...screen, enabled: true } : screen),
     };
-    expect((await saveOnboardingContent(deps, enabled)).ok).toBe(true);
+    expect((await saveOnboardingContent(deps, enabled, "en")).ok).toBe(true);
     const session = await signIn();
     const asked: string[] = [];
     for (let i = 0; i < 20; i++) {
@@ -652,7 +652,9 @@ describe("the plan", () => {
     const profile = (await store.getProfile(userId))!;
     expect(profile.onboarded_at).not.toBeNull();
     const { targets } = explainTargets(profile);
-    expect(html).toContain(String(targets.kcal));
+    // GROUPED THE READER'S WAY — "1,686" in English, "1.686" in German. Every figure this product
+    // writes goes through `Intl` (`lang.ts`), and the plan card was the last one that did not.
+    expect(html).toContain(wholeNumbers(profile.lang)(targets.kcal));
     expect(html).toContain("Sign in with Google");
   });
 
@@ -971,7 +973,7 @@ describe("the numbers go through the shared checks, not this page's own", () => 
     const asked = await post("/start/q", { prompt: "birth_year", answer: "90" }, session);
     expect(asked.status).toBe(200);
     const html = await asked.text();
-    expect(html).toContain(AMBIGUOUS_AGE.line(90));
+    expect(html).toContain(AMBIGUOUS_AGE("en").line(90));
     expect(html).toContain('name="age" value="90"');
     const userId = (await store.userIdForToken(session.split("=")[1]!))!;
     expect((await store.getProfile(userId))!.birth_year).toBeNull();
@@ -1004,7 +1006,7 @@ describe("the under-sixteen stop", () => {
   it("offers the typo once rather than stopping on the first answer", async () => {
     const session = await signIn();
     const html = await (await toAge(session, "12")).text();
-    expect(html).toContain(UNDER_AGE_LINES.ask);
+    expect(html).toContain(UNDER_AGE_LINES("en").ask);
     expect(html).toContain('name="confirm" value="under-age"');
     // Nothing written: the age was refused, not stored.
     const userId = (await store.userIdForToken(session.split("=")[1]!))!;
@@ -1018,8 +1020,8 @@ describe("the under-sixteen stop", () => {
     const res = await post("/start/q", { prompt: "birth_year", confirm: "under-age" }, session);
     expect(res.status).toBe(200);
     const html = await res.text();
-    expect(html).toContain(UNDER_AGE_CARD.title);
-    expect(html).toContain(UNDER_AGE_LINES.stopped[0]!);
+    expect(html).toContain(UNDER_AGE_CARD("en").title);
+    expect(html).toContain(UNDER_AGE_LINES("en").stopped[0]!);
     // "Nothing you told me is kept, and there is no account to delete" — so there must not be one.
     expect(await store.getProfile(userId)).toBeNull();
     expect(await store.userIdForToken(session.split("=")[1]!)).toBeNull();

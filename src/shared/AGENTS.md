@@ -18,6 +18,8 @@ a third implementation instead of the agreement between two.
 | `health.ts` | `HEALTH_FIELDS` + `aggregateDays`. Day attribution is tested with no simulator. |
 | `trend.ts` | a daily series by day/week/month/year, and Pearson between two of them. Every number on a health chart. |
 | `onboarding.ts`, `onboarding-chat.ts` | the question set and the branch logic. |
+| `lang.ts` | `Localized<T>`, `t(lang)`, `LANGS_READY`, the two number formatters, and `localizedGaps`. |
+| `onboarding-content.ts`, `onboarding-chat-copy.ts`, `chat-copy.ts`, `health-copy.ts`, `verdicts.ts` | the WORDS, keyed by language. The rules stay in the file beside each. |
 | `perf.ts` | `PERF_SCREENS` and every screen's budget. |
 | `entitlement.ts`, `chat.ts`, `thread.ts`, `projection.ts`, `claims.ts`, `notifications.ts` | same rule: one definition, two consumers. |
 | `outbox.ts` | the turns a client could not send (#708): the order, the holds, and what is retried under the same id. The phone and the browser persist it; this decides it. |
@@ -47,6 +49,131 @@ Everything is exported through `index.ts` (`export *`), so a new export needs no
   ordering, windows and month arithmetic use plain `<`/`>` rather than parsing.
 - **The calorie floor is unconditional.** Share cap first, floor second. Any new code path that
   produces a kcal target goes through `explainTargets`.
+- **Copy is `Localized<T>`; a rule is not.** A table holds the WORDING of each branch and the code
+  beside it holds which branch a case takes. `eveningPrescription` picks the lever, `checkNumber`
+  decides what is a valid age, `correlationWords` owns the 0.5 that separates weak from moderate —
+  a translator moving any of those would be moving a rule. This is also what makes a translation
+  reviewable: a table diffs as prose.
+- **A sentence is a WHOLE template, never fragments joined by code.** `"{left} of your {plan} left
+  today"` and not `` `${rest} left today` `` with `rest` built elsewhere. The old thread built
+  "930 of your 1,450" in TypeScript and handed it over as one parameter, which is an English
+  genitive compiled into the code and unreachable by any translation.
+
+## Localization (#358)
+
+**The product speaks eight languages: `en`, `fr`, `de`, `it`, `es`, `vi`, `id`, `ru`.** `LANGS`
+(`types.ts`) is what the server stores and the model answers in. `LANGS_READY` (`lang.ts`) is the
+smaller, honest claim — what the app can render ITSELF end to end — and it is what a picker offers.
+They are equal today and are two names because they mean different things: `PATCH /v1/profile`
+accepts any `LANGS` code, because a phone in a language the browser pages have no words in still
+gets its meal names in that language.
+
+- **A new string goes in the `*-copy.ts` beside the module that reads it**, as a key on that
+  module's one `Localized` table, in all eight languages. Not in a `.json` bundle, not behind an
+  extraction step: `lang.ts`'s header says why, and eight compiled-in languages need neither.
+- **`localizedGaps` is what keeps `LANGS_READY` honest.** One test per workspace
+  (`copy.i18n.test.ts`) hands it `import * as everything` and fails by name — "CHAT_COPY has no vi
+  (Tiếng Việt)" — when a table is missing a language the list claims. A table nothing EXPORTS is a
+  table it cannot see, which is the one way a language can be lost quietly; export it.
+- **Fallback happens at the KEY, never at the screen.** `en` is required by `Localized<T>`, so
+  `t(lang)` cannot return undefined. One untranslated button is a wart; a screen that throws is a
+  process abort in a Release build.
+- **THE UNIT SYSTEM IS NOT THE LANGUAGE.** `de` is metric, `en` is not automatically imperial, and
+  nothing in a copy table may reach `targets.ts`. `Intl.NumberFormat` is asked for a decimal, never
+  for a measurement — `LANG_TAG` moves a separator and cannot move a kilogram.
+- **A unit SYMBOL beside a figure is `UNIT_KCAL`; a unit symbol on an axis is not.** Every sentence
+  carries its own unit word in its template; the four places that CONCATENATE one onto a figure
+  (the plan card, the diary headline, a Telegram meal line) read `UNIT_KCAL`, because a Russian plan
+  card read "1 500 kcal" with "Порог — 1500 ккал." two lines under it. That table is a SPELLING and
+  not a unit: the same quantity in all eight, which is the `LANG_LABEL` situation and not the
+  imperial one. `HEALTH_FIELDS.unit` stays SI and this does not license changing it.
+- **Numbers and dates are `Intl`.** `numbers(lang)` keeps a tenth (a weight somebody typed);
+  `wholeNumbers(lang)` rounds (a kcal from a photo, where a decimal claims a precision the analyzer
+  does not have). `monthYear` is `Intl.DateTimeFormat` — CLDR's forms are not all "<month> <year>",
+  and a table of ours got Spanish, Russian and Vietnamese wrong at once before it was deleted.
+- **A TABLE THAT IS NOT `Localized<T>` IS INVISIBLE TO EVERY CHECK HERE.** `localizedGaps` detects
+  a table by SHAPE, so English literals in an ordinary record are not a gap — they are not a table.
+  That is how the whole health-trend screen stayed English inside a translated app: `TREND_PERIODS`
+  held `label`/`noun` as plain strings, the axis formatters were pinned to `en-GB`/`en-US`, and
+  `trendSummary` took no language at all. Making `lang` required repo-wide would not have found it
+  either, because none of those functions HAD a language parameter to make required. The fix is the
+  general one — the words moved into `HEALTH_COPY`, the formatters are built from `LANG_TAG[lang]`,
+  and `trendPeriods(lang)`/`trendBuckets(…, lang)`/`trendSummary(…, lang)` take the language. When
+  you add a surface, ask whether its words are in a `Localized<T>`; if they are not, no test here
+  is watching them.
+- **A sentence is a TEMPLATE, never fragments joined by code.** `trendSummary` built the VoiceOver
+  line by concatenating "by", "from", "to", "Lowest" around the numbers. Word order is not a
+  constant across eight languages, and for a reader with low vision that sentence IS the chart. It
+  is one string per language with named placeholders now. The same rule caught Russian's `по`,
+  which governs the dative plural: `HealthCopy.periods[p].per` exists beside `noun` because one
+  field cannot be both `неделя` and `неделям`.
+- **A test refuses to let the Russian decide who the reader is.** Russian past tense agrees with
+  the speaker's gender and has NO neutral form, so `Что ты ел?` greets every woman using this app
+  as a man — and it shipped on the chat composer's placeholder, in three surfaces at once. Nothing
+  about the string is wrong to a reviewer reading it: it is correct, idiomatic and complete, and
+  English has no construction that behaves this way, so reviewing the English source could not
+  catch it either. `genderedRussian` (`lang.ts`) walks every string in the graph — it needs no
+  language bucket, because nothing but Russian has Cyrillic in it — and the three `copy.i18n`
+  tests fail naming the key. Fifteen sentences, four of them in `fr`/`it`/`es`/`ru` where the
+  adjective in "you're not alone" picks a gender too; those were rephrased around the situation
+  rather than the person, which is the move that works in all eight.
+
+- **`LANG_LABEL` is never translated.** A list of languages written in the language the reader is
+  trying to leave is the one list they cannot read. It is also what the LLM prompt names the reply
+  language with (`languageLine`), because a language's own name is the same string wherever it is
+  read.
+- **The largest text surface is in no table.** Meal names, the coach's answers, the glance and the
+  follow-up chips are written by the model per turn. `languageLine` in `llm/prompt.ts` is the whole
+  of what steers them, and it reaches every prompt that produces words a user reads.
+- **The claims gate (`claims.ts`) is English-only, and it now covers one language in eight.** It
+  matches English patterns, so running it over the German passes regardless. For the COMPILED-IN
+  tables that is survivable: they are translations of English that passed the gate, the English is
+  the source, and a sentence changes there first. It is NOT true of the two DB-stored surfaces —
+  `onboarding_content` and `notification_copy` — where an admin types the words directly and
+  `?lang=` gave them seven more revisions to type into. `validateNotificationCopy` accepts a German
+  push reading *Garantierter Gewichtsverlust*; the English *Guaranteed weight loss* is refused.
+  A push notification arrives unasked, on a lock screen, with no review and no recall, and §5 UWG
+  is the product's own jurisdiction. Open, tracked, and named here rather than left to be
+  rediscovered: what would close it is per-language pattern sets, and what would falsify the
+  framing is the stored surfaces losing their language dimension.
+- **THE iOS CLIENT RENDERS FROM THESE TABLES TOO, and that is why they are here rather than in the
+  backend.** `src/mobile` is not in this repo and imports `@eait/shared` from the parent monorepo,
+  so a table in `backend/` is a table the phone cannot read. What the app consumes:
+  `onboardingContentFor` / `usableContentFor` (the flow), `chatCopyFor` and its readers
+  (`GOAL_CARDS(lang)`, `STRUGGLE_LABELS(lang)`, `checkNumber(…, lang, …)` and the rest — every one
+  of them takes the language now, and a caller that captures one at module scope renders in
+  whatever language the process started in), `threadCopyFor` / `firstVerdictLines` / `runningLine` /
+  `scriptedLine`, `verdictPillLabel`, `healthLabel`, `correlationWords`, `notificationCopyFor` +
+  `eveningPrescription`, `projectionMonth`, `trendPeriods` / `trendBuckets` / `trendSummary` for
+  the health charts, and `numbers` / `wholeNumbers` / `monthYear` for every figure.
+  **`trendSummary`'s `format` callback must spell its unit with `spellUnit(lang, …)`** — that
+  sentence is the chart read aloud, so a raw `HEALTH_FIELDS.unit` puts `kg` in the middle of a
+  Russian clause. The AXIS keeps the SI symbol; only the spoken sentence does not. The language itself is `ProfileResponse.profile.lang`; the picker writes it with
+  `PATCH /v1/profile { lang }` and offers `LANGS_READY` labelled by `LANG_LABEL`.
+- **`lang` IS REQUIRED ON EVERY ONE OF THEM, and that is deliberately a breaking change.** `t()`
+  falls back at the KEY, which is the wart this design accepts; a defaulted PARAMETER falls back at
+  the SCREEN, and it does it where nothing can see — the call site that forgot it compiles, every
+  test passes, and the screen is English. Removing the defaults made the compiler name three live
+  ones no gate here could reach: `oneLiveProposal` in `chat-core.ts` (two call sites, one of them
+  wrong, so every non-English reader saw "dropped" in English), `projectionMonth` in `coach.ts` (an
+  English month handed to a model told to answer in Russian), and `scriptedLine` in `meals.ts`. So a
+  `src/mobile` call site that has no language is a BUILD ERROR rather than a screen somebody
+  eventually notices. Where the optional argument sat in front of the required one — `scriptedLine`,
+  `checkNumber` — the order was swapped, because reaching the language must never cost a caller an
+  argument it has no opinion about.
+- **The phone's two LOCAL notifications must read `notificationCopyFor(lang)`, not the default.**
+  `reminderPlan` says WHICH reminders to schedule and the words come from the table; scheduling
+  them off `DEFAULT_NOTIFICATION_COPY` is an English lock screen on an account that asked for
+  Italian, and nothing on the server would ever see it.
+- **`Intl` must be real on the device.** Every figure and every month name goes through it.
+  Hermes ships full ICU on the RN versions this app is built with, and `projection.ts`'s old
+  twelve-month table was written against a build that did not — if a device ever answers a numeric
+  month or an ungrouped thousand, that is the thing to check, not these tables.
+- **Admin-editable copy is stored per language in the SAME row.** `onboarding_content` and
+  `notification_copy` hold a `Localized<…>` map rather than one revision: no column, no migration,
+  and a row written before #358 is read as English, which is what it was. A save in one language
+  carries the seven it is not editing. `usableContentFor(lang, stored)` falls back to THAT
+  language's compiled-in copy, never to English.
 
 ## Testing
 

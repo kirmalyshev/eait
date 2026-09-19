@@ -9,8 +9,9 @@
 
 import {
   DEFAULT_ONBOARDING_CONTENT, MAX_ONBOARDING_EVENTS_PER_BATCH, ONBOARDING_ACTIONS,
-  ONBOARDING_PLACES, isReportableField, localDate, usableContent, validateOnboardingContent,
-  type ContentValidation, type FunnelRow, type OnboardingContent, type OnboardingEvent,
+  ONBOARDING_PLACES, isReportableField, localDate, onboardingContentFor, storedContentSet,
+  usableContentFor, validateOnboardingContent,
+  type ContentValidation, type FunnelRow, type Lang, type OnboardingContent, type OnboardingEvent,
   type OnboardingFunnel, type OnboardingPlace,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
@@ -20,52 +21,84 @@ import type { AdminMetrics } from "../store.ts";
 const PLACES: readonly string[] = ONBOARDING_PLACES;
 
 /**
- * The copy this server serves.
+ * The copy this server serves, in ONE language.
  *
- * Falls back to the compiled-in default when nothing has been saved, so a fresh database serves a
- * complete flow rather than an empty one. The app has the same default compiled in — this is what
- * makes the fetch an enhancement rather than a dependency.
+ * Falls back to that language's compiled-in copy when nothing has been saved for it, so a fresh
+ * database serves a complete flow rather than an empty one, and a host whose admin has only ever
+ * written German serves German to Germans and the shipped Italian to Italians. The app has the same
+ * defaults compiled in — this is what makes the fetch an enhancement rather than a dependency.
  *
- * THROUGH `usableContent`, WHICH IS THE SAME GUARD THE APP RUNS, and it earns its place here for a
- * case the app's copy cannot cover: a row saved by an OLDER BUILD of this server. The app would
- * discard such a revision on arrival and fall back — but the admin editor would load it, an admin
- * would edit two words in it, and the save would be refused for a question that has been missing
- * since before they opened the page. Serving the default instead means the editor opens on
+ * NOT ENGLISH ON A MISS. Falling back across languages would put English screens in the middle of
+ * an Italian onboarding, which is the failure `LANGS_READY` exists to keep out of the picker.
+ *
+ * THROUGH `usableContentFor`, WHICH WRAPS THE SAME GUARD THE APP RUNS, and it earns its place here
+ * for a case the app's copy cannot cover: a row saved by an OLDER BUILD of this server. The app
+ * would discard such a revision on arrival and fall back — but the admin editor would load it, an
+ * admin would edit two words in it, and the save would be refused for a question that has been
+ * missing since before they opened the page. Serving the default instead means the editor opens on
  * something that can be saved.
  */
-export async function onboardingContent(deps: EngineDeps): Promise<OnboardingContent> {
-  return usableContent(await deps.store.getOnboardingContent());
+export async function onboardingContent(deps: EngineDeps, lang: Lang): Promise<OnboardingContent> {
+  return usableContentFor(lang, await deps.store.getOnboardingContent());
 }
 
 /**
- * Save admin-edited copy, after validating it.
+ * Save admin-edited copy for ONE language, leaving the other seven exactly as they were.
+ *
+ * READ-MODIFY-WRITE over the whole set, because the row holds all of them. An admin editing German
+ * must not be able to blank the Italian somebody else wrote this morning, and the narrowest way to
+ * guarantee that is for the write to carry the languages it is not editing.
  *
  * The version is assigned HERE, not accepted from the admin: it is the join key between a funnel
  * row and the words that produced it, and an admin who saves twice with the same number silently
  * merges two experiments into one meaningless average.
+ *
+ * ONE COUNTER ACROSS ALL EIGHT LANGUAGES, and that is the point of `nextVersion`. Counting per
+ * language would let a German save and an English save both land on 7 — two revisions, different
+ * words, one number — which is the same meaningless average wearing a translation. The compiled-in
+ * revisions share a number because they ARE one editorial revision; every save after that takes the
+ * next number nobody has used, in whichever language it was made.
  */
 export async function saveOnboardingContent(
   deps: EngineDeps,
   input: unknown,
+  lang: Lang,
 ): Promise<ContentValidation> {
-  const current = await onboardingContent(deps);
+  // The validator wants a version, so it gets the FLOOR — the compiled-in revision plus one, which
+  // is the lowest number a save may land on. The store decides the real one against the row it is
+  // writing, under its lock, and hands it back; that number is what goes to the admin, because a
+  // concurrent save in another language may legitimately have taken the one asked for.
+  const floor = onboardingContentFor(lang).version + 1;
   const withVersion =
     typeof input === "object" && input !== null
-      ? { ...(input as Record<string, unknown>), version: current.version + 1 }
+      ? { ...(input as Record<string, unknown>), version: floor }
       : input;
 
   const result = validateOnboardingContent(withVersion);
   if (!result.ok) return result;
-  await deps.store.putOnboardingContent(result.content);
-  return result;
+  const version = await deps.store.putOnboardingContent(lang, result.content, floor);
+  return { ...result, content: { ...result.content, version } };
 }
 
-/** Restore the shipped copy. The undo button for an edit that went wrong. */
-export async function resetOnboardingContent(deps: EngineDeps): Promise<OnboardingContent> {
-  const current = await onboardingContent(deps);
-  const restored = { ...DEFAULT_ONBOARDING_CONTENT, version: current.version + 1 };
-  await deps.store.putOnboardingContent(restored);
-  return restored;
+/** Restore the shipped copy for one language. The undo button for an edit that went wrong. */
+export async function resetOnboardingContent(deps: EngineDeps, lang: Lang): Promise<OnboardingContent> {
+  const floor = onboardingContentFor(lang).version + 1;
+  const restored = { ...onboardingContentFor(lang), version: floor };
+  return { ...restored, version: await deps.store.putOnboardingContent(lang, restored, floor) };
+}
+
+/**
+ * The next number no revision in any language has used.
+ *
+ * The highest across the whole stored set, and the compiled-in revision as the floor so a first
+ * save never lands on the number the shipped copy already carries.
+ */
+function nextVersion(lang: Lang, stored: unknown): number {
+  const set = storedContentSet(stored);
+  const versions = Object.values(set)
+    .map((c) => c?.version)
+    .filter((v): v is number => typeof v === "number");
+  return Math.max(onboardingContentFor(lang).version, ...versions) + 1;
 }
 
 /**
@@ -172,7 +205,14 @@ export interface AdminMetricsView extends AdminMetrics {
 /** The funnel, in the order the screens are actually shown. */
 export async function onboardingFunnel(deps: EngineDeps, days: number): Promise<OnboardingFunnel> {
   const agg = await deps.store.onboardingFunnel(days);
-  const content = await onboardingContent(deps);
+  // THE NEWEST REVISION IN ANY LANGUAGE, because the counter is one counter (`nextVersion`) and
+  // this row names which words the numbers below were collected against. Reading English's alone
+  // would report a stale number on a host whose last edit was German.
+  const set = storedContentSet(await deps.store.getOnboardingContent());
+  const contentVersion = Math.max(
+    DEFAULT_ONBOARDING_CONTENT.version,
+    ...Object.values(set).map((c) => c?.version).filter((v): v is number => typeof v === "number"),
+  );
   // The order a person meets them in, which is what makes a drop between two rows readable as a
   // drop. It is fixed in code now: the chat asks in an order its own replies depend on, so there is
   // no admin ordering left to follow.
@@ -195,7 +235,7 @@ export async function onboardingFunnel(deps: EngineDeps, days: number): Promise<
     sessions: agg.sessions,
     completed: agg.completed,
     days,
-    contentVersion: content.version,
+    contentVersion,
     rows,
   };
 }

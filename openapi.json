@@ -2711,6 +2711,10 @@
           "nonce": {
             "type": "string",
             "description": "The raw nonce the client generated for this sign-in, if it used one.\n\nApple puts the SHA-256 of the nonce in the token for native sign-in, so the server compares against both the raw value and its hash. Replay protection is worth the extra field."
+          },
+          "locale": {
+            "type": "string",
+            "description": "BCP-47-ish, narrowed server-side to a supported `Lang`, falling back to `en`.\n\nRead ONLY when this sign-in creates the account — a client on a fresh install that signs in before it mints a device session. Every other outcome leaves `users.lang` exactly as it is, because by then it is the user's own setting rather than a guess about their phone."
           }
         },
         "required": [
@@ -3542,8 +3546,13 @@
         "type": "string",
         "enum": [
           "en",
-          "ru",
-          "de"
+          "fr",
+          "de",
+          "it",
+          "es",
+          "vi",
+          "id",
+          "ru"
         ]
       },
       "Limits": {
@@ -4165,10 +4174,15 @@
         "properties": {
           "content": {
             "$ref": "#/components/schemas/OnboardingContent"
+          },
+          "lang": {
+            "$ref": "#/components/schemas/Lang",
+            "description": "Which language this revision is in (#358).\n\nSENT rather than assumed, and it is the same rule `Limits` follows: the client asked with `?lang=` or let the account answer, and only the server knows which it used. A client that assumed its own guess came back would cache German copy under `it` the first time a code it sent was one this server does not carry."
           }
         },
         "required": [
-          "content"
+          "content",
+          "lang"
         ],
         "additionalProperties": false,
         "description": "The onboarding copy, as this server currently has it.\n\nThe app ships with `DEFAULT_ONBOARDING_CONTENT` compiled in and renders from that immediately, then replaces it when this arrives. So the fetch is an ENHANCEMENT, never a gate: an onboarding that waits for the network is an onboarding that shows a spinner as its first screen."

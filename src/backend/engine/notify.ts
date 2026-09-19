@@ -27,10 +27,11 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
-  DEFAULT_NOTIFICATION_COPY, NOTIFICATION_IDS, dailyMessage, dateMinus, entitlementActive,
+  NOTIFICATION_IDS, dailyMessage, dateMinus, entitlementActive,
   eveningPrescription,
-  explainTargets, fillNotification, localDate, trialReminders, validateNotificationCopy,
-  type NotificationCopy, type NotificationCopyValidation, type NotificationId,
+  explainTargets, fillNotification, localDate, notificationCopyFor, storedNotificationCopy,
+  trialReminders, validateNotificationCopy, wholeNumbers,
+  type Lang, type NotificationCopy, type NotificationCopyValidation, type NotificationId,
 } from "@eait/shared";
 import type { PushMessage, PushTicket } from "../push/port.ts";
 import { sumTotals } from "./meals.ts";
@@ -60,9 +61,10 @@ export interface DailyNotification {
  * copy does. Seeding a row on boot would work and is worse: it makes "has anybody edited this?"
  * unanswerable.
  */
-export async function notificationCopy(deps: EngineDeps): Promise<NotificationCopy> {
-  const stored = await deps.store.getNotificationCopy();
-  if (!stored) return DEFAULT_NOTIFICATION_COPY;
+export async function notificationCopy(deps: EngineDeps, lang: Lang): Promise<NotificationCopy> {
+  const base = notificationCopyFor(lang);
+  const stored = storedNotificationCopy(await deps.store.getNotificationCopy())[lang];
+  if (!stored) return base;
   // MERGED over the default, per message and per field, rather than served verbatim.
   //
   // A shipped app outlives its server and a stored row outlives the code that wrote it. The day a
@@ -71,8 +73,10 @@ export async function notificationCopy(deps: EngineDeps): Promise<NotificationCo
   // `copy[id].title` straight through, so the composer throws for EVERY account, one at a time,
   // logging identical lines that name nothing. The onboarding path has exactly this defence
   // (`usableContent`); this is the same idea, one line of it.
-  const merged = { ...DEFAULT_NOTIFICATION_COPY };
-  for (const id of NOTIFICATION_IDS) merged[id] = { ...DEFAULT_NOTIFICATION_COPY[id], ...stored[id] };
+  // Merged over THIS language's default, never over English: a German host with a half-written
+  // German revision should be missing German words, not gain English ones.
+  const merged = { ...base };
+  for (const id of NOTIFICATION_IDS) merged[id] = { ...base[id], ...stored[id] };
   return merged;
 }
 
@@ -87,17 +91,22 @@ export async function notificationCopy(deps: EngineDeps): Promise<NotificationCo
 export async function saveNotificationCopy(
   deps: EngineDeps,
   input: unknown,
+  lang: Lang,
 ): Promise<NotificationCopyValidation> {
   const result = validateNotificationCopy(input);
   if (!result.ok) return result;
-  await deps.store.putNotificationCopy(result.content);
+  // ONE LANGUAGE, and the store merges it into the other seven. This used to read the set here and
+  // write the whole thing back, which is safe only while nobody else is saving: two admins on two
+  // languages, and the later write carries a snapshot from before the earlier one landed.
+  await deps.store.putNotificationCopy(lang, result.content);
   return result;
 }
 
-/** Restore the shipped words. The undo button for an edit that went wrong. */
-export async function resetNotificationCopy(deps: EngineDeps): Promise<NotificationCopy> {
-  await deps.store.putNotificationCopy(DEFAULT_NOTIFICATION_COPY);
-  return DEFAULT_NOTIFICATION_COPY;
+/** Restore the shipped words for one language. The undo button for an edit that went wrong. */
+export async function resetNotificationCopy(deps: EngineDeps, lang: Lang): Promise<NotificationCopy> {
+  const restored = notificationCopyFor(lang);
+  await deps.store.putNotificationCopy(lang, restored);
+  return restored;
 }
 
 /**
@@ -137,19 +146,23 @@ export async function dailyNotification(
   const totals = sumTotals(meals);
   const { targets } = explainTargets(profile);
 
-  const copy = await notificationCopy(deps);
+  // THE ACCOUNT'S LANGUAGE, not the server's. This is the one message composed here rather than on
+  // the phone, so it is also the one place where composing in the wrong language would put an
+  // English sentence on a lock screen in Jakarta — and the figures in it are grouped the reader's
+  // way for the same reason (`numbers`), because "1,900" reads as one point nine to half of Europe.
+  const lang = profile.lang;
+  const n = wholeNumbers(lang);
+  const copy = await notificationCopy(deps, lang);
   const filled = fillNotification(copy, "evening", {
     eaten: n(totals.kcal),
     plan: n(targets.kcal),
     tomorrow: eveningPrescription({
       targets, totals, goal: profile.goal ?? "maintain", meals: meals.length,
-    }),
+    }, lang),
   }, { empty: meals.length === 0 });
 
   return { id: "evening", ...filled };
 }
-
-const n = (x: number) => Math.round(x).toLocaleString("en-US");
 
 export interface SweepResult {
   /** Accounts with a device that were considered. */

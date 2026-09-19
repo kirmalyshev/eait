@@ -37,6 +37,7 @@
 // else's, and the only defensible thing to do with it is to stop having it.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
+import type { Lang } from "@eait/shared";
 import type { Mailer } from "../mail/port.ts";
 import type { Store } from "../store.ts";
 
@@ -99,7 +100,7 @@ export function confirmUrl(base: string, token: string): string {
  */
 export async function subscribe(
   deps: SubscribeDeps,
-  input: { email: string; honeypot?: string; source: string },
+  input: { email: string; honeypot?: string; source: string; lang: Lang },
 ): Promise<SubscribeResult> {
   // Checked first and cheapest. A filled honeypot is answered exactly like a success, so a bot
   // learns nothing from the response about whether it was believed.
@@ -131,7 +132,7 @@ export async function subscribe(
   if (confirmToken === null) return { ok: true, created, pending: false };
 
   try {
-    await deps.mailer.sendConfirmation(email, confirmUrl(deps.confirmUrlBase, confirmToken));
+    await deps.mailer.sendConfirmation(email, confirmUrl(deps.confirmUrlBase, confirmToken), input.lang);
   } catch (e) {
     // Logged, never returned: a provider's error can quote the request it rejected, and that
     // request contains the address. The pending row is left alone — it cannot be confirmed, so the

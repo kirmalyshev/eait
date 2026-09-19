@@ -1,5 +1,7 @@
 import { describe, expect, it, test } from "bun:test";
-import { VERDICT_DIMENSIONS, renderableVerdicts, verdictPillLabel } from "./types.ts";
+import { VERDICT_DIMENSIONS, renderableVerdicts } from "./types.ts";
+import { verdictPillLabel } from "./verdicts.ts";
+import { LANGS } from "./types.ts";
 
 // These tests are about a RENDER boundary, not about domain logic. `verdicts` is the one field on a
 // meal analysis that no analyzer supplies and every write recomputes, so it crosses more hands than
@@ -41,7 +43,7 @@ describe("renderableVerdicts", () => {
 describe("verdictPillLabel", () => {
   test("every dimension and verdict names the judgement in words", () => {
     for (const d of VERDICT_DIMENSIONS) {
-      const labels = (["good", "warn", "bad"] as const).map((v) => verdictPillLabel(d, v));
+      const labels = (["good", "warn", "bad"] as const).map((v) => verdictPillLabel(d, v, "en"));
       // Three distinct sentences: the pill must not rely on its colour to say which one it is.
       expect(new Set(labels).size).toBe(3);
       for (const l of labels) expect(l.split(" ").length).toBeGreaterThan(1);
@@ -49,8 +51,28 @@ describe("verdictPillLabel", () => {
   });
 
   test("the noun stays the dimension's own", () => {
-    expect(verdictPillLabel("weight", "good")).toBe("Calories on plan");
-    expect(verdictPillLabel("ldl", "warn")).toBe("Saturated fat high");
-    expect(verdictPillLabel("kidneys", "bad")).toBe("Sodium very high");
+    expect(verdictPillLabel("weight", "good", "en")).toBe("Calories on plan");
+    expect(verdictPillLabel("ldl", "warn", "en")).toBe("Saturated fat high");
+    expect(verdictPillLabel("kidneys", "bad", "en")).toBe("Sodium very high");
+  });
+});
+
+describe("a verdict pill in eight languages", () => {
+  it("names the dimension AND the verdict, in every one of them", () => {
+    // The whole reason the pill carries words rather than a tint: a red/green colour blindness
+    // reads two identically-worded pills, and VoiceOver reads the noun and stops. A translation
+    // that dropped the verdict half would put that failure back, silently, in one language.
+    for (const lang of LANGS) {
+      for (const d of VERDICT_DIMENSIONS) {
+        const said = (["good", "warn", "bad"] as const).map((v) => verdictPillLabel(d, v, lang));
+        expect(new Set(said).size, `${lang}.${d}`).toBe(said.length);
+        for (const line of said) expect(line, `${lang}.${d}`).not.toMatch(/\{\w+\}/);
+      }
+    }
+  });
+
+  it("is English for a language nobody has written", () => {
+    expect(verdictPillLabel("kidneys", "warn", "en")).toBe("Sodium high");
+    expect(verdictPillLabel("kidneys", "warn", "de")).toBe("Natrium — hoch");
   });
 });

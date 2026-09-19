@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { DEFAULT_NOTIFICATION_COPY, NOTIFICATION_IDS, lintCopy } from "@eait/shared";
+import { DEFAULT_NOTIFICATION_COPY, NOTIFICATION_COPY, NOTIFICATION_IDS, lintCopy } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { fakeMailer } from "../mail/fake.ts";
@@ -122,7 +122,7 @@ describe("the 20:30 line", () => {
         body: "Ate {eaten}, planned {plan}. {tomorrow}",
         emptyBody: "Nothing today against {plan}. {tomorrow}",
       },
-    });
+    }, "en");
     const out = (await dailyNotification(deps, userId, DAY, NOW))!;
     expect(out.title).toBe("Your evening line");
     expect(out.body.startsWith("Ate 900, planned ")).toBe(true);
@@ -263,7 +263,7 @@ describe("the evening sweep", () => {
 
 describe("the admin's copy", () => {
   it("serves the compiled-in default until an admin saves something", async () => {
-    expect(await notificationCopy(deps)).toEqual(DEFAULT_NOTIFICATION_COPY);
+    expect(await notificationCopy(deps, "en")).toEqual(DEFAULT_NOTIFICATION_COPY);
   });
 
   it("saves valid copy and serves it", async () => {
@@ -271,25 +271,25 @@ describe("the admin's copy", () => {
       ...DEFAULT_NOTIFICATION_COPY,
       "trial-day5": { title: "Two days to go", body: "Two days before the free week ends." },
     };
-    const out = await saveNotificationCopy(deps, edited);
+    const out = await saveNotificationCopy(deps, edited, "en");
     expect(out.ok).toBe(true);
-    expect((await notificationCopy(deps))["trial-day5"].title).toBe("Two days to go");
+    expect((await notificationCopy(deps, "en"))["trial-day5"].title).toBe("Two days to go");
   });
 
   it("refuses copy the composer cannot fill, and stores nothing", async () => {
     const out = await saveNotificationCopy(deps, {
       ...DEFAULT_NOTIFICATION_COPY,
       evening: { title: "Evening", body: "{eaten} of {plan}.", emptyBody: "Nothing. {plan} {tomorrow}" },
-    });
+    }, "en");
     expect(out.ok).toBe(false);
-    expect(await notificationCopy(deps)).toEqual(DEFAULT_NOTIFICATION_COPY);
+    expect(await notificationCopy(deps, "en")).toEqual(DEFAULT_NOTIFICATION_COPY);
   });
 
   it("refuses a health claim on a lock screen", async () => {
     const out = await saveNotificationCopy(deps, {
       ...DEFAULT_NOTIFICATION_COPY,
       "trial-day6": { title: "Last day", body: "One more week and this reverses your cholesterol." },
-    });
+    }, "en");
     expect(out.ok).toBe(false);
   });
 
@@ -297,9 +297,9 @@ describe("the admin's copy", () => {
     await saveNotificationCopy(deps, {
       ...DEFAULT_NOTIFICATION_COPY,
       "trial-day5": { title: "Edited", body: "Edited body." },
-    });
-    expect(await resetNotificationCopy(deps)).toEqual(DEFAULT_NOTIFICATION_COPY);
-    expect(await notificationCopy(deps)).toEqual(DEFAULT_NOTIFICATION_COPY);
+    }, "en");
+    expect(await resetNotificationCopy(deps, "en")).toEqual(DEFAULT_NOTIFICATION_COPY);
+    expect(await notificationCopy(deps, "en")).toEqual(DEFAULT_NOTIFICATION_COPY);
   });
 
   it("composes a message that would itself pass the claims gate", async () => {
@@ -508,20 +508,33 @@ describe("dropping a dead token costs one write, not a scan", () => {
 
 describe("copy stored before the code that reads it", () => {
   it("merges a saved revision over the shipped default, per message and per field", async () => {
+    // What a row saved by an older server looks like once a field or a message is added: read
+    // straight through, `fillNotification` takes `copy[id].title` off `undefined` and the composer
+    // throws for EVERY account, one at a time, logging identical lines that name nothing.
+    //
+    // SEEDED rather than written, and rebuilt BEFORE `onboard()` so the account lands in this
+    // store. `putNotificationCopy` takes one language now, so a bare revision with no language
+    // dimension — and one missing fields this build requires — cannot go through the port at all.
+    // Only an older server could have left this row, which is the case under test.
+    store = memoryStore({
+      seed: {
+        notificationCopy: {
+          evening: { title: "Kept", body: "{eaten}/{plan}. {tomorrow}" },
+          // And a message a NEWER server wrote, which this code knows nothing about. It must not
+          // survive the merge — which is why `merged` starts from the default, not from the row.
+          "trial-day8": { title: "From the future", body: "Nothing here can render this." },
+        },
+      },
+    });
+    deps = { ...deps, store };
     const userId = await onboard();
     await entitle(userId, PAID_UNTIL);
-    // What a row saved by an older server looks like once a field or a message is added: written
-    // straight through, `fillNotification` reads `copy[id].title` off `undefined` and the composer
-    // throws for EVERY account, one at a time, logging identical lines that name nothing.
-    await store.putNotificationCopy({
-      evening: { title: "Kept", body: "{eaten}/{plan}. {tomorrow}" },
-      // And a message a NEWER server wrote, which this code knows nothing about. It must not
-      // survive the merge — which is why `merged` starts from the default rather than from the row.
-      "trial-day8": { title: "From the future", body: "Nothing here can render this." },
-    } as never);
 
-    const copy = await notificationCopy(deps);
+    // Read as English, because that shape predates the language dimension and English was all
+    // there was. A German reading the same host gets the shipped German, not this row.
+    const copy = await notificationCopy(deps, "en");
     expect(Object.keys(copy).sort()).toEqual([...NOTIFICATION_IDS].sort());
+    expect((await notificationCopy(deps, "de")).evening.title).toBe(NOTIFICATION_COPY.de!.evening.title);
     expect(copy.evening.title).toBe("Kept");
     expect(copy.evening.emptyBody).toBe(DEFAULT_NOTIFICATION_COPY.evening.emptyBody);
     expect(copy["trial-day5"]).toEqual(DEFAULT_NOTIFICATION_COPY["trial-day5"]);

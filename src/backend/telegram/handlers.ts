@@ -11,9 +11,11 @@
 // file resolved, which is why a stale or crafted tap can only ever find "expired".
 
 import {
-  MAX_USER_LINE, localDate, localTime, renderableVerdicts, scriptedLine, verdictPillLabel,
-  type MealAnalysis, type Refusal,
+  MAX_USER_LINE, UNIT_KCAL, localDate, localTime, narrowLang, renderableVerdicts, scriptedLine,
+  verdictPillLabel, wholeNumbers,
+  type Lang, type MealAnalysis, type Refusal,
 } from "@eait/shared";
+import { telegramCopyFor, type TelegramCopy } from "./copy.ts";
 import type { Config } from "../config.ts";
 import { rateLimiter } from "../api/ratelimit.ts";
 import {
@@ -44,49 +46,9 @@ export class TelegramFileError extends Error {
   }
 }
 
-/** Every fixed sentence the bot sends, gated by `lintCopy` in its test like `PAGE_COPY`. */
-export const TELEGRAM_COPY = {
-  stranger:
-    "This is the new eait. Your meals and photos are kept in your eait account: sign in on the web " +
-    "and press Connect Telegram on your plan.",
-  signIn: "Sign in",
-  connectedLead: "Connected to the eait account signed in with",
-  viaApp: "the app",
-  connectedTail: "Send a photo of a meal, tell me what you ate, or ask Gabie a question.",
-  notYours:
-    "Not your account? Sign in to your own on the web and press Connect Telegram there — this "
-    + "Telegram moves to it.",
-  codeInvalid: "That link has expired. Open your plan on the web and press Connect Telegram again.",
-  tooManyTries: "Too many tries from this Telegram. Wait a while, then press the link again.",
-  onTheWeb: "Your profile and settings are on the web.",
-  tooLong: "That message is too long to send.",
-  proposalLead: "Logging this — look right?",
-  logIt: "Log it",
-  notThis: "Not this",
-  logged: "Logged.",
-  alreadyLogged: "That one was already logged.",
-  expired: "That one is no longer being held. Say it again.",
-  updated: "Updated.",
-  moved: "Moved.",
-  targetGone: "There is no meal open here to change. Say what you ate and log it again.",
-  downloadFailed: "That photo did not come through from Telegram. Send it again.",
-  tooLarge: "That photo is too large to send.",
-  todayEmpty: "Nothing logged today yet.",
-  failed: "Something went wrong, and it may still have gone through. Check /today before sending it again.",
-} as const;
-
-/** One sentence per refusal. The link is added by `refusalText`, so every one of them carries it. */
-const REFUSAL_WORDS: Record<string, string> = {
-  "not-onboarded": "Answer the plan questions on the web first.",
-  "not-food": "That did not look like food.",
-  "cap-user": "That was your last one today — your daily allowance resets at midnight.",
-  "cap-global": "Everyone has used today's allowance. Tomorrow is a fresh number.",
-  "cap-address": "That's the limit for now. Try again later.",
-  "subscription-required": "The analyses this account came with are used up. Subscribe on the web to carry on.",
-  "analysis-failed": "That did not come back. Try it again.",
-  "unsupported-image": "That file is not a photo this can read. JPEG, PNG or WebP.",
-  "no-photo": "That photo did not come through. Send it again.",
-};
+/** One `{placeholder}` per key. Nothing here is user text, so an unfilled one is a bug, not a hole. */
+const fill = (template: string, params: Record<string, string>): string =>
+  template.replace(/\{(\w+)\}/g, (whole, key: string) => params[key] ?? whole);
 
 /**
  * An address with its local part masked: `kirill@example.com` → `k***@example.com`.
@@ -111,19 +73,24 @@ function webStart(config: Config): string {
 }
 
 /** A refusal as the bot says it: a sentence, then the web link on its own line. */
-export function refusalText(config: Config, r: Refusal): string {
+export function refusalText(config: Config, r: Refusal, lang: Lang): string {
+  const words = telegramCopyFor(lang).refusals;
   const key = r.kind === "cap-exceeded" ? `cap-${r.scope}` : r.kind;
-  return `${REFUSAL_WORDS[key] ?? REFUSAL_WORDS["analysis-failed"]}\n${webStart(config)}`;
+  // A kind with no sentence falls back to the generic failure rather than to English: a refusal is
+  // the one message a user cannot act on without understanding it.
+  return `${words[key] ?? words["analysis-failed"]}\n${webStart(config)}`;
 }
 
 /** A meal as plain text: what it is, the numbers, and the verdicts in words. */
-function card(a: MealAnalysis): string {
-  const g = (n: number) => `${Math.round(n)} g`;
+function card(a: MealAnalysis, lang: Lang): string {
+  const copy = telegramCopyFor(lang);
+  const n = wholeNumbers(lang);
+  const g = (x: number) => `${n(x)} g`;
   const lines = [
-    `${a.items.map((i) => i.name).join(", ") || "Meal"} — ${Math.round(a.kcal)} kcal`,
-    `Protein ${g(a.protein_g)} · Carbs ${g(a.carbs_g)} · Fat ${g(a.fat_g)}`,
+    `${a.items.map((i) => i.name).join(", ") || copy.meal} — ${n(a.kcal)} ${UNIT_KCAL[lang]}`,
+    `${copy.macros.protein} ${g(a.protein_g)} · ${copy.macros.carbs} ${g(a.carbs_g)} · ${copy.macros.fat} ${g(a.fat_g)}`,
   ];
-  const verdicts = renderableVerdicts(a.verdicts).map((d) => verdictPillLabel(d, a.verdicts[d]!));
+  const verdicts = renderableVerdicts(a.verdicts).map((d) => verdictPillLabel(d, a.verdicts[d]!, lang));
   if (verdicts.length > 0) lines.push(verdicts.join(" · "));
   return lines.join("\n");
 }
@@ -139,6 +106,21 @@ export function telegramHandlers(deps: EngineDeps) {
   const account = (from: number) => store.userIdForIdentity("telegram", String(from));
 
   /**
+   * WHICH LANGUAGE THIS CHAT IS IN.
+   *
+   * The ACCOUNT's, once there is one: a Telegram is a transport onto an eait account made
+   * elsewhere, and that account has already answered the question — in Settings, or at sign-in.
+   * Telegram's own `language_code` is a hint about the client, and a user who switched the app to
+   * German should not be answered in the language their phone was bought in.
+   *
+   * Before there is an account there is nothing to ask, so the one sentence a stranger gets reads
+   * `language_code` — the only thing Telegram tells us that is about the person rather than about
+   * the message, and the reason `stranger` is worth localizing at all.
+   */
+  const langOf = async (userId: string | null, locale?: string): Promise<Lang> =>
+    (userId !== null ? (await store.getProfile(userId))?.lang : undefined) ?? narrowLang(locale);
+
+  /**
    * "Connected to the eait account signed in with Google, k***@example.com."
    *
    * WHICH ACCOUNT, said at the moment it is connected and again on a bare `/start`. A pairing code
@@ -146,29 +128,30 @@ export function telegramHandlers(deps: EngineDeps) {
    * long as they kept sending photos. The provider comes from the account's own identities and the
    * address is masked; neither is anything Telegram told us.
    */
-  const connected = async (userId: string): Promise<string> => {
+  const connected = async (userId: string, copy: TelegramCopy): Promise<string> => {
     const providers = (await identitiesFor(deps, userId)).map((i) => i.provider);
     const named = providers.find((p) => p === "apple" || p === "google");
     const email = named ? await store.emailForUser(userId) : null;
-    const label = named === "apple" ? "Apple" : named === "google" ? "Google" : TELEGRAM_COPY.viaApp;
-    return `${TELEGRAM_COPY.connectedLead} ${label}${email ? `, ${maskAddress(email)}` : ""}.\n`
-      + `${TELEGRAM_COPY.connectedTail}\n${TELEGRAM_COPY.notYours}`;
+    const label = named === "apple" ? "Apple" : named === "google" ? "Google" : copy.viaApp;
+    return `${copy.connectedLead} ${label}${email ? `, ${maskAddress(email)}` : ""}.\n`
+      + `${copy.connectedTail}\n${copy.notYours}`;
   };
 
   /** The one thing an unconnected Telegram user is told, whatever they sent. */
-  const stranger = (chat: Chat) => {
+  const stranger = (chat: Chat, copy: TelegramCopy) => {
     const url = webStart(config);
     // Telegram refuses a URL button it considers invalid, and a development host is one.
     return url.startsWith("https://")
-      ? chat.send(TELEGRAM_COPY.stranger, [{ text: TELEGRAM_COPY.signIn, url }])
-      : chat.send(`${TELEGRAM_COPY.stranger}\n${url}`);
+      ? chat.send(copy.stranger, [{ text: copy.signIn, url }])
+      : chat.send(`${copy.stranger}\n${url}`);
   };
 
   return {
-    async start(from: number, payload: string, chat: Chat): Promise<void> {
+    async start(from: number, payload: string, chat: Chat, locale?: string): Promise<void> {
+      const before = await account(from);
+      const copy = telegramCopyFor(await langOf(before, locale));
       if (payload.trim() === "") {
-        const userId = await account(from);
-        return userId === null ? stranger(chat) : chat.send(await connected(userId));
+        return before === null ? stranger(chat, copy) : chat.send(await connected(before, copy));
       }
       // Zero means NO LIMIT, the reading `api/routes.ts` and `config.ts` already have. Passed
       // straight to the limiter it means one an hour, so the setting that switches the allowance
@@ -176,58 +159,72 @@ export function telegramHandlers(deps: EngineDeps) {
       const allowance = config.authRateLimitPerHour;
       if (allowance > 0
         && limiter.check(`telegram:${from}`, { limit: allowance, windowMs: HOUR }) !== null) {
-        return chat.send(TELEGRAM_COPY.tooManyTries);
+        return chat.send(copy.tooManyTries);
       }
       // `moved` is the recovery path and reads exactly like a fresh link: what matters to the
       // person in front of it is which account they are on now, which the line names either way.
       if ((await linkTelegram(deps, payload, String(from))) === "invalid") {
-        return chat.send(TELEGRAM_COPY.codeInvalid);
+        return chat.send(copy.codeInvalid);
       }
-      await chat.send(await connected((await account(from))!));
+      // AFTER the link, because linking is what gives a stranger an account — and the account's
+      // language is the one that wins. A code spent from a German phone onto an Italian account
+      // answers in Italian, which is the account somebody is about to be told they are on.
+      const userId = (await account(from))!;
+      await chat.send(await connected(userId, telegramCopyFor(await langOf(userId, locale))));
     },
 
-    async today(from: number, chat: Chat): Promise<void> {
+    async today(from: number, chat: Chat, locale?: string): Promise<void> {
       const userId = await account(from);
-      if (userId === null) return stranger(chat);
+      const lang = await langOf(userId, locale);
+      const copy = telegramCopyFor(lang);
+      if (userId === null) return stranger(chat, copy);
       const today = await day(deps, userId);
-      if (today === null) return chat.send(refusalText(config, { kind: "not-onboarded" }));
+      if (today === null) return chat.send(refusalText(config, { kind: "not-onboarded" }, lang));
       const { totals, targets } = today;
-      const head = `Today: ${Math.round(totals.kcal)} of ${targets.kcal} kcal, `
-        + `${Math.round(totals.protein_g)} of ${targets.protein_g} g protein`;
+      const n = wholeNumbers(lang);
+      const head = fill(copy.todayHead, {
+        eaten: n(totals.kcal), plan: n(targets.kcal),
+        protein: n(totals.protein_g), proteinTarget: n(targets.protein_g),
+      });
       const meals = today.meals.map((m) =>
-        `${localTime(config.timezone, new Date(m.ts))} ${m.items.map((i) => i.name).join(", ") || "Meal"} — ${Math.round(m.kcal)} kcal`);
-      await chat.send([head, ...(meals.length > 0 ? meals : [TELEGRAM_COPY.todayEmpty])].join("\n"));
+        `${localTime(config.timezone, new Date(m.ts))} ${m.items.map((i) => i.name).join(", ") || copy.meal} — ${n(m.kcal)} ${UNIT_KCAL[lang]}`);
+      await chat.send([head, ...(meals.length > 0 ? meals : [copy.todayEmpty])].join("\n"));
     },
 
-    async text(from: number, text: string, chat: Chat): Promise<void> {
+    async text(from: number, text: string, chat: Chat, locale?: string): Promise<void> {
       const userId = await account(from);
-      if (userId === null) return stranger(chat);
+      const lang = await langOf(userId, locale);
+      const copy = telegramCopyFor(lang);
+      if (userId === null) return stranger(chat, copy);
       // A command nothing handled. @eait_bot's old users know several; routed as text, each is a
       // billed turn answering a question nobody asked.
-      if (text.startsWith("/")) return chat.send(`${TELEGRAM_COPY.onTheWeb}\n${webStart(config)}`);
-      if (text.length > MAX_USER_LINE) return chat.send(TELEGRAM_COPY.tooLong);
+      if (text.startsWith("/")) return chat.send(`${copy.onTheWeb}\n${webStart(config)}`);
+      if (text.length > MAX_USER_LINE) return chat.send(copy.tooLong);
 
       const r = await handleText(deps, userId, { text });
       switch (r.kind) {
         case "answered":
           return chat.send(r.speaker === "gabie" ? `Gabie: ${r.text}` : r.text);
         case "proposed": {
+          // A SECOND TEMPLATE, not a substring surgery on the first. The old line spliced " for
+          // <date>" in front of an em dash, which is a claim about where a date goes in an English
+          // sentence — and there is no dash to find in half of these languages.
           const lead = r.date === localDate(config.timezone)
-            ? TELEGRAM_COPY.proposalLead
-            : TELEGRAM_COPY.proposalLead.replace(" —", ` for ${r.date} —`);
-          return chat.send(`${lead}\n${card(r.analysis)}`, [
-            { text: TELEGRAM_COPY.logIt, data: `ok:${r.pendingId}` },
-            { text: TELEGRAM_COPY.notThis, data: `no:${r.pendingId}` },
+            ? copy.proposalLead
+            : fill(copy.proposalLeadDated, { date: r.date });
+          return chat.send(`${lead}\n${card(r.analysis, lang)}`, [
+            { text: copy.logIt, data: `ok:${r.pendingId}` },
+            { text: copy.notThis, data: `no:${r.pendingId}` },
           ]);
         }
         case "updated":
-          return chat.send(`${TELEGRAM_COPY.updated}\n${card(r.analysis)}`);
+          return chat.send(`${copy.updated}\n${card(r.analysis, lang)}`);
         case "redated":
-          return chat.send(`${TELEGRAM_COPY.moved}\n${card(r.analysis)}`);
+          return chat.send(`${copy.moved}\n${card(r.analysis, lang)}`);
         case "target-gone":
-          return chat.send(TELEGRAM_COPY.targetGone);
+          return chat.send(copy.targetGone);
         default:
-          return chat.send(refusalText(config, r));
+          return chat.send(refusalText(config, r, lang));
       }
     },
 
@@ -236,10 +233,13 @@ export function telegramHandlers(deps: EngineDeps) {
       images: (() => Promise<Uint8Array>)[],
       caption: string | undefined,
       chat: Chat,
+      locale?: string,
     ): Promise<void> {
       const userId = await account(from);
-      if (userId === null) return stranger(chat);
-      if (caption !== undefined && caption.length > MAX_USER_LINE) return chat.send(TELEGRAM_COPY.tooLong);
+      const lang = await langOf(userId, locale);
+      const copy = telegramCopyFor(lang);
+      if (userId === null) return stranger(chat, copy);
+      if (caption !== undefined && caption.length > MAX_USER_LINE) return chat.send(copy.tooLong);
 
       let r: Awaited<ReturnType<typeof logPhotoMeal>>;
       try {
@@ -252,26 +252,28 @@ export function telegramHandlers(deps: EngineDeps) {
         // The bytes are read after the caps and before the charge, so a download that failed
         // spent nothing, and saying so is the whole answer.
         if (!(e instanceof TelegramFileError)) throw e;
-        return chat.send(e.reason === "too-large" ? TELEGRAM_COPY.tooLarge : TELEGRAM_COPY.downloadFailed);
+        return chat.send(e.reason === "too-large" ? copy.tooLarge : copy.downloadFailed);
       }
-      await chat.send(r.kind === "logged" ? `${TELEGRAM_COPY.logged}\n${card(r.analysis)}` : refusalText(config, r));
+      await chat.send(r.kind === "logged" ? `${copy.logged}\n${card(r.analysis, lang)}` : refusalText(config, r, lang));
     },
 
-    async tap(from: number, data: string, tap: Tap): Promise<void> {
+    async tap(from: number, data: string, tap: Tap, locale?: string): Promise<void> {
       await tap.answer();
       const [verb, pendingId] = data.split(":");
       if ((verb !== "ok" && verb !== "no") || !pendingId) return;
       const userId = await account(from);
-      if (userId === null) return stranger(tap);
+      const lang = await langOf(userId, locale);
+      const copy = telegramCopyFor(lang);
+      if (userId === null) return stranger(tap, copy);
 
       if (verb === "ok") {
         const r = await confirmPendingMeal(deps, userId, pendingId);
-        return tap.edit(r.kind === "logged" ? `${TELEGRAM_COPY.logged}\n${card(r.analysis)}`
-          : r.kind === "expired" ? TELEGRAM_COPY.expired : refusalText(config, r));
+        return tap.edit(r.kind === "logged" ? `${copy.logged}\n${card(r.analysis, lang)}`
+          : r.kind === "expired" ? copy.expired : refusalText(config, r, lang));
       }
       const r = await cancelPendingMeal(deps, userId, pendingId);
-      return tap.edit(r.kind === "cancelled" ? scriptedLine("dropped")
-        : r.kind === "expired" ? TELEGRAM_COPY.expired : `${TELEGRAM_COPY.alreadyLogged}\n${card(r.analysis)}`);
+      return tap.edit(r.kind === "cancelled" ? scriptedLine("dropped", lang, {})
+        : r.kind === "expired" ? copy.expired : `${copy.alreadyLogged}\n${card(r.analysis, lang)}`);
     },
   };
 }

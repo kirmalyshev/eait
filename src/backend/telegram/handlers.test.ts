@@ -16,8 +16,12 @@ import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { mintPairingCode, patchProfile, type EngineDeps } from "../engine/index.ts";
 import {
-  TELEGRAM_COPY, TelegramFileError, refusalText, telegramHandlers, type Button, type Tap,
+   TelegramFileError, refusalText, telegramHandlers, type Button, type Tap,
 } from "./handlers.ts";
+import { LANGS } from "@eait/shared";
+import { telegramCopyFor } from "./copy.ts";
+/** The English words, which is what these tests assert against. */
+const TELEGRAM_COPY = telegramCopyFor("en");
 
 const CONFIG: Config = {
   ...configDefaults(),
@@ -291,7 +295,7 @@ describe("tapping Log it / Not this", () => {
     const { from, userId, pendingId } = await proposed();
     const tap = fakeChat();
     await h.tap(from, `no:${pendingId}`, tap);
-    expect(tap.edits).toEqual([scriptedLine("dropped")]);
+    expect(tap.edits).toEqual([scriptedLine("dropped", "en")]);
     expect(await store.pendingsFor(userId)).toEqual([]);
   });
 
@@ -338,7 +342,7 @@ describe("photos", () => {
     const { from } = await linked();
     const chat = fakeChat();
     await h.photos(from, [async () => jpeg()], DEMO_NOT_FOOD, chat);
-    expect(chat.sent).toEqual([{ text: refusalText(deps.config, { kind: "not-food" }) }]);
+    expect(chat.sent).toEqual([{ text: refusalText(deps.config, { kind: "not-food" }, "en") }]);
   });
 
   it("says a download that failed as that, and charges nothing for it", async () => {
@@ -366,7 +370,9 @@ describe("/today", () => {
     const chat = fakeChat();
     await h.today(from, chat);
     expect(chat.sent).toHaveLength(1);
-    expect(chat.sent[0]!.text).toMatch(/^Today: \d+ of \d+ kcal, \d+ of \d+ g protein\n\d\d:\d\d .+ — \d+ kcal$/);
+    // Grouped, because every figure goes through `wholeNumbers` now: "1,724" in English and
+    // "1.724" in German. The plan target used to print raw and was the one ungrouped number here.
+    expect(chat.sent[0]!.text).toMatch(/^Today: [\d,]+ of [\d,]+ kcal, [\d,]+ of [\d,]+ g protein\n\d\d:\d\d .+ — [\d,]+ kcal$/);
   });
 
   it("says so when nothing is logged", async () => {
@@ -385,7 +391,7 @@ describe("every refusal", () => {
     ];
     const said = new Set<string>();
     for (const r of kinds) {
-      const text = refusalText(CONFIG, r);
+      const text = refusalText(CONFIG, r, "en");
       const [sentence, link, ...rest] = text.split("\n");
       expect(sentence!.length).toBeGreaterThan(10);
       expect(link).toBe(SIGN_IN);
@@ -399,12 +405,44 @@ describe("every refusal", () => {
 
 describe("the copy the bot writes", () => {
   it("passes the claims gate", () => {
-    expect(lintCopy({ ...TELEGRAM_COPY })).toEqual([]);
+    // ENGLISH ONLY, and stated rather than hidden. `claims.ts` matches English patterns ("the only
+    // app", "guaranteed"), so running it over the German would prove nothing and pass regardless.
+    // What protects the seven translations is that they are translations OF copy that passed here.
+    expect(lintCopy(flat(telegramCopyFor("en")))).toEqual([]);
     const refusals = Object.fromEntries(Object.keys(REFUSAL_STATUS).map((kind) =>
-      [kind, refusalText(CONFIG, { kind, scope: "user" } as Refusal)]));
+      [kind, refusalText(CONFIG, { kind, scope: "user" } as Refusal, "en")]));
     expect(lintCopy(refusals)).toEqual([]);
   });
+
+  it("says every sentence in every language, with nothing left to fill", () => {
+    for (const lang of LANGS) {
+      const copy = telegramCopyFor(lang);
+      for (const [at, text] of Object.entries(flat(copy))) {
+        expect(text.trim(), `${lang}.${at}`).not.toBe("");
+        // `{date}` and the /today figures are the only placeholders, and both are filled at the
+        // call site — a table entry with an unknown one would render a brace into a chat.
+        for (const m of text.matchAll(/\{(\w+)\}/g)) {
+          expect(["date", "eaten", "plan", "protein", "proteinTarget"], `${lang}.${at}`).toContain(m[1] ?? "");
+        }
+      }
+      // Every refusal kind the engine can produce has a sentence, in every language: a refusal is
+      // the one message a user cannot act on without understanding it.
+      for (const kind of ["not-onboarded", "not-food", "cap-user", "cap-global", "cap-address",
+        "subscription-required", "analysis-failed", "unsupported-image", "no-photo"]) {
+        expect(copy.refusals[kind]?.trim(), `${lang}.refusals.${kind}`).toBeTruthy();
+      }
+    }
+  });
 });
+
+/** Every string in the table, keyed well enough to name. `lintCopy` takes a flat record. */
+function flat(node: unknown, at = "", out: Record<string, string> = {}): Record<string, string> {
+  if (typeof node === "string") { out[at] = node; return out; }
+  if (typeof node === "object" && node !== null) {
+    for (const [k, v] of Object.entries(node)) flat(v, at === "" ? k : `${at}.${k}`, out);
+  }
+  return out;
+}
 
 describe("the boundary", () => {
   it("keeps grammY out of the engine and out of the handlers", () => {

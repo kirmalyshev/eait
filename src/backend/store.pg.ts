@@ -13,8 +13,8 @@
 
 import { SQL } from "bun";
 import type {
-  DayTotals, HealthDay, Lang, MealItem, MealQuestion, MealRecord, MealVerdicts, NotificationCopy,
-  OnboardingContent, Profile, Provider,
+  DayTotals, HealthDay, Lang, MealItem, MealQuestion, MealRecord, MealVerdicts, NotificationCopySet,
+  OnboardingContentSet, Profile, Provider,
 } from "@eait/shared";
 import { HEALTH_FIELDS, PROVIDERS, dateMinus, emptyHealthDay, signsIn } from "@eait/shared";
 import {
@@ -403,6 +403,10 @@ create index if not exists turns_claimed_idx on turns(claimed_at) where outcome 
 -- A single row rather than a version history: the app fetches "what is live", and the thing an
 -- admin needs to undo a bad edit is the previous JSON, which is what the version number in the
 -- payload is for. Keeping every revision here would be a second product.
+--
+-- The JSON is a map from language to revision (#358) and was a bare revision before it. No column
+-- and no migration: a row written by the older code is read as ENGLISH, which is what it was, and
+-- every other language falls back to the copy the binary ships with. See usableContentFor.
 create table if not exists onboarding_content (
   id         integer primary key check (id = 1),
   version    integer not null,
@@ -1440,13 +1444,13 @@ export async function postgresStore(
     async getOnboardingContent() {
       const rows = await sql`select content from onboarding_content where id = 1`;
       if (rows.length === 0) return null;
-      return json<OnboardingContent | null>(rows[0].content, null);
+      return json<OnboardingContentSet | null>(rows[0].content, null);
     },
 
     async getNotificationCopy() {
       const rows = await sql`select copy from notification_copy where id = 1`;
       if (rows.length === 0) return null;
-      return json<NotificationCopy | null>(rows[0].copy, null);
+      return json<NotificationCopySet | null>(rows[0].copy, null);
     },
 
     async getPrompts() {
@@ -1485,24 +1489,58 @@ export async function postgresStore(
       return Number(rows[0]!.version);
     },
 
-    async putNotificationCopy(copy) {
+    async putNotificationCopy(lang, copy) {
+      // `jsonb_set` ON THE LOCKED ROW, never on a document the caller composed from a read it took
+      // first. Inside `do update` the existing row is readable as `notification_copy.copy`, so the
+      // merge happens where the write happens — and a save in another language that landed between
+      // this caller's read and its write survives instead of being carried away by it.
+      //
+      // THE PARAMETER IS THE OBJECT, not `JSON.stringify` of it. Bun's driver already encodes a
+      // bound value as jsonb, so a STRING parameter lands as a jsonb string and `::jsonb` on it is
+      // a no-op — which is what this column has held all along. Nothing noticed, because `json()`
+      // on the read parses a string as happily as it passes an object through. It matters now:
+      // `jsonb_set` on a scalar is an error, so the merge cannot happen on a document that is
+      // secretly text. `legacyJsonb` upgrades such a row in place on the first write after this.
       await sql`
         insert into notification_copy (id, copy, updated_at)
-        values (1, ${JSON.stringify(copy)}::jsonb, now())
-        on conflict (id) do update set copy = excluded.copy, updated_at = now()`;
+        values (1, jsonb_build_object(${lang}::text, ${copy}::jsonb), now())
+        on conflict (id) do update
+          set copy = jsonb_set(
+                case when jsonb_typeof(notification_copy.copy) = 'string'
+                     then (notification_copy.copy #>> '{}')::jsonb
+                     else coalesce(notification_copy.copy, '{}'::jsonb) end,
+                array[${lang}], ${copy}::jsonb, true),
+              updated_at = now()`;
     },
 
-    async putOnboardingContent(content) {
-      // `::jsonb` on the parameter for the same reason the meal update casts: an untyped parameter
-      // is text, and a JSON string landing in a jsonb column stores the STRING rather than the
-      // object — it round-trips without error and comes back unusable.
-      await sql`
+    async putOnboardingContent(lang, content, floorVersion) {
+      // ONE STATEMENT, because the merge AND the version both have to read the row they are
+      // writing, under its lock. Computed from a read the engine did first, two admins saving two
+      // languages at once lose one of the languages and land on one version number between them —
+      // two revisions, different words, one funnel row.
+      //
+      // THE `version` COLUMN IS NOW LOAD-BEARING. It used to be an operator's convenience, written
+      // and never read back; it is what makes this one statement instead of a scan of the JSON,
+      // because it already holds the highest number any language has been given. Keep writing it.
+      //
+      // The parameter is the OBJECT — see `putNotificationCopy` for why `JSON.stringify` would
+      // silently store text, and for what the `jsonb_typeof` guard is repairing.
+      const rows = await sql`
         insert into onboarding_content (id, version, content, updated_at)
-        values (1, ${content.version}, ${JSON.stringify(content)}::jsonb, now())
+        values (1, ${floorVersion}, jsonb_build_object(${lang}::text, ${content}::jsonb), now())
         on conflict (id) do update
-          set version = excluded.version,
-              content = excluded.content,
-              updated_at = now()`;
+          set content = jsonb_set(
+                case when jsonb_typeof(onboarding_content.content) = 'string'
+                     then (onboarding_content.content #>> '{}')::jsonb
+                     else coalesce(onboarding_content.content, '{}'::jsonb) end,
+                array[${lang}],
+                ${content}::jsonb || jsonb_build_object(
+                  'version', greatest(${floorVersion}, coalesce(onboarding_content.version, 0) + 1)),
+                true),
+              version = greatest(${floorVersion}, coalesce(onboarding_content.version, 0) + 1),
+              updated_at = now()
+        returning version`;
+      return Number(rows[0]!.version);
     },
 
     async recordOnboardingEvents(userId, events) {

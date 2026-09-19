@@ -11,14 +11,14 @@ describe("the confirmation message", () => {
     // The most important sentence in the email. Somebody whose address was typed in by a stranger
     // must be able to do nothing and be finished — that is what makes this a confirmation rather
     // than an unsolicited message with a link in it.
-    const { text } = confirmationMessage(URL_);
+    const { text } = confirmationMessage(URL_, "en");
     expect(text).toContain("If it was not you, ignore this");
     expect(text).toContain("deleted within a week");
     expect(text).toContain(URL_);
   });
 
   it("is plain text, so there is no place to put a tracking pixel", () => {
-    const { text } = confirmationMessage(URL_);
+    const { text } = confirmationMessage(URL_, "en");
     expect(text).not.toContain("<html");
     expect(text).not.toContain("<img");
   });
@@ -40,7 +40,7 @@ describe("resendMailer", () => {
       }) as unknown as typeof fetch,
     });
 
-    await mailer.sendConfirmation("reader@example.com", URL_);
+    await mailer.sendConfirmation("reader@example.com", URL_, "en");
 
     expect(seen!.url).toBe("https://api.resend.test/emails");
     const body = JSON.parse(String(seen!.init.body));
@@ -64,9 +64,9 @@ describe("resendMailer", () => {
       )) as unknown as typeof fetch,
     });
 
-    await expect(mailer.sendConfirmation("reader@example.com", URL_)).rejects.toThrow(/mail http 422/);
+    await expect(mailer.sendConfirmation("reader@example.com", URL_, "en")).rejects.toThrow(/mail http 422/);
     try {
-      await mailer.sendConfirmation("reader@example.com", URL_);
+      await mailer.sendConfirmation("reader@example.com", URL_, "en");
     } catch (e) {
       expect(String(e)).not.toContain("reader@example.com");
       expect(String(e)).toContain("<address>");
@@ -81,7 +81,7 @@ describe("resendMailer", () => {
         init.signal?.addEventListener("abort", () => reject(new Error("aborted")));
       })) as unknown as typeof fetch,
     });
-    await expect(mailer.sendConfirmation("reader@example.com", URL_)).rejects.toThrow(/mail timeout/);
+    await expect(mailer.sendConfirmation("reader@example.com", URL_, "en")).rejects.toThrow(/mail timeout/);
   });
 });
 
@@ -91,7 +91,7 @@ describe("logMailer", () => {
     const original = console.log;
     console.log = (...args: unknown[]) => { lines.push(args.join(" ")); };
     try {
-      await logMailer().sendConfirmation("reader@example.com", URL_);
+      await logMailer().sendConfirmation("reader@example.com", URL_, "en");
     } finally {
       console.log = original;
     }
@@ -116,13 +116,13 @@ describe("chooseMailer", () => {
 
   it("prints the link when there is no landing page, or a local one", async () => {
     await quiet(async () => {
-      await chooseMailer(base, false).sendConfirmation("reader@example.com", URL_);
+      await chooseMailer(base, false).sendConfirmation("reader@example.com", URL_, "en");
       await chooseMailer({ ...base, landingUrl: "http://localhost:4173" }, false)
-        .sendConfirmation("reader@example.com", URL_);
+        .sendConfirmation("reader@example.com", URL_, "en");
       await chooseMailer({ ...base, landingUrl: "http://192.168.1.5:4173" }, false)
-        .sendConfirmation("reader@example.com", URL_);
+        .sendConfirmation("reader@example.com", URL_, "en");
       await chooseMailer({ ...base, landingUrl: "http://dev-laptop.local:4173" }, false)
-        .sendConfirmation("reader@example.com", URL_);
+        .sendConfirmation("reader@example.com", URL_, "en");
     });
   });
 
@@ -132,9 +132,9 @@ describe("chooseMailer", () => {
     // that fails routes the visitor to /try-later and puts an error in the log per submission.
     await quiet(async () => {
       const mailer = chooseMailer({ ...base, landingUrl: "https://eait.fit" }, false);
-      await expect(mailer.sendConfirmation("reader@example.com", URL_)).rejects.toThrow(/EAIT__BACKEND__MAIL_PROVIDER=log/);
+      await expect(mailer.sendConfirmation("reader@example.com", URL_, "en")).rejects.toThrow(/EAIT__BACKEND__MAIL_PROVIDER=log/);
       try {
-        await mailer.sendConfirmation("reader@example.com", URL_);
+        await mailer.sendConfirmation("reader@example.com", URL_, "en");
       } catch (e) {
         expect(String(e)).not.toContain("reader@example.com");
       }
@@ -144,13 +144,13 @@ describe("chooseMailer", () => {
   it("still prints under --demo, whatever the landing url or provider", async () => {
     await quiet(async () => {
       await chooseMailer({ ...base, landingUrl: "https://eait.fit" }, true)
-        .sendConfirmation("reader@example.com", URL_);
+        .sendConfirmation("reader@example.com", URL_, "en");
       let calls = 0;
       const original = globalThis.fetch;
       globalThis.fetch = (async () => { calls++; return new Response("{}"); }) as unknown as typeof fetch;
       try {
         await chooseMailer({ ...base, mailProvider: "resend", resendApiKey: "k", landingUrl: "https://eait.fit" }, true)
-          .sendConfirmation("reader@example.com", URL_);
+          .sendConfirmation("reader@example.com", URL_, "en");
       } finally {
         globalThis.fetch = original;
       }

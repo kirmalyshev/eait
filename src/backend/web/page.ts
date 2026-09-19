@@ -30,88 +30,10 @@ export function escape(text: string): string {
  * the words below, which are this page's own and are public marketing copy in a way an in-app
  * question is not.
  */
-export const PAGE_COPY = {
-  frontDoorLead:
-    "Set up your account here, then open the app already signed in. It takes about three minutes.",
-  planHeading: "Your plan",
-  planLead: "This is what the app will hold you to. You can change any answer later, in the app.",
-  planFloor:
-    "This is the lowest daily intake this app will set, so the number is the floor rather than the " +
-    "arithmetic. Eating under it is not something we will help you plan.",
-  /**
-   * The handover to the web application (#394).
-   *
-   * FIRST ON THE PAGE, ahead of the App Store, and that ordering is the decision: somebody who has
-   * just answered eight questions in a browser can use the product in that same browser, and being
-   * told to install something instead is being told the thing they just did was a form.
-   */
-  planDiary: "Open your diary",
-  planDiaryBody:
-    "Nothing to install. Photograph a meal in this browser and read the answer, on the same account.",
-  planAppHeading: "Now get the app",
-  /**
-   * The `{provider}` is filled in with the one they actually used. THIS SENTENCE IS THE FEATURE:
-   * the app offers both buttons, and the other one lands in a different account with onboarding to
-   * do again and this plan — and anything bought from it — left behind on an account nothing can
-   * merge into. Naming the right button is the only thing standing in front of that.
-   */
-  planAppBody:
-    "Install eait for iPhone and choose Sign in with {provider}. It is the same account — your " +
-    "answers and your plan are already on it.",
-  /** No identity at all, which the plan page can only reach through a state nothing produces. */
-  planAppBodyGeneric:
-    "Install eait for iPhone and sign in the same way you did here. It is the same account — your " +
-    "answers and your plan are already on it.",
-  planCheckout: "Set up your subscription",
-  planChat: "Open the chat",
-  planTelegram: "Connect Telegram",
-  planTelegramBody: "Send meals and questions from Telegram too. Same diary, same chat.",
-  chatHeading: "Your chat",
-  chatEmpty: "Nothing here yet. What you say in the app shows up here, and the other way round.",
-  chatMealGone: "That meal is no longer in the diary.",
-  chatPlaceholder: "What did you eat?",
-  chatSend: "Send",
-  chatProposalLead: "Logging this — look right?",
-  chatConfirm: "Log it",
-  chatCancel: "Not this",
-  chatExpired: "That one is no longer being held. Say it again.",
-  chatTooLong: "That message is too long to send.",
-  chatRefusalNetwork: "Too many from this network — not you, this connection. Try again later.",
-  chatRefusalGlobal: "Everyone has used today's allowance. Tomorrow is a fresh number.",
-  chatRefusalDay: "That was your last one today — your daily allowance resets at midnight.",
-  chatNoFocusCorrection:
-    "There is no meal open here to correct. Open it in the app, or say what you ate and log it again.",
-  chatNoFocusRedate:
-    "There is no meal open here to move to another day. Open it in the app to change its day.",
-  chatNotOnboarded: "Answer the plan questions first.",
-  chatRefusalSubscription: "The analyses this account came with are used up. Subscribe to carry on.",
-  chatRefusalFailed: "That did not come back. Try it again.",
-  chatRefusalNotFood: "That did not look like food.",
-  chatRefusalImage: "That file is not a photo this can read. JPEG, PNG or WebP.",
-  chatRefusalNoPhoto: "Choose a photo first.",
-  chatTooMany: "That is more angles than one meal can have.",
-  chatTooLarge: "That photo is too large to send.",
-  chatPhotoLead: "Or photograph it",
-  chatPhotoSend: "Send the photo",
-  chatCaption: "Anything I should know? (optional)",
-  errorSignIn: "That sign-in didn't complete. Try again.",
-  /**
-   * The pairing form, on the front door rather than on a page of its own.
-   *
-   * Somebody who already has an account is not signing up, so the two sign-in buttons are not for
-   * them — and a second page they would have to be told the address of defeats the point of a code
-   * short enough to read out loud. One field under the buttons is the whole surface.
-   *
-   * IT DESCRIBES THE CODE, NOT WHERE TO GET ONE, because today there is nowhere: the app cannot
-   * show a code yet (that control is its own ticket). Words naming a button that does not exist
-   * would be false now and would have to be rewritten on a guarded surface later.
-   */
-  pairHeading: "Have a pairing code?",
-  pairLead: "A code signs this browser into the account that made it. It works once, and only for five minutes.",
-  pairLabel: "Your pairing code",
-  pairButton: "Connect this browser",
-  errorPair: "That code did not work. A code works once, and only for five minutes after it is made.",
-} as const;
+import { PAGE_COPY, pageCopyFor, type PageCopy } from "./copy.ts";
+import { LANGS_READY, LANG_LABEL, UNIT_KCAL, wholeNumbers, type Lang } from "@eait/shared";
+
+export { PAGE_COPY, PAGE_COPY_BY_LANG, pageCopyFor, type PageCopy } from "./copy.ts";
 
 /** Where the typeface is served from, on this origin, so the CSP needs `font-src 'self'` and no more. */
 export const FONT_PATH = "/start/assets/space-grotesk-latin.woff2";
@@ -285,9 +207,12 @@ export const TYPING_SCRIPT = `(function () {
 /** What the policy allows to run: that script and nothing else. */
 const TYPING_SCRIPT_HASH = createHash("sha256").update(TYPING_SCRIPT).digest("base64");
 
-export function shell(title: string, body: string): string {
+export function shell(title: string, body: string, lang: Lang): string {
   return `<!doctype html>
-<html lang="en"><head>
+<!-- \`lang\` is not decoration: it is what a screen reader picks a voice from and what a browser
+     offers to translate. A German page declaring itself English is read aloud in an English
+     accent, which is worse than an untranslated page and is invisible to everyone who can see. -->
+<html lang="${escape(lang)}"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
@@ -324,7 +249,7 @@ export function html(
   return res;
 }
 
-const spud = `<div class="spud" role="img" aria-label="Spud, the eait mascot">${spudSvg("wave", "spud-start")}</div>`;
+const spud = `<div class="spud" role="img" aria-label="${escape(PAGE_COPY.spudAlt)}">${spudSvg("wave", "spud-start")}</div>`;
 
 const bubbles = (lines: readonly string[]): string =>
   lines.map((line) => `<p class="bubble typed">${escape(line)}</p>`).join("");
@@ -340,8 +265,10 @@ export interface SignInButton { href: string; label: string }
  */
 export function frontDoor(
   welcome: readonly string[], buttons: readonly SignInButton[], error: string | null,
+  lang: Lang,
 ): string {
-  return shell("Start with eait", `
+  const PAGE_COPY = pageCopyFor(lang);
+  return shell(PAGE_COPY.titleStart, `
 ${spud}
 <h1>eait</h1>
 ${error ? `<p class="notice">${escape(error)}</p>` : ""}
@@ -358,7 +285,7 @@ ${buttons.map((b, i) =>
     aria-label="${escape(PAGE_COPY.pairLabel)}">
   <button type="submit">${escape(PAGE_COPY.pairButton)}</button>
 </form>
-`);
+`, lang);
 }
 
 export interface QuestionOption { value: string; label: string; hint?: string }
@@ -379,9 +306,12 @@ export interface QuestionView {
   actions: readonly { name: string; value: string; label: string }[];
   step: number;
   total: number;
+  /** Which language to render in. On the VIEW, because every string on the page reads it. */
+  lang: Lang;
 }
 
 export function question(v: QuestionView): string {
+  const PAGE_COPY = pageCopyFor(v.lang);
   const hidden = `<input type="hidden" name="prompt" value="${escape(v.promptId)}">`;
   let controls: string;
   if (v.kind === "choice") {
@@ -394,22 +324,25 @@ export function question(v: QuestionView): string {
     controls =
       `<input type="number" name="answer" inputmode="decimal" step="any" required autofocus` +
       `${v.placeholder ? ` placeholder="${escape(v.placeholder)}"` : ""}>` +
-      `<button class="primary" type="submit">Continue</button>`;
+      `<button class="primary" type="submit">${escape(PAGE_COPY.continueLabel)}</button>`;
   } else {
     controls = v.options.map((o) =>
       `<label class="check"><input type="checkbox" name="answer" value="${escape(o.value)}"> ` +
       `${escape(o.label)}</label>`).join("") +
-      `<button class="primary" type="submit">Continue</button>`;
+      `<button class="primary" type="submit">${escape(PAGE_COPY.continueLabel)}</button>`;
   }
   const actions = v.actions.map((a) =>
     `<button type="submit" name="${escape(a.name)}" value="${escape(a.value)}">${escape(a.label)}</button>`,
   ).join("");
+  // The BRAND, untranslated — the same reason `LANG_LABEL` is not. A question page in the
+  // middle of a flow is titled by the product, not by a sentence about it.
   return shell("eait", `
-<p class="progress">QUESTION ${v.step} OF ${v.total}</p>
+<p class="progress">${escape(PAGE_COPY.progress
+    .replace("{step}", String(v.step)).replace("{total}", String(v.total)))}</p>
 ${v.error ? `<p class="notice">${escape(v.error)}</p>` : ""}
 ${bubbles(v.lines)}
 <form method="post" action="/start/q">${hidden}${actions}${controls}</form>
-`);
+`, v.lang);
 }
 
 /**
@@ -419,13 +352,15 @@ ${bubbles(v.lines)}
  * account is deleted before this renders. A page that said it while a row survived would be the
  * worst sentence on this surface.
  */
-export function stopped(title: string, body: string, lines: readonly string[]): string {
+export function stopped(
+  title: string, body: string, lines: readonly string[], lang: Lang,
+): string {
   return shell(title, `
 ${spud}
 <h1>${escape(title)}</h1>
 <p class="muted">${escape(body)}</p>
 ${bubbles(lines)}
-`);
+`, lang);
 }
 
 /** A meal card in the thread: the meal as it is NOW, or null once it is gone. */
@@ -455,6 +390,7 @@ export interface ChatView {
   /** The page's own words about a refusal or a stale proposal. Never the model's. */
   notice: string | null;
   proposal: ChatProposal | null;
+  lang: Lang;
 }
 
 /**
@@ -465,13 +401,15 @@ export interface ChatView {
  * the client. Same rule as the app's own thread.
  */
 export function chat(v: ChatView): string {
-  return shell("Chat", `
+  const lang = v.lang;
+  const PAGE_COPY = pageCopyFor(lang);
+  return shell(PAGE_COPY.titleChat, `
 <h1>${escape(PAGE_COPY.chatHeading)}</h1>
 ${v.notice ? `<p class="notice">${escape(v.notice)}</p>` : ""}
 ${v.lines.length === 0
   ? `<p class="muted">${escape(PAGE_COPY.chatEmpty)}</p>`
-  : v.lines.map(chatLine).join("\n")}
-${v.proposal ? proposalCard(v.proposal) : ""}
+  : v.lines.map((line) => chatLine(line, PAGE_COPY, lang)).join("\n")}
+${v.proposal ? proposalCard(v.proposal, PAGE_COPY, lang) : ""}
 <form method="post" action="/start/chat/say">
   <input type="text" name="text" autocomplete="off" maxlength="${MAX_USER_LINE}"
     placeholder="${escape(PAGE_COPY.chatPlaceholder)}" aria-label="${escape(PAGE_COPY.chatPlaceholder)}">
@@ -485,7 +423,7 @@ ${v.proposal ? proposalCard(v.proposal) : ""}
     placeholder="${escape(PAGE_COPY.chatCaption)}" aria-label="${escape(PAGE_COPY.chatCaption)}">
   <button type="submit">${escape(PAGE_COPY.chatPhotoSend)}</button>
 </form>
-`);
+`, v.lang);
 }
 
 /**
@@ -493,18 +431,30 @@ ${v.proposal ? proposalCard(v.proposal) : ""}
  * and it is not written until the person says so. Two forms rather than one with two buttons, so
  * each posts to the route that names what it does.
  */
-function proposalCard(p: ChatProposal): string {
+/**
+ * A card's figures, in the reader's language — the same treatment `plan()` gives the plan's own.
+ *
+ * Raw interpolation is what this replaces: `${p.kcal} kcal` put an English unit and an ungrouped
+ * four-digit number under a plan page that had already said `Порог — 1 500 ккал.`
+ */
+function macros(kcal: number, proteinG: number, PAGE_COPY: PageCopy, lang: Lang): string {
+  const n = wholeNumbers(lang);
+  return PAGE_COPY.cardMacros
+    .replace("{kcal}", n(kcal)).replace("{unit}", UNIT_KCAL[lang]).replace("{protein}", n(proteinG));
+}
+
+function proposalCard(p: ChatProposal, PAGE_COPY: PageCopy, lang: Lang): string {
   const id = `<input type="hidden" name="pendingId" value="${escape(p.pendingId)}">`;
   return `<div class="card">
   <p class="muted">${escape(PAGE_COPY.chatProposalLead)}</p>
   <p><strong>${escape(p.title)}</strong></p>
-  <p class="muted">${p.kcal} kcal &middot; ${p.proteinG} g protein</p>
+  <p class="muted">${escape(macros(p.kcal, p.proteinG, PAGE_COPY, lang))}</p>
   <form method="post" action="/start/chat/confirm">${id}<button class="primary" type="submit">${escape(PAGE_COPY.chatConfirm)}</button></form>
   <form method="post" action="/start/chat/cancel">${id}<button type="submit">${escape(PAGE_COPY.chatCancel)}</button></form>
 </div>`;
 }
 
-function chatLine(line: ChatLine): string {
+function chatLine(line: ChatLine, PAGE_COPY: PageCopy, lang: Lang): string {
   if (line.kind === "user") {
     const text = line.text ?? "";
     return `<p class="bubble you">${line.photo ? "\u{1F4F7} " : ""}${escape(text)}</p>`;
@@ -516,7 +466,7 @@ function chatLine(line: ChatLine): string {
   const c = line.card;
   return `<div class="card">
   <p><strong>${escape(c.title)}</strong></p>
-  <p class="muted">${c.kcal} kcal &middot; ${c.proteinG} g protein</p>
+  <p class="muted">${escape(macros(c.kcal, c.proteinG, PAGE_COPY, lang))}</p>
   ${c.verdicts.map((w) => `<span class="pill">${escape(w)}</span>`).join("")}
 </div>`;
 }
@@ -538,18 +488,25 @@ export interface PlanView {
   hasWebApp: boolean;
   /** Whether the Telegram connector is on, so Connect Telegram has a bot to send anybody to. */
   telegram: boolean;
+  lang: Lang;
 }
 
 export function plan(v: PlanView): string {
-  return shell("Your plan", `
+  const lang = v.lang;
+  const PAGE_COPY = pageCopyFor(lang);
+  // The FIGURES are grouped the reader's way — "1.800", not "1,800", for half of Europe — and the
+  // sentences around them are the table's. Both were English literals in the markup until #358, on
+  // the one page the language picker sits on.
+  const n = wholeNumbers(lang);
+  return shell(PAGE_COPY.titlePlan, `
 <h1>${escape(PAGE_COPY.planHeading)}</h1>
 <p class="muted">${escape(PAGE_COPY.planLead)}</p>
 <div class="card">
-  <p class="figure">${v.kcal} kcal</p>
-  <p class="muted">a day, with at least ${v.proteinG} g of protein</p>
+  <p class="figure">${escape(n(v.kcal))} ${escape(UNIT_KCAL[lang])}</p>
+  <p class="muted">${escape(PAGE_COPY.planPerDay.replace("{protein}", n(v.proteinG)))}</p>
 </div>
 ${v.floorApplied
-  ? `<p class="notice care">${escape(PAGE_COPY.planFloor)} The floor is ${v.floorKcal} kcal.</p>`
+  ? `<p class="notice care">${escape(PAGE_COPY.planFloor)} ${escape(PAGE_COPY.planFloorNumber.replace("{floor}", n(v.floorKcal)))}</p>`
   : ""}
 ${v.hasWebApp
   ? `<p class="muted">${escape(PAGE_COPY.planDiaryBody)}</p>
@@ -567,5 +524,33 @@ ${v.telegram
 <p class="muted">${escape(v.signedInWith === null
   ? PAGE_COPY.planAppBodyGeneric
   : PAGE_COPY.planAppBody.replace("{provider}", v.signedInWith === "apple" ? "Apple" : "Google"))}</p>
-`);
+${languagePicker(v.lang)}
+`, v.lang);
+}
+
+/**
+ * THE PICKER, and this page is where it lives on this surface.
+ *
+ * The plan page is `/start`'s settings: it is the one page somebody comes back to, and the only one
+ * with anything else to change on it. It writes through `PATCH /v1/profile` like every other
+ * surface — `POST /start/language` is a form handler that calls `patchProfile`, not a second
+ * endpoint and not a second source of truth. There is no JavaScript on these pages, so a submit
+ * button is the control; a `<select>` that saved on change would need one.
+ *
+ * ONLY `LANGS_READY` IS OFFERED. A language the app cannot render end to end is one whose every
+ * screen would be English, and choosing it looks like a bug rather than like a missing translation.
+ *
+ * The OPTION LABELS are `LANG_LABEL` — each language's name in itself, never translated, because a
+ * list of languages written in the one you are trying to leave is the one list you cannot read.
+ */
+function languagePicker(lang: Lang): string {
+  const PAGE_COPY = pageCopyFor(lang);
+  const options = LANGS_READY.map((code) =>
+    `<option value="${escape(code)}"${code === lang ? " selected" : ""}>${escape(LANG_LABEL[code])}</option>`,
+  ).join("");
+  return `<h2>${escape(PAGE_COPY.languageLabel)}</h2>
+<form method="post" action="/start/language">
+  <select name="lang" aria-label="${escape(PAGE_COPY.languageLabel)}">${options}</select>
+  <button type="submit">${escape(PAGE_COPY.languageSave)}</button>
+</form>`;
 }

@@ -1,8 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { HEALTH_FIELDS, emptyHealthDay, type HealthDay, type HealthMetric } from "./health.ts";
 import {
-  COMPARE_SERIES, TREND_PERIODS, bucketSeries, compareSeries, correlate, correlationWords,
-  mergeSince, metricSeries, oldestDate, trendBuckets, trendEndpoints, trendSummary, type DailyPoint,
+  COMPARE_SERIES, TREND_PERIOD_IDS, bucketSeries, compareSeries, correlate, correlationWords,
+  mergeSince, metricSeries, oldestDate, trendBuckets, trendEndpoints, trendPeriods, trendSummary,
+  type DailyPoint,
   type TrendBucket, type TrendPeriod, type TrendPoint,
 } from "./trend.ts";
 import { HEALTH_RETENTION_DAYS } from "./contract.ts";
@@ -18,35 +19,35 @@ const WINDOW = HEALTH_RETENTION_DAYS;
 
 describe("trendBuckets", () => {
   test("days: the last 30 calendar days, one each, ending today", () => {
-    const b = trendBuckets("days", MON, WINDOW);
+    const b = trendBuckets("days", MON, WINDOW, "en");
     expect(b).toHaveLength(30);
     expect(b[0]).toEqual({ start: "2026-08-02", end: "2026-08-02", label: "2 Aug" });
     expect(b[29]).toEqual({ start: MON, end: MON, label: "31 Aug" });
   });
 
   test("weeks: 26 Monday-to-Sunday weeks, the last one containing today", () => {
-    const b = trendBuckets("weeks", WED, WINDOW);
+    const b = trendBuckets("weeks", WED, WINDOW, "en");
     expect(b).toHaveLength(26);
     // The week today falls in, even though it has not finished.
     expect(b[25]).toEqual({ start: "2026-08-31", end: "2026-09-06", label: "31 Aug" });
     expect(b[24]).toEqual({ start: "2026-08-24", end: "2026-08-30", label: "24 Aug" });
     expect(b[0]!.start).toBe("2026-03-09");
     // A Monday is the first day of its own week, not the last of the previous one.
-    expect(trendBuckets("weeks", MON, WINDOW)[25]!.start).toBe(MON);
+    expect(trendBuckets("weeks", MON, WINDOW, "en")[25]!.start).toBe(MON);
   });
 
   test("months: 12 calendar months, the last one containing today", () => {
-    const b = trendBuckets("months", MON, WINDOW);
+    const b = trendBuckets("months", MON, WINDOW, "en");
     expect(b).toHaveLength(12);
     expect(b[0]).toEqual({ start: "2025-09-01", end: "2025-09-30", label: "Sep" });
     expect(b[11]).toEqual({ start: "2026-08-01", end: "2026-08-31", label: "Aug" });
     // A leap February ends on the 29th, not on a hard-coded 28.
-    const leap = trendBuckets("months", "2028-03-15", WINDOW);
+    const leap = trendBuckets("months", "2028-03-15", WINDOW, "en");
     expect(leap[10]).toEqual({ start: "2028-02-01", end: "2028-02-29", label: "Feb" });
   });
 
   test("years: every calendar year the window reaches, to today", () => {
-    const b = trendBuckets("years", MON, WINDOW);
+    const b = trendBuckets("years", MON, WINDOW, "en");
     expect(b.map((x) => x.label)).toEqual(["2021", "2022", "2023", "2024", "2025", "2026"]);
     expect(b[0]).toEqual({ start: "2021-01-01", end: "2021-12-31", label: "2021" });
     expect(b[5]).toEqual({ start: "2026-01-01", end: "2026-12-31", label: "2026" });
@@ -54,7 +55,7 @@ describe("trendBuckets", () => {
 
   test("every period's buckets are contiguous and oldest first", () => {
     for (const period of ["days", "weeks", "months", "years"] as const) {
-      const b = trendBuckets(period, WED, WINDOW);
+      const b = trendBuckets(period, WED, WINDOW, "en");
       for (let i = 1; i < b.length; i++) {
         expect(b[i]!.start > b[i - 1]!.end).toBe(true);
         // No gap: the day after one bucket's end is the next bucket's start.
@@ -67,7 +68,7 @@ describe("trendBuckets", () => {
 });
 
 describe("bucketSeries", () => {
-  const buckets = trendBuckets("weeks", MON, WINDOW);
+  const buckets = trendBuckets("weeks", MON, WINDOW, "en");
   const last = buckets[25]!;
   const prev = buckets[24]!;
 
@@ -147,12 +148,12 @@ describe("correlate", () => {
 
 describe("correlationWords", () => {
   test("names the strength and the direction in words, never as a bare number", () => {
-    expect(correlationWords(0.05)).toBe("no clear link");
-    expect(correlationWords(-0.1)).toBe("no clear link");
-    expect(correlationWords(0.3)).toBe("a weak link — they tend to rise together");
-    expect(correlationWords(-0.3)).toBe("a weak link — one tends to rise as the other falls");
-    expect(correlationWords(0.6)).toBe("a moderate link — they tend to rise together");
-    expect(correlationWords(-0.9)).toBe("a strong link — one tends to rise as the other falls");
+    expect(correlationWords(0.05, "en")).toBe("no clear link");
+    expect(correlationWords(-0.1, "en")).toBe("no clear link");
+    expect(correlationWords(0.3, "en")).toBe("a weak link — they tend to rise together");
+    expect(correlationWords(-0.3, "en")).toBe("a weak link — one tends to rise as the other falls");
+    expect(correlationWords(0.6, "en")).toBe("a moderate link — they tend to rise together");
+    expect(correlationWords(-0.9, "en")).toBe("a strong link — one tends to rise as the other falls");
   });
 });
 
@@ -203,7 +204,7 @@ describe("trendEndpoints and trendSummary", () => {
       { date: "2026-08-03", value: 94.1 }, { date: "2026-08-12", value: 92.0 },
       { date: "2026-08-20", value: 90.8 }, { date: "2026-08-31", value: 91.2 },
     ],
-    trendBuckets("weeks", "2026-08-31", WINDOW),
+    trendBuckets("weeks", "2026-08-31", WINDOW, "en"),
     1,
   );
   const kg = (v: number) => `${v.toFixed(1)} kg`;
@@ -218,16 +219,38 @@ describe("trendEndpoints and trendSummary", () => {
   });
 
   test("the summary is one sentence a screen reader can say instead of the picture", () => {
-    expect(trendSummary("Weight", "weeks", points, kg)).toBe(
+    expect(trendSummary("Weight", "weeks", points, kg, "en")).toBe(
       "Weight by week: from 94.1 kg (3 Aug) to 91.2 kg (31 Aug). Lowest 90.8 kg, highest 94.1 kg.",
     );
-    expect(trendSummary("Weight", "weeks", points.map((p) => ({ ...p, value: null, n: 0 })), kg)).toBe(
+    expect(trendSummary("Weight", "weeks", points.map((p) => ({ ...p, value: null, n: 0 })), kg, "en")).toBe(
       "Weight by week: nothing recorded.",
     );
+    // THE WHOLE SENTENCE, in the reader's language — the noun, the word order and the axis labels.
+    // It used to be assembled from English fragments here, which is the one thing `AGENTS.md`
+    // forbids: word order is not a constant across eight languages, and for a reader with low
+    // vision this sentence IS the chart.
+    const de = trendSummary("Gewicht", "weeks", points, kg, "de");
+    expect(de).toBe("Gewicht pro Woche: von 94.1 kg (3 Aug) bis 91.2 kg (31 Aug). Tiefstwert 90.8 kg, Höchstwert 94.1 kg.");
+    expect(de).not.toContain("by week");
+    // Russian, where the AXIS LABEL itself moves too — `dayMonth` was pinned to en-GB.
+    // Russian inflects after `по`, so the summary says `по неделям` while the bucket stays
+    // `неделя`. One field could not be both, and the nominative read as machine output.
+    const ruPoints = bucketSeries(
+      [{ date: "2026-08-03", value: 94.1 }, { date: "2026-08-31", value: 91.2 }],
+      trendBuckets("weeks", "2026-08-31", WINDOW, "ru"),
+      1,
+    );
+    const ru = trendSummary("Вес", "weeks", ruPoints, kg, "ru");
+    expect(ru).toContain("по неделям");
+    // AND the axis label inside it is Russian, which is the half `trendSummary` does not own:
+    // the labels come from `trendBuckets`, so a summary is only as localized as its buckets.
+    expect(ru).toContain("авг.");
+    expect(ru).not.toMatch(/Aug|Lowest|by week/);
   });
 
   test("every period names the unit of its axis", () => {
-    expect(TREND_PERIODS.map((p) => p.noun)).toEqual(["day", "week", "month", "year"]);
+    expect(trendPeriods("en").map((p) => p.per)).toEqual(["day", "week", "month", "year"]);
+    expect(trendPeriods("de").map((p) => p.label)).toEqual(["Tage", "Wochen", "Monate", "Jahre"]);
   });
 });
 
@@ -397,7 +420,7 @@ function scanComparisons(n: number, today: string): { work: number; mapVisits: n
   let boundary = 0;
   let labels = 0;
   let points = 0;
-  const buckets: TrendBucket[] = trendBuckets(SCALING_PERIOD, today, n).map(
+  const buckets: TrendBucket[] = trendBuckets(SCALING_PERIOD, today, n, "en").map(
     (b) => new Proxy(b, {
       get(target, key, receiver) {
         if (key === "start" || key === "end") boundary++;
@@ -445,7 +468,7 @@ describe("the fixture the scaling and window tests are built on", () => {
 
   test("no series is a scalar multiple of another, so a correlation here means something", () => {
     const days = healthDays(120, today);
-    const buckets = trendBuckets("days", today, 120);
+    const buckets = trendBuckets("days", today, 120, "en");
     // BUILT ONCE. Called inside the loop below, this was 450 full passes for 15 distinct results
     // on every `bun test ./shared`.
     const byMetric = new Map<HealthMetric, TrendPoint[]>(
@@ -477,7 +500,7 @@ describe("chart arithmetic scales with the days it is given", () => {
     // whose axis grows — `years` — which is exactly the change that would make the measurement
     // meaningless without anything else here noticing.
     for (const n of [SCALING_DAYS, 2 * SCALING_DAYS]) {
-      expect(trendBuckets(SCALING_PERIOD, today, n)).toHaveLength(30);
+      expect(trendBuckets(SCALING_PERIOD, today, n, "en")).toHaveLength(30);
     }
 
     const small = scanComparisons(SCALING_DAYS, today);
@@ -511,7 +534,7 @@ describe("chart arithmetic scales with the days it is given", () => {
       const days = healthDays(n, today);
       const points = bucketSeries(
         metricSeries(days, "weight_kg"),
-        trendBuckets(SCALING_PERIOD, today, n),
+        trendBuckets(SCALING_PERIOD, today, n, "en"),
         1,
       );
       expect(points).toHaveLength(30);
@@ -529,10 +552,10 @@ describe("the five-year window", () => {
     const days = healthDays(HEALTH_RETENTION_DAYS, today);
     expect(days[0]!.date).toBe(oldest);
 
-    for (const period of TREND_PERIODS) {
+    for (const period of trendPeriods("en")) {
       const points = bucketSeries(
         metricSeries(days, "weight_kg"),
-        trendBuckets(period.id, today, HEALTH_RETENTION_DAYS),
+        trendBuckets(period.id, today, HEALTH_RETENTION_DAYS, "en"),
         1,
       );
       expect(points.length).toBeGreaterThan(0);
@@ -548,12 +571,12 @@ describe("the five-year window", () => {
   test("no year bucket falls entirely outside the window a read can answer from", () => {
     for (const day of ["2025-12-31", "2026-12-31", "2027-12-31", "2028-12-30", "2029-12-31"]) {
       const served = windowStart(day, HEALTH_RETENTION_DAYS);
-      const axis = trendBuckets("years", day, HEALTH_RETENTION_DAYS);
+      const axis = trendBuckets("years", day, HEALTH_RETENTION_DAYS, "en");
       expect(axis.every((b) => b.end >= served)).toBe(true);
 
       // One day wider — the window the screen used to pass — and a bucket ends before the oldest
       // row a client can be given, so it is empty forever. Kept as the thing being ruled out.
-      const wider = trendBuckets("years", day, HEALTH_RETENTION_DAYS + 1);
+      const wider = trendBuckets("years", day, HEALTH_RETENTION_DAYS + 1, "en");
       expect(wider.some((b) => b.end < served)).toBe(true);
     }
   });
@@ -565,28 +588,28 @@ describe("the five-year window", () => {
 // the window a read can be answered from, which is the invariant above.
 describe("trendBuckets, years, clamped to the account's oldest row", () => {
   test("a one-day-old account gets one bar, not six", () => {
-    const b = trendBuckets("years", "2026-09-06", WINDOW, "2026-09-05");
+    const b = trendBuckets("years", "2026-09-06", WINDOW, "en", "2026-09-05");
     expect(b.map((x) => x.label)).toEqual(["2026"]);
   });
 
   test("two years of rows get three bars", () => {
-    const b = trendBuckets("years", "2026-09-06", WINDOW, "2024-03-01");
+    const b = trendBuckets("years", "2026-09-06", WINDOW, "en", "2024-03-01");
     expect(b.map((x) => x.label)).toEqual(["2024", "2025", "2026"]);
   });
 
   test("a row older than the served window does not widen the axis", () => {
-    const b = trendBuckets("years", MON, WINDOW, "2015-01-01");
+    const b = trendBuckets("years", MON, WINDOW, "en", "2015-01-01");
     expect(b.map((x) => x.label)).toEqual(["2021", "2022", "2023", "2024", "2025", "2026"]);
   });
 
   test("no oldest row leaves the axis exactly as it was", () => {
-    expect(trendBuckets("years", MON, WINDOW, undefined)).toEqual(trendBuckets("years", MON, WINDOW));
+    expect(trendBuckets("years", MON, WINDOW, "en", undefined)).toEqual(trendBuckets("years", MON, WINDOW, "en"));
   });
 
   // A phone whose clock runs ahead of the server can hold a row dated after `today`. The axis must
   // still end on today's year rather than count backwards into an empty array.
   test("a row dated after today still leaves the bucket today falls in", () => {
-    const b = trendBuckets("years", MON, WINDOW, "2027-04-01");
+    const b = trendBuckets("years", MON, WINDOW, "en", "2027-04-01");
     expect(b.map((x) => x.label)).toEqual(["2026"]);
   });
 
@@ -598,7 +621,7 @@ describe("trendBuckets, years, clamped to the account's oldest row", () => {
     const intake = [{ date: "2024-02-02", value: 2000 }, { date: "2026-02-02", value: 2100 }];
     const oldest = oldestDate(health, intake);
     expect(oldest).toBe("2024-02-02");
-    const axis = trendBuckets("years", MON, WINDOW, oldest);
+    const axis = trendBuckets("years", MON, WINDOW, "en", oldest);
     for (const series of [health, intake]) {
       const n = bucketSeries(series, axis, 0).reduce((s, p) => s + p.n, 0);
       expect(n).toBe(series.length);
@@ -607,7 +630,7 @@ describe("trendBuckets, years, clamped to the account's oldest row", () => {
 
   test("days, weeks and months ignore the oldest row", () => {
     for (const period of ["days", "weeks", "months"] as const) {
-      expect(trendBuckets(period, MON, WINDOW, "2026-08-30")).toEqual(trendBuckets(period, MON, WINDOW));
+      expect(trendBuckets(period, MON, WINDOW, "en", "2026-08-30")).toEqual(trendBuckets(period, MON, WINDOW, "en"));
     }
   });
 });

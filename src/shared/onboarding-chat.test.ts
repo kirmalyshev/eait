@@ -108,14 +108,14 @@ describe("where a killed run picks up", () => {
 
 describe("what Spud asks", () => {
   it("reads the admin's words for a profile question", () => {
-    expect(askLines(promptById("goal"), content, profile())[0]).toContain("what are you here to do");
+    expect(askLines(promptById("goal"), content, profile(), "en")[0]).toContain("what are you here to do");
   });
 
   it("warns about pace only when the goal is to lose", () => {
     // Rule 1. "Faster isn't better here — it's just harder to keep" is a warning about losing
     // weight; said to somebody gaining it is a reply written for no one.
     const asked = (goal: Profile["goal"]) =>
-      askLines(promptById("target_weight_kg"), content, profile({ goal })).join(" ");
+      askLines(promptById("target_weight_kg"), content, profile({ goal }), "en").join(" ");
     expect(asked("lose")).toContain("Faster isn't better");
     expect(asked("gain")).not.toContain("Faster isn't better");
     // And the substitution never leaks its own placeholder.
@@ -133,25 +133,25 @@ describe("what Spud asks", () => {
   it("asks the front door from the content, and asks nothing on the two cards", () => {
     // `welcome` is the one prompt with no field and no constant — it reads `content.welcome.lines`.
     // The version that fell through to the constants threw on the very first render.
-    expect(askLines(promptById("welcome"), content, profile())).toEqual(content.welcome.lines);
+    expect(askLines(promptById("welcome"), content, profile(), "en")).toEqual(content.welcome.lines);
     for (const id of ["building", "summary"] as const) {
-      expect(askLines(promptById(id), content, profile())).toEqual([]);
+      expect(askLines(promptById(id), content, profile(), "en")).toEqual([]);
     }
   });
 
   it("asks the conversation question from code, not from the admin", () => {
-    expect(askLines(promptById("struggles"), content, profile())[0]).toContain("What's been hard?");
+    expect(askLines(promptById("struggles"), content, profile(), "en")[0]).toContain("What's been hard?");
   });
 });
 
 describe("the answer a resumed run draws back", () => {
   it("writes an enumerated answer the way it was labelled", () => {
-    expect(answerLabel(promptById("goal"), profile({ goal: "lose" }), content)).toBe("Lose weight");
-    expect(answerLabel(promptById("activity"), profile({ activity: "moderate" }), content)).toBe("Moderate");
+    expect(answerLabel(promptById("goal"), profile({ goal: "lose" }), content, "en")).toBe("Lose weight");
+    expect(answerLabel(promptById("activity"), profile({ activity: "moderate" }), content, "en")).toBe("Moderate");
   });
 
   it("writes a number the way it was typed", () => {
-    expect(answerLabel(promptById("weight_kg"), profile({ weight_kg: 93 }), content)).toBe("93");
+    expect(answerLabel(promptById("weight_kg"), profile({ weight_kg: 93 }), content, "en")).toBe("93");
   });
 
   it("draws the year of birth back as an age, plain arithmetic, no eligibility band", () => {
@@ -160,20 +160,20 @@ describe("the answer a resumed run draws back", () => {
     // edge: an accepted 100-year-old crosses New Year, ageFrom(101) is null, and the fallback drew
     // the raw year. Display is subtraction, not eligibility.
     const year = new Date().getUTCFullYear();
-    expect(answerLabel(promptById("birth_year"), profile({ birth_year: 1990 }), content)).toBe(String(year - 1990));
-    expect(answerLabel(promptById("birth_year"), profile({ birth_year: year - 101 }), content)).toBe("101");
+    expect(answerLabel(promptById("birth_year"), profile({ birth_year: 1990 }), content, "en")).toBe(String(year - 1990));
+    expect(answerLabel(promptById("birth_year"), profile({ birth_year: year - 101 }), content, "en")).toBe("101");
   });
 
   it("says nothing for an unanswered question", () => {
-    expect(answerLabel(promptById("weight_kg"), profile(), content)).toBeNull();
-    expect(answerLabel(promptById("welcome"), profile(), content)).toBeNull();
+    expect(answerLabel(promptById("weight_kg"), profile(), content, "en")).toBeNull();
+    expect(answerLabel(promptById("welcome"), profile(), content, "en")).toBeNull();
   });
 
   it("names the restrictions picked, or says none applied", () => {
     const done = { onboarded_at: "2026-01-01T00:00:00Z" };
-    expect(answerLabel(promptById("restrictions"), profile({ ...done, restrictions: ["kidneys", "ldl"] }), content))
+    expect(answerLabel(promptById("restrictions"), profile({ ...done, restrictions: ["kidneys", "ldl"] }), content, "en"))
       .toBe("Kidney condition · High cholesterol");
-    expect(answerLabel(promptById("restrictions"), profile({ ...done, restrictions: [] }), content))
+    expect(answerLabel(promptById("restrictions"), profile({ ...done, restrictions: [] }), content, "en"))
       .toBe("Nothing applies");
   });
 });
@@ -182,55 +182,55 @@ describe("the numbers", () => {
   const today = new Date("2026-08-26T00:00:00Z");
 
   it("takes a plain number and a comma decimal", () => {
-    expect(checkNumber("weight_kg", "93", today)).toEqual({ ok: true, value: 93 });
-    expect(checkNumber("weight_kg", "93,5", today)).toEqual({ ok: true, value: 93.5 });
-    expect(checkNumber("height_cm", "183 cm", today)).toEqual({ ok: true, value: 183 });
+    expect(checkNumber("weight_kg", "93", "en", today)).toEqual({ ok: true, value: 93 });
+    expect(checkNumber("weight_kg", "93,5", "en", today)).toEqual({ ok: true, value: 93.5 });
+    expect(checkNumber("height_cm", "183 cm", "en", today)).toEqual({ ok: true, value: 183 });
   });
 
   it("refuses in the design's words rather than the server's", () => {
-    expect(checkNumber("height_cm", "6", today)).toEqual({ ok: false, line: "In centimetres — something like 175." });
-    expect(checkNumber("weight_kg", "nope", today)).toEqual({ ok: false, line: "In kilograms — roughly is fine." });
-    expect(checkNumber("target_weight_kg", "900", today)).toEqual({ ok: false, line: "A number in kg — like 70." });
+    expect(checkNumber("height_cm", "6", "en", today)).toEqual({ ok: false, line: "In centimetres — something like 175." });
+    expect(checkNumber("weight_kg", "nope", "en", today)).toEqual({ ok: false, line: "In kilograms — roughly is fine." });
+    expect(checkNumber("target_weight_kg", "900", "en", today)).toEqual({ ok: false, line: "A number in kg — like 70." });
   });
 
   it("never accepts a value the server would refuse without words", () => {
     // The client band is a SUBSET of the server's, so the only refusals a user can meet are the two
     // that have sentences written for them.
-    expect(checkNumber("weight_kg", String(MIN_WEIGHT_KG - 1), today).ok).toBe(false);
-    expect(checkNumber("target_weight_kg", String(MIN_WEIGHT_KG - 1), today).ok).toBe(false);
-    expect(checkNumber("height_cm", "99", today).ok).toBe(false);
-    expect(checkNumber("height_cm", "251", today).ok).toBe(false);
+    expect(checkNumber("weight_kg", String(MIN_WEIGHT_KG - 1), "en", today).ok).toBe(false);
+    expect(checkNumber("target_weight_kg", String(MIN_WEIGHT_KG - 1), "en", today).ok).toBe(false);
+    expect(checkNumber("height_cm", "99", "en", today).ok).toBe(false);
+    expect(checkNumber("height_cm", "251", "en", today).ok).toBe(false);
   });
 
   it("reads an age and says so when the input is not one", () => {
     // The question is "how old are you?" and the AGE is what travels: the server derives the year
     // with its own clock (`engine/profile.ts`), because the device's can be wrong.
-    expect(checkNumber("birth_year", "36", today)).toEqual({ ok: true, value: 36 });
-    expect(checkNumber("birth_year", "36 years", today)).toEqual({ ok: true, value: 36 });
-    expect(checkNumber("birth_year", "nope", today).ok).toBe(false);
-    expect(checkNumber("birth_year", "-3", today).ok).toBe(false);
-    expect(checkNumber("birth_year", "500", today).ok).toBe(false);
+    expect(checkNumber("birth_year", "36", "en", today)).toEqual({ ok: true, value: 36 });
+    expect(checkNumber("birth_year", "36 years", "en", today)).toEqual({ ok: true, value: 36 });
+    expect(checkNumber("birth_year", "nope", "en", today).ok).toBe(false);
+    expect(checkNumber("birth_year", "-3", "en", today).ok).toBe(false);
+    expect(checkNumber("birth_year", "500", "en", today).ok).toBe(false);
   });
 
   it("takes a four-digit year as the year itself, whatever separator it came with", () => {
     // Copy saved before this question changed still asks for a year, and people type years out of
     // habit under the age question too. "1.990" is how a German writes 1990; the comma form is the
     // US thousands separator. Both are the year, never age 1.99 — which used to reach the STOP.
-    expect(checkNumber("birth_year", "1990", today)).toEqual({ ok: true, value: 36 });
-    expect(checkNumber("birth_year", "1.990", today)).toEqual({ ok: true, value: 36 });
-    expect(checkNumber("birth_year", "1,990", today)).toEqual({ ok: true, value: 36 });
-    expect(checkNumber("birth_year", "1800", today).ok).toBe(false);
+    expect(checkNumber("birth_year", "1990", "en", today)).toEqual({ ok: true, value: 36 });
+    expect(checkNumber("birth_year", "1.990", "en", today)).toEqual({ ok: true, value: 36 });
+    expect(checkNumber("birth_year", "1,990", "en", today)).toEqual({ ok: true, value: 36 });
+    expect(checkNumber("birth_year", "1800", "en", today).ok).toBe(false);
   });
 
   it("stops on a plausible child's age and refuses a typo as a typo", () => {
     // The stop's quick reply DELETES THE ACCOUNT, so it is reserved for answers that plausibly
     // mean a child (5-15). "0", "-0.4" and a premature send of "3" are typos: they get the retry
     // line, from which nothing worse than retyping can happen.
-    expect(checkNumber("birth_year", String(MIN_AGE - 1), today)).toEqual({ ok: false, underAge: true });
-    expect(checkNumber("birth_year", "5", today)).toEqual({ ok: false, underAge: true });
-    expect(checkNumber("birth_year", String(MIN_AGE), today)).toEqual({ ok: true, value: MIN_AGE });
+    expect(checkNumber("birth_year", String(MIN_AGE - 1), "en", today)).toEqual({ ok: false, underAge: true });
+    expect(checkNumber("birth_year", "5", "en", today)).toEqual({ ok: false, underAge: true });
+    expect(checkNumber("birth_year", String(MIN_AGE), "en", today)).toEqual({ ok: true, value: MIN_AGE });
     for (const typo of ["0", "4", "-0.4", "3"]) {
-      const out = checkNumber("birth_year", typo, today);
+      const out = checkNumber("birth_year", typo, "en", today);
       expect(out.ok).toBe(false);
       expect("underAge" in out).toBe(false);
     }
@@ -239,39 +239,39 @@ describe("the numbers", () => {
   it("asks before taking a high two-digit answer that could be a year shorthand", () => {
     // "90" under year-worded copy means 1990; typed by a 90-year-old it means 90. Neither reading
     // may be guessed: one wrongly computes a nonagenarian's target, the other a 36-year-old's.
-    expect(checkNumber("birth_year", "90", today)).toEqual({ ok: false, ambiguousAge: 90 });
-    expect(checkNumber("birth_year", "85", today)).toEqual({ ok: false, ambiguousAge: 85 });
+    expect(checkNumber("birth_year", "90", "en", today)).toEqual({ ok: false, ambiguousAge: 90 });
+    expect(checkNumber("birth_year", "85", "en", today)).toEqual({ ok: false, ambiguousAge: 85 });
     // 100 is three digits — no shorthand reading — and 84 is below the band.
-    expect(checkNumber("birth_year", "100", today)).toEqual({ ok: true, value: 100 });
-    expect(checkNumber("birth_year", "84", today)).toEqual({ ok: true, value: 84 });
+    expect(checkNumber("birth_year", "100", "en", today)).toEqual({ ok: true, value: 100 });
+    expect(checkNumber("birth_year", "84", "en", today)).toEqual({ ok: true, value: 84 });
   });
 });
 
 describe("the goal weight", () => {
   it("catches a target that is not in the direction of the goal", () => {
-    const gain = checkDirection("gain", 93, 88)!;
+    const gain = checkDirection("gain", 93, 88, "en")!;
     expect(gain.line).toContain("that's not a gain from here");
     expect(gain.switchTo).toBe("lose");
-    const lose = checkDirection("lose", 93, 95)!;
+    const lose = checkDirection("lose", 93, 95, "en")!;
     expect(lose.line).toContain("that's not a loss from here");
     expect(lose.switchTo).toBe("gain");
   });
 
   it("catches the equal case, which is neither", () => {
-    expect(checkDirection("gain", 93, 93)).not.toBeNull();
-    expect(checkDirection("lose", 93, 93)).not.toBeNull();
+    expect(checkDirection("gain", 93, 93, "en")).not.toBeNull();
+    expect(checkDirection("lose", 93, 93, "en")).not.toBeNull();
   });
 
   it("lets a real target through", () => {
-    expect(checkDirection("lose", 93, 88)).toBeNull();
-    expect(checkDirection("gain", 60, 66)).toBeNull();
+    expect(checkDirection("lose", 93, 88, "en")).toBeNull();
+    expect(checkDirection("gain", 60, 66, "en")).toBeNull();
     // A maintainer is never asked, so there is nothing to check.
-    expect(checkDirection("maintain", 93, 93)).toBeNull();
+    expect(checkDirection("maintain", 93, 93, "en")).toBeNull();
   });
 
   it("re-asks in the words of the goal it was switched to", () => {
-    expect(switchedLine("lose")).toContain("Faster isn't better");
-    expect(switchedLine("gain")).not.toContain("Faster isn't better");
+    expect(switchedLine("lose", "en")).toContain("Faster isn't better");
+    expect(switchedLine("gain", "en")).not.toContain("Faster isn't better");
   });
 
   it("agrees with the guard that will refuse it", () => {
@@ -285,23 +285,23 @@ describe("the goal weight", () => {
 describe("the support cards", () => {
   it("gives every goal its own card, with a source", () => {
     for (const goal of ["lose", "gain", "maintain"] as const) {
-      expect(GOAL_CARDS[goal].source, goal).toBeTruthy();
-      expect(GOAL_CARDS[goal].body.length).toBeGreaterThan(40);
+      expect(GOAL_CARDS("en")[goal].source, goal).toBeTruthy();
+      expect(GOAL_CARDS("en")[goal].body.length).toBeGreaterThan(40);
     }
   });
 
   it("gives every struggle a card", () => {
     for (const s of STRUGGLES) {
-      expect(struggleCard(s, "lose").title, s).not.toBe("");
-      expect(struggleCard(s, "lose").body, s).not.toBe("");
+      expect(struggleCard(s, "lose", "en").title, s).not.toBe("");
+      expect(struggleCard(s, "lose", "en").body, s).not.toBe("");
     }
   });
 
   it("never quotes the regain study at somebody gaining", () => {
     // Rule 1 as a citation rule: the meta-analysis is about weight LOSS. The gain variant says the
     // weaker thing that is true, and carries no source, because there is not one for it.
-    const losing = struggleCard("diets", "lose");
-    const gaining = struggleCard("diets", "gain");
+    const losing = struggleCard("diets", "lose", "en");
+    const gaining = struggleCard("diets", "gain", "en");
     expect(losing.source).toBeTruthy();
     expect(losing.body).toContain("80%");
     expect(gaining.source).toBeUndefined();
@@ -309,7 +309,7 @@ describe("the support cards", () => {
   });
 
   it("quotes the surplus cap from the constant that enforces it", () => {
-    expect(GAIN_PACE_CARD.body).toContain(`${Math.round(MAX_SURPLUS_SHARE * 100)}%`);
+    expect(GAIN_PACE_CARD("en").body).toContain(`${Math.round(MAX_SURPLUS_SHARE * 100)}%`);
   });
 
   it("shows at most two", () => {
@@ -317,26 +317,26 @@ describe("the support cards", () => {
   });
 
   it("closes on the number picked, and promises only what is still coming", () => {
-    expect(strugglesCloser(0)).toContain("Even better");
-    expect(strugglesCloser(1)).toContain("with that");
-    expect(strugglesCloser(3)).toContain("each of these");
+    expect(strugglesCloser(0, "en")).toContain("Even better");
+    expect(strugglesCloser(1, "en")).toContain("with that");
+    expect(strugglesCloser(3, "en")).toContain("each of these");
     // It used to promise "one more question about them" — the hardest-moment question, which is
     // gone. A closer that names a beat the flow no longer has is the flow lying about itself.
-    for (const n of [1, 3]) expect(strugglesCloser(n)).toContain("Two quick ones left");
+    for (const n of [1, 3]) expect(strugglesCloser(n, "en")).toContain("Two quick ones left");
   });
 });
 
 describe("restrictions", () => {
   it("says only what was declared gets scored", () => {
-    expect(restrictionsReply([], false).join(" ")).toContain("undeclared things never are");
+    expect(restrictionsReply([], false, "en").join(" ")).toContain("undeclared things never are");
   });
 
   it("chains the cholesterol line onto the kidney one, never alone", () => {
     // "too" and "same rule" refer to a sentence that has to be there.
-    const both = restrictionsReply(["kidneys", "ldl"], false);
+    const both = restrictionsReply(["kidneys", "ldl"], false, "en");
     expect(both[0]).toContain("Sodium");
     expect(both[1]).toContain("too");
-    const alone = restrictionsReply(["ldl"], false);
+    const alone = restrictionsReply(["ldl"], false, "en");
     expect(alone[0]).toContain("Saturated fat gets scored from here on");
     expect(alone[0]).not.toContain("too");
   });
@@ -344,27 +344,27 @@ describe("restrictions", () => {
   it("acknowledges free text without quoting it", () => {
     // The medical free text is the most sensitive thing anybody types here; it goes on the profile
     // and is never read back into a bubble.
-    const lines = restrictionsReply(["kidneys"], true).join(" ");
+    const lines = restrictionsReply(["kidneys"], true, "en").join(" ");
     expect(lines).toContain("free text");
   });
 
   it("has something to say for a tag with no scoring line of its own", () => {
-    expect(restrictionsReply(["vegan"], false)[0]).toContain("only they get scored");
+    expect(restrictionsReply(["vegan"], false, "en")[0]).toContain("only they get scored");
   });
 });
 
 describe("the plan", () => {
   it("quotes the cap from the constant for the direction taken", () => {
     const template = content.summary.capNote;
-    expect(capNote(template, "lose", null)).toContain(`${Math.round(MAX_DEFICIT_SHARE * 100)}%`);
-    expect(capNote(template, "gain", null)).toContain(`${Math.round(MAX_SURPLUS_SHARE * 100)}%`);
-    expect(capNote(template, "lose", null)).not.toContain("{share}");
+    expect(capNote(template, "lose", null, "en")).toContain(`${Math.round(MAX_DEFICIT_SHARE * 100)}%`);
+    expect(capNote(template, "gain", null, "en")).toContain(`${Math.round(MAX_SURPLUS_SHARE * 100)}%`);
+    expect(capNote(template, "lose", null, "en")).not.toContain("{share}");
   });
 
   it("names the safe outcome, not a fault, when the pace was capped", () => {
     // #676's sibling #675: a person who picked "Steady" was told "You asked to move faster than
     // would be safe". The card says what they got; it never says they asked for too much.
-    const line = capNote(content.summary.capNote, "lose", null);
+    const line = capNote(content.summary.capNote, "lose", null, "en");
     expect(line).not.toMatch(/you asked/i);
     expect(line).not.toContain("adjustment");
     expect(line).toContain("what your body burns in a day");
@@ -373,14 +373,14 @@ describe("the plan", () => {
   it("gives the resulting pace in kg a week, so a percentage isn't the only answer", () => {
     // Two independent reviews (13-14 Sep 2026, novice and veteran personas) both read the cap
     // note's percentage and still didn't know their real weekly pace.
-    const line = capNote(content.summary.capNote, "lose", 0.417);
+    const line = capNote(content.summary.capNote, "lose", 0.417, "en");
     expect(line).toContain("0.4 kg a week");
   });
 
   it("gives the first number the moment the weight lands", () => {
-    expect(weightAck(1900).join(" ")).toContain("1,900 kcal");
+    expect(weightAck(1900, "en").join(" ")).toContain("1,900 kcal");
     // And says nothing about a number that could not be computed, rather than "about null".
-    expect(weightAck(null)).toHaveLength(1);
+    expect(weightAck(null, "en")).toHaveLength(1);
   });
 });
 
@@ -388,11 +388,11 @@ describe("what the conversation never does", () => {
   const everySentence = () => {
     const out: string[] = [];
     for (const goal of ["lose", "gain", "maintain"] as const) {
-      out.push(...askLines(promptById("target_weight_kg"), content, profile({ goal })));
-      for (const s of STRUGGLES) out.push(struggleCard(s as Struggle, goal).body);
+      out.push(...askLines(promptById("target_weight_kg"), content, profile({ goal }), "en"));
+      for (const s of STRUGGLES) out.push(struggleCard(s as Struggle, goal, "en").body);
     }
-    out.push(...askLines(promptById("struggles"), content, profile()));
-    for (const n of [0, 1, 3]) out.push(strugglesCloser(n));
+    out.push(...askLines(promptById("struggles"), content, profile(), "en"));
+    for (const n of [0, 1, 3]) out.push(strugglesCloser(n, "en"));
     out.push(...Object.values(content.welcome.lines));
     return out;
   };
@@ -415,18 +415,18 @@ describe("reconcileGoalEdit", () => {
   const losing = { goal: "lose" as const, weight_kg: 94, target_weight_kg: 88 };
 
   test("a coherent edit passes straight through", () => {
-    expect(reconcileGoalEdit(losing, { target_weight_kg: 85 }))
+    expect(reconcileGoalEdit(losing, { target_weight_kg: 85 }, "en"))
       .toEqual({ patch: { target_weight_kg: 85 }, note: null });
   });
 
   test("a contradictory TARGET is refused, in the words onboarding already uses", () => {
-    const out = reconcileGoalEdit(losing, { target_weight_kg: 99 });
+    const out = reconcileGoalEdit(losing, { target_weight_kg: 99 }, "en");
     expect(out.patch).toBeNull();
     expect(out.note).toContain("that's not a loss from here");
   });
 
   test("a contradictory GOAL wins and clears the target it invalidated", () => {
-    const out = reconcileGoalEdit(losing, { goal: "gain" });
+    const out = reconcileGoalEdit(losing, { goal: "gain" }, "en");
     expect(out.patch).toEqual({ goal: "gain", target_weight_kg: null });
     expect(out.note).toContain("cleared");
   });
@@ -434,15 +434,15 @@ describe("reconcileGoalEdit", () => {
   test("WEIGHT is a fact and is always recorded, even when it strands the target", () => {
     // Someone who set out to lose from 94 to 88 and now weighs 86 has met their goal. Refusing to
     // store the scale reading because it disagrees with an old target is the app arguing with it.
-    const out = reconcileGoalEdit(losing, { weight_kg: 86 });
+    const out = reconcileGoalEdit(losing, { weight_kg: 86 }, "en");
     expect(out.patch).toEqual({ weight_kg: 86 });
     expect(out.note).toContain("worth setting a new one");
   });
 
   test("maintain has no target to contradict, and a half-filled profile is left alone", () => {
-    expect(reconcileGoalEdit({ goal: "maintain", weight_kg: 94, target_weight_kg: 88 }, { weight_kg: 99 }).note)
+    expect(reconcileGoalEdit({ goal: "maintain", weight_kg: 94, target_weight_kg: 88 }, { weight_kg: 99 }, "en").note)
       .toBeNull();
-    expect(reconcileGoalEdit({ goal: "lose", weight_kg: null, target_weight_kg: null }, { goal: "gain" }).note)
+    expect(reconcileGoalEdit({ goal: "lose", weight_kg: null, target_weight_kg: null }, { goal: "gain" }, "en").note)
       .toBeNull();
   });
 });
@@ -455,7 +455,7 @@ describe("checkNumber as the guard in front of a profile patch", () => {
   // number the calorie target is computed from, reported as a successful save.
   test("never yields a value that would reach the wire as null", () => {
     for (const raw of [".", "..", "94..", "9.4.5", "  ", "", "abc", "-", ".5.", "1e9"]) {
-      const out = checkNumber("weight_kg", raw);
+      const out = checkNumber("weight_kg", raw, "en");
       // Either refused, or salvaged into a real number — never NaN, which `JSON.stringify` turns
       // into `null`, which `patchProfile` reads as "clear this field".
       if (out.ok) {
@@ -470,8 +470,8 @@ describe("checkNumber as the guard in front of a profile patch", () => {
   });
 
   test("still takes the numbers a person actually types", () => {
-    expect(checkNumber("weight_kg", "93")).toEqual({ ok: true, value: 93 });
-    expect(checkNumber("weight_kg", "93,5")).toEqual({ ok: true, value: 93.5 });
-    expect(checkNumber("target_weight_kg", "88.4")).toEqual({ ok: true, value: 88.4 });
+    expect(checkNumber("weight_kg", "93", "en")).toEqual({ ok: true, value: 93 });
+    expect(checkNumber("weight_kg", "93,5", "en")).toEqual({ ok: true, value: 93.5 });
+    expect(checkNumber("target_weight_kg", "88.4", "en")).toEqual({ ok: true, value: 88.4 });
   });
 });
