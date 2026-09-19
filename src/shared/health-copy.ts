@@ -10,8 +10,8 @@
 // ENGLISH IS NOT REPEATED HERE. It is derived from `HEALTH_FIELDS` and `HEALTH_GROUPS`, which
 // already carry it, so there is exactly one English spelling of "Lean mass" in this repo.
 
-import { t, type Localized } from "./lang.ts";
-import { HEALTH_FIELDS, HEALTH_GROUPS } from "./health.ts";
+import { LANG_TAG, spellUnit, t, type Localized } from "./lang.ts";
+import { HEALTH_FIELDS, HEALTH_GROUPS, type HealthFieldSpec } from "./health.ts";
 import type { Lang } from "./types.ts";
 
 export interface HealthCopy {
@@ -51,6 +51,10 @@ export interface HealthCopy {
    * `{noun}`, `{first}`/`{firstAt}`, `{last}`/`{lastAt}`, `{low}`, `{high}`.
    */
   summary: { line: string; empty: string };
+  /** The five things the compare card can put against each other. Not `HEALTH_FIELDS` keys. */
+  compare: Record<"intake" | "burned" | "sleep" | "steps" | "exercise", string>;
+  /** `formatHealthValue`'s hours and minutes — the only two units it writes as words. */
+  hm: { h: string; m: string };
 }
 
 /** The English, derived rather than retyped. */
@@ -75,6 +79,8 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       months: { label: "Months", per: "month" }, years: { label: "Years", per: "year" } },
     summary: { line: "{name} by {noun}: from {first} ({firstAt}) to {last} ({lastAt}). Lowest {low}, highest {high}.",
       empty: "{name} by {noun}: nothing recorded." },
+    compare: { intake: "Intake", burned: "Burned", sleep: "Sleep", steps: "Steps", exercise: "Exercise" },
+    hm: { h: "h", m: "m" },
   },
   fr: {
     labels: labels({
@@ -96,6 +102,8 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       months: { label: "Mois", per: "mois" }, years: { label: "Années", per: "an" } },
     summary: { line: "{name} par {noun} : de {first} ({firstAt}) à {last} ({lastAt}). Minimum {low}, maximum {high}.",
       empty: "{name} par {noun} : rien d'enregistré." },
+    compare: { intake: "Apports", burned: "Dépense", sleep: "Sommeil", steps: "Pas", exercise: "Activité" },
+    hm: { h: "h", m: "min" },
   },
   de: {
     labels: labels({
@@ -117,6 +125,8 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       months: { label: "Monate", per: "Monaten" }, years: { label: "Jahre", per: "Jahren" } },
     summary: { line: "{name} nach {noun}: von {first} ({firstAt}) bis {last} ({lastAt}). Tiefstwert {low}, Höchstwert {high}.",
       empty: "{name} nach {noun}: nichts erfasst." },
+    compare: { intake: "Zufuhr", burned: "Verbrauch", sleep: "Schlaf", steps: "Schritte", exercise: "Training" },
+    hm: { h: "Std.", m: "Min." },
   },
   it: {
     labels: labels({
@@ -138,6 +148,8 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       months: { label: "Mesi", per: "mese" }, years: { label: "Anni", per: "anno" } },
     summary: { line: "{name} per {noun}: da {first} ({firstAt}) a {last} ({lastAt}). Minimo {low}, massimo {high}.",
       empty: "{name} per {noun}: nulla registrato." },
+    compare: { intake: "Assunte", burned: "Bruciate", sleep: "Sonno", steps: "Passi", exercise: "Attività" },
+    hm: { h: "h", m: "min" },
   },
   es: {
     labels: labels({
@@ -159,6 +171,8 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       months: { label: "Meses", per: "mes" }, years: { label: "Años", per: "año" } },
     summary: { line: "{name} por {noun}: de {first} ({firstAt}) a {last} ({lastAt}). Mínimo {low}, máximo {high}.",
       empty: "{name} por {noun}: nada registrado." },
+    compare: { intake: "Ingesta", burned: "Gasto", sleep: "Sueño", steps: "Pasos", exercise: "Actividad" },
+    hm: { h: "h", m: "min" },
   },
   vi: {
     labels: labels({
@@ -180,6 +194,8 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       months: { label: "Tháng", per: "tháng" }, years: { label: "Năm", per: "năm" } },
     summary: { line: "{name} theo {noun}: từ {first} ({firstAt}) đến {last} ({lastAt}). Thấp nhất {low}, cao nhất {high}.",
       empty: "{name} theo {noun}: chưa có dữ liệu." },
+    compare: { intake: "Nạp vào", burned: "Đốt cháy", sleep: "Giấc ngủ", steps: "Số bước", exercise: "Vận động" },
+    hm: { h: "giờ", m: "phút" },
   },
   id: {
     labels: labels({
@@ -201,6 +217,8 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       months: { label: "Bulan", per: "bulan" }, years: { label: "Tahun", per: "tahun" } },
     summary: { line: "{name} per {noun}: dari {first} ({firstAt}) menjadi {last} ({lastAt}). Terendah {low}, tertinggi {high}.",
       empty: "{name} per {noun}: belum ada catatan." },
+    compare: { intake: "Asupan", burned: "Terbakar", sleep: "Tidur", steps: "Langkah", exercise: "Olahraga" },
+    hm: { h: "jam", m: "mnt" },
   },
   ru: {
     labels: labels({
@@ -222,9 +240,42 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       months: { label: "Месяцы", per: "месяцам" }, years: { label: "Годы", per: "годам" } },
     summary: { line: "{name} по {noun}: с {first} ({firstAt}) до {last} ({lastAt}). Минимум {low}, максимум {high}.",
       empty: "{name} по {noun}: записей нет." },
+    compare: { intake: "Съедено", burned: "Потрачено", sleep: "Сон", steps: "Шаги", exercise: "Тренировки" },
+    hm: { h: "ч", m: "мин" },
   },
 };
 
 /** What the screen calls one metric or one group. The key itself if a binary is a version behind. */
 export const healthLabel = (key: string, lang: Lang): string =>
   t(lang)(HEALTH_COPY).labels[key] ?? key;
+
+// MOVED HERE FROM `health.ts` when it started taking a language. `health-copy.ts` already
+// imports `health.ts` to derive `EN_LABELS` from `HEALTH_FIELDS` at module scope, so the
+// import it would have needed in the other direction is a cycle whose wrong half runs first.
+/**
+ * One reading, as a person reads it.
+ *
+ * Minutes are the unit HealthKit stores sleep in and they are not a unit anybody thinks in: the
+ * screen printed "Asleep 387 min" and "In bed 427 min", which is a subtraction and a division away
+ * from the two numbers the user came for. Everything else keeps its own unit — 11 minutes of
+ * exercise is 11 minutes, and a step count is a count.
+ */
+export function formatHealthValue(
+  spec: Pick<HealthFieldSpec, "unit" | "decimals">,
+  value: number,
+  lang: Lang,
+): string {
+  // `toFixed` and a raw `spec.unit` are what this used to be, which put `93.8 kg` in front of the
+  // six languages that group with a decimal comma and `h`/`m` in front of all seven. It is also
+  // what a caller would naturally hand `trendSummary` as its `format`, so the obligation stated in
+  // that function's doc was unmeetable until this took a language.
+  const hm = t(lang)(HEALTH_COPY).hm;
+  if (spec.unit === "min" && value >= 60) {
+    const whole = Math.round(value);
+    return `${Math.floor(whole / 60)} ${hm.h} ${whole % 60} ${hm.m}`;
+  }
+  const n = new Intl.NumberFormat(LANG_TAG[lang], {
+    minimumFractionDigits: spec.decimals, maximumFractionDigits: spec.decimals,
+  }).format(value);
+  return `${n}${spec.unit ? ` ${spellUnit(lang, spec.unit)}` : ""}`;
+}

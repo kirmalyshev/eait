@@ -45,19 +45,21 @@ export async function onboardingContent(deps: EngineDeps, lang: Lang): Promise<O
 /**
  * Save admin-edited copy for ONE language, leaving the other seven exactly as they were.
  *
- * READ-MODIFY-WRITE over the whole set, because the row holds all of them. An admin editing German
- * must not be able to blank the Italian somebody else wrote this morning, and the narrowest way to
- * guarantee that is for the write to carry the languages it is not editing.
+ * THE MERGE IS THE STORE'S. This used to read the whole set, spread its own language over it and
+ * write the lot back — safe while nobody else is saving, and a lost update the moment two admins
+ * save two languages at once. `putOnboardingContent` does it with `jsonb_set` on the locked row.
  *
- * The version is assigned HERE, not accepted from the admin: it is the join key between a funnel
- * row and the words that produced it, and an admin who saves twice with the same number silently
- * merges two experiments into one meaningless average.
+ * The version is assigned by the STORE, not accepted from the admin and no longer computed here:
+ * it is the join key between a funnel row and the words that produced it, and an admin who saves
+ * twice with the same number silently merges two experiments into one meaningless average. Two
+ * concurrent saves computing it from the same read did exactly that.
  *
- * ONE COUNTER ACROSS ALL EIGHT LANGUAGES, and that is the point of `nextVersion`. Counting per
- * language would let a German save and an English save both land on 7 — two revisions, different
- * words, one number — which is the same meaningless average wearing a translation. The compiled-in
- * revisions share a number because they ARE one editorial revision; every save after that takes the
- * next number nobody has used, in whichever language it was made.
+ * ONE COUNTER ACROSS ALL EIGHT LANGUAGES. Counting per language would let a German save and an
+ * English save both land on 7 — two revisions, different words, one number, which is the same
+ * meaningless average wearing a translation. The compiled-in revisions share a number because they
+ * ARE one editorial revision; every save after that takes the next number nobody has used, in
+ * whichever language it was made. What is passed from here is only the FLOOR, which is a compiled-in
+ * constant rather than a read.
  */
 export async function saveOnboardingContent(
   deps: EngineDeps,
@@ -87,19 +89,6 @@ export async function resetOnboardingContent(deps: EngineDeps, lang: Lang): Prom
   return { ...restored, version: await deps.store.putOnboardingContent(lang, restored, floor) };
 }
 
-/**
- * The next number no revision in any language has used.
- *
- * The highest across the whole stored set, and the compiled-in revision as the floor so a first
- * save never lands on the number the shipped copy already carries.
- */
-function nextVersion(lang: Lang, stored: unknown): number {
-  const set = storedContentSet(stored);
-  const versions = Object.values(set)
-    .map((c) => c?.version)
-    .filter((v): v is number => typeof v === "number");
-  return Math.max(onboardingContentFor(lang).version, ...versions) + 1;
-}
 
 /**
  * Accept a batch of funnel events.
@@ -205,7 +194,7 @@ export interface AdminMetricsView extends AdminMetrics {
 /** The funnel, in the order the screens are actually shown. */
 export async function onboardingFunnel(deps: EngineDeps, days: number): Promise<OnboardingFunnel> {
   const agg = await deps.store.onboardingFunnel(days);
-  // THE NEWEST REVISION IN ANY LANGUAGE, because the counter is one counter (`nextVersion`) and
+  // THE NEWEST REVISION IN ANY LANGUAGE, because the counter is one counter (`store.putOnboardingContent`) and
   // this row names which words the numbers below were collected against. Reading English's alone
   // would report a stale number on a host whose last edit was German.
   const set = storedContentSet(await deps.store.getOnboardingContent());

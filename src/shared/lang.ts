@@ -163,6 +163,9 @@ const UNIT_SPELLING: Partial<Record<Lang, Record<string, string>>> = {
         kcal: "ккал", "ml/kg/min": "мл/кг/мин" },
   // Only the two that are WORDS rather than symbols. `kg`, `cm`, `km`, `ms`, `%` and
   // `ml/kg/min` are the same in both, and de/fr/it/es need nothing at all.
+  // `bpm` is the one unit here that is not an SI symbol but an abbreviated PHRASE, so it is
+  // the one that translates. Spanish writes `latidos por minuto`; fr/it/de all use `bpm`.
+  es: { bpm: "lpm" },
   vi: { min: "phút", bpm: "nhịp/phút" },
   id: { min: "menit", bpm: "denyut/menit" },
 };

@@ -2,6 +2,8 @@
 // what it means are the pieces of the client's stream path that can be tested without a phone.
 
 import { OUTCOME_UNKNOWN, REFUSAL_STATUS, type ErrorResponse, type PhotoEvent } from "./contract.ts";
+import { streamCopyFor } from "./chat-copy.ts";
+import type { Lang } from "./types.ts";
 import { isRefusal, type Refusal } from "./results.ts";
 import type { MealItem } from "./types.ts";
 
@@ -62,14 +64,14 @@ export function advancePending(p: PendingPhoto, e: PhotoEvent): PendingPhoto {
  * whichever arrived first, and a schema retry still holds a row. The stream carries nothing between
  * the last row and the answer, so there is no later step to show — the card replaces the line.
  */
-export function pendingLine(p: PendingPhoto): string {
-  return p.items.length > 0 ? "Weighing portions…" : p.glance ?? "Reading the plate…";
+export function pendingLine(p: PendingPhoto, lang: Lang): string {
+  const copy = streamCopyFor(lang);
+  return p.items.length > 0 ? copy.weighing : p.glance ?? copy.reading;
 }
 
-const PENDING_STEPS = ["Reading the plate", "Naming what's on it", "Weighing portions", "Checking against your plan"] as const;
-
 /** The analyzer's steps as the card lists them: what is done, what is happening, what is left (#663). */
-export function pendingSteps(p: PendingPhoto): { label: string; state: "done" | "now" | "next" }[] {
+export function pendingSteps(p: PendingPhoto, lang: Lang): { label: string; state: "done" | "now" | "next" }[] {
   const at = p.items.length > 0 ? 2 : p.glance !== null ? 1 : 0;
-  return PENDING_STEPS.map((label, i) => ({ label, state: i < at ? "done" : i === at ? "now" : "next" }));
+  return streamCopyFor(lang).steps.map((label, i) =>
+    ({ label, state: i < at ? "done" : i === at ? "now" : "next" }));
 }

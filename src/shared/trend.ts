@@ -308,14 +308,22 @@ export function metricSeries(days: readonly HealthDay[], metric: HealthMetric): 
  * health fields and have no spec of their own.
  */
 export const COMPARE_SERIES = [
-  { id: "intake", label: "Intake", unit: "kcal", decimals: 0 },
-  { id: "burned", label: "Burned", unit: "kcal", decimals: 0 },
-  { id: "sleep", label: "Sleep", unit: "min", decimals: 0 },
-  { id: "steps", label: "Steps", unit: "", decimals: 0 },
-  { id: "exercise", label: "Exercise", unit: "min", decimals: 0 },
+  { id: "intake", unit: "kcal", decimals: 0 },
+  { id: "burned", unit: "kcal", decimals: 0 },
+  { id: "sleep", unit: "min", decimals: 0 },
+  { id: "steps", unit: "", decimals: 0 },
+  { id: "exercise", unit: "min", decimals: 0 },
 ] as const;
 
 export type CompareSeriesId = (typeof COMPARE_SERIES)[number]["id"];
+
+/**
+ * The same five WITH their words. A function of the language for `trendPeriods`'s reason, and it
+ * had the same defect: five English literals in an ordinary `as const`, which `localizedGaps`
+ * cannot see because a record of strings is not a `Localized` table.
+ */
+export const compareSeriesLabels = (lang: Lang): readonly { id: CompareSeriesId; label: string; unit: string; decimals: number }[] =>
+  COMPARE_SERIES.map((c) => ({ ...c, label: t(lang)(HEALTH_COPY).compare[c.id] }));
 
 /**
  * One compare series, as daily points.

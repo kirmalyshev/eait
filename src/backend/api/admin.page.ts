@@ -353,7 +353,10 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   }
 
   /** A copy path with the language on it. Every read and write of copy goes through this. */
-  function atLang(path) { return path + (path.indexOf("?") === -1 ? "?" : "&") + "lang=" + encodeURIComponent(lang); }
+  // ASKED, not lang: while a switch is in flight the two differ, and every request of that load
+  // must carry the language being loaded rather than the one still on screen.
+  var asked = lang;
+  function atLang(path) { return path + (path.indexOf("?") === -1 ? "?" : "&") + "lang=" + encodeURIComponent(asked); }
 
   function status(msg) { $("status").textContent = msg; }
 
@@ -1137,7 +1140,8 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
   // ── Wiring ─────────────────────────────────────────────────────────────────────────────────
 
-  function load() {
+  function load(which) {
+    asked = which || lang;
     return api("GET", atLang("/admin/api/content")).then(function (res) {
       content = res.content;
       meta = res.meta;
@@ -1151,7 +1155,8 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       //
       // NO BACKTICKS ANYWHERE IN THIS FILE: it is one template literal, and one in a comment ends
       // it. The server then fails to start, which is how this comment learned its own rule.
-      lang = res.lang || "en";
+      lang = res.lang || asked || "en";
+      asked = lang;
       langs = res.langs || [];
       labels = res.labels || {};
       renderLangs();
@@ -1181,13 +1186,37 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   }
 
   $("lang").addEventListener("change", function () {
-    lang = $("lang").value;
-    status("loading " + (labels[lang] || lang) + "…");
-    // A full reload rather than a swap of the content object: the notification copy is per language
-    // too, and two half-loaded editors on one page is how an admin saves German into Italian.
-    load().then(function () { status(labels[lang] || lang); })
-      .catch(function (e) { status("failed: " + e.message); });
+    // THE GLOBAL IS NOT TOUCHED UNTIL THE LOAD RESOLVES, and the controls are dead while it runs.
+    //
+    // A full reload rather than a swap of the content object, because the notification copy is per
+    // language too and two half-loaded editors on one page is how an admin saves German into
+    // Italian. But assigning "lang" first left exactly that window open the other way round:
+    // "content" still held the previous language for six round trips, and Save reads both globals,
+    // so a press in that window PUT the German document at ?lang=it. It passes every gate below —
+    // the payload is a valid OnboardingContent — so it lands, versions, and serves German to every
+    // Italian phone. Worse, a rejected load left "lang" moved and "content" stale for good.
+    var next = $("lang").value;
+    var was = lang;
+    disable(true);
+    status("loading " + (labels[next] || next) + "…");
+    load(next).then(function () {
+      status(labels[lang] || lang);
+    }).catch(function (e) {
+      // Put BOTH back where the data still is, or the page lies about what Save would write.
+      asked = was;
+      $("lang").value = was;
+      status("failed: " + e.message);
+    }).then(function () { disable(false); });
   });
+
+  /** Everything that reads "lang" and "content" together, off while the two can disagree. */
+  function disable(off) {
+    var ids = ["lang", "save", "reset", "reload", "save-notify", "reset-notify"];
+    for (var i = 0; i < ids.length; i++) {
+      var el = $(ids[i]);
+      if (el) el.disabled = off;
+    }
+  }
 
   function enter() {
     // Trade the /start session cookie for a bearer. A POST, because SameSite=Lax withholds the

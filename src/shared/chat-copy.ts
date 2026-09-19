@@ -494,3 +494,35 @@ export const threadCopyFor = (lang: Lang): ThreadCopy => t(lang)(THREAD_COPY);
 /** `{placeholder}` per declared key; a key with nothing to fill it is left alone, never blanked. */
 export const fillCopy = (template: string, params: Record<string, string>): string =>
   template.replace(/\{(\w+)\}/g, (whole, key: string) => params[key] ?? whole);
+
+// ── What the analyzer says while it is still thinking (#663) ────────────────────────────────
+//
+// A `Localized` TABLE rather than literals in `stream.ts`, because literals there were invisible:
+// `localizedGaps` finds a table by SHAPE, so an ordinary `as const` of English is not a gap, it is
+// not a table. The web app writes `pendingLine` straight into the DOM (`frontend/main.ts`), so a
+// German mid-photo watched "Reading the plate…" under a fully translated composer.
+
+export interface StreamCopy {
+  /** Shown while the analyzer works: the glance replaces it once there is one. */
+  reading: string;
+  weighing: string;
+  /** The four steps of the card, in order. */
+  steps: readonly [string, string, string, string];
+}
+
+const STREAM_EN: StreamCopy = { reading: "Reading the plate…", weighing: "Weighing portions…", steps: ["Reading the plate", "Naming what's on it", "Weighing portions", "Checking against your plan"] };
+const STREAM_FR: StreamCopy = { reading: "Lecture de l'assiette…", weighing: "Pesée des portions…", steps: ["Lecture de l'assiette", "Identification des aliments", "Pesée des portions", "Comparaison avec ton plan"] };
+const STREAM_DE: StreamCopy = { reading: "Teller wird gelesen…", weighing: "Portionen werden gewogen…", steps: ["Teller lesen", "Benennen, was drauf ist", "Portionen wiegen", "Mit deinem Plan abgleichen"] };
+const STREAM_IT: StreamCopy = { reading: "Lettura del piatto…", weighing: "Peso delle porzioni…", steps: ["Leggere il piatto", "Dare un nome a quello che c'è", "Pesare le porzioni", "Confronto con il tuo piano"] };
+const STREAM_ES: StreamCopy = { reading: "Leyendo el plato…", weighing: "Pesando las porciones…", steps: ["Leer el plato", "Nombrar lo que hay", "Pesar las porciones", "Comparar con tu plan"] };
+const STREAM_VI: StreamCopy = { reading: "Đang đọc đĩa ăn…", weighing: "Đang ước lượng khẩu phần…", steps: ["Đọc đĩa ăn", "Gọi tên món trong đĩa", "Ước lượng khẩu phần", "Đối chiếu với kế hoạch của bạn"] };
+const STREAM_ID: StreamCopy = { reading: "Membaca piring…", weighing: "Menimbang porsi…", steps: ["Membaca piring", "Menyebutkan isinya", "Menimbang porsi", "Membandingkan dengan rencanamu"] };
+const STREAM_RU: StreamCopy = { reading: "Читаем тарелку…", weighing: "Взвешиваем порции…", steps: ["Прочитать тарелку", "Назвать, что на ней", "Взвесить порции", "Сверить с твоим планом"] };
+
+export const STREAM_COPY: Localized<StreamCopy> = {
+  en: STREAM_EN, fr: STREAM_FR, de: STREAM_DE, it: STREAM_IT,
+  es: STREAM_ES, vi: STREAM_VI, id: STREAM_ID, ru: STREAM_RU,
+};
+
+/** The analyzer's progress words, in one language. */
+export const streamCopyFor = (lang: Lang): StreamCopy => t(lang)(STREAM_COPY);

@@ -814,7 +814,7 @@ export interface Store {
    * in the store's own guarded statements, never in a read the engine did first*.
    *
    * `floorVersion` IS A FLOOR, NOT THE ANSWER. The version is one counter across all eight languages
-   * (`nextVersion` in `engine/onboarding.ts` says why), so it has the same problem: computed from a
+   * (`saveOnboardingContent` in `engine/onboarding.ts` says why), so it has the same problem: computed from a
    * read, two concurrent saves get the same number, and two revisions with different words share one
    * funnel row. The store takes `greatest(floorVersion, highest stored + 1)` in the SAME statement
    * that writes, and RETURNS what it assigned — so the caller reports the number that is actually

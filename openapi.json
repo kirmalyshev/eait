@@ -529,6 +529,17 @@
       "get": {
         "operationId": "get_onboarding",
         "summary": "The onboarding copy this server is serving.",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "required": false,
+            "description": "A Lang code. The account's language when absent, English when unknown.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",

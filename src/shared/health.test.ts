@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
   HEALTH_FIELDS, HEALTH_GROUPS, MEAL_NUTRIENTS, aggregateDays, emptyHealthDay, fieldsWithData,
-  formatHealthValue,
   healthDayIsEmpty, healthField, mealHasNutrition, mealSyncVersion, metricTrend, sanitizeHealthDay,
   type HealthSample,
 } from "./health.ts";
+import { formatHealthValue } from "./health-copy.ts";
 
 const BERLIN = "Europe/Berlin";
 
@@ -419,19 +419,26 @@ describe("mealHasNutrition", () => {
 
 describe("formatHealthValue", () => {
   test("sleep reads as hours and minutes, not as a three-digit minute count", () => {
-    expect(formatHealthValue(healthField("asleep_minutes")!, 387)).toBe("6 h 27 m");
-    expect(formatHealthValue(healthField("in_bed_minutes")!, 427)).toBe("7 h 7 m");
+    expect(formatHealthValue(healthField("asleep_minutes")!, 387, "en")).toBe("6 h 27 m");
+    expect(formatHealthValue(healthField("in_bed_minutes")!, 427, "en")).toBe("7 h 7 m");
   });
 
   test("under an hour stays in minutes — 11 minutes of exercise is 11 minutes", () => {
-    expect(formatHealthValue(healthField("exercise_minutes")!, 11)).toBe("11 min");
-    expect(formatHealthValue(healthField("exercise_minutes")!, 59)).toBe("59 min");
-    expect(formatHealthValue(healthField("exercise_minutes")!, 60)).toBe("1 h 0 m");
+    expect(formatHealthValue(healthField("exercise_minutes")!, 11, "en")).toBe("11 min");
+    expect(formatHealthValue(healthField("exercise_minutes")!, 59, "en")).toBe("59 min");
+    expect(formatHealthValue(healthField("exercise_minutes")!, 60, "en")).toBe("1 h 0 m");
   });
 
   test("every other metric keeps its own unit and precision", () => {
-    expect(formatHealthValue(healthField("weight_kg")!, 93.75)).toBe("93.8 kg");
-    expect(formatHealthValue(healthField("steps")!, 9887)).toBe("9887");
-    expect(formatHealthValue(healthField("vo2max")!, 42.1)).toBe("42.1 ml/kg/min");
+    expect(formatHealthValue(healthField("weight_kg")!, 93.75, "en")).toBe("93.8 kg");
+    // GROUPED, like every other figure in the product — this used to be `toFixed`, so a German
+    // read `9887` under a plan card reading `1.900 kcal`.
+    expect(formatHealthValue(healthField("steps")!, 9887, "en")).toBe("9,887");
+    expect(formatHealthValue(healthField("steps")!, 9887, "de")).toBe("9.887");
+    expect(formatHealthValue(healthField("weight_kg")!, 93.75, "de")).toBe("93,8 kg");
+    // The unit is READ ALOUD inside `trendSummary`, so Russian spells it.
+    expect(formatHealthValue(healthField("weight_kg")!, 93.75, "ru")).toBe("93,8 кг");
+    expect(formatHealthValue(healthField("exercise_minutes")!, 90, "ru")).toBe("1 ч 30 мин");
+    expect(formatHealthValue(healthField("vo2max")!, 42.1, "en")).toBe("42.1 ml/kg/min");
   });
 });
