@@ -184,6 +184,33 @@ export const monthYear = (lang: Lang, at: Date): string =>
   new Intl.DateTimeFormat(LANG_TAG[lang], { month: "long", year: "numeric", timeZone: "UTC" }).format(at);
 
 /**
+ * The language tags a browser asked for, BEST FIRST.
+ *
+ * SORTED ON `q`, not merely stripped of it. Browsers do send their list in descending order, but
+ * RFC 9110 does not require it and an API client will not — and the failure is silent, because the
+ * first tag is still a real language. `en;q=0.1, de;q=0.9` served the front door in English.
+ *
+ * Here rather than in `web/start.ts` because it was there, so `api/routes.ts` hand-rolled a weaker
+ * one for the subscribe form — a header whose first entry carried a weight narrowed to English,
+ * and that is the one outbound message whose language cannot be recovered from an account. Two
+ * parsers for one header in one binary is exactly the drift `narrowLang` below was written to end.
+ */
+export function acceptLanguageTags(header: string | null | undefined): string[] {
+  return (header ?? "")
+    .split(",")
+    .map((part) => {
+      const [tag, ...params] = part.split(";");
+      const q = params.map((p) => /^\s*q=([\d.]+)\s*$/i.exec(p)?.[1]).find((v) => v !== undefined);
+      return { tag: (tag ?? "").trim(), q: q === undefined ? 1 : Number(q) };
+    })
+    .filter((e) => e.tag !== "" && e.tag !== "*" && Number.isFinite(e.q) && e.q > 0)
+    // A STABLE sort, so equal weights keep the order the client sent them in.
+    .map((e, i) => ({ ...e, i }))
+    .sort((a, b) => (b.q - a.q) || (a.i - b.i))
+    .map((e) => e.tag);
+}
+
+/**
  * A client-supplied locale, narrowed to a language this server stores. Unknown is English.
  *
  * ONE COPY, because there were three: `/v1/auth/device` narrowing a phone's locale, `/start`

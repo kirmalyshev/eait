@@ -59,8 +59,8 @@ export interface HealthCopy {
 
 /** The English, derived rather than retyped. */
 const EN_LABELS: Record<string, string> = Object.fromEntries([
-  ...HEALTH_GROUPS.map((g) => [g.id, g.label]),
-  ...HEALTH_FIELDS.map((f) => [f.key, f.label]),
+  ...HEALTH_GROUPS.map((g) => [g.id, g.enLabel]),
+  ...HEALTH_FIELDS.map((f) => [f.key, f.enLabel]),
 ]);
 
 const labels = (over: Record<string, string>): Record<string, string> => ({ ...EN_LABELS, ...over });

@@ -391,13 +391,21 @@ function contract(name: string, make: () => Promise<Store>) {
 
     it("does not count an account that has not HAD its second day yet", async () => {
       const s2 = await open();
-      await s2.upsertDeviceUser(device(), "en");
       const today = new Date().toISOString().slice(0, 10);
-      const m = await s2.adminMetrics({ days: 30, today, timezone: "UTC" });
+      // A BASELINE, because `adminMetrics` counts the WHOLE database and this suite shares one.
+      //
+      // It asserted `eligible === 0` outright, which held only on a database with no yesterday in
+      // it — so it passed on CI's fresh Postgres and failed on any developer machine from its
+      // second day onward (measured: 1530 accounts, `eligible` 1190). A gate that fails for a
+      // reason the change under test cannot affect is a gate people learn to ignore. Pre-existing;
+      // fixed here because this PR extends this suite and needs it to mean something.
+      const before = await s2.adminMetrics({ days: 30, today, timezone: "UTC" });
+      await s2.upsertDeviceUser(device(), "en");
+      const after = await s2.adminMetrics({ days: 30, today, timezone: "UTC" });
       // Signed up today. Counting it as "did not return" is what drags a retention number down as
       // a product grows, and it is the most common way one is reported wrong.
-      expect(m.d1.eligible).toBe(0);
-      expect(m.d7.eligible).toBe(0);
+      expect(after.d1.eligible).toBe(before.d1.eligible);
+      expect(after.d7.eligible).toBe(before.d7.eligible);
     });
 
     it("bounds the window whatever it is asked for", async () => {

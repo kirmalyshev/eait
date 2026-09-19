@@ -25,7 +25,7 @@ import {
   HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, type PushTokenResponse,
   type PairCodeResponse, type PendingMealsResponse,
 } from "@eait/shared";
-import { narrowLang } from "@eait/shared";
+import { acceptLanguageTags, narrowLang } from "@eait/shared";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { isCalendarDate } from "@eait/shared";
 import type { Store } from "../store.ts";
@@ -433,7 +433,7 @@ export function createRouter(
             // used for the confirmation mail and is NOT stored: `subscribers` holds an address, a
             // token and a source, and a language column would be one more thing held about
             // somebody who consented to exactly one message.
-            lang: narrowLang(req.headers.get("accept-language")?.split(",")[0]),
+            lang: narrowLang(acceptLanguageTags(req.headers.get("accept-language"))[0]),
           },
         );
         // ── Where each outcome goes, and why it is not two branches ─────────────────────────

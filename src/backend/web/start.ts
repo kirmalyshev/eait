@@ -24,7 +24,7 @@ import {
   askPlaceholder, checkDirection, checkNumber, disabledScreens, isAnswered, promptsFor,
   isRefusal, MAX_USER_LINE, renderableVerdicts, resolveCountry, ROUTES, screenForStep, screenOptions,
   suggestionFirst, switchedLine,
-  LANGS_READY, narrowLang, numbers, verdictPillLabel,
+  LANGS_READY, acceptLanguageTags, narrowLang, numbers, verdictPillLabel,
   type ChatEntry, type ChatPrompt, type Goal, type Lang, type NumberField, type OnboardingContent,
   type PatchProfileRequest, type Profile,
 } from "@eait/shared";
@@ -291,18 +291,6 @@ function questionsFor(profile: Profile, content: OnboardingContent, askCountry =
     .filter((p) => p.field !== undefined);
 }
 
-/**
- * The language tags this browser asked for, best first.
- *
- * The `q` weights are dropped rather than sorted on: browsers send the list in descending order
- * already, and a header that does not is a header whose own order is the best evidence there is.
- */
-export function acceptLanguageTags(header: string | null | undefined): string[] {
-  return (header ?? "")
-    .split(",")
-    .map((part) => part.split(";")[0]!.trim())
-    .filter((tag) => tag !== "" && tag !== "*");
-}
 
 /** A tag's region: the first two-letter subtag after the language, so "zh-Hans-CN" still answers. */
 const regionOf = (tag: string): string | undefined =>

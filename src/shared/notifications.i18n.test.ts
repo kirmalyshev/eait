@@ -37,8 +37,11 @@ describe("every language's notification copy", () => {
       const full = fillNotification(copy, "evening", { eaten: "1.100", plan: "1.900", tomorrow: "…" });
       const empty = fillNotification(copy, "evening", { plan: "1.900", tomorrow: "…" }, { empty: true });
       for (const [what, m] of [["body", full], ["emptyBody", empty]] as const) {
-        expect(m.body, `${lang}.${what}`).not.toMatch(/\{\w+\}/);
-        expect(m.title, `${lang}.${what}`).not.toMatch(/\{\w+\}/);
+        // ANY BRACE, not `\{\w+\}`. A doubled `{{plan}}` passes the validator on its inner pair,
+        // `fillNotification` replaces that pair, and the outer one reaches the lock screen around
+        // a grouped figure — which `\w` cannot match, because it does not match the `.` in `1.900`.
+        expect(m.body, `${lang}.${what}`).not.toMatch(/[{}]/);
+        expect(m.title, `${lang}.${what}`).not.toMatch(/[{}]/);
         expect(m.body, `${lang}.${what}`).toContain("1.900");
       }
     }
@@ -73,8 +76,15 @@ describe("the evening prescription", () => {
     expect(eveningPrescription(over, "de")).toContain("2.000");
   });
 
-  it("stays the English sentence when no language is given, so old callers are unchanged", () => {
+  it("says something DIFFERENT in another language, which is what the language is for", () => {
+    // This compared `eveningPrescription(on, "en")` with itself and could not fail for any
+    // implementation, including one returning "". Its title referred to a default parameter that
+    // no longer exists — the sweep in 6406de1 removed it — so it was testing nothing, twice.
     const on = { targets, totals: { kcal: 1990, protein_g: 140 }, meals: 3, goal: "maintain" as const };
-    expect(eveningPrescription(on, "en")).toBe(eveningPrescription(on, "en"));
+    const en = eveningPrescription(on, "en");
+    expect(en.length).toBeGreaterThan(0);
+    for (const lang of LANGS.filter((l) => l !== "en")) {
+      expect(eveningPrescription(on, lang), lang).not.toBe(en);
+    }
   });
 });

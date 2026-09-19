@@ -10,6 +10,7 @@ import { dateMinus, localDate, localTime } from "@eait/shared";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { remember } from "./chat.ts";
+import { LANGS, LANGS_READY } from "@eait/shared";
 import { charge } from "./caps.ts";
 import {
   appendLines, applyCorrection, attachPhotos, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
@@ -2107,5 +2108,43 @@ describe("the analysis behind a turn", () => {
     expect(opened[2]!.analysisId).toBeNull();
     // The assistant's side of a turn carries none: the line that opened it is the one that does.
     expect(lines.filter((m) => m.role === "assistant").every((m) => m.analysisId === null)).toBe(true);
+  });
+});
+
+describe("the language on the profile", () => {
+  // `PATCH /v1/profile { lang }` is the write EVERY picker in this product performs — the web
+  // app's and the phone's — and nothing tested it. `/start`'s picker posts to its own route and is
+  // covered in a browser; this is the one the two typed clients use.
+
+  it("stores a language the reader picked, and reports it back", async () => {
+    const id = await store.createUser("en");
+    const out = await patchProfile(deps, id, { lang: "de" });
+    expect(out?.ok).toBe(true);
+    expect((await store.getProfile(id))?.lang).toBe("de");
+  });
+
+  it("accepts every language LANGS_READY offers, because the picker offers them", async () => {
+    for (const lang of LANGS_READY) {
+      const id = await store.createUser("en");
+      expect((await patchProfile(deps, id, { lang }))?.ok, lang).toBe(true);
+      expect((await store.getProfile(id))?.lang, lang).toBe(lang);
+    }
+  });
+
+  it("refuses a language this server does not store, and changes nothing", async () => {
+    const id = await store.createUser("de");
+    const out = await patchProfile(deps, id, { lang: "xx" as never });
+    expect(out?.ok).toBe(false);
+    expect(out?.ok === false && out.rejected.field).toBe("lang");
+    // The refusal is total: a rejected patch must not have written the fields beside it.
+    expect((await store.getProfile(id))?.lang).toBe("de");
+  });
+
+  it("validates against LANGS and NOT LANGS_READY, which is the wider claim", async () => {
+    // `LANGS` is what the server stores and what the model answers in; `LANGS_READY` is the
+    // smaller claim about what a client can render end to end. Narrowing the write to the second
+    // would create a state device auth can reach and the user cannot re-set. They are equal today,
+    // so this asserts the RELATIONSHIP rather than a value.
+    expect(LANGS_READY.every((l) => (LANGS as readonly string[]).includes(l))).toBe(true);
   });
 });

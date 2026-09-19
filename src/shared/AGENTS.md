@@ -125,6 +125,13 @@ gets its meal names in that language.
 - **The largest text surface is in no table.** Meal names, the coach's answers, the glance and the
   follow-up chips are written by the model per turn. `languageLine` in `llm/prompt.ts` is the whole
   of what steers them, and it reaches every prompt that produces words a user reads.
+- **A `Localized` table proves a language is PRESENT, never that it is complete.** `localizedGaps`
+  stops at the table — `lang.ts` says so — so everything one level inside it is a test's job. That
+  is where the remaining holes live: `HEALTH_COPY.labels` spreads the English underneath every
+  language, so a new metric is present in all eight and correct in one (`health-copy.test.ts`
+  asserts the non-English labels DIFFER, with the genuine coincidences pinned as `lang.key` pairs);
+  and the four `Record<…>` copy maps are keyed by their id union rather than by `string`, so the
+  compiler names the language that forgets one instead of a `!` throwing inside a chat bubble.
 - **The claims gate (`claims.ts`) is English-only, and it now covers one language in eight.** It
   matches English patterns, so running it over the German passes regardless. For the COMPILED-IN
   tables that is survivable: they are translations of English that passed the gate, the English is
@@ -133,7 +140,10 @@ gets its meal names in that language.
   `?lang=` gave them seven more revisions to type into. `validateNotificationCopy` accepts a German
   push reading *Garantierter Gewichtsverlust*; the English *Guaranteed weight loss* is refused.
   A push notification arrives unasked, on a lock screen, with no review and no recall, and §5 UWG
-  is the product's own jurisdiction. Open, tracked, and named here rather than left to be
+  is the product's own jurisdiction — which is the sharp end of it: the gate's own rationale cites
+  German doctrine, and German is one of the seven languages it cannot read. THE DEFERRAL COVERS
+  BOTH WRITE PATHS, `validateOnboardingContent` and `validateNotificationCopy`, and the
+  eight-language claim set is an editorial review obligation rather than something a test holds. Open, tracked, and named here rather than left to be
   rediscovered: what would close it is per-language pattern sets, and what would falsify the
   framing is the stored surfaces losing their language dimension.
 - **THE iOS CLIENT RENDERS FROM THESE TABLES TOO, and that is why they are here rather than in the

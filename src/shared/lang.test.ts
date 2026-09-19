@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import {
   LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, genderedRussian, localizedGaps, monthYear, numbers,
-  narrowLang, spellUnit, t,
+  acceptLanguageTags, narrowLang, spellUnit, t,
   type Localized,
 } from "./lang.ts";
 
@@ -190,5 +190,22 @@ describe("narrowLang", () => {
     expect(narrowLang(null)).toBe("en");
     expect(narrowLang(undefined)).toBe("en");
     expect(narrowLang("")).toBe("en");
+  });
+});
+
+describe("acceptLanguageTags", () => {
+  it("sorts by q, because RFC 9110 does not require the client to", () => {
+    // `en;q=0.1, de;q=0.9` served the front door in English, and silently: the first tag is a
+    // real language, so nothing looked wrong.
+    expect(acceptLanguageTags("en;q=0.1, de;q=0.9")[0]).toBe("de");
+    expect(acceptLanguageTags("*;q=0.5,de;q=0.9")[0]).toBe("de");
+    expect(narrowLang(acceptLanguageTags("en;q=0.1, ru;q=0.9")[0])).toBe("ru");
+  });
+
+  it("keeps the client's own order when the weights tie, and drops what is not a language", () => {
+    expect(acceptLanguageTags("de-DE,de,en")).toEqual(["de-DE", "de", "en"]);
+    expect(acceptLanguageTags("*")).toEqual([]);
+    expect(acceptLanguageTags("de;q=0")).toEqual([]);
+    expect(acceptLanguageTags(null)).toEqual([]);
   });
 });

@@ -300,3 +300,47 @@ describe("copy is stored per language, in one row", () => {
     expect((await onboardingContent(deps, "en")).welcome.cta).toBe("Onwards");
   });
 });
+
+describe("a row an older build left behind", () => {
+  // Both store implementations MIGRATE these on write, and until now only the READ was tested —
+  // a reviewer wrote onto each shape and found the memory store spreading a JSON string into
+  // 3,724 numeric keys while Postgres repaired it, and BOTH stores accepting a German save onto a
+  // bare pre-#358 row, versioning it, and then discarding it on every read forever.
+
+  it("takes a German save onto a BARE pre-#358 revision, and serves it back", async () => {
+    // `storedContentSet` branches on a top-level `screens`, so hanging the language off the bare
+    // revision left the whole row reading as English: the save succeeded, returned a version, and
+    // was invisible. On any host that pressed Save before #358 that was every non-English save.
+    const legacy = structuredClone(DEFAULT_ONBOARDING_CONTENT);
+    legacy.welcome.cta = "Onwards";
+    const store = memoryStore({ seed: { onboardingContent: legacy } });
+    const deps = { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+
+    const saved = await saveOnboardingContent(deps, contentWith("Los geht's"), "de");
+    expect(saved.ok).toBe(true);
+    expect((await onboardingContent(deps, "de")).welcome.cta).toBe("Los geht's");
+    // ...and the English the bare row carried is still there, because it WAS the English.
+    expect((await onboardingContent(deps, "en")).welcome.cta).toBe("Onwards");
+  });
+
+  it("takes a save onto a row stored as a JSON STRING, which every deployed host holds", async () => {
+    // `${JSON.stringify(doc)}::jsonb` is a no-op cast — bun's driver already encodes a bound value
+    // — so the column held text. Spreading that scatters it character by character.
+    const legacy = structuredClone(DEFAULT_ONBOARDING_CONTENT);
+    legacy.welcome.cta = "Onwards";
+    const store = memoryStore({ seed: { onboardingContent: JSON.stringify({ en: legacy }) } });
+    const deps = { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+
+    await saveOnboardingContent(deps, contentWith("Los geht's"), "de");
+    expect((await onboardingContent(deps, "de")).welcome.cta).toBe("Los geht's");
+    expect((await onboardingContent(deps, "en")).welcome.cta).toBe("Onwards");
+    expect(Object.keys((await store.getOnboardingContent())!).sort()).toEqual(["de", "en"]);
+  });
+});
+
+/** A valid revision with one word changed, for the legacy-row tests above. */
+function contentWith(cta: string): OnboardingContent {
+  const c = structuredClone(DEFAULT_ONBOARDING_CONTENT);
+  c.welcome.cta = cta;
+  return c;
+}

@@ -67,6 +67,14 @@ describe("every language's chat copy", () => {
         expect(copy.direction[k], `${lang}.direction.${k}`).toContain("{weight}");
         expect(copy.direction[k], `${lang}.direction.${k}`).toContain("{target}");
       }
+      // THE FOUR THE SWEEP ALONE DOES NOT HOLD. The unknown-name half passes any name on the
+      // shared list, so renaming `{weight}` to `{bmr}` here was green AND rendered a literal
+      // `{bmr}` in the box the user is about to type their goal weight into. Deleting it was
+      // green too, and hard-coded one language's number.
+      expect(copy.direction.above, `${lang}.direction.above`).toContain("{weight}");
+      expect(copy.direction.below, `${lang}.direction.below`).toContain("{weight}");
+      expect(copy.underAge.endedPlaceholder, `${lang}.underAge.endedPlaceholder`).toContain("{age}");
+      expect(copy.underAge.stopped[1], `${lang}.underAge.stopped[1]`).toContain("{age}");
     }
   });
 });
