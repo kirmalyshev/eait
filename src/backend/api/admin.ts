@@ -42,7 +42,7 @@
 
 import {
   LANGS, LANG_LABEL, NOTIFICATION_IDS, NOTIFICATION_PLACEHOLDERS, ONBOARDING_SCREENS, SCREEN_FIELDS,
-  SCREEN_OPTIONS, isCalendarDate, screenIsOptional, type Lang,
+  SCREEN_OPTIONS, isCalendarDate, optionLabelIsData, screenIsOptional, type Lang,
 } from "@eait/shared";
 import {
   adminMetrics, adminUserChat, adminUserDiary, adminUsers, livePrompts, notificationCopy,
@@ -86,6 +86,11 @@ const editorLang = (url: URL): Lang => {
  * `fields` is the list the editor draws an ask box for, and it comes from `SCREEN_FIELDS` rather
  * than from whatever the stored copy happens to carry — so a question added in code shows up in the
  * admin as an empty box to fill rather than as a save that is refused for a reason nobody can see.
+ *
+ * `options` LEAVES OUT THE ONES CLDR NAMES, which today is every country but `other`. An editor
+ * that drew those boxes would be asking an admin to type fifteen country names in each of eight
+ * languages, for a label the renderer takes from the platform anyway — and the validator does not
+ * require them, so the boxes would be optional, ignored and wrong within a release.
  */
 function editorMeta() {
   return {
@@ -93,7 +98,7 @@ function editorMeta() {
       id,
       optional: screenIsOptional(id),
       fields: SCREEN_FIELDS[id],
-      options: SCREEN_OPTIONS[id] ?? [],
+      options: (SCREEN_OPTIONS[id] ?? []).filter((v) => !optionLabelIsData(id, v)),
     })),
   };
 }

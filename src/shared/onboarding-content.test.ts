@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import { LANG_LABEL } from "./lang.ts";
 import {
-  DEFAULT_ONBOARDING_CONTENT, ONBOARDING_SCREENS, SCREEN_FIELDS, SCREEN_OPTIONS,
+  DEFAULT_ONBOARDING_CONTENT, ONBOARDING_SCREENS, SCREEN_FIELDS, optionLabel, screenOptionValues,
   validateOnboardingContent,
 } from "./onboarding.ts";
 import { ONBOARDING_CONTENT, onboardingContentFor, usableContentFor } from "./onboarding-content.ts";
@@ -39,10 +39,18 @@ describe("every language's onboarding content", () => {
   });
 
   it("labels every option in every language — a blank chip is a tappable hole", () => {
+    // THROUGH THE SAME FALLBACK THE RENDERER USES, not against the stored content, because the
+    // content is no longer the only source: a country's name is CLDR's (`optionLabel`), and
+    // asserting the content carries one would demand fifteen countries in eight languages be
+    // typed by hand. What must hold is that the chip has words on it, wherever they came from.
     for (const lang of LANGS) {
       for (const screen of onboardingContentFor(lang).screens) {
-        for (const key of SCREEN_OPTIONS[screen.id] ?? []) {
-          expect(screen.options?.[key]?.label.trim(), `${lang}.${screen.id}.${key}`).toBeTruthy();
+        for (const key of screenOptionValues(screen.id, lang)) {
+          const label = screen.options?.[key]?.label ?? optionLabel(screen.id, key, lang);
+          expect(label.trim(), `${lang}.${screen.id}.${key}`).toBeTruthy();
+          // And it is a NAME, not the code falling through. `optionLabel` returns the bare value
+          // when it has nothing, which on a chip looks like a label and is not one.
+          expect(label.trim(), `${lang}.${screen.id}.${key} rendered its own code`).not.toBe(key);
         }
       }
     }

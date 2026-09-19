@@ -19,11 +19,11 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
-  AMBIGUOUS_AGE, RESTRICTION_TAGS, SCREEN_OPTIONS, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
+  AMBIGUOUS_AGE, RESTRICTION_TAGS, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
   chatCopyFor as CHAT,
   askPlaceholder, checkDirection, checkNumber, disabledScreens, isAnswered, promptsFor,
-  isRefusal, MAX_USER_LINE, renderableVerdicts, resolveCountry, ROUTES, screenForStep, screenOptions,
-  suggestionFirst, switchedLine,
+  isRefusal, MAX_USER_LINE, optionLabel, renderableVerdicts, resolveCountry, ROUTES, screenForStep,
+  screenOptions, screenOptionValues, suggestionFirst, switchedLine,
   LANGS_READY, acceptLanguageTags, narrowLang, numbers, verdictPillLabel,
   type ChatEntry, type ChatPrompt, type Goal, type Lang, type NumberField, type OnboardingContent,
   type PatchProfileRequest, type Profile,
@@ -296,14 +296,26 @@ function questionsFor(profile: Profile, content: OnboardingContent, askCountry =
 const regionOf = (tag: string): string | undefined =>
   tag.split("-").slice(1).find((part) => /^[A-Za-z]{2}$/.test(part));
 
-/** The values a choice or chips question offers, with the admin's labels on them. */
-function optionsFor(prompt: ChatPrompt, content: OnboardingContent, suggested: string | null = null): QuestionOption[] {
+/**
+ * The values a choice or chips question offers, with the admin's labels on them.
+ *
+ * A LABEL THE CONTENT DOES NOT CARRY FALLS BACK TO CLDR, not to the raw value. That is the
+ * country list: fifteen countries in eight languages is 120 strings nobody should type, so
+ * `countryLabel` names them and the content carries only `other`. An admin who writes one anyway
+ * still wins — this reads the content first.
+ */
+function optionsFor(
+  prompt: ChatPrompt,
+  content: OnboardingContent,
+  lang: Lang,
+  suggested: string | null = null,
+): QuestionOption[] {
   const screen = screenForStep(prompt.field!);
-  const values = suggestionFirst(prompt.options ?? SCREEN_OPTIONS[screen] ?? [], suggested);
+  const values = suggestionFirst(prompt.options ?? screenOptionValues(screen, lang), suggested);
   const labels = screenOptions(content, screen);
   return values.map((value) => ({
     value,
-    label: labels[value]?.label ?? value,
+    label: labels[value]?.label ?? optionLabel(screen, value, lang),
     ...(labels[value]?.hint ? { hint: labels[value]!.hint! } : {}),
   }));
 }
@@ -1077,7 +1089,7 @@ function renderQuestion(
     promptId: prompt.id,
     kind: prompt.kind === "chips" ? "chips" : prompt.kind === "number" ? "number" : "choice",
     lines: askLines(prompt, { content: content, lang: profile.lang }, profile),
-    options: prompt.kind === "number" ? [] : optionsFor(prompt, content, suggested),
+    options: prompt.kind === "number" ? [] : optionsFor(prompt, content, profile.lang, suggested),
     placeholder: askPlaceholder(prompt, content),
     error,
     actions,

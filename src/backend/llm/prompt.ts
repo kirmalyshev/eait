@@ -30,9 +30,11 @@
 // edits them.
 
 import { z } from "zod";
-import type { FoodTargets, Profile } from "@eait/shared";
+import type { CountryCode, FoodTargets, Profile } from "@eait/shared";
 import type { PortionPrior } from "../store.ts";
-import { LANG_LABEL, MAX_SUGGESTION, MAX_SUGGESTIONS, MAX_USER_LINE, narrowLang } from "@eait/shared";
+import {
+  COUNTRY_CODES, countryLabel, LANG_LABEL, MAX_SUGGESTION, MAX_SUGGESTIONS, MAX_USER_LINE, narrowLang,
+} from "@eait/shared";
 import type { CoachContext, CoachHistoryLine } from "./port.ts";
 import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "./port.ts";
 
@@ -182,7 +184,7 @@ Rules:
  * The country, when it names a place the analyzer can use.
  *
  * `other` is what `countryFromRegion` answers for a region we have not tuned for, and — with the
- * country question shipped disabled — it is what every device outside the curated three leaves on
+ * country question shipped disabled — it is what every device outside the curated list leaves on
  * the profile without anybody being asked. It is a sentinel, not a place, and a bare
  * `if (profile.country)` is true for it: both prompts read one and told the model "the user shops
  * and eats in: other", over the exact line that decides which brands and portions are expected on
@@ -191,9 +193,25 @@ Rules:
  *
  * One function for both prompts: the rule is "other is not a place", and two copies of it is one
  * prompt that eventually keeps sending the sentinel.
+ *
+ * IT ANSWERS WITH THE NAME, NOT THE CODE. `de` and `us` happen to read as countries; `it`, `at`,
+ * `id` and `ca` read as an English pronoun, a preposition, a database column and an abbreviation
+ * — dropped into an English sentence, in the one line that steers which brands and portions the
+ * model expects on the plate. "The user shops and eats in: it." is not a hint about Italy. The
+ * code is what the profile stores, `countryLabel` is what CLDR calls it, and the prompt gets the
+ * second. English because the prompt around it is English; the user's own language is handled by
+ * `languageLine`, and mixing the two is how `country: de` once produced German food names to an
+ * English reader.
  */
-const foodCountry = (profile: Profile): string | null =>
-  profile.country && profile.country !== "other" ? profile.country : null;
+const foodCountry = (profile: Profile): string | null => {
+  const code = profile.country;
+  if (!code || code === "other") return null;
+  return (COUNTRY_CODES as readonly string[]).includes(code)
+    ? countryLabel(code as CountryCode, "en")
+    // A code no longer curated, or one the phone wrote before this list grew. Passed through
+    // rather than dropped: a stale code is still a place the user told us about.
+    : code;
+};
 
 /** The user-side text for a photo turn. The image parts are attached by the provider. */
 export function buildUserText(profile: Profile, targets: FoodTargets, opts: {

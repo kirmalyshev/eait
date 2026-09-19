@@ -118,6 +118,20 @@ gets its meal names in that language.
   adjective in "you're not alone" picks a gender too; those were rephrased around the situation
   rather than the person, which is the move that works in all eight.
 
+- **A COUNTRY'S NAME IS CLDR'S, NOT COPY.** `COUNTRY_CODES` covers every market where one of the
+  eight is spoken — it was `de | gb | us | other` while the product shipped in eight languages, so
+  a Vietnamese or Indonesian reader met "so I know your supermarket, not somebody else's" above a
+  list whose only true answer was "Somewhere else". Growing it was only affordable because the
+  labels left the content: fifteen countries in eight languages is 120 strings, and our own month
+  table had Spanish, Russian and Vietnamese wrong at once before `Intl` replaced it. So
+  `countryLabel` is `Intl.DisplayNames`, `countryOptions` sorts with `Intl.Collator` because
+  Austria files under Ö in German and А in Russian, and `other` is the ONE option still written by
+  hand — it is a sentinel, not a region, and "Somewhere else" is the product's voice.
+  `optionLabelIsData` is the single predicate the validator, the admin editor and the renderer all
+  read, so none of them can disagree about which labels an admin owns. Adding a country is one
+  code in one array. And the PROMPT gets the name, never the code: `it`, `at`, `id` and `ca` read
+  as an English pronoun, a preposition, a column and an abbreviation inside the line that decides
+  which brands the analyzer expects on the plate.
 - **`LANG_LABEL` is never translated.** A list of languages written in the language the reader is
   trying to leave is the one list they cannot read. It is also what the LLM prompt names the reply
   language with (`languageLine`), because a language's own name is the same string wherever it is
@@ -178,6 +192,12 @@ gets its meal names in that language.
   `UNDER_AGE_CARD`, `UNDER_AGE_LINES`, `AMBIGUOUS_AGE`, `ACTIVITY_REPLIES`, `weightAck`,
   `strugglesCloser`, `restrictionsReply`, `belowHealthyCard`, `checkDirection`, `switchedLine`,
   `capNote`, `projectionLine`, `reconcileGoalEdit`, `checkNumber`.
+
+  *Onboarding's option chips:* `screenOptionValues(screenId, lang)` for the VALUES and
+  `content.options[value]?.label ?? optionLabel(screenId, value, lang)` for the label. Not
+  `SCREEN_OPTIONS` and not the content alone — the country list is sorted by the reader's own
+  alphabet and its names come from CLDR, so a client that indexes the constant renders fifteen
+  countries in code order and a client that trusts the content renders fourteen blanks.
 
   *Chat:* `threadCopyFor`, `scriptedLine`, `firstVerdictLines`, `runningLine`, `MEET_GABIE`,
   `COACH_STARTERS`, `oneLiveProposal`, `verdictPillLabel`, `pendingLine` / `pendingSteps`.

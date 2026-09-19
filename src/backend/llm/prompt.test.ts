@@ -5,7 +5,7 @@
 // for. One sentence in each, worded identically, is what stops that being discovered in production.
 
 import { describe, expect, it, test } from "bun:test";
-import { LANGS, LANG_LABEL } from "@eait/shared";
+import { COUNTRY_CODES, LANGS, LANG_LABEL, countryLabel } from "@eait/shared";
 import type { FoodTargets, Profile } from "@eait/shared";
 import { blankProfile } from "../store.ts";
 import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "./port.ts";
@@ -309,10 +309,26 @@ test("the untuned country is left out of both prompts, and a real one still reac
   expect(buildUserText(withCountry("other"), TARGETS)).not.toContain("shops and eats in");
   expect(buildCoachContext(coachInput({ profile: withCountry("other") }))).not.toContain("shops and eats in");
 
-  expect(buildUserText(withCountry("de"), TARGETS)).toContain("The user shops and eats in: de.");
-  expect(buildCoachContext(coachInput({ profile: withCountry("de") }))).toContain("The user shops and eats in: de.");
+  expect(buildUserText(withCountry("de"), TARGETS)).toContain("The user shops and eats in: Germany.");
+  expect(buildCoachContext(coachInput({ profile: withCountry("de") }))).toContain("The user shops and eats in: Germany.");
   // The absent case was already right and must stay that way.
   expect(buildUserText(withCountry(null), TARGETS)).not.toContain("shops and eats in");
+});
+
+// THE CODE IS NOT THE WORD, and growing the curated list is what made that bite. `de` and `us`
+// read as countries; `it`, `at`, `id` and `ca` read as an English pronoun, a preposition, a
+// database column and an abbreviation — inside an English sentence, in the one line that decides
+// which brands and portions the model expects on the plate. "The user shops and eats in: it." is
+// not a hint about Italy. The code is what the profile stores and the NAME is what the prompt
+// says, and CLDR already holds every one of them.
+test("every curated country reaches the prompt as a word, not as a code", () => {
+  for (const code of COUNTRY_CODES) {
+    if (code === "other") continue;
+    const text = buildUserText({ ...PROFILE, country: code }, TARGETS);
+    expect(text, code).toContain(`The user shops and eats in: ${countryLabel(code, "en")}.`);
+    expect(text, `${code} leaked its own code into the prompt`)
+      .not.toContain(`shops and eats in: ${code}.`);
+  }
 });
 
 describe("the language line, which is the only thing steering the largest text surface here", () => {

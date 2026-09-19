@@ -102,9 +102,6 @@ const FR: OnboardingContent = {
       asks: { country: { lines: ["Tu manges où ? Pour que je connaisse ton supermarché, pas celui d'un autre."] } },
       enabled: true,
       options: {
-        de: { label: "Allemagne" },
-        gb: { label: "Royaume-Uni" },
-        us: { label: "États-Unis" },
         other: { label: "Ailleurs" },
       },
     },
@@ -218,9 +215,6 @@ const DE: OnboardingContent = {
       asks: { country: { lines: ["Wo isst du? Damit ich deinen Supermarkt kenne und nicht irgendeinen."] } },
       enabled: true,
       options: {
-        de: { label: "Deutschland" },
-        gb: { label: "Vereinigtes Königreich" },
-        us: { label: "Vereinigte Staaten" },
         other: { label: "Woanders" },
       },
     },
@@ -334,9 +328,6 @@ const IT: OnboardingContent = {
       asks: { country: { lines: ["Dove mangi? Così conosco il tuo supermercato, non quello di qualcun altro."] } },
       enabled: true,
       options: {
-        de: { label: "Germania" },
-        gb: { label: "Regno Unito" },
-        us: { label: "Stati Uniti" },
         other: { label: "Da un'altra parte" },
       },
     },
@@ -450,9 +441,6 @@ const ES: OnboardingContent = {
       asks: { country: { lines: ["¿Dónde comes? Para conocer tu supermercado y no el de otro."] } },
       enabled: true,
       options: {
-        de: { label: "Alemania" },
-        gb: { label: "Reino Unido" },
-        us: { label: "Estados Unidos" },
         other: { label: "En otro sitio" },
       },
     },
@@ -566,9 +554,6 @@ const VI: OnboardingContent = {
       asks: { country: { lines: ["Bạn ăn ở đâu? Để mình biết siêu thị của bạn, chứ không phải của người khác."] } },
       enabled: true,
       options: {
-        de: { label: "Đức" },
-        gb: { label: "Vương quốc Anh" },
-        us: { label: "Hoa Kỳ" },
         other: { label: "Nơi khác" },
       },
     },
@@ -682,9 +667,6 @@ const ID: OnboardingContent = {
       asks: { country: { lines: ["Kamu makan di mana? Biar aku tahu supermarketmu, bukan punya orang lain."] } },
       enabled: true,
       options: {
-        de: { label: "Jerman" },
-        gb: { label: "Britania Raya" },
-        us: { label: "Amerika Serikat" },
         other: { label: "Di tempat lain" },
       },
     },
@@ -798,9 +780,6 @@ const RU: OnboardingContent = {
       asks: { country: { lines: ["Где ты ешь? Чтобы я знал твой супермаркет, а не чей-то чужой."] } },
       enabled: true,
       options: {
-        de: { label: "Германия" },
-        gb: { label: "Великобритания" },
-        us: { label: "США" },
         other: { label: "Где-то ещё" },
       },
     },
