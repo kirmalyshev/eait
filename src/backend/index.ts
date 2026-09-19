@@ -63,7 +63,10 @@ if (demo && llmArg === "real") {
 
 // The session lifetime reaches the store the same way every other setting reaches the engine: as an
 // argument from the composition root, never as a module constant either side could disagree about.
-const storeOptions = { sessionTtlMs: config.sessionTtlDays * 24 * 60 * 60 * 1000 };
+const storeOptions = {
+  sessionTtlMs: config.sessionTtlDays * 24 * 60 * 60 * 1000,
+  maxConnections: config.databaseMaxConnections,
+};
 const store: Store = demo
   ? memoryStore(storeOptions)
   : await postgresStore(config.databaseUrl, storeOptions);

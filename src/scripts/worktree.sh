@@ -31,7 +31,11 @@ EAIT_API_URL="${EAIT_API_URL:-http://127.0.0.1:8787}"
 # Slot 0's database is `eait`, which is also the compose maintenance database. `db.sh drop` in a
 # worktree that never derived would therefore drop slot 0's — see the header of that file.
 EAIT_DB_NAME="${EAIT_DB_NAME:-eait}"
-EAIT_DATABASE_URL="${EAIT_DATABASE_URL:-postgres://eait:eait@127.0.0.1:5433/$EAIT_DB_NAME}"
+# `eait_app`, not `eait`: the image's POSTGRES_USER is a SUPERUSER, and a superuser bypasses row
+# level security whatever `force` says — the backend connecting as it would make every policy in
+# store.pg.ts decorative. `src/scripts/db.sh` creates the role; `eait` stays the maintenance one.
+# Kept identical to DEFAULT_PG_BASE_URL in src/scripts/dev-env.ts.
+EAIT_DATABASE_URL="${EAIT_DATABASE_URL:-postgres://eait_app:eait@127.0.0.1:5433/$EAIT_DB_NAME}"
 # The store contract suite's database — a SECOND database per worktree, because that suite migrates
 # and writes and two of its assertions want no admin in the rows, which `./dev seed` puts in the dev
 # one. Slot 0's is `eait__test`. The warning above now covers two names: `db.sh drop` in a worktree

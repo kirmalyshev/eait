@@ -108,7 +108,13 @@ services:
     environment:
       # Composed here rather than pasted as a URL, so the password appears in exactly one variable
       # and never in a second place that drifts from it.
-      EAIT__BACKEND__DATABASE_URL: postgres://eait:${EAIT__DEPLOY__POSTGRES_PASSWORD:?set EAIT__DEPLOY__POSTGRES_PASSWORD}@db:5432/eait
+      # `eait_app`, NOT the `eait` that initdb created. That one is a SUPERUSER, and a superuser
+      # bypasses row-level security whatever the policy says and whatever `force` says — the
+      # fourteen per-user policies `store.pg.ts` applies would be inert, and it would log
+      # `row-level security is INERT` on every boot to say so. `db-init` below creates this role
+      # and gives it the database; `eait` is reached by nothing but that script.
+      EAIT__BACKEND__DATABASE_URL: postgres://eait_app:${EAIT__DEPLOY__APP_DB_PASSWORD:?set EAIT__DEPLOY__APP_DB_PASSWORD}@db:5432/eait
+      EAIT__BACKEND__DATABASE_MAX_CONNECTIONS: ${EAIT__BACKEND__DATABASE_MAX_CONNECTIONS:-25}
       # Stated rather than inherited from the image, so the port Caddy proxies to is readable here.
       EAIT__BACKEND__HOST: 0.0.0.0
       EAIT__BACKEND__PORT: 8787
@@ -188,6 +194,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      # BEFORE THE FIRST MIGRATION, not beside it. The backend creates its tables on boot, and it
+      # has to own them — so the role has to exist and hold the database before it connects at all.
+      db-init:
+        condition: service_completed_successfully
     networks: [internal]
     logging:
       # A VPS disk fills silently and then everything fails at once, Postgres included.
@@ -215,6 +225,35 @@ services:
       # is what composes the one origin.
     # It does not depend on the backend and must not: in production it never calls it. The browser
     # does, relative, through Caddy.
+    networks: [internal]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # A one-shot that runs before the backend and exits. See src/iac/db-init.sh for why the
+  # application does not connect as the superuser the image creates.
+  db-init:
+    image: postgres:17-alpine
+    # ON FAILURE, NOT `no`. The backend gates on `service_completed_successfully`, so any non-zero
+    # exit here -- a connection reset while `db` is still settling after its healthcheck flips, a
+    # `psql` hiccup -- left the backend down until somebody noticed and re-ran compose. Every
+    # statement in the script is idempotent, so a retry is free; bounded, so a REAL failure (a bad
+    # password, a refused `alter`) still stops the deploy instead of spinning forever.
+    restart: on-failure:3
+    depends_on:
+      db:
+        condition: service_healthy
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    environment:
+      PGPASSWORD: ${EAIT__DEPLOY__POSTGRES_PASSWORD:?set EAIT__DEPLOY__POSTGRES_PASSWORD}
+      EAIT__DEPLOY__APP_DB_PASSWORD: ${EAIT__DEPLOY__APP_DB_PASSWORD:?set EAIT__DEPLOY__APP_DB_PASSWORD}
+      POSTGRES_USER: eait
+      POSTGRES_DB: eait
+    volumes:
+      - ./src/iac/db-init.sh:/db-init.sh:ro
+    entrypoint: ["sh", "/db-init.sh"]
     networks: [internal]
     logging:
       driver: json-file

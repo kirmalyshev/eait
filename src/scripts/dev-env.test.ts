@@ -156,9 +156,13 @@ describe("what may be written to .env.worktree", () => {
   // would copy the collision this derivation removed, onto a machine that has worktrees.
   test("CI runs the contract suite against slot 0's derived test database", () => {
     const ci = readFileSync(new URL("../../.github/workflows/test.yml", import.meta.url), "utf8");
-    const expected = planFor(0, "main").testDbName;
-    expect(ci).toContain(`TEST_DATABASE_URL: postgres://eait:eait@127.0.0.1:5432/${expected}`);
-    expect(ci).toContain(`POSTGRES_DB: ${expected}`);
+    const plan = planFor(0, "main");
+    // The ROLE is derived too, not typed. It is `eait_app` and not the `eait` the image creates,
+    // because that one is a superuser and a superuser bypasses row-level security — CI drifting
+    // back to it would make five assertions pass for the reason they exist to refuse.
+    const role = new URL(plan.databaseUrl).username;
+    expect(ci).toContain(`TEST_DATABASE_URL: postgres://${role}:eait@127.0.0.1:5432/${plan.testDbName}`);
+    expect(ci).toContain(`POSTGRES_DB: ${plan.testDbName}`);
   });
 
   // Exported, not merely assigned: `db.sh` and `dev.sh` read these out of the environment, and a

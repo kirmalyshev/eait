@@ -11,7 +11,8 @@
 //     re-onboarded from scratch, with the real rows still sitting in the old database and nothing
 //     in any log. An empty database is indistinguishable from every user having been wiped.
 
-import { SQL } from "bun";
+import { SQL, type TransactionSQL } from "bun";
+import { AsyncLocalStorage } from "node:async_hooks";
 import type {
   DayTotals, HealthDay, Lang, MealItem, MealQuestion, MealRecord, MealVerdicts, NotificationCopy,
   OnboardingContent, Profile, Provider,
@@ -54,6 +55,118 @@ const HEALTH_UPSERT = `
 
 /** Shape check for ids that get spliced into an array literal; every id here is one we issued. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * EVERY TABLE WHOSE ROWS BELONG TO ONE ACCOUNT, and the column that says which.
+ *
+ * Row-level security is DEFENCE IN DEPTH and not a replacement for anything: every statement in
+ * this file still carries its own `user_id = ?`, and `userId` still arrives as an argument resolved
+ * from credentials. This is the second answer to the same question — the one that holds when a
+ * predicate is forgotten, widened, or written against the wrong column.
+ *
+ * `users` is here keyed on `id`, because a user row IS the account; the rest key on `user_id`.
+ * Absent on purpose, all four of them: `onboarding_content` and `notification_copy` (one row each,
+ * id = 1, the same copy for everybody), `llm_prompts` (one set of system prompts for the whole
+ * instance, admin-edited, no account anywhere near it) and `subscribers`, which has no account and
+ * must never gain one — see the note on that table and the rule in AGENTS.md.
+ *
+ * A NEW USER-SCOPED TABLE ADDS ITS LINE HERE. The test that reads the CATALOG rather than this list
+ * (`store.contract.test.ts`, "row-level security") is what makes that a rule rather than a hope: it
+ * enumerates every table carrying a `user_id` and fails naming the one that has no policy.
+ */
+export const RLS_TABLES: Readonly<Record<string, string>> = {
+  users: "id",
+  tokens: "user_id",
+  identities: "user_id",
+  meals: "user_id",
+  meal_photos: "user_id",
+  pendings: "user_id",
+  pairing_codes: "user_id",
+  portion_corrections: "user_id",
+  analyses: "user_id",
+  onboarding_events: "user_id",
+  chat_messages: "user_id",
+  push_tokens: "user_id",
+  health_days: "user_id",
+  turns: "user_id",
+};
+
+/**
+ * The policies, and the three decisions inside them.
+ *
+ * FORCE, NOT JUST ENABLE. `enable row level security` alone is decorative here, because the backend
+ * creates its own tables and therefore OWNS them, and an owner is exempt from its own policies
+ * unless they are forced. A superuser is exempt even then, which is why `src/scripts/db.sh` gives
+ * the development database to a plain `eait_app` role rather than to the image's superuser, and why
+ * the test suite refuses to claim anything while connected as a role that bypasses.
+ *
+ * THE KEY IS A TRANSACTION-LOCAL SETTING, never a session one. `Bun.sql` pools, so a connection is
+ * handed to the next caller the moment a query finishes; a session-level `app.user_id` would make
+ * them whoever set it last. The WRAPPER at the bottom of this file sets it with
+ * `set_config(…, true)` inside `pool.begin`, and it dies with the transaction — a leaked GUC is
+ * worse than no policy at all.
+ *
+ * A TRANSACTION THAT DECLARES NOTHING SEES NOTHING. `app_user_id()` is null while `app.user_id` is
+ * unset, `column = null` is null, and a policy that is not true refuses — so the DEFAULT IS DENY,
+ * and a statement reaches a row only by declaring whose row it is. That is the whole point: a read
+ * that forgets its own `user_id = ?` returns nothing rather than returning everybody.
+ *
+ * The statements that belong to no single account — resolving a user from a credential, the
+ * RevenueCat webhook, `mergeUsers` moving rows between two, the admin surface, the nightly sweeps —
+ * declare `app.unscoped` instead. That is an EXPLICIT, GREPPABLE escape and not a default: every
+ * one is named in `SCOPE`, and a reviewer can ask of each entry why it is there.
+ */
+/**
+ * Bumped whenever the policy body below changes. It is written as a comment on each policy and
+ * compared on every boot: equal means the database already carries THIS policy and the DDL is
+ * skipped entirely, which is what keeps a routine boot from taking fourteen exclusive locks.
+ * Forgetting to bump it after an edit leaves every existing database on the old policy.
+ */
+const POLICY_VERSION = "v1";
+
+const RLS_DDL = `
+-- One reader for the setting, so the policies below say what they mean and there is one place the
+-- name 'app.user_id' is written. NULLIF because current_setting answers '' (not null) for a setting
+-- that has been set and reset inside a session; both mean "nobody said".
+create or replace function app_user_id() returns uuid language sql stable as $fn$
+  select nullif(current_setting('app.user_id', true), '')::uuid
+$fn$;
+-- The escape, and it has to be a setting of its own rather than a magic user id: a sentinel uuid
+-- would be a value these tables could actually hold, and "the row owned by the sentinel" is a row
+-- somebody could go on to create.
+create or replace function app_unscoped() returns boolean language sql stable as $fn$
+  select coalesce(current_setting('app.unscoped', true), '') = 'on'
+$fn$;
+` + Object.entries(RLS_TABLES).map(([table, column]) => `
+-- GUARDED, AND THE GUARD IS THE POINT. \`alter table\` takes ACCESS EXCLUSIVE even when the flag it
+-- sets is already set, because the lock is taken before the check -- and a queued ACCESS EXCLUSIVE
+-- blocks every lock request behind it. Unguarded, this ran on all fourteen tables on every boot, so
+-- a deploy overlapping the nightly \`pg_dump\` either stalled the whole database until the dump
+-- finished or, with the \`lock_timeout\` the migration sets, failed and kept failing for that whole
+-- window. Reading pg_class and pg_policy locks neither table, so a boot with nothing to do now
+-- takes nothing and succeeds straight through a running dump.
+--
+-- THE MARKER IS A COMMENT ON THE POLICY, not the policy's existence: the body below can change, and
+-- "a policy is there" would then leave the OLD one in place for good. Change the \`using\`/\`with
+-- check\` expression and you must bump POLICY_VERSION, which is what makes every database recreate
+-- it. Still dropped and recreated rather than altered, inside the implicit transaction the whole
+-- schema string runs in, so there is no instant at which the table is live with no policy on it.
+do $do$
+begin
+  if (select relrowsecurity and relforcerowsecurity from pg_class where oid = '${table}'::regclass)
+     and (select obj_description(p.oid, 'pg_policy') from pg_policy p
+           where p.polrelid = '${table}'::regclass and p.polname = '${table}_app_user')
+         is not distinct from '${POLICY_VERSION}'
+  then return;
+  end if;
+  alter table ${table} enable row level security;
+  alter table ${table} force row level security;
+  drop policy if exists ${table}_app_user on ${table};
+  create policy ${table}_app_user on ${table}
+    using (app_unscoped() or ${column} = app_user_id())
+    with check (app_unscoped() or ${column} = app_user_id());
+  comment on policy ${table}_app_user on ${table} is '${POLICY_VERSION}';
+end $do$;`).join("\n");
 
 /**
  * The DDL `migrate()` applies, exported so a test can read what the database will accept without
@@ -585,6 +698,7 @@ create table if not exists subscribers (
   source        text not null,
   created_at    timestamptz not null default now()
 );
+${RLS_DDL}
 `;
 
 /**
@@ -808,26 +922,307 @@ function json<T>(v: unknown, fallback: T): T {
  */
 const SIGN_IN_PROVIDERS = `{${PROVIDERS.filter(signsIn).join(",")}}`;
 
+/**
+ * WHOSE ROWS EACH STORE METHOD IS ALLOWED TO TOUCH — the table that turns the policies above from a
+ * rule into an enforced one.
+ *
+ * Every method is here, and the test "every store method is classified" fails naming any that is
+ * not, so a method added later cannot quietly inherit either answer.
+ *
+ *  - a NUMBER is the argument position holding the user id. The wrapper declares that user for the
+ *    length of the call, and the database then refuses every row belonging to anybody else — which
+ *    is what makes a forgotten `user_id = ?` return nothing instead of returning the table.
+ *  - a FUNCTION is the same thing where the id arrives inside a record rather than as an argument.
+ *  - "unscoped" declares `app.unscoped` instead, and every one of them is a deliberate decision
+ *    with a reason beside it. This is the escape hatch, and it is spelled out precisely so that
+ *    adding one is an edit a reviewer sees.
+ *  - "raw" runs no transaction at all. `close` only, because it ends the pool.
+ */
+export type Scoping = number | "unscoped" | "raw" | ((args: readonly unknown[]) => unknown);
+
+export const SCOPE: Readonly<Record<string, Scoping>> = {
+  // ── Resolving WHO somebody is. None of these can name a user first: that is their output, not
+  // their input, and a credential is the only thing they are given.
+  upsertDeviceUser: "unscoped",
+  createUser: "unscoped",
+  userIdForToken: "unscoped",
+  userIdForIdentity: "unscoped",
+  identityFor: "unscoped",
+  claimPairingCode: "unscoped",
+  // A token is revoked by the token. The holder of a session is signing it out and the row is the
+  // only thing naming the account.
+  revokeToken: "unscoped",
+
+  // ── Operations that span TWO accounts, and would refuse half their own work under either one.
+  mergeUsers: "unscoped",
+  moveIdentity: "unscoped",
+  // One Expo push token is one INSTALLATION, and the upsert deliberately MOVES it between accounts
+  // when a phone signs into a different one — the invariant on `push_tokens`. Scoped to the new
+  // owner, the policy would hide the existing row and the move would become a duplicate.
+  putPushToken: "unscoped",
+
+  // ── Cross-user by definition: the admin surface, the funnel, the global budget.
+  hasAdmin: "unscoped",
+  adminListUsers: "unscoped",
+  adminMetrics: "unscoped",
+  onboardingFunnel: "unscoped",
+  countGlobalAnalyses: "unscoped",
+  usersWithPushTokens: "unscoped",
+
+  // ── Sweeps. Global by definition — scoped to one user they would sweep one user.
+  forgetTurnOutcomes: "unscoped",
+  pruneExpiredTokens: "unscoped",
+  pruneExpiredPendings: "unscoped",
+  pruneHealthDaysBefore: "unscoped",
+  pruneUnconfirmedSubscribers: "unscoped",
+
+  // ── Rows belonging to nobody: the single-row admin copy, and the mailing list, which has no
+  // account and must never gain one.
+  getOnboardingContent: "unscoped",
+  putOnboardingContent: "unscoped",
+  // The six system prompts. One set for the whole instance, admin-edited, no account anywhere.
+  getPrompts: "unscoped",
+  putPrompt: "unscoped",
+  promptRevisions: "unscoped",
+  getNotificationCopy: "unscoped",
+  putNotificationCopy: "unscoped",
+  addSubscriber: "unscoped",
+  confirmSubscriber: "unscoped",
+  removeSubscriber: "unscoped",
+  countSubscribersSince: "unscoped",
+
+  // ── The pool itself.
+  close: "raw",
+
+  // ── Everything else names its user, and almost always first.
+  issueToken: 0,
+  revokeTokensFor: 0,
+  addIdentity: 0,
+  setIdentityEmail: 0,
+  removeIdentity: 0,
+  listIdentities: 0,
+  identitySubject: 0,
+  emailForUser: 0,
+  putPairingCode: 0,
+  roleOf: 0,
+  setRole: 0,
+  getProfile: 0,
+  patchProfile: 0,
+  getEntitlement: 0,
+  // The one user id in this codebase that comes out of a request body. Declaring it is TIGHTER than
+  // not: the webhook then cannot write a row belonging to anybody but the account it names.
+  putEntitlement: 0,
+  dropPushToken: 0,
+  pushTokensFor: 0,
+  recordOnboardingEvents: 0,
+  getMeal: 0,
+  getMeals: 0,
+  updateMeal: 0,
+  deleteMeal: 0,
+  mealsForDate: 0,
+  mealsSince: 0,
+  putPhotos: 0,
+  appendPhotos: 0,
+  getPhotos: 0,
+  getPhoto: 0,
+  totalsSince: 0,
+  recordPortionCorrections: 0,
+  portionPriors: 0,
+  appendChat: 0,
+  chatBefore: 0,
+  countUserChat: 0,
+  getLine: 0,
+  photoLineFor: 0,
+  deleteLine: 0,
+  deleteMealLines: 0,
+  updateLineText: 0,
+  claimFirstVerdict: 0,
+  releaseFirstVerdict: 0,
+  getPending: 0,
+  pendingsFor: 0,
+  dropPending: 0,
+  countUserPhotos: 0,
+  countUserAnalyses: 0,
+  getFreeAnalyses: 0,
+  setFreeAnalyses: 0,
+  recordAnalysis: 0,
+  addCost: 0,
+  analysisCosts: 0,
+  undoAnalysis: 0,
+  putHealthDays: 0,
+  healthDaysSince: 0,
+  claimTurn: 0,
+  getTurn: 0,
+  settleTurn: 0,
+  // The cascade takes tokens, meals, photos, the thread and the rest with the row. Referential
+  // actions bypass row security by design, so scoping this to the account being erased is safe.
+  deleteUser: 0,
+
+  // ── The id arrives inside the record rather than beside it.
+  insertMeal: (args) => (args[0] as { user_id: string }).user_id,
+  putPending: (args) => (args[0] as { userId: string }).userId,
+};
+
 export async function postgresStore(
   databaseUrl: string,
   opts: StoreOptions = {},
 ): Promise<Store> {
-  // Ten, explicitly. The image's `max_connections` is 100 and this is a single-process backend, so
-  // ten is generous for the workload and leaves room for a `psql` and the nightly `pg_dump` that
-  // cron runs — both of which want a connection at a moment nobody chose.
-  const sql = new SQL(databaseUrl, { max: opts.maxConnections ?? 10 });
-  await sql.unsafe(SCHEMA);
-  // `gen_random_bytes` is pgcrypto's. Requested only here, and only on the upgrade path — a fresh
-  // database mints its tokens in TypeScript like every other one and needs no extension at all.
-  await sql.unsafe(`create extension if not exists pgcrypto`).catch(() => {
-    // A managed Postgres may refuse the extension to a non-superuser. The migration below is the
-    // only thing that wants it, so this is fatal ONLY on a host that has rows to migrate — and
-    // there the next statement says so with the right error rather than this one.
-  });
-  await sql.unsafe(SUBSCRIBER_MIGRATION);
+  // The fallback only: `EAIT__BACKEND__DATABASE_MAX_CONNECTIONS` is where this is set, and
+  // `index.ts` passes it in. Twenty-five, and it was ten until the policies arrived. That is not
+  // arbitrary tuning: every
+  // method below now runs inside a transaction for its whole duration, so this is a ceiling on
+  // in-flight store CALLS where it used to be one on in-flight statements. Callers that fan out --
+  // `engine/chat.ts` and `engine/entitlement.ts` each await two store calls at once -- turned ten
+  // into about five concurrent requests. The image's `max_connections` is 100 and this is a
+  // single-process backend, so twenty-five still leaves room for a `psql` and the nightly
+  // `pg_dump` that cron runs, both of which want a connection at a moment nobody chose.
+  const pool = new SQL(databaseUrl, { max: opts.maxConnections ?? 25 });
+
+  /**
+   * THE CONNECTION THE CURRENT CALL IS ON, or the pool when there is no call in progress.
+   *
+   * Under a deny-by-default policy a statement has to run on the connection that declared the user,
+   * and there are ninety-nine of them below written against `sql`. Rather than thread a transaction
+   * through every one — a rename that would touch this whole file and be wrong in exactly one place
+   * — `sql` IS the current connection: a proxy that forwards each call to whatever transaction the
+   * wrapper put in async context, and to the pool outside one.
+   *
+   * `AsyncLocalStorage` is what makes that safe under concurrency. Two requests interleaving hold
+   * different contexts, so neither can reach the other's transaction; a module-level variable
+   * would be the same bug as a session-level GUC, one level up.
+   */
+  const active = new AsyncLocalStorage<TransactionSQL>();
+  const sql = new Proxy(function () {} as unknown as SQL, {
+    apply: (_t, _this, args: unknown[]) =>
+      (active.getStore() ?? pool)(...(args as Parameters<SQL>)),
+    get: (_t, prop: string) => {
+      const conn = (active.getStore() ?? pool) as unknown as Record<string, unknown>;
+      const value = conn[prop];
+      return typeof value === "function" ? value.bind(conn) : value;
+    },
+  }) as SQL;
+
+  /**
+   * The transaction a multi-statement operation needs, reusing the one it is already inside.
+   *
+   * Every method reaches its body through the wrapper below, which has already opened a transaction
+   * and declared the user — so this joins it. Bun REFUSES a `begin` on a transaction (it is not a
+   * savepoint), which is why these read through here rather than calling `sql.begin` directly.
+   */
+  const inTx = <T>(body: (tx: TransactionSQL) => Promise<T>): Promise<T> => {
+    const current = active.getStore();
+    if (current) return body(current);
+    return pool.begin((tx) => active.run(tx, () => body(tx))) as Promise<T>;
+  };
+
+  // THE MIGRATION RUNS UNSCOPED, ON A CONNECTION THAT IS THEN THROWN AWAY.
+  //
+  // The DDL itself is indifferent to row security, but the BACKFILLS are not: the blocks below
+  // carry `update` statements that repair old rows, and on a database that already has the policies
+  // — which is every database from the second boot onwards — an undeclared `update` matches nothing
+  // and reports success. A migration that silently touches zero rows is the exact failure this
+  // repository has been bitten by before, and it would be invisible until somebody read the data.
+  //
+  // Its own connection, ended in the `finally`, rather than a pooled one: the setting is
+  // session-level, so anything that inherited this connection afterwards would inherit the escape
+  // with it. Closing it is what makes that impossible even if the migration throws.
+  const migrator = new SQL(databaseUrl, { max: 1 });
+  try {
+    await migrator`select set_config('app.unscoped', 'on', false)`;
+    // FAIL FAST RATHER THAN QUEUE. The policy DDL is `alter table … enable/force row level
+    // security` plus a `drop`/`create policy` per table, and each takes ACCESS EXCLUSIVE -- where
+    // the rest of this schema is `create … if not exists`, which takes nothing on an object that
+    // is already there. A queued ACCESS EXCLUSIVE request also blocks every lock request behind
+    // it, so a deploy landing while the nightly `pg_dump` holds ACCESS SHARE would stall reads and
+    // writes on all fourteen tables for the length of the dump. With a timeout the migration
+    // errors instead, the container exits, and `restart: unless-stopped` brings it back to try
+    // again -- a bounded stall and a loud log in place of an unbounded silent one.
+    await migrator`select set_config('lock_timeout', '5s', false)`;
+    await migrator.unsafe(SCHEMA);
+    // `gen_random_bytes` is pgcrypto's. Requested only here, and only on the upgrade path — a fresh
+    // database mints its tokens in TypeScript like every other one and needs no extension at all.
+    await migrator.unsafe(`create extension if not exists pgcrypto`).catch(() => {
+      // A managed Postgres may refuse the extension to a non-superuser. The migration below is the
+      // only thing that wants it, so this is fatal ONLY on a host that has rows to migrate — and
+      // there the next statement says so with the right error rather than this one.
+    });
+    await migrator.unsafe(SUBSCRIBER_MIGRATION);
+  } finally {
+    await migrator.end();
+  }
+
+  // IS THE SECOND LOCK ACTUALLY LOCKED? A superuser — and a role with BYPASSRLS — reads and writes
+  // every row whatever a policy says, so on such a connection the DDL above is decorative and
+  // nothing in the running product would ever say so. This is the one place that can tell: the
+  // development stack is handled (`src/scripts/db.sh` gives the database to a plain `eait_app`),
+  // and the deployed one is configured outside this repository.
+  //
+  // SAID, NOT REFUSED. The server ran for months with no policies at all, and an inert second lock
+  // is not a reason to refuse to start and take the product down on a deploy — it is a reason for
+  // the line to be in the log of every boot until somebody fixes the role.
+  // EVERY role this one is a member of, not just its own attributes. `BYPASSRLS` is inherited
+  // through `grant <role> to eait_app`, so asking only about `rolname = current_user` would stay
+  // silent in exactly the case this check exists for -- a managed host, or one well-meant `grant`
+  // on the box, leaving all fourteen policies inert with nothing in the log.
+  const [rls] = await pool`
+    select bool_or(rolsuper or rolbypassrls) as bypasses, current_user as rolname
+    from pg_roles where pg_has_role(current_user, oid, 'usage')`;
+  if (rls?.bypasses) {
+    console.error(
+      `[eait] row-level security is INERT: this connection is ${rls.rolname}, which bypasses it ` +
+      `(superuser or BYPASSRLS). The per-user policies are applied but can refuse nothing. ` +
+      `Connect as an ordinary role that owns the database.`,
+    );
+  }
 
   const sessionTtlMs = opts.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS;
   const now = opts.now ?? Date.now;
+
+  /**
+   * ONE STATEMENT INSIDE A SCOPED CALL THAT IS GLOBAL BY DEFINITION.
+   *
+   * Almost nothing needs this: a method that belongs to no account says so in `SCOPE` and is
+   * wrapped unscoped from the start. This is for the other shape — a method that IS one user's
+   * (`issueToken` is) and carries one statement that is not (its sweep of the whole `tokens`
+   * table). Scoped, that sweep would only ever clear the minting user's own rows, and the table
+   * would grow forever on everybody who never comes back — which is the exact thing it exists to
+   * prevent.
+   *
+   * Restored in a `finally`, and restored rather than left on, so the escape lasts one statement
+   * instead of the rest of the transaction.
+   */
+  const unscoped = async <T>(body: () => Promise<T>): Promise<T> => {
+    const conn = active.getStore();
+    // REFUSED, not run anyway. Off a transaction there is nothing to set the escape on, so the
+    // body would go to the pool declaring neither a user nor the escape -- every policy refuses,
+    // the sweep deletes nothing, and it all reports success. That is the exact silent denial this
+    // design exists to make loud, so it is an error rather than a quiet zero. Every caller today
+    // reaches here through the wrapper, which always opens one; this is for the next one.
+    if (!conn) {
+      throw new Error("[eait] unscoped() called outside a store transaction: nothing would be declared");
+    }
+    // The PREVIOUS value, not `off`. A method that is itself "unscoped" reaches here through a
+    // helper -- `pruneExpiredTokens` does, via `prune` -- and restoring `off` would leave the rest
+    // of ITS transaction scoped to a user it never declared, which matches nothing and reports
+    // success. That is the silent-denial failure these policies exist to make loud, arriving by
+    // the back door.
+    const before = await conn`select coalesce(current_setting('app.unscoped', true), '') as v`;
+    const previous = String(before[0]?.v ?? "");
+    await conn`select set_config('app.unscoped', 'on', true)`;
+    try {
+      return await body();
+    } finally {
+      // SWALLOWED, DELIBERATELY, and only here. If `body()` failed with a Postgres error the
+      // transaction is already aborted, so this restore throws `25P02` on its way out -- and a
+      // `finally` that throws REPLACES the pending exception, so the deadlock or lock timeout that
+      // actually happened would reach the caller and the log as "current transaction is aborted".
+      // On that path the setting dies with the transaction anyway, so there is nothing to restore.
+      try {
+        await conn`select set_config('app.unscoped', ${previous}, true)`;
+      } catch { /* the transaction is going away; the original error is the one worth having */ }
+    }
+  };
+
 
   /**
    * Delete every token idle past its lifetime, and say how many.
@@ -840,16 +1235,22 @@ export async function postgresStore(
     // `coalesce(ttl_ms, …)` rather than one cutoff for the whole table: a row may carry its own
     // lifetime (#407), and a sweep that used the store's would leave a short-lived token in the
     // table for six months after it stopped working.
-    const rows = await sql`
+    //
+    // EXPLICITLY UNSCOPED, because `issueToken` reaches here inside ONE user's scope and this
+    // sweep is the whole table's. See `unscoped` above for why that is not the same mistake the
+    // policies exist to catch.
+    const rows = await unscoped(async () => await sql`
       delete from tokens
       where last_used_at + make_interval(secs => coalesce(ttl_ms, ${sessionTtlMs}) / 1000.0)
             <= ${new Date(now())}
-      returning token_hash`;
+      returning token_hash`);
     return rows.length;
   };
 
-  // Declared before the store object so the sync below can be the LAST thing this function does.
-  const store: Store = {
+  // Declared before the store object so the prompt sync below can be the LAST thing this
+  // function does — and wrapped before that, so the sync goes through a scoped store like
+  // every other caller rather than around it.
+  const methods: Store = {
     async upsertDeviceUser(deviceId, lang: Lang) {
       const found = await sql`select id from users where device_id = ${deviceId}`;
       let userId: string;
@@ -908,6 +1309,13 @@ export async function postgresStore(
                 values (${await hashToken(token)}, ${userId}, ${at}, ${at}, ${ttlMs ?? null})`;
       // Minting is rare — a first launch, a sign-in, a 401 recovery — so this is the one write path
       // that can afford to sweep, and it means the table stays bounded without a scheduler.
+      //
+      // LAST, DELIBERATELY. Inside the per-call transaction the wrapper opens, the row locks this
+      // takes on other accounts' expired rows are held until COMMIT, where an autocommit statement
+      // released them at once. Keeping it last makes that window the commit itself. Giving the
+      // sweep its OWN connection would shorten it further and was rejected: a method that holds one
+      // pooled connection while waiting for a second deadlocks the whole pool at saturation, which
+      // is a worse failure than brief contention over rows that are already expired.
       await prune();
       return token;
     },
@@ -973,15 +1381,24 @@ export async function postgresStore(
       await sql`insert into identities (provider, subject, user_id)
                 values (${provider}, ${subject}, ${userId})
                 on conflict (provider, subject) do nothing`;
-      const rows = await sql`
-        select user_id from identities where provider = ${provider} and subject = ${subject}`;
-      if (String(rows[0].user_id) !== userId) {
+      // THE READ-BACK IS UNSCOPED, because the row it has to find belongs to somebody else. That
+      // is the entire case this method exists for, and scoped it is the one case that cannot work:
+      // the policy hides the conflicting row, the result is empty, and the refusal below became a
+      // `TypeError` on `rows[0]` -- an opaque 500 where a domain error was owed, and a divergence
+      // from `store.memory.ts`, which refuses properly.
+      const rows = await unscoped(async () => await sql`
+        select user_id from identities where provider = ${provider} and subject = ${subject}`);
+      if (String(rows[0]?.user_id) !== userId) {
         throw new Error("identity already linked to another account");
       }
     },
 
     async moveIdentity(userId, provider, subject) {
-      return await sql.begin(async (tx) => {
+      // `SCOPE: "unscoped"`, and the reason is the whole point of the method: the row it moves
+      // belongs to the OTHER account until the update lands, so a transaction that declared this
+      // user would be shown no row, insert a second one, and hit the primary key. Like
+      // `mergeUsers`, this spans two accounts and therefore names neither.
+      return await inTx(async (tx) => {
         // The account taking the identity, locked first — the same lock `removeIdentity` takes, so
         // the two serialise against each other and against a sign-in linking a second provider.
         await tx`select 1 from users where id = ${userId} for update`;
@@ -1011,10 +1428,11 @@ export async function postgresStore(
       // One transaction, for the reason `mergeUsers` has one: the removal and the "was that the
       // last way in" test are a single decision, and a delivery that interleaves between them
       // deletes an account somebody can still reach.
-      return await sql.begin(async (tx) => {
+      return await inTx(async (tx) => {
         // The account row, LOCKED, before anything is read or written.
         //
-        // `sql.begin` is READ COMMITTED, where every statement takes a fresh snapshot and another
+        // The transaction this call runs in is READ COMMITTED, where every statement takes a fresh
+        // snapshot and another
         // transaction's uncommitted delete is still visible. Without this line the `not exists`
         // below sees a row a concurrent removal has already deleted, both removals conclude
         // something is still linked, and the account survives with no identity on it — which no
@@ -1163,6 +1581,12 @@ export async function postgresStore(
       // `analyses.date` is already written on. Counting signups by their UTC date and analyses by
       // their local one puts the two columns of one row on different days, and the gap shows up
       // only as a row that does not add up, in the hours either side of midnight.
+      // AWAITED TOGETHER, RUN ONE AFTER ANOTHER. `sql` is the transaction this call opened, and one
+      // connection runs one statement at a time, so this is the sum of the queries and not the max
+      // of them — it was the max before the policies, when `sql` was the pool. Kept as it is: the
+      // alternative is a method that holds its own connection while acquiring five more, which at
+      // saturation is the pool deadlock this file already refuses elsewhere, bought for an admin
+      // page nobody loads in a loop.
       const [signups, activations, spent] = await Promise.all([
         sql`select (created_at at time zone ${timezone})::date::text as d, count(*)::int as n
               from users
@@ -1209,6 +1633,7 @@ export async function postgresStore(
         return { eligible: num(rows[0]?.eligible), returned: num(rows[0]?.returned) };
       };
 
+      // Sequential, like the three above and for the same reason.
       const [d1, d7] = await Promise.all([cohort(1), cohort(7)]);
       return {
         // EVERY DAY GETS A ROW, including the empty ones. A `group by` produces no row for a day
@@ -1238,7 +1663,7 @@ export async function postgresStore(
     async mergeUsers(fromUserId, intoUserId) {
       // One transaction. A half-applied merge leaves meals owned by a user row that is about to be
       // deleted, and `on delete cascade` would then destroy the data this operation exists to save.
-      return await sql.begin(async (tx) => {
+      return await inTx(async (tx) => {
         const moved = await tx`
           update meals set user_id = ${intoUserId} where user_id = ${fromUserId} returning id`;
         await tx`update meal_photos set user_id = ${intoUserId} where user_id = ${fromUserId}`;
@@ -1421,7 +1846,9 @@ export async function postgresStore(
 
       // Clearing is conditional on the stored unlock having come from this same product, checked
       // inside the write rather than by the caller: a condition a caller checks with its own read
-      // is not a condition, because deliveries can be concurrent and nothing is transactional.
+      // is not a condition, because deliveries can be concurrent. Every call is its own transaction
+      // now, but that changes nothing here: two deliveries are two transactions, and READ COMMITTED
+      // lets each read before either writes. The condition belongs in the write either way.
       const clearing = patch.lifetimeProductId === null;
       const rows = await sql`
         update users set
@@ -1707,7 +2134,7 @@ export async function postgresStore(
 
     async putPhotos(userId, mealId, input) {
       if (input.length === 0) return;
-      await sql.begin(async (tx) => {
+      await inTx(async (tx) => {
         const owned = await tx`select 1 from meals where id = ${mealId} and user_id = ${userId}`;
         if (owned.length === 0) return;
         for (const [i, p] of input.entries()) {
@@ -1729,7 +2156,7 @@ export async function postgresStore(
       // One transaction, and the next position is read INSIDE it: two attaches racing would
       // otherwise compute the same offset and one would lose to `on conflict do nothing`, dropping
       // a photo the user watched being taken.
-      return await sql.begin(async (tx) => {
+      return await inTx(async (tx) => {
         const owned = await tx`select 1 from meals where id = ${mealId} and user_id = ${userId} for update`;
         if (owned.length === 0) return 0;
         const held = await tx`select coalesce(max(position) + 1, 0) as next from meal_photos where meal_id = ${mealId}`;
@@ -1844,8 +2271,14 @@ export async function postgresStore(
       // The account's previous code AND every expired one, in the statement before the insert.
       // Minting is rare enough to afford the sweep and there is no scheduler in this process --
       // the same bargain `issueToken` makes with the tokens table.
-      await sql`delete from pairing_codes
-                where user_id = ${userId} or expires_at <= ${new Date(now())}`;
+      //
+      // AND EXPLICITLY UNSCOPED, for the same reason that one is. This method runs inside the
+      // minting user's scope, so under the policies the `expires_at <=` half could only ever match
+      // that user's own rows -- every other account's expired code would survive forever, in a
+      // table whose only sweep is this line. The `user_id =` half is scoped by its own predicate
+      // and does not stop being so here.
+      await unscoped(async () => await sql`delete from pairing_codes
+                where user_id = ${userId} or expires_at <= ${new Date(now())}`);
       await sql`insert into pairing_codes (code_hash, user_id, expires_at)
                 values (${codeHash}, ${userId}, ${new Date(expiresAt)})`;
     },
@@ -1895,7 +2328,7 @@ export async function postgresStore(
       // One transaction, and the account's row locked for its length: a bubble and its card land
       // together or not at all, and — because bigserial hands out numbers outside any transaction —
       // the lock is what keeps a concurrent turn of the same account from taking a seq between them.
-      await sql.begin(async (tx) => {
+      await inTx(async (tx) => {
         await tx`select id from users where id = ${userId} for update`;
         for (const line of lines) {
           await tx`
@@ -2064,7 +2497,7 @@ export async function postgresStore(
       if (days.length === 0) return 0;
       // One transaction: a partially applied batch would leave a day updated and the next one not,
       // and the phone would report a successful sync over a window it did not actually store.
-      return await sql.begin(async (tx) => {
+      return await inTx(async (tx) => {
         for (const day of days) {
           await tx.unsafe(HEALTH_UPSERT, [
             userId,
@@ -2100,9 +2533,90 @@ export async function postgresStore(
     },
 
     async close() {
-      await sql.end();
+      await pool.end();
     },
   };
+
+  /**
+   * Every method, wrapped in a transaction that says whose rows it may touch.
+   *
+   * This is the half that makes the policies bite. Without it they would be applied and inert:
+   * nothing would ever set `app.user_id`, every statement would run unscoped, and a forgotten
+   * `user_id = ?` would read the whole table exactly as it did before.
+   *
+   * An UNCLASSIFIED method is a hard error at construction rather than a silent unscoped one,
+   * because the failure it would otherwise cause is a method quietly reading everybody's rows.
+   */
+  const wrapped: Record<string, unknown> = {};
+  for (const [name, fn] of Object.entries(methods) as [string, unknown][]) {
+    if (typeof fn !== "function") { wrapped[name] = fn; continue; }
+    const how = SCOPE[name];
+    if (how === undefined) {
+      throw new Error(
+        `[eait] store method ${name} is not in SCOPE: say whose rows it may touch, in store.pg.ts`,
+      );
+    }
+    if (how === "raw") { wrapped[name] = fn; continue; }
+    const call = fn as (...args: unknown[]) => Promise<unknown>;
+    wrapped[name] = async (...args: unknown[]) => {
+      const userId = how === "unscoped" ? null
+        : typeof how === "number" ? args[how]
+        : how(args);
+      // A user-scoped method with no user to declare. The policy will refuse every row, which is
+      // the safe answer and reads as "nothing there" — so say loudly why, or it looks like data
+      // that went missing.
+      if (how !== "unscoped" && (typeof userId !== "string" || userId === "")) {
+        console.error(
+          `[eait] store.${name} ran with no user id declared (got ${typeof userId}); ` +
+          `row-level security will refuse every row it asks for`,
+        );
+      }
+      // ALREADY INSIDE A STORE CALL — one method reaching another. Joining that transaction is
+      // right: a second one would take a second connection and its own snapshot, and a method that
+      // holds one connection while waiting for another deadlocks the pool at saturation.
+      //
+      // But it DECLARES ITS OWN SCOPE inside it, and puts the caller's back afterwards. Simply
+      // running on the caller's declaration would ignore this method's `SCOPE` entry entirely —
+      // and the dangerous direction is quiet: a scoped caller reaching an "unscoped" method would
+      // give it the caller's user, so the global sweep or cross-account read it was classified for
+      // would match only that one account's rows and report success. That is the silent denial the
+      // line below throws an error to prevent. No method calls another today; this is what keeps
+      // the construction-time "every method is classified" check meaning what it says when one does.
+      const joined = active.getStore();
+      if (joined) {
+        const before = await joined`
+          select coalesce(current_setting('app.user_id', true), '') as u,
+                 coalesce(current_setting('app.unscoped', true), '') as s`;
+        const prevUser = String(before[0]?.u ?? "");
+        const prevUnscoped = String(before[0]?.s ?? "");
+        if (how === "unscoped") await joined`select set_config('app.unscoped', 'on', true)`;
+        else {
+          await joined`select set_config('app.user_id', ${typeof userId === "string" ? userId : ""}, true)`;
+          // Explicitly, because the CALLER may have been unscoped: a scoped method must not inherit
+          // the escape. A fresh transaction has neither set, which is why the path below needs one
+          // statement and this one needs two.
+          await joined`select set_config('app.unscoped', 'off', true)`;
+        }
+        try {
+          return await call(...args);
+        } finally {
+          // Best effort, for the reason `unscoped()` gives: on the error path the transaction is
+          // already aborted, and a throwing `finally` replaces the exception that actually happened.
+          try {
+            await joined`select set_config('app.user_id', ${prevUser}, true)`;
+            await joined`select set_config('app.unscoped', ${prevUnscoped}, true)`;
+          } catch { /* the transaction is going away; the original error is the one worth having */ }
+        }
+      }
+
+      return await pool.begin(async (tx) => {
+        if (how === "unscoped") await tx`select set_config('app.unscoped', 'on', true)`;
+        else await tx`select set_config('app.user_id', ${typeof userId === "string" ? userId : ""}, true)`;
+        return await active.run(tx, () => call(...args));
+      });
+    };
+  }
+  const store = wrapped as unknown as Store;
 
   // THE SHIPPED PROMPTS, BEFORE ANYTHING IS SERVED. This is the self-hosted deployment's copy of
   // what `memoryStore` does in its constructor: a clone of this repo boots holding the six prompts
