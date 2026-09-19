@@ -500,7 +500,7 @@ const VI: PageCopy = {
   chatTooLong: "Tin nhắn này dài quá, không gửi được.",
   chatRefusalNetwork: "Quá nhiều lượt từ mạng này — không phải tại bạn, mà tại kết nối này. Thử lại sau nhé.",
   chatRefusalGlobal: "Hạn mức hôm nay đã hết cho tất cả mọi người. Mai lại là một con số mới.",
-  chatRefusalDay: "Đó là lần cuối trong hôm nay — hạn mức mỗi ngày của bạn đặt lại lúc nửa đêm.",
+  chatRefusalDay: "Đó là lần cuối trong hôm nay — hạn mức mỗi ngày của bạn sẽ đặt lại lúc nửa đêm.",
   chatNoFocusCorrection: "Ở đây không có bữa nào đang mở để sửa. Mở nó trong ứng dụng, hoặc kể bạn đã ăn gì rồi ghi lại.",
   chatNoFocusRedate: "Ở đây không có bữa nào đang mở để chuyển sang ngày khác. Mở nó trong ứng dụng để đổi ngày.",
   chatNotOnboarded: "Hãy trả lời các câu hỏi lập kế hoạch trước.",

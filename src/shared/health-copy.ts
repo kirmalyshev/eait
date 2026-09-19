@@ -29,8 +29,12 @@ export interface HealthCopy {
     opposed: string;
   };
   /**
-   * The four x-axes. `label` is the control; `noun` is what a sentence calls one bucket; `per` is
-   * the form the SUMMARY needs after its preposition.
+   * The four x-axes. `label` is the control; `per` is the form the summary needs after its
+   * preposition.
+   *
+   * There is no third field. A bare `noun` was written here first, for symmetry with the English
+   * that had one, and nothing in the repo or on the phone ever read it — `trendSummary` takes
+   * `per`. Thirty-two strings in eight tables, each one a thing a translator could get wrong.
    *
    * `per` exists because Russian inflects: `по` governs the dative plural, so "by week" is
    * `по неделям` while the bucket is still `неделя`. One field cannot be both, and interpolating
@@ -38,7 +42,7 @@ export interface HealthCopy {
    * For the other seven the two happen to coincide, and they are spelled out anyway rather than
    * defaulted, so the next language to need a case has somewhere to put it.
    */
-  periods: Record<"days" | "weeks" | "months" | "years", { label: string; noun: string; per: string }>;
+  periods: Record<"days" | "weeks" | "months" | "years", { label: string; per: string }>;
   /**
    * The chart as ONE SENTENCE, for VoiceOver — a template, not fragments joined by code.
    *
@@ -67,8 +71,8 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       together: "they tend to rise together",
       opposed: "one tends to rise as the other falls",
     },
-    periods: { days: { label: "Days", noun: "day", per: "day" }, weeks: { label: "Weeks", noun: "week", per: "week" },
-      months: { label: "Months", noun: "month", per: "month" }, years: { label: "Years", noun: "year", per: "year" } },
+    periods: { days: { label: "Days", per: "day" }, weeks: { label: "Weeks", per: "week" },
+      months: { label: "Months", per: "month" }, years: { label: "Years", per: "year" } },
     summary: { line: "{name} by {noun}: from {first} ({firstAt}) to {last} ({lastAt}). Lowest {low}, highest {high}.",
       empty: "{name} by {noun}: nothing recorded." },
   },
@@ -88,8 +92,8 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       together: "ils montent plutôt ensemble",
       opposed: "l'un monte quand l'autre descend",
     },
-    periods: { days: { label: "Jours", noun: "jour", per: "jour" }, weeks: { label: "Semaines", noun: "semaine", per: "semaine" },
-      months: { label: "Mois", noun: "mois", per: "mois" }, years: { label: "Années", noun: "année", per: "année" } },
+    periods: { days: { label: "Jours", per: "jour" }, weeks: { label: "Semaines", per: "semaine" },
+      months: { label: "Mois", per: "mois" }, years: { label: "Années", per: "année" } },
     summary: { line: "{name} par {noun} : de {first} ({firstAt}) à {last} ({lastAt}). Minimum {low}, maximum {high}.",
       empty: "{name} par {noun} : rien d'enregistré." },
   },
@@ -99,7 +103,7 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       weight_kg: "Gewicht", height_cm: "Größe", body_fat_pct: "Körperfett", lean_mass_kg: "Magermasse",
       active_kcal: "Aktive Energie", resting_kcal: "Ruheenergie",
       steps: "Schritte", exercise_minutes: "Bewegung", workouts: "Einheiten", distance_km: "Strecke",
-      asleep_minutes: "Geschlafen", in_bed_minutes: "Im Bett",
+      asleep_minutes: "Schlafdauer", in_bed_minutes: "Zeit im Bett",
       resting_hr_bpm: "Ruhepuls", hrv_ms: "HRV", vo2max: "VO2max",
     }),
     correlation: {
@@ -109,8 +113,8 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       together: "sie steigen meist gemeinsam",
       opposed: "das eine steigt, während das andere fällt",
     },
-    periods: { days: { label: "Tage", noun: "Tag", per: "Tag" }, weeks: { label: "Wochen", noun: "Woche", per: "Woche" },
-      months: { label: "Monate", noun: "Monat", per: "Monat" }, years: { label: "Jahre", noun: "Jahr", per: "Jahr" } },
+    periods: { days: { label: "Tage", per: "Tag" }, weeks: { label: "Wochen", per: "Woche" },
+      months: { label: "Monate", per: "Monat" }, years: { label: "Jahre", per: "Jahr" } },
     summary: { line: "{name} pro {noun}: von {first} ({firstAt}) bis {last} ({lastAt}). Tiefstwert {low}, Höchstwert {high}.",
       empty: "{name} pro {noun}: nichts erfasst." },
   },
@@ -130,8 +134,8 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       together: "tendono a salire insieme",
       opposed: "uno sale mentre l'altro scende",
     },
-    periods: { days: { label: "Giorni", noun: "giorno", per: "giorno" }, weeks: { label: "Settimane", noun: "settimana", per: "settimana" },
-      months: { label: "Mesi", noun: "mese", per: "mese" }, years: { label: "Anni", noun: "anno", per: "anno" } },
+    periods: { days: { label: "Giorni", per: "giorno" }, weeks: { label: "Settimane", per: "settimana" },
+      months: { label: "Mesi", per: "mese" }, years: { label: "Anni", per: "anno" } },
     summary: { line: "{name} per {noun}: da {first} ({firstAt}) a {last} ({lastAt}). Minimo {low}, massimo {high}.",
       empty: "{name} per {noun}: nulla registrato." },
   },
@@ -151,8 +155,8 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       together: "suelen subir juntos",
       opposed: "uno sube mientras el otro baja",
     },
-    periods: { days: { label: "Días", noun: "día", per: "día" }, weeks: { label: "Semanas", noun: "semana", per: "semana" },
-      months: { label: "Meses", noun: "mes", per: "mes" }, years: { label: "Años", noun: "año", per: "año" } },
+    periods: { days: { label: "Días", per: "día" }, weeks: { label: "Semanas", per: "semana" },
+      months: { label: "Meses", per: "mes" }, years: { label: "Años", per: "año" } },
     summary: { line: "{name} por {noun}: de {first} ({firstAt}) a {last} ({lastAt}). Mínimo {low}, máximo {high}.",
       empty: "{name} por {noun}: nada registrado." },
   },
@@ -166,14 +170,14 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       resting_hr_bpm: "Nhịp tim lúc nghỉ", hrv_ms: "HRV", vo2max: "VO2 max",
     }),
     correlation: {
-      none: "chưa thấy liên hệ rõ",
-      sentence: "liên hệ {strength} — {direction}",
+      none: "chưa thấy mối liên hệ rõ ràng",
+      sentence: "mối liên hệ {strength} — {direction}",
       weak: "yếu", moderate: "vừa", strong: "mạnh",
       together: "hai bên thường cùng tăng",
       opposed: "bên này tăng thì bên kia giảm",
     },
-    periods: { days: { label: "Ngày", noun: "ngày", per: "ngày" }, weeks: { label: "Tuần", noun: "tuần", per: "tuần" },
-      months: { label: "Tháng", noun: "tháng", per: "tháng" }, years: { label: "Năm", noun: "năm", per: "năm" } },
+    periods: { days: { label: "Ngày", per: "ngày" }, weeks: { label: "Tuần", per: "tuần" },
+      months: { label: "Tháng", per: "tháng" }, years: { label: "Năm", per: "năm" } },
     summary: { line: "{name} theo {noun}: từ {first} ({firstAt}) đến {last} ({lastAt}). Thấp nhất {low}, cao nhất {high}.",
       empty: "{name} theo {noun}: chưa ghi gì." },
   },
@@ -193,8 +197,8 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       together: "keduanya cenderung naik bersama",
       opposed: "yang satu naik saat yang lain turun",
     },
-    periods: { days: { label: "Hari", noun: "hari", per: "hari" }, weeks: { label: "Minggu", noun: "minggu", per: "minggu" },
-      months: { label: "Bulan", noun: "bulan", per: "bulan" }, years: { label: "Tahun", noun: "tahun", per: "tahun" } },
+    periods: { days: { label: "Hari", per: "hari" }, weeks: { label: "Minggu", per: "minggu" },
+      months: { label: "Bulan", per: "bulan" }, years: { label: "Tahun", per: "tahun" } },
     summary: { line: "{name} per {noun}: dari {first} ({firstAt}) ke {last} ({lastAt}). Terendah {low}, tertinggi {high}.",
       empty: "{name} per {noun}: belum ada catatan." },
   },
@@ -204,7 +208,7 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       weight_kg: "Вес", height_cm: "Рост", body_fat_pct: "Процент жира", lean_mass_kg: "Сухая масса",
       active_kcal: "Активная энергия", resting_kcal: "Энергия покоя",
       steps: "Шаги", exercise_minutes: "Нагрузка", workouts: "Тренировки", distance_km: "Дистанция",
-      asleep_minutes: "Во сне", in_bed_minutes: "В постели",
+      asleep_minutes: "Часы сна", in_bed_minutes: "Часы в постели",
       resting_hr_bpm: "Пульс покоя", hrv_ms: "ВСР", vo2max: "МПК",
     }),
     correlation: {
@@ -214,8 +218,8 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       together: "обычно растут вместе",
       opposed: "одно растёт, пока другое падает",
     },
-    periods: { days: { label: "Дни", noun: "день", per: "дням" }, weeks: { label: "Недели", noun: "неделя", per: "неделям" },
-      months: { label: "Месяцы", noun: "месяц", per: "месяцам" }, years: { label: "Годы", noun: "год", per: "годам" } },
+    periods: { days: { label: "Дни", per: "дням" }, weeks: { label: "Недели", per: "неделям" },
+      months: { label: "Месяцы", per: "месяцам" }, years: { label: "Годы", per: "годам" } },
     summary: { line: "{name} по {noun}: с {first} ({firstAt}) до {last} ({lastAt}). Минимум {low}, максимум {high}.",
       empty: "{name} по {noun}: записей нет." },
   },

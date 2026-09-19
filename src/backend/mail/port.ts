@@ -136,7 +136,7 @@ export const CONFIRMATION: Localized<{ subject: string; lines: string[] }> = {
       "",
       "Nếu không phải bạn, cứ bỏ qua thư này. Sẽ không có gì xảy ra, và địa chỉ sẽ bị xoá trong vòng một tuần.",
       "",
-      "Một tin nhắn khi ứng dụng ra mắt, kèm nút huỷ đăng ký chỉ một lần bấm. Ngoài ra không có gì, không bao giờ.",
+      "Một email khi ứng dụng ra mắt, kèm liên kết huỷ đăng ký chỉ một lần bấm. Ngoài ra không có gì, không bao giờ.",
     ],
   },
   id: {

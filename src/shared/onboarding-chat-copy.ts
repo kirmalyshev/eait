@@ -932,7 +932,7 @@ const VI: ChatCopy = {
     },
     diets: {
       title: "Tăng lại là chuyện thường, không phải lỗi của bạn",
-      body: "Qua 29 nghiên cứu dài hạn, hơn một nửa số cân đã giảm quay lại trong vòng hai năm — hơn 80% sau năm năm. Đó là phương pháp thất bại, không phải con người. Kế hoạch của bạn ở đây được đo cho vừa sức giữ, không phải để gây ấn tượng.",
+      body: "Qua 29 nghiên cứu dài hạn, hơn một nửa số cân đã giảm quay lại trong vòng hai năm — hơn 80% trong vòng năm năm. Đó là phương pháp thất bại, không phải con người. Kế hoạch của bạn ở đây được đo cho vừa sức giữ, không phải để gây ấn tượng.",
       source: "Phân tích tổng hợp 29 nghiên cứu giảm cân tại Mỹ",
     },
     eatout: {
@@ -954,7 +954,7 @@ const VI: ChatCopy = {
   },
   dietsGainCard: {
     title: "Quay lại chỗ cũ là chuyện thường, không phải lỗi của bạn",
-    body: "Phần lớn các nỗ lực thay đổi cân nặng, theo cả hai hướng, đều đảo ngược sau vài năm — phương pháp thất bại, không phải con người. Mức dư của bạn ở đây được đo cho vừa sức giữ, không phải để gây ấn tượng.",
+    body: "Phần lớn các nỗ lực thay đổi cân nặng, theo cả hai hướng, đều đảo ngược trong vòng vài năm — phương pháp thất bại, không phải con người. Mức dư của bạn ở đây được đo cho vừa sức giữ, không phải để gây ấn tượng.",
   },
   gainPaceCard: {
     title: "Tăng tốt thì chậm, và đó là cố ý",

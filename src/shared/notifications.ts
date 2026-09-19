@@ -517,7 +517,7 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
     onPlan: "En el plan. Mañana igual.",
   },
   vi: {
-    noMeals: "Một tấm ảnh ngày mai là ngày đó trở lại bảng.",
+    noMeals: "Một tấm ảnh ngày mai, và ngày đó được tính lại.",
     over: "Hôm nay vượt {over} — ngày mai lại bắt đầu từ {plan}.",
     protein: "Đạm còn thiếu {gap} g — trứng hoặc sữa chua Hy Lạp buổi sáng là đủ bù.",
     gainUnder: "Thiếu {under} kcal so với kế hoạch — ngày mai một nắm hạt là đủ.",
@@ -525,8 +525,8 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
     onPlan: "Đúng kế hoạch. Ngày mai cứ vậy.",
   },
   id: {
-    noMeals: "Satu foto besok mengembalikan hari itu ke papan.",
-    over: "Hari ini lebih {over} — besok mulai lagi dari {plan}.",
+    noMeals: "Satu foto besok, dan hari itu terhitung lagi.",
+    over: "Hari ini {over} di atas — besok mulai lagi dari {plan}.",
     protein: "Protein kurang {gap} g — telur atau yoghurt Yunani saat sarapan menutupnya.",
     gainUnder: "Kurang {under} kcal dari rencana — segenggam kacang besok sudah cukup.",
     under: "Kurang {under} dari rencana — besok makan angka penuhnya itu rencananya, bukan kesalahan.",

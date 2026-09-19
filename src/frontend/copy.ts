@@ -458,7 +458,7 @@ const VI: WebCopy = {
   notSaved: "Không lưu được trên máy này, và cũng chưa gửi đi. Thử lại nhé.",
   refusals: {
     "subscription-required": "Số lượt phân tích đi kèm tài khoản này đã dùng hết. Đăng ký trong ứng dụng eait để tiếp tục.",
-    "cap-user": "Đó là lần cuối trong hôm nay — hạn mức mỗi ngày của bạn đặt lại lúc nửa đêm.",
+    "cap-user": "Đó là lần cuối trong hôm nay — hạn mức mỗi ngày của bạn sẽ đặt lại lúc nửa đêm.",
     "cap-global": "Hạn mức hôm nay đã hết cho tất cả mọi người. Mai lại là một con số mới.",
     "cap-address": "Quá nhiều lượt từ mạng này — không phải tại bạn, mà tại kết nối này. Thử lại sau nhé.",
     "rate-limited": "Quá nhiều lượt từ mạng này — không phải tại bạn, mà tại kết nối này. Thử lại sau nhé.",
