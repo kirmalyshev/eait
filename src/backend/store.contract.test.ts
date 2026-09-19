@@ -21,6 +21,11 @@
 // was one fixed `eait_test`, so every worktree following the instructions ran a MIGRATING, WRITING
 // suite against one database. Three branches in flight meant three test runs in each other's rows.
 //
+// AND THAT URL NAMES `eait_app`, NOT `eait`. The container's POSTGRES_USER is a superuser and a
+// superuser reads every row whatever a policy says, so the row-level-security suite at the bottom
+// asserts the connecting role bypasses nothing before it asserts anything else — an RLS test that
+// passes as a superuser passed because nothing was ever asked.
+//
 // A DATABASE OF ITS OWN, and NOT this worktree's dev one. Two assertions here are about a database
 // with NO admin in it (`hasAdmin`), and `./dev seed` writes one — so pointing this at the database
 // you develop against fails those two and nothing else, which reads like a broken store rather
@@ -32,7 +37,7 @@ import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, emptyHealthDay, 
 import { PROMPT_DEFAULTS, PROMPT_KEYS } from "./llm/prompt.ts";
 import { hashToken } from "./auth/tokens.ts";
 import { memoryStore } from "./store.memory.ts";
-import { postgresStore } from "./store.pg.ts";
+import { RLS_TABLES, SCOPE, postgresStore } from "./store.pg.ts";
 import type { Store, StoreOptions } from "./store.ts";
 
 const PG_URL = process.env.TEST_DATABASE_URL;
@@ -56,6 +61,26 @@ const meal = (userId: string, over: Partial<MealRecord> = {}): MealRecord => ({
 });
 
 const device = () => crypto.randomUUID() + crypto.randomUUID();
+
+/**
+ * A raw connection for the handful of tests that look at the TABLE rather than through the store.
+ *
+ * ONE connection, and it declares `app.unscoped` for the whole session. Under the deny-by-default
+ * policies a direct `select` declares nobody and is answered with nothing — which is the point of
+ * them, since an operator holding psql is exactly the reader they refuse. These tests are asserting
+ * what a DUMP would contain, so they ask the question a dump asks.
+ */
+const rawSql = async (): Promise<SQL> => {
+  // ONE connection, always. A session-level setting lands on the connection that ran it, so on a
+  // pool of two the next statement gets an even chance of a connection that never heard it — which
+  // shows up as a write that silently affected no rows.
+  const sql = new SQL(PG_URL!, { max: 1 });
+  // Session-level, not `local`: this pool belongs to one test and is ended with it, so there is no
+  // later caller for it to leak to — the thing `set_config(…, true)` exists to prevent everywhere
+  // else in this codebase.
+  await sql`select set_config('app.unscoped', 'on', false)`;
+  return sql;
+};
 
 /**
  * Postgres persists between runs, so every fixture that is not scoped to a fresh user must be
@@ -1500,7 +1525,10 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.userIdForIdentity("telegram", id)).toBe(u);
       expect(await s.userIdForIdentity("apple", id)).toBeNull();
       expect((await s.listIdentities(u)).map((i) => i.provider)).toContain("telegram");
-      expect(s.addIdentity(other, "telegram", id)).rejects.toThrow();
+      // AWAITED, and on the MESSAGE. An un-awaited `.rejects` asserts nothing at all, and a bare
+      // `toThrow()` is satisfied by the `TypeError` that a policy-filtered read-back produces --
+      // which is how this refusal broke once without a test noticing.
+      await expect(s.addIdentity(other, "telegram", id)).rejects.toThrow("identity already linked to another account");
     });
 
     // #205's `telegram` provider is a TRANSPORT, not a way in: nothing about it can put somebody
@@ -1575,7 +1603,7 @@ function contract(name: string, make: () => Promise<Store>) {
       const a = (await s.upsertDeviceUser(device(), "en")).userId;
       const b = (await s.upsertDeviceUser(device(), "en")).userId;
       await s.addIdentity(a, "apple", subject("contested"));
-      expect(s.addIdentity(b, "apple", subject("contested"))).rejects.toThrow();
+      await expect(s.addIdentity(b, "apple", subject("contested"))).rejects.toThrow("identity already linked to another account");
       expect(await s.userIdForIdentity("apple", subject("contested"))).toBe(a);
     });
 
@@ -2418,6 +2446,12 @@ function pairingCodes(name: string, make: (opts: StoreOptions) => Promise<Store>
       // Somebody else's mint is what sweeps it. Nothing here calls a prune method, because there
       // is not one: minting is rare and is the write path that can afford the sweep.
       await s.putPairingCode(mine, await codeHash(), clock + 60_000);
+
+      // AND THE CLOCK GOES BACK, which is the whole assertion. Claiming while it is still expired
+      // answers null whether the row was swept or merely refused, so asking that way proves the
+      // sweep ran only if the sweep was never going to be the thing that broke. Wound back to when
+      // the code was live, a row that survived resolves to its account and says so.
+      clock -= 61_000;
       expect(await s.claimPairingCode(abandoned)).toBeNull();
     });
 
@@ -2457,7 +2491,7 @@ if (PG_URL) {
       const code = crypto.randomUUID().slice(0, 8).toUpperCase();
       await s.putPairingCode(userId, await hashToken(code), Date.now() + 60_000);
 
-      const sql = new SQL(PG_URL, { max: TEST_POOL });
+      const sql = await rawSql();
       try {
         const columns = (await sql`
           select column_name from information_schema.columns
@@ -2491,7 +2525,7 @@ if (PG_URL) {
       const { userId } = await s.upsertDeviceUser(device(), "en");
       const token = await s.issueToken(userId);
 
-      const sql = new SQL(PG_URL, { max: TEST_POOL });
+      const sql = await rawSql();
       try {
         const columns = (await sql`
           select column_name from information_schema.columns
@@ -2523,7 +2557,7 @@ if (PG_URL) {
     // finished by then. Without this test the migration is a block of SQL that has only ever run on
     // a database where its `if` was false — which is to say, never.
     it("carries a plaintext-token host across without signing anybody out", async () => {
-      const sql = new SQL(PG_URL, { max: TEST_POOL });
+      const sql = await rawSql();
       const seed = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
       const { userId } = await seed.upsertDeviceUser(device(), "en");
       await seed.close();
@@ -2570,7 +2604,7 @@ if (PG_URL) {
       // flow that was live at the time and said what it would do; leaving them pending would mean
       // deleting genuine signups within the week without ever asking, which is a worse answer to
       // the same question. docs/DEPLOY.md names the decision.
-      const sql = new SQL(PG_URL, { max: TEST_POOL });
+      const sql = await rawSql();
       try {
         await sql`drop table if exists subscribers`;
         await sql.unsafe(`create table subscribers (
@@ -2619,7 +2653,7 @@ if (PG_URL) {
     // Constructing the store IS the migration — `postgresStore` runs the schema before it returns,
     // so building one again is what a redeploy does.
     const migrate = () => postgresStore(PG_URL, { maxConnections: 2 });
-    const fresh = async () => ({ sql: new SQL(PG_URL, { max: 2 }), store: await migrate() });
+    const fresh = async () => ({ sql: await rawSql(), store: await migrate() });
 
     it("restores an unlock that was stored as a null expiry", async () => {
       const { sql, store } = await fresh();
@@ -2732,5 +2766,284 @@ if (PG_URL) {
       expect((await store.getEntitlement(userId))?.lifetimeProductId).toBeNull();
       await sql.end();
     });
+  });
+}
+
+// ── Row-level security ─────────────────────────────────────────────────────────────────────────
+//
+// Postgres-only by definition, so it is proven here rather than in the shared `contract` suite —
+// `store.memory.ts` is a real implementation of the port and has no database to enable a policy on.
+//
+// WHAT THESE PROVE THAT THE SUITE ABOVE DOES NOT. Every assertion in `contract` goes through a
+// store method, and every store method carries `user_id = ?` in its own SQL — so it re-proves the
+// application filter and nothing else. These go around it: a raw connection, a query with NO
+// `user_id` predicate or with the WRONG one, and the question is whether the DATABASE refuses.
+//
+// The first case is the one that keeps the rest honest. A superuser — and `eait`, the image's
+// POSTGRES_USER, is one — bypasses row-level security silently, `force` or not. Connected as one,
+// every assertion below would pass because nothing was ever asked.
+if (PG_URL) {
+  describe("row-level security — postgres", () => {
+    let sql: SQL | null = null;
+    let store: Store | null = null;
+    const open = async () => {
+      if (!store) {
+        store = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
+        sql = new SQL(PG_URL, { max: TEST_POOL });
+      }
+      return { sql: sql!, store: store! };
+    };
+    afterAll(async () => { await store?.close(); await sql?.end(); });
+
+    it("connects as a role the policies actually apply to", async () => {
+      const { sql } = await open();
+      const [role] = await sql`
+        select rolname, rolsuper, rolbypassrls from pg_roles where rolname = current_user`;
+      expect({
+        why: "a superuser or a BYPASSRLS role reads every row whatever the policy says — re-derive this worktree (./dev env setup) and point TEST_DATABASE_URL at the URL ./dev env show prints",
+        rolname: role.rolname,
+        rolsuper: role.rolsuper,
+        rolbypassrls: role.rolbypassrls,
+      }).toMatchObject({ rolsuper: false, rolbypassrls: false });
+    });
+
+    it("hides another account's meals from a query that carries no user_id at all", async () => {
+      const { sql, store } = await open();
+      const a = (await store.upsertDeviceUser(device(), "en")).userId;
+      const b = (await store.upsertDeviceUser(device(), "en")).userId;
+      const mineId = crypto.randomUUID();
+      const theirsId = crypto.randomUUID();
+      await store.insertMeal(meal(a, { id: mineId, date: `rls-${RUN}` }));
+      await store.insertMeal(meal(b, { id: theirsId, date: `rls-${RUN}` }));
+
+      // No `where user_id = …` anywhere below. The transaction says who it is once, and the
+      // database is what applies it.
+      const seen = await sql.begin(async (tx) => {
+        await tx`select set_config('app.user_id', ${a}, true)`;
+        const all = await tx`select id, user_id from meals where date = ${`rls-${RUN}`}`;
+        const askedForTheirs = await tx`select id from meals where user_id = ${b}`;
+        const byId = await tx`select id from meals where id = ${theirsId}`;
+        return { all, askedForTheirs, byId };
+      });
+
+      expect(seen.all.map((r: { id: string }) => r.id)).toEqual([mineId]);
+      // Naming the other account explicitly does not widen it either — the policy is an AND with
+      // whatever the query asked for, never an OR.
+      expect(seen.askedForTheirs).toHaveLength(0);
+      // And neither does holding their row's primary key, which is the shape a leaked id takes.
+      expect(seen.byId).toHaveLength(0);
+    });
+
+    it("refuses a write that would put a row on another account", async () => {
+      const { sql, store } = await open();
+      const a = (await store.upsertDeviceUser(device(), "en")).userId;
+      const b = (await store.upsertDeviceUser(device(), "en")).userId;
+
+      let refused: unknown = null;
+      try {
+        await sql.begin(async (tx) => {
+          await tx`select set_config('app.user_id', ${a}, true)`;
+          await tx`
+            insert into meals (id, user_id, ts, date, kcal)
+            values (${crypto.randomUUID()}, ${b}, now(), ${`rls-${RUN}`}, 1)`;
+        });
+      } catch (e) {
+        refused = e;
+      }
+      expect(String((refused as Error | null)?.message)).toMatch(/row-level security/i);
+    });
+
+    it("lets the setting die with its transaction, so a pooled connection carries nothing over", async () => {
+      // ONE connection, and the backend pid asserted alongside the setting. `Bun.sql` hands the
+      // next caller whichever connection is free, not the one just released — measured: a `max: 2`
+      // pool answered the second query on a DIFFERENT pid, where "nothing is set" is true of a
+      // connection that never had anything set and the assertion proves nothing at all.
+      const one = new SQL(PG_URL, { max: 1 });
+      try {
+        const inside = await one.begin(async (tx) => {
+          await tx`select set_config('app.user_id', ${crypto.randomUUID()}, true)`;
+          const [row] = await tx`
+            select current_setting('app.user_id', true) as v, pg_backend_pid() as pid`;
+          return { v: row.v as string | null, pid: String(row.pid) };
+        });
+        expect(inside.v).toMatch(/^[0-9a-f-]{36}$/);
+
+        // THE POINT OF `local = true`. `Bun.sql` pools, so this connection is handed to whoever asks
+        // next; a session-level setting would make them that user.
+        const [after] = await one`
+          select current_setting('app.user_id', true) as v, pg_backend_pid() as pid`;
+        expect(String(after.pid)).toBe(inside.pid);
+        expect(after.v ?? "").toBe("");
+      } finally {
+        await one.end();
+      }
+    });
+
+    it("reads NOTHING on a connection that declares nobody", async () => {
+      const { store } = await open();
+      const a = (await store.upsertDeviceUser(device(), "en")).userId;
+      await store.insertMeal(meal(a, { date: `strict-${RUN}` }));
+      await store.appendChat(a, [{ role: "user", kind: "text", text: "hello" }] as never);
+
+      // No `set_config` of any kind — the shape every statement in this codebase had before the
+      // store started declaring one, and the shape a method missing from `SCOPE` would have.
+      const bare = new SQL(PG_URL!, { max: 1 });
+      try {
+        const counts: Record<string, number> = {};
+        for (const table of ["meals", "users", "chat_messages", "tokens", "identities"]) {
+          const [row] = await bare.unsafe(`select count(*)::int as n from ${table}`);
+          counts[table] = Number(row.n);
+        }
+        // Every one of these tables has rows — the suite above wrote them.
+        expect(counts).toEqual({ meals: 0, users: 0, chat_messages: 0, tokens: 0, identities: 0 });
+
+        // And the rows really are there, to whoever says who they are.
+        const [mine] = await bare.begin(async (tx) => {
+          await tx`select set_config('app.user_id', ${a}, true)`;
+          return await tx`select count(*)::int as n from meals`;
+        });
+        expect(Number(mine.n)).toBeGreaterThan(0);
+      } finally {
+        await bare.end();
+      }
+    });
+
+    it("writes NOTHING on a connection that declares nobody", async () => {
+      const { store } = await open();
+      const a = (await store.upsertDeviceUser(device(), "en")).userId;
+      const bare = new SQL(PG_URL!, { max: 1 });
+      try {
+        // try/catch rather than `expect(...).rejects`: a Bun tagged-template query is a lazy
+        // thenable, and `.rejects` does not settle one — the assertion simply times out.
+        let refused: unknown = null;
+        try {
+          await bare`
+            insert into meals (id, user_id, ts, date, kcal)
+            values (${crypto.randomUUID()}, ${a}, now(), ${`strict-${RUN}`}, 1)`;
+        } catch (e) {
+          refused = e;
+        }
+        expect(String((refused as Error | null)?.message)).toMatch(/row-level security/i);
+      } finally {
+        await bare.end();
+      }
+    });
+
+    /**
+     * THE BACKUP MUST RUN AS THE SUPERUSER, and this is the test that says so.
+     *
+     * `force row level security` applies to the table's owner, and the backend now OWNS these
+     * tables as `eait_app`. `pg_dump` sets `row_security = off`, which Postgres refuses outright
+     * from a role that cannot bypass — so a nightly dump pointed at the application role fails
+     * every night. The repair somebody reaches for, `--enable-row-security`, is worse: the dump
+     * session declares no `app.user_id`, so it exits 0 and writes a file with NO ROWS IN IT, and
+     * the deploy's own check asserts only that the file IS a dump. `deploy/backup.sh` connects as
+     * the superuser `eait` for exactly this reason (`src/backend/AGENTS.md`).
+     */
+    it("refuses a dump taken as the application role, and hands back nothing if forced", async () => {
+      const { store } = await open();
+      const a = (await store.upsertDeviceUser(device(), "en")).userId;
+      await store.insertMeal(meal(a, { date: `dump-${RUN}` }));
+
+      const bare = new SQL(PG_URL!, { max: 1 });
+      try {
+        // What `pg_dump` does by default.
+        await bare`set row_security = off`;
+        let refused: unknown = null;
+        try {
+          await bare`select count(*) from meals`;
+        } catch (e) {
+          refused = e;
+        }
+        expect(String((refused as Error | null)?.message)).toMatch(/row-level security/i);
+
+        // What `pg_dump --enable-row-security` does: succeeds, and backs up nothing at all.
+        await bare`set row_security = on`;
+        const [row] = await bare`select count(*)::int as n from meals`;
+        expect(Number(row.n)).toBe(0);
+      } finally {
+        await bare.end();
+      }
+    });
+
+    // ── The check that keeps the OTHER half true: what each method is allowed to touch ──────────
+    //
+    // The policies are only as good as the declaring. A method that reaches the database without
+    // saying whose rows it wants is refused everything — safe, but it reads as data that has gone
+    // missing, so nothing may be left unclassified by accident.
+    it("classifies every store method, and no more than exist", async () => {
+      const { store } = await open();
+      const methods = Object.entries(store)
+        .filter(([, v]) => typeof v === "function")
+        .map(([k]) => k)
+        .sort();
+
+      const unclassified = methods.filter((m) => SCOPE[m] === undefined);
+      expect(unclassified).toEqual([]);
+
+      // And the other direction, so a method that is renamed or deleted does not leave a rule
+      // behind that reads as though it still governs something.
+      const stale = Object.keys(SCOPE).filter((m) => !methods.includes(m)).sort();
+      expect(stale).toEqual([]);
+    });
+
+    it("keeps the unscoped escape to the set that was argued for", async () => {
+      // Named in full rather than counted: adding one is then a visible edit to this list with a
+      // reviewer on it, which is the only thing standing between "deliberate exception" and
+      // "the easiest way to make a failing test pass".
+      const unscoped = Object.entries(SCOPE)
+        .filter(([, how]) => how === "unscoped")
+        .map(([name]) => name)
+        .sort();
+      expect(unscoped).toEqual([
+        "addSubscriber", "adminListUsers", "adminMetrics", "claimPairingCode", "confirmSubscriber",
+        "countGlobalAnalyses", "countSubscribersSince", "createUser", "forgetTurnOutcomes",
+        "getNotificationCopy", "getOnboardingContent", "getPrompts", "hasAdmin", "identityFor",
+        "mergeUsers", "moveIdentity", "onboardingFunnel", "promptRevisions", "pruneExpiredPendings",
+        "pruneExpiredTokens", "pruneHealthDaysBefore", "pruneUnconfirmedSubscribers",
+        "putNotificationCopy", "putOnboardingContent", "putPrompt", "putPushToken",
+        "removeSubscriber", "revokeToken", "upsertDeviceUser", "userIdForIdentity",
+        "userIdForToken", "usersWithPushTokens",
+      ]);
+    });
+
+    // ── The check that keeps the rule true after the rule is written ───────────────────────────
+    //
+    // Reads the CATALOG, not a list in this file: a new user-scoped table added by any later change
+    // is covered the moment it exists, and this fails naming it rather than passing quietly.
+    it("has RLS enabled, forced, and a policy on every user-scoped table", async () => {
+      const { sql } = await open();
+      const rows = await sql`
+        select c.relname                            as table,
+               c.relrowsecurity                     as enabled,
+               c.relforcerowsecurity                as forced,
+               (select count(*) from pg_policies p
+                 where p.schemaname = 'public' and p.tablename = c.relname) as policies
+        from pg_class c
+        join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'public' and c.relkind = 'r'
+          and (c.relname = 'users' or exists (
+            select 1 from information_schema.columns col
+            where col.table_schema = 'public' and col.table_name = c.relname
+              and col.column_name = 'user_id'))
+        order by c.relname`;
+
+      // A catalog query that matched nothing -- or matched one table FEWER than the list it is
+      // guarding -- would make every assertion below vacuous. Derived from `RLS_TABLES` rather
+      // than written as a number, because a hardcoded floor is how a dropped or renamed table
+      // slips out of the query and out of this check at the same time.
+      expect(rows.map((r: Record<string, unknown>) => String(r.table)).sort())
+        .toEqual(Object.keys(RLS_TABLES).sort());
+
+      const offenders = rows
+        .filter((r: Record<string, unknown>) => !r.enabled || !r.forced || Number(r.policies) === 0)
+        .map((r: Record<string, unknown>) =>
+          `${r.table} (enabled=${r.enabled}, forced=${r.forced}, policies=${r.policies})`);
+      expect(offenders).toEqual([]);
+    });
+  });
+} else {
+  describe("row-level security — postgres", () => {
+    it.skip("SKIPPED: set TEST_DATABASE_URL to run against real Postgres", () => {});
   });
 }
