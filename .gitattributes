@@ -1,0 +1,6 @@
+# Generated, and COMMITTED — `openapi.json` sets the precedent and the reason is the same: an
+# entry point that is not `bun run check` still has to find the artefact. The browser suite runs
+# `bun run web:e2e` straight after `bun install`, so a catalog that only exists after codegen is a
+# server that will not boot in CI. Marked generated so it collapses in a review instead.
+src/shared/locales/*/messages.ts linguist-generated=true
+openapi.json                     linguist-generated=true

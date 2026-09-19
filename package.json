@@ -18,10 +18,11 @@
     "web:e2e": "playwright test",
     "typecheck": "bun run --cwd src/shared typecheck && bun run --cwd src/backend typecheck && bun run --cwd src/frontend typecheck && tsc -p src/scripts",
     "test": "bun test ./src",
-    "check": "bun run i18n:compile && bun run typecheck && bun run web:build && bun run test && bun run openapi --check",
+    "check": "bun run i18n:check && bun run typecheck && bun run web:build && bun run test && bun run openapi --check",
     "openapi": "bun run src/scripts/openapi.ts",
     "i18n:extract": "lingui extract",
-    "i18n:compile": "lingui compile --strict"
+    "i18n:compile": "lingui compile --strict",
+    "i18n:check": "lingui compile --strict && git diff --exit-code -- src/shared/locales"
   },
   "devDependencies": {
     "@lingui/cli": "^6.7.0",

@@ -1,0 +1,1 @@
+/*eslint-disable*/import type{Messages}from"@lingui/core";export const messages=JSON.parse("{\"verdict.bad\":[[\"noun\"],\" — rất cao\"],\"verdict.good\":[[\"noun\"],\" — đúng kế hoạch\"],\"verdict.noun.kidneys\":[\"Natri\"],\"verdict.noun.ldl\":[\"Chất béo bão hoà\"],\"verdict.noun.weight\":[\"Calo\"],\"verdict.warn\":[[\"noun\"],\" — cao\"]}")as Messages;
