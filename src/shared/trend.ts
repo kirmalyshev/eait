@@ -96,15 +96,20 @@ const monthShort = (lang: Lang) =>
 export function trendBuckets(
   period: TrendPeriod, today: string, days: number, lang: Lang, oldestRow?: string,
 ): TrendBucket[] {
-  const dayAxis = dayMonth(lang);
-  const monthAxis = monthShort(lang);
+  // CONSTRUCTED INSIDE THE BRANCH THAT USES IT. Both were built on every call, and `monthAxis` is
+  // read by one branch of four — measured at 0.076 ms of `trendBuckets`'s 0.189 ms, so this is
+  // tidiness rather than a fix. Not hoisted to module scope: that is where they were, and one
+  // formatter for all eight languages is the bug this file just stopped having.
   switch (period) {
-    case "days":
+    case "days": {
+      const dayAxis = dayMonth(lang);
       return Array.from({ length: BUCKETS.days }, (_, i) => {
         const date = dateMinus(today, BUCKETS.days - 1 - i);
         return { start: date, end: date, label: dayAxis.format(noon(date)) };
       });
+    }
     case "weeks": {
+      const dayAxis = dayMonth(lang);
       // getUTCDay is 0 for Sunday; shift so Monday is 0.
       const monday = dateMinus(today, (noon(today).getUTCDay() + 6) % 7);
       return Array.from({ length: BUCKETS.weeks }, (_, i) => {
@@ -112,13 +117,15 @@ export function trendBuckets(
         return { start, end: dateMinus(start, -6), label: dayAxis.format(noon(start)) };
       });
     }
-    case "months":
+    case "months": {
+      const monthAxis = monthShort(lang);
       return Array.from({ length: BUCKETS.months }, (_, i) => {
         const month = monthShift(monthOf(today), i - (BUCKETS.months - 1));
         const start = `${month}-01`;
         // The day before the next month's first: the only way to get February right every year.
         return { start, end: dateMinus(`${monthShift(month, 1)}-01`, 1), label: monthAxis.format(noon(start)) };
       });
+    }
     case "years": {
       // Derived HERE and not above: the other three periods have a fixed bucket count and never
       // read the window, so computing a date for them is a `Date.UTC` and a `toISOString` paid on

@@ -123,6 +123,29 @@ export const SEED_PERSONAS: readonly SeedPersona[] = [
     profile: null,
   },
   {
+    // THE ONE ACCOUNT THAT IS NOT IN ENGLISH, and it exists because every localization defect in
+    // #358 was found by reading a table rather than by looking at a screen. Without it, opening
+    // the app in a translated language means editing a row by hand — so nobody does, and the
+    // German that reads as machine output ships. Russian because it is the language whose script,
+    // decimal comma, dative plural and gendered past tense break the most things at once.
+    key: "russian",
+    summary: "onboarded, 7 days of meals, renders in Russian — for looking at a translated app",
+    days: 7,
+    profile: {
+      lang: "ru",
+      goal: "lose",
+      sex: "female",
+      birth_year: 1992,
+      height_cm: 168,
+      weight_kg: 74,
+      target_weight_kg: 68,
+      activity: "moderate",
+      pace: "steady",
+      country: "de",
+      restrictions: [],
+    },
+  },
+  {
     // AFTER `fresh`, and it matters: `seed.test.ts` finds the persona with no health rows by
     // taking the FIRST with `healthDays === 0`, which is `fresh`. A second such persona ahead of it
     // would silently change which account that assertion is about. (This said "last" until the
@@ -275,7 +298,9 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
   const out: SeededPersona[] = [];
   for (const persona of wanted) {
     const deviceId = seedDeviceId(persona.key);
-    const lang: Lang = "en";
+    // The persona's own, so the Russian one seeds a Russian account and its thread is written
+    // in Russian by the same readers the app uses.
+    const lang: Lang = persona.profile?.lang ?? "en";
 
     // Replace, do not add to. The account is deleted and rebuilt so that seeding twice leaves one
     // week of meals rather than two — and `deleteUser` reaches only this device id, so anything you

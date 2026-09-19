@@ -1076,7 +1076,7 @@ function renderQuestion(
   return question({
     promptId: prompt.id,
     kind: prompt.kind === "chips" ? "chips" : prompt.kind === "number" ? "number" : "choice",
-    lines: askLines(prompt, content, profile, profile.lang),
+    lines: askLines(prompt, { content: content, lang: profile.lang }, profile),
     options: prompt.kind === "number" ? [] : optionsFor(prompt, content, suggested),
     placeholder: askPlaceholder(prompt, content),
     error,

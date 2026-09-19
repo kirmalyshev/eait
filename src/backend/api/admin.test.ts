@@ -14,7 +14,7 @@ import { fakePush } from "../push/fake.ts";
 // all.
 
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { DEFAULT_ONBOARDING_CONTENT, ROUTES, localDate, type OnboardingContent } from "@eait/shared";
+import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, LANGS, NOTIFICATION_COPY, ONBOARDING_CONTENT, ROUTES, localDate, type OnboardingContent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
@@ -252,6 +252,74 @@ describe("editing the copy", () => {
     const body = await res.json() as { content: OnboardingContent };
     expect(body.content.screens[0]!.asks.goal!.lines)
       .toEqual(DEFAULT_ONBOARDING_CONTENT.screens[0]!.asks.goal!.lines);
+  });
+});
+
+describe("the copy editor's ?lang=", () => {
+  beforeEach(async () => { await mountWithAdmin(); });
+
+  // The clamp `editorLang` performs, and the round trip the SQL merge exists for. Neither had a
+  // test: `admin.test.ts` contained no occurrence of `lang`, `"de"` or `"ru"` at all, so every
+  // copy-editing test exercised the English path and the route that CHOOSES the language did not
+  // run once.
+
+  it("saves one language and leaves the others exactly as they were", async () => {
+    const de = structuredClone(ONBOARDING_CONTENT.de!);
+    de.screens.find((x) => x.id === "goal")!.asks.goal!.lines = ["Warum bist du hier?"];
+    expect((await admin("PUT", "/admin/api/content?lang=de", { content: de })).status).toBe(200);
+
+    const it_ = structuredClone(ONBOARDING_CONTENT.it!);
+    it_.screens.find((x) => x.id === "goal")!.asks.goal!.lines = ["Perché sei qui?"];
+    expect((await admin("PUT", "/admin/api/content?lang=it", { content: it_ })).status).toBe(200);
+
+    // The second save must not have carried the first away — this is the whole point of the merge
+    // living in the store rather than in a read the engine did first.
+    const back = await (await admin("GET", "/admin/api/content?lang=de")).json() as
+      { lang: string; content: OnboardingContent };
+    expect(back.lang).toBe("de");
+    expect(back.content.screens.find((x) => x.id === "goal")!.asks.goal!.lines)
+      .toEqual(["Warum bist du hier?"]);
+  });
+
+  it("answers an unknown or absent language with English rather than an error", async () => {
+    // A bookmark from before the picker asks for nothing, and a nonsense query string should show
+    // a page rather than a stack trace.
+    for (const q of ["", "?lang=", "?lang=zz", "?lang=de-DE", "?lang=../../etc"]) {
+      const res = await admin("GET", `/admin/api/content${q}`);
+      expect(res.status, q).toBe(200);
+      expect(((await res.json()) as { lang: string }).lang, q).toBe("en");
+    }
+  });
+
+  it("offers every language, labelled in itself, so the picker can be drawn", async () => {
+    const body = await (await admin("GET", "/admin/api/content")).json() as
+      { langs: string[]; labels: Record<string, string> };
+    expect(body.langs).toEqual([...LANGS]);
+    expect(body.labels.ru).toBe("Русский");
+  });
+
+  it("carries the same rules to the notification copy, which reaches a lock screen", async () => {
+    const ru = structuredClone(NOTIFICATION_COPY.ru!);
+    ru.evening.title = "Вечер";
+    expect((await admin("PUT", "/admin/api/notifications?lang=ru", { copy: ru })).status).toBe(200);
+    const back = await (await admin("GET", "/admin/api/notifications?lang=ru")).json() as
+      { lang: string; copy: NonNullable<typeof NOTIFICATION_COPY.ru> };
+    expect(back.lang).toBe("ru");
+    expect(back.copy.evening.title).toBe("Вечер");
+    // ...and English is untouched by a Russian save.
+    expect(((await (await admin("GET", "/admin/api/notifications")).json()) as
+      { copy: typeof DEFAULT_NOTIFICATION_COPY }).copy.evening.title)
+      .toBe(DEFAULT_NOTIFICATION_COPY.evening.title);
+  });
+
+  it("REFUSES Russian that tells the reader their gender", async () => {
+    // The guard is compiled-in-table protection unless it runs here too: a stored revision
+    // replaces those tables for every user.
+    const ru = structuredClone(NOTIFICATION_COPY.ru!);
+    ru.evening.body = "Что ты ел? {eaten} из {plan} ккал. {tomorrow}";
+    const res = await admin("PUT", "/admin/api/notifications?lang=ru", { copy: ru });
+    expect(res.status).toBe(422);
+    expect(JSON.stringify(await res.json())).toContain("gender");
   });
 });
 

@@ -2237,6 +2237,49 @@ if (PG_URL) {
   // started to matter when the merge moved into the statement, since `jsonb_set` on a scalar is an
   // error rather than a wrong answer. So: the row upgrades in place on the next write, and the
   // language already in it survives that upgrade.
+  // ── The race the merge moved into SQL to stop ────────────────────────────────────────────────
+  //
+  // POSTGRES ONLY, because it is the only implementation that can HAVE it: the memory store is one
+  // process and one event loop. Nothing tested this, which is worth saying plainly — every
+  // assertion in `contract()` above is satisfied by an implementation that does read-modify-write
+  // inside the method, so the regression this whole change exists to prevent was unguarded.
+  describe("two admins saving two languages at once", () => {
+    it("loses neither language, and gives them different version numbers", async () => {
+      // SEPARATE POOLS. One `postgresStore` would serialise them through its own connection and
+      // prove nothing about the statement.
+      const a = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
+      const b = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
+      const de = { ...ONBOARDING_CONTENT.de!, version: 1 };
+      const it_ = { ...ONBOARDING_CONTENT.it!, version: 1 };
+
+      const [vDe, vIt] = await Promise.all([
+        a.putOnboardingContent("de", de, 1),
+        b.putOnboardingContent("it", it_, 1),
+      ]);
+
+      const back = await a.getOnboardingContent();
+      // Read-modify-write in the engine lost one of these every time the two overlapped.
+      expect(back?.de?.welcome.cta).toBe(de.welcome.cta);
+      expect(back?.it?.welcome.cta).toBe(it_.welcome.cta);
+      // And the counter is ONE counter: two revisions with different words never share a number,
+      // which is the whole reason a funnel row can be joined to the copy that produced it.
+      expect(vDe).not.toBe(vIt);
+      expect(new Set([vDe, vIt, back!.de!.version, back!.it!.version]).size).toBe(2);
+    });
+
+    it("gives eight concurrent saves of ONE language eight distinct versions", async () => {
+      const stores = await Promise.all(
+        Array.from({ length: 8 }, () => postgresStore(PG_URL, { maxConnections: TEST_POOL })),
+      );
+      const content = { ...DEFAULT_ONBOARDING_CONTENT, version: 1 };
+      const versions = await Promise.all(stores.map((st) => st.putOnboardingContent("en", content, 1)));
+      expect(new Set(versions).size).toBe(8);
+      // The column and the JSON agree on the last one — they are written in the same statement.
+      const row = await stores[0]!.getOnboardingContent();
+      expect(row?.en?.version).toBe(Math.max(...versions));
+    });
+  });
+
   describe("a content row written as text by an older build", () => {
     it("is repaired by the next write, and keeps what it held", async () => {
       const raw = new SQL(PG_URL);

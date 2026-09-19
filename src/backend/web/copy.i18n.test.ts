@@ -51,8 +51,6 @@ describe("what /start says for itself, in eight languages", () => {
     for (const lang of LANGS) {
       expect(shell("t", "<p>b</p>", lang), lang).toContain(`<html lang="${lang}">`);
     }
-    // And the default is still English rather than undefined, for the two callers with no language.
-    expect(shell("t", "<p>b</p>", "en")).toContain('<html lang="en">');
   });
 });
 

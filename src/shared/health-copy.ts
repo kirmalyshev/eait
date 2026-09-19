@@ -245,7 +245,14 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
   },
 };
 
-/** What the screen calls one metric or one group. The key itself if a binary is a version behind. */
+/**
+ * What the screen calls one metric or one group.
+ *
+ * THE KEY ITSELF on a miss, and that is deliberate rather than an oversight — but it is a worse
+ * wart than the one `Localized<T>` accepts, and worth naming as such: an untranslated string is
+ * English, whereas this renders `in_bed_minutes` on a chart. It is reachable only by a binary a
+ * version behind `HEALTH_FIELDS`, and `health-copy.test.ts` fails if a shipped field lacks a label.
+ */
 export const healthLabel = (key: string, lang: Lang): string =>
   t(lang)(HEALTH_COPY).labels[key] ?? key;
 

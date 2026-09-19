@@ -191,6 +191,22 @@ function askContent(content: OnboardingContent, field: OnboardingStep) {
 }
 
 /**
+ * ONE SERVED REVISION: the admin's words, and the language they were served in.
+ *
+ * The two travel together because they can disagree and nothing else would notice. `content` comes
+ * from `GET /v1/onboarding?lang=`, which resolves the QUERY first and the account second, while
+ * `lang` supplies the code-side clauses inside the same bubble (`loseTail`, `nothingApplies`). Pass
+ * a profile's language beside content fetched for a different one and one sentence is Italian with
+ * a German tail — typed as two arguments, that was a mistake no compiler could see, and the phone
+ * is where it would be made. `OnboardingContentResponse` is exactly this shape, so a client hands
+ * the response straight in.
+ */
+export interface ServedContent {
+  content: OnboardingContent;
+  lang: Lang;
+}
+
+/**
  * What Spud says to pose one prompt, as bubbles.
  *
  * The profile questions read the ADMIN'S words; the conversation question reads the constant below.
@@ -200,10 +216,10 @@ function askContent(content: OnboardingContent, field: OnboardingStep) {
  */
 export function askLines(
   prompt: ChatPrompt,
-  content: OnboardingContent,
+  served: ServedContent,
   p: Profile,
-  lang: Lang,
 ): string[] {
+  const { content, lang } = served;
   // The front door is content too, and it is the one prompt with no field and no constant.
   if (prompt.id === "welcome") return [...content.welcome.lines];
   if (prompt.field) {
@@ -582,9 +598,9 @@ export function projectionLine(
 export function answerLabel(
   prompt: ChatPrompt,
   p: Profile,
-  content: OnboardingContent,
-  lang: Lang,
+  served: ServedContent,
 ): string | null {
+  const { content, lang } = served;
   if (!prompt.field || !isAnswered(prompt, p)) return null;
   const raw = p[prompt.field];
   if (prompt.field === "restrictions") {

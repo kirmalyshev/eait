@@ -228,7 +228,7 @@ async function askResolver(
     if (!Number.isInteger(ref.line) || ref.line < 0) return null;
     const prompt = promptById(ref.prompt as never);
     if (!prompt) return null;
-    return askLines(prompt, content, profile, profile.lang)[ref.line] ?? null;
+    return askLines(prompt, { content: content, lang: profile.lang }, profile)[ref.line] ?? null;
   };
 }
 

@@ -1,7 +1,7 @@
 // The seeder, against the memory store. No database, no docker, runs on every `bun test`.
 
 import { describe, expect, test } from "bun:test";
-import { FIXTURE_THREAD, HEALTH_FIELDS } from "@eait/shared";
+import { FIXTURE_THREAD, HEALTH_FIELDS, firstVerdictLines } from "@eait/shared";
 import { memoryStore } from "../store.memory.ts";
 import { DEFAULT_SEED_PERSONA, SEED_PERSONAS, seedDeviceId, seedDevData } from "./seed.ts";
 import { PROMPT_DEFAULTS, PROMPT_KEYS, loadPrompts } from "../llm/prompt.ts";
@@ -45,7 +45,17 @@ describe("seedDevData", () => {
       expect(await store.claimFirstVerdict(s.userId)).toBe(false);
       const oldestFirst = [...lines].reverse();
       const greeting = oldestFirst.find((m) => m.role === "assistant" && m.kind === "text");
-      expect(greeting?.text).toMatch(/^First one in\.|^Honest answer:/);
+      // IN THAT PERSONA'S OWN LANGUAGE. Asserting the English literals pinned the seeder to
+      // English — the Russian persona exists precisely so somebody can look at a translated app,
+      // and a test that demanded "First one in." would have made adding it a test edit.
+      const lang = SEED_PERSONAS.find((x) => x.key === s.key)?.profile?.lang ?? "en";
+      const opener = firstVerdictLines({
+        goal: "lose", targets: { kcal: 2000, protein_g: 140 },
+        via: "photo", verdicts: {}, meal: { kcal: 500, confidence: "high" },
+        eatenToday: { kcal: 500, protein_g: 30 },
+      }, lang)[0]!;
+      // The first few words, which is what identifies the sentence without pinning its figures.
+      expect(greeting?.text).toContain(opener.split(" ").slice(0, 2).join(" "));
       expect(oldestFirst.indexOf(greeting!)).toBeLessThan(4);
     }
     expect(seeded.some((s) => s.meals > 0)).toBe(true);
@@ -199,8 +209,10 @@ describe("seedDevData", () => {
 
     // And the other three are ordinary, because an instance where everybody is an admin proves
     // nothing about the gate.
+    // COUNTED FROM THE LIST, not hardcoded: a persona added for a good reason should not have to
+    // edit this number to be added.
     const others = seeded.filter((s) => !s.admin);
-    expect(others).toHaveLength(3);
+    expect(others).toHaveLength(SEED_PERSONAS.filter((x) => !x.admin).length);
     for (const p of others) expect(await store.roleOf(p.userId)).toBe("user");
   });
 

@@ -148,18 +148,25 @@ export function telegramHandlers(deps: EngineDeps) {
 
   return {
     async start(from: number, payload: string, chat: Chat, locale?: string): Promise<void> {
-      const before = await account(from);
-      const copy = telegramCopyFor(await langOf(before, locale));
-      if (payload.trim() === "") {
-        return before === null ? stranger(chat, copy) : chat.send(await connected(before, copy));
-      }
+      // THE LIMITER RUNS BEFORE ANY STORE READ, which is the whole point of shedding. A pairing
+      // code is guessable, so this bounds the guessing — and resolving the account and its
+      // language first made every REFUSED attempt cost two queries where it used to cost none.
+      // The refusal is worded from Telegram's own `locale`: the one signal available without the
+      // read this is declining to do.
+      //
       // Zero means NO LIMIT, the reading `api/routes.ts` and `config.ts` already have. Passed
       // straight to the limiter it means one an hour, so the setting that switches the allowance
       // off would have switched the bot off instead.
       const allowance = config.authRateLimitPerHour;
-      if (allowance > 0
+      if (payload.trim() !== "" && allowance > 0
         && limiter.check(`telegram:${from}`, { limit: allowance, windowMs: HOUR }) !== null) {
-        return chat.send(copy.tooManyTries);
+        return chat.send(telegramCopyFor(narrowLang(locale)).tooManyTries);
+      }
+
+      const before = await account(from);
+      const copy = telegramCopyFor(await langOf(before, locale));
+      if (payload.trim() === "") {
+        return before === null ? stranger(chat, copy) : chat.send(await connected(before, copy));
       }
       // `moved` is the recovery path and reads exactly like a fresh link: what matters to the
       // person in front of it is which account they are on now, which the line names either way.

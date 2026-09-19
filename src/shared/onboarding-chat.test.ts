@@ -108,14 +108,14 @@ describe("where a killed run picks up", () => {
 
 describe("what Spud asks", () => {
   it("reads the admin's words for a profile question", () => {
-    expect(askLines(promptById("goal"), content, profile(), "en")[0]).toContain("what are you here to do");
+    expect(askLines(promptById("goal"), { content: content, lang: "en" }, profile())[0]).toContain("what are you here to do");
   });
 
   it("warns about pace only when the goal is to lose", () => {
     // Rule 1. "Faster isn't better here — it's just harder to keep" is a warning about losing
     // weight; said to somebody gaining it is a reply written for no one.
     const asked = (goal: Profile["goal"]) =>
-      askLines(promptById("target_weight_kg"), content, profile({ goal }), "en").join(" ");
+      askLines(promptById("target_weight_kg"), { content: content, lang: "en" }, profile({ goal })).join(" ");
     expect(asked("lose")).toContain("Faster isn't better");
     expect(asked("gain")).not.toContain("Faster isn't better");
     // And the substitution never leaks its own placeholder.
@@ -133,25 +133,25 @@ describe("what Spud asks", () => {
   it("asks the front door from the content, and asks nothing on the two cards", () => {
     // `welcome` is the one prompt with no field and no constant — it reads `content.welcome.lines`.
     // The version that fell through to the constants threw on the very first render.
-    expect(askLines(promptById("welcome"), content, profile(), "en")).toEqual(content.welcome.lines);
+    expect(askLines(promptById("welcome"), { content: content, lang: "en" }, profile())).toEqual(content.welcome.lines);
     for (const id of ["building", "summary"] as const) {
-      expect(askLines(promptById(id), content, profile(), "en")).toEqual([]);
+      expect(askLines(promptById(id), { content: content, lang: "en" }, profile())).toEqual([]);
     }
   });
 
   it("asks the conversation question from code, not from the admin", () => {
-    expect(askLines(promptById("struggles"), content, profile(), "en")[0]).toContain("What's been hard?");
+    expect(askLines(promptById("struggles"), { content: content, lang: "en" }, profile())[0]).toContain("What's been hard?");
   });
 });
 
 describe("the answer a resumed run draws back", () => {
   it("writes an enumerated answer the way it was labelled", () => {
-    expect(answerLabel(promptById("goal"), profile({ goal: "lose" }), content, "en")).toBe("Lose weight");
-    expect(answerLabel(promptById("activity"), profile({ activity: "moderate" }), content, "en")).toBe("Moderate");
+    expect(answerLabel(promptById("goal"), profile({ goal: "lose" }), { content: content, lang: "en" })).toBe("Lose weight");
+    expect(answerLabel(promptById("activity"), profile({ activity: "moderate" }), { content: content, lang: "en" })).toBe("Moderate");
   });
 
   it("writes a number the way it was typed", () => {
-    expect(answerLabel(promptById("weight_kg"), profile({ weight_kg: 93 }), content, "en")).toBe("93");
+    expect(answerLabel(promptById("weight_kg"), profile({ weight_kg: 93 }), { content: content, lang: "en" })).toBe("93");
   });
 
   it("draws the year of birth back as an age, plain arithmetic, no eligibility band", () => {
@@ -160,20 +160,20 @@ describe("the answer a resumed run draws back", () => {
     // edge: an accepted 100-year-old crosses New Year, ageFrom(101) is null, and the fallback drew
     // the raw year. Display is subtraction, not eligibility.
     const year = new Date().getUTCFullYear();
-    expect(answerLabel(promptById("birth_year"), profile({ birth_year: 1990 }), content, "en")).toBe(String(year - 1990));
-    expect(answerLabel(promptById("birth_year"), profile({ birth_year: year - 101 }), content, "en")).toBe("101");
+    expect(answerLabel(promptById("birth_year"), profile({ birth_year: 1990 }), { content: content, lang: "en" })).toBe(String(year - 1990));
+    expect(answerLabel(promptById("birth_year"), profile({ birth_year: year - 101 }), { content: content, lang: "en" })).toBe("101");
   });
 
   it("says nothing for an unanswered question", () => {
-    expect(answerLabel(promptById("weight_kg"), profile(), content, "en")).toBeNull();
-    expect(answerLabel(promptById("welcome"), profile(), content, "en")).toBeNull();
+    expect(answerLabel(promptById("weight_kg"), profile(), { content: content, lang: "en" })).toBeNull();
+    expect(answerLabel(promptById("welcome"), profile(), { content: content, lang: "en" })).toBeNull();
   });
 
   it("names the restrictions picked, or says none applied", () => {
     const done = { onboarded_at: "2026-01-01T00:00:00Z" };
-    expect(answerLabel(promptById("restrictions"), profile({ ...done, restrictions: ["kidneys", "ldl"] }), content, "en"))
+    expect(answerLabel(promptById("restrictions"), profile({ ...done, restrictions: ["kidneys", "ldl"] }), { content: content, lang: "en" }))
       .toBe("Kidney condition · High cholesterol");
-    expect(answerLabel(promptById("restrictions"), profile({ ...done, restrictions: [] }), content, "en"))
+    expect(answerLabel(promptById("restrictions"), profile({ ...done, restrictions: [] }), { content: content, lang: "en" }))
       .toBe("Nothing applies");
   });
 });
@@ -388,10 +388,10 @@ describe("what the conversation never does", () => {
   const everySentence = () => {
     const out: string[] = [];
     for (const goal of ["lose", "gain", "maintain"] as const) {
-      out.push(...askLines(promptById("target_weight_kg"), content, profile({ goal }), "en"));
+      out.push(...askLines(promptById("target_weight_kg"), { content: content, lang: "en" }, profile({ goal })));
       for (const s of STRUGGLES) out.push(struggleCard(s as Struggle, goal, "en").body);
     }
-    out.push(...askLines(promptById("struggles"), content, profile(), "en"));
+    out.push(...askLines(promptById("struggles"), { content: content, lang: "en" }, profile()));
     for (const n of [0, 1, 3]) out.push(strugglesCloser(n, "en"));
     out.push(...Object.values(content.welcome.lines));
     return out;
