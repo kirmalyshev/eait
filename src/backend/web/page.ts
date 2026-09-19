@@ -337,11 +337,12 @@ export function question(v: QuestionView): string {
   // The BRAND, untranslated — the same reason `LANG_LABEL` is not. A question page in the
   // middle of a flow is titled by the product, not by a sentence about it.
   return shell("eait", `
-<p class="progress">QUESTION ${v.step} OF ${v.total}</p>
+<p class="progress">${escape(PAGE_COPY.progress
+    .replace("{step}", String(v.step)).replace("{total}", String(v.total)))}</p>
 ${v.error ? `<p class="notice">${escape(v.error)}</p>` : ""}
 ${bubbles(v.lines)}
 <form method="post" action="/start/q">${hidden}${actions}${controls}</form>
-`, v.lang ?? "en");
+`, v.lang);
 }
 
 /**
@@ -422,7 +423,7 @@ ${v.proposal ? proposalCard(v.proposal, PAGE_COPY, lang) : ""}
     placeholder="${escape(PAGE_COPY.chatCaption)}" aria-label="${escape(PAGE_COPY.chatCaption)}">
   <button type="submit">${escape(PAGE_COPY.chatPhotoSend)}</button>
 </form>
-`, v.lang ?? "en");
+`, v.lang);
 }
 
 /**
@@ -523,8 +524,8 @@ ${v.telegram
 <p class="muted">${escape(v.signedInWith === null
   ? PAGE_COPY.planAppBodyGeneric
   : PAGE_COPY.planAppBody.replace("{provider}", v.signedInWith === "apple" ? "Apple" : "Google"))}</p>
-${languagePicker(v.lang ?? "en")}
-`, v.lang ?? "en");
+${languagePicker(v.lang)}
+`, v.lang);
 }
 
 /**
