@@ -28,6 +28,53 @@ route. A route that computes is a rule the tests cannot reach.
   credentials — never from a request body, a model output, or a tool call. Never widen a meal query
   beyond `id = ? AND user_id = ?`. The one exception is the RevenueCat webhook, where the id IS the
   message, and it is safe only because of the shared secret checked before the body is read.
+- **Row-level security is the second lock, and it is ARMED BY DEFAULT.** Every table whose rows
+  belong to one account has RLS `enable`d AND `force`d, with one policy: a statement sees a row only
+  when it has declared whose row it is, in `app.user_id`, for the length of its transaction. A
+  transaction that declares nothing matches nothing — `app_user_id()` is null, `column = null` is
+  null, and a policy that is not true refuses. So a read that forgets its own `user_id = ?` returns
+  NOTHING rather than returning everybody, which is the whole point of it. Measured, through the
+  live API, by deleting the predicate from `chatBefore`: with the policy on, one account's lines and
+  no others; with it off, 48 lines belonging to three accounts.
+  `RLS_TABLES` in `store.pg.ts` is the list and the DDL is generated from it — `users` (keyed on
+  `id`, the row IS the account), `tokens`, `identities`, `meals`, `meal_photos`, `pendings`,
+  `pairing_codes`, `portion_corrections`, `analyses`, `onboarding_events`, `chat_messages`,
+  `push_tokens`, `health_days`, `turns`. Out of it, because they belong to nobody: `onboarding_content`,
+  `notification_copy`, `subscribers`.
+- **What declares it is the store's own wrapper, and `SCOPE` says what every method may touch.**
+  `postgresStore` wraps each method in a transaction that sets `app.user_id` from the argument
+  holding it — so the ninety-nine statements in that file did not have to be rewritten, and one
+  added tomorrow is covered without being touched. `sql` there is the CURRENT connection, an
+  `AsyncLocalStorage`-backed proxy over the pool; the setting is always `set_config(…, true)`,
+  because `Bun.sql` hands a connection to the next caller the moment a transaction commits and a
+  session-level one would make them that user. A method that belongs to no account says
+  `"unscoped"` in `SCOPE` — resolving a user from a credential, `mergeUsers` and `moveIdentity`
+  (two accounts), `putPushToken` (one installation, deliberately moved between accounts), the admin
+  surface, the sweeps. That escape is explicit, enumerated and argued for one entry at a time, and
+  a test pins the whole list so adding one is a visible edit rather than the easy way past a
+  failure. The same goes for the two places a scoped method holds a global statement: `unscoped()`
+  turns it on for that statement and restores it in a `finally`.
+- **`force` is not decoration, and a superuser escapes it anyway.** The backend creates its own
+  tables and therefore OWNS them, and an owner is exempt from its own policies without `force`. A
+  SUPERUSER is exempt even with it, which is why `src/scripts/db.sh` gives the development database
+  to a plain `eait_app` role rather than the image's `eait`. The deployed role is configured outside
+  this repository, so `postgresStore` asks Postgres at boot and logs `row-level security is INERT`
+  when the connection bypasses — said rather than refused, because an inert lock is no reason to
+  take the product down on a deploy.
+- **Migrations run unscoped, on a connection that is then closed.** The DDL does not care, but the
+  BACKFILLS do: an `update` that repairs old rows would, on every database from its second boot
+  onwards, match nothing and report success. Its own connection, ended in a `finally`, so the escape
+  cannot outlive the migration even if it throws.
+- **None of this replaces `user_id = ?`.** Every predicate stays. A policy is what catches the one
+  that is missing, and two locks are the point. A new user-scoped table adds its line to
+  `RLS_TABLES` beside its `create table`; a new store method adds its line to `SCOPE`, and the
+  construction of the store throws if it does not. THE CHECKS ARE AUTOMATED, in
+  `store.contract.test.ts` → "row-level security": one reads `pg_class.relrowsecurity` /
+  `relforcerowsecurity` and `pg_policies` for every table the CATALOG says carries a `user_id` and
+  fails naming the one without a policy; another proves a connection declaring nobody reads and
+  writes nothing; another fails when a method is missing from `SCOPE` or lingers in it after being
+  renamed.
+
 - **Both store implementations must agree.** `store.contract.test.ts` runs the same suite against
   each. A rule proven only against the memory store is a rule about a mock's mood. Its Postgres
   half runs under `./dev test`, against this worktree's own DERIVED test database — never a
@@ -84,6 +131,12 @@ covering more than it does is how a client comes to refuse something the server 
 
 `bun test ./src/backend` — no database needed, because the memory store is a real implementation of
 the port rather than a mock. `EAIT__BACKEND__DATABASE_URL` is only for `make run-backend`.
+
+The Postgres half runs when `TEST_DATABASE_URL` is set and says loudly when it is not. Point it at a
+database of THIS worktree's own — `./dev env show` names the one the backend uses; the test suite
+wants a second one beside it, never slot 0's `eait`. The URL must name the `eait_app` role and not
+`eait`: the row-level-security cases assert that first, because a superuser reads every row whatever
+a policy says.
 
 The demo analyzer (`llm/demo.ts`) must stay **as poor as the real one**. A fake may be poorer than
 the real thing, never different in a way a test can see: it once supplied `verdicts: {}` where the
@@ -200,6 +253,16 @@ naming it too.
   refuse path the mail key uses, and every deploy then RESTORES the latest dump back from the
   remote and asserts it is a database dump, because an upload nobody has restored is not a backup.
   `make remote-backup-check` is that same proof on demand.
+- **The dump connects as the SUPERUSER `eait`, never as `eait_app`.** The backend owns its tables
+  and the policies are `force`d, so the owner is subject to them too — and `pg_dump` sets
+  `row_security = off`, which Postgres refuses outright from a role that cannot bypass:
+  `ERROR: query would be affected by row-level security policy for table "meals"`. The repair that
+  suggests itself, `--enable-row-security`, is the dangerous one: the dump session declares no
+  `app.user_id`, so it EXITS 0 AND WRITES A FILE WITH NO ROWS IN IT — measured, 0 of 168 — and the
+  deploy's restore check asserts only that the file is a dump, not that anything is in it. That is
+  the silent-data-loss shape this repository already has scar tissue for. `store.contract.test.ts`
+  pins both halves ("refuses a dump taken as the application role"), so the day somebody points the
+  backup at the application role, a test says which failure they bought.
 - **One health metric has an effect, and it is weight.** It updates `profile.weight_kg` server-side
   through the same range guard the manual form uses, and only when its measurement is NEWER than
   `weight_measured_at` — otherwise a sync firing seconds after the user types their weight silently
