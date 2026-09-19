@@ -329,7 +329,7 @@ const ES: ThreadCopy = {
 const VI: ThreadCopy = {
   scripted: {
     "camera-closed": "Không vội. Kế hoạch đã nằm trong nhật ký của bạn — bữa sau tới thì chụp. Thói quen chỉ có vậy, và nếu chưa có gì thì mai mình nhắc đúng một lần.",
-    "trial-started": "Đã bật bản dùng thử. Bảy ngày, sau đó {price} trừ khi bạn dừng lại — mình sẽ nhắc vào ngày thứ năm và ngày trước khi kết thúc, không bao giờ nhắc sau khi đã hết.",
+    "trial-started": "Đã bật tuần dùng thử. Bảy ngày, sau đó {price} trừ khi bạn dừng lại — mình sẽ nhắc vào ngày thứ năm và ngày trước khi kết thúc, không bao giờ nhắc sau khi đã hết.",
     "trial-day-one": "Ngày đầu tiên của bạn đã bắt đầu. 20:30 bạn nhận một dòng — hôm nay so với kế hoạch, và một việc cụ thể cho ngày mai. Trước đó thì không gì cả.",
     "notify-primer": "Còn một thứ iOS sắp hỏi: thông báo. Mỗi ngày một cái và không bao giờ nhiều hơn — dòng 20:30, cộng hai lời nhắc trước khi tuần miễn phí kết thúc nếu bạn đang trong tuần đó. Ngoài ra không có gì, không bao giờ.",
     "restored": "Đã khôi phục — bạn vào rồi. Một tấm ảnh hay một câu, cả hai đều ghi được một bữa.",
@@ -372,8 +372,8 @@ const VI: ThreadCopy = {
     lowLeftOther: "Dù thô thì vẫn tính: hôm nay bạn còn khoảng {left} trên {plan}.",
     firstIn: "Bữa đầu tiên đã vào. {kcal} kcal — {arithmetic}",
     fixHint: "Có gì sai thì cứ nói — \"một nửa cơm thôi\", \"không có bơ\" — hoặc chạm vào thẻ và đổi số gam.",
-    sodium: "Bữa này natri hơi cao. Được chấm chỉ vì bạn yêu cầu.",
-    satfat: "Bữa này chất béo bão hoà hơi cao. Được chấm chỉ vì bạn yêu cầu.",
+    sodium: "Bữa này natri cao. Được chấm chỉ vì bạn yêu cầu.",
+    satfat: "Bữa này chất béo bão hoà cao. Được chấm chỉ vì bạn yêu cầu.",
     noted: "“{note}” — đã ghi nhận, nó nằm trong các con số rồi.",
   },
 };
@@ -400,21 +400,21 @@ const ID: ThreadCopy = {
   ],
   running: {
     left: "Hari ini kamu masih punya {left} dari {plan}, {protein} dari {proteinTarget} g protein.",
-    over: "Hari ini lebih {over} dari {plan}, {protein} dari {proteinTarget} g protein.",
+    over: "Hari ini {over} di atas {plan}, {protein} dari {proteinTarget} g protein.",
   },
   correction: "Diperbarui — {kcal} kcal. {day}",
   firstVerdict: {
     arithmetic: {
       gainLeft: "hari ini masih ada {left} dari {plan} yang perlu diisi, dan {protein} dari {proteinTarget} g protein. Lanjutkan.",
-      gainOver: "hari ini lebih {over} dari {plan}, dan {protein} dari {proteinTarget} g protein. Melewatinya justru tujuannya di rencana menaikkan berat badan; besok angkanya baru lagi.",
+      gainOver: "hari ini {over} di atas {plan}, dan {protein} dari {proteinTarget} g protein. Melewatinya justru tujuannya di rencana menaikkan berat badan; besok angkanya baru lagi.",
       otherLeft: "jadi tersisa {left} dari {plan} untuk sisa hari ini, dan {protein} dari {proteinTarget} g protein. Sesuai rencana.",
-      otherOver: "jadi hari ini kamu lebih {over} dari {plan}, dan {protein} dari {proteinTarget} g protein. Besok angkanya baru lagi.",
+      otherOver: "jadi hari ini kamu {over} di atas {plan}, dan {protein} dari {proteinTarget} g protein. Besok angkanya baru lagi.",
     },
     arithmeticAlone: {
       gainLeft: "Hari ini masih ada {left} dari {plan} yang perlu diisi, dan {protein} dari {proteinTarget} g protein. Lanjutkan.",
-      gainOver: "Hari ini lebih {over} dari {plan}, dan {protein} dari {proteinTarget} g protein. Melewatinya justru tujuannya di rencana menaikkan berat badan; besok angkanya baru lagi.",
+      gainOver: "Hari ini {over} di atas {plan}, dan {protein} dari {proteinTarget} g protein. Melewatinya justru tujuannya di rencana menaikkan berat badan; besok angkanya baru lagi.",
       otherLeft: "Jadi tersisa {left} dari {plan} untuk sisa hari ini, dan {protein} dari {proteinTarget} g protein. Sesuai rencana.",
-      otherOver: "Jadi hari ini kamu lebih {over} dari {plan}, dan {protein} dari {proteinTarget} g protein. Besok angkanya baru lagi.",
+      otherOver: "Jadi hari ini kamu {over} di atas {plan}, dan {protein} dari {proteinTarget} g protein. Besok angkanya baru lagi.",
     },
     typed: "Diketik, bukan difoto — jadi porsinya tebakanku. Anggap {kcal} sebagai angka kasar; kalau kamu tahu gramnya, bilang saja dan aku perbaiki.",
     lowConfidence: "Jawaban jujur: aku tidak bisa membaca piring itu dengan jelas. Anggap {kcal} sebagai perkiraan kasar dan periksa gramnya sebelum percaya pada totalnya. Lain kali satu sudut tambahan sangat membantu.",

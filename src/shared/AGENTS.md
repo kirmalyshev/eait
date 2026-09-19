@@ -144,8 +144,11 @@ gets its meal names in that language.
   of them takes the language now, and a caller that captures one at module scope renders in
   whatever language the process started in), `threadCopyFor` / `firstVerdictLines` / `runningLine` /
   `scriptedLine`, `verdictPillLabel`, `healthLabel`, `correlationWords`, `notificationCopyFor` +
-  `eveningPrescription`, `projectionMonth`, and `numbers` / `wholeNumbers` / `monthYear` for every
-  figure. The language itself is `ProfileResponse.profile.lang`; the picker writes it with
+  `eveningPrescription`, `projectionMonth`, `trendPeriods` / `trendBuckets` / `trendSummary` for
+  the health charts, and `numbers` / `wholeNumbers` / `monthYear` for every figure.
+  **`trendSummary`'s `format` callback must spell its unit with `spellUnit(lang, …)`** — that
+  sentence is the chart read aloud, so a raw `HEALTH_FIELDS.unit` puts `kg` in the middle of a
+  Russian clause. The AXIS keeps the SI symbol; only the spoken sentence does not. The language itself is `ProfileResponse.profile.lang`; the picker writes it with
   `PATCH /v1/profile { lang }` and offers `LANGS_READY` labelled by `LANG_LABEL`.
 - **`lang` IS REQUIRED ON EVERY ONE OF THEM, and that is deliberately a breaking change.** `t()`
   falls back at the KEY, which is the wart this design accepts; a defaulted PARAMETER falls back at

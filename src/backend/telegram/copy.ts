@@ -279,7 +279,7 @@ const VI: TelegramCopy = {
   todayHead: "Hôm nay: {eaten} trên {plan} kcal, {protein} trên {proteinTarget} g đạm",
   todayEmpty: "Hôm nay chưa ghi gì cả.",
   meal: "Bữa ăn",
-  macros: { protein: "Đạm", carbs: "Tinh bột", fat: "Chất béo" },
+  macros: { protein: "Đạm", carbs: "Tinh bột đường", fat: "Chất béo" },
   failed: "Có gì đó trục trặc, và cũng có thể nó vẫn đi qua. Kiểm tra /today trước khi gửi lại.",
   refusals: {
     "not-onboarded": "Hãy trả lời các câu hỏi lập kế hoạch trên web trước.",

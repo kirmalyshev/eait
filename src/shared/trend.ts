@@ -29,7 +29,7 @@ export type TrendPeriod = (typeof TREND_PERIOD_IDS)[number];
  * inside a screen that was otherwise translated, and no check could see it — they are not
  * `Localized<T>`, so `localizedGaps` walks straight past them.
  */
-export const trendPeriods = (lang: Lang): readonly { id: TrendPeriod; label: string; noun: string }[] =>
+export const trendPeriods = (lang: Lang): readonly { id: TrendPeriod; label: string; per: string }[] =>
   TREND_PERIOD_IDS.map((id) => ({ id, ...t(lang)(HEALTH_COPY).periods[id] }));
 
 /** How many buckets each period draws. Years is open-ended: every year that has stored data. */
@@ -187,6 +187,12 @@ export function trendEndpoints(
  * The chart as one sentence, for VoiceOver. A chart is an image to a screen reader, and an image
  * of a weight trend that says "image" is a screen that shows the user with low vision nothing at
  * all about the thing they came for.
+ *
+ * `format` MUST SPELL ITS UNIT WITH `spellUnit(lang, …)`, not with `HEALTH_FIELDS.unit` raw. This
+ * is the one place a unit is read inside a sentence rather than sitting beside a scale, which is
+ * the exact test `UNIT_KCAL` was written against — so a Russian listener otherwise hears
+ * "девяносто четыре точка два kg" in the middle of a Russian clause. The axis keeps the SI symbol;
+ * only this does not. The caller lives on the phone, so this comment is the whole enforcement.
  */
 export function trendSummary(
   name: string,

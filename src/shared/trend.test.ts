@@ -249,7 +249,7 @@ describe("trendEndpoints and trendSummary", () => {
   });
 
   test("every period names the unit of its axis", () => {
-    expect(trendPeriods("en").map((p) => p.noun)).toEqual(["day", "week", "month", "year"]);
+    expect(trendPeriods("en").map((p) => p.per)).toEqual(["day", "week", "month", "year"]);
     expect(trendPeriods("de").map((p) => p.label)).toEqual(["Tage", "Wochen", "Monate", "Jahre"]);
   });
 });

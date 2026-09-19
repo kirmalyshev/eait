@@ -52,7 +52,7 @@ export const VERDICT_COPY: Localized<VerdictCopy> = {
   },
   vi: {
     noun: { weight: "Calo", ldl: "Chất béo bão hoà", kidneys: "Natri" },
-    good: "{noun} — đúng kế hoạch", warn: "{noun} — hơi cao", bad: "{noun} — rất cao",
+    good: "{noun} — đúng kế hoạch", warn: "{noun} — cao", bad: "{noun} — rất cao",
   },
   id: {
     noun: { weight: "Kalori", ldl: "Lemak jenuh", kidneys: "Natrium" },

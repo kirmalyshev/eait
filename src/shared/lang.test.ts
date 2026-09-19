@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import {
-  LANGS_READY, LANG_LABEL, LANG_TAG, genderedRussian, localizedGaps, monthYear, numbers, t,
+  LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, genderedRussian, localizedGaps, monthYear, numbers,
+  spellUnit, t,
   type Localized,
 } from "./lang.ts";
 
@@ -152,5 +153,22 @@ describe("genderedRussian — the check no English-reading reviewer could be", (
   it("needs no language bucket, because no other language can match it", () => {
     // Every string in the graph is asked, so a table that stops being `Localized` stays covered.
     expect(genderedRussian({ de: "Damit bist du nicht allein", fr: "Ça n'arrive pas qu'à toi" })).toEqual([]);
+  });
+});
+
+describe("spellUnit — the unit read aloud, not the one beside a scale", () => {
+  it("writes Cyrillic for a Russian listener and leaves the other seven alone", () => {
+    // `trendSummary` is the chart as a SENTENCE for VoiceOver, so this is the same test that made
+    // the four `UNIT_KCAL` sites wrong: a unit read inside a clause, not a symbol on an axis.
+    expect(spellUnit("ru", "kg")).toBe("кг");
+    expect(spellUnit("ru", "min")).toBe("мин");
+    expect(spellUnit("ru", "kcal")).toBe(UNIT_KCAL.ru);
+    for (const lang of LANGS.filter((l) => l !== "ru")) expect(spellUnit(lang, "kg")).toBe("kg");
+  });
+
+  it("returns an unknown unit unchanged, because a new field is likelier than a gap", () => {
+    expect(spellUnit("ru", "%")).toBe("%");
+    expect(spellUnit("ru", "furlongs")).toBe("furlongs");
+    expect(spellUnit("ru", "")).toBe("");
   });
 });

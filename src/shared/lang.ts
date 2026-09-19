@@ -138,12 +138,32 @@ export const wholeNumbers = (lang: Lang) => {
  *
  * A CHART AXIS IS STILL NOT PROSE. `HEALTH_FIELDS.unit` stays SI (`kg`, `km`, `ms`, `ml/kg/min`)
  * and this does not license changing it: an axis label is a symbol beside a scale, and what made
- * these four wrong is that they are read inside a sentence.
+ * these four wrong is that they are read inside a sentence. `spellUnit` below is that same test
+ * applied to the other units, for the one place they are read inside one.
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
 export const UNIT_KCAL: Record<Lang, string> = {
   en: "kcal", fr: "kcal", de: "kcal", it: "kcal", es: "kcal", vi: "kcal", id: "kcal", ru: "ккал",
 };
+
+/**
+ * How this language spells a `HEALTH_FIELDS.unit`, for the ONE place a unit is read aloud.
+ *
+ * ON AN AXIS, DO NOT CALL THIS. `HEALTH_FIELDS.unit` is the axis's own symbol beside a scale and
+ * stays SI, exactly as `UNIT_KCAL`'s note above says. What this is for is `trendSummary`, which is
+ * the chart rendered as a SENTENCE for VoiceOver — so by the rule that made the four kcal sites
+ * wrong, a Russian hearing "девяносто четыре точка два kg" mid-clause is the same defect.
+ *
+ * Only Cyrillic differs; the other seven use the Latin symbol and fall through unchanged. An
+ * unknown unit is returned as it came, because a unit this table has never heard of is more likely
+ * a new field than a translation gap, and a `%` is a `%` everywhere.
+ */
+const UNIT_SPELLING: Partial<Record<Lang, Record<string, string>>> = {
+  ru: { kg: "кг", cm: "см", km: "км", g: "г", mg: "мг", min: "мин", ms: "мс", bpm: "уд/мин",
+        kcal: "ккал", "ml/kg/min": "мл/кг/мин" },
+};
+
+export const spellUnit = (lang: Lang, unit: string): string => UNIT_SPELLING[lang]?.[unit] ?? unit;
 
 /**
  * A month and a year, as the plan's projection names one: "November 2026", "novembre 2026".
