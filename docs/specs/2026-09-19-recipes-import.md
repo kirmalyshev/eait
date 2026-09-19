@@ -1,6 +1,6 @@
 # Recipes — saving a dish from a link, with its macros
 
-> Design, 2026-09-19. Status: approved in outline, not yet planned.
+> Design, 2026-09-19; platform research corrected 2026-09-20. Status: approved in outline, not yet planned.
 > The half that lives in the private monorepo (the iOS Share Extension) is named here and specified there.
 
 ## The use case
@@ -10,19 +10,50 @@ calories, protein, carbs and fat worked out, filed under breakfast / lunch / din
 kids, and shown against what is left of their day. Today they bookmark it inside the platform,
 where this product cannot see it and no nutrition is attached.
 
-## What was checked first, and what it ruled out
+## What was checked first, and what it shapes
 
-The original shape of the request was "poll my Instagram saved collection". That cannot be built.
+The original shape of the request was "poll my Instagram saved collection". No **product** API on
+either platform will do that. Both platforms are nonetheless compelled to hand the same data over
+in the EEA and the UK, under the Digital Markets Act. Two surfaces, two different answers — and an
+earlier draft of this document asserted only the first one.
 
-| Platform | Can we read what the user saved? | Source |
+### The product APIs: closed
+
+| Platform | Can a product API read what the user saved? | Source |
 |---|---|---|
 | Instagram saved posts / collections | **No.** The Graph API exposes own media, insights and messaging. Saved posts are private by design and appear in no scope. The only access is reverse-engineered private-API clients, which violate the ToS and put the **user's** account at risk, not ours. | [Phyllo, 2026](https://www.getphyllo.com/post/instagram-api-integration-101-for-developers-of-the-creator-economy), [instagrapi](https://github.com/subzeroid/instagrapi/blob/master/docs/usage-guide/collection.md) |
 | TikTok favourites | **No.** The Display API reads the authenticated user's own uploads (`video.list`). Liked and saved videos exist only in the Research API, which is for accredited academics. | [Scopes overview](https://developers.tiktok.com/docs/en/scopes-overview), [Research API](https://developers.tiktok.com/docs/en/research-api-specs-query-user-liked-videos) |
 | YouTube | **Yes** — `relatedPlaylists.likes` and any user-created playlist read through `playlistItems.list` with OAuth. `favorites` is deprecated; watch-later and history are not in the resource at all. | [channels resource](https://developers.google.com/youtube/v3/docs/channels) |
 
-So one platform of three permits a poll, and it is not the one that was asked about. **The input has
-to leave the platform by the user's own action.** That is not a workaround; it is the only shape
-available, and it is also the one that needs no OAuth provider, no Meta app review and no scheduler.
+### The portability APIs: open, in the EEA and the UK only
+
+Both gatekeepers ship a data-portability API because the DMA obliges them to, and both cover
+exactly the data this feature wants.
+
+| Platform | Route | Gives | Cadence | Gate |
+|---|---|---|---|---|
+| Instagram | Meta Data Portability / EYI, data type **`IG_SAVED`** | The saved-posts list: links and timestamps | **Recurring** — daily or monthly, up to three years | Onboard as a transfer destination; privacy and security review; EEA/UK users only ([deep-link params](https://developers.facebook.com/documentation/data-portability/deep-link-params), [deep-link guide](https://developers.facebook.com/docs/data-portability/deep-link-guide/)) |
+| TikTok | Data Portability API, **`activity`** scope | Favourite videos (link + date), likes, watch and search history | **One-time or ongoing** | Defined use case; geo-distinguish EEA/UK; high-fidelity UX mockups; privacy and security review ([product page](https://developers.tiktok.com/products/data-portability-api/), [announcement](https://developers.tiktok.com/blog/2024-introducing-tiktok-data-portability-api)) |
+
+Three properties decide how much this is worth:
+
+- **Neither hands over content.** `saved_posts.json` is links and timestamps; TikTok's favourites
+  list is links and dates. Portability replaces the TRIGGER, not the extractor — everything
+  downstream of the first box in § Flow is identical whichever way the URL arrived.
+- **Both are EEA/UK-only by construction**, because that is the jurisdiction that compelled them.
+  A connector that serves one market is not a connector strategy, so the share path stays the
+  universal one and portability is a premium path on top of it.
+- **Both gate on a privacy and security review**, and TikTok's asks for high-fidelity UX mockups by
+  name. A product that does not exist yet cannot credibly pass one. Ship first, apply with it.
+
+**Unresolved, and worth settling before that application:** whether `IG_SAVED` carries the
+COLLECTION NAMES — the user's own breakfast/dinner folders — or a flat list of saves. There is no
+separate collections parameter and no documentation either way; only a real export answers it. It
+matters, because if the folders come through they seed `tags` directly and the filing step
+disappears for every Instagram import.
+
+So in v1 the input still leaves the platform by the user's own action — not because nothing else is
+possible, but because everything else is gated behind a review this product has not earned yet.
 
 ## Decisions
 
@@ -174,6 +205,14 @@ Rules the sidecar is built to:
 - **One URL, never a playlist** (`--no-playlist`), a hard timeout, no cookies, non-root.
 - Every knob is an environment variable through `config.ts`, like every other setting here.
 
+**Two of the three platforms have a keyless official endpoint, and the sidecar tries it first.**
+TikTok's oEmbed (`https://www.tiktok.com/oembed?url=`) returns `title` — which on TikTok IS the
+caption — plus `author_name` and `thumbnail_url`, with no key and no authentication; the field list
+above was read off a live call. Instagram's oEmbed has needed neither a token nor App Review since
+15 June 2026, and its embed HTML carries the caption (the `hidecaption` parameter exists precisely
+because it is there by default). Both are faster, cheaper and far less breakable than a scraper.
+`yt-dlp` stays for what they do not cover: YouTube's subtitles, and anything those two refuse.
+
 ## API
 
 Contract-first: the route in `src/shared/contract.ts`, one handler in `api/routes.ts` calling one
@@ -229,9 +268,12 @@ Its purpose is exercising the extractor and the prompt without a phone in the lo
   first thing to add.
 - **A YouTube playlist poll.** The one platform where a real poll is permitted. Wants Google OAuth,
   a token store and a scheduler — its own change, worth doing once imports are proven.
-- **The Instagram Messaging webhook** — sharing a reel to eait inside Instagram DMs. The closest
-  thing to the original request that can be built legitimately. Needs an IG business account and
-  Meta app review for `instagram_manage_messages`.
+- **The EU portability connectors** — `IG_SAVED` on a daily schedule, and TikTok's `activity`
+  scope. The literal version of what was originally asked for, and both are real. Deferred for the
+  review, not for feasibility; see § What was checked first.
+- **The Instagram Messaging webhook** — sharing a reel to eait inside Instagram DMs, delivered as
+  an attachment carrying `payload.url`. Needs an IG business account and Meta App Review for
+  `instagram_manage_messages`, and reel shares carry documented delivery limits.
 - **Delivery receipts (Wolt, Uber Eats, Lieferando).** Neither has a consumer order-history API —
   both developer programmes are merchant-side, and every consumer tool in the wild works by taking
   the user's session token. The legitimate channel is the receipt email: one inbound address, one
