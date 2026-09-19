@@ -43,7 +43,7 @@ import { numbers } from "./lang.ts";
 import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
 import type { Goal, Lang, Profile } from "./types.ts";
 import {
-  isKnownScreen, screenForStep, stepApplies,
+  isKnownScreen, optionLabel, screenForStep, screenOptionValues, stepApplies,
   type OnboardingContent, type OnboardingPlace, type OnboardingScreenId, type OnboardingStep,
 } from "./onboarding.ts";
 
@@ -112,7 +112,13 @@ export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   { id: "pace", place: "target", field: "pace", kind: "choice", options: ["easy", "steady", "push"] },
   { id: "activity", place: "activity", field: "activity", kind: "choice", options: ["sedentary", "light", "moderate", "active", "athlete"] },
   { id: "struggles", place: "struggles", kind: "chips", options: STRUGGLES },
-  { id: "country", place: "country", field: "country", kind: "choice", options: ["de", "gb", "us", "other"] },
+  // NO `options`, and it is the only choice prompt without them. The country list is sorted by the
+  // reader's own alphabet — Austria files under Ö in German and А in Russian — so it cannot be a
+  // constant on a prompt. Every renderer falls through to `screenOptionValues(screen, lang)`,
+  // which is where it has to come from. This line WAS `["de", "gb", "us", "other"]`, a fourth copy
+  // of the list, and it is what both surfaces actually rendered: growing `COUNTRY_CODES` changed
+  // nothing on screen until it went.
+  { id: "country", place: "country", field: "country", kind: "choice" },
   { id: "restrictions", place: "restrictions", field: "restrictions", kind: "chips" },
   { id: "building", place: "building", kind: "auto" },
   { id: "summary", place: "summary", kind: "auto" },
@@ -614,10 +620,13 @@ export function answerLabel(
   // `ageFrom` — that is an eligibility band, and at its edge (an accepted 100-year-old crossing
   // New Year) it returned null and the fallback drew the raw year in the user's own bubble.
   if (prompt.field === "birth_year") return String(new Date().getUTCFullYear() - (raw as number));
-  if (prompt.options) {
-    const id = screenForStep(prompt.field);
+  // A VOCABULARY IS THE SCREEN'S, NOT THE PROMPT'S. This asked `prompt.options` and echoed the raw
+  // value when there were none — which, the moment the country prompt stopped carrying a list,
+  // would have drawn the user's own answer back to them as `de`.
+  const id = screenForStep(prompt.field);
+  if (screenOptionValues(id, lang).length > 0) {
     const opts = content.screens.find((s) => isKnownScreen(s.id) && s.id === id)?.options ?? {};
-    return opts[String(raw)]?.label ?? String(raw);
+    return opts[String(raw)]?.label ?? optionLabel(id, String(raw), lang);
   }
   return String(raw);
 }

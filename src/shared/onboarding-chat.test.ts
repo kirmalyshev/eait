@@ -8,7 +8,8 @@
 
 import { describe, expect, it, test } from "bun:test";
 import {
-  CHAT_PROMPTS, DEFAULT_ONBOARDING_CONTENT, ONBOARDING_STEPS, GAIN_PACE_CARD, GOAL_CARDS,
+  CHAT_PROMPTS, COUNTRY_CODES, DEFAULT_ONBOARDING_CONTENT, LANGS, ONBOARDING_STEPS,
+  GAIN_PACE_CARD, GOAL_CARDS, SCREEN_OPTIONS, countryLabel, screenForStep, screenOptionValues,
   MAX_STRUGGLE_CARDS, MAX_SURPLUS_SHARE, MAX_DEFICIT_SHARE, MIN_AGE, MIN_WEIGHT_KG, STRUGGLES,
   answerLabel, askLines, askPlaceholder, capNote, checkDirection, checkNumber,
   isAnswered, minHealthyKg, promptsFor, reconcileGoalEdit,
@@ -473,5 +474,47 @@ describe("checkNumber as the guard in front of a profile patch", () => {
     expect(checkNumber("weight_kg", "93", "en")).toEqual({ ok: true, value: 93 });
     expect(checkNumber("weight_kg", "93,5", "en")).toEqual({ ok: true, value: 93.5 });
     expect(checkNumber("target_weight_kg", "88.4", "en")).toEqual({ ok: true, value: 88.4 });
+  });
+});
+
+// ── The vocabulary, in one place ─────────────────────────────────────────────────────────────
+
+describe("a choice prompt's options are the screen's, not a second copy of them", () => {
+  // THE DRIFT THAT ALREADY HAPPENED. `CHAT_PROMPTS` carried `["de", "gb", "us", "other"]` beside
+  // `SCREEN_OPTIONS.country`, and `optionsFor` reads the PROMPT first — so growing `COUNTRY_CODES`
+  // from four entries to fifteen changed nothing at all on either surface. Typecheck was green,
+  // every unit test passed, and the rendered page still offered three countries to eight
+  // languages. Nothing here is clever; it just refuses the second copy.
+
+  it("matches SCREEN_OPTIONS wherever a prompt names one", () => {
+    for (const prompt of CHAT_PROMPTS) {
+      if (!prompt.options || !prompt.field) continue;
+      const screen = screenForStep(prompt.field);
+      expect([...prompt.options], `${prompt.id} disagrees with SCREEN_OPTIONS.${screen}`)
+        .toEqual([...(SCREEN_OPTIONS[screen] ?? [])]);
+    }
+  });
+
+  it("leaves the country prompt's list to the language, because its order is not a constant", () => {
+    expect(CHAT_PROMPTS.find((p) => p.id === "country")!.options).toBeUndefined();
+    for (const lang of LANGS) {
+      expect([...screenOptionValues("country", lang)].sort(), lang).toEqual([...COUNTRY_CODES].sort());
+    }
+  });
+});
+
+describe("the answer drawn back in the user's own bubble", () => {
+  it("names the country in words, in every language — a bare code is not an answer", () => {
+    // `answerLabel` gated on `prompt.options` and echoed the raw value without them. The moment
+    // the country prompt stopped carrying a list, that would have drawn "de" back at the user.
+    const prompt = CHAT_PROMPTS.find((p) => p.id === "country")!;
+    for (const lang of LANGS) {
+      for (const country of ["de", "vn", "ru", "mx"] as const) {
+        const label = answerLabel(prompt, profile({ country }), {
+          content: DEFAULT_ONBOARDING_CONTENT, lang,
+        });
+        expect(label, `${lang}/${country}`).toBe(countryLabel(country, lang));
+      }
+    }
   });
 });

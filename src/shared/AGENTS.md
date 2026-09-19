@@ -198,6 +198,10 @@ gets its meal names in that language.
   `SCREEN_OPTIONS` and not the content alone — the country list is sorted by the reader's own
   alphabet and its names come from CLDR, so a client that indexes the constant renders fifteen
   countries in code order and a client that trusts the content renders fourteen blanks.
+  **AND NOT `ChatPrompt.options`, which the country prompt no longer carries.** It held a fourth
+  copy of the list, `optionsFor` read it first, and growing `COUNTRY_CODES` changed nothing on
+  either surface until it went — typecheck green, every unit test passing, three countries still
+  on the page. A client that falls back to `prompt.options ?? []` renders an empty screen.
 
   *Chat:* `threadCopyFor`, `scriptedLine`, `firstVerdictLines`, `runningLine`, `MEET_GABIE`,
   `COACH_STARTERS`, `oneLiveProposal`, `verdictPillLabel`, `pendingLine` / `pendingSteps`.
