@@ -34,8 +34,16 @@ export const PORT_BASE = { backend: 8787, web: 8788 } as const;
  */
 export const PORT_STEP = 10;
 
-/** The dev Postgres `docker-compose.yml` runs — one container, shared by every worktree. */
-export const DEFAULT_PG_BASE_URL = "postgres://eait:eait@127.0.0.1:5433";
+/**
+ * The dev Postgres `docker-compose.yml` runs — one container, shared by every worktree.
+ *
+ * The user is `eait_app`, NOT the `eait` the image creates. `eait` is the image's POSTGRES_USER and
+ * Postgres makes that a superuser, which bypasses row-level security silently — so the backend
+ * connecting as it would make every policy in `store.pg.ts` decorative on a developer's machine.
+ * `src/scripts/db.sh` creates `eait_app` and gives it this worktree's database; `eait` stays the
+ * maintenance role behind `./dev db`.
+ */
+export const DEFAULT_PG_BASE_URL = "postgres://eait_app:eait@127.0.0.1:5433";
 
 /** The file that remembers a worktree's slot. Gitignored; one line; a number. */
 export const SLOT_FILE = ".eait-slot";

@@ -12,6 +12,13 @@ export interface Config {
    *  build with no auth ends up reachable from the internet. */
   host: string;
   databaseUrl: string;
+  /**
+   * The store's connection ceiling. It bounds concurrent store CALLS, not statements: every method
+   * runs inside a transaction for its whole body, so a call holds its connection until it commits.
+   * An env var rather than a constant because the right number depends on the box and on
+   * `max_connections`, and raising it must not require a code change and a redeploy.
+   */
+  databaseMaxConnections: number;
   llmProvider: string;
   /** The analyzer and the router. Needs vision. */
   llmModel: string;
@@ -471,6 +478,7 @@ export function configDefaults(): Config {
     port: 8787,
     host: "127.0.0.1",
     databaseUrl: "",
+    databaseMaxConnections: 25,
     llmProvider: "openrouter",
     llmModel: "x-ai/grok-4.5",
     llmChatModel: "x-ai/grok-4.6",
@@ -627,6 +635,7 @@ export function loadConfig(): Config {
     port: int("EAIT__BACKEND__PORT", d.port),
     host: process.env.EAIT__BACKEND__HOST ?? d.host,
     databaseUrl: required("EAIT__BACKEND__DATABASE_URL"),
+    databaseMaxConnections: int("EAIT__BACKEND__DATABASE_MAX_CONNECTIONS", d.databaseMaxConnections),
     llmProvider: process.env.EAIT__BACKEND__LLM_PROVIDER ?? d.llmProvider,
     llmModel: process.env.EAIT__BACKEND__LLM_MODEL ?? d.llmModel,
     llmChatModel: process.env.EAIT__BACKEND__LLM_CHAT_MODEL ?? d.llmChatModel,
