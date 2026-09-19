@@ -132,20 +132,31 @@ gets its meal names in that language.
   asserts the non-English labels DIFFER, with the genuine coincidences pinned as `lang.key` pairs);
   and the four `Record<…>` copy maps are keyed by their id union rather than by `string`, so the
   compiler names the language that forgets one instead of a `!` throwing inside a chat bubble.
-- **The claims gate (`claims.ts`) is English-only, and it now covers one language in eight.** It
-  matches English patterns, so running it over the German passes regardless. For the COMPILED-IN
-  tables that is survivable: they are translations of English that passed the gate, the English is
-  the source, and a sentence changes there first. It is NOT true of the two DB-stored surfaces —
-  `onboarding_content` and `notification_copy` — where an admin types the words directly and
-  `?lang=` gave them seven more revisions to type into. `validateNotificationCopy` accepts a German
-  push reading *Garantierter Gewichtsverlust*; the English *Guaranteed weight loss* is refused.
-  A push notification arrives unasked, on a lock screen, with no review and no recall, and §5 UWG
-  is the product's own jurisdiction — which is the sharp end of it: the gate's own rationale cites
-  German doctrine, and German is one of the seven languages it cannot read. THE DEFERRAL COVERS
-  BOTH WRITE PATHS, `validateOnboardingContent` and `validateNotificationCopy`, and the
-  eight-language claim set is an editorial review obligation rather than something a test holds. Open, tracked, and named here rather than left to be
-  rediscovered: what would close it is per-language pattern sets, and what would falsify the
-  framing is the stored surfaces losing their language dimension.
+- **The claims gate (`claims.ts`) reads all eight for four families, and English only for the
+  rest.** It used to be English patterns alone, which was survivable while there was one language
+  of public copy and it was the one the gate read. `?lang=` ended that: `onboarding_content` and
+  `notification_copy` are typed by an admin, stored per host, and outlive the binary — and one of
+  them is a push notification, which arrives unasked on a lock screen with no review and no
+  recall. `validateNotificationCopy` accepted *Garantierter Gewichtsverlust*.
+  - COVERED IN ALL EIGHT: `guarantee`, `weight-promise`, `lowers-marker`, `detox`.
+  - STILL ENGLISH-ONLY: `disease-verb`, `treats-disease`, `disease-term`, `burns-fat`,
+    `exclusivity`, `superiority`, `retired-no-email`. Two of those are German-shaped risks with no
+    German pattern — `disease-verb` is the sharpest HWG exposure there is, and `exclusivity` is
+    the *Alleinstellungsbehauptung* the file's own comment cites §5 UWG for. They are out because
+    each needs a native reading to write narrowly, and a guessed pattern is the kind that fires on
+    ordinary prose and gets the linter switched off.
+  - NO LANGUAGE IS THREADED IN. Every pattern runs over every string, exactly as `genderedRussian`
+    does — `garantiert` cannot match English and `guaranteed` cannot match German, so the sets do
+    not interfere, and an admin who types German into the English slot is still caught.
+  - THE FALSE-POSITIVE HALF IS THE ONE THAT DECIDES THIS. `claims.test.ts` pins both directions,
+    and its last two tests run every shipped string in all eight through the gate its own surface
+    uses. A pattern too broad fails there, on a language nobody was thinking about. Vietnamese
+    `đảm bảo` is "make sure" and the product writes it legitimately, so the guarantee pattern
+    requires an outcome beside it; `senkt` alone is not a marker claim, because the app lowers a
+    target.
+  - `\w` AND `\b` ARE ASCII IN JAVASCRIPT. `\bгарантия` and `сниж\w*` both silently match
+    nothing. Cyrillic patterns use lookarounds and `[а-яё]`, which is the same trap
+    `genderedRussian` fell into first.
 - **THE iOS CLIENT RENDERS FROM THESE TABLES TOO, and that is why they are here rather than in the
   backend.** `src/mobile` is not in this repo and imports `@eait/shared` from the parent monorepo,
   so a table in `backend/` is a table the phone cannot read. **No "and the rest" below** — a client

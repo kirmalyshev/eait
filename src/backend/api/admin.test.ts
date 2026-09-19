@@ -312,6 +312,21 @@ describe("the copy editor's ?lang=", () => {
       .toBe(DEFAULT_NOTIFICATION_COPY.evening.title);
   });
 
+  it("REFUSES a German health claim, which the English-only gate used to wave through", async () => {
+    // The exact payload a security review demonstrated: structurally valid, every placeholder
+    // present, and `lintCopy` had no German pattern — so it landed in `notification_copy->'de'`
+    // and composed at 20:30 to every German account with a push token. A push notification
+    // arrives unasked, with no review and no recall, and §5 UWG / HWG is this product's own
+    // jurisdiction.
+    const de = structuredClone(NOTIFICATION_COPY.de!);
+    de.evening.body = "Garantierter Gewichtsverlust. {eaten} von {plan}. {tomorrow}";
+    const res = await admin("PUT", "/admin/api/notifications?lang=de", { copy: de });
+    expect(res.status).toBe(422);
+    const said = JSON.stringify(await res.json());
+    expect(said).toContain("guarantee");
+    expect(said).toContain("weight-promise");
+  });
+
   it("REFUSES Russian that tells the reader their gender", async () => {
     // The guard is compiled-in-table protection unless it runs here too: a stored revision
     // replaces those tables for every user.

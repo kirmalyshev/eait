@@ -77,6 +77,72 @@ const RULES: readonly Rule[] = [
   // Deliberately narrow. It matches the claim, not the subject: "we email you" and "your email
   // address" are the true sentences that replaced it and must keep passing.
   { name: "retired-no-email", re: /\bno\s+e-?mail\b|\bnever\s+asks?\s+for\s+(?:your\s+|an\s+)?e-?mail\b/gi },
+
+  // ── THE SAME FOUR FAMILIES, IN THE OTHER SEVEN LANGUAGES (#358) ─────────────────────────────
+  //
+  // WHY ONLY FOUR. These are the ones the root AGENTS.md names, and they are the ones a
+  // translator or an admin actually reaches for. The rest stay English-only ON PURPOSE and it is
+  // written down below, because a rule set that looks complete and is not is worse than one whose
+  // edges are stated.
+  //
+  // WHY THEY NEED NO LANGUAGE ARGUMENT. Every pattern here is run over every string, exactly as
+  // `genderedRussian` is: `garantiert` cannot match English and `guaranteed` cannot match German,
+  // so the sets do not interfere. It also means an admin who types German into the English slot is
+  // still caught, which threading the language would have missed.
+  //
+  // NOT `\b` ON CYRILLIC OR VIETNAMESE. JavaScript's word boundary is ASCII, so `\bгарантия`
+  // never fires — the same trap `genderedRussian` fell into. Lookarounds, or nothing.
+  //
+  // NARROW WHERE THE VERB IS ORDINARY. Vietnamese `đảm bảo` is "make sure" — "đảm bảo đủ đạm" is
+  // a sentence this product legitimately writes — so the guarantee pattern requires an OUTCOME
+  // beside it. Same reason `senkt` alone is not `lowers-marker`: the app lowers a target, and only
+  // a biomarker beside the verb makes it a claim.
+
+  // guarantee
+  { name: "guarantee", re: /\bgaranti(?:e|s|es|r)?\b/gi },
+  { name: "guarantee", re: /\bgarantiert\w*|\bGarantie\b/gi },
+  { name: "guarantee", re: /\bgarantit[oaie]\b|\bgaranzia\b/gi },
+  { name: "guarantee", re: /\bgarantizad[oa]s?\b|\bgarant[ií]a\b/gi },
+  { name: "guarantee", re: /(?:cam kết|đảm bảo)\s+(?:giảm cân|kết quả|thành công|hiệu quả)/giu },
+  { name: "guarantee", re: /\b(?:dijamin|terjamin|jaminan\s+hasil|garansi)\b/gi },
+  { name: "guarantee", re: /(?<![а-яё])гаранти(?:я|и|ю|ей|рован[а-яё]*|рует|руем)(?![а-яё])/giu },
+
+  // weight-promise
+  { name: "weight-promise", re: /\bperd(?:re|ez|s|ons)\s+(?:du\s+poids|\d+\s*kg)|\bperte\s+de\s+poids\b/gi },
+  { name: "weight-promise", re: /\bgewicht\s+(?:zu\s+)?verlieren\b|\bgewichtsverlust\b|\d+\s*kg\s+ab\b/gi },
+  { name: "weight-promise", re: /\bperd(?:ere|i|e)\s+peso\b|\bperdita\s+di\s+peso\b|\bdimagri\w*/gi },
+  { name: "weight-promise", re: /\bpierd(?:e|es|a)\s+peso\b|\bperder\s+peso\b|\bp[ée]rdida\s+de\s+peso\b|\badelgaz\w*/gi },
+  { name: "weight-promise", re: /giảm\s+cân|giảm\s+\d+\s*kg/giu },
+  { name: "weight-promise", re: /\b(?:me|di)?turunkan?\s+berat\s+badan\b|\bturun\s+\d+\s*kg\b/gi },
+  { name: "weight-promise", re: /(?<![а-яё])(?:похуде[а-яё]*|сброс(?:ить|ь|им)\s+(?:вес|\d+\s*кг)|потеря\s+веса)/giu },
+
+  // lowers-marker
+  { name: "lowers-marker", re: /\b(?:fait\s+)?baisse[rz]?\s+(?:l[ae]\s+|du\s+)?(?:cholest[ée]rol|glyc[ée]mie|tension)\b/gi },
+  { name: "lowers-marker", re: /\bsenkt\s+(?:den\s+|das\s+|die\s+)?(?:cholesterin\w*|blutzucker|blutdruck)\b/gi },
+  { name: "lowers-marker", re: /\babbassa\s+(?:il\s+|la\s+)?(?:colesterolo|glicemia|pressione)\b/gi },
+  { name: "lowers-marker", re: /\bbaja\s+(?:el\s+|la\s+)?(?:colesterol|az[úu]car|tensi[óo]n)\b/gi },
+  { name: "lowers-marker", re: /giảm\s+(?:cholesterol|đường\s+huyết|huyết\s+áp)/giu },
+  { name: "lowers-marker", re: /\bmenurunkan\s+(?:kolesterol|gula\s+darah|tekanan\s+darah)\b/gi },
+  { name: "lowers-marker", re: /(?<![а-яё])сниж[а-яё]*\s+(?:холестерин[а-яё]*|сахар[а-яё]*|давлени[а-яё]*)/giu },
+
+  // detox — the English rule already catches the bare Latin "detox", which fr/it/es/vi/id share.
+  { name: "detox", re: /\bd[ée]tox\w*/gi },
+  { name: "detox", re: /\bentgift\w*/gi },
+  { name: "detox", re: /\bdisintossic\w*/gi },
+  { name: "detox", re: /\bdesintoxic\w*/gi },
+  { name: "detox", re: /thải\s+độc/giu },
+  { name: "detox", re: /\bdetoks\w*/gi },
+  { name: "detox", re: /(?<![а-яё])детокс[а-яё]*/giu },
+
+  // ── WHAT IS STILL ENGLISH-ONLY, and why ─────────────────────────────────────────────────────
+  //
+  // `disease-verb`, `treats-disease`, `disease-term`, `burns-fat`, `exclusivity`, `superiority`
+  // and `retired-no-email`. Two of those deserve naming rather than a list: `disease-verb`
+  // ("heilt", "guérit", "лечит") is the sharpest HWG exposure there is, and `exclusivity` is the
+  // Alleinstellungsbehauptung this file's own comment cites §5 UWG for — so both are German-shaped
+  // risks with no German pattern. They are out because each needs a native reading to write
+  // narrowly, and a pattern guessed at is the kind that fires on ordinary prose and gets the
+  // linter switched off. The four above were reviewed; these have not been.
 ];
 
 /**
