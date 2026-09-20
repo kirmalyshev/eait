@@ -6,9 +6,13 @@
 // contract both sides implement and a colour is part of the contract — the page a visitor reads
 // immediately before the App Store screenshots must be the same object as the app in them.
 //
-// THE ACCENT IS NOT THE SAME IN BOTH, and that is not a transcription error. #C8F751 is a 15:1
-// fill on the dark page and 1.08:1 on the light one; the light theme uses the same hue an octave
+// THE ACCENT IS NOT THE SAME IN BOTH, and that is not a transcription error. #5AF05A is a 12.3:1
+// fill on the dark page and 1.36:1 on the light one; the light theme uses the same hue an octave
 // down.
+//
+// ONLY THE DARK HALF IS A DRAWN REGISTER. Every hex in it is sampled or marked as ours in the app
+// repo's `product/design/soft-body/boards/lifesum/eait-lifesum-design.html`. The light palette has
+// no such table behind it and was left exactly as it was.
 
 export const light = {
   bg: "#F4F4F2",
@@ -32,24 +36,28 @@ export const light = {
 } as const;
 
 export const dark = {
-  bg: "#0B0B0C",
-  surface: "#141517",
-  surfaceRaised: "#1C1E21",
-  border: "#26292E",
-  borderStrong: "#343941",
+  bg: "#121516",
+  surface: "#1B1E1F",
+  surfaceRaised: "#282828",
+  border: "#2F3334",
+  borderStrong: "#3D3C42",
 
-  text: "#F4F4F5",
-  textMuted: "#9BA1AA",
-  textFaint: "#828993",
+  text: "#FFFFFF",
+  textMuted: "#C6C4C5",
+  /** 5.84:1 on `surfaceRaised`, the card ground every placeholder draws on. */
+  textFaint: "#A3A3A3",
 
-  accent: "#C8F751",
-  accentText: "#10130A",
+  accent: "#5AF05A",
+  accentText: "#08170A",
 
-  good: "#4ADE80",
-  warn: "#FBBF24",
+  /** A guess that has been answered is exact, and exact is the affordance colour. */
+  good: "#5AF05A",
+  /** The guess, and nothing else. */
+  warn: "#FFC53D",
+  /** Ours, and outside the register: no board draws an error, so the table has no fourth hue. */
   bad: "#F87171",
-
-  care: "#7DD3FC",
+  /** The calorie floor, and nothing else. */
+  care: "#5AA9FF",
 } as const;
 
 export type ColorName = keyof typeof light;
@@ -86,4 +94,4 @@ export const vars = (t: Record<ColorName, string>, dim: string, scheme: "light" 
 `;
 
 export const lightVars = vars(light, "#666C75", "light");
-export const darkVars = vars(dark, "#7C838B", "dark");
+export const darkVars = vars(dark, "#9A9A9A", "dark");
