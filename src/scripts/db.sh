@@ -29,6 +29,15 @@ cd "$(dirname "$0")/../.."
 DB="$EAIT_DB_NAME"
 TEST_DB="$EAIT_TEST_DB_NAME"
 
+# THE PIN IN `docker-compose.yml` LOSES TO THE CALLER'S ENVIRONMENT. An exported
+# COMPOSE_PROJECT_NAME — and a line in `.env`, which compose also reads — outranks `name:
+# eait-dev`, and a caller carrying either runs every compose call below under that other
+# project. `refuse_foreign_container` then still passes (the container IS eait-dev's) and `up`
+# dies on Docker's raw container-name conflict instead of reusing what is running: the puzzling
+# error that check exists to prevent, arriving by another door. Exporting it here makes the
+# environment agree with the file, whatever the caller carried in.
+export COMPOSE_PROJECT_NAME=eait-dev
+
 # One place that knows how to reach the server, so nothing below repeats the credentials.
 psql_as() {
   _u=$1
