@@ -1,11 +1,12 @@
 import { describe, expect, it } from "bun:test";
+import { PKCS8_BEGIN, PKCS8_END } from "../config.ts";
 import { checkWebAuth, checkWebProvider, WEB_AUTH_VARS, type WebAuthConfig } from "./web-auth-check.ts";
 
 const FULL: WebAuthConfig = {
   appleServiceId: "fit.eait.web",
   appleTeamId: "TEAM123456",
   appleKeyId: "KEY1234567",
-  applePrivateKey: "-----BEGIN " + "PRIVATE KEY-----\nx\n-----END " + "PRIVATE KEY-----",
+  applePrivateKey: `${PKCS8_BEGIN}\nx\n${PKCS8_END}`,
   googleWebClientId: "123.apps.googleusercontent.com",
   googleWebClientSecret: "secret",
 };

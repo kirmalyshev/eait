@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "bun:test";
 import { decodeJwt, decodeProtectedHeader, exportPKCS8, generateKeyPair, jwtVerify } from "jose";
-import { configDefaults } from "../config.ts";
+import { PKCS8_BEGIN, PKCS8_END, configDefaults } from "../config.ts";
 import {
   __appleClientSecret, appleWebProvider, googleWebProvider, webProviders,
 } from "./web-oauth.ts";
@@ -122,7 +122,7 @@ describe("the Apple client secret, which this server mints for itself", () => {
   });
 
   it("refuses a key that is not a P-256 private key rather than signing with something else", async () => {
-    await expect(__appleClientSecret({ ...APPLE, privateKeyPem: "-----BEGIN " + "PRIVATE KEY-----\nnope\n-----END " + "PRIVATE KEY-----" }))
+    await expect(__appleClientSecret({ ...APPLE, privateKeyPem: `${PKCS8_BEGIN}\nnope\n${PKCS8_END}` }))
       .rejects.toThrow();
   });
 });
