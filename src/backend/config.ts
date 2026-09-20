@@ -475,7 +475,7 @@ export function llmMaxTokensFromEnv(fallback: number): number {
  */
 export function configDefaults(): Config {
   return {
-    port: 8787,
+    port: 8484,
     host: "127.0.0.1",
     databaseUrl: "",
     databaseMaxConnections: 25,
@@ -832,7 +832,7 @@ function demoAuthRateLimitPerHour(): number {
 export function demoConfig(): Config {
   return {
     ...configDefaults(),
-    port: Number(process.env.EAIT__BACKEND__PORT ?? 8787),
+    port: Number(process.env.EAIT__BACKEND__PORT ?? 8484),
     host: process.env.EAIT__BACKEND__HOST ?? "127.0.0.1",
     databaseUrl: "memory://demo",
     llmProvider: "demo", llmModel: "demo", llmChatModel: "demo", llmGlanceModel: "demo", llmApiKey: "unused",

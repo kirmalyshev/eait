@@ -31,7 +31,7 @@ export const BUNDLE_PATH = "/app.js";
 export const HEALTH_PATH = "/health";
 
 /** Slot 0's port. Every other slot derives its own — `src/scripts/dev-env.ts` owns that arithmetic. */
-export const DEFAULT_PORT = 8788;
+export const DEFAULT_PORT = 8485;
 
 const notFound = () => new Response(JSON.stringify({ error: "not found" }), {
   status: 404,
@@ -139,7 +139,7 @@ export interface WebAppOptions {
    * which is exactly what the edge does in production — including keeping the browser's Host, see
    * `proxy` below.
    *
-   * The alternatives are both worse. An absolute `http://127.0.0.1:8787` in the client makes it
+   * The alternatives are both worse. An absolute `http://127.0.0.1:8484` in the client makes it
    * cross-origin, which is what `connect-src 'self'` and the absent CORS headers exist to forbid,
    * and it would be a second code path that only development ever runs. Running Caddy locally makes
    * `./dev up` need Docker before it can show a page.

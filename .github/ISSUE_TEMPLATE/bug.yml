@@ -16,7 +16,7 @@ body:
       description: Against `bun run demo` if at all possible — it needs no database and no key.
       placeholder: |
         1. bun run demo
-        2. curl -X POST localhost:8787/v1/auth/device -d '{"deviceId":"…"}'
+        2. curl -X POST localhost:8484/v1/auth/device -d '{"deviceId":"…"}'
         3. …
     validations:
       required: true

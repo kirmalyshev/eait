@@ -37,6 +37,23 @@ describe("ports", () => {
       expect(p.webPort - p.backendPort).toBeLessThan(PORT_STEP);
     }
   });
+
+  // THE OTHER REPOSITORY ON THE SAME LAPTOP. The private monorepo that carries this one as a
+  // submodule runs its own `./dev` stack, and this one was ported from it and kept its base — so
+  // both called slot 0 8787/8788 and whichever came up second died on a taken port (#24). Both
+  // ladders step by 10, so the last digit decides it for every slot at once: theirs end in 7, 8, 1
+  // and 3, and no port here may end in any of those. Checked as arithmetic rather than as a list of
+  // numbers, because a list only ever covers the slots somebody thought to write down.
+  test("no slot here can land on a port the monorepo's stack derives", () => {
+    const theirs = { backend: 8787, web: 8788, metro: 8081, landing: 4173 };
+    for (const ours of [PORT_BASE.backend, PORT_BASE.web]) {
+      for (const [name, base] of Object.entries(theirs)) {
+        expect(`${ours} vs ${name}`).toBe(
+          `${ours} vs ${Math.abs(ours - base) % PORT_STEP === 0 ? `${name} COLLIDES` : name}`,
+        );
+      }
+    }
+  });
 });
 
 describe("database names", () => {

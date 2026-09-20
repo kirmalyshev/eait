@@ -23,9 +23,9 @@ There is no Caddy on a laptop, so `server/index.ts` forwards what is not its own
 `EAIT__FRONTEND__BACKEND_ORIGIN` is set — the standard dev-server proxy, and unset in production.
 
 ```
-bun run demo                                   # the backend, in memory, on :8787
+bun run demo                                   # the backend, in memory, on :8484
 bun run web:build                              # → src/frontend/dist/main.js, served at /app.js
-EAIT__FRONTEND__BACKEND_ORIGIN=http://127.0.0.1:8787 bun run web   # this app on :8788, API proxied
+EAIT__FRONTEND__BACKEND_ORIGIN=http://127.0.0.1:8484 bun run web   # this app on :8485, API proxied
 bun run check                                  # typecheck (all three halves) + the build + tests
 bun run web:e2e                                # the browser suite, against the demo model
 ```
