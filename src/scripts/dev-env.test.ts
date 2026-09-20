@@ -56,6 +56,29 @@ describe("ports", () => {
   });
 });
 
+describe("the keys dev.sh clears", () => {
+  const devSh = readFileSync(new URL("./dev.sh", import.meta.url), "utf8");
+
+  // ONE LIST. `dev.sh` clears the caller's copies so `.env` wins, and it asks this file which keys
+  // those are — a second spelling in sh would go stale the next time one is added.
+  test("`derived-keys` prints exactly what the generator owns", () => {
+    const out = Bun.spawnSync({
+      cmd: ["bun", new URL("./dev-env.ts", import.meta.url).pathname, "derived-keys"],
+    });
+    expect(new TextDecoder().decode(out.stdout).trim()).toBe(DERIVED_KEYS.join(" "));
+  });
+
+  test("dev.sh asks for them rather than listing them", () => {
+    expect(devSh).toContain("dev-env.ts derived-keys");
+    // COMMENTS MAY NAME A KEY — the one above that loop names three, and naming the failure is the
+    // point of it. What may not exist is a second EXECUTABLE copy of the list.
+    const code = devSh.split("\n").filter((l) => !l.trim().startsWith("#")).join("\n");
+    for (const key of DERIVED_KEYS) {
+      expect(`${key} spelled in dev.sh: ${code.includes(key)}`).toBe(`${key} spelled in dev.sh: false`);
+    }
+  });
+});
+
 describe("database names", () => {
   test("slot 0 keeps the plain name everything already points at", () => {
     expect(dbNameFor(0, "anything")).toBe("eait");

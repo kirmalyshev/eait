@@ -78,6 +78,18 @@ load_env() {
     die 'this worktree has no .env.worktree, so every port here would be the MAIN worktree'"'"'s. Run `./dev up` (or `./dev env`) first.'
   fi
   . ./src/scripts/worktree.sh
+  # AND THE CALLER'S ENVIRONMENT MUST NOT OUTRANK THE DERIVATION. bun ranks the process environment
+  # above `.env`, so a shell that merely CARRIES a key this generator owns aims the service
+  # elsewhere and says nothing about it. Measured 2026-09-20 in the monorepo: an inherited
+  # `EAIT__BACKEND__PORT=8787` bound the backend to another checkout's port while `.env` said 8484,
+  # and `EAIT__FRONTEND__PORT` — not exported there — came up correctly, so ONE `./dev up` produced
+  # one process on the derivation and one on the leak. `EAIT__BACKEND__DATABASE_URL` is in the same
+  # set, and an inherited one points a worktree at another worktree's database, which is the
+  # collision `worktreeEnvValues` throws at generation time to prevent. `db.sh` exports its compose
+  # pin against the same class (#23).
+  #
+  # The list comes FROM `DERIVED_KEYS`; a second copy spelled here in sh is one that goes stale.
+  for _k in $(bun src/scripts/dev-env.ts derived-keys); do unset "$_k"; done
 }
 
 # ── The service table ────────────────────────────────────────────────────────────────────────

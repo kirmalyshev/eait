@@ -565,8 +565,13 @@ if (import.meta.main) {
     else if (cmd === "show") show(root);
     else if (cmd === "branch-check") process.exit(branchCheck(root));
     else if (cmd === "clean") process.exit(clean(root));
+    // For `dev.sh`, which clears these out of the caller's environment before starting anything —
+    // bun ranks the process environment above `.env`, so an inherited one silently outranks the
+    // derivation. Printed from the constant rather than spelled again in sh, where a second copy
+    // would go stale the next time a key is added.
+    else if (cmd === "derived-keys") console.log(DERIVED_KEYS.join(" "));
     else {
-      console.error(`dev-env: unknown command "${cmd}" — setup | show | branch-check | clean`);
+      console.error(`dev-env: unknown command "${cmd}" — setup | show | branch-check | clean | derived-keys`);
       process.exit(2);
     }
   } catch (e) {
