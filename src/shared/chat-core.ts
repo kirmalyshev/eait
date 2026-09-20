@@ -21,6 +21,7 @@
 
 import { scriptedLine } from "./chat.ts";
 import type { ChatEntry, ChatHistoryResponse, DeleteLineResponse, ProfileResponse } from "./contract.ts";
+import type { Lang } from "./types.ts";
 import { mayHaveSpentSample, sampleSpent } from "./entitlement.ts";
 import { attemptOf } from "./outbox.ts";
 import type { ConfirmMealResult, HandleTextResult, MealLogged, TargetGone } from "./results.ts";
@@ -141,6 +142,14 @@ const randomId = () => `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
 
 export function createChatCore(deps: ChatCoreDeps): ChatCore {
   const uid = deps.uid ?? randomId;
+  // READ PER CALL, never captured: `deps.profile()` is null on a cold open and a sign-in can
+  // replace the account under a mounted screen — the same reason `client` is a thunk. The two
+  // lines this core writes itself ("Dropped it.") are the only words here that are not the
+  // server's, and they are the only thing this is for.
+  // OPTIONAL ALL THE WAY DOWN, like `mayHaveSpentSample`: a cached profile written by an older
+  // binary can be missing the block the types say is required, and a thread that throws while
+  // wording "Dropped it." would abort the screen over one line of copy.
+  const lang = (): Lang => deps.profile()?.profile?.lang ?? "en";
   let state: ChatState = {
     entries: fromHistory(deps.seed ?? []),
     before: null,
@@ -340,7 +349,7 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
             }
           }
           const entry: ThreadEntry = { id: uid(), role: "assistant", result };
-          edit((prev) => oneLiveProposal([...prev, entry]));
+          edit((prev) => oneLiveProposal([...prev, entry], lang()));
           deps.onAnswer?.();
           // The server wrote Spud's line after the card ("Updated — …"); only a page shows it.
           // Awaited, so the composer stays busy until it lands and nothing typed meanwhile is dropped.
@@ -457,7 +466,7 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
         // says so, rather than a "Dropped it." the thread will not carry.
         replace(entryId, res.kind === "expired"
           ? { id: entryId, role: "assistant", result: { kind: "expired" } }
-          : { id: entryId, role: "assistant", result: { kind: "answered", text: scriptedLine("dropped") } });
+          : { id: entryId, role: "assistant", result: { kind: "answered", text: scriptedLine("dropped", lang(), {}) } });
       }
     } catch (e) {
       pushFailure(e);
@@ -503,7 +512,7 @@ export function createChatCore(deps: ChatCoreDeps): ChatCore {
       // real. A kept turn cannot land after a newer live one — a turn said while kept ones wait joins
       // their end (`waiting`) — so the newest to land is the newest asked for, a Send again included.
       for (const stale of livePendings(state.entries)) void deps.client().cancelPending(stale).catch(() => {});
-      edit((prev) => oneLiveProposal([...prev, { id: uid(), role: "assistant", result }]));
+      edit((prev) => oneLiveProposal([...prev, { id: uid(), role: "assistant", result }], lang()));
     } else if (result.kind === "target-gone") {
       // The server keeps no line for it, so no page would say it — and a page would drop a live
       // notice: the notice a live turn gets, and no reload behind it.

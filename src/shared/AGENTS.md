@@ -18,6 +18,8 @@ a third implementation instead of the agreement between two.
 | `health.ts` | `HEALTH_FIELDS` + `aggregateDays`. Day attribution is tested with no simulator. |
 | `trend.ts` | a daily series by day/week/month/year, and Pearson between two of them. Every number on a health chart. |
 | `onboarding.ts`, `onboarding-chat.ts` | the question set and the branch logic. |
+| `lang.ts` | `Localized<T>`, `t(lang)`, `LANGS_READY`, the two number formatters, and `localizedGaps`. |
+| `onboarding-content.ts`, `onboarding-chat-copy.ts`, `chat-copy.ts`, `health-copy.ts`, `verdicts.ts` | the WORDS, keyed by language. The rules stay in the file beside each. |
 | `perf.ts` | `PERF_SCREENS` and every screen's budget. |
 | `entitlement.ts`, `chat.ts`, `thread.ts`, `projection.ts`, `claims.ts`, `notifications.ts` | same rule: one definition, two consumers. |
 | `outbox.ts` | the turns a client could not send (#708): the order, the holds, and what is retried under the same id. The phone and the browser persist it; this decides it. |
@@ -47,6 +49,217 @@ Everything is exported through `index.ts` (`export *`), so a new export needs no
   ordering, windows and month arithmetic use plain `<`/`>` rather than parsing.
 - **The calorie floor is unconditional.** Share cap first, floor second. Any new code path that
   produces a kcal target goes through `explainTargets`.
+- **Copy is `Localized<T>`; a rule is not.** A table holds the WORDING of each branch and the code
+  beside it holds which branch a case takes. `eveningPrescription` picks the lever, `checkNumber`
+  decides what is a valid age, `correlationWords` owns the 0.5 that separates weak from moderate —
+  a translator moving any of those would be moving a rule. This is also what makes a translation
+  reviewable: a table diffs as prose.
+- **A sentence is a WHOLE template, never fragments joined by code.** `"{left} of your {plan} left
+  today"` and not `` `${rest} left today` `` with `rest` built elsewhere. The old thread built
+  "930 of your 1,450" in TypeScript and handed it over as one parameter, which is an English
+  genitive compiled into the code and unreachable by any translation.
+
+## Localization (#358)
+
+**The product speaks eight languages: `en`, `fr`, `de`, `it`, `es`, `vi`, `id`, `ru`.** `LANGS`
+(`types.ts`) is what the server stores and the model answers in. `LANGS_READY` (`lang.ts`) is the
+smaller, honest claim — what the app can render ITSELF end to end — and it is what a picker offers.
+They are equal today and are two names because they mean different things: `PATCH /v1/profile`
+accepts any `LANGS` code, because a phone in a language the browser pages have no words in still
+gets its meal names in that language.
+
+- **A new string goes in the `*-copy.ts` beside the module that reads it**, as a key on that
+  module's one `Localized` table, in all eight languages. Not in a `.json` bundle, not behind an
+  extraction step: `lang.ts`'s header says why, and eight compiled-in languages need neither.
+- **`localizedGaps` is what keeps `LANGS_READY` honest.** One test per workspace
+  (`copy.i18n.test.ts`) hands it `import * as everything` and fails by name — "CHAT_COPY has no vi
+  (Tiếng Việt)" — when a table is missing a language the list claims. A table nothing EXPORTS is a
+  table it cannot see, which is the one way a language can be lost quietly; export it.
+- **Fallback happens at the KEY, never at the screen.** `en` is required by `Localized<T>`, so
+  `t(lang)` cannot return undefined. One untranslated button is a wart; a screen that throws is a
+  process abort in a Release build.
+- **THE UNIT SYSTEM IS NOT THE LANGUAGE.** `de` is metric, `en` is not automatically imperial, and
+  nothing in a copy table may reach `targets.ts`. `Intl.NumberFormat` is asked for a decimal, never
+  for a measurement — `LANG_TAG` moves a separator and cannot move a kilogram.
+- **A unit SYMBOL beside a figure is `UNIT_KCAL`; a unit symbol on an axis is not.** Every sentence
+  carries its own unit word in its template; the four places that CONCATENATE one onto a figure
+  (the plan card, the diary headline, a Telegram meal line) read `UNIT_KCAL`, because a Russian plan
+  card read "1 500 kcal" with "Порог — 1500 ккал." two lines under it. That table is a SPELLING and
+  not a unit: the same quantity in all eight, which is the `LANG_LABEL` situation and not the
+  imperial one. `HEALTH_FIELDS.unit` stays SI and this does not license changing it.
+- **Numbers and dates are `Intl`.** `numbers(lang)` keeps a tenth (a weight somebody typed);
+  `wholeNumbers(lang)` rounds (a kcal from a photo, where a decimal claims a precision the analyzer
+  does not have). `monthYear` is `Intl.DateTimeFormat` — CLDR's forms are not all "<month> <year>",
+  and a table of ours got Spanish, Russian and Vietnamese wrong at once before it was deleted.
+- **A TABLE THAT IS NOT `Localized<T>` IS INVISIBLE TO EVERY CHECK HERE.** `localizedGaps` detects
+  a table by SHAPE, so English literals in an ordinary record are not a gap — they are not a table.
+  That is how the whole health-trend screen stayed English inside a translated app: `TREND_PERIODS`
+  held `label`/`noun` as plain strings, the axis formatters were pinned to `en-GB`/`en-US`, and
+  `trendSummary` took no language at all. Making `lang` required repo-wide would not have found it
+  either, because none of those functions HAD a language parameter to make required. The fix is the
+  general one — the words moved into `HEALTH_COPY`, the formatters are built from `LANG_TAG[lang]`,
+  and `trendPeriods(lang)`/`trendBuckets(…, lang)`/`trendSummary(…, lang)` take the language. When
+  you add a surface, ask whether its words are in a `Localized<T>`; if they are not, no test here
+  is watching them.
+- **A sentence is a TEMPLATE, never fragments joined by code.** `trendSummary` built the VoiceOver
+  line by concatenating "by", "from", "to", "Lowest" around the numbers. Word order is not a
+  constant across eight languages, and for a reader with low vision that sentence IS the chart. It
+  is one string per language with named placeholders now. The same rule caught Russian's `по`,
+  which governs the dative plural: `HealthCopy.periods[p].per` exists beside `noun` because one
+  field cannot be both `неделя` and `неделям`.
+- **A test refuses to let the Russian decide who the reader is.** Russian past tense agrees with
+  the speaker's gender and has NO neutral form, so `Что ты ел?` greets every woman using this app
+  as a man — and it shipped on the chat composer's placeholder, in three surfaces at once. Nothing
+  about the string is wrong to a reviewer reading it: it is correct, idiomatic and complete, and
+  English has no construction that behaves this way, so reviewing the English source could not
+  catch it either. `genderedRussian` (`lang.ts`) walks every string in the graph — it needs no
+  language bucket, because nothing but Russian has Cyrillic in it — and the three `copy.i18n`
+  tests fail naming the key. Fifteen sentences, four of them in `fr`/`it`/`es`/`ru` where the
+  adjective in "you're not alone" picks a gender too; those were rephrased around the situation
+  rather than the person, which is the move that works in all eight.
+
+- **A COUNTRY'S NAME IS CLDR'S, NOT COPY.** `COUNTRY_CODES` covers every market where one of the
+  eight is spoken — it was `de | gb | us | other` while the product shipped in eight languages, so
+  a Vietnamese or Indonesian reader met "so I know your supermarket, not somebody else's" above a
+  list whose only true answer was "Somewhere else". Growing it was only affordable because the
+  labels left the content: fifteen countries in eight languages is 120 strings, and our own month
+  table had Spanish, Russian and Vietnamese wrong at once before `Intl` replaced it. So
+  `countryLabel` is `Intl.DisplayNames`, `countryOptions` sorts with `Intl.Collator` because
+  Austria files under Ö in German and А in Russian, and `other` is the ONE option still written by
+  hand — it is a sentinel, not a region, and "Somewhere else" is the product's voice.
+  `optionLabelIsData` is the single predicate the validator, the admin editor and the renderer all
+  read, so none of them can disagree about which labels an admin owns. Adding a country is one
+  code in one array. And the PROMPT gets the name, never the code: `it`, `at`, `id` and `ca` read
+  as an English pronoun, a preposition, a column and an abbreviation inside the line that decides
+  which brands the analyzer expects on the plate.
+- **`LANG_LABEL` is never translated.** A list of languages written in the language the reader is
+  trying to leave is the one list they cannot read. It is also what the LLM prompt names the reply
+  language with (`languageLine`), because a language's own name is the same string wherever it is
+  read.
+- **The largest text surface is in no table.** Meal names, the coach's answers, the glance and the
+  follow-up chips are written by the model per turn. `languageLine` in `llm/prompt.ts` is the whole
+  of what steers them, and it reaches every prompt that produces words a user reads.
+- **A `Localized` table proves a language is PRESENT, never that it is complete.** `localizedGaps`
+  stops at the table — `lang.ts` says so — so everything one level inside it is a test's job. That
+  is where the remaining holes live: `HEALTH_COPY.labels` spreads the English underneath every
+  language, so a new metric is present in all eight and correct in one (`health-copy.test.ts`
+  asserts the non-English labels DIFFER, with the genuine coincidences pinned as `lang.key` pairs);
+  and the four `Record<…>` copy maps are keyed by their id union rather than by `string`, so the
+  compiler names the language that forgets one instead of a `!` throwing inside a chat bubble.
+- **The claims gate (`claims.ts`) reads all eight for four families, and English only for the
+  rest.** It used to be English patterns alone, which was survivable while there was one language
+  of public copy and it was the one the gate read. `?lang=` ended that: `onboarding_content` and
+  `notification_copy` are typed by an admin, stored per host, and outlive the binary — and one of
+  them is a push notification, which arrives unasked on a lock screen with no review and no
+  recall. `validateNotificationCopy` accepted *Garantierter Gewichtsverlust*.
+  - COVERED IN ALL EIGHT: `guarantee`, `weight-promise`, `lowers-marker`, `detox`.
+  - STILL ENGLISH-ONLY: `disease-verb`, `treats-disease`, `disease-term`, `burns-fat`,
+    `exclusivity`, `superiority`, `retired-no-email`. Two of those are German-shaped risks with no
+    German pattern — `disease-verb` is the sharpest HWG exposure there is, and `exclusivity` is
+    the *Alleinstellungsbehauptung* the file's own comment cites §5 UWG for. They are out because
+    each needs a native reading to write narrowly, and a guessed pattern is the kind that fires on
+    ordinary prose and gets the linter switched off.
+  - NO LANGUAGE IS THREADED IN. Every pattern runs over every string, exactly as `genderedRussian`
+    does — `garantiert` cannot match English and `guaranteed` cannot match German, so the sets do
+    not interfere, and an admin who types German into the English slot is still caught.
+  - THE FALSE-POSITIVE HALF IS THE ONE THAT DECIDES THIS, and native review moved three rules.
+    `guarantee` is OUTCOME-BOUND in every language, not just Vietnamese: the bare stem is the
+    consumer-law noun a paid iOS app has to write (*Garantie légale de conformité*) and it is also
+    this product's own voice (*Rien n'est garanti ici — ce sont des estimations*). Both were
+    refused by the first draft, which is the sentence that gets a linter switched off. `lowers-
+    marker` is decided by the MARKER and never the verb — Spanish `baja` is also an instruction,
+    `tensión` is also stress, `pressione` is ordinary pressure and Russian `сахар` is the food, so
+    the qualified form is required where English disambiguates itself. And `weight-promise` stops
+    short of the PROGRESSIVE: `Estás adelgazando` describes, `adelgazar` promises, and that line is
+    the best either Romance language offers.
+  - `CHAT_COPY` AND `onboarding-chat-copy.ts` ARE NOT SWEPT, deliberately. The full set goes red on
+    ten legitimate lines there — `Giảm cân` and `Похудеть` are the goal BUTTON, and neither
+    language has a neutral/promissory split for it. They sit exactly where English's `lose weight`
+    does, which is what `ONBOARDING_CLAIM_RULES` exists for; they are also code, reviewed in a PR
+    rather than typed by an admin. Adding them would force the patterns to be narrowed until they
+    stopped catching a marketer.
+  - `\w` AND `\b` ARE ASCII IN JAVASCRIPT. `\bгарантия` and `сниж\w*` both silently match
+    nothing. Cyrillic patterns use lookarounds and `[а-яё]`, which is the same trap
+    `genderedRussian` fell into first.
+- **THE iOS CLIENT RENDERS FROM THESE TABLES TOO, and that is why they are here rather than in the
+  backend.** `src/mobile` is not in this repo and imports `@eait/shared` from the parent monorepo,
+  so a table in `backend/` is a table the phone cannot read. **No "and the rest" below** — a client
+  author cannot migrate against that, and the list is the deliverable.
+
+  *Onboarding:* `onboardingContentFor` / `usableContentFor`, `askLines`, `askPlaceholder` (the one
+  with NO language — it reads `content` only), `answerLabel`, `IDLE_PLACEHOLDER`, `QUICK_REPLIES`,
+  `GOAL_CARDS`, `GOAL_FOLLOWUPS`, `STRUGGLE_LABELS`, `struggleCard`, `GAIN_PACE_CARD`,
+  `UNDER_AGE_CARD`, `UNDER_AGE_LINES`, `AMBIGUOUS_AGE`, `ACTIVITY_REPLIES`, `weightAck`,
+  `strugglesCloser`, `restrictionsReply`, `belowHealthyCard`, `checkDirection`, `switchedLine`,
+  `capNote`, `projectionLine`, `reconcileGoalEdit`, `checkNumber`.
+
+  *Onboarding's option chips:* `screenOptionValues(screenId, lang)` for the VALUES and
+  `content.options[value]?.label ?? optionLabel(screenId, value, lang)` for the label. Not
+  `SCREEN_OPTIONS` and not the content alone — the country list is sorted by the reader's own
+  alphabet and its names come from CLDR, so a client that indexes the constant renders fifteen
+  countries in code order and a client that trusts the content renders fourteen blanks.
+  **AND NOT `ChatPrompt.options`, which the country prompt no longer carries.** It held a fourth
+  copy of the list, `optionsFor` read it first, and growing `COUNTRY_CODES` changed nothing on
+  either surface until it went — typecheck green, every unit test passing, three countries still
+  on the page. A client that falls back to `prompt.options ?? []` renders an empty screen.
+
+  *Chat:* `threadCopyFor`, `scriptedLine`, `firstVerdictLines`, `runningLine`, `MEET_GABIE`,
+  `COACH_STARTERS`, `oneLiveProposal`, `verdictPillLabel`, `pendingLine` / `pendingSteps`.
+  NOT `correctionLine` — `engine/chat.ts` writes that server-side and it arrives as text.
+
+  *Health:* `healthLabel`, `correlationWords`, `trendPeriods`, `trendBuckets`, `trendSummary`,
+  `compareSeriesLabels`, `formatHealthValue`. **This whole surface has zero non-test consumers in
+  this repo** — it is mobile-only, so there is no reference implementation here to copy from and
+  the phone is the only thing that will ever exercise it.
+
+  *Notifications:* `notificationCopyFor` + `eveningPrescription`.
+
+  *Every figure and date:* `numbers` (keeps a tenth — a weight somebody typed), `wholeNumbers`
+  (rounds — a kcal or a gram from a photo), `monthYear`, `projectionMonth`, `UNIT_KCAL` for the
+  places that concatenate the unit onto a figure, and **`LANG_TAG[lang]` for any `Intl` the phone
+  builds itself** — relative times, date pickers, any axis outside `trendBuckets`.
+
+  **`trendSummary`'s `format` callback must spell its unit with `spellUnit(lang, …)`**, which is
+  what `formatHealthValue(spec, value, lang)` does — pass that, not a `toFixed`. The sentence is
+  the chart read aloud, so a raw `HEALTH_FIELDS.unit` puts `kg` in the middle of a Russian clause.
+  The AXIS keeps the SI symbol; only the spoken sentence does not.
+
+  **Where the language comes from, and the one place it is NOT `profile.lang`.** Normally
+  `ProfileResponse.profile.lang`; the picker writes it with `PATCH /v1/profile { lang }` and offers
+  `LANGS_READY` labelled by `LANG_LABEL`. For ONBOARDING it is `OnboardingContentResponse.lang` —
+  `GET /v1/onboarding?lang=` resolves the query FIRST and the account second, which is why that
+  field exists. Pass the response's language into `askLines` / `answerLabel` / `usableContentFor`,
+  or a client that asked `?lang=it` on a `de` account renders Italian questions with German cards.
+  Nothing in the types couples them.
+
+  **`POST /v1/auth/apple` and `/google` MUST SEND `locale`**, exactly as `/v1/auth/device` does. It
+  is optional on the wire and read ONLY when the sign-in creates the account, so a fresh install
+  that signs in before minting a device session and omits it gets `en` written at creation and
+  nothing ever revisits it. No compiler catches an omitted optional field.
+- **`lang` IS REQUIRED ON EVERY ONE OF THEM, and that is deliberately a breaking change.** `t()`
+  falls back at the KEY, which is the wart this design accepts; a defaulted PARAMETER falls back at
+  the SCREEN, and it does it where nothing can see — the call site that forgot it compiles, every
+  test passes, and the screen is English. Removing the defaults made the compiler name three live
+  ones no gate here could reach: `oneLiveProposal` in `chat-core.ts` (two call sites, one of them
+  wrong, so every non-English reader saw "dropped" in English), `projectionMonth` in `coach.ts` (an
+  English month handed to a model told to answer in Russian), and `scriptedLine` in `meals.ts`. So a
+  `src/mobile` call site that has no language is a BUILD ERROR rather than a screen somebody
+  eventually notices. Where the optional argument sat in front of the required one — `scriptedLine`,
+  `checkNumber` — the order was swapped, because reaching the language must never cost a caller an
+  argument it has no opinion about.
+- **The phone's two LOCAL notifications must read `notificationCopyFor(lang)`, not the default.**
+  `reminderPlan` says WHICH reminders to schedule and the words come from the table; scheduling
+  them off `DEFAULT_NOTIFICATION_COPY` is an English lock screen on an account that asked for
+  Italian, and nothing on the server would ever see it.
+- **`Intl` must be real on the device.** Every figure and every month name goes through it.
+  Hermes ships full ICU on the RN versions this app is built with, and `projection.ts`'s old
+  twelve-month table was written against a build that did not — if a device ever answers a numeric
+  month or an ungrouped thousand, that is the thing to check, not these tables.
+- **Admin-editable copy is stored per language in the SAME row.** `onboarding_content` and
+  `notification_copy` hold a `Localized<…>` map rather than one revision: no column, no migration,
+  and a row written before #358 is read as English, which is what it was. A save in one language
+  carries the seven it is not editing. `usableContentFor(lang, stored)` falls back to THAT
+  language's compiled-in copy, never to English.
 
 ## Testing
 

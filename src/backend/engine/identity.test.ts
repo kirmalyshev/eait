@@ -206,14 +206,14 @@ describe("the address the provider vouched for", () => {
 
   it("stores it on an account created by the sign-in itself", async () => {
     const deps = depsFor(store);
-    await signInWithProvider(deps, verifierFor("new@example.com"), "apple", "fresh", undefined, null);
+    await signInWithProvider(deps, verifierFor("new@example.com"), "apple", "fresh", undefined, null, "en");
     expect(await emailOf("fresh")).toBe("new@example.com");
   });
 
   it("stores it when the identity is linked to the anonymous account already in hand", async () => {
     const deps = depsFor(store);
     const anon = (await store.upsertDeviceUser(device(), "en")).userId;
-    const out = await signInWithProvider(deps, verifierFor("link@example.com"), "apple", "linked", undefined, anon);
+    const out = await signInWithProvider(deps, verifierFor("link@example.com"), "apple", "linked", undefined, anon, "en");
     expect(out.outcome).toBe("linked");
     expect(await emailOf("linked")).toBe("link@example.com");
   });
@@ -227,7 +227,7 @@ describe("the address the provider vouched for", () => {
     await store.addIdentity(real, "apple", "merger");
     const anon = (await store.upsertDeviceUser(device(), "en")).userId;
 
-    const out = await signInWithProvider(deps, verifierFor("merge@example.com"), "apple", "merger", undefined, anon);
+    const out = await signInWithProvider(deps, verifierFor("merge@example.com"), "apple", "merger", undefined, anon, "en");
     expect(out.outcome).toBe("merged");
     expect(out.userId).toBe(real);
     expect(await emailOf("merger")).toBe("merge@example.com");
@@ -240,7 +240,7 @@ describe("the address the provider vouched for", () => {
     const real = await store.createUser("en");
     await store.addIdentity(real, "apple", "returning");
 
-    const out = await signInWithProvider(deps, verifierFor("back@example.com"), "apple", "returning", undefined, null);
+    const out = await signInWithProvider(deps, verifierFor("back@example.com"), "apple", "returning", undefined, null, "en");
     expect(out.outcome).toBe("switched");
     expect(await emailOf("returning")).toBe("back@example.com");
   });
@@ -249,8 +249,8 @@ describe("the address the provider vouched for", () => {
     // Apple sends an address on the FIRST authorization only. Every sign-in after that looks like
     // this, and treating it as "the user has no address" would erase the one we were given.
     const deps = depsFor(store);
-    await signInWithProvider(deps, verifierFor("first@example.com"), "apple", "once", undefined, null);
-    await signInWithProvider(deps, verifierFor(), "apple", "once", undefined, null);
+    await signInWithProvider(deps, verifierFor("first@example.com"), "apple", "once", undefined, null, "en");
+    await signInWithProvider(deps, verifierFor(), "apple", "once", undefined, null, "en");
     expect(await emailOf("once")).toBe("first@example.com");
   });
 
@@ -265,7 +265,7 @@ describe("the address the provider vouched for", () => {
     const anon = (await store.upsertDeviceUser(device(), "en")).userId;
 
     const deps = depsFor(failsOnce(store, "setIdentityEmail"));
-    const out = await signInWithProvider(deps, verifierFor("kept@example.com"), "apple", "guarded", undefined, anon);
+    const out = await signInWithProvider(deps, verifierFor("kept@example.com"), "apple", "guarded", undefined, anon, "en");
 
     expect(out.outcome).toBe("merged");
     expect(out.userId).toBe(real);
@@ -279,7 +279,7 @@ describe("the address the provider vouched for", () => {
 
   it("writes nothing when the provider sent no address at all", async () => {
     const deps = depsFor(store);
-    await signInWithProvider(deps, verifierFor(), "apple", "silent", undefined, null);
+    await signInWithProvider(deps, verifierFor(), "apple", "silent", undefined, null, "en");
     expect(await emailOf("silent")).toBeNull();
   });
 });
@@ -304,7 +304,7 @@ describe("a transport is not a sign-in", () => {
     // The account the sign-in lands on already exists, which is the branch that merges.
     const real = await store.createUser("en");
     await store.addIdentity(real, "apple", "merge-me");
-    const out = await signInWithProvider(depsFor(store), verifier, "apple", "merge-me", undefined, anon);
+    const out = await signInWithProvider(depsFor(store), verifier, "apple", "merge-me", undefined, anon, "en");
 
     expect(out.outcome).toBe("merged");
     expect(out.userId).toBe(real);
@@ -330,5 +330,33 @@ describe("a transport is not a sign-in", () => {
     expect(await revokeAppleIdentity(depsFor(store), "revoke-keeps", Date.now())).toBe("unlinked");
     expect(await store.getProfile(userId)).not.toBeNull();
     expect(await store.userIdForIdentity("telegram", "7000000902")).toBe(userId);
+  });
+});
+
+describe("the language an account is born in", () => {
+  const verifier: IdentityVerifier = {
+    async verify(provider, idToken) { return { provider, subject: idToken }; },
+  };
+
+  it("is the one the caller resolved, not English", async () => {
+    // `/start` reads `Accept-Language` for the front door and then hands the browser to Apple or
+    // Google. This is the ONLY path that surface has to an account, so an `en` hardcoded here is
+    // not a default that something later corrects — it is the whole of German web onboarding
+    // rendering in English, with the picker that would fix it living behind the onboarding the
+    // user cannot read.
+    const deps = depsFor(store);
+    const out = await signInWithProvider(deps, verifier, "apple", "neu", undefined, null, "de");
+    expect(out.outcome).toBe("created");
+    expect((await store.getProfile(out.userId))?.lang).toBe("de");
+  });
+
+  it("is never re-decided for an account that already exists", async () => {
+    // A returning user's language is THEIRS — set in Settings, possibly months ago. A sign-in from
+    // a borrowed laptop with a French browser must not rewrite it.
+    const deps = depsFor(store);
+    const mine = await store.createUser("ru");
+    await store.addIdentity(mine, "apple", "back");
+    await signInWithProvider(deps, verifier, "apple", "back", undefined, null, "fr");
+    expect((await store.getProfile(mine))?.lang).toBe("ru");
   });
 });

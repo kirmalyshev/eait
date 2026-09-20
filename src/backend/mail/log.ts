@@ -15,8 +15,8 @@ import { confirmationMessage, type Mailer } from "./port.ts";
 
 export function logMailer(): Mailer {
   return {
-    async sendConfirmation(_to, confirmUrl) {
-      const { subject } = confirmationMessage(confirmUrl);
+    async sendConfirmation(_to, confirmUrl, lang) {
+      const { subject } = confirmationMessage(confirmUrl, lang);
       console.log(`[eait] mail (log provider) "${subject}" -> ${confirmUrl}`);
     },
   };

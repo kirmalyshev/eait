@@ -33,7 +33,8 @@
 // so it can render the next question without a round trip. One implementation, so they cannot
 // disagree about what "next" means.
 
-import type { Profile } from "./types.ts";
+import type { Lang, Profile } from "./types.ts";
+import { genderedRussian, LANG_TAG } from "./lang.ts";
 import { ACTIVITY_LEVELS, PACES } from "./types.ts";
 import { RESTRICTION_TAGS } from "./targets.ts";
 import { lintCopy } from "./claims.ts";
@@ -371,11 +372,90 @@ export interface OnboardingContent {
  * Sourced from the domain constants rather than retyped, so adding a pace or a restriction tag
  * makes the validator demand a label for it instead of letting the app render a blank row.
  */
-export const COUNTRY_CODES = ["de", "gb", "us", "other"] as const;
+/**
+ * The countries this app curates, and `other`.
+ *
+ * THE RULE THAT SETS THIS LIST: a country is here when one of the eight `LANGS` is spoken there
+ * as a majority or official language. It was `de | gb | us | other` while the product shipped in
+ * eight, which meant a Vietnamese or Indonesian speaker met a question no region of theirs could
+ * answer and an option list whose only true entry was "Somewhere else" — under a sentence that
+ * says "so I know your supermarket, not somebody else's". `onboarding.test.ts` holds the
+ * expectation per language and fails by name; the list may grow past it and must never shrink
+ * below it.
+ *
+ * THE CODES ARE ISO 3166-1 alpha-2, lowercased, because that is what a region subtag and a
+ * country-coded TLD already are — `countryFromRegion` and `suggestFromEmail` both read one
+ * without a mapping table, so a country joins this list and those two start answering with it in
+ * the same commit. `gb` rather than `uk` is the standard's own spelling of it.
+ *
+ * NOTHING IS KEYED BY A MEMBER OF THIS LIST. The code reaches exactly one place — a line in the
+ * analyzer's prompt naming where the user shops — so growing the list costs no table anywhere,
+ * and the NAMES come from CLDR (`countryLabel`) rather than from copy.
+ */
+export const COUNTRY_CODES = [
+  "at", "au", "ca", "ch", "de", "es", "fr", "gb", "id", "it", "mx", "ru", "us", "vn", "other",
+] as const;
 export type CountryCode = (typeof COUNTRY_CODES)[number];
 
+/** One `Intl.DisplayNames` per language, built on first use. Constructing one is not cheap. */
+const REGION_NAMES: Partial<Record<Lang, Intl.DisplayNames>> = {};
+
 /**
- * The device's region, mapped onto the four countries this app actually curates.
+ * The country's name in the reader's language, from CLDR.
+ *
+ * NOT A COPY TABLE, and that is the same call this PR already made for month names: a hand-written
+ * table of fifteen countries in eight languages is 120 strings an admin would be handed a text box
+ * for, and our own month table had Spanish, Russian and Vietnamese wrong at once before it was
+ * deleted. A country's name is data, not voice — `Deutschland`, `Германия`, `Việt Nam` — and the
+ * platform ships it correct and current. Adding a country costs one code here and nothing else.
+ *
+ * `other` IS NOT A REGION and is never passed to `Intl`: it is the sentinel meaning "somewhere we
+ * have not tuned for", it needs the product's own voice ("Somewhere else"), and it is the one
+ * option whose label stays in the editable content. This returns the code for it so a caller's
+ * `content label ?? countryLabel(...)` finds the written one.
+ */
+export function countryLabel(code: CountryCode, lang: Lang): string {
+  if (code === "other") return code;
+  const names = (REGION_NAMES[lang] ??= new Intl.DisplayNames([LANG_TAG[lang]], { type: "region" }));
+  return names.of(code.toUpperCase()) ?? code;
+}
+
+/**
+ * The options for the country question, in the order this reader should see them.
+ *
+ * SORTED BY THE NAME ON SCREEN, with `Intl.Collator`, because fifteen countries in code order is a
+ * list nobody scans and "alphabetical" is not one order across eight languages — Austria files
+ * under Ö in German and А in Russian. `other` is pinned last: it is the answer we are trying to
+ * get away from, and an alphabet should not be able to promote it.
+ *
+ * `suggestionFirst` runs over the RESULT, so a suggestion still arrives at the top.
+ */
+/**
+ * True when an option's label comes from CLDR rather than from the editable content.
+ *
+ * ONE PREDICATE, THREE READERS: the content validator does not demand a label for it, the admin
+ * editor does not draw a text box for it, and the question renderer falls back to `countryLabel`
+ * when the content has none. Three copies of "except the countries" is one of them eventually
+ * disagreeing — an admin handed a box whose value is then ignored, or a save refused for a label
+ * the editor never offered.
+ *
+ * `other` is excluded: it is a sentinel, not a region, and "Somewhere else" is the product's
+ * voice. It stays in the content, in all eight, and stays required.
+ */
+export const optionLabelIsData = (id: OnboardingScreenId, value: string): boolean =>
+  id === "country" && value !== "other";
+
+export function countryOptions(lang: Lang): CountryCode[] {
+  const compare = new Intl.Collator(LANG_TAG[lang]).compare;
+  return [
+    ...COUNTRY_CODES.filter((c) => c !== "other")
+      .sort((a, b) => compare(countryLabel(a, lang), countryLabel(b, lang))),
+    "other",
+  ];
+}
+
+/**
+ * The device's region, mapped onto the countries this app curates (`COUNTRY_CODES`).
  *
  * WHY THIS EXISTS AT ALL: the country question is a full stop in front of the payoff that buys the
  * user nothing — it tunes which products the analyzer expects to see, and the phone already knows
@@ -428,7 +508,7 @@ export type CountryResolution = {
  * What we know about where this user shops, and whether it is good enough not to ask.
  *
  * WHY THE ASK CAME BACK. `country = other` reached prod on an account in Germany (#359): the phone
- * reported a region outside the curated three — an expat with a US App Store region and a German SIM
+ * reported a region outside the curated list — an expat with a US App Store region and a German SIM
  * is the ordinary case, not the exotic one — and nothing asked, because the question was switched
  * off wholesale on the strength of the device knowing the answer. It does not always know.
  *
@@ -464,12 +544,22 @@ function suggestCountry(signals: CountrySignals): CountryCode {
 }
 
 /**
- * The only language in the curated three that names one country.
+ * The language a speaker's market can be guessed from, when one market dominates it.
  *
- * English names two of them and therefore suggests neither — a coin flip between the United Kingdom
- * and the United States is not a suggestion, it is a wrong answer half the time, pre-selected.
+ * TWO OF THE EIGHT SUGGEST NOTHING, and that is the rule rather than a gap. English names the
+ * United Kingdom and the United States, and a coin flip is not a suggestion — it is a wrong
+ * answer half the time, offered first. Spanish is the same shape: Spain and Mexico are both on
+ * the list and both large, and which one this app's Spanish readers are in is not something the
+ * language tag knows. The six below each have one market that is most of their speakers; German
+ * still suggests Germany with Austria and Switzerland now on the list, because 84 million against
+ * 14 is not the English situation.
+ *
+ * Getting it wrong costs one position in a sorted list — `suggestionFirst` reorders and never
+ * pre-selects — which is why a dominant guess is worth making and a coin flip is not.
  */
-const LANGUAGE_COUNTRY: Record<string, CountryCode | undefined> = { de: "de" };
+const LANGUAGE_COUNTRY: Record<string, CountryCode | undefined> = {
+  de: "de", fr: "fr", it: "it", vi: "vn", id: "id", ru: "ru",
+};
 
 /**
  * The country an email address names, or `other`.
@@ -532,6 +622,26 @@ export const SCREEN_OPTIONS: Partial<Record<OnboardingScreenId, readonly string[
   restrictions: RESTRICTION_TAGS,
 };
 
+/**
+ * The option values for a screen, in the order this reader should see them.
+ *
+ * `SCREEN_OPTIONS` is a constant because a pace and an activity level are ORDINAL — their order is
+ * the meaning, and it is the same in every language. A country list is not: it is fifteen names
+ * that want sorting by the alphabet of whoever is reading. Both clients call this rather than
+ * indexing the constant, so neither has to know which screens are which.
+ */
+export const screenOptionValues = (id: OnboardingScreenId, lang: Lang): readonly string[] =>
+  id === "country" ? countryOptions(lang) : SCREEN_OPTIONS[id] ?? [];
+
+/**
+ * The fallback label for an option the content does not name — CLDR's, or the bare value.
+ *
+ * The bare value is a last resort that should never render: it means an admin deleted a label for
+ * an option whose name is not data, and it is better than a blank chip.
+ */
+export const optionLabel = (id: OnboardingScreenId, value: string, lang: Lang): string =>
+  optionLabelIsData(id, value) ? countryLabel(value as CountryCode, lang) : value;
+
 // ── The defaults ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -573,8 +683,13 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // The claim cannot come back: `retired-no-email` in `claims.ts` refuses it on the admin write,
   // and `usableWelcome` refuses a stored revision that still carries it on the read. v10 (#609)
   // adds one clause to the weight question: the iPhone app keeps that number current from Apple
-  // Health, and a newer one moves the target on every surface, the browser included.
-  version: 10,
+  // Health, and a newer one moves the target on every surface, the browser included. v11 grows
+  // the country question from four options to fifteen: it offered Germany, the UK, the US and
+  // "Somewhere else" while the product shipped in eight languages, so a Vietnamese, Indonesian,
+  // Italian, Spanish or Russian reader had exactly one true answer and it was the sentinel. The
+  // labels left this file with it — a country's name is CLDR's, not an admin's. Bumped because a
+  // funnel row for a four-chip screen and one for a fifteen-chip screen are not the same screen.
+  version: 11,
   welcome: {
     lines: [
       "Hi, I'm Spud. Photograph what you eat, get an honest answer — that's the whole app.",
@@ -677,9 +792,6 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       // never reaches `explainTargets`. An admin who switches it off gets the old behaviour back.
       enabled: true,
       options: {
-        de: { label: "Germany" },
-        gb: { label: "United Kingdom" },
-        us: { label: "United States" },
         other: { label: "Somewhere else" },
       },
     },
@@ -876,7 +988,11 @@ export function validateOnboardingContent(input: unknown): ContentValidation {
         }
         for (const key of vocabulary) {
           const o = opts[key] as Record<string, unknown> | undefined;
-          if (typeof o !== "object" || o === null) { push(`${at}.options is missing "${key}"`); continue; }
+          if (typeof o !== "object" || o === null) {
+            // A country's name is CLDR's, so its absence is the normal case and not an omission.
+            if (!optionLabelIsData(screenId, key)) push(`${at}.options is missing "${key}"`);
+            continue;
+          }
           if (!isStr(o.label) || o.label.trim() === "") push(`${at}.options.${key}.label is required`);
           else if (o.label.length > MAX_LABEL) push(`${at}.options.${key}.label is over ${MAX_LABEL} characters`);
           if (o.hint !== undefined && (!isStr(o.hint) || o.hint.length > MAX_HINT)) {
@@ -902,6 +1018,17 @@ export function validateOnboardingContent(input: unknown): ContentValidation {
 
   for (const id of ONBOARDING_SCREENS) {
     if (!seen.has(id)) push(`screens is missing "${id}"`);
+  }
+
+  // ADMIN-TYPED RUSSIAN GETS THE GENDER CHECK TOO, and this is the only place it can run.
+  //
+  // `genderedRussian` is a build-time guard over the COMPILED-IN tables — and a stored revision
+  // REPLACES those for every user, so without this the whole check was a rule about strings an
+  // admin could overwrite through the editor without anything looking. It needs no `lang`: a
+  // string in any other language has no Cyrillic in it and cannot match.
+  for (const g of genderedRussian(raw)) {
+    push(`${g.at} tells a Russian reader their gender ("${g.text}") — Russian past tense`
+      + " and short adjectives agree, so this greets half your readers as the wrong person");
   }
   // Order is NOT content any more: the chat asks in the order `ONBOARDING_STEPS` fixes, because
   // the replies read answers the earlier questions produced. What is checked here is that every

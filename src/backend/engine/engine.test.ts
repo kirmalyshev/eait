@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MEET_GABIE, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, explainTargets, isMeal, proposalLive, runningLine, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
+import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MEET_GABIE, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, explainTargets, isMeal, onboardingContentFor, proposalLive, runningLine, scriptedLine, threadCopyFor, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
@@ -10,6 +10,7 @@ import { dateMinus, localDate, localTime } from "@eait/shared";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { remember } from "./chat.ts";
+import { LANGS, LANGS_READY } from "@eait/shared";
 import { charge } from "./caps.ts";
 import {
   appendLines, applyCorrection, attachPhotos, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
@@ -1172,7 +1173,7 @@ describe("the thread", () => {
     expect(text(t[0]!)).toBe("two eggs and toast");
     expect(text(t[4]!)).toContain("Typed, not photographed");
     // The first verdict ends by introducing the coach, in Spud's voice, with his face.
-    expect(t[6]).toMatchObject({ kind: "text", text: MEET_GABIE, speaker: null });
+    expect(t[6]).toMatchObject({ kind: "text", text: MEET_GABIE("en"), speaker: null });
   });
 
   it("names its proposal on the user line, and a racing confirm answers with the meal the other one logged", async () => {
@@ -1326,7 +1327,7 @@ describe("the thread", () => {
     expect(t.map((e) => [e.role, e.kind])).toEqual([["user", "photo"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"], ["assistant", "text"]]);
     expect(text(t[2]!)).toMatch(/^First one in\. [\d,]+ kcal — /);
     expect(text(t[3]!)).toContain("If anything's off");
-    expect(text(t[4]!)).toBe(MEET_GABIE);
+    expect(text(t[4]!)).toBe(MEET_GABIE("en"));
     // The VERDICT is never said again — but the day's standing is, on every meal past the first
     // (#306), which is the one line the greeting's own arithmetic stands in for.
     const second = await logPhotoMeal(d, userId, photo());
@@ -1384,7 +1385,7 @@ describe("the thread", () => {
     expect(text(t.at(-1)!)).toBe(runningLine({
       targets: explainTargets(profile).targets,
       eatenToday: { kcal: second.totals.kcal, protein_g: second.totals.protein_g },
-    }));
+    }, "en"));
 
     // A confirmed text meal is a landed meal too, and reads the same.
     const typed = await handleText(deps, userId, { text: "an apple" });
@@ -1396,7 +1397,7 @@ describe("the thread", () => {
     expect(text(after.at(-1)!)).toBe(runningLine({
       targets: explainTargets(profile).targets,
       eatenToday: { kcal: third.totals.kcal, protein_g: third.totals.protein_g },
-    }));
+    }, "en"));
   });
 
   it("says nothing about today for a meal logged to another day", async () => {
@@ -1554,6 +1555,40 @@ describe("the thread", () => {
         .toEqual({ appended: 0, reason: "bad-line" });
     }
     expect(await thread(userId)).toHaveLength(2);
+  });
+
+  it("writes every line it composes in the ACCOUNT'S language, never the server's default (#358)", async () => {
+    // The thread is composed HERE and read by the phone and by `/start`, so this is the one place a
+    // German account can be handed English without any surface being able to notice. Asserted
+    // against the tables rather than against prose: what is being proven is that the language
+    // reaches the composer, not what German says.
+    const userId = await onboard({ lang: "de" });
+    const de = threadCopyFor("de");
+
+    // A scripted line, named by the client, worded by the server.
+    expect(await appendLines(deps, userId, [{ role: "assistant", scripted: "camera-closed" }]))
+      .toEqual({ appended: 1 });
+    expect((await thread(userId)).map(text)).toContain(scriptedLine("camera-closed", "de", {}));
+
+    // An onboarding question by coordinate — the words come from this server's copy, in ITS language.
+    await appendLines(deps, userId, [{ role: "assistant", ask: { prompt: "goal", line: 0 } }]);
+    const askedInGerman = onboardingContentFor("de").screens.find((x) => x.id === "goal")!.asks.goal!.lines[0]!;
+    expect((await thread(userId)).map(text)).toContain(askedInGerman);
+
+    // The first verdict, and then the running line every later meal gets.
+    const first = await logPhotoMeal(deps, userId, photo());
+    if (first.kind !== "logged") throw new Error("expected logged");
+    const spoken = (await thread(userId)).map(text).join("\n");
+    expect(spoken).toContain(de.meetGabie);
+    expect(spoken).not.toContain(MEET_GABIE("en"));
+
+    const second = await logPhotoMeal(deps, userId, photo(9));
+    if (second.kind !== "logged") throw new Error("expected logged");
+    const after = (await thread(userId)).map(text).join("\n");
+    // The German template with its figures in, and not a word of the English one.
+    expect(after).toContain(de.running.left.split("{")[0]!.trim());
+    expect(after).not.toContain("of your");
+    expect(after).not.toContain("left today");
   });
 
   it("words the goal-weight question for the goal that was chosen", async () => {
@@ -2073,5 +2108,43 @@ describe("the analysis behind a turn", () => {
     expect(opened[2]!.analysisId).toBeNull();
     // The assistant's side of a turn carries none: the line that opened it is the one that does.
     expect(lines.filter((m) => m.role === "assistant").every((m) => m.analysisId === null)).toBe(true);
+  });
+});
+
+describe("the language on the profile", () => {
+  // `PATCH /v1/profile { lang }` is the write EVERY picker in this product performs — the web
+  // app's and the phone's — and nothing tested it. `/start`'s picker posts to its own route and is
+  // covered in a browser; this is the one the two typed clients use.
+
+  it("stores a language the reader picked, and reports it back", async () => {
+    const id = await store.createUser("en");
+    const out = await patchProfile(deps, id, { lang: "de" });
+    expect(out?.ok).toBe(true);
+    expect((await store.getProfile(id))?.lang).toBe("de");
+  });
+
+  it("accepts every language LANGS_READY offers, because the picker offers them", async () => {
+    for (const lang of LANGS_READY) {
+      const id = await store.createUser("en");
+      expect((await patchProfile(deps, id, { lang }))?.ok, lang).toBe(true);
+      expect((await store.getProfile(id))?.lang, lang).toBe(lang);
+    }
+  });
+
+  it("refuses a language this server does not store, and changes nothing", async () => {
+    const id = await store.createUser("de");
+    const out = await patchProfile(deps, id, { lang: "xx" as never });
+    expect(out?.ok).toBe(false);
+    expect(out?.ok === false && out.rejected.field).toBe("lang");
+    // The refusal is total: a rejected patch must not have written the fields beside it.
+    expect((await store.getProfile(id))?.lang).toBe("de");
+  });
+
+  it("validates against LANGS and NOT LANGS_READY, which is the wider claim", async () => {
+    // `LANGS` is what the server stores and what the model answers in; `LANGS_READY` is the
+    // smaller claim about what a client can render end to end. Narrowing the write to the second
+    // would create a state device auth can reach and the user cannot re-set. They are equal today,
+    // so this asserts the RELATIONSHIP rather than a value.
+    expect(LANGS_READY.every((l) => (LANGS as readonly string[]).includes(l))).toBe(true);
   });
 });

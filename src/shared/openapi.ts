@@ -82,6 +82,10 @@ export const API: readonly Endpoint[] = [
     request: { json: "PatchProfileRequest" },
     responses: { 200: "ProfileResponse", 403: ERROR, 422: "ProfileRejected" } },
   { route: "onboarding", method: "GET", path: "/v1/onboarding", auth: "bearer",
+    // READ BY THE HANDLER (`api/routes.ts`), so it belongs here: the response carries `lang` for
+    // the sole purpose of answering this, and a client generated from `openapi.json` could not
+    // express the ask at all while only the response half was declared.
+    query: { lang: "A Lang code. The account's language when absent, English when unknown." },
     summary: "The onboarding copy this server is serving.", responses: { 200: "OnboardingContentResponse" } },
   { route: "onboardingEvents", method: "POST", path: "/v1/onboarding/events", auth: "bearer",
     summary: "A batch of onboarding funnel events.",

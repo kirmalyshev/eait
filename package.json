@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "bun@1.4.0",
-  "description": "eait.fit — the backend, the contract its clients implement, and the web application.",
+  "description": "eait.fit \u2014 the backend, the contract its clients implement, and the web application.",
   "workspaces": [
     "src/shared",
     "src/backend",
@@ -18,10 +18,16 @@
     "web:e2e": "playwright test",
     "typecheck": "bun run --cwd src/shared typecheck && bun run --cwd src/backend typecheck && bun run --cwd src/frontend typecheck && tsc -p src/scripts",
     "test": "bun test ./src",
-    "check": "bun run typecheck && bun run web:build && bun run test && bun run openapi --check",
-    "openapi": "bun run src/scripts/openapi.ts"
+    "check": "bun run i18n:check && bun run typecheck && bun run web:build && bun run test && bun run openapi --check",
+    "openapi": "bun run src/scripts/openapi.ts",
+    "i18n:extract": "lingui extract",
+    "i18n:compile": "lingui compile --strict",
+    "i18n:check": "lingui compile --strict && git diff --exit-code -- src/shared/locales"
   },
   "devDependencies": {
+    "@lingui/cli": "^6.7.0",
+    "@lingui/conf": "^6.7.0",
+    "@lingui/format-po": "^6.7.0",
     "@playwright/test": "^1.63.0",
     "@types/bun": "^1.4.1",
     "ts-json-schema-generator": "^2.9.0",

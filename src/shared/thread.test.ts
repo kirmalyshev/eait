@@ -294,7 +294,7 @@ describe("oneLiveProposal / pendingIdOf — #360", () => {
     // first bubble kept its buttons for a `pendingId` the server had already forgotten about — two
     // offers that looked identical, and nothing said which one the thread was waiting on.
     const first = [...fromHistory([userLine("4 chicken nuggets, 3 breads with humus")]), proposal("a1", "p1")];
-    const again = oneLiveProposal([...first, ...fromHistory([userLine("the same plate")]), proposal("a2", "p2")]);
+    const again = oneLiveProposal([...first, ...fromHistory([userLine("the same plate")]), proposal("a2", "p2")], "en");
     const after = confirm(again, "a2", "p2");
     expect(after.filter((e) => e.role === "assistant" && e.result.kind === "logged")).toHaveLength(1);
     // ONE meal in the diary and ONE card: the older estimate is no longer a proposal at all.
@@ -306,12 +306,12 @@ describe("oneLiveProposal / pendingIdOf — #360", () => {
     // billed. On the phone that is two open cards, one of them above the conversation the reader
     // has moved on from (review recording, 13 Sep 2026). One live offer, and the retired one keeps
     // its id and its place so nothing moves under the reader's eye: the words the "No" button writes.
-    const retired = oneLiveProposal([proposal("a1", "p1"), proposal("a2", "p2")]);
+    const retired = oneLiveProposal([proposal("a1", "p1"), proposal("a2", "p2")], "en");
     expect(retired.map((e) => e.id)).toEqual(["a1", "a2"]);
-    expect(retired[0]).toEqual({ id: "a1", role: "assistant", result: { kind: "answered", text: scriptedLine("dropped") } });
+    expect(retired[0]).toEqual({ id: "a1", role: "assistant", result: { kind: "answered", text: scriptedLine("dropped", "en") } });
     expect(retired[1]).toEqual(proposal("a2", "p2"));
     // A third lands the same way: nothing but the newest is live.
-    const three = oneLiveProposal([...retired, proposal("a3", "p3")]);
+    const three = oneLiveProposal([...retired, proposal("a3", "p3")], "en");
     expect(three.map((e) => pendingIdOf(e))).toEqual([null, null, "p3"]);
   });
 
@@ -327,7 +327,7 @@ describe("oneLiveProposal / pendingIdOf — #360", () => {
 
   it("leaves a thread with one live estimate exactly as it is", () => {
     const entries = [...fromHistory([userLine("two eggs"), said("Anything else?")]), proposal("a1", "p1")];
-    expect(oneLiveProposal(entries)).toBe(entries);
+    expect(oneLiveProposal(entries, "en")).toBe(entries);
   });
 });
 

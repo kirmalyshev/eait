@@ -39,9 +39,11 @@ import {
   MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MIN_AGE, MIN_TARGET_BMI, MIN_WEIGHT_KG, ageFrom,
   type RestrictionTag,
 } from "./targets.ts";
-import type { Goal, Profile } from "./types.ts";
+import { numbers } from "./lang.ts";
+import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
+import type { Goal, Lang, Profile } from "./types.ts";
 import {
-  isKnownScreen, screenForStep, stepApplies,
+  isKnownScreen, optionLabel, screenForStep, screenOptionValues, stepApplies,
   type OnboardingContent, type OnboardingPlace, type OnboardingScreenId, type OnboardingStep,
 } from "./onboarding.ts";
 
@@ -88,16 +90,16 @@ export const STRUGGLES = [
 ] as const;
 export type Struggle = (typeof STRUGGLES)[number];
 
-export const STRUGGLE_LABELS: Record<Struggle, string> = {
-  stress: "Stress eating",
-  night: "Night snacking",
-  binge: "Binge episodes",
-  diets: "Diets that didn't stick",
-  eatout: "Eating out a lot",
-  energy: "Low energy",
-  body: "Body image",
-  metabolism: "Metabolism worry",
-};
+/**
+ * The chip labels, in one language.
+ *
+ * A FUNCTION OF THE LANGUAGE, like every other table in this file since #358. It was a bare record
+ * and the change is deliberate rather than mechanical: a constant is a thing a caller can capture
+ * once at module scope, which is exactly how a screen comes to render its labels in whatever
+ * language the process started in.
+ */
+export const STRUGGLE_LABELS = (lang: Lang): Record<Struggle, string> =>
+  chatCopyFor(lang).struggles;
 
 export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   { id: "welcome", place: "welcome", kind: "start" },
@@ -110,7 +112,13 @@ export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   { id: "pace", place: "target", field: "pace", kind: "choice", options: ["easy", "steady", "push"] },
   { id: "activity", place: "activity", field: "activity", kind: "choice", options: ["sedentary", "light", "moderate", "active", "athlete"] },
   { id: "struggles", place: "struggles", kind: "chips", options: STRUGGLES },
-  { id: "country", place: "country", field: "country", kind: "choice", options: ["de", "gb", "us", "other"] },
+  // NO `options`, and it is the only choice prompt without them. The country list is sorted by the
+  // reader's own alphabet — Austria files under Ö in German and А in Russian — so it cannot be a
+  // constant on a prompt. Every renderer falls through to `screenOptionValues(screen, lang)`,
+  // which is where it has to come from. This line WAS `["de", "gb", "us", "other"]`, a fourth copy
+  // of the list, and it is what both surfaces actually rendered: growing `COUNTRY_CODES` changed
+  // nothing on screen until it went.
+  { id: "country", place: "country", field: "country", kind: "choice" },
   { id: "restrictions", place: "restrictions", field: "restrictions", kind: "chips" },
   { id: "building", place: "building", kind: "auto" },
   { id: "summary", place: "summary", kind: "auto" },
@@ -189,6 +197,22 @@ function askContent(content: OnboardingContent, field: OnboardingStep) {
 }
 
 /**
+ * ONE SERVED REVISION: the admin's words, and the language they were served in.
+ *
+ * The two travel together because they can disagree and nothing else would notice. `content` comes
+ * from `GET /v1/onboarding?lang=`, which resolves the QUERY first and the account second, while
+ * `lang` supplies the code-side clauses inside the same bubble (`loseTail`, `nothingApplies`). Pass
+ * a profile's language beside content fetched for a different one and one sentence is Italian with
+ * a German tail — typed as two arguments, that was a mistake no compiler could see, and the phone
+ * is where it would be made. `OnboardingContentResponse` is exactly this shape, so a client hands
+ * the response straight in.
+ */
+export interface ServedContent {
+  content: OnboardingContent;
+  lang: Lang;
+}
+
+/**
  * What Spud says to pose one prompt, as bubbles.
  *
  * The profile questions read the ADMIN'S words; the conversation question reads the constant below.
@@ -196,7 +220,12 @@ function askContent(content: OnboardingContent, field: OnboardingStep) {
  * better here" is a warning about losing weight: said to somebody gaining, it is rule 1's reply
  * written for nobody.
  */
-export function askLines(prompt: ChatPrompt, content: OnboardingContent, p: Profile): string[] {
+export function askLines(
+  prompt: ChatPrompt,
+  served: ServedContent,
+  p: Profile,
+): string[] {
+  const { content, lang } = served;
   // The front door is content too, and it is the one prompt with no field and no constant.
   if (prompt.id === "welcome") return [...content.welcome.lines];
   if (prompt.field) {
@@ -204,14 +233,14 @@ export function askLines(prompt: ChatPrompt, content: OnboardingContent, p: Prof
     // Never empty: `usableContent` drops a whole revision that is missing an ask, so reaching this
     // fallback means the compiled-in default is what is on screen and something is very wrong.
     const lines = ask?.lines ?? [];
-    return lines.map((line) => line.replace(
-      "{loseTail}",
-      p.goal === "lose" ? " Faster isn't better here — it's just harder to keep." : "",
-    ));
+    // `{loseTail}` comes from the CODE table and the sentence around it from the admin's, because
+    // the tail is a warning about losing weight and the question is not. `content` is already in
+    // this language — the server chose it — so the two halves cannot end up in different ones.
+    return lines.map((line) => line.replace("{loseTail}", p.goal === "lose" ? chatCopyFor(lang).loseTail : ""));
   }
   // `building` and `summary` ask nothing — they are cards Spud draws — so an empty list is the
   // right answer for them rather than a throw, and a coordinate naming one is refused by the caller.
-  return [...(CONVERSATION_ASKS[prompt.id as keyof typeof CONVERSATION_ASKS] ?? [])];
+  return [...(conversationAsks(lang)[prompt.id] ?? [])];
 }
 
 /**
@@ -225,17 +254,13 @@ export function askPlaceholder(prompt: ChatPrompt, content: OnboardingContent): 
 }
 
 /** The idle placeholder, everywhere a prompt does not name its own. copy.md § Step 01. */
-export const IDLE_PLACEHOLDER = "Message Spud…";
+export const IDLE_PLACEHOLDER = (lang: Lang): string => chatCopyFor(lang).idlePlaceholder;
 
-const CONVERSATION_ASKS = {
-  struggles: ["Now the part most apps skip. What's been hard? Pick any — or none. This shapes support, never judgement."],
-} as const;
+const conversationAsks = (lang: Lang): Record<string, readonly string[]> =>
+  ({ struggles: chatCopyFor(lang).strugglesAsk });
 
 /** The multi-selects' way out: `finish` is the dock's primary button, `none` a pill. copy.md, verbatim. */
-export const QUICK_REPLIES = {
-  struggles: { finish: "Done", none: "None of these" },
-  restrictions: { finish: "Finish", none: "Nothing applies" },
-} as const;
+export const QUICK_REPLIES = (lang: Lang) => chatCopyFor(lang).quick;
 
 // ── Support cards ────────────────────────────────────────────────────────────────────────────
 
@@ -253,30 +278,12 @@ export interface SupportCard {
   source?: string;
 }
 
-/** copy.md § Step 02 — the card after the goal, one per branch. */
-export const GOAL_CARDS: Record<Goal, SupportCard> = {
-  lose: {
-    title: "You're in good company",
-    body: "About 42% of adults try to lose weight in any given year. The difference here: your target gets computed properly, with a floor we won't cross.",
-    source: "Systematic review of 72 studies · n = 1.18M adults",
-  },
-  gain: {
-    title: "Less rare than it feels",
-    body: "Roughly 23% of young men and 6% of young women actively tried to gain weight this past year. It's a real goal with real technique — we'll set a surplus that builds more than it pads.",
-    source: "Canadian young-adult study · n = 976",
-  },
-  maintain: {
-    title: "The quiet goal",
-    body: "About 23% of adults are actively working to hold their weight — the goal nobody posts about, and it still deserves a plan. Your days get judged against staying put.",
-    source: "Meta-analysis of past-year weight-control attempts",
-  },
-};
+/** copy.md § Step 02 — the card after the goal, one per branch. The words are in `CHAT_COPY`. */
+export const GOAL_CARDS = (lang: Lang): Record<Goal, SupportCard> => chatCopyFor(lang).goalCards;
 
 /** The line after the goal card. Reads the branch taken — rule 1. */
-export const GOAL_FOLLOWUPS: Partial<Record<Goal, string>> = {
-  gain: "Same rules as for everyone here — honest numbers, no cheering, no shame — just pointed up instead of down.",
-  maintain: "And the easy path is yours: no target weight to pick — we plan around staying put.",
-};
+export const GOAL_FOLLOWUPS = (lang: Lang): Partial<Record<Goal, string>> =>
+  chatCopyFor(lang).goalFollowups;
 
 /**
  * copy.md § Step 08 — one card per struggle picked, at most two.
@@ -286,55 +293,11 @@ export const GOAL_FOLLOWUPS: Partial<Record<Goal, string>> = {
  * gain variant states the weaker thing that is true, and carries no source, because there is not
  * one for it.
  */
-export function struggleCard(struggle: Struggle, goal: Goal): SupportCard {
-  if (struggle === "diets" && goal === "gain") {
-    return {
-      title: "Regain is the norm, not your fault",
-      body: "Most attempts to change weight, in either direction, revert within a couple of years — methods failing, not people. Your surplus here is sized to be keepable, not impressive.",
-    };
-  }
-  return STRUGGLE_CARDS[struggle];
+export function struggleCard(struggle: Struggle, goal: Goal, lang: Lang): SupportCard {
+  const copy = chatCopyFor(lang);
+  if (struggle === "diets" && goal === "gain") return copy.dietsGainCard;
+  return copy.struggleCards[struggle]!;
 }
-
-const STRUGGLE_CARDS: Record<Struggle, SupportCard> = {
-  stress: {
-    title: "A pattern, not a character flaw",
-    body: "Around 38% of adults eat in response to feelings at least monthly — for about half of them, weekly. Naming the pattern is most of the work; the log does the rest.",
-    source: "US national study, n = 5,863 · review, 2026",
-  },
-  night: {
-    title: "The 8pm hour is crowded",
-    body: "Over 60% of adults eat something after 8pm, and about 1 in 4 snackers now mostly eat late at night. We don't score when you eat — only what the day adds up to.",
-    source: "CivicScience, 1.2M responses",
-  },
-  binge: {
-    title: "You're not alone in this",
-    body: "Binge eating disorder is the most common eating disorder — about 2.8% of adults meet the criteria at some point, and 17% of people starting a weight programme screen positive. If episodes feel out of control, a clinician helps more than any app. Here, a hard day is data, never a verdict.",
-    source: "NIMH (NCS-R) · study of 6,930 programme starters",
-  },
-  diets: {
-    // "plan", not "target" — a maintainer picking this card has no target weight.
-    title: "Regain is the norm, not your fault",
-    body: "Across 29 long-term studies, more than half of lost weight comes back within two years — over 80% by five. That's methods failing, not people. Your plan here is sized to be keepable, not impressive.",
-    source: "Meta-analysis of 29 US weight-loss studies",
-  },
-  eatout: {
-    title: "Restaurant plates drift most",
-    body: "Estimates drift most on food you didn't cook — which is exactly what photos are best at. I'll say so when I'm unsure instead of pretending.",
-  },
-  energy: {
-    title: "Energy is the honest metric",
-    body: "Under-fuelled days and low energy travel together — it's one reason we refuse targets below the safety floor. Food is half of energy; we'll watch the shape of your days.",
-  },
-  body: {
-    title: "The scale is not the judge here",
-    body: "You'll get numbers about food, never comments about your body. Your goal sets the targets; nothing here is compared to anyone else.",
-  },
-  metabolism: {
-    title: "Let's measure instead of worry",
-    body: "Metabolisms differ less than the internet says — but yours is yours, and two weeks of honest logging shows what it actually does. That beats any formula, including mine.",
-  },
-};
 
 /**
  * copy.md § Step 05 — the gain support card.
@@ -343,44 +306,52 @@ const STRUGGLE_CARDS: Record<Struggle, SupportCard> = {
  * that the arithmetic does not implement is the worst sentence this repo could ship, and the way
  * that happens is somebody changing the constant and not the prose.
  */
-export const GAIN_PACE_CARD: SupportCard = {
-  title: "Gaining well is slow on purpose",
-  body: `Your surplus gets capped at about ${Math.round(MAX_SURPLUS_SHARE * 100)}% over what your body burns in a day — the zone where muscle keeps up with the scale. Most successful gainers lead with protein; we'll track yours automatically.`,
-  source: "Survey of 168 athletic adults attempting weight gain",
-};
+export const GAIN_PACE_CARD = (lang: Lang): SupportCard =>
+  filled(chatCopyFor(lang).gainPaceCard, { share: String(Math.round(MAX_SURPLUS_SHARE * 100)) });
 
 /** copy.md § Step 03 — the under-16 stop. The refusal is the server's; this is how it reads. */
-export const UNDER_AGE_CARD: SupportCard = {
-  title: `eait is for ${MIN_AGE} and over`,
-  body: "The way this app sets calorie targets is not designed for a body that is still growing.",
+export const UNDER_AGE_CARD = (lang: Lang): SupportCard =>
+  filled(chatCopyFor(lang).underAgeCard, { age: String(MIN_AGE) });
+
+/**
+ * The stop, offered and then taken.
+ *
+ * "Nothing you told me is kept" is a promise, so taking this branch DELETES the account rather
+ * than merely refusing the next write — the goal and the sex answered a minute ago are already
+ * rows. See `onboarding.tsx`.
+ */
+export const UNDER_AGE_LINES = (lang: Lang) => {
+  const copy = chatCopyFor(lang).underAge;
+  const age = { age: String(MIN_AGE) };
+  return {
+    ask: copy.ask,
+    confirm: copy.confirm,
+    placeholder: copy.placeholder,
+    stopped: copy.stopped.map((line) => fill(line, age)),
+    endedPlaceholder: fill(copy.endedPlaceholder, age),
+  };
 };
 
-export const UNDER_AGE_LINES = {
-  /** Offered once, in case a typo got us here. */
-  ask: "Sorry — I have to stop here. If a typo got us here, just send your real age.",
-  confirm: "That's my real age",
-  placeholder: "Your age",
-  /**
-   * The stop, taken.
-   *
-   * "Nothing you told me is kept" is a promise, so taking this branch DELETES the account rather
-   * than merely refusing the next write — the goal and the sex answered a minute ago are already
-   * rows. See `onboarding.tsx`.
-   */
-  stopped: [
-    "Then this is where we stop. Nothing you told me is kept, and nothing was sent anywhere — there is no account to delete.",
-    `Come back at ${MIN_AGE} and I'll be around.`,
-  ],
-  endedPlaceholder: `eait is for ${MIN_AGE} and over`,
-} as const;
-
 /** copy.md § Step 05 — the target below a healthy BMI. The server refuses it; this explains it. */
-export function belowHealthyCard(minHealthyKg: number): SupportCard {
-  return {
-    title: "I can't set that as a target",
-    body: `The lowest healthy weight for your height is about ${minHealthyKg} kg. We won't set a goal below it. If you're working with a doctor on something different, follow them rather than this app.`,
-  };
+export function belowHealthyCard(minHealthyKg: number, lang: Lang): SupportCard {
+  return filled(chatCopyFor(lang).belowHealthy, { kg: numbers(lang)(minHealthyKg) });
 }
+
+/**
+ * One `{placeholder}` per declared key, and a key with nothing to fill it left alone.
+ *
+ * Left alone rather than blanked, because a brace on screen is a bug somebody reports and a silent
+ * gap in a sentence is one nobody does. `onboarding-chat-copy.test.ts` asserts every table fills.
+ */
+const fill = (template: string, params: Record<string, string>): string =>
+  template.replace(/\{(\w+)\}/g, (whole, key: string) => params[key] ?? whole);
+
+/** A card with its numbers in. `source` is absent on the four that are statements, not citations. */
+const filled = (card: CardCopy, params: Record<string, string>): SupportCard => ({
+  title: fill(card.title, params),
+  body: fill(card.body, params),
+  ...(card.source !== undefined ? { source: card.source } : {}),
+});
 
 // ── What Spud says back ──────────────────────────────────────────────────────────────────────
 
@@ -388,24 +359,18 @@ export function belowHealthyCard(minHealthyKg: number): SupportCard {
 export const MAX_STRUGGLE_CARDS = 2;
 
 /** copy.md § Step 04 — the acknowledgement, and the first real number six steps early. */
-export function weightAck(bmr: number | null): string[] {
-  const lines = ["Noted — honest numbers make an honest plan."];
+export function weightAck(bmr: number | null, lang: Lang): string[] {
+  const copy = chatCopyFor(lang).weightAck;
+  const lines = [copy.noted];
   // Only when there is one. `basalMetabolicRate` returns null for anthropometrics it will not
   // compute from, and a quick win that says "about null kcal" is worse than no quick win.
-  if (bmr !== null) {
-    lines.push(`And here's your first number: at rest, your body burns about ${n(bmr)} kcal a day. The next questions sharpen it.`);
-  }
+  if (bmr !== null) lines.push(fill(copy.bmr, { bmr: numbers(lang)(bmr) }));
   return lines;
 }
 
 /** copy.md § Step 06 — one reply per activity level. `athlete` is this binary's fifth. */
-export const ACTIVITY_REPLIES: Record<string, string> = {
-  sedentary: "Thanks for the honest answer — most people overshoot this one, and then the target overshoots them.",
-  light: "Good — walks count for more than people think.",
-  moderate: "Solid. The number will assume those workouts happen — keep me honest.",
-  active: "Good — that buys you more food. I'd rather fuel it properly than guess low.",
-  athlete: "Then the number has real work to fuel. I'd rather feed it properly than guess low.",
-};
+export const ACTIVITY_REPLIES = (lang: Lang): Record<string, string> =>
+  chatCopyFor(lang).activityReplies;
 
 /**
  * copy.md § Step 08 — the line after the cards, or the line when nothing was picked.
@@ -413,11 +378,9 @@ export const ACTIVITY_REPLIES: Record<string, string> = {
  * It NAMES WHAT IS LEFT, and the number has to be right: it used to promise "one more question
  * about them", which was the hardest-moment question, and that question is gone.
  */
-export function strugglesCloser(picked: number): string {
-  if (picked === 0) return "Even better. If something turns up later, tell me in the chat — the plan can bend.";
-  return picked > 1
-    ? "We know how to work with each of these — the plan gets built around them, not in spite of them. Two quick ones left."
-    : "We know how to work with that — the plan gets built around it, not in spite of it. Two quick ones left.";
+export function strugglesCloser(picked: number, lang: Lang): string {
+  const copy = chatCopyFor(lang).strugglesCloser;
+  return picked === 0 ? copy.none : picked > 1 ? copy.many : copy.one;
 }
 
 /**
@@ -426,23 +389,18 @@ export function strugglesCloser(picked: number): string {
  * The cholesterol line CHAINS onto the kidney one ("too", "same rule"), so it must never fire
  * without it — which is why this returns the whole reply rather than one line per tag.
  */
-export function restrictionsReply(tags: readonly RestrictionTag[], freeText: boolean): string[] {
+export function restrictionsReply(
+  tags: readonly RestrictionTag[],
+  freeText: boolean,
+  lang: Lang,
+): string[] {
+  const copy = chatCopyFor(lang).restrictions;
   const lines: string[] = [];
-  if (tags.includes("kidneys")) {
-    lines.push("Noted. Sodium gets scored from here on — and only because you asked.");
-  }
-  if (tags.includes("ldl")) {
-    lines.push(lines.length > 0
-      ? "Saturated fat gets scored too — same rule: only what you declare."
-      : "Noted. Saturated fat gets scored from here on — and only because you asked.");
-  }
-  if (lines.length === 0 && tags.length > 0) {
-    lines.push("Noted — those go on your profile, and only they get scored.");
-  }
-  if (lines.length === 0) {
-    lines.push("Then nothing extra gets scored — undeclared things never are. You can add one any time in settings.");
-  }
-  if (freeText) lines.push("And the free text goes on your profile too.");
+  if (tags.includes("kidneys")) lines.push(copy.kidneys);
+  if (tags.includes("ldl")) lines.push(lines.length > 0 ? copy.ldlChained : copy.ldl);
+  if (lines.length === 0 && tags.length > 0) lines.push(copy.declared);
+  if (lines.length === 0) lines.push(copy.none);
+  if (freeText) lines.push(copy.freeText);
   return lines;
 }
 
@@ -464,10 +422,16 @@ export type NumberAnswer =
  * by a ninety-year-old it means ninety. Guessing either way computes somebody else's target, so
  * Spud asks — the quick reply takes it as an age, four digits take it as the year.
  */
-export const AMBIGUOUS_AGE = {
-  line: (age: number) =>
-    `Want to be sure I read that right — if you meant the year ${age + 1900}, send all four digits.`,
-  confirm: (age: number) => `I'm ${age}`,
+export const AMBIGUOUS_AGE = (lang: Lang) => {
+  const copy = chatCopyFor(lang).ambiguousAge;
+  const n = numbers(lang);
+  return {
+    // The YEAR is not a quantity and must never be grouped: `1990` and not `1,990`. The age beside
+    // it is, and at two digits the two formatters agree anyway — which is exactly why the rule has
+    // to be written down rather than observed.
+    line: (age: number) => fill(copy.line, { year: String(age + 1900) }),
+    confirm: (age: number) => fill(copy.confirm, { age: n(age) }),
+  };
 };
 
 /**
@@ -479,14 +443,21 @@ export const AMBIGUOUS_AGE = {
  * screen accepts is one the server accepts too, so the only refusals a user can meet are the two
  * that have words: the age minimum and the healthy-BMI floor.
  */
-const INVALID_AGE = "That doesn't look like an age — try something like 34.";
-
 const parseNumber = (s: string): number => {
   const match = s.match(/-?\d+(?:[.,]\d+)?/);
   return match ? Number(match[0].replace(",", ".")) : NaN;
 };
 
-export function checkNumber(field: NumberField, raw: string, today = new Date()): NumberAnswer {
+export function checkNumber(
+  field: NumberField,
+  raw: string,
+  lang: Lang,
+  // BEHIND the language, and that is the whole reason it moved. Required-after-optional compiles,
+  // and it made reaching the language cost a `new Date()` the caller did not want to name — so the
+  // call that skipped it read as correct and rendered English.
+  today = new Date(),
+): NumberAnswer {
+  const invalid = chatCopyFor(lang).invalid;
   // THE QUESTION IS AN AGE, AND THE AGE IS WHAT TRAVELS. "How old are you?" is what people answer
   // without arithmetic; `birth_year` is what the profile stores, because an age stored as a number
   // is wrong within twelve months (`types.ts`). The subtraction happens in `engine/profile.ts`,
@@ -501,22 +472,22 @@ export function checkNumber(field: NumberField, raw: string, today = new Date())
     const typed = Math.trunc(parseNumber(raw.replace(/(\d)[.,](\d{3})(?!\d)/g, "$1$2")));
     const age = typed >= 1000 ? today.getUTCFullYear() - typed : typed;
     if (!Number.isFinite(age) || age < 0 || age > 100) {
-      return { ok: false, line: INVALID_AGE };
+      return { ok: false, line: invalid.age };
     }
     // THE STOP IS FOR ANSWERS THAT PLAUSIBLY MEAN A CHILD. Its quick reply deletes the account, so
     // "0", "-0.4" and a premature send of "3" — typos, not toddlers — get the retry line instead,
     // from which nothing worse than retyping can happen.
     if (age < MIN_AGE) {
-      return age >= 5 ? { ok: false, underAge: true } : { ok: false, line: INVALID_AGE };
+      return age >= 5 ? { ok: false, underAge: true } : { ok: false, line: invalid.age };
     }
     if (typed >= 85 && typed <= 99) return { ok: false, ambiguousAge: typed };
     return { ok: true, value: age };
   }
 
   const value = parseNumber(raw);
-  if (!Number.isFinite(value)) return { ok: false, line: INVALID[field] };
+  if (!Number.isFinite(value)) return { ok: false, line: invalid[field] };
   const [lo, hi] = BANDS[field];
-  if (value < lo || value > hi) return { ok: false, line: INVALID[field] };
+  if (value < lo || value > hi) return { ok: false, line: invalid[field] };
   return { ok: true, value: Math.round(value * 10) / 10 };
 }
 
@@ -526,12 +497,6 @@ const BANDS: Record<Exclude<NumberField, "birth_year">, readonly [number, number
   // the server's. A band the client is looser than is a band whose refusals have no words.
   weight_kg: [MIN_WEIGHT_KG, 300],
   target_weight_kg: [MIN_WEIGHT_KG, 300],
-};
-
-const INVALID: Record<Exclude<NumberField, "birth_year">, string> = {
-  height_cm: "In centimetres — something like 175.",
-  weight_kg: "In kilograms — roughly is fine.",
-  target_weight_kg: "A number in kg — like 70.",
 };
 
 /**
@@ -552,31 +517,38 @@ export interface DirectionRefusal {
   placeholder: string;
 }
 
-export function checkDirection(goal: Goal, weightKg: number, targetKg: number): DirectionRefusal | null {
+export function checkDirection(
+  goal: Goal,
+  weightKg: number,
+  targetKg: number,
+  lang: Lang,
+): DirectionRefusal | null {
+  const copy = chatCopyFor(lang).direction;
+  const n = numbers(lang);
+  const params = { weight: n(weightKg), target: n(targetKg) };
   if (goal === "gain" && targetKg <= weightKg) {
     return {
-      line: `You're at ${n(weightKg)} kg and asked to gain to ${n(targetKg)} — that's not a gain from here. If the goal changed, we can switch it; otherwise give me a number above ${n(weightKg)}.`,
+      line: fill(copy.gain, params),
       switchTo: "lose",
-      switchLabel: "Switch to losing",
-      placeholder: `A number above ${n(weightKg)}…`,
+      switchLabel: copy.switchToLose,
+      placeholder: fill(copy.above, params),
     };
   }
   if (goal === "lose" && targetKg >= weightKg) {
     return {
-      line: `You're at ${n(weightKg)} kg and asked to lose to ${n(targetKg)} — that's not a loss from here. If the goal changed, we can switch it; otherwise give me a number below ${n(weightKg)}.`,
+      line: fill(copy.lose, params),
       switchTo: "gain",
-      switchLabel: "Switch to gaining",
-      placeholder: `A number below ${n(weightKg)}…`,
+      switchLabel: copy.switchToGain,
+      placeholder: fill(copy.below, params),
     };
   }
   return null;
 }
 
 /** What Spud says after the goal is flipped mid-question, and the target is asked again. */
-export function switchedLine(goal: Goal): string {
-  return goal === "gain"
-    ? "Switched — gaining it is. Where would you like to be, in kg?"
-    : "Switched — losing it is. Where would you like to be, in kg? Faster isn't better here — it's just harder to keep.";
+export function switchedLine(goal: Goal, lang: Lang): string {
+  const copy = chatCopyFor(lang).switched;
+  return goal === "gain" ? copy.gain : copy.lose;
 }
 
 /** The lowest weight this app will set as a target for a height, in whole kg. Mirrors `checkTargetWeight`. */
@@ -593,10 +565,16 @@ export function minHealthyKg(heightCm: number): number {
  * "maintenance" is a word the chat never introduced, so the sentence says "what your body burns in
  * a day" — which is the label on the row directly above it in the calc card.
  */
-export function capNote(template: string, goal: Goal | null, kgPerWeek: number | null): string {
+export function capNote(
+  template: string,
+  goal: Goal | null,
+  kgPerWeek: number | null,
+  lang: Lang,
+): string {
   const share = goal === "gain" ? MAX_SURPLUS_SHARE : MAX_DEFICIT_SHARE;
   const base = template.replace("{share}", String(Math.round(share * 100)));
-  return kgPerWeek === null ? base : `${base} That's about ${Math.round(kgPerWeek * 10) / 10} kg a week.`;
+  if (kgPerWeek === null) return base;
+  return base + fill(chatCopyFor(lang).capNoteTail, { kg: numbers(lang)(kgPerWeek) });
 }
 
 /** The projection sentence, or null when a date would be an invention. `projection.ts` says when. */
@@ -606,19 +584,13 @@ export function projectionLine(
   p: { beyondHorizon: boolean; weeks: number },
   month: string,
   targetKg: number | null,
+  lang: Lang,
 ): string {
   if (p.beyondHorizon) return far;
   return template
     .replace("{weeks}", String(p.weeks))
     .replace("{month}", month)
-    .replace("{target}", targetKg === null ? "" : n(targetKg));
-}
-
-/** Whole numbers with thousands separators, the way every figure in the thread is written. */
-function n(x: number): string {
-  return Math.round(x * 10) % 10 === 0
-    ? Math.round(x).toLocaleString("en-US")
-    : (Math.round(x * 10) / 10).toLocaleString("en-US");
+    .replace("{target}", targetKg === null ? "" : numbers(lang)(targetKg));
 }
 
 /**
@@ -629,12 +601,17 @@ function n(x: number): string {
  * "93" rather than `93` with a unit nobody typed. An enumerated value with no label in this
  * binary's content falls back to the raw value — a stale cache is not validated copy.
  */
-export function answerLabel(prompt: ChatPrompt, p: Profile, content: OnboardingContent): string | null {
+export function answerLabel(
+  prompt: ChatPrompt,
+  p: Profile,
+  served: ServedContent,
+): string | null {
+  const { content, lang } = served;
   if (!prompt.field || !isAnswered(prompt, p)) return null;
   const raw = p[prompt.field];
   if (prompt.field === "restrictions") {
     const tags = (raw as string[]).filter((t) => t !== "");
-    if (tags.length === 0) return "Nothing applies";
+    if (tags.length === 0) return chatCopyFor(lang).nothingApplies;
     const opts = content.screens.find((s) => s.id === "restrictions")?.options ?? {};
     return tags.map((t) => opts[t]?.label ?? t).join(" · ");
   }
@@ -643,10 +620,13 @@ export function answerLabel(prompt: ChatPrompt, p: Profile, content: OnboardingC
   // `ageFrom` — that is an eligibility band, and at its edge (an accepted 100-year-old crossing
   // New Year) it returned null and the fallback drew the raw year in the user's own bubble.
   if (prompt.field === "birth_year") return String(new Date().getUTCFullYear() - (raw as number));
-  if (prompt.options) {
-    const id = screenForStep(prompt.field);
+  // A VOCABULARY IS THE SCREEN'S, NOT THE PROMPT'S. This asked `prompt.options` and echoed the raw
+  // value when there were none — which, the moment the country prompt stopped carrying a list,
+  // would have drawn the user's own answer back to them as `de`.
+  const id = screenForStep(prompt.field);
+  if (screenOptionValues(id, lang).length > 0) {
     const opts = content.screens.find((s) => isKnownScreen(s.id) && s.id === id)?.options ?? {};
-    return opts[String(raw)]?.label ?? String(raw);
+    return opts[String(raw)]?.label ?? optionLabel(id, String(raw), lang);
   }
   return String(raw);
 }
@@ -676,6 +656,7 @@ export interface GoalEdit {
 export function reconcileGoalEdit(
   current: Pick<Profile, "goal" | "weight_kg" | "target_weight_kg">,
   patch: { goal?: Goal; weight_kg?: number; target_weight_kg?: number },
+  lang: Lang,
 ): GoalEdit {
   const goal = patch.goal ?? current.goal;
   const weightKg = patch.weight_kg ?? current.weight_kg;
@@ -684,19 +665,19 @@ export function reconcileGoalEdit(
   if (goal == null || goal === "maintain" || weightKg == null || targetKg == null) {
     return { patch, note: null };
   }
-  if (!checkDirection(goal, weightKg, targetKg)) return { patch, note: null };
+  if (!checkDirection(goal, weightKg, targetKg, lang)) return { patch, note: null };
 
   if (patch.target_weight_kg !== undefined) {
-    return { patch: null, note: checkDirection(goal, weightKg, targetKg)!.line };
+    return { patch: null, note: checkDirection(goal, weightKg, targetKg, lang)!.line };
   }
   if (patch.goal !== undefined) {
     return {
       patch: { ...patch, target_weight_kg: null },
-      note: "Your target weight no longer fitted that goal, so it's cleared — set a new one.",
+      note: chatCopyFor(lang).goalEdit.cleared,
     };
   }
   return {
     patch,
-    note: "Recorded. Your target weight no longer fits your goal, though — worth setting a new one.",
+    note: chatCopyFor(lang).goalEdit.worthSetting,
   };
 }

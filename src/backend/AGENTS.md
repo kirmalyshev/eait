@@ -107,7 +107,14 @@ route. A route that computes is a rule the tests cannot reach.
   already exist.
 - **State conditions live in the store's own guarded statements**, never in a read the engine did
   first: deliveries can be concurrent, nothing is transactional, and a decision made from a stale
-  read is dropped permanently.
+  read is dropped permanently. **`onboarding_content` and `notification_copy` are that rule
+  applied to a document**: the per-language write is `jsonb_set` on the locked row, so two admins
+  saving two languages cannot carry each other away, and the revision number comes off the
+  `version` COLUMN in the same statement rather than off a count the engine took first. That column
+  used to be an operator's convenience; it is load-bearing now. And both columns held a jsonb
+  STRING rather than an object until #358 — `${JSON.stringify(doc)}::jsonb` is a no-op cast,
+  because the driver already encodes a bound value — which `json()` hid on every read. The first
+  write after this repairs the row.
 - **The admin is a ROLE an account carries** (`users.role`, checked `=== "admin"` AFTER the user is
   resolved). It was its own authority — a shared `EAIT__BACKEND__ADMIN_TOKEN` reached before any
   user existed — until #391b; that token is retired, because a replayable secret in a header and a
@@ -405,7 +412,13 @@ naming it too.
   `lowers cholesterol`, `detox`) and on a superiority or exclusivity claim (`the only app`, `every
   other app`). FTC substantiation is per claim; an unsubstantiated "the only" is an
   *Alleinstellungsbehauptung* under §5 UWG and actionable by any competitor. The rule set is a
-  deliberate copy of `eait-marketer/src/claims.ts` — change one, change both.
+  deliberate copy of `eait-marketer/src/claims.ts` — change one, change both, **with one stated
+  divergence**: since #358 those four health families also carry patterns for the other seven
+  languages (`src/shared/claims.ts`), because this repo's copy is admin-editable in eight and that
+  repo's social assets are English. The divergence is additive and one-way — a German pattern
+  cannot match an English caption — so porting a rule TO the marketing repo is still a
+  copy-paste, and porting one back means dropping the language block. `src/shared/claims.test.ts`
+  holds both directions.
 - **A number quoted in public copy is read from the code that produces it.** The landing's floor
   section quotes `KCAL_FLOOR`, and a test fails when the copy and the constant disagree. A safety
   guarantee described in marketing that the app does not implement is the worst sentence this repo

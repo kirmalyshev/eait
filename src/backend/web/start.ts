@@ -19,12 +19,13 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
-  AMBIGUOUS_AGE, RESTRICTION_TAGS, SCREEN_OPTIONS, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
+  AMBIGUOUS_AGE, RESTRICTION_TAGS, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
+  chatCopyFor as CHAT,
   askPlaceholder, checkDirection, checkNumber, disabledScreens, isAnswered, promptsFor,
-  isRefusal, MAX_USER_LINE, renderableVerdicts, resolveCountry, ROUTES, screenForStep, screenOptions,
-  suggestionFirst, switchedLine,
-  verdictPillLabel,
-  type ChatEntry, type ChatPrompt, type Goal, type NumberField, type OnboardingContent,
+  isRefusal, MAX_USER_LINE, optionLabel, renderableVerdicts, resolveCountry, ROUTES, screenForStep,
+  screenOptions, screenOptionValues, suggestionFirst, switchedLine,
+  LANGS_READY, acceptLanguageTags, narrowLang, numbers, verdictPillLabel,
+  type ChatEntry, type ChatPrompt, type Goal, type Lang, type NumberField, type OnboardingContent,
   type PatchProfileRequest, type Profile,
 } from "@eait/shared";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
@@ -37,7 +38,12 @@ import {
 } from "../engine/index.ts";
 import type { Store } from "../store.ts";
 import {
-  chat, frontDoor, html, plan, question, stopped, FONT_PATH, PAGE_COPY,
+  // NOT `PAGE_COPY`. It is the English alias, and every use here is shadowed by a local
+  // `pageCopyFor(lang)` — so importing it buys nothing and costs a silent English render the
+  // day somebody writes `PAGE_COPY.foo` outside one of those scopes. Unimported, that is a
+  // compile error instead.
+  chat, frontDoor, html, pageCopyFor, plan, question, stopped, FONT_PATH,
+  type PageCopy,
   type ChatLine, type ChatProposal, type QuestionOption,
 } from "./page.ts";
 
@@ -88,29 +94,36 @@ const CHAT_PAGE_LINES = 50;
  * spent" is a lie to somebody on a carrier network who has logged one meal, and a lie again when
  * what ran out is the instance's budget.
  */
-const CHAT_NOTICE: Record<string, string> = {
-  expired: PAGE_COPY.chatExpired,
-  "too-long": PAGE_COPY.chatTooLong,
-  "cap-address": PAGE_COPY.chatRefusalNetwork,
-  "cap-global": PAGE_COPY.chatRefusalGlobal,
-  "cap-user": PAGE_COPY.chatRefusalDay,
-  "subscription-required": PAGE_COPY.chatRefusalSubscription,
-  "analysis-failed": PAGE_COPY.chatRefusalFailed,
-  "not-food": PAGE_COPY.chatRefusalNotFood,
-  "no-focus-correction": PAGE_COPY.chatNoFocusCorrection,
-  "no-focus-redate": PAGE_COPY.chatNoFocusRedate,
-  "not-onboarded": PAGE_COPY.chatNotOnboarded,
-  "unsupported-image": PAGE_COPY.chatRefusalImage,
-  "no-photo": PAGE_COPY.chatRefusalNoPhoto,
-  "too-many": PAGE_COPY.chatTooMany,
-  "too-large": PAGE_COPY.chatTooLarge,
-};
+const chatNotice = (copy: PageCopy): Record<string, string> => ({
+  expired: copy.chatExpired,
+  "too-long": copy.chatTooLong,
+  "cap-address": copy.chatRefusalNetwork,
+  "cap-global": copy.chatRefusalGlobal,
+  "cap-user": copy.chatRefusalDay,
+  "subscription-required": copy.chatRefusalSubscription,
+  "analysis-failed": copy.chatRefusalFailed,
+  "not-food": copy.chatRefusalNotFood,
+  "no-focus-correction": copy.chatNoFocusCorrection,
+  "no-focus-redate": copy.chatNoFocusRedate,
+  "not-onboarded": copy.chatNotOnboarded,
+  "unsupported-image": copy.chatRefusalImage,
+  "no-photo": copy.chatRefusalNoPhoto,
+  "too-many": copy.chatTooMany,
+  "too-large": copy.chatTooLarge,
+});
 
-/** The label on each button, and the order they are offered in — Apple first, as in the app. */
-const PROVIDER_LABEL: Record<WebProvider, string> = {
-  apple: "Continue with Apple",
-  google: "Continue with Google",
-};
+/**
+ * The label on each button, and the order they are offered in — Apple first, as in the app.
+ *
+ * The BRAND is not translated and the verb around it is: "Weiter mit Apple", never "Weiter mit
+ * Apfel". Same rule as `LANG_LABEL` and the product's own name.
+ */
+const providerLabel = (p: WebProvider, lang: Lang): string =>
+  pageCopyFor(lang).continueWith.replace("{provider}", p === "apple" ? "Apple" : "Google");
+
+/** What this browser asked for, narrowed. The only language signal there is before a session. */
+const browserLang = (req: Request): Lang =>
+  narrowLang(acceptLanguageTags(req.headers.get("accept-language"))[0]);
 
 /** The session, and the ten minutes of OAuth state that precedes it. */
 const SESSION_COOKIE = "eait_web";
@@ -179,9 +192,13 @@ const notFound = (): Response =>
  * ONE SHAPE FOR BOTH. The OAuth callback and the pairing form spend the SAME allowance, so a
  * caller that could tell the two refusals apart would be learning which route it hit rather than
  * what to do about it — and the thing to do is the same either way.
+ *
+ * WORDED FROM THE HEADER, NEVER FROM THE ACCOUNT. Two of the three callers have no account yet, and
+ * the third is on the path that exists to SHED load — reading a profile to word a rate-limit
+ * refusal is a database query on the one request we have decided not to serve.
  */
-const tooManyAttempts = (wait: number): Response =>
-  new Response("Too many attempts from this address. Try again shortly.\n", {
+const tooManyAttempts = (wait: number, lang: Lang): Response =>
+  new Response(pageCopyFor(lang).tooManyAttempts, {
     status: 429,
     headers: { "content-type": "text/plain; charset=utf-8", "retry-after": String(wait) },
   });
@@ -274,31 +291,31 @@ function questionsFor(profile: Profile, content: OnboardingContent, askCountry =
     .filter((p) => p.field !== undefined);
 }
 
-/**
- * The language tags this browser asked for, best first.
- *
- * The `q` weights are dropped rather than sorted on: browsers send the list in descending order
- * already, and a header that does not is a header whose own order is the best evidence there is.
- */
-export function acceptLanguageTags(header: string | null | undefined): string[] {
-  return (header ?? "")
-    .split(",")
-    .map((part) => part.split(";")[0]!.trim())
-    .filter((tag) => tag !== "" && tag !== "*");
-}
 
 /** A tag's region: the first two-letter subtag after the language, so "zh-Hans-CN" still answers. */
 const regionOf = (tag: string): string | undefined =>
   tag.split("-").slice(1).find((part) => /^[A-Za-z]{2}$/.test(part));
 
-/** The values a choice or chips question offers, with the admin's labels on them. */
-function optionsFor(prompt: ChatPrompt, content: OnboardingContent, suggested: string | null = null): QuestionOption[] {
+/**
+ * The values a choice or chips question offers, with the admin's labels on them.
+ *
+ * A LABEL THE CONTENT DOES NOT CARRY FALLS BACK TO CLDR, not to the raw value. That is the
+ * country list: fifteen countries in eight languages is 120 strings nobody should type, so
+ * `countryLabel` names them and the content carries only `other`. An admin who writes one anyway
+ * still wins — this reads the content first.
+ */
+function optionsFor(
+  prompt: ChatPrompt,
+  content: OnboardingContent,
+  lang: Lang,
+  suggested: string | null = null,
+): QuestionOption[] {
   const screen = screenForStep(prompt.field!);
-  const values = suggestionFirst(prompt.options ?? SCREEN_OPTIONS[screen] ?? [], suggested);
+  const values = suggestionFirst(prompt.options ?? screenOptionValues(screen, lang), suggested);
   const labels = screenOptions(content, screen);
   return values.map((value) => ({
     value,
-    label: labels[value]?.label ?? value,
+    label: labels[value]?.label ?? optionLabel(screen, value, lang),
     ...(labels[value]?.hint ? { hint: labels[value]!.hint! } : {}),
   }));
 }
@@ -337,7 +354,7 @@ function answerFor(prompt: ChatPrompt, answers: string[], profile: Profile): Ans
   if (value === undefined || value === "") return { kind: "missing" };
 
   if (prompt.kind === "number") {
-    const checked = checkNumber(field as NumberField, value);
+    const checked = checkNumber(field as NumberField, value, profile.lang, new Date());
     if (!checked.ok) {
       if ("underAge" in checked) return { kind: "under-age" };
       // "90" is 1990 typed the short way, or somebody who is ninety. Computing the wrong one is
@@ -355,7 +372,7 @@ function answerFor(prompt: ChatPrompt, answers: string[], profile: Profile): Ans
     // surplus aimed at a number below the current weight and produce a plan that cannot arrive,
     // with nothing on any screen to say so.
     if (field === "target_weight_kg" && profile.goal !== null && profile.weight_kg !== null) {
-      const wrong = checkDirection(profile.goal, profile.weight_kg, checked.value);
+      const wrong = checkDirection(profile.goal, profile.weight_kg, checked.value, profile.lang);
       if (wrong) return { kind: "refuse", line: wrong.line, switchTo: wrong.switchTo };
     }
     return { kind: "patch", patch: { [field]: checked.value } as PatchProfileRequest };
@@ -369,12 +386,13 @@ function answerFor(prompt: ChatPrompt, answers: string[], profile: Profile): Ans
  * `target-weight-below-healthy-bmi` is the anorexia guard, and the number it carries is the lowest
  * this app will accept. Saying it is the whole point: a refusal with no number is a wall.
  */
-function refusalText(r: { reason: string; minHealthyKg?: number }): string {
+function refusalText(r: { reason: string; minHealthyKg?: number }, lang: Lang): string {
+  const copy = pageCopyFor(lang);
   if (r.reason === "target-weight-below-healthy-bmi") {
-    return `The lowest target we can plan for at your height is ${r.minHealthyKg} kg.`;
+    return copy.belowHealthyTarget.replace("{kg}", numbers(lang)(r.minHealthyKg ?? 0));
   }
-  if (r.reason === "age-below-minimum") return "We can only plan for adults — check the year.";
-  return "That value is outside what we can plan for. Try again.";
+  if (r.reason === "age-below-minimum") return copy.ageBelowMinimum;
+  return copy.outOfRange;
 }
 
 export async function startRoutes(req: Request, url: URL, ctx: StartContext): Promise<Response> {
@@ -416,7 +434,12 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         return seeOther("/");
       }
     }
-    const content = await onboardingContent(ctx.deps);
+    // THE BROWSER'S HEADER, because the front door is the one page that runs before there is an
+    // account to ask. Everything past it reads `profile.lang`, which sign-in seeds from this same
+    // signal and the picker overrules — so this is a starting guess and never the answer.
+    const lang = narrowLang(acceptLanguageTags(req.headers.get("accept-language"))[0]);
+    const PAGE_COPY = pageCopyFor(lang);
+    const content = await onboardingContent(ctx.deps, lang);
     // A CODE, NEVER A SENTENCE — the same rule `?notice=` follows on the chat page. `error=code`
     // is the pairing form's refusal and anything else is the sign-in's, which is what the OAuth
     // failure path already sets.
@@ -424,8 +447,8 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       : url.searchParams.has("error") ? PAGE_COPY.errorSignIn
       : null;
     return html(frontDoor(content.welcome.lines, offered.map((p) => ({
-      href: `${START_PREFIX}/auth/${p}`, label: PROVIDER_LABEL[p],
-    })), error));
+      href: `${START_PREFIX}/auth/${p}`, label: providerLabel(p, lang),
+    })), error, lang));
   }
 
   // The typeface, on this origin, which is what lets the CSP stay at `font-src 'self'` and load
@@ -547,7 +570,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     // this function: a 429 from an unconfigured host would say the surface exists.
     const wait = ctx.limitAuth();
     if (wait !== null) {
-      return tooManyAttempts(wait);
+      return tooManyAttempts(wait, browserLang(req));
     }
 
     let token: string;
@@ -560,6 +583,10 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         // No account is carried into this: a browser arriving here has no anonymous session to
         // merge, and there is nothing on this surface that could have created one.
         null,
+        // ...which is why the header decides the language of the account this creates. It is the
+        // SAME reading the front door at `/start` took a moment ago, so the questions continue in
+        // the language the welcome was written in.
+        browserLang(req),
       ));
     } catch (e) {
       // Logged, never shown. The exchange's error quotes the request and the verifier's can quote
@@ -592,7 +619,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   if (req.method === "POST" && pathname === `${START_PREFIX}/pair`) {
     const wait = ctx.limitAuth();
     if (wait !== null) {
-      return tooManyAttempts(wait);
+      return tooManyAttempts(wait, browserLang(req));
     }
     const form = await req.formData().catch(() => null);
     const code = form?.get("code");
@@ -683,8 +710,11 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     });
   }
 
+  // THE ACCOUNT'S LANGUAGE, and the copy fetched in it. `/start` has a signed-in user by the time
+  // it asks anything, so the browser's `Accept-Language` is not consulted for this — it seeded
+  // `users.lang` at sign-in and the picker in Settings has had every chance to overrule it since.
   const view = async (): Promise<{ profile: Profile; content: OnboardingContent }> => ({
-    profile, content: await onboardingContent(ctx.deps),
+    profile, content: await onboardingContent(ctx.deps, profile.lang),
   });
 
   if (pathname === `${START_PREFIX}/q`) {
@@ -720,7 +750,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       // The goal was just flipped mid-question, so the target is asked again in the words the app
       // uses for it rather than in silence.
       const switched = url.searchParams.has("switched") && profile.goal !== null
-        ? switchedLine(profile.goal)
+        ? switchedLine(profile.goal, profile.lang)
         : null;
       return ask(switched);
     }
@@ -746,7 +776,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       const asAge = form.get("age");
       if (typeof asAge === "string" && /^\d{2}$/.test(asAge)) {
         const outcome = await patchProfile(ctx.deps, userId, { age: Number(asAge) });
-        if (outcome && !outcome.ok) return ask(refusalText(outcome.rejected));
+        if (outcome && !outcome.ok) return ask(refusalText(outcome.rejected, profile.lang));
         return seeOther(`${START_PREFIX}/q`);
       }
 
@@ -754,37 +784,40 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       // promise, and the goal and the sex answered a minute ago are already rows.
       if (form.get("confirm") === "under-age") {
         await ctx.store.deleteUser(userId);
-        return html(stopped(UNDER_AGE_CARD.title, UNDER_AGE_CARD.body, UNDER_AGE_LINES.stopped), 200, {
+        const card = UNDER_AGE_CARD(profile.lang);
+        return html(stopped(card.title, card.body, UNDER_AGE_LINES(profile.lang).stopped, profile.lang), 200, {
           cookies: [clearCookie(SESSION_COOKIE, secure)],
         });
       }
 
       const answers = form.getAll("answer").filter((v): v is string => typeof v === "string");
       const answer = answerFor(open, answers, profile);
-      if (answer.kind === "missing") return ask("That one needs an answer.");
+      if (answer.kind === "missing") return ask(pageCopyFor(profile.lang).answerRequired);
       if (answer.kind === "ambiguous-age") {
         // The quick reply takes it as an age; four digits in the box take it as the year.
-        return ask(AMBIGUOUS_AGE.line(answer.age), [
-          { name: "age", value: String(answer.age), label: AMBIGUOUS_AGE.confirm(answer.age) },
+        const age = AMBIGUOUS_AGE(profile.lang);
+        return ask(age.line(answer.age), [
+          { name: "age", value: String(answer.age), label: age.confirm(answer.age) },
         ]);
       }
       if (answer.kind === "under-age") {
         // Offered ONCE, in case a typo got us here. Confirming is what takes the stop.
-        return ask(UNDER_AGE_LINES.ask, [
-          { name: "confirm", value: "under-age", label: UNDER_AGE_LINES.confirm },
-        ]);
+        const under = UNDER_AGE_LINES(profile.lang);
+        return ask(under.ask, [{ name: "confirm", value: "under-age", label: under.confirm }]);
       }
       if (answer.kind === "refuse") {
         return ask(answer.line, answer.switchTo
           ? [{
               name: "switch",
               value: answer.switchTo,
-              label: answer.switchTo === "lose" ? "Switch to losing" : "Switch to gaining",
+              label: answer.switchTo === "lose"
+                ? CHAT(profile.lang).direction.switchToLose
+                : CHAT(profile.lang).direction.switchToGain,
             }]
           : []);
       }
       const outcome = await patchProfile(ctx.deps, userId, answer.patch);
-      if (outcome && !outcome.ok) return ask(refusalText(outcome.rejected));
+      if (outcome && !outcome.ok) return ask(refusalText(outcome.rejected, profile.lang));
       return seeOther(`${START_PREFIX}/q`);
     }
   }
@@ -805,14 +838,15 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       const pending = held === null ? null : await ctx.store.getPending(userId, held);
       const proposal: ChatProposal | null = pending === null ? null : {
         pendingId: pending.id,
-        title: pending.analysis.items.map((i) => i.name).join(", ") || "A meal",
+        title: pending.analysis.items.map((i) => i.name).join(", ") || pageCopyFor(profile.lang).chatAMeal,
         kcal: Math.round(pending.analysis.kcal),
         proteinG: Math.round(pending.analysis.protein_g),
       };
       return html(chat({
-        lines: entries.map(threadLine),
-        notice: noticeText(url.searchParams.get("notice")),
+        lines: entries.map((e) => threadLine(e, profile.lang)),
+        notice: noticeText(url.searchParams.get("notice"), profile.lang),
         proposal,
+        lang: profile.lang,
       }));
     }
 
@@ -910,9 +944,40 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   if (req.method === "POST" && pathname === `${START_PREFIX}/telegram`) {
     if (config.telegramBotUsername === "") return notFound();
     const wait = ctx.limitAuth();
-    if (wait !== null) return tooManyAttempts(wait);
+    // THE ACCOUNT'S language, not the browser's. The two callers above are pre-session and have
+    // only the header; this one is behind the cookie and read `profile` a hundred lines ago, so
+    // the argument in `tooManyAttempts` for spending nothing on a request we have decided not to
+    // serve does not apply — there is no query to save.
+    if (wait !== null) return tooManyAttempts(wait, profile.lang);
     const { code } = await mintPairingCode(ctx.deps, userId);
     return seeOther(`https://t.me/${config.telegramBotUsername}?start=${code}`);
+  }
+
+  /**
+   * THE LANGUAGE PICKER'S WRITE, and it is not a second endpoint.
+   *
+   * It calls `patchProfile` — the same engine function `PATCH /v1/profile` calls, with the same
+   * validation of `lang` against `LANGS` — and then redirects back to the page, which re-renders in
+   * the new language because every renderer reads `profile.lang`. There is one place a language is
+   * stored and one place it is validated; this is a form in front of them.
+   *
+   * A POST, like every other write here: `SameSite=Lax` withholds the cookie from a cross-site POST
+   * and that is this surface's CSRF defence. The 303 is what stops a refresh re-sending it.
+   *
+   * A code outside `LANGS_READY` is REFUSED rather than stored. `patchProfile` accepts anything in
+   * `LANGS` — the wider set the model answers in — and that is right for the API, where a phone may
+   * legitimately ask for a language the browser pages have no words in. Here the select only offers
+   * the ready ones, so anything else is a crafted form post, and honouring it would leave somebody
+   * on a page of English with a picker that says otherwise.
+   */
+  if (req.method === "POST" && pathname === `${START_PREFIX}/language`) {
+    const form = await req.formData().catch(() => null);
+    const asked = form?.get("lang");
+    if (typeof asked !== "string" || !(LANGS_READY as readonly string[]).includes(asked)) {
+      return seeOther(`${START_PREFIX}/plan`);
+    }
+    await patchProfile(ctx.deps, userId, { lang: asked as Lang });
+    return seeOther(`${START_PREFIX}/plan`);
   }
 
   if (req.method === "GET" && pathname === `${START_PREFIX}/plan`) {
@@ -928,6 +993,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     const signedInWith = identities
       .map((i) => i.provider).find((p): p is WebProvider => p === "apple" || p === "google") ?? null;
     return html(plan({
+      lang: profile.lang,
       signedInWith,
       telegram: config.telegramBotUsername !== "",
       hasWebApp: ctx.hasWebApp,
@@ -951,8 +1017,12 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
 }
 
 /** The words for a code, and nothing at all for a code this page does not know. */
-function noticeText(code: string | null): string | null {
-  return code !== null && Object.hasOwn(CHAT_NOTICE, code) ? CHAT_NOTICE[code]! : null;
+function noticeText(code: string | null, lang: Lang): string | null {
+  // `Object.hasOwn` on the CODE, still — the table is built fresh per language now, and building
+  // it does not change what the guard is for: `?notice=constructor` on a bare lookup returns a
+  // function, survives `?? null`, and throws inside `escape`.
+  const table = chatNotice(pageCopyFor(lang));
+  return code !== null && Object.hasOwn(table, code) ? table[code]! : null;
 }
 
 /**
@@ -982,7 +1052,7 @@ function noticeFor(result: { kind: string; scope?: string; on?: string }): strin
  * than rendering a stale one. `who` is the stored speaker: Gabie answers questions, and everything
  * else is Spud, whose name the page does not repeat because he is the voice it opens in.
  */
-function threadLine(e: ChatEntry): ChatLine {
+function threadLine(e: ChatEntry, lang: Lang): ChatLine {
   if (e.role === "user") {
     return e.kind === "photo"
       ? { kind: "user", text: e.text, photo: true }
@@ -994,10 +1064,10 @@ function threadLine(e: ChatEntry): ChatLine {
   return {
     kind: "card",
     card: {
-      title: meal.items.map((i) => i.name).join(", ") || "A meal",
+      title: meal.items.map((i) => i.name).join(", ") || pageCopyFor(lang).chatAMeal,
       kcal: Math.round(meal.kcal),
       proteinG: Math.round(meal.protein_g),
-      verdicts: renderableVerdicts(meal.verdicts).map((d) => verdictPillLabel(d, meal.verdicts[d]!)),
+      verdicts: renderableVerdicts(meal.verdicts).map((d) => verdictPillLabel(d, meal.verdicts[d]!, lang)),
     },
   };
 }
@@ -1018,12 +1088,13 @@ function renderQuestion(
   return question({
     promptId: prompt.id,
     kind: prompt.kind === "chips" ? "chips" : prompt.kind === "number" ? "number" : "choice",
-    lines: askLines(prompt, content, profile),
-    options: prompt.kind === "number" ? [] : optionsFor(prompt, content, suggested),
+    lines: askLines(prompt, { content: content, lang: profile.lang }, profile),
+    options: prompt.kind === "number" ? [] : optionsFor(prompt, content, profile.lang, suggested),
     placeholder: askPlaceholder(prompt, content),
     error,
     actions,
     step: index + 1,
     total: questions.length,
+    lang: profile.lang,
   });
 }

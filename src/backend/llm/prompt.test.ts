@@ -4,14 +4,15 @@
 // retry and then kills the turn as `analysis-failed`, on input the user has already been charged
 // for. One sentence in each, worded identically, is what stops that being discovered in production.
 
-import { expect, test } from "bun:test";
+import { describe, expect, it, test } from "bun:test";
+import { COUNTRY_CODES, LANGS, LANG_LABEL, countryLabel } from "@eait/shared";
 import type { FoodTargets, Profile } from "@eait/shared";
 import { blankProfile } from "../store.ts";
 import { COACH_HEALTH_DAYS, COACH_MEALS_LIMIT, COACH_MEALS_WINDOW_DAYS } from "./port.ts";
 import {
   COACH_TOOL_DEFS, CoachReplySchema, MealAnalysisSchema, SYSTEM, SYSTEM_COACH, SYSTEM_ROUTE,
-  SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL, buildCoachContext, buildRouteText,
-  buildTextCorrectionText, buildUserText,
+  SYSTEM_TEXT_CORRECTION, SYSTEM_TEXT_MEAL, buildCoachContext, buildGlanceText, buildRouteText,
+  buildTextCorrectionText, buildUserText, languageLine,
 } from "./prompt.ts";
 
 const ITEM_FIELDS = "Every item carries grams, kcal, protein_g, carbs_g, fat_g and kcal_per_100g.";
@@ -213,7 +214,7 @@ test("the coach prompt states Gabie's rules, and who Spud is", () => {
 
 test("the coach context carries the plan, the day with what is left, the week against the target, and every declared restriction", () => {
   const text = buildCoachContext(coachInput());
-  expect(text).toContain("Reply in this language: de.");
+  expect(text).toContain("Reply in this language: Deutsch (de).");
   expect(text).toContain("Today is 2026-09-02, local time 19:10.");
   expect(text).toContain("1680 kcal, 110 g protein");
   expect(text).toContain("Declared restrictions: kidney condition.");
@@ -308,8 +309,55 @@ test("the untuned country is left out of both prompts, and a real one still reac
   expect(buildUserText(withCountry("other"), TARGETS)).not.toContain("shops and eats in");
   expect(buildCoachContext(coachInput({ profile: withCountry("other") }))).not.toContain("shops and eats in");
 
-  expect(buildUserText(withCountry("de"), TARGETS)).toContain("The user shops and eats in: de.");
-  expect(buildCoachContext(coachInput({ profile: withCountry("de") }))).toContain("The user shops and eats in: de.");
+  expect(buildUserText(withCountry("de"), TARGETS)).toContain("The user shops and eats in: Germany.");
+  expect(buildCoachContext(coachInput({ profile: withCountry("de") }))).toContain("The user shops and eats in: Germany.");
   // The absent case was already right and must stay that way.
   expect(buildUserText(withCountry(null), TARGETS)).not.toContain("shops and eats in");
+});
+
+// THE CODE IS NOT THE WORD, and growing the curated list is what made that bite. `de` and `us`
+// read as countries; `it`, `at`, `id` and `ca` read as an English pronoun, a preposition, a
+// database column and an abbreviation — inside an English sentence, in the one line that decides
+// which brands and portions the model expects on the plate. "The user shops and eats in: it." is
+// not a hint about Italy. The code is what the profile stores and the NAME is what the prompt
+// says, and CLDR already holds every one of them.
+test("every curated country reaches the prompt as a word, not as a code", () => {
+  for (const code of COUNTRY_CODES) {
+    if (code === "other") continue;
+    const text = buildUserText({ ...PROFILE, country: code }, TARGETS);
+    expect(text, code).toContain(`The user shops and eats in: ${countryLabel(code, "en")}.`);
+    expect(text, `${code} leaked its own code into the prompt`)
+      .not.toContain(`shops and eats in: ${code}.`);
+  }
+});
+
+describe("the language line, which is the only thing steering the largest text surface here", () => {
+  it("names every language in itself, and keeps the code beside it", () => {
+    // A bare two-letter code is unambiguous to a compiler and a guess to a model — and the guess is
+    // worst for the languages furthest from the ones an English prompt is mostly about.
+    for (const lang of LANGS) {
+      const line = languageLine(lang);
+      expect(line, lang).toContain(LANG_LABEL[lang]);
+      expect(line, lang).toContain(`(${lang})`);
+    }
+    expect(languageLine("vi")).toContain("Tiếng Việt (vi)");
+    expect(languageLine("id")).toContain("Bahasa Indonesia (id)");
+  });
+
+  it("answers a stored code this binary does not know with English, never `undefined`", () => {
+    expect(languageLine("zz")).toContain("English (en)");
+    expect(languageLine("")).not.toContain("undefined");
+  });
+
+  it("reaches every prompt that produces words a user reads", () => {
+    const p: Profile = { ...PROFILE, lang: "vi" };
+    const targets = { kcal: 1800, protein_g: 120, carbs_g: 190, fat_g: 55 };
+    for (const built of [
+      buildUserText(p, targets),
+      buildCoachContext(coachInput({ profile: p, targets })),
+      buildGlanceText("vi"),
+    ]) {
+      expect(built).toContain("Tiếng Việt (vi)");
+    }
+  });
 });

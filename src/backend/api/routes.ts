@@ -25,7 +25,7 @@ import {
   HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, type PushTokenResponse,
   type PairCodeResponse, type PendingMealsResponse,
 } from "@eait/shared";
-import { LANGS } from "@eait/shared";
+import { acceptLanguageTags, narrowLang } from "@eait/shared";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { isCalendarDate } from "@eait/shared";
 import type { Store } from "../store.ts";
@@ -55,11 +55,8 @@ function refusal(r: { kind: string; scope?: string }): Response {
   return json({ error: r.kind, ...(r.scope ? { scope: r.scope } : {}) }, status);
 }
 
-/** Narrow a client-supplied locale to a supported language. Unknown falls back to `en`. */
-function toLang(locale: string | undefined): Lang {
-  const head = (locale ?? "en").slice(0, 2).toLowerCase();
-  return (LANGS as readonly string[]).includes(head) ? (head as Lang) : "en";
-}
+/** Narrow a client-supplied locale to a supported language. One copy, in `@eait/shared`. */
+const toLang = narrowLang;
 
 /**
  * Where a browser goes after posting the subscribe form.
@@ -427,7 +424,17 @@ export function createRouter(
         };
         const result = await subscribe(
           subscribeDeps(req),
-          { email: field("email"), honeypot: field("company"), source: field("source") || "web" },
+          {
+            email: field("email"), honeypot: field("company"), source: field("source") || "web",
+            // THE BROWSER'S HEADER, because a subscriber has no account to ask. This is the one
+            // outbound message whose recipient the server knows nothing else about — `store.ts`
+            // forbids joining a subscriber to a user — so the strongest evidence available is the
+            // `Accept-Language` of the browser that posted this form a second ago. The language is
+            // used for the confirmation mail and is NOT stored: `subscribers` holds an address, a
+            // token and a source, and a language column would be one more thing held about
+            // somebody who consented to exactly one message.
+            lang: narrowLang(acceptLanguageTags(req.headers.get("accept-language"))[0]),
+          },
         );
         // ── Where each outcome goes, and why it is not two branches ─────────────────────────
         //
@@ -539,6 +546,12 @@ export function createRouter(
             deps, verifier, provider, body.idToken,
             typeof body.nonce === "string" ? body.nonce : undefined,
             current,
+            // The same field `POST /v1/auth/device` takes, for the same reason and with the same
+            // narrowing. A client that mints its device account first never reaches the branch
+            // this feeds — `current` is set, so the identity is LINKED to an account that already
+            // has a language — but one that signs in on a fresh install does, and an omitted
+            // locale is `en` rather than a refusal.
+            toLang(body.locale),
           );
           return json(result satisfies AuthProviderResponse);
         } catch (e) {
@@ -663,8 +676,19 @@ export function createRouter(
       }
 
       // ── Onboarding ────────────────────────────────────────────────────────────────────────
+      //
+      // `?lang=` FIRST, THE ACCOUNT'S LANGUAGE SECOND (#358). The picker writes the account's
+      // language through `PATCH /v1/profile` and a client re-fetches this to redraw — but a client
+      // that has just switched, or one drawing onboarding before it has a profile worth reading,
+      // knows its own answer sooner than the round trip does. An unknown code is English rather
+      // than an error: this response is an ENHANCEMENT over compiled-in copy and must never be the
+      // thing that stops onboarding.
       if (req.method === "GET" && pathname === ROUTES.onboarding) {
-        return json({ content: await onboardingContent(deps) } satisfies OnboardingContentResponse);
+        const asked = url.searchParams.get("lang");
+        const lang = asked !== null
+          ? toLang(asked)
+          : (await deps.store.getProfile(userId))?.lang ?? "en";
+        return json({ content: await onboardingContent(deps, lang), lang } satisfies OnboardingContentResponse);
       }
 
       // Funnel events. Authenticated, because they are stored against the caller's account and

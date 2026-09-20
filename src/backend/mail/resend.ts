@@ -24,8 +24,8 @@ export function resendMailer(opts: ResendOptions): Mailer {
   const doFetch = opts.fetchImpl ?? fetch;
 
   return {
-    async sendConfirmation(to, confirmUrl) {
-      const { subject, text } = confirmationMessage(confirmUrl);
+    async sendConfirmation(to, confirmUrl, lang) {
+      const { subject, text } = confirmationMessage(confirmUrl, lang);
 
       // A send that hangs would hold the request that a person is waiting on, on the one page whose
       // entire job is to feel like it worked. Same reasoning, and same shape, as the model call.

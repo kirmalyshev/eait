@@ -7,7 +7,7 @@
 // something the server does not have. A refused turn writes nothing: there was no turn.
 
 import {
-  type AppendLine, type AppendLinesResponse, type ChatEntry, type ChatHistoryResponse, type MealRecord, type Profile,
+  type AppendLine, type AppendLinesResponse, type ChatEntry, type ChatHistoryResponse, type Lang, type MealRecord, type Profile,
   type DailyTotals, type FoodTargets, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, correctionLine, explainTargets, firstVerdictLines, runningLine,
   isScriptedLineId, localDate, promptById, scriptedLine, scriptedParams,
 } from "@eait/shared";
@@ -79,13 +79,16 @@ async function dayStanding(
   userId: string,
   meal: MealRecord,
   totals: DailyTotals,
-): Promise<{ targets: FoodTargets; eatenToday: { kcal: number; protein_g: number } } | null> {
+): Promise<{ targets: FoodTargets; eatenToday: { kcal: number; protein_g: number }; lang: Lang } | null> {
   if (meal.date !== localDate(deps.config.timezone)) return null;
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
+  // The LANGUAGE comes out with the numbers, because the sentence built from them is composed here
+  // rather than on the phone: this read is the only place either caller has a profile in hand.
   return {
     targets: explainTargets(profile).targets,
     eatenToday: { kcal: totals.kcal, protein_g: totals.protein_g },
+    lang: profile.lang,
   };
 }
 
@@ -98,7 +101,7 @@ export async function afterCorrection(
 ): Promise<ChatAppend[]> {
   const day = await dayStanding(deps, userId, meal, totals);
   if (!day) return [];
-  return [{ role: "assistant", kind: "text", text: correctionLine({ ...day, meal: { kcal: meal.kcal } }) }];
+  return [{ role: "assistant", kind: "text", text: correctionLine({ ...day, meal: { kcal: meal.kcal } }, day.lang) }];
 }
 
 /**
@@ -117,7 +120,7 @@ export async function afterLog(
 ): Promise<ChatAppend[]> {
   const day = await dayStanding(deps, userId, meal, totals);
   if (!day) return [];
-  return [{ role: "assistant", kind: "text", text: runningLine(day) }];
+  return [{ role: "assistant", kind: "text", text: runningLine(day, day.lang) }];
 }
 
 /**
@@ -143,7 +146,7 @@ export async function firstVerdict(
     goal: profile.goal ?? "maintain", targets, via, verdicts: meal.verdicts, caption,
     meal: { kcal: meal.kcal, confidence: meal.confidence },
     eatenToday: { kcal: totals.kcal, protein_g: totals.protein_g },
-  }).map((text) => ({ role: "assistant", kind: "text", text }));
+  }, profile.lang).map((text) => ({ role: "assistant", kind: "text", text }));
   if (!(await deps.store.claimFirstVerdict(userId))) return { lines: [] };
   // Spent only when the greeting lands; a failed write hands it back for the next meal.
   return { lines, undo: () => deps.store.releaseFirstVerdict(userId) };
@@ -159,10 +162,15 @@ export async function appendLines(deps: EngineDeps, userId: string, lines: Appen
   if (lines.length > 0 && (await deps.store.countUserChat(userId)) + lines.length > MAX_THREAD_LINES) {
     return { appended: 0, reason: "thread-full" };
   }
-  // Looked up ONCE, and only when a batch actually names an onboarding question — the notification
-  // primer and the camera lines are the common case and must not pay for a profile read.
-  const needsAsk = lines.some((l) => typeof l === "object" && l !== null && l.role === "assistant" && "ask" in l);
-  const asked = needsAsk ? await askResolver(deps, userId) : null;
+  // Looked up ONCE, for both of the things that need it: the onboarding question's words, and the
+  // LANGUAGE every scripted line is written in. A scripted line pays for a profile read now, which
+  // it did not before #358 — the alternative is an English camera primer on an account that asked
+  // for Italian, and one keyed read is the cheapest thing in this function.
+  const said = lines.filter((l) => typeof l === "object" && l !== null && l.role === "assistant");
+  const needsAsk = said.some((l) => "ask" in l);
+  const profile = needsAsk || said.some((l) => "scripted" in l) ? await deps.store.getProfile(userId) : null;
+  const lang: Lang = profile?.lang ?? "en";
+  const asked = needsAsk ? await askResolver(deps, profile) : null;
 
   const out: ChatAppend[] = [];
   for (const l of lines) {
@@ -174,7 +182,7 @@ export async function appendLines(deps: EngineDeps, userId: string, lines: Appen
       // short, or the whole batch is refused.
       const params = scriptedParams(l.scripted, l.params ?? {});
       if (params === null) return bad;
-      out.push({ role: "assistant", kind: "text", text: scriptedLine(l.scripted, params) });
+      out.push({ role: "assistant", kind: "text", text: scriptedLine(l.scripted, lang, params) });
     } else if (l.role === "assistant" && "ask" in l && asked) {
       // A coordinate, not a sentence. The words come from THIS server's copy of the onboarding
       // content, so nothing the phone sends can reach the thread as prose.
@@ -209,19 +217,18 @@ export async function appendLines(deps: EngineDeps, userId: string, lines: Appen
  */
 async function askResolver(
   deps: EngineDeps,
-  userId: string,
+  profile: Profile | null,
 ): Promise<(ref: { prompt: string; line: number }) => string | null> {
-  const [profile, content] = await Promise.all([
-    deps.store.getProfile(userId),
-    onboardingContent(deps),
-  ]);
+  // The PROFILE is the caller's, and the content is fetched in ITS language: the thread must hold
+  // the question in the language the account is being asked in, not in the server's default.
+  const content = await onboardingContent(deps, profile?.lang ?? "en");
   return (ref) => {
     if (!profile) return null;
     if (typeof ref !== "object" || ref === null) return null;
     if (!Number.isInteger(ref.line) || ref.line < 0) return null;
     const prompt = promptById(ref.prompt as never);
     if (!prompt) return null;
-    return askLines(prompt, content, profile)[ref.line] ?? null;
+    return askLines(prompt, { content: content, lang: profile.lang }, profile)[ref.line] ?? null;
   };
 }
 

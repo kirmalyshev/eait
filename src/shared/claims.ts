@@ -77,6 +77,91 @@ const RULES: readonly Rule[] = [
   // Deliberately narrow. It matches the claim, not the subject: "we email you" and "your email
   // address" are the true sentences that replaced it and must keep passing.
   { name: "retired-no-email", re: /\bno\s+e-?mail\b|\bnever\s+asks?\s+for\s+(?:your\s+|an\s+)?e-?mail\b/gi },
+
+  // ── THE SAME FOUR FAMILIES, IN THE OTHER SEVEN LANGUAGES (#358) ─────────────────────────────
+  //
+  // WHY ONLY FOUR. These are the ones the root AGENTS.md names, and they are the ones a
+  // translator or an admin actually reaches for. The rest stay English-only ON PURPOSE and it is
+  // written down below, because a rule set that looks complete and is not is worse than one whose
+  // edges are stated.
+  //
+  // WHY THEY NEED NO LANGUAGE ARGUMENT. Every pattern here is run over every string, exactly as
+  // `genderedRussian` is: `garantiert` cannot match English and `guaranteed` cannot match German,
+  // so the sets do not interfere. It also means an admin who types German into the English slot is
+  // still caught, which threading the language would have missed.
+  //
+  // NOT `\b` ON CYRILLIC OR VIETNAMESE. JavaScript's word boundary is ASCII, so `\bгарантия`
+  // never fires — the same trap `genderedRussian` fell into. Lookarounds, or nothing.
+  //
+  // NARROW WHERE THE VERB IS ORDINARY. Vietnamese `đảm bảo` is "make sure" — "đảm bảo đủ đạm" is
+  // a sentence this product legitimately writes — so the guarantee pattern requires an OUTCOME
+  // beside it. Same reason `senkt` alone is not `lowers-marker`: the app lowers a target, and only
+  // a biomarker beside the verb makes it a claim.
+
+  // guarantee — OUTCOME-BOUND IN EVERY LANGUAGE, and that is the whole design of this family.
+  //
+  // The bare stem is the consumer-law noun a paid iOS app has to write ("Garantie légale de
+  // conformité : deux ans") and it is also this product's own voice ("Rien n'est garanti ici — ce
+  // sont des estimations"). Both were refused by the first version, which is precisely the
+  // sentence that gets a linter switched off. So the stem only counts with a RESULT beside it,
+  // within two words, either side — because German puts "Erfolg" first and French puts
+  // "résultats" last.
+  { name: "guarantee", re: /(?:r[ée]sultats?|perte\s+de\s+poids|succ[èe]s|kg)(?:\s+\S+){0,2}\s+garanti\w*|garanti\w*(?:\s+\S+){0,2}\s+(?:r[ée]sultats?|perte\s+de\s+poids|succ[èe]s|kg)/gi },
+  { name: "guarantee", re: /(?:erfolg|ergebnis\w*|gewichtsverlust|gewichtsabnahme|abnehmen|kg)(?:\s+\S+){0,2}\s+garanti\w*|garanti\w*(?:\s+\S+){0,2}\s+(?:erfolg|ergebnis\w*|gewichtsverlust|gewichtsabnahme|abnehmen|kg)|\berfolgsgarantie\b/gi },
+  { name: "guarantee", re: /(?:risultat\w*|perdita\s+di\s+peso|successo|kg)(?:\s+\S+){0,2}\s+garanti\w*|garanti\w*(?:\s+\S+){0,2}\s+(?:risultat\w*|perdita\s+di\s+peso|successo|kg)/gi },
+  { name: "guarantee", re: /(?:resultados?|p[ée]rdida\s+de\s+peso|[ée]xito|kg)(?:\s+\S+){0,2}\s+garantiz\w*|garantiz\w*(?:\s+\S+){0,2}\s+(?:resultados?|p[ée]rdida\s+de\s+peso|[ée]xito|kg)/gi },
+  { name: "guarantee", re: /(?:cam kết|đảm bảo|bảo đảm)\s+(?:giảm cân|kết quả|thành công|hiệu quả)/giu },
+  { name: "guarantee", re: /\b(?:men|di|ter)?jamin\w*(?:\s+\S+){0,2}\s+(?:hasil\w*|berat\s+badan|sukses)|(?:hasil\w*|berat\s+badan|sukses)(?:\s+\S+){0,2}\s+(?:di|ter)?jamin\w*|\bgaransi\s+hasil\b/gi },
+  { name: "guarantee", re: /(?<![а-яё])(?:результат[а-яё]*|похуден[а-яё]*|вес|кг)(?:\s+\S+){0,2}\s+гаранти[а-яё]*|(?<![а-яё])гаранти[а-яё]*(?:\s+\S+){0,2}\s+(?:результат[а-яё]*|похуден[а-яё]*|вес|кг)/giu },
+
+  // weight-promise — the stems, and DELIBERATELY NOT the progressive.
+  //
+  // `Estás adelgazando a 0,5 kg por semana` and `Stai dimagrendo` describe what is happening;
+  // `adelgazar` and `dimagrire` promise it. That line is the best either language offers, and it
+  // is the same undecidability English has — which is why this family is the one the onboarding
+  // surface opts out of by name. A goal button says "Perdre du poids" and must keep saying it.
+  { name: "weight-promise", re: /\bperd(?:re|ez|s|ons|ras|rez)\s+(?:du\s+poids|\d+\s*kg)|\bperte\s+de\s+poids\b|\bmaigrir\b|\bmincir\b|\bamincissement\b/gi },
+  { name: "weight-promise", re: /\bgewicht\s+(?:zu\s+)?verlieren\b|\bgewichts(?:verlust|abnahme)\b|\d+\s*(?:kg|kilo\w*|pfund)\s+ab(?:nehmen|zunehmen)?\b/gi },
+  { name: "weight-promise", re: /\bperd(?:ere|i|e|erai|erete)\s+(?:peso|\d+\s*kg)\b|\bperdita\s+di\s+peso\b|\bdimagri\w*/gi },
+  { name: "weight-promise", re: /\b(?:pierd(?:e|es|a)|perder[áa]s?|bajar?)\s+(?:de\s+)?(?:peso|\d+\s*kg)\b|\bp[ée]rdida\s+de\s+peso\b|\badelgazar?\b|\badelgaza\b/gi },
+  { name: "weight-promise", re: /giảm\s+cân|giảm\s+\d+\s*(?:kg|ký)/giu },
+  { name: "weight-promise", re: /\b(?:me)?nurunkan\s+berat\s+badan\b|\b(?:di)?turunkan?\s+berat\s+badan\b|\bpenurunan\s+berat\s+badan\b|\bturun\s+\d+\s*kg\b/gi },
+  { name: "weight-promise", re: /(?<![а-яё])(?:похуде[а-яё]*|снижение\s+веса|с(?:брос|кинут)[а-яё]*\s+(?:вес|\d+\s*кг)|потеря\s+веса|минус\s+\d+\s*кг)/giu },
+
+  // lowers-marker — the MARKER decides, never the verb.
+  //
+  // Spanish `baja` is also an instruction and `tensión` is also stress; `pressione` and `tension`
+  // are ordinary pressure; Russian `сахар` is the food. English `blood sugar` disambiguates
+  // itself and these do not, so the qualified form is required where the bare noun is ambiguous.
+  { name: "lowers-marker", re: /\b(?:fait\s+)?(?:baisse[rz]?|r[ée]du(?:it|ire)|diminue[rz]?)\s+(?:l[ae]\s+|du\s+|ton\s+|ta\s+|votre\s+)?(?:cholest[ée]rol|glyc[ée]mie|tension\s+art[ée]rielle)\b/gi },
+  { name: "lowers-marker", re: /\bsenkt\s+(?:den\s+|das\s+|die\s+|deinen\s+)?(?:cholesterin\w*|blutzucker|blutdruck)\b|\b(?:cholesterin\w*|blutzucker|blutdruck)(?:\s+\S+){0,3}\s+(?:zu\s+)?senken\b/gi },
+  { name: "lowers-marker", re: /\b(?:abbassa|riduce|ridurre|fa\s+scendere)\s+(?:il\s+|la\s+|il\s+tuo\s+|la\s+tua\s+)?(?:colesterolo|glicemia|pressione\s+sanguigna)\b/gi },
+  { name: "lowers-marker", re: /\b(?:baja|reduce|reducir|hace\s+bajar)\s+(?:el\s+|la\s+|tu\s+)?(?:colesterol|glucosa|az[úu]car\s+en\s+sangre|tensi[óo]n\s+arterial)\b/gi },
+  { name: "lowers-marker", re: /(?:giảm|hạ)\s+(?:cholesterol|đường\s+huyết|huyết\s+áp|mỡ\s+máu)/giu },
+  { name: "lowers-marker", re: /\bmenurunkan\s+(?:kolesterol|gula\s+darah|tekanan\s+darah)\b/gi },
+  { name: "lowers-marker", re: /(?<![а-яё])сни[жз][а-яё]*\s+(?:холестерин[а-яё]*|давлени[а-яё]*|сахар[а-яё]*\s+в\s+крови)|(?<![а-яё])(?:холестерин|давление)\s+сни[жз][а-яё]*/giu },
+
+  // detox — the Latin word is the one a Romance marketer does not need.
+  { name: "detox", re: /\bd[ée]tox\w*/gi },
+  { name: "detox", re: /\bentgift\w*/gi },
+  { name: "detox", re: /\bdisintossic\w*|\belimina\s+le\s+tossine\b/gi },
+  { name: "detox", re: /\bdesintoxic\w*|\belimina\s+las\s+toxinas\b|\bdepura\w*\s+(?:tu\s+|el\s+)?organismo\b|\blimpieza\s+de\s+colon\b/gi },
+  // NOT `\b[ée]limine`: a leading `É` is not an ASCII word character, so the boundary never
+  // matches at the start of a sentence. Third time that trap has appeared in this branch.
+  { name: "detox", re: /(?<![a-zà-ÿ])[ée]limine\s+les\s+toxines|\bpurifie\w*\s+(?:ton\s+|l['’])?organisme\b/giu },
+  { name: "detox", re: /thải\s+độc|giải\s+độc/giu },
+  { name: "detox", re: /\bdetoks\w*/gi },
+  { name: "detox", re: /(?<![а-яё])детокс[а-яё]*/giu },
+
+  // ── WHAT IS STILL ENGLISH-ONLY, and why ─────────────────────────────────────────────────────
+  //
+  // `disease-verb`, `treats-disease`, `disease-term`, `burns-fat`, `exclusivity`, `superiority`
+  // and `retired-no-email`. Two of those deserve naming rather than a list: `disease-verb`
+  // ("heilt", "guérit", "лечит") is the sharpest HWG exposure there is, and `exclusivity` is the
+  // Alleinstellungsbehauptung this file's own comment cites §5 UWG for — so both are German-shaped
+  // risks with no German pattern. They are out because each needs a native reading to write
+  // narrowly, and a pattern guessed at is the kind that fires on ordinary prose and gets the
+  // linter switched off. The four above were reviewed; these have not been.
 ];
 
 /**

@@ -21,7 +21,8 @@
 import { lintCopy } from "./claims.ts";
 import { dateMinus, localDate, localTime } from "./dates.ts";
 import type { Entitlement } from "./entitlement.ts";
-import type { FoodTargets, Goal } from "./types.ts";
+import { genderedRussian, wholeNumbers, t, type Localized } from "./lang.ts";
+import type { FoodTargets, Goal, Lang } from "./types.ts";
 
 /** Every message that may be sent. Adding one is a product decision, not a copy edit. */
 export const NOTIFICATION_IDS = ["trial-day5", "trial-day6", "evening"] as const;
@@ -87,6 +88,152 @@ export const DEFAULT_NOTIFICATION_COPY: NotificationCopy = {
     emptyBody: "Nothing logged today — your {plan} kcal are still the plan. {tomorrow}",
   },
 };
+
+/**
+ * The three messages in every language, and the stored row's shape.
+ *
+ * `en` IS `DEFAULT_NOTIFICATION_COPY` itself, so the admin's reset, the merge in `engine/notify.ts`
+ * and every test go on looking in the one place they already look.
+ */
+export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
+  en: DEFAULT_NOTIFICATION_COPY,
+  fr: {
+    "trial-day5": {
+      title: "Encore deux jours",
+      body: "Encore deux jours avant la fin de la semaine gratuite. Rien à faire si tu restes — sinon : Réglages › Abonnements, et tu ne paies rien.",
+    },
+    "trial-day6": {
+      title: "L'essai se termine demain",
+      body: "Demain, la semaine gratuite se termine. Si tu restes, rien à faire ; sinon : Réglages › Abonnements.",
+    },
+    evening: {
+      title: "Aujourd'hui face au plan",
+      body: "{eaten} de tes {plan} kcal aujourd'hui. {tomorrow}",
+      emptyBody: "Rien d'enregistré aujourd'hui — tes {plan} kcal restent le plan. {tomorrow}",
+    },
+  },
+  de: {
+    "trial-day5": {
+      title: "Noch zwei Tage",
+      body: "Noch zwei Tage, bis die Gratiswoche endet. Wenn du bleibst, musst du nichts tun — wenn nicht: Einstellungen › Abos, und du zahlst nichts.",
+    },
+    "trial-day6": {
+      title: "Die Testwoche endet morgen",
+      body: "Morgen endet die Gratiswoche. Wenn du bleibst, musst du nichts tun; wenn nicht: Einstellungen › Abos.",
+    },
+    evening: {
+      title: "Heute gegen den Plan",
+      body: "{eaten} von deinen {plan} kcal heute. {tomorrow}",
+      emptyBody: "Heute nichts eingetragen — deine {plan} kcal sind trotzdem der Plan. {tomorrow}",
+    },
+  },
+  it: {
+    "trial-day5": {
+      title: "Ancora due giorni",
+      body: "Due giorni alla fine della settimana gratis. Se resti non devi fare nulla — altrimenti: Impostazioni › Abbonamenti, e non paghi niente.",
+    },
+    "trial-day6": {
+      title: "La prova finisce domani",
+      body: "Domani finisce la settimana gratis. Se resti non devi fare nulla; altrimenti: Impostazioni › Abbonamenti.",
+    },
+    evening: {
+      title: "Oggi rispetto al piano",
+      body: "{eaten} delle tue {plan} kcal oggi. {tomorrow}",
+      emptyBody: "Oggi niente registrato — le tue {plan} kcal restano il piano. {tomorrow}",
+    },
+  },
+  es: {
+    "trial-day5": {
+      title: "Quedan dos días",
+      body: "Faltan dos días para que acabe la semana gratis. Si te quedas, nada que hacer — si no: Ajustes › Suscripciones, y no pagas nada.",
+    },
+    "trial-day6": {
+      title: "La prueba termina mañana",
+      body: "Mañana acaba la semana gratis. Si te quedas, nada que hacer; si no: Ajustes › Suscripciones.",
+    },
+    evening: {
+      title: "Hoy frente al plan",
+      body: "{eaten} de tus {plan} kcal hoy. {tomorrow}",
+      emptyBody: "Hoy sin registros — tus {plan} kcal siguen siendo el plan. {tomorrow}",
+    },
+  },
+  vi: {
+    "trial-day5": {
+      title: "Còn hai ngày",
+      body: "Còn hai ngày nữa là hết tuần miễn phí. Ở lại thì không cần làm gì — nếu không: Cài đặt › Gói đăng ký, và bạn không mất đồng nào.",
+    },
+    "trial-day6": {
+      title: "Bản dùng thử kết thúc ngày mai",
+      body: "Ngày mai tuần miễn phí kết thúc. Ở lại thì không cần làm gì; nếu không: Cài đặt › Gói đăng ký.",
+    },
+    evening: {
+      title: "Hôm nay so với kế hoạch",
+      body: "{eaten} trên {plan} kcal hôm nay. {tomorrow}",
+      emptyBody: "Hôm nay chưa ghi gì — {plan} kcal của bạn vẫn là kế hoạch. {tomorrow}",
+    },
+  },
+  id: {
+    "trial-day5": {
+      title: "Tinggal dua hari",
+      body: "Dua hari lagi minggu gratisnya habis. Kalau lanjut, tidak perlu apa-apa — kalau tidak: Pengaturan › Langganan, dan kamu tidak membayar apa pun.",
+    },
+    "trial-day6": {
+      title: "Uji coba berakhir besok",
+      body: "Besok minggu gratisnya habis. Kalau lanjut, tidak perlu apa-apa; kalau tidak: Pengaturan › Langganan.",
+    },
+    evening: {
+      title: "Hari ini dibanding rencana",
+      body: "{eaten} dari {plan} kcal hari ini. {tomorrow}",
+      emptyBody: "Hari ini belum ada catatan — {plan} kcal-mu tetap rencananya. {tomorrow}",
+    },
+  },
+  ru: {
+    "trial-day5": {
+      title: "Осталось два дня",
+      body: "Через два дня бесплатная неделя закончится. Остаёшься — делать ничего не нужно. Если нет: Настройки › Подписки, и ты ничего не платишь.",
+    },
+    "trial-day6": {
+      title: "Пробная неделя кончается завтра",
+      body: "Завтра бесплатная неделя заканчивается. Остаёшься — делать ничего не нужно; если нет: Настройки › Подписки.",
+    },
+    evening: {
+      title: "Сегодня против плана",
+      body: "{eaten} из твоих {plan} ккал сегодня. {tomorrow}",
+      emptyBody: "Сегодня ничего не записано — твои {plan} ккал всё ещё план. {tomorrow}",
+    },
+  },
+};
+
+/** The compiled-in copy for one language. English for one nobody has written yet. */
+export const notificationCopyFor = (lang: Lang): NotificationCopy => t(lang)(NOTIFICATION_COPY);
+
+/**
+ * What the admin has saved, per language. `Partial`, not `Localized`, for the reason
+ * `OnboardingContentSet` is: a stored set is an OVERLAY on the compiled-in table, and a host whose
+ * admin has only ever edited German has no English in it.
+ */
+export type NotificationCopySet = Partial<Record<Lang, NotificationCopy>>;
+
+/**
+ * A stored row as a SET, whatever shape it was written in.
+ *
+ * A row saved before #358 is a bare `NotificationCopy` — three messages at the top level — and it
+ * is English, because English was all there was. Read as every language it would put an admin's
+ * English on a Russian lock screen; read as none of them it would silently discard an edit that is
+ * live in production today. So it is adopted for `en` and for nothing else, which is what it meant.
+ *
+ * Detected by a message id at the top level rather than by the absence of language keys: `ru` and
+ * `evening` cannot both be right, and naming the thing we are looking FOR survives the next
+ * language code better than naming everything we are not.
+ */
+export function storedNotificationCopy(stored: unknown): NotificationCopySet {
+  if (typeof stored !== "object" || stored === null) return {};
+  const raw = stored as Record<string, unknown>;
+  if (NOTIFICATION_IDS.some((id) => typeof raw[id] === "object" && raw[id] !== null)) {
+    return { en: stored as NotificationCopy };
+  }
+  return { ...(stored as NotificationCopySet) };
+}
 
 /** 20:30 in the server's zone, as R1 specifies. The reminders ride the same slot. */
 export const REMINDER_TIME = { hour: 20, minute: 30 } as const;
@@ -294,6 +441,17 @@ export function validateNotificationCopy(input: unknown): NotificationCopyValida
     errors.push(`${v.field} contains a ${v.pattern} claim: "${v.span}"`);
   }
 
+  // ADMIN-TYPED RUSSIAN GETS THE GENDER CHECK TOO, and this is the only place it can run.
+  //
+  // `genderedRussian` is a build-time guard over the COMPILED-IN tables — and a stored revision
+  // REPLACES those for every user, so without this the whole check was a rule about strings an
+  // admin could overwrite through the editor without anything looking. It needs no `lang`: a
+  // string in any other language has no Cyrillic in it and cannot match.
+  for (const g of genderedRussian(raw)) {
+    errors.push(`${g.at} tells a Russian reader their gender ("${g.text}") — Russian past tense`
+      + " and short adjectives agree, so this greets half your readers as the wrong person");
+  }
+
   if (errors.length > 0) return { ok: false, errors };
   // Every id is present, every field is a string of the right shape: the cast describes what the
   // loop above has just proved.
@@ -315,7 +473,93 @@ const UNDER_KCAL = 400;
 /** A gain plan that fell short by less than this is on plan. */
 const UNDER_KCAL_GAIN = 200;
 
-const n = (x: number) => Math.round(x).toLocaleString("en-US");
+/**
+ * The retention-bearing half of the 20:30 line, as six templates rather than six sentences.
+ *
+ * The BRANCHING stays in `eveningPrescription` below — which lever a day gets is a claim about that
+ * day's arithmetic, and a translator has no business moving it. What is here is the wording of each
+ * branch once it has been chosen, which is exactly what a translator does have business with.
+ *
+ * `skyr` survives in the European languages, where it is on the shelf, and is adapted to Greek
+ * yoghurt in Vietnamese and Indonesian, where it is not. A calqued shopping list is a prescription
+ * nobody can act on, which makes it the same as no prescription at all.
+ */
+export const EVENING_PRESCRIPTIONS: Localized<Record<
+  "noMeals" | "over" | "protein" | "gainUnder" | "under" | "onPlan", string
+>> = {
+  en: {
+    noMeals: "One photo tomorrow puts the day back on the board.",
+    over: "{over} over today — tomorrow starts at {plan} again.",
+    protein: "Protein ran {gap} g short — eggs or skyr at breakfast closes it.",
+    gainUnder: "{under} kcal short of the plan — a handful of nuts tomorrow covers it.",
+    under: "{under} under the plan — eating the whole number tomorrow is the plan, not a slip.",
+    onPlan: "On plan. Same again tomorrow.",
+  },
+  fr: {
+    noMeals: "Une photo demain remet la journée dans le compte.",
+    over: "{over} au-dessus aujourd'hui — demain repart de {plan}.",
+    protein: "Il a manqué {gap} g de protéines — des œufs ou du skyr au petit-déjeuner comblent ça.",
+    gainUnder: "{under} kcal sous le plan — une poignée de noix demain suffit.",
+    under: "{under} sous le plan — manger le chiffre entier demain, c'est le plan, pas un écart.",
+    onPlan: "Dans le plan. Pareil demain.",
+  },
+  de: {
+    noMeals: "Ein Foto morgen, und der Tag zählt wieder.",
+    over: "{over} drüber heute — morgen startet wieder bei {plan}.",
+    protein: "Beim Eiweiß fehlten {gap} g — Eier oder Skyr zum Frühstück schließen die Lücke.",
+    gainUnder: "{under} kcal unter dem Plan — eine Handvoll Nüsse morgen deckt das.",
+    under: "{under} unter dem Plan — morgen die ganze Zahl zu essen ist der Plan, kein Ausrutscher.",
+    onPlan: "Im Plan. Morgen genauso.",
+  },
+  it: {
+    noMeals: "Una foto domani rimette la giornata nel conteggio.",
+    over: "{over} sopra oggi — domani si riparte da {plan}.",
+    protein: "Alle proteine mancavano {gap} g — uova o skyr a colazione bastano a colmarlo.",
+    gainUnder: "{under} kcal sotto il piano — una manciata di noci domani copre tutto.",
+    under: "{under} sotto il piano — domani mangiare il numero intero è il piano, non uno sgarro.",
+    onPlan: "Nel piano. Domani uguale.",
+  },
+  es: {
+    noMeals: "Una foto mañana devuelve el día a la cuenta.",
+    over: "{over} por encima hoy — mañana vuelve a empezar en {plan}.",
+    protein: "Faltaron {gap} g de proteína — huevos o skyr en el desayuno lo cierran.",
+    gainUnder: "{under} kcal por debajo del plan — un puñado de frutos secos mañana lo cubre.",
+    under: "{under} por debajo del plan — comer el número entero mañana es el plan, no un desliz.",
+    onPlan: "En el plan. Mañana igual.",
+  },
+  vi: {
+    noMeals: "Một tấm ảnh ngày mai, và ngày đó được tính lại.",
+    over: "Hôm nay vượt {over} — ngày mai lại bắt đầu từ {plan}.",
+    protein: "Đạm còn thiếu {gap} g — trứng hoặc sữa chua Hy Lạp buổi sáng là đủ bù.",
+    gainUnder: "Thiếu {under} kcal so với kế hoạch — ngày mai một nắm hạt là đủ.",
+    under: "Thiếu {under} so với kế hoạch — ngày mai ăn trọn con số mới là kế hoạch, không phải lỡ nhịp.",
+    onPlan: "Đúng kế hoạch. Ngày mai cứ vậy.",
+  },
+  id: {
+    noMeals: "Satu foto besok, dan hari itu terhitung lagi.",
+    over: "Hari ini {over} di atas rencana — besok mulai lagi dari {plan}.",
+    protein: "Protein kurang {gap} g — telur atau yoghurt Yunani saat sarapan menutupnya.",
+    gainUnder: "Kurang {under} kcal dari rencana — segenggam kacang besok sudah cukup.",
+    under: "Kurang {under} dari rencana — besok makan angka penuhnya itu rencananya, bukan kesalahan.",
+    onPlan: "Sesuai rencana. Besok sama lagi.",
+  },
+  ru: {
+    noMeals: "Одно фото завтра — и день снова в счёте.",
+    over: "Сегодня {over} сверху — завтра снова стартуешь с {plan}.",
+    protein: "Белка не хватило {gap} г — яйца или скир на завтрак закрывают разрыв.",
+    gainUnder: "{under} ккал не хватило до плана — горсть орехов завтра это покроет.",
+    under: "{under} ниже плана. Съесть завтра всю цифру — это и есть план, а не срыв.",
+    onPlan: "В плане. Завтра так же.",
+  },
+};
+
+export interface EveningInput {
+  targets: FoodTargets;
+  totals: { kcal: number; protein_g: number };
+  goal: Goal;
+  /** Meals logged on the day. Zero is its own sentence, not a total of nothing. */
+  meals: number;
+}
 
 /**
  * The retention-bearing half of the 20:30 line: ONE concrete thing for tomorrow.
@@ -326,28 +570,25 @@ const n = (x: number) => Math.round(x).toLocaleString("en-US");
  * onboarding QUESTIONS are, since each branch is a claim about the user's own day.
  *
  * One sentence, one lever, in priority order. A message that names three things is a message that
- * names none.
+ * names none. THE ORDER IS NOT TRANSLATABLE and is why the branching stayed here while the wording
+ * moved into `EVENING_PRESCRIPTIONS`.
  */
-export function eveningPrescription(i: EveningInput): string {
-  if (i.meals === 0) return "One photo tomorrow puts the day back on the board.";
+export function eveningPrescription(i: EveningInput, lang: Lang): string {
+  const say = t(lang)(EVENING_PRESCRIPTIONS);
+  const n = wholeNumbers(lang);
+  if (i.meals === 0) return say.noMeals;
 
   const overBy = i.totals.kcal - i.targets.kcal;
   if (i.goal !== "gain" && overBy > 0) {
-    return `${n(overBy)} over today — tomorrow starts at ${n(i.targets.kcal)} again.`;
+    return fill(say.over, { over: n(overBy), plan: n(i.targets.kcal) });
   }
 
   const proteinGap = i.targets.protein_g - i.totals.protein_g;
-  if (proteinGap >= PROTEIN_GAP_G) {
-    return `Protein ran ${n(proteinGap)} g short — eggs or skyr at breakfast closes it.`;
-  }
+  if (proteinGap >= PROTEIN_GAP_G) return fill(say.protein, { gap: n(proteinGap) });
 
   const underBy = -overBy;
-  if (i.goal === "gain" && underBy >= UNDER_KCAL_GAIN) {
-    return `${n(underBy)} kcal short of the plan — a handful of nuts tomorrow covers it.`;
-  }
-  if (i.goal !== "gain" && underBy >= UNDER_KCAL) {
-    return `${n(underBy)} under the plan — eating the whole number tomorrow is the plan, not a slip.`;
-  }
+  if (i.goal === "gain" && underBy >= UNDER_KCAL_GAIN) return fill(say.gainUnder, { under: n(underBy) });
+  if (i.goal !== "gain" && underBy >= UNDER_KCAL) return fill(say.under, { under: n(underBy) });
 
-  return "On plan. Same again tomorrow.";
+  return say.onPlan;
 }

@@ -33,7 +33,7 @@
 
 import { afterAll, describe, expect, it } from "bun:test";
 import { SQL } from "bun";
-import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, emptyHealthDay, type MealRecord } from "@eait/shared";
+import { DEFAULT_NOTIFICATION_COPY, DEFAULT_ONBOARDING_CONTENT, ONBOARDING_CONTENT, emptyHealthDay, type MealRecord } from "@eait/shared";
 import { PROMPT_DEFAULTS, PROMPT_KEYS } from "./llm/prompt.ts";
 import { hashToken } from "./auth/tokens.ts";
 import { memoryStore } from "./store.memory.ts";
@@ -391,13 +391,21 @@ function contract(name: string, make: () => Promise<Store>) {
 
     it("does not count an account that has not HAD its second day yet", async () => {
       const s2 = await open();
-      await s2.upsertDeviceUser(device(), "en");
       const today = new Date().toISOString().slice(0, 10);
-      const m = await s2.adminMetrics({ days: 30, today, timezone: "UTC" });
+      // A BASELINE, because `adminMetrics` counts the WHOLE database and this suite shares one.
+      //
+      // It asserted `eligible === 0` outright, which held only on a database with no yesterday in
+      // it — so it passed on CI's fresh Postgres and failed on any developer machine from its
+      // second day onward (measured: 1530 accounts, `eligible` 1190). A gate that fails for a
+      // reason the change under test cannot affect is a gate people learn to ignore. Pre-existing;
+      // fixed here because this PR extends this suite and needs it to mean something.
+      const before = await s2.adminMetrics({ days: 30, today, timezone: "UTC" });
+      await s2.upsertDeviceUser(device(), "en");
+      const after = await s2.adminMetrics({ days: 30, today, timezone: "UTC" });
       // Signed up today. Counting it as "did not return" is what drags a retention number down as
       // a product grows, and it is the most common way one is reported wrong.
-      expect(m.d1.eligible).toBe(0);
-      expect(m.d7.eligible).toBe(0);
+      expect(after.d1.eligible).toBe(before.d1.eligible);
+      expect(after.d7.eligible).toBe(before.d7.eligible);
     });
 
     it("bounds the window whatever it is asked for", async () => {
@@ -1989,16 +1997,30 @@ function contract(name: string, make: () => Promise<Store>) {
       // between runs, so "nothing has been saved yet" is true exactly once per database — the
       // same trap as the identity subjects above. The null case is covered in the engine tests,
       // which get a fresh store every time.
+      // A SET, one revision per language (#358), written ONE LANGUAGE AT A TIME.
       const content = { ...DEFAULT_ONBOARDING_CONTENT, version: 7 };
-      await s.putOnboardingContent(content);
+      const german = { ...ONBOARDING_CONTENT.de!, version: 7 };
+      const enV = await s.putOnboardingContent("en", content, 7);
+      const deV = await s.putOnboardingContent("de", german, 7);
       const back = await s.getOnboardingContent();
       // Deep equality, not "it returned something". A jsonb column that stored the JSON as a
       // STRING round-trips without error and comes back unusable — the same bug the meal items
       // column had.
-      expect(back).toEqual(content);
+      expect(back).toEqual({ en: { ...content, version: enV }, de: { ...german, version: deV } });
 
-      await s.putOnboardingContent({ ...content, version: 8 });
-      expect((await s.getOnboardingContent())?.version).toBe(8);
+      // THE MERGE IS THE STORE'S. Writing English must leave the German exactly where it was —
+      // this used to be the engine's job, done by reading the set and writing the whole thing back,
+      // which loses a language whenever two admins save at once.
+      await s.putOnboardingContent("en", content, 7);
+      expect((await s.getOnboardingContent())?.de).toEqual({ ...german, version: deV });
+
+      // ONE COUNTER ACROSS ALL EIGHT, assigned against the row rather than against a read: three
+      // saves are three numbers, whichever languages they were made in.
+      expect(new Set([enV, deV, (await s.getOnboardingContent())!.en!.version]).size).toBe(3);
+      expect(deV).toBeGreaterThan(enV);
+      // And the floor is a floor, not the answer — a save asking for a number already taken gets
+      // the next free one instead of colliding with it.
+      expect(await s.putOnboardingContent("en", content, 1)).toBeGreaterThan(deV);
     });
 
     // ── The stored prompts ─────────────────────────────────────────────────────────────────
@@ -2099,11 +2121,16 @@ function contract(name: string, make: () => Promise<Store>) {
         ...DEFAULT_NOTIFICATION_COPY,
         evening: { ...DEFAULT_NOTIFICATION_COPY.evening, title: `Evening ${RUN}` },
       };
-      await s.putNotificationCopy(edited);
-      expect((await s.getNotificationCopy())?.evening.title).toBe(`Evening ${RUN}`);
+      await s.putNotificationCopy("en", edited);
+      expect((await s.getNotificationCopy())?.en?.evening.title).toBe(`Evening ${RUN}`);
       // Saving one must not disturb the other: two admin screens, two rows.
-      await s.putOnboardingContent({ ...DEFAULT_ONBOARDING_CONTENT, version: 99 });
-      expect((await s.getNotificationCopy())?.evening.title).toBe(`Evening ${RUN}`);
+      await s.putOnboardingContent("en", { ...DEFAULT_ONBOARDING_CONTENT, version: 99 }, 99);
+      expect((await s.getNotificationCopy())?.en?.evening.title).toBe(`Evening ${RUN}`);
+      // And here too the store merges rather than replaces: German survives an English save.
+      const german = { ...DEFAULT_NOTIFICATION_COPY, evening: { title: `Abend ${RUN}`, body: "{plan}" } };
+      await s.putNotificationCopy("de", german);
+      await s.putNotificationCopy("en", edited);
+      expect((await s.getNotificationCopy())?.de?.evening.title).toBe(`Abend ${RUN}`);
     });
 
     it("ignores an onboarding event id it has already stored", async () => {
@@ -2198,6 +2225,91 @@ contract("memory", async () => memoryStore());
 
 if (PG_URL) {
   contract("postgres", () => postgresStore(PG_URL, { maxConnections: TEST_POOL }));
+
+  // ── The shape the column actually held ───────────────────────────────────────────────────────
+  //
+  // POSTGRES ONLY, because it is about jsonb and the memory store has no such distinction.
+  //
+  // `${JSON.stringify(doc)}::jsonb` looks like it writes an object and does not: Bun's driver
+  // already encodes a bound value as jsonb, so a string parameter lands as a jsonb STRING and the
+  // cast is a no-op. Every deployed host holds one of those right now. Nothing noticed, because
+  // `json()` on the read parses a string as happily as it passes an object through — and it only
+  // started to matter when the merge moved into the statement, since `jsonb_set` on a scalar is an
+  // error rather than a wrong answer. So: the row upgrades in place on the next write, and the
+  // language already in it survives that upgrade.
+  // ── The race the merge moved into SQL to stop ────────────────────────────────────────────────
+  //
+  // POSTGRES ONLY, because it is the only implementation that can HAVE it: the memory store is one
+  // process and one event loop. Nothing tested this, which is worth saying plainly — every
+  // assertion in `contract()` above is satisfied by an implementation that does read-modify-write
+  // inside the method, so the regression this whole change exists to prevent was unguarded.
+  describe("two admins saving two languages at once", () => {
+    it("loses neither language, and gives them different version numbers", async () => {
+      // SEPARATE POOLS. One `postgresStore` would serialise them through its own connection and
+      // prove nothing about the statement.
+      const a = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
+      const b = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
+      const de = { ...ONBOARDING_CONTENT.de!, version: 1 };
+      const it_ = { ...ONBOARDING_CONTENT.it!, version: 1 };
+
+      const [vDe, vIt] = await Promise.all([
+        a.putOnboardingContent("de", de, 1),
+        b.putOnboardingContent("it", it_, 1),
+      ]);
+
+      const back = await a.getOnboardingContent();
+      // Read-modify-write in the engine lost one of these every time the two overlapped.
+      expect(back?.de?.welcome.cta).toBe(de.welcome.cta);
+      expect(back?.it?.welcome.cta).toBe(it_.welcome.cta);
+      // And the counter is ONE counter: two revisions with different words never share a number,
+      // which is the whole reason a funnel row can be joined to the copy that produced it.
+      expect(vDe).not.toBe(vIt);
+      expect(new Set([vDe, vIt, back!.de!.version, back!.it!.version]).size).toBe(2);
+    });
+
+    it("gives eight concurrent saves of ONE language eight distinct versions", async () => {
+      const stores = await Promise.all(
+        Array.from({ length: 8 }, () => postgresStore(PG_URL, { maxConnections: TEST_POOL })),
+      );
+      const content = { ...DEFAULT_ONBOARDING_CONTENT, version: 1 };
+      const versions = await Promise.all(stores.map((st) => st.putOnboardingContent("en", content, 1)));
+      expect(new Set(versions).size).toBe(8);
+      // The column and the JSON agree on the last one — they are written in the same statement.
+      const row = await stores[0]!.getOnboardingContent();
+      expect(row?.en?.version).toBe(Math.max(...versions));
+    });
+  });
+
+  describe("a content row written as text by an older build", () => {
+    it("is repaired by the next write, and keeps what it held", async () => {
+      const raw = new SQL(PG_URL);
+      const s = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
+      const legacy = JSON.stringify({ en: { ...DEFAULT_ONBOARDING_CONTENT, version: 42 } });
+      await raw`
+        insert into onboarding_content (id, version, content, updated_at)
+        values (1, 42, ${legacy}::jsonb, now())
+        on conflict (id) do update set version = 42, content = ${legacy}::jsonb`;
+      expect((await raw`select jsonb_typeof(content) t from onboarding_content where id = 1`)[0].t)
+        .toBe("string");
+      // Readable all along — this is why it went unnoticed.
+      expect((await s.getOnboardingContent())?.en?.version).toBe(42);
+
+      const version = await s.putOnboardingContent("de", { ...ONBOARDING_CONTENT.de!, version: 1 }, 1);
+      const after = await raw`
+        select jsonb_typeof(content) whole, jsonb_typeof(content -> 'en') en
+        from onboarding_content where id = 1`;
+      expect(after[0]).toEqual({ whole: "object", en: "object" });
+      // The English the legacy row carried is still there, and the version came off the column
+      // rather than off the floor the caller asked for.
+      const back = await s.getOnboardingContent();
+      expect(back?.en?.version).toBe(42);
+      expect(back?.de?.version).toBe(version);
+      expect(version).toBe(43);
+
+      await raw`delete from onboarding_content`;
+      await raw.end();
+    });
+  });
 } else {
   describe("store contract — postgres", () => {
     it.skip("SKIPPED: run `./dev test` to run against real Postgres", () => {});

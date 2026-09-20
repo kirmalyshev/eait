@@ -391,6 +391,14 @@ export interface AuthProviderRequest {
    * against both the raw value and its hash. Replay protection is worth the extra field.
    */
   nonce?: string;
+  /**
+   * BCP-47-ish, narrowed server-side to a supported `Lang`, falling back to `en`.
+   *
+   * Read ONLY when this sign-in creates the account — a client on a fresh install that signs in
+   * before it mints a device session. Every other outcome leaves `users.lang` exactly as it is,
+   * because by then it is the user's own setting rather than a guess about their phone.
+   */
+  locale?: string;
 }
 
 /** What happened to the account when an identity was presented. */
@@ -592,6 +600,15 @@ export interface ProfileRejected {
  */
 export interface OnboardingContentResponse {
   content: OnboardingContent;
+  /**
+   * Which language this revision is in (#358).
+   *
+   * SENT rather than assumed, and it is the same rule `Limits` follows: the client asked with
+   * `?lang=` or let the account answer, and only the server knows which it used. A client that
+   * assumed its own guess came back would cache German copy under `it` the first time a code it
+   * sent was one this server does not carry.
+   */
+  lang: Lang;
 }
 
 /**

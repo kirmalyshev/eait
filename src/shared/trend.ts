@@ -13,17 +13,24 @@
 
 import { dateMinus, monthOf, monthShift, windowStart } from "./dates.ts";
 import type { HealthDay, HealthMetric } from "./health.ts";
-import type { DayTotals } from "./types.ts";
+import { HEALTH_COPY } from "./health-copy.ts";
+import { LANG_TAG, t } from "./lang.ts";
+import type { DayTotals, Lang } from "./types.ts";
 
-/** The four x-axes. `label` is the control; `noun` is what a sentence calls one bucket. */
-export const TREND_PERIODS = [
-  { id: "days", label: "Days", noun: "day" },
-  { id: "weeks", label: "Weeks", noun: "week" },
-  { id: "months", label: "Months", noun: "month" },
-  { id: "years", label: "Years", noun: "year" },
-] as const;
+/** The four x-axes, as ids. The words for them are per language — see `trendPeriods`. */
+export const TREND_PERIOD_IDS = ["days", "weeks", "months", "years"] as const;
 
-export type TrendPeriod = (typeof TREND_PERIODS)[number]["id"];
+export type TrendPeriod = (typeof TREND_PERIOD_IDS)[number];
+
+/**
+ * The four x-axes WITH THEIR WORDS. A function of the language, not a constant, for the reason
+ * every other table here is one: a constant is what a screen captures at module scope and then
+ * renders in whatever language the process started in. These four shipped as English literals
+ * inside a screen that was otherwise translated, and no check could see it — they are not
+ * `Localized<T>`, so `localizedGaps` walks straight past them.
+ */
+export const trendPeriods = (lang: Lang): readonly { id: TrendPeriod; label: string; per: string }[] =>
+  TREND_PERIOD_IDS.map((id) => ({ id, ...t(lang)(HEALTH_COPY).periods[id] }));
 
 /** How many buckets each period draws. Years is open-ended: every year that has stored data. */
 const BUCKETS: Record<Exclude<TrendPeriod, "years">, number> = { days: 30, weeks: 26, months: 12 };
@@ -50,10 +57,19 @@ export interface TrendPoint extends TrendBucket {
 
 /** Midday UTC, so a date-only value cannot slip a day while being formatted — as `dayLabel` does. */
 const noon = (date: string) => new Date(`${date}T12:00:00Z`);
-const dayMonth = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", day: "numeric", month: "short" });
-// `en-US`, not `en-GB`: the British short form of September is "Sept", one letter wider than every
-// other month, and it is the one label on an axis of twelve that would then wrap.
-const monthShort = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short" });
+/**
+ * The axis labels, in the reader's own language rather than in en-GB.
+ *
+ * `en-US`, NOT `en-GB`, for English only: the British short form of September is "Sept", one letter
+ * wider than every other month, and it is the one label on an axis of twelve that would then wrap.
+ * `LANG_TAG.en` is `en-GB` because this product is metric and in Berlin, so the exception is spelled
+ * out here rather than fixed there — the date format and the unit system are different questions,
+ * and `targets.ts` is the reason that distinction is kept sharp.
+ */
+const dayMonth = (lang: Lang) =>
+  new Intl.DateTimeFormat(LANG_TAG[lang], { timeZone: "UTC", day: "numeric", month: "short" });
+const monthShort = (lang: Lang) =>
+  new Intl.DateTimeFormat(lang === "en" ? "en-US" : LANG_TAG[lang], { timeZone: "UTC", month: "short" });
 
 /**
  * The buckets a period draws, OLDEST FIRST — chart order, left to right. The last bucket always
@@ -77,28 +93,39 @@ const monthShort = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "s
  * so the two clamps compose rather than fight. Pass every series the chart draws (`oldestDate`):
  * an axis derived from one of them silently drops the other's older rows in `bucketSeries`.
  */
-export function trendBuckets(period: TrendPeriod, today: string, days: number, oldestRow?: string): TrendBucket[] {
+export function trendBuckets(
+  period: TrendPeriod, today: string, days: number, lang: Lang, oldestRow?: string,
+): TrendBucket[] {
+  // CONSTRUCTED INSIDE THE BRANCH THAT USES IT. Both were built on every call, and `monthAxis` is
+  // read by one branch of four — measured at 0.076 ms of `trendBuckets`'s 0.189 ms, so this is
+  // tidiness rather than a fix. Not hoisted to module scope: that is where they were, and one
+  // formatter for all eight languages is the bug this file just stopped having.
   switch (period) {
-    case "days":
+    case "days": {
+      const dayAxis = dayMonth(lang);
       return Array.from({ length: BUCKETS.days }, (_, i) => {
         const date = dateMinus(today, BUCKETS.days - 1 - i);
-        return { start: date, end: date, label: dayMonth.format(noon(date)) };
+        return { start: date, end: date, label: dayAxis.format(noon(date)) };
       });
+    }
     case "weeks": {
+      const dayAxis = dayMonth(lang);
       // getUTCDay is 0 for Sunday; shift so Monday is 0.
       const monday = dateMinus(today, (noon(today).getUTCDay() + 6) % 7);
       return Array.from({ length: BUCKETS.weeks }, (_, i) => {
         const start = dateMinus(monday, 7 * (BUCKETS.weeks - 1 - i));
-        return { start, end: dateMinus(start, -6), label: dayMonth.format(noon(start)) };
+        return { start, end: dateMinus(start, -6), label: dayAxis.format(noon(start)) };
       });
     }
-    case "months":
+    case "months": {
+      const monthAxis = monthShort(lang);
       return Array.from({ length: BUCKETS.months }, (_, i) => {
         const month = monthShift(monthOf(today), i - (BUCKETS.months - 1));
         const start = `${month}-01`;
         // The day before the next month's first: the only way to get February right every year.
-        return { start, end: dateMinus(`${monthShift(month, 1)}-01`, 1), label: monthShort.format(noon(start)) };
+        return { start, end: dateMinus(`${monthShift(month, 1)}-01`, 1), label: monthAxis.format(noon(start)) };
       });
+    }
     case "years": {
       // Derived HERE and not above: the other three periods have a fixed bucket count and never
       // read the window, so computing a date for them is a `Date.UTC` and a `toISOString` paid on
@@ -167,22 +194,35 @@ export function trendEndpoints(
  * The chart as one sentence, for VoiceOver. A chart is an image to a screen reader, and an image
  * of a weight trend that says "image" is a screen that shows the user with low vision nothing at
  * all about the thing they came for.
+ *
+ * `format` MUST SPELL ITS UNIT WITH `spellUnit(lang, …)`, not with `HEALTH_FIELDS.unit` raw. This
+ * is the one place a unit is read inside a sentence rather than sitting beside a scale, which is
+ * the exact test `UNIT_KCAL` was written against — so a Russian listener otherwise hears
+ * "девяносто четыре точка два kg" in the middle of a Russian clause. The axis keeps the SI symbol;
+ * only this does not. The caller lives on the phone, so this comment is the whole enforcement.
  */
 export function trendSummary(
   name: string,
   period: TrendPeriod,
   points: readonly TrendPoint[],
   format: (value: number) => string,
+  lang: Lang,
 ): string {
-  const noun = TREND_PERIODS.find((p) => p.id === period)!.noun;
+  const copy = t(lang)(HEALTH_COPY);
+  // `per`, not `noun`: Russian's `по` governs the dative plural — see `HealthCopy`.
+  const noun = copy.periods[period].per;
+  const fill = (template: string, into: Record<string, string>) =>
+    Object.entries(into).reduce((out, [k, v]) => out.replaceAll(`{${k}}`, v), template);
+
   const ends = trendEndpoints(points);
-  if (!ends) return `${name} by ${noun}: nothing recorded.`;
+  if (!ends) return fill(copy.summary.empty, { name, noun });
   const values = points.flatMap((p) => (p.value === null ? [] : [p.value]));
-  const lowest = Math.min(...values);
-  const highest = Math.max(...values);
-  return `${name} by ${noun}: from ${format(ends.first.value!)} (${ends.first.label}) to `
-    + `${format(ends.latest.value!)} (${ends.latest.label}). `
-    + `Lowest ${format(lowest)}, highest ${format(highest)}.`;
+  return fill(copy.summary.line, {
+    name, noun,
+    first: format(ends.first.value!), firstAt: ends.first.label,
+    last: format(ends.latest.value!), lastAt: ends.latest.label,
+    low: format(Math.min(...values)), high: format(Math.max(...values)),
+  });
 }
 
 export interface Correlation {
@@ -231,12 +271,15 @@ export function correlate(a: readonly TrendPoint[], b: readonly TrendPoint[]): C
  * The relationship in words. A bare "r = 0.46" is a number most people have to look up; the
  * sentence is what the caption prints, and the number sits beside it for those who want it.
  */
-export function correlationWords(r: number): string {
+export function correlationWords(r: number, lang: Lang): string {
+  const copy = t(lang)(HEALTH_COPY).correlation;
   const size = Math.abs(r);
-  if (size < 0.2) return "no clear link";
-  const strength = size < 0.5 ? "weak" : size < 0.8 ? "moderate" : "strong";
-  const direction = r > 0 ? "they tend to rise together" : "one tends to rise as the other falls";
-  return `a ${strength} link — ${direction}`;
+  if (size < 0.2) return copy.none;
+  const strength = size < 0.5 ? copy.weak : size < 0.8 ? copy.moderate : copy.strong;
+  const direction = r > 0 ? copy.together : copy.opposed;
+  // The THRESHOLDS stay here and only the words move: which band a coefficient falls in is a claim
+  // about the arithmetic, and a translator has no business moving 0.5.
+  return copy.sentence.replace("{strength}", strength).replace("{direction}", direction);
 }
 
 /**
@@ -272,14 +315,22 @@ export function metricSeries(days: readonly HealthDay[], metric: HealthMetric): 
  * health fields and have no spec of their own.
  */
 export const COMPARE_SERIES = [
-  { id: "intake", label: "Intake", unit: "kcal", decimals: 0 },
-  { id: "burned", label: "Burned", unit: "kcal", decimals: 0 },
-  { id: "sleep", label: "Sleep", unit: "min", decimals: 0 },
-  { id: "steps", label: "Steps", unit: "", decimals: 0 },
-  { id: "exercise", label: "Exercise", unit: "min", decimals: 0 },
+  { id: "intake", unit: "kcal", decimals: 0 },
+  { id: "burned", unit: "kcal", decimals: 0 },
+  { id: "sleep", unit: "min", decimals: 0 },
+  { id: "steps", unit: "", decimals: 0 },
+  { id: "exercise", unit: "min", decimals: 0 },
 ] as const;
 
 export type CompareSeriesId = (typeof COMPARE_SERIES)[number]["id"];
+
+/**
+ * The same five WITH their words. A function of the language for `trendPeriods`'s reason, and it
+ * had the same defect: five English literals in an ordinary `as const`, which `localizedGaps`
+ * cannot see because a record of strings is not a `Localized` table.
+ */
+export const compareSeriesLabels = (lang: Lang): readonly { id: CompareSeriesId; label: string; unit: string; decimals: number }[] =>
+  COMPARE_SERIES.map((c) => ({ ...c, label: t(lang)(HEALTH_COPY).compare[c.id] }));
 
 /**
  * One compare series, as daily points.

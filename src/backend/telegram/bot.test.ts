@@ -13,7 +13,10 @@ import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { mintPairingCode, patchProfile, type EngineDeps } from "../engine/index.ts";
 import { createBot, fetchFile, isFatalTelegramError, superviseBot, type TelegramBot } from "./bot.ts";
-import { TELEGRAM_COPY, TelegramFileError } from "./handlers.ts";
+import { TelegramFileError } from "./handlers.ts";
+import { telegramCopyFor } from "./copy.ts";
+/** The English words, which is what these tests assert against. */
+const TELEGRAM_COPY = telegramCopyFor("en");
 
 /** Shaped like a token, and not one: this repository is public. */
 const TOKEN = "123456789:not-a-real-token_not-a-real-token";

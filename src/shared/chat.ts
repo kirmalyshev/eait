@@ -5,19 +5,33 @@
 // `product/design/onboarding/copy.md` (steps 13–15); a sentence changed here is a sentence changed
 // in the product, so change the design first.
 
-import type { FoodTargets, Goal, MealVerdicts } from "./types.ts";
+import { wholeNumbers } from "./lang.ts";
+import { fillCopy as fill, threadCopyFor } from "./chat-copy.ts";
+import type { FoodTargets, Goal, Lang, MealVerdicts } from "./types.ts";
 
 /**
- * Lines the APP may ask the server to append, by id. Never prose: the client names a line and the
+ * Lines the APP may ask the server to append, BY ID. Never prose: the client names a line and the
  * server owns the words, so nothing a phone sends can put a sentence in Spud's mouth.
- * `{name}` placeholders are filled from `params`.
+ *
+ * THE KEYS ARE THE CONTRACT AND THE WORDS ARE NOT. This is the id set two binaries agree on, so it
+ * is the same in all eight languages and is deliberately NOT `Localized`; what each id SAYS lives
+ * in `THREAD_COPY` (`chat-copy.ts`), keyed by language. The values here are `null` because the type
+ * is doing the only job left: naming what exists.
+ *
+ * READING A VALUE OFF THIS IS THE ONE MIGRATION THE COMPILER CANNOT REFUSE, so it is marked. Every
+ * other table in this change became a function of the language, which makes an un-migrated call
+ * site a build error; this one kept its shape and lost its words, and `null` is a legal
+ * `ReactNode` — so `<Text>{SCRIPTED_LINES.dropped}</Text>` still typechecks and renders an EMPTY
+ * bubble. Empty is worse than English: nothing looks broken in review. The `@deprecated` below is
+ * the only signal available, and it shows up in an editor where the type cannot.
  */
+/** @deprecated The KEYS are the contract. Read the words with `scriptedLine(id, lang)`. */
 export const SCRIPTED_LINES = {
   /** Step 13 · the camera closed without a photo. */
-  "camera-closed": "No rush. The plan is on your diary — photograph the next meal when it happens. That's the whole habit, and I'll say so once tomorrow if it hasn't.",
+  "camera-closed": null,
   /** Step 15 · the trial started. `price` is StoreKit's string for the chosen plan. */
-  "trial-started": "Trial's on. Seven days, then {price} unless you stop it — I'll remind you on day five and the day before it ends, never the day after.",
-  "trial-day-one": "Your first day is started. At 20:30 you get one line — today against the plan, and one concrete thing for tomorrow. Nothing before that.",
+  "trial-started": null,
+  "trial-day-one": null,
   /**
    * Step 15 · before iOS asks for notifications, once, after the trial starts.
    *
@@ -29,21 +43,21 @@ export const SCRIPTED_LINES = {
    * purchase has no trial — `reminderPlan` schedules nothing for it, so a sentence promising two
    * reminders would be describing messages that are not coming.
    */
-  "notify-primer": "One more thing iOS is about to ask about: notifications. One a day and never more — the 20:30 line, plus two reminders before the free week ends if you're on it. Nothing else, ever.",
+  "notify-primer": null,
   /** Step 15 · a restored purchase. */
-  "restored": "Restored — you're in. A photo or a sentence both log a meal.",
+  "restored": null,
   /** Step 13 · before the OS asks for the camera, once. */
-  "camera-primer": "One thing first: iOS will ask for the camera. I use it for the plate and nothing else — the photo is kept with the meal so you can see it in your diary, and erased with your account.",
+  "camera-primer": null,
   /** Step 14 · the user tapped "Fix the numbers" / "Check the grams". */
-  "fix-prompt": "Tell me what's off — \"half the rice\", \"no avocado\", \"it was 500\" all work. Or open the card and edit the grams yourself.",
+  "fix-prompt": null,
   /** Step 14 · the first verdict accepted by an account that is already subscribed. */
-  "already-in": "Good. I'm here in Chat whenever — a photo or a sentence both log a meal.",
+  "already-in": null,
   /** Step 13 · the camera permission was refused. */
-  "camera-denied": "No camera, no problem. Pick a photo from your library, or just tell me what you ate — both get a verdict.",
+  "camera-denied": null,
   /** Step 14 · the bridge into the paywall, after the first verdict is accepted. */
-  "onboarding-done": "Good — that's onboarding done, and the first day started. One more thing before you go, and it's the only time I'll ask.",
+  "onboarding-done": null,
   /** A proposed meal the user said no to. The words the app already shows. */
-  "dropped": "Dropped it.",
+  "dropped": null,
 } as const;
 
 export type ScriptedLineId = keyof typeof SCRIPTED_LINES;
@@ -85,8 +99,18 @@ export function scriptedParams(id: ScriptedLineId, given: unknown): Record<strin
   return out;
 }
 
-export function scriptedLine(id: ScriptedLineId, params: Record<string, string> = {}): string {
-  return SCRIPTED_LINES[id].replace(/\{(\w+)\}/g, (_, k: string) => params[k] ?? "");
+export function scriptedLine(
+  id: ScriptedLineId,
+  lang: Lang,
+  // See `checkNumber`: the optional one goes last so that reaching the language never costs a
+  // caller an argument it has no opinion about.
+  params: Record<string, string> = {},
+): string {
+  // A declared parameter with nothing behind it renders as NOTHING, not as a brace — the rule this
+  // function has always had, and the one place in the codebase where an unfilled placeholder is
+  // erased rather than left alone. `scriptedParams` has already refused anything but the declared
+  // set, so the only way to get here short is a client that sent none.
+  return threadCopyFor(lang).scripted[id]!.replace(/\{(\w+)\}/g, (_, k: string) => params[k] ?? "");
 }
 
 // ── The coach ────────────────────────────────────────────────────────────────────────────────
@@ -102,13 +126,10 @@ export function scriptedLine(id: ScriptedLineId, params: Record<string, string> 
  * else — Spud logs, Gabie advises — and this is the one user-visible sentence that calls her a
  * nutritionist.
  */
-export const MEET_GABIE = "Questions go to Gabie, the nutritionist here — what to eat tonight, how the week's going. Same chat; she reads your diary before she answers. I log, she advises.";
+export const MEET_GABIE = (lang: Lang): string => threadCopyFor(lang).meetGabie;
 
-export const COACH_STARTERS: readonly string[] = [
-  "How's my week going?",
-  "What should I eat tonight?",
-  "Am I getting enough protein?",
-];
+export const COACH_STARTERS = (lang: Lang): readonly string[] =>
+  threadCopyFor(lang).coachStarters;
 
 /**
  * The fixed thread the deterministic Chat is seeded with. Issue #257.
@@ -184,10 +205,29 @@ export function cleanSuggestions(raw: unknown): string[] {
  *
  * Over target it says the overshoot, in the first verdict's words — never a signed remainder (#663).
  */
-export function runningLine(i: { targets: FoodTargets; eatenToday: { kcal: number; protein_g: number } }): string {
+export function runningLine(
+  i: { targets: FoodTargets; eatenToday: { kcal: number; protein_g: number } },
+  lang: Lang,
+): string {
+  const copy = threadCopyFor(lang).running;
   const left = i.targets.kcal - i.eatenToday.kcal;
-  const day = left >= 0 ? `${n(left)} of your ${n(i.targets.kcal)} left today` : `${n(-left)} over your ${n(i.targets.kcal)} today`;
-  return `${day}, ${n(i.eatenToday.protein_g)} of the ${n(i.targets.protein_g)} g protein.`;
+  return fill(left >= 0 ? copy.left : copy.over, figures(i, lang));
+}
+
+/** The bare numbers every sentence in this file interpolates, grouped the reader's way. */
+function figures(
+  i: { targets: FoodTargets; eatenToday: { kcal: number; protein_g: number } },
+  lang: Lang,
+): Record<string, string> {
+  const n = wholeNumbers(lang);
+  const left = i.targets.kcal - i.eatenToday.kcal;
+  return {
+    left: n(Math.max(0, left)),
+    over: n(Math.max(0, -left)),
+    plan: n(i.targets.kcal),
+    protein: n(i.eatenToday.protein_g),
+    proteinTarget: n(i.targets.protein_g),
+  };
 }
 
 /**
@@ -197,8 +237,14 @@ export function runningLine(i: { targets: FoodTargets; eatenToday: { kcal: numbe
  * kcal MOVED — the one thing the re-rendered card cannot say by itself. The clause behind it is
  * `runningLine`, shared with every landed meal so the two can never disagree about one day.
  */
-export function correctionLine(i: { targets: FoodTargets; meal: { kcal: number }; eatenToday: { kcal: number; protein_g: number } }): string {
-  return `Updated — ${n(i.meal.kcal)} kcal. ${runningLine(i)}`;
+export function correctionLine(
+  i: { targets: FoodTargets; meal: { kcal: number }; eatenToday: { kcal: number; protein_g: number } },
+  lang: Lang,
+): string {
+  return fill(threadCopyFor(lang).correction, {
+    kcal: wholeNumbers(lang)(i.meal.kcal),
+    day: runningLine(i, lang),
+  });
 }
 
 /**
@@ -227,53 +273,55 @@ export interface FirstVerdictInput {
   caption?: string | null;
 }
 
-const n = (x: number) => Math.round(x).toLocaleString("en-US");
-
 /**
  * Spud's first verdict — copy.md § Step 14, word for word. Spoken ONCE, on the account's first
  * meal; later meals get the card and, in time, the 20:30 line. Deterministic on purpose: the model
  * is never asked for a verdict, and neither is it asked for these sentences.
+ *
+ * THE BRANCHES ARE HERE AND THE SENTENCES ARE IN `THREAD_COPY`. Which of them a meal takes is a
+ * claim about that meal's arithmetic; the wording is not, and a translator moving a branch would be
+ * moving a rule. The old code produced the sentence-initial form of the arithmetic by running
+ * `.replace(/^that/, "That")` over it — an English capitalisation rule living inside a string
+ * operation, correct in exactly one language. `arithmeticAlone` is that same pair, said out loud.
  */
-export function firstVerdictLines(i: FirstVerdictInput): string[] {
+export function firstVerdictLines(i: FirstVerdictInput, lang: Lang): string[] {
+  const copy = threadCopyFor(lang).firstVerdict;
+  const f = figures(i, lang);
+  const kcal = wholeNumbers(lang)(i.meal.kcal);
   const left = i.targets.kcal - i.eatenToday.kcal;
-  const rest = `${n(left)} of your ${n(i.targets.kcal)}`;
-  const protein = `${n(i.eatenToday.protein_g)} of the ${n(i.targets.protein_g)} g protein`;
-  const kcal = n(i.meal.kcal);
   const lines: string[] = [];
 
   // Over target says the overshoot ("146 over your 1,454"), never a signed remainder (#663).
-  const over = `${n(-left)} over your ${n(i.targets.kcal)}`;
-  const arithmetic = i.goal === "gain"
-    ? (left >= 0
-      ? `${rest} still to fill today, and ${protein}. Keep going.`
-      : `${over} today, and ${protein}. Past it is the point on a gain plan; tomorrow is a fresh number.`)
-    : (left >= 0
-      ? `that leaves ${rest} for the rest of today, and ${protein}. On plan.`
-      : `that puts you ${over} for today, and ${protein}. Tomorrow is a fresh number.`);
+  const branch = i.goal === "gain"
+    ? (left >= 0 ? "gainLeft" : "gainOver")
+    : (left >= 0 ? "otherLeft" : "otherOver");
 
   if (i.via === "text") {
-    lines.push(`Typed, not photographed — so the portions are my guess. Take ${kcal} as rough; if you know the grams, say so and I'll fix it.`);
-    lines.push(arithmetic.replace(/^that/, "That"));
+    lines.push(fill(copy.typed, { kcal }));
+    lines.push(fill(copy.arithmeticAlone[branch], f));
   } else if (i.meal.confidence === "low") {
     // The design's "— sauce over everything" is an example reason; nothing here can name one.
-    lines.push(`Honest answer: I couldn't read that plate well. Take ${kcal} as a rough guess and check the grams before you trust the total. A second angle next time helps.`);
-    lines.push(left < 0
-      ? `Even rough, it counts: about ${over} today.` + (i.goal === "gain" ? "" : " Tomorrow is a fresh number.")
-      : `Even rough, it counts: about ${rest} ${i.goal === "gain" ? "still to fill today" : "left today"}.`);
+    lines.push(fill(copy.lowConfidence, { kcal }));
+    lines.push(fill(
+      left < 0
+        ? (i.goal === "gain" ? copy.lowOverGain : copy.lowOverOther)
+        : (i.goal === "gain" ? copy.lowLeftGain : copy.lowLeftOther),
+      f,
+    ));
   } else {
-    lines.push(`First one in. ${kcal} kcal — ${arithmetic}`);
-    lines.push("If anything's off, say so — \"half the rice\", \"no avocado\" — or tap the card and change the grams.");
+    lines.push(fill(copy.firstIn, { kcal, arithmetic: fill(copy.arithmetic[branch], f) }));
+    lines.push(copy.fixHint);
   }
 
   // Step 13's promise: a pill and a sentence only for something the user declared, and only when
   // it actually ran high. `verdicts` carries a dimension only when the restriction was declared.
   const high = (v: MealVerdicts[keyof MealVerdicts]) => v === "warn" || v === "bad";
-  if (high(i.verdicts.kidneys)) lines.push("Sodium runs high on this one. Scored only because you asked me to.");
-  if (high(i.verdicts.ldl)) lines.push("Saturated fat runs high on this one. Scored only because you asked me to.");
+  if (high(i.verdicts.kidneys)) lines.push(copy.sodium);
+  if (high(i.verdicts.ldl)) lines.push(copy.satfat);
   // Client text in Spud's bubble: flattened and as short as a scripted parameter, so a caption
   // cannot draw a second line inside the bubble or impersonate the sentence that follows.
   const note = quotable(i.caption);
-  if (note) lines.unshift(`“${note}” — noted, it's in the numbers.`);
-  lines.push(MEET_GABIE);
+  if (note) lines.unshift(fill(copy.noted, { note }));
+  lines.push(MEET_GABIE(lang));
   return lines;
 }

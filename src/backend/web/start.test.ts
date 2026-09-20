@@ -12,8 +12,10 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  AMBIGUOUS_AGE, DEFAULT_ONBOARDING_CONTENT, UNDER_AGE_CARD, UNDER_AGE_LINES, disabledScreens,
-  explainTargets, lintCopy, MAX_USER_LINE, TYPE_MS_PER_CHAR, type Profile,
+  AMBIGUOUS_AGE, COUNTRY_CODES, DEFAULT_ONBOARDING_CONTENT, LANGS, LANG_LABEL, UNDER_AGE_CARD,
+  UNDER_AGE_LINES, countryLabel, countryOptions, disabledScreens, explainTargets, lintCopy,
+  MAX_USER_LINE, onboardingContentFor, screenForStep, screenOptions, TYPE_MS_PER_CHAR,
+  wholeNumbers, type Profile,
 } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -26,7 +28,8 @@ import { chatHistory, day, handleText, linkTelegram, saveOnboardingContent } fro
 import { createRouter } from "../api/routes.ts";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
-import { PAGE_COPY } from "./page.ts";
+import { escape, PAGE_COPY } from "./page.ts";
+import { pageCopyFor } from "./copy.ts";
 import type { WebProvider, WebSignInProvider } from "../auth/web-oauth.ts";
 
 const WEB_CLIENT = "web.apps.googleusercontent.com";
@@ -158,13 +161,25 @@ function cookieFrom(res: Response, name: string): string {
   return line.split(";")[0]!;
 }
 
-/** Sign in the way a browser would: start, follow to Google, come back with a code. */
-async function signIn(subject = "web-subject", name: WebProvider = "google"): Promise<string> {
-  const start = await get(`/start/auth/${name}`);
+/**
+ * Sign in the way a browser would: start, follow to Google, come back with a code.
+ *
+ * `accept` is the browser's `Accept-Language`, carried on BOTH legs because it is read at account
+ * creation and nothing revisits it — that was the #358 bug, and a helper that dropped it here
+ * could only ever test English.
+ */
+async function signIn(
+  subject = "web-subject",
+  name: WebProvider = "google",
+  accept?: string,
+): Promise<string> {
+  const headers = accept ? { "accept-language": accept } : {};
+  const start = await get(`/start/auth/${name}`, undefined, headers);
   const state = new URL(start.headers.get("location")!).searchParams.get("state")!;
   const oauth = cookieFrom(start, "eait_oauth");
   const back = await get(
-    `/start/auth/${name}/callback?code=${subject}&state=${encodeURIComponent(state)}`, oauth);
+    `/start/auth/${name}/callback?code=${subject}&state=${encodeURIComponent(state)}`,
+    oauth, headers);
   expect(back.status).toBe(303);
   return cookieFrom(back, "eait_web");
 }
@@ -599,7 +614,7 @@ describe("the questions", () => {
       screens: DEFAULT_ONBOARDING_CONTENT.screens.map((screen) =>
         screen.id === "country" ? { ...screen, enabled: true } : screen),
     };
-    expect((await saveOnboardingContent(deps, enabled)).ok).toBe(true);
+    expect((await saveOnboardingContent(deps, enabled, "en")).ok).toBe(true);
     const session = await signIn();
     const asked: string[] = [];
     for (let i = 0; i < 20; i++) {
@@ -652,7 +667,9 @@ describe("the plan", () => {
     const profile = (await store.getProfile(userId))!;
     expect(profile.onboarded_at).not.toBeNull();
     const { targets } = explainTargets(profile);
-    expect(html).toContain(String(targets.kcal));
+    // GROUPED THE READER'S WAY — "1,686" in English, "1.686" in German. Every figure this product
+    // writes goes through `Intl` (`lang.ts`), and the plan card was the last one that did not.
+    expect(html).toContain(wholeNumbers(profile.lang)(targets.kcal));
     expect(html).toContain("Sign in with Google");
   });
 
@@ -971,7 +988,7 @@ describe("the numbers go through the shared checks, not this page's own", () => 
     const asked = await post("/start/q", { prompt: "birth_year", answer: "90" }, session);
     expect(asked.status).toBe(200);
     const html = await asked.text();
-    expect(html).toContain(AMBIGUOUS_AGE.line(90));
+    expect(html).toContain(AMBIGUOUS_AGE("en").line(90));
     expect(html).toContain('name="age" value="90"');
     const userId = (await store.userIdForToken(session.split("=")[1]!))!;
     expect((await store.getProfile(userId))!.birth_year).toBeNull();
@@ -1004,7 +1021,7 @@ describe("the under-sixteen stop", () => {
   it("offers the typo once rather than stopping on the first answer", async () => {
     const session = await signIn();
     const html = await (await toAge(session, "12")).text();
-    expect(html).toContain(UNDER_AGE_LINES.ask);
+    expect(html).toContain(UNDER_AGE_LINES("en").ask);
     expect(html).toContain('name="confirm" value="under-age"');
     // Nothing written: the age was refused, not stored.
     const userId = (await store.userIdForToken(session.split("=")[1]!))!;
@@ -1018,8 +1035,8 @@ describe("the under-sixteen stop", () => {
     const res = await post("/start/q", { prompt: "birth_year", confirm: "under-age" }, session);
     expect(res.status).toBe(200);
     const html = await res.text();
-    expect(html).toContain(UNDER_AGE_CARD.title);
-    expect(html).toContain(UNDER_AGE_LINES.stopped[0]!);
+    expect(html).toContain(UNDER_AGE_CARD("en").title);
+    expect(html).toContain(UNDER_AGE_LINES("en").stopped[0]!);
     // "Nothing you told me is kept, and there is no account to delete" — so there must not be one.
     expect(await store.getProfile(userId)).toBeNull();
     expect(await store.userIdForToken(session.split("=")[1]!)).toBeNull();
@@ -1904,5 +1921,107 @@ describe("Connect Telegram", () => {
     const res = await post("/start/telegram", {});
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/start");
+  });
+});
+
+// ── Onboarding, driven to the end in all eight ───────────────────────────────────────────────
+//
+// WHY THE FULL WALK, when `onboarding-content.test.ts` already proves every table is complete.
+// Because completeness of a table has never been the failure mode here. Twice in this branch the
+// tables were right and the SCREEN was English: `signInWithProvider` wrote `"en"` into the account
+// whatever the browser asked for, and `TREND_PERIODS` held plain strings no check could see. Both
+// were invisible to a data test and obvious in a rendered page.
+//
+// This drives the real handler, question by question, in each of the eight — which is the same
+// thing `language.pw.ts` does in a browser for German alone, at a cost that allows eight.
+
+describe("the whole onboarding flow, in every language the app speaks", () => {
+  for (const lang of LANGS) {
+    it(`asks and answers in ${lang} (${LANG_LABEL[lang]}) from the first question to the plan`, async () => {
+      // A BARE TAG WITH NO REGION, which is both what makes this test possible and a real browser:
+      // `resolveCountry` answers from a region and only asks when there is none, so `de-DE` would
+      // skip the country question — the one screen whose options this change moved.
+      const session = await signIn(`web-${lang}`, "google", lang);
+      const content = onboardingContentFor(lang);
+
+      const seen: string[] = [];
+      let countryHtml = "";
+      for (let i = 0; i < 20; i++) {
+        const page = await get("/start/q", session);
+        if (page.status === 303) break;
+        const html = await page.text();
+        const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
+        seen.push(id);
+
+        // EVERY page, not just the last: the bug this replaces was a German welcome followed by
+        // English questions, which any single-page assertion would have passed.
+        expect(html, `${lang}.${id} did not declare its language`)
+          .toContain(`<html lang="${lang}"`);
+        // The ask, in that language's own words. Compared on its LONGEST placeholder-free run:
+        // `{loseTail}`, `{floor}` and friends are substituted before the page is written, so the
+        // stored sentence is not the rendered one — but the words around the hole are.
+        const screen = content.screens.find((x) => x.id === screenForStep(id as never));
+        const ask = screen?.asks[id as keyof typeof screen.asks]?.lines[0];
+        if (ask) {
+          const fixed = ask.split(/\{\w+\}/).reduce((a, b) => (b.length > a.length ? b : a), "");
+          expect(html, `${lang}.${id} did not ask in ${lang}`).toContain(escape(fixed));
+        }
+
+        if (id === "country") countryHtml = html;
+        await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+      }
+
+      expect(seen, lang).toContain("country");
+      expect(seen.at(-1), lang).toBe("restrictions");
+
+      // THE COUNTRY CHIPS, which is what this change touched. Every one of them, by the name CLDR
+      // gives it in THIS language — so a client rendering the code, or falling back to English,
+      // fails here and names the language it failed in.
+      for (const code of COUNTRY_CODES) {
+        const label = code === "other"
+          ? screenOptions(content, "country").other!.label
+          : countryLabel(code, lang);
+        expect(countryHtml, `${lang}: no chip reading "${label}" (${code})`)
+          .toContain(escape(label));
+      }
+      // And the list is the reader's own alphabet, `other` last — the order the page renders,
+      // not the order the constant declares.
+      const rendered = [...countryHtml.matchAll(/name="answer" value="([a-z]+)"/g)].map((m) => m[1]);
+      expect(rendered, lang).toEqual([...countryOptions(lang)]);
+
+      // It finished, and the plan it lands on is in the same language it was asked in.
+      const plan = await get("/start/plan", session);
+      expect(plan.status, lang).toBe(200);
+      const planHtml = await plan.text();
+      expect(planHtml, lang).toContain(`<html lang="${lang}"`);
+      expect(planHtml, lang).toContain(escape(pageCopyFor(lang).planHeading));
+      // The account carries the language, so every later render reads it rather than a header.
+      expect((await store.getProfile(await webUser(session)))!.lang, lang).toBe(lang);
+    });
+  }
+
+  it("renders a different country list to a German reader than to a Russian one", async () => {
+    // The guard against all eight passing because all eight are English. Two languages, the same
+    // fourteen countries, and neither the names nor the order may match.
+    const de = await signIn("web-order-de", "google", "de");
+    const ru = await signIn("web-order-ru", "google", "ru");
+    const chips = async (session: string) => {
+      for (let i = 0; i < 20; i++) {
+        const html = await (await get("/start/q", session)).text();
+        const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
+        if (id === "country") return html;
+        await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+      }
+      throw new Error("never reached the country question");
+    };
+    const deHtml = await chips(de);
+    const ruHtml = await chips(ru);
+    expect(deHtml).toContain("Vereinigtes Königreich");
+    expect(ruHtml).toContain("Великобритания");
+    expect(deHtml).not.toContain("Великобритания");
+    expect(ruHtml).not.toContain("Vereinigtes");
+    const order = (html: string) =>
+      [...html.matchAll(/name="answer" value="([a-z]+)"/g)].map((m) => m[1]);
+    expect(order(deHtml)).not.toEqual(order(ruHtml));
   });
 });

@@ -16,3 +16,6 @@ playwright-report/
 
 # The production environment file. It holds the model key and the database password.
 .env.prod
+
+# The e2e suite runs Chrome out of here, because /tmp is a tmpfs several worktrees share.
+.e2e-tmp/

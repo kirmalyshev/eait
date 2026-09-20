@@ -41,8 +41,8 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
-  NOTIFICATION_IDS, NOTIFICATION_PLACEHOLDERS, ONBOARDING_SCREENS, SCREEN_FIELDS, SCREEN_OPTIONS,
-  isCalendarDate, screenIsOptional,
+  LANGS, LANG_LABEL, NOTIFICATION_IDS, NOTIFICATION_PLACEHOLDERS, ONBOARDING_SCREENS, SCREEN_FIELDS,
+  SCREEN_OPTIONS, isCalendarDate, optionLabelIsData, screenIsOptional, type Lang,
 } from "@eait/shared";
 import {
   adminMetrics, adminUserChat, adminUserDiary, adminUsers, livePrompts, notificationCopy,
@@ -69,11 +69,28 @@ const notFound = () => json({ error: "not found" }, 404);
 const isDate = (v: string | null): v is string => v !== null && isCalendarDate(v);
 
 /**
+ * Which language's copy this request is about.
+ *
+ * Clamped rather than rejected, like `days` on the funnel: this is a dashboard control, and a
+ * nonsense query string should show the English page rather than an error. English is also what
+ * every pre-#358 bookmark asks for by asking for nothing.
+ */
+const editorLang = (url: URL): Lang => {
+  const asked = url.searchParams.get("lang") ?? "";
+  return (LANGS as readonly string[]).includes(asked) ? (asked as Lang) : "en";
+};
+
+/**
  * What the editor needs in order to render the right controls for each group.
  *
  * `fields` is the list the editor draws an ask box for, and it comes from `SCREEN_FIELDS` rather
  * than from whatever the stored copy happens to carry — so a question added in code shows up in the
  * admin as an empty box to fill rather than as a save that is refused for a reason nobody can see.
+ *
+ * `options` LEAVES OUT THE ONES CLDR NAMES, which today is every country but `other`. An editor
+ * that drew those boxes would be asking an admin to type fifteen country names in each of eight
+ * languages, for a label the renderer takes from the platform anyway — and the validator does not
+ * require them, so the boxes would be optional, ignored and wrong within a release.
  */
 function editorMeta() {
   return {
@@ -81,7 +98,7 @@ function editorMeta() {
       id,
       optional: screenIsOptional(id),
       fields: SCREEN_FIELDS[id],
-      options: SCREEN_OPTIONS[id] ?? [],
+      options: (SCREEN_OPTIONS[id] ?? []).filter((v) => !optionLabelIsData(id, v)),
     })),
   };
 }
@@ -170,20 +187,30 @@ export async function adminRoutes(
 async function behindTheRole(req: Request, url: URL, deps: EngineDeps): Promise<Response> {
   const { pathname } = url;
 
+  // ── Onboarding copy ────────────────────────────────────────────────────────────────────────
+  //
+  // `?lang=` PICKS ONE LANGUAGE, AND THE EDITOR EDITS ONE AT A TIME. Eight tabs of one form is
+  // eight times the JavaScript for a page that is already the largest hand-written one here; a
+  // select that reloads is the same capability and is four lines of it. Absent or unknown is
+  // English, so every bookmark that predates #358 still opens the page it used to.
+  //
+  // The SAVE carries the languages it is not editing (`saveOnboardingContent`), so two admins on
+  // two languages cannot overwrite each other by taking turns.
   if (req.method === "GET" && pathname === "/admin/api/content") {
-    return json({ content: await onboardingContent(deps), meta: editorMeta() });
+    const lang = editorLang(url);
+    return json({ content: await onboardingContent(deps, lang), lang, langs: LANGS, labels: LANG_LABEL, meta: editorMeta() });
   }
 
   if (req.method === "PUT" && pathname === "/admin/api/content") {
     const body = await req.json() as { content?: unknown };
-    const result = await saveOnboardingContent(deps, body?.content);
+    const result = await saveOnboardingContent(deps, body?.content, editorLang(url));
     // 422 and the whole list, not the first failure: an editor that reports one problem per save
     // is an editor that takes six saves to fix six typos.
     return result.ok ? json({ content: result.content }) : json({ errors: result.errors }, 422);
   }
 
   if (req.method === "POST" && pathname === "/admin/api/content/reset") {
-    return json({ content: await resetOnboardingContent(deps) });
+    return json({ content: await resetOnboardingContent(deps, editorLang(url)) });
   }
 
   // ── Notification copy ──────────────────────────────────────────────────────────────────────
@@ -192,20 +219,22 @@ async function behindTheRole(req: Request, url: URL, deps: EngineDeps): Promise<
   // same way: on the WRITE. A template with a placeholder nothing fills renders a literal {plan} on
   // somebody's lock screen, and by then the message has already been delivered.
   if (req.method === "GET" && pathname === "/admin/api/notifications") {
+    const lang = editorLang(url);
     return json({
-      copy: await notificationCopy(deps),
+      copy: await notificationCopy(deps, lang),
+      lang,
       meta: { ids: NOTIFICATION_IDS, placeholders: NOTIFICATION_PLACEHOLDERS },
     });
   }
 
   if (req.method === "PUT" && pathname === "/admin/api/notifications") {
     const body = await req.json() as { copy?: unknown };
-    const result = await saveNotificationCopy(deps, body?.copy);
+    const result = await saveNotificationCopy(deps, body?.copy, editorLang(url));
     return result.ok ? json({ copy: result.content }) : json({ errors: result.errors }, 422);
   }
 
   if (req.method === "POST" && pathname === "/admin/api/notifications/reset") {
-    return json({ copy: await resetNotificationCopy(deps) });
+    return json({ copy: await resetNotificationCopy(deps, editorLang(url)) });
   }
 
   // ── The system prompts ─────────────────────────────────────────────────────────────────────

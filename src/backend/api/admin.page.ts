@@ -124,6 +124,14 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     and so are Spud's replies and the support cards, which carry citations. Saving bumps the content
     version, which is what the funnel below is grouped by.
   </p>
+  <p class="sub">
+    One language at a time. A save replaces the language in the picker and nothing beside it, and
+    takes the next version number — one counter across all eight, so no two revisions ever share
+    one and the funnel below can still say which words it counted. The eight shipped revisions are
+    one editorial revision and share a number; they stop sharing it the first time anybody saves.
+    A language nobody has saved serves the copy the app ships with, in that language — never
+    English, because half an onboarding in English is worse than none of it.
+  </p>
 
   <h2>The numbers <span class="pill" id="metrics-window"></span></h2>
   <p class="muted" id="metrics-summary">Loading…</p>
@@ -296,6 +304,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
 <div class="bar hidden" id="bar">
   <span class="status" id="status"></span>
+  <select id="lang" aria-label="Language"></select>
   <button id="reload">Reload</button>
   <button id="reset">Restore defaults</button>
   <button class="primary" id="save">Save</button>
@@ -315,6 +324,11 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   // (No backticks anywhere inside this page: the whole document is one template literal, and a
   // backtick ends it. The failure is a TypeScript parse error a hundred lines away.)
   var token = "";
+  // The language every copy call is about. It rides the query string rather than the body so that
+  // GET, PUT and reset all say it the same way, and so a bookmark opens the page it was left on.
+  var lang = "en";
+  var langs = [];
+  var labels = {};
   var content = null;
   var meta = null;
   var notify = null;
@@ -337,6 +351,12 @@ export const adminPage = (nonce: string): string => `<!doctype html>
       });
     });
   }
+
+  /** A copy path with the language on it. Every read and write of copy goes through this. */
+  // ASKED, not lang: while a switch is in flight the two differ, and every request of that load
+  // must carry the language being loaded rather than the one still on screen.
+  var asked = lang;
+  function atLang(path) { return path + (path.indexOf("?") === -1 ? "?" : "&") + "lang=" + encodeURIComponent(asked); }
 
   function status(msg) { $("status").textContent = msg; }
 
@@ -671,7 +691,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
   }
 
   function loadNotify() {
-    return api("GET", "/admin/api/notifications").then(function (res) {
+    return api("GET", atLang("/admin/api/notifications")).then(function (res) {
       notify = res.copy;
       notifyMeta = res.meta;
       renderNotify();
@@ -1120,14 +1140,82 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
   // ── Wiring ─────────────────────────────────────────────────────────────────────────────────
 
-  function load() {
-    return api("GET", "/admin/api/content").then(function (res) {
+  function load(which) {
+    asked = which || lang;
+    return api("GET", atLang("/admin/api/content")).then(function (res) {
       content = res.content;
       meta = res.meta;
+      // The server decides which language it served — an unknown code is answered with English
+      // rather than an error, and the picker has to show what actually came back.
+      // DEFENSIVE, because this page outlives the server it was built against — the same drift
+      // usableContent exists for, one floor down. A server that predates the picker sends none of
+      // these three, and calling forEach on an undefined list does not degrade the picker: it
+      // throws inside load, enter catches it, and the ADMIN is told their account cannot administer
+      // this instance. The whole page, lost to a select box.
+      //
+      // NO BACKTICKS ANYWHERE IN THIS FILE: it is one template literal, and one in a comment ends
+      // it. The server then fails to start, which is how this comment learned its own rule.
+      lang = res.lang || asked || "en";
+      asked = lang;
+      langs = res.langs || [];
+      labels = res.labels || {};
+      renderLangs();
       render();
       return loadNotify().then(loadPrompts).then(loadMetrics).then(loadFunnel)
         .then(function () { return loadUsers(false); });
     });
+  }
+
+  function renderLangs() {
+    var select = $("lang");
+    // Nothing to offer is not an error: an older server sends no language list, and one language
+    // is not a choice. Either way the picker is hidden rather than drawn empty.
+    select.hidden = langs.length < 2;
+    if (langs.length === 0) return;
+    if (select.options.length !== langs.length) {
+      select.textContent = "";
+      langs.forEach(function (code) {
+        var option = document.createElement("option");
+        option.value = code;
+        // The endonym, which is the one label somebody looking for their own language can read.
+        option.textContent = labels[code] || code;
+        select.appendChild(option);
+      });
+    }
+    select.value = lang;
+  }
+
+  $("lang").addEventListener("change", function () {
+    // THE GLOBAL IS NOT TOUCHED UNTIL THE LOAD RESOLVES, and the controls are dead while it runs.
+    //
+    // A full reload rather than a swap of the content object, because the notification copy is per
+    // language too and two half-loaded editors on one page is how an admin saves German into
+    // Italian. But assigning "lang" first left exactly that window open the other way round:
+    // "content" still held the previous language for six round trips, and Save reads both globals,
+    // so a press in that window PUT the German document at ?lang=it. It passes every gate below —
+    // the payload is a valid OnboardingContent — so it lands, versions, and serves German to every
+    // Italian phone. Worse, a rejected load left "lang" moved and "content" stale for good.
+    var next = $("lang").value;
+    var was = lang;
+    disable(true);
+    status("loading " + (labels[next] || next) + "…");
+    load(next).then(function () {
+      status(labels[lang] || lang);
+    }).catch(function (e) {
+      // Put BOTH back where the data still is, or the page lies about what Save would write.
+      asked = was;
+      $("lang").value = was;
+      status("failed: " + e.message);
+    }).then(function () { disable(false); });
+  });
+
+  /** Everything that reads "lang" and "content" together, off while the two can disagree. */
+  function disable(off) {
+    var ids = ["lang", "save", "reset", "reload", "save-notify", "reset-notify"];
+    for (var i = 0; i < ids.length; i++) {
+      var el = $(ids[i]);
+      if (el) el.disabled = off;
+    }
   }
 
   function enter() {
@@ -1167,7 +1255,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
   $("save").addEventListener("click", function () {
     status("saving…");
-    api("PUT", "/admin/api/content", { content: content }).then(function (res) {
+    api("PUT", atLang("/admin/api/content"), { content: content }).then(function (res) {
       content = res.content;
       showErrors(null);
       render();
@@ -1181,7 +1269,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
   $("reset").addEventListener("click", function () {
     if (!confirm("Restore the copy the app ships with? Your edits are replaced.")) return;
-    api("POST", "/admin/api/content/reset", {}).then(function (res) {
+    api("POST", atLang("/admin/api/content/reset"), {}).then(function (res) {
       content = res.content;
       showErrors(null);
       render();
@@ -1191,7 +1279,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
   $("notify-save").addEventListener("click", function () {
     $("notify-status").textContent = "saving…";
-    api("PUT", "/admin/api/notifications", { copy: notify }).then(function (res) {
+    api("PUT", atLang("/admin/api/notifications"), { copy: notify }).then(function (res) {
       notify = res.copy;
       notifyErrors(null);
       renderNotify();
@@ -1204,7 +1292,7 @@ export const adminPage = (nonce: string): string => `<!doctype html>
 
   $("notify-reset").addEventListener("click", function () {
     if (!confirm("Restore the three messages the app ships with? Your edits are replaced.")) return;
-    api("POST", "/admin/api/notifications/reset", {}).then(function (res) {
+    api("POST", atLang("/admin/api/notifications/reset"), {}).then(function (res) {
       notify = res.copy;
       notifyErrors(null);
       renderNotify();

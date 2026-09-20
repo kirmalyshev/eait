@@ -21,8 +21,9 @@
 // implies a smoothness that bodyweight does not have. Weeks and a month name is what the arithmetic
 // actually supports.
 
+import { monthYear } from "./lang.ts";
 import { explainTargets, KCAL_PER_KG, type TargetBasis } from "./targets.ts";
-import type { Pace, Profile } from "./types.ts";
+import type { Lang, Pace, Profile } from "./types.ts";
 
 /**
  * Past this, a date stops being motivating and starts being discouraging — and it is also where the
@@ -100,27 +101,24 @@ export function previewProjection(p: Profile, targetKg: number, pace: Pace): Goa
 }
 
 /**
- * English month names, indexed by `Date#getMonth`.
+ * The month a projection lands in, as "November 2026" — or "novembre 2026", or "tháng 11 năm 2026".
  *
- * Written out rather than taken from `Intl`. Hermes ships a reduced ICU and `toLocaleString` has
- * historically returned a numeric month there — a plan screen reading "around 11 2026" is the kind
- * of defect that only appears on device. When this app grows a second language, this table moves
- * into the content layer with the rest of the words.
- */
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-] as const;
-
-/**
- * The month a projection lands in, as "November 2026".
+ * `Intl.DateTimeFormat` (`monthYear` in `lang.ts`), not a table. Twelve English strings lived here
+ * with a comment saying Hermes had once answered a numeric month for `toLocaleString`; that was a
+ * reduced-ICU build, both runtimes this ships on carry a full one, and twelve names in a table is
+ * eighty-four names the day a second language lands. Every language's month name is CLDR's, which
+ * is the one place this repo should not be inventing words.
  *
  * Calendar arithmetic via `setDate`, never a fixed span of milliseconds: adding 98 × 24 h across a
  * DST transition lands a day early, twice a year, and never reproducibly. `setDate` rolls the
  * calendar, which is what "fourteen weeks from Thursday" actually means.
  */
-export function projectionMonth(from: Date, weeks: number): string {
+export function projectionMonth(from: Date, weeks: number, lang: Lang): string {
   const d = new Date(from.getTime());
   d.setDate(d.getDate() + weeks * 7);
-  return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  // UTC in the formatter, and the date was rolled in LOCAL time by `setDate` above — so the pair
+  // agree only up to a few hours around a month boundary. That is deliberate: the sentence is
+  // "around November 2026" on a horizon of months, and pinning a zone here would be false
+  // precision on top of an estimate that is already ± weeks.
+  return monthYear(lang, new Date(Date.UTC(d.getFullYear(), d.getMonth(), 15)));
 }

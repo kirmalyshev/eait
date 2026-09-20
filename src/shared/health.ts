@@ -14,11 +14,11 @@ import { isCalendarDate, localDate } from "./dates.ts";
 
 /** The metric groups, in render order. One list, so a screen cannot invent a sixth. */
 export const HEALTH_GROUPS = [
-  { id: "body", label: "Body" },
-  { id: "energy", label: "Energy" },
-  { id: "activity", label: "Activity" },
-  { id: "sleep", label: "Sleep" },
-  { id: "cardio", label: "Heart" },
+  { id: "body", enLabel: "Body" },
+  { id: "energy", enLabel: "Energy" },
+  { id: "activity", enLabel: "Activity" },
+  { id: "sleep", enLabel: "Sleep" },
+  { id: "cardio", enLabel: "Heart" },
 ] as const;
 
 export type HealthGroup = (typeof HEALTH_GROUPS)[number]["id"];
@@ -48,7 +48,8 @@ export interface HealthFieldSpec {
   key: HealthMetric;
   group: HealthGroup;
   /** What the screen calls it. */
-  label: string;
+  /** ENGLISH, and only the seed for `HEALTH_COPY`. A screen calls `healthLabel(key, lang)`. */
+  enLabel: string;
   unit: string;
   decimals: number;
   agg: HealthAgg;
@@ -117,26 +118,26 @@ export type HealthMetric = Exclude<keyof HealthDay, "date">;
  * reports as a bug because nobody knows it was supposed to be there.
  */
 export const HEALTH_FIELDS = [
-  { key: "weight_kg", group: "body", label: "Weight", unit: "kg", decimals: 1, agg: "last", attribute: "start", min: 20, max: 500, typical: [91, 94] },
-  { key: "height_cm", group: "body", label: "Height", unit: "cm", decimals: 0, agg: "last", attribute: "start", min: 50, max: 260, typical: [183, 183] },
-  { key: "body_fat_pct", group: "body", label: "Body fat", unit: "%", decimals: 1, agg: "last", attribute: "start", min: 1, max: 75, typical: [22, 26] },
-  { key: "lean_mass_kg", group: "body", label: "Lean mass", unit: "kg", decimals: 1, agg: "last", attribute: "start", min: 10, max: 200, typical: [66, 70] },
+  { key: "weight_kg", group: "body", enLabel: "Weight", unit: "kg", decimals: 1, agg: "last", attribute: "start", min: 20, max: 500, typical: [91, 94] },
+  { key: "height_cm", group: "body", enLabel: "Height", unit: "cm", decimals: 0, agg: "last", attribute: "start", min: 50, max: 260, typical: [183, 183] },
+  { key: "body_fat_pct", group: "body", enLabel: "Body fat", unit: "%", decimals: 1, agg: "last", attribute: "start", min: 1, max: 75, typical: [22, 26] },
+  { key: "lean_mass_kg", group: "body", enLabel: "Lean mass", unit: "kg", decimals: 1, agg: "last", attribute: "start", min: 10, max: 200, typical: [66, 70] },
 
-  { key: "active_kcal", group: "energy", label: "Active energy", unit: "kcal", decimals: 0, agg: "sum", attribute: "start", min: 0, max: 20_000, typical: [250, 780] },
-  { key: "resting_kcal", group: "energy", label: "Resting energy", unit: "kcal", decimals: 0, agg: "sum", attribute: "start", min: 0, max: 10_000, typical: [1650, 1780] },
+  { key: "active_kcal", group: "energy", enLabel: "Active energy", unit: "kcal", decimals: 0, agg: "sum", attribute: "start", min: 0, max: 20_000, typical: [250, 780] },
+  { key: "resting_kcal", group: "energy", enLabel: "Resting energy", unit: "kcal", decimals: 0, agg: "sum", attribute: "start", min: 0, max: 10_000, typical: [1650, 1780] },
 
-  { key: "steps", group: "activity", label: "Steps", unit: "", decimals: 0, agg: "sum", attribute: "start", min: 0, max: 200_000, typical: [3_000, 14_000] },
-  { key: "exercise_minutes", group: "activity", label: "Exercise", unit: "min", decimals: 0, agg: "sum", attribute: "start", min: 0, max: 1_440, typical: [0, 65] },
-  { key: "workouts", group: "activity", label: "Workouts", unit: "", decimals: 0, agg: "count", attribute: "start", min: 0, max: 50, typical: [0, 1] },
-  { key: "distance_km", group: "activity", label: "Distance", unit: "km", decimals: 1, agg: "sum", attribute: "start", min: 0, max: 500, typical: [2, 11] },
+  { key: "steps", group: "activity", enLabel: "Steps", unit: "", decimals: 0, agg: "sum", attribute: "start", min: 0, max: 200_000, typical: [3_000, 14_000] },
+  { key: "exercise_minutes", group: "activity", enLabel: "Exercise", unit: "min", decimals: 0, agg: "sum", attribute: "start", min: 0, max: 1_440, typical: [0, 65] },
+  { key: "workouts", group: "activity", enLabel: "Workouts", unit: "", decimals: 0, agg: "count", attribute: "start", min: 0, max: 50, typical: [0, 1] },
+  { key: "distance_km", group: "activity", enLabel: "Distance", unit: "km", decimals: 1, agg: "sum", attribute: "start", min: 0, max: 500, typical: [2, 11] },
 
   // Attributed by END — see `HealthAttribution`.
-  { key: "asleep_minutes", group: "sleep", label: "Asleep", unit: "min", decimals: 0, agg: "sum", attribute: "end", min: 0, max: 1_440, typical: [360, 510] },
-  { key: "in_bed_minutes", group: "sleep", label: "In bed", unit: "min", decimals: 0, agg: "sum", attribute: "end", min: 0, max: 1_440, typical: [370, 550] },
+  { key: "asleep_minutes", group: "sleep", enLabel: "Asleep", unit: "min", decimals: 0, agg: "sum", attribute: "end", min: 0, max: 1_440, typical: [360, 510] },
+  { key: "in_bed_minutes", group: "sleep", enLabel: "In bed", unit: "min", decimals: 0, agg: "sum", attribute: "end", min: 0, max: 1_440, typical: [370, 550] },
 
-  { key: "resting_hr_bpm", group: "cardio", label: "Resting heart rate", unit: "bpm", decimals: 0, agg: "last", attribute: "start", min: 20, max: 200, typical: [52, 64] },
-  { key: "hrv_ms", group: "cardio", label: "HRV", unit: "ms", decimals: 0, agg: "last", attribute: "start", min: 1, max: 500, typical: [30, 85] },
-  { key: "vo2max", group: "cardio", label: "VO2 max", unit: "ml/kg/min", decimals: 1, agg: "last", attribute: "start", min: 5, max: 100, typical: [38, 43] },
+  { key: "resting_hr_bpm", group: "cardio", enLabel: "Resting heart rate", unit: "bpm", decimals: 0, agg: "last", attribute: "start", min: 20, max: 200, typical: [52, 64] },
+  { key: "hrv_ms", group: "cardio", enLabel: "HRV", unit: "ms", decimals: 0, agg: "last", attribute: "start", min: 1, max: 500, typical: [30, 85] },
+  { key: "vo2max", group: "cardio", enLabel: "VO2 max", unit: "ml/kg/min", decimals: 1, agg: "last", attribute: "start", min: 5, max: 100, typical: [38, 43] },
 ] as const satisfies readonly HealthFieldSpec[];
 
 const FIELD_BY_KEY: ReadonlyMap<string, HealthFieldSpec> =
@@ -173,24 +174,6 @@ export function fieldsWithData(
   return fieldsInGroup(group).filter((f) => days.some((d) => d[f.key] != null));
 }
 
-/**
- * One reading, as a person reads it.
- *
- * Minutes are the unit HealthKit stores sleep in and they are not a unit anybody thinks in: the
- * screen printed "Asleep 387 min" and "In bed 427 min", which is a subtraction and a division away
- * from the two numbers the user came for. Everything else keeps its own unit — 11 minutes of
- * exercise is 11 minutes, and a step count is a count.
- */
-export function formatHealthValue(
-  spec: Pick<HealthFieldSpec, "unit" | "decimals">,
-  value: number,
-): string {
-  if (spec.unit === "min" && value >= 60) {
-    const whole = Math.round(value);
-    return `${Math.floor(whole / 60)} h ${whole % 60} m`;
-  }
-  return `${value.toFixed(spec.decimals)}${spec.unit ? ` ${spec.unit}` : ""}`;
-}
 
 /** What one metric's row on the trend screen shows. See `metricTrend`. */
 export interface MetricTrend {

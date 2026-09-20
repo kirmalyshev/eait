@@ -8,7 +8,7 @@ import { fakePush } from "../push/fake.ts";
 // text, is not hypothetical once the API is public.
 
 import { beforeEach, describe, expect, it } from "bun:test";
-import { ONBOARDING_PLACES, DEFAULT_ONBOARDING_CONTENT, type OnboardingContent } from "@eait/shared";
+import { ONBOARDING_CONTENT, ONBOARDING_PLACES, DEFAULT_ONBOARDING_CONTENT, type OnboardingContent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
@@ -52,29 +52,29 @@ describe("content", () => {
     // Not seeded on boot, deliberately: seeding makes "has an admin ever touched this?"
     // unanswerable, and the answer decides whether a copy change is worth attributing anything to.
     expect(await store.getOnboardingContent()).toBeNull();
-    expect((await onboardingContent(deps)).version).toBe(DEFAULT_ONBOARDING_CONTENT.version);
+    expect((await onboardingContent(deps, "en")).version).toBe(DEFAULT_ONBOARDING_CONTENT.version);
   });
 
   it("bumps the version on save, ignoring whatever the admin sent", async () => {
-    const before = (await onboardingContent(deps)).version;
+    const before = (await onboardingContent(deps, "en")).version;
     const payload = clone(DEFAULT_ONBOARDING_CONTENT);
     payload.version = 99; // an admin's stale copy, or a hand-edited JSON
     payload.screens[0]!.asks.goal!.lines = ["Why are you here?"];
 
-    const saved = await saveOnboardingContent(deps, payload);
+    const saved = await saveOnboardingContent(deps, payload, "en");
     expect(saved.ok).toBe(true);
     // The version is the join key between a funnel row and the words that produced it. Accepting
     // the client's number would let two different flows share one, which silently averages two
     // experiments into one meaningless number.
     expect(saved.ok && saved.content.version).toBe(before + 1);
-    expect((await onboardingContent(deps)).screens[0]!.asks.goal!.lines).toEqual(["Why are you here?"]);
+    expect((await onboardingContent(deps, "en")).screens[0]!.asks.goal!.lines).toEqual(["Why are you here?"]);
   });
 
   it("refuses invalid copy and stores nothing", async () => {
     const payload = clone(DEFAULT_ONBOARDING_CONTENT);
     payload.screens = payload.screens.filter((s) => s.id !== "target");
 
-    const result = await saveOnboardingContent(deps, payload);
+    const result = await saveOnboardingContent(deps, payload, "en");
     expect(result.ok).toBe(false);
     expect(result.ok === false && result.errors.join(" ")).toContain("target");
     // The refusal is total: a half-saved flow is worse than an unsaved one.
@@ -84,9 +84,9 @@ describe("content", () => {
   it("restores the defaults with a version ahead of the edit it replaces", async () => {
     const edited = clone(DEFAULT_ONBOARDING_CONTENT);
     edited.screens[0]!.asks.goal!.lines = ["Broken but valid"];
-    await saveOnboardingContent(deps, edited);
+    await saveOnboardingContent(deps, edited, "en");
 
-    const restored = await resetOnboardingContent(deps);
+    const restored = await resetOnboardingContent(deps, "en");
     expect(restored.screens[0]!.asks.goal!.lines)
       .toEqual(DEFAULT_ONBOARDING_CONTENT.screens[0]!.asks.goal!.lines);
     // Ahead, not back to 1. An app that cached the bad copy compares versions, and a lower number
@@ -225,3 +225,122 @@ describe("the funnel", () => {
     expect(f.contentVersion).toBe(DEFAULT_ONBOARDING_CONTENT.version);
   });
 });
+
+describe("copy is stored per language, in one row", () => {
+  it("serves each language its own compiled-in copy when nothing has been saved", async () => {
+    expect((await onboardingContent(deps, "de")).welcome.lines).toEqual(ONBOARDING_CONTENT.de!.welcome.lines);
+    expect((await onboardingContent(deps, "vi")).summary.cta).toBe(ONBOARDING_CONTENT.vi!.summary.cta);
+  });
+
+  it("does not let a save in one language reach a reader of another", async () => {
+    // The whole reason the row holds a map. An admin editing German must not be able to put German
+    // in front of an Italian, and must not be able to blank the Italian somebody else wrote.
+    const german = clone(ONBOARDING_CONTENT.de!);
+    german.welcome.cta = "Auf geht's";
+    const italian = clone(ONBOARDING_CONTENT.it!);
+    italian.welcome.cta = "Andiamo";
+
+    expect((await saveOnboardingContent(deps, italian, "it")).ok).toBe(true);
+    expect((await saveOnboardingContent(deps, german, "de")).ok).toBe(true);
+
+    expect((await onboardingContent(deps, "de")).welcome.cta).toBe("Auf geht's");
+    expect((await onboardingContent(deps, "it")).welcome.cta).toBe("Andiamo");
+    // Untouched languages are the SHIPPED copy, never the other admin's.
+    expect((await onboardingContent(deps, "fr")).welcome.cta).toBe(ONBOARDING_CONTENT.fr!.welcome.cta);
+    expect((await onboardingContent(deps, "en")).welcome.cta).toBe(DEFAULT_ONBOARDING_CONTENT.welcome.cta);
+    expect(Object.keys((await store.getOnboardingContent())!).sort()).toEqual(["de", "it"]);
+  });
+
+  it("reads a row written before the language dimension as English", async () => {
+    // Every host that pressed Save before #358 has one, and it was English because English was all
+    // there was. Adopting it for every language would serve an admin's English to a German.
+    const legacy = clone(DEFAULT_ONBOARDING_CONTENT);
+    legacy.welcome.cta = "Onwards";
+    // SEEDED, not written: `putOnboardingContent` takes one language now, so the shape this test is
+    // about — a bare revision with no language dimension at all — can no longer be written through
+    // the port. Which is the point: only an older server could have made this row.
+    const legacyDeps = { ...deps, store: memoryStore({ seed: { onboardingContent: legacy } }) };
+
+    expect((await onboardingContent(legacyDeps, "en")).welcome.cta).toBe("Onwards");
+    expect((await onboardingContent(legacyDeps, "de")).welcome.cta).toBe(ONBOARDING_CONTENT.de!.welcome.cta);
+  });
+
+  it("numbers every revision from ONE counter, so two languages never share a version", async () => {
+    // `version` is the join key between a funnel row and the words that produced it. Counting per
+    // language would let a German save and an English save both land on the same number — two
+    // revisions, different words, one row in the funnel.
+    const base = DEFAULT_ONBOARDING_CONTENT.version;
+    const german = clone(ONBOARDING_CONTENT.de!);
+    const english = clone(DEFAULT_ONBOARDING_CONTENT);
+
+    await saveOnboardingContent(deps, german, "de");
+    expect((await onboardingContent(deps, "de")).version).toBe(base + 1);
+    await saveOnboardingContent(deps, english, "en");
+    expect((await onboardingContent(deps, "en")).version).toBe(base + 2);
+    await saveOnboardingContent(deps, german, "de");
+    expect((await onboardingContent(deps, "de")).version).toBe(base + 3);
+
+    // A reset takes a new number too: it is a change to what is live, not a return to an old row.
+    expect((await resetOnboardingContent(deps, "en")).version).toBe(base + 4);
+    // And the funnel names the newest revision in ANY language, not English's.
+    await saveOnboardingContent(deps, german, "de");
+    expect((await onboardingFunnel(deps, 30)).contentVersion).toBe(base + 5);
+  });
+
+  it("resets one language and leaves the rest alone", async () => {
+    const german = clone(ONBOARDING_CONTENT.de!);
+    german.welcome.cta = "Auf geht's";
+    await saveOnboardingContent(deps, german, "de");
+    const english = clone(DEFAULT_ONBOARDING_CONTENT);
+    english.welcome.cta = "Onwards";
+    await saveOnboardingContent(deps, english, "en");
+
+    await resetOnboardingContent(deps, "de");
+    expect((await onboardingContent(deps, "de")).welcome.cta).toBe(ONBOARDING_CONTENT.de!.welcome.cta);
+    expect((await onboardingContent(deps, "en")).welcome.cta).toBe("Onwards");
+  });
+});
+
+describe("a row an older build left behind", () => {
+  // Both store implementations MIGRATE these on write, and until now only the READ was tested —
+  // a reviewer wrote onto each shape and found the memory store spreading a JSON string into
+  // 3,724 numeric keys while Postgres repaired it, and BOTH stores accepting a German save onto a
+  // bare pre-#358 row, versioning it, and then discarding it on every read forever.
+
+  it("takes a German save onto a BARE pre-#358 revision, and serves it back", async () => {
+    // `storedContentSet` branches on a top-level `screens`, so hanging the language off the bare
+    // revision left the whole row reading as English: the save succeeded, returned a version, and
+    // was invisible. On any host that pressed Save before #358 that was every non-English save.
+    const legacy = structuredClone(DEFAULT_ONBOARDING_CONTENT);
+    legacy.welcome.cta = "Onwards";
+    const store = memoryStore({ seed: { onboardingContent: legacy } });
+    const deps = { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+
+    const saved = await saveOnboardingContent(deps, contentWith("Los geht's"), "de");
+    expect(saved.ok).toBe(true);
+    expect((await onboardingContent(deps, "de")).welcome.cta).toBe("Los geht's");
+    // ...and the English the bare row carried is still there, because it WAS the English.
+    expect((await onboardingContent(deps, "en")).welcome.cta).toBe("Onwards");
+  });
+
+  it("takes a save onto a row stored as a JSON STRING, which every deployed host holds", async () => {
+    // `${JSON.stringify(doc)}::jsonb` is a no-op cast — bun's driver already encodes a bound value
+    // — so the column held text. Spreading that scatters it character by character.
+    const legacy = structuredClone(DEFAULT_ONBOARDING_CONTENT);
+    legacy.welcome.cta = "Onwards";
+    const store = memoryStore({ seed: { onboardingContent: JSON.stringify({ en: legacy }) } });
+    const deps = { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+
+    await saveOnboardingContent(deps, contentWith("Los geht's"), "de");
+    expect((await onboardingContent(deps, "de")).welcome.cta).toBe("Los geht's");
+    expect((await onboardingContent(deps, "en")).welcome.cta).toBe("Onwards");
+    expect(Object.keys((await store.getOnboardingContent())!).sort()).toEqual(["de", "en"]);
+  });
+});
+
+/** A valid revision with one word changed, for the legacy-row tests above. */
+function contentWith(cta: string): OnboardingContent {
+  const c = structuredClone(DEFAULT_ONBOARDING_CONTENT);
+  c.welcome.cta = cta;
+  return c;
+}

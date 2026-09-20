@@ -75,22 +75,22 @@ describe("the pending photo turn", () => {
   const run = (...events: PhotoEvent[]) => events.reduce(advancePending, start);
 
   test("before anything arrives, Spud is reading the plate", () => {
-    expect(pendingLine(start)).toBe("Reading the plate…");
+    expect(pendingLine(start, "en")).toBe("Reading the plate…");
   });
 
   test("the glance replaces it", () => {
-    expect(pendingLine(run({ kind: "glance", text: "Looks like rice." }))).toBe("Looks like rice.");
+    expect(pendingLine(run({ kind: "glance", text: "Looks like rice." }), "en")).toBe("Looks like rice.");
   });
 
   test("the first row moves it on to the portions", () => {
     const p = run({ kind: "glance", text: "Looks like rice." }, { kind: "item", index: 0, item: rice });
-    expect(pendingLine(p)).toBe("Weighing portions…");
+    expect(pendingLine(p, "en")).toBe("Weighing portions…");
     expect(p.items).toEqual([rice]);
   });
 
   test("a glance that lands after a row does not step back", () => {
     const p = run({ kind: "item", index: 0, item: rice }, { kind: "glance", text: "Looks like rice." });
-    expect(pendingLine(p)).toBe("Weighing portions…");
+    expect(pendingLine(p, "en")).toBe("Weighing portions…");
   });
 
   test("a schema retry resets the rows and stays on the portions", () => {
@@ -100,15 +100,15 @@ describe("the pending photo turn", () => {
       { kind: "item", index: 0, item: egg },
     );
     expect(p.items).toEqual([egg]);
-    expect(pendingLine(p)).toBe("Weighing portions…");
+    expect(pendingLine(p, "en")).toBe("Weighing portions…");
   });
 });
 
 describe("pendingSteps — what the card shows while the analyzer works (#663)", () => {
   const start: PendingPhoto = { glance: null, items: [] };
-  const states = (p: PendingPhoto) => pendingSteps(p).map((s) => s.state);
+  const states = (p: PendingPhoto) => pendingSteps(p, "en").map((s) => s.state);
   test("advances one step per kind of event and never steps back", () => {
-    expect(pendingSteps(start).map((s) => s.label)).toEqual(["Reading the plate", "Naming what's on it", "Weighing portions", "Checking against your plan"]);
+    expect(pendingSteps(start, "en").map((s) => s.label)).toEqual(["Reading the plate", "Naming what's on it", "Weighing portions", "Checking against your plan"]);
     expect(states(start)).toEqual(["now", "next", "next", "next"]);
     const glanced = advancePending(start, { kind: "glance", text: "Looks like rice." });
     expect(states(glanced)).toEqual(["done", "now", "next", "next"]);

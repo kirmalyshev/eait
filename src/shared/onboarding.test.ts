@@ -9,7 +9,8 @@ import { describe, expect, it } from "bun:test";
 import {
   DEFAULT_ONBOARDING_CONTENT, ONBOARDING_INTERSTITIALS, ONBOARDING_PLACES, ONBOARDING_SCREENS,
   ONBOARDING_STEPS,
-  KCAL_FLOOR, COUNTRY_CODES, countryFromRegion, resolveCountry, suggestionFirst,
+  KCAL_FLOOR, COUNTRY_CODES, countryFromRegion, countryLabel, countryOptions, resolveCountry,
+  suggestionFirst, LANGS, type CountryCode,
   type CountrySignals,
   REPORTABLE_FIELDS, SCREEN_FIELDS, disabledScreens,
   screenForStep, usableContent, validateOnboardingContent,
@@ -497,22 +498,30 @@ describe("resolving the country, and deciding whether to ask", () => {
 
   it("asks when nothing answers, and suggests nothing", () => {
     expect(resolveCountry({})).toEqual({ country: "other", ask: true });
-    expect(resolveCountry({ regions: ["BR", "FR"] })).toEqual({ country: "other", ask: true });
+    // Brazil and Japan are real places this app has not tuned for, which is what `other` means.
+    expect(resolveCountry({ regions: ["BR", "JP"] })).toEqual({ country: "other", ask: true });
   });
 
   it("suggests from the language, and still asks", () => {
     // A language is a hint, never an answer: it says which supermarket they might know, not which
     // one they are standing in. So it seeds the question rather than skipping it.
     expect(resolveCountry({ regions: ["BR"], languages: ["de"] })).toEqual({ country: "de", ask: true });
-    // Russian is a language the app speaks, not a country it curates: nothing to suggest.
-    expect(resolveCountry({ languages: ["ru-RU"] })).toEqual({ country: "other", ask: true });
-    // English cannot tell gb from us, so it suggests neither.
+    expect(resolveCountry({ regions: ["BR"], languages: ["vi"] })).toEqual({ country: "vn", ask: true });
+    // A tag carries its own region, and that half is a region like any other.
+    expect(resolveCountry({ languages: ["ru-RU"] })).toEqual({ country: "ru", ask: true });
+    // English cannot tell gb from us, so it suggests neither — and Spanish is the same shape now
+    // that Spain and Mexico are both curated. A coin flip offered first is not a suggestion.
     expect(resolveCountry({ languages: ["en"] })).toEqual({ country: "other", ask: true });
+    expect(resolveCountry({ languages: ["es"] })).toEqual({ country: "other", ask: true });
   });
 
   it("suggests from the email's own country, and still asks", () => {
     expect(resolveCountry({ email: "someone@gmx.de" })).toEqual({ country: "de", ask: true });
-    expect(resolveCountry({ email: "SOMEONE@Mail.RU" })).toEqual({ country: "other", ask: true });
+    // A country-coded TLD is a region code, so a country joins the list and this starts reading
+    // it in the same commit — there is no second table to remember.
+    expect(resolveCountry({ email: "SOMEONE@Mail.RU" })).toEqual({ country: "ru", ask: true });
+    expect(resolveCountry({ email: "quelquun@orange.fr" })).toEqual({ country: "fr", ask: true });
+    expect(resolveCountry({ email: "seseorang@telkom.id" })).toEqual({ country: "id", ask: true });
     expect(resolveCountry({ email: "someone@bbc.co.uk" })).toEqual({ country: "gb", ask: true });
     // The addresses most people actually have say nothing, and neither does Apple's relay.
     expect(resolveCountry({ email: "someone@gmail.com" })).toEqual({ country: "other", ask: true });
@@ -539,7 +548,11 @@ describe("resolving the country, and deciding whether to ask", () => {
 
 describe("the suggested answer, offered first", () => {
   it("moves the suggestion to the front and keeps everything else in order", () => {
-    expect(suggestionFirst(COUNTRY_CODES, "us")).toEqual(["us", "de", "gb", "other"]);
+    expect(suggestionFirst(COUNTRY_CODES, "us")).toEqual([
+      "us", "at", "au", "ca", "ch", "de", "es", "fr", "gb", "id", "it", "mx", "ru", "vn", "other",
+    ]);
+    // On the list the reader actually sees, which is sorted by name and not by code.
+    expect(suggestionFirst(countryOptions("de"), "vn")[0]).toBe("vn");
   });
 
   it("changes nothing when there is no suggestion, or it is the sentinel", () => {
@@ -548,5 +561,73 @@ describe("the suggested answer, offered first", () => {
     // value we are trying to get away from.
     expect(suggestionFirst(COUNTRY_CODES, "other")).toEqual([...COUNTRY_CODES]);
     expect(suggestionFirst(COUNTRY_CODES, "zz")).toEqual([...COUNTRY_CODES]);
+  });
+});
+
+// ── The curated list, against the languages the app speaks ───────────────────────────────────
+
+describe("the countries this app curates", () => {
+  // THE DEFECT THIS PINS. The list was `de | gb | us | other` while the product shipped in eight
+  // languages. A Vietnamese or Indonesian speaker was guaranteed to be asked the question — no
+  // region in the list could answer it for them — and guaranteed to answer "Somewhere else", to a
+  // question whose own words are "so I know your supermarket, not somebody else's". Asking
+  // somebody where they shop and offering them nowhere is worse than not asking.
+
+  /**
+   * Where a speaker of each language is most likely to be standing.
+   *
+   * The expectation lives HERE rather than in `onboarding.ts` because it is the specification:
+   * the list may grow past it and must never shrink below it. Adding a language to `LANGS` with
+   * no market fails this by name.
+   */
+  const HOME: Record<(typeof LANGS)[number], CountryCode> = {
+    en: "gb", fr: "fr", de: "de", it: "it", es: "es", vi: "vn", id: "id", ru: "ru",
+  };
+
+  it("offers a country to every language the app speaks", () => {
+    for (const lang of LANGS) {
+      expect(COUNTRY_CODES as readonly string[],
+        `${lang}: a speaker has nowhere to say where they shop`).toContain(HOME[lang]);
+    }
+  });
+
+  it("is ISO regions CLDR can name, in all eight — a typo renders as its own code", () => {
+    for (const lang of LANGS) {
+      for (const code of COUNTRY_CODES) {
+        if (code === "other") continue;
+        const label = countryLabel(code, lang);
+        expect(label, `${lang}/${code}`).not.toBe(code.toUpperCase());
+        expect(label.trim().length, `${lang}/${code}`).toBeGreaterThan(1);
+      }
+    }
+  });
+
+  it("names 'somewhere else' without pretending it is a place", () => {
+    // `other` is a sentinel. `Intl.DisplayNames` has no region for it and must not be asked.
+    expect(countryLabel("other", "de")).toBe("other");
+    expect(countryLabel("de", "de")).toBe("Deutschland");
+    expect(countryLabel("de", "ru")).toBe("Германия");
+    expect(countryLabel("vn", "vi")).toBe("Việt Nam");
+  });
+});
+
+describe("the order the countries are offered in", () => {
+  it("sorts by the name the reader sees, not by the code", () => {
+    // `Intl.Collator`, because a list of fifteen countries in code order is a list nobody can
+    // scan, and "alphabetical" is not the same order in Russian as in German.
+    const de = countryOptions("de").filter((c) => c !== "other").map((c) => countryLabel(c, "de"));
+    expect(de).toEqual([...de].sort(new Intl.Collator("de").compare));
+    const ru = countryOptions("ru").filter((c) => c !== "other").map((c) => countryLabel(c, "ru"));
+    expect(ru).toEqual([...ru].sort(new Intl.Collator("ru").compare));
+    // And the orders genuinely differ, or this is sorting nothing: Germany is Д in Russian and D
+    // in German, Austria is А and Ö.
+    expect(countryOptions("de")).not.toEqual(countryOptions("ru"));
+  });
+
+  it("keeps 'somewhere else' last, whatever the alphabet says", () => {
+    for (const lang of LANGS) {
+      expect(countryOptions(lang).at(-1), lang).toBe("other");
+      expect([...countryOptions(lang)].sort()).toEqual([...COUNTRY_CODES].sort());
+    }
   });
 });

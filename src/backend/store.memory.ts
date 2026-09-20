@@ -6,7 +6,7 @@
 
 import { dateMinus, localDate, signsIn } from "@eait/shared";
 import type {
-  DayTotals, HealthDay, Lang, MealRecord, NotificationCopy, OnboardingContent, OnboardingEvent,
+  DayTotals, HealthDay, Lang, MealRecord, NotificationCopySet, OnboardingContentSet, OnboardingEvent,
   Profile, Provider,
 } from "@eait/shared";
 import {
@@ -68,6 +68,28 @@ export function aggregateFunnel(events: StoredEvent[]): FunnelAggregate {
   };
 }
 
+/**
+ * A stored copy document as a LANGUAGE MAP, whatever shape an older build left behind.
+ *
+ * Three shapes reach this. A language map is returned as it is. A JSON STRING is what
+ * `${JSON.stringify(doc)}::jsonb` used to write — bun's driver already encodes a bound value, so
+ * the cast was a no-op — and spreading one scatters it into numeric keys. A BARE revision predates
+ * the language dimension entirely and was English, because English was all there was.
+ *
+ * The Postgres statements repair both on write; this exists so the two implementations agree,
+ * which is the whole contract `store.contract.test.ts` is for.
+ */
+function legacyLanguageMap(stored: unknown): Record<string, unknown> {
+  if (stored === null || stored === undefined) return {};
+  if (typeof stored === "string") {
+    try { return legacyLanguageMap(JSON.parse(stored)); } catch { return {}; }
+  }
+  if (typeof stored !== "object" || Array.isArray(stored)) return {};
+  const o = stored as Record<string, unknown>;
+  const bare = Array.isArray(o.screens) || typeof o.evening === "object";
+  return bare ? { en: o } : o;
+}
+
 export function memoryStore(opts: StoreOptions = {}): Store {
   const sessionTtlMs = opts.sessionTtlMs ?? DEFAULT_SESSION_TTL_MS;
   const now = opts.now ?? Date.now;
@@ -126,7 +148,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const chat: ChatMessage[] = [];
   let chatSeq = 0;
   const firstVerdictSpoken = new Set<string>();
-  let notificationCopy: NotificationCopy | null = null;
+  let notificationCopy = (opts.seed?.notificationCopy ?? null) as NotificationCopySet | null;
   // Keyed by the TOKEN, exactly as Postgres is: a token is an installation, so registering it under
   // a second account moves it rather than adding a row.
   const pushTokens = new Map<string, { userId: string; platform: PushPlatform }>();
@@ -154,7 +176,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     source: string;
     createdAt: number;
   }>();
-  let onboardingContent: OnboardingContent | null = null;
+  // `opts.seed` is how a test starts from a row an OLDER server wrote — see `StoreOptions`. Cast
+  // rather than validated, because the whole point of those shapes is that no current type fits.
+  let onboardingContent = (opts.seed?.onboardingContent ?? null) as OnboardingContentSet | null;
   /**
    * Every prompt revision ever written, exactly as Postgres keeps them: nothing is overwritten and
    * the newest version per key is the live one. A flat list rather than a map by key, because the
@@ -757,8 +781,24 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return onboardingContent ? clone(onboardingContent) : null;
     },
 
-    async putOnboardingContent(content) {
-      onboardingContent = clone(content);
+    async putOnboardingContent(lang, content, floorVersion) {
+      // MERGE, not replace — the Postgres one does this with `jsonb_set` on the locked row, and a
+      // memory store that replaced the document instead would prove the engine safe against a race
+      // the real store is the only one that can have.
+      //
+      // AND IT MIGRATES THE TWO LEGACY SHAPES, because Postgres does. A spread of a STRING scatters
+      // it character by character into numeric keys and destroys the revision under it; a spread of
+      // a BARE pre-#358 revision hangs the language off it beside `screens`, which `usableContentFor`
+      // then reads as bare English forever. Both were live here while the Postgres statement
+      // repaired them, so `--demo` and every engine test ran against behaviour the real store does
+      // not have — which is worse than a bug, because it is a bug that proves things.
+      const set = { ...legacyLanguageMap(onboardingContent) } as Record<string, { version?: number }>;
+      const highest = Math.max(0, ...Object.values(set)
+        .map((c) => c?.version)
+        .filter((v): v is number => typeof v === "number"));
+      const version = Math.max(floorVersion, highest + 1);
+      onboardingContent = clone({ ...set, [lang]: { ...content, version } }) as typeof onboardingContent;
+      return version;
     },
 
     async getNotificationCopy() {
@@ -789,8 +829,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return version;
     },
 
-    async putNotificationCopy(copy) {
-      notificationCopy = clone(copy);
+    async putNotificationCopy(lang, copy) {
+      // Merged and migrated, for `putOnboardingContent`'s reasons.
+      notificationCopy = clone({ ...legacyLanguageMap(notificationCopy), [lang]: copy }) as typeof notificationCopy;
     },
 
     async recordOnboardingEvents(userId, events) {
