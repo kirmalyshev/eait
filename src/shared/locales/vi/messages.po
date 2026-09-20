@@ -29,11 +29,6 @@ msgid "thread.firstVerdict.arithmetic.gainLeft"
 msgstr "hôm nay còn {left} trên {plan} cần nạp thêm, và {protein} trên {proteinTarget} g đạm. Cứ tiếp tục nhé."
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
-msgstr "Hôm nay còn {left} trên {plan} cần nạp thêm, và {protein} trên {proteinTarget} g đạm. Cứ tiếp tục nhé."
-
-#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.warn"
 msgstr "{noun} — cao"
@@ -60,8 +55,33 @@ msgstr "hôm nay vượt {over} so với {plan}, và {protein} trên {proteinTar
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowLeftOther"
+msgstr "Hôm nay bạn còn khoảng {left} trên {plan}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
+msgstr "Hôm nay còn khoảng {left} trên {plan} cần nạp thêm, và {protein} trên {proteinTarget} g đạm. Cứ tiếp tục nhé."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowLeftGain"
+msgstr "Hôm nay còn khoảng {left} trên {plan} cần nạp thêm."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.gainOver"
-msgstr "Hôm nay vượt {over} so với {plan}, và {protein} trên {proteinTarget} g đạm. Với kế hoạch tăng cân thì vượt là đúng ý; mai lại là một con số mới."
+msgstr "Hôm nay vượt khoảng {over} so với {plan}, và {protein} trên {proteinTarget} g đạm. Với kế hoạch tăng cân thì vượt là đúng ý; mai lại là một con số mới."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowOverGain"
+msgstr "Hôm nay vượt khoảng {over} so với {plan}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowOverOther"
+msgstr "Hôm nay vượt khoảng {over} so với {plan}. Mai lại là một con số mới."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -107,26 +127,6 @@ msgstr "Đã kết nối với tài khoản eait đăng nhập bằng"
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.dropped"
 msgstr "Bỏ qua rồi."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowLeftOther"
-msgstr "Dù thô thì vẫn tính: hôm nay bạn còn khoảng {left} trên {plan}."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowLeftGain"
-msgstr "Dù thô thì vẫn tính: hôm nay còn khoảng {left} trên {plan} cần nạp thêm."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowOverGain"
-msgstr "Dù thô thì vẫn tính: hôm nay vượt khoảng {over} so với {plan}."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowOverOther"
-msgstr "Dù thô thì vẫn tính: hôm nay vượt khoảng {over} so với {plan}. Mai lại là một con số mới."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -341,7 +341,7 @@ msgstr "vậy là còn {left} trên {plan} cho phần còn lại của hôm nay,
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-msgstr "Vậy là còn {left} trên {plan} cho phần còn lại của hôm nay, và {protein} trên {proteinTarget} g đạm. Đúng kế hoạch."
+msgstr "Vậy là còn khoảng {left} trên {plan} cho phần còn lại của hôm nay, và {protein} trên {proteinTarget} g đạm. Đúng kế hoạch."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -386,7 +386,7 @@ msgstr "vậy là hôm nay bạn vượt {over} so với {plan}, và {protein} t
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.otherOver"
-msgstr "Vậy là hôm nay bạn vượt {over} so với {plan}, và {protein} trên {proteinTarget} g đạm. Mai lại là một con số mới."
+msgstr "Vậy là hôm nay bạn vượt khoảng {over} so với {plan}, và {protein} trên {proteinTarget} g đạm. Mai lại là một con số mới."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

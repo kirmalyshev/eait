@@ -29,11 +29,6 @@ msgid "thread.firstVerdict.arithmetic.gainLeft"
 msgstr "il te reste {left} sur tes {plan} à remplir aujourd'hui, et {protein} des {proteinTarget} g de protéines. Continue."
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
-msgstr "Il te reste {left} sur tes {plan} à remplir aujourd'hui, et {protein} des {proteinTarget} g de protéines. Continue."
-
-#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.warn"
 msgstr "{noun} — au-dessus"
@@ -60,8 +55,33 @@ msgstr "{over} au-dessus de tes {plan} aujourd'hui, et {protein} des {proteinTar
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowLeftOther"
+msgstr "Il te reste environ {left} sur tes {plan} aujourd'hui."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
+msgstr "Il te reste environ {left} sur tes {plan} à remplir aujourd'hui, et {protein} des {proteinTarget} g de protéines. Continue."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowLeftGain"
+msgstr "Il te reste environ {left} sur tes {plan} à remplir aujourd'hui."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.gainOver"
-msgstr "{over} au-dessus de tes {plan} aujourd'hui, et {protein} des {proteinTarget} g de protéines. Dépasser, c'est le but sur un plan de prise ; demain repart à zéro."
+msgstr "Environ {over} au-dessus de tes {plan} aujourd'hui, et {protein} des {proteinTarget} g de protéines. Dépasser, c'est le but sur un plan de prise ; demain repart à zéro."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowOverGain"
+msgstr "Environ {over} au-dessus de tes {plan} aujourd'hui."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowOverOther"
+msgstr "Environ {over} au-dessus de tes {plan} aujourd'hui. Demain repart à zéro."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -107,26 +127,6 @@ msgstr "Ce Telegram est connecté au compte eait ouvert avec"
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.dropped"
 msgstr "Supprimé."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowLeftOther"
-msgstr "Même approximatif, ça compte : il te reste environ {left} sur tes {plan} aujourd'hui."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowLeftGain"
-msgstr "Même approximatif, ça compte : il te reste environ {left} sur tes {plan} à remplir aujourd'hui."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowOverGain"
-msgstr "Même approximatif, ça compte : environ {over} au-dessus de tes {plan} aujourd'hui."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowOverOther"
-msgstr "Même approximatif, ça compte : environ {over} au-dessus de tes {plan} aujourd'hui. Demain repart à zéro."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -341,7 +341,7 @@ msgstr "il te reste {left} sur tes {plan} pour le reste de la journée, et {prot
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-msgstr "Il te reste {left} sur tes {plan} pour le reste de la journée, et {protein} des {proteinTarget} g de protéines. Dans le plan."
+msgstr "Il te reste environ {left} sur tes {plan} pour le reste de la journée, et {protein} des {proteinTarget} g de protéines. Dans le plan."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -386,7 +386,7 @@ msgstr "ça te met {over} au-dessus de tes {plan} pour aujourd'hui, et {protein}
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.otherOver"
-msgstr "Ça te met {over} au-dessus de tes {plan} pour aujourd'hui, et {protein} des {proteinTarget} g de protéines. Demain repart à zéro."
+msgstr "Ça te met environ {over} au-dessus de tes {plan} pour aujourd'hui, et {protein} des {proteinTarget} g de protéines. Demain repart à zéro."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

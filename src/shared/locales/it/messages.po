@@ -29,11 +29,6 @@ msgid "thread.firstVerdict.arithmetic.gainLeft"
 msgstr "oggi restano {left} delle tue {plan} da riempire, e {protein} dei {proteinTarget} g di proteine. Vai avanti così."
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
-msgstr "Oggi restano {left} delle tue {plan} da riempire, e {protein} dei {proteinTarget} g di proteine. Vai avanti così."
-
-#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.warn"
 msgstr "{noun} — sopra"
@@ -60,8 +55,33 @@ msgstr "oggi {over} sopra le tue {plan}, e {protein} dei {proteinTarget} g di pr
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowLeftOther"
+msgstr "Oggi ti restano circa {left} delle tue {plan}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
+msgstr "Oggi restano circa {left} delle tue {plan} da riempire, e {protein} dei {proteinTarget} g di proteine. Vai avanti così."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowLeftGain"
+msgstr "Oggi restano circa {left} delle tue {plan} da riempire."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.gainOver"
-msgstr "Oggi {over} sopra le tue {plan}, e {protein} dei {proteinTarget} g di proteine. Andare oltre è il punto di un piano di crescita; domani è un numero nuovo."
+msgstr "Oggi circa {over} sopra le tue {plan}, e {protein} dei {proteinTarget} g di proteine. Andare oltre è il punto di un piano di crescita; domani è un numero nuovo."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowOverGain"
+msgstr "Oggi circa {over} sopra le tue {plan}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowOverOther"
+msgstr "Oggi circa {over} sopra le tue {plan}. Domani è un numero nuovo."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -107,26 +127,6 @@ msgstr "Questo Telegram è collegato all'account eait con cui hai fatto accesso 
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.dropped"
 msgstr "Scartato."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowLeftOther"
-msgstr "Anche grezzo conta: oggi ti restano circa {left} delle tue {plan}."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowLeftGain"
-msgstr "Anche grezzo conta: oggi restano circa {left} delle tue {plan} da riempire."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowOverGain"
-msgstr "Anche grezzo conta: oggi circa {over} sopra le tue {plan}."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowOverOther"
-msgstr "Anche grezzo conta: oggi circa {over} sopra le tue {plan}. Domani è un numero nuovo."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -341,7 +341,7 @@ msgstr "così ti restano {left} delle tue {plan} per il resto della giornata, e 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-msgstr "Così ti restano {left} delle tue {plan} per il resto della giornata, e {protein} dei {proteinTarget} g di proteine. Nel piano."
+msgstr "Così ti restano circa {left} delle tue {plan} per il resto della giornata, e {protein} dei {proteinTarget} g di proteine. Nel piano."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -386,7 +386,7 @@ msgstr "così sei a {over} sopra le tue {plan} per oggi, e {protein} dei {protei
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.otherOver"
-msgstr "Così sei a {over} sopra le tue {plan} per oggi, e {protein} dei {proteinTarget} g di proteine. Domani è un numero nuovo."
+msgstr "Così sei a circa {over} sopra le tue {plan} per oggi, e {protein} dei {proteinTarget} g di proteine. Domani è un numero nuovo."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

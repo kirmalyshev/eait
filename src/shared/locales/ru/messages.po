@@ -29,11 +29,6 @@ msgid "thread.firstVerdict.arithmetic.gainLeft"
 msgstr "сегодня ещё {left} из {plan} нужно добрать, и белка {protein} из {proteinTarget} г. Продолжай."
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
-msgstr "Сегодня ещё {left} из {plan} нужно добрать, и белка {protein} из {proteinTarget} г. Продолжай."
-
-#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.warn"
 msgstr "{noun} — много"
@@ -60,8 +55,33 @@ msgstr "сегодня {over} сверх {plan}, и белка {protein} из {p
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowLeftOther"
+msgstr "Сегодня осталось примерно {left} из {plan}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
+msgstr "Сегодня ещё примерно {left} из {plan} нужно добрать, и белка {protein} из {proteinTarget} г. Продолжай."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowLeftGain"
+msgstr "Сегодня ещё примерно {left} из {plan} нужно добрать."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.gainOver"
-msgstr "Сегодня {over} сверх {plan}, и белка {protein} из {proteinTarget} г. На наборе перебор — это и есть смысл; завтра цифра свежая."
+msgstr "Сегодня примерно {over} сверх {plan}, и белка {protein} из {proteinTarget} г. На наборе перебор — это и есть смысл; завтра цифра свежая."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowOverGain"
+msgstr "Сегодня примерно {over} сверх {plan}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowOverOther"
+msgstr "Сегодня примерно {over} сверх {plan}. Завтра цифра свежая."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -107,26 +127,6 @@ msgstr "Подключено к аккаунту eait, вход выполнен
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.dropped"
 msgstr "Убрал."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowLeftOther"
-msgstr "Даже грубо это считается: сегодня осталось примерно {left} из {plan}."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowLeftGain"
-msgstr "Даже грубо это считается: сегодня ещё примерно {left} из {plan} нужно добрать."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowOverGain"
-msgstr "Даже грубо это считается: сегодня примерно {over} сверх {plan}."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowOverOther"
-msgstr "Даже грубо это считается: сегодня примерно {over} сверх {plan}. Завтра цифра свежая."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -341,7 +341,7 @@ msgstr "остаётся {left} из {plan} на остаток дня, и бе�
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-msgstr "Остаётся {left} из {plan} на остаток дня, и белка {protein} из {proteinTarget} г. В плане."
+msgstr "Остаётся примерно {left} из {plan} на остаток дня, и белка {protein} из {proteinTarget} г. В плане."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -386,7 +386,7 @@ msgstr "получается {over} сверх {plan} за сегодня, и б
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.otherOver"
-msgstr "Получается {over} сверх {plan} за сегодня, и белка {protein} из {proteinTarget} г. Завтра цифра свежая."
+msgstr "Получается примерно {over} сверх {plan} за сегодня, и белка {protein} из {proteinTarget} г. Завтра цифра свежая."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

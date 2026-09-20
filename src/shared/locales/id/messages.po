@@ -29,11 +29,6 @@ msgid "thread.firstVerdict.arithmetic.gainLeft"
 msgstr "hari ini masih ada {left} dari {plan} yang perlu diisi, dan {protein} dari {proteinTarget} g protein. Lanjutkan."
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
-msgstr "Hari ini masih ada {left} dari {plan} yang perlu diisi, dan {protein} dari {proteinTarget} g protein. Lanjutkan."
-
-#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.warn"
 msgstr "{noun} — tinggi"
@@ -60,8 +55,33 @@ msgstr "hari ini {over} di atas {plan}, dan {protein} dari {proteinTarget} g pro
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowLeftOther"
+msgstr "Hari ini kamu masih punya sekitar {left} dari {plan}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
+msgstr "Hari ini masih ada sekitar {left} dari {plan} yang perlu diisi, dan {protein} dari {proteinTarget} g protein. Lanjutkan."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowLeftGain"
+msgstr "Hari ini masih sekitar {left} dari {plan} yang perlu diisi."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.gainOver"
-msgstr "Hari ini {over} di atas {plan}, dan {protein} dari {proteinTarget} g protein. Melewatinya justru tujuannya di rencana menaikkan berat badan; besok angkanya baru lagi."
+msgstr "Hari ini sekitar {over} di atas {plan}, dan {protein} dari {proteinTarget} g protein. Melewatinya justru tujuannya di rencana menaikkan berat badan; besok angkanya baru lagi."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowOverGain"
+msgstr "Hari ini sekitar {over} di atas {plan}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowOverOther"
+msgstr "Hari ini sekitar {over} di atas {plan}. Besok angkanya baru lagi."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -107,26 +127,6 @@ msgstr "Terhubung ke akun eait yang masuk lewat"
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.dropped"
 msgstr "Dibatalkan."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowLeftOther"
-msgstr "Meski kasar, tetap dihitung: hari ini kamu masih punya sekitar {left} dari {plan}."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowLeftGain"
-msgstr "Meski kasar, tetap dihitung: hari ini masih sekitar {left} dari {plan} yang perlu diisi."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowOverGain"
-msgstr "Meski kasar, tetap dihitung: hari ini sekitar {over} di atas {plan}."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.lowOverOther"
-msgstr "Meski kasar, tetap dihitung: hari ini sekitar {over} di atas {plan}. Besok angkanya baru lagi."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -341,7 +341,7 @@ msgstr "jadi tersisa {left} dari {plan} untuk sisa hari ini, dan {protein} dari 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-msgstr "Jadi tersisa {left} dari {plan} untuk sisa hari ini, dan {protein} dari {proteinTarget} g protein. Sesuai rencana."
+msgstr "Jadi tersisa sekitar {left} dari {plan} untuk sisa hari ini, dan {protein} dari {proteinTarget} g protein. Sesuai rencana."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -386,7 +386,7 @@ msgstr "jadi hari ini kamu {over} di atas {plan}, dan {protein} dari {proteinTar
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.otherOver"
-msgstr "Jadi hari ini kamu {over} di atas {plan}, dan {protein} dari {proteinTarget} g protein. Besok angkanya baru lagi."
+msgstr "Jadi hari ini kamu sekitar {over} di atas {plan}, dan {protein} dari {proteinTarget} g protein. Besok angkanya baru lagi."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

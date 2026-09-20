@@ -5,7 +5,7 @@
 // `product/design/onboarding/copy.md` (steps 13–15); a sentence changed here is a sentence changed
 // in the product, so change the design first.
 
-import { wholeNumbers } from "./lang.ts";
+import { guessedNumbers, wholeNumbers } from "./lang.ts";
 import { threadCopyFor, type Figures } from "./chat-copy.ts";
 import type { FoodTargets, Goal, Lang, MealVerdicts } from "./types.ts";
 
@@ -226,12 +226,18 @@ export function runningLine(
 function figures(
   i: { targets: FoodTargets; eatenToday: { kcal: number; protein_g: number } },
   lang: Lang,
+  guessed = false,
 ): Figures {
   const n = wholeNumbers(lang);
+  // #28: what is left of a day that has a GUESSED meal in it is itself a guess, and its precision
+  // is what says so — "about 950", never "about 974", and never a bracket after either. The plan
+  // is arithmetic over answers the user gave, so it keeps every digit; the grams of protein are
+  // left alone because fifty is the wrong step for a figure that runs from 20 to 150.
+  const kcal = guessed ? guessedNumbers(lang) : n;
   const left = i.targets.kcal - i.eatenToday.kcal;
   return {
-    left: n(Math.max(0, left)),
-    over: n(Math.max(0, -left)),
+    left: kcal(Math.max(0, left)),
+    over: kcal(Math.max(0, -left)),
     plan: n(i.targets.kcal),
     protein: n(i.eatenToday.protein_g),
     proteinTarget: n(i.targets.protein_g),
@@ -295,8 +301,12 @@ export interface FirstVerdictInput {
  */
 export function firstVerdictLines(i: FirstVerdictInput, lang: Lang): string[] {
   const copy = threadCopyFor(lang).firstVerdict;
-  const f = figures(i, lang);
-  const kcal = wholeNumbers(lang)(i.meal.kcal);
+  // THE TWO BRANCHES THAT ARE A GUESS, named once: a typed meal (the portions were never seen)
+  // and a plate the analyzer could not read. Both already say so in words, and #28 is what the
+  // FIGURES do about it — one number per thing, rounded until its precision is the confidence.
+  const guessed = i.via === "text" || i.meal.confidence === "low";
+  const f = figures(i, lang, guessed);
+  const kcal = (guessed ? guessedNumbers(lang) : wholeNumbers(lang))(i.meal.kcal);
   const left = i.targets.kcal - i.eatenToday.kcal;
   const lines: string[] = [];
 
@@ -310,6 +320,10 @@ export function firstVerdictLines(i: FirstVerdictInput, lang: Lang): string[] {
     lines.push(copy.arithmeticAlone[branch](f));
   } else if (i.meal.confidence === "low") {
     // The design's "— sauce over everything" is an example reason; nothing here can name one.
+    //
+    // ONE WORDED FLAG PER REPLY (#28). This line is it, and the arithmetic under it used to open
+    // "Even rough, it counts:" — a second hedge on the same plate, which is how every estimate
+    // came to sound equally shaky. The figures say it now.
     lines.push(copy.lowConfidence({ kcal }));
     lines.push((
       left < 0
