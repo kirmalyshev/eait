@@ -132,6 +132,59 @@ const FINE = [
   "Stai dimagrendo di 0,5 kg a settimana.",
 ];
 
+// ── The number grammar (#28) ──────────────────────────────────────────────────────────────────
+//
+// Not a claim in the legal sense and in this file anyway, because the mechanism is the one that
+// fits: two of the surfaces the gate covers are typed by an admin, and a range on a lock screen is
+// a range nobody reviewed. Kept in its own pair of tables rather than folded into `BANNED`/`FINE`
+// — those are keyed by language and this family is mostly language-free.
+
+/** Every shape of "a number and its error" the gate must refuse. */
+const RANGES = [
+  "620 ±90 kcal today.",
+  "620 +/-90 kcal today.",
+  "Somewhere between 530 and 710 kcal.",
+  "Between {low} and {high} kcal.",
+  "1 400–1 800 kcal a day.",
+  "1400—1800 kcal a day.",
+  "About 530 to 710 kcal on this plate.",
+  // The same grammar in another language still carries the sign and the dash.
+  "Zwischen 1 400–1 800 kcal am Tag.",
+];
+
+/** And the sentences around it that must keep passing, or the gate gets switched off. */
+const NOT_RANGES = [
+  // The grammar this replaces it with: one number, its precision carrying the confidence.
+  "Take 600 as a rough guess and check the grams before you trust the total.",
+  "About 950 of your 1,454 left today.",
+  "We will not write a plan under 1,500 kcal.",
+  // A hyphen is a date, an id and a compound — never a range.
+  "Logging this for 2026-09-20 — look right?",
+  "Question 3 of 8",
+  // An em dash that is not between two figures, which is most of this product's prose.
+  "Updated — 306 kcal. 1,148 of your 1,454 left today.",
+  "Порог — 1500 ккал.",
+  // "to" and "and" with no figure in front of them.
+  "Two days before the free week ends.",
+  "It takes about three minutes.",
+  "Photograph a meal in this browser and read the answer, on the same account.",
+];
+
+describe("the number grammar", () => {
+  it("refuses a number and its error, however it is spelled", () => {
+    for (const text of RANGES) {
+      const hits = lintCopy({ body: text });
+      expect(hits.map((h) => h.pattern), `"${text}" was not refused`).toContain("number-range");
+    }
+  });
+
+  it("lets one number per thing through, and every hyphen that is a date", () => {
+    for (const text of NOT_RANGES) {
+      expect(lintCopy({ body: text }).map((h) => `${h.pattern}: ${h.span}`), text).toEqual([]);
+    }
+  });
+});
+
 describe("the claims gate reads all eight languages", () => {
   for (const [family, byLang] of Object.entries(BANNED)) {
     it(`refuses a ${family} claim in every language that has one`, () => {

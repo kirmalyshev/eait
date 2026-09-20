@@ -78,6 +78,32 @@ const RULES: readonly Rule[] = [
   // address" are the true sentences that replaced it and must keep passing.
   { name: "retired-no-email", re: /\bno\s+e-?mail\b|\bnever\s+asks?\s+for\s+(?:your\s+|an\s+)?e-?mail\b/gi },
 
+  // ── The number grammar: one number per thing, never a number and its error (#28) ────────────
+  //
+  // The app settled this first and the same person meets both products, so the two must not
+  // disagree about how confident a number is allowed to sound. PRECISION CARRIES THE CONFIDENCE
+  // instead: "410" when it was measured, "about 600" when it was guessed. The engine may keep
+  // every interval it computes — this is about what reaches a reader, which is the half a copy
+  // gate can actually see.
+  //
+  // HERE RATHER THAN IN A TEST, for the reason `retired-no-email` is here: two of the surfaces
+  // this gate already covers are EDITABLE. `validateNotificationCopy` runs `lintCopy` on the
+  // write, so "1 400–1 800 kcal" typed into the admin never reaches a lock screen — and that is
+  // the case no pull request is standing in front of.
+  //
+  // A HYPHEN IS NOT A RANGE, deliberately. `2026-09-20` is a date the Telegram copy interpolates
+  // and then lints, so only the en and em dash count, and only BETWEEN TWO DIGITS: a `{low}–{high}`
+  // template is code, reviewed in a pull request, and widening this to catch one would flag every
+  // "Updated — {kcal}" in the catalogs.
+  //
+  // THE TWO WORDED FORMS ARE ENGLISH-ONLY, by the rule the section below states. "zwischen … und"
+  // and "от … до" need a native reading to write narrowly, and a pattern guessed at is the kind
+  // that fires on ordinary prose and gets the linter switched off. `±` needs no language.
+  { name: "number-range", re: /±|\+\/-/g },
+  { name: "number-range", re: /\d\s*[–—]\s*\d/g },
+  { name: "number-range", re: /\bbetween\s+[\d{][^.!?]{0,24}?\band\s+[\d{]/gi },
+  { name: "number-range", re: /\b\d[\d.,\s]*\s+to\s+\d/gi },
+
   // ── THE SAME FOUR FAMILIES, IN THE OTHER SEVEN LANGUAGES (#358) ─────────────────────────────
   //
   // WHY ONLY FOUR. These are the ones the root AGENTS.md names, and they are the ones a
@@ -162,6 +188,10 @@ const RULES: readonly Rule[] = [
   // risks with no German pattern. They are out because each needs a native reading to write
   // narrowly, and a pattern guessed at is the kind that fires on ordinary prose and gets the
   // linter switched off. The four above were reviewed; these have not been.
+  //
+  // `number-range` is half in each column and says so where it is written: `±` and a dashed pair
+  // of figures are language-free and run over all eight, and only its two worded forms are
+  // English.
 ];
 
 /**
