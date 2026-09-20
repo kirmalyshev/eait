@@ -15,8 +15,8 @@ import type { FoodTargets, Goal, Lang, MealVerdicts } from "./types.ts";
  *
  * THE KEYS ARE THE CONTRACT AND THE WORDS ARE NOT. This is the id set two binaries agree on, so it
  * is the same in all eight languages and is deliberately NOT `Localized`; what each id SAYS lives
- * in `THREAD_COPY` (`chat-copy.ts`), keyed by language. The values here are `null` because the type
- * is doing the only job left: naming what exists.
+ * in the catalogs, under `thread.scripted.<id>` (`chat-copy.ts` names them). The values here are
+ * `null` because the type is doing the only job left: naming what exists.
  *
  * READING A VALUE OFF THIS IS THE ONE MIGRATION THE COMPILER CANNOT REFUSE, so it is marked. Every
  * other table in this change became a function of the language, which makes an un-migrated call
@@ -286,11 +286,12 @@ export interface FirstVerdictInput {
  * meal; later meals get the card and, in time, the 20:30 line. Deterministic on purpose: the model
  * is never asked for a verdict, and neither is it asked for these sentences.
  *
- * THE BRANCHES ARE HERE AND THE SENTENCES ARE IN `THREAD_COPY`. Which of them a meal takes is a
- * claim about that meal's arithmetic; the wording is not, and a translator moving a branch would be
- * moving a rule. The old code produced the sentence-initial form of the arithmetic by running
- * `.replace(/^that/, "That")` over it — an English capitalisation rule living inside a string
- * operation, correct in exactly one language. `arithmeticAlone` is that same pair, said out loud.
+ * THE BRANCHES ARE HERE AND THE SENTENCES ARE IN THE CATALOGS (`chat-copy.ts` names the ids).
+ * Which of them a meal takes is a claim about that meal's arithmetic; the wording is not, and a
+ * translator moving a branch would be moving a rule. The old code produced the sentence-initial
+ * form of the arithmetic by running `.replace(/^that/, "That")` over it — an English
+ * capitalisation rule living inside a string operation, correct in exactly one language.
+ * `arithmeticAlone` is that same pair, said out loud.
  */
 export function firstVerdictLines(i: FirstVerdictInput, lang: Lang): string[] {
   const copy = threadCopyFor(lang).firstVerdict;

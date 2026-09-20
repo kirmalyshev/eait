@@ -71,7 +71,8 @@ gets its meal names in that language.
 - **COPY IS MOVING INTO LINGUI CATALOGS (`src/shared/locales/*/messages.po`), TABLE BY TABLE.**
   A migrated string is `i18n._("<id>", values, { message: "<the English>" })` with a LITERAL id —
   `lingui extract` reads the source, so a computed id never reaches a translator and the only
-  symptom is an English word on a card. Migrated so far: `verdicts.ts`, `mail/port.ts`.
+  symptom is an English word on a card. Migrated so far: `verdicts.ts`, `mail/port.ts`,
+  `telegram/copy.ts`, `chat-copy.ts` (`THREAD_COPY` and `STREAM_COPY`).
   - **The two ADMIN-EDITABLE tables do not move: `notifications.ts` and `onboarding-content.ts`.**
     `{eaten}` is this product's placeholder syntax and it is also ICU's, so running a template
     through Lingui consumes the placeholders rather than preserving them — and `fillNotification`
@@ -80,8 +81,18 @@ gets its meal names in that language.
     `notifications.i18n.test.ts` executes that collision rather than asserting it in prose.
   - **A guard that walked the tables must follow the copy.** `genderedRussian` and the claims gate
     read `import * as everything`; a table that moves walks out of both and nothing fails.
-    `catalogText(lang)` (`i18n.ts`) is what they sweep instead, and `copy.i18n.test.ts` does it in
-    both workspaces. Each workspace's table registry shrinks by one per migrated table.
+    `catalogText(lang)` (`i18n.ts`) is what they sweep instead, in `src/shared/copy.i18n.test.ts`
+    and there only — there is ONE catalog and both workspaces' words are in it, so a second
+    sweep from `backend` would read the same strings twice. Each workspace's table registry
+    shrinks by one per migrated table.
+  - **`i18n:check` RUNS `lingui extract` BEFORE `compile --strict`, and that is the half
+    `--strict` cannot do.** `--strict` proves every id IN the catalogs is translated. It says
+    nothing about an id in the SOURCE that never reached them, and `i18n._` falls back to the
+    `message:` descriptor — which is the English. Renaming one id without extracting left
+    `i18n:check`, the typecheck and all 1,899 tests green while that sentence shipped English
+    in eight languages; measured, not assumed. `localizedGaps` failed by name on exactly this
+    and a catalog has no equivalent, so the extractor is the check. Extract first and the
+    `git diff --exit-code` already there turns an unextracted string into a red build.
 - **A new string goes in the `*-copy.ts` beside the module that reads it**, as a key on that
   module's one `Localized` table, in all eight languages. Not in a `.json` bundle, not behind an
   extraction step: `lang.ts`'s header says why, and eight compiled-in languages need neither.

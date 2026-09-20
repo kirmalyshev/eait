@@ -29,10 +29,12 @@ describe("the bot's words in eight languages", () => {
   });
 
   it("says something DIFFERENT in each, rather than eight copies of a fallback", () => {
-    // THE TRAP A COMPLETENESS CHECK CANNOT SEE. `lingui compile` writes the English source into
-    // any catalog with no translation — fallback at the key, which is the right behaviour and is
-    // what `Localized<T>` did. So an unfilled catalog passes every assertion above while sending
-    // an English sentence to a Russian chat. This is the one that would fail.
+    // WHAT THIS CATCHES, now that `i18n:check` runs `extract` and `compile --strict`. An id
+    // missing from a catalog is caught by `--strict`, and an id missing from every catalog is
+    // caught by the extract in front of it. What neither can see is a TRANSLATION THAT IS THE
+    // ENGLISH — a translator pasting the source string, or a `msgstr` filled from the `msgid` by
+    // a tool. That renders a complete, correct English sentence and passes every gate and every
+    // other assertion in this file. This is the one that would fail.
     for (const field of ["stranger", "connectedTail", "notYours", "logged", "failed"] as const) {
       const said = LANGS.map((l) => telegramCopyFor(l)[field]);
       expect(new Set(said).size, `${field} is not translated in all eight`).toBe(LANGS.length);

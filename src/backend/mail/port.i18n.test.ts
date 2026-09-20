@@ -41,10 +41,12 @@ describe("the confirmation email in eight languages", () => {
   });
 
   it("says something different in each of the eight, rather than eight copies of a fallback", () => {
-    // A MISSING TRANSLATION IS INVISIBLE HERE OTHERWISE. `lingui compile` writes the English
-    // source into any catalog that has no translation for an id — fallback at the key, exactly as
-    // `Localized<T>` did — so a catalog nobody filled renders a complete, correct English email
-    // and every assertion above passes. This is the one that would fail.
+    // WHAT THIS CATCHES, now that `i18n:check` runs `extract` and `compile --strict`. An id
+    // missing from a catalog is caught by `--strict`, and an id missing from every catalog is
+    // caught by the extract in front of it. What neither can see is a TRANSLATION THAT IS THE
+    // ENGLISH — a translator pasting the source string, or a `msgstr` filled from the `msgid` by
+    // a tool. That renders a complete, correct English sentence and passes every gate and every
+    // other assertion in this file. This is the one that would fail.
     const bodies = LANGS.map((l) => confirmationMessage(URL_IN, l).text);
     expect(new Set(bodies).size, "two languages send the same words").toBe(LANGS.length);
   });

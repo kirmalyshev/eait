@@ -67,11 +67,12 @@ describe("the thread in eight languages", () => {
   });
 
   it("says something DIFFERENT in each of the eight, rather than eight copies of a fallback", () => {
-    // THE TRAP A COMPLETENESS CHECK CANNOT SEE, and the one this file used to get for free from
-    // `localizedGaps`. `lingui compile` writes the English source into any catalog with no
-    // translation — fallback at the key, which is the right behaviour and what `Localized<T>`
-    // did — so an unfilled catalog renders a complete, correct English thread and every other
-    // assertion here passes. This is the one that would fail.
+    // WHAT THIS CATCHES, now that `i18n:check` runs `extract` and `compile --strict`. An id
+    // missing from a catalog is caught by `--strict`, and an id missing from every catalog is
+    // caught by the extract in front of it. What neither can see is a TRANSLATION THAT IS THE
+    // ENGLISH — a translator pasting the source string, or a `msgstr` filled from the `msgid` by
+    // a tool. That renders a complete, correct English sentence and passes every gate and every
+    // other assertion in this file. This is the one that would fail.
     for (const sample of [
       (l: (typeof LANGS)[number]) => scriptedLine("camera-closed", l, {}),
       (l: (typeof LANGS)[number]) => MEET_GABIE(l),
