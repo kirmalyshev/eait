@@ -34,6 +34,26 @@ msgid "verdict.noun.weight"
 msgstr "Kalori"
 
 #. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.ask"
+msgstr "Konfirmasi bahwa alamat ini milikmu:"
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.subject"
+msgstr "Konfirmasi emailmu untuk eait"
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.ignore"
+msgstr "Kalau bukan kamu, abaikan saja. Tidak ada yang terjadi, dan alamatnya dihapus dalam waktu seminggu."
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.promise"
+msgstr "Satu pesan saat aplikasinya rilis, dengan tautan berhenti berlangganan sekali klik. Selain itu tidak pernah ada."
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Lemak jenuh"
@@ -42,3 +62,8 @@ msgstr "Lemak jenuh"
 #: src/shared/verdicts.ts
 msgid "verdict.noun.kidneys"
 msgstr "Natrium"
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.who"
+msgstr "Seseorang — kemungkinan besar kamu — minta dikabari saat aplikasi eait untuk iPhone rilis."

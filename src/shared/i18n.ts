@@ -48,6 +48,16 @@ const INSTANCES: Record<Lang, I18n> = Object.fromEntries(
 export const i18nFor = (lang: Lang): I18n => INSTANCES[lang];
 
 /**
+ * Re-exported so the other two workspaces never import `@lingui/core` themselves.
+ *
+ * `shared` is the contract both sides implement, and which i18n library is behind it is this
+ * package's business. A backend module typing a parameter as `I18n` would otherwise need Lingui in
+ * its own `package.json` — a second copy of the runtime is a second set of instances, which is the
+ * one thing `i18nFor` exists to prevent.
+ */
+export type { I18n } from "@lingui/core";
+
+/**
  * Every message of one catalog as plain text, keyed by message id.
  *
  * ─────────────────────────────────────────────────────────────────────────────────────────────

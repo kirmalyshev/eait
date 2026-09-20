@@ -34,6 +34,26 @@ msgid "verdict.noun.weight"
 msgstr "Kalorien"
 
 #. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.ask"
+msgstr "Bestätige, dass diese Adresse dir gehört:"
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.subject"
+msgstr "Bestätige deine E-Mail-Adresse für eait"
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.ignore"
+msgstr "Warst du das nicht, ignorier diese Mail. Dann passiert nichts, und die Adresse wird binnen einer Woche gelöscht."
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.promise"
+msgstr "Eine Nachricht, wenn die App da ist, mit einer Abmeldung in einem Klick. Sonst nie etwas."
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Gesättigte Fette"
@@ -42,3 +62,8 @@ msgstr "Gesättigte Fette"
 #: src/shared/verdicts.ts
 msgid "verdict.noun.kidneys"
 msgstr "Natrium"
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.who"
+msgstr "Jemand — vermutlich du — möchte Bescheid bekommen, wenn die eait-App fürs iPhone erscheint."

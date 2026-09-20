@@ -34,6 +34,26 @@ msgid "verdict.noun.weight"
 msgstr "Калории"
 
 #. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.ask"
+msgstr "Подтверди, что этот адрес твой:"
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.subject"
+msgstr "Подтверди свою почту для eait"
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.ignore"
+msgstr "Если это не ты, просто не отвечай. Ничего не произойдёт, а адрес удалится в течение недели."
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.promise"
+msgstr "Одно письмо, когда приложение выйдет, и отписка в один клик внутри. Больше ничего и никогда."
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Насыщенные жиры"
@@ -42,3 +62,8 @@ msgstr "Насыщенные жиры"
 #: src/shared/verdicts.ts
 msgid "verdict.noun.kidneys"
 msgstr "Натрий"
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.who"
+msgstr "Кто-то — скорее всего, ты — просит сообщить, когда выйдет приложение eait для iPhone."

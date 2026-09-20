@@ -15,7 +15,7 @@
 // second thing to keep lawful; it does not arrive by adding a method here.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
-import { t, type Lang, type Localized } from "@eait/shared";
+import { i18nFor, type I18n, type Lang } from "@eait/shared";
 
 export interface Mailer {
   /**
@@ -57,123 +57,48 @@ export interface Mailer {
  * not have is indistinguishable from spam in an inbox, which is the one place this message has to
  * survive.
  * ─────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ * THE FIRST TABLE TO LEAVE `Localized<T>` FOR A CATALOG, and what that changed.
+ *
+ * It was eight copies of a nine-element `lines` array, two elements of which were `""` and one of
+ * which was the literal `"{url}"`. Eight languages × three lines of STRUCTURE is twenty-four
+ * strings a translator could get wrong and no reader would ever see — and one of them, the blank
+ * separator, is a string a PO editor will not even show. The catalog carries the five sentences
+ * and the subject; the blank lines and the link are assembled here, where they are layout rather
+ * than language.
+ *
+ * The link is a VALUE now, not a `.replace("{url}", …)` over the joined text. That replace ran
+ * over every language's prose and would have substituted the first `{url}` it found anywhere,
+ * including one a translator had accidentally left in the wrong sentence.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
-// EXPORTED so `copy.i18n.test.ts` can walk it. A `Localized` table that nothing exports is a
-// table the check cannot see, which is the one way this product's copy can quietly lose a language.
-export const CONFIRMATION: Localized<{ subject: string; lines: string[] }> = {
-  en: {
-    subject: "Confirm your email for eait",
-    lines: [
-      "Somebody — probably you — asked to hear from eait when the iPhone app is out.",
-      "",
-      "Confirm that this address is yours:",
-      "{url}",
-      "",
-      "If it was not you, ignore this. Nothing happens, and the address is deleted within a week.",
-      "",
-      "One message when the app is out, with a one-click unsubscribe in it. Nothing else, ever.",
-    ],
-  },
-  fr: {
-    subject: "Confirme ton adresse e-mail pour eait",
-    lines: [
-      "Quelqu'un — probablement toi — a demandé à recevoir un message quand l'appli iPhone eait sortira.",
-      "",
-      "Confirme que cette adresse est bien la tienne :",
-      "{url}",
-      "",
-      "Si ce n'était pas toi, ignore ce message. Il ne se passe rien, et l'adresse est supprimée sous une semaine.",
-      "",
-      "Un message à la sortie de l'appli, avec un lien de désinscription en un clic. Rien d'autre, jamais.",
-    ],
-  },
-  de: {
-    subject: "Bestätige deine E-Mail-Adresse für eait",
-    lines: [
-      "Jemand — vermutlich du — möchte Bescheid bekommen, wenn die eait-App fürs iPhone erscheint.",
-      "",
-      "Bestätige, dass diese Adresse dir gehört:",
-      "{url}",
-      "",
-      "Warst du das nicht, ignorier diese Mail. Dann passiert nichts, und die Adresse wird binnen einer Woche gelöscht.",
-      "",
-      "Eine Nachricht, wenn die App da ist, mit einer Abmeldung in einem Klick. Sonst nie etwas.",
-    ],
-  },
-  it: {
-    subject: "Conferma la tua email per eait",
-    lines: [
-      "Qualcuno — probabilmente tu — ha chiesto di ricevere un avviso quando esce l'app eait per iPhone.",
-      "",
-      "Conferma che questo indirizzo è tuo:",
-      "{url}",
-      "",
-      "Se non hai fatto tu questa richiesta, ignora questo messaggio. Non succede nulla, e l'indirizzo viene cancellato entro una settimana.",
-      "",
-      "Un messaggio quando l'app esce, con un link per disiscriverti in un clic. Nient'altro, mai.",
-    ],
-  },
-  es: {
-    subject: "Confirma tu correo para eait",
-    lines: [
-      "Alguien — probablemente tú — pidió que le avisemos cuando salga la app de eait para iPhone.",
-      "",
-      "Confirma que esta dirección es tuya:",
-      "{url}",
-      "",
-      "Si no fuiste tú, ignora este mensaje. No pasa nada, y la dirección se borra en menos de una semana.",
-      "",
-      "Un mensaje cuando salga la app, con un enlace de baja en un clic. Nada más, nunca.",
-    ],
-  },
-  vi: {
-    subject: "Xác nhận email của bạn cho eait",
-    lines: [
-      "Ai đó — nhiều khả năng là bạn — đã đăng ký nhận tin khi ứng dụng eait cho iPhone ra mắt.",
-      "",
-      "Hãy xác nhận địa chỉ này là của bạn:",
-      "{url}",
-      "",
-      "Nếu không phải bạn, cứ bỏ qua thư này. Sẽ không có gì xảy ra, và địa chỉ sẽ bị xoá trong vòng một tuần.",
-      "",
-      "Một email khi ứng dụng ra mắt, kèm liên kết huỷ đăng ký chỉ một lần bấm. Ngoài ra không có gì, không bao giờ.",
-    ],
-  },
-  id: {
-    subject: "Konfirmasi emailmu untuk eait",
-    lines: [
-      "Seseorang — kemungkinan besar kamu — minta dikabari saat aplikasi eait untuk iPhone rilis.",
-      "",
-      "Konfirmasi bahwa alamat ini milikmu:",
-      "{url}",
-      "",
-      "Kalau bukan kamu, abaikan saja. Tidak ada yang terjadi, dan alamatnya dihapus dalam waktu seminggu.",
-      "",
-      "Satu pesan saat aplikasinya rilis, dengan tautan berhenti berlangganan sekali klik. Selain itu tidak pernah ada.",
-    ],
-  },
-  ru: {
-    subject: "Подтверди свою почту для eait",
-    lines: [
-      "Кто-то — скорее всего, ты — просит сообщить, когда выйдет приложение eait для iPhone.",
-      "",
-      "Подтверди, что этот адрес твой:",
-      "{url}",
-      "",
-      "Если это не ты, просто не отвечай. Ничего не произойдёт, а адрес удалится в течение недели.",
-      "",
-      "Одно письмо, когда приложение выйдет, и отписка в один клик внутри. Больше ничего и никогда.",
-    ],
-  },
-};
+const CONFIRMATION = (i18n: I18n): { subject: string; lines: string[] } => ({
+  subject: i18n._("mail.confirm.subject", undefined, { message: "Confirm your email for eait" }),
+  lines: [
+    i18n._("mail.confirm.who", undefined, {
+      message: "Somebody — probably you — asked to hear from eait when the iPhone app is out.",
+    }),
+    i18n._("mail.confirm.ask", undefined, { message: "Confirm that this address is yours:" }),
+    // THE LINE THAT MATTERS. Until this link is clicked the address is on no list, and saying so
+    // is what makes ignoring this email a complete answer — and what makes it lawful to send
+    // unasked. Every translation keeps it, and `port.i18n.test.ts` proves it by shape.
+    i18n._("mail.confirm.ignore", undefined, {
+      message: "If it was not you, ignore this. Nothing happens, and the address is deleted within a week.",
+    }),
+    i18n._("mail.confirm.promise", undefined, {
+      message: "One message when the app is out, with a one-click unsubscribe in it. Nothing else, ever.",
+    }),
+  ],
+});
 
 export function confirmationMessage(
   confirmUrl: string,
   lang: Lang,
 ): { subject: string; text: string } {
-  const copy = t(lang)(CONFIRMATION);
-  // The LINE that matters is the fourth from the end: until this link is clicked the address is not
-  // on any list, and saying so is what makes ignoring this email a complete answer. Every
-  // translation keeps it, and `port.i18n.test.ts` counts the lines rather than trusting that.
-  return { subject: copy.subject, text: copy.lines.join("\n").replace("{url}", confirmUrl) };
+  const { subject, lines } = CONFIRMATION(i18nFor(lang));
+  const [who, ask, ignore, promise] = lines as [string, string, string, string];
+  // The blank lines are LAYOUT and are built here rather than carried as catalog entries: a PO
+  // editor does not show an empty message, and a separator is not something to translate.
+  return { subject, text: [who, "", ask, confirmUrl, "", ignore, "", promise].join("\n") };
 }

@@ -1,7 +1,10 @@
 // THE CHECK THAT KEEPS `LANGS_READY` HONEST IN THIS WORKSPACE.
 //
-// The backend has three copy tables of its own — `/start`'s, the Telegram connector's, and the
-// confirmation email's — because each says the same refusal in a form its own surface can use.
+// The backend has two copy tables of its own — `/start`'s and the Telegram connector's — because
+// each says the same refusal in a form its own surface can use. The confirmation email had a
+// third and no longer does: its words are in `src/shared/locales/*/messages.po`, and
+// `shared/copy.i18n.test.ts` sweeps the catalogs with these same two rules. This list shrinks by
+// one every time a table moves.
 // `@eait/shared`'s tables are checked by `src/shared/copy.i18n.test.ts`; these are the ones that
 // live here, and this is the file that fails by NAME when one of them is missing a language.
 //
@@ -13,9 +16,8 @@ import { describe, expect, it } from "bun:test";
 import { LANGS_READY, describeGaps, genderedRussian, localizedGaps } from "@eait/shared";
 import * as page from "./web/copy.ts";
 import * as telegram from "./telegram/copy.ts";
-import * as mail from "./mail/port.ts";
 
-const TABLES = { page, telegram, mail };
+const TABLES = { page, telegram };
 
 describe("every Localized table the backend owns", () => {
   it("speaks every language LANGS_READY claims", () => {
@@ -25,9 +27,9 @@ describe("every Localized table the backend owns", () => {
   it("is actually being walked — the guard against a green on an empty root", () => {
     // `localizedGaps` reports nothing for a root it found no tables in, which is indistinguishable
     // from a clean one. Asking for a language nobody has written proves it found them, and naming
-    // the three proves it found all three rather than one.
+    // them proves it found both rather than one.
     const found = new Set(localizedGaps(TABLES, ["en", "zz" as never]).map((g) => g.table.split(".")[0]));
-    expect([...found].sort()).toEqual(["mail", "page", "telegram"]);
+    expect([...found].sort()).toEqual(["page", "telegram"]);
   });
   it("never tells a Russian reader what gender they are", () => {
     // Russian past tense agrees with the speaker's gender and has no neutral form, so `что ты ел?`

@@ -34,6 +34,26 @@ msgid "verdict.noun.weight"
 msgstr "Calo"
 
 #. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.ask"
+msgstr "Hãy xác nhận địa chỉ này là của bạn:"
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.subject"
+msgstr "Xác nhận email của bạn cho eait"
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.ignore"
+msgstr "Nếu không phải bạn, cứ bỏ qua thư này. Sẽ không có gì xảy ra, và địa chỉ sẽ bị xoá trong vòng một tuần."
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.promise"
+msgstr "Một email khi ứng dụng ra mắt, kèm liên kết huỷ đăng ký chỉ một lần bấm. Ngoài ra không có gì, không bao giờ."
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Chất béo bão hoà"
@@ -42,3 +62,8 @@ msgstr "Chất béo bão hoà"
 #: src/shared/verdicts.ts
 msgid "verdict.noun.kidneys"
 msgstr "Natri"
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.who"
+msgstr "Ai đó — nhiều khả năng là bạn — đã đăng ký nhận tin khi ứng dụng eait cho iPhone ra mắt."
