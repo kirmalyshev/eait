@@ -29,9 +29,19 @@ msgid "verdict.bad"
 msgstr "{noun} — sangat tinggi"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-onboarded"
+msgstr "Jawab dulu pertanyaan rencananya di web."
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.weight"
 msgstr "Kalori"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.carbs"
+msgstr "Karbohidrat"
 
 #. js-lingui-explicit-id
 #: src/backend/mail/port.ts
@@ -44,9 +54,69 @@ msgid "mail.confirm.subject"
 msgstr "Konfirmasi emailmu untuk eait"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedLead"
+msgstr "Terhubung ke akun eait yang masuk lewat"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-global"
+msgstr "Jatah hari ini sudah habis untuk semua orang. Besok angkanya baru lagi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.fat"
+msgstr "Lemak"
+
+#. js-lingui-explicit-id
 #: src/backend/mail/port.ts
 msgid "mail.confirm.ignore"
 msgstr "Kalau bukan kamu, abaikan saja. Tidak ada yang terjadi, dan alamatnya dihapus dalam waktu seminggu."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logIt"
+msgstr "Catat"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logged"
+msgstr "Tercatat."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLead"
+msgstr "Aku catat ini — sudah benar?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLeadDated"
+msgstr "Aku catat ini untuk {date} — sudah benar?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.meal"
+msgstr "Makanan"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.moved"
+msgstr "Dipindahkan."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notThis"
+msgstr "Bukan ini"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notYours"
+msgstr "Bukan akunmu? Masuk ke akunmu sendiri lewat web lalu tekan Hubungkan Telegram di sana — Telegram ini akan pindah ke akun itu."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayEmpty"
+msgstr "Hari ini belum ada yang dicatat."
 
 #. js-lingui-explicit-id
 #: src/backend/mail/port.ts
@@ -54,9 +124,24 @@ msgid "mail.confirm.promise"
 msgstr "Satu pesan saat aplikasinya rilis, dengan tautan berhenti berlangganan sekali klik. Selain itu tidak pernah ada."
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.protein"
+msgstr "Protein"
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Lemak jenuh"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedTail"
+msgstr "Kirim foto makanan, ceritakan apa yang kamu makan, atau tanya sesuatu ke Gabie."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.signIn"
+msgstr "Masuk"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -67,3 +152,108 @@ msgstr "Natrium"
 #: src/backend/mail/port.ts
 msgid "mail.confirm.who"
 msgstr "Seseorang — kemungkinan besar kamu — minta dikabari saat aplikasi eait untuk iPhone rilis."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.failed"
+msgstr "Ada yang gagal, dan mungkin tetap terkirim. Cek /today sebelum mengirim ulang."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.analysis-failed"
+msgstr "Tidak ada jawaban yang kembali. Coba lagi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-food"
+msgstr "Itu tidak kelihatan seperti makanan."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unsupported-image"
+msgstr "Berkas itu bukan foto yang bisa dibaca di sini. JPEG, PNG atau WebP."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.codeInvalid"
+msgstr "Tautan itu sudah kedaluwarsa. Buka halaman rencanamu di web lalu tekan Hubungkan Telegram lagi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLong"
+msgstr "Pesan ini terlalu panjang untuk dikirim."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.expired"
+msgstr "Yang itu sudah kedaluwarsa. Sebutkan sekali lagi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.alreadyLogged"
+msgstr "Yang itu sudah tercatat."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.downloadFailed"
+msgstr "Foto itu tidak sampai dari Telegram. Kirim lagi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.no-photo"
+msgstr "Foto itu tidak sampai. Kirim lagi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLarge"
+msgstr "Foto itu terlalu besar untuk dikirim."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-user"
+msgstr "Itu yang terakhir untuk hari ini — jatah harianmu mulai lagi tengah malam."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-address"
+msgstr "Untuk sekarang itu batasnya. Coba lagi nanti."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Jatah analisis akun ini sudah habis. Berlangganan di web untuk melanjutkan."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.viaApp"
+msgstr "aplikasi"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.targetGone"
+msgstr "Tidak ada makanan yang sedang terbuka di sini untuk diubah. Sebutkan apa yang kamu makan lalu catat lagi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.stranger"
+msgstr "Ini eait yang baru. Makanan dan fotomu disimpan di akun eait-mu: masuk lewat web lalu tekan Hubungkan Telegram di halaman rencanamu."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayHead"
+msgstr "Hari ini: {eaten} dari {plan} kcal, {protein} dari {proteinTarget} g protein"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooManyTries"
+msgstr "Terlalu banyak percobaan dari Telegram ini. Tunggu sebentar, lalu tekan tautannya lagi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.updated"
+msgstr "Diperbarui."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.onTheWeb"
+msgstr "Profil dan pengaturanmu ada di web."

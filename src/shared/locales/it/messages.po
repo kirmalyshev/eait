@@ -29,9 +29,19 @@ msgid "verdict.bad"
 msgstr "{noun} — molto sopra"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-onboarded"
+msgstr "Prima rispondi alle domande del piano sul web."
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.weight"
 msgstr "Calorie"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.carbs"
+msgstr "Carboidrati"
 
 #. js-lingui-explicit-id
 #: src/backend/mail/port.ts
@@ -44,9 +54,69 @@ msgid "mail.confirm.subject"
 msgstr "Conferma la tua email per eait"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedLead"
+msgstr "Questo Telegram è collegato all'account eait con cui hai fatto accesso tramite"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-global"
+msgstr "Il limite di oggi è esaurito per tutti. Domani è un numero nuovo."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.fat"
+msgstr "Grassi"
+
+#. js-lingui-explicit-id
 #: src/backend/mail/port.ts
 msgid "mail.confirm.ignore"
 msgstr "Se non hai fatto tu questa richiesta, ignora questo messaggio. Non succede nulla, e l'indirizzo viene cancellato entro una settimana."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logIt"
+msgstr "Registra"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logged"
+msgstr "Registrato."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLead"
+msgstr "Sto registrando questo — ti torna?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLeadDated"
+msgstr "Sto registrando questo per il {date} — ti torna?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.meal"
+msgstr "Pasto"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.moved"
+msgstr "Spostato."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notThis"
+msgstr "Non questo"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notYours"
+msgstr "Non è il tuo account? Accedi al tuo sul web e premi Collega Telegram lì — questo Telegram passa a quello."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayEmpty"
+msgstr "Oggi non è ancora stato registrato niente."
 
 #. js-lingui-explicit-id
 #: src/backend/mail/port.ts
@@ -54,9 +124,24 @@ msgid "mail.confirm.promise"
 msgstr "Un messaggio quando l'app esce, con un link per disiscriverti in un clic. Nient'altro, mai."
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.protein"
+msgstr "Proteine"
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Grassi saturi"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedTail"
+msgstr "Manda la foto di un pasto, dimmi cosa hai mangiato, o fai una domanda a Gabie."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.signIn"
+msgstr "Accedi"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -67,3 +152,108 @@ msgstr "Sodio"
 #: src/backend/mail/port.ts
 msgid "mail.confirm.who"
 msgstr "Qualcuno — probabilmente tu — ha chiesto di ricevere un avviso quando esce l'app eait per iPhone."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.failed"
+msgstr "Qualcosa è andato storto, e potrebbe comunque essere passato. Controlla /today prima di rimandarlo."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.analysis-failed"
+msgstr "Non è tornato niente. Riprova."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-food"
+msgstr "Non sembrava cibo."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unsupported-image"
+msgstr "Quel file non è una foto leggibile qui. JPEG, PNG o WebP."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.codeInvalid"
+msgstr "Quel link è scaduto. Apri il tuo piano sul web e premi di nuovo Collega Telegram."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLong"
+msgstr "Questo messaggio è troppo lungo da inviare."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.expired"
+msgstr "Quello non è più in attesa. Ridimmelo."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.alreadyLogged"
+msgstr "Quello era già registrato."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.downloadFailed"
+msgstr "Quella foto non è arrivata da Telegram. Rimandala."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.no-photo"
+msgstr "Quella foto non è arrivata. Rimandala."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLarge"
+msgstr "Quella foto è troppo grande da inviare."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-user"
+msgstr "Quella era l'ultima di oggi — il tuo limite giornaliero riparte a mezzanotte."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-address"
+msgstr "Per ora il limite è questo. Riprova più tardi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Le analisi incluse con questo account sono finite. Abbonati sul web per continuare."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.viaApp"
+msgstr "l'app"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.targetGone"
+msgstr "Qui non c'è nessun pasto aperto da cambiare. Dimmi cosa hai mangiato e registralo di nuovo."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.stranger"
+msgstr "Questo è il nuovo eait. I tuoi pasti e le tue foto stanno nel tuo account eait: accedi sul web e premi Collega Telegram dal tuo piano."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayHead"
+msgstr "Oggi: {eaten} di {plan} kcal, {protein} di {proteinTarget} g di proteine"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooManyTries"
+msgstr "Troppi tentativi da questo Telegram. Aspetta un po', poi premi di nuovo il link."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.updated"
+msgstr "Aggiornato."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.onTheWeb"
+msgstr "Il tuo profilo e le impostazioni sono sul web."

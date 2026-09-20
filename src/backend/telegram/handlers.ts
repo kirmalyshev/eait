@@ -46,10 +46,6 @@ export class TelegramFileError extends Error {
   }
 }
 
-/** One `{placeholder}` per key. Nothing here is user text, so an unfilled one is a bug, not a hole. */
-const fill = (template: string, params: Record<string, string>): string =>
-  template.replace(/\{(\w+)\}/g, (whole, key: string) => params[key] ?? whole);
-
 /**
  * An address with its local part masked: `kirill@example.com` → `k***@example.com`.
  *
@@ -189,7 +185,7 @@ export function telegramHandlers(deps: EngineDeps) {
       if (today === null) return chat.send(refusalText(config, { kind: "not-onboarded" }, lang));
       const { totals, targets } = today;
       const n = wholeNumbers(lang);
-      const head = fill(copy.todayHead, {
+      const head = copy.todayHead({
         eaten: n(totals.kcal), plan: n(targets.kcal),
         protein: n(totals.protein_g), proteinTarget: n(targets.protein_g),
       });
@@ -218,7 +214,7 @@ export function telegramHandlers(deps: EngineDeps) {
           // sentence — and there is no dash to find in half of these languages.
           const lead = r.date === localDate(config.timezone)
             ? copy.proposalLead
-            : fill(copy.proposalLeadDated, { date: r.date });
+            : copy.proposalLeadDated({ date: r.date });
           return chat.send(`${lead}\n${card(r.analysis, lang)}`, [
             { text: copy.logIt, data: `ok:${r.pendingId}` },
             { text: copy.notThis, data: `no:${r.pendingId}` },

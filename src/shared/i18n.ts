@@ -86,6 +86,41 @@ export function catalogText(lang: Lang): Record<string, string> {
   return out;
 }
 
+/**
+ * The ICU arguments each message takes, by message id.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ * `lingui compile --strict` DOES NOT CHECK THIS, and that was measured rather than assumed.
+ * Dropping `{plan}` from the German `/today` header compiles clean and ships
+ * "Heute: 1 kcal, 3 von 4 g Eiweiß" — a sentence about a plan with no plan in it. `--strict`
+ * means "every message is translated", not "every translation takes the same arguments".
+ *
+ * A missing argument is the worst kind of translation bug: the sentence still reads, still parses
+ * and still passes a completeness check, and the only thing wrong with it is the number that is
+ * not there. `copy.i18n.test.ts` compares every language's set against the source's and fails
+ * naming the id and the language.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ */
+export function catalogArgs(lang: Lang): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const [id, message] of Object.entries(CATALOGS[lang])) out[id] = [...new Set(args(message))].sort();
+  return out;
+}
+
+const args = (message: unknown): string[] => {
+  if (!Array.isArray(message)) return [];
+  return message.flatMap((token) => {
+    if (!Array.isArray(token) || typeof token[0] !== "string") return [];
+    const format = token[2];
+    return [
+      token[0],
+      ...(format && typeof format === "object"
+        ? Object.values(format as Record<string, unknown>).flatMap(args)
+        : []),
+    ];
+  });
+};
+
 const literals = (message: unknown): string[] => {
   if (typeof message === "string") return [message];
   if (!Array.isArray(message)) return [];

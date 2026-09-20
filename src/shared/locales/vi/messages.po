@@ -29,9 +29,19 @@ msgid "verdict.bad"
 msgstr "{noun} — rất cao"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-onboarded"
+msgstr "Hãy trả lời các câu hỏi lập kế hoạch trên web trước."
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.weight"
 msgstr "Calo"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.carbs"
+msgstr "Bột đường"
 
 #. js-lingui-explicit-id
 #: src/backend/mail/port.ts
@@ -44,9 +54,69 @@ msgid "mail.confirm.subject"
 msgstr "Xác nhận email của bạn cho eait"
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedLead"
+msgstr "Đã kết nối với tài khoản eait đăng nhập bằng"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-global"
+msgstr "Hạn mức hôm nay đã hết cho tất cả mọi người. Mai lại là một con số mới."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.fat"
+msgstr "Chất béo"
+
+#. js-lingui-explicit-id
 #: src/backend/mail/port.ts
 msgid "mail.confirm.ignore"
 msgstr "Nếu không phải bạn, cứ bỏ qua thư này. Sẽ không có gì xảy ra, và địa chỉ sẽ bị xoá trong vòng một tuần."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logIt"
+msgstr "Ghi lại"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logged"
+msgstr "Đã ghi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLead"
+msgstr "Mình ghi cái này nhé — có đúng không?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLeadDated"
+msgstr "Mình ghi cái này cho ngày {date} nhé — có đúng không?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.meal"
+msgstr "Bữa ăn"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.moved"
+msgstr "Đã chuyển."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notThis"
+msgstr "Không phải"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notYours"
+msgstr "Không phải tài khoản của bạn? Đăng nhập vào tài khoản của chính bạn trên web rồi bấm Kết nối Telegram ở đó — Telegram này sẽ chuyển sang đó."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayEmpty"
+msgstr "Hôm nay chưa ghi gì cả."
 
 #. js-lingui-explicit-id
 #: src/backend/mail/port.ts
@@ -54,9 +124,24 @@ msgid "mail.confirm.promise"
 msgstr "Một email khi ứng dụng ra mắt, kèm liên kết huỷ đăng ký chỉ một lần bấm. Ngoài ra không có gì, không bao giờ."
 
 #. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.protein"
+msgstr "Đạm"
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Chất béo bão hoà"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedTail"
+msgstr "Gửi ảnh một bữa ăn, kể mình nghe bạn đã ăn gì, hoặc hỏi Gabie một câu."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.signIn"
+msgstr "Đăng nhập"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -67,3 +152,108 @@ msgstr "Natri"
 #: src/backend/mail/port.ts
 msgid "mail.confirm.who"
 msgstr "Ai đó — nhiều khả năng là bạn — đã đăng ký nhận tin khi ứng dụng eait cho iPhone ra mắt."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.failed"
+msgstr "Có gì đó trục trặc, và cũng có thể nó vẫn đi qua. Kiểm tra /today trước khi gửi lại."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.analysis-failed"
+msgstr "Không có gì trả về. Thử lại nhé."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-food"
+msgstr "Cái đó trông không giống đồ ăn."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unsupported-image"
+msgstr "Tệp đó không phải ảnh đọc được ở đây. JPEG, PNG hoặc WebP."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.codeInvalid"
+msgstr "Liên kết đó đã hết hạn. Mở trang kế hoạch trên web rồi bấm Kết nối Telegram lần nữa."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLong"
+msgstr "Tin nhắn này dài quá, không gửi được."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.expired"
+msgstr "Cái đó không còn được giữ nữa. Nói lại giúp mình."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.alreadyLogged"
+msgstr "Cái đó đã được ghi rồi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.downloadFailed"
+msgstr "Ảnh đó không tới được từ Telegram. Gửi lại nhé."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.no-photo"
+msgstr "Ảnh đó không tới. Gửi lại nhé."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLarge"
+msgstr "Ảnh đó lớn quá, không gửi được."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-user"
+msgstr "Đó là lần cuối trong hôm nay — hạn mức mỗi ngày của bạn đặt lại lúc nửa đêm."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-address"
+msgstr "Tạm thời đó là giới hạn. Thử lại sau nhé."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Số lượt phân tích đi kèm tài khoản này đã dùng hết. Đăng ký trên web để tiếp tục."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.viaApp"
+msgstr "ứng dụng"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.targetGone"
+msgstr "Ở đây không có bữa nào đang mở để sửa. Kể mình nghe bạn ăn gì rồi ghi lại."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.stranger"
+msgstr "Đây là eait mới. Bữa ăn và ảnh của bạn được lưu trong tài khoản eait: đăng nhập trên web rồi bấm Kết nối Telegram ở trang kế hoạch."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayHead"
+msgstr "Hôm nay: {eaten} trên {plan} kcal, {protein} trên {proteinTarget} g đạm"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooManyTries"
+msgstr "Thử quá nhiều lần từ Telegram này. Chờ một lát rồi bấm lại liên kết."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.updated"
+msgstr "Đã cập nhật."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.onTheWeb"
+msgstr "Hồ sơ và cài đặt của bạn nằm trên web."

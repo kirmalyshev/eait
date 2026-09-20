@@ -12,7 +12,7 @@ import { describe, expect, it } from "bun:test";
 import * as shared from "./index.ts";
 import { LANGS_READY, describeGaps, genderedRussian, localizedGaps } from "./lang.ts";
 import { LANGS } from "./types.ts";
-import { catalogText } from "./i18n.ts";
+import { catalogArgs, catalogText } from "./i18n.ts";
 import { lintCopy } from "./claims.ts";
 
 describe("every Localized table in @eait/shared", () => {
@@ -75,6 +75,23 @@ describe("the compiled catalogs, held to the rules the tables are held to", () =
 
   it("never tells a Russian reader what gender they are", () => {
     expect(genderedRussian(catalogText("ru"))).toEqual([]);
+  });
+
+  it("takes the same arguments in every language — `--strict` does not check this", () => {
+    // MEASURED, NOT ASSUMED. Dropping `{plan}` from the German `/today` header compiles clean
+    // under `lingui compile --strict` and renders "Heute: 1 kcal, 3 von 4 g Eiweiß" — a sentence
+    // about a plan with no plan in it. `--strict` means every message is TRANSLATED, not that
+    // every translation takes the same arguments.
+    //
+    // This is the worst shape a translation bug has: the sentence reads, parses, passes the
+    // completeness check, and the only thing wrong is the number that is not there.
+    const source = catalogArgs("en");
+    for (const lang of LANGS) {
+      if (lang === "en") continue;
+      for (const [id, expected] of Object.entries(source)) {
+        expect(catalogArgs(lang)[id] ?? [], `${lang}/${id}`).toEqual(expected);
+      }
+    }
   });
 
   it("carries no health claim, in any of the eight", () => {
