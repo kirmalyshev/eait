@@ -60,7 +60,12 @@ route. A route that computes is a rule the tests cannot reach.
   to a plain `eait_app` role rather than the image's `eait`. The deployed role is configured outside
   this repository, so `postgresStore` asks Postgres at boot and logs `row-level security is INERT`
   when the connection bypasses — said rather than refused, because an inert lock is no reason to
-  take the product down on a deploy.
+  take the product down on a deploy. `src/iac/db-init.sh` is what makes a DEPLOYED database
+  that role's, and `db-init.contract.test.ts` is what keeps the two in step: it builds a database
+  the superuser created, runs that script over it, and fails if anything in `public` is still
+  somebody else's. Add an object class to `SCHEMA` and hand it over there in the same commit — the
+  migration alters all of it on every boot, so what is not handed over is a host that stops booting
+  at its next restart rather than a tidiness problem.
 - **Migrations run unscoped, on a connection that is then closed.** The DDL does not care, but the
   BACKFILLS do: an `update` that repairs old rows would, on every database from its second boot
   onwards, match nothing and report success. Its own connection, ended in a `finally`, so the escape

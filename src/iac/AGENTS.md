@@ -53,6 +53,30 @@ does not need open.
 - **The app never creates the database.** The Postgres image's initdb does, from `POSTGRES_DB`;
   `migrate()` creates tables inside a database that must already exist. Auto-create shipped once and
   it was silent data loss.
+- **`db-init.sh` OWES the migration every object class it creates, and that is now a test rather
+  than a habit.** `store.pg.ts` forces a deny-by-default policy on every user-scoped table, which
+  binds an owner but never a SUPERUSER — so the backend connects as `eait_app`, and `eait_app` has
+  to own everything the migration touches. Not for tidiness: the schema runs on every boot and
+  `create or replace function app_user_id()` requires owning that function, so a database whose
+  functions belong to somebody else answers `must be owner of function app_user_id` and the
+  container dies before the server listens. Add a table, a sequence, a view or a function to
+  `SCHEMA` without handing it over here and that is what a deployed host does at its next restart.
+  `src/backend/db-init.contract.test.ts` builds the production shape — a database whose whole schema
+  the superuser created — runs this script over it and asks whether ANYTHING in `public` is still
+  somebody else's. It asks the catalog rather than this file's text, so a class nobody has thought
+  of yet is covered by it too.
+- **A consumer may mount this script instead of copying it, and two of them do.** It is the half of
+  row-level security that lives outside `store.pg.ts`, so a copy is a restatement of this schema's
+  ownership rules that goes stale silently — as a backend that will not boot, on somebody else's
+  host. What such a consumer may rely on: the path, the role name `eait_app`, and the four variables
+  it requires (`PGPASSWORD`, `EAIT__DEPLOY__APP_DB_PASSWORD`, and `POSTGRES_USER`/`POSTGRES_DB` for
+  which database and superuser), plus `PGHOST`/`PGPORT` defaulting to compose's `db:5432`. Moving or
+  renaming any of those is a breaking change for them, and this list is what says so.
+- **POSIX `sh`, and `sh` is bash on macOS.** The word in `${VAR:?word}` is quote-parsed even inside
+  double quotes, so an apostrophe in one of those messages opens a quote that never closes. ash and
+  dash tolerate it — which is why the container and CI were fine and nothing ever said so — and bash
+  does not: the assignments after it land inside the word and the script dies further down on
+  `APP: unbound variable`, naming a line that is not the problem.
 - **Every variable in `.env.prod` must be named in `docker-compose.prod.yml` or the Caddyfile.**
   `--env-file` feeds compose's INTERPOLATION, never a container's environment. A name nobody spells
   is deployed, correct and read by nobody, with no error and no log line.
