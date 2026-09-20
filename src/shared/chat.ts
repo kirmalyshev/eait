@@ -6,7 +6,7 @@
 // in the product, so change the design first.
 
 import { wholeNumbers } from "./lang.ts";
-import { fillCopy as fill, threadCopyFor } from "./chat-copy.ts";
+import { threadCopyFor, type Figures } from "./chat-copy.ts";
 import type { FoodTargets, Goal, Lang, MealVerdicts } from "./types.ts";
 
 /**
@@ -15,8 +15,8 @@ import type { FoodTargets, Goal, Lang, MealVerdicts } from "./types.ts";
  *
  * THE KEYS ARE THE CONTRACT AND THE WORDS ARE NOT. This is the id set two binaries agree on, so it
  * is the same in all eight languages and is deliberately NOT `Localized`; what each id SAYS lives
- * in `THREAD_COPY` (`chat-copy.ts`), keyed by language. The values here are `null` because the type
- * is doing the only job left: naming what exists.
+ * in the catalogs, under `thread.scripted.<id>` (`chat-copy.ts` names them). The values here are
+ * `null` because the type is doing the only job left: naming what exists.
  *
  * READING A VALUE OFF THIS IS THE ONE MIGRATION THE COMPILER CANNOT REFUSE, so it is marked. Every
  * other table in this change became a function of the language, which makes an un-migrated call
@@ -109,8 +109,10 @@ export function scriptedLine(
   // A declared parameter with nothing behind it renders as NOTHING, not as a brace — the rule this
   // function has always had, and the one place in the codebase where an unfilled placeholder is
   // erased rather than left alone. `scriptedParams` has already refused anything but the declared
-  // set, so the only way to get here short is a client that sent none.
-  return threadCopyFor(lang).scripted[id]!.replace(/\{(\w+)\}/g, (_, k: string) => params[k] ?? "");
+  // set, so the only way to get here short is a client that sent none. ICU does the same thing
+  // with an argument it was given no value for, which is why the move to a catalog changed the
+  // engine under this line and not what it answers.
+  return threadCopyFor(lang).scripted[id](params);
 }
 
 // ── The coach ────────────────────────────────────────────────────────────────────────────────
@@ -211,14 +213,20 @@ export function runningLine(
 ): string {
   const copy = threadCopyFor(lang).running;
   const left = i.targets.kcal - i.eatenToday.kcal;
-  return fill(left >= 0 ? copy.left : copy.over, figures(i, lang));
+  return (left >= 0 ? copy.left : copy.over)(figures(i, lang));
 }
 
-/** The bare numbers every sentence in this file interpolates, grouped the reader's way. */
+/**
+ * The bare numbers every sentence in this file interpolates, grouped the reader's way.
+ *
+ * Typed `Figures` rather than `Record<string, string>` since the copy became ICU templates: the
+ * four arithmetic branches are chosen at runtime and all five keys must be present whichever one
+ * wins, so the compiler is the right place to say so.
+ */
 function figures(
   i: { targets: FoodTargets; eatenToday: { kcal: number; protein_g: number } },
   lang: Lang,
-): Record<string, string> {
+): Figures {
   const n = wholeNumbers(lang);
   const left = i.targets.kcal - i.eatenToday.kcal;
   return {
@@ -241,7 +249,7 @@ export function correctionLine(
   i: { targets: FoodTargets; meal: { kcal: number }; eatenToday: { kcal: number; protein_g: number } },
   lang: Lang,
 ): string {
-  return fill(threadCopyFor(lang).correction, {
+  return threadCopyFor(lang).correction({
     kcal: wholeNumbers(lang)(i.meal.kcal),
     day: runningLine(i, lang),
   });
@@ -278,11 +286,12 @@ export interface FirstVerdictInput {
  * meal; later meals get the card and, in time, the 20:30 line. Deterministic on purpose: the model
  * is never asked for a verdict, and neither is it asked for these sentences.
  *
- * THE BRANCHES ARE HERE AND THE SENTENCES ARE IN `THREAD_COPY`. Which of them a meal takes is a
- * claim about that meal's arithmetic; the wording is not, and a translator moving a branch would be
- * moving a rule. The old code produced the sentence-initial form of the arithmetic by running
- * `.replace(/^that/, "That")` over it — an English capitalisation rule living inside a string
- * operation, correct in exactly one language. `arithmeticAlone` is that same pair, said out loud.
+ * THE BRANCHES ARE HERE AND THE SENTENCES ARE IN THE CATALOGS (`chat-copy.ts` names the ids).
+ * Which of them a meal takes is a claim about that meal's arithmetic; the wording is not, and a
+ * translator moving a branch would be moving a rule. The old code produced the sentence-initial
+ * form of the arithmetic by running `.replace(/^that/, "That")` over it — an English
+ * capitalisation rule living inside a string operation, correct in exactly one language.
+ * `arithmeticAlone` is that same pair, said out loud.
  */
 export function firstVerdictLines(i: FirstVerdictInput, lang: Lang): string[] {
   const copy = threadCopyFor(lang).firstVerdict;
@@ -297,19 +306,18 @@ export function firstVerdictLines(i: FirstVerdictInput, lang: Lang): string[] {
     : (left >= 0 ? "otherLeft" : "otherOver");
 
   if (i.via === "text") {
-    lines.push(fill(copy.typed, { kcal }));
-    lines.push(fill(copy.arithmeticAlone[branch], f));
+    lines.push(copy.typed({ kcal }));
+    lines.push(copy.arithmeticAlone[branch](f));
   } else if (i.meal.confidence === "low") {
     // The design's "— sauce over everything" is an example reason; nothing here can name one.
-    lines.push(fill(copy.lowConfidence, { kcal }));
-    lines.push(fill(
+    lines.push(copy.lowConfidence({ kcal }));
+    lines.push((
       left < 0
         ? (i.goal === "gain" ? copy.lowOverGain : copy.lowOverOther)
-        : (i.goal === "gain" ? copy.lowLeftGain : copy.lowLeftOther),
-      f,
-    ));
+        : (i.goal === "gain" ? copy.lowLeftGain : copy.lowLeftOther)
+    )(f));
   } else {
-    lines.push(fill(copy.firstIn, { kcal, arithmetic: fill(copy.arithmetic[branch], f) }));
+    lines.push(copy.firstIn({ kcal, arithmetic: copy.arithmetic[branch](f) }));
     lines.push(copy.fixHint);
   }
 
@@ -321,7 +329,7 @@ export function firstVerdictLines(i: FirstVerdictInput, lang: Lang): string[] {
   // Client text in Spud's bubble: flattened and as short as a scripted parameter, so a caption
   // cannot draw a second line inside the bubble or impersonate the sentence that follows.
   const note = quotable(i.caption);
-  if (note) lines.unshift(fill(copy.noted, { note }));
+  if (note) lines.unshift(copy.noted({ note }));
   lines.push(MEET_GABIE(lang));
   return lines;
 }

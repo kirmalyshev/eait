@@ -22,7 +22,7 @@
     "openapi": "bun run src/scripts/openapi.ts",
     "i18n:extract": "lingui extract",
     "i18n:compile": "lingui compile --strict",
-    "i18n:check": "lingui compile --strict && git diff --exit-code -- src/shared/locales"
+    "i18n:check": "lingui extract && lingui compile --strict && git diff --exit-code -- src/shared/locales"
   },
   "devDependencies": {
     "@lingui/cli": "^6.7.0",

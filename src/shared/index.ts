@@ -20,6 +20,10 @@ export * from "./entitlement.ts";
 export * from "./chat.ts";
 export * from "./chat-copy.ts";
 export * from "./lang.ts";
+// The Lingui runtime. Exported because copy is migrating OUT of the `Localized<T>` tables and into
+// the catalogs: a module that renders a migrated string needs `i18nFor`, and it may not reach past
+// this barrel to get it.
+export * from "./i18n.ts";
 export * from "./verdicts.ts";
 export * from "./thread.ts";
 export * from "./chat-core.ts";

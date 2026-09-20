@@ -11,6 +11,9 @@
 import { describe, expect, it } from "bun:test";
 import * as shared from "./index.ts";
 import { LANGS_READY, describeGaps, genderedRussian, localizedGaps } from "./lang.ts";
+import { LANGS } from "./types.ts";
+import { catalogArgs, catalogText } from "./i18n.ts";
+import { lintCopy } from "./claims.ts";
 
 describe("every Localized table in @eait/shared", () => {
   it("speaks every language LANGS_READY claims", () => {
@@ -31,7 +34,9 @@ describe("every Localized table in @eait/shared", () => {
       // those words live in `locales/*/messages.po` now and their completeness is `lingui compile
       // --strict`'s job. This list shrinks by one every time a table moves; when it is empty, this
       // test and `localizedGaps` go with it.
-      "CHAT_COPY", "THREAD_COPY", "HEALTH_COPY",
+      // `THREAD_COPY` and `STREAM_COPY` are NOT here any more — `chat-copy.ts`'s words are in
+      // the catalogs, swept by the block at the bottom of this file.
+      "CHAT_COPY", "HEALTH_COPY",
       "NOTIFICATION_COPY", "EVENING_PRESCRIPTIONS", "ONBOARDING_CONTENT",
     ]) {
       expect(found.has(table), `${table} is not being walked — is it exported?`).toBe(true);
@@ -44,4 +49,60 @@ describe("every Localized table in @eait/shared", () => {
     expect(genderedRussian(shared)).toEqual([]);
   });
 
+});
+
+// ── The same two guards, on the copy that has left the tables ────────────────────────────────
+//
+// `localizedGaps` and `genderedRussian` walk `Localized<T>` tables. A table that migrates to a
+// `.po` walks out of both of them, and NOTHING FAILS — the suite stays green while the guard
+// stops guarding, which is the failure mode this repo keeps finding (`VERDICT_COPY` was not
+// exported, so the check never saw the words on every meal card).
+//
+// So the catalogs are swept here by the same rules, and this file is what makes migrating a table
+// safe rather than a quiet loss of coverage.
+
+describe("the compiled catalogs, held to the rules the tables are held to", () => {
+  it("is actually reading them — the guard against a sweep over nothing", () => {
+    // Same argument as the walk above: an empty catalog and a clean one are indistinguishable to
+    // an assertion that only says "no violations". So: the Russian catalog must have Russian in it.
+    const ru = catalogText("ru");
+    expect(Object.keys(ru).length, "the ru catalog is empty").toBeGreaterThan(0);
+    expect(Object.values(ru).some((v) => /[а-яё]/i.test(v)), "no Cyrillic in the ru catalog")
+      .toBe(true);
+    // And every language has the same ids, which is `lingui compile --strict`'s job — asserted
+    // here too because a catalog that silently lost a message is a screen that renders English.
+    const ids = Object.keys(catalogText("en")).sort();
+    for (const lang of LANGS) expect(Object.keys(catalogText(lang)).sort(), lang).toEqual(ids);
+  });
+
+  it("never tells a Russian reader what gender they are", () => {
+    expect(genderedRussian(catalogText("ru"))).toEqual([]);
+  });
+
+  it("takes the same arguments in every language — `--strict` does not check this", () => {
+    // MEASURED, NOT ASSUMED. Dropping `{plan}` from the German `/today` header compiles clean
+    // under `lingui compile --strict` and renders "Heute: 1 kcal, 3 von 4 g Eiweiß" — a sentence
+    // about a plan with no plan in it. `--strict` means every message is TRANSLATED, not that
+    // every translation takes the same arguments.
+    //
+    // This is the worst shape a translation bug has: the sentence reads, parses, passes the
+    // completeness check, and the only thing wrong is the number that is not there.
+    const source = catalogArgs("en");
+    for (const lang of LANGS) {
+      if (lang === "en") continue;
+      for (const [id, expected] of Object.entries(source)) {
+        expect(catalogArgs(lang)[id] ?? [], `${lang}/${id}`).toEqual(expected);
+      }
+    }
+  });
+
+  it("carries no health claim, in any of the eight", () => {
+    // The gate reads four families in all eight and the rest in English only — `claims.ts` says
+    // which. Run over every language for the same reason `NOTIFICATION_COPY` is: these words are
+    // public copy, and a translator working in a PO editor is further from review than an admin.
+    for (const lang of LANGS) {
+      expect(lintCopy(catalogText(lang)).map((v) => `${v.field}: ${v.pattern} "${v.span}"`), lang)
+        .toEqual([]);
+    }
+  });
 });

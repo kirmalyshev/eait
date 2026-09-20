@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { catalogArgs } from "./i18n.ts";
 import { LANGS } from "./types.ts";
 import { threadCopyFor } from "./chat-copy.ts";
 import { COACH_STARTERS, MAX_SUGGESTION, MEET_GABIE, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, cleanSuggestions, correctionLine, firstVerdictLines, isScriptedLineId, runningLine, scriptedLine, scriptedParams } from "./chat.ts";
@@ -25,12 +26,17 @@ describe("scripted lines", () => {
   it("declares exactly the placeholders each line carries, so a renamed one cannot leave a hole", () => {
     // In EVERY language: a translation that dropped `{price}` would render "Trial's on. Seven
     // days, then  unless you stop it", and the only sign of it is a sentence with a gap.
+    //
+    // READ FROM THE COMPILED CATALOG rather than by running a regex over the rendered sentence.
+    // The words are in `.po` files now, so the braces are ICU arguments and the compiled message
+    // names them outright — and a regex over the OUTPUT could not see them at all, because ICU
+    // has already substituted or erased them by then.
     for (const lang of LANGS) {
+      const args = catalogArgs(lang);
       for (const id of Object.keys(SCRIPTED_LINES) as ScriptedLineId[]) {
-        const line = threadCopyFor(lang).scripted[id];
-        const holes = [...line.matchAll(/\{(\w+)\}/g)].map((m) => m[1] ?? "").sort();
         expect(isScriptedLineId(id)).toBe(true);
-        expect([...SCRIPTED_PARAMS[id]].sort(), `${lang}.${id}`).toEqual(holes);
+        expect(args[`thread.scripted.${id}`] ?? [], `${lang}.${id}`)
+          .toEqual([...SCRIPTED_PARAMS[id]].sort());
       }
     }
   });

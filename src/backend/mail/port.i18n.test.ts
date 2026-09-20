@@ -26,6 +26,10 @@ describe("the confirmation email in eight languages", () => {
     // address is on no list, and that promise is what makes this email lawful to send unasked.
     // Counted by SHAPE — eight lines, two of them blank separators — rather than by matching prose
     // no English regex can check in Vietnamese.
+    //
+    // THE SHAPE IS NOW BUILT IN CODE, not carried in the catalog, and this test is why that is
+    // safe rather than merely tidier: the blank lines and the link were eight×three strings a
+    // translator could silently drop, and a PO editor does not even display an empty message.
     for (const lang of LANGS) {
       const lines = confirmationMessage(URL_IN, lang).text.split("\n");
       expect(lines.length, lang).toBe(8);
@@ -34,6 +38,17 @@ describe("the confirmation email in eight languages", () => {
       expect(lines[5]!.length, lang).toBeGreaterThan(40);
       expect(lines[7]!.length, lang).toBeGreaterThan(40);
     }
+  });
+
+  it("says something different in each of the eight, rather than eight copies of a fallback", () => {
+    // WHAT THIS CATCHES, now that `i18n:check` runs `extract` and `compile --strict`. An id
+    // missing from a catalog is caught by `--strict`, and an id missing from every catalog is
+    // caught by the extract in front of it. What neither can see is a TRANSLATION THAT IS THE
+    // ENGLISH — a translator pasting the source string, or a `msgstr` filled from the `msgid` by
+    // a tool. That renders a complete, correct English sentence and passes every gate and every
+    // other assertion in this file. This is the one that would fail.
+    const bodies = LANGS.map((l) => confirmationMessage(URL_IN, l).text);
+    expect(new Set(bodies).size, "two languages send the same words").toBe(LANGS.length);
   });
 
   it("passes the claims gate in English, which is the language the gate can read", () => {

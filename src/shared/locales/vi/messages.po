@@ -14,6 +14,26 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.noted"
+msgstr "“{note}” — đã ghi nhận, nó nằm trong các con số rồi."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.running.left"
+msgstr "Hôm nay bạn còn {left} trên {plan}, {protein} trên {proteinTarget} g đạm."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmetic.gainLeft"
+msgstr "hôm nay còn {left} trên {plan} cần nạp thêm, và {protein} trên {proteinTarget} g đạm. Cứ tiếp tục nhé."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
+msgstr "Hôm nay còn {left} trên {plan} cần nạp thêm, và {protein} trên {proteinTarget} g đạm. Cứ tiếp tục nhé."
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.warn"
 msgstr "{noun} — cao"
@@ -29,9 +49,229 @@ msgid "verdict.bad"
 msgstr "{noun} — rất cao"
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.running.over"
+msgstr "Hôm nay vượt {over} so với {plan}, {protein} trên {proteinTarget} g đạm."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmetic.gainOver"
+msgstr "hôm nay vượt {over} so với {plan}, và {protein} trên {proteinTarget} g đạm. Với kế hoạch tăng cân thì vượt là đúng ý; mai lại là một con số mới."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmeticAlone.gainOver"
+msgstr "Hôm nay vượt {over} so với {plan}, và {protein} trên {proteinTarget} g đạm. Với kế hoạch tăng cân thì vượt là đúng ý; mai lại là một con số mới."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.2"
+msgstr "Đã đủ đạm chưa?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-onboarded"
+msgstr "Hãy trả lời các câu hỏi lập kế hoạch trên web trước."
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.weight"
 msgstr "Calo"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.carbs"
+msgstr "Bột đường"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.3"
+msgstr "Đối chiếu với kế hoạch của bạn"
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.ask"
+msgstr "Hãy xác nhận địa chỉ này là của bạn:"
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.subject"
+msgstr "Xác nhận email của bạn cho eait"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedLead"
+msgstr "Đã kết nối với tài khoản eait đăng nhập bằng"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.dropped"
+msgstr "Bỏ qua rồi."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowLeftOther"
+msgstr "Dù thô thì vẫn tính: hôm nay bạn còn khoảng {left} trên {plan}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowLeftGain"
+msgstr "Dù thô thì vẫn tính: hôm nay còn khoảng {left} trên {plan} cần nạp thêm."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowOverGain"
+msgstr "Dù thô thì vẫn tính: hôm nay vượt khoảng {over} so với {plan}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowOverOther"
+msgstr "Dù thô thì vẫn tính: hôm nay vượt khoảng {over} so với {plan}. Mai lại là một con số mới."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-global"
+msgstr "Hạn mức hôm nay đã hết cho tất cả mọi người. Mai lại là một con số mới."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.fat"
+msgstr "Chất béo"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.firstIn"
+msgstr "Bữa đầu tiên đã vào. {kcal} kcal — {arithmetic}"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.onboarding-done"
+msgstr "Tốt — phần thiết lập xong rồi, và ngày đầu tiên đã bắt đầu. Còn một chuyện trước khi bạn đi, và đây là lần duy nhất mình hỏi."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.already-in"
+msgstr "Tốt. Mình ở trong Chat bất cứ lúc nào — một tấm ảnh hay một câu, cả hai đều ghi được một bữa."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowConfidence"
+msgstr "Nói thật: đĩa đó mình đọc không rõ. Cứ xem {kcal} là ước lượng thô và kiểm lại số gam trước khi tin vào tổng. Lần sau chụp thêm một góc nữa sẽ dễ hơn."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.0"
+msgstr "Tuần này thế nào?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.fixHint"
+msgstr "Có gì sai thì cứ nói — \"một nửa cơm thôi\", \"không có bơ\" — hoặc chạm vào thẻ và đổi số gam."
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.ignore"
+msgstr "Nếu không phải bạn, cứ bỏ qua thư này. Sẽ không có gì xảy ra, và địa chỉ sẽ bị xoá trong vòng một tuần."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logIt"
+msgstr "Ghi lại"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.logged"
+msgstr "Đã ghi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLead"
+msgstr "Mình ghi cái này nhé — có đúng không?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.proposalLeadDated"
+msgstr "Mình ghi cái này cho ngày {date} nhé — có đúng không?"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.meal"
+msgstr "Bữa ăn"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.moved"
+msgstr "Đã chuyển."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.1"
+msgstr "Gọi tên món trong đĩa"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-denied"
+msgstr "Không có camera cũng không sao. Chọn ảnh từ thư viện, hoặc cứ kể mình nghe bạn đã ăn gì — cả hai đều có nhận xét."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-closed"
+msgstr "Không vội. Kế hoạch đã nằm trong nhật ký của bạn — bữa sau tới thì chụp. Thói quen chỉ có vậy, và nếu chưa có gì thì mai mình nhắc đúng một lần."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notThis"
+msgstr "Không phải"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.notYours"
+msgstr "Không phải tài khoản của bạn? Đăng nhập vào tài khoản của chính bạn trên web rồi bấm Kết nối Telegram ở đó — Telegram này sẽ chuyển sang đó."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayEmpty"
+msgstr "Hôm nay chưa ghi gì cả."
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.promise"
+msgstr "Một email khi ứng dụng ra mắt, kèm liên kết huỷ đăng ký chỉ một lần bấm. Ngoài ra không có gì, không bao giờ."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.notify-primer"
+msgstr "Còn một thứ iOS sắp hỏi: thông báo. Mỗi ngày một cái và không bao giờ nhiều hơn — dòng 20:30, cộng hai lời nhắc trước khi tuần miễn phí kết thúc nếu bạn đang trong tuần đó. Ngoài ra không có gì, không bao giờ."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-primer"
+msgstr "Một điều trước đã: iOS sẽ hỏi quyền camera. Mình dùng nó cho cái đĩa và không cho gì khác — ảnh được giữ cùng bữa ăn để bạn xem lại trong nhật ký, và xoá cùng tài khoản của bạn."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.macro.protein"
+msgstr "Đạm"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.meetGabie"
+msgstr "Câu hỏi thì gửi cho Gabie, chuyên gia dinh dưỡng ở đây — tối nay ăn gì, tuần này ra sao. Vẫn chat này; cô ấy đọc nhật ký của bạn trước khi trả lời. Mình ghi chép, cô ấy tư vấn."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.0"
+msgstr "Đọc đĩa ăn"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.reading"
+msgstr "Đang đọc đĩa ăn…"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.restored"
+msgstr "Đã khôi phục — bạn vào rồi. Một tấm ảnh hay một câu, cả hai đều ghi được một bữa."
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -39,6 +279,196 @@ msgid "verdict.noun.ldl"
 msgstr "Chất béo bão hoà"
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.satfat"
+msgstr "Bữa này chất béo bão hoà cao. Được chấm chỉ vì bạn yêu cầu."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.connectedTail"
+msgstr "Gửi ảnh một bữa ăn, kể mình nghe bạn đã ăn gì, hoặc hỏi Gabie một câu."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.signIn"
+msgstr "Đăng nhập"
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.kidneys"
 msgstr "Natri"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.sodium"
+msgstr "Bữa này natri cao. Được chấm chỉ vì bạn yêu cầu."
+
+#. js-lingui-explicit-id
+#: src/backend/mail/port.ts
+msgid "mail.confirm.who"
+msgstr "Ai đó — nhiều khả năng là bạn — đã đăng ký nhận tin khi ứng dụng eait cho iPhone ra mắt."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.failed"
+msgstr "Có gì đó trục trặc, và cũng có thể nó vẫn đi qua. Kiểm tra /today trước khi gửi lại."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.fix-prompt"
+msgstr "Nói mình biết chỗ nào sai — \"một nửa cơm thôi\", \"không có bơ\", \"hồi nãy là 500\" đều được. Hoặc mở thẻ ra và tự sửa số gam."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.analysis-failed"
+msgstr "Không có gì trả về. Thử lại nhé."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.not-food"
+msgstr "Cái đó trông không giống đồ ăn."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.unsupported-image"
+msgstr "Tệp đó không phải ảnh đọc được ở đây. JPEG, PNG hoặc WebP."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmetic.otherLeft"
+msgstr "vậy là còn {left} trên {plan} cho phần còn lại của hôm nay, và {protein} trên {proteinTarget} g đạm. Đúng kế hoạch."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
+msgstr "Vậy là còn {left} trên {plan} cho phần còn lại của hôm nay, và {protein} trên {proteinTarget} g đạm. Đúng kế hoạch."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.codeInvalid"
+msgstr "Liên kết đó đã hết hạn. Mở trang kế hoạch trên web rồi bấm Kết nối Telegram lần nữa."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLong"
+msgstr "Tin nhắn này dài quá, không gửi được."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.expired"
+msgstr "Cái đó không còn được giữ nữa. Nói lại giúp mình."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.alreadyLogged"
+msgstr "Cái đó đã được ghi rồi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.downloadFailed"
+msgstr "Ảnh đó không tới được từ Telegram. Gửi lại nhé."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.no-photo"
+msgstr "Ảnh đó không tới. Gửi lại nhé."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooLarge"
+msgstr "Ảnh đó lớn quá, không gửi được."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmetic.otherOver"
+msgstr "vậy là hôm nay bạn vượt {over} so với {plan}, và {protein} trên {proteinTarget} g đạm. Mai lại là một con số mới."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmeticAlone.otherOver"
+msgstr "Vậy là hôm nay bạn vượt {over} so với {plan}, và {protein} trên {proteinTarget} g đạm. Mai lại là một con số mới."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-user"
+msgstr "Đó là lần cuối trong hôm nay — hạn mức mỗi ngày của bạn đặt lại lúc nửa đêm."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.cap-address"
+msgstr "Tạm thời đó là giới hạn. Thử lại sau nhé."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Số lượt phân tích đi kèm tài khoản này đã dùng hết. Đăng ký trên web để tiếp tục."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.viaApp"
+msgstr "ứng dụng"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.targetGone"
+msgstr "Ở đây không có bữa nào đang mở để sửa. Kể mình nghe bạn ăn gì rồi ghi lại."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.stranger"
+msgstr "Đây là eait mới. Bữa ăn và ảnh của bạn được lưu trong tài khoản eait: đăng nhập trên web rồi bấm Kết nối Telegram ở trang kế hoạch."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.todayHead"
+msgstr "Hôm nay: {eaten} trên {plan} kcal, {protein} trên {proteinTarget} g đạm"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.tooManyTries"
+msgstr "Thử quá nhiều lần từ Telegram này. Chờ một lát rồi bấm lại liên kết."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "Đã bật tuần dùng thử. Bảy ngày, sau đó {price} trừ khi bạn dừng lại — mình sẽ nhắc vào ngày thứ năm và ngày trước khi kết thúc, không bao giờ nhắc sau khi đã hết."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.typed"
+msgstr "Bạn gõ chứ không chụp — nên khẩu phần là mình đoán. Cứ xem {kcal} là con số áng chừng; nếu bạn biết số gam thì nói, mình sửa."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.correction"
+msgstr "Đã cập nhật — {kcal} kcal. {day}"
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.updated"
+msgstr "Đã cập nhật."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.2"
+msgstr "Ước lượng khẩu phần"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.weighing"
+msgstr "Đang ước lượng khẩu phần…"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.1"
+msgstr "Tối nay nên ăn gì?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-day-one"
+msgstr "Ngày đầu tiên của bạn đã bắt đầu. 20:30 bạn nhận một dòng — hôm nay so với kế hoạch, và một việc cụ thể cho ngày mai. Trước đó thì không gì cả."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.onTheWeb"
+msgstr "Hồ sơ và cài đặt của bạn nằm trên web."

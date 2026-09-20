@@ -419,11 +419,13 @@ describe("the copy the bot writes", () => {
       const copy = telegramCopyFor(lang);
       for (const [at, text] of Object.entries(flat(copy))) {
         expect(text.trim(), `${lang}.${at}`).not.toBe("");
-        // `{date}` and the /today figures are the only placeholders, and both are filled at the
-        // call site — a table entry with an unknown one would render a brace into a chat.
-        for (const m of text.matchAll(/\{(\w+)\}/g)) {
-          expect(["date", "eaten", "plan", "protein", "proteinTarget"], `${lang}.${at}`).toContain(m[1] ?? "");
-        }
+        // NO BRACE AT ALL, which is stricter than the whitelist this was. The two fields that take
+        // arguments — `todayHead` and `proposalLeadDated` — are FUNCTIONS since the words moved
+        // into the catalogs, so `flat` never visits them and this loop cannot see a placeholder
+        // that is legitimately there. They are rendered and checked in `copy.i18n.test.ts`, and
+        // `catalogArgs` compares their argument sets across the eight. Everything `flat` does
+        // reach is a finished sentence, so a brace in one is a brace on its way to a chat.
+        expect(text, `${lang}.${at}`).not.toMatch(/\{\w+\}/);
       }
       // Every refusal kind the engine can produce has a sentence, in every language: a refusal is
       // the one message a user cannot act on without understanding it.

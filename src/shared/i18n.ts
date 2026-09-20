@@ -46,3 +46,92 @@ const INSTANCES: Record<Lang, I18n> = Object.fromEntries(
  * fallback at the key, never at the screen.
  */
 export const i18nFor = (lang: Lang): I18n => INSTANCES[lang];
+
+/**
+ * Re-exported so the other two workspaces never import `@lingui/core` themselves.
+ *
+ * `shared` is the contract both sides implement, and which i18n library is behind it is this
+ * package's business. A backend module typing a parameter as `I18n` would otherwise need Lingui in
+ * its own `package.json` — a second copy of the runtime is a second set of instances, which is the
+ * one thing `i18nFor` exists to prevent.
+ */
+export type { I18n } from "@lingui/core";
+
+/**
+ * Every message of one catalog as plain text, keyed by message id.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ * WHY THIS EXISTS, AND WHY IT IS NOT A DEBUG HELPER.
+ *
+ * Two checks in this repo read PROSE rather than types: `genderedRussian`, which refuses a Russian
+ * sentence that tells the reader what gender they are, and `lintCopy`, which refuses a health
+ * claim. Both walked `import * as everything` — a graph of `Localized<T>` tables — and both go
+ * SILENTLY BLIND the moment a table's words move into a `.po`. A guard that stops watching is
+ * worse than one that was never written, because the tests still pass and the file still says it
+ * is guarded.
+ *
+ * So every table that migrates is swept HERE instead, from the compiled catalog, which is the
+ * thing that actually ships. `lingui compile --strict` proves a language is complete; this proves
+ * the sentences in it are allowed.
+ *
+ * THE COMPILED FORM IS TOKENS, not a string: `"{noun} — very high"` compiles to
+ * `[["noun"], " — very high"]`. An argument contributes no prose and its NAME is not a word
+ * anybody reads, so only the literals are returned — otherwise every sweep would be linting
+ * variable names.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ */
+export function catalogText(lang: Lang): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [id, message] of Object.entries(CATALOGS[lang])) out[id] = literals(message).join("");
+  return out;
+}
+
+/**
+ * The ICU arguments each message takes, by message id.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ * `lingui compile --strict` DOES NOT CHECK THIS, and that was measured rather than assumed.
+ * Dropping `{plan}` from the German `/today` header compiles clean and ships
+ * "Heute: 1 kcal, 3 von 4 g Eiweiß" — a sentence about a plan with no plan in it. `--strict`
+ * means "every message is translated", not "every translation takes the same arguments".
+ *
+ * A missing argument is the worst kind of translation bug: the sentence still reads, still parses
+ * and still passes a completeness check, and the only thing wrong with it is the number that is
+ * not there. `copy.i18n.test.ts` compares every language's set against the source's and fails
+ * naming the id and the language.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ */
+export function catalogArgs(lang: Lang): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const [id, message] of Object.entries(CATALOGS[lang])) out[id] = [...new Set(args(message))].sort();
+  return out;
+}
+
+const args = (message: unknown): string[] => {
+  if (!Array.isArray(message)) return [];
+  return message.flatMap((token) => {
+    if (!Array.isArray(token) || typeof token[0] !== "string") return [];
+    const format = token[2];
+    return [
+      token[0],
+      ...(format && typeof format === "object"
+        ? Object.values(format as Record<string, unknown>).flatMap(args)
+        : []),
+    ];
+  });
+};
+
+const literals = (message: unknown): string[] => {
+  if (typeof message === "string") return [message];
+  if (!Array.isArray(message)) return [];
+  return message.flatMap((token) => {
+    if (typeof token === "string") return [token];
+    // An ARGUMENT: `[name, type?, format?]`. Only a plural or select format holds further prose,
+    // and it holds it under keys (`one`, `other`, `female`) that are not prose themselves.
+    if (!Array.isArray(token)) return [];
+    const format = token[2];
+    return format && typeof format === "object"
+      ? Object.values(format as Record<string, unknown>).flatMap(literals)
+      : [];
+  });
+};

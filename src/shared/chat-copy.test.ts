@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
-import { THREAD_COPY, threadCopyFor } from "./chat-copy.ts";
+import { streamCopyFor, threadCopyFor } from "./chat-copy.ts";
 import {
   COACH_STARTERS, MEET_GABIE, SCRIPTED_LINES, correctionLine, firstVerdictLines, runningLine,
   scriptedLine, type ScriptedLineId,
@@ -66,8 +66,22 @@ describe("the thread in eight languages", () => {
     expect(runningLine({ targets: TARGETS, eatenToday: EATEN }, "de")).toContain("1.724");
   });
 
-  it("is English where nobody has written it, never undefined", () => {
-    expect(threadCopyFor("en")).toBe(THREAD_COPY.en);
+  it("says something DIFFERENT in each of the eight, rather than eight copies of a fallback", () => {
+    // WHAT THIS CATCHES, now that `i18n:check` runs `extract` and `compile --strict`. An id
+    // missing from a catalog is caught by `--strict`, and an id missing from every catalog is
+    // caught by the extract in front of it. What neither can see is a TRANSLATION THAT IS THE
+    // ENGLISH — a translator pasting the source string, or a `msgstr` filled from the `msgid` by
+    // a tool. That renders a complete, correct English sentence and passes every gate and every
+    // other assertion in this file. This is the one that would fail.
+    for (const sample of [
+      (l: (typeof LANGS)[number]) => scriptedLine("camera-closed", l, {}),
+      (l: (typeof LANGS)[number]) => MEET_GABIE(l),
+      (l: (typeof LANGS)[number]) => runningLine({ targets: TARGETS, eatenToday: EATEN }, l),
+      (l: (typeof LANGS)[number]) => streamCopyFor(l).reading,
+      (l: (typeof LANGS)[number]) => COACH_STARTERS(l)[0]!,
+    ]) {
+      expect(new Set(LANGS.map(sample)).size).toBe(LANGS.length);
+    }
   });
 
   it("gives every language the same scripted ids — they are a contract between two binaries", () => {

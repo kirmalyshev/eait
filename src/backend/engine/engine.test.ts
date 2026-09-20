@@ -1585,8 +1585,15 @@ describe("the thread", () => {
     const second = await logPhotoMeal(deps, userId, photo(9));
     if (second.kind !== "logged") throw new Error("expected logged");
     const after = (await thread(userId)).map(text).join("\n");
-    // The German template with its figures in, and not a word of the English one.
-    expect(after).toContain(de.running.left.split("{")[0]!.trim());
+    // The German template with its figures in, and not a word of the English one. Rendered with
+    // empty figures and matched on its longest literal run: the words are ICU templates now, so
+    // there is no raw `{` in the string to split on — and a run of prose between two arguments is
+    // a stronger match than the prefix before the first one, which some languages do not have.
+    const german = de.running.left({ left: "", over: "", plan: "", protein: "", proteinTarget: "" })
+      .split(/\s{2,}|[,.]/).map((part) => part.trim())
+      .reduce((longest, part) => (part.length > longest.length ? part : longest), "");
+    expect(german.length, "no literal run to match on").toBeGreaterThan(8);
+    expect(after).toContain(german);
     expect(after).not.toContain("of your");
     expect(after).not.toContain("left today");
   });
