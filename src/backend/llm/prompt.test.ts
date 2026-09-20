@@ -191,6 +191,15 @@ test("the coach prompt states Gabie's rules, and who Spud is", () => {
     "bake them instead of frying",
     "Numbers are the plan's, not the conversation's",
     "is a receipt",
+    // #28: the app and this repo meet the same person, so they speak one number grammar. A range
+    // was the licensed way to be honest about a wide estimate, and it put a second figure in
+    // front of somebody that changed no decision they were making.
+    "One number per thing, and never a number beside its own error",
+    "The PRECISION carries how sure you are instead",
+    "At most ONE worded flag in a reply",
+    "name what would settle it",
+    // The floor reads as a promise, never as the bottom of a bracket.
+    "say so as a promise",
     // #361, prod verbatim: "That leftover estimate is Spud's log, not mine". True of the
     // architecture, and to the user it is one app refusing to own its own card.
     "every card, log and estimate in it is as much yours as his",
@@ -210,6 +219,10 @@ test("the coach prompt states Gabie's rules, and who Spud is", () => {
   // An unconditional invitation to hand out meal ideas is what answered "what do I do about THIS
   // plate" with an ideal lunch the user did not have (#362). A recipe is an answer to a request.
   expect(SYSTEM_COACH).not.toContain("Recipes and meal ideas are welcome:");
+  // The two clauses that licensed a range. Pinned negatively because the rule above only says
+  // what to write instead, and a prompt can carry both instructions at once and obey the older.
+  expect(SYSTEM_COACH).not.toContain("a range when one estimate is genuinely wide");
+  expect(SYSTEM_COACH).not.toContain("give a range when it is wide");
 });
 
 test("the coach context carries the plan, the day with what is left, the week against the target, and every declared restriction", () => {
