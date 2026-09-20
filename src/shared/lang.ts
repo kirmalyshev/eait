@@ -122,6 +122,31 @@ export const wholeNumbers = (lang: Lang) => {
   return (x: number): string => format.format(Math.round(x));
 };
 
+/** The step a guessed figure is rounded to. Fifty kcal: coarse enough to read as a guess. */
+const GUESS_STEP = 50;
+
+/**
+ * A figure whose PRECISION SAYS IT IS A GUESS — "about 600", where a measured one reads "410".
+ *
+ * THE THIRD HELPER, and the rule it encodes is #28's: one number per thing, never a number and
+ * its error. The old way to be honest about a rough estimate was to print the interval beside it
+ * ("620 ±90", "between 530 and 710"), which put a second figure in front of somebody that changed
+ * no decision they were making and made every estimate sound equally shaky. The precision carries
+ * it instead, and costs no words: a rounded number is the honest form, not a vaguer one.
+ *
+ * WHAT IT IS FOR is the figure a reply has already flagged as a guess — a typed meal's portions, a
+ * plate the analyzer could not read — and the day arithmetic computed FROM one. Never a target,
+ * never a weight somebody typed, never anything measured: `wholeNumbers` stays the default and
+ * this is the exception that has to be reached for.
+ *
+ * ROUNDING IS NOT A DISCLAIMER TO BE APPLIED TWICE. The step divides itself, so a figure that has
+ * already been through here comes back unchanged and 200 never becomes 250 in a second sentence.
+ */
+export const guessedNumbers = (lang: Lang) => {
+  const format = wholeNumbers(lang);
+  return (x: number): string => format(Math.round(x / GUESS_STEP) * GUESS_STEP);
+};
+
 /**
  * How this language SPELLS the kilocalorie, for the four places that concatenate it onto a figure.
  *

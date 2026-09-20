@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import {
-  LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, genderedRussian, localizedGaps, monthYear, numbers,
+  LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, genderedRussian, guessedNumbers, localizedGaps,
+  monthYear, numbers,
   acceptLanguageTags, narrowLang, spellUnit, t,
   type Localized,
 } from "./lang.ts";
@@ -79,6 +80,24 @@ describe("numbers and dates", () => {
     expect(numbers("en")(92.04)).toBe("92");
     expect(numbers("en")(92.35)).toBe("92.4");
     expect(numbers("de")(92.35)).toBe("92,4");
+  });
+
+  it("spends a guess's precision to say it is a guess (#28)", () => {
+    // The whole of the rule: "410" was measured and "about 600" was guessed, and the difference
+    // between them is the digits, not a bracket after the figure.
+    expect(guessedNumbers("en")(612)).toBe("600");
+    expect(guessedNumbers("en")(480)).toBe("500");
+    expect(guessedNumbers("en")(974)).toBe("950");
+    expect(guessedNumbers("en")(146)).toBe("150");
+    // A figure already on the step is left exactly where it is — rounding is not a disclaimer to
+    // be applied twice, and 200 must not become 250 on its way through a second sentence.
+    expect(guessedNumbers("en")(200)).toBe("200");
+    expect(guessedNumbers("en")(2400)).toBe("2,400");
+    // Zero is a real answer on the clamped branch ("0 of your 1,454 left") and stays one.
+    expect(guessedNumbers("en")(0)).toBe("0");
+    // The reader's grouping, like every other figure here: a guess is not an English number.
+    expect(guessedNumbers("de")(2420)).toBe("2.400");
+    expect(guessedNumbers("fr")(2420)).toMatch(/^2\D400$/);
   });
 
   it("names a month in the reader's language, from Intl and never from a table", () => {
