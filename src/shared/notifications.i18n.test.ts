@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import { LANG_LABEL } from "./lang.ts";
+import { i18nFor } from "./i18n.ts";
 import {
   DEFAULT_NOTIFICATION_COPY, NOTIFICATION_COPY, NOTIFICATION_IDS, eveningPrescription,
   fillNotification, notificationCopyFor, validateNotificationCopy,
@@ -85,6 +86,49 @@ describe("the evening prescription", () => {
     expect(en.length).toBeGreaterThan(0);
     for (const lang of LANGS.filter((l) => l !== "en")) {
       expect(eveningPrescription(on, lang), lang).not.toBe(en);
+    }
+  });
+});
+
+// ── Why this table does NOT move to a catalog ────────────────────────────────────────────────
+
+describe("the admin-editable copy stays in a Localized table, and this is the reason", () => {
+  // THE MIGRATION STOPS HERE, AT THE TWO ADMIN-EDITABLE TABLES — this one and
+  // `onboarding-content.ts`. Everything else in the repo is code-owned copy and belongs in a `.po`
+  // where a translator can reach it. These two do not, for two reasons that compound.
+  //
+  // FIRST: ICU OWNS THE BRACES. `{eaten}` is this product's placeholder syntax, filled by
+  // `fillNotification`, and it is also ICU MessageFormat's argument syntax. Run an admin's
+  // template through Lingui and the placeholders are consumed, not preserved — the test below is
+  // that, executed rather than asserted in a comment.
+  //
+  // SECOND, AND WORSE: `fillNotification` must fill a STORED string identically to a compiled-in
+  // one. An admin's text never passes through Lingui and never can, so a migration would put two
+  // substitution engines behind one sentence — and the one that ships is whichever the admin last
+  // saved. Two sources for one string, with no merge rule, where the wrong answer arrives unasked
+  // on a lock screen with no review and no recall.
+  //
+  // If this ever does move, the placeholder syntax has to move with it, and `NOTIFICATION_PLACEHOLDERS`
+  // and the admin editor move too. That is a product change, not a refactor.
+
+  it("has placeholders ICU would eat", () => {
+    const body = DEFAULT_NOTIFICATION_COPY.evening.body;
+    expect(body).toContain("{eaten}");
+    // Not in the catalog: `i18n._` compiles the fallback message at runtime, which is exactly what
+    // a migrated string would do in a language nobody has translated yet.
+    const throughIcu = i18nFor("en")._("notifications.collision.proof", undefined, { message: body });
+    expect(throughIcu, "ICU left the placeholders alone — re-open the migration question")
+      .not.toContain("{eaten}");
+    expect(throughIcu).not.toContain("{plan}");
+  });
+
+  it("still fills them, in every language, through the one engine that also fills an admin's", () => {
+    for (const lang of LANGS) {
+      const out = fillNotification(notificationCopyFor(lang), "evening", {
+        eaten: "1 100", plan: "1 900", tomorrow: "x",
+      });
+      expect(out.body, lang).toContain("1 100");
+      expect(out.body, lang).not.toMatch(/\{\w+\}/);
     }
   });
 });

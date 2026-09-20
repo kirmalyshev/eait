@@ -68,6 +68,20 @@ They are equal today and are two names because they mean different things: `PATC
 accepts any `LANGS` code, because a phone in a language the browser pages have no words in still
 gets its meal names in that language.
 
+- **COPY IS MOVING INTO LINGUI CATALOGS (`src/shared/locales/*/messages.po`), TABLE BY TABLE.**
+  A migrated string is `i18n._("<id>", values, { message: "<the English>" })` with a LITERAL id —
+  `lingui extract` reads the source, so a computed id never reaches a translator and the only
+  symptom is an English word on a card. Migrated so far: `verdicts.ts`, `mail/port.ts`.
+  - **The two ADMIN-EDITABLE tables do not move: `notifications.ts` and `onboarding-content.ts`.**
+    `{eaten}` is this product's placeholder syntax and it is also ICU's, so running a template
+    through Lingui consumes the placeholders rather than preserving them — and `fillNotification`
+    has to fill a stored string identically to a compiled-in one, which would mean two
+    substitution engines behind one sentence, with the admin's copy winning. A test in
+    `notifications.i18n.test.ts` executes that collision rather than asserting it in prose.
+  - **A guard that walked the tables must follow the copy.** `genderedRussian` and the claims gate
+    read `import * as everything`; a table that moves walks out of both and nothing fails.
+    `catalogText(lang)` (`i18n.ts`) is what they sweep instead, and `copy.i18n.test.ts` does it in
+    both workspaces. Each workspace's table registry shrinks by one per migrated table.
 - **A new string goes in the `*-copy.ts` beside the module that reads it**, as a key on that
   module's one `Localized` table, in all eight languages. Not in a `.json` bundle, not behind an
   extraction step: `lang.ts`'s header says why, and eight compiled-in languages need neither.
