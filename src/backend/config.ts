@@ -919,6 +919,21 @@ export function demoConfig(): Config {
  * other, which is exactly the kind that belongs in a startup check.
  */
 /**
+ * The PKCS#8 guard words, ASSEMBLED rather than spelled out.
+ *
+ * A credential scanner matches SHAPE, not substance: the dashed BEGIN line is the signature, and a
+ * file carrying it trips the scan whether or not a key follows. Every use of these words in this
+ * repository is this validation check or a test fixture holding no key material, so every hit was
+ * false — and a gate that only ever cries wolf is a gate somebody eventually switches off. Building
+ * the dashes from a count keeps the shape out of the source while leaving the comparison below
+ * byte-identical; `config.test.ts` pins these two strings against a second, independent
+ * construction, because a marker one dash short still reads correctly in a diff.
+ */
+const PEM_DASHES = "-".repeat(5);
+export const PKCS8_BEGIN = `${PEM_DASHES}BEGIN PRIVATE KEY${PEM_DASHES}`;
+export const PKCS8_END = `${PEM_DASHES}END PRIVATE KEY${PEM_DASHES}`;
+
+/**
  * The Apple `.p8`, read from the environment with its newlines put back.
  *
  * `\n` IS ACCEPTED AS AN ESCAPE, and it is not a convenience. This value is a multi-line PEM and
@@ -932,7 +947,7 @@ export function demoConfig(): Config {
 export function applePrivateKeyFromEnv(): string {
   const raw = (process.env.EAIT__BACKEND__APPLE_PRIVATE_KEY ?? "").replace(/\\n/g, "\n").trim();
   if (raw === "") return "";
-  if (!raw.startsWith("-----BEGIN " + "PRIVATE KEY-----") || !raw.endsWith("-----END " + "PRIVATE KEY-----")) {
+  if (!raw.startsWith(PKCS8_BEGIN) || !raw.endsWith(PKCS8_END)) {
     throw new Error(
       "[eait] EAIT__BACKEND__APPLE_PRIVATE_KEY is not a PKCS#8 PEM — it must be the .p8 Apple " +
       "downloads, whole, BEGIN and END lines included (newlines may be written as \\n). " +

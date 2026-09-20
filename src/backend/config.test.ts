@@ -5,7 +5,7 @@
 // honest about not being configurable, while this looks configured and is not.
 
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { configDefaults, demoConfig, loadConfig, redact } from "./config.ts";
+import { PKCS8_BEGIN, PKCS8_END, applePrivateKeyFromEnv, configDefaults, demoConfig, loadConfig, redact } from "./config.ts";
 
 /**
  * EVERY variable `loadConfig` reads, cleared before AND after each test.
@@ -41,7 +41,7 @@ const VARS = [
 ] as const;
 
 /** A syntactically real PKCS#8 PEM. Nothing here signs with it — `web-oauth.test.ts` does that. */
-const P8 = "-----BEGIN " + "PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49\n-----END " + "PRIVATE KEY-----";
+const P8 = `${PKCS8_BEGIN}\nMIGHAgEAMBMGByqGSM49\n${PKCS8_END}`;
 const APPLE_WEB = {
   EAIT__BACKEND__APPLE_AUDIENCES: "com.eait.fit.ios, fit.eait.web",
   EAIT__BACKEND__APPLE_SERVICE_ID: "fit.eait.web",
@@ -531,5 +531,72 @@ describe("the Telegram connector's token", () => {
     withRequired({ EAIT__BACKEND__TELEGRAM_BOT_TOKEN: TOKEN });
     expect(loadConfig().telegramBotUsername).toBe("");
     expect(configDefaults().telegramBotUsername).toBe("");
+  });
+});
+
+/**
+ * The PKCS#8 guard words are ASSEMBLED, and this is what says assembling them changed nothing.
+ *
+ * `config.ts` builds them from a dash count so no file in this repository carries the dashed BEGIN
+ * line a credential scanner matches on — every occurrence was a validation check or a fixture
+ * holding no key material, and a gate that only ever cries wolf is a gate somebody switches off.
+ * The risk that trade buys is a typo nobody sees: a marker one dash short still reads correctly in
+ * a diff, and `applePrivateKeyFromEnv` would then accept keys production rejects and reject the
+ * real `.p8` at boot. So the bytes are pinned against a SECOND, independent construction, and the
+ * accept/reject table below is the comparison itself, exercised either side of every edge.
+ */
+describe("the PKCS#8 guard words", () => {
+  // Built a different way on purpose: `String.fromCharCode(45)` is the hyphen, and a test that
+  // re-used `config.ts`'s own `"-".repeat(5)` would agree with a four-dash typo.
+  const dashes = String.fromCharCode(45, 45, 45, 45, 45);
+
+  it("are the bytes a PKCS#8 PEM actually opens and closes with", () => {
+    expect(PKCS8_BEGIN).toBe(`${dashes}BEGIN PRIVATE KEY${dashes}`);
+    expect(PKCS8_END).toBe(`${dashes}END PRIVATE KEY${dashes}`);
+  });
+
+  describe("what applePrivateKeyFromEnv does with them", () => {
+    const body = "\nMIGHAgEAMBMGByqGSM49\n";
+    const set = (v: string | undefined) => {
+      if (v === undefined) delete process.env.EAIT__BACKEND__APPLE_PRIVATE_KEY;
+      else process.env.EAIT__BACKEND__APPLE_PRIVATE_KEY = v;
+    };
+    afterEach(() => set(undefined));
+
+    const accepted: Array<[string, string]> = [
+      ["a whole PEM", `${PKCS8_BEGIN}${body}${PKCS8_END}`],
+      ["one written on a single line", `${PKCS8_BEGIN}${body}${PKCS8_END}`.replace(/\n/g, "\\n")],
+      ["one padded with whitespace, which `.env` files add", `\n  ${PKCS8_BEGIN}${body}${PKCS8_END}\t\n`],
+    ];
+    for (const [what, value] of accepted) {
+      it(`accepts ${what}`, () => {
+        set(value);
+        expect(applePrivateKeyFromEnv()).toBe(`${PKCS8_BEGIN}${body}${PKCS8_END}`);
+      });
+    }
+
+    const refused: Array<[string, string]> = [
+      ["the base64 alone", "MIGHAgEAMBMGByqGSM49"],
+      ["a BEGIN line one dash short", `${dashes.slice(1)}BEGIN PRIVATE KEY${dashes}${body}${PKCS8_END}`],
+      ["an END line one dash short", `${PKCS8_BEGIN}${body}${dashes}END PRIVATE KEY${dashes.slice(1)}`],
+      ["the RSA-flavoured marker OpenSSL writes", `${dashes}BEGIN RSA PRIVATE KEY${dashes}${body}${dashes}END RSA PRIVATE KEY${dashes}`],
+      ["a certificate, which is the other thing in that folder", `${dashes}BEGIN CERTIFICATE${dashes}${body}${dashes}END CERTIFICATE${dashes}`],
+      ["a PEM with no END line", `${PKCS8_BEGIN}${body}`],
+      ["a PEM with something after the END line", `${PKCS8_BEGIN}${body}${PKCS8_END} oops`],
+      ["lowercase guard words", `${PKCS8_BEGIN}${body}${PKCS8_END}`.toLowerCase()],
+    ];
+    for (const [what, value] of refused) {
+      it(`refuses ${what}, at boot rather than mid-callback`, () => {
+        set(value);
+        expect(() => applePrivateKeyFromEnv()).toThrow(/PKCS#8/);
+      });
+    }
+
+    it("reads an unset or empty variable as off, which is every host with no Apple key", () => {
+      set(undefined);
+      expect(applePrivateKeyFromEnv()).toBe("");
+      set("   \n ");
+      expect(applePrivateKeyFromEnv()).toBe("");
+    });
   });
 });

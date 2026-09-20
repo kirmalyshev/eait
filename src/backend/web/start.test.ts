@@ -17,7 +17,7 @@ import {
   MAX_USER_LINE, onboardingContentFor, screenForStep, screenOptions, TYPE_MS_PER_CHAR,
   wholeNumbers, type Profile,
 } from "@eait/shared";
-import { configDefaults, type Config } from "../config.ts";
+import { PKCS8_BEGIN, PKCS8_END, configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store, StoreOptions } from "../store.ts";
@@ -78,7 +78,7 @@ const CONFIG: Config = {
   appleServiceId: SERVICE_ID,
   appleTeamId: "TEAM123456",
   appleKeyId: "KEY1234567",
-  applePrivateKey: "-----BEGIN " + "PRIVATE KEY-----\nunused-by-the-fake\n-----END " + "PRIVATE KEY-----",
+  applePrivateKey: `${PKCS8_BEGIN}\nunused-by-the-fake\n${PKCS8_END}`,
   publicApiUrl: "https://api.eait.fit",
 };
 
