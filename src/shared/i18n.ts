@@ -46,3 +46,47 @@ const INSTANCES: Record<Lang, I18n> = Object.fromEntries(
  * fallback at the key, never at the screen.
  */
 export const i18nFor = (lang: Lang): I18n => INSTANCES[lang];
+
+/**
+ * Every message of one catalog as plain text, keyed by message id.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ * WHY THIS EXISTS, AND WHY IT IS NOT A DEBUG HELPER.
+ *
+ * Two checks in this repo read PROSE rather than types: `genderedRussian`, which refuses a Russian
+ * sentence that tells the reader what gender they are, and `lintCopy`, which refuses a health
+ * claim. Both walked `import * as everything` — a graph of `Localized<T>` tables — and both go
+ * SILENTLY BLIND the moment a table's words move into a `.po`. A guard that stops watching is
+ * worse than one that was never written, because the tests still pass and the file still says it
+ * is guarded.
+ *
+ * So every table that migrates is swept HERE instead, from the compiled catalog, which is the
+ * thing that actually ships. `lingui compile --strict` proves a language is complete; this proves
+ * the sentences in it are allowed.
+ *
+ * THE COMPILED FORM IS TOKENS, not a string: `"{noun} — very high"` compiles to
+ * `[["noun"], " — very high"]`. An argument contributes no prose and its NAME is not a word
+ * anybody reads, so only the literals are returned — otherwise every sweep would be linting
+ * variable names.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────
+ */
+export function catalogText(lang: Lang): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [id, message] of Object.entries(CATALOGS[lang])) out[id] = literals(message).join("");
+  return out;
+}
+
+const literals = (message: unknown): string[] => {
+  if (typeof message === "string") return [message];
+  if (!Array.isArray(message)) return [];
+  return message.flatMap((token) => {
+    if (typeof token === "string") return [token];
+    // An ARGUMENT: `[name, type?, format?]`. Only a plural or select format holds further prose,
+    // and it holds it under keys (`one`, `other`, `female`) that are not prose themselves.
+    if (!Array.isArray(token)) return [];
+    const format = token[2];
+    return format && typeof format === "object"
+      ? Object.values(format as Record<string, unknown>).flatMap(literals)
+      : [];
+  });
+};
