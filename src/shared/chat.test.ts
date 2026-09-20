@@ -120,16 +120,16 @@ describe("the first verdict", () => {
     const lines = firstVerdictLines({
       goal: "lose", targets, meal: { ...meal, kcal: 480, confidence: "low" }, eatenToday: { kcal: 480, protein_g: 21 }, via: "photo", verdicts: {},
     }, "en");
-    // #28: the flag is WORDED ONCE and the figures carry the rest. 480 is a guess, so it is
-    // printed as one — and the day arithmetic computed from it is a guess too.
-    expect(lines[0]).toBe("Honest answer: I couldn't read that plate well. Take 500 as a rough guess and check the grams before you trust the total. A second angle next time helps.");
-    expect(lines[1]).toBe("About 950 of your 1,454 left today.");
+    // #28: the flag is WORDED ONCE and the figures carry the rest. 480 is already on the step, so
+    // a guess prints it unchanged — and the day arithmetic computed from it is a guess too.
+    expect(lines[0]).toBe("Honest answer: I couldn't read that plate well. Take 480 as a rough guess and check the grams before you trust the total. A second angle next time helps.");
+    expect(lines[1]).toBe("About 970 of your 1,454 left today.");
     expect(lines).toHaveLength(3);
     // Rule 1 holds on this branch too: a gain plan is filled, not left.
     const gain = firstVerdictLines({
       goal: "gain", targets: { kcal: 2900, protein_g: 150 }, meal: { ...meal, kcal: 480, confidence: "low" }, eatenToday: { kcal: 480, protein_g: 21 }, via: "photo", verdicts: {},
     }, "en");
-    expect(gain[1]).toBe("About 2,400 of your 2,900 still to fill today.");
+    expect(gain[1]).toBe("About 2,420 of your 2,900 still to fill today.");
     // Past the target on a gain plan is not "still to fill": rule 1, the branch taken.
     const past = firstVerdictLines({
       goal: "gain", targets: { kcal: 2900, protein_g: 150 }, meal: { ...meal, kcal: 480, confidence: "low" }, eatenToday: { kcal: 3100, protein_g: 160 }, via: "photo", verdicts: {},
@@ -148,12 +148,12 @@ describe("the first verdict", () => {
     const lines = firstVerdictLines({
       goal: "lose", targets, meal: { ...meal, kcal: 540 }, eatenToday: { kcal: 540, protein_g: 30 }, via: "text", verdicts: {},
     }, "en");
-    expect(lines[0]).toBe("Typed, not photographed — so the portions are my guess. Take 550 as rough; if you know the grams, say so and I'll fix it.");
-    expect(lines[1]).toBe("That leaves about 900 of your 1,454 for the rest of today, and 30 of the 110 g protein. On plan.");
+    expect(lines[0]).toBe("Typed, not photographed — so the portions are my guess. Take 540 as rough; if you know the grams, say so and I'll fix it.");
+    expect(lines[1]).toBe("That leaves about 910 of your 1,454 for the rest of today, and 30 of the 110 g protein. On plan.");
     const gain = firstVerdictLines({
       goal: "gain", targets: { kcal: 2900, protein_g: 150 }, meal: { ...meal, kcal: 612 }, eatenToday: { kcal: 612, protein_g: 38 }, via: "text", verdicts: {},
     }, "en");
-    expect(gain[1]).toBe("About 2,300 of your 2,900 still to fill today, and 38 of the 150 g protein. Keep going.");
+    expect(gain[1]).toBe("About 2,290 of your 2,900 still to fill today, and 38 of the 150 g protein. Keep going.");
   });
 
   it("quotes the camera note back first, in the user's own words", () => {

@@ -85,19 +85,21 @@ describe("numbers and dates", () => {
   it("spends a guess's precision to say it is a guess (#28)", () => {
     // The whole of the rule: "410" was measured and "about 600" was guessed, and the difference
     // between them is the digits, not a bracket after the figure.
-    expect(guessedNumbers("en")(612)).toBe("600");
-    expect(guessedNumbers("en")(480)).toBe("500");
-    expect(guessedNumbers("en")(974)).toBe("950");
+    // THE STEP IS THE DRAWN VERSION'S, not one chosen here. Its day sums to 1 822 and reads
+    // "about 1 820"; the sauce inside its one guessed meal reads "about 190". Both are tens.
+    expect(guessedNumbers("en")(1822)).toBe("1,820");
+    expect(guessedNumbers("en")(612)).toBe("610");
+    expect(guessedNumbers("en")(974)).toBe("970");
     expect(guessedNumbers("en")(146)).toBe("150");
     // A figure already on the step is left exactly where it is — rounding is not a disclaimer to
-    // be applied twice, and 200 must not become 250 on its way through a second sentence.
-    expect(guessedNumbers("en")(200)).toBe("200");
-    expect(guessedNumbers("en")(2400)).toBe("2,400");
+    // be applied twice, and 480 must not drift on its way through a second sentence.
+    expect(guessedNumbers("en")(480)).toBe("480");
+    expect(guessedNumbers("en")(600)).toBe("600");
     // Zero is a real answer on the clamped branch ("0 of your 1,454 left") and stays one.
     expect(guessedNumbers("en")(0)).toBe("0");
     // The reader's grouping, like every other figure here: a guess is not an English number.
-    expect(guessedNumbers("de")(2420)).toBe("2.400");
-    expect(guessedNumbers("fr")(2420)).toMatch(/^2\D400$/);
+    expect(guessedNumbers("de")(1822)).toBe("1.820");
+    expect(guessedNumbers("fr")(1822)).toMatch(/^1\D820$/);
   });
 
   it("names a month in the reader's language, from Intl and never from a table", () => {

@@ -122,8 +122,15 @@ export const wholeNumbers = (lang: Lang) => {
   return (x: number): string => format.format(Math.round(x));
 };
 
-/** The step a guessed figure is rounded to. Fifty kcal: coarse enough to read as a guess. */
-const GUESS_STEP = 50;
+/**
+ * The step a guessed figure is rounded to.
+ *
+ * TEN, and it is pinned by the drawn version of this grammar rather than chosen here: the day in
+ * `boards/lifesum` sums to 1 822 and reads "about 1 820", its one guessed meal reads "about 600",
+ * and the sauce inside it reads "about 190". Fifty would print 1 800 and 200 and disagree with
+ * the screens a person meets in the other product.
+ */
+const GUESS_STEP = 10;
 
 /**
  * A figure whose PRECISION SAYS IT IS A GUESS — "about 600", where a measured one reads "410".
