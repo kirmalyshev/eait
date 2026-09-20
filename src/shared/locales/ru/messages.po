@@ -14,6 +14,26 @@ msgstr ""
 "Plural-Forms: \n"
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.noted"
+msgstr "«{note}» — записал, это в цифрах."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.running.left"
+msgstr "Сегодня осталось {left} из {plan}, белка {protein} из {proteinTarget} г."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmetic.gainLeft"
+msgstr "сегодня ещё {left} из {plan} нужно добрать, и белка {protein} из {proteinTarget} г. Продолжай."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmeticAlone.gainLeft"
+msgstr "Сегодня ещё {left} из {plan} нужно добрать, и белка {protein} из {proteinTarget} г. Продолжай."
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.warn"
 msgstr "{noun} — много"
@@ -27,6 +47,26 @@ msgstr "{noun} — в норме"
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
 msgstr "{noun} — очень много"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.running.over"
+msgstr "Сегодня {over} сверх {plan}, белка {protein} из {proteinTarget} г."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmetic.gainOver"
+msgstr "сегодня {over} сверх {plan}, и белка {protein} из {proteinTarget} г. На наборе перебор — это и есть смысл; завтра цифра свежая."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmeticAlone.gainOver"
+msgstr "Сегодня {over} сверх {plan}, и белка {protein} из {proteinTarget} г. На наборе перебор — это и есть смысл; завтра цифра свежая."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.2"
+msgstr "Мне хватает белка?"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -44,6 +84,11 @@ msgid "tg.macro.carbs"
 msgstr "Углеводы"
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.3"
+msgstr "Сверить с твоим планом"
+
+#. js-lingui-explicit-id
 #: src/backend/mail/port.ts
 msgid "mail.confirm.ask"
 msgstr "Подтверди, что этот адрес твой:"
@@ -59,6 +104,31 @@ msgid "tg.connectedLead"
 msgstr "Подключено к аккаунту eait, вход выполнен через"
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.dropped"
+msgstr "Убрал."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowLeftOther"
+msgstr "Даже грубо это считается: сегодня осталось примерно {left} из {plan}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowLeftGain"
+msgstr "Даже грубо это считается: сегодня ещё примерно {left} из {plan} нужно добрать."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowOverGain"
+msgstr "Даже грубо это считается: сегодня примерно {over} сверх {plan}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowOverOther"
+msgstr "Даже грубо это считается: сегодня примерно {over} сверх {plan}. Завтра цифра свежая."
+
+#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.cap-global"
 msgstr "Сегодняшний лимит израсходован всеми. Завтра цифра свежая."
@@ -67,6 +137,36 @@ msgstr "Сегодняшний лимит израсходован всеми. �
 #: src/backend/telegram/copy.ts
 msgid "tg.macro.fat"
 msgstr "Жиры"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.firstIn"
+msgstr "Первый записан. {kcal} ккал — {arithmetic}"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.onboarding-done"
+msgstr "Хорошо — знакомство закончено, первый день начался. Ещё одно, прежде чем ты уйдёшь, и это единственный раз, когда я об этом прошу."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.already-in"
+msgstr "Хорошо. Я в чате в любой момент — фото или фраза, и то, и другое записывает приём пищи."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.lowConfidence"
+msgstr "Честно: тарелку я прочитал плохо. Считай {kcal} грубой прикидкой и проверь граммы, прежде чем доверять сумме. В следующий раз поможет второй ракурс."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.0"
+msgstr "Как у меня идёт неделя?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.fixHint"
+msgstr "Если что-то не так, скажи — «риса половина», «без авокадо» — или нажми на карточку и поменяй граммы."
 
 #. js-lingui-explicit-id
 #: src/backend/mail/port.ts
@@ -104,6 +204,21 @@ msgid "tg.moved"
 msgstr "Перенёс."
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.1"
+msgstr "Назвать, что на ней"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-denied"
+msgstr "Нет камеры — не беда. Выбери фото из галереи или просто скажи, что было на тарелке, — вердикт будет в обоих случаях."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-closed"
+msgstr "Не торопись. План уже в дневнике — сфотографируй следующий приём, когда он случится. В этом вся привычка, и если ничего не будет, завтра я напомню один раз."
+
+#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.notThis"
 msgstr "Не это"
@@ -124,14 +239,49 @@ msgid "mail.confirm.promise"
 msgstr "Одно письмо, когда приложение выйдет, и отписка в один клик внутри. Больше ничего и никогда."
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.notify-primer"
+msgstr "Ещё одно, о чём сейчас спросит iOS: уведомления. Одно в день и не больше — строка в 20:30 плюс два напоминания перед концом бесплатной недели, если ты в ней. Больше ничего и никогда."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.camera-primer"
+msgstr "Сначала одно: iOS попросит доступ к камере. Я использую её для тарелки и больше ни для чего — фото хранится вместе с приёмом пищи, чтобы оно было у тебя в дневнике, и стирается вместе с аккаунтом."
+
+#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.macro.protein"
 msgstr "Белки"
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.meetGabie"
+msgstr "Вопросы — к Gabie, здешнему нутрициологу: что съесть вечером, как идёт неделя. Тот же чат; перед ответом она читает твой дневник. Я записываю, она советует."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.0"
+msgstr "Прочитать тарелку"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.reading"
+msgstr "Читаем тарелку…"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.restored"
+msgstr "Восстановлено — ты внутри. Фото или фраза — и то, и другое записывает приём пищи."
+
+#. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Насыщенные жиры"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.satfat"
+msgstr "Насыщенных жиров здесь много. Оценено только по твоей просьбе."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -149,6 +299,11 @@ msgid "verdict.noun.kidneys"
 msgstr "Натрий"
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.sodium"
+msgstr "Натрия здесь много. Оценено только по твоей просьбе."
+
+#. js-lingui-explicit-id
 #: src/backend/mail/port.ts
 msgid "mail.confirm.who"
 msgstr "Кто-то — скорее всего, ты — просит сообщить, когда выйдет приложение eait для iPhone."
@@ -157,6 +312,11 @@ msgstr "Кто-то — скорее всего, ты — просит сооб�
 #: src/backend/telegram/copy.ts
 msgid "tg.failed"
 msgstr "Что-то пошло не так, и всё же могло пройти. Загляни в /today, прежде чем отправлять снова."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.fix-prompt"
+msgstr "Скажи, что не так — «риса половина», «без авокадо», «там было 500» — подойдёт любое. Или открой карточку и поправь граммы вручную."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -172,6 +332,16 @@ msgstr "Это не похоже на еду."
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.unsupported-image"
 msgstr "Этот файл — не фото, которое здесь можно прочитать. JPEG, PNG или WebP."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmetic.otherLeft"
+msgstr "остаётся {left} из {plan} на остаток дня, и белка {protein} из {proteinTarget} г. В плане."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
+msgstr "Остаётся {left} из {plan} на остаток дня, и белка {protein} из {proteinTarget} г. В плане."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -207,6 +377,16 @@ msgstr "Это фото не дошло. Пришли его ещё раз."
 #: src/backend/telegram/copy.ts
 msgid "tg.tooLarge"
 msgstr "Это фото слишком большое для отправки."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmetic.otherOver"
+msgstr "получается {over} сверх {plan} за сегодня, и белка {protein} из {proteinTarget} г. Завтра цифра свежая."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.arithmeticAlone.otherOver"
+msgstr "Получается {over} сверх {plan} за сегодня, и белка {protein} из {proteinTarget} г. Завтра цифра свежая."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -249,9 +429,44 @@ msgid "tg.tooManyTries"
 msgstr "Слишком много попыток с этого Telegram. Подожди немного и нажми ссылку ещё раз."
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-started"
+msgstr "Пробный период запущен. Семь дней, дальше {price}, если не остановишь, — напомню на пятый день и накануне окончания, и никогда на следующий день после."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.typed"
+msgstr "Это текст, а не фото — значит, порции я прикинул. Считай {kcal} грубой оценкой; знаешь граммы — скажи, и я поправлю."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.correction"
+msgstr "Обновил — {kcal} ккал. {day}"
+
+#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.updated"
 msgstr "Обновил."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.steps.2"
+msgstr "Взвесить порции"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "stream.weighing"
+msgstr "Взвешиваем порции…"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.1"
+msgstr "Что съесть сегодня вечером?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.scripted.trial-day-one"
+msgstr "Первый день пошёл. В 20:30 придёт одна строка — день против плана и одна конкретная вещь на завтра. До этого ничего."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

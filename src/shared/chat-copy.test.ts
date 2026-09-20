@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
-import { THREAD_COPY, threadCopyFor } from "./chat-copy.ts";
+import { streamCopyFor, threadCopyFor } from "./chat-copy.ts";
 import {
   COACH_STARTERS, MEET_GABIE, SCRIPTED_LINES, correctionLine, firstVerdictLines, runningLine,
   scriptedLine, type ScriptedLineId,
@@ -66,8 +66,21 @@ describe("the thread in eight languages", () => {
     expect(runningLine({ targets: TARGETS, eatenToday: EATEN }, "de")).toContain("1.724");
   });
 
-  it("is English where nobody has written it, never undefined", () => {
-    expect(threadCopyFor("en")).toBe(THREAD_COPY.en);
+  it("says something DIFFERENT in each of the eight, rather than eight copies of a fallback", () => {
+    // THE TRAP A COMPLETENESS CHECK CANNOT SEE, and the one this file used to get for free from
+    // `localizedGaps`. `lingui compile` writes the English source into any catalog with no
+    // translation — fallback at the key, which is the right behaviour and what `Localized<T>`
+    // did — so an unfilled catalog renders a complete, correct English thread and every other
+    // assertion here passes. This is the one that would fail.
+    for (const sample of [
+      (l: (typeof LANGS)[number]) => scriptedLine("camera-closed", l, {}),
+      (l: (typeof LANGS)[number]) => MEET_GABIE(l),
+      (l: (typeof LANGS)[number]) => runningLine({ targets: TARGETS, eatenToday: EATEN }, l),
+      (l: (typeof LANGS)[number]) => streamCopyFor(l).reading,
+      (l: (typeof LANGS)[number]) => COACH_STARTERS(l)[0]!,
+    ]) {
+      expect(new Set(LANGS.map(sample)).size).toBe(LANGS.length);
+    }
   });
 
   it("gives every language the same scripted ids — they are a contract between two binaries", () => {
