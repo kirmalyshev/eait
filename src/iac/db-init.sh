@@ -19,7 +19,12 @@
 set -eu
 
 : "${PGPASSWORD:?the superuser password}"
-: "${EAIT__DEPLOY__APP_DB_PASSWORD:?the application role's password}"
+# NO APOSTROPHE IN EITHER MESSAGE. The word in `${VAR:?word}` is still quote-parsed inside the
+# double quotes, so "role's" opens a single quote that never closes. ash and dash tolerate it,
+# which is why the alpine container and CI have always been fine and nothing ever said so; bash
+# does not, and `sh` IS bash on macOS -- there the assignments below land inside that word and
+# the script dies further down on `APP: unbound variable`, naming a line that is not the problem.
+: "${EAIT__DEPLOY__APP_DB_PASSWORD:?the password for the application role}"
 DB="${POSTGRES_DB:-eait}"
 SUPER="${POSTGRES_USER:-eait}"
 APP=eait_app
