@@ -22,7 +22,14 @@ export interface PageCopy {
   /** `{protein}` — the line under the big kcal figure on the plan card. */
   planPerDay: string;
   planFloor: string;
-  /** `{floor}` — the floor's own number, said after `planFloor`. */
+  /**
+   * `{floor}` — the floor's own number, said after `planFloor`.
+   *
+   * A PROMISE AND NOT A SPEC (#28). "The floor is 1,500 kcal." states a bound the way a table
+   * of limits would; "We will not write a plan under 1 500" is the same number as something this
+   * product will not do, which is what the floor actually is. `planFloor` used to end on that
+   * promise as well and no longer does — one sentence says it, and it is the one with the number.
+   */
   planFloorNumber: string;
   planDiary: string;
   planDiaryBody: string;
@@ -115,8 +122,8 @@ const EN: PageCopy = {
   planPerDay: "a day, with at least {protein} g of protein",
   planFloor:
     "This is the lowest daily intake this app will set, so the number is the floor rather than the " +
-    "arithmetic. Eating under it is not something we will help you plan.",
-  planFloorNumber: "The floor is {floor} kcal.",
+    "arithmetic.",
+  planFloorNumber: "We will not write a plan under {floor} kcal.",
   /**
    * The handover to the web application (#394).
    *
@@ -217,8 +224,8 @@ const FR: PageCopy = {
   planHeading: "Ton plan",
   planLead: "Voilà ce à quoi l'appli va te tenir. Tu peux changer n'importe quelle réponse plus tard, dans l'appli.",
   planPerDay: "par jour, avec au moins {protein} g de protéines",
-  planFloor: "C'est l'apport quotidien le plus bas que cette appli fixera, donc ce chiffre est le plancher plutôt que le calcul. Manger en dessous n'est pas quelque chose que nous t'aiderons à planifier.",
-  planFloorNumber: "Le plancher est de {floor} kcal.",
+  planFloor: "C'est l'apport quotidien le plus bas que cette appli fixera, donc ce chiffre est le plancher plutôt que le calcul.",
+  planFloorNumber: "Nous n'établirons jamais un plan en dessous de {floor} kcal.",
   planDiary: "Ouvrir ton journal",
   planDiaryBody: "Rien à installer. Photographie un repas dans ce navigateur et lis la réponse, sur le même compte.",
   planAppHeading: "Maintenant, installe l'appli",
@@ -283,8 +290,8 @@ const DE: PageCopy = {
   planHeading: "Dein Plan",
   planLead: "Daran wird die App dich messen. Jede Antwort lässt sich später in der App ändern.",
   planPerDay: "am Tag, mit mindestens {protein} g Eiweiß",
-  planFloor: "Das ist die niedrigste Tagesaufnahme, die diese App je ansetzt — die Zahl ist also die Grenze und nicht die Rechnung. Darunter zu essen ist nichts, wobei wir dir helfen werden.",
-  planFloorNumber: "Die Grenze liegt bei {floor} kcal.",
+  planFloor: "Das ist die niedrigste Tagesaufnahme, die diese App je ansetzt — die Zahl ist also die Grenze und nicht die Rechnung.",
+  planFloorNumber: "Wir stellen keinen Plan unter {floor} kcal auf.",
   planDiary: "Dein Tagebuch öffnen",
   planDiaryBody: "Nichts zu installieren. Fotografier eine Mahlzeit in diesem Browser und lies die Antwort — auf demselben Konto.",
   planAppHeading: "Jetzt die App holen",
@@ -349,8 +356,8 @@ const IT: PageCopy = {
   planHeading: "Il tuo piano",
   planLead: "È a questo che l'app ti terrà. Puoi cambiare qualsiasi risposta più avanti, nell'app.",
   planPerDay: "al giorno, con almeno {protein} g di proteine",
-  planFloor: "Questo è l'apporto giornaliero più basso che questa app imposterà, quindi il numero è il limite e non il calcolo. Mangiare al di sotto non è una cosa che ti aiuteremo a pianificare.",
-  planFloorNumber: "Il limite è di {floor} kcal.",
+  planFloor: "Questo è l'apporto giornaliero più basso che questa app imposterà, quindi il numero è il limite e non il calcolo.",
+  planFloorNumber: "Non scriveremo mai un piano sotto le {floor} kcal.",
   planDiary: "Apri il tuo diario",
   planDiaryBody: "Niente da installare. Fotografa un pasto in questo browser e leggi la risposta, sullo stesso account.",
   planAppHeading: "Ora installa l'app",
@@ -415,8 +422,8 @@ const ES: PageCopy = {
   planHeading: "Tu plan",
   planLead: "Esto es a lo que la app te va a sujetar. Puedes cambiar cualquier respuesta más adelante, en la app.",
   planPerDay: "al día, con al menos {protein} g de proteína",
-  planFloor: "Esta es la ingesta diaria más baja que esta app va a fijar, así que el número es el suelo y no el cálculo. Comer por debajo no es algo que te vayamos a ayudar a planificar.",
-  planFloorNumber: "El suelo está en {floor} kcal.",
+  planFloor: "Esta es la ingesta diaria más baja que esta app va a fijar, así que el número es el suelo y no el cálculo.",
+  planFloorNumber: "No vamos a escribir un plan por debajo de {floor} kcal.",
   planDiary: "Abre tu diario",
   planDiaryBody: "Nada que instalar. Fotografía una comida en este navegador y lee la respuesta, en la misma cuenta.",
   planAppHeading: "Ahora instala la app",
@@ -481,8 +488,8 @@ const VI: PageCopy = {
   planHeading: "Kế hoạch của bạn",
   planLead: "Đây là chuẩn mà ứng dụng sẽ dùng để chấm bạn. Bạn có thể đổi bất cứ câu trả lời nào sau này, trong ứng dụng.",
   planPerDay: "mỗi ngày, với ít nhất {protein} g đạm",
-  planFloor: "Đây là mức ăn vào mỗi ngày thấp nhất mà ứng dụng này sẽ đặt, nên con số đó là mức sàn chứ không phải phép tính. Ăn dưới mức đó không phải điều chúng tôi sẽ giúp bạn lên kế hoạch.",
-  planFloorNumber: "Mức sàn là {floor} kcal.",
+  planFloor: "Đây là mức ăn vào mỗi ngày thấp nhất mà ứng dụng này sẽ đặt, nên con số đó là mức sàn chứ không phải phép tính.",
+  planFloorNumber: "Chúng tôi sẽ không lập kế hoạch dưới {floor} kcal.",
   planDiary: "Mở nhật ký của bạn",
   planDiaryBody: "Không cần cài gì. Chụp một bữa ăn ngay trong trình duyệt này và đọc câu trả lời, trên cùng tài khoản.",
   planAppHeading: "Giờ thì tải ứng dụng",
@@ -547,8 +554,8 @@ const ID: PageCopy = {
   planHeading: "Rencanamu",
   planLead: "Inilah yang akan dipegang aplikasinya untukmu. Semua jawaban bisa kamu ubah nanti di aplikasi.",
   planPerDay: "per hari, dengan setidaknya {protein} g protein",
-  planFloor: "Ini asupan harian terendah yang akan ditetapkan aplikasi ini, jadi angkanya adalah batas bawah, bukan hasil hitungan. Makan di bawah itu bukan sesuatu yang akan kami bantu rencanakan.",
-  planFloorNumber: "Batas bawahnya {floor} kcal.",
+  planFloor: "Ini asupan harian terendah yang akan ditetapkan aplikasi ini, jadi angkanya adalah batas bawah, bukan hasil hitungan.",
+  planFloorNumber: "Kami tidak akan menyusun rencana di bawah {floor} kcal.",
   planDiary: "Buka buku harianmu",
   planDiaryBody: "Tidak ada yang perlu dipasang. Foto sebuah makanan di browser ini dan baca jawabannya, di akun yang sama.",
   planAppHeading: "Sekarang ambil aplikasinya",
@@ -613,8 +620,8 @@ const RU: PageCopy = {
   planHeading: "Твой план",
   planLead: "Вот к чему приложение будет тебя возвращать. Любой ответ можно поменять позже, в приложении.",
   planPerDay: "в день, и минимум {protein} г белка",
-  planFloor: "Это самый низкий суточный калораж, который приложение когда-либо поставит, так что эта цифра — порог, а не расчёт. Есть ниже — не то, что мы поможем спланировать.",
-  planFloorNumber: "Порог — {floor} ккал.",
+  planFloor: "Это самый низкий суточный калораж, который приложение когда-либо поставит, так что эта цифра — порог, а не расчёт.",
+  planFloorNumber: "Мы не составим план ниже {floor} ккал.",
   planDiary: "Открыть дневник",
   planDiaryBody: "Ставить ничего не нужно. Сфотографируй еду прямо в этом браузере и прочитай ответ — на том же аккаунте.",
   planAppHeading: "Теперь возьми приложение",

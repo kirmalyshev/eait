@@ -93,7 +93,7 @@ describe("the language picker on the plan page", () => {
     expect(de).toContain(pageCopyFor("de").planFloorNumber.replace("{floor}", "1.500"));
     expect(de).toContain("1.800 kcal");
     expect(de).not.toContain("a day, with at least");
-    expect(de).not.toContain("The floor is");
+    expect(de).not.toContain("We will not write a plan under");
   });
 
   it("posts to the one route, which writes through the profile", () => {
