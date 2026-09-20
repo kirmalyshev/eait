@@ -21,15 +21,28 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
 // ── The derivation ───────────────────────────────────────────────────────────────────────────
 
-/** Base ports. These are the slot-0 values, which are the ones every doc and script already names. */
-export const PORT_BASE = { backend: 8787, web: 8788 } as const;
+/**
+ * Base ports. These are the slot-0 values, which are the ones every doc and script already names.
+ *
+ * NOT 8787, WHICH IS THE OTHER REPOSITORY'S. The private monorepo that carries this one as a
+ * submodule runs its own `./dev` stack on the same laptop, and this stack was ported from it and
+ * kept its base — so both called slot 0 8787/8788 and whichever came up second died on a taken
+ * port. Both ladders step by 10, which makes the last digit decide it for every slot at once:
+ * theirs end in 7 and 8 (backend, web), 1 (Metro) and 3 (landing), so a pair ending in 4 and 5
+ * cannot meet one of theirs at any slot, in either repository. `dev-env.test.ts` states that as
+ * arithmetic.
+ *
+ * The CONTAINER ports are still 8787/8788 and are not this number: inside a container nothing
+ * collides, and `docker-compose.prod.yml` is a published deploy contract.
+ */
+export const PORT_BASE = { backend: 8484, web: 8485 } as const;
 
 /**
  * The gap between one slot's ports and the next.
  *
  * Ten rather than one, so a service added later has room beside the one it belongs to without
  * landing on the next worktree's. The web port is BACKEND + 1 rather than a ladder of its own:
- * slot N owns `8787 + 10N` through `8796 + 10N`, and the number above its backend is inside that
+ * slot N owns `8484 + 10N` through `8493 + 10N`, and the number above its backend is inside that
  * range and inside no other slot's.
  */
 export const PORT_STEP = 10;

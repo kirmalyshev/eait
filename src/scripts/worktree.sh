@@ -22,12 +22,12 @@ EAIT_SLOT="${EAIT_SLOT:-0}"
 # against. Empty here says "this worktree never derived", which is the truth; a branch name nobody
 # looked up would not be.
 EAIT_BRANCH="${EAIT_BRANCH:-}"
-EAIT_BACKEND_PORT="${EAIT_BACKEND_PORT:-8787}"
+EAIT_BACKEND_PORT="${EAIT_BACKEND_PORT:-8484}"
 # The web application, which is a different application from the backend and therefore a different
 # port: the backend serves `/start` and the API, `src/frontend` serves the app at `/`.
-EAIT_WEB_PORT="${EAIT_WEB_PORT:-8788}"
-EAIT_WEB_URL="${EAIT_WEB_URL:-http://127.0.0.1:8788}"
-EAIT_API_URL="${EAIT_API_URL:-http://127.0.0.1:8787}"
+EAIT_WEB_PORT="${EAIT_WEB_PORT:-8485}"
+EAIT_WEB_URL="${EAIT_WEB_URL:-http://127.0.0.1:8485}"
+EAIT_API_URL="${EAIT_API_URL:-http://127.0.0.1:8484}"
 # Slot 0's database is `eait`, which is also the compose maintenance database. `db.sh drop` in a
 # worktree that never derived would therefore drop slot 0's — see the header of that file.
 EAIT_DB_NAME="${EAIT_DB_NAME:-eait}"

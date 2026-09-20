@@ -123,9 +123,9 @@ describe("this process serves the web application and nothing else", () => {
 });
 
 describe("the development proxy, which production does not have", () => {
-  // There is no Caddy on a laptop, so without this the page loads from :8788 and every relative
-  // `/api/v1/*` call it makes goes to :8788 as well, where there is no API. The alternatives are
-  // both worse: an absolute URL to :8787 makes the client cross-origin, which is what
+  // There is no Caddy on a laptop, so without this the page loads from :8485 and every relative
+  // `/api/v1/*` call it makes goes to :8485 as well, where there is no API. The alternatives are
+  // both worse: an absolute URL to :8484 makes the client cross-origin, which is what
   // `connect-src 'self'` and the absent CORS headers exist to forbid, and running Caddy locally
   // makes `./dev up` need Docker to show a page.
   //
@@ -157,7 +157,7 @@ describe("the development proxy, which production does not have", () => {
         bundlePath: new URL(`file://${bundlePath}`),
         backendOrigin: `http://127.0.0.1:${upstream.port}`,
       });
-      const res = await app.fetch(new Request("http://127.0.0.1:8788/api/v1/meals?day=2026-09-09", {
+      const res = await app.fetch(new Request("http://127.0.0.1:8485/api/v1/meals?day=2026-09-09", {
         method: "POST",
         headers: { authorization: "Bearer t0ken", "content-type": "application/json" },
         body: '{"note":"soup"}',
@@ -180,7 +180,7 @@ describe("the development proxy, which production does not have", () => {
     // `EAIT__BACKEND__PUBLIC_WEB_URL` whenever the request arrived on a DIFFERENT host — which is
     // how `api.eait.fit/start` sends a phone to the browser's name. Rewriting the Host to the
     // backend's own port here makes that condition true on every proxied request: the backend
-    // redirects to :8788, the browser comes back, and the two bounce until Chrome gives up with
+    // redirects to :8485, the browser comes back, and the two bounce until Chrome gives up with
     // ERR_TOO_MANY_REDIRECTS. Caddy forwards the original Host, so this does too.
     const seen: { host: string | null } = { host: null };
     const upstream = Bun.serve({
@@ -195,8 +195,8 @@ describe("the development proxy, which production does not have", () => {
         bundlePath: new URL(`file://${bundlePath}`),
         backendOrigin: `http://127.0.0.1:${upstream.port}`,
       });
-      await app.fetch(new Request("http://127.0.0.1:8788/start"));
-      expect(seen.host).toBe("127.0.0.1:8788");
+      await app.fetch(new Request("http://127.0.0.1:8485/start"));
+      expect(seen.host).toBe("127.0.0.1:8485");
     } finally {
       upstream.stop(true);
     }
@@ -217,7 +217,7 @@ describe("the development proxy, which production does not have", () => {
         bundlePath: new URL(`file://${bundlePath}`),
         backendOrigin: `http://127.0.0.1:${upstream.port}`,
       });
-      const res = await app.fetch(new Request("http://127.0.0.1:8788/start/q"));
+      const res = await app.fetch(new Request("http://127.0.0.1:8485/start/q"));
       expect(res.status).toBe(303);
       expect(res.headers.get("location")).toBe("/");
       expect(res.headers.get("set-cookie")).toContain("eait_web=abc");
@@ -232,8 +232,8 @@ describe("the development proxy, which production does not have", () => {
       // A port nothing is listening on: if the shell or the bundle were proxied, this throws.
       backendOrigin: "http://127.0.0.1:1",
     });
-    expect((await app.fetch(new Request("http://127.0.0.1:8788/"))).status).toBe(200);
-    expect((await app.fetch(new Request("http://127.0.0.1:8788/app.js"))).status).toBe(200);
-    expect((await app.fetch(new Request("http://127.0.0.1:8788/health"))).status).toBe(200);
+    expect((await app.fetch(new Request("http://127.0.0.1:8485/"))).status).toBe(200);
+    expect((await app.fetch(new Request("http://127.0.0.1:8485/app.js"))).status).toBe(200);
+    expect((await app.fetch(new Request("http://127.0.0.1:8485/health"))).status).toBe(200);
   });
 });

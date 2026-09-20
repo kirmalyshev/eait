@@ -47,8 +47,8 @@ ports and its own database inside one shared Postgres, derived from a slot numbe
 | `./dev seed` / `./dev db …` | fixtures; the shared Postgres and this worktree's database |
 | `./dev env` / `./dev url` | what this worktree derives; its API URL, for substitution |
 
-Without it, the plain commands still work — `bun run demo` on :8787, `bun run web:build` then
-`EAIT__FRONTEND__BACKEND_ORIGIN=http://127.0.0.1:8787 bun run web` on :8788, and `bun run start`
+Without it, the plain commands still work — `bun run demo` on :8484, `bun run web:build` then
+`EAIT__FRONTEND__BACKEND_ORIGIN=http://127.0.0.1:8484 bun run web` on :8485, and `bun run start`
 against a real database. `migrate()` creates the tables; it never creates the database.
 
 ## Host it yourself

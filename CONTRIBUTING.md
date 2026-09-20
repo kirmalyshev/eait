@@ -20,7 +20,7 @@ repository that mounts this one as a submodule. That shapes what a contribution 
 
 ```sh
 bun install
-bun run demo          # canned analyses, seeded fixtures, no database, no model key, on :8787
+bun run demo          # canned analyses, seeded fixtures, no database, no model key, on :8484
 bun run check         # typecheck (shared, backend, web, scripts), the web build, the unit suites, openapi.json current
 bun run web:e2e       # the browser suite, against the demo model
 ```
