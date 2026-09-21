@@ -15,7 +15,7 @@ import {
   type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord, type MealUpdated, type PhotoEvent,
   type Profile, type TargetGone, type ConfirmMealResult, type Refusal, explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
-import { PHOTO_MODEL_CALLS, localDate, localTime, windowStart } from "@eait/shared";
+import { PHOTO_MODEL_CALLS, localDate, localTime, mealIsGuessed, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
 import { prepareAnalysis } from "./analysis.ts";
@@ -39,6 +39,9 @@ export interface LogPhotoInput {
 /** Sum a day's meals. The single place totals are produced, so two views cannot disagree. */
 export function sumTotals(meals: readonly MealRecord[]): DailyTotals {
   const t: DailyTotals = {
+    // #28: one guessed meal makes the day's figures a guess, and `sumTotals` is the only producer
+    // of a `DailyTotals`, so this is the only place the four surfaces that print one can disagree.
+    guessed: meals.some(mealIsGuessed),
     kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0,
   };
   for (const m of meals) {

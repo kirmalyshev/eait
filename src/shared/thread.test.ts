@@ -250,7 +250,7 @@ describe("oneCardPerMeal — #301", () => {
     const stored = fromHistory([card(meal("m1", 300))]);
     const live: ThreadEntry = {
       id: "a1", role: "assistant",
-      result: { kind: "updated", mealId: "m1", analysis: meal("m1", 870), totals: { kcal: 870, protein_g: 40, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 }, date: "2026-08-25", via: "nl" },
+      result: { kind: "updated", mealId: "m1", analysis: meal("m1", 870), totals: { guessed: false, kcal: 870, protein_g: 40, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 }, date: "2026-08-25", via: "nl" },
     };
     expect(oneCardPerMeal([...stored, live]).map((e) => e.id)).toEqual(["a1"]);
   });
@@ -278,7 +278,7 @@ describe("oneCardPerMeal — #301", () => {
 describe("oneLiveProposal / pendingIdOf — #360", () => {
   const proposal = (id: string, pendingId: string): ThreadEntry =>
     ({ id, role: "assistant", result: { kind: "proposed", pendingId, analysis: meal(pendingId, 1106), date: "2026-08-25", expiresAt: LIVE } });
-  const totals = { kcal: 1106, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 };
+  const totals = { guessed: false, kcal: 1106, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 };
   /** The screen's `replace` on a confirm: the entry becomes the logged card, in its own place. */
   const confirm = (entries: ThreadEntry[], id: string, pendingId: string): ThreadEntry[] => {
     // Annotated, never cast: a field this result grows must break here rather than typecheck green.
@@ -339,7 +339,7 @@ const spoke = (result: ChatResult, id = "a1"): ThreadEntry => ({ id, role: "assi
 const proposal: ChatResult = { kind: "proposed", pendingId: "p1", analysis: meal("p1", 300), date: "2026-08-25", expiresAt: LIVE };
 const landed: ChatResult = {
   kind: "logged", mealId: "m1", analysis: meal("m1", 300), date: "2026-08-25", hint: "correction",
-  totals: { kcal: 300, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 },
+  totals: { guessed: false, kcal: 300, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0 },
 };
 
 describe("speakerOf", () => {

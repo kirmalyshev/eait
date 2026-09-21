@@ -216,6 +216,15 @@ export interface MealRecord extends MealAnalysis {
 }
 
 export interface DailyTotals {
+  /**
+   * At least one meal in this day is a guess (#28), so every figure derived from these totals is
+   * one — the day, what is left of it, and the 20:30 line.
+   *
+   * ON THE TOTALS AND NOT RECOMPUTED PER SURFACE, because four of them say it: the thread's
+   * running line, the web diary's headline, Telegram's `/today`, and the evening push. Only
+   * `sumTotals` produces a `DailyTotals`, so there is one place it can be wrong.
+   */
+  guessed: boolean;
   kcal: number;
   protein_g: number;
   carbs_g: number;

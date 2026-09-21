@@ -1,11 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { dayBudget } from "./budget.ts";
+import { dayBudget, mealIsGuessed } from "./budget.ts";
 
 const TODAY = "2026-09-16";
-const day = (kcal: number, o: { date?: string; meals?: number; target?: number; protein?: number; guesses?: number } = {}) => ({
+const day = (
+  kcal: number,
+  o: { date?: string; meals?: number; target?: number; protein?: number; guesses?: number; guessed?: boolean } = {},
+) => ({
   date: o.date ?? TODAY,
+  // The meals themselves: only their COUNT and, for a reader of this file, which of them the
+  // analyzer could not read. `dayBudget` asks the totals, because `totals.guessed` is the one the
+  // backend computed through `mealIsGuessed` — confidence AND whether it has since been answered.
   meals: Array.from({ length: o.meals ?? 1 }, (_, i) => ({ confidence: i < (o.guesses ?? 0) ? "low" : "high" })),
-  totals: { kcal, protein_g: o.protein ?? 0 },
+  totals: { kcal, protein_g: o.protein ?? 0, guessed: o.guessed ?? (o.guesses ?? 0) > 0 },
   targets: { kcal: o.target ?? 2000, protein_g: 120 },
 });
 
@@ -53,6 +59,19 @@ describe("dayBudget", () => {
     expect(dayBudget(day(2600), TODAY, null)).toMatchObject({ state: "over", warn: true });
   });
 
+  // #28: a day with a guessed meal in it is a guessed day, and the two figures a reader sees have
+  // to be the same subtraction — rounding each of them at format time is what makes "about 1 820"
+  // and "about 280" stop adding up to the plan.
+  test("a guessed day rounds what was eaten to the guess step, BEFORE subtracting", () => {
+    expect(dayBudget(day(1822, { target: 2100, guessed: true }), TODAY, "lose"))
+      .toMatchObject({ guessed: true, eaten: 1820, kcal: 280 });
+  });
+
+  test("a measured day keeps every digit it earned", () => {
+    expect(dayBudget(day(1822, { target: 2100 }), TODAY, "lose"))
+      .toMatchObject({ guessed: false, eaten: 1822, kcal: 278 });
+  });
+
   test("a zero target never divides by zero", () => {
     expect(dayBudget(day(300, { target: 0 }), TODAY, "lose")).toMatchObject({ state: "over", kcal: 300, fill: 1 });
     expect(dayBudget(day(0, { target: 0 }), TODAY, "lose")).toMatchObject({ state: "left", kcal: 0, fill: 0 });
@@ -85,5 +104,19 @@ describe("dayBudget", () => {
 
   test("a day with no meal is not a guess", () => {
     expect(dayBudget(day(0, { meals: 0 }), TODAY, "lose")).toMatchObject({ guessed: false });
+  });
+
+  describe("mealIsGuessed", () => {
+    test("a plate the analyzer could not read is a guess; a typed meal arrives as one too", () => {
+      expect(mealIsGuessed({ confidence: "low", corrected: false })).toBe(true);
+      expect(mealIsGuessed({ confidence: "high", corrected: false })).toBe(false);
+      expect(mealIsGuessed({ confidence: "medium", corrected: false })).toBe(false);
+    });
+
+    test("an answered meal is settled, however badly it was read", () => {
+      // `editMeal` sets `corrected` on every manual edit and every natural-language correction.
+      // Without this half the thread goes on saying "about" about grams the person typed.
+      expect(mealIsGuessed({ confidence: "low", corrected: true })).toBe(false);
+    });
   });
 });
