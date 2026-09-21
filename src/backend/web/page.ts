@@ -10,7 +10,7 @@
 
 import { MAX_USER_LINE, TYPE_MS_PER_CHAR } from "@eait/shared";
 import { createHash } from "node:crypto";
-import { darkVars, lightVars } from "@eait/shared/palette";
+import { STYLESHEET } from "@eait/shared/design";
 import { spudSvg } from "@eait/shared/mascot";
 
 export function escape(text: string): string {
@@ -38,132 +38,82 @@ export { PAGE_COPY, PAGE_COPY_BY_LANG, pageCopyFor, type PageCopy } from "./copy
 /** Where the typeface is served from, on this origin, so the CSP needs `font-src 'self'` and no more. */
 export const FONT_PATH = "/start/assets/space-grotesk-latin.woff2";
 
+/**
+ * `/start` IS THE PRODUCT, so it is painted in the product's design system.
+ *
+ * It used to carry the LANDING's palette — light, warm, Space Grotesk on the headings — on the
+ * argument that this surface and the marketing page are one thing to whoever is looking at them.
+ * That was true while the app was the only place the system lived. It is not any more: this flow
+ * is where somebody answers eight questions and is handed a plan, and then walks straight into a
+ * client drawn from `shared/design.ts`. Meeting a cream questionnaire and then a dark product is
+ * the drift the system exists to stop. The landing keeps `palette.ts`; everything from the front
+ * door inwards is one register.
+ *
+ * DARK ONLY, and the `data-theme` hook goes with the second palette. A light theme is not a
+ * lighter version of these values.
+ *
+ * The block below is what this surface has and the client does not — a flow with no JavaScript,
+ * so an option is a submit button rather than a node with a listener, and the shapes have to be
+ * reached by element selector. Every value in it is a token.
+ */
 const STYLES = `
-/* ── Tokens, the landing's own ───────────────────────────────────────────────────────────────
-   IMPORTED RATHER THAN RETYPED. This surface and the landing page are one product to whoever is
-   looking at them, and they had drifted into two: the landing is light with Space Grotesk on its
-   headings, and these pages were a system-font sheet following the OS, so a visitor on a dark
-   machine met a light marketing page and a black sign-up.
+${STYLESHEET}
 
-   THE OS PREFERENCE IS NOT CONSULTED HERE EITHER, for the landing's reason: light is what every
-   visitor gets until they choose otherwise. These pages carry no JavaScript and therefore no
-   toggle, so data-theme="dark" is set by nothing today — it is here so that the day one exists
-   the values are already right. */
-:root {
-  ${lightVars}
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
-  --display: "Space Grotesk", var(--sans);
-  --warm: 232 190 131;
-  --haze: .16;
-}
-:root[data-theme="dark"] { ${darkVars} --haze: .10; }
+/* ── This flow's own shapes, mapped onto the system ─────────────────────────── */
+main { max-width: 30rem; margin: 0 auto; padding: 24px 16px 64px; }
+.spud { width: 56px; height: 56px; display: block; margin: 0 0 14px; }
+h1 { text-wrap: balance; }
 
-/* The one typeface, self-hosted on this origin — the landing's file, served by the route beside
-   this module so nothing is loaded from anyone else. Its OFL licence travels with the source. */
-@font-face {
-  font-family: "Space Grotesk";
-  src: url("${FONT_PATH}") format("woff2");
-  font-weight: 300 700;
-  font-display: swap;
-}
-
-*, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body {
-  margin: 0;
-  /* The same warm haze the landing lays over its first screen, so arriving here reads as the next
-     page of one site rather than as another site. */
-  background: linear-gradient(180deg, rgb(var(--warm) / var(--haze)), transparent 46rem) var(--ink);
-  color: var(--text);
-  font-family: var(--sans); font-size: 17px; line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
-}
-main { max-width: 34rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
-h1, h2 { font-family: var(--display); letter-spacing: -0.02em; }
-h1 { font-size: 2rem; line-height: 1.1; margin: 0 0 .75rem; }
-h2 { font-size: 1.125rem; margin: 2.5rem 0 .75rem; }
-p { margin: 0 0 1rem; }
-.muted { color: var(--muted); }
-.small { font-size: .875rem; }
-img, svg { display: block; max-width: 100%; }
-
-.card {
-  background: var(--panel); border: 1px solid var(--line);
-  border-radius: 20px; padding: 1.25rem; margin: 0 0 .75rem;
-  box-shadow: 0 1px 2px rgb(19 20 23 / .04);
-}
+/* Spud's line, and the person's. The same two shapes the thread uses; here they are paragraphs
+   rather than list items, because this page has no thread to put them in. */
 .bubble {
-  background: var(--panel); border: 1px solid var(--line);
-  border-radius: 20px; border-bottom-left-radius: 6px;
-  padding: .8rem 1.1rem; margin: 0 0 .5rem;
-  box-shadow: 0 1px 2px rgb(19 20 23 / .04);
+  background: var(--surface); border-radius: 18px; border-bottom-left-radius: 7px;
+  padding: 11px 15px; margin: 0 0 8px; max-width: 30rem;
 }
 .bubble.you {
-  background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
-  border-bottom-left-radius: 20px; border-bottom-right-radius: 6px;
+  background: var(--green); color: var(--ink); font-weight: 600;
+  border-bottom-left-radius: 18px; border-bottom-right-radius: 7px;
   margin-left: auto; max-width: 85%;
-  box-shadow: 0 12px 32px -20px rgb(19 20 23 / .45);
 }
-.who {
-  font-family: var(--display); font-size: .8125rem; font-weight: 600; letter-spacing: -0.01em;
-  color: var(--dim); margin: 0 0 .25rem .25rem;
-}
-.pill {
-  display: inline-block; border: 1px solid var(--line-strong); border-radius: 999px;
-  padding: .15rem .7rem; margin: .4rem .4rem 0 0;
-  font-size: .8125rem; color: var(--muted);
-}
-.spud { width: 64px; height: 64px; display: block; margin: 0 0 1rem; }
-/* The part of a line not yet typed. Laid out, read by a screen reader, not yet seen. */
+.who { font-size: 12px; font-weight: 700; color: var(--t4); margin: 0 0 4px 4px; }
+/* The part of a line not yet typed: laid out, read by a screen reader, not yet seen. */
 .untyped { color: transparent; }
 
+/* AN OPTION IS A SUBMIT BUTTON on this surface, so the design's option row is reached by element
+   rather than by class. A border and a tint and never a solid fill — three deep in a column a
+   filled row makes every option that was not chosen read as disabled. */
 form { margin: 0; }
-/* Pill buttons and pill fields, which is the shape the landing's calls to action are. */
-button, .button {
-  display: block; width: 100%; text-align: left; cursor: pointer;
-  font: inherit; font-family: var(--display); font-weight: 600; letter-spacing: -0.01em;
-  color: var(--text); background: var(--raised);
-  border: 1px solid var(--line-strong); border-radius: 999px;
-  padding: .9375rem 1.375rem; margin: 0 0 .625rem; text-decoration: none;
-  transition: border-color .15s ease, transform .18s ease, box-shadow .18s ease;
+button, .button, label.check {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
+  font: inherit; font-weight: 700; font-size: 16px; letter-spacing: -.01em;
+  color: var(--t1); background: var(--surface);
+  border: 1.5px solid var(--surface); border-radius: 16px;
+  padding: 16px; margin: 0 0 10px; text-decoration: none;
 }
-button:hover, .button:hover { border-color: var(--text); }
+button:hover, .button:hover, label.check:hover { border-color: var(--raised); }
+button .hint { display: block; font-weight: 400; font-size: 13px; color: var(--t3); margin-top: 4px; }
+/* The one call to action, which is green because green is the affordance. */
 button.primary, .button.primary {
-  background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
-  text-align: center;
-  box-shadow: 0 12px 32px -16px rgb(19 20 23 / .45);
+  justify-content: center; text-align: center; min-height: 56px;
+  background: var(--green); color: var(--ink); border-color: var(--green);
+  font-weight: 800; font-size: 14px; letter-spacing: .09em; text-transform: uppercase;
 }
-button.primary:hover, .button.primary:hover { transform: translateY(-2px); box-shadow: 0 16px 36px -14px var(--accent); }
-button .hint { display: block; font-family: var(--sans); font-weight: 400; color: var(--muted); font-size: .875rem; }
 button.primary .hint { color: inherit; opacity: .85; }
 input[type=number], input[type=text] {
-  width: 100%; font: inherit; color: var(--text); background: var(--raised);
-  border: 1px solid var(--line-strong); border-radius: 999px;
-  padding: .9375rem 1.375rem; margin: 0 0 .625rem;
-  box-shadow: 0 1px 2px rgb(19 20 23 / .04);
-  transition: border-color .15s ease, box-shadow .15s ease;
+  width: 100%; font: inherit; color: var(--t1); background: var(--surface);
+  border: 1px solid var(--raised); border-radius: 14px; padding: 15px 16px; margin: 0 0 10px;
 }
-input::placeholder { color: var(--dim); }
-input:focus { border-color: var(--care); outline: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--care) 18%, transparent); }
-input[type=file] {
-  display: block; width: 100%; margin: 0 0 .625rem; font: inherit; font-size: .9375rem;
-  color: var(--muted);
+input::placeholder { color: var(--t4); }
+input[type=file] { display: block; width: 100%; margin: 0 0 10px; font: inherit; color: var(--t3); }
+.pill {
+  display: inline-block; border: 1px solid var(--raised); border-radius: 999px;
+  padding: 2px 11px; margin: 6px 6px 0 0; font-size: 13px; color: var(--t3);
 }
-label.check {
-  display: block; background: var(--raised); border: 1px solid var(--line-strong);
-  border-radius: 20px; padding: .8rem 1.25rem; margin: 0 0 .625rem; cursor: pointer;
-}
-.notice { border-left: 3px solid var(--warn); padding-left: 1rem; margin: 0 0 1.25rem; color: var(--muted); }
-.care { border-left-color: var(--care); }
-/* Onboarding's progress: a plain bar that only ever advances. No count of what remains, no dot
-   row — the design is explicit that this screen shows neither. */
-.prog {
-  height: 5px; border-radius: 3px; background: var(--line-strong);
-  overflow: hidden; margin: 0 0 1.25rem;
-}
-.prog > i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
-.figure { font-family: var(--display); font-size: 2.6rem; font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
+.notice { border-left: 3px solid var(--bad); padding-left: 14px; margin: 0 0 18px; color: var(--t2); }
+.care { border-left-color: var(--blue); }
+.figure { font-family: var(--mono); font-size: 42px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
 `;
+
 
 /**
  * The document.

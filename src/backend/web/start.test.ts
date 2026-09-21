@@ -12,7 +12,8 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  AMBIGUOUS_AGE, COUNTRY_CODES, DEFAULT_ONBOARDING_CONTENT, LANGS, LANG_LABEL, UNDER_AGE_CARD,
+  AMBIGUOUS_AGE, COLOR, COUNTRY_CODES, DEFAULT_ONBOARDING_CONTENT, FONT_BASE, FONT_FILES,
+  LANGS, LANG_LABEL, UNDER_AGE_CARD,
   UNDER_AGE_LINES, countryLabel, countryOptions, disabledScreens, explainTargets, lintCopy,
   MAX_USER_LINE, onboardingContentFor, screenForStep, screenOptions, TYPE_MS_PER_CHAR,
   wholeNumbers, type Profile,
@@ -1461,26 +1462,43 @@ describe("chat on the web: who said it", () => {
   });
 });
 
-describe("the web surface and the landing are one product", () => {
-  it("draws its pages from the landing's own tokens and typeface", async () => {
+describe("this flow and the product are one register", () => {
+  it("draws its pages from the design system, not from a palette of its own", async () => {
+    // IT USED TO DRAW FROM THE LANDING'S, on the argument that this surface and the marketing
+    // page are one thing to whoever is looking at them. That held while the app was the only
+    // place the system lived. It does not now: somebody answers eight questions here and walks
+    // straight into a client drawn from `shared/design.ts`, and a cream questionnaire in front of
+    // a dark product is exactly the drift the system exists to stop.
     const { session } = await onboarded();
     const page = await (await get("/start/chat", session)).text();
-    // The landing's palette, by variable name, rather than a second copy of the hexes.
-    expect(page).toContain("--accent-ink:");
-    expect(page).toContain('font-family: "Space Grotesk"');
-    // Light unless somebody says otherwise, which is the landing's rule: the OS is not consulted.
+    expect(page).toContain(`--ground: ${COLOR.ground};`);
+    expect(page).toContain(`--amber: ${COLOR.amber};`);
+    expect(page).toContain('font-family: "Plus Jakarta Sans"');
+    expect(page).toContain('font-family: "DM Mono"');
+    // No second palette left behind it, and no theme switch: the design draws one surface.
+    expect(page).not.toContain("--accent-ink:");
     expect(page).not.toContain("prefers-color-scheme");
   });
 
-  it("serves that typeface itself, cached, so the page loads nothing from anyone else", async () => {
-    const res = await get("/start/assets/space-grotesk-latin.woff2");
-    expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toBe("font/woff2");
-    expect(res.headers.get("cache-control")).toContain("immutable");
-    expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(10_000);
-    // And the policy that allows it is same-origin only.
+  it("serves both faces itself, cached, so the page loads nothing from anyone else", async () => {
+    // The whole reason they are not Google's: a third-party host here is a third party on a page
+    // that handles POSTs and carries no script.
+    for (const file of FONT_FILES) {
+      const res = await get(`${FONT_BASE}${file}`);
+      expect(`${file}: ${res.status}`).toBe(`${file}: 200`);
+      expect(res.headers.get("content-type")).toBe("font/woff2");
+      expect(res.headers.get("cache-control")).toContain("immutable");
+      expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(5_000);
+    }
+    // And the policy that allows them is same-origin only.
     const front = await get("/start");
     expect(front.headers.get("content-security-policy")).toContain("font-src 'self'");
+  });
+
+  it("refuses a font path it does not serve, rather than opening a file named off the wire", async () => {
+    // The route matches an ALLOW-LIST. A path join would be one `..` from this process's source.
+    expect((await get("/start/assets/../../../etc/passwd")).status).not.toBe(200);
+    expect((await get("/start/assets/nope.woff2")).status).not.toBe(200);
   });
 });
 

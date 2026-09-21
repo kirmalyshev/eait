@@ -95,6 +95,13 @@ export interface WebCopy {
    * product; `settled` is what replaces it once the question has been answered, because the whole
    * point of the flow is that a guess becomes exact.
    */
+  /**
+   * The floor as a STATUS LINE — the only blue in the product, and at most one per screen.
+   * `{kcal}` is `basis.floorKcal`, which the profile already carries. `floor` below is the longer
+   * promise, and it stays for the day the floor is the reason the number is what it is.
+   */
+  floorClear: string;
+  floorHolding: string;
   mealsHead: string;
   fixHead: string;
   settleIt: string;
@@ -186,6 +193,8 @@ const EN: WebCopy = {
   kept: "Saved on this device. It goes on its own as soon as it can.",
   keptBehind: "Saved on this device. It goes once the message above that is waiting for you has been sent again or discarded.",
   notSaved: "That could not be saved on this device, and it was not sent. Try again.",
+  floorClear: "Floor {kcal} · clear",
+  floorHolding: "Floor {kcal} · holding",
   mealsHead: "Today’s meals",
   fixHead: "One thing worth fixing",
   settleIt: "Settle it",
@@ -265,6 +274,8 @@ const FR: WebCopy = {
   kept: "Enregistré sur cet appareil. Ça partira tout seul dès que possible.",
   keptBehind: "Enregistré sur cet appareil. Ça partira une fois que le message au-dessus, qui t'attend, aura été renvoyé ou abandonné.",
   notSaved: "Ça n'a pas pu être enregistré sur cet appareil, et ça n'a pas été envoyé. Réessaie.",
+  floorClear: "Plancher {kcal} · non atteint",
+  floorHolding: "Plancher {kcal} · atteint",
   mealsHead: "Les repas d’aujourd’hui",
   fixHead: "Une chose à corriger",
   settleIt: "Régler ça",
@@ -344,6 +355,8 @@ const DE: WebCopy = {
   kept: "Auf diesem Gerät gespeichert. Es geht von selbst raus, sobald es geht.",
   keptBehind: "Auf diesem Gerät gespeichert. Es geht raus, sobald die Nachricht darüber, die auf dich wartet, erneut gesendet oder verworfen wurde.",
   notSaved: "Das ließ sich auf diesem Gerät nicht speichern und wurde nicht gesendet. Versuch es noch einmal.",
+  floorClear: "Untergrenze {kcal} · frei",
+  floorHolding: "Untergrenze {kcal} · greift",
   mealsHead: "Heutige Mahlzeiten",
   fixHead: "Eine Sache lohnt sich zu klären",
   settleIt: "Klären",
@@ -423,6 +436,8 @@ const IT: WebCopy = {
   kept: "Salvato su questo dispositivo. Partirà da solo appena possibile.",
   keptBehind: "Salvato su questo dispositivo. Partirà quando il messaggio qui sopra, che ti aspetta, sarà stato inviato di nuovo o scartato.",
   notSaved: "Non è stato possibile salvarlo su questo dispositivo, e non è stato inviato. Riprova.",
+  floorClear: "Soglia {kcal} · libera",
+  floorHolding: "Soglia {kcal} · attiva",
   mealsHead: "I pasti di oggi",
   fixHead: "Una cosa da sistemare",
   settleIt: "Sistemala",
@@ -502,6 +517,8 @@ const ES: WebCopy = {
   kept: "Guardado en este dispositivo. Saldrá solo en cuanto pueda.",
   keptBehind: "Guardado en este dispositivo. Saldrá cuando el mensaje de arriba, que te está esperando, se haya enviado otra vez o descartado.",
   notSaved: "No se ha podido guardar en este dispositivo, y no se ha enviado. Inténtalo otra vez.",
+  floorClear: "Mínimo {kcal} · despejado",
+  floorHolding: "Mínimo {kcal} · aplicado",
   mealsHead: "Las comidas de hoy",
   fixHead: "Una cosa que conviene resolver",
   settleIt: "Resolverlo",
@@ -581,6 +598,8 @@ const VI: WebCopy = {
   kept: "Đã lưu trên máy này. Nó sẽ tự gửi ngay khi có thể.",
   keptBehind: "Đã lưu trên máy này. Nó sẽ gửi sau khi tin nhắn phía trên — cái đang chờ bạn quyết định — được gửi lại hoặc bỏ đi.",
   notSaved: "Không lưu được trên máy này, và cũng chưa gửi đi. Thử lại nhé.",
+  floorClear: "Sàn {kcal} · chưa chạm",
+  floorHolding: "Sàn {kcal} · đang giữ",
   mealsHead: "Các bữa hôm nay",
   fixHead: "Một điều đáng sửa",
   settleIt: "Giải quyết",
@@ -660,6 +679,8 @@ const ID: WebCopy = {
   kept: "Tersimpan di perangkat ini. Akan terkirim sendiri begitu bisa.",
   keptBehind: "Tersimpan di perangkat ini. Akan terkirim setelah pesan di atas, yang menunggu keputusanmu, dikirim lagi atau dibuang.",
   notSaved: "Itu tidak bisa disimpan di perangkat ini, dan tidak terkirim. Coba lagi.",
+  floorClear: "Batas bawah {kcal} · aman",
+  floorHolding: "Batas bawah {kcal} · berlaku",
   mealsHead: "Makan hari ini",
   fixHead: "Satu hal yang layak dibetulkan",
   settleIt: "Selesaikan",
@@ -739,6 +760,8 @@ const RU: WebCopy = {
   kept: "Сохранено на этом устройстве. Уйдёт само, как только сможет.",
   keptBehind: "Сохранено на этом устройстве. Уйдёт, когда сообщение выше — то, что ждёт твоего решения — будет отправлено снова или отброшено.",
   notSaved: "Это не удалось сохранить на устройстве, и отправлено оно не было. Попробуй ещё раз.",
+  floorClear: "Порог {kcal} · не задет",
+  floorHolding: "Порог {kcal} · действует",
   mealsHead: "Сегодняшние приёмы пищи",
   fixHead: "Одно стоит уточнить",
   settleIt: "Уточнить",

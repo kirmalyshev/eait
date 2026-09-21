@@ -111,7 +111,7 @@ describe("the design system owns every colour on the page", () => {
       .filter((rule) => rule.includes(`var(--${hex})`))
       // The selector, with this file's own comments stripped off the front of it.
       .map((rule) => rule.split("{")[0]!.replace(/\/\*[\s\S]*?\*\//g, "").trim().replace(/\s+/g, " "));
-    expect(rulesUsing("amber")).toEqual([".abt", ".lab.amber"]);
+    expect(rulesUsing("amber")).toEqual([".abt", ".meal-sub .flag", ".lab.amber"]);
     expect(rulesUsing("blue")).toEqual([".sl.floor"]);
   });
 

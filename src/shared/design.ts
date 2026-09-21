@@ -116,12 +116,31 @@ export const FILL = {
  * advance, so a thousands gap must be a `thousandsGap` span and a unit like `g` must live OUTSIDE
  * the mono run. Get that wrong and `141 g` renders with a hole you can park a bus in.
  *
- * ponytail: the spec names Plus Jakarta Sans and DM Mono, which are Google Fonts. They are first
- * in each stack and NOT fetched: a `<link>` to fonts.googleapis.com would need `style-src` and
- * `font-src` opened to a third party on the one page whose policy is `default-src 'none'`, and
- * would tell Google about every page load. Self-hosting the two `.woff2` from this origin is the
- * upgrade and needs no policy change.
+ * BOTH FACES ARE SELF-HOSTED, on the product's own origin. They were unfetched system fallbacks
+ * for one commit and the whole typographic identity of the design was simply absent — the figures
+ * in a proportional face, the display weight missing, every screenshot reading as a wireframe of
+ * the design rather than the design. A `<link>` to fonts.googleapis.com was the thing being
+ * avoided, and rightly: it needs `style-src` and `font-src` opened to a third party on the one
+ * page whose policy is `default-src 'none'`, and it tells Google about every page load. Serving
+ * the two `.woff2` from here costs `font-src 'self'` and nothing else.
+ *
+ * THE PATH SAYS `/start` BECAUSE THE EDGE ALREADY ROUTES IT. `/` and `/app.js` reach the web
+ * application; `/start/*` reaches the backend, which is where the files are. A prettier path
+ * (`/assets/...`) would need a matcher added to `app.caddy.j2`, which lives in the other
+ * repository — so it would be a route only a laptop ever reached. Same origin either way.
+ *
+ * Latin subsets, and the weights the scale actually uses: one variable cut for the grotesk
+ * (400–800) and DM Mono's two. Both are OFL and the licence travels beside them.
  */
+export const FONT_BASE = "/start/assets/";
+
+/** The files, by the name they are served under. The name IS the version: a new cut is a new path. */
+export const FONT_FILES = [
+  "plus-jakarta-sans-latin.woff2",
+  "dm-mono-latin-400.woff2",
+  "dm-mono-latin-500.woff2",
+] as const;
+
 export const FAMILY = {
   ui: `"Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`,
   mono: `"DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace`,
@@ -276,6 +295,24 @@ const type = (r: TypeRole): string =>
  * width, and a rail with nothing to put in it is decoration.
  */
 export const STYLESHEET = `
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("${FONT_BASE}plus-jakarta-sans-latin.woff2") format("woff2");
+  font-weight: 400 800;
+  font-display: swap;
+}
+@font-face {
+  font-family: "DM Mono";
+  src: url("${FONT_BASE}dm-mono-latin-400.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "DM Mono";
+  src: url("${FONT_BASE}dm-mono-latin-500.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
 :root {
   color-scheme: dark;
   --ui: ${FAMILY.ui};
@@ -326,10 +363,22 @@ p { margin: 0 0 .6rem; }
 /* A panel that sits BEHIND a card: the note under a meal, the well a question lives in. */
 .note { background: var(--sunken); border-radius: ${px(GEOMETRY.radiusPanel)};
   padding: 14px ${px(GEOMETRY.gutter)}; margin-bottom: ${px(GEOMETRY.gapCards)}; }
-/* The wash, on the day and on an arrival. Every word on it is ink, which is why it holds a label
-   and nothing more — worn anywhere else it is wallpaper. */
-.wash { position: absolute; inset: 0 0 auto 0; height: 52px; background: ${FILL.wash}; }
-.ink { color: var(--ink); position: relative; }
+/* THE WASH IS ATMOSPHERE, NOT A BAND. It is absolutely placed at the top of the SCREEN and its
+   last stop is the ground, so it fades out — which is the whole of the effect. Put inside a
+   surface card at 52px it becomes a hard green bar with a seam under it, because the gradient
+   ends darker than the card it is sitting on. That is what it was, and it read as a coloured
+   rectangle rather than as a wash. Two places only: the day, and an arrival. */
+.day { position: relative; }
+.wash { position: absolute; top: 0; height: 132px; background: ${FILL.wash};
+  left: -${px(GEOMETRY.gutter)}; right: -${px(GEOMETRY.gutter)};
+  pointer-events: none; z-index: 0; }
+.ink { color: var(--ink); position: relative; z-index: 1; }
+
+/* The day's own header: the date, on the wash, in ink. The design puts nothing else up there —
+   every word on a wash is near-black, which is why a washed region holds a label and no more. */
+.dayhead { position: relative; z-index: 1; display: flex; align-items: center;
+  justify-content: center; height: 34px; margin-bottom: 8px; }
+.dayhead .lab { margin: 0; color: var(--ink); opacity: .74; }
 
 /* ── The gauge ────────────────────────────────────────────────────────────────────────────── */
 .gauge { position: relative; height: 172px; margin: 4px 0 0; }
@@ -349,7 +398,7 @@ p { margin: 0 0 .6rem; }
 /* The status row under the day. */
 .stat { display: flex; justify-content: space-between; align-items: center; gap: .75rem;
   margin-top: 6px; }
-.sl { ${type(TYPE.chip)} }
+.sl { ${type(TYPE.chip)} color: var(--t2); }
 /* The floor, and the ONLY blue in the product. A status line, never a mark on a scale. */
 .sl.floor { color: var(--blue); }
 
@@ -366,15 +415,24 @@ p { margin: 0 0 .6rem; }
 .prog > i { display: block; height: 100%; background: var(--green); border-radius: 3px; }
 
 /* ── Rows and the table ───────────────────────────────────────────────────────────────────── */
-.meals { list-style: none; margin: 0 0 ${px(GEOMETRY.gapCards)}; padding: 4px;
-  background: var(--surface); border-radius: ${px(GEOMETRY.radiusCard)}; }
-.meal { display: flex; align-items: center; gap: 12px; min-height: ${px(GEOMETRY.rowHeight)};
-  padding: 11px 12px; border-bottom: 1px solid var(--line);
-  border-radius: ${px(GEOMETRY.radiusRow)}; color: inherit; text-decoration: none; }
-.meal:last-child { border-bottom: 0; }
-.meal-name { ${type(TYPE.row)} flex-grow: 1; }
-.meal-time { ${type(TYPE.secondary)} font-family: var(--mono); color: var(--t3); }
-.meal-kcal { ${type(TYPE.row)} font-weight: 400; }
+/* EACH ROW IS ITS OWN CARD, spaced — not rules inside one panel. The design draws them apart,
+   which is what lets the one row that is a guess carry an outline and read as a single object
+   somebody can act on rather than as a highlighted line in a table. */
+.meals { list-style: none; margin: 0 0 ${px(GEOMETRY.gapCards)}; padding: 0;
+  display: flex; flex-direction: column; gap: 8px; }
+.meal { display: flex; align-items: center; gap: 12px; background: var(--surface);
+  border-radius: ${px(GEOMETRY.radiusPanel)}; padding: 15px 14px;
+  color: inherit; text-decoration: none; }
+/* The photograph, at row size. A hatch and not a stock image: it says there is none. */
+.meal-thumb { width: ${px(GEOMETRY.thumb)}; height: ${px(GEOMETRY.thumb)};
+  border-radius: 13px; flex-shrink: 0; background: ${FILL.photo};
+  display: flex; align-items: center; justify-content: center; object-fit: cover; }
+.meal-of { flex-grow: 1; min-width: 0; }
+.meal-name { ${type(TYPE.row)} }
+/* The time, and — on the one row worth fixing — the flag, in the same line under the name. */
+.meal-sub { ${type(TYPE.secondary)} color: var(--t3); margin-top: 4px; }
+.meal-sub .flag { color: var(--amber); font-weight: 700; }
+.meal-kcal { ${type(TYPE.row)} font-size: 17px; font-weight: 500; flex-shrink: 0; }
 /* The ONE row worth fixing. Every other row stays silent: silence is what "read cleanly" is. */
 .rowsel { background: ${FILL.guess}; outline: 1.5px solid ${FILL.guessEdge}; }
 

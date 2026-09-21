@@ -265,6 +265,18 @@ function gauge(fill: number, over: boolean, inside: HTMLElement): HTMLElement {
   return box;
 }
 
+/** A meal's first photograph, at row size, swapped in over the hatch once the bytes arrive. */
+async function thumbnail(meal: MealRecord, into: HTMLElement): Promise<void> {
+  try {
+    const src = await apiImage(`/meals/${encodeURIComponent(meal.id)}/photos/0`);
+    if (!into.isConnected) return;
+    const img = el("img", "meal-thumb") as HTMLImageElement;
+    img.src = src;
+    img.alt = "";
+    into.replaceWith(img);
+  } catch { /* The hatch stays, which is the honest rendering of a photo that did not arrive. */ }
+}
+
 function figure(parent: HTMLElement, n: number, guessed: boolean, unit = UNIT_KCAL[lang]): HTMLElement {
   if (guessed) parent.append(el("span", "abt", ABOUT[lang]), document.createTextNode(" "));
   parent.append(monoSpan((guessed ? guessedNumbers(lang) : wholeNumbers(lang))(n)));
@@ -360,7 +372,7 @@ const mealTime = (meal: MealRecord, timeZone: string): string =>
     .format(new Date(meal.ts));
 
 async function diaryScreen(): Promise<HTMLElement> {
-  const wrap = el("section", "");
+  const wrap = el("section", "day");
   // THE SERVER'S CALENDAR DAY, NOT UTC's, and not this device's either.
   //
   // `toISOString().slice(0, 10)` is the UTC date: after 22:00 in Berlin it names yesterday, so
@@ -374,15 +386,19 @@ async function diaryScreen(): Promise<HTMLElement> {
   const today = calendar.format(new Date());
   const day = await api<DayResponse>(`/diary/day?date=${today}`);
 
+  // THE WASH GOES ON THE SCREEN, not inside the card. It is atmosphere whose last stop is the
+  // ground, so it FADES; at 52px inside a `--surface` card it was a hard green bar with a seam
+  // under it, because the gradient ends darker than the card it sat on. One of the two places the
+  // design allows it — this client's other is the entry screen.
+  wrap.append(el("div", "wash"));
+  // The date rides ON it, in ink, and nothing else does: every word on a wash is near-black,
+  // which is why a washed region holds a label and no more. Still an `h2`: `.lab` is a look and
+  // not a role, and dropping the heading took the day out of the document outline.
+  const dayhead = el("div", "dayhead");
+  dayhead.append(el("h2", "lab", COPY.today));
+  wrap.append(dayhead);
+
   const head = el("div", "card");
-  // THE WASH, on the day. It is one of the two places the design allows it — the other is an
-  // arrival, which this application does not have — and it forces every word on it to near-black,
-  // which is why the strip holds a label and nothing else.
-  head.append(el("div", "wash"));
-  // A HEADING ELEMENT wearing the design's label style. `.lab` is a look, not a role: dropping the
-  // `h2` for a `div` took the day card out of the document outline, which is how somebody using a
-  // screen reader finds it.
-  head.append(el("h2", "lab ink", COPY.today));
   // WHAT IS LEFT IS THE HEADLINE, eaten/target the context under it — the same arithmetic as the
   // phone's (`dayBudget`), so the two can never round the one number apart.
   const budget = dayBudget(day, today, me.profile.goal);
@@ -414,14 +430,24 @@ async function diaryScreen(): Promise<HTMLElement> {
   // THE FLOOR IS SURFACED, because the contract says it must be. A target that was raised to the
   // floor is a different promise from one the numbers produced, and the app that hides which is
   // the one that ends up quoted in a review.
-  if (me.basis.floorApplied) {
-    // A STATUS LINE, and the only blue on this page. The floor is a promise — "your target sits at
-    // the minimum this app will ever suggest" — never a tick on the gauge and never a region on a
-    // chart: both of those were the range machinery #28 removed.
-    const stat = el("div", "stat");
-    stat.append(el("div", "sl floor", COPY.floor));
-    head.append(stat);
-  }
+  // THE FLOOR, AS A STATUS LINE, ON EVERY DAY — and the only blue in the product. It appeared on
+  // no screen at all before this: the line was drawn only when the floor had BITTEN, so the one
+  // colour that means one thing was invisible in the whole client. The design has it under the
+  // gauge whether or not it is holding, because "clear" is the information most days.
+  //
+  // A promise, never a tick on the gauge and never a region on a chart: both of those were the
+  // range machinery #28 removed.
+  const stat = el("div", "stat");
+  stat.append(el("div", "sl floor", fill(
+    me.basis.floorApplied ? COPY.floorHolding : COPY.floorClear,
+    { kcal: wholeNumbers(lang)(me.basis.floorKcal) },
+  )));
+  head.append(stat);
+  // And the long promise when the floor is the REASON the number is what it is, which the
+  // contract requires the UI to surface. The status line above says which day this is; this says
+  // what it means.
+  if (me.basis.floorApplied) head.append(el("p", "muted", COPY.floor));
+
   // THE WEIGHT BEHIND THE TARGET, AND WHEN IT WAS WEIGHED (#609). The phone syncs a newer one on
   // every launch and the target moves with it. Never "from Apple Health": the profile does not say
   // which source wrote it. Days are counted on the server's calendar, like `today`.
@@ -471,11 +497,6 @@ async function diaryScreen(): Promise<HTMLElement> {
     const li = el("li", "");
     const row = el("a", "meal") as HTMLAnchorElement;
     row.href = `#/meal/${meal.id}`;
-    row.append(el("span", "meal-time mono", mealTime(meal, me.timezone)));
-    // `MealRecord` extends `MealAnalysis`, so the items and the numbers are ON the row rather than
-    // under an `analysis` key. Naming the first two items is what makes a list of numbers read as
-    // a list of meals.
-    row.append(el("span", "meal-name", mealName(meal)));
     // The one row worth fixing says so by its precision, and nothing else on the row changes
     // (#28). A meal whose grams this person has since typed is settled and prints exact —
     // `mealIsGuessed` is the single definition of which is which.
@@ -483,6 +504,26 @@ async function diaryScreen(): Promise<HTMLElement> {
     // That row carries the tint and the outline too, and the rest stay silent — silence is what
     // "read cleanly" looks like.
     if (rough) row.classList.add(CLASS.guessed);
+
+    // The photograph at row size, or the hatch that says there is none. Fetched with the bearer
+    // like the meal screen's, because an `<img src>` to this API carries no token.
+    const thumb = el("div", "meal-thumb");
+    row.append(thumb);
+    if ((meal.photos ?? 0) > 0) void thumbnail(meal, thumb);
+
+    const about = el("div", "meal-of");
+    // `MealRecord` extends `MealAnalysis`, so the items and the numbers are ON the row rather than
+    // under an `analysis` key. Naming the first two items is what makes a list of numbers read as
+    // a list of meals.
+    about.append(el("div", "meal-name", mealName(meal)));
+    const sub = el("div", "meal-sub");
+    sub.append(el("span", "mono", mealTime(meal, me.timezone)));
+    // AND THE FLAG, on the row it is about — the design puts it here rather than making the
+    // reader work out which of four plates the note above was pointing at.
+    if (rough) sub.append(document.createTextNode(" · "), el("span", "flag", COPY.readGuess));
+    about.append(sub);
+    row.append(about);
+
     row.append(figure(el("span", "meal-kcal num"), meal.kcal, rough));
     li.append(row);
     list.append(li);

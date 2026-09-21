@@ -129,6 +129,16 @@ describe("the front door's two buttons", () => {
   });
 });
 
+/**
+ * The page WITHOUT its stylesheet.
+ *
+ * The sheet is the design system now and its class names are English — `.meal-kcal` among them —
+ * so a document-wide `not.toContain("kcal")` stopped asking "does a Russian reader see the Latin
+ * unit?" and started asking "is there a CSS selector spelled kcal?". The second question has
+ * nothing to do with what is on screen.
+ */
+const shown = (html: string): string => html.replace(/<style>[\s\S]*?<\/style>/g, "");
+
 describe("the plan card's two figures", () => {
   const view = {
     signedInWith: "apple" as const, kcal: 1500, proteinG: 120,
@@ -147,7 +157,7 @@ describe("the plan card's two figures", () => {
       expect(pageCopyFor(lang).planFloorNumber, lang).toContain(UNIT_KCAL[lang]);
     }
     expect(plan({ ...view, lang: "ru" })).toContain("ккал</p>");
-    expect(plan({ ...view, lang: "ru" })).not.toContain("kcal");
+    expect(shown(plan({ ...view, lang: "ru" }))).not.toContain("kcal");
   });
 
   it("writes a MEAL CARD's figures in the reader's language too, not only the plan's", () => {
@@ -162,7 +172,7 @@ describe("the plan card's two figures", () => {
     }
     const ru = chat({ lines: [{ kind: "card", card }], notice: null, proposal: null, lang: "ru" });
     expect(ru).toContain("ккал");
-    expect(ru).not.toContain("kcal");
+    expect(shown(ru)).not.toContain("kcal");
     expect(ru).toContain("белка");
     // Grouped the way every other figure on this page is — never the raw 1450.
     expect(ru).toContain(wholeNumbers("ru")(1450));

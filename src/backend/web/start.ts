@@ -25,6 +25,7 @@ import {
   isRefusal, MAX_USER_LINE, optionLabel, renderableVerdicts, resolveCountry, ROUTES, screenForStep,
   screenOptions, screenOptionValues, suggestionFirst, switchedLine,
   LANGS_READY, acceptLanguageTags, narrowLang, numbers, verdictPillLabel,
+  FONT_BASE, FONT_FILES,
   type ChatEntry, type ChatPrompt, type Goal, type Lang, type NumberField, type OnboardingContent,
   type PatchProfileRequest, type Profile,
 } from "@eait/shared";
@@ -53,6 +54,16 @@ import {
  * literal that can drift from the address people are asked to type.
  */
 export const START_PREFIX = ROUTES.webStart;
+
+/**
+ * Every font file this origin serves, by name.
+ *
+ * The design system's two faces (`FONT_FILES`, read by the web application as well — `/start/*`
+ * is the one asset path the edge already routes) and this flow's own, which goes the day `/start`
+ * is repainted in the system. A LIST rather than a path join: `pathname` comes off the wire, and
+ * a route that opens a file named by it is one `..` from serving this process's own source.
+ */
+const SERVED_FONTS: readonly string[] = [...FONT_FILES, "space-grotesk-latin.woff2"];
 
 /**
  * `/start/auth/<provider>` and `/start/auth/<provider>/callback`.
@@ -454,8 +465,13 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   // The typeface, on this origin, which is what lets the CSP stay at `font-src 'self'` and load
   // nothing from anyone else. Before the session gate: a font is not somebody's data, and a
   // sign-in page that cannot draw its own headings is the first thing a visitor sees.
-  if (req.method === "GET" && pathname === FONT_PATH) {
-    return new Response(Bun.file(new URL("../../shared/assets/fonts/space-grotesk-latin.woff2", import.meta.url)), {
+  // An ALLOW-LIST, not a path join: `pathname` comes off the wire, and a route that reads a file
+  // named by it is one `..` away from serving this process's own source. The set is the design
+  // system's two faces plus this page's own, and nothing here is derived from the request beyond
+  // choosing one of them.
+  const font = SERVED_FONTS.find((f) => pathname === `${FONT_BASE}${f}`);
+  if (req.method === "GET" && font !== undefined) {
+    return new Response(Bun.file(new URL(`../../shared/assets/fonts/${font}`, import.meta.url)), {
       headers: {
         "content-type": "font/woff2",
         // Immutable because the name is the file: a new cut of the typeface is a new path.

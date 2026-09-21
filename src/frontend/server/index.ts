@@ -194,6 +194,11 @@ export function createWebApp(options: WebAppOptions = {}) {
               `script-src 'nonce-${nonce}'`,
               `style-src 'nonce-${nonce}'`,
               "img-src 'self' data:",
+              // The design system's two faces, self-hosted. `'self'` and nothing else: the whole
+              // reason they are not Google's is that a third party here would be one on the page
+              // whose policy is `default-src 'none'`. The files sit under `/start/assets/`, which
+              // the edge already routes to the backend — same origin, so this covers them.
+              "font-src 'self'",
               "connect-src 'self'",
               "base-uri 'none'",
               // Nothing here posts a form. `/start` does, and it is a different document.

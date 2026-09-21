@@ -65,10 +65,11 @@ describe("the three colours that mean one thing", () => {
     .map((rule) => rule.split("{")[0]!.replace(/\/\*[\s\S]*?\*\//g, "").trim().replace(/\s+/g, " "));
 
   it("spends amber on the guess and on nothing else", () => {
-    // `.abt` is the hedge word in front of a figure; `.lab.amber` is the ONE worded flag a screen
-    // is allowed. A third selector here is amber meaning a second thing, and the grammar stops
-    // being readable the moment it does.
-    expect(rulesUsing("amber")).toEqual([".abt", ".lab.amber"]);
+    // Three, and each is the guess: `.abt` is the hedge word in front of a figure, `.meal-sub
+    // .flag` is the worded flag on the one ROW it is about, and `.lab.amber` is the same flag as
+    // a screen's single label. A fourth selector here is amber meaning a second thing, and the
+    // grammar stops being readable the moment it does.
+    expect(rulesUsing("amber")).toEqual([".abt", ".meal-sub .flag", ".lab.amber"]);
   });
 
   it("spends blue on the floor and on nothing else", () => {

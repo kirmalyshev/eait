@@ -34,7 +34,7 @@ describe("the copy the web client writes", () => {
       for (const [at, text] of Object.entries(said)) {
         expect(text.trim(), `${lang}.${at}`).not.toBe("");
         for (const m of text.matchAll(/\{(\w+)\}/g)) {
-          expect(["target", "protein", "proteinTarget", "eaten", "kg", "when", "floor"], `${lang}.${at}`)
+          expect(["target", "protein", "proteinTarget", "eaten", "kcal", "kg", "when", "floor"], `${lang}.${at}`)
             .toContain(m[1] ?? "");
         }
       }
