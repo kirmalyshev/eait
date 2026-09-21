@@ -22,6 +22,8 @@ export interface DayBudget {
   kcal: number;
   /** What was eaten, rounded — the SAME rounding the headline was computed from. */
   eaten: number;
+  /** A guess is in this total, so `eaten` has already lost the digit nobody believes. Clients say "about". */
+  guessed: boolean;
   target: number;
   /** eaten / target, clamped to 0…1 — how full the bar is. */
   fill: number;
@@ -33,23 +35,25 @@ export interface DayBudget {
 export function dayBudget(
   day: {
     date: string;
-    meals: readonly unknown[];
+    meals: readonly { confidence?: string }[];
     totals: { kcal: number; protein_g: number };
     targets: { kcal: number; protein_g: number };
   },
   today: string,
   goal: Goal | null,
 ): DayBudget {
-  // Rounded BEFORE subtracting, so "1451 eaten" and "549 left" add up to the target on screen.
-  const eaten = Math.round(day.totals.kcal);
+  // One guess makes the sum a guess: 1 822 with one estimated meal in it prints 1 820.
+  const guessed = day.meals.some((m) => m.confidence === "low");
+  // Rounded BEFORE subtracting, so the two numbers on screen add up: 1 820 eaten, 280 left.
+  const eaten = guessed ? Math.round(day.totals.kcal / 10) * 10 : Math.round(day.totals.kcal);
   const target = Math.round(day.targets.kcal);
   const protein = { eaten: Math.round(day.totals.protein_g), target: Math.round(day.targets.protein_g) };
   const past = day.date < today;
   if (past && day.meals.length === 0) {
-    return { state: "unlogged", kcal: 0, eaten, target, fill: 0, warn: false, protein };
+    return { state: "unlogged", kcal: 0, eaten, target, fill: 0, warn: false, protein, guessed };
   }
   const diff = target - eaten;
   const state = diff < 0 ? "over" : past ? "under" : "left";
   const fill = target > 0 ? Math.min(1, Math.max(0, eaten / target)) : eaten > 0 ? 1 : 0;
-  return { state, kcal: Math.abs(diff), eaten, target, fill, warn: state === "over" && goal !== "gain", protein };
+  return { state, kcal: Math.abs(diff), eaten, target, fill, warn: state === "over" && goal !== "gain", protein, guessed };
 }
