@@ -38,16 +38,11 @@ export interface WebCopy {
   eatenLine: string;
   floor: string;
   /**
-   * The word before a figure nobody has measured, and the one place amber is spent.
+   * The meals table on a window wide enough to hold one.
    *
-   * It is a WORD rather than a symbol on purpose: the register forbids a number beside its own
-   * error, so precision is what carries the confidence and this is what says the precision is low.
+   * The hedge word that goes in front of a guessed figure is NOT here: it is `ABOUT` in
+   * `shared/lang.ts`, so the phone and this window spend the one amber word from one copy.
    */
-  about: string;
-  /** `{floor}` — the floor as a status line, never a scale. Two states and nothing between them. */
-  floorClear: string;
-  floorHeld: string;
-  /** The meals table on a window wide enough to hold one. */
   colTime: string;
   colMeal: string;
   colKcal: string;
@@ -149,7 +144,6 @@ const EN: WebCopy = {
   targetLine: "Target {target} · {protein} g protein",
   eatenLine: "{eaten} of {target} eaten · {protein} of {proteinTarget} g protein",
   floor: "Your target sits at the minimum this app will ever suggest.",
-  about: "about", floorClear: "Floor {floor} · clear", floorHeld: "Floor {floor} · held",
   colTime: "Time", colMeal: "Meal", colKcal: "kcal",
   connectHealth: "Connect Apple Health in the eait iPhone app and your weight keeps this target current.",
   weightLine: "Weight {kg} kg.",
@@ -242,7 +236,6 @@ const FR: WebCopy = {
   targetLine: "Objectif {target} · {protein} g de protéines",
   eatenLine: "{eaten} sur {target} mangées · {protein} sur {proteinTarget} g de protéines",
   floor: "Ton objectif est fixé au minimum que cette appli puisse proposer.",
-  about: "environ", floorClear: "Plancher {floor} · dégagé", floorHeld: "Plancher {floor} · atteint",
   colTime: "Heure", colMeal: "Repas", colKcal: "kcal",
   connectHealth: "Connecte Apple Health dans l'appli eait pour iPhone et ton poids garde cet objectif à jour.",
   weightLine: "Poids {kg} kg.",
@@ -324,7 +317,6 @@ const DE: WebCopy = {
   targetLine: "Ziel {target} · {protein} g Eiweiß",
   eatenLine: "{eaten} von {target} gegessen · {protein} von {proteinTarget} g Eiweiß",
   floor: "Dein Ziel liegt auf dem Minimum, das diese App je vorschlagen wird.",
-  about: "etwa", floorClear: "Untergrenze {floor} · frei", floorHeld: "Untergrenze {floor} · erreicht",
   colTime: "Zeit", colMeal: "Mahlzeit", colKcal: "kcal",
   connectHealth: "Verbinde Apple Health in der eait-App fürs iPhone, dann hält dein Gewicht dieses Ziel aktuell.",
   weightLine: "Gewicht {kg} kg.",
@@ -406,7 +398,6 @@ const IT: WebCopy = {
   targetLine: "Obiettivo {target} · {protein} g di proteine",
   eatenLine: "{eaten} di {target} mangiate · {protein} di {proteinTarget} g di proteine",
   floor: "Il tuo obiettivo è al minimo che questa app possa proporre.",
-  about: "circa", floorClear: "Minimo {floor} · libero", floorHeld: "Minimo {floor} · raggiunto",
   colTime: "Ora", colMeal: "Pasto", colKcal: "kcal",
   connectHealth: "Collega Apple Health nell'app eait per iPhone e il tuo peso tiene aggiornato questo obiettivo.",
   weightLine: "Peso {kg} kg.",
@@ -488,7 +479,6 @@ const ES: WebCopy = {
   targetLine: "Objetivo {target} · {protein} g de proteína",
   eatenLine: "{eaten} de {target} consumidas · {protein} de {proteinTarget} g de proteína",
   floor: "Tu objetivo está en el mínimo que esta app puede proponer.",
-  about: "unas", floorClear: "Mínimo {floor} · libre", floorHeld: "Mínimo {floor} · alcanzado",
   colTime: "Hora", colMeal: "Comida", colKcal: "kcal",
   connectHealth: "Conecta Apple Health en la app eait para iPhone y tu peso mantiene este objetivo al día.",
   weightLine: "Peso {kg} kg.",
@@ -570,7 +560,6 @@ const VI: WebCopy = {
   targetLine: "Mục tiêu {target} · {protein} g đạm",
   eatenLine: "Đã ăn {eaten} trên {target} · đạm {protein} trên {proteinTarget} g",
   floor: "Mục tiêu của bạn đang ở mức thấp nhất mà ứng dụng này sẽ đề xuất.",
-  about: "khoảng", floorClear: "Mức sàn {floor} · chưa chạm", floorHeld: "Mức sàn {floor} · đã chạm",
   colTime: "Giờ", colMeal: "Bữa ăn", colKcal: "kcal",
   connectHealth: "Kết nối Apple Health trong ứng dụng eait trên iPhone để cân nặng luôn cập nhật.",
   weightLine: "Cân nặng {kg} kg.",
@@ -652,7 +641,6 @@ const ID: WebCopy = {
   targetLine: "Target {target} · {protein} g protein",
   eatenLine: "{eaten} dari {target} dimakan · {protein} dari {proteinTarget} g protein",
   floor: "Targetmu berada di angka terendah yang bisa disarankan aplikasi ini.",
-  about: "sekitar", floorClear: "Batas bawah {floor} · aman", floorHeld: "Batas bawah {floor} · tercapai",
   colTime: "Waktu", colMeal: "Makan", colKcal: "kkal",
   connectHealth: "Hubungkan Apple Health di aplikasi eait untuk iPhone, dan berat badanmu menjaga target ini tetap terkini.",
   weightLine: "Berat {kg} kg.",
@@ -734,7 +722,6 @@ const RU: WebCopy = {
   targetLine: "Цель {target} · белка {protein} г",
   eatenLine: "Съедено {eaten} из {target} · белка {protein} из {proteinTarget} г",
   floor: "Твоя цель стоит на минимуме, ниже которого это приложение никогда не опустится.",
-  about: "около", floorClear: "Минимум {floor} · не задет", floorHeld: "Минимум {floor} · достигнут",
   colTime: "Время", colMeal: "Приём пищи", colKcal: "ккал",
   connectHealth: "Подключи Apple Health в приложении eait для iPhone, и вес будет держать эту цель актуальной.",
   weightLine: "Вес {kg} кг.",
