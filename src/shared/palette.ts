@@ -33,6 +33,10 @@ export const light = {
   bad: "#B91C1C",
 
   care: "#0369A1",
+
+  /** The wash's two middle stops. It runs `accent` → these → the surface it sits on. */
+  washMid: "#5C8322",
+  washDeep: "#A9C97E",
 } as const;
 
 export const dark = {
@@ -58,6 +62,10 @@ export const dark = {
   bad: "#F87171",
   /** The calorie floor, and nothing else. */
   care: "#5AA9FF",
+
+  /** The wash's two middle stops (design § Fills). */
+  washMid: "#3FC551",
+  washDeep: "#1E8C3E",
 } as const;
 
 export type ColorName = keyof typeof light;
@@ -90,6 +98,8 @@ export const vars = (t: Record<ColorName, string>, dim: string, scheme: "light" 
   --warn: ${t.warn};
   --bad: ${t.bad};
   --care: ${t.care};
+  --wash-mid: ${t.washMid};
+  --wash-deep: ${t.washDeep};
   color-scheme: ${scheme};
 `;
 
