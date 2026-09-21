@@ -19,7 +19,7 @@
 // a relative import of the file they live in costs nothing the Dockerfile does not already pay for.
 import { advancePending, pendingLine } from "../shared/stream.ts";
 import { outcomeUnknown } from "../shared/results.ts";
-import { dayBudget } from "../shared/budget.ts";
+import { dayBudget, mealIsGuessed } from "../shared/budget.ts";
 import type { MealProposed, MealRecord, PendingPhoto } from "@eait/shared";
 import type {
   ChatEntry, ChatHistoryResponse, DayResponse, DeleteLineResponse, EditLineLast, OUTCOME_UNKNOWN,
@@ -27,7 +27,7 @@ import type {
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, apiStream, forget, signIn, signOut, signedIn } from "./api.ts";
 import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
-import { LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, narrowLang, numbers, wholeNumbers } from "../shared/lang.ts";
+import { ABOUT, aboutFigure, LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, guessedNumbers, narrowLang, numbers, wholeNumbers } from "../shared/lang.ts";
 import type { Lang } from "../shared/types.ts";
 
 /**
@@ -199,6 +199,21 @@ function signInScreen(): HTMLElement {
 // estimate, and with the language's own spelling of the unit beside it.
 const kcal = (n: number): string => `${wholeNumbers(lang)(n)} ${UNIT_KCAL[lang]}`;
 
+/**
+ * A figure and its unit, with the hedge in front when it was guessed (#28).
+ *
+ * THREE NODES, not one string, and that is the design's rule rather than this file's taste: the
+ * hedge is `--amber` and the figure is not, so they cannot share a span. `.abt` is the amber word,
+ * `.mono` the tabular figure, and the unit lives OUTSIDE the mono span — DM Mono's word space is a
+ * full advance, and `141 g` set entirely in it renders with a hole you can park a bus in.
+ */
+function figure(parent: HTMLElement, n: number, guessed: boolean, unit = UNIT_KCAL[lang]): HTMLElement {
+  if (guessed) parent.append(el("span", "abt", ABOUT[lang]), document.createTextNode(" "));
+  parent.append(el("span", "mono", (guessed ? guessedNumbers(lang) : wholeNumbers(lang))(n)));
+  if (unit) parent.append(document.createTextNode(` ${unit}`));
+  return parent;
+}
+
 async function diaryScreen(): Promise<HTMLElement> {
   const wrap = el("section", "");
   // THE SERVER'S CALENDAR DAY, NOT UTC's, and not this device's either.
@@ -214,32 +229,24 @@ async function diaryScreen(): Promise<HTMLElement> {
   const today = calendar.format(new Date());
   const day = await api<DayResponse>(`/diary/day?date=${today}`);
 
-  const head = el("div", "card day-card");
-  // A 52px STRIP rather than a hero region. At 1360 wide a full-height wash is a wall of green, and
-  // every word on it has to be near-black, so it can hold a date and nothing else.
-  // A HEADING, not a decorated div: it is the only thing naming this card, and `app-offline.pw.ts`
-  // finds the day by its role.
-  head.append(el("h2", "day-wash", COPY.today));
-  const body = el("div", "day-body");
-  head.append(body);
+  const head = el("div", "card");
+  head.append(el("h2", "", COPY.today));
   // WHAT IS LEFT IS THE HEADLINE, eaten/target the context under it — the same arithmetic as the
   // phone's (`dayBudget`), so the two can never round the one number apart.
   const budget = dayBudget(day, today, me.profile.goal);
-  const n = wholeNumbers(lang);
   if (budget.state === "unlogged") {
-    body.append(el("p", "muted", fill(COPY.targetLine, {
-      target: kcal(budget.target), protein: n(budget.protein.target),
+    head.append(el("p", "muted", fill(COPY.targetLine, {
+      target: kcal(budget.target), protein: wholeNumbers(lang)(budget.protein.target),
     })));
   } else {
     const big = el("p", budget.warn ? "big warn" : "big");
-    // PRECISION CARRIES THE CONFIDENCE. "about" sits immediately before the figure it governs and
-    // OUTSIDE its span: the figure is mono, the word is not, and a mono word-space is a full mono
-    // advance. The unit is a third span for the same reason.
-    // The spaces are IN the text, not between the spans: adjacent elements have no whitespace
-    // between them, and `app-diary.pw.ts` reads this line as one string.
-    if (budget.guessed) big.append(el("span", "about", `${COPY.about} `));
+    // The FIGURE is grouped the reader's way, the unit is spelled the reader's way, and the state
+    // beside it is a word from the table. On a day with a guess in it the headline is a guess too
+    // (#28) — hedged, and on the guess step, so "about 1 820 eaten" and "about 280 left" still
+    // make the plan.
+    if (budget.guessed) big.append(el("span", "abt", ABOUT[lang]), document.createTextNode(" "));
     big.append(
-      el("span", "hero mono", n(budget.kcal)),
+      el("span", "hero", (budget.guessed ? guessedNumbers(lang) : wholeNumbers(lang))(budget.kcal)),
       el("span", "muted", ` ${UNIT_KCAL[lang]} ${budget.state === "left" ? COPY.budgetLeft : budget.state === "over" ? COPY.budgetOver : COPY.budgetUnder}`),
     );
     // Native, so there is nothing to draw by hand; hidden, because the line under it says it in words.
@@ -247,20 +254,22 @@ async function diaryScreen(): Promise<HTMLElement> {
     bar.max = 1;
     bar.value = budget.fill;
     bar.setAttribute("aria-hidden", "true");
-    const eaten = el("p", "muted", fill(COPY.eatenLine, {
-      eaten: n(budget.eaten), target: kcal(budget.target),
+    const n = wholeNumbers(lang);
+    // `{eaten}` sits mid-line here, so the hedge goes into the figure rather than into a second
+    // template. The TARGET keeps every digit whatever the day did — it is arithmetic over answers
+    // this person gave — and so does the protein, because ten grams is the wrong step for a
+    // figure that runs from 20 to 150.
+    head.append(big, bar, el("p", "muted", fill(COPY.eatenLine, {
+      eaten: (budget.guessed ? aboutFigure(lang) : n)(budget.eaten), target: kcal(budget.target),
       protein: n(budget.protein.eaten), proteinTarget: n(budget.protein.target),
-    }));
-    body.append(big, bar, eaten);
+    })));
   }
-  // THE FLOOR IS A STATUS LINE, and the one place blue is spent on this screen. Never a tick on a
-  // scale and never a region on a chart: both were range machinery.
-  const stat = el("div", "stat");
-  stat.append(el("span", "floor", fill(
-    me.basis.floorApplied ? COPY.floorHeld : COPY.floorClear,
-    { floor: n(me.basis.floorKcal) },
-  )));
-  body.append(stat);
+  // THE FLOOR IS SURFACED, because the contract says it must be. A target that was raised to the
+  // floor is a different promise from one the numbers produced, and the app that hides which is
+  // the one that ends up quoted in a review.
+  if (me.basis.floorApplied) {
+    head.append(el("p", "muted", COPY.floor));
+  }
   // THE WEIGHT BEHIND THE TARGET, AND WHEN IT WAS WEIGHED (#609). The phone syncs a newer one on
   // every launch and the target moves with it. Never "from Apple Health": the profile does not say
   // which source wrote it. Days are counted on the server's calendar, like `today`.
@@ -273,7 +282,7 @@ async function diaryScreen(): Promise<HTMLElement> {
   // `Intl.RelativeTimeFormat` in the READER's language, not in "en" — it was the one formatter on
   // this page with a locale hard-coded into it, and "2 days ago" under a German diary reads as a
   // half-finished translation rather than as one missing string.
-  body.append(el("p", "muted", kg === null
+  head.append(el("p", "muted", kg === null
     ? COPY.connectHealth
     : days === null
       ? fill(COPY.weightLine, { kg: numbers(lang)(kg) })
@@ -287,48 +296,21 @@ async function diaryScreen(): Promise<HTMLElement> {
     wrap.append(el("p", "muted", COPY.nothingToday));
     return wrap;
   }
-  // A TABLE, WHICH IS THE SECOND THING THIS WINDOW DOES THAT A PHONE CANNOT. A phone shows four
-  // rows and a total; this shows the one guess sitting in a list of measured things, which is the
-  // strongest statement of the mechanism anywhere in the product.
-  //
-  // ONE WORDED FLAG IS NOT NEEDED HERE. Every guessed row already says so in its own figure, and a
-  // table makes the amber row visible as a row rather than as a sentence.
-  const table = document.createElement("table");
-  table.className = "meals";
-  const thead = document.createElement("thead");
-  const hrow = document.createElement("tr");
-  for (const [label, cls] of [[COPY.colTime, ""], [COPY.colMeal, ""], [COPY.colKcal, "num"]] as const) {
-    const th = document.createElement("th");
-    th.className = cls;
-    th.textContent = label;
-    hrow.append(th);
-  }
-  thead.append(hrow);
-  const tbody = document.createElement("tbody");
+  const list = el("ul", "meals");
   for (const meal of day.meals) {
-    const guessed = meal.confidence === "low" && !meal.corrected;
-    const tr = document.createElement("tr");
-    if (guessed) tr.className = "guessed";
-    const time = document.createElement("td");
-    time.className = "mono muted";
-    time.textContent = new Intl.DateTimeFormat(LANG_TAG[lang], {
-      timeZone: me.timezone, hour: "2-digit", minute: "2-digit", hour12: false,
-    }).format(new Date(meal.ts));
+    const li = el("li", "meal");
     // `MealRecord` extends `MealAnalysis`, so the items and the numbers are ON the row rather than
     // under an `analysis` key. Naming the first two items is what makes a list of numbers read as
     // a list of meals.
     const named = meal.items.slice(0, 2).map((i) => i.name).join(", ");
-    const name = document.createElement("td");
-    name.textContent = named === "" ? COPY.meal : named;
-    const num = document.createElement("td");
-    num.className = "num";
-    if (guessed) num.append(el("span", "about", `${COPY.about} `));
-    num.append(el("span", "mono", wholeNumbers(lang)(meal.kcal)));
-    tr.append(time, name, num);
-    tbody.append(tr);
+    li.append(el("span", "meal-name", named === "" ? COPY.meal : named));
+    // The one row worth fixing says so by its precision, and nothing else on the row changes
+    // (#28). A meal whose grams this person has since typed is settled and prints exact —
+    // `mealIsGuessed` is the single definition of which is which.
+    li.append(figure(el("span", "meal-kcal num"), meal.kcal, mealIsGuessed(meal)));
+    list.append(li);
   }
-  table.append(thead, tbody);
-  wrap.append(table);
+  wrap.append(list);
   return wrap;
 }
 

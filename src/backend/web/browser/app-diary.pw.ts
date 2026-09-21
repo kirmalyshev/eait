@@ -103,6 +103,32 @@ test("the diary is grouped and worded in the account's language, not the browser
   await expect(page.locator("select.lang")).toHaveValue("de");
 });
 
+test("a day with a guess in it is hedged, on the headline and on the one row that is a guess (#28)", async ({ inWebApp: page }) => {
+  // The rule is one number per thing and the PRECISION carries the confidence, so a guessed day
+  // loses the digits it did not earn and the hedge sits immediately in front of the figure — its
+  // own amber node, because the figure is not amber.
+  let target = 0;
+  await page.route("**/api/v1/diary/day*", async (route) => {
+    const res = await route.fetch();
+    const body = (await res.json()) as DayResponse;
+    target = body.targets.kcal;
+    body.totals.kcal = target - 552;
+    body.totals.guessed = true;
+    const [first] = body.meals;
+    if (first) { first.kcal = 712; first.confidence = "low"; first.corrected = false; }
+    await route.fulfill({ response: res, json: body });
+  });
+  await page.goto("/#/");
+  await page.reload();
+  await expect(page.locator(".big")).toHaveText("about 550 kcal left");
+  await expect(page.locator(".big .abt")).toHaveText("about");
+  // 552 eaten rounds to 550 BEFORE the subtraction, so the two figures still make the plan.
+  const n = (x: number) => new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0 }).format(x);
+  await expect(page.getByText(`about ${n(target - 550)} of ${n(target)} kcal eaten`)).toBeVisible();
+  // The row: "about 710 kcal", never "about 712".
+  await expect(page.locator(".meal-kcal").first()).toHaveText("about 710 kcal");
+});
+
 test("over target says by how much, as a warning rather than a negative number", async ({ inWebApp: page }) => {
   await dayAt(page, 310);
   await expect(page.locator(".big")).toHaveText("310 kcal over");

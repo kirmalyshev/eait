@@ -39,6 +39,17 @@ export interface NotificationMessage {
    * number. It cannot carry `{eaten}` — there is nothing eaten — and the validator says so.
    */
   emptyBody?: string;
+  /**
+   * `evening` only: the body for a day that has a GUESSED meal in it (#28).
+   *
+   * A third string for the same reason `emptyBody` is a second one. The rule is that the hedge
+   * word sits immediately in front of the figure, and `{eaten}` opens this sentence — so the
+   * hedge is what takes the capital, and which word that is differs in all eight. Splicing it
+   * into the placeholder puts a lowercase "about" at the start of a lock-screen line.
+   *
+   * The two variants cannot both apply: a day with nothing logged has nothing guessed in it.
+   */
+  guessedBody?: string;
 }
 
 export type NotificationCopy = Record<NotificationId, NotificationMessage>;
@@ -56,6 +67,7 @@ export const NOTIFICATION_PLACEHOLDERS: Record<string, readonly string[]> = {
   "trial-day6.title": [], "trial-day6.body": [],
   "evening.title": [], "evening.body": ["eaten", "plan", "tomorrow"],
   "evening.emptyBody": ["plan", "tomorrow"],
+  "evening.guessedBody": ["eaten", "plan", "tomorrow"],
 };
 
 /** iOS truncates well before these; they are a bound on abuse, not a design guide. */
@@ -86,6 +98,7 @@ export const DEFAULT_NOTIFICATION_COPY: NotificationCopy = {
     title: "Today against the plan",
     body: "{eaten} of your {plan} kcal today. {tomorrow}",
     emptyBody: "Nothing logged today — your {plan} kcal are still the plan. {tomorrow}",
+    guessedBody: "About {eaten} of your {plan} kcal today — one meal was a guess. {tomorrow}",
   },
 };
 
@@ -110,6 +123,7 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       title: "Aujourd'hui face au plan",
       body: "{eaten} de tes {plan} kcal aujourd'hui. {tomorrow}",
       emptyBody: "Rien d'enregistré aujourd'hui — tes {plan} kcal restent le plan. {tomorrow}",
+      guessedBody: "Environ {eaten} de tes {plan} kcal aujourd'hui — un repas était une estimation. {tomorrow}",
     },
   },
   de: {
@@ -125,6 +139,7 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       title: "Heute gegen den Plan",
       body: "{eaten} von deinen {plan} kcal heute. {tomorrow}",
       emptyBody: "Heute nichts eingetragen — deine {plan} kcal sind trotzdem der Plan. {tomorrow}",
+      guessedBody: "Etwa {eaten} von deinen {plan} kcal heute — eine Mahlzeit war geschätzt. {tomorrow}",
     },
   },
   it: {
@@ -140,6 +155,7 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       title: "Oggi rispetto al piano",
       body: "{eaten} delle tue {plan} kcal oggi. {tomorrow}",
       emptyBody: "Oggi niente registrato — le tue {plan} kcal restano il piano. {tomorrow}",
+      guessedBody: "Circa {eaten} delle tue {plan} kcal oggi — un pasto era una stima. {tomorrow}",
     },
   },
   es: {
@@ -155,6 +171,7 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       title: "Hoy frente al plan",
       body: "{eaten} de tus {plan} kcal hoy. {tomorrow}",
       emptyBody: "Hoy sin registros — tus {plan} kcal siguen siendo el plan. {tomorrow}",
+      guessedBody: "Unas {eaten} de tus {plan} kcal hoy — una comida fue una estimación. {tomorrow}",
     },
   },
   vi: {
@@ -170,6 +187,7 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       title: "Hôm nay so với kế hoạch",
       body: "{eaten} trên {plan} kcal hôm nay. {tomorrow}",
       emptyBody: "Hôm nay chưa ghi gì — {plan} kcal của bạn vẫn là kế hoạch. {tomorrow}",
+      guessedBody: "Khoảng {eaten} trên {plan} kcal hôm nay — một bữa là ước lượng. {tomorrow}",
     },
   },
   id: {
@@ -185,6 +203,7 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       title: "Hari ini dibanding rencana",
       body: "{eaten} dari {plan} kcal hari ini. {tomorrow}",
       emptyBody: "Hari ini belum ada catatan — {plan} kcal-mu tetap rencananya. {tomorrow}",
+      guessedBody: "Sekitar {eaten} dari {plan} kcal hari ini — satu makan adalah tebakan. {tomorrow}",
     },
   },
   ru: {
@@ -200,6 +219,7 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
       title: "Сегодня против плана",
       body: "{eaten} из твоих {plan} ккал сегодня. {tomorrow}",
       emptyBody: "Сегодня ничего не записано — твои {plan} ккал всё ещё план. {tomorrow}",
+      guessedBody: "Примерно {eaten} из твоих {plan} ккал сегодня — один приём был прикидкой. {tomorrow}",
     },
   },
 };
@@ -355,15 +375,27 @@ export function dailyMessage(
   return "evening";
 }
 
-/** Interpolate a message. `empty` picks the evening line's nothing-logged variant. */
+/**
+ * Interpolate a message.
+ *
+ * `empty` picks the evening line's nothing-logged variant and `guessed` its has-a-guess-in-it one
+ * (#28). `empty` WINS if both arrive, which cannot happen — a day with no meals has nothing
+ * guessed in it — and is the safe order anyway: the empty line is the only one that can be true
+ * with no `{eaten}` to fill.
+ *
+ * Either variant falls back to `body` when the stored row predates it, which is what
+ * `engine/notify.ts`'s per-field merge is for.
+ */
 export function fillNotification(
   copy: NotificationCopy,
   id: NotificationId,
   params: Record<string, string>,
-  opts: { empty?: boolean } = {},
+  opts: { empty?: boolean; guessed?: boolean } = {},
 ): { title: string; body: string } {
   const message = copy[id];
-  const template = opts.empty && message.emptyBody ? message.emptyBody : message.body;
+  const template = opts.empty && message.emptyBody ? message.emptyBody
+    : opts.guessed && message.guessedBody ? message.guessedBody
+    : message.body;
   return { title: fill(message.title, params), body: fill(template, params) };
 }
 
@@ -412,6 +444,9 @@ export function validateNotificationCopy(input: unknown): NotificationCopyValida
       // The nothing-logged variant exists for the evening line and for nothing else: a reminder
       // does not depend on what was logged, so a second body there would never be reached.
       ["emptyBody", m.emptyBody, id === "evening"],
+      // Same reasoning as `emptyBody`: only the evening line depends on what was logged, so only
+      // it can have a variant for a day that was partly guessed.
+      ["guessedBody", m.guessedBody, id === "evening"],
     ];
 
     for (const [name, value, required] of fields) {

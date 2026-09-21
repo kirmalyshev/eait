@@ -11,8 +11,8 @@
 // file resolved, which is why a stale or crafted tap can only ever find "expired".
 
 import {
-  MAX_USER_LINE, UNIT_KCAL, localDate, localTime, narrowLang, renderableVerdicts, scriptedLine,
-  verdictPillLabel, wholeNumbers,
+  MAX_USER_LINE, UNIT_KCAL, aboutFigure, localDate, localTime, mealIsGuessed, narrowLang,
+  renderableVerdicts, scriptedLine, verdictPillLabel, wholeNumbers,
   type Lang, type MealAnalysis, type Refusal,
 } from "@eait/shared";
 import { telegramCopyFor, type TelegramCopy } from "./copy.ts";
@@ -185,12 +185,17 @@ export function telegramHandlers(deps: EngineDeps) {
       if (today === null) return chat.send(refusalText(config, { kind: "not-onboarded" }, lang));
       const { totals, targets } = today;
       const n = wholeNumbers(lang);
+      // #28: PRECISION CARRIES THE CONFIDENCE, on the day's figure and on each meal's. `{eaten}`
+      // sits mid-sentence here ("Today: about 1 820 of 2 100 kcal"), so the hedge goes into the
+      // figure rather than into a second template — the two running lines in `chat-copy.ts` need
+      // one only because the number opens the sentence there.
+      const about = aboutFigure(lang);
       const head = copy.todayHead({
-        eaten: n(totals.kcal), plan: n(targets.kcal),
+        eaten: (totals.guessed ? about : n)(totals.kcal), plan: n(targets.kcal),
         protein: n(totals.protein_g), proteinTarget: n(targets.protein_g),
       });
       const meals = today.meals.map((m) =>
-        `${localTime(config.timezone, new Date(m.ts))} ${m.items.map((i) => i.name).join(", ") || copy.meal} — ${n(m.kcal)} ${UNIT_KCAL[lang]}`);
+        `${localTime(config.timezone, new Date(m.ts))} ${m.items.map((i) => i.name).join(", ") || copy.meal} — ${(mealIsGuessed(m) ? about : n)(m.kcal)} ${UNIT_KCAL[lang]}`);
       await chat.send([head, ...(meals.length > 0 ? meals : [copy.todayEmpty])].join("\n"));
     },
 

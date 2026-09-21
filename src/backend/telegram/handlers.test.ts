@@ -375,6 +375,24 @@ describe("/today", () => {
     expect(chat.sent[0]!.text).toMatch(/^Today: [\d,]+ of [\d,]+ kcal, [\d,]+ of [\d,]+ g protein\n\d\d:\d\d .+ — [\d,]+ kcal$/);
   });
 
+  it("hedges the day and the one row that is a guess, and nothing else (#28)", async () => {
+    const { userId, from } = await linked();
+    await h.photos(from, [async () => jpeg()], "lunch", fakeChat());
+    const date = localDate(CONFIG.timezone);
+    const [template] = await store.mealsForDate(userId, date);
+    // One guessed plate beside the measured one: the day's figure is a guess, the row's is, and
+    // the measured row still prints every digit it earned.
+    await store.insertMeal({ ...template!, id: crypto.randomUUID(), kcal: 712, confidence: "low" });
+    const chat = fakeChat();
+    await h.today(from, chat);
+    const [head, ...rows] = chat.sent[0]!.text.split("\n");
+    expect(head).toMatch(/^Today: about [\d,]+ of [\d,]+ kcal, /);
+    expect(rows.filter((r) => r.includes("— about "))).toHaveLength(1);
+    expect(rows).toHaveLength(2);
+    // On the step, not on the nose: 712 would claim a precision the plate did not have.
+    expect(rows.find((r) => r.includes("about "))).toContain("about 710 kcal");
+  });
+
   it("says so when nothing is logged", async () => {
     const { from } = await linked();
     const chat = fakeChat();

@@ -666,6 +666,8 @@ export const adminPage = (nonce: string): string => `<!doctype html>
     if (id === "evening") {
       field(card, "Body when nothing was logged" + holes(id + ".emptyBody"), m.emptyBody,
         function (v) { m.emptyBody = v; }, true);
+      field(card, "Body when a meal was a guess" + holes(id + ".guessedBody"), m.guessedBody,
+        function (v) { m.guessedBody = v; }, true);
     }
     return card;
   }

@@ -30,7 +30,7 @@ import {
   NOTIFICATION_IDS, dailyMessage, dateMinus, entitlementActive,
   eveningPrescription,
   explainTargets, fillNotification, localDate, notificationCopyFor, storedNotificationCopy,
-  trialReminders, validateNotificationCopy, wholeNumbers,
+  guessedNumbers, trialReminders, validateNotificationCopy, wholeNumbers,
   type Lang, type NotificationCopy, type NotificationCopyValidation, type NotificationId,
 } from "@eait/shared";
 import type { PushMessage, PushTicket } from "../push/port.ts";
@@ -153,13 +153,16 @@ export async function dailyNotification(
   const lang = profile.lang;
   const n = wholeNumbers(lang);
   const copy = await notificationCopy(deps, lang);
+  // #28: a day with a guessed meal in it has a guessed total, so the figure loses the digits it
+  // does not earn and the sentence carries the hedge. The PLAN keeps every digit either way — it
+  // is arithmetic over answers the user gave, and a rounded promise is a weaker promise.
   const filled = fillNotification(copy, "evening", {
-    eaten: n(totals.kcal),
+    eaten: (totals.guessed ? guessedNumbers(lang) : n)(totals.kcal),
     plan: n(targets.kcal),
     tomorrow: eveningPrescription({
       targets, totals, goal: profile.goal ?? "maintain", meals: meals.length,
     }, lang),
-  }, { empty: meals.length === 0 });
+  }, { empty: meals.length === 0, guessed: totals.guessed });
 
   return { id: "evening", ...filled };
 }

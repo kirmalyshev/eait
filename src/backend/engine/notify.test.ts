@@ -55,12 +55,20 @@ async function entitle(userId: string, expiresAt: string, trial = false): Promis
   });
 }
 
-async function logMeal(userId: string, date: string, kcal: number, protein: number): Promise<void> {
+async function logMeal(
+  userId: string,
+  date: string,
+  kcal: number,
+  protein: number,
+  // #28: a plate the analyzer could not read. The day it lands in is a guessed day, and the
+  // evening line's precision is what says so.
+  over: { confidence?: string; corrected?: boolean } = {},
+): Promise<void> {
   await store.insertMeal({
     id: crypto.randomUUID(), user_id: userId, ts: `${date}T12:00:00.000Z`, date,
     isFood: true, items: [{ name: "Rice", grams: 200 }], kcal, protein_g: protein,
     carbs_g: 50, fat_g: 10, satfat_g: 2, fiber_g: 3, sugar_g: 4, sodium_mg: 300,
-    verdicts: {}, confidence: "high", notes: "", corrected: false, model: "test",
+    verdicts: {}, confidence: "high", notes: "", corrected: false, model: "test", ...over,
   });
 }
 
@@ -121,11 +129,36 @@ describe("the 20:30 line", () => {
         title: "Your evening line",
         body: "Ate {eaten}, planned {plan}. {tomorrow}",
         emptyBody: "Nothing today against {plan}. {tomorrow}",
+        guessedBody: "Ate about {eaten}, planned {plan}. {tomorrow}",
       },
     }, "en");
     const out = (await dailyNotification(deps, userId, DAY, NOW))!;
     expect(out.title).toBe("Your evening line");
     expect(out.body.startsWith("Ate 900, planned ")).toBe(true);
+  });
+
+  it("hedges the day and loses the digits it did not earn when a meal was a guess (#28)", async () => {
+    const userId = await onboard();
+    await entitle(userId, PAID_UNTIL);
+    await logMeal(userId, DAY, 900, 30);
+    await logMeal(userId, DAY, 712, 25, { confidence: "low" });
+    const out = (await dailyNotification(deps, userId, DAY, NOW))!;
+    // 1,612 on the nose would claim a precision one of those meals does not have.
+    expect(out.body.startsWith("About 1,610 of your ")).toBe(true);
+    expect(out.body).toContain("one meal was a guess");
+    expect(out.body).not.toContain("{");
+  });
+
+  it("stops hedging once the guess has been answered", async () => {
+    // `corrected` is what an edit sets, and it is the half of `mealIsGuessed` that settles a
+    // meal. Without it the line goes on saying "about" about grams the person typed.
+    const userId = await onboard();
+    await entitle(userId, PAID_UNTIL);
+    await logMeal(userId, DAY, 900, 30);
+    await logMeal(userId, DAY, 712, 25, { confidence: "low", corrected: true });
+    const out = (await dailyNotification(deps, userId, DAY, NOW))!;
+    expect(out.body.startsWith("1,612 of your ")).toBe(true);
+    expect(out.body).not.toContain("About");
   });
 
   it("says nothing to an account that never onboarded", async () => {
