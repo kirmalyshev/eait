@@ -112,21 +112,36 @@ test("a day with a guess in it is hedged, on the headline and on the one row tha
     const res = await route.fetch();
     const body = (await res.json()) as DayResponse;
     target = body.targets.kcal;
-    body.totals.kcal = target - 552;
+    body.totals.kcal = 1894;
     body.totals.guessed = true;
-    const [first] = body.meals;
-    if (first) { first.kcal = 712; first.confidence = "low"; first.corrected = false; }
+    // One measured row and one the analyzer could not read. Written into the RESPONSE rather than
+    // logged through the API: what is under test is the rendering of a guessed row, and a demo
+    // analyzer that decides its own confidence from the bytes cannot be asked for one.
+    const row = (kcal: number, name: string, confidence: string) => ({
+      id: crypto.randomUUID(), ts: `${body.date}T12:00:00.000Z`, date: body.date, isFood: true,
+      items: [{ name, grams: 200 }], kcal, protein_g: 20, carbs_g: 50, fat_g: 10, satfat_g: 2,
+      fiber_g: 3, sugar_g: 4, sodium_mg: 300, verdicts: {}, confidence, notes: "",
+      corrected: false, model: "test", photos: 0,
+    }) as unknown as DayResponse["meals"][number];
+    body.meals = [row(712, "Kebab, chips", "low"), row(410, "Porridge, banana", "high")];
     await route.fulfill({ response: res, json: body });
   });
   await page.goto("/#/");
   await page.reload();
-  await expect(page.locator(".big")).toHaveText("about 550 kcal left");
-  await expect(page.locator(".big .abt")).toHaveText("about");
-  // 552 eaten rounds to 550 BEFORE the subtraction, so the two figures still make the plan.
+  // BOTH figures on the guess step, and the plan exact — 1 894 eaten reads "about 1,890", and
+  // what is left of an exact plan is rounded the same way rather than to the unit.
   const n = (x: number) => new Intl.NumberFormat("en-GB", { maximumFractionDigits: 0 }).format(x);
-  await expect(page.getByText(`about ${n(target - 550)} of ${n(target)} kcal eaten`)).toBeVisible();
-  // The row: "about 710 kcal", never "about 712".
+  const step = (x: number) => Math.round(x / 10) * 10;
+  await expect(page.locator(".big")).toHaveText(`about ${n(step(target - 1890))} kcal left`);
+  await expect(page.locator(".big .abt")).toHaveText("about");
+  await expect(page.getByText(`about ${n(1890)} of ${n(target)} kcal eaten`)).toBeVisible();
+  // The row: "about 710 kcal", never "about 712" — and the measured row beside it stays silent,
+  // because silence is what "read cleanly" looks like.
   await expect(page.locator(".meal-kcal").first()).toHaveText("about 710 kcal");
+  await expect(page.locator(".meal-kcal").last()).toHaveText("410 kcal");
+  // ONE row carries the tint and the outline, and it is that one.
+  await expect(page.locator(".meal.rowsel")).toHaveCount(1);
+  await expect(page.locator(".meal.rowsel .meal-name")).toHaveText("Kebab, chips");
 });
 
 test("over target says by how much, as a warning rather than a negative number", async ({ inWebApp: page }) => {

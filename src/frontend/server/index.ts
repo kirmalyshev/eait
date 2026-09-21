@@ -23,7 +23,7 @@
 // image does.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
-import { darkVars, lightVars } from "../../shared/palette.ts";
+import { STYLESHEET } from "../design.ts";
 
 /** Where `bun run build` in this workspace puts the bundle. The only default; tests pass their own. */
 export const DEFAULT_BUNDLE_PATH = new URL("../dist/main.js", import.meta.url);
@@ -46,6 +46,12 @@ const notFound = () => new Response(JSON.stringify({ error: "not found" }), {
  * No inline script and no inline event handler — every line of behaviour is in the bundle, which is
  * a separate request carrying the same nonce. The one inline `<style>` carries it too, so the
  * policy never needs `'unsafe-inline'` for either.
+ *
+ * THE STYLESHEET IS `design.ts`, NOT THIS FILE. It is still ONE stylesheet under the nonce — that
+ * rule is about how many documents the browser has to trust, and it is unchanged. What moved is
+ * where the values live: eleven hexes used to sit inline here, and a colour that means one thing
+ * ("amber is the guess and nothing else") cannot be enforced from eleven places. A test below
+ * fails if a hex that is not one of that module's tokens ever appears in this page again.
  */
 function shell(nonce: string): string {
   return `<!doctype html>
@@ -65,102 +71,7 @@ function shell(nonce: string): string {
      error in it is a console nobody reads. Found by driving a browser; no unit test saw it.
      (No backticks in this file's HTML: the document is one template literal.) -->
 <link rel="icon" href="data:,">
-<style nonce="${nonce}">
-/* THE TOKENS COME FROM shared/palette.ts, not from this file. The app, the landing page and the
-   /start flow all draw from that one copy, and a fourth set of hexes here is a fourth thing to
-   keep in step. Imported by RELATIVE path, like dayBudget and copy.ts (#608). */
-:root { ${lightVars} }
-@media (prefers-color-scheme: dark) { :root { ${darkVars} } }
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--ink); color: var(--text);
-  font: 15px/1.5 "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
-/* NUMBERS ONLY, and the unit stays OUTSIDE the span: a monospace word-space is a full mono advance,
-   so 141 g set as one string renders with a hole in it. No web font is fetched for it — this
-   page's CSP has no font-src and is not gaining one for a typeface. */
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
-
-/* TWO COLUMNS, AND THE LEFT ONE NEVER NAVIGATES AWAY. That is the whole reason this window is not
-   a stretched phone: on a phone, opening a meal costs you sight of the day, so an answer lands
-   somewhere you cannot see it. Here the day stays put while you read. */
-#app { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: 26px;
-  max-width: 1360px; margin: 0 auto; padding: 26px; align-items: start; }
-@media (max-width: 860px) { #app { grid-template-columns: minmax(0, 1fr); padding: 16px; } }
-
-h1, h2 { margin: 0 0 .5rem; font-weight: 800; letter-spacing: -.02em; }
-h2 { font-size: 17px; }
-.muted { color: var(--muted); }
-.lab { font-size: 10.5px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); }
-.big { margin: .25rem 0 0; display: flex; align-items: baseline; gap: 8px; }
-.hero { font-size: 44px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.05; }
-.big.warn .hero { color: var(--warn); }
-/* THE GUESS, AND NOTHING ELSE IS EVER THIS COLOUR. Immediately before the figure it governs, and
-   outside the figure's own span. */
-.about { color: var(--warn); font-weight: 700; }
-/* THE FLOOR, AND NOTHING ELSE. Once per screen, as text, and never a tick on a scale. */
-.floor { font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--care); }
-
-progress { display: block; width: 100%; height: 4px; margin: .5rem 0 .25rem; appearance: none; border: 0;
-  border-radius: 3px; overflow: hidden; background: var(--line-strong); }
-progress::-webkit-progress-bar { background: transparent; }
-progress::-webkit-progress-value { background: var(--accent); border-radius: 3px; }
-progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
-.big.warn + progress::-webkit-progress-value { background: var(--warn); }
-.big.warn + progress::-moz-progress-bar { background: var(--warn); }
-
-/* CARDS HAVE NO BORDER. The ground is near-black and a card is two steps up from it. */
-.card { padding: 1rem 1.1rem; background: var(--raised); border-radius: 16px; margin-bottom: 14px; }
-/* A 52px STRIP, not a hero region: at 1360 wide a full-height wash is a wall of green, and every
-   word on it has to be near-black. */
-.day-card { padding: 0; overflow: hidden; }
-.day-wash { margin: 0; height: 52px; display: flex; align-items: center; padding: 0 18px; color: var(--accent-ink);
-  font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
-  background: linear-gradient(180deg, var(--accent) 0%, var(--wash-mid) 40%, var(--wash-deep) 76%, var(--raised) 100%); }
-.day-body { padding: 16px 18px 18px; }
-.stat { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
-
-/* THE RAIL: the tab bar became four destinations down the left, with the primary action at the top. */
-.nav { display: flex; flex-direction: column; gap: 4px; align-items: stretch; position: sticky; top: 26px; }
-@media (max-width: 860px) { .nav { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; } }
-.tab { color: var(--muted); text-decoration: none; padding: 10px 12px; border-radius: 11px; font-weight: 700; font-size: 14px; }
-.tab.on { color: var(--text); background: var(--raised); }
-.link { background: none; border: 0; color: var(--muted); cursor: pointer; font: inherit; text-align: left; padding: 10px 12px; }
-.lang { background: none; border: 0; color: var(--muted); font: inherit; cursor: pointer; padding: 10px 12px; }
-.primary { display: inline-block; margin-top: .75rem; padding: 0 18px; height: 44px; line-height: 44px;
-  border-radius: 12px; background: var(--accent); color: var(--accent-ink); text-decoration: none;
-  font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-
-/* THE TABLE IS THE SECOND THING THIS WINDOW DOES. A phone can show four rows and a total; this can
-   show the one guess sitting in a list of measured things, which is the strongest statement of the
-   mechanism anywhere in the product. */
-.meals { width: 100%; border-collapse: collapse; }
-.meals th { text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase;
-  color: var(--dim); padding: 0 12px 10px; border-bottom: 1px solid var(--line-strong); }
-.meals td { padding: 11px 12px; border-bottom: 1px solid var(--line); }
-.meals tr:last-child td { border-bottom: 0; }
-.meals .num { text-align: right; white-space: nowrap; }
-/* The guessed row, and the only colour in the list. */
-.meals tr.guessed td { background: color-mix(in srgb, var(--warn) 7%, transparent); }
-.meals tr.guessed td:first-child { border-left: 1.5px solid color-mix(in srgb, var(--warn) 45%, transparent); }
-
-.thread { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
-.line p { margin: 0; padding: .55rem .8rem; border-radius: 14px; background: var(--panel); }
-.line.mine { align-items: flex-end; }
-.line.mine p { background: var(--accent); color: var(--accent-ink); }
-.line button { margin-left: .5rem; font-size: .85em; }
-.error, .notice { color: var(--bad); }
-.notice { margin: 1rem 0 0; }
-.photo-lead { margin-top: 1.5rem; font-size: 1rem; }
-.composer { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
-.composer input, .composer button, .card button { font: inherit; }
-.composer input[type="text"] { flex: 1 1 12rem; padding: .55rem .8rem; border-radius: 12px;
-  color: var(--text); background: var(--panel); border: 0; }
-.composer button, .card button { padding: 0 16px; height: 38px; border-radius: 12px; cursor: pointer;
-  color: var(--text); background: var(--panel); border: 0; margin: .5rem .5rem 0 0; font-weight: 700; }
-.composer button { margin: 0; }
-.composer button.primary, .card button.primary { background: var(--accent); color: var(--accent-ink);
-  height: 38px; line-height: 38px; margin-top: 0; }
-input:disabled, button:disabled { opacity: .5; cursor: default; }
-</style>
+<style nonce="${nonce}">${STYLESHEET}</style>
 </head>
 <body>
 <div id="app"></div>

@@ -15,6 +15,7 @@ import { afterAll, describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { COLOR, TOKEN_HEXES } from "../design.ts";
 import { BUNDLE_PATH, HEALTH_PATH, SHELL_PATH, createWebApp } from "./index.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "eait-web-"));
@@ -85,6 +86,41 @@ describe("the shell", () => {
     // working rather than a policy violation somebody sees.
     const html = await (await get(built, SHELL_PATH)).text();
     expect(html).not.toMatch(/\son[a-z]+=/);
+  });
+});
+
+describe("the design system owns every colour on the page", () => {
+  it("has no raw hex in its markup — every one of them is a token", async () => {
+    // THE TEST THAT MAKES THE MODULE A SYSTEM RATHER THAN A SUGGESTION. A hex typed into a rule is
+    // a colour nothing governs: "amber is the guess and nothing else" cannot be enforced from
+    // eleven places, and the eleven that were inline here are what this replaces. A new colour is
+    // a token in `design.ts` with a comment saying what it MEANS, and then it is allowed.
+    const html = await (await get(built, SHELL_PATH)).text();
+    const found = [...new Set((html.match(/#[0-9a-fA-F]{3,8}\b/g) ?? []).map((h) => h.toLowerCase()))];
+    expect(found.filter((h) => !TOKEN_HEXES.includes(h))).toEqual([]);
+    // And the page really is drawing from them, so the assertion above cannot pass by finding
+    // nothing at all.
+    expect(found).toContain(COLOR.amber.toLowerCase());
+  });
+
+  it("keeps the three colours that mean one thing to the one thing they mean", async () => {
+    // Amber is the guess, blue is the floor, and a rule that spends either on anything else is the
+    // failure — the grammar stops being readable the moment a colour means two things.
+    const css = (await (await get(built, SHELL_PATH)).text()).split("<style")[1]!.split("</style>")[0]!;
+    const rulesUsing = (hex: string) => css.split("}")
+      .filter((rule) => rule.includes(`var(--${hex})`))
+      // The selector, with this file's own comments stripped off the front of it.
+      .map((rule) => rule.split("{")[0]!.replace(/\/\*[\s\S]*?\*\//g, "").trim().replace(/\s+/g, " "));
+    expect(rulesUsing("amber")).toEqual([".abt"]);
+    expect(rulesUsing("blue")).toEqual([".sl.floor"]);
+  });
+
+  it("is one stylesheet under the nonce, whatever module built it", async () => {
+    // The rule `src/frontend/AGENTS.md` states is about how many documents the browser has to
+    // trust, not about which file the text lives in. Moving the values did not add one.
+    const html = await (await get(built, SHELL_PATH)).text();
+    expect(html.match(/<style/g) ?? []).toHaveLength(1);
+    expect(html).not.toContain("<link rel=\"stylesheet\"");
   });
 });
 

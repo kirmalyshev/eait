@@ -62,9 +62,13 @@ describe("dayBudget", () => {
   // #28: a day with a guessed meal in it is a guessed day, and the two figures a reader sees have
   // to be the same subtraction — rounding each of them at format time is what makes "about 1 820"
   // and "about 280" stop adding up to the plan.
-  test("a guessed day rounds what was eaten to the guess step, BEFORE subtracting", () => {
+  test("a guessed day puts BOTH figures on the guess step", () => {
     expect(dayBudget(day(1822, { target: 2100, guessed: true }), TODAY, "lose"))
       .toMatchObject({ guessed: true, eaten: 1820, kcal: 280 });
+    // A plan that is not itself on the step: the two estimates are, and the plan stays exact —
+    // which is the one number in the line a reader is entitled to every digit of.
+    expect(dayBudget(day(1894, { target: 2446, guessed: true }), TODAY, "lose"))
+      .toMatchObject({ guessed: true, eaten: 1890, kcal: 560 });
   });
 
   test("a measured day keeps every digit it earned", () => {

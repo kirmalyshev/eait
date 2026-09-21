@@ -75,6 +75,39 @@ describe("the client speaks the contract rather than a copy of it", () => {
   });
 });
 
+describe("one module owns every colour", () => {
+  it("leaves no raw hex anywhere else in this workspace", () => {
+    // The companion to the shell's own check in `server/index.test.ts`: that one reads the page,
+    // this one reads the SOURCE, so a hex written into a node's style — which would never reach
+    // the stylesheet — is caught too. `design.ts` is the one file allowed to hold a hex, and each
+    // of the ones it holds carries a comment saying what the value MEANS.
+    //
+    // Read through `code()`, which drops the comments: this house writes an issue reference as
+    // `#608`, which is a valid three-digit CSS colour and would fail every file in the workspace.
+    for (const file of ["main.ts", "api.ts", "copy.ts", "outbox.ts", "server/index.ts"]) {
+      const hexes = code(file).match(/#[0-9a-fA-F]{3,8}\b/g) ?? [];
+      expect(`${file}: ${hexes.join(", ")}`).toBe(`${file}: `);
+    }
+  });
+
+  it("names its components the way the design names them", () => {
+    // A component that exists in both places has ONE name, so a screen drawn against the spec and
+    // a screen drawn against this client are the same screen. These are the ones this application
+    // has an element for; the rail, the table, option rows and the onboarding bar are named there
+    // and drawn nowhere here, and a style with no element is decoration.
+    const css = source("design.ts");
+    const main = source("main.ts");
+    for (const name of ["card", "wash", "ink", "gauge", "gnum", "big", "stat", "sl", "lab",
+                        "mono", "ts", "abt", "num", "rowsel", "btn", "btn2", "bub", "them", "me",
+                        "comp", "send", "nav"]) {
+      expect(`${name} styled: ${css.includes(`.${name}`)}`).toBe(`${name} styled: true`);
+    }
+    // And the two the number grammar depends on are actually applied, not merely declared.
+    expect(main).toContain('el("span", "abt"');
+    expect(main).toContain('el("span", "mono"');
+  });
+});
+
 describe("the pages that are one template literal contain no backtick", () => {
   // FOUR TIMES IN ONE BRANCH. `admin.page.ts`, the shell, `store.pg.ts` and `admin.page.ts` again:
   // a comment written in the house style — which quotes identifiers in backticks — landed inside a

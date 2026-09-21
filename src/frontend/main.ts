@@ -20,6 +20,7 @@
 import { advancePending, pendingLine } from "../shared/stream.ts";
 import { outcomeUnknown } from "../shared/results.ts";
 import { dayBudget, mealIsGuessed } from "../shared/budget.ts";
+import { CLASS_GUESSED_ROW, GAUGE } from "./design.ts";
 import type { MealProposed, MealRecord, PendingPhoto } from "@eait/shared";
 import type {
   ChatEntry, ChatHistoryResponse, DayResponse, DeleteLineResponse, EditLineLast, OUTCOME_UNKNOWN,
@@ -97,7 +98,7 @@ const profile = async (): Promise<ProfileResponse> => {
 function chrome(active: string): HTMLElement {
   const nav = el("nav", "nav");
   for (const [href, label] of [["#/", COPY.navDiary], ["#/chat", COPY.navChat]] as const) {
-    const a = el("a", href === active ? "tab on" : "tab", label) as HTMLAnchorElement;
+    const a = el("a", href === active ? "nav on" : "nav", label) as HTMLAnchorElement;
     a.href = href;
     nav.append(a);
   }
@@ -107,7 +108,7 @@ function chrome(active: string): HTMLElement {
     //
     // ADVISORY. The server checks the role again on every request under /admin, so setting the flag
     // by hand in a console buys a menu entry with nothing behind it.
-    const a = el("a", "tab", COPY.navAdmin) as HTMLAnchorElement;
+    const a = el("a", "nav", COPY.navAdmin) as HTMLAnchorElement;
     a.href = "/admin";
     nav.append(a);
   }
@@ -189,7 +190,7 @@ function signInScreen(): HTMLElement {
   box.append(el("p", "muted", COPY.signedOutLead));
   // A LINK, NOT A FETCH. `/start` is a server-rendered flow that ends by setting the session
   // cookie, and it is the only thing on this origin that can authenticate anybody.
-  const a = el("a", "primary", COPY.signIn) as HTMLAnchorElement;
+  const a = el("a", "btn", COPY.signIn) as HTMLAnchorElement;
   a.href = "/start";
   box.append(a);
   return box;
@@ -207,6 +208,42 @@ const kcal = (n: number): string => `${wholeNumbers(lang)(n)} ${UNIT_KCAL[lang]}
  * `.mono` the tabular figure, and the unit lives OUTSIDE the mono span — DM Mono's word space is a
  * full advance, and `141 g` set entirely in it renders with a hole you can park a bus in.
  */
+/**
+ * The day's gauge: a semicircle, with the figure inside the arc.
+ *
+ * NEVER A CLOSED RING, no band segment and no floor tick — both of those were range machinery, and
+ * #28 is what took them out. One quantity is drawn, how much of the plan the day has spent, and
+ * `GAUGE` in `design.ts` owns the geometry: the arc's own length is what `stroke-dasharray` is a
+ * fraction of, so the fill is arithmetic rather than a number somebody tuned by eye.
+ *
+ * `aria-hidden`, like the `<progress>` it replaces: the line under it says the same thing in
+ * words, and a screen reader announcing a decorative arc twice is worse than not announcing it.
+ */
+function gauge(fill: number, inside: HTMLElement): HTMLElement {
+  const box = el("div", "gauge");
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", GAUGE.viewBox);
+  svg.setAttribute("aria-hidden", "true");
+  for (const [stroke, dash] of [
+    ["var(--raised)", null],
+    ["var(--green)", `${(GAUGE.length * fill).toFixed(2)} ${GAUGE.length}`],
+  ] as const) {
+    const arc = document.createElementNS(ns, "path");
+    arc.setAttribute("d", GAUGE.path);
+    arc.setAttribute("fill", "none");
+    arc.setAttribute("stroke", stroke);
+    arc.setAttribute("stroke-width", String(GAUGE.stroke));
+    arc.setAttribute("stroke-linecap", "round");
+    if (dash !== null) arc.setAttribute("stroke-dasharray", dash);
+    svg.append(arc);
+  }
+  const num = el("div", "gnum");
+  num.append(inside);
+  box.append(svg, num);
+  return box;
+}
+
 function figure(parent: HTMLElement, n: number, guessed: boolean, unit = UNIT_KCAL[lang]): HTMLElement {
   if (guessed) parent.append(el("span", "abt", ABOUT[lang]), document.createTextNode(" "));
   parent.append(el("span", "mono", (guessed ? guessedNumbers(lang) : wholeNumbers(lang))(n)));
@@ -230,7 +267,14 @@ async function diaryScreen(): Promise<HTMLElement> {
   const day = await api<DayResponse>(`/diary/day?date=${today}`);
 
   const head = el("div", "card");
-  head.append(el("h2", "", COPY.today));
+  // THE WASH, on the day. It is one of the two places the design allows it — the other is an
+  // arrival, which this application does not have — and it forces every word on it to near-black,
+  // which is why the strip holds a label and nothing else.
+  head.append(el("div", "wash"));
+  // A HEADING ELEMENT wearing the design's label style. `.lab` is a look, not a role: dropping the
+  // `h2` for a `div` took the day card out of the document outline, which is how somebody using a
+  // screen reader finds it.
+  head.append(el("h2", "lab ink", COPY.today));
   // WHAT IS LEFT IS THE HEADLINE, eaten/target the context under it — the same arithmetic as the
   // phone's (`dayBudget`), so the two can never round the one number apart.
   const budget = dayBudget(day, today, me.profile.goal);
@@ -246,20 +290,15 @@ async function diaryScreen(): Promise<HTMLElement> {
     // make the plan.
     if (budget.guessed) big.append(el("span", "abt", ABOUT[lang]), document.createTextNode(" "));
     big.append(
-      el("span", "hero", (budget.guessed ? guessedNumbers(lang) : wholeNumbers(lang))(budget.kcal)),
+      el("span", "mono", (budget.guessed ? guessedNumbers(lang) : wholeNumbers(lang))(budget.kcal)),
       el("span", "muted", ` ${UNIT_KCAL[lang]} ${budget.state === "left" ? COPY.budgetLeft : budget.state === "over" ? COPY.budgetOver : COPY.budgetUnder}`),
     );
-    // Native, so there is nothing to draw by hand; hidden, because the line under it says it in words.
-    const bar = document.createElement("progress");
-    bar.max = 1;
-    bar.value = budget.fill;
-    bar.setAttribute("aria-hidden", "true");
     const n = wholeNumbers(lang);
     // `{eaten}` sits mid-line here, so the hedge goes into the figure rather than into a second
     // template. The TARGET keeps every digit whatever the day did — it is arithmetic over answers
     // this person gave — and so does the protein, because ten grams is the wrong step for a
     // figure that runs from 20 to 150.
-    head.append(big, bar, el("p", "muted", fill(COPY.eatenLine, {
+    head.append(gauge(budget.fill, big), el("p", "muted", fill(COPY.eatenLine, {
       eaten: (budget.guessed ? aboutFigure(lang) : n)(budget.eaten), target: kcal(budget.target),
       protein: n(budget.protein.eaten), proteinTarget: n(budget.protein.target),
     })));
@@ -268,7 +307,12 @@ async function diaryScreen(): Promise<HTMLElement> {
   // floor is a different promise from one the numbers produced, and the app that hides which is
   // the one that ends up quoted in a review.
   if (me.basis.floorApplied) {
-    head.append(el("p", "muted", COPY.floor));
+    // A STATUS LINE, and the only blue on this page. The floor is a promise — "your target sits at
+    // the minimum this app will ever suggest" — never a tick on the gauge and never a region on a
+    // chart: both of those were the range machinery #28 removed.
+    const stat = el("div", "stat");
+    stat.append(el("div", "sl floor", COPY.floor));
+    head.append(stat);
   }
   // THE WEIGHT BEHIND THE TARGET, AND WHEN IT WAS WEIGHED (#609). The phone syncs a newer one on
   // every launch and the target moves with it. Never "from Apple Health": the profile does not say
@@ -307,7 +351,11 @@ async function diaryScreen(): Promise<HTMLElement> {
     // The one row worth fixing says so by its precision, and nothing else on the row changes
     // (#28). A meal whose grams this person has since typed is settled and prints exact —
     // `mealIsGuessed` is the single definition of which is which.
-    li.append(figure(el("span", "meal-kcal num"), meal.kcal, mealIsGuessed(meal)));
+    const rough = mealIsGuessed(meal);
+    // The one row worth fixing is the one that carries the tint and the outline, and the rest stay
+    // silent — silence is what "read cleanly" looks like.
+    if (rough) li.classList.add(CLASS_GUESSED_ROW);
+    li.append(figure(el("span", "meal-kcal num"), meal.kcal, rough));
     list.append(li);
   }
   wrap.append(list);
@@ -394,7 +442,7 @@ async function chatScreen(): Promise<HTMLElement> {
       const text = entry.kind === "meal"
         ? mealLine(entry.meal)
         : entry.text ?? COPY.photo;
-      li.append(el("p", "", text));
+      li.append(el("p", entry.role === "user" ? "bub me" : "bub them", text));
       // OWN LINES ONLY (#608): Edit on a photo line that still names a meal, Delete on any of them.
       if (entry.role === "user") {
         // `lineIsMeal`'s rule: a confirmed proposal is stored under the proposal's id.
@@ -435,7 +483,7 @@ async function chatScreen(): Promise<HTMLElement> {
     const kept = uid === null ? [] : outbox.entries.filter((e) => e.userId === uid);
     for (const e of kept) {
       const li = el("li", "line mine");
-      li.append(el("p", "", e.kind === "photo" ? (e.text ? `Photo: ${e.text}` : COPY.photo) : e.text ?? ""));
+      li.append(el("p", "bub me", e.kind === "photo" ? (e.text ? `Photo: ${e.text}` : COPY.photo) : e.text ?? ""));
       if (e.held === undefined) {
         li.append(el("p", "muted", COPY.waitingToSend));
       } else {
@@ -522,7 +570,7 @@ async function chatScreen(): Promise<HTMLElement> {
     const card = el("div", "card");
     card.append(el("p", "muted", COPY.proposalLead));
     card.append(el("p", "", `${names(p.analysis.items)} — ${kcal(p.analysis.kcal)}`));
-    for (const [verb, label, className] of [["confirm", COPY.logIt, "primary"], ["cancel", COPY.notThis, ""]] as const) {
+    for (const [verb, label, className] of [["confirm", COPY.logIt, "btn"], ["cancel", COPY.notThis, "btn btn2"]] as const) {
       const b = el("button", className, label) as HTMLButtonElement;
       b.addEventListener("click", () => turn(async () => {
         let r: PendingResponse;
@@ -562,8 +610,8 @@ async function chatScreen(): Promise<HTMLElement> {
   }
 
   const words = textField(COPY.composerPlaceholder);
-  const say = el("form", "composer") as HTMLFormElement;
-  say.append(words, el("button", "primary", COPY.send));
+  const say = el("form", "comp") as HTMLFormElement;
+  say.append(words, el("button", "send", COPY.send));
   say.addEventListener("submit", (e) => {
     e.preventDefault();
     const text = words.value.trim();
@@ -584,9 +632,9 @@ async function chatScreen(): Promise<HTMLElement> {
   picker.multiple = true;
   picker.setAttribute("aria-label", COPY.photosOfOneMeal);
   const caption = textField(COPY.caption);
-  const shoot = el("form", "composer") as HTMLFormElement;
+  const shoot = el("form", "comp") as HTMLFormElement;
   const count = el("span", "muted", "");
-  const send = el("button", "", COPY.sendPhoto) as HTMLButtonElement;
+  const send = el("button", "send", COPY.sendPhoto) as HTMLButtonElement;
   const cancel = el("button", "", COPY.cancel) as HTMLButtonElement;
   cancel.hidden = true;
   cancel.type = "button";
@@ -692,7 +740,7 @@ async function chatScreen(): Promise<HTMLElement> {
     // later means this one now waits on a decision, and nothing left waiting means it went.
     if (notice.textContent === kept() || notice.textContent === behind()) tell(keptNotice(uid));
   };
-  wrap.append(thread, notice, say, el("h2", "photo-lead", COPY.orPhotograph), shoot, progress);
+  wrap.append(thread, notice, say, el("h2", "lab", COPY.orPhotograph), shoot, progress);
   // What the turn that was out said, if it answered after its own screen was gone.
   // A kept turn's notice carried from a screen that is gone is decided again now: minutes may have
   // passed, and the turn may have gone meanwhile.

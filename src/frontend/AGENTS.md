@@ -93,8 +93,14 @@ twice: that is an endless pair of requests against a server that has already sai
   stay thin; anything shared goes beside `el()`.
 - A new server call → a method in `api.ts`. If the endpoint does not exist yet, it goes in
   `src/shared/contract.ts` first, then the backend, then here — the order the root `AGENTS.md` sets.
-- Styling → the `<style>` block in `server/index.ts`. It is one stylesheet under the nonce; a second
-  one is a second thing to keep under a policy.
+- Styling → `design.ts`, which owns every token and builds the one stylesheet `server/index.ts`
+  interpolates into its `<style nonce>` block. It is still ONE stylesheet under the nonce; a second
+  one is a second thing to keep under a policy. **A colour goes in that module or it goes nowhere**
+  — `server/index.test.ts` fails if a hex appears in the rendered page that is not one of its
+  tokens, and `test/client.test.ts` fails if one appears in this workspace's source at all. Three
+  of those tokens mean exactly one thing each and the same test holds them to it: **amber is the
+  guess, blue is the floor, green is affordance and settled-exact**. A component the design names
+  keeps that name here.
 - A new path this process answers → a branch in `server/index.ts` AND the `@app` matcher in
   `app.caddy.j2`, in the same commit. The edge sends this container two exact paths; a third one
   added here alone is a route only a laptop ever reaches.

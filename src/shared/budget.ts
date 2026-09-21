@@ -35,7 +35,7 @@ export interface DayBudget {
    * it: nothing logged is not nothing eaten, and "2000 under" would say it was.
    */
   state: "left" | "over" | "under" | "unlogged";
-  /** The headline: whole kcal, never negative. 0 when `unlogged`. */
+  /** The headline: whole kcal, never negative, on the guess step when `guessed`. 0 when `unlogged`. */
   kcal: number;
   /** What was eaten, rounded — the SAME rounding the headline was computed from. */
   eaten: number;
@@ -65,11 +65,17 @@ export function dayBudget(
   today: string,
   goal: Goal | null,
 ): DayBudget {
-  // Rounded BEFORE subtracting, so "1451 eaten" and "549 left" add up to the target on screen —
-  // and on the GUESS STEP when the day holds a guess, for the same reason one rung coarser: "about
-  // 1 820 eaten" and "about 280 left" have to make the plan, which rounding at format time breaks.
+  // Rounded BEFORE subtracting, so "1451 eaten" and "549 left" add up to the target on screen.
+  //
+  // ON THE GUESS STEP WHEN THE DAY HOLDS A GUESS (#28), and BOTH figures, not one: the headline
+  // and the line under it are the two numbers a reader sees, and one of them at ten and the other
+  // at one is a screen that says "about 1,890" over "about 556". They no longer add up to the
+  // plan, and that is the arithmetic rather than a bug — the plan is the one EXACT number in the
+  // line, and two estimates cannot both land on the step and still make an exact total. The
+  // rounding happens HERE, once, so no formatter has to do it a second time.
   const guessed = day.totals.guessed;
-  const eaten = guessed ? toGuessStep(day.totals.kcal) : Math.round(day.totals.kcal);
+  const step = (x: number): number => guessed ? toGuessStep(x) : Math.round(x);
+  const eaten = step(day.totals.kcal);
   const target = Math.round(day.targets.kcal);
   const protein = { eaten: Math.round(day.totals.protein_g), target: Math.round(day.targets.protein_g) };
   const past = day.date < today;
@@ -80,7 +86,7 @@ export function dayBudget(
   const state = diff < 0 ? "over" : past ? "under" : "left";
   const fill = target > 0 ? Math.min(1, Math.max(0, eaten / target)) : eaten > 0 ? 1 : 0;
   return {
-    state, kcal: Math.abs(diff), eaten, target, fill, guessed,
+    state, kcal: step(Math.abs(diff)), eaten, target, fill, guessed,
     warn: state === "over" && goal !== "gain", protein,
   };
 }
