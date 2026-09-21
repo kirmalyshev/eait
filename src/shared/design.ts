@@ -489,8 +489,11 @@ select { appearance: none; -webkit-appearance: none; background: var(--surface) 
   border: 1px solid var(--raised); border-radius: ${px(GEOMETRY.radiusInline)};
   color: var(--t1); font: inherit; padding: 8px 32px 8px 12px; cursor: pointer;
   max-width: 100%; }
-.lang { margin-left: auto; max-width: 11rem; }
-.lang + .link { margin-left: 1rem; }
+/* CAPPED, AND NOT PUSHED RIGHT. Two destinations, the picker and Sign out come to 347 of the 358
+   a 390 window has — but only left-packed: an auto margin in a wrapping row eats every pixel of
+   free space, so it put Sign out on a line of its own at any width. A longer endonym is ellipsized
+   in the closed control, which is what a picker does; the open list is never clipped. */
+.lang { max-width: 8.5rem; }
 /* A keyboard hint, inside a button or beside a field. */
 .kbd { display: inline-flex; align-items: center; height: 21px; padding: 0 6px; border-radius: 5px;
   background: var(--surface); border: 1px solid var(--raised); font-family: var(--mono);
@@ -523,6 +526,11 @@ select { appearance: none; -webkit-appearance: none; background: var(--surface) 
    Scoped by what the form HOLDS rather than by a modifier class. */
 .comp:has(input[type="file"]) input[type="text"] { flex: 1 1 100%; }
 .comp input[type="file"] { flex: 1 1 100%; color: var(--t3); font: inherit; }
+/* The picker's own button is the platform's until it is told otherwise — the same grey box the
+   select drew, next to a composer that is entirely in the register. */
+input[type="file"]::file-selector-button { margin-right: 10px; padding: 0 14px; min-height: 34px;
+  border: 1px solid var(--raised); border-radius: 10px; background: var(--surface);
+  color: var(--t1); font: inherit; font-weight: 700; cursor: pointer; }
 .comp button { min-height: 38px; padding: 0 14px; border: 1px solid var(--raised);
   border-radius: 10px; background: var(--surface); color: var(--t1); font: inherit; cursor: pointer; }
 .send { border: 0; background: var(--green); color: var(--ink);

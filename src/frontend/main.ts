@@ -96,7 +96,11 @@ const profile = async (): Promise<ProfileResponse> => {
 };
 
 function chrome(active: string): HTMLElement {
-  const nav = el("nav", "nav");
+  // THE BAR IS THE ELEMENT, THE CLASS IS AN ITEM. `.nav` carries a 34px height, a radius and a
+  // padding — a destination's shape — and the container wore it too, which clamped the bar to one
+  // row. Harmless while it never wrapped; the moment it did, the second row overflowed the box and
+  // the day's wash, which starts where the box ends, painted over "Sign out".
+  const nav = el("nav", "");
   for (const [href, label] of [["#/", COPY.navDiary], ["#/chat", COPY.navChat]] as const) {
     const a = el("a", href === active ? "nav on" : "nav", label) as HTMLAnchorElement;
     a.href = href;
