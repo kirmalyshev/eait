@@ -568,6 +568,40 @@ describe("the questions", () => {
     ]);
   });
 
+  it("keeps the conversation on the page: every question answered, and the answer given", async () => {
+    // ONBOARDING IS ONE CHAT (`product/design/onboarding/`), and a chat you cannot scroll back
+    // through is a questionnaire wearing a bubble. Each page replaced the last question with the
+    // next, so nothing this person had said was ever on screen beside what they were being asked.
+    const session = await signIn();
+    const first = await (await get("/start/q", session)).text();
+    // What Spud asked, taken off the page itself rather than rebuilt from the tables here.
+    const asked = [...first.matchAll(/<p class="bubble typed">([^<]*)<\/p>/g)].map((m) => m[1]!);
+    expect(asked.length).toBeGreaterThan(0);
+
+    await post("/start/q", { prompt: "goal", answer: ANSWERS["goal"]! }, session);
+    await post("/start/q", { prompt: "sex", answer: ANSWERS["sex"]! }, session);
+    const html = await (await get("/start/q", session)).text();
+
+    expect(html).toContain('name="prompt" value="birth_year"');
+    // The goal question is still on the page, and so is the answer that was given to it.
+    for (const line of asked) expect(html).toContain(`<p class="bubble">${line}</p>`);
+    expect(html).toContain('<p class="bubble you">Lose weight</p>');
+    // History is NOT re-typed: only the question being asked now carries `typed`, or answering the
+    // third would mean watching the first two be written out again.
+    for (const line of asked) expect(html).not.toContain(`<p class="bubble typed">${line}</p>`);
+  });
+
+  it("counts nothing down: the bar advances and never says what is left", async () => {
+    // "Question 4 of 10" is a count of what REMAINS, which the design forbids on this screen — it
+    // turns a conversation into a queue somebody is waiting in. The position stays available to a
+    // screen reader, which needs the fact rather than the feeling.
+    const session = await signIn();
+    const html = await (await get("/start/q", session)).text();
+    expect(html).toContain('<div class="prog"');
+    expect(html).not.toMatch(/>Question \d+ of \d+</);
+    expect(html).toMatch(/aria-label="Question 1 of \d+"/);
+  });
+
   it("does not ask a browser that already says where it is, and writes what it said", async () => {
     const session = await signIn();
     const asked: string[] = [];

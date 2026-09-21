@@ -155,10 +155,13 @@ label.check {
 }
 .notice { border-left: 3px solid var(--warn); padding-left: 1rem; margin: 0 0 1.25rem; color: var(--muted); }
 .care { border-left-color: var(--care); }
-.progress {
-  font-family: var(--display); color: var(--dim); font-size: .75rem;
-  margin: 0 0 1rem; letter-spacing: .08em; text-transform: uppercase;
+/* Onboarding's progress: a plain bar that only ever advances. No count of what remains, no dot
+   row — the design is explicit that this screen shows neither. */
+.prog {
+  height: 5px; border-radius: 3px; background: var(--line-strong);
+  overflow: hidden; margin: 0 0 1.25rem;
 }
+.prog > i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
 .figure { font-family: var(--display); font-size: 2.6rem; font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
 `;
 
@@ -254,6 +257,14 @@ const spud = `<div class="spud" role="img" aria-label="${escape(PAGE_COPY.spudAl
 const bubbles = (lines: readonly string[]): string =>
   lines.map((line) => `<p class="bubble typed">${escape(line)}</p>`).join("");
 
+/**
+ * The turns already taken. NOT `typed`: history is history, and re-typing it on every page load
+ * would make answering the fourth question mean watching the first three again. The same rule the
+ * chat thread already follows — `TYPING_SCRIPT` touches `.bubble.typed` alone.
+ */
+const said = (lines: readonly SaidLine[]): string =>
+  lines.map((l) => `<p class="bubble${l.who === "you" ? " you" : ""}">${escape(l.text)}</p>`).join("");
+
 export interface SignInButton { href: string; label: string }
 
 /**
@@ -290,9 +301,21 @@ ${buttons.map((b, i) =>
 
 export interface QuestionOption { value: string; label: string; hint?: string }
 
+/** One turn already taken: what Spud asked, or what this person answered. */
+export interface SaidLine { who: "spud" | "you"; text: string }
+
 export interface QuestionView {
   promptId: string;
   kind: "choice" | "number" | "chips";
+  /**
+   * THE CONVERSATION SO FAR, oldest first — every question already answered and the answer given.
+   *
+   * Without it this flow is a form with one field on it: the page replaced the last question with
+   * the next one, so nothing a person had said was ever on screen beside what they were being
+   * asked now. Onboarding is ONE CHAT with Spud (`product/design/onboarding/`), and a chat you
+   * cannot scroll back through is a questionnaire wearing a bubble.
+   */
+  history: readonly SaidLine[];
   lines: readonly string[];
   options: readonly QuestionOption[];
   placeholder: string | null;
@@ -336,10 +359,18 @@ export function question(v: QuestionView): string {
   ).join("");
   // The BRAND, untranslated — the same reason `LANG_LABEL` is not. A question page in the
   // middle of a flow is titled by the product, not by a sentence about it.
+  // THE BAR ONLY EVER ADVANCES, and never says what is left. "Question 4 of 10" is a count of
+  // what remains, which the design forbids on exactly this screen — it turns a conversation into
+  // a queue somebody is waiting in. `aria-label` carries the position for a screen reader, which
+  // needs the fact rather than the feeling.
+  const done = Math.round((v.step / v.total) * 100);
+  const bar = `<div class="prog" role="img" aria-label="${escape(PAGE_COPY.progress
+    .replace("{step}", String(v.step)).replace("{total}", String(v.total)))}">` +
+    `<i style="width:${done}%"></i></div>`;
   return shell("eait", `
-<p class="progress">${escape(PAGE_COPY.progress
-    .replace("{step}", String(v.step)).replace("{total}", String(v.total)))}</p>
+${bar}
 ${v.error ? `<p class="notice">${escape(v.error)}</p>` : ""}
+${said(v.history)}
 ${bubbles(v.lines)}
 <form method="post" action="/start/q">${hidden}${actions}${controls}</form>
 `, v.lang);

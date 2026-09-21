@@ -102,7 +102,7 @@ describe("the language picker on the plan page", () => {
 
   it("renders a question page in the asked language", () => {
     const de = question({
-      promptId: "goal", kind: "number", lines: ["Wie groß bist du?"], options: [],
+      promptId: "goal", kind: "number", history: [], lines: ["Wie groß bist du?"], options: [],
       placeholder: null, error: null, actions: [], step: 1, total: 10, lang: "de",
     });
     expect(de).toContain(pageCopyFor("de").continueLabel);

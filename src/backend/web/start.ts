@@ -19,7 +19,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
-  AMBIGUOUS_AGE, RESTRICTION_TAGS, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
+  AMBIGUOUS_AGE, RESTRICTION_TAGS, UNDER_AGE_CARD, UNDER_AGE_LINES, answerLabel, askLines,
   chatCopyFor as CHAT,
   askPlaceholder, checkDirection, checkNumber, disabledScreens, isAnswered, promptsFor,
   isRefusal, MAX_USER_LINE, optionLabel, renderableVerdicts, resolveCountry, ROUTES, screenForStep,
@@ -1085,7 +1085,23 @@ function renderQuestion(
   suggested: string | null = null,
 ): string {
   const prompt = questions[index]!;
+  const served = { content, lang: profile.lang };
+  // THE CONVERSATION SO FAR, rebuilt from the profile rather than kept in a session: every answer
+  // this flow has taken is already a field on it, and `answerLabel` is what the app renders a
+  // stored value back with — the restrictions list and "nothing applies" included. So the
+  // transcript cannot drift from what was actually saved, and a reload shows the same chat.
+  const history = questions.slice(0, index).flatMap((q) => {
+    const said = answerLabel(q, profile, served);
+    // A question with no field of its own — the one that collects nothing — has no answer to echo
+    // back, so it is left out rather than shown as a turn that was never taken.
+    if (said === null) return [];
+    return [
+      ...askLines(q, served, profile).map((text) => ({ who: "spud", text }) as const),
+      { who: "you", text: said } as const,
+    ];
+  });
   return question({
+    history,
     promptId: prompt.id,
     kind: prompt.kind === "chips" ? "chips" : prompt.kind === "number" ? "number" : "choice",
     lines: askLines(prompt, { content: content, lang: profile.lang }, profile),
