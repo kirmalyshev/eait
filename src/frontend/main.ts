@@ -20,13 +20,13 @@
 import { advancePending, pendingLine } from "../shared/stream.ts";
 import { outcomeUnknown } from "../shared/results.ts";
 import { dayBudget, mealIsGuessed } from "../shared/budget.ts";
-import { CLASS_GUESSED_ROW, GAUGE } from "./design.ts";
+import { CLASS, GAUGE } from "../shared/design.ts";
 import type { MealProposed, MealRecord, PendingPhoto } from "@eait/shared";
 import type {
   ChatEntry, ChatHistoryResponse, DayResponse, DeleteLineResponse, EditLineLast, OUTCOME_UNKNOWN,
   PairCodeResponse, PatchProfileRequest, PendingMealsResponse, PendingResponse, PhotoProgress, ProfileResponse, ROUTES,
 } from "@eait/shared/contract";
-import { ApiError, Unauthenticated, api, apiStream, forget, signIn, signOut, signedIn } from "./api.ts";
+import { ApiError, Unauthenticated, api, apiImage, apiStream, forget, signIn, signOut, signedIn } from "./api.ts";
 import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
 import { ABOUT, aboutFigure, LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, guessedNumbers, narrowLang, numbers, wholeNumbers } from "../shared/lang.ts";
 import type { Lang } from "../shared/types.ts";
@@ -183,15 +183,30 @@ function chrome(active: string): HTMLElement {
   return nav;
 }
 
-/** The front door for anybody this browser cannot prove is signed in. */
-function signInScreen(): HTMLElement {
-  const box = el("section", "card");
-  box.append(el("h1", "", "eait"));
-  box.append(el("p", "muted", COPY.signedOutLead));
+/**
+ * ENTRY — the front door for anybody this browser cannot prove is signed in.
+ *
+ * The wash is on it, and that is one of the two places the design allows one: an arrival. Every
+ * word on the washed strip is ink, which is why the strip carries the name and the promise and
+ * the numbered steps sit below it, off the wash, where they can be read at all.
+ */
+function entryScreen(): HTMLElement {
+  const box = el("section", "entry");
+  box.append(el("div", "wash"));
+  box.append(el("h1", "entry-brand ink", "eait"));
+  box.append(el("p", "entry-lede ink", COPY.signedOutLead));
+  // WHAT HAPPENS, BEFORE ANYTHING IS ASKED FOR. The design's arrival says the three steps in
+  // order rather than selling: nothing here is paid for until there is something on the screen.
+  COPY.entrySteps.forEach((step, i) => {
+    const row = el("div", "srow");
+    row.append(el("span", "sn", String(i + 1)), el("span", "", step));
+    box.append(row);
+  });
   // A LINK, NOT A FETCH. `/start` is a server-rendered flow that ends by setting the session
   // cookie, and it is the only thing on this origin that can authenticate anybody.
-  const a = el("a", "btn", COPY.signIn) as HTMLAnchorElement;
+  const a = el("a", "btn wide", COPY.signIn) as HTMLAnchorElement;
   a.href = "/start";
+  a.style.marginTop = "18px";
   box.append(a);
   return box;
 }
@@ -252,10 +267,97 @@ function gauge(fill: number, over: boolean, inside: HTMLElement): HTMLElement {
 
 function figure(parent: HTMLElement, n: number, guessed: boolean, unit = UNIT_KCAL[lang]): HTMLElement {
   if (guessed) parent.append(el("span", "abt", ABOUT[lang]), document.createTextNode(" "));
-  parent.append(el("span", "mono", (guessed ? guessedNumbers(lang) : wholeNumbers(lang))(n)));
+  parent.append(monoSpan((guessed ? guessedNumbers(lang) : wholeNumbers(lang))(n)));
   if (unit) parent.append(document.createTextNode(` ${unit}`));
   return parent;
 }
+
+/**
+ * A figure in the mono face, with its thousands gap drawn rather than typed.
+ *
+ * THE TRAP THE DESIGN NAMES, and it only bites in two of the eight languages. `Intl` groups with
+ * U+202F in French and U+00A0 in Russian — a SPACE — and DM Mono's word space is a full advance,
+ * so "1 820" set entirely in the mono face renders with a hole in the middle of the number. The
+ * other six group with a comma or a full stop and pass straight through.
+ *
+ * The separator is replaced by `.ts`, which the design system sizes at 0.24em. The digits are
+ * still the reader's own grouping — nothing here imposes one, which is the rule `lang.ts` exists
+ * for — only the WIDTH of the gap is ours.
+ */
+function monoSpan(text: string, className = "mono"): HTMLElement {
+  const span = el("span", className);
+  monoInto(span, text);
+  return span;
+}
+
+function monoInto(node: HTMLElement, text: string): HTMLElement {
+  const parts = text.split(/[\u202f\u00a0\u2009 ]/);
+  parts.forEach((part, i) => {
+    if (i > 0) node.append(el("i", "ts"));
+    node.append(document.createTextNode(part));
+  });
+  return node;
+}
+
+/**
+ * A macro tile: what was eaten of what was planned, and a bar that only ever advances.
+ *
+ * THE UNIT IS OUTSIDE THE MONO RUN — `128/141` is the figure and ` g` is not — because DM Mono's
+ * word space is a full advance and "141 g" set entirely in it has a hole in the middle. The bar
+ * is the design's Progress: a plain 4px track, no count of what remains.
+ */
+function macroTile(label: string, eaten: number, target: number | null): HTMLElement {
+  const tile = el("div", "tile");
+  const n = wholeNumbers(lang);
+  const value = el("div", "tile-v");
+  // NO TARGET IS PRINTED WHERE THERE IS NONE. This product plans kcal and protein; fat and carbs
+  // are counted, not targeted (`FoodTargets`), so their tiles show what was eaten and no bar. The
+  // drawn version has three targets because the app it was drawn from has three — inventing the
+  // other two here to fill the shape would be a number nobody computed.
+  value.append(monoSpan(target === null ? n(eaten) : `${n(eaten)}/${n(target)}`));
+  value.append(el("span", "muted", " g"));
+  tile.append(el("div", "lab", label), value);
+  if (target !== null) {
+    const bar = el("div", "bar");
+    const inner = el("i", "");
+    inner.style.width = `${Math.min(100, target > 0 ? (eaten / target) * 100 : 0)}%`;
+    bar.append(inner);
+    tile.append(bar);
+  }
+  return tile;
+}
+
+/**
+ * ONE WORDED FLAG PER SCREEN, and this is it.
+ *
+ * The note names the meal that is a guess and carries the one question that settles it — the
+ * model's own words, which is why nothing here writes a reason: the question IS the reason. The
+ * label is the only amber text on the screen, and there is at most one of these.
+ */
+function fixNote(meal: MealRecord, onSettle: () => void): HTMLElement {
+  const note = el("div", "note");
+  note.append(el("div", "lab amber", COPY.fixHead));
+  note.append(el("p", "muted", meal.question?.text ?? ""));
+  const go = el("button", "btn wide", COPY.settleIt) as HTMLButtonElement;
+  go.addEventListener("click", onSettle);
+  note.append(go);
+  return note;
+}
+
+/** The meal a day is still holding a question about, if any. At most one is ever shown. */
+const openQuestion = (meals: readonly MealRecord[]): MealRecord | null =>
+  meals.find((m) => (m.question?.options.length ?? 0) > 0) ?? null;
+
+/** A meal's name, from what was on it. The first two items, as the diary and the card both do. */
+const mealName = (meal: MealRecord): string => {
+  const named = meal.items.slice(0, 2).map((i) => i.name).join(", ");
+  return named === "" ? COPY.meal : named;
+};
+
+/** The clock time a row shows, in the account's own zone rather than this device's. */
+const mealTime = (meal: MealRecord, timeZone: string): string =>
+  new Intl.DateTimeFormat(LANG_TAG[lang], { timeZone, hour: "2-digit", minute: "2-digit" })
+    .format(new Date(meal.ts));
 
 async function diaryScreen(): Promise<HTMLElement> {
   const wrap = el("section", "");
@@ -296,7 +398,7 @@ async function diaryScreen(): Promise<HTMLElement> {
     // make the plan.
     if (budget.guessed) big.append(el("span", "abt", ABOUT[lang]), document.createTextNode(" "));
     big.append(
-      el("span", "mono", (budget.guessed ? guessedNumbers(lang) : wholeNumbers(lang))(budget.kcal)),
+      monoSpan((budget.guessed ? guessedNumbers(lang) : wholeNumbers(lang))(budget.kcal)),
       el("span", "muted", ` ${UNIT_KCAL[lang]} ${budget.state === "left" ? COPY.budgetLeft : budget.state === "over" ? COPY.budgetOver : COPY.budgetUnder}`),
     );
     const n = wholeNumbers(lang);
@@ -342,29 +444,204 @@ async function diaryScreen(): Promise<HTMLElement> {
         })));
   wrap.append(head);
 
+  // THE MACROS, as the design's three tiles. Consumed of planned, and the bar only ever advances.
+  const tiles = el("div", "tiles");
+  tiles.append(
+    macroTile(COPY.macroProtein, day.totals.protein_g, day.targets.protein_g),
+    macroTile(COPY.macroFat, day.totals.fat_g, null),
+    macroTile(COPY.macroCarbs, day.totals.carbs_g, null),
+  );
+  wrap.append(tiles);
+
   if (day.meals.length === 0) {
     wrap.append(el("p", "muted", COPY.nothingToday));
     return wrap;
   }
+
+  // AT MOST ONE FLAG ON THE SCREEN, on the one thing worth fixing. It goes above the list, where
+  // it is read before the row it is about rather than found after it.
+  const open = openQuestion(day.meals);
+  if (open) wrap.append(fixNote(open, () => { location.hash = `#/meal/${open.id}`; }));
+
+  wrap.append(el("div", "lab", COPY.mealsHead));
   const list = el("ul", "meals");
   for (const meal of day.meals) {
-    const li = el("li", "meal");
+    // A ROW IS A LINK, because a meal has a screen now: what it was read as, its macros, and the
+    // question that settles it. `el()` is still the only node constructor.
+    const li = el("li", "");
+    const row = el("a", "meal") as HTMLAnchorElement;
+    row.href = `#/meal/${meal.id}`;
+    row.append(el("span", "meal-time mono", mealTime(meal, me.timezone)));
     // `MealRecord` extends `MealAnalysis`, so the items and the numbers are ON the row rather than
     // under an `analysis` key. Naming the first two items is what makes a list of numbers read as
     // a list of meals.
-    const named = meal.items.slice(0, 2).map((i) => i.name).join(", ");
-    li.append(el("span", "meal-name", named === "" ? COPY.meal : named));
+    row.append(el("span", "meal-name", mealName(meal)));
     // The one row worth fixing says so by its precision, and nothing else on the row changes
     // (#28). A meal whose grams this person has since typed is settled and prints exact —
     // `mealIsGuessed` is the single definition of which is which.
     const rough = mealIsGuessed(meal);
-    // The one row worth fixing is the one that carries the tint and the outline, and the rest stay
-    // silent — silence is what "read cleanly" looks like.
-    if (rough) li.classList.add(CLASS_GUESSED_ROW);
-    li.append(figure(el("span", "meal-kcal num"), meal.kcal, rough));
+    // That row carries the tint and the outline too, and the rest stay silent — silence is what
+    // "read cleanly" looks like.
+    if (rough) row.classList.add(CLASS.guessed);
+    row.append(figure(el("span", "meal-kcal num"), meal.kcal, rough));
+    li.append(row);
     list.append(li);
   }
   wrap.append(list);
+  return wrap;
+}
+
+
+/**
+ * A MEAL, and the flow that settles it.
+ *
+ * WHAT THE DESIGN PUTS HERE: what the plate was read as, item by item, with the grams and the
+ * kcal right-aligned and tabular; the macros; and — when the analyzer left a question — that
+ * question as option rows, which is the one thing on this screen that can move a number.
+ *
+ * ANSWERING IS A TURN, never a second write path: the chosen option goes to `POST /v1/messages`
+ * with `focusMealId`, exactly as the phone's chip does, so one server function decides what a
+ * correction means and the thread records that it happened. When it lands the meal is
+ * `corrected`, which is the half of `mealIsGuessed` that settles it — so the hedge leaves the
+ * figure here, the day above it and the 20:30 line, from one write.
+ *
+ * READ FROM THE DAY. No route answers one meal, and adding one to the contract in order to draw a
+ * screen would be the wrong order — the contract comes first, then the server, then this. Every
+ * meal this client can reach is on the day it is showing, so the day is where it reads it.
+ */
+async function mealScreen(id: string): Promise<HTMLElement> {
+  const me = await profile();
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: me.timezone, year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+  const wrap = el("section", "");
+
+  const back = el("a", "link", COPY.backToDay) as HTMLAnchorElement;
+  back.href = "#/";
+  wrap.append(back);
+
+  const day = await api<DayResponse>(`/diary/day?date=${today}`);
+  const meal = day.meals.find((m) => m.id === id);
+  if (!meal) { wrap.append(el("p", "muted", COPY.mealGone)); return wrap; }
+  const rough = mealIsGuessed(meal);
+
+  const card = el("div", "card");
+  card.append(el("h3", "", mealName(meal)));
+  const when = el("p", "muted");
+  when.append(
+    el("span", "mono", mealTime(meal, me.timezone)),
+    document.createTextNode(` · ${rough ? COPY.readGuess : COPY.readMeasured} · `),
+  );
+  figure(when, meal.kcal, rough);
+  card.append(when);
+  wrap.append(card);
+
+  // The photograph, or the place one would be. NEVER A STOCK IMAGE: the hatch says "there is no
+  // photograph of this" where a picture of somebody else's dinner would say the opposite.
+  const ph = el("div", "ph");
+  ph.append(el("span", "phl", COPY.noPhoto));
+  wrap.append(ph);
+  if ((meal.photos ?? 0) > 0) {
+    // FETCHED, NOT POINTED AT. An `<img src>` to this API sends no bearer and comes back 401 as a
+    // broken image over the hatch — measured, on this screen. `apiImage` is the ordinary call
+    // path, so it carries the token and re-mints it like everything else; the hatch stays up
+    // until the bytes arrive and stays for good if they never do.
+    void apiImage(`/meals/${encodeURIComponent(meal.id)}/photos/0`).then((src) => {
+      if (!ph.isConnected) return;
+      const img = el("img", "ph") as HTMLImageElement;
+      img.src = src;
+      img.alt = mealName(meal);
+      img.style.objectFit = "cover";
+      img.style.width = "100%";
+      ph.replaceWith(img);
+    }).catch(() => {});
+  }
+
+  const tiles = el("div", "tiles");
+  tiles.append(
+    macroTile(COPY.macroProtein, meal.protein_g, day.targets.protein_g),
+    macroTile(COPY.macroFat, meal.fat_g, null),
+    macroTile(COPY.macroCarbs, meal.carbs_g, null),
+  );
+  wrap.append(tiles);
+
+  // WHAT IT WAS READ AS. A table, because a column of figures is read down it: right-aligned,
+  // tabular, and the unit in the header rather than repeated on every row.
+  if (meal.items.length > 0) {
+    const panel = el("div", "card");
+    panel.append(el("div", "lab", COPY.mealItems));
+    const table = document.createElement("table");
+    const head = document.createElement("tr");
+    for (const [label, cls] of [[COPY.colItem, ""], [COPY.colGrams, "num"], [UNIT_KCAL[lang], "num"]] as const) {
+      head.append(el("th", cls, label));
+    }
+    table.append(head);
+    for (const item of meal.items) {
+      const tr = document.createElement("tr");
+      tr.append(el("td", "", item.name));
+      tr.append(monoInto(el("td", "num mono"), wholeNumbers(lang)(item.grams)));
+      // An item's own kcal is optional on the wire, and an em dash is the honest rendering of a
+      // number nobody has — a zero is a number somebody would read.
+      tr.append(monoInto(el("td", "num mono"), item.kcal === undefined ? "—" : wholeNumbers(lang)(item.kcal)));
+      table.append(tr);
+    }
+    panel.append(table);
+    wrap.append(panel);
+  }
+
+  // THE SETTLE FLOW: one question, its options as option rows, and the answer is a turn.
+  const question = meal.question;
+  if (question && question.options.length > 0) {
+    const note = el("div", "note");
+    const label = el("div", "lab amber");
+    label.textContent = COPY.fixHead;
+    note.append(label, el("p", "", question.text));
+    const said = el("p", "notice");
+    said.setAttribute("role", "alert");
+    said.hidden = true;
+
+    const options: HTMLButtonElement[] = [];
+    for (const option of question.options) {
+      const opt = el("button", "opt") as HTMLButtonElement;
+      opt.type = "button";
+      opt.append(el("span", "opt-t", option), el("span", "tk", "✓"));
+      opt.addEventListener("click", () => {
+        // SELECTED IS A BORDER AND A TINT, never a solid green fill: three deep in a column a
+        // filled row makes every option that was not chosen read as disabled.
+        for (const b of options) { b.classList.remove(CLASS.selected); b.disabled = true; }
+        opt.classList.add(CLASS.selected);
+        said.hidden = true;
+        void (async () => {
+          try {
+            // THE ONE SEND, the composer's own: it carries the idempotency key, and it turns a
+            // refusal the stream reports in-band into the `ApiError` a refusal always is. A
+            // second POST written here would be a second write path to the same route.
+            await sendTurn({
+              id: crypto.randomUUID(), userId: me.profile.user_id, kind: "text", text: option,
+              photos: [], capturedAt: new Date().toISOString(), focusMealId: meal.id,
+            });
+            // Drawn again from the server rather than patched here: the correction moves the
+            // meal, the day and the verdicts, and this screen shows the first two.
+            await render();
+          } catch (err) {
+            if (err instanceof Unauthenticated) { await render(); return; }
+            said.textContent = refusalWords(err);
+            said.hidden = false;
+            opt.classList.remove(CLASS.selected);
+            for (const b of options) b.disabled = false;
+          }
+        })();
+      });
+      options.push(opt);
+      note.append(opt);
+    }
+    note.append(said);
+    wrap.append(note);
+  } else if (meal.corrected) {
+    // THE OTHER HALF OF THE FLOW, and the reason green means settled-exact as well as affordance:
+    // a figure that was a guess and has been answered is known now, and the screen says so once.
+    wrap.append(el("p", "settled", COPY.settled));
+  }
   return wrap;
 }
 
@@ -934,7 +1211,7 @@ let drawing = 0;
 async function render(): Promise<void> {
   const mine = ++drawing;
   const app = clear(root());
-  if (!signedIn()) { app.append(signInScreen()); return; }
+  if (!signedIn()) { app.append(entryScreen()); return; }
 
   const route = location.hash || "#/";
   // The profile BEFORE the navigation, because whether the admin tab exists is on it. Drawing the
@@ -943,14 +1220,20 @@ async function render(): Promise<void> {
     await profile();
   } catch (err) {
     if (mine !== drawing) return;
-    if (err instanceof Unauthenticated) { app.append(signInScreen()); return; }
+    if (err instanceof Unauthenticated) { app.append(entryScreen()); return; }
   }
   if (mine !== drawing) return;
   app.append(chrome(route));
   const body = el("div", "body", COPY.loading);
   app.append(body);
   try {
-    const screen = route === "#/chat" ? await chatScreen() : await diaryScreen();
+    // THREE ROUTES. A meal's is `#/meal/<id>`, and the id is the LAST segment rather than a
+    // parsed pattern: the hash is this client's whole router and a regex over it would be a
+    // second grammar to keep. An id that names nothing draws `mealGone` rather than throwing.
+    const meal = route.startsWith("#/meal/") ? decodeURIComponent(route.slice("#/meal/".length)) : null;
+    const screen = meal !== null ? await mealScreen(meal)
+      : route === "#/chat" ? await chatScreen()
+      : await diaryScreen();
     if (mine !== drawing) return;
     clear(body).append(screen);
     // Whatever was kept the last time this browser had no connection, now that there is a session.

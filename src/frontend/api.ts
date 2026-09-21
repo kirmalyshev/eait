@@ -133,6 +133,30 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return await (await call(path, init)).json() as T;
 }
 
+/**
+ * A stored photo, as something an `<img>` can point at.
+ *
+ * AN `<img src>` CANNOT FETCH IT. This API is bearer-only — `resolveUserId` reads no cookie, which
+ * is the whole reason another origin cannot post to it on a signed-in browser — and an `<img>`
+ * sends no Authorization header. A meal's photo has to come through this function, which holds the
+ * bearer and re-mints it like every other call, and then be handed to the element.
+ *
+ * A `data:` URL rather than `blob:`, and that is the CSP's decision: the shell allows
+ * `img-src 'self' data:`, so a blob would need the policy widened for one picture.
+ *
+ * ponytail: the whole photo is base64 in memory for as long as the screen is up, bounded by
+ * `limits.maxUploadBytes`. `blob:` plus one more source in `img-src` is the upgrade if a meal ever
+ * carries more than one shown at a time.
+ */
+export async function apiImage(path: string): Promise<string> {
+  const res = await call(path, {});
+  const type = res.headers.get("content-type") ?? "image/jpeg";
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  let binary = "";
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return `data:${type};base64,${btoa(binary)}`;
+}
+
 /** The streamed shape, spelled as the contract spells it — a type import, so nothing is bundled. */
 const STREAM: typeof NDJSON = "application/x-ndjson";
 

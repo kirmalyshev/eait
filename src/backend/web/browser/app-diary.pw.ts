@@ -144,6 +144,24 @@ test("a day with a guess in it is hedged, on the headline and on the one row tha
   await expect(page.locator(".meal.rowsel .meal-name")).toHaveText("Kebab, chips");
 });
 
+test("a thousands gap is DRAWN, not typed, in the two languages that group with a space", async ({ inWebApp: page }) => {
+  // `Intl` groups with U+202F in French and U+00A0 in Russian, and DM Mono's word space is a full
+  // advance — "1 820" set entirely in the mono face renders with a hole in the middle of the
+  // number. The separator is an `i.ts` the design system sizes at 0.24em. The six languages that
+  // group with a comma or a full stop have nothing to replace and get no extra node.
+  await page.route("**/api/v1/profile", async (route) => {
+    const res = await route.fetch();
+    const body = (await res.json()) as { profile: { lang: string } };
+    body.profile.lang = "fr";
+    await route.fulfill({ response: res, json: body });
+  });
+  // A headline OVER A THOUSAND, or there is no separator to replace and the test proves nothing.
+  await dayAt(page, -1550);
+  await expect(page.locator(".big .mono i.ts")).toHaveCount(1);
+  // And the digits either side are still the reader's own grouping, not one this client imposes.
+  await expect(page.locator(".big .mono")).toHaveText(/^1\s?550$/);
+});
+
 test("over target says by how much, as a warning rather than a negative number", async ({ inWebApp: page }) => {
   await dayAt(page, 310);
   await expect(page.locator(".big")).toHaveText("310 kcal over");

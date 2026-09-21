@@ -88,6 +88,30 @@ export interface WebCopy {
   somethingWrong: string;
   connectTelegram: string;
   telegramFailed: string;
+  /**
+   * The screens the design draws, and the words on them (#28).
+   *
+   * `fixHead` is the ONE worded flag a screen is allowed, and it is the only amber label in the
+   * product; `settled` is what replaces it once the question has been answered, because the whole
+   * point of the flow is that a guess becomes exact.
+   */
+  mealsHead: string;
+  fixHead: string;
+  settleIt: string;
+  settled: string;
+  backToDay: string;
+  mealItems: string;
+  colItem: string;
+  /** The grams column header. A unit, so Russian writes it in Cyrillic like every other unit. */
+  colGrams: string;
+  readMeasured: string;
+  readGuess: string;
+  noPhoto: string;
+  macroProtein: string;
+  macroFat: string;
+  macroCarbs: string;
+  /** Entry: what happens, in order, before anything is asked for. */
+  entrySteps: readonly [string, string, string];
   /** Keyed the way `refusalFrom` names a body, plus this client's own transport states. */
   refusals: Record<string, string>;
   /** The picker in Settings. Its options are `LANG_LABEL` — endonyms, never translated. */
@@ -162,6 +186,21 @@ const EN: WebCopy = {
   kept: "Saved on this device. It goes on its own as soon as it can.",
   keptBehind: "Saved on this device. It goes once the message above that is waiting for you has been sent again or discarded.",
   notSaved: "That could not be saved on this device, and it was not sent. Try again.",
+  mealsHead: "Today’s meals",
+  fixHead: "One thing worth fixing",
+  settleIt: "Settle it",
+  settled: "Answered — these numbers are exact now.",
+  backToDay: "Back to the day",
+  mealItems: "What was on it",
+  colItem: "Item",
+  colGrams: "g",
+  readMeasured: "Measured",
+  readGuess: "A guess",
+  noPhoto: "No photograph",
+  macroProtein: "Protein",
+  macroFat: "Fat",
+  macroCarbs: "Carbs",
+  entrySteps: ["Answer eight things", "See the plan and the arithmetic behind it", "Photograph a meal, and it starts rebuilding"],
   refusals: {
     "subscription-required": "The analyses this account came with are used up. Subscribe in the eait app to carry on.",
     "cap-user": "That was your last one today — your daily allowance resets at midnight.",
@@ -226,6 +265,21 @@ const FR: WebCopy = {
   kept: "Enregistré sur cet appareil. Ça partira tout seul dès que possible.",
   keptBehind: "Enregistré sur cet appareil. Ça partira une fois que le message au-dessus, qui t'attend, aura été renvoyé ou abandonné.",
   notSaved: "Ça n'a pas pu être enregistré sur cet appareil, et ça n'a pas été envoyé. Réessaie.",
+  mealsHead: "Les repas d’aujourd’hui",
+  fixHead: "Une chose à corriger",
+  settleIt: "Régler ça",
+  settled: "Répondu — ces chiffres sont maintenant exacts.",
+  backToDay: "Retour à la journée",
+  mealItems: "Ce qu’il y avait dessus",
+  colItem: "Aliment",
+  colGrams: "g",
+  readMeasured: "Mesuré",
+  readGuess: "Une estimation",
+  noPhoto: "Pas de photo",
+  macroProtein: "Protéines",
+  macroFat: "Lipides",
+  macroCarbs: "Glucides",
+  entrySteps: ["Réponds à huit questions", "Vois le plan et le calcul qui le produit", "Photographie un repas, et il se reconstruit"],
   refusals: {
     "subscription-required": "Les analyses fournies avec ce compte sont épuisées. Abonne-toi dans l'appli eait pour continuer.",
     "cap-user": "C'était le dernier pour aujourd'hui — ton quota quotidien repart à minuit.",
@@ -290,6 +344,21 @@ const DE: WebCopy = {
   kept: "Auf diesem Gerät gespeichert. Es geht von selbst raus, sobald es geht.",
   keptBehind: "Auf diesem Gerät gespeichert. Es geht raus, sobald die Nachricht darüber, die auf dich wartet, erneut gesendet oder verworfen wurde.",
   notSaved: "Das ließ sich auf diesem Gerät nicht speichern und wurde nicht gesendet. Versuch es noch einmal.",
+  mealsHead: "Heutige Mahlzeiten",
+  fixHead: "Eine Sache lohnt sich zu klären",
+  settleIt: "Klären",
+  settled: "Beantwortet — diese Zahlen sind jetzt exakt.",
+  backToDay: "Zurück zum Tag",
+  mealItems: "Was drauf war",
+  colItem: "Lebensmittel",
+  colGrams: "g",
+  readMeasured: "Gemessen",
+  readGuess: "Geschätzt",
+  noPhoto: "Kein Foto",
+  macroProtein: "Eiweiß",
+  macroFat: "Fett",
+  macroCarbs: "Kohlenhydrate",
+  entrySteps: ["Acht Fragen beantworten", "Den Plan sehen und die Rechnung dahinter", "Eine Mahlzeit fotografieren, und er baut sich neu"],
   refusals: {
     "subscription-required": "Die Analysen, die zu diesem Konto gehörten, sind aufgebraucht. Schließ in der eait-App ein Abo ab, um weiterzumachen.",
     "cap-user": "Das war heute deine letzte — dein Tageskontingent setzt um Mitternacht zurück.",
@@ -354,6 +423,21 @@ const IT: WebCopy = {
   kept: "Salvato su questo dispositivo. Partirà da solo appena possibile.",
   keptBehind: "Salvato su questo dispositivo. Partirà quando il messaggio qui sopra, che ti aspetta, sarà stato inviato di nuovo o scartato.",
   notSaved: "Non è stato possibile salvarlo su questo dispositivo, e non è stato inviato. Riprova.",
+  mealsHead: "I pasti di oggi",
+  fixHead: "Una cosa da sistemare",
+  settleIt: "Sistemala",
+  settled: "Risposto — ora questi numeri sono esatti.",
+  backToDay: "Torna alla giornata",
+  mealItems: "Cosa c’era nel piatto",
+  colItem: "Alimento",
+  colGrams: "g",
+  readMeasured: "Misurato",
+  readGuess: "Una stima",
+  noPhoto: "Nessuna foto",
+  macroProtein: "Proteine",
+  macroFat: "Grassi",
+  macroCarbs: "Carboidrati",
+  entrySteps: ["Rispondi a otto domande", "Vedi il piano e i conti dietro", "Fotografa un pasto, e si ricostruisce"],
   refusals: {
     "subscription-required": "Le analisi incluse con questo account sono finite. Abbonati nell'app eait per continuare.",
     "cap-user": "Quella era l'ultima di oggi — il tuo limite giornaliero riparte a mezzanotte.",
@@ -418,6 +502,21 @@ const ES: WebCopy = {
   kept: "Guardado en este dispositivo. Saldrá solo en cuanto pueda.",
   keptBehind: "Guardado en este dispositivo. Saldrá cuando el mensaje de arriba, que te está esperando, se haya enviado otra vez o descartado.",
   notSaved: "No se ha podido guardar en este dispositivo, y no se ha enviado. Inténtalo otra vez.",
+  mealsHead: "Las comidas de hoy",
+  fixHead: "Una cosa que conviene resolver",
+  settleIt: "Resolverlo",
+  settled: "Respondido — ahora estos números son exactos.",
+  backToDay: "Volver al día",
+  mealItems: "Qué había en el plato",
+  colItem: "Alimento",
+  colGrams: "g",
+  readMeasured: "Medido",
+  readGuess: "Una estimación",
+  noPhoto: "Sin foto",
+  macroProtein: "Proteína",
+  macroFat: "Grasa",
+  macroCarbs: "Carbohidratos",
+  entrySteps: ["Responde ocho preguntas", "Mira el plan y las cuentas detrás", "Fotografía una comida, y se reconstruye"],
   refusals: {
     "subscription-required": "Los análisis que traía esta cuenta se han agotado. Suscríbete en la app de eait para seguir.",
     "cap-user": "Esa fue la última de hoy — tu cupo diario se reinicia a medianoche.",
@@ -482,6 +581,21 @@ const VI: WebCopy = {
   kept: "Đã lưu trên máy này. Nó sẽ tự gửi ngay khi có thể.",
   keptBehind: "Đã lưu trên máy này. Nó sẽ gửi sau khi tin nhắn phía trên — cái đang chờ bạn quyết định — được gửi lại hoặc bỏ đi.",
   notSaved: "Không lưu được trên máy này, và cũng chưa gửi đi. Thử lại nhé.",
+  mealsHead: "Các bữa hôm nay",
+  fixHead: "Một điều đáng sửa",
+  settleIt: "Giải quyết",
+  settled: "Đã trả lời — giờ các con số này là chính xác.",
+  backToDay: "Quay lại ngày hôm nay",
+  mealItems: "Trong đĩa có gì",
+  colItem: "Món",
+  colGrams: "g",
+  readMeasured: "Đã đo",
+  readGuess: "Ước lượng",
+  noPhoto: "Không có ảnh",
+  macroProtein: "Đạm",
+  macroFat: "Chất béo",
+  macroCarbs: "Tinh bột",
+  entrySteps: ["Trả lời tám câu hỏi", "Xem kế hoạch và phép tính đằng sau", "Chụp một bữa ăn, và nó bắt đầu dựng lại"],
   refusals: {
     "subscription-required": "Số lượt phân tích đi kèm tài khoản này đã dùng hết. Đăng ký trong ứng dụng eait để tiếp tục.",
     "cap-user": "Đó là lần cuối trong hôm nay — hạn mức mỗi ngày của bạn sẽ đặt lại lúc nửa đêm.",
@@ -546,6 +660,21 @@ const ID: WebCopy = {
   kept: "Tersimpan di perangkat ini. Akan terkirim sendiri begitu bisa.",
   keptBehind: "Tersimpan di perangkat ini. Akan terkirim setelah pesan di atas, yang menunggu keputusanmu, dikirim lagi atau dibuang.",
   notSaved: "Itu tidak bisa disimpan di perangkat ini, dan tidak terkirim. Coba lagi.",
+  mealsHead: "Makan hari ini",
+  fixHead: "Satu hal yang layak dibetulkan",
+  settleIt: "Selesaikan",
+  settled: "Terjawab — angka-angka ini sekarang pasti.",
+  backToDay: "Kembali ke hari ini",
+  mealItems: "Apa saja di piring",
+  colItem: "Item",
+  colGrams: "g",
+  readMeasured: "Terukur",
+  readGuess: "Tebakan",
+  noPhoto: "Tidak ada foto",
+  macroProtein: "Protein",
+  macroFat: "Lemak",
+  macroCarbs: "Karbohidrat",
+  entrySteps: ["Jawab delapan pertanyaan", "Lihat rencananya dan hitungan di baliknya", "Foto satu makanan, dan ia mulai menyusun ulang"],
   refusals: {
     "subscription-required": "Jatah analisis akun ini sudah habis. Berlangganan di aplikasi eait untuk melanjutkan.",
     "cap-user": "Itu yang terakhir untuk hari ini — jatah harianmu mulai lagi tengah malam.",
@@ -610,6 +739,21 @@ const RU: WebCopy = {
   kept: "Сохранено на этом устройстве. Уйдёт само, как только сможет.",
   keptBehind: "Сохранено на этом устройстве. Уйдёт, когда сообщение выше — то, что ждёт твоего решения — будет отправлено снова или отброшено.",
   notSaved: "Это не удалось сохранить на устройстве, и отправлено оно не было. Попробуй ещё раз.",
+  mealsHead: "Сегодняшние приёмы пищи",
+  fixHead: "Одно стоит уточнить",
+  settleIt: "Уточнить",
+  settled: "Ответ принят — теперь эти числа точные.",
+  backToDay: "Назад к дню",
+  mealItems: "Что было в тарелке",
+  colItem: "Продукт",
+  colGrams: "г",
+  readMeasured: "Измерено",
+  readGuess: "Прикидка",
+  noPhoto: "Без фото",
+  macroProtein: "Белки",
+  macroFat: "Жиры",
+  macroCarbs: "Углеводы",
+  entrySteps: ["Ответь на восемь вопросов", "Посмотри план и расчёт за ним", "Сфотографируй еду, и он начнёт перестраиваться"],
   refusals: {
     "subscription-required": "Разборы, которые шли с этим аккаунтом, закончились. Оформи подписку в приложении eait, чтобы продолжить.",
     "cap-user": "Это была последняя на сегодня — дневной лимит обнулится в полночь.",
