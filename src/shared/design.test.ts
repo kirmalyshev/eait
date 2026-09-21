@@ -92,7 +92,7 @@ describe("the components are named the way the design names them", () => {
       "card", "note", "wash", "ink", "gauge", "gnum", "big", "stat", "sl", "lab",
       "tiles", "tile", "bar", "prog", "mono", "ts", "abt", "num", "rowsel",
       "opt", "sel", "tk", "btn", "btn2", "bub", "them", "me", "comp", "send", "nav",
-      "ph", "phl", "kbd", "entry", "srow", "sn", "meals", "meal", "thread",
+      "ph", "phl", "kbd", "entry", "meals", "meal", "thread",
     ]) {
       expect(`${name}: ${STYLESHEET.includes(`.${name}`)}`).toBe(`${name}: true`);
     }

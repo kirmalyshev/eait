@@ -181,13 +181,13 @@ test("a meal id that names nothing says so rather than throwing", async ({ inWeb
   await expect(page.getByRole("link", { name: "Back to the day" })).toBeVisible();
 });
 
-test("entry is the arrival, with the wash and the three steps", async ({ page }) => {
+test("entry is the arrival: one card on the ground, and green only on the way in", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".entry")).toBeVisible();
-  await expect(page.locator(".entry .wash")).toBeVisible();
-  // What happens, in order, before anything is asked for — the design's arrival says the steps
-  // rather than selling, and nothing is paid for until there is something on the screen.
-  await expect(page.locator(".srow")).toHaveCount(3);
-  await expect(page.locator(".srow").first()).toContainText("Answer eight things");
+  await expect(page.locator(".entry-card")).toBeVisible();
+  // NO WASH. W6 puts green on the action and nowhere else on this screen; a wash behind the
+  // headline sets the first sentence anybody reads in near-black over a field of the one colour
+  // that means "act on this".
+  await expect(page.locator(".entry .wash")).toHaveCount(0);
+  await expect(page.locator(".entry-say")).toContainText("Eight questions");
   await expect(page.getByRole("link", { name: "Sign in" })).toHaveClass(/btn/);
 });

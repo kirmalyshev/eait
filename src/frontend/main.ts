@@ -190,33 +190,27 @@ function chrome(active: string): HTMLElement {
 /**
  * ENTRY — the front door for anybody this browser cannot prove is signed in.
  *
- * The wash is on it, and that is one of the two places the design allows one: an arrival. Every
- * word on the washed strip is ink, which is why the strip carries the name and the promise and
- * the numbered steps sit below it, off the wash, where they can be read at all.
+ * THE DESIGN'S W6 IS A CARD ON THE GROUND, not a washed screen: the name sits on the page, the
+ * card holds the headline and the line under it, and the ONLY green on the board is the button.
+ * That is the whole reason this stopped being a wash. Every word on green has to be near-black,
+ * so a wash behind a headline forces the first thing anybody reads into the one colour that means
+ * "act on this" — and a screen that opens on a field of it reads as a warning, not a welcome.
  */
 function entryScreen(): HTMLElement {
   const box = el("section", "entry");
-  // The wash is on the SCREEN and the name rides on it, which is what makes it read as a wash
-  // rather than as a green panel: its last stop is the ground, so it has to END on the ground.
-  box.append(el("div", "wash"));
+  // ON THE PAGE, not on the card and not on a colour: the design sets the name in the corner of
+  // the ground it is arriving onto.
   box.append(el("div", "entry-brand", "eait"));
-  box.append(el("h1", "entry-say", COPY.entrySay));
-  box.append(el("p", "entry-lede", COPY.signedOutLead));
-  // WHAT HAPPENS, BEFORE ANYTHING IS ASKED FOR — on the ground, off the wash. The design's
-  // arrival states the steps rather than selling: nothing is paid for until there is something
-  // on the screen.
-  const steps = el("div", "entry-steps");
-  COPY.entrySteps.forEach((step, i) => {
-    const row = el("div", "srow");
-    row.append(el("span", "sn", String(i + 1)), el("span", "", step));
-    steps.append(row);
-  });
-  box.append(steps);
+  const card = el("div", "entry-card");
+  card.append(el("h1", "entry-say", COPY.entrySay));
+  card.append(el("p", "entry-lede", COPY.signedOutLead));
   // A LINK, NOT A FETCH. `/start` is a server-rendered flow that ends by setting the session
-  // cookie, and it is the only thing on this origin that can authenticate anybody.
-  const a = el("a", "btn wide", COPY.signIn) as HTMLAnchorElement;
+  // cookie, and it is the only thing on this origin that can authenticate anybody. Sized to its
+  // own words — a full-bleed slab is a second green field under the first one.
+  const a = el("a", "btn", COPY.signIn) as HTMLAnchorElement;
   a.href = "/start";
-  box.append(a);
+  card.append(a);
+  box.append(card);
   return box;
 }
 

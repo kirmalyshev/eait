@@ -561,36 +561,26 @@ input[type="file"]::file-selector-button { margin-right: 10px; padding: 0 14px; 
   border-radius: ${px(GEOMETRY.radiusPill)}; background: none; color: var(--t3);
   ${type(TYPE.secondary)} cursor: pointer; }
 
-/* ── Entry ────────────────────────────────────────────────────────────────────────────────── */
-/* THE ARRIVAL IS NOT A CARD. The wash goes on the SCREEN and the name and the promise ride on it
-   in ink; what comes after sits on the ground below, where it can be read. Put inside a surface
-   card the gradient ends on the ground colour while the card behind it is lighter, so it cuts a
-   hard line across the middle of the card — the same mistake the day carried until it moved. */
-.entry { position: relative; padding-top: 26px; }
-/* UP TO THE EDGE. the app element has the gutter as its padding, so a wash at top:0 inside the entry
-   starts a gutter down the page and leaves a band of ground above it — on the one screen whose
-   whole subject is arriving into the colour. It is pulled up by exactly that gutter. */
-.entry .wash { top: -${px(GEOMETRY.gutter)}; height: ${px(235 + GEOMETRY.gutter)}; }
-.entry-brand { font: 800 19px/1 var(--ui); letter-spacing: -.02em; position: relative; z-index: 1;
-  color: var(--ink); margin: 0 0 26px; }
-.entry-say { ${type(TYPE.headline)} position: relative; z-index: 1; color: var(--ink);
-  margin: 0 0 13px; white-space: pre-line; }
-.entry-lede { ${type(TYPE.body)} position: relative; z-index: 1; color: var(--ink);
-  font-weight: 600; opacity: .82; margin: 0 0 26px; }
-/* What happens, in order, on the ground — off the wash, because every word on a wash is
-   near-black and a washed region holds a title and no more. */
-/* ABOVE THE WASH. The wash is a positioned element, so anything after it that is NOT positioned
-   paints underneath — which swallowed the first step whole and left a list starting at 2. */
-.entry-steps { position: relative; z-index: 1;
-  background: var(--surface); border-radius: ${px(GEOMETRY.radiusCard)};
-  padding: 2px ${px(GEOMETRY.gutter)}; margin-bottom: 18px; }
-.entry .btn { position: relative; z-index: 1; }
-.srow { display: flex; align-items: center; gap: 13px; padding: 12px 0;
-  border-top: 1px solid var(--line); ${type(TYPE.body)} font-weight: 600; color: var(--t1); }
-.srow:first-child { border-top: 0; }
-.sn { width: 22px; height: 22px; border-radius: 11px; background: var(--raised); color: var(--t2);
-  font-family: var(--mono); font-size: 11px; font-weight: 700; display: flex;
-  align-items: center; justify-content: center; flex-shrink: 0; }
+/* ── Entry ──────────────────────────────────────────────────────────────────────────────────── */
+/* THE ARRIVAL IS A CARD ON THE GROUND, which is what W6 draws: the name in the corner of the page,
+   one object centred in the window, and the only green on the board is the button. It was a wash
+   with the headline and the promise ON it — and a wash forces every word it carries into near-black,
+   so the first sentence anybody reads was set in the one colour that means "act on this", over a
+   field of it. The board spends green on the action and nowhere else on this screen. */
+/* A :has selector rather than a class the router has to add and remove: the entry is the one screen with
+   no chrome above it, and what identifies it is that it is on the page. */
+#app:has(.entry) { max-width: 100%; min-height: 100vh; position: relative; display: flex;
+  flex-direction: column; align-items: center; justify-content: center;
+  padding: 26px ${px(GEOMETRY.gutter)}; }
+.entry { width: 100%; max-width: 560px; }
+.entry-brand { position: absolute; top: 26px; left: 26px; font: 800 19px/1 var(--ui);
+  letter-spacing: -.02em; color: var(--t1); margin: 0; }
+/* The sunken surface, not a card's: this sits ON the ground with nothing behind it. */
+.entry-card { background: var(--sunken); border-radius: ${px(GEOMETRY.radiusEntry)}; padding: 34px; }
+.entry-say { ${type(TYPE.headline)} color: var(--t1); margin: 0 0 12px; white-space: pre-line; }
+.entry-lede { font: 400 13.5px/1.55 var(--ui); color: var(--t3); margin: 0 0 26px; }
+/* 50px and as wide as its own words. A full-width slab was the second green field on the screen. */
+.entry .btn { min-height: 50px; padding: 0 30px; }
 
 /* The amber label is the ONE worded flag a screen may carry, and this is the only place in the
    product a label is amber. The settled line is what replaces it: a guess that has been answered
