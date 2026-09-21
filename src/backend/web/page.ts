@@ -13,6 +13,18 @@ import { createHash } from "node:crypto";
 import { STYLESHEET } from "@eait/shared/design";
 import { spudSvg } from "@eait/shared/mascot";
 
+/**
+ * A figure, as the number grammar sets one: mono, tabular, and a thousands gap that is a SPAN.
+ *
+ * The web application does this in `monoInto`; this is the same rule for the surface that has no
+ * JavaScript. A group separator that is a space character renders as a full mono advance, which is
+ * the hole the design names — so every kind of space this formatter can emit becomes the 0.24em
+ * span instead. A comma or a dot separator is a glyph and is left where the reader expects it.
+ */
+export function figure(text: string): string {
+  return `<span class="mono">${text.split(/[\u202f\u00a0\u2009 ]/).map(escape).join('<i class="ts"></i>')}</span>`;
+}
+
 export function escape(text: string): string {
   return text
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -111,7 +123,12 @@ input[type=file] { display: block; width: 100%; margin: 0 0 10px; font: inherit;
 }
 .notice { border-left: 3px solid var(--bad); padding-left: 14px; margin: 0 0 18px; color: var(--t2); }
 .care { border-left-color: var(--blue); }
-.figure { font-family: var(--mono); font-size: 42px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+/* THE UNIT IS NOT PART OF THE FIGURE. The mono's word space is a full advance, so "2 446 kcal"
+   set in one run has a hole in it and the unit is as loud as the number that matters. The span
+   inside carries the mono; the unit sits outside it at reading size. */
+.figure { margin: 0 0 .4rem; display: flex; align-items: baseline; gap: 10px; }
+.figure .mono { font-size: 42px; font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+.figure .u { font-size: 17px; font-weight: 800; letter-spacing: -.01em; color: var(--t3); }
 `;
 
 
@@ -483,7 +500,7 @@ export function plan(v: PlanView): string {
 <h1>${escape(PAGE_COPY.planHeading)}</h1>
 <p class="muted">${escape(PAGE_COPY.planLead)}</p>
 <div class="card">
-  <p class="figure">${escape(n(v.kcal))} ${escape(UNIT_KCAL[lang])}</p>
+  <p class="figure">${figure(n(v.kcal))}<span class="u">${escape(UNIT_KCAL[lang])}</span></p>
   <p class="muted">${escape(PAGE_COPY.planPerDay.replace("{protein}", n(v.proteinG)))}</p>
 </div>
 ${v.floorApplied

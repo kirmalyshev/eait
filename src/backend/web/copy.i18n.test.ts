@@ -91,7 +91,9 @@ describe("the language picker on the plan page", () => {
     const de = plan({ ...view, lang: "de", floorApplied: true });
     expect(de).toContain(pageCopyFor("de").planPerDay.replace("{protein}", "120"));
     expect(de).toContain(pageCopyFor("de").planFloorNumber.replace("{floor}", "1.500"));
-    expect(de).toContain("1.800 kcal");
+    // The FIGURE and its UNIT are two spans now, because a unit inside the mono run renders with a
+    // hole in front of it — so the grouping is asserted on the figure and the spelling beside it.
+    expect(de).toContain('<span class="mono">1.800</span><span class="u">kcal</span>');
     expect(de).not.toContain("a day, with at least");
     expect(de).not.toContain("We will not write a plan under");
   });
@@ -151,12 +153,12 @@ describe("the plan card's two figures", () => {
     // disagreed. `UNIT_KCAL` is the one spelling, and this is the card where it showed.
     for (const lang of LANGS) {
       const html = plan({ ...view, lang });
-      expect(html, lang).toContain(`${UNIT_KCAL[lang]}</p>`);
+      expect(html, lang).toContain(`<span class="u">${UNIT_KCAL[lang]}</span></p>`);
       // The floor sentence is prose and already carried it; assert they agree rather than assert
       // either one's contents, so this keeps holding when a translation is reworded.
       expect(pageCopyFor(lang).planFloorNumber, lang).toContain(UNIT_KCAL[lang]);
     }
-    expect(plan({ ...view, lang: "ru" })).toContain("ккал</p>");
+    expect(plan({ ...view, lang: "ru" })).toContain('<span class="u">ккал</span></p>');
     expect(shown(plan({ ...view, lang: "ru" }))).not.toContain("kcal");
   });
 

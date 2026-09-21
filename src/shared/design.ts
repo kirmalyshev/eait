@@ -107,6 +107,18 @@ export const FILL = {
   guessEdge: "#4A3B17",
   /** A selected option's fill. Never a solid green: three deep, the unselected ones read disabled. */
   selected: "rgba(90,240,90,.10)",
+  /**
+   * A `<select>`'s caret, drawn here rather than left to the platform.
+   *
+   * `appearance: none` is what takes the OS control off the page, and it takes the arrow with it,
+   * so the arrow has to come back as a background. Inline SVG rather than a file: it is nine
+   * pixels of geometry, and a request for it would be one more thing the CSP has to allow. The
+   * stroke is `t4`, url-encoded — the one place a token is spelled `%23` instead of `#`.
+   */
+  caret: "no-repeat right 12px center/10px 6px "
+    + "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E"
+    + "%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239A9A9A' stroke-width='1.6' "
+    + "stroke-linecap='round'/%3E%3C/svg%3E\")",
 } as const;
 
 /**
@@ -457,16 +469,27 @@ td.num, th.num { text-align: right; }
 .opt.sel .tk { background: var(--green); border-color: var(--green); color: var(--ink); }
 
 /* ── Chrome and buttons ───────────────────────────────────────────────────────────────────── */
-nav { display: flex; gap: .5rem; align-items: center; margin-bottom: ${px(GEOMETRY.gapSection)}; }
+/* IT WRAPS RATHER THAN SQUEEZES. Three destinations, a language picker and Sign out do not fit
+   390 in one line, and a flex row with no wrap answers that by narrowing the last item until
+   "Sign out" is two lines with a break through the middle of it. */
+nav { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center;
+  margin-bottom: ${px(GEOMETRY.gapSection)}; }
 .nav { display: inline-flex; align-items: center; height: 34px; padding: 0 12px;
   border-radius: ${px(GEOMETRY.radiusInline)}; ${type(TYPE.row)} color: var(--t4);
-  text-decoration: none; }
+  text-decoration: none; white-space: nowrap; }
 .nav.on { background: var(--surface); color: var(--t1); }
-.link { background: none; border: 0; color: var(--t3); cursor: pointer; font: inherit; }
+.link { background: none; border: 0; color: var(--t3); cursor: pointer; font: inherit;
+  white-space: nowrap; }
 .link.right { margin-left: auto; }
 .link + .link { margin-left: 1rem; }
-.lang { margin-left: auto; background: none; border: 0; color: var(--t3); font: inherit;
-  cursor: pointer; }
+/* A NATIVE SELECT IS NOT IN THE REGISTER UNTIL IT IS TOLD TO BE. Left alone it draws the
+   platform's own control — a light grey box with a system arrow — which is the one shape on the
+   page that belongs to nobody. appearance:none and the caret is drawn here, as a token. */
+select { appearance: none; -webkit-appearance: none; background: var(--surface) ${FILL.caret};
+  border: 1px solid var(--raised); border-radius: ${px(GEOMETRY.radiusInline)};
+  color: var(--t1); font: inherit; padding: 8px 32px 8px 12px; cursor: pointer;
+  max-width: 100%; }
+.lang { margin-left: auto; max-width: 11rem; }
 .lang + .link { margin-left: 1rem; }
 /* A keyboard hint, inside a button or beside a field. */
 .kbd { display: inline-flex; align-items: center; height: 21px; padding: 0 6px; border-radius: 5px;
@@ -513,7 +536,11 @@ nav { display: flex; gap: .5rem; align-items: center; margin-bottom: ${px(GEOMET
   gap: .5rem; }
 .line { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
 .line .bub { flex: 0 1 auto; width: 100%; }
+/* YOURS IS AS WIDE AS WHAT YOU SAID. Theirs keeps the full width because a meal card in it is a
+   row with a figure pushed to the right; a one-word line of your own at full width is a green
+   band across the thread, which is the loudest object on the screen saying "Photo". */
 .line.mine { justify-content: flex-end; }
+.line.mine .bub { width: auto; }
 .bub { max-width: 30rem; margin: 0; padding: 11px 15px; border-radius: 18px; ${type(TYPE.body)} }
 .them { background: var(--surface); border-top-left-radius: 7px; }
 .me { background: var(--green); color: var(--ink); font-weight: 600; border-top-right-radius: 7px; }
@@ -532,7 +559,10 @@ nav { display: flex; gap: .5rem; align-items: center; margin-bottom: ${px(GEOMET
    card the gradient ends on the ground colour while the card behind it is lighter, so it cuts a
    hard line across the middle of the card — the same mistake the day carried until it moved. */
 .entry { position: relative; padding-top: 26px; }
-.entry .wash { height: 235px; }
+/* UP TO THE EDGE. the app element has the gutter as its padding, so a wash at top:0 inside the entry
+   starts a gutter down the page and leaves a band of ground above it — on the one screen whose
+   whole subject is arriving into the colour. It is pulled up by exactly that gutter. */
+.entry .wash { top: -${px(GEOMETRY.gutter)}; height: ${px(235 + GEOMETRY.gutter)}; }
 .entry-brand { font: 800 19px/1 var(--ui); letter-spacing: -.02em; position: relative; z-index: 1;
   color: var(--ink); margin: 0 0 26px; }
 .entry-say { ${type(TYPE.headline)} position: relative; z-index: 1; color: var(--ink);
