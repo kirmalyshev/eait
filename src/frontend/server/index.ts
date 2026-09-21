@@ -23,6 +23,8 @@
 // image does.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
+import { darkVars, lightVars } from "../../shared/palette.ts";
+
 /** Where `bun run build` in this workspace puts the bundle. The only default; tests pass their own. */
 export const DEFAULT_BUNDLE_PATH = new URL("../dist/main.js", import.meta.url);
 
@@ -64,59 +66,99 @@ function shell(nonce: string): string {
      (No backticks in this file's HTML: the document is one template literal.) -->
 <link rel="icon" href="data:,">
 <style nonce="${nonce}">
-:root { color-scheme: light dark; --ink: #16181d; --paper: #fbfbfa; --muted: #6b7280; --warn: #8f4e00; }
-@media (prefers-color-scheme: dark) { :root { --ink: #f2f3f5; --paper: #14161a; --muted: #9aa1ab; --warn: #fbbf24; } }
+/* THE TOKENS COME FROM shared/palette.ts, not from this file. The app, the landing page and the
+   /start flow all draw from that one copy, and a fourth set of hexes here is a fourth thing to
+   keep in step. Imported by RELATIVE path, like dayBudget and copy.ts (#608). */
+:root { ${lightVars} }
+@media (prefers-color-scheme: dark) { :root { ${darkVars} } }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--paper); color: var(--ink);
-  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
-#app { max-width: 34rem; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
-h1, h2 { margin: 0 0 .5rem; font-weight: 650; letter-spacing: -.01em; }
+body { margin: 0; background: var(--ink); color: var(--text);
+  font: 15px/1.5 "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+/* NUMBERS ONLY, and the unit stays OUTSIDE the span: a monospace word-space is a full mono advance,
+   so 141 g set as one string renders with a hole in it. No web font is fetched for it — this
+   page's CSP has no font-src and is not gaining one for a typeface. */
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+
+/* TWO COLUMNS, AND THE LEFT ONE NEVER NAVIGATES AWAY. That is the whole reason this window is not
+   a stretched phone: on a phone, opening a meal costs you sight of the day, so an answer lands
+   somewhere you cannot see it. Here the day stays put while you read. */
+#app { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: 26px;
+  max-width: 1360px; margin: 0 auto; padding: 26px; align-items: start; }
+@media (max-width: 860px) { #app { grid-template-columns: minmax(0, 1fr); padding: 16px; } }
+
+h1, h2 { margin: 0 0 .5rem; font-weight: 800; letter-spacing: -.02em; }
+h2 { font-size: 17px; }
 .muted { color: var(--muted); }
-.big { font-size: 1.5rem; font-weight: 650; margin: .25rem 0 0; }
-.hero { font-size: 3.5rem; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.lab { font-size: 10.5px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); }
+.big { margin: .25rem 0 0; display: flex; align-items: baseline; gap: 8px; }
+.hero { font-size: 44px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.05; }
 .big.warn .hero { color: var(--warn); }
-progress { display: block; width: 100%; height: .6rem; margin: .5rem 0 .25rem; appearance: none; border: 0;
-  border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--ink) 12%, transparent); }
+/* THE GUESS, AND NOTHING ELSE IS EVER THIS COLOUR. Immediately before the figure it governs, and
+   outside the figure's own span. */
+.about { color: var(--warn); font-weight: 700; }
+/* THE FLOOR, AND NOTHING ELSE. Once per screen, as text, and never a tick on a scale. */
+.floor { font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--care); }
+
+progress { display: block; width: 100%; height: 4px; margin: .5rem 0 .25rem; appearance: none; border: 0;
+  border-radius: 3px; overflow: hidden; background: var(--line-strong); }
 progress::-webkit-progress-bar { background: transparent; }
-progress::-webkit-progress-value { background: var(--ink); border-radius: 999px; }
-progress::-moz-progress-bar { background: var(--ink); border-radius: 999px; }
+progress::-webkit-progress-value { background: var(--accent); border-radius: 3px; }
+progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 .big.warn + progress::-webkit-progress-value { background: var(--warn); }
 .big.warn + progress::-moz-progress-bar { background: var(--warn); }
-.card { padding: 1rem 1.1rem; border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
-  border-radius: 14px; margin-bottom: 1rem; }
-.nav { display: flex; gap: .75rem; align-items: center; margin-bottom: 1.25rem; }
-.tab { color: var(--muted); text-decoration: none; padding: .25rem 0; border-bottom: 2px solid transparent; }
-.tab.on { color: var(--ink); border-bottom-color: var(--ink); }
-.link { margin-left: auto; background: none; border: 0; color: var(--muted); cursor: pointer; font: inherit; }
-.link + .link { margin-left: 1rem; }
-/* The language picker, beside the links rather than on a settings screen this client does not
-   have. margin-left:auto on the first .link already pushes the group right; the select sits
-   inside that group and takes the same muted treatment so it reads as chrome, not as a form. */
-.lang { margin-left: auto; background: none; border: 0; color: var(--muted); font: inherit; cursor: pointer; }
-.lang + .link { margin-left: 1rem; }
-.primary { display: inline-block; margin-top: .75rem; padding: .6rem 1.1rem; border-radius: 999px;
-  background: var(--ink); color: var(--paper); text-decoration: none; font-weight: 600; }
-.meals { list-style: none; margin: 0; padding: 0; }
-.meal { display: flex; justify-content: space-between; gap: 1rem; padding: .7rem 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--ink) 8%, transparent); }
-.meal-kcal { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* CARDS HAVE NO BORDER. The ground is near-black and a card is two steps up from it. */
+.card { padding: 1rem 1.1rem; background: var(--raised); border-radius: 16px; margin-bottom: 14px; }
+/* A 52px STRIP, not a hero region: at 1360 wide a full-height wash is a wall of green, and every
+   word on it has to be near-black. */
+.day-card { padding: 0; overflow: hidden; }
+.day-wash { height: 52px; display: flex; align-items: center; padding: 0 18px; color: var(--accent-ink);
+  font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+  background: linear-gradient(180deg, var(--accent) 0%, var(--wash-mid) 40%, var(--wash-deep) 76%, var(--raised) 100%); }
+.day-body { padding: 16px 18px 18px; }
+.stat { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+
+/* THE RAIL: the tab bar became four destinations down the left, with the primary action at the top. */
+.nav { display: flex; flex-direction: column; gap: 4px; align-items: stretch; position: sticky; top: 26px; }
+@media (max-width: 860px) { .nav { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; } }
+.tab { color: var(--muted); text-decoration: none; padding: 10px 12px; border-radius: 11px; font-weight: 700; font-size: 14px; }
+.tab.on { color: var(--text); background: var(--raised); }
+.link { background: none; border: 0; color: var(--muted); cursor: pointer; font: inherit; text-align: left; padding: 10px 12px; }
+.lang { background: none; border: 0; color: var(--muted); font: inherit; cursor: pointer; padding: 10px 12px; }
+.primary { display: inline-block; margin-top: .75rem; padding: 0 18px; height: 44px; line-height: 44px;
+  border-radius: 12px; background: var(--accent); color: var(--accent-ink); text-decoration: none;
+  font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+
+/* THE TABLE IS THE SECOND THING THIS WINDOW DOES. A phone can show four rows and a total; this can
+   show the one guess sitting in a list of measured things, which is the strongest statement of the
+   mechanism anywhere in the product. */
+.meals { width: 100%; border-collapse: collapse; }
+.meals th { text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase;
+  color: var(--dim); padding: 0 12px 10px; border-bottom: 1px solid var(--line-strong); }
+.meals td { padding: 11px 12px; border-bottom: 1px solid var(--line); }
+.meals tr:last-child td { border-bottom: 0; }
+.meals .num { text-align: right; white-space: nowrap; }
+/* The guessed row, and the only colour in the list. */
+.meals tr.guessed td { background: color-mix(in srgb, var(--warn) 7%, transparent); }
+.meals tr.guessed td:first-child { border-left: 1.5px solid color-mix(in srgb, var(--warn) 45%, transparent); }
+
 .thread { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
-.line p { margin: 0; padding: .55rem .8rem; border-radius: 14px;
-  background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.line p { margin: 0; padding: .55rem .8rem; border-radius: 14px; background: var(--panel); }
 .line.mine { align-items: flex-end; }
-.line.mine p { background: var(--ink); color: var(--paper); }
+.line.mine p { background: var(--accent); color: var(--accent-ink); }
 .line button { margin-left: .5rem; font-size: .85em; }
-.error, .notice { color: #b3261e; }
+.error, .notice { color: var(--bad); }
 .notice { margin: 1rem 0 0; }
 .photo-lead { margin-top: 1.5rem; font-size: 1rem; }
 .composer { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
 .composer input, .composer button, .card button { font: inherit; }
-.composer input[type="text"] { flex: 1 1 12rem; padding: .55rem .8rem; border-radius: 10px;
-  color: var(--ink); background: transparent; border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent); }
-.composer button, .card button { padding: .55rem 1rem; border-radius: 999px; cursor: pointer; color: var(--ink);
-  background: transparent; border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); margin: .5rem .5rem 0 0; }
+.composer input[type="text"] { flex: 1 1 12rem; padding: .55rem .8rem; border-radius: 12px;
+  color: var(--text); background: var(--panel); border: 0; }
+.composer button, .card button { padding: 0 16px; height: 38px; border-radius: 12px; cursor: pointer;
+  color: var(--text); background: var(--panel); border: 0; margin: .5rem .5rem 0 0; font-weight: 700; }
 .composer button { margin: 0; }
-.composer button.primary, .card button.primary { background: var(--ink); color: var(--paper); }
+.composer button.primary, .card button.primary { background: var(--accent); color: var(--accent-ink);
+  height: 38px; line-height: 38px; margin-top: 0; }
 input:disabled, button:disabled { opacity: .5; cursor: default; }
 </style>
 </head>
