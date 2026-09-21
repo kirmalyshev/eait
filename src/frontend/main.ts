@@ -217,7 +217,9 @@ async function diaryScreen(): Promise<HTMLElement> {
   const head = el("div", "card day-card");
   // A 52px STRIP rather than a hero region. At 1360 wide a full-height wash is a wall of green, and
   // every word on it has to be near-black, so it can hold a date and nothing else.
-  head.append(el("div", "day-wash", COPY.today));
+  // A HEADING, not a decorated div: it is the only thing naming this card, and `app-offline.pw.ts`
+  // finds the day by its role.
+  head.append(el("h2", "day-wash", COPY.today));
   const body = el("div", "day-body");
   head.append(body);
   // WHAT IS LEFT IS THE HEADLINE, eaten/target the context under it — the same arithmetic as the

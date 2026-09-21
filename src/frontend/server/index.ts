@@ -112,7 +112,7 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 /* A 52px STRIP, not a hero region: at 1360 wide a full-height wash is a wall of green, and every
    word on it has to be near-black. */
 .day-card { padding: 0; overflow: hidden; }
-.day-wash { height: 52px; display: flex; align-items: center; padding: 0 18px; color: var(--accent-ink);
+.day-wash { margin: 0; height: 52px; display: flex; align-items: center; padding: 0 18px; color: var(--accent-ink);
   font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
   background: linear-gradient(180deg, var(--accent) 0%, var(--wash-mid) 40%, var(--wash-deep) 76%, var(--raised) 100%); }
 .day-body { padding: 16px 18px 18px; }
