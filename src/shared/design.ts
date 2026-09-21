@@ -38,29 +38,31 @@
  */
 export const COLOR = {
   /** The page, and every screen on it. Nothing sits behind this. */
-  ground: "#121516",
+  ground: "#0B0E0D",
   /** Anything raised off the page and read as one object: a card, a list row, a bubble, a tile. */
-  surface: "#282828",
+  surface: "#252827",
   /** A panel that must sit BEHIND a surface — a well a card lives in, an inline note. */
-  surfaceSunken: "#1B1E1F",
+  surfaceSunken: "#181B1C",
   /** The unfilled half of anything that fills: a track, an unselected segment, an option's edge. */
-  raised: "#3D3C42",
+  raised: "#3B3F3E",
   /** A rule BETWEEN rows inside one card. One step off the surface, never a full border. */
-  line: "#2F3334",
+  line: "#2E3231",
   /** A rule between REGIONS — a header bar's underside, a rail's edge. Darker than `line`. */
-  hairline: "#24292A",
+  hairline: "#212524",
 
   /**
    * Affordance, and settled-exact. A button you can press, the nav item you are on, the option you
    * chose, the consumed part of the day, and the number a guess becomes once it has been answered.
-   * NEVER decoration: a green thing here is a thing you can act on or a thing that is now known
-   * exactly. That second meaning is why the settle flow ends in green and not in white.
+   * NEVER decoration: an accent thing here is a thing you can act on or a thing that is now known
+   * exactly. That second meaning is why the settle flow ends in the accent and not in white.
+   *
+   * The key is still `green` because forty call sites read it and a rename is not a design change.
    */
-  green: "#5AF05A",
-  /** Held in reserve — the promo weight of the green, unused at this density. */
-  greenDeep: "#22BA39",
-  /** Every glyph and every icon that sits ON green. The only text colour allowed there. */
-  ink: "#08170A",
+  green: "#00FFC3",
+  /** The deep tone: a SELECTED option's fill, where the bright accent would read as pressed. */
+  greenDeep: "#005C47",
+  /** Every glyph and every icon that sits ON the accent. The only text colour allowed there. */
+  ink: "#0B0E0D",
 
   /**
    * THE GUESS, AND NOTHING ELSE, EVER. The word "about", the figure it governs, the one flag
@@ -73,17 +75,22 @@ export const COLOR = {
    * THE CALORIE FLOOR, AND NOTHING ELSE. At most once per screen, as text, and only where the
    * floor is worth mentioning. A status line — never a tick on a gauge and never a region on a
    * chart, because both of those were the range machinery this grammar removed.
+   *
+   * THE ONE TOKEN THE BOARDS DO NOT SUPPLY. This register has no blue in it at all — its own
+   * boards state the floor as a titled panel instead. The floor keeps a colour here because the
+   * honesty mechanism is THREE colours meaning one thing each, and dropping one of them is a
+   * change to the grammar rather than to the palette.
    */
   blue: "#5AA9FF",
 
   /** Headings, and any figure that is the point of the line it is in. */
   t1: "#FFFFFF",
   /** Body text ON a surface, and every uppercase micro-label. */
-  t2: "#C6C4C5",
+  t2: "#C3C9CA",
   /** Secondary body: a helper line, a sub-caption, the part of a sentence that is context. 6.4:1. */
-  t3: "#A3A3A3",
+  t3: "#9AA2A1",
   /** The quietest text this design allows. 5.6:1 on the ground, and nothing may be quieter. */
-  t4: "#9A9A9A",
+  t4: "#8A9291",
 
   /** Something went wrong and the person has to read it. Never amber: amber is the guess. */
   bad: "#FF6B6B",
@@ -98,15 +105,21 @@ export const COLOR = {
  */
 export const FILL = {
   /** The day's header strip, and an arrival screen's top. `COLOR.ink` on every word. */
-  wash: "linear-gradient(180deg, #5AF05A 0%, #3FC551 42%, #1E8C3E 78%, #121516 100%)",
+  wash: "linear-gradient(180deg, #00FFC3 0%, #00C79A 42%, #005C47 78%, #0B0E0D 100%)",
   /** Stands in for a photograph that is not there. Never a stock image. */
-  photo: "repeating-linear-gradient(135deg, #1A1D1E 0 9px, #222728 9px 18px)",
+  photo: "repeating-linear-gradient(135deg, #171A19 0 9px, #202423 9px 18px)",
   /** The tint under the one row, or the one box, that carries a guess. */
   guess: "rgba(255,197,61,.07)",
   /** Its edge. Dark enough to be an outline rather than a second amber thing on the screen. */
-  guessEdge: "#4A3B17",
-  /** A selected option's fill. Never a solid green: three deep, the unselected ones read disabled. */
-  selected: "rgba(90,240,90,.10)",
+  guessEdge: "#3A2612",
+  /**
+   * A selected option's fill: the DEEP tone, solid, with the bright accent as its edge.
+   *
+   * Never the bright one as a fill. Three deep in a column it makes every option nobody chose read
+   * disabled, and it puts the loudest colour on the screen behind words that then have to be
+   * near-black. The deep tone is dark enough to carry white text and still say "this one".
+   */
+  selected: "#005C47",
   /**
    * A `<select>`'s caret, drawn here rather than left to the platform.
    *
@@ -117,7 +130,7 @@ export const FILL = {
    */
   caret: "no-repeat right 12px center/10px 6px "
     + "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E"
-    + "%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239A9A9A' stroke-width='1.6' "
+    + "%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238A9291' stroke-width='1.6' "
     + "stroke-linecap='round'/%3E%3C/svg%3E\")",
 } as const;
 

@@ -78,9 +78,12 @@ describe("the three colours that mean one thing", () => {
     expect(rulesUsing("blue")).toEqual([".sl.floor"]);
   });
 
-  it("keeps the guess tint out of the green family and the other way round", () => {
+  it("keeps the guess tint out of the accent family and the other way round", () => {
     expect(FILL.guess).toContain("255,197,61");
-    expect(FILL.selected).toContain("90,240,90");
+    // The selected fill is the DEEP tone, solid — never the bright accent, which three deep in a
+    // column makes every option nobody chose read disabled.
+    expect(FILL.selected).toBe(COLOR.greenDeep);
+    expect(FILL.selected).not.toBe(COLOR.green);
   });
 });
 
@@ -146,6 +149,6 @@ describe("the hexes", () => {
     // Including the STOPS of the two gradients. They are not named tokens — they are part of one
     // fill, which carries the comment — but they are declared, and a hex that is declared nowhere
     // is exactly the hole the clients' guards are pointed at.
-    expect(TOKEN_HEXES).toContain("#3fc551");
+    expect(TOKEN_HEXES).toContain("#00c79a");
   });
 });

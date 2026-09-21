@@ -11,7 +11,7 @@
 import { MAX_USER_LINE, TYPE_MS_PER_CHAR } from "@eait/shared";
 import { createHash } from "node:crypto";
 import { STYLESHEET } from "@eait/shared/design";
-import { spudSvg } from "@eait/shared/mascot";
+import { spudSvg, type MascotMood } from "@eait/shared/mascot";
 
 /**
  * A figure, as the number grammar sets one: mono, tabular, and a thousands gap that is a SPAN.
@@ -72,9 +72,51 @@ const STYLES = `
 ${STYLESHEET}
 
 /* ── This flow's own shapes, mapped onto the system ─────────────────────────── */
-main { max-width: 30rem; margin: 0 auto; padding: 24px 16px 64px; }
+main { max-width: 30rem; margin: 0 auto; padding: 24px 20px 64px; }
 .spud { width: 56px; height: 56px; display: block; margin: 0 0 14px; }
 h1 { text-wrap: balance; }
+
+/* ── The progress bar ────────────────────────────────────────────────────────
+   A 10px pill with the accent in it, which is the board's. It was a 5px hairline, and a bar that
+   thin under a question reads as a loading indicator rather than as how far in you are. */
+.prog { height: 10px; border-radius: 999px; background: var(--raised); overflow: hidden;
+  margin: 0 0 22px; }
+.prog > i { display: block; height: 100%; background: var(--green); border-radius: 999px; }
+
+/* ── Spud, saying it ─────────────────────────────────────────────────────────
+   He sits BESIDE the line rather than above the screen: the words are his reply to the answer
+   just given, and a face in the corner of the page is decoration while a face at the start of the
+   sentence is the speaker. */
+.says { display: flex; align-items: flex-start; gap: 11px; margin: 0 0 14px; }
+.says .spud { width: 44px; height: 44px; flex: 0 0 44px; margin: 0; }
+.says .saysb { flex: 1 1 auto; min-width: 0; }
+.says .bubble:last-child { margin-bottom: 0; }
+
+/* THE ANIMATION IS CSS BECAUSE IT HAS TO BE: this page allows exactly one script, by hash, and it
+   is the typing. Under prefers-reduced-motion none of this exists — the block is opt-in, not a
+   set of rules with an override bolted on after. */
+@media (prefers-reduced-motion: no-preference) {
+  /* He ARRIVES: a small overshoot as the page paints, then a slow breath so the screen is not
+     dead while somebody reads. The bob is on the svg and the arrival on the box, so the two
+     transforms never fight over one element. */
+  .says .spud { animation: spud-in 460ms cubic-bezier(.2, 1.5, .4, 1) both; }
+  .says .spud > svg { animation: spud-bob 3.6s ease-in-out 460ms infinite alternate; }
+  /* Blinking, on the app's own 4.2s timer (mascot.tsx) — the eyes are grouped in the drawing
+     precisely so a stylesheet can do this. */
+  .says .spud .spud-eyes { animation: spud-blink 4.2s steps(1, end) 900ms infinite;
+    transform-origin: 59px 57px; }
+  /* Refused: he does not bounce in when the words beside him say something went wrong. */
+  .says.mood-care .spud { animation: spud-shake 520ms ease-in-out both; }
+  .says .saysb { animation: says-in 380ms ease-out 120ms both; }
+}
+@keyframes spud-in { from { opacity: 0; transform: scale(.78) translateY(6px); }
+  to { opacity: 1; transform: none; } }
+@keyframes spud-bob { from { transform: translateY(0); } to { transform: translateY(-3px); } }
+@keyframes spud-blink { 0%, 94% { transform: scaleY(1); } 96%, 98% { transform: scaleY(.08); }
+  100% { transform: scaleY(1); } }
+@keyframes spud-shake { 0%, 100% { transform: none; } 20% { transform: translateX(-4px); }
+  45% { transform: translateX(3px); } 70% { transform: translateX(-2px); } }
+@keyframes says-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
 
 /* Spud's line, and the person's. The same two shapes the thread uses; here they are paragraphs
    rather than list items, because this page has no thread to put them in. */
@@ -82,8 +124,12 @@ h1 { text-wrap: balance; }
   background: var(--surface); border-radius: 18px; border-bottom-left-radius: 7px;
   padding: 11px 15px; margin: 0 0 8px; max-width: 30rem;
 }
+/* YOUR OWN LINE IS THE DEEP TONE, NOT THE BRIGHT ONE. Ten answered questions is ten bubbles, and
+   ten fills of the brightest colour in the register is a column of them down the screen. The deep
+   tone says "this one was yours" and leaves the bright accent to the things there is one of: the
+   button, an edge, a tick. */
 .bubble.you {
-  background: var(--green); color: var(--ink); font-weight: 600;
+  background: var(--green-deep); color: var(--t1); font-weight: 600;
   border-bottom-left-radius: 18px; border-bottom-right-radius: 7px;
   margin-left: auto; max-width: 85%;
 }
@@ -92,8 +138,8 @@ h1 { text-wrap: balance; }
 .untyped { color: transparent; }
 
 /* AN OPTION IS A SUBMIT BUTTON on this surface, so the design's option row is reached by element
-   rather than by class. A border and a tint and never a solid fill — three deep in a column a
-   filled row makes every option that was not chosen read as disabled. */
+   rather than by class. A border and a tint and never a solid bright fill — three deep in a
+   column a filled row makes every option that was not chosen read as disabled. */
 form { margin: 0; }
 button, .button, label.check {
   display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
@@ -104,11 +150,61 @@ button, .button, label.check {
 }
 button:hover, .button:hover, label.check:hover { border-color: var(--raised); }
 button .hint { display: block; font-weight: 400; font-size: 13px; color: var(--t3); margin-top: 4px; }
-/* The one call to action, which is green because green is the affordance. */
+
+/* ── The option row ──────────────────────────────────────────────────────────
+   The board's: a glyph where the option has one, the answer with the line that justifies it, and
+   the box you are pressing. 62px, a 2px edge, and the accent as that edge the moment it is the
+   one under the finger. */
+button.row, label.row {
+  align-items: center; gap: 12px; min-height: 62px; padding: 9px 12px;
+  border: 2px solid var(--raised); border-radius: 18px;
+  font-weight: 700; font-size: 15.5px; letter-spacing: -.005em;
+}
+button.row:hover, button.row:focus-visible, label.row:hover { border-color: var(--green); }
+.row .t { flex: 1 1 auto; min-width: 0; }
+.row .hint { display: block; font-weight: 400; font-size: 13px; color: var(--t3); margin-top: 2px; }
+.row .ic { display: flex; align-items: center; justify-content: center; flex: 0 0 36px;
+  width: 36px; height: 36px; border-radius: 50%; background: var(--sunken); color: var(--green); }
+/* The box. Empty on a single-answer row, because nothing is chosen until the form posts. */
+.row .sq { flex: 0 0 26px; width: 26px; height: 26px; border-radius: 8px;
+  border: 2px solid var(--t4); }
+/* A chip CAN say so, and this is the one control on the page that can without a script. */
+label.row input[type=checkbox] { position: absolute; opacity: 0; pointer-events: none; }
+label.row:has(input:checked) { background: var(--green-deep); border-color: var(--green); }
+label.row:has(input:checked) .sq { background: var(--green); border-color: var(--green); }
+/* A quick reply — the way out a refusal offers. Quieter than an answer to the question itself. */
+button.row.alt { min-height: 52px; border-color: var(--surface); color: var(--t2); }
+
+/* ── The number card ─────────────────────────────────────────────────────────
+   The figure is the whole control, and the unit sits OUTSIDE its run: the mono's word space is a
+   full advance, so "74 kg" typed into one field renders with a hole in it. */
+.numcard { background: var(--surface); border: 2px solid var(--raised); border-radius: 20px;
+  padding: 13px 18px 15px; margin: 0 0 10px; }
+.numcard .lab { display: block; font-size: 11px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--t4); margin: 0 0 4px; }
+/* The unit sits against the figure, not at the far edge of the card: "74 kg" is one reading, and
+   a unit pushed to the right by an empty field is a second column. */
+.numcard .f { display: flex; align-items: baseline; gap: 9px; justify-content: flex-start; }
+.numcard input[type=number] { flex: 0 1 auto; width: 5ch; min-width: 3ch; margin: 0; padding: 0;
+  background: none; border: 0; border-radius: 0; outline: 0;
+  font: 500 34px/1.1 var(--mono); font-variant-numeric: tabular-nums; color: var(--t1); }
+/* The stepper is the platform's, and it lands between the figure and its unit. */
+.numcard input[type=number] { appearance: textfield; -moz-appearance: textfield; }
+.numcard input[type=number]::-webkit-outer-spin-button,
+.numcard input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.numcard .u { font: 700 15px/1 var(--ui); color: var(--t3); }
+.numcard:focus-within { border-color: var(--green); }
+
+/* The one call to action. A pill, and it sits on a hard edge of its own deep tone — the board's
+   button has a body you can press rather than a rectangle that changes colour. */
 button.primary, .button.primary {
-  justify-content: center; text-align: center; min-height: 56px;
+  justify-content: center; text-align: center; min-height: 56px; border-radius: 999px;
   background: var(--green); color: var(--ink); border-color: var(--green);
-  font-weight: 800; font-size: 14px; letter-spacing: .09em; text-transform: uppercase;
+  font-weight: 800; font-size: 15px; letter-spacing: .01em;
+  box-shadow: 0 5px 0 var(--green-deep); margin-bottom: 15px;
+}
+button.primary:active, .button.primary:active {
+  transform: translateY(3px); box-shadow: 0 2px 0 var(--green-deep);
 }
 button.primary .hint { color: inherit; opacity: .85; }
 input[type=number], input[type=text] {
@@ -148,6 +244,12 @@ input[type=file] { display: block; width: 100%; margin: 0 0 10px; font: inherit;
  * thread's lines are history, drawn whole.
  */
 export const TYPING_SCRIPT = `(function () {
+  // THE NEWEST TURN, AT THE TOP — before anything else, and before the reduced-motion return.
+  // A chat form grows: by the ninth question the transcript is four screens long and the page
+  // opens on the FIRST question, with the thing being asked and the buttons that answer it both
+  // below the fold. Nothing else on this page can do it — there is one script and this is it.
+  var latest = document.querySelector(".says");
+  if (latest && latest.scrollIntoView) latest.scrollIntoView({ block: "start" });
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   var MS = ${TYPE_MS_PER_CHAR}, GAP = 350;
   var lines = Array.prototype.slice.call(document.querySelectorAll(".bubble.typed")).map(function (p) {
@@ -220,6 +322,32 @@ export function html(
 }
 
 const spud = `<div class="spud" role="img" aria-label="${escape(PAGE_COPY.spudAlt)}">${spudSvg("wave", "spud-start")}</div>`;
+
+/**
+ * SPUD, ON EVERY QUESTION, AND HIS MOOD IS THE ANSWER YOU JUST GAVE.
+ *
+ * He was on the front door and on the stop page and nowhere in between — so the eight screens
+ * where somebody is handing over their body weight had nobody on them. What he is for here is
+ * confidence: the line beside him already justifies the question (`answerFor` writes it from what
+ * was just said), and a face that reacts to the answer is what makes that line read as a reply
+ * rather than as the next field.
+ *
+ * THREE MOODS, AND EACH IS A FACT ABOUT THE TURN — never decoration:
+ *   care  — the server refused the answer, and the words beside him say why.
+ *   wave  — nothing has been asked yet. The first screen.
+ *   happy — an answer landed. Every screen after the first.
+ *
+ * The ANIMATION is CSS, and it has to be: this page's CSP allows exactly one script by hash, and
+ * it is the typing. A keyframe costs nothing and is switched off wholesale under
+ * `prefers-reduced-motion`.
+ */
+function spudSays(mood: MascotMood, lines: readonly string[], lang: Lang): string {
+  const PAGE_COPY = pageCopyFor(lang);
+  return `<div class="says mood-${escape(mood)}">
+<div class="spud" role="img" aria-label="${escape(PAGE_COPY.spudAlt)}">${spudSvg(mood, `spud-${mood}`)}</div>
+<div class="saysb">${bubbles(lines)}</div>
+</div>`;
+}
 
 const bubbles = (lines: readonly string[]): string =>
   lines.map((line) => `<p class="bubble typed">${escape(line)}</p>`).join("");
@@ -300,32 +428,84 @@ export interface QuestionView {
   lang: Lang;
 }
 
+/**
+ * The unit a number question is answered in, by the field it fills.
+ *
+ * ON THE CARD, OUTSIDE THE FIGURE'S RUN — the same rule the whole product keeps, and the reason
+ * the input and the unit are two elements here rather than a placeholder saying "kg". A year has
+ * no unit, which is why this is a lookup and not a property every prompt has to carry.
+ */
+const NUMBER_UNIT: Record<string, string> = {
+  height_cm: "cm", weight_kg: "kg", target_weight_kg: "kg",
+};
+
+/**
+ * The glyph on an option row, by the answer it stands for.
+ *
+ * ONLY THE TWO PROMPTS THE BOARDS DRAW, and deliberately: an icon is a claim about what an option
+ * MEANS, and inventing one for "Austria" or for a dietary tag is a claim nobody made. A row with
+ * no glyph is the same row without the tile, which is why this returns "" rather than a fallback
+ * drawing.
+ */
+const OPTION_ICON: Record<string, string> = {
+  lose: '<path d="M4 7l5 5 3-3 4 4"/><path d="M16 13h4v-4"/>',
+  maintain: '<path d="M4 9h16"/><path d="M4 15h16"/>',
+  gain: '<path d="M4 17l5-5 3 3 4-4"/><path d="M16 11h4v4"/>',
+  easy: '<path d="M12 4v8l5 3"/><circle cx="12" cy="12" r="9"/>',
+  steady: '<path d="M4 18l5-6 4 3 7-9"/>',
+  push: '<path d="M13 3L5 14h6l-1 7 8-11h-6z"/>',
+};
+
+const optionIcon = (value: string): string => {
+  const path = OPTION_ICON[value];
+  if (path === undefined) return "";
+  return `<span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24" width="19" height="19" ` +
+    `fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" ` +
+    `stroke-linejoin="round">${path}</svg></span>`;
+};
+
 export function question(v: QuestionView): string {
   const PAGE_COPY = pageCopyFor(v.lang);
   const hidden = `<input type="hidden" name="prompt" value="${escape(v.promptId)}">`;
   let controls: string;
   if (v.kind === "choice") {
-    // One button per option: with no JavaScript, a radio group needs a second tap on a submit
-    // button, and the app's version is one tap.
+    // ONE BUTTON PER OPTION, in the board's row: a glyph where the option has one, the answer and
+    // the line that justifies it, and the box you are pressing. With no JavaScript a radio group
+    // needs a second tap on a submit button, and the app's version is one tap.
+    //
+    // THE BOX IS EMPTY ON EVERY ROW, and that is honest rather than unfinished: nothing is chosen
+    // until the form posts, so a filled one would be drawing a state this surface cannot be in.
     controls = v.options.map((o) =>
-      `<button type="submit" name="answer" value="${escape(o.value)}">${escape(o.label)}` +
-      `${o.hint ? `<span class="hint">${escape(o.hint)}</span>` : ""}</button>`).join("");
+      `<button class="row" type="submit" name="answer" value="${escape(o.value)}">` +
+      `${optionIcon(o.value)}<span class="t">${escape(o.label)}` +
+      `${o.hint ? `<span class="hint">${escape(o.hint)}</span>` : ""}</span>` +
+      `<span class="sq" aria-hidden="true"></span></button>`).join("");
   } else if (v.kind === "number") {
+    const unit = NUMBER_UNIT[v.promptId];
+    // THE PLACEHOLDER IS A LABEL, NOT A GHOST VALUE. "Weight in kg" set in the figure's own mono
+    // at figure size fills the card and reads as something already answered; above it, in the
+    // micro label, it says what the box is for and leaves the box empty.
     controls =
-      `<input type="number" name="answer" inputmode="decimal" step="any" required autofocus` +
-      `${v.placeholder ? ` placeholder="${escape(v.placeholder)}"` : ""}>` +
+      `<div class="numcard">` +
+      `${v.placeholder ? `<span class="lab">${escape(v.placeholder)}</span>` : ""}` +
+      `<span class="f"><input type="number" name="answer" inputmode="decimal" step="any" required ` +
+      `autofocus aria-label="${escape(v.placeholder ?? PAGE_COPY.continueLabel)}">` +
+      `${unit ? `<span class="u">${escape(unit)}</span>` : ""}</span></div>` +
       `<button class="primary" type="submit">${escape(PAGE_COPY.continueLabel)}</button>`;
   } else {
+    // THE ONE CONTROL THAT CAN SHOW ITS OWN STATE WITHOUT A SCRIPT. A checkbox is checked or it is
+    // not, and `:has()` lets the row it lives in say so — so the chips get the board's filled row
+    // where the single-answer rows cannot have one.
     controls = v.options.map((o) =>
-      `<label class="check"><input type="checkbox" name="answer" value="${escape(o.value)}"> ` +
-      `${escape(o.label)}</label>`).join("") +
+      `<label class="row check"><input type="checkbox" name="answer" value="${escape(o.value)}">` +
+      `<span class="t">${escape(o.label)}</span>` +
+      `<span class="sq" aria-hidden="true"></span></label>`).join("") +
       `<button class="primary" type="submit">${escape(PAGE_COPY.continueLabel)}</button>`;
   }
   const actions = v.actions.map((a) =>
-    `<button type="submit" name="${escape(a.name)}" value="${escape(a.value)}">${escape(a.label)}</button>`,
+    `<button class="row alt" type="submit" name="${escape(a.name)}" value="${escape(a.value)}">` +
+    `<span class="t">${escape(a.label)}</span></button>`,
   ).join("");
-  // The BRAND, untranslated — the same reason `LANG_LABEL` is not. A question page in the
-  // middle of a flow is titled by the product, not by a sentence about it.
   // THE BAR ONLY EVER ADVANCES, and never says what is left. "Question 4 of 10" is a count of
   // what remains, which the design forbids on exactly this screen — it turns a conversation into
   // a queue somebody is waiting in. `aria-label` carries the position for a screen reader, which
@@ -334,11 +514,15 @@ export function question(v: QuestionView): string {
   const bar = `<div class="prog" role="img" aria-label="${escape(PAGE_COPY.progress
     .replace("{step}", String(v.step)).replace("{total}", String(v.total)))}">` +
     `<i style="width:${done}%"></i></div>`;
+  // HIS MOOD IS A FACT ABOUT THIS TURN, not a rotation: refused, not yet asked, or answered.
+  const mood: MascotMood = v.error !== null ? "care" : v.history.length === 0 ? "wave" : "happy";
+  // The BRAND, untranslated — the same reason `LANG_LABEL` is not. A question page in the
+  // middle of a flow is titled by the product, not by a sentence about it.
   return shell("eait", `
 ${bar}
 ${v.error ? `<p class="notice">${escape(v.error)}</p>` : ""}
 ${said(v.history)}
-${bubbles(v.lines)}
+${spudSays(mood, v.lines, v.lang)}
 <form method="post" action="/start/q">${hidden}${actions}${controls}</form>
 `, v.lang);
 }
