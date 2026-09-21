@@ -725,7 +725,22 @@ async function chatScreen(): Promise<HTMLElement> {
       const text = entry.kind === "meal"
         ? mealLine(entry.meal)
         : entry.text ?? COPY.photo;
-      li.append(el("p", entry.role === "user" ? "bub me" : "bub them", text));
+      // A MEAL CARD IS A CARD, not a sentence with a number in it. The figure goes through the
+      // same grammar as every other figure this product prints — hedged when the plate is a guess
+      // — and the bubble is a LINK to the meal, because the thread is where somebody actually is
+      // when the question arrives, and the settle flow was reachable only from the day.
+      if (entry.kind === "meal" && entry.meal !== null) {
+        const card = el("a", "bub them meal-card") as HTMLAnchorElement;
+        card.href = `#/meal/${entry.meal.id}`;
+        card.setAttribute("aria-label", text);
+        const rough = mealIsGuessed(entry.meal);
+        if (rough) card.classList.add(CLASS.guessed);
+        card.append(el("span", "meal-name", names(entry.meal.items)));
+        card.append(figure(el("span", "meal-kcal num"), entry.meal.kcal, rough));
+        li.append(card);
+      } else {
+        li.append(el("p", entry.role === "user" ? "bub me" : "bub them", text));
+      }
       // OWN LINES ONLY (#608): Edit on a photo line that still names a meal, Delete on any of them.
       if (entry.role === "user") {
         // `lineIsMeal`'s rule: a confirmed proposal is stored under the proposal's id.

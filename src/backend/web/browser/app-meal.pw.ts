@@ -157,6 +157,24 @@ test("the meal screen shows what it was read as, and settling it makes the numbe
   await expect(page.locator(".meal.rowsel")).toHaveCount(0);
 });
 
+test("the thread's own meal card carries the grammar, and leads to the meal", async ({ inWebApp: page }) => {
+  // THE SAME PERSON MEETS BOTH SURFACES. A card in the thread used to be a sentence with an exact
+  // figure in it, whatever the analyzer thought of the plate — so the one screen a guess is most
+  // likely to be read on was the one screen that did not say it was a guess. And the settle flow
+  // was reachable only from the day, while the question arrives here.
+  await logTheGuess(page);
+  const card = page.locator(".thread .meal-card.rowsel");
+  await expect(card).toHaveCount(1);
+  await expect(card.locator(".abt")).toHaveText("about");
+  // The measured plate beside it keeps every digit and carries no tint.
+  await expect(page.locator(".thread .meal-card")).toHaveCount(2);
+  await expect(page.locator(".thread .meal-card:not(.rowsel) .abt")).toHaveCount(0);
+
+  await card.click();
+  await expect(page).toHaveURL(/#\/meal\//);
+  await expect(page.locator(".opt")).toHaveCount(2);
+});
+
 test("a meal id that names nothing says so rather than throwing", async ({ inWebApp: page }) => {
   await page.goto(`/#/meal/${crypto.randomUUID()}`);
   await expect(page.getByText("A meal that is no longer logged")).toBeVisible();

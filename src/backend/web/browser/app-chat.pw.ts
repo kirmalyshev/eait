@@ -42,8 +42,10 @@ test("a meal in words is proposed first, and Log it puts it in the thread", asyn
   await expect(words).toHaveValue("");
   await page.getByRole("button", { name: "Log it" }).click();
   await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
-  // The card, by its own shape. Not the LAST line: a first meal is followed by Spud's introductions.
-  await expect(page.locator(".thread li", { hasText: / — \d+ kcal$/ })).toHaveCount(1);
+  // The card, BY ITS CLASS. Not the last line — a first meal is followed by Spud's introductions
+  // — and no longer by the text shape `— 123 kcal`: a meal card is a row with a name and a figure
+  // in it now, not a sentence, so its figure goes through the same grammar as every other one.
+  await expect(page.locator(".thread .meal-card")).toHaveCount(1);
 });
 
 test("a question is answered in the thread and proposes nothing", async ({ inWebApp: page }) => {
@@ -126,7 +128,7 @@ test("a held proposal survives a reload, and Log it still logs it (#530)", async
   await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
   await page.getByRole("button", { name: "Log it" }).click();
   await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
-  await expect(page.locator(".thread li", { hasText: / — \d+ kcal$/ })).toHaveCount(1);
+  await expect(page.locator(".thread .meal-card")).toHaveCount(1);
 });
 
 test("dropping a proposal the server no longer holds is what was asked, and says nothing", async ({ inWebApp: page }) => {
@@ -180,7 +182,7 @@ test("a Log it whose answer never arrived keeps the card, because pressing it ag
   await page.getByRole("button", { name: "Log it" }).click();
   // Pressed twice, logged once, and nothing left to say.
   await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
-  await expect(page.locator(".thread li", { hasText: / — \d+ kcal$/ })).toHaveCount(1);
+  await expect(page.locator(".thread .meal-card")).toHaveCount(1);
   await expect(page.locator(".notice")).toBeHidden();
 });
 
@@ -216,7 +218,7 @@ test("a proposal whose confirm landed without its answer is not offered again af
   await expect(words).toHaveValue("");
   await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Log it" })).toHaveCount(0);
-  await expect(page.locator(".thread li", { hasText: / — \d+ kcal$/ })).toHaveCount(1);
+  await expect(page.locator(".thread .meal-card")).toHaveCount(1);
 });
 
 test("a stream the server could not finish may still have landed, so it is not worded as a failure", async ({ inWebApp: page }) => {

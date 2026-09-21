@@ -459,6 +459,10 @@ nav { display: flex; gap: .5rem; align-items: center; margin-bottom: ${px(GEOMET
 .bub { max-width: 30rem; margin: 0; padding: 11px 15px; border-radius: 18px; ${type(TYPE.body)} }
 .them { background: var(--surface); border-top-left-radius: 7px; }
 .me { background: var(--green); color: var(--ink); font-weight: 600; border-top-right-radius: 7px; }
+/* A meal card IN the thread: the assistant's surface, but a row rather than a sentence — a name
+   and a figure, and the whole thing is the way to the meal it names. */
+.meal-card { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--t1); }
+.meal-card .meal-name { flex-grow: 1; }
 .line .muted { ${type(TYPE.secondary)} }
 .line button { margin: .35rem .35rem 0 0; padding: 4px 10px; border: 1px solid var(--raised);
   border-radius: ${px(GEOMETRY.radiusPill)}; background: none; color: var(--t3);
