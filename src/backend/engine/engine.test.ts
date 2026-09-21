@@ -11,10 +11,11 @@ import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { remember } from "./chat.ts";
 import { LANGS, LANGS_READY } from "@eait/shared";
+import { mealIsGuessed } from "@eait/shared";
 import { charge } from "./caps.ts";
 import {
   appendLines, applyCorrection, attachPhotos, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
-  logPhotoMeal, patchProfile, profileView, reanalyzeMeal, stepApplies, week, type EngineDeps,
+  logPhotoMeal, patchProfile, profileView, reanalyzeMeal, stepApplies, sumTotals, week, type EngineDeps,
 } from "./index.ts";
 
 const CONFIG: Config = {
@@ -401,6 +402,30 @@ describe("the question after the card", () => {
     // And the turn after it is an ordinary turn again.
     await handleText(d, userId, { text: "In oil", focusMealId: res.mealId });
     expect(seen[1]!.question).toBeUndefined();
+  });
+
+  it("is a CORRECTION to the demo router too, not a second meal (#28)", async () => {
+    // THE FAKE HAS TO AGREE WITH THE REAL ONE ABOUT WHAT AN ANSWER IS. The demo analyzer emits a
+    // question precisely so the chips are reachable from `--demo` and from the browser suite; its
+    // router then read "In oil" as a new plate, so a tap that should settle a meal proposed a
+    // second one. That is a fake behaving DIFFERENTLY rather than more poorly, which is the thing
+    // `AGENTS.md` forbids — and it is the whole settle flow on the web client.
+    const userId = await onboard();
+    const d = makeDeps({}, asks());
+    const res = await second(d, userId);
+    const out = await handleText(d, userId, { text: "In oil", focusMealId: res.mealId });
+    expect(out.kind).toBe("updated");
+    const settled = (await store.getMeal(userId, res.mealId))!;
+    expect(settled.question).toBeNull();
+    // `corrected` is the half of `mealIsGuessed` that settles a plate: the hedge leaves the meal,
+    // the day and the 20:30 line from this one write.
+    expect(settled.corrected).toBe(true);
+    expect(mealIsGuessed(settled)).toBe(false);
+    // And the DAY is still a guess, because the other plate `second()` logged is one. Per meal,
+    // not per day: settling one plate must not quietly declare the rest of the day exact.
+    const rows = await store.mealsForDate(userId, settled.date);
+    expect(rows.filter(mealIsGuessed)).toHaveLength(1);
+    expect(sumTotals(rows).guessed).toBe(true);
   });
 
   it("clears the question once a correction lands, so it is asked exactly once", async () => {

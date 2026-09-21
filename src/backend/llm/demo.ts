@@ -174,6 +174,23 @@ export function demoPorts(): LlmPorts {
     const text = input.text.toLowerCase();
     const asks = /\?|how much|how many|what|why|should i|сколько|что|wie viel|was /.test(text);
 
+    // ANSWERING THE QUESTION IS A CORRECTION, and the fake has to agree with the real one about
+    // that. `handleText` sets `input.question` only when the text IS one of the options the meal
+    // is standing on, so this branch is reached by a chip and by somebody typing the same words —
+    // and by nothing else. Without it the demo router falls through to `intent: "meal"` and a tap
+    // that should settle a plate proposes a second one: a fake that is not poorer than the real
+    // analyzer but DIFFERENT, in a way a test can see, which is what `AGENTS.md` forbids. The
+    // analyzer above emits the question so the chips are reachable from `--demo`; this is the
+    // other half of that.
+    if (input.focusMeal && input.question) {
+      const { verdicts: _drop, ...f } = input.focusMeal;
+      // The answer settles the plate: it does not move the numbers here, because a canned model
+      // has no way to know what "in oil" is worth. What it must do is come back as a CORRECTION,
+      // so `applyCorrection` writes `corrected`, clears the question, and the figure stops being
+      // hedged everywhere at once.
+      return { intent: "correction", analysis: { ...f, notes: "Settled from your answer (demo analyzer)." } };
+    }
+
     if (input.focusMeal && /half|less|no |without|actually|instead|only|половин|без |wirklich/.test(text)) {
       const scale = /half|половин/.test(text) ? 0.5 : 0.8;
       // `verdicts` is dropped deliberately: a real analyzer has none, and a fake that supplies
