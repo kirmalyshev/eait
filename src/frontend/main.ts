@@ -233,10 +233,12 @@ async function diaryScreen(): Promise<HTMLElement> {
     // PRECISION CARRIES THE CONFIDENCE. "about" sits immediately before the figure it governs and
     // OUTSIDE its span: the figure is mono, the word is not, and a mono word-space is a full mono
     // advance. The unit is a third span for the same reason.
-    if (budget.guessed) big.append(el("span", "about", COPY.about));
+    // The spaces are IN the text, not between the spans: adjacent elements have no whitespace
+    // between them, and `app-diary.pw.ts` reads this line as one string.
+    if (budget.guessed) big.append(el("span", "about", `${COPY.about} `));
     big.append(
       el("span", "hero mono", n(budget.kcal)),
-      el("span", "muted", `${UNIT_KCAL[lang]} ${budget.state === "left" ? COPY.budgetLeft : budget.state === "over" ? COPY.budgetOver : COPY.budgetUnder}`),
+      el("span", "muted", ` ${UNIT_KCAL[lang]} ${budget.state === "left" ? COPY.budgetLeft : budget.state === "over" ? COPY.budgetOver : COPY.budgetUnder}`),
     );
     // Native, so there is nothing to draw by hand; hidden, because the line under it says it in words.
     const bar = document.createElement("progress");
