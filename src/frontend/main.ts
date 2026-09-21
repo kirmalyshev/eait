@@ -216,10 +216,16 @@ const kcal = (n: number): string => `${wholeNumbers(lang)(n)} ${UNIT_KCAL[lang]}
  * `GAUGE` in `design.ts` owns the geometry: the arc's own length is what `stroke-dasharray` is a
  * fraction of, so the fill is arithmetic rather than a number somebody tuned by eye.
  *
+ * PAST THE PLAN THE ARC IS NOT GREEN, and that is a decision the spec does not make because the
+ * day it draws is never over. Green is affordance and settled-exact; a fully green arc over a
+ * headline reading "214 kcal over" is green being decoration, and it reads as an achievement. The
+ * two colours that would say otherwise are spoken for — amber is the guess, blue is the floor —
+ * so the overshoot is drawn in the quietest text colour instead of inventing a sixth meaning.
+ *
  * `aria-hidden`, like the `<progress>` it replaces: the line under it says the same thing in
  * words, and a screen reader announcing a decorative arc twice is worse than not announcing it.
  */
-function gauge(fill: number, inside: HTMLElement): HTMLElement {
+function gauge(fill: number, over: boolean, inside: HTMLElement): HTMLElement {
   const box = el("div", "gauge");
   const ns = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(ns, "svg");
@@ -227,7 +233,7 @@ function gauge(fill: number, inside: HTMLElement): HTMLElement {
   svg.setAttribute("aria-hidden", "true");
   for (const [stroke, dash] of [
     ["var(--raised)", null],
-    ["var(--green)", `${(GAUGE.length * fill).toFixed(2)} ${GAUGE.length}`],
+    [over ? "var(--t4)" : "var(--green)", `${(GAUGE.length * fill).toFixed(2)} ${GAUGE.length}`],
   ] as const) {
     const arc = document.createElementNS(ns, "path");
     arc.setAttribute("d", GAUGE.path);
@@ -298,7 +304,7 @@ async function diaryScreen(): Promise<HTMLElement> {
     // template. The TARGET keeps every digit whatever the day did — it is arithmetic over answers
     // this person gave — and so does the protein, because ten grams is the wrong step for a
     // figure that runs from 20 to 150.
-    head.append(gauge(budget.fill, big), el("p", "muted", fill(COPY.eatenLine, {
+    head.append(gauge(budget.fill, budget.state === "over", big), el("p", "muted", fill(COPY.eatenLine, {
       eaten: (budget.guessed ? aboutFigure(lang) : n)(budget.eaten), target: kcal(budget.target),
       protein: n(budget.protein.eaten), proteinTarget: n(budget.protein.target),
     })));

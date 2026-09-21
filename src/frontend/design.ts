@@ -291,7 +291,10 @@ p { margin: 0 0 .6rem; }
 
 /* Meals. A row is a name and a figure; the one row that is a guess says so and the rest stay
    silent — silence is what "read cleanly" looks like. */
-.meals { list-style: none; margin: 0; padding: 0; }
+/* The list IS a card — the same object the day above it is. Left on the ground the rows read as
+   three loose lines with rules between them rather than as one table. */
+.meals { list-style: none; margin: 0; padding: 4px 4px; background: var(--surface);
+  border-radius: ${GEOMETRY.radiusCard}; }
 .meal { display: flex; justify-content: space-between; align-items: center; gap: 1rem;
   padding: 11px 12px; border-bottom: 1px solid var(--line); border-radius: ${GEOMETRY.radiusRow}; }
 .meal:last-child { border-bottom: 0; }
