@@ -55,6 +55,11 @@ msgstr "сегодня {over} сверх {plan}, и белка {protein} из {p
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.running.aboutLeft"
+msgstr "Сегодня осталось примерно {left} из {plan}, белка {protein} из {proteinTarget} г."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowLeftOther"
 msgstr "Сегодня осталось примерно {left} из {plan}."
 
@@ -67,6 +72,11 @@ msgstr "Сегодня ещё примерно {left} из {plan} нужно д�
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowLeftGain"
 msgstr "Сегодня ещё примерно {left} из {plan} нужно добрать."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.running.aboutOver"
+msgstr "Сегодня примерно {over} сверх {plan}, белка {protein} из {proteinTarget} г."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -156,7 +166,7 @@ msgstr "Хорошо. Я в чате в любой момент — фото и�
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowConfidence"
-msgstr "Честно: тарелку я прочитал плохо. Считай {kcal} грубой прикидкой и проверь граммы, прежде чем доверять сумме. В следующий раз поможет второй ракурс."
+msgstr "Честно: тарелку я прочитал плохо. Считай примерно {kcal} и проверь граммы, прежде чем доверять сумме. В следующий раз поможет второй ракурс."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -436,7 +446,7 @@ msgstr "Пробный период запущен. Семь дней, даль�
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
-msgstr "Это текст, а не фото — значит, порции я прикинул. Считай {kcal} грубой оценкой; знаешь граммы — скажи, и я поправлю."
+msgstr "Это текст, а не фото — значит, порции я прикинул. Считай примерно {kcal}; знаешь граммы — скажи, и я поправлю."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

@@ -78,7 +78,18 @@ export interface ThreadCopy {
    * one parameter, which is an English genitive compiled into the code and unreachable by any
    * translation.
    */
-  running: { left: (v: Figures) => string; over: (v: Figures) => string };
+  /**
+   * Where the day stands after a meal landed — and the same pair again for a day with a guess in
+   * it (#28). FOUR STRINGS RATHER THAN A HEDGE SPLICED INTO `{left}`: that figure opens the
+   * sentence, so the hedge is what carries the capital, and which word that is differs by
+   * language. The same reason `arithmetic` and `arithmeticAlone` are two sets and not a regex.
+   */
+  running: {
+    left: (v: Figures) => string;
+    over: (v: Figures) => string;
+    aboutLeft: (v: Figures) => string;
+    aboutOver: (v: Figures) => string;
+  };
   /** The meal's own kcal, and the sentence above. */
   correction: (v: { kcal: string; day: string }) => string;
   firstVerdict: {
@@ -127,6 +138,8 @@ const THREAD = (i18n: I18n): ThreadCopy => ({
   running: {
     left: (v: Figures) => i18n._("thread.running.left", v, { message: "{left} of your {plan} left today, {protein} of the {proteinTarget} g protein." }),
     over: (v: Figures) => i18n._("thread.running.over", v, { message: "{over} over your {plan} today, {protein} of the {proteinTarget} g protein." }),
+    aboutLeft: (v: Figures) => i18n._("thread.running.aboutLeft", v, { message: "About {left} of your {plan} left today, {protein} of the {proteinTarget} g protein." }),
+    aboutOver: (v: Figures) => i18n._("thread.running.aboutOver", v, { message: "About {over} over your {plan} today, {protein} of the {proteinTarget} g protein." }),
   },
   correction: (v: { kcal: string; day: string }) => i18n._("thread.correction", v, { message: "Updated — {kcal} kcal. {day}" }),
   firstVerdict: {
@@ -142,8 +155,8 @@ const THREAD = (i18n: I18n): ThreadCopy => ({
       otherLeft: (v: Figures) => i18n._("thread.firstVerdict.arithmeticAlone.otherLeft", v, { message: "That leaves about {left} of your {plan} for the rest of today, and {protein} of the {proteinTarget} g protein. On plan." }),
       otherOver: (v: Figures) => i18n._("thread.firstVerdict.arithmeticAlone.otherOver", v, { message: "That puts you about {over} over your {plan} for today, and {protein} of the {proteinTarget} g protein. Tomorrow is a fresh number." }),
     },
-    typed: (v: { kcal: string }) => i18n._("thread.firstVerdict.typed", v, { message: "Typed, not photographed — so the portions are my guess. Take {kcal} as rough; if you know the grams, say so and I'll fix it." }),
-    lowConfidence: (v: { kcal: string }) => i18n._("thread.firstVerdict.lowConfidence", v, { message: "Honest answer: I couldn't read that plate well. Take {kcal} as a rough guess and check the grams before you trust the total. A second angle next time helps." }),
+    typed: (v: { kcal: string }) => i18n._("thread.firstVerdict.typed", v, { message: "Typed, not photographed — so the portions are my guess. Call it about {kcal}; if you know the grams, say so and I'll fix it." }),
+    lowConfidence: (v: { kcal: string }) => i18n._("thread.firstVerdict.lowConfidence", v, { message: "Honest answer: I couldn't read that plate well. Call it about {kcal} and check the grams before you trust the total. A second angle next time helps." }),
     lowOverGain: (v: Figures) => i18n._("thread.firstVerdict.lowOverGain", v, { message: "About {over} over your {plan} today." }),
     lowOverOther: (v: Figures) => i18n._("thread.firstVerdict.lowOverOther", v, { message: "About {over} over your {plan} today. Tomorrow is a fresh number." }),
     lowLeftGain: (v: Figures) => i18n._("thread.firstVerdict.lowLeftGain", v, { message: "About {left} of your {plan} still to fill today." }),

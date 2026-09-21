@@ -55,6 +55,11 @@ msgstr "heute {over} über deinen {plan}, und {protein} von {proteinTarget} g Ei
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.running.aboutLeft"
+msgstr "Heute bleiben dir etwa {left} von deinen {plan}, {protein} von {proteinTarget} g Eiweiß."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowLeftOther"
 msgstr "Heute bleiben dir etwa {left} von deinen {plan}."
 
@@ -67,6 +72,11 @@ msgstr "Heute sind noch etwa {left} von deinen {plan} zu füllen, und {protein} 
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowLeftGain"
 msgstr "Heute noch etwa {left} von deinen {plan} zu füllen."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.running.aboutOver"
+msgstr "Heute etwa {over} über deinen {plan}, {protein} von {proteinTarget} g Eiweiß."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -156,7 +166,7 @@ msgstr "Gut. Ich bin im Chat, wann immer du willst — ein Foto oder ein Satz, b
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowConfidence"
-msgstr "Ehrliche Antwort: den Teller konnte ich nicht gut lesen. Nimm {kcal} als groben Schätzwert und prüf die Gramm, bevor du der Summe traust. Beim nächsten Mal hilft ein zweiter Winkel."
+msgstr "Ehrliche Antwort: den Teller konnte ich nicht gut lesen. Rechne mit etwa {kcal} und prüf die Gramm, bevor du der Summe traust. Beim nächsten Mal hilft ein zweiter Winkel."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -436,7 +446,7 @@ msgstr "Test läuft. Sieben Tage, danach {price}, wenn du nicht stoppst — ich 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
-msgstr "Getippt, nicht fotografiert — die Portionen sind also meine Schätzung. Nimm {kcal} als groben Wert; wenn du die Gramm kennst, sag es und ich korrigiere."
+msgstr "Getippt, nicht fotografiert — die Portionen sind also meine Schätzung. Rechne mit etwa {kcal}; wenn du die Gramm kennst, sag es und ich korrigiere."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

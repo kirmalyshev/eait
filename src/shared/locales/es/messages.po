@@ -55,6 +55,11 @@ msgstr "hoy {over} por encima de tus {plan}, y {protein} de los {proteinTarget} 
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.running.aboutLeft"
+msgstr "Hoy te quedan unas {left} de tus {plan}, {protein} de los {proteinTarget} g de proteína."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowLeftOther"
 msgstr "Hoy te quedan unas {left} de tus {plan}."
 
@@ -67,6 +72,11 @@ msgstr "Hoy quedan unas {left} de tus {plan} por llenar, y {protein} de los {pro
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowLeftGain"
 msgstr "Hoy quedan unas {left} de tus {plan} por llenar."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.running.aboutOver"
+msgstr "Hoy unas {over} por encima de tus {plan}, {protein} de los {proteinTarget} g de proteína."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -156,7 +166,7 @@ msgstr "Bien. Estoy en el chat cuando quieras — una foto o una frase, las dos 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowConfidence"
-msgstr "Respuesta honesta: ese plato no lo leí bien. Toma {kcal} como estimación aproximada y comprueba los gramos antes de fiarte del total. Un segundo ángulo ayuda la próxima vez."
+msgstr "Respuesta honesta: ese plato no lo leí bien. Cuenta unas {kcal} y comprueba los gramos antes de fiarte del total. Un segundo ángulo ayuda la próxima vez."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -436,7 +446,7 @@ msgstr "Prueba activada. Siete días, luego {price} salvo que la pares — te av
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
-msgstr "Escrito, no fotografiado — así que las porciones son mi estimación. Toma {kcal} como orden de magnitud; si sabes los gramos, dilo y lo corrijo."
+msgstr "Escrito, no fotografiado — así que las porciones son mi estimación. Cuenta unas {kcal}; si sabes los gramos, dilo y lo corrijo."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

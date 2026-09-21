@@ -55,6 +55,11 @@ msgstr "hôm nay vượt {over} so với {plan}, và {protein} trên {proteinTar
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.running.aboutLeft"
+msgstr "Hôm nay bạn còn khoảng {left} trên {plan}, {protein} trên {proteinTarget} g đạm."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowLeftOther"
 msgstr "Hôm nay bạn còn khoảng {left} trên {plan}."
 
@@ -67,6 +72,11 @@ msgstr "Hôm nay còn khoảng {left} trên {plan} cần nạp thêm, và {prote
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowLeftGain"
 msgstr "Hôm nay còn khoảng {left} trên {plan} cần nạp thêm."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.running.aboutOver"
+msgstr "Hôm nay vượt khoảng {over} so với {plan}, {protein} trên {proteinTarget} g đạm."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -156,7 +166,7 @@ msgstr "Tốt. Mình ở trong Chat bất cứ lúc nào — một tấm ảnh h
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowConfidence"
-msgstr "Nói thật: đĩa đó mình đọc không rõ. Cứ xem {kcal} là ước lượng thô và kiểm lại số gam trước khi tin vào tổng. Lần sau chụp thêm một góc nữa sẽ dễ hơn."
+msgstr "Nói thật: đĩa đó mình đọc không rõ. Cứ tính khoảng {kcal} và kiểm lại số gam trước khi tin vào tổng. Lần sau chụp thêm một góc nữa sẽ dễ hơn."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -436,7 +446,7 @@ msgstr "Đã bật tuần dùng thử. Bảy ngày, sau đó {price} trừ khi b
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
-msgstr "Bạn gõ chứ không chụp — nên khẩu phần là mình đoán. Cứ xem {kcal} là con số áng chừng; nếu bạn biết số gam thì nói, mình sửa."
+msgstr "Bạn gõ chứ không chụp — nên khẩu phần là mình đoán. Cứ tính khoảng {kcal}; nếu bạn biết số gam thì nói, mình sửa."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

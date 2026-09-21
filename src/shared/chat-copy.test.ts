@@ -32,9 +32,9 @@ describe("the thread in eight languages", () => {
   it("says the day's arithmetic in every language and on every branch", () => {
     for (const lang of LANGS) {
       const said: string[] = [
-        runningLine({ targets: TARGETS, eatenToday: EATEN }, lang),
-        runningLine({ targets: TARGETS, eatenToday: { kcal: 2100, protein_g: 120 } }, lang),
-        correctionLine({ targets: TARGETS, meal: { kcal: 520 }, eatenToday: EATEN }, lang),
+        runningLine({ targets: TARGETS, guessed: false, eatenToday: EATEN }, lang),
+        runningLine({ targets: TARGETS, guessed: false, eatenToday: { kcal: 2100, protein_g: 120 } }, lang),
+        correctionLine({ targets: TARGETS, guessed: false, meal: { kcal: 520 }, eatenToday: EATEN }, lang),
       ];
       for (const goal of ["gain", "lose", "maintain"] as const) {
         for (const via of ["photo", "text"] as const) {
@@ -59,11 +59,11 @@ describe("the thread in eight languages", () => {
   it("writes its figures in the reader's grouping, and rounds them", () => {
     // The thread's figures are estimates from a photo: whole numbers, in the reader's own
     // separators. 74.8 g of protein is a precision the analyzer does not have.
-    const en = runningLine({ targets: TARGETS, eatenToday: EATEN }, "en");
+    const en = runningLine({ targets: TARGETS, guessed: false, eatenToday: EATEN }, "en");
     expect(en).toContain("1,724");
     expect(en).toContain("75");
     expect(en).not.toContain("74.8");
-    expect(runningLine({ targets: TARGETS, eatenToday: EATEN }, "de")).toContain("1.724");
+    expect(runningLine({ targets: TARGETS, guessed: false, eatenToday: EATEN }, "de")).toContain("1.724");
   });
 
   it("says something DIFFERENT in each of the eight, rather than eight copies of a fallback", () => {
@@ -76,7 +76,7 @@ describe("the thread in eight languages", () => {
     for (const sample of [
       (l: (typeof LANGS)[number]) => scriptedLine("camera-closed", l, {}),
       (l: (typeof LANGS)[number]) => MEET_GABIE(l),
-      (l: (typeof LANGS)[number]) => runningLine({ targets: TARGETS, eatenToday: EATEN }, l),
+      (l: (typeof LANGS)[number]) => runningLine({ targets: TARGETS, guessed: false, eatenToday: EATEN }, l),
       (l: (typeof LANGS)[number]) => streamCopyFor(l).reading,
       (l: (typeof LANGS)[number]) => COACH_STARTERS(l)[0]!,
     ]) {

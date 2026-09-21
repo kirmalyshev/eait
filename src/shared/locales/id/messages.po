@@ -55,6 +55,11 @@ msgstr "hari ini {over} di atas {plan}, dan {protein} dari {proteinTarget} g pro
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.running.aboutLeft"
+msgstr "Hari ini kamu masih punya sekitar {left} dari {plan}, {protein} dari {proteinTarget} g protein."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowLeftOther"
 msgstr "Hari ini kamu masih punya sekitar {left} dari {plan}."
 
@@ -67,6 +72,11 @@ msgstr "Hari ini masih ada sekitar {left} dari {plan} yang perlu diisi, dan {pro
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowLeftGain"
 msgstr "Hari ini masih sekitar {left} dari {plan} yang perlu diisi."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.running.aboutOver"
+msgstr "Hari ini sekitar {over} di atas {plan}, {protein} dari {proteinTarget} g protein."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -156,7 +166,7 @@ msgstr "Bagus. Aku ada di Chat kapan saja — satu foto atau satu kalimat, dua-d
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowConfidence"
-msgstr "Jawaban jujur: aku tidak bisa membaca piring itu dengan jelas. Anggap {kcal} sebagai perkiraan kasar dan periksa gramnya sebelum percaya pada totalnya. Lain kali satu sudut tambahan sangat membantu."
+msgstr "Jawaban jujur: aku tidak bisa membaca piring itu dengan jelas. Anggap sekitar {kcal} dan periksa gramnya sebelum percaya pada totalnya. Lain kali satu sudut tambahan sangat membantu."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -436,7 +446,7 @@ msgstr "Uji coba jalan. Tujuh hari, lalu {price} kecuali kamu hentikan — aku i
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
-msgstr "Diketik, bukan difoto — jadi porsinya tebakanku. Anggap {kcal} sebagai angka kasar; kalau kamu tahu gramnya, bilang saja dan aku perbaiki."
+msgstr "Diketik, bukan difoto — jadi porsinya tebakanku. Anggap sekitar {kcal}; kalau kamu tahu gramnya, bilang saja dan aku perbaiki."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

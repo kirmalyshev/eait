@@ -79,7 +79,13 @@ async function dayStanding(
   userId: string,
   meal: MealRecord,
   totals: DailyTotals,
-): Promise<{ targets: FoodTargets; eatenToday: { kcal: number; protein_g: number }; lang: Lang } | null> {
+): Promise<{
+  targets: FoodTargets;
+  eatenToday: { kcal: number; protein_g: number };
+  /** #28: the DAY's, so the second guessed meal is hedged like the first. */
+  guessed: boolean;
+  lang: Lang;
+} | null> {
   if (meal.date !== localDate(deps.config.timezone)) return null;
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
@@ -88,6 +94,7 @@ async function dayStanding(
   return {
     targets: explainTargets(profile).targets,
     eatenToday: { kcal: totals.kcal, protein_g: totals.protein_g },
+    guessed: totals.guessed,
     lang: profile.lang,
   };
 }

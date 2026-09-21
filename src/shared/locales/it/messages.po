@@ -55,6 +55,11 @@ msgstr "oggi {over} sopra le tue {plan}, e {protein} dei {proteinTarget} g di pr
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.running.aboutLeft"
+msgstr "Oggi ti restano circa {left} delle tue {plan}, {protein} dei {proteinTarget} g di proteine."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowLeftOther"
 msgstr "Oggi ti restano circa {left} delle tue {plan}."
 
@@ -67,6 +72,11 @@ msgstr "Oggi restano circa {left} delle tue {plan} da riempire, e {protein} dei 
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowLeftGain"
 msgstr "Oggi restano circa {left} delle tue {plan} da riempire."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.running.aboutOver"
+msgstr "Oggi circa {over} sopra le tue {plan}, {protein} dei {proteinTarget} g di proteine."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -156,7 +166,7 @@ msgstr "Bene. Sono in Chat quando vuoi — una foto o una frase, entrambe regist
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowConfidence"
-msgstr "Risposta onesta: quel piatto non l'ho letto bene. Prendi {kcal} come stima grezza e controlla i grammi prima di fidarti del totale. La prossima volta una seconda angolazione aiuta."
+msgstr "Risposta onesta: quel piatto non l'ho letto bene. Conta circa {kcal} e controlla i grammi prima di fidarti del totale. La prossima volta una seconda angolazione aiuta."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -436,7 +446,7 @@ msgstr "Prova avviata. Sette giorni, poi {price} se non la fermi — te lo ricor
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
-msgstr "Scritto, non fotografato — quindi le porzioni sono una mia stima. Prendi {kcal} come ordine di grandezza; se sai i grammi, dimmelo e correggo."
+msgstr "Scritto, non fotografato — quindi le porzioni sono una mia stima. Conta circa {kcal}; se sai i grammi, dimmelo e correggo."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

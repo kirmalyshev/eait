@@ -55,6 +55,11 @@ msgstr "{over} au-dessus de tes {plan} aujourd'hui, et {protein} des {proteinTar
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.running.aboutLeft"
+msgstr "Il te reste environ {left} sur tes {plan} aujourd'hui, {protein} des {proteinTarget} g de protéines."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowLeftOther"
 msgstr "Il te reste environ {left} sur tes {plan} aujourd'hui."
 
@@ -67,6 +72,11 @@ msgstr "Il te reste environ {left} sur tes {plan} à remplir aujourd'hui, et {pr
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowLeftGain"
 msgstr "Il te reste environ {left} sur tes {plan} à remplir aujourd'hui."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.running.aboutOver"
+msgstr "Environ {over} au-dessus de tes {plan} aujourd'hui, {protein} des {proteinTarget} g de protéines."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -156,7 +166,7 @@ msgstr "Bien. Je suis dans le chat quand tu veux — une photo ou une phrase, le
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowConfidence"
-msgstr "Réponse honnête : je n'ai pas bien lu cette assiette. Prends {kcal} pour une estimation grossière et vérifie les grammes avant de faire confiance au total. Un deuxième angle aide, la prochaine fois."
+msgstr "Réponse honnête : je n'ai pas bien lu cette assiette. Compte environ {kcal} et vérifie les grammes avant de faire confiance au total. Un deuxième angle aide, la prochaine fois."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -436,7 +446,7 @@ msgstr "L'essai est lancé. Sept jours, puis {price} sauf si tu l'arrêtes — j
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
-msgstr "Écrit, pas photographié — les portions sont donc mon estimation. Prends {kcal} pour un ordre de grandeur ; si tu connais les grammes, dis-le et je corrige."
+msgstr "Écrit, pas photographié — les portions sont donc mon estimation. Compte environ {kcal} ; si tu connais les grammes, dis-le et je corrige."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

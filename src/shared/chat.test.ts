@@ -86,26 +86,50 @@ describe("the first verdict", () => {
   });
 
   it("reads a correction back in the design's words", () => {
-    expect(correctionLine({ targets, meal: { kcal: 306 }, eatenToday: { kcal: 306, protein_g: 19 } }, "en"))
+    expect(correctionLine({ targets, guessed: false, meal: { kcal: 306 }, eatenToday: { kcal: 306, protein_g: 19 } }, "en"))
       .toBe("Updated — 306 kcal. 1,148 of your 1,454 left today, 19 of the 110 g protein.");
   });
 
   it("says where the day stands in ONE sentence, whatever put the meal there (#306)", () => {
     // The clause a correction already ended with, on its own. A log had nothing after its card, so
     // one meal in the thread was followed by the day's arithmetic and the next by silence.
-    expect(runningLine({ targets, eatenToday: { kcal: 306, protein_g: 19 } }, "en"))
+    expect(runningLine({ targets, guessed: false, eatenToday: { kcal: 306, protein_g: 19 } }, "en"))
       .toBe("1,148 of your 1,454 left today, 19 of the 110 g protein.");
     // And a correction is that sentence with the changed number in front of it — one arithmetic
     // clause, one place to change it, so the two lines can never disagree about the same day.
-    expect(correctionLine({ targets, meal: { kcal: 306 }, eatenToday: { kcal: 306, protein_g: 19 } }, "en"))
-      .toBe(`Updated — 306 kcal. ${runningLine({ targets, eatenToday: { kcal: 306, protein_g: 19 } }, "en")}`);
+    expect(correctionLine({ targets, guessed: false, meal: { kcal: 306 }, eatenToday: { kcal: 306, protein_g: 19 } }, "en"))
+      .toBe(`Updated — 306 kcal. ${runningLine({ targets, guessed: false, eatenToday: { kcal: 306, protein_g: 19 } }, "en")}`);
+  });
+
+  it("hedges the running line on every later meal of a guessed day, not only the first (#28)", () => {
+    // `firstVerdictLines` has hedged since the grammar landed; this line is what every LATER meal
+    // gets, and while it stayed exact the same person read "about 970" under their first plate
+    // and "1,148" under their third. The figure OPENS the sentence, which is why there is a
+    // second template rather than a hedge spliced into `{left}`.
+    expect(runningLine({ targets, guessed: true, eatenToday: { kcal: 306, protein_g: 19 } }, "en"))
+      .toBe("About 1,150 of your 1,454 left today, 19 of the 110 g protein.");
+    expect(runningLine({ targets, guessed: true, eatenToday: { kcal: 1600, protein_g: 38 } }, "en"))
+      .toBe("About 150 over your 1,454 today, 38 of the 110 g protein.");
+    // The PLAN and the protein keep every digit: one is arithmetic over answers the user gave,
+    // and ten grams is the wrong step for a figure that runs from 20 to 150.
+    expect(runningLine({ targets, guessed: true, eatenToday: { kcal: 306, protein_g: 19 } }, "en"))
+      .toContain("19 of the 110 g protein");
+  });
+
+  it("carries the day's guess into a correction, and settles with it", () => {
+    // The MEAL's kcal is exact — the user has just supplied it — and the clause behind it is the
+    // day, which is only exact once nothing in it is a guess any more.
+    expect(correctionLine({ targets, guessed: true, meal: { kcal: 306 }, eatenToday: { kcal: 306, protein_g: 19 } }, "en"))
+      .toBe("Updated — 306 kcal. About 1,150 of your 1,454 left today, 19 of the 110 g protein.");
+    expect(correctionLine({ targets, guessed: false, meal: { kcal: 306 }, eatenToday: { kcal: 306, protein_g: 19 } }, "en"))
+      .toBe("Updated — 306 kcal. 1,148 of your 1,454 left today, 19 of the 110 g protein.");
   });
 
   it("says the overshoot as an overshoot when the day is over, as the first verdict does", () => {
     // The same arithmetic as the first verdict, worded the same way: a number and a direction.
-    expect(runningLine({ targets, eatenToday: { kcal: 1600, protein_g: 38 } }, "en"))
+    expect(runningLine({ targets, guessed: false, eatenToday: { kcal: 1600, protein_g: 38 } }, "en"))
       .toBe("146 over your 1,454 today, 38 of the 110 g protein.");
-    expect(correctionLine({ targets, meal: { kcal: 306 }, eatenToday: { kcal: 1600, protein_g: 38 } }, "en"))
+    expect(correctionLine({ targets, guessed: false, meal: { kcal: 306 }, eatenToday: { kcal: 1600, protein_g: 38 } }, "en"))
       .toBe("Updated — 306 kcal. 146 over your 1,454 today, 38 of the 110 g protein.");
   });
 
@@ -121,8 +145,10 @@ describe("the first verdict", () => {
       goal: "lose", targets, meal: { ...meal, kcal: 480, confidence: "low" }, eatenToday: { kcal: 480, protein_g: 21 }, via: "photo", verdicts: {},
     }, "en");
     // #28: the flag is WORDED ONCE and the figures carry the rest. 480 is already on the step, so
-    // a guess prints it unchanged — and the day arithmetic computed from it is a guess too.
-    expect(lines[0]).toBe("Honest answer: I couldn't read that plate well. Take 480 as a rough guess and check the grams before you trust the total. A second angle next time helps.");
+    // a guess prints it unchanged — and the day arithmetic computed from it is a guess too. The
+    // hedge sits IMMEDIATELY IN FRONT OF THE FIGURE: "Take 480 as a rough guess" put it behind,
+    // which reads as an apology for a number already stated.
+    expect(lines[0]).toBe("Honest answer: I couldn't read that plate well. Call it about 480 and check the grams before you trust the total. A second angle next time helps.");
     expect(lines[1]).toBe("About 970 of your 1,454 left today.");
     expect(lines).toHaveLength(3);
     // Rule 1 holds on this branch too: a gain plan is filled, not left.
@@ -148,7 +174,7 @@ describe("the first verdict", () => {
     const lines = firstVerdictLines({
       goal: "lose", targets, meal: { ...meal, kcal: 540 }, eatenToday: { kcal: 540, protein_g: 30 }, via: "text", verdicts: {},
     }, "en");
-    expect(lines[0]).toBe("Typed, not photographed — so the portions are my guess. Take 540 as rough; if you know the grams, say so and I'll fix it.");
+    expect(lines[0]).toBe("Typed, not photographed — so the portions are my guess. Call it about 540; if you know the grams, say so and I'll fix it.");
     expect(lines[1]).toBe("That leaves about 910 of your 1,454 for the rest of today, and 30 of the 110 g protein. On plan.");
     const gain = firstVerdictLines({
       goal: "gain", targets: { kcal: 2900, protein_g: 150 }, meal: { ...meal, kcal: 612 }, eatenToday: { kcal: 612, protein_g: 38 }, via: "text", verdicts: {},

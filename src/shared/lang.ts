@@ -133,6 +133,16 @@ export const wholeNumbers = (lang: Lang) => {
 const GUESS_STEP = 10;
 
 /**
+ * A guessed figure's own value, rounded to the step — the arithmetic half of `guessedNumbers`.
+ *
+ * SEPARATE FROM THE FORMATTER because `dayBudget` has to subtract AFTER rounding, not before: the
+ * headline and the line under it are one subtraction apart, and rounding each of them at format
+ * time makes "about 1 820 eaten" and "about 280 left" add up to something that is not the plan.
+ * budget.ts is arithmetic, this file is words, and this is the one value both need.
+ */
+export const toGuessStep = (x: number): number => Math.round(x / GUESS_STEP) * GUESS_STEP;
+
+/**
  * A figure whose PRECISION SAYS IT IS A GUESS — "about 600", where a measured one reads "410".
  *
  * THE THIRD HELPER, and the rule it encodes is #28's: one number per thing, never a number and
@@ -151,7 +161,41 @@ const GUESS_STEP = 10;
  */
 export const guessedNumbers = (lang: Lang) => {
   const format = wholeNumbers(lang);
-  return (x: number): string => format(Math.round(x / GUESS_STEP) * GUESS_STEP);
+  return (x: number): string => format(toGuessStep(x));
+};
+
+/**
+ * The word this language puts IMMEDIATELY IN FRONT OF a guessed figure — "about 600".
+ *
+ * #28 rule 2, and the position is the rule rather than a preference: the drawn version sets this
+ * word in amber, weight 700, directly before the number and outside the mono span, so a reader
+ * meets the hedge before the digits instead of after them. "Take 480 as a rough guess" put it
+ * afterwards, which reads as an apology for a number already stated.
+ *
+ * SPANISH IS THE ONE TO WATCH. `unas` agrees in gender with what it counts, and every figure this
+ * hedges is kcal — feminine, as the rest of the Spanish copy already writes it. A figure in some
+ * other unit would want `aproximadamente`, which is the neutral form, so a second caller here is a
+ * reason to check rather than to copy.
+ */
+export const ABOUT: Record<Lang, string> = {
+  en: "about", fr: "environ", de: "etwa", it: "circa",
+  es: "unas", vi: "khoảng", id: "sekitar", ru: "примерно",
+};
+
+/**
+ * A guessed figure WITH its hedge — "about 600", in one string.
+ *
+ * For the surfaces that write plain text and cannot style a word: Telegram, the 20:30 push, and
+ * any sentence slot that takes a figure rather than a clause. A surface that draws nodes takes
+ * `ABOUT` and `guessedNumbers` apart instead, because the hedge is amber and the figure is not.
+ *
+ * MID-SENTENCE ONLY. Nothing here capitalises, so a template whose FIRST character is this figure
+ * needs a sentence of its own in the catalog — `thread.running.aboutLeft` is that pair, and the
+ * reason it exists rather than a `.replace()` over the exact one.
+ */
+export const aboutFigure = (lang: Lang) => {
+  const guessed = guessedNumbers(lang);
+  return (x: number): string => `${ABOUT[lang]} ${guessed(x)}`;
 };
 
 /**

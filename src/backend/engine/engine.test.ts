@@ -1385,6 +1385,7 @@ describe("the thread", () => {
     expect(text(t.at(-1)!)).toBe(runningLine({
       targets: explainTargets(profile).targets,
       eatenToday: { kcal: second.totals.kcal, protein_g: second.totals.protein_g },
+      guessed: second.totals.guessed,
     }, "en"));
 
     // A confirmed text meal is a landed meal too, and reads the same.
@@ -1397,6 +1398,9 @@ describe("the thread", () => {
     expect(text(after.at(-1)!)).toBe(runningLine({
       targets: explainTargets(profile).targets,
       eatenToday: { kcal: third.totals.kcal, protein_g: third.totals.protein_g },
+      // A confirmed TYPED meal is a guess by construction (#28), so the day it lands in is one —
+      // and this assertion only holds because `afterLog` reads the day rather than the meal.
+      guessed: third.totals.guessed,
     }, "en"));
   });
 
@@ -1694,6 +1698,27 @@ describe("diary", () => {
     const b = await onboard();
     await logPhotoMeal(deps, a, photo());
     expect((await day(deps, b))!.meals).toHaveLength(0);
+  });
+
+  it("marks the day's totals as a guess when one meal in it is, and unmarks it when answered (#28)", async () => {
+    // ON THE TOTALS, because four surfaces read it — the thread's running line, the web diary's
+    // headline, Telegram's /today and the 20:30 push — and `sumTotals` is the only producer of a
+    // `DailyTotals`, so this is the only place they can disagree.
+    const userId = await onboard();
+    const sure = await logPhotoMeal(deps, userId, photo());
+    if (sure.kind !== "logged") throw new Error("expected logged");
+    expect((await day(deps, userId))!.totals.guessed).toBe(false);
+
+    const template = (await day(deps, userId))!.meals[0]!;
+    const rough = { ...template, id: crypto.randomUUID(), confidence: "low", corrected: false };
+    await store.insertMeal(rough);
+    expect((await day(deps, userId))!.totals.guessed).toBe(true);
+
+    // The answer settles it: `editMeal` writes `corrected` on every path, and a plate whose grams
+    // this person has just typed is not a guess however badly the analyzer read it.
+    const edited = await editMeal(deps, userId, rough.id, { kcal: 410 });
+    expect(edited.kind).toBe("updated");
+    expect((await day(deps, userId))!.totals.guessed).toBe(false);
   });
 
   it("returns per-day sums for the week", async () => {

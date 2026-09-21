@@ -55,6 +55,11 @@ msgstr "{over} over your {plan} today, and {protein} of the {proteinTarget} g pr
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.running.aboutLeft"
+msgstr "About {left} of your {plan} left today, {protein} of the {proteinTarget} g protein."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowLeftOther"
 msgstr "About {left} of your {plan} left today."
 
@@ -67,6 +72,11 @@ msgstr "About {left} of your {plan} still to fill today, and {protein} of the {p
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowLeftGain"
 msgstr "About {left} of your {plan} still to fill today."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.running.aboutOver"
+msgstr "About {over} over your {plan} today, {protein} of the {proteinTarget} g protein."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -156,7 +166,7 @@ msgstr "Good. I'm here in Chat whenever — a photo or a sentence both log a mea
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.lowConfidence"
-msgstr "Honest answer: I couldn't read that plate well. Take {kcal} as a rough guess and check the grams before you trust the total. A second angle next time helps."
+msgstr "Honest answer: I couldn't read that plate well. Call it about {kcal} and check the grams before you trust the total. A second angle next time helps."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -436,7 +446,7 @@ msgstr "Trial's on. Seven days, then {price} unless you stop it — I'll remind 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
-msgstr "Typed, not photographed — so the portions are my guess. Take {kcal} as rough; if you know the grams, say so and I'll fix it."
+msgstr "Typed, not photographed — so the portions are my guess. Call it about {kcal}; if you know the grams, say so and I'll fix it."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

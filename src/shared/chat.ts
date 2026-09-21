@@ -208,12 +208,20 @@ export function cleanSuggestions(raw: unknown): string[] {
  * Over target it says the overshoot, in the first verdict's words — never a signed remainder (#663).
  */
 export function runningLine(
-  i: { targets: FoodTargets; eatenToday: { kcal: number; protein_g: number } },
+  i: { targets: FoodTargets; eatenToday: { kcal: number; protein_g: number }; guessed: boolean },
   lang: Lang,
 ): string {
   const copy = threadCopyFor(lang).running;
   const left = i.targets.kcal - i.eatenToday.kcal;
-  return (left >= 0 ? copy.left : copy.over)(figures(i, lang));
+  // #28: A DAY WITH A GUESS IN IT IS A GUESS, on the second guessed meal as much as on the first.
+  // `firstVerdictLines` has said this since the grammar landed; this line is what every LATER meal
+  // gets, and while it stayed exact the same person read "about 950" under their first plate and
+  // "947" under their third. A SECOND TEMPLATE rather than the hedge spliced into `{left}`: that
+  // figure is the first thing in the sentence, so the hedge is the word that has to be capitalised.
+  const say = i.guessed
+    ? (left >= 0 ? copy.aboutLeft : copy.aboutOver)
+    : (left >= 0 ? copy.left : copy.over);
+  return say(figures(i, lang, i.guessed));
 }
 
 /**
@@ -252,7 +260,13 @@ function figures(
  * `runningLine`, shared with every landed meal so the two can never disagree about one day.
  */
 export function correctionLine(
-  i: { targets: FoodTargets; meal: { kcal: number }; eatenToday: { kcal: number; protein_g: number } },
+  i: {
+    targets: FoodTargets;
+    meal: { kcal: number };
+    eatenToday: { kcal: number; protein_g: number };
+    /** The DAY's, not this meal's: answering settles the meal, and any other guess stays one. */
+    guessed: boolean;
+  },
   lang: Lang,
 ): string {
   return threadCopyFor(lang).correction({
