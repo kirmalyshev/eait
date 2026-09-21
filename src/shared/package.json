@@ -10,6 +10,7 @@
     "./results": "./results.ts",
     "./contract": "./contract.ts",
     "./palette": "./palette.ts",
+    "./design": "./design.ts",
     "./mascot": "./mascot.ts"
   },
   "scripts": {
