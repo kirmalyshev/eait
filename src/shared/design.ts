@@ -527,14 +527,28 @@ nav { display: flex; gap: .5rem; align-items: center; margin-bottom: ${px(GEOMET
   ${type(TYPE.secondary)} cursor: pointer; }
 
 /* ── Entry ────────────────────────────────────────────────────────────────────────────────── */
-/* The largest single object in the product, and the only screen with no chrome above it. */
-.entry { background: var(--surface); border-radius: ${px(GEOMETRY.radiusEntry)}; padding: 26px 22px;
-  margin-top: 8vh; position: relative; overflow: hidden; }
-.entry .wash { height: 120px; }
-.entry-brand { ${type(TYPE.headline)} position: relative; margin: 0 0 6px; }
-.entry-lede { ${type(TYPE.body)} position: relative; margin: 0 0 20px; }
-.srow { display: flex; align-items: flex-start; gap: 12px; padding: 11px 0;
-  border-top: 1px solid var(--line); ${type(TYPE.body)} color: var(--t2); }
+/* THE ARRIVAL IS NOT A CARD. The wash goes on the SCREEN and the name and the promise ride on it
+   in ink; what comes after sits on the ground below, where it can be read. Put inside a surface
+   card the gradient ends on the ground colour while the card behind it is lighter, so it cuts a
+   hard line across the middle of the card — the same mistake the day carried until it moved. */
+.entry { position: relative; padding-top: 26px; }
+.entry .wash { height: 235px; }
+.entry-brand { font: 800 19px/1 var(--ui); letter-spacing: -.02em; position: relative; z-index: 1;
+  color: var(--ink); margin: 0 0 26px; }
+.entry-say { ${type(TYPE.headline)} position: relative; z-index: 1; color: var(--ink);
+  margin: 0 0 13px; white-space: pre-line; }
+.entry-lede { ${type(TYPE.body)} position: relative; z-index: 1; color: var(--ink);
+  font-weight: 600; opacity: .82; margin: 0 0 26px; }
+/* What happens, in order, on the ground — off the wash, because every word on a wash is
+   near-black and a washed region holds a title and no more. */
+/* ABOVE THE WASH. The wash is a positioned element, so anything after it that is NOT positioned
+   paints underneath — which swallowed the first step whole and left a list starting at 2. */
+.entry-steps { position: relative; z-index: 1;
+  background: var(--surface); border-radius: ${px(GEOMETRY.radiusCard)};
+  padding: 2px ${px(GEOMETRY.gutter)}; margin-bottom: 18px; }
+.entry .btn { position: relative; z-index: 1; }
+.srow { display: flex; align-items: center; gap: 13px; padding: 12px 0;
+  border-top: 1px solid var(--line); ${type(TYPE.body)} font-weight: 600; color: var(--t1); }
 .srow:first-child { border-top: 0; }
 .sn { width: 22px; height: 22px; border-radius: 11px; background: var(--raised); color: var(--t2);
   font-family: var(--mono); font-size: 11px; font-weight: 700; display: flex;

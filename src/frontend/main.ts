@@ -192,21 +192,26 @@ function chrome(active: string): HTMLElement {
  */
 function entryScreen(): HTMLElement {
   const box = el("section", "entry");
+  // The wash is on the SCREEN and the name rides on it, which is what makes it read as a wash
+  // rather than as a green panel: its last stop is the ground, so it has to END on the ground.
   box.append(el("div", "wash"));
-  box.append(el("h1", "entry-brand ink", "eait"));
-  box.append(el("p", "entry-lede ink", COPY.signedOutLead));
-  // WHAT HAPPENS, BEFORE ANYTHING IS ASKED FOR. The design's arrival says the three steps in
-  // order rather than selling: nothing here is paid for until there is something on the screen.
+  box.append(el("div", "entry-brand", "eait"));
+  box.append(el("h1", "entry-say", COPY.entrySay));
+  box.append(el("p", "entry-lede", COPY.signedOutLead));
+  // WHAT HAPPENS, BEFORE ANYTHING IS ASKED FOR — on the ground, off the wash. The design's
+  // arrival states the steps rather than selling: nothing is paid for until there is something
+  // on the screen.
+  const steps = el("div", "entry-steps");
   COPY.entrySteps.forEach((step, i) => {
     const row = el("div", "srow");
     row.append(el("span", "sn", String(i + 1)), el("span", "", step));
-    box.append(row);
+    steps.append(row);
   });
+  box.append(steps);
   // A LINK, NOT A FETCH. `/start` is a server-rendered flow that ends by setting the session
   // cookie, and it is the only thing on this origin that can authenticate anybody.
   const a = el("a", "btn wide", COPY.signIn) as HTMLAnchorElement;
   a.href = "/start";
-  a.style.marginTop = "18px";
   box.append(a);
   return box;
 }

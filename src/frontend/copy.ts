@@ -117,7 +117,8 @@ export interface WebCopy {
   macroProtein: string;
   macroFat: string;
   macroCarbs: string;
-  /** Entry: what happens, in order, before anything is asked for. */
+  /** Entry: the headline ON the wash, and what happens in order below it. */
+  entrySay: string;
   entrySteps: readonly [string, string, string];
   /** Keyed the way `refusalFrom` names a body, plus this client's own transport states. */
   refusals: Record<string, string>;
@@ -209,6 +210,7 @@ const EN: WebCopy = {
   macroProtein: "Protein",
   macroFat: "Fat",
   macroCarbs: "Carbs",
+  entrySay: "Eight questions,\nthen a plan.",
   entrySteps: ["Answer eight things", "See the plan and the arithmetic behind it", "Photograph a meal, and it starts rebuilding"],
   refusals: {
     "subscription-required": "The analyses this account came with are used up. Subscribe in the eait app to carry on.",
@@ -290,6 +292,7 @@ const FR: WebCopy = {
   macroProtein: "Protéines",
   macroFat: "Lipides",
   macroCarbs: "Glucides",
+  entrySay: "Huit questions,\npuis un plan.",
   entrySteps: ["Réponds à huit questions", "Vois le plan et le calcul qui le produit", "Photographie un repas, et il se reconstruit"],
   refusals: {
     "subscription-required": "Les analyses fournies avec ce compte sont épuisées. Abonne-toi dans l'appli eait pour continuer.",
@@ -371,6 +374,7 @@ const DE: WebCopy = {
   macroProtein: "Eiweiß",
   macroFat: "Fett",
   macroCarbs: "Kohlenhydrate",
+  entrySay: "Acht Fragen,\ndann ein Plan.",
   entrySteps: ["Acht Fragen beantworten", "Den Plan sehen und die Rechnung dahinter", "Eine Mahlzeit fotografieren, und er baut sich neu"],
   refusals: {
     "subscription-required": "Die Analysen, die zu diesem Konto gehörten, sind aufgebraucht. Schließ in der eait-App ein Abo ab, um weiterzumachen.",
@@ -452,6 +456,7 @@ const IT: WebCopy = {
   macroProtein: "Proteine",
   macroFat: "Grassi",
   macroCarbs: "Carboidrati",
+  entrySay: "Otto domande,\npoi un piano.",
   entrySteps: ["Rispondi a otto domande", "Vedi il piano e i conti dietro", "Fotografa un pasto, e si ricostruisce"],
   refusals: {
     "subscription-required": "Le analisi incluse con questo account sono finite. Abbonati nell'app eait per continuare.",
@@ -533,6 +538,7 @@ const ES: WebCopy = {
   macroProtein: "Proteína",
   macroFat: "Grasa",
   macroCarbs: "Carbohidratos",
+  entrySay: "Ocho preguntas,\ny luego un plan.",
   entrySteps: ["Responde ocho preguntas", "Mira el plan y las cuentas detrás", "Fotografía una comida, y se reconstruye"],
   refusals: {
     "subscription-required": "Los análisis que traía esta cuenta se han agotado. Suscríbete en la app de eait para seguir.",
@@ -614,6 +620,7 @@ const VI: WebCopy = {
   macroProtein: "Đạm",
   macroFat: "Chất béo",
   macroCarbs: "Tinh bột",
+  entrySay: "T\u00e1m c\u00e2u h\u1ecfi,\nr\u1ed3i m\u1ed9t k\u1ebf ho\u1ea1ch.",
   entrySteps: ["Trả lời tám câu hỏi", "Xem kế hoạch và phép tính đằng sau", "Chụp một bữa ăn, và nó bắt đầu dựng lại"],
   refusals: {
     "subscription-required": "Số lượt phân tích đi kèm tài khoản này đã dùng hết. Đăng ký trong ứng dụng eait để tiếp tục.",
@@ -695,6 +702,7 @@ const ID: WebCopy = {
   macroProtein: "Protein",
   macroFat: "Lemak",
   macroCarbs: "Karbohidrat",
+  entrySay: "Delapan pertanyaan,\nlalu sebuah rencana.",
   entrySteps: ["Jawab delapan pertanyaan", "Lihat rencananya dan hitungan di baliknya", "Foto satu makanan, dan ia mulai menyusun ulang"],
   refusals: {
     "subscription-required": "Jatah analisis akun ini sudah habis. Berlangganan di aplikasi eait untuk melanjutkan.",
@@ -776,6 +784,7 @@ const RU: WebCopy = {
   macroProtein: "Белки",
   macroFat: "Жиры",
   macroCarbs: "Углеводы",
+  entrySay: "\u0412\u043e\u0441\u0435\u043c\u044c \u0432\u043e\u043f\u0440\u043e\u0441\u043e\u0432 \u2014\n\u0438 \u043f\u043b\u0430\u043d.",
   entrySteps: ["Ответь на восемь вопросов", "Посмотри план и расчёт за ним", "Сфотографируй еду, и он начнёт перестраиваться"],
   refusals: {
     "subscription-required": "Разборы, которые шли с этим аккаунтом, закончились. Оформи подписку в приложении eait, чтобы продолжить.",
