@@ -15,7 +15,7 @@ import { afterAll, describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { COLOR, TOKEN_HEXES } from "../design.ts";
+import { COLOR, TOKEN_HEXES } from "../../shared/design.ts";
 import { BUNDLE_PATH, HEALTH_PATH, SHELL_PATH, createWebApp } from "./index.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "eait-web-"));
@@ -111,7 +111,7 @@ describe("the design system owns every colour on the page", () => {
       .filter((rule) => rule.includes(`var(--${hex})`))
       // The selector, with this file's own comments stripped off the front of it.
       .map((rule) => rule.split("{")[0]!.replace(/\/\*[\s\S]*?\*\//g, "").trim().replace(/\s+/g, " "));
-    expect(rulesUsing("amber")).toEqual([".abt"]);
+    expect(rulesUsing("amber")).toEqual([".abt", ".lab.amber"]);
     expect(rulesUsing("blue")).toEqual([".sl.floor"]);
   });
 

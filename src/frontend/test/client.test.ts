@@ -76,6 +76,9 @@ describe("the client speaks the contract rather than a copy of it", () => {
 });
 
 describe("one module owns every colour", () => {
+  // The SYSTEM's own rules — the token shapes, the selector discipline, the component names —
+  // are `src/shared/design.test.ts`, beside the module. What is here is the CLIENT's side of the
+  // bargain: that this workspace renders from it and holds no colour of its own.
   it("leaves no raw hex anywhere else in this workspace", () => {
     // The companion to the shell's own check in `server/index.test.ts`: that one reads the page,
     // this one reads the SOURCE, so a hex written into a node's style — which would never reach
@@ -90,22 +93,6 @@ describe("one module owns every colour", () => {
     }
   });
 
-  it("names its components the way the design names them", () => {
-    // A component that exists in both places has ONE name, so a screen drawn against the spec and
-    // a screen drawn against this client are the same screen. These are the ones this application
-    // has an element for; the rail, the table, option rows and the onboarding bar are named there
-    // and drawn nowhere here, and a style with no element is decoration.
-    const css = source("design.ts");
-    const main = source("main.ts");
-    for (const name of ["card", "wash", "ink", "gauge", "gnum", "big", "stat", "sl", "lab",
-                        "mono", "ts", "abt", "num", "rowsel", "btn", "btn2", "bub", "them", "me",
-                        "comp", "send", "nav"]) {
-      expect(`${name} styled: ${css.includes(`.${name}`)}`).toBe(`${name} styled: true`);
-    }
-    // And the two the number grammar depends on are actually applied, not merely declared.
-    expect(main).toContain('el("span", "abt"');
-    expect(main).toContain('el("span", "mono"');
-  });
 });
 
 describe("the pages that are one template literal contain no backtick", () => {
@@ -119,6 +106,11 @@ describe("the pages that are one template literal contain no backtick", () => {
   const enclosed: Array<[string, string, RegExp]> = [
     ["backend/api/admin.page.ts", "adminPage", /=> `([\s\S]*)`;\s*$/],
     ["frontend/server/index.ts", "shell", /return `<!doctype html>([\s\S]*?)`;\n}/],
+    // A FIFTH TIME, caught by this rule the day the file was written: the stylesheet is one
+    // literal too, and a CSS comment written in the house style — which quotes a selector in
+    // backticks — ended it. The error lands in TypeScript, a hundred lines away, as a property
+    // that does not exist on a string.
+    ["shared/design.ts", "stylesheet", /export const STYLESHEET = `([\s\S]*)`;\s*$/],
   ];
 
   for (const [file, what, re] of enclosed) {

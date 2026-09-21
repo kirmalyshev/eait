@@ -23,7 +23,7 @@
 // image does.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
-import { STYLESHEET } from "../design.ts";
+import { STYLESHEET } from "../../shared/design.ts";
 
 /** Where `bun run build` in this workspace puts the bundle. The only default; tests pass their own. */
 export const DEFAULT_BUNDLE_PATH = new URL("../dist/main.js", import.meta.url);
@@ -47,7 +47,10 @@ const notFound = () => new Response(JSON.stringify({ error: "not found" }), {
  * a separate request carrying the same nonce. The one inline `<style>` carries it too, so the
  * policy never needs `'unsafe-inline'` for either.
  *
- * THE STYLESHEET IS `design.ts`, NOT THIS FILE. It is still ONE stylesheet under the nonce — that
+ * THE STYLESHEET IS `shared/design.ts`, NOT THIS FILE — and not this WORKSPACE, because the
+ * design system is what both products build on (#28) and styling that lives in one client is that
+ * client's CSS rather than a system. Taken by relative path, like `budget.ts` and `lang.ts`: the
+ * package name needs a `node_modules` this image does not build. It is still ONE stylesheet under the nonce — that
  * rule is about how many documents the browser has to trust, and it is unchanged. What moved is
  * where the values live: eleven hexes used to sit inline here, and a colour that means one thing
  * ("amber is the guess and nothing else") cannot be enforced from eleven places. A test below

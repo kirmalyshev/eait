@@ -32,6 +32,7 @@ export * from "./claims.ts";
 export * from "./stream.ts";
 export * from "./typing.ts";
 export * from "./budget.ts";
+export * from "./design.ts";
 export * from "./outbox.ts";
 // THE DESIGN SYSTEM (#28). Exported from the barrel AND available as `@eait/shared/design`: the
 // subpath is for the two readers that must not pull the barrel in — `app.config.ts`, which runs

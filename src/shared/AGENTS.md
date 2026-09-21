@@ -23,6 +23,7 @@ a third implementation instead of the agreement between two.
 | `perf.ts` | `PERF_SCREENS` and every screen's budget. |
 | `entitlement.ts`, `chat.ts`, `thread.ts`, `projection.ts`, `claims.ts`, `notifications.ts` | same rule: one definition, two consumers. |
 | `outbox.ts` | the turns a client could not send (#708): the order, the holds, and what is retried under the same id. The phone and the browser persist it; this decides it. |
+| `design.ts` | **the design system** (#28): every colour, fill, family, type role, radius, spacing value and the gauge's arithmetic, each commented with what it MEANS. It is here because two products build on it — the app repository consumes it the way it consumes everything else here, and styling that lives in one client is that client's CSS rather than a system. Its values are DATA (a size is a number), because the other consumer is React Native and cannot read a CSS declaration; `STYLESHEET` is the web rendering of the same values and is the only export a phone ignores. `palette.ts` is not a rival: that is the two-theme palette the landing page and `/start` are painted in. |
 
 Everything is exported through `index.ts` (`export *`), so a new export needs no wiring.
 
@@ -41,6 +42,12 @@ Everything is exported through `index.ts` (`export *`), so a new export needs no
   sides of the identity graph read it: the store's deletion rule and the engine's merge rule.
   `telegram` is a transport and answers false. A rule that counts identity rows instead asks a
   question about storage rather than about access.
+- **A colour goes in `design.ts` or it goes nowhere, and three of them mean one thing each.**
+  Amber is the guess, blue is the floor, green is affordance and settled-exact — the honesty
+  mechanism the number grammar is DRAWN in, so a colour that comes to mean two things stops the
+  grammar being readable. `design.test.ts` asserts the exact selector list for amber and blue;
+  `src/frontend/server/index.test.ts` fails on a hex in the rendered page that is not a token, and
+  `src/frontend/test/client.test.ts` fails on a hex anywhere in that workspace's source.
 - **Verdicts are computed, never accepted** — not from the model, not from the client.
   `AnalyzedMeal` is `MealAnalysis` minus `verdicts` and the gap must never be closed with a cast.
 - **Dates are computed in the configured zone, never UTC.** Shift a stored `YYYY-MM-DD` with
