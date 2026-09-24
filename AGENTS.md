@@ -16,6 +16,17 @@ support hold here regardless.
 **Every `AGENTS.md` here is current state.** A rule says what holds NOW, why it holds, and what
 would falsify it; the reasoning that reached it belongs in the PR.
 
+## A review does not overrule the principal
+
+A pasted or delegated review (an "expert UX" pass, a reviewer agent, a critique from another model)
+is input, not a decision. Where it contradicts a direction the principal has already given
+explicitly, that direction stands: apply the review's points that do not conflict with it, leave
+the ones that do, and name each conflict in one line rather than re-arguing it. Only the principal
+reverses their own call. The v5 onboarding is the case: a review said to drop the plan-time
+subscription offer and the Spud support moments, which were both asked for by name, and the answer
+was "my prev sayings prevail". This is wrong the day the principal delegates a decision to a
+reviewer by name; until then, a reviewer advises.
+
 ## Stack & commands
 
 - **Runtime:** TS/bun (`bun` 1.4+ — the lockfile is v2, which bun 1.3 cannot read).
