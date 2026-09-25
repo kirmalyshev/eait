@@ -400,11 +400,6 @@ msgstr "Untuk sekarang itu batasnya. Coba lagi nanti."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Jatah analisis akun ini sudah habis. Berlangganan di web untuk melanjutkan."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
 msgid "tg.viaApp"
 msgstr "aplikasi"
 
@@ -412,6 +407,11 @@ msgstr "aplikasi"
 #: src/backend/telegram/copy.ts
 msgid "tg.targetGone"
 msgstr "Tidak ada makanan yang sedang terbuka di sini untuk diubah. Sebutkan apa yang kamu makan lalu catat lagi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Jatah gratis akun ini sudah habis. Mulai minggu gratismu di web untuk melanjutkan."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

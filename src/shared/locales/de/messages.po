@@ -400,11 +400,6 @@ msgstr "Das ist erst einmal die Grenze. Versuch es später noch einmal."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Die Analysen, die zu diesem Konto gehörten, sind aufgebraucht. Schließ im Web ein Abo ab, um weiterzumachen."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
 msgid "tg.viaApp"
 msgstr "der App"
 
@@ -412,6 +407,11 @@ msgstr "der App"
 #: src/backend/telegram/copy.ts
 msgid "tg.targetGone"
 msgstr "Hier ist keine Mahlzeit offen, die ich ändern könnte. Sag mir, was du gegessen hast, und trag es neu ein."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Das Gratis-Kontingent dieses Kontos ist aufgebraucht. Starte deine Gratiswoche im Web, um weiterzumachen."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

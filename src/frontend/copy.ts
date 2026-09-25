@@ -238,7 +238,7 @@ const EN: WebCopy = {
   photosMax: "One meal takes up to {n} photos.",
   statProtein: "Protein", statCarbs: "Carbs", statFat: "Fat",
   refusals: {
-    "subscription-required": "The analyses this account came with are used up. Subscribe in the eait app to carry on.",
+    "subscription-required": "This account's free sample is used up. Start your free week to carry on.",
     "cap-user": "That was your last one today — your daily allowance resets at midnight.",
     "cap-global": "Everyone has used today's allowance. Tomorrow is a fresh number.",
     "cap-address": "Too many from this network — not you, this connection. Try again later.",
@@ -330,7 +330,7 @@ const FR: WebCopy = {
   photosMax: "Un repas prend jusqu'à {n} photos.",
   statProtein: "Protéines", statCarbs: "Glucides", statFat: "Lipides",
   refusals: {
-    "subscription-required": "Les analyses fournies avec ce compte sont épuisées. Abonne-toi dans l'appli eait pour continuer.",
+    "subscription-required": "L'offre gratuite de ce compte est utilisée. Commence ta semaine offerte pour continuer.",
     "cap-user": "C'était le dernier pour aujourd'hui — ton quota quotidien repart à minuit.",
     "cap-global": "Tout le monde a épuisé le quota du jour. Demain repart à zéro.",
     "cap-address": "Trop de demandes depuis ce réseau — pas toi, cette connexion. Réessaie plus tard.",
@@ -422,7 +422,7 @@ const DE: WebCopy = {
   photosMax: "Eine Mahlzeit nimmt bis zu {n} Fotos.",
   statProtein: "Eiweiß", statCarbs: "Kohlenhydrate", statFat: "Fett",
   refusals: {
-    "subscription-required": "Die Analysen, die zu diesem Konto gehörten, sind aufgebraucht. Schließ in der eait-App ein Abo ab, um weiterzumachen.",
+    "subscription-required": "Das Gratis-Kontingent dieses Kontos ist aufgebraucht. Starte deine Gratiswoche, um weiterzumachen.",
     "cap-user": "Das war heute deine letzte — dein Tageskontingent setzt um Mitternacht zurück.",
     "cap-global": "Das Tageskontingent ist für alle aufgebraucht. Morgen ist eine frische Zahl.",
     "cap-address": "Zu viele aus diesem Netz — nicht du, diese Verbindung. Versuch es später noch einmal.",
@@ -514,7 +514,7 @@ const IT: WebCopy = {
   photosMax: "Un pasto accetta fino a {n} foto.",
   statProtein: "Proteine", statCarbs: "Carboidrati", statFat: "Grassi",
   refusals: {
-    "subscription-required": "Le analisi incluse con questo account sono finite. Abbonati nell'app eait per continuare.",
+    "subscription-required": "La quota gratuita di questo account è esaurita. Inizia la tua settimana gratis per continuare.",
     "cap-user": "Quella era l'ultima di oggi — il tuo limite giornaliero riparte a mezzanotte.",
     "cap-global": "Il limite di oggi è esaurito per tutti. Domani è un numero nuovo.",
     "cap-address": "Troppe richieste da questa rete — non sei tu, è questa connessione. Riprova più tardi.",
@@ -606,7 +606,7 @@ const ES: WebCopy = {
   photosMax: "Una comida admite hasta {n} fotos.",
   statProtein: "Proteína", statCarbs: "Carbohidratos", statFat: "Grasas",
   refusals: {
-    "subscription-required": "Los análisis que traía esta cuenta se han agotado. Suscríbete en la app de eait para seguir.",
+    "subscription-required": "La cuota gratuita de esta cuenta se ha agotado. Empieza tu semana gratis para seguir.",
     "cap-user": "Esa fue la última de hoy — tu cupo diario se reinicia a medianoche.",
     "cap-global": "El cupo de hoy se ha agotado para todos. Mañana es un número nuevo.",
     "cap-address": "Demasiadas desde esta red — no eres tú, es esta conexión. Inténtalo más tarde.",
@@ -698,7 +698,7 @@ const VI: WebCopy = {
   photosMax: "Một bữa ăn nhận tối đa {n} ảnh.",
   statProtein: "Đạm", statCarbs: "Tinh bột", statFat: "Béo",
   refusals: {
-    "subscription-required": "Số lượt phân tích đi kèm tài khoản này đã dùng hết. Đăng ký trong ứng dụng eait để tiếp tục.",
+    "subscription-required": "Phần miễn phí của tài khoản này đã dùng hết. Bắt đầu tuần miễn phí để tiếp tục.",
     "cap-user": "Đó là lần cuối trong hôm nay — hạn mức mỗi ngày của bạn sẽ đặt lại lúc nửa đêm.",
     "cap-global": "Hạn mức hôm nay đã hết cho tất cả mọi người. Mai lại là một con số mới.",
     "cap-address": "Quá nhiều lượt từ mạng này — không phải tại bạn, mà tại kết nối này. Thử lại sau nhé.",
@@ -790,7 +790,7 @@ const ID: WebCopy = {
   photosMax: "Satu makanan bisa berisi sampai {n} foto.",
   statProtein: "Protein", statCarbs: "Karbo", statFat: "Lemak",
   refusals: {
-    "subscription-required": "Jatah analisis akun ini sudah habis. Berlangganan di aplikasi eait untuk melanjutkan.",
+    "subscription-required": "Jatah gratis akun ini sudah habis. Mulai minggu gratismu untuk melanjutkan.",
     "cap-user": "Itu yang terakhir untuk hari ini — jatah harianmu mulai lagi tengah malam.",
     "cap-global": "Jatah hari ini sudah habis untuk semua orang. Besok angkanya baru lagi.",
     "cap-address": "Terlalu banyak dari jaringan ini — bukan kamu, tapi koneksinya. Coba lagi nanti.",
@@ -882,7 +882,7 @@ const RU: WebCopy = {
   photosMax: "К одному приёму пищи можно приложить до {n} фото.",
   statProtein: "Белок", statCarbs: "Углеводы", statFat: "Жиры",
   refusals: {
-    "subscription-required": "Разборы, которые шли с этим аккаунтом, закончились. Оформи подписку в приложении eait, чтобы продолжить.",
+    "subscription-required": "Бесплатный лимит этого аккаунта исчерпан. Начни бесплатную неделю, чтобы продолжить.",
     "cap-user": "Это была последняя на сегодня — дневной лимит обнулится в полночь.",
     "cap-global": "Сегодняшний лимит израсходован всеми. Завтра цифра свежая.",
     "cap-address": "Слишком много из этой сети — дело не в тебе, а в соединении. Попробуй позже.",

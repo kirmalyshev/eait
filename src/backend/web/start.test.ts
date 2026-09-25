@@ -1535,7 +1535,7 @@ describe("chat on the web: saying something", () => {
     const spent = await post("/start/chat/say", { text: "and yesterday?" }, session);
     expect(spent.headers.get("location")).toBe("/start/chat?notice=subscription-required");
     expect(await (await get("/start/chat?notice=subscription-required", session)).text())
-      .toContain(PAGE_COPY.chatRefusalSubscription);
+      .toContain(escape(PAGE_COPY.chatRefusalSubscription));
   });
 });
 

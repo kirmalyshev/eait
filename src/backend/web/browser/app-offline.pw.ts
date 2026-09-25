@@ -151,7 +151,7 @@ test("a refusal that comes back when the queue drains is worded against the kept
   await page.context().setOffline(false);
 
   const banana = page.locator(".thread li", { hasText: "a banana" });
-  await expect(banana).toContainText("The analyses this account came with are used up. Subscribe in the eait app to carry on.");
+  await expect(banana).toContainText("This account's free sample is used up. Start your free week to carry on.");
   // The apple was told it goes on its own; once the banana ahead of it is held, that is no longer true.
   await expect(page.locator(".notice")).toHaveText(BEHIND);
   // Held, not retried on its own, and the one behind it waits rather than jumping the queue.

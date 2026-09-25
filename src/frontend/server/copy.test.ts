@@ -55,3 +55,16 @@ describe("the copy the web client writes", () => {
     expect(Object.keys(WEB_COPY).sort()).toEqual([...LANGS].sort());
   });
 });
+
+// #44/#46 (monorepo #818): the sample is a SETTING — one meal by default, and whatever an admin
+// gives one account — so the sentence that says it is spent may not count it. And the web has its
+// own checkout now, so the browser's refusal may not send people to the phone to pay.
+describe("the spent-sample refusal", () => {
+  it("counts nothing, in English", () => {
+    expect(webCopyFor("en").refusals["subscription-required"]).not.toMatch(/\banalyses\b/i);
+  });
+  it("points at the free week here, not at the app", () => {
+    expect(webCopyFor("en").refusals["subscription-required"]).not.toMatch(/\bapp\b/i);
+    for (const lang of LANGS) expect(webCopyFor(lang).refusals["subscription-required"]).not.toMatch(/eait-App|app eait|appli eait|app de eait|ứng dụng eait|aplikasi eait|приложении eait/i);
+  });
+});
