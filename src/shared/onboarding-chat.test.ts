@@ -15,7 +15,7 @@ import {
   screenForStep, screenOptionValues, screenOptions,
   MAX_STRUGGLE_CARDS, MAX_SURPLUS_SHARE, MAX_DEFICIT_SHARE, MIN_AGE, MIN_WEIGHT_KG, STRUGGLES,
   answerLabel, askLines, askPlaceholder, capNote, checkDirection, checkNumber,
-  isAnswered, minHealthyKg, promptsFor, reactionTo, reconcileGoalEdit,
+  isAnswered, minHealthyKg, offerHeadline, promptsFor, reactionTo, reconcileGoalEdit,
   restrictionsReply, resumeAt, supportMoment,
   struggleCard, strugglesCloser, switchedLine, weightAck,
   type ChatPromptId, type Profile, type Struggle,
@@ -725,5 +725,54 @@ describe("the mascot's new face (C5)", () => {
     // The web drawing is a FILLED mouth — the open grin — not the usual stroke.
     const svg = spudSvg("joy", "spud-joy-test");
     expect(svg).toContain(`fill="${"#3A2612"}"`);
+  });
+});
+
+// spud-mobile's ask on the contract (#42): the words after the plan, and the stepper's labels.
+describe("the soft offer's headline", () => {
+  const her = profile({
+    goal: "lose", sex: "female", birth_year: 1994, height_cm: 172, weight_kg: 74,
+    target_weight_kg: 68, pace: "steady", activity: "light",
+  });
+  const SEP_24 = new Date("2026-09-24T12:00:00Z");
+
+  it("names the target and the month the plan's own projection reaches it", () => {
+    // 16 weeks from 24 Sep 2026 is January 2027, the persona's own projection.
+    expect(offerHeadline(her, SEP_24, "en")).toBe("Get to 68 kg by January 2027");
+  });
+
+  it("is null wherever the plan names no arrival: maintaining, or no target", () => {
+    expect(offerHeadline(profile({ ...her, goal: "maintain", target_weight_kg: null }), SEP_24, "en")).toBeNull();
+    expect(offerHeadline(profile({ ...her, target_weight_kg: null }), SEP_24, "en")).toBeNull();
+  });
+
+  it("is null past the projection horizon, where the plan says 'over two years' and not a date", () => {
+    const far = profile({ ...her, weight_kg: 180, target_weight_kg: 80, pace: "easy" });
+    expect(offerHeadline(far, SEP_24, "en")).toBeNull();
+  });
+
+  it("has a template in every language, with both placeholders", () => {
+    for (const lang of LANGS) {
+      const h = offerHeadline(her, SEP_24, lang);
+      expect(h).not.toBeNull();
+      expect(h).not.toContain("{");
+    }
+  });
+});
+
+describe("the free meal's words and the stepper's labels", () => {
+  it("are present in every language, and none of them is empty", () => {
+    for (const lang of LANGS) {
+      const c = chatCopyFor(lang);
+      for (const v of [...Object.values(c.firstMeal), ...Object.values(c.stepper)]) {
+        expect(typeof v).toBe("string");
+        expect((v as string).trim()).not.toBe("");
+      }
+    }
+  });
+
+  it("never lets the Russian assume the reader is a man: 'enter them myself' names no gender", () => {
+    // `самому` is masculine and `genderedRussian` does not know the word, so it is pinned here.
+    expect(chatCopyFor("ru").health.manual).not.toMatch(/сам(ому|ой|а)?(?![а-яё])/i);
   });
 });

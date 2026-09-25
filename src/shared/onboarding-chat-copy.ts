@@ -115,6 +115,19 @@ export interface ChatCopy {
    */
   targetSuggestion: { down: string; up: string };
   /**
+   * After the plan (v5): the one meal on us, its verdict, and the ask after it. `ask`/`react` are
+   * Spud's; `photo`/`tell` the two buttons that start it; `afterAsk` the line over the offer that
+   * holds. The web renders an UPLOAD rather than a camera and keeps `photo` for the phone.
+   */
+  firstMeal: {
+    ask: string; react: string; photo: string; tell: string;
+    keepGoing: string; correct: string; afterAsk: string;
+  };
+  /** The target stepper: the button under it, and the SPOKEN labels of its − and + (VoiceOver). */
+  stepper: { continue: string; less: string; more: string };
+  /** The soft offer's title: `{kg}` the target, `{month}` CLDR's month and year. `offerHeadline`. */
+  offerHeadline: string;
+  /**
    * The ONE line Spud says after an answer, above the next question — keyed by what it answers.
    * The mood beside it is picked in `reactionTo` (`onboarding-chat.ts`), not here: a mood is a
    * reaction to what just happened and a copy field cannot know that.
@@ -319,6 +332,17 @@ const EN: ChatCopy = {
     down: "I suggest {kg} kg, about {pct}% down, a good first goal",
     up: "I suggest {kg} kg, about {pct}% up, a good first goal",
   },
+  firstMeal: {
+    ask: "One meal on me. Photo, or just tell me?",
+    react: "No problem. Try me first",
+    photo: "Take a photo",
+    tell: "Tell Spud what you ate",
+    keepGoing: "Keep going",
+    correct: "Correct meal",
+    afterAsk: "That was one. Want this for every meal?",
+  },
+  stepper: { continue: "Continue", less: "Less", more: "More" },
+  offerHeadline: "Get to {kg} kg by {month}",
   reactions: {
     goalLose: "Lose weight. Good, let's make it stick",
     goalMaintain: "Maintain it is — let's keep what already works",
@@ -525,6 +549,17 @@ const FR: ChatCopy = {
     down: "Je te propose {kg} kg, soit environ {pct}% de moins — un bon premier objectif",
     up: "Je te propose {kg} kg, soit environ {pct}% de plus — un bon premier objectif",
   },
+  firstMeal: {
+    ask: "Un repas offert. Une photo, ou tu me racontes ?",
+    react: "Pas de souci. Essaie-moi d'abord",
+    photo: "Prendre une photo",
+    tell: "Raconter ton repas à Spud",
+    keepGoing: "Continuer",
+    correct: "Corriger le repas",
+    afterAsk: "Ça, c'était un repas. Tu veux ça pour chaque repas ?",
+  },
+  stepper: { continue: "Continuer", less: "Moins", more: "Plus" },
+  offerHeadline: "Atteindre {kg} kg d'ici {month}",
   reactions: {
     goalLose: "Perdre du poids. Bien — faisons en sorte que ça tienne",
     goalMaintain: "Maintenir — gardons ce qui fonctionne déjà",
@@ -731,6 +766,17 @@ const DE: ChatCopy = {
     down: "Ich schlage {kg} kg vor, etwa {pct}% weniger — ein gutes erstes Ziel",
     up: "Ich schlage {kg} kg vor, etwa {pct}% mehr — ein gutes erstes Ziel",
   },
+  firstMeal: {
+    ask: "Eine Mahlzeit geht auf mich. Foto, oder erzählst du's mir?",
+    react: "Kein Problem. Probier mich erst aus",
+    photo: "Foto machen",
+    tell: "Spud erzählen, was du gegessen hast",
+    keepGoing: "Weiter",
+    correct: "Mahlzeit korrigieren",
+    afterAsk: "Das war eine. Willst du das für jede Mahlzeit?",
+  },
+  stepper: { continue: "Weiter", less: "Weniger", more: "Mehr" },
+  offerHeadline: "{kg} kg bis {month}",
   reactions: {
     goalLose: "Abnehmen. Gut — wir sorgen dafür, dass es hält",
     goalMaintain: "Halten — wir behalten, was schon funktioniert",
@@ -937,6 +983,17 @@ const IT: ChatCopy = {
     down: "Ti suggerisco {kg} kg, circa il {pct}% in meno — un buon primo obiettivo",
     up: "Ti suggerisco {kg} kg, circa il {pct}% in più — un buon primo obiettivo",
   },
+  firstMeal: {
+    ask: "Un pasto lo offro io. Foto, o me lo racconti?",
+    react: "Nessun problema. Prima provami",
+    photo: "Scatta una foto",
+    tell: "Racconta a Spud cosa hai mangiato",
+    keepGoing: "Avanti",
+    correct: "Correggi il pasto",
+    afterAsk: "Questo era uno. Lo vuoi per ogni pasto?",
+  },
+  stepper: { continue: "Continua", less: "Meno", more: "Più" },
+  offerHeadline: "Arrivare a {kg} kg entro {month}",
   reactions: {
     goalLose: "Perdere peso. Bene — facciamo in modo che duri",
     goalMaintain: "Mantenere — teniamo quello che già funziona",
@@ -1143,6 +1200,17 @@ const ES: ChatCopy = {
     down: "Te sugiero {kg} kg, alrededor de un {pct}% menos — una buena primera meta",
     up: "Te sugiero {kg} kg, alrededor de un {pct}% más — una buena primera meta",
   },
+  firstMeal: {
+    ask: "Una comida la invito yo. ¿Foto, o me lo cuentas?",
+    react: "Sin problema. Pruébame primero",
+    photo: "Hacer una foto",
+    tell: "Contarle a Spud qué comiste",
+    keepGoing: "Seguir",
+    correct: "Corregir la comida",
+    afterAsk: "Esa fue una. ¿La quieres para cada comida?",
+  },
+  stepper: { continue: "Continuar", less: "Menos", more: "Más" },
+  offerHeadline: "Llegar a {kg} kg en {month}",
   reactions: {
     goalLose: "Perder peso. Bien — hagamos que se mantenga",
     goalMaintain: "Mantener — conservemos lo que ya funciona",
@@ -1349,6 +1417,17 @@ const VI: ChatCopy = {
     down: "Mình gợi ý {kg} kg, tức xuống khoảng {pct}% — một mục tiêu đầu tiên hợp lý",
     up: "Mình gợi ý {kg} kg, tức lên khoảng {pct}% — một mục tiêu đầu tiên hợp lý",
   },
+  firstMeal: {
+    ask: "Một bữa mình mời. Chụp ảnh, hay kể cho mình nghe?",
+    react: "Không sao. Cứ thử mình trước",
+    photo: "Chụp ảnh",
+    tell: "Kể cho Spud bạn đã ăn gì",
+    keepGoing: "Tiếp tục",
+    correct: "Sửa bữa ăn",
+    afterAsk: "Vừa rồi là một bữa. Muốn vậy cho mọi bữa không?",
+  },
+  stepper: { continue: "Tiếp tục", less: "Bớt", more: "Thêm" },
+  offerHeadline: "Đạt {kg} kg vào {month}",
   reactions: {
     goalLose: "Xuống cân. Tốt — mình sẽ giúp nó bền",
     goalMaintain: "Giữ cân — mình giữ lại những gì đang ổn",
@@ -1555,6 +1634,17 @@ const ID: ChatCopy = {
     down: "Kusarankan {kg} kg, turun sekitar {pct}% — target pertama yang bagus",
     up: "Kusarankan {kg} kg, naik sekitar {pct}% — target pertama yang bagus",
   },
+  firstMeal: {
+    ask: "Satu makanan aku yang traktir. Foto, atau ceritakan saja?",
+    react: "Tidak apa-apa. Coba aku dulu",
+    photo: "Ambil foto",
+    tell: "Ceritakan ke Spud apa yang kamu makan",
+    keepGoing: "Lanjut",
+    correct: "Koreksi makanan",
+    afterAsk: "Itu satu. Mau begini untuk setiap makanan?",
+  },
+  stepper: { continue: "Lanjut", less: "Kurangi", more: "Tambah" },
+  offerHeadline: "Capai {kg} kg pada {month}",
   reactions: {
     goalLose: "Turunkan berat. Bagus — kita buat supaya bertahan",
     goalMaintain: "Jaga berat — kita pertahankan yang sudah berhasil",
@@ -1751,7 +1841,7 @@ const RU: ChatCopy = {
     ask: "Подключи Apple Health и пропусти 5 вопросов",
     rows: ["Рост и вес", "Возраст и пол", "Как часто ты тренируешься"],
     connect: "Подключить Apple Health",
-    manual: "Ввести самому",
+    manual: "Ввести вручную",
     connected: "Цифры у меня. Они обновляются сами",
     partial: "Почти всё — пары деталей не хватает",
     denied: "Введи свои данные",
@@ -1763,6 +1853,18 @@ const RU: ChatCopy = {
     down: "Предлагаю {kg} кг — примерно на {pct}% меньше, хорошая первая цель",
     up: "Предлагаю {kg} кг — примерно на {pct}% больше, хорошая первая цель",
   },
+  firstMeal: {
+    ask: "Один приём пищи — за мой счёт. Фото или просто расскажешь?",
+    react: "Без проблем. Сначала попробуй меня",
+    photo: "Сделать фото",
+    tell: "Рассказать Spud, что было на тарелке",
+    keepGoing: "Дальше",
+    correct: "Исправить",
+    afterAsk: "Это был один. Хочешь так для каждого приёма пищи?",
+  },
+  stepper: { continue: "Продолжить", less: "Меньше", more: "Больше" },
+  // CLDR gives the month in the nominative ("январь 2027 г."), so no preposition may govern it.
+  offerHeadline: "Цель {kg} кг. Срок: {month}",
   reactions: {
     goalLose: "Похудеть. Хорошо — сделаем так, чтобы это держалось",
     goalMaintain: "Удержать вес. Хорошо — оставим то, что уже работает",

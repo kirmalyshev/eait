@@ -37,10 +37,11 @@
 
 import {
   MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MIN_AGE, MIN_WEIGHT_KG, ageFrom,
-  basalMetabolicRate, isRestrictionTag, minHealthyWeightKg,
+  basalMetabolicRate, explainTargets, isRestrictionTag, minHealthyWeightKg,
   type RestrictionTag,
 } from "./targets.ts";
 import { numbers, spellUnit } from "./lang.ts";
+import { projectGoal, projectionMonth } from "./projection.ts";
 import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
 import { onboardingContentFor } from "./onboarding-content.ts";
 import type { ActivityLevel, Goal, Lang, Profile } from "./types.ts";
@@ -925,4 +926,22 @@ export function supportMoment(
       };
     }
   }
+}
+
+/**
+ * The soft offer's title after the plan: "Get to 68 kg by January 2027".
+ *
+ * Null wherever the plan itself names no arrival — maintaining, no target, a projection
+ * `projectGoal` will not make, or one past the horizon where the plan says "over two years" — so
+ * the offer never promises a date the plan did not. The month is the plan's own (`projectGoal` over
+ * `explainTargets`), never a figure the client works out.
+ */
+export function offerHeadline(p: Profile, today: Date, lang: Lang): string | null {
+  if (p.target_weight_kg === null) return null;
+  const projection = projectGoal(p, explainTargets(p, today).basis);
+  if (projection === null || projection.beyondHorizon) return null;
+  return fill(chatCopyFor(lang).offerHeadline, {
+    kg: numbers(lang)(p.target_weight_kg),
+    month: projectionMonth(today, projection.weeks, lang),
+  });
 }
