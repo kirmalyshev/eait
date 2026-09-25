@@ -8,6 +8,7 @@ export * from "./projection.ts";
 export * from "./results.ts";
 export * from "./onboarding.ts";
 export * from "./onboarding-chat-copy.ts";
+export * from "./first-meal-copy.ts";
 export * from "./onboarding-content.ts";
 export * from "./onboarding-chat.ts";
 export * from "./contract.ts";
