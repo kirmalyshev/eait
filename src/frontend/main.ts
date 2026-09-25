@@ -20,7 +20,7 @@
 import { advancePending, pendingLine } from "../shared/stream.ts";
 import { outcomeUnknown } from "../shared/results.ts";
 import { dayBudget } from "../shared/budget.ts";
-import { renderableVerdicts } from "../shared/types.ts";
+import { renderableVerdicts, verdictMood } from "../shared/types.ts";
 import { verdictPillLabel } from "../shared/verdicts.ts";
 import { spudSvg, type MascotMood } from "../shared/mascot.ts";
 // The one-meal flow's Spud lines — ONE table both clients read (#42): the phone through
@@ -959,7 +959,8 @@ function firstMealScreen(me: ProfileResponse): HTMLElement {
 
   const verdictStep = async (analysis: MealAnalysis, mealId: string): Promise<HTMLElement> => {
     const box = el("div", "step");
-    box.append(spudBlock("happy", COPY.firstVerdictBeat, await greeting(mealId)));
+    // The face follows the computed pills, never praise the card does not back.
+    box.append(spudBlock(verdictMood(analysis.verdicts), COPY.firstVerdictBeat, await greeting(mealId)));
     const card = el("div", "card");
     card.append(el("div", "lab", names(analysis.items)));
     const big = el("p", "big");

@@ -40,7 +40,7 @@ import {
   basalMetabolicRate, explainTargets, isRestrictionTag, minHealthyWeightKg,
   type RestrictionTag,
 } from "./targets.ts";
-import { numbers, spellUnit } from "./lang.ts";
+import { numbers, spellUnit, wholeNumbers } from "./lang.ts";
 import { projectGoal, projectionMonth } from "./projection.ts";
 import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
 import { onboardingContentFor } from "./onboarding-content.ts";
@@ -741,7 +741,7 @@ export function targetSuggestionLine(
   const copy = chatCopyFor(lang).targetSuggestion;
   return fill(goal === "lose" ? copy.down : copy.up, {
     kg: numbers(lang)(kg),
-    pct: String(Math.round(pct)),
+    pct: wholeNumbers(lang)(pct),
   });
 }
 
