@@ -20,13 +20,23 @@
 import { advancePending, pendingLine } from "../shared/stream.ts";
 import { outcomeUnknown } from "../shared/results.ts";
 import { dayBudget } from "../shared/budget.ts";
-import type { MealProposed, MealRecord, PendingPhoto } from "@eait/shared";
+import { renderableVerdicts } from "../shared/types.ts";
+import { verdictPillLabel } from "../shared/verdicts.ts";
+import { spudSvg, type MascotMood } from "../shared/mascot.ts";
+// The one-meal flow's Spud lines — ONE table both clients read (#42): the phone through
+// `chatCopyFor(lang).firstMeal`, the browser through this module. It is small on purpose: a
+// module the browser imports ships whole, so this imports types and nothing else.
+import { FIRST_MEAL_COPY } from "../shared/first-meal-copy.ts";
+import type { Answered, MealAnalysis, MealLogged, MealProposed, MealRecord, PendingPhoto } from "@eait/shared";
 import type {
-  ChatEntry, ChatHistoryResponse, DayResponse, DeleteLineResponse, EditLineLast, OUTCOME_UNKNOWN,
-  PairCodeResponse, PatchProfileRequest, PendingMealsResponse, PendingResponse, PhotoProgress, ProfileResponse, ROUTES,
+  ChatEntry, ChatHistoryResponse, DayResponse, DeleteLineResponse, EditLineLast, EditMealResponse,
+  MessageResponse, OUTCOME_UNKNOWN,
+  PairCodeResponse, PatchProfileRequest, PendingMealsResponse, PendingResponse, PhotoLast, PhotoProgress,
+  ProfileResponse, ROUTES, WeekResponse,
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, apiStream, forget, signIn, signOut, signedIn } from "./api.ts";
 import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
+import { firstMealEdit, type Portion } from "./portion.ts";
 import { LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, narrowLang, numbers, wholeNumbers } from "../shared/lang.ts";
 import type { Lang } from "../shared/types.ts";
 
@@ -60,6 +70,11 @@ type Under<P extends string> = P extends `/v1${infer R}` ? R : never;
 const MESSAGES: Under<typeof ROUTES.messages> = "/messages";
 const MESSAGE: (id: string) => `${Under<typeof ROUTES.messages>}/${string}` = (id) => `${MESSAGES}/${encodeURIComponent(id)}`;
 const PENDING: Under<typeof ROUTES.pending> = "/meals/pending";
+const WEEK: Under<typeof ROUTES.week> = "/diary/week";
+// The parameterised routes' `ReturnType` widens to `string`, so these name the shape directly —
+// still the path `ROUTES` spells, under `/api/v1`.
+const MEAL: (id: string) => `/meals/${string}` = (id) => `/meals/${encodeURIComponent(id)}`;
+const CONFIRM: (id: string) => `/meals/pending/${string}/confirm` = (id) => `${PENDING}/${encodeURIComponent(id)}/confirm`;
 
 const root = (): HTMLElement => document.getElementById("app")!;
 
@@ -718,6 +733,373 @@ async function chatScreen(): Promise<HTMLElement> {
   return wrap;
 }
 
+// ── The first meal (#42): "one meal on us", in the diary's place ────────────────────────────────
+//
+// While the account has logged nothing, `#/` is this flow rather than the diary — the v5 boards
+// (20-first-meal, 21/21t, 22/22c, 23-paywall-after): the ask, the photo drop or the typed meal,
+// the first verdict, the correction, and the offer that holds. Two rules the boards do not carry
+// and this client keeps:
+//
+//   - THE VERDICTS ARE THE SERVER'S. `verdicts` is recomputed after every write and the card
+//     renders what `renderableVerdicts` finds in what it was sent — a client that derived its own
+//     would be the second copy `verdictsFromTargets` exists to prevent.
+//   - "Correct meal" is the MANUAL edit, `PATCH /v1/meals/:id`, which is uncharged. The sample is
+//     ONE analysis, so a text correction through `/v1/messages` would be a second billed turn and
+//     a 402 on the screen where it matters most. `firstMealEdit` (`portion.ts`) builds the request.
+
+/** Which gradient id the next Spud gets — two inline SVGs on one page may not share one. */
+let spudSeq = 0;
+
+/**
+ * Spud plus the beat and the big line — the `spk` block every v5 board opens with.
+ *
+ * The mascot arrives as a STRING (`spudSvg` is the one drawing every web surface shares), parsed
+ * rather than built node by node. It is a compile-time constant we wrote, not server or user
+ * content — which is the whole of what "text, never innerHTML" exists to keep off the page.
+ */
+function spudBlock(mood: MascotMood, beat: string | null, lines: readonly string[]): HTMLElement {
+  const row = el("div", "spk");
+  const av = el("span", "av");
+  av.append(new DOMParser().parseFromString(spudSvg(mood, `spud-${++spudSeq}`), "image/svg+xml").documentElement);
+  const col = el("div", "spk-col");
+  if (beat !== null) col.append(el("div", "beat", beat));
+  for (const [i, line] of lines.entries()) col.append(el("div", i === lines.length - 1 ? "ask" : "them", line));
+  row.append(av, col);
+  return row;
+}
+
+/**
+ * The one-meal flow itself: a container that re-renders one step at a time, keeping the whole walk
+ * off the hash — a "first verdict" is a state, not an address anybody should land on later.
+ */
+function firstMealScreen(me: ProfileResponse): HTMLElement {
+  // The words that ARE the flow, from the one table both clients read (#42) — `photo` is the
+  // phone's camera line and stays unused here: the web's button is its own "Upload a photo".
+  const fm = FIRST_MEAL_COPY[lang];
+  const wrap = el("section", "flow");
+  const stage = el("div", "");
+  const notice = el("p", "notice");
+  notice.setAttribute("role", "alert");
+  notice.hidden = true;
+  const progress = el("p", "muted");
+  progress.hidden = true;
+  wrap.append(stage, notice, progress);
+
+  const say = (words: string | null): void => {
+    notice.textContent = words ?? "";
+    notice.hidden = words === null;
+  };
+  const sayProgress = (words: string | null): void => {
+    progress.textContent = words ?? "";
+    progress.hidden = words === null;
+  };
+  const show = (node: HTMLElement): void => { clear(stage).append(node); };
+
+  /**
+   * One turn at a time, every control disabled while it is out — the same rule `turn()` keeps on
+   * the composer, for the same reason: a second send of a meal is a second meal. A
+   * `subscription-required` refusal here is not an error to word but the flow's own last screen:
+   * the free analysis is spent, and the offer is the answer to that.
+   */
+  const run = (work: () => Promise<void>): void => {
+    const controls = [...wrap.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement | HTMLTextAreaElement>("input, button, select, textarea")];
+    for (const c of controls) c.disabled = true;
+    say(null);
+    void (async () => {
+      try {
+        await work();
+      } catch (err) {
+        if (err instanceof Unauthenticated) { await render(); return; }
+        if (err instanceof ApiError && err.body?.error === "subscription-required") { show(offerStep()); return; }
+        say(refusalWords(err));
+        console.error(err);
+      } finally {
+        for (const c of controls) c.disabled = false;
+      }
+    })();
+  };
+
+  /**
+   * Spud's greeting, read back off the thread the write just produced: `firstVerdictLines` on the
+   * first meal, the correction line on an edit. Rendered rather than re-derived — the words are
+   * the server's, in the account's language, and a second computation here would be the second
+   * copy the contract forbids.
+   */
+  const greeting = async (mealId: string): Promise<string[]> => {
+    const thread = await api<ChatHistoryResponse>(`${MESSAGES}?limit=30`).catch(() => null);
+    if (thread === null) return [];
+    const at = thread.entries.findIndex((e) => e.kind === "meal" && e.mealId === mealId);
+    if (at === -1) return [];
+    return thread.entries.slice(at + 1)
+      .flatMap((e) => (e.role === "assistant" && e.kind === "text" ? [e.text] : []));
+  };
+
+  const askStep = (): HTMLElement => {
+    const box = el("div", "step");
+    box.append(spudBlock("wave", fm.react, [fm.ask]));
+    const foot = el("div", "step-foot");
+    const up = el("button", "cta p", COPY.firstMealUpload) as HTMLButtonElement;
+    up.addEventListener("click", () => show(photoStep()));
+    const typed = el("button", "cta s", fm.tell) as HTMLButtonElement;
+    typed.addEventListener("click", () => show(typeStep()));
+    foot.append(up, typed);
+    box.append(foot);
+    return box;
+  };
+
+  const photoStep = (): HTMLElement => {
+    const box = el("div", "step");
+    box.append(spudBlock("idle", null, [COPY.firstPhotoAsk]));
+    // A LABEL around the input, so the whole zone opens the chooser natively — a click needs no
+    // script, and drag-and-drop is the affordance on top of it.
+    const zone = el("label", "drop");
+    const input = el("input", "visually-hidden") as HTMLInputElement;
+    input.type = "file";
+    input.accept = "image/jpeg,image/png,image/webp";
+    input.multiple = true;
+    input.setAttribute("aria-label", COPY.photosOfOneMeal);
+    const lead = el("span", "drop-lead", COPY.dropPhotoHere);
+    zone.append(lead, el("small", "", COPY.dropPhotoKinds), input);
+    let picked: File[] = [];
+    const reflect = (): void => {
+      lead.textContent = picked.length === 0 ? COPY.dropPhotoHere : picked.map((f) => f.name).join(", ");
+    };
+    input.addEventListener("change", () => { picked = [...(input.files ?? [])]; reflect(); });
+    zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("over"); });
+    zone.addEventListener("dragleave", () => zone.classList.remove("over"));
+    zone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      zone.classList.remove("over");
+      picked = [...(e.dataTransfer?.files ?? [])];
+      reflect();
+    });
+    box.append(zone);
+    const foot = el("div", "step-foot");
+    const go = el("button", "cta p", COPY.analyseMeal) as HTMLButtonElement;
+    go.addEventListener("click", () => {
+      if (picked.length === 0) { say(COPY.choosePhotoFirst); return; }
+      // The server's numbers off the profile, exactly as the composer reads them — never a
+      // constant of ours.
+      const { maxPhotosPerMeal, maxUploadBytes } = me.limits;
+      if (picked.length > maxPhotosPerMeal) { say(fill(COPY.photosMax, { n: `${maxPhotosPerMeal}` })); return; }
+      if (picked.reduce((n, f) => n + f.size, 0) > maxUploadBytes) { say(COPY.photoTooLarge); return; }
+      const files = picked;
+      run(async () => {
+        // The stream's own progress line — the same `pendingLine` the composer shows while the
+        // analyzer is out.
+        let p: PendingPhoto = { glance: null, items: [] };
+        sayProgress(pendingLine(p, lang));
+        try {
+          // A PROPERTY, not a local: writes from the callback must survive `await` without a
+          // compiler that has already decided `null`.
+          const got: { logged: MealLogged | null } = { logged: null };
+          const keptNote = await sendOrKeep(
+            { id: crypto.randomUUID(), userId: me.profile.user_id, kind: "photo", text: null, photos: files, capturedAt: new Date().toISOString() },
+            {
+              onLine: (line) => {
+                const ev = line as PhotoProgress;
+                if (ev.kind === "glance" || ev.kind === "item") {
+                  p = advancePending(p, ev);
+                  sayProgress(pendingLine(p, lang));
+                }
+              },
+              onResult: (r) => { if (r.kind === "logged") got.logged = r; },
+            },
+          );
+          if (got.logged !== null) { show(await verdictStep(got.logged.analysis, got.logged.mealId)); return; }
+          if (keptNote !== undefined) say(keptNote);
+        } finally {
+          sayProgress(null);
+        }
+      });
+    });
+    foot.append(go);
+    box.append(foot);
+    return box;
+  };
+
+  const typeStep = (): HTMLElement => {
+    const box = el("div", "step");
+    box.append(spudBlock("idle", null, [COPY.firstTypeAsk]));
+    const panel = el("div", "card");
+    const lab = el("label", "lab", COPY.yourMeal);
+    lab.setAttribute("for", "fm-meal");
+    const field = textField(COPY.composerPlaceholder);
+    field.id = "fm-meal";
+    panel.append(lab, field);
+    box.append(panel);
+    const foot = el("div", "step-foot");
+    const send = el("button", "cta p", COPY.send) as HTMLButtonElement;
+    send.addEventListener("click", () => {
+      const text = field.value.trim();
+      if (text === "") return;
+      run(async () => {
+        const got: { result: MealProposed | Answered | null } = { result: null };
+        const keptNote = await sendOrKeep(
+          { id: crypto.randomUUID(), userId: me.profile.user_id, kind: "text", text, photos: [], capturedAt: new Date().toISOString() },
+          { onResult: (r) => { if (r.kind === "proposed" || r.kind === "answered") got.result = r; } },
+        );
+        if (got.result === null) { if (keptNote !== undefined) say(keptNote); return; }
+        // An answered question is Spud's reply, shown where it was asked — it logs nothing.
+        if (got.result.kind === "answered") { say(got.result.text); return; }
+        // A typed meal is PROPOSED first, and this screen is the confirmation — the ask already
+        // said what it was, so a second tap would ask the same thing again. The proposal was the
+        // billed call; confirming it costs nothing.
+        const c = await api<PendingResponse>(CONFIRM(got.result.pendingId), { method: "POST" });
+        // Refusals and "expired" come back as HTTP statuses; a JSON body here is the meal.
+        if (c.kind !== "logged") throw new ApiError(200, { error: c.kind }, `confirm: ${c.kind}`);
+        held = null;
+        show(await verdictStep(c.analysis, c.mealId));
+      });
+    });
+    foot.append(send);
+    box.append(foot);
+    return box;
+  };
+
+  const verdictStep = async (analysis: MealAnalysis, mealId: string): Promise<HTMLElement> => {
+    const box = el("div", "step");
+    box.append(spudBlock("happy", COPY.firstVerdictBeat, await greeting(mealId)));
+    const card = el("div", "card");
+    card.append(el("div", "lab", names(analysis.items)));
+    const big = el("p", "big");
+    if (analysis.confidence === "low") big.append(el("span", "about", `${COPY.about} `));
+    big.append(el("span", "hero mono", wholeNumbers(lang)(analysis.kcal)), el("span", "muted", ` ${UNIT_KCAL[lang]}`));
+    card.append(big);
+    const stats = el("div", "stats");
+    for (const [label, v] of [[COPY.statProtein, analysis.protein_g], [COPY.statCarbs, analysis.carbs_g], [COPY.statFat, analysis.fat_g]] as const) {
+      const cell = el("div", "stat-cell");
+      cell.append(el("div", "lab", label), el("div", "stat-num mono", `${numbers(lang)(v)} g`));
+      stats.append(cell);
+    }
+    card.append(stats);
+    // The verdicts, EXACTLY as the server computed them — rederived here they would be a second
+    // implementation, and a wrong one the moment the caps moved.
+    const dims = renderableVerdicts(analysis.verdicts);
+    if (dims.length > 0) {
+      const pills = el("div", "pills");
+      for (const d of dims) pills.append(el("span", `pill ${analysis.verdicts[d]}`, verdictPillLabel(d, analysis.verdicts[d]!, lang)));
+      card.append(pills);
+    }
+    box.append(card);
+    const foot = el("div", "step-foot");
+    const keep = el("button", "cta p", fm.keepGoing) as HTMLButtonElement;
+    keep.addEventListener("click", () => show(offerStep()));
+    const fix = el("button", "cta g", fm.correct) as HTMLButtonElement;
+    fix.addEventListener("click", () => show(correctStep(analysis, mealId)));
+    foot.append(keep, fix);
+    box.append(foot);
+    return box;
+  };
+
+  const correctStep = (analysis: MealAnalysis, mealId: string): HTMLElement => {
+    const box = el("div", "step");
+    box.append(spudBlock("think", COPY.correctBeat, [COPY.correctAsk]));
+    const fields = el("div", "card");
+    const whatLab = el("label", "lab", COPY.correctWhat);
+    whatLab.setAttribute("for", "fm-what");
+    const what = textField(COPY.correctWhat);
+    what.id = "fm-what";
+    // "What it was" names the plate — the first item, which is what the card leads with; the rest
+    // of the plate is kept, per the brief.
+    what.value = analysis.items[0]?.name ?? "";
+    const portionLab = el("label", "lab", COPY.correctPortion);
+    portionLab.setAttribute("for", "fm-portion");
+    const portion = el("select", "portion") as HTMLSelectElement;
+    portion.id = "fm-portion";
+    for (const [value, label] of [["small", COPY.portionSmall], ["regular", COPY.portionRegular], ["large", COPY.portionLarge]] as const) {
+      const option = el("option", "", label) as HTMLOptionElement;
+      option.value = value;
+      option.selected = value === "regular";
+      portion.append(option);
+    }
+    fields.append(whatLab, what, portionLab, portion);
+    box.append(fields);
+    const foot = el("div", "step-foot");
+    const save = el("button", "cta p", COPY.saveRecheck) as HTMLButtonElement;
+    save.addEventListener("click", () => {
+      run(async () => {
+        const r = await api<EditMealResponse>(MEAL(mealId), {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(firstMealEdit(analysis, what.value, portion.value as Portion)),
+        });
+        // "target-gone" and the refusals are statuses; a JSON body here is the updated meal.
+        if (r.kind !== "updated") throw new ApiError(200, { error: r.kind }, `edit: ${r.kind}`);
+        show(await verdictStep(r.analysis, r.mealId));
+      });
+    });
+    foot.append(save);
+    box.append(foot);
+    return box;
+  };
+
+  const offerStep = (): HTMLElement => {
+    const box = el("div", "step");
+    // The spec's screen title as the beat, the canonical ask over the offer that holds.
+    box.append(spudBlock("idle", COPY.offerAsk, [fm.afterAsk]));
+    const perks = el("div", "perks");
+    for (const perk of [COPY.offerPerkVerdict, COPY.offerPerkPlan, COPY.offerPerkSpud]) {
+      const row = el("div", "perk");
+      row.append(el("span", "tick", "✓"), el("span", "", perk));
+      perks.append(row);
+    }
+    box.append(perks);
+    const tl = el("div", "card");
+    for (const [when, words] of [[COPY.offerToday, COPY.offerTodayText], [COPY.offerBeforeEnd, COPY.offerBeforeText], [COPY.offerDay8, COPY.offerDay8Text]] as const) {
+      const row = el("div", "rowline");
+      row.append(el("span", "when", when), el("span", "muted", words));
+      tl.append(row);
+    }
+    box.append(tl);
+    // The plans are NAMED, never priced: this client has never been sent a price, and the checkout
+    // page the link lands on is what owns the numbers.
+    const plans = el("div", "plans");
+    for (const p of [COPY.offerPlanMonthly, COPY.offerPlanLifetime]) plans.append(el("div", "plan", p));
+    box.append(plans);
+    const foot = el("div", "step-foot");
+    // `/start/plan`, not the checkout URL itself: the API sends this client no checkout URL — the
+    // backend renders `webCheckoutUrl` into that page, same origin, under the session cookie, and
+    // the page degrades to a diary link when no checkout is configured.
+    const go = el("a", "cta p", COPY.startFreeWeek) as HTMLAnchorElement;
+    go.href = "/start/plan";
+    const later = el("button", "cta g", COPY.offerLater) as HTMLButtonElement;
+    // "Not now" re-renders: a meal exists by now, so the gate opens the diary it belongs on.
+    later.addEventListener("click", () => { void render(); });
+    foot.append(go, later);
+    box.append(foot);
+    return box;
+  };
+
+  // A queued turn landing mid-flow changes the gate's answer: redraw → render → the diary it is
+  // on now.
+  redraw = async () => { if (wrap.isConnected) await render(); };
+
+  show(askStep());
+  return wrap;
+}
+
+/**
+ * The diary, or — while the account has never logged — the one-meal flow (#42).
+ *
+ * THE GATE IS A READ, not a flag: `/v1/diary/week` answers only days that have meals on them
+ * ("empty means absent, not zero"), so an empty window over the whole diary horizon the server
+ * will reach back to IS "nothing logged yet" — asked at the server's own `diaryWindowDays`, never
+ * a compiled-in copy.
+ */
+/**
+ * The free meal is offered to exactly the account that still has it: onboarded, not entitled, the
+ * sample unspent (the SERVER's count — a failed attempt leaves it unspent, #44), and nothing logged.
+ * "No meals this week" alone would offer a paying user back from a holiday one meal on us.
+ */
+async function homeScreen(me: ProfileResponse | null): Promise<HTMLElement> {
+  if (me?.onboarded === true && !me.entitlement.active && !me.limits.sampleUsed) {
+    const marked = await api<WeekResponse>(`${WEEK}?days=${me.limits.diaryWindowDays}`);
+    if (marked.days.length === 0) return firstMealScreen(me);
+  }
+  return diaryScreen();
+}
+
 function textField(placeholder: string): HTMLInputElement {
   const input = el("input", "") as HTMLInputElement;
   input.type = "text";
@@ -829,13 +1211,20 @@ function answered(r: { kind: string }): void {
  * server and only lost its answer is answered from it rather than run twice. Anything the server
  * answered is thrown for the caller to word, as before.
  */
-async function sendOrKeep(entry: WebQueued): Promise<string | void> {
+async function sendOrKeep(
+  entry: WebQueued,
+  hooks?: { onLine?: (line: unknown) => void; onResult?: (r: MessageResponse | PhotoLast) => void },
+): Promise<string | void> {
   // OLDER KEPT TURNS GO FIRST: with anything of this account's still waiting, this one joins the end
   // rather than reaching the server ahead of turns said before it (`joinsQueue`).
   const attempted = entry.userId === "" || !joinsQueue(outbox.entries, entry.userId);
   if (attempted) {
     try {
-      answered(await sendTurn(entry));
+      const r = await sendTurn(entry, hooks?.onLine);
+      answered(r);
+      // The first-meal flow needs the result itself — a logged meal IS its next screen, and a
+      // proposal is confirmed on the spot rather than left as a card nobody is looking at.
+      hooks?.onResult?.(r);
       return;
     } catch (err) {
       if (entry.userId === "" || !noAnswer(err)) throw err;
@@ -914,7 +1303,8 @@ async function render(): Promise<void> {
   const body = el("div", "body", COPY.loading);
   app.append(body);
   try {
-    const screen = route === "#/chat" ? await chatScreen() : await diaryScreen();
+    // `homeScreen` is the diary, or the one-meal flow while the account has never logged (#42).
+    const screen = route === "#/chat" ? await chatScreen() : await homeScreen(await profile());
     if (mine !== drawing) return;
     clear(body).append(screen);
     // Whatever was kept the last time this browser had no connection, now that there is a session.

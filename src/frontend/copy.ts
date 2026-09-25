@@ -103,6 +103,53 @@ export interface WebCopy {
   keptBehind: string;
   /** A turn that could not even be saved: nothing went anywhere. */
   notSaved: string;
+
+  // ── The first-meal flow (#42): one analysis on the house, its verdict, the offer after. ─────
+  // Spud's lines on the flow — the react/ask/tell/keepGoing/correct/afterAsk — are NOT here:
+  // `chatCopyFor(lang).firstMeal` (`shared/onboarding-chat-copy.ts`) is the one table both clients
+  // read. What stays is what that table does not carry: the web's upload wording (`photo` there is
+  // the phone's camera), the drop zone, the edit fields, the offer's prices and timeline.
+  /** The web's photo button — `firstMeal.photo` is the phone's "Take a photo". */
+  firstMealUpload: string;
+  firstPhotoAsk: string;
+  dropPhotoHere: string;
+  dropPhotoKinds: string;
+  analyseMeal: string;
+  firstTypeAsk: string;
+  /** The label over the typed meal's one field. */
+  yourMeal: string;
+  firstVerdictBeat: string;
+  correctBeat: string;
+  correctAsk: string;
+  /** "What it was" — the edit's one text field, which renames the first item. */
+  correctWhat: string;
+  correctPortion: string;
+  portionSmall: string;
+  portionRegular: string;
+  portionLarge: string;
+  saveRecheck: string;
+  /** The offer's title — the ask that holds once the free meal is spent. */
+  offerAsk: string;
+  offerPerkVerdict: string;
+  offerPerkPlan: string;
+  offerPerkSpud: string;
+  offerToday: string;
+  offerBeforeEnd: string;
+  offerDay8: string;
+  offerTodayText: string;
+  offerBeforeText: string;
+  /** No `{price}`: the API sends this client no price, and inventing one is the defect. */
+  offerDay8Text: string;
+  offerPlanMonthly: string;
+  offerPlanLifetime: string;
+  startFreeWeek: string;
+  offerLater: string;
+  /** `{n}` — the photo bound off `ProfileResponse.limits`. */
+  photosMax: string;
+  /** The three macros the verdict card reports, under the big kcal. */
+  statProtein: string;
+  statCarbs: string;
+  statFat: string;
 }
 
 const EN: WebCopy = {
@@ -162,6 +209,34 @@ const EN: WebCopy = {
   kept: "Saved on this device. It goes on its own as soon as it can.",
   keptBehind: "Saved on this device. It goes once the message above that is waiting for you has been sent again or discarded.",
   notSaved: "That could not be saved on this device, and it was not sent. Try again.",
+  firstMealUpload: "Upload a photo",
+  firstPhotoAsk: "Drop in a photo of anything on your plate",
+  dropPhotoHere: "Drop a photo here",
+  dropPhotoKinds: "or choose a file · JPEG, PNG or WebP",
+  analyseMeal: "Analyse my meal",
+  firstTypeAsk: "What did you eat?",
+  yourMeal: "Your meal",
+  firstVerdictBeat: "Your first verdict",
+  correctBeat: "Good catch. I'll redo the numbers.",
+  correctAsk: "What did I get wrong?",
+  correctWhat: "What it was",
+  correctPortion: "Portion",
+  portionSmall: "Small", portionRegular: "Regular", portionLarge: "Large",
+  saveRecheck: "Save and recheck",
+  offerAsk: "Every meal, like that one",
+  offerPerkVerdict: "An honest verdict on every meal",
+  offerPerkPlan: "Your plan moves when your weight does",
+  offerPerkSpud: "Spud, any time you ask",
+  offerToday: "Today", offerBeforeEnd: "Before it ends", offerDay8: "Day 8",
+  offerTodayText: "Free for 7 days",
+  offerBeforeText: "We remind you",
+  offerDay8Text: "Then it's monthly · cancel any time",
+  offerPlanMonthly: "Monthly · 7 days free",
+  offerPlanLifetime: "Lifetime",
+  startFreeWeek: "Start my free week",
+  offerLater: "Not now",
+  photosMax: "One meal takes up to {n} photos.",
+  statProtein: "Protein", statCarbs: "Carbs", statFat: "Fat",
   refusals: {
     "subscription-required": "The analyses this account came with are used up. Subscribe in the eait app to carry on.",
     "cap-user": "That was your last one today — your daily allowance resets at midnight.",
@@ -226,6 +301,34 @@ const FR: WebCopy = {
   kept: "Enregistré sur cet appareil. Ça partira tout seul dès que possible.",
   keptBehind: "Enregistré sur cet appareil. Ça partira une fois que le message au-dessus, qui t'attend, aura été renvoyé ou abandonné.",
   notSaved: "Ça n'a pas pu être enregistré sur cet appareil, et ça n'a pas été envoyé. Réessaie.",
+  firstMealUpload: "Envoyer une photo",
+  firstPhotoAsk: "Dépose une photo de n'importe quelle assiette",
+  dropPhotoHere: "Dépose une photo ici",
+  dropPhotoKinds: "ou choisis un fichier · JPEG, PNG ou WebP",
+  analyseMeal: "Analyse mon repas",
+  firstTypeAsk: "Tu as mangé quoi ?",
+  yourMeal: "Ton repas",
+  firstVerdictBeat: "Ton premier verdict",
+  correctBeat: "Bien vu. Je refais les chiffres.",
+  correctAsk: "Qu'est-ce que j'ai raté ?",
+  correctWhat: "Ce que c'était",
+  correctPortion: "Portion",
+  portionSmall: "Petite", portionRegular: "Normale", portionLarge: "Grande",
+  saveRecheck: "Enregistrer et revérifier",
+  offerAsk: "Chaque repas, comme celui-là",
+  offerPerkVerdict: "Un verdict honnête sur chaque repas",
+  offerPerkPlan: "Ton plan bouge quand ton poids bouge",
+  offerPerkSpud: "Spud, dès que tu demandes",
+  offerToday: "Aujourd'hui", offerBeforeEnd: "Avant la fin", offerDay8: "Jour 8",
+  offerTodayText: "Gratuit pendant 7 jours",
+  offerBeforeText: "On te le rappelle",
+  offerDay8Text: "Ensuite au mois · résiliable à tout moment",
+  offerPlanMonthly: "Mensuel · 7 jours gratuits",
+  offerPlanLifetime: "À vie",
+  startFreeWeek: "Commencer ma semaine gratuite",
+  offerLater: "Pas maintenant",
+  photosMax: "Un repas prend jusqu'à {n} photos.",
+  statProtein: "Protéines", statCarbs: "Glucides", statFat: "Lipides",
   refusals: {
     "subscription-required": "Les analyses fournies avec ce compte sont épuisées. Abonne-toi dans l'appli eait pour continuer.",
     "cap-user": "C'était le dernier pour aujourd'hui — ton quota quotidien repart à minuit.",
@@ -290,6 +393,34 @@ const DE: WebCopy = {
   kept: "Auf diesem Gerät gespeichert. Es geht von selbst raus, sobald es geht.",
   keptBehind: "Auf diesem Gerät gespeichert. Es geht raus, sobald die Nachricht darüber, die auf dich wartet, erneut gesendet oder verworfen wurde.",
   notSaved: "Das ließ sich auf diesem Gerät nicht speichern und wurde nicht gesendet. Versuch es noch einmal.",
+  firstMealUpload: "Foto hochladen",
+  firstPhotoAsk: "Leg ein Foto von irgendwas auf deinem Teller rein",
+  dropPhotoHere: "Foto hier ablegen",
+  dropPhotoKinds: "oder Datei wählen · JPEG, PNG oder WebP",
+  analyseMeal: "Analysier meine Mahlzeit",
+  firstTypeAsk: "Was hast du gegessen?",
+  yourMeal: "Deine Mahlzeit",
+  firstVerdictBeat: "Dein erstes Urteil",
+  correctBeat: "Gut aufgepasst. Ich rechne neu.",
+  correctAsk: "Was habe ich falsch gelesen?",
+  correctWhat: "Was es war",
+  correctPortion: "Portion",
+  portionSmall: "Klein", portionRegular: "Normal", portionLarge: "Groß",
+  saveRecheck: "Speichern und neu prüfen",
+  offerAsk: "Jede Mahlzeit, wie diese",
+  offerPerkVerdict: "Ein ehrliches Urteil zu jeder Mahlzeit",
+  offerPerkPlan: "Dein Plan bewegt sich, wenn dein Gewicht sich bewegt",
+  offerPerkSpud: "Spud, wann immer du fragst",
+  offerToday: "Heute", offerBeforeEnd: "Bevor sie endet", offerDay8: "Tag 8",
+  offerTodayText: "7 Tage kostenlos",
+  offerBeforeText: "Wir erinnern dich",
+  offerDay8Text: "Danach monatlich · jederzeit kündbar",
+  offerPlanMonthly: "Monatlich · 7 Tage kostenlos",
+  offerPlanLifetime: "Lebenslang",
+  startFreeWeek: "Meine Gratiswoche starten",
+  offerLater: "Jetzt nicht",
+  photosMax: "Eine Mahlzeit nimmt bis zu {n} Fotos.",
+  statProtein: "Eiweiß", statCarbs: "Kohlenhydrate", statFat: "Fett",
   refusals: {
     "subscription-required": "Die Analysen, die zu diesem Konto gehörten, sind aufgebraucht. Schließ in der eait-App ein Abo ab, um weiterzumachen.",
     "cap-user": "Das war heute deine letzte — dein Tageskontingent setzt um Mitternacht zurück.",
@@ -354,6 +485,34 @@ const IT: WebCopy = {
   kept: "Salvato su questo dispositivo. Partirà da solo appena possibile.",
   keptBehind: "Salvato su questo dispositivo. Partirà quando il messaggio qui sopra, che ti aspetta, sarà stato inviato di nuovo o scartato.",
   notSaved: "Non è stato possibile salvarlo su questo dispositivo, e non è stato inviato. Riprova.",
+  firstMealUpload: "Carica una foto",
+  firstPhotoAsk: "Trascina una foto di quello che hai nel piatto",
+  dropPhotoHere: "Trascina qui una foto",
+  dropPhotoKinds: "o scegli un file · JPEG, PNG o WebP",
+  analyseMeal: "Analizza il mio pasto",
+  firstTypeAsk: "Cosa hai mangiato?",
+  yourMeal: "Il tuo pasto",
+  firstVerdictBeat: "Il tuo primo verdetto",
+  correctBeat: "Ben visto. Rifaccio i conti.",
+  correctAsk: "Cosa ho capito male?",
+  correctWhat: "Cos'era",
+  correctPortion: "Porzione",
+  portionSmall: "Piccola", portionRegular: "Normale", portionLarge: "Grande",
+  saveRecheck: "Salva e ricontrolla",
+  offerAsk: "Ogni pasto, come quello",
+  offerPerkVerdict: "Un verdetto onesto per ogni pasto",
+  offerPerkPlan: "Il tuo piano si muove quando si muove il tuo peso",
+  offerPerkSpud: "Spud, ogni volta che chiedi",
+  offerToday: "Oggi", offerBeforeEnd: "Prima che finisca", offerDay8: "Giorno 8",
+  offerTodayText: "Gratis per 7 giorni",
+  offerBeforeText: "Ti ricordiamo noi",
+  offerDay8Text: "Poi è mensile · disdici quando vuoi",
+  offerPlanMonthly: "Mensile · 7 giorni gratis",
+  offerPlanLifetime: "Per sempre",
+  startFreeWeek: "Inizia la mia settimana gratis",
+  offerLater: "Non ora",
+  photosMax: "Un pasto accetta fino a {n} foto.",
+  statProtein: "Proteine", statCarbs: "Carboidrati", statFat: "Grassi",
   refusals: {
     "subscription-required": "Le analisi incluse con questo account sono finite. Abbonati nell'app eait per continuare.",
     "cap-user": "Quella era l'ultima di oggi — il tuo limite giornaliero riparte a mezzanotte.",
@@ -418,6 +577,34 @@ const ES: WebCopy = {
   kept: "Guardado en este dispositivo. Saldrá solo en cuanto pueda.",
   keptBehind: "Guardado en este dispositivo. Saldrá cuando el mensaje de arriba, que te está esperando, se haya enviado otra vez o descartado.",
   notSaved: "No se ha podido guardar en este dispositivo, y no se ha enviado. Inténtalo otra vez.",
+  firstMealUpload: "Subir una foto",
+  firstPhotoAsk: "Suelta una foto de lo que tengas en el plato",
+  dropPhotoHere: "Suelta una foto aquí",
+  dropPhotoKinds: "o elige un archivo · JPEG, PNG o WebP",
+  analyseMeal: "Analiza mi comida",
+  firstTypeAsk: "¿Qué comiste?",
+  yourMeal: "Tu comida",
+  firstVerdictBeat: "Tu primer veredicto",
+  correctBeat: "Bien visto. Rehago los números.",
+  correctAsk: "¿En qué me equivoqué?",
+  correctWhat: "Qué era",
+  correctPortion: "Ración",
+  portionSmall: "Pequeña", portionRegular: "Normal", portionLarge: "Grande",
+  saveRecheck: "Guardar y revisar",
+  offerAsk: "Cada comida, como esa",
+  offerPerkVerdict: "Un veredicto honesto en cada comida",
+  offerPerkPlan: "Tu plan se mueve cuando tu peso se mueve",
+  offerPerkSpud: "Spud, cuando lo pidas",
+  offerToday: "Hoy", offerBeforeEnd: "Antes de que termine", offerDay8: "Día 8",
+  offerTodayText: "Gratis 7 días",
+  offerBeforeText: "Te lo recordamos",
+  offerDay8Text: "Luego es mensual · cancela cuando quieras",
+  offerPlanMonthly: "Mensual · 7 días gratis",
+  offerPlanLifetime: "De por vida",
+  startFreeWeek: "Empezar mi semana gratis",
+  offerLater: "Ahora no",
+  photosMax: "Una comida admite hasta {n} fotos.",
+  statProtein: "Proteína", statCarbs: "Carbohidratos", statFat: "Grasas",
   refusals: {
     "subscription-required": "Los análisis que traía esta cuenta se han agotado. Suscríbete en la app de eait para seguir.",
     "cap-user": "Esa fue la última de hoy — tu cupo diario se reinicia a medianoche.",
@@ -482,6 +669,34 @@ const VI: WebCopy = {
   kept: "Đã lưu trên máy này. Nó sẽ tự gửi ngay khi có thể.",
   keptBehind: "Đã lưu trên máy này. Nó sẽ gửi sau khi tin nhắn phía trên — cái đang chờ bạn quyết định — được gửi lại hoặc bỏ đi.",
   notSaved: "Không lưu được trên máy này, và cũng chưa gửi đi. Thử lại nhé.",
+  firstMealUpload: "Tải ảnh lên",
+  firstPhotoAsk: "Thả vào đây một tấm ảnh bất cứ món gì trên đĩa của bạn",
+  dropPhotoHere: "Thả ảnh vào đây",
+  dropPhotoKinds: "hoặc chọn một tệp · JPEG, PNG hoặc WebP",
+  analyseMeal: "Phân tích bữa của tôi",
+  firstTypeAsk: "Bạn đã ăn gì?",
+  yourMeal: "Bữa của bạn",
+  firstVerdictBeat: "Phán quyết đầu tiên của bạn",
+  correctBeat: "Hay đấy. Mình tính lại các con số.",
+  correctAsk: "Mình sai chỗ nào?",
+  correctWhat: "Đó là món gì",
+  correctPortion: "Khẩu phần",
+  portionSmall: "Nhỏ", portionRegular: "Vừa", portionLarge: "Lớn",
+  saveRecheck: "Lưu và kiểm tra lại",
+  offerAsk: "Mọi bữa ăn, như bữa đó",
+  offerPerkVerdict: "Phán quyết thẳng thắn cho mỗi bữa",
+  offerPerkPlan: "Kế hoạch đổi khi cân nặng đổi",
+  offerPerkSpud: "Spud, bất cứ lúc nào bạn hỏi",
+  offerToday: "Hôm nay", offerBeforeEnd: "Trước khi hết", offerDay8: "Ngày 8",
+  offerTodayText: "Miễn phí 7 ngày",
+  offerBeforeText: "Bọn mình nhắc bạn",
+  offerDay8Text: "Sau đó tính theo tháng · huỷ bất cứ lúc nào",
+  offerPlanMonthly: "Theo tháng · 7 ngày miễn phí",
+  offerPlanLifetime: "Trọn đời",
+  startFreeWeek: "Bắt đầu tuần miễn phí của tôi",
+  offerLater: "Để sau",
+  photosMax: "Một bữa ăn nhận tối đa {n} ảnh.",
+  statProtein: "Đạm", statCarbs: "Tinh bột", statFat: "Béo",
   refusals: {
     "subscription-required": "Số lượt phân tích đi kèm tài khoản này đã dùng hết. Đăng ký trong ứng dụng eait để tiếp tục.",
     "cap-user": "Đó là lần cuối trong hôm nay — hạn mức mỗi ngày của bạn sẽ đặt lại lúc nửa đêm.",
@@ -546,6 +761,34 @@ const ID: WebCopy = {
   kept: "Tersimpan di perangkat ini. Akan terkirim sendiri begitu bisa.",
   keptBehind: "Tersimpan di perangkat ini. Akan terkirim setelah pesan di atas, yang menunggu keputusanmu, dikirim lagi atau dibuang.",
   notSaved: "Itu tidak bisa disimpan di perangkat ini, dan tidak terkirim. Coba lagi.",
+  firstMealUpload: "Unggah foto",
+  firstPhotoAsk: "Taruh foto apa pun yang ada di piringmu",
+  dropPhotoHere: "Taruh foto di sini",
+  dropPhotoKinds: "atau pilih berkas · JPEG, PNG atau WebP",
+  analyseMeal: "Analisis makananku",
+  firstTypeAsk: "Kamu makan apa?",
+  yourMeal: "Makananmu",
+  firstVerdictBeat: "Penilaian pertamamu",
+  correctBeat: "Bagus. Aku hitung ulang angkanya.",
+  correctAsk: "Di mana aku salah?",
+  correctWhat: "Itu tadi apa",
+  correctPortion: "Porsi",
+  portionSmall: "Kecil", portionRegular: "Biasa", portionLarge: "Besar",
+  saveRecheck: "Simpan dan cek ulang",
+  offerAsk: "Setiap makanan, seperti yang tadi",
+  offerPerkVerdict: "Penilaian jujur untuk setiap makanan",
+  offerPerkPlan: "Rencanamu bergerak saat beratmu bergerak",
+  offerPerkSpud: "Spud, kapan pun kamu tanya",
+  offerToday: "Hari ini", offerBeforeEnd: "Sebelum berakhir", offerDay8: "Hari ke-8",
+  offerTodayText: "Gratis 7 hari",
+  offerBeforeText: "Kami ingatkan kamu",
+  offerDay8Text: "Lalu bulanan · bisa batal kapan saja",
+  offerPlanMonthly: "Bulanan · 7 hari gratis",
+  offerPlanLifetime: "Seumur hidup",
+  startFreeWeek: "Mulai minggu gratisku",
+  offerLater: "Nanti saja",
+  photosMax: "Satu makanan bisa berisi sampai {n} foto.",
+  statProtein: "Protein", statCarbs: "Karbo", statFat: "Lemak",
   refusals: {
     "subscription-required": "Jatah analisis akun ini sudah habis. Berlangganan di aplikasi eait untuk melanjutkan.",
     "cap-user": "Itu yang terakhir untuk hari ini — jatah harianmu mulai lagi tengah malam.",
@@ -610,6 +853,34 @@ const RU: WebCopy = {
   kept: "Сохранено на этом устройстве. Уйдёт само, как только сможет.",
   keptBehind: "Сохранено на этом устройстве. Уйдёт, когда сообщение выше — то, что ждёт твоего решения — будет отправлено снова или отброшено.",
   notSaved: "Это не удалось сохранить на устройстве, и отправлено оно не было. Попробуй ещё раз.",
+  firstMealUpload: "Загрузить фото",
+  firstPhotoAsk: "Перетащи сюда фото всего, что на тарелке",
+  dropPhotoHere: "Перетащи фото сюда",
+  dropPhotoKinds: "или выбери файл · JPEG, PNG или WebP",
+  analyseMeal: "Проанализируй эту еду",
+  firstTypeAsk: "Что было на тарелке?",
+  yourMeal: "Твой приём пищи",
+  firstVerdictBeat: "Твой первый вердикт",
+  correctBeat: "Хорошо замечено. Пересчитаю цифры.",
+  correctAsk: "Что мне поправить?",
+  correctWhat: "Что это было",
+  correctPortion: "Порция",
+  portionSmall: "Маленькая", portionRegular: "Обычная", portionLarge: "Большая",
+  saveRecheck: "Сохранить и проверить снова",
+  offerAsk: "Каждый приём пищи — как этот",
+  offerPerkVerdict: "Честный вердикт каждому приёму пищи",
+  offerPerkPlan: "План двигается, когда двигается вес",
+  offerPerkSpud: "Spud — всегда, когда спросишь",
+  offerToday: "Сегодня", offerBeforeEnd: "Пока не кончилась", offerDay8: "День 8",
+  offerTodayText: "Бесплатно 7 дней",
+  offerBeforeText: "Мы напомним",
+  offerDay8Text: "Дальше помесячно · отменить можно в любой момент",
+  offerPlanMonthly: "Помесячно · 7 дней бесплатно",
+  offerPlanLifetime: "Навсегда",
+  startFreeWeek: "Начать бесплатную неделю",
+  offerLater: "Не сейчас",
+  photosMax: "К одному приёму пищи можно приложить до {n} фото.",
+  statProtein: "Белок", statCarbs: "Углеводы", statFat: "Жиры",
   refusals: {
     "subscription-required": "Разборы, которые шли с этим аккаунтом, закончились. Оформи подписку в приложении eait, чтобы продолжить.",
     "cap-user": "Это была последняя на сегодня — дневной лимит обнулится в полночь.",

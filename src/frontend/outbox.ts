@@ -28,14 +28,14 @@ export type WebQueued = Queued<File>;
  * ONE SEND, live and queued alike. A refusal the stream carries in-band is thrown as the `ApiError`
  * the JSON path throws, so a caller has one catch for everything that is not a result.
  */
-export async function sendTurn(entry: WebQueued): Promise<MessageResponse | PhotoLast> {
+export async function sendTurn(entry: WebQueued, onLine?: (line: unknown) => void): Promise<MessageResponse | PhotoLast> {
   if (entry.kind === "photo") {
     const form = new FormData();
     for (const f of entry.photos) form.append("photo", f);
     if (entry.text) form.append("caption", entry.text);
     form.append("clientId", entry.id);
     form.append("capturedAt", entry.capturedAt);
-    const r = await apiStream<PhotoLast>(PHOTO, { method: "POST", body: form, headers: { [IDEMPOTENCY]: entry.id } });
+    const r = await apiStream<PhotoLast>(PHOTO, { method: "POST", body: form, headers: { [IDEMPOTENCY]: entry.id } }, onLine);
     if (r.kind !== "logged") throw new ApiError(200, { error: r.kind, ...("scope" in r ? { scope: r.scope } : {}) }, `photo: ${r.kind}`);
     return r;
   }

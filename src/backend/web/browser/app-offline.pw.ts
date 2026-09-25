@@ -9,7 +9,7 @@
 import { readFileSync } from "node:fs";
 import type { ChatHistoryResponse, DayResponse, ProfileResponse } from "@eait/shared/contract";
 import type { Page } from "@playwright/test";
-import { expect, sessionToken, test } from "./fixtures.ts";
+import { expect, logMeal, sessionToken, test } from "./fixtures.ts";
 
 const FIXTURE = "src/backend/web/browser/fixture-meal.png";
 const KEPT = "Saved on this device. It goes on its own as soon as it can.";
@@ -216,8 +216,15 @@ test("signing out takes the kept turns with it", async ({ inWebApp: page }) => {
 test("the chat opens offline, from another tab, with what it last had and a composer that keeps", async ({ inWebApp: page }) => {
   // Round 1 of #708's review: the first draw rethrew its failed read, so Chat was an error screen
   // offline unless it was already open.
+  // A meal first: with none logged, the Diary tap below lands on the first-meal flow (#42). The
+  // thread then holds that turn's lines too, so the counts below are read RELATIVE to it — and the
+  // reload is because the chat drew before the seeded turn landed.
+  await logMeal(page);
+  await page.reload();
+  await expect(page.locator(".thread li").first()).toBeVisible();
+  const before = await page.locator(".thread li").count();
   await say(page, "how did my week go?");
-  await expect(page.locator(".thread li")).toHaveCount(2);
+  await expect(page.locator(".thread li")).toHaveCount(before + 2);
   await page.getByRole("link", { name: "Diary" }).click();
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
   await page.context().setOffline(true);
@@ -228,7 +235,7 @@ test("the chat opens offline, from another tab, with what it last had and a comp
   await expect(waiting(page)).toHaveCount(1);
   await page.context().setOffline(false);
   await expect(waiting(page)).toHaveCount(0);
-  expect(await userLines(page)).toEqual(["text:how did my week go?", "text:a slice of rye bread"]);
+  expect((await userLines(page)).slice(-2)).toEqual(["text:how did my week go?", "text:a slice of rye bread"]);
 });
 
 test("a kept turn of an account that is no longer signed in here is not kept for the next one", async ({ page }, testInfo) => {
