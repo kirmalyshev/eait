@@ -60,7 +60,7 @@ test("a photo reaches the first verdict, a manual edit the recheck, and Keep goi
   await expect(page.getByText("Free for 7 days")).toBeVisible();
   await expect(page.getByText("Day 8")).toBeVisible();
   const cta = page.getByRole("link", { name: "Start my free week" });
-  await expect(cta).toHaveAttribute("href", "/start/plan");
+  await expect(cta).toHaveAttribute("href", "/start/checkout");
 });
 
 test("a meal told in words reaches the same first verdict", async ({ inWebApp: page }) => {

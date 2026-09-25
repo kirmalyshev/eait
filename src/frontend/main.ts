@@ -1058,11 +1058,11 @@ function firstMealScreen(me: ProfileResponse): HTMLElement {
     for (const p of [COPY.offerPlanMonthly, COPY.offerPlanLifetime]) plans.append(el("div", "plan", p));
     box.append(plans);
     const foot = el("div", "step-foot");
-    // `/start/plan`, not the checkout URL itself: the API sends this client no checkout URL — the
-    // backend renders `webCheckoutUrl` into that page, same origin, under the session cookie, and
-    // the page degrades to a diary link when no checkout is configured.
+    // `/start/checkout`, not the checkout URL itself: the backend fills this account's id into the
+    // configured checkout from the `/start` session, same origin, so no client ever carries it —
+    // the one paid link both offers share.
     const go = el("a", "cta p", COPY.startFreeWeek) as HTMLAnchorElement;
-    go.href = "/start/plan";
+    go.href = "/start/checkout";
     const later = el("button", "cta g", COPY.offerLater) as HTMLButtonElement;
     // "Not now" re-renders: a meal exists by now, so the gate opens the diary it belongs on.
     later.addEventListener("click", () => { void render(); });

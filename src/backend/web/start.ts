@@ -19,14 +19,16 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
-  AMBIGUOUS_AGE, RESTRICTION_TAGS, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
+  AMBIGUOUS_AGE, RESTRICTION_TAGS, STRUGGLES, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
   chatCopyFor as CHAT,
   askPlaceholder, checkDirection, checkNumber, disabledScreens, isAnswered, promptsFor,
-  isRefusal, MAX_USER_LINE, optionLabel, renderableVerdicts, resolveCountry, ROUTES, screenForStep,
-  screenOptions, screenOptionValues, suggestionFirst, switchedLine,
+  isRefusal, MAX_USER_LINE, offerHeadline, optionLabel, promptById, reactionTo,
+  renderableVerdicts, resolveCountry, ROUTES, screenForStep,
+  screenOptions, screenOptionValues, suggestedTargetKg, suggestionFirst, supportMoment,
+  switchedLine, targetRange, targetSuggestionLine, TARGET_STEP_KG,
   LANGS_READY, acceptLanguageTags, narrowLang, numbers, verdictPillLabel,
-  type ChatEntry, type ChatPrompt, type Goal, type Lang, type NumberField, type OnboardingContent,
-  type PatchProfileRequest, type Profile,
+  type ChatEntry, type ChatPrompt, type ChatPromptId, type Goal, type Lang, type MomentId,
+  type NumberField, type OnboardingContent, type PatchProfileRequest, type Profile, type Struggle,
 } from "@eait/shared";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
 import { BROWSER_SESSION_TTL_MS } from "../auth/tokens.ts";
@@ -42,7 +44,7 @@ import {
   // `pageCopyFor(lang)` — so importing it buys nothing and costs a silent English render the
   // day somebody writes `PAGE_COPY.foo` outside one of those scopes. Unimported, that is a
   // compile error instead.
-  chat, frontDoor, html, pageCopyFor, plan, question, stopped, FONT_PATH,
+  chat, frontDoor, html, moment, offer, pageCopyFor, plan, question, stopped, FONT_PATH,
   type PageCopy,
   type ChatLine, type ChatProposal, type QuestionOption,
 } from "./page.ts";
@@ -74,6 +76,23 @@ const AUTH_PATH = /^\/start\/auth\/(apple|google)(\/callback)?$/;
  */
 const CHAT_PATH = `${START_PREFIX}/chat`;
 const CHAT_ALIAS = "/chat";
+
+/**
+ * The answers that close their question on a page of their own — the four support beats (#42).
+ * The redirect lands on the moment's own GET, which re-reads the profile and decides: a null
+ * moment is a skipped one, never an empty screen.
+ */
+const MOMENT_AFTER: Partial<Record<ChatPromptId, MomentId>> = {
+  target_weight_kg: "target", activity: "activity", restrictions: "restrictions",
+};
+
+/** Where each moment's one button goes. `struggles` never renders on the GET — see below. */
+const MOMENT_NEXT: Record<MomentId, string> = {
+  target: `${START_PREFIX}/q`,
+  activity: `${START_PREFIX}/struggles`,
+  struggles: `${START_PREFIX}/q`,
+  restrictions: `${START_PREFIX}/plan`,
+};
 
 /** Thread lines rendered on one page. No pagination here yet: the composer is what people came for. */
 const CHAT_PAGE_LINES = 50;
@@ -743,8 +762,10 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     const questions = questionsFor(profile, content, resolved === null || resolved.ask);
     const openIndex = questions.findIndex((p) => !isAnswered(p, profile));
 
-    const ask = (error: string | null, actions: Action[] = []) =>
-      html(renderQuestion(questions, openIndex, profile, content, error, actions, resolved?.country ?? null));
+    const ask = (error: string | null, actions: Action[] = [], draftKg?: number) =>
+      html(renderQuestion(
+        questions, openIndex, profile, content, error, actions, resolved?.country ?? null, draftKg,
+      ));
 
     if (req.method === "GET") {
       if (openIndex === -1) return seeOther(`${START_PREFIX}/plan`);
@@ -764,6 +785,21 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       // rather than applied: the profile is what says where somebody is, on this surface exactly as
       // in the app, and a stale tab must not be able to write an answer to a question already past.
       if (form?.get("prompt") !== open.id) return seeOther(`${START_PREFIX}/q`);
+
+      // The stepper's − and + ARE submits of this same form: the shown number comes back as
+      // `answer` with a `step` direction, and the page answers stepped — a render, not a redirect,
+      // because nothing was written and a refresh can only re-ask. The range is the server's own;
+      // a crafted POST clamps at it the same way the disabled button does.
+      const stepReq = form.get("step");
+      if (open.id === "target_weight_kg" && stepReq !== null) {
+        const dir = stepReq === "-1" ? -1 : stepReq === "1" ? 1 : 0;
+        const range = targetRange(profile);
+        const draft = Number(form.get("answer"));
+        if (dir === 0 || !Number.isFinite(draft)) return ask(null);
+        return range === null
+          ? ask(null)
+          : ask(null, [], Math.min(range.max, Math.max(range.min, draft + dir * TARGET_STEP_KG)));
+      }
 
       // The wrong-direction refusal's own escape: usually the goal was mistapped, not the number.
       const switchTo = form.get("switch");
@@ -819,8 +855,68 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       }
       const outcome = await patchProfile(ctx.deps, userId, answer.patch);
       if (outcome && !outcome.ok) return ask(refusalText(outcome.rejected, profile.lang));
-      return seeOther(`${START_PREFIX}/q`);
+      // The four support beats land on pages of their own (#42): `supportMoment` decides on the
+      // GET whether there is one to show, and a skipped one falls through to the next question.
+      const momentId = MOMENT_AFTER[open.id];
+      return seeOther(momentId ? `${START_PREFIX}/moment/${momentId}` : `${START_PREFIX}/q`);
     }
+  }
+
+  // ── The struggles question, and the four support moments (#42) ──────────────────────────────
+  //
+  // `struggles` is the one question that collects NOTHING — it has no field, and its picks are
+  // never stored anywhere: "binge episodes" is a disclosure, not a preference, and the funnel
+  // drops them by construction. So it cannot sit in `questionsFor`, which derives where somebody
+  // is from the profile — an unwritable answer is a question the flow would ask forever. It is a
+  // route of its own instead, reached from the activity moment; a re-derivation of "where am I"
+  // skips it, which is the same call `resumeAt` makes on the phone.
+  //
+  // Its POST RENDERS the moment it earns rather than redirecting to one — the picks would have to
+  // ride in a URL otherwise, and a URL is history, logs and Referer. The post is safe to repeat
+  // precisely because it writes nothing at all.
+  if (pathname === `${START_PREFIX}/struggles`) {
+    const { content } = await view();
+    const lang = profile.lang;
+    if (req.method === "GET") {
+      const quick = CHAT(lang).quick.struggles;
+      return html(question({
+        promptId: "struggles",
+        kind: "chips",
+        lines: askLines(promptById("struggles")!, { content, lang }, profile),
+        options: STRUGGLES.map((v) => ({ value: v, label: CHAT(lang).struggles[v] })),
+        placeholder: null,
+        error: null,
+        // "None of these" is a real answer: the chips' quick reply, a submit that picks nothing.
+        actions: [{ name: "answer", value: "", label: quick.none }],
+        action: `${START_PREFIX}/struggles`,
+        submitLabel: quick.finish,
+        lang,
+      }));
+    }
+    if (req.method === "POST") {
+      const form = await req.formData().catch(() => null);
+      const picks = (form?.getAll("answer") ?? []).filter(
+        (v): v is Struggle => typeof v === "string" && (STRUGGLES as readonly string[]).includes(v),
+      );
+      const m = supportMoment("struggles", { profile, struggles: picks, lang, content });
+      if (m === null) return seeOther(`${START_PREFIX}/q`);
+      return html(moment({ ...m, next: MOMENT_NEXT.struggles, lang }));
+    }
+    return notFound();
+  }
+
+  // A moment is a GET that a POST redirects to — re-derived from the profile on every load, so a
+  // refresh shows the same beat and a visit with nothing behind it goes to the questions instead
+  // of drawing an empty halo.
+  const momentMatch = /^\/start\/moment\/(target|activity|struggles|restrictions)$/.exec(pathname);
+  if (momentMatch) {
+    if (req.method !== "GET") return notFound();
+    const id = momentMatch[1]! as MomentId;
+    const { content } = await view();
+    const lang = profile.lang;
+    const m = supportMoment(id, { profile, struggles: [], lang, content });
+    if (m === null) return seeOther(`${START_PREFIX}/q`);
+    return html(moment({ ...m, next: MOMENT_NEXT[id], lang }));
   }
 
   // ── The thread ────────────────────────────────────────────────────────────────────────────
@@ -1002,15 +1098,43 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       proteinG: full.targets.protein_g,
       floorApplied: full.basis.floorApplied,
       floorKcal: full.basis.floorKcal,
-      // The id goes in the URL because RevenueCat's webhook is the only thing that can grant the
-      // entitlement and `app_user_id` is how it names the account. An anonymous checkout produces a
-      // delivery this server refuses — see `api/revenuecat.ts`.
-      checkoutUrl: config.webCheckoutUrl === ""
-        ? null
-        // `replaceAll`: a template naming the placeholder twice — a path segment and a query
-        // parameter, which is a shape real checkout links take — would otherwise ship the second
-        // one literally.
-        : config.webCheckoutUrl.replaceAll("{userId}", encodeURIComponent(userId)),
+      // The ask leads to the offer, not straight at the checkout — the soft ask is a page of its
+      // own now (#42), and this boolean is the plan's whole knowledge of it.
+      checkout: config.webCheckoutUrl !== "",
+    }));
+  }
+
+  // ── The soft offer (#42) — the plan's one ask, with a way past it. ──────────────────────────
+  //
+  // The × is not decoration: the welcome's promise is "nothing to pay until the plan and the
+  // first verdict", and the close is what keeps it — it goes to the web app's first-meal flow,
+  // the same app root the plan page already links to. With no checkout configured there is
+  // nothing to offer at all, so the route answers as if it were declined: straight there.
+  // THE ONE PAID LINK, and both offers point at it: this surface's soft offer and the web app's
+  // offer that holds. The id goes in the URL because RevenueCat's webhook is the only thing that
+  // can grant the entitlement and `app_user_id` is how it names the account; it is filled here,
+  // from the session, so no page and no client ever carries it. `replaceAll`: a template naming
+  // the placeholder twice would otherwise ship the second one literally. Nothing configured is a
+  // route that does not exist, the shape the purchase webhook and `/admin` use.
+  if (req.method === "GET" && pathname === `${START_PREFIX}/checkout`) {
+    if (config.webCheckoutUrl === "") return notFound();
+    return seeOther(config.webCheckoutUrl.replaceAll("{userId}", encodeURIComponent(userId)));
+  }
+
+  if (req.method === "GET" && pathname === `${START_PREFIX}/offer`) {
+    if (profile.onboarded_at === null) return seeOther(`${START_PREFIX}/q`);
+    const closeTo = ctx.hasWebApp ? "/" : CHAT_PATH;
+    if (config.webCheckoutUrl === "") return seeOther(closeTo);
+    return html(offer({
+      // `offerHeadline` names the computed target by the computed month — never literals, and
+      // never a figure the projection cannot stand behind; it answers null for those, and the
+      // page's own fallback title is what is said instead.
+      headline: offerHeadline(profile, new Date(), profile.lang)
+        ?? pageCopyFor(profile.lang).offerTitleElse,
+      checkoutUrl: `${START_PREFIX}/checkout`,
+      privacyHref: config.landingUrl === "" ? null : `${config.landingUrl}/privacy`,
+      closeHref: closeTo,
+      lang: profile.lang,
     }));
   }
 
@@ -1084,18 +1208,54 @@ function renderQuestion(
   error: string | null,
   actions: Action[] = [],
   suggested: string | null = null,
+  draftKg?: number,
 ): string {
   const prompt = questions[index]!;
+  const lang = profile.lang;
+
+  // The line above the ask is Spud's reply to the PREVIOUS beat in the walk (#42) — read off the
+  // full prompt list, not the field list, so the struggles beat's segue is what sits above the
+  // country question. `reactionTo` reads the profile itself, so a prompt this person never met —
+  // a switched-off screen, a country the browser resolved — simply has no reaction to draw.
+  const walk = promptsFor(profile, disabledScreens(content), { health: false });
+  const prevId = walk[walk.findIndex((p) => p.id === prompt.id) - 1]?.id;
+  const reaction = (() => {
+    if (prevId === undefined) return null;
+    const r = reactionTo(prevId, profile, lang);
+    if (r === null) return null;
+    // `cheer` is a moment's pose, not a face `spudSvg` can draw — joy is its face.
+    return { line: r.line, mood: r.mood === "cheer" ? "joy" as const : r.mood };
+  })();
+
+  let lines = askLines(prompt, { content, lang }, profile);
+  // The target question is the design's stepper when there is a suggestion to start from — with
+  // `targetSuggestionLine` AS the ask, because the suggestion spoken and the number shown are the
+  // same sentence. At the healthy floor there is nothing to suggest and the plain box stands.
+  let stepper: { value: number; min: number; max: number } | null = null;
+  if (prompt.id === "target_weight_kg") {
+    const suggestedKg = suggestedTargetKg(profile);
+    const range = targetRange(profile);
+    if (suggestedKg !== null && range !== null && profile.weight_kg !== null
+        && (profile.goal === "lose" || profile.goal === "gain")) {
+      stepper = { value: draftKg ?? suggestedKg, min: range.min, max: range.max };
+      const share = Math.round(Math.abs(suggestedKg - profile.weight_kg) / profile.weight_kg * 100);
+      const line = targetSuggestionLine(suggestedKg, share, profile.goal, lang);
+      if (line !== null) lines = [line];
+    }
+  }
+
   return question({
     promptId: prompt.id,
     kind: prompt.kind === "chips" ? "chips" : prompt.kind === "number" ? "number" : "choice",
-    lines: askLines(prompt, { content: content, lang: profile.lang }, profile),
-    options: prompt.kind === "number" ? [] : optionsFor(prompt, content, profile.lang, suggested),
+    lines,
+    options: prompt.kind === "number" ? [] : optionsFor(prompt, content, lang, suggested),
     placeholder: askPlaceholder(prompt, content),
     error,
     actions,
+    reaction,
+    stepper,
     step: index + 1,
     total: questions.length,
-    lang: profile.lang,
+    lang,
   });
 }

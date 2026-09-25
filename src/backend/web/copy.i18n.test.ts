@@ -57,7 +57,7 @@ describe("what /start says for itself, in eight languages", () => {
 describe("the language picker on the plan page", () => {
   const view = {
     signedInWith: "apple" as const, kcal: 1800, proteinG: 120,
-    floorApplied: false, floorKcal: 1500, checkoutUrl: null, hasWebApp: true, telegram: false,
+    floorApplied: false, floorKcal: 1500, checkout: false, hasWebApp: true, telegram: false,
   };
 
   it("offers exactly LANGS_READY, labelled in each language's own name", () => {
@@ -132,7 +132,7 @@ describe("the front door's two buttons", () => {
 describe("the plan card's two figures", () => {
   const view = {
     signedInWith: "apple" as const, kcal: 1500, proteinG: 120,
-    floorApplied: true, floorKcal: 1500, checkoutUrl: null, hasWebApp: false, telegram: false,
+    floorApplied: true, floorKcal: 1500, checkout: false, hasWebApp: false, telegram: false,
   };
 
   it("spell the kilocalorie the same way, on one card, in every language", () => {

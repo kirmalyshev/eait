@@ -13,10 +13,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   AMBIGUOUS_AGE, COUNTRY_CODES, DEFAULT_ONBOARDING_CONTENT, LANGS, LANG_LABEL, UNDER_AGE_CARD,
-  UNDER_AGE_LINES, countryLabel, countryOptions, disabledScreens, explainTargets, lintCopy,
-  MAX_USER_LINE, onboardingContentFor, screenForStep, screenOptions, TYPE_MS_PER_CHAR,
-  wholeNumbers, type Profile,
+  UNDER_AGE_LINES, basalMetabolicRate, chatCopyFor, countryLabel, countryOptions, disabledScreens,
+  explainTargets, lintCopy, MAX_USER_LINE, onboardingContentFor, screenForStep, screenOptions,
+  struggleCard, suggestedTargetKg, targetSuggestionLine,
+  TYPE_MS_PER_CHAR, wholeNumbers, type Profile,
 } from "@eait/shared";
+import { MOUTHS } from "@eait/shared/mascot";
 import { PKCS8_BEGIN, PKCS8_END, configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
@@ -692,13 +694,19 @@ describe("the plan", () => {
     const session = await signIn();
     await answerAll(session, ANSWERS);
     expect(await (await get("/start/plan", session)).text()).not.toContain("pay.rev.cat");
+    // Nothing configured is nothing to offer — the soft offer has no screen of its own either.
+    expect((await get("/start/offer", session)).status).toBe(303);
 
     router({ ...CONFIG, webCheckoutUrl: "https://pay.rev.cat/eait/{userId}" });
     const second = await signIn();
     await answerAll(second, ANSWERS);
     const userId = (await store.userIdForToken(second.split("=")[1]!))!;
     const html = await (await get("/start/plan", second)).text();
-    expect(html).toContain(`https://pay.rev.cat/eait/${userId}`);
+    // The plan's ask leads to the offer, which is where the configured checkout now lives.
+    expect(html).toContain('href="/start/offer"');
+    const offer = await (await get("/start/offer", second)).text();
+    expect(offer).toContain('href="/start/checkout"');
+    expect((await get("/start/checkout", second)).headers.get("location")).toBe(`https://pay.rev.cat/eait/${userId}`);
   });
 
   // THE SENTENCE THIS WHOLE PROVIDER PAIR EXISTS FOR. The app offers both buttons and the wrong one
@@ -1082,6 +1090,307 @@ describe("a target that runs the wrong way", () => {
     // And the number that was refused a moment ago is now the right direction.
     await post("/start/q", { prompt: "target_weight_kg", answer: "90" }, session);
     expect((await store.getProfile(userId))!.target_weight_kg).toBe(90);
+  });
+});
+
+// ── The v5 walk (#42): reactions, the stepper, the moments, the soft offer ────────────────────
+//
+// Every answer gets Spud's one line back, spoken above the next question; the four support beats
+// are whole screens of their own; the target weight is a stepper that starts at the shared
+// suggestion. None of it is JavaScript — the stepper's buttons are plain form submits, the
+// moments are GET pages a POST redirects to.
+
+/** Walk a session to the question named, one real POST at a time, and return its HTML. */
+const walkTo = async (session: string, stopAt: string): Promise<string> => {
+  for (let i = 0; i < 20; i++) {
+    const page = await get("/start/q", session);
+    if (page.status === 303) throw new Error(`walk ended before ${stopAt}`);
+    const html = await page.text();
+    const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
+    if (id === stopAt) return html;
+    const res = await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+    if (res.status !== 303) throw new Error(`${id} refused: ${res.status}`);
+  }
+  throw new Error(`never reached ${stopAt}`);
+};
+
+describe("the reaction above the question", () => {
+  it("says nothing above the first question, which has no answer to react to", async () => {
+    const session = await signIn();
+    const html = await (await get("/start/q", session)).text();
+    expect(html).toContain('name="prompt" value="goal"');
+    expect(html).not.toContain('class="spk"');
+  });
+
+  it("reacts to the goal above the next question, with the mood's own face", async () => {
+    const session = await signIn();
+    await post("/start/q", { prompt: "goal", answer: "lose" }, session);
+    const html = await (await get("/start/q", session)).text();
+    expect(html).toContain('name="prompt" value="sex"');
+    // `reactionTo("goal")`, lose's line — and above the ask, not after it.
+    const line = escape(chatCopyFor("en").reactions.goalLose);
+    expect(html).toContain(line);
+    const ask = html.indexOf('name="prompt"');
+    expect(html.indexOf(line)).toBeLessThan(ask);
+    // The mood is drawn, not just decided: joy's mouth is the filled smile, and no other mood's.
+    expect(html).toContain(`d="${MOUTHS.joy}"`);
+  });
+
+  it("speaks the BMR quick win above the target question, from the weight just given", async () => {
+    const session = await signIn();
+    const html = await walkTo(session, "target_weight_kg");
+    // `reactionTo("weight_kg")` — the quick win, computed on the profile the walk just wrote.
+    expect(html).toContain("burns about");
+    const bmr = basalMetabolicRate((await store.getProfile(await webUser(session)))!);
+    expect(html).toContain(`${wholeNumbers("en")(bmr!)}`);
+  });
+
+  it("carries the struggles segue onto the country question", async () => {
+    const session = await signIn();
+    const html = await walkTo(session, "country");
+    // `reactionTo("struggles")` — the line is the segue out of the beats that ran since activity.
+    expect(html).toContain(chatCopyFor("en").reactions.struggles);
+  });
+
+  it("says 'Nearly there' above the last question", async () => {
+    const session = await signIn();
+    const html = await walkTo(session, "restrictions");
+    expect(html).toContain(chatCopyFor("en").reactions.country);
+  });
+});
+
+describe("the target-weight stepper", () => {
+  /** 80 kg at 170 cm → the suggested target is 73.5, the range 54–79.5. */
+  it("opens on the shared suggestion, said as the ask, and takes no typed answer", async () => {
+    const session = await signIn();
+    const html = await walkTo(session, "target_weight_kg");
+    // `targetSuggestionLine` is Spud's ask here, per the design — the admin's own ask is not
+    // ALSO said, or the screen is two questions at once.
+    expect(html).toContain("I suggest 73.5 kg");
+    // The control is the stepper: −/+ submits around a number input the suggestion fills.
+    expect(html).toContain('name="step"');
+    expect(html).toMatch(/type="number" name="answer"[^>]*value="73\.5"/);
+    expect(html).toContain(`aria-label="${chatCopyFor("en").stepper.less}"`);
+    expect(html).toContain(`aria-label="${chatCopyFor("en").stepper.more}"`);
+  });
+
+  it("steps a half kilo a press, inside the range, without writing the profile", async () => {
+    const session = await signIn();
+    await walkTo(session, "target_weight_kg");
+    const userId = await webUser(session);
+
+    const down = await post("/start/q", { prompt: "target_weight_kg", answer: "73.5", step: "-1" }, session);
+    expect(down.status).toBe(200);
+    expect(await down.text()).toContain('value="73"');
+    // A step changes what the screen shows, never the profile — only the Continue commits.
+    expect((await store.getProfile(userId))!.target_weight_kg).toBeNull();
+    // And a reload does not re-ask: the same POST is the page, not a redirect that replays it.
+    expect((await get("/start/q", session)).status).toBe(200);
+  });
+
+  it("clamps at the floor, and draws the minus as spent", async () => {
+    // 170 cm tall at 56 kg: the healthy floor is 54, so the suggestion IS the floor.
+    const session = await signIn();
+    await post("/start/q", { prompt: "goal", answer: "lose" }, session);
+    await post("/start/q", { prompt: "sex", answer: "female" }, session);
+    await post("/start/q", { prompt: "birth_year", answer: "35" }, session);
+    await post("/start/q", { prompt: "height_cm", answer: "170" }, session);
+    await post("/start/q", { prompt: "weight_kg", answer: "56" }, session);
+    const html = await (await get("/start/q", session)).text();
+    expect(html).toContain('name="prompt" value="target_weight_kg"');
+    expect(html).toContain('name="answer" inputmode="decimal" step="any" required value="54"');
+    expect(html).toMatch(/value="-1"[^>]*disabled/);
+    // A crafted POST does no better: the clamp is the server's, not the button's.
+    const res = await post("/start/q", { prompt: "target_weight_kg", answer: "54", step: "-1" }, session);
+    expect(await res.text()).toContain('value="54"');
+  });
+
+  it("keeps the plain number input when there is nothing to suggest", async () => {
+    // At the floor already (54 kg at 170 cm) a lose target has no suggestion — today's behaviour.
+    const session = await signIn();
+    await post("/start/q", { prompt: "goal", answer: "lose" }, session);
+    await post("/start/q", { prompt: "sex", answer: "female" }, session);
+    await post("/start/q", { prompt: "birth_year", answer: "35" }, session);
+    await post("/start/q", { prompt: "height_cm", answer: "170" }, session);
+    await post("/start/q", { prompt: "weight_kg", answer: "54" }, session);
+    const html = await (await get("/start/q", session)).text();
+    expect(html).toContain('name="prompt" value="target_weight_kg"');
+    expect(html).not.toContain('name="step"');
+    expect(html).toContain('type="number"');
+  });
+});
+
+describe("the support moments", () => {
+  const momentPage = async (session: string, id: string) => {
+    const res = await get(`/start/moment/${id}`, session);
+    return res;
+  };
+
+  it("takes the target answer to its moment, a page of its own", async () => {
+    const session = await signIn();
+    await walkTo(session, "target_weight_kg");
+    const res = await post("/start/q", { prompt: "target_weight_kg", answer: "73.5" }, session);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start/moment/target");
+    const html = await (await momentPage(session, "target")).text();
+    expect(html).toContain("A goal you can keep");
+    expect(html).toContain('class="echo"');
+    expect(html).toContain("73.5");
+    expect(html).toContain('action="/start/q"');
+  });
+
+  it("does the same for activity, pointing on at the struggles question", async () => {
+    const session = await signIn();
+    await walkTo(session, "activity");
+    const res = await post("/start/q", { prompt: "activity", answer: "light" }, session);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start/moment/activity");
+    const html = await (await momentPage(session, "activity")).text();
+    expect(html).toContain("That&#39;s great!");
+    expect(html).toContain('action="/start/struggles"');
+  });
+
+  it("answers struggles with the picked card's moment, and without one with nothing", async () => {
+    const session = await signIn();
+    await walkTo(session, "activity");
+    await post("/start/q", { prompt: "activity", answer: "light" }, session);
+
+    // The struggles screen itself: chips, not a profile field, on its own route.
+    const ask = await (await get("/start/struggles", session)).text();
+    expect(ask).toContain("Diets that didn&#39;t stick");
+    expect(ask).toContain("Night snacking");
+
+    // A pick gets the moment — echo, card title and card body — straight off the POST, because
+    // nothing it collects is ever written down: a reload re-asking is safer than a URL that says it.
+    const res = await post("/start/struggles", { answer: ["diets"] }, session);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("That&#39;s completely normal!");
+    // The echo is the picked chip's own label; the body is that card's, source and all.
+    expect(html).toContain("Diets that didn&#39;t stick");
+    expect(html).toContain(struggleCard("diets", "lose", "en").body.split(".")[0]!);
+    expect(html).toContain('action="/start/q"');
+
+    // "None of these" takes no screen: the moment is skipped by the contract's own null.
+    const session2 = await signIn("struggles-none");
+    await walkTo(session2, "activity");
+    await post("/start/q", { prompt: "activity", answer: "light" }, session2);
+    const none = await post("/start/struggles", { answer: [""] }, session2);
+    expect(none.status).toBe(303);
+    expect(none.headers.get("location")).toBe("/start/q");
+  });
+
+  it("thanks them for the restrictions, then hands over the plan", async () => {
+    const session = await signIn();
+    await walkTo(session, "restrictions");
+    const res = await post("/start/q", { prompt: "restrictions", answer: ["kidneys"] }, session);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start/moment/restrictions");
+    const html = await (await momentPage(session, "restrictions")).text();
+    expect(html).toContain("Thank you for trusting me");
+    expect(html).toContain('action="/start/plan"');
+  });
+
+  it("skips a moment whose inputs are not there, rather than rendering it empty", async () => {
+    const session = await signIn();
+    const res = await momentPage(session, "target");
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start/q");
+  });
+});
+
+describe("the soft offer after the plan", () => {
+  const toPlan = async (webApp = false): Promise<string> => {
+    router(
+      { ...CONFIG, webCheckoutUrl: "https://pay.rev.cat/eait/{userId}" },
+      undefined, undefined, webApp,
+    );
+    const session = await signIn();
+    await answerAll(session, ANSWERS);
+    return session;
+  };
+
+  it("heads the offer with the computed target and month, never literals", async () => {
+    const session = await toPlan();
+    const html = await (await get("/start/offer", session)).text();
+    // offerHeadline(): 80 kg → 70 by a named month — a claim the projection stands behind.
+    expect(html).toContain("Get to 70 kg by");
+  });
+
+  it("says the three perks and the honest timeline, with no invented price", async () => {
+    const session = await toPlan();
+    const html = await (await get("/start/offer", session)).text();
+    for (const perk of [
+      "An honest verdict on every meal",
+      "Your plan moves when your weight does",
+      "Spud, any time you ask",
+    ]) expect(html).toContain(escape(perk));
+    expect(html).toContain("Free for 7 days");
+    expect(html).toContain("We remind you");
+    expect(html).toContain("cancel any time");
+    expect(html).not.toContain("$");
+  });
+
+  it("makes 'Start my free week' the checkout route, which sends THIS account to the checkout", async () => {
+    const session = await toPlan();
+    const userId = await webUser(session);
+    const html = await (await get("/start/offer", session)).text();
+    expect(html).toContain("Start my free week");
+    expect(html).toContain('href="/start/checkout"');
+    // One route both offers link to — this page and the web app's offer that holds — so the id is
+    // filled in one place, from the session, and never carried by a client.
+    const res = await get("/start/checkout", session);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe(`https://pay.rev.cat/eait/${userId}`);
+  });
+
+  it("sends nobody to a checkout without a session, and has no checkout route when none is configured", async () => {
+    await toPlan();
+    const anonymous = await get("/start/checkout", undefined);
+    expect(anonymous.status).toBe(303);
+    expect(anonymous.headers.get("location")).toBe("/start");
+    router(CONFIG);
+    const session = await signIn();
+    expect((await get("/start/checkout", session)).status).toBe(404);
+  });
+
+  it("links the privacy policy under the offer, where one is published", async () => {
+    router({ ...CONFIG, webCheckoutUrl: "https://pay.rev.cat/eait/{userId}", landingUrl: "https://eait.fit" });
+    const session = await signIn();
+    await answerAll(session, ANSWERS);
+    const html = await (await get("/start/offer", session)).text();
+    expect(html).toContain('href="https://eait.fit/privacy"');
+  });
+
+  it("lets the offer go quietly — × is the web app's first meal", async () => {
+    const session = await toPlan(true);
+    const html = await (await get("/start/offer", session)).text();
+    // The plan page's own way into the app: the root route, which renders the one-meal flow
+    // while nothing is logged.
+    expect(html).toMatch(/aria-label="[^"]*"[^>]*>×<\/a>/);
+    expect(html).toContain('href="/"');
+  });
+
+  it("points the plan's checkout ask at the offer rather than straight at RevenueCat", async () => {
+    const session = await toPlan();
+    const html = await (await get("/start/plan", session)).text();
+    expect(html).toContain('href="/start/offer"');
+  });
+
+  it("is not a screen to land on early, or to sell nothing on", async () => {
+    // Mid-walk there is no plan behind it — the offer redirects back to the questions.
+    const session = await signIn();
+    const early = await get("/start/offer", session);
+    expect(early.status).toBe(303);
+    expect(early.headers.get("location")).toBe("/start/q");
+
+    // No checkout configured is nothing to offer: straight to where × would have gone.
+    router({ ...CONFIG, webCheckoutUrl: "" }, undefined, undefined, false);
+    const session2 = await signIn();
+    await answerAll(session2, ANSWERS);
+    const noCheckout = await get("/start/offer", session2);
+    expect(noCheckout.status).toBe(303);
+    expect(noCheckout.headers.get("location")).toBe("/start/chat");
   });
 });
 
@@ -1961,10 +2270,20 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
         // `{loseTail}`, `{floor}` and friends are substituted before the page is written, so the
         // stored sentence is not the rendered one — but the words around the hole are.
         const screen = content.screens.find((x) => x.id === screenForStep(id as never));
-        const ask = screen?.asks[id as keyof typeof screen.asks]?.lines[0];
-        if (ask) {
-          const fixed = ask.split(/\{\w+\}/).reduce((a, b) => (b.length > a.length ? b : a), "");
-          expect(html, `${lang}.${id} did not ask in ${lang}`).toContain(escape(fixed));
+        if (id === "target_weight_kg") {
+          // The one screen whose ask is NOT the admin's (#42): the stepper's ask is the shared
+          // `targetSuggestionLine`, spoken from the suggestion itself.
+          const me = (await store.getProfile(await webUser(session)))!;
+          const kg = suggestedTargetKg(me)!;
+          const share = Math.round(Math.abs(kg - me.weight_kg!) / me.weight_kg! * 100);
+          const said = targetSuggestionLine(kg, share, "lose", lang);
+          expect(html, `${lang}.${id} did not carry the suggestion`).toContain(escape(said!));
+        } else {
+          const ask = screen?.asks[id as keyof typeof screen.asks]?.lines[0];
+          if (ask) {
+            const fixed = ask.split(/\{\w+\}/).reduce((a, b) => (b.length > a.length ? b : a), "");
+            expect(html, `${lang}.${id} did not ask in ${lang}`).toContain(escape(fixed));
+          }
         }
 
         if (id === "country") countryHtml = html;
