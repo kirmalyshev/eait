@@ -1,6 +1,6 @@
 import { describe, expect, it, test } from "bun:test";
 import {
-  NO_ENTITLEMENT, blockedAsk, entitlementActive, entitlementLive, mayHaveSpentSample, sampleSpent,
+  FREE_ANALYSES, NO_ENTITLEMENT, blockedAsk, entitlementActive, entitlementLive, mayHaveSpentSample, sampleSpent,
 } from "./entitlement.ts";
 
 const NOW = Date.parse("2026-08-24T12:00:00.000Z");
@@ -121,5 +121,13 @@ describe("entitlementLive", () => {
 
   it("refuses an unreadable expiry rather than trusting it", () => {
     expect(entitlementLive({ expiresAt: "not a date", lifetimeProductId: null }, now)).toBe(false);
+  });
+});
+
+describe("FREE_ANALYSES", () => {
+  // #44: the sample is the ONE meal the v5 onboarding gives when the soft offer is closed. Its
+  // verdict is followed by the offer that holds, and the server's 402 is what makes it hold.
+  test("is one analysis — the meal on us, and nothing after it", () => {
+    expect(FREE_ANALYSES).toBe(1);
   });
 });

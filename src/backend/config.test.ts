@@ -300,7 +300,7 @@ describe("the paid tier", () => {
     withRequired();
     const c = loadConfig();
     expect(c.revenueCatWebhookToken).toBe("");
-    expect(c.freeAnalyses).toBe(15);
+    expect(c.freeAnalyses).toBe(1);
     expect(c.revenueCatAcceptSandbox).toBe(false);
   });
 

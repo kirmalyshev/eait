@@ -70,16 +70,20 @@ export interface Entitlement {
  * Same reason `KCAL_FLOOR` is here. `EAIT__BACKEND__FREE_ANALYSES` still overrides it per instance;
  * this is the default the copy is written against.
  *
- * FIFTEEN since 2026-09-06 — three days of meals. It was one, then three (#96, 2026-09-02): one
- * analysis answers "what does it say about my food" and nothing else, a day of meals is what lets
- * the sample show the diary filling up against the target, and three days is what lets it show a
- * trend. The anxiety it buys off — "I will be charged again" — is the largest complaint cluster in
- * the review corpus (`marketing/research/2026-09-02-jtbd.md` J4). The cost is more billed calls
- * per non-payer, still bounded by the paid daily cap and by `globalDailyAnalysisCap`. It is a
- * LIFETIME count, not a per-day one, and it is the DEFAULT: the admin can give one account its
- * own number (`Store.setFreeAnalyses`).
+ * ONE since 2026-09-25 (#44), and that is the principal's decision for the v5 onboarding: the
+ * plan is followed by a soft offer, closing it gives ONE meal on us, photographed or told, and its
+ * verdict against the plan is followed by the offer that holds. This number is what makes it hold:
+ * `checkCaps` answers the second analysis with `subscription-required`, and no client adds a lock
+ * of its own. A manual correction (`EditMealRequest`) is not an analysis, so the free meal can
+ * still be corrected; a TEXT correction is one and meets the 402.
+ * History: one, then three (#96, 2026-09-02), then fifteen — three days of meals — on 2026-09-06,
+ * to buy off the "I will be charged again" anxiety (`marketing/research/2026-09-02-jtbd.md` J4).
+ * v5 answers that anxiety differently: nothing is asked for until the plan and the first verdict
+ * are on the screen. It is a LIFETIME count, not a per-day one, and it is the DEFAULT: the admin
+ * can give one account its own number (`Store.setFreeAnalyses`), and `EAIT__BACKEND__FREE_ANALYSES`
+ * overrides it per instance.
  */
-export const FREE_ANALYSES = 15;
+export const FREE_ANALYSES = 1;
 
 export const NO_ENTITLEMENT: Entitlement = { active: false, expiresAt: null, trial: false, lapsed: false };
 
