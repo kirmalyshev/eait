@@ -98,6 +98,14 @@ route. A route that computes is a rule the tests cannot reach.
   on ambiguity: a timeout or a truncation may have run — and so does a gateway status on any call
   but the FIRST of a turn (the schema retry, `routeText`'s focused second call), because those
   follow a completion that was billed.
+- **The SAMPLE counts value delivered, not attempts — and it is not the cost ledger** (#44, the
+  principal's decision). Both read the `analyses` row, and they are two questions. The charge above
+  is COST: every row stays, with its cost, on the global budget and the paid daily cap. The sample
+  (`countUserAnalyses`) counts only rows still marked `sample`: charged before the call, so two
+  requests racing for one free meal cannot both pass `checkCaps`, and cleared by `releaseSample`
+  (`engine/caps.ts`) when the turn put no verdict in front of the person — a timeout, a provider
+  error, `analysis-failed`, a photo that was not food. So a failed free meal is a free retry; what
+  bounds a retry loop is the instance budget and `api/ratelimit.ts`, as it was before the sample.
 - **A billed turn runs once per client id** (#708). `logPhotoMeal` and `handleText` claim
   `(user, clientId)` in `turns` before the caps (`engine/turns.ts`, `once`). A request re-sending the
   id gets what the first attempt settled, refusals included, or waits for it; it never calls a model,
