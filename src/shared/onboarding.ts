@@ -111,17 +111,22 @@ export type OnboardingScreenId = (typeof ONBOARDING_SCREENS)[number];
  * `explainTargets`. Its answer lives in the conversation, which IS the record: the thread is stored
  * server-side and erased with the account. See `onboarding-chat.ts`.
  *
- * There were four. `why`, `moment` and `eatout` were cut on 2026-08-26 by copy.md's second rule — a
- * question earns its place by having a reader, and each of those three wrote something nothing in
- * `src/` read back. `struggles` is the one that survives it: it picks the support cards a sentence
- * later, which the user sees.
+ * `health` is the Apple Health offer (v5): it collects nothing either — its reader is the client's
+ * HealthKit fill of `sex`/`birth_year`/`height_cm`/`weight_kg`, which lands on the profile like any
+ * other answer. On a surface without Health (the browser) the prompt is simply not emitted — see
+ * `promptsFor`.
+ *
+ * There were four of the conversation kind. `why`, `moment` and `eatout` were cut on 2026-08-26 by
+ * copy.md's second rule — a question earns its place by having a reader, and each of those three
+ * wrote something nothing in `src/` read back. `struggles` is the one that survives it: it picks
+ * the support cards a sentence later, which the user sees.
  *
  * They are all places analytics counts, because the funnel's job is to price them. A beat that
  * costs more people than it convinces has to be visible as a drop between two rows.
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  */
 export const ONBOARDING_INTERSTITIALS = [
-  "welcome", "struggles", "building", "summary",
+  "welcome", "health", "struggles", "building", "summary",
 ] as const;
 export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
 
@@ -133,7 +138,7 @@ export type OnboardingInterstitial = (typeof ONBOARDING_INTERSTITIALS)[number];
  * in an order the replies depend on, so an admin cannot reorder them.
  */
 export const ONBOARDING_PLACES = [
-  "welcome", "goal", "about", "body", "target", "activity",
+  "welcome", "goal", "health", "about", "body", "target", "activity",
   "struggles", "country", "restrictions", "building", "summary",
 ] as const;
 export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
@@ -225,7 +230,7 @@ export function isKnownScreen(id: string): id is OnboardingScreenId {
  * concerned on a refusal, cheerful on the plan — rather than reading one out of the copy: a mood is
  * a reaction to what just happened, and an admin cannot know that from a text field.
  */
-export const MASCOT_MOODS = ["wave", "happy", "think", "cheer", "care", "idle"] as const;
+export const MASCOT_MOODS = ["wave", "happy", "think", "cheer", "care", "idle", "joy"] as const;
 export type MascotMood = (typeof MASCOT_MOODS)[number];
 
 export interface OnboardingOptionContent {
@@ -689,7 +694,10 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // Italian, Spanish or Russian reader had exactly one true answer and it was the sentinel. The
   // labels left this file with it — a country's name is CLDR's, not an admin's. Bumped because a
   // funnel row for a four-chip screen and one for a fifteen-chip screen are not the same screen.
-  version: 11,
+  // v12 is the v5 redesign's copy (issue #42): the age question asks "How old are you?" plainly,
+  // and the activity options answer in plain frequencies — "A little each week" — rather than
+  // effort labels.
+  version: 12,
   welcome: {
     lines: [
       "Hi, I'm Spud. Photograph what you eat, get an honest answer — that's the whole app.",
@@ -716,7 +724,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
         sex: { lines: ["A little about you — two things every calorie formula needs. Which fits?"] },
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
-          lines: ["And how old are you? Roughly is all the maths wants."],
+          lines: ["How old are you?"],
           placeholder: "Your age",
         },
       },
@@ -765,11 +773,13 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
         },
       },
       options: {
-        sedentary: { label: "Mostly sitting", hint: "desk days" },
-        light: { label: "Lightly active", hint: "walks, errands" },
-        moderate: { label: "Moderate", hint: "2–3 workouts" },
-        active: { label: "Active", hint: "most days" },
-        athlete: { label: "Athlete", hint: "twice-daily training, or hard physical work" },
+        // v5: plain frequencies on the five levels in order — the same list a Health-derived
+        // suggestion confirms against (`activityFromHealthLine`).
+        sedentary: { label: "No" },
+        light: { label: "A little each week" },
+        moderate: { label: "2–3 times a week" },
+        active: { label: "4–5 times a week" },
+        athlete: { label: "6–7 times a week" },
       },
     },
     {

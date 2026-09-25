@@ -287,7 +287,8 @@ const failedCallback = (pathname: string): Response => seeOther(pathname);
  */
 function questionsFor(profile: Profile, content: OnboardingContent, askCountry = true): ChatPrompt[] {
   const off = disabledScreens(content);
-  return promptsFor(profile, askCountry ? off : [...off, "country"])
+  // { health: false } — a browser cannot read Apple Health, so the v5 offer never appears here.
+  return promptsFor(profile, askCountry ? off : [...off, "country"], { health: false })
     .filter((p) => p.field !== undefined);
 }
 

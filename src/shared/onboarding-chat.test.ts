@@ -8,15 +8,20 @@
 
 import { describe, expect, it, test } from "bun:test";
 import {
-  CHAT_PROMPTS, COUNTRY_CODES, DEFAULT_ONBOARDING_CONTENT, LANGS, ONBOARDING_STEPS,
-  GAIN_PACE_CARD, GOAL_CARDS, SCREEN_OPTIONS, countryLabel, screenForStep, screenOptionValues,
+  ACTIVITY_LEVELS, CHAT_PROMPTS, COUNTRY_CODES, DEFAULT_ONBOARDING_CONTENT, LANGS,
+  ONBOARDING_INTERSTITIALS, ONBOARDING_PLACES, ONBOARDING_STEPS,
+  GAIN_PACE_CARD, GOAL_CARDS, MASCOT_MOODS, MOMENT_POSES, SCREEN_OPTIONS,
+  activityFromHealthLine, chatCopyFor, countryLabel,
+  screenForStep, screenOptionValues, screenOptions,
   MAX_STRUGGLE_CARDS, MAX_SURPLUS_SHARE, MAX_DEFICIT_SHARE, MIN_AGE, MIN_WEIGHT_KG, STRUGGLES,
   answerLabel, askLines, askPlaceholder, capNote, checkDirection, checkNumber,
-  isAnswered, minHealthyKg, promptsFor, reconcileGoalEdit,
-  restrictionsReply, resumeAt,
+  isAnswered, minHealthyKg, promptsFor, reactionTo, reconcileGoalEdit,
+  restrictionsReply, resumeAt, supportMoment,
   struggleCard, strugglesCloser, switchedLine, weightAck,
   type ChatPromptId, type Profile, type Struggle,
 } from "./index.ts";
+import { spudSvg } from "./mascot.ts";
+import { onboardingContentFor } from "./onboarding-content.ts";
 
 function profile(over: Partial<Profile> = {}): Profile {
   return {
@@ -29,7 +34,9 @@ function profile(over: Partial<Profile> = {}): Profile {
   };
 }
 
-const ids = (p: Profile, off: "country"[] = ["country"]) => promptsFor(p, off).map((x) => x.id);
+// A browser cannot read Apple Health, so the web's surface is { health: false } — see C1.
+const ids = (p: Profile, off: "country"[] = ["country"], health = false) =>
+  promptsFor(p, off, { health }).map((x) => x.id);
 const content = DEFAULT_ONBOARDING_CONTENT;
 const promptById = (id: ChatPromptId) => CHAT_PROMPTS.find((p) => p.id === id)!;
 
@@ -57,13 +64,13 @@ describe("the order of the conversation", () => {
   });
 
   it("asks every profile field the calorie target needs", () => {
-    const fields = promptsFor(profile(), []).flatMap((p) => (p.field ? [p.field] : []));
+    const fields = promptsFor(profile(), [], { health: false }).flatMap((p) => (p.field ? [p.field] : []));
     for (const step of ONBOARDING_STEPS) expect(fields).toContain(step);
   });
 });
 
 describe("where a killed run picks up", () => {
-  const prompts = () => promptsFor(profile(), ["country"]);
+  const prompts = () => promptsFor(profile(), ["country"], { health: false });
 
   it("starts on the front door when nothing has been answered", () => {
     expect(resumeAt(prompts(), profile())).toBe(0);
@@ -71,7 +78,7 @@ describe("where a killed run picks up", () => {
 
   it("resumes at the first unanswered field, never past it", () => {
     const p = profile({ goal: "lose", sex: "male", birth_year: 1990, height_cm: 183 });
-    expect(promptsFor(p, ["country"])[resumeAt(promptsFor(p, ["country"]), p)]!.id).toBe("weight_kg");
+    expect(promptsFor(p, ["country"], { health: false })[resumeAt(promptsFor(p, ["country"], { health: false }), p)]!.id).toBe("weight_kg");
   });
 
   it("skips a conversation question that sits before the resume point", () => {
@@ -82,7 +89,7 @@ describe("where a killed run picks up", () => {
       goal: "lose", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 93,
       target_weight_kg: 88, pace: "steady", activity: "moderate",
     });
-    const list = promptsFor(p, ["country"]);
+    const list = promptsFor(p, ["country"], { health: false });
     const at = resumeAt(list, p);
     expect(list[at]!.id).toBe("restrictions");
     expect(list.slice(at).map((x) => x.id)).not.toContain("struggles");
@@ -91,7 +98,7 @@ describe("where a killed run picks up", () => {
   it("still asks a conversation question that sits after the resume point", () => {
     // It is conversation, not history: the run has not reached it, so it is asked.
     const p = profile({ goal: "lose", sex: "male", birth_year: 1990, height_cm: 183 });
-    const list = promptsFor(p, ["country"]);
+    const list = promptsFor(p, ["country"], { health: false });
     expect(list.slice(resumeAt(list, p)).map((x) => x.id)).toContain("struggles");
   });
 
@@ -100,7 +107,7 @@ describe("where a killed run picks up", () => {
       goal: "lose", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 93,
       target_weight_kg: 88, pace: "steady", activity: "moderate",
     });
-    const list = promptsFor(p, ["country"]);
+    const list = promptsFor(p, ["country"], { health: false });
     expect(list[resumeAt(list, p)]!.id).toBe("restrictions");
     expect(isAnswered(promptById("restrictions"), p)).toBe(false);
     expect(isAnswered(promptById("restrictions"), profile({ ...p, onboarded_at: "2026-01-01T00:00:00Z" }))).toBe(true);
@@ -148,7 +155,7 @@ describe("what Spud asks", () => {
 describe("the answer a resumed run draws back", () => {
   it("writes an enumerated answer the way it was labelled", () => {
     expect(answerLabel(promptById("goal"), profile({ goal: "lose" }), { content: content, lang: "en" })).toBe("Lose weight");
-    expect(answerLabel(promptById("activity"), profile({ activity: "moderate" }), { content: content, lang: "en" })).toBe("Moderate");
+    expect(answerLabel(promptById("activity"), profile({ activity: "moderate" }), { content: content, lang: "en" })).toBe("2–3 times a week");
   });
 
   it("writes a number the way it was typed", () => {
@@ -516,5 +523,207 @@ describe("the answer drawn back in the user's own bubble", () => {
         expect(label, `${lang}/${country}`).toBe(countryLabel(country, lang));
       }
     }
+  });
+});
+
+// ── v5: the Spud onboarding contract ─────────────────────────────────────────────────────────
+//
+// The agreed contract with the app (contract-v5.md, issue #42): the Health offer as a prompt,
+// an age asked as an age, a suggested target with a stepper range, exercise in plain
+// frequencies, a one-line reaction on every answer, and the four support moments.
+
+describe("the health prompt (C1)", () => {
+  it("sits right after the goal, only on a surface that can read Apple Health", () => {
+    expect(ids(profile(), ["country"], true)).toEqual([
+      "welcome", "goal", "health", "sex", "birth_year", "height_cm", "weight_kg",
+      "target_weight_kg", "pace", "activity", "struggles",
+      "restrictions", "building", "summary",
+    ]);
+    // The browser passes { health: false } and never meets it — the v5 web spec draws no
+    // Health screen, because there is nothing to connect to.
+    expect(ids(profile(), ["country"], false)).not.toContain("health");
+  });
+
+  it("is a funnel place between the goal and the first question, and not a screen", () => {
+    // It collects no profile field — its reader is the HealthKit fill — so it belongs to the
+    // interstitials and stays out of SCREEN_FIELDS, like every place before it.
+    const at = (s: string) => (ONBOARDING_PLACES as readonly string[]).indexOf(s);
+    expect(at("goal")).toBeLessThan(at("health"));
+    expect(at("health")).toBeLessThan(at("about"));
+    expect(ONBOARDING_INTERSTITIALS).toContain("health");
+  });
+
+  it("asks from the copy table, not from a screen's asks — it collects nothing", () => {
+    expect(askLines(promptById("health"), { content, lang: "en" }, profile()))
+      .toEqual([chatCopyFor("en").health.ask]);
+  });
+});
+
+describe("the age question (C2)", () => {
+  it("asks for an age, and '32' is a valid answer to it", () => {
+    const ask = content.screens.find((s) => s.id === "about")!.asks.birth_year!.lines.join(" ");
+    expect(ask.toLowerCase()).toContain("how old");
+    // `checkNumber` already takes a two-digit answer as an age; the copy is what changed.
+    expect(checkNumber("birth_year", "32", "en", new Date("2026-08-26T00:00:00Z")))
+      .toEqual({ ok: true, value: 32 });
+  });
+});
+
+describe("the activity choices (C4)", () => {
+  it("asks in plain frequencies, on the five levels in order", () => {
+    const labels = screenOptions(content, "activity");
+    expect(ACTIVITY_LEVELS.map((l) => labels[l]!.label)).toEqual([
+      "No", "A little each week", "2–3 times a week", "4–5 times a week", "6–7 times a week",
+    ]);
+  });
+
+  it("confirms a Health-computed level with the workouts it counted", () => {
+    expect(activityFromHealthLine(4, "light", "en"))
+      .toBe("Health shows 4 workouts in the last 4 weeks. A little each week?");
+    for (const lang of LANGS) {
+      const line = activityFromHealthLine(4, "moderate", lang);
+      expect(line, lang).not.toMatch(/\{[a-z]+\}/);
+      // The label is the option's own words — the same chip the user is about to see.
+      const label = onboardingContentFor(lang).screens.find((s) => s.id === "activity")!
+        .options!.moderate!.label;
+      expect(line, lang).toContain(label);
+    }
+  });
+});
+
+describe("the one-line reaction to each answer (C5)", () => {
+  const answered = profile({
+    goal: "lose", sex: "female", birth_year: 1994, height_cm: 172, weight_kg: 74,
+    target_weight_kg: 68, pace: "steady", activity: "light", country: "gb",
+    restrictions: ["ldl"],
+  });
+
+  it("speaks to the goal taken, in joy", () => {
+    expect(reactionTo("goal", profile({ goal: "lose" }), "en"))
+      .toEqual({ line: "Lose weight. Good, let's make it stick", mood: "joy" });
+    for (const goal of ["maintain", "gain"] as const) {
+      const r = reactionTo("goal", profile({ goal }), "en");
+      expect(r?.mood, goal).toBe("joy");
+      expect(r?.line, goal).toBeTruthy();
+      expect(r?.line, goal).not.toBe("Lose weight. Good, let's make it stick");
+    }
+    // Rule 1: no answer, no reply — a line written for every goal is written for none.
+    expect(reactionTo("goal", profile(), "en")).toBeNull();
+  });
+
+  it("acknowledges the plain answers in the spec's words", () => {
+    expect(reactionTo("sex", answered, "en")).toEqual({ line: "Thanks", mood: "happy" });
+    expect(reactionTo("birth_year", answered, "en")).toEqual({ line: "Got it", mood: "happy" });
+    expect(reactionTo("height_cm", answered, "en"))
+      .toEqual({ line: "Last number. No judgement, it's just where we start", mood: "care" });
+    expect(reactionTo("country", answered, "en")).toEqual({ line: "Nearly there", mood: "care" });
+  });
+
+  it("pays the weight answer its first real number", () => {
+    // bmr for 74 kg / 172 cm / 32 / female is 1494 — the figure the spec's walk says aloud.
+    const r = reactionTo("weight_kg", answered, "en")!;
+    expect(r.mood).toBe("happy");
+    expect(r.line).toBe("Thank you. At rest, your body burns about 1,494 kcal a day");
+    // And says nothing about a number that could not be computed, rather than "about null".
+    const noBmr = reactionTo("weight_kg", profile({ weight_kg: 74 }), "en")!;
+    expect(noBmr.line).not.toContain("kcal");
+  });
+
+  it("answers the pace in the pace's own words", () => {
+    expect(reactionTo("pace", profile({ pace: "steady" }), "en"))
+      .toEqual({ line: "Steady is the one people keep", mood: "think" });
+    for (const pace of ["easy", "push"] as const) {
+      const r = reactionTo("pace", profile({ pace }), "en");
+      expect(r?.mood, pace).toBe("think");
+      expect(r?.line, pace).toBeTruthy();
+      expect(r?.line, pace).not.toBe("Steady is the one people keep");
+    }
+  });
+
+  it("names what restrictions will be scored — only because they were declared", () => {
+    const r = reactionTo("restrictions", answered, "en")!;
+    expect(r.mood).toBe("joy");
+    expect(r.line).toContain("Saturated fat");
+    expect(r.line).toContain("only because you asked");
+    const none = reactionTo("restrictions", profile({ restrictions: [] }), "en")!;
+    expect(none.line).toContain("nothing extra");
+  });
+
+  it("says nothing on the beats a support moment already covers, or that are not answers", () => {
+    for (const id of ["target_weight_kg", "activity", "welcome", "health", "building", "summary"] as const) {
+      expect(reactionTo(id, answered, "en"), id).toBeNull();
+    }
+  });
+});
+
+describe("the support moments (C6)", () => {
+  const ctx = (over: Partial<Profile> = {}, struggles: Struggle[] = ["diets"]) => ({
+    profile: profile({
+      goal: "lose", sex: "female", birth_year: 1994, height_cm: 172, weight_kg: 74,
+      target_weight_kg: 68, activity: "light", restrictions: ["ldl"], ...over,
+    }),
+    struggles,
+    lang: "en" as const,
+    content,
+  });
+
+  it("celebrates an in-band target with the 5–10% claim, echoing the answer", () => {
+    // 74 -> 68 is about 8% down: inside the band the claim is about.
+    const m = supportMoment("target", ctx())!;
+    expect(m.pose).toBe("cheer");
+    expect(m.echo).toBe("68 kg");
+    expect(m.title).toBe("A goal you can keep");
+    expect(m.body).toContain("5–10%");
+    expect(m.body).toContain("68 kg");
+    expect(m.cta).toBe("Continue");
+  });
+
+  it("speaks the neutral variant when the target sits outside the band", () => {
+    const m = supportMoment("target", ctx({ target_weight_kg: 60 }))!;
+    // 74 -> 60 is a 19% cut: real, but not the claim this sentence is making.
+    expect(m.body).not.toContain("5–10%");
+    expect(m.body).toContain("60 kg");
+  });
+
+  it("exists only where the moment applies", () => {
+    // A maintainer is never asked a target, so there is no target moment.
+    expect(supportMoment("target", ctx({ goal: "maintain", target_weight_kg: null }))).toBeNull();
+    expect(supportMoment("struggles", ctx({}, []))).toBeNull();
+    // The restrictions moment always stands: its body speaks about what was shared.
+    expect(supportMoment("restrictions", ctx({ restrictions: [] }))).not.toBeNull();
+  });
+
+  it("echoes the answer's own label", () => {
+    expect(supportMoment("activity", ctx())!.echo).toBe("A little each week");
+    expect(supportMoment("struggles", ctx())!.echo).toBe("Diets that didn't stick");
+    expect(supportMoment("restrictions", ctx())!.echo).toBe("High cholesterol");
+    expect(supportMoment("restrictions", ctx({ restrictions: [] }))!.echo)
+      .toBe(chatCopyFor("en").nothingApplies);
+  });
+
+  it("keeps the struggles body on the card's own statistics", () => {
+    // The moment's body IS the card's — the sourced numbers stay in code, in one place.
+    const m = supportMoment("struggles", ctx())!;
+    expect(m.title).toBe("That's completely normal!");
+    expect(m.body).toBe(struggleCard("diets", "lose", "en").body);
+    // And the gain variant still swaps the citation rather than bending it.
+    expect(supportMoment("struggles", ctx({ goal: "gain" }, ["diets"]))!.body)
+      .toBe(struggleCard("diets", "gain", "en").body);
+  });
+
+  it("poses each moment the way the spec draws it", () => {
+    expect(supportMoment("activity", ctx())!.pose).toBe("lift");
+    expect(supportMoment("struggles", ctx())!.pose).toBe("think");
+    expect(supportMoment("restrictions", ctx())!.pose).toBe("heart");
+    for (const pose of Object.values(MOMENT_POSES)) expect(typeof pose).toBe("string");
+  });
+});
+
+describe("the mascot's new face (C5)", () => {
+  it("adds joy to the shared vocabulary and draws it as an open smile", () => {
+    expect(MASCOT_MOODS).toContain("joy");
+    // The web drawing is a FILLED mouth — the open grin — not the usual stroke.
+    const svg = spudSvg("joy", "spud-joy-test");
+    expect(svg).toContain(`fill="${"#3A2612"}"`);
   });
 });
