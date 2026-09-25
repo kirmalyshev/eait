@@ -15,7 +15,7 @@ import {
   type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord, type MealUpdated, type PhotoEvent,
   type Profile, type TargetGone, type ConfirmMealResult, type Refusal, explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
-import { PHOTO_MODEL_CALLS, localDate, localTime, windowStart } from "@eait/shared";
+import { PHOTO_MODEL_CALLS, localDate, localTime, mealIsGuessed, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
 import { prepareAnalysis } from "./analysis.ts";
@@ -40,6 +40,9 @@ export interface LogPhotoInput {
 export function sumTotals(meals: readonly MealRecord[]): DailyTotals {
   const t: DailyTotals = {
     kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0,
+    // #47: one guessed meal makes the day's figures a guess, and this is the only producer of a
+    // `DailyTotals`, so the surfaces that print one cannot disagree about it.
+    guessed: meals.some(mealIsGuessed),
   };
   for (const m of meals) {
     t.kcal += m.kcal; t.protein_g += m.protein_g; t.carbs_g += m.carbs_g; t.fat_g += m.fat_g;

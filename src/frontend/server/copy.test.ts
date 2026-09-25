@@ -55,3 +55,24 @@ describe("the copy the web client writes", () => {
     expect(Object.keys(WEB_COPY).sort()).toEqual([...LANGS].sort());
   });
 });
+
+// #47: the two rules the retired register (#35) left behind, pinned so they cannot drift back.
+describe("one number per thing, and the floor as a status line", () => {
+  it("never prints a number with its error, a band, or a low/high pair", () => {
+    for (const lang of LANGS) {
+      for (const [at, text] of Object.entries(flat(webCopyFor(lang)))) {
+        expect(text, `${lang}.${at}`).not.toMatch(/±|\{(low|high|min|max)\}|\}\s*[–-]\s*\{/);
+      }
+    }
+  });
+
+  it("says the floor as one line with one number in it, in two states and nothing between", () => {
+    for (const lang of LANGS) {
+      const c = webCopyFor(lang);
+      for (const line of [c.floorClear, c.floorHeld]) {
+        expect(line.match(/\{\w+\}/g), `${lang}: ${line}`).toEqual(["{floor}"]);
+      }
+      expect(c.floorClear).not.toBe(c.floorHeld);
+    }
+  });
+});
