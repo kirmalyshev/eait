@@ -248,7 +248,15 @@ export const ROUTES = {
    * device this server keeps. Erased with the account, like everything else that names one.
    */
   pushToken: "/v1/push/token",
-  /** PATCH — the manual edit path. See `EditMealRequest`. */
+  /**
+   * PATCH — the manual edit path. See `EditMealRequest`.
+   *
+   * DELETE — the meal itself (#61): the meal, its photos and every card for it, and the user line
+   * that carried it — the photo line, or the typed line whose confirmed proposal became it. The
+   * same semantics as `DELETE` on `ROUTES.message` for the caller who holds a meal id and no line
+   * id, and the same answer: {@link DeleteLineResponse}. Scoped like everything here — another
+   * account's id is `target-gone` (409), never a 404 and never a row.
+   */
   meal: (id: string) => `/v1/meals/${encodeURIComponent(id)}`,
   /** One stored photo of one of the caller's meals, by position. Bytes with their mime; 404 otherwise. */
   mealPhoto: (id: string, n: number) => `/v1/meals/${encodeURIComponent(id)}/photos/${n}`,
@@ -1071,7 +1079,11 @@ export type EditLineLast =
   | MealUpdated | TargetGone | Refusal
   | { kind: "bad-request" } | { kind: "too-many"; limit: number }
   | { kind: typeof OUTCOME_UNKNOWN };
-/** `DELETE /v1/messages/:id`. `mealId`/`date` name the meal that went with a photo line, so the client can refresh that day; null when only the line went. */
+/**
+ * `DELETE /v1/messages/:id` and `DELETE /v1/meals/:id` (#61). `mealId`/`date` name the meal that
+ * went with the line — or the meal that went — so the client can refresh that day; null when only
+ * a line went, which a meal delete never answers.
+ */
 export interface DeleteLineResponse { kind: "deleted"; mealId: string | null; date: string | null }
 export type MessageResponse = HandleTextResult;
 export type PendingResponse = ConfirmMealResult | { kind: "cancelled" } | { kind: "expired" };

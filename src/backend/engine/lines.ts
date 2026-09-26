@@ -46,6 +46,28 @@ export async function deleteLine(
 }
 
 /**
+ * Delete the caller's meal by its own id (#61): the meal, its photos and every card for it, and
+ * the user line that carried it — the photo line, or the typed line whose confirmed proposal it
+ * was. The same outcome as `deleteLine` on that line, for a screen that holds a meal and not a
+ * message. Scoped like everything here: another account's id is `target-gone`, never a 404 and
+ * never a row.
+ */
+export async function deleteMealById(
+  deps: EngineDeps, userId: string, mealId: string,
+): Promise<DeleteLineResponse | TargetGone> {
+  const meal = await deps.store.getMeal(userId, mealId);
+  if (!meal) return GONE;
+  const line = await deps.store.carrierLineFor(userId, mealId);
+  // The same order `deleteLine` takes: the meal first — a meal that outlives its line is a diary
+  // row nobody sent — then its cards, then the line that carried it. A meal nothing carried (a
+  // seeded fixture, say) still goes.
+  await deps.store.deleteMeal(userId, meal.id);
+  await deps.store.deleteMealLines(userId, meal.id);
+  if (line !== null) await deps.store.deleteLine(userId, line.id);
+  return { kind: "deleted", mealId: meal.id, date: meal.date };
+}
+
+/**
  * Edit the caller's photo line: the analyzer reads every photo again — the stored ones and the
  * angles added here — with the new words as the caption, the meal's numbers change with
  * `corrected: false`, and then, and only then, the line's words change. A refused or failed turn

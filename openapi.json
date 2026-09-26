@@ -868,6 +868,67 @@
             "bearer": []
           }
         ]
+      },
+      "delete": {
+        "operationId": "delete_meal",
+        "summary": "Delete the meal, its photos and cards, and the user line that carried it.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteLineResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Target gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/v1/meals/{id}/photos/{n}": {
@@ -3158,7 +3219,7 @@
           "date"
         ],
         "additionalProperties": false,
-        "description": "`DELETE /v1/messages/:id`. `mealId`/`date` name the meal that went with a photo line, so the client can refresh that day; null when only the line went."
+        "description": "`DELETE /v1/messages/:id` and `DELETE /v1/meals/:id` (#61). `mealId`/`date` name the meal that went with the line — or the meal that went — so the client can refresh that day; null when only a line went, which a meal delete never answers."
       },
       "EditLineLast": {
         "anyOf": [

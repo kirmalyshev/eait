@@ -14,7 +14,7 @@ export {
   toAnalysis, type LogPhotoInput,
 } from "./meals.ts";
 export { handleText, type HandleTextInput } from "./text.ts";
-export { deleteLine, editLine, type EditLineInput } from "./lines.ts";
+export { deleteLine, deleteMealById, editLine, type EditLineInput } from "./lines.ts";
 export { coachTurn, coachTools, recentLines, COACH_HISTORY_LINES } from "./coach.ts";
 export { appendLines, chatHistory } from "./chat.ts";
 export { day, week, MAX_WINDOW_DAYS } from "./diary.ts";

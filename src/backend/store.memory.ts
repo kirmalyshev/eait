@@ -1124,6 +1124,16 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       }
       return null;
     },
+    async carrierLineFor(userId, mealId) {
+      for (let i = chat.length - 1; i >= 0; i--) {
+        const m = chat[i]!;
+        if (m.userId !== userId || m.role !== "user") continue;
+        if ((m.kind === "photo" && m.mealId === mealId) || (m.kind === "text" && m.pendingId === mealId)) {
+          return clone(m);
+        }
+      }
+      return null;
+    },
     async deleteLine(userId, lineId) {
       const i = chat.findIndex((l) => l.id === lineId && l.userId === userId);
       if (i === -1) return false;
