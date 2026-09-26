@@ -2520,4 +2520,16 @@ describe("the counter and Back (#53)", () => {
     const page = await (await get(res.headers.get("location")!.replace("https://api.eait.fit", ""), session)).text();
     expect(page).toContain('class="back" href="/start/q?edit=target_weight_kg"');
   });
+
+  it("labels a number field, keeps a refused value, and ties the refusal to the field", async () => {
+    const session = await signIn("field-error");
+    for (const id of ["goal", "sex", "birth_year"]) await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+    const page = await (await get("/start/q", session)).text();
+    expect(page).toMatch(/<label class="lab" for="answer">[^<]+<\/label>/);
+    expect(page).toMatch(/<h1 class="bubble typed">[^<]+<\/h1>/);
+    const refused = await (await post("/start/q", { prompt: "height_cm", answer: "9" }, session)).text();
+    expect(refused).toMatch(/id="answer"[^>]*value="9"[^>]*aria-invalid="true" aria-describedby="answer-error"/);
+    expect(refused).toContain('id="answer-error"');
+  });
 });
+

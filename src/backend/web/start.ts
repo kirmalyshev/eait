@@ -774,10 +774,12 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       return i !== -1 && (openIndex === -1 || i < openIndex) && isAnswered(questions[i]!, profile) ? i : -1;
     };
 
-    const askAt = (index: number, error: string | null, actions: Action[] = [], draftKg?: number) =>
+    const askAt = (
+      index: number, error: string | null, actions: Action[] = [], draftKg?: number, typed?: string[],
+    ) =>
       html(renderQuestion(
         questions, index, profile, content, error, actions, resolved.country, draftKg,
-        index === openIndex ? undefined : currentAnswer(questions[index]!, profile),
+        typed ?? (index === openIndex ? undefined : currentAnswer(questions[index]!, profile)),
       ));
     const ask = (error: string | null, actions: Action[] = [], draftKg?: number) =>
       askAt(openIndex, error, actions, draftKg);
@@ -811,8 +813,10 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       }
       const at = editIndex === -1 ? openIndex : editIndex;
       const open = questions[at]!;
+      // A refused answer is shown back as typed (#53): wiping the box made the person retype it.
+      const typed = form.getAll("answer").filter((v): v is string => typeof v === "string");
       const ask = (error: string | null, actions: Action[] = [], draftKg?: number) =>
-        askAt(at, error, actions, draftKg);
+        askAt(at, error, actions, draftKg, typed.length > 0 ? typed : undefined);
 
       // The stepper's − and + ARE submits of this same form: the shown number comes back as
       // `answer` with a `step` direction, and the page answers stepped — a render, not a redirect,

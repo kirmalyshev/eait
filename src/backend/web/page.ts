@@ -71,9 +71,9 @@ const STYLES = `
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; background: var(--ink); }
 body {
-  margin: 0;
+  margin: 0; min-height: 100dvh;
   /* The same warm haze the landing lays over its first screen, so arriving here reads as the next
      page of one site rather than as another site. */
   background: linear-gradient(180deg, rgb(var(--warm) / var(--haze)), transparent 46rem) var(--ink);
@@ -158,9 +158,20 @@ input[type=number], input[type=text] {
   transition: border-color .15s ease, box-shadow .15s ease;
 }
 input::placeholder { color: var(--dim); }
-input:focus { border-color: var(--care); outline: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--care) 18%, transparent); }
+input:focus { border-color: var(--care); }
+/* ONE focus ring (#53), solid ink on every control — the old 18%-alpha glow did not reach 3:1. */
+:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+label.check:has(input:focus-visible) { outline: 2px solid var(--text); outline-offset: 2px; }
+label.check input { accent-color: var(--accent); width: 1.1rem; height: 1.1rem; vertical-align: -.15rem; margin: 0 .5rem 0 0; }
+.field-error { margin-top: -.25rem; }
+h1.bubble { font-family: var(--sans); font-size: 1em; font-weight: 400; letter-spacing: normal; line-height: 1.6; margin: 0 0 .5rem; }
+.back {
+  display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; margin: -.5rem 0 .5rem;
+  color: var(--muted); text-decoration: none; font-family: var(--display); font-weight: 600;
+}
+.back::before { content: "‹"; margin-right: .35rem; }
 input[type=file] {
-  display: block; width: 100%; margin: 0 0 .625rem; font: inherit; font-size: .9375rem;
+  display: block; width: 100%; margin: 0 0 .625rem; font: inherit; font-size: 1rem;
   color: var(--muted);
 }
 label.check {
@@ -199,7 +210,7 @@ label.check {
   background: transparent; font: inherit; letter-spacing: inherit; color: inherit;
 }
 .stepper .figure .stepper-num { box-shadow: none; }
-.stepper-num:focus { box-shadow: 0 0 0 4px color-mix(in srgb, var(--care) 18%, transparent); }
+.stepper .figure { white-space: nowrap; }
 .stepper-btns { display: flex; gap: .6rem; }
 .stepper-btns button {
   width: 46px; height: 46px; padding: 0; margin: 0; border-radius: 50%;
@@ -233,7 +244,7 @@ label.check {
    free meal. A LINK for the ×, because it changes nothing. */
 .offer { position: relative; padding-top: .5rem; }
 .offer .x {
-  position: absolute; top: 0; right: 0; width: 40px; height: 40px; border-radius: 50%;
+  position: absolute; top: 0; right: 0; width: 44px; height: 44px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center; text-decoration: none;
   color: var(--muted); background: var(--raised); border: 1px solid var(--line); font-size: 1.15rem;
 }
@@ -361,6 +372,12 @@ const spud = `<div class="spud" role="img" aria-label="${escape(PAGE_COPY.spudAl
 const bubbles = (lines: readonly string[]): string =>
   lines.map((line) => `<p class="bubble typed">${escape(line)}</p>`).join("");
 
+/** A question's lines, the last — the question itself — as the page's one h1 (#53). */
+const askBubbles = (lines: readonly string[]): string =>
+  lines.map((line, i) => i === lines.length - 1
+    ? `<h1 class="bubble typed">${escape(line)}</h1>`
+    : `<p class="bubble typed">${escape(line)}</p>`).join("");
+
 /** The design's slim top bar: the wordmark, and the reassurance that the phone can take over. */
 const topBar = (PAGE_COPY: PageCopy): string =>
   `<div class="wbar"><strong>eait</strong><small>${escape(PAGE_COPY.topBarNote)}</small></div>`;
@@ -472,10 +489,15 @@ export function question(v: QuestionView): string {
       `${chosen.has(o.value) ? ` class="sel" aria-pressed="true"` : ""}>${escape(o.label)}` +
       `${o.hint ? `<span class="hint">${escape(o.hint)}</span>` : ""}</button>`).join("");
   } else if (v.kind === "number") {
+    // A visible label (#53), and the refusal UNDER the field it is about, tied to it — never above
+    // Spud's reaction, where it read as his.
     controls =
-      `<input type="number" name="answer" inputmode="decimal" step="any" required autofocus` +
+      `${v.placeholder ? `<label class="lab" for="answer">${escape(v.placeholder)}</label>` : ""}` +
+      `<input id="answer" type="number" name="answer" inputmode="decimal" step="any" required autofocus` +
       `${v.current?.[0] !== undefined ? ` value="${escape(v.current[0])}"` : ""}` +
+      `${v.error ? ` aria-invalid="true" aria-describedby="answer-error"` : ""}` +
       `${v.placeholder ? ` placeholder="${escape(v.placeholder)}"` : ""}>` +
+      `${v.error ? `<p class="notice field-error" id="answer-error">${escape(v.error)}</p>` : ""}` +
       `<button class="primary" type="submit">${escape(submit)}</button>`;
   } else {
     controls = v.options.map((o) =>
@@ -500,9 +522,9 @@ ${v.step !== undefined && v.total !== undefined
   ? `<p class="progress">${escape(PAGE_COPY.progress
     .replace("{step}", String(v.step)).replace("{total}", String(v.total)))}</p>`
   : ""}
-${v.error ? `<p class="notice">${escape(v.error)}</p>` : ""}
+${v.error && (v.kind !== "number" || v.stepper) ? `<p class="notice">${escape(v.error)}</p>` : ""}
 ${reaction}
-${bubbles(v.lines)}
+${askBubbles(v.lines)}
 <form method="post" action="${escape(v.action ?? "/start/q")}">${hidden}${actions}${controls}</form>
 `, v.lang);
 }
