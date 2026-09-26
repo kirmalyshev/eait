@@ -160,6 +160,7 @@ describe("the answer a resumed run draws back", () => {
 
   it("writes a number the way it was typed", () => {
     expect(answerLabel(promptById("weight_kg"), profile({ weight_kg: 93 }), { content: content, lang: "en" })).toBe("93");
+    expect(answerLabel(promptById("weight_kg"), profile({ weight_kg: 72.5 }), { content: content, lang: "fr" })).toBe("72,5");
   });
 
   it("draws the year of birth back as an age, plain arithmetic, no eligibility band", () => {
