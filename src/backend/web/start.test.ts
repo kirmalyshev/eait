@@ -1111,8 +1111,8 @@ describe("the under-sixteen stop", () => {
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain(UNDER_AGE_CARD("en").title);
-    expect(html).toContain(UNDER_AGE_LINES("en").stopped[0]!);
-    // "Nothing you told me is kept, and there is no account to delete" — so there must not be one.
+    expect(html).toContain(escape(UNDER_AGE_LINES("en").stopped[0]!));
+    // "I'm deleting everything you told me" (#65) — so by the time the page renders, there is none.
     expect(await store.getProfile(userId)).toBeNull();
     expect(await store.userIdForToken(session.split("=")[1]!)).toBeNull();
     expect(res.headers.getSetCookie().some((c) => c.startsWith("eait_web=;"))).toBe(true);

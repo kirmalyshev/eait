@@ -231,3 +231,21 @@ describe("the v5 additions to the chat copy", () => {
     }
   });
 });
+
+describe("the under-16 stop (#65)", () => {
+  // Both surfaces DELETE an account at this moment (the phone's `deleteAccount()`, the web's
+  // `deleteUser`), so a line saying there is none, or that nothing was sent, is false where it stands.
+  const OLD = [
+    "there is no account to delete", "il n'y a aucun compte à supprimer", "es gibt kein Konto zu löschen",
+    "non c'è nessun account da cancellare", "no hay ninguna cuenta que borrar", "không có tài khoản nào để xoá",
+    "tidak ada akun yang perlu dihapus", "удалять нечего",
+  ];
+  it("says what is happening — the delete — in every language, and never that there is no account", () => {
+    expect(chatCopyFor("en").underAge.stopped[0]).toBe("Then this is where we stop. I'm deleting everything you told me.");
+    for (const lang of LANGS) {
+      const line = chatCopyFor(lang).underAge.stopped[0]!;
+      for (const old of OLD) expect(line, lang).not.toContain(old);
+      expect(line, lang).not.toMatch(/\b(sent|envoyé|geschickt|mandato|enviado|gửi|dikirim|отправля)/i);
+    }
+  });
+});
