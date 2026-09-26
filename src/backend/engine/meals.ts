@@ -19,7 +19,7 @@ import { PHOTO_MODEL_CALLS, localDate, localTime, windowStart } from "@eait/shar
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
 import { prepareAnalysis } from "./analysis.ts";
-import { charge, checkCaps, refundGatewayRefusal } from "./caps.ts";
+import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { afterCorrection, afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
 import { imageMime, type AnalyzedMeal } from "../llm/port.ts";
@@ -150,6 +150,8 @@ export async function analyzePhotos(
     // A gateway refusal generated nothing and was billed nothing, so the analysis charged above is
     // given back. Every other failure may have cost real money and stays charged.
     const refunded = await refundGatewayRefusal(deps, userId, analysisId, e);
+    // Billed or not, nothing reached the person, so the sample is still theirs (#44).
+    if (!refunded) await releaseSample(deps, userId, analysisId);
     // Logged, never returned: the message can carry the prompt, and the prompt carries the user's
     // medical free text.
     console.error(`[eait] photo analysis failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
@@ -164,7 +166,11 @@ export async function analyzePhotos(
   const prepared = prepareAnalysis(analysis);
   analysis = prepared.analysis;
 
-  if (!analysis.isFood) return { kind: "not-food" };
+  if (!analysis.isFood) {
+    // An answer, but no verdict: not the meal on us (#44).
+    await releaseSample(deps, userId, analysisId);
+    return { kind: "not-food" };
+  }
   return { kind: "read", analysis, question: prepared.question, images, analysisId };
 }
 

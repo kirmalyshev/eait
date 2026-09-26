@@ -154,6 +154,8 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   const pushTokens = new Map<string, { userId: string; platform: PushPlatform }>();
   const analyses: {
     id: string; userId: string; date: string; scope: "photo" | "text"; costUsd: number | null; unpricedCalls: number;
+    /** Counts against the sample until `releaseSample` says the turn delivered nothing. */
+    sample: boolean;
   }[] = [];
   let analysisSeq = 0;
   // `${userId}\n${clientId}` -> the claim. The key IS the uniqueness the Postgres primary key gives.
@@ -1162,7 +1164,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     },
 
     async countUserAnalyses(userId) {
-      return analyses.filter((a) => a.userId === userId).length;
+      return analyses.filter((a) => a.userId === userId && a.sample).length;
     },
 
     async getFreeAnalyses(userId) {
@@ -1177,7 +1179,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async recordAnalysis(userId, date, scope) {
       const id = String(++analysisSeq);
-      analyses.push({ id, userId, date, scope, costUsd: null, unpricedCalls: 0 });
+      analyses.push({ id, userId, date, scope, costUsd: null, unpricedCalls: 0, sample: true });
       return id;
     },
 
@@ -1199,6 +1201,13 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       const i = analyses.findIndex((a) => a.id === analysisId && a.userId === userId);
       if (i < 0) return false;
       analyses.splice(i, 1);
+      return true;
+    },
+
+    async releaseSample(userId, analysisId) {
+      const a = analyses.find((x) => x.id === analysisId && x.userId === userId);
+      if (!a) return false;
+      a.sample = false;
       return true;
     },
 

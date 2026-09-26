@@ -1065,9 +1065,16 @@ export interface Store {
   /** Every analysis the instance has spent on `date`, whatever its scope — see `recordAnalysis`. */
   countGlobalAnalyses(date: string): Promise<number>;
   /**
-   * Every analysis this account has EVER spent, photo or text. The sample rule reads it: one
-   * analysis without an entitlement, then refusal. Lifetime and both scopes on purpose — a typed
-   * meal is the sample as much as a photographed one, or a sentence is the free way around the ask.
+   * The analyses that count against this account's SAMPLE, photo or text, over its lifetime. The
+   * sample rule reads it: `freeAnalyses` without an entitlement, then refusal. Both scopes on
+   * purpose — a typed meal is the sample as much as a photographed one, or a sentence is the free
+   * way around the ask.
+   *
+   * THE SAMPLE COUNTS VALUE DELIVERED, NOT ATTEMPTS (principal's decision, #44). A row counts from
+   * the moment it is charged — so two requests racing for one free meal cannot both pass the check —
+   * until `releaseSample` says the turn delivered nothing: a timeout, a provider error, a photo
+   * that was not food. Only a turn that reached the person keeps counting. The ROW stays either
+   * way: it carries the cost, and the global budget and the paid daily cap count every row.
    */
   countUserAnalyses(userId: string): Promise<number>;
   /**
@@ -1100,6 +1107,13 @@ export interface Store {
    * scope may own, cost and all (#537).
    */
   undoAnalysis(userId: string, analysisId: string): Promise<boolean>;
+  /**
+   * Take this analysis out of the SAMPLE count and leave everything else about it: the row, its
+   * cost, and its place in the global budget. For a turn that delivered no verdict but may have
+   * been billed — the opposite of `undoAnalysis`, which is for a call billed nothing. Scoped
+   * `id = ? AND user_id = ?`; false when there is no such row of theirs.
+   */
+  releaseSample(userId: string, analysisId: string): Promise<boolean>;
 
   // ── Turns (#708) ───────────────────────────────────────────────────────────────────────────
   //
