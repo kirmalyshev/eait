@@ -99,7 +99,7 @@ test("a spent sample says where to subscribe, and keeps the words", async ({ inW
   await words.fill("a banana");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.locator(".notice")).toHaveText(
-    "The analyses this account came with are used up. Subscribe in the eait app to carry on.",
+    "This account's free sample is used up. Start your free week to carry on.",
   );
   await expect(words).toHaveValue("a banana");
 });

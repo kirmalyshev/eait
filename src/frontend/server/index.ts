@@ -160,6 +160,56 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 .composer button.primary, .card button.primary { background: var(--accent); color: var(--accent-ink);
   height: 38px; line-height: 38px; margin-top: 0; }
 input:disabled, button:disabled { opacity: .5; cursor: default; }
+/* The one-meal flow (#42) — the v5 boards, in the diary's place while the account has never
+   logged: one centred column, the width a chat reads best at (styles_spec_v5_web). */
+.flow { max-width: 620px; margin: 0 auto; }
+.spk { display: flex; gap: 14px; align-items: flex-start; margin: 22px 0 18px; }
+.spk .av { flex: 0 0 46px; width: 46px; height: 46px; border-radius: 50%; overflow: hidden; }
+.spk .av svg { display: block; width: 100%; height: 100%; }
+.spk-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.beat { border-left: 3px solid var(--accent); padding-left: 12px; color: var(--good);
+  font-weight: 700; font-size: 13.5px; }
+.spk .them { color: var(--muted); line-height: 1.55; }
+.ask { font-size: 21px; line-height: 1.25; font-weight: 800; letter-spacing: -.02em; }
+.step { display: flex; flex-direction: column; }
+.step .card input[type="text"], .step .card select { display: block; width: 100%; box-sizing: border-box;
+  font: inherit; padding: .55rem .8rem; border-radius: 12px; color: var(--text); background: var(--panel);
+  border: 0; margin: .4rem 0 0; }
+.step .card .lab + .lab { margin-top: .9rem; }
+.step-foot { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.cta { display: flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 18px;
+  border: 0; border-radius: 15px; font: inherit; font-weight: 800; text-decoration: none; cursor: pointer; }
+.cta.p { background: var(--accent); color: var(--accent-ink); }
+.cta.s { background: var(--raised); color: var(--text); border: 1px solid var(--line); }
+.cta.g { background: none; color: var(--muted); min-height: 40px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; }
+.drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  min-height: 150px; border: 1.5px dashed var(--line-strong); border-radius: 16px; color: var(--muted);
+  cursor: pointer; text-align: center; padding: 16px; }
+.drop.over, .drop:focus-within { border-color: var(--accent); color: var(--text); }
+.drop .drop-lead { font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
+.drop small { color: var(--faint); }
+.stats { display: flex; gap: 10px; margin-top: 12px; }
+.stat-cell { flex: 1; background: var(--panel); border-radius: 12px; padding: 10px 12px; }
+.stat-num { font-size: 18px; font-weight: 800; margin-top: 2px; }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.pill { display: inline-flex; align-items: center; min-height: 30px; padding: 0 12px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 800; }
+.pill.good { background: color-mix(in srgb, var(--good) 14%, transparent); color: var(--good); }
+.pill.warn { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.pill.bad { background: color-mix(in srgb, var(--bad) 14%, transparent); color: var(--bad); }
+.perks { display: flex; flex-direction: column; gap: 10px; margin: 2px 0 14px; }
+.perk { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+.perk .tick { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
+  border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 13px; flex: 0 0 22px; }
+.rowline { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
+.rowline + .rowline { border-top: 1px solid var(--line); }
+.rowline .when { font-weight: 700; }
+.plans { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.plan { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; color: var(--muted);
+  font-weight: 700; }
+@media (max-width: 760px) { .flow { max-width: none; } }
 </style>
 </head>
 <body>

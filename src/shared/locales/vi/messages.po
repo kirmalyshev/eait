@@ -400,11 +400,6 @@ msgstr "Tạm thời đó là giới hạn. Thử lại sau nhé."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Số lượt phân tích đi kèm tài khoản này đã dùng hết. Đăng ký trên web để tiếp tục."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
 msgid "tg.viaApp"
 msgstr "ứng dụng"
 
@@ -412,6 +407,11 @@ msgstr "ứng dụng"
 #: src/backend/telegram/copy.ts
 msgid "tg.targetGone"
 msgstr "Ở đây không có bữa nào đang mở để sửa. Kể mình nghe bạn ăn gì rồi ghi lại."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Phần miễn phí của tài khoản này đã dùng hết. Bắt đầu tuần miễn phí trên web để tiếp tục."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

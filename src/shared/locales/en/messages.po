@@ -400,11 +400,6 @@ msgstr "That's the limit for now. Try again later."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "The analyses this account came with are used up. Subscribe on the web to carry on."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
 msgid "tg.viaApp"
 msgstr "the app"
 
@@ -412,6 +407,11 @@ msgstr "the app"
 #: src/backend/telegram/copy.ts
 msgid "tg.targetGone"
 msgstr "There is no meal open here to change. Say what you ate and log it again."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "This account's free sample is used up. Start your free week on the web to carry on."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

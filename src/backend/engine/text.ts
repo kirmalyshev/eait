@@ -16,7 +16,7 @@ import type { EngineDeps } from "./deps.ts";
 import type { ChatAppend, ChatIntent } from "../store.ts";
 import { normalizePromptText } from "../llm/prompt.ts";
 import { prepareAnalysis } from "./analysis.ts";
-import { charge, checkCaps, refundGatewayRefusal } from "./caps.ts";
+import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { applyCorrection, gatedVerdicts, sumTotals, toAnalysis } from "./meals.ts";
 import { afterCorrection, remember } from "./chat.ts";
 import { ROUTER_RECENT_LINES, coachTurn, recentLines } from "./coach.ts";
@@ -134,6 +134,7 @@ async function textTurn(
     // Given back when the gateway refused before generating anything — the same rule as the photo
     // path, and it must be, or a typed first meal burns a sample a photo would have kept.
     const refunded = await refundGatewayRefusal(deps, userId, analysisId, e);
+    if (!refunded) await releaseSample(deps, userId, analysisId);
     console.error(`[eait] text routing failed: ${(e as Error).message}${refunded ? " (analysis refunded)" : ""}`);
     return { kind: "analysis-failed" };
   }
@@ -141,6 +142,8 @@ async function textTurn(
   // The model that wrote the answer, when there is one — the coach's, or the router's own sentence.
   let answeredBy: string | null = null;
   const result = await route();
+  // Every branch that fails ends here as `analysis-failed`: charged, and nothing delivered (#44).
+  if (result.kind === "analysis-failed") await releaseSample(deps, userId, analysisId);
   // ONE QUESTION, ONE FRAMED TURN. Spent by the turn that was framed as its answer, whatever the
   // router made of it — a correction clears it through `editMeal` anyway, and every other intent
   // would otherwise leave the framing standing over the next message, and the one after that.

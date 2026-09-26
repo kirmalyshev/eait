@@ -81,6 +81,25 @@ export async function charge(
 }
 
 /**
+ * Take a turn that delivered nothing out of the SAMPLE, and leave its charge standing.
+ *
+ * THE SAMPLE COUNTS VALUE DELIVERED, NOT ATTEMPTS — the principal's decision (#44). A timeout, a
+ * provider error, an answer that failed validation or a photo that was not food may all have been
+ * billed, so the analysis row stays: its cost, the global budget and the paid daily cap still see
+ * it. What changes is only whether it spent the person's free meal, and a turn that put no verdict
+ * in front of them did not. The pre-call charge still counts while the turn runs, so two requests
+ * racing for one free meal cannot both pass `checkCaps`.
+ *
+ * Never throws, for `refundGatewayRefusal`'s reason; a release that cannot be written leaves the
+ * sample spent, the safe direction when the store is the thing that is broken.
+ */
+export async function releaseSample(deps: EngineDeps, userId: string, analysisId: string): Promise<void> {
+  await deps.store.releaseSample(userId, analysisId).catch((x: unknown) => {
+    console.error(`[eait] sample release failed: ${(x as Error)?.message ?? x}`);
+  });
+}
+
+/**
  * The other half of charging before the call: give the analysis back when the gateway refused
  * before generating anything, and only then.
  *

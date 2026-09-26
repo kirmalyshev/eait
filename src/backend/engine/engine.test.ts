@@ -235,8 +235,11 @@ describe("photo logging", () => {
     const userId = await onboard();
     await logPhotoMeal(d, userId, photo());
     expect(await store.countUserPhotos(userId, localDate("Europe/Berlin"))).toBe(1);
-    // The sample too: a failed first call is the sample spent, not a free retry.
-    expect((await logPhotoMeal(makeDeps({ freeAnalyses: 1 }), userId, photo())).kind).toBe("subscription-required");
+    // The SAMPLE is not a cap on attempts (#44, the principal's decision): it counts value
+    // delivered, so a failed first call leaves the free meal to be had. What bounds a retry loop is
+    // what bounded it before the sample existed — the charge above on the instance budget, and the
+    // per-address limit on the billed routes (`api/ratelimit.ts`).
+    expect((await logPhotoMeal(makeDeps({ freeAnalyses: 1 }), userId, photo())).kind).toBe("logged");
   });
 
   it("never reads image bytes when the cap already refused", async () => {
@@ -496,6 +499,35 @@ describe("the sample", () => {
     expect((await profileView(one, userId))!.limits.sampleUsed).toBe(true);
   });
 
+  // Principal's decision (2026-09-25, #44): the sample counts VALUE DELIVERED, not attempts. A
+  // timeout may have been billed, so the COST stays on the row and the global budget still counts
+  // it — but the person got no verdict, so their one meal is still theirs.
+  it("timed-out analysis leaves the sample unspent", async () => {
+    const slow = makeDeps({ freeAnalyses: 1 }, {
+      ...demoPorts(),
+      analyzePhoto: async () => { throw new Error("llm timeout after 60000 ms"); },
+      routeText: async () => { throw new Error("llm timeout after 60000 ms"); },
+    });
+    const userId = await onboard();
+    expect((await logPhotoMeal(slow, userId, photo())).kind).toBe("analysis-failed");
+    expect((await handleText(slow, userId, { text: "two eggs on toast" })).kind).toBe("analysis-failed");
+    expect((await profileView(one, userId))!.limits).toMatchObject({ sampleUsed: false, sampleRemaining: 1 });
+    // Charged all the same: both billed attempts stay on today's instance budget.
+    expect(await store.countGlobalAnalyses(localDate(one.config.timezone))).toBeGreaterThanOrEqual(2);
+    expect((await logPhotoMeal(one, userId, photo())).kind).toBe("logged");
+    expect((await profileView(one, userId))!.limits.sampleUsed).toBe(true);
+  });
+
+  it("a photo that is not food leaves the sample unspent: no verdict reached anybody", async () => {
+    const notFood = makeDeps({ freeAnalyses: 1 }, {
+      ...demoPorts(),
+      analyzePhoto: async (i, d) => ({ ...(await demoPorts().analyzePhoto(i, d)), isFood: false }),
+    });
+    const userId = await onboard();
+    expect((await logPhotoMeal(notFood, userId, photo())).kind).toBe("not-food");
+    expect((await profileView(one, userId))!.limits.sampleUsed).toBe(false);
+  });
+
   it("still words the failure when the refund itself cannot be written", async () => {
     // The refund runs inside the catch that turns a failed analysis into a refusal the screen can
     // word. A store that cannot delete must not escalate that into a 500 — the app would show
@@ -512,10 +544,14 @@ describe("the sample", () => {
       store: brokenStore,
     };
     const userId = await onboard();
+    const today = localDate(one.config.timezone);
+    const before = await store.countGlobalAnalyses(today);
     expect((await logPhotoMeal(refused, userId, photo())).kind).toBe("analysis-failed");
-    // Nothing was given back, so the charge stands — the safe direction when the store is the thing
-    // that is broken.
-    expect((await profileView(one, userId))!.limits.sampleUsed).toBe(true);
+    // Nothing was given back, so the CHARGE stands — the safe direction when the store is the thing
+    // that is broken. The SAMPLE is another matter since #44: nothing reached the person, so their
+    // one meal is still theirs, whether or not the refund landed.
+    expect(await store.countGlobalAnalyses(today)).toBe(before + 1);
+    expect((await profileView(one, userId))!.limits.sampleUsed).toBe(false);
   });
 
   it("tells the app whether the sample is spent, beside the entitlement", async () => {

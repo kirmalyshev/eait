@@ -103,7 +103,7 @@ const COPY = (i18n: I18n): TelegramCopy => ({
     "cap-user": i18n._("tg.refusal.cap-user", undefined, { message: "That was your last one today — your daily allowance resets at midnight." }),
     "cap-global": i18n._("tg.refusal.cap-global", undefined, { message: "Everyone has used today's allowance. Tomorrow is a fresh number." }),
     "cap-address": i18n._("tg.refusal.cap-address", undefined, { message: "That's the limit for now. Try again later." }),
-    "subscription-required": i18n._("tg.refusal.subscription-required", undefined, { message: "The analyses this account came with are used up. Subscribe on the web to carry on." }),
+    "subscription-required": i18n._("tg.refusal.subscription-required", undefined, { message: "This account's free sample is used up. Start your free week on the web to carry on." }),
     "analysis-failed": i18n._("tg.refusal.analysis-failed", undefined, { message: "That did not come back. Try it again." }),
     "unsupported-image": i18n._("tg.refusal.unsupported-image", undefined, { message: "That file is not a photo this can read. JPEG, PNG or WebP." }),
     "no-photo": i18n._("tg.refusal.no-photo", undefined, { message: "That photo did not come through. Send it again." }),

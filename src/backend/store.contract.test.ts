@@ -1462,6 +1462,26 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.countUserAnalyses(a)).toBe(1);
     });
 
+    // #44: the sample counts value delivered, not attempts. A release takes the row out of the
+    // SAMPLE and leaves it everywhere else — its cost, the global budget, the paid daily cap.
+    it("releases an analysis from the sample and keeps its charge, and never another account's", async () => {
+      const s = await open();
+      const a = (await s.upsertDeviceUser(device(), "en")).userId;
+      const b = (await s.upsertDeviceUser(device(), "en")).userId;
+      const before = await s.countGlobalAnalyses(RUN_DATE);
+      const failed = await s.recordAnalysis(a, RUN_DATE, "photo");
+      const theirs = await s.recordAnalysis(b, RUN_DATE, "photo");
+      await s.addCost(a, failed, 0.25);
+      expect(await s.releaseSample(b, failed)).toBe(false);
+      expect(await s.releaseSample(a, theirs)).toBe(false);
+      expect(await s.releaseSample(a, failed)).toBe(true);
+      expect(await s.countUserAnalyses(a)).toBe(0);
+      expect(await s.countUserAnalyses(b)).toBe(1);
+      expect(await s.countUserPhotos(a, RUN_DATE)).toBe(1);
+      expect(await s.countGlobalAnalyses(RUN_DATE)).toBe(before + 2);
+      expect(await s.analysisCosts(a, [failed])).toEqual([{ id: failed, costUsd: 0.25, unpricedCalls: 0 }]);
+    });
+
     // #484. One charge pays for several calls, so what the provider reported for each is ADDED to
     // the analysis — and a call that ended without a price is counted, so a day's sum reads as the
     // floor it is rather than as the bill.

@@ -11,7 +11,7 @@
 import { MAX_USER_LINE, TYPE_MS_PER_CHAR } from "@eait/shared";
 import { createHash } from "node:crypto";
 import { darkVars, lightVars } from "@eait/shared/palette";
-import { spudSvg } from "@eait/shared/mascot";
+import { spudSvg, type MascotMood } from "@eait/shared/mascot";
 
 export function escape(text: string): string {
   return text
@@ -31,7 +31,10 @@ export function escape(text: string): string {
  * question is not.
  */
 import { PAGE_COPY, pageCopyFor, type PageCopy } from "./copy.ts";
-import { LANGS_READY, LANG_LABEL, UNIT_KCAL, wholeNumbers, type Lang } from "@eait/shared";
+import {
+  LANGS_READY, LANG_LABEL, UNIT_KCAL, chatCopyFor, spellUnit, wholeNumbers,
+  type Lang, type MomentId, type MomentPose,
+} from "@eait/shared";
 
 export { PAGE_COPY, PAGE_COPY_BY_LANG, pageCopyFor, type PageCopy } from "./copy.ts";
 
@@ -78,7 +81,18 @@ body {
   font-family: var(--sans); font-size: 17px; line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
-main { max-width: 34rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+/* The design's one centred column: 620 px — a chat reads at a phone's width; a browser adds
+   margin, not a second pane. The slim top bar sits above it on the walk's own screens. */
+main { max-width: 38.75rem; margin: 0 auto; padding: 1.25rem 1.25rem 4rem; }
+.wbar {
+  display: flex; align-items: baseline; gap: .75rem; margin: 0 0 2.25rem;
+  font-family: var(--display);
+}
+.wbar strong { font-weight: 700; letter-spacing: -0.02em; }
+.wbar small {
+  margin-left: auto; text-align: right; font-family: var(--sans);
+  color: var(--muted); font-size: .8125rem;
+}
 h1, h2 { font-family: var(--display); letter-spacing: -0.02em; }
 h1 { font-size: 2rem; line-height: 1.1; margin: 0 0 .75rem; }
 h2 { font-size: 1.125rem; margin: 2.5rem 0 .75rem; }
@@ -160,6 +174,82 @@ label.check {
   margin: 0 0 1rem; letter-spacing: .08em; text-transform: uppercase;
 }
 .figure { font-family: var(--display); font-size: 2.6rem; font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
+
+/* Spud's one line back on the answer just given — the small avatar beside the beat, and the
+   mood's own face inside it (the reaction decides which mouth is drawn, not the page). */
+.spk { display: flex; gap: .7rem; align-items: flex-start; margin: 0 0 .6rem; }
+.spk .av {
+  flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%; overflow: hidden;
+  background: var(--raised); border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+}
+.spk .av svg { width: 32px; height: 32px; }
+.spk .bubble { flex: 1; margin-bottom: 0; }
+
+/* The target stepper (#42): a card holding the number, with − and + as round submits — the only
+   control a page with no JavaScript can honestly offer, and all the flow needs. */
+.stepper { display: flex; align-items: center; gap: 1rem; }
+.stepper > div:first-child { flex: 1; min-width: 0; }
+.stepper .lab { font-size: .8125rem; color: var(--muted); margin: 0 0 .2rem; }
+.stepper .figure { margin: 0; }
+/* The number is a real input, not a picture of one — keyboard entry is the honest fallback a
+   stepper on a no-JavaScript page owes anybody who knows the number they want. */
+.stepper-num {
+  width: 5.5ch; padding: 0; margin: 0; border: 0; border-radius: 6px;
+  background: transparent; font: inherit; letter-spacing: inherit; color: inherit;
+}
+.stepper .figure .stepper-num { box-shadow: none; }
+.stepper-num:focus { box-shadow: 0 0 0 4px color-mix(in srgb, var(--care) 18%, transparent); }
+.stepper-btns { display: flex; gap: .6rem; }
+.stepper-btns button {
+  width: 46px; height: 46px; padding: 0; margin: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  font-size: 1.5rem; line-height: 1;
+}
+.stepper-btns button:disabled { opacity: .38; cursor: default; }
+.stepper-btns button:disabled:hover { border-color: var(--line-strong); transform: none; box-shadow: none; }
+
+/* A support moment (#42): a whole screen that is one beat — the halo, the prop that names the
+   pose, the answer echoed back, a title, a line and one button. */
+.moment { text-align: center; padding: 2rem 0 1.5rem; }
+.halo {
+  width: 230px; height: 200px; margin: 0 auto .5rem; position: relative;
+  display: flex; align-items: center; justify-content: center; border-radius: 50%;
+  background: radial-gradient(circle at 50% 45%, rgb(var(--warm) / .5), rgb(var(--warm) / 0) 70%);
+}
+.halo > svg { width: 150px; height: 150px; }
+.prop { position: absolute; right: 20px; bottom: 26px; width: 46px; height: 46px; color: var(--accent); }
+.prop svg { width: 100%; height: 100%; }
+.prop-think { color: var(--care); }
+.prop-heart { color: var(--bad); }
+.prop-lift { color: var(--text); }
+.echo {
+  display: inline-block; background: var(--raised); border: 1px solid var(--line);
+  border-radius: 999px; padding: .3rem .95rem; margin: 0 0 1rem;
+  font-family: var(--display); font-weight: 600;
+}
+
+/* The soft offer (#42): the plan's one ask — perks, an honest timeline, the close that is the
+   free meal. A LINK for the ×, because it changes nothing. */
+.offer { position: relative; padding-top: .5rem; }
+.offer .x {
+  position: absolute; top: 0; right: 0; width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; text-decoration: none;
+  color: var(--muted); background: var(--raised); border: 1px solid var(--line); font-size: 1.15rem;
+}
+.offer-hero { width: 96px; margin: 1rem auto .5rem; }
+.offer-hero svg { width: 96px; height: 96px; }
+.offer .beat { text-align: center; color: var(--muted); margin: 0 0 .35rem; }
+.offer h1 { text-align: center; }
+.perk { display: flex; gap: .6rem; align-items: center; font-weight: 600; margin: 0 0 .55rem; }
+.tick {
+  flex: 0 0 22px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: var(--accent-ink);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.tick svg { width: 12px; height: 12px; }
+.rowline { display: flex; justify-content: space-between; gap: 1rem; padding: .65rem 0; border-top: 1px solid var(--line); }
+.rowline:first-child { border-top: 0; }
 `;
 
 /**
@@ -254,6 +344,10 @@ const spud = `<div class="spud" role="img" aria-label="${escape(PAGE_COPY.spudAl
 const bubbles = (lines: readonly string[]): string =>
   lines.map((line) => `<p class="bubble typed">${escape(line)}</p>`).join("");
 
+/** The design's slim top bar: the wordmark, and the reassurance that the phone can take over. */
+const topBar = (PAGE_COPY: PageCopy): string =>
+  `<div class="wbar"><strong>eait</strong><small>${escape(PAGE_COPY.topBarNote)}</small></div>`;
+
 export interface SignInButton { href: string; label: string }
 
 /**
@@ -304,8 +398,23 @@ export interface QuestionView {
    * says under sixteen. A refusal whose words offer a way out has to carry the way out.
    */
   actions: readonly { name: string; value: string; label: string }[];
-  step: number;
-  total: number;
+  /**
+   * Spud's line back on the PREVIOUS answer (#42) — `reactionTo`, said above this ask with the
+   * mood's own face. Null on the first question, where there is nothing to react to.
+   */
+  reaction?: { line: string; mood: MascotMood } | null;
+  /**
+   * The target stepper: the value the card shows and the healthy range it stays inside. Set, it
+   * REPLACES the number box — the −/+ submits carry the shown `answer` back with a direction, and
+   * only the primary button commits it. Absent at the floor, where there is nothing to suggest.
+   */
+  stepper?: { value: number; min: number; max: number } | null;
+  /** Where the form posts — `/start/q` for a profile question; the struggles screen is a route. */
+  action?: string;
+  /** The primary button's word — `continueLabel` unless a prompt carries its own ("Done"). */
+  submitLabel?: string;
+  step?: number;
+  total?: number;
   /** Which language to render in. On the VIEW, because every string on the page reads it. */
   lang: Lang;
 }
@@ -313,8 +422,27 @@ export interface QuestionView {
 export function question(v: QuestionView): string {
   const PAGE_COPY = pageCopyFor(v.lang);
   const hidden = `<input type="hidden" name="prompt" value="${escape(v.promptId)}">`;
+  const submit = v.submitLabel ?? PAGE_COPY.continueLabel;
   let controls: string;
-  if (v.kind === "choice") {
+  if (v.stepper) {
+    // The − and + ARE the answer field here: each posts the shown number back with a direction and
+    // the server replies with the page, stepped. `disabled` at the bounds — and the server clamps
+    // anyway, because a button is a suggestion and a POST is a fact.
+    const st = chatCopyFor(v.lang).stepper;
+    const { value, min, max } = v.stepper;
+    controls =
+      `<div class="card stepper"><div>` +
+      `<div class="lab">${escape(PAGE_COPY.stepperSuggested)}</div>` +
+      `<p class="figure"><input class="stepper-num" type="number" name="answer" inputmode="decimal"` +
+      ` step="any" required value="${value}"` +
+      ` aria-label="${escape(PAGE_COPY.stepperSuggested)}"> ` +
+      `${escape(spellUnit(v.lang, "kg"))}</p></div>` +
+      `<div class="stepper-btns">` +
+      `<button type="submit" name="step" value="-1" aria-label="${escape(st.less)}"${value <= min ? " disabled" : ""}>−</button>` +
+      `<button type="submit" name="step" value="1" aria-label="${escape(st.more)}"${value >= max ? " disabled" : ""}>+</button>` +
+      `</div></div>` +
+      `<button class="primary" type="submit">${escape(st.continue)}</button>`;
+  } else if (v.kind === "choice") {
     // One button per option: with no JavaScript, a radio group needs a second tap on a submit
     // button, and the app's version is one tap.
     controls = v.options.map((o) =>
@@ -324,24 +452,137 @@ export function question(v: QuestionView): string {
     controls =
       `<input type="number" name="answer" inputmode="decimal" step="any" required autofocus` +
       `${v.placeholder ? ` placeholder="${escape(v.placeholder)}"` : ""}>` +
-      `<button class="primary" type="submit">${escape(PAGE_COPY.continueLabel)}</button>`;
+      `<button class="primary" type="submit">${escape(submit)}</button>`;
   } else {
     controls = v.options.map((o) =>
       `<label class="check"><input type="checkbox" name="answer" value="${escape(o.value)}"> ` +
       `${escape(o.label)}</label>`).join("") +
-      `<button class="primary" type="submit">${escape(PAGE_COPY.continueLabel)}</button>`;
+      `<button class="primary" type="submit">${escape(submit)}</button>`;
   }
   const actions = v.actions.map((a) =>
     `<button type="submit" name="${escape(a.name)}" value="${escape(a.value)}">${escape(a.label)}</button>`,
   ).join("");
+  const reaction = v.reaction
+    ? `<div class="spk"><span class="av">${spudSvg(v.reaction.mood, "spud-react")}</span>` +
+      `<p class="bubble typed">${escape(v.reaction.line)}</p></div>`
+    : "";
   // The BRAND, untranslated — the same reason `LANG_LABEL` is not. A question page in the
   // middle of a flow is titled by the product, not by a sentence about it.
   return shell("eait", `
-<p class="progress">${escape(PAGE_COPY.progress
-    .replace("{step}", String(v.step)).replace("{total}", String(v.total)))}</p>
+${topBar(PAGE_COPY)}
+${v.step !== undefined && v.total !== undefined
+  ? `<p class="progress">${escape(PAGE_COPY.progress
+    .replace("{step}", String(v.step)).replace("{total}", String(v.total)))}</p>`
+  : ""}
 ${v.error ? `<p class="notice">${escape(v.error)}</p>` : ""}
+${reaction}
 ${bubbles(v.lines)}
-<form method="post" action="/start/q">${hidden}${actions}${controls}</form>
+<form method="post" action="${escape(v.action ?? "/start/q")}">${hidden}${actions}${controls}</form>
+`, v.lang);
+}
+
+/**
+ * A support moment (#42): the full-screen beat after one of the four answers that earns one.
+ * Words and pose are `supportMoment`'s — this is only the drawing: the halo, the prop that names
+ * the pose, the answer echoed back, the title, the body and the one button.
+ */
+export interface MomentView {
+  id: MomentId;
+  pose: MomentPose;
+  echo: string;
+  title: string;
+  body: string;
+  cta: string;
+  /** Where the one button goes — the next question, the struggles ask, or the plan. */
+  next: string;
+  lang: Lang;
+}
+
+/** Which face goes with each pose — the pose's PROP is drawn beside him by `poseProp`. */
+const POSE_MOOD: Record<MomentPose, MascotMood> = {
+  cheer: "joy", lift: "happy", think: "think", heart: "care",
+};
+
+/**
+ * The pose's prop, one small inline SVG at his side. `MascotMood` has no cheer/lift/heart — the
+ * faces it knows do not stretch that far — so the moment carries a thing instead: sparkles for
+ * the celebration, a dumbbell for the encouragement, a thought bubble, a heart.
+ */
+const poseProp = (pose: MomentPose): string => {
+  switch (pose) {
+    case "cheer":
+      return `<svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M16 3l2.2 6.4 6.4 2.2-6.4 2.2L16 20.2l-2.2-6.4-6.4-2.2 6.4-2.2z"/><path fill="currentColor" d="M25.5 18l1.2 3.4 3.4 1.2-3.4 1.2-1.2 3.4-1.2-3.4-3.4-1.2 3.4-1.2z"/></svg>`;
+    case "lift":
+      return `<svg viewBox="0 0 32 20" aria-hidden="true"><rect fill="currentColor" x="9" y="8" width="14" height="4" rx="2"/><rect fill="currentColor" x="3" y="4" width="4" height="12" rx="1.5"/><rect fill="currentColor" x="25" y="4" width="4" height="12" rx="1.5"/><rect fill="currentColor" x="7" y="6" width="2.6" height="8" rx="1"/><rect fill="currentColor" x="22.4" y="6" width="2.6" height="8" rx="1"/></svg>`;
+    case "think":
+      return `<svg viewBox="0 0 32 26" aria-hidden="true"><path fill="var(--panel)" stroke="currentColor" stroke-width="1.8" d="M10.5 4a6.5 6.5 0 0 1 10.8 2.3A5.5 5.5 0 0 1 27 10.5a5 5 0 0 1-4.5 5H9a4.5 4.5 0 0 1 1.5-11.5z"/><circle fill="currentColor" cx="8" cy="20.5" r="2"/><circle fill="currentColor" cx="4" cy="24" r="1.2"/></svg>`;
+    case "heart":
+      return `<svg viewBox="0 0 24 22" aria-hidden="true"><path fill="currentColor" d="M12 20C12 20 2 13.8 2 7.6 2 4.6 4.4 2.5 7.3 2.5c1.8 0 3.6 1 4.7 2.4 1.1-1.4 2.9-2.4 4.7-2.4 2.9 0 5.3 2.1 5.3 5.1C22 13.8 12 20 12 20z"/></svg>`;
+  }
+};
+
+export function moment(v: MomentView): string {
+  // A GET form, not a link: the button is what a browser-onboarding walk presses to move on, and
+  // `method=get` on an empty form IS plain navigation. The hidden prompt names the beat in the
+  // same shape the question pages carry, so a driver can tell this screen from a question.
+  return shell(v.title, `
+${topBar(pageCopyFor(v.lang))}
+<div class="moment">
+  <div class="halo">${spudSvg(POSE_MOOD[v.pose], "spud-moment")}<span class="prop prop-${escape(v.pose)}">${poseProp(v.pose)}</span></div>
+  <p class="echo">${escape(v.echo)}</p>
+  <h1>${escape(v.title)}</h1>
+  <p class="muted">${escape(v.body)}</p>
+</div>
+<input type="hidden" name="prompt" value="moment_${escape(v.id)}">
+<form method="get" action="${escape(v.next)}"><button class="primary" type="submit">${escape(v.cta)}</button></form>
+`, v.lang);
+}
+
+/**
+ * The soft offer (#42): the plan's one ask, with the honest timeline and a close that keeps the
+ * welcome's promise — nothing to pay until the plan and the first verdict, and the × is the meal.
+ * `headline` is the shared `offerHeadline`'s (the computed target by the computed month) or the
+ * page's own fallback when a goal carries no target to name.
+ */
+export interface OfferView {
+  headline: string;
+  /** `/start/checkout`, which fills `{userId}` from the session — never a client. */
+  checkoutUrl: string;
+  /** The published privacy policy, or null where no landing is configured to publish one. */
+  privacyHref: string | null;
+  /** Where × goes — the web app's first meal, or this surface's own chat when there is none. */
+  closeHref: string;
+  lang: Lang;
+}
+
+const TICK = `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.6l3.4 3.4L13 5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+export function offer(v: OfferView): string {
+  const PAGE_COPY = pageCopyFor(v.lang);
+  const row = (what: string, detail: string): string =>
+    `<div class="rowline"><strong>${escape(what)}</strong><span class="muted">${escape(detail)}</span></div>`;
+  const perk = (p: string): string =>
+    `<p class="perk"><span class="tick">${TICK}</span>${escape(p)}</p>`;
+  return shell(PAGE_COPY.titleOffer, `
+${topBar(PAGE_COPY)}
+<div class="offer">
+<a class="x" href="${escape(v.closeHref)}" aria-label="${escape(PAGE_COPY.offerClose)}">×</a>
+<div class="offer-hero">${spudSvg("joy", "spud-offer")}</div>
+<p class="beat">${escape(PAGE_COPY.offerBeat)}</p>
+<h1>${escape(v.headline)}</h1>
+${[PAGE_COPY.offerPerkVerdict, PAGE_COPY.offerPerkPlan, PAGE_COPY.offerPerkSpud].map(perk).join("\n")}
+<div class="card">
+${row(PAGE_COPY.offerWhenToday, PAGE_COPY.offerFreeWeek)}
+${row(PAGE_COPY.offerWhenEnding, PAGE_COPY.offerReminder)}
+${row(PAGE_COPY.offerWhenDay8, PAGE_COPY.offerMonthly)}
+</div>
+<div class="card">
+${row(PAGE_COPY.offerPlanMonthly, PAGE_COPY.offerPlanMonthlyUnit)}
+${row(PAGE_COPY.offerPlanLifetime, PAGE_COPY.offerPlanLifetimeUnit)}
+</div>
+<a class="button primary" href="${escape(v.checkoutUrl)}">${escape(PAGE_COPY.offerCta)}</a>
+${v.privacyHref === null ? "" : `<p class="muted fine"><a href="${escape(v.privacyHref)}">${escape(PAGE_COPY.offerPrivacy)}</a></p>`}
+</div>
 `, v.lang);
 }
 
@@ -478,7 +719,11 @@ export interface PlanView {
   proteinG: number;
   floorApplied: boolean;
   floorKcal: number;
-  checkoutUrl: string | null;
+  /**
+   * Whether a checkout is configured — the ask is rendered, not the URL: it leads to the soft
+   * offer (`/start/offer`), which is where the configured checkout link now lives (#42).
+   */
+  checkout: boolean;
   /**
    * Whether there is a web application to hand over to.
    *
@@ -510,10 +755,10 @@ ${v.floorApplied
   : ""}
 ${v.hasWebApp
   ? `<p class="muted">${escape(PAGE_COPY.planDiaryBody)}</p>
-<a class="button${v.checkoutUrl ? "" : " primary"}" href="/">${escape(PAGE_COPY.planDiary)}</a>`
+<a class="button${v.checkout ? "" : " primary"}" href="/">${escape(PAGE_COPY.planDiary)}</a>`
   : ""}
-${v.checkoutUrl
-  ? `<a class="button primary" href="${escape(v.checkoutUrl)}">${escape(PAGE_COPY.planCheckout)}</a>`
+${v.checkout
+  ? `<a class="button primary" href="/start/offer">${escape(PAGE_COPY.planCheckout)}</a>`
   : ""}
 <a class="button" href="${v.hasWebApp ? "/#/chat" : "/start/chat"}">${escape(PAGE_COPY.planChat)}</a>
 ${v.telegram

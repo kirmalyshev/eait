@@ -400,11 +400,6 @@ msgstr "Пока это предел. Попробуй позже."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Разборы, которые шли с этим аккаунтом, закончились. Оформи подписку в вебе, чтобы продолжить."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
 msgid "tg.viaApp"
 msgstr "приложение"
 
@@ -412,6 +407,11 @@ msgstr "приложение"
 #: src/backend/telegram/copy.ts
 msgid "tg.targetGone"
 msgstr "Здесь нет открытого приёма пищи, который можно было бы изменить. Скажи, что было на тарелке, и запиши заново."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "Бесплатный лимит этого аккаунта исчерпан. Начни бесплатную неделю на сайте, чтобы продолжить."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

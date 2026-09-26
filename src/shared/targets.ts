@@ -64,6 +64,12 @@ export const KCAL_PER_KG = 7700;
 /** Below this BMI we will not set a target weight. 18.5 is the WHO underweight threshold. */
 export const MIN_TARGET_BMI = 18.5;
 
+/**
+ * The stepper's granularity, in kilograms. The target-weight question suggests a number and lets
+ * the user nudge it; both the suggestion and the range land on this step.
+ */
+export const TARGET_STEP_KG = 0.5;
+
 /** Under-16s are refused: growth-phase energy needs are not what these equations model. */
 export const MIN_AGE = 16;
 const MAX_AGE = 100;
@@ -174,11 +180,55 @@ export function checkTargetWeight(
   targetKg: number,
   heightCm: number | null,
 ): { ok: true } | { ok: false; reason: "below-healthy-bmi"; minHealthyKg: number } {
-  if (!heightCm) return { ok: true }; // nothing to check against; onboarding asks for height first
-  const m = heightCm / 100;
-  const minHealthyKg = Math.ceil(MIN_TARGET_BMI * m * m);
+  const minHealthyKg = minHealthyWeightKg(heightCm);
+  if (minHealthyKg === null) return { ok: true }; // nothing to check against; onboarding asks for height first
   if (targetKg < minHealthyKg) return { ok: false, reason: "below-healthy-bmi", minHealthyKg };
   return { ok: true };
+}
+
+/**
+ * The lowest target weight this app will set for a height, in whole kg — `MIN_TARGET_BMI` applied.
+ * Null when the height is unknown. `suggestedTargetKg` and `targetRange` read it through here, so
+ * the suggestion and the refusal cannot disagree about where the floor sits.
+ */
+export function minHealthyWeightKg(heightCm: number | null): number | null {
+  if (!heightCm) return null;
+  const m = heightCm / 100;
+  return Math.ceil(MIN_TARGET_BMI * m * m);
+}
+
+/**
+ * The first target weight the walk suggests, on `TARGET_STEP_KG`.
+ *
+ * lose → 8% off the current weight; gain → 5% on it — both inside the bands the moments quote, both
+ * rounded to the step. The suggestion never goes under `minHealthyWeightKg`: a number the refusal
+ * would reject is not a suggestion, it is a trap the stepper would have walked the user into.
+ * `maintain`, a weight we do not have, or a weight already at the floor produces none — there is
+ * nothing to suggest toward.
+ */
+export function suggestedTargetKg(p: Profile): number | null {
+  if (!p.weight_kg || (p.goal !== "lose" && p.goal !== "gain")) return null;
+  const halfStep = (kg: number) => Math.round(kg / TARGET_STEP_KG) * TARGET_STEP_KG;
+  if (p.goal === "gain") return halfStep(p.weight_kg * 1.05);
+  const range = targetRange(p);
+  if (range === null) return null;
+  return Math.max(halfStep(p.weight_kg * 0.92), range.min);
+}
+
+/**
+ * The range the target stepper may offer: `minHealthyKg … weight − 0.5` for lose,
+ * `weight + 0.5 … weight × 1.3` for gain. Null for `maintain` — no stepper is drawn — and when
+ * there is no current weight to bound it.
+ */
+export function targetRange(p: Profile): { min: number; max: number } | null {
+  if (!p.weight_kg || (p.goal !== "lose" && p.goal !== "gain")) return null;
+  if (p.goal === "gain") {
+    return { min: p.weight_kg + TARGET_STEP_KG, max: Math.floor(p.weight_kg * 1.3 / TARGET_STEP_KG) * TARGET_STEP_KG };
+  }
+  const range = { min: minHealthyWeightKg(p.height_cm) ?? MIN_WEIGHT_KG, max: p.weight_kg - TARGET_STEP_KG };
+  // Already at or under the floor: there is no lower weight this app will set, so no stepper —
+  // `checkTargetWeight` and `belowHealthyCard` own that conversation.
+  return range.min > range.max ? null : range;
 }
 
 /**

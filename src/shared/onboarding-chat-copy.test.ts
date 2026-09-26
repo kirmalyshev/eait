@@ -1,9 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { LANGS } from "./types.ts";
+import { LANGS, type Profile } from "./types.ts";
 import { MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MIN_AGE, RESTRICTION_TAGS } from "./targets.ts";
 import { ACTIVITY_LEVELS } from "./types.ts";
-import { STRUGGLES } from "./onboarding-chat.ts";
+import { STRUGGLES, supportMoment } from "./onboarding-chat.ts";
 import { CHAT_COPY, chatCopyFor } from "./onboarding-chat-copy.ts";
+import { onboardingContentFor } from "./onboarding-content.ts";
+import { lintCopy } from "./claims.ts";
 import {
   ACTIVITY_REPLIES, AMBIGUOUS_AGE, GAIN_PACE_CARD, GOAL_CARDS, STRUGGLE_LABELS, UNDER_AGE_CARD,
   belowHealthyCard, checkDirection, checkNumber, restrictionsReply, struggleCard, strugglesCloser,
@@ -46,7 +48,7 @@ describe("every language's chat copy", () => {
   });
 
   it("keeps every placeholder code fills, and introduces none it does not", () => {
-    const known = new Set(["share", "age", "kg", "bmr", "year", "weight", "target"]);
+    const known = new Set(["share", "age", "kg", "bmr", "year", "weight", "target", "n", "label", "pct", "month"]);
     for (const lang of LANGS) {
       for (const [at, text] of Object.entries(flatten(chatCopyFor(lang)))) {
         for (const m of text.matchAll(/\{(\w+)\}/g)) {
@@ -148,3 +150,69 @@ function flatten(node: unknown, at = "", out: Record<string, string> = {}): Reco
   }
   return out;
 }
+
+describe("the v5 additions to the chat copy", () => {
+  it("has the Health offer's words in every language", () => {
+    for (const lang of LANGS) {
+      const h = chatCopyFor(lang).health;
+      for (const key of ["ask", "connect", "manual", "connected", "partial", "denied"] as const) {
+        expect(h[key]?.trim(), `${lang}.health.${key}`).toBeTruthy();
+      }
+      expect(h.rows, lang).toHaveLength(3);
+      for (const [i, row] of h.rows.entries()) expect(row.trim(), `${lang}.health.rows[${i}]`).toBeTruthy();
+    }
+  });
+
+  it("has a suggestion line, a reaction set and the four moments, in every language", () => {
+    for (const lang of LANGS) {
+      const copy = chatCopyFor(lang);
+      expect(copy.targetSuggestion.down, `${lang}.targetSuggestion.down`).toContain("{kg}");
+      expect(copy.targetSuggestion.down, `${lang}.targetSuggestion.down`).toContain("{pct}");
+      expect(copy.targetSuggestion.up, `${lang}.targetSuggestion.up`).toContain("{kg}");
+      expect(copy.healthActivity, `${lang}.healthActivity`).toContain("{n}");
+      expect(copy.healthActivity, `${lang}.healthActivity`).toContain("{label}");
+      for (const [at, text] of Object.entries(flatten(copy.reactions))) {
+        expect(text.trim(), `${lang}.reactions.${at}`).toBeTruthy();
+      }
+      for (const [at, text] of Object.entries(flatten(copy.moments))) {
+        expect(text.trim(), `${lang}.moments.${at}`).toBeTruthy();
+      }
+    }
+  });
+
+  it("carries no claim the linter would refuse, in any language, in any moment", () => {
+    // The moments are full screens — headline, two sentences, a button — which makes them the
+    // loudest copy in the walk, and the claim rules apply to them the same as to the landing.
+    for (const lang of LANGS) {
+      const fields: Record<string, string> = {};
+      const put = (at: string, m: { echo: string; title: string; body: string; cta: string } | null) => {
+        if (!m) return;
+        fields[`${at}.echo`] = m.echo;
+        fields[`${at}.title`] = m.title;
+        fields[`${at}.body`] = m.body;
+        fields[`${at}.cta`] = m.cta;
+      };
+      const p = (over: Partial<Profile> = {}) => ({
+        user_id: "u1", lang, goal: "lose", sex: "female", birth_year: 1994, height_cm: 172,
+        weight_kg: 74, weight_measured_at: null, target_weight_kg: 68, activity: "light",
+        pace: "steady", country: "gb",
+        restrictions: ["ldl"], medical_limitations: null, food_allergies: null,
+        product_limitations: null, onboarded_at: null, ...over,
+      }) as Profile;
+      const content = onboardingContentFor(lang);
+      put("target.inBand", supportMoment("target", { profile: p(), struggles: [], lang, content }));
+      put("target.neutral", supportMoment("target", { profile: p({ target_weight_kg: 60 }), struggles: [], lang, content }));
+      put("target.gain", supportMoment("target", { profile: p({ goal: "gain", target_weight_kg: 78 }), struggles: [], lang, content }));
+      put("activity", supportMoment("activity", { profile: p(), struggles: [], lang, content }));
+      for (const s of STRUGGLES) {
+        for (const goal of ["lose", "gain", "maintain"] as const) {
+          put(`struggles.${s}.${goal}`, supportMoment("struggles", { profile: p({ goal }), struggles: [s], lang, content }));
+        }
+      }
+      put("restrictions.some", supportMoment("restrictions", { profile: p(), struggles: [], lang, content }));
+      put("restrictions.none", supportMoment("restrictions", { profile: p({ restrictions: [] }), struggles: [], lang, content }));
+      const violations = lintCopy(fields).map((v) => `${v.field}: ${v.pattern} "${v.span}"`);
+      expect(violations, lang).toEqual([]);
+    }
+  });
+});

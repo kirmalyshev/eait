@@ -497,6 +497,10 @@ create index if not exists analyses_user_date_idx on analyses(user_id, date, sco
 -- priced. unpriced_calls counts the calls that ended without a price, which makes the sum a floor.
 alter table analyses add column if not exists cost_usd double precision;
 alter table analyses add column if not exists unpriced_calls integer not null default 0;
+-- Whether this analysis counts against the account's SAMPLE (#44): the sample counts value
+-- delivered, not attempts. Every row already here counted, which is what the default says; a turn
+-- that delivers nothing clears it (releaseSample) and keeps the row, its cost and its budget.
+alter table analyses add column if not exists sample boolean not null default true;
 
 -- A billed turn, claimed by the client's id for it before anything runs (#708). The primary key IS
 -- the idempotency: a phone that lost an answer re-sends the id, and the second insert does nothing.
@@ -1053,6 +1057,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   addCost: 0,
   analysisCosts: 0,
   undoAnalysis: 0,
+  releaseSample: 0,
   putHealthDays: 0,
   healthDaysSince: 0,
   claimTurn: 0,
@@ -2467,7 +2472,7 @@ export async function postgresStore(
 
     async countUserAnalyses(userId) {
       // Served by the prefix of analyses_user_date_idx (user_id, date, scope).
-      const rows = await sql`select count(*)::int as n from analyses where user_id = ${userId}`;
+      const rows = await sql`select count(*)::int as n from analyses where user_id = ${userId} and sample`;
       return num(rows[0].n);
     },
 
@@ -2516,6 +2521,12 @@ export async function postgresStore(
     async undoAnalysis(userId, analysisId) {
       const rows = await sql`
         delete from analyses where id = ${analysisId} and user_id = ${userId} returning id`;
+      return rows.length > 0;
+    },
+
+    async releaseSample(userId, analysisId) {
+      const rows = await sql`
+        update analyses set sample = false where id = ${analysisId} and user_id = ${userId} returning id`;
       return rows.length > 0;
     },
 
