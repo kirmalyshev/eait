@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import {
   LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, genderedRussian, localizedGaps, monthYear, numbers,
-  acceptLanguageTags, narrowLang, spellUnit, t,
+  acceptLang, acceptLanguageTags, narrowLang, spellUnit, t,
   type Localized,
 } from "./lang.ts";
 
@@ -207,5 +207,15 @@ describe("acceptLanguageTags", () => {
     expect(acceptLanguageTags("*")).toEqual([]);
     expect(acceptLanguageTags("de;q=0")).toEqual([]);
     expect(acceptLanguageTags(null)).toEqual([]);
+  });
+});
+
+describe("acceptLang", () => {
+  it("takes the first SUPPORTED language, not the first tag", () => {
+    // `pt-BR,fr;q=0.9` served a French speaker English: `pt` narrows to `en` before `fr` is read.
+    expect(acceptLang("pt-BR,fr;q=0.9")).toBe("fr");
+    expect(acceptLang("fr-CA,en;q=0.5")).toBe("fr");
+    expect(acceptLang("pt-BR,ja")).toBe("en");
+    expect(acceptLang(null)).toBe("en");
   });
 });

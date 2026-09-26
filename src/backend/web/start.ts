@@ -28,7 +28,7 @@ import {
   renderableVerdicts, resolveCountry, ROUTES, screenForStep,
   screenOptions, screenOptionValues, suggestedTargetKg, suggestionFirst, supportMoment,
   switchedLine, targetRange, targetSuggestionLine, TARGET_STEP_KG,
-  LANGS_READY, acceptLanguageTags, narrowLang, numbers, verdictPillLabel,
+  LANGS_READY, acceptLang, acceptLanguageTags, numbers, verdictPillLabel,
   type ChatEntry, type ChatPrompt, type ChatPromptId, type Goal, type Lang, type MomentId,
   type NumberField, type OnboardingContent, type PatchProfileRequest, type Profile, type Struggle,
 } from "@eait/shared";
@@ -144,7 +144,7 @@ const providerLabel = (p: WebProvider, lang: Lang): string =>
 
 /** What this browser asked for, narrowed. The only language signal there is before a session. */
 const browserLang = (req: Request): Lang =>
-  narrowLang(acceptLanguageTags(req.headers.get("accept-language"))[0]);
+  acceptLang(req.headers.get("accept-language"));
 
 /** The session, and the ten minutes of OAuth state that precedes it. */
 const SESSION_COOKIE = "eait_web";
@@ -459,7 +459,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     // THE BROWSER'S HEADER, because the front door is the one page that runs before there is an
     // account to ask. Everything past it reads `profile.lang`, which sign-in seeds from this same
     // signal and the picker overrules — so this is a starting guess and never the answer.
-    const lang = narrowLang(acceptLanguageTags(req.headers.get("accept-language"))[0]);
+    const lang = acceptLang(req.headers.get("accept-language"));
     const PAGE_COPY = pageCopyFor(lang);
     const content = await onboardingContent(ctx.deps, lang);
     // A CODE, NEVER A SENTENCE — the same rule `?notice=` follows on the chat page. `error=code`
