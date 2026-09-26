@@ -250,7 +250,7 @@ const EN: ChatCopy = {
     confirm: "That's my real age",
     placeholder: "Your age",
     stopped: [
-      "Then this is where we stop. Nothing you told me is kept, and nothing was sent anywhere — there is no account to delete.",
+      "Then this is where we stop. I'm deleting everything you told me.",
       "Come back at {age} and I'll be around.",
     ],
     endedPlaceholder: "eait is for {age} and over",
@@ -460,7 +460,7 @@ const FR: ChatCopy = {
     confirm: "C'est mon vrai âge",
     placeholder: "Ton âge",
     stopped: [
-      "Alors on s'arrête ici. Rien de ce que tu m'as dit n'est conservé, et rien n'a été envoyé nulle part — il n'y a aucun compte à supprimer.",
+      "Alors on s'arrête ici. J'efface tout ce que tu m'as dit.",
       "Reviens à {age} ans, je serai là.",
     ],
     endedPlaceholder: "eait, c'est à partir de {age} ans",
@@ -669,7 +669,7 @@ const DE: ChatCopy = {
     confirm: "Das ist mein echtes Alter",
     placeholder: "Dein Alter",
     stopped: [
-      "Dann hören wir hier auf. Nichts von dem, was du mir gesagt hast, wird behalten, und nichts wurde irgendwohin geschickt — es gibt kein Konto zu löschen.",
+      "Dann hören wir hier auf. Ich lösche alles, was du mir gesagt hast.",
       "Komm mit {age} wieder, ich bin da.",
     ],
     endedPlaceholder: "eait ist ab {age}",
@@ -878,7 +878,7 @@ const IT: ChatCopy = {
     confirm: "È la mia età vera",
     placeholder: "La tua età",
     stopped: [
-      "Allora ci fermiamo qui. Niente di quello che mi hai detto viene conservato, e niente è stato mandato da nessuna parte — non c'è nessun account da cancellare.",
+      "Allora ci fermiamo qui. Sto cancellando tutto quello che mi hai detto.",
       "Torna a {age} anni e io ci sarò.",
     ],
     endedPlaceholder: "eait è da {age} anni in su",
@@ -1087,7 +1087,7 @@ const ES: ChatCopy = {
     confirm: "Es mi edad de verdad",
     placeholder: "Tu edad",
     stopped: [
-      "Entonces aquí lo dejamos. Nada de lo que me has contado se guarda, y nada se ha enviado a ningún sitio — no hay ninguna cuenta que borrar.",
+      "Entonces aquí lo dejamos. Estoy borrando todo lo que me has contado.",
       "Vuelve a los {age} y aquí estaré.",
     ],
     endedPlaceholder: "eait es para {age} años en adelante",
@@ -1296,7 +1296,7 @@ const VI: ChatCopy = {
     confirm: "Đó là tuổi thật của tôi",
     placeholder: "Tuổi của bạn",
     stopped: [
-      "Vậy thì chúng mình dừng ở đây. Không điều gì bạn kể được giữ lại, và không có gì được gửi đi đâu cả — không có tài khoản nào để xoá.",
+      "Vậy thì chúng mình dừng ở đây. Mình đang xoá mọi điều bạn đã kể.",
       "Quay lại khi {age} tuổi nhé, mình vẫn ở đây.",
     ],
     endedPlaceholder: "eait dành cho {age} tuổi trở lên",
@@ -1505,7 +1505,7 @@ const ID: ChatCopy = {
     confirm: "Itu umur asliku",
     placeholder: "Umurmu",
     stopped: [
-      "Kalau begitu kita berhenti di sini. Apa pun yang kamu ceritakan tidak disimpan, dan tidak ada yang dikirim ke mana pun — tidak ada akun yang perlu dihapus.",
+      "Kalau begitu kita berhenti di sini. Aku sedang menghapus semua yang kamu ceritakan.",
       "Datang lagi saat {age} tahun, aku akan ada di sini.",
     ],
     endedPlaceholder: "eait untuk usia {age} ke atas",
@@ -1714,7 +1714,7 @@ const RU: ChatCopy = {
     confirm: "Это мой настоящий возраст",
     placeholder: "Твой возраст",
     stopped: [
-      "Тогда на этом мы остановимся. Ничего из сказанного не сохраняется и никуда не отправлялось — удалять нечего, аккаунта нет.",
+      "Тогда на этом мы остановимся. Я удаляю все твои ответы.",
       "Возвращайся в {age} — я буду здесь.",
     ],
     endedPlaceholder: "eait — с {age} лет",
