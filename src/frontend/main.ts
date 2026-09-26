@@ -110,9 +110,22 @@ const profile = async (): Promise<ProfileResponse> => {
   return profileCache;
 };
 
-function chrome(active: string): HTMLElement {
-  const nav = el("nav", "nav");
-  for (const [href, label] of [["#/", COPY.navDiary], ["#/chat", COPY.navChat]] as const) {
+/**
+ * The boards' top bar (#52): the mark, then the ONE row the app navigates by — Diary · Chat · You,
+ * pills on the right. A null `active` is the signed-out screen's bar: the mark alone, because the
+ * row's destinations are all behind a session.
+ */
+function chrome(active: string | null): HTMLElement {
+  const bar = el("header", "wbar");
+  const mark = el("span", "mark");
+  mark.append(
+    new DOMParser().parseFromString(spudSvg("idle", `spud-${++spudSeq}`), "image/svg+xml").documentElement,
+    "eait",
+  );
+  bar.append(mark);
+  if (active === null) return bar;
+  const nav = el("nav", "wnav");
+  for (const [href, label] of [["#/", COPY.navDiary], ["#/chat", COPY.navChat], ["#/you", COPY.navYou]] as const) {
     const a = el("a", href === active ? "tab on" : "tab", label) as HTMLAnchorElement;
     a.href = href;
     nav.append(a);
@@ -127,29 +140,35 @@ function chrome(active: string): HTMLElement {
     a.href = "/admin";
     nav.append(a);
   }
-  const bot = profileCache?.telegramBot ?? null;
-  if (bot !== null) {
-    // The code is minted at the TAP, not when the page is drawn: it lives five minutes, and the bot
-    // has to receive it inside them. A navigation, so no CSP directive is involved in leaving.
-    const tg = el("button", "link", COPY.connectTelegram) as HTMLButtonElement;
-    tg.addEventListener("click", () => {
-      tg.disabled = true;
-      void api<PairCodeResponse>("/auth/pair", { method: "POST" })
-        .then(({ code }) => { location.assign(`https://t.me/${bot}?start=${code}`); })
-        .catch((err: unknown) => { console.error(err); tg.textContent = COPY.telegramFailed; })
-        .finally(() => { tg.disabled = false; });
-    });
-    nav.append(tg);
-  }
-  // THE PICKER, in the chrome beside Sign out — this client has no Settings screen, and the nav is
-  // the only thing on every page. It writes through `PATCH /v1/profile`, the one path any surface
-  // uses, and then RELOADS rather than re-rendering: `lang` is read by forty render functions and
-  // by `profileCache`, and a reload is the one way to be sure none of them kept the old one.
-  //
-  // Only `LANGS_READY` is offered. A language whose every screen would fall back to English is one
-  // where choosing it looks like a bug rather than like a missing translation.
+  bar.append(nav);
+  return bar;
+}
+
+/** The front door for anybody this browser cannot prove is signed in. */
+function signInScreen(): HTMLElement {
+  const box = el("section", "card");
+  box.append(el("h1", "", "eait"));
+  box.append(el("p", "muted", COPY.signedOutLead));
+  // A LINK, NOT A FETCH. `/start` is a server-rendered flow that ends by setting the session
+  // cookie, and it is the only thing on this origin that can authenticate anybody.
+  const a = el("a", "primary", COPY.signIn) as HTMLAnchorElement;
+  a.href = "/start";
+  box.append(a);
+  return box;
+}
+
+/**
+ * THE PICKER, on You — this client has no Settings screen, and You is the one the boards draw for
+ * the account's controls. It writes through `PATCH /v1/profile`, the one path any surface uses, and
+ * then RELOADS rather than re-rendering: `lang` is read by forty render functions and by
+ * `profileCache`, and a reload is the one way to be sure none of them kept the old one.
+ *
+ * Only `LANGS_READY` is offered. A language whose every screen would fall back to English is one
+ * where choosing it looks like a bug rather than like a missing translation.
+ */
+function languagePicker(): HTMLSelectElement {
   const picker = document.createElement("select");
-  picker.className = "lang";
+  picker.className = "pick";
   picker.setAttribute("aria-label", COPY.language);
   for (const code of LANGS_READY) {
     const option = document.createElement("option");
@@ -177,9 +196,34 @@ function chrome(active: string): HTMLElement {
         picker.disabled = false;
       });
   });
-  nav.append(picker);
+  return picker;
+}
 
-  const out = el("button", "link", COPY.signOut) as HTMLButtonElement;
+/** You (#52): the account's screen — language, Telegram when the server names a bot, Sign out. */
+function youScreen(me: ProfileResponse | null): HTMLElement {
+  const wrap = el("section", "");
+  const top = el("div", "top");
+  top.append(el("h1", "tt", COPY.navYou));
+  wrap.append(top);
+  const card = el("div", "card you");
+  const lrow = el("div", "rowline");
+  lrow.append(el("span", "when", COPY.language), languagePicker());
+  card.append(lrow);
+  const bot = me?.telegramBot ?? null;
+  if (bot !== null) {
+    // The code is minted at the TAP, not when the page is drawn: it lives five minutes, and the bot
+    // has to receive it inside them. A navigation, so no CSP directive is involved in leaving.
+    const tg = el("button", "you-act", COPY.connectTelegram) as HTMLButtonElement;
+    tg.addEventListener("click", () => {
+      tg.disabled = true;
+      void api<PairCodeResponse>("/auth/pair", { method: "POST" })
+        .then(({ code }) => { location.assign(`https://t.me/${bot}?start=${code}`); })
+        .catch((err: unknown) => { console.error(err); tg.textContent = COPY.telegramFailed; })
+        .finally(() => { tg.disabled = false; });
+    });
+    card.append(tg);
+  }
+  const out = el("button", "you-act", COPY.signOut) as HTMLButtonElement;
   out.addEventListener("click", () => {
     void (async () => {
       // The turns this browser was keeping are the account's, photos included: they do not stay
@@ -194,21 +238,9 @@ function chrome(active: string): HTMLElement {
       await render();
     })();
   });
-  nav.append(out);
-  return nav;
-}
-
-/** The front door for anybody this browser cannot prove is signed in. */
-function signInScreen(): HTMLElement {
-  const box = el("section", "card");
-  box.append(el("h1", "", "eait"));
-  box.append(el("p", "muted", COPY.signedOutLead));
-  // A LINK, NOT A FETCH. `/start` is a server-rendered flow that ends by setting the session
-  // cookie, and it is the only thing on this origin that can authenticate anybody.
-  const a = el("a", "primary", COPY.signIn) as HTMLAnchorElement;
-  a.href = "/start";
-  box.append(a);
-  return box;
+  card.append(out);
+  wrap.append(card);
+  return wrap;
 }
 
 // Grouped the reader's way — "1.724 kcal" in German — rounded, because a kcal from a photo is an
@@ -228,123 +260,203 @@ async function diaryScreen(): Promise<HTMLElement> {
     timeZone: me.timezone, year: "numeric", month: "2-digit", day: "2-digit",
   });
   const today = calendar.format(new Date());
-  const day = await api<DayResponse>(`/diary/day?date=${today}`);
+  const uid = me.profile.user_id;
 
-  const head = el("div", "card day-card");
-  // A 52px STRIP rather than a hero region. At 1360 wide a full-height wash is a wall of green, and
-  // every word on it has to be near-black, so it can hold a date and nothing else.
-  // A HEADING, not a decorated div: it is the only thing naming this card, and `app-offline.pw.ts`
-  // finds the day by its role.
-  head.append(el("h2", "day-wash", COPY.today));
-  const body = el("div", "day-body");
-  head.append(body);
-  // WHAT IS LEFT IS THE HEADLINE, eaten/target the context under it — the same arithmetic as the
-  // phone's (`dayBudget`), so the two can never round the one number apart.
-  const budget = dayBudget(day, today, me.profile.goal);
-  const n = wholeNumbers(lang);
-  if (budget.state === "unlogged") {
-    body.append(el("p", "muted", fill(COPY.targetLine, {
-      target: kcal(budget.target), protein: n(budget.protein.target),
-    })));
-  } else {
-    const big = el("p", budget.warn ? "big warn" : "big");
-    // PRECISION CARRIES THE CONFIDENCE. "about" sits immediately before the figure it governs and
-    // OUTSIDE its span: the figure is mono, the word is not, and a mono word-space is a full mono
-    // advance. The unit is a third span for the same reason.
-    // The spaces are IN the text, not between the spans: adjacent elements have no whitespace
-    // between them, and `app-diary.pw.ts` reads this line as one string.
-    if (budget.guessed) big.append(el("span", "about", `${COPY.about} `));
-    big.append(
-      el("span", "hero mono", n(budget.kcal)),
-      el("span", "muted", ` ${UNIT_KCAL[lang]} ${budget.state === "left" ? COPY.budgetLeft : budget.state === "over" ? COPY.budgetOver : COPY.budgetUnder}`),
-    );
-    // Native, so there is nothing to draw by hand; hidden, because the line under it says it in words.
-    const bar = document.createElement("progress");
-    bar.max = 1;
-    bar.value = budget.fill;
-    bar.setAttribute("aria-hidden", "true");
-    const eaten = el("p", "muted", fill(COPY.eatenLine, {
-      eaten: n(budget.eaten), target: kcal(budget.target),
-      protein: n(budget.protein.eaten), proteinTarget: n(budget.protein.target),
-    }));
-    body.append(big, bar, eaten);
-  }
-  // THE FLOOR IS A STATUS LINE, and the one place blue is spent on this screen. Never a tick on a
-  // scale and never a region on a chart: both were range machinery.
-  const stat = el("div", "stat");
-  stat.append(el("span", "floor", fill(
-    me.basis.floorApplied ? COPY.floorHeld : COPY.floorClear,
-    { floor: n(me.basis.floorKcal) },
-  )));
-  body.append(stat);
-  // THE WEIGHT BEHIND THE TARGET, AND WHEN IT WAS WEIGHED (#609). The phone syncs a newer one on
-  // every launch and the target moves with it. Never "from Apple Health": the profile does not say
-  // which source wrote it. Days are counted on the server's calendar, like `today`.
-  const { weight_kg: kg, weight_measured_at: at } = me.profile;
-  // NaN when never weighed or unreadable, which drops the "weighed" clause rather than throwing in
-  // `format` and taking the whole diary down with it.
-  const weighed = Date.parse(at ?? "");
-  const days = Number.isNaN(weighed) ? null
-    : Math.max(0, (Date.parse(today) - Date.parse(calendar.format(weighed))) / 86_400_000);
-  // `Intl.RelativeTimeFormat` in the READER's language, not in "en" — it was the one formatter on
-  // this page with a locale hard-coded into it, and "2 days ago" under a German diary reads as a
-  // half-finished translation rather than as one missing string.
-  body.append(el("p", "muted", kg === null
-    ? COPY.connectHealth
-    : days === null
-      ? fill(COPY.weightLine, { kg: numbers(lang)(kg) })
-      : fill(COPY.weightLineWhen, {
-          kg: numbers(lang)(kg),
-          when: new Intl.RelativeTimeFormat(LANG_TAG[lang], { numeric: "auto" }).format(-days, "day"),
-        })));
-  wrap.append(head);
+  const notice = el("p", "notice");
+  notice.setAttribute("role", "alert");
+  notice.hidden = true;
+  const tell = (words: string | null): void => {
+    notice.textContent = words ?? "";
+    notice.hidden = words === null;
+  };
 
-  if (day.meals.length === 0) {
-    wrap.append(el("p", "muted", COPY.nothingToday));
-    return wrap;
+  // The day's own content — head card, the rows, a proposal the composer is holding — is what a
+  // turn redraws; the composer and the notice below stay put.
+  const board = el("div", "");
+
+  /** The day as the server now has it, redrawn after every write. */
+  async function draw(): Promise<void> {
+    const day = await api<DayResponse>(`/diary/day?date=${today}`);
+
+    const head = el("div", "card day-card");
+    // A 52px STRIP rather than a hero region. At 1360 wide a full-height wash is a wall of green,
+    // and every word on it has to be near-black, so it can hold a date and nothing else.
+    // A HEADING, not a decorated div: it is the only thing naming this card, and `app-offline.pw.ts`
+    // finds the day by its role.
+    head.append(el("h2", "day-wash", COPY.today));
+    const body = el("div", "day-body");
+    head.append(body);
+    // WHAT IS LEFT IS THE HEADLINE, eaten/target the context under it — the same arithmetic as the
+    // phone's (`dayBudget`), so the two can never round the one number apart.
+    const budget = dayBudget(day, today, me.profile.goal);
+    const n = wholeNumbers(lang);
+    if (budget.state === "unlogged") {
+      body.append(el("p", "muted", fill(COPY.targetLine, {
+        target: kcal(budget.target), protein: n(budget.protein.target),
+      })));
+    } else {
+      const big = el("p", budget.warn ? "big warn" : "big");
+      // PRECISION CARRIES THE CONFIDENCE. "about" sits immediately before the figure it governs and
+      // OUTSIDE its span: the figure keeps the face's own spacing, so a leading "about" does not
+      // render with a hole in it. The unit is a third span for the same reason.
+      // The spaces are IN the text, not between the spans: adjacent elements have no whitespace
+      // between them, and `app-diary.pw.ts` reads this line as one string.
+      if (budget.guessed) big.append(el("span", "about", `${COPY.about} `));
+      big.append(
+        el("span", "hero num", n(budget.kcal)),
+        el("span", "muted", ` ${UNIT_KCAL[lang]} ${budget.state === "left" ? COPY.budgetLeft : budget.state === "over" ? COPY.budgetOver : COPY.budgetUnder}`),
+      );
+      // Native, so there is nothing to draw by hand; hidden, because the line under it says it in words.
+      const bar = document.createElement("progress");
+      bar.max = 1;
+      bar.value = budget.fill;
+      bar.setAttribute("aria-hidden", "true");
+      const eaten = el("p", "muted", fill(COPY.eatenLine, {
+        eaten: n(budget.eaten), target: kcal(budget.target),
+        protein: n(budget.protein.eaten), proteinTarget: n(budget.protein.target),
+      }));
+      body.append(big, bar, eaten);
+    }
+    // THE FLOOR IS A STATUS LINE, and the one place blue is spent on this screen. Never a tick on a
+    // scale and never a region on a chart: both were range machinery.
+    const stat = el("div", "stat");
+    stat.append(el("span", "floor", fill(
+      me.basis.floorApplied ? COPY.floorHeld : COPY.floorClear,
+      { floor: n(me.basis.floorKcal) },
+    )));
+    body.append(stat);
+    // THE WEIGHT BEHIND THE TARGET, AND WHEN IT WAS WEIGHED (#609). The phone syncs a newer one on
+    // every launch and the target moves with it. Never "from Apple Health": the profile does not say
+    // which source wrote it. Days are counted on the server's calendar, like `today`.
+    const { weight_kg: kg, weight_measured_at: at } = me.profile;
+    // NaN when never weighed or unreadable, which drops the "weighed" clause rather than throwing in
+    // `format` and taking the whole diary down with it.
+    const weighed = Date.parse(at ?? "");
+    const days = Number.isNaN(weighed) ? null
+      : Math.max(0, (Date.parse(today) - Date.parse(calendar.format(weighed))) / 86_400_000);
+    // `Intl.RelativeTimeFormat` in the READER's language, not in "en" — it was the one formatter on
+    // this page with a locale hard-coded into it, and "2 days ago" under a German diary reads as a
+    // half-finished translation rather than as one missing string.
+    body.append(el("p", "muted", kg === null
+      ? COPY.connectHealth
+      : days === null
+        ? fill(COPY.weightLine, { kg: numbers(lang)(kg) })
+        : fill(COPY.weightLineWhen, {
+            kg: numbers(lang)(kg),
+            when: new Intl.RelativeTimeFormat(LANG_TAG[lang], { numeric: "auto" }).format(-days, "day"),
+          })));
+
+    const parts: HTMLElement[] = [head];
+    if (day.meals.length === 0) {
+      parts.push(el("p", "muted", COPY.nothingToday));
+    } else {
+      // A TABLE, WHICH IS THE SECOND THING THIS WINDOW DOES THAT A PHONE CANNOT. A phone shows four
+      // rows and a total; this shows the one guess sitting in a list of measured things, which is
+      // the strongest statement of the mechanism anywhere in the product.
+      //
+      // ONE WORDED FLAG IS NOT NEEDED HERE. Every guessed row already says so in its own figure,
+      // and a table makes the amber row visible as a row rather than as a sentence.
+      const table = document.createElement("table");
+      table.className = "meals";
+      const thead = document.createElement("thead");
+      const hrow = document.createElement("tr");
+      for (const [label, cls] of [[COPY.colTime, ""], [COPY.colMeal, ""], [COPY.colKcal, "num"]] as const) {
+        const th = document.createElement("th");
+        th.className = cls;
+        th.textContent = label;
+        hrow.append(th);
+      }
+      thead.append(hrow);
+      const tbody = document.createElement("tbody");
+      for (const meal of day.meals) {
+        const guessed = meal.confidence === "low" && !meal.corrected;
+        const tr = document.createElement("tr");
+        if (guessed) tr.className = "guessed";
+        const time = document.createElement("td");
+        time.className = "num muted";
+        time.textContent = new Intl.DateTimeFormat(LANG_TAG[lang], {
+          timeZone: me.timezone, hour: "2-digit", minute: "2-digit", hour12: false,
+        }).format(new Date(meal.ts));
+        // `MealRecord` extends `MealAnalysis`, so the items and the numbers are ON the row rather
+        // than under an `analysis` key. Naming the first two items is what makes a list of numbers
+        // read as a list of meals.
+        const named = meal.items.slice(0, 2).map((i) => i.name).join(", ");
+        const name = document.createElement("td");
+        name.textContent = named === "" ? COPY.meal : named;
+        // The row's pills are the meal's OWN verdicts — computed by the server on the write and
+        // sent on the row (#52). A client that derived its own would be the second copy
+        // `verdictsFromTargets` exists to prevent.
+        const dims = renderableVerdicts(meal.verdicts);
+        if (dims.length > 0) {
+          const pills = el("span", "pills");
+          for (const d of dims) pills.append(el("span", `pill ${meal.verdicts[d]!}`, verdictPillLabel(d, meal.verdicts[d]!, lang)));
+          name.append(pills);
+        }
+        const num = document.createElement("td");
+        num.className = "num";
+        if (guessed) num.append(el("span", "about", `${COPY.about} `));
+        num.append(el("span", "num", wholeNumbers(lang)(meal.kcal)));
+        tr.append(time, name, num);
+        tbody.append(tr);
+      }
+      table.append(thead, tbody);
+      parts.push(table);
+    }
+    // A proposal the composer's text turn is holding stands on the diary too — the diary is where
+    // the meal lands. Same rules as the thread's: answered by the row it made, or by its clock.
+    if (held !== null && day.meals.some((m) => m.id === held!.pendingId)) held = null;
+    if (held !== null && Date.parse(held.expiresAt) <= Date.now()) held = null;
+    if (held !== null) parts.push(proposalCard(held, turn));
+    clear(board).append(...parts);
   }
-  // A TABLE, WHICH IS THE SECOND THING THIS WINDOW DOES THAT A PHONE CANNOT. A phone shows four
-  // rows and a total; this shows the one guess sitting in a list of measured things, which is the
-  // strongest statement of the mechanism anywhere in the product.
-  //
-  // ONE WORDED FLAG IS NOT NEEDED HERE. Every guessed row already says so in its own figure, and a
-  // table makes the amber row visible as a row rather than as a sentence.
-  const table = document.createElement("table");
-  table.className = "meals";
-  const thead = document.createElement("thead");
-  const hrow = document.createElement("tr");
-  for (const [label, cls] of [[COPY.colTime, ""], [COPY.colMeal, ""], [COPY.colKcal, "num"]] as const) {
-    const th = document.createElement("th");
-    th.className = cls;
-    th.textContent = label;
-    hrow.append(th);
-  }
-  thead.append(hrow);
-  const tbody = document.createElement("tbody");
-  for (const meal of day.meals) {
-    const guessed = meal.confidence === "low" && !meal.corrected;
-    const tr = document.createElement("tr");
-    if (guessed) tr.className = "guessed";
-    const time = document.createElement("td");
-    time.className = "mono muted";
-    time.textContent = new Intl.DateTimeFormat(LANG_TAG[lang], {
-      timeZone: me.timezone, hour: "2-digit", minute: "2-digit", hour12: false,
-    }).format(new Date(meal.ts));
-    // `MealRecord` extends `MealAnalysis`, so the items and the numbers are ON the row rather than
-    // under an `analysis` key. Naming the first two items is what makes a list of numbers read as
-    // a list of meals.
-    const named = meal.items.slice(0, 2).map((i) => i.name).join(", ");
-    const name = document.createElement("td");
-    name.textContent = named === "" ? COPY.meal : named;
-    const num = document.createElement("td");
-    num.className = "num";
-    if (guessed) num.append(el("span", "about", `${COPY.about} `));
-    num.append(el("span", "mono", wholeNumbers(lang)(meal.kcal)));
-    tr.append(time, name, num);
-    tbody.append(tr);
-  }
-  table.append(thead, tbody);
-  wrap.append(table);
+
+  // One write, then the day AS THE SERVER NOW HAS IT — the diary's composer posts like the chat's
+  // (#52), so the machinery is `takeTurn` with this screen's notice and redraw handed in.
+  const turn = (write: () => Promise<string | void>): void => takeTurn(wrap, tell, draw, uid, write);
+
+  const comp = composerRow(COPY.diaryPlaceholder);
+  const { picker, words, send, count } = comp;
+  const arm = (): void => {
+    const picked = picker.files?.length ?? 0;
+    count.textContent = picked > 0 ? `${picked} photo${picked === 1 ? "" : "s"}` : "";
+    count.hidden = count.textContent === "";
+    send.setAttribute("aria-label", picked > 0 ? COPY.sendPhoto : COPY.send);
+  };
+  picker.addEventListener("change", arm);
+  comp.form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const files = [...(picker.files ?? [])];
+    const text = words.value.trim();
+    if (files.length === 0 && text === "") return;
+    // THE SERVER'S NUMBERS, off the profile — the same bounds the chat's composer checks.
+    if (files.length > 0) {
+      const { maxPhotosPerMeal, maxUploadBytes } = me.limits;
+      if (files.length > maxPhotosPerMeal) { tell(`One meal takes up to ${maxPhotosPerMeal} photos.`); return; }
+      if (files.reduce((n, f) => n + f.size, 0) > maxUploadBytes) { tell(COPY.photoTooLarge); return; }
+    }
+    turn(async () => {
+      if (files.length > 0) {
+        const saved = await sendOrKeep({
+          id: crypto.randomUUID(), userId: uid, kind: "photo", text: text === "" ? null : text,
+          photos: files, capturedAt: new Date().toISOString(),
+        });
+        picker.value = "";
+        words.value = "";
+        arm();
+        return saved;
+      }
+      const saved = await sendOrKeep({ id: crypto.randomUUID(), userId: uid, kind: "text", text, photos: [], capturedAt: new Date().toISOString() });
+      words.value = "";
+      return saved;
+    });
+  });
+  arm();
+
+  // A proposal made on Chat stands here too — read back once, like the thread's, when the page
+  // holds nothing of it.
+  if (held === null) held = (await api<PendingMealsResponse>(PENDING).catch(() => null))?.proposals.at(-1) ?? null;
+  await draw();
+  wrap.append(board, notice, comp.form);
   return wrap;
 }
 
@@ -370,6 +482,115 @@ let lastThread: ChatEntry[] = [];
  */
 let outstanding: Promise<void> | null = null;
 let carried: string | null = null;
+
+/**
+ * One write, then the screen AS THE SERVER NOW HAS IT.
+ *
+ * RE-READ, NOT RECONCILED, and that is why this is a POST and a reload rather than a copy of
+ * `chat.tsx`'s orchestration (#381). The app draws a bubble before the server has the line and
+ * lets a second turn go while the first is out, so it has to reconcile pages against in-flight
+ * ids, and a stale read there is a defect. Here every control is disabled while one turn is out
+ * and nothing is drawn that the server did not send back, so there is nothing to reconcile. A web
+ * chat that grows either of those wants #381's shared core, never a second copy of it.
+ *
+ * The inputs are cleared by the write on SUCCESS only: a refused turn keeps its words, so a
+ * person who meets the 402 does not have to type the meal again.
+ *
+ * MODULE-LEVEL since #52: the composer on Today posts the same way the one on Chat does, so the
+ * machinery is shared and each screen hands in its own `tell` and redraw.
+ */
+function takeTurn(
+  wrap: HTMLElement,
+  tell: (words: string | null) => void,
+  redrawScreen: () => Promise<void>,
+  uid: string | null,
+  write: () => Promise<string | void>,
+): void {
+  const controls = [...wrap.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input, button")];
+  for (const c of controls) c.disabled = true;
+  tell(null);
+  // To this screen while it is up; carried to the next one when it has been rebuilt meanwhile.
+  const report = (words: string): void => {
+    // A kept turn's notice is decided NOW, from what is still waiting: a replay that answered while
+    // this turn was redrawing already took the turn away, and the notice would outlive it.
+    if (words === kept() || words === behind()) {
+      const now = keptNotice(uid);
+      if (now === null) return;
+      words = now;
+    }
+    if (wrap.isConnected) tell(words); else carried = words;
+  };
+  let wrote = false;
+  let said: string | void = undefined;
+  const run = (async () => {
+    try {
+      // A write may answer with words of its own for a turn that WORKED: "already logged".
+      said = await write();
+      wrote = true;
+      if (wrap.isConnected) await redrawScreen();
+      if (typeof said === "string") report(said);
+    } catch (err) {
+      // Cleared BEFORE `render()`: a rebuilt chat screen waits on `outstanding`, and this turn is
+      // still it, so waiting here would be the turn waiting on itself.
+      if (err instanceof Unauthenticated) { outstanding = null; await render(); return; }
+      // A write that landed is never "try again": that would log the meal twice. One that has its
+      // own words — a turn kept for later — says those rather than "sent".
+      report(wrote ? (typeof said === "string" ? said : COPY.sentReload) : refusalWords(err));
+      if (!wrote) console.error(err);
+    } finally {
+      for (const c of controls) c.disabled = false;
+    }
+  })();
+  outstanding = run;
+  void run.finally(() => { if (outstanding === run) outstanding = null; });
+}
+
+/**
+ * The proposal a text turn is holding, until it is logged or dropped — one card, on whichever
+ * screen is up (the thread's, or beside the diary's own composer since #52).
+ */
+function proposalCard(p: MealProposed, turn: (write: () => Promise<string | void>) => void): HTMLElement {
+  const card = el("div", "card");
+  card.append(el("p", "muted", COPY.proposalLead));
+  card.append(el("p", "", `${names(p.analysis.items)} — ${kcal(p.analysis.kcal)}`));
+  for (const [verb, label, className] of [["confirm", COPY.logIt, "primary"], ["cancel", COPY.notThis, ""]] as const) {
+    const b = el("button", className, label) as HTMLButtonElement;
+    b.addEventListener("click", () => turn(async () => {
+      let r: PendingResponse;
+      try {
+        r = await api<PendingResponse>(`/meals/pending/${encodeURIComponent(p.pendingId)}/${verb}`, { method: "POST" });
+      } catch (err) {
+        // A session that is over is not a lost answer: it is the sign-in screen, which `turn` draws.
+        if (err instanceof Unauthenticated) throw err;
+        // NO ANSWER, AND PRESSING AGAIN IS SAFE: a repeated confirm is answered with the meal it
+        // already logged, a repeated cancel with a 410. So the card stays and says so. "Reload to
+        // check" would wipe it (it lives only in this page), and describing the meal again is a
+        // second paid analysis.
+        if (refusalWords(err) === maybeLanded()) {
+          // A lost COPY.notThis needs no second press: nothing is logged without a confirm, so what
+          // was asked for holds whether or not it landed — and offering the card again would put
+          // it back under the server's own COPY.dropped (#529).
+          if (verb === "cancel") { held = null; card.remove(); return; }
+          throw new Said(COPY.logRetry);
+        }
+        if (!(err instanceof ApiError && err.status === 410)) throw err;
+        // 410: no longer held, and never will be again, so the card goes rather than offering a
+        // dead button. For COPY.notThis that is the outcome that was asked for, and it says nothing.
+        held = null;
+        if (verb === "confirm") { card.remove(); throw err; }
+        return;
+      }
+      // The card goes with its offer, not only when the redraw after it succeeds (#529): a failed
+      // thread fetch left COPY.sent under a card still offering Log it.
+      held = null;
+      card.remove();
+      // A confirm got there first and its answer never came back: the meal stays logged.
+      if (verb === "cancel" && r.kind === "logged") return COPY.alreadyLogged;
+    }));
+    card.append(b);
+  }
+  return card;
+}
 
 async function chatScreen(): Promise<HTMLElement> {
   // ONE TURN AT A TIME ACROSS SCREENS, not only within one: wait for the turn still out, so the
@@ -421,14 +642,31 @@ async function chatScreen(): Promise<HTMLElement> {
       unread = err;
     }
     const entries = lastThread;
+    // The boards' transcript (#52): a quiet column of bubbles — mine right and green, Spud's left
+    // and pale — and his face beside only his NEWEST turn, so a run of his lines keeps one presence.
+    let lastSpud = -1;
+    for (let i = entries.length - 1; i >= 0; i--) {
+      if (entries[i]!.role === "assistant") { lastSpud = i; break; }
+    }
     const list = el("ul", "thread");
-    for (const entry of entries) {
+    for (const [i, entry] of entries.entries()) {
       const li = el("li", entry.role === "user" ? "line mine" : "line theirs");
       // One arm at a time. A meal card is a card, not a sentence, and a photo line may carry no words.
       const text = entry.kind === "meal"
         ? mealLine(entry.meal)
         : entry.text ?? COPY.photo;
-      li.append(el("p", "", text));
+      const bubble = el("p", "bub", text);
+      if (i === lastSpud) {
+        // The avatar aligns with the bubble, not the row: the line's words sit in their own column.
+        li.classList.add("buddy");
+        const av = el("span", "av");
+        av.append(new DOMParser().parseFromString(spudSvg("idle", `spud-${++spudSeq}`), "image/svg+xml").documentElement);
+        const col = el("div", "col");
+        col.append(bubble);
+        li.append(av, col);
+      } else {
+        li.append(bubble);
+      }
       // OWN LINES ONLY (#608): Edit on a photo line that still names a meal, Delete on any of them.
       if (entry.role === "user") {
         // `lineIsMeal`'s rule: a confirmed proposal is stored under the proposal's id.
@@ -438,19 +676,21 @@ async function chatScreen(): Promise<HTMLElement> {
         // A label VoiceOver can act on without reading the bubble first, truncated so a long line
         // does not turn the button's own name into a paragraph.
         const named = text.length > 40 ? `${text.slice(0, 40)}…` : text;
+        // Small TEXT buttons under the bubble, named for the line they act on (`.act`, 44px up).
+        const acts = el("div", "acts");
         if (isMeal && entry.kind === "photo") {
-          const edit = el("button", "", COPY.edit) as HTMLButtonElement;
+          const edit = el("button", "act", COPY.edit) as HTMLButtonElement;
           edit.setAttribute("aria-label", `${COPY.edit}: ${named}`);
           edit.addEventListener("click", () => {
             const card = entries.find((e) => e.kind === "meal" && e.mealId === entry.mealId);
             editing = { id: entry.id, photos: (card && card.kind === "meal" ? card.meal?.photos : null) ?? 0 };
-            caption.value = entry.text ?? "";
+            words.value = entry.text ?? "";
             arm();
-            caption.focus();
+            words.focus();
           });
-          li.append(edit);
+          acts.append(edit);
         }
-        const del = el("button", "", COPY.delete) as HTMLButtonElement;
+        const del = el("button", "act", COPY.delete) as HTMLButtonElement;
         del.setAttribute("aria-label", `${COPY.delete}: ${named}`);
         del.addEventListener("click", () => {
           const ok = isMeal ? confirm(COPY.confirmDeleteMeal) : confirm(COPY.confirmDeleteLine);
@@ -460,7 +700,8 @@ async function chatScreen(): Promise<HTMLElement> {
             if (editing?.id === entry.id) { editing = null; arm(); }
           });
         });
-        li.append(del);
+        acts.append(del);
+        li.append(acts);
       }
       list.append(li);
     }
@@ -469,21 +710,23 @@ async function chatScreen(): Promise<HTMLElement> {
     const kept = uid === null ? [] : outbox.entries.filter((e) => e.userId === uid);
     for (const e of kept) {
       const li = el("li", "line mine");
-      li.append(el("p", "", e.kind === "photo" ? (e.text ? `Photo: ${e.text}` : COPY.photo) : e.text ?? ""));
+      li.append(el("p", "bub", e.kind === "photo" ? (e.text ? `Photo: ${e.text}` : COPY.photo) : e.text ?? ""));
       if (e.held === undefined) {
-        li.append(el("p", "muted", COPY.waitingToSend));
+        li.append(el("span", "note", COPY.waitingToSend));
       } else {
         // A turn the server may have run is worded as the doubt it is, never as "try again" beside a
         // button that sends it again under a new id.
-        li.append(el("p", "muted", outcomeUnknown(e.held.kind)
+        li.append(el("span", "note", outcomeUnknown(e.held.kind)
           ? unclear()
           : refusalWords(new ApiError(0, { error: e.held.kind, ...(e.held.scope ? { scope: e.held.scope } : {}) }, "held"))));
-        const again = el("button", "", COPY.sendAgain) as HTMLButtonElement;
+        const acts = el("div", "acts");
+        const again = el("button", "act", COPY.sendAgain) as HTMLButtonElement;
         again.addEventListener("click", () => turn(() => outbox.resend(e.id, uid!)));
-        const drop = el("button", "", COPY.discard) as HTMLButtonElement;
+        const drop = el("button", "act", COPY.discard) as HTMLButtonElement;
         // Discarding a held head lets whatever waited behind it go.
         drop.addEventListener("click", () => turn(async () => { await outbox.discard(e.id); void flush(); }));
-        li.append(again, drop);
+        acts.append(again, drop);
+        li.append(acts);
       }
       list.append(li);
     }
@@ -495,153 +738,44 @@ async function chatScreen(): Promise<HTMLElement> {
     // No longer offered once the server has stopped holding it — `expiresAt` is sent for exactly this
     // (#367). An unreadable moment stays live, as `proposalLive` rules: the analysis is already billed.
     if (held !== null && Date.parse(held.expiresAt) <= Date.now()) held = null;
-    if (held !== null) thread.append(proposalCard(held));
+    if (held !== null) thread.append(proposalCard(held, turn));
     if (unread !== null) throw unread;
   };
 
-  /**
-   * One write, then the thread AS THE SERVER NOW HAS IT.
-   *
-   * RE-READ, NOT RECONCILED, and that is why this is a POST and a reload rather than a copy of
-   * `chat.tsx`'s orchestration (#381). The app draws a bubble before the server has the line and
-   * lets a second turn go while the first is out, so it has to reconcile pages against in-flight
-   * ids, and a stale read there is a defect. Here every control is disabled while one turn is out
-   * and nothing is drawn that the server did not send back, so there is nothing to reconcile. A web
-   * chat that grows either of those wants #381's shared core, never a second copy of it.
-   *
-   * The inputs are cleared by the write on SUCCESS only: a refused turn keeps its words, so a
-   * person who meets the 402 does not have to type the meal again.
-   */
-  const turn = (write: () => Promise<string | void>): void => {
-    const controls = [...wrap.querySelectorAll<HTMLInputElement | HTMLButtonElement>("input, button")];
-    for (const c of controls) c.disabled = true;
-    tell(null);
-    // To this screen while it is up; carried to the next one when it has been rebuilt meanwhile.
-    const report = (words: string): void => {
-      // A kept turn's notice is decided NOW, from what is still waiting: a replay that answered while
-      // this turn was redrawing already took the turn away, and the notice would outlive it.
-      if (words === kept() || words === behind()) {
-        const now = keptNotice(uid);
-        if (now === null) return;
-        words = now;
-      }
-      if (wrap.isConnected) tell(words); else carried = words;
-    };
-    let wrote = false;
-    let said: string | void = undefined;
-    const run = (async () => {
-      try {
-        // A write may answer with words of its own for a turn that WORKED: "already logged".
-        said = await write();
-        wrote = true;
-        if (wrap.isConnected) await draw();
-        if (typeof said === "string") report(said);
-      } catch (err) {
-        // Cleared BEFORE `render()`: a rebuilt chat screen waits on `outstanding`, and this turn is
-        // still it, so waiting here would be the turn waiting on itself.
-        if (err instanceof Unauthenticated) { outstanding = null; await render(); return; }
-        // A write that landed is never "try again": that would log the meal twice. One that has its
-        // own words — a turn kept for later — says those rather than "sent".
-        report(wrote ? (typeof said === "string" ? said : COPY.sentReload) : refusalWords(err));
-        if (!wrote) console.error(err);
-      } finally {
-        for (const c of controls) c.disabled = false;
-      }
-    })();
-    outstanding = run;
-    void run.finally(() => { if (outstanding === run) outstanding = null; });
-  };
+  // One write, then the thread AS THE SERVER NOW HAS IT — `takeTurn` is the machinery, and this
+  // screen hands it its own notice and redraw.
+  const turn = (write: () => Promise<string | void>): void => takeTurn(wrap, tell, draw, uid, write);
 
-  function proposalCard(p: MealProposed): HTMLElement {
-    const card = el("div", "card");
-    card.append(el("p", "muted", COPY.proposalLead));
-    card.append(el("p", "", `${names(p.analysis.items)} — ${kcal(p.analysis.kcal)}`));
-    for (const [verb, label, className] of [["confirm", COPY.logIt, "primary"], ["cancel", COPY.notThis, ""]] as const) {
-      const b = el("button", className, label) as HTMLButtonElement;
-      b.addEventListener("click", () => turn(async () => {
-        let r: PendingResponse;
-        try {
-          r = await api<PendingResponse>(`/meals/pending/${encodeURIComponent(p.pendingId)}/${verb}`, { method: "POST" });
-        } catch (err) {
-          // A session that is over is not a lost answer: it is the sign-in screen, which `turn` draws.
-          if (err instanceof Unauthenticated) throw err;
-          // NO ANSWER, AND PRESSING AGAIN IS SAFE: a repeated confirm is answered with the meal it
-          // already logged, a repeated cancel with a 410. So the card stays and says so. "Reload to
-          // check" would wipe it (it lives only in this page), and describing the meal again is a
-          // second paid analysis.
-          if (refusalWords(err) === maybeLanded()) {
-            // A lost COPY.notThis needs no second press: nothing is logged without a confirm, so what
-            // was asked for holds whether or not it landed — and offering the card again would put
-            // it back under the server's own COPY.dropped (#529).
-            if (verb === "cancel") { held = null; card.remove(); return; }
-            throw new Said(COPY.logRetry);
-          }
-          if (!(err instanceof ApiError && err.status === 410)) throw err;
-          // 410: no longer held, and never will be again, so the card goes rather than offering a
-          // dead button. For COPY.notThis that is the outcome that was asked for, and it says nothing.
-          held = null;
-          if (verb === "confirm") { card.remove(); throw err; }
-          return;
-        }
-        // The card goes with its offer, not only when the redraw after it succeeds (#529): a failed
-        // thread fetch left COPY.sent under a card still offering Log it.
-        held = null;
-        card.remove();
-        // A confirm got there first and its answer never came back: the meal stays logged.
-        if (verb === "cancel" && r.kind === "logged") return COPY.alreadyLogged;
-      }));
-      card.append(b);
-    }
-    return card;
-  }
-
-  const words = textField(COPY.composerPlaceholder);
-  const say = el("form", "composer") as HTMLFormElement;
-  say.append(words, el("button", "primary", COPY.send));
-  say.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const text = words.value.trim();
-    if (text === "") return;
-    turn(async () => {
-      const saved = await sendOrKeep({ id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [], capturedAt: new Date().toISOString() });
-      words.value = "";
-      return saved;
-    });
-  });
-
-  // `accept=` is a hint to the chooser and transcodes nothing: an iPhone's library hands a browser
-  // HEIC as happily as it once handed the app. The server refuses it before charging (415), and
-  // that refusal is what a person reads.
-  const picker = el("input", "") as HTMLInputElement;
-  picker.type = "file";
-  picker.accept = "image/jpeg,image/png,image/webp";
-  picker.multiple = true;
-  picker.setAttribute("aria-label", COPY.photosOfOneMeal);
-  const caption = textField(COPY.caption);
-  const shoot = el("form", "composer") as HTMLFormElement;
-  const count = el("span", "muted", "");
-  const send = el("button", "", COPY.sendPhoto) as HTMLButtonElement;
-  const cancel = el("button", "", COPY.cancel) as HTMLButtonElement;
-  cancel.hidden = true;
-  cancel.type = "button";
-  cancel.addEventListener("click", () => { editing = null; caption.value = ""; picker.value = ""; arm(); });
+  // THE ONE COMPOSER (the boards' row, #52): the native file input hides behind the labelled
+  // "Add a photo", and the one field takes a meal, a question, or the words that go WITH a photo —
+  // Send sends whichever is attached. A photo's own form is gone, and with it the caption field.
+  const comp = composerRow(COPY.composerPlaceholder);
+  const { picker, words, send, count, cancel } = comp;
   /** The composer as the mode says: an edit shows what it has, asks for angles to ADD, and sends. */
   const arm = (): void => {
-    count.textContent = editing ? `${editing.photos} photo${editing.photos === 1 ? "" : "s"} · add angles:` : "";
+    const stored = editing?.photos ?? 0;
+    const picked = picker.files?.length ?? 0;
+    count.textContent = editing !== null
+      ? `${stored} photo${stored === 1 ? "" : "s"} · add angles:`
+      : picked > 0 ? `${picked} photo${picked === 1 ? "" : "s"}` : "";
     // Hidden rather than merely empty: an empty inline `<span>` still takes up its own gap in the
-    // flex-wrapped row (`.composer { gap: .5rem }`), which showed as a stray space before Send.
-    count.hidden = editing === null;
-    send.textContent = editing ? COPY.send : COPY.sendPhoto;
+    // row, which showed as a stray space before Send.
+    count.hidden = count.textContent === "";
+    // Send's NAME says what this press does — words, or the photos that are attached — because
+    // the arrow does not.
+    send.setAttribute("aria-label", editing === null && picked > 0 ? COPY.sendPhoto : COPY.send);
     cancel.hidden = editing === null;
   };
-  shoot.append(count, picker, caption, send, cancel);
-  shoot.addEventListener("submit", (e) => {
+  picker.addEventListener("change", arm);
+  cancel.addEventListener("click", () => { editing = null; words.value = ""; picker.value = ""; arm(); });
+  comp.form.addEventListener("submit", (e) => {
     e.preventDefault();
     const files = [...(picker.files ?? [])];
-    if (editing === null && files.length === 0) { tell(COPY.choosePhotoFirst); return; }
+    const text = words.value.trim();
+    if (editing === null && files.length === 0 && text === "") return;
     // THE SERVER'S NUMBERS, off the profile, never compiled in: they differ between environments,
     // and a person should hear "too many" before the upload rather than after it.
-    if (me !== null) {
+    if (me !== null && (editing !== null || files.length > 0)) {
       const { maxPhotosPerMeal, maxUploadBytes } = me.limits;
       // `stored`, never `held`: the module-level `held` above is the text-turn's pending PROPOSAL,
       // and shadowing its name here for an unrelated photo count is exactly the kind of collision
@@ -657,7 +791,7 @@ async function chatScreen(): Promise<HTMLElement> {
       if (editing !== null) {
         // AN EDIT (#608): the same multipart, `text` rather than `caption`, PATCH on the line. The
         // analyzer re-reads every photo with the new words; the line and the card change in place.
-        form.append("text", caption.value.trim());
+        form.append("text", text);
         let p: PendingPhoto = { glance: null, items: [] };
         progress.textContent = pendingLine(p, lang);
         progress.hidden = false;
@@ -692,17 +826,23 @@ async function chatScreen(): Promise<HTMLElement> {
         }
         editing = null;
         picker.value = "";
-        caption.value = "";
+        words.value = "";
         arm();
         return;
       }
-      // Refused IN the stream, with the 200 already sent, is thrown by `sendTurn` as any other refusal.
-      const saved = await sendOrKeep({
-        id: crypto.randomUUID(), userId: uid ?? "", kind: "photo", text: caption.value.trim() || null, photos: files,
-        capturedAt: new Date().toISOString(),
-      });
-      picker.value = "";
-      caption.value = "";
+      if (files.length > 0) {
+        // Refused IN the stream, with the 200 already sent, is thrown by `sendTurn` as any other refusal.
+        const saved = await sendOrKeep({
+          id: crypto.randomUUID(), userId: uid ?? "", kind: "photo", text: text === "" ? null : text, photos: files,
+          capturedAt: new Date().toISOString(),
+        });
+        picker.value = "";
+        words.value = "";
+        arm();
+        return saved;
+      }
+      const saved = await sendOrKeep({ id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [], capturedAt: new Date().toISOString() });
+      words.value = "";
       return saved;
     });
   });
@@ -726,7 +866,9 @@ async function chatScreen(): Promise<HTMLElement> {
     // later means this one now waits on a decision, and nothing left waiting means it went.
     if (notice.textContent === kept() || notice.textContent === behind()) tell(keptNotice(uid));
   };
-  wrap.append(thread, notice, say, el("h2", "photo-lead", COPY.orPhotograph), shoot, progress);
+  const top = el("div", "top");
+  top.append(el("h1", "tt", COPY.navChat));
+  wrap.append(top, thread, notice, comp.form, progress);
   // What the turn that was out said, if it answered after its own screen was gone.
   // A kept turn's notice carried from a screen that is gone is decided again now: minutes may have
   // passed, and the turn may have gone meanwhile.
@@ -956,13 +1098,13 @@ function firstMealScreen(me: ProfileResponse): HTMLElement {
     card.append(el("div", "lab", names(analysis.items)));
     const big = el("p", "big");
     if (analysis.confidence === "low") big.append(el("span", "about", `${COPY.about} `));
-    big.append(el("span", "hero mono", wholeNumbers(lang)(analysis.kcal)), el("span", "muted", ` ${UNIT_KCAL[lang]}`));
+    big.append(el("span", "hero num", wholeNumbers(lang)(analysis.kcal)), el("span", "muted", ` ${UNIT_KCAL[lang]}`));
     card.append(big);
     const stats = el("div", "stats");
     for (const [label, v] of [[COPY.statProtein, analysis.protein_g], [COPY.statCarbs, analysis.carbs_g], [COPY.statFat, analysis.fat_g]] as const) {
       const cell = el("div", "stat-cell");
       // Whole grams, as the thread says them (#49: "37.4 g" on the card beside "37 g" in the text).
-      cell.append(el("div", "lab", label), el("div", "stat-num mono", `${wholeNumbers(lang)(v)} g`));
+      cell.append(el("div", "lab", label), el("div", "stat-num num", `${wholeNumbers(lang)(v)} g`));
       stats.append(cell);
     }
     card.append(stats);
@@ -1048,10 +1190,22 @@ function firstMealScreen(me: ProfileResponse): HTMLElement {
       tl.append(row);
     }
     box.append(tl);
-    // The plans are NAMED, never priced: this client has never been sent a price, and the checkout
-    // page the link lands on is what owns the numbers.
-    const plans = el("div", "plans");
-    for (const p of [COPY.offerPlanMonthly, COPY.offerPlanLifetime]) plans.append(el("div", "plan", p));
+    // ONE PLAN, AS A REAL RADIO (#52). `/start/checkout` takes no plan — it is the one configured
+    // checkout URL with this account's id filled in — so a second radio would be a choice that
+    // chose nothing. What is offered is the subscription the free week leads into, checked, in a
+    // group that takes more the day the link learns to carry one. And NAMED, never priced: this
+    // client has never been sent a price, and the checkout page the link lands on owns the numbers.
+    const plans = el("div", "card plans");
+    plans.setAttribute("role", "radiogroup");
+    plans.setAttribute("aria-label", COPY.offerPlans);
+    const plan = el("label", "plan sel");
+    const radio = el("input", "") as HTMLInputElement;
+    radio.type = "radio";
+    radio.name = "plan";
+    radio.value = "monthly";
+    radio.checked = true;
+    plan.append(radio, el("span", "", COPY.offerPlanMonthly));
+    plans.append(plan);
     box.append(plans);
     const foot = el("div", "step-foot");
     // `/start/checkout`, not the checkout URL itself: the backend fills this account's id into the
@@ -1062,7 +1216,7 @@ function firstMealScreen(me: ProfileResponse): HTMLElement {
     const later = el("button", "cta g", COPY.offerLater) as HTMLButtonElement;
     // "Not now" re-renders: a meal exists by now, so the gate opens the diary it belongs on.
     later.addEventListener("click", () => { void render(); });
-    foot.append(go, later);
+    foot.append(go, later, el("p", "hint", COPY.offerCheckoutHint));
     box.append(foot);
     return box;
   };
@@ -1103,6 +1257,45 @@ function textField(placeholder: string): HTMLInputElement {
   input.placeholder = placeholder;
   input.setAttribute("aria-label", placeholder);
   return input;
+}
+
+/**
+ * The boards' composer (#52): ONE pill row — "Add a photo" as a labelled button in front of the
+ * native file input (which never shows), the field, and the round send. The same row stands at the
+ * bottom of Chat and of Today; what Send does with the words and the files is each screen's own.
+ *
+ * `accept=` is a hint to the chooser and transcodes nothing: an iPhone's library hands a browser
+ * HEIC as happily as it once handed the app. The server refuses it before charging (415), and
+ * that refusal is what a person reads.
+ */
+function composerRow(placeholder: string): {
+  form: HTMLFormElement; picker: HTMLInputElement; add: HTMLButtonElement;
+  words: HTMLInputElement; send: HTMLButtonElement; count: HTMLElement; cancel: HTMLButtonElement;
+} {
+  const form = el("form", "comp") as HTMLFormElement;
+  const picker = el("input", "visually-hidden") as HTMLInputElement;
+  picker.type = "file";
+  picker.accept = "image/jpeg,image/png,image/webp";
+  picker.multiple = true;
+  picker.setAttribute("aria-label", COPY.photosOfOneMeal);
+  const add = el("button", "add", COPY.addPhoto) as HTMLButtonElement;
+  add.type = "button";
+  add.addEventListener("click", () => picker.click());
+  const row = el("div", "comp-row");
+  const words = textField(placeholder);
+  words.className = "fld";
+  const send = el("button", "send", "↑") as HTMLButtonElement;
+  send.setAttribute("aria-label", COPY.send);
+  row.append(add, words, send);
+  const count = el("span", "count", "");
+  count.hidden = true;
+  const cancel = el("button", "act", COPY.cancel) as HTMLButtonElement;
+  cancel.type = "button";
+  cancel.hidden = true;
+  const note = el("div", "comp-note");
+  note.append(count, cancel);
+  form.append(picker, row, note);
+  return { form, picker, add, words, send, count, cancel };
 }
 
 /**
@@ -1283,7 +1476,12 @@ let drawing = 0;
 async function render(): Promise<void> {
   const mine = ++drawing;
   const app = clear(root());
-  if (!signedIn()) { app.append(signInScreen()); return; }
+  // Signed in or not, the page sits in the same frame: the bar (the row only once there is a
+  // session to lose it over) over the one quiet column.
+  const col = el("div", "wcol");
+  const body = el("div", "body");
+  col.append(body);
+  if (!signedIn()) { app.append(chrome(null), col); body.append(signInScreen()); return; }
 
   const route = location.hash || "#/";
   // The profile BEFORE the navigation, because whether the admin tab exists is on it. Drawing the
@@ -1292,15 +1490,16 @@ async function render(): Promise<void> {
     await profile();
   } catch (err) {
     if (mine !== drawing) return;
-    if (err instanceof Unauthenticated) { app.append(signInScreen()); return; }
+    if (err instanceof Unauthenticated) { app.append(chrome(null), col); body.append(signInScreen()); return; }
   }
   if (mine !== drawing) return;
-  app.append(chrome(route));
-  const body = el("div", "body", COPY.loading);
-  app.append(body);
+  app.append(chrome(route), col);
+  body.textContent = COPY.loading;
   try {
     // `homeScreen` is the diary, or the one-meal flow while the account has never logged (#42).
-    const screen = route === "#/chat" ? await chatScreen() : await homeScreen(await profile());
+    const screen = route === "#/chat" ? await chatScreen()
+      : route === "#/you" ? youScreen(profileCache)
+      : await homeScreen(await profile());
     if (mine !== drawing) return;
     clear(body).append(screen);
     // Whatever was kept the last time this browser had no connection, now that there is a session.

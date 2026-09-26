@@ -29,26 +29,26 @@ async function userLines(page: Page): Promise<string[]> {
 
 async function photo(page: Page, caption: string) {
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
-  await page.getByPlaceholder("Anything I should know? (optional)").fill(caption);
+  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill(caption);
   await page.getByRole("button", { name: "Send the photo" }).click();
 }
 
 async function say(page: Page, words: string) {
-  await page.getByPlaceholder("What did you eat?").fill(words);
+  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill(words);
   await page.getByRole("button", { name: "Send", exact: true }).click();
 }
 
 const waiting = (page: Page) => page.locator(".thread li", { hasText: "Waiting to send" });
 
 test("a photo and a message sent offline wait in the thread, and go once, in order, when the connection is back", async ({ inWebApp: page }) => {
-  await expect(page.getByRole("button", { name: "Send the photo" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
   await page.context().setOffline(true);
 
   await photo(page, "offline lunch");
   await expect(page.locator(".notice")).toHaveText(KEPT);
   // Not an error, and not "nothing was logged": the photo is kept and says it is waiting.
   await expect(waiting(page)).toHaveCount(1);
-  await expect(page.getByPlaceholder("Anything I should know? (optional)")).toHaveValue("");
+  await expect(page.getByPlaceholder("Tell Spud what you ate, or ask anything")).toHaveValue("");
   await say(page, "and a coffee with milk");
   await expect(waiting(page)).toHaveCount(2);
   await expect(waiting(page).first()).toContainText("offline lunch");
@@ -116,7 +116,7 @@ test("a photo the server already logged under its id is not logged again when th
 });
 
 test("what is kept survives a reload, and goes when the page has a session again", async ({ inWebApp: page }) => {
-  await expect(page.getByRole("button", { name: "Send the photo" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
   await page.context().setOffline(true);
   await say(page, "how did my week go?");
   await expect(waiting(page)).toHaveCount(1);
@@ -138,7 +138,7 @@ test("what is kept survives a reload, and goes when the page has a session again
 });
 
 test("a refusal that comes back when the queue drains is worded against the kept turn, which waits for a decision", async ({ inWebApp: page }) => {
-  await expect(page.getByRole("button", { name: "Send the photo" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
   await page.context().setOffline(true);
   await say(page, "a banana");
   await say(page, "and an apple");
@@ -171,7 +171,7 @@ test("a refusal that comes back when the queue drains is worded against the kept
 });
 
 test("a kept turn can be discarded, and nothing is sent for it", async ({ inWebApp: page }) => {
-  await expect(page.getByRole("button", { name: "Send the photo" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
   await page.context().setOffline(true);
   await say(page, "a pear");
   await expect(waiting(page)).toHaveCount(1);
@@ -185,18 +185,20 @@ test("a kept turn can be discarded, and nothing is sent for it", async ({ inWebA
   await pear.getByRole("button", { name: "Discard" }).click();
   await expect(page.locator(".thread li", { hasText: "a pear" })).toHaveCount(0);
   await page.reload();
-  await expect(page.getByPlaceholder("What did you eat?")).toBeVisible();
+  await expect(page.getByPlaceholder("Tell Spud what you ate, or ask anything")).toBeVisible();
   await expect(page.locator(".thread li", { hasText: "a pear" })).toHaveCount(0);
   expect(await userLines(page)).toEqual([]);
 });
 
 test("signing out takes the kept turns with it", async ({ inWebApp: page }) => {
-  await expect(page.getByRole("button", { name: "Send the photo" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
   await page.context().setOffline(true);
   await photo(page, "not for the next person");
   await expect(waiting(page)).toHaveCount(1);
   await page.context().setOffline(false);
   await page.route("**/api/v1/meals/photo", (r) => r.abort("connectionreset"));
+  // Sign out lives on You since #52 — the kept turns are cleared wherever the control sits.
+  await page.goto("/#/you");
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
   // A string, because this file is typechecked without the DOM: the browser is where it runs.
@@ -229,7 +231,7 @@ test("the chat opens offline, from another tab, with what it last had and a comp
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
   await page.context().setOffline(true);
   await page.getByRole("link", { name: "Chat" }).click();
-  await expect(page.getByPlaceholder("What did you eat?")).toBeVisible();
+  await expect(page.getByPlaceholder("Tell Spud what you ate, or ask anything")).toBeVisible();
   await expect(page.locator(".thread")).toContainText("how did my week go?");
   await say(page, "a slice of rye bread");
   await expect(waiting(page)).toHaveCount(1);
@@ -243,7 +245,7 @@ test("a kept turn of an account that is no longer signed in here is not kept for
   await signIn(page, `pw-a-${testInfo.testId}-${Date.now()}`);
   await onboardFast(page);
   await page.goto("/#/chat");
-  await expect(page.getByRole("button", { name: "Send the photo" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
   await page.context().setOffline(true);
   await photo(page, "somebody else's lunch");
   await expect(waiting(page)).toHaveCount(1);
@@ -256,7 +258,7 @@ test("a kept turn of an account that is no longer signed in here is not kept for
   await signIn(page, `pw-b-${testInfo.testId}-${Date.now()}`);
   await onboardFast(page);
   await page.goto("/#/chat");
-  await expect(page.getByPlaceholder("What did you eat?")).toBeVisible();
+  await expect(page.getByPlaceholder("Tell Spud what you ate, or ask anything")).toBeVisible();
   await expect.poll(() => page.evaluate<number>(`new Promise((resolve, reject) => {
     const open = indexedDB.open("eait", 1);
     open.onupgradeneeded = () => open.result.createObjectStore("outbox");
@@ -274,7 +276,7 @@ test("a kept turn of an account that is no longer signed in here is not kept for
 });
 
 test("a turn said while kept ones still wait joins their end, so the server gets them in order", async ({ inWebApp: page }) => {
-  await expect(page.getByRole("button", { name: "Send the photo" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
   await page.context().setOffline(true);
   await say(page, "a bowl of porridge");
   await expect(waiting(page)).toHaveCount(1);

@@ -23,7 +23,7 @@
 // image does.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
-import { darkVars, lightVars } from "../../shared/palette.ts";
+import { lightVars } from "../../shared/palette.ts";
 
 /** Where `bun run build` in this workspace puts the bundle. The only default; tests pass their own. */
 export const DEFAULT_BUNDLE_PATH = new URL("../dist/main.js", import.meta.url);
@@ -69,22 +69,48 @@ function shell(nonce: string): string {
 /* THE TOKENS COME FROM shared/palette.ts, not from this file. The app, the landing page and the
    /start flow all draw from that one copy, and a fourth set of hexes here is a fourth thing to
    keep in step. Imported by RELATIVE path, like dayBudget and copy.ts (#608). */
-:root { ${lightVars} }
-@media (prefers-color-scheme: dark) { :root { ${darkVars} } }
+:root { ${lightVars}
+  /* The same pair /start declares (backend/web/page.ts): the system stack under the one display
+     face, so a fallback reads like a fallback and not like a second design. */
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
+  --display: "Space Grotesk", var(--sans);
+}
+/* LIGHT, ALWAYS — the landing's rule, settled for this surface too (spud-web, #825): both surfaces
+   are light and neither consults the OS, so there is no dark half of this stylesheet to keep in
+   step. The tokens' dark block stays in shared/palette.ts for the app, not for this page. */
+/* THE ONE TYPEFACE is /start's own, from /start's own route: the backend serves the landing's file
+   at FONT_PATH (backend/web/page.ts), and the edge puts /start/* on this same origin — so
+   font-src 'self' is all the CSP needs and nothing is fetched from anyone else. */
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/start/assets/space-grotesk-latin.woff2") format("woff2");
+  font-weight: 300 700;
+  font-display: swap;
+}
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--ink); color: var(--text);
-  font: 15px/1.5 "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
-/* NUMBERS ONLY, and the unit stays OUTSIDE the span: a monospace word-space is a full mono advance,
-   so 141 g set as one string renders with a hole in it. No web font is fetched for it — this
-   page's CSP has no font-src and is not gaining one for a typeface. */
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  font: 15px/1.5 var(--display); }
+/* NUMBERS IN THE ONE FACE, tabular so a column of them holds still. The third face is gone: the
+   boards set figures in the main face and so does this page. The unit still sits OUTSIDE the span —
+   its space is the face's own. */
+.num { font-variant-numeric: tabular-nums; }
 
-/* TWO COLUMNS, AND THE LEFT ONE NEVER NAVIGATES AWAY. That is the whole reason this window is not
-   a stretched phone: on a phone, opening a meal costs you sight of the day, so an answer lands
-   somewhere you cannot see it. Here the day stays put while you read. */
-#app { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: 26px;
-  max-width: 1360px; margin: 0 auto; padding: 26px; align-items: start; }
-@media (max-width: 860px) { #app { grid-template-columns: minmax(0, 1fr); padding: 16px; } }
+/* THE FRAME (the boards' web layout, #52): a slim top bar — the mark, then the one row the app
+   navigates by — over a single quiet column the width a chat reads best at, the 38.75rem /start
+   already centres on. At a phone's width the column fills the viewport. */
+#app { min-height: 100vh; display: flex; flex-direction: column; }
+.wbar { display: flex; align-items: center; gap: 12px; padding: 0 26px; min-height: 60px;
+  font: 700 17px var(--display); letter-spacing: -.02em; }
+.wbar .mark { display: flex; align-items: center; gap: 8px; }
+.wbar .mark svg { width: 30px; height: 24px; display: block; }
+.wnav { display: flex; gap: 6px; margin-left: auto; }
+.wcol { width: 100%; max-width: 38.75rem; margin: 0 auto; flex: 1; padding: 18px 20px 30px;
+  background: var(--panel); border-radius: 26px 26px 0 0;
+  box-shadow: 0 -1px 0 var(--line), 0 20px 50px -30px color-mix(in srgb, var(--text) 40%, transparent); }
+.body { min-width: 0; }
+/* The centred title the boards draw above each screen's own column. */
+.top { text-align: center; padding: 6px 0 12px; }
+.top .tt { margin: 0; font-size: 19px; }
 
 h1, h2 { margin: 0 0 .5rem; font-weight: 800; letter-spacing: -.02em; }
 h2 { font-size: 17px; }
@@ -107,8 +133,11 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 .big.warn + progress::-webkit-progress-value { background: var(--warn); }
 .big.warn + progress::-moz-progress-bar { background: var(--warn); }
 
-/* CARDS HAVE NO BORDER. The ground is near-black and a card is two steps up from it. */
-.card { padding: 1rem 1.1rem; background: var(--raised); border-radius: 16px; margin-bottom: 14px; }
+/* The boards' panel: a light surface one step up from the ground, with the hairline and the soft
+   shadow /start's card already carries. */
+.card { padding: 1rem 1.1rem; background: var(--raised); border: 1px solid var(--line);
+  border-radius: 18px; margin-bottom: 14px;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 4%, transparent); }
 /* A 52px STRIP, not a hero region: at 1360 wide a full-height wash is a wall of green, and every
    word on it has to be near-black. */
 .day-card { padding: 0; overflow: hidden; }
@@ -118,15 +147,21 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 .day-body { padding: 16px 18px 18px; }
 .stat { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
 
-/* THE RAIL: the tab bar became four destinations down the left, with the primary action at the top. */
-.nav { display: flex; flex-direction: column; gap: 4px; align-items: stretch; position: sticky; top: 26px; }
-@media (max-width: 860px) { .nav { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; } }
-.tab { color: var(--muted); text-decoration: none; padding: 10px 12px; border-radius: 11px; font-weight: 700; font-size: 14px; }
-.tab.on { color: var(--text); background: var(--raised); }
-.link { background: none; border: 0; color: var(--muted); cursor: pointer; font: inherit; text-align: left; padding: 10px 12px; }
-.lang { background: none; border: 0; color: var(--muted); font: inherit; cursor: pointer; padding: 10px 12px; }
+/* PILLS: every button, tab and chip is a 999px capsule — the shape the boards draw and /start's own
+   controls already take. The three tabs never wrap onto a second row. */
+.tab { color: var(--muted); text-decoration: none; padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; white-space: nowrap; }
+.tab.on { color: var(--accent); background: var(--raised); }
+/* You — the account's rows: label and control, a hairline between. */
+.you > * + * { border-top: 1px solid var(--line); }
+.you .rowline { padding: 12px 2px; }
+.you .pick { font: inherit; font-weight: 700; padding: 10px 14px; border-radius: 999px; max-width: 62%;
+  border: 1px solid var(--line-strong); background: var(--raised); color: var(--text); }
+.you-act { display: flex; align-items: center; justify-content: space-between; width: 100%;
+  padding: 14px 2px; background: none; border: 0; font: inherit; font-weight: 700; color: var(--text);
+  cursor: pointer; text-align: left; }
+.you-act::after { content: "›"; color: var(--muted); font-size: 18px; }
 .primary { display: inline-block; margin-top: .75rem; padding: 0 18px; height: 44px; line-height: 44px;
-  border-radius: 12px; background: var(--accent); color: var(--accent-ink); text-decoration: none;
+  border-radius: 999px; background: var(--accent); color: var(--accent-ink); text-decoration: none;
   font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 
 /* THE TABLE IS THE SECOND THING THIS WINDOW DOES. A phone can show four rows and a total; this can
@@ -141,24 +176,50 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 /* The guessed row, and the only colour in the list. */
 .meals tr.guessed td { background: color-mix(in srgb, var(--warn) 7%, transparent); }
 .meals tr.guessed td:first-child { border-left: 1.5px solid color-mix(in srgb, var(--warn) 45%, transparent); }
+/* The row's verdict pills sit under the meal's name, smaller than a card's (#52). */
+.meals .pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.meals .pill { min-height: 22px; padding: 0 9px; font-size: 11.5px; }
 
-.thread { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
-.line p { margin: 0; padding: .55rem .8rem; border-radius: 14px; background: var(--panel); }
+/* THE TRANSCRIPT (the boards' chat, #52): a quiet column — my words right in the accent green,
+   Spud's left and pale, and his face beside only his NEWEST turn. No bubble runs the column's
+   width, and the line's actions are small TEXT buttons on a 44px hit area. */
+.thread { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.line { display: flex; flex-direction: column; align-items: flex-start; }
+.line .bub { margin: 0; padding: .55rem .9rem; width: fit-content; max-width: 86%; border-radius: 18px;
+  border-bottom-left-radius: 6px; background: var(--raised); border: 1px solid var(--line); }
 .line.mine { align-items: flex-end; }
-.line.mine p { background: var(--accent); color: var(--accent-ink); }
-.line button { margin-left: .5rem; font-size: .85em; }
+.line.mine .bub { background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+  border-bottom-left-radius: 18px; border-bottom-right-radius: 6px; max-width: 80%; }
+.line.buddy { flex-direction: row; gap: 10px; }
+.line .av { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%; overflow: hidden;
+  background: var(--raised); border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center; }
+.line .av svg { width: 30px; height: 30px; display: block; }
+.line.buddy .col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.line .note { font-size: 11.5px; color: var(--faint); font-weight: 600; }
+.acts { display: flex; gap: 2px; }
+.act { background: none; border: 0; color: var(--muted); cursor: pointer;
+  font: 700 12.5px var(--display); padding: 4px 10px; min-width: 44px; min-height: 44px; }
 .error, .notice { color: var(--bad); }
 .notice { margin: 1rem 0 0; }
-.photo-lead { margin-top: 1.5rem; font-size: 1rem; }
-.composer { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
-.composer input, .composer button, .card button { font: inherit; }
-.composer input[type="text"] { flex: 1 1 12rem; padding: .55rem .8rem; border-radius: 12px;
-  color: var(--text); background: var(--panel); border: 0; }
-.composer button, .card button { padding: 0 16px; height: 38px; border-radius: 12px; cursor: pointer;
-  color: var(--text); background: var(--panel); border: 0; margin: .5rem .5rem 0 0; font-weight: 700; }
-.composer button { margin: 0; }
-.composer button.primary, .card button.primary { background: var(--accent); color: var(--accent-ink);
-  height: 38px; line-height: 38px; margin-top: 0; }
+/* THE ONE COMPOSER, on Chat and on Today alike: "Add a photo" in front of the native input, the
+   field, the round send. It stays at the foot of the column while the thread scrolls under it. */
+.comp { margin-top: 14px; position: sticky; bottom: 0; background: var(--panel); padding: 10px 0 4px; }
+.comp-row { display: flex; align-items: center; gap: 8px; }
+.comp .add { flex: 0 0 auto; min-height: 44px; padding: 0 16px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line-strong); background: var(--raised); color: var(--text);
+  font: 700 13px var(--display); }
+.comp .fld { flex: 1 1 8rem; min-width: 0; font: inherit; padding: 11px 16px; border-radius: 999px;
+  border: 1px solid var(--line-strong); color: var(--text); background: var(--raised); }
+.comp .send { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 18px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; }
+.comp-note { display: flex; align-items: center; gap: 6px; }
+.comp-note .count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.card button { padding: 0 16px; height: 38px; border-radius: 999px; cursor: pointer; font: inherit;
+  font-weight: 700; color: var(--text); background: var(--raised); border: 1px solid var(--line);
+  margin: .5rem .5rem 0 0; }
+.card button.primary { background: var(--accent); color: var(--accent-ink); }
 input:disabled, button:disabled { opacity: .5; cursor: default; }
 /* The one-meal flow (#42) — the v5 boards, in the diary's place while the account has never
    logged: one centred column, the width a chat reads best at (styles_spec_v5_web). */
@@ -173,12 +234,12 @@ input:disabled, button:disabled { opacity: .5; cursor: default; }
 .ask { font-size: 21px; line-height: 1.25; font-weight: 800; letter-spacing: -.02em; }
 .step { display: flex; flex-direction: column; }
 .step .card input[type="text"], .step .card select { display: block; width: 100%; box-sizing: border-box;
-  font: inherit; padding: .55rem .8rem; border-radius: 12px; color: var(--text); background: var(--panel);
-  border: 0; margin: .4rem 0 0; }
+  font: inherit; padding: .55rem .8rem; border-radius: 999px; color: var(--text); background: var(--raised);
+  border: 1px solid var(--line); margin: .4rem 0 0; }
 .step .card .lab + .lab { margin-top: .9rem; }
 .step-foot { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
 .cta { display: flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 18px;
-  border: 0; border-radius: 15px; font: inherit; font-weight: 800; text-decoration: none; cursor: pointer; }
+  border: 0; border-radius: 999px; font: inherit; font-weight: 800; text-decoration: none; cursor: pointer; }
 .cta.p { background: var(--accent); color: var(--accent-ink); }
 .cta.s { background: var(--raised); color: var(--text); border: 1px solid var(--line); }
 .cta.g { background: none; color: var(--muted); min-height: 40px; }
@@ -206,9 +267,12 @@ input:disabled, button:disabled { opacity: .5; cursor: default; }
 .rowline { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
 .rowline + .rowline { border-top: 1px solid var(--line); }
 .rowline .when { font-weight: 700; }
-.plans { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
-.plan { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; color: var(--muted);
-  font-weight: 700; }
+/* The plan rows are real radios — the input is native, so the keyboard works without a shim. */
+.plans { padding-top: 4px; padding-bottom: 4px; margin-bottom: 14px; }
+.plan { display: flex; align-items: center; gap: 12px; padding: 12px 2px; font-weight: 700; cursor: pointer; }
+.plan input[type="radio"] { width: 20px; height: 20px; margin: 0; flex: 0 0 20px;
+  accent-color: var(--accent); cursor: pointer; }
+.hint { color: var(--muted); font-size: 13px; text-align: center; margin: 2px 0 0; }
 @media (max-width: 760px) { .flow { max-width: none; } }
 </style>
 </head>
@@ -330,6 +394,8 @@ export function createWebApp(options: WebAppOptions = {}) {
               `script-src 'nonce-${nonce}'`,
               `style-src 'nonce-${nonce}'`,
               "img-src 'self' data:",
+              // Space Grotesk comes off the backend's own /start/assets route — same origin here.
+              "font-src 'self'",
               "connect-src 'self'",
               "base-uri 'none'",
               // Nothing here posts a form. `/start` does, and it is a different document.

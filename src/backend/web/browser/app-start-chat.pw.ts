@@ -11,7 +11,7 @@ test("the old chat's address opens the web application's chat", async ({ inWebAp
   await page.goto("/start/chat");
   await expect(page).toHaveURL(/\/#\/chat$/);
   await expect(page.getByRole("link", { name: "Diary" })).toBeVisible();
-  await expect(page.getByPlaceholder("What did you eat?")).toBeVisible();
+  await expect(page.getByPlaceholder("Tell Spud what you ate, or ask anything")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your chat" })).toHaveCount(0);
 });
 

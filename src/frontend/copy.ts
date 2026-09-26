@@ -18,6 +18,8 @@ import type { Lang } from "../shared/types.ts";
 export interface WebCopy {
   navDiary: string;
   navChat: string;
+  /** The account's own screen: language and sign-out live there (#52). */
+  navYou: string;
   navAdmin: string;
   signOut: string;
   signedOutLead: string;
@@ -73,16 +75,18 @@ export interface WebCopy {
   sent: string;
   alreadyLogged: string;
   composerPlaceholder: string;
+  /** Today's composer — the same row, worded for the drop (#52). */
+  diaryPlaceholder: string;
   send: string;
+  /** The labelled button the native file input hides behind. */
+  addPhoto: string;
   photosOfOneMeal: string;
-  caption: string;
   sendPhoto: string;
   cancel: string;
   choosePhotoFirst: string;
   photoTooLarge: string;
   messageGone: string;
   messageNotEditable: string;
-  orPhotograph: string;
   mealGone: string;
   loading: string;
   somethingWrong: string;
@@ -140,8 +144,11 @@ export interface WebCopy {
   offerBeforeText: string;
   /** No `{price}`: the API sends this client no price, and inventing one is the defect. */
   offerDay8Text: string;
+  /** The radiogroup's name on the offer — one plan today, read by a screen reader (#52). */
+  offerPlans: string;
   offerPlanMonthly: string;
-  offerPlanLifetime: string;
+  /** Where the price lives — this client shows none; checkout owns it. */
+  offerCheckoutHint: string;
   startFreeWeek: string;
   offerLater: string;
   /** `{n}` — the photo bound off `ProfileResponse.limits`. */
@@ -155,6 +162,7 @@ export interface WebCopy {
 const EN: WebCopy = {
   navDiary: "Diary",
   navChat: "Chat",
+  navYou: "You",
   navAdmin: "Admin",
   signOut: "Sign out",
   signedOutLead: "Photograph a meal, get the numbers. Sign in to pick up your diary.",
@@ -187,17 +195,17 @@ const EN: WebCopy = {
   logRetry: "No answer came back. Press Log it again: it cannot log the meal twice.",
   sent: "Sent",
   alreadyLogged: "That one was already logged.",
-  composerPlaceholder: "What did you eat?",
+  composerPlaceholder: "Tell Spud what you ate, or ask anything",
+  diaryPlaceholder: "Tell Spud what you ate, or drop a photo",
   send: "Send",
+  addPhoto: "Add a photo",
   photosOfOneMeal: "Photos of one meal",
-  caption: "Anything I should know? (optional)",
   sendPhoto: "Send the photo",
   cancel: "Cancel",
   choosePhotoFirst: "Choose a photo first.",
   photoTooLarge: "That photo is too large to send.",
   messageGone: "That message is gone.",
   messageNotEditable: "That message cannot be edited.",
-  orPhotograph: "Or photograph it",
   mealGone: "A meal that is no longer logged",
   loading: "Loading…",
   somethingWrong: "Something went wrong. Try again.",
@@ -233,8 +241,9 @@ const EN: WebCopy = {
   offerTodayText: "Free for 7 days",
   offerBeforeText: "We remind you",
   offerDay8Text: "Then it's monthly · cancel any time",
+  offerPlans: "Your plan",
   offerPlanMonthly: "Monthly · 7 days free",
-  offerPlanLifetime: "Lifetime",
+  offerCheckoutHint: "Checkout opens on a secure page, with the price in your currency. Nothing is charged for 7 days.",
   startFreeWeek: "Start my free week",
   offerLater: "Not now",
   photosMax: "One meal takes up to {n} photos.",
@@ -262,7 +271,7 @@ const EN: WebCopy = {
 };
 
 const FR: WebCopy = {
-  navDiary: "Journal", navChat: "Chat", navAdmin: "Admin", signOut: "Se déconnecter",
+  navDiary: "Journal", navChat: "Chat", navYou: "Toi", navAdmin: "Admin", signOut: "Se déconnecter",
   signedOutLead: "Photographie un repas, reçois les chiffres. Connecte-toi pour retrouver ton journal.",
   signIn: "Se connecter", today: "Aujourd'hui",
   budgetLeft: "restantes", budgetOver: "au-dessus", budgetUnder: "en dessous",
@@ -286,15 +295,15 @@ const FR: WebCopy = {
   dropped: "Supprimé.",
   logRetry: "Aucune réponse. Appuie de nouveau sur Enregistrer : le repas ne peut pas être enregistré deux fois.",
   sent: "Envoyé", alreadyLogged: "Celui-là était déjà enregistré.",
-  composerPlaceholder: "Tu as mangé quoi ?", send: "Envoyer",
+  composerPlaceholder: "Dis à Spud ce que tu as mangé, ou demande-lui ce que tu veux",
+  diaryPlaceholder: "Dis à Spud ce que tu as mangé, ou dépose une photo", send: "Envoyer",
+  addPhoto: "Ajouter une photo",
   photosOfOneMeal: "Photos d'un seul repas",
-  caption: "Quelque chose que je devrais savoir ? (facultatif)",
   sendPhoto: "Envoyer la photo", cancel: "Annuler",
   choosePhotoFirst: "Choisis d'abord une photo.",
   photoTooLarge: "Cette photo est trop lourde à envoyer.",
   messageGone: "Ce message n'existe plus.",
   messageNotEditable: "Ce message ne peut pas être modifié.",
-  orPhotograph: "Ou photographie-le",
   mealGone: "Un repas qui n'est plus enregistré",
   loading: "Chargement…", somethingWrong: "Quelque chose a échoué. Réessaie.",
   connectTelegram: "Connecter Telegram", telegramFailed: "Pas de lien Telegram cette fois. Réessaie.",
@@ -327,8 +336,9 @@ const FR: WebCopy = {
   offerTodayText: "Gratuit pendant 7 jours",
   offerBeforeText: "On te le rappelle",
   offerDay8Text: "Ensuite au mois · résiliable à tout moment",
+  offerPlans: "Ta formule",
   offerPlanMonthly: "Mensuel · 7 jours gratuits",
-  offerPlanLifetime: "À vie",
+  offerCheckoutHint: "Le paiement s'ouvre sur une page sécurisée, au prix de ta monnaie. Rien n'est débité pendant 7 jours.",
   startFreeWeek: "Commencer ma semaine gratuite",
   offerLater: "Pas maintenant",
   photosMax: "Un repas prend jusqu'à {n} photos.",
@@ -356,7 +366,7 @@ const FR: WebCopy = {
 };
 
 const DE: WebCopy = {
-  navDiary: "Tagebuch", navChat: "Chat", navAdmin: "Admin", signOut: "Abmelden",
+  navDiary: "Tagebuch", navChat: "Chat", navYou: "Du", navAdmin: "Admin", signOut: "Abmelden",
   signedOutLead: "Fotografier eine Mahlzeit, bekomm die Zahlen. Melde dich an, um dein Tagebuch weiterzuführen.",
   signIn: "Anmelden", today: "Heute",
   budgetLeft: "übrig", budgetOver: "drüber", budgetUnder: "darunter",
@@ -380,15 +390,15 @@ const DE: WebCopy = {
   dropped: "Verworfen.",
   logRetry: "Es kam keine Antwort. Drück noch einmal auf Eintragen: die Mahlzeit kann dabei nicht doppelt eingetragen werden.",
   sent: "Gesendet", alreadyLogged: "Das war schon eingetragen.",
-  composerPlaceholder: "Was hast du gegessen?", send: "Senden",
+  composerPlaceholder: "Sag Spud, was du gegessen hast, oder frag, was du willst",
+  diaryPlaceholder: "Sag Spud, was du gegessen hast, oder leg ein Foto hier ab", send: "Senden",
+  addPhoto: "Foto hinzufügen",
   photosOfOneMeal: "Fotos einer Mahlzeit",
-  caption: "Soll ich noch etwas wissen? (optional)",
   sendPhoto: "Foto senden", cancel: "Abbrechen",
   choosePhotoFirst: "Wähl zuerst ein Foto.",
   photoTooLarge: "Dieses Foto ist zu groß zum Senden.",
   messageGone: "Diese Nachricht gibt es nicht mehr.",
   messageNotEditable: "Diese Nachricht lässt sich nicht bearbeiten.",
-  orPhotograph: "Oder fotografier es",
   mealGone: "Eine Mahlzeit, die nicht mehr eingetragen ist",
   loading: "Lädt…", somethingWrong: "Etwas ist schiefgegangen. Versuch es noch einmal.",
   connectTelegram: "Telegram verbinden", telegramFailed: "Diesmal kein Telegram-Link. Versuch es noch einmal.",
@@ -421,8 +431,9 @@ const DE: WebCopy = {
   offerTodayText: "7 Tage kostenlos",
   offerBeforeText: "Wir erinnern dich",
   offerDay8Text: "Danach monatlich · jederzeit kündbar",
+  offerPlans: "Dein Plan",
   offerPlanMonthly: "Monatlich · 7 Tage kostenlos",
-  offerPlanLifetime: "Lebenslang",
+  offerCheckoutHint: "Der Checkout öffnet eine gesicherte Seite mit dem Preis in deiner Währung. 7 Tage lang wird nichts abgebucht.",
   startFreeWeek: "Meine Gratiswoche starten",
   offerLater: "Jetzt nicht",
   photosMax: "Eine Mahlzeit nimmt bis zu {n} Fotos.",
@@ -450,7 +461,7 @@ const DE: WebCopy = {
 };
 
 const IT: WebCopy = {
-  navDiary: "Diario", navChat: "Chat", navAdmin: "Admin", signOut: "Esci",
+  navDiary: "Diario", navChat: "Chat", navYou: "Tu", navAdmin: "Admin", signOut: "Esci",
   signedOutLead: "Fotografa un pasto, ricevi i numeri. Accedi per riprendere il tuo diario.",
   signIn: "Accedi", today: "Oggi",
   budgetLeft: "rimaste", budgetOver: "sopra", budgetUnder: "sotto",
@@ -474,15 +485,15 @@ const IT: WebCopy = {
   dropped: "Scartato.",
   logRetry: "Non è arrivata risposta. Premi di nuovo Registra: il pasto non può essere registrato due volte.",
   sent: "Inviato", alreadyLogged: "Quello era già registrato.",
-  composerPlaceholder: "Cosa hai mangiato?", send: "Invia",
+  composerPlaceholder: "Di' a Spud cosa hai mangiato, o chiedigli quello che vuoi",
+  diaryPlaceholder: "Di' a Spud cosa hai mangiato, o trascina una foto", send: "Invia",
+  addPhoto: "Aggiungi una foto",
   photosOfOneMeal: "Foto di un solo pasto",
-  caption: "C'è qualcosa che dovrei sapere? (facoltativo)",
   sendPhoto: "Invia la foto", cancel: "Annulla",
   choosePhotoFirst: "Scegli prima una foto.",
   photoTooLarge: "Quella foto è troppo grande da inviare.",
   messageGone: "Quel messaggio non c'è più.",
   messageNotEditable: "Quel messaggio non si può modificare.",
-  orPhotograph: "Oppure fotografalo",
   mealGone: "Un pasto che non è più registrato",
   loading: "Caricamento…", somethingWrong: "Qualcosa è andato storto. Riprova.",
   connectTelegram: "Collega Telegram", telegramFailed: "Niente link Telegram stavolta. Riprova.",
@@ -515,8 +526,9 @@ const IT: WebCopy = {
   offerTodayText: "Gratis per 7 giorni",
   offerBeforeText: "Ti ricordiamo noi",
   offerDay8Text: "Poi è mensile · disdici quando vuoi",
+  offerPlans: "Il tuo piano",
   offerPlanMonthly: "Mensile · 7 giorni gratis",
-  offerPlanLifetime: "Per sempre",
+  offerCheckoutHint: "Il pagamento si apre su una pagina sicura, col prezzo nella tua valuta. Non viene addebitato niente per 7 giorni.",
   startFreeWeek: "Inizia la mia settimana gratis",
   offerLater: "Non ora",
   photosMax: "Un pasto accetta fino a {n} foto.",
@@ -544,7 +556,7 @@ const IT: WebCopy = {
 };
 
 const ES: WebCopy = {
-  navDiary: "Diario", navChat: "Chat", navAdmin: "Admin", signOut: "Cerrar sesión",
+  navDiary: "Diario", navChat: "Chat", navYou: "Tú", navAdmin: "Admin", signOut: "Cerrar sesión",
   signedOutLead: "Fotografía una comida, recibe los números. Entra para seguir con tu diario.",
   signIn: "Entrar", today: "Hoy",
   budgetLeft: "restantes", budgetOver: "por encima", budgetUnder: "por debajo",
@@ -568,15 +580,15 @@ const ES: WebCopy = {
   dropped: "Descartado.",
   logRetry: "No llegó respuesta. Pulsa Registrar otra vez: no puede registrar la comida dos veces.",
   sent: "Enviado", alreadyLogged: "Esa ya estaba registrada.",
-  composerPlaceholder: "¿Qué comiste?", send: "Enviar",
+  composerPlaceholder: "Dile a Spud qué comiste, o pregúntale lo que quieras",
+  diaryPlaceholder: "Dile a Spud qué comiste, o suelta una foto", send: "Enviar",
+  addPhoto: "Añadir una foto",
   photosOfOneMeal: "Fotos de una sola comida",
-  caption: "¿Algo que deba saber? (opcional)",
   sendPhoto: "Enviar la foto", cancel: "Cancelar",
   choosePhotoFirst: "Elige primero una foto.",
   photoTooLarge: "Esa foto es demasiado grande para enviarla.",
   messageGone: "Ese mensaje ya no está.",
   messageNotEditable: "Ese mensaje no se puede editar.",
-  orPhotograph: "O fotografíalo",
   mealGone: "Una comida que ya no está registrada",
   loading: "Cargando…", somethingWrong: "Algo salió mal. Inténtalo otra vez.",
   connectTelegram: "Conectar Telegram", telegramFailed: "Sin enlace de Telegram esta vez. Inténtalo otra vez.",
@@ -609,8 +621,9 @@ const ES: WebCopy = {
   offerTodayText: "Gratis 7 días",
   offerBeforeText: "Te lo recordamos",
   offerDay8Text: "Luego es mensual · cancela cuando quieras",
+  offerPlans: "Tu plan",
   offerPlanMonthly: "Mensual · 7 días gratis",
-  offerPlanLifetime: "De por vida",
+  offerCheckoutHint: "El pago se abre en una página segura, con el precio en tu moneda. No se cobra nada durante 7 días.",
   startFreeWeek: "Empezar mi semana gratis",
   offerLater: "Ahora no",
   photosMax: "Una comida admite hasta {n} fotos.",
@@ -638,7 +651,7 @@ const ES: WebCopy = {
 };
 
 const VI: WebCopy = {
-  navDiary: "Nhật ký", navChat: "Chat", navAdmin: "Quản trị", signOut: "Đăng xuất",
+  navDiary: "Nhật ký", navChat: "Chat", navYou: "Bạn", navAdmin: "Quản trị", signOut: "Đăng xuất",
   signedOutLead: "Chụp một bữa ăn, nhận các con số. Đăng nhập để tiếp tục nhật ký của bạn.",
   signIn: "Đăng nhập", today: "Hôm nay",
   budgetLeft: "còn lại", budgetOver: "vượt", budgetUnder: "thiếu",
@@ -662,15 +675,15 @@ const VI: WebCopy = {
   dropped: "Bỏ qua rồi.",
   logRetry: "Không có phản hồi. Bấm Ghi lại lần nữa: bữa ăn không thể bị ghi hai lần.",
   sent: "Đã gửi", alreadyLogged: "Cái đó đã được ghi rồi.",
-  composerPlaceholder: "Bạn đã ăn gì?", send: "Gửi",
+  composerPlaceholder: "Kể cho Spud bạn đã ăn gì, hoặc hỏi bất cứ điều gì",
+  diaryPlaceholder: "Kể cho Spud bạn đã ăn gì, hoặc thả một bức ảnh vào", send: "Gửi",
+  addPhoto: "Thêm ảnh",
   photosOfOneMeal: "Ảnh của cùng một bữa",
-  caption: "Có gì mình nên biết không? (không bắt buộc)",
   sendPhoto: "Gửi ảnh", cancel: "Huỷ",
   choosePhotoFirst: "Chọn một tấm ảnh trước đã.",
   photoTooLarge: "Ảnh đó lớn quá, không gửi được.",
   messageGone: "Tin nhắn đó không còn nữa.",
   messageNotEditable: "Tin nhắn đó không sửa được.",
-  orPhotograph: "Hoặc chụp ảnh nó",
   mealGone: "Một bữa ăn không còn được ghi nữa",
   loading: "Đang tải…", somethingWrong: "Có gì đó trục trặc. Thử lại nhé.",
   connectTelegram: "Kết nối Telegram", telegramFailed: "Lần này chưa có liên kết Telegram. Thử lại nhé.",
@@ -703,8 +716,9 @@ const VI: WebCopy = {
   offerTodayText: "Miễn phí 7 ngày",
   offerBeforeText: "Bọn mình nhắc bạn",
   offerDay8Text: "Sau đó tính theo tháng · huỷ bất cứ lúc nào",
+  offerPlans: "Gói của bạn",
   offerPlanMonthly: "Theo tháng · 7 ngày miễn phí",
-  offerPlanLifetime: "Trọn đời",
+  offerCheckoutHint: "Thanh toán mở ra trên một trang bảo mật, với giá theo tiền tệ của bạn. Không trừ tiền trong 7 ngày.",
   startFreeWeek: "Bắt đầu tuần miễn phí của tôi",
   offerLater: "Để sau",
   photosMax: "Một bữa ăn nhận tối đa {n} ảnh.",
@@ -732,7 +746,7 @@ const VI: WebCopy = {
 };
 
 const ID: WebCopy = {
-  navDiary: "Buku harian", navChat: "Chat", navAdmin: "Admin", signOut: "Keluar",
+  navDiary: "Buku harian", navChat: "Chat", navYou: "Kamu", navAdmin: "Admin", signOut: "Keluar",
   signedOutLead: "Foto sebuah makanan, dapat angkanya. Masuk untuk melanjutkan buku harianmu.",
   signIn: "Masuk", today: "Hari ini",
   budgetLeft: "tersisa", budgetOver: "lebih", budgetUnder: "kurang",
@@ -756,15 +770,15 @@ const ID: WebCopy = {
   dropped: "Dibatalkan.",
   logRetry: "Tidak ada jawaban. Tekan Catat sekali lagi: makanannya tidak bisa tercatat dua kali.",
   sent: "Terkirim", alreadyLogged: "Yang itu sudah tercatat.",
-  composerPlaceholder: "Kamu makan apa?", send: "Kirim",
+  composerPlaceholder: "Beri tahu Spud apa yang kamu makan, atau tanya apa saja",
+  diaryPlaceholder: "Beri tahu Spud apa yang kamu makan, atau taruh foto di sini", send: "Kirim",
+  addPhoto: "Tambahkan foto",
   photosOfOneMeal: "Foto dari satu makanan",
-  caption: "Ada yang perlu aku tahu? (opsional)",
   sendPhoto: "Kirim fotonya", cancel: "Batal",
   choosePhotoFirst: "Pilih fotonya dulu.",
   photoTooLarge: "Foto itu terlalu besar untuk dikirim.",
   messageGone: "Pesan itu sudah tidak ada.",
   messageNotEditable: "Pesan itu tidak bisa diubah.",
-  orPhotograph: "Atau foto saja",
   mealGone: "Makanan yang sudah tidak tercatat lagi",
   loading: "Memuat…", somethingWrong: "Ada yang salah. Coba lagi.",
   connectTelegram: "Hubungkan Telegram", telegramFailed: "Tautan Telegram belum jadi kali ini. Coba lagi.",
@@ -797,8 +811,9 @@ const ID: WebCopy = {
   offerTodayText: "Gratis 7 hari",
   offerBeforeText: "Kami ingatkan kamu",
   offerDay8Text: "Lalu bulanan · bisa batal kapan saja",
+  offerPlans: "Paketmu",
   offerPlanMonthly: "Bulanan · 7 hari gratis",
-  offerPlanLifetime: "Seumur hidup",
+  offerCheckoutHint: "Pembayaran terbuka di halaman aman, dengan harga dalam mata uangmu. Tidak ada tagihan selama 7 hari.",
   startFreeWeek: "Mulai minggu gratisku",
   offerLater: "Nanti saja",
   photosMax: "Satu makanan bisa berisi sampai {n} foto.",
@@ -826,7 +841,7 @@ const ID: WebCopy = {
 };
 
 const RU: WebCopy = {
-  navDiary: "Дневник", navChat: "Чат", navAdmin: "Админка", signOut: "Выйти",
+  navDiary: "Дневник", navChat: "Чат", navYou: "Ты", navAdmin: "Админка", signOut: "Выйти",
   signedOutLead: "Сфотографируй еду — получи цифры. Войди, чтобы продолжить свой дневник.",
   signIn: "Войти", today: "Сегодня",
   budgetLeft: "осталось", budgetOver: "сверх", budgetUnder: "ниже",
@@ -850,15 +865,15 @@ const RU: WebCopy = {
   dropped: "Убрал.",
   logRetry: "Ответа не пришло. Нажми «Записать» ещё раз: дважды записать приём пищи не получится.",
   sent: "Отправлено", alreadyLogged: "Это уже было записано.",
-  composerPlaceholder: "Что было на тарелке?", send: "Отправить",
+  composerPlaceholder: "Расскажи Spud, что было на тарелке, или спроси о чём угодно",
+  diaryPlaceholder: "Расскажи Spud, что было на тарелке, или перетащи фото", send: "Отправить",
+  addPhoto: "Добавить фото",
   photosOfOneMeal: "Фотографии одного приёма пищи",
-  caption: "Есть что-то, что мне стоит знать? (необязательно)",
   sendPhoto: "Отправить фото", cancel: "Отмена",
   choosePhotoFirst: "Сначала выбери фото.",
   photoTooLarge: "Это фото слишком большое для отправки.",
   messageGone: "Этого сообщения больше нет.",
   messageNotEditable: "Это сообщение нельзя изменить.",
-  orPhotograph: "Или сфотографируй",
   mealGone: "Приём пищи, которого больше нет в дневнике",
   loading: "Загрузка…", somethingWrong: "Что-то пошло не так. Попробуй ещё раз.",
   connectTelegram: "Подключить Telegram", telegramFailed: "В этот раз ссылка на Telegram не вышла. Попробуй ещё раз.",
@@ -891,8 +906,9 @@ const RU: WebCopy = {
   offerTodayText: "Бесплатно 7 дней",
   offerBeforeText: "Мы напомним",
   offerDay8Text: "Дальше помесячно · отменить можно в любой момент",
+  offerPlans: "Твой план",
   offerPlanMonthly: "Помесячно · 7 дней бесплатно",
-  offerPlanLifetime: "Навсегда",
+  offerCheckoutHint: "Оплата откроется на защищённой странице с ценой в твоей валюте. 7 дней ничего не списывается.",
   startFreeWeek: "Начать бесплатную неделю",
   offerLater: "Не сейчас",
   photosMax: "К одному приёму пищи можно приложить до {n} фото.",
