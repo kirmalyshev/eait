@@ -2530,7 +2530,7 @@
                 "type": "null"
               }
             ],
-            "description": "Who answered. A coach turn is Gabie's, fallback included; absent or null is Spud."
+            "description": "Legacy only (#49): absent on every answer now. Absent or null is Spud."
           },
           "suggestions": {
             "type": "array",
@@ -3014,7 +3014,7 @@
       "ChatSpeaker": {
         "type": "string",
         "const": "gabie",
-        "description": "Who said an assistant line. Absent is Spud, the host; `gabie` is the nutritionist, and only a coach answer carries it."
+        "description": "LEGACY (#49): a stored line from when the nutritionist persona answered. Nothing produces it any more; every assistant line is Spud's, and `speakerOf` reads this one as his too."
       },
       "ConfirmMealResult": {
         "anyOf": [

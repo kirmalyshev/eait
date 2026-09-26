@@ -207,7 +207,7 @@ export function telegramHandlers(deps: EngineDeps) {
       const r = await handleText(deps, userId, { text });
       switch (r.kind) {
         case "answered":
-          return chat.send(r.speaker === "gabie" ? `Gabie: ${r.text}` : r.text);
+          return chat.send(r.text);
         case "proposed": {
           // A SECOND TEMPLATE, not a substring surgery on the first. The old line spliced " for
           // <date>" in front of an em dash, which is a claim about where a date goes in an English

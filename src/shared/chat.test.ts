@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { catalogArgs } from "./i18n.ts";
-import { LANGS } from "./types.ts";
+import { LANGS, type Lang } from "./types.ts";
 import { threadCopyFor } from "./chat-copy.ts";
-import { COACH_STARTERS, MAX_SUGGESTION, MEET_GABIE, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, cleanSuggestions, correctionLine, firstVerdictLines, isScriptedLineId, runningLine, scriptedLine, scriptedParams } from "./chat.ts";
+import { COACH_STARTERS, MAX_SUGGESTION, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, cleanSuggestions, correctionLine, firstVerdictLines, isScriptedLineId, verdictHeadline, runningLine, scriptedLine, scriptedParams } from "./chat.ts";
 
 describe("scripted lines", () => {
   it("fills parameters and leaves nothing unfilled", () => {
@@ -56,23 +56,22 @@ describe("the first verdict", () => {
     const lines = firstVerdictLines({
       goal: "lose", targets, meal, eatenToday: { kcal: 612, protein_g: 38 }, via: "photo", verdicts: {},
     }, "en");
-    expect(lines[0]).toBe("First one in. 612 kcal — that leaves 842 of your 1,454 for the rest of today, and 38 of the 110 g protein. On plan.");
+    // #49: the headline comes first, and it is the pills' verdict said in words — no pill, no
+    // claim; the arithmetic after it states the day and passes no judgement of its own.
+    expect(lines[0]).toBe("First one in. 612 kcal — that leaves 842 of your 1,454 for the rest of today, and 38 of the 110 g protein.");
     expect(lines[1]).toContain("If anything's off, say so");
-    expect(lines[2]).toBe(MEET_GABIE("en"));
-    expect(lines).toHaveLength(3);
+    expect(lines).toHaveLength(2);
   });
 
-  it("introduces Gabie last, on every branch, because the first verdict is the one line spoken once", () => {
-    const base = { targets, meal, eatenToday: { kcal: 612, protein_g: 38 }, verdicts: {} } as const;
-    for (const lines of [
-      firstVerdictLines({ ...base, goal: "lose", via: "photo" }, "en"),
-      firstVerdictLines({ ...base, goal: "gain", via: "photo" }, "en"),
-      firstVerdictLines({ ...base, goal: "lose", via: "text" }, "en"),
-      firstVerdictLines({ ...base, goal: "lose", via: "photo", meal: { ...meal, confidence: "low" } }, "en"),
-    ]) expect(lines[lines.length - 1]).toBe(MEET_GABIE("en"));
-    expect(MEET_GABIE("en")).toContain("Gabie");
-    // Spud's voice, still: he does not cheer her either.
-    expect(MEET_GABIE("en")).not.toMatch(/!/);
+  // #49, principal 2026-09-26: Spud only. He logs and he answers; nobody is introduced.
+  it("introduces nobody, on any branch", () => {
+    const base = { targets, meal, eatenToday: { kcal: 612, protein_g: 38 }, verdicts: { weight: "good" } } as const;
+    for (const lang of LANGS) for (const lines of [
+      firstVerdictLines({ ...base, goal: "lose", via: "photo" }, lang),
+      firstVerdictLines({ ...base, goal: "gain", via: "photo" }, lang),
+      firstVerdictLines({ ...base, goal: "lose", via: "text" }, lang),
+      firstVerdictLines({ ...base, goal: "lose", via: "photo", meal: { ...meal, confidence: "low" } }, lang),
+    ]) for (const line of lines) expect(line).not.toMatch(/gabie/i);
   });
 
   it("says how far over the day is, as a number with a direction — never a bare negative", () => {
@@ -122,7 +121,7 @@ describe("the first verdict", () => {
     }, "en");
     expect(lines[0]).toBe("Honest answer: I couldn't read that plate well. Take 480 as a rough guess and check the grams before you trust the total. A second angle next time helps.");
     expect(lines[1]).toBe("Even rough, it counts: about 974 of your 1,454 left today.");
-    expect(lines).toHaveLength(3);
+    expect(lines).toHaveLength(2);
     // Rule 1 holds on this branch too: a gain plan is filled, not left.
     const gain = firstVerdictLines({
       goal: "gain", targets: { kcal: 2900, protein_g: 150 }, meal: { ...meal, kcal: 480, confidence: "low" }, eatenToday: { kcal: 480, protein_g: 21 }, via: "photo", verdicts: {},
@@ -147,7 +146,7 @@ describe("the first verdict", () => {
       goal: "lose", targets, meal: { ...meal, kcal: 540 }, eatenToday: { kcal: 540, protein_g: 30 }, via: "text", verdicts: {},
     }, "en");
     expect(lines[0]).toBe("Typed, not photographed — so the portions are my guess. Take 540 as rough; if you know the grams, say so and I'll fix it.");
-    expect(lines[1]).toBe("That leaves 914 of your 1,454 for the rest of today, and 30 of the 110 g protein. On plan.");
+    expect(lines[1]).toBe("That leaves 914 of your 1,454 for the rest of today, and 30 of the 110 g protein.");
     const gain = firstVerdictLines({
       goal: "gain", targets: { kcal: 2900, protein_g: 150 }, meal: { ...meal, kcal: 612 }, eatenToday: { kcal: 612, protein_g: 38 }, via: "text", verdicts: {},
     }, "en");
@@ -176,10 +175,10 @@ describe("the first verdict", () => {
 
   it("mentions sodium or saturated fat only when the user asked for it, and only when it ran high", () => {
     const base = { goal: "lose" as const, targets, meal, eatenToday: { kcal: 612, protein_g: 38 }, via: "photo" as const };
-    // Before the introduction, which stays last on every branch.
-    expect(firstVerdictLines({ ...base, verdicts: { kidneys: "warn" } }, "en").at(-2)).toBe("Sodium runs high on this one. Scored only because you asked me to.");
-    expect(firstVerdictLines({ ...base, verdicts: { ldl: "bad" } }, "en").at(-2)).toBe("Saturated fat runs high on this one. Scored only because you asked me to.");
-    expect(firstVerdictLines({ ...base, verdicts: { kidneys: "good" } }, "en")).toHaveLength(3);
+    // Last, now that nobody is introduced after them (#49).
+    expect(firstVerdictLines({ ...base, verdicts: { kidneys: "warn" } }, "en").at(-1)).toBe("Sodium runs high on this one. Scored only because you asked me to.");
+    expect(firstVerdictLines({ ...base, verdicts: { ldl: "bad" } }, "en").at(-1)).toBe("Saturated fat runs high on this one. Scored only because you asked me to.");
+    expect(firstVerdictLines({ ...base, verdicts: { kidneys: "good" } }, "en")).toHaveLength(2);
   });
 });
 
@@ -201,5 +200,57 @@ describe("coach", () => {
     expect(cleanSuggestions(["a\n\nb"])).toEqual(["a b"]);
     // A replayed note is not a thing anybody sends.
     expect(cleanSuggestions(["[photo]", "[logged: eggs — 155 kcal]", "And yesterday?"])).toEqual(["And yesterday?"]);
+  });
+});
+
+// #49: the first verdict contradicted itself — "On plan." in the sentence over "Calories high" on
+// the pill. The headline is now the pills' own verdict in words, and the first line spoken.
+describe("the first verdict's headline", () => {
+  const targets = { kcal: 1643, protein_g: 109 };
+  const meal = { kcal: 584, protein_g: 37, satfat_g: 6, sodium_mg: 600, confidence: "high" };
+  const said = (verdicts: Record<string, string>, lang: Lang = "en") => firstVerdictLines({
+    goal: "lose", targets, meal, eatenToday: { kcal: 584, protein_g: 37 }, via: "photo", verdicts: verdicts as never,
+  }, lang);
+
+  it("says 'On plan.' only when every pill on the card is on plan", () => {
+    expect(said({ weight: "good" })[0]).toBe("On plan.");
+    expect(said({ weight: "good", ldl: "good" })[0]).toBe("On plan.");
+  });
+
+  it("never says 'On plan' over a calories pill that is high, in any language", () => {
+    for (const lang of LANGS) {
+      const onPlan = said({ weight: "good" }, lang)[0]!;
+      for (const v of ["warn", "bad"]) {
+        const lines = said({ weight: v }, lang);
+        expect(lines[0]).not.toBe(onPlan);
+        for (const line of lines) expect(line).not.toContain(onPlan);
+      }
+    }
+    expect(said({ weight: "warn" })[0]).toBe("A big share of your day in one meal.");
+    expect(said({ weight: "bad" })[0]).toBe("More than half your day in one meal.");
+  });
+
+  it("says calories are on plan, and no more, when a declared marker ran high", () => {
+    const lines = said({ weight: "good", ldl: "warn" });
+    expect(lines[0]).toBe("Calories on plan.");
+    expect(lines).toContain("Saturated fat runs high on this one. Scored only because you asked me to.");
+  });
+
+  it("claims nothing when there is no calories pill to back it", () => {
+    expect(said({})[0]).toStartWith("First one in.");
+  });
+});
+
+describe("verdictHeadline", () => {
+  it("is the first verdict's own first line, so a re-rendered card says what the thread said", () => {
+    const targets = { kcal: 1643, protein_g: 109 };
+    const meal = { kcal: 584, protein_g: 37, satfat_g: 6, sodium_mg: 600, confidence: "high" };
+    for (const verdicts of [{ weight: "good" }, { weight: "warn" }, { weight: "bad" }, { weight: "good", ldl: "bad" }] as const) {
+      for (const lang of LANGS) {
+        const lines = firstVerdictLines({ goal: "lose", targets, meal, eatenToday: { kcal: 584, protein_g: 37 }, via: "photo", verdicts }, lang);
+        expect(lines[0]).toBe(verdictHeadline(verdicts, lang)!);
+      }
+    }
+    expect(verdictHeadline({}, "en")).toBeNull();
   });
 });

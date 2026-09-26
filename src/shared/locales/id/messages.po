@@ -65,6 +65,11 @@ msgstr "Hari ini {over} di atas {plan}, dan {protein} dari {proteinTarget} g pro
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesHigh"
+msgstr "Porsi besar dari harimu dalam satu makan."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.coachStarters.2"
 msgstr "Proteinku sudah cukup belum?"
 
@@ -77,6 +82,11 @@ msgstr "Jawab dulu pertanyaan rencananya di web."
 #: src/shared/verdicts.ts
 msgid "verdict.noun.weight"
 msgstr "Kalori"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesOnPlan"
+msgstr "Kalori sesuai rencana."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -199,6 +209,11 @@ msgid "tg.meal"
 msgstr "Makanan"
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesVeryHigh"
+msgstr "Lebih dari separuh harimu dalam satu makan."
+
+#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.moved"
 msgstr "Dipindahkan."
@@ -234,6 +249,11 @@ msgid "tg.todayEmpty"
 msgstr "Hari ini belum ada yang dicatat."
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.onPlan"
+msgstr "Sesuai rencana."
+
+#. js-lingui-explicit-id
 #: src/backend/mail/port.ts
 msgid "mail.confirm.promise"
 msgstr "Satu pesan saat aplikasinya rilis, dengan tautan berhenti berlangganan sekali klik. Selain itu tidak pernah ada."
@@ -252,11 +272,6 @@ msgstr "Satu hal dulu: iOS akan minta izin kamera. Aku memakainya untuk piringny
 #: src/backend/telegram/copy.ts
 msgid "tg.macro.protein"
 msgstr "Protein"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.meetGabie"
-msgstr "Pertanyaan diarahkan ke Gabie, ahli gizi di sini — malam ini makan apa, minggu ini bagaimana. Chat yang sama; dia membaca buku harianmu sebelum menjawab. Aku mencatat, dia memberi saran."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -286,7 +301,7 @@ msgstr "Lemak jenuh makanan ini tinggi. Dinilai hanya karena kamu memintanya."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
-msgstr "Kirim foto makanan, ceritakan apa yang kamu makan, atau tanya sesuatu ke Gabie."
+msgstr "Kirim foto makanan, ceritakan apa yang kamu makan, atau tanya aku sesuatu."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -336,12 +351,12 @@ msgstr "Berkas itu bukan foto yang bisa dibaca di sini. JPEG, PNG atau WebP."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmetic.otherLeft"
-msgstr "jadi tersisa {left} dari {plan} untuk sisa hari ini, dan {protein} dari {proteinTarget} g protein. Sesuai rencana."
+msgstr "jadi tersisa {left} dari {plan} untuk sisa hari ini, dan {protein} dari {proteinTarget} g protein."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-msgstr "Jadi tersisa {left} dari {plan} untuk sisa hari ini, dan {protein} dari {proteinTarget} g protein. Sesuai rencana."
+msgstr "Jadi tersisa {left} dari {plan} untuk sisa hari ini, dan {protein} dari {proteinTarget} g protein."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

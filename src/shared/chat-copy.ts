@@ -68,7 +68,6 @@ export type ArithmeticCopy = Record<
 export interface ThreadCopy {
   /** Keyed by `ScriptedLineId`. `{price}` on `trial-started` is the one parameter any of them takes. */
   scripted: Record<ScriptedLineId, (v?: Record<string, string>) => string>;
-  meetGabie: string;
   coachStarters: string[];
   /**
    * WHOLE SENTENCES, never fragments joined by code.
@@ -97,6 +96,12 @@ export interface ThreadCopy {
     lowLeftOther: (v: Figures) => string;
     firstIn: (v: { kcal: string; arithmetic: string }) => string;
     fixHint: string;
+    /**
+     * THE HEADLINE (#49): the pills' verdict in words, spoken first. `onPlan` only when every pill
+     * is on plan, `caloriesOnPlan` when the calories are and a declared marker is not (its own
+     * line follows), and the two share-of-day sentences for a calories pill that is high.
+     */
+    headline: { onPlan: string; caloriesOnPlan: string; caloriesHigh: string; caloriesVeryHigh: string };
     sodium: string;
     satfat: string;
     /** The camera caption, quoted back. */
@@ -118,7 +123,6 @@ const THREAD = (i18n: I18n): ThreadCopy => ({
     "onboarding-done": (v) => i18n._("thread.scripted.onboarding-done", v, { message: "Good — that's onboarding done, and the first day started. One more thing before you go, and it's the only time I'll ask." }),
     "dropped": (v) => i18n._("thread.scripted.dropped", v, { message: "Dropped it." }),
   },
-  meetGabie: i18n._("thread.meetGabie", undefined, { message: "Questions go to Gabie, the nutritionist here — what to eat tonight, how the week's going. Same chat; she reads your diary before she answers. I log, she advises." }),
   coachStarters: [
     i18n._("thread.coachStarters.0", undefined, { message: "How's my week going?" }),
     i18n._("thread.coachStarters.1", undefined, { message: "What should I eat tonight?" }),
@@ -133,13 +137,13 @@ const THREAD = (i18n: I18n): ThreadCopy => ({
     arithmetic: {
       gainLeft: (v: Figures) => i18n._("thread.firstVerdict.arithmetic.gainLeft", v, { message: "{left} of your {plan} still to fill today, and {protein} of the {proteinTarget} g protein. Keep going." }),
       gainOver: (v: Figures) => i18n._("thread.firstVerdict.arithmetic.gainOver", v, { message: "{over} over your {plan} today, and {protein} of the {proteinTarget} g protein. Past it is the point on a gain plan; tomorrow is a fresh number." }),
-      otherLeft: (v: Figures) => i18n._("thread.firstVerdict.arithmetic.otherLeft", v, { message: "that leaves {left} of your {plan} for the rest of today, and {protein} of the {proteinTarget} g protein. On plan." }),
+      otherLeft: (v: Figures) => i18n._("thread.firstVerdict.arithmetic.otherLeft", v, { message: "that leaves {left} of your {plan} for the rest of today, and {protein} of the {proteinTarget} g protein." }),
       otherOver: (v: Figures) => i18n._("thread.firstVerdict.arithmetic.otherOver", v, { message: "that puts you {over} over your {plan} for today, and {protein} of the {proteinTarget} g protein. Tomorrow is a fresh number." }),
     },
     arithmeticAlone: {
       gainLeft: (v: Figures) => i18n._("thread.firstVerdict.arithmeticAlone.gainLeft", v, { message: "{left} of your {plan} still to fill today, and {protein} of the {proteinTarget} g protein. Keep going." }),
       gainOver: (v: Figures) => i18n._("thread.firstVerdict.arithmeticAlone.gainOver", v, { message: "{over} over your {plan} today, and {protein} of the {proteinTarget} g protein. Past it is the point on a gain plan; tomorrow is a fresh number." }),
-      otherLeft: (v: Figures) => i18n._("thread.firstVerdict.arithmeticAlone.otherLeft", v, { message: "That leaves {left} of your {plan} for the rest of today, and {protein} of the {proteinTarget} g protein. On plan." }),
+      otherLeft: (v: Figures) => i18n._("thread.firstVerdict.arithmeticAlone.otherLeft", v, { message: "That leaves {left} of your {plan} for the rest of today, and {protein} of the {proteinTarget} g protein." }),
       otherOver: (v: Figures) => i18n._("thread.firstVerdict.arithmeticAlone.otherOver", v, { message: "That puts you {over} over your {plan} for today, and {protein} of the {proteinTarget} g protein. Tomorrow is a fresh number." }),
     },
     typed: (v: { kcal: string }) => i18n._("thread.firstVerdict.typed", v, { message: "Typed, not photographed — so the portions are my guess. Take {kcal} as rough; if you know the grams, say so and I'll fix it." }),
@@ -150,6 +154,12 @@ const THREAD = (i18n: I18n): ThreadCopy => ({
     lowLeftOther: (v: Figures) => i18n._("thread.firstVerdict.lowLeftOther", v, { message: "Even rough, it counts: about {left} of your {plan} left today." }),
     firstIn: (v: { kcal: string; arithmetic: string }) => i18n._("thread.firstVerdict.firstIn", v, { message: "First one in. {kcal} kcal — {arithmetic}" }),
     fixHint: i18n._("thread.firstVerdict.fixHint", undefined, { message: "If anything's off, say so — \"half the rice\", \"no avocado\" — or tap the card and change the grams." }),
+    headline: {
+      onPlan: i18n._("thread.firstVerdict.headline.onPlan", undefined, { message: "On plan." }),
+      caloriesOnPlan: i18n._("thread.firstVerdict.headline.caloriesOnPlan", undefined, { message: "Calories on plan." }),
+      caloriesHigh: i18n._("thread.firstVerdict.headline.caloriesHigh", undefined, { message: "A big share of your day in one meal." }),
+      caloriesVeryHigh: i18n._("thread.firstVerdict.headline.caloriesVeryHigh", undefined, { message: "More than half your day in one meal." }),
+    },
     sodium: i18n._("thread.firstVerdict.sodium", undefined, { message: "Sodium runs high on this one. Scored only because you asked me to." }),
     satfat: i18n._("thread.firstVerdict.satfat", undefined, { message: "Saturated fat runs high on this one. Scored only because you asked me to." }),
     noted: (v: { note: string }) => i18n._("thread.firstVerdict.noted", v, { message: "“{note}” — noted, it's in the numbers." }),

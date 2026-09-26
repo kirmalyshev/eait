@@ -436,16 +436,18 @@ describe("chat and editing", () => {
     expect((await get(ROUTES.messages)).status).toBe(401);
   });
 
-  it("says who answered on the wire: Gabie on a question, Spud on his lines, and never what a client claims", async () => {
+  it("keeps the wire speaker-free: an answer is Spud's like every line of his, and never what a client claims", async () => {
     const token = await session();
     const asked = await (await post(ROUTES.messages, { text: "how's my week going?" }, token)).json() as { kind: string; speaker?: string };
-    expect(asked).toMatchObject({ kind: "answered", speaker: "gabie" });
-    // A scripted line is Spud's even when the client tries to sign it as hers.
+    // #49: nobody is named — Spud answers now, so a question comes back unsigned like his other lines.
+    expect(asked).toMatchObject({ kind: "answered" });
+    expect(asked.speaker ?? null).toBeNull();
+    // A scripted line is Spud's even when the client tries to sign it as somebody else's.
     const forged = await post(ROUTES.messagesLines, { lines: [{ role: "assistant", scripted: "camera-closed", speaker: "gabie" }] }, token);
     expect(forged.status).toBe(200);
     const { entries } = await (await get(ROUTES.messages, token)).json() as { entries: { role: string; kind: string; speaker?: string | null }[] };
     expect(entries.map((e) => [e.role, e.kind, e.speaker])).toEqual([
-      ["user", "text", undefined], ["assistant", "text", "gabie"], ["assistant", "text", null],
+      ["user", "text", undefined], ["assistant", "text", null], ["assistant", "text", null],
     ]);
   });
 

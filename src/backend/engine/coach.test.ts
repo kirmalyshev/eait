@@ -69,13 +69,14 @@ describe("the coach turn", () => {
     const d = makeDeps(llm);
     const userId = await onboard();
     const res = await handleText(d, userId, { text: "how much protein have I had?" });
-    expect(res).toEqual({ kind: "answered", text: "Here is the answer.", suggestions: ["And protein?"], speaker: "gabie" });
+    // #49: an answer is Spud's like every other line of his — nothing carries a speaker any more.
+    expect(res).toEqual({ kind: "answered", text: "Here is the answer.", suggestions: ["And protein?"] });
     expect(seen).toHaveLength(1);
     const lines = (await store.chatBefore(userId, null, 10)).reverse();
     expect(lines.map((l) => [l.role, l.text, l.speaker])).toEqual([
-      ["user", "how much protein have I had?", null], ["assistant", "Here is the answer.", "gabie"],
+      ["user", "how much protein have I had?", null], ["assistant", "Here is the answer.", null],
     ]);
-    expect((await chatHistory(d, userId, {})).entries.at(-1)).toMatchObject({ kind: "text", speaker: "gabie" });
+    expect((await chatHistory(d, userId, {})).entries.at(-1)).toMatchObject({ kind: "text", speaker: null });
   });
 
   it("hands the coach the plan, the day, the week, the focus meal and the clock", async () => {
@@ -146,12 +147,12 @@ describe("the coach turn", () => {
     if (res.kind === "answered") {
       expect(res.text).toContain("Demo answer");
       expect(res.suggestions).toBeUndefined();
-      // The question was asked of Gabie, so the answer is hers even when the coach is down.
-      expect(res.speaker).toBe("gabie");
+      // The question was Spud's to answer, so the router's sentence is his too — no speaker.
+      expect(res.speaker ?? null).toBeNull();
     }
     const lines = await store.chatBefore(userId, null, 10);
     expect(lines).toHaveLength(2);
-    expect(lines[0]!.speaker).toBe("gabie");
+    expect(lines[0]!.speaker).toBeNull();
   });
 
   it("refuses as analysis-failed when the coach fails and the router had nothing to say either", async () => {

@@ -65,6 +65,11 @@ msgstr "{over} over your {plan} today, and {protein} of the {proteinTarget} g pr
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesHigh"
+msgstr "A big share of your day in one meal."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.coachStarters.2"
 msgstr "Am I getting enough protein?"
 
@@ -77,6 +82,11 @@ msgstr "Answer the plan questions on the web first."
 #: src/shared/verdicts.ts
 msgid "verdict.noun.weight"
 msgstr "Calories"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesOnPlan"
+msgstr "Calories on plan."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -199,6 +209,11 @@ msgid "tg.meal"
 msgstr "Meal"
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesVeryHigh"
+msgstr "More than half your day in one meal."
+
+#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.moved"
 msgstr "Moved."
@@ -234,6 +249,11 @@ msgid "tg.todayEmpty"
 msgstr "Nothing logged today yet."
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.onPlan"
+msgstr "On plan."
+
+#. js-lingui-explicit-id
 #: src/backend/mail/port.ts
 msgid "mail.confirm.promise"
 msgstr "One message when the app is out, with a one-click unsubscribe in it. Nothing else, ever."
@@ -252,11 +272,6 @@ msgstr "One thing first: iOS will ask for the camera. I use it for the plate and
 #: src/backend/telegram/copy.ts
 msgid "tg.macro.protein"
 msgstr "Protein"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.meetGabie"
-msgstr "Questions go to Gabie, the nutritionist here — what to eat tonight, how the week's going. Same chat; she reads your diary before she answers. I log, she advises."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -286,7 +301,7 @@ msgstr "Saturated fat runs high on this one. Scored only because you asked me to
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
-msgstr "Send a photo of a meal, tell me what you ate, or ask Gabie a question."
+msgstr "Send a photo of a meal, tell me what you ate, or ask me a question."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -336,12 +351,12 @@ msgstr "That file is not a photo this can read. JPEG, PNG or WebP."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmetic.otherLeft"
-msgstr "that leaves {left} of your {plan} for the rest of today, and {protein} of the {proteinTarget} g protein. On plan."
+msgstr "that leaves {left} of your {plan} for the rest of today, and {protein} of the {proteinTarget} g protein."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-msgstr "That leaves {left} of your {plan} for the rest of today, and {protein} of the {proteinTarget} g protein. On plan."
+msgstr "That leaves {left} of your {plan} for the rest of today, and {protein} of the {proteinTarget} g protein."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

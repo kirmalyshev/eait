@@ -221,12 +221,14 @@ describe("/start with a code", () => {
 });
 
 describe("text", () => {
-  it("answers a question as Gabie, by name", async () => {
+  it("answers a question as Spud, naming nobody", async () => {
     const { from } = await linked();
     const chat = fakeChat();
     await h.text(from, "how much protein have I had today?", chat);
     expect(chat.sent).toHaveLength(1);
-    expect(chat.sent[0]!.text).toStartWith("Gabie: ");
+    // #49: the answer goes out as the one voice there is — no "Name: " prefix, no Gabie anywhere.
+    expect(chat.sent[0]!.text).not.toContain("Gabie");
+    expect(chat.sent[0]!.text).toContain("(Demo answer.)");
     expect(chat.sent[0]!.buttons).toBeUndefined();
   });
 

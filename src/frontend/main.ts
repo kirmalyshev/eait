@@ -22,6 +22,7 @@ import { outcomeUnknown } from "../shared/results.ts";
 import { dayBudget } from "../shared/budget.ts";
 import { renderableVerdicts, verdictMood } from "../shared/types.ts";
 import { verdictPillLabel } from "../shared/verdicts.ts";
+import { verdictHeadline } from "../shared/chat.ts";
 import { spudSvg, type MascotMood } from "../shared/mascot.ts";
 // The one-meal flow's Spud lines — ONE table both clients read (#42): the phone through
 // `chatCopyFor(lang).firstMeal`, the browser through this module. It is small on purpose: a
@@ -36,7 +37,7 @@ import type {
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, apiStream, forget, signIn, signOut, signedIn } from "./api.ts";
 import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
-import { firstMealEdit, type Portion } from "./portion.ts";
+import { firstMealEdit, mealTitle, type Portion } from "./portion.ts";
 import { LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, narrowLang, numbers, wholeNumbers } from "../shared/lang.ts";
 import type { Lang } from "../shared/types.ts";
 
@@ -819,21 +820,6 @@ function firstMealScreen(me: ProfileResponse): HTMLElement {
     })();
   };
 
-  /**
-   * Spud's greeting, read back off the thread the write just produced: `firstVerdictLines` on the
-   * first meal, the correction line on an edit. Rendered rather than re-derived — the words are
-   * the server's, in the account's language, and a second computation here would be the second
-   * copy the contract forbids.
-   */
-  const greeting = async (mealId: string): Promise<string[]> => {
-    const thread = await api<ChatHistoryResponse>(`${MESSAGES}?limit=30`).catch(() => null);
-    if (thread === null) return [];
-    const at = thread.entries.findIndex((e) => e.kind === "meal" && e.mealId === mealId);
-    if (at === -1) return [];
-    return thread.entries.slice(at + 1)
-      .flatMap((e) => (e.role === "assistant" && e.kind === "text" ? [e.text] : []));
-  };
-
   const askStep = (): HTMLElement => {
     const box = el("div", "step");
     box.append(spudBlock("wave", fm.react, [fm.ask]));
@@ -957,10 +943,14 @@ function firstMealScreen(me: ProfileResponse): HTMLElement {
     return box;
   };
 
-  const verdictStep = async (analysis: MealAnalysis, mealId: string): Promise<HTMLElement> => {
+  const verdictStep = (analysis: MealAnalysis, mealId: string): HTMLElement => {
     const box = el("div", "step");
-    // The face follows the computed pills, never praise the card does not back.
-    box.append(spudBlock(verdictMood(analysis.verdicts), COPY.firstVerdictBeat, await greeting(mealId)));
+    // #49: SPUD SAYS THE PILLS' VERDICT, and only that, re-derived from the verdicts this card was
+    // handed: the server's first line (`verdictHeadline`, the same function) and never the thread
+    // read back. The thread held yesterday's figures after a correction and an introduction nobody
+    // here makes. The face follows the same pills.
+    const headline = verdictHeadline(analysis.verdicts, lang);
+    box.append(spudBlock(verdictMood(analysis.verdicts), COPY.firstVerdictBeat, headline === null ? [] : [headline]));
     const card = el("div", "card");
     card.append(el("div", "lab", names(analysis.items)));
     const big = el("p", "big");
@@ -970,7 +960,8 @@ function firstMealScreen(me: ProfileResponse): HTMLElement {
     const stats = el("div", "stats");
     for (const [label, v] of [[COPY.statProtein, analysis.protein_g], [COPY.statCarbs, analysis.carbs_g], [COPY.statFat, analysis.fat_g]] as const) {
       const cell = el("div", "stat-cell");
-      cell.append(el("div", "lab", label), el("div", "stat-num mono", `${numbers(lang)(v)} g`));
+      // Whole grams, as the thread says them (#49: "37.4 g" on the card beside "37 g" in the text).
+      cell.append(el("div", "lab", label), el("div", "stat-num mono", `${wholeNumbers(lang)(v)} g`));
       stats.append(cell);
     }
     card.append(stats);
@@ -1001,9 +992,8 @@ function firstMealScreen(me: ProfileResponse): HTMLElement {
     whatLab.setAttribute("for", "fm-what");
     const what = textField(COPY.correctWhat);
     what.id = "fm-what";
-    // "What it was" names the plate — the first item, which is what the card leads with; the rest
-    // of the plate is kept, per the brief.
-    what.value = analysis.items[0]?.name ?? "";
+    // #49: the WHOLE meal, as the card names it — and the field edits the whole meal.
+    what.value = mealTitle(analysis.items);
     const portionLab = el("label", "lab", COPY.correctPortion);
     portionLab.setAttribute("for", "fm-portion");
     const portion = el("select", "portion") as HTMLSelectElement;
@@ -1020,14 +1010,18 @@ function firstMealScreen(me: ProfileResponse): HTMLElement {
     const save = el("button", "cta p", COPY.saveRecheck) as HTMLButtonElement;
     save.addEventListener("click", () => {
       run(async () => {
+        const edit = firstMealEdit(analysis, what.value, portion.value as Portion);
+        // Nothing changed: the card as it was, and no write — so no "Updated" anywhere (#49).
+        if (edit === null) { show(verdictStep(analysis, mealId)); return; }
         const r = await api<EditMealResponse>(MEAL(mealId), {
           method: "PATCH",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify(firstMealEdit(analysis, what.value, portion.value as Portion)),
+          body: JSON.stringify(edit),
         });
         // "target-gone" and the refusals are statuses; a JSON body here is the updated meal.
         if (r.kind !== "updated") throw new ApiError(200, { error: r.kind }, `edit: ${r.kind}`);
-        show(await verdictStep(r.analysis, r.mealId));
+        // The WHOLE card is rebuilt from the server's answer; nothing of the old one survives.
+        show(verdictStep(r.analysis, r.mealId));
       });
     });
     foot.append(save);
