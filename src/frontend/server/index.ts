@@ -314,11 +314,16 @@ export interface WebAppOptions {
 export function createWebApp(options: WebAppOptions = {}) {
   const bundlePath = options.bundlePath ?? DEFAULT_BUNDLE_PATH;
   const backendOrigin = (options.backendOrigin ?? "").replace(/\/$/, "");
-  let loaded: Promise<string | null> | undefined;
+  interface Bundle { text: string; gzip: Uint8Array; etag: string }
+  let loaded: Promise<Bundle | null> | undefined;
 
-  const bundle = (): Promise<string | null> => loaded ??= (async () => {
+  // Read once, and the gzip and the etag once with it: the file changes only when the image does,
+  // so neither is ever stale for a request that arrives after this resolved.
+  const bundle = (): Promise<Bundle | null> => loaded ??= (async () => {
     const file = Bun.file(bundlePath);
-    return await file.exists() ? await file.text() : null;
+    if (!(await file.exists())) return null;
+    const text = await file.text();
+    return { text, gzip: Bun.gzipSync(text), etag: `"${Bun.hash(text).toString(16)}"` };
   })();
 
   /**
@@ -366,18 +371,30 @@ export function createWebApp(options: WebAppOptions = {}) {
     });
 
     if (pathname === SHELL_PATH || pathname === BUNDLE_PATH) {
-      const js = await bundle();
-      if (js === null) return notFound();
+      const file = await bundle();
+      if (file === null) return notFound();
 
       if (req.method === "GET" && pathname === BUNDLE_PATH) {
-        return new Response(js, {
-          headers: {
-            "content-type": "text/javascript; charset=utf-8",
-            // No hash in the filename yet, so it may not be cached across deploys. A stale bundle
-            // against a moved API is a page that fails in ways nobody can reproduce.
-            "cache-control": "no-cache",
-          },
-        });
+        // `no-cache` means store-but-revalidate, and the etag is what the revalidation is AGAINST —
+        // a 304 and one header round trip on every load, which is what makes keeping the unhashed
+        // filename safe: a stale bundle can never be served, and a fresh one costs the browser a
+        // conditional GET rather than the whole body. `vary` keeps a shared cache from handing the
+        // gzipped representation to a client that never offered to decompress it.
+        const headers: Record<string, string> = {
+          "content-type": "text/javascript; charset=utf-8",
+          "cache-control": "no-cache",
+          etag: file.etag,
+          vary: "accept-encoding",
+        };
+        if (req.headers.get("if-none-match") === file.etag) {
+          return new Response(null, { status: 304, headers });
+        }
+        if (req.headers.get("accept-encoding")?.includes("gzip")) {
+          return new Response(file.gzip, {
+            headers: { ...headers, "content-encoding": "gzip" },
+          });
+        }
+        return new Response(file.text, { headers });
       }
 
       if (req.method === "GET" && pathname === SHELL_PATH) {
