@@ -105,8 +105,9 @@ test("the diary is grouped and worded in the account's language, not the browser
   await expect(page.getByText(`${de(target - 550)} von ${de(target)} kcal gegessen`, { exact: false })).toBeVisible();
   // And the document says which language it is in, because a screen reader picks a voice from it.
   await expect(page.locator("html")).toHaveAttribute("lang", "de");
-  // The picker is in the chrome, showing the language being read.
-  await expect(page.locator("select.lang")).toHaveValue("de");
+  // The picker lives on You since #52, showing the language being read — and in it.
+  await page.goto("/#/you");
+  await expect(page.locator("select.pick")).toHaveValue("de");
 });
 
 test("over target says by how much, as a warning rather than a negative number", async ({ inWebApp: page }) => {

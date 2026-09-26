@@ -95,12 +95,22 @@ body { margin: 0; background: var(--ink); color: var(--text);
    its space is the face's own. */
 .num { font-variant-numeric: tabular-nums; }
 
-/* TWO COLUMNS, AND THE LEFT ONE NEVER NAVIGATES AWAY. That is the whole reason this window is not
-   a stretched phone: on a phone, opening a meal costs you sight of the day, so an answer lands
-   somewhere you cannot see it. Here the day stays put while you read. */
-#app { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: 26px;
-  max-width: 1360px; margin: 0 auto; padding: 26px; align-items: start; }
-@media (max-width: 860px) { #app { grid-template-columns: minmax(0, 1fr); padding: 16px; } }
+/* THE FRAME (the boards' web layout, #52): a slim top bar — the mark, then the one row the app
+   navigates by — over a single quiet column the width a chat reads best at, the 38.75rem /start
+   already centres on. At a phone's width the column fills the viewport. */
+#app { min-height: 100vh; display: flex; flex-direction: column; }
+.wbar { display: flex; align-items: center; gap: 12px; padding: 0 26px; min-height: 60px;
+  font: 700 17px var(--display); letter-spacing: -.02em; }
+.wbar .mark { display: flex; align-items: center; gap: 8px; }
+.wbar .mark svg { width: 30px; height: 24px; display: block; }
+.wnav { display: flex; gap: 6px; margin-left: auto; }
+.wcol { width: 100%; max-width: 38.75rem; margin: 0 auto; flex: 1; padding: 18px 20px 30px;
+  background: var(--panel); border-radius: 26px 26px 0 0;
+  box-shadow: 0 -1px 0 var(--line), 0 20px 50px -30px color-mix(in srgb, var(--text) 40%, transparent); }
+.body { min-width: 0; }
+/* The centred title the boards draw above each screen's own column. */
+.top { text-align: center; padding: 6px 0 12px; }
+.top .tt { margin: 0; font-size: 19px; }
 
 h1, h2 { margin: 0 0 .5rem; font-weight: 800; letter-spacing: -.02em; }
 h2 { font-size: 17px; }
@@ -137,15 +147,19 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 .day-body { padding: 16px 18px 18px; }
 .stat { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
 
-/* THE RAIL: the tab bar became four destinations down the left, with the primary action at the top. */
-.nav { display: flex; flex-direction: column; gap: 4px; align-items: stretch; position: sticky; top: 26px; }
-@media (max-width: 860px) { .nav { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; } }
 /* PILLS: every button, tab and chip is a 999px capsule — the shape the boards draw and /start's own
-   controls already take. */
-.tab { color: var(--muted); text-decoration: none; padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; }
+   controls already take. The three tabs never wrap onto a second row. */
+.tab { color: var(--muted); text-decoration: none; padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; white-space: nowrap; }
 .tab.on { color: var(--accent); background: var(--raised); }
-.link { background: none; border: 0; color: var(--muted); cursor: pointer; font: inherit; text-align: left; padding: 10px 12px; }
-.lang { background: none; border: 0; color: var(--muted); font: inherit; cursor: pointer; padding: 10px 12px; }
+/* You — the account's rows: label and control, a hairline between. */
+.you > * + * { border-top: 1px solid var(--line); }
+.you .rowline { padding: 12px 2px; }
+.you .pick { font: inherit; font-weight: 700; padding: 10px 14px; border-radius: 999px; max-width: 62%;
+  border: 1px solid var(--line-strong); background: var(--raised); color: var(--text); }
+.you-act { display: flex; align-items: center; justify-content: space-between; width: 100%;
+  padding: 14px 2px; background: none; border: 0; font: inherit; font-weight: 700; color: var(--text);
+  cursor: pointer; text-align: left; }
+.you-act::after { content: "›"; color: var(--muted); font-size: 18px; }
 .primary { display: inline-block; margin-top: .75rem; padding: 0 18px; height: 44px; line-height: 44px;
   border-radius: 999px; background: var(--accent); color: var(--accent-ink); text-decoration: none;
   font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
@@ -187,7 +201,7 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 .notice { margin: 1rem 0 0; }
 /* THE ONE COMPOSER, on Chat and on Today alike: "Add a photo" in front of the native input, the
    field, the round send. It stays at the foot of the column while the thread scrolls under it. */
-.comp { margin-top: 14px; position: sticky; bottom: 0; background: var(--ink); padding: 10px 0 4px; }
+.comp { margin-top: 14px; position: sticky; bottom: 0; background: var(--panel); padding: 10px 0 4px; }
 .comp-row { display: flex; align-items: center; gap: 8px; }
 .comp .add { flex: 0 0 auto; min-height: 44px; padding: 0 16px; border-radius: 999px; cursor: pointer;
   border: 1px solid var(--line-strong); background: var(--raised); color: var(--text);

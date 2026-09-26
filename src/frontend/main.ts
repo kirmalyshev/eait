@@ -110,9 +110,22 @@ const profile = async (): Promise<ProfileResponse> => {
   return profileCache;
 };
 
-function chrome(active: string): HTMLElement {
-  const nav = el("nav", "nav");
-  for (const [href, label] of [["#/", COPY.navDiary], ["#/chat", COPY.navChat]] as const) {
+/**
+ * The boards' top bar (#52): the mark, then the ONE row the app navigates by — Diary · Chat · You,
+ * pills on the right. A null `active` is the signed-out screen's bar: the mark alone, because the
+ * row's destinations are all behind a session.
+ */
+function chrome(active: string | null): HTMLElement {
+  const bar = el("header", "wbar");
+  const mark = el("span", "mark");
+  mark.append(
+    new DOMParser().parseFromString(spudSvg("idle", `spud-${++spudSeq}`), "image/svg+xml").documentElement,
+    "eait",
+  );
+  bar.append(mark);
+  if (active === null) return bar;
+  const nav = el("nav", "wnav");
+  for (const [href, label] of [["#/", COPY.navDiary], ["#/chat", COPY.navChat], ["#/you", COPY.navYou]] as const) {
     const a = el("a", href === active ? "tab on" : "tab", label) as HTMLAnchorElement;
     a.href = href;
     nav.append(a);
@@ -127,29 +140,35 @@ function chrome(active: string): HTMLElement {
     a.href = "/admin";
     nav.append(a);
   }
-  const bot = profileCache?.telegramBot ?? null;
-  if (bot !== null) {
-    // The code is minted at the TAP, not when the page is drawn: it lives five minutes, and the bot
-    // has to receive it inside them. A navigation, so no CSP directive is involved in leaving.
-    const tg = el("button", "link", COPY.connectTelegram) as HTMLButtonElement;
-    tg.addEventListener("click", () => {
-      tg.disabled = true;
-      void api<PairCodeResponse>("/auth/pair", { method: "POST" })
-        .then(({ code }) => { location.assign(`https://t.me/${bot}?start=${code}`); })
-        .catch((err: unknown) => { console.error(err); tg.textContent = COPY.telegramFailed; })
-        .finally(() => { tg.disabled = false; });
-    });
-    nav.append(tg);
-  }
-  // THE PICKER, in the chrome beside Sign out — this client has no Settings screen, and the nav is
-  // the only thing on every page. It writes through `PATCH /v1/profile`, the one path any surface
-  // uses, and then RELOADS rather than re-rendering: `lang` is read by forty render functions and
-  // by `profileCache`, and a reload is the one way to be sure none of them kept the old one.
-  //
-  // Only `LANGS_READY` is offered. A language whose every screen would fall back to English is one
-  // where choosing it looks like a bug rather than like a missing translation.
+  bar.append(nav);
+  return bar;
+}
+
+/** The front door for anybody this browser cannot prove is signed in. */
+function signInScreen(): HTMLElement {
+  const box = el("section", "card");
+  box.append(el("h1", "", "eait"));
+  box.append(el("p", "muted", COPY.signedOutLead));
+  // A LINK, NOT A FETCH. `/start` is a server-rendered flow that ends by setting the session
+  // cookie, and it is the only thing on this origin that can authenticate anybody.
+  const a = el("a", "primary", COPY.signIn) as HTMLAnchorElement;
+  a.href = "/start";
+  box.append(a);
+  return box;
+}
+
+/**
+ * THE PICKER, on You — this client has no Settings screen, and You is the one the boards draw for
+ * the account's controls. It writes through `PATCH /v1/profile`, the one path any surface uses, and
+ * then RELOADS rather than re-rendering: `lang` is read by forty render functions and by
+ * `profileCache`, and a reload is the one way to be sure none of them kept the old one.
+ *
+ * Only `LANGS_READY` is offered. A language whose every screen would fall back to English is one
+ * where choosing it looks like a bug rather than like a missing translation.
+ */
+function languagePicker(): HTMLSelectElement {
   const picker = document.createElement("select");
-  picker.className = "lang";
+  picker.className = "pick";
   picker.setAttribute("aria-label", COPY.language);
   for (const code of LANGS_READY) {
     const option = document.createElement("option");
@@ -177,9 +196,34 @@ function chrome(active: string): HTMLElement {
         picker.disabled = false;
       });
   });
-  nav.append(picker);
+  return picker;
+}
 
-  const out = el("button", "link", COPY.signOut) as HTMLButtonElement;
+/** You (#52): the account's screen — language, Telegram when the server names a bot, Sign out. */
+function youScreen(me: ProfileResponse | null): HTMLElement {
+  const wrap = el("section", "");
+  const top = el("div", "top");
+  top.append(el("h1", "tt", COPY.navYou));
+  wrap.append(top);
+  const card = el("div", "card you");
+  const lrow = el("div", "rowline");
+  lrow.append(el("span", "when", COPY.language), languagePicker());
+  card.append(lrow);
+  const bot = me?.telegramBot ?? null;
+  if (bot !== null) {
+    // The code is minted at the TAP, not when the page is drawn: it lives five minutes, and the bot
+    // has to receive it inside them. A navigation, so no CSP directive is involved in leaving.
+    const tg = el("button", "you-act", COPY.connectTelegram) as HTMLButtonElement;
+    tg.addEventListener("click", () => {
+      tg.disabled = true;
+      void api<PairCodeResponse>("/auth/pair", { method: "POST" })
+        .then(({ code }) => { location.assign(`https://t.me/${bot}?start=${code}`); })
+        .catch((err: unknown) => { console.error(err); tg.textContent = COPY.telegramFailed; })
+        .finally(() => { tg.disabled = false; });
+    });
+    card.append(tg);
+  }
+  const out = el("button", "you-act", COPY.signOut) as HTMLButtonElement;
   out.addEventListener("click", () => {
     void (async () => {
       // The turns this browser was keeping are the account's, photos included: they do not stay
@@ -194,21 +238,9 @@ function chrome(active: string): HTMLElement {
       await render();
     })();
   });
-  nav.append(out);
-  return nav;
-}
-
-/** The front door for anybody this browser cannot prove is signed in. */
-function signInScreen(): HTMLElement {
-  const box = el("section", "card");
-  box.append(el("h1", "", "eait"));
-  box.append(el("p", "muted", COPY.signedOutLead));
-  // A LINK, NOT A FETCH. `/start` is a server-rendered flow that ends by setting the session
-  // cookie, and it is the only thing on this origin that can authenticate anybody.
-  const a = el("a", "primary", COPY.signIn) as HTMLAnchorElement;
-  a.href = "/start";
-  box.append(a);
-  return box;
+  card.append(out);
+  wrap.append(card);
+  return wrap;
 }
 
 // Grouped the reader's way — "1.724 kcal" in German — rounded, because a kcal from a photo is an
@@ -737,7 +769,9 @@ async function chatScreen(): Promise<HTMLElement> {
     // later means this one now waits on a decision, and nothing left waiting means it went.
     if (notice.textContent === kept() || notice.textContent === behind()) tell(keptNotice(uid));
   };
-  wrap.append(thread, notice, comp.form, progress);
+  const top = el("div", "top");
+  top.append(el("h1", "tt", COPY.navChat));
+  wrap.append(top, thread, notice, comp.form, progress);
   // What the turn that was out said, if it answered after its own screen was gone.
   // A kept turn's notice carried from a screen that is gone is decided again now: minutes may have
   // passed, and the turn may have gone meanwhile.
@@ -1333,7 +1367,12 @@ let drawing = 0;
 async function render(): Promise<void> {
   const mine = ++drawing;
   const app = clear(root());
-  if (!signedIn()) { app.append(signInScreen()); return; }
+  // Signed in or not, the page sits in the same frame: the bar (the row only once there is a
+  // session to lose it over) over the one quiet column.
+  const col = el("div", "wcol");
+  const body = el("div", "body");
+  col.append(body);
+  if (!signedIn()) { app.append(chrome(null), col); body.append(signInScreen()); return; }
 
   const route = location.hash || "#/";
   // The profile BEFORE the navigation, because whether the admin tab exists is on it. Drawing the
@@ -1342,15 +1381,16 @@ async function render(): Promise<void> {
     await profile();
   } catch (err) {
     if (mine !== drawing) return;
-    if (err instanceof Unauthenticated) { app.append(signInScreen()); return; }
+    if (err instanceof Unauthenticated) { app.append(chrome(null), col); body.append(signInScreen()); return; }
   }
   if (mine !== drawing) return;
-  app.append(chrome(route));
-  const body = el("div", "body", COPY.loading);
-  app.append(body);
+  app.append(chrome(route), col);
+  body.textContent = COPY.loading;
   try {
     // `homeScreen` is the diary, or the one-meal flow while the account has never logged (#42).
-    const screen = route === "#/chat" ? await chatScreen() : await homeScreen(await profile());
+    const screen = route === "#/chat" ? await chatScreen()
+      : route === "#/you" ? youScreen(profileCache)
+      : await homeScreen(await profile());
     if (mine !== drawing) return;
     clear(body).append(screen);
     // Whatever was kept the last time this browser had no connection, now that there is a session.

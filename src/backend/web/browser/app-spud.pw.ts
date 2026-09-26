@@ -52,3 +52,27 @@ test("a line's Delete is a small text button with a name and a 44px hit area", a
   expect(box!.width).toBeGreaterThanOrEqual(44);
   expect(box!.height).toBeGreaterThanOrEqual(44);
 });
+
+test("Diary · Chat · You hold ONE row at 390px, and the account's controls live in You", async ({ inWebApp: page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/#/chat");
+  // Three links, one row: same top edge for all of them, and nothing else in the row.
+  const nav = page.locator(".wnav");
+  const tops: number[] = [];
+  for (const name of ["Diary", "Chat", "You"]) {
+    const link = nav.getByRole("link", { name });
+    await expect(link).toBeVisible();
+    tops.push((await link.boundingBox())!.y);
+  }
+  expect(new Set(tops).size).toBe(1);
+  await expect(nav.getByRole("button")).toHaveCount(0);
+  await expect(nav.getByRole("link")).toHaveCount(3);
+
+  // You carries the language picker and Sign out — and the language one, in You, is the same
+  // PATCH /v1/profile the picker always used.
+  await page.goto("/#/you");
+  await expect(page.getByRole("heading", { name: "You" })).toBeVisible();
+  await expect(page.getByLabel("Language")).toHaveValue("en");
+  await expect(page.getByLabel("Language").locator("option")).toHaveCount(8);
+  await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+});

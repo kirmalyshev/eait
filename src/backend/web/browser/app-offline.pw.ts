@@ -197,6 +197,8 @@ test("signing out takes the kept turns with it", async ({ inWebApp: page }) => {
   await expect(waiting(page)).toHaveCount(1);
   await page.context().setOffline(false);
   await page.route("**/api/v1/meals/photo", (r) => r.abort("connectionreset"));
+  // Sign out lives on You since #52 — the kept turns are cleared wherever the control sits.
+  await page.goto("/#/you");
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
   // A string, because this file is typechecked without the DOM: the browser is where it runs.

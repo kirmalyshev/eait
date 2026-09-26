@@ -18,6 +18,8 @@ import type { Lang } from "../shared/types.ts";
 export interface WebCopy {
   navDiary: string;
   navChat: string;
+  /** The account's own screen: language and sign-out live there (#52). */
+  navYou: string;
   navAdmin: string;
   signOut: string;
   signedOutLead: string;
@@ -157,6 +159,7 @@ export interface WebCopy {
 const EN: WebCopy = {
   navDiary: "Diary",
   navChat: "Chat",
+  navYou: "You",
   navAdmin: "Admin",
   signOut: "Sign out",
   signedOutLead: "Photograph a meal, get the numbers. Sign in to pick up your diary.",
@@ -264,7 +267,7 @@ const EN: WebCopy = {
 };
 
 const FR: WebCopy = {
-  navDiary: "Journal", navChat: "Chat", navAdmin: "Admin", signOut: "Se déconnecter",
+  navDiary: "Journal", navChat: "Chat", navYou: "Toi", navAdmin: "Admin", signOut: "Se déconnecter",
   signedOutLead: "Photographie un repas, reçois les chiffres. Connecte-toi pour retrouver ton journal.",
   signIn: "Se connecter", today: "Aujourd'hui",
   budgetLeft: "restantes", budgetOver: "au-dessus", budgetUnder: "en dessous",
@@ -358,7 +361,7 @@ const FR: WebCopy = {
 };
 
 const DE: WebCopy = {
-  navDiary: "Tagebuch", navChat: "Chat", navAdmin: "Admin", signOut: "Abmelden",
+  navDiary: "Tagebuch", navChat: "Chat", navYou: "Du", navAdmin: "Admin", signOut: "Abmelden",
   signedOutLead: "Fotografier eine Mahlzeit, bekomm die Zahlen. Melde dich an, um dein Tagebuch weiterzuführen.",
   signIn: "Anmelden", today: "Heute",
   budgetLeft: "übrig", budgetOver: "drüber", budgetUnder: "darunter",
@@ -452,7 +455,7 @@ const DE: WebCopy = {
 };
 
 const IT: WebCopy = {
-  navDiary: "Diario", navChat: "Chat", navAdmin: "Admin", signOut: "Esci",
+  navDiary: "Diario", navChat: "Chat", navYou: "Tu", navAdmin: "Admin", signOut: "Esci",
   signedOutLead: "Fotografa un pasto, ricevi i numeri. Accedi per riprendere il tuo diario.",
   signIn: "Accedi", today: "Oggi",
   budgetLeft: "rimaste", budgetOver: "sopra", budgetUnder: "sotto",
@@ -546,7 +549,7 @@ const IT: WebCopy = {
 };
 
 const ES: WebCopy = {
-  navDiary: "Diario", navChat: "Chat", navAdmin: "Admin", signOut: "Cerrar sesión",
+  navDiary: "Diario", navChat: "Chat", navYou: "Tú", navAdmin: "Admin", signOut: "Cerrar sesión",
   signedOutLead: "Fotografía una comida, recibe los números. Entra para seguir con tu diario.",
   signIn: "Entrar", today: "Hoy",
   budgetLeft: "restantes", budgetOver: "por encima", budgetUnder: "por debajo",
@@ -640,7 +643,7 @@ const ES: WebCopy = {
 };
 
 const VI: WebCopy = {
-  navDiary: "Nhật ký", navChat: "Chat", navAdmin: "Quản trị", signOut: "Đăng xuất",
+  navDiary: "Nhật ký", navChat: "Chat", navYou: "Bạn", navAdmin: "Quản trị", signOut: "Đăng xuất",
   signedOutLead: "Chụp một bữa ăn, nhận các con số. Đăng nhập để tiếp tục nhật ký của bạn.",
   signIn: "Đăng nhập", today: "Hôm nay",
   budgetLeft: "còn lại", budgetOver: "vượt", budgetUnder: "thiếu",
@@ -734,7 +737,7 @@ const VI: WebCopy = {
 };
 
 const ID: WebCopy = {
-  navDiary: "Buku harian", navChat: "Chat", navAdmin: "Admin", signOut: "Keluar",
+  navDiary: "Buku harian", navChat: "Chat", navYou: "Kamu", navAdmin: "Admin", signOut: "Keluar",
   signedOutLead: "Foto sebuah makanan, dapat angkanya. Masuk untuk melanjutkan buku harianmu.",
   signIn: "Masuk", today: "Hari ini",
   budgetLeft: "tersisa", budgetOver: "lebih", budgetUnder: "kurang",
@@ -828,7 +831,7 @@ const ID: WebCopy = {
 };
 
 const RU: WebCopy = {
-  navDiary: "Дневник", navChat: "Чат", navAdmin: "Админка", signOut: "Выйти",
+  navDiary: "Дневник", navChat: "Чат", navYou: "Ты", navAdmin: "Админка", signOut: "Выйти",
   signedOutLead: "Сфотографируй еду — получи цифры. Войди, чтобы продолжить свой дневник.",
   signIn: "Войти", today: "Сегодня",
   budgetLeft: "осталось", budgetOver: "сверх", budgetUnder: "ниже",

@@ -7,7 +7,8 @@ import type { ProfileResponse } from "@eait/shared/contract";
 import { expect, test } from "./fixtures.ts";
 
 test("no bot named, no link", async ({ inWebApp: page }) => {
-  await page.goto("/#/");
+  // The account's own actions live on You since #52.
+  await page.goto("/#/you");
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Connect Telegram" })).toHaveCount(0);
 });
@@ -24,7 +25,7 @@ test("a named bot draws the link, and the tap goes to that bot with a fresh code
     landed = route.request().url();
     await route.fulfill({ contentType: "text/html", body: "<title>t.me</title>" });
   });
-  await page.goto("/#/");
+  await page.goto("/#/you");
   // The profile is memoised per tab, so the edited one arrives with a fresh page.
   await page.reload();
 
