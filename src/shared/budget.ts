@@ -26,6 +26,23 @@ import type { Goal } from "./types.ts";
 export const mealIsGuessed = (meal: { confidence: string; corrected: boolean }): boolean =>
   meal.confidence === "low" && !meal.corrected;
 
+export type MacroTone = "care" | "good" | "bad";
+
+/**
+ * The colour of a macro counter — one rule for both clients (#71), next to `dayBudget` because the
+ * figures it colours come out of the same totals.
+ *
+ * The two macros judge in OPPOSITE directions, and that is the whole of this function. Protein is a
+ * target to reach: under it is "care", the still-to-go state, never a failure; reaching it is
+ * "good". Saturated fat is a cap: under it is "good" and past it is "bad". A target of zero or less
+ * is no target at all, so there is nothing to judge — "care" either way.
+ */
+export function macroTone(kind: "protein" | "satfat", eaten: number, target: number): MacroTone {
+  if (target <= 0) return "care";
+  if (kind === "protein") return eaten >= target ? "good" : "care";
+  return eaten > target ? "bad" : "good";
+}
+
 export interface DayBudget {
   /**
    * What the headline number is.
