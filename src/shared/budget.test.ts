@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { dayBudget, mealIsGuessed } from "./budget.ts";
+import { dayBudget, macroTone, mealIsGuessed } from "./budget.ts";
 
 const TODAY = "2026-09-16";
 const day = (
@@ -108,6 +108,26 @@ describe("dayBudget", () => {
 
   test("a day with no meal is not a guess", () => {
     expect(dayBudget(day(0, { meals: 0 }), TODAY, "lose")).toMatchObject({ guessed: false });
+  });
+
+  describe("macroTone", () => {
+    test("protein is a target to reach: care until it is, good from then on", () => {
+      expect(macroTone("protein", 80, 120)).toBe("care");
+      expect(macroTone("protein", 120, 120)).toBe("good");
+      expect(macroTone("protein", 150, 120)).toBe("good");
+    });
+
+    test("saturated fat is a cap: good while under it, bad once past it", () => {
+      expect(macroTone("satfat", 7, 20)).toBe("good");
+      expect(macroTone("satfat", 20, 20)).toBe("good");
+      expect(macroTone("satfat", 21, 20)).toBe("bad");
+    });
+
+    test("no target means nothing to judge, whichever side the macro is", () => {
+      expect(macroTone("protein", 80, 0)).toBe("care");
+      expect(macroTone("satfat", 80, 0)).toBe("care");
+      expect(macroTone("satfat", 80, -20)).toBe("care");
+    });
   });
 
   describe("mealIsGuessed", () => {

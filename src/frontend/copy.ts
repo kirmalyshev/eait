@@ -25,6 +25,11 @@ export interface WebCopy {
   signedOutLead: string;
   signIn: string;
   today: string;
+  /** The day switcher's second relative label — the day before `today` (#71). */
+  yesterday: string;
+  /** The switcher chevrons' accessible names — the buttons themselves carry only a glyph. */
+  dayPrev: string;
+  dayNext: string;
   /**
    * The word after the headline figure — `dayBudget`'s state, in words.
    *
@@ -36,7 +41,12 @@ export interface WebCopy {
   budgetUnder: string;
   /** `{target}` and `{protein}` — a day with nothing logged yet. */
   targetLine: string;
-  /** `{eaten}`, `{target}`, `{protein}`, `{proteinTarget}`. */
+  /**
+   * `{eaten}` and `{target}` — the kcal context under the headline.
+   *
+   * Protein lives in the macro counters beside it since #71, whose eaten/target figures carry a
+   * tone a sentence cannot: this line is kcal only.
+   */
   eatenLine: string;
   floor: string;
   /**
@@ -172,9 +182,10 @@ const EN: WebCopy = {
   signedOutLead: "Photograph a meal, get the numbers. Sign in to pick up your diary.",
   signIn: "Sign in",
   today: "Today",
+  yesterday: "Yesterday", dayPrev: "Previous day", dayNext: "Next day",
   budgetLeft: "left", budgetOver: "over", budgetUnder: "under",
   targetLine: "Target {target} · {protein} g protein",
-  eatenLine: "{eaten} of {target} eaten · {protein} of {proteinTarget} g protein",
+  eatenLine: "{eaten} of {target} eaten",
   floor: "Your target sits at the minimum this app will ever suggest.",
   about: "about",
   floorClear: "Safe minimum {floor} kcal · you're above it",
@@ -280,9 +291,10 @@ const FR: WebCopy = {
   navDiary: "Journal", navChat: "Chat", navYou: "Toi", navAdmin: "Admin", signOut: "Se déconnecter",
   signedOutLead: "Photographie un repas, reçois les chiffres. Connecte-toi pour retrouver ton journal.",
   signIn: "Se connecter", today: "Aujourd'hui",
+  yesterday: "Hier", dayPrev: "Jour précédent", dayNext: "Jour suivant",
   budgetLeft: "restantes", budgetOver: "au-dessus", budgetUnder: "en dessous",
   targetLine: "Objectif {target} · {protein} g de protéines",
-  eatenLine: "{eaten} consommées sur {target} · {protein} g de protéines sur {proteinTarget}",
+  eatenLine: "{eaten} consommées sur {target}",
   floor: "Ton objectif est fixé au minimum que cette appli puisse proposer.",
   about: "environ",
   floorClear: "Minimum sûr {floor} kcal · tu es au-dessus",
@@ -377,9 +389,10 @@ const DE: WebCopy = {
   navDiary: "Tagebuch", navChat: "Chat", navYou: "Du", navAdmin: "Admin", signOut: "Abmelden",
   signedOutLead: "Fotografier eine Mahlzeit, bekomm die Zahlen. Melde dich an, um dein Tagebuch weiterzuführen.",
   signIn: "Anmelden", today: "Heute",
+  yesterday: "Gestern", dayPrev: "Vorheriger Tag", dayNext: "Nächster Tag",
   budgetLeft: "übrig", budgetOver: "drüber", budgetUnder: "darunter",
   targetLine: "Ziel {target} · {protein} g Eiweiß",
-  eatenLine: "{eaten} von {target} gegessen · {protein} von {proteinTarget} g Eiweiß",
+  eatenLine: "{eaten} von {target} gegessen",
   floor: "Dein Ziel liegt auf dem Minimum, das diese App je vorschlagen wird.",
   about: "etwa",
   floorClear: "Sicheres Minimum {floor} kcal · du liegst darüber",
@@ -474,9 +487,10 @@ const IT: WebCopy = {
   navDiary: "Diario", navChat: "Chat", navYou: "Tu", navAdmin: "Admin", signOut: "Esci",
   signedOutLead: "Fotografa un pasto, ricevi i numeri. Accedi per riprendere il tuo diario.",
   signIn: "Accedi", today: "Oggi",
+  yesterday: "Ieri", dayPrev: "Giorno precedente", dayNext: "Giorno successivo",
   budgetLeft: "rimaste", budgetOver: "sopra", budgetUnder: "sotto",
   targetLine: "Obiettivo {target} · {protein} g di proteine",
-  eatenLine: "{eaten} di {target} mangiate · {protein} di {proteinTarget} g di proteine",
+  eatenLine: "{eaten} di {target} mangiate",
   floor: "Il tuo obiettivo è al minimo che questa app possa proporre.",
   about: "circa",
   floorClear: "Minimo sicuro {floor} kcal · sei al di sopra",
@@ -571,9 +585,10 @@ const ES: WebCopy = {
   navDiary: "Diario", navChat: "Chat", navYou: "Tú", navAdmin: "Admin", signOut: "Cerrar sesión",
   signedOutLead: "Fotografía una comida, recibe los números. Entra para seguir con tu diario.",
   signIn: "Entrar", today: "Hoy",
+  yesterday: "Ayer", dayPrev: "Día anterior", dayNext: "Día siguiente",
   budgetLeft: "restantes", budgetOver: "por encima", budgetUnder: "por debajo",
   targetLine: "Objetivo {target} · {protein} g de proteína",
-  eatenLine: "{eaten} de {target} consumidas · {protein} de {proteinTarget} g de proteína",
+  eatenLine: "{eaten} de {target} consumidas",
   floor: "Tu objetivo está en el mínimo que esta app puede proponer.",
   about: "unas",
   floorClear: "Mínimo seguro {floor} kcal · estás por encima",
@@ -668,9 +683,10 @@ const VI: WebCopy = {
   navDiary: "Nhật ký", navChat: "Chat", navYou: "Bạn", navAdmin: "Quản trị", signOut: "Đăng xuất",
   signedOutLead: "Chụp một bữa ăn, nhận các con số. Đăng nhập để tiếp tục nhật ký của bạn.",
   signIn: "Đăng nhập", today: "Hôm nay",
+  yesterday: "Hôm qua", dayPrev: "Ngày trước", dayNext: "Ngày sau",
   budgetLeft: "còn lại", budgetOver: "vượt", budgetUnder: "thiếu",
   targetLine: "Mục tiêu {target} · {protein} g đạm",
-  eatenLine: "Đã ăn {eaten} trên {target} · đạm {protein} trên {proteinTarget} g",
+  eatenLine: "Đã ăn {eaten} trên {target}",
   floor: "Mục tiêu của bạn đang ở mức thấp nhất mà ứng dụng này sẽ đề xuất.",
   about: "khoảng",
   floorClear: "Mức tối thiểu an toàn {floor} kcal · bạn đang trên mức đó",
@@ -765,9 +781,10 @@ const ID: WebCopy = {
   navDiary: "Buku harian", navChat: "Chat", navYou: "Kamu", navAdmin: "Admin", signOut: "Keluar",
   signedOutLead: "Foto sebuah makanan, dapat angkanya. Masuk untuk melanjutkan buku harianmu.",
   signIn: "Masuk", today: "Hari ini",
+  yesterday: "Kemarin", dayPrev: "Hari sebelumnya", dayNext: "Hari berikutnya",
   budgetLeft: "tersisa", budgetOver: "lebih", budgetUnder: "kurang",
   targetLine: "Target {target} · {protein} g protein",
-  eatenLine: "{eaten} dari {target} dimakan · {protein} dari {proteinTarget} g protein",
+  eatenLine: "{eaten} dari {target} dimakan",
   floor: "Targetmu berada di angka terendah yang bisa disarankan aplikasi ini.",
   about: "sekitar",
   floorClear: "Minimum aman {floor} kkal · kamu di atasnya",
@@ -862,9 +879,10 @@ const RU: WebCopy = {
   navDiary: "Дневник", navChat: "Чат", navYou: "Ты", navAdmin: "Админка", signOut: "Выйти",
   signedOutLead: "Сфотографируй еду — получи цифры. Войди, чтобы продолжить свой дневник.",
   signIn: "Войти", today: "Сегодня",
+  yesterday: "Вчера", dayPrev: "Предыдущий день", dayNext: "Следующий день",
   budgetLeft: "осталось", budgetOver: "сверх", budgetUnder: "ниже",
   targetLine: "Цель {target} · белка {protein} г",
-  eatenLine: "Съедено {eaten} из {target} · белка {protein} из {proteinTarget} г",
+  eatenLine: "Съедено {eaten} из {target}",
   floor: "Твоя цель стоит на минимуме, ниже которого это приложение никогда не опустится.",
   about: "около",
   floorClear: "Безопасный минимум {floor} ккал · ты выше него",

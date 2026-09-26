@@ -142,13 +142,23 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 .card { padding: 1rem 1.1rem; background: var(--raised); border: 1px solid var(--line);
   border-radius: 18px; margin-bottom: 14px;
   box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 4%, transparent); }
-/* A 52px STRIP, not a hero region: at 1360 wide a full-height wash is a wall of green, and every
-   word on it has to be near-black. */
-.day-card { padding: 0; overflow: hidden; }
-.day-wash { margin: 0; height: 52px; display: flex; align-items: center; padding: 0 18px; color: var(--accent-ink);
-  font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
-  background: linear-gradient(180deg, var(--accent) 0%, var(--wash-mid) 40%, var(--wash-deep) 76%, var(--raised) 100%); }
-.day-body { padding: 16px 18px 18px; }
+/* THE DATE SWITCHER (#71): a white bar at the top of the day — the chevrons at the two ends, the
+   day's name centred between them, and the ONE place the date is written. The relative day carries
+   the date as a quiet sub-line; any other day's name is the date, so nothing prints twice. */
+.daybar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding: 6px 10px;
+  background: var(--raised); border: 1px solid var(--line); border-radius: 999px;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 4%, transparent); }
+.daybtn { flex: 0 0 44px; width: 44px; height: 44px; border: 0; border-radius: 50%; cursor: pointer;
+  background: none; color: var(--text); font: inherit; font-size: 20px;
+  display: inline-flex; align-items: center; justify-content: center; }
+.daylabel { flex: 1; min-width: 0; text-align: center; }
+.dayname { margin: 0; font-size: 15px; }
+.daysub { margin: 0; font-size: 12px; }
+/* THE MACRO TONES (#71): a counter's figures carry the state against its target — care while
+   protein is still to reach, bad once a cap is passed. The label stays neutral. */
+.tone-good { color: var(--good); }
+.tone-care { color: var(--care); }
+.tone-bad { color: var(--bad); }
 .stat { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
 
 /* PILLS: every button, tab and chip is a 999px capsule — the shape the boards draw and /start's own

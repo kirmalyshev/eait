@@ -19,9 +19,10 @@
 // a relative import of the file they live in costs nothing the Dockerfile does not already pay for.
 import { advancePending, pendingLine } from "../shared/stream.ts";
 import { outcomeUnknown } from "../shared/results.ts";
-import { dayBudget } from "../shared/budget.ts";
+import { dayBudget, macroTone } from "../shared/budget.ts";
+import { dateMinus } from "../shared/dates.ts";
 import { renderableVerdicts, verdictMood } from "../shared/types.ts";
-import { verdictPillLabel } from "../shared/verdicts.ts";
+import { verdictNoun, verdictPillLabel } from "../shared/verdicts.ts";
 import { verdictHeadline } from "../shared/chat.ts";
 import { spudSvg, type MascotMood } from "../shared/mascot.ts";
 // The one-meal flow's Spud lines — ONE table both clients read (#42): the phone through
@@ -38,7 +39,7 @@ import type {
 import { ApiError, Unauthenticated, api, apiStream, forget, signIn, signOut, signedIn } from "./api.ts";
 import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
 import { firstMealEdit, mealTitle, type Portion } from "./portion.ts";
-import { LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, narrowLang, numbers, wholeNumbers } from "../shared/lang.ts";
+import { LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, narrowLang, numbers, spellUnit, wholeNumbers } from "../shared/lang.ts";
 import type { Lang } from "../shared/types.ts";
 
 /**
@@ -263,6 +264,16 @@ async function diaryScreen(): Promise<HTMLElement> {
   const today = calendar.format(new Date());
   const uid = me.profile.user_id;
 
+  // THE DAY THE SWITCHER IS LOOKING AT — today until a chevron moves it (#71). `/v1/diary/day`
+  // answers for any date, so the only bound is the future, which has no diary yet.
+  let viewing = today;
+  // A stored `YYYY-MM-DD` carries no time: formatting it at midday UTC keeps it from slipping a
+  // day either way — the same trick `dayLabel` uses for its own date.
+  const dayFmt = new Intl.DateTimeFormat(LANG_TAG[lang], {
+    timeZone: "UTC", weekday: "long", day: "numeric", month: "long",
+  });
+  const dateText = (d: string): string => dayFmt.format(new Date(`${d}T12:00:00Z`));
+
   const notice = el("p", "notice");
   notice.setAttribute("role", "alert");
   notice.hidden = true;
@@ -271,21 +282,48 @@ async function diaryScreen(): Promise<HTMLElement> {
     notice.hidden = words === null;
   };
 
-  // The day's own content — head card, the rows, a proposal the composer is holding — is what a
-  // turn redraws; the composer and the notice below stay put.
+  // The day's own content — the switcher, the head card, the rows, a proposal the composer is
+  // holding — is what a turn redraws; the composer and the notice below stay put.
   const board = el("div", "");
+  // A chevron tapped twice queues two draws; the newer one wins, as `drawing` does for `render()`.
+  let dayDrawing = 0;
 
   /** The day as the server now has it, redrawn after every write. */
   async function draw(): Promise<void> {
-    const day = await api<DayResponse>(`/diary/day?date=${today}`);
+    const mine = ++dayDrawing;
+    const day = await api<DayResponse>(`/diary/day?date=${viewing}`);
+    if (mine !== dayDrawing) return;
 
-    const head = el("div", "card day-card");
-    // A 52px STRIP rather than a hero region. At 1360 wide a full-height wash is a wall of green,
-    // and every word on it has to be near-black, so it can hold a date and nothing else.
-    // A HEADING, not a decorated div: it is the only thing naming this card, and `app-offline.pw.ts`
-    // finds the day by its role.
-    head.append(el("h2", "day-wash", COPY.today));
-    const body = el("div", "day-body");
+    // THE DATE SWITCHER, on a white bar at the top of the view: the chevrons at the two ends, the
+    // day centred between them. Its label is the ONE place the date is written — a relative day
+    // carries its name with the date as a quiet sub-line, and any other day's name IS the date,
+    // so nothing is ever printed twice.
+    const daybar = el("div", "daybar");
+    const prev = el("button", "daybtn", "‹") as HTMLButtonElement;
+    prev.type = "button";
+    prev.setAttribute("aria-label", COPY.dayPrev);
+    prev.addEventListener("click", () => { viewing = dateMinus(viewing, 1); void draw(); });
+    const next = el("button", "daybtn", "›") as HTMLButtonElement;
+    next.type = "button";
+    next.setAttribute("aria-label", COPY.dayNext);
+    next.disabled = viewing >= today;
+    next.addEventListener("click", () => {
+      if (viewing >= today) return;
+      viewing = dateMinus(viewing, -1);
+      void draw();
+    });
+    const rel = viewing === today ? COPY.today
+      : viewing === dateMinus(today, 1) ? COPY.yesterday
+      : null;
+    const label = el("div", "daylabel");
+    // A HEADING, not a decorated div: it is the only thing naming the day on this screen, and
+    // `app-offline.pw.ts` finds the day by its role.
+    label.append(el("h2", "dayname", rel ?? dateText(viewing)));
+    if (rel !== null) label.append(el("p", "daysub muted", dateText(viewing)));
+    daybar.append(prev, label, next);
+
+    const head = el("div", "card");
+    const body = el("div", "");
     head.append(body);
     // WHAT IS LEFT IS THE HEADLINE, eaten/target the context under it — the same arithmetic as the
     // phone's (`dayBudget`), so the two can never round the one number apart.
@@ -314,9 +352,26 @@ async function diaryScreen(): Promise<HTMLElement> {
       bar.setAttribute("aria-hidden", "true");
       const eaten = el("p", "muted", fill(COPY.eatenLine, {
         eaten: n(budget.eaten), target: kcal(budget.target),
-        protein: n(budget.protein.eaten), proteinTarget: n(budget.protein.target),
       }));
-      body.append(big, bar, eaten);
+      // THE MACRO COUNTERS (#71): the label stays neutral and the eaten/target figures take the
+      // tone `macroTone` computes — one rule for both clients, on the palette's tokens, never
+      // plain black. Saturated fat exists only for a declared restriction, like its target.
+      const g = spellUnit(lang, "g");
+      const counter = (name: string, macroEaten: number, macroTarget: number, kind: "protein" | "satfat"): HTMLElement => {
+        const cell = el("div", "stat-cell macro");
+        cell.append(
+          el("div", "lab", name),
+          el("div", `stat-num num tone-${macroTone(kind, macroEaten, macroTarget)}`, `${n(macroEaten)} / ${n(macroTarget)} ${g}`),
+        );
+        return cell;
+      };
+      const counters = el("div", "stats macros");
+      counters.append(counter(COPY.statProtein, budget.protein.eaten, budget.protein.target, "protein"));
+      if (day.targets.satfat_g !== undefined) {
+        counters.append(counter(verdictNoun("ldl", lang),
+          Math.round(day.totals.satfat_g), Math.round(day.targets.satfat_g), "satfat"));
+      }
+      body.append(big, bar, eaten, counters);
     }
     // THE FLOOR IS A STATUS LINE, and the one place blue is spent on this screen. Never a tick on a
     // scale and never a region on a chart: both were range machinery.
@@ -347,7 +402,7 @@ async function diaryScreen(): Promise<HTMLElement> {
             when: new Intl.RelativeTimeFormat(LANG_TAG[lang], { numeric: "auto" }).format(-days, "day"),
           })));
 
-    const parts: HTMLElement[] = [head];
+    const parts: HTMLElement[] = [daybar, head];
     if (day.meals.length === 0) {
       parts.push(el("p", "muted", COPY.nothingToday));
     } else {
@@ -436,6 +491,9 @@ async function diaryScreen(): Promise<HTMLElement> {
       if (files.reduce((n, f) => n + f.size, 0) > maxUploadBytes) { tell(COPY.photoTooLarge); return; }
     }
     turn(async () => {
+      // A write always lands on TODAY — `capturedAt` is now — so the redraw shows where it landed,
+      // not a past day the switcher was looking at.
+      viewing = today;
       if (files.length > 0) {
         const saved = await sendOrKeep({
           id: crypto.randomUUID(), userId: uid, kind: "photo", text: text === "" ? null : text,
