@@ -21,7 +21,7 @@ msgstr "« {note} » — noté, c'est dans les chiffres."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.running.left"
-msgstr "Il te reste {left} sur tes {plan} aujourd'hui, {protein} des {proteinTarget} g de protéines."
+msgstr "Il te reste {left} kcal sur tes {plan} aujourd'hui, et {protein} g de protéines sur {proteinTarget}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -36,7 +36,7 @@ msgstr "Il te reste {left} sur tes {plan} à remplir aujourd'hui, et {protein} d
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.warn"
-msgstr "{noun} — au-dessus"
+msgstr "{noun} — un peu haut"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -46,12 +46,12 @@ msgstr "{noun} — dans le plan"
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
-msgstr "{noun} — bien au-dessus"
+msgstr "{noun} — trop haut"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.running.over"
-msgstr "{over} au-dessus de tes {plan} aujourd'hui, {protein} des {proteinTarget} g de protéines."
+msgstr "{over} kcal de plus que tes {plan} aujourd'hui, et {protein} g de protéines sur {proteinTarget}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -106,7 +106,7 @@ msgstr "Ce Telegram est connecté au compte eait ouvert avec"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.dropped"
-msgstr "Supprimé."
+msgstr "Annulé."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -131,7 +131,7 @@ msgstr "Même approximatif, ça compte : environ {over} au-dessus de tes {plan} 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.cap-global"
-msgstr "Tout le monde a épuisé le quota du jour. Demain repart à zéro."
+msgstr "Tout le monde a épuisé le quota du jour. Demain, on repart de zéro."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -146,7 +146,7 @@ msgstr "Premier repas enregistré. {kcal} kcal — {arithmetic}"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.onboarding-done"
-msgstr "Bien — la mise en route est finie, et le premier jour est lancé. Encore une chose avant que tu partes, et c'est la seule fois que je demande."
+msgstr "Bien — la mise en route est finie, et le premier jour est lancé. Encore une chose avant que tu partes, et c'est la seule fois que je te le demande."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -241,7 +241,7 @@ msgstr "Un message à la sortie de l'appli, avec un lien de désinscription en u
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
-msgstr "Encore une chose qu'iOS va demander : les notifications. Une par jour, jamais plus — la ligne de 20h30, plus deux rappels avant la fin de la semaine gratuite si tu y es. Rien d'autre, jamais."
+msgstr "Encore une chose qu'iOS va demander : les notifications. Une par jour, jamais plus — le message de 20 h 30, plus deux rappels avant la fin de la semaine gratuite si tu en profites. Rien d'autre, jamais."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -271,7 +271,7 @@ msgstr "Lecture de l'assiette…"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.restored"
-msgstr "Restauré — tu es dedans. Une photo ou une phrase, les deux enregistrent un repas."
+msgstr "Compte restauré — c'est bon. Une photo ou une phrase, les deux enregistrent un repas."
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -311,17 +311,17 @@ msgstr "Quelqu'un — probablement toi — a demandé à recevoir un message qua
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.failed"
-msgstr "Quelque chose a échoué, et c'est peut-être quand même passé. Vérifie /today avant de le renvoyer."
+msgstr "Un problème est survenu, mais c'est peut-être quand même passé. Vérifie /today avant de renvoyer."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.fix-prompt"
-msgstr "Dis-moi ce qui cloche — \"la moitié du riz\", \"pas d'avocat\", \"c'était 500\" marchent tous. Ou ouvre la fiche et corrige les grammes toi-même."
+msgstr "Dis-moi ce qui cloche — « la moitié du riz », « pas d'avocat », « c'était 500 » : tout marche. Ou ouvre la fiche et corrige les grammes toi-même."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.analysis-failed"
-msgstr "Ça n'est pas revenu. Réessaie."
+msgstr "Pas de réponse. Réessaie."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -356,7 +356,7 @@ msgstr "Ce message est trop long pour être envoyé."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.expired"
-msgstr "Celui-là n'est plus en attente. Redis-le-moi."
+msgstr "Cette proposition a expiré. Redis-moi ce que tu as mangé."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -391,7 +391,7 @@ msgstr "Ça te met {over} au-dessus de tes {plan} pour aujourd'hui, et {protein}
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.cap-user"
-msgstr "C'était le dernier pour aujourd'hui — ton quota quotidien repart à minuit."
+msgstr "C'était le dernier pour aujourd'hui — ton quota quotidien se réinitialise à minuit."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -411,7 +411,7 @@ msgstr "Il n'y a aucun repas ouvert ici à modifier. Dis-moi ce que tu as mangé
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
-msgstr "L'offre gratuite de ce compte est utilisée. Commence ta semaine offerte sur le web pour continuer."
+msgstr "Ce compte a déjà utilisé son analyse offerte. Lance ta semaine gratuite sur le web pour continuer."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -421,12 +421,12 @@ msgstr "Voici le nouvel eait. Tes repas et tes photos sont gardés dans ton comp
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.todayHead"
-msgstr "Aujourd'hui : {eaten} sur {plan} kcal, {protein} sur {proteinTarget} g de protéines"
+msgstr "Aujourd'hui : {eaten} kcal sur {plan}, {protein} g de protéines sur {proteinTarget}"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.tooManyTries"
-msgstr "Trop d'essais depuis ce Telegram. Attends un peu, puis réappuie sur le lien."
+msgstr "Trop d'essais depuis ce Telegram. Attends un peu, puis appuie de nouveau sur le lien."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -466,7 +466,7 @@ msgstr "Je mange quoi ce soir ?"
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.trial-day-one"
-msgstr "Ton premier jour est lancé. À 20h30 tu reçois une ligne — la journée face au plan, et une chose concrète pour demain. Rien avant ça."
+msgstr "Ton premier jour est lancé. À 20 h 30, tu reçois un message — ta journée face au plan, et une chose concrète pour demain. Rien avant."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

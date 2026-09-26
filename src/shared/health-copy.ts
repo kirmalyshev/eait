@@ -102,7 +102,7 @@ export const HEALTH_COPY: Localized<HealthCopy> = {
       months: { label: "Mois", per: "mois" }, years: { label: "Années", per: "an" } },
     summary: { line: "{name} par {noun} : de {first} ({firstAt}) à {last} ({lastAt}). Minimum {low}, maximum {high}.",
       empty: "{name} par {noun} : rien d'enregistré." },
-    compare: { intake: "Apports", burned: "Dépense", sleep: "Sommeil", steps: "Pas", exercise: "Activité" },
+    compare: { intake: "Apports", burned: "Dépense", sleep: "Sommeil", steps: "Pas", exercise: "Exercice" },
     hm: { h: "h", m: "min" },
   },
   de: {
