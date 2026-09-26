@@ -2,7 +2,9 @@
 // navigation row and its diary rows — pinned by classes, accessible names and computed styles,
 // never by screenshots.
 
-import { expect, test } from "./fixtures.ts";
+import type { DayResponse } from "@eait/shared/contract";
+import { renderableVerdicts, verdictPillLabel } from "@eait/shared";
+import { expect, logMeal, sessionToken, test } from "./fixtures.ts";
 
 test("the chat asks its one question, and the photo input lives behind a labelled button", async ({ inWebApp: page }) => {
   await page.goto("/#/chat");
@@ -75,4 +77,34 @@ test("Diary · Chat · You hold ONE row at 390px, and the account's controls liv
   await expect(page.getByLabel("Language")).toHaveValue("en");
   await expect(page.getByLabel("Language").locator("option")).toHaveCount(8);
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+});
+
+test("a diary row wears the meal's own verdict pills, and the composer at the bottom logs one", async ({ inWebApp: page }) => {
+  await logMeal(page);
+  await page.goto("/#/");
+  await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
+
+  // The pills are READ BACK from the server — the meal's own computed verdicts, never recomputed
+  // on the page. Asserted against the API's copy of the day, not a guess at it.
+  const res = await page.request.get("/api/v1/diary/day", {
+    headers: { authorization: `Bearer ${await sessionToken(page)}` },
+  });
+  const day = await res.json() as DayResponse;
+  const meal = day.meals[0]!;
+  const dims = renderableVerdicts(meal.verdicts);
+  expect(dims.length).toBeGreaterThan(0);
+  const pills = page.locator(".meals tbody tr").first().locator(".pill");
+  await expect(pills).toHaveCount(dims.length);
+  for (const [i, d] of dims.entries()) {
+    await expect(pills.nth(i)).toHaveText(verdictPillLabel(d, meal.verdicts[d]!, "en"));
+    await expect(pills.nth(i)).toHaveClass(new RegExp(`\\bpill ${meal.verdicts[d]!}\\b`));
+  }
+
+  // The same composer the chat has, at the bottom of Today — a typed meal proposes, and Log it
+  // lands it as a row.
+  await page.getByPlaceholder("Tell Spud what you ate, or drop a photo").fill("a handful of almonds");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Log it" })).toBeVisible();
+  await page.getByRole("button", { name: "Log it" }).click();
+  await expect(page.locator(".meals tbody tr")).toHaveCount(2);
 });

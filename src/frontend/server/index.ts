@@ -176,6 +176,9 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 /* The guessed row, and the only colour in the list. */
 .meals tr.guessed td { background: color-mix(in srgb, var(--warn) 7%, transparent); }
 .meals tr.guessed td:first-child { border-left: 1.5px solid color-mix(in srgb, var(--warn) 45%, transparent); }
+/* The row's verdict pills sit under the meal's name, smaller than a card's (#52). */
+.meals .pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.meals .pill { min-height: 22px; padding: 0 9px; font-size: 11.5px; }
 
 /* THE TRANSCRIPT (the boards' chat, #52): a quiet column — my words right in the accent green,
    Spud's left and pale, and his face beside only his NEWEST turn. No bubble runs the column's
