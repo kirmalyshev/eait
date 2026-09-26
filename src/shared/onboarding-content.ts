@@ -37,7 +37,7 @@ const FR: OnboardingContent = {
     lines: [
       "Salut, moi c'est Spud. Photographie ce que tu manges, reçois une réponse honnête — l'appli tient entière là-dedans.",
       "Trois minutes de questions, puis ton plan — calories par jour, protéines, ce qui est réaliste et pour quand — et un verdict sur ton premier repas.",
-      "Rien à payer tant que tu n'as pas vu le plan et ce premier verdict ; ensuite, une semaine gratuite pour essayer. On y va ?",
+      "Rien à payer tant que tu n'as pas vu le plan et ce premier verdict ; ensuite, une semaine gratuite pour essayer. On y va ?",
     ],
     cta: "C'est parti",
   },
@@ -54,7 +54,7 @@ const FR: OnboardingContent = {
     {
       id: "about",
       asks: {
-        sex: { lines: ["Un peu sur toi, pour la formule des calories. Lequel te correspond ?"] },
+        sex: { lines: ["Un peu sur toi, pour la formule des calories. Qu'est-ce qui te correspond ?"] },
         birth_year: { lines: ["Quel âge as-tu ?"], placeholder: "Ton âge" },
       },
       options: { female: { label: "Femme" }, male: { label: "Homme" } },
@@ -87,7 +87,7 @@ const FR: OnboardingContent = {
     {
       id: "activity",
       asks: {
-        activity: { lines: ["Tu fais de l'exercice combien de fois dans une semaine normale ? Honnête vaut mieux qu'ambitieux — ça déplace beaucoup le chiffre."] },
+        activity: { lines: ["Dans une semaine normale, tu fais de l'exercice combien de fois ? Honnête vaut mieux qu'ambitieux — ça déplace beaucoup le chiffre."] },
       },
       options: {
         sedentary: { label: "Non" },
@@ -109,7 +109,7 @@ const FR: OnboardingContent = {
       id: "restrictions",
       asks: {
         restrictions: {
-          lines: ["Dernière question. Quelque chose dont je devrais tenir compte pour juger ce que tu manges ? Seul ce que tu choisis est noté — tu peux passer."],
+          lines: ["Dernière question. Quelque chose dont je devrais tenir compte pour juger ce que tu manges ? Seul ce que tu choisis est jugé — tu peux passer."],
           placeholder: "Allergies, aliments évités…",
         },
       },

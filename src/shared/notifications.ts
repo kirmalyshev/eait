@@ -108,8 +108,8 @@ export const NOTIFICATION_COPY: Localized<NotificationCopy> = {
     },
     evening: {
       title: "Aujourd'hui face au plan",
-      body: "{eaten} de tes {plan} kcal aujourd'hui. {tomorrow}",
-      emptyBody: "Rien d'enregistré aujourd'hui — tes {plan} kcal restent le plan. {tomorrow}",
+      body: "{eaten} kcal sur tes {plan} aujourd'hui. {tomorrow}",
+      emptyBody: "Rien d'enregistré aujourd'hui — ton objectif reste {plan} kcal. {tomorrow}",
     },
   },
   de: {
@@ -496,12 +496,12 @@ export const EVENING_PRESCRIPTIONS: Localized<Record<
     onPlan: "On plan. Same again tomorrow.",
   },
   fr: {
-    noMeals: "Une photo demain remet la journée dans le compte.",
-    over: "{over} au-dessus aujourd'hui — demain repart de {plan}.",
-    protein: "Il a manqué {gap} g de protéines — des œufs ou du skyr au petit-déjeuner comblent ça.",
-    gainUnder: "{under} kcal sous le plan — une poignée de noix demain suffit.",
-    under: "{under} sous le plan — manger le chiffre entier demain, c'est le plan, pas un écart.",
-    onPlan: "Dans le plan. Pareil demain.",
+    noMeals: "Demain, une seule photo suffit pour reprendre le fil.",
+    over: "{over} de trop aujourd'hui — demain, on repart sur {plan}.",
+    protein: "Il a manqué {gap} g de protéines — des œufs ou du skyr au petit-déjeuner suffiront à combler l'écart.",
+    gainUnder: "Il manquait {under} kcal — une poignée de noix demain, et c'est réglé.",
+    under: "{under} en dessous du plan — demain, manger tout ce qui est prévu, c'est le plan, pas un écart.",
+    onPlan: "Pile dans le plan. On refait pareil demain.",
   },
   de: {
     noMeals: "Ein Foto morgen, und der Tag zählt wieder.",

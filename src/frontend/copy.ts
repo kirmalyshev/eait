@@ -344,7 +344,7 @@ const FR: WebCopy = {
   offerDay8Text: "Ensuite au mois · résiliable à tout moment",
   offerPlans: "Ta formule",
   offerPlanMonthly: "Mensuel · 7 jours gratuits",
-  offerCheckoutHint: "Le paiement s'ouvre sur une page sécurisée, au prix de ta monnaie. Rien n'est débité pendant 7 jours.",
+  offerCheckoutHint: "Le paiement s'ouvre sur une page sécurisée, avec le prix dans ta devise. Rien n'est débité pendant 7 jours.",
   startFreeWeek: "Commencer ma semaine gratuite",
   offerLater: "Pas maintenant",
   photosMax: "Un repas prend jusqu'à {n} photos.",
