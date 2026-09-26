@@ -421,14 +421,31 @@ async function chatScreen(): Promise<HTMLElement> {
       unread = err;
     }
     const entries = lastThread;
+    // The boards' transcript (#52): a quiet column of bubbles — mine right and green, Spud's left
+    // and pale — and his face beside only his NEWEST turn, so a run of his lines keeps one presence.
+    let lastSpud = -1;
+    for (let i = entries.length - 1; i >= 0; i--) {
+      if (entries[i]!.role === "assistant") { lastSpud = i; break; }
+    }
     const list = el("ul", "thread");
-    for (const entry of entries) {
+    for (const [i, entry] of entries.entries()) {
       const li = el("li", entry.role === "user" ? "line mine" : "line theirs");
       // One arm at a time. A meal card is a card, not a sentence, and a photo line may carry no words.
       const text = entry.kind === "meal"
         ? mealLine(entry.meal)
         : entry.text ?? COPY.photo;
-      li.append(el("p", "", text));
+      const bubble = el("p", "bub", text);
+      if (i === lastSpud) {
+        // The avatar aligns with the bubble, not the row: the line's words sit in their own column.
+        li.classList.add("buddy");
+        const av = el("span", "av");
+        av.append(new DOMParser().parseFromString(spudSvg("idle", `spud-${++spudSeq}`), "image/svg+xml").documentElement);
+        const col = el("div", "col");
+        col.append(bubble);
+        li.append(av, col);
+      } else {
+        li.append(bubble);
+      }
       // OWN LINES ONLY (#608): Edit on a photo line that still names a meal, Delete on any of them.
       if (entry.role === "user") {
         // `lineIsMeal`'s rule: a confirmed proposal is stored under the proposal's id.
@@ -438,19 +455,21 @@ async function chatScreen(): Promise<HTMLElement> {
         // A label VoiceOver can act on without reading the bubble first, truncated so a long line
         // does not turn the button's own name into a paragraph.
         const named = text.length > 40 ? `${text.slice(0, 40)}…` : text;
+        // Small TEXT buttons under the bubble, named for the line they act on (`.act`, 44px up).
+        const acts = el("div", "acts");
         if (isMeal && entry.kind === "photo") {
-          const edit = el("button", "", COPY.edit) as HTMLButtonElement;
+          const edit = el("button", "act", COPY.edit) as HTMLButtonElement;
           edit.setAttribute("aria-label", `${COPY.edit}: ${named}`);
           edit.addEventListener("click", () => {
             const card = entries.find((e) => e.kind === "meal" && e.mealId === entry.mealId);
             editing = { id: entry.id, photos: (card && card.kind === "meal" ? card.meal?.photos : null) ?? 0 };
-            caption.value = entry.text ?? "";
+            words.value = entry.text ?? "";
             arm();
-            caption.focus();
+            words.focus();
           });
-          li.append(edit);
+          acts.append(edit);
         }
-        const del = el("button", "", COPY.delete) as HTMLButtonElement;
+        const del = el("button", "act", COPY.delete) as HTMLButtonElement;
         del.setAttribute("aria-label", `${COPY.delete}: ${named}`);
         del.addEventListener("click", () => {
           const ok = isMeal ? confirm(COPY.confirmDeleteMeal) : confirm(COPY.confirmDeleteLine);
@@ -460,7 +479,8 @@ async function chatScreen(): Promise<HTMLElement> {
             if (editing?.id === entry.id) { editing = null; arm(); }
           });
         });
-        li.append(del);
+        acts.append(del);
+        li.append(acts);
       }
       list.append(li);
     }
@@ -469,21 +489,23 @@ async function chatScreen(): Promise<HTMLElement> {
     const kept = uid === null ? [] : outbox.entries.filter((e) => e.userId === uid);
     for (const e of kept) {
       const li = el("li", "line mine");
-      li.append(el("p", "", e.kind === "photo" ? (e.text ? `Photo: ${e.text}` : COPY.photo) : e.text ?? ""));
+      li.append(el("p", "bub", e.kind === "photo" ? (e.text ? `Photo: ${e.text}` : COPY.photo) : e.text ?? ""));
       if (e.held === undefined) {
-        li.append(el("p", "muted", COPY.waitingToSend));
+        li.append(el("span", "note", COPY.waitingToSend));
       } else {
         // A turn the server may have run is worded as the doubt it is, never as "try again" beside a
         // button that sends it again under a new id.
-        li.append(el("p", "muted", outcomeUnknown(e.held.kind)
+        li.append(el("span", "note", outcomeUnknown(e.held.kind)
           ? unclear()
           : refusalWords(new ApiError(0, { error: e.held.kind, ...(e.held.scope ? { scope: e.held.scope } : {}) }, "held"))));
-        const again = el("button", "", COPY.sendAgain) as HTMLButtonElement;
+        const acts = el("div", "acts");
+        const again = el("button", "act", COPY.sendAgain) as HTMLButtonElement;
         again.addEventListener("click", () => turn(() => outbox.resend(e.id, uid!)));
-        const drop = el("button", "", COPY.discard) as HTMLButtonElement;
+        const drop = el("button", "act", COPY.discard) as HTMLButtonElement;
         // Discarding a held head lets whatever waited behind it go.
         drop.addEventListener("click", () => turn(async () => { await outbox.discard(e.id); void flush(); }));
-        li.append(again, drop);
+        acts.append(again, drop);
+        li.append(acts);
       }
       list.append(li);
     }
@@ -595,53 +617,36 @@ async function chatScreen(): Promise<HTMLElement> {
     return card;
   }
 
-  const words = textField(COPY.composerPlaceholder);
-  const say = el("form", "composer") as HTMLFormElement;
-  say.append(words, el("button", "primary", COPY.send));
-  say.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const text = words.value.trim();
-    if (text === "") return;
-    turn(async () => {
-      const saved = await sendOrKeep({ id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [], capturedAt: new Date().toISOString() });
-      words.value = "";
-      return saved;
-    });
-  });
-
-  // `accept=` is a hint to the chooser and transcodes nothing: an iPhone's library hands a browser
-  // HEIC as happily as it once handed the app. The server refuses it before charging (415), and
-  // that refusal is what a person reads.
-  const picker = el("input", "") as HTMLInputElement;
-  picker.type = "file";
-  picker.accept = "image/jpeg,image/png,image/webp";
-  picker.multiple = true;
-  picker.setAttribute("aria-label", COPY.photosOfOneMeal);
-  const caption = textField(COPY.caption);
-  const shoot = el("form", "composer") as HTMLFormElement;
-  const count = el("span", "muted", "");
-  const send = el("button", "", COPY.sendPhoto) as HTMLButtonElement;
-  const cancel = el("button", "", COPY.cancel) as HTMLButtonElement;
-  cancel.hidden = true;
-  cancel.type = "button";
-  cancel.addEventListener("click", () => { editing = null; caption.value = ""; picker.value = ""; arm(); });
+  // THE ONE COMPOSER (the boards' row, #52): the native file input hides behind the labelled
+  // "Add a photo", and the one field takes a meal, a question, or the words that go WITH a photo —
+  // Send sends whichever is attached. A photo's own form is gone, and with it the caption field.
+  const comp = composerRow(COPY.composerPlaceholder);
+  const { picker, words, send, count, cancel } = comp;
   /** The composer as the mode says: an edit shows what it has, asks for angles to ADD, and sends. */
   const arm = (): void => {
-    count.textContent = editing ? `${editing.photos} photo${editing.photos === 1 ? "" : "s"} · add angles:` : "";
+    const stored = editing?.photos ?? 0;
+    const picked = picker.files?.length ?? 0;
+    count.textContent = editing !== null
+      ? `${stored} photo${stored === 1 ? "" : "s"} · add angles:`
+      : picked > 0 ? `${picked} photo${picked === 1 ? "" : "s"}` : "";
     // Hidden rather than merely empty: an empty inline `<span>` still takes up its own gap in the
-    // flex-wrapped row (`.composer { gap: .5rem }`), which showed as a stray space before Send.
-    count.hidden = editing === null;
-    send.textContent = editing ? COPY.send : COPY.sendPhoto;
+    // row, which showed as a stray space before Send.
+    count.hidden = count.textContent === "";
+    // Send's NAME says what this press does — words, or the photos that are attached — because
+    // the arrow does not.
+    send.setAttribute("aria-label", editing === null && picked > 0 ? COPY.sendPhoto : COPY.send);
     cancel.hidden = editing === null;
   };
-  shoot.append(count, picker, caption, send, cancel);
-  shoot.addEventListener("submit", (e) => {
+  picker.addEventListener("change", arm);
+  cancel.addEventListener("click", () => { editing = null; words.value = ""; picker.value = ""; arm(); });
+  comp.form.addEventListener("submit", (e) => {
     e.preventDefault();
     const files = [...(picker.files ?? [])];
-    if (editing === null && files.length === 0) { tell(COPY.choosePhotoFirst); return; }
+    const text = words.value.trim();
+    if (editing === null && files.length === 0 && text === "") return;
     // THE SERVER'S NUMBERS, off the profile, never compiled in: they differ between environments,
     // and a person should hear "too many" before the upload rather than after it.
-    if (me !== null) {
+    if (me !== null && (editing !== null || files.length > 0)) {
       const { maxPhotosPerMeal, maxUploadBytes } = me.limits;
       // `stored`, never `held`: the module-level `held` above is the text-turn's pending PROPOSAL,
       // and shadowing its name here for an unrelated photo count is exactly the kind of collision
@@ -657,7 +662,7 @@ async function chatScreen(): Promise<HTMLElement> {
       if (editing !== null) {
         // AN EDIT (#608): the same multipart, `text` rather than `caption`, PATCH on the line. The
         // analyzer re-reads every photo with the new words; the line and the card change in place.
-        form.append("text", caption.value.trim());
+        form.append("text", text);
         let p: PendingPhoto = { glance: null, items: [] };
         progress.textContent = pendingLine(p, lang);
         progress.hidden = false;
@@ -692,17 +697,23 @@ async function chatScreen(): Promise<HTMLElement> {
         }
         editing = null;
         picker.value = "";
-        caption.value = "";
+        words.value = "";
         arm();
         return;
       }
-      // Refused IN the stream, with the 200 already sent, is thrown by `sendTurn` as any other refusal.
-      const saved = await sendOrKeep({
-        id: crypto.randomUUID(), userId: uid ?? "", kind: "photo", text: caption.value.trim() || null, photos: files,
-        capturedAt: new Date().toISOString(),
-      });
-      picker.value = "";
-      caption.value = "";
+      if (files.length > 0) {
+        // Refused IN the stream, with the 200 already sent, is thrown by `sendTurn` as any other refusal.
+        const saved = await sendOrKeep({
+          id: crypto.randomUUID(), userId: uid ?? "", kind: "photo", text: text === "" ? null : text, photos: files,
+          capturedAt: new Date().toISOString(),
+        });
+        picker.value = "";
+        words.value = "";
+        arm();
+        return saved;
+      }
+      const saved = await sendOrKeep({ id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [], capturedAt: new Date().toISOString() });
+      words.value = "";
       return saved;
     });
   });
@@ -726,7 +737,7 @@ async function chatScreen(): Promise<HTMLElement> {
     // later means this one now waits on a decision, and nothing left waiting means it went.
     if (notice.textContent === kept() || notice.textContent === behind()) tell(keptNotice(uid));
   };
-  wrap.append(thread, notice, say, el("h2", "photo-lead", COPY.orPhotograph), shoot, progress);
+  wrap.append(thread, notice, comp.form, progress);
   // What the turn that was out said, if it answered after its own screen was gone.
   // A kept turn's notice carried from a screen that is gone is decided again now: minutes may have
   // passed, and the turn may have gone meanwhile.
@@ -1103,6 +1114,45 @@ function textField(placeholder: string): HTMLInputElement {
   input.placeholder = placeholder;
   input.setAttribute("aria-label", placeholder);
   return input;
+}
+
+/**
+ * The boards' composer (#52): ONE pill row — "Add a photo" as a labelled button in front of the
+ * native file input (which never shows), the field, and the round send. The same row stands at the
+ * bottom of Chat and of Today; what Send does with the words and the files is each screen's own.
+ *
+ * `accept=` is a hint to the chooser and transcodes nothing: an iPhone's library hands a browser
+ * HEIC as happily as it once handed the app. The server refuses it before charging (415), and
+ * that refusal is what a person reads.
+ */
+function composerRow(placeholder: string): {
+  form: HTMLFormElement; picker: HTMLInputElement; add: HTMLButtonElement;
+  words: HTMLInputElement; send: HTMLButtonElement; count: HTMLElement; cancel: HTMLButtonElement;
+} {
+  const form = el("form", "comp") as HTMLFormElement;
+  const picker = el("input", "visually-hidden") as HTMLInputElement;
+  picker.type = "file";
+  picker.accept = "image/jpeg,image/png,image/webp";
+  picker.multiple = true;
+  picker.setAttribute("aria-label", COPY.photosOfOneMeal);
+  const add = el("button", "add", COPY.addPhoto) as HTMLButtonElement;
+  add.type = "button";
+  add.addEventListener("click", () => picker.click());
+  const row = el("div", "comp-row");
+  const words = textField(placeholder);
+  words.className = "fld";
+  const send = el("button", "send", "↑") as HTMLButtonElement;
+  send.setAttribute("aria-label", COPY.send);
+  row.append(add, words, send);
+  const count = el("span", "count", "");
+  count.hidden = true;
+  const cancel = el("button", "act", COPY.cancel) as HTMLButtonElement;
+  cancel.type = "button";
+  cancel.hidden = true;
+  const note = el("div", "comp-note");
+  note.append(count, cancel);
+  form.append(picker, row, note);
+  return { form, picker, add, words, send, count, cancel };
 }
 
 /**

@@ -163,23 +163,46 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 .meals tr.guessed td { background: color-mix(in srgb, var(--warn) 7%, transparent); }
 .meals tr.guessed td:first-child { border-left: 1.5px solid color-mix(in srgb, var(--warn) 45%, transparent); }
 
-.thread { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; }
-.line p { margin: 0; padding: .55rem .8rem; border-radius: 14px; background: var(--panel); }
+/* THE TRANSCRIPT (the boards' chat, #52): a quiet column — my words right in the accent green,
+   Spud's left and pale, and his face beside only his NEWEST turn. No bubble runs the column's
+   width, and the line's actions are small TEXT buttons on a 44px hit area. */
+.thread { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.line { display: flex; flex-direction: column; align-items: flex-start; }
+.line .bub { margin: 0; padding: .55rem .9rem; width: fit-content; max-width: 86%; border-radius: 18px;
+  border-bottom-left-radius: 6px; background: var(--raised); border: 1px solid var(--line); }
 .line.mine { align-items: flex-end; }
-.line.mine p { background: var(--accent); color: var(--accent-ink); }
-.line button { margin-left: .5rem; font-size: .85em; }
+.line.mine .bub { background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+  border-bottom-left-radius: 18px; border-bottom-right-radius: 6px; max-width: 80%; }
+.line.buddy { flex-direction: row; gap: 10px; }
+.line .av { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%; overflow: hidden;
+  background: var(--raised); border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center; }
+.line .av svg { width: 30px; height: 30px; display: block; }
+.line.buddy .col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.line .note { font-size: 11.5px; color: var(--faint); font-weight: 600; }
+.acts { display: flex; gap: 2px; }
+.act { background: none; border: 0; color: var(--muted); cursor: pointer;
+  font: 700 12.5px var(--display); padding: 4px 10px; min-width: 44px; min-height: 44px; }
 .error, .notice { color: var(--bad); }
 .notice { margin: 1rem 0 0; }
-.photo-lead { margin-top: 1.5rem; font-size: 1rem; }
-.composer { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
-.composer input, .composer button, .card button { font: inherit; }
-.composer input[type="text"] { flex: 1 1 12rem; padding: .55rem .8rem; border-radius: 999px;
-  color: var(--text); background: var(--raised); border: 1px solid var(--line-strong); }
-.composer button, .card button { padding: 0 16px; height: 38px; border-radius: 999px; cursor: pointer;
-  color: var(--text); background: var(--raised); border: 1px solid var(--line); margin: .5rem .5rem 0 0; font-weight: 700; }
-.composer button { margin: 0; }
-.composer button.primary, .card button.primary { background: var(--accent); color: var(--accent-ink);
-  height: 38px; line-height: 38px; margin-top: 0; }
+/* THE ONE COMPOSER, on Chat and on Today alike: "Add a photo" in front of the native input, the
+   field, the round send. It stays at the foot of the column while the thread scrolls under it. */
+.comp { margin-top: 14px; position: sticky; bottom: 0; background: var(--ink); padding: 10px 0 4px; }
+.comp-row { display: flex; align-items: center; gap: 8px; }
+.comp .add { flex: 0 0 auto; min-height: 44px; padding: 0 16px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line-strong); background: var(--raised); color: var(--text);
+  font: 700 13px var(--display); }
+.comp .fld { flex: 1 1 8rem; min-width: 0; font: inherit; padding: 11px 16px; border-radius: 999px;
+  border: 1px solid var(--line-strong); color: var(--text); background: var(--raised); }
+.comp .send { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 18px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; }
+.comp-note { display: flex; align-items: center; gap: 6px; }
+.comp-note .count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.card button { padding: 0 16px; height: 38px; border-radius: 999px; cursor: pointer; font: inherit;
+  font-weight: 700; color: var(--text); background: var(--raised); border: 1px solid var(--line);
+  margin: .5rem .5rem 0 0; }
+.card button.primary { background: var(--accent); color: var(--accent-ink); }
 input:disabled, button:disabled { opacity: .5; cursor: default; }
 /* The one-meal flow (#42) — the v5 boards, in the diary's place while the account has never
    logged: one centred column, the width a chat reads best at (styles_spec_v5_web). */
