@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import {
   HEALTH_RETENTION_DAYS, IDEMPOTENCY_KEY, MAX_CLIENT_ID, MAX_USER_LINE, MAX_HEALTH_DAYS_PER_BATCH, ROUTES, emptyHealthDay,
   localDate, NDJSON, OUTCOME_UNKNOWN, type ChatHistoryResponse, type PairCodeResponse, type PhotoEvent, type MealLogged,
-  type ProfileResponse, type MealProposed, type PendingMealsResponse,
+  type ProfileResponse, type MealProposed, type PendingMealsResponse, type ChatEntry,
 } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { DEMO_NOT_FOOD, demoPorts } from "../llm/demo.ts";
@@ -591,6 +591,47 @@ describe("chat and editing", () => {
       expect(await many.json()).toMatchObject({ error: "too-many-photos" });
       const noLength = new Request(url(ROUTES.message(lineId)), { method: "PATCH", headers: { authorization: `Bearer ${token}`, "content-type": "multipart/form-data; boundary=x" } });
       expect((await handle(noLength)).status).toBe(411);
+    });
+  });
+
+  // #61. The meal screen's delete: the same semantics as the line's, for a caller holding a meal id.
+  describe("DELETE /v1/meals/:id", () => {
+    /** Every way a line can name a meal: a photo line's and a card's `mealId`, a typed line's `pendingId`. */
+    const namesMeal = (e: ChatEntry, mealId: string): boolean =>
+      ((e.kind === "photo" || e.kind === "meal") && e.mealId === mealId) ||
+      (e.role === "user" && e.kind === "text" && e.pendingId === mealId);
+
+    it("deletes the meal, its photos, its cards and the line that carried it", async () => {
+      const token = await session();
+      const logged = await (await handle(photoRequest(token))).json() as { kind: string; mealId: string; date: string };
+      expect(logged.kind).toBe("logged");
+      const { entries } = await (await get(ROUTES.messages, token)).json() as ChatHistoryResponse;
+      const line = entries.find((e) => e.role === "user" && e.kind === "photo" && e.mealId === logged.mealId);
+      if (!line) throw new Error("no photo line");
+
+      const res = await del(ROUTES.meal(logged.mealId), {}, token);
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ kind: "deleted", mealId: logged.mealId, date: logged.date });
+
+      const userId = (await store.userIdForToken(token))!;
+      expect(await store.getMeal(userId, logged.mealId)).toBeNull();
+      expect(await store.getPhotos(userId, logged.mealId)).toEqual([]);
+      const after = await (await get(ROUTES.messages, token)).json() as ChatHistoryResponse;
+      expect(after.entries.some((e) => e.id === line.id || namesMeal(e, logged.mealId))).toBe(false);
+    });
+
+    it("409s another account's meal id and an unknown one, deleting nothing", async () => {
+      const token = await session();
+      const logged = await (await handle(photoRequest(token))).json() as { mealId: string };
+      const res = await del(ROUTES.meal(logged.mealId), {}, await session());
+      expect(res.status).toBe(409);
+      expect(await res.json()).toMatchObject({ error: "target-gone" });
+      expect((await del(ROUTES.meal(crypto.randomUUID()), {}, token)).status).toBe(409);
+      // And nothing of the meal's owner's was touched.
+      const userId = (await store.userIdForToken(token))!;
+      expect(await store.getMeal(userId, logged.mealId)).not.toBeNull();
+      const { entries } = await (await get(ROUTES.messages, token)).json() as ChatHistoryResponse;
+      expect(entries.some((e) => namesMeal(e, logged.mealId))).toBe(true);
     });
   });
 });

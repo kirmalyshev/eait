@@ -1041,6 +1041,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
   countUserChat: 0,
   getLine: 0,
   photoLineFor: 0,
+  carrierLineFor: 0,
   deleteLine: 0,
   deleteMealLines: 0,
   updateLineText: 0,
@@ -2429,6 +2430,14 @@ export async function postgresStore(
     async photoLineFor(userId, mealId) {
       if (!UUID.test(mealId)) return null;
       const rows = await sql`select * from chat_messages where user_id = ${userId} and kind = 'photo' and meal_id = ${mealId} order by seq desc limit 1`;
+      return rows.length > 0 ? toChat(rows[0] as Record<string, unknown>) : null;
+    },
+    async carrierLineFor(userId, mealId) {
+      if (!UUID.test(mealId)) return null;
+      const rows = await sql`select * from chat_messages
+        where user_id = ${userId} and role = 'user'
+          and ((kind = 'photo' and meal_id = ${mealId}) or (kind = 'text' and pending_id = ${mealId}))
+        order by seq desc limit 1`;
       return rows.length > 0 ? toChat(rows[0] as Record<string, unknown>) : null;
     },
     async deleteLine(userId, lineId) {

@@ -30,7 +30,7 @@ import { AuthError, type Verifier } from "../auth/verify.ts";
 import { isCalendarDate } from "@eait/shared";
 import type { Store } from "../store.ts";
 import {
-  MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, deleteLine, editLine,
+  MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, deleteLine, deleteMealById, editLine,
   editMeal, handleText,
   healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, pendingMeals, profileView,
   unlinkIdentity,
@@ -871,6 +871,15 @@ export function createRouter(
       }
 
       const mealMatch = /^\/v1\/meals\/([^/]+)$/.exec(pathname);
+      if (req.method === "DELETE" && mealMatch) {
+        // The meal screen's delete (#61): the line's semantics under the meal's id. Unbilled,
+        // writes the thread — per address, its own counter, like the message delete beside it.
+        const wait = limit(req, peer, "meal-delete", deps.config.linesRateLimitPerHour, HOUR);
+        if (wait !== null) return tooManyRequests(wait, { error: RATE_LIMITED });
+        const result = await deleteMealById(deps, userId, decodeURIComponent(mealMatch[1]!));
+        if (result.kind === "target-gone") return json({ error: "target-gone", on: result.on }, 409);
+        return json(result satisfies DeleteLineResponse);
+      }
       if (req.method === "PATCH" && mealMatch) {
         // Unbilled and behind no cap, but it writes the thread: per address, the same allowance as
         // `/lines` but its own counter, so an onboarding's burst of lines cannot spend the editor's.

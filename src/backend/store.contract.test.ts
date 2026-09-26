@@ -1239,6 +1239,37 @@ function contract(name: string, make: () => Promise<Store>) {
         expect(await s.photoLineFor(other, m.id)).toBeNull();
       });
 
+      it("finds the user line that carried a meal — the photo line, or the typed line whose proposal became it", async () => {
+        const s = await open();
+        const u = await user(); const other = await user();
+        const m = meal(u); await s.insertMeal(m);
+        await s.appendChat(u, [
+          { role: "user", kind: "photo", text: "rice", mealId: m.id },
+          { role: "assistant", kind: "meal", mealId: m.id, event: "logged" },
+        ]);
+        expect((await s.carrierLineFor(u, m.id))?.kind).toBe("photo");
+        // A card NAMING the meal is not the line that carried it, and another account carries nothing.
+        expect(await s.carrierLineFor(other, m.id)).toBeNull();
+        expect(await s.carrierLineFor(u, crypto.randomUUID())).toBeNull();
+        expect(await s.carrierLineFor(u, "not-a-uuid")).toBeNull();
+      });
+
+      it("finds the typed line whose confirmed proposal became the meal", async () => {
+        const s = await open();
+        const u = await user(); const other = await user();
+        const m = meal(u); await s.insertMeal(m);
+        // A confirmed proposal is stored under the proposal's id, so the typed line names its meal
+        // through `pendingId` — the same rule `deleteLine` reads.
+        await s.appendChat(u, [
+          { role: "user", kind: "text", text: "two eggs and toast", pendingId: m.id },
+          { role: "assistant", kind: "meal", mealId: m.id, event: "logged" },
+        ]);
+        const line = await s.carrierLineFor(u, m.id);
+        expect(line?.kind).toBe("text");
+        expect(line!.pendingId).toBe(m.id);
+        expect(await s.carrierLineFor(other, m.id)).toBeNull();
+      });
+
       it("deletes one line, for its owner only", async () => {
         const s = await open();
         const u = await user(); const other = await user();

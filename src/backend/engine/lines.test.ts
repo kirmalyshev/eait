@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { localDate, OUTCOME_UNKNOWN, type PhotoEvent } from "@eait/shared";
+import { localDate, OUTCOME_UNKNOWN, type ChatEntry, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { LlmPorts, PhotoInput } from "../llm/port.ts";
@@ -7,7 +7,7 @@ import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
-import { chatHistory, confirmPendingMeal, deleteLine, editLine, handleText, logPhotoMeal, patchProfile, sumTotals, type EngineDeps } from "./index.ts";
+import { chatHistory, confirmPendingMeal, deleteLine, deleteMealById, editLine, handleText, logPhotoMeal, patchProfile, sumTotals, type EngineDeps } from "./index.ts";
 
 const CONFIG: Config = {
   ...configDefaults(),
@@ -35,6 +35,10 @@ const jpeg = (bytes = 8) => { const b = new Uint8Array(2 + bytes).fill(1); b[0] 
 const heic = () => new Uint8Array([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63, 1, 1, 1, 1]);
 const photo = (caption?: string) => ({ images: [async () => jpeg()], ...(caption ? { caption } : {}) });
 const thread = async (d: EngineDeps, userId: string) => (await chatHistory(d, userId, {})).entries;
+/** Every way a line can name a meal: a photo line's and a card's `mealId`, a typed line's `pendingId`. */
+const namesMeal = (e: ChatEntry, mealId: string): boolean =>
+  ((e.kind === "photo" || e.kind === "meal") && e.mealId === mealId) ||
+  (e.role === "user" && e.kind === "text" && e.pendingId === mealId);
 /** The user's photo line and its card, after one photo turn. */
 async function loggedPhoto(d: EngineDeps, userId: string, caption?: string) {
   const res = await logPhotoMeal(d, userId, photo(caption));
@@ -119,6 +123,53 @@ describe("deleteLine", () => {
     await loggedPhoto(deps, userId);
     const card = (await thread(deps, userId)).find((e) => e.role === "assistant");
     expect(await deleteLine(deps, userId, card!.id)).toEqual({ kind: "bad-request" });
+  });
+});
+
+// #61. The meal screen's delete: the same semantics as deleting the line that carried it, for a
+// caller that holds a meal id and no line id.
+describe("deleteMealById", () => {
+  it("deletes the caller's meal with its photos, its cards and the photo line that carried it", async () => {
+    const userId = await onboard();
+    const { mealId, lineId, date } = await loggedPhoto(deps, userId);
+    expect(sumTotals(await store.mealsForDate(userId, date)).kcal).toBeGreaterThan(0);
+    expect(await deleteMealById(deps, userId, mealId)).toEqual({ kind: "deleted", mealId, date });
+    expect(await store.getMeal(userId, mealId)).toBeNull();
+    expect(await store.getPhotos(userId, mealId)).toEqual([]);
+    const after = await thread(deps, userId);
+    expect(after.some((e) => e.id === lineId)).toBe(false);
+    expect(after.some((e) => namesMeal(e, mealId))).toBe(false);
+    expect(sumTotals(await store.mealsForDate(userId, date)).kcal).toBe(0);
+  });
+
+  it("takes the typed line whose confirmed proposal became the meal", async () => {
+    const userId = await onboard();
+    await handleText(deps, userId, { text: "two eggs and toast" });
+    const line = (await thread(deps, userId)).findLast((e) => e.role === "user" && e.kind === "text" && e.pendingId !== null);
+    if (!line || line.role !== "user" || line.kind !== "text" || !line.pendingId) throw new Error("no proposal line");
+    const logged = await confirmPendingMeal(deps, userId, line.pendingId);
+    if (logged.kind !== "logged") throw new Error("not logged");
+    expect(await deleteMealById(deps, userId, logged.mealId)).toEqual({ kind: "deleted", mealId: logged.mealId, date: logged.date });
+    expect(await store.getMeal(userId, logged.mealId)).toBeNull();
+    const after = await thread(deps, userId);
+    expect(after.some((e) => e.id === line.id)).toBe(false);
+    expect(after.some((e) => namesMeal(e, logged.mealId))).toBe(false);
+    expect(sumTotals(await store.mealsForDate(userId, logged.date)).kcal).toBe(0);
+  });
+
+  it("another account's meal id is target-gone, and deletes nothing of theirs", async () => {
+    const a = await onboard(); const b = await onboard();
+    const { mealId, lineId } = await loggedPhoto(deps, a);
+    expect(await deleteMealById(deps, b, mealId)).toEqual({ kind: "target-gone", on: "correction" });
+    expect(await store.getMeal(a, mealId)).not.toBeNull();
+    const after = await thread(deps, a);
+    expect(after.some((e) => e.id === lineId)).toBe(true);
+    expect(after.some((e) => namesMeal(e, mealId))).toBe(true);
+  });
+
+  it("an unknown id is target-gone", async () => {
+    const userId = await onboard();
+    expect(await deleteMealById(deps, userId, crypto.randomUUID())).toEqual({ kind: "target-gone", on: "correction" });
   });
 });
 

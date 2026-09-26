@@ -1020,6 +1020,12 @@ export interface Store {
   getLine(userId: string, lineId: string): Promise<ChatMessage | null>;
   /** The caller's photo line for a meal, or null: where the caption an edit re-reads with lives. */
   photoLineFor(userId: string, mealId: string): Promise<ChatMessage | null>;
+  /**
+   * The caller's USER line that carried a meal (#61): the photo line whose `mealId` names it, or
+   * the typed line whose `pendingId` does — a confirmed proposal is stored under the proposal's id.
+   * What `DELETE /v1/meals/:id` removes with the meal. Null when no line of theirs carries it.
+   */
+  carrierLineFor(userId: string, mealId: string): Promise<ChatMessage | null>;
   /** True when this call removed the caller's line. */
   deleteLine(userId: string, lineId: string): Promise<boolean>;
   /** Every `kind: "meal"` line for the caller's meal; how many went. The engine cascades, not the schema, so the memory store cannot drift from Postgres. */
