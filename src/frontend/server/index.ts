@@ -23,7 +23,7 @@
 // image does.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
-import { darkVars, lightVars } from "../../shared/palette.ts";
+import { lightVars } from "../../shared/palette.ts";
 
 /** Where `bun run build` in this workspace puts the bundle. The only default; tests pass their own. */
 export const DEFAULT_BUNDLE_PATH = new URL("../dist/main.js", import.meta.url);
@@ -75,7 +75,9 @@ function shell(nonce: string): string {
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
   --display: "Space Grotesk", var(--sans);
 }
-@media (prefers-color-scheme: dark) { :root { ${darkVars} } }
+/* LIGHT, ALWAYS — the landing's rule, settled for this surface too (spud-web, #825): both surfaces
+   are light and neither consults the OS, so there is no dark half of this stylesheet to keep in
+   step. The tokens' dark block stays in shared/palette.ts for the app, not for this page. */
 /* THE ONE TYPEFACE is /start's own, from /start's own route: the backend serves the landing's file
    at FONT_PATH (backend/web/page.ts), and the edge puts /start/* on this same origin — so
    font-src 'self' is all the CSP needs and nothing is fetched from anyone else. */
