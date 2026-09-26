@@ -68,3 +68,12 @@ export function verdictPillLabel(
   // word order — Russian puts a dash where English puts nothing, and neither is built here.
   return PILL[verdict](i18n, NOUN[dimension](i18n));
 }
+
+/**
+ * The noun alone — "Saturated fat", "Sodium" — for a surface that names what is capped rather than
+ * how a meal scored. The /start plan's marker row reads it, so the cap and the verdict that judges
+ * against it can never spell the nutrient two ways.
+ */
+export function verdictNoun(dimension: VerdictDimension, lang: Lang): string {
+  return NOUN[dimension](i18nFor(lang));
+}

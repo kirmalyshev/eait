@@ -14,8 +14,8 @@ import { join } from "node:path";
 import {
   AMBIGUOUS_AGE, COUNTRY_CODES, DEFAULT_ONBOARDING_CONTENT, LANGS, LANG_LABEL, UNDER_AGE_CARD,
   UNDER_AGE_LINES, basalMetabolicRate, chatCopyFor, countryLabel, countryOptions, disabledScreens,
-  explainTargets, lintCopy, MAX_USER_LINE, onboardingContentFor, screenForStep, screenOptions,
-  struggleCard, suggestedTargetKg, targetSuggestionLine,
+  explainTargets, lintCopy, MAX_USER_LINE, onboardingContentFor, projectGoal, projectionMonth,
+  screenForStep, screenOptions, struggleCard, suggestedTargetKg, targetSuggestionLine,
   TYPE_MS_PER_CHAR, wholeNumbers, type Profile,
 } from "@eait/shared";
 import { MOUTHS } from "@eait/shared/mascot";
@@ -731,6 +731,72 @@ describe("the plan", () => {
     const res = await get("/start/plan", session);
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/start/q");
+  });
+
+  it("delivers the welcome's promise: the month, the weeks, the declared marker, the arithmetic", async () => {
+    // On a deployment WITH a web application — which is also where the language picker must be
+    // gone, because the app's own settings carry it there.
+    router({ ...CONFIG }, undefined, undefined, true);
+    const session = await signIn();
+    // High cholesterol declared: saturated fat is scored, and the plan says so with the same cap
+    // the verdicts will be computed against — `targets`, not a figure typed into the page.
+    await answerAll(session, { ...ANSWERS, restrictions: ["ldl"] });
+
+    const html = await (await get("/start/plan", session)).text();
+    const profile = (await store.getProfile(await webUser(session)))!;
+    const { targets, basis } = explainTargets(profile);
+    const n = wholeNumbers("en");
+
+    // The by-when: the month `projectGoal` computes, named by the plan's own projection line.
+    const projection = projectGoal(profile, basis);
+    expect(projection).not.toBeNull();
+    expect(html).toContain(projectionMonth(new Date(), projection!.weeks, "en"));
+    // ...and the weeks beside it, in the page's own words.
+    expect(html).toContain(pageCopyFor("en").planWeeks.replace("{weeks}", n(projection!.weeks)));
+
+    // The marker the answer asked for — the verdict noun and the cap `verdictsFromTargets` reads.
+    expect(html).toContain("Saturated fat");
+    expect(html).toContain(`${n(targets.satfat_g!)} g`);
+
+    // The four arithmetic rows, computed here rather than re-typed — a page that drifts from
+    // `explainTargets` fails on its own numbers.
+    expect(html).toContain(`>${n(basis.bmr!)}<`);
+    expect(html).toContain(`>+${n(basis.tdee! - basis.bmr!)}<`);
+    expect(html).toContain(`>−${n(Math.abs(basis.appliedDeltaKcal))}<`);
+    expect(html).toContain(`>${n(basis.floorKcal)}<`);
+
+    // The primary is the first meal, into the web application; the language lives in ITS
+    // settings, so the picker is not drawn here.
+    expect(html).toContain(pageCopyFor("en").planFirstMeal);
+    expect(html).toContain('href="/"');
+    expect(html).not.toContain('<select name="lang"');
+  });
+
+  it("keeps the language picker where there is no web application to hold it", async () => {
+    // Then it is the only place to change it — removing it would strand the account's language.
+    const session = await signIn();
+    await answerAll(session, ANSWERS);
+    const html = await (await get("/start/plan", session)).text();
+    expect(html).toContain('<select name="lang"');
+  });
+
+  it("names no month for a maintain goal — there is nowhere to arrive", async () => {
+    const session = await signIn();
+    await answerAll(session, { ...ANSWERS, goal: "maintain" });
+    const profile = (await store.getProfile(await webUser(session)))!;
+    expect(projectGoal(profile, explainTargets(profile).basis)).toBeNull();
+    const html = await (await get("/start/plan", session)).text();
+    // No date line and no pace line: `projectGoal` refused, so the page has nothing to show.
+    expect(html).not.toContain("weeks at this pace");
+    expect(html).not.toMatch(/around \w+ \d{4}/);
+  });
+
+  it("shows no saturated fat to somebody who never asked for it", async () => {
+    const session = await signIn();
+    await answerAll(session, ANSWERS); // restrictions: []
+    const html = await (await get("/start/plan", session)).text();
+    expect(html).not.toContain("Saturated fat");
+    expect(html).not.toContain("Sodium");
   });
 
 });

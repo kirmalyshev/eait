@@ -9,7 +9,7 @@ import { expect, onboard, signIn, test } from "./fixtures.ts";
 test("picking a language changes the page, and the page says which language it is", async ({ page }) => {
   await signIn(page, `pw-lang-${Date.now()}`);
   await onboard(page);
-  await expect(page.getByRole("heading", { name: "Your plan" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Here is your plan" })).toBeVisible();
   // English until somebody says otherwise: `Accept-Language` seeded it and nothing has overruled it.
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
 
@@ -18,9 +18,9 @@ test("picking a language changes the page, and the page says which language it i
   await picker.selectOption("de");
   await page.getByRole("button", { name: "Save" }).click();
 
-  // The plan page comes back in German — heading, lead, and the picker itself, which is now
+  // The plan page comes back in German — heading, and the picker itself, which is now
   // labelled in German and still shows the language being read.
-  await expect(page.getByRole("heading", { name: "Dein Plan" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Hier ist dein Plan" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "de");
   await expect(page.getByLabel("Sprache")).toHaveValue("de");
 
@@ -42,7 +42,7 @@ test("the endonyms are what the picker offers, never a translated list", async (
   for (const name of names) await expect(page.getByLabel("Language").getByText(name)).toBeAttached();
   await page.getByLabel("Language").selectOption("ru");
   await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByRole("heading", { name: "Твой план" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Вот твой план" })).toBeVisible();
   for (const name of names) await expect(page.getByLabel("Язык").getByText(name)).toBeAttached();
 });
 
@@ -69,7 +69,7 @@ test.describe("a browser that is not English", () => {
     // ...and so is the first question, which is what the account's own language decides.
     await expect(page.locator("html")).toHaveAttribute("lang", "de");
     await onboard(page);
-    await expect(page.getByRole("heading", { name: "Dein Plan" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Hier ist dein Plan" })).toBeVisible();
     // The picker opens on the language they already have, rather than on English.
     await expect(page.getByLabel("Sprache")).toHaveValue("de");
   });

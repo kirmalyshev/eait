@@ -18,14 +18,15 @@ import { t, type Lang, type Localized } from "@eait/shared";
 export interface PageCopy {
   frontDoorLead: string;
   planHeading: string;
-  planLead: string;
-  /** `{protein}` — the line under the big kcal figure on the plan card. */
-  planPerDay: string;
+  /** `{weeks}` — the count `projectGoal` computed, under the by-when line. */
+  planWeeks: string;
+  /** The caption over the big kcal figure — the targets are per day. */
+  planEachDay: string;
+  /** The primary button: the first meal, on us — the sample the offer already promises. */
+  planFirstMeal: string;
   planFloor: string;
   /** `{floor}` — the floor's own number, said after `planFloor`. */
   planFloorNumber: string;
-  planDiary: string;
-  planDiaryBody: string;
   planAppHeading: string;
   /** `{provider}` is the one they actually used — see the note in the English below. */
   planAppBody: string;
@@ -144,23 +145,14 @@ export interface PageCopy {
 const EN: PageCopy = {
   frontDoorLead:
     "Set up your account here, then open the app already signed in. It takes about three minutes.",
-  planHeading: "Your plan",
-  planLead: "This is what the app will hold you to. You can change any answer later, in the app.",
-  planPerDay: "a day, with at least {protein} g of protein",
+  planHeading: "Here is your plan",
+  planWeeks: "{weeks} weeks at this pace",
+  planEachDay: "Each day",
+  planFirstMeal: "Try one meal on me",
   planFloor:
     "This is the lowest daily intake this app will set, so the number is the floor rather than the " +
     "arithmetic. Eating under it is not something we will help you plan.",
   planFloorNumber: "The floor is {floor} kcal.",
-  /**
-   * The handover to the web application (#394).
-   *
-   * FIRST ON THE PAGE, ahead of the App Store, and that ordering is the decision: somebody who has
-   * just answered eight questions in a browser can use the product in that same browser, and being
-   * told to install something instead is being told the thing they just did was a form.
-   */
-  planDiary: "Open your diary",
-  planDiaryBody:
-    "Nothing to install. Photograph a meal in this browser and read the answer, on the same account.",
   planAppHeading: "Now get the app",
   /**
    * The `{provider}` is filled in with the one they actually used. THIS SENTENCE IS THE FEATURE:
@@ -269,13 +261,12 @@ const EN: PageCopy = {
 
 const FR: PageCopy = {
   frontDoorLead: "Crée ton compte ici, puis ouvre l'appli : la session sera déjà ouverte. Ça prend environ trois minutes.",
-  planHeading: "Ton plan",
-  planLead: "Voilà ce à quoi l'appli va te tenir. Tu peux changer n'importe quelle réponse plus tard, dans l'appli.",
-  planPerDay: "par jour, avec au moins {protein} g de protéines",
+  planHeading: "Voici ton plan",
+  planWeeks: "{weeks} semaines à ce rythme",
+  planEachDay: "Chaque jour",
+  planFirstMeal: "Essaie un repas — je t'offre",
   planFloor: "C'est l'apport quotidien le plus bas que cette appli fixera, donc ce chiffre est le plancher plutôt que le calcul. Manger en dessous n'est pas quelque chose que nous t'aiderons à planifier.",
   planFloorNumber: "Le plancher est de {floor} kcal.",
-  planDiary: "Ouvrir ton journal",
-  planDiaryBody: "Rien à installer. Photographie un repas dans ce navigateur et lis la réponse, sur le même compte.",
   planAppHeading: "Maintenant, installe l'appli",
   planAppBody: "Installe eait pour iPhone et choisis Se connecter avec {provider}. C'est le même compte — tes réponses et ton plan y sont déjà.",
   planAppBodyGeneric: "Installe eait pour iPhone et connecte-toi comme tu l'as fait ici. C'est le même compte — tes réponses et ton plan y sont déjà.",
@@ -356,13 +347,12 @@ const FR: PageCopy = {
 
 const DE: PageCopy = {
   frontDoorLead: "Richte dein Konto hier ein und öffne die App dann bereits angemeldet. Dauert etwa drei Minuten.",
-  planHeading: "Dein Plan",
-  planLead: "Daran wird die App dich messen. Jede Antwort lässt sich später in der App ändern.",
-  planPerDay: "am Tag, mit mindestens {protein} g Eiweiß",
+  planHeading: "Hier ist dein Plan",
+  planWeeks: "{weeks} Wochen in diesem Tempo",
+  planEachDay: "Jeden Tag",
+  planFirstMeal: "Probier eine Mahlzeit — sie geht auf mich",
   planFloor: "Das ist die niedrigste Tagesaufnahme, die diese App je ansetzt — die Zahl ist also die Grenze und nicht die Rechnung. Darunter zu essen ist nichts, wobei wir dir helfen werden.",
   planFloorNumber: "Die Grenze liegt bei {floor} kcal.",
-  planDiary: "Dein Tagebuch öffnen",
-  planDiaryBody: "Nichts zu installieren. Fotografier eine Mahlzeit in diesem Browser und lies die Antwort — auf demselben Konto.",
   planAppHeading: "Jetzt die App holen",
   planAppBody: "Installier eait fürs iPhone und wähl „Anmelden mit {provider}“. Es ist dasselbe Konto — deine Antworten und dein Plan liegen schon darauf.",
   planAppBodyGeneric: "Installier eait fürs iPhone und melde dich so an wie hier. Es ist dasselbe Konto — deine Antworten und dein Plan liegen schon darauf.",
@@ -443,13 +433,12 @@ const DE: PageCopy = {
 
 const IT: PageCopy = {
   frontDoorLead: "Prepara qui il tuo account, poi apri l'app con la sessione già aperta. Ci vogliono circa tre minuti.",
-  planHeading: "Il tuo piano",
-  planLead: "È a questo che l'app ti terrà. Puoi cambiare qualsiasi risposta più avanti, nell'app.",
-  planPerDay: "al giorno, con almeno {protein} g di proteine",
+  planHeading: "Ecco il tuo piano",
+  planWeeks: "{weeks} settimane a questo ritmo",
+  planEachDay: "Ogni giorno",
+  planFirstMeal: "Prova un pasto — offro io",
   planFloor: "Questo è l'apporto giornaliero più basso che questa app imposterà, quindi il numero è il limite e non il calcolo. Mangiare al di sotto non è una cosa che ti aiuteremo a pianificare.",
   planFloorNumber: "Il limite è di {floor} kcal.",
-  planDiary: "Apri il tuo diario",
-  planDiaryBody: "Niente da installare. Fotografa un pasto in questo browser e leggi la risposta, sullo stesso account.",
   planAppHeading: "Ora installa l'app",
   planAppBody: "Installa eait per iPhone e scegli Accedi con {provider}. È lo stesso account — le tue risposte e il tuo piano ci sono già.",
   planAppBodyGeneric: "Installa eait per iPhone e accedi come hai fatto qui. È lo stesso account — le tue risposte e il tuo piano ci sono già.",
@@ -530,13 +519,12 @@ const IT: PageCopy = {
 
 const ES: PageCopy = {
   frontDoorLead: "Prepara tu cuenta aquí y luego abre la app ya con la sesión iniciada. Son unos tres minutos.",
-  planHeading: "Tu plan",
-  planLead: "Esto es a lo que la app te va a sujetar. Puedes cambiar cualquier respuesta más adelante, en la app.",
-  planPerDay: "al día, con al menos {protein} g de proteína",
+  planHeading: "Aquí está tu plan",
+  planWeeks: "{weeks} semanas a este ritmo",
+  planEachDay: "Cada día",
+  planFirstMeal: "Prueba una comida — invito yo",
   planFloor: "Esta es la ingesta diaria más baja que esta app va a fijar, así que el número es el suelo y no el cálculo. Comer por debajo no es algo que te vayamos a ayudar a planificar.",
   planFloorNumber: "El suelo está en {floor} kcal.",
-  planDiary: "Abre tu diario",
-  planDiaryBody: "Nada que instalar. Fotografía una comida en este navegador y lee la respuesta, en la misma cuenta.",
   planAppHeading: "Ahora instala la app",
   planAppBody: "Instala eait para iPhone y elige Iniciar sesión con {provider}. Es la misma cuenta — tus respuestas y tu plan ya están ahí.",
   planAppBodyGeneric: "Instala eait para iPhone e inicia sesión igual que aquí. Es la misma cuenta — tus respuestas y tu plan ya están ahí.",
@@ -617,13 +605,12 @@ const ES: PageCopy = {
 
 const VI: PageCopy = {
   frontDoorLead: "Tạo tài khoản ở đây, rồi mở ứng dụng là đã đăng nhập sẵn. Mất khoảng ba phút.",
-  planHeading: "Kế hoạch của bạn",
-  planLead: "Đây là chuẩn mà ứng dụng sẽ dùng để chấm bạn. Bạn có thể đổi bất cứ câu trả lời nào sau này, trong ứng dụng.",
-  planPerDay: "mỗi ngày, với ít nhất {protein} g đạm",
+  planHeading: "Đây là kế hoạch của bạn",
+  planWeeks: "{weeks} tuần với nhịp này",
+  planEachDay: "Mỗi ngày",
+  planFirstMeal: "Thử một bữa — mình mời",
   planFloor: "Đây là mức ăn vào mỗi ngày thấp nhất mà ứng dụng này sẽ đặt, nên con số đó là mức sàn chứ không phải phép tính. Ăn dưới mức đó không phải điều chúng tôi sẽ giúp bạn lên kế hoạch.",
   planFloorNumber: "Mức sàn là {floor} kcal.",
-  planDiary: "Mở nhật ký của bạn",
-  planDiaryBody: "Không cần cài gì. Chụp một bữa ăn ngay trong trình duyệt này và đọc câu trả lời, trên cùng tài khoản.",
   planAppHeading: "Giờ thì tải ứng dụng",
   planAppBody: "Cài eait cho iPhone và chọn Đăng nhập bằng {provider}. Vẫn là tài khoản đó — câu trả lời và kế hoạch của bạn đã nằm sẵn trong đấy.",
   planAppBodyGeneric: "Cài eait cho iPhone và đăng nhập đúng như bạn đã làm ở đây. Vẫn là tài khoản đó — câu trả lời và kế hoạch của bạn đã nằm sẵn trong đấy.",
@@ -704,13 +691,12 @@ const VI: PageCopy = {
 
 const ID: PageCopy = {
   frontDoorLead: "Siapkan akunmu di sini, lalu buka aplikasinya dalam keadaan sudah masuk. Perlu sekitar tiga menit.",
-  planHeading: "Rencanamu",
-  planLead: "Inilah yang akan dipegang aplikasinya untukmu. Semua jawaban bisa kamu ubah nanti di aplikasi.",
-  planPerDay: "per hari, dengan setidaknya {protein} g protein",
+  planHeading: "Ini rencanamu",
+  planWeeks: "{weeks} minggu dengan tempo ini",
+  planEachDay: "Setiap hari",
+  planFirstMeal: "Coba satu makanan — aku yang traktir",
   planFloor: "Ini asupan harian terendah yang akan ditetapkan aplikasi ini, jadi angkanya adalah batas bawah, bukan hasil hitungan. Makan di bawah itu bukan sesuatu yang akan kami bantu rencanakan.",
   planFloorNumber: "Batas bawahnya {floor} kcal.",
-  planDiary: "Buka buku harianmu",
-  planDiaryBody: "Tidak ada yang perlu dipasang. Foto sebuah makanan di browser ini dan baca jawabannya, di akun yang sama.",
   planAppHeading: "Sekarang ambil aplikasinya",
   planAppBody: "Pasang eait untuk iPhone dan pilih Masuk dengan {provider}. Ini akun yang sama — jawaban dan rencanamu sudah ada di dalamnya.",
   planAppBodyGeneric: "Pasang eait untuk iPhone dan masuk dengan cara yang sama seperti di sini. Ini akun yang sama — jawaban dan rencanamu sudah ada di dalamnya.",
@@ -791,13 +777,12 @@ const ID: PageCopy = {
 
 const RU: PageCopy = {
   frontDoorLead: "Заведи аккаунт здесь, а потом открой приложение уже с входом. Займёт минуты три.",
-  planHeading: "Твой план",
-  planLead: "Вот к чему приложение будет тебя возвращать. Любой ответ можно поменять позже, в приложении.",
-  planPerDay: "в день, и минимум {protein} г белка",
+  planHeading: "Вот твой план",
+  planWeeks: "Недель в таком темпе: {weeks}",
+  planEachDay: "Каждый день",
+  planFirstMeal: "Попробуй один приём пищи — я угощаю",
   planFloor: "Это самый низкий суточный калораж, который приложение когда-либо поставит, так что эта цифра — порог, а не расчёт. Есть ниже — не то, что мы поможем спланировать.",
   planFloorNumber: "Порог — {floor} ккал.",
-  planDiary: "Открыть дневник",
-  planDiaryBody: "Ставить ничего не нужно. Сфотографируй еду прямо в этом браузере и прочитай ответ — на том же аккаунте.",
   planAppHeading: "Теперь возьми приложение",
   planAppBody: "Установи eait для iPhone и выбери «Войти через {provider}». Это тот же аккаунт — твои ответы и план уже там.",
   planAppBodyGeneric: "Установи eait для iPhone и войди так же, как здесь. Это тот же аккаунт — твои ответы и план уже там.",
