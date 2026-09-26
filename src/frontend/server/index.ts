@@ -69,15 +69,29 @@ function shell(nonce: string): string {
 /* THE TOKENS COME FROM shared/palette.ts, not from this file. The app, the landing page and the
    /start flow all draw from that one copy, and a fourth set of hexes here is a fourth thing to
    keep in step. Imported by RELATIVE path, like dayBudget and copy.ts (#608). */
-:root { ${lightVars} }
+:root { ${lightVars}
+  /* The same pair /start declares (backend/web/page.ts): the system stack under the one display
+     face, so a fallback reads like a fallback and not like a second design. */
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
+  --display: "Space Grotesk", var(--sans);
+}
 @media (prefers-color-scheme: dark) { :root { ${darkVars} } }
+/* THE ONE TYPEFACE is /start's own, from /start's own route: the backend serves the landing's file
+   at FONT_PATH (backend/web/page.ts), and the edge puts /start/* on this same origin — so
+   font-src 'self' is all the CSP needs and nothing is fetched from anyone else. */
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/start/assets/space-grotesk-latin.woff2") format("woff2");
+  font-weight: 300 700;
+  font-display: swap;
+}
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--ink); color: var(--text);
-  font: 15px/1.5 "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
-/* NUMBERS ONLY, and the unit stays OUTSIDE the span: a monospace word-space is a full mono advance,
-   so 141 g set as one string renders with a hole in it. No web font is fetched for it — this
-   page's CSP has no font-src and is not gaining one for a typeface. */
-.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+  font: 15px/1.5 var(--display); }
+/* NUMBERS IN THE ONE FACE, tabular so a column of them holds still. The third face is gone: the
+   boards set figures in the main face and so does this page. The unit still sits OUTSIDE the span —
+   its space is the face's own. */
+.num { font-variant-numeric: tabular-nums; }
 
 /* TWO COLUMNS, AND THE LEFT ONE NEVER NAVIGATES AWAY. That is the whole reason this window is not
    a stretched phone: on a phone, opening a meal costs you sight of the day, so an answer lands
@@ -107,8 +121,11 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 .big.warn + progress::-webkit-progress-value { background: var(--warn); }
 .big.warn + progress::-moz-progress-bar { background: var(--warn); }
 
-/* CARDS HAVE NO BORDER. The ground is near-black and a card is two steps up from it. */
-.card { padding: 1rem 1.1rem; background: var(--raised); border-radius: 16px; margin-bottom: 14px; }
+/* The boards' panel: a light surface one step up from the ground, with the hairline and the soft
+   shadow /start's card already carries. */
+.card { padding: 1rem 1.1rem; background: var(--raised); border: 1px solid var(--line);
+  border-radius: 18px; margin-bottom: 14px;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 4%, transparent); }
 /* A 52px STRIP, not a hero region: at 1360 wide a full-height wash is a wall of green, and every
    word on it has to be near-black. */
 .day-card { padding: 0; overflow: hidden; }
@@ -121,12 +138,14 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 /* THE RAIL: the tab bar became four destinations down the left, with the primary action at the top. */
 .nav { display: flex; flex-direction: column; gap: 4px; align-items: stretch; position: sticky; top: 26px; }
 @media (max-width: 860px) { .nav { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; } }
-.tab { color: var(--muted); text-decoration: none; padding: 10px 12px; border-radius: 11px; font-weight: 700; font-size: 14px; }
-.tab.on { color: var(--text); background: var(--raised); }
+/* PILLS: every button, tab and chip is a 999px capsule — the shape the boards draw and /start's own
+   controls already take. */
+.tab { color: var(--muted); text-decoration: none; padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; }
+.tab.on { color: var(--accent); background: var(--raised); }
 .link { background: none; border: 0; color: var(--muted); cursor: pointer; font: inherit; text-align: left; padding: 10px 12px; }
 .lang { background: none; border: 0; color: var(--muted); font: inherit; cursor: pointer; padding: 10px 12px; }
 .primary { display: inline-block; margin-top: .75rem; padding: 0 18px; height: 44px; line-height: 44px;
-  border-radius: 12px; background: var(--accent); color: var(--accent-ink); text-decoration: none;
+  border-radius: 999px; background: var(--accent); color: var(--accent-ink); text-decoration: none;
   font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 
 /* THE TABLE IS THE SECOND THING THIS WINDOW DOES. A phone can show four rows and a total; this can
@@ -152,10 +171,10 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 .photo-lead { margin-top: 1.5rem; font-size: 1rem; }
 .composer { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; }
 .composer input, .composer button, .card button { font: inherit; }
-.composer input[type="text"] { flex: 1 1 12rem; padding: .55rem .8rem; border-radius: 12px;
-  color: var(--text); background: var(--panel); border: 0; }
-.composer button, .card button { padding: 0 16px; height: 38px; border-radius: 12px; cursor: pointer;
-  color: var(--text); background: var(--panel); border: 0; margin: .5rem .5rem 0 0; font-weight: 700; }
+.composer input[type="text"] { flex: 1 1 12rem; padding: .55rem .8rem; border-radius: 999px;
+  color: var(--text); background: var(--raised); border: 1px solid var(--line-strong); }
+.composer button, .card button { padding: 0 16px; height: 38px; border-radius: 999px; cursor: pointer;
+  color: var(--text); background: var(--raised); border: 1px solid var(--line); margin: .5rem .5rem 0 0; font-weight: 700; }
 .composer button { margin: 0; }
 .composer button.primary, .card button.primary { background: var(--accent); color: var(--accent-ink);
   height: 38px; line-height: 38px; margin-top: 0; }
@@ -173,12 +192,12 @@ input:disabled, button:disabled { opacity: .5; cursor: default; }
 .ask { font-size: 21px; line-height: 1.25; font-weight: 800; letter-spacing: -.02em; }
 .step { display: flex; flex-direction: column; }
 .step .card input[type="text"], .step .card select { display: block; width: 100%; box-sizing: border-box;
-  font: inherit; padding: .55rem .8rem; border-radius: 12px; color: var(--text); background: var(--panel);
-  border: 0; margin: .4rem 0 0; }
+  font: inherit; padding: .55rem .8rem; border-radius: 999px; color: var(--text); background: var(--raised);
+  border: 1px solid var(--line); margin: .4rem 0 0; }
 .step .card .lab + .lab { margin-top: .9rem; }
 .step-foot { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
 .cta { display: flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 18px;
-  border: 0; border-radius: 15px; font: inherit; font-weight: 800; text-decoration: none; cursor: pointer; }
+  border: 0; border-radius: 999px; font: inherit; font-weight: 800; text-decoration: none; cursor: pointer; }
 .cta.p { background: var(--accent); color: var(--accent-ink); }
 .cta.s { background: var(--raised); color: var(--text); border: 1px solid var(--line); }
 .cta.g { background: none; color: var(--muted); min-height: 40px; }
@@ -330,6 +349,8 @@ export function createWebApp(options: WebAppOptions = {}) {
               `script-src 'nonce-${nonce}'`,
               `style-src 'nonce-${nonce}'`,
               "img-src 'self' data:",
+              // Space Grotesk comes off the backend's own /start/assets route — same origin here.
+              "font-src 'self'",
               "connect-src 'self'",
               "base-uri 'none'",
               // Nothing here posts a form. `/start` does, and it is a different document.

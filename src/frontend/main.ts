@@ -249,13 +249,13 @@ async function diaryScreen(): Promise<HTMLElement> {
   } else {
     const big = el("p", budget.warn ? "big warn" : "big");
     // PRECISION CARRIES THE CONFIDENCE. "about" sits immediately before the figure it governs and
-    // OUTSIDE its span: the figure is mono, the word is not, and a mono word-space is a full mono
-    // advance. The unit is a third span for the same reason.
+    // OUTSIDE its span: the figure keeps the face's own spacing, so a leading "about" does not
+    // render with a hole in it. The unit is a third span for the same reason.
     // The spaces are IN the text, not between the spans: adjacent elements have no whitespace
     // between them, and `app-diary.pw.ts` reads this line as one string.
     if (budget.guessed) big.append(el("span", "about", `${COPY.about} `));
     big.append(
-      el("span", "hero mono", n(budget.kcal)),
+      el("span", "hero num", n(budget.kcal)),
       el("span", "muted", ` ${UNIT_KCAL[lang]} ${budget.state === "left" ? COPY.budgetLeft : budget.state === "over" ? COPY.budgetOver : COPY.budgetUnder}`),
     );
     // Native, so there is nothing to draw by hand; hidden, because the line under it says it in words.
@@ -326,7 +326,7 @@ async function diaryScreen(): Promise<HTMLElement> {
     const tr = document.createElement("tr");
     if (guessed) tr.className = "guessed";
     const time = document.createElement("td");
-    time.className = "mono muted";
+    time.className = "num muted";
     time.textContent = new Intl.DateTimeFormat(LANG_TAG[lang], {
       timeZone: me.timezone, hour: "2-digit", minute: "2-digit", hour12: false,
     }).format(new Date(meal.ts));
@@ -339,7 +339,7 @@ async function diaryScreen(): Promise<HTMLElement> {
     const num = document.createElement("td");
     num.className = "num";
     if (guessed) num.append(el("span", "about", `${COPY.about} `));
-    num.append(el("span", "mono", wholeNumbers(lang)(meal.kcal)));
+    num.append(el("span", "num", wholeNumbers(lang)(meal.kcal)));
     tr.append(time, name, num);
     tbody.append(tr);
   }
@@ -956,13 +956,13 @@ function firstMealScreen(me: ProfileResponse): HTMLElement {
     card.append(el("div", "lab", names(analysis.items)));
     const big = el("p", "big");
     if (analysis.confidence === "low") big.append(el("span", "about", `${COPY.about} `));
-    big.append(el("span", "hero mono", wholeNumbers(lang)(analysis.kcal)), el("span", "muted", ` ${UNIT_KCAL[lang]}`));
+    big.append(el("span", "hero num", wholeNumbers(lang)(analysis.kcal)), el("span", "muted", ` ${UNIT_KCAL[lang]}`));
     card.append(big);
     const stats = el("div", "stats");
     for (const [label, v] of [[COPY.statProtein, analysis.protein_g], [COPY.statCarbs, analysis.carbs_g], [COPY.statFat, analysis.fat_g]] as const) {
       const cell = el("div", "stat-cell");
       // Whole grams, as the thread says them (#49: "37.4 g" on the card beside "37 g" in the text).
-      cell.append(el("div", "lab", label), el("div", "stat-num mono", `${wholeNumbers(lang)(v)} g`));
+      cell.append(el("div", "lab", label), el("div", "stat-num num", `${wholeNumbers(lang)(v)} g`));
       stats.append(cell);
     }
     card.append(stats);
