@@ -25,19 +25,24 @@ async function tapTarget(loc: Locator) {
 
 /** No rendered text under 12px, measured computed — not the stylesheet, the page. */
 async function typeFloor(page: Page) {
-  const tooSmall = await page.evaluate(() => {
-    const hits: string[] = [];
-    for (const n of document.querySelectorAll<HTMLElement>("body *")) {
+  // A string, because this file is typechecked without the DOM: the browser is where it runs.
+  const tooSmall = await page.evaluate<string[]>(`(() => {
+    const hits = [];
+    for (const n of document.querySelectorAll("body *")) {
       // An element that OWNS the text (a parent's font-size is not its text), and is drawn.
-      const own = [...n.childNodes].some((c) => c.nodeType === Node.TEXT_NODE && c.textContent!.trim() !== "");
+      const own = [...n.childNodes].some((c) => c.nodeType === Node.TEXT_NODE && c.textContent.trim() !== "");
       if (!own || n.getClientRects().length === 0) continue;
       const px = parseFloat(getComputedStyle(n).fontSize);
-      if (px < 12) hits.push(`${n.tagName.toLowerCase()}.${n.className} ${px}px "${n.textContent!.trim().slice(0, 40)}"`);
+      if (px < 12) hits.push(n.tagName.toLowerCase() + "." + n.className + " " + px + "px");
     }
     return hits;
-  });
+  })()`);
   expect(tooSmall).toEqual([]);
 }
+
+/** The first match's computed font-size — as a string, same reason as `typeFloor`. */
+const fontPx = (page: Page, selector: string) =>
+  page.evaluate<number>(`parseFloat(getComputedStyle(document.querySelector(${JSON.stringify(selector)})).fontSize)`);
 
 test("the diary: one main with one h1, 44px nav and Send, and the type floor", async ({ inWebApp: page }) => {
   // A meal first: a fresh account's `/#/` is the first-meal flow, not the diary.
@@ -49,8 +54,7 @@ test("the diary: one main with one h1, 44px nav and Send, and the type floor", a
   await tapTarget(page.getByRole("button", { name: "Send" }));
   await typeFloor(page);
   // The composer's field is a form control: 16px, or iOS zooms the page on focus.
-  const px = await page.locator(".fld").evaluate((n) => parseFloat(getComputedStyle(n).fontSize));
-  expect(px).toBeGreaterThanOrEqual(16);
+  expect(await fontPx(page, ".fld")).toBeGreaterThanOrEqual(16);
 });
 
 test("the chat: one h1, and Send and a line's Delete both at 44px", async ({ inWebApp: page }) => {
@@ -69,8 +73,7 @@ test("You: one h1, and the language select at 44px with 16px type", async ({ inW
   await landmark(page);
   const pick = page.locator("select.pick");
   await tapTarget(pick);
-  const px = await pick.evaluate((n) => parseFloat(getComputedStyle(n).fontSize));
-  expect(px).toBeGreaterThanOrEqual(16);
+  expect(await fontPx(page, "select.pick")).toBeGreaterThanOrEqual(16);
 });
 
 test("the offer: one h1, and Correct meal / Not now at 44px", async ({ inWebApp: page }) => {
