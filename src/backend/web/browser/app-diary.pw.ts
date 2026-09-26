@@ -6,7 +6,7 @@
 // is answered at the network, in the profile's own shape.
 import type { Page } from "@playwright/test";
 import type { DayResponse, ProfileResponse } from "@eait/shared/contract";
-import { expect, logMeal, test } from "./fixtures.ts";
+import { expect, logMeal, sessionToken, test } from "./fixtures.ts";
 
 /** The diary, drawn fresh from a profile edited on its way to the page. */
 async function diaryWith(page: Page, edit: (p: ProfileResponse["profile"]) => void): Promise<void> {
@@ -114,6 +114,91 @@ test("over target says by how much, as a warning rather than a negative number",
   await dayAt(page, 310);
   await expect(page.locator(".big")).toHaveText("310 kcal over");
   await expect(page.locator(".big")).toHaveClass(/warn/);
+});
+
+// ── The date switcher and the macro counters (#71) ────────────────────────────────────────────
+
+/** The full date as the page writes it, for a `YYYY-MM-DD` — midday UTC, like `dateText`. */
+const fullDate = (d: string): string => new Intl.DateTimeFormat("en-GB", {
+  timeZone: "UTC", weekday: "long", day: "numeric", month: "long",
+}).format(new Date(`${d}T12:00:00Z`));
+
+/** Today's `YYYY-MM-DD` on the account's own calendar — the server sends its zone in the profile. */
+async function serverToday(page: Page): Promise<string> {
+  const res = await page.request.get("/api/v1/profile", {
+    headers: { authorization: `Bearer ${await sessionToken(page)}` },
+  });
+  const me = (await res.json()) as ProfileResponse;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: me.timezone, year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+}
+
+test("the date is written once: the switcher's name, and the date as a quiet sub-line", async ({ inWebApp: page }) => {
+  await logMeal(page);
+  const date = fullDate(await serverToday(page));
+  await page.goto("/#/");
+  const bar = page.locator(".daybar");
+  await expect(bar).toBeVisible();
+  await expect(bar.locator(".dayname")).toHaveText("Today");
+  await expect(bar.locator(".daysub")).toHaveText(date);
+  // Nowhere else on the screen repeats it.
+  await expect(page.getByText(date, { exact: true })).toHaveCount(1);
+});
+
+test("the switcher walks back days; a day that is already a date shows it alone", async ({ inWebApp: page }) => {
+  await logMeal(page);
+  const today = await serverToday(page);
+  await page.goto("/#/");
+  const bar = page.locator(".daybar");
+  // Chevrons at the two ends of a raised bar, the centred label between them — and no tomorrow.
+  await expect(bar.locator("button.daybtn")).toHaveCount(2);
+  await expect(bar.locator(".daylabel")).toHaveCSS("text-align", "center");
+  await expect(page.getByRole("button", { name: "Next day" })).toBeDisabled();
+  await page.getByRole("button", { name: "Previous day" }).click();
+  await expect(bar.locator(".dayname")).toHaveText("Yesterday");
+  await page.getByRole("button", { name: "Previous day" }).click();
+  // Two days back the label is already the date, so nothing prints twice — no sub-line.
+  const twoBack = new Date(`${today}T12:00:00Z`);
+  twoBack.setUTCDate(twoBack.getUTCDate() - 2);
+  await expect(bar.locator(".dayname")).toHaveText(fullDate(twoBack.toISOString().slice(0, 10)));
+  await expect(bar.locator(".daysub")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Next day" })).toBeEnabled();
+});
+
+test("the protein and saturated-fat counters wear their tone, never plain black", async ({ inWebApp: page }) => {
+  await logMeal(page);
+  await page.route("**/api/v1/diary/day*", async (route) => {
+    const res = await route.fetch();
+    const body = (await res.json()) as DayResponse;
+    body.totals.protein_g = 10; // under the target → care
+    body.targets.satfat_g = 20; // declared cap
+    body.totals.satfat_g = 30; // over it → bad
+    await route.fulfill({ response: res, json: body });
+  });
+  await page.goto("/#/");
+  await page.reload();
+  const counters = page.locator(".macros");
+  await expect(counters.locator(".macro", { hasText: "Protein" }).locator(".stat-num")).toHaveClass(/tone-care/);
+  await expect(counters.locator(".macro", { hasText: "Saturated fat" }).locator(".stat-num")).toHaveClass(/tone-bad/);
+});
+
+test("protein reached is good, under a cap is good — and no 'tap a meal' caption exists", async ({ inWebApp: page }) => {
+  await logMeal(page);
+  await page.route("**/api/v1/diary/day*", async (route) => {
+    const res = await route.fetch();
+    const body = (await res.json()) as DayResponse;
+    body.totals.protein_g = 9_999; // past the target → good
+    body.targets.satfat_g = 40;
+    body.totals.satfat_g = 5; // under the cap → good
+    await route.fulfill({ response: res, json: body });
+  });
+  await page.goto("/#/");
+  await page.reload();
+  await expect(page.locator(".macros .macro", { hasText: "Protein" }).locator(".stat-num")).toHaveClass(/tone-good/);
+  await expect(page.locator(".macros .macro", { hasText: "Saturated fat" }).locator(".stat-num")).toHaveClass(/tone-good/);
+  // The phone's "Tap a meal to check or fix the numbers" line never existed here, and stays absent.
+  await expect(page.getByText(/tap a meal/i)).toHaveCount(0);
 });
 
 test("a tab change while the first draw is still loading draws one page, not two", async ({ inWebApp: page }) => {
