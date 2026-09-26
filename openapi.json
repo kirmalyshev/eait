@@ -5139,7 +5139,7 @@
           },
           "appliedDeltaKcal": {
             "type": "number",
-            "description": "What was actually applied after the share cap."
+            "description": "What was actually applied after BOTH guards — the delta the final kcal target carries."
           },
           "shareCapApplied": {
             "type": "boolean",

@@ -128,7 +128,7 @@ export interface TargetBasis {
   tdee: number | null;
   /** What the chosen pace asked for, signed: negative cuts, positive adds. */
   requestedDeltaKcal: number;
-  /** What was actually applied after the share cap. */
+  /** What was actually applied after BOTH guards — the delta the final kcal target carries. */
   appliedDeltaKcal: number;
   /** True when `MAX_DEFICIT_SHARE`/`MAX_SURPLUS_SHARE` bit before the floor did. */
   shareCapApplied: boolean;
@@ -269,12 +269,18 @@ export function explainTargets(profile: Profile, today = new Date()): TargetOutc
   // Guard 1 — the share cap. Scales with the person, so a 55 kg woman and a 110 kg man are not
   // handed the same absolute deficit for the same requested rate.
   const limit = Math.round(tdee * (requestedDeltaKcal < 0 ? MAX_DEFICIT_SHARE : MAX_SURPLUS_SHARE));
-  const appliedDeltaKcal = clampMagnitude(requestedDeltaKcal, limit);
-  const shareCapApplied = appliedDeltaKcal !== requestedDeltaKcal;
+  const cappedDeltaKcal = clampMagnitude(requestedDeltaKcal, limit);
+  const shareCapApplied = cappedDeltaKcal !== requestedDeltaKcal;
 
   // Guard 2 — the floor. Last, and unconditional.
-  const beforeFloor = tdee + appliedDeltaKcal;
+  const beforeFloor = tdee + cappedDeltaKcal;
   const kcal = Math.max(floorKcal, beforeFloor);
+
+  // The delta the FINAL target carries, on the same rounding the target uses: `kcal − tdee` is
+  // `cappedDeltaKcal` exactly when the floor did not move the number, and the floor's own cut
+  // when it did. Every reader — the projection, the plan card, the coach prompt — treats this as
+  // the post-both-guards delta, so reporting the pre-floor one is a faster pace than the plan.
+  const appliedDeltaKcal = kcal - tdee;
 
   return {
     targets: withCaps({ kcal, protein_g: proteinTarget(profile) }, profile),
