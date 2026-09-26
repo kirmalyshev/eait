@@ -25,6 +25,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import { t, type Localized } from "./lang.ts";
+import { FIRST_MEAL_COPY, type FirstMealCopy } from "./first-meal-copy.ts";
 import type { ActivityLevel, Goal, Lang } from "./types.ts";
 // TYPE-ONLY, so the cycle with `onboarding-chat.ts` is erased at build. These records used to be
 // keyed by bare `string`, which is what made the `as Record<Struggle, string>` cast in that file
@@ -88,6 +89,75 @@ export interface ChatCopy {
   capNoteTail: string;
   nothingApplies: string;
   goalEdit: { cleared: string; worthSetting: string };
+
+  /**
+   * The Apple Health offer (v5): the ask, the three rows it lists, the two buttons, and one line
+   * per outcome. Code, not editable copy — these words stand next to a permission dialog, which
+   * is not a slot an admin should be able to fill.
+   */
+  health: {
+    ask: string;
+    /** Exactly three: the fill lands `height`/`weight`, `sex`/`birth_year`, and `activity`. */
+    rows: [string, string, string];
+    connect: string;
+    manual: string;
+    connected: string;
+    partial: string;
+    denied: string;
+  };
+  /**
+   * The Health-path activity ask: `{n}` workouts Health counted, `{label}` the computed level's
+   * own option label — the question asks the user to confirm, in the chip's own words.
+   */
+  healthActivity: string;
+  /**
+   * The target prompt's suggestion line: `{kg}` the suggested weight, `{pct}` the whole percent
+   * away from today. `down` for lose, `up` for gain; `maintain` is never asked a target.
+   */
+  targetSuggestion: { down: string; up: string };
+  /**
+   * After the plan (v5): the one meal on us, its verdict, and the ask after it. `ask`/`react` are
+   * Spud's; `photo`/`tell` the two buttons that start it; `afterAsk` the line over the offer that
+   * holds. The web renders an UPLOAD rather than a camera and keeps `photo` for the phone.
+   */
+  firstMeal: FirstMealCopy;
+  /** The target stepper: the button under it, and the SPOKEN labels of its − and + (VoiceOver). */
+  stepper: { continue: string; less: string; more: string };
+  /** The soft offer's title: `{kg}` the target, `{month}` CLDR's month and year. `offerHeadline`. */
+  offerHeadline: string;
+  /**
+   * The ONE line Spud says after an answer, above the next question — keyed by what it answers.
+   * The mood beside it is picked in `reactionTo` (`onboarding-chat.ts`), not here: a mood is a
+   * reaction to what just happened and a copy field cannot know that.
+   */
+  reactions: {
+    goalLose: string;
+    goalMaintain: string;
+    goalGain: string;
+    sex: string;
+    birthYear: string;
+    heightCm: string;
+    /** `{bmr}` — today's first real number. */
+    weightWithBmr: string;
+    /** The weight answer when no BMR could be computed — said plainly, never "about null". */
+    weightPlain: string;
+    paceEasy: string;
+    paceSteady: string;
+    pacePush: string;
+    struggles: string;
+    country: string;
+  };
+  /**
+   * The four support moments' own words — the full-screen beats between question groups.
+   * `{kg}` inside the target bodies is the answer itself. The struggles moment's body is not
+   * here: it is `struggleCard`'s, so the sourced statistic stays written once.
+   */
+  moments: {
+    target: { title: string; cta: string; inBand: string; neutral: string };
+    activity: { title: string; body: string; cta: string };
+    struggles: { title: string; cta: string };
+    restrictions: { title: string; body: string; cta: string };
+  };
 }
 
 const EN: ChatCopy = {
@@ -245,6 +315,57 @@ const EN: ChatCopy = {
   goalEdit: {
     cleared: "Your target weight no longer fitted that goal, so it's cleared — set a new one.",
     worthSetting: "Recorded. Your target weight no longer fits your goal, though — worth setting a new one.",
+  },
+  health: {
+    ask: "Connect Apple Health and skip 5 questions",
+    rows: ["Height and weight", "Age and sex", "How often you exercise"],
+    connect: "Connect Apple Health",
+    manual: "Enter them myself",
+    connected: "Got your numbers. They stay current on their own",
+    partial: "Almost — a few details are missing",
+    denied: "Enter your details",
+  },
+  healthActivity: "Health shows {n} workouts in the last 4 weeks. {label}?",
+  targetSuggestion: {
+    down: "I suggest {kg} kg, about {pct}% down, a good first goal",
+    up: "I suggest {kg} kg, about {pct}% up, a good first goal",
+  },
+  firstMeal: FIRST_MEAL_COPY.en,
+  stepper: { continue: "Continue", less: "Less", more: "More" },
+  offerHeadline: "Get to {kg} kg by {month}",
+  reactions: {
+    goalLose: "Lose weight. Good, let's make it stick",
+    goalMaintain: "Maintain it is — let's keep what already works",
+    goalGain: "Gain weight. Good — let's build it properly",
+    sex: "Thanks",
+    birthYear: "Got it",
+    heightCm: "Last number. No judgement, it's just where we start",
+    weightWithBmr: "Thank you. At rest, your body burns about {bmr} kcal a day",
+    weightPlain: "Thank you.",
+    paceEasy: "Gentle — slow enough to keep",
+    paceSteady: "Steady is the one people keep",
+    pacePush: "Push — the daily change is capped at what stays safe",
+    struggles: "Let me find your local food",
+    country: "Nearly there",
+  },
+  moments: {
+    target: {
+      title: "A goal you can keep",
+      cta: "Continue",
+      inBand: "Losing 5–10% is where the health gains start to show: cholesterol, blood pressure, energy. {kg} kg sits right in that band. Small enough to reach, big enough to matter.",
+      neutral: "A clear first goal: {kg} kg, with a plan sized to reach it. Small enough to reach, big enough to matter.",
+    },
+    activity: {
+      title: "That's great!",
+      body: "Every bit of movement counts. No gym required: a walk after lunch goes a long way, and your plan already counts what you do.",
+      cta: "Continue",
+    },
+    struggles: { title: "That's completely normal!", cta: "Continue" },
+    restrictions: {
+      title: "Thank you for trusting me",
+      body: "Your weight, what's been hard, what you just shared — that's a lot to tell an app. I'll use it for one thing: judging every meal against what matters to you.",
+      cta: "Build my plan",
+    },
   },
 };
 
@@ -404,6 +525,57 @@ const FR: ChatCopy = {
     cleared: "Ton poids cible ne collait plus à cet objectif, il est donc effacé — choisis-en un nouveau.",
     worthSetting: "Enregistré. Ton poids cible ne colle plus à ton objectif, cela dit — ça vaut le coup d'en fixer un nouveau.",
   },
+  health: {
+    ask: "Connecte Apple Health et saute 5 questions",
+    rows: ["Taille et poids", "Âge et sexe", "Ton activité physique"],
+    connect: "Connecter Apple Health",
+    manual: "Les saisir moi-même",
+    connected: "J'ai tes chiffres. Ils se tiennent à jour tout seuls",
+    partial: "Presque — il manque quelques détails",
+    denied: "Saisis tes informations",
+  },
+  healthActivity: "Health indique {n} entraînements sur les 4 dernières semaines. {label} ?",
+  targetSuggestion: {
+    down: "Je te propose {kg} kg, soit environ {pct}% de moins — un bon premier objectif",
+    up: "Je te propose {kg} kg, soit environ {pct}% de plus — un bon premier objectif",
+  },
+  firstMeal: FIRST_MEAL_COPY.fr,
+  stepper: { continue: "Continuer", less: "Moins", more: "Plus" },
+  offerHeadline: "Atteindre {kg} kg d'ici {month}",
+  reactions: {
+    goalLose: "Perdre du poids. Bien — faisons en sorte que ça tienne",
+    goalMaintain: "Maintenir — gardons ce qui fonctionne déjà",
+    goalGain: "Prendre du poids. Bien — construisons-le proprement",
+    sex: "Merci",
+    birthYear: "C'est noté",
+    heightCm: "Dernier chiffre. Aucun jugement, c'est juste le point de départ",
+    weightWithBmr: "Merci. Au repos, ton corps brûle environ {bmr} kcal par jour",
+    weightPlain: "Merci.",
+    paceEasy: "Doux — assez lent pour tenir",
+    paceSteady: "Régulier, c'est le rythme que les gens gardent",
+    pacePush: "Soutenu — l'écart quotidien reste dans les limites sûres",
+    struggles: "Laisse-moi trouver les produits de chez toi",
+    country: "On y est presque",
+  },
+  moments: {
+    target: {
+      title: "Un objectif que tu peux garder",
+      cta: "Continuer",
+      inBand: "Perdre 5 à 10% est là où les bienfaits pour la santé commencent à se voir : cholestérol, tension, énergie. {kg} kg tombe pile dans cette zone. Assez peu pour l'atteindre, assez pour compter.",
+      neutral: "{kg} kg — un premier objectif clair, avec un plan dimensionné pour l'atteindre.",
+    },
+    activity: {
+      title: "C'est super !",
+      body: "Chaque mouvement compte. Pas besoin de salle : une marche après le déjeuner va déjà loin, et ton plan compte déjà ce que tu fais.",
+      cta: "Continuer",
+    },
+    struggles: { title: "C'est tout à fait normal !", cta: "Continuer" },
+    restrictions: {
+      title: "Merci de ta confiance",
+      body: "Ton poids, ce qui a été dur, ce que tu viens de partager — c'est beaucoup à confier à une application. Je m'en servirai pour une seule chose : juger chaque repas à l'aune de ce qui compte pour toi.",
+      cta: "Construire mon plan",
+    },
+  },
 };
 
 const DE: ChatCopy = {
@@ -561,6 +733,57 @@ const DE: ChatCopy = {
   goalEdit: {
     cleared: "Dein Zielgewicht passte nicht mehr zu diesem Ziel, also ist es gelöscht — setz ein neues.",
     worthSetting: "Aufgenommen. Dein Zielgewicht passt allerdings nicht mehr zu deinem Ziel — es lohnt sich, ein neues zu setzen.",
+  },
+  health: {
+    ask: "Verbinde Apple Health und überspringe 5 Fragen",
+    rows: ["Größe und Gewicht", "Alter und Geschlecht", "Wie oft du trainierst"],
+    connect: "Apple Health verbinden",
+    manual: "Selbst eingeben",
+    connected: "Deine Zahlen sind da. Sie bleiben von selbst aktuell",
+    partial: "Fast — ein paar Angaben fehlen",
+    denied: "Gib deine Angaben ein",
+  },
+  healthActivity: "Health zeigt {n} Workouts in den letzten 4 Wochen. {label}?",
+  targetSuggestion: {
+    down: "Ich schlage {kg} kg vor, etwa {pct}% weniger — ein gutes erstes Ziel",
+    up: "Ich schlage {kg} kg vor, etwa {pct}% mehr — ein gutes erstes Ziel",
+  },
+  firstMeal: FIRST_MEAL_COPY.de,
+  stepper: { continue: "Weiter", less: "Weniger", more: "Mehr" },
+  offerHeadline: "{kg} kg bis {month}",
+  reactions: {
+    goalLose: "Abnehmen. Gut — wir sorgen dafür, dass es hält",
+    goalMaintain: "Halten — wir behalten, was schon funktioniert",
+    goalGain: "Zunehmen. Gut — wir bauen es richtig auf",
+    sex: "Danke",
+    birthYear: "Notiert",
+    heightCm: "Letzte Zahl. Keine Wertung — es ist einfach der Ausgangspunkt",
+    weightWithBmr: "Danke. In Ruhe verbrennt dein Körper etwa {bmr} kcal am Tag",
+    weightPlain: "Danke.",
+    paceEasy: "Sanft — langsam genug, um zu bleiben",
+    paceSteady: "Stetig ist das Tempo, das Menschen durchhalten",
+    pacePush: "Zügig also — die Tagesänderung bleibt im sicheren Rahmen",
+    struggles: "Lass mich die Lebensmittel bei dir finden",
+    country: "Fast geschafft",
+  },
+  moments: {
+    target: {
+      title: "Ein Ziel, das du halten kannst",
+      cta: "Weiter",
+      inBand: "5–10% weniger ist der Bereich, in dem die gesundheitlichen Effekte sichtbar werden: Cholesterin, Blutdruck, Energie. {kg} kg liegt genau in diesem Band. Klein genug zum Schaffen, groß genug, um zu zählen.",
+      neutral: "{kg} kg — ein klares erstes Ziel, mit einem Plan, der dafür ausgelegt ist.",
+    },
+    activity: {
+      title: "Das ist toll!",
+      body: "Jede Bewegung zählt. Kein Fitnessstudio nötig: ein Spaziergang nach dem Mittagessen bringt schon viel, und dein Plan rechnet mit dem, was du tust.",
+      cta: "Weiter",
+    },
+    struggles: { title: "Das ist völlig normal!", cta: "Weiter" },
+    restrictions: {
+      title: "Danke für dein Vertrauen",
+      body: "Dein Gewicht, was schwer war, was du mir gerade anvertraut hast — das ist viel für eine App. Ich nutze es für genau eines: jede Mahlzeit an dem zu messen, was dir wichtig ist.",
+      cta: "Erstelle meinen Plan",
+    },
   },
 };
 
@@ -720,6 +943,57 @@ const IT: ChatCopy = {
     cleared: "Il tuo peso obiettivo non corrispondeva più a quell'obiettivo, quindi è stato azzerato — impostane uno nuovo.",
     worthSetting: "Registrato. Il tuo peso obiettivo però non corrisponde più al tuo obiettivo — vale la pena impostarne uno nuovo.",
   },
+  health: {
+    ask: "Collega Apple Health e salta 5 domande",
+    rows: ["Altezza e peso", "Età e sesso", "Quanto ti alleni"],
+    connect: "Collega Apple Health",
+    manual: "Li inserisco io",
+    connected: "Ho i tuoi numeri. Si aggiornano da soli",
+    partial: "Quasi — mancano alcuni dati",
+    denied: "Inserisci i tuoi dati",
+  },
+  healthActivity: "Health mostra {n} allenamenti nelle ultime 4 settimane. {label}?",
+  targetSuggestion: {
+    down: "Ti suggerisco {kg} kg, circa il {pct}% in meno — un buon primo obiettivo",
+    up: "Ti suggerisco {kg} kg, circa il {pct}% in più — un buon primo obiettivo",
+  },
+  firstMeal: FIRST_MEAL_COPY.it,
+  stepper: { continue: "Continua", less: "Meno", more: "Più" },
+  offerHeadline: "Arrivare a {kg} kg entro {month}",
+  reactions: {
+    goalLose: "Perdere peso. Bene — facciamo in modo che duri",
+    goalMaintain: "Mantenere — teniamo quello che già funziona",
+    goalGain: "Prendere peso. Bene — costruiamolo come si deve",
+    sex: "Grazie",
+    birthYear: "Annotato",
+    heightCm: "Ultimo numero. Nessun giudizio, è solo il punto di partenza",
+    weightWithBmr: "Grazie. A riposo, il tuo corpo brucia circa {bmr} kcal al giorno",
+    weightPlain: "Grazie.",
+    paceEasy: "Dolce — abbastanza lento da durare",
+    paceSteady: "Costante è il ritmo che si mantiene",
+    pacePush: "Deciso — la variazione quotidiana resta entro i limiti sicuri",
+    struggles: "Fammi trovare i prodotti della tua zona",
+    country: "Ci siamo quasi",
+  },
+  moments: {
+    target: {
+      title: "Un obiettivo che puoi mantenere",
+      cta: "Continua",
+      inBand: "Perdere il 5–10% è dove i benefici per la salute iniziano a vedersi: colesterolo, pressione, energia. {kg} kg è proprio in quella fascia. Abbastanza vicino da raggiungere, abbastanza grande da contare.",
+      neutral: "{kg} kg — un primo obiettivo chiaro, con un piano dimensionato per raggiungerlo.",
+    },
+    activity: {
+      title: "È fantastico!",
+      body: "Ogni movimento conta. Non serve la palestra: una passeggiata dopo pranzo fa molta strada, e il tuo piano conta già quello che fai.",
+      cta: "Continua",
+    },
+    struggles: { title: "È assolutamente normale!", cta: "Continua" },
+    restrictions: {
+      title: "Grazie per la fiducia",
+      body: "Il tuo peso, quello che è stato difficile, quello che mi hai appena raccontato — è tanto da condividere con un'app. Lo userò per una cosa sola: giudicare ogni pasto rispetto a ciò che conta per te.",
+      cta: "Crea il mio piano",
+    },
+  },
 };
 
 const ES: ChatCopy = {
@@ -878,6 +1152,57 @@ const ES: ChatCopy = {
     cleared: "Tu peso objetivo ya no encajaba con ese objetivo, así que se ha borrado — pon uno nuevo.",
     worthSetting: "Registrado. Eso sí, tu peso objetivo ya no encaja con tu objetivo — merece la pena poner uno nuevo.",
   },
+  health: {
+    ask: "Conecta Apple Health y sáltate 5 preguntas",
+    rows: ["Altura y peso", "Edad y sexo", "Cuánto entrenas"],
+    connect: "Conectar Apple Health",
+    manual: "Los escribo yo",
+    connected: "Ya tengo tus números. Se mantienen al día solos",
+    partial: "Casi — faltan algunos datos",
+    denied: "Escribe tus datos",
+  },
+  healthActivity: "Health muestra {n} entrenamientos en las últimas 4 semanas. ¿{label}?",
+  targetSuggestion: {
+    down: "Te sugiero {kg} kg, alrededor de un {pct}% menos — una buena primera meta",
+    up: "Te sugiero {kg} kg, alrededor de un {pct}% más — una buena primera meta",
+  },
+  firstMeal: FIRST_MEAL_COPY.es,
+  stepper: { continue: "Continuar", less: "Menos", more: "Más" },
+  offerHeadline: "Llegar a {kg} kg en {month}",
+  reactions: {
+    goalLose: "Perder peso. Bien — hagamos que se mantenga",
+    goalMaintain: "Mantener — conservemos lo que ya funciona",
+    goalGain: "Ganar peso. Bien — construyámoslo bien",
+    sex: "Gracias",
+    birthYear: "Anotado",
+    heightCm: "Último número. Sin juicios, es solo el punto de partida",
+    weightWithBmr: "Gracias. En reposo, tu cuerpo quema unas {bmr} kcal al día",
+    weightPlain: "Gracias.",
+    paceEasy: "Suave — lo bastante lento para durar",
+    paceSteady: "Constante es el ritmo que la gente mantiene",
+    pacePush: "Fuerte, entonces — el cambio diario queda dentro de lo seguro",
+    struggles: "Déjame encontrar los productos de tu zona",
+    country: "Ya casi",
+  },
+  moments: {
+    target: {
+      title: "Una meta que puedes mantener",
+      cta: "Continuar",
+      inBand: "Perder un 5–10% es donde empiezan a notarse las mejoras de salud: colesterol, tensión, energía. {kg} kg cae justo en esa franja. Lo bastante pequeña para alcanzarla, lo bastante grande para importar.",
+      neutral: "{kg} kg — una primera meta clara, con un plan dimensionado para alcanzarla.",
+    },
+    activity: {
+      title: "¡Genial!",
+      body: "Todo movimiento cuenta. No hace falta gimnasio: un paseo después de comer llega lejos, y tu plan ya cuenta lo que haces.",
+      cta: "Continuar",
+    },
+    struggles: { title: "¡Es completamente normal!", cta: "Continuar" },
+    restrictions: {
+      title: "Gracias por confiar en mí",
+      body: "Tu peso, lo que ha sido difícil, lo que acabas de contarme — es mucho para contarle a una app. Lo usaré para una sola cosa: juzgar cada comida según lo que te importa.",
+      cta: "Crear mi plan",
+    },
+  },
 };
 
 const VI: ChatCopy = {
@@ -931,7 +1256,7 @@ const VI: ChatCopy = {
     },
     binge: {
       title: "Chuyện này không chỉ mình bạn gặp",
-      body: "Rối loạn ăn uống vô độ là rối loạn ăn uống phổ biến nhất — khoảng 2,8% người trưởng thành đáp ứng tiêu chuẩn vào một lúc nào đó, và 17% người bắt đầu một chương trình giảm cân có kết quả sàng lọc dương tính. Nếu những cơn đó thấy ngoài tầm kiểm soát, một bác sĩ giúp được nhiều hơn bất kỳ ứng dụng nào. Ở đây, một ngày khó khăn là dữ liệu, không bao giờ là bản án.",
+      body: "Rối loạn ăn uống vô độ là rối loạn ăn uống phổ biến nhất — khoảng 2,8% người trưởng thành đáp ứng tiêu chuẩn vào một lúc nào đó, và 17% người bắt đầu một chương trình kiểm soát cân nặng có kết quả sàng lọc dương tính. Nếu những cơn đó thấy ngoài tầm kiểm soát, một bác sĩ giúp được nhiều hơn bất kỳ ứng dụng nào. Ở đây, một ngày khó khăn là dữ liệu, không bao giờ là bản án.",
       source: "NIMH (NCS-R) · nghiên cứu trên 6.930 người mới bắt đầu chương trình",
     },
     diets: {
@@ -1035,6 +1360,57 @@ const VI: ChatCopy = {
   goalEdit: {
     cleared: "Cân nặng mục tiêu của bạn không còn hợp với mục tiêu đó nữa nên đã được xoá — đặt lại một mức mới nhé.",
     worthSetting: "Đã ghi. Có điều cân nặng mục tiêu của bạn không còn hợp với mục tiêu nữa — nên đặt lại một mức mới.",
+  },
+  health: {
+    ask: "Kết nối Apple Health để bỏ qua 5 câu hỏi",
+    rows: ["Chiều cao và cân nặng", "Tuổi và giới tính", "Mức độ tập luyện"],
+    connect: "Kết nối Apple Health",
+    manual: "Tự nhập",
+    connected: "Đã có số liệu của bạn. Chúng tự cập nhật",
+    partial: "Gần xong — còn thiếu vài thông tin",
+    denied: "Nhập thông tin của bạn",
+  },
+  healthActivity: "Health ghi nhận {n} buổi tập trong 4 tuần qua. {label}?",
+  targetSuggestion: {
+    down: "Mình gợi ý {kg} kg, tức xuống khoảng {pct}% — một mục tiêu đầu tiên hợp lý",
+    up: "Mình gợi ý {kg} kg, tức lên khoảng {pct}% — một mục tiêu đầu tiên hợp lý",
+  },
+  firstMeal: FIRST_MEAL_COPY.vi,
+  stepper: { continue: "Tiếp tục", less: "Bớt", more: "Thêm" },
+  offerHeadline: "Đạt {kg} kg vào {month}",
+  reactions: {
+    goalLose: "Xuống cân. Tốt — mình sẽ giúp nó bền",
+    goalMaintain: "Giữ cân — mình giữ lại những gì đang ổn",
+    goalGain: "Lên cân. Tốt — mình làm cho đúng",
+    sex: "Cảm ơn bạn",
+    birthYear: "Đã ghi nhận",
+    heightCm: "Con số cuối. Không phán xét, đó chỉ là điểm xuất phát",
+    weightWithBmr: "Cảm ơn bạn. Khi nghỉ, cơ thể bạn đốt khoảng {bmr} kcal mỗi ngày",
+    weightPlain: "Cảm ơn bạn.",
+    paceEasy: "Nhẹ nhàng — đủ chậm để giữ được",
+    paceSteady: "Đều đặn là nhịp mà mọi người giữ được",
+    pacePush: "Dồn sức nhé — mức thay đổi mỗi ngày vẫn nằm trong vùng an toàn",
+    struggles: "Để mình tìm những món quen thuộc nơi bạn sống",
+    country: "Gần xong rồi",
+  },
+  moments: {
+    target: {
+      title: "Một mục tiêu bạn giữ được",
+      cta: "Tiếp tục",
+      inBand: "Xuống 5–10% là ngưỡng mà lợi ích sức khỏe bắt đầu lộ rõ: cholesterol, huyết áp, năng lượng. {kg} kg nằm đúng trong vùng đó. Đủ nhỏ để chạm tới, đủ lớn để có ý nghĩa.",
+      neutral: "{kg} kg — một mục tiêu đầu tiên rõ ràng, với kế hoạch được tính để đạt tới.",
+    },
+    activity: {
+      title: "Tuyệt quá!",
+      body: "Mọi vận động đều tính. Không cần phòng gym: một buổi đi bộ sau bữa trưa đã đi được một đoạn dài, và kế hoạch của bạn đã tính cả những gì bạn làm.",
+      cta: "Tiếp tục",
+    },
+    struggles: { title: "Điều đó hoàn toàn bình thường!", cta: "Tiếp tục" },
+    restrictions: {
+      title: "Cảm ơn bạn đã tin mình",
+      body: "Cân nặng, những điều từng khó khăn, và những gì bạn vừa chia sẻ — thật nhiều để kể cho một ứng dụng. Mình chỉ dùng nó cho một việc: đánh giá mỗi bữa ăn theo điều quan trọng với bạn.",
+      cta: "Tạo kế hoạch của tôi",
+    },
   },
 };
 
@@ -1194,6 +1570,57 @@ const ID: ChatCopy = {
     cleared: "Berat targetmu sudah tidak cocok dengan tujuan itu, jadi dihapus — tetapkan yang baru.",
     worthSetting: "Tercatat. Tapi berat targetmu sudah tidak cocok dengan tujuanmu — sebaiknya tetapkan yang baru.",
   },
+  health: {
+    ask: "Hubungkan Apple Health dan lewati 5 pertanyaan",
+    rows: ["Tinggi dan berat", "Usia dan jenis kelamin", "Seberapa sering kamu berolahraga"],
+    connect: "Hubungkan Apple Health",
+    manual: "Isi sendiri",
+    connected: "Angka-angkamu sudah masuk. Semuanya terbarui sendiri",
+    partial: "Hampir — ada beberapa data yang kurang",
+    denied: "Isi datamu",
+  },
+  healthActivity: "Health menunjukkan {n} latihan dalam 4 minggu terakhir. {label}?",
+  targetSuggestion: {
+    down: "Kusarankan {kg} kg, turun sekitar {pct}% — target pertama yang bagus",
+    up: "Kusarankan {kg} kg, naik sekitar {pct}% — target pertama yang bagus",
+  },
+  firstMeal: FIRST_MEAL_COPY.id,
+  stepper: { continue: "Lanjut", less: "Kurangi", more: "Tambah" },
+  offerHeadline: "Capai {kg} kg pada {month}",
+  reactions: {
+    goalLose: "Turunkan berat. Bagus — kita buat supaya bertahan",
+    goalMaintain: "Jaga berat — kita pertahankan yang sudah berhasil",
+    goalGain: "Naikkan berat. Bagus — kita bangun dengan benar",
+    sex: "Terima kasih",
+    birthYear: "Tercatat",
+    heightCm: "Angka terakhir. Tanpa penilaian, ini cuma titik awal",
+    weightWithBmr: "Terima kasih. Saat istirahat, tubuhmu membakar sekitar {bmr} kcal sehari",
+    weightPlain: "Terima kasih.",
+    paceEasy: "Pelan — cukup lambat untuk dijaga",
+    paceSteady: "Stabil adalah tempo yang bisa dijaga",
+    pacePush: "Cepat, kalau begitu — perubahan hariannya tetap dalam batas aman",
+    struggles: "Biar aku cari makanan khas daerahmu",
+    country: "Hampir selesai",
+  },
+  moments: {
+    target: {
+      title: "Target yang bisa kamu jaga",
+      cta: "Lanjut",
+      inBand: "Turun 5–10% adalah titik saat manfaat kesehatan mulai terlihat: kolesterol, tekanan darah, energi. {kg} kg pas di rentang itu. Cukup kecil untuk dicapai, cukup besar untuk berarti.",
+      neutral: "{kg} kg — target pertama yang jelas, dengan rencana yang diukur untuk mencapainya.",
+    },
+    activity: {
+      title: "Bagus sekali!",
+      body: "Setiap gerakan berarti. Tidak perlu gym: jalan kaki setelah makan siang sudah berpengaruh besar, dan rencanamu sudah menghitung apa yang kamu lakukan.",
+      cta: "Lanjut",
+    },
+    struggles: { title: "Itu wajar sekali!", cta: "Lanjut" },
+    restrictions: {
+      title: "Terima kasih sudah percaya",
+      body: "Beratmu, hal-hal yang berat, dan yang baru kamu ceritakan — itu banyak untuk dibagikan ke sebuah aplikasi. Aku memakainya untuk satu hal saja: menilai setiap makanan terhadap apa yang penting bagimu.",
+      cta: "Buat rencanaku",
+    },
+  },
 };
 
 const RU: ChatCopy = {
@@ -1351,6 +1778,60 @@ const RU: ChatCopy = {
   goalEdit: {
     cleared: "Твой целевой вес больше не подходил к этой цели, поэтому он сброшен — поставь новый.",
     worthSetting: "Записал. Правда, целевой вес больше не сходится с твоей целью — стоит поставить новый.",
+  },
+  health: {
+    ask: "Подключи Apple Health и пропусти 5 вопросов",
+    rows: ["Рост и вес", "Возраст и пол", "Как часто ты тренируешься"],
+    connect: "Подключить Apple Health",
+    manual: "Ввести вручную",
+    connected: "Цифры у меня. Они обновляются сами",
+    partial: "Почти всё — пары деталей не хватает",
+    denied: "Введи свои данные",
+  },
+  // The count sits after the noun — "тренировок: {n}" — because тренировка inflects on the
+  // count and a fixed noun would misread half the answers.
+  healthActivity: "За последние 4 недели Health записал тренировок: {n}. {label}?",
+  targetSuggestion: {
+    down: "Предлагаю {kg} кг — примерно на {pct}% меньше, хорошая первая цель",
+    up: "Предлагаю {kg} кг — примерно на {pct}% больше, хорошая первая цель",
+  },
+  firstMeal: FIRST_MEAL_COPY.ru,
+  stepper: { continue: "Продолжить", less: "Меньше", more: "Больше" },
+  // CLDR gives the month in the nominative ("январь 2027 г."), so no preposition may govern it.
+  offerHeadline: "Цель {kg} кг. Срок: {month}",
+  reactions: {
+    goalLose: "Похудеть. Хорошо — сделаем так, чтобы это держалось",
+    goalMaintain: "Удержать вес. Хорошо — оставим то, что уже работает",
+    goalGain: "Набрать вес. Хорошо — соберём его правильно",
+    sex: "Спасибо",
+    birthYear: "Записал",
+    heightCm: "Последняя цифра. Без оценок — это просто точка старта",
+    weightWithBmr: "Спасибо. В покое твоё тело сжигает около {bmr} ккал в день",
+    weightPlain: "Спасибо.",
+    paceEasy: "Мягкий — достаточно медленный, чтобы удержаться",
+    paceSteady: "Ровный — тот, который у людей держится",
+    pacePush: "Жёсткий, значит — дневная разница всё равно останется в безопасных рамках",
+    struggles: "Дай-ка найти твои местные продукты",
+    country: "Почти всё",
+  },
+  moments: {
+    target: {
+      title: "Цель, которую можно удержать",
+      cta: "Дальше",
+      inBand: "Минус 5–10% — полоса, где перемены в здоровье начинают проявляться: холестерин, давление, энергия. {kg} кг — прямо в ней. Достаточно близко, чтобы дойти, достаточно много, чтобы иметь значение.",
+      neutral: "{kg} кг — ясная первая цель, и план рассчитан именно на неё.",
+    },
+    activity: {
+      title: "Здорово!",
+      body: "Любое движение считается. Зал не нужен: прогулка после обеда уже многое даёт, и твой план уже учитывает то, что ты делаешь.",
+      cta: "Дальше",
+    },
+    struggles: { title: "Это совершенно нормально!", cta: "Дальше" },
+    restrictions: {
+      title: "Спасибо за доверие",
+      body: "Вес, то, что было трудно, и вот эти ответы — очень много доверия для одного разговора. Я использую это ровно для одного: судить каждое блюдо по тому, что важно тебе.",
+      cta: "Собери мой план",
+    },
   },
 };
 

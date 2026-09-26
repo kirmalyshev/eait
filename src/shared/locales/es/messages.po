@@ -400,11 +400,6 @@ msgstr "Ese es el límite por ahora. Inténtalo más tarde."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
-msgid "tg.refusal.subscription-required"
-msgstr "Los análisis que traía esta cuenta se han agotado. Suscríbete en la web para seguir."
-
-#. js-lingui-explicit-id
-#: src/backend/telegram/copy.ts
 msgid "tg.viaApp"
 msgstr "la app"
 
@@ -412,6 +407,11 @@ msgstr "la app"
 #: src/backend/telegram/copy.ts
 msgid "tg.targetGone"
 msgstr "Aquí no hay ninguna comida abierta que cambiar. Dime qué comiste y regístrala otra vez."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
+msgid "tg.refusal.subscription-required"
+msgstr "La cuota gratuita de esta cuenta se ha agotado. Empieza tu semana gratis en la web para seguir."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

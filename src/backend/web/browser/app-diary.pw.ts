@@ -6,10 +6,13 @@
 // is answered at the network, in the profile's own shape.
 import type { Page } from "@playwright/test";
 import type { DayResponse, ProfileResponse } from "@eait/shared/contract";
-import { expect, test } from "./fixtures.ts";
+import { expect, logMeal, test } from "./fixtures.ts";
 
 /** The diary, drawn fresh from a profile edited on its way to the page. */
 async function diaryWith(page: Page, edit: (p: ProfileResponse["profile"]) => void): Promise<void> {
+  // A diary these specs may read exists only once a meal does — before any, `/#/` is the
+  // first-meal flow (#42).
+  await logMeal(page);
   await page.route("**/api/v1/profile", async (route) => {
     const res = await route.fetch();
     const body = (await res.json()) as ProfileResponse;
@@ -22,6 +25,7 @@ async function diaryWith(page: Page, edit: (p: ProfileResponse["profile"]) => vo
 }
 
 test("the diary names the weight behind the target, and when it was weighed", async ({ inWebApp: page }) => {
+  await logMeal(page);
   await page.goto("/#/");
   // `onboardFast` typed 98 kg a moment ago, which the server stamps as weighed now.
   await expect(page.getByText("Weight 98 kg, weighed today.")).toBeVisible();
@@ -56,6 +60,8 @@ test("no weight: the diary says how to keep one current", async ({ inWebApp: pag
 
 /** Today's diary, with what was eaten set to `target + delta` on its way to the page. */
 async function dayAt(page: Page, delta: number): Promise<number> {
+  // Same reason as `diaryWith`: no meal on the account and `/#/` is the first-meal flow.
+  await logMeal(page);
   let target = 0;
   await page.route("**/api/v1/diary/day*", async (route) => {
     const res = await route.fetch();
@@ -110,6 +116,8 @@ test("over target says by how much, as a warning rather than a negative number",
 });
 
 test("a tab change while the first draw is still loading draws one page, not two", async ({ inWebApp: page }) => {
+  // A meal first, so the draw this interrupts is the diary's rather than the first-meal flow's.
+  await logMeal(page);
   // The first draw waits on the profile. A hash change in that window starts a second draw, and
   // both used to append their nav and body when they resumed: two tab bars, two screens.
   let release = () => {};

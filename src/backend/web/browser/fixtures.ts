@@ -7,9 +7,33 @@
 // can be driven on a laptop at all: Apple refuses every origin a laptop has, and Google refuses all
 // but loopback.
 
+import { readFileSync } from "node:fs";
 import { expect, test as base, type Page } from "@playwright/test";
 
 export const REAL_MODEL = process.env.EAIT_WEB_E2E_LLM === "real";
+
+/** The fixture plate, as bytes — the demo analyzer seeds its answer from them. */
+const MEAL_PHOTO = readFileSync("src/backend/web/browser/fixture-meal.png");
+
+/**
+ * One meal logged on this page's account, through the photo route the app itself uses.
+ *
+ * What every spec that lands on `#/` needs now that an account which has never logged meets the
+ * first-meal flow there instead of the diary (#42): a spec that IS about the diary seeds one meal
+ * first, the way a returning account arrives with one. Nothing is bypassed — this is a real photo
+ * turn against the demo analyzer, under the session's own bearer.
+ */
+export async function logMeal(page: Page) {
+  const res = await page.request.post("/v1/meals/photo", {
+    headers: { authorization: `Bearer ${await sessionToken(page)}` },
+    multipart: {
+      photo: { name: "meal.png", mimeType: "image/png", buffer: MEAL_PHOTO },
+      clientId: crypto.randomUUID(),
+      capturedAt: new Date().toISOString(),
+    },
+  });
+  expect(res.status(), await res.text()).toBe(200);
+}
 
 /** The answers the ten onboarding questions take, by the prompt id the page names. */
 const ANSWERS: Record<string, string> = {

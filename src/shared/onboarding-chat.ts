@@ -36,14 +36,18 @@
 // back. `struggles` stayed because it picks the support cards that appear one sentence later.
 
 import {
-  MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MIN_AGE, MIN_TARGET_BMI, MIN_WEIGHT_KG, ageFrom,
+  MAX_DEFICIT_SHARE, MAX_SURPLUS_SHARE, MIN_AGE, MIN_WEIGHT_KG, ageFrom,
+  basalMetabolicRate, explainTargets, isRestrictionTag, minHealthyWeightKg,
   type RestrictionTag,
 } from "./targets.ts";
-import { numbers } from "./lang.ts";
+import { numbers, spellUnit, wholeNumbers } from "./lang.ts";
+import { projectGoal, projectionMonth } from "./projection.ts";
 import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
-import type { Goal, Lang, Profile } from "./types.ts";
+import { onboardingContentFor } from "./onboarding-content.ts";
+import type { ActivityLevel, Goal, Lang, Profile } from "./types.ts";
 import {
-  isKnownScreen, optionLabel, screenForStep, screenOptionValues, stepApplies,
+  isKnownScreen, optionLabel, screenForStep, screenOptionValues, screenOptions, stepApplies,
+  type MascotMood,
   type OnboardingContent, type OnboardingPlace, type OnboardingScreenId, type OnboardingStep,
 } from "./onboarding.ts";
 
@@ -57,7 +61,7 @@ import {
  * already passed it (see `resumeAt`).
  */
 export type ChatPromptId =
-  | "welcome" | "goal" | "sex" | "birth_year" | "height_cm" | "weight_kg"
+  | "welcome" | "goal" | "health" | "sex" | "birth_year" | "height_cm" | "weight_kg"
   | "target_weight_kg" | "pace" | "activity" | "struggles"
   | "country" | "restrictions" | "building" | "summary";
 
@@ -70,8 +74,10 @@ export type ChatPromptId =
  *   number  the number pad
  *   text    the composer, with quick replies beside it
  *   auto    nothing to answer — a card Spud draws and moves on from
+ *   health  the Apple Health offer: a connect button beside a manual one, its answer being the
+ *           permission's outcome rather than typed text
  */
-export type ChatPromptKind = "start" | "choice" | "chips" | "number" | "text" | "auto";
+export type ChatPromptKind = "start" | "choice" | "chips" | "number" | "text" | "auto" | "health";
 
 export interface ChatPrompt {
   id: ChatPromptId;
@@ -104,6 +110,11 @@ export const STRUGGLE_LABELS = (lang: Lang): Record<Struggle, string> =>
 export const CHAT_PROMPTS: readonly ChatPrompt[] = [
   { id: "welcome", place: "welcome", kind: "start" },
   { id: "goal", place: "goal", field: "goal", kind: "choice", options: ["lose", "maintain", "gain"] },
+  // The Health offer sits right after the goal — it is what SKIPS the next questions, so it has to
+  // come before them. It is a prompt and not a screen because it collects no profile field: its
+  // reader is the client's HealthKit fill of sex/birth_year/height_cm/weight_kg, and on a surface
+  // without Health (the browser) `promptsFor` leaves it out entirely.
+  { id: "health", place: "health", kind: "health" },
   { id: "sex", place: "about", field: "sex", kind: "choice", options: ["female", "male"] },
   { id: "birth_year", place: "about", field: "birth_year", kind: "number" },
   { id: "height_cm", place: "body", field: "height_cm", kind: "number" },
@@ -130,15 +141,31 @@ export function promptById(id: ChatPromptId): ChatPrompt | undefined {
 }
 
 /**
+ * What the surface can do, as flags — and deliberately a REQUIRED argument. The web and the app
+ * run the same walk except for this: a browser cannot read Apple Health, so the offer must not
+ * appear there. A default would hide the decision the caller has to make.
+ */
+export interface OnboardingSurface {
+  /** Apple Health can be read (iOS). False in the browser. */
+  health: boolean;
+}
+
+/**
  * The prompts this profile will actually meet.
  *
  * A maintainer is asked neither a goal weight nor a pace — both are questions about a change they
  * are not making. A group the admin switched off takes its prompts with it, which today is only
- * `country`: the phone reads it from the device region instead.
+ * `country`: the phone reads it from the device region instead. And the Health offer is only
+ * emitted on a surface that can answer it — `surface.health`.
  */
-export function promptsFor(p: Profile, disabled: readonly OnboardingScreenId[] = []): ChatPrompt[] {
+export function promptsFor(
+  p: Profile,
+  disabled: readonly OnboardingScreenId[] = [],
+  surface: OnboardingSurface,
+): ChatPrompt[] {
   const off = new Set(disabled);
   return CHAT_PROMPTS.filter((prompt) => {
+    if (prompt.id === "health") return surface.health;
     if (!prompt.field) return true;
     if (!stepApplies(prompt.field, p)) return false;
     return !off.has(screenForStep(prompt.field));
@@ -257,7 +284,10 @@ export function askPlaceholder(prompt: ChatPrompt, content: OnboardingContent): 
 export const IDLE_PLACEHOLDER = (lang: Lang): string => chatCopyFor(lang).idlePlaceholder;
 
 const conversationAsks = (lang: Lang): Record<string, readonly string[]> =>
-  ({ struggles: chatCopyFor(lang).strugglesAsk });
+  ({
+    struggles: chatCopyFor(lang).strugglesAsk,
+    health: [chatCopyFor(lang).health.ask],
+  });
 
 /** The multi-selects' way out: `finish` is the dock's primary button, `none` a pill. copy.md, verbatim. */
 export const QUICK_REPLIES = (lang: Lang) => chatCopyFor(lang).quick;
@@ -551,10 +581,16 @@ export function switchedLine(goal: Goal, lang: Lang): string {
   return goal === "gain" ? copy.gain : copy.lose;
 }
 
-/** The lowest weight this app will set as a target for a height, in whole kg. Mirrors `checkTargetWeight`. */
+/**
+ * The lowest weight this app will set as a target for a height, in whole kg. The formula lives in
+ * `targets.ts` (`minHealthyWeightKg`) — a second copy here was the drift `AGENTS.md` warns about:
+ * two numbers that must agree are two numbers that eventually will not.
+ */
 export function minHealthyKg(heightCm: number): number {
-  const m = heightCm / 100;
-  return Math.ceil(MIN_TARGET_BMI * m * m);
+  const floor = minHealthyWeightKg(heightCm);
+  // A height outside the number check never reaches here: this is only called with a real one.
+  if (floor === null) throw new RangeError(`minHealthyKg: no floor for height ${heightCm}`);
+  return floor;
 }
 
 // ── The plan ─────────────────────────────────────────────────────────────────────────────────
@@ -680,4 +716,232 @@ export function reconcileGoalEdit(
     patch,
     note: chatCopyFor(lang).goalEdit.worthSetting,
   };
+}
+
+// ── v5: suggestions, reactions, moments ──────────────────────────────────────────────────────
+//
+// The v5 redesign (issue #42, `product/design/spud/styles_spec_v5.part`) changed three things in
+// the conversation around the questions: the stepper is PRE-FILLED with a suggested target, every
+// answer earns ONE line back before the next ask, and four full-screen "support moments" carry the
+// reassurance that used to ride inside the chat. All of it is code, not editable copy, for the
+// reason stated at the top of this file: the lines carry numbers and branch on the answer.
+
+/**
+ * The target prompt's suggestion line: "I suggest {kg} kg, about {pct}% down, a good first goal".
+ * `pct` is the caller's computed share off the current weight, whole — the arithmetic is
+ * `suggestedTargetKg`'s caller's, the words are this table's.
+ */
+export function targetSuggestionLine(
+  kg: number,
+  pct: number,
+  goal: Goal,
+  lang: Lang,
+): string | null {
+  if (goal !== "lose" && goal !== "gain") return null;
+  const copy = chatCopyFor(lang).targetSuggestion;
+  return fill(goal === "lose" ? copy.down : copy.up, {
+    kg: numbers(lang)(kg),
+    pct: wholeNumbers(lang)(pct),
+  });
+}
+
+/**
+ * The Health-path activity ask: "Health shows {n} workouts in the last 4 weeks. {label}?".
+ *
+ * The `{label}` is the level's own chip label — the question is a confirmation of a computed
+ * level, so it names the level the way the options do. The workout-count → level mapping is the
+ * client's (it is the one holding the samples); this only formats the sentence around it.
+ * The label is the COMPILED-IN content's: the signature takes no `served`, so an admin rename of
+ * the options does not reach this line — the same trade the country list already made.
+ */
+export function activityFromHealthLine(
+  workouts: number,
+  level: ActivityLevel,
+  lang: Lang,
+): string {
+  const opts = screenOptions(onboardingContentFor(lang), "activity");
+  const label = opts[level]?.label ?? optionLabel("activity", level, lang);
+  return fill(chatCopyFor(lang).healthActivity, { n: numbers(lang)(workouts), label });
+}
+
+/**
+ * The ONE line Spud says after an answer — spoken above the next question, with the face's mood.
+ *
+ * The lines and moods are the v5 spec's: in `styles_spec_v5.part`, an ask's second column is the
+ * reaction to the PREVIOUS answer and `SPEC_MOOD` gives the screen's mood, which is the face the
+ * reaction is drawn with. Null where a moment carries the beat instead (the target, activity and
+ * building beats are full screens), where the prompt is not an answer (welcome, health, summary),
+ * or where the profile does not hold the answer this would speak to — rule 1: a reply that works
+ * for any answer is a reply written for no one.
+ *
+ * `extra.freeText` is whether the user ALSO typed free text on the restrictions prompt — the only
+ * answer part that does not land on the profile.
+ */
+export function reactionTo(
+  promptId: ChatPromptId,
+  p: Profile,
+  lang: Lang,
+  extra?: { freeText?: boolean },
+): { line: string; mood: MascotMood } | null {
+  const copy = chatCopyFor(lang);
+  const r = copy.reactions;
+  switch (promptId) {
+    case "goal": {
+      if (p.goal === null) return null;
+      const line = p.goal === "lose" ? r.goalLose : p.goal === "gain" ? r.goalGain : r.goalMaintain;
+      return { line, mood: "joy" };
+    }
+    case "sex":
+      return p.sex === null ? null : { line: r.sex, mood: "happy" };
+    case "birth_year":
+      return p.birth_year === null ? null : { line: r.birthYear, mood: "happy" };
+    case "height_cm":
+      return p.height_cm === null ? null : { line: r.heightCm, mood: "care" };
+    case "weight_kg": {
+      if (p.weight_kg === null) return null;
+      // The spec's line names the BMR — `basalMetabolicRate` computes it — and falls back to a
+      // plain thank-you rather than "about null kcal" when a piece it needs is missing.
+      const bmr = basalMetabolicRate(p);
+      return {
+        line: bmr === null ? r.weightPlain : fill(r.weightWithBmr, { bmr: numbers(lang)(bmr) }),
+        mood: "happy",
+      };
+    }
+    case "pace": {
+      if (p.pace === null) return null;
+      const line = p.pace === "steady" ? r.paceSteady : p.pace === "push" ? r.pacePush : r.paceEasy;
+      return { line, mood: "think" };
+    }
+    case "struggles":
+      // The line that sits above the country ask is the segue out of the struggles beat.
+      return { line: r.struggles, mood: "think" };
+    case "country":
+      return p.country === null ? null : { line: r.country, mood: "care" };
+    case "restrictions": {
+      // The reply helper already says the spec's sentence — what gets scored, and only what was
+      // declared — so the reaction is its lines, not a second copy of them.
+      const tags = p.restrictions.filter(isRestrictionTag);
+      return { line: restrictionsReply(tags, extra?.freeText ?? false, lang).join(" "), mood: "joy" };
+    }
+    // The beats a support moment owns, and the prompts that are not answers at all.
+    case "target_weight_kg": case "activity": case "welcome": case "health":
+    case "building": case "summary":
+      return null;
+  }
+}
+
+// ── The support moments ──────────────────────────────────────────────────────────────────────
+
+/**
+ * The four full-screen beats between question groups — `11q` after the target, `12q` after the
+ * activity question, `13q` after struggles, `15q` after restrictions. Each is the same shape: the
+ * answer echoed as a chip, a pose drawn full-size, a headline, two sentences, a button.
+ */
+export type MomentId = "target" | "activity" | "struggles" | "restrictions";
+
+/**
+ * The poses the moments draw. NOT MascotMood: a moment is a full-screen illustration (the potato
+ * lifting a weight, holding a heart), not the face beside a bubble, and the two vocabularies must
+ * not mix — a renderer that reads one as the other draws nothing.
+ */
+export const MOMENT_POSES = ["cheer", "lift", "think", "heart"] as const;
+export type MomentPose = (typeof MOMENT_POSES)[number];
+
+export interface SupportMoment {
+  id: MomentId;
+  pose: MomentPose;
+  /** The answer's own label, rendered as a chip — "68 kg", "A little each week". */
+  echo: string;
+  title: string;
+  body: string;
+  cta: string;
+}
+
+/**
+ * The moment's content for this answer, or null where the moment does not apply.
+ *
+ *   - `target`       only on lose/gain with a target set — a maintainer is never asked one.
+ *                    The "5–10%" body is spoken only when the target really is 5–10% below the
+ *                    current weight; outside the band it would be a claim about a different
+ *                    number, so the neutral variant stands.
+ *   - `activity`     whenever a level was picked. The Health-edit path skips it in the client's
+ *                    walk — a confirmation beat, not a second ask — so it needs no flag here.
+ *   - `struggles`    only when something was picked; the body is the picked card's, source and all.
+ *   - `restrictions` always — its body speaks about what was shared, which happened either way.
+ */
+export function supportMoment(
+  id: MomentId,
+  ctx: {
+    profile: Profile;
+    struggles: readonly Struggle[];
+    lang: Lang;
+    content: OnboardingContent;
+  },
+): SupportMoment | null {
+  const { profile: p, struggles, lang, content } = ctx;
+  const m = chatCopyFor(lang).moments;
+  switch (id) {
+    case "target": {
+      if ((p.goal !== "lose" && p.goal !== "gain") || !p.target_weight_kg || !p.weight_kg) return null;
+      const share = (p.weight_kg - p.target_weight_kg) / p.weight_kg;
+      const inBand = p.goal === "lose" && share >= 0.05 && share <= 0.10;
+      const kg = numbers(lang)(p.target_weight_kg);
+      return {
+        id, pose: "cheer",
+        echo: `${kg} ${spellUnit(lang, "kg")}`,
+        title: m.target.title,
+        body: fill(inBand ? m.target.inBand : m.target.neutral, { kg }),
+        cta: m.target.cta,
+      };
+    }
+    case "activity": {
+      if (!p.activity) return null;
+      const opts = screenOptions(content, "activity");
+      return {
+        id, pose: "lift",
+        echo: opts[p.activity]?.label ?? optionLabel("activity", p.activity, lang),
+        title: m.activity.title, body: m.activity.body, cta: m.activity.cta,
+      };
+    }
+    case "struggles": {
+      const first = struggles[0];
+      if (!first) return null;
+      return {
+        id, pose: "think",
+        echo: STRUGGLE_LABELS(lang)[first],
+        title: m.struggles.title,
+        body: struggleCard(first, p.goal ?? "maintain", lang).body,
+        cta: m.struggles.cta,
+      };
+    }
+    case "restrictions": {
+      const tags = p.restrictions.filter(isRestrictionTag);
+      const opts = screenOptions(content, "restrictions");
+      const echo = tags.length > 0
+        ? tags.map((tag) => opts[tag]?.label ?? tag).join(" · ")
+        : chatCopyFor(lang).nothingApplies;
+      return {
+        id, pose: "heart", echo,
+        title: m.restrictions.title, body: m.restrictions.body, cta: m.restrictions.cta,
+      };
+    }
+  }
+}
+
+/**
+ * The soft offer's title after the plan: "Get to 68 kg by January 2027".
+ *
+ * Null wherever the plan itself names no arrival — maintaining, no target, a projection
+ * `projectGoal` will not make, or one past the horizon where the plan says "over two years" — so
+ * the offer never promises a date the plan did not. The month is the plan's own (`projectGoal` over
+ * `explainTargets`), never a figure the client works out.
+ */
+export function offerHeadline(p: Profile, today: Date, lang: Lang): string | null {
+  if (p.target_weight_kg === null) return null;
+  const projection = projectGoal(p, explainTargets(p, today).basis);
+  if (projection === null || projection.beyondHorizon) return null;
+  return fill(chatCopyFor(lang).offerHeadline, {
+    kg: numbers(lang)(p.target_weight_kg),
+    month: projectionMonth(today, projection.weeks, lang),
+  });
 }

@@ -11,10 +11,11 @@
 // states its in `src/landing/mascot.ts`.
 
 /**
- * The moods the web surfaces draw. The app has six; `cheer` is deliberately not one of them —
- * sparkles and both arms up is reward theatre in one drawing.
+ * The moods the web surfaces draw. `cheer` is deliberately not one of them — sparkles and both
+ * arms up is reward theatre in one drawing. `joy` (v5) IS one: it is the same wide open smile the
+ * app's `cheer` draws, with default eyes and none of the theatre.
  */
-export type MascotMood = "care" | "wave" | "think" | "idle" | "happy";
+export type MascotMood = "care" | "wave" | "think" | "idle" | "happy" | "joy";
 
 const SKIN_LIGHT = "#E8BE83";
 const SKIN_DARK = "#C08B4E";
@@ -47,7 +48,13 @@ export const MOUTHS: Record<MascotMood, string> = {
   // app itself defines it — and both take the default eyes: no lids, no brows, no pupil offset.
   idle: "M50 73 Q59 80 68 73",
   happy: "M46 71 Q59 84 72 71",
+  // The wide open smile — verbatim `mascot.tsx`'s `cheer` mouth. It is a FILLED shape, not a
+  // stroke: the only mood whose mouth is drawn that way, which is what `MOUTH_FILLED` says.
+  joy: "M45 69 Q59 89 73 69 Q59 76 45 69 Z",
 };
+
+/** The mouths drawn filled rather than stroked — the open smile. */
+const MOUTH_FILLED = new Set<MascotMood>(["joy"]);
 
 /**
  * Each mood's eyes.
@@ -125,7 +132,9 @@ export function spudSvg(mood: MascotMood, gradientId: string): string {
     `<ellipse cx="31" cy="72" rx="8" ry="4.6" fill="${BLUSH}" opacity=".34"/>` +
     `<ellipse cx="87" cy="72" rx="8" ry="4.6" fill="${BLUSH}" opacity=".34"/>` +
     eyes(mood) +
-    `<path d="${MOUTHS[mood]}" fill="none" stroke="${FACE}" stroke-width="3.6" stroke-linecap="round"/>` +
+    (MOUTH_FILLED.has(mood)
+      ? `<path d="${MOUTHS[mood]}" fill="${FACE}"/>`
+      : `<path d="${MOUTHS[mood]}" fill="none" stroke="${FACE}" stroke-width="3.6" stroke-linecap="round"/>`) +
     `</svg>`
   );
 }

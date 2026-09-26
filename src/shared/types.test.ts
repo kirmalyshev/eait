@@ -1,5 +1,5 @@
 import { describe, expect, it, test } from "bun:test";
-import { VERDICT_DIMENSIONS, renderableVerdicts } from "./types.ts";
+import { VERDICT_DIMENSIONS, renderableVerdicts, verdictMood } from "./types.ts";
 import { verdictPillLabel } from "./verdicts.ts";
 import { LANGS } from "./types.ts";
 
@@ -74,5 +74,21 @@ describe("a verdict pill in eight languages", () => {
   it("is English for a language nobody has written", () => {
     expect(verdictPillLabel("kidneys", "warn", "en")).toBe("Sodium high");
     expect(verdictPillLabel("kidneys", "warn", "de")).toBe("Natrium — hoch");
+  });
+});
+
+// Principal, 2026-09-25: the first verdict follows the COMPUTED pills, never hard-coded praise.
+// Spud's face is part of what the verdict says, so it is decided by the worst pill on the card.
+describe("verdictMood", () => {
+  it("cheers only when every pill on the card is on plan", () => {
+    expect(verdictMood({ weight: "good", ldl: "good" })).toBe("joy");
+  });
+  it("thinks over a high pill, and cares over a very high one — the worst pill decides", () => {
+    expect(verdictMood({ weight: "good", ldl: "warn" })).toBe("think");
+    expect(verdictMood({ weight: "warn", kidneys: "bad" })).toBe("care");
+  });
+  it("offers no praise it has nothing to base on: no pill, or only pills this binary cannot read", () => {
+    expect(verdictMood({})).toBe("happy");
+    expect(verdictMood({ weight: "splendid" })).toBe("happy");
   });
 });

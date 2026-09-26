@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import {
-  KCAL_FLOOR, KCAL_FLOOR_UNKNOWN, MIN_TARGET_BMI, ageFrom, basalMetabolicRate, bmi,
-  checkTargetWeight, explainTargets, targetsFor, verdictsFromTargets,
-  visibleVerdicts, weightRemainingKg,
+  KCAL_FLOOR, KCAL_FLOOR_UNKNOWN, MIN_TARGET_BMI, TARGET_STEP_KG, ageFrom, basalMetabolicRate, bmi,
+  checkTargetWeight, explainTargets, suggestedTargetKg, targetRange, targetsFor,
+  verdictsFromTargets, visibleVerdicts, weightRemainingKg,
 } from "./targets.ts";
 import type { Profile } from "./types.ts";
 
@@ -278,5 +278,52 @@ describe("weightRemainingKg", () => {
 
   it("is null when either weight is unknown", () => {
     expect(weightRemainingKg(profile({ weight_kg: null }))).toBeNull();
+  });
+});
+
+describe("the suggested target weight (v5, C3)", () => {
+  it("suggests a reachable first goal — the spec's persona lands on 68", () => {
+    // female, 32, 172 cm, 74 kg, lose: 74 × 0.92 = 68.08 → 68 on the half-kg step.
+    const her = profile({ goal: "lose", birth_year: 1994, height_cm: 172, weight_kg: 74 });
+    expect(suggestedTargetKg(her)).toBe(68);
+  });
+
+  it("rounds to the stepper's half kilo", () => {
+    expect(TARGET_STEP_KG).toBe(0.5);
+    // 95 × 0.92 = 87.4 → 87.5.
+    expect(suggestedTargetKg(profile({ goal: "lose", weight_kg: 95 }))).toBe(87.5);
+    // 61 × 1.05 = 64.05 → 64.
+    expect(suggestedTargetKg(profile({ goal: "gain", weight_kg: 61 }))).toBe(64);
+  });
+
+  it("never suggests below the healthy floor for the height", () => {
+    // 70 kg at 190 cm wants 64.4 → 64.5, but the lowest healthy weight there is 67.
+    expect(suggestedTargetKg(profile({ goal: "lose", weight_kg: 70, height_cm: 190 }))).toBe(67);
+  });
+
+  it("suggests nothing, and offers no stepper, to someone already at the healthy floor who asked to lose", () => {
+    // 66 kg at 190 cm: the floor is 67, so there is no weight below this one the app will set.
+    // `checkTargetWeight` refuses anything they could type; a suggestion at or above today's weight
+    // would be the wrong direction, and a range of 67 … 65.5 is not a range.
+    const atFloor = profile({ goal: "lose", weight_kg: 66, height_cm: 190 });
+    expect(suggestedTargetKg(atFloor)).toBeNull();
+    expect(targetRange(atFloor)).toBeNull();
+  });
+
+  it("says nothing to a maintainer, or without a weight to start from", () => {
+    expect(suggestedTargetKg(profile({ goal: "maintain" }))).toBeNull();
+    expect(suggestedTargetKg(profile({ goal: "lose", weight_kg: null }))).toBeNull();
+    expect(suggestedTargetKg(profile({ goal: null }))).toBeNull();
+  });
+
+  it("bounds the stepper inside the design's range", () => {
+    // lose: minHealthyKg … weight − 0.5. At 172 cm the floor is ceil(18.5 × 1.72²) = 55.
+    expect(targetRange(profile({ goal: "lose", weight_kg: 74, height_cm: 172 })))
+      .toEqual({ min: 55, max: 73.5 });
+    // gain: weight + 0.5 … weight × 1.3.
+    expect(targetRange(profile({ goal: "gain", weight_kg: 60 })))
+      .toEqual({ min: 60.5, max: 78 });
+    expect(targetRange(profile({ goal: "maintain" }))).toBeNull();
+    expect(targetRange(profile({ goal: "lose", weight_kg: null }))).toBeNull();
   });
 });

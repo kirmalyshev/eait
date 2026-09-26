@@ -158,6 +158,21 @@ export function renderableVerdicts(verdicts: unknown): VerdictDimension[] {
   return VERDICT_DIMENSIONS.filter((d) => typeof v[d] === "string" && VERDICT_VALUES.includes(v[d] as string));
 }
 
+/**
+ * Spud's face over a verdict, from the COMPUTED pills (principal, 2026-09-25: the first verdict
+ * follows the pills, never hard-coded praise). The worst pill decides: very high → care, high →
+ * think, every pill on plan → joy. No readable pill is no verdict to praise, so a neutral face.
+ * Only faces both the app and `mascot.ts` draw.
+ */
+export function verdictMood(verdicts: unknown): "joy" | "think" | "care" | "happy" {
+  const dims = renderableVerdicts(verdicts);
+  if (dims.length === 0) return "happy";
+  const v = verdicts as Partial<Record<VerdictDimension, string>>;
+  if (dims.some((d) => v[d] === "bad")) return "care";
+  if (dims.some((d) => v[d] === "warn")) return "think";
+  return "joy";
+}
+
 /** Optional context accompanying a photo. Both fields measurably reduce estimation error. */
 export interface MealContext {
   caption?: string;
