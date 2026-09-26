@@ -172,7 +172,7 @@ async function textTurn(
           }
           console.error(`[eait] coach failed, answering from the router: ${(e as Error)?.message ?? e}`);
           answeredBy = deps.config.llmModel;
-          return { kind: "answered", text: routed.text, speaker: "gabie" };
+          return { kind: "answered", text: routed.text };
         }
       }
 

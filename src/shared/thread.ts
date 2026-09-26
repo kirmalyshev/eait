@@ -364,10 +364,13 @@ export function hasLiveSuggestions(visible: ThreadEntry[]): boolean {
     && tail.result.kind === "answered" && (tail.result.suggestions?.length ?? 0) > 0;
 }
 
-/** Who a row belongs to: the user, Gabie on her answers, and Spud on everything else he says or shows. */
-export function speakerOf(entry: ThreadEntry): "user" | "spud" | "gabie" {
+/**
+ * Who a row belongs to: the user, or Spud. #49 (principal, 2026-09-26): Spud logs and answers. A
+ * stored row from when Gabie answered carries `speaker: "gabie"` and belongs to Spud now, so a
+ * thread does not split his turns where she used to speak.
+ */
+export function speakerOf(entry: ThreadEntry): "user" | "spud" {
   if (entry.role === "user") return "user";
-  if (entry.role === "assistant" && entry.result.kind === "answered" && entry.result.speaker === "gabie") return "gabie";
   return "spud";
 }
 

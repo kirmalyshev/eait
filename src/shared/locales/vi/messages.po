@@ -65,6 +65,11 @@ msgstr "Hôm nay vượt {over} so với {plan}, và {protein} trên {proteinTar
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesHigh"
+msgstr "Một phần lớn của cả ngày trong một bữa."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.coachStarters.2"
 msgstr "Đã đủ đạm chưa?"
 
@@ -77,6 +82,11 @@ msgstr "Hãy trả lời các câu hỏi lập kế hoạch trên web trước."
 #: src/shared/verdicts.ts
 msgid "verdict.noun.weight"
 msgstr "Calo"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesOnPlan"
+msgstr "Calo đúng kế hoạch."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -199,6 +209,11 @@ msgid "tg.meal"
 msgstr "Bữa ăn"
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesVeryHigh"
+msgstr "Hơn nửa ngày của bạn trong một bữa."
+
+#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.moved"
 msgstr "Đã chuyển."
@@ -234,6 +249,11 @@ msgid "tg.todayEmpty"
 msgstr "Hôm nay chưa ghi gì cả."
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.onPlan"
+msgstr "Đúng kế hoạch."
+
+#. js-lingui-explicit-id
 #: src/backend/mail/port.ts
 msgid "mail.confirm.promise"
 msgstr "Một email khi ứng dụng ra mắt, kèm liên kết huỷ đăng ký chỉ một lần bấm. Ngoài ra không có gì, không bao giờ."
@@ -252,11 +272,6 @@ msgstr "Một điều trước đã: iOS sẽ hỏi quyền camera. Mình dùng 
 #: src/backend/telegram/copy.ts
 msgid "tg.macro.protein"
 msgstr "Đạm"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.meetGabie"
-msgstr "Câu hỏi thì gửi cho Gabie, chuyên gia dinh dưỡng ở đây — tối nay ăn gì, tuần này ra sao. Vẫn chat này; cô ấy đọc nhật ký của bạn trước khi trả lời. Mình ghi chép, cô ấy tư vấn."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -286,7 +301,7 @@ msgstr "Bữa này chất béo bão hoà cao. Được chấm chỉ vì bạn y�
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
-msgstr "Gửi ảnh một bữa ăn, kể mình nghe bạn đã ăn gì, hoặc hỏi Gabie một câu."
+msgstr "Gửi ảnh một bữa ăn, kể mình nghe bạn đã ăn gì, hoặc hỏi mình một câu."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -336,12 +351,12 @@ msgstr "Tệp đó không phải ảnh đọc được ở đây. JPEG, PNG ho�
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmetic.otherLeft"
-msgstr "vậy là còn {left} trên {plan} cho phần còn lại của hôm nay, và {protein} trên {proteinTarget} g đạm. Đúng kế hoạch."
+msgstr "vậy là còn {left} trên {plan} cho phần còn lại của hôm nay, và {protein} trên {proteinTarget} g đạm."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-msgstr "Vậy là còn {left} trên {plan} cho phần còn lại của hôm nay, và {protein} trên {proteinTarget} g đạm. Đúng kế hoạch."
+msgstr "Vậy là còn {left} trên {plan} cho phần còn lại của hôm nay, và {protein} trên {proteinTarget} g đạm."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

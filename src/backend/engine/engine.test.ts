@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MEET_GABIE, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, explainTargets, isMeal, onboardingContentFor, proposalLive, runningLine, scriptedLine, threadCopyFor, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
+import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, explainTargets, isMeal, onboardingContentFor, proposalLive, runningLine, scriptedLine, threadCopyFor, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
@@ -1135,6 +1135,22 @@ describe("the thread", () => {
   const thread = async (userId: string) => (await chatHistory(deps, userId, {})).entries;
   const text = (e: { kind: string }) => ("text" in e ? (e as { text: string | null }).text : null);
 
+  // #49: "Updated — 584 kcal" was said about an edit that changed no number (a rename). The line
+  // is the arithmetic of a change, so a change of no number writes no line; the card still updates.
+  it("says 'Updated' only when an edit changed a number", async () => {
+    const userId = await onboard();
+    const res = await logPhotoMeal(deps, userId, photo());
+    if (res.kind !== "logged") throw new Error("expected logged");
+    const before = (await thread(userId)).length;
+    const renamed = res.analysis.items.map((it, i) => (i === 0 ? { ...it, name: "Salmon bowl" } : it));
+    expect((await editMeal(deps, userId, res.mealId, { items: renamed })).kind).toBe("updated");
+    const t = await thread(userId);
+    expect(t.slice(before).map(text).filter((x) => x?.startsWith("Updated"))).toEqual([]);
+    expect(t.slice(before).some((e) => e.kind === "meal")).toBe(true);
+    await editMeal(deps, userId, res.mealId, { kcal: res.analysis.kcal + 100 });
+    expect((await thread(userId)).map(text).some((x) => x?.startsWith("Updated"))).toBe(true);
+  });
+
   it("keeps a question and its answer, oldest first", async () => {
     const userId = await onboard();
     await handleText(deps, userId, { text: "how much protein have I had?" });
@@ -1171,9 +1187,12 @@ describe("the thread", () => {
       ["user", "text"], ["user", "text"], ["assistant", "text"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"], ["assistant", "text"],
     ]);
     expect(text(t[0]!)).toBe("two eggs and toast");
-    expect(text(t[4]!)).toContain("Typed, not photographed");
-    // The first verdict ends by introducing the coach, in Spud's voice, with his face.
-    expect(t[6]).toMatchObject({ kind: "text", text: MEET_GABIE("en"), speaker: null });
+    // #49: the pills' headline first, then the typed caveat; Spud's, all of it, and nobody is introduced.
+    const headlines = Object.values(threadCopyFor("en").firstVerdict.headline);
+    expect(headlines.includes(text(t[4]!)!)).toBe(true);
+    expect(text(t[5]!)).toContain("Typed, not photographed");
+    for (const e of t.slice(4)) expect(e).toMatchObject({ kind: "text", speaker: null });
+    expect(JSON.stringify(t)).not.toMatch(/gabie/i);
   });
 
   it("names its proposal on the user line, and a racing confirm answers with the meal the other one logged", async () => {
@@ -1325,9 +1344,10 @@ describe("the thread", () => {
     if (first.kind !== "logged") throw new Error("expected logged");
     const t = await thread(userId);
     expect(t.map((e) => [e.role, e.kind])).toEqual([["user", "photo"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"], ["assistant", "text"]]);
-    expect(text(t[2]!)).toMatch(/^First one in\. [\d,]+ kcal — /);
-    expect(text(t[3]!)).toContain("If anything's off");
-    expect(text(t[4]!)).toBe(MEET_GABIE("en"));
+    // #49: the pills' headline first; the arithmetic after it passes no judgement of its own.
+    expect(Object.values(threadCopyFor("en").firstVerdict.headline).includes(text(t[2]!)!)).toBe(true);
+    expect(text(t[3]!)).toMatch(/^First one in\. [\d,]+ kcal — /);
+    expect(text(t[4]!)).toContain("If anything's off");
     // The VERDICT is never said again — but the day's standing is, on every meal past the first
     // (#306), which is the one line the greeting's own arithmetic stands in for.
     const second = await logPhotoMeal(d, userId, photo());
@@ -1435,7 +1455,9 @@ describe("the thread", () => {
     const sure: LlmPorts = { ...demoPorts(), analyzePhoto: async (i) => ({ ...(await demoPorts().analyzePhoto(i)), confidence: "high" }) };
     await logPhotoMeal(makeDeps({}, sure), userId, photo());
     const spoken = (await thread(userId)).filter((e) => e.kind === "text" && e.role === "assistant");
-    expect(text(spoken[0]!)).toMatch(/^First one in\./);
+    // #49: the pills' headline leads the verdict; the arithmetic follows it.
+    expect(Object.values(threadCopyFor("en").firstVerdict.headline).includes(text(spoken[0]!)!)).toBe(true);
+    expect(text(spoken[1]!)).toMatch(/^First one in\./);
     await logPhotoMeal(makeDeps({}, sure), userId, photo());
     // One more line, and it is the day's standing rather than the verdict again (#306).
     const now = (await thread(userId)).filter((e) => e.kind === "text" && e.role === "assistant");
@@ -1472,7 +1494,9 @@ describe("the thread", () => {
     expect((await logPhotoMeal({ ...makeDeps({}, sure), store: broken }, userId, photo())).kind).toBe("logged");
     await logPhotoMeal(makeDeps({}, sure), userId, photo());
     const spoken = (await thread(userId)).filter((e) => e.role === "assistant" && e.kind === "text");
-    expect(text(spoken[0]!)).toMatch(/^First one in\./);
+    // #49: the greeting still leads with the pills' headline, then the arithmetic.
+    expect(Object.values(threadCopyFor("en").firstVerdict.headline).includes(text(spoken[0]!)!)).toBe(true);
+    expect(text(spoken[1]!)).toMatch(/^First one in\./);
   });
 
   it("still proposes when the sweep of expired proposals fails — housekeeping never fails a billed turn", async () => {
@@ -1579,8 +1603,8 @@ describe("the thread", () => {
     const first = await logPhotoMeal(deps, userId, photo());
     if (first.kind !== "logged") throw new Error("expected logged");
     const spoken = (await thread(userId)).map(text).join("\n");
-    expect(spoken).toContain(de.meetGabie);
-    expect(spoken).not.toContain(MEET_GABIE("en"));
+    expect(spoken).toContain(de.firstVerdict.fixHint);
+    expect(spoken).not.toContain(threadCopyFor("en").firstVerdict.fixHint);
 
     const second = await logPhotoMeal(deps, userId, photo(9));
     if (second.kind !== "logged") throw new Error("expected logged");

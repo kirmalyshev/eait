@@ -355,10 +355,14 @@ export async function editMeal(
   }
 
   const totals = sumTotals(await deps.store.mealsForDate(userId, updated.date));
+  // #49: "Updated — {kcal} kcal" is the arithmetic of a change, so an edit that changed no number
+  // (a rename) writes the card and no line — it said "Updated" about a meal that had not changed.
+  const NUMBERS = ["kcal", "protein_g", "carbs_g", "fat_g", "satfat_g", "fiber_g", "sugar_g", "sodium_mg"] as const;
+  const changed = NUMBERS.some((k) => merged[k] !== existing[k]);
   if (opts.thread !== false) {
     await remember(deps, userId, async () => [
       { role: "assistant", kind: "meal", mealId, event: "updated" },
-      ...(await afterCorrection(deps, userId, updated, totals)),
+      ...(changed ? await afterCorrection(deps, userId, updated, totals) : []),
     ]);
   }
   return { kind: "updated", mealId, analysis: toAnalysis(updated), totals, date: updated.date, via: "manual" };

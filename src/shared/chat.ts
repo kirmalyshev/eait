@@ -122,13 +122,6 @@ export function scriptedLine(
  * as the user would send them, because a tap sends the words verbatim. Shared so the server can
  * one day suggest the same ones; today only the app reads them.
  */
-/**
- * Spud introduces the coach, once: the last line of the first verdict, which is the one thing he
- * says exactly once per account (copy.md § Step 14). Gabie answers questions in Chat and nothing
- * else — Spud logs, Gabie advises — and this is the one user-visible sentence that calls her a
- * nutritionist.
- */
-export const MEET_GABIE = (lang: Lang): string => threadCopyFor(lang).meetGabie;
 
 export const COACH_STARTERS = (lang: Lang): readonly string[] =>
   threadCopyFor(lang).coachStarters;
@@ -282,6 +275,25 @@ export interface FirstVerdictInput {
 }
 
 /**
+ * THE PILLS' VERDICT IN ONE SENTENCE (#49), and the only judgement a first verdict passes: the
+ * arithmetic around it states the day and nothing more. So a meal whose calories pill is high can
+ * never read "On plan", and no calories pill is no claim at all. The worst pill decides: calories
+ * very high or high, then calories on plan with a declared marker high (that marker's own line
+ * follows), then on plan. The server speaks it first in `firstVerdictLines`; a client that
+ * re-renders a card after an edit says it again from the verdicts the server just returned.
+ */
+export function verdictHeadline(verdicts: MealVerdicts, lang: Lang): string | null {
+  const h = threadCopyFor(lang).firstVerdict.headline;
+  const high = (v: MealVerdicts[keyof MealVerdicts]) => v === "warn" || v === "bad";
+  switch (verdicts.weight) {
+    case "bad": return h.caloriesVeryHigh;
+    case "warn": return h.caloriesHigh;
+    case "good": return high(verdicts.ldl) || high(verdicts.kidneys) ? h.caloriesOnPlan : h.onPlan;
+    default: return null;
+  }
+}
+
+/**
  * Spud's first verdict — copy.md § Step 14, word for word. Spoken ONCE, on the account's first
  * meal; later meals get the card and, in time, the 20:30 line. Deterministic on purpose: the model
  * is never asked for a verdict, and neither is it asked for these sentences.
@@ -330,6 +342,8 @@ export function firstVerdictLines(i: FirstVerdictInput, lang: Lang): string[] {
   // cannot draw a second line inside the bubble or impersonate the sentence that follows.
   const note = quotable(i.caption);
   if (note) lines.unshift(copy.noted({ note }));
-  lines.push(MEET_GABIE(lang));
+  // #49: the headline is the pills' verdict, said first — see `verdictHeadline`.
+  const headline = verdictHeadline(i.verdicts, lang);
+  if (headline) lines.unshift(headline);
   return lines;
 }

@@ -74,7 +74,7 @@ const COPY = (i18n: I18n): TelegramCopy => ({
   signIn: i18n._("tg.signIn", undefined, { message: "Sign in" }),
   connectedLead: i18n._("tg.connectedLead", undefined, { message: "Connected to the eait account signed in with" }),
   viaApp: i18n._("tg.viaApp", undefined, { message: "the app" }),
-  connectedTail: i18n._("tg.connectedTail", undefined, { message: "Send a photo of a meal, tell me what you ate, or ask Gabie a question." }),
+  connectedTail: i18n._("tg.connectedTail", undefined, { message: "Send a photo of a meal, tell me what you ate, or ask me a question." }),
   notYours: i18n._("tg.notYours", undefined, { message: "Not your account? Sign in to your own on the web and press Connect Telegram there — this Telegram moves to it." }),
   codeInvalid: i18n._("tg.codeInvalid", undefined, { message: "That link has expired. Open your plan on the web and press Connect Telegram again." }),
   tooManyTries: i18n._("tg.tooManyTries", undefined, { message: "Too many tries from this Telegram. Wait a while, then press the link again." }),

@@ -9,7 +9,7 @@
 // recomputes the verdicts on what it stores. The scaling is the arithmetic the whole path shares.
 
 import { describe, expect, it } from "bun:test";
-import { PORTION_FACTOR, firstMealEdit } from "../portion.ts";
+import { PORTION_FACTOR, firstMealEdit, mealTitle } from "../portion.ts";
 import type { MealAnalysis } from "@eait/shared";
 
 type Scaled = Pick<MealAnalysis,
@@ -25,7 +25,7 @@ const MEAL: Scaled = {
 
 describe("firstMealEdit", () => {
   it("scales every item's grams and numbers, and the totals, by the portion", () => {
-    const edit = firstMealEdit(MEAL, "", "small");
+    const edit = firstMealEdit(MEAL, mealTitle(MEAL.items), "small")!;
     expect(PORTION_FACTOR.small).toBe(0.75);
     expect(edit.items?.[0]).toMatchObject({ grams: 135, kcal: 223, protein_g: 41.8, fat_g: 4.9 });
     expect(edit.items?.[1]).toMatchObject({ grams: 150, kcal: 195, protein_g: 4.1, carbs_g: 42 });
@@ -34,51 +34,57 @@ describe("firstMealEdit", () => {
     expect(edit).toMatchObject({ kcal: 418, protein_g: 45.9, sodium_mg: 405 });
   });
 
-  it("leaves the numbers alone on Regular", () => {
-    const edit = firstMealEdit(MEAL, "", "regular");
-    expect(edit.items?.[0]).toMatchObject({ grams: 180, kcal: 297, protein_g: 55.8 });
-    expect(edit.kcal).toBe(557);
+  // #49: "Updated" was said when nothing changed. An edit that changes nothing is no edit at all,
+  // so there is no request, no server write, and no "Updated" for anybody to read.
+  it("is no edit at all when neither the name nor the portion changed", () => {
+    expect(firstMealEdit(MEAL, mealTitle(MEAL.items), "regular")).toBeNull();
+    expect(firstMealEdit(MEAL, `  ${mealTitle(MEAL.items)} `, "regular")).toBeNull();
+    expect(firstMealEdit(MEAL, "", "regular")).toBeNull();
   });
 
   it("grows them on Large", () => {
-    const edit = firstMealEdit(MEAL, "", "large");
+    const edit = firstMealEdit(MEAL, mealTitle(MEAL.items), "large")!;
     expect(PORTION_FACTOR.large).toBe(1.25);
     expect(edit.items?.[0]).toMatchObject({ grams: 225 });
     expect(edit.kcal).toBe(696);
   });
 
   it("never scales a density — kcal_per_100g is per 100 g whatever the portion", () => {
-    const edit = firstMealEdit(MEAL, "", "small");
+    const edit = firstMealEdit(MEAL, mealTitle(MEAL.items), "small")!;
     expect(edit.items?.[0]?.kcal_per_100g).toBe(165);
   });
 
-  it("renames the only item of a one-item meal", () => {
-    const one: Scaled = { ...MEAL, items: [MEAL.items[0]!] };
-    const edit = firstMealEdit(one, "Caesar salad", "regular");
+  // #49: the field is prefilled with the WHOLE meal and edits the whole meal. It used to rename
+  // the first item and keep the rest: "Grilled salmon, rice, green salad" came back as that name
+  // plus the old "Basmati rice" row.
+  it("prefills the whole meal's name, every item in order", () => {
+    expect(mealTitle(MEAL.items)).toBe("Grilled chicken breast, Basmati rice");
+  });
+
+  it("replaces the whole plate with one item named as the field says, carrying the plate's totals", () => {
+    const edit = firstMealEdit(MEAL, "Chicken and chips", "regular")!;
     expect(edit.items).toHaveLength(1);
-    expect(edit.items?.[0]?.name).toBe("Caesar salad");
-  });
-
-  it("renames the first of several and keeps the rest", () => {
-    const edit = firstMealEdit(MEAL, "Chicken and chips", "regular");
-    expect(edit.items?.[0]?.name).toBe("Chicken and chips");
-    expect(edit.items?.[1]?.name).toBe("Basmati rice");
-    // The canonical key goes with the name it belonged to: grouping "Chicken and chips" under
-    // `chicken breast` would teach the portion priors a food this plate did not have.
+    expect(edit.items?.[0]).toMatchObject({ name: "Chicken and chips", grams: 380, kcal: 557, protein_g: 61.2, carbs_g: 56, fat_g: 7.1 });
+    // The canonical key and the density belonged to foods this plate is no longer called.
     expect(edit.items?.[0]?.name_en).toBeUndefined();
-    expect(edit.items?.[1]?.name_en).toBe("white rice, cooked");
+    expect(edit.items?.[0]?.kcal_per_100g).toBeUndefined();
+    expect(edit).toMatchObject({ kcal: 557, protein_g: 61.2 });
   });
 
-  it("keeps the names — and the canonical keys — when the field comes back empty or unchanged", () => {
-    for (const what of ["", "   ", "Grilled chicken breast"]) {
-      const edit = firstMealEdit(MEAL, what, "small");
-      expect(edit.items?.[0]?.name).toBe("Grilled chicken breast");
-      expect(edit.items?.[0]?.name_en).toBe("chicken breast");
-    }
+  it("scales the renamed plate by the portion like any other", () => {
+    const edit = firstMealEdit(MEAL, "Chicken and chips", "small")!;
+    expect(edit.items?.[0]).toMatchObject({ grams: 285, kcal: 418 });
+    expect(edit.kcal).toBe(418);
+  });
+
+  it("keeps the items, names and keys when only the portion changed", () => {
+    const edit = firstMealEdit(MEAL, mealTitle(MEAL.items), "small")!;
+    expect(edit.items?.map((i) => i.name)).toEqual(["Grilled chicken breast", "Basmati rice"]);
+    expect(edit.items?.[0]?.name_en).toBe("chicken breast");
   });
 
   it("sends no items there are none of, rather than inventing one", () => {
-    const edit = firstMealEdit({ ...MEAL, items: [] }, "anything", "small");
+    const edit = firstMealEdit({ ...MEAL, items: [] }, "", "small")!;
     expect(edit.items).toEqual([]);
     expect(edit.kcal).toBe(418);
   });

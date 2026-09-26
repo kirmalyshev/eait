@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import { streamCopyFor, threadCopyFor } from "./chat-copy.ts";
 import {
-  COACH_STARTERS, MEET_GABIE, SCRIPTED_LINES, correctionLine, firstVerdictLines, runningLine,
+  COACH_STARTERS, SCRIPTED_LINES, correctionLine, firstVerdictLines, runningLine,
   scriptedLine, type ScriptedLineId,
 } from "./chat.ts";
 
@@ -21,9 +21,8 @@ describe("the thread in eight languages", () => {
     }
   });
 
-  it("introduces Gabie by name and offers three starters, in every language", () => {
+  it("offers three starters, in every language", () => {
     for (const lang of LANGS) {
-      expect(MEET_GABIE(lang), lang).toContain("Gabie");
       expect(COACH_STARTERS(lang).length, lang).toBeGreaterThanOrEqual(3);
       for (const s of COACH_STARTERS(lang)) expect(s.length, lang).toBeGreaterThan(0);
     }
@@ -75,7 +74,7 @@ describe("the thread in eight languages", () => {
     // other assertion in this file. This is the one that would fail.
     for (const sample of [
       (l: (typeof LANGS)[number]) => scriptedLine("camera-closed", l, {}),
-      (l: (typeof LANGS)[number]) => MEET_GABIE(l),
+      (l: (typeof LANGS)[number]) => threadCopyFor(l).firstVerdict.headline.caloriesHigh,
       (l: (typeof LANGS)[number]) => runningLine({ targets: TARGETS, eatenToday: EATEN }, l),
       (l: (typeof LANGS)[number]) => streamCopyFor(l).reading,
       (l: (typeof LANGS)[number]) => COACH_STARTERS(l)[0]!,

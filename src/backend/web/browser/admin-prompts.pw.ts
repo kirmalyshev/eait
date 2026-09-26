@@ -49,7 +49,7 @@ const PROMPTS = [
   { key: "text_meal", text: "You estimate from a description.", version: 1, source: "shipped", updated_at: "2026-09-18T10:00:00.000Z", shipped: "You estimate from a description." },
   { key: "text_correction", text: "You correct a meal already logged.", version: 1, source: "shipped", updated_at: "2026-09-18T10:00:00.000Z", shipped: "You correct a meal already logged." },
   { key: "glance", text: "Name the plate in five words.", version: 4, source: "admin", updated_at: "2026-09-18T11:00:00.000Z", shipped: "You name what is on the plate." },
-  { key: "coach", text: "You are Gabie.", version: 1, source: "shipped", updated_at: "2026-09-18T10:00:00.000Z", shipped: "You are Gabie." },
+  { key: "coach", text: "You are Spud.", version: 1, source: "shipped", updated_at: "2026-09-18T10:00:00.000Z", shipped: "You are Spud." },
 ];
 
 /** Serve the real page, and answer the calls it makes on the way up. */

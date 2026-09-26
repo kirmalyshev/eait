@@ -408,7 +408,7 @@ describe("editing the system prompts", () => {
     // Rows, not a fallback: the store holds the shipped text from the moment it exists, so this
     // screen shows the same thing the transport reads.
     expect(prompts.every((p) => p.version === 1 && p.source === "shipped")).toBe(true);
-    expect(prompts.find((p) => p.key === "coach")!.text).toContain("You are Gabie");
+    expect(prompts.find((p) => p.key === "coach")!.text).toContain("You are Spud");
   });
 
   it("saves an edit, and serves it back as a stored revision", async () => {
