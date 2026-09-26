@@ -99,6 +99,40 @@ describe("the bundle", () => {
     expect(await res.text()).toContain("console.log('bundle')");
   });
 
+  it("is gzipped when the client says it can read that, and identity when it does not", async () => {
+    // One file on disk, two representations on the wire — which is why `vary` is load-bearing:
+    // without it a shared cache can hand the gzipped copy to a client that never offered to
+    // decompress it.
+    const gz = await built.fetch(new Request(`https://app.eait.fit${BUNDLE_PATH}`, {
+      headers: { "accept-encoding": "gzip, deflate, br" },
+    }));
+    expect(gz.status).toBe(200);
+    expect(gz.headers.get("content-encoding")).toBe("gzip");
+    expect(gz.headers.get("vary")).toContain("accept-encoding");
+    const inflated = new TextDecoder().decode(Bun.gunzipSync(await gz.arrayBuffer()));
+    expect(inflated).toBe("console.log('bundle')\n");
+
+    const plain = await get(built, BUNDLE_PATH);
+    expect(plain.headers.get("content-encoding")).toBeNull();
+    expect(await plain.text()).toBe("console.log('bundle')\n");
+  });
+
+  it("carries an ETag, so a revalidation is a 304 rather than the whole bundle", async () => {
+    // `no-cache` means store-but-revalidate; the etag is what makes the revalidation cheap — one
+    // header round trip on every load instead of the bundle again. The filename still has no
+    // hash in it, and with an etag it does not need one.
+    const res = await get(built, BUNDLE_PATH);
+    const etag = res.headers.get("etag");
+    expect(etag).toMatch(/^".+"$/);
+    expect(res.headers.get("cache-control")).toBe("no-cache");
+
+    const again = await built.fetch(new Request(`https://app.eait.fit${BUNDLE_PATH}`, {
+      headers: { "if-none-match": etag! },
+    }));
+    expect(again.status).toBe(304);
+    expect(again.headers.get("etag")).toBe(etag);
+  });
+
   it("is served to every request that arrives before the first read of it has finished", async () => {
     const fresh = createWebApp({ bundlePath: new URL(`file://${bundlePath}`) });
     const res = await Promise.all([get(fresh, SHELL_PATH), get(fresh, SHELL_PATH), get(fresh, BUNDLE_PATH)]);

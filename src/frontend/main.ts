@@ -456,7 +456,11 @@ async function diaryScreen(): Promise<HTMLElement> {
   // holds nothing of it.
   if (held === null) held = (await api<PendingMealsResponse>(PENDING).catch(() => null))?.proposals.at(-1) ?? null;
   await draw();
-  wrap.append(board, notice, comp.form);
+  // The centred title Chat and You already carry — one h1 per page, and the day card's "Today"
+  // stays the h2 inside it.
+  const top = el("div", "top");
+  top.append(el("h1", "tt", COPY.navDiary));
+  wrap.append(top, board, notice, comp.form);
   return wrap;
 }
 
@@ -906,7 +910,11 @@ function spudBlock(mood: MascotMood, beat: string | null, lines: readonly string
   av.append(new DOMParser().parseFromString(spudSvg(mood, `spud-${++spudSeq}`), "image/svg+xml").documentElement);
   const col = el("div", "spk-col");
   if (beat !== null) col.append(el("div", "beat", beat));
-  for (const [i, line] of lines.entries()) col.append(el("div", i === lines.length - 1 ? "ask" : "them", line));
+  // The LAST line is the step's ask — the page's h1, the same way /start/q's question is. The
+  // lines before it are Spud's, and stay text.
+  for (const [i, line] of lines.entries()) col.append(
+    el(i === lines.length - 1 ? "h1" : "div", i === lines.length - 1 ? "ask" : "them", line));
+
   row.append(av, col);
   return row;
 }
@@ -1479,7 +1487,8 @@ async function render(): Promise<void> {
   // Signed in or not, the page sits in the same frame: the bar (the row only once there is a
   // session to lose it over) over the one quiet column.
   const col = el("div", "wcol");
-  const body = el("div", "body");
+  // The column's content is the page's MAIN landmark — a screen reader jumps straight to it.
+  const body = el("main", "body");
   col.append(body);
   if (!signedIn()) { app.append(chrome(null), col); body.append(signInScreen()); return; }
 

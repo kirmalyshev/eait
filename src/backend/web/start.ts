@@ -19,6 +19,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import {
+  ageFrom,
   AMBIGUOUS_AGE, RESTRICTION_TAGS, STRUGGLES, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
   chatCopyFor as CHAT,
   askPlaceholder, checkDirection, checkNumber, disabledScreens, isAnswered, promptsFor,
@@ -748,25 +749,47 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     //
     // The address is read HERE and goes no further: `emailForUser` exists so that its ANSWER, a
     // country code, is the only thing that leaves the server. See the note on the port.
+    //
+    // Resolved on EVERY request, written only while the field is empty (#53). Whether the question
+    // is in the walk is what the counter's total counts, and resolving it only while the country
+    // was empty made the first page count nine questions and every later one ten.
     const tags = acceptLanguageTags(req.headers.get("accept-language"));
-    const resolved = profile.country === null
-      ? resolveCountry({
-          regions: tags.map(regionOf),
-          languages: tags,
-          email: await ctx.store.emailForUser(userId),
-        })
-      : null;
+    const resolved = resolveCountry({
+      regions: tags.map(regionOf),
+      languages: tags,
+      email: await ctx.store.emailForUser(userId),
+    });
     // The app's `fillCountryFromDevice`, on this surface. Awaited but not checked: a lost country
     // is a correctable one, and a question we have decided not to ask is not worth an error page.
-    if (resolved && !resolved.ask) await patchProfile(ctx.deps, userId, { country: resolved.country });
+    if (profile.country === null && !resolved.ask) {
+      await patchProfile(ctx.deps, userId, { country: resolved.country });
+    }
 
-    const questions = questionsFor(profile, content, resolved === null || resolved.ask);
+    const questions = questionsFor(profile, content, resolved.ask);
     const openIndex = questions.findIndex((p) => !isAnswered(p, profile));
+    // BACK (#53): an answered question, shown again to change. Only one BEFORE the open question —
+    // what is past it has no answer to show, and the profile still decides where the walk resumes.
+    const editable = (id: unknown): number => {
+      const i = questions.findIndex((p) => p.id === id);
+      return i !== -1 && (openIndex === -1 || i < openIndex) && isAnswered(questions[i]!, profile) ? i : -1;
+    };
 
-    const ask = (error: string | null, actions: Action[] = [], draftKg?: number) =>
+    const askAt = (
+      index: number, error: string | null, actions: Action[] = [], draftKg?: number, typed?: string[],
+    ) =>
       html(renderQuestion(
-        questions, openIndex, profile, content, error, actions, resolved?.country ?? null, draftKg,
+        questions, index, profile, content, error, actions, resolved.country, draftKg,
+        typed ?? (index === openIndex ? undefined : currentAnswer(questions[index]!, profile)),
       ));
+    const ask = (error: string | null, actions: Action[] = [], draftKg?: number) =>
+      askAt(openIndex, error, actions, draftKg);
+
+    if (req.method === "GET" && url.searchParams.has("edit")) {
+      const i = editable(url.searchParams.get("edit"));
+      if (i === -1) return seeOther(`${START_PREFIX}/q`);
+      const kg = questions[i]!.id === "target_weight_kg" ? profile.target_weight_kg ?? undefined : undefined;
+      return askAt(i, null, [], kg);
+    }
 
     if (req.method === "GET") {
       if (openIndex === -1) return seeOther(`${START_PREFIX}/plan`);
@@ -779,13 +802,21 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     }
 
     if (req.method === "POST") {
-      if (openIndex === -1) return seeOther(`${START_PREFIX}/plan`);
-      const open = questions[openIndex]!;
       const form = await req.formData().catch(() => null);
-      // The open question is the server's to decide, so a post naming a different one is dropped
-      // rather than applied: the profile is what says where somebody is, on this surface exactly as
-      // in the app, and a stale tab must not be able to write an answer to a question already past.
-      if (form?.get("prompt") !== open.id) return seeOther(`${START_PREFIX}/q`);
+      if (form === null) return seeOther(`${START_PREFIX}/q`);
+      // The open question is the server's to decide, so a post naming a LATER one is dropped rather
+      // than applied: the profile is what says where somebody is, on this surface exactly as in the
+      // app. An EARLIER, answered one is Back's change (#53), written the same way and then resumed.
+      const editIndex = form.get("prompt") === questions[openIndex]?.id ? -1 : editable(form.get("prompt"));
+      if (editIndex === -1 && (openIndex === -1 || form.get("prompt") !== questions[openIndex]!.id)) {
+        return seeOther(openIndex === -1 ? `${START_PREFIX}/plan` : `${START_PREFIX}/q`);
+      }
+      const at = editIndex === -1 ? openIndex : editIndex;
+      const open = questions[at]!;
+      // A refused answer is shown back as typed (#53): wiping the box made the person retype it.
+      const typed = form.getAll("answer").filter((v): v is string => typeof v === "string");
+      const ask = (error: string | null, actions: Action[] = [], draftKg?: number) =>
+        askAt(at, error, actions, draftKg, typed.length > 0 ? typed : undefined);
 
       // The stepper's − and + ARE submits of this same form: the shown number comes back as
       // `answer` with a `step` direction, and the page answers stepped — a render, not a redirect,
@@ -858,7 +889,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       if (outcome && !outcome.ok) return ask(refusalText(outcome.rejected, profile.lang));
       // The four support beats land on pages of their own (#42): `supportMoment` decides on the
       // GET whether there is one to show, and a skipped one falls through to the next question.
-      const momentId = MOMENT_AFTER[open.id];
+      const momentId = editIndex === -1 ? MOMENT_AFTER[open.id] : undefined;
       return seeOther(momentId ? `${START_PREFIX}/moment/${momentId}` : `${START_PREFIX}/q`);
     }
   }
@@ -901,7 +932,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       );
       const m = supportMoment("struggles", { profile, struggles: picks, lang, content });
       if (m === null) return seeOther(`${START_PREFIX}/q`);
-      return html(moment({ ...m, next: MOMENT_NEXT.struggles, lang }));
+      return html(moment({ ...m, next: MOMENT_NEXT.struggles, back: `${START_PREFIX}/struggles`, lang }));
     }
     return notFound();
   }
@@ -917,7 +948,12 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     const lang = profile.lang;
     const m = supportMoment(id, { profile, struggles: [], lang, content });
     if (m === null) return seeOther(`${START_PREFIX}/q`);
-    return html(moment({ ...m, next: MOMENT_NEXT[id], lang }));
+    // Back edits the answer this beat reacts to: the question MOMENT_AFTER maps to it.
+    const after = Object.entries(MOMENT_AFTER).find(([, mid]) => mid === id)?.[0];
+    return html(moment({
+      ...m, next: MOMENT_NEXT[id], lang,
+      ...(after ? { back: `${START_PREFIX}/q?edit=${after}` } : {}),
+    }));
   }
 
   // ── The thread ────────────────────────────────────────────────────────────────────────────
@@ -1231,6 +1267,17 @@ function threadLine(e: ChatEntry, lang: Lang): ChatLine {
   };
 }
 
+/** What an answered question already holds, as the form's `answer` values — age, not the stored year. */
+function currentAnswer(prompt: ChatPrompt, p: Profile): string[] {
+  if (prompt.field === "birth_year") {
+    const age = ageFrom(p.birth_year);
+    return age === null ? [] : [String(age)];
+  }
+  if (prompt.field === "restrictions") return [...p.restrictions];
+  const value = prompt.field ? p[prompt.field as keyof Profile] : null;
+  return value === null || value === undefined ? [] : [String(value)];
+}
+
 /** A quick reply: an extra submit button beside the answer. */
 interface Action { name: string; value: string; label: string }
 
@@ -1243,6 +1290,7 @@ function renderQuestion(
   actions: Action[] = [],
   suggested: string | null = null,
   draftKg?: number,
+  current?: readonly string[],
 ): string {
   const prompt = questions[index]!;
   const lang = profile.lang;
@@ -1290,6 +1338,8 @@ function renderQuestion(
     stepper,
     step: index + 1,
     total: questions.length,
+    back: index > 0 ? `${START_PREFIX}/q?edit=${encodeURIComponent(questions[index - 1]!.id)}` : START_PREFIX,
+    ...(current ? { current } : {}),
     lang,
   });
 }

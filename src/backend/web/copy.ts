@@ -54,6 +54,8 @@ export interface PageCopy {
    */
   /** `{step}` and `{total}`. Rendered uppercase by CSS, so the copy is written in sentence case. */
   progress: string;
+  /** The link to the question before (#53). */
+  back: string;
   spudAlt: string;
   cardMacros: string;
   chatProposalLead: string;
@@ -177,6 +179,7 @@ const EN: PageCopy = {
   chatPlaceholder: "What did you eat?",
   chatSend: "Send",
   progress: "Question {step} of {total}",
+  back: "Back",
   spudAlt: "Spud, the eait mascot",
   cardMacros: "{kcal} {unit} · {protein} g protein",
   chatProposalLead: "Logging this — look right?",
@@ -280,6 +283,7 @@ const FR: PageCopy = {
   chatPlaceholder: "Tu as mangé quoi ?",
   chatSend: "Envoyer",
   progress: "Question {step} sur {total}",
+  back: "Retour",
   spudAlt: "Spud, la mascotte d'eait",
   cardMacros: "{kcal} {unit} · {protein} g de protéines",
   chatProposalLead: "J'enregistre ça — ça te va ?",
@@ -366,6 +370,7 @@ const DE: PageCopy = {
   chatPlaceholder: "Was hast du gegessen?",
   chatSend: "Senden",
   progress: "Frage {step} von {total}",
+  back: "Zurück",
   spudAlt: "Spud, das eait-Maskottchen",
   cardMacros: "{kcal} {unit} · {protein} g Eiweiß",
   chatProposalLead: "Ich trage das ein — passt das?",
@@ -452,6 +457,7 @@ const IT: PageCopy = {
   chatPlaceholder: "Cosa hai mangiato?",
   chatSend: "Invia",
   progress: "Domanda {step} di {total}",
+  back: "Indietro",
   spudAlt: "Spud, la mascotte di eait",
   cardMacros: "{kcal} {unit} · {protein} g di proteine",
   chatProposalLead: "Sto registrando questo — ti torna?",
@@ -538,6 +544,7 @@ const ES: PageCopy = {
   chatPlaceholder: "¿Qué comiste?",
   chatSend: "Enviar",
   progress: "Pregunta {step} de {total}",
+  back: "Atrás",
   spudAlt: "Spud, la mascota de eait",
   cardMacros: "{kcal} {unit} · {protein} g de proteína",
   chatProposalLead: "Voy a registrar esto — ¿te cuadra?",
@@ -624,6 +631,7 @@ const VI: PageCopy = {
   chatPlaceholder: "Bạn đã ăn gì?",
   chatSend: "Gửi",
   progress: "Câu hỏi {step}/{total}",
+  back: "Quay lại",
   spudAlt: "Spud, linh vật của eait",
   cardMacros: "{kcal} {unit} · {protein} g đạm",
   chatProposalLead: "Mình ghi cái này nhé — có đúng không?",
@@ -710,6 +718,7 @@ const ID: PageCopy = {
   chatPlaceholder: "Kamu makan apa?",
   chatSend: "Kirim",
   progress: "Pertanyaan {step} dari {total}",
+  back: "Kembali",
   spudAlt: "Spud, maskot eait",
   cardMacros: "{kcal} {unit} · {protein} g protein",
   chatProposalLead: "Aku catat ini — sudah benar?",
@@ -796,6 +805,7 @@ const RU: PageCopy = {
   chatPlaceholder: "Что было на тарелке?",
   chatSend: "Отправить",
   progress: "Вопрос {step} из {total}",
+  back: "Назад",
   spudAlt: "Spud, талисман eait",
   cardMacros: "{kcal} {unit} · {protein} г белка",
   chatProposalLead: "Записываю вот это — всё верно?",

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "bun@1.4.0",
-  "description": "eait.fit \u2014 the backend, the contract its clients implement, and the web application.",
+  "description": "eait.fit — the backend, the contract its clients implement, and the web application.",
   "workspaces": [
     "src/shared",
     "src/backend",
@@ -25,6 +25,7 @@
     "i18n:check": "lingui extract && lingui compile --strict && git diff --exit-code -- src/shared/locales"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@lingui/cli": "^6.7.0",
     "@lingui/conf": "^6.7.0",
     "@lingui/format-po": "^6.7.0",

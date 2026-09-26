@@ -90,6 +90,10 @@ function shell(nonce: string): string {
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--ink); color: var(--text);
   font: 15px/1.5 var(--display); }
+/* FOCUS IS VISIBLE (#53): a 2px ring in the text ink, offset 2px so it stands clear of the
+   control's own border. --text on these grounds is far past the 3:1 a focus indicator needs —
+   and on the accent surfaces, the offset puts the ring on the light around them. */
+:is(a, button, input, select, textarea):focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
 /* NUMBERS IN THE ONE FACE, tabular so a column of them holds still. The third face is gone: the
    boards set figures in the main face and so does this page. The unit still sits OUTSIDE the span —
    its space is the face's own. */
@@ -115,7 +119,7 @@ body { margin: 0; background: var(--ink); color: var(--text);
 h1, h2 { margin: 0 0 .5rem; font-weight: 800; letter-spacing: -.02em; }
 h2 { font-size: 17px; }
 .muted { color: var(--muted); }
-.lab { font-size: 10.5px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); }
+.lab { font-size: 12px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); }
 .big { margin: .25rem 0 0; display: flex; align-items: baseline; gap: 8px; }
 .hero { font-size: 44px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.05; }
 .big.warn .hero { color: var(--warn); }
@@ -123,7 +127,7 @@ h2 { font-size: 17px; }
    outside the figure's own span. */
 .about { color: var(--warn); font-weight: 700; }
 /* THE FLOOR, AND NOTHING ELSE. Once per screen, as text, and never a tick on a scale. */
-.floor { font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--care); }
+.floor { font-size: 12px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--care); }
 
 progress { display: block; width: 100%; height: 4px; margin: .5rem 0 .25rem; appearance: none; border: 0;
   border-radius: 3px; overflow: hidden; background: var(--line-strong); }
@@ -149,12 +153,15 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 
 /* PILLS: every button, tab and chip is a 999px capsule — the shape the boards draw and /start's own
    controls already take. The three tabs never wrap onto a second row. */
-.tab { color: var(--muted); text-decoration: none; padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; white-space: nowrap; }
+.tab { color: var(--muted); text-decoration: none; padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; white-space: nowrap;
+  /* A nav item is a tap target: the pill keeps its shape, the box grows to 44px (#53). */
+  display: inline-flex; align-items: center; min-height: 44px; }
 .tab.on { color: var(--accent); background: var(--raised); }
 /* You — the account's rows: label and control, a hairline between. */
 .you > * + * { border-top: 1px solid var(--line); }
 .you .rowline { padding: 12px 2px; }
-.you .pick { font: inherit; font-weight: 700; padding: 10px 14px; border-radius: 999px; max-width: 62%;
+.you .pick { font: inherit; font-size: 16px; font-weight: 700; padding: 10px 14px; border-radius: 999px; max-width: 62%;
+  min-height: 44px;
   border: 1px solid var(--line-strong); background: var(--raised); color: var(--text); }
 .you-act { display: flex; align-items: center; justify-content: space-between; width: 100%;
   padding: 14px 2px; background: none; border: 0; font: inherit; font-weight: 700; color: var(--text);
@@ -168,7 +175,7 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
    show the one guess sitting in a list of measured things, which is the strongest statement of the
    mechanism anywhere in the product. */
 .meals { width: 100%; border-collapse: collapse; }
-.meals th { text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase;
+.meals th { text-align: left; font-size: 12px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase;
   color: var(--dim); padding: 0 12px 10px; border-bottom: 1px solid var(--line-strong); }
 .meals td { padding: 11px 12px; border-bottom: 1px solid var(--line); }
 .meals tr:last-child td { border-bottom: 0; }
@@ -178,7 +185,7 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 .meals tr.guessed td:first-child { border-left: 1.5px solid color-mix(in srgb, var(--warn) 45%, transparent); }
 /* The row's verdict pills sit under the meal's name, smaller than a card's (#52). */
 .meals .pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
-.meals .pill { min-height: 22px; padding: 0 9px; font-size: 11.5px; }
+.meals .pill { min-height: 22px; padding: 0 9px; font-size: 12px; }
 
 /* THE TRANSCRIPT (the boards' chat, #52): a quiet column — my words right in the accent green,
    Spud's left and pale, and his face beside only his NEWEST turn. No bubble runs the column's
@@ -196,7 +203,7 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
   display: flex; align-items: center; justify-content: center; }
 .line .av svg { width: 30px; height: 30px; display: block; }
 .line.buddy .col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
-.line .note { font-size: 11.5px; color: var(--faint); font-weight: 600; }
+.line .note { font-size: 12px; color: var(--faint); font-weight: 600; }
 .acts { display: flex; gap: 2px; }
 .act { background: none; border: 0; color: var(--muted); cursor: pointer;
   font: 700 12.5px var(--display); padding: 4px 10px; min-width: 44px; min-height: 44px; }
@@ -209,14 +216,15 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 .comp .add { flex: 0 0 auto; min-height: 44px; padding: 0 16px; border-radius: 999px; cursor: pointer;
   border: 1px solid var(--line-strong); background: var(--raised); color: var(--text);
   font: 700 13px var(--display); }
-.comp .fld { flex: 1 1 8rem; min-width: 0; font: inherit; padding: 11px 16px; border-radius: 999px;
+.comp .fld { flex: 1 1 8rem; min-width: 0; font: inherit; font-size: 16px; padding: 11px 16px; border-radius: 999px;
+  min-height: 44px;
   border: 1px solid var(--line-strong); color: var(--text); background: var(--raised); }
 .comp .send { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer;
   background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 18px; font-weight: 700;
   display: inline-flex; align-items: center; justify-content: center; }
 .comp-note { display: flex; align-items: center; gap: 6px; }
 .comp-note .count { font-size: 12px; color: var(--muted); white-space: nowrap; }
-.card button { padding: 0 16px; height: 38px; border-radius: 999px; cursor: pointer; font: inherit;
+.card button { padding: 0 16px; min-height: 44px; border-radius: 999px; cursor: pointer; font: inherit;
   font-weight: 700; color: var(--text); background: var(--raised); border: 1px solid var(--line);
   margin: .5rem .5rem 0 0; }
 .card button.primary { background: var(--accent); color: var(--accent-ink); }
@@ -231,10 +239,10 @@ input:disabled, button:disabled { opacity: .5; cursor: default; }
 .beat { border-left: 3px solid var(--accent); padding-left: 12px; color: var(--good);
   font-weight: 700; font-size: 13.5px; }
 .spk .them { color: var(--muted); line-height: 1.55; }
-.ask { font-size: 21px; line-height: 1.25; font-weight: 800; letter-spacing: -.02em; }
+.ask { font-size: 21px; line-height: 1.25; font-weight: 800; letter-spacing: -.02em; margin: 0; }
 .step { display: flex; flex-direction: column; }
 .step .card input[type="text"], .step .card select { display: block; width: 100%; box-sizing: border-box;
-  font: inherit; padding: .55rem .8rem; border-radius: 999px; color: var(--text); background: var(--raised);
+  font: inherit; font-size: 16px; min-height: 44px; padding: .55rem .8rem; border-radius: 999px; color: var(--text); background: var(--raised);
   border: 1px solid var(--line); margin: .4rem 0 0; }
 .step .card .lab + .lab { margin-top: .9rem; }
 .step-foot { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
@@ -242,13 +250,15 @@ input:disabled, button:disabled { opacity: .5; cursor: default; }
   border: 0; border-radius: 999px; font: inherit; font-weight: 800; text-decoration: none; cursor: pointer; }
 .cta.p { background: var(--accent); color: var(--accent-ink); }
 .cta.s { background: var(--raised); color: var(--text); border: 1px solid var(--line); }
-.cta.g { background: none; color: var(--muted); min-height: 40px; }
+.cta.g { background: none; color: var(--muted); min-height: 44px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);
   white-space: nowrap; }
 .drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
   min-height: 150px; border: 1.5px dashed var(--line-strong); border-radius: 16px; color: var(--muted);
   cursor: pointer; text-align: center; padding: 16px; }
 .drop.over, .drop:focus-within { border-color: var(--accent); color: var(--text); }
+/* The input inside is clipped, so the ring goes on the zone — the visible thing focus lands in. */
+.drop:focus-within { outline: 2px solid var(--text); outline-offset: 2px; }
 .drop .drop-lead { font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
 .drop small { color: var(--faint); }
 .stats { display: flex; gap: 10px; margin-top: 12px; }
@@ -314,11 +324,16 @@ export interface WebAppOptions {
 export function createWebApp(options: WebAppOptions = {}) {
   const bundlePath = options.bundlePath ?? DEFAULT_BUNDLE_PATH;
   const backendOrigin = (options.backendOrigin ?? "").replace(/\/$/, "");
-  let loaded: Promise<string | null> | undefined;
+  interface Bundle { text: string; gzip: Uint8Array; etag: string }
+  let loaded: Promise<Bundle | null> | undefined;
 
-  const bundle = (): Promise<string | null> => loaded ??= (async () => {
+  // Read once, and the gzip and the etag once with it: the file changes only when the image does,
+  // so neither is ever stale for a request that arrives after this resolved.
+  const bundle = (): Promise<Bundle | null> => loaded ??= (async () => {
     const file = Bun.file(bundlePath);
-    return await file.exists() ? await file.text() : null;
+    if (!(await file.exists())) return null;
+    const text = await file.text();
+    return { text, gzip: Bun.gzipSync(text), etag: `"${Bun.hash(text).toString(16)}"` };
   })();
 
   /**
@@ -366,18 +381,30 @@ export function createWebApp(options: WebAppOptions = {}) {
     });
 
     if (pathname === SHELL_PATH || pathname === BUNDLE_PATH) {
-      const js = await bundle();
-      if (js === null) return notFound();
+      const file = await bundle();
+      if (file === null) return notFound();
 
       if (req.method === "GET" && pathname === BUNDLE_PATH) {
-        return new Response(js, {
-          headers: {
-            "content-type": "text/javascript; charset=utf-8",
-            // No hash in the filename yet, so it may not be cached across deploys. A stale bundle
-            // against a moved API is a page that fails in ways nobody can reproduce.
-            "cache-control": "no-cache",
-          },
-        });
+        // `no-cache` means store-but-revalidate, and the etag is what the revalidation is AGAINST —
+        // a 304 and one header round trip on every load, which is what makes keeping the unhashed
+        // filename safe: a stale bundle can never be served, and a fresh one costs the browser a
+        // conditional GET rather than the whole body. `vary` keeps a shared cache from handing the
+        // gzipped representation to a client that never offered to decompress it.
+        const headers: Record<string, string> = {
+          "content-type": "text/javascript; charset=utf-8",
+          "cache-control": "no-cache",
+          etag: file.etag,
+          vary: "accept-encoding",
+        };
+        if (req.headers.get("if-none-match") === file.etag) {
+          return new Response(null, { status: 304, headers });
+        }
+        if (req.headers.get("accept-encoding")?.includes("gzip")) {
+          return new Response(file.gzip, {
+            headers: { ...headers, "content-encoding": "gzip" },
+          });
+        }
+        return new Response(file.text, { headers });
       }
 
       if (req.method === "GET" && pathname === SHELL_PATH) {
