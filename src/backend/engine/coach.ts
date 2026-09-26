@@ -84,7 +84,7 @@ export async function coachTurn(deps: EngineDeps, userId: string, input: CoachTu
     { text: input.text, context, history: input.history, onCost: input.onCost },
     coachTools(deps, userId, today),
   );
-  return { kind: "answered", text: out.reply, suggestions: out.suggestions, speaker: "gabie" };
+  return { kind: "answered", text: out.reply, suggestions: out.suggestions };
 }
 
 /**

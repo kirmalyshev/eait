@@ -1,7 +1,7 @@
 // The seeder, against the memory store. No database, no docker, runs on every `bun test`.
 
 import { describe, expect, test } from "bun:test";
-import { FIXTURE_THREAD, HEALTH_FIELDS, firstVerdictLines } from "@eait/shared";
+import { FIXTURE_THREAD, HEALTH_FIELDS, firstVerdictLines, threadCopyFor } from "@eait/shared";
 import { memoryStore } from "../store.memory.ts";
 import { DEFAULT_SEED_PERSONA, SEED_PERSONAS, seedDeviceId, seedDevData } from "./seed.ts";
 import { PROMPT_DEFAULTS, PROMPT_KEYS, loadPrompts } from "../llm/prompt.ts";
@@ -49,13 +49,18 @@ describe("seedDevData", () => {
       // English — the Russian persona exists precisely so somebody can look at a translated app,
       // and a test that demanded "First one in." would have made adding it a test edit.
       const lang = SEED_PERSONAS.find((x) => x.key === s.key)?.profile?.lang ?? "en";
-      const opener = firstVerdictLines({
-        goal: "lose", targets: { kcal: 2000, protein_g: 140 },
-        via: "photo", verdicts: {}, meal: { kcal: 500, confidence: "high" },
-        eatenToday: { kcal: 500, protein_g: 30 },
-      }, lang)[0]!;
+      // #49: the verdict leads with the pills' headline when they produce one, else the arithmetic
+      // — so the greeting's first line is one of the headline strings or the "First one in" opener.
+      const openers = [
+        ...Object.values(threadCopyFor(lang).firstVerdict.headline),
+        firstVerdictLines({
+          goal: "lose", targets: { kcal: 2000, protein_g: 140 },
+          via: "photo", verdicts: {}, meal: { kcal: 500, confidence: "high" },
+          eatenToday: { kcal: 500, protein_g: 30 },
+        }, lang)[0]!,
+      ];
       // The first few words, which is what identifies the sentence without pinning its figures.
-      expect(greeting?.text).toContain(opener.split(" ").slice(0, 2).join(" "));
+      expect(openers.some((o) => greeting?.text?.startsWith(o.split(" ").slice(0, 2).join(" ")))).toBe(true);
       expect(oldestFirst.indexOf(greeting!)).toBeLessThan(4);
     }
     expect(seeded.some((s) => s.meals > 0)).toBe(true);

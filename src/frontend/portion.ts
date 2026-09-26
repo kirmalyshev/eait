@@ -24,45 +24,36 @@ const tenth = (n: number, f: number): number => Math.round(n * f * 10) / 10;
 const itemTenth = (n: number | undefined, f: number): number | undefined =>
   n === undefined ? undefined : tenth(n, f);
 
+/** The whole meal's name as the field shows it: every item, in order (#49). */
+export const mealTitle = (items: readonly Pick<MealItem, "name">[]): string =>
+  items.map((i) => i.name).join(", ");
+
 /**
- * The request a save sends: every item's grams and numbers scaled, the totals scaled the same, and
- * the first item renamed when the field says the plate was something else.
+ * The request a save sends, or NULL when the save changes nothing.
  *
- * THE RENAME KEEPS THE REST OF THE PLATE. "What it was" is one line and the items are several rows:
- * it rewrites the first — the name the card leads with — and leaves the others, rather than asking
- * one field to parse a plate back into items.
+ * NULL IS THE POINT (#49). A save with the name as it was and a Regular portion changes no number,
+ * so it sends nothing: no write, and no "Updated" written into the thread about a meal that did
+ * not change.
  *
- * A renamed item drops `name_en`. That key is what the repertoire and the portion priors group by,
- * and it is only true while the name still is that food; "chicken breast" measured under a plate
- * the user just called "chicken and chips" is noise the median keeps forever.
+ * THE FIELD IS THE WHOLE MEAL. It is prefilled with `mealTitle` (every item), so a changed name
+ * says the whole plate was something else: it becomes ONE item under that name, carrying the
+ * plate's grams and totals. Renaming only the first row once turned "Grilled salmon, rice, green
+ * salad" into that name plus the old "Basmati rice" row. The new item has no `name_en` and no
+ * `kcal_per_100g`: both belonged to foods the plate is no longer called, and the repertoire and
+ * the portion priors would keep that noise forever. An unchanged name keeps every item and only
+ * scales them.
  */
 export function firstMealEdit(
   meal: Pick<MealAnalysis,
     "items" | "kcal" | "protein_g" | "carbs_g" | "fat_g" | "satfat_g" | "fiber_g" | "sugar_g" | "sodium_mg">,
   whatItWas: string,
   portion: Portion,
-): EditMealRequest {
+): EditMealRequest | null {
   const f = PORTION_FACTOR[portion];
-  const rename = whatItWas.trim();
-  const items: MealItem[] = meal.items.map((item, i) => {
-    const scaled: MealItem = {
-      ...item,
-      grams: whole(item.grams, f),
-      kcal: item.kcal === undefined ? undefined : whole(item.kcal, f),
-      protein_g: itemTenth(item.protein_g, f),
-      carbs_g: itemTenth(item.carbs_g, f),
-      fat_g: itemTenth(item.fat_g, f),
-      // `kcal_per_100g` is a density — a property of the food, not of how much of it was on the
-      // plate. Scaling it would quietly corrupt the next substitution that reads it.
-    };
-    if (i === 0 && rename !== "" && rename !== item.name) {
-      scaled.name = rename;
-      delete scaled.name_en;
-    }
-    return scaled;
-  });
-  return {
-    items,
+  const name = whatItWas.trim();
+  const renamed = name !== "" && name !== mealTitle(meal.items);
+  if (!renamed && portion === "regular") return null;
+  const totals = {
     kcal: whole(meal.kcal, f),
     protein_g: tenth(meal.protein_g, f),
     carbs_g: tenth(meal.carbs_g, f),
@@ -72,4 +63,25 @@ export function firstMealEdit(
     sugar_g: tenth(meal.sugar_g, f),
     sodium_mg: whole(meal.sodium_mg, f),
   };
+  if (renamed && meal.items.length > 0) {
+    const grams = meal.items.reduce((g, i) => g + i.grams, 0);
+    return {
+      items: [{
+        name, grams: whole(grams, f),
+        kcal: totals.kcal, protein_g: totals.protein_g, carbs_g: totals.carbs_g, fat_g: totals.fat_g,
+      }],
+      ...totals,
+    };
+  }
+  const items: MealItem[] = meal.items.map((item) => ({
+    ...item,
+    grams: whole(item.grams, f),
+    kcal: item.kcal === undefined ? undefined : whole(item.kcal, f),
+    protein_g: itemTenth(item.protein_g, f),
+    carbs_g: itemTenth(item.carbs_g, f),
+    fat_g: itemTenth(item.fat_g, f),
+    // `kcal_per_100g` is a density — a property of the food, not of how much of it was on the
+    // plate. Scaling it would quietly corrupt the next substitution that reads it.
+  }));
+  return { items, ...totals };
 }

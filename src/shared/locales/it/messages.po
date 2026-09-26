@@ -65,6 +65,11 @@ msgstr "Oggi {over} sopra le tue {plan}, e {protein} dei {proteinTarget} g di pr
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesHigh"
+msgstr "Una bella fetta della tua giornata in un solo pasto."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.coachStarters.2"
 msgstr "Sto prendendo abbastanza proteine?"
 
@@ -77,6 +82,11 @@ msgstr "Prima rispondi alle domande del piano sul web."
 #: src/shared/verdicts.ts
 msgid "verdict.noun.weight"
 msgstr "Calorie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesOnPlan"
+msgstr "Calorie nel piano."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -199,6 +209,11 @@ msgid "tg.meal"
 msgstr "Pasto"
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.caloriesVeryHigh"
+msgstr "Più di metà della tua giornata in un solo pasto."
+
+#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.moved"
 msgstr "Spostato."
@@ -234,6 +249,11 @@ msgid "tg.todayEmpty"
 msgstr "Oggi non è ancora stato registrato niente."
 
 #. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.firstVerdict.headline.onPlan"
+msgstr "Nel piano."
+
+#. js-lingui-explicit-id
 #: src/backend/mail/port.ts
 msgid "mail.confirm.promise"
 msgstr "Un messaggio quando l'app esce, con un link per disiscriverti in un clic. Nient'altro, mai."
@@ -252,11 +272,6 @@ msgstr "Prima una cosa: iOS chiederà la fotocamera. La uso per il piatto e per 
 #: src/backend/telegram/copy.ts
 msgid "tg.macro.protein"
 msgstr "Proteine"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.meetGabie"
-msgstr "Le domande vanno a Gabie, la nutrizionista qui — cosa mangiare stasera, come sta andando la settimana. Stessa chat; legge il tuo diario prima di rispondere. Io registro, lei consiglia."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -286,7 +301,7 @@ msgstr "Su questo i grassi saturi vanno alti. Valutato solo perché me l'hai chi
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
-msgstr "Manda la foto di un pasto, dimmi cosa hai mangiato, o fai una domanda a Gabie."
+msgstr "Manda la foto di un pasto, dimmi cosa hai mangiato, o fammi una domanda."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -336,12 +351,12 @@ msgstr "Quel file non è una foto leggibile qui. JPEG, PNG o WebP."
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmetic.otherLeft"
-msgstr "così ti restano {left} delle tue {plan} per il resto della giornata, e {protein} dei {proteinTarget} g di proteine. Nel piano."
+msgstr "così ti restano {left} delle tue {plan} per il resto della giornata, e {protein} dei {proteinTarget} g di proteine."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.arithmeticAlone.otherLeft"
-msgstr "Così ti restano {left} delle tue {plan} per il resto della giornata, e {protein} dei {proteinTarget} g di proteine. Nel piano."
+msgstr "Così ti restano {left} delle tue {plan} per il resto della giornata, e {protein} dei {proteinTarget} g di proteine."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

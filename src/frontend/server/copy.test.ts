@@ -89,3 +89,12 @@ describe("the spent-sample refusal", () => {
     for (const lang of LANGS) expect(webCopyFor(lang).refusals["subscription-required"]).not.toMatch(/eait-App|app eait|appli eait|app de eait|ứng dụng eait|aplikasi eait|приложении eait/i);
   });
 });
+
+// #49, principal 2026-09-26: Spud only. Nothing the web writes for itself names anybody else.
+describe("Spud only", () => {
+  it("never mentions Gabie, in any language", () => {
+    for (const lang of LANGS) {
+      for (const [at, text] of Object.entries(flat(webCopyFor(lang)))) expect(text, `${lang}.${at}`).not.toMatch(/gabie/i);
+    }
+  });
+});

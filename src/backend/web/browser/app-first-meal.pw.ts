@@ -33,10 +33,13 @@ test("a photo reaches the first verdict, a manual edit the recheck, and Keep goi
   expect(kcal).toBe(diary.meals[0]!.kcal);
   const grams0 = diary.meals[0]!.items[0]!.grams;
   await expect(page.locator(".pill").first()).toBeVisible();
+  // #49: Spud only, and the pills' verdict is what he says — never a line the pills contradict.
+  await expect(page.getByText(/gabie/i)).toHaveCount(0);
+  if ((await page.locator(".pill.warn, .pill.bad").count()) > 0) await expect(page.getByText("On plan.")).toHaveCount(0);
 
-  // "Correct meal" is the manual edit. What it was prefills with the plate's first name.
+  // "Correct meal" is the manual edit. What it was prefills with the WHOLE meal (#49).
   await page.getByRole("button", { name: "Correct meal" }).click();
-  await expect(page.locator("#fm-what")).not.toHaveValue("");
+  await expect(page.locator("#fm-what")).toHaveValue(diary.meals[0]!.items.map((i) => i.name).join(", "));
   await page.locator("#fm-portion").selectOption("large");
   const patched = page.waitForRequest((r) => r.method() === "PATCH" && /\/api\/v1\/meals\/[^/]+$/.test(r.url()));
   await page.getByRole("button", { name: "Save and recheck" }).click();
@@ -52,6 +55,9 @@ test("a photo reaches the first verdict, a manual edit the recheck, and Keep goi
   await expect(page.getByText("Your first verdict")).toBeVisible();
   await expect(page.locator(".hero")).toHaveText(`${Math.round(kcal * 1.25)}`);
   await expect(page.locator(".pill").first()).toBeVisible();
+  // The WHOLE card is the new one: the old figure is nowhere on the page (#49).
+  await expect(page.getByText(new RegExp(`\\b${kcal}\\b`))).toHaveCount(0);
+  await expect(page.getByText(/gabie/i)).toHaveCount(0);
 
   // Keep going → the offer that holds: named plans, the trial timeline, no invented price, and the
   // way out is the server's own checkout page.

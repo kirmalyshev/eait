@@ -88,14 +88,17 @@ export interface MealProposed {
   expiresAt: string;
 }
 
-/** Who said an assistant line. Absent is Spud, the host; `gabie` is the nutritionist, and only a coach answer carries it. */
+/**
+ * LEGACY (#49): a stored line from when the nutritionist persona answered. Nothing produces it
+ * any more; every assistant line is Spud's, and `speakerOf` reads this one as his too.
+ */
 export type ChatSpeaker = "gabie";
 
 export interface Answered {
   kind: "answered";
   /** Model prose in the user's language. Content, not copy — it passes through unrendered. */
   text: string;
-  /** Who answered. A coach turn is Gabie's, fallback included; absent or null is Spud. */
+  /** Legacy only (#49): absent on every answer now. Absent or null is Spud. */
   speaker?: ChatSpeaker | null;
   /**
    * What the user might ask next, in their own words, as chips under the answer. Live turn only:

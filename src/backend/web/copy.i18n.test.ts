@@ -169,3 +169,12 @@ describe("the plan card's two figures", () => {
     expect(ru).not.toMatch(/>1450 /);
   });
 });
+
+// #49, principal 2026-09-26: Spud only — /start's own words name nobody else either.
+it("/start never mentions Gabie, in any language", () => {
+  for (const lang of LANGS) {
+    for (const [key, text] of Object.entries(pageCopyFor(lang))) {
+      if (typeof text === "string") expect(text, `${lang}.${key}`).not.toMatch(/gabie/i);
+    }
+  }
+});
