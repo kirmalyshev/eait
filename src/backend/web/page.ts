@@ -32,7 +32,7 @@ export function escape(text: string): string {
  */
 import { PAGE_COPY, pageCopyFor, type PageCopy } from "./copy.ts";
 import {
-  LANGS_READY, LANG_LABEL, UNIT_KCAL, chatCopyFor, spellUnit, wholeNumbers,
+  LANGS_READY, LANG_LABEL, UNIT_KCAL, chatCopyFor, numbers, spellUnit, verdictNoun, wholeNumbers,
   type Lang, type MomentId, type MomentPose,
 } from "@eait/shared";
 
@@ -250,6 +250,23 @@ label.check {
 .tick svg { width: 12px; height: 12px; }
 .rowline { display: flex; justify-content: space-between; gap: 1rem; padding: .65rem 0; border-top: 1px solid var(--line); }
 .rowline:first-child { border-top: 0; }
+
+/* The plan page (#51). A small label over a figure, the declared marker caps in a row beside it,
+   and the arithmetic as labelled rows — the phone's calc card, drawn the web's way. */
+.lab {
+  font-size: .75rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--dim); margin: 0 0 .4rem;
+}
+.specs { display: flex; gap: 1.25rem; margin: .75rem 0 0; }
+.specs > div { flex: 1; min-width: 0; }
+.specs .lab {
+  font-size: .8125rem; font-weight: 600; letter-spacing: 0; text-transform: none;
+  color: var(--muted); margin-bottom: .15rem;
+}
+.specs .val { font-weight: 700; margin: 0; font-variant-numeric: tabular-nums; }
+.arith { margin-top: .75rem; }
+.arith .rowline { font-size: .875rem; padding: .5rem 0; }
+.arith strong { font-variant-numeric: tabular-nums; }
 `;
 
 /**
@@ -715,8 +732,36 @@ function chatLine(line: ChatLine, PAGE_COPY: PageCopy, lang: Lang): string {
 export interface PlanView {
   /** Which provider signed this account in, so the app instruction can name that button. */
   signedInWith: "apple" | "google" | null;
+  /**
+   * Spud's beat at the top — the restrictions reply the chat computes for this profile
+   * (`reactionTo`), with its mood. The page invents no sentence of its own here.
+   */
+  beat: { line: string; mood: MascotMood } | null;
+  /** The goal card's figure. A goal that carries no target — maintain — draws no card. */
+  targetKg: number | null;
+  /**
+   * The by-when line, already filled — `projectionLine` over the content's
+   * `summary.projection`/`projectionFar`, or null wherever `projectGoal` declined a number. Null
+   * is "no date", never a hole.
+   */
+  byWhen: string | null;
+  /** `projectGoal`'s week count, under the by-when. */
+  weeks: number | null;
   kcal: number;
   proteinG: number;
+  /**
+   * The marker caps, present ONLY for the restrictions the profile declared — the same fields on
+   * `targets` that `verdictsFromTargets` reads, so the figure on this page is the figure a meal is
+   * judged against.
+   */
+  satfatG?: number | undefined;
+  sodiumMg?: number | undefined;
+  /** The row labels — `content.building`'s and `summary.proteinLabel`, the phone's own words. */
+  labels: { rest: string; activity: string; pace: string; floor: string; protein: string };
+  bmr: number | null;
+  tdee: number | null;
+  /** `appliedDeltaKcal` — the pace as it was actually applied, after both guards. */
+  paceKcal: number;
   floorApplied: boolean;
   floorKcal: number;
   /**
@@ -727,8 +772,10 @@ export interface PlanView {
   /**
    * Whether there is a web application to hand over to.
    *
-   * A button to a 404 is worse than no button, so a deployment that never built one says nothing
-   * about a diary — the same rule the `/start` front door follows before it redirects.
+   * It decides two things. The primary button: "/" opens the first-meal flow there, and `/start`'s
+   * own chat is the nearest thing when there is none. And the language picker: with an app, the
+   * language lives in ITS settings and the picker is not drawn; without one this page is the only
+   * place to change it, so it stays.
    */
   hasWebApp: boolean;
   /** Whether the Telegram connector is on, so Connect Telegram has a bot to send anybody to. */
@@ -740,23 +787,60 @@ export function plan(v: PlanView): string {
   const lang = v.lang;
   const PAGE_COPY = pageCopyFor(lang);
   // The FIGURES are grouped the reader's way — "1.800", not "1,800", for half of Europe — and the
-  // sentences around them are the table's. Both were English literals in the markup until #358, on
-  // the one page the language picker sits on.
+  // sentences around them are the table's. A weight keeps its tenth; kcal, grams and weeks do not.
   const n = wholeNumbers(lang);
+  const kg = spellUnit(lang, "kg");
+  const g = spellUnit(lang, "g");
+
+  // The marker row: protein always, then ONLY what the profile declared — a cap nobody asked for
+  // is a verdict nobody asked for. The noun is the verdict's own (`verdictNoun`), so the cap and
+  // the pill that judges it cannot spell the nutrient two ways.
+  const markers: { label: string; text: string }[] = [
+    { label: v.labels.protein, text: `${n(v.proteinG)} ${g}` },
+  ];
+  if (v.satfatG !== undefined)
+    markers.push({ label: verdictNoun("ldl", lang), text: `${n(v.satfatG)} ${g}` });
+  if (v.sodiumMg !== undefined)
+    markers.push({ label: verdictNoun("kidneys", lang), text: `${n(v.sodiumMg)} ${spellUnit(lang, "mg")}` });
+
+  // The arithmetic — every figure is `explainTargets`' own, handed in by the route: the body at
+  // rest, what the days add on top of it, the pace as it was actually APPLIED (capped, floored —
+  // never the one that was asked for), and the floor itself, drawn even when it did not bite
+  // because it holds either way.
+  const arithmetic: { label: string; text: string }[] = [];
+  if (v.bmr !== null) arithmetic.push({ label: v.labels.rest, text: n(v.bmr) });
+  if (v.bmr !== null && v.tdee !== null)
+    arithmetic.push({ label: v.labels.activity, text: `+${n(v.tdee - v.bmr)}` });
+  arithmetic.push({
+    label: v.labels.pace,
+    // A minus sign, not a hyphen, and a dash for no change — the phone's calc card reads the same.
+    text: v.paceKcal === 0 ? "—" : `${v.paceKcal < 0 ? "−" : "+"}${n(Math.abs(v.paceKcal))}`,
+  });
+  arithmetic.push({ label: v.labels.floor, text: n(v.floorKcal) });
+
   return shell(PAGE_COPY.titlePlan, `
+${topBar(PAGE_COPY)}
+${v.beat === null ? "" : `<div class="spk"><span class="av">${spudSvg(v.beat.mood, "spud-plan")}</span><p class="bubble typed">${escape(v.beat.line)}</p></div>`}
 <h1>${escape(PAGE_COPY.planHeading)}</h1>
-<p class="muted">${escape(PAGE_COPY.planLead)}</p>
+${v.targetKg === null ? "" : `<div class="card">
+  <p class="figure">${escape(numbers(lang)(v.targetKg))} ${escape(kg)}</p>
+  ${v.byWhen === null ? "" : `<p class="muted">${escape(v.byWhen)}</p>`}
+  ${v.weeks === null ? "" : `<p class="lab">${escape(PAGE_COPY.planWeeks.replace("{weeks}", n(v.weeks)))}</p>`}
+</div>`}
 <div class="card">
+  <p class="lab">${escape(PAGE_COPY.planEachDay)}</p>
   <p class="figure">${escape(n(v.kcal))} ${escape(UNIT_KCAL[lang])}</p>
-  <p class="muted">${escape(PAGE_COPY.planPerDay.replace("{protein}", n(v.proteinG)))}</p>
+  <div class="specs">${markers.map((m) =>
+    `<div><p class="lab">${escape(m.label)}</p><p class="val">${escape(m.text)}</p></div>`,
+  ).join("")}</div>
+  <div class="arith">${arithmetic.map((r) =>
+    `<div class="rowline"><span>${escape(r.label)}</span><strong>${escape(r.text)}</strong></div>`,
+  ).join("")}</div>
 </div>
 ${v.floorApplied
   ? `<p class="notice care">${escape(PAGE_COPY.planFloor)} ${escape(PAGE_COPY.planFloorNumber.replace("{floor}", n(v.floorKcal)))}</p>`
   : ""}
-${v.hasWebApp
-  ? `<p class="muted">${escape(PAGE_COPY.planDiaryBody)}</p>
-<a class="button${v.checkout ? "" : " primary"}" href="/">${escape(PAGE_COPY.planDiary)}</a>`
-  : ""}
+<a class="button primary" href="${v.hasWebApp ? "/" : "/start/chat"}">${escape(PAGE_COPY.planFirstMeal)}</a>
 ${v.checkout
   ? `<a class="button primary" href="/start/offer">${escape(PAGE_COPY.planCheckout)}</a>`
   : ""}
@@ -769,7 +853,7 @@ ${v.telegram
 <p class="muted">${escape(v.signedInWith === null
   ? PAGE_COPY.planAppBodyGeneric
   : PAGE_COPY.planAppBody.replace("{provider}", v.signedInWith === "apple" ? "Apple" : "Google"))}</p>
-${languagePicker(v.lang)}
+${v.hasWebApp ? "" : languagePicker(v.lang)}
 `, v.lang);
 }
 

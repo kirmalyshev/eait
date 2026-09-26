@@ -58,16 +58,25 @@ export async function signIn(page: Page, subject: string, provider: "apple" | "g
   await expect(page).toHaveURL(/\/start\/q/);
 }
 
-/** Answer whatever question is open until the plan appears. */
-export async function onboard(page: Page) {
+/** Answer whatever question is open until the plan appears. `extra` overrides per prompt id —
+ * an array ticks those checkboxes, which is how a chips answer like restrictions is given. */
+export async function onboard(page: Page, extra: Record<string, string | string[]> = {}) {
+  const answers: Record<string, string | string[]> = { ...ANSWERS, ...extra };
   for (let i = 0; i < 20; i++) {
     if (/\/start\/plan/.test(page.url())) return;
     const prompt = await page.locator('input[name="prompt"]').first().getAttribute("value");
     if (!prompt) break;
-    const answer = ANSWERS[prompt];
+    const answer = answers[prompt];
+    if (Array.isArray(answer)) {
+      for (const v of answer) {
+        await page.locator(`input[type="checkbox"][name="answer"][value="${v}"]`).check();
+      }
+      await page.locator('button[type="submit"]').last().click();
+      continue;
+    }
     if (answer === undefined) {
-      // The questions with no entry above: the chips, which are checkboxes and are answered by
-      // choosing nothing, and any free-text one, which takes an empty line. Both submit the same way.
+      // The questions with no entry above: the chips answered by choosing nothing, and any
+      // free-text one, which takes an empty line. Both submit the same way.
       const text = page.locator('input[type="text"][name="answer"], input[type="number"][name="answer"]');
       if (await text.count()) await text.first().fill("0");
       await page.locator('button[type="submit"]').last().click();

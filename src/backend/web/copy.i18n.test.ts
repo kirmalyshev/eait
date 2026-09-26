@@ -19,9 +19,9 @@ describe("what /start says for itself, in eight languages", () => {
       const copy = pageCopyFor(lang);
       expect(copy.planAppBody, lang).toContain("{provider}");
       expect(copy.belowHealthyTarget, lang).toContain("{kg}");
-      // The plan card's two figures. A translation that drops one renders a sentence with its
+      // The plan's one placeholder. A translation that drops it renders a sentence with its
       // number missing, and nothing anywhere would say so.
-      expect(copy.planPerDay, lang).toContain("{protein}");
+      expect(copy.planWeeks, lang).toContain("{weeks}");
       expect(copy.planFloorNumber, lang).toContain("{floor}");
       // A meal card's three. Dropping `{unit}` is how `UNIT_KCAL` and a translation come apart.
       for (const ph of ["{kcal}", "{unit}", "{protein}"]) {
@@ -33,7 +33,7 @@ describe("what /start says for itself, in eight languages", () => {
       }
       for (const [k, v] of Object.entries(copy)) {
         for (const m of v.matchAll(/\{(\w+)\}/g)) {
-          expect(["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total"], `${lang}.${k}`)
+          expect(["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total", "weeks"], `${lang}.${k}`)
           .toContain(m[1] ?? "");
         }
       }
@@ -55,10 +55,23 @@ describe("what /start says for itself, in eight languages", () => {
 });
 
 describe("the language picker on the plan page", () => {
+  // No web application here: with one, the picker is not drawn — the language lives in the app's
+  // own settings — so every picker assertion is against a deployment that has none.
   const view = {
-    signedInWith: "apple" as const, kcal: 1800, proteinG: 120,
-    floorApplied: false, floorKcal: 1500, checkout: false, hasWebApp: true, telegram: false,
+    signedInWith: "apple" as const, beat: null, targetKg: null, byWhen: null, weeks: null,
+    kcal: 1800, proteinG: 120,
+    labels: { rest: "At rest", activity: "The days", pace: "The pace", floor: "The floor", protein: "Protein" },
+    bmr: 1400, tdee: 1900, paceKcal: -300,
+    floorApplied: false, floorKcal: 1500, checkout: false, hasWebApp: false, telegram: false,
   };
+
+  it("stays off the plan page where a web application holds the language already (#51)", () => {
+    const html = plan({ ...view, lang: "de", hasWebApp: true });
+    expect(html).not.toContain('<select name="lang"');
+    expect(html).not.toContain('action="/start/language"');
+    // And back on a deployment with none, the picker is the only place to change it — so it stays.
+    expect(plan({ ...view, lang: "de" })).toContain('<select name="lang"');
+  });
 
   it("offers exactly LANGS_READY, labelled in each language's own name", () => {
     const html = plan({ ...view, lang: "de" });
@@ -89,10 +102,10 @@ describe("the language picker on the plan page", () => {
 
   it("writes the card's own sentences in the asked language, with the figures grouped", () => {
     const de = plan({ ...view, lang: "de", floorApplied: true });
-    expect(de).toContain(pageCopyFor("de").planPerDay.replace("{protein}", "120"));
+    expect(de).toContain(pageCopyFor("de").planEachDay);
     expect(de).toContain(pageCopyFor("de").planFloorNumber.replace("{floor}", "1.500"));
     expect(de).toContain("1.800 kcal");
-    expect(de).not.toContain("a day, with at least");
+    expect(de).not.toContain("Each day");
     expect(de).not.toContain("The floor is");
   });
 
@@ -131,7 +144,10 @@ describe("the front door's two buttons", () => {
 
 describe("the plan card's two figures", () => {
   const view = {
-    signedInWith: "apple" as const, kcal: 1500, proteinG: 120,
+    signedInWith: "apple" as const, beat: null, targetKg: null, byWhen: null, weeks: null,
+    kcal: 1500, proteinG: 120,
+    labels: { rest: "At rest", activity: "The days", pace: "The pace", floor: "The floor", protein: "Protein" },
+    bmr: 1400, tdee: 1900, paceKcal: -300,
     floorApplied: true, floorKcal: 1500, checkout: false, hasWebApp: false, telegram: false,
   };
 

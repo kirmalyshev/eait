@@ -22,7 +22,8 @@ import {
   AMBIGUOUS_AGE, RESTRICTION_TAGS, STRUGGLES, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
   chatCopyFor as CHAT,
   askPlaceholder, checkDirection, checkNumber, disabledScreens, isAnswered, promptsFor,
-  isRefusal, MAX_USER_LINE, offerHeadline, optionLabel, promptById, reactionTo,
+  isRefusal, MAX_USER_LINE, offerHeadline, optionLabel, projectGoal, projectionLine,
+  projectionMonth, promptById, reactionTo,
   renderableVerdicts, resolveCountry, ROUTES, screenForStep,
   screenOptions, screenOptionValues, suggestedTargetKg, suggestionFirst, supportMoment,
   switchedLine, targetRange, targetSuggestionLine, TARGET_STEP_KG,
@@ -1089,13 +1090,46 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     const identities = await ctx.store.listIdentities(userId);
     const signedInWith = identities
       .map((i) => i.provider).find((p): p is WebProvider => p === "apple" || p === "google") ?? null;
+    // The page's every figure is the engine's: `profileView` already ran `explainTargets`, and the
+    // by-when is `projectGoal` over that same basis — the projection's own rule, which the offer's
+    // headline and the phone's plan card hold to as well.
+    const content = await onboardingContent(ctx.deps, profile.lang);
+    const projection = projectGoal(full.profile, full.basis);
+    // The restrictions beat is the reply the chat would have given this profile — `reactionTo`,
+    // mood "joy". (`cheer` is a moment's pose rather than a face `spudSvg` draws; joy stands in,
+    // the same map the question pages apply.)
+    const reaction = reactionTo("restrictions", full.profile, profile.lang);
+    const beat = reaction === null ? null
+      : { line: reaction.line, mood: reaction.mood === "cheer" ? "joy" as const : reaction.mood };
     return html(plan({
       lang: profile.lang,
       signedInWith,
       telegram: config.telegramBotUsername !== "",
       hasWebApp: ctx.hasWebApp,
+      beat,
+      targetKg: full.profile.target_weight_kg,
+      byWhen: projection === null ? null : projectionLine(
+        content.summary.projection, content.summary.projectionFar, projection,
+        projectionMonth(new Date(), projection.weeks, profile.lang),
+        full.profile.target_weight_kg, profile.lang,
+      ),
+      weeks: projection?.weeks ?? null,
       kcal: full.targets.kcal,
       proteinG: full.targets.protein_g,
+      // The caps sit on `targets` exactly when the restriction was declared — conditional spread,
+      // because under `exactOptionalPropertyTypes` an explicit `undefined` is not an absent key.
+      ...(full.targets.satfat_g !== undefined ? { satfatG: full.targets.satfat_g } : {}),
+      ...(full.targets.sodium_mg !== undefined ? { sodiumMg: full.targets.sodium_mg } : {}),
+      labels: {
+        rest: content.building.restLabel,
+        activity: content.building.activityLabel,
+        pace: content.building.paceLabel,
+        floor: content.building.floorLabel,
+        protein: content.summary.proteinLabel,
+      },
+      bmr: full.basis.bmr,
+      tdee: full.basis.tdee,
+      paceKcal: full.basis.appliedDeltaKcal,
       floorApplied: full.basis.floorApplied,
       floorKcal: full.basis.floorKcal,
       // The ask leads to the offer, not straight at the checkout — the soft ask is a page of its
