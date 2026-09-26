@@ -1,7 +1,5 @@
-// axe over the /start pages — the other half of #53's done check, parked: this file's project
-// drives the backend surface, which the /start half of #53 owns. Every test is fixme until that
-// lands; the findings they collected when written are in that commit's message, and un-marking
-// one turns it into the gate it is meant to be.
+// axe over the /start pages — the other half of #53's done check. This file's project drives the
+// backend surface; the app's pages are gated in app-a11y-axe.pw.ts.
 import { AxeBuilder } from "@axe-core/playwright";
 import type { Page } from "@playwright/test";
 import { expect, onboardFast, signIn, test } from "./fixtures.ts";
@@ -13,7 +11,7 @@ const axeFindings = async (page: Page): Promise<string[]> =>
     .violations.map((v) => `${v.id} (${v.impact}): ${v.nodes.length} node(s) — ${v.help}`);
 
 for (const [width, height] of [[390, 844], [1440, 900]] as const) {
-  test.fixme(`/start has no axe violations at ${width}px — enabled by the /start half of #53`, async ({ page }) => {
+  test(`/start has no axe violations at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await page.goto("/start");
     // The welcome page, drawn — an axe run against a page that never rendered finds nothing.
@@ -21,14 +19,14 @@ for (const [width, height] of [[390, 844], [1440, 900]] as const) {
     expect(await axeFindings(page)).toEqual([]);
   });
 
-  test.fixme(`/start/q has no axe violations at ${width}px — enabled by the /start half of #53`, async ({ page }) => {
+  test(`/start/q has no axe violations at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await signIn(page, `pw-axe-${width}-${Date.now()}`);
     await expect(page).toHaveURL(/\/start\/q/);
     expect(await axeFindings(page)).toEqual([]);
   });
 
-  test.fixme(`/start/plan has no axe violations at ${width}px — enabled by the /start half of #53`, async ({ page }) => {
+  test(`/start/plan has no axe violations at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await signIn(page, `pw-axe-plan-${width}-${Date.now()}`);
     await onboardFast(page);
