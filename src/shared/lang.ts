@@ -123,6 +123,23 @@ export const wholeNumbers = (lang: Lang) => {
 };
 
 /**
+ * The step a guessed figure is rounded to: ten (#47). One number per thing, never a number and its
+ * error — so a guess shows itself by its PRECISION ("about 1 820"), not by a ± or a band beside it.
+ * Ten keeps a day of 1 822 reading 1 820, where fifty would move it to 1 800.
+ */
+const GUESS_STEP = 10;
+
+/**
+ * A guessed figure's own value, rounded to the step.
+ *
+ * A VALUE, NOT A FORMATTER, because `dayBudget` has to subtract AFTER rounding: the headline and
+ * the line under it are one subtraction apart, and rounding each at format time makes "about
+ * 1 820 eaten" and "about 280 left" add up to something that is not the plan. The step divides
+ * itself, so a figure already rounded comes back unchanged.
+ */
+export const toGuessStep = (x: number): number => Math.round(x / GUESS_STEP) * GUESS_STEP;
+
+/**
  * How this language SPELLS the kilocalorie, for the four places that concatenate it onto a figure.
  *
  * ─────────────────────────────────────────────────────────────────────────────────────────────

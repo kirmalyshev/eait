@@ -239,6 +239,12 @@ export interface DailyTotals {
   fiber_g: number;
   sugar_g: number;
   sodium_mg: number;
+  /**
+   * At least one meal in this day is a guess (#47), so every figure derived from these totals is
+   * one — the day, what is left of it, and the 20:30 line. On the totals and not recomputed per
+   * surface: only `sumTotals` produces a `DailyTotals`, so there is one place it can be wrong.
+   */
+  guessed: boolean;
 }
 
 /** Per-date sums — the week view's row shape. */

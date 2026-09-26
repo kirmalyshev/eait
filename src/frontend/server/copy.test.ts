@@ -56,6 +56,27 @@ describe("the copy the web client writes", () => {
   });
 });
 
+// #47: the two rules the retired register (#35) left behind, pinned so they cannot drift back.
+describe("one number per thing, and the floor as a status line", () => {
+  it("never prints a number with its error, a band, or a low/high pair", () => {
+    for (const lang of LANGS) {
+      for (const [at, text] of Object.entries(flat(webCopyFor(lang)))) {
+        expect(text, `${lang}.${at}`).not.toMatch(/±|\{(low|high|min|max)\}|\}\s*[–-]\s*\{/);
+      }
+    }
+  });
+
+  it("says the floor as one line with one number in it, in two states and nothing between", () => {
+    for (const lang of LANGS) {
+      const c = webCopyFor(lang);
+      for (const line of [c.floorClear, c.floorHeld]) {
+        expect(line.match(/\{\w+\}/g), `${lang}: ${line}`).toEqual(["{floor}"]);
+      }
+      expect(c.floorClear).not.toBe(c.floorHeld);
+    }
+  });
+});
+
 // #44/#46 (monorepo #818): the sample is a SETTING — one meal by default, and whatever an admin
 // gives one account — so the sentence that says it is spent may not count it. And the web has its
 // own checkout now, so the browser's refusal may not send people to the phone to pay.
