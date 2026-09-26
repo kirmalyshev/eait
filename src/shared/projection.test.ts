@@ -89,6 +89,23 @@ describe("projectGoal", () => {
     expect(p!.weeks).toBe(65);
   });
 
+  it("projects the post-floor rate the target actually carries — the #75 persona", async () => {
+    const { explainTargets } = await import("./targets.ts");
+    // Female, 1986, 160 cm, 58 → 52 kg, sedentary, push (the issue's own reproduction): the share
+    // cap produces −293 against a 1,463 TDEE, the floor leaves 1,200 — a real cut of 263 kcal/day,
+    // 0.239 kg/week. The pre-floor delta printed 23 weeks; the honest figure is 25.
+    const p = profile({
+      sex: "female", birth_year: 1986, height_cm: 160, weight_kg: 58,
+      target_weight_kg: 52, activity: "sedentary", pace: "push",
+    });
+    const basis = explainTargets(p, new Date("2026-08-01T12:00:00Z")).basis;
+    expect(basis.appliedDeltaKcal).toBe(basis.floorKcal - basis.tdee!);
+    const projection = projectGoal(p, basis);
+    expect(projection).not.toBeNull();
+    expect(projection!.kgPerWeek).toBeCloseTo(0.239, 3);
+    expect(projection!.weeks).toBe(25);
+  });
+
   // ── Suppression ────────────────────────────────────────────────────────────────────────────
 
   it("is null for a maintainer", () => {

@@ -109,6 +109,22 @@ describe("the calorie floor", () => {
     expect(basis.floorApplied).toBe(true);
     expect(targets.kcal).toBe(KCAL_FLOOR.female);
   });
+
+  it("reports appliedDeltaKcal as the delta the FINAL target carries, floor included (#75)", () => {
+    // The issue's persona: female, 1986, 160 cm, 58 kg, sedentary, push. bmr 1219, tdee 1463;
+    // push asks −825, the share cap allows −293, and the floor stops the target at 1,200 — a real
+    // cut of 263 kcal/day. Every reader (the projection, the plan card, the coach prompt) treats
+    // `appliedDeltaKcal` as the post-floor delta, so the basis must not keep the pre-floor −293.
+    const p = profile({
+      sex: "female", goal: "lose", pace: "push", activity: "sedentary",
+      height_cm: 160, weight_kg: 58, birth_year: 1986,
+    });
+    const { targets, basis } = explainTargets(p, TODAY);
+    expect(basis.tdee).toBe(1463);
+    expect(targets.kcal).toBe(KCAL_FLOOR.female);
+    expect(basis.floorApplied).toBe(true);
+    expect(basis.appliedDeltaKcal).toBe(targets.kcal - basis.tdee!);
+  });
 });
 
 describe("the deficit share cap", () => {
