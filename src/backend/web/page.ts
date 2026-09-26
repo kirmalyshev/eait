@@ -367,7 +367,7 @@ export function html(
   return res;
 }
 
-const spud = `<div class="spud" role="img" aria-label="${escape(PAGE_COPY.spudAlt)}">${spudSvg("wave", "spud-start")}</div>`;
+const spud = (lang: Lang): string => `<div class="spud" role="img" aria-label="${escape(pageCopyFor(lang).spudAlt)}">${spudSvg("wave", "spud-start")}</div>`;
 
 const bubbles = (lines: readonly string[]): string =>
   lines.map((line) => `<p class="bubble typed">${escape(line)}</p>`).join("");
@@ -397,7 +397,7 @@ export function frontDoor(
 ): string {
   const PAGE_COPY = pageCopyFor(lang);
   return shell(PAGE_COPY.titleStart, `
-${spud}
+${spud(lang)}
 <h1>eait</h1>
 ${error ? `<p class="notice">${escape(error)}</p>` : ""}
 ${bubbles(welcome)}
@@ -648,7 +648,7 @@ export function stopped(
   title: string, body: string, lines: readonly string[], lang: Lang,
 ): string {
   return shell(title, `
-${spud}
+${spud(lang)}
 <h1>${escape(title)}</h1>
 <p class="muted">${escape(body)}</p>
 ${bubbles(lines)}
