@@ -1266,7 +1266,7 @@ describe("the support moments", () => {
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain("That&#39;s completely normal!");
-    // The echo is the picked chip's own label; the body is that card's, source and all.
+    // The echo is the picked chip's own label; the body is that card's.
     expect(html).toContain("Diets that didn&#39;t stick");
     expect(html).toContain(struggleCard("diets", "lose", "en").body.split(".")[0]!);
     expect(html).toContain('action="/start/q"');

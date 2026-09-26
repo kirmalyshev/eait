@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { LANGS } from "./types.ts";
+import { LANGS, type Lang } from "./types.ts";
 import { LANG_LABEL } from "./lang.ts";
 import {
   DEFAULT_ONBOARDING_CONTENT, ONBOARDING_SCREENS, SCREEN_FIELDS, optionLabel, screenOptionValues,
@@ -90,6 +90,30 @@ describe("every language's onboarding content", () => {
   it("is English for a language nobody has written, never undefined", () => {
     expect(onboardingContentFor("en")).toBe(ONBOARDING_CONTENT.en);
     expect(DEFAULT_ONBOARDING_CONTENT).toBe(ONBOARDING_CONTENT.en);
+  });
+
+  it("says nothing that is false where the line now stands (#50)", () => {
+    // The web asks for a sign-in BEFORE the first question, so "No account needed to start" was
+    // false there, and one content tree cannot say it on the phone only. The restrictions ask's
+    // free-text sentence went with it — the web's chips screen has no text field.
+    const welcomeClaim: Record<Lang, string> = {
+      en: "No account needed to start",
+      fr: "Pas besoin de compte pour commencer",
+      de: "Zum Starten brauchst du kein Konto",
+      it: "Per iniziare non serve un account",
+      es: "No hace falta cuenta para empezar",
+      vi: "Bắt đầu thì không cần tài khoản",
+      id: "Mulai tanpa perlu akun",
+      ru: "Чтобы начать, аккаунт не нужен",
+    };
+    const freeText = /free text|texte libre|Freitext|testo libero|texto libre|Viết tự do|Teks bebas|Свободный текст/i;
+    for (const lang of LANGS) {
+      const c = onboardingContentFor(lang);
+      expect(c.welcome.lines[2], lang).not.toContain(welcomeClaim[lang]!);
+      expect(c.welcome.lines.join(" "), lang).not.toContain(welcomeClaim[lang]!);
+      const restrictions = c.screens.find((s) => s.id === "restrictions")!;
+      expect(restrictions.asks.restrictions!.lines.join(" "), lang).not.toMatch(freeText);
+    }
   });
 });
 

@@ -14,6 +14,8 @@ test("a photo reaches the first verdict, a manual edit the recheck, and Keep goi
   // The gate: nothing logged yet, so `/#/` is the ask rather than the diary.
   await page.goto("/#/");
   await expect(page.getByText("One meal on me. Photo, or just tell me?")).toBeVisible();
+  // The web never showed an offer before this, so there is no reaction beat above the ask (#50).
+  await expect(page.getByText("Try me first")).toHaveCount(0);
 
   await page.getByRole("button", { name: "Upload a photo" }).click();
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);

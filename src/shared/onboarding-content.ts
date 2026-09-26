@@ -37,7 +37,7 @@ const FR: OnboardingContent = {
     lines: [
       "Salut, moi c'est Spud. Photographie ce que tu manges, reçois une réponse honnête — l'appli tient entière là-dedans.",
       "Trois minutes de questions, puis ton plan — calories par jour, protéines, ce qui est réaliste et pour quand — et un verdict sur ton premier repas.",
-      "Pas besoin de compte pour commencer. Rien à payer tant que tu n'as pas vu le plan et ce premier verdict ; ensuite, une semaine gratuite pour essayer. On y va ?",
+      "Rien à payer tant que tu n'as pas vu le plan et ce premier verdict ; ensuite, une semaine gratuite pour essayer. On y va ?",
     ],
     cta: "C'est parti",
   },
@@ -54,7 +54,7 @@ const FR: OnboardingContent = {
     {
       id: "about",
       asks: {
-        sex: { lines: ["Deux mots sur toi — les deux données dont toute formule de calories a besoin. Qu'est-ce qui correspond ?"] },
+        sex: { lines: ["Un peu sur toi, pour la formule des calories. Lequel te correspond ?"] },
         birth_year: { lines: ["Quel âge as-tu ?"], placeholder: "Ton âge" },
       },
       options: { female: { label: "Femme" }, male: { label: "Homme" } },
@@ -87,7 +87,7 @@ const FR: OnboardingContent = {
     {
       id: "activity",
       asks: {
-        activity: { lines: ["Tu bouges combien dans une semaine normale ? Honnête vaut mieux qu'ambitieux — ça déplace beaucoup le chiffre."] },
+        activity: { lines: ["Tu fais de l'exercice combien de fois dans une semaine normale ? Honnête vaut mieux qu'ambitieux — ça déplace beaucoup le chiffre."] },
       },
       options: {
         sedentary: { label: "Non" },
@@ -109,7 +109,7 @@ const FR: OnboardingContent = {
       id: "restrictions",
       asks: {
         restrictions: {
-          lines: ["Dernière question. Quelque chose dont je devrais tenir compte pour juger ce que tu manges ? Seul ce que tu choisis est noté — tu peux passer. Le texte libre marche aussi."],
+          lines: ["Dernière question. Quelque chose dont je devrais tenir compte pour juger ce que tu manges ? Seul ce que tu choisis est noté — tu peux passer."],
           placeholder: "Allergies, aliments évités…",
         },
       },
@@ -150,7 +150,7 @@ const DE: OnboardingContent = {
     lines: [
       "Hi, ich bin Spud. Fotografier, was du isst, und bekomm eine ehrliche Antwort — mehr macht die App nicht.",
       "Drei Minuten Fragen, dann dein Plan — Kalorien pro Tag, Eiweiß, was bis wann realistisch ist — und ein Urteil zu deiner ersten Mahlzeit.",
-      "Zum Starten brauchst du kein Konto. Zahlen musst du erst, wenn du den Plan und dieses erste Urteil gesehen hast; danach eine Woche kostenlos zum Ausprobieren. Bereit?",
+      "Zahlen musst du erst, wenn du den Plan und dieses erste Urteil gesehen hast; danach eine Woche kostenlos zum Ausprobieren. Bereit?",
     ],
     cta: "Los geht's",
   },
@@ -167,7 +167,7 @@ const DE: OnboardingContent = {
     {
       id: "about",
       asks: {
-        sex: { lines: ["Kurz zu dir — zwei Angaben, die jede Kalorienformel braucht. Was trifft zu?"] },
+        sex: { lines: ["Kurz zu dir, für die Kalorienformel. Was passt zu dir?"] },
         birth_year: { lines: ["Wie alt bist du?"], placeholder: "Dein Alter" },
       },
       options: { female: { label: "Weiblich" }, male: { label: "Männlich" } },
@@ -200,7 +200,7 @@ const DE: OnboardingContent = {
     {
       id: "activity",
       asks: {
-        activity: { lines: ["Wie viel bewegst du dich in einer normalen Woche? Ehrlich schlägt ambitioniert — das verschiebt die Zahl deutlich."] },
+        activity: { lines: ["Wie oft treibst du Sport in einer normalen Woche? Ehrlich schlägt ambitioniert — das verschiebt die Zahl deutlich."] },
       },
       options: {
         sedentary: { label: "Nein" },
@@ -222,7 +222,7 @@ const DE: OnboardingContent = {
       id: "restrictions",
       asks: {
         restrictions: {
-          lines: ["Letzte Frage. Gibt es etwas, woran ich dein Essen messen soll? Bewertet wird nur, was du auswählst — überspring das ruhig. Freitext geht auch."],
+          lines: ["Letzte Frage. Gibt es etwas, woran ich dein Essen messen soll? Bewertet wird nur, was du auswählst — überspring das ruhig."],
           placeholder: "Allergien, gemiedene Lebensmittel…",
         },
       },
@@ -263,7 +263,7 @@ const IT: OnboardingContent = {
     lines: [
       "Ciao, sono Spud. Fotografa quello che mangi e ricevi una risposta onesta — l'app è tutta qui.",
       "Tre minuti di domande, poi il tuo piano — calorie al giorno, proteine, cosa è realistico ed entro quando — e un verdetto sul tuo primo pasto.",
-      "Per iniziare non serve un account. Non paghi niente finché non hai visto il piano e quel primo verdetto; poi hai una settimana gratis per provare. Partiamo?",
+      "Non paghi niente finché non hai visto il piano e quel primo verdetto; poi hai una settimana gratis per provare. Partiamo?",
     ],
     cta: "Si parte",
   },
@@ -280,7 +280,7 @@ const IT: OnboardingContent = {
     {
       id: "about",
       asks: {
-        sex: { lines: ["Due cose su di te — quelle che servono a ogni formula per le calorie. Cosa corrisponde?"] },
+        sex: { lines: ["Qualcosa su di te, per la formula delle calorie. Cosa ti corrisponde?"] },
         birth_year: { lines: ["Quanti anni hai?"], placeholder: "La tua età" },
       },
       options: { female: { label: "Donna" }, male: { label: "Uomo" } },
@@ -313,7 +313,7 @@ const IT: OnboardingContent = {
     {
       id: "activity",
       asks: {
-        activity: { lines: ["Quanto ti muovi in una settimana normale? Meglio onesto che ambizioso — qui il numero cambia parecchio."] },
+        activity: { lines: ["Quante volte fai esercizio in una settimana normale? Meglio onesto che ambizioso — qui il numero cambia parecchio."] },
       },
       options: {
         sedentary: { label: "No" },
@@ -335,7 +335,7 @@ const IT: OnboardingContent = {
       id: "restrictions",
       asks: {
         restrictions: {
-          lines: ["Ultima. C'è qualcosa rispetto a cui dovrei valutare quello che mangi? Viene valutato solo ciò che scegli — saltala pure. Va bene anche il testo libero."],
+          lines: ["Ultima. C'è qualcosa rispetto a cui dovrei valutare quello che mangi? Viene valutato solo ciò che scegli — saltala pure."],
           placeholder: "Allergie, cibi che eviti…",
         },
       },
@@ -376,7 +376,7 @@ const ES: OnboardingContent = {
     lines: [
       "Hola, soy Spud. Fotografía lo que comes y recibe una respuesta honesta — la app es eso y nada más.",
       "Tres minutos de preguntas, luego tu plan — calorías al día, proteína, qué es realista y para cuándo — y un veredicto sobre tu primera comida.",
-      "No hace falta cuenta para empezar. No pagas nada hasta ver el plan y ese primer veredicto; después tienes una semana gratis para probar. ¿Empezamos?",
+      "No pagas nada hasta ver el plan y ese primer veredicto; después tienes una semana gratis para probar. ¿Empezamos?",
     ],
     cta: "Vamos",
   },
@@ -393,7 +393,7 @@ const ES: OnboardingContent = {
     {
       id: "about",
       asks: {
-        sex: { lines: ["Un poco sobre ti — los dos datos que necesita cualquier fórmula de calorías. ¿Cuál encaja?"] },
+        sex: { lines: ["Un poco sobre ti, para la fórmula de calorías. ¿Cuál encaja contigo?"] },
         birth_year: { lines: ["¿Cuántos años tienes?"], placeholder: "Tu edad" },
       },
       options: { female: { label: "Mujer" }, male: { label: "Hombre" } },
@@ -426,7 +426,7 @@ const ES: OnboardingContent = {
     {
       id: "activity",
       asks: {
-        activity: { lines: ["¿Cuánto te mueves en una semana normal? Mejor honesto que aspiracional — esto mueve mucho el número."] },
+        activity: { lines: ["¿Con qué frecuencia haces ejercicio en una semana normal? Mejor honesto que aspiracional — esto mueve mucho el número."] },
       },
       options: {
         sedentary: { label: "No" },
@@ -448,7 +448,7 @@ const ES: OnboardingContent = {
       id: "restrictions",
       asks: {
         restrictions: {
-          lines: ["La última. ¿Hay algo con lo que deba juzgar tu comida? Solo se puntúa lo que elijas — sáltatela sin problema. El texto libre también vale."],
+          lines: ["La última. ¿Hay algo con lo que deba juzgar tu comida? Solo se puntúa lo que elijas — sáltatela sin problema."],
           placeholder: "Alergias, alimentos que evitas…",
         },
       },
@@ -489,7 +489,7 @@ const VI: OnboardingContent = {
     lines: [
       "Chào, mình là Spud. Chụp ảnh món bạn ăn, nhận một câu trả lời thành thật — ứng dụng chỉ có vậy thôi.",
       "Ba phút trả lời câu hỏi, rồi đến kế hoạch của bạn — calo mỗi ngày, đạm, điều gì là thực tế và đến khi nào — cùng một nhận xét cho bữa đầu tiên.",
-      "Bắt đầu thì không cần tài khoản. Bạn chưa phải trả gì cho đến khi xem xong kế hoạch và nhận xét đầu tiên đó; sau đó là một tuần dùng thử miễn phí. Sẵn sàng chưa?",
+      "Bạn chưa phải trả gì cho đến khi xem xong kế hoạch và nhận xét đầu tiên đó; sau đó là một tuần dùng thử miễn phí. Sẵn sàng chưa?",
     ],
     cta: "Bắt đầu thôi",
   },
@@ -506,7 +506,7 @@ const VI: OnboardingContent = {
     {
       id: "about",
       asks: {
-        sex: { lines: ["Vài điều về bạn — hai thông tin mà mọi công thức tính calo đều cần. Cái nào đúng?"] },
+        sex: { lines: ["Vài điều về bạn, cho công thức tính calo. Cái nào đúng với bạn?"] },
         birth_year: { lines: ["Bạn bao nhiêu tuổi?"], placeholder: "Tuổi của bạn" },
       },
       options: { female: { label: "Nữ" }, male: { label: "Nam" } },
@@ -539,7 +539,7 @@ const VI: OnboardingContent = {
     {
       id: "activity",
       asks: {
-        activity: { lines: ["Một tuần bình thường bạn vận động nhiều không? Cứ thành thật, đừng ước lượng theo mong muốn — chỗ này làm con số lệch nhiều."] },
+        activity: { lines: ["Một tuần bình thường bạn tập thể dục bao nhiêu lần? Cứ thành thật, đừng ước lượng theo mong muốn — chỗ này làm con số lệch nhiều."] },
       },
       options: {
         sedentary: { label: "Không" },
@@ -561,7 +561,7 @@ const VI: OnboardingContent = {
       id: "restrictions",
       asks: {
         restrictions: {
-          lines: ["Câu cuối. Có điều gì mình nên dựa vào để đánh giá đồ ăn của bạn không? Chỉ những gì bạn chọn mới được chấm — bỏ qua cũng không sao. Viết tự do cũng được."],
+          lines: ["Câu cuối. Có điều gì mình nên dựa vào để đánh giá đồ ăn của bạn không? Chỉ những gì bạn chọn mới được chấm — bỏ qua cũng không sao."],
           placeholder: "Dị ứng, món bạn tránh…",
         },
       },
@@ -602,7 +602,7 @@ const ID: OnboardingContent = {
     lines: [
       "Hai, aku Spud. Foto apa yang kamu makan, dapatkan jawaban jujur — isi aplikasinya cuma itu.",
       "Tiga menit pertanyaan, lalu rencanamu — kalori harian, protein, apa yang realistis dan kapan — plus penilaian untuk makanan pertamamu.",
-      "Mulai tanpa perlu akun. Kamu tidak bayar apa pun sampai kamu melihat rencananya dan penilaian pertama itu; setelah itu ada satu minggu gratis untuk mencoba. Siap?",
+      "Kamu tidak bayar apa pun sampai kamu melihat rencananya dan penilaian pertama itu; setelah itu ada satu minggu gratis untuk mencoba. Siap?",
     ],
     cta: "Ayo mulai",
   },
@@ -619,7 +619,7 @@ const ID: OnboardingContent = {
     {
       id: "about",
       asks: {
-        sex: { lines: ["Sedikit tentang kamu — dua hal yang dibutuhkan setiap rumus kalori. Mana yang cocok?"] },
+        sex: { lines: ["Sedikit tentang kamu, untuk rumus kalori. Mana yang cocok denganmu?"] },
         birth_year: { lines: ["Umurmu berapa?"], placeholder: "Umurmu" },
       },
       options: { female: { label: "Perempuan" }, male: { label: "Laki-laki" } },
@@ -652,7 +652,7 @@ const ID: OnboardingContent = {
     {
       id: "activity",
       asks: {
-        activity: { lines: ["Seberapa banyak kamu bergerak dalam seminggu biasa? Jujur lebih baik daripada ambisius — ini menggeser angkanya jauh."] },
+        activity: { lines: ["Seberapa sering kamu berolahraga dalam seminggu biasa? Jujur lebih baik daripada ambisius — ini menggeser angkanya jauh."] },
       },
       options: {
         sedentary: { label: "Tidak" },
@@ -674,7 +674,7 @@ const ID: OnboardingContent = {
       id: "restrictions",
       asks: {
         restrictions: {
-          lines: ["Terakhir. Ada sesuatu yang harus jadi patokan saat aku menilai makananmu? Hanya yang kamu pilih yang dinilai — lewati saja kalau tidak ada. Teks bebas juga boleh."],
+          lines: ["Terakhir. Ada sesuatu yang harus jadi patokan saat aku menilai makananmu? Hanya yang kamu pilih yang dinilai — lewati saja kalau tidak ada."],
           placeholder: "Alergi, makanan yang dihindari…",
         },
       },
@@ -715,7 +715,7 @@ const RU: OnboardingContent = {
     lines: [
       "Привет, я Spud. Фотографируй, что ешь, и получай честный ответ — в этом всё приложение.",
       "Три минуты вопросов — и вот твой план: калории на день, белок, что реально и к какому сроку. И вердикт по первому приёму пищи.",
-      "Чтобы начать, аккаунт не нужен. Платить не придётся, пока не увидишь план и тот самый первый вердикт; дальше — неделя бесплатно, чтобы попробовать. Начнём?",
+      "Платить не придётся, пока не увидишь план и тот самый первый вердикт; дальше — неделя бесплатно, чтобы попробовать. Начнём?",
     ],
     cta: "Поехали",
   },
@@ -732,7 +732,7 @@ const RU: OnboardingContent = {
     {
       id: "about",
       asks: {
-        sex: { lines: ["Немного о тебе — две вещи, без которых не работает ни одна формула калорий. Что подходит?"] },
+        sex: { lines: ["Немного о тебе — для формулы калорий. Что подходит тебе?"] },
         birth_year: { lines: ["Сколько тебе лет?"], placeholder: "Твой возраст" },
       },
       options: { female: { label: "Женский" }, male: { label: "Мужской" } },
@@ -765,7 +765,7 @@ const RU: OnboardingContent = {
     {
       id: "activity",
       asks: {
-        activity: { lines: ["Сколько ты двигаешься в обычную неделю? Честно лучше, чем с запасом — это сильно двигает цифру."] },
+        activity: { lines: ["Как часто ты тренируешься в обычную неделю? Честно лучше, чем с запасом — это сильно двигает цифру."] },
       },
       options: {
         sedentary: { label: "Нет" },
@@ -787,7 +787,7 @@ const RU: OnboardingContent = {
       id: "restrictions",
       asks: {
         restrictions: {
-          lines: ["Последний вопрос. Есть что-то, с чем мне сверять твою еду? Оценивается только то, что ты выберешь — можно смело пропустить. Свободный текст тоже подойдёт."],
+          lines: ["Последний вопрос. Есть что-то, с чем мне сверять твою еду? Оценивается только то, что ты выберешь — можно смело пропустить."],
           placeholder: "Аллергии, продукты, которых избегаешь…",
         },
       },

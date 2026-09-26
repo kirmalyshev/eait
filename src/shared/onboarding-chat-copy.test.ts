@@ -30,6 +30,21 @@ describe("every language's chat copy", () => {
     }
   });
 
+  it("puts no crowd statistic on a struggle card, in any language (#50)", () => {
+    // The card stands under the reader's OWN pick, so a number about other people does not
+    // belong there: no percentages, no study counts, and no `source` line to cite one.
+    for (const lang of LANGS) {
+      const copy = chatCopyFor(lang);
+      for (const s of STRUGGLES) {
+        const card = copy.struggleCards[s]!;
+        expect(card.body, `${lang}.struggleCards.${s}.body`).not.toMatch(/[\d%]/);
+        expect(card.source, `${lang}.struggleCards.${s}`).toBeUndefined();
+      }
+      expect(copy.dietsGainCard.body, `${lang}.dietsGainCard.body`).not.toMatch(/[\d%]/);
+      expect(copy.dietsGainCard.source, `${lang}.dietsGainCard`).toBeUndefined();
+    }
+  });
+
   it("has a reply for every activity level this binary offers", () => {
     for (const lang of LANGS) {
       for (const level of ACTIVITY_LEVELS) {

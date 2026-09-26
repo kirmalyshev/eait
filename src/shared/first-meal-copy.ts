@@ -10,6 +10,7 @@ import type { Lang } from "./types.ts";
 export interface FirstMealCopy {
   /** Spud's question, and the beat before it. */
   ask: string;
+  /** The phone's beat after the closed offer; the web, which shows no offer first, says none. */
   react: string;
   /** The phone's camera button. The browser uploads instead and words its own button. */
   photo: string;

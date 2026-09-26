@@ -4108,7 +4108,7 @@
           "lines"
         ],
         "additionalProperties": false,
-        "description": "What Spud says to pose ONE question, and what the input looks like while it is open.\n\n`lines` is a list because Spud sends bubbles, not paragraphs: \"A little about you — two things every calorie formula needs. Which fits?\" is one bubble, and the age that follows it is another. One entry, one bubble."
+        "description": "What Spud says to pose ONE question, and what the input looks like while it is open.\n\n`lines` is a list because Spud sends bubbles, not paragraphs: \"A little about you, for the calorie formula. Which fits you?\" is one bubble, and the age that follows it is another. One entry, one bubble."
       },
       "OnboardingBuildingContent": {
         "type": "object",

@@ -130,7 +130,7 @@ describe("the shipped copy", () => {
     const unqualified = words
       .replace(/\bfree to try\b/g, "")
       .replace(/\b(a week|\d+ days?) free\b/g, "")
-      // "Free text welcome too" is an instruction about a box, not a claim about a price.
+      // A "free text" instruction is about a box, not a claim about a price.
       .replace(/\bfree text\b/g, "");
     expect(unqualified).not.toMatch(/\bfree\b/);
     expect(DEFAULT_ONBOARDING_CONTENT.welcome.lines.join(" ")).toContain("free to try");
