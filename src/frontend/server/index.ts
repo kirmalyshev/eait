@@ -264,9 +264,12 @@ input:disabled, button:disabled { opacity: .5; cursor: default; }
 .rowline { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
 .rowline + .rowline { border-top: 1px solid var(--line); }
 .rowline .when { font-weight: 700; }
-.plans { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
-.plan { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; color: var(--muted);
-  font-weight: 700; }
+/* The plan rows are real radios — the input is native, so the keyboard works without a shim. */
+.plans { padding-top: 4px; padding-bottom: 4px; margin-bottom: 14px; }
+.plan { display: flex; align-items: center; gap: 12px; padding: 12px 2px; font-weight: 700; cursor: pointer; }
+.plan input[type="radio"] { width: 20px; height: 20px; margin: 0; flex: 0 0 20px;
+  accent-color: var(--accent); cursor: pointer; }
+.hint { color: var(--muted); font-size: 13px; text-align: center; margin: 2px 0 0; }
 @media (max-width: 760px) { .flow { max-width: none; } }
 </style>
 </head>

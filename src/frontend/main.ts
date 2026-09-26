@@ -1093,10 +1093,22 @@ function firstMealScreen(me: ProfileResponse): HTMLElement {
       tl.append(row);
     }
     box.append(tl);
-    // The plans are NAMED, never priced: this client has never been sent a price, and the checkout
-    // page the link lands on is what owns the numbers.
-    const plans = el("div", "plans");
-    for (const p of [COPY.offerPlanMonthly, COPY.offerPlanLifetime]) plans.append(el("div", "plan", p));
+    // ONE PLAN, AS A REAL RADIO (#52). `/start/checkout` takes no plan — it is the one configured
+    // checkout URL with this account's id filled in — so a second radio would be a choice that
+    // chose nothing. What is offered is the subscription the free week leads into, checked, in a
+    // group that takes more the day the link learns to carry one. And NAMED, never priced: this
+    // client has never been sent a price, and the checkout page the link lands on owns the numbers.
+    const plans = el("div", "card plans");
+    plans.setAttribute("role", "radiogroup");
+    plans.setAttribute("aria-label", COPY.offerPlans);
+    const plan = el("label", "plan sel");
+    const radio = el("input", "") as HTMLInputElement;
+    radio.type = "radio";
+    radio.name = "plan";
+    radio.value = "monthly";
+    radio.checked = true;
+    plan.append(radio, el("span", "", COPY.offerPlanMonthly));
+    plans.append(plan);
     box.append(plans);
     const foot = el("div", "step-foot");
     // `/start/checkout`, not the checkout URL itself: the backend fills this account's id into the
@@ -1107,7 +1119,7 @@ function firstMealScreen(me: ProfileResponse): HTMLElement {
     const later = el("button", "cta g", COPY.offerLater) as HTMLButtonElement;
     // "Not now" re-renders: a meal exists by now, so the gate opens the diary it belongs on.
     later.addEventListener("click", () => { void render(); });
-    foot.append(go, later);
+    foot.append(go, later, el("p", "hint", COPY.offerCheckoutHint));
     box.append(foot);
     return box;
   };

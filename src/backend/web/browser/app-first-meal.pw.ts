@@ -67,6 +67,16 @@ test("a photo reaches the first verdict, a manual edit the recheck, and Keep goi
   await expect(page.getByText("Every meal, like that one")).toBeVisible();
   await expect(page.getByText("Free for 7 days")).toBeVisible();
   await expect(page.getByText("Day 8")).toBeVisible();
+  // The plan is a REAL choice now (#52): a radiogroup, keyboard-operable, one selected. There is
+  // exactly one — `/start/checkout` carries no plan, so a second radio would choose nothing.
+  const plan = page.getByRole("radiogroup").getByRole("radio");
+  await expect(plan).toHaveCount(1);
+  await expect(plan).toBeChecked();
+  await plan.focus();
+  await page.keyboard.press(" ");
+  await expect(plan).toBeChecked();
+  // And no figure is invented — the price lives on the checkout page, never on this step.
+  await expect(page.locator(".step")).not.toContainText(/\$\s*\d|€\s*\d|£\s*\d|\d\s*(?:USD|EUR|GBP)/);
   const cta = page.getByRole("link", { name: "Start my free week" });
   await expect(cta).toHaveAttribute("href", "/start/checkout");
 });

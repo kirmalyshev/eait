@@ -144,8 +144,11 @@ export interface WebCopy {
   offerBeforeText: string;
   /** No `{price}`: the API sends this client no price, and inventing one is the defect. */
   offerDay8Text: string;
+  /** The radiogroup's name on the offer — one plan today, read by a screen reader (#52). */
+  offerPlans: string;
   offerPlanMonthly: string;
-  offerPlanLifetime: string;
+  /** Where the price lives — this client shows none; checkout owns it. */
+  offerCheckoutHint: string;
   startFreeWeek: string;
   offerLater: string;
   /** `{n}` — the photo bound off `ProfileResponse.limits`. */
@@ -238,8 +241,9 @@ const EN: WebCopy = {
   offerTodayText: "Free for 7 days",
   offerBeforeText: "We remind you",
   offerDay8Text: "Then it's monthly · cancel any time",
+  offerPlans: "Your plan",
   offerPlanMonthly: "Monthly · 7 days free",
-  offerPlanLifetime: "Lifetime",
+  offerCheckoutHint: "Checkout opens on a secure page, with the price in your currency. Nothing is charged for 7 days.",
   startFreeWeek: "Start my free week",
   offerLater: "Not now",
   photosMax: "One meal takes up to {n} photos.",
@@ -332,8 +336,9 @@ const FR: WebCopy = {
   offerTodayText: "Gratuit pendant 7 jours",
   offerBeforeText: "On te le rappelle",
   offerDay8Text: "Ensuite au mois · résiliable à tout moment",
+  offerPlans: "Ta formule",
   offerPlanMonthly: "Mensuel · 7 jours gratuits",
-  offerPlanLifetime: "À vie",
+  offerCheckoutHint: "Le paiement s'ouvre sur une page sécurisée, au prix de ta monnaie. Rien n'est débité pendant 7 jours.",
   startFreeWeek: "Commencer ma semaine gratuite",
   offerLater: "Pas maintenant",
   photosMax: "Un repas prend jusqu'à {n} photos.",
@@ -426,8 +431,9 @@ const DE: WebCopy = {
   offerTodayText: "7 Tage kostenlos",
   offerBeforeText: "Wir erinnern dich",
   offerDay8Text: "Danach monatlich · jederzeit kündbar",
+  offerPlans: "Dein Plan",
   offerPlanMonthly: "Monatlich · 7 Tage kostenlos",
-  offerPlanLifetime: "Lebenslang",
+  offerCheckoutHint: "Der Checkout öffnet eine gesicherte Seite mit dem Preis in deiner Währung. 7 Tage lang wird nichts abgebucht.",
   startFreeWeek: "Meine Gratiswoche starten",
   offerLater: "Jetzt nicht",
   photosMax: "Eine Mahlzeit nimmt bis zu {n} Fotos.",
@@ -520,8 +526,9 @@ const IT: WebCopy = {
   offerTodayText: "Gratis per 7 giorni",
   offerBeforeText: "Ti ricordiamo noi",
   offerDay8Text: "Poi è mensile · disdici quando vuoi",
+  offerPlans: "Il tuo piano",
   offerPlanMonthly: "Mensile · 7 giorni gratis",
-  offerPlanLifetime: "Per sempre",
+  offerCheckoutHint: "Il pagamento si apre su una pagina sicura, col prezzo nella tua valuta. Non viene addebitato niente per 7 giorni.",
   startFreeWeek: "Inizia la mia settimana gratis",
   offerLater: "Non ora",
   photosMax: "Un pasto accetta fino a {n} foto.",
@@ -614,8 +621,9 @@ const ES: WebCopy = {
   offerTodayText: "Gratis 7 días",
   offerBeforeText: "Te lo recordamos",
   offerDay8Text: "Luego es mensual · cancela cuando quieras",
+  offerPlans: "Tu plan",
   offerPlanMonthly: "Mensual · 7 días gratis",
-  offerPlanLifetime: "De por vida",
+  offerCheckoutHint: "El pago se abre en una página segura, con el precio en tu moneda. No se cobra nada durante 7 días.",
   startFreeWeek: "Empezar mi semana gratis",
   offerLater: "Ahora no",
   photosMax: "Una comida admite hasta {n} fotos.",
@@ -708,8 +716,9 @@ const VI: WebCopy = {
   offerTodayText: "Miễn phí 7 ngày",
   offerBeforeText: "Bọn mình nhắc bạn",
   offerDay8Text: "Sau đó tính theo tháng · huỷ bất cứ lúc nào",
+  offerPlans: "Gói của bạn",
   offerPlanMonthly: "Theo tháng · 7 ngày miễn phí",
-  offerPlanLifetime: "Trọn đời",
+  offerCheckoutHint: "Thanh toán mở ra trên một trang bảo mật, với giá theo tiền tệ của bạn. Không trừ tiền trong 7 ngày.",
   startFreeWeek: "Bắt đầu tuần miễn phí của tôi",
   offerLater: "Để sau",
   photosMax: "Một bữa ăn nhận tối đa {n} ảnh.",
@@ -802,8 +811,9 @@ const ID: WebCopy = {
   offerTodayText: "Gratis 7 hari",
   offerBeforeText: "Kami ingatkan kamu",
   offerDay8Text: "Lalu bulanan · bisa batal kapan saja",
+  offerPlans: "Paketmu",
   offerPlanMonthly: "Bulanan · 7 hari gratis",
-  offerPlanLifetime: "Seumur hidup",
+  offerCheckoutHint: "Pembayaran terbuka di halaman aman, dengan harga dalam mata uangmu. Tidak ada tagihan selama 7 hari.",
   startFreeWeek: "Mulai minggu gratisku",
   offerLater: "Nanti saja",
   photosMax: "Satu makanan bisa berisi sampai {n} foto.",
@@ -896,8 +906,9 @@ const RU: WebCopy = {
   offerTodayText: "Бесплатно 7 дней",
   offerBeforeText: "Мы напомним",
   offerDay8Text: "Дальше помесячно · отменить можно в любой момент",
+  offerPlans: "Твой план",
   offerPlanMonthly: "Помесячно · 7 дней бесплатно",
-  offerPlanLifetime: "Навсегда",
+  offerCheckoutHint: "Оплата откроется на защищённой странице с ценой в твоей валюте. 7 дней ничего не списывается.",
   startFreeWeek: "Начать бесплатную неделю",
   offerLater: "Не сейчас",
   photosMax: "К одному приёму пищи можно приложить до {n} фото.",
