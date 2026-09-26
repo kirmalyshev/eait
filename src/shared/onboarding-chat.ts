@@ -663,7 +663,7 @@ export function answerLabel(
     const opts = content.screens.find((s) => isKnownScreen(s.id) && s.id === id)?.options ?? {};
     return opts[String(raw)]?.label ?? optionLabel(id, String(raw), lang);
   }
-  return String(raw);
+  return typeof raw === "number" ? numbers(lang)(raw) : String(raw);
 }
 
 /**

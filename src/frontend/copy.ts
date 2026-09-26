@@ -153,6 +153,10 @@ export interface WebCopy {
   offerLater: string;
   /** `{n}` — the photo bound off `ProfileResponse.limits`. */
   photosMax: string;
+  /** `{n}` — photos already on the meal being re-read. */
+  photosOnMeal: string;
+  /** `{text}` — a queued photo's caption. */
+  photoWithCaption: string;
   /** The three macros the verdict card reports, under the big kcal. */
   statProtein: string;
   statCarbs: string;
@@ -247,6 +251,8 @@ const EN: WebCopy = {
   startFreeWeek: "Start my free week",
   offerLater: "Not now",
   photosMax: "One meal takes up to {n} photos.",
+  photosOnMeal: "Photos: {n} · add angles:",
+  photoWithCaption: "Photo: {text}",
   statProtein: "Protein", statCarbs: "Carbs", statFat: "Fat",
   refusals: {
     "subscription-required": "This account's free sample is used up. Start your free week to carry on.",
@@ -276,23 +282,23 @@ const FR: WebCopy = {
   signIn: "Se connecter", today: "Aujourd'hui",
   budgetLeft: "restantes", budgetOver: "au-dessus", budgetUnder: "en dessous",
   targetLine: "Objectif {target} · {protein} g de protéines",
-  eatenLine: "{eaten} sur {target} mangées · {protein} sur {proteinTarget} g de protéines",
+  eatenLine: "{eaten} consommées sur {target} · {protein} g de protéines sur {proteinTarget}",
   floor: "Ton objectif est fixé au minimum que cette appli puisse proposer.",
   about: "environ",
   floorClear: "Minimum sûr {floor} kcal · tu es au-dessus",
   floorHeld: "Maintenu au minimum sûr, {floor} kcal",
   colTime: "Heure", colMeal: "Repas", colKcal: "kcal",
-  connectHealth: "Connecte Apple Health dans l'appli eait pour iPhone et ton poids garde cet objectif à jour.",
+  connectHealth: "Connecte l'app Santé dans l'appli eait pour iPhone, et ton poids tiendra cet objectif à jour.",
   weightLine: "Poids {kg} kg.",
   weightLineWhen: "Poids {kg} kg, mis à jour {when}.",
   nothingToday: "Rien d'enregistré aujourd'hui.",
   meal: "Repas", photo: "Photo", edit: "Modifier", delete: "Supprimer",
-  confirmDeleteMeal: "Supprimer ce repas ? Ses photos et ses chiffres partent aussi.",
+  confirmDeleteMeal: "Supprimer ce repas ? Ses photos et ses chiffres seront supprimés aussi.",
   confirmDeleteLine: "Retirer ce message ? Les chiffres restent.",
   noMessages: "Aucun message pour l'instant.",
   sentReload: "Envoyé. Recharge pour voir la conversation.",
   proposalLead: "J'enregistre ça — ça te va ?", logIt: "Enregistrer", notThis: "Pas ça",
-  dropped: "Supprimé.",
+  dropped: "Annulé.",
   logRetry: "Aucune réponse. Appuie de nouveau sur Enregistrer : le repas ne peut pas être enregistré deux fois.",
   sent: "Envoyé", alreadyLogged: "Celui-là était déjà enregistré.",
   composerPlaceholder: "Dis à Spud ce que tu as mangé, ou demande-lui ce que tu veux",
@@ -305,7 +311,7 @@ const FR: WebCopy = {
   messageGone: "Ce message n'existe plus.",
   messageNotEditable: "Ce message ne peut pas être modifié.",
   mealGone: "Un repas qui n'est plus enregistré",
-  loading: "Chargement…", somethingWrong: "Quelque chose a échoué. Réessaie.",
+  loading: "Chargement…", somethingWrong: "Un problème est survenu. Réessaie.",
   connectTelegram: "Connecter Telegram", telegramFailed: "Pas de lien Telegram cette fois. Réessaie.",
   language: "Langue", settings: "Réglages",
   waitingToSend: "En attente d'envoi",
@@ -338,22 +344,24 @@ const FR: WebCopy = {
   offerDay8Text: "Ensuite au mois · résiliable à tout moment",
   offerPlans: "Ta formule",
   offerPlanMonthly: "Mensuel · 7 jours gratuits",
-  offerCheckoutHint: "Le paiement s'ouvre sur une page sécurisée, au prix de ta monnaie. Rien n'est débité pendant 7 jours.",
+  offerCheckoutHint: "Le paiement s'ouvre sur une page sécurisée, avec le prix dans ta devise. Rien n'est débité pendant 7 jours.",
   startFreeWeek: "Commencer ma semaine gratuite",
   offerLater: "Pas maintenant",
   photosMax: "Un repas prend jusqu'à {n} photos.",
+  photosOnMeal: "Photos : {n} · ajoute des angles :",
+  photoWithCaption: "Photo : {text}",
   statProtein: "Protéines", statCarbs: "Glucides", statFat: "Lipides",
   refusals: {
-    "subscription-required": "L'offre gratuite de ce compte est utilisée. Commence ta semaine offerte pour continuer.",
-    "cap-user": "C'était le dernier pour aujourd'hui — ton quota quotidien repart à minuit.",
-    "cap-global": "Tout le monde a épuisé le quota du jour. Demain repart à zéro.",
+    "subscription-required": "Ce compte a déjà utilisé son analyse offerte. Lance ta semaine gratuite pour continuer.",
+    "cap-user": "C'était le dernier pour aujourd'hui — ton quota quotidien se réinitialise à minuit.",
+    "cap-global": "Tout le monde a épuisé le quota du jour. Demain, on repart de zéro.",
     "cap-address": "Trop de demandes depuis ce réseau — pas toi, cette connexion. Réessaie plus tard.",
     "rate-limited": "Trop de demandes depuis ce réseau — pas toi, cette connexion. Réessaie plus tard.",
     "unsupported-image": "Ce fichier n'est pas une photo lisible ici. JPEG, PNG ou WebP.",
     "not-food": "Ça ne ressemblait pas à de la nourriture.",
-    "analysis-failed": "Ça n'est pas revenu. Réessaie.",
+    "analysis-failed": "Pas de réponse. Réessaie.",
     "not-onboarded": "Réponds d'abord aux questions du plan.",
-    expired: "Celui-là n'est plus en attente. Redis-le-moi.",
+    expired: "Cette proposition a expiré. Redis-moi ce que tu as mangé.",
     "target-gone": "Aucun repas n'est ouvert ici à modifier. Ouvre-le dans l'appli, ou dis ce que tu as mangé et enregistre-le à nouveau.",
     "too many photos": "Ça fait plus d'angles qu'un repas ne peut en avoir.",
     "too large": "Cette photo est trop lourde à envoyer.",
@@ -437,6 +445,8 @@ const DE: WebCopy = {
   startFreeWeek: "Meine Gratiswoche starten",
   offerLater: "Jetzt nicht",
   photosMax: "Eine Mahlzeit nimmt bis zu {n} Fotos.",
+  photosOnMeal: "Fotos: {n} · weitere Blickwinkel:",
+  photoWithCaption: "Foto: {text}",
   statProtein: "Eiweiß", statCarbs: "Kohlenhydrate", statFat: "Fett",
   refusals: {
     "subscription-required": "Das Gratis-Kontingent dieses Kontos ist aufgebraucht. Starte deine Gratiswoche, um weiterzumachen.",
@@ -532,6 +542,8 @@ const IT: WebCopy = {
   startFreeWeek: "Inizia la mia settimana gratis",
   offerLater: "Non ora",
   photosMax: "Un pasto accetta fino a {n} foto.",
+  photosOnMeal: "Foto: {n} · aggiungi angolazioni:",
+  photoWithCaption: "Foto: {text}",
   statProtein: "Proteine", statCarbs: "Carboidrati", statFat: "Grassi",
   refusals: {
     "subscription-required": "La quota gratuita di questo account è esaurita. Inizia la tua settimana gratis per continuare.",
@@ -627,6 +639,8 @@ const ES: WebCopy = {
   startFreeWeek: "Empezar mi semana gratis",
   offerLater: "Ahora no",
   photosMax: "Una comida admite hasta {n} fotos.",
+  photosOnMeal: "Fotos: {n} · añade ángulos:",
+  photoWithCaption: "Foto: {text}",
   statProtein: "Proteína", statCarbs: "Carbohidratos", statFat: "Grasas",
   refusals: {
     "subscription-required": "La cuota gratuita de esta cuenta se ha agotado. Empieza tu semana gratis para seguir.",
@@ -722,6 +736,8 @@ const VI: WebCopy = {
   startFreeWeek: "Bắt đầu tuần miễn phí của tôi",
   offerLater: "Để sau",
   photosMax: "Một bữa ăn nhận tối đa {n} ảnh.",
+  photosOnMeal: "Ảnh: {n} · thêm góc chụp:",
+  photoWithCaption: "Ảnh: {text}",
   statProtein: "Đạm", statCarbs: "Tinh bột", statFat: "Béo",
   refusals: {
     "subscription-required": "Phần miễn phí của tài khoản này đã dùng hết. Bắt đầu tuần miễn phí để tiếp tục.",
@@ -817,6 +833,8 @@ const ID: WebCopy = {
   startFreeWeek: "Mulai minggu gratisku",
   offerLater: "Nanti saja",
   photosMax: "Satu makanan bisa berisi sampai {n} foto.",
+  photosOnMeal: "Foto: {n} · tambah sudut:",
+  photoWithCaption: "Foto: {text}",
   statProtein: "Protein", statCarbs: "Karbo", statFat: "Lemak",
   refusals: {
     "subscription-required": "Jatah gratis akun ini sudah habis. Mulai minggu gratismu untuk melanjutkan.",
@@ -912,6 +930,8 @@ const RU: WebCopy = {
   startFreeWeek: "Начать бесплатную неделю",
   offerLater: "Не сейчас",
   photosMax: "К одному приёму пищи можно приложить до {n} фото.",
+  photosOnMeal: "Фото: {n} · добавь ракурсы:",
+  photoWithCaption: "Фото: {text}",
   statProtein: "Белок", statCarbs: "Углеводы", statFat: "Жиры",
   refusals: {
     "subscription-required": "Бесплатный лимит этого аккаунта исчерпан. Начни бесплатную неделю, чтобы продолжить.",

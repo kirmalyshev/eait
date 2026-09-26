@@ -59,6 +59,7 @@ import type { Lang } from "../shared/types.ts";
  */
 let lang: Lang = narrowLang(typeof navigator === "undefined" ? null : navigator.language);
 let COPY: WebCopy = webCopyFor(lang);
+if (typeof document !== "undefined") document.documentElement.lang = lang;
 import { noAnswer, outbox, sendTurn, type WebQueued } from "./outbox.ts";
 import { heldAhead, joinsQueue } from "../shared/outbox.ts";
 
@@ -101,8 +102,8 @@ let profileCache: ProfileResponse | null = null;
 const profile = async (): Promise<ProfileResponse> => {
   if (profileCache === null) {
     profileCache = await api<ProfileResponse>("/profile");
-    // THE ONE PLACE THE LANGUAGE IS SET. Everything drawn after this reads it; everything drawn
-    // before it — the signed-out screen — is English, which is what somebody with no account gets.
+    // THE ONE PLACE THE ACCOUNT'S LANGUAGE IS SET. Everything drawn before it — the signed-out
+    // screen — is in the browser's language, set at load below.
     lang = profileCache.profile.lang;
     COPY = webCopyFor(lang);
     document.documentElement.lang = lang;
@@ -431,7 +432,7 @@ async function diaryScreen(): Promise<HTMLElement> {
     // THE SERVER'S NUMBERS, off the profile — the same bounds the chat's composer checks.
     if (files.length > 0) {
       const { maxPhotosPerMeal, maxUploadBytes } = me.limits;
-      if (files.length > maxPhotosPerMeal) { tell(`One meal takes up to ${maxPhotosPerMeal} photos.`); return; }
+      if (files.length > maxPhotosPerMeal) { tell(fill(COPY.photosMax, { n: `${maxPhotosPerMeal}` })); return; }
       if (files.reduce((n, f) => n + f.size, 0) > maxUploadBytes) { tell(COPY.photoTooLarge); return; }
     }
     turn(async () => {
@@ -714,7 +715,7 @@ async function chatScreen(): Promise<HTMLElement> {
     const kept = uid === null ? [] : outbox.entries.filter((e) => e.userId === uid);
     for (const e of kept) {
       const li = el("li", "line mine");
-      li.append(el("p", "bub", e.kind === "photo" ? (e.text ? `Photo: ${e.text}` : COPY.photo) : e.text ?? ""));
+      li.append(el("p", "bub", e.kind === "photo" ? (e.text ? fill(COPY.photoWithCaption, { text: e.text }) : COPY.photo) : e.text ?? ""));
       if (e.held === undefined) {
         li.append(el("span", "note", COPY.waitingToSend));
       } else {
@@ -760,7 +761,7 @@ async function chatScreen(): Promise<HTMLElement> {
     const stored = editing?.photos ?? 0;
     const picked = picker.files?.length ?? 0;
     count.textContent = editing !== null
-      ? `${stored} photo${stored === 1 ? "" : "s"} · add angles:`
+      ? fill(COPY.photosOnMeal, { n: `${stored}` })
       : picked > 0 ? `${picked} photo${picked === 1 ? "" : "s"}` : "";
     // Hidden rather than merely empty: an empty inline `<span>` still takes up its own gap in the
     // row, which showed as a stray space before Send.
@@ -785,7 +786,7 @@ async function chatScreen(): Promise<HTMLElement> {
       // and shadowing its name here for an unrelated photo count is exactly the kind of collision
       // that reads fine today and is a bug the day somebody needs both in the same block.
       const stored = editing?.photos ?? 0;
-      if (stored + files.length > maxPhotosPerMeal) { tell(`One meal takes up to ${maxPhotosPerMeal} photos.`); return; }
+      if (stored + files.length > maxPhotosPerMeal) { tell(fill(COPY.photosMax, { n: `${maxPhotosPerMeal}` })); return; }
       if (files.reduce((n, f) => n + f.size, 0) > maxUploadBytes) { tell(COPY.photoTooLarge); return; }
     }
     turn(async () => {
@@ -823,7 +824,7 @@ async function chatScreen(): Promise<HTMLElement> {
           }
           // TOO-MANY keeps edit mode: the meal is still there, still being edited, and dropping an
           // angle and pressing Send again is the whole recovery — there is nothing to reset.
-          if (r.kind === "too-many") throw new Said(`One meal takes up to ${r.limit} photos.`);
+          if (r.kind === "too-many") throw new Said(fill(COPY.photosMax, { n: `${r.limit}` }));
           if (r.kind !== "updated") throw new ApiError(200, { error: r.kind, ...("scope" in r ? { scope: r.scope } : {}) }, `edit: ${r.kind}`);
         } finally {
           progress.hidden = true;

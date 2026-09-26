@@ -251,6 +251,13 @@ export function narrowLang(locale: string | null | undefined): Lang {
   return (LANGS as readonly string[]).includes(head) ? (head as Lang) : "en";
 }
 
+/**
+ * An `Accept-Language` header as ONE language: the first tag this product speaks, else English.
+ * Not `narrowLang(tags[0])` — that reads `pt-BR,fr;q=0.9` as English before it reaches the French.
+ */
+export const acceptLang = (header: string | null | undefined): Lang =>
+  narrowLang(acceptLanguageTags(header).find((tag) => narrowLang(tag) !== "en" || /^en\b/i.test(tag)));
+
 /** Every language, in a stable order, for a picker. `LANGS` is the source; this is its array form. */
 export const ALL_LANGS: readonly Lang[] = LANGS;
 

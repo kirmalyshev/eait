@@ -11,7 +11,7 @@
 // file resolved, which is why a stale or crafted tap can only ever find "expired".
 
 import {
-  MAX_USER_LINE, UNIT_KCAL, localDate, localTime, narrowLang, renderableVerdicts, scriptedLine,
+  LANG_TAG, MAX_USER_LINE, UNIT_KCAL, localDate, localTime, narrowLang, renderableVerdicts, scriptedLine,
   verdictPillLabel, wholeNumbers,
   type Lang, type MealAnalysis, type Refusal,
 } from "@eait/shared";
@@ -214,7 +214,10 @@ export function telegramHandlers(deps: EngineDeps) {
           // sentence — and there is no dash to find in half of these languages.
           const lead = r.date === localDate(config.timezone)
             ? copy.proposalLead
-            : copy.proposalLeadDated({ date: r.date });
+            : copy.proposalLeadDated({
+              date: new Intl.DateTimeFormat(LANG_TAG[lang], { timeZone: "UTC", day: "numeric", month: "long" })
+                .format(new Date(`${r.date}T00:00:00Z`)),
+            });
           return chat.send(`${lead}\n${card(r.analysis, lang)}`, [
             { text: copy.logIt, data: `ok:${r.pendingId}` },
             { text: copy.notThis, data: `no:${r.pendingId}` },
