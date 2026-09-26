@@ -205,7 +205,7 @@ describe("editing the copy", () => {
 
   it("saves the interstitials and serves them to the app", async () => {
     const content = structuredClone(DEFAULT_ONBOARDING_CONTENT);
-    content.welcome.lines = ["Photograph dinner. Get a straight answer.", "No account needed to start."];
+    content.welcome.lines = ["Photograph dinner. Get a straight answer.", "Ready when you are."];
     content.building.floorLabel = "Stopped at your floor";
     content.summary.projection = "Roughly {weeks} weeks — {month}.";
 
@@ -216,7 +216,7 @@ describe("editing the copy", () => {
       headers: { authorization: `Bearer ${token}` },
     }));
     const body = await res.json() as { content: OnboardingContent };
-    expect(body.content.welcome.lines).toEqual(["Photograph dinner. Get a straight answer.", "No account needed to start."]);
+    expect(body.content.welcome.lines).toEqual(["Photograph dinner. Get a straight answer.", "Ready when you are."]);
     expect(body.content.building.floorLabel).toBe("Stopped at your floor");
     expect(body.content.summary.projection).toBe("Roughly {weeks} weeks — {month}.");
   });
@@ -841,7 +841,7 @@ describe("the audit line", () => {
 
   it("never quotes the payload, and never the bearer", async () => {
     const content = structuredClone(DEFAULT_ONBOARDING_CONTENT);
-    content.welcome.lines = ["Photograph dinner, marker q7x.", "No account needed to start."];
+    content.welcome.lines = ["Photograph dinner, marker q7x.", "Ready when you are."];
     const lines = await logged(async () => {
       expect((await admin("PUT", "/admin/api/content", { content })).status).toBe(200);
       await admin("PUT", "/admin/api/notifications?note=q7x", { copy: {} });

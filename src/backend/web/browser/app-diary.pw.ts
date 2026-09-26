@@ -28,7 +28,7 @@ test("the diary names the weight behind the target, and when it was weighed", as
   await logMeal(page);
   await page.goto("/#/");
   // `onboardFast` typed 98 kg a moment ago, which the server stamps as weighed now.
-  await expect(page.getByText("Weight 98 kg, weighed today.")).toBeVisible();
+  await expect(page.getByText("Weight 98 kg, updated today.")).toBeVisible();
   // Nothing on the server says where a weight came from, so the page does not guess.
   await expect(page.locator(".card").first()).not.toContainText("Apple Health");
 });
@@ -38,7 +38,7 @@ test("an older weighing is dated in days", async ({ inWebApp: page }) => {
     p.weight_kg = 72.349;
     p.weight_measured_at = new Date(Date.now() - 3 * 86_400_000).toISOString();
   });
-  await expect(page.getByText("Weight 72.3 kg, weighed 3 days ago.")).toBeVisible();
+  await expect(page.getByText("Weight 72.3 kg, updated 3 days ago.")).toBeVisible();
 });
 
 test("an unreadable weighing drops the date, not the diary", async ({ inWebApp: page }) => {

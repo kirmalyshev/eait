@@ -822,7 +822,8 @@ function firstMealScreen(me: ProfileResponse): HTMLElement {
 
   const askStep = (): HTMLElement => {
     const box = el("div", "step");
-    box.append(spudBlock("wave", fm.react, [fm.ask]));
+    // No offer preceded this screen on the web, so there is no `react` beat to answer it (#50).
+    box.append(spudBlock("wave", null, [fm.ask]));
     const foot = el("div", "step-foot");
     const up = el("button", "cta p", COPY.firstMealUpload) as HTMLButtonElement;
     up.addEventListener("click", () => show(photoStep()));

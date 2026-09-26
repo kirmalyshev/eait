@@ -295,11 +295,11 @@ export const QUICK_REPLIES = (lang: Lang) => chatCopyFor(lang).quick;
 // ── Support cards ────────────────────────────────────────────────────────────────────────────
 
 /**
- * A statistic, and where it came from.
+ * A statistic, and where it came from — or, for a card that cites nothing, just the words.
  *
  * `source` is not decoration and not optional by accident: a card that quotes a number without
  * naming the study is the shape of every wellness app's invented statistic. A card with nothing to
- * cite (the four that are statements about how this app behaves, not about people) carries no
+ * cite (statements about how this app behaves — the struggle cards, the gain variant) carries no
  * source line rather than a vague one.
  */
 export interface SupportCard {
@@ -318,10 +318,9 @@ export const GOAL_FOLLOWUPS = (lang: Lang): Partial<Record<Goal, string>> =>
 /**
  * copy.md § Step 08 — one card per struggle picked, at most two.
  *
- * `diets` is the one that branches, and it branches on a citation rather than on tone: the regain
- * meta-analysis is about weight LOSS, so quoting it to somebody gaining would be bending it. The
- * gain variant states the weaker thing that is true, and carries no source, because there is not
- * one for it.
+ * `diets` is the one that branches, and it branches on who is reading rather than on tone: "diets
+ * that ban the food you like" is a sentence about LOSING, so somebody gaining hears the variant
+ * that speaks to either direction.
  */
 export function struggleCard(struggle: Struggle, goal: Goal, lang: Lang): SupportCard {
   const copy = chatCopyFor(lang);
@@ -376,7 +375,7 @@ export function belowHealthyCard(minHealthyKg: number, lang: Lang): SupportCard 
 const fill = (template: string, params: Record<string, string>): string =>
   template.replace(/\{(\w+)\}/g, (whole, key: string) => params[key] ?? whole);
 
-/** A card with its numbers in. `source` is absent on the four that are statements, not citations. */
+/** A card with its numbers in. `source` is absent on the ones that are statements, not citations. */
 const filled = (card: CardCopy, params: Record<string, string>): SupportCard => ({
   title: fill(card.title, params),
   body: fill(card.body, params),
@@ -866,7 +865,8 @@ export interface SupportMoment {
  *                    number, so the neutral variant stands.
  *   - `activity`     whenever a level was picked. The Health-edit path skips it in the client's
  *                    walk — a confirmation beat, not a second ask — so it needs no flag here.
- *   - `struggles`    only when something was picked; the body is the picked card's, source and all.
+ *   - `struggles`    only when something was picked; one pick's body is its card's, and two or
+ *                    more get `moments.struggles.many` — a card speaks to one struggle.
  *   - `restrictions` always — its body speaks about what was shared, which happened either way.
  */
 export function supportMoment(
@@ -906,11 +906,16 @@ export function supportMoment(
     case "struggles": {
       const first = struggles[0];
       if (!first) return null;
+      const labels = STRUGGLE_LABELS(lang);
       return {
         id, pose: "think",
-        echo: STRUGGLE_LABELS(lang)[first],
+        // Every pick echoed, like restrictions' — the moment stands under ALL of them, and a
+        // card's body worded for one struggle cannot speak for a list.
+        echo: struggles.map((s) => labels[s]).join(" · "),
         title: m.struggles.title,
-        body: struggleCard(first, p.goal ?? "maintain", lang).body,
+        body: struggles.length === 1
+          ? struggleCard(first, p.goal ?? "maintain", lang).body
+          : m.struggles.many,
         cta: m.struggles.cta,
       };
     }

@@ -305,15 +305,15 @@ describe("the support cards", () => {
     }
   });
 
-  it("never quotes the regain study at somebody gaining", () => {
-    // Rule 1 as a citation rule: the meta-analysis is about weight LOSS. The gain variant says the
-    // weaker thing that is true, and carries no source, because there is not one for it.
+  it("keeps the diets card direction-specific, with no citation on either", () => {
+    // Rule 1 as a wording rule: "diets that ban" is a sentence about losing, so somebody gaining
+    // hears the variant about either direction. Neither quotes a study — a card under the
+    // reader's own pick speaks about that pick, not about a crowd (#50).
     const losing = struggleCard("diets", "lose", "en");
     const gaining = struggleCard("diets", "gain", "en");
-    expect(losing.source).toBeTruthy();
-    expect(losing.body).toContain("80%");
+    expect(losing.body).not.toBe(gaining.body);
+    expect(losing.source).toBeUndefined();
     expect(gaining.source).toBeUndefined();
-    expect(gaining.body).not.toContain("80%");
   });
 
   it("quotes the surplus cap from the constant that enforces it", () => {
@@ -612,8 +612,10 @@ describe("the one-line reaction to each answer (C5)", () => {
   });
 
   it("acknowledges the plain answers in the spec's words", () => {
-    expect(reactionTo("sex", answered, "en")).toEqual({ line: "Thanks", mood: "happy" });
-    expect(reactionTo("birth_year", answered, "en")).toEqual({ line: "Got it", mood: "happy" });
+    expect(reactionTo("sex", answered, "en"))
+      .toEqual({ line: "Noted. The formula differs a little for each", mood: "happy" });
+    expect(reactionTo("birth_year", answered, "en"))
+      .toEqual({ line: "Good. Age nudges the number a little", mood: "happy" });
     expect(reactionTo("height_cm", answered, "en"))
       .toEqual({ line: "Last number. No judgement, it's just where we start", mood: "care" });
     expect(reactionTo("country", answered, "en")).toEqual({ line: "Nearly there", mood: "care" });
@@ -701,14 +703,25 @@ describe("the support moments (C6)", () => {
       .toBe(chatCopyFor("en").nothingApplies);
   });
 
-  it("keeps the struggles body on the card's own statistics", () => {
-    // The moment's body IS the card's — the sourced numbers stay in code, in one place.
+  it("keeps the struggles body on the picked card when one is picked", () => {
+    // The moment's body IS the card's, so the words stay in code, in one place.
     const m = supportMoment("struggles", ctx())!;
     expect(m.title).toBe("That's completely normal!");
     expect(m.body).toBe(struggleCard("diets", "lose", "en").body);
-    // And the gain variant still swaps the citation rather than bending it.
+    // And the gain variant still says the direction-true thing.
     expect(supportMoment("struggles", ctx({ goal: "gain" }, ["diets"]))!.body)
       .toBe(struggleCard("diets", "gain", "en").body);
+  });
+
+  it("echoes every pick, and answers two or more with the set's own line (#50)", () => {
+    // The echo is every picked chip, joined like restrictions' — the moment stands under all of
+    // them, and a card's body worded for one struggle cannot speak for a list.
+    const two = supportMoment("struggles", ctx({}, ["stress", "night"]))!;
+    expect(two.echo).toBe("Stress eating · Night snacking");
+    expect(two.body).toBe(chatCopyFor("en").moments.struggles.many);
+    const one = supportMoment("struggles", ctx({}, ["night"]))!;
+    expect(one.echo).toBe("Night snacking");
+    expect(one.body).toBe(struggleCard("night", "lose", "en").body);
   });
 
   it("poses each moment the way the spec draws it", () => {

@@ -242,8 +242,8 @@ export interface OnboardingOptionContent {
 /**
  * What Spud says to pose ONE question, and what the input looks like while it is open.
  *
- * `lines` is a list because Spud sends bubbles, not paragraphs: "A little about you — two things
- * every calorie formula needs. Which fits?" is one bubble, and the age that follows it is another.
+ * `lines` is a list because Spud sends bubbles, not paragraphs: "A little about you, for the
+ * calorie formula. Which fits you?" is one bubble, and the age that follows it is another.
  * One entry, one bubble.
  */
 export interface OnboardingAskContent {
@@ -696,13 +696,14 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
   // funnel row for a four-chip screen and one for a fifteen-chip screen are not the same screen.
   // v12 is the v5 redesign's copy (issue #42): the age question asks "How old are you?" plainly,
   // and the activity options answer in plain frequencies — "A little each week" — rather than
-  // effort labels.
-  version: 12,
+  // effort labels. v13 (#50) drops 'No account needed to start.': the web asks for a sign-in
+  // before the first question, and one content tree cannot say it on the phone only.
+  version: 13,
   welcome: {
     lines: [
       "Hi, I'm Spud. Photograph what you eat, get an honest answer — that's the whole app.",
       "Three minutes of questions, then your plan — daily calories, protein, what's realistic by when — and a verdict on your first meal.",
-      "No account needed to start. Nothing to pay until you've seen the plan and that first verdict; after that it's a week free to try. Ready?",
+      "Nothing to pay until you've seen the plan and that first verdict; after that it's a week free to try. Ready?",
     ],
     cta: "Let's go",
   },
@@ -721,7 +722,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
     {
       id: "about",
       asks: {
-        sex: { lines: ["A little about you — two things every calorie formula needs. Which fits?"] },
+        sex: { lines: ["A little about you, for the calorie formula. Which fits you?"] },
         // Asked as an AGE and stored as a year — `checkNumber` in `onboarding-chat.ts` converts.
         birth_year: {
           lines: ["How old are you?"],
@@ -769,7 +770,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       id: "activity",
       asks: {
         activity: {
-          lines: ["How much do you move in a normal week? Honest beats aspirational — this moves the number a lot."],
+          lines: ["How often do you exercise in a normal week? Honest beats aspirational — this moves the number a lot."],
         },
       },
       options: {
@@ -809,7 +810,7 @@ export const DEFAULT_ONBOARDING_CONTENT: OnboardingContent = {
       id: "restrictions",
       asks: {
         restrictions: {
-          lines: ["Last one. Anything I should judge your food against? Only what you pick gets scored — skip it freely. Free text welcome too."],
+          lines: ["Last one. Anything I should judge your food against? Only what you pick gets scored — skip it freely."],
           placeholder: "Allergies, foods you avoid…",
         },
       },

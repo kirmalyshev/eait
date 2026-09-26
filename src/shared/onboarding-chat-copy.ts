@@ -32,7 +32,7 @@ import type { ActivityLevel, Goal, Lang } from "./types.ts";
 // necessary — and the root AGENTS.md forbids exactly that cast by name.
 import type { Struggle } from "./onboarding-chat.ts";
 
-/** A statistic, and where it came from. Mirrors `SupportCard` in `onboarding-chat.ts`. */
+/** A support card's words; `source` names the study when one is quoted. Mirrors `SupportCard` in `onboarding-chat.ts`. */
 export interface CardCopy {
   title: string;
   body: string;
@@ -51,7 +51,7 @@ export interface ChatCopy {
   goalCards: Record<Goal, CardCopy>;
   goalFollowups: Partial<Record<Goal, string>>;
   struggleCards: Record<Struggle, CardCopy>;
-  /** `diets` told to somebody gaining: the regain meta-analysis is about losing, so it is dropped. */
+  /** `diets` told to somebody gaining: "diets that ban" is a sentence about losing, so the gain variant speaks to either direction. */
   dietsGainCard: CardCopy;
   /** `{share}` from `MAX_SURPLUS_SHARE`. */
   gainPaceCard: CardCopy;
@@ -149,13 +149,13 @@ export interface ChatCopy {
   };
   /**
    * The four support moments' own words — the full-screen beats between question groups.
-   * `{kg}` inside the target bodies is the answer itself. The struggles moment's body is not
-   * here: it is `struggleCard`'s, so the sourced statistic stays written once.
+   * `{kg}` inside the target bodies is the answer itself. The struggles moment's body is the
+   * picked card's for one pick, and `many` for two or more — a card speaks to one struggle.
    */
   moments: {
     target: { title: string; cta: string; inBand: string; neutral: string };
     activity: { title: string; body: string; cta: string };
-    struggles: { title: string; cta: string };
+    struggles: { title: string; cta: string; many: string };
     restrictions: { title: string; body: string; cta: string };
   };
 }
@@ -201,23 +201,19 @@ const EN: ChatCopy = {
   struggleCards: {
     stress: {
       title: "A pattern, not a character flaw",
-      body: "Around 38% of adults eat in response to feelings at least monthly — for about half of them, weekly. Naming the pattern is most of the work; the log does the rest.",
-      source: "US national study, n = 5,863 · review, 2026",
+      body: "Eating when stressed is a pattern, not a character flaw. Naming it is most of the work; the log does the rest.",
     },
     night: {
-      title: "The 8pm hour is crowded",
-      body: "Over 60% of adults eat something after 8pm, and about 1 in 4 snackers now mostly eat late at night. We don't score when you eat — only what the day adds up to.",
-      source: "CivicScience, 1.2M responses",
+      title: "The hour isn't scored",
+      body: "Late eating isn't scored here. Only what the whole day adds up to counts.",
     },
     binge: {
-      title: "You're not alone in this",
-      body: "Binge eating disorder is the most common eating disorder — about 2.8% of adults meet the criteria at some point, and 17% of people starting a weight programme screen positive. If episodes feel out of control, a clinician helps more than any app. Here, a hard day is data, never a verdict.",
-      source: "NIMH (NCS-R) · study of 6,930 programme starters",
+      title: "A hard day is data",
+      body: "If episodes feel out of control, a clinician helps more than any app. Here, a hard day is data, never a verdict.",
     },
     diets: {
-      title: "Regain is the norm, not your fault",
-      body: "Across 29 long-term studies, more than half of lost weight comes back within two years — over 80% by five. That's methods failing, not people. Your plan here is sized to be keepable, not impressive.",
-      source: "Meta-analysis of 29 US weight-loss studies",
+      title: "The method fails, not you",
+      body: "Diets that ban the food you like rarely last. That's not you failing. I ban nothing: eat what you eat, and I'll tell you honestly how it fits.",
     },
     eatout: {
       title: "Restaurant plates drift most",
@@ -237,8 +233,8 @@ const EN: ChatCopy = {
     },
   },
   dietsGainCard: {
-    title: "Regain is the norm, not your fault",
-    body: "Most attempts to change weight, in either direction, revert within a couple of years — methods failing, not people. Your surplus here is sized to be keepable, not impressive.",
+    title: "The method fails, not you",
+    body: "Changing weight rarely sticks on the first try, in either direction. That's methods failing, not you. Your surplus is sized to be keepable.",
   },
   gainPaceCard: {
     title: "Gaining well is slow on purpose",
@@ -337,8 +333,8 @@ const EN: ChatCopy = {
     goalLose: "Lose weight. Good, let's make it stick",
     goalMaintain: "Maintain it is — let's keep what already works",
     goalGain: "Gain weight. Good — let's build it properly",
-    sex: "Thanks",
-    birthYear: "Got it",
+    sex: "Noted. The formula differs a little for each",
+    birthYear: "Good. Age nudges the number a little",
     heightCm: "Last number. No judgement, it's just where we start",
     weightWithBmr: "Thank you. At rest, your body burns about {bmr} kcal a day",
     weightPlain: "Thank you.",
@@ -360,7 +356,12 @@ const EN: ChatCopy = {
       body: "Every bit of movement counts. No gym required: a walk after lunch goes a long way, and your plan already counts what you do.",
       cta: "Continue",
     },
-    struggles: { title: "That's completely normal!", cta: "Continue" },
+    struggles: {
+      title: "That's completely normal!",
+      cta: "Continue",
+      // The body when two or more struggles were picked — one pick shows that card's body.
+      many: "None of these is you failing. I ban nothing: eat what you eat, and I'll tell you honestly how each meal fits.",
+    },
     restrictions: {
       title: "Thank you for trusting me",
       body: "Your weight, what's been hard, what you just shared — that's a lot to tell an app. I'll use it for one thing: judging every meal against what matters to you.",
@@ -410,23 +411,19 @@ const FR: ChatCopy = {
   struggleCards: {
     stress: {
       title: "Un schéma, pas un défaut de caractère",
-      body: "Environ 38% des adultes mangent en réaction à leurs émotions au moins une fois par mois — pour la moitié d'entre eux, chaque semaine. Nommer le schéma, c'est déjà l'essentiel ; le journal fait le reste.",
-      source: "Étude nationale américaine, n = 5 863 · revue, 2026",
+      body: "Manger sous le coup du stress est un schéma, pas un défaut de caractère. Le nommer, c'est déjà l'essentiel ; le journal fait le reste.",
     },
     night: {
-      title: "Il y a foule après 20 h",
-      body: "Plus de 60% des adultes mangent quelque chose après 20 h, et environ 1 grignoteur sur 4 mange désormais surtout tard le soir. On ne note pas l'heure à laquelle tu manges — seulement le total de la journée.",
-      source: "CivicScience, 1,2 M de réponses",
+      title: "L'heure n'est pas notée",
+      body: "Manger tard n'est pas noté ici. Seul ce que la journée entière additionne compte.",
     },
     binge: {
-      title: "Ça n'arrive pas qu'à toi",
-      body: "L'hyperphagie boulimique est le trouble alimentaire le plus fréquent — environ 2,8% des adultes en remplissent les critères à un moment, et 17% des personnes qui démarrent un programme de poids sont dépistées positives. Si les crises semblent hors de contrôle, un clinicien aide plus que n'importe quelle appli. Ici, une journée difficile est une donnée, jamais un verdict.",
-      source: "NIMH (NCS-R) · étude sur 6 930 débuts de programme",
+      title: "Un jour difficile est une donnée",
+      body: "Si les crises semblent hors de contrôle, un clinicien aide plus que n'importe quelle appli. Ici, une journée difficile est une donnée, jamais un verdict.",
     },
     diets: {
-      title: "La reprise est la norme, pas ta faute",
-      body: "Sur 29 études au long cours, plus de la moitié du poids perdu revient en deux ans — plus de 80% au bout de cinq. Ce sont les méthodes qui échouent, pas les gens. Ton plan ici est dimensionné pour être tenable, pas pour impressionner.",
-      source: "Méta-analyse de 29 études américaines sur la perte de poids",
+      title: "La méthode échoue, pas toi",
+      body: "Les régimes qui interdisent ce que tu aimes durent rarement. Ce n'est pas toi qui échoues. Je n'interdis rien : mange ce que tu manges, et je te dirai honnêtement comment ça s'insère.",
     },
     eatout: {
       title: "C'est au restaurant que ça dérive",
@@ -446,8 +443,8 @@ const FR: ChatCopy = {
     },
   },
   dietsGainCard: {
-    title: "La reprise est la norme, pas ta faute",
-    body: "La plupart des tentatives de changer de poids, dans un sens comme dans l'autre, s'inversent en quelques années — les méthodes échouent, pas les gens. Ton surplus ici est dimensionné pour être tenable, pas pour impressionner.",
+    title: "La méthode échoue, pas toi",
+    body: "Changer de poids tient rarement du premier coup, dans un sens comme dans l'autre. Ce sont les méthodes qui échouent, pas toi. Ton surplus est dimensionné pour être tenable.",
   },
   gainPaceCard: {
     title: "Bien prendre, c'est lent exprès",
@@ -546,8 +543,8 @@ const FR: ChatCopy = {
     goalLose: "Perdre du poids. Bien — faisons en sorte que ça tienne",
     goalMaintain: "Maintenir — gardons ce qui fonctionne déjà",
     goalGain: "Prendre du poids. Bien — construisons-le proprement",
-    sex: "Merci",
-    birthYear: "C'est noté",
+    sex: "Noté. La formule diffère un peu pour chacun",
+    birthYear: "Bien. L'âge fait bouger un peu le chiffre",
     heightCm: "Dernier chiffre. Aucun jugement, c'est juste le point de départ",
     weightWithBmr: "Merci. Au repos, ton corps brûle environ {bmr} kcal par jour",
     weightPlain: "Merci.",
@@ -569,7 +566,11 @@ const FR: ChatCopy = {
       body: "Chaque mouvement compte. Pas besoin de salle : une marche après le déjeuner va déjà loin, et ton plan compte déjà ce que tu fais.",
       cta: "Continuer",
     },
-    struggles: { title: "C'est tout à fait normal !", cta: "Continuer" },
+    struggles: {
+      title: "C'est tout à fait normal !",
+      cta: "Continuer",
+      many: "Rien de tout ça n'est toi qui échoues. Je n'interdis rien : mange ce que tu manges, et je te dirai honnêtement comment chaque repas s'insère.",
+    },
     restrictions: {
       title: "Merci de ta confiance",
       body: "Ton poids, ce qui a été dur, ce que tu viens de partager — c'est beaucoup à confier à une application. Je m'en servirai pour une seule chose : juger chaque repas à l'aune de ce qui compte pour toi.",
@@ -619,23 +620,19 @@ const DE: ChatCopy = {
   struggleCards: {
     stress: {
       title: "Ein Muster, kein Charakterfehler",
-      body: "Rund 38% der Erwachsenen essen mindestens einmal im Monat als Reaktion auf Gefühle — bei etwa der Hälfte davon wöchentlich. Das Muster zu benennen ist der größte Teil der Arbeit; den Rest macht das Protokoll.",
-      source: "US-Bevölkerungsstudie, n = 5.863 · Übersichtsarbeit, 2026",
+      body: "Essen aus Stress ist ein Muster, kein Charakterfehler. Es zu benennen ist der größte Teil der Arbeit; den Rest macht das Protokoll.",
     },
     night: {
-      title: "Nach 20 Uhr wird es voll",
-      body: "Über 60% der Erwachsenen essen nach 20 Uhr noch etwas, und etwa jeder vierte Snacker isst inzwischen vor allem spätabends. Wir bewerten nicht, wann du isst — nur, was am Ende des Tages zusammenkommt.",
-      source: "CivicScience, 1,2 Mio. Antworten",
+      title: "Die Uhrzeit wird nicht bewertet",
+      body: "Spätes Essen wird hier nicht bewertet. Gezählt wird nur, was der ganze Tag ergibt.",
     },
     binge: {
-      title: "Damit bist du nicht allein",
-      body: "Die Binge-Eating-Störung ist die häufigste Essstörung — etwa 2,8% der Erwachsenen erfüllen irgendwann die Kriterien, und 17% der Menschen, die ein Abnehmprogramm beginnen, werden positiv gescreent. Wenn sich die Anfälle unkontrollierbar anfühlen, hilft eine Fachperson mehr als jede App. Hier ist ein schwerer Tag eine Information, nie ein Urteil.",
-      source: "NIMH (NCS-R) · Studie an 6.930 Programmstartern",
+      title: "Ein schwerer Tag ist ein Datenpunkt",
+      body: "Wenn sich die Anfälle unkontrollierbar anfühlen, hilft eine Fachperson mehr als jede App. Hier ist ein schwerer Tag eine Information, nie ein Urteil.",
     },
     diets: {
-      title: "Zunehmen danach ist die Regel, nicht dein Versagen",
-      body: "Über 29 Langzeitstudien hinweg kommt mehr als die Hälfte des verlorenen Gewichts binnen zwei Jahren zurück — über 80% nach fünf. Das sind Methoden, die scheitern, keine Menschen. Dein Plan hier ist so bemessen, dass er haltbar ist, nicht beeindruckend.",
-      source: "Meta-Analyse von 29 US-Abnehmstudien",
+      title: "Die Methode scheitert, nicht du",
+      body: "Diäten, die das Essen verbieten, das du magst, halten selten. Das ist nicht dein Scheitern. Ich verbiete nichts: iss, was du isst, und ich sage dir ehrlich, wie es passt.",
     },
     eatout: {
       title: "Restaurantteller driften am stärksten",
@@ -655,8 +652,8 @@ const DE: ChatCopy = {
     },
   },
   dietsGainCard: {
-    title: "Rückfall ist die Regel, nicht dein Versagen",
-    body: "Die meisten Versuche, das Gewicht zu ändern, kehren sich in beide Richtungen binnen ein paar Jahren um — Methoden scheitern, keine Menschen. Dein Überschuss hier ist so bemessen, dass er haltbar ist, nicht beeindruckend.",
+    title: "Die Methode scheitert, nicht du",
+    body: "Gewicht zu ändern hält selten beim ersten Versuch, egal in welche Richtung. Das sind Methoden, die scheitern, nicht du. Dein Überschuss ist so bemessen, dass er haltbar ist.",
   },
   gainPaceCard: {
     title: "Gut zunehmen geht absichtlich langsam",
@@ -755,8 +752,8 @@ const DE: ChatCopy = {
     goalLose: "Abnehmen. Gut — wir sorgen dafür, dass es hält",
     goalMaintain: "Halten — wir behalten, was schon funktioniert",
     goalGain: "Zunehmen. Gut — wir bauen es richtig auf",
-    sex: "Danke",
-    birthYear: "Notiert",
+    sex: "Notiert. Die Formel unterscheidet sich für jedes ein wenig",
+    birthYear: "Gut. Das Alter verschiebt die Zahl ein wenig",
     heightCm: "Letzte Zahl. Keine Wertung — es ist einfach der Ausgangspunkt",
     weightWithBmr: "Danke. In Ruhe verbrennt dein Körper etwa {bmr} kcal am Tag",
     weightPlain: "Danke.",
@@ -778,7 +775,11 @@ const DE: ChatCopy = {
       body: "Jede Bewegung zählt. Kein Fitnessstudio nötig: ein Spaziergang nach dem Mittagessen bringt schon viel, und dein Plan rechnet mit dem, was du tust.",
       cta: "Weiter",
     },
-    struggles: { title: "Das ist völlig normal!", cta: "Weiter" },
+    struggles: {
+      title: "Das ist völlig normal!",
+      cta: "Weiter",
+      many: "Nichts davon ist dein Scheitern. Ich verbiete nichts: iss, was du isst, und ich sage dir ehrlich, wie jede Mahlzeit passt.",
+    },
     restrictions: {
       title: "Danke für dein Vertrauen",
       body: "Dein Gewicht, was schwer war, was du mir gerade anvertraut hast — das ist viel für eine App. Ich nutze es für genau eines: jede Mahlzeit an dem zu messen, was dir wichtig ist.",
@@ -828,23 +829,19 @@ const IT: ChatCopy = {
   struggleCards: {
     stress: {
       title: "Uno schema, non un difetto di carattere",
-      body: "Circa il 38% degli adulti mangia in risposta alle emozioni almeno una volta al mese — per metà di loro, ogni settimana. Dare un nome allo schema è gran parte del lavoro; il resto lo fa il diario.",
-      source: "Studio nazionale USA, n = 5.863 · revisione, 2026",
+      body: "Mangiare per lo stress è uno schema, non un difetto di carattere. Dargli un nome è gran parte del lavoro; il resto lo fa il diario.",
     },
     night: {
-      title: "Dopo le 20 c'è folla",
-      body: "Oltre il 60% degli adulti mangia qualcosa dopo le 20, e circa 1 su 4 fra chi fa spuntini ormai mangia soprattutto a tarda sera. Non valutiamo quando mangi — solo quanto fa la giornata.",
-      source: "CivicScience, 1,2 mln di risposte",
+      title: "L'orario non viene valutato",
+      body: "Mangiare tardi non viene valutato qui. Conta solo quello che somma l'intera giornata.",
     },
     binge: {
-      title: "Non succede solo a te",
-      body: "Il disturbo da alimentazione incontrollata è il disturbo alimentare più diffuso — circa il 2,8% degli adulti ne soddisfa i criteri a un certo punto, e il 17% di chi inizia un programma di peso risulta positivo allo screening. Se gli episodi sembrano fuori controllo, un clinico aiuta più di qualsiasi app. Qui una giornata difficile è un dato, mai un verdetto.",
-      source: "NIMH (NCS-R) · studio su 6.930 persone all'inizio di un programma",
+      title: "Una giornata storta è un dato",
+      body: "Se gli episodi sembrano fuori controllo, un clinico aiuta più di qualsiasi app. Qui una giornata storta è un dato, mai un verdetto.",
     },
     diets: {
-      title: "Riprendere è la norma, non colpa tua",
-      body: "Su 29 studi a lungo termine, più della metà del peso perso torna entro due anni — oltre l'80% entro cinque. Sono i metodi a fallire, non le persone. Il tuo piano qui è dimensionato per essere mantenibile, non per fare colpo.",
-      source: "Meta-analisi di 29 studi USA sulla perdita di peso",
+      title: "Il metodo fallisce, non tu",
+      body: "Le diete che vietano il cibo che ti piace durano raramente. Non sei tu a fallire. Io non vieto niente: mangia quello che mangi, e ti dirò onestamente come ci sta.",
     },
     eatout: {
       title: "I piatti del ristorante sono i più imprecisi",
@@ -864,8 +861,8 @@ const IT: ChatCopy = {
     },
   },
   dietsGainCard: {
-    title: "Tornare indietro è la norma, non colpa tua",
-    body: "Quasi tutti i tentativi di cambiare peso, in entrambe le direzioni, si invertono nel giro di un paio d'anni — sono i metodi a fallire, non le persone. Il tuo surplus qui è dimensionato per essere mantenibile, non per fare colpo.",
+    title: "Il metodo fallisce, non tu",
+    body: "Cambiare peso raramente regge al primo tentativo, in nessuna delle due direzioni. Sono i metodi a fallire, non tu. Il tuo surplus è dimensionato per essere mantenibile.",
   },
   gainPaceCard: {
     title: "Crescere bene è lento di proposito",
@@ -964,8 +961,8 @@ const IT: ChatCopy = {
     goalLose: "Perdere peso. Bene — facciamo in modo che duri",
     goalMaintain: "Mantenere — teniamo quello che già funziona",
     goalGain: "Prendere peso. Bene — costruiamolo come si deve",
-    sex: "Grazie",
-    birthYear: "Annotato",
+    sex: "Annotato. La formula cambia un po' per ciascuno",
+    birthYear: "Bene. L'età sposta un po' il numero",
     heightCm: "Ultimo numero. Nessun giudizio, è solo il punto di partenza",
     weightWithBmr: "Grazie. A riposo, il tuo corpo brucia circa {bmr} kcal al giorno",
     weightPlain: "Grazie.",
@@ -987,7 +984,11 @@ const IT: ChatCopy = {
       body: "Ogni movimento conta. Non serve la palestra: una passeggiata dopo pranzo fa molta strada, e il tuo piano conta già quello che fai.",
       cta: "Continua",
     },
-    struggles: { title: "È assolutamente normale!", cta: "Continua" },
+    struggles: {
+      title: "È assolutamente normale!",
+      cta: "Continua",
+      many: "Niente di tutto questo è un tuo fallimento. Io non vieto niente: mangia quello che mangi, e ti dirò onestamente come ogni pasto ci sta.",
+    },
     restrictions: {
       title: "Grazie per la fiducia",
       body: "Il tuo peso, quello che è stato difficile, quello che mi hai appena raccontato — è tanto da condividere con un'app. Lo userò per una cosa sola: giudicare ogni pasto rispetto a ciò che conta per te.",
@@ -1037,23 +1038,19 @@ const ES: ChatCopy = {
   struggleCards: {
     stress: {
       title: "Un patrón, no un defecto de carácter",
-      body: "Cerca del 38% de los adultos come en respuesta a lo que siente al menos una vez al mes — para la mitad de ellos, cada semana. Ponerle nombre al patrón es casi todo el trabajo; el registro hace el resto.",
-      source: "Estudio nacional de EE. UU., n = 5.863 · revisión, 2026",
+      body: "Comer por estrés es un patrón, no un defecto de carácter. Ponerle nombre es casi todo el trabajo; el registro hace el resto.",
     },
     night: {
-      title: "Las 20 h son hora punta",
-      body: "Más del 60% de los adultos come algo después de las 20 h, y alrededor de 1 de cada 4 personas que pican lo hace ya sobre todo de noche. No puntuamos cuándo comes — solo lo que suma el día.",
-      source: "CivicScience, 1,2 M de respuestas",
+      title: "La hora no se puntúa",
+      body: "Comer tarde no se puntúa aquí. Solo cuenta lo que suma el día entero.",
     },
     binge: {
-      title: "No te pasa solo a ti",
-      body: "El trastorno por atracón es el trastorno alimentario más común — alrededor del 2,8% de los adultos cumple los criterios en algún momento, y el 17% de quienes empiezan un programa de peso da positivo en el cribado. Si los episodios se sienten fuera de control, un profesional ayuda más que cualquier app. Aquí un día duro es un dato, nunca un veredicto.",
-      source: "NIMH (NCS-R) · estudio de 6.930 personas al inicio de un programa",
+      title: "Un día malo es un dato",
+      body: "Si los episodios se sienten fuera de control, un profesional ayuda más que cualquier app. Aquí un día malo es un dato, nunca un veredicto.",
     },
     diets: {
-      title: "Recuperarlo es la norma, no culpa tuya",
-      body: "En 29 estudios a largo plazo, más de la mitad del peso perdido vuelve en dos años — más del 80% a los cinco. Fallan los métodos, no las personas. Tu plan aquí está dimensionado para poder sostenerse, no para impresionar.",
-      source: "Metaanálisis de 29 estudios de pérdida de peso en EE. UU.",
+      title: "El método falla, no tú",
+      body: "Las dietas que prohíben la comida que te gusta rara vez duran. No eres tú quien falla. Yo no prohíbo nada: come lo que comes, y te diré honestamente cómo encaja.",
     },
     eatout: {
       title: "Los platos de restaurante son los que más se desvían",
@@ -1073,8 +1070,8 @@ const ES: ChatCopy = {
     },
   },
   dietsGainCard: {
-    title: "Volver atrás es la norma, no culpa tuya",
-    body: "Casi todos los intentos de cambiar de peso, en cualquier dirección, se revierten en un par de años — fallan los métodos, no las personas. Tu superávit aquí está dimensionado para poder sostenerse, no para impresionar.",
+    title: "El método falla, no tú",
+    body: "Cambiar de peso rara vez se mantiene al primer intento, en ninguna dirección. Son los métodos los que fallan, no tú. Tu superávit está dimensionado para poder sostenerse.",
   },
   gainPaceCard: {
     title: "Ganar bien es lento a propósito",
@@ -1173,8 +1170,8 @@ const ES: ChatCopy = {
     goalLose: "Perder peso. Bien — hagamos que se mantenga",
     goalMaintain: "Mantener — conservemos lo que ya funciona",
     goalGain: "Ganar peso. Bien — construyámoslo bien",
-    sex: "Gracias",
-    birthYear: "Anotado",
+    sex: "Anotado. La fórmula difiere un poco para cada uno",
+    birthYear: "Bien. La edad mueve un poco el número",
     heightCm: "Último número. Sin juicios, es solo el punto de partida",
     weightWithBmr: "Gracias. En reposo, tu cuerpo quema unas {bmr} kcal al día",
     weightPlain: "Gracias.",
@@ -1196,7 +1193,11 @@ const ES: ChatCopy = {
       body: "Todo movimiento cuenta. No hace falta gimnasio: un paseo después de comer llega lejos, y tu plan ya cuenta lo que haces.",
       cta: "Continuar",
     },
-    struggles: { title: "¡Es completamente normal!", cta: "Continuar" },
+    struggles: {
+      title: "¡Es completamente normal!",
+      cta: "Continuar",
+      many: "Nada de esto es un fallo tuyo. Yo no prohíbo nada: come lo que comes, y te diré honestamente cómo encaja cada comida.",
+    },
     restrictions: {
       title: "Gracias por confiar en mí",
       body: "Tu peso, lo que ha sido difícil, lo que acabas de contarme — es mucho para contarle a una app. Lo usaré para una sola cosa: juzgar cada comida según lo que te importa.",
@@ -1246,23 +1247,19 @@ const VI: ChatCopy = {
   struggleCards: {
     stress: {
       title: "Đây là một khuôn mẫu, không phải lỗi tính cách",
-      body: "Khoảng 38% người trưởng thành ăn để phản ứng với cảm xúc ít nhất mỗi tháng một lần — với khoảng một nửa trong số đó là hằng tuần. Gọi được tên khuôn mẫu đã là phần lớn công việc; phần còn lại để nhật ký lo.",
-      source: "Nghiên cứu toàn quốc tại Mỹ, n = 5.863 · bài tổng quan, 2026",
+      body: "Ăn khi căng thẳng là một khuôn mẫu, không phải lỗi tính cách. Gọi được tên nó đã là phần lớn công việc; phần còn lại để nhật ký lo.",
     },
     night: {
-      title: "Sau 8 giờ tối đông người lắm",
-      body: "Hơn 60% người trưởng thành ăn gì đó sau 8 giờ tối, và khoảng 1 trong 4 người hay ăn vặt giờ chủ yếu ăn vào khuya. Chúng mình không chấm giờ bạn ăn — chỉ chấm tổng của cả ngày.",
-      source: "CivicScience, 1,2 triệu phản hồi",
+      title: "Giờ giấc không bị chấm",
+      body: "Ăn muộn không bị chấm ở đây. Chỉ tổng của cả ngày mới được tính.",
     },
     binge: {
-      title: "Chuyện này không chỉ mình bạn gặp",
-      body: "Rối loạn ăn uống vô độ là rối loạn ăn uống phổ biến nhất — khoảng 2,8% người trưởng thành đáp ứng tiêu chuẩn vào một lúc nào đó, và 17% người bắt đầu một chương trình kiểm soát cân nặng có kết quả sàng lọc dương tính. Nếu những cơn đó thấy ngoài tầm kiểm soát, một bác sĩ giúp được nhiều hơn bất kỳ ứng dụng nào. Ở đây, một ngày khó khăn là dữ liệu, không bao giờ là bản án.",
-      source: "NIMH (NCS-R) · nghiên cứu trên 6.930 người mới bắt đầu chương trình",
+      title: "Một ngày tệ là dữ liệu",
+      body: "Nếu những cơn đó thấy ngoài tầm kiểm soát, một bác sĩ giúp được nhiều hơn bất kỳ ứng dụng nào. Ở đây, một ngày khó khăn là dữ liệu, không bao giờ là bản án.",
     },
     diets: {
-      title: "Tăng lại là chuyện thường, không phải lỗi của bạn",
-      body: "Qua 29 nghiên cứu dài hạn, hơn một nửa số cân đã giảm quay lại trong vòng hai năm — hơn 80% trong vòng năm năm. Đó là phương pháp thất bại, không phải con người. Kế hoạch của bạn ở đây được đo cho vừa sức giữ, không phải để gây ấn tượng.",
-      source: "Phân tích tổng hợp 29 nghiên cứu giảm cân tại Mỹ",
+      title: "Phương pháp thất bại, không phải bạn",
+      body: "Những chế độ ăn cấm món bạn thích hiếm khi bền. Đó không phải bạn thất bại. Mình không cấm gì cả: cứ ăn như bạn ăn, và mình sẽ nói thành thật nó hợp thế nào.",
     },
     eatout: {
       title: "Đồ ăn nhà hàng lệch nhiều nhất",
@@ -1282,8 +1279,8 @@ const VI: ChatCopy = {
     },
   },
   dietsGainCard: {
-    title: "Quay lại chỗ cũ là chuyện thường, không phải lỗi của bạn",
-    body: "Phần lớn các nỗ lực thay đổi cân nặng, theo cả hai hướng, đều đảo ngược trong vòng vài năm — phương pháp thất bại, không phải con người. Mức dư của bạn ở đây được đo cho vừa sức giữ, không phải để gây ấn tượng.",
+    title: "Phương pháp thất bại, không phải bạn",
+    body: "Thay đổi cân nặng hiếm khi bền ngay lần đầu, theo chiều nào cũng vậy. Đó là phương pháp thất bại, không phải bạn. Mức dư của bạn được tính để giữ được.",
   },
   gainPaceCard: {
     title: "Tăng tốt thì chậm, và đó là cố ý",
@@ -1382,8 +1379,8 @@ const VI: ChatCopy = {
     goalLose: "Xuống cân. Tốt — mình sẽ giúp nó bền",
     goalMaintain: "Giữ cân — mình giữ lại những gì đang ổn",
     goalGain: "Lên cân. Tốt — mình làm cho đúng",
-    sex: "Cảm ơn bạn",
-    birthYear: "Đã ghi nhận",
+    sex: "Đã ghi nhận. Công thức khác một chút ở mỗi giới",
+    birthYear: "Tốt. Tuổi tác làm con số dịch đi một chút",
     heightCm: "Con số cuối. Không phán xét, đó chỉ là điểm xuất phát",
     weightWithBmr: "Cảm ơn bạn. Khi nghỉ, cơ thể bạn đốt khoảng {bmr} kcal mỗi ngày",
     weightPlain: "Cảm ơn bạn.",
@@ -1405,7 +1402,11 @@ const VI: ChatCopy = {
       body: "Mọi vận động đều tính. Không cần phòng gym: một buổi đi bộ sau bữa trưa đã đi được một đoạn dài, và kế hoạch của bạn đã tính cả những gì bạn làm.",
       cta: "Tiếp tục",
     },
-    struggles: { title: "Điều đó hoàn toàn bình thường!", cta: "Tiếp tục" },
+    struggles: {
+      title: "Điều đó hoàn toàn bình thường!",
+      cta: "Tiếp tục",
+      many: "Không điều nào trong số này là bạn thất bại. Mình không cấm gì cả: cứ ăn như bạn ăn, và mình sẽ nói thành thật mỗi bữa hợp thế nào.",
+    },
     restrictions: {
       title: "Cảm ơn bạn đã tin mình",
       body: "Cân nặng, những điều từng khó khăn, và những gì bạn vừa chia sẻ — thật nhiều để kể cho một ứng dụng. Mình chỉ dùng nó cho một việc: đánh giá mỗi bữa ăn theo điều quan trọng với bạn.",
@@ -1455,23 +1456,19 @@ const ID: ChatCopy = {
   struggleCards: {
     stress: {
       title: "Ini pola, bukan cacat karakter",
-      body: "Sekitar 38% orang dewasa makan sebagai respons terhadap perasaan setidaknya sebulan sekali — bagi separuhnya, setiap minggu. Menamai polanya sudah sebagian besar pekerjaannya; sisanya dikerjakan catatan.",
-      source: "Studi nasional AS, n = 5.863 · tinjauan, 2026",
+      body: "Makan saat stres adalah pola, bukan cacat karakter. Menamainya sudah sebagian besar pekerjaannya; sisanya dikerjakan catatan.",
     },
     night: {
-      title: "Jam 8 malam itu ramai",
-      body: "Lebih dari 60% orang dewasa makan sesuatu setelah jam 8 malam, dan sekitar 1 dari 4 orang yang ngemil kini kebanyakan makan larut malam. Kami tidak menilai kapan kamu makan — hanya jumlah harinya.",
-      source: "CivicScience, 1,2 juta respons",
+      title: "Jam makan tidak dinilai",
+      body: "Makan larut tidak dinilai di sini. Hanya jumlah sepanjang hari yang dihitung.",
     },
     binge: {
-      title: "Kamu tidak sendirian dalam hal ini",
-      body: "Gangguan makan berlebihan adalah gangguan makan yang paling umum — sekitar 2,8% orang dewasa memenuhi kriterianya pada suatu titik, dan dari orang yang memulai program berat badan, 17% positif saat disaring. Kalau episodenya terasa di luar kendali, seorang klinisi lebih menolong daripada aplikasi mana pun. Di sini, hari yang berat adalah data, bukan vonis.",
-      source: "NIMH (NCS-R) · studi terhadap 6.930 orang yang memulai program",
+      title: "Hari yang berat adalah data",
+      body: "Kalau episodenya terasa di luar kendali, seorang klinisi lebih menolong daripada aplikasi mana pun. Di sini, hari yang berat adalah data, bukan vonis.",
     },
     diets: {
-      title: "Naik lagi itu wajar, bukan salahmu",
-      body: "Di 29 studi jangka panjang, lebih dari separuh berat yang hilang kembali lagi dalam dua tahun — lebih dari 80% dalam lima tahun. Yang gagal metodenya, bukan orangnya. Rencanamu di sini diukur supaya bisa dijaga, bukan supaya mengesankan.",
-      source: "Meta-analisis 29 studi penurunan berat badan di AS",
+      title: "Metodenya yang gagal, bukan kamu",
+      body: "Diet yang melarang makanan kesukaanmu jarang bertahan. Itu bukan kamu yang gagal. Aku tidak melarang apa pun: makanlah seperti biasa, dan aku akan bilang jujur bagaimana cocoknya.",
     },
     eatout: {
       title: "Porsi restoran paling sulit ditebak",
@@ -1491,8 +1488,8 @@ const ID: ChatCopy = {
     },
   },
   dietsGainCard: {
-    title: "Balik lagi itu wajar, bukan salahmu",
-    body: "Kebanyakan upaya mengubah berat badan, ke arah mana pun, berbalik dalam beberapa tahun — metodenya yang gagal, bukan orangnya. Surplusmu di sini diukur supaya bisa dijaga, bukan supaya mengesankan.",
+    title: "Metodenya yang gagal, bukan kamu",
+    body: "Mengubah berat jarang bertahan di percobaan pertama, ke arah mana pun. Itu metodenya yang gagal, bukan kamu. Surplusmu diukur supaya bisa dijaga.",
   },
   gainPaceCard: {
     title: "Naik yang benar memang pelan",
@@ -1591,8 +1588,8 @@ const ID: ChatCopy = {
     goalLose: "Turunkan berat. Bagus — kita buat supaya bertahan",
     goalMaintain: "Jaga berat — kita pertahankan yang sudah berhasil",
     goalGain: "Naikkan berat. Bagus — kita bangun dengan benar",
-    sex: "Terima kasih",
-    birthYear: "Tercatat",
+    sex: "Tercatat. Rumusnya sedikit berbeda untuk masing-masing",
+    birthYear: "Bagus. Usia sedikit menggeser angkanya",
     heightCm: "Angka terakhir. Tanpa penilaian, ini cuma titik awal",
     weightWithBmr: "Terima kasih. Saat istirahat, tubuhmu membakar sekitar {bmr} kcal sehari",
     weightPlain: "Terima kasih.",
@@ -1614,7 +1611,11 @@ const ID: ChatCopy = {
       body: "Setiap gerakan berarti. Tidak perlu gym: jalan kaki setelah makan siang sudah berpengaruh besar, dan rencanamu sudah menghitung apa yang kamu lakukan.",
       cta: "Lanjut",
     },
-    struggles: { title: "Itu wajar sekali!", cta: "Lanjut" },
+    struggles: {
+      title: "Itu wajar sekali!",
+      cta: "Lanjut",
+      many: "Tidak satu pun dari ini berarti kamu gagal. Aku tidak melarang apa pun: makanlah seperti biasa, dan aku akan bilang jujur bagaimana tiap makanan cocoknya.",
+    },
     restrictions: {
       title: "Terima kasih sudah percaya",
       body: "Beratmu, hal-hal yang berat, dan yang baru kamu ceritakan — itu banyak untuk dibagikan ke sebuah aplikasi. Aku memakainya untuk satu hal saja: menilai setiap makanan terhadap apa yang penting bagimu.",
@@ -1664,23 +1665,19 @@ const RU: ChatCopy = {
   struggleCards: {
     stress: {
       title: "Это паттерн, а не изъян характера",
-      body: "Около 38% взрослых едят в ответ на чувства хотя бы раз в месяц — примерно у половины из них это происходит еженедельно. Назвать паттерн — уже большая часть работы; остальное делает дневник.",
-      source: "Национальное исследование в США, n = 5 863 · обзор, 2026",
+      body: "Еда от стресса — это паттерн, а не изъян характера. Назвать его — уже большая часть работы; остальное делает дневник.",
     },
     night: {
-      title: "После восьми вечера людно",
-      body: "Больше 60% взрослых что-то едят после 20:00, а примерно каждый четвёртый из тех, кто перекусывает, теперь ест в основном поздно вечером. Мы не оцениваем, когда ты ешь — только то, что сложилось за день.",
-      source: "CivicScience, 1,2 млн ответов",
+      title: "Время не оценивается",
+      body: "Поздняя еда здесь не оценивается. Считается только то, что набирается за весь день.",
     },
     binge: {
-      title: "Так бывает не только у тебя",
-      body: "Компульсивное переедание — самое распространённое расстройство пищевого поведения: около 2,8% взрослых в какой-то момент отвечают его критериям, а 17% тех, кто начинает программу по весу, дают положительный скрининг. Если приступы ощущаются неуправляемыми, врач поможет больше любого приложения. Здесь тяжёлый день — это данные, а не приговор.",
-      source: "NIMH (NCS-R) · исследование 6 930 начавших программу",
+      title: "Трудный день — это данные",
+      body: "Если приступы ощущаются неуправляемыми, врач поможет больше любого приложения. Здесь трудный день — это данные, а не приговор.",
     },
     diets: {
-      title: "Возврат веса — это норма, а не твоя вина",
-      body: "По 29 длительным исследованиям больше половины сброшенного возвращается за два года, а за пять — больше 80%. Это подводят методы, а не люди. Твой план здесь рассчитан так, чтобы его можно было удержать, а не чтобы впечатлять.",
-      source: "Метаанализ 29 американских исследований похудения",
+      title: "Подводит метод, не ты",
+      body: "Диеты, которые запрещают еду, которую ты любишь, редко держатся. Это не ты подводишь. Я ничего не запрещаю: ешь как ешь, а я честно скажу, как это вписывается.",
     },
     eatout: {
       title: "Ресторанные тарелки уводят сильнее всего",
@@ -1700,8 +1697,8 @@ const RU: ChatCopy = {
     },
   },
   dietsGainCard: {
-    title: "Откат — это норма, а не твоя вина",
-    body: "Большинство попыток изменить вес в любую сторону откатываются за пару лет — подводят методы, а не люди. Твой профицит здесь рассчитан так, чтобы его можно было удержать, а не чтобы впечатлять.",
+    title: "Подводит метод, не ты",
+    body: "Изменить вес с первой попытки почти не получается, в любую сторону. Это методы подводят, не ты. Твой профицит рассчитан так, чтобы его можно было удержать.",
   },
   gainPaceCard: {
     title: "Набирать хорошо — намеренно медленно",
@@ -1803,8 +1800,8 @@ const RU: ChatCopy = {
     goalLose: "Похудеть. Хорошо — сделаем так, чтобы это держалось",
     goalMaintain: "Удержать вес. Хорошо — оставим то, что уже работает",
     goalGain: "Набрать вес. Хорошо — соберём его правильно",
-    sex: "Спасибо",
-    birthYear: "Записал",
+    sex: "Записал. Формула немного различается для каждого",
+    birthYear: "Хорошо. Возраст немного двигает цифру",
     heightCm: "Последняя цифра. Без оценок — это просто точка старта",
     weightWithBmr: "Спасибо. В покое твоё тело сжигает около {bmr} ккал в день",
     weightPlain: "Спасибо.",
@@ -1826,7 +1823,11 @@ const RU: ChatCopy = {
       body: "Любое движение считается. Зал не нужен: прогулка после обеда уже многое даёт, и твой план уже учитывает то, что ты делаешь.",
       cta: "Дальше",
     },
-    struggles: { title: "Это совершенно нормально!", cta: "Дальше" },
+    struggles: {
+      title: "Это совершенно нормально!",
+      cta: "Дальше",
+      many: "Ничто из этого не твоя неудача. Я ничего не запрещаю: ешь как ешь, а я честно скажу, как вписывается каждый приём пищи.",
+    },
     restrictions: {
       title: "Спасибо за доверие",
       body: "Вес, то, что было трудно, и вот эти ответы — очень много доверия для одного разговора. Я использую это ровно для одного: судить каждое блюдо по тому, что важно тебе.",
