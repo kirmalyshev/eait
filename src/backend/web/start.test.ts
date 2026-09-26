@@ -2433,3 +2433,91 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
     expect(order(deHtml)).not.toEqual(order(ruHtml));
   });
 });
+
+describe("the counter and Back (#53)", () => {
+  /** Walk the open questions, recording each page's "Question N of M". */
+  // A British browser: its region answers the country, which is never asked — the case whose total
+  // changed between the first question and the second, because only the first request resolved it.
+  const BRITISH = { "accept-language": "en-GB,en;q=0.9" };
+  async function walk(session: string, answers: Record<string, string | string[]>) {
+    const seen: { n: number; m: number; id: string }[] = [];
+    for (let i = 0; i < 20; i++) {
+      const page = await get("/start/q", session, BRITISH);
+      if (page.status === 303) return seen;
+      const html = await page.text();
+      const id = html.match(/name="prompt" value="([a-z_]+)"/)![1]!;
+      const [, n, m] = html.match(/Question (\d+) of (\d+)/)!;
+      seen.push({ n: Number(n), m: Number(m), id });
+      await post("/start/q", { prompt: id, answer: answers[id]! }, session);
+    }
+    throw new Error("onboarding did not finish");
+  }
+
+  for (const goal of ["lose", "gain"] as const) {
+    it(`counts one total from the first question to the last on the ${goal} path`, async () => {
+      const session = await signIn(`counter-${goal}`, "google", BRITISH["accept-language"]);
+      const seen = await walk(session, {
+        ...ANSWERS, goal, target_weight_kg: goal === "gain" ? "90" : "70",
+      });
+      expect(new Set(seen.map((s) => s.m)).size).toBe(1);
+      expect(seen.map((s) => s.n)).toEqual(seen.map((_, i) => i + 1));
+      expect(seen.at(-1)!.n).toBe(seen[0]!.m);
+    });
+  }
+
+  it("keeps one total after the goal on the maintain path", async () => {
+    const seen = await walk(
+      await signIn("counter-maintain", "google", BRITISH["accept-language"]), { ...ANSWERS, goal: "maintain" });
+    expect(new Set(seen.slice(1).map((s) => s.m)).size).toBe(1);
+    expect(seen.at(-1)!.n).toBe(seen.at(-1)!.m);
+  });
+
+  it("puts Back on every question: the first to the welcome, the rest to the one before", async () => {
+    const session = await signIn("back-links");
+    expect(await (await get("/start/q", session)).text()).toContain('class="back" href="/start"');
+    await post("/start/q", { prompt: "goal", answer: "lose" }, session);
+    expect(await (await get("/start/q", session)).text()).toContain('href="/start/q?edit=goal"');
+  });
+
+  it("re-shows an answered question with its answer chosen, and a changed answer is written", async () => {
+    const session = await signIn("back-edit");
+    await post("/start/q", { prompt: "goal", answer: "lose" }, session);
+    await post("/start/q", { prompt: "sex", answer: "female" }, session);
+    await post("/start/q", { prompt: "birth_year", answer: "34" }, session);
+    const sex = await (await get("/start/q?edit=sex", session)).text();
+    expect(sex).toContain('name="prompt" value="sex"');
+    expect(sex).toMatch(/value="female"[^>]*aria-pressed="true"/);
+    const age = await (await get("/start/q?edit=birth_year", session)).text();
+    expect(age).toMatch(/name="answer"[^>]*value="34"/);
+
+    const res = await post("/start/q", { prompt: "sex", answer: "male" }, session);
+    expect(res.headers.get("location")).toBe("/start/q");
+    const userId = await webUser(session);
+    expect((await store.getProfile(userId))!.sex).toBe("male");
+    // …and the walk resumes where it was.
+    expect(await (await get("/start/q", session)).text()).toContain('name="prompt" value="height_cm"');
+  });
+
+  it("refuses to edit a question not yet answered, or one that does not exist", async () => {
+    const session = await signIn("back-refuse");
+    await post("/start/q", { prompt: "goal", answer: "lose" }, session);
+    for (const id of ["height_cm", "nope"]) {
+      const res = await get(`/start/q?edit=${id}`, session);
+      expect(res.status).toBe(303);
+      expect(res.headers.get("location")).toBe("/start/q");
+    }
+    // A POST for a question past the open one is still dropped.
+    await post("/start/q", { prompt: "height_cm", answer: "170" }, session);
+    expect((await store.getProfile(await webUser(session)))!.height_cm).toBeNull();
+  });
+
+  it("puts Back on a moment, to the answer it reacts to", async () => {
+    const session = await signIn("back-moment");
+    for (const id of ["goal", "sex", "birth_year", "height_cm", "weight_kg"]) {
+      await post("/start/q", { prompt: id, answer: ANSWERS[id]! }, session);
+    }
+    const res = await post("/start/q", { prompt: "target_weight_kg", answer: "70" }, session);
+    const page = await (await get(res.headers.get("location")!.replace("https://api.eait.fit", ""), session)).text();
+    expect(page).toContain('class="back" href="/start/q?edit=target_weight_kg"');
+  });
+});

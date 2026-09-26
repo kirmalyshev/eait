@@ -432,6 +432,10 @@ export interface QuestionView {
   submitLabel?: string;
   step?: number;
   total?: number;
+  /** Where Back goes (#53): the question before this one, or the welcome from the first. */
+  back?: string;
+  /** The answer already on the profile, when an answered question is shown again to change. */
+  current?: readonly string[];
   /** Which language to render in. On the VIEW, because every string on the page reads it. */
   lang: Lang;
 }
@@ -439,6 +443,7 @@ export interface QuestionView {
 export function question(v: QuestionView): string {
   const PAGE_COPY = pageCopyFor(v.lang);
   const hidden = `<input type="hidden" name="prompt" value="${escape(v.promptId)}">`;
+  const chosen = new Set(v.current ?? []);
   const submit = v.submitLabel ?? PAGE_COPY.continueLabel;
   let controls: string;
   if (v.stepper) {
@@ -463,16 +468,19 @@ export function question(v: QuestionView): string {
     // One button per option: with no JavaScript, a radio group needs a second tap on a submit
     // button, and the app's version is one tap.
     controls = v.options.map((o) =>
-      `<button type="submit" name="answer" value="${escape(o.value)}">${escape(o.label)}` +
+      `<button type="submit" name="answer" value="${escape(o.value)}"` +
+      `${chosen.has(o.value) ? ` class="sel" aria-pressed="true"` : ""}>${escape(o.label)}` +
       `${o.hint ? `<span class="hint">${escape(o.hint)}</span>` : ""}</button>`).join("");
   } else if (v.kind === "number") {
     controls =
       `<input type="number" name="answer" inputmode="decimal" step="any" required autofocus` +
+      `${v.current?.[0] !== undefined ? ` value="${escape(v.current[0])}"` : ""}` +
       `${v.placeholder ? ` placeholder="${escape(v.placeholder)}"` : ""}>` +
       `<button class="primary" type="submit">${escape(submit)}</button>`;
   } else {
     controls = v.options.map((o) =>
-      `<label class="check"><input type="checkbox" name="answer" value="${escape(o.value)}"> ` +
+      `<label class="check"><input type="checkbox" name="answer" value="${escape(o.value)}"` +
+      `${chosen.has(o.value) ? " checked" : ""}> ` +
       `${escape(o.label)}</label>`).join("") +
       `<button class="primary" type="submit">${escape(submit)}</button>`;
   }
@@ -487,6 +495,7 @@ export function question(v: QuestionView): string {
   // middle of a flow is titled by the product, not by a sentence about it.
   return shell("eait", `
 ${topBar(PAGE_COPY)}
+${v.back ? `<a class="back" href="${escape(v.back)}">${escape(PAGE_COPY.back)}</a>` : ""}
 ${v.step !== undefined && v.total !== undefined
   ? `<p class="progress">${escape(PAGE_COPY.progress
     .replace("{step}", String(v.step)).replace("{total}", String(v.total)))}</p>`
@@ -512,6 +521,8 @@ export interface MomentView {
   cta: string;
   /** Where the one button goes — the next question, the struggles ask, or the plan. */
   next: string;
+  /** Back (#53): the answer this moment reacts to, shown again to change. */
+  back?: string;
   lang: Lang;
 }
 
@@ -544,6 +555,7 @@ export function moment(v: MomentView): string {
   // same shape the question pages carry, so a driver can tell this screen from a question.
   return shell(v.title, `
 ${topBar(pageCopyFor(v.lang))}
+${v.back ? `<a class="back" href="${escape(v.back)}">${escape(pageCopyFor(v.lang).back)}</a>` : ""}
 <div class="moment">
   <div class="halo">${spudSvg(POSE_MOOD[v.pose], "spud-moment")}<span class="prop prop-${escape(v.pose)}">${poseProp(v.pose)}</span></div>
   <p class="echo">${escape(v.echo)}</p>
