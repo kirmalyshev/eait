@@ -408,7 +408,7 @@ describe("the consent the sign-up collected", () => {
     // The stale account's partial profile: its own sex answer, and a field the walk never asks.
     await store.patchProfile(real, { sex: "male", food_allergies: "nuts" });
 
-    const anon = (await store.upsertDeviceUser(device(), "en")).userId;
+    const anon = (await store.upsertDeviceUser(device(), "de")).userId;
     // The session account answered the whole walk just now.
     await store.patchProfile(anon, {
       goal: "gain", sex: "female", birth_year: 1991, height_cm: 168, weight_kg: 70,
@@ -427,7 +427,10 @@ describe("the consent the sign-up collected", () => {
     expect(merged.goal).toBe("gain");
     expect(merged.sex).toBe("female");
     // Stale-only field survives; the walk's completion stamp came across with the answers.
+    // But `lang` is NOT a mergeable field — an existing account's language is its own setting and
+    // a sign-in never re-decides it, whichever direction the session leaned.
     expect(merged.food_allergies).toBe("nuts");
+    expect(merged.lang).toBe("en");
     expect(merged.onboarded_at).not.toBeNull();
     // One account holds the identity, and the session's is gone.
     expect(await store.getProfile(anon)).toBeNull();

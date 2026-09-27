@@ -105,9 +105,9 @@ export async function signInWithProvider(
       if (answered !== null) {
         const patch: ProfilePatch = {};
         for (const [k, v] of Object.entries(answered)) {
-          // `user_id` is not a field, and null is "never answered", not an answer — the field
-          // only the stale account filled survives the merge.
-          if (k !== "user_id" && v !== null) {
+          // `user_id` is not a field, `lang` is never re-decided by a sign-in (above), and null
+          // is "never answered", not an answer — the field only the stale account filled survives.
+          if (k !== "user_id" && k !== "lang" && v !== null) {
             (patch as Record<string, unknown>)[k] = v;
           }
         }
