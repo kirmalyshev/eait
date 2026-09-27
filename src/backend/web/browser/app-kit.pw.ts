@@ -88,15 +88,19 @@ async function kitSheet(page: Page): Promise<void> {
   // replaces the document. Without fonts the sheet measures fallback-serif metrics, not the design.
   await page.goto("/health");
   await page.setContent(`<!doctype html><html><head><meta charset="utf-8"><style>
-:root{${lightVars}}
+:root{${lightVars}--sans:"Montserrat",system-ui,sans-serif;}
 ${fontFaces("/start/assets/fonts")}
 </style><style>${iconCss()}</style><style>${kitCss()}</style><style>${motionCss()}</style>
-</head><body style="background:var(--bg);font-family:var(--sans);max-width:420px;margin:24px auto">${markup}</body></html>`);
+</head><body style="background:var(--bg);font-family:'Montserrat',system-ui,sans-serif;max-width:420px;margin:24px auto">${markup}</body></html>`);
   await page.evaluate("document.fonts.ready");
 }
 
 test("the kit's measurements are pro.css's", async ({ page }) => {
   await kitSheet(page);
+
+  // The font actually arrived — the woff2 must have served a 200 off the app's origin, and the
+  // measurements below are Montserrat's, not a fallback's.
+  expect(await page.evaluate(`document.fonts.check("600 15px Montserrat")`)).toBe(true);
 
   // The ring: 104 px hero, 96 px web, 52 px macro — strokes 8/8/5 carried as attributes.
   await expect(page.locator(".mring.w104")).toHaveCSS("width", "104px");
