@@ -463,6 +463,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     }
 
     clear(wrap).append(h1, ...left, notice);
+    frame.side.setAttribute("aria-label", L.webDayRegion);
     clear(frame.side).append(...right);
   }
 
