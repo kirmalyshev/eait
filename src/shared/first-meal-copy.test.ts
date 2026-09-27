@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { FIRST_MEAL_COPY } from "./first-meal-copy.ts";
 import { chatCopyFor } from "./onboarding-chat-copy.ts";
+import { threadCopyFor } from "./chat-copy.ts";
 import { LANGS } from "./types.ts";
 
 // ONE SOURCE for the free meal's sentences (#42). The phone reads them through `chatCopyFor`, the
@@ -14,6 +15,18 @@ describe("the free meal's words", () => {
 
   it("carry every language, so no reader falls back to English at the screen", () => {
     for (const lang of LANGS) expect(FIRST_MEAL_COPY[lang]).toBeDefined();
+  });
+
+  it("names the coach — the button opens Chat, and she is the one who answers there (S9)", () => {
+    // The overseer's ruling is `{coach}` filled from `coach.name`, but this table stays
+    // DEPENDENCY-FREE — the browser imports it raw and `src/frontend`'s reader renders `tell`
+    // unfilled — so the name is written per language, and this assertion is the tether: the day
+    // the confirmed per-language name table lands, coach.name changes here first and every `tell`
+    // that still names the old one fails by name. A test is how a frozen table takes a variable.
+    for (const lang of LANGS) {
+      expect(FIRST_MEAL_COPY[lang]!.tell, lang).toContain(threadCopyFor(lang).coach.name);
+      expect(FIRST_MEAL_COPY[lang]!.tell, lang).not.toMatch(/Spud|Спад/);
+    }
   });
 
   it("import nothing a browser bundle would carry beyond types", () => {

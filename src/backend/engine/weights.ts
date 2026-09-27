@@ -11,7 +11,7 @@
 // plan — the projection a client derived would disagree with the plan the same screen shows).
 
 import {
-  dateMinusMonths, localDate, projectGoal, projectionMonth, windowStart,
+  dateMinusMonths, explainTargets, localDate, projectGoal, projectionMonth, windowStart,
   type PlanProjection, type Profile, type TargetOutcome, type WeightEntry, type WeightsResponse,
   type WeightRange,
 } from "@eait/shared";
@@ -64,11 +64,15 @@ export async function weights(
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
   const since = rangeStart(range, localDate(deps.config.timezone));
-  return { weights: await mergedWeights(deps, userId, since) };
+  const outcome = explainTargets(profile);
+  return {
+    weights: await mergedWeights(deps, userId, since),
+    projection: await planProjection(deps, profile, outcome),
+  };
 }
 
 /**
- * `ProfileResponse.projection` — the goal arc the Progress bar draws, or null where no honest one
+ * `WeightsResponse.projection` — the goal arc the Progress bar draws, or null where no honest one
  * exists.
  *
  * `currentKg` is the NEWEST weigh-in in the merged log — where she actually is — not the profile's

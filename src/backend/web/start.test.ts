@@ -1952,21 +1952,18 @@ describe("chat on the web: a turn that needs a meal in focus", () => {
 });
 
 describe("chat on the web: who said it", () => {
-  it("puts nobody's name on an answer — every line is Spud's", async () => {
+  it("names Gabie on her answers and nobody else — Spud's lines carry no name", async () => {
     const { session, userId } = await onboarded();
     await store.appendChat(userId, [
       { role: "assistant", kind: "text", text: "First one in. 612 kcal." },
       { role: "user", kind: "text", text: "how much protein have I had?" },
-      // A stored line still carrying the retired speaker is his too (#49) — the page never names her.
+      // S9: a coach answer is Gabie's, and the page says so — his lines stay unlabelled.
       { role: "assistant", kind: "text", text: "About 40 g so far.", speaker: "gabie" },
     ]);
     const page = await (await get("/start/chat", session)).text();
-    // No name leads any bubble: his is the only voice the page has, and a label on every line
-    // reads as two strangers rather than one conversation.
-    expect(page).toContain('<p class="bubble">About 40 g so far.</p>');
+    expect(page).toContain('<p class="who">Gabie</p><p class="bubble">About 40 g so far.</p>');
     expect(page).toContain('<p class="bubble">First one in. 612 kcal.</p>');
-    expect(page).not.toContain("Gabie");
-    expect(page.match(/class="who"/g)).toBeNull();
+    expect(page.match(/class="who"/g)).toHaveLength(1);
   });
 });
 

@@ -591,12 +591,6 @@ export interface ProfileResponse {
    * absent too, exactly as it does `entitlement`.
    */
   paywall: WebPaywall;
-  /**
-   * The goal arc the Progress goal bar draws — start, current and target weights, the weeks and
-   * rate `projectGoal` computed, and the localized month it lands in. Null when no honest
-   * projection exists (no target, nothing weighed, a fallback band) — see {@link PlanProjection}.
-   */
-  projection: PlanProjection | null;
 }
 
 /**
@@ -720,10 +714,10 @@ export type ChatEntry =
   | { id: string; seq: number; ts: string; role: "user"; kind: "text"; text: string; clientId: string | null; pendingId: string | null }
   /** `mealId`: the meal the photo logged, so the bubble can fetch the picture; null on lines from before photos were kept. */
   | { id: string; seq: number; ts: string; role: "user"; kind: "photo"; text: string | null; mealId: string | null }
-  /** `speaker`: legacy (#49). Null on every new line; `gabie` only on a line stored before Spud answered alone, and it is Spud's too. */
+  /** `speaker`: who said it. Null is Spud — onboarding's asks and scripted beats; `gabie` is an engine line, and the app draws her face on it (S9). */
   | { id: string; seq: number; ts: string; role: "assistant"; kind: "text"; text: string; speaker: ChatSpeaker | null }
-  /** `mealId` outlives the meal: `meal` is null once it is deleted, and "was this proposal logged" reads the id. */
-  | { id: string; seq: number; ts: string; role: "assistant"; kind: "meal"; event: ChatEvent; mealId: string | null; meal: MealRecord | null };
+  /** `mealId` outlives the meal: `meal` is null once it is deleted, and "was this proposal logged" reads the id. `speaker`: the engines' card is Gabie's; a row from before the column reads null. */
+  | { id: string; seq: number; ts: string; role: "assistant"; kind: "meal"; event: ChatEvent; mealId: string | null; meal: MealRecord | null; speaker: ChatSpeaker | null };
 
 export interface ChatHistoryResponse {
   /** Oldest first within the page. */
@@ -1016,8 +1010,8 @@ export interface WeekResponse {
 }
 
 /**
- * One calendar day of the range read — `ChartDay` (`ui/charts.ts`) plus the day's macro totals,
- * so a row a client receives goes straight into `dayTone`/`dayRing` with nothing re-derived.
+ * One calendar day of the range read — `ChartDay` (`ui/charts.ts`), so a row a client receives
+ * goes straight into `dayTone`/`dayRing` with nothing re-derived.
  *
  * `when` is computed by the server in the account's timezone at request time: "past" day, the
  * "today" the strip raises, or a "future" day — which is why no client ever compares a row's
@@ -1029,18 +1023,17 @@ export interface WeekResponse {
 export interface DiaryDay extends ChartDay {
   /** YYYY-MM-DD in the account's timezone. */
   date: string;
-  protein_g: number | null;
-  carbs_g: number | null;
-  fat_g: number | null;
-  satfat_g: number | null;
-  /** The day's calorie target — sent on every row so no client re-derives the plan. */
-  targetKcal: number;
 }
 
 /** `GET /v1/diary/days` — the strip, the Progress week, and the streak, in one answer. */
 export interface DaysResponse {
   /** Every calendar day in `[from, to]`, oldest first — the order the strips and bars draw. */
   days: DiaryDay[];
+  /**
+   * The account's calorie target, sent once rather than repeated on every row — a day's macros
+   * come from `/v1/diary/day`, this read is the strip's own shape.
+   */
+  targetKcal: number;
   /**
    * Consecutive calendar days with at least one logged meal, counted backwards from today in the
    * account's timezone. Today stays open: with nothing logged yet it does not break the run, and
@@ -1062,14 +1055,20 @@ export interface WeightEntry {
   source: "health" | "manual";
 }
 
-/** `GET /v1/weights` — the merged weigh-in log the Progress chart draws. */
+/** `GET /v1/weights` — the merged weigh-in log the Progress chart draws, and its goal arc. */
 export interface WeightsResponse {
   /** Oldest first — chart order, `weightChart` reads the endpoints off the ends. */
   weights: WeightEntry[];
+  /**
+   * The goal arc the Progress goal bar draws — start, current and target weights, the weeks and
+   * rate `projectGoal` computed, and the localized month it lands in. Null when no honest
+   * projection exists (no target, nothing weighed, a fallback band) — see {@link PlanProjection}.
+   */
+  projection: PlanProjection | null;
 }
 
 /**
- * The goal's arc for `ProfileResponse.projection` — where the plan started, where the last
+ * The goal's arc for `WeightsResponse.projection` — where the plan started, where the last
  * weigh-in stands, and where it is heading, all computed server-side (`projectGoal`). `null`
  * carries the same honesty as the projection's own nulls: no plan, no current weight, a fallback
  * band, or a delta pointed away from the target each mean there is nothing to draw, and `null`

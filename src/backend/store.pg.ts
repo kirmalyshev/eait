@@ -2366,7 +2366,7 @@ export async function postgresStore(
                     ${line.kind === "meal" ? line.event : null},
                     ${line.role === "user" && line.kind === "text" ? line.clientId ?? null : null},
                     ${line.role === "user" && line.kind === "text" ? line.pendingId ?? null : null},
-                    ${line.role === "assistant" && line.kind === "text" ? line.speaker ?? null : null},
+                    ${line.role === "assistant" ? line.speaker ?? null : null},
                     ${line.role === "user" && line.kind === "text" ? line.intent ?? null : null},
                     ${line.role === "assistant" && line.kind === "text" ? line.model ?? null : null},
                     ${line.role === "user" ? line.analysisId ?? null : null})`;

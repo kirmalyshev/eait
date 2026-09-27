@@ -182,7 +182,7 @@ describe("editLine", () => {
     expect((await editLine(deps, b, lineId, { text: "x", images: [] })).kind).toBe("target-gone");
   });
 
-  it("re-reads ALL photos with the new caption, updates numbers and text in place, appends nothing, corrected: false", async () => {
+  it("re-reads ALL photos with the new caption, updates numbers and text in place, and names the change (#119), corrected: false", async () => {
     const seen: PhotoInput[] = [];
     const llm: LlmPorts = { ...demoPorts(), analyzePhoto: async (input, onDelta) => { seen.push(input); return demoPorts().analyzePhoto(input, onDelta); } };
     const d = makeDeps({}, llm);
@@ -200,7 +200,10 @@ describe("editLine", () => {
     expect(meal?.photos).toBe(2);
     expect((await store.getLine(userId, lineId))?.text).toBe("rice, and an egg");
     const after = await thread(d, userId);
-    expect(after.map((e) => e.id)).toEqual(before.map((e) => e.id));
+    // The photo line updates in place; a re-read that changed numbers appends the one computed
+    // line and nothing else.
+    expect(after.map((e) => e.id)).toEqual([...before.map((e) => e.id), after.at(-1)!.id]);
+    expect(after.at(-1)!).toMatchObject({ role: "assistant", kind: "text", speaker: "gabie" });
     expect(events.some((e) => e.kind === "item")).toBe(true);
   });
 

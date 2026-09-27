@@ -155,8 +155,8 @@ export function estimateChart(direction: EstimateDirection): {
     areaGradient: { stops: [{ offset: 0, opacity: 0.24 }, { offset: 1, opacity: 0 }] },
     startDot: { cx: 20, cy: y0, r: 5 },
     endDot: { cx: 292, cy: y1, r: 6, strokeWidth: 2.5 },
-    /** The "Target {n}" pill: its right edge sits 12 past the curve's end, its centre 28 off it. */
-    targetChip: { x: 198, y: lose ? 68 : 48, width: 106, height: 28, rx: 8, textX: 251, textY: lose ? 87 : 67 },
+    /** The "Target {n}" pill: its right edge sits 12 past the curve's end, its edge toward the end dot 28 off the dot's rim — clear of the curve, which the chip once crossed (#112). */
+    targetChip: { x: 198, y: lose ? 48 : 68, width: 106, height: 28, rx: 8, textX: 251, textY: lose ? 67 : 87 },
     startLabel: { x: 20, y: lose ? 22 : 122 },
     nowLabel: { x: 20, y: 158 },
     monthLabel: { x: 300, y: 158 },
