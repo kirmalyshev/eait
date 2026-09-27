@@ -107,3 +107,14 @@ export function dayBudget(
     warn: state === "over" && goal !== "gain", protein,
   };
 }
+
+/**
+ * Grams of a macro still left against its target — the figure a "{g} g left" card prints.
+ *
+ * Shared so the phone and the web card agree: both clients draw the same macro cards, and each
+ * clamping or rounding the subtraction on its own is how "0 g left" on one surface reads "-1 g"
+ * on another. A macro with no target has nothing left to count and answers 0.
+ */
+export function macroLeft(target: number, eaten: number): number {
+  return Math.max(0, Math.round(target - eaten));
+}

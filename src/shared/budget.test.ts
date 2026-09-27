@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { dayBudget, macroTone, mealIsGuessed } from "./budget.ts";
+import { dayBudget, macroLeft, macroTone, mealIsGuessed } from "./budget.ts";
 
 const TODAY = "2026-09-16";
 const day = (
@@ -127,6 +127,24 @@ describe("dayBudget", () => {
       expect(macroTone("protein", 80, 0)).toBe("care");
       expect(macroTone("satfat", 80, 0)).toBe("care");
       expect(macroTone("satfat", 80, -20)).toBe("care");
+    });
+  });
+
+  describe("macroLeft", () => {
+    test("what is left of a macro's target, rounded like the card prints it", () => {
+      expect(macroLeft(120, 48)).toBe(72);
+      expect(macroLeft(120, 47.6)).toBe(72);
+      expect(macroLeft(13, 6.9)).toBe(6);
+    });
+
+    test("reached or past the target is zero, never a negative figure", () => {
+      expect(macroLeft(120, 120)).toBe(0);
+      expect(macroLeft(120, 150)).toBe(0);
+    });
+
+    test("no target means nothing left to count", () => {
+      expect(macroLeft(0, 40)).toBe(0);
+      expect(macroLeft(-20, 0)).toBe(0);
     });
   });
 
