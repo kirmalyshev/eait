@@ -15,16 +15,15 @@ import { outcomeUnknown } from "../../shared/results.ts";
 import type { IconName } from "../../shared/ui/icons.ts";
 import type { CoachFocus, MealRecord } from "@eait/shared";
 import type {
-  ChatEntry, ChatHistoryResponse, DayResponse, DeleteLineResponse, EditLineLast,
-  AttachPhotosResponse, MessageResponse, PendingMealsResponse, PhotoLast, PhotoProgress, ProfileResponse,
+  ChatEntry, ChatHistoryResponse, DayResponse,
+  AttachPhotosResponse, MessageResponse, PendingMealsResponse, PhotoLast, ProfileResponse,
 } from "@eait/shared/contract";
-import { ApiError, Unauthenticated, api, apiStream, apiBlob } from "../api.ts";
+import { ApiError, Unauthenticated, api, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { blobSrc, gabieAvatarEl, gabieNameEl, gramMacsEl, optionRowEl, ctaEl, verdictListEl } from "../kit.ts";
 import { outbox } from "../outbox.ts";
-import { shrinkPhotos } from "../photo.ts";
 import {
-  COPY, MESSAGE, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
+  COPY, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
   heldProposal, kept, keptNotice, lang, lastThreadEntries, findMeal, mealLine, outstandingTurn,
   MEAL_PHOTOS, proposalCard, profile, refusalWords, sendOrKeep, setHeldProposal, setLastThread,
   setRedraw, takeCarried, takeTurn, timeFmt, unclear, names,
@@ -63,13 +62,7 @@ export async function chatScreen(): Promise<HTMLElement> {
     notice.hidden = words === null;
   };
 
-  // EDIT MODE (#608): which photo line the composer is editing, if any. LOCAL to this screen — a
-  // fresh `null` every time `chatScreen` runs, unlike `held`'s module-level memory that survives a
-  // rebuilt screen; an edit left mid-flight when the tab switches away is simply dropped.
-  let editing: { id: string; photos: number } | null = null;
-  // Spud's line while an edit is out — the phone's words (`pendingLine`), under the composer.
-  const progress = el("p", "muted");
-  progress.hidden = true;
+
 
   // The LIVE answer's extras — the suggestion rows and the macro bar — drawn under the line it
   // wrote: the stored entry keeps only the words, so the answer's own result carries them until a
@@ -128,37 +121,8 @@ export async function chatScreen(): Promise<HTMLElement> {
         } else {
           li.append(entry.text, el("div", "ts", timeFmt(new Date(entry.ts))));
         }
-        // OWN LINES ONLY (#608): Edit on a photo line that still names a meal, Delete on any of them.
-        const text = entry.text ?? COPY.photo;
-        const isMeal = entry.kind === "photo"
-          ? entry.mealId !== null
-          : entry.pendingId !== null && entries.some((e) => e.kind === "meal" && e.mealId === entry.pendingId);
-        const named = text.length > 40 ? `${text.slice(0, 40)}…` : text;
-        const acts = el("div", "acts");
-        if (isMeal && entry.kind === "photo") {
-          const edit = el("button", "act", COPY.edit) as HTMLButtonElement;
-          edit.setAttribute("aria-label", `${COPY.edit}: ${named}`);
-          edit.addEventListener("click", () => {
-            const card = entries.find((e) => e.kind === "meal" && e.mealId === entry.mealId);
-            editing = { id: entry.id, photos: (card && card.kind === "meal" ? card.meal?.photos : null) ?? 0 };
-            words.value = entry.text ?? "";
-            arm();
-            words.focus();
-          });
-          acts.append(edit);
-        }
-        const del = el("button", "act", COPY.delete) as HTMLButtonElement;
-        del.setAttribute("aria-label", `${COPY.delete}: ${named}`);
-        del.addEventListener("click", () => {
-          const ok = isMeal ? confirm(COPY.confirmDeleteMeal) : confirm(COPY.confirmDeleteLine);
-          if (!ok) return;
-          turn(async () => {
-            await api<DeleteLineResponse>(MESSAGE(entry.id), { method: "DELETE" });
-            if (editing?.id === entry.id) { editing = null; arm(); }
-          });
-        });
-        acts.append(del);
-        li.append(acts);
+        // No action row on a thread line (#173): an edit is the meal detail's Correct, a delete its
+        // ⋯ menu's — the boards draw neither button here.
         list.append(li);
       } else if (entry.kind === "meal") {
         // The card a turn produced — name, kcal, the chips, and the day's verdict dots.
@@ -460,79 +424,37 @@ export async function chatScreen(): Promise<HTMLElement> {
   // THE ONE COMPOSER (the boards' row): the camera round, the pill field, the send round.
   const comp = composerRow(coachName() !== null
     ? fill(copy().composerThread, { coach: coachName()! }) : copy().composerAsk);
-  const { picker, words, send, count, cancel } = comp;
-  /** The composer as the mode says: an edit shows what it has, asks for angles to ADD, and sends. */
+  const { picker, words, send, count } = comp;
+  /** The composer as the mode says: count the picked photos, and name Send for what it sends. */
   const arm = (): void => {
-    const stored = editing?.photos ?? 0;
     const picked = picker.files?.length ?? 0;
-    count.textContent = editing !== null
-      ? fill(COPY.photosOnMeal, { n: `${stored}` })
-      : picked > 0 ? countText(lang)(COPY.photosCount, picked) : "";
+    count.textContent = picked > 0 ? countText(lang)(COPY.photosCount, picked) : "";
     // Hidden rather than merely empty: an empty inline `<span>` still takes up its own gap in the
     // row, which showed as a stray space before Send.
     count.hidden = count.textContent === "";
     // Send's NAME says what this press does — words, or the photos that are attached — because
     // the arrow does not.
-    send.setAttribute("aria-label", editing === null && picked > 0 ? COPY.sendPhoto : shellCopyFor(lang).composerSend);
-    cancel.hidden = editing === null;
+    send.setAttribute("aria-label", picked > 0 ? COPY.sendPhoto : shellCopyFor(lang).composerSend);
   };
   picker.addEventListener("change", arm);
-  cancel.addEventListener("click", () => { editing = null; words.value = ""; picker.value = ""; arm(); });
   comp.form.addEventListener("submit", (e) => {
     e.preventDefault();
     const files = [...(picker.files ?? [])];
     const text = words.value.trim();
-    if (editing === null && files.length === 0 && text === "") return;
+    if (files.length === 0 && text === "") return;
     // THE SERVER'S NUMBERS, off the profile, never compiled in: they differ between environments,
     // and a person should hear "too many" before the upload rather than after it.
-    if (me !== null && (editing !== null || files.length > 0)) {
-      const { maxPhotosPerMeal } = me.limits;
-      const stored = editing !== null ? editing.photos : (focusMeal?.photos ?? 0);
+    if (me !== null && files.length > 0) {
+      const { maxPhotosPerMeal, maxUploadBytes } = me.limits;
+      const stored = focusMeal?.photos ?? 0;
       if (stored + files.length > maxPhotosPerMeal) { tell(fill(COPY.photosMax, { n: `${maxPhotosPerMeal}` })); return; }
+      if (files.reduce((n, f) => n + f.size, 0) > maxUploadBytes) { tell(COPY.photoTooLarge); return; }
     }
     turn(async () => {
       liveAnswer = null;
-      // What goes up is the resized frame — the byte cap weighs it, not what was picked.
-      const shrunk = await shrinkPhotos(files);
-      if (me !== null && shrunk.reduce((n, f) => n + f.size, 0) > me.limits.maxUploadBytes) throw new Said(COPY.photoTooLarge);
       // Several files are ANGLES OF ONE MEAL, `photo` fields like the app's.
       const form = new FormData();
-      for (const f of shrunk) form.append("photo", f);
-      if (editing !== null) {
-        // AN EDIT (#608): the same multipart, `text` rather than `caption`, PATCH on the line. The
-        // analyzer re-reads every photo with the new words; the line and the card change in place.
-        form.append("text", text);
-        try {
-          const r = await apiStream<EditLineLast>(MESSAGE(editing.id), { method: "PATCH", body: form }, (line) => {
-            // The stream's progress words arrive ON the event — a glance is its own line, and
-            // `reading`/`item` carry `line` already worded. Printed, never composed.
-            const ev = line as PhotoProgress;
-            progress.textContent = ev.kind === "glance" ? ev.text : ev.line;
-            progress.hidden = false;
-          });
-          if (r.kind === UNKNOWN) throw new Said(unclear());
-          if (r.kind === "target-gone") {
-            editing = null;
-            arm();
-            await draw();
-            throw new Said(COPY.messageGone);
-          }
-          if (r.kind === "bad-request") {
-            editing = null;
-            arm();
-            throw new Said(COPY.messageNotEditable);
-          }
-          if (r.kind === "too-many") throw new Said(fill(COPY.photosMax, { n: `${r.limit}` }));
-          if (r.kind !== "updated") throw new ApiError(200, { error: r.kind, ...("scope" in r ? { scope: r.scope } : {}) }, `edit: ${r.kind}`);
-        } finally {
-          progress.hidden = true;
-        }
-        editing = null;
-        picker.value = "";
-        words.value = "";
-        arm();
-        return;
-      }
+      for (const f of files) form.append("photo", f);
       if (files.length > 0 && focusMeal !== null) {
         // ANGLES ON THE FOCUSED MEAL, not a new turn: the sheet's upload posts to the meal's own
         // collection — the words in the box stay for the correction turn that reads them.
@@ -543,7 +465,7 @@ export async function chatScreen(): Promise<HTMLElement> {
       }
       if (files.length > 0) {
         const saved = await sendOrKeep({
-          id: crypto.randomUUID(), userId: uid ?? "", kind: "photo", text: text === "" ? null : text, photos: shrunk,
+          id: crypto.randomUUID(), userId: uid ?? "", kind: "photo", text: text === "" ? null : text, photos: files,
           capturedAt: new Date().toISOString(),
         }, { onResult: rememberLive });
         picker.value = "";
@@ -578,7 +500,7 @@ export async function chatScreen(): Promise<HTMLElement> {
     if (notice.textContent === kept() || notice.textContent === behind()) tell(keptNotice(uid));
   });
   // One h1 per page, and the boards draw no centred title on web — clipped, for the landmark.
-  wrap.append(el("h1", "visually-hidden", shellCopyFor(lang).navChat), thread, notice, comp.form, progress);
+  wrap.append(el("h1", "visually-hidden", shellCopyFor(lang).navChat), thread, notice, comp.form);
   // What the turn that was out said, if it answered after its own screen was gone.
   const carried = takeCarried();
   if (carried !== null) tell(carried === kept() || carried === behind() ? keptNotice(uid) : carried);

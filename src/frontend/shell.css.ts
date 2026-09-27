@@ -74,8 +74,10 @@ body { margin: 0; background: var(--bg); color: var(--ink);
   padding: 28px 40px; max-width: 1160px; width: 100%; margin: 0 auto; overflow: hidden; }
 .wmain.one { grid-template-columns: 1fr; max-width: 820px; }
 /* The meal's board puts its 400px|1fr columns INSIDE the main — the screen's own .mdetail grid —
-   so the route's main is one column at the full width, not the .one variant's 820px. */
-.wmain.meal { grid-template-columns: 1fr; }
+   so the route's main is one column at the full width, not the .one variant's 820px. Selected by
+   CONTENT, never a .meal class: the kit's .meal is a list ROW, and a class here would hand
+   the main its padding (#172). */
+.wmain:has(.mdetail) { grid-template-columns: 1fr; }
 .wcol { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; overflow-y: auto; }
 @media (max-width: 760px) {
   .wtop { padding: 0 16px; gap: 16px; }
@@ -137,6 +139,10 @@ h2 { font-size: 17px; }
 .compose .box { flex: 1; min-width: 0; min-height: 48px; border-radius: 24px; background: var(--surface);
   box-shadow: 0 0 0 1px var(--hair); border: 0; padding: 0 16px; font: inherit; font-size: 16px;
   color: var(--ink); }
+/* The wrapping field (composerRow's multiline): vertically padded like the input, sized by its
+   text where the engine knows field-sizing, scrollable where it does not. */
+.compose textarea.box { padding: 13px 16px; line-height: 22px; resize: none;
+  field-sizing: content; border-radius: 24px; }
 .compose .box::placeholder { color: var(--faint); }
 .compose .box:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .comp-note { display: flex; align-items: center; gap: 6px; padding-top: 6px; }

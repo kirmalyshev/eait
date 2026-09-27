@@ -78,9 +78,4 @@ ${Array.from({ length: 14 }, (_, i) => `.thread .dly-${i} { --d: ${(i * 0.1).toF
 
 /* The load failure ("states-chat-failed"): Gabie's line centred in the column's room. */
 .chatfail { flex: 1; display: flex; align-items: center; justify-content: center; }
-
-/* The line's own actions — Edit/Delete under a line of mine, small text buttons on a 44px floor.
-   The .me tint drops the shared .act's muted to 4.37:1 — inside the bubble they read the ink. */
-.acts { display: flex; gap: 2px; margin-top: 2px; }
-.me .act { color: var(--ink); }
 `;

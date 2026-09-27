@@ -414,9 +414,9 @@ export function textField(placeholder: string): HTMLInputElement {
  * HEIC as happily as it once handed the app. The server refuses it before charging (415), and
  * that refusal is what a person reads.
  */
-export function composerRow(placeholder: string): {
+export function composerRow(placeholder: string, opts?: { camera?: boolean; multiline?: boolean }): {
   form: HTMLFormElement; picker: HTMLInputElement; add: HTMLButtonElement;
-  words: HTMLInputElement; send: HTMLButtonElement; count: HTMLElement; cancel: HTMLButtonElement;
+  words: HTMLInputElement | HTMLTextAreaElement; send: HTMLButtonElement; count: HTMLElement; cancel: HTMLButtonElement;
 } {
   const shell = shellCopyFor(lang);
   const form = el("form", "comp") as HTMLFormElement;
@@ -431,13 +431,32 @@ export function composerRow(placeholder: string): {
   add.setAttribute("aria-label", shell.composerPhoto);
   add.append(el("i", "ico i-upload"));
   add.addEventListener("click", () => picker.click());
-  const words = textField(placeholder);
+  // `multiline` is a one-line textarea that WRAPS and grows (field-sizing:content) — Home's
+  // longer placeholder reads whole (#170); the plain input stays for the shorter forms.
+  const words = opts?.multiline === true
+    ? (() => {
+        const t = el("textarea", "") as HTMLTextAreaElement;
+        t.rows = 1;
+        t.placeholder = placeholder;
+        t.setAttribute("aria-label", placeholder);
+        t.addEventListener("keydown", (e) => {
+          // isComposing — an IME Enter (vi's tone marks, ja/zh) ends a composition, not the line.
+          if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+            e.preventDefault(); form.requestSubmit();
+          }
+        });
+        return t;
+      })()
+    : textField(placeholder);
   words.className = "box";
   const send = el("button", "ib p", "") as HTMLButtonElement;
   send.type = "submit";
   send.setAttribute("aria-label", shell.composerSend);
   send.append(el("i", "ico i-send"));
-  row.append(add, words, send);
+  // Home's composer is words + send only — the boards put photo upload on the "Upload a photo"
+  // CTA there (#170), and without the camera round the field takes the column.
+  if (opts?.camera !== false) row.append(add);
+  row.append(words, send);
   const count = el("span", "count", "");
   count.hidden = true;
   const cancel = el("button", "act", COPY.cancel) as HTMLButtonElement;
@@ -685,7 +704,8 @@ export async function render(): Promise<void> {
   // row only once there is a session to lose it over — over the one quiet column. `wmain`'s
   // two-column form is W4's; every surface today's code draws is the boards' one-column `one` —
   // except the meal, whose board widens the main to the full `wmain` width and puts the pair's
-  // columns inside it (`wmain.meal`, the one-column-at-1160 variant).
+  // columns inside it (`wmain:has(.mdetail)` — the variant is selected by content because `.meal`
+  // is already the kit's row class, and classing the main with it leaked that row's padding).
   const wrap = el("div", "wmain");
   // The column's content is the page's MAIN landmark — a screen reader jumps straight to it.
   const body = el("main", "wcol");
@@ -695,7 +715,7 @@ export async function render(): Promise<void> {
   // The hash without its query — `#/chat?focus=<id>` is Chat (the meal-focus handoff W5 and W6
   // take, #93/#94).
   const route = routeBase(location.hash || "#/");
-  wrap.className = `wmain ${route.startsWith("#/meal/") ? "meal" : "one"}`;
+  wrap.className = `wmain${route.startsWith("#/meal/") ? "" : " one"}`;
   // The profile BEFORE the navigation, because whether the admin tab exists is on it. Drawing the
   // bar first and adding a tab a moment later is a menu that moves under the cursor.
   try {

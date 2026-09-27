@@ -26,11 +26,10 @@ import {
   blobSrc, ctaEl, kitEl, mcardEl, mealRowEl, ringEl, spudAvatarEl, weekStripEl,
 } from "../kit.ts";
 import {
-  COPY, DAYS, PENDING, Said, behind, clear, composerRow, dayText, el, firstMealDue, heldProposal, kcal, kept,
+  COPY, DAYS, PENDING, behind, clear, composerRow, dayText, el, firstMealDue, heldProposal, kcal, kept,
   keptNotice, lang, names, profile, proposalCard, sendOrKeep, setHeldProposal, setRedraw,
   takeCarried, takeTurn, type Frame,
 } from "../shell.ts";
-import { shrinkPhotos } from "../photo.ts";
 
 async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   const wrap = el("section", "home");
@@ -131,7 +130,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   const kcalCard = (day: DayResponse | null, interactive: boolean): HTMLElement => {
     const card = el("div", "card kcard");
     const left = el("div", "");
-    const kfig = el("b", "num kfig");
+    const kfig = el("b", `num kfig${interactive ? " big" : ""}`);
     if (day === null) {
       kfig.textContent = "—";
       left.append(kfig, el("span", "klab", fill(L.kcalLeftDetail, { eaten: "—", plan: "—" })));
@@ -289,45 +288,27 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
 
   // ── The composer (today only) ──────────────────────────────────────────────────────────
 
-  /** The in-diary composer — the boards' shared one (`composerRow`), text or photos. */
-  const comp = composerRow(L.webComposerPlaceholder);
-  const { picker, words, send, count: photoCount } = comp;
-  const arm = (): void => {
-    const picked = picker.files?.length ?? 0;
-    photoCount.textContent = picked > 0 ? count(COPY.photosCount, picked) : "";
-    photoCount.hidden = photoCount.textContent === "";
-    send.setAttribute("aria-label", picked > 0 ? COPY.sendPhoto : COPY.send);
-  };
-  picker.addEventListener("change", arm);
+  /** The in-diary composer — the boards' shared one (`composerRow`), words only: a photo goes
+   *  through the "Upload a photo" CTA on Home (the board's composer has no camera round), which
+   *  also leaves the field the full column so its whole placeholder reads. */
+  const comp = composerRow(L.webComposerPlaceholder, { camera: false, multiline: true });
+  const { words } = comp;
   comp.form.addEventListener("submit", (e) => {
     e.preventDefault();
-    const files = [...(picker.files ?? [])];
     const text = words.value.trim();
-    if (files.length === 0 && text === "") return;
-    // THE SERVER'S NUMBERS, off the profile — the same bounds the chat's composer checks.
-    if (files.length > 0) {
-      const { maxPhotosPerMeal } = me.limits;
-      if (files.length > maxPhotosPerMeal) { tell(fill(COPY.photosMax, { n: `${maxPhotosPerMeal}` })); return; }
-    }
+    if (text === "") return;
     turn(async () => {
-      // What goes up is the resized frame — the byte cap weighs it, not what was picked.
-      const shrunk = await shrinkPhotos(files);
-      if (shrunk.reduce((t, f) => t + f.size, 0) > me.limits.maxUploadBytes) throw new Said(COPY.photoTooLarge);
       // A write always lands on TODAY — `capturedAt` is now — so the redraw shows where it
       // landed, not a past day the strip was looking at.
       viewing = today;
       const saved = await sendOrKeep({
         id: crypto.randomUUID(), userId: uid, capturedAt: new Date().toISOString(),
-        kind: shrunk.length > 0 ? "photo" : "text", text: text === "" ? null : text,
-        photos: shrunk,
+        kind: "text", text, photos: [],
       });
-      picker.value = "";
       words.value = "";
-      arm();
       return saved;
     });
   });
-  arm();
 
   // ── The draw ──────────────────────────────────────────────────────────────────────────
 
@@ -424,7 +405,9 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       right.push(strip);
     }
 
-    right.push(kcalCard(day, rich));
+    // Page 2 replaces the WHOLE card area (today-page2.html: strip, four tiles, the day's score,
+    // dots, Upload) — the calorie card and the composer are page 1's (#170).
+    if (page === 0) right.push(kcalCard(day, rich));
 
     if (day === null) {
       // The failed day's dashes — flat icons, "— g", bare names.
@@ -476,7 +459,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     // neither: its right column ends at the dash cards.
     if (isToday && day !== null) {
       if (!logging) right.push(ctaEl({ text: L.webUploadPhoto, kind: "p", icon: "upload", href: "#/log" }));
-      right.push(comp.form);
+      if (page === 0) right.push(comp.form);
     }
 
     clear(wrap).append(h1, ...left, notice);
