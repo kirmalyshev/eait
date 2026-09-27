@@ -2,22 +2,21 @@
 // the week and streak cards and the BMI bar (web/progress.html; W8 #95).
 //
 // Everything is scoped under `.prog` so the shell's primitives and the kit's `.pgraph`/`card`
-// styles keep meaning what they mean elsewhere — `.lab` here is the board's quiet lowercase
-// label, not the shell's uppercase one, and the cards inside the columns take their spacing from
-// `.wcol`'s gap rather than `.card`'s own margin.
+// styles keep meaning what they mean elsewhere — `.lab` is the shell's uppercase board label,
+// and the cards inside the columns take their spacing from `.wcol`'s gap rather than `.card`'s
+// own margin.
 
 export const progressCss = `
 /* The board's shape: two even columns 24px apart inside a 1000px wmain, one column under 761px. */
 .wmain:has(.prog) { max-width: 1000px; }
 .prog { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-.prog .card { margin-bottom: 0; padding: 18px 20px; }
+.prog .card { margin-bottom: 0; padding: 16px; }
 @media (max-width: 760px) { .prog { grid-template-columns: 1fr; } }
 
-/* The cards' shared words, scoped — lower than the shell's .lab (the board writes labels quiet
-   and lowercase), and the figures/notes the cards set. */
+/* The cards' shared words, scoped — the labels are the shell's own uppercase .lab (#174: the
+   board's ARE uppercase), and the figures/notes the cards set. */
 .prog .row { display: flex; align-items: center; gap: 8px; }
 .prog .between { justify-content: space-between; }
-.prog .lab { font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--muted); }
 .prog .m { color: var(--muted); }
 .prog .t12 { font-size: 12px; }
 .prog .d { font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
@@ -33,8 +32,10 @@ export const progressCss = `
 /* The range chips — the board's .seg: a quiet pill row on the paper ground. .card button's
    house rule hands every button a 44px pill; the chips are small controls, so the rule is
    answered back, scoped. */
-.prog .seg { display: flex; gap: 2px; background: var(--bg); border-radius: 999px; padding: 3px; width: 190px; }
-.prog .seg button { flex: 1; border: 0; background: none; border-radius: 999px; font: inherit;
+/* Radius takes the board's 10px; the ground stays --bg — on the board's --hair the muted chip
+   text measures 4.02:1, under the axe gate's 4.5 (#174). */
+.prog .seg { display: flex; gap: 2px; background: var(--bg); border-radius: 10px; padding: 3px; width: 190px; }
+.prog .seg button { flex: 1; border: 0; background: none; border-radius: 8px; font: inherit;
   font-size: 13px; font-weight: 600; color: var(--muted); padding: 7px 0; min-height: 0; margin: 0;
   cursor: pointer; }
 .prog .seg button.on { background: var(--surface); color: var(--ink);
@@ -73,9 +74,18 @@ export const progressCss = `
   color: var(--muted); cursor: pointer; width: 28px; height: 28px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center; }
 .prog .bmihelp .ico { width: 18px; height: 18px; }
-.prog .bmibar { display: block; margin-top: 8px; }
-.prog .bmil { display: flex; justify-content: space-between; gap: 4px; margin-top: 6px; }
-.prog .bmil span { font-size: 11px; color: var(--muted); }
+/* The board's .bmi — four 8 px segments, outer corners rounded, the active band on --line, and
+   an 18 px tick riding 5 px above the bar; the labels sit centred under their own segment. */
+.prog .bmi { position: relative; display: flex; gap: 3px; margin-top: 14px; }
+.prog .bmi i { flex: 1; height: 8px; background: var(--hair); }
+.prog .bmi i:first-child { border-radius: 4px 0 0 4px; }
+.prog .bmi i:last-child { border-radius: 0 4px 4px 0; }
+.prog .bmi i.on { background: var(--line); }
+.prog .bmi b { position: absolute; top: -5px; width: 3px; height: 18px; margin-left: -1.5px;
+  border-radius: 2px; background: var(--ink); }
+.prog .bmil { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 8px; }
+.prog .bmil span { font-size: 12px; color: var(--muted); text-align: center;
+  font-variant-numeric: tabular-nums; }
 .prog .bmil span.on { color: var(--ink); font-weight: 600; }
 .prog .bmis { margin-top: 10px; }
 .prog .bmix { margin-top: 8px; }

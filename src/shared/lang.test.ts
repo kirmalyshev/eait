@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import {
   LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, countText, dayMonthAt, genderedRussian,
-  localizedGaps, monthYear, numbers, signedWholeNumbers, timeAt, weekdayLetters,
+  localizedGaps, monthYear, numbers, decimalNumbers, signedWholeNumbers, timeAt, weekdayLetters,
   acceptLang, acceptLanguageTags, narrowLang, spellUnit, t,
   type Localized,
 } from "./lang.ts";
@@ -81,6 +81,12 @@ describe("numbers and dates", () => {
     expect(numbers("en")(92.04)).toBe("92");
     expect(numbers("en")(92.35)).toBe("92.4");
     expect(numbers("de")(92.35)).toBe("92,4");
+  });
+
+  it("the BMI figure is one decimal ALWAYS — 25.0, never 25 (#174)", () => {
+    expect(decimalNumbers("en")(25.02)).toBe("25.0");
+    expect(decimalNumbers("de")(25.02)).toBe("25,0");
+    expect(decimalNumbers("ru")(30.46)).toBe("30,5");
   });
 
   it("names a month in the reader's language, from Intl and never from a table", () => {
