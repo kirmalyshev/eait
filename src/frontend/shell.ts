@@ -615,7 +615,7 @@ export async function render(): Promise<void> {
   }
   if (mine !== drawing) return;
   const right = el("span", "wr");
-  const side = el("aside", "wcol");
+  const side = el("div", "wcol");
   app.append(chrome(route, right), wrap);
   body.textContent = COPY.loading;
   try {
