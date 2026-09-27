@@ -1212,10 +1212,16 @@ export const clientModelTimeoutMs = (serverLlmTimeoutMs: number, calls: number):
  * this number really sizes is the harness, which reads it for the photo route. Hence that count.
  */
 export const DEFAULT_MODEL_TIMEOUT_MS = clientModelTimeoutMs(SERVER_LLM_TIMEOUT_MS, PHOTO_MODEL_CALLS);
-/** The stream's progress lines: zero or one `glance`, zero or more `item`. Shared by the photo turn and an edit (#608). */
+/**
+ * The stream's progress lines, each carrying its own words: `reading` fires first — "Reading the
+ * plate…" in the account's language, so the client prints rather than composes it — then zero or
+ * one `glance` (whose model-written text IS the line) and zero or more `item` events, each with
+ * the weighing line alongside the row. Shared by the photo turn and an edit (#608).
+ */
 export type PhotoProgress =
+  | { kind: "reading"; line: string }
   | { kind: "glance"; text: string }
-  | { kind: "item"; index: number; item: MealItem };
+  | { kind: "item"; index: number; item: MealItem; line: string };
 /**
  * One line of the photo stream. Progress, then `PhotoLast` as the LAST line — refusals included,
  * because the 200 went out with the first byte. An `item` with `index: 0` after others means the

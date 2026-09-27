@@ -9,7 +9,7 @@
 // `hint` is a CODE, not copy, for exactly that reason: `"lowConfidence"` resolves to one string in
 // the bot and another in this app, and neither has to agree with the other about wording.
 
-import type { DailyTotals, MealAnalysis, MealQuestion } from "./types.ts";
+import type { DailyTotals, MealAnalysis, MealQuestion, VerdictLabel } from "./types.ts";
 import { OUTCOME_UNKNOWN, REFUSAL_STATUS } from "./contract.ts";
 
 /** Which correction nudge the surface should show under a logged meal. */
@@ -33,6 +33,14 @@ export interface MealLogged {
    * chips are a shortcut for typing rather than a route of their own.
    */
   question?: MealQuestion;
+  /**
+   * The verdict's words on the payload — the pills, `verdictPillLabel` per visible verdict in the
+   * account's language. The browser bundle carries no i18n catalog, so every verdict a card draws
+   * arrives already worded: a client renders these and composes nothing itself.
+   */
+  verdictLabels: VerdictLabel[];
+  /** Spud's one-sentence verdict for the card — `verdictHeadline`; null when the verdicts say nothing. */
+  verdictHeadline: string | null;
 }
 
 /**
@@ -92,6 +100,13 @@ export interface MealProposed {
    * read, and `POST /confirm` answers 410 either way.
    */
   expiresAt: string;
+  /**
+   * The verdict words the proposal card draws — `verdictInlineText` joined ("calories high ·
+   * saturated fat high", empty when all on plan) and `verdictPillLabel` per visible verdict —
+   * composed where the verdict was computed: the bundle that renders them holds no i18n catalog.
+   */
+  verdictInline: string;
+  verdictLabels: VerdictLabel[];
 }
 
 /**
@@ -149,6 +164,10 @@ export interface MealUpdated {
   date: string;
   /** How the change was made. `manual` = the user edited numbers; `nl` = they described the fix; `reanalysis` = the analyzer re-read the stored photo. */
   via: "manual" | "nl" | "reanalysis";
+  /** The pills' words for the edited analysis — `verdictPillLabel` per visible verdict, localized. Never describes numbers that have since changed: computed at write. */
+  verdictLabels: VerdictLabel[];
+  /** Spud's one-sentence verdict after the edit — `verdictHeadline`; null when nothing to say. */
+  verdictHeadline: string | null;
 }
 
 /**

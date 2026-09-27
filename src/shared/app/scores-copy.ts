@@ -6,15 +6,15 @@
 // translation can ever smuggle a category word in. `scores-copy.test.ts` bans "obese",
 // "overweight", "normal", "healthy" and their translations across all eight languages.
 //
-// THE FACTOR NAMES REUSE the labels that already exist: saturated fat is `verdictNoun("ldl")`,
-// so the pill and the breakdown spell it the same way. The ones nothing else names — protein,
-// fibre, sugar, salt — are here. `limit` on a part is a `medical` screen option id ("ldl",
-// "kidneys", "lowsugar"); its label is the onboarding content's, not duplicated here.
+// THE FACTOR NAMES REUSE the labels that already exist: saturated fat's is the verdict pill's
+// noun ("Saturated fat"), carried VERBATIM in `factors.satfat` — the browser bundle reaches only
+// `app/` modules, and `verdictNoun` lives behind the i18n catalog (#145), so the test still pins
+// the two equal rather than sharing a lookup. `limit` on a part is a `medical` screen option id
+// ("ldl", "kidneys", "lowsugar"); its label is the onboarding content's, not duplicated here.
 
-import { numbers, t, type CountForms, type Localized } from "./lang.ts";
-import type { BmiRange, ScoreFactor, ScoreLimit } from "./scores.ts";
-import type { Lang } from "./types.ts";
-import { verdictNoun } from "./verdicts.ts";
+import { numbers, t, type CountForms, type Localized } from "../lang.ts";
+import type { BmiRange, ScoreFactor, ScoreLimit } from "../scores.ts";
+import type { Lang } from "../types.ts";
 
 export interface ScoresCopy {
   /** The card's title. */
@@ -48,8 +48,8 @@ export interface ScoresCopy {
   bmiBelow: string;
   bmiBetween: string;
   bmiAbove: string;
-  /** The factor names nothing else owns — saturated fat reuses the verdict noun. */
-  factors: Record<"protein" | "fibre" | "sugar" | "salt", string>;
+  /** The five factor names — `satfat` is the verdict pill's noun, verbatim. */
+  factors: Record<ScoreFactor, string>;
   /** The breakdown's opening row — the base points every score starts from. */
   startRow: string;
   /**
@@ -84,7 +84,7 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     bmiBelow: "below {n}",
     bmiBetween: "{low}–{high}",
     bmiAbove: "{n} and above",
-    factors: { protein: "Protein", fibre: "Fibre", sugar: "Sugar", salt: "Salt" },
+    factors: { satfat: "Saturated fat", protein: "Protein", fibre: "Fibre", sugar: "Sugar", salt: "Salt" },
     startRow: "Start",
     partPctOfKcal: "{n}% of kcal",
     partGPer100Kcal: "{n} g per 100 kcal",
@@ -109,7 +109,7 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     bmiBelow: "moins de {n}",
     bmiBetween: "{low}–{high}",
     bmiAbove: "{n} et plus",
-    factors: { protein: "Protéines", fibre: "Fibres", sugar: "Sucres", salt: "Sel" },
+    factors: { satfat: "Graisses saturées", protein: "Protéines", fibre: "Fibres", sugar: "Sucres", salt: "Sel" },
     startRow: "Base",
     partPctOfKcal: "{n} % des kcal",
     partGPer100Kcal: "{n} g pour 100 kcal",
@@ -134,7 +134,7 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     bmiBelow: "unter {n}",
     bmiBetween: "{low}–{high}",
     bmiAbove: "{n} und mehr",
-    factors: { protein: "Protein", fibre: "Ballaststoffe", sugar: "Zucker", salt: "Salz" },
+    factors: { satfat: "Gesättigte Fette", protein: "Protein", fibre: "Ballaststoffe", sugar: "Zucker", salt: "Salz" },
     startRow: "Basis",
     partPctOfKcal: "{n} % der kcal",
     partGPer100Kcal: "{n} g pro 100 kcal",
@@ -159,7 +159,7 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     bmiBelow: "sotto {n}",
     bmiBetween: "{low}–{high}",
     bmiAbove: "{n} e oltre",
-    factors: { protein: "Proteine", fibre: "Fibre", sugar: "Zuccheri", salt: "Sale" },
+    factors: { satfat: "Grassi saturi", protein: "Proteine", fibre: "Fibre", sugar: "Zuccheri", salt: "Sale" },
     startRow: "Base",
     partPctOfKcal: "{n}% delle kcal",
     partGPer100Kcal: "{n} g per 100 kcal",
@@ -184,7 +184,7 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     bmiBelow: "por debajo de {n}",
     bmiBetween: "{low}–{high}",
     bmiAbove: "{n} y más",
-    factors: { protein: "Proteínas", fibre: "Fibra", sugar: "Azúcar", salt: "Sal" },
+    factors: { satfat: "Grasas saturadas", protein: "Proteínas", fibre: "Fibra", sugar: "Azúcar", salt: "Sal" },
     startRow: "Base",
     partPctOfKcal: "{n}% de las kcal",
     partGPer100Kcal: "{n} g por 100 kcal",
@@ -209,7 +209,7 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     bmiBelow: "dưới {n}",
     bmiBetween: "{low}–{high}",
     bmiAbove: "từ {n} trở lên",
-    factors: { protein: "Đạm", fibre: "Chất xơ", sugar: "Đường", salt: "Muối" },
+    factors: { satfat: "Chất béo bão hoà", protein: "Đạm", fibre: "Chất xơ", sugar: "Đường", salt: "Muối" },
     startRow: "Điểm gốc",
     partPctOfKcal: "{n}% của kcal",
     partGPer100Kcal: "{n} g trên 100 kcal",
@@ -234,7 +234,7 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     bmiBelow: "di bawah {n}",
     bmiBetween: "{low}–{high}",
     bmiAbove: "{n} ke atas",
-    factors: { protein: "Protein", fibre: "Serat", sugar: "Gula", salt: "Garam" },
+    factors: { satfat: "Lemak jenuh", protein: "Protein", fibre: "Serat", sugar: "Gula", salt: "Garam" },
     startRow: "Awal",
     partPctOfKcal: "{n}% dari kcal",
     partGPer100Kcal: "{n} g per 100 kcal",
@@ -264,7 +264,7 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     bmiBelow: "ниже {n}",
     bmiBetween: "{low}–{high}",
     bmiAbove: "{n} и выше",
-    factors: { protein: "Белок", fibre: "Клетчатка", sugar: "Сахар", salt: "Соль" },
+    factors: { satfat: "Насыщенные жиры", protein: "Белок", fibre: "Клетчатка", sugar: "Сахар", salt: "Соль" },
     startRow: "База",
     partPctOfKcal: "{n}% от ккал",
     partGPer100Kcal: "{n} г на 100 ккал",
@@ -278,12 +278,10 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
 export const scoresCopy = (lang: Lang): ScoresCopy => t(lang)(SCORES_COPY);
 
 /**
- * A factor's name. Saturated fat is the ONE that already has a localized label — the verdict
- * pill's — and the breakdown must spell it the same way, so it reads `verdictNoun` rather than
- * carrying a second translation of it.
+ * A factor's name. Saturated fat's is the verdict pill's noun — carried verbatim in the table
+ * (`verdict.noun.ldl` in the catalog), and `scores-copy.test.ts` still pins the two equal.
  */
 export function scoreFactorLabel(factor: ScoreFactor, lang: Lang): string {
-  if (factor === "satfat") return verdictNoun("ldl", lang);
   return t(lang)(SCORES_COPY).factors[factor];
 }
 

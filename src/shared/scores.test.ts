@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { bmi, bmiRange, dayHealthScore, healthScore, type HealthScore } from "./scores.ts";
+import { bmi, bmiRange, dayHealthScore, HEALTH_SCORE, healthScore, type HealthScore } from "./scores.ts";
 import type { Verdict } from "./types.ts";
 
 /**
@@ -135,7 +135,7 @@ describe("healthScore", () => {
 
 describe("dayHealthScore", () => {
   const scored = (score: number | null, kcal: number) =>
-    ({ kcal, healthScore: score === null ? null : { score, parts: [] } });
+    ({ kcal, healthScore: score === null ? null : { score, base: HEALTH_SCORE.base, parts: [] } });
 
   test("the persona's day: the kcal-weighted mean, rounded half up — 6.9 → 7", () => {
     expect(dayHealthScore([scored(8, 312), scored(7, 540), scored(5, 214)])).toBe(7);

@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { LANGS } from "./types.ts";
-import { countText } from "./lang.ts";
+import { LANGS } from "../types.ts";
+import { countText } from "../lang.ts";
 import { bmiRangeLabel, scoreFactorLabel, scoresCopy } from "./scores-copy.ts";
-import { BMI_BANDS, type BmiRange } from "./scores.ts";
-import { verdictNoun } from "./verdicts.ts";
+import { BMI_BANDS, type BmiRange } from "../scores.ts";
+import { verdictNoun } from "../verdicts.ts";
 
 /**
  * The category words a BMI label may never carry (#118) — "obese", "overweight", "underweight",

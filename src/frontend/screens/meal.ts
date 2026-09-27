@@ -17,8 +17,8 @@
 import { dateMinus, isCalendarDate, localTime } from "../../shared/dates.ts";
 import { LANG_TAG, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
-import { scoreFactorLabel, scoresCopy } from "../../shared/scores-copy.ts";
-import { HEALTH_SCORE, type ScorePart } from "../../shared/scores.ts";
+import { scoreFactorLabel, scoresCopy } from "../../shared/app/scores-copy.ts";
+import type { ScorePart } from "../../shared/scores.ts";
 import type { MealRecord } from "@eait/shared";
 import type { DayResponse } from "@eait/shared/contract";
 import type { MealUpdated } from "../../shared/results.ts";
@@ -27,7 +27,7 @@ import { fillCopy as fill } from "../copy.ts";
 import { esc, ico } from "../../shared/ui/kit.ts";
 import type { IconName } from "../../shared/ui/icons.ts";
 import {
-  ingredientEl, kitEl, mcardEl, mealRowEl, scorePartEl, scoreRowEl, verdictListEl, verdictWords,
+  ingredientEl, kitEl, mcardEl, mealRowEl, scorePartEl, scoreRowEl, verdictListEl,
 } from "../kit.ts";
 import {
   COPY, MEAL, clear, el, findMeal, lang, names, profile, sendOrKeep, setRedraw, takeTurn,
@@ -136,7 +136,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const head = kitEl(`<div class="row between"><b class="d d22">${esc(sc.title)}</b>` +
       `<b class="d d28 num">${esc(fill(sc.outOf, { n: n(hs.score) }))}</b></div>`);
     dlg.append(head, el("p", "t13 m mnote", sc.method));
-    dlg.append(scorePartEl({ name: sc.startRow, points: `${HEALTH_SCORE.base}` }));
+    dlg.append(scorePartEl({ name: sc.startRow, points: `${hs.base}` }));
     const pts = (p: number): string => (p > 0 ? `+${n(p)}` : p < 0 ? `−${n(-p)}` : "0");
     const measure = (p: ScorePart): string => {
       if (p.density === null) return sc.notRead;
@@ -324,7 +324,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
         ...(item.kcal !== undefined ? { kcal: n(item.kcal) } : {}),
       }));
     }
-    const verdicts = verdictListEl(verdictWords(meal.verdicts));
+    const verdicts = verdictListEl((meal.verdictLabels ?? []).map((v) => ({ tone: v.tone, words: v.label })));
     if (verdicts !== null) sheet.append(verdicts);
     const correct = kitEl(`<a class="cta s">${esc(mc.webCorrect)}</a>`) as HTMLAnchorElement;
     correct.href = `#/chat?focus=${encodeURIComponent(meal.id)}`;

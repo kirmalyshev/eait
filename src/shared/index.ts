@@ -18,7 +18,7 @@ export * from "./health.ts";
 export * from "./health-copy.ts";
 export * from "./trend.ts";
 export * from "./scores.ts";
-export * from "./scores-copy.ts";
+export * from "./app/scores-copy.ts";
 export * from "./entitlement.ts";
 export * from "./chat.ts";
 export * from "./chat-copy.ts";

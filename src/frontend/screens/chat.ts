@@ -4,17 +4,14 @@
 
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
-import { threadCopyFor } from "../../shared/chat-copy.ts";
-import { advancePending, pendingLine } from "../../shared/stream.ts";
 import { LANG_TAG, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import { outcomeUnknown } from "../../shared/results.ts";
-import type { PendingPhoto } from "@eait/shared";
 import type {
   ChatHistoryResponse, DeleteLineResponse, EditLineLast, PendingMealsResponse, PhotoProgress,
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, apiStream } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
-import { gabieAvatarEl, gabieNameEl, verdictListEl, verdictWords } from "../kit.ts";
+import { gabieAvatarEl, gabieNameEl, verdictListEl } from "../kit.ts";
 import { outbox } from "../outbox.ts";
 import {
   COPY, MESSAGE, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
@@ -176,7 +173,7 @@ export async function chatScreen(): Promise<HTMLElement> {
       const ctxLi = el("li", "line theirs");
       const card = el("div", "card");
       card.append(el("p", "", `${names(focused.items)} — ${kcal(focused.kcal)}`));
-      const verdicts = verdictListEl(verdictWords(focused.verdicts));
+      const verdicts = verdictListEl((focused.verdictLabels ?? []).map((v) => ({ tone: v.tone, words: v.label })));
       if (verdicts !== null) card.append(verdicts);
       ctxLi.append(card);
       list.append(ctxLi);
@@ -191,7 +188,7 @@ export async function chatScreen(): Promise<HTMLElement> {
         [...focused.items].sort((a, b) => b.grams - a.grams).slice(0, 2)
           .map((i) => fill(mc.itemAmount, { amount: `${n(i.grams)} ${g}`, item: i.name })));
       col.append(
-        gabieNameEl(fill(mc.coachLine, { coach: threadCopyFor(lang).coach.name })),
+        gabieNameEl(fill(mc.coachLine, { coach: mc.coachName })),
         el("p", "bub", fill(mc.correctOpener, { items })),
       );
       openLi.append(av, col);
@@ -259,13 +256,13 @@ export async function chatScreen(): Promise<HTMLElement> {
         // AN EDIT (#608): the same multipart, `text` rather than `caption`, PATCH on the line. The
         // analyzer re-reads every photo with the new words; the line and the card change in place.
         form.append("text", text);
-        let p: PendingPhoto = { glance: null, items: [] };
-        progress.textContent = pendingLine(p, lang);
-        progress.hidden = false;
         try {
           const r = await apiStream<EditLineLast>(MESSAGE(editing.id), { method: "PATCH", body: form }, (line) => {
+            // The stream's progress words arrive ON the event — a glance is its own line, and
+            // `reading`/`item` carry `line` already worded. Printed, never composed.
             const ev = line as PhotoProgress;
-            if (ev.kind === "glance" || ev.kind === "item") { p = advancePending(p, ev); progress.textContent = pendingLine(p, lang); }
+            progress.textContent = ev.kind === "glance" ? ev.text : ev.line;
+            progress.hidden = false;
           });
           if (r.kind === UNKNOWN) throw new Said(unclear());
           // GONE OR UNEDITABLE: the composer drops out of edit mode before the throw, because
