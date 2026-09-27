@@ -1103,6 +1103,39 @@ describe("editing the answer", () => {
     expect(out.analysis.protein_g).toBe(meal.analysis.protein_g);
   });
 
+  it("derives the totals from an items-only patch — the ingredient editor's write", async () => {
+    // The phone's (#960) and web's (#188) editors send `{ items }` alone. Until this test the meal
+    // kept the OLD totals on top of the new items; now the items are the truth and the totals are
+    // their sum.
+    const userId = await onboard();
+    const meal = await logged(userId);
+    const items = meal.analysis.items.map((i, ix) =>
+      ix === 0 ? { ...i, kcal: (i.kcal ?? 0) + 100 } : i);
+    const out = await editMeal(deps, userId, meal.mealId, { items });
+    if (out.kind !== "updated") throw new Error("expected updated");
+    const sum = (f: "kcal" | "protein_g" | "carbs_g" | "fat_g") =>
+      items.reduce((s, i) => s + (i[f] ?? 0), 0);
+    expect(out.analysis.kcal).toBe(sum("kcal"));
+    expect(out.analysis.kcal).toBe(meal.analysis.kcal + 100);
+    expect(out.analysis.protein_g).toBeCloseTo(sum("protein_g"), 5);
+    expect(out.analysis.carbs_g).toBeCloseTo(sum("carbs_g"), 5);
+    expect(out.analysis.fat_g).toBeCloseTo(sum("fat_g"), 5);
+    expect((await store.getMeal(userId, meal.mealId))!.kcal).toBe(sum("kcal"));
+  });
+
+  it("lets an explicit total beat the derivation, and a field no item reports stands", async () => {
+    const userId = await onboard();
+    const meal = await logged(userId);
+    const items = meal.analysis.items.map((i, ix) =>
+      ix === 0 ? { ...i, kcal: (i.kcal ?? 0) + 100 } : i);
+    const out = await editMeal(deps, userId, meal.mealId, { items, kcal: 999 });
+    if (out.kind !== "updated") throw new Error("expected updated");
+    expect(out.analysis.kcal).toBe(999);
+    // satfat: no item carries it — a field the items cannot tell keeps the stored figure rather
+    // than being zeroed by a sum over absent values.
+    expect(out.analysis.satfat_g).toBe(meal.analysis.satfat_g);
+  });
+
   it("cannot edit another user's meal", async () => {
     const a = await onboard();
     const b = await onboard();
