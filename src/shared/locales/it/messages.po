@@ -60,12 +60,22 @@ msgstr "{noun} — sopra"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun} — sopra"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.good"
 msgstr "{noun} — nel piano"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
+msgstr "{noun} — molto sopra"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
 msgstr "{noun} — molto sopra"
 
 #. js-lingui-explicit-id
@@ -100,6 +110,11 @@ msgstr "Prima rispondi alle domande del piano sul web."
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "calorie"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.weight"
 msgstr "Calorie"
 
@@ -117,16 +132,6 @@ msgstr "Carboidrati"
 #: src/shared/chat-copy.ts
 msgid "stream.steps.3"
 msgstr "Confronto con il tuo piano"
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ask"
-msgstr "Conferma che questo indirizzo è tuo:"
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.subject"
-msgstr "Conferma la tua email per eait"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -209,11 +214,6 @@ msgid "thread.firstVerdict.fixHint"
 msgstr "Se qualcosa non torna, dimmelo — \"metà del riso\", \"niente avocado\" — oppure tocca la scheda e cambia i grammi."
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ignore"
-msgstr "Se non hai fatto tu questa richiesta, ignora questo messaggio. Non succede nulla, e l'indirizzo viene cancellato entro una settimana."
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.logIt"
 msgstr "Registra"
@@ -284,11 +284,6 @@ msgid "thread.firstVerdict.headline.onPlan"
 msgstr "Nel piano."
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.promise"
-msgstr "Un messaggio quando l'app esce, con un link per disiscriverti in un clic. Nient'altro, mai."
-
-#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
 msgstr "Ancora una cosa che iOS sta per chiedere: le notifiche. Una al giorno e mai di più — la riga delle 20:30, più due promemoria prima che finisca la settimana gratis, se ci sei dentro. Nient'altro, mai."
@@ -320,6 +315,11 @@ msgstr "Ripristinato — ci sei. Una foto o una frase, entrambe registrano un pa
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "grassi saturi"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Grassi saturi"
 
@@ -340,6 +340,11 @@ msgstr "Accedi"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "sodio"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.kidneys"
 msgstr "Sodio"
 
@@ -347,11 +352,6 @@ msgstr "Sodio"
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.sodium"
 msgstr "Su questo il sodio va alto. Valutato solo perché me l'hai chiesto tu."
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.who"
-msgstr "Qualcuno — probabilmente tu — ha chiesto di ricevere un avviso quando esce l'app eait per iPhone."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

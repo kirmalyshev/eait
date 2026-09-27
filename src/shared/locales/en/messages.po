@@ -60,12 +60,22 @@ msgstr "{noun} high"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun} high"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.good"
 msgstr "{noun} on plan"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
+msgstr "{noun} very high"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
 msgstr "{noun} very high"
 
 #. js-lingui-explicit-id
@@ -100,6 +110,11 @@ msgstr "Answer the plan questions on the web first."
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "calories"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.weight"
 msgstr "Calories"
 
@@ -117,16 +132,6 @@ msgstr "Carbs"
 #: src/shared/chat-copy.ts
 msgid "stream.steps.3"
 msgstr "Checking against your plan"
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ask"
-msgstr "Confirm that this address is yours:"
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.subject"
-msgstr "Confirm your email for eait"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -209,11 +214,6 @@ msgid "thread.firstVerdict.fixHint"
 msgstr "If anything's off, say so — \"half the rice\", \"no avocado\" — or tap the card and change the grams."
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ignore"
-msgstr "If it was not you, ignore this. Nothing happens, and the address is deleted within a week."
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.logIt"
 msgstr "Log it"
@@ -284,11 +284,6 @@ msgid "thread.firstVerdict.headline.onPlan"
 msgstr "On plan."
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.promise"
-msgstr "One message when the app is out, with a one-click unsubscribe in it. Nothing else, ever."
-
-#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
 msgstr "One more thing iOS is about to ask about: notifications. One a day and never more — the 20:30 line, plus two reminders before the free week ends if you're on it. Nothing else, ever."
@@ -320,6 +315,11 @@ msgstr "Restored — you're in. A photo or a sentence both log a meal."
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "saturated fat"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Saturated fat"
 
@@ -340,6 +340,11 @@ msgstr "Sign in"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "sodium"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.kidneys"
 msgstr "Sodium"
 
@@ -347,11 +352,6 @@ msgstr "Sodium"
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.sodium"
 msgstr "Sodium runs high on this one. Scored only because you asked me to."
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.who"
-msgstr "Somebody — probably you — asked to hear from eait when the iPhone app is out."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

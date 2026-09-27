@@ -253,10 +253,9 @@ export const countText = (lang: Lang) => {
  * RFC 9110 does not require it and an API client will not — and the failure is silent, because the
  * first tag is still a real language. `en;q=0.1, de;q=0.9` served the front door in English.
  *
- * Here rather than in `web/start.ts` because it was there, so `api/routes.ts` hand-rolled a weaker
- * one for the subscribe form — a header whose first entry carried a weight narrowed to English,
- * and that is the one outbound message whose language cannot be recovered from an account. Two
- * parsers for one header in one binary is exactly the drift `narrowLang` below was written to end.
+ * Here rather than in `web/start.ts` because it was there, while `api/routes.ts` hand-rolled a
+ * weaker one — a header whose first entry carried a weight narrowed to English. Two parsers for
+ * one header in one binary is exactly the drift `narrowLang` below was written to end.
  */
 export function acceptLanguageTags(header: string | null | undefined): string[] {
   return (header ?? "")
@@ -287,8 +286,8 @@ export function acceptLanguageTags(header: string | null | undefined): string[] 
  *
  * THE `;q=` IS STRIPPED HERE, not by the caller. An `Accept-Language` entry carries a weight —
  * `de;q=0.9` — and dropping only the region subtag left the whole tag unrecognised, so a browser
- * that ranked its languages got English. `/start` had its own parser that handled this and the
- * subscribe route did not, which is the three-parsers-in-two-workspaces situation this function
+ * that ranked its languages got English. `/start` had its own parser that handled this while other
+ * routes did not, which is the three-parsers-in-two-workspaces situation this function
  * was written to end, reappearing inside one binary. Anything after `;` is a parameter, never a
  * language, so it cannot belong to the caller.
  */

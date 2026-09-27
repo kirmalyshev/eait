@@ -3,7 +3,6 @@ import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
-import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import type { EngineDeps } from "./deps.ts";
 import { identitiesFor, isAnonymous, linkTelegram } from "./identity.ts";
@@ -24,7 +23,7 @@ const anonymous = async () =>
 
 beforeEach(() => {
   store = memoryStore();
-  deps = { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+  deps = { store, config: CONFIG, llm: demoPorts(), push: fakePush() };
 });
 
 describe("minting", () => {

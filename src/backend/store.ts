@@ -318,23 +318,6 @@ export interface StoreOptions {
   maxConnections?: number;
 }
 
-/** What `addSubscriber` found or created. */
-export interface SubscriberUpsert {
-  /**
-   * The capability that turns this pending row into a subscriber.
-   *
-   * NULL when the address is already confirmed. That is the signal not to send anything: a
-   * "you are already on the list" email is unsolicited mail to somebody who did not ask for it
-   * this time, and answering the form differently for a known address makes the endpoint an
-   * oracle for who is on the list.
-   */
-  confirmToken: string | null;
-  /** The capability that removes the address. Carried in every message the list ever sends. */
-  unsubscribeToken: string;
-  /** True when this call created the row. */
-  created: boolean;
-}
-
 /**
  * What an account is allowed to be.
  *
@@ -916,51 +899,6 @@ export interface Store {
    * the gap only shows up as a row that does not add up, hours either side of midnight.
    */
   adminMetrics(query: AdminMetricsQuery): Promise<AdminMetrics>;
-
-  // ── The mailing list ───────────────────────────────────────────────────────────────────────
-  //
-  // Not scoped by `userId`, and that is the one place in this interface where that is correct: a
-  // subscriber is not an account. Nothing joins these rows to `users`, so the app's "we never store
-  // an email address" stays true of the app, and leaving the list does not require having one.
-
-  /**
-   * Record an address as PENDING, or return what is already known about it.
-   *
-   * Idempotent on the address, which is the primary key. A second submission returns the tokens
-   * already issued rather than a second row — so a double-tapped button, or somebody subscribing
-   * twice a month apart, cannot produce two entries with two tokens of which only one unsubscribes
-   * them.
-   *
-   * A row here is NOT a subscriber. It becomes one when `confirmSubscriber` is called with the
-   * confirmation token, and until then it is an address somebody typed into a form, which is not
-   * the same thing as consent — see `engine/subscribe.ts`.
-   */
-  addSubscriber(email: string, source: string): Promise<SubscriberUpsert>;
-  /**
-   * Turn a pending row into a subscriber, by its confirmation token.
-   *
-   * Returns false for an unknown token. Idempotent for a known one: clicking the link twice says
-   * the same thing both times, exactly as unsubscribing does.
-   */
-  confirmSubscriber(confirmToken: string): Promise<boolean>;
-  /** Removes by unsubscribe token. False when unknown — already gone, or never valid. */
-  removeSubscriber(token: string): Promise<boolean>;
-  /**
-   * Rows added at or after `sinceIso`, CONFIRMED OR NOT.
-   *
-   * Counting only the confirmed ones would be a cap a bot walks straight through: submitting is
-   * what costs the server something — a row and an outbound email — and confirming is the part an
-   * abuser never does.
-   */
-  countSubscribersSince(sinceIso: string): Promise<number>;
-  /**
-   * Delete pending rows created before `beforeIso`. Returns how many went.
-   *
-   * The point is not tidiness. An address that was typed into a form and never confirmed is
-   * personal data held with no basis whatsoever — quite possibly somebody else's address, typed by
-   * a stranger — and the only defensible thing to do with it is to stop having it.
-   */
-  pruneUnconfirmedSubscribers(beforeIso: string): Promise<number>;
 
   // ── Meals ──────────────────────────────────────────────────────────────────────────────────
   /** False when a meal with this id already exists — a confirm racing itself; the first one won. */

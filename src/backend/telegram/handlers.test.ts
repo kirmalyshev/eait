@@ -10,7 +10,6 @@ import { join } from "node:path";
 import { REFUSAL_STATUS, lintCopy, localDate, scriptedLine, type Refusal } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts, DEMO_NOT_FOOD } from "../llm/demo.ts";
-import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
@@ -37,7 +36,7 @@ let h: ReturnType<typeof telegramHandlers>;
 
 beforeEach(() => {
   store = memoryStore();
-  deps = { store, config: { ...CONFIG }, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+  deps = { store, config: { ...CONFIG }, llm: demoPorts(), push: fakePush() };
   h = telegramHandlers(deps);
 });
 
