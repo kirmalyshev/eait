@@ -81,7 +81,7 @@ const seedMeal = (userId: string) => store.insertMeal({
   id: crypto.randomUUID(), user_id: userId, ts: new Date().toISOString(), date: localDate("Europe/Berlin"),
   isFood: true, items: [{ name: "Rice", grams: 200 }, { name: "Chicken", grams: 150 }],
   kcal: 500, protein_g: 40, carbs_g: 56, fat_g: 8, satfat_g: 2, fiber_g: 1, sugar_g: 0.1,
-  sodium_mg: 400, verdicts: { weight: "good" }, confidence: "high", notes: "", corrected: false,
+  sodium_mg: 400, verdicts: { weight: "good" }, healthScore: null, confidence: "high", notes: "", corrected: false,
   model: "test",
 });
 
@@ -747,7 +747,7 @@ const aMeal = (userId: string, date: string, kcal: number): MealRecord => ({
   id: crypto.randomUUID(), user_id: userId, ts: `${date}T12:00:00.000Z`, date,
   isFood: true, items: [], kcal, protein_g: 10, carbs_g: 40, fat_g: 15, satfat_g: 4,
   fiber_g: 1, sugar_g: 1, sodium_mg: 10,
-  verdicts: { weight: "good" }, confidence: "high", notes: "", corrected: false, model: "test",
+  verdicts: { weight: "good" }, healthScore: null, confidence: "high", notes: "", corrected: false, model: "test",
 });
 
 const TODAY = () => localDate(CONFIG.timezone);
@@ -890,6 +890,24 @@ describe("the weights read", () => {
     await store.putWeight(other, today, 50.0);
     expect((await (await get(`${ROUTES.weights}?range=all`, token)).json() as WeightsResponse).weights)
       .toHaveLength(4);
+  });
+
+  it("answers the BMI off the newest weigh-in and the profile's height (#118)", async () => {
+    const token = await session();
+    const uid = (await store.userIdForToken(token))!;
+    const today = TODAY();
+    await store.patchProfile(uid, { height_cm: 172 });
+    await store.putWeight(uid, today, 73.4);
+    const out = await (await get(`${ROUTES.weights}?range=90D`, token)).json() as WeightsResponse;
+    expect(out.bmi).toEqual({ value: 24.8, range: "18.5-24.9" });
+  });
+
+  it("answers null without a height — and nothing to another account", async () => {
+    const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
+    const token = await store.issueToken(userId);
+    await store.putWeight(userId, TODAY(), 73.4);
+    const out = await (await get(ROUTES.weights, token)).json() as WeightsResponse;
+    expect(out.bmi).toBeNull();
   });
 
   it("defaults to the board's first segment and refuses a range it does not know", async () => {

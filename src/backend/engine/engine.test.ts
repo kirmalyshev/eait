@@ -1829,6 +1829,34 @@ describe("diary", () => {
     expect((await day(deps, b))!.meals).toHaveLength(0);
   });
 
+  it("carries the score on each meal and the kcal-weighted mean on the day (#118)", async () => {
+    // The pinned persona: porridge scores 8, the flat white 5, and 312/214 kcal of them weigh the
+    // day to 6.8 — which is 7 rounded.
+    const userId = await onboard();
+    const date = localDate(CONFIG.timezone);
+    const put = (ts: string, m: Record<string, number>) => store.insertMeal({
+      id: crypto.randomUUID(), user_id: userId, ts, date,
+      isFood: true, items: [], verdicts: {}, healthScore: null, confidence: "high", notes: "",
+      corrected: false, model: "test", ...m,
+    });
+    await put(`${date}T08:00:00.000Z`, { kcal: 312, protein_g: 11, carbs_g: 52, fat_g: 7, satfat_g: 1.8, fiber_g: 7, sugar_g: 18, sodium_mg: 160 });
+    await put(`${date}T17:00:00.000Z`, { kcal: 214, protein_g: 9, carbs_g: 34, fat_g: 5, satfat_g: 3, fiber_g: 3, sugar_g: 26, sodium_mg: 120 });
+    const view = (await day(deps, userId))!;
+    expect(view.meals.map((m) => m.healthScore?.score)).toEqual([8, 5]);
+    expect(view.healthScore).toBe(7);
+  });
+
+  it("puts the score on the logged card and on its thread entry (#118)", async () => {
+    const userId = await onboard();
+    const res = await logPhotoMeal(deps, userId, photo());
+    if (res.kind !== "logged") throw new Error("expected logged");
+    expect(res.analysis.healthScore).not.toBeNull();
+    expect(res.analysis.healthScore!.parts).toHaveLength(5);
+    const entry = (await chatHistory(deps, userId, { limit: 10 })).entries.find((e) => e.kind === "meal");
+    if (entry === undefined || entry.kind !== "meal") throw new Error("no meal entry");
+    expect(entry.meal?.healthScore?.score).toBe(res.analysis.healthScore!.score);
+  });
+
   it("returns per-day sums for the week", async () => {
     const userId = await onboard();
     await logPhotoMeal(deps, userId, photo());

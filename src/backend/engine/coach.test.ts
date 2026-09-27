@@ -45,7 +45,7 @@ const meal = (userId: string, over: Partial<MealRecord> = {}): MealRecord => ({
   id: crypto.randomUUID(), user_id: userId, ts: new Date().toISOString(), date: today(),
   isFood: true, items: [{ name: "Rice", grams: 200, name_en: "rice" }, { name: "Chicken", grams: 150 }],
   kcal: 500, protein_g: 40, carbs_g: 56, fat_g: 8, satfat_g: 2, fiber_g: 1, sugar_g: 0.1, sodium_mg: 400,
-  verdicts: { weight: "good" }, confidence: "high", notes: "", corrected: false, model: "test", ...over,
+  verdicts: { weight: "good" }, healthScore: null, confidence: "high", notes: "", corrected: false, model: "test", ...over,
 });
 
 /** A coach that records what it was handed and answers a fixed line. */

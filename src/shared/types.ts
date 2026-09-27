@@ -247,6 +247,13 @@ export interface MealAnalysis {
   sugar_g: number;
   sodium_mg: number;
   verdicts: MealVerdicts;
+  /**
+   * The meal's health score (`scores.ts`), computed at READ from the stored nutrients, the stored
+   * verdicts and the profile's declared restrictions — never stored and never accepted from the
+   * model, exactly like `verdicts`. `null` when there is nothing honest to say (kcal ≤ 0, or fewer
+   * than three of the five nutrients read).
+   */
+  healthScore: import("./scores.ts").HealthScore | null;
   /** `low` | `medium` | `high` — drives the correction nudge, so it is read, not just shown. */
   confidence: string;
   notes: string;

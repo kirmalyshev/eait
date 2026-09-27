@@ -17,7 +17,7 @@ import type {
   DayTotals, HealthDay, Lang, MealItem, MealQuestion, MealRecord, MealVerdicts, NotificationCopySet,
   OnboardingContentSet, Profile, Provider, Struggle,
 } from "@eait/shared";
-import { HEALTH_FIELDS, PROVIDERS, STRUGGLES, dateMinus, emptyHealthDay, migrateActivityLevel, signsIn } from "@eait/shared";
+import { HEALTH_FIELDS, PROVIDERS, STRUGGLES, dateMinus, emptyHealthDay, healthScore, migrateActivityLevel, signsIn } from "@eait/shared";
 import {
   DEFAULT_SESSION_TTL_MS, hashToken, newSessionToken, sessionRefreshAfterMs,
 } from "./auth/tokens.ts";
@@ -853,8 +853,13 @@ function toProfile(r: UserRow): Profile {
   };
 }
 
-function toMeal(r: MealRow): MealRecord {
-  return {
+/**
+ * `healthScore` is COMPUTED AT READ (#118) — from the row's own nutrients and stored `verdicts`,
+ * plus the caller's declared `restrictions`, which the meal-returning methods fetch once per call.
+ * Never a column: every input is already stored, and a stored copy could disagree with them.
+ */
+function toMeal(r: MealRow, restrictions: readonly string[]): MealRecord {
+  const meal = {
     id: String(r.id),
     user_id: String(r.user_id),
     ts: new Date(r.ts as string).toISOString(),
@@ -877,6 +882,7 @@ function toMeal(r: MealRow): MealRecord {
     question: json<MealQuestion | null>(r.question, null),
     photos: num(r.photos),
   };
+  return { ...meal, healthScore: healthScore(meal, restrictions) };
 }
 
 function toChat(r: Record<string, unknown>): ChatMessage {
@@ -1174,6 +1180,16 @@ export async function postgresStore(
     const current = active.getStore();
     if (current) return body(current);
     return pool.begin((tx) => active.run(tx, () => body(tx))) as Promise<T>;
+  };
+
+  /**
+   * The account's declared restrictions, for `toMeal` — `healthScore` personalises its satfat and
+   * salt parts off them (#118). One indexed read per store call; the scoped wrapper already
+   * declared this user, so the row is visible inside the transaction.
+   */
+  const restrictionsOf = async (userId: string): Promise<string[]> => {
+    const rows = await sql`select restrictions from users where id = ${userId}`;
+    return (rows[0]?.restrictions ?? []) as string[];
   };
 
   // THE MIGRATION RUNS UNSCOPED, ON A CONNECTION THAT IS THEN THROWN AWAY.
@@ -2216,7 +2232,8 @@ export async function postgresStore(
       // the literal is built by hand. Only UUIDs reach it: the ids came out of this store.
       const literal = `{${mealIds.filter((id) => UUID.test(id)).join(",")}}`;
       const rows = await sql`select * from meals where user_id = ${userId} and id = any(${literal}::uuid[])`;
-      return rows.map(toMeal);
+      const restrictions = await restrictionsOf(userId);
+      return rows.map((r: MealRow) => toMeal(r, restrictions));
     },
 
     async getMeal(userId, mealId) {
@@ -2224,7 +2241,7 @@ export async function postgresStore(
       if (!UUID.test(mealId)) return null;
       // Never widen this beyond `id = ? and user_id = ?`.
       const rows = await sql`select * from meals where id = ${mealId} and user_id = ${userId}`;
-      return rows.length > 0 ? toMeal(rows[0]) : null;
+      return rows.length > 0 ? toMeal(rows[0], await restrictionsOf(userId)) : null;
     },
 
     async deleteMeal(userId, mealId) {
@@ -2261,20 +2278,22 @@ export async function postgresStore(
         );
       }
       const rows = await sql`select * from meals where id = ${mealId} and user_id = ${userId}`;
-      return rows.length > 0 ? toMeal(rows[0]) : null;
+      return rows.length > 0 ? toMeal(rows[0], await restrictionsOf(userId)) : null;
     },
 
     async mealsForDate(userId, date) {
       const rows = await sql`
         select * from meals where user_id = ${userId} and date = ${date} order by ts asc`;
-      return rows.map(toMeal);
+      const restrictions = await restrictionsOf(userId);
+      return rows.map((r: MealRow) => toMeal(r, restrictions));
     },
 
     async mealsSince(userId, from, to, limit) {
       const rows = await sql`
         select * from meals where user_id = ${userId} and date >= ${from} and date <= ${to}
         order by date desc, ts desc limit ${Math.max(0, limit)}`;
-      return rows.map(toMeal);
+      const restrictions = await restrictionsOf(userId);
+      return rows.map((r: MealRow) => toMeal(r, restrictions));
     },
 
     async putPhotos(userId, mealId, input) {

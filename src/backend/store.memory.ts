@@ -4,7 +4,7 @@
 // are enforced here exactly as they are in Postgres, so a test that proves "another user's meal id
 // resolves to null" is proving something about the engine rather than about a mock's mood.
 
-import { dateMinus, localDate, migrateActivityLevel, signsIn } from "@eait/shared";
+import { dateMinus, healthScore, localDate, migrateActivityLevel, signsIn } from "@eait/shared";
 import type {
   DayTotals, HealthDay, Lang, MealRecord, NotificationCopySet, OnboardingContentSet, OnboardingEvent,
   Profile, Provider,
@@ -143,6 +143,13 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // the same thing in a nullable column, so both implementations answer the same question.
   const tokens = new Map<string, { userId: string; lastUsedAt: number; ttlMs?: number }>();
   const meals = new Map<string, MealRecord>(); // mealId -> record
+  /**
+   * `healthScore` is computed at READ (#118), like the Postgres `toMeal`: from the meal's own
+   * numbers and stored verdicts plus the account's declared restrictions. Never trusted off the
+   * stored record — an `updateMeal` patch can move every number under it.
+   */
+  const scored = (m: MealRecord): MealRecord =>
+    ({ ...m, healthScore: healthScore(m, users.get(m.user_id)?.restrictions ?? []) });
   const photos = new Map<string, (StoredPhoto & { userId: string })[]>(); // mealId -> in position order
   const pendings = new Map<string, PendingMeal>(); // pendingId -> pending
   // Keyed by the HASH of the code, exactly as Postgres is — a demo store that held the code
@@ -969,14 +976,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async getMeals(userId, mealIds) {
       const want = new Set(mealIds);
-      return [...meals.values()].filter((m) => m.user_id === userId && want.has(m.id)).map(clone);
+      return [...meals.values()].filter((m) => m.user_id === userId && want.has(m.id)).map((m) => scored(clone(m)));
     },
 
     async getMeal(userId, mealId) {
       const m = meals.get(mealId);
       // The scoping rule, enforced here and not merely intended: a meal belonging to someone else
       // is indistinguishable from a meal that does not exist.
-      return m && m.user_id === userId ? clone(m) : null;
+      return m && m.user_id === userId ? scored(clone(m)) : null;
     },
 
     async deleteMeal(userId, mealId) {
@@ -995,14 +1002,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         if (v !== undefined) (next as unknown as Record<string, unknown>)[k] = v;
       }
       meals.set(mealId, clone(next));
-      return clone(next);
+      return scored(clone(next));
     },
 
     async mealsForDate(userId, date) {
       return [...meals.values()]
         .filter((m) => m.user_id === userId && m.date === date)
         .sort((a, b) => a.ts.localeCompare(b.ts))
-        .map(clone);
+        .map((m) => scored(clone(m)));
     },
 
     async mealsSince(userId, from, to, limit) {
@@ -1010,7 +1017,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         .filter((m) => m.user_id === userId && m.date >= from && m.date <= to)
         .sort((a, b) => b.date.localeCompare(a.date) || b.ts.localeCompare(a.ts))
         .slice(0, Math.max(0, limit))
-        .map(clone);
+        .map((m) => scored(clone(m)));
     },
 
     async putPhotos(userId, mealId, input) {

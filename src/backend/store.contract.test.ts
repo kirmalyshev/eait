@@ -58,6 +58,7 @@ const meal = (userId: string, over: Partial<MealRecord> = {}): MealRecord => ({
   carbs_g: 56, fat_g: 1, satfat_g: 0.2, fiber_g: 1, sugar_g: 0.1, sodium_mg: 5,
   verdicts: { weight: "good" }, confidence: "high", notes: "", corrected: false, model: "test",
   ...over,
+  healthScore: over.healthScore ?? null,
 });
 
 const device = () => crypto.randomUUID() + crypto.randomUUID();
@@ -1034,6 +1035,36 @@ function contract(name: string, make: () => Promise<Store>) {
       expect(await s.getMeal(b, m.id)).toBeNull();
       expect(await s.updateMeal(b, m.id, { kcal: 1 })).toBeNull();
       expect((await s.getMeal(a, m.id))!.kcal).toBe(260);
+    });
+
+    it("computes the health score at read, and recomputes it after an edit (#118)", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const m = meal(u);
+      await s.insertMeal(m);
+      const got = (await s.getMeal(u, m.id))!;
+      // The fixture's numbers are all within band: base 6, five parts read, none past a threshold.
+      expect(got.healthScore).not.toBeNull();
+      expect(got.healthScore!.score).toBe(6);
+      expect(got.healthScore!.parts.map((p) => p.factor))
+        .toEqual(["protein", "fibre", "satfat", "sugar", "salt"]);
+      // 3000 mg on 260 kcal is past the salt band's top: −2, and the score moves with the numbers.
+      const updated = (await s.updateMeal(u, m.id, { sodium_mg: 3000 }))!;
+      expect(updated.healthScore!.parts.find((p) => p.factor === "salt")!.points).toBe(-2);
+      expect(updated.healthScore!.score).toBe(4);
+    });
+
+    it("personalises a part off the account's declared restrictions (#118)", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const m = meal(u, { verdicts: { weight: "good", ldl: "bad" } });
+      await s.insertMeal(m);
+      // Undeclared, the stored verdict does not reach the part — the band alone stands.
+      expect((await s.getMeal(u, m.id))!.healthScore!.parts.find((p) => p.factor === "satfat")!.points).toBe(0);
+      await s.patchProfile(u, { restrictions: ["ldl"] });
+      const satfat = (await s.getMeal(u, m.id))!.healthScore!.parts.find((p) => p.factor === "satfat")!;
+      expect(satfat.points).toBe(-2);
+      expect(satfat.limit).toBe("ldl");
     });
 
     it("keeps the chat in order, scoped, newest page first", async () => {

@@ -13,6 +13,7 @@ import type { OnboardingContent, OnboardingEvent } from "./onboarding.ts";
 import type { TargetBasis } from "./targets.ts";
 import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, LogPhotoResult, MealProposed, MealUpdated, Refusal, TargetGone } from "./results.ts";
 import type { HealthDay } from "./health.ts";
+import type { BmiRange } from "./scores.ts";
 import { WEIGHT_RANGES, type ChartDay, type WeightRange } from "./ui/charts.ts";
 import type { Entitlement } from "./entitlement.ts";
 import type { WebPaywall } from "./paywall.ts";
@@ -1026,6 +1027,11 @@ export interface DayResponse {
   meals: MealRecord[];
   totals: DailyTotals;
   targets: FoodTargets;
+  /**
+   * The day's health score — the kcal-weighted mean of the day's scored meals (`dayHealthScore`,
+   * #118), computed here so Home's page 2 and the diary agree. `null` when no meal is scored.
+   */
+  healthScore: number | null;
 }
 
 /** DEPRECATED with {@link ROUTES.week} (#103) — superseded by {@link DaysResponse}. */
@@ -1089,6 +1095,12 @@ export interface WeightsResponse {
    * projection exists (no target, nothing weighed, a fallback band) — see {@link PlanProjection}.
    */
   projection: PlanProjection | null;
+  /**
+   * The latest weigh-in against the profile's height (`bmi`/`bmiRange`, #118) — the range is a
+   * NEUTRAL id and its label is the numbers themselves, never a category word. `null` without a
+   * height on the profile or a weigh-in to read.
+   */
+  bmi: { value: number; range: BmiRange } | null;
 }
 
 /**
