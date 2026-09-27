@@ -25,3 +25,5 @@ export * from "./page/offer.ts";
 export * from "./page/stopped.ts";
 export * from "./page/chat.ts";
 export * from "./page/plan.ts";
+export * from "./page/building.ts";
+export * from "./page/country.ts";

@@ -35,6 +35,16 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.satfat"
+#~ msgstr "Les graisses saturées sont élevées sur celui-ci. Noté uniquement parce que tu me l'as demandé."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.sodium"
+#~ msgstr "Le sodium est élevé sur celui-ci. Noté uniquement parce que tu me l'as demandé."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "« {note} » — noté, c'est dans les chiffres."
 
@@ -77,6 +87,16 @@ msgstr "{noun} — trop haut"
 #: src/shared/verdicts.ts
 msgid "verdict.inline.bad"
 msgstr "{noun} — trop haut"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.high"
+msgstr "{nutrient} est un peu haut pour un repas : {eaten} de tes {target} {unit}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.veryHigh"
+msgstr "{nutrient} est trop haut pour un repas : {eaten} de tes {target} {unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -182,6 +202,11 @@ msgstr "Premier repas enregistré. {kcal} kcal — {arithmetic}"
 #: src/shared/chat-copy.ts
 msgid "thread.coach.name"
 msgstr "Gabie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.easyTail"
+msgstr "Vas-y doucement pour le reste de la journée."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -324,11 +349,6 @@ msgid "verdict.noun.ldl"
 msgstr "Graisses saturées"
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.satfat"
-msgstr "Les graisses saturées sont élevées sur celui-ci. Noté uniquement parce que tu me l'as demandé."
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
 msgstr "Envoie la photo d'un repas, dis-moi ce que tu as mangé, ou pose une question à {coach}."
@@ -347,11 +367,6 @@ msgstr "sodium"
 #: src/shared/verdicts.ts
 msgid "verdict.noun.kidneys"
 msgstr "Sodium"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.sodium"
-msgstr "Le sodium est élevé sur celui-ci. Noté uniquement parce que tu me l'as demandé."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

@@ -218,6 +218,11 @@ describe("every sentence this product ships", () => {
         "how.photoAlt": copy.how.photoAlt,
         "units.years": copy.units.years,
         "pace.rateSuffix": copy.pace.rateSuffix,
+        // W3's chart words too — the accessible name is a template, and a claim in it reads the
+        // same out loud as on the page.
+        "chart.estimateAria": copy.chart.estimateAria,
+        "chart.estimatedProgress": copy.chart.estimatedProgress,
+        "chart.byEait": copy.chart.byEait,
       }).map((v) => `${v.field}: ${v.span}`), lang).toEqual([]);
     }
   });
@@ -298,7 +303,10 @@ describe("the plan headline's claims exemption", () => {
       }
     };
     walk(root);
-    expect(callers.sort()).toEqual(["src/shared/onboarding-chat.ts"]);
+    expect(callers.sort()).toEqual([
+      "src/backend/web/page/plan.ts",
+      "src/shared/onboarding-chat.ts",
+    ]);
   });
 
   it("sweeps the key's own templates with every rule except the one it is exempt from", () => {

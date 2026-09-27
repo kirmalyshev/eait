@@ -5,10 +5,11 @@
 // `product/design/onboarding/copy.md` (steps 13–15); a sentence changed here is a sentence changed
 // in the product, so change the design first.
 
-import { wholeNumbers } from "./lang.ts";
+import { spellUnit, wholeNumbers } from "./lang.ts";
 import { threadCopyFor, type Figures } from "./chat-copy.ts";
 import { STRUGGLES } from "./types.ts";
 import type { FoodTargets, Goal, Lang, MealVerdicts, Struggle } from "./types.ts";
+import { verdictNoun } from "./verdicts.ts";
 
 /**
  * Lines the APP may ask the server to append, BY ID. Never prose: the client names a line and the
@@ -229,6 +230,49 @@ export function runningLine(
 }
 
 /**
+ * #130: the logged-meal verdict line — Gabie's reply to a meal that landed, ONE PER CAP VERDICT
+ * that is not on plan. Only the caps exist here: saturated fat for `ldl`, sodium for `kidneys`;
+ * calories have a plan, not a cap, so `weight` never speaks in this line. "Saturated fat is high
+ * for one meal: 5 of your 13 g." — computed from the stored row against the declared caps; the
+ * model never writes it.
+ *
+ * `verdicts` is the stored, already-visible map: a dimension is in it only when the restriction
+ * was declared, so "declared" and "cap present" are the same test.
+ *
+ * THE TAIL, ruled on the PR review: "it" is the line's nutrient, so the condition is THAT
+ * nutrient's remaining share of its cap — under a third of the cap still open today — not the
+ * day's calories. A day with plenty of kcal left and saturated fat nearly spent says it; the
+ * reverse does not. It appends to the line's own sentence, so "it" resolves to the nutrient
+ * named there. `eatenToday` is the day's totals AFTER this meal, so a spent cap reads the truth.
+ */
+export const CAP_LINE_EASY_SHARE = 1 / 3;
+export function capVerdictLines(
+  i: {
+    meal: { satfat_g: number; sodium_mg: number };
+    targets: FoodTargets;
+    verdicts: MealVerdicts;
+    eatenToday: { satfat_g: number; sodium_mg: number };
+  },
+  lang: Lang,
+): string[] {
+  const copy = threadCopyFor(lang).capLine;
+  const n = wholeNumbers(lang);
+  const caps = [
+    { dim: "kidneys" as const, eaten: i.meal.sodium_mg, cap: i.targets.sodium_mg, unit: "mg", eatenToday: i.eatenToday.sodium_mg },
+    { dim: "ldl" as const, eaten: i.meal.satfat_g, cap: i.targets.satfat_g, unit: "g", eatenToday: i.eatenToday.satfat_g },
+  ];
+  return caps
+    .filter((c) => c.cap !== undefined && (i.verdicts[c.dim] === "warn" || i.verdicts[c.dim] === "bad"))
+    .map((c) =>
+      (i.verdicts[c.dim] === "bad" ? copy.veryHigh : copy.high)({
+        nutrient: verdictNoun(c.dim, lang),
+        eaten: n(c.eaten),
+        target: n(c.cap!),
+        unit: spellUnit(lang, c.unit),
+      }) + (c.cap! - c.eatenToday < c.cap! * CAP_LINE_EASY_SHARE ? ` ${copy.easyTail}` : ""));
+}
+
+/**
  * The bare numbers every sentence in this file interpolates, grouped the reader's way.
  *
  * Typed `Figures` rather than `Record<string, string>` since the copy became ICU templates: the
@@ -267,9 +311,9 @@ function quotable(caption: string | null | undefined): string {
 export interface FirstVerdictInput {
   goal: Goal;
   targets: FoodTargets;
-  meal: { kcal: number; confidence: string };
-  /** The day's totals AFTER this meal, which is what "left today" is measured from. */
-  eatenToday: { kcal: number; protein_g: number };
+  meal: { kcal: number; satfat_g: number; sodium_mg: number; confidence: string };
+  /** The day's totals AFTER this meal, which is what "left today" and the cap tails are measured from. */
+  eatenToday: { kcal: number; protein_g: number; satfat_g: number; sodium_mg: number };
   via: "photo" | "text";
   verdicts: MealVerdicts;
   /** The camera note, quoted back first — copy.md § Step 13. */
@@ -337,9 +381,9 @@ export function firstVerdictLines(i: FirstVerdictInput, lang: Lang): string[] {
 
   // Step 13's promise: a pill and a sentence only for something the user declared, and only when
   // it actually ran high. `verdicts` carries a dimension only when the restriction was declared.
-  const high = (v: MealVerdicts[keyof MealVerdicts]) => v === "warn" || v === "bad";
-  if (high(i.verdicts.kidneys)) lines.push(copy.sodium);
-  if (high(i.verdicts.ldl)) lines.push(copy.satfat);
+  // #130: the sentence is computed — the cap line names the nutrient, the meal's amount and the
+  // cap it ran past.
+  lines.push(...capVerdictLines(i, lang));
   // Client text in Spud's bubble: flattened and as short as a scripted parameter, so a caption
   // cannot draw a second line inside the bubble or impersonate the sentence that follows.
   const note = quotable(i.caption);

@@ -14,10 +14,10 @@ import { join } from "node:path";
 import {
   AMBIGUOUS_AGE, COUNTRY_CODES, DEFAULT_ONBOARDING_CONTENT, LANGS, LANG_LABEL, UNDER_AGE_CARD,
   UNDER_AGE_LINES, chatCopyFor, countryLabel, countryOptions, disabledScreens,
-  explainTargets, lintCopy, localDate, MAX_USER_LINE, onboardingContentFor, projectGoal,
-  projectionMonth, resolveCountry, suggestionFirst,
+  explainTargets, lintCopy, localDate, MAX_USER_LINE, onboardingContentFor, planHeadline,
+  projectGoal, projectionMonth, resolveCountry, suggestionFirst,
   screenForStep, screenOptions, suggestedTargetKg, targetSuggestionLine,
-  TYPE_MS_PER_CHAR, signupCopyFor, wholeNumbers, type Profile,
+  TYPE_MS_PER_CHAR, signupCopyFor, weightDisplay, wholeNumbers, type Profile,
 } from "@eait/shared";
 import { PKCS8_BEGIN, PKCS8_END, configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -339,6 +339,20 @@ describe("the one control script", () => {
     // The welcome's recorded loop is same-origin media, and the CSP says so.
     expect(csp).toContain("media-src 'self'");
   });
+
+  it("parses as JavaScript — a cooked escape in the template kills every page silently", async () => {
+    // CONTROL_SCRIPT is a TEMPLATE LITERAL that emits JavaScript: `\p` inside it cooks to a
+    // plain `p` and the country's accent-folding regex ships as `/p{M}/` — a SyntaxError that
+    // disabled EVERY enhancement on every page and the suite only noticed because a live
+    // filter stopped hiding rows. So the source text is compiled here, the same failure the
+    // browser had.
+    const res = await get("/start");
+    const html = await res.text();
+    const script = html.match(/<script>([\s\S]*?)<\/script>/)![1]!;
+    expect(() => new Function(script)).not.toThrow();
+    // And the specific folding regex is the doubled-backslash one, surviving to the wire.
+    expect(script).toContain("\\p{M}");
+  });
 });
 
 describe("the sign-up screen", () => {
@@ -353,6 +367,20 @@ describe("the sign-up screen", () => {
     expect(html).toContain('name="marketing"');
     expect(html).toContain('form="signup"');
     expect(html).toContain(signupCopyFor("en").signUpHeading);
+  });
+
+  it("is the board: the plate on top, the marks on the buttons, the boxes unticked", async () => {
+    const html = await (await get("/start/signup")).text();
+    // The hero is this origin's own asset — `img-src 'self'` — and the licence lives beside it.
+    expect(html).toContain('/start/assets/img/hero.webp');
+    // Apple in black, Google secondary — the buttons carry the brands' own artwork.
+    expect(html).toContain('class="cta apple"');
+    expect(html.indexOf('cta apple')).toBeLessThan(html.indexOf('cta s"'));
+    // Both boxes drawn but NEITHER ticked — consent is a choice, not a default.
+    expect(html.match(/name="terms"[^>]*checked/g) ?? []).toHaveLength(0);
+    expect(html.match(/name="marketing"[^>]*checked/g) ?? []).toHaveLength(0);
+    // The pairing card names where the code comes from — the shipped tab's own word.
+    expect(html).toContain(PAGE_COPY.pairLead.replace("{tab}", "Profile"));
   });
 
   it("offers only what is configured", async () => {
@@ -736,6 +764,69 @@ describe("the questions", () => {
 
 });
 
+describe("the plan reveal", () => {
+  it("follows the last answer — the completing post lands on the reveal, a resume on the plan", async () => {
+    // Drive the walk by hand so the LAST post's redirect is the one asserted.
+    let cookie = await signIn();
+    for (let i = 0; i < 20; i++) {
+      const page = await get("/start/q", cookie);
+      if (page.status === 303) break;
+      const html = await page.text();
+      const id = html.match(/name="prompt" value="([a-z_]+)"/)?.[1]!;
+      const action = html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q";
+      const res = await post(action, { prompt: id, answer: ANSWERS[id]! }, cookie);
+      expect(res.status).toBe(303);
+      const set = res.headers.getSetCookie().find((c) => c.startsWith("eait_web="));
+      if (set) cookie = set.split(";")[0]!;
+      if (id === "medical") {
+        // The patch that wrote `complete_onboarding` answers with the reveal — once.
+        expect(res.headers.get("location")).toBe("/start/building");
+      }
+    }
+    // …and a resume goes to the plan, not back through the countdown.
+    expect((await get("/start/q", cookie)).headers.get("location")).toBe("/start/plan");
+  });
+
+  it("counts to 100 while the plan's own rows tick in, then offers the plan", async () => {
+    const session = await signIn();
+    await answerAll(session, { ...ANSWERS, medical: ["ldl"] });
+    const html = await (await get("/start/building", session)).text();
+    const profile = (await store.getProfile(await webUser(session)))!;
+    const { targets } = explainTargets(profile);
+    const n = wholeNumbers("en");
+
+    expect(html).toContain("Building your personal plan");
+    // The counter's target is carried on the element — the count verb fills it (S1).
+    expect(html).toContain("--to:100");
+    // The card's title and each row's label are the content's; every VALUE is computed.
+    expect(html).toContain("Your daily plan");
+    for (const value of [n(targets.kcal), `${n(targets.protein_g)} g`, `${n(targets.carbs_g)} g`, `${n(targets.fat_g)} g`, "Mediterranean"]) {
+      expect(html).toContain(`<b class="num">${value}</b>`);
+    }
+    // The declared cap is a row of its own (the seventh), filled from the same targets.
+    expect(html).toContain(`sat fat ≤ ${n(targets.satfat_g!)} g`);
+    // Six rows at S5's marks; a seventh shares the last tick.
+    for (const d of ["0.5s", "1s", "1.6s", "2.1s", "2.7s", "3.3s"]) {
+      expect(html).toContain(`--d:${d}`);
+    }
+    // The button at 100 %, and the plan opens a second later for anybody who does not tap.
+    expect(html).toContain('href="/start/plan"');
+    expect(html).toContain("Show me the plan");
+    expect(html).toContain('http-equiv="refresh"');
+    expect(html).toContain("4.5;url=/start/plan");
+  });
+
+  it("answers the front door without a session, and the questions while the profile is unfinished", async () => {
+    const noSession = await get("/start/building");
+    expect(noSession.status).toBe(303);
+    expect(noSession.headers.get("location")).toBe("/start");
+    const session = await signIn();
+    const res = await get("/start/building", session);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start/q");
+  });
+});
+
 describe("the plan", () => {
   it("is where a finished profile lands, and it carries the target", async () => {
     const session = await signIn();
@@ -751,7 +842,9 @@ describe("the plan", () => {
     // GROUPED THE READER'S WAY — "1,686" in English, "1.686" in German. Every figure this product
     // writes goes through `Intl` (`lang.ts`), and the plan card was the last one that did not.
     expect(html).toContain(wholeNumbers(profile.lang)(targets.kcal));
-    expect(html).toContain("Sign in with Google");
+    // The plan's one way on is the sign-up screen (S8): consent and the provider buttons live
+    // there, and the first meal is behind them.
+    expect(html).toContain('href="/start/signup"');
   });
 
   it("says when the floor decided the number", async () => {
@@ -766,10 +859,13 @@ describe("the plan", () => {
     const { basis } = explainTargets(profile);
     expect(basis.floorApplied).toBe(true);
     const html = await (await get("/start/plan", session)).text();
-    expect(html.toLowerCase()).toContain("floor");
+    // The marker names the cap, and its note sits one tap behind — the floor's own words.
+    const content = onboardingContentFor("en");
+    expect(html).toContain(content.summary.floorMarker.replace("{floor}", wholeNumbers("en")(basis.floorKcal)));
+    expect(html).toContain(content.building.floorTitle);
   });
 
-  it("offers checkout only when one is configured, naming this account", async () => {
+  it("serves the offer to the route that asks for it, only when one is configured", async () => {
     const session = await signIn();
     await answerAll(session, ANSWERS);
     expect(await (await get("/start/plan", session)).text()).not.toContain("pay.rev.cat");
@@ -780,30 +876,13 @@ describe("the plan", () => {
     const second = await signIn();
     await answerAll(second, ANSWERS);
     const userId = (await store.userIdForToken(second.split("=")[1]!))!;
+    // The plan page's only way on is the sign-up (W3): the offer keeps its own route.
     const html = await (await get("/start/plan", second)).text();
-    // The plan's ask leads to the offer, which is where the configured checkout now lives.
-    expect(html).toContain('href="/start/offer"');
+    expect(html).not.toContain('href="/start/offer"');
     const offer = await (await get("/start/offer", second)).text();
     expect(offer).toContain('href="/start/checkout"');
     expect((await get("/start/checkout", second)).headers.get("location")).toBe(`https://pay.rev.cat/eait/${userId}`);
   });
-
-  // THE SENTENCE THIS WHOLE PROVIDER PAIR EXISTS FOR. The app offers both buttons and the wrong one
-  // does not find this account — it attaches to the anonymous one the install already has, so
-  // onboarding runs again and this plan, plus anything bought from it, stays on an account the
-  // phone is no longer in. `engine/identity.ts` never merges two real identities, so there is no
-  // repair downstream of getting this wrong.
-  it.each(["apple", "google"] as const)(
-    "tells a %s signup to press that same button in the app, not the other one",
-    async (name) => {
-      const session = await signIn(`sub-${name}`, name);
-      await answerAll(session, ANSWERS);
-      const html = await (await get("/start/plan", session)).text();
-      const [used, other] = name === "apple" ? ["Apple", "Google"] : ["Google", "Apple"];
-      expect(html).toContain(`Sign in with ${used}`);
-      expect(html).not.toContain(`Sign in with ${other}`);
-    },
-  );
 
   it("sends an unfinished profile back to the questions", async () => {
     const session = await signIn();
@@ -812,7 +891,7 @@ describe("the plan", () => {
     expect(res.headers.get("location")).toBe("/start/q");
   });
 
-  it("delivers the welcome's promise: the month, the weeks, the declared marker, the arithmetic", async () => {
+  it("delivers the welcome's promise: the goal line, the estimate graph, the declared marker", async () => {
     // On a deployment WITH a web application — which is also where the language picker must be
     // gone, because the app's own settings carry it there.
     router({ ...CONFIG }, undefined, undefined, true);
@@ -823,26 +902,33 @@ describe("the plan", () => {
 
     const html = await (await get("/start/plan", session)).text();
     const profile = (await store.getProfile(await webUser(session)))!;
-    const { targets, basis } = explainTargets(profile);
+    const { targets } = explainTargets(profile);
     const n = wholeNumbers("en");
 
-    // The by-when: the month `projectGoal` computes, named by the plan's own projection line.
-    const projection = projectGoal(profile, basis);
+    // The headline is the shared S6 sentence — `planHeadline` computes it, and the month is the
+    // one `projectGoal` lands on. Nothing is typed into the page.
+    const headline = planHeadline(profile, new Date(), "metric", "en");
+    expect(headline).not.toBeNull();
+    expect(html).toContain(headline!);
+    const projection = projectGoal(profile, explainTargets(profile).basis);
     expect(projection).not.toBeNull();
     expect(html).toContain(projectionMonth(new Date(), projection!.weeks, "en"));
-    // ...and the weeks beside it, in the page's own words.
-    expect(html).toContain(pageCopyFor("en").planWeeks.replace("{weeks}", n(projection!.weeks)));
 
-    // The marker the answer asked for — the verdict noun and the cap `verdictsFromTargets` reads.
-    expect(html).toContain("Saturated fat");
+    // The estimate graph, drawn: the shared curve, the chip naming the target, the two labels.
+    expect(html).toContain('class="pgraph"');
+    expect(html).toContain("M20 34 C110 34 200 110 292 110");
+    expect(html).toContain(`Target ${weightDisplay(profile.target_weight_kg!, null, "en")}`);
+    expect(html).toContain(chatCopyFor("en").chart.estimatedProgress);
+    expect(html).toContain(chatCopyFor("en").chart.byEait);
+
+    // The four figures are `explainTargets`' — a page that drifts fails on its own numbers.
+    expect(html).toContain(`<b class="num">${n(targets.kcal)}</b>`);
+    expect(html).toContain(`${n(targets.protein_g)} g`);
+    expect(html).toContain(`${n(targets.carbs_g)} g`);
+    expect(html).toContain(`${n(targets.fat_g)} g`);
+    // The declared cap is a card of its own — and ONLY because it was declared.
     expect(html).toContain(`${n(targets.satfat_g!)} g`);
-
-    // The four arithmetic rows, computed here rather than re-typed — a page that drifts from
-    // `explainTargets` fails on its own numbers.
-    expect(html).toContain(`>${n(basis.bmr!)}<`);
-    expect(html).toContain(`>+${n(basis.tdee! - basis.bmr!)}<`);
-    expect(html).toContain(`>−${n(Math.abs(basis.appliedDeltaKcal))}<`);
-    expect(html).toContain(`>${n(basis.floorKcal)}<`);
+    expect(html).toContain("Saturated fat");
 
     // The primary is the sign-up screen (S8): the account needs an identity before a meal can
     // be read, and `/start/signup` is where the consent and the buttons live.
@@ -865,16 +951,21 @@ describe("the plan", () => {
     const profile = (await store.getProfile(await webUser(session)))!;
     expect(projectGoal(profile, explainTargets(profile).basis)).toBeNull();
     const html = await (await get("/start/plan", session)).text();
-    // No date line and no pace line: `projectGoal` refused, so the page has nothing to show.
-    expect(html).not.toContain("weeks at this pace");
-    expect(html).not.toMatch(/around \w+ \d{4}/);
+    // No headline and no estimate graph: `projectGoal` refused, so the page has nothing to draw.
+    expect(html).not.toContain('class="goal');
+    expect(html).not.toContain('class="pgraph"');
+    expect(html).not.toMatch(/(January|February|March|April|May|June|July|August|September|October|November|December) \d{4}/);
   });
 
   it("shows no saturated fat to somebody who never asked for it", async () => {
     const session = await signIn();
     await answerAll(session, ANSWERS); // restrictions: []
     const html = await (await get("/start/plan", session)).text();
+    // The card is drawn BECAUSE the cap was declared — an undeclared profile meets neither the
+    // label nor the icon.
     expect(html).not.toContain("Saturated fat");
+    // The stylesheet knows the icon's class; the CARD is what must not be drawn.
+    expect(html).not.toContain('<i class="ico i-satfat">');
     expect(html).not.toContain("Sodium");
   });
 
@@ -1302,15 +1393,19 @@ describe("the v2 questions that write the new fields", () => {
     expect((await store.getProfile(await webUser(session)))!.restrictions).toEqual(["pescatarian"]);
   });
 
-  it("carries EVERY asked marker forward — the diet's survives the medical write", async () => {
+  it("carries EVERY asked marker forward — a mid-walk write keeps the marks it was passed", async () => {
     const session = await signIn();
-    await walkTo(session, "medical");
-    // Medical is asked while `?asked=diet` still marks the diet answer; a `set` where the list
-    // needs an `append` drops it, and the diet question comes back asking again.
-    const res = await post("/start/q?asked=diet", { prompt: "medical", answer: ["none"] }, session);
+    // Posting the diet while `?asked=diet` still marks it: a `set` where the list needs an
+    // `append` drops it, and the diet question comes back asking again.
+    await walkTo(session, "diet");
+    const res = await post("/start/q?asked=diet", { prompt: "diet", answer: ["pescatarian"] }, session);
     const loc = res.headers.get("location") ?? "";
     expect(loc).toContain("asked=diet");
-    expect(loc).toContain("asked=medical");
+    // The COMPLETING write is the exception — it answers with the reveal (W3), not a /q
+    // redirect whose marks would only be read by a page that no longer exists.
+    await walkTo(session, "medical");
+    const done = await post("/start/q?asked=diet", { prompt: "medical", answer: ["none"] }, session);
+    expect(done.headers.get("location")).toBe("/start/building");
   });
 
   it("writes medical [] for 'none', and keeps a picked diet", async () => {
@@ -1507,10 +1602,12 @@ describe("the soft offer after the plan", () => {
     expect(html).toContain('href="/"');
   });
 
-  it("points the plan's checkout ask at the offer rather than straight at RevenueCat", async () => {
+  it("keeps the offer behind its own route — the plan's only ask is the sign-up (W3)", async () => {
     const session = await toPlan();
     const html = await (await get("/start/plan", session)).text();
-    expect(html).toContain('href="/start/offer"');
+    expect(html).not.toContain('href="/start/offer"');
+    const offer = await get("/start/offer", session);
+    expect(offer.status).toBe(200);
   });
 
   it("is not a screen to land on early, or to sell nothing on", async () => {
@@ -1823,6 +1920,54 @@ describe("the session account, before and after sign-up (S8)", () => {
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/start/signup");
   });
+
+  it("draws the board: the ask, the search, the flags, the preselect, Somewhere else last", async () => {
+    const session = await answerAll(undefined, ANSWERS);
+    const signed = await signIn("country-board", "google", "de", session);
+    // The hint comes from the browser's own languages — so this GET says German.
+    const html = await (await get("/start/country", signed, { "accept-language": "de" })).text();
+
+    // The ask is a say-line and the search is on top of the grid — the board's order.
+    expect(html).toContain('class="say"');
+    expect(html.indexOf('class="srch"')).toBeLessThan(html.indexOf('class="opts"'));
+    // Flags are drawn for real codes; the sentinel carries none.
+    expect(html).toContain("🇩🇪");
+    const other = html.slice(html.indexOf('value="other"'));
+    expect(other).toContain("…");
+    // `other` is last, and the resolved hint arrives preselected, in place — not re-ordered.
+    const rendered = [...html.matchAll(/name="answer" value="([a-z]+)"/g)].map((m) => m[1]);
+    expect(rendered.at(-1)).toBe("other");
+    expect(html).toContain('value="de" checked');
+  });
+
+  it("narrows the grid with ?q= for a browser without the one script", async () => {
+    const session = await answerAll(undefined, ANSWERS);
+    const signed = await signIn("country-search", "google", "en", session);
+    const html = await (await get("/start/country?q=aus", signed)).text();
+    const rendered = [...html.matchAll(/name="answer" value="([a-z]+)"/g)].map((m) => m[1]);
+    expect(rendered).toContain("au");
+    expect(rendered).not.toContain("de");
+    // The sentinel always stays — it is the honest answer to a search that finds nothing.
+    expect(rendered.at(-1)).toBe("other");
+  });
+
+  // THE SENTENCE THE PROVIDER PAIR EXISTS FOR — re-homed from the plan to this screen, the
+  // post-sign-up handoff: the app offers both buttons and the wrong one does not find this
+  // account — it attaches to the anonymous one the install already has, so onboarding runs
+  // again and this plan, plus anything bought from it, stays on an account nothing can merge
+  // into. `engine/identity.ts` never merges two real identities, so there is no repair
+  // downstream of getting this wrong.
+  it.each(["apple", "google"] as const)(
+    "tells a %s signup to press that same button in the app, not the other one",
+    async (name) => {
+      const session = await answerAll(undefined, ANSWERS);
+      const signed = await signIn(`sub-${name}`, name, undefined, session);
+      const html = await (await get("/start/country", signed)).text();
+      const [used, other] = name === "apple" ? ["Apple", "Google"] : ["Google", "Apple"];
+      expect(html).toContain(`Sign in with ${used}`);
+      expect(html).not.toContain(`Sign in with ${other}`);
+    },
+  );
 });
 
 describe("chat on the web: photos", () => {
@@ -1884,15 +2029,17 @@ describe("chat on the web: photos", () => {
 });
 
 describe("chat on the web: the way in", () => {
-  it("offers the chat from the plan page, which is where a finished account lands", async () => {
+  it("still answers at its own route, for a finished account", async () => {
     const { session } = await onboarded();
     // Signing in again with a finished profile: the questions are done, so /q hands over to /plan.
     const q = await get("/start/q", session);
     expect(q.status).toBe(303);
     expect(q.headers.get("location")).toBe("/start/plan");
-    const plan = await (await get("/start/plan", session)).text();
-    expect(plan).toContain('href="/start/chat"');
-    expect(plan).toContain(PAGE_COPY.planChat);
+    // The chat link left the plan page with the old card (the board draws one way on: the
+    // sign-up); the ROUTE is still the chat's, and a finished account still gets it.
+    const res = await get("/start/chat", session);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain(PAGE_COPY.chatHeading);
   });
 });
 
@@ -2167,18 +2314,17 @@ describe("the plan page hands over to the product", () => {
   };
 
   it("offers the sign-up first — the account needs an identity before a meal can be read", async () => {
-    // S8: the plan's primary is not a meal and not an app download — it is the consent screen that
-    // attaches Apple or Google to the account the questions just made. The app install stays below.
+    // S8: the plan's one way on is the consent screen that attaches Apple or Google to the
+    // account the questions just made. There is no "get the app" and no meal link beside it.
     const html = await planFor(true);
     expect(html).toContain('href="/start/signup"');
-    expect(html.indexOf('href="/start/signup"')).toBeLessThan(html.indexOf("Now get the app"));
   });
 
-  it("opens the web application's chat where there is one, and its own where there is not (#499)", async () => {
+  it("links no chat from the plan — the sign-up is the only door (#499's routes still serve)", async () => {
     const withApp = await planFor(true);
-    expect(withApp).toContain('href="/#/chat"');
     expect(withApp).not.toContain('href="/start/chat"');
-    expect(await planFor(false)).toContain('href="/start/chat"');
+    expect(withApp).not.toContain('href="/#/chat"');
+    expect(await planFor(false)).not.toContain('href="/start/chat"');
   });
 });
 
@@ -2483,9 +2629,6 @@ describe("Connect Telegram", () => {
   it("mints a code at the tap and sends the browser to the bot with it, for this account only", async () => {
     router({ ...CONFIG, telegramBotUsername: BOT });
     const session = await onboarded();
-    const html = await (await get("/start/plan", session)).text();
-    expect(html).toContain('<form method="post" action="/start/telegram">');
-    expect(html).toContain(PAGE_COPY.planTelegram);
 
     const res = await post("/start/telegram", {}, session);
     expect(res.status).toBe(303);
@@ -2587,7 +2730,8 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
       expect(plan.status, lang).toBe(200);
       const planHtml = await plan.text();
       expect(planHtml, lang).toContain(`<html lang="${lang}"`);
-      expect(planHtml, lang).toContain(escape(pageCopyFor(lang).planHeading));
+      // The say-line is the content's own, in the asked language — `summary.lines` of the table.
+      expect(planHtml, lang).toContain(escape(content.summary.lines.join(" ")));
       const signup = await get("/start/signup", cookie);
       const signupHtml = await signup.text();
       expect(signupHtml, `${lang}.signup`).toContain(`<html lang="${lang}"`);
@@ -2621,12 +2765,14 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
         expect(countryHtml, `${lang}: no chip reading "${label}" (${code})`)
           .toContain(escape(label));
       }
-      // The reader's own alphabet, `other` last — with the language's suggestion pulled to the
-      // top first, which is `suggestionFirst`'s whole job with a hint this strong. `resolveCountry`
-      // is the same call the page made, so the two can never disagree about what was hinted.
+      // The reader's own alphabet, `other` last — the board's grid order. The hint shows up as
+      // the PRESELECTED radio, not a re-ordered list; `resolveCountry` is the same call the page
+      // made, so the two can never disagree about what was hinted.
       const rendered = [...countryHtml.matchAll(/name="answer" value="([a-z]+)"/g)].map((m) => m[1]);
+      expect(rendered, lang).toEqual([...countryOptions(lang)]);
       const hinted = resolveCountry({ languages: [lang] }).country;
-      expect(rendered, lang).toEqual([...suggestionFirst(countryOptions(lang), hinted)]);
+      const checked = countryHtml.match(/name="answer" value="([a-z]+)" checked/)?.[1];
+      if (hinted !== null) expect(checked, `${lang}.country hint`).toBe(hinted);
 
       // Answering it is the end of the flow: the account carries the language and the country,
       // and the handoff is the product itself.

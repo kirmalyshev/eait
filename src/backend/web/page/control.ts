@@ -228,6 +228,27 @@ export const CONTROL_SCRIPT = `(function () {
     });
   });
 
+  // ── the country's live filter (16-country) — the GET ?q= does the same with no script ──────
+  var ctySrch = main.querySelector(".cty .srch input");
+  if (ctySrch) {
+    var ctyRows = Array.prototype.slice.call(main.querySelectorAll(".cty .opt"));
+    var fold = function (s) {
+      // The backslash is doubled because this IS a template literal — the page's own JS regex
+      // must read \p{M}, and an uncooked \p would reach the browser as plain p.
+      return (s || "").toLowerCase().normalize("NFD").replace(/\\p{M}/gu, "");
+    };
+    ctySrch.addEventListener("input", function () {
+      var q = fold(ctySrch.value).trim();
+      ctyRows.forEach(function (row) {
+        var code = row.querySelector("input[name='answer']").value;
+        // "Somewhere else" stays: a filter that hid it would dead-end a real place.
+        var match = q === "" || code === "other" ||
+          fold(row.textContent).indexOf(q) !== -1;
+        row.classList.toggle("hide", !match);
+      });
+    });
+  }
+
   // ── the unit toggle carries the draft across its POST ───────────────────────────────────────
   main.querySelectorAll("form.seg").forEach(function (seg) {
     seg.addEventListener("submit", function () {

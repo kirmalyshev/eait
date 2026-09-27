@@ -22,24 +22,6 @@ export interface PageCopy {
    * content is announced rather than read. Describes the final frame — the computed card.
    */
   welcomeDemoAlt: string;
-  planHeading: string;
-  /** `{weeks}` — the count `projectGoal` computed, under the by-when line. */
-  planWeeks: string;
-  /** The caption over the big kcal figure — the targets are per day. */
-  planEachDay: string;
-  /** The primary button: the first meal, on us — the sample the offer already promises. */
-  planFirstMeal: string;
-  planFloor: string;
-  /** `{floor}` — the floor's own number, said after `planFloor`. */
-  planFloorNumber: string;
-  planAppHeading: string;
-  /** `{provider}` is the one they actually used — see the note in the English below. */
-  planAppBody: string;
-  planAppBodyGeneric: string;
-  planCheckout: string;
-  planChat: string;
-  planTelegram: string;
-  planTelegramBody: string;
   chatHeading: string;
   chatEmpty: string;
   chatMealGone: string;
@@ -88,9 +70,18 @@ export interface PageCopy {
   chatCaption: string;
   errorSignIn: string;
   pairHeading: string;
+  /** `{tab}` is filled with the shipped tab's own name (SHELL_COPY.navProfile). */
   pairLead: string;
   pairLabel: string;
   pairButton: string;
+  /**
+   * The account-split guard on the post-sign-up handoff (the country screen — the last `/start`
+   * page a signed-in account sees). `{provider}` is the one they actually used; see the note in
+   * the English below.
+   */
+  sameAccountHint: string;
+  /** No identity to name — a state `/start/country` can only reach through a device-paired run. */
+  sameAccountHintGeneric: string;
   errorPair: string;
   continueLabel: string;
   answerRequired: string;
@@ -164,32 +155,6 @@ const EN: PageCopy = {
     "Set up your account here, then open the app already signed in. It takes about three minutes.",
   welcomeDemoAlt:
     "eait in use: a photo of a grain bowl, three ingredients read with their kcal, and the verdict: 281 kcal, calories on plan",
-  planHeading: "Here is your plan",
-  planWeeks: "{weeks} weeks at this pace",
-  planEachDay: "Each day",
-  planFirstMeal: "Try one meal on me",
-  planFloor:
-    "This is the lowest daily intake this app will set, so the number is the floor rather than the " +
-    "arithmetic. Eating under it is not something we will help you plan.",
-  planFloorNumber: "The floor is {floor} kcal.",
-  planAppHeading: "Now get the app",
-  /**
-   * The `{provider}` is filled in with the one they actually used. THIS SENTENCE IS THE FEATURE:
-   * the app offers both buttons, and the other one lands in a different account with onboarding to
-   * do again and this plan — and anything bought from it — left behind on an account nothing can
-   * merge into. Naming the right button is the only thing standing in front of that.
-   */
-  planAppBody:
-    "Install eait for iPhone and choose Sign in with {provider}. It is the same account — your " +
-    "answers and your plan are already on it.",
-  /** No identity at all, which the plan page can only reach through a state nothing produces. */
-  planAppBodyGeneric:
-    "Install eait for iPhone and sign in the same way you did here. It is the same account — your " +
-    "answers and your plan are already on it.",
-  planCheckout: "Set up your subscription",
-  planChat: "Open the chat",
-  planTelegram: "Connect Telegram",
-  planTelegramBody: "Send meals and questions from Telegram too. Same diary, same chat.",
   chatHeading: "Your chat",
   chatEmpty: "Nothing here yet. What you say in the app shows up here, and the other way round.",
   chatMealGone: "That meal is no longer in the diary.",
@@ -231,14 +196,26 @@ const EN: PageCopy = {
    * them — and a second page they would have to be told the address of defeats the point of a code
    * short enough to read out loud. One field under the buttons is the whole surface.
    *
-   * IT DESCRIBES THE CODE, NOT WHERE TO GET ONE, because today there is nowhere: the app cannot
-   * show a code yet (that control is its own ticket). Words naming a button that does not exist
-   * would be false now and would have to be rewritten on a guarded surface later.
+   * IT NOW SAYS WHERE TO GET ONE — the board's words ("Your phone makes one in You"), with the
+   * tab named by its shipped label rather than the board's older name: `{tab}` is filled with
+   * `SHELL_COPY.navProfile` ("Profile"), the screen the phone's pairing control lives on.
    */
   pairHeading: "Have a pairing code?",
-  pairLead: "A code signs this browser into the account that made it. It works once, and only for five minutes.",
+  pairLead: "Your phone makes one in {tab}.",
   pairLabel: "Your pairing code",
-  pairButton: "Connect this browser",
+  pairButton: "Pair this browser",
+  /**
+   * The `{provider}` is filled in with the one they actually used. THIS SENTENCE IS THE FEATURE:
+   * the app offers both buttons, and the other one lands in a different account with onboarding to
+   * do again and this plan — and anything bought from it — left behind on an account nothing can
+   * merge into. Naming the right button is the only thing standing in front of that.
+   */
+  sameAccountHint:
+    "Install eait for iPhone and choose Sign in with {provider}. It is the same account — your " +
+    "answers and your plan are already on it.",
+  sameAccountHintGeneric:
+    "Install eait for iPhone and sign in the same way you did here. It is the same account — " +
+    "your answers and your plan are already on it.",
   errorPair: "That code did not work. A code works once, and only for five minutes after it is made.",
   /** Three places want it and it was typed out in each. */
   continueLabel: "Continue",
@@ -284,19 +261,6 @@ const FR: PageCopy = {
   frontDoorLead: "Crée ton compte ici, puis ouvre l'appli : la session sera déjà ouverte. Ça prend environ trois minutes.",
   welcomeDemoAlt:
     "eait en action : la photo d'un bowl de céréales, trois ingrédients lus avec leurs kcal, et le verdict : 281 kcal, calories dans le plan",
-  planHeading: "Voici ton plan",
-  planWeeks: "{weeks} semaines à ce rythme",
-  planEachDay: "Chaque jour",
-  planFirstMeal: "Essaie un repas — je t'invite",
-  planFloor: "C'est l'apport quotidien le plus bas que cette appli fixera, ce chiffre est donc le plancher, pas le résultat du calcul. Manger moins que ça, on ne t'aidera pas à le planifier.",
-  planFloorNumber: "Le plancher est de {floor} kcal.",
-  planAppHeading: "Maintenant, installe l'appli",
-  planAppBody: "Installe eait pour iPhone et choisis Se connecter avec {provider}. C'est le même compte — tes réponses et ton plan y sont déjà.",
-  planAppBodyGeneric: "Installe eait pour iPhone et connecte-toi comme tu l'as fait ici. C'est le même compte — tes réponses et ton plan y sont déjà.",
-  planCheckout: "Mettre en place ton abonnement",
-  planChat: "Ouvrir le chat",
-  planTelegram: "Connecter Telegram",
-  planTelegramBody: "Envoie repas et questions depuis Telegram aussi. Même journal, même chat.",
   chatHeading: "Ton chat",
   chatEmpty: "Rien ici pour l'instant. Ce que tu dis dans l'appli apparaît ici, et inversement.",
   chatMealGone: "Ce repas n'est plus dans le journal.",
@@ -330,9 +294,11 @@ const FR: PageCopy = {
   chatCaption: "Quelque chose que je devrais savoir ? (facultatif)",
   errorSignIn: "Cette connexion n'a pas abouti. Réessaie.",
   pairHeading: "Tu as un code d'appairage ?",
-  pairLead: "Un code connecte ce navigateur au compte qui l'a créé. Il marche une fois, et seulement pendant cinq minutes.",
+  pairLead: "Ton téléphone en crée un dans {tab}.",
   pairLabel: "Ton code d'appairage",
-  pairButton: "Connecter ce navigateur",
+  pairButton: "Appairer ce navigateur",
+  sameAccountHint: "Installe eait pour iPhone et choisis Se connecter avec {provider}. C'est le même compte — tes réponses et ton plan y sont déjà.",
+  sameAccountHintGeneric: "Installe eait pour iPhone et connecte-toi comme tu l'as fait ici. C'est le même compte — tes réponses et ton plan y sont déjà.",
   errorPair: "Ce code n'a pas marché. Un code marche une fois, et seulement cinq minutes après sa création.",
   continueLabel: "Continuer",
   answerRequired: "Cette question attend une réponse.",
@@ -374,19 +340,6 @@ const DE: PageCopy = {
   frontDoorLead: "Richte dein Konto hier ein und öffne die App dann bereits angemeldet. Dauert etwa drei Minuten.",
   welcomeDemoAlt:
     "eait in Aktion: ein Foto einer Getreidebowl, drei Zutaten mit ihren kcal erkannt, und das Urteil: 281 kcal, Kalorien im Plan",
-  planHeading: "Hier ist dein Plan",
-  planWeeks: "{weeks} Wochen in diesem Tempo",
-  planEachDay: "Jeden Tag",
-  planFirstMeal: "Probier eine Mahlzeit — sie geht auf mich",
-  planFloor: "Das ist die niedrigste Tagesaufnahme, die diese App je ansetzt — die Zahl ist also die Grenze und nicht die Rechnung. Darunter zu essen ist nichts, wobei wir dir helfen werden.",
-  planFloorNumber: "Die Grenze liegt bei {floor} kcal.",
-  planAppHeading: "Jetzt die App holen",
-  planAppBody: "Installier eait fürs iPhone und wähl „Anmelden mit {provider}“. Es ist dasselbe Konto — deine Antworten und dein Plan liegen schon darauf.",
-  planAppBodyGeneric: "Installier eait fürs iPhone und melde dich so an wie hier. Es ist dasselbe Konto — deine Antworten und dein Plan liegen schon darauf.",
-  planCheckout: "Abo einrichten",
-  planChat: "Chat öffnen",
-  planTelegram: "Telegram verbinden",
-  planTelegramBody: "Schick Mahlzeiten und Fragen auch aus Telegram. Gleiches Tagebuch, gleicher Chat.",
   chatHeading: "Dein Chat",
   chatEmpty: "Hier ist noch nichts. Was du in der App sagst, taucht hier auf — und umgekehrt.",
   chatMealGone: "Diese Mahlzeit ist nicht mehr im Tagebuch.",
@@ -420,9 +373,11 @@ const DE: PageCopy = {
   chatCaption: "Soll ich noch etwas wissen? (optional)",
   errorSignIn: "Diese Anmeldung ist nicht durchgegangen. Versuch es noch einmal.",
   pairHeading: "Hast du einen Kopplungscode?",
-  pairLead: "Ein Code meldet diesen Browser bei dem Konto an, das ihn erzeugt hat. Er gilt einmal und nur fünf Minuten lang.",
+  pairLead: "Dein Telefon erstellt ihn in {tab}.",
   pairLabel: "Dein Kopplungscode",
-  pairButton: "Diesen Browser verbinden",
+  pairButton: "Diesen Browser koppeln",
+  sameAccountHint: "Installier eait fürs iPhone und wähl „Anmelden mit {provider}“. Es ist dasselbe Konto — deine Antworten und dein Plan liegen schon darauf.",
+  sameAccountHintGeneric: "Installier eait fürs iPhone und melde dich so an wie hier. Es ist dasselbe Konto — deine Antworten und dein Plan liegen schon darauf.",
   errorPair: "Dieser Code hat nicht funktioniert. Ein Code gilt einmal und nur fünf Minuten nach seiner Erzeugung.",
   continueLabel: "Weiter",
   answerRequired: "Die hier braucht eine Antwort.",
@@ -464,19 +419,6 @@ const IT: PageCopy = {
   frontDoorLead: "Prepara qui il tuo account, poi apri l'app con la sessione già aperta. Ci vogliono circa tre minuti.",
   welcomeDemoAlt:
     "eait in uso: la foto di una bowl di cereali, tre ingredienti letti con le loro kcal e il verdetto: 281 kcal, calorie nel piano",
-  planHeading: "Ecco il tuo piano",
-  planWeeks: "{weeks} settimane a questo ritmo",
-  planEachDay: "Ogni giorno",
-  planFirstMeal: "Prova un pasto — offro io",
-  planFloor: "Questo è l'apporto giornaliero più basso che questa app imposterà, quindi il numero è il limite e non il calcolo. Mangiare al di sotto non è una cosa che ti aiuteremo a pianificare.",
-  planFloorNumber: "Il limite è di {floor} kcal.",
-  planAppHeading: "Ora installa l'app",
-  planAppBody: "Installa eait per iPhone e scegli Accedi con {provider}. È lo stesso account — le tue risposte e il tuo piano ci sono già.",
-  planAppBodyGeneric: "Installa eait per iPhone e accedi come hai fatto qui. È lo stesso account — le tue risposte e il tuo piano ci sono già.",
-  planCheckout: "Attiva l'abbonamento",
-  planChat: "Apri la chat",
-  planTelegram: "Collega Telegram",
-  planTelegramBody: "Manda pasti e domande anche da Telegram. Stesso diario, stessa chat.",
   chatHeading: "La tua chat",
   chatEmpty: "Qui non c'è ancora niente. Quello che dici nell'app compare qui, e viceversa.",
   chatMealGone: "Quel pasto non è più nel diario.",
@@ -510,9 +452,11 @@ const IT: PageCopy = {
   chatCaption: "C'è qualcosa che dovrei sapere? (facoltativo)",
   errorSignIn: "Quell'accesso non è andato a buon fine. Riprova.",
   pairHeading: "Hai un codice di collegamento?",
-  pairLead: "Un codice collega questo browser all'account che l'ha creato. Vale una volta sola, e solo per cinque minuti.",
+  pairLead: "Il telefono ne crea uno in {tab}.",
   pairLabel: "Il tuo codice di collegamento",
-  pairButton: "Collega questo browser",
+  pairButton: "Abbina questo browser",
+  sameAccountHint: "Installa eait per iPhone e scegli Accedi con {provider}. È lo stesso account — le tue risposte e il tuo piano ci sono già.",
+  sameAccountHintGeneric: "Installa eait per iPhone e accedi come hai fatto qui. È lo stesso account — le tue risposte e il tuo piano ci sono già.",
   errorPair: "Quel codice non ha funzionato. Un codice vale una volta sola, e solo per cinque minuti da quando è stato creato.",
   continueLabel: "Continua",
   answerRequired: "Questa ha bisogno di una risposta.",
@@ -554,19 +498,6 @@ const ES: PageCopy = {
   frontDoorLead: "Prepara tu cuenta aquí y luego abre la app ya con la sesión iniciada. Son unos tres minutos.",
   welcomeDemoAlt:
     "eait en uso: la foto de un bowl de granos, tres ingredientes leídos con sus kcal y el veredicto: 281 kcal, calorías dentro del plan",
-  planHeading: "Aquí está tu plan",
-  planWeeks: "{weeks} semanas a este ritmo",
-  planEachDay: "Cada día",
-  planFirstMeal: "Prueba una comida — invito yo",
-  planFloor: "Esta es la ingesta diaria más baja que esta app va a fijar, así que el número es el suelo y no el cálculo. Comer por debajo no es algo que te vayamos a ayudar a planificar.",
-  planFloorNumber: "El suelo está en {floor} kcal.",
-  planAppHeading: "Ahora instala la app",
-  planAppBody: "Instala eait para iPhone y elige Iniciar sesión con {provider}. Es la misma cuenta — tus respuestas y tu plan ya están ahí.",
-  planAppBodyGeneric: "Instala eait para iPhone e inicia sesión igual que aquí. Es la misma cuenta — tus respuestas y tu plan ya están ahí.",
-  planCheckout: "Configura tu suscripción",
-  planChat: "Abre el chat",
-  planTelegram: "Conectar Telegram",
-  planTelegramBody: "Manda comidas y preguntas desde Telegram también. El mismo diario, el mismo chat.",
   chatHeading: "Tu chat",
   chatEmpty: "Aquí todavía no hay nada. Lo que dices en la app aparece aquí, y al revés.",
   chatMealGone: "Esa comida ya no está en el diario.",
@@ -600,9 +531,11 @@ const ES: PageCopy = {
   chatCaption: "¿Algo que deba saber? (opcional)",
   errorSignIn: "Ese inicio de sesión no se completó. Inténtalo otra vez.",
   pairHeading: "¿Tienes un código de vinculación?",
-  pairLead: "Un código conecta este navegador con la cuenta que lo creó. Vale una vez, y solo durante cinco minutos.",
+  pairLead: "Tu teléfono crea uno en {tab}.",
   pairLabel: "Tu código de vinculación",
-  pairButton: "Conectar este navegador",
+  pairButton: "Vincular este navegador",
+  sameAccountHint: "Instala eait para iPhone y elige Iniciar sesión con {provider}. Es la misma cuenta — tus respuestas y tu plan ya están ahí.",
+  sameAccountHintGeneric: "Instala eait para iPhone e inicia sesión igual que aquí. Es la misma cuenta — tus respuestas y tu plan ya están ahí.",
   errorPair: "Ese código no funcionó. Un código vale una vez, y solo durante cinco minutos desde que se crea.",
   continueLabel: "Continuar",
   answerRequired: "Esa necesita una respuesta.",
@@ -644,19 +577,6 @@ const VI: PageCopy = {
   frontDoorLead: "Tạo tài khoản ở đây, rồi mở ứng dụng là đã đăng nhập sẵn. Mất khoảng ba phút.",
   welcomeDemoAlt:
     "eait đang dùng: ảnh một bát ngũ cốc, ba nguyên liệu được đọc kèm kcal, và đánh giá: 281 kcal, calo trong kế hoạch",
-  planHeading: "Đây là kế hoạch của bạn",
-  planWeeks: "{weeks} tuần với nhịp này",
-  planEachDay: "Mỗi ngày",
-  planFirstMeal: "Thử một bữa — mình mời",
-  planFloor: "Đây là mức ăn vào mỗi ngày thấp nhất mà ứng dụng này sẽ đặt, nên con số đó là mức sàn chứ không phải phép tính. Ăn dưới mức đó không phải điều chúng tôi sẽ giúp bạn lên kế hoạch.",
-  planFloorNumber: "Mức sàn là {floor} kcal.",
-  planAppHeading: "Giờ thì tải ứng dụng",
-  planAppBody: "Cài eait cho iPhone và chọn Đăng nhập bằng {provider}. Vẫn là tài khoản đó — câu trả lời và kế hoạch của bạn đã nằm sẵn trong đấy.",
-  planAppBodyGeneric: "Cài eait cho iPhone và đăng nhập đúng như bạn đã làm ở đây. Vẫn là tài khoản đó — câu trả lời và kế hoạch của bạn đã nằm sẵn trong đấy.",
-  planCheckout: "Thiết lập gói đăng ký",
-  planChat: "Mở khung chat",
-  planTelegram: "Kết nối Telegram",
-  planTelegramBody: "Gửi bữa ăn và câu hỏi từ Telegram nữa. Cùng nhật ký, cùng khung chat.",
   chatHeading: "Khung chat của bạn",
   chatEmpty: "Ở đây chưa có gì. Những gì bạn nói trong ứng dụng sẽ hiện ở đây, và ngược lại.",
   chatMealGone: "Bữa đó không còn trong nhật ký nữa.",
@@ -690,9 +610,11 @@ const VI: PageCopy = {
   chatCaption: "Có gì mình nên biết không? (không bắt buộc)",
   errorSignIn: "Lần đăng nhập đó chưa hoàn tất. Thử lại nhé.",
   pairHeading: "Bạn có mã ghép nối không?",
-  pairLead: "Một mã sẽ đăng nhập trình duyệt này vào tài khoản đã tạo ra nó. Dùng được một lần, và chỉ trong năm phút.",
+  pairLead: "Điện thoại tạo một mã trong {tab}.",
   pairLabel: "Mã ghép nối của bạn",
-  pairButton: "Kết nối trình duyệt này",
+  pairButton: "Ghép trình duyệt này",
+  sameAccountHint: "Cài eait cho iPhone và chọn Đăng nhập bằng {provider}. Vẫn là tài khoản đó — câu trả lời và kế hoạch của bạn đã nằm sẵn trong đấy.",
+  sameAccountHintGeneric: "Cài eait cho iPhone và đăng nhập đúng như bạn đã làm ở đây. Vẫn là tài khoản đó — câu trả lời và kế hoạch của bạn đã nằm sẵn trong đấy.",
   errorPair: "Mã đó không dùng được. Mỗi mã chỉ dùng một lần, và chỉ trong năm phút kể từ khi tạo.",
   continueLabel: "Tiếp tục",
   answerRequired: "Câu này cần một câu trả lời.",
@@ -734,19 +656,6 @@ const ID: PageCopy = {
   frontDoorLead: "Siapkan akunmu di sini, lalu buka aplikasinya dalam keadaan sudah masuk. Perlu sekitar tiga menit.",
   welcomeDemoAlt:
     "eait sedang dipakai: foto semangkuk grain bowl, tiga bahan terbaca dengan kcal-nya, dan hasilnya: 281 kkal, kalori sesuai rencana",
-  planHeading: "Ini rencanamu",
-  planWeeks: "{weeks} minggu dengan tempo ini",
-  planEachDay: "Setiap hari",
-  planFirstMeal: "Coba satu makanan — aku yang traktir",
-  planFloor: "Ini asupan harian terendah yang akan ditetapkan aplikasi ini, jadi angkanya adalah batas bawah, bukan hasil hitungan. Makan di bawah itu bukan sesuatu yang akan kami bantu rencanakan.",
-  planFloorNumber: "Batas bawahnya {floor} kcal.",
-  planAppHeading: "Sekarang ambil aplikasinya",
-  planAppBody: "Pasang eait untuk iPhone dan pilih Masuk dengan {provider}. Ini akun yang sama — jawaban dan rencanamu sudah ada di dalamnya.",
-  planAppBodyGeneric: "Pasang eait untuk iPhone dan masuk dengan cara yang sama seperti di sini. Ini akun yang sama — jawaban dan rencanamu sudah ada di dalamnya.",
-  planCheckout: "Atur langgananmu",
-  planChat: "Buka chat",
-  planTelegram: "Hubungkan Telegram",
-  planTelegramBody: "Kirim makanan dan pertanyaan dari Telegram juga. Buku harian yang sama, chat yang sama.",
   chatHeading: "Chat-mu",
   chatEmpty: "Belum ada apa-apa di sini. Apa yang kamu tulis di aplikasi muncul di sini, dan sebaliknya.",
   chatMealGone: "Makanan itu sudah tidak ada di buku harian.",
@@ -780,9 +689,11 @@ const ID: PageCopy = {
   chatCaption: "Ada yang perlu aku tahu? (opsional)",
   errorSignIn: "Proses masuk itu tidak selesai. Coba lagi.",
   pairHeading: "Punya kode penyambung?",
-  pairLead: "Kode memasukkan browser ini ke akun yang membuatnya. Berlaku sekali, dan hanya selama lima menit.",
+  pairLead: "Ponsel membuatnya di {tab}.",
   pairLabel: "Kode penyambungmu",
-  pairButton: "Sambungkan browser ini",
+  pairButton: "Pasangkan browser ini",
+  sameAccountHint: "Pasang eait untuk iPhone dan pilih Masuk dengan {provider}. Ini akun yang sama — jawaban dan rencanamu sudah ada di dalamnya.",
+  sameAccountHintGeneric: "Pasang eait untuk iPhone dan masuk dengan cara yang sama seperti di sini. Ini akun yang sama — jawaban dan rencanamu sudah ada di dalamnya.",
   errorPair: "Kode itu tidak berhasil. Kode berlaku sekali, dan hanya lima menit setelah dibuat.",
   continueLabel: "Lanjut",
   answerRequired: "Yang ini butuh jawaban.",
@@ -824,19 +735,6 @@ const RU: PageCopy = {
   frontDoorLead: "Заведи аккаунт здесь, а потом открой приложение уже с входом. Займёт минуты три.",
   welcomeDemoAlt:
     "eait в работе: фото боула, три ингредиента распознаны с ккал, и вердикт: 281 ккал, калории в пределах плана",
-  planHeading: "Вот твой план",
-  planWeeks: "Недель в таком темпе: {weeks}",
-  planEachDay: "Каждый день",
-  planFirstMeal: "Попробуй один приём пищи — я угощаю",
-  planFloor: "Это самый низкий суточный калораж, который приложение когда-либо поставит, так что эта цифра — порог, а не расчёт. Есть ниже — не то, что мы поможем спланировать.",
-  planFloorNumber: "Порог — {floor} ккал.",
-  planAppHeading: "Теперь возьми приложение",
-  planAppBody: "Установи eait для iPhone и выбери «Войти через {provider}». Это тот же аккаунт — твои ответы и план уже там.",
-  planAppBodyGeneric: "Установи eait для iPhone и войди так же, как здесь. Это тот же аккаунт — твои ответы и план уже там.",
-  planCheckout: "Оформить подписку",
-  planChat: "Открыть чат",
-  planTelegram: "Подключить Telegram",
-  planTelegramBody: "Присылай еду и вопросы и из Telegram. Тот же дневник, тот же чат.",
   chatHeading: "Твой чат",
   chatEmpty: "Здесь пока пусто. Что ты говоришь в приложении, появляется тут, и наоборот.",
   chatMealGone: "Этого приёма пищи больше нет в дневнике.",
@@ -870,9 +768,11 @@ const RU: PageCopy = {
   chatCaption: "Есть что-то, что мне стоит знать? (необязательно)",
   errorSignIn: "Этот вход не завершился. Попробуй ещё раз.",
   pairHeading: "Есть код привязки?",
-  pairLead: "Код входит этим браузером в аккаунт, который его создал. Работает один раз и только пять минут.",
+  pairLead: "Телефон создаёт его в разделе {tab}.",
   pairLabel: "Твой код привязки",
-  pairButton: "Подключить этот браузер",
+  pairButton: "Привязать этот браузер",
+  sameAccountHint: "Установи eait для iPhone и выбери «Войти через {provider}». Это тот же аккаунт — твои ответы и план уже там.",
+  sameAccountHintGeneric: "Установи eait для iPhone и войди так же, как здесь. Это тот же аккаунт — твои ответы и план уже там.",
   errorPair: "Этот код не сработал. Код работает один раз и только пять минут после создания.",
   continueLabel: "Дальше",
   answerRequired: "На этот нужен ответ.",

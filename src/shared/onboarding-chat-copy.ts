@@ -111,6 +111,12 @@ export interface ChatCopy {
     estimate: string;
     target: string;
     monthEstimate: string;
+    /**
+     * The estimate graph's accessible NAME (board `15-plan`): "{from} now, {to} around {month}"
+     * — the chart's two real ends and the month projectGoal lands on, as one whole template so a
+     * language can order it its own way. A graphic nobody can see still owes its sentence.
+     */
+    estimateAria: string;
   };
   /** The plan card's goal line: `{delta}` is the formatted distance, `{month}` CLDR's landing. */
   plan: {
@@ -236,7 +242,8 @@ const EN: ChatCopy = {
     estimatedProgress: "Estimated progress",
     estimate: "Estimate",
     target: "Target {weight}",
-    monthEstimate: "{month} · estimate",
+        monthEstimate: "{month} · estimate",
+    estimateAria: "Estimated weight: {from} now, {to} around {month}",
   },
   plan: {
     goalLose: "Goal: lose {delta} by {month}",
@@ -348,7 +355,8 @@ const FR: ChatCopy = {
     estimatedProgress: "Progression estimée",
     estimate: "Estimation",
     target: "Cible {weight}",
-    monthEstimate: "{month} · estimation",
+        monthEstimate: "{month} · estimation",
+    estimateAria: "Poids estimé : {from} maintenant, {to} vers {month}",
   },
   plan: {
     goalLose: "Objectif : perdre {delta} d'ici {month}",
@@ -460,7 +468,8 @@ const DE: ChatCopy = {
     estimatedProgress: "Geschätzter Fortschritt",
     estimate: "Schätzung",
     target: "Ziel {weight}",
-    monthEstimate: "{month} · Schätzung",
+        monthEstimate: "{month} · Schätzung",
+    estimateAria: "Geschätztes Gewicht: jetzt {from}, {to} etwa im {month}",
   },
   plan: {
     goalLose: "Ziel: {delta} abnehmen bis {month}",
@@ -572,7 +581,8 @@ const IT: ChatCopy = {
     estimatedProgress: "Progressi stimati",
     estimate: "Stima",
     target: "Obiettivo {weight}",
-    monthEstimate: "{month} · stima",
+        monthEstimate: "{month} · stima",
+    estimateAria: "Peso stimato: {from} ora, {to} intorno a {month}",
   },
   plan: {
     goalLose: "Obiettivo: perdere {delta} entro {month}",
@@ -684,7 +694,8 @@ const ES: ChatCopy = {
     estimatedProgress: "Progreso estimado",
     estimate: "Estimación",
     target: "Meta {weight}",
-    monthEstimate: "{month} · estimación",
+        monthEstimate: "{month} · estimación",
+    estimateAria: "Peso estimado: {from} ahora, {to} hacia {month}",
   },
   plan: {
     goalLose: "Meta: perder {delta} para {month}",
@@ -797,6 +808,7 @@ const VI: ChatCopy = {
     estimate: "Ước tính",
     target: "Mục tiêu {weight}",
     monthEstimate: "{month} · ước tính",
+    estimateAria: "Cân nặng ước tính: {from} hiện tại, {to} vào khoảng {month}",
   },
   plan: {
     goalLose: "Mục tiêu: giảm {delta} đến {month}",
@@ -908,7 +920,8 @@ const ID: ChatCopy = {
     estimatedProgress: "Perkiraan progres",
     estimate: "Perkiraan",
     target: "Target {weight}",
-    monthEstimate: "{month} · perkiraan",
+        monthEstimate: "{month} · perkiraan",
+    estimateAria: "Perkiraan berat: {from} sekarang, {to} sekitar {month}",
   },
   plan: {
     goalLose: "Target: turun {delta} menjelang {month}",
@@ -1022,7 +1035,8 @@ const RU: ChatCopy = {
     estimatedProgress: "Оценка прогресса",
     estimate: "Оценка",
     target: "Цель {weight}",
-    monthEstimate: "{month} · оценка",
+        monthEstimate: "{month} · оценка",
+    estimateAria: "Оценка веса: {from} сейчас, {to} — {month}",
   },
   plan: {
     goalLose: "Цель: сбросить {delta} — примерно {month}",
