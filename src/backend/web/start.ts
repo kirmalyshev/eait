@@ -28,7 +28,7 @@ import {
   renderableVerdicts, resolveCountry, ROUTES, screenForStep,
   screenOptions, screenOptionValues, suggestedTargetKg, suggestionFirst,
   switchedLine, targetRange, targetSuggestionLine, TARGET_STEP_KG, threadCopyFor,
-  LANGS_READY, acceptLang, acceptLanguageTags, numbers, verdictPillLabel,
+  LANGS_READY, acceptLang, acceptLanguageTags, numbers, signupCopyFor, verdictPillLabel,
   type ChatEntry, type ChatPrompt, type ChatPromptId, type Diet, type Goal, type Lang,
   type MedicalTag, type NumberField, type OnboardingContent, type PatchProfileRequest,
   type Profile, type Struggle,
@@ -481,11 +481,11 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     // seeds from this same signal and the picker overrules — so this is a starting guess and
     // never the answer.
     const lang = acceptLang(req.headers.get("accept-language"));
-    const PAGE_COPY = pageCopyFor(lang);
+    const SIGNUP_COPY = signupCopyFor(lang);
     const content = await onboardingContent(ctx.deps, lang);
     return html(frontDoor(content.welcome.lines, [
-      { href: `${START_PREFIX}/q`, label: PAGE_COPY.startCta },
-      { href: `${START_PREFIX}/signup`, label: PAGE_COPY.haveAccountCta },
+      { href: `${START_PREFIX}/q`, label: SIGNUP_COPY.startCta },
+      { href: `${START_PREFIX}/signup`, label: SIGNUP_COPY.haveAccountCta },
     ], lang));
   }
 
@@ -580,7 +580,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         action: `${START_PREFIX}/auth/${p}`, label: providerLabel(p, lang),
       })),
       error: url.searchParams.get("error") === "code" ? PAGE_COPY.errorPair
-        : url.searchParams.get("error") === "terms" ? PAGE_COPY.errorTerms
+        : url.searchParams.get("error") === "terms" ? signupCopyFor(lang).errorTerms
         : url.searchParams.has("error") ? PAGE_COPY.errorSignIn
         : null,
       privacyHref: config.landingUrl === "" ? null : `${config.landingUrl}/privacy`,

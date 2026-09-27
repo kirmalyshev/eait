@@ -1,5 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { LANGS, LANGS_READY, LANG_LABEL, UNIT_KCAL, lintCopy, wholeNumbers } from "@eait/shared";
+import {
+  LANGS, LANGS_READY, LANG_LABEL, UNIT_KCAL, lintCopy, signupCopyFor, wholeNumbers,
+} from "@eait/shared";
 import { PAGE_COPY_BY_LANG, pageCopyFor } from "./copy.ts";
 import { chat, plan, question, shell } from "./page.ts";
 
@@ -34,9 +36,11 @@ describe("what /start says for itself, in eight languages", () => {
       // The consent label's two placeholders are the document names — a translation that drops one
       // renders an agreement that names half of what it means.
       for (const ph of ["{terms}", "{privacy}"]) {
-        expect(copy.termsLabel, `${lang}.termsLabel`).toContain(ph);
+        expect(signupCopyFor(lang).termsLabel, `${lang}.termsLabel`).toContain(ph);
       }
-      for (const [k, v] of Object.entries(copy)) {
+      // The sign-up screen's words live in `SIGNUP_COPY` (#110) — the same placeholder discipline
+      // applies there.
+      for (const [k, v] of Object.entries({ ...copy, ...signupCopyFor(lang) })) {
         for (const m of v.matchAll(/\{(\w+)\}/g)) {
           expect(
             ["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total", "weeks", "terms", "privacy"],
@@ -51,7 +55,7 @@ describe("what /start says for itself, in eight languages", () => {
     // Stated rather than hidden: `claims.ts` matches English patterns, so running it over the
     // German would pass regardless and prove nothing. The seven translations are protected by
     // being translations OF this.
-    expect(lintCopy({ ...pageCopyFor("en") })).toEqual([]);
+    expect(lintCopy({ ...pageCopyFor("en"), ...signupCopyFor("en") })).toEqual([]);
   });
 
   it("declares its language to the browser, because a screen reader picks a voice from it", () => {

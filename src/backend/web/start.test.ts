@@ -17,7 +17,7 @@ import {
   explainTargets, lintCopy, localDate, MAX_USER_LINE, onboardingContentFor, projectGoal,
   projectionMonth, resolveCountry, suggestionFirst,
   screenForStep, screenOptions, suggestedTargetKg, targetSuggestionLine,
-  TYPE_MS_PER_CHAR, wholeNumbers, type Profile,
+  TYPE_MS_PER_CHAR, signupCopyFor, wholeNumbers, type Profile,
 } from "@eait/shared";
 import { PKCS8_BEGIN, PKCS8_END, configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
@@ -315,8 +315,8 @@ describe("the front door", () => {
     const html = await res.text();
     expect(html).toContain('href="/start/q"');
     expect(html).toContain('href="/start/signup"');
-    expect(html).toContain(pageCopyFor("en").startCta);
-    expect(html).toContain(pageCopyFor("en").haveAccountCta);
+    expect(html).toContain(signupCopyFor("en").startCta);
+    expect(html).toContain(signupCopyFor("en").haveAccountCta);
     expect(html).not.toContain("/start/auth/");
     expect(html).toContain("Spud");
   });
@@ -351,7 +351,7 @@ describe("the sign-up screen", () => {
     expect(html).toContain('name="terms"');
     expect(html).toContain('name="marketing"');
     expect(html).toContain('form="signup"');
-    expect(html).toContain(pageCopyFor("en").signUpHeading);
+    expect(html).toContain(signupCopyFor("en").signUpHeading);
   });
 
   it("offers only what is configured", async () => {
@@ -2567,11 +2567,11 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
       const signup = await get("/start/signup", cookie);
       const signupHtml = await signup.text();
       expect(signupHtml, `${lang}.signup`).toContain(`<html lang="${lang}"`);
-      expect(signupHtml, `${lang}.signup heading`).toContain(escape(pageCopyFor(lang).signUpHeading));
+      expect(signupHtml, `${lang}.signup heading`).toContain(escape(signupCopyFor(lang).signUpHeading));
       // The consent line names both documents, in the language's own words — the placeholders a
       // translation could have dropped.
-      expect(signupHtml, `${lang}.signup terms`).toContain(escape(pageCopyFor(lang).termsLink));
-      expect(signupHtml, `${lang}.signup privacy`).toContain(escape(pageCopyFor(lang).privacyLink));
+      expect(signupHtml, `${lang}.signup terms`).toContain(escape(signupCopyFor(lang).termsLink));
+      expect(signupHtml, `${lang}.signup privacy`).toContain(escape(signupCopyFor(lang).privacyLink));
 
       // Sign up — the identity attaches to the account the answers already live on (S8).
       const signed = await signIn(`web-${lang}`, "google", lang, cookie);
