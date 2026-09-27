@@ -2895,34 +2895,27 @@ if (PG_URL) {
       }
     });
 
-    it("grandfathers a single-opt-in list rather than sweeping it", async () => {
-      // The other migration with a judgement call in it. These addresses were submitted under a
-      // flow that was live at the time and said what it would do; leaving them pending would mean
-      // deleting genuine signups within the week without ever asking, which is a worse answer to
-      // the same question. docs/DEPLOY.md names the decision.
+    it("drops the subscribers table the retired mailing list left behind (#113)", async () => {
+      // The list is gone and the prod table was erased after a verified backup; a self-hosted or
+      // development database that still has it loses it on the next boot, rows and all.
       const sql = await rawSql();
       try {
-        await sql`drop table if exists subscribers`;
-        await sql.unsafe(`create table subscribers (
+        await sql.unsafe(`create table if not exists subscribers (
           email      text primary key,
           token      text not null unique,
           source     text not null,
           created_at timestamptz not null default now()
         )`);
-        const email = `legacy-${RUN}@example.com`;
         await sql`insert into subscribers (email, token, source)
-                  values (${email}, ${`legacy-unsub-${RUN}`}, 'web')`;
+                  values (${`legacy-${RUN}@example.com`}, ${`legacy-unsub-${RUN}`}, 'web')`;
 
+        // Opening a store is what runs the migration.
         const s = await postgresStore(PG_URL, { maxConnections: TEST_POOL });
         try {
-          // Confirmed, so the sweep leaves it alone — and `addSubscriber` reports no confirmation
-          // token for it, which is what stops the first deploy mailing the whole existing list.
-          expect(await s.pruneUnconfirmedSubscribers(new Date(Date.now() + 1).toISOString())).toBe(0);
-          const upsert = await s.addSubscriber(email, "web");
-          expect(upsert.confirmToken).toBeNull();
-          expect(upsert.created).toBe(false);
-          // The withdrawal token they were given is still the one that works.
-          expect(await s.removeSubscriber(`legacy-unsub-${RUN}`)).toBe(true);
+          const tables = await sql`
+            select table_name from information_schema.tables
+            where table_schema = current_schema() and table_name = 'subscribers'`;
+          expect(tables).toHaveLength(0);
         } finally {
           await s.close();
         }
@@ -3318,13 +3311,13 @@ if (PG_URL) {
         .map(([name]) => name)
         .sort();
       expect(unscoped).toEqual([
-        "addSubscriber", "adminListUsers", "adminMetrics", "claimPairingCode", "confirmSubscriber",
-        "countGlobalAnalyses", "countSubscribersSince", "createUser", "forgetTurnOutcomes",
+        "adminListUsers", "adminMetrics", "claimPairingCode",
+        "countGlobalAnalyses", "createUser", "forgetTurnOutcomes",
         "getNotificationCopy", "getOnboardingContent", "getPrompts", "hasAdmin", "identityFor",
         "mergeUsers", "moveIdentity", "onboardingFunnel", "promptRevisions", "pruneExpiredPendings",
-        "pruneExpiredTokens", "pruneHealthDaysBefore", "pruneUnconfirmedSubscribers",
+        "pruneExpiredTokens", "pruneHealthDaysBefore",
         "putNotificationCopy", "putOnboardingContent", "putPrompt", "putPushToken",
-        "removeSubscriber", "revokeToken", "upsertDeviceUser", "userIdForIdentity",
+        "revokeToken", "upsertDeviceUser", "userIdForIdentity",
         "userIdForToken", "usersWithPushTokens",
       ]);
     });
