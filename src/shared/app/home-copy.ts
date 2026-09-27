@@ -111,6 +111,11 @@ export interface HomeCopy {
   /** web: the in-diary composer — `web/today-logging`. Spud, not {coach}: Home keeps him. */
   webComposerPlaceholder: string;
   /**
+   * web: the side column's landmark name (`aria-label`) — the week strip, the day's cards and
+   * the composer sit in a labelled `<section>` beside `<main>` (#178).
+   */
+  webDayRegion: string;
+  /**
    * web: the proposal's lead — `web/today-logging` "Logging to today — look right?". `{day}` is
    * `todayWord` for today or a formatted date for a past day the row sits on.
    */
@@ -170,6 +175,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     tryAgain: "Try again",
     webUploadPhoto: "Upload a photo",
     webComposerPlaceholder: "Tell Spud what you ate, or drop a photo",
+    webDayRegion: "Day summary",
     webProposalLead: "Logging to {day} — look right?",
     todayWord: "today",
     webLogIt: "Log it",
@@ -212,6 +218,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     tryAgain: "Réessayer",
     webUploadPhoto: "Envoyer une photo",
     webComposerPlaceholder: "Dis à Spud ce que tu as mangé, ou dépose une photo",
+    webDayRegion: "Résumé du jour",
     webProposalLead: "J'enregistre pour {day} — ça te va ?",
     todayWord: "aujourd'hui",
     webLogIt: "Enregistrer",
@@ -254,6 +261,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     tryAgain: "Erneut versuchen",
     webUploadPhoto: "Foto hochladen",
     webComposerPlaceholder: "Sag Spud, was du gegessen hast, oder leg ein Foto hier ab",
+    webDayRegion: "Tagesübersicht",
     webProposalLead: "Ich trage das für {day} ein — passt das?",
     todayWord: "heute",
     webLogIt: "Eintragen",
@@ -296,6 +304,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     tryAgain: "Riprova",
     webUploadPhoto: "Carica una foto",
     webComposerPlaceholder: "Di' a Spud cosa hai mangiato, o trascina una foto",
+    webDayRegion: "Riepilogo del giorno",
     webProposalLead: "Lo registro per {day} — torna?",
     todayWord: "oggi",
     webLogIt: "Registra",
@@ -338,6 +347,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     tryAgain: "Reintentar",
     webUploadPhoto: "Subir una foto",
     webComposerPlaceholder: "Dile a Spud qué comiste, o suelta una foto",
+    webDayRegion: "Resumen del día",
     webProposalLead: "Lo registro para {day} — ¿te cuadra?",
     todayWord: "hoy",
     webLogIt: "Registrar",
@@ -380,6 +390,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     tryAgain: "Thử lại",
     webUploadPhoto: "Tải ảnh lên",
     webComposerPlaceholder: "Kể cho Spud bạn đã ăn gì, hoặc thả một bức ảnh vào",
+    webDayRegion: "Tóm tắt trong ngày",
     webProposalLead: "Ghi vào {day} — đúng không?",
     todayWord: "hôm nay",
     webLogIt: "Ghi lại",
@@ -422,6 +433,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     tryAgain: "Coba lagi",
     webUploadPhoto: "Unggah foto",
     webComposerPlaceholder: "Beri tahu Spud apa yang kamu makan, atau taruh foto di sini",
+    webDayRegion: "Ringkasan hari ini",
     webProposalLead: "Mencatat untuk {day} — sudah benar?",
     todayWord: "hari ini",
     webLogIt: "Catat",
@@ -464,6 +476,7 @@ export const HOME_COPY: Localized<HomeCopy> = {
     tryAgain: "Повторить",
     webUploadPhoto: "Загрузить фото",
     webComposerPlaceholder: "Расскажи Spud, что было на тарелке, или перетащи фото",
+    webDayRegion: "Итоги дня",
     webProposalLead: "Записываю на {day} — всё верно?",
     todayWord: "сегодня",
     webLogIt: "Записать",

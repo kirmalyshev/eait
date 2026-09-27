@@ -659,8 +659,8 @@ export interface Frame {
   /**
    * The screen's own SECOND column — the boards' two-column `wmain` (W4's Home draws the week
    * strip and the cards there). Like `bar`: append into it or leave it empty; a column with
-   * children drops `one` off `wmain` and joins the grid. It is not a landmark — `main.wcol`
-   * stays the page's content.
+   * children drops `one` off `wmain` and joins the grid. It is a `<section>` — a landmark ONLY
+   * when the screen names it (`aria-label`, from the screen's own copy table; #178).
    */
   side: HTMLElement;
 }
@@ -726,7 +726,8 @@ export async function render(): Promise<void> {
   }
   if (mine !== drawing) return;
   const right = el("span", "wr");
-  const side = el("div", "wcol");
+  // A `<section>` is a landmark only once a screen names it — unnamed it is just the column.
+  const side = el("section", "wcol");
   app.append(chrome(route, right), wrap);
   body.textContent = COPY.loading;
   try {
