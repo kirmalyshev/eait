@@ -343,12 +343,21 @@ export async function editMeal(
   // Scoped read: another user's meal id resolves to null here, indistinguishable from a deleted one.
   if (!existing) return { kind: "target-gone", on: "correction" };
 
+  // When a patch replaces the items but says nothing about a total, the total is DERIVED from the
+  // items — `patch.kcal ?? existing.kcal` used to keep the old figure on top of new items, which
+  // an items-only edit (the phone's and web's ingredient editors send `{ items }` alone) left
+  // stale. A field NO item reports cannot be derived — absent is not zero — so it keeps the
+  // stored figure. An explicit total still wins over either.
+  const derived = <K extends "kcal" | "protein_g" | "carbs_g" | "fat_g">(field: K, sent: number | undefined, kept: number): number =>
+    sent ?? (patch.items !== undefined && patch.items.some((i) => i[field] !== undefined)
+      ? patch.items.reduce((s, i) => s + (i[field] ?? 0), 0)
+      : kept);
   const merged = {
     items: patch.items ?? existing.items,
-    kcal: patch.kcal ?? existing.kcal,
-    protein_g: patch.protein_g ?? existing.protein_g,
-    carbs_g: patch.carbs_g ?? existing.carbs_g,
-    fat_g: patch.fat_g ?? existing.fat_g,
+    kcal: derived("kcal", patch.kcal, existing.kcal),
+    protein_g: derived("protein_g", patch.protein_g, existing.protein_g),
+    carbs_g: derived("carbs_g", patch.carbs_g, existing.carbs_g),
+    fat_g: derived("fat_g", patch.fat_g, existing.fat_g),
     satfat_g: patch.satfat_g ?? existing.satfat_g,
     fiber_g: patch.fiber_g ?? existing.fiber_g,
     sugar_g: patch.sugar_g ?? existing.sugar_g,
