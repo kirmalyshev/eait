@@ -11,7 +11,8 @@
     "./contract": "./contract.ts",
     "./palette": "./palette.ts",
     "./design": "./design.ts",
-    "./mascot": "./mascot.ts"
+    "./mascot": "./mascot.ts",
+    "./ui/icons": "./ui/icons.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

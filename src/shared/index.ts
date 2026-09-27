@@ -39,3 +39,6 @@ export * from "./outbox.ts";
 // under Node inside Expo's config loader, and the app's own `palette.ts`, which imports nothing
 // that touches react-native.
 export * from "./design.ts";
+// The icon set (#79). Same deal as the design tokens: in the barrel, and directly at
+// `@eait/shared/ui/icons` for a renderer that wants the data without the barrel.
+export * from "./ui/icons.ts";
