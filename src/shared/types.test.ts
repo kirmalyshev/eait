@@ -1,6 +1,6 @@
 import { describe, expect, it, test } from "bun:test";
 import { ACTIVITY_LEVELS, VERDICT_DIMENSIONS, migrateActivityLevel, renderableVerdicts, verdictMood } from "./types.ts";
-import { verdictPillLabel } from "./verdicts.ts";
+import { verdictInlineLabel, verdictInlineText, verdictPillLabel } from "./verdicts.ts";
 import { LANGS } from "./types.ts";
 
 // These tests are about a RENDER boundary, not about domain logic. `verdicts` is the one field on a
@@ -74,6 +74,50 @@ describe("a verdict pill in eight languages", () => {
   it("is English for a language nobody has written", () => {
     expect(verdictPillLabel("kidneys", "warn", "en")).toBe("Sodium high");
     expect(verdictPillLabel("kidneys", "warn", "de")).toBe("Natrium — hoch");
+  });
+});
+
+// #122, item 2: the diary row reads "13:05 · calories high · saturated fat very high" — the time,
+// then only the verdicts that are not on plan, in pill order, joined by " · ". The noun comes from
+// the CATALOG mid-sentence ("calories", not "Calories"), because a client lower-casing a pill label
+// is wrong in German, where the noun stays capitalised either way.
+describe("verdictInlineLabel", () => {
+  it("is the mid-sentence form of a warn or bad verdict", () => {
+    expect(verdictInlineLabel("weight", "warn", "en")).toBe("calories high");
+    expect(verdictInlineLabel("ldl", "bad", "en")).toBe("saturated fat very high");
+    expect(verdictInlineLabel("kidneys", "warn", "en")).toBe("sodium high");
+  });
+
+  it("keeps the German noun capitalised — the case lives in the catalog, not in code", () => {
+    expect(verdictInlineLabel("weight", "warn", "de")).toBe("Kalorien — hoch");
+    expect(verdictInlineLabel("ldl", "bad", "de")).toBe("Gesättigte Fette — sehr hoch");
+  });
+
+  it("names the dimension AND the verdict in every language, with no placeholder left", () => {
+    for (const lang of LANGS) {
+      for (const d of VERDICT_DIMENSIONS) {
+        const said = (["warn", "bad"] as const).map((v) => verdictInlineLabel(d, v, lang));
+        expect(new Set(said).size, `${lang}.${d}`).toBe(said.length);
+        for (const line of said) expect(line, `${lang}.${d}`).not.toMatch(/\{\w+\}/);
+      }
+    }
+  });
+});
+
+describe("verdictInlineText", () => {
+  it("joins only the verdicts that are not on plan, in pill order", () => {
+    expect(verdictInlineText({ kidneys: "bad", weight: "warn", ldl: "good" }, "en"))
+      .toBe("calories high · sodium very high");
+  });
+
+  it("says nothing when every verdict is on plan — the row shows the time alone", () => {
+    expect(verdictInlineText({ weight: "good", ldl: "good" }, "en")).toBe("");
+  });
+
+  it("says nothing for verdicts this build cannot read", () => {
+    expect(verdictInlineText({}, "en")).toBe("");
+    expect(verdictInlineText(undefined, "en")).toBe("");
+    expect(verdictInlineText({ weight: "excellent" }, "en")).toBe("");
   });
 });
 
