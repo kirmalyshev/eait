@@ -685,7 +685,8 @@ export async function render(): Promise<void> {
   // row only once there is a session to lose it over — over the one quiet column. `wmain`'s
   // two-column form is W4's; every surface today's code draws is the boards' one-column `one` —
   // except the meal, whose board widens the main to the full `wmain` width and puts the pair's
-  // columns inside it (`wmain.meal`, the one-column-at-1160 variant).
+  // columns inside it (`wmain:has(.mdetail)` — the variant is selected by content because `.meal`
+  // is already the kit's row class, and classing the main with it leaked that row's padding).
   const wrap = el("div", "wmain");
   // The column's content is the page's MAIN landmark — a screen reader jumps straight to it.
   const body = el("main", "wcol");
@@ -695,7 +696,7 @@ export async function render(): Promise<void> {
   // The hash without its query — `#/chat?focus=<id>` is Chat (the meal-focus handoff W5 and W6
   // take, #93/#94).
   const route = routeBase(location.hash || "#/");
-  wrap.className = `wmain ${route.startsWith("#/meal/") ? "meal" : "one"}`;
+  wrap.className = `wmain${route.startsWith("#/meal/") ? "" : " one"}`;
   // The profile BEFORE the navigation, because whether the admin tab exists is on it. Drawing the
   // bar first and adding a tab a moment later is a menu that moves under the cursor.
   try {

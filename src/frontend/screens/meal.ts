@@ -91,9 +91,13 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
   // it on close — a keyboard path has to end where it started.
   let overlay: HTMLElement | null = null;
   let restoreFocus: Element | null = null;
+  // The open ⋯ menu's closer (#172): Esc takes it before it takes the screen — a menu up is a
+  // popup, not a page, and the order here is overlay → menu → diary.
+  let closeMenu: (() => void) | null = null;
   const closeOverlay = (): void => {
     overlay?.remove(); overlay = null;
-    if (restoreFocus instanceof HTMLElement && restoreFocus.isConnected) restoreFocus.focus();
+    if (restoreFocus instanceof HTMLElement && restoreFocus.isConnected &&
+        restoreFocus.closest("[hidden]") === null) restoreFocus.focus();
     restoreFocus = null;
   };
   const openOverlay = (node: HTMLElement, focus?: HTMLElement): void => {
@@ -121,7 +125,9 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
   document.addEventListener("keydown", function onKey(e) {
     if (!wrap.isConnected) { document.removeEventListener("keydown", onKey); return; }
     if (e.key !== "Escape") return;
-    if (overlay !== null) closeOverlay(); else closeToDiary();
+    if (overlay !== null) closeOverlay();
+    else if (closeMenu !== null) closeMenu();
+    else closeToDiary();
   });
 
   const iconButton = (icon: IconName, label: string): HTMLButtonElement => {
@@ -385,11 +391,16 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     btn.setAttribute("aria-expanded", "false");
     const popup = el("div", "mpopup");
     popup.hidden = true;
+    const setOpen = (open: boolean): void => {
+      popup.hidden = !open;
+      btn.setAttribute("aria-expanded", `${open}`);
+      closeMenu = open ? () => setOpen(false) : null;
+    };
     const item = (icon: IconName, label: string, onPick: () => void): HTMLButtonElement => {
       const b = el("button", "mi") as HTMLButtonElement;
       b.type = "button";
       b.append(kitEl(ico(icon)), document.createTextNode(label));
-      b.addEventListener("click", () => { popup.hidden = true; onPick(); });
+      b.addEventListener("click", () => { setOpen(false); onPick(); });
       return b;
     };
     const reread = item("retry", mc.phoneMenuReread, () =>
@@ -421,15 +432,13 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     );
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
-      popup.hidden = !popup.hidden;
-      btn.setAttribute("aria-expanded", `${!popup.hidden}`);
+      setOpen(popup.hidden !== false);
     });
     // A tap anywhere else puts it away; the listener cleans itself up when the screen is gone.
     document.addEventListener("click", function away(e) {
       if (!wrap.isConnected) { document.removeEventListener("click", away); return; }
       if (!popup.hidden && !(e.target as Node | null)?.isSameNode(btn) && !popup.contains(e.target as Node)) {
-        popup.hidden = true;
-        btn.setAttribute("aria-expanded", "false");
+        setOpen(false);
       }
     });
     box.append(btn, popup);
