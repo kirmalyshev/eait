@@ -8,7 +8,7 @@
 // lines out (`TYPING_SCRIPT`); it never changes, so the policy names it by hash rather than by a
 // nonce, and every page works without it — the full text is in the markup.
 
-import { MAX_USER_LINE, TYPE_MS_PER_CHAR } from "@eait/shared";
+import { MAX_USER_LINE, TYPE_MS_PER_CHAR, signupCopyFor } from "@eait/shared";
 import { createHash } from "node:crypto";
 import { darkVars, lightVars } from "@eait/shared/palette";
 import { FONTS, fontFaces, fontFile, motionCss } from "@eait/shared/design";
@@ -436,17 +436,18 @@ export interface SignUpView {
 
 export function signUp(v: SignUpView): string {
   const PAGE_COPY = pageCopyFor(v.lang);
+  const SIGNUP_COPY = signupCopyFor(v.lang);
   // The two links inside the terms label are placeholders the sentence carries itself, so a
   // translation can put them wherever its grammar needs them. Terms has nothing published to
   // point at — underlined text, as the board draws it; the policy links when a landing exists.
-  const termsLabel = escape(PAGE_COPY.termsLabel)
-    .replace("{terms}", escape(PAGE_COPY.termsLink))
+  const termsLabel = escape(SIGNUP_COPY.termsLabel)
+    .replace("{terms}", escape(SIGNUP_COPY.termsLink))
     .replace("{privacy}", v.privacyHref === null
-      ? escape(PAGE_COPY.privacyLink)
-      : `<a href="${escape(v.privacyHref)}">${escape(PAGE_COPY.privacyLink)}</a>`);
+      ? escape(SIGNUP_COPY.privacyLink)
+      : `<a href="${escape(v.privacyHref)}">${escape(SIGNUP_COPY.privacyLink)}</a>`);
   return shell(PAGE_COPY.titleStart, `
 ${spud(v.lang)}
-<h1>${escape(PAGE_COPY.signUpHeading)}</h1>
+<h1>${escape(SIGNUP_COPY.signUpHeading)}</h1>
 ${v.error ? `<p class="notice">${escape(v.error)}</p>` : ""}
 <form id="signup" method="post">
 ${v.providers.map((p, i) =>
@@ -462,7 +463,7 @@ ${v.providers.map((p, i) =>
   <button type="submit">${escape(PAGE_COPY.pairButton)}</button>
 </form>
 <label class="check"><input type="checkbox" name="terms" value="yes" form="signup"> ${termsLabel}</label>
-<label class="check"><input type="checkbox" name="marketing" value="yes" form="signup"> ${escape(PAGE_COPY.consentMarketing)}</label>
+<label class="check"><input type="checkbox" name="marketing" value="yes" form="signup"> ${escape(SIGNUP_COPY.consentMarketing)}</label>
 `, v.lang);
 }
 
