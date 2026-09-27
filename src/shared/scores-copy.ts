@@ -29,6 +29,14 @@ export interface ScoresCopy {
   notRead: string;
   /** The whole-card state when fewer than three of the five nutrients were read. */
   insufficient: string;
+  /** The today-score board's headline — "Today's health score {n}/10". */
+  todayTitle: string;
+  /** Under it: what the day's number IS — the mean, weighted by calories. */
+  todayMethod: string;
+  /** "From today's meal" — the one-meal wording. Shared tables hold no plural rules. */
+  todayFromMeal: string;
+  /** "From today's {n} meals" — `{n}` already formatted. */
+  todayFromMeals: string;
   /** The BMI label — the acronym, spelled the way the language spells it. */
   bmi: string;
   /** The one line explaining BMI. */
@@ -49,6 +57,10 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     method: "From protein, fibre, saturated fat, sugar and salt, per calorie.",
     notRead: "not read",
     insufficient: "Not enough read to score",
+    todayTitle: "Today's health score {n}/10",
+    todayMethod: "The mean of today's meals, weighted by their calories",
+    todayFromMeal: "From today's meal",
+    todayFromMeals: "From today's {n} meals",
     bmi: "BMI",
     bmiExplainer: "Weight in kg divided by height in metres, squared.",
     bmiBelow: "below {n}",
@@ -63,6 +75,10 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     method: "À partir des protéines, des fibres, des graisses saturées, du sucre et du sel, par calorie.",
     notRead: "non lu",
     insufficient: "Lecture insuffisante pour un score",
+    todayTitle: "Score santé d'aujourd'hui : {n}/10",
+    todayMethod: "La moyenne des repas d'aujourd'hui, pondérée par leurs calories",
+    todayFromMeal: "Du repas d'aujourd'hui",
+    todayFromMeals: "Des {n} repas d'aujourd'hui",
     bmi: "IMC",
     bmiExplainer: "Poids en kg divisé par la taille en mètres, au carré.",
     bmiBelow: "moins de {n}",
@@ -77,6 +93,10 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     method: "Aus Protein, Ballaststoffen, gesättigten Fettsäuren, Zucker und Salz — pro Kalorie.",
     notRead: "nicht erkannt",
     insufficient: "Zu wenig erkannt für einen Score",
+    todayTitle: "Heutiger Gesundheitsscore: {n}/10",
+    todayMethod: "Der Mittelwert der heutigen Mahlzeiten, nach Kalorien gewichtet",
+    todayFromMeal: "Aus der heutigen Mahlzeit",
+    todayFromMeals: "Aus den heutigen {n} Mahlzeiten",
     bmi: "BMI",
     bmiExplainer: "Gewicht in kg geteilt durch die Körpergröße in Metern zum Quadrat.",
     bmiBelow: "unter {n}",
@@ -91,6 +111,10 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     method: "Da proteine, fibre, grassi saturi, zuccheri e sale, per caloria.",
     notRead: "non letto",
     insufficient: "Dati insufficienti per un punteggio",
+    todayTitle: "Punteggio di salute di oggi: {n}/10",
+    todayMethod: "La media dei pasti di oggi, ponderata per le loro calorie",
+    todayFromMeal: "Dal pasto di oggi",
+    todayFromMeals: "Dai {n} pasti di oggi",
     bmi: "IMC",
     bmiExplainer: "Peso in kg diviso per l'altezza in metri, al quadrato.",
     bmiBelow: "sotto {n}",
@@ -105,6 +129,10 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     method: "A partir de proteínas, fibra, grasas saturadas, azúcar y sal, por caloría.",
     notRead: "sin lectura",
     insufficient: "Lectura insuficiente para una puntuación",
+    todayTitle: "Puntuación de salud de hoy: {n}/10",
+    todayMethod: "La media de las comidas de hoy, ponderada por sus calorías",
+    todayFromMeal: "De la comida de hoy",
+    todayFromMeals: "De las {n} comidas de hoy",
     bmi: "IMC",
     bmiExplainer: "Peso en kg dividido por la altura en metros, al cuadrado.",
     bmiBelow: "por debajo de {n}",
@@ -119,6 +147,10 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     method: "Từ đạm, chất xơ, chất béo bão hòa, đường và muối, trên mỗi calo.",
     notRead: "không đọc được",
     insufficient: "Chưa đủ dữ liệu để chấm điểm",
+    todayTitle: "Điểm sức khỏe hôm nay: {n}/10",
+    todayMethod: "Trung bình các bữa hôm nay, theo trọng số calo",
+    todayFromMeal: "Từ bữa hôm nay",
+    todayFromMeals: "Từ {n} bữa hôm nay",
     bmi: "BMI",
     bmiExplainer: "Cân nặng tính bằng kg chia cho chiều cao tính bằng mét, bình phương.",
     bmiBelow: "dưới {n}",
@@ -133,6 +165,10 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     method: "Dari protein, serat, lemak jenuh, gula, dan garam, per kalori.",
     notRead: "tidak terbaca",
     insufficient: "Data terbaca kurang untuk skor",
+    todayTitle: "Skor kesehatan hari ini: {n}/10",
+    todayMethod: "Rata-rata santapan hari ini, dibobot menurut kalorinya",
+    todayFromMeal: "Dari santapan hari ini",
+    todayFromMeals: "Dari {n} santapan hari ini",
     bmi: "IMT",
     bmiExplainer: "Berat badan dalam kg dibagi tinggi badan dalam meter, dikuadratkan.",
     bmiBelow: "di bawah {n}",
@@ -147,6 +183,10 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     method: "Из белка, клетчатки, насыщенных жиров, сахара и соли — на калорию.",
     notRead: "не считано",
     insufficient: "Недостаточно данных для оценки",
+    todayTitle: "Оценка здоровья за сегодня: {n}/10",
+    todayMethod: "Среднее по сегодняшним приёмам пищи, взвешенное по калориям",
+    todayFromMeal: "Из сегодняшнего приёма пищи",
+    todayFromMeals: "Из сегодняшних приёмов пищи: {n}",
     bmi: "ИМТ",
     bmiExplainer: "Вес в кг, делённый на рост в метрах в квадрате.",
     bmiBelow: "ниже {n}",

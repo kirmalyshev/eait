@@ -51,6 +51,20 @@ describe("score copy (#118)", () => {
     for (const lang of LANGS) expect(scoreFactorLabel("satfat", lang)).toBe(verdictNoun("ldl", lang));
   });
 
+  test("the today board's strings take their {n} in every language (W4)", () => {
+    for (const lang of LANGS) {
+      const copy = scoresCopy(lang);
+      expect(copy.todayTitle, lang).toContain("{n}");
+      expect(copy.todayTitle, lang).toContain("/10");
+      expect(copy.todayFromMeals, lang).toContain("{n}");
+      // The singular carries no count — one meal is said, not numbered.
+      expect(copy.todayFromMeal, lang).not.toContain("{n}");
+      for (const s of [copy.todayTitle, copy.todayMethod, copy.todayFromMeal, copy.todayFromMeals]) {
+        expect(s.length, lang).toBeGreaterThan(0);
+      }
+    }
+  });
+
   test("every factor has a name in every language", () => {
     for (const lang of LANGS) {
       for (const f of ["protein", "fibre", "satfat", "sugar", "salt"] as const) {
