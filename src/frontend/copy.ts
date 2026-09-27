@@ -68,11 +68,6 @@ export interface WebCopy {
   weightLineWhen: string;
   nothingToday: string;
   meal: string;
-  photo: string;
-  edit: string;
-  delete: string;
-  confirmDeleteMeal: string;
-  confirmDeleteLine: string;
   noMessages: string;
   sentReload: string;
   proposalLead: string;
@@ -93,8 +88,6 @@ export interface WebCopy {
   cancel: string;
   choosePhotoFirst: string;
   photoTooLarge: string;
-  messageGone: string;
-  messageNotEditable: string;
   mealGone: string;
   loading: string;
   somethingWrong: string;
@@ -161,8 +154,6 @@ export interface WebCopy {
   offerLater: string;
   /** `{n}` — the photo bound off `ProfileResponse.limits`. */
   photosMax: string;
-  /** `{n}` — photos already on the meal being re-read. */
-  photosOnMeal: string;
   /** The picker's chosen count under the composer — plural by rule, not a "(s)". */
   photosCount: CountForms;
   /** `{text}` — a queued photo's caption. */
@@ -193,11 +184,6 @@ const EN: WebCopy = {
   weightLineWhen: "Weight {kg} kg, updated {when}.",
   nothingToday: "Nothing logged yet today.",
   meal: "Meal",
-  photo: "Photo",
-  edit: "Edit",
-  delete: "Delete",
-  confirmDeleteMeal: "Delete this meal? Its photos and numbers go too.",
-  confirmDeleteLine: "Remove this message? Numbers stay.",
   noMessages: "No messages yet.",
   sentReload: "Sent. Reload to see the conversation.",
   proposalLead: "Logging this — look right?",
@@ -216,8 +202,6 @@ const EN: WebCopy = {
   cancel: "Cancel",
   choosePhotoFirst: "Choose a photo first.",
   photoTooLarge: "That photo is too large to send.",
-  messageGone: "That message is gone.",
-  messageNotEditable: "That message cannot be edited.",
   mealGone: "A meal that is no longer logged",
   loading: "Loading…",
   somethingWrong: "Something went wrong. Try again.",
@@ -259,7 +243,6 @@ const EN: WebCopy = {
   startFreeWeek: "Start my free week",
   offerLater: "Not now",
   photosMax: "One meal takes up to {n} photos.",
-  photosOnMeal: "Photos: {n} · add angles:",
   photosCount: { one: "{n} photo", few: "{n} photos", many: "{n} photos", other: "{n} photos" },
   photoWithCaption: "Photo: {text}",
   statProtein: "Protein", statCarbs: "Carbs", statFat: "Fat",
@@ -303,9 +286,7 @@ const FR: WebCopy = {
   weightLine: "Poids {kg} kg.",
   weightLineWhen: "Poids {kg} kg, mis à jour {when}.",
   nothingToday: "Rien d'enregistré aujourd'hui.",
-  meal: "Repas", photo: "Photo", edit: "Modifier", delete: "Supprimer",
-  confirmDeleteMeal: "Supprimer ce repas ? Ses photos et ses chiffres seront supprimés aussi.",
-  confirmDeleteLine: "Retirer ce message ? Les chiffres restent.",
+  meal: "Repas",
   noMessages: "Aucun message pour l'instant.",
   sentReload: "Envoyé. Recharge pour voir la conversation.",
   proposalLead: "J'enregistre ça — ça te va ?", logIt: "Enregistrer", notThis: "Pas ça",
@@ -319,8 +300,6 @@ const FR: WebCopy = {
   sendPhoto: "Envoyer la photo", cancel: "Annuler",
   choosePhotoFirst: "Choisis d'abord une photo.",
   photoTooLarge: "Cette photo est trop lourde à envoyer.",
-  messageGone: "Ce message n'existe plus.",
-  messageNotEditable: "Ce message ne peut pas être modifié.",
   mealGone: "Un repas qui n'est plus enregistré",
   loading: "Chargement…", somethingWrong: "Un problème est survenu. Réessaie.",
   connectTelegram: "Connecter Telegram", telegramFailed: "Pas de lien Telegram cette fois. Réessaie.",
@@ -359,7 +338,6 @@ const FR: WebCopy = {
   startFreeWeek: "Commencer ma semaine gratuite",
   offerLater: "Pas maintenant",
   photosMax: "Un repas prend jusqu'à {n} photos.",
-  photosOnMeal: "Photos : {n} · ajoute des angles :",
   photosCount: { one: "{n} photo", few: "{n} photos", many: "{n} photos", other: "{n} photos" },
   photoWithCaption: "Photo : {text}",
   statProtein: "Protéines", statCarbs: "Glucides", statFat: "Lipides",
@@ -403,9 +381,7 @@ const DE: WebCopy = {
   weightLine: "Gewicht {kg} kg.",
   weightLineWhen: "Gewicht {kg} kg, aktualisiert {when}.",
   nothingToday: "Heute noch nichts eingetragen.",
-  meal: "Mahlzeit", photo: "Foto", edit: "Bearbeiten", delete: "Löschen",
-  confirmDeleteMeal: "Diese Mahlzeit löschen? Ihre Fotos und Zahlen gehen mit.",
-  confirmDeleteLine: "Diese Nachricht entfernen? Die Zahlen bleiben.",
+  meal: "Mahlzeit",
   noMessages: "Noch keine Nachrichten.",
   sentReload: "Gesendet. Lad neu, um das Gespräch zu sehen.",
   proposalLead: "Ich trage das ein — passt das?", logIt: "Eintragen", notThis: "Doch nicht",
@@ -419,8 +395,6 @@ const DE: WebCopy = {
   sendPhoto: "Foto senden", cancel: "Abbrechen",
   choosePhotoFirst: "Wähl zuerst ein Foto.",
   photoTooLarge: "Dieses Foto ist zu groß zum Senden.",
-  messageGone: "Diese Nachricht gibt es nicht mehr.",
-  messageNotEditable: "Diese Nachricht lässt sich nicht bearbeiten.",
   mealGone: "Eine Mahlzeit, die nicht mehr eingetragen ist",
   loading: "Lädt…", somethingWrong: "Etwas ist schiefgegangen. Versuch es noch einmal.",
   connectTelegram: "Telegram verbinden", telegramFailed: "Diesmal kein Telegram-Link. Versuch es noch einmal.",
@@ -459,7 +433,6 @@ const DE: WebCopy = {
   startFreeWeek: "Meine Gratiswoche starten",
   offerLater: "Jetzt nicht",
   photosMax: "Eine Mahlzeit nimmt bis zu {n} Fotos.",
-  photosOnMeal: "Fotos: {n} · weitere Blickwinkel:",
   photosCount: { one: "{n} Foto", few: "{n} Fotos", many: "{n} Fotos", other: "{n} Fotos" },
   photoWithCaption: "Foto: {text}",
   statProtein: "Eiweiß", statCarbs: "Kohlenhydrate", statFat: "Fett",
@@ -503,9 +476,7 @@ const IT: WebCopy = {
   weightLine: "Peso {kg} kg.",
   weightLineWhen: "Peso {kg} kg, aggiornato {when}.",
   nothingToday: "Oggi non è ancora stato registrato niente.",
-  meal: "Pasto", photo: "Foto", edit: "Modifica", delete: "Elimina",
-  confirmDeleteMeal: "Eliminare questo pasto? Vanno via anche le sue foto e i suoi numeri.",
-  confirmDeleteLine: "Togliere questo messaggio? I numeri restano.",
+  meal: "Pasto",
   noMessages: "Ancora nessun messaggio.",
   sentReload: "Inviato. Ricarica per vedere la conversazione.",
   proposalLead: "Sto registrando questo — ti torna?", logIt: "Registra", notThis: "Non questo",
@@ -519,8 +490,6 @@ const IT: WebCopy = {
   sendPhoto: "Invia la foto", cancel: "Annulla",
   choosePhotoFirst: "Scegli prima una foto.",
   photoTooLarge: "Quella foto è troppo grande da inviare.",
-  messageGone: "Quel messaggio non c'è più.",
-  messageNotEditable: "Quel messaggio non si può modificare.",
   mealGone: "Un pasto che non è più registrato",
   loading: "Caricamento…", somethingWrong: "Qualcosa è andato storto. Riprova.",
   connectTelegram: "Collega Telegram", telegramFailed: "Niente link Telegram stavolta. Riprova.",
@@ -559,7 +528,6 @@ const IT: WebCopy = {
   startFreeWeek: "Inizia la mia settimana gratis",
   offerLater: "Non ora",
   photosMax: "Un pasto accetta fino a {n} foto.",
-  photosOnMeal: "Foto: {n} · aggiungi angolazioni:",
   photosCount: { one: "{n} foto", few: "{n} foto", many: "{n} foto", other: "{n} foto" },
   photoWithCaption: "Foto: {text}",
   statProtein: "Proteine", statCarbs: "Carboidrati", statFat: "Grassi",
@@ -603,9 +571,7 @@ const ES: WebCopy = {
   weightLine: "Peso {kg} kg.",
   weightLineWhen: "Peso {kg} kg, actualizado {when}.",
   nothingToday: "Hoy todavía no hay nada registrado.",
-  meal: "Comida", photo: "Foto", edit: "Editar", delete: "Eliminar",
-  confirmDeleteMeal: "¿Eliminar esta comida? Sus fotos y sus números se van también.",
-  confirmDeleteLine: "¿Quitar este mensaje? Los números se quedan.",
+  meal: "Comida",
   noMessages: "Todavía no hay mensajes.",
   sentReload: "Enviado. Recarga para ver la conversación.",
   proposalLead: "Voy a registrar esto — ¿te cuadra?", logIt: "Registrar", notThis: "Esto no",
@@ -619,8 +585,6 @@ const ES: WebCopy = {
   sendPhoto: "Enviar la foto", cancel: "Cancelar",
   choosePhotoFirst: "Elige primero una foto.",
   photoTooLarge: "Esa foto es demasiado grande para enviarla.",
-  messageGone: "Ese mensaje ya no está.",
-  messageNotEditable: "Ese mensaje no se puede editar.",
   mealGone: "Una comida que ya no está registrada",
   loading: "Cargando…", somethingWrong: "Algo salió mal. Inténtalo otra vez.",
   connectTelegram: "Conectar Telegram", telegramFailed: "Sin enlace de Telegram esta vez. Inténtalo otra vez.",
@@ -659,7 +623,6 @@ const ES: WebCopy = {
   startFreeWeek: "Empezar mi semana gratis",
   offerLater: "Ahora no",
   photosMax: "Una comida admite hasta {n} fotos.",
-  photosOnMeal: "Fotos: {n} · añade ángulos:",
   photosCount: { one: "{n} foto", few: "{n} fotos", many: "{n} fotos", other: "{n} fotos" },
   photoWithCaption: "Foto: {text}",
   statProtein: "Proteína", statCarbs: "Carbohidratos", statFat: "Grasas",
@@ -703,9 +666,7 @@ const VI: WebCopy = {
   weightLine: "Cân nặng {kg} kg.",
   weightLineWhen: "Cân nặng {kg} kg, cập nhật {when}.",
   nothingToday: "Hôm nay chưa ghi gì cả.",
-  meal: "Bữa ăn", photo: "Ảnh", edit: "Sửa", delete: "Xoá",
-  confirmDeleteMeal: "Xoá bữa này? Ảnh và các con số của nó cũng đi luôn.",
-  confirmDeleteLine: "Bỏ tin nhắn này? Các con số vẫn giữ nguyên.",
+  meal: "Bữa ăn",
   noMessages: "Chưa có tin nhắn nào.",
   sentReload: "Đã gửi. Tải lại để xem cuộc trò chuyện.",
   proposalLead: "Mình ghi cái này nhé — có đúng không?", logIt: "Ghi lại", notThis: "Không phải",
@@ -719,8 +680,6 @@ const VI: WebCopy = {
   sendPhoto: "Gửi ảnh", cancel: "Huỷ",
   choosePhotoFirst: "Chọn một tấm ảnh trước đã.",
   photoTooLarge: "Ảnh đó lớn quá, không gửi được.",
-  messageGone: "Tin nhắn đó không còn nữa.",
-  messageNotEditable: "Tin nhắn đó không sửa được.",
   mealGone: "Một bữa ăn không còn được ghi nữa",
   loading: "Đang tải…", somethingWrong: "Có gì đó trục trặc. Thử lại nhé.",
   connectTelegram: "Kết nối Telegram", telegramFailed: "Lần này chưa có liên kết Telegram. Thử lại nhé.",
@@ -759,7 +718,6 @@ const VI: WebCopy = {
   startFreeWeek: "Bắt đầu tuần miễn phí của tôi",
   offerLater: "Để sau",
   photosMax: "Một bữa ăn nhận tối đa {n} ảnh.",
-  photosOnMeal: "Ảnh: {n} · thêm góc chụp:",
   photosCount: { one: "{n} bức ảnh", few: "{n} bức ảnh", many: "{n} bức ảnh", other: "{n} bức ảnh" },
   photoWithCaption: "Ảnh: {text}",
   statProtein: "Đạm", statCarbs: "Tinh bột", statFat: "Béo",
@@ -803,9 +761,7 @@ const ID: WebCopy = {
   weightLine: "Berat {kg} kg.",
   weightLineWhen: "Berat {kg} kg, diperbarui {when}.",
   nothingToday: "Hari ini belum ada yang dicatat.",
-  meal: "Makanan", photo: "Foto", edit: "Ubah", delete: "Hapus",
-  confirmDeleteMeal: "Hapus makanan ini? Foto dan angkanya ikut hilang.",
-  confirmDeleteLine: "Hapus pesan ini? Angkanya tetap.",
+  meal: "Makanan",
   noMessages: "Belum ada pesan.",
   sentReload: "Terkirim. Muat ulang untuk melihat percakapannya.",
   proposalLead: "Aku catat ini — sudah benar?", logIt: "Catat", notThis: "Bukan ini",
@@ -819,8 +775,6 @@ const ID: WebCopy = {
   sendPhoto: "Kirim fotonya", cancel: "Batal",
   choosePhotoFirst: "Pilih fotonya dulu.",
   photoTooLarge: "Foto itu terlalu besar untuk dikirim.",
-  messageGone: "Pesan itu sudah tidak ada.",
-  messageNotEditable: "Pesan itu tidak bisa diubah.",
   mealGone: "Makanan yang sudah tidak tercatat lagi",
   loading: "Memuat…", somethingWrong: "Ada yang salah. Coba lagi.",
   connectTelegram: "Hubungkan Telegram", telegramFailed: "Tautan Telegram belum jadi kali ini. Coba lagi.",
@@ -859,7 +813,6 @@ const ID: WebCopy = {
   startFreeWeek: "Mulai minggu gratisku",
   offerLater: "Nanti saja",
   photosMax: "Satu makanan bisa berisi sampai {n} foto.",
-  photosOnMeal: "Foto: {n} · tambah sudut:",
   photosCount: { one: "{n} foto", few: "{n} foto", many: "{n} foto", other: "{n} foto" },
   photoWithCaption: "Foto: {text}",
   statProtein: "Protein", statCarbs: "Karbo", statFat: "Lemak",
@@ -903,9 +856,7 @@ const RU: WebCopy = {
   weightLine: "Вес {kg} кг.",
   weightLineWhen: "Вес {kg} кг, обновлён {when}.",
   nothingToday: "Сегодня пока ничего не записано.",
-  meal: "Приём пищи", photo: "Фото", edit: "Изменить", delete: "Удалить",
-  confirmDeleteMeal: "Удалить этот приём пищи? Его фото и цифры уйдут вместе с ним.",
-  confirmDeleteLine: "Убрать это сообщение? Цифры останутся.",
+  meal: "Приём пищи",
   noMessages: "Сообщений пока нет.",
   sentReload: "Отправлено. Обнови страницу, чтобы увидеть разговор.",
   proposalLead: "Записываю вот это — всё верно?", logIt: "Записать", notThis: "Не это",
@@ -919,8 +870,6 @@ const RU: WebCopy = {
   sendPhoto: "Отправить фото", cancel: "Отмена",
   choosePhotoFirst: "Сначала выбери фото.",
   photoTooLarge: "Это фото слишком большое для отправки.",
-  messageGone: "Этого сообщения больше нет.",
-  messageNotEditable: "Это сообщение нельзя изменить.",
   mealGone: "Приём пищи, которого больше нет в дневнике",
   loading: "Загрузка…", somethingWrong: "Что-то пошло не так. Попробуй ещё раз.",
   connectTelegram: "Подключить Telegram", telegramFailed: "В этот раз ссылка на Telegram не вышла. Попробуй ещё раз.",
@@ -959,7 +908,6 @@ const RU: WebCopy = {
   startFreeWeek: "Начать бесплатную неделю",
   offerLater: "Не сейчас",
   photosMax: "К одному приёму пищи можно приложить до {n} фото.",
-  photosOnMeal: "Фото: {n} · добавь ракурсы:",
   photosCount: { one: "{n} фото", few: "{n} фото", many: "{n} фото", other: "{n} фото" },
   photoWithCaption: "Фото: {text}",
   statProtein: "Белок", statCarbs: "Углеводы", statFat: "Жиры",
