@@ -144,6 +144,21 @@ export const ONBOARDING_PLACES = [
 export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
 
 /**
+ * The progress dash's segments — the places between the welcome and the plan, in walk order
+ * (`onboarding/*` boards, fourteen `<i>` each).
+ *
+ * The welcome is before the count; `building` is the reveal, a screen of its own; `signup`,
+ * `country` and `health` sit past it. So the bar is `ONBOARDING_PLACES` minus those five, and
+ * `summary` — the plan — is the last segment lit.
+ */
+export const DASH_PLACES: readonly OnboardingPlace[] = ONBOARDING_PLACES.filter(
+  (p) => !["welcome", "building", "signup", "country", "health"].includes(p),
+);
+
+/** The dash position of a place, or -1 for a place that is not a segment (the welcome et al.). */
+export const dashIndex = (place: OnboardingPlace): number => DASH_PLACES.indexOf(place);
+
+/**
  * Which fields each group collects, in the order Spud asks them.
  *
  * This is the mapping that makes the flow safe to resume: the question to ask is the first one the

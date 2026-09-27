@@ -17,6 +17,11 @@ import { t, type Lang, type Localized } from "@eait/shared";
 
 export interface PageCopy {
   frontDoorLead: string;
+  /**
+   * The welcome demo's accessible name (00-welcome): the recorded loop is a video, so its
+   * content is announced rather than read. Describes the final frame — the computed card.
+   */
+  welcomeDemoAlt: string;
   planHeading: string;
   /** `{weeks}` — the count `projectGoal` computed, under the by-when line. */
   planWeeks: string;
@@ -157,6 +162,8 @@ export interface PageCopy {
 const EN: PageCopy = {
   frontDoorLead:
     "Set up your account here, then open the app already signed in. It takes about three minutes.",
+  welcomeDemoAlt:
+    "eait in use: a photo of a grain bowl, three ingredients read with their kcal, and the verdict: 281 kcal, calories on plan",
   planHeading: "Here is your plan",
   planWeeks: "{weeks} weeks at this pace",
   planEachDay: "Each day",
@@ -275,6 +282,8 @@ const EN: PageCopy = {
 
 const FR: PageCopy = {
   frontDoorLead: "Crée ton compte ici, puis ouvre l'appli : la session sera déjà ouverte. Ça prend environ trois minutes.",
+  welcomeDemoAlt:
+    "eait en action : la photo d'un bowl de céréales, trois ingrédients lus avec leurs kcal, et le verdict : 281 kcal, calories dans le plan",
   planHeading: "Voici ton plan",
   planWeeks: "{weeks} semaines à ce rythme",
   planEachDay: "Chaque jour",
@@ -363,6 +372,8 @@ const FR: PageCopy = {
 
 const DE: PageCopy = {
   frontDoorLead: "Richte dein Konto hier ein und öffne die App dann bereits angemeldet. Dauert etwa drei Minuten.",
+  welcomeDemoAlt:
+    "eait in Aktion: ein Foto einer Getreidebowl, drei Zutaten mit ihren kcal erkannt, und das Urteil: 281 kcal, Kalorien im Plan",
   planHeading: "Hier ist dein Plan",
   planWeeks: "{weeks} Wochen in diesem Tempo",
   planEachDay: "Jeden Tag",
@@ -451,6 +462,8 @@ const DE: PageCopy = {
 
 const IT: PageCopy = {
   frontDoorLead: "Prepara qui il tuo account, poi apri l'app con la sessione già aperta. Ci vogliono circa tre minuti.",
+  welcomeDemoAlt:
+    "eait in uso: la foto di una bowl di cereali, tre ingredienti letti con le loro kcal e il verdetto: 281 kcal, calorie nel piano",
   planHeading: "Ecco il tuo piano",
   planWeeks: "{weeks} settimane a questo ritmo",
   planEachDay: "Ogni giorno",
@@ -539,6 +552,8 @@ const IT: PageCopy = {
 
 const ES: PageCopy = {
   frontDoorLead: "Prepara tu cuenta aquí y luego abre la app ya con la sesión iniciada. Son unos tres minutos.",
+  welcomeDemoAlt:
+    "eait en uso: la foto de un bowl de granos, tres ingredientes leídos con sus kcal y el veredicto: 281 kcal, calorías dentro del plan",
   planHeading: "Aquí está tu plan",
   planWeeks: "{weeks} semanas a este ritmo",
   planEachDay: "Cada día",
@@ -627,6 +642,8 @@ const ES: PageCopy = {
 
 const VI: PageCopy = {
   frontDoorLead: "Tạo tài khoản ở đây, rồi mở ứng dụng là đã đăng nhập sẵn. Mất khoảng ba phút.",
+  welcomeDemoAlt:
+    "eait đang dùng: ảnh một bát ngũ cốc, ba nguyên liệu được đọc kèm kcal, và đánh giá: 281 kcal, calo trong kế hoạch",
   planHeading: "Đây là kế hoạch của bạn",
   planWeeks: "{weeks} tuần với nhịp này",
   planEachDay: "Mỗi ngày",
@@ -715,6 +732,8 @@ const VI: PageCopy = {
 
 const ID: PageCopy = {
   frontDoorLead: "Siapkan akunmu di sini, lalu buka aplikasinya dalam keadaan sudah masuk. Perlu sekitar tiga menit.",
+  welcomeDemoAlt:
+    "eait sedang dipakai: foto semangkuk grain bowl, tiga bahan terbaca dengan kcal-nya, dan hasilnya: 281 kkal, kalori sesuai rencana",
   planHeading: "Ini rencanamu",
   planWeeks: "{weeks} minggu dengan tempo ini",
   planEachDay: "Setiap hari",
@@ -803,6 +822,8 @@ const ID: PageCopy = {
 
 const RU: PageCopy = {
   frontDoorLead: "Заведи аккаунт здесь, а потом открой приложение уже с входом. Займёт минуты три.",
+  welcomeDemoAlt:
+    "eait в работе: фото боула, три ингредиента распознаны с ккал, и вердикт: 281 ккал, калории в пределах плана",
   planHeading: "Вот твой план",
   planWeeks: "Недель в таком темпе: {weeks}",
   planEachDay: "Каждый день",

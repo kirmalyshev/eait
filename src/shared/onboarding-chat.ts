@@ -45,7 +45,7 @@ import { kgToLb, type UnitSystem } from "./ui/units.ts";
 import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
 import { threadCopyFor } from "./chat-copy.ts";
 import { ACTIVITY_LEVELS, PACES, SEXES, STRUGGLES } from "./types.ts";
-import type { Goal, Lang, Pace, Profile, Struggle, Units } from "./types.ts";
+import type { Goal, Lang, Pace, Profile, Struggle, Units, Verdict, VerdictDimension } from "./types.ts";
 import {
   isKnownScreen, optionLabel, screenForStep, screenOptionValues, screenOptions, stepApplies,
   type OnboardingContent, type OnboardingPlace, type OnboardingScreenId, type OnboardingStep,
@@ -343,7 +343,7 @@ export function belowHealthyCard(minHealthyKg: number, lang: Lang): SupportCard 
  * Left alone rather than blanked, because a brace on screen is a bug somebody reports and a silent
  * gap in a sentence is one nobody does. `onboarding-chat-copy.test.ts` asserts every table fills.
  */
-const fill = (template: string, params: Record<string, string>): string =>
+export const fill = (template: string, params: Record<string, string>): string =>
   template.replace(/\{(\w+)\}/g, (whole, key: string) => params[key] ?? whole);
 
 /** A card with its numbers in. `source` is absent on the ones that are statements, not citations. */
@@ -440,7 +440,7 @@ export function checkNumber(
   return { ok: true, value: Math.round(value * 10) / 10 };
 }
 
-const BANDS: Record<Exclude<NumberField, "birth_year">, readonly [number, number]> = {
+export const BANDS: Record<Exclude<NumberField, "birth_year">, readonly [number, number]> = {
   height_cm: [120, 230],
   // The design says 25 kg; the server refuses anything under `MIN_WEIGHT_KG`, so the lower bound is
   // the server's. A band the client is looser than is a band whose refusals have no words.
@@ -702,6 +702,23 @@ export function ontrackCaption(picked: readonly Struggle[] | null, lang: Lang): 
     ? fill(chatCopyFor(lang).ontrack.captions[first], { coach: threadCopyFor(lang).coach.name })
     : null;
 }
+
+/**
+ * The figures drawn INSIDE the "How it works" cards — the persona's own numbers, fixed to the
+ * boards (`onboarding/02-how`): the grain-bowl photo, the salmon card and the mini estimate
+ * curve are all drawn before a single answer exists, so nothing here is computed. The dish's
+ * NAME is copy (`how.meal`); the numbers are this constant so no surface retypes them.
+ */
+export const HOW_DEMO = {
+  startKg: 74,
+  targetKg: 68,
+  meal: { kcal: 540, proteinG: 34, carbsG: 48, fatG: 23 },
+  /** The card's two verdict lines — dimensions and verdicts, the words are `verdictPillLabel`'s. */
+  verdicts: [
+    { dimension: "weight", verdict: "warn" },
+    { dimension: "ldl", verdict: "warn" },
+  ] as const satisfies readonly { dimension: VerdictDimension; verdict: Verdict }[],
+} as const;
 
 /**
  * The pace screen's one result, per pace — what "Gentle" / "Steady" / "Brisk" would each land.

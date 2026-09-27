@@ -13,8 +13,8 @@ import { LOG_COPY, logCopyFor } from "./log-copy.ts";
 const SHARED = [
   "notePlaceholder", "reading", "checking", "close", "logged", "today", "waitingToSend",
   "noFood", "tryAnotherPhoto", "roughGuess", "roughAsk", "roughAbout", "roughHalf", "roughMore",
-  "edit", "agree", "firstVerdict", "correct", "continueCta", "analysisFailedNote",
-  "unknownTitle", "unknownNote", "verdictDetail", "dayEaten", "dayLeft",
+  "roughSent", "edit", "agree", "firstVerdict", "correct", "continueCta", "analysisFailedNote",
+  "unknownTitle", "unknownNote", "satfatNoun", "verdictDetail", "dayEaten", "dayOfPlan", "dayLeft",
 ] as const;
 const WEB = [
   "title", "dropHint", "chooseFile", "analyzeCta", "chatInstead", "fromPhoto",
@@ -49,8 +49,10 @@ describe("LOG_COPY", () => {
     const TEMPLATED: Array<[string, string[]]> = [
       ["roughAsk", ["{item}", "{grams}"]],
       ["roughMore", ["{grams}"]],
+      ["roughSent", ["{item}", "{grams}"]],
       ["verdictDetail", ["{noun}", "{amount}", "{target}"]],
       ["dayEaten", ["{eaten}", "{plan}"]],
+      ["dayOfPlan", ["{plan}"]],
       ["dayLeft", ["{left}"]],
     ];
     for (const lang of LANGS) {
@@ -79,6 +81,11 @@ describe("LOG_COPY", () => {
     expect(en.correct).toBe("Correct");
     expect(en.continueCta).toBe("Continue");
     expect(en.analysisFailedNote).toBe("Nothing was logged. Your photo is kept.");
+    // The sentence a grams answer SENDS, filled the way a rough chip fills it.
+    expect(en.roughSent.replace("{item}", "rice").replace("{grams}", "250"))
+      .toBe("The rice was about 250 g");
+    expect(en.satfatNoun).toBe("Saturated fat");
+    expect(en.dayOfPlan.replace("{plan}", "1,434")).toBe("of 1,434 kcal");
     expect(en.unknownTitle).toBe("That didn't finish cleanly.");
     expect(en.unknownNote).toBe("Kept, and re-sent on its own — sending again is safe.");
     expect(en.waitingToSend).toBe("Waiting to send");
