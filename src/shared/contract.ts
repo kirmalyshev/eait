@@ -11,7 +11,7 @@ import type {
 import type { Diet, MedicalTag } from "./targets.ts";
 import type { OnboardingContent, OnboardingEvent } from "./onboarding.ts";
 import type { TargetBasis } from "./targets.ts";
-import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, LogPhotoResult, MealProposed, MealUpdated, Refusal, TargetGone } from "./results.ts";
+import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, LogPhotoResult, MealProposed, MealRedated, MealUpdated, Refusal, TargetGone } from "./results.ts";
 import type { HealthDay } from "./health.ts";
 import type { BmiRange } from "./scores.ts";
 import { WEIGHT_RANGES, type ChartDay, type WeightRange } from "./ui/charts.ts";
@@ -293,6 +293,12 @@ export const ROUTES = {
   mealPhotos: (id: string) => `/v1/meals/${encodeURIComponent(id)}/photos`,
   /** Run the analyzer again over the stored photos. Charged like a photo. */
   mealReanalyze: (id: string) => `/v1/meals/${encodeURIComponent(id)}/reanalyze`,
+  /**
+   * POST — move the meal back `dayOffset` days ({@link RedateMealRequest}), the menu's "Move to
+   * yesterday" as `1`. The same re-date the chat path runs — one engine function, unbilled,
+   * bounded by the chat re-date's own `MAX_DAY_OFFSET` — and the same answer: `MealRedated | TargetGone`.
+   */
+  mealRedate: (id: string) => `/v1/meals/${encodeURIComponent(id)}/redate`,
   pendingConfirm: (id: string) => `/v1/meals/pending/${encodeURIComponent(id)}/confirm`,
   pendingCancel: (id: string) => `/v1/meals/pending/${encodeURIComponent(id)}/cancel`,
   /** GET — the caller's live proposals, oldest first (#530): a page that lost its card reads them back. */
@@ -879,6 +885,27 @@ export function isEditMealRequest(body: unknown): body is EditMealRequest {
 }
 
 export type EditMealResponse = MealUpdated | TargetGone;
+
+/**
+ * `POST /v1/meals/:id/redate` — "Move to yesterday", as an offset: `1` is yesterday, `0` a no-op,
+ * and the bound is the chat re-date's own (`MAX_DAY_OFFSET`), clamped in the engine rather
+ * than refused — a hand-edited client that sends 40 gets the same answer the model's misparse gets.
+ *
+ * A date changes ONLY this way: `EditMealRequest` has no date field, so the manual editor cannot
+ * reach it — the offset is resolved against the account's today on the server, never sent as a
+ * `YYYY-MM-DD` a client could aim anywhere on the calendar.
+ */
+export interface RedateMealRequest {
+  dayOffset: number;
+}
+
+export function isRedateMealRequest(body: unknown): body is RedateMealRequest {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) return false;
+  const b = body as Record<string, unknown>;
+  return typeof b.dayOffset === "number" && Number.isFinite(b.dayOffset);
+}
+
+export type RedateMealResponse = MealRedated | TargetGone;
 
 // ── Push ────────────────────────────────────────────────────────────────────────────────────
 

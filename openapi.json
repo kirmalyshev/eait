@@ -1288,6 +1288,79 @@
         ]
       }
     },
+    "/v1/meals/{id}/redate": {
+      "post": {
+        "operationId": "post_mealRedate",
+        "summary": "Move the meal back `dayOffset` days — the menu's 'Move to yesterday' as `1`. Unbilled; the same re-date the chat intent runs.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedateMealRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealRedated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Target gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/meals/pending": {
       "get": {
         "operationId": "get_pending",
@@ -3840,6 +3913,10 @@
             "type": "number",
             "description": "Base 6 plus the parts, clamped to 1–10."
           },
+          "base": {
+            "type": "number",
+            "description": "The points every score starts from — the breakdown's \"Start\" row reads it, never recomputes it."
+          },
           "parts": {
             "type": "array",
             "items": {
@@ -3849,6 +3926,7 @@
         },
         "required": [
           "score",
+          "base",
           "parts"
         ],
         "additionalProperties": false
@@ -5574,6 +5652,19 @@
         ],
         "additionalProperties": false,
         "description": "What a register or an unregister answers. `registered` is the state AFTER the call."
+      },
+      "RedateMealRequest": {
+        "type": "object",
+        "properties": {
+          "dayOffset": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dayOffset"
+        ],
+        "additionalProperties": false,
+        "description": "`POST /v1/meals/:id/redate` — \"Move to yesterday\", as an offset: `1` is yesterday, `0` a no-op, and the bound is the chat re-date's own (`MAX_DAY_OFFSET`), clamped in the engine rather than refused — a hand-edited client that sends 40 gets the same answer the model's misparse gets.\n\nA date changes ONLY this way: `EditMealRequest` has no date field, so the manual editor cannot reach it — the offset is resolved against the account's today on the server, never sent as a `YYYY-MM-DD` a client could aim anywhere on the calendar."
       },
       "Refusal": {
         "anyOf": [

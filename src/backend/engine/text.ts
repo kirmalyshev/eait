@@ -17,7 +17,7 @@ import type { ChatAppend, ChatIntent } from "../store.ts";
 import { normalizePromptText } from "../llm/prompt.ts";
 import { prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
-import { applyCorrection, changeLine, gatedVerdicts, sumTotals, toAnalysis } from "./meals.ts";
+import { applyCorrection, changeLine, gatedVerdicts, redateMeal, sumTotals, toAnalysis } from "./meals.ts";
 import { remember } from "./chat.ts";
 import { ROUTER_RECENT_LINES, coachTurn, recentLines } from "./coach.ts";
 import { eatenAt, once } from "./turns.ts";
@@ -234,15 +234,10 @@ async function textTurn(
 
       case "redate": {
         if (!focus) return { kind: "target-gone", on: "redate" };
-        const date = dateMinus(today, routed.dayOffset);
-        // The ONE sanctioned way a meal's date changes. Macros are untouched; a manual edit cannot
-        // reach this field at all, because `EditMealRequest` has no date on it.
-        const moved = await deps.store.updateMeal(userId, focus.id, { date });
-        if (!moved) return { kind: "target-gone", on: "redate" };
-        const totals = sumTotals(await deps.store.mealsForDate(userId, date));
-        return {
-          kind: "redated", mealId: moved.id, analysis: toAnalysis(moved), totals, date,
-        } satisfies MealRedated;
+        // The ONE sanctioned way a meal's date changes, shared with `POST /v1/meals/:id/redate`:
+        // an offset against the day the turn was TYPED — a queued turn sent tomorrow still means
+        // its own "yesterday". Macros untouched; a manual edit cannot reach this field at all.
+        return redateMeal(deps, userId, focus.id, routed.dayOffset, { at: eatenAt(input.capturedAt) });
       }
     }
   }
