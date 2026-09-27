@@ -23,7 +23,7 @@ import {
   AMBIGUOUS_AGE, DIETS, MEDICAL_TAGS, STRUGGLES, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
   chatCopyFor as CHAT,
   askPlaceholder, checkDirection, checkNumber, dietOf, disabledScreens, isAnswered, promptsFor,
-  isRefusal, MAX_USER_LINE, medicalOf, offerHeadline, optionLabel, planGoalLine, projectGoal,
+  isRefusal, MAX_USER_LINE, medicalOf, offerHeadline, optionLabel, planGoalLine, planRows, projectGoal,
   promptById,
   renderableVerdicts, resolveCountry, ROUTES, screenForStep,
   screenOptions, screenOptionValues, suggestedTargetKg, suggestionFirst,
@@ -48,8 +48,8 @@ import {
   // `pageCopyFor(lang)` — so importing it buys nothing and costs a silent English render the
   // day somebody writes `PAGE_COPY.foo` outside one of those scopes. Unimported, that is a
   // compile error instead.
-  chat, frontDoor, html, offer, pageCopyFor, plan, question, signUp, stopped, FONT_FILES,
-  FONT_URL_DIR,
+  building, chat, frontDoor, html, offer, pageCopyFor, plan, question, signUp, stopped,
+  FONT_FILES, FONT_URL_DIR,
   type PageCopy,
   type ChatLine, type ChatProposal, type QuestionOption,
 } from "./page.ts";
@@ -979,6 +979,10 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
           : answer.patch;
       const outcome = await patchProfile(ctx.deps, userId, patch);
       if (outcome && !outcome.ok) return ask(refusalText(outcome.rejected, profile.lang));
+      // THE REVEAL IS THE COMPLETING PATCH'S ANSWER (W3), not a state `/start/q` resumes into:
+      // the run that just wrote `complete_onboarding` lands on it once, and every later arrival —
+      // a resume, a return, a refresh — goes to the plan itself.
+      if (editIndex === -1 && at === questions.length - 1) return seeOther(`${START_PREFIX}/building`);
       // The walk's memory of the two answers a mid-run GET cannot see (see `asked` above): the
       // redirect appends the prompt just written so the next page knows it was passed.
       const nextAsked = new Set(asked);
@@ -1264,6 +1268,27 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     }
     await patchProfile(ctx.deps, userId, { lang: asked as Lang });
     return seeOther(`${START_PREFIX}/plan`);
+  }
+
+  // ── The reveal (W3, `ob-building`) ────────────────────────────────────────────────────────
+  //
+  // Between the last answer and the plan: the count, the checklist of what was computed, and the
+  // one button. The page READS the finished plan — `profileView` ran `explainTargets` already —
+  // and shows it ticking in rather than pretending to compute: "the time the computation takes"
+  // is one local read, and the strip is honest about that by showing its own rows.
+  if (pathname === `${START_PREFIX}/building`) {
+    if (req.method !== "GET") return notFound();
+    const full = await profileView(ctx.deps, userId);
+    if (!full || !full.onboarded) return seeOther(`${START_PREFIX}/q`);
+    const content = await onboardingContent(ctx.deps, profile.lang);
+    return html(building({
+      lines: content.building.lines,
+      title: content.building.title,
+      cta: content.building.cta,
+      rows: planRows(profile, full.targets, content, profile.lang),
+      next: `${START_PREFIX}/plan`,
+      lang: profile.lang,
+    }));
   }
 
   if (req.method === "GET" && pathname === `${START_PREFIX}/plan`) {

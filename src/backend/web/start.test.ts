@@ -735,6 +735,69 @@ describe("the questions", () => {
 
 });
 
+describe("the plan reveal", () => {
+  it("follows the last answer — the completing post lands on the reveal, a resume on the plan", async () => {
+    // Drive the walk by hand so the LAST post's redirect is the one asserted.
+    let cookie = await signIn();
+    for (let i = 0; i < 20; i++) {
+      const page = await get("/start/q", cookie);
+      if (page.status === 303) break;
+      const html = await page.text();
+      const id = html.match(/name="prompt" value="([a-z_]+)"/)?.[1]!;
+      const action = html.match(/action="([^"]+)"/)?.[1]?.replace(/&amp;/g, "&") ?? "/start/q";
+      const res = await post(action, { prompt: id, answer: ANSWERS[id]! }, cookie);
+      expect(res.status).toBe(303);
+      const set = res.headers.getSetCookie().find((c) => c.startsWith("eait_web="));
+      if (set) cookie = set.split(";")[0]!;
+      if (id === "medical") {
+        // The patch that wrote `complete_onboarding` answers with the reveal — once.
+        expect(res.headers.get("location")).toBe("/start/building");
+      }
+    }
+    // …and a resume goes to the plan, not back through the countdown.
+    expect((await get("/start/q", cookie)).headers.get("location")).toBe("/start/plan");
+  });
+
+  it("counts to 100 while the plan's own rows tick in, then offers the plan", async () => {
+    const session = await signIn();
+    await answerAll(session, { ...ANSWERS, medical: ["ldl"] });
+    const html = await (await get("/start/building", session)).text();
+    const profile = (await store.getProfile(await webUser(session)))!;
+    const { targets } = explainTargets(profile);
+    const n = wholeNumbers("en");
+
+    expect(html).toContain("Building your personal plan");
+    // The counter's target is carried on the element — the count verb fills it (S1).
+    expect(html).toContain("--to:100");
+    // The card's title and each row's label are the content's; every VALUE is computed.
+    expect(html).toContain("Your daily plan");
+    for (const value of [n(targets.kcal), `${n(targets.protein_g)} g`, `${n(targets.carbs_g)} g`, `${n(targets.fat_g)} g`, "Mediterranean"]) {
+      expect(html).toContain(`<b class="num">${value}</b>`);
+    }
+    // The declared cap is a row of its own (the seventh), filled from the same targets.
+    expect(html).toContain(`sat fat ≤ ${n(targets.satfat_g!)} g`);
+    // Six rows at S5's marks; a seventh shares the last tick.
+    for (const d of ["0.5s", "1s", "1.6s", "2.1s", "2.7s", "3.3s"]) {
+      expect(html).toContain(`--d:${d}`);
+    }
+    // The button at 100 %, and the plan opens a second later for anybody who does not tap.
+    expect(html).toContain('href="/start/plan"');
+    expect(html).toContain("Show me the plan");
+    expect(html).toContain('http-equiv="refresh"');
+    expect(html).toContain("4.5;url=/start/plan");
+  });
+
+  it("answers the front door without a session, and the questions while the profile is unfinished", async () => {
+    const noSession = await get("/start/building");
+    expect(noSession.status).toBe(303);
+    expect(noSession.headers.get("location")).toBe("/start");
+    const session = await signIn();
+    const res = await get("/start/building", session);
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("/start/q");
+  });
+});
+
 describe("the plan", () => {
   it("is where a finished profile lands, and it carries the target", async () => {
     const session = await signIn();
