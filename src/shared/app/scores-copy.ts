@@ -230,12 +230,10 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
 export const scoresAppCopy = (lang: Lang): ScoreAppCopy => t(lang)(SCORES_APP_COPY);
 
 /**
- * A factor's name. Saturated fat's is the verdict pill's noun — carried verbatim in the table
- * (`verdict.noun.ldl` in the catalog), and `scores-copy.test.ts` still pins the two equal.
+ * A factor's name. Saturated fat's is the verdict pill's noun — reached through LOG_COPY's
+ * `satfatNoun` (`verdictNoun` lives behind the i18n catalog), and the test pins the two equal.
  */
 export function scoreFactorLabel(factor: ScoreFactor, lang: Lang): string {
-  // Saturated fat's one noun lives in LOG_COPY (`satfatNoun`) — the log already spells it for the
-  // bundle, so the breakdown reads it rather than carrying a second translation.
   if (factor === "satfat") return logCopyFor(lang).satfatNoun;
   return t(lang)(SCORES_APP_COPY).factors[factor];
 }
