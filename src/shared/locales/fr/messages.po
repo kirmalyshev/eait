@@ -425,6 +425,11 @@ msgstr "Il n'y a aucun repas ouvert ici à modifier. Dis-moi ce que tu as mangé
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.identity-required"
+msgstr "Ce compte n'est pas encore connecté — connecte-toi avec Apple ou Google sur le web, puis renvoie-le."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
 msgstr "Ce compte a déjà utilisé son analyse offerte. Lance ta semaine gratuite sur le web pour continuer."
 

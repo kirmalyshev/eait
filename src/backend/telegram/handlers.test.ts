@@ -70,6 +70,9 @@ async function linked(over: Record<string, unknown> = {}): Promise<{ userId: str
   });
   if (!out || !out.ok) throw new Error("onboarding failed");
   const from = telegramId();
+  // Telegram is a transport, not a way in — a real paired account carries a sign-in identity too,
+  // and since S8 only that kind is allowed an analysis at all.
+  await store.addIdentity(userId, "google", `tg-${userId.slice(0, 8)}`);
   await store.addIdentity(userId, "telegram", String(from));
   return { userId, from };
 }
@@ -180,7 +183,7 @@ describe("/start with a code", () => {
     expect(chat.sent[0]!.text).toContain("o***@example.com");
     // The account it came off is untouched — its own data, its own identities.
     expect(await store.getProfile(userId)).not.toBeNull();
-    expect((await store.listIdentities(userId)).map((i) => i.provider)).toEqual(["device"]);
+    expect((await store.listIdentities(userId)).map((i) => i.provider)).toEqual(["device", "google"]);
   });
 
   it("is bounded per Telegram id, on the allowance the pairing form takes, before any code is looked at", async () => {

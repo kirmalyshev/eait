@@ -99,6 +99,7 @@ const COPY = (i18n: I18n): TelegramCopy => ({
   macros: { protein: i18n._("tg.macro.protein", undefined, { message: "Protein" }), carbs: i18n._("tg.macro.carbs", undefined, { message: "Carbs" }), fat: i18n._("tg.macro.fat", undefined, { message: "Fat" }) },
   refusals: {
     "not-onboarded": i18n._("tg.refusal.not-onboarded", undefined, { message: "Answer the plan questions on the web first." }),
+    "identity-required": i18n._("tg.refusal.identity-required", undefined, { message: "This account is not signed in yet — sign in with Apple or Google on the web, then send it again." }),
     "not-food": i18n._("tg.refusal.not-food", undefined, { message: "That did not look like food." }),
     "cap-user": i18n._("tg.refusal.cap-user", undefined, { message: "That was your last one today — your daily allowance resets at midnight." }),
     "cap-global": i18n._("tg.refusal.cap-global", undefined, { message: "Everyone has used today's allowance. Tomorrow is a fresh number." }),
