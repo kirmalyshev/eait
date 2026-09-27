@@ -1241,7 +1241,9 @@ export interface Store {
    * from `created_at` — being younger than the window is itself a reason to leave it.
    *
    * Meals are the veto. One logged meal and the account is never touched — the legacy anonymous
-   * phone accounts survive on this clause alone.
+   * phone accounts survive on this clause alone. So is any entitlement event, live or lapsed: a
+   * purchaser's account is what the next renewal re-attaches to, and the sweep would otherwise
+   * erase it between billings.
    *
    * UNSCOPED, like every sweep, and ONE statement: the conditions are evaluated inside the delete
    * rather than by a read taken first, so nothing can interleave between "does this account

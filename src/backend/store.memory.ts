@@ -1339,6 +1339,9 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       const gone: string[] = [];
       for (const [userId, at] of createdAt) {
         if (at >= before) continue;
+        // Any entitlement event disqualifies, live or lapsed — the purchase history is what a
+        // legacy anonymous account's next renewal would come back to.
+        if (entitlements.has(userId)) continue;
         // `device` is the exception for the port's reason — it is the credential being swept.
         if (identities.some((i) => i.userId === userId && i.provider !== "device")) continue;
         if ([...meals.values()].some((m) => m.user_id === userId)) continue;

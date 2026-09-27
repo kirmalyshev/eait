@@ -2862,6 +2862,25 @@ function abandonedAccounts(name: string, make: (opts: StoreOptions) => Promise<S
       expect(await s.getProfile(userId)).not.toBeNull();
     });
 
+    it("never touches an account that has ever paid, however anonymous and idle", async () => {
+      clock = Date.parse("2026-08-01T12:00:00Z");
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      // A LAPSED grant, deliberately: `entitlement_event_at` is the record's existence marker,
+      // and it is the history that disqualifies — the next renewal finds this account or finds
+      // nothing, and an erased one makes a paying stranger of somebody who already paid.
+      await s.putEntitlement(userId, {
+        expiresAt: new Date(clock + DAY).toISOString(),
+        productId: "monthly",
+        eventAt: new Date(clock).toISOString(),
+      });
+
+      clock += 31 * DAY;
+
+      expect(await s.pruneAbandonedAccounts(clock - 30 * DAY)).toBe(0);
+      expect(await s.getProfile(userId)).not.toBeNull();
+    });
+
     it("keeps an account still in use — a session touched inside the window", async () => {
       clock = Date.parse("2026-08-01T12:00:00Z");
       const s = await open();

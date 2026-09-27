@@ -2724,6 +2724,7 @@ export async function postgresStore(
       const rows = await sql`
         delete from users u
         where u.created_at < ${new Date(before)}
+          and u.entitlement_event_at is null
           and not exists (
             select 1 from identities i
             where i.user_id = u.id and i.provider <> 'device')
