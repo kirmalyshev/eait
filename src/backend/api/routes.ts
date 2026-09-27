@@ -533,12 +533,17 @@ export function createRouter(
       //
       // OPTIONALLY authenticated, and that is the whole feature: a bearer token here means "link
       // this identity to the account I am already using" rather than "create a new one", which is
-      // what lets someone try the app anonymously and keep the meals they logged.
+      // what lets someone onboard anonymously and keep the answers they gave.
       if (req.method === "POST" && (pathname === ROUTES.authApple || pathname === ROUTES.authGoogle)) {
         const provider = pathname === ROUTES.authApple ? "apple" : "google";
         const body = await req.json() as AuthProviderRequest;
         if (typeof body.idToken !== "string" || !body.idToken) {
           return json({ error: "idToken required" }, 400);
+        }
+        // The terms box is required (S8) — refused here, before `verify` spends a JWKS fetch, and
+        // 400 rather than an AuthError 401 so a client can tell "tick the box" from "bad token".
+        if (body.terms !== true) {
+          return json({ error: "terms-required" }, 400);
         }
         const current = await resolveUserId(req);
         try {
@@ -552,6 +557,7 @@ export function createRouter(
             // has a language — but one that signs in on a fresh install does, and an omitted
             // locale is `en` rather than a refusal.
             toLang(body.locale),
+            { terms: true, marketing: body.marketing === true },
           );
           return json(result satisfies AuthProviderResponse);
         } catch (e) {

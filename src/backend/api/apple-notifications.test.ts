@@ -128,7 +128,7 @@ const profileStatus = async (token: string): Promise<number> =>
 
 /** An account whose ONLY identity is Apple — a fresh install that signed in before anything else. */
 async function appleOnlyAccount(sub: string): Promise<{ userId: string; token: string }> {
-  const res = await post(ROUTES.authApple, { idToken: await idToken(sub) });
+  const res = await post(ROUTES.authApple, { idToken: await idToken(sub), terms: true });
   expect(res.status).toBe(200);
   const { token, userId } = await res.json() as { token: string; userId: string };
   expect((await store.listIdentities(userId)).map((i) => i.provider)).toEqual(["apple"]);
@@ -141,7 +141,7 @@ async function deviceThenAppleAccount(sub: string): Promise<{ userId: string; to
     deviceId: crypto.randomUUID() + crypto.randomUUID(), locale: "en",
   });
   const { token } = await dev.json() as { token: string };
-  const res = await post(ROUTES.authApple, { idToken: await idToken(sub) }, token);
+  const res = await post(ROUTES.authApple, { idToken: await idToken(sub), terms: true }, token);
   const { userId } = await res.json() as { userId: string };
   return { userId, token };
 }
@@ -339,7 +339,7 @@ describe("what the app meets on its next launch", () => {
     const deviceId = crypto.randomUUID() + crypto.randomUUID();
     const dev = await post(ROUTES.authDevice, { deviceId, locale: "en" });
     const { token: before, userId } = await dev.json() as { token: string; userId: string };
-    await post(ROUTES.authApple, { idToken: await idToken("recover-linked") }, before);
+    await post(ROUTES.authApple, { idToken: await idToken("recover-linked"), terms: true }, before);
 
     await deliver(await notification({ sub: "recover-linked" }));
 
