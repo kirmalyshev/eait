@@ -6,13 +6,13 @@
 // translation can ever smuggle a category word in. `scores-copy.test.ts` bans "obese",
 // "overweight", "normal", "healthy" and their translations across all eight languages.
 //
-// THE FACTOR NAMES REUSE the labels that already exist: saturated fat's is the verdict pill's
-// noun ("Saturated fat"), carried VERBATIM in `factors.satfat` — the browser bundle reaches only
-// `app/` modules, and `verdictNoun` lives behind the i18n catalog (#145), so the test still pins
-// the two equal rather than sharing a lookup. `limit` on a part is a `medical` screen option id
-// ("ldl", "kidneys", "lowsugar"); its label is the onboarding content's, not duplicated here.
+// THE FACTOR NAMES REUSE the labels that already exist: saturated fat's is `LOG_COPY.satfatNoun`
+// — the verdict pill's noun already Lingui-free for the log surface (#146) — and the ones nothing
+// else names are `factors` here. `limit` on a part is a `medical` screen option id ("ldl",
+// "kidneys", "lowsugar"); its label is the onboarding content's, not duplicated here.
 
 import { t, type CountForms, type Localized } from "../lang.ts";
+import { logCopyFor } from "./log-copy.ts";
 import type { ScoreFactor, ScoreLimit } from "../scores.ts";
 import type { Lang } from "../types.ts";
 
@@ -40,8 +40,8 @@ export interface ScoreAppCopy {
   breakdownTitle: string;
   /** Under the breakdown's title: what the day's number IS. */
   breakdownLine: string;
-  /** The five factor names — `satfat` is the verdict pill's noun, verbatim. */
-  factors: Record<ScoreFactor, string>;
+  /** The four factor names nothing else names — `satfat` reads LOG_COPY's `satfatNoun`. */
+  factors: Record<Exclude<ScoreFactor, "satfat">, string>;
   /** The breakdown's opening row — the base points every score starts from. */
   startRow: string;
   /**
@@ -71,7 +71,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     todayFromMeals: { one: "From today's meal", other: "From today's {n} meals" },
     breakdownTitle: "Today's health score",
     breakdownLine: "The mean of today's meals, weighted by their calories.",
-    factors: { satfat: "Saturated fat", protein: "Protein", fibre: "Fibre", sugar: "Sugar", salt: "Salt" },
+    factors: { protein: "Protein", fibre: "Fibre", sugar: "Sugar", salt: "Salt" },
     startRow: "Start",
     partPctOfKcal: "{n}% of kcal",
     partGPer100Kcal: "{n} g per 100 kcal",
@@ -91,7 +91,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     todayFromMeals: { one: "Du repas d'aujourd'hui", other: "Des {n} repas d'aujourd'hui" },
     breakdownTitle: "Score santé d'aujourd'hui",
     breakdownLine: "La moyenne des repas d'aujourd'hui, pondérée par leurs calories.",
-    factors: { satfat: "Graisses saturées", protein: "Protéines", fibre: "Fibres", sugar: "Sucres", salt: "Sel" },
+    factors: { protein: "Protéines", fibre: "Fibres", sugar: "Sucres", salt: "Sel" },
     startRow: "Base",
     partPctOfKcal: "{n} % des kcal",
     partGPer100Kcal: "{n} g pour 100 kcal",
@@ -111,7 +111,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     todayFromMeals: { one: "Aus der heutigen Mahlzeit", other: "Aus den heutigen {n} Mahlzeiten" },
     breakdownTitle: "Heutiger Gesundheitsscore",
     breakdownLine: "Der Mittelwert der heutigen Mahlzeiten, nach Kalorien gewichtet.",
-    factors: { satfat: "Gesättigte Fette", protein: "Protein", fibre: "Ballaststoffe", sugar: "Zucker", salt: "Salz" },
+    factors: { protein: "Protein", fibre: "Ballaststoffe", sugar: "Zucker", salt: "Salz" },
     startRow: "Basis",
     partPctOfKcal: "{n} % der kcal",
     partGPer100Kcal: "{n} g pro 100 kcal",
@@ -131,7 +131,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     todayFromMeals: { one: "Dal pasto di oggi", other: "Dai {n} pasti di oggi" },
     breakdownTitle: "Punteggio di salute di oggi",
     breakdownLine: "La media dei pasti di oggi, ponderata per le loro calorie.",
-    factors: { satfat: "Grassi saturi", protein: "Proteine", fibre: "Fibre", sugar: "Zuccheri", salt: "Sale" },
+    factors: { protein: "Proteine", fibre: "Fibre", sugar: "Zuccheri", salt: "Sale" },
     startRow: "Base",
     partPctOfKcal: "{n}% delle kcal",
     partGPer100Kcal: "{n} g per 100 kcal",
@@ -151,7 +151,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     todayFromMeals: { one: "De la comida de hoy", other: "De las {n} comidas de hoy" },
     breakdownTitle: "Puntuación de salud de hoy",
     breakdownLine: "La media de las comidas de hoy, ponderada por sus calorías.",
-    factors: { satfat: "Grasas saturadas", protein: "Proteínas", fibre: "Fibra", sugar: "Azúcar", salt: "Sal" },
+    factors: { protein: "Proteínas", fibre: "Fibra", sugar: "Azúcar", salt: "Sal" },
     startRow: "Base",
     partPctOfKcal: "{n}% de las kcal",
     partGPer100Kcal: "{n} g por 100 kcal",
@@ -171,7 +171,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     todayFromMeals: { other: "Từ {n} bữa hôm nay" },
     breakdownTitle: "Điểm sức khỏe hôm nay",
     breakdownLine: "Trung bình các bữa hôm nay, theo trọng số calo.",
-    factors: { satfat: "Chất béo bão hoà", protein: "Đạm", fibre: "Chất xơ", sugar: "Đường", salt: "Muối" },
+    factors: { protein: "Đạm", fibre: "Chất xơ", sugar: "Đường", salt: "Muối" },
     startRow: "Điểm gốc",
     partPctOfKcal: "{n}% của kcal",
     partGPer100Kcal: "{n} g trên 100 kcal",
@@ -191,7 +191,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     todayFromMeals: { other: "Dari {n} santapan hari ini" },
     breakdownTitle: "Skor kesehatan hari ini",
     breakdownLine: "Rata-rata santapan hari ini, dibobot menurut kalorinya.",
-    factors: { satfat: "Lemak jenuh", protein: "Protein", fibre: "Serat", sugar: "Gula", salt: "Garam" },
+    factors: { protein: "Protein", fibre: "Serat", sugar: "Gula", salt: "Garam" },
     startRow: "Awal",
     partPctOfKcal: "{n}% dari kcal",
     partGPer100Kcal: "{n} g per 100 kcal",
@@ -216,7 +216,7 @@ export const SCORES_APP_COPY: Localized<ScoreAppCopy> = {
     },
     breakdownTitle: "Оценка здоровья за сегодня",
     breakdownLine: "Среднее по сегодняшним приёмам пищи, взвешенное по калориям.",
-    factors: { satfat: "Насыщенные жиры", protein: "Белок", fibre: "Клетчатка", sugar: "Сахар", salt: "Соль" },
+    factors: { protein: "Белок", fibre: "Клетчатка", sugar: "Сахар", salt: "Соль" },
     startRow: "База",
     partPctOfKcal: "{n}% от ккал",
     partGPer100Kcal: "{n} г на 100 ккал",
@@ -234,5 +234,8 @@ export const scoresAppCopy = (lang: Lang): ScoreAppCopy => t(lang)(SCORES_APP_CO
  * (`verdict.noun.ldl` in the catalog), and `scores-copy.test.ts` still pins the two equal.
  */
 export function scoreFactorLabel(factor: ScoreFactor, lang: Lang): string {
+  // Saturated fat's one noun lives in LOG_COPY (`satfatNoun`) — the log already spells it for the
+  // bundle, so the breakdown reads it rather than carrying a second translation.
+  if (factor === "satfat") return logCopyFor(lang).satfatNoun;
   return t(lang)(SCORES_APP_COPY).factors[factor];
 }
