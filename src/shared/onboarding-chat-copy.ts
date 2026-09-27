@@ -72,13 +72,24 @@ export interface ChatCopy {
    */
   pace: {
     rate: string;
+    /** The words after the rate figure alone — "a week", said without the number. */
+    rateSuffix: string;
     /** `{target}` with unit, `{month}` CLDR's, `{kcal}` the computed number. */
     result: string;
     capMarker: string;
     floorMarker: string;
   };
-  /** The "whole app" beat after the goal — three beats and nothing to answer. */
-  how: { title: string; steps: [string, string, string] };
+  /**
+   * The "whole app" beat after the goal — three beats and nothing to answer. `meal` and
+   * `photoAlt` are the words inside the step cards' drawn figures: the demo dish's name and the
+   * viewfinder photo's alt text (the numbers are `HOW_DEMO`'s constants, fixed to the boards).
+   */
+  how: { title: string; steps: [string, string, string]; meal: string; photoAlt: string };
+  /**
+   * The unit word beside a wheel's or ruler's big numeral — "32 years". The symbol units (cm,
+   * kg, lb, ft, in) are `spellUnit`'s and stay symbols; only the words with no symbol live here.
+   */
+  units: { years: string };
   /**
    * The two-ways chart after the struggles pick: the FIRST picked struggle (list order) writes
    * the caption. `ontrackCaption` owns the choice; this holds the wording of each branch.
@@ -193,14 +204,18 @@ const EN: ChatCopy = {
   },
   pace: {
     rate: "{rate} a week",
+    rateSuffix: "a week",
     result: "{target} around {month} · {kcal} kcal a day",
     capMarker: "capped at the safe limit",
     floorMarker: "never below {floor} · every pace lands here",
   },
   how: {
     title: "Here's the whole app",
+    meal: "Salmon, rice, greens",
+    photoAlt: "A grain bowl in the viewfinder",
     steps: ["Photograph the plate", "Get an honest verdict", "See your progress"],
   },
+  units: { years: "years" },
   ontrack: {
     title: "Built to keep you on track",
     captions: {
@@ -301,14 +316,18 @@ const FR: ChatCopy = {
   },
   pace: {
     rate: "{rate} par semaine",
+    rateSuffix: "par semaine",
     result: "{target} vers {month} · {kcal} kcal par jour",
     capMarker: "plafonné à la limite sûre",
     floorMarker: "jamais sous {floor} · chaque rythme y arrive",
   },
   how: {
     title: "Voilà toute l'app",
+    meal: "Saumon, riz et légumes verts",
+    photoAlt: "Un bowl de céréales dans le viseur",
     steps: ["Photographie ton assiette", "Reçois un verdict honnête", "Suis ta progression"],
   },
+  units: { years: "ans" },
   ontrack: {
     title: "Fait pour te garder en route",
     captions: {
@@ -409,14 +428,18 @@ const DE: ChatCopy = {
   },
   pace: {
     rate: "{rate} pro Woche",
+    rateSuffix: "pro Woche",
     result: "{target} um {month} · {kcal} kcal am Tag",
     capMarker: "auf die sichere Grenze gekappt",
     floorMarker: "nie unter {floor} · jedes Tempo landet hier",
   },
   how: {
     title: "Das ist die ganze App",
+    meal: "Lachs mit Reis und Gemüse",
+    photoAlt: "Eine Getreidebowl im Sucher",
     steps: ["Fotografier den Teller", "Bekomm ein ehrliches Urteil", "Sieh deinen Fortschritt"],
   },
+  units: { years: "Jahre" },
   ontrack: {
     title: "Gemacht, damit du dranbleibst",
     captions: {
@@ -517,14 +540,18 @@ const IT: ChatCopy = {
   },
   pace: {
     rate: "{rate} a settimana",
+    rateSuffix: "a settimana",
     result: "{target} verso {month} · {kcal} kcal al giorno",
     capMarker: "limitato al valore di sicurezza",
     floorMarker: "mai sotto {floor} · ogni ritmo arriva qui",
   },
   how: {
     title: "Ecco tutta l'app",
+    meal: "Salmone, riso e verdure",
+    photoAlt: "Una bowl di cereali nel mirino",
     steps: ["Fotografa il piatto", "Ricevi un verdetto onesto", "Guarda i tuoi progressi"],
   },
+  units: { years: "anni" },
   ontrack: {
     title: "Fatta per tenerti in carreggiata",
     captions: {
@@ -625,14 +652,18 @@ const ES: ChatCopy = {
   },
   pace: {
     rate: "{rate} a la semana",
+    rateSuffix: "a la semana",
     result: "{target} hacia {month} · {kcal} kcal al día",
     capMarker: "limitado al tope seguro",
     floorMarker: "nunca por debajo de {floor} · cada ritmo llega aquí",
   },
   how: {
     title: "Esa es toda la app",
+    meal: "Salmón con arroz y verduras",
+    photoAlt: "Un bowl de granos en el visor",
     steps: ["Fotografía el plato", "Recibe un veredicto honesto", "Ve tu progreso"],
   },
+  units: { years: "años" },
   ontrack: {
     title: "Hecha para que no te salgas",
     captions: {
@@ -733,14 +764,18 @@ const VI: ChatCopy = {
   },
   pace: {
     rate: "{rate} một tuần",
+    rateSuffix: "một tuần",
     result: "{target} vào khoảng {month} · {kcal} kcal một ngày",
     capMarker: "đã giới hạn ở mức an toàn",
     floorMarker: "không bao giờ dưới {floor} · mọi tốc độ đều đến đây",
   },
   how: {
     title: "Đó là toàn bộ ứng dụng",
+    meal: "Cá hồi, cơm và rau",
+    photoAlt: "Một bát ngũ cốc trong khung ngắm",
     steps: ["Chụp món ăn", "Nhận đánh giá trung thực", "Xem tiến triển của bạn"],
   },
+  units: { years: "tuổi" },
   ontrack: {
     title: "Được làm ra để giữ bạn đi đúng hướng",
     captions: {
@@ -841,14 +876,18 @@ const ID: ChatCopy = {
   },
   pace: {
     rate: "{rate} seminggu",
+    rateSuffix: "seminggu",
     result: "{target} sekitar {month} · {kcal} kcal sehari",
     capMarker: "dibatasi ke batas aman",
     floorMarker: "tidak pernah di bawah {floor} · semua tempo sampai di sini",
   },
   how: {
     title: "Itulah seluruh aplikasinya",
+    meal: "Salmon, nasi, dan sayur",
+    photoAlt: "Mangkuk biji-bijian di jendela bidik",
     steps: ["Foto piringnya", "Dapatkan penilaian jujur", "Lihat progresmu"],
   },
+  units: { years: "tahun" },
   ontrack: {
     title: "Dibuat agar kamu tetap di jalur",
     captions: {
@@ -949,6 +988,7 @@ const RU: ChatCopy = {
   },
   pace: {
     rate: "{rate} в неделю",
+    rateSuffix: "в неделю",
     // The month stays NOMINATIVE ("это примерно январь 2027"), like the old projection line —
     // CLDR gives us no declension to put after «к».
     result: "{target} — примерно {month} · {kcal} ккал в день",
@@ -957,8 +997,11 @@ const RU: ChatCopy = {
   },
   how: {
     title: "Вот и вся программа",
+    meal: "Лосось, рис и зелень",
+    photoAlt: "Боул в видоискателе",
     steps: ["Сфотографируйте тарелку", "Получите честный вердикт", "Смотрите свой прогресс"],
   },
+  units: { years: "лет" },
   ontrack: {
     title: "Сделано, чтобы держать вас в ритме",
     captions: {
