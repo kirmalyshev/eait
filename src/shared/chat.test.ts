@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { catalogArgs } from "./i18n.ts";
 import { LANGS, STRUGGLES, type Lang } from "./types.ts";
 import { threadCopyFor } from "./chat-copy.ts";
-import { MAX_SUGGESTION, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, cleanSuggestions, correctionLine, firstVerdictLines, isScriptedLineId, startersFor, verdictHeadline, runningLine, scriptedLine, scriptedParams } from "./chat.ts";
+import { MAX_SUGGESTION, SCRIPTED_LINES, SCRIPTED_PARAMS, type ScriptedLineId, cleanSuggestions, firstVerdictLines, isScriptedLineId, startersFor, verdictHeadline, runningLine, scriptedLine, scriptedParams } from "./chat.ts";
 
 describe("scripted lines", () => {
   it("fills parameters and leaves nothing unfilled", () => {
@@ -84,28 +84,17 @@ describe("the first verdict", () => {
     expect(lines[0]).toBe("First one in. 1,600 kcal — that puts you 146 over your 1,454 for today, and 38 of the 110 g protein. Tomorrow is a fresh number.");
   });
 
-  it("reads a correction back in the design's words", () => {
-    expect(correctionLine({ targets, meal: { kcal: 306 }, eatenToday: { kcal: 306, protein_g: 19 } }, "en"))
-      .toBe("Updated — 306 kcal. 1,148 of your 1,454 left today, 19 of the 110 g protein.");
-  });
-
   it("says where the day stands in ONE sentence, whatever put the meal there (#306)", () => {
     // The clause a correction already ended with, on its own. A log had nothing after its card, so
     // one meal in the thread was followed by the day's arithmetic and the next by silence.
     expect(runningLine({ targets, eatenToday: { kcal: 306, protein_g: 19 } }, "en"))
       .toBe("1,148 of your 1,454 left today, 19 of the 110 g protein.");
-    // And a correction is that sentence with the changed number in front of it — one arithmetic
-    // clause, one place to change it, so the two lines can never disagree about the same day.
-    expect(correctionLine({ targets, meal: { kcal: 306 }, eatenToday: { kcal: 306, protein_g: 19 } }, "en"))
-      .toBe(`Updated — 306 kcal. ${runningLine({ targets, eatenToday: { kcal: 306, protein_g: 19 } }, "en")}`);
   });
 
   it("says the overshoot as an overshoot when the day is over, as the first verdict does", () => {
     // The same arithmetic as the first verdict, worded the same way: a number and a direction.
     expect(runningLine({ targets, eatenToday: { kcal: 1600, protein_g: 38 } }, "en"))
       .toBe("146 over your 1,454 today, 38 of the 110 g protein.");
-    expect(correctionLine({ targets, meal: { kcal: 306 }, eatenToday: { kcal: 1600, protein_g: 38 } }, "en"))
-      .toBe("Updated — 306 kcal. 146 over your 1,454 today, 38 of the 110 g protein.");
   });
 
   it("fills rather than leaves for a gain goal", () => {

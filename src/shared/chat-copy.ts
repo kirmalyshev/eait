@@ -87,8 +87,6 @@ export interface ThreadCopy {
    * translation.
    */
   running: { left: (v: Figures) => string; over: (v: Figures) => string };
-  /** The meal's own kcal, and the sentence above. */
-  correction: (v: { kcal: string; day: string }) => string;
   firstVerdict: {
     /** After a dash, so English leads lowercase. */
     arithmetic: ArithmeticCopy;
@@ -144,7 +142,6 @@ const THREAD = (i18n: I18n): ThreadCopy => ({
     left: (v: Figures) => i18n._("thread.running.left", v, { message: "{left} of your {plan} left today, {protein} of the {proteinTarget} g protein." }),
     over: (v: Figures) => i18n._("thread.running.over", v, { message: "{over} over your {plan} today, {protein} of the {proteinTarget} g protein." }),
   },
-  correction: (v: { kcal: string; day: string }) => i18n._("thread.correction", v, { message: "Updated — {kcal} kcal. {day}" }),
   firstVerdict: {
     arithmetic: {
       gainLeft: (v: Figures) => i18n._("thread.firstVerdict.arithmetic.gainLeft", v, { message: "{left} of your {plan} still to fill today, and {protein} of the {proteinTarget} g protein. Keep going." }),

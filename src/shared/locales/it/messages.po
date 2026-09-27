@@ -30,6 +30,11 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.correction"
+#~ msgstr "Aggiornato — {kcal} kcal. {day}"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "«{note}» — preso nota, è nei numeri."
 
@@ -482,11 +487,6 @@ msgstr "Prova avviata. Sette giorni, poi {price} se non la fermi — te lo ricor
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.typed"
 msgstr "Scritto, non fotografato — quindi le porzioni sono una mia stima. Prendi {kcal} come ordine di grandezza; se sai i grammi, dimmelo e correggo."
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.correction"
-msgstr "Aggiornato — {kcal} kcal. {day}"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
