@@ -85,9 +85,11 @@ describe("weekStrip — seven days, the date centred in its ring", () => {
     expect(m).toContain(">M<svg");
   });
 
-  test("every day is a real button with a spoken name", () => {
+  test("a past-or-today day is a real button; a future day is markup, not a control", () => {
     const m = weekStrip(days, "en");
-    expect(m.match(/<button type="button" class="dy/g)).toHaveLength(7);
+    expect(m.match(/<button type="button" class="dy/g)).toHaveLength(4);
+    expect(m.match(/<span class="dy fut"/g)).toHaveLength(3);
+    expect(m.match(/aria-hidden="true"/g)).toHaveLength(3); // the fut cells' rings are decorative
     expect(m).toContain('aria-label="Thursday, 24 September 2026"');
     expect(m).toContain('viewBox="0 0 30 30"');
     expect(m).toContain('stroke-width="2.4"');

@@ -14,6 +14,15 @@ function flat(node: unknown, at = "", out: Record<string, string> = {}): Record<
     return out;
   }
   if (typeof node === "object" && node !== null) {
+    const keys = Object.keys(node);
+    // A CountForms node is one placeholder-bearing sentence whose SHAPES are the language's own —
+    // Russian needs `few`/`many`, Vietnamese only `other`. The completeness invariant is `other`,
+    // `countText`'s fallback; the rest are the pluralisation, not a gap.
+    const FORMS = new Set(["one", "few", "many", "other"]);
+    if (keys.every((k) => FORMS.has(k)) && keys.includes("other")) {
+      out[`${at}.other`] = (node as { other: string }).other;
+      return out;
+    }
     for (const [k, v] of Object.entries(node)) flat(v, at === "" ? k : `${at}.${k}`, out);
   }
   return out;
