@@ -1,78 +1,52 @@
-// The conversation around the questions, in every language the product speaks.
+// The words around the questions, in every language the product speaks.
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // WHY THIS IS ONE TABLE PER LANGUAGE RATHER THAN A TABLE PER SENTENCE
 //
-// `onboarding-chat.ts` holds the BRANCHES — which card a struggle gets, whether the cholesterol
-// line chains onto the kidney one, when a two-digit age is ambiguous. Those are rules, they are
-// tested, and a translator has no business moving them. What a translator does have business with
-// is the wording of each branch once it has been chosen, and that is what is here.
+// `onboarding-chat.ts` holds the BRANCHES — which caption a first struggle writes, which marker
+// the pace card owes, when a two-digit age is ambiguous. Those are rules, they are tested, and a
+// translator has no business moving them. What a translator does have business with is the
+// wording of each branch once it has been chosen, and that is what is here.
 //
 // ONE OBJECT PER LANGUAGE, because a voice is a property of the whole side of a conversation and
-// not of a string: somebody writing the Vietnamese should see Spud's eight struggle cards, his five
-// activity replies and his two refusals together, in one place, and hear whether they sound like
-// one person. Eight separate `Localized` tables would be the same words and a worse review.
+// not of a string: somebody writing the Vietnamese should see the five captions, the two refusals
+// and the chart's accessible name together, in one place, and hear whether they sound like one
+// person. Eight separate `Localized` tables would be the same words and a worse review.
 //
-// THE CITATIONS ARE NOT TRANSLATED, THEY ARE RE-WRITTEN AROUND UNCHANGED NUMBERS. "about 42% of
-// adults" is 42% in all eight; what changes is the sentence it sits in and how the figure is
-// spelled ("n = 1.18M" is "n = 1,18 Mio." in German and the same quantity). `copy.md`'s rule is
-// never bend a citation, and a decimal comma is not a bend — a different percentage would be.
+// v2 (#82) RETIRED the conversation layer the boards no longer draw: the per-answer reactions, the
+// goal cards and their citations, the support moments, the quick-reply dock and the replies that
+// read the previous answer. What survives is the talk the new screens still need — the refusals,
+// the chart words, the on-track captions — plus the beats that were never copy to begin with.
 //
 // THE PERCENTAGES THAT COME FROM CODE STAY COMING FROM CODE. `{share}` is filled from
-// `MAX_SURPLUS_SHARE` and `{age}` from `MIN_AGE`, in every language, because a safety guarantee
-// described in copy that the arithmetic does not implement is the worst sentence this repo could
-// ship — and the way that happens is somebody changing a constant and not eight prose strings.
+// `MAX_SURPLUS_SHARE`, `{age}` from `MIN_AGE`, `{floor}` from the computed floor, in every
+// language, because a safety guarantee described in copy that the arithmetic does not implement
+// is the worst sentence this repo could ship — and the way that happens is somebody changing a
+// constant and not eight prose strings.
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import { t, type Localized } from "./lang.ts";
 import { FIRST_MEAL_COPY, type FirstMealCopy } from "./first-meal-copy.ts";
-import type { ActivityLevel, Goal, Lang } from "./types.ts";
-// TYPE-ONLY, so the cycle with `onboarding-chat.ts` is erased at build. These records used to be
-// keyed by bare `string`, which is what made the `as Record<Struggle, string>` cast in that file
-// necessary — and the root AGENTS.md forbids exactly that cast by name.
-import type { Struggle } from "./onboarding-chat.ts";
+import type { Lang, Struggle } from "./types.ts";
 
-/** A support card's words; `source` names the study when one is quoted. Mirrors `SupportCard` in `onboarding-chat.ts`. */
+/** A card's words; `source` names the study when one is quoted. Mirrors `SupportCard`. */
 export interface CardCopy {
   title: string;
   body: string;
   source?: string;
 }
 
+
 /** Everything Spud says back, for one language. Branching stays in `onboarding-chat.ts`. */
 export interface ChatCopy {
   idlePlaceholder: string;
-  struggles: Record<Struggle, string>;
-  strugglesAsk: string[];
-  quick: {
-    struggles: { finish: string; none: string };
-    restrictions: { finish: string; none: string };
-  };
-  goalCards: Record<Goal, CardCopy>;
-  goalFollowups: Partial<Record<Goal, string>>;
-  struggleCards: Record<Struggle, CardCopy>;
-  /** `diets` told to somebody gaining: "diets that ban" is a sentence about losing, so the gain variant speaks to either direction. */
-  dietsGainCard: CardCopy;
-  /** `{share}` from `MAX_SURPLUS_SHARE`. */
-  gainPaceCard: CardCopy;
+  /** The one button under every screen that answers something. */
+  continueLabel: string;
   /** `{age}` from `MIN_AGE`. */
   underAgeCard: CardCopy;
   underAge: { ask: string; confirm: string; placeholder: string; stopped: string[]; endedPlaceholder: string };
   /** `{kg}` is the lowest healthy weight for this height. */
   belowHealthy: CardCopy;
-  /** `{bmr}` is the first real number, spoken six steps early. */
-  weightAck: { noted: string; bmr: string };
-  activityReplies: Record<ActivityLevel, string>;
-  strugglesCloser: { none: string; one: string; many: string };
-  restrictions: {
-    kidneys: string;
-    ldl: string;
-    /** Chains onto the kidney line and must never fire without it. */
-    ldlChained: string;
-    declared: string;
-    none: string;
-    freeText: string;
-  };
   invalid: { age: string; height_cm: string; weight_kg: string; target_weight_kg: string };
   /** `{year}` is the year the digits would mean; `{age}` the age they would mean. */
   ambiguousAge: { line: string; confirm: string };
@@ -83,33 +57,58 @@ export interface ChatCopy {
     above: string; below: string;
   };
   switched: { gain: string; lose: string };
-  /** Appended to the goal-weight question when the goal is losing. `{loseTail}` in the content. */
-  loseTail: string;
   /** `{kg}` a week, appended to the share-cap note when there is a rate to name. */
   capNoteTail: string;
-  nothingApplies: string;
   goalEdit: { cleared: string; worthSetting: string };
-
   /**
-   * The Apple Health offer (v5): the ask, the three rows it lists, the two buttons, and one line
-   * per outcome. Code, not editable copy — these words stand next to a permission dialog, which
-   * is not a slot an admin should be able to fill.
+   * The target ruler's own markers. `{weight}` is a formatted weight WITH unit (weightDisplay);
+   * the sign's role is carried by picking down/up, because "−" is U+2212, not a hyphen.
    */
-  health: {
-    ask: string;
-    /** Exactly three: the fill lands `height`/`weight`, `sex`/`birth_year`, and `activity`. */
-    rows: [string, string, string];
-    connect: string;
-    manual: string;
-    connected: string;
-    partial: string;
-    denied: string;
+  target: { lowest: string; now: string; deltaDown: string; deltaUp: string };
+  /**
+   * The pace screen's numbers and the marker its result owes. `{rate}` is the projection's
+   * kgPerWeek formatted with its unit ("0.4 kg" / "0.9 lb") — never the pace's requested rate;
+   * `{floor}` is the computed floor. `capMarker`/`floorMarker` are the one small line under it.
+   */
+  pace: {
+    rate: string;
+    /** `{target}` with unit, `{month}` CLDR's, `{kcal}` the computed number. */
+    result: string;
+    capMarker: string;
+    floorMarker: string;
   };
+  /** The "whole app" beat after the goal — three beats and nothing to answer. */
+  how: { title: string; steps: [string, string, string] };
   /**
-   * The Health-path activity ask: `{n}` workouts Health counted, `{label}` the computed level's
-   * own option label — the question asks the user to confirm, in the chip's own words.
+   * The two-ways chart after the struggles pick: the FIRST picked struggle (list order) writes
+   * the caption. `ontrackCaption` owns the choice; this holds the wording of each branch.
    */
-  healthActivity: string;
+  ontrack: { title: string; captions: Record<Struggle, string> };
+  /**
+   * The chart words, shared by every chart the app draws — onboarding's two-ways beat, the plan
+   * graph, Progress. DIRECTION's verbatim chart table; `{weight}`/`{month}` filled by the caller.
+   * `twoWays` is the chart's accessible NAME (VoiceOver/a11y), read where the pixels are not.
+   */
+  chart: {
+    byEait: string;
+    weightTrend: string;
+    without: string;
+    now: string;
+    later: string;
+    twoWays: string;
+    estimatedProgress: string;
+    estimate: string;
+    target: string;
+    monthEstimate: string;
+  };
+  /** The plan card's goal line: `{delta}` is the formatted distance, `{month}` CLDR's landing. */
+  plan: {
+    goalLose: string; goalGain: string; goalMaintain: string;
+    /** The arithmetic rows the plan page draws — the composition, not admin words. */
+    rest: string; activity: string; pace: string; floor: string; protein: string;
+  };
+  /** The post-sign-up sync screen (17-health-sync): title, one line, two buttons. */
+  health: { title: string; body: string; connect: string; skip: string };
   /**
    * The target prompt's suggestion line: `{kg}` the suggested weight, `{pct}` the whole percent
    * away from today. `down` for lose, `up` for gain; `maintain` is never asked a target.
@@ -134,127 +133,16 @@ export interface ChatCopy {
    * goal the user already stated, computed, never written by hand.
    */
   planGoal: { metric: string; imperial: string };
-  /**
-   * The ONE line Spud says after an answer, above the next question — keyed by what it answers.
-   * The mood beside it is picked in `reactionTo` (`onboarding-chat.ts`), not here: a mood is a
-   * reaction to what just happened and a copy field cannot know that.
-   */
-  reactions: {
-    goalLose: string;
-    goalMaintain: string;
-    goalGain: string;
-    sex: string;
-    birthYear: string;
-    heightCm: string;
-    /** `{bmr}` — today's first real number. */
-    weightWithBmr: string;
-    /** The weight answer when no BMR could be computed — said plainly, never "about null". */
-    weightPlain: string;
-    paceEasy: string;
-    paceSteady: string;
-    pacePush: string;
-    struggles: string;
-    country: string;
-  };
-  /**
-   * The four support moments' own words — the full-screen beats between question groups.
-   * `{kg}` inside the target bodies is the answer itself. The struggles moment's body is the
-   * picked card's for one pick, and `many` for two or more — a card speaks to one struggle.
-   */
-  moments: {
-    target: { title: string; cta: string; inBand: string; neutral: string };
-    activity: { title: string; body: string; cta: string };
-    struggles: { title: string; cta: string; many: string };
-    restrictions: { title: string; body: string; cta: string };
-  };
 }
 
 const EN: ChatCopy = {
-  idlePlaceholder: "Message Spud…",
-  struggles: {
-    stress: "Stress eating",
-    night: "Night snacking",
-    binge: "Binge episodes",
-    diets: "Diets that didn't stick",
-    eatout: "Eating out a lot",
-    energy: "Low energy",
-    body: "Body image",
-    metabolism: "Metabolism worry",
-  },
-  strugglesAsk: ["Now the part most apps skip. What's been hard? Pick any — or none. This shapes support, never judgement."],
-  quick: {
-    struggles: { finish: "Done", none: "None of these" },
-    restrictions: { finish: "Finish", none: "Nothing applies" },
-  },
-  goalCards: {
-    lose: {
-      title: "You're in good company",
-      body: "About 42% of adults try to lose weight in any given year. The difference here: your target gets computed properly, with a floor we won't cross.",
-      source: "Systematic review of 72 studies · n = 1.18M adults",
-    },
-    gain: {
-      title: "Less rare than it feels",
-      body: "Roughly 23% of young men and 6% of young women actively tried to gain weight this past year. It's a real goal with real technique — we'll set a surplus that builds more than it pads.",
-      source: "Canadian young-adult study · n = 976",
-    },
-    maintain: {
-      title: "The quiet goal",
-      body: "About 23% of adults are actively working to hold their weight — the goal nobody posts about, and it still deserves a plan. Your days get judged against staying put.",
-      source: "Meta-analysis of past-year weight-control attempts",
-    },
-  },
-  goalFollowups: {
-    gain: "Same rules as for everyone here — honest numbers, no cheering, no shame — just pointed up instead of down.",
-    maintain: "And the easy path is yours: no target weight to pick — we plan around staying put.",
-  },
-  struggleCards: {
-    stress: {
-      title: "A pattern, not a character flaw",
-      body: "Eating when stressed is a pattern, not a character flaw. Naming it is most of the work; the log does the rest.",
-    },
-    night: {
-      title: "The hour isn't scored",
-      body: "Late eating isn't scored here. Only what the whole day adds up to counts.",
-    },
-    binge: {
-      title: "A hard day is data",
-      body: "If episodes feel out of control, a clinician helps more than any app. Here, a hard day is data, never a verdict.",
-    },
-    diets: {
-      title: "The method fails, not you",
-      body: "Diets that ban the food you like rarely last. That's not you failing. I ban nothing: eat what you eat, and I'll tell you honestly how it fits.",
-    },
-    eatout: {
-      title: "Restaurant plates drift most",
-      body: "Estimates drift most on food you didn't cook — which is exactly what photos are best at. I'll say so when I'm unsure instead of pretending.",
-    },
-    energy: {
-      title: "Energy is the honest metric",
-      body: "Under-fuelled days and low energy travel together — it's one reason we refuse targets below the safety floor. Food is half of energy; we'll watch the shape of your days.",
-    },
-    body: {
-      title: "The scale is not the judge here",
-      body: "You'll get numbers about food, never comments about your body. Your goal sets the targets; nothing here is compared to anyone else.",
-    },
-    metabolism: {
-      title: "Let's measure instead of worry",
-      body: "Metabolisms differ less than the internet says — but yours is yours, and two weeks of honest logging shows what it actually does. That beats any formula, including mine.",
-    },
-  },
-  dietsGainCard: {
-    title: "The method fails, not you",
-    body: "Changing weight rarely sticks on the first try, in either direction. That's methods failing, not you. Your surplus is sized to be keepable.",
-  },
-  gainPaceCard: {
-    title: "Gaining well is slow on purpose",
-    body: "Your surplus gets capped at about {share}% over what your body burns in a day — the zone where muscle keeps up with the scale. Most successful gainers lead with protein; we'll track yours automatically.",
-    source: "Survey of 168 athletic adults attempting weight gain",
-  },
-  underAgeCard: {
+  idlePlaceholder:  "Message Spud…",
+  continueLabel: "Continue",
+  underAgeCard:  {
     title: "eait is for {age} and over",
     body: "The way this app sets calorie targets is not designed for a body that is still growing.",
   },
-  underAge: {
+  underAge:  {
     ask: "Sorry — I have to stop here. If a typo got us here, just send your real age.",
     confirm: "That's my real age",
     placeholder: "Your age",
@@ -264,43 +152,21 @@ const EN: ChatCopy = {
     ],
     endedPlaceholder: "eait is for {age} and over",
   },
-  belowHealthy: {
+  belowHealthy:  {
     title: "I can't set that as a target",
     body: "The lowest healthy weight for your height is about {kg} kg. We won't set a goal below it. If you're working with a doctor on something different, follow them rather than this app.",
   },
-  weightAck: {
-    noted: "Noted — honest numbers make an honest plan.",
-    bmr: "And here's your first number: at rest, your body burns about {bmr} kcal a day. The next questions sharpen it.",
-  },
-  activityReplies: {
-    few: "Thanks for the honest answer — most people overshoot this one, and then the target overshoots them.",
-    some: "Solid. The number will assume those workouts happen — keep me honest.",
-    many: "Then the number has real work to fuel. I'd rather feed it properly than guess low.",
-  },
-  strugglesCloser: {
-    none: "Even better. If something turns up later, tell me in the chat — the plan can bend.",
-    one: "We know how to work with that — the plan gets built around it, not in spite of it. Two quick ones left.",
-    many: "We know how to work with each of these — the plan gets built around them, not in spite of them. Two quick ones left.",
-  },
-  restrictions: {
-    kidneys: "Noted. Sodium gets scored from here on — and only because you asked.",
-    ldl: "Noted. Saturated fat gets scored from here on — and only because you asked.",
-    ldlChained: "Saturated fat gets scored too — same rule: only what you declare.",
-    declared: "Noted — those go on your profile, and only they get scored.",
-    none: "Then nothing extra gets scored — undeclared things never are. You can add one any time in settings.",
-    freeText: "And the free text goes on your profile too.",
-  },
-  invalid: {
+  invalid:  {
     age: "That doesn't look like an age — try something like 34.",
     height_cm: "In centimetres — something like 175.",
     weight_kg: "In kilograms — roughly is fine.",
     target_weight_kg: "A number in kg — like 70.",
   },
-  ambiguousAge: {
+  ambiguousAge:  {
     line: "Want to be sure I read that right — if you meant the year {year}, send all four digits.",
     confirm: "I'm {age}",
   },
-  direction: {
+  direction:  {
     gain: "You're at {weight} kg and asked to gain to {target} — that's not a gain from here. If the goal changed, we can switch it; otherwise give me a number above {weight}.",
     lose: "You're at {weight} kg and asked to lose to {target} — that's not a loss from here. If the goal changed, we can switch it; otherwise give me a number below {weight}.",
     switchToLose: "Switch to losing",
@@ -308,165 +174,85 @@ const EN: ChatCopy = {
     above: "A number above {weight}…",
     below: "A number below {weight}…",
   },
-  switched: {
+  switched:  {
     gain: "Switched — gaining it is. Where would you like to be, in kg?",
     lose: "Switched — losing it is. Where would you like to be, in kg? Faster isn't better here — it's just harder to keep.",
   },
-  loseTail: " Faster isn't better here — it's just harder to keep.",
-  capNoteTail: " That's about {kg} kg a week.",
-  nothingApplies: "Nothing applies",
-  goalEdit: {
+  capNoteTail:  " That's about {kg} kg a week.",
+  goalEdit:  {
     cleared: "Your target weight no longer fitted that goal, so it's cleared — set a new one.",
     worthSetting: "Recorded. Your target weight no longer fits your goal, though — worth setting a new one.",
   },
-  health: {
-    ask: "Connect Apple Health and skip 5 questions",
-    rows: ["Height and weight", "Age and sex", "How often you exercise"],
-    connect: "Connect Apple Health",
-    manual: "Enter them myself",
-    connected: "Got your numbers. They stay current on their own",
-    partial: "Almost — a few details are missing",
-    denied: "Enter your details",
+  target: {
+    // "55 · lowest we set" under the range's floor, "74 · now" beside today, "− 6 kg" the
+    // answer's distance from it.
+    lowest: "{weight} · lowest we set",
+    now: "{weight} · now",
+    deltaDown: "− {weight}",
+    deltaUp: "+ {weight}",
   },
-  healthActivity: "Health shows {n} workouts in the last 4 weeks. {label}?",
-  targetSuggestion: {
+  pace: {
+    rate: "{rate} a week",
+    result: "{target} around {month} · {kcal} kcal a day",
+    capMarker: "capped at the safe limit",
+    floorMarker: "never below {floor} · every pace lands here",
+  },
+  how: {
+    title: "Here's the whole app",
+    steps: ["Photograph the plate", "Get an honest verdict", "See your progress"],
+  },
+  ontrack: {
+    title: "Built to keep you on track",
+    captions: {
+      consistency: "A missed day costs nothing. The next one starts at zero.",
+      habits: "Nothing is banned. Every plate gets an honest verdict.",
+      support: "Ask Spud anything, any time, in Chat.",
+      busy: "One photo is the whole log.",
+      ideas: "Stuck for dinner? Ask Spud what fits what's left.",
+    },
+  },
+  chart: {
+    byEait: "eait analysis",
+    weightTrend: "Weight trend",
+    without: "Without",
+    now: "Now",
+    later: "Later",
+    twoWays: "Weight over time, drawn two ways: with a plan and without",
+    estimatedProgress: "Estimated progress",
+    estimate: "Estimate",
+    target: "Target {weight}",
+    monthEstimate: "{month} · estimate",
+  },
+  plan: {
+    goalLose: "Goal: lose {delta} by {month}",
+    goalGain: "Goal: gain {delta} by {month}",
+    goalMaintain: "Goal: keep my weight",
+    rest: "Your body at rest burns", activity: "With your activity, about", pace: "For your pace, we adjust", floor: "The floor we won’t cross", protein: "Protein to aim for",
+  },
+  health: {
+    title: "Sync with Apple Health",
+    body: "Weight and activity in, meals out.",
+    connect: "Connect Apple Health",
+    skip: "Not now",
+  },
+  targetSuggestion:  {
     down: "I suggest {kg} kg, about {pct}% down, a good first goal",
     up: "I suggest {kg} kg, about {pct}% up, a good first goal",
   },
-  firstMeal: FIRST_MEAL_COPY.en,
-  stepper: { continue: "Continue", less: "Less", more: "More" },
-  offerHeadline: "Get to {kg} kg by {month}",
-  planGoal: {
-    metric: "Goal: lose {n} kg by {month}",
-    imperial: "Goal: lose {n} lbs by {month}",
-  },
-  reactions: {
-    goalLose: "Lose weight. Good, let's make it stick",
-    goalMaintain: "Maintain it is — let's keep what already works",
-    goalGain: "Gain weight. Good — let's build it properly",
-    sex: "Noted. The formula differs a little for each",
-    birthYear: "Good. Age nudges the number a little",
-    heightCm: "Last number. No judgement, it's just where we start",
-    weightWithBmr: "Thank you. At rest, your body burns about {bmr} kcal a day",
-    weightPlain: "Thank you.",
-    paceEasy: "Gentle — slow enough to keep",
-    paceSteady: "Steady is the one people keep",
-    pacePush: "Push — the daily change is capped at what stays safe",
-    struggles: "Let me find your local food",
-    country: "Nearly there",
-  },
-  moments: {
-    target: {
-      title: "A goal you can keep",
-      cta: "Continue",
-      inBand: "Losing 5–10% is where the health gains start to show: cholesterol, blood pressure, energy. {kg} kg sits right in that band. Small enough to reach, big enough to matter.",
-      neutral: "A clear first goal: {kg} kg, with a plan sized to reach it. Small enough to reach, big enough to matter.",
-    },
-    activity: {
-      title: "That's great!",
-      body: "Every bit of movement counts. No gym required: a walk after lunch goes a long way, and your plan already counts what you do.",
-      cta: "Continue",
-    },
-    struggles: {
-      title: "That's completely normal!",
-      cta: "Continue",
-      // The body when two or more struggles were picked — one pick shows that card's body.
-      many: "None of these is you failing. I ban nothing: eat what you eat, and I'll tell you honestly how each meal fits.",
-    },
-    restrictions: {
-      title: "Thank you for trusting me",
-      body: "Your weight, what's been hard, what you just shared — that's a lot to tell an app. I'll use it for one thing: judging every meal against what matters to you.",
-      cta: "Build my plan",
-    },
-  },
+  firstMeal:  FIRST_MEAL_COPY.en,
+  stepper:  { continue: "Continue", less: "Less", more: "More" },
+  offerHeadline:  "Get to {kg} kg by {month}",
+  planGoal: { metric: "Goal: lose {n} kg by {month}", imperial: "Goal: lose {n} lbs by {month}" },
 };
 
 const FR: ChatCopy = {
-  idlePlaceholder: "Écrire à Spud…",
-  struggles: {
-    stress: "Manger sous le coup du stress",
-    night: "Grignotage nocturne",
-    binge: "Crises d'hyperphagie",
-    diets: "Régimes qui n'ont pas tenu",
-    eatout: "Souvent au restaurant",
-    energy: "Manque d'énergie",
-    body: "Image corporelle",
-    metabolism: "Doutes sur le métabolisme",
-  },
-  strugglesAsk: ["Maintenant, la partie que la plupart des applis zappent. Qu'est-ce qui a été dur ? Coche ce que tu veux — ou rien. Ça sert à mieux t'accompagner, jamais à te juger."],
-  quick: {
-    struggles: { finish: "Terminé", none: "Rien de tout ça" },
-    restrictions: { finish: "Terminer", none: "Rien à signaler" },
-  },
-  goalCards: {
-    lose: {
-      title: "Tu es en bonne compagnie",
-      body: "Environ 42 % des adultes essaient de perdre du poids sur une année donnée. La différence ici : ton objectif est calculé proprement, avec un plancher qu'on ne franchit pas.",
-      source: "Revue systématique de 72 études · n = 1,18 M d'adultes",
-    },
-    gain: {
-      title: "Moins rare qu'on ne croit",
-      body: "Environ 23 % des jeunes hommes et 6 % des jeunes femmes ont activement essayé de prendre du poids l'an dernier. C'est un vrai objectif, avec une vraie technique — on visera un surplus qui construit du muscle plutôt que du gras.",
-      source: "Étude canadienne sur de jeunes adultes · n = 976",
-    },
-    maintain: {
-      title: "L'objectif discret",
-      body: "Environ 23 % des adultes travaillent activement à garder leur poids — l'objectif dont personne ne parle, et il mérite quand même un plan. Tes journées seront évaluées par rapport à ton poids actuel.",
-      source: "Méta-analyse des tentatives de contrôle du poids sur un an",
-    },
-  },
-  goalFollowups: {
-    gain: "Mêmes règles que pour tout le monde ici — des chiffres honnêtes, pas d'encouragements creux, aucune honte — juste dans l'autre sens : vers le haut.",
-    maintain: "Et toi, tu as le chemin le plus simple : pas de poids cible à choisir — on fait le plan pour que tu restes où tu es.",
-  },
-  struggleCards: {
-    stress: {
-      title: "Un schéma, pas un défaut de caractère",
-      body: "Manger sous le coup du stress est un schéma, pas un défaut de caractère. Le nommer, c'est déjà l'essentiel ; le journal fait le reste.",
-    },
-    night: {
-      title: "L'heure n'est pas jugée",
-      body: "Manger tard n'est pas jugé ici. Seul le total de la journée compte.",
-    },
-    binge: {
-      title: "Un jour difficile est une donnée",
-      body: "Si les crises semblent hors de contrôle, un clinicien aide plus que n'importe quelle appli. Ici, une journée difficile est une donnée, jamais un verdict.",
-    },
-    diets: {
-      title: "La méthode échoue, pas toi",
-      body: "Les régimes qui interdisent ce que tu aimes durent rarement. Ce n'est pas toi qui échoues. Je n'interdis rien : mange ce que tu manges, et je te dirai honnêtement comment ça rentre dans ton plan.",
-    },
-    eatout: {
-      title: "C'est au restaurant que ça dérive",
-      body: "Les estimations dérivent le plus sur ce que tu n'as pas cuisiné — et c'est justement là que les photos aident le plus. Je te dirai quand je ne suis pas sûr, au lieu de faire semblant.",
-    },
-    energy: {
-      title: "L'énergie est la mesure honnête",
-      body: "Manger trop peu et manquer d'énergie vont de pair — c'est une des raisons pour lesquelles on refuse les objectifs sous le plancher de sécurité. L'alimentation, c'est la moitié de l'histoire ; on regardera comment se dessinent tes journées.",
-    },
-    body: {
-      title: "Ici, la balance ne juge pas",
-      body: "Tu auras des chiffres sur ce que tu manges, jamais de commentaires sur ton corps. C'est ton objectif qui fixe les cibles ; rien ici n'est comparé à qui que ce soit.",
-    },
-    metabolism: {
-      title: "Mesurons au lieu de s'inquiéter",
-      body: "Les métabolismes diffèrent moins que ne le dit internet — mais le tien t'est propre, et deux semaines de suivi honnête montrent ce qu'il fait vraiment. Ça vaut mieux que n'importe quelle formule, la mienne comprise.",
-    },
-  },
-  dietsGainCard: {
-    title: "La méthode échoue, pas toi",
-    body: "Changer de poids tient rarement du premier coup, dans un sens comme dans l'autre. Ce sont les méthodes qui échouent, pas toi. Ton surplus est dimensionné pour être tenable.",
-  },
-  gainPaceCard: {
-    title: "Bien prendre du poids, c'est lent — exprès",
-    body: "Ton surplus est plafonné à environ {share} % de ce que ton corps brûle en une journée — la zone où le muscle suit la balance. La plupart de ceux qui y arrivent misent d'abord sur les protéines ; on suivra les tiennes automatiquement.",
-    source: "Enquête auprès de 168 adultes sportifs cherchant à prendre du poids",
-  },
-  underAgeCard: {
+  idlePlaceholder:  "Écrire à Spud…",
+  continueLabel: "Continuer",
+  underAgeCard:  {
     title: "eait, c'est à partir de {age} ans",
     body: "La façon dont cette appli fixe les objectifs caloriques n'est pas conçue pour un corps qui grandit encore.",
   },
-  underAge: {
+  underAge:  {
     ask: "Désolé — je dois m'arrêter là. Si c'est une faute de frappe, envoie-moi ton vrai âge.",
     confirm: "C'est mon vrai âge",
     placeholder: "Ton âge",
@@ -476,43 +262,21 @@ const FR: ChatCopy = {
     ],
     endedPlaceholder: "eait, c'est à partir de {age} ans",
   },
-  belowHealthy: {
+  belowHealthy:  {
     title: "Je ne peux pas fixer ça comme objectif",
     body: "Le poids sain le plus bas pour ta taille est d'environ {kg} kg. On ne fixera pas d'objectif en dessous. Si tu suis un autre objectif avec un médecin, écoute-le plutôt que cette appli.",
   },
-  weightAck: {
-    noted: "Noté — des chiffres honnêtes font un plan honnête.",
-    bmr: "Et voilà ton premier chiffre : au repos, ton corps brûle environ {bmr} kcal par jour. Les questions suivantes vont l'affiner.",
-  },
-  activityReplies: {
-    few: "Merci pour la réponse honnête — la plupart des gens surestiment leur activité, et leur objectif finit trop généreux.",
-    some: "Solide. Le chiffre partira du principe que ces séances ont lieu — ne me fais pas mentir.",
-    many: "Alors il y a du vrai effort à alimenter. Je préfère bien te nourrir que viser trop bas.",
-  },
-  strugglesCloser: {
-    none: "Encore mieux. Si quelque chose change plus tard, dis-le-moi dans le chat — le plan peut s'adapter.",
-    one: "On sait travailler avec ça — le plan se construit autour, pas contre. Deux petites questions et c'est fini.",
-    many: "On sait travailler avec chacun de ces points — le plan se construit autour, pas contre. Deux petites questions et c'est fini.",
-  },
-  restrictions: {
-    kidneys: "C'est noté. À partir de maintenant, je surveille le sodium — uniquement parce que tu l'as demandé.",
-    ldl: "C'est noté. À partir de maintenant, je surveille les graisses saturées — uniquement parce que tu l'as demandé.",
-    ldlChained: "Les graisses saturées aussi — même règle : je ne surveille que ce que tu déclares.",
-    declared: "C'est noté — ça va sur ton profil, et je ne surveille rien d'autre.",
-    none: "Alors je ne surveille rien de plus — ce que tu ne déclares pas, je ne le surveille jamais. Tu peux en ajouter quand tu veux dans les réglages.",
-    freeText: "Et le texte libre va sur ton profil aussi.",
-  },
-  invalid: {
+  invalid:  {
     age: "Ça ne ressemble pas à un âge — essaie quelque chose comme 34.",
     height_cm: "En centimètres — quelque chose comme 175.",
     weight_kg: "En kilos — à peu près, ça suffit.",
     target_weight_kg: "Un nombre en kg — comme 70.",
   },
-  ambiguousAge: {
+  ambiguousAge:  {
     line: "Je veux être sûr d'avoir bien lu — si tu voulais dire l'année {year}, envoie les quatre chiffres.",
     confirm: "J'ai {age} ans",
   },
-  direction: {
+  direction:  {
     gain: "Tu es à {weight} kg et tu demandes à monter jusqu'à {target} — ce n'est pas une hausse par rapport à aujourd'hui. Si ton objectif a changé, on peut le modifier ; sinon, donne-moi un nombre au-dessus de {weight}.",
     lose: "Tu es à {weight} kg et tu demandes à descendre jusqu'à {target} — ce n'est pas une baisse par rapport à aujourd'hui. Si ton objectif a changé, on peut le modifier ; sinon, donne-moi un nombre en dessous de {weight}.",
     switchToLose: "Je veux perdre",
@@ -520,164 +284,83 @@ const FR: ChatCopy = {
     above: "Un nombre au-dessus de {weight}…",
     below: "Un nombre en dessous de {weight}…",
   },
-  switched: {
+  switched:  {
     gain: "Va pour la prise de poids. Où aimerais-tu arriver, en kg ?",
     lose: "D'accord, on vise plus bas. Où aimerais-tu arriver, en kg ? Ici, aller plus vite n'aide pas — c'est juste plus dur à tenir.",
   },
-  loseTail: " Ici, aller plus vite n'aide pas — c'est juste plus dur à tenir.",
-  capNoteTail: " Ça fait environ {kg} kg par semaine.",
-  nothingApplies: "Rien à signaler",
-  goalEdit: {
+  capNoteTail:  " Ça fait environ {kg} kg par semaine.",
+  goalEdit:  {
     cleared: "Ton poids cible ne collait plus à cet objectif, il est donc effacé — choisis-en un nouveau.",
     worthSetting: "Enregistré. Ton poids cible ne colle plus à ton objectif, cela dit — ça vaut le coup d'en fixer un nouveau.",
   },
-  health: {
-    ask: "Connecte l'app Santé et saute 5 questions",
-    rows: ["Taille et poids", "Âge et sexe", "Ton activité physique"],
-    connect: "Connecter l'app Santé",
-    manual: "Les saisir moi-même",
-    connected: "J'ai tes chiffres. Ils se mettent à jour tout seuls",
-    partial: "Presque — il manque quelques détails",
-    denied: "Saisis tes informations",
+  target: {
+    lowest: "{weight} · le plus bas qu'on fixe",
+    now: "{weight} · maintenant",
+    deltaDown: "− {weight}",
+    deltaUp: "+ {weight}",
   },
-  healthActivity: "L'app Santé indique {n} entraînements sur les 4 dernières semaines. {label} ?",
-  targetSuggestion: {
+  pace: {
+    rate: "{rate} par semaine",
+    result: "{target} vers {month} · {kcal} kcal par jour",
+    capMarker: "plafonné à la limite sûre",
+    floorMarker: "jamais sous {floor} · chaque rythme y arrive",
+  },
+  how: {
+    title: "Voilà toute l'app",
+    steps: ["Photographie ton assiette", "Reçois un verdict honnête", "Suis ta progression"],
+  },
+  ontrack: {
+    title: "Fait pour te garder en route",
+    captions: {
+      consistency: "Un jour raté ne coûte rien. Le suivant repart de zéro.",
+      habits: "Rien n'est interdit. Chaque assiette a un verdict honnête.",
+      support: "Demande à Spud, quand tu veux, dans le Chat.",
+      busy: "Une photo, et le repas est noté.",
+      ideas: "En panne d'idées pour le dîner ? Spud trouve ce qui rentre.",
+    },
+  },
+  chart: {
+    byEait: "eait analysis",
+    weightTrend: "Tendance du poids",
+    without: "Sans",
+    now: "Maintenant",
+    later: "Plus tard",
+    twoWays: "Évolution du poids, dessinée deux fois : avec un plan et sans",
+    estimatedProgress: "Progression estimée",
+    estimate: "Estimation",
+    target: "Cible {weight}",
+    monthEstimate: "{month} · estimation",
+  },
+  plan: {
+    goalLose: "Objectif : perdre {delta} d'ici {month}",
+    goalGain: "Objectif : prendre {delta} d'ici {month}",
+    goalMaintain: "Objectif : garder mon poids",
+    rest: "Au repos, ton corps brûle", activity: "Avec ton activité, environ", pace: "Pour ton rythme, on ajuste", floor: "Le plancher qu’on ne franchit pas", protein: "Protéines à viser",
+  },
+  health: {
+    title: "Synchroniser avec Apple Health",
+    body: "Poids et activité entrent, les repas restent dehors.",
+    connect: "Connecter Apple Health",
+    skip: "Pas maintenant",
+  },
+  targetSuggestion:  {
     down: "Je te propose {kg} kg, soit environ {pct} % de moins — un bon premier objectif",
     up: "Je te propose {kg} kg, soit environ {pct} % de plus — un bon premier objectif",
   },
-  firstMeal: FIRST_MEAL_COPY.fr,
-  stepper: { continue: "Continuer", less: "Moins", more: "Plus" },
-  offerHeadline: "Atteindre {kg} kg d'ici {month}",
-  planGoal: {
-    metric: "Objectif : perdre {n} kg d'ici {month}",
-    imperial: "Objectif : perdre {n} lb d'ici {month}",
-  },
-  reactions: {
-    goalLose: "Perdre du poids. Bien — faisons en sorte que ça tienne",
-    goalMaintain: "Maintenir — gardons ce qui fonctionne déjà",
-    goalGain: "Prendre du poids. Bien — construisons-le proprement",
-    sex: "Noté. La formule diffère un peu pour chacun",
-    birthYear: "Bien. L'âge fait bouger un peu le chiffre",
-    heightCm: "Dernier chiffre. Aucun jugement, c'est juste le point de départ",
-    weightWithBmr: "Merci. Au repos, ton corps brûle environ {bmr} kcal par jour",
-    weightPlain: "Merci.",
-    paceEasy: "Doux — assez lent pour tenir",
-    paceSteady: "Régulier, c'est le rythme que les gens gardent",
-    pacePush: "Soutenu — l'écart quotidien reste dans les limites sûres",
-    struggles: "Laisse-moi trouver les produits de chez toi",
-    country: "On y est presque",
-  },
-  moments: {
-    target: {
-      title: "Un objectif que tu peux garder",
-      cta: "Continuer",
-      inBand: "C'est entre 5 et 10 % de perte que les bienfaits pour la santé commencent à se voir : cholestérol, tension, énergie. {kg} kg tombe pile dans cette zone. Assez modeste pour être atteint, assez important pour compter.",
-      neutral: "{kg} kg — un premier objectif clair, avec un plan pensé pour l'atteindre. Assez modeste pour être atteint, assez important pour compter.",
-    },
-    activity: {
-      title: "C'est super !",
-      body: "Chaque mouvement compte. Pas besoin de salle : une marche après le déjeuner va déjà loin, et ton plan tient déjà compte de ce que tu fais.",
-      cta: "Continuer",
-    },
-    struggles: {
-      title: "C'est tout à fait normal !",
-      cta: "Continuer",
-      many: "Rien de tout ça n'est un échec de ta part. Je n'interdis rien : mange ce que tu manges, et je te dirai honnêtement comment chaque repas rentre dans ton plan.",
-    },
-    restrictions: {
-      title: "Merci de ta confiance",
-      body: "Ton poids, ce qui a été dur, ce que tu viens de partager — c'est beaucoup à confier à une application. Je m'en servirai pour une seule chose : juger chaque repas à l'aune de ce qui compte pour toi.",
-      cta: "Construire mon plan",
-    },
-  },
+  firstMeal:  FIRST_MEAL_COPY.fr,
+  stepper:  { continue: "Continuer", less: "Moins", more: "Plus" },
+  offerHeadline:  "Atteindre {kg} kg d'ici {month}",
+  planGoal: { metric: "Objectif : perdre {n} kg d'ici {month}", imperial: "Objectif : perdre {n} lb d'ici {month}" },
 };
 
 const DE: ChatCopy = {
-  idlePlaceholder: "Nachricht an Spud…",
-  struggles: {
-    stress: "Essen bei Stress",
-    night: "Naschen am Abend",
-    binge: "Essanfälle",
-    diets: "Diäten, die nicht hielten",
-    eatout: "Viel auswärts essen",
-    energy: "Wenig Energie",
-    body: "Körperbild",
-    metabolism: "Sorge um den Stoffwechsel",
-  },
-  strugglesAsk: ["Jetzt der Teil, den die meisten Apps auslassen. Was war schwer? Such aus, was passt — oder nichts. Das steuert die Unterstützung, nie ein Urteil."],
-  quick: {
-    struggles: { finish: "Fertig", none: "Nichts davon" },
-    restrictions: { finish: "Abschließen", none: "Trifft nichts zu" },
-  },
-  goalCards: {
-    lose: {
-      title: "Damit bist du in guter Gesellschaft",
-      body: "Rund 42% der Erwachsenen versuchen in einem beliebigen Jahr abzunehmen. Der Unterschied hier: dein Ziel wird sauber berechnet, mit einer Grenze, die wir nicht unterschreiten.",
-      source: "Systematische Übersichtsarbeit über 72 Studien · n = 1,18 Mio. Erwachsene",
-    },
-    gain: {
-      title: "Nicht so selten, wie es sich anfühlt",
-      body: "Etwa 23% der jungen Männer und 6% der jungen Frauen haben im letzten Jahr aktiv versucht zuzunehmen. Ein echtes Ziel mit echter Technik — wir setzen den Überschuss so an, dass er mehr Muskeln aufbaut als Polster.",
-      source: "Kanadische Studie an jungen Erwachsenen · n = 976",
-    },
-    maintain: {
-      title: "Das stille Ziel",
-      body: "Etwa 23% der Erwachsenen arbeiten aktiv daran, ihr Gewicht zu halten — das Ziel, über das niemand postet, und es verdient trotzdem einen Plan. Deine Tage werden am Halten gemessen.",
-      source: "Meta-Analyse zu Gewichtskontroll-Versuchen im Vorjahr",
-    },
-  },
-  goalFollowups: {
-    gain: "Dieselben Regeln wie für alle hier — ehrliche Zahlen, kein Jubeln, keine Scham — nur nach oben statt nach unten gerichtet.",
-    maintain: "Und du hast den bequemen Weg: du musst kein Zielgewicht aussuchen — wir planen aufs Halten hin.",
-  },
-  struggleCards: {
-    stress: {
-      title: "Ein Muster, kein Charakterfehler",
-      body: "Essen aus Stress ist ein Muster, kein Charakterfehler. Es zu benennen ist der größte Teil der Arbeit; den Rest macht das Protokoll.",
-    },
-    night: {
-      title: "Die Uhrzeit wird nicht bewertet",
-      body: "Spätes Essen wird hier nicht bewertet. Gezählt wird nur, was der ganze Tag ergibt.",
-    },
-    binge: {
-      title: "Ein schwerer Tag ist ein Datenpunkt",
-      body: "Wenn sich die Anfälle unkontrollierbar anfühlen, hilft eine Fachperson mehr als jede App. Hier ist ein schwerer Tag eine Information, nie ein Urteil.",
-    },
-    diets: {
-      title: "Die Methode scheitert, nicht du",
-      body: "Diäten, die das Essen verbieten, das du magst, halten selten. Das ist nicht dein Scheitern. Ich verbiete nichts: iss, was du isst, und ich sage dir ehrlich, wie es passt.",
-    },
-    eatout: {
-      title: "Restaurantteller driften am stärksten",
-      body: "Schätzungen driften am meisten bei Essen, das du nicht selbst gekocht hast — und genau darin sind Fotos gut. Ich sage es, wenn ich unsicher bin, statt so zu tun als ob.",
-    },
-    energy: {
-      title: "Energie ist die ehrliche Messgröße",
-      body: "Unterversorgte Tage und wenig Energie gehen Hand in Hand — einer der Gründe, warum wir Ziele unterhalb der Sicherheitsgrenze ablehnen. Essen ist die Hälfte von Energie; wir schauen auf die Form deiner Tage.",
-    },
-    body: {
-      title: "Die Waage ist hier nicht die Richterin",
-      body: "Du bekommst Zahlen über dein Essen, nie Kommentare über deinen Körper. Dein Ziel setzt die Vorgaben; nichts hier wird mit irgendjemandem verglichen.",
-    },
-    metabolism: {
-      title: "Messen statt sorgen",
-      body: "Stoffwechsel unterscheiden sich weniger, als das Internet behauptet — aber deiner ist deiner, und zwei Wochen ehrliches Protokollieren zeigen, was er tatsächlich tut. Das schlägt jede Formel, meine eingeschlossen.",
-    },
-  },
-  dietsGainCard: {
-    title: "Die Methode scheitert, nicht du",
-    body: "Gewicht zu ändern hält selten beim ersten Versuch, egal in welche Richtung. Das sind Methoden, die scheitern, nicht du. Dein Überschuss ist so bemessen, dass er haltbar ist.",
-  },
-  gainPaceCard: {
-    title: "Gut zunehmen geht absichtlich langsam",
-    body: "Dein Überschuss wird bei etwa {share}% über dem gedeckelt, was dein Körper am Tag verbrennt — die Zone, in der Muskeln mit der Waage mithalten. Die meisten, die gut zunehmen, fangen mit dem Eiweiß an; deins behalten wir automatisch im Blick.",
-    source: "Befragung von 168 sportlichen Erwachsenen mit Zunahme-Ziel",
-  },
-  underAgeCard: {
+  idlePlaceholder:  "Nachricht an Spud…",
+  continueLabel: "Weiter",
+  underAgeCard:  {
     title: "eait ist ab {age}",
     body: "Die Art, wie diese App Kalorienziele setzt, ist nicht für einen Körper gedacht, der noch wächst.",
   },
-  underAge: {
+  underAge:  {
     ask: "Tut mir leid — hier muss ich aufhören. Wenn ein Tippfehler schuld ist, schick mir einfach dein echtes Alter.",
     confirm: "Das ist mein echtes Alter",
     placeholder: "Dein Alter",
@@ -687,43 +370,21 @@ const DE: ChatCopy = {
     ],
     endedPlaceholder: "eait ist ab {age}",
   },
-  belowHealthy: {
+  belowHealthy:  {
     title: "Das kann ich nicht als Ziel setzen",
     body: "Das niedrigste gesunde Gewicht für deine Größe liegt bei etwa {kg} kg. Darunter setzen wir kein Ziel. Wenn du mit einer Ärztin an etwas anderem arbeitest, folge ihr und nicht dieser App.",
   },
-  weightAck: {
-    noted: "Notiert — ehrliche Zahlen machen einen ehrlichen Plan.",
-    bmr: "Und hier ist deine erste Zahl: in Ruhe verbrennt dein Körper etwa {bmr} kcal am Tag. Die nächsten Fragen schärfen sie.",
-  },
-  activityReplies: {
-    few: "Danke für die ehrliche Antwort — die meisten schätzen sich hier zu hoch ein, und dann schätzt das Ziel sie zu hoch ein.",
-    some: "Solide. Die Zahl geht davon aus, dass diese Einheiten stattfinden — halt mich ehrlich.",
-    many: "Dann hat die Zahl echte Arbeit zu versorgen. Lieber ordentlich füttern als zu niedrig raten.",
-  },
-  strugglesCloser: {
-    none: "Umso besser. Wenn später etwas auftaucht, sag es mir im Chat — der Plan kann sich biegen.",
-    one: "Damit können wir arbeiten — der Plan wird darum herum gebaut, nicht dagegen. Zwei kurze Fragen noch.",
-    many: "Mit jedem davon können wir arbeiten — der Plan wird darum herum gebaut, nicht dagegen. Zwei kurze Fragen noch.",
-  },
-  restrictions: {
-    kidneys: "Notiert. Natrium wird ab jetzt bewertet — und nur, weil du darum gebeten hast.",
-    ldl: "Notiert. Gesättigte Fettsäuren werden ab jetzt bewertet — und nur, weil du darum gebeten hast.",
-    ldlChained: "Gesättigte Fettsäuren werden auch bewertet — gleiche Regel: nur, was du angibst.",
-    declared: "Notiert — das kommt auf dein Profil, und nur das wird bewertet.",
-    none: "Dann wird nichts zusätzlich bewertet — was nicht angegeben ist, wird es nie. Du kannst jederzeit in den Einstellungen etwas hinzufügen.",
-    freeText: "Und der Freitext kommt auch auf dein Profil.",
-  },
-  invalid: {
+  invalid:  {
     age: "Das sieht nicht nach einem Alter aus — versuch es mit so etwas wie 34.",
     height_cm: "In Zentimetern — so etwas wie 175.",
     weight_kg: "In Kilogramm — ungefähr reicht.",
     target_weight_kg: "Eine Zahl in kg — zum Beispiel 70.",
   },
-  ambiguousAge: {
+  ambiguousAge:  {
     line: "Ich will sichergehen, dass ich das richtig lese — wenn du das Jahr {year} meintest, schick alle vier Ziffern.",
     confirm: "Ich bin {age}",
   },
-  direction: {
+  direction:  {
     gain: "Du bist bei {weight} kg und willst auf {target} zunehmen — von hier aus ist das keine Zunahme. Wenn sich das Ziel geändert hat, stellen wir um; sonst gib mir eine Zahl über {weight}.",
     lose: "Du bist bei {weight} kg und willst auf {target} abnehmen — von hier aus ist das keine Abnahme. Wenn sich das Ziel geändert hat, stellen wir um; sonst gib mir eine Zahl unter {weight}.",
     switchToLose: "Auf Abnehmen umstellen",
@@ -731,164 +392,83 @@ const DE: ChatCopy = {
     above: "Eine Zahl über {weight}…",
     below: "Eine Zahl unter {weight}…",
   },
-  switched: {
+  switched:  {
     gain: "Umgestellt — zunehmen also. Wo möchtest du landen, in kg?",
     lose: "Umgestellt — abnehmen also. Wo möchtest du landen, in kg? Schneller ist hier nicht besser — nur schwerer zu halten.",
   },
-  loseTail: " Schneller ist hier nicht besser — nur schwerer zu halten.",
-  capNoteTail: " Das sind etwa {kg} kg pro Woche.",
-  nothingApplies: "Trifft nichts zu",
-  goalEdit: {
+  capNoteTail:  " Das sind etwa {kg} kg pro Woche.",
+  goalEdit:  {
     cleared: "Dein Zielgewicht passte nicht mehr zu diesem Ziel, also ist es gelöscht — setz ein neues.",
     worthSetting: "Aufgenommen. Dein Zielgewicht passt allerdings nicht mehr zu deinem Ziel — es lohnt sich, ein neues zu setzen.",
   },
-  health: {
-    ask: "Verbinde Apple Health und überspringe 5 Fragen",
-    rows: ["Größe und Gewicht", "Alter und Geschlecht", "Wie oft du trainierst"],
-    connect: "Apple Health verbinden",
-    manual: "Selbst eingeben",
-    connected: "Deine Zahlen sind da. Sie bleiben von selbst aktuell",
-    partial: "Fast — ein paar Angaben fehlen",
-    denied: "Gib deine Angaben ein",
+  target: {
+    lowest: "{weight} · unser Minimum",
+    now: "{weight} · jetzt",
+    deltaDown: "− {weight}",
+    deltaUp: "+ {weight}",
   },
-  healthActivity: "Health zeigt {n} Workouts in den letzten 4 Wochen. {label}?",
-  targetSuggestion: {
+  pace: {
+    rate: "{rate} pro Woche",
+    result: "{target} um {month} · {kcal} kcal am Tag",
+    capMarker: "auf die sichere Grenze gekappt",
+    floorMarker: "nie unter {floor} · jedes Tempo landet hier",
+  },
+  how: {
+    title: "Das ist die ganze App",
+    steps: ["Fotografier den Teller", "Bekomm ein ehrliches Urteil", "Sieh deinen Fortschritt"],
+  },
+  ontrack: {
+    title: "Gemacht, damit du dranbleibst",
+    captions: {
+      consistency: "Ein verpasster Tag kostet nichts. Der nächste fängt bei null an.",
+      habits: "Nichts ist verboten. Jeder Teller bekommt ein ehrliches Urteil.",
+      support: "Frag Spud, wann immer du willst, im Chat.",
+      busy: "Ein Foto ist der ganze Eintrag.",
+      ideas: "Keine Idee fürs Abendessen? Spud sagt, was noch reinpasst.",
+    },
+  },
+  chart: {
+    byEait: "eait analysis",
+    weightTrend: "Gewichtstrend",
+    without: "Ohne",
+    now: "Jetzt",
+    later: "Später",
+    twoWays: "Gewicht über die Zeit, zweimal gezeichnet: mit Plan und ohne",
+    estimatedProgress: "Geschätzter Fortschritt",
+    estimate: "Schätzung",
+    target: "Ziel {weight}",
+    monthEstimate: "{month} · Schätzung",
+  },
+  plan: {
+    goalLose: "Ziel: {delta} abnehmen bis {month}",
+    goalGain: "Ziel: {delta} zunehmen bis {month}",
+    goalMaintain: "Ziel: mein Gewicht halten",
+    rest: "In Ruhe verbrennt dein Körper", activity: "Mit deiner Aktivität etwa", pace: "Für dein Tempo rechnen wir", floor: "Die Grenze, die wir nicht unterschreiten", protein: "Eiweiß als Ziel",
+  },
+  health: {
+    title: "Mit Apple Health synchronisieren",
+    body: "Gewicht und Aktivität kommen rein, Mahlzeiten gehen nicht raus.",
+    connect: "Apple Health verbinden",
+    skip: "Nicht jetzt",
+  },
+  targetSuggestion:  {
     down: "Ich schlage {kg} kg vor, etwa {pct}% weniger — ein gutes erstes Ziel",
     up: "Ich schlage {kg} kg vor, etwa {pct}% mehr — ein gutes erstes Ziel",
   },
-  firstMeal: FIRST_MEAL_COPY.de,
-  stepper: { continue: "Weiter", less: "Weniger", more: "Mehr" },
-  offerHeadline: "{kg} kg bis {month}",
-  planGoal: {
-    metric: "Ziel: bis {month} {n} kg abnehmen",
-    imperial: "Ziel: bis {month} {n} lb abnehmen",
-  },
-  reactions: {
-    goalLose: "Abnehmen. Gut — wir sorgen dafür, dass es hält",
-    goalMaintain: "Halten — wir behalten, was schon funktioniert",
-    goalGain: "Zunehmen. Gut — wir bauen es richtig auf",
-    sex: "Notiert. Die Formel unterscheidet sich für jedes ein wenig",
-    birthYear: "Gut. Das Alter verschiebt die Zahl ein wenig",
-    heightCm: "Letzte Zahl. Keine Wertung — es ist einfach der Ausgangspunkt",
-    weightWithBmr: "Danke. In Ruhe verbrennt dein Körper etwa {bmr} kcal am Tag",
-    weightPlain: "Danke.",
-    paceEasy: "Sanft — langsam genug, um zu bleiben",
-    paceSteady: "Stetig ist das Tempo, das Menschen durchhalten",
-    pacePush: "Zügig also — die Tagesänderung bleibt im sicheren Rahmen",
-    struggles: "Lass mich die Lebensmittel bei dir finden",
-    country: "Fast geschafft",
-  },
-  moments: {
-    target: {
-      title: "Ein Ziel, das du halten kannst",
-      cta: "Weiter",
-      inBand: "5–10% weniger ist der Bereich, in dem die gesundheitlichen Effekte sichtbar werden: Cholesterin, Blutdruck, Energie. {kg} kg liegt genau in diesem Band. Klein genug zum Schaffen, groß genug, um zu zählen.",
-      neutral: "{kg} kg — ein klares erstes Ziel, mit einem Plan, der dafür ausgelegt ist.",
-    },
-    activity: {
-      title: "Das ist toll!",
-      body: "Jede Bewegung zählt. Kein Fitnessstudio nötig: ein Spaziergang nach dem Mittagessen bringt schon viel, und dein Plan rechnet mit dem, was du tust.",
-      cta: "Weiter",
-    },
-    struggles: {
-      title: "Das ist völlig normal!",
-      cta: "Weiter",
-      many: "Nichts davon ist dein Scheitern. Ich verbiete nichts: iss, was du isst, und ich sage dir ehrlich, wie jede Mahlzeit passt.",
-    },
-    restrictions: {
-      title: "Danke für dein Vertrauen",
-      body: "Dein Gewicht, was schwer war, was du mir gerade anvertraut hast — das ist viel für eine App. Ich nutze es für genau eines: jede Mahlzeit an dem zu messen, was dir wichtig ist.",
-      cta: "Erstelle meinen Plan",
-    },
-  },
+  firstMeal:  FIRST_MEAL_COPY.de,
+  stepper:  { continue: "Weiter", less: "Weniger", more: "Mehr" },
+  offerHeadline:  "{kg} kg bis {month}",
+  planGoal: { metric: "Ziel: bis {month} {n} kg abnehmen", imperial: "Ziel: bis {month} {n} lb abnehmen" },
 };
 
 const IT: ChatCopy = {
-  idlePlaceholder: "Scrivi a Spud…",
-  struggles: {
-    stress: "Mangiare per stress",
-    night: "Spuntini notturni",
-    binge: "Abbuffate",
-    diets: "Diete che non hanno tenuto",
-    eatout: "Mangiare spesso fuori",
-    energy: "Poca energia",
-    body: "Immagine del corpo",
-    metabolism: "Dubbi sul metabolismo",
-  },
-  strugglesAsk: ["Ora la parte che quasi tutte le app saltano. Cosa è stato difficile? Scegli quello che vuoi — o niente. Questo orienta il supporto, mai un giudizio."],
-  quick: {
-    struggles: { finish: "Fatto", none: "Nessuno di questi" },
-    restrictions: { finish: "Concludi", none: "Niente di tutto ciò" },
-  },
-  goalCards: {
-    lose: {
-      title: "Sei in buona compagnia",
-      body: "Circa il 42% degli adulti prova a perdere peso in un anno qualsiasi. La differenza qui: il tuo obiettivo viene calcolato per bene, con un limite che non superiamo.",
-      source: "Revisione sistematica di 72 studi · n = 1,18 mln di adulti",
-    },
-    gain: {
-      title: "Meno raro di quanto sembri",
-      body: "Circa il 23% dei giovani uomini e il 6% delle giovani donne ha provato attivamente a prendere peso nell'ultimo anno. È un obiettivo vero, con una tecnica vera — punteremo a un surplus che costruisce più di quanto imbottisca.",
-      source: "Studio canadese su giovani adulti · n = 976",
-    },
-    maintain: {
-      title: "L'obiettivo silenzioso",
-      body: "Circa il 23% degli adulti lavora attivamente per mantenere il peso — l'obiettivo di cui nessuno parla, e merita comunque un piano. Le tue giornate saranno valutate sul restare dove sei.",
-      source: "Meta-analisi dei tentativi di controllo del peso nell'ultimo anno",
-    },
-  },
-  goalFollowups: {
-    gain: "Stesse regole che valgono per tutti qui — numeri onesti, niente incoraggiamenti a vuoto, nessuna vergogna — solo puntate verso l'alto invece che verso il basso.",
-    maintain: "E la strada comoda è la tua: nessun peso obiettivo da scegliere — pianifichiamo attorno al restare dove sei.",
-  },
-  struggleCards: {
-    stress: {
-      title: "Uno schema, non un difetto di carattere",
-      body: "Mangiare per lo stress è uno schema, non un difetto di carattere. Dargli un nome è gran parte del lavoro; il resto lo fa il diario.",
-    },
-    night: {
-      title: "L'orario non viene valutato",
-      body: "Mangiare tardi non viene valutato qui. Conta solo quello che somma l'intera giornata.",
-    },
-    binge: {
-      title: "Una giornata storta è un dato",
-      body: "Se gli episodi sembrano fuori controllo, un clinico aiuta più di qualsiasi app. Qui una giornata storta è un dato, mai un verdetto.",
-    },
-    diets: {
-      title: "Il metodo fallisce, non tu",
-      body: "Le diete che vietano il cibo che ti piace durano raramente. Non sei tu a fallire. Io non vieto niente: mangia quello che mangi, e ti dirò onestamente come ci sta.",
-    },
-    eatout: {
-      title: "I piatti del ristorante sono i più imprecisi",
-      body: "Le stime sbandano di più sul cibo che non hai cucinato — ed è esattamente lì che le foto funzionano meglio. Quando non sono sicuro te lo dico, invece di far finta.",
-    },
-    energy: {
-      title: "L'energia è la misura onesta",
-      body: "Giornate sotto-alimentate e poca energia vanno di pari passo — è uno dei motivi per cui rifiutiamo obiettivi sotto la soglia di sicurezza. Il cibo è metà dell'energia; guarderemo la forma delle tue giornate.",
-    },
-    body: {
-      title: "Qui la bilancia non giudica",
-      body: "Avrai numeri sul cibo, mai commenti sul tuo corpo. È il tuo obiettivo a fissare i target; qui nulla viene confrontato con qualcun altro.",
-    },
-    metabolism: {
-      title: "Misuriamo invece di preoccuparci",
-      body: "I metabolismi differiscono meno di quanto dica internet — ma il tuo è il tuo, e due settimane di registrazioni oneste mostrano cosa fa davvero. Batte qualunque formula, compresa la mia.",
-    },
-  },
-  dietsGainCard: {
-    title: "Il metodo fallisce, non tu",
-    body: "Cambiare peso raramente regge al primo tentativo, in nessuna delle due direzioni. Sono i metodi a fallire, non tu. Il tuo surplus è dimensionato per essere mantenibile.",
-  },
-  gainPaceCard: {
-    title: "Crescere bene è lento di proposito",
-    body: "Il tuo surplus viene limitato a circa il {share}% in più di quello che il tuo corpo brucia in un giorno — la zona in cui il muscolo sta al passo con la bilancia. Chi ci riesce parte quasi sempre dalle proteine; le tue le seguiamo in automatico.",
-    source: "Indagine su 168 adulti sportivi che cercavano di prendere peso",
-  },
-  underAgeCard: {
+  idlePlaceholder:  "Scrivi a Spud…",
+  continueLabel: "Continua",
+  underAgeCard:  {
     title: "eait è da {age} anni in su",
     body: "Il modo in cui questa app fissa gli obiettivi calorici non è pensato per un corpo che sta ancora crescendo.",
   },
-  underAge: {
+  underAge:  {
     ask: "Mi dispiace — qui devo fermarmi. Se è stato un errore di battitura, mandami la tua età vera.",
     confirm: "È la mia età vera",
     placeholder: "La tua età",
@@ -898,43 +478,21 @@ const IT: ChatCopy = {
     ],
     endedPlaceholder: "eait è da {age} anni in su",
   },
-  belowHealthy: {
+  belowHealthy:  {
     title: "Non posso impostarlo come obiettivo",
     body: "Il peso sano più basso per la tua altezza è circa {kg} kg. Sotto quello non fissiamo obiettivi. Se stai seguendo altro con un medico, segui lui e non questa app.",
   },
-  weightAck: {
-    noted: "Preso nota — numeri onesti fanno un piano onesto.",
-    bmr: "Ed ecco il tuo primo numero: a riposo il tuo corpo brucia circa {bmr} kcal al giorno. Le prossime domande lo affinano.",
-  },
-  activityReplies: {
-    few: "Grazie per la risposta onesta — quasi tutti esagerano qui, e poi è l'obiettivo a esagerare con loro.",
-    some: "Solido. Il numero darà per scontato che quegli allenamenti si facciano — non farmi sbagliare.",
-    many: "Allora il numero ha del lavoro vero da alimentare. Preferisco nutrirlo come si deve che tirare basso.",
-  },
-  strugglesCloser: {
-    none: "Meglio ancora. Se salta fuori qualcosa più avanti, dimmelo in chat — il piano sa adattarsi.",
-    one: "Con questo sappiamo lavorare — il piano si costruisce attorno, non contro. Restano due domande veloci.",
-    many: "Con ognuno di questi sappiamo lavorare — il piano si costruisce attorno, non contro. Restano due domande veloci.",
-  },
-  restrictions: {
-    kidneys: "Preso nota. Da qui in poi il sodio viene valutato — e solo perché me l'hai chiesto.",
-    ldl: "Preso nota. Da qui in poi i grassi saturi vengono valutati — e solo perché me l'hai chiesto.",
-    ldlChained: "Anche i grassi saturi vengono valutati — stessa regola: solo ciò che dichiari.",
-    declared: "Preso nota — vanno sul tuo profilo, e solo quelli vengono valutati.",
-    none: "Allora non viene valutato nulla in più — quello che non è dichiarato non lo è mai. Puoi aggiungerne uno quando vuoi nelle impostazioni.",
-    freeText: "E anche il testo libero va sul tuo profilo.",
-  },
-  invalid: {
+  invalid:  {
     age: "Non sembra un'età — prova con qualcosa tipo 34.",
     height_cm: "In centimetri — qualcosa tipo 175.",
     weight_kg: "In chilogrammi — approssimare va bene.",
     target_weight_kg: "Un numero in kg — tipo 70.",
   },
-  ambiguousAge: {
+  ambiguousAge:  {
     line: "Voglio essere sicuro di aver letto bene — se intendevi l'anno {year}, mandami tutte e quattro le cifre.",
     confirm: "Ho {age} anni",
   },
-  direction: {
+  direction:  {
     gain: "Sei a {weight} kg e chiedi di salire a {target} — da qui non è una crescita. Se l'obiettivo è cambiato possiamo invertirlo; altrimenti dammi un numero sopra {weight}.",
     lose: "Sei a {weight} kg e chiedi di scendere a {target} — da qui non è un calo. Se l'obiettivo è cambiato possiamo invertirlo; altrimenti dammi un numero sotto {weight}.",
     switchToLose: "Passa a perdere peso",
@@ -942,164 +500,83 @@ const IT: ChatCopy = {
     above: "Un numero sopra {weight}…",
     below: "Un numero sotto {weight}…",
   },
-  switched: {
+  switched:  {
     gain: "Invertito — si prende peso, allora. Dove ti piacerebbe arrivare, in kg?",
     lose: "Invertito — si perde peso, allora. Dove ti piacerebbe arrivare, in kg? Più veloce qui non è meglio — è solo più difficile da mantenere.",
   },
-  loseTail: " Più veloce qui non è meglio — è solo più difficile da mantenere.",
-  capNoteTail: " Fa circa {kg} kg a settimana.",
-  nothingApplies: "Niente di tutto ciò",
-  goalEdit: {
+  capNoteTail:  " Fa circa {kg} kg a settimana.",
+  goalEdit:  {
     cleared: "Il tuo peso obiettivo non corrispondeva più a quell'obiettivo, quindi è stato azzerato — impostane uno nuovo.",
     worthSetting: "Registrato. Il tuo peso obiettivo però non corrisponde più al tuo obiettivo — vale la pena impostarne uno nuovo.",
   },
-  health: {
-    ask: "Collega Apple Health e salta 5 domande",
-    rows: ["Altezza e peso", "Età e sesso", "Quanto ti alleni"],
-    connect: "Collega Apple Health",
-    manual: "Li inserisco io",
-    connected: "Ho i tuoi numeri. Si aggiornano da soli",
-    partial: "Quasi — mancano alcuni dati",
-    denied: "Inserisci i tuoi dati",
+  target: {
+    lowest: "{weight} · il minimo che fissiamo",
+    now: "{weight} · ora",
+    deltaDown: "− {weight}",
+    deltaUp: "+ {weight}",
   },
-  healthActivity: "Health mostra {n} allenamenti nelle ultime 4 settimane. {label}?",
-  targetSuggestion: {
+  pace: {
+    rate: "{rate} a settimana",
+    result: "{target} verso {month} · {kcal} kcal al giorno",
+    capMarker: "limitato al valore di sicurezza",
+    floorMarker: "mai sotto {floor} · ogni ritmo arriva qui",
+  },
+  how: {
+    title: "Ecco tutta l'app",
+    steps: ["Fotografa il piatto", "Ricevi un verdetto onesto", "Guarda i tuoi progressi"],
+  },
+  ontrack: {
+    title: "Fatta per tenerti in carreggiata",
+    captions: {
+      consistency: "Un giorno saltato non costa niente. Il prossimo riparte da zero.",
+      habits: "Niente è vietato. Ogni piatto riceve un verdetto onesto.",
+      support: "Chiedi a Spud, quando vuoi, in Chat.",
+      busy: "Una foto è tutto il diario.",
+      ideas: "Senza idee per cena? Spud trova cosa ci sta.",
+    },
+  },
+  chart: {
+    byEait: "eait analysis",
+    weightTrend: "Andamento del peso",
+    without: "Senza",
+    now: "Ora",
+    later: "Dopo",
+    twoWays: "Peso nel tempo, disegnato due volte: con un piano e senza",
+    estimatedProgress: "Progressi stimati",
+    estimate: "Stima",
+    target: "Obiettivo {weight}",
+    monthEstimate: "{month} · stima",
+  },
+  plan: {
+    goalLose: "Obiettivo: perdere {delta} entro {month}",
+    goalGain: "Obiettivo: prendere {delta} entro {month}",
+    goalMaintain: "Obiettivo: mantenere il mio peso",
+    rest: "A riposo il tuo corpo brucia", activity: "Con la tua attività, circa", pace: "Per il tuo ritmo, correggiamo", floor: "Il limite che non superiamo", protein: "Proteine da raggiungere",
+  },
+  health: {
+    title: "Sincronizza con Apple Health",
+    body: "Peso e attività entrano, i pasti restano fuori.",
+    connect: "Connetti Apple Health",
+    skip: "Non ora",
+  },
+  targetSuggestion:  {
     down: "Ti suggerisco {kg} kg, circa il {pct}% in meno — un buon primo obiettivo",
     up: "Ti suggerisco {kg} kg, circa il {pct}% in più — un buon primo obiettivo",
   },
-  firstMeal: FIRST_MEAL_COPY.it,
-  stepper: { continue: "Continua", less: "Meno", more: "Più" },
-  offerHeadline: "Arrivare a {kg} kg entro {month}",
-  planGoal: {
-    metric: "Obiettivo: perdere {n} kg entro {month}",
-    imperial: "Obiettivo: perdere {n} lb entro {month}",
-  },
-  reactions: {
-    goalLose: "Perdere peso. Bene — facciamo in modo che duri",
-    goalMaintain: "Mantenere — teniamo quello che già funziona",
-    goalGain: "Prendere peso. Bene — costruiamolo come si deve",
-    sex: "Annotato. La formula cambia un po' per ciascuno",
-    birthYear: "Bene. L'età sposta un po' il numero",
-    heightCm: "Ultimo numero. Nessun giudizio, è solo il punto di partenza",
-    weightWithBmr: "Grazie. A riposo, il tuo corpo brucia circa {bmr} kcal al giorno",
-    weightPlain: "Grazie.",
-    paceEasy: "Dolce — abbastanza lento da durare",
-    paceSteady: "Costante è il ritmo che si mantiene",
-    pacePush: "Deciso — la variazione quotidiana resta entro i limiti sicuri",
-    struggles: "Fammi trovare i prodotti della tua zona",
-    country: "Ci siamo quasi",
-  },
-  moments: {
-    target: {
-      title: "Un obiettivo che puoi mantenere",
-      cta: "Continua",
-      inBand: "Perdere il 5–10% è dove i benefici per la salute iniziano a vedersi: colesterolo, pressione, energia. {kg} kg è proprio in quella fascia. Abbastanza vicino da raggiungere, abbastanza grande da contare.",
-      neutral: "{kg} kg — un primo obiettivo chiaro, con un piano dimensionato per raggiungerlo.",
-    },
-    activity: {
-      title: "È fantastico!",
-      body: "Ogni movimento conta. Non serve la palestra: una passeggiata dopo pranzo fa molta strada, e il tuo piano conta già quello che fai.",
-      cta: "Continua",
-    },
-    struggles: {
-      title: "È assolutamente normale!",
-      cta: "Continua",
-      many: "Niente di tutto questo è un tuo fallimento. Io non vieto niente: mangia quello che mangi, e ti dirò onestamente come ogni pasto ci sta.",
-    },
-    restrictions: {
-      title: "Grazie per la fiducia",
-      body: "Il tuo peso, quello che è stato difficile, quello che mi hai appena raccontato — è tanto da condividere con un'app. Lo userò per una cosa sola: giudicare ogni pasto rispetto a ciò che conta per te.",
-      cta: "Crea il mio piano",
-    },
-  },
+  firstMeal:  FIRST_MEAL_COPY.it,
+  stepper:  { continue: "Continua", less: "Meno", more: "Più" },
+  offerHeadline:  "Arrivare a {kg} kg entro {month}",
+  planGoal: { metric: "Obiettivo: perdere {n} kg entro {month}", imperial: "Obiettivo: perdere {n} lb entro {month}" },
 };
 
 const ES: ChatCopy = {
-  idlePlaceholder: "Escribe a Spud…",
-  struggles: {
-    stress: "Comer por estrés",
-    night: "Picar de noche",
-    binge: "Atracones",
-    diets: "Dietas que no duraron",
-    eatout: "Comer fuera a menudo",
-    energy: "Poca energía",
-    body: "Imagen corporal",
-    metabolism: "Dudas con el metabolismo",
-  },
-  strugglesAsk: ["Ahora la parte que casi ninguna app toca. ¿Qué te ha costado? Elige lo que quieras — o nada. Esto orienta el apoyo, nunca un juicio."],
-  quick: {
-    struggles: { finish: "Listo", none: "Nada de esto" },
-    restrictions: { finish: "Terminar", none: "Nada de esto" },
-  },
-  goalCards: {
-    lose: {
-      title: "Estás en buena compañía",
-      body: "Alrededor del 42% de los adultos intenta perder peso en un año cualquiera. La diferencia aquí: tu objetivo se calcula bien, con un suelo que no cruzamos.",
-      source: "Revisión sistemática de 72 estudios · n = 1,18 M de adultos",
-    },
-    gain: {
-      title: "Menos raro de lo que parece",
-      body: "Cerca del 23% de los hombres jóvenes y el 6% de las mujeres jóvenes intentó ganar peso activamente el año pasado. Es un objetivo real, con técnica real — pondremos un superávit que construya más de lo que rellena.",
-      source: "Estudio canadiense de adultos jóvenes · n = 976",
-    },
-    maintain: {
-      title: "El objetivo silencioso",
-      body: "Alrededor del 23% de los adultos trabaja activamente para mantener su peso — el objetivo del que nadie habla, y merece un plan igual. Tus días se juzgan frente a quedarte donde estás.",
-      source: "Metaanálisis de intentos de control de peso en el último año",
-    },
-  },
-  goalFollowups: {
-    gain: "Las mismas reglas que para todos aquí — números honestos, sin ánimos vacíos, sin vergüenza — solo apuntando arriba en vez de abajo.",
-    maintain: "Y el camino fácil es el tuyo: no hay peso objetivo que elegir — planificamos alrededor de quedarte donde estás.",
-  },
-  struggleCards: {
-    stress: {
-      title: "Un patrón, no un defecto de carácter",
-      body: "Comer por estrés es un patrón, no un defecto de carácter. Ponerle nombre es casi todo el trabajo; el registro hace el resto.",
-    },
-    night: {
-      title: "La hora no se puntúa",
-      body: "Comer tarde no se puntúa aquí. Solo cuenta lo que suma el día entero.",
-    },
-    binge: {
-      title: "Un día malo es un dato",
-      body: "Si los episodios se sienten fuera de control, un profesional ayuda más que cualquier app. Aquí un día malo es un dato, nunca un veredicto.",
-    },
-    diets: {
-      title: "El método falla, no tú",
-      body: "Las dietas que prohíben la comida que te gusta rara vez duran. No eres tú quien falla. Yo no prohíbo nada: come lo que comes, y te diré honestamente cómo encaja.",
-    },
-    eatout: {
-      title: "Los platos de restaurante son los que más se desvían",
-      body: "Las estimaciones se desvían más con lo que no cocinaste tú — y ahí es justo donde las fotos son buenas. Cuando no esté seguro lo diré, en vez de disimular.",
-    },
-    energy: {
-      title: "La energía es la medida honesta",
-      body: "Los días mal alimentados y la falta de energía van de la mano — es una de las razones por las que rechazamos objetivos por debajo del suelo de seguridad. La comida es la mitad de la energía; miraremos la forma de tus días.",
-    },
-    body: {
-      title: "Aquí la báscula no juzga",
-      body: "Tendrás números sobre la comida, nunca comentarios sobre tu cuerpo. Tu objetivo fija las metas; aquí nada se compara con nadie.",
-    },
-    metabolism: {
-      title: "Midamos en vez de preocuparnos",
-      body: "Los metabolismos se parecen más de lo que dice internet — pero el tuyo es el tuyo, y dos semanas de registro honesto enseñan lo que hace de verdad. Eso gana a cualquier fórmula, la mía incluida.",
-    },
-  },
-  dietsGainCard: {
-    title: "El método falla, no tú",
-    body: "Cambiar de peso rara vez se mantiene al primer intento, en ninguna dirección. Son los métodos los que fallan, no tú. Tu superávit está dimensionado para poder sostenerse.",
-  },
-  gainPaceCard: {
-    title: "Ganar bien es lento a propósito",
-    body: "Tu superávit se limita a cerca del {share}% por encima de lo que tu cuerpo quema en un día — la zona donde el músculo sigue el ritmo de la báscula. Casi todos los que lo consiguen empiezan por la proteína; la tuya la seguimos automáticamente.",
-    source: "Encuesta a 168 adultos deportistas que buscaban ganar peso",
-  },
-  underAgeCard: {
+  idlePlaceholder:  "Escribe a Spud…",
+  continueLabel: "Continuar",
+  underAgeCard:  {
     title: "eait es para {age} años en adelante",
     body: "La forma en que esta app fija objetivos de calorías no está pensada para un cuerpo que todavía está creciendo.",
   },
-  underAge: {
+  underAge:  {
     ask: "Lo siento — aquí tengo que parar. Si ha sido una errata, mándame tu edad de verdad.",
     confirm: "Es mi edad de verdad",
     placeholder: "Tu edad",
@@ -1109,43 +586,21 @@ const ES: ChatCopy = {
     ],
     endedPlaceholder: "eait es para {age} años en adelante",
   },
-  belowHealthy: {
+  belowHealthy:  {
     title: "No puedo poner eso como objetivo",
     body: "El peso saludable más bajo para tu altura es de unos {kg} kg. No fijamos objetivos por debajo. Si estás trabajando otra cosa con un médico, hazle caso a él y no a esta app.",
   },
-  weightAck: {
-    noted: "Anotado — números honestos hacen un plan honesto.",
-    bmr: "Y aquí va tu primer número: en reposo tu cuerpo quema unas {bmr} kcal al día. Las siguientes preguntas lo afinan.",
-  },
-  activityReplies: {
-    few: "Gracias por la respuesta honesta — casi todo el mundo se pasa aquí, y luego el objetivo se pasa con ellos.",
-    some: "Sólido. El número dará por hecho que esos entrenamientos ocurren — no me dejes mentir.",
-    many: "Entonces el número tiene trabajo de verdad que alimentar. Prefiero alimentarlo bien que quedarme corto.",
-  },
-  strugglesCloser: {
-    none: "Mejor aún. Si aparece algo más adelante, dímelo en el chat — el plan sabe adaptarse.",
-    one: "Con eso sabemos trabajar — el plan se construye alrededor, no en contra. Quedan dos preguntas rápidas.",
-    many: "Con cada una de estas sabemos trabajar — el plan se construye alrededor, no en contra. Quedan dos preguntas rápidas.",
-  },
-  restrictions: {
-    kidneys: "Anotado. A partir de ahora se puntúa el sodio — y solo porque lo has pedido.",
-    ldl: "Anotado. A partir de ahora se puntúan las grasas saturadas — y solo porque lo has pedido.",
-    ldlChained: "Las grasas saturadas también se puntúan — misma regla: solo lo que declares.",
-    declared: "Anotado — van a tu perfil, y solo eso se puntúa.",
-    none: "Entonces no se puntúa nada extra — lo que no se declara no se puntúa nunca. Puedes añadir algo cuando quieras en ajustes.",
-    freeText: "Y el texto libre va a tu perfil también.",
-  },
-  invalid: {
+  invalid:  {
     age: "Eso no parece una edad — prueba con algo como 34.",
     height_cm: "En centímetros — algo como 175.",
     weight_kg: "En kilogramos — aproximado vale.",
     target_weight_kg: "Un número en kg — como 70.",
   },
-  ambiguousAge: {
+  ambiguousAge:  {
     line: "Quiero estar seguro de haberlo leído bien — si querías decir el año {year}, mándame las cuatro cifras.",
     confirm: "Tengo {age} años",
   },
-  direction: {
+  direction:  {
     gain: "Estás en {weight} kg y pides subir hasta {target} — desde aquí eso no es subir. Si el objetivo ha cambiado, lo cambiamos; si no, dame un número por encima de {weight}.",
     lose: "Estás en {weight} kg y pides bajar hasta {target} — desde aquí eso no es bajar. Si el objetivo ha cambiado, lo cambiamos; si no, dame un número por debajo de {weight}.",
     switchToLose: "Cambiar a perder peso",
@@ -1153,164 +608,83 @@ const ES: ChatCopy = {
     above: "Un número por encima de {weight}…",
     below: "Un número por debajo de {weight}…",
   },
-  switched: {
+  switched:  {
     gain: "Cambiado — ganar, entonces. ¿Dónde te gustaría llegar, en kg?",
     lose: "Cambiado — perder, entonces. ¿Dónde te gustaría llegar, en kg? Más rápido no es mejor aquí — solo es más difícil de sostener.",
   },
-  loseTail: " Más rápido no es mejor aquí — solo es más difícil de sostener.",
-  capNoteTail: " Eso son unos {kg} kg por semana.",
-  nothingApplies: "Nada de esto",
-  goalEdit: {
+  capNoteTail:  " Eso son unos {kg} kg por semana.",
+  goalEdit:  {
     cleared: "Tu peso objetivo ya no encajaba con ese objetivo, así que se ha borrado — pon uno nuevo.",
     worthSetting: "Registrado. Eso sí, tu peso objetivo ya no encaja con tu objetivo — merece la pena poner uno nuevo.",
   },
-  health: {
-    ask: "Conecta Apple Health y sáltate 5 preguntas",
-    rows: ["Altura y peso", "Edad y sexo", "Cuánto entrenas"],
-    connect: "Conectar Apple Health",
-    manual: "Los escribo yo",
-    connected: "Ya tengo tus números. Se mantienen al día solos",
-    partial: "Casi — faltan algunos datos",
-    denied: "Escribe tus datos",
+  target: {
+    lowest: "{weight} · el mínimo que fijamos",
+    now: "{weight} · ahora",
+    deltaDown: "− {weight}",
+    deltaUp: "+ {weight}",
   },
-  healthActivity: "Health muestra {n} entrenamientos en las últimas 4 semanas. ¿{label}?",
-  targetSuggestion: {
+  pace: {
+    rate: "{rate} a la semana",
+    result: "{target} hacia {month} · {kcal} kcal al día",
+    capMarker: "limitado al tope seguro",
+    floorMarker: "nunca por debajo de {floor} · cada ritmo llega aquí",
+  },
+  how: {
+    title: "Esa es toda la app",
+    steps: ["Fotografía el plato", "Recibe un veredicto honesto", "Ve tu progreso"],
+  },
+  ontrack: {
+    title: "Hecha para que no te salgas",
+    captions: {
+      consistency: "Un día fallado no cuesta nada. El siguiente empieza de cero.",
+      habits: "Nada está prohibido. Cada plato recibe un veredicto honesto.",
+      support: "Pregúntale a Spud lo que sea, cuando sea, en el Chat.",
+      busy: "Una foto es todo el registro.",
+      ideas: "¿Sin ideas para cenar? Spud te dice qué cabe.",
+    },
+  },
+  chart: {
+    byEait: "eait analysis",
+    weightTrend: "Tendencia del peso",
+    without: "Sin",
+    now: "Ahora",
+    later: "Después",
+    twoWays: "Peso a lo largo del tiempo, dibujado dos veces: con un plan y sin él",
+    estimatedProgress: "Progreso estimado",
+    estimate: "Estimación",
+    target: "Meta {weight}",
+    monthEstimate: "{month} · estimación",
+  },
+  plan: {
+    goalLose: "Meta: perder {delta} para {month}",
+    goalGain: "Meta: ganar {delta} para {month}",
+    goalMaintain: "Meta: mantener mi peso",
+    rest: "En reposo tu cuerpo quema", activity: "Con tu actividad, unas", pace: "Para tu ritmo, ajustamos", floor: "El mínimo del que no bajamos", protein: "Proteína objetivo",
+  },
+  health: {
+    title: "Sincronizar con Apple Health",
+    body: "Peso y actividad entran, las comidas no salen.",
+    connect: "Conectar Apple Health",
+    skip: "Ahora no",
+  },
+  targetSuggestion:  {
     down: "Te sugiero {kg} kg, alrededor de un {pct}% menos — una buena primera meta",
     up: "Te sugiero {kg} kg, alrededor de un {pct}% más — una buena primera meta",
   },
-  firstMeal: FIRST_MEAL_COPY.es,
-  stepper: { continue: "Continuar", less: "Menos", more: "Más" },
-  offerHeadline: "Llegar a {kg} kg en {month}",
-  planGoal: {
-    metric: "Objetivo: bajar {n} kg para {month}",
-    imperial: "Objetivo: bajar {n} lb para {month}",
-  },
-  reactions: {
-    goalLose: "Perder peso. Bien — hagamos que se mantenga",
-    goalMaintain: "Mantener — conservemos lo que ya funciona",
-    goalGain: "Ganar peso. Bien — construyámoslo bien",
-    sex: "Anotado. La fórmula difiere un poco para cada uno",
-    birthYear: "Bien. La edad mueve un poco el número",
-    heightCm: "Último número. Sin juicios, es solo el punto de partida",
-    weightWithBmr: "Gracias. En reposo, tu cuerpo quema unas {bmr} kcal al día",
-    weightPlain: "Gracias.",
-    paceEasy: "Suave — lo bastante lento para durar",
-    paceSteady: "Constante es el ritmo que la gente mantiene",
-    pacePush: "Fuerte, entonces — el cambio diario queda dentro de lo seguro",
-    struggles: "Déjame encontrar los productos de tu zona",
-    country: "Ya casi",
-  },
-  moments: {
-    target: {
-      title: "Una meta que puedes mantener",
-      cta: "Continuar",
-      inBand: "Perder un 5–10% es donde empiezan a notarse las mejoras de salud: colesterol, tensión, energía. {kg} kg cae justo en esa franja. Lo bastante pequeña para alcanzarla, lo bastante grande para importar.",
-      neutral: "{kg} kg — una primera meta clara, con un plan dimensionado para alcanzarla.",
-    },
-    activity: {
-      title: "¡Genial!",
-      body: "Todo movimiento cuenta. No hace falta gimnasio: un paseo después de comer llega lejos, y tu plan ya cuenta lo que haces.",
-      cta: "Continuar",
-    },
-    struggles: {
-      title: "¡Es completamente normal!",
-      cta: "Continuar",
-      many: "Nada de esto es un fallo tuyo. Yo no prohíbo nada: come lo que comes, y te diré honestamente cómo encaja cada comida.",
-    },
-    restrictions: {
-      title: "Gracias por confiar en mí",
-      body: "Tu peso, lo que ha sido difícil, lo que acabas de contarme — es mucho para contarle a una app. Lo usaré para una sola cosa: juzgar cada comida según lo que te importa.",
-      cta: "Crear mi plan",
-    },
-  },
+  firstMeal:  FIRST_MEAL_COPY.es,
+  stepper:  { continue: "Continuar", less: "Menos", more: "Más" },
+  offerHeadline:  "Llegar a {kg} kg en {month}",
+  planGoal: { metric: "Objetivo: bajar {n} kg para {month}", imperial: "Objetivo: bajar {n} lb para {month}" },
 };
 
 const VI: ChatCopy = {
-  idlePlaceholder: "Nhắn cho Spud…",
-  struggles: {
-    stress: "Ăn khi căng thẳng",
-    night: "Ăn vặt đêm",
-    binge: "Những cơn ăn mất kiểm soát",
-    diets: "Ăn kiêng không trụ được",
-    eatout: "Ăn ngoài nhiều",
-    energy: "Hay uể oải",
-    body: "Hình ảnh cơ thể",
-    metabolism: "Lo về trao đổi chất",
-  },
-  strugglesAsk: ["Giờ đến phần mà hầu hết ứng dụng bỏ qua. Điều gì đã khó với bạn? Chọn bao nhiêu cũng được — hoặc không chọn gì. Việc này định hình cách hỗ trợ, không bao giờ để phán xét."],
-  quick: {
-    struggles: { finish: "Xong", none: "Không cái nào" },
-    restrictions: { finish: "Hoàn tất", none: "Không có gì" },
-  },
-  goalCards: {
-    lose: {
-      title: "Bạn không hề đơn độc",
-      body: "Khoảng 42% người trưởng thành cố giảm cân trong một năm bất kỳ. Khác biệt ở đây: mục tiêu của bạn được tính đàng hoàng, với một mức sàn chúng mình không vượt qua.",
-      source: "Tổng quan hệ thống 72 nghiên cứu · n = 1,18 triệu người trưởng thành",
-    },
-    gain: {
-      title: "Không hiếm như bạn tưởng",
-      body: "Khoảng 23% nam giới trẻ và 6% nữ giới trẻ đã chủ động cố tăng cân trong năm qua. Đây là mục tiêu thật, có kỹ thuật thật — chúng mình sẽ đặt mức dư vừa đủ để xây cơ hơn là tích mỡ.",
-      source: "Nghiên cứu trên người trẻ tại Canada · n = 976",
-    },
-    maintain: {
-      title: "Mục tiêu thầm lặng",
-      body: "Khoảng 23% người trưởng thành đang chủ động giữ cân — mục tiêu chẳng ai đăng lên mạng, và nó vẫn xứng đáng có một kế hoạch. Ngày của bạn sẽ được chấm theo việc giữ nguyên.",
-      source: "Phân tích tổng hợp các nỗ lực kiểm soát cân nặng trong năm qua",
-    },
-  },
-  goalFollowups: {
-    gain: "Luật vẫn như với mọi người ở đây — số liệu thành thật, không tung hô, không xấu hổ — chỉ là hướng lên thay vì hướng xuống.",
-    maintain: "Và bạn được đi đường dễ: không phải chọn cân nặng mục tiêu — chúng mình lên kế hoạch quanh việc giữ nguyên.",
-  },
-  struggleCards: {
-    stress: {
-      title: "Đây là một khuôn mẫu, không phải lỗi tính cách",
-      body: "Ăn khi căng thẳng là một khuôn mẫu, không phải lỗi tính cách. Gọi được tên nó đã là phần lớn công việc; phần còn lại để nhật ký lo.",
-    },
-    night: {
-      title: "Giờ giấc không bị chấm",
-      body: "Ăn muộn không bị chấm ở đây. Chỉ tổng của cả ngày mới được tính.",
-    },
-    binge: {
-      title: "Một ngày tệ là dữ liệu",
-      body: "Nếu những cơn đó thấy ngoài tầm kiểm soát, một bác sĩ giúp được nhiều hơn bất kỳ ứng dụng nào. Ở đây, một ngày khó khăn là dữ liệu, không bao giờ là bản án.",
-    },
-    diets: {
-      title: "Phương pháp thất bại, không phải bạn",
-      body: "Những chế độ ăn cấm món bạn thích hiếm khi bền. Đó không phải bạn thất bại. Mình không cấm gì cả: cứ ăn như bạn ăn, và mình sẽ nói thành thật nó hợp thế nào.",
-    },
-    eatout: {
-      title: "Đồ ăn nhà hàng lệch nhiều nhất",
-      body: "Ước lượng lệch nhiều nhất với món bạn không tự nấu — và đó đúng là chỗ ảnh chụp làm tốt nhất. Khi không chắc, mình sẽ nói thẳng chứ không làm ra vẻ.",
-    },
-    energy: {
-      title: "Năng lượng là thước đo thành thật",
-      body: "Những ngày ăn thiếu và cảm giác uể oải luôn đi cùng nhau — đó là một lý do chúng mình từ chối mục tiêu dưới mức sàn an toàn. Đồ ăn là một nửa của năng lượng; chúng mình sẽ để ý xem ngày của bạn diễn ra thế nào.",
-    },
-    body: {
-      title: "Ở đây cái cân không phán xét",
-      body: "Bạn sẽ nhận con số về đồ ăn, không bao giờ là nhận xét về cơ thể. Mục tiêu của bạn đặt ra chỉ tiêu; ở đây không có gì đem so với người khác.",
-    },
-    metabolism: {
-      title: "Cứ đo thay vì lo",
-      body: "Trao đổi chất giữa người này người kia chênh nhau ít hơn internet nói — nhưng của bạn là của bạn, và hai tuần ghi chép thành thật sẽ cho thấy nó thật sự làm gì. Cái đó hơn mọi công thức, kể cả công thức của mình.",
-    },
-  },
-  dietsGainCard: {
-    title: "Phương pháp thất bại, không phải bạn",
-    body: "Thay đổi cân nặng hiếm khi bền ngay lần đầu, theo chiều nào cũng vậy. Đó là phương pháp thất bại, không phải bạn. Mức dư của bạn được tính để giữ được.",
-  },
-  gainPaceCard: {
-    title: "Tăng tốt thì chậm, và đó là cố ý",
-    body: "Mức dư của bạn được giới hạn ở khoảng {share}% trên mức cơ thể đốt trong một ngày — vùng mà cơ bắp theo kịp cái cân. Hầu hết những người tăng cân thành công đều đi trước bằng đạm; đạm của bạn chúng mình theo dõi tự động.",
-    source: "Khảo sát 168 người trưởng thành tập luyện muốn tăng cân",
-  },
-  underAgeCard: {
+  idlePlaceholder:  "Nhắn cho Spud…",
+  continueLabel: "Tiếp tục",
+  underAgeCard:  {
     title: "eait dành cho {age} tuổi trở lên",
     body: "Cách ứng dụng này đặt mục tiêu calo không được thiết kế cho một cơ thể vẫn đang lớn.",
   },
-  underAge: {
+  underAge:  {
     ask: "Xin lỗi — mình phải dừng ở đây. Nếu chỉ là gõ nhầm, bạn gửi lại tuổi thật nhé.",
     confirm: "Đó là tuổi thật của tôi",
     placeholder: "Tuổi của bạn",
@@ -1320,43 +694,21 @@ const VI: ChatCopy = {
     ],
     endedPlaceholder: "eait dành cho {age} tuổi trở lên",
   },
-  belowHealthy: {
+  belowHealthy:  {
     title: "Mình không đặt được mức đó làm mục tiêu",
     body: "Cân nặng khoẻ mạnh thấp nhất với chiều cao của bạn là khoảng {kg} kg. Chúng mình không đặt mục tiêu dưới mức đó. Nếu bạn đang theo một hướng khác cùng bác sĩ, hãy nghe bác sĩ chứ đừng nghe ứng dụng này.",
   },
-  weightAck: {
-    noted: "Ghi nhận — số liệu thành thật thì kế hoạch mới thành thật.",
-    bmr: "Và đây là con số đầu tiên của bạn: lúc nghỉ, cơ thể bạn đốt khoảng {bmr} kcal mỗi ngày. Mấy câu tiếp theo sẽ làm nó chính xác hơn.",
-  },
-  activityReplies: {
-    few: "Cảm ơn vì câu trả lời thành thật — phần lớn mọi người khai quá tay ở chỗ này, rồi con số cũng quá tay với họ.",
-    some: "Ổn đấy. Con số sẽ giả định là những buổi tập đó có diễn ra — nhớ giữ mình thành thật nhé.",
-    many: "Vậy thì con số này phải nuôi khối lượng vận động thật. Mình thà nạp đủ còn hơn đoán thấp.",
-  },
-  strugglesCloser: {
-    none: "Càng tốt. Nếu sau này có gì xuất hiện, cứ nói với mình trong chat — kế hoạch điều chỉnh được.",
-    one: "Chuyện đó chúng mình biết cách xử lý — kế hoạch sẽ được dựng quanh nó, chứ không chống lại nó. Còn hai câu ngắn nữa thôi.",
-    many: "Từng chuyện một chúng mình đều biết cách xử lý — kế hoạch sẽ được dựng quanh chúng, chứ không chống lại chúng. Còn hai câu ngắn nữa thôi.",
-  },
-  restrictions: {
-    kidneys: "Ghi nhận. Từ giờ natri sẽ được chấm — và chỉ vì bạn yêu cầu.",
-    ldl: "Ghi nhận. Từ giờ chất béo bão hoà sẽ được chấm — và chỉ vì bạn yêu cầu.",
-    ldlChained: "Chất béo bão hoà cũng được chấm — vẫn luật đó: chỉ những gì bạn khai.",
-    declared: "Ghi nhận — những mục đó vào hồ sơ của bạn, và chỉ chúng được chấm.",
-    none: "Vậy sẽ không có gì thêm được chấm — thứ không khai thì không bao giờ bị chấm. Bạn có thể thêm bất cứ lúc nào trong cài đặt.",
-    freeText: "Và phần viết tự do cũng vào hồ sơ của bạn.",
-  },
-  invalid: {
+  invalid:  {
     age: "Cái đó trông không giống một số tuổi — thử kiểu như 34 xem.",
     height_cm: "Tính bằng cm — kiểu như 175.",
     weight_kg: "Tính bằng kg — áng chừng là được.",
     target_weight_kg: "Một số tính bằng kg — ví dụ 70.",
   },
-  ambiguousAge: {
+  ambiguousAge:  {
     line: "Mình muốn chắc là đọc đúng — nếu ý bạn là năm {year}, gửi đủ bốn chữ số nhé.",
     confirm: "Tôi {age} tuổi",
   },
-  direction: {
+  direction:  {
     gain: "Bạn đang ở {weight} kg mà lại muốn tăng lên {target} — từ đây thì đó không phải là tăng. Nếu mục tiêu đã đổi, chúng mình đổi theo; còn không thì cho mình một số trên {weight}.",
     lose: "Bạn đang ở {weight} kg mà lại muốn giảm xuống {target} — từ đây thì đó không phải là giảm. Nếu mục tiêu đã đổi, chúng mình đổi theo; còn không thì cho mình một số dưới {weight}.",
     switchToLose: "Chuyển sang giảm cân",
@@ -1364,164 +716,83 @@ const VI: ChatCopy = {
     above: "Một số trên {weight}…",
     below: "Một số dưới {weight}…",
   },
-  switched: {
+  switched:  {
     gain: "Đã chuyển — vậy là tăng cân. Bạn muốn về mức nào, tính bằng kg?",
     lose: "Đã chuyển — vậy là giảm cân. Bạn muốn về mức nào, tính bằng kg? Nhanh hơn không có nghĩa là tốt hơn — chỉ khó giữ hơn thôi.",
   },
-  loseTail: " Nhanh hơn không có nghĩa là tốt hơn — chỉ khó giữ hơn thôi.",
-  capNoteTail: " Tính ra khoảng {kg} kg mỗi tuần.",
-  nothingApplies: "Không có gì",
-  goalEdit: {
+  capNoteTail:  " Tính ra khoảng {kg} kg mỗi tuần.",
+  goalEdit:  {
     cleared: "Cân nặng mục tiêu của bạn không còn hợp với mục tiêu đó nữa nên đã được xoá — đặt lại một mức mới nhé.",
     worthSetting: "Đã ghi. Có điều cân nặng mục tiêu của bạn không còn hợp với mục tiêu nữa — nên đặt lại một mức mới.",
   },
-  health: {
-    ask: "Kết nối Apple Health để bỏ qua 5 câu hỏi",
-    rows: ["Chiều cao và cân nặng", "Tuổi và giới tính", "Mức độ tập luyện"],
-    connect: "Kết nối Apple Health",
-    manual: "Tự nhập",
-    connected: "Đã có số liệu của bạn. Chúng tự cập nhật",
-    partial: "Gần xong — còn thiếu vài thông tin",
-    denied: "Nhập thông tin của bạn",
+  target: {
+    lowest: "{weight} · mức thấp nhất chúng tôi đặt",
+    now: "{weight} · hiện tại",
+    deltaDown: "− {weight}",
+    deltaUp: "+ {weight}",
   },
-  healthActivity: "Health ghi nhận {n} buổi tập trong 4 tuần qua. {label}?",
-  targetSuggestion: {
+  pace: {
+    rate: "{rate} một tuần",
+    result: "{target} vào khoảng {month} · {kcal} kcal một ngày",
+    capMarker: "đã giới hạn ở mức an toàn",
+    floorMarker: "không bao giờ dưới {floor} · mọi tốc độ đều đến đây",
+  },
+  how: {
+    title: "Đó là toàn bộ ứng dụng",
+    steps: ["Chụp món ăn", "Nhận đánh giá trung thực", "Xem tiến triển của bạn"],
+  },
+  ontrack: {
+    title: "Được làm ra để giữ bạn đi đúng hướng",
+    captions: {
+      consistency: "Một ngày lỡ không mất gì. Ngày tiếp theo bắt đầu từ số không.",
+      habits: "Không món nào bị cấm. Mỗi đĩa đều nhận một đánh giá trung thực.",
+      support: "Hỏi Spud bất cứ điều gì, bất cứ lúc nào, trong Chat.",
+      busy: "Một tấm ảnh là cả bản ghi.",
+      ideas: "Bí ý tưởng cho bữa tối? Hỏi Spud xem cái gì vừa với phần còn lại.",
+    },
+  },
+  chart: {
+    byEait: "eait analysis",
+    weightTrend: "Xu hướng cân nặng",
+    without: "Không dùng",
+    now: "Hiện tại",
+    later: "Về sau",
+    twoWays: "Cân nặng theo thời gian, vẽ hai cách: có kế hoạch và không",
+    estimatedProgress: "Tiến triển ước tính",
+    estimate: "Ước tính",
+    target: "Mục tiêu {weight}",
+    monthEstimate: "{month} · ước tính",
+  },
+  plan: {
+    goalLose: "Mục tiêu: giảm {delta} đến {month}",
+    goalGain: "Mục tiêu: tăng {delta} đến {month}",
+    goalMaintain: "Mục tiêu: giữ cân nặng",
+    rest: "Lúc nghỉ, cơ thể bạn đốt", activity: "Với mức vận động của bạn, khoảng", pace: "Điều chỉnh theo nhịp độ của bạn", floor: "Mức sàn không vượt qua", protein: "Đạm cần hướng tới",
+  },
+  health: {
+    title: "Đồng bộ với Apple Health",
+    body: "Cân nặng và vận động đi vào, bữa ăn không đi ra.",
+    connect: "Kết nối Apple Health",
+    skip: "Để sau",
+  },
+  targetSuggestion:  {
     down: "Mình gợi ý {kg} kg, tức xuống khoảng {pct}% — một mục tiêu đầu tiên hợp lý",
     up: "Mình gợi ý {kg} kg, tức lên khoảng {pct}% — một mục tiêu đầu tiên hợp lý",
   },
-  firstMeal: FIRST_MEAL_COPY.vi,
-  stepper: { continue: "Tiếp tục", less: "Bớt", more: "Thêm" },
-  offerHeadline: "Đạt {kg} kg vào {month}",
-  planGoal: {
-    metric: "Mục tiêu: giảm {n} kg vào {month}",
-    imperial: "Mục tiêu: giảm {n} lb vào {month}",
-  },
-  reactions: {
-    goalLose: "Xuống cân. Tốt — mình sẽ giúp nó bền",
-    goalMaintain: "Giữ cân — mình giữ lại những gì đang ổn",
-    goalGain: "Lên cân. Tốt — mình làm cho đúng",
-    sex: "Đã ghi nhận. Công thức khác một chút ở mỗi giới",
-    birthYear: "Tốt. Tuổi tác làm con số dịch đi một chút",
-    heightCm: "Con số cuối. Không phán xét, đó chỉ là điểm xuất phát",
-    weightWithBmr: "Cảm ơn bạn. Khi nghỉ, cơ thể bạn đốt khoảng {bmr} kcal mỗi ngày",
-    weightPlain: "Cảm ơn bạn.",
-    paceEasy: "Nhẹ nhàng — đủ chậm để giữ được",
-    paceSteady: "Đều đặn là nhịp mà mọi người giữ được",
-    pacePush: "Dồn sức nhé — mức thay đổi mỗi ngày vẫn nằm trong vùng an toàn",
-    struggles: "Để mình tìm những món quen thuộc nơi bạn sống",
-    country: "Gần xong rồi",
-  },
-  moments: {
-    target: {
-      title: "Một mục tiêu bạn giữ được",
-      cta: "Tiếp tục",
-      inBand: "Xuống 5–10% là ngưỡng mà lợi ích sức khỏe bắt đầu lộ rõ: cholesterol, huyết áp, năng lượng. {kg} kg nằm đúng trong vùng đó. Đủ nhỏ để chạm tới, đủ lớn để có ý nghĩa.",
-      neutral: "{kg} kg — một mục tiêu đầu tiên rõ ràng, với kế hoạch được tính để đạt tới.",
-    },
-    activity: {
-      title: "Tuyệt quá!",
-      body: "Mọi vận động đều tính. Không cần phòng gym: một buổi đi bộ sau bữa trưa đã đi được một đoạn dài, và kế hoạch của bạn đã tính cả những gì bạn làm.",
-      cta: "Tiếp tục",
-    },
-    struggles: {
-      title: "Điều đó hoàn toàn bình thường!",
-      cta: "Tiếp tục",
-      many: "Không điều nào trong số này là bạn thất bại. Mình không cấm gì cả: cứ ăn như bạn ăn, và mình sẽ nói thành thật mỗi bữa hợp thế nào.",
-    },
-    restrictions: {
-      title: "Cảm ơn bạn đã tin mình",
-      body: "Cân nặng, những điều từng khó khăn, và những gì bạn vừa chia sẻ — thật nhiều để kể cho một ứng dụng. Mình chỉ dùng nó cho một việc: đánh giá mỗi bữa ăn theo điều quan trọng với bạn.",
-      cta: "Tạo kế hoạch của tôi",
-    },
-  },
+  firstMeal:  FIRST_MEAL_COPY.vi,
+  stepper:  { continue: "Tiếp tục", less: "Bớt", more: "Thêm" },
+  offerHeadline:  "Đạt {kg} kg vào {month}",
+  planGoal: { metric: "Mục tiêu: giảm {n} kg vào {month}", imperial: "Mục tiêu: giảm {n} lb vào {month}" },
 };
 
 const ID: ChatCopy = {
-  idlePlaceholder: "Kirim pesan ke Spud…",
-  struggles: {
-    stress: "Makan saat stres",
-    night: "Ngemil malam",
-    binge: "Makan berlebihan tak terkendali",
-    diets: "Diet yang tidak bertahan",
-    eatout: "Sering makan di luar",
-    energy: "Kurang energi",
-    body: "Citra tubuh",
-    metabolism: "Khawatir soal metabolisme",
-  },
-  strugglesAsk: ["Sekarang bagian yang kebanyakan aplikasi lewati. Apa yang selama ini terasa berat? Pilih berapa pun — atau tidak sama sekali. Ini membentuk dukungannya, bukan penilaian."],
-  quick: {
-    struggles: { finish: "Selesai", none: "Tidak satu pun" },
-    restrictions: { finish: "Selesaikan", none: "Tidak ada" },
-  },
-  goalCards: {
-    lose: {
-      title: "Kamu tidak sendirian",
-      body: "Sekitar 42% orang dewasa mencoba menurunkan berat badan dalam satu tahun mana pun. Bedanya di sini: targetmu dihitung dengan benar, dengan batas bawah yang tidak kami lewati.",
-      source: "Tinjauan sistematis 72 studi · n = 1,18 juta orang dewasa",
-    },
-    gain: {
-      title: "Lebih umum dari yang kamu kira",
-      body: "Sekitar 23% pria muda dan 6% wanita muda aktif mencoba menaikkan berat badan tahun lalu. Ini tujuan nyata dengan teknik nyata — kami akan menyetel surplus yang lebih banyak membangun daripada menumpuk.",
-      source: "Studi dewasa muda di Kanada · n = 976",
-    },
-    maintain: {
-      title: "Tujuan yang jarang disebut",
-      body: "Sekitar 23% orang dewasa aktif berusaha menjaga berat badannya — tujuan yang tidak pernah dipamerkan orang, dan tetap layak punya rencana. Harimu dinilai dari apakah beratmu bertahan.",
-      source: "Meta-analisis upaya pengendalian berat badan setahun terakhir",
-    },
-  },
-  goalFollowups: {
-    gain: "Aturannya sama seperti untuk semua orang di sini — angka jujur, tanpa sorak-sorai, tanpa rasa malu — hanya arahnya ke atas, bukan ke bawah.",
-    maintain: "Dan jalan mudahnya jadi milikmu: tidak ada berat target yang harus dipilih — kami menyusun rencananya untuk mempertahankan beratmu.",
-  },
-  struggleCards: {
-    stress: {
-      title: "Ini pola, bukan cacat karakter",
-      body: "Makan saat stres adalah pola, bukan cacat karakter. Menamainya sudah sebagian besar pekerjaannya; sisanya dikerjakan catatan.",
-    },
-    night: {
-      title: "Jam makan tidak dinilai",
-      body: "Makan larut tidak dinilai di sini. Hanya jumlah sepanjang hari yang dihitung.",
-    },
-    binge: {
-      title: "Hari yang berat adalah data",
-      body: "Kalau episodenya terasa di luar kendali, seorang klinisi lebih menolong daripada aplikasi mana pun. Di sini, hari yang berat adalah data, bukan vonis.",
-    },
-    diets: {
-      title: "Metodenya yang gagal, bukan kamu",
-      body: "Diet yang melarang makanan kesukaanmu jarang bertahan. Itu bukan kamu yang gagal. Aku tidak melarang apa pun: makanlah seperti biasa, dan aku akan bilang jujur bagaimana cocoknya.",
-    },
-    eatout: {
-      title: "Porsi restoran paling sulit ditebak",
-      body: "Perkiraan paling meleset pada makanan yang bukan kamu masak — dan di situlah foto paling berguna. Kalau aku ragu, aku bilang, bukan pura-pura tahu.",
-    },
-    energy: {
-      title: "Energi adalah ukuran yang jujur",
-      body: "Hari yang kurang asupan dan energi rendah selalu jalan bareng — itu salah satu alasan kami menolak target di bawah batas aman. Makanan adalah separuh dari energi; kami akan memperhatikan pola harimu.",
-    },
-    body: {
-      title: "Di sini timbangan bukan hakim",
-      body: "Kamu akan dapat angka tentang makanan, tidak pernah komentar tentang tubuhmu. Tujuanmu yang menetapkan targetnya; di sini tidak ada yang dibandingkan dengan siapa pun.",
-    },
-    metabolism: {
-      title: "Ukur saja daripada cemas",
-      body: "Metabolisme orang berbeda lebih sedikit daripada yang dibilang internet — tapi punyamu ya punyamu, dan dua minggu mencatat dengan jujur menunjukkan apa yang sebenarnya terjadi. Itu mengalahkan rumus apa pun, termasuk rumusku.",
-    },
-  },
-  dietsGainCard: {
-    title: "Metodenya yang gagal, bukan kamu",
-    body: "Mengubah berat jarang bertahan di percobaan pertama, ke arah mana pun. Itu metodenya yang gagal, bukan kamu. Surplusmu diukur supaya bisa dijaga.",
-  },
-  gainPaceCard: {
-    title: "Naik yang benar memang pelan",
-    body: "Surplusmu dibatasi sekitar {share}% di atas yang dibakar tubuhmu dalam sehari — zona di mana otot masih mengejar timbangan. Kebanyakan yang berhasil memulai dari protein; punyamu kami lacak otomatis.",
-    source: "Survei terhadap 168 orang dewasa aktif yang berusaha menaikkan berat badan",
-  },
-  underAgeCard: {
+  idlePlaceholder:  "Kirim pesan ke Spud…",
+  continueLabel: "Lanjutkan",
+  underAgeCard:  {
     title: "eait untuk usia {age} ke atas",
     body: "Cara aplikasi ini menetapkan target kalori tidak dirancang untuk tubuh yang masih tumbuh.",
   },
-  underAge: {
+  underAge:  {
     ask: "Maaf — aku harus berhenti di sini. Kalau tadi salah ketik, kirim saja umur aslimu.",
     confirm: "Itu umur asliku",
     placeholder: "Umurmu",
@@ -1531,43 +802,21 @@ const ID: ChatCopy = {
     ],
     endedPlaceholder: "eait untuk usia {age} ke atas",
   },
-  belowHealthy: {
+  belowHealthy:  {
     title: "Aku tidak bisa menetapkan itu sebagai target",
     body: "Berat sehat terendah untuk tinggimu sekitar {kg} kg. Kami tidak menetapkan tujuan di bawah itu. Kalau kamu sedang menjalani hal lain bersama dokter, ikuti dokternya, bukan aplikasi ini.",
   },
-  weightAck: {
-    noted: "Dicatat — angka yang jujur bikin rencana yang jujur.",
-    bmr: "Dan ini angka pertamamu: saat istirahat, tubuhmu membakar sekitar {bmr} kcal sehari. Pertanyaan berikutnya akan mempertajamnya.",
-  },
-  activityReplies: {
-    few: "Terima kasih untuk jawaban jujurnya — kebanyakan orang melebih-lebihkan yang satu ini, lalu targetnya jadi kelewat tinggi buat mereka.",
-    some: "Mantap. Angkanya akan berasumsi latihan itu benar-benar terjadi — koreksi aku kalau meleset, ya.",
-    many: "Kalau begitu angkanya harus menutupi kerja fisik yang nyata. Aku lebih suka mengisi dengan benar daripada menebak terlalu rendah.",
-  },
-  strugglesCloser: {
-    none: "Lebih bagus lagi. Kalau nanti ada yang muncul, bilang di chat — rencananya bisa menyesuaikan.",
-    one: "Yang itu kami tahu cara menanganinya — rencananya dibangun di sekitarnya, bukan melawannya. Tinggal dua pertanyaan singkat.",
-    many: "Masing-masing dari itu kami tahu cara menanganinya — rencananya dibangun di sekitarnya, bukan melawannya. Tinggal dua pertanyaan singkat.",
-  },
-  restrictions: {
-    kidneys: "Dicatat. Mulai sekarang natrium dinilai — dan hanya karena kamu memintanya.",
-    ldl: "Dicatat. Mulai sekarang lemak jenuh dinilai — dan hanya karena kamu memintanya.",
-    ldlChained: "Lemak jenuh juga dinilai — aturan yang sama: hanya yang kamu sebutkan.",
-    declared: "Dicatat — itu masuk ke profilmu, dan hanya itu yang dinilai.",
-    none: "Kalau begitu tidak ada tambahan yang dinilai — yang tidak disebutkan tidak pernah dinilai. Kamu bisa menambahkan kapan saja di pengaturan.",
-    freeText: "Dan teks bebasnya juga masuk ke profilmu.",
-  },
-  invalid: {
+  invalid:  {
     age: "Itu tidak kelihatan seperti umur — coba seperti 34.",
     height_cm: "Dalam sentimeter — seperti 175.",
     weight_kg: "Dalam kilogram — kira-kira saja tidak apa-apa.",
     target_weight_kg: "Angka dalam kg — misalnya 70.",
   },
-  ambiguousAge: {
+  ambiguousAge:  {
     line: "Aku mau pastikan tidak salah baca — kalau maksudmu tahun {year}, kirim keempat angkanya.",
     confirm: "Umurku {age}",
   },
-  direction: {
+  direction:  {
     gain: "Kamu di {weight} kg dan minta naik ke {target} — dari sini itu bukan kenaikan. Kalau tujuannya berubah, kita bisa ganti; kalau tidak, beri aku angka di atas {weight}.",
     lose: "Kamu di {weight} kg dan minta turun ke {target} — dari sini itu bukan penurunan. Kalau tujuannya berubah, kita bisa ganti; kalau tidak, beri aku angka di bawah {weight}.",
     switchToLose: "Ganti ke menurunkan",
@@ -1575,164 +824,83 @@ const ID: ChatCopy = {
     above: "Angka di atas {weight}…",
     below: "Angka di bawah {weight}…",
   },
-  switched: {
+  switched:  {
     gain: "Diganti — jadi menaikkan. Kamu ingin sampai di angka berapa, dalam kg?",
     lose: "Diganti — jadi menurunkan. Kamu ingin sampai di angka berapa, dalam kg? Lebih cepat bukan berarti lebih baik — hanya lebih sulit dijaga.",
   },
-  loseTail: " Lebih cepat bukan berarti lebih baik — hanya lebih sulit dijaga.",
-  capNoteTail: " Itu sekitar {kg} kg per minggu.",
-  nothingApplies: "Tidak ada",
-  goalEdit: {
+  capNoteTail:  " Itu sekitar {kg} kg per minggu.",
+  goalEdit:  {
     cleared: "Berat targetmu sudah tidak cocok dengan tujuan itu, jadi dihapus — tetapkan yang baru.",
     worthSetting: "Tercatat. Tapi berat targetmu sudah tidak cocok dengan tujuanmu — sebaiknya tetapkan yang baru.",
   },
-  health: {
-    ask: "Hubungkan Apple Health dan lewati 5 pertanyaan",
-    rows: ["Tinggi dan berat", "Usia dan jenis kelamin", "Seberapa sering kamu berolahraga"],
-    connect: "Hubungkan Apple Health",
-    manual: "Isi sendiri",
-    connected: "Angka-angkamu sudah masuk. Semuanya terbarui sendiri",
-    partial: "Hampir — ada beberapa data yang kurang",
-    denied: "Isi datamu",
+  target: {
+    lowest: "{weight} · batas terendah kami",
+    now: "{weight} · sekarang",
+    deltaDown: "− {weight}",
+    deltaUp: "+ {weight}",
   },
-  healthActivity: "Health menunjukkan {n} latihan dalam 4 minggu terakhir. {label}?",
-  targetSuggestion: {
+  pace: {
+    rate: "{rate} seminggu",
+    result: "{target} sekitar {month} · {kcal} kcal sehari",
+    capMarker: "dibatasi ke batas aman",
+    floorMarker: "tidak pernah di bawah {floor} · semua tempo sampai di sini",
+  },
+  how: {
+    title: "Itulah seluruh aplikasinya",
+    steps: ["Foto piringnya", "Dapatkan penilaian jujur", "Lihat progresmu"],
+  },
+  ontrack: {
+    title: "Dibuat agar kamu tetap di jalur",
+    captions: {
+      consistency: "Satu hari kelewat tidak memakan apa-apa. Hari berikutnya mulai dari nol.",
+      habits: "Tidak ada yang dilarang. Setiap piring mendapat penilaian jujur.",
+      support: "Tanya Spud apa saja, kapan saja, di Chat.",
+      busy: "Satu foto adalah seluruh catatan.",
+      ideas: "Bingung mau makan malam apa? Tanya Spud apa yang masih muat.",
+    },
+  },
+  chart: {
+    byEait: "eait analysis",
+    weightTrend: "Tren berat badan",
+    without: "Tanpa",
+    now: "Sekarang",
+    later: "Nanti",
+    twoWays: "Berat badan dari waktu ke waktu, digambar dua cara: dengan rencana dan tanpa",
+    estimatedProgress: "Perkiraan progres",
+    estimate: "Perkiraan",
+    target: "Target {weight}",
+    monthEstimate: "{month} · perkiraan",
+  },
+  plan: {
+    goalLose: "Target: turun {delta} menjelang {month}",
+    goalGain: "Target: naik {delta} menjelang {month}",
+    goalMaintain: "Target: pertahankan berat badan saya",
+    rest: "Saat istirahat tubuhmu membakar", activity: "Dengan aktivitasmu, sekitar", pace: "Untuk tempomu, kami sesuaikan", floor: "Batas bawah yang tidak dilewati", protein: "Target protein",
+  },
+  health: {
+    title: "Sinkronkan dengan Apple Health",
+    body: "Berat badan dan aktivitas masuk, makanan tidak keluar.",
+    connect: "Hubungkan Apple Health",
+    skip: "Nanti saja",
+  },
+  targetSuggestion:  {
     down: "Kusarankan {kg} kg, turun sekitar {pct}% — target pertama yang bagus",
     up: "Kusarankan {kg} kg, naik sekitar {pct}% — target pertama yang bagus",
   },
-  firstMeal: FIRST_MEAL_COPY.id,
-  stepper: { continue: "Lanjut", less: "Kurangi", more: "Tambah" },
-  offerHeadline: "Capai {kg} kg pada {month}",
-  planGoal: {
-    metric: "Target: turun {n} kg pada {month}",
-    imperial: "Target: turun {n} lb pada {month}",
-  },
-  reactions: {
-    goalLose: "Turunkan berat. Bagus — kita buat supaya bertahan",
-    goalMaintain: "Jaga berat — kita pertahankan yang sudah berhasil",
-    goalGain: "Naikkan berat. Bagus — kita bangun dengan benar",
-    sex: "Tercatat. Rumusnya sedikit berbeda untuk masing-masing",
-    birthYear: "Bagus. Usia sedikit menggeser angkanya",
-    heightCm: "Angka terakhir. Tanpa penilaian, ini cuma titik awal",
-    weightWithBmr: "Terima kasih. Saat istirahat, tubuhmu membakar sekitar {bmr} kcal sehari",
-    weightPlain: "Terima kasih.",
-    paceEasy: "Pelan — cukup lambat untuk dijaga",
-    paceSteady: "Stabil adalah tempo yang bisa dijaga",
-    pacePush: "Cepat, kalau begitu — perubahan hariannya tetap dalam batas aman",
-    struggles: "Biar aku cari makanan khas daerahmu",
-    country: "Hampir selesai",
-  },
-  moments: {
-    target: {
-      title: "Target yang bisa kamu jaga",
-      cta: "Lanjut",
-      inBand: "Turun 5–10% adalah titik saat manfaat kesehatan mulai terlihat: kolesterol, tekanan darah, energi. {kg} kg pas di rentang itu. Cukup kecil untuk dicapai, cukup besar untuk berarti.",
-      neutral: "{kg} kg — target pertama yang jelas, dengan rencana yang diukur untuk mencapainya.",
-    },
-    activity: {
-      title: "Bagus sekali!",
-      body: "Setiap gerakan berarti. Tidak perlu gym: jalan kaki setelah makan siang sudah berpengaruh besar, dan rencanamu sudah menghitung apa yang kamu lakukan.",
-      cta: "Lanjut",
-    },
-    struggles: {
-      title: "Itu wajar sekali!",
-      cta: "Lanjut",
-      many: "Tidak satu pun dari ini berarti kamu gagal. Aku tidak melarang apa pun: makanlah seperti biasa, dan aku akan bilang jujur bagaimana tiap makanan cocoknya.",
-    },
-    restrictions: {
-      title: "Terima kasih sudah percaya",
-      body: "Beratmu, hal-hal yang berat, dan yang baru kamu ceritakan — itu banyak untuk dibagikan ke sebuah aplikasi. Aku memakainya untuk satu hal saja: menilai setiap makanan terhadap apa yang penting bagimu.",
-      cta: "Buat rencanaku",
-    },
-  },
+  firstMeal:  FIRST_MEAL_COPY.id,
+  stepper:  { continue: "Lanjut", less: "Kurangi", more: "Tambah" },
+  offerHeadline:  "Capai {kg} kg pada {month}",
+  planGoal: { metric: "Target: turun {n} kg pada {month}", imperial: "Target: turun {n} lb pada {month}" },
 };
 
 const RU: ChatCopy = {
-  idlePlaceholder: "Написать Spud…",
-  struggles: {
-    stress: "Заедаю стресс",
-    night: "Ночные перекусы",
-    binge: "Приступы переедания",
-    diets: "Диеты, которые не удержались",
-    eatout: "Часто ем вне дома",
-    energy: "Мало сил",
-    body: "Отношение к телу",
-    metabolism: "Тревога про обмен веществ",
-  },
-  strugglesAsk: ["Теперь то, что большинство приложений пропускает. Что давалось тяжело? Отметь что угодно — или ничего. Это настраивает поддержку, а не оценку."],
-  quick: {
-    struggles: { finish: "Готово", none: "Ничего из этого" },
-    restrictions: { finish: "Завершить", none: "Ничего не подходит" },
-  },
-  goalCards: {
-    lose: {
-      title: "Ты в хорошей компании",
-      body: "Около 42% взрослых пробуют похудеть в любой отдельно взятый год. Разница здесь: твоя цель считается как следует, с порогом, ниже которого мы не идём.",
-      source: "Систематический обзор 72 исследований · n = 1,18 млн взрослых",
-    },
-    gain: {
-      title: "Не так редко, как кажется",
-      body: "Примерно 23% молодых мужчин и 6% молодых женщин за прошлый год осознанно пытались набрать вес. Это настоящая цель с настоящей техникой — мы поставим профицит, который строит больше, чем откладывает.",
-      source: "Канадское исследование молодых взрослых · n = 976",
-    },
-    maintain: {
-      title: "Тихая цель",
-      body: "Около 23% взрослых осознанно работают над тем, чтобы удержать вес — цель, о которой никто не пишет, и она всё равно заслуживает плана. Твои дни будут оцениваться по тому, держишься ли ты на месте.",
-      source: "Метаанализ попыток контроля веса за последний год",
-    },
-  },
-  goalFollowups: {
-    gain: "Правила те же, что и у всех здесь — честные цифры, без подбадриваний и без стыда — просто направленные вверх, а не вниз.",
-    maintain: "И лёгкая дорога твоя: целевой вес выбирать не нужно — планируем вокруг того, чтобы остаться на месте.",
-  },
-  struggleCards: {
-    stress: {
-      title: "Это паттерн, а не изъян характера",
-      body: "Еда от стресса — это паттерн, а не изъян характера. Назвать его — уже большая часть работы; остальное делает дневник.",
-    },
-    night: {
-      title: "Время не оценивается",
-      body: "Поздняя еда здесь не оценивается. Считается только то, что набирается за весь день.",
-    },
-    binge: {
-      title: "Трудный день — это данные",
-      body: "Если приступы ощущаются неуправляемыми, врач поможет больше любого приложения. Здесь трудный день — это данные, а не приговор.",
-    },
-    diets: {
-      title: "Подводит метод, не ты",
-      body: "Диеты, которые запрещают еду, которую ты любишь, редко держатся. Это не ты подводишь. Я ничего не запрещаю: ешь как ешь, а я честно скажу, как это вписывается.",
-    },
-    eatout: {
-      title: "Ресторанные тарелки уводят сильнее всего",
-      body: "Оценки уплывают сильнее всего на еде, которую готовил кто-то другой, — и именно с этим фотографии справляются лучше всего. Когда я не уверен, я так и скажу, а не сделаю вид.",
-    },
-    energy: {
-      title: "Энергия — честная метрика",
-      body: "Дни недоедания и упадок сил идут рука об руку — это одна из причин, почему мы отказываемся ставить цели ниже порога безопасности. Еда — половина энергии; будем смотреть на форму твоих дней.",
-    },
-    body: {
-      title: "Здесь весы не судья",
-      body: "Ты будешь получать цифры про еду и никогда — комментарии про своё тело. Ориентиры задаёт твоя цель; здесь ничто не сравнивается ни с кем.",
-    },
-    metabolism: {
-      title: "Давай измерим, а не будем волноваться",
-      body: "Обмен веществ у людей различается меньше, чем говорит интернет, — но твой есть твой, и две недели честных записей покажут, что он делает на самом деле. Это лучше любой формулы, включая мою.",
-    },
-  },
-  dietsGainCard: {
-    title: "Подводит метод, не ты",
-    body: "Изменить вес с первой попытки почти не получается, в любую сторону. Это методы подводят, не ты. Твой профицит рассчитан так, чтобы его можно было удержать.",
-  },
-  gainPaceCard: {
-    title: "Набирать хорошо — намеренно медленно",
-    body: "Твой профицит ограничен примерно {share}% сверх того, что тело сжигает за день, — зона, где мышцы успевают за весами. Большинство тех, у кого получается, начинают с белка; твой мы считаем автоматически.",
-    source: "Опрос 168 тренирующихся взрослых, набиравших вес",
-  },
-  underAgeCard: {
+  idlePlaceholder:  "Написать Spud…",
+  continueLabel: "Продолжить",
+  underAgeCard:  {
     title: "eait — с {age} лет",
     body: "То, как это приложение ставит цели по калориям, не рассчитано на тело, которое ещё растёт.",
   },
-  underAge: {
+  underAge:  {
     ask: "Извини — здесь мне придётся остановиться. Если это опечатка, просто пришли настоящий возраст.",
     confirm: "Это мой настоящий возраст",
     placeholder: "Твой возраст",
@@ -1742,43 +910,21 @@ const RU: ChatCopy = {
     ],
     endedPlaceholder: "eait — с {age} лет",
   },
-  belowHealthy: {
+  belowHealthy:  {
     title: "Не могу поставить это как цель",
     body: "Самый низкий здоровый вес для твоего роста — около {kg} кг. Ниже мы цель не ставим. Если ты работаешь над чем-то другим с врачом, слушай его, а не это приложение.",
   },
-  weightAck: {
-    noted: "Записал — честные цифры дают честный план.",
-    bmr: "И вот твоя первая цифра: в покое тело сжигает около {bmr} ккал в день. Следующие вопросы её уточнят.",
-  },
-  activityReplies: {
-    few: "Спасибо за честный ответ — здесь большинство завышает, а потом завышенной оказывается и цель.",
-    some: "Солидно. Цифра будет исходить из того, что эти тренировки действительно случаются, — держи меня в честности.",
-    many: "Тогда цифре есть что питать. Лучше накормить как следует, чем занизить наугад.",
-  },
-  strugglesCloser: {
-    none: "Тем лучше. Если что-то появится позже, скажи мне в чате — план умеет гнуться.",
-    one: "С этим мы умеем работать — план строится вокруг этого, а не вопреки этому. Осталось два коротких вопроса.",
-    many: "С каждым из них мы умеем работать — план строится вокруг этого, а не вопреки этому. Осталось два коротких вопроса.",
-  },
-  restrictions: {
-    kidneys: "Записал. С этого момента натрий оценивается — и только по твоей просьбе.",
-    ldl: "Записал. С этого момента насыщенные жиры оцениваются — и только по твоей просьбе.",
-    ldlChained: "Насыщенные жиры тоже оцениваются — правило то же: только то, что ты указываешь.",
-    declared: "Записал — это уходит в профиль, и оценивается только оно.",
-    none: "Тогда ничего дополнительно не оценивается — неуказанное не оценивается никогда. Добавить можно в любой момент в настройках.",
-    freeText: "И свободный текст тоже уходит в профиль.",
-  },
-  invalid: {
+  invalid:  {
     age: "На возраст не похоже — попробуй что-то вроде 34.",
     height_cm: "В сантиметрах — что-то вроде 175.",
     weight_kg: "В килограммах — примерно нормально.",
     target_weight_kg: "Число в кг — например 70.",
   },
-  ambiguousAge: {
+  ambiguousAge:  {
     line: "Хочу убедиться, что понял правильно: если речь про {year} год, пришли все четыре цифры.",
     confirm: "Мне {age}",
   },
-  direction: {
+  direction:  {
     gain: "Ты на {weight} кг и просишь набрать до {target} — отсюда это не набор. Если цель поменялась, можем переключить; иначе дай число больше {weight}.",
     lose: "Ты на {weight} кг и просишь сбросить до {target} — отсюда это не сброс. Если цель поменялась, можем переключить; иначе дай число меньше {weight}.",
     switchToLose: "Переключить на похудение",
@@ -1786,80 +932,79 @@ const RU: ChatCopy = {
     above: "Число больше {weight}…",
     below: "Число меньше {weight}…",
   },
-  switched: {
+  switched:  {
     gain: "Переключил — значит набираем. Куда хочешь прийти, в кг?",
     lose: "Переключил — значит худеем. Куда хочешь прийти, в кг? Быстрее здесь не значит лучше — просто труднее удержать.",
   },
-  loseTail: " Быстрее здесь не значит лучше — просто труднее удержать.",
-  capNoteTail: " Это примерно {kg} кг в неделю.",
-  nothingApplies: "Ничего не подходит",
-  goalEdit: {
+  capNoteTail:  " Это примерно {kg} кг в неделю.",
+  goalEdit:  {
     cleared: "Твой целевой вес больше не подходил к этой цели, поэтому он сброшен — поставь новый.",
     worthSetting: "Записал. Правда, целевой вес больше не сходится с твоей целью — стоит поставить новый.",
   },
-  health: {
-    ask: "Подключи Apple Health и пропусти 5 вопросов",
-    rows: ["Рост и вес", "Возраст и пол", "Как часто ты тренируешься"],
-    connect: "Подключить Apple Health",
-    manual: "Ввести вручную",
-    connected: "Цифры у меня. Они обновляются сами",
-    partial: "Почти всё — пары деталей не хватает",
-    denied: "Введи свои данные",
+  target: {
+    lowest: "{weight} · минимум, который мы задаём",
+    now: "{weight} · сейчас",
+    deltaDown: "− {weight}",
+    deltaUp: "+ {weight}",
   },
-  // The count sits after the noun — "тренировок: {n}" — because тренировка inflects on the
-  // count and a fixed noun would misread half the answers.
-  healthActivity: "За последние 4 недели Health записал тренировок: {n}. {label}?",
-  targetSuggestion: {
+  pace: {
+    rate: "{rate} в неделю",
+    // The month stays NOMINATIVE ("это примерно январь 2027"), like the old projection line —
+    // CLDR gives us no declension to put after «к».
+    result: "{target} — примерно {month} · {kcal} ккал в день",
+    capMarker: "ограничено безопасным пределом",
+    floorMarker: "никогда ниже {floor} · любой темп приходит сюда",
+  },
+  how: {
+    title: "Вот и вся программа",
+    steps: ["Сфотографируйте тарелку", "Получите честный вердикт", "Смотрите свой прогресс"],
+  },
+  ontrack: {
+    title: "Сделано, чтобы держать вас в ритме",
+    captions: {
+      consistency: "Пропущенный день ничего не стоит. Следующий начинается с нуля.",
+      habits: "Ничего не запрещено. Каждая тарелка получает честный вердикт.",
+      support: "Спрашивайте Спада о чём угодно, когда угодно, в чате.",
+      busy: "Одно фото — вся запись.",
+      ideas: "Нет идей на ужин? Спад подскажет, что ещё поместится.",
+    },
+  },
+  chart: {
+    byEait: "eait analysis",
+    weightTrend: "Динамика веса",
+    without: "Без",
+    now: "Сейчас",
+    later: "Позже",
+    twoWays: "Вес во времени, нарисованный дважды: с планом и без",
+    estimatedProgress: "Оценка прогресса",
+    estimate: "Оценка",
+    target: "Цель {weight}",
+    monthEstimate: "{month} · оценка",
+  },
+  plan: {
+    goalLose: "Цель: сбросить {delta} — примерно {month}",
+    goalGain: "Цель: набрать {delta} — примерно {month}",
+    goalMaintain: "Цель: держать свой вес",
+    rest: "В покое твоё тело сжигает", activity: "С твоей активностью — около", pace: "Под твой темп корректируем", floor: "Порог, ниже которого не идём", protein: "Белок — ориентир",
+  },
+  health: {
+    title: "Синхронизация с Apple Health",
+    body: "Вес и активность записываются, приёмы пищи — нет.",
+    connect: "Подключить Apple Health",
+    skip: "Не сейчас",
+  },
+  targetSuggestion:  {
     down: "Предлагаю {kg} кг — примерно на {pct}% меньше, хорошая первая цель",
     up: "Предлагаю {kg} кг — примерно на {pct}% больше, хорошая первая цель",
   },
-  firstMeal: FIRST_MEAL_COPY.ru,
-  stepper: { continue: "Продолжить", less: "Меньше", more: "Больше" },
-  // CLDR gives the month in the nominative ("январь 2027 г."), so no preposition may govern it.
-  offerHeadline: "Цель {kg} кг. Срок: {month}",
+  firstMeal:  FIRST_MEAL_COPY.ru,
+  stepper:  { continue: "Продолжить", less: "Меньше", more: "Больше" },
+  offerHeadline:  "Цель {kg} кг. Срок: {month}",
   planGoal: {
     metric: "Цель: минус {n} кг. Срок: {month}",
     // The SYMBOL, as every other language writes it: the word "фунтов" is the genitive plural and
     // reads wrong beside 1 or 2–4, which no amount of {n} fixes from inside the template.
     imperial: "Цель: минус {n} lb. Срок: {month}",
-  },
-  reactions: {
-    goalLose: "Похудеть. Хорошо — сделаем так, чтобы это держалось",
-    goalMaintain: "Удержать вес. Хорошо — оставим то, что уже работает",
-    goalGain: "Набрать вес. Хорошо — соберём его правильно",
-    sex: "Записал. Формула немного различается для каждого",
-    birthYear: "Хорошо. Возраст немного двигает цифру",
-    heightCm: "Последняя цифра. Без оценок — это просто точка старта",
-    weightWithBmr: "Спасибо. В покое твоё тело сжигает около {bmr} ккал в день",
-    weightPlain: "Спасибо.",
-    paceEasy: "Мягкий — достаточно медленный, чтобы удержаться",
-    paceSteady: "Ровный — тот, который у людей держится",
-    pacePush: "Жёсткий, значит — дневная разница всё равно останется в безопасных рамках",
-    struggles: "Дай-ка найти твои местные продукты",
-    country: "Почти всё",
-  },
-  moments: {
-    target: {
-      title: "Цель, которую можно удержать",
-      cta: "Дальше",
-      inBand: "Минус 5–10% — полоса, где перемены в здоровье начинают проявляться: холестерин, давление, энергия. {kg} кг — прямо в ней. Достаточно близко, чтобы дойти, достаточно много, чтобы иметь значение.",
-      neutral: "{kg} кг — ясная первая цель, и план рассчитан именно на неё.",
-    },
-    activity: {
-      title: "Здорово!",
-      body: "Любое движение считается. Зал не нужен: прогулка после обеда уже многое даёт, и твой план уже учитывает то, что ты делаешь.",
-      cta: "Дальше",
-    },
-    struggles: {
-      title: "Это совершенно нормально!",
-      cta: "Дальше",
-      many: "Ничто из этого не твоя неудача. Я ничего не запрещаю: ешь как ешь, а я честно скажу, как вписывается каждый приём пищи.",
-    },
-    restrictions: {
-      title: "Спасибо за доверие",
-      body: "Вес, то, что было трудно, и вот эти ответы — очень много доверия для одного разговора. Я использую это ровно для одного: судить каждое блюдо по тому, что важно тебе.",
-      cta: "Собери мой план",
-    },
   },
 };
 

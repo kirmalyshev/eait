@@ -7,8 +7,10 @@
 // simply be told no.
 
 import { MAX_PROFILE_TEXT,
-  LANGS, PACES, RESTRICTION_TAGS, SEXES, checkTargetWeight, explainTargets,
-  isAcceptableWeightKg, localDate, migrateActivityLevel, offerMath, paywallPrice, perMonth,
+  DIETS, LANGS, MEDICAL_TAGS, PACES, RESTRICTION_TAGS, SEXES, STRUGGLES, UNITS,
+  checkTargetWeight, explainTargets,
+  isAcceptableWeightKg, isDietTag, isMedicalTag, localDate, migrateActivityLevel, offerMath,
+  paywallPrice, perMonth,
   type Lang, type Pace, type PatchProfileRequest, type Profile,
   type Limits, type ProfileRejected, type ProfileResponse, type WebPaywall,
   ROUTES,
@@ -251,11 +253,32 @@ export async function patchProfile(
     }
     patch.pace = req.pace as Pace | null;
   }
+  if (req.units !== undefined) {
+    if (req.units !== null && !(UNITS as readonly string[]).includes(req.units)) {
+      return reject("units", "out-of-range");
+    }
+    patch.units = req.units;
+  }
+  if (req.struggles !== undefined) {
+    if (req.struggles !== null && !Array.isArray(req.struggles)) return reject("struggles", "out-of-range");
+    // Filtered against the closed vocabulary, walking IT rather than the request — the stored
+    // order is the list order, which is what the on-track caption's "first pick" reads.
+    patch.struggles = req.struggles === null
+      ? null
+      : STRUGGLES.filter((t) => (req.struggles as unknown[]).includes(t));
+  }
   if (req.country !== undefined) {
     if (req.country !== null && (typeof req.country !== "string" || req.country.length > MAX_COUNTRY)) {
       return reject("country", "out-of-range");
     }
     patch.country = req.country;
+  }
+  // ONE COLUMN, THREE WRITERS (onboarding v2): `restrictions` replaces the array outright, `diet`
+  // replaces its diet subset and `medical` its medical subset, merged on the server so no client
+  // ever composes it. `restrictions` sent WITH either of them is two spellings of one column —
+  // refused as ambiguous rather than arbitrated.
+  if (req.restrictions !== undefined && (req.diet !== undefined || req.medical !== undefined)) {
+    return reject("restrictions", "out-of-range");
   }
   if (req.restrictions !== undefined) {
     if (!Array.isArray(req.restrictions)) return reject("restrictions", "out-of-range");
@@ -265,6 +288,31 @@ export async function patchProfile(
     // vocabulary rather than the body bounds, dedupes and orders the result in one step.
     const given = req.restrictions as unknown[];
     patch.restrictions = RESTRICTION_TAGS.filter((t) => given.includes(t));
+  }
+  if (req.diet !== undefined) {
+    if (req.diet !== null && !(DIETS as readonly string[]).includes(req.diet)) {
+      return reject("diet", "out-of-range");
+    }
+  }
+  if (req.medical !== undefined) {
+    if (req.medical !== null && (!Array.isArray(req.medical) ||
+        (req.medical as unknown[]).some((t) => !(MEDICAL_TAGS as readonly string[]).includes(t as string)))) {
+      return reject("medical", "out-of-range");
+    }
+  }
+  if (req.diet !== undefined || req.medical !== undefined) {
+    const diet = req.diet === undefined
+      ? undefined
+      : req.diet === null || req.diet === "balanced" ? null : req.diet;
+    const medical = req.medical === undefined
+      ? undefined
+      : new Set(req.medical ?? []);
+    patch.restrictions = RESTRICTION_TAGS.filter((t) =>
+      isDietTag(t)
+        ? diet === undefined ? current.restrictions.includes(t) : t === diet
+        : isMedicalTag(t)
+          ? medical === undefined ? current.restrictions.includes(t) : medical.has(t)
+          : current.restrictions.includes(t));
   }
   for (const f of ["medical_limitations", "food_allergies", "product_limitations"] as const) {
     if (req[f] === undefined) continue;

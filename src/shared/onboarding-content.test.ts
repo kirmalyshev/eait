@@ -57,22 +57,21 @@ describe("every language's onboarding content", () => {
   });
 
   it("keeps every placeholder the composer fills — a dropped one renders as a hole in a number", () => {
-    // `{floor}`, `{target}`, `{month}`, `{share}` and `{loseTail}` are substituted by code. A
-    // translator who drops one produces a sentence with a figure missing and no error anywhere.
+    // `{floor}`, `{share}` and the limit-cap `{n}` are substituted by code. A translator who drops
+    // one produces a sentence with a figure missing and no error anywhere.
     for (const lang of LANGS) {
       const c = onboardingContentFor(lang);
       expect(c.building.floorTitle, lang).toContain("{floor}");
-      expect(c.summary.projection, lang).toContain("{target}");
-      expect(c.summary.projection, lang).toContain("{month}");
+      expect(c.building.limitCap.ldl, lang).toContain("{n}");
+      expect(c.building.limitCap.kidneys, lang).toContain("{n}");
+      expect(c.summary.floorMarker, lang).toContain("{floor}");
       expect(c.summary.capNote, lang).toContain("{share}");
-      const target = c.screens.find((s) => s.id === "target")!;
-      expect(target.asks.target_weight_kg!.lines.join(" "), lang).toContain("{loseTail}");
     }
   });
 
   it("introduces no placeholder nothing fills", () => {
     for (const lang of LANGS) {
-      const known = new Set(["floor", "target", "month", "share", "loseTail", "weeks"]);
+      const known = new Set(["floor", "share", "n"]);
       for (const [at, text] of Object.entries(flatten(onboardingContentFor(lang)))) {
         for (const m of text.matchAll(/\{(\w+)\}/g)) {
           expect(known.has(m[1]!), `${lang}.${at} uses {${m[1]}}`).toBe(true);
@@ -109,10 +108,13 @@ describe("every language's onboarding content", () => {
     const freeText = /free text|texte libre|Freitext|testo libero|texto libre|Viết tự do|Teks bebas|Свободный текст/i;
     for (const lang of LANGS) {
       const c = onboardingContentFor(lang);
-      expect(c.welcome.lines[2], lang).not.toContain(welcomeClaim[lang]!);
       expect(c.welcome.lines.join(" "), lang).not.toContain(welcomeClaim[lang]!);
-      const restrictions = c.screens.find((s) => s.id === "restrictions")!;
-      expect(restrictions.asks.restrictions!.lines.join(" "), lang).not.toMatch(freeText);
+      // No screen may ask for free text — the answer set is enumerable everywhere.
+      for (const screen of c.screens) {
+        for (const ask of Object.values(screen.asks)) {
+          expect(ask.lines.join(" "), `${lang}.${screen.id}`).not.toMatch(freeText);
+        }
+      }
     }
   });
 });

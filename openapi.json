@@ -3199,19 +3199,23 @@
         "enum": [
           "welcome",
           "goal",
-          "health",
+          "how",
           "sex",
           "birth_year",
           "height_cm",
           "weight_kg",
+          "activity",
           "target_weight_kg",
           "pace",
-          "activity",
           "struggles",
-          "country",
-          "restrictions",
+          "ontrack",
+          "diet",
+          "medical",
           "building",
-          "summary"
+          "summary",
+          "signup",
+          "country",
+          "health"
         ],
         "description": "Everything Spud asks or shows, in the order of `copy.md` steps 1–12.\n\nA prompt with a `field` fills a profile column and its answer survives the app being killed. A prompt without one is conversation: asked while the run is live, skipped on a resume that has already passed it (see `resumeAt`)."
       },
@@ -3464,6 +3468,18 @@
         ],
         "additionalProperties": false,
         "description": "One calendar day of the range read — `ChartDay` (`ui/charts.ts`) plus the day's macro totals, so a row a client receives goes straight into `dayTone`/`dayRing` with nothing re-derived.\n\n`when` is computed by the server in the account's timezone at request time: \"past\" day, the \"today\" the strip raises, or a \"future\" day — which is why no client ever compares a row's date with today. Future rows are EMPTY: `logged` false and every figure null, because a day that has not happened is not a zero — nothing has been eaten yet, not nothing measured. A past day with nothing logged is `logged` false with the figures at zero: it happened, and that is a fact about it rather than an unknown."
+      },
+      "Diet": {
+        "type": "string",
+        "enum": [
+          "balanced",
+          "wholefood",
+          "mediterranean",
+          "flexitarian",
+          "pescatarian",
+          "vegetarian",
+          "vegan"
+        ]
       },
       "EditLineLast": {
         "anyOf": [
@@ -4398,6 +4414,14 @@
         "additionalProperties": false,
         "description": "Per-dimension verdicts. Only dimensions relevant to the user's profile are ever set."
       },
+      "MedicalTag": {
+        "type": "string",
+        "enum": [
+          "kidneys",
+          "ldl",
+          "lowsugar"
+        ]
+      },
       "MessageRequest": {
         "type": "object",
         "properties": {
@@ -4464,25 +4488,65 @@
             "items": {
               "type": "string"
             },
-            "description": "What Spud says before the card."
+            "description": "Under the counting loader — \"Building your personal plan\"."
           },
-          "restLabel": {
+          "title": {
             "type": "string",
-            "description": "The label beside each figure. The figures themselves are not editable — they are computed."
+            "description": "The card's label — \"Your daily plan\"."
           },
-          "activityLabel": {
-            "type": "string"
+          "rows": {
+            "type": "object",
+            "properties": {
+              "calories": {
+                "type": "string"
+              },
+              "protein": {
+                "type": "string"
+              },
+              "carbs": {
+                "type": "string"
+              },
+              "fat": {
+                "type": "string"
+              },
+              "diet": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "calories",
+              "protein",
+              "carbs",
+              "fat",
+              "diet"
+            ],
+            "additionalProperties": false,
+            "description": "The reveal rows' labels. Their VALUES are computed (`planRows`), never editable — a row the arithmetic did not produce is a claim, not a label."
           },
-          "paceLabel": {
-            "type": "string"
+          "limitCap": {
+            "type": "object",
+            "properties": {
+              "ldl": {
+                "type": "string"
+              },
+              "kidneys": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "ldl",
+              "kidneys"
+            ],
+            "additionalProperties": false,
+            "description": "The declared-limit row's value, per cap-bearing tag; `{n}` is the cap, filled. A declaration carrying no numeric cap (`lowsugar`) draws no row — there is no limit to print."
           },
-          "floorLabel": {
+          "cta": {
             "type": "string",
-            "description": "Shown only when the safety floor is the reason the number is what it is."
+            "description": "Appears only once the count reaches 100 — \"Show me the plan\"."
           },
           "floorTitle": {
             "type": "string",
-            "description": "The floor support card, shown under the arithmetic when the floor bit. `{floor}` is filled."
+            "description": "One tap behind the floor marker — the floor explainer card. `{floor}` is filled."
           },
           "floorBody": {
             "type": "string"
@@ -4490,10 +4554,10 @@
         },
         "required": [
           "lines",
-          "restLabel",
-          "activityLabel",
-          "paceLabel",
-          "floorLabel",
+          "title",
+          "rows",
+          "limitCap",
+          "cta",
           "floorTitle",
           "floorBody"
         ],
@@ -4597,7 +4661,7 @@
           "at"
         ],
         "additionalProperties": false,
-        "description": "One thing that happened during onboarding.\n\n───────────────────────────────────────────────────────────────────────────────────────────── WHAT IS DELIBERATELY NOT IN HERE\n\nNo weight, no height, no year of birth, and no free text. Those are the answers, and the answers to this particular questionnaire are health data about an identified person. The funnel needs to know a question WAS answered, not what with — so `value` carries an enumerated choice (`lose`, `moderate`, `de`) and nothing else, and the numeric questions send no value at all.\n\n`struggles`, the one question that collects nothing, sends no value either, and it is the strongest case of the lot: \"binge episodes\" is a disclosure, not a preference. `REPORTABLE_FIELDS` is keyed by `OnboardingStep`, so that field is not on it and its answers are dropped by construction rather than by anybody remembering.\n\nThis is not a nicety. Analytics rows outlive the account that produced them in most systems, and the account here can be deleted on demand under 5.1.1(v); a funnel that had recorded someone's body weight would make that promise false. ─────────────────────────────────────────────────────────────────────────────────────────────"
+        "description": "One thing that happened during onboarding.\n\n───────────────────────────────────────────────────────────────────────────────────────────── WHAT IS DELIBERATELY NOT IN HERE\n\nNo weight, no height, no year of birth, and no free text. Those are the answers, and the answers to this particular questionnaire are health data about an identified person. The funnel needs to know a question WAS answered, not what with — so `value` carries an enumerated choice (`lose`, `moderate`, `de`) and nothing else, and the numeric questions send no value at all.\n\n`struggles`/`diet`/`medical` are enumerable picks, sent the way `restrictions` always was: the vocabulary ids, never free text. (The v2 struggles list is tamer than the retired eight — \"busy schedule\", not \"binge episodes\" — and the medical tags are the same disclosure the old restrictions answer already sent.)\n\nThis is not a nicety. Analytics rows outlive the account that produced them in most systems, and the account here can be deleted on demand under 5.1.1(v); a funnel that had recorded someone's body weight would make that promise false. ─────────────────────────────────────────────────────────────────────────────────────────────"
       },
       "OnboardingEventsRequest": {
         "type": "object",
@@ -4631,10 +4695,12 @@
         "type": "string",
         "enum": [
           "welcome",
-          "health",
-          "struggles",
+          "how",
+          "ontrack",
           "building",
-          "summary"
+          "summary",
+          "signup",
+          "health"
         ]
       },
       "OnboardingOptionContent": {
@@ -4698,12 +4764,17 @@
         "type": "string",
         "enum": [
           "goal",
-          "about",
-          "body",
-          "target",
+          "sex",
+          "age",
+          "height",
+          "weight",
           "activity",
-          "country",
-          "restrictions"
+          "target",
+          "pace",
+          "struggles",
+          "diet",
+          "medical",
+          "country"
         ]
       },
       "OnboardingSummaryContent": {
@@ -4714,29 +4785,43 @@
             "items": {
               "type": "string"
             },
-            "description": "What Spud says before the plan card."
+            "description": "\"Here is your plan\"."
           },
           "kcalLabel": {
             "type": "string"
           },
-          "proteinLabel": {
-            "type": "string"
-          },
-          "projection": {
+          "floorMarker": {
             "type": "string",
-            "description": "The projection, with `{weeks}`, `{month}` and `{target}` substituted.\n\nWeeks and a month name, never a day-precise date: `projection.ts` says why. Absent from the card entirely when `projectGoal` returns null, which is every case where a number would be an invention rather than a calculation."
+            "description": "The marker under the kcal figure, shown when the share cap or the floor decided the number — \"capped for safety · never below {floor}\". `{floor}` is filled from `targets.ts`."
           },
-          "projectionFar": {
-            "type": "string",
-            "description": "Replaces `projection` past the two-year horizon, where naming a month stops being useful."
+          "macros": {
+            "type": "object",
+            "properties": {
+              "protein": {
+                "type": "string"
+              },
+              "carbs": {
+                "type": "string"
+              },
+              "fat": {
+                "type": "string"
+              },
+              "satfat": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "protein",
+              "carbs",
+              "fat",
+              "satfat"
+            ],
+            "additionalProperties": false,
+            "description": "The macro cards' labels. `satfat` renders only when the user declared it — hence \"you asked\"."
           },
           "capNote": {
             "type": "string",
-            "description": "Shown when the share cap bit — `{share}` is the percentage, filled from `targets.ts`."
-          },
-          "disclaimer": {
-            "type": "string",
-            "description": "The estimates-not-measurements line."
+            "description": "One tap behind the marker — the share-cap explainer, `{share}` filled from `targets.ts`."
           },
           "cta": {
             "type": "string",
@@ -4746,15 +4831,13 @@
         "required": [
           "lines",
           "kcalLabel",
-          "proteinLabel",
-          "projection",
-          "projectionFar",
+          "floorMarker",
+          "macros",
           "capNote",
-          "disclaimer",
           "cta"
         ],
         "additionalProperties": false,
-        "description": "The payoff. Editable too, because it is the most-read thing in the flow."
+        "description": "The payoff — the plan card. Editable too, because it is the most-read thing in the flow."
       },
       "OnboardingWelcomeContent": {
         "type": "object",
@@ -4764,16 +4847,21 @@
             "items": {
               "type": "string"
             },
-            "description": "Spud's opening bubbles. One to four — past that it is a wall, not a front door."
+            "description": "The headline. One line now — the picture does the talking (design pro, onboarding 00)."
           },
           "cta": {
             "type": "string",
-            "description": "The quick reply that starts the flow."
+            "description": "The primary button — \"Build my plan\"."
+          },
+          "signin": {
+            "type": "string",
+            "description": "The second door — \"I already have an account\"."
           }
         },
         "required": [
           "lines",
-          "cta"
+          "cta",
+          "signin"
         ],
         "additionalProperties": false,
         "description": "The front door. What this is, before the first question.\n\n───────────────────────────────────────────────────────────────────────────────────────────── WHY THE FIRST THING THE APP SAYS IS WHAT IT WILL NOT ASK FOR\n\nAcross seven calorie apps and 2,792 low-star reviews, the billing cluster is the largest complaint for every single one — floor 15%, median 27%, the category leader at 48% (`marketing/research/2026-07-28-category-billing-crossread.md` §1). The same doc's §3 finds the pattern: the harder a paywall sits in front of first value, the more the reviews reach for \"scam\", \"misleading\", \"tricked\".\n\nThis app has no email field of its own. It DOES get a paywall (decision 2026-08-24, marketing/DECISIONS.md): at the very end, after the first photo's verdict, behind a 7-day trial — never in front of the number or the first verdict, which is what §3 says must not be withheld.\n\nTHE TRUST POINT HAS BEEN NARROWED TWICE, and each time by something that shipped. \"No card, no email, no name — nothing to cancel later\" was the welcome's first line: the paywall took the card and the cancelling (a trial takes one, and there is then something to cancel), and issue #95 took the email, because sign-in now asks both providers for the address. What is left is the half that is still true — you can use the whole app without an account at all — and it is the half that was always doing the work.\n\nTHREE RULES ON THE WORDING, all enforced by a test over the WHOLE of the content below — a rule that reads one screen is a rule that moves the sentence to the next one:   - never name a competitor. All seven have the complaint; naming one invites a fair-comparison     argument we lose.   - never claim \"free\" bare. `copy.md` allows exactly two qualified forms, \"free to try\" and     \"N days free\"; §5 of the cross-read rules out the unqualified claim by name.   - never promise away the card, the trial, or the cancelling. This is the rule that did not     exist, which is how a sentence contradicting docs/PAYWALL.md survived the merge that added     the paywall — asserted in four E2E flows the whole time, one of which shoots the App Store     screenshots. A promise about billing is the one kind of copy a reviewer's memory cannot hold.\n\n─────────────────────────────────────────────────────────────────────────────────────────────"
@@ -4878,6 +4966,31 @@
               }
             ]
           },
+          "units": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Units"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The cm|ft,in / kg|lb toggle. Stored metric regardless; this is the display preference."
+          },
+          "struggles": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Struggle"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The \"what's been hard\" picks — stored, so `null` = not asked and `[]` = asked, nothing picked. Resume reads that difference; a client sending `null` clears it back to unasked."
+          },
           "country": {
             "type": [
               "string",
@@ -4889,6 +5002,30 @@
             "items": {
               "type": "string"
             }
+          },
+          "diet": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Diet"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "WRITE-ONLY views of `restrictions` (onboarding v2). `diet` names the diet the user follows — `balanced` stores no tag — and `medical` names the declared caps, `[]` meaning none. The server merges each over the matching subset of `restrictions` and leaves every other entry alone, so a client never composes the array. Sending `restrictions` TOGETHER with either of these is refused as ambiguous: two spellings of the same column."
+          },
+          "medical": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MedicalTag"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "medical_limitations": {
             "type": [
@@ -5115,6 +5252,31 @@
               }
             ]
           },
+          "units": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Units"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "cm|ft,in / kg|lb display toggle; null = never set, metric renders. Storage stays metric."
+          },
+          "struggles": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Struggle"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The \"what's been hard\" picks, stored in LIST order (`STRUGGLES`). `null` = the question was never asked — that distinction is what resume checks: an empty array is an answer, `null` is an interruption."
+          },
           "country": {
             "type": [
               "string",
@@ -5127,7 +5289,7 @@
             "items": {
               "type": "string"
             },
-            "description": "CLOSED four-tag vocabulary — see `RESTRICTION_TAGS`. Each drives a cap AND a verdict key."
+            "description": "Closed vocabulary — see `RESTRICTION_TAGS`. Two views of it: the diet it names (`dietOf`; \"balanced\" when no diet tag) and the medical caps it carries (`medicalOf`). Clients never compose it — PATCH writes `diet`/`medical` and the server merges."
           },
           "medical_limitations": {
             "type": [
@@ -5168,6 +5330,8 @@
           "target_weight_kg",
           "activity",
           "pace",
+          "units",
+          "struggles",
           "country",
           "restrictions",
           "medical_limitations",
@@ -5198,8 +5362,12 @@
               "target_weight_kg",
               "activity",
               "pace",
+              "units",
+              "struggles",
               "country",
               "restrictions",
+              "diet",
+              "medical",
               "medical_limitations",
               "food_allergies",
               "product_limitations",
@@ -5487,6 +5655,16 @@
         ],
         "description": "Biological sex. Required by every published BMR equation; asked for that reason and no other."
       },
+      "Struggle": {
+        "type": "string",
+        "enum": [
+          "consistency",
+          "habits",
+          "support",
+          "busy",
+          "ideas"
+        ]
+      },
       "TargetBasis": {
         "type": "object",
         "properties": {
@@ -5563,6 +5741,13 @@
         ],
         "additionalProperties": false,
         "description": "A correction whose target vanished between lookup and write (a delete race).\n\n`on` is not decoration: a failed correction can be rephrased, a failed re-date cannot — nothing the user types brings a deleted row back, so telling them to try again would be a lie."
+      },
+      "Units": {
+        "type": "string",
+        "enum": [
+          "metric",
+          "imperial"
+        ]
       },
       "UnlinkResponse": {
         "type": "object",

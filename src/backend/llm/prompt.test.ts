@@ -241,11 +241,32 @@ test("a declared restriction without a cap still reaches the coach, and the prof
     profile: { ...PROFILE, restrictions: ["vegan", "lowsugar"], weight_kg: 93, weight_measured_at: "2026-01-15T09:00:00.000Z" },
     targets: { kcal: 1680, protein_g: 110, fat_g: 56, carbs_g: 195 },
   }));
-  expect(text).toContain("Declared restrictions: vegan, diabetes risk (low sugar).");
+  // Diet is a preference and lowsugar a declaration — they are read apart and said apart, so a
+  // diet tag never reaches the model as a medical fact.
+  expect(text).toContain("Diet preference the user declared: vegan.");
+  expect(text).toContain("Declared restrictions: diabetes risk (low sugar).");
   expect(text).toContain("Scored against them: nothing beyond kcal and protein.");
   expect(text).toContain("last known weight 93 kg (measured 2026-01-15; the trend is in get_health)");
   const bare = buildCoachContext(coachInput({ profile: { ...PROFILE, restrictions: [] }, targets: { kcal: 1680, protein_g: 110, fat_g: 56, carbs_g: 195 } }));
   expect(bare).toContain("Declared restrictions: none.");
+});
+
+test("only an excluding diet reaches the analyzer; the coach reads every declared diet (#82)", () => {
+  // `mediterranean` is a pattern — it changes nothing a photo can contain, so the analyzer's
+  // input says nothing of it. `vegetarian` closes plates, so it IS said.
+  const photo = (restrictions: string[]) => buildUserText({ ...PROFILE, restrictions }, TARGETS);
+  expect(photo(["mediterranean"])).not.toContain("preference");
+  expect(photo(["wholefood"])).not.toContain("preference");
+  expect(photo(["flexitarian"])).not.toContain("preference");
+  expect(photo(["vegetarian"])).toContain("Dietary preference the user declared: vegetarian.");
+  expect(photo(["pescatarian"])).toContain("Dietary preference the user declared: pescatarian.");
+  expect(photo(["vegan"])).toContain("Dietary preference the user declared: vegan.");
+
+  // The coach is the other reader: a pattern diet is still the user's own word there.
+  const coach = (restrictions: string[]) =>
+    buildCoachContext(coachInput({ profile: { ...PROFILE, restrictions } }));
+  expect(coach(["mediterranean"])).toContain("Diet preference the user declared: mediterranean.");
+  expect(coach(["vegetarian"])).toContain("Diet preference the user declared: vegetarian.");
 });
 
 test("the coach context names the floor when it is the reason for the number", () => {

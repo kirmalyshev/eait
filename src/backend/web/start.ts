@@ -20,17 +20,18 @@
 
 import {
   ageFrom,
-  AMBIGUOUS_AGE, RESTRICTION_TAGS, STRUGGLES, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
+  AMBIGUOUS_AGE, DIETS, MEDICAL_TAGS, STRUGGLES, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
   chatCopyFor as CHAT,
-  askPlaceholder, checkDirection, checkNumber, disabledScreens, isAnswered, promptsFor,
-  isRefusal, MAX_USER_LINE, offerHeadline, optionLabel, projectGoal, projectionLine,
-  projectionMonth, promptById, reactionTo,
+  askPlaceholder, checkDirection, checkNumber, dietOf, disabledScreens, isAnswered, promptsFor,
+  isRefusal, MAX_USER_LINE, medicalOf, offerHeadline, optionLabel, planGoalLine, projectGoal,
+  promptById,
   renderableVerdicts, resolveCountry, ROUTES, screenForStep,
-  screenOptions, screenOptionValues, suggestedTargetKg, suggestionFirst, supportMoment,
+  screenOptions, screenOptionValues, suggestedTargetKg, suggestionFirst,
   switchedLine, targetRange, targetSuggestionLine, TARGET_STEP_KG,
   LANGS_READY, acceptLang, acceptLanguageTags, numbers, verdictPillLabel,
-  type ChatEntry, type ChatPrompt, type ChatPromptId, type Goal, type Lang, type MomentId,
-  type NumberField, type OnboardingContent, type PatchProfileRequest, type Profile, type Struggle,
+  type ChatEntry, type ChatPrompt, type ChatPromptId, type Diet, type Goal, type Lang,
+  type MedicalTag, type NumberField, type OnboardingContent, type PatchProfileRequest,
+  type Profile, type Struggle,
 } from "@eait/shared";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
 import { BROWSER_SESSION_TTL_MS } from "../auth/tokens.ts";
@@ -47,7 +48,7 @@ import {
   // `pageCopyFor(lang)` — so importing it buys nothing and costs a silent English render the
   // day somebody writes `PAGE_COPY.foo` outside one of those scopes. Unimported, that is a
   // compile error instead.
-  chat, frontDoor, html, moment, offer, pageCopyFor, plan, question, signUp, stopped, FONT_FILES,
+  chat, frontDoor, html, offer, pageCopyFor, plan, question, signUp, stopped, FONT_FILES,
   FONT_URL_DIR,
   type PageCopy,
   type ChatLine, type ChatProposal, type QuestionOption,
@@ -81,22 +82,7 @@ const AUTH_PATH = /^\/start\/auth\/(apple|google)(\/callback)?$/;
 const CHAT_PATH = `${START_PREFIX}/chat`;
 const CHAT_ALIAS = "/chat";
 
-/**
- * The answers that close their question on a page of their own — the four support beats (#42).
- * The redirect lands on the moment's own GET, which re-reads the profile and decides: a null
- * moment is a skipped one, never an empty screen.
- */
-const MOMENT_AFTER: Partial<Record<ChatPromptId, MomentId>> = {
-  target_weight_kg: "target", activity: "activity", restrictions: "restrictions",
-};
 
-/** Where each moment's one button goes. `struggles` never renders on the GET — see below. */
-const MOMENT_NEXT: Record<MomentId, string> = {
-  target: `${START_PREFIX}/q`,
-  activity: `${START_PREFIX}/struggles`,
-  struggles: `${START_PREFIX}/q`,
-  restrictions: `${START_PREFIX}/plan`,
-};
 
 /** Thread lines rendered on one page. No pagination here yet: the composer is what people came for. */
 const CHAT_PAGE_LINES = 50;
@@ -382,12 +368,33 @@ type Answered =
  */
 function answerFor(prompt: ChatPrompt, answers: string[], profile: Profile): Answered {
   const field = prompt.field!;
-  if (field === "restrictions") {
-    const tags = answers.filter((a) => (RESTRICTION_TAGS as readonly string[]).includes(a));
-    // The last question, so it is also the one that finishes onboarding — the same patch the app's
-    // restrictions screen sends. No free-text box here: the app's is unstructured medical prose,
-    // and a public web form is not where to start collecting it.
-    return { kind: "patch", patch: { restrictions: tags, complete_onboarding: true } };
+  // The three v2 writes (#82). `struggles` stores the picked chips in the list's own order; `diet`
+  // and `medical` go to the server AS their write views and it rewrites `restrictions` — the web
+  // never composes the tag array, like everywhere else.
+  if (field === "struggles") {
+    return {
+      kind: "patch",
+      patch: {
+        struggles: answers.filter((a): a is Struggle => (STRUGGLES as readonly string[]).includes(a)),
+      },
+    };
+  }
+  if (field === "medical") {
+    return {
+      kind: "patch",
+      patch: {
+        medical: answers.filter(
+          (a): a is MedicalTag => (MEDICAL_TAGS as readonly string[]).includes(a),
+        ),
+      },
+    };
+  }
+  if (field === "diet") {
+    const value = answers[0];
+    if (value === undefined || !(DIETS as readonly string[]).includes(value)) {
+      return { kind: "missing" };
+    }
+    return { kind: "patch", patch: { diet: value as Diet } };
   }
   const value = answers[0];
   if (value === undefined || value === "") return { kind: "missing" };
@@ -783,7 +790,22 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     // own screen after it (`/start/country`), preselected where the browser's languages already
     // answer it. `false` here keeps it out of `promptsFor` — and out of the step count.
     const questions = questionsFor(profile, content, false);
-    const openIndex = questions.findIndex((p) => !isAnswered(p, profile));
+    // `diet` and `medical` are the two prompts whose answer the profile cannot SHOW mid-run: a
+    // Balanced pick stores no tag, and `medical` reads as answered only once `onboarded_at` lands
+    // — the binding's resume rule, which a mid-walk request cannot tell from "was just answered".
+    // The `asked` params are THIS RUN's memory of them: each POST appends the prompt it wrote to
+    // the redirect, and every rendered form carries the set forward in its action. Honored ONLY
+    // for those two ids — a crafted `?asked=height_cm` is ignored — and absent from a fresh URL,
+    // so a Balanced picker who left mid-run is still asked the diet once more on return, which is
+    // the accepted re-ask the same binding describes.
+    const asked = new Set<string>(
+      url.searchParams.getAll("asked").filter((a) => a === "diet" || a === "medical"),
+    );
+    const openIndex = questions.findIndex((p) => !isAnswered(p, profile) && !asked.has(p.id));
+    // What the just-rendered form posts to — the set travels inside the walk, never into history.
+    const askPath = asked.size === 0
+      ? `${START_PREFIX}/q`
+      : `${START_PREFIX}/q?${[...asked].map((a) => `asked=${a}`).join("&")}`;
     // BACK (#53): an answered question, shown again to change. Only one BEFORE the open question —
     // what is past it has no answer to show, and the profile still decides where the walk resumes.
     const editable = (id: unknown): number => {
@@ -797,6 +819,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       html(renderQuestion(
         questions, index, profile, content, error, actions, null, draftKg,
         typed ?? (index === openIndex ? undefined : currentAnswer(questions[index]!, profile)),
+        askPath,
       ));
     const ask = (error: string | null, actions: Action[] = [], draftKg?: number) =>
       askAt(openIndex, error, actions, draftKg);
@@ -863,10 +886,7 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
         const outcome = await patchProfile(ctx.deps, fresh, answer.patch);
         if (outcome && !outcome.ok) return retry(refusalText(outcome.rejected, profile.lang));
         const token = await ctx.store.issueToken(fresh);
-        const momentId = MOMENT_AFTER[open.id];
-        return seeOther(momentId ? `${START_PREFIX}/moment/${momentId}` : `${START_PREFIX}/q`, [
-          setCookie(SESSION_COOKIE, token, { secure }),
-        ]);
+        return seeOther(`${START_PREFIX}/q`, [setCookie(SESSION_COOKIE, token, { secure })]);
       }
 
       // The open question is the server's to decide, so a post naming a LATER one is dropped rather
@@ -950,12 +970,22 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
             }]
           : []);
       }
-      const outcome = await patchProfile(ctx.deps, userId, answer.patch);
+      // COMPLETION RIDES THE LAST QUESTION'S PATCH, whichever one it is — `medical`, since country
+      // is S8's own screen after the sign-up and never in this walk. It goes on the patch rather
+      // than a second POST so a partial write can never mark a run complete.
+      const patch: PatchProfileRequest =
+        editIndex === -1 && at === questions.length - 1
+          ? { ...answer.patch, complete_onboarding: true }
+          : answer.patch;
+      const outcome = await patchProfile(ctx.deps, userId, patch);
       if (outcome && !outcome.ok) return ask(refusalText(outcome.rejected, profile.lang));
-      // The four support beats land on pages of their own (#42): `supportMoment` decides on the
-      // GET whether there is one to show, and a skipped one falls through to the next question.
-      const momentId = editIndex === -1 ? MOMENT_AFTER[open.id] : undefined;
-      return seeOther(momentId ? `${START_PREFIX}/moment/${momentId}` : `${START_PREFIX}/q`);
+      // The walk's memory of the two answers a mid-run GET cannot see (see `asked` above): the
+      // redirect appends the prompt just written so the next page knows it was passed.
+      const nextAsked = new Set(asked);
+      if (open.id === "diet" || open.id === "medical") nextAsked.add(open.id);
+      const marker = nextAsked.size === 0
+        ? "" : `?${[...nextAsked].map((a) => `asked=${a}`).join("&")}`;
+      return seeOther(`${START_PREFIX}/q${marker}`);
     }
   }
 
@@ -1056,13 +1086,6 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       actions: [],
       action: `${START_PREFIX}/country`,
       back: `${START_PREFIX}/signup`,
-      // The struggles segue was written to sit above the country ask — "the line that sits above
-      // the country ask" is `reactionTo`'s own comment. The walk no longer reaches it, so the
-      // screen that took the ask takes the line too.
-      reaction: (() => {
-        const r = reactionTo("struggles", profile, lang);
-        return r === null ? null : { line: r.line, mood: r.mood === "cheer" ? "joy" as const : r.mood };
-      })(),
       ...(resolved.country === null ? {} : { current: [resolved.country] }),
       lang,
     }));
@@ -1083,68 +1106,6 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       return seeOther(ctx.hasWebApp ? "/" : CHAT_PATH);
     }
     return notFound();
-  }
-
-  // ── The struggles question, and the four support moments (#42) ──────────────────────────────
-  //
-  // `struggles` is the one question that collects NOTHING — it has no field, and its picks are
-  // never stored anywhere: "binge episodes" is a disclosure, not a preference, and the funnel
-  // drops them by construction. So it cannot sit in `questionsFor`, which derives where somebody
-  // is from the profile — an unwritable answer is a question the flow would ask forever. It is a
-  // route of its own instead, reached from the activity moment; a re-derivation of "where am I"
-  // skips it, which is the same call `resumeAt` makes on the phone.
-  //
-  // Its POST RENDERS the moment it earns rather than redirecting to one — the picks would have to
-  // ride in a URL otherwise, and a URL is history, logs and Referer. The post is safe to repeat
-  // precisely because it writes nothing at all.
-  if (pathname === `${START_PREFIX}/struggles`) {
-    const { content } = await view();
-    const lang = profile.lang;
-    if (req.method === "GET") {
-      const quick = CHAT(lang).quick.struggles;
-      return html(question({
-        promptId: "struggles",
-        kind: "chips",
-        lines: askLines(promptById("struggles")!, { content, lang }, profile),
-        options: STRUGGLES.map((v) => ({ value: v, label: CHAT(lang).struggles[v] })),
-        placeholder: null,
-        error: null,
-        // "None of these" is a real answer: the chips' quick reply, a submit that picks nothing.
-        actions: [{ name: "answer", value: "", label: quick.none }],
-        action: `${START_PREFIX}/struggles`,
-        submitLabel: quick.finish,
-        lang,
-      }));
-    }
-    if (req.method === "POST") {
-      const form = await req.formData().catch(() => null);
-      const picks = (form?.getAll("answer") ?? []).filter(
-        (v): v is Struggle => typeof v === "string" && (STRUGGLES as readonly string[]).includes(v),
-      );
-      const m = supportMoment("struggles", { profile, struggles: picks, lang, content });
-      if (m === null) return seeOther(`${START_PREFIX}/q`);
-      return html(moment({ ...m, next: MOMENT_NEXT.struggles, back: `${START_PREFIX}/struggles`, lang }));
-    }
-    return notFound();
-  }
-
-  // A moment is a GET that a POST redirects to — re-derived from the profile on every load, so a
-  // refresh shows the same beat and a visit with nothing behind it goes to the questions instead
-  // of drawing an empty halo.
-  const momentMatch = /^\/start\/moment\/(target|activity|struggles|restrictions)$/.exec(pathname);
-  if (momentMatch) {
-    if (req.method !== "GET") return notFound();
-    const id = momentMatch[1]! as MomentId;
-    const { content } = await view();
-    const lang = profile.lang;
-    const m = supportMoment(id, { profile, struggles: [], lang, content });
-    if (m === null) return seeOther(`${START_PREFIX}/q`);
-    // Back edits the answer this beat reacts to: the question MOMENT_AFTER maps to it.
-    const after = Object.entries(MOMENT_AFTER).find(([, mid]) => mid === id)?.[0];
-    return html(moment({
-      ...m, next: MOMENT_NEXT[id], lang,
-      ...(after ? { back: `${START_PREFIX}/q?edit=${after}` } : {}),
-    }));
   }
 
   // ── The thread ────────────────────────────────────────────────────────────────────────────
@@ -1318,28 +1279,18 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
     const signedInWith = identities
       .map((i) => i.provider).find((p): p is WebProvider => p === "apple" || p === "google") ?? null;
     // The page's every figure is the engine's: `profileView` already ran `explainTargets`, and the
-    // by-when is `projectGoal` over that same basis — the projection's own rule, which the offer's
-    // headline and the phone's plan card hold to as well.
+    // by-when is the plan card's own goal line — `planGoalLine` reads `projectGoal` over that same
+    // basis, the rule the offer's headline and the phone's plan card hold to as well.
     const content = await onboardingContent(ctx.deps, profile.lang);
     const projection = projectGoal(full.profile, full.basis);
-    // The restrictions beat is the reply the chat would have given this profile — `reactionTo`,
-    // mood "joy". (`cheer` is a moment's pose rather than a face `spudSvg` draws; joy stands in,
-    // the same map the question pages apply.)
-    const reaction = reactionTo("restrictions", full.profile, profile.lang);
-    const beat = reaction === null ? null
-      : { line: reaction.line, mood: reaction.mood === "cheer" ? "joy" as const : reaction.mood };
     return html(plan({
       lang: profile.lang,
       signedInWith,
       telegram: config.telegramBotUsername !== "",
       hasWebApp: ctx.hasWebApp,
-      beat,
+      beat: null,
       targetKg: full.profile.target_weight_kg,
-      byWhen: projection === null ? null : projectionLine(
-        content.summary.projection, content.summary.projectionFar, projection,
-        projectionMonth(new Date(), projection.weeks, profile.lang),
-        full.profile.target_weight_kg, profile.lang,
-      ),
+      byWhen: planGoalLine(full.profile, new Date(), profile.lang),
       weeks: projection?.weeks ?? null,
       kcal: full.targets.kcal,
       proteinG: full.targets.protein_g,
@@ -1347,13 +1298,9 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       // because under `exactOptionalPropertyTypes` an explicit `undefined` is not an absent key.
       ...(full.targets.satfat_g !== undefined ? { satfatG: full.targets.satfat_g } : {}),
       ...(full.targets.sodium_mg !== undefined ? { sodiumMg: full.targets.sodium_mg } : {}),
-      labels: {
-        rest: content.building.restLabel,
-        activity: content.building.activityLabel,
-        pace: content.building.paceLabel,
-        floor: content.building.floorLabel,
-        protein: content.summary.proteinLabel,
-      },
+      // The arithmetic rows' words are code-side now (`CHAT_COPY.plan` carries the set the admin
+      // does not own); the content only speaks for the reveal and the summary.
+      labels: CHAT(profile.lang).plan,
       bmr: full.basis.bmr,
       tdee: full.basis.tdee,
       paceKcal: full.basis.appliedDeltaKcal,
@@ -1475,7 +1422,14 @@ function currentAnswer(prompt: ChatPrompt, p: Profile): string[] {
     const age = ageFrom(p.birth_year);
     return age === null ? [] : [String(age)];
   }
-  if (prompt.field === "restrictions") return [...p.restrictions];
+  if (prompt.field === "struggles") return p.struggles ?? [];
+  // The two write views read back through the shared readers — `medical` ticks "none" for the
+  // empty set, and `diet` reads balanced when no diet tag survives.
+  if (prompt.field === "diet") return [dietOf(p.restrictions)];
+  if (prompt.field === "medical") {
+    const tags = medicalOf(p.restrictions);
+    return tags.length === 0 ? ["none"] : [...tags];
+  }
   const value = prompt.field ? p[prompt.field as keyof Profile] : null;
   return value === null || value === undefined ? [] : [String(value)];
 }
@@ -1493,23 +1447,10 @@ function renderQuestion(
   suggested: string | null = null,
   draftKg?: number,
   current?: readonly string[],
+  action = `${START_PREFIX}/q`,
 ): string {
   const prompt = questions[index]!;
   const lang = profile.lang;
-
-  // The line above the ask is Spud's reply to the PREVIOUS beat in the walk (#42) — read off the
-  // full prompt list, not the field list, so the struggles beat's segue is what sits above the
-  // country question. `reactionTo` reads the profile itself, so a prompt this person never met —
-  // a switched-off screen, a country the browser resolved — simply has no reaction to draw.
-  const walk = promptsFor(profile, disabledScreens(content), { health: false });
-  const prevId = walk[walk.findIndex((p) => p.id === prompt.id) - 1]?.id;
-  const reaction = (() => {
-    if (prevId === undefined) return null;
-    const r = reactionTo(prevId, profile, lang);
-    if (r === null) return null;
-    // `cheer` is a moment's pose, not a face `spudSvg` can draw — joy is its face.
-    return { line: r.line, mood: r.mood === "cheer" ? "joy" as const : r.mood };
-  })();
 
   let lines = askLines(prompt, { content, lang }, profile);
   // The target question is the design's stepper when there is a suggestion to start from — with
@@ -1536,7 +1477,7 @@ function renderQuestion(
     placeholder: askPlaceholder(prompt, content),
     error,
     actions,
-    reaction,
+    action,
     stepper,
     step: index + 1,
     total: questions.length,
