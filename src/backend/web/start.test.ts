@@ -325,7 +325,7 @@ describe("the one control script", () => {
   it("ships one first-party script, hashed into the policy", async () => {
     const res = await get("/start");
     const html = await res.text();
-    const m = html.match(/<script>([\s\S]*?)<\/script>/);
+    const m = html.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
     expect(m).not.toBeNull();
     // The hash, not a nonce: the script never changes, so the policy can name it outright and the
     // page still allows no origin but its own.
@@ -348,7 +348,7 @@ describe("the one control script", () => {
     // browser had.
     const res = await get("/start");
     const html = await res.text();
-    const script = html.match(/<script>([\s\S]*?)<\/script>/)![1]!;
+    const script = html.match(/<script[^>]*>([\s\S]*?)<\/script>/i)![1]!;
     expect(() => new Function(script)).not.toThrow();
     // And the specific folding regex is the doubled-backslash one, surviving to the wire.
     expect(script).toContain("\\p{M}");
