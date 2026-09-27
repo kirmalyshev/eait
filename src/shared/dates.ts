@@ -161,6 +161,16 @@ export function monthGrid(month: string): string[] {
     )).toISOString().slice(0, 10));
 }
 
+/**
+ * The Monday of `date`'s ISO week. Week strips run Monday-first on every board (the weekday
+ * letters are `weekdayLetters`'s, in that order), and the Progress "This week" card and streak
+ * dots both read the same seven-day window — one fencepost, one function.
+ */
+export function weekStart(date: string): string {
+  const dow = new Date(`${date}T12:00:00Z`).getUTCDay();
+  return dateMinus(date, (dow + 6) % 7);
+}
+
 /** How a `YYYY-MM` is spoken to a person. */
 export function monthLabel(month: string): string {
   return new Intl.DateTimeFormat("en-GB", {
