@@ -15,6 +15,21 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.2"
+#~ msgstr "J'ai assez de protéines ?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.0"
+#~ msgstr "Ma semaine se passe comment ?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.1"
+#~ msgstr "Je mange quoi ce soir ?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "« {note} » — noté, c'est dans les chiffres."
 
@@ -70,7 +85,7 @@ msgstr "Une grosse part de ta journée en un seul repas."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.2"
+msgid "thread.coachStarters.support"
 msgstr "J'ai assez de protéines ?"
 
 #. js-lingui-explicit-id
@@ -155,6 +170,11 @@ msgstr "Premier repas enregistré. {kcal} kcal — {arithmetic}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Gabie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.onboarding-done"
 msgstr "Bien — la mise en route est finie, et le premier jour est lancé. Encore une chose avant que tu partes, et c'est la seule fois que je te le demande."
 
@@ -170,8 +190,13 @@ msgstr "Réponse honnête : je n'ai pas bien lu cette assiette. Prends {kcal} po
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.0"
+msgid "thread.coachStarters.consistency"
 msgstr "Ma semaine se passe comment ?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.busy"
+msgstr "Je te dis juste ce que j'ai mangé"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -480,8 +505,13 @@ msgstr "Pesée des portions…"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.1"
+msgid "thread.coachStarters.ideas"
 msgstr "Je mange quoi ce soir ?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.habits"
+msgstr "Une alternative plus légère pour le dîner ?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

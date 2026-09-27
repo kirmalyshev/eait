@@ -35,7 +35,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import { i18nFor, type I18n } from "./i18n.ts";
-import type { Lang } from "./types.ts";
+import type { Lang, Struggle } from "./types.ts";
 // Type-only: `chat.ts` imports this file. Keying `scripted` by the id set rather than by
 // `string` is what lets `scriptedLine` drop its `!` — a language that forgets an id is a
 // compile error instead of a TypeError inside a chat bubble.
@@ -68,7 +68,16 @@ export type ArithmeticCopy = Record<
 export interface ThreadCopy {
   /** Keyed by `ScriptedLineId`. `{price}` on `trial-started` is the one parameter any of them takes. */
   scripted: Record<ScriptedLineId, (v?: Record<string, string>) => string>;
-  coachStarters: string[];
+  /**
+   * Who the coach is (S9). `name` is "Gabie" in every shipped language until Kirill confirms the
+   * per-language table (proposed: fr Gaby · de Gabi · it Gabriella · es Gabriela · vi Gabie ·
+   * id Gabi · ru Габи) — one key, so his confirmation changes it once, not sixteen strings. Every
+   * surface that names her — Chat's avatar line, a `{coach}` placeholder, Telegram's prefix —
+   * fills from this, never a literal.
+   */
+  coach: { name: string };
+  /** One starter per struggle; `startersFor` in `chat.ts` picks and orders them for a profile. */
+  coachStarters: Record<Struggle, string>;
   /**
    * WHOLE SENTENCES, never fragments joined by code.
    *
@@ -123,11 +132,14 @@ const THREAD = (i18n: I18n): ThreadCopy => ({
     "onboarding-done": (v) => i18n._("thread.scripted.onboarding-done", v, { message: "Good — that's onboarding done, and the first day started. One more thing before you go, and it's the only time I'll ask." }),
     "dropped": (v) => i18n._("thread.scripted.dropped", v, { message: "Dropped it." }),
   },
-  coachStarters: [
-    i18n._("thread.coachStarters.0", undefined, { message: "How's my week going?" }),
-    i18n._("thread.coachStarters.1", undefined, { message: "What should I eat tonight?" }),
-    i18n._("thread.coachStarters.2", undefined, { message: "Am I getting enough protein?" }),
-  ],
+  coach: { name: i18n._("thread.coach.name", undefined, { message: "Gabie" }) },
+  coachStarters: {
+    consistency: i18n._("thread.coachStarters.consistency", undefined, { message: "How's my week going?" }),
+    habits: i18n._("thread.coachStarters.habits", undefined, { message: "What's a lighter swap for dinner?" }),
+    support: i18n._("thread.coachStarters.support", undefined, { message: "Am I getting enough protein?" }),
+    busy: i18n._("thread.coachStarters.busy", undefined, { message: "I'll just tell you what I ate" }),
+    ideas: i18n._("thread.coachStarters.ideas", undefined, { message: "What should I eat tonight?" }),
+  },
   running: {
     left: (v: Figures) => i18n._("thread.running.left", v, { message: "{left} of your {plan} left today, {protein} of the {proteinTarget} g protein." }),
     over: (v: Figures) => i18n._("thread.running.over", v, { message: "{over} over your {plan} today, {protein} of the {proteinTarget} g protein." }),

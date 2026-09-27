@@ -15,6 +15,21 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.2"
+#~ msgstr "Мне хватает белка?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.0"
+#~ msgstr "Как у меня идёт неделя?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.1"
+#~ msgstr "Что съесть сегодня вечером?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "«{note}» — записал, это в цифрах."
 
@@ -70,7 +85,7 @@ msgstr "Большая часть дня в одном приёме пищи."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.2"
+msgid "thread.coachStarters.support"
 msgstr "Мне хватает белка?"
 
 #. js-lingui-explicit-id
@@ -155,6 +170,11 @@ msgstr "Первый записан. {kcal} ккал — {arithmetic}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Gabie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.onboarding-done"
 msgstr "Хорошо — знакомство закончено, первый день начался. Ещё одно, прежде чем ты уйдёшь, и это единственный раз, когда я об этом прошу."
 
@@ -170,8 +190,13 @@ msgstr "Честно: тарелку я прочитал плохо. Счита�
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.0"
+msgid "thread.coachStarters.consistency"
 msgstr "Как у меня идёт неделя?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.busy"
+msgstr "Просто скажу, что было на тарелке"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -480,8 +505,13 @@ msgstr "Взвешиваем порции…"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.1"
+msgid "thread.coachStarters.ideas"
 msgstr "Что съесть сегодня вечером?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.habits"
+msgstr "Как сделать ужин полегче?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

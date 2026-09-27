@@ -15,6 +15,21 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.2"
+#~ msgstr "Proteinku sudah cukup belum?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.0"
+#~ msgstr "Bagaimana mingguku?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.1"
+#~ msgstr "Malam ini sebaiknya makan apa?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "“{note}” — dicatat, sudah masuk ke angkanya."
 
@@ -70,7 +85,7 @@ msgstr "Porsi besar dari harimu dalam satu makan."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.2"
+msgid "thread.coachStarters.support"
 msgstr "Proteinku sudah cukup belum?"
 
 #. js-lingui-explicit-id
@@ -155,6 +170,11 @@ msgstr "Yang pertama masuk. {kcal} kcal — {arithmetic}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Gabie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.onboarding-done"
 msgstr "Bagus — persiapannya selesai, dan hari pertama sudah dimulai. Satu hal lagi sebelum kamu pergi, dan ini satu-satunya kali aku memintanya."
 
@@ -170,8 +190,13 @@ msgstr "Jawaban jujur: aku tidak bisa membaca piring itu dengan jelas. Anggap {k
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.0"
+msgid "thread.coachStarters.consistency"
 msgstr "Bagaimana mingguku?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.busy"
+msgstr "Aku kasih tahu saja apa yang kumakan"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -480,8 +505,13 @@ msgstr "Menimbang porsi…"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.1"
+msgid "thread.coachStarters.ideas"
 msgstr "Malam ini sebaiknya makan apa?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.habits"
+msgstr "Ada alternatif lebih ringan untuk makan malam?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

@@ -15,6 +15,21 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.2"
+#~ msgstr "¿Estoy tomando suficiente proteína?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.0"
+#~ msgstr "¿Cómo va mi semana?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.1"
+#~ msgstr "¿Qué ceno hoy?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "«{note}» — anotado, está en los números."
 
@@ -70,7 +85,7 @@ msgstr "Una buena parte de tu día en una sola comida."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.2"
+msgid "thread.coachStarters.support"
 msgstr "¿Estoy tomando suficiente proteína?"
 
 #. js-lingui-explicit-id
@@ -155,6 +170,11 @@ msgstr "La primera está dentro. {kcal} kcal — {arithmetic}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Gabie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.onboarding-done"
 msgstr "Bien — la puesta en marcha está hecha, y el primer día empezado. Una cosa más antes de que te vayas, y es la única vez que la pido."
 
@@ -170,8 +190,13 @@ msgstr "Respuesta honesta: ese plato no lo leí bien. Toma {kcal} como estimaci�
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.0"
+msgid "thread.coachStarters.consistency"
 msgstr "¿Cómo va mi semana?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.busy"
+msgstr "Te digo lo que comí y ya"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -480,8 +505,13 @@ msgstr "Pesando las porciones…"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.1"
+msgid "thread.coachStarters.ideas"
 msgstr "¿Qué ceno hoy?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.habits"
+msgstr "¿Una alternativa más ligera para la cena?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
