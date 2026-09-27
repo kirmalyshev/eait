@@ -345,9 +345,8 @@ const landed: ChatResult = {
 describe("speakerOf", () => {
   it("names the user, Gabie on her answers, and Spud on everything else he says or shows", () => {
     expect(speakerOf({ id: "u1", role: "user", text: "hi" })).toBe("user");
-    // #49: Spud only. A stored row from when Gabie answered belongs to Spud now, so a thread
-    // does not split his turns where she used to speak.
-    expect(speakerOf(spoke({ kind: "answered", text: "hi", speaker: "gabie" }))).toBe("spud");
+    // Gabie's answers are hers again (S9): a stored row that carries her speaker keeps it.
+    expect(speakerOf(spoke({ kind: "answered", text: "hi", speaker: "gabie" }))).toBe("gabie");
     // Absent or null is Spud, the host — the rule `ChatSpeaker` states.
     expect(speakerOf(spoke({ kind: "answered", text: "hi" }))).toBe("spud");
     expect(speakerOf(spoke({ kind: "answered", text: "hi", speaker: null }))).toBe("spud");

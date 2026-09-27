@@ -1296,12 +1296,14 @@ describe("the thread", () => {
       ["user", "text"], ["user", "text"], ["assistant", "text"], ["assistant", "meal"], ["assistant", "text"], ["assistant", "text"], ["assistant", "text"],
     ]);
     expect(text(t[0]!)).toBe("two eggs and toast");
-    // #49: the pills' headline first, then the typed caveat; Spud's, all of it, and nobody is introduced.
+    // The question's answer is Gabie's; the pills' headline first, then the typed caveat — Spud's
+    // lines all of them, and nobody is introduced.
+    expect(t[2]).toMatchObject({ kind: "text", speaker: "gabie" });
     const headlines = Object.values(threadCopyFor("en").firstVerdict.headline);
     expect(headlines.includes(text(t[4]!)!)).toBe(true);
     expect(text(t[5]!)).toContain("Typed, not photographed");
     for (const e of t.slice(4)) expect(e).toMatchObject({ kind: "text", speaker: null });
-    expect(JSON.stringify(t)).not.toMatch(/gabie/i);
+    expect(JSON.stringify(t.slice(3))).not.toMatch(/gabie/i);
   });
 
   it("names its proposal on the user line, and a racing confirm answers with the meal the other one logged", async () => {

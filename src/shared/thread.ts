@@ -365,12 +365,13 @@ export function hasLiveSuggestions(visible: ThreadEntry[]): boolean {
 }
 
 /**
- * Who a row belongs to: the user, or Spud. #49 (principal, 2026-09-26): Spud logs and answers. A
- * stored row from when Gabie answered carries `speaker: "gabie"` and belongs to Spud now, so a
- * thread does not split his turns where she used to speak.
+ * Who a row belongs to: the user, Gabie on her answers, and Spud on everything else he says or
+ * shows. Gabie returned as Chat's coach (S9, redesign): a stored row carrying `speaker: "gabie"`
+ * is hers, whether it was written before or after the #49 interval that read it as his.
  */
-export function speakerOf(entry: ThreadEntry): "user" | "spud" {
+export function speakerOf(entry: ThreadEntry): "user" | "spud" | "gabie" {
   if (entry.role === "user") return "user";
+  if (entry.role === "assistant" && entry.result.kind === "answered" && entry.result.speaker === "gabie") return "gabie";
   return "spud";
 }
 
