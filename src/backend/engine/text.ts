@@ -11,13 +11,13 @@ import {
   type HandleTextResult, type MealAnalysis, type MealProposed, type MealRecord, type MealRedated,
   type Profile, explainTargets,
 } from "@eait/shared";
-import { TEXT_MODEL_CALLS, dateMinus, isRefusal, localDate, windowStart } from "@eait/shared";
+import { TEXT_MODEL_CALLS, dateMinus, healthScore, isRefusal, localDate, verdictInlineText, verdictLabels, windowStart } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import type { ChatAppend, ChatIntent } from "../store.ts";
 import { normalizePromptText } from "../llm/prompt.ts";
 import { prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
-import { applyCorrection, changeLine, gatedVerdicts, sumTotals, toAnalysis } from "./meals.ts";
+import { applyCorrection, changeLine, gatedVerdicts, redateMeal, sumTotals, toAnalysis } from "./meals.ts";
 import { remember } from "./chat.ts";
 import { ROUTER_RECENT_LINES, coachTurn, recentLines } from "./coach.ts";
 import { eatenAt, once } from "./turns.ts";
@@ -192,10 +192,14 @@ async function textTurn(
         // copy.md § Step 14: a typed meal is rough by construction — the portions are a guess however
         // sure the model is of the dish — and the card's "rough estimate" pill reads this field.
         const { analysis: reconciled } = prepareAnalysis(routed.analysis);
+        const verdicts = await gatedVerdicts(deps, userId, reconciled);
         const analysis: MealAnalysis = {
           ...reconciled,
           confidence: "low",
-          verdicts: await gatedVerdicts(deps, userId, reconciled),
+          verdicts,
+          // Same rule as the verdicts above: the score is computed HERE because the proposal the
+          // card renders never passes through a store row that would attach it.
+          healthScore: healthScore({ ...reconciled, verdicts }, profile.restrictions),
         };
         // Every new proposal sweeps the expired ones: their words have no reason to stay. Housekeeping,
         // so it can never fail the turn it rides on — that turn is already billed.
@@ -209,6 +213,9 @@ async function textTurn(
         await deps.store.putPending({ id: pendingId, userId, analysis, date, expiresAt });
         return {
           kind: "proposed", pendingId, analysis, date, expiresAt: new Date(expiresAt).toISOString(),
+          // The card's verdict words, in the account's language, composed where the verdict was.
+          verdictInline: verdictInlineText(analysis.verdicts, profile.lang),
+          verdictLabels: verdictLabels(analysis.verdicts, profile.lang),
         } satisfies MealProposed;
       }
 
@@ -227,15 +234,10 @@ async function textTurn(
 
       case "redate": {
         if (!focus) return { kind: "target-gone", on: "redate" };
-        const date = dateMinus(today, routed.dayOffset);
-        // The ONE sanctioned way a meal's date changes. Macros are untouched; a manual edit cannot
-        // reach this field at all, because `EditMealRequest` has no date on it.
-        const moved = await deps.store.updateMeal(userId, focus.id, { date });
-        if (!moved) return { kind: "target-gone", on: "redate" };
-        const totals = sumTotals(await deps.store.mealsForDate(userId, date));
-        return {
-          kind: "redated", mealId: moved.id, analysis: toAnalysis(moved), totals, date,
-        } satisfies MealRedated;
+        // The ONE sanctioned way a meal's date changes, shared with `POST /v1/meals/:id/redate`:
+        // an offset against the day the turn was TYPED — a queued turn sent tomorrow still means
+        // its own "yesterday". Macros untouched; a manual edit cannot reach this field at all.
+        return redateMeal(deps, userId, focus.id, routed.dayOffset, { at: eatenAt(input.capturedAt) });
       }
     }
   }

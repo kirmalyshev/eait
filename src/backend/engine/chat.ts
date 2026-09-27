@@ -9,7 +9,7 @@
 import {
   type AppendLine, type AppendLinesResponse, type ChatEntry, type ChatHistoryResponse, type Lang, type MealRecord, type Profile,
   type DailyTotals, type FoodTargets, MAX_APPEND_LINES_PER_BATCH, MAX_USER_LINE, askLines, capVerdictLines, explainTargets, firstVerdictLines, runningLine,
-  isScriptedLineId, localDate, promptById, scriptedLine, scriptedParams,
+  isScriptedLineId, localDate, promptById, scriptedLine, scriptedParams, verdictInlineText, verdictLabels,
 } from "@eait/shared";
 import type { ChatAppend, ChatIntent, ChatMessage } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
@@ -79,7 +79,7 @@ async function dayStanding(
   userId: string,
   meal: MealRecord,
   totals: DailyTotals,
-): Promise<{ targets: FoodTargets; eatenToday: { kcal: number; protein_g: number }; lang: Lang } | null> {
+): Promise<{ targets: FoodTargets; eatenToday: { kcal: number; protein_g: number; satfat_g: number; sodium_mg: number }; lang: Lang } | null> {
   if (meal.date !== localDate(deps.config.timezone)) return null;
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
@@ -87,7 +87,7 @@ async function dayStanding(
   // rather than on the phone: this read is the only place either caller has a profile in hand.
   return {
     targets: explainTargets(profile).targets,
-    eatenToday: { kcal: totals.kcal, protein_g: totals.protein_g },
+    eatenToday: { kcal: totals.kcal, protein_g: totals.protein_g, satfat_g: totals.satfat_g, sodium_mg: totals.sodium_mg },
     lang: profile.lang,
   };
 }
@@ -140,7 +140,7 @@ export async function firstVerdict(
   const lines: ChatAppend[] = firstVerdictLines({
     goal: profile.goal ?? "maintain", targets, via, verdicts: meal.verdicts, caption,
     meal: { kcal: meal.kcal, satfat_g: meal.satfat_g, sodium_mg: meal.sodium_mg, confidence: meal.confidence },
-    eatenToday: { kcal: totals.kcal, protein_g: totals.protein_g },
+    eatenToday: { kcal: totals.kcal, protein_g: totals.protein_g, satfat_g: totals.satfat_g, sodium_mg: totals.sodium_mg },
   }, profile.lang).map((text) => ({ role: "assistant", kind: "text", text, speaker: "gabie" as const }));
   if (!(await deps.store.claimFirstVerdict(userId))) return { lines: [] };
   // Spent only when the greeting lands; a failed write hands it back for the next meal.
@@ -238,8 +238,8 @@ export async function chatHistory(
   userId: string,
   opts: { before?: number | null; limit?: number },
 ): Promise<ChatHistoryResponse> {
-  const { page, meals, before } = await chatPage(deps, userId, opts);
-  return { entries: page.map((m) => toEntry(m, meals)), before };
+  const { page, meals, lang, before } = await chatPage(deps, userId, opts);
+  return { entries: page.map((m) => toEntry(m, meals, lang)), before };
 }
 
 /**
@@ -264,19 +264,25 @@ export async function chatHistoryWithProvenance(
   userId: string,
   opts: { before?: number | null; limit?: number },
 ): Promise<{ entries: AdminChatEntry[]; before: number | null }> {
-  const { page, meals, before } = await chatPage(deps, userId, opts);
+  const { page, meals, lang, before } = await chatPage(deps, userId, opts);
   const paid = page.flatMap((m) => (m.analysisId ? [m.analysisId] : []));
   const costs = new Map((paid.length > 0 ? await deps.store.analysisCosts(userId, paid) : []).map((c) => [c.id, c]));
   return {
     entries: page.map((m) => {
       const c = m.analysisId ? costs.get(m.analysisId) : undefined;
       return {
-        ...toEntry(m, meals), intent: m.intent, model: m.model, analysisId: m.analysisId,
+        ...toEntry(m, meals, lang), intent: m.intent, model: m.model, analysisId: m.analysisId,
         cost: c ? { usd: c.costUsd, unpricedCalls: c.unpricedCalls } : null,
       };
     }),
     before,
   };
+}
+
+/** The thread's meal arm, worded: a card's verdicts arrive already composed, never re-derived. */
+function mealWithWords(m: MealRecord | undefined, lang: Lang): MealRecord | null {
+  if (m === undefined) return null;
+  return { ...m, verdictInline: verdictInlineText(m.verdicts, lang), verdictLabels: verdictLabels(m.verdicts, lang) };
 }
 
 async function chatPage(deps: EngineDeps, userId: string, opts: { before?: number | null; limit?: number }) {
@@ -287,10 +293,13 @@ async function chatPage(deps: EngineDeps, userId: string, opts: { before?: numbe
   const page = rows.slice(0, limit).reverse();
   const ids = [...new Set(page.flatMap((m) => (m.kind === "meal" && m.mealId ? [m.mealId] : [])))];
   const meals = new Map((await deps.store.getMeals(userId, ids)).map((m) => [m.id, m]));
-  return { page, meals, before: more && page.length > 0 ? page[0]!.seq : null };
+  // The meal arm's verdict words are composed here — the account's language — because the bundle
+  // rendering the card holds no i18n catalog (deploy/Dockerfile.web builds with none).
+  const lang = (await deps.store.getProfile(userId))?.lang ?? "en";
+  return { page, meals, lang, before: more && page.length > 0 ? page[0]!.seq : null };
 }
 
-function toEntry(m: ChatMessage, meals: Map<string, MealRecord>): ChatEntry {
+function toEntry(m: ChatMessage, meals: Map<string, MealRecord>, lang: Lang): ChatEntry {
   const base = { id: m.id, seq: m.seq, ts: m.ts };
   if (m.role === "user") {
     return m.kind === "photo"
@@ -300,7 +309,7 @@ function toEntry(m: ChatMessage, meals: Map<string, MealRecord>): ChatEntry {
   if (m.kind === "meal") {
     return {
       ...base, role: "assistant", kind: "meal", event: m.event ?? "logged", mealId: m.mealId,
-      meal: (m.mealId && meals.get(m.mealId)) || null, speaker: m.speaker,
+      meal: mealWithWords(m.mealId ? meals.get(m.mealId) : undefined, lang), speaker: m.speaker,
     };
   }
   return { ...base, role: "assistant", kind: "text", text: m.text ?? "", speaker: m.speaker };

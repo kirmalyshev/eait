@@ -80,7 +80,7 @@ const seedMeal = (userId: string) => store.insertMeal({
   id: crypto.randomUUID(), user_id: userId, ts: new Date().toISOString(), date: localDate("Europe/Berlin"),
   isFood: true, items: [{ name: "Rice", grams: 200 }, { name: "Chicken", grams: 150 }],
   kcal: 500, protein_g: 40, carbs_g: 56, fat_g: 8, satfat_g: 2, fiber_g: 1, sugar_g: 0.1,
-  sodium_mg: 400, verdicts: { weight: "good" }, confidence: "high", notes: "", corrected: false,
+  sodium_mg: 400, verdicts: { weight: "good" }, healthScore: null, confidence: "high", notes: "", corrected: false,
   model: "test",
 });
 
@@ -745,7 +745,7 @@ const aMeal = (userId: string, date: string, kcal: number): MealRecord => ({
   id: crypto.randomUUID(), user_id: userId, ts: `${date}T12:00:00.000Z`, date,
   isFood: true, items: [], kcal, protein_g: 10, carbs_g: 40, fat_g: 15, satfat_g: 4,
   fiber_g: 1, sugar_g: 1, sodium_mg: 10,
-  verdicts: { weight: "good" }, confidence: "high", notes: "", corrected: false, model: "test",
+  verdicts: { weight: "good" }, healthScore: null, confidence: "high", notes: "", corrected: false, model: "test",
 });
 
 const TODAY = () => localDate(CONFIG.timezone);
@@ -864,6 +864,30 @@ describe("the weights read", () => {
       { date: dateMinus(today, 10), kg: 74.6, source: "health" },
       { date: today, kg: 73.2, source: "manual" },
     ]);
+    // `latest` is the log's newest entry, whatever the range left in.
+    expect(out.latest).toEqual({ date: today, kg: 73.2, source: "manual" });
+  });
+
+  it("still names the latest weigh-in when the selected range holds none", async () => {
+    // Store-level account, so no manual row lands today: the only weigh-in predates 90D.
+    const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
+    const token = await store.issueToken(userId);
+    const today = TODAY();
+    await store.putWeight(userId, dateMinus(today, 100), 75.5);
+
+    const out = await (await get(`${ROUTES.weights}?range=90D`, token)).json() as WeightsResponse;
+    // `weights` honours the range — the card's empty frame — while `latest` keeps the dated
+    // figure the none-in-range state shows (design-pro on #95).
+    expect(out.weights).toEqual([]);
+    expect(out.latest).toEqual({ date: dateMinus(today, 100), kg: 75.5, source: "manual" });
+  });
+
+  it("answers no latest at all when nothing was ever logged", async () => {
+    const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
+    const token = await store.issueToken(userId);
+    const out = await (await get(ROUTES.weights, token)).json() as WeightsResponse;
+    expect(out.weights).toEqual([]);
+    expect(out.latest).toBeNull();
   });
 
   it("bounds the log by the range, in the server's own timezone", async () => {
@@ -888,6 +912,24 @@ describe("the weights read", () => {
     await store.putWeight(other, today, 50.0);
     expect((await (await get(`${ROUTES.weights}?range=all`, token)).json() as WeightsResponse).weights)
       .toHaveLength(4);
+  });
+
+  it("answers the BMI off the newest weigh-in and the profile's height (#118)", async () => {
+    const token = await session();
+    const uid = (await store.userIdForToken(token))!;
+    const today = TODAY();
+    await store.patchProfile(uid, { height_cm: 172 });
+    await store.putWeight(uid, today, 73.4);
+    const out = await (await get(`${ROUTES.weights}?range=90D`, token)).json() as WeightsResponse;
+    expect(out.bmi).toEqual({ value: 24.8, range: "18.5-24.9" });
+  });
+
+  it("answers null without a height — and nothing to another account", async () => {
+    const { userId } = await store.upsertDeviceUser(crypto.randomUUID() + crypto.randomUUID(), "en");
+    const token = await store.issueToken(userId);
+    await store.putWeight(userId, TODAY(), 73.4);
+    const out = await (await get(ROUTES.weights, token)).json() as WeightsResponse;
+    expect(out.bmi).toBeNull();
   });
 
   it("defaults to the board's first segment and refuses a range it does not know", async () => {
@@ -2002,16 +2044,18 @@ describe("the streamed photo route", () => {
     return handle(req);
   };
 
-  it("streams NDJSON when asked: glance, items, then the result as the last line", async () => {
+  it("streams NDJSON when asked: the reading line, glance, items — each carrying its words — then the result as the last line", async () => {
     const token = await session();
     const res = await streamed(token);
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe(NDJSON);
     const events = await ndjson(res);
-    expect(events[0]!.kind).toBe("glance");
+    // `reading` opens the stream — the client's pending line, already worded, never composed there.
+    expect(events[0]).toEqual({ kind: "reading", line: expect.any(String) });
     const last = events.at(-1) as MealLogged;
     expect(last.kind).toBe("logged");
     expect(events.filter((e) => e.kind === "item").length).toBe(last.analysis.items.length);
+    for (const e of events) if (e.kind === "item") expect(typeof e.line).toBe("string");
   });
 
   it("answers JSON, as before, without the accept header", async () => {

@@ -128,10 +128,21 @@ export function scriptedLine(
  */
 
 export function startersFor(picked: readonly Struggle[] | null | undefined, lang: Lang): string[] {
+  return starterRowsFor(picked, lang).map((s) => s.text);
+}
+
+/**
+ * The starters WITH the struggle each belongs to — the words-only `startersFor` cannot pair one
+ * with its icon, and a second ordering written beside this one is the drift it exists to prevent.
+ */
+export function starterRowsFor(
+  picked: readonly Struggle[] | null | undefined,
+  lang: Lang,
+): { struggle: Struggle; text: string }[] {
   const starters = threadCopyFor(lang).coachStarters;
   const chosen = STRUGGLES.filter((s) => picked?.includes(s));
   const rest = STRUGGLES.filter((s) => !picked?.includes(s));
-  return [...chosen, ...rest].slice(0, 3).map((s) => starters[s]);
+  return [...chosen, ...rest].slice(0, 3).map((s) => ({ struggle: s, text: starters[s] }));
 }
 
 /**
@@ -228,10 +239,11 @@ export function runningLine(
  * `verdicts` is the stored, already-visible map: a dimension is in it only when the restriction
  * was declared, so "declared" and "cap present" are the same test.
  *
- * THE TAIL, said down in the issue's words: "Go easy on it for the rest of today." when the day's
- * remaining share is SMALL — under a third of the plan left (the board's 368 of 1,434, and its
- * proposal board with the day still open shows none). It appends to each cap line's own sentence,
- * so "it" always resolves to the nutrient the line names.
+ * THE TAIL, ruled on the PR review: "it" is the line's nutrient, so the condition is THAT
+ * nutrient's remaining share of its cap — under a third of the cap still open today — not the
+ * day's calories. A day with plenty of kcal left and saturated fat nearly spent says it; the
+ * reverse does not. It appends to the line's own sentence, so "it" resolves to the nutrient
+ * named there. `eatenToday` is the day's totals AFTER this meal, so a spent cap reads the truth.
  */
 export const CAP_LINE_EASY_SHARE = 1 / 3;
 export function capVerdictLines(
@@ -239,16 +251,15 @@ export function capVerdictLines(
     meal: { satfat_g: number; sodium_mg: number };
     targets: FoodTargets;
     verdicts: MealVerdicts;
-    eatenToday: { kcal: number };
+    eatenToday: { satfat_g: number; sodium_mg: number };
   },
   lang: Lang,
 ): string[] {
   const copy = threadCopyFor(lang).capLine;
   const n = wholeNumbers(lang);
-  const tail = i.targets.kcal - i.eatenToday.kcal < i.targets.kcal * CAP_LINE_EASY_SHARE ? ` ${copy.easyTail}` : "";
   const caps = [
-    { dim: "kidneys" as const, eaten: i.meal.sodium_mg, cap: i.targets.sodium_mg, unit: "mg" },
-    { dim: "ldl" as const, eaten: i.meal.satfat_g, cap: i.targets.satfat_g, unit: "g" },
+    { dim: "kidneys" as const, eaten: i.meal.sodium_mg, cap: i.targets.sodium_mg, unit: "mg", eatenToday: i.eatenToday.sodium_mg },
+    { dim: "ldl" as const, eaten: i.meal.satfat_g, cap: i.targets.satfat_g, unit: "g", eatenToday: i.eatenToday.satfat_g },
   ];
   return caps
     .filter((c) => c.cap !== undefined && (i.verdicts[c.dim] === "warn" || i.verdicts[c.dim] === "bad"))
@@ -258,7 +269,7 @@ export function capVerdictLines(
         eaten: n(c.eaten),
         target: n(c.cap!),
         unit: spellUnit(lang, c.unit),
-      }) + tail);
+      }) + (c.cap! - c.eatenToday < c.cap! * CAP_LINE_EASY_SHARE ? ` ${copy.easyTail}` : ""));
 }
 
 /**
@@ -301,8 +312,8 @@ export interface FirstVerdictInput {
   goal: Goal;
   targets: FoodTargets;
   meal: { kcal: number; satfat_g: number; sodium_mg: number; confidence: string };
-  /** The day's totals AFTER this meal, which is what "left today" is measured from. */
-  eatenToday: { kcal: number; protein_g: number };
+  /** The day's totals AFTER this meal, which is what "left today" and the cap tails are measured from. */
+  eatenToday: { kcal: number; protein_g: number; satfat_g: number; sodium_mg: number };
   via: "photo" | "text";
   verdicts: MealVerdicts;
   /** The camera note, quoted back first — copy.md § Step 13. */

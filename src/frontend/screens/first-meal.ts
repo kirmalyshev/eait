@@ -14,17 +14,16 @@
 //
 // Moved whole out of `main.ts` (#87); the register's own boards for it are W5's.
 
-import { advancePending, pendingLine } from "../../shared/stream.ts";
-import { renderableVerdicts, verdictMood } from "../../shared/types.ts";
-import { verdictPillLabel } from "../../shared/verdicts.ts";
-import { verdictHeadline } from "../../shared/chat.ts";
+import { verdictMood } from "../../shared/types.ts";
+
+
 import { type MascotMood } from "../../shared/mascot.ts";
 // The one-meal flow's Spud lines — ONE table both clients read (#42): the phone through
 // `chatCopyFor(lang).firstMeal`, the browser through this module. It is small on purpose: a
 // module the browser imports ships whole, so this imports types and nothing else.
 import { FIRST_MEAL_COPY } from "../../shared/first-meal-copy.ts";
 import { UNIT_KCAL, wholeNumbers } from "../../shared/lang.ts";
-import type { Answered, MealAnalysis, MealLogged, MealProposed, PendingPhoto } from "@eait/shared";
+import type { Answered, MealAnalysis, MealLogged, MealProposed, VerdictLabel } from "@eait/shared";
 import type {
   EditMealResponse, PendingResponse, PhotoProgress, ProfileResponse,
 } from "@eait/shared/contract";
@@ -161,10 +160,8 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
       if (picked.reduce((n, f) => n + f.size, 0) > maxUploadBytes) { say(COPY.photoTooLarge); return; }
       const files = picked;
       run(async () => {
-        // The stream's own progress line — the same `pendingLine` the composer shows while the
-        // analyzer is out.
-        let p: PendingPhoto = { glance: null, items: [] };
-        sayProgress(pendingLine(p, lang));
+        // The stream carries its own progress words — a glance is its own line; `reading`/`item`
+        // carry `line` already worded. Printed, never composed: this bundle holds no catalog.
         try {
           // A PROPERTY, not a local: writes from the callback must survive `await` without a
           // compiler that has already decided `null`.
@@ -174,15 +171,14 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
             {
               onLine: (line) => {
                 const ev = line as PhotoProgress;
-                if (ev.kind === "glance" || ev.kind === "item") {
-                  p = advancePending(p, ev);
-                  sayProgress(pendingLine(p, lang));
-                }
+                // Progress kinds only — the stream's last line is a result, not a line to print.
+                if (ev.kind === "reading" || ev.kind === "item") sayProgress(ev.line);
+                else if (ev.kind === "glance") sayProgress(ev.text);
               },
               onResult: (r) => { if (r.kind === "logged") got.logged = r; },
             },
           );
-          if (got.logged !== null) { show(await verdictStep(got.logged.analysis, got.logged.mealId)); return; }
+          if (got.logged !== null) { show(await verdictStep(got.logged.analysis, got.logged.mealId, got.logged)); return; }
           if (keptNote !== undefined) say(keptNote);
         } finally {
           sayProgress(null);
@@ -225,7 +221,7 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
         // Refusals and "expired" come back as HTTP statuses; a JSON body here is the meal.
         if (c.kind !== "logged") throw new ApiError(200, { error: c.kind }, `confirm: ${c.kind}`);
         setHeldProposal(null);
-        show(await verdictStep(c.analysis, c.mealId));
+        show(await verdictStep(c.analysis, c.mealId, c));
       });
     });
     foot.append(send);
@@ -233,14 +229,17 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
     return box;
   };
 
-  const verdictStep = (analysis: MealAnalysis, mealId: string): HTMLElement => {
+  // The card's verdict words arrive ON the result — composed where the verdict was computed, in
+  // the account's language. A screen in this bundle holds no i18n catalog to compose them itself.
+  type VerdictWords = { verdictLabels: VerdictLabel[]; verdictHeadline: string | null };
+  const verdictStep = (analysis: MealAnalysis, mealId: string, words: VerdictWords): HTMLElement => {
     const box = el("div", "step");
     // #49: SPUD SAYS THE PILLS' VERDICT, and only that, re-derived from the verdicts this card was
     // handed: the server's first line (`verdictHeadline`, the same function) and never the thread
     // read back. The thread held yesterday's figures after a correction and an introduction nobody
     // here makes. The face follows the same pills.
-    const headline = verdictHeadline(analysis.verdicts, lang);
-    box.append(spudBlock(verdictMood(analysis.verdicts), COPY.firstVerdictBeat, headline === null ? [] : [headline]));
+    box.append(spudBlock(verdictMood(analysis.verdicts), COPY.firstVerdictBeat,
+      words.verdictHeadline === null ? [] : [words.verdictHeadline]));
     const card = el("div", "card");
     card.append(el("div", "lab", names(analysis.items)));
     const big = el("p", "big");
@@ -255,12 +254,11 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
       stats.append(cell);
     }
     card.append(stats);
-    // The verdicts, EXACTLY as the server computed them — rederived here they would be a second
-    // implementation, and a wrong one the moment the caps moved.
-    const dims = renderableVerdicts(analysis.verdicts);
-    if (dims.length > 0) {
+    // The pills' WORDS are the result's own `verdictLabels` — rederived here they would be a
+    // second implementation, and a wrong one the moment the caps moved.
+    if (words.verdictLabels.length > 0) {
       const pills = el("div", "pills");
-      for (const d of dims) pills.append(el("span", `pill ${analysis.verdicts[d]}`, verdictPillLabel(d, analysis.verdicts[d]!, lang)));
+      for (const v of words.verdictLabels) pills.append(el("span", `pill ${v.tone}`, v.label));
       card.append(pills);
     }
     box.append(card);
@@ -268,13 +266,13 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
     const keep = el("button", "cta p", fm.keepGoing) as HTMLButtonElement;
     keep.addEventListener("click", () => show(offerStep()));
     const fix = el("button", "cta g", fm.correct) as HTMLButtonElement;
-    fix.addEventListener("click", () => show(correctStep(analysis, mealId)));
+    fix.addEventListener("click", () => show(correctStep(analysis, mealId, words)));
     foot.append(keep, fix);
     box.append(foot);
     return box;
   };
 
-  const correctStep = (analysis: MealAnalysis, mealId: string): HTMLElement => {
+  const correctStep = (analysis: MealAnalysis, mealId: string, words: VerdictWords): HTMLElement => {
     const box = el("div", "step");
     box.append(spudBlock("think", COPY.correctBeat, [COPY.correctAsk]));
     const fields = el("div", "card");
@@ -302,7 +300,7 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
       run(async () => {
         const edit = firstMealEdit(analysis, what.value, portion.value as Portion);
         // Nothing changed: the card as it was, and no write — so no "Updated" anywhere (#49).
-        if (edit === null) { show(await verdictStep(analysis, mealId)); return; }
+        if (edit === null) { show(await verdictStep(analysis, mealId, words)); return; }
         const r = await api<EditMealResponse>(MEAL(mealId), {
           method: "PATCH",
           headers: { "content-type": "application/json" },
@@ -311,7 +309,7 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
         // "target-gone" and the refusals are statuses; a JSON body here is the updated meal.
         if (r.kind !== "updated") throw new ApiError(200, { error: r.kind }, `edit: ${r.kind}`);
         // The WHOLE card is rebuilt from the server's answer; nothing of the old one survives.
-        show(await verdictStep(r.analysis, r.mealId));
+        show(await verdictStep(r.analysis, r.mealId, r));
       });
     });
     foot.append(save);

@@ -12,13 +12,15 @@
 
 import {
   type DailyTotals, type EditMealRequest, type LogPhotoResult, type MealAnalysis, type MealHint,
-  type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord, type MealUpdated, type PhotoEvent,
+  type Lang, type MealItem, type MealLogged, type MealProposed, type MealQuestion, type MealRecord,
+  type MealRedated, type MealUpdated, type PhotoEvent,
   type Profile, type TargetGone, type ConfirmMealResult, type Refusal, type VerdictDimension,
   explainTargets, verdictsFromTargets, visibleVerdicts,
 } from "@eait/shared";
 import {
-  LANG_TAG, PHOTO_MODEL_CALLS, UNIT_KCAL, VERDICT_DIMENSIONS, localDate, localTime, mealCopyFor,
-  mealIsGuessed, spellUnit, verdictNoun, wholeNumbers, windowStart,
+  LANG_TAG, PHOTO_MODEL_CALLS, UNIT_KCAL, VERDICT_DIMENSIONS, dateMinus, healthScore, localDate, localTime,
+  mealCopyFor, mealIsGuessed, spellUnit, streamCopyFor, verdictHeadline, verdictInlineText,
+  verdictLabels, verdictNoun, wholeNumbers, windowStart,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { MAX_OPTION, MAX_QUESTION, normalizePromptText } from "../llm/prompt.ts";
@@ -26,7 +28,7 @@ import { prepareAnalysis } from "./analysis.ts";
 import { charge, checkCaps, refundGatewayRefusal, releaseSample } from "./caps.ts";
 import { afterLog, firstVerdict, remember } from "./chat.ts";
 import { scriptedLine } from "@eait/shared";
-import { imageMime, type AnalyzedMeal } from "../llm/port.ts";
+import { clampDayOffset, imageMime, type AnalyzedMeal } from "../llm/port.ts";
 import { itemScanner } from "../llm/partial.ts";
 import { eatenAt, once } from "./turns.ts";
 
@@ -112,6 +114,9 @@ export async function analyzePhotos(
   eaten: Date = new Date(),
 ): Promise<PhotoRead | Refusal> {
   const zone = deps.config.timezone;
+  // The stream's first word — "Reading the plate…", already in the account's language. A client
+  // prints it; it never composes it: the web bundle holds no i18n catalog.
+  onEvent?.({ kind: "reading", line: streamCopyFor(profile.lang).reading });
   const refusal = await checkCaps(deps, userId, date, "photo");
   if (refusal) return refusal;
 
@@ -140,7 +145,9 @@ export async function analyzePhotos(
       .then((text) => onEvent({ kind: "glance", text }))
       .catch((e: unknown) => console.warn(`[eait] glance failed: ${(e as Error)?.message ?? e}`));
   }
-  const onDelta = onEvent ? itemScanner((index, item) => onEvent({ kind: "item", index, item })) : undefined;
+  // The weighing words ride the item events: same rule as `reading` — the line is sent, not derived.
+  const weighing = streamCopyFor(profile.lang).weighing;
+  const onDelta = onEvent ? itemScanner((index, item) => onEvent({ kind: "item", index, item, line: weighing })) : undefined;
 
   let analysis: AnalyzedMeal;
   try {
@@ -217,13 +224,17 @@ async function logPhotoTurn(
   const { analysis, images, analysisId } = read;
   const question = await mayAsk(deps, userId, today, analysis, read.question);
 
+  const verdicts = await gatedVerdicts(deps, userId, analysis);
   const record: MealRecord = {
     ...analysis,
     id: crypto.randomUUID(),
     user_id: userId,
     ts: eaten.toISOString(),
     date,
-    verdicts: await gatedVerdicts(deps, userId, analysis),
+    verdicts,
+    // Computed at write for the card this turn returns; the stores recompute it on every READ, so
+    // a later edit can never leave the score describing numbers that changed.
+    healthScore: healthScore({ ...analysis, verdicts }, profile.restrictions),
     corrected: false,
     model: deps.config.llmModel,
     // Stored, because the answer arrives as its own turn and has to find the question again — and
@@ -262,8 +273,10 @@ async function logPhotoTurn(
     };
   });
   return {
-    kind: "logged", mealId: record.id, analysis: { ...analysis, verdicts: record.verdicts },
+    kind: "logged", mealId: record.id,
+    analysis: { ...analysis, verdicts: record.verdicts, healthScore: record.healthScore },
     totals, date, hint: hintFor(analysis),
+    ...verdictWordsFor(record.verdicts, profile.lang),
     ...(question ? { question } : {}),
   } satisfies MealLogged;
 }
@@ -368,6 +381,7 @@ export async function editMeal(
   }
 
   const totals = sumTotals(await deps.store.mealsForDate(userId, updated.date));
+  const lang = (await deps.store.getProfile(userId))?.lang ?? "en";
   if (opts.thread !== false) {
     await remember(deps, userId, async () => {
       // #119: ONE computed line names the change and what the verdicts did. It is null on an edit
@@ -380,7 +394,42 @@ export async function editMeal(
       ];
     });
   }
-  return { kind: "updated", mealId, analysis: toAnalysis(updated), totals, date: updated.date, via: "manual" };
+  return {
+    kind: "updated", mealId, analysis: toAnalysis(updated), totals, date: updated.date, via: "manual",
+    ...verdictWordsFor(updated.verdicts, lang),
+  };
+}
+
+/**
+ * THE ONE SANCTIONED WAY a meal's date changes (#150): by offset, clamped to the bound the router
+ * answers with, against the day the move was made (`at` — the turn path passes the turn's capture
+ * time, so a queued "that was yesterday" still means the day it was typed). A client never sends a
+ * `YYYY-MM-DD`: `EditMealRequest` has no `date` field on purpose, and a bare number cannot put a
+ * meal on a day the bound would not let it reach.
+ *
+ * Reached two ways: the router's `redate` intent, and `POST /v1/meals/:id/redate` — the meal
+ * surface's "Move to yesterday", unbilled. Both write the same thread card a turn's re-date does
+ * (`kind: "meal", event: "redated"`), so the thread reads identically whichever way it happened.
+ */
+export async function redateMeal(
+  deps: EngineDeps,
+  userId: string,
+  mealId: string,
+  dayOffset: unknown,
+  // `at` is the move's clock: the turn path passes the turn's capture time, so a queued "that was
+  // yesterday" still means the day it was typed. `thread` is the route's only — the chat path's
+  // `keep` writes the redated card under the user's words itself, so a second write here would
+  // land two cards for one move.
+  opts: { thread?: boolean; at?: Date } = {},
+): Promise<MealRedated | TargetGone> {
+  const date = dateMinus(localDate(deps.config.timezone, opts.at), clampDayOffset(dayOffset));
+  const moved = await deps.store.updateMeal(userId, mealId, { date });
+  if (!moved) return { kind: "target-gone", on: "redate" };
+  const totals = sumTotals(await deps.store.mealsForDate(userId, date));
+  if (opts.thread === true) {
+    await remember(deps, userId, [{ role: "assistant", kind: "meal", mealId: moved.id, event: "redated", speaker: "gabie" }]);
+  }
+  return { kind: "redated", mealId: moved.id, analysis: toAnalysis(moved), totals, date };
 }
 
 /**
@@ -618,7 +667,10 @@ export async function rewriteMeal(
   // written only when the read actually moved something.
   const line = changeLine(existing, updated, profile);
   if (line) await remember(deps, userId, [{ role: "assistant", kind: "text", text: line, speaker: "gabie" }]);
-  return { kind: "updated", mealId: existing.id, analysis: toAnalysis(updated), totals, date: updated.date, via: "reanalysis" };
+  return {
+    kind: "updated", mealId: existing.id, analysis: toAnalysis(updated), totals, date: updated.date,
+    via: "reanalysis", ...verdictWordsFor(updated.verdicts, profile.lang),
+  };
 }
 
 /** A stored row, back to the analysis shape a card renders. */
@@ -626,8 +678,8 @@ export function toAnalysis(m: MealRecord): MealAnalysis {
   return {
     isFood: m.isFood, items: m.items as MealItem[], kcal: m.kcal, protein_g: m.protein_g,
     carbs_g: m.carbs_g, fat_g: m.fat_g, satfat_g: m.satfat_g, fiber_g: m.fiber_g,
-    sugar_g: m.sugar_g, sodium_mg: m.sodium_mg, verdicts: m.verdicts, confidence: m.confidence,
-    notes: m.notes,
+    sugar_g: m.sugar_g, sodium_mg: m.sodium_mg, verdicts: m.verdicts, healthScore: m.healthScore,
+    confidence: m.confidence, notes: m.notes,
   };
 }
 
@@ -638,11 +690,24 @@ export function toAnalysis(m: MealRecord): MealAnalysis {
  * the caller's with that id answers this way, a photo meal's included: the id is theirs, nothing is
  * written, and "logged" is the true state of it.
  */
+/**
+ * The verdict words a write result carries — the pills plus the one-sentence headline the
+ * first-meal card draws — composed where the verdicts were recomputed, in the account's language.
+ */
+const verdictWordsFor = (verdicts: MealRecord["verdicts"], lang: Lang) => ({
+  verdictLabels: verdictLabels(verdicts, lang),
+  verdictHeadline: verdictHeadline(verdicts, lang),
+});
+
 async function loggedAs(deps: EngineDeps, userId: string, id: string): Promise<MealLogged | null> {
   const already = await deps.store.getMeal(userId, id);
   if (!already) return null;
   const totals = sumTotals(await deps.store.mealsForDate(userId, already.date));
-  return { kind: "logged", mealId: already.id, analysis: toAnalysis(already), totals, date: already.date, hint: hintFor(already) };
+  const lang = (await deps.store.getProfile(userId))?.lang ?? "en";
+  return {
+    kind: "logged", mealId: already.id, analysis: toAnalysis(already), totals, date: already.date,
+    hint: hintFor(already), ...verdictWordsFor(already.verdicts, lang),
+  };
 }
 
 export async function confirmPendingMeal(
@@ -660,13 +725,18 @@ export async function confirmPendingMeal(
   let record: MealRecord;
   let inserted: boolean;
   try {
+    const verdicts = await gatedVerdicts(deps, userId, pending.analysis);
+    const restrictions = (await deps.store.getProfile(userId))?.restrictions ?? [];
     record = {
       ...pending.analysis,
       id: pendingId,
       user_id: userId,
       ts: new Date().toISOString(),
       date: pending.date,
-      verdicts: await gatedVerdicts(deps, userId, pending.analysis),
+      verdicts,
+      // A pending row written before #118 carries no score — it is computed here, never trusted
+      // off the stored proposal.
+      healthScore: healthScore({ ...pending.analysis, verdicts }, restrictions),
       corrected: false,
       model: deps.config.llmModel,
     };
@@ -686,6 +756,7 @@ export async function confirmPendingMeal(
   if (!inserted) return (await alreadyLogged()) ?? { kind: "expired" };
 
   const totals = sumTotals(await deps.store.mealsForDate(userId, pending.date));
+  const lang = (await deps.store.getProfile(userId))?.lang ?? "en";
   await remember(deps, userId, async () => {
     const profile = await deps.store.getProfile(userId);
     const greeting = profile ? await firstVerdict(deps, userId, profile, record, totals, "text") : { lines: [] };
@@ -701,8 +772,10 @@ export async function confirmPendingMeal(
     };
   });
   return {
-    kind: "logged", mealId: record.id, analysis: { ...pending.analysis, verdicts: record.verdicts },
+    kind: "logged", mealId: record.id,
+    analysis: { ...pending.analysis, verdicts: record.verdicts, healthScore: record.healthScore },
     totals, date: pending.date, hint: hintFor(pending.analysis),
+    ...verdictWordsFor(record.verdicts, lang),
   };
 }
 
@@ -733,8 +806,18 @@ export async function cancelPendingMeal(
  * and writes nothing; an expired one is not offered, because nobody may confirm it.
  */
 export async function pendingMeals(deps: EngineDeps, userId: string): Promise<MealProposed[]> {
+  const profile = await deps.store.getProfile(userId);
+  const restrictions = profile?.restrictions ?? [];
+  const lang = profile?.lang ?? "en";
   return (await deps.store.pendingsFor(userId)).map((p) => ({
-    kind: "proposed", pendingId: p.id, analysis: p.analysis, date: p.date, expiresAt: new Date(p.expiresAt).toISOString(),
+    kind: "proposed", pendingId: p.id,
+    // Recomputed, not read off the row — a pending written before #118 has none, and a restriction
+    // the user has since ticked should shape the card being re-shown.
+    analysis: { ...p.analysis, healthScore: healthScore(p.analysis, restrictions) },
+    date: p.date, expiresAt: new Date(p.expiresAt).toISOString(),
+    // The card's words recomputed with it — a language change between proposal and read-back shows.
+    verdictInline: verdictInlineText(p.analysis.verdicts, lang),
+    verdictLabels: verdictLabels(p.analysis.verdicts, lang),
   } satisfies MealProposed));
 }
 

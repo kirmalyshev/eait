@@ -7,15 +7,14 @@
 // part went through `esc` at build), and the `*El` wrappers are what screens call when a component
 // takes an event listener — `addEventListener`, never an `on*` attribute the CSP refuses.
 
-import type { MealRecord, Verdict, VerdictDimension } from "@eait/shared";
-import { renderableVerdicts } from "../shared/types.ts";
-import { verdictPillLabel } from "../shared/verdicts.ts";
+import type { MealRecord } from "@eait/shared";
 import {
   cta as ctaMarkup, estimateChartSvg, gramMacs as gramMacsMarkup,
   mac as macMarkup, macs as macsMarkup, mcard as mcardMarkup, mealRow as mealRowMarkup,
   optionRow as optionRowMarkup, photoHero as photoHeroMarkup, planCard as planCardMarkup,
   gabieAvatar as gabieAvatarMarkup, gabieName as gabieNameMarkup, spudAvatar as spudAvatarMarkup,
-  ring as ringMarkup, twoWayChartSvg, verdictDot as verdictDotMarkup,
+  ring as ringMarkup, scorePart as scorePartMarkup, scoreRow as scoreRowMarkup,
+  ingredient as ingredientMarkup, twoWayChartSvg, verdictDot as verdictDotMarkup,
   verdictList as verdictListMarkup, weekBarsSvg, weekStrip as weekStripMarkup, weightChartSvg,
   type ChipName, type HeroCallout, type MealRowSpec, type RingOpts, type VerdictTone,
   type WeekDayRow,
@@ -55,8 +54,17 @@ export const verdictDotEl = (tone: VerdictTone, words: string): Element =>
 export const verdictListEl = (items: readonly { tone: VerdictTone; words: string }[]): Element | null =>
   items.length ? kitEl(verdictListMarkup(items)) : null;
 
+export const scoreRowEl = (o: Parameters<typeof scoreRowMarkup>[0]): Element =>
+  kitEl(scoreRowMarkup(o));
+
+export const scorePartEl = (o: Parameters<typeof scorePartMarkup>[0]): Element =>
+  kitEl(scorePartMarkup(o));
+
+export const ingredientEl = (o: Parameters<typeof ingredientMarkup>[0]): Element =>
+  kitEl(ingredientMarkup(o));
+
 export const photoHeroEl = (o: {
-  src: string; alt?: string; pad?: 14 | 18; stamp?: string; scan?: boolean;
+  src?: string; alt?: string; pad?: 14 | 18; stamp?: string; scan?: boolean;
   callouts?: readonly HeroCallout[];
 }): Element => kitEl(photoHeroMarkup(o));
 
@@ -114,12 +122,16 @@ export function weekStripEl(
   return el_;
 }
 
-/** A meal's verdicts as the kit's `{tone, words}` pairs — the computed words, in this language. */
-export function verdictWords(verdicts: MealRecord["verdicts"]): { tone: VerdictTone; words: string }[] {
-  const v = verdicts as Partial<Record<VerdictDimension, Verdict>>;
-  return renderableVerdicts(verdicts).map((d) => ({
-    tone: v[d]!, words: verdictPillLabel(d, v[d]!, lang),
-  }));
+/**
+ * The row's verdict words — the server-sent inline line, never composed here (the bundle holds no
+ * i18n catalog). One entry, the joined words at the day's worst tone — the row form the boards
+ * draw ("13:05 · calories high · saturated fat high"); the pills a card shows are `verdictLabels`.
+ */
+export function verdictRow(meal: MealRecord): { tone: VerdictTone; words: string }[] {
+  const words = meal.verdictInline;
+  if (words === undefined || words === "") return [];
+  const bad = (meal.verdictLabels ?? []).some((v) => v.tone === "bad");
+  return [{ tone: bad ? "bad" : "warn", words }];
 }
 
 /**
@@ -138,7 +150,7 @@ export function mealRowEl(
     time: o.time,
     kcal: meal.kcal,
     grams: { protein: meal.protein_g, carbs: meal.carbs_g, fat: meal.fat_g },
-    verdicts: verdictWords(meal.verdicts),
+    verdicts: verdictRow(meal),
     photo: o.photo ?? null,
     ...(o.note !== undefined ? { note: o.note } : {}),
     ...(o.href !== undefined ? { href: o.href } : {}),

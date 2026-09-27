@@ -29,16 +29,18 @@ async function userLines(page: Page): Promise<string[]> {
 
 async function photo(page: Page, caption: string) {
   await page.locator('input[type="file"]').setInputFiles(FIXTURE);
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill(caption);
+  await page.locator(".compose .box").fill(caption);
   await page.getByRole("button", { name: "Send the photo" }).click();
 }
 
 async function say(page: Page, words: string) {
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill(words);
+  await page.locator(".compose .box").fill(words);
   await page.getByRole("button", { name: "Send", exact: true }).click();
 }
 
-const waiting = (page: Page) => page.locator(".thread li", { hasText: "Waiting to send" });
+// A kept turn's bubble is dimmed; one whose refusal is back carries "held" — `waiting` is the
+// still-queued kind only.
+const waiting = (page: Page) => page.locator(".thread li.me.dim:not(.held)");
 
 test("a photo and a message sent offline wait in the thread, and go once, in order, when the connection is back", async ({ inWebApp: page }) => {
   await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
@@ -48,7 +50,7 @@ test("a photo and a message sent offline wait in the thread, and go once, in ord
   await expect(page.locator(".notice")).toHaveText(KEPT);
   // Not an error, and not "nothing was logged": the photo is kept and says it is waiting.
   await expect(waiting(page)).toHaveCount(1);
-  await expect(page.getByPlaceholder("Tell Spud what you ate, or ask anything")).toHaveValue("");
+  await expect(page.locator(".compose .box")).toHaveValue("");
   await say(page, "and a coffee with milk");
   await expect(waiting(page)).toHaveCount(2);
   await expect(waiting(page).first()).toContainText("offline lunch");
@@ -150,8 +152,9 @@ test("a refusal that comes back when the queue drains is worded against the kept
     : r.fallback()));
   await page.context().setOffline(false);
 
-  const banana = page.locator(".thread li", { hasText: "a banana" });
+  const banana = page.locator(".thread li.them", { hasText: "This account's free sample is used up" });
   await expect(banana).toContainText("This account's free sample is used up. Start your free week to carry on.");
+  await expect(page.locator(".thread li.me.dim", { hasText: "a banana" })).toHaveCount(1);
   // The apple was told it goes on its own; once the banana ahead of it is held, that is no longer true.
   await expect(page.locator(".notice")).toHaveText(BEHIND);
   // Held, not retried on its own, and the one behind it waits rather than jumping the queue.
@@ -164,9 +167,10 @@ test("a refusal that comes back when the queue drains is worded against the kept
   await expect(waiting(page)).toHaveCount(2);
 
   refused = false;
-  await banana.getByRole("button", { name: "Send again" }).click();
-  await expect(page.locator(".thread li", { hasText: "Waiting to send" })).toHaveCount(0);
-  await expect(page.locator(".thread li", { hasText: "Send again" })).toHaveCount(0);
+  // force: see app-chat's Send-again spec — the rising node is swapped under the pointer.
+  await banana.getByRole("button", { name: "Send again" }).click({ force: true });
+  await expect(waiting(page)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Send again" })).toHaveCount(0);
   await expect.poll(() => userLines(page)).toEqual(["text:a banana", "text:and an apple", "text:and some toast"]);
 });
 
@@ -179,13 +183,14 @@ test("a kept turn can be discarded, and nothing is sent for it", async ({ inWebA
     ? r.fulfill({ status: 429, contentType: "application/json", body: JSON.stringify({ error: "cap-exceeded", scope: "global" }) })
     : r.fallback()));
   await page.context().setOffline(false);
-  const pear = page.locator(".thread li", { hasText: "a pear" });
-  await expect(pear.getByRole("button", { name: "Discard" })).toBeVisible();
+  // The refusal is Gabie's line under the kept bubble; Discard sits beside it.
+  const discard = page.getByRole("button", { name: "Discard" });
+  await expect(discard).toBeVisible();
   await page.unroute("**/api/v1/messages");
-  await pear.getByRole("button", { name: "Discard" }).click();
-  await expect(page.locator(".thread li", { hasText: "a pear" })).toHaveCount(0);
+  await discard.click();
+  await expect(page.locator(".thread li.me.dim", { hasText: "a pear" })).toHaveCount(0);
   await page.reload();
-  await expect(page.getByPlaceholder("Tell Spud what you ate, or ask anything")).toBeVisible();
+  await expect(page.locator(".compose .box")).toBeVisible();
   await expect(page.locator(".thread li", { hasText: "a pear" })).toHaveCount(0);
   expect(await userLines(page)).toEqual([]);
 });
@@ -224,14 +229,14 @@ test("the chat opens offline, from another tab, with what it last had and a comp
   await logMeal(page);
   await page.reload();
   await expect(page.locator(".thread li").first()).toBeVisible();
-  const before = await page.locator(".thread li").count();
+  const before = await page.locator(".thread li.me").count();
   await say(page, "how did my week go?");
-  await expect(page.locator(".thread li")).toHaveCount(before + 2);
+  await expect(page.locator(".thread li.me")).toHaveCount(before + 1);
   await page.getByRole("link", { name: "Home" }).click();
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
   await page.context().setOffline(true);
   await page.getByRole("link", { name: "Chat" }).click();
-  await expect(page.getByPlaceholder("Tell Spud what you ate, or ask anything")).toBeVisible();
+  await expect(page.locator(".compose .box")).toBeVisible();
   await expect(page.locator(".thread")).toContainText("how did my week go?");
   await say(page, "a slice of rye bread");
   await expect(waiting(page)).toHaveCount(1);
@@ -258,7 +263,7 @@ test("a kept turn of an account that is no longer signed in here is not kept for
   await signIn(page, `pw-b-${testInfo.testId}-${Date.now()}`);
   await onboardFast(page);
   await page.goto("/#/chat");
-  await expect(page.getByPlaceholder("Tell Spud what you ate, or ask anything")).toBeVisible();
+  await expect(page.locator(".compose .box")).toBeVisible();
   await expect.poll(() => page.evaluate<number>(`new Promise((resolve, reject) => {
     const open = indexedDB.open("eait", 1);
     open.onupgradeneeded = () => open.result.createObjectStore("outbox");

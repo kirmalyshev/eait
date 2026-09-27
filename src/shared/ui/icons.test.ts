@@ -22,6 +22,8 @@ const BOARD_ICONS: IconName[] = [
   "balanced", "wholefood", "mediterranean", "flexitarian", "pescatarian", "vegetarian", "vegan",
   // Option rows: medical limits.
   "health", "none",
+  // The Health score and Home page 2 — the score's parts and its "why" affordance.
+  "fibre", "sugar", "help", "salt",
   // Apple Health.
   "sync",
   // Goal rows.
@@ -32,7 +34,7 @@ const BOARD_ICONS: IconName[] = [
   "camera", "upload", "chevron-left", "chevron-right", "x", "dots", "send", "back", "plus", "search",
   "chevron-down", "chevron-up", "check", "retry", "clock", "info", "alert-circle", "pencil", "trash",
   "backspace", "sparkle", "spinner", "camera-off", "camera-switch", "images", "image-off",
-  "calendar-back", "target", "no-food",
+  "calendar-back", "target", "no-food", "help",
   // Health and You.
   "download", "export", "scale", "heart", "heart-off", "rest", "pulse", "person", "bars",
   // Landing and pay.

@@ -1,5 +1,8 @@
 // Units — the conversion and the ruler, for display only.
 //
+// `lang.ts` is one of the four modules `ui/` may reach (ui.test.ts's list), so the spelling and
+// the number format below are the language's own rather than a retyped "cm".
+//
 // The store is metric and stays metric: `Profile.height_cm` and `weight_kg` are the columns, and
 // the plan arithmetic reads them. What the user drags on the ruler and reads beside the big number
 // is a PRESENTATION of those numbers — the unit toggle on the height, weight and target screens
@@ -17,6 +20,8 @@
 
 /** `metric` or `imperial` — the two-way toggle under every body question. */
 export type UnitSystem = "metric" | "imperial";
+
+import { numbers, spellUnit, type Lang } from "../lang.ts";
 
 const CM_PER_IN = 2.54;
 const LB_PER_KG = 2.2046226218;
@@ -88,6 +93,20 @@ const lbLabel = (lb: number) => `${lb}`;
 const ftInLabel = (totalIn: number) => `${Math.floor(totalIn / 12)}′${totalIn % 12}″`;
 
 /**
+ * A person's height the way copy needs it — "172 cm" metric, "5′8″" imperial — the unit spelled
+ * and the figures formatted in the reader's language (`spellUnit`, `numbers`), so Progress's
+ * "From {w} and {h}" prints "см" in Russian and no screen retypes the ′″ join.
+ */
+export function heightText(cm: number, system: UnitSystem, lang: Lang): string {
+  const n = numbers(lang);
+  if (system === "imperial") {
+    const { ft, in: inch } = cmToFtIn(cm);
+    return `${n(ft)}′${n(inch)}″`;
+  }
+  return `${n(cm)} ${spellUnit(lang, "cm")}`;
+}
+
+/**
  * The two rulers and their two systems, as `product/design/pro` draws them.
  *
  * Height (vertical, `06-height`/`06b`): the board's window is 15 cm / 16 in tall, labels every
@@ -118,4 +137,43 @@ export function rulerLabels(ticks: RulerTicks, from: number, to: number): number
   const first = Math.ceil(from / ticks.labelEvery) * ticks.labelEvery;
   for (let v = first; v <= to; v += ticks.labelEvery) out.push(v);
   return out;
+}
+
+/**
+ * Where the ruler's gradient sits so a tick lands under the needle: the offset of the window's
+ * centre from the value, wrapped into one period. `major` phases the long ticks by their own
+ * period; both layers get the same raw offset modulo their own period, or the majors drift off
+ * the numbers they mark. The client script recomputes the same phase on drag (it is a hashed
+ * literal and cannot import this); the two agree because the geometry is this one function's.
+ */
+export function rulerTickPhase(ticks: RulerTicks, centre: number, val: number, major = false): number {
+  const period = ticks.pxPerUnit * (major ? ticks.majorEvery : 1);
+  const raw = centre - val * ticks.pxPerUnit;
+  return ((raw % period) + period) % period;
+}
+
+// ── The wire: display value ↔ stored metric ──────────────────────────────────────────────────
+//
+// A ruler drags and a field is typed in the DISPLAYED unit; the store stays metric. These two
+// pairs are the only conversion on the boundary — the rulers' pitch lives in `RULER_TICKS`, the
+// prose spelling in `weightDisplay` (`onboarding-chat.ts`), and nothing else converts.
+
+/** A stored height as the number the control shows: cm in metric, whole inches in imperial. */
+export function heightDisplayValue(cm: number, units: UnitSystem): number {
+  return units === "imperial" ? Math.round(cm / CM_PER_IN) : cm;
+}
+
+/** A height the control answered, back to the stored cm. Imperial's display unit is the inch. */
+export function heightToCm(units: UnitSystem, display: number): number {
+  return units === "imperial" ? ftInToCm(0, display) : display;
+}
+
+/** A stored weight as the number the control shows: kg in metric, whole lb in imperial. */
+export function weightDisplayValue(kg: number, units: UnitSystem): number {
+  return units === "imperial" ? kgToLb(kg) : kg;
+}
+
+/** A weight the control answered, back to the stored kg — the tenth `checkNumber` keeps. */
+export function weightToKg(units: UnitSystem, display: number): number {
+  return units === "imperial" ? lbToKg(display) : display;
 }

@@ -7,7 +7,7 @@
 
 import { i18nFor } from "./i18n.ts";
 import type { I18n } from "@lingui/core";
-import { renderableVerdicts, type Lang, type Verdict, type VerdictDimension } from "./types.ts";
+import { renderableVerdicts, type Lang, type Verdict, type VerdictDimension, type VerdictLabel } from "./types.ts";
 
 
 /**
@@ -128,4 +128,15 @@ export function verdictInlineText(verdicts: unknown, lang: Lang): string {
     if (verdict === "warn" || verdict === "bad") segments.push(verdictInlineLabel(d, verdict, lang));
   }
   return segments.join(" · ");
+}
+
+/**
+ * The pills' words for a meal payload — `{dimension, tone, label}` per visible verdict, in render
+ * order, `good` pills included: the proposal card's "on plan" rows are pills too. Composed where
+ * the verdict is computed; the bundle that draws them holds no catalog to call `verdictPillLabel`
+ * itself (`deploy/Dockerfile.web` builds with no `node_modules`).
+ */
+export function verdictLabels(verdicts: unknown, lang: Lang): VerdictLabel[] {
+  const v = verdicts as Partial<Record<VerdictDimension, Verdict>>;
+  return renderableVerdicts(verdicts).map((d) => ({ dimension: d, tone: v[d]!, label: verdictPillLabel(d, v[d]!, lang) }));
 }

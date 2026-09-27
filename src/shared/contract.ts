@@ -11,8 +11,9 @@ import type {
 import type { Diet, MedicalTag } from "./targets.ts";
 import type { OnboardingContent, OnboardingEvent } from "./onboarding.ts";
 import type { TargetBasis } from "./targets.ts";
-import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, LogPhotoResult, MealProposed, MealUpdated, Refusal, TargetGone } from "./results.ts";
+import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, LogPhotoResult, MealProposed, MealRedated, MealUpdated, Refusal, TargetGone } from "./results.ts";
 import type { HealthDay } from "./health.ts";
+import type { BmiRange } from "./scores.ts";
 import { WEIGHT_RANGES, type ChartDay, type WeightRange } from "./ui/charts.ts";
 import type { Entitlement } from "./entitlement.ts";
 import type { WebPaywall } from "./paywall.ts";
@@ -292,6 +293,12 @@ export const ROUTES = {
   mealPhotos: (id: string) => `/v1/meals/${encodeURIComponent(id)}/photos`,
   /** Run the analyzer again over the stored photos. Charged like a photo. */
   mealReanalyze: (id: string) => `/v1/meals/${encodeURIComponent(id)}/reanalyze`,
+  /**
+   * POST — move the meal back `dayOffset` days ({@link RedateMealRequest}), the menu's "Move to
+   * yesterday" as `1`. The same re-date the chat path runs — one engine function, unbilled,
+   * bounded by the chat re-date's own `MAX_DAY_OFFSET` — and the same answer: `MealRedated | TargetGone`.
+   */
+  mealRedate: (id: string) => `/v1/meals/${encodeURIComponent(id)}/redate`,
   pendingConfirm: (id: string) => `/v1/meals/pending/${encodeURIComponent(id)}/confirm`,
   pendingCancel: (id: string) => `/v1/meals/pending/${encodeURIComponent(id)}/cancel`,
   /** GET — the caller's live proposals, oldest first (#530): a page that lost its card reads them back. */
@@ -577,6 +584,12 @@ export interface ProfileResponse {
    */
   telegramBot: string | null;
   /**
+   * Whether health sync is actually arriving: any `HealthDay` row stored in the last seven days,
+   * computed here so the You surface's "connected" is a fact and not a flag a client can set
+   * (#97). The phone backfills weight history on connect, so a fresh sync counts from day one.
+   */
+  healthConnected: boolean;
+  /**
    * The web paywall, computed from this server's `EAIT__BACKEND__WEB_*` block (#77).
    *
    * SENT, NEVER COMPILED, for the same reason `limits` is: the web app can be self-hosted, so the
@@ -591,6 +604,22 @@ export interface ProfileResponse {
    * absent too, exactly as it does `entitlement`.
    */
   paywall: WebPaywall;
+  /**
+   * The coach's name in the account's language — `THREAD_COPY`'s `coach.name` — sent here because
+   * the browser bundle cannot import the Lingui table that copy lives in (#92 review): Lingui words
+   * reach a client only server-sent. Surfaces fill their `{coach}` placeholders with it. A server
+   * that predates the field sends none, and a client falls back to the copy's own name.
+   */
+  coachName: string;
+  /**
+   * Whether this account has ever logged a meal — any date, not just inside the diary window
+   * (#92 review). The first-meal surfaces (Home's free-meal flow, the log's first verdict) read
+   * it as the ONE "nothing logged yet" answer, so two clients can never disagree about which
+   * meal was first, and neither repeats the `/v1/diary/week` probe it replaced. The other
+   * conditions of that gate — `onboarded`, `entitlement`, `limits.sampleUsed` — are already on
+   * this response.
+   */
+  hasLoggedMeal: boolean;
 }
 
 /**
@@ -857,6 +886,27 @@ export function isEditMealRequest(body: unknown): body is EditMealRequest {
 
 export type EditMealResponse = MealUpdated | TargetGone;
 
+/**
+ * `POST /v1/meals/:id/redate` — "Move to yesterday", as an offset: `1` is yesterday, `0` a no-op,
+ * and the bound is the chat re-date's own (`MAX_DAY_OFFSET`), clamped in the engine rather
+ * than refused — a hand-edited client that sends 40 gets the same answer the model's misparse gets.
+ *
+ * A date changes ONLY this way: `EditMealRequest` has no date field, so the manual editor cannot
+ * reach it — the offset is resolved against the account's today on the server, never sent as a
+ * `YYYY-MM-DD` a client could aim anywhere on the calendar.
+ */
+export interface RedateMealRequest {
+  dayOffset: number;
+}
+
+export function isRedateMealRequest(body: unknown): body is RedateMealRequest {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) return false;
+  const b = body as Record<string, unknown>;
+  return typeof b.dayOffset === "number" && Number.isFinite(b.dayOffset);
+}
+
+export type RedateMealResponse = MealRedated | TargetGone;
+
 // ── Push ────────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -1002,6 +1052,11 @@ export interface DayResponse {
   meals: MealRecord[];
   totals: DailyTotals;
   targets: FoodTargets;
+  /**
+   * The day's health score — the kcal-weighted mean of the day's scored meals (`dayHealthScore`,
+   * #118), computed here so Home's page 2 and the diary agree. `null` when no meal is scored.
+   */
+  healthScore: number | null;
 }
 
 /** DEPRECATED with {@link ROUTES.week} (#103) — superseded by {@link DaysResponse}. */
@@ -1060,11 +1115,23 @@ export interface WeightsResponse {
   /** Oldest first — chart order, `weightChart` reads the endpoints off the ends. */
   weights: WeightEntry[];
   /**
+   * The newest weigh-in in the WHOLE log, whatever `range` left of it — Progress's current
+   * figure and its none-in-range state ("weights exist, just not in this window") need a dated
+   * entry the filtered `weights` can no longer name. `null` when nothing was ever logged.
+   */
+  latest: WeightEntry | null;
+  /**
    * The goal arc the Progress goal bar draws — start, current and target weights, the weeks and
    * rate `projectGoal` computed, and the localized month it lands in. Null when no honest
    * projection exists (no target, nothing weighed, a fallback band) — see {@link PlanProjection}.
    */
   projection: PlanProjection | null;
+  /**
+   * The latest weigh-in against the profile's height (`bmi`/`bmiRange`, #118) — the range is a
+   * NEUTRAL id and its label is the numbers themselves, never a category word. `null` without a
+   * height on the profile or a weigh-in to read.
+   */
+  bmi: { value: number; range: BmiRange } | null;
 }
 
 /**
@@ -1200,10 +1267,16 @@ export const clientModelTimeoutMs = (serverLlmTimeoutMs: number, calls: number):
  * this number really sizes is the harness, which reads it for the photo route. Hence that count.
  */
 export const DEFAULT_MODEL_TIMEOUT_MS = clientModelTimeoutMs(SERVER_LLM_TIMEOUT_MS, PHOTO_MODEL_CALLS);
-/** The stream's progress lines: zero or one `glance`, zero or more `item`. Shared by the photo turn and an edit (#608). */
+/**
+ * The stream's progress lines, each carrying its own words: `reading` fires first — "Reading the
+ * plate…" in the account's language, so the client prints rather than composes it — then zero or
+ * one `glance` (whose model-written text IS the line) and zero or more `item` events, each with
+ * the weighing line alongside the row. Shared by the photo turn and an edit (#608).
+ */
 export type PhotoProgress =
+  | { kind: "reading"; line: string }
   | { kind: "glance"; text: string }
-  | { kind: "item"; index: number; item: MealItem };
+  | { kind: "item"; index: number; item: MealItem; line: string };
 /**
  * One line of the photo stream. Progress, then `PhotoLast` as the LAST line — refusals included,
  * because the 200 went out with the first byte. An `item` with `index: 0` after others means the

@@ -9,7 +9,7 @@ import { describe, expect, it } from "bun:test";
 import {
   DEFAULT_ONBOARDING_CONTENT, ONBOARDING_INTERSTITIALS, ONBOARDING_PLACES, ONBOARDING_SCREENS,
   ONBOARDING_STEPS,
-  KCAL_FLOOR, COUNTRY_CODES, countryFromRegion, countryLabel, countryOptions, resolveCountry,
+  KCAL_FLOOR, COUNTRY_CODES, countryFlag, countryFromRegion, countryLabel, countryOptions, resolveCountry,
   suggestionFirst, LANGS, type CountryCode,
   type CountrySignals,
   REPORTABLE_FIELDS, SCREEN_FIELDS, disabledScreens,
@@ -621,6 +621,20 @@ describe("the countries this app curates", () => {
     expect(countryLabel("de", "de")).toBe("Deutschland");
     expect(countryLabel("de", "ru")).toBe("Германия");
     expect(countryLabel("vn", "vi")).toBe("Việt Nam");
+  });
+
+  it("draws a flag for a real region and none for the sentinel", () => {
+    // The regional indicators are computed — "de" spells 🇩🇪, "other" asks for nothing.
+    expect(countryFlag("de")).toBe("🇩🇪");
+    expect(countryFlag("gb")).toBe("🇬🇧");
+    expect(countryFlag("vn")).toBe("🇻🇳");
+    for (const code of COUNTRY_CODES) {
+      if (code === "other") continue;
+      expect(countryFlag(code), code).toHaveLength(4); // two surrogate pairs, always
+    }
+    expect(countryFlag("other")).toBeNull();
+    expect(countryFlag("deu")).toBeNull();
+    expect(countryFlag("xx-1")).toBeNull();
   });
 });
 

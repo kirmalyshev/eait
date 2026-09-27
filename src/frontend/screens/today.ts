@@ -5,17 +5,18 @@
 import { dateMinus } from "../../shared/dates.ts";
 import { dayBudget, macroTone } from "../../shared/budget.ts";
 import { renderableVerdicts } from "../../shared/types.ts";
-import { verdictNoun, verdictPillLabel } from "../../shared/verdicts.ts";
-import { LANG_TAG, UNIT_KCAL, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
+import { LANG_TAG, UNIT_KCAL, countText, numbers, spellUnit, t, wholeNumbers } from "../../shared/lang.ts";
 import type {
-  DayResponse, PendingMealsResponse, ProfileResponse, WeekResponse,
+  DayResponse, PendingMealsResponse, ProfileResponse,
 } from "@eait/shared/contract";
 import { api } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { firstMealScreen } from "./first-meal.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
+import { homeCopyFor } from "../../shared/app/home-copy.ts";
+import type { Localized } from "../../shared/lang.ts";
 import {
-  COPY, PENDING, WEEK, composerRow, el, clear, heldProposal, kcal, lang, profile,
+  COPY, PENDING, composerRow, el, clear, firstMealDue, heldProposal, kcal, lang, profile,
   proposalCard, sendOrKeep, setHeldProposal, takeTurn,
 } from "../shell.ts";
 
@@ -139,7 +140,9 @@ async function diaryScreen(): Promise<HTMLElement> {
       const counters = el("div", "stats macros");
       counters.append(counter(COPY.statProtein, budget.protein.eaten, budget.protein.target, "protein"));
       if (day.targets.satfat_g !== undefined) {
-        counters.append(counter(verdictNoun("ldl", lang),
+                // The counter's noun, `verdict.noun.ldl`'s words as a Localized map — the catalog lives
+        // server-side; W4's nutrient cards carry their own names.
+        counters.append(counter(t(lang)(SATFAT),
           Math.round(day.totals.satfat_g), Math.round(day.targets.satfat_g), "satfat"));
       }
       body.append(big, bar, eaten, counters);
@@ -213,10 +216,11 @@ async function diaryScreen(): Promise<HTMLElement> {
         // The row's pills are the meal's OWN verdicts — computed by the server on the write and
         // sent on the row (#52). A client that derived its own would be the second copy
         // `verdictsFromTargets` exists to prevent.
-        const dims = renderableVerdicts(meal.verdicts);
-        if (dims.length > 0) {
+        const labels = meal.verdictLabels ?? [];
+        if (labels.length > 0) {
           const pills = el("span", "pills");
-          for (const d of dims) pills.append(el("span", `pill ${meal.verdicts[d]!}`, verdictPillLabel(d, meal.verdicts[d]!, lang)));
+          // The words arrive on the row — composed where the verdict was, never here.
+          for (const v of labels) pills.append(el("span", `pill ${v.tone}`, v.label));
           name.append(pills);
         }
         const num = document.createElement("td");
@@ -234,7 +238,15 @@ async function diaryScreen(): Promise<HTMLElement> {
     const held = heldProposal();
     if (held !== null && day.meals.some((m) => m.id === held.pendingId)) setHeldProposal(null);
     if (heldProposal() !== null && Date.parse(heldProposal()!.expiresAt) <= Date.now()) setHeldProposal(null);
-    if (heldProposal() !== null) parts.push(proposalCard(heldProposal()!, turn));
+    if (heldProposal() !== null) {
+      const p = heldProposal()!;
+      const home = homeCopyFor(lang);
+      parts.push(proposalCard(p, turn, {
+        lead: home.webProposalLead.replace("{day}", p.date === today ? home.todayWord : dateText(p.date)),
+        accept: home.webLogIt,
+        decline: home.webProposalNo,
+      }));
+    }
     clear(board).append(...parts);
   }
 
@@ -242,11 +254,11 @@ async function diaryScreen(): Promise<HTMLElement> {
   // (#52), so the machinery is `takeTurn` with this screen's notice and redraw handed in.
   const turn = (write: () => Promise<string | void>): void => takeTurn(wrap, tell, draw, uid, write);
 
-  const comp = composerRow(COPY.diaryPlaceholder);
+  const comp = composerRow(homeCopyFor(lang).webComposerPlaceholder);
   const { picker, words, send, count } = comp;
   const arm = (): void => {
     const picked = picker.files?.length ?? 0;
-    count.textContent = picked > 0 ? `${picked} photo${picked === 1 ? "" : "s"}` : "";
+    count.textContent = picked > 0 ? countText(lang)(COPY.photosCount, picked) : "";
     count.hidden = count.textContent === "";
     send.setAttribute("aria-label", picked > 0 ? COPY.sendPhoto : COPY.send);
   };
@@ -306,10 +318,21 @@ async function diaryScreen(): Promise<HTMLElement> {
  * sample unspent (the SERVER's count — a failed attempt leaves it unspent, #44), and nothing logged.
  * "No meals this week" alone would offer a paying user back from a holiday one meal on us.
  */
+/** "Saturated fat" — the sat-fat counter's noun until W4's nutrient cards replace the counters. */
+const SATFAT: Localized<string> = {
+  en: "Saturated fat", de: "Gesättigte Fette", es: "Grasas saturadas", fr: "Graisses saturées",
+  id: "Lemak jenuh", it: "Grassi saturi", ru: "Насыщенные жиры", vi: "Chất béo bão hoà",
+};
+
 export async function homeScreen(me: ProfileResponse | null): Promise<HTMLElement> {
-  if (me?.onboarded === true && !me.entitlement.active && !me.limits.sampleUsed) {
-    const marked = await api<WeekResponse>(`${WEEK}?days=${me.limits.diaryWindowDays}`);
-    if (marked.days.length === 0) return firstMealScreen(me);
+  // The gate is the ONE predicate both surfaces share (`shell.firstMealDue`). The profile in the
+  // frame is the session's cached read — a meal logged this session flipped `hasLoggedMeal`
+  // without the cache knowing, so a cached "first" is re-verified on a fresh read before the
+  // free-meal flow shows; a stale one silently never did (the diary for somebody who HAS logged
+  // is the failure the gate exists to prevent).
+  if (firstMealDue(me)) {
+    const fresh = await api<ProfileResponse>("/profile").catch(() => me);
+    if (firstMealDue(fresh)) return firstMealScreen(fresh);
   }
   return diaryScreen();
 }
