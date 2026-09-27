@@ -1878,6 +1878,36 @@ describe("the session account, before and after sign-up (S8)", () => {
     expect(res.status).toBe(303);
     expect(res.headers.get("location")).toBe("/start/signup");
   });
+
+  it("draws the board: the ask, the search, the flags, the preselect, Somewhere else last", async () => {
+    const session = await answerAll(undefined, ANSWERS);
+    const signed = await signIn("country-board", "google", "de", session);
+    // The hint comes from the browser's own languages — so this GET says German.
+    const html = await (await get("/start/country", signed, { "accept-language": "de" })).text();
+
+    // The ask is a say-line and the search is on top of the grid — the board's order.
+    expect(html).toContain('class="say"');
+    expect(html.indexOf('class="srch"')).toBeLessThan(html.indexOf('class="opts"'));
+    // Flags are drawn for real codes; the sentinel carries none.
+    expect(html).toContain("🇩🇪");
+    const other = html.slice(html.indexOf('value="other"'));
+    expect(other).toContain("…");
+    // `other` is last, and the resolved hint arrives preselected, in place — not re-ordered.
+    const rendered = [...html.matchAll(/name="answer" value="([a-z]+)"/g)].map((m) => m[1]);
+    expect(rendered.at(-1)).toBe("other");
+    expect(html).toContain('value="de" checked');
+  });
+
+  it("narrows the grid with ?q= for a browser without the one script", async () => {
+    const session = await answerAll(undefined, ANSWERS);
+    const signed = await signIn("country-search", "google", "en", session);
+    const html = await (await get("/start/country?q=aus", signed)).text();
+    const rendered = [...html.matchAll(/name="answer" value="([a-z]+)"/g)].map((m) => m[1]);
+    expect(rendered).toContain("au");
+    expect(rendered).not.toContain("de");
+    // The sentinel always stays — it is the honest answer to a search that finds nothing.
+    expect(rendered.at(-1)).toBe("other");
+  });
 });
 
 describe("chat on the web: photos", () => {
@@ -2678,12 +2708,14 @@ describe("the whole onboarding flow, in every language the app speaks", () => {
         expect(countryHtml, `${lang}: no chip reading "${label}" (${code})`)
           .toContain(escape(label));
       }
-      // The reader's own alphabet, `other` last — with the language's suggestion pulled to the
-      // top first, which is `suggestionFirst`'s whole job with a hint this strong. `resolveCountry`
-      // is the same call the page made, so the two can never disagree about what was hinted.
+      // The reader's own alphabet, `other` last — the board's grid order. The hint shows up as
+      // the PRESELECTED radio, not a re-ordered list; `resolveCountry` is the same call the page
+      // made, so the two can never disagree about what was hinted.
       const rendered = [...countryHtml.matchAll(/name="answer" value="([a-z]+)"/g)].map((m) => m[1]);
+      expect(rendered, lang).toEqual([...countryOptions(lang)]);
       const hinted = resolveCountry({ languages: [lang] }).country;
-      expect(rendered, lang).toEqual([...suggestionFirst(countryOptions(lang), hinted)]);
+      const checked = countryHtml.match(/name="answer" value="([a-z]+)" checked/)?.[1];
+      if (hinted !== null) expect(checked, `${lang}.country hint`).toBe(hinted);
 
       // Answering it is the end of the flow: the account carries the language and the country,
       // and the handoff is the product itself.

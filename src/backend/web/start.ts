@@ -21,6 +21,7 @@
 import {
   ageFrom,
   AMBIGUOUS_AGE, DIETS, MEDICAL_TAGS, STRUGGLES, UNDER_AGE_CARD, UNDER_AGE_LINES, askLines,
+  countryOptions,
   chatCopyFor as CHAT,
   askPlaceholder, checkDirection, checkNumber, dietOf, disabledScreens, isAnswered, promptsFor,
   isRefusal, MAX_USER_LINE, medicalOf, offerHeadline, optionLabel, planGoalLine, planRows, projectGoal,
@@ -48,7 +49,7 @@ import {
   // `pageCopyFor(lang)` — so importing it buys nothing and costs a silent English render the
   // day somebody writes `PAGE_COPY.foo` outside one of those scopes. Unimported, that is a
   // compile error instead.
-  building, chat, frontDoor, html, offer, pageCopyFor, plan, question, signUp, stopped,
+  building, chat, country, frontDoor, html, offer, pageCopyFor, plan, question, signUp, stopped,
   FONT_FILES, FONT_URL_DIR,
   type PageCopy,
   type ChatLine, type ChatProposal, type QuestionOption,
@@ -1089,17 +1090,16 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
       email: await ctx.store.emailForUser(userId),
     });
     const prompt = promptById("country")!;
-    const ask = (error: string | null) => html(question({
-      promptId: "country",
-      kind: "choice",
-      lines: askLines(prompt, { content, lang }, profile),
-      options: optionsFor(prompt, content, lang, resolved.country),
-      placeholder: null,
+    const query = url.searchParams.get("q") ?? "";
+    const ask = (error: string | null) => html(country({
+      ask: askLines(prompt, { content, lang }, profile)[0] ?? "",
+      placeholder: content.screens.find((s) => s.id === "country")?.asks.country?.placeholder ?? "",
+      options: countryOptions(lang),
+      selected: resolved.country,
+      otherLabel: screenOptions(content, "country").other?.label ?? "Somewhere else",
+      query,
       error,
-      actions: [],
       action: `${START_PREFIX}/country`,
-      back: `${START_PREFIX}/signup`,
-      ...(resolved.country === null ? {} : { current: [resolved.country] }),
       lang,
     }));
 

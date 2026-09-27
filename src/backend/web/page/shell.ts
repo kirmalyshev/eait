@@ -454,6 +454,19 @@ ${motionCss()}
  * thread's lines are history, drawn whole.
  */
 export const TYPING_SCRIPT = `(function () {
+  // The country screen's search filters live — the same narrow the GET form does for a browser
+  // with no script. It is not motion, so reduced-motion does not turn it off.
+  var filter = document.querySelector("input[data-filter]");
+  if (filter) filter.addEventListener("input", function () {
+    var needle = filter.value.trim().toLowerCase().normalize("NFD").replace(/\\p{M}/gu, "");
+    var rows = document.querySelectorAll(".cty .opt");
+    for (var k = 0; k < rows.length; k++) {
+      var row = rows[k];
+      var sentinel = row.querySelector(".flag.any") !== null;
+      var match = needle === "" || sentinel || row.textContent.toLowerCase().normalize("NFD").replace(/\\p{M}/gu, "").indexOf(needle) !== -1;
+      row.classList.toggle("hide", !match);
+    }
+  });
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   var MS = ${TYPE_MS_PER_CHAR}, GAP = 350;
   var lines = Array.prototype.slice.call(document.querySelectorAll(".bubble.typed")).map(function (p) {
