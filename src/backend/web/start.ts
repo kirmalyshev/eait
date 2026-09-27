@@ -847,6 +847,12 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
           return retry(under.ask, [{ name: "confirm", value: "under-age", label: under.confirm }]);
         }
         if (answer.kind === "refuse") return retry(answer.line);
+        // Charged like `/v1/auth/device`, because it IS that route's job under S8: a sessionless
+        // answer mints an account, so the per-address allowance is what stands between a bot
+        // walking this form and a `users` row per POST. Charged after validation — a refused
+        // answer creates nothing and spends nothing either.
+        const wait = ctx.limitAuth();
+        if (wait !== null) return tooManyAttempts(wait, profile.lang);
         const fresh = await ctx.store.createUser(profile.lang);
         const outcome = await patchProfile(ctx.deps, fresh, answer.patch);
         if (outcome && !outcome.ok) return retry(refusalText(outcome.rejected, profile.lang));

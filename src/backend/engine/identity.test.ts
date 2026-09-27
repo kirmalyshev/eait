@@ -397,6 +397,68 @@ describe("the consent the sign-up collected", () => {
     expect(consent?.marketingConsentAt).toBeNull();
   });
 
+  it("merges the session's answers field-by-field into a stale account that never onboarded", async () => {
+    // The overseer's call on #85: the existing account id is kept — RevenueCat's app user id,
+    // the entitlement, Health days, consent history, pairing all hang on it — but the session's
+    // answers are the person's CURRENT intent, so each answered field wins, while a field only
+    // the stale account answered is kept. Then the session account is discarded.
+    const deps = depsFor(store);
+    const real = await store.createUser("en");
+    await store.addIdentity(real, "apple", "stale-wins-id");
+    // The stale account's partial profile: its own sex answer, and a field the walk never asks.
+    await store.patchProfile(real, { sex: "male", food_allergies: "nuts" });
+
+    const anon = (await store.upsertDeviceUser(device(), "en")).userId;
+    // The session account answered the whole walk just now.
+    await store.patchProfile(anon, {
+      goal: "gain", sex: "female", birth_year: 1991, height_cm: 168, weight_kg: 70,
+      target_weight_kg: 75, activity: "some", pace: "steady", restrictions: [],
+      onboarded_at: new Date().toISOString(),
+    });
+
+    const out = await signInWithProvider(
+      deps, verifier, "apple", "stale-wins-id", undefined, anon, "en", CONSENT,
+    );
+    expect(out.outcome).toBe("merged");
+    expect(out.userId).toBe(real);
+
+    const merged = (await store.getProfile(real))!;
+    // Session wins where it answered — the goal, AND the sex the stale account had chosen.
+    expect(merged.goal).toBe("gain");
+    expect(merged.sex).toBe("female");
+    // Stale-only field survives; the walk's completion stamp came across with the answers.
+    expect(merged.food_allergies).toBe("nuts");
+    expect(merged.onboarded_at).not.toBeNull();
+    // One account holds the identity, and the session's is gone.
+    expect(await store.getProfile(anon)).toBeNull();
+    expect(await store.userIdForIdentity("apple", "stale-wins-id")).toBe(real);
+    expect((await store.listIdentities(real)).map((i) => i.provider)).toEqual(["apple"]);
+  });
+
+  it("lets an ONBOARDED existing account keep its own answers wholesale (§F 8)", async () => {
+    const deps = depsFor(store);
+    const real = await store.createUser("en");
+    await store.addIdentity(real, "apple", "onboarded-wins");
+    await store.patchProfile(real, {
+      sex: "male", onboarded_at: new Date().toISOString(),
+    });
+    const anon = (await store.upsertDeviceUser(device(), "en")).userId;
+    await store.patchProfile(anon, {
+      sex: "female", goal: "gain", onboarded_at: new Date().toISOString(),
+    });
+
+    const out = await signInWithProvider(
+      deps, verifier, "apple", "onboarded-wins", undefined, anon, "en", CONSENT,
+    );
+    expect(out.outcome).toBe("merged");
+    expect(out.userId).toBe(real);
+    // The stale profile is untouched: the session's "gain"/"female" went with the dropped account.
+    const kept = (await store.getProfile(real))!;
+    expect(kept.sex).toBe("male");
+    expect(kept.goal).toBeNull();
+    expect(await store.getProfile(anon)).toBeNull();
+  });
+
   it("stamps the SURVIVING account when an existing identity wins", async () => {
     // The answers the session collected are dropped with the anonymous account — the consent is
     // what the person just agreed to, and it belongs on the account they are now IN.

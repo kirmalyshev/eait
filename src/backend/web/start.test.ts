@@ -14,8 +14,8 @@ import { join } from "node:path";
 import {
   AMBIGUOUS_AGE, COUNTRY_CODES, DEFAULT_ONBOARDING_CONTENT, LANGS, LANG_LABEL, UNDER_AGE_CARD,
   UNDER_AGE_LINES, basalMetabolicRate, chatCopyFor, countryLabel, countryOptions, disabledScreens,
-  explainTargets, lintCopy, MAX_USER_LINE, onboardingContentFor, projectGoal, projectionMonth,
-  resolveCountry, suggestionFirst,
+  explainTargets, lintCopy, localDate, MAX_USER_LINE, onboardingContentFor, projectGoal,
+  projectionMonth, resolveCountry, suggestionFirst,
   screenForStep, screenOptions, struggleCard, suggestedTargetKg, targetSuggestionLine,
   TYPE_MS_PER_CHAR, wholeNumbers, type Profile,
 } from "@eait/shared";
@@ -629,6 +629,23 @@ describe("the questions", () => {
     expect(html).toContain('name="prompt" value="goal"');
     // No cookie is minted by a page view — an account exists only once an answer landed.
     expect(res.headers.getSetCookie()).toEqual([]);
+  });
+
+  it("is rate-limited like device sign-up — over the limit it is a 429 and no row", async () => {
+    // The sessionless first answer mints an account, so it takes the same per-address allowance
+    // the sign-in routes take: without it, this form is a `users` row per POST for a bot.
+    router({ ...CONFIG, authRateLimitPerHour: 1 });
+    // Spend the one allowance — a pairing attempt does it, whatever the code names.
+    await post("/start/pair", { code: "ZZZZZZZZ" });
+
+    const res = await post("/start/q", { prompt: "goal", answer: "lose" });
+    expect(res.status).toBe(429);
+    expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
+    // No cookie, and more to the point no ACCOUNT — the charge stood between the answer and the
+    // row it would have made.
+    expect(res.headers.getSetCookie().some((c) => c.startsWith("eait_web="))).toBe(false);
+    const { rows } = await store.adminListUsers({ limit: 10, today: localDate(CONFIG.timezone) });
+    expect(rows).toHaveLength(0);
   });
 
   it("makes the session account on the first answer, and hands back the cookie for it", async () => {
@@ -1714,20 +1731,47 @@ describe("the session account, before and after sign-up (S8)", () => {
     expect((await store.listIdentities(userId)).map((i) => i.provider)).toContain("google");
   });
 
-  it("lets an existing account WIN — the session's answers go with the one being dropped", async () => {
-    // The identity already names an account, so the merge semantics rule: the provider account
-    // survives, the session account's answers do not follow it, and consent lands on the winner.
+  it("keeps the existing account's id, and merges a session's answers into it field by field", async () => {
+    // The overseer's call on #85: the account the identity already names wins — RevenueCat,
+    // Health days, consent history and pairing all hang on the id — but an account that never
+    // finished its own onboarding takes the session's answers, which are the person's CURRENT
+    // intent. A field only the stale account had is kept; an onboarded account keeps its own
+    // wholesale (the test below).
     const earlier = await signIn("already-exists", "apple");
     const real = await webUser(earlier);
+    // The stale account's partial profile — including a field the walk never asks.
+    await store.patchProfile(real, { sex: "male", food_allergies: "nuts" });
 
     const session = await answerAll(undefined, { ...ANSWERS, goal: "gain", target_weight_kg: "90" });
     const signed = await signIn("already-exists", "apple", undefined, session);
     expect(await webUser(signed)).toBe(real);
-    // The losing account is gone, answers and all — nothing half-kept.
     const winner = (await store.getProfile(real))!;
-    expect(winner.goal).toBeNull();
+    // Session values won where it answered — the goal AND the stale account's own sex — and the
+    // merged profile is onboarded, so the flow lands on the deferred country question.
+    expect(winner.goal).toBe("gain");
+    expect(winner.sex).toBe("female");
+    expect(winner.food_allergies).toBe("nuts");
+    expect(winner.onboarded_at).not.toBeNull();
+    expect((await get("/start/country", signed)).status).toBe(200);
     // The tick the person just made is stamped where they actually landed.
     expect((await store.consentOf(real))?.termsAcceptedAt).not.toBeNull();
+    // And the session account is gone — its token resolves to nothing, answers and all.
+    expect(await store.userIdForToken(session.split("=")[1]!)).toBeNull();
+  });
+
+  it("lets an ONBOARDED existing account keep its own answers wholesale", async () => {
+    // §F 8: a completed profile is the person's settled answers — the session's are dropped.
+    const earlier = await signIn("onboarded-exists", "apple");
+    const real = await webUser(earlier);
+    await store.patchProfile(real, { onboarded_at: new Date().toISOString(), goal: "lose", country: "gb" });
+
+    const session = await answerAll(undefined, { ...ANSWERS, goal: "gain", target_weight_kg: "90" });
+    const signed = await signIn("onboarded-exists", "apple", undefined, session);
+    expect(await webUser(signed)).toBe(real);
+    const winner = (await store.getProfile(real))!;
+    expect(winner.goal).toBe("lose");
+    // It had a country already, so the handoff is the product, not the question.
+    expect((await get("/start/country", signed)).status).toBe(303);
   });
 
   it("stamps the marketing box only when it was ticked", async () => {

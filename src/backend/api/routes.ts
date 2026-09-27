@@ -366,9 +366,9 @@ export function createRouter(
           // `eait_public_web_url` and `eait_app_domain` move together, and that hostname is where
           // the web container is. One value rather than two that must agree.
           hasWebApp: deps.config.publicWebUrl !== "",
-          // The SAME per-address allowance the three sign-in routes below take, handed in rather
-          // than taken here: that module spends it on its OAuth callback only, and only after the
-          // gate that makes an unconfigured host answer 404 on every path under `/start`.
+          // The SAME per-address allowance the sign-in routes below take, handed in rather than
+          // taken here: that module spends it on the OAuth callback, on pairing-code redemption,
+          // and — under S8 — on the sessionless first answer that mints the session account.
           limitAuth: () => limit(req, peer, "auth", deps.config.authRateLimitPerHour, HOUR),
           // And the BILLED allowance, for the chat turns that surface takes. The same bucket the
           // message and photo routes below take, so a browser and a phone on one address share it.

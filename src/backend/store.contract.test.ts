@@ -212,10 +212,10 @@ function contract(name: string, make: () => Promise<Store>) {
     });
 
     it("treats an unticked box as 'no stamp', never as 'take it back'", async () => {
-      // A returning sign-in sends `{ terms: true, marketing: false }` — the terms box is
-      // required and marketing simply was not ticked AGAIN. Writing null over a stamp would mean
-      // re-signing in un-consents the person, which is a consent implementation no honest one
-      // could defend.
+      // The marketing box starts empty on every screen, so an unticked answer is the absence of a
+      // NEW consent, not a withdrawal of a stored one — a returning sign-in must not un-consent
+      // the person. (Overseer review on #105: this rule stands; the 05:48 line it replaced had
+      // unticked writing null.)
       const s = await open();
       const { userId } = await s.upsertDeviceUser(device(), "en");
       await s.recordConsent(userId, { terms: true, marketing: true });

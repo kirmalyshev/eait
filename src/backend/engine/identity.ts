@@ -12,6 +12,7 @@
 import { PROVIDERS, signsIn } from "@eait/shared";
 import type { AuthProviderResponse, Lang, LinkOutcome, Provider } from "@eait/shared";
 import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
+import type { ProfilePatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { claimCode } from "./pairing.ts";
 
@@ -89,7 +90,30 @@ export async function signInWithProvider(
     userId = currentUserId;
     outcome = "already";
   } else if (await isAnonymous(deps, currentUserId)) {
-    // The only merge we perform: anonymous data moves into the real account.
+    // The only merge we perform: anonymous data moves into the real account. The account id is
+    // kept, not the session's — the RevenueCat app user id, entitlement, Health days, consent
+    // history and pairing all hang on the one the identity already names (overseer's call, #85).
+    //
+    // THE PROFILE IS THE EXCEPTION, and it is field by field. When the existing account never
+    // finished its own onboarding, the session's answers are the person's CURRENT intent — the
+    // questions they answered a minute ago — so each answered field overwrites, while a field
+    // only the stale account has stays. An ONBOARDED existing account wins wholesale instead
+    // (§F 8): its answers are complete and the session's are dropped.
+    const stale = await deps.store.getProfile(existing);
+    if (stale !== null && stale.onboarded_at === null) {
+      const answered = await deps.store.getProfile(currentUserId);
+      if (answered !== null) {
+        const patch: ProfilePatch = {};
+        for (const [k, v] of Object.entries(answered)) {
+          // `user_id` is not a field, and null is "never answered", not an answer — the field
+          // only the stale account filled survives the merge.
+          if (k !== "user_id" && v !== null) {
+            (patch as Record<string, unknown>)[k] = v;
+          }
+        }
+        await deps.store.patchProfile(existing, patch);
+      }
+    }
     mergedMeals = await deps.store.mergeUsers(currentUserId, existing);
     userId = existing;
     outcome = "merged";
