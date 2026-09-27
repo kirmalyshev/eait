@@ -189,6 +189,15 @@ describe("the type ramp", () => {
     }
   });
 
+  test("the pro.css text roles — the button, the option row, the meal title, the verdict, the tab", () => {
+    expect(TYPE.cta).toMatchObject({ size: 16, weight: 600 });
+    // 500 at rest, 600 when selected — the boards' `.opt` / `.opt.sel`.
+    expect(TYPE.option).toMatchObject({ size: 17, weight: 500 });
+    expect(TYPE.rowTitle).toMatchObject({ size: 15, weight: 600 });
+    expect(TYPE.verdict).toMatchObject({ size: 13, weight: 500 });
+    expect(TYPE.tab).toMatchObject({ size: 12, weight: 600 });
+  });
+
   test("the label is the only uppercase step: 12 px, 600, +0.06 em", () => {
     expect(TYPE.label).toMatchObject({ size: 12, weight: 600, tracking: 0.06, upper: true });
     const upper = Object.entries(TYPE).filter(([, v]) => "upper" in v && v.upper).map(([k]) => k);

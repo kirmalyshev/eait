@@ -12,22 +12,36 @@ import { join } from "node:path";
 
 const UI_DIR = join(import.meta.dir, "ui");
 
-const IMPORT = /import\s+(?:type\s+)?(?:[^"']*?\s+from\s+)?["']([^"']+)["']/g;
+/**
+ * Every way a module can pull in another: a static `import … from` or side-effect `import`, a
+ * `export … from` re-export (a value leaves through it the same way), and a dynamic `import()`.
+ */
+const IMPORTS = [
+  /import\s+(?:type\s+)?(?:[^"']*?\s+from\s+)?["']([^"']+)["']/g,
+  /export\s+(?:type\s+)?(?:\*|\{[^}]*\})\s+from\s+["']([^"']+)["']/g,
+  /import\s*\(\s*["']([^"']+)["']\s*\)/g,
+];
+
+const importsOf = (src: string): string[] =>
+  IMPORTS.flatMap((re) => [...src.matchAll(re)].map((m) => m[1]!));
 
 // The allow-list, and no more: `../palette.ts` and `../design.ts` carry no imports of their own,
 // `../lang.ts` is the copy/table base the frontend precedent already leans on.
 const ALLOWED = new Set(["../palette.ts", "../design.ts", "../lang.ts"]);
 
+const offTheList = (src: string): string[] =>
+  importsOf(src).filter((spec) => !(spec.startsWith("./") || ALLOWED.has(spec)));
+
 test("the allow-list itself, so the guard below is tested code and not a hoped-for regex", () => {
-  const allowed = (spec: string) => spec.startsWith("./") || ALLOWED.has(spec);
-  expect(allowed("./icons.ts")).toBe(true);
-  expect(allowed("../palette.ts")).toBe(true);
-  expect(allowed("../design.ts")).toBe(true);
-  expect(allowed("../lang.ts")).toBe(true);
-  expect(allowed("../targets.ts")).toBe(false);
-  expect(allowed("../i18n.ts")).toBe(false);
-  expect(allowed("@eait/shared")).toBe(false);
-  expect(allowed("react-native")).toBe(false);
+  expect(offTheList(`import { icons } from "./icons.ts"`)).toEqual([]);
+  expect(offTheList(`import { light } from "../palette.ts"`)).toEqual([]);
+  expect(offTheList(`import { TYPE } from "../design.ts"`)).toEqual([]);
+  expect(offTheList(`import { t } from "../lang.ts"`)).toEqual([]);
+  expect(offTheList(`import { targets } from "../targets.ts"`)).toEqual(["../targets.ts"]);
+  expect(offTheList(`import { View } from "react-native"`)).toEqual(["react-native"]);
+  // A re-export and a dynamic import pull a module the same way — both are matched, both fail.
+  expect(offTheList(`export { explainTargets } from "../targets.ts"`)).toEqual(["../targets.ts"]);
+  expect(offTheList(`const m = await import("../i18n.ts")`)).toEqual(["../i18n.ts"]);
 });
 
 test("a module in ui/ imports only another ui/ module or the allow-listed neighbours", () => {
@@ -35,12 +49,6 @@ test("a module in ui/ imports only another ui/ module or the allow-listed neighb
   const files = readdirSync(UI_DIR).filter((f) => f.endsWith(".ts"));
   for (const file of files) {
     const src = readFileSync(join(UI_DIR, file), "utf8");
-    for (const m of src.matchAll(IMPORT)) {
-      const spec = m[1]!;
-      // A bare package specifier or an alias is already out; a relative path must stay inside
-      // ui/ itself or name one of the allowed neighbours.
-      const allowed = spec.startsWith("./") || ALLOWED.has(spec);
-      expect(allowed, `${file} imports ${spec}`).toBe(true);
-    }
+    expect(offTheList(src), file).toEqual([]);
   }
 });

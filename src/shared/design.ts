@@ -103,6 +103,16 @@ export const TYPE = {
   micro: { size: 12, weight: 400, tracking: 0, lineHeight: 1.45 },
   /** Section and field labels — the only uppercase step. */
   label: { size: 12, weight: 600, tracking: 0.06, lineHeight: 1.45, upper: true },
+  /** The primary button's label (`.cta`). */
+  cta: { size: 16, weight: 600, tracking: 0, lineHeight: 1.45 },
+  /** An option row (`.opt`); set at 600 when selected. */
+  option: { size: 17, weight: 500, tracking: 0, lineHeight: 1.45 },
+  /** A list row's title — the meal name, an ingredient line (`.meal .mm b`). */
+  rowTitle: { size: 15, weight: 600, tracking: 0, lineHeight: 1.45 },
+  /** A verdict line: a dot and a sentence, never a pill (`.v`). */
+  verdict: { size: 13, weight: 500, tracking: 0, lineHeight: 1.45 },
+  /** A tab label (`.tabs a`). */
+  tab: { size: 12, weight: 600, tracking: 0, lineHeight: 1.45 },
   /** The ruler's big number — height, weight and target on the onboarding pickers. */
   bigNumber: { size: 56, weight: 700, tracking: -0.03, lineHeight: 1 },
   /** Home's "kcal left" figure. */
