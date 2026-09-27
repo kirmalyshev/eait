@@ -1819,8 +1819,8 @@ describe("the web surface and the landing are one product", () => {
       const page = await res.text();
       expect(page).not.toContain("prefers-color-scheme");
       // The same typeface, served by this origin's backend route.
-      expect(page).toContain('font-family: "Space Grotesk"');
-      expect(page).toContain("/start/assets/space-grotesk-latin.woff2");
+      expect(page).toContain('font-family: "Montserrat"');
+      expect(page).toContain("/start/assets/fonts/montserrat-latin.woff2");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -1831,17 +1831,22 @@ describe("the web surface and the landing are one product", () => {
     const page = await (await get("/start/chat", session)).text();
     // The landing's palette, by variable name, rather than a second copy of the hexes.
     expect(page).toContain("--accent-ink:");
-    expect(page).toContain('font-family: "Space Grotesk"');
+    expect(page).toContain('font-family: "Montserrat"');
     // Light unless somebody says otherwise, which is the landing's rule: the OS is not consulted.
     expect(page).not.toContain("prefers-color-scheme");
   });
 
   it("serves that typeface itself, cached, so the page loads nothing from anyone else", async () => {
-    const res = await get("/start/assets/space-grotesk-latin.woff2");
+    const res = await get("/start/assets/fonts/montserrat-latin.woff2");
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("font/woff2");
     expect(res.headers.get("cache-control")).toContain("immutable");
     expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(10_000);
+    // Every subset the pages declare is served — the five of them, and nothing beside them.
+    for (const subset of ["latin-ext", "cyrillic", "cyrillic-ext", "vietnamese"]) {
+      expect((await get(`/start/assets/fonts/montserrat-${subset}.woff2`)).status, subset).toBe(200);
+    }
+    expect((await get("/start/assets/fonts/montserrat-400.ttf")).status).toBe(404);
     // And the policy that allows it is same-origin only.
     const front = await get("/start");
     expect(front.headers.get("content-security-policy")).toContain("font-src 'self'");

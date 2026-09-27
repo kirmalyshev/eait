@@ -46,7 +46,8 @@ import {
   // `pageCopyFor(lang)` — so importing it buys nothing and costs a silent English render the
   // day somebody writes `PAGE_COPY.foo` outside one of those scopes. Unimported, that is a
   // compile error instead.
-  chat, frontDoor, html, moment, offer, pageCopyFor, plan, question, stopped, FONT_PATH,
+  chat, frontDoor, html, moment, offer, pageCopyFor, plan, question, stopped, FONT_FILES,
+  FONT_URL_DIR,
   type PageCopy,
   type ChatLine, type ChatProposal, type QuestionOption,
 } from "./page.ts";
@@ -476,8 +477,13 @@ export async function startRoutes(req: Request, url: URL, ctx: StartContext): Pr
   // The typeface, on this origin, which is what lets the CSP stay at `font-src 'self'` and load
   // nothing from anyone else. Before the session gate: a font is not somebody's data, and a
   // sign-in page that cannot draw its own headings is the first thing a visitor sees.
-  if (req.method === "GET" && pathname === FONT_PATH) {
-    return new Response(Bun.file(new URL("../../shared/assets/fonts/space-grotesk-latin.woff2", import.meta.url)), {
+  if (req.method === "GET" && pathname.startsWith(`${FONT_URL_DIR}/`)) {
+    // The whitelist is the family's own file list (FONT_FILES): a path under the directory that
+    // is not one of them is a 404, not a file read — `../../shared/assets/fonts/${name}` is never
+    // built from request bytes the list did not name.
+    const name = pathname.slice(FONT_URL_DIR.length + 1);
+    if (!FONT_FILES.includes(name)) return notFound();
+    return new Response(Bun.file(new URL(`../../shared/assets/fonts/${name}`, import.meta.url)), {
       headers: {
         "content-type": "font/woff2",
         // Immutable because the name is the file: a new cut of the typeface is a new path.
