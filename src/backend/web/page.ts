@@ -12,6 +12,8 @@ import { MAX_USER_LINE, TYPE_MS_PER_CHAR } from "@eait/shared";
 import { createHash } from "node:crypto";
 import { darkVars, lightVars } from "@eait/shared/palette";
 import { FONTS, fontFaces, fontFile, motionCss } from "@eait/shared/design";
+import { iconCss } from "@eait/shared/ui/icons";
+import { kitCss } from "@eait/shared/ui/kit";
 import { spudSvg, type MascotMood } from "@eait/shared/mascot";
 
 export function escape(text: string): string {
@@ -278,6 +280,11 @@ label.check {
 .arith { margin-top: .75rem; }
 .arith .rowline { font-size: .875rem; padding: .5rem 0; }
 .arith strong { font-variant-numeric: tabular-nums; }
+
+/* The register's icon set and the W1 component kit (#79, #88), generated — the same strings the
+   web shell interpolates, so a board's .cta or .opt on this surface is the one copy. */
+${iconCss()}
+${kitCss()}
 
 /* The register's motion vocabulary, generated — the six verbs, their keyframes, the stagger
    property and the reduced-motion block, so this file never retypes a duration (#78). */
