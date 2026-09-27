@@ -10,9 +10,10 @@
 // ENGLISH IS NOT REPEATED HERE. It is derived from `HEALTH_FIELDS` and `HEALTH_GROUPS`, which
 // already carry it, so there is exactly one English spelling of "Lean mass" in this repo.
 
-import { LANG_TAG, spellUnit, t, type Localized } from "./lang.ts";
+import { LANG_TAG, spellUnit, t, type CountForms, type Localized } from "./lang.ts";
 import { HEALTH_FIELDS, HEALTH_GROUPS, type HealthFieldSpec } from "./health.ts";
-import type { Lang } from "./types.ts";
+import type { Lang, Pace } from "./types.ts";
+import type { TrendPeriod } from "./trend.ts";
 
 export interface HealthCopy {
   /** Keyed by group id AND by metric key — one flat lookup, because a screen renders both. */
@@ -286,3 +287,792 @@ export function formatHealthValue(
   }).format(value);
   return `${n}${spec.unit ? ` ${spellUnit(lang, spec.unit)}` : ""}`;
 }
+
+// ── The phone's Apple Health screens ──────────────────────────────────────────────────────────
+//
+// health.html, health-connect, health-compare, health-body, health-notice and
+// health-unavailable (ieat-app#927, the M8 boards). Phone-only surface — the web has no Apple
+// Health — but the words belong here beside the metric labels they build on, not in a vendored
+// copy on the phone: the sweeps over this file are the check that all eight languages exist.
+//
+// WHAT IS NOT HERE: the metric words ("Body fat") are `HEALTH_COPY.labels`, the compare series'
+// names are `HEALTH_COPY.compare`, the period control is `HEALTH_COPY.periods`, the correlation
+// sentence is `correlationWords`, and "r = 0.42" formats itself. The intake card's label is the
+// `intake` series' own name, joined to the counted period by a " · " — punctuation, not grammar.
+
+export interface HealthScreenCopy {
+  /** The pushed screens' titles — the body row's name is the `body` group's own label. */
+  titles: { health: string; compare: string; body: string };
+  /** The chevron's accessible name. */
+  back: string;
+  /** Today's bar, on both charts. */
+  today: string;
+  /** health-connect: the pitch. `reads`/`writes`/`weightOnly` are the three rows' heads. */
+  connect: {
+    title: string;
+    cta: string;
+    reads: string;
+    readsList: string;
+    writes: string;
+    writesList: string;
+    weightOnly: string;
+    weightOnlyDesc: string;
+    /** Under the button when Health's sheet closed with nothing chosen. */
+    closed: string;
+  };
+  /** health-unavailable: no HealthKit on this phone at all. */
+  unavailable: { title: string; body: string };
+  /** The care card, in all four of its reasons, plus the sync error's own sentence. */
+  notice: {
+    /** Meals written to eait are not reaching Health — the write grant is off. */
+    notReachingTitle: string;
+    notReachingBody: string;
+    /** The account's Health switch reads off — `offBody` says the diary is untouched. */
+    offTitle: string;
+    offBody: string;
+    /** Connected and read, but Health holds nothing to chart. */
+    nothingTitle: string;
+    nothingBody: string;
+    /** The push failed: `{where}` is the layer that answered. */
+    syncTitle: string;
+    syncReached: string;
+    syncRefused: string;
+    tryAgain: string;
+    openHealth: string;
+    askAgain: string;
+    /** Connected, but another app shows in Health's own charts things eait was not given. */
+    readsMoreTitle: string;
+    readsMoreBody: string;
+    /** Where eait's switches live — the visible path and the one VoiceOver reads. */
+    path: string;
+    pathSpoken: string;
+  };
+  intake: {
+    /**
+     * The card's label after the series name — "Intake · this week" is `compare.intake` joined
+     * to `periods.days`. `days` is fixed copy; the other three count their own window
+     * ("the last 26 weeks") through `countText`, so a one-year account reads "this year".
+     */
+    periods: Record<TrendPeriod, CountForms>;
+    /** The figure for the days period — "{kcal} kcal today". */
+    kcalToday: string;
+    /** The figure for the longer periods — the bucket mean, "{kcal} kcal a day". */
+    kcalADay: string;
+  };
+  /** The two rows out of the main card. `body`'s value is the latest weigh-in, formatted. */
+  rows: { compare: string; body: string };
+  compare: {
+    /** The two series pickers' kind labels: the accent one and the ink one. */
+    bars: string;
+    line: string;
+    /** The spoken legend under the chart — "{a} as bars, left axis · {b} as the line, right axis." */
+    axes: string;
+    /** correlate() found too few overlapping buckets: "Not enough {period}…" — plural nouns. */
+    noData: string;
+    periodNouns: Record<TrendPeriod, string>;
+  };
+  body: {
+    /** "▼ {d} since {date} · {to} to {target}" — and the up, flat and no-target forms of it. */
+    trendDown: string;
+    trendDownSolo: string;
+    trendUp: string;
+    trendUpSolo: string;
+    trendFlat: string;
+    /** The plan row's label and its two value shapes — moved ("{old} → {new} kcal") or not. */
+    plan: string;
+    planValue: string;
+    planMoved: string;
+    /** "From Apple Health, {when}" — `{when}` is `today` + a time, or a formatted date. */
+    fromHealth: string;
+    /**
+     * Spud's line, eight whole sentences: a weigh-in trend read against the pace the plan was
+     * built on. `Down`/`Up` by the direction the goal needs, ×3 for the observed rate against it
+     * (slower than the pace asked, on it, faster), `lineFlat` for a maintain goal holding, and
+     * `lineDrift` for the trend running the wrong way. Never a promise — "the pace you chose"
+     * describes what is, not what will be.
+     */
+    lineDownSlow: string;
+    lineDownOnPace: string;
+    lineDownFast: string;
+    lineUpSlow: string;
+    lineUpOnPace: string;
+    lineUpFast: string;
+    lineFlat: string;
+    lineDrift: string;
+    /** The pace as an adjective inside the line — "{pace}" in every one above. */
+    paces: Record<Pace, string>;
+  };
+  /**
+   * Spud's line under the intake card — the same three cases `weekLine` computed in English:
+   * every day inside the plan, some days over but the mean inside it, or the mean itself over.
+   * `{days}` is `countText(days, n)` — "2 days over" reads "Two days over" nowhere, and that is
+   * deliberate: the numeral is what every other card on this surface shows.
+   */
+  weekLine: {
+    allInside: string;
+    overButOk: string;
+    avgOver: string;
+    days: CountForms;
+  };
+}
+
+export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
+  en: {
+    titles: { health: "Apple Health", compare: "Compare", body: "Body" },
+    back: "Back",
+    today: "Today",
+    connect: {
+      title: "Connect Apple Health",
+      cta: "Connect Apple Health",
+      reads: "Reads",
+      readsList: "weight, body, energy, activity, sleep",
+      writes: "Writes",
+      writesList: "the meals you log",
+      weightOnly: "Only your weight",
+      weightOnlyDesc: "moves your plan",
+      closed: "Health's sheet closed with nothing chosen. You can come back to this any time.",
+    },
+    unavailable: {
+      title: "Not available on this iPhone",
+      body: "Your diary and your plan work the same without it.",
+    },
+    notice: {
+      notReachingTitle: "Meals aren't reaching Health",
+      notReachingBody: "Your charts are fine. Turn on eait's Nutrition categories in Health.",
+      offTitle: "eait is switched off in Health",
+      offBody: "Your diary is unaffected; charts here read from what Health shares with eait.",
+      nothingTitle: "Nothing recorded yet",
+      nothingBody: "Charts appear when Health has data on this iPhone — a weigh-in, a workout, a night's sleep.",
+      syncTitle: "The Health sync hit an error",
+      syncReached: "Your server reached",
+      syncRefused: "HealthKit refused",
+      tryAgain: "Try again",
+      openHealth: "Open Health",
+      askAgain: "Ask Health again",
+      readsMoreTitle: "Health shows more than eait reads",
+      readsMoreBody: "eait only sees the categories you switch on for it.",
+      path: "In Health: your picture at the top right › Apps › eait. Or Settings › Privacy & Security › Health › eait.",
+      pathSpoken: "In Health, tap your picture at the top right, then Apps, then eait. Or open Settings, Privacy and Security, Health, eait.",
+    },
+    intake: {
+      periods: {
+        days: { other: "this week" },
+        weeks: { one: "last week", other: "the last {n} weeks" },
+        months: { one: "last month", other: "the last {n} months" },
+        years: { one: "this year", other: "the last {n} years" },
+      },
+      kcalToday: "{kcal} kcal today",
+      kcalADay: "{kcal} kcal a day",
+    },
+    rows: { compare: "Compare", body: "Body" },
+    compare: {
+      bars: "Bars",
+      line: "Line",
+      axes: "{a} as bars, left axis · {b} as the line, right axis.",
+      noData: "Not enough {period} with both {a} and {b} recorded to say how they relate.",
+      periodNouns: { days: "days", weeks: "weeks", months: "months", years: "years" },
+    },
+    body: {
+      trendDown: "▼ {d} since {date} · {to} to {target}",
+      trendDownSolo: "▼ {d} since {date}",
+      trendUp: "▲ {d} since {date} · {to} to {target}",
+      trendUpSolo: "▲ {d} since {date}",
+      trendFlat: "Level since {date}",
+      plan: "Plan",
+      planValue: "{kcal} kcal",
+      planMoved: "{old} → {new} kcal",
+      fromHealth: "From Apple Health, {when}",
+      lineDownSlow: "Down {kg}, and slow: the {pace} pace you chose.",
+      lineDownOnPace: "Down {kg}, on pace: the {pace} pace you chose.",
+      lineDownFast: "Down {kg}, and fast: the {pace} pace you chose.",
+      lineUpSlow: "Up {kg}, and slow: the {pace} pace you chose.",
+      lineUpOnPace: "Up {kg}, on pace: the {pace} pace you chose.",
+      lineUpFast: "Up {kg}, and fast: the {pace} pace you chose.",
+      lineFlat: "Holding steady: the {pace} pace you chose.",
+      lineDrift: "Moving away from {target}: the {pace} pace you chose.",
+      paces: { easy: "easy", steady: "steady", push: "fast" },
+    },
+    weekLine: {
+      allInside: "Every day inside your {target}.",
+      overButOk: "{days} over; the period still lands at {avg} a day.",
+      avgOver: "The period averages {avg} a day, over your {target}.",
+      days: { one: "{n} day", other: "{n} days" },
+    },
+  },
+  fr: {
+    titles: { health: "Apple Health", compare: "Comparer", body: "Corps" },
+    back: "Retour",
+    today: "Aujourd'hui",
+    connect: {
+      title: "Connecter Apple Health",
+      cta: "Connecter Apple Health",
+      reads: "Lecture",
+      readsList: "poids, corps, énergie, activité, sommeil",
+      writes: "Écriture",
+      writesList: "les repas que tu enregistres",
+      weightOnly: "Seul ton poids",
+      weightOnlyDesc: "fait bouger ton plan",
+      closed: "La fenêtre Santé s'est fermée sans choix. Tu peux y revenir quand tu veux.",
+    },
+    unavailable: {
+      title: "Non disponible sur cet iPhone",
+      body: "Ton journal et ton plan marchent pareil sans lui.",
+    },
+    notice: {
+      notReachingTitle: "Les repas n'arrivent pas dans Santé",
+      notReachingBody: "Tes graphiques vont bien. Active les catégories Nutrition d'eait dans Santé.",
+      offTitle: "eait est désactivé dans Santé",
+      offBody: "Ton journal n'est pas touché ; les graphiques ici lisent ce que Santé partage avec eait.",
+      nothingTitle: "Encore rien enregistré",
+      nothingBody: "Les graphiques apparaissent quand Santé a des données sur cet iPhone — une pesée, une séance, une nuit de sommeil.",
+      syncTitle: "La synchro Santé a eu une erreur",
+      syncReached: "Ton serveur a répondu",
+      syncRefused: "HealthKit a refusé",
+      tryAgain: "Réessayer",
+      openHealth: "Ouvrir Santé",
+      askAgain: "Redemander à Santé",
+      readsMoreTitle: "Santé en montre plus qu'eait ne lit",
+      readsMoreBody: "eait ne voit que les catégories que tu actives pour lui.",
+      path: "Dans Santé : ta photo en haut à droite › Apps › eait. Ou Réglages › Confidentialité et sécurité › Santé › eait.",
+      pathSpoken: "Dans Santé, touche ta photo en haut à droite, puis Apps, puis eait. Ou ouvre Réglages, Confidentialité et sécurité, Santé, eait.",
+    },
+    intake: {
+      periods: {
+        days: { other: "cette semaine" },
+        weeks: { one: "la semaine dernière", other: "les {n} dernières semaines" },
+        months: { one: "le mois dernier", other: "les {n} derniers mois" },
+        years: { one: "cette année", other: "les {n} dernières années" },
+      },
+      kcalToday: "{kcal} kcal aujourd'hui",
+      kcalADay: "{kcal} kcal par jour",
+    },
+    rows: { compare: "Comparer", body: "Corps" },
+    compare: {
+      bars: "Barres",
+      line: "Courbe",
+      axes: "{a} en barres, axe de gauche · {b} en courbe, axe de droite.",
+      noData: "Pas assez de {period} avec {a} et {b} enregistrés pour dire comment ils sont liés.",
+      periodNouns: { days: "jours", weeks: "semaines", months: "mois", years: "années" },
+    },
+    body: {
+      trendDown: "▼ {d} depuis le {date} · reste {to} avant {target}",
+      trendDownSolo: "▼ {d} depuis le {date}",
+      trendUp: "▲ {d} depuis le {date} · reste {to} avant {target}",
+      trendUpSolo: "▲ {d} depuis le {date}",
+      trendFlat: "Stable depuis le {date}",
+      plan: "Plan",
+      planValue: "{kcal} kcal",
+      planMoved: "{old} → {new} kcal",
+      fromHealth: "Depuis Apple Health, {when}",
+      lineDownSlow: "{kg} en moins, et lent : le rythme {pace} que tu as choisi.",
+      lineDownOnPace: "{kg} en moins, dans le tempo : le rythme {pace} que tu as choisi.",
+      lineDownFast: "{kg} en moins, et vite : le rythme {pace} que tu as choisi.",
+      lineUpSlow: "{kg} en plus, et lent : le rythme {pace} que tu as choisi.",
+      lineUpOnPace: "{kg} en plus, dans le tempo : le rythme {pace} que tu as choisi.",
+      lineUpFast: "{kg} en plus, et vite : le rythme {pace} que tu as choisi.",
+      lineFlat: "Stable : le rythme {pace} que tu as choisi.",
+      lineDrift: "Ça s'éloigne de {target} : le rythme {pace} que tu as choisi.",
+      paces: { easy: "doux", steady: "régulier", push: "soutenu" },
+    },
+    weekLine: {
+      allInside: "Tous les jours dans tes {target}.",
+      overButOk: "{days} au-dessus ; la période retombe à {avg} par jour.",
+      avgOver: "La période tourne à {avg} par jour, au-dessus de tes {target}.",
+      days: { one: "{n} jour", other: "{n} jours" },
+    },
+  },
+  de: {
+    titles: { health: "Apple Health", compare: "Vergleich", body: "Körper" },
+    back: "Zurück",
+    today: "Heute",
+    connect: {
+      title: "Apple Health verbinden",
+      cta: "Apple Health verbinden",
+      reads: "Liest",
+      readsList: "Gewicht, Körper, Energie, Aktivität, Schlaf",
+      writes: "Schreibt",
+      writesList: "die Mahlzeiten, die du einträgst",
+      weightOnly: "Nur dein Gewicht",
+      weightOnlyDesc: "verändert deinen Plan",
+      closed: "Das Health-Fenster wurde ohne Auswahl geschlossen. Du kannst jederzeit zurückkommen.",
+    },
+    unavailable: {
+      title: "Auf diesem iPhone nicht verfügbar",
+      body: "Dein Tagebuch und dein Plan funktionieren genauso ohne.",
+    },
+    notice: {
+      notReachingTitle: "Mahlzeiten kommen nicht in Health an",
+      notReachingBody: "Deine Diagramme sind in Ordnung. Schalte eaits Ernährungs-Kategorien in Health ein.",
+      offTitle: "eait ist in Health ausgeschaltet",
+      offBody: "Dein Tagebuch bleibt unberührt; die Diagramme hier lesen, was Health mit eait teilt.",
+      nothingTitle: "Noch nichts aufgezeichnet",
+      nothingBody: "Diagramme erscheinen, sobald Health Daten auf diesem iPhone hat — eine Gewichtsmessung, ein Training, eine Nacht Schlaf.",
+      syncTitle: "Beim Health-Sync gab es einen Fehler",
+      syncReached: "Dein Server hat geantwortet",
+      syncRefused: "HealthKit hat abgelehnt",
+      tryAgain: "Erneut versuchen",
+      openHealth: "Health öffnen",
+      askAgain: "Health erneut fragen",
+      readsMoreTitle: "Health zeigt mehr, als eait liest",
+      readsMoreBody: "eait sieht nur die Kategorien, die du dafür einschaltest.",
+      path: "In Health: dein Bild oben rechts › Apps › eait. Oder Einstellungen › Datenschutz & Sicherheit › Health › eait.",
+      pathSpoken: "Öffne in Health dein Bild oben rechts, dann Apps, dann eait. Oder öffne Einstellungen, Datenschutz und Sicherheit, Health, eait.",
+    },
+    intake: {
+      periods: {
+        days: { other: "diese Woche" },
+        weeks: { one: "letzte Woche", other: "die letzten {n} Wochen" },
+        months: { one: "letzten Monat", other: "die letzten {n} Monate" },
+        years: { one: "dieses Jahr", other: "die letzten {n} Jahre" },
+      },
+      kcalToday: "{kcal} kcal heute",
+      kcalADay: "{kcal} kcal am Tag",
+    },
+    rows: { compare: "Vergleich", body: "Körper" },
+    compare: {
+      bars: "Balken",
+      line: "Linie",
+      axes: "{a} als Balken, linke Achse · {b} als Linie, rechte Achse.",
+      noData: "Zu wenige {period} mit {a} und {b} aufgezeichnet, um zu sagen, wie sie zusammenhängen.",
+      periodNouns: { days: "Tage", weeks: "Wochen", months: "Monate", years: "Jahre" },
+    },
+    body: {
+      trendDown: "▼ {d} seit dem {date} · noch {to} bis {target}",
+      trendDownSolo: "▼ {d} seit dem {date}",
+      trendUp: "▲ {d} seit dem {date} · noch {to} bis {target}",
+      trendUpSolo: "▲ {d} seit dem {date}",
+      trendFlat: "Stabil seit dem {date}",
+      plan: "Plan",
+      planValue: "{kcal} kcal",
+      planMoved: "{old} → {new} kcal",
+      fromHealth: "Von Apple Health, {when}",
+      lineDownSlow: "{kg} weniger, und langsam: das {pace} Tempo, das du gewählt hast.",
+      lineDownOnPace: "{kg} weniger, im Tempo: das {pace} Tempo, das du gewählt hast.",
+      lineDownFast: "{kg} weniger, und schnell: das {pace} Tempo, das du gewählt hast.",
+      lineUpSlow: "{kg} mehr, und langsam: das {pace} Tempo, das du gewählt hast.",
+      lineUpOnPace: "{kg} mehr, im Tempo: das {pace} Tempo, das du gewählt hast.",
+      lineUpFast: "{kg} mehr, und schnell: das {pace} Tempo, das du gewählt hast.",
+      lineFlat: "Stabil gehalten: das {pace} Tempo, das du gewählt hast.",
+      lineDrift: "Weg von {target}: das {pace} Tempo, das du gewählt hast.",
+      paces: { easy: "sanfte", steady: "stetige", push: "zügige" },
+    },
+    weekLine: {
+      allInside: "Jeden Tag innerhalb deiner {target}.",
+      overButOk: "{days} drüber; die Periode landet bei {avg} am Tag.",
+      avgOver: "Die Periode liegt bei {avg} am Tag, über deinen {target}.",
+      days: { one: "{n} Tag", other: "{n} Tage" },
+    },
+  },
+  it: {
+    titles: { health: "Apple Health", compare: "Confronto", body: "Corpo" },
+    back: "Indietro",
+    today: "Oggi",
+    connect: {
+      title: "Collega Apple Health",
+      cta: "Collega Apple Health",
+      reads: "Legge",
+      readsList: "peso, corpo, energia, attività, sonno",
+      writes: "Scrive",
+      writesList: "i pasti che registri",
+      weightOnly: "Solo il tuo peso",
+      weightOnlyDesc: "muove il tuo piano",
+      closed: "Il pannello di Salute si è chiuso senza scelte. Puoi tornarci quando vuoi.",
+    },
+    unavailable: {
+      title: "Non disponibile su questo iPhone",
+      body: "Il tuo diario e il tuo piano funzionano allo stesso modo senza.",
+    },
+    notice: {
+      notReachingTitle: "I pasti non arrivano in Salute",
+      notReachingBody: "I tuoi grafici sono a posto. Attiva le categorie Nutrizione di eait in Salute.",
+      offTitle: "eait è disattivata in Salute",
+      offBody: "Il tuo diario non cambia; i grafici qui leggono ciò che Salute condivide con eait.",
+      nothingTitle: "Ancora niente registrato",
+      nothingBody: "I grafici appaiono quando Salute ha dati su questo iPhone — una pesata, un allenamento, una notte di sonno.",
+      syncTitle: "La sincronizzazione con Salute ha avuto un errore",
+      syncReached: "Il tuo server ha risposto",
+      syncRefused: "HealthKit ha rifiutato",
+      tryAgain: "Riprova",
+      openHealth: "Apri Salute",
+      askAgain: "Richiedi a Salute",
+      readsMoreTitle: "Salute mostra più di quanto eait legga",
+      readsMoreBody: "eait vede solo le categorie che attivi per lei.",
+      path: "In Salute: la tua foto in alto a destra › App › eait. Oppure Impostazioni › Privacy e sicurezza › Salute › eait.",
+      pathSpoken: "In Salute, tocca la tua foto in alto a destra, poi App, poi eait. Oppure apri Impostazioni, Privacy e sicurezza, Salute, eait.",
+    },
+    intake: {
+      periods: {
+        days: { other: "questa settimana" },
+        weeks: { one: "la settimana scorsa", other: "le ultime {n} settimane" },
+        months: { one: "il mese scorso", other: "gli ultimi {n} mesi" },
+        years: { one: "quest'anno", other: "gli ultimi {n} anni" },
+      },
+      kcalToday: "{kcal} kcal oggi",
+      kcalADay: "{kcal} kcal al giorno",
+    },
+    rows: { compare: "Confronto", body: "Corpo" },
+    compare: {
+      bars: "Barre",
+      line: "Linea",
+      axes: "{a} in barre, asse sinistra · {b} in linea, asse destra.",
+      noData: "Non abbastanza {period} con {a} e {b} registrati per dire come sono legati.",
+      periodNouns: { days: "giorni", weeks: "settimane", months: "mesi", years: "anni" },
+    },
+    body: {
+      trendDown: "▼ {d} dal {date} · {to} fino a {target}",
+      trendDownSolo: "▼ {d} dal {date}",
+      trendUp: "▲ {d} dal {date} · {to} fino a {target}",
+      trendUpSolo: "▲ {d} dal {date}",
+      trendFlat: "Stabile dal {date}",
+      plan: "Piano",
+      planValue: "{kcal} kcal",
+      planMoved: "{old} → {new} kcal",
+      fromHealth: "Da Apple Health, {when}",
+      lineDownSlow: "{kg} in meno, e piano: il ritmo {pace} che hai scelto.",
+      lineDownOnPace: "{kg} in meno, come previsto: il ritmo {pace} che hai scelto.",
+      lineDownFast: "{kg} in meno, e veloce: il ritmo {pace} che hai scelto.",
+      lineUpSlow: "{kg} in più, e piano: il ritmo {pace} che hai scelto.",
+      lineUpOnPace: "{kg} in più, come previsto: il ritmo {pace} che hai scelto.",
+      lineUpFast: "{kg} in più, e veloce: il ritmo {pace} che hai scelto.",
+      lineFlat: "Stabile: il ritmo {pace} che hai scelto.",
+      lineDrift: "In allontanamento da {target}: il ritmo {pace} che hai scelto.",
+      paces: { easy: "dolce", steady: "costante", push: "sostenuto" },
+    },
+    weekLine: {
+      allInside: "Ogni giorno dentro i tuoi {target}.",
+      overButOk: "{days} sopra; il periodo resta a {avg} al giorno.",
+      avgOver: "Il periodo viaggia a {avg} al giorno, sopra i tuoi {target}.",
+      days: { one: "{n} giorno", other: "{n} giorni" },
+    },
+  },
+  es: {
+    titles: { health: "Apple Health", compare: "Comparar", body: "Cuerpo" },
+    back: "Atrás",
+    today: "Hoy",
+    connect: {
+      title: "Conectar Apple Health",
+      cta: "Conectar Apple Health",
+      reads: "Lee",
+      readsList: "peso, cuerpo, energía, actividad, sueño",
+      writes: "Escribe",
+      writesList: "las comidas que registras",
+      weightOnly: "Solo tu peso",
+      weightOnlyDesc: "mueve tu plan",
+      closed: "El panel de Salud se cerró sin elegir nada. Puedes volver cuando quieras.",
+    },
+    unavailable: {
+      title: "No disponible en este iPhone",
+      body: "Tu diario y tu plan funcionan igual sin él.",
+    },
+    notice: {
+      notReachingTitle: "Las comidas no llegan a Salud",
+      notReachingBody: "Tus gráficos están bien. Activa las categorías de Nutrición de eait en Salud.",
+      offTitle: "eait está desactivado en Salud",
+      offBody: "Tu diario no cambia; los gráficos leen lo que Salud comparte con eait.",
+      nothingTitle: "Nada registrado todavía",
+      nothingBody: "Los gráficos aparecen cuando Salud tiene datos en este iPhone — una pesada, un entrenamiento, una noche de sueño.",
+      syncTitle: "La sincronización con Salud dio un error",
+      syncReached: "Tu servidor respondió",
+      syncRefused: "HealthKit lo rechazó",
+      tryAgain: "Reintentar",
+      openHealth: "Abrir Salud",
+      askAgain: "Volver a pedir a Salud",
+      readsMoreTitle: "Salud muestra más de lo que eait lee",
+      readsMoreBody: "eait solo ve las categorías que activas para él.",
+      path: "En Salud: tu foto arriba a la derecha › Apps › eait. O Ajustes › Privacidad y seguridad › Salud › eait.",
+      pathSpoken: "En Salud, toca tu foto arriba a la derecha, luego Apps, luego eait. O abre Ajustes, Privacidad y seguridad, Salud, eait.",
+    },
+    intake: {
+      periods: {
+        days: { other: "esta semana" },
+        weeks: { one: "la semana pasada", other: "las últimas {n} semanas" },
+        months: { one: "el mes pasado", other: "los últimos {n} meses" },
+        years: { one: "este año", other: "los últimos {n} años" },
+      },
+      kcalToday: "{kcal} kcal hoy",
+      kcalADay: "{kcal} kcal al día",
+    },
+    rows: { compare: "Comparar", body: "Cuerpo" },
+    compare: {
+      bars: "Barras",
+      line: "Línea",
+      axes: "{a} en barras, eje izquierdo · {b} en línea, eje derecho.",
+      noData: "No hay suficientes {period} con {a} y {b} registrados para decir cómo se relacionan.",
+      periodNouns: { days: "días", weeks: "semanas", months: "meses", years: "años" },
+    },
+    body: {
+      trendDown: "▼ {d} desde el {date} · {to} hasta {target}",
+      trendDownSolo: "▼ {d} desde el {date}",
+      trendUp: "▲ {d} desde el {date} · {to} hasta {target}",
+      trendUpSolo: "▲ {d} desde el {date}",
+      trendFlat: "Estable desde el {date}",
+      plan: "Plan",
+      planValue: "{kcal} kcal",
+      planMoved: "{old} → {new} kcal",
+      fromHealth: "Desde Apple Health, {when}",
+      lineDownSlow: "{kg} menos, y despacio: el ritmo {pace} que elegiste.",
+      lineDownOnPace: "{kg} menos, en ritmo: el ritmo {pace} que elegiste.",
+      lineDownFast: "{kg} menos, y rápido: el ritmo {pace} que elegiste.",
+      lineUpSlow: "{kg} más, y despacio: el ritmo {pace} que elegiste.",
+      lineUpOnPace: "{kg} más, en ritmo: el ritmo {pace} que elegiste.",
+      lineUpFast: "{kg} más, y rápido: el ritmo {pace} que elegiste.",
+      lineFlat: "Estable: el ritmo {pace} que elegiste.",
+      lineDrift: "Alejándose de {target}: el ritmo {pace} que elegiste.",
+      paces: { easy: "suave", steady: "constante", push: "rápido" },
+    },
+    weekLine: {
+      allInside: "Cada día dentro de tus {target}.",
+      overButOk: "{days} por encima; el periodo queda en {avg} al día.",
+      avgOver: "El periodo va a {avg} al día, por encima de tus {target}.",
+      days: { one: "{n} día", other: "{n} días" },
+    },
+  },
+  vi: {
+    titles: { health: "Apple Health", compare: "So sánh", body: "Cơ thể" },
+    back: "Quay lại",
+    today: "Hôm nay",
+    connect: {
+      title: "Kết nối Apple Health",
+      cta: "Kết nối Apple Health",
+      reads: "Đọc",
+      readsList: "cân nặng, cơ thể, năng lượng, vận động, giấc ngủ",
+      writes: "Ghi",
+      writesList: "các bữa bạn ghi lại",
+      weightOnly: "Chỉ cân nặng của bạn",
+      weightOnlyDesc: "mới đổi kế hoạch của bạn",
+      closed: "Bảng Health đã đóng mà không chọn gì. Bạn quay lại bất cứ lúc nào cũng được.",
+    },
+    unavailable: {
+      title: "Không có trên iPhone này",
+      body: "Nhật ký và kế hoạch của bạn vẫn hoạt động như thường mà không cần nó.",
+    },
+    notice: {
+      notReachingTitle: "Bữa ăn chưa tới được Health",
+      notReachingBody: "Biểu đồ của bạn vẫn ổn. Bật các nhóm Dinh dưỡng của eait trong Health.",
+      offTitle: "eait đang tắt trong Health",
+      offBody: "Nhật ký của bạn không bị ảnh hưởng; biểu đồ ở đây đọc từ những gì Health chia sẻ cho eait.",
+      nothingTitle: "Chưa có gì được ghi",
+      nothingBody: "Biểu đồ sẽ xuất hiện khi Health có dữ liệu trên iPhone này — một lần cân, một buổi tập, một đêm ngủ.",
+      syncTitle: "Đồng bộ Health gặp lỗi",
+      syncReached: "Máy chủ của bạn đã trả lời",
+      syncRefused: "HealthKit từ chối",
+      tryAgain: "Thử lại",
+      openHealth: "Mở Health",
+      askAgain: "Hỏi lại Health",
+      readsMoreTitle: "Health hiển thị nhiều hơn những gì eait đọc",
+      readsMoreBody: "eait chỉ thấy các nhóm bạn bật cho nó.",
+      path: "Trong Health: ảnh của bạn ở góc trên bên phải › Apps › eait. Hoặc Cài đặt › Quyền riêng tư và bảo mật › Health › eait.",
+      pathSpoken: "Trong Health, chạm vào ảnh của bạn ở góc trên bên phải, rồi Apps, rồi eait. Hoặc mở Cài đặt, Quyền riêng tư và bảo mật, Health, eait.",
+    },
+    intake: {
+      periods: {
+        days: { other: "tuần này" },
+        weeks: { one: "tuần trước", other: "{n} tuần gần đây" },
+        months: { one: "tháng trước", other: "{n} tháng gần đây" },
+        years: { one: "năm nay", other: "{n} năm gần đây" },
+      },
+      kcalToday: "{kcal} kcal hôm nay",
+      kcalADay: "{kcal} kcal mỗi ngày",
+    },
+    rows: { compare: "So sánh", body: "Cơ thể" },
+    compare: {
+      bars: "Cột",
+      line: "Đường",
+      axes: "{a} dạng cột, trục trái · {b} dạng đường, trục phải.",
+      noData: "Chưa đủ {period} có cả {a} lẫn {b} để nói chúng liên hệ thế nào.",
+      periodNouns: { days: "ngày", weeks: "tuần", months: "tháng", years: "năm" },
+    },
+    body: {
+      trendDown: "▼ {d} từ {date} · còn {to} tới {target}",
+      trendDownSolo: "▼ {d} từ {date}",
+      trendUp: "▲ {d} từ {date} · còn {to} tới {target}",
+      trendUpSolo: "▲ {d} từ {date}",
+      trendFlat: "Giữ nguyên từ {date}",
+      plan: "Kế hoạch",
+      planValue: "{kcal} kcal",
+      planMoved: "{old} → {new} kcal",
+      fromHealth: "Từ Apple Health, {when}",
+      lineDownSlow: "Giảm {kg}, và chậm: nhịp {pace} bạn đã chọn.",
+      lineDownOnPace: "Giảm {kg}, đúng nhịp: nhịp {pace} bạn đã chọn.",
+      lineDownFast: "Giảm {kg}, và nhanh: nhịp {pace} bạn đã chọn.",
+      lineUpSlow: "Tăng {kg}, và chậm: nhịp {pace} bạn đã chọn.",
+      lineUpOnPace: "Tăng {kg}, đúng nhịp: nhịp {pace} bạn đã chọn.",
+      lineUpFast: "Tăng {kg}, và nhanh: nhịp {pace} bạn đã chọn.",
+      lineFlat: "Giữ đều: nhịp {pace} bạn đã chọn.",
+      lineDrift: "Đang xa {target}: nhịp {pace} bạn đã chọn.",
+      paces: { easy: "nhẹ nhàng", steady: "đều", push: "nhanh" },
+    },
+    weekLine: {
+      allInside: "Mọi ngày đều trong {target} của bạn.",
+      overButOk: "{days} vượt; cả kỳ vẫn về {avg} mỗi ngày.",
+      avgOver: "Cả kỳ trung bình {avg} mỗi ngày, trên {target} của bạn.",
+      days: { other: "{n} ngày" },
+    },
+  },
+  id: {
+    titles: { health: "Apple Health", compare: "Bandingkan", body: "Tubuh" },
+    back: "Kembali",
+    today: "Hari ini",
+    connect: {
+      title: "Hubungkan Apple Health",
+      cta: "Hubungkan Apple Health",
+      reads: "Membaca",
+      readsList: "berat, tubuh, energi, aktivitas, tidur",
+      writes: "Menulis",
+      writesList: "makanan yang kamu catat",
+      weightOnly: "Hanya beratmu",
+      weightOnlyDesc: "yang menggerakkan rencanamu",
+      closed: "Lembar Health tertutup tanpa pilihan. Kamu bisa kembali kapan saja.",
+    },
+    unavailable: {
+      title: "Tidak tersedia di iPhone ini",
+      body: "Diari dan rencanamu tetap berjalan sama tanpanya.",
+    },
+    notice: {
+      notReachingTitle: "Makanan belum sampai ke Health",
+      notReachingBody: "Grafikmu baik-baik saja. Nyalakan kategori Nutrisi eait di Health.",
+      offTitle: "eait dimatikan di Health",
+      offBody: "Diarimu tidak terpengaruh; grafik di sini membaca yang Health bagikan ke eait.",
+      nothingTitle: "Belum ada yang tercatat",
+      nothingBody: "Grafik muncul saat Health punya data di iPhone ini — satu penimbangan, satu latihan, satu malam tidur.",
+      syncTitle: "Sinkronisasi Health kena error",
+      syncReached: "Servermu menjawab",
+      syncRefused: "HealthKit menolak",
+      tryAgain: "Coba lagi",
+      openHealth: "Buka Health",
+      askAgain: "Tanya Health lagi",
+      readsMoreTitle: "Health menampilkan lebih dari yang eait baca",
+      readsMoreBody: "eait hanya melihat kategori yang kamu nyalakan untuknya.",
+      path: "Di Health: fotomu di kanan atas › Apps › eait. Atau Pengaturan › Privasi & Keamanan › Health › eait.",
+      pathSpoken: "Di Health, ketuk fotomu di kanan atas, lalu Apps, lalu eait. Atau buka Pengaturan, Privasi dan Keamanan, Health, eait.",
+    },
+    intake: {
+      periods: {
+        days: { other: "minggu ini" },
+        weeks: { one: "minggu lalu", other: "{n} minggu terakhir" },
+        months: { one: "bulan lalu", other: "{n} bulan terakhir" },
+        years: { one: "tahun ini", other: "{n} tahun terakhir" },
+      },
+      kcalToday: "{kcal} kcal hari ini",
+      kcalADay: "{kcal} kcal sehari",
+    },
+    rows: { compare: "Bandingkan", body: "Tubuh" },
+    compare: {
+      bars: "Batang",
+      line: "Garis",
+      axes: "{a} sebagai batang, sumbu kiri · {b} sebagai garis, sumbu kanan.",
+      noData: "Belum cukup {period} dengan {a} dan {b} tercatat untuk bilang bagaimana keduanya berkaitan.",
+      periodNouns: { days: "hari", weeks: "minggu", months: "bulan", years: "tahun" },
+    },
+    body: {
+      trendDown: "▼ {d} sejak {date} · sisa {to} ke {target}",
+      trendDownSolo: "▼ {d} sejak {date}",
+      trendUp: "▲ {d} sejak {date} · sisa {to} ke {target}",
+      trendUpSolo: "▲ {d} sejak {date}",
+      trendFlat: "Stabil sejak {date}",
+      plan: "Rencana",
+      planValue: "{kcal} kcal",
+      planMoved: "{old} → {new} kcal",
+      fromHealth: "Dari Apple Health, {when}",
+      lineDownSlow: "Turun {kg}, dan pelan: ritme {pace} yang kamu pilih.",
+      lineDownOnPace: "Turun {kg}, pas ritme: ritme {pace} yang kamu pilih.",
+      lineDownFast: "Turun {kg}, dan cepat: ritme {pace} yang kamu pilih.",
+      lineUpSlow: "Naik {kg}, dan pelan: ritme {pace} yang kamu pilih.",
+      lineUpOnPace: "Naik {kg}, pas ritme: ritme {pace} yang kamu pilih.",
+      lineUpFast: "Naik {kg}, dan cepat: ritme {pace} yang kamu pilih.",
+      lineFlat: "Bertahan: ritme {pace} yang kamu pilih.",
+      lineDrift: "Menjauh dari {target}: ritme {pace} yang kamu pilih.",
+      paces: { easy: "santai", steady: "stabil", push: "cepat" },
+    },
+    weekLine: {
+      allInside: "Setiap hari dalam {target}-mu.",
+      overButOk: "{days} lebih; periodenya tetap mendarat di {avg} sehari.",
+      avgOver: "Periodenya rata-rata {avg} sehari, di atas {target}-mu.",
+      days: { other: "{n} hari" },
+    },
+  },
+  ru: {
+    titles: { health: "Apple Health", compare: "Сравнение", body: "Тело" },
+    back: "Назад",
+    today: "Сегодня",
+    connect: {
+      title: "Подключить Apple Health",
+      cta: "Подключить Apple Health",
+      reads: "Читает",
+      readsList: "вес, тело, энергию, активность, сон",
+      writes: "Пишет",
+      writesList: "блюда, которые ты записываешь",
+      weightOnly: "Только твой вес",
+      weightOnlyDesc: "меняет твой план",
+      closed: "Окно «Здоровья» закрылось без выбора. Можно вернуться в любой момент.",
+    },
+    unavailable: {
+      title: "Недоступно на этом iPhone",
+      body: "Дневник и план работают так же и без него.",
+    },
+    notice: {
+      notReachingTitle: "Блюда не доходят до «Здоровья»",
+      notReachingBody: "С графиками всё в порядке. Включи категории «Питание» для eait в «Здоровье».",
+      offTitle: "eait выключен в «Здоровье»",
+      offBody: "Дневник не пострадает; графики здесь читают то, чем «Здоровье» делится с eait.",
+      nothingTitle: "Пока ничего не записано",
+      nothingBody: "Графики появятся, когда в «Здоровье» будут данные с этого iPhone — взвешивание, тренировка, ночь сна.",
+      syncTitle: "Синхронизация со «Здоровьем» дала ошибку",
+      syncReached: "Сервер ответил",
+      syncRefused: "HealthKit отказал",
+      tryAgain: "Ещё раз",
+      openHealth: "Открыть «Здоровье»",
+      askAgain: "Спросить «Здоровье» снова",
+      readsMoreTitle: "«Здоровье» показывает больше, чем читает eait",
+      readsMoreBody: "eait видит только категории, которые ты для него включаешь.",
+      path: "В «Здоровье»: твоё фото вверху справа › «Программы» › eait. Или «Настройки» › «Конфиденциальность и безопасность» › «Здоровье» › eait.",
+      pathSpoken: "В «Здоровье» нажми на фото вверху справа, затем «Программы», затем eait. Или открой «Настройки», «Конфиденциальность и безопасность», «Здоровье», eait.",
+    },
+    intake: {
+      periods: {
+        days: { other: "эту неделю" },
+        weeks: { one: "за прошлую неделю", few: "за последние {n} недели", many: "за последние {n} недель", other: "за последние {n} недели" },
+        months: { one: "за прошлый месяц", few: "за последние {n} месяца", many: "за последние {n} месяцев", other: "за последние {n} месяца" },
+        years: { one: "этот год", few: "за последние {n} года", many: "за последние {n} лет", other: "за последние {n} года" },
+      },
+      kcalToday: "{kcal} ккал сегодня",
+      kcalADay: "{kcal} ккал в день",
+    },
+    rows: { compare: "Сравнение", body: "Тело" },
+    compare: {
+      bars: "Столбики",
+      line: "Линия",
+      axes: "{a} столбиками, левая ось · {b} линией, правая ось.",
+      noData: "Слишком мало {period}, где записаны и {a}, и {b}, чтобы сказать, как они связаны.",
+      periodNouns: { days: "дней", weeks: "недель", months: "месяцев", years: "лет" },
+    },
+    body: {
+      trendDown: "▼ {d} с {date} · осталось {to} до {target}",
+      trendDownSolo: "▼ {d} с {date}",
+      trendUp: "▲ {d} с {date} · осталось {to} до {target}",
+      trendUpSolo: "▲ {d} с {date}",
+      trendFlat: "Без изменений с {date}",
+      plan: "План",
+      planValue: "{kcal} ккал",
+      planMoved: "{old} → {new} ккал",
+      fromHealth: "Из Apple Health, {when}",
+      lineDownSlow: "Минус {kg}, и медленно: твой {pace} темп.",
+      lineDownOnPace: "Минус {kg}, в темпе: твой {pace} темп.",
+      lineDownFast: "Минус {kg}, и быстро: твой {pace} темп.",
+      lineUpSlow: "Плюс {kg}, и медленно: твой {pace} темп.",
+      lineUpOnPace: "Плюс {kg}, в темпе: твой {pace} темп.",
+      lineUpFast: "Плюс {kg}, и быстро: твой {pace} темп.",
+      lineFlat: "Держится: твой {pace} темп.",
+      lineDrift: "Уходит от {target}: твой {pace} темп.",
+      paces: { easy: "мягкий", steady: "ровный", push: "быстрый" },
+    },
+    weekLine: {
+      allInside: "Каждый день в пределах твоих {target}.",
+      overButOk: "{days} сверх; за период всё равно выходит {avg} в день.",
+      avgOver: "За период выходит {avg} в день — выше твоих {target}.",
+      days: { one: "{n} день", few: "{n} дня", many: "{n} дней", other: "{n} дней" },
+    },
+  },
+};
+
+export const healthScreenCopyFor = (lang: Lang): HealthScreenCopy => t(lang)(HEALTH_SCREEN_COPY);

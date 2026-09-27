@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { LANGS } from "./types.ts";
+import { fill } from "./onboarding-chat.ts";
+import { countText } from "./lang.ts";
+import { LANGS, PACES } from "./types.ts";
 import { HEALTH_FIELDS, HEALTH_GROUPS } from "./health.ts";
-import { HEALTH_COPY, healthLabel } from "./health-copy.ts";
+import { HEALTH_COPY, healthLabel, healthScreenCopyFor } from "./health-copy.ts";
 import { correlationWords } from "./trend.ts";
 
 describe("what the health screen calls things", () => {
@@ -57,6 +59,56 @@ describe("what the health screen calls things", () => {
       const same = [...HEALTH_GROUPS.map((g) => g.id), ...HEALTH_FIELDS.map((f) => f.key)]
         .filter((k) => healthLabel(k, lang) === healthLabel(k, "en"));
       expect(same.filter((k) => !SAME_WORD.has(`${lang}.${k}`)), lang).toEqual([]);
+    }
+  });
+});
+
+describe("the Apple Health screens' own words (HEALTH_SCREEN_COPY)", () => {
+  it("exists complete in all eight, with every template filling", () => {
+    const params: Record<string, string> = {
+      i: "Intake", n: "26", kcal: "1,066", avg: "1,467", target: "1,434", old: "1,434",
+      new: "1,429", d: "1.2 kg", to: "5.4 kg", date: "24 Aug", when: "today 18:30",
+      kg: "1.2 kg", pace: "steady", days: "2 days", a: "Intake", b: "Steps", period: "weeks",
+    };
+    const fields = (o: unknown, at = ""): string[] =>
+      typeof o === "string" ? [o]
+      : o && typeof o === "object" ? Object.values(o as Record<string, unknown>).flatMap((v) => fields(v)) : [];
+    for (const lang of LANGS) {
+      const s = healthScreenCopyFor(lang);
+      for (const str of fields(s)) {
+        const filled = str.replace(/\{(\w+)\}/g, (w, k: string) => params[k] ?? w);
+        expect(filled, `${lang}: ${str}`).not.toMatch(/\{\w+\}/);
+      }
+    }
+  });
+
+  it("titles the intake card by period, counted in the reader's own forms", () => {
+    const s = healthScreenCopyFor("en");
+    expect(countText("en")(s.intake.periods.days, 7)).toBe("this week");
+    expect(countText("en")(s.intake.periods.weeks, 26)).toBe("the last 26 weeks");
+    expect(countText("en")(s.intake.periods.years, 1)).toBe("this year");
+    expect(countText("ru")(healthScreenCopyFor("ru").intake.periods.weeks, 5)).toBe("за последние 5 недель");
+    expect(countText("ru")(healthScreenCopyFor("ru").intake.periods.months, 12)).toBe("за последние 12 месяцев");
+  });
+
+  it("words the week line and the body line without a leftover placeholder, in all eight", () => {
+    for (const lang of LANGS) {
+      const s = healthScreenCopyFor(lang);
+      const n = (x: number) => x.toLocaleString("en-US");
+      expect(fill(s.weekLine.allInside, { target: n(1434) })).not.toMatch(/\{/);
+      expect(fill(s.weekLine.overButOk, { days: countText(lang)(s.weekLine.days, 2), avg: n(1467) })).not.toMatch(/\{/);
+      expect(fill(s.body.lineDrift, { target: "68 kg", pace: s.body.paces.steady })).not.toMatch(/\{/);
+      for (const p of PACES) expect(s.body.paces[p], `${lang}.${p}`).toBeTruthy();
+    }
+  });
+
+  it("never names a weight category — the BMI rule holds on this surface too", () => {
+    for (const lang of LANGS) {
+      const s = healthScreenCopyFor(lang);
+      const flat = JSON.stringify(s).toLowerCase();
+      for (const bad of ["underweight", "overweight", "obese", "normal weight"]) {
+        expect(flat.includes(bad), `${lang} ${bad}`).toBe(false);
+      }
     }
   });
 });

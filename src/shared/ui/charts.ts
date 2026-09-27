@@ -394,3 +394,231 @@ export function bmiTick(value: number, range: string): number {
   const hi = seg.hi ?? seg.lo! + wHigh;
   return (i + clamp01((value - lo) / (hi - lo))) / BMI_SEGMENTS.length;
 }
+
+// ── Apple Health's intake bars ────────────────────────────────────────────────────────────────
+//
+// phone/health.html's "Intake · this week" card: a bar per bucket on a full-width baseline and a
+// dashed ink line at the plan — `weekBars`' bigger sibling on its own frame. Two differences,
+// both the board's: a day over plan stays accent rather than going `bad` (the card reads as a
+// record, not a verdict), and the bucket count is the caller's — 7 days, 26 weeks, 12 months or
+// however many years the window holds — so the pitch is derived, never fixed at seven.
+
+const INTAKE = {
+  viewBox: "0 0 350 150",
+  /** The baseline every bar stands on. */
+  base: 124,
+  /** Pixels of bar for `max(plan, largest) × 1.1` — the headroom rule `weekBars` runs at 1900. */
+  headroomPx: 114,
+  /** The board's pitch at seven buckets: 48 px a slot, 30 px of bar, first bar at x 8. */
+  pitchCap: 48,
+  barCap: 30,
+  barFill: 0.625, // 30 / 48
+  labelY: 142,
+} as const;
+
+export function intakeChart(
+  values: readonly (number | null)[],
+  labels: readonly string[],
+  planKcal: number,
+  todayIndex = -1,
+): {
+  viewBox: string;
+  /** The y the bars stand on — a full-width hairline. */
+  baseline: number;
+  /** The dashed plan line, or null when the account has no plan to draw. */
+  planLine: { x1: number; x2: number; y: number; dash: string } | null;
+  planLabel: { x: number; y: number } | null;
+  bars: ({ x: number; y: number; width: number; height: number; rx: number; today: boolean } | null)[];
+  /** One caption per bucket, centred on the slot — a bucket with no bar still names itself. */
+  labels: { x: number; y: number }[];
+} {
+  const n = values.length;
+  const pitch = Math.min(INTAKE.pitchCap, Math.round(334 / Math.max(1, n)));
+  const width = Math.min(INTAKE.barCap, Math.round(pitch * INTAKE.barFill));
+  const largest = Math.max(planKcal, ...values.map((v) => v ?? 0));
+  const pxPerKcal = INTAKE.headroomPx / (Math.max(1, largest) * 1.1);
+  const planY = Math.round(INTAKE.base - planKcal * pxPerKcal);
+  return {
+    viewBox: INTAKE.viewBox,
+    baseline: INTAKE.base,
+    planLine: planKcal > 0 ? { x1: 0, x2: 350, y: planY, dash: "5 4" } : null,
+    planLabel: planKcal > 0 ? { x: 350, y: planY - 6 } : null,
+    bars: values.map((v, i) => {
+      if (v === null) return null;
+      const h = Math.round(v * pxPerKcal);
+      return { x: 8 + i * pitch, y: INTAKE.base - h, width, height: h, rx: 3, today: i === todayIndex };
+    }),
+    labels: values.map((_, i) => ({ x: 8 + i * pitch + Math.round(width / 2), y: INTAKE.labelY })),
+  };
+}
+
+// ── The compare chart: bars against a line on two axes ────────────────────────────────────────
+//
+// phone/health-compare.html: intake-shaped bars on the left axis, a second series as an ink line
+// with hollow dots on the right, three hairlines, bucket captions under the slots. A gap on
+// either side is drawn, not smoothed — a null on the bars side is an empty slot, on the line side
+// a break in the run, for the same reason `trend.ts` keeps null apart from zero.
+
+const CMP = {
+  viewBox: "0 0 350 164",
+  top: 10,
+  plotBottom: 140,
+  /** The floor for the derived gutters — wider axis words widen them, never clip them. */
+  gutter: 44,
+  labelGap: 6,
+  font: 12,
+  barCap: 20,
+  barFill: 0.55,
+  xLabelY: 160,
+} as const;
+
+interface CmpScale { lo: number; hi: number; ticks: number[] }
+
+/**
+ * One axis with round ends. Bars floor at zero — a bar is a quantity — and a floating series
+ * rounds its own extremes out to the step, so the value at the end is never ON the frame.
+ * Only a flat series is padded (without it the rounding collapses to a line at its own edge).
+ */
+function cmpScale(values: readonly (number | null)[], kind: "bar" | "line"): CmpScale | null {
+  const known = values.flatMap((v) => (v === null ? [] : [v]));
+  if (known.length === 0) return null;
+  let lo = kind === "bar" ? 0 : Math.min(...known);
+  let hi = Math.max(...known);
+  if (lo === hi) {
+    const pad = (Math.abs(hi) || 1) * 0.15;
+    lo -= pad;
+    hi += pad;
+  }
+  const raw = (hi - lo) / 2;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 5, 10].map((m) => m * mag).find((s) => s >= raw)!;
+  lo = kind === "bar" ? 0 : Math.floor(lo / step) * step;
+  hi = Math.ceil(hi / step) * step;
+  return { lo, hi, ticks: [lo, (lo + hi) / 2, hi] };
+}
+
+/** One gutter, measured from the labels that go in it — see `chart.tsx`'s `axisPad` for why. */
+function cmpGutter(labels: readonly string[]): number {
+  const widest = labels.reduce((w, l) => Math.max(w, l.length), 0);
+  const need = Math.ceil(widest * CMP.font * 0.62) + CMP.labelGap;
+  return Math.min(Math.max(need, CMP.gutter), Math.floor(350 / 3));
+}
+
+export function compareChart(
+  bars: readonly (number | null)[],
+  line: readonly (number | null)[],
+  labels: readonly string[],
+  formatBars: (v: number) => string,
+  formatLine: (v: number) => string,
+): {
+  viewBox: string;
+  plotLeft: number;
+  plotWidth: number;
+  /** The y's of the three hairlines — the bars axis' lo, mid and hi. */
+  gridlines: number[];
+  leftLabels: { x: number; y: number; text: string }[];
+  rightLabels: { x: number; y: number; text: string }[];
+  bars: ({ x: number; y: number; width: number; height: number; rx: number } | null)[];
+  /** One path per run of consecutive known line points — a gap is a break, not a bridge. */
+  runs: string[];
+  /** A hollow dot per known line point; the caller gives it the surface fill and ink stroke. */
+  dots: { x: number; y: number; r: number }[];
+  labels: { x: number; y: number; text: string }[];
+} {
+  const plotH = CMP.plotBottom - CMP.top;
+  const a = cmpScale(bars, "bar");
+  const b = cmpScale(line, "line");
+  const left = cmpGutter((a?.ticks ?? []).map(formatBars));
+  const right = b ? cmpGutter(b.ticks.map(formatLine)) : CMP.labelGap;
+  const plotW = 350 - left - right;
+  const n = Math.max(bars.length, line.length, labels.length);
+  const slot = n > 0 ? plotW / n : 0;
+  const xOf = (i: number) => left + slot * (i + 0.5);
+  const yOf = (sc: CmpScale, v: number) => CMP.top + plotH - ((v - sc.lo) / (sc.hi - sc.lo)) * plotH;
+  const barW = Math.min(CMP.barCap, slot * CMP.barFill);
+
+  const runs: string[] = [];
+  let run: { x: number; y: number }[] = [];
+  line.forEach((v, i) => {
+    if (v === null || b === null) {
+      if (run.length) runs.push(run.map((p, j) => `${j === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" "));
+      run = [];
+    } else run.push({ x: xOf(i), y: Math.round(yOf(b, v) * 10) / 10 });
+  });
+  if (run.length) runs.push(run.map((p, j) => `${j === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" "));
+
+  return {
+    viewBox: CMP.viewBox,
+    plotLeft: left,
+    plotWidth: plotW,
+    gridlines: (a?.ticks ?? []).map((t) => Math.round(yOf(a!, t))),
+    leftLabels: (a?.ticks ?? []).map((t) => ({ x: left - CMP.labelGap, y: Math.round(yOf(a!, t)) + 4, text: formatBars(t) })),
+    rightLabels: (b?.ticks ?? []).map((t) => ({ x: left + plotW + CMP.labelGap, y: Math.round(yOf(b!, t)) + 4, text: formatLine(t) })),
+    bars: bars.map((v, i) => {
+      if (v === null || a === null) return null;
+      // The height comes from the ROUNDED top, not the other way: y + height is exactly the
+      // baseline this way, where two independent roundings drifted a half pixel off it.
+      const y = Math.round(yOf(a, v) * 10) / 10;
+      return {
+        x: Math.round((xOf(i) - barW / 2) * 10) / 10,
+        y,
+        width: Math.round(barW * 10) / 10,
+        height: Math.max(0, CMP.plotBottom - y),
+        rx: 3,
+      };
+    }),
+    runs,
+    dots: line.flatMap((v, i) => (v === null || b === null ? [] : [{ x: xOf(i), y: Math.round(yOf(b, v) * 10) / 10, r: 3.5 }])),
+    labels: labels.map((text, i) => ({ x: Math.round(xOf(i) * 10) / 10, y: CMP.xLabelY, text })),
+  };
+}
+
+// ── The Body screen's weigh-in line ───────────────────────────────────────────────────────────
+//
+// phone/health-body.html: the same logged-weights line as Progress's card on a wider frame —
+// 340×130 with no hairlines, the first and last values named, the date range under. `weightChart`
+// is the 320×112 card's own frame and stays it; this is the second one, not a restyle.
+
+const BW = {
+  viewBox: "0 0 340 130",
+  x0: 20,
+  x1: 320,
+  top: 30,
+  /** The board's 50 px a kg while the span allows it; shrinks so the lowest dot clears 96. */
+  pxPerKg: 50,
+  spanPx: 66,
+  firstLabelY: 18,
+  dateLabelY: 128,
+} as const;
+
+export function bodyWeightChart(points: readonly WeightPoint[]): {
+  viewBox: string;
+  points: { x: number; y: number }[];
+  path: string;
+  firstLabel: { x: number; y: number };
+  lastLabel: { x: number; y: number };
+  dateLabelY: number;
+  dateLabelX: { start: number; end: number };
+} {
+  const kgs = points.map((p) => p.kg);
+  const max = kgs.length ? Math.max(...kgs) : 0;
+  const range = kgs.length ? max - Math.min(...kgs) : 0;
+  const pxPerKg = Math.min(BW.pxPerKg, BW.spanPx / Math.max(range, 0.5));
+  const t0 = points[0]?.t ?? 0;
+  const span = (points[points.length - 1]?.t ?? 0) - t0;
+  const pts = points.map((p) => ({
+    x: Math.round(BW.x0 + (span > 0 ? ((p.t - t0) / span) * (BW.x1 - BW.x0) : 0)),
+    y: Math.round(BW.top + (max - p.kg) * pxPerKg),
+  }));
+  const last = pts[pts.length - 1];
+  return {
+    viewBox: BW.viewBox,
+    points: pts,
+    // `weightChart`'s own rule: one weigh-in is a dot with a date, not a trend (design-pro, #95).
+    path: pts.length > 1 ? `M${pts.map((p) => `${p.x} ${p.y}`).join(" L")}` : "",
+    firstLabel: { x: BW.x0, y: BW.firstLabelY },
+    lastLabel: last ? { x: last.x - 10, y: last.y + 12 } : { x: BW.x1, y: 100 },
+    dateLabelY: BW.dateLabelY,
+    dateLabelX: { start: BW.x0, end: BW.x1 },
+  };
+}
