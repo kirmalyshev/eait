@@ -29,6 +29,7 @@ import type {
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
+import { shrinkPhotos } from "../photo.ts";
 import { firstMealEdit, mealTitle, type Portion } from "../portion.ts";
 import {
   COPY, CONFIRM, MEAL, el, clear, kcal, lang, names, refusalWords, render, sendOrKeep,
@@ -157,9 +158,11 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
       // constant of ours.
       const { maxPhotosPerMeal, maxUploadBytes } = me.limits;
       if (picked.length > maxPhotosPerMeal) { say(fill(COPY.photosMax, { n: `${maxPhotosPerMeal}` })); return; }
-      if (picked.reduce((n, f) => n + f.size, 0) > maxUploadBytes) { say(COPY.photoTooLarge); return; }
       const files = picked;
       run(async () => {
+        // What goes up is the resized frame — the byte cap weighs it, not what was picked.
+        const shrunk = await shrinkPhotos(files);
+        if (shrunk.reduce((n, f) => n + f.size, 0) > maxUploadBytes) { say(COPY.photoTooLarge); return; }
         // The stream carries its own progress words — a glance is its own line; `reading`/`item`
         // carry `line` already worded. Printed, never composed: this bundle holds no catalog.
         try {
@@ -167,7 +170,7 @@ export function firstMealScreen(me: ProfileResponse): HTMLElement {
           // compiler that has already decided `null`.
           const got: { logged: MealLogged | null } = { logged: null };
           const keptNote = await sendOrKeep(
-            { id: crypto.randomUUID(), userId: me.profile.user_id, kind: "photo", text: null, photos: files, capturedAt: new Date().toISOString() },
+            { id: crypto.randomUUID(), userId: me.profile.user_id, kind: "photo", text: null, photos: shrunk, capturedAt: new Date().toISOString() },
             {
               onLine: (line) => {
                 const ev = line as PhotoProgress;
