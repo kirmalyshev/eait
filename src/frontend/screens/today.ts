@@ -5,7 +5,7 @@
 import { dateMinus } from "../../shared/dates.ts";
 import { dayBudget, macroTone } from "../../shared/budget.ts";
 import { renderableVerdicts } from "../../shared/types.ts";
-import { LANG_TAG, UNIT_KCAL, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
+import { LANG_TAG, UNIT_KCAL, numbers, spellUnit, t, wholeNumbers } from "../../shared/lang.ts";
 import type {
   DayResponse, PendingMealsResponse, ProfileResponse, WeekResponse,
 } from "@eait/shared/contract";
@@ -13,7 +13,7 @@ import { api } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { firstMealScreen } from "./first-meal.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
-import { homeCopyFor } from "../../shared/app/home-copy.ts";
+import type { Localized } from "../../shared/lang.ts";
 import {
   COPY, PENDING, WEEK, composerRow, el, clear, heldProposal, kcal, lang, profile,
   proposalCard, sendOrKeep, setHeldProposal, takeTurn,
@@ -139,8 +139,9 @@ async function diaryScreen(): Promise<HTMLElement> {
       const counters = el("div", "stats macros");
       counters.append(counter(COPY.statProtein, budget.protein.eaten, budget.protein.target, "protein"));
       if (day.targets.satfat_g !== undefined) {
-        // The noun off the home copy table — the row's pills are the server's `verdictLabels`.
-        counters.append(counter(homeCopyFor(lang).macros.satFat.name,
+                // The counter's noun, `verdict.noun.ldl`'s words as a Localized map — the catalog lives
+        // server-side; W4's nutrient cards carry their own names.
+        counters.append(counter(t(lang)(SATFAT),
           Math.round(day.totals.satfat_g), Math.round(day.targets.satfat_g), "satfat"));
       }
       body.append(big, bar, eaten, counters);
@@ -308,6 +309,12 @@ async function diaryScreen(): Promise<HTMLElement> {
  * sample unspent (the SERVER's count — a failed attempt leaves it unspent, #44), and nothing logged.
  * "No meals this week" alone would offer a paying user back from a holiday one meal on us.
  */
+/** "Saturated fat" — the sat-fat counter's noun until W4's nutrient cards replace the counters. */
+const SATFAT: Localized<string> = {
+  en: "Saturated fat", de: "Gesättigte Fette", es: "Grasas saturadas", fr: "Graisses saturées",
+  id: "Lemak jenuh", it: "Grassi saturi", ru: "Насыщенные жиры", vi: "Chất béo bão hoà",
+};
+
 export async function homeScreen(me: ProfileResponse | null): Promise<HTMLElement> {
   if (me?.onboarded === true && !me.entitlement.active && !me.limits.sampleUsed) {
     const marked = await api<WeekResponse>(`${WEEK}?days=${me.limits.diaryWindowDays}`);
