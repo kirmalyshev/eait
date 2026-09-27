@@ -424,6 +424,26 @@ export async function youScreen(frame: Frame): Promise<HTMLElement> {
     });
     card.append(optRow(COPY.language, "", langSel));
 
+    // The Support row (#200) — only while the operator configured a donation URL; every set one
+    // is a link on the row, the provider names staying untranslated because they are brands.
+    const donate = ([
+      [me!.donate.github, "GitHub Sponsors"],
+      [me!.donate.kofi, "Ko-fi"],
+      [me!.donate.buyMeACoffee, "Buy Me a Coffee"],
+    ] as const).flatMap(([url, name]) => url === null ? [] : [{ url, name }]);
+    if (donate.length > 0) {
+      const box = el("span", "ov");
+      donate.forEach(({ url, name }, i) => {
+        if (i > 0) box.append(document.createTextNode(" · "));
+        const a = el("a", "", name) as HTMLAnchorElement;
+        a.href = url;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        box.append(a);
+      });
+      card.append(optRow(you.web.support, "", box));
+    }
+
     // The action rows — a label and the chevron, like every forward row in the register.
     const actRow = (label: string): HTMLButtonElement => {
       const b = el("button", "opt", "") as HTMLButtonElement;
