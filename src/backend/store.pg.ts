@@ -1025,6 +1025,7 @@ export const SCOPE: Readonly<Record<string, Scoping>> = {
 
   // ── Sweeps. Global by definition — scoped to one user they would sweep one user.
   forgetTurnOutcomes: "unscoped",
+  pruneAbandonedAccounts: "unscoped",
   pruneExpiredTokens: "unscoped",
   pruneExpiredPendings: "unscoped",
   pruneHealthDaysBefore: "unscoped",
@@ -1320,7 +1321,11 @@ export async function postgresStore(
         userId = String(found[0].id);
       } else {
         const id = crypto.randomUUID();
-        await sql`insert into users (id, device_id, lang) values (${id}, ${deviceId}, ${lang})
+        // `created_at` from the store's clock rather than the column default, for the reason
+        // `tokens.last_used_at` takes one: a test that can move time forward cannot move
+        // `default now()`, and `pruneAbandonedAccounts` reads this column as its idle floor.
+        await sql`insert into users (id, device_id, lang, created_at)
+                  values (${id}, ${deviceId}, ${lang}, ${new Date(now())})
                   on conflict (device_id) do nothing`;
         // The conflict branch is a genuine race (two cold starts of the same app), not paranoia:
         // re-reading is what makes the second one return the FIRST one's user rather than throwing.
@@ -1379,7 +1384,8 @@ export async function postgresStore(
 
     async createUser(lang: Lang) {
       const id = crypto.randomUUID();
-      await sql`insert into users (id, lang) values (${id}, ${lang})`;
+      // `created_at` from the store's clock, same as `upsertDeviceUser` above.
+      await sql`insert into users (id, lang, created_at) values (${id}, ${lang}, ${new Date(now())})`;
       return id;
     },
 
@@ -2500,7 +2506,7 @@ export async function postgresStore(
                     ${line.kind === "meal" ? line.event : null},
                     ${line.role === "user" && line.kind === "text" ? line.clientId ?? null : null},
                     ${line.role === "user" && line.kind === "text" ? line.pendingId ?? null : null},
-                    ${line.role === "assistant" && line.kind === "text" ? line.speaker ?? null : null},
+                    ${line.role === "assistant" ? line.speaker ?? null : null},
                     ${line.role === "user" && line.kind === "text" ? line.intent ?? null : null},
                     ${line.role === "assistant" && line.kind === "text" ? line.model ?? null : null},
                     ${line.role === "user" ? line.analysisId ?? null : null})`;
@@ -2705,6 +2711,29 @@ export async function postgresStore(
       // `on delete cascade` clears tokens, push tokens, meals, pendings, analyses, portion
       // corrections, the chat thread AND onboarding events with the row. The last one is deliberate — see the note on `deleteUser` in the port.
       await sql`delete from users where id = ${userId}`;
+    },
+
+    async pruneAbandonedAccounts(before) {
+      // Across every account, like the sweeps it sits beside — see the port for the rule. `device`
+      // is the one provider that does NOT disqualify: it is the anonymous credential an install is
+      // born with, the very class being swept, rather than a way back. `telegram` does disqualify
+      // although `signsIn` answers false for it — somebody is listening on that transport.
+      //
+      // The `not exists` clauses are IN the delete, the same guarded-statement rule as
+      // `pruneHealthDaysBefore`: nothing interleaves between qualifying and going.
+      const rows = await sql`
+        delete from users u
+        where u.created_at < ${new Date(before)}
+          and u.entitlement_event_at is null
+          and not exists (
+            select 1 from identities i
+            where i.user_id = u.id and i.provider <> 'device')
+          and not exists (select 1 from meals m where m.user_id = u.id)
+          and not exists (
+            select 1 from tokens t
+            where t.user_id = u.id and t.last_used_at >= ${new Date(before)})
+        returning u.id`;
+      return rows.length;
     },
 
     async close() {

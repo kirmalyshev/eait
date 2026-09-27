@@ -1151,7 +1151,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
           event: line.kind === "meal" ? line.event : null,
           clientId: line.role === "user" && line.kind === "text" ? line.clientId ?? null : null,
           pendingId: line.role === "user" && line.kind === "text" ? line.pendingId ?? null : null,
-          speaker: line.role === "assistant" && line.kind === "text" ? line.speaker ?? null : null,
+          speaker: line.role === "assistant" ? line.speaker ?? null : null,
           intent: line.role === "user" && line.kind === "text" ? line.intent ?? null : null,
           model: line.role === "assistant" && line.kind === "text" ? line.model ?? null : null,
           analysisId: line.role === "user" ? line.analysisId ?? null : null,
@@ -1332,6 +1332,24 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async deleteUser(userId) {
       eraseUser(userId);
+    },
+
+    async pruneAbandonedAccounts(before) {
+      // Collect first, erase after: `eraseUser` deletes from `createdAt` under the iteration.
+      const gone: string[] = [];
+      for (const [userId, at] of createdAt) {
+        if (at >= before) continue;
+        // Any entitlement event disqualifies, live or lapsed — the purchase history is what a
+        // legacy anonymous account's next renewal would come back to.
+        if (entitlements.has(userId)) continue;
+        // `device` is the exception for the port's reason — it is the credential being swept.
+        if (identities.some((i) => i.userId === userId && i.provider !== "device")) continue;
+        if ([...meals.values()].some((m) => m.user_id === userId)) continue;
+        if ([...tokens.values()].some((t) => t.userId === userId && t.lastUsedAt >= before)) continue;
+        gone.push(userId);
+      }
+      for (const userId of gone) eraseUser(userId);
+      return gone.length;
     },
 
     async close() {},

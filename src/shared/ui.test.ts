@@ -26,8 +26,10 @@ const importsOf = (src: string): string[] =>
   IMPORTS.flatMap((re) => [...src.matchAll(re)].map((m) => m[1]!));
 
 // The allow-list, and no more: `../palette.ts` and `../design.ts` carry no imports of their own,
-// `../lang.ts` is the copy/table base the frontend precedent already leans on.
-const ALLOWED = new Set(["../palette.ts", "../design.ts", "../lang.ts"]);
+// `../lang.ts` is the copy/table base the frontend precedent already leans on, and
+// `../mascot.ts` is the one drawing every web surface shares — kit.ts's `--face` data URLs
+// (#88) come from it rather than carrying a second copy of the same potato.
+const ALLOWED = new Set(["../palette.ts", "../design.ts", "../lang.ts", "../mascot.ts"]);
 
 const offTheList = (src: string): string[] =>
   importsOf(src).filter((spec) => !(spec.startsWith("./") || ALLOWED.has(spec)));
