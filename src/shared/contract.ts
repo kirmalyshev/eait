@@ -12,6 +12,7 @@ import type { TargetBasis } from "./targets.ts";
 import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, LogPhotoResult, MealProposed, MealUpdated, Refusal, TargetGone } from "./results.ts";
 import type { HealthDay } from "./health.ts";
 import type { Entitlement } from "./entitlement.ts";
+import type { WebPaywall } from "./paywall.ts";
 import type { ScriptedLineId } from "./chat.ts";
 import type { ChatPromptId } from "./onboarding-chat.ts";
 import type { FoodTargets } from "./types.ts";
@@ -551,6 +552,21 @@ export interface ProfileResponse {
    * screen in five minutes.
    */
   telegramBot: string | null;
+  /**
+   * The web paywall, computed from this server's `EAIT__BACKEND__WEB_*` block (#77).
+   *
+   * SENT, NEVER COMPILED, for the same reason `limits` is: the web app can be self-hosted, so the
+   * plans, prices and exit offer are the operator's variables, and this is how the bundle learns
+   * them — already formatted in the account's language and with `{userId}` already filled into
+   * every checkout link from this account's own id, because the RevenueCat webhook grants the
+   * purchase to `app_user_id` and nothing else.
+   *
+   * Plans and `exitOffer` are null where the operator configured no checkout. ALL NULL means the
+   * host sells nothing: no paywall surface at all, whatever `entitlement` and `limits` say about
+   * this account. A server that predates this field sends no `paywall` — a client reads that as
+   * absent too, exactly as it does `entitlement`.
+   */
+  paywall: WebPaywall;
 }
 
 /**

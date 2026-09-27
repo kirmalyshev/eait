@@ -3368,6 +3368,39 @@
         "additionalProperties": {},
         "description": "Every error body the API can produce, other than the refusals above."
       },
+      "ExitOffer": {
+        "type": "object",
+        "properties": {
+          "checkoutUrl": {
+            "type": "string"
+          },
+          "price": {
+            "type": "string",
+            "description": "The period's price as the card says it: \"a year\" for yearly, \"a month\" for monthly."
+          },
+          "regularPrice": {
+            "type": "string",
+            "description": "The regular yearly price, for the strike-through."
+          },
+          "percentOff": {
+            "type": "number",
+            "description": "Whole percent cheaper than the regular yearly price — floored, never overstated."
+          },
+          "perMonth": {
+            "type": "string",
+            "description": "The offer spread over a month, formatted like every other price."
+          }
+        },
+        "required": [
+          "checkoutUrl",
+          "perMonth",
+          "percentOff",
+          "price",
+          "regularPrice"
+        ],
+        "additionalProperties": false,
+        "description": "The one offer a decline leads to: the cheaper yearly plan, its regular price struck through."
+      },
       "FoodTargets": {
         "type": "object",
         "properties": {
@@ -4631,6 +4664,24 @@
         "additionalProperties": false,
         "description": "A partial profile update. Every field optional; absent means \"leave alone\", explicit `null` means \"clear\". Onboarding is just a sequence of these — the server derives the next step from which fields are still null rather than trusting a client-side step counter, so a user who kills the app mid-flow resumes where they actually are."
       },
+      "PaywallPlan": {
+        "type": "object",
+        "properties": {
+          "checkoutUrl": {
+            "type": "string"
+          },
+          "price": {
+            "type": "string",
+            "description": "The period's price as the card says it: \"a year\" for yearly, \"a month\" for monthly."
+          }
+        },
+        "required": [
+          "checkoutUrl",
+          "price"
+        ],
+        "additionalProperties": false,
+        "description": "One purchasable plan on the web paywall, ready to render: the checkout link with the account's own id already filled into `{userId}` — navigate to it, never template it — and the prices formatted in the account's language and the operator's currency."
+      },
       "PendingMealsResponse": {
         "type": "object",
         "properties": {
@@ -4930,6 +4981,10 @@
               "null"
             ],
             "description": "The username of this server's Telegram bot, for a Connect Telegram link, or null.\n\nNULL WHILE THE CONNECTOR IS OFF — no token, `--demo`, a dead token, or Telegram not reached yet — and a client draws no link then. The link is `https://t.me/<this>?start=<code>`, with a code from  {@link  ROUTES.authPair }  minted at the moment of the tap: a code shown in advance would die on the screen in five minutes."
+          },
+          "paywall": {
+            "$ref": "#/components/schemas/WebPaywall",
+            "description": "The web paywall, computed from this server's `EAIT__BACKEND__WEB_*` block (#77).\n\nSENT, NEVER COMPILED, for the same reason `limits` is: the web app can be self-hosted, so the plans, prices and exit offer are the operator's variables, and this is how the bundle learns them — already formatted in the account's language and with `{userId}` already filled into every checkout link from this account's own id, because the RevenueCat webhook grants the purchase to `app_user_id` and nothing else.\n\nPlans and `exitOffer` are null where the operator configured no checkout. ALL NULL means the host sells nothing: no paywall surface at all, whatever `entitlement` and `limits` say about this account. A server that predates this field sends no `paywall` — a client reads that as absent too, exactly as it does `entitlement`."
           }
         },
         "required": [
@@ -4942,7 +4997,8 @@
           "timezone",
           "entitlement",
           "pairAddress",
-          "telegramBot"
+          "telegramBot",
+          "paywall"
         ],
         "additionalProperties": false,
         "description": "Profile plus everything derived from it, so the app never recomputes targets locally."
@@ -5234,6 +5290,56 @@
           "bad"
         ]
       },
+      "WebPaywall": {
+        "type": "object",
+        "properties": {
+          "trialDays": {
+            "type": "number",
+            "description": "Free days the plan's CTA may promise. 0 = no trial line is drawn."
+          },
+          "yearly": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/YearlyPlan"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Yearly, the preselected plan — null when no yearly checkout is configured."
+          },
+          "monthly": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PaywallPlan"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Monthly — null when no monthly checkout is configured."
+          },
+          "exitOffer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExitOffer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The offer shown once after the plans are declined — null = a decline goes to the app."
+          }
+        },
+        "required": [
+          "trialDays",
+          "yearly",
+          "monthly",
+          "exitOffer"
+        ],
+        "additionalProperties": false,
+        "description": "The web paywall, as this server is configured — computed in `ProfileResponse.paywall` (#77).\n\nA null plan is a plan the operator did not configure and the client does not draw. `yearly`, `monthly` AND `exitOffer` all null means the host sells nothing and no paywall surface exists at all — whatever `entitlement` and `limits` say about the account."
+      },
       "WeekResponse": {
         "type": "object",
         "properties": {
@@ -5248,6 +5354,28 @@
           "days"
         ],
         "additionalProperties": false
+      },
+      "YearlyPlan": {
+        "type": "object",
+        "properties": {
+          "checkoutUrl": {
+            "type": "string"
+          },
+          "price": {
+            "type": "string",
+            "description": "The period's price as the card says it: \"a year\" for yearly, \"a month\" for monthly."
+          },
+          "pricePerMonth": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "checkoutUrl",
+          "price",
+          "pricePerMonth"
+        ],
+        "additionalProperties": false,
+        "description": "The yearly plan's second figure: what a year of it costs per month."
       }
     },
     "securitySchemes": {
