@@ -40,7 +40,12 @@ describe("CHAT_SCREEN_COPY", () => {
     // are figures filled by the caller. A translation that drops one renders the hole literally.
     const withPlaceholders: Record<string, string[]> = {
       composerThread: ["{coach}"],
-      macroOfTarget: ["{value}", "{target}"],
+      macroEaten: ["{value}"],
+      macroTarget: ["{target}"],
+      movedCaption: ["{day}"],
+      "phone.photoCaption": ["{caption}"],
+      "phone.refusals.longTextNote": ["{max}"],
+      "phone.refusals.longNoteNote": ["{max}"],
       mealLine: ["{name}", "{kcal}"],
       "phone.typing": ["{coach}"],
     };

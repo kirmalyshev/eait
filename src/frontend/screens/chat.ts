@@ -394,12 +394,11 @@ export async function chatScreen(): Promise<HTMLElement> {
     const head = el("div", "row between");
     const name = el("span", "row mb-name");
     name.append(el("i", `ico i-${focus.nutrient}`), noun);
-    // "{value} of {target} g", the eaten figure bold like the board's: split the TEMPLATE on its
-    // `{value}` placeholder so the bold sits inside the words rather than around them.
-    const [before, after] = copy().macroOfTarget.split("{value}");
+    // "{value} of {target} g" as the table's two halves, the eaten figure bold like the board's:
+    // `macroEaten` then `macroTarget`, and no split on the template itself.
     const figure = el("span", "num mb-num");
-    figure.append(before ?? "", el("b", "", wholeNumbers(lang)(focus.eaten)),
-      fill(after ?? "", { target: wholeNumbers(lang)(focus.target) }));
+    figure.append(el("b", "", fill(copy().macroEaten, { value: wholeNumbers(lang)(focus.eaten) })),
+      " ", fill(copy().macroTarget, { target: wholeNumbers(lang)(focus.target) }));
     head.append(name, figure);
     const bar = el("div", "bar");
     const fillEl = el("i", "grow");

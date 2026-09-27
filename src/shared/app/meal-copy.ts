@@ -94,6 +94,11 @@ export interface MealCopy {
   phoneThisMeal: string;
   /** The keypad's commit button. */
   phoneSaveRecheck: string;
+  /**
+   * The keypad's backspace key's accessible name (`phone/meal-keypad.html`) — the key is a glyph,
+   * so the label is the words, and "Delete" is the menu's destructive row, not this.
+   */
+  phoneKeypadBackspace: string;
 
   /** The gone state (`phone/meal-gone.html`) — a deleted, moved or foreign meal id. */
   phoneGoneTitle: string;
@@ -163,6 +168,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "was {amount}",
     phoneThisMeal: "This meal",
     phoneSaveRecheck: "Save and recheck",
+    phoneKeypadBackspace: "Backspace",
     phoneGoneTitle: "Not on today’s diary",
     phoneGoneBody: "Deleted, or moved to another day.",
     phoneGoneBack: "Back to today",
@@ -208,6 +214,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "était {amount}",
     phoneThisMeal: "Ce repas",
     phoneSaveRecheck: "Enregistrer et revérifier",
+    phoneKeypadBackspace: "Effacer",
     phoneGoneTitle: "Pas dans le journal d’aujourd’hui",
     phoneGoneBody: "Supprimé, ou déplacé à un autre jour.",
     phoneGoneBack: "Retour à aujourd’hui",
@@ -253,6 +260,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "vorher {amount}",
     phoneThisMeal: "Diese Mahlzeit",
     phoneSaveRecheck: "Speichern und neu prüfen",
+    phoneKeypadBackspace: "Löschen",
     phoneGoneTitle: "Nicht im heutigen Tagebuch",
     phoneGoneBody: "Gelöscht oder auf einen anderen Tag verschoben.",
     phoneGoneBack: "Zurück zu heute",
@@ -298,6 +306,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "era {amount}",
     phoneThisMeal: "Questo pasto",
     phoneSaveRecheck: "Salva e ricontrolla",
+    phoneKeypadBackspace: "Elimina",
     phoneGoneTitle: "Non è nel diario di oggi",
     phoneGoneBody: "Eliminato, o spostato a un altro giorno.",
     phoneGoneBack: "Torna a oggi",
@@ -343,6 +352,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "antes {amount}",
     phoneThisMeal: "Esta comida",
     phoneSaveRecheck: "Guardar y revisar",
+    phoneKeypadBackspace: "Borrar",
     phoneGoneTitle: "No está en el diario de hoy",
     phoneGoneBody: "Eliminada, o movida a otro día.",
     phoneGoneBack: "Volver a hoy",
@@ -388,6 +398,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "trước là {amount}",
     phoneThisMeal: "Bữa này",
     phoneSaveRecheck: "Lưu và kiểm tra lại",
+    phoneKeypadBackspace: "Xóa",
     phoneGoneTitle: "Không có trong nhật ký hôm nay",
     phoneGoneBody: "Đã xoá, hoặc đã chuyển sang ngày khác.",
     phoneGoneBack: "Về hôm nay",
@@ -433,6 +444,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "tadinya {amount}",
     phoneThisMeal: "Makanan ini",
     phoneSaveRecheck: "Simpan dan periksa lagi",
+    phoneKeypadBackspace: "Hapus",
     phoneGoneTitle: "Tidak ada di catatan hari ini",
     phoneGoneBody: "Dihapus, atau dipindah ke hari lain.",
     phoneGoneBack: "Kembali ke hari ini",
@@ -478,6 +490,7 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneWasAmount: "было {amount}",
     phoneThisMeal: "Этот приём пищи",
     phoneSaveRecheck: "Сохранить и перепроверить",
+    phoneKeypadBackspace: "Стереть",
     phoneGoneTitle: "Нет в дневнике за сегодня",
     phoneGoneBody: "Удалён или перенесён на другой день.",
     phoneGoneBack: "Назад к сегодня",

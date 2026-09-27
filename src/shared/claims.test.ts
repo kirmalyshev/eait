@@ -22,6 +22,7 @@ import { join, relative } from "node:path";
 import { lintCopy } from "./claims.ts";
 import { LANGS } from "./types.ts";
 import { NOTIFICATION_COPY } from "./notifications.ts";
+import { HEALTH_SCREEN_COPY } from "./health-copy.ts";
 import { ONBOARDING_CONTENT } from "./onboarding-content.ts";
 import { chatCopyFor } from "./onboarding-chat-copy.ts";
 import { projectionMonth } from "./projection.ts";
@@ -161,6 +162,24 @@ describe("every sentence this product ships", () => {
   // is too broad fails HERE, on a language nobody was thinking about, which is the failure mode
   // that matters — an over-eager rule is discovered by the person it blocks, at the moment they
   // are trying to fix something else.
+
+  it("passes the claims gate over the Apple Health screens, in all eight", () => {
+    // `HEALTH_SCREEN_COPY` is code, not admin-edited — but a weight surface's words are exactly
+    // where a "you will lose" sneaks in ("on pace" is one word away from a promise). The whole
+    // table walks `lintCopy`, the same way the notification table does.
+    for (const lang of LANGS) {
+      const copy = HEALTH_SCREEN_COPY[lang];
+      if (!copy) continue;
+      const fields: Record<string, string> = {};
+      const walk = (node: unknown, at: string): void => {
+        if (typeof node === "string") { fields[at] = node; return; }
+        if (typeof node !== "object" || node === null) return;
+        for (const [k, v] of Object.entries(node)) walk(v, at === "" ? k : `${at}.${k}`);
+      };
+      walk(copy, "");
+      expect(lintCopy(fields).map((v) => `${v.field}: ${v.pattern} "${v.span}"`), lang).toEqual([]);
+    }
+  });
 
   it("passes the notification gate, in all eight — that copy is push and is admin-editable", () => {
     for (const lang of LANGS) {
