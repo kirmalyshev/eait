@@ -19,6 +19,7 @@ const KEYS = [
   "phoneMenuReread", "phoneMenuMoveYesterday",
   "phoneCorrectTitle", "phoneSheetMeal", "phoneWasAmount", "phoneThisMeal", "phoneSaveRecheck",
   "phoneGoneTitle", "phoneGoneBody", "phoneGoneBack",
+  "webGoneTitle", "webGoneBody", "webGoneBack", "itemAmount", "menuButton",
   "changeItem", "changeTotal", "changeWithItems",
   "changeStillHighOne", "changeStillHighTwo", "changeStillHighAll",
   "changeToPlan", "changeToHigh", "changeToVeryHigh", "changeAllOnPlan",

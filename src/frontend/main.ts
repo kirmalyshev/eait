@@ -9,9 +9,11 @@ import { chatScreen } from "./screens/chat.ts";
 import { logScreen } from "./screens/log.ts";
 import { progressScreen } from "./screens/progress.ts";
 import { youScreen } from "./screens/you.ts";
+import { mealScreen } from "./screens/meal.ts";
 import { homeScreen } from "./screens/today.ts";
 
 // `#/` LAST: it is the fallthrough an unclaimed route lands on, as it always has.
+screen("#/meal/", (frame) => mealScreen(frame));
 screen("#/chat", () => chatScreen());
 screen("#/log", (frame) => logScreen(frame));
 screen("#/progress", (frame) => progressScreen(frame));

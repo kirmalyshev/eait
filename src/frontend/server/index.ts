@@ -36,6 +36,7 @@ import { todayCss } from "../screens/today.css.ts";
 import { chatCss } from "../screens/chat.css.ts";
 import { logCss } from "../screens/log.css.ts";
 import { youCss } from "../screens/you.css.ts";
+import { mealCss } from "../screens/meal.css.ts";
 import { firstMealCss } from "../screens/first-meal.css.ts";
 import { progressCss } from "../screens/progress.css.ts";
 
@@ -101,6 +102,7 @@ ${todayCss}
 ${chatCss}
 ${logCss}
 ${youCss}
+${mealCss}
 ${firstMealCss}
 ${progressCss}
 /* The register's icon set, generated (#79): .ico plus an .i-<name> mask class per icon, the
