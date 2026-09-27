@@ -128,6 +128,16 @@ export const wholeNumbers = (lang: Lang) => {
 };
 
 /**
+ * ALWAYS one decimal — the opposite of `numbers`' "keeps a tenth when there is one". The BMI
+ * figure is the case (#174): a BMI is written 25.0 even when it is 25.00, because the scale's
+ * meaning lives in the decimal.
+ */
+export const decimalNumbers = (lang: Lang) => {
+  const format = new Intl.NumberFormat(LANG_TAG[lang], { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return (x: number): string => format.format(Math.round(x * 10) / 10);
+};
+
+/**
  * A WHOLE NUMBER CARRYING ITS SIGN — "+450", "−500" — for the deltas the boards draw signed (the
  * basis rows' "your days" and "your pace"). `Intl`'s `signDisplay` rather than a string stapled
  * in front: the minus it writes is the language's own.

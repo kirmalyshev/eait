@@ -415,23 +415,32 @@ export function weekBars(
   const largest = Math.max(planKcal, ...days.map((d) => d ?? 0));
   const pxPerKcal = barPxPerKcal(100, BARS_BASELINE_FULL, largest);
   const planY = Math.round(BARS_BASE - planKcal * pxPerKcal);
+  const bars = days.map((kcal, i) => {
+    if (kcal === null) return null;
+    const h = Math.round(kcal * pxPerKcal);
+    return {
+      x: 14 + i * 44,
+      y: BARS_BASE - h,
+      width: 26,
+      height: h,
+      rx: 4,
+      tone: dayTone({ kcal, logged: true, when: i === todayIndex ? "today" : "past" }, planKcal),
+      today: i === todayIndex,
+    };
+  });
+  // The label hangs off the line's right end — but ABOVE any bar tall enough to reach into its
+  // zone (the board's weekend is empty; a real Sunday bar can top right where "1,434" sits, #174).
+  // At 12px a glyph is ~7px, so the label needs its own width of room back from x 312.
+  const labelLeft = 312 - (String(Math.round(planKcal)).length + Math.floor((String(Math.round(planKcal)).length - 1) / 3)) * 7;
+  let labelY = planY - 6;
+  for (const b of bars) {
+    if (b !== null && b.x + b.width > labelLeft) labelY = Math.min(labelY, b.y - 6);
+  }
   return {
     viewBox: "0 0 320 142",
     planLine: { x1: 8, x2: 312, y: planY, dash: "3 3" },
-    planLabel: { x: 312, y: planY - 6 },
-    bars: days.map((kcal, i) => {
-      if (kcal === null) return null;
-      const h = Math.round(kcal * pxPerKcal);
-      return {
-        x: 14 + i * 44,
-        y: BARS_BASE - h,
-        width: 26,
-        height: h,
-        rx: 4,
-        tone: dayTone({ kcal, logged: true, when: i === todayIndex ? "today" : "past" }, planKcal),
-        today: i === todayIndex,
-      };
-    }),
+    planLabel: { x: 312, y: labelY },
+    bars,
     labels: days.map((_, i) => ({ x: 14 + i * 44 + 13, y: 136 })),
   };
 }

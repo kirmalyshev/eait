@@ -303,6 +303,19 @@ describe("weekBars — the week's intake against the plan", () => {
       expect(bar.y + bar.height).toBeLessThanOrEqual(118);
     }
   });
+
+  test("a bar reaching the label's zone lifts it clear — the label never sits on a bar (#174)", () => {
+    // Sunday (the last slot, under the right-anchored label) over plan: at the fixed planY − 6
+    // the baseline lands inside the bar. The label stays right-anchored, above the bar's top.
+    const c = weekBars([null, null, null, null, null, null, 2200], 1434, 6);
+    const last = c.bars[6]!;
+    expect(last.y).toBeLessThan(31); // tops inside the label's fixed zone (planY − 6 = 53 − text)
+    expect(c.planLabel.x).toBe(312);
+    expect(c.planLabel.y).toBeLessThanOrEqual(last.y - 6);
+    expect(c.planLabel.y).toBeGreaterThanOrEqual(0);
+    // And the board's own week — nothing near the label — keeps the board's spot.
+    expect(weekBars(days, 1434, 3).planLabel).toEqual({ x: 312, y: 37 });
+  });
 });
 
 describe("goalBar — the plan's progress as a share", () => {
