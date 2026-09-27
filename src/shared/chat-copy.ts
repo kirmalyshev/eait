@@ -110,10 +110,21 @@ export interface ThreadCopy {
      * line follows), and the two share-of-day sentences for a calories pill that is high.
      */
     headline: { onPlan: string; caloriesOnPlan: string; caloriesHigh: string; caloriesVeryHigh: string };
-    sodium: string;
-    satfat: string;
     /** The camera caption, quoted back. */
     noted: (v: { note: string }) => string;
+  };
+  /**
+   * #130's logged-meal verdict line — computed, never the model's. One per cap verdict that is
+   * not on plan (saturated fat, sodium), said under the card it belongs to: "{nutrient} is high
+   * for one meal: {eaten} of your {target} {unit}." `{nutrient}` is `verdictNoun` in
+   * sentence-start case, `{unit}` the amount's symbol via `spellUnit` (g for saturated fat, mg
+   * for sodium). `easyTail` is appended when the day's remaining share is small — the rule is
+   * written down beside `capVerdictLines`.
+   */
+  capLine: {
+    high: (v: { nutrient: string; eaten: string; target: string; unit: string }) => string;
+    veryHigh: (v: { nutrient: string; eaten: string; target: string; unit: string }) => string;
+    easyTail: string;
   };
 }
 
@@ -170,9 +181,12 @@ const THREAD = (i18n: I18n): ThreadCopy => ({
       caloriesHigh: i18n._("thread.firstVerdict.headline.caloriesHigh", undefined, { message: "A big share of your day in one meal." }),
       caloriesVeryHigh: i18n._("thread.firstVerdict.headline.caloriesVeryHigh", undefined, { message: "More than half your day in one meal." }),
     },
-    sodium: i18n._("thread.firstVerdict.sodium", undefined, { message: "Sodium runs high on this one. Scored only because you asked me to." }),
-    satfat: i18n._("thread.firstVerdict.satfat", undefined, { message: "Saturated fat runs high on this one. Scored only because you asked me to." }),
     noted: (v: { note: string }) => i18n._("thread.firstVerdict.noted", v, { message: "“{note}” — noted, it's in the numbers." }),
+  },
+  capLine: {
+    high: (v) => i18n._("thread.capLine.high", v, { message: "{nutrient} is high for one meal: {eaten} of your {target} {unit}." }),
+    veryHigh: (v) => i18n._("thread.capLine.veryHigh", v, { message: "{nutrient} is very high for one meal: {eaten} of your {target} {unit}." }),
+    easyTail: i18n._("thread.capLine.easyTail", undefined, { message: "Go easy on it for the rest of today." }),
   },
 });
 

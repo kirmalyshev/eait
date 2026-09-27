@@ -6,8 +6,8 @@ import {
   scriptedLine, startersFor, type ScriptedLineId,
 } from "./chat.ts";
 
-const TARGETS = { kcal: 1724, protein_g: 104, carbs_g: 190, fat_g: 55 };
-const EATEN = { kcal: 1168, protein_g: 74.8 };
+const TARGETS = { kcal: 1724, protein_g: 104, carbs_g: 190, fat_g: 55, satfat_g: 13, sodium_mg: 2000 };
+const EATEN = { kcal: 1168, protein_g: 74.8, satfat_g: 8, sodium_mg: 1200 };
 
 describe("the thread in eight languages", () => {
   it("says every scripted line, with nothing left unfilled", () => {
@@ -37,9 +37,9 @@ describe("the thread in eight languages", () => {
       for (const goal of ["gain", "lose", "maintain"] as const) {
         for (const via of ["photo", "text"] as const) {
           for (const confidence of ["high", "low"] as const) {
-            for (const eaten of [EATEN, { kcal: 2100, protein_g: 120 }]) {
+            for (const eaten of [EATEN, { kcal: 2100, protein_g: 120, satfat_g: 12, sodium_mg: 1900 }]) {
               said.push(...firstVerdictLines({
-                goal, targets: TARGETS, meal: { kcal: 520, confidence }, eatenToday: eaten, via,
+                goal, targets: TARGETS, meal: { kcal: 520, satfat_g: 8, sodium_mg: 1200, confidence }, eatenToday: eaten, via,
                 verdicts: { weight: "good", kidneys: "bad", ldl: "warn" },
                 caption: "two eggs and toast",
               }, lang));
