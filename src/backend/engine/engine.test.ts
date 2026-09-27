@@ -243,6 +243,32 @@ describe("onboarding", () => {
     expect((await profileView(deps, stale))!.healthConnected).toBe(false);
   });
 
+  // The You surface's fact line "32 · 172 cm · …" (#97): the age is the SERVER's arithmetic —
+  // the same `ageFrom` Mifflin-St Jeor feeds on, on the server's clock. A client doing the year
+  // subtraction itself is off by one for the one hour a year the zones disagree.
+  it("sends the account's age on the profile, and no invented number without a birth year", async () => {
+    const userId = await onboard({ birth_year: new Date().getUTCFullYear() - 32 });
+    expect((await profileView(deps, userId))!.age).toBe(32);
+    // The band is the engine's own: what Mifflin-St Jeor refuses is not an age the card may print.
+    const young = await onboard({ birth_year: new Date().getUTCFullYear() - 16 });
+    expect((await profileView(deps, young))!.age).toBe(16);
+    // Cleared is not "unknown age 0": the field goes null and the surface prints nothing.
+    const cleared = await patchProfile(deps, userId, { birth_year: null });
+    expect(cleared?.ok).toBe(true);
+    if (cleared?.ok) expect(cleared.view.age).toBeNull();
+    expect((await profileView(deps, userId))!.age).toBeNull();
+  });
+
+  it("reports the server's zone year, not UTC's, when the two disagree", async () => {
+    // A fixed clock can fake New Year only through the zone: at a UTC instant one hour into
+    // January, a server at +13 is already a year ahead of UTC — and so is the age.
+    const ahead = { ...deps, config: { ...CONFIG, timezone: "Pacific/Kiritimati" } };
+    const utcYear = new Date().getUTCFullYear();
+    const localYear = Number(localDate("Pacific/Kiritimati").slice(0, 4));
+    const userId = await onboard({ birth_year: utcYear - 32 });
+    expect((await profileView(ahead, userId))!.age).toBe(32 + (localYear - utcYear));
+  });
+
   it("sends the coach's name in the account's language, because the Lingui table cannot reach a bundle", async () => {
     const userId = await onboard();
     const view = (await profileView(deps, userId))!;
