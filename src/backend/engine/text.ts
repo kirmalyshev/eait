@@ -237,7 +237,7 @@ async function textTurn(
         // The ONE sanctioned way a meal's date changes, shared with `POST /v1/meals/:id/redate`:
         // an offset against the day the turn was TYPED — a queued turn sent tomorrow still means
         // its own "yesterday". Macros untouched; a manual edit cannot reach this field at all.
-        return redateMeal(deps, userId, focus.id, routed.dayOffset, eatenAt(input.capturedAt));
+        return redateMeal(deps, userId, focus.id, routed.dayOffset, { at: eatenAt(input.capturedAt) });
       }
     }
   }

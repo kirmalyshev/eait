@@ -416,13 +416,19 @@ export async function redateMeal(
   userId: string,
   mealId: string,
   dayOffset: unknown,
-  at?: Date,
+  // `at` is the move's clock: the turn path passes the turn's capture time, so a queued "that was
+  // yesterday" still means the day it was typed. `thread` is the route's only — the chat path's
+  // `keep` writes the redated card under the user's words itself, so a second write here would
+  // land two cards for one move.
+  opts: { thread?: boolean; at?: Date } = {},
 ): Promise<MealRedated | TargetGone> {
-  const date = dateMinus(localDate(deps.config.timezone, at), clampDayOffset(dayOffset));
+  const date = dateMinus(localDate(deps.config.timezone, opts.at), clampDayOffset(dayOffset));
   const moved = await deps.store.updateMeal(userId, mealId, { date });
   if (!moved) return { kind: "target-gone", on: "redate" };
   const totals = sumTotals(await deps.store.mealsForDate(userId, date));
-  await remember(deps, userId, [{ role: "assistant", kind: "meal", mealId: moved.id, event: "redated", speaker: "gabie" }]);
+  if (opts.thread === true) {
+    await remember(deps, userId, [{ role: "assistant", kind: "meal", mealId: moved.id, event: "redated", speaker: "gabie" }]);
+  }
   return { kind: "redated", mealId: moved.id, analysis: toAnalysis(moved), totals, date };
 }
 

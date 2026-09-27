@@ -1043,7 +1043,7 @@ describe("editing the answer", () => {
     const userId = await onboard();
     const meal = await logged(userId);
     const yesterday = dateMinus(meal.date, 1);
-    const out = await redateMeal(deps, userId, meal.mealId, 1);
+    const out = await redateMeal(deps, userId, meal.mealId, 1, { thread: true });
     if (out.kind !== "redated") throw new Error("expected redated");
     // The result and the row name the NEW day, and its totals are the day it landed on.
     expect(out.date).toBe(yesterday);
@@ -1266,6 +1266,15 @@ describe("chat", () => {
     if (res.kind !== "redated") throw new Error("expected redated");
     expect(res.analysis.kcal).toBe(meal.analysis.kcal);
     expect((await day(deps, userId))!.meals).toHaveLength(0); // no longer today's
+  });
+
+  it("a chatted re-date writes the card exactly once — keep's, not the engine's twice (#150)", async () => {
+    const userId = await onboard();
+    const meal = await logPhotoMeal(deps, userId, photo());
+    if (meal.kind !== "logged") throw new Error("expected logged");
+    await handleText(deps, userId, { text: "move to yesterday", focusMealId: meal.mealId });
+    const t = await chatHistory(deps, userId, {});
+    expect(t.entries.filter((e) => e.kind === "meal" && e.event === "redated")).toHaveLength(1);
   });
 
   it("charges chat against the global budget but not the per-user photo allowance", async () => {
