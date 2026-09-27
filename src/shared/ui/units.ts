@@ -1,5 +1,8 @@
 // Units — the conversion and the ruler, for display only.
 //
+// `lang.ts` is one of the four modules `ui/` may reach (ui.test.ts's list), so the spelling and
+// the number format below are the language's own rather than a retyped "cm".
+//
 // The store is metric and stays metric: `Profile.height_cm` and `weight_kg` are the columns, and
 // the plan arithmetic reads them. What the user drags on the ruler and reads beside the big number
 // is a PRESENTATION of those numbers — the unit toggle on the height, weight and target screens
@@ -17,6 +20,8 @@
 
 /** `metric` or `imperial` — the two-way toggle under every body question. */
 export type UnitSystem = "metric" | "imperial";
+
+import { numbers, spellUnit, type Lang } from "../lang.ts";
 
 const CM_PER_IN = 2.54;
 const LB_PER_KG = 2.2046226218;
@@ -86,6 +91,20 @@ const cmLabel = (cm: number) => `${cm}`;
 const kgLabel = (kg: number) => `${kg}`;
 const lbLabel = (lb: number) => `${lb}`;
 const ftInLabel = (totalIn: number) => `${Math.floor(totalIn / 12)}′${totalIn % 12}″`;
+
+/**
+ * A person's height the way copy needs it — "172 cm" metric, "5′8″" imperial — the unit spelled
+ * and the figures formatted in the reader's language (`spellUnit`, `numbers`), so Progress's
+ * "From {w} and {h}" prints "см" in Russian and no screen retypes the ′″ join.
+ */
+export function heightText(cm: number, system: UnitSystem, lang: Lang): string {
+  const n = numbers(lang);
+  if (system === "imperial") {
+    const { ft, in: inch } = cmToFtIn(cm);
+    return `${n(ft)}′${n(inch)}″`;
+  }
+  return `${n(cm)} ${spellUnit(lang, "cm")}`;
+}
 
 /**
  * The two rulers and their two systems, as `product/design/pro` draws them.
