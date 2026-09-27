@@ -32,6 +32,8 @@ export const todayCss = `
 .kcard .ktg:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .kcard .kfig { font-size: 44px; font-weight: 700; letter-spacing: -.03em; display: block;
   line-height: 1.05; }
+.kcard .kfig .about { font-size: 14px; font-weight: 600; letter-spacing: 0; color: var(--muted);
+  margin-right: 4px; }
 .kcard.over .kfig { color: var(--bad); }
 .kcard .klab { font-size: 13px; font-weight: 600; color: var(--muted); }
 .kcard .klab .caret { display: inline-block; margin-left: 2px; }
@@ -49,21 +51,19 @@ export const todayCss = `
 .dots button.on i { background: var(--ink); }
 .dots button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* The health-score row — a compact link card with the score bar, opening the per-day board. */
-.hsr { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px;
-  border-radius: 12px; box-shadow: 0 0 0 1px var(--hair); background: var(--surface);
-  color: var(--ink); text-decoration: none; font: inherit; text-align: left; cursor: pointer;
-  border: 0; width: 100%; }
-.hsr .hline { display: flex; align-items: center; justify-content: space-between; }
-.hsr .hscore { font-weight: 600; }
-.hsr .hnum { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
-.hsr .chev .ico { width: 16px; height: 16px; color: var(--muted); }
-.hsb { height: 6px; border-radius: 3px; background: var(--hair); overflow: hidden; }
-.hsb i { display: block; height: 100%; background: var(--ink); border-radius: 3px; }
-.hsr .hfrom { font-size: 12px; color: var(--muted); }
+/* The health-score row — the DAY board's columnar form of the kit's hsr (the meal sheet's is
+   a single row; kitCss lands after this file, so the variant scopes itself to .hsr.day). */
+.hsr.day { flex-direction: column; align-items: stretch; gap: 8px; padding: 12px 14px; }
+.hsr.day .hline { display: flex; align-items: center; justify-content: space-between; }
+.hsr.day .hscore { font-weight: 600; }
+.hsr.day .hnum { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hsr.day .chev .ico { width: 16px; height: 16px; color: var(--muted); }
+.hsr.day .hfrom { font-size: 12px; color: var(--muted); }
+.hsb { height: 6px; border-radius: var(--r-bar); background: var(--hair); overflow: hidden; }
+.hsb i { display: block; height: 100%; background: var(--ink); border-radius: var(--r-bar); }
 
 /* The per-day score modal — the boards' 440 px card over a dimmed page. */
-.scorewrap { position: fixed; inset: 0; background: rgba(23,25,28,.36); display: flex;
+.scorewrap { position: fixed; inset: 0; background: color-mix(in srgb, var(--ink) 36%, transparent); display: flex;
   align-items: center; justify-content: center; z-index: 40; }
 .scorecard { width: 440px; max-width: calc(100vw - 32px); padding: 24px; display: flex;
   flex-direction: column; gap: 4px; }
@@ -71,12 +71,7 @@ export const todayCss = `
 .scorecard .stitle b { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
 .scorecard .stitle .snum { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .scorecard .sline { font-size: 13px; color: var(--muted); margin: 2px 0 4px; }
-.hsp { display: flex; align-items: center; gap: 12px; padding: 11px 0;
-  border-top: 1px solid var(--hair); font-size: 15px; font-weight: 500; color: inherit;
-  text-decoration: none; }
-.hsp small { display: block; font-size: 12px; font-weight: 500; color: var(--muted);
-  margin-top: 1px; }
-.hsp .pts { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+a.hsp { color: inherit; text-decoration: none; }
 .hsp .chev .ico { width: 16px; height: 16px; color: var(--muted); }
 .scorecard .cta { margin-top: 14px; }
 
@@ -101,40 +96,7 @@ export const todayCss = `
 .failcard .cta { width: auto; display: inline-flex; min-height: 40px; padding: 0 16px;
   font-size: 14px; margin-top: 10px; }
 
-/* THE PROPOSAL CARD (today-logging): ink-ringed, the lead, the name with its kcal, each item
-   with its grams and its kcal, the macro chips with a sat-fat fourth, the verdict lines, and
-   Log it / No. The message's own time rides at the right of the verdict row — only when the
-   tab knows it. */
-.prop { box-shadow: 0 0 0 2px var(--ink); }
-.prop .pname { display: flex; align-items: center; justify-content: space-between;
-  margin: 8px 0 10px; }
-.prop .pname b { font-size: 19px; font-weight: 700; letter-spacing: -.02em; }
-.prop .pname .num { display: flex; align-items: baseline; gap: 4px; }
-.prop .pname .num .ico { width: 14px; height: 14px; align-self: center; }
-.prop .pname .num b { font-size: 28px; }
-.prop .pname .num span { font-size: 13px; color: var(--muted); }
-.prop .pitem { display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 0; border-top: 1px solid var(--hair); font-weight: 500; }
-.prop .pitem .ig { color: var(--muted); font-weight: 400; margin-left: 6px; }
-.prop .pitem .pk { font-weight: 600; font-variant-numeric: tabular-nums; }
-.prop .hr { height: 1px; background: var(--hair); margin: 12px 0; }
-.prop .vts { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.prop .vts .t12 { margin-left: auto; font-size: 12px; color: var(--muted); }
-.prop .pact { display: flex; gap: 10px; margin-top: 14px; }
-.prop .pact .cta.p { flex: 1; }
-.prop .pact .cta.s { flex: 0 0 120px; }
-
-/* The in-diary composer (today-logging): the round-cornered field and the round accent send —
-   text only; a photo enters through "Upload a photo". */
-.tcompose { display: flex; gap: 10px; align-items: center; }
-.tcompose .box { flex: 1; min-height: 48px; border: 0; border-radius: 24px;
-  background: var(--surface); box-shadow: 0 0 0 1px var(--hair); padding: 0 16px;
-  font: inherit; font-size: 15px; color: var(--ink); }
-.tcompose .box::placeholder { color: var(--faint); }
-.tcompose .ib { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 50%; border: 0;
-  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
-  background: var(--accent); color: var(--accent-ink); padding: 0; }
-.tcompose .ib .ico { width: 18px; height: 18px; }
-.tcompose .ib:disabled { opacity: .45; cursor: default; }
-.tcompose .ib:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The proposal the day holds is the SHELL's card (.prop, styled where every surface reads
+   it, in chat.css) — the boards' logging state gives it the ink ring, scoped to Home. */
+.home .prop { box-shadow: 0 0 0 2px var(--ink); }
 `;

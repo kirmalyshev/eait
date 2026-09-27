@@ -12,6 +12,7 @@
 // penalties); the last band is the catch-all.
 
 import { bmi } from "./targets.ts";
+import { BMI_SEGMENTS } from "./ui/charts.ts";
 import type { Verdict } from "./types.ts";
 
 // `bmi` is not defined twice: `targets.ts` already owns the equation — `checkTargetWeight` and the
@@ -40,6 +41,8 @@ export interface ScorePart {
 export interface HealthScore {
   /** Base 6 plus the parts, clamped to 1–10. */
   score: number;
+  /** The points every score starts from — the breakdown's "Start" row reads it, never recomputes it. */
+  base: number;
   parts: ScorePart[];
 }
 
@@ -158,6 +161,7 @@ export function healthScore(meal: ScoreMeal, restrictions: readonly string[]): H
   const raw = HEALTH_SCORE.base + parts.reduce((sum, p) => sum + p.points, 0);
   return {
     score: Math.min(HEALTH_SCORE.clamp.max, Math.max(HEALTH_SCORE.clamp.min, raw)),
+    base: HEALTH_SCORE.base,
     parts,
   };
 }
@@ -183,15 +187,13 @@ export type BmiRange = "below-18.5" | "18.5-24.9" | "25-29.9" | "30-plus";
 
 /**
  * The four ranges as their upper edges — the value strictly below `max` falls in the band.
- * The ids ARE the numbers: `bmiRangeLabel` reads them out of the id rather than a second table,
- * so a moved edge and a stale label cannot disagree.
+ * Derived from `ui/charts.ts`'s `BMI_SEGMENTS`: a band ends where the printed next band begins,
+ * so the membership edges and the bar's labels are one table, never two that can drift. The ids
+ * ARE the numbers: `bmiRangeLabel` reads them out of the id rather than a second table.
  */
-export const BMI_BANDS = [
-  { id: "below-18.5", max: 18.5 },
-  { id: "18.5-24.9", max: 25 },
-  { id: "25-29.9", max: 30 },
-  { id: "30-plus", max: Number.POSITIVE_INFINITY },
-] as const satisfies readonly { id: BmiRange; max: number }[];
+export const BMI_BANDS: readonly { id: BmiRange; max: number }[] = BMI_SEGMENTS.map(
+  (seg, i) => ({ id: seg.id, max: BMI_SEGMENTS[i + 1]?.lo ?? Number.POSITIVE_INFINITY }),
+);
 
 /**
  * A neutral id, on purpose — the label beside a BMI is the numbers themselves, and the test in

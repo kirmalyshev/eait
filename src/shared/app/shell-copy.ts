@@ -18,6 +18,10 @@ export interface ShellCopy {
   navProfile: string;
   /** The round "+" that logs a meal — its accessible name; the button itself is a glyph. */
   logMeal: string;
+  /** The composer's camera round — icon-only, so the name is the label (`composerRow`, both surfaces). */
+  composerPhoto: string;
+  /** The composer's send round — icon-only (`composerRow`). */
+  composerSend: string;
 }
 
 export const SHELL_COPY: Localized<ShellCopy> = {
@@ -27,6 +31,8 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     navChat: "Chat",
     navProfile: "Profile",
     logMeal: "Log a meal",
+    composerPhoto: "Add a photo",
+    composerSend: "Send",
   },
   fr: {
     navHome: "Accueil",
@@ -34,6 +40,8 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     navChat: "Chat",
     navProfile: "Profil",
     logMeal: "Enregistrer un repas",
+    composerPhoto: "Ajouter une photo",
+    composerSend: "Envoyer",
   },
   de: {
     navHome: "Start",
@@ -41,6 +49,8 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     navChat: "Chat",
     navProfile: "Profil",
     logMeal: "Mahlzeit eintragen",
+    composerPhoto: "Foto hinzufügen",
+    composerSend: "Senden",
   },
   it: {
     navHome: "Home",
@@ -48,6 +58,8 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     navChat: "Chat",
     navProfile: "Profilo",
     logMeal: "Registra un pasto",
+    composerPhoto: "Aggiungi una foto",
+    composerSend: "Invia",
   },
   es: {
     navHome: "Inicio",
@@ -55,6 +67,8 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     navChat: "Chat",
     navProfile: "Perfil",
     logMeal: "Registrar una comida",
+    composerPhoto: "Añadir una foto",
+    composerSend: "Enviar",
   },
   vi: {
     navHome: "Trang chủ",
@@ -62,6 +76,8 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     navChat: "Chat",
     navProfile: "Hồ sơ",
     logMeal: "Ghi một bữa ăn",
+    composerPhoto: "Thêm ảnh",
+    composerSend: "Gửi",
   },
   id: {
     navHome: "Beranda",
@@ -69,6 +85,8 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     navChat: "Chat",
     navProfile: "Profil",
     logMeal: "Catat makanan",
+    composerPhoto: "Tambah foto",
+    composerSend: "Kirim",
   },
   ru: {
     navHome: "Главная",
@@ -76,6 +94,8 @@ export const SHELL_COPY: Localized<ShellCopy> = {
     navChat: "Чат",
     navProfile: "Профиль",
     logMeal: "Записать приём пищи",
+    composerPhoto: "Добавить фото",
+    composerSend: "Отправить",
   },
 };
 

@@ -54,14 +54,14 @@ test("the diary: one main with one h1, 44px nav and Send, and the type floor", a
   await tapTarget(page.getByRole("button", { name: "Send" }));
   await typeFloor(page);
   // The composer's field is a form control: 16px, or iOS zooms the page on focus.
-  expect(await fontPx(page, ".fld")).toBeGreaterThanOrEqual(16);
+  expect(await fontPx(page, ".compose .box")).toBeGreaterThanOrEqual(16);
 });
 
 test("the chat: one h1, and Send and a line's Delete both at 44px", async ({ inWebApp: page }) => {
   await page.goto("/#/chat");
   await landmark(page);
   await tapTarget(page.getByRole("button", { name: "Send" }));
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill("how did my week go?");
+  await page.getByPlaceholder("What did you eat?").fill("how did my week go?");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   const del = page.locator(".thread li .act", { hasText: "Delete" });
   await expect(del).toBeVisible();

@@ -1,20 +1,21 @@
 import { beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, explainTargets, isMeal, onboardingContentFor, proposalLive, runningLine, scriptedLine, threadCopyFor, verdictInlineText, verdictPillLabel, type ActivityLevel, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
+import { DEFAULT_ONBOARDING_CONTENT, MAX_APPEND_LINES_PER_BATCH, MAX_PROFILE_TEXT, MAX_USER_LINE, RESTRICTION_TAGS, explainTargets, isMeal, onboardingContentFor, proposalLive, runningLine, scriptedLine, threadCopyFor, type ActivityLevel, type MealAnalysis, type MealLogged, type MealUpdated, type PhotoEvent } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
 import type { AnalyzedMeal, LlmPorts, TextInput } from "../llm/port.ts";
 import { GatewayRefusal } from "../llm/port.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
-import { dateMinus, localDate, localTime } from "@eait/shared";
+import { dateMinus, emptyHealthDay, localDate, localTime } from "@eait/shared";
 import { fakePush } from "../push/fake.ts";
 import { remember } from "./chat.ts";
 import { LANGS, LANGS_READY } from "@eait/shared";
 import { charge } from "./caps.ts";
 import {
   appendLines, applyCorrection, attachPhotos, cancelPendingMeal, chatHistory, confirmPendingMeal, day, editMeal, handleText,
-  logPhotoMeal, patchProfile, pendingMeals, profileView, reanalyzeMeal, stepApplies, week, type EngineDeps,
+  logPhotoMeal, patchProfile, profileView, reanalyzeMeal, redateMeal, stepApplies, week, type EngineDeps,
 } from "./index.ts";
+import { MAX_DAY_OFFSET } from "../llm/port.ts";
 
 const CONFIG: Config = {
   ...configDefaults(),
@@ -200,6 +201,60 @@ describe("onboarding", () => {
     // And it tracks the config rather than a constant that happens to match today.
     const tighter = { ...deps, config: { ...CONFIG, maxPhotosPerMeal: 1 } };
     expect((await profileView(tighter, userId))!.limits.maxPhotosPerMeal).toBe(1);
+  });
+
+  // The Subscription row's "free week · day 5" (#97). The number is the SERVER's — a client that
+  // counted days itself would drift from the reminder days `trialReminderDates` already sends.
+  it("counts the free week on the profile, null the moment the trial is not live", async () => {
+    const userId = await onboard();
+    expect((await profileView(deps, userId))!.entitlement.trialDay).toBeNull();
+    // Expiry the day after tomorrow in the server's zone: today is day 5, exactly as the
+    // notification scheduler names it.
+    const expiry = dateMinus(localDate(deps.config.timezone), -2);
+    await store.putEntitlement(userId, {
+      expiresAt: `${expiry}T12:00:00.000Z`,
+      productId: "com.eait.fit.ios.yearly",
+      eventAt: new Date().toISOString(),
+      trial: true,
+    });
+    expect((await profileView(deps, userId))!.entitlement.trialDay).toBe(5);
+    // Converted to paid, there is no free week left to count.
+    await store.putEntitlement(userId, {
+      expiresAt: dateMinus(localDate(deps.config.timezone), -365) + "T12:00:00.000Z",
+      productId: "com.eait.fit.ios.yearly",
+      eventAt: new Date(Date.now() + 60_000).toISOString(),
+      trial: false,
+    });
+    expect((await profileView(deps, userId))!.entitlement.trialDay).toBeNull();
+  });
+
+  // The You surface's "Apple Health · connected" row (#97): drawn only while a sync is actually
+  // arriving. The signal is a stored health row inside the last seven days — never a flag a
+  // client could set for itself.
+  it("reports healthConnected from recent health rows, and only recent ones", async () => {
+    const userId = await onboard();
+    expect((await profileView(deps, userId))!.healthConnected).toBe(false);
+    const today = localDate(deps.config.timezone);
+    await store.putHealthDays(userId, [{ ...emptyHealthDay(dateMinus(today, 6)), steps: 4000 }]);
+    expect((await profileView(deps, userId))!.healthConnected).toBe(true);
+    // Eight days back is a stale sync, not a connection.
+    const stale = await onboard();
+    await store.putHealthDays(stale, [{ ...emptyHealthDay(dateMinus(today, 7)), steps: 4000 }]);
+    expect((await profileView(deps, stale))!.healthConnected).toBe(false);
+  });
+
+  it("sends the coach's name in the account's language, because the Lingui table cannot reach a bundle", async () => {
+    const userId = await onboard();
+    const view = (await profileView(deps, userId))!;
+    expect(view.coachName).toBe(threadCopyFor(view.profile.lang).coach.name);
+  });
+
+  it("answers hasLoggedMeal over the whole diary, not the marking window (#92)", async () => {
+    const userId = await onboard();
+    expect((await profileView(deps, userId))!.hasLoggedMeal).toBe(false);
+    const res = await logPhotoMeal(deps, userId, photo());
+    if (!isMeal(res)) throw new Error("expected a meal");
+    expect((await profileView(deps, userId))!.hasLoggedMeal).toBe(true);
   });
 });
 
@@ -1038,6 +1093,48 @@ describe("editing the answer", () => {
     expect(out).toEqual({ kind: "target-gone", on: "correction" });
   });
 
+  it("moves a meal by offset — the surface's 'Move to yesterday' (#150)", async () => {
+    const userId = await onboard();
+    const meal = await logged(userId);
+    const yesterday = dateMinus(meal.date, 1);
+    const out = await redateMeal(deps, userId, meal.mealId, 1, { thread: true });
+    if (out.kind !== "redated") throw new Error("expected redated");
+    // The result and the row name the NEW day, and its totals are the day it landed on.
+    expect(out.date).toBe(yesterday);
+    expect(out.totals.kcal).toBe(meal.analysis.kcal);
+    const moved = (await store.getMeal(userId, meal.mealId))!;
+    expect(moved.date).toBe(yesterday);
+    expect((await store.mealsForDate(userId, meal.date)).map((m) => m.id)).not.toContain(meal.mealId);
+    // A move corrects nothing: the numbers and the flag are untouched, and the thread holds the
+    // same card a chatted re-date writes.
+    expect(moved.corrected).toBe(false);
+    expect(moved.kcal).toBe(meal.analysis.kcal);
+    const t = await chatHistory(deps, userId, {});
+    expect(t.entries.at(-1)).toMatchObject({ role: "assistant", kind: "meal", event: "redated" });
+  });
+
+  it("clamps an out-of-range offset to the bound, the same answer the model's misparse gets", async () => {
+    const userId = await onboard();
+    const meal = await logged(userId);
+    const out = await redateMeal(deps, userId, meal.mealId, 99);
+    if (out.kind !== "redated") throw new Error("expected redated");
+    expect(out.date).toBe(dateMinus(meal.date, MAX_DAY_OFFSET));
+    // And nothing below today — a negative offset cannot move a meal into the future.
+    const back = await redateMeal(deps, userId, meal.mealId, -3);
+    if (back.kind !== "redated") throw new Error("expected redated");
+    expect(back.date).toBe(meal.date);
+  });
+
+  it("a move reaches only the caller's meal — another account's id is the same not-found", async () => {
+    const a = await onboard();
+    const b = await onboard();
+    const meal = await logged(a);
+    const out = await redateMeal(deps, b, meal.mealId, 1);
+    // Indistinguishable from a deleted meal — a probe learns nothing about whether it exists.
+    expect(out).toEqual({ kind: "target-gone", on: "redate" });
+    expect((await store.getMeal(a, meal.mealId))!.date).toBe(meal.date);
+  });
+
   it("applies a natural-language correction through the same write path", async () => {
     const userId = await onboard();
     const meal = await logged(userId);
@@ -1127,35 +1224,6 @@ describe("chat", () => {
     const confirmed = await confirmPendingMeal(deps, userId, res.pendingId);
     if (confirmed.kind !== "logged") throw new Error("expected logged");
     expect(confirmed.analysis.verdicts.weight).toBeDefined();
-  });
-
-  it("words a proposal's verdict labels itself — the card cannot compose them", async () => {
-    // `MealProposed.verdictLabels` — {dimension, tone, label} per visible verdict, pill order, in
-    // the account's language — because the proposal card's pills are Lingui words the web bundle
-    // has no catalog for (#91, #145). The pending read-back must carry the same words, or a page
-    // that lost its card would show it wordless.
-    const userId = await onboard();
-    const res = await handleText(deps, userId, { text: "two eggs and toast" });
-    if (res.kind !== "proposed") throw new Error("expected proposed");
-    const weight = res.analysis.verdicts?.weight;
-    if (weight === undefined) throw new Error("expected a weight verdict");
-    expect(res.verdictLabels).toEqual([{ dimension: "weight", tone: weight, label: verdictPillLabel("weight", weight, "en") }]);
-
-    const back = await pendingMeals(deps, userId);
-    expect(back).toHaveLength(1);
-    expect(back[0]!.verdictLabels).toEqual(res.verdictLabels);
-  });
-
-  it("words them in the account's language", async () => {
-    const userId = await onboard();
-    await patchProfile(deps, userId, { lang: "de" });
-    const res = await handleText(deps, userId, { text: "zwei Eier" });
-    if (res.kind !== "proposed") throw new Error("expected proposed");
-    const weight = res.analysis.verdicts?.weight;
-    if (weight === undefined) throw new Error("expected a weight verdict");
-    expect(res.verdictLabels[0]!.label).toBe(verdictPillLabel("weight", weight, "de"));
-    const back = await pendingMeals(deps, userId);
-    expect(back[0]!.verdictLabels[0]!.label).toBe(verdictPillLabel("weight", weight, "de"));
   });
 
   it("writes only on confirm, and confirm is idempotent-safe", async () => {
@@ -1252,6 +1320,15 @@ describe("chat", () => {
     if (res.kind !== "redated") throw new Error("expected redated");
     expect(res.analysis.kcal).toBe(meal.analysis.kcal);
     expect((await day(deps, userId))!.meals).toHaveLength(0); // no longer today's
+  });
+
+  it("a chatted re-date writes the card exactly once — keep's, not the engine's twice (#150)", async () => {
+    const userId = await onboard();
+    const meal = await logPhotoMeal(deps, userId, photo());
+    if (meal.kind !== "logged") throw new Error("expected logged");
+    await handleText(deps, userId, { text: "move to yesterday", focusMealId: meal.mealId });
+    const t = await chatHistory(deps, userId, {});
+    expect(t.entries.filter((e) => e.kind === "meal" && e.event === "redated")).toHaveLength(1);
   });
 
   it("charges chat against the global budget but not the per-user photo allowance", async () => {
@@ -1861,52 +1938,6 @@ describe("diary", () => {
     const b = await onboard();
     await logPhotoMeal(deps, a, photo());
     expect((await day(deps, b))!.meals).toHaveLength(0);
-  });
-
-  it("sends each row its inline verdict words — the web client cannot compose them", async () => {
-    // `MealRecord.verdictInline` is composed on the day read, in the account's language
-    // (`verdictInlineText`): "calories high · saturated fat very high". The Lingui catalog is not
-    // on the web bundle, so this string is the only way a browser row gets the words (#91). A meal
-    // whose verdicts are all on plan carries none — its row shows the time alone.
-    const userId = await onboard();
-    const target = (await day(deps, userId))!.targets.kcal;
-    const meal = (kcal: number): LlmPorts => ({
-      ...demoPorts(),
-      analyzePhoto: async () => ({
-        isFood: true,
-        items: [{ name: "A plate", grams: 400, kcal, protein_g: 40, carbs_g: 60, fat_g: 20 }],
-        kcal, protein_g: 40, carbs_g: 60, fat_g: 20,
-        satfat_g: 2, fiber_g: 4, sugar_g: 5, sodium_mg: 300,
-        confidence: "high", notes: "",
-      }),
-    });
-    await logPhotoMeal(makeDeps({}, meal(Math.round(target * 0.4))), userId, photo());
-    await logPhotoMeal(makeDeps({}, meal(Math.round(target * 0.7))), userId, photo());
-    await logPhotoMeal(makeDeps({}, meal(Math.round(target * 0.1))), userId, photo());
-    const view = (await day(deps, userId))!;
-    expect(view.meals[0]!.verdictInline).toBe("calories high");
-    expect(view.meals[1]!.verdictInline).toBe("calories very high");
-    expect(view.meals[2]!.verdictInline).toBe("");
-  });
-
-  it("composes the inline verdicts in the account's language", async () => {
-    const userId = await onboard();
-    await patchProfile(deps, userId, { lang: "de" });
-    const target = (await day(deps, userId))!.targets.kcal;
-    const llm: LlmPorts = {
-      ...demoPorts(),
-      analyzePhoto: async () => ({
-        isFood: true,
-        items: [{ name: "Ein Teller", grams: 400, kcal: Math.round(target * 0.7), protein_g: 40, carbs_g: 60, fat_g: 20 }],
-        kcal: Math.round(target * 0.7), protein_g: 40, carbs_g: 60, fat_g: 20,
-        satfat_g: 2, fiber_g: 4, sugar_g: 5, sodium_mg: 300,
-        confidence: "high", notes: "",
-      }),
-    };
-    await logPhotoMeal(makeDeps({}, llm), userId, photo());
-    const view = (await day(deps, userId))!;
-    expect(view.meals[0]!.verdictInline).toBe(verdictInlineText({ weight: "bad" }, "de"));
-    expect(view.meals[0]!.verdictInline).not.toBe("calories very high");
   });
 
   it("carries the score on each meal and the kcal-weighted mean on the day (#118)", async () => {

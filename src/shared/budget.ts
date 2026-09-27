@@ -107,3 +107,32 @@ export function dayBudget(
     warn: state === "over" && goal !== "gain", protein,
   };
 }
+
+/**
+ * The W4 calorie card's figure-and-label pair — ONE choice for the screen's two forms (#164).
+ *
+ * `label` is a copy slot the screen fills ("kcal left"/"kcal eaten"/"kcal over" and their detail
+ * forms); `figure` is the number above it. The rules: today toggles `left` to `eaten`; an OVER
+ * day's figure is the overage under "over" — and toggles to eaten under "eaten", never the eaten
+ * figure under "over"; a PAST day under target is `eaten` — nothing is "left" of a day that is
+ * over; and a past day with nothing on it shows the plan that day had, under "left" (the boards'
+ * "0 of {n}" form). A guessed day carries the about-marker through for the figure's own mark (#47).
+ */
+export interface KcalCardState {
+  figure: number;
+  label: "left" | "eaten" | "over";
+  guessed: boolean;
+}
+
+export const kcalCardState = (budget: DayBudget, showEaten: boolean): KcalCardState => {
+  if (showEaten || budget.state === "under") {
+    return { figure: budget.eaten, label: "eaten", guessed: budget.guessed };
+  }
+  if (budget.state === "over") {
+    return { figure: budget.kcal, label: "over", guessed: budget.guessed };
+  }
+  return {
+    figure: budget.state === "unlogged" ? budget.target : budget.kcal,
+    label: "left", guessed: budget.guessed,
+  };
+};

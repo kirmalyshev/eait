@@ -1,5 +1,6 @@
 // The first meal's manual correction, as data (#42): "What it was" and a Portion, turned into the
-// `EditMealRequest` that `PATCH /v1/meals/:id` already speaks.
+// `EditMealRequest` that `PATCH /v1/meals/:id` already speaks. The rough-guess question's pick and
+// rounding live here too (#92) — portion arithmetic the rough card needs without a DOM.
 //
 // PURE AND DOM-FREE ON PURPOSE, and beside `copy.ts` rather than inside `main.ts`: the browser
 // tsconfig has `types: []`, so the arithmetic a test must reach cannot live behind a DOM it would
@@ -85,3 +86,4 @@ export function firstMealEdit(
   }));
   return { items, ...totals };
 }
+

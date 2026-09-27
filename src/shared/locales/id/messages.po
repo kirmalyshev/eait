@@ -35,6 +35,16 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.satfat"
+#~ msgstr "Lemak jenuh makanan ini tinggi. Dinilai hanya karena kamu memintanya."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.sodium"
+#~ msgstr "Natrium makanan ini tinggi. Dinilai hanya karena kamu memintanya."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "“{note}” — dicatat, sudah masuk ke angkanya."
 
@@ -77,6 +87,16 @@ msgstr "{noun} — sangat tinggi"
 #: src/shared/verdicts.ts
 msgid "verdict.inline.bad"
 msgstr "{noun} — sangat tinggi"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.high"
+msgstr "{nutrient} tinggi untuk satu makanan: {eaten} dari {target} {unit}-mu."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.veryHigh"
+msgstr "{nutrient} sangat tinggi untuk satu makanan: {eaten} dari {target} {unit}-mu."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -182,6 +202,11 @@ msgstr "Yang pertama masuk. {kcal} kcal — {arithmetic}"
 #: src/shared/chat-copy.ts
 msgid "thread.coach.name"
 msgstr "Gabie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.easyTail"
+msgstr "Santai dulu untuk sisa hari ini."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -324,11 +349,6 @@ msgid "verdict.noun.ldl"
 msgstr "Lemak jenuh"
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.satfat"
-msgstr "Lemak jenuh makanan ini tinggi. Dinilai hanya karena kamu memintanya."
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
 msgstr "Kirim foto makanan, ceritakan apa yang kamu makan, atau tanya {coach} sesuatu."
@@ -347,11 +367,6 @@ msgstr "natrium"
 #: src/shared/verdicts.ts
 msgid "verdict.noun.kidneys"
 msgstr "Natrium"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.sodium"
-msgstr "Natrium makanan ini tinggi. Dinilai hanya karena kamu memintanya."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

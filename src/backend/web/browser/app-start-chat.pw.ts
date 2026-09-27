@@ -11,7 +11,7 @@ test("the old chat's address opens the web application's chat", async ({ inWebAp
   await page.goto("/start/chat");
   await expect(page).toHaveURL(/\/#\/chat$/);
   await expect(page.getByRole("link", { name: "Home" })).toBeVisible();
-  await expect(page.getByPlaceholder("Tell Spud what you ate, or ask anything")).toBeVisible();
+  await expect(page.getByPlaceholder("What did you eat?")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your chat" })).toHaveCount(0);
 });
 
@@ -22,9 +22,12 @@ test("so does the short link", async ({ inWebApp: page }) => {
   await expect(page.getByRole("link", { name: "Home" })).toBeVisible();
 });
 
-test("the plan page's way into the conversation is the web application's chat", async ({ inWebApp: page }) => {
+test("the plan offers no chat link — the sign-up is its one way on; the old address still opens the app's", async ({ inWebApp: page }) => {
+  // W3 (#90): the plan's Continue is the consent screen and nothing else links a conversation —
+  // the app's chat is reached through the handoff, not a button on the plan.
   await page.goto("/start/plan");
-  await page.getByRole("link", { name: "Open the chat" }).click();
+  await expect(page.getByRole("link", { name: "Open the chat" })).toHaveCount(0);
+  await page.goto("/start/chat");
   await expect(page).toHaveURL(/\/#\/chat$/);
   await expect(page.getByRole("link", { name: "Home" })).toBeVisible();
 });

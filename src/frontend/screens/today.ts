@@ -9,24 +9,25 @@
 // `verdictLabels`, and the score is the server's `dayHealthScore`, never recomputed here.
 
 import { dateMinus } from "../../shared/dates.ts";
-import { dayBudget } from "../../shared/budget.ts";
-import { LANG_TAG, UNIT_KCAL, countText, wholeNumbers } from "../../shared/lang.ts";
+import { dayBudget, kcalCardState } from "../../shared/budget.ts";
+import { LANG_TAG, countText, wholeNumbers } from "../../shared/lang.ts";
 import { homeCopyFor, type HomeTargetMacroCopy } from "../../shared/app/home-copy.ts";
+import { scoresAppCopy } from "../../shared/app/scores-copy.ts";
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
 import { ico, tagx, type ChipName, type WeekDayRow } from "../../shared/ui/kit.ts";
-import type { MealProposed, MealRecord } from "@eait/shared";
+import type { MealRecord } from "@eait/shared";
 import type {
-  DayResponse, DaysResponse, PendingMealsResponse, PendingResponse, ProfileResponse, WeekResponse,
+  DayResponse, DaysResponse, PendingMealsResponse, ProfileResponse,
 } from "@eait/shared/contract";
-import { api, apiBlob, ApiError, Unauthenticated } from "../api.ts";
+import { api, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { firstMealScreen } from "./first-meal.ts";
 import {
-  ctaEl, kitEl, mcardEl, mealRowEl, ringEl, spudAvatarEl, verdictDotEl, weekStripEl,
+  ctaEl, kitEl, mcardEl, mealRowEl, ringEl, spudAvatarEl, weekStripEl,
 } from "../kit.ts";
 import {
-  COPY, DAYS, PENDING, WEEK, Said, behind, clear, el, heldProposal, kcal, kept, keptNotice,
-  lang, maybeLanded, names, profile, refusalWords, sendOrKeep, setHeldProposal, setRedraw,
+  COPY, DAYS, PENDING, behind, clear, composerRow, el, firstMealDue, heldProposal, kcal, kept,
+  keptNotice, lang, names, profile, proposalCard, sendOrKeep, setHeldProposal, setRedraw,
   takeCarried, takeTurn, type Frame,
 } from "../shell.ts";
 
@@ -35,6 +36,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   const me = await profile();
   const uid = me.profile.user_id;
   const L = homeCopyFor(lang);
+  const SC = scoresAppCopy(lang);
   const S = shellCopyFor(lang);
   const n = wholeNumbers(lang);
   const gram = (v: number): string => fill(L.grams, { n: n(v) });
@@ -58,8 +60,6 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   let page = 0;
   /** The calorie toggle's other side on today-with-meals: left, or eaten after a tap. */
   let showEaten = false;
-  /** The proposal's own message time — known only for a proposal this tab just made (#91's rule). */
-  let proposedAt: string | null = null;
   /** A turn in flight — the logging state hides the upload CTA while one runs. */
   let turning = false;
   /** Queued draws collapse to the newest, as `drawing` does for `render()`. */
@@ -141,25 +141,25 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       return card;
     }
     const budget = dayBudget(day, today, me.profile.goal);
-    // "unlogged" is a past day with nothing on it: the figure is the plan that day had — the
-    // compact label says "left" of it, matching the boards' "0 of 1,434" form.
-    const figure = budget.state === "unlogged" ? budget.target : budget.kcal;
-    kfig.textContent = n(interactive && showEaten ? budget.eaten : figure);
+    // The figure-and-label pair is `kcalCardState`'s one choice: the toggle's two faces, the
+    // past day's "eaten" — a finished day has nothing "left" — and the overage under "over".
+    const state = kcalCardState(budget, interactive && showEaten);
+    if (state.guessed) kfig.append(el("span", "about", COPY.about));
+    kfig.append(document.createTextNode(n(state.figure)));
     left.append(kfig);
     if (budget.warn) card.classList.add("over");
     if (interactive) {
       const lab = el("button", "klab ktg") as HTMLButtonElement;
       lab.type = "button";
-      lab.setAttribute("aria-label", showEaten ? L.kcalEaten : L.kcalLeft);
-      lab.append(
-        document.createTextNode(budget.state === "over" ? L.kcalOver : showEaten ? L.kcalEaten : L.kcalLeft),
-        kitEl(ico("chevron-down")),
-      );
+      const label = state.label === "over" ? L.kcalOver : state.label === "eaten" ? L.kcalEaten : L.kcalLeft;
+      lab.setAttribute("aria-label", label);
+      lab.append(document.createTextNode(label), kitEl(ico("chevron-down")));
       lab.addEventListener("click", () => { showEaten = !showEaten; void draw(); });
       left.append(lab);
     } else {
       left.append(el("span", "klab", fill(
-        budget.state === "over" ? L.kcalOverDetail : L.kcalLeftDetail,
+        state.label === "over" ? L.kcalOverDetail
+          : state.label === "eaten" ? L.kcalEatenDetail : L.kcalLeftDetail,
         { eaten: n(budget.eaten), plan: n(budget.target) },
       )));
     }
@@ -204,18 +204,18 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
 
   /**
    * The sodium card when kidneys are declared — the cap's ring is drawn in ink (sodium has no
-   * macro colour to borrow) over "Sodium left"/"Sodium over". Flat salt icon otherwise.
+   * macro colour to borrow — the kit's mcard takes salt-with-share for exactly this) over
+   * "Sodium left"/"Sodium over". Flat salt icon otherwise.
    */
   const sodiumCard = (eaten: number, target: number | undefined): Element => {
     if (target === undefined) return flatCard("salt", fill(L.milligrams, { n: n(eaten) }), L.macros.sodium.name);
     const over = eaten > target;
-    const card = el("div", "mcard");
-    card.append(
-      el("b", "", fill(L.milligrams, { n: n(over ? eaten - target : target - eaten) })),
-      el("small", "", over ? L.macros.sodium.over : L.macros.sodium.left),
-      ringEl({ share: over || target <= 0 ? 1 : eaten / target, tone: "ink", icon: "salt" }),
-    );
-    return card;
+    return mcardEl({
+      macro: "salt",
+      value: fill(L.milligrams, { n: n(over ? eaten - target : target - eaten) }),
+      label: over ? L.macros.sodium.over : L.macros.sodium.left,
+      share: over || target <= 0 ? 1 : eaten / target,
+    });
   };
 
   /** The two-dot page switcher — real buttons on 44 px areas, the active one ink. */
@@ -224,7 +224,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     for (const p of [0, 1] as const) {
       const b = el("button", p === page ? "on" : "") as HTMLButtonElement;
       b.type = "button";
-      b.setAttribute("aria-label", fill(L.webPage, { n: `${p + 1}`, total: "2" }));
+      b.setAttribute("aria-label", fill(L.webPage, { n: n(p + 1), total: n(2) }));
       b.append(el("i", ""));
       b.addEventListener("click", () => { page = p; void draw(); });
       row.append(b);
@@ -235,22 +235,22 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
   /** The health-score row — a link card opening the per-day score board. */
   const scoreRow = (day: DayResponse): Element | null => {
     if (day.healthScore === null) return null;
-    const a = el("button", "hsr") as HTMLButtonElement;
+    const a = el("button", "hsr day") as HTMLButtonElement;
     a.type = "button";
     const line = el("span", "hline");
     const hnum = el("span", "row");
     hnum.style.gap = "4px";
-    hnum.append(el("b", "num hnum", fill(L.webScoreOut, { n: n(day.healthScore) })));
+    hnum.append(el("b", "num hnum", fill(SC.outOf, { n: n(day.healthScore) })));
     const chev = el("i", "chev");
     chev.append(kitEl(ico("chevron-right")));
     hnum.append(chev);
-    line.append(el("span", "hscore", L.webScoreLabel), hnum);
+    line.append(el("span", "hscore", SC.title), hnum);
     const track = el("span", "hsb");
     const fillEl = el("i", "");
     fillEl.style.width = `${Math.max(0, Math.min(100, day.healthScore * 10))}%`;
     track.append(fillEl);
     const scored = day.meals.filter((m) => m.healthScore !== null).length;
-    a.append(line, track, el("span", "hfrom", count(L.webScoreMeals, scored)));
+    a.append(line, track, el("span", "hfrom", count(SC.todayFromMeals, scored)));
     a.addEventListener("click", () => openScore(day));
     return a;
   };
@@ -261,17 +261,17 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     const card = el("div", "card scorecard");
     const title = el("div", "stitle");
     title.append(
-      el("b", "", L.webScoreTitle),
-      el("b", "snum", fill(L.webScoreOut, { n: n(day.healthScore ?? 0) })),
+      el("b", "", SC.breakdownTitle),
+      el("b", "snum", fill(SC.outOf, { n: n(day.healthScore ?? 0) })),
     );
-    card.append(title, el("p", "sline", L.webScoreLine));
+    card.append(title, el("p", "sline", SC.breakdownLine));
     for (const meal of day.meals) {
       if (meal.healthScore === null) continue;
       const row = el("a", "hsp") as HTMLAnchorElement;
-      row.href = `#/meal/${meal.id}`;
+      row.href = `#/meal/${encodeURIComponent(meal.id)}?d=${viewing}`;
       const name = el("span", "");
       name.append(document.createTextNode(names(meal.items)), el("small", "", kcal(meal.kcal)));
-      const pts = el("span", "pts", `${n(meal.healthScore.score)}/10`);
+      const pts = el("span", "pts", fill(SC.outOf, { n: n(meal.healthScore.score) }));
       const chev = el("i", "chev");
       chev.append(kitEl(ico("chevron-right")));
       row.append(name, pts, chev);
@@ -287,129 +287,45 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     document.body.append(overlay);
   };
 
-  // ── The proposal card (today-logging) ───────────────────────────────────────────────────
-
-  /**
-   * The card a held proposal draws in the day's column: the lead naming the day it lands on, the
-   * meal's name and kcal, one row per item with its grams, the macro chips with a sat-fat fourth,
-   * the verdict pills' words, and Log it / No. The same confirm/cancel semantics the thread's
-   * card carries (#529's maybe-landed and 410 handling included).
-   */
-  const proposalCard = (p: MealProposed): HTMLElement => {
-    const card = el("div", "card rise prop");
-    card.append(el("span", "lab", fill(L.webProposalLead, {
-      day: p.date === today ? L.todayWord : dateText(p.date),
-    })));
-    const head = el("div", "pname");
-    head.append(el("b", "", names(p.analysis.items)));
-    const num = el("span", "num");
-    num.append(kitEl(ico("kcal")), el("b", "", n(p.analysis.kcal)), el("span", "", UNIT_KCAL[lang]));
-    head.append(num);
-    card.append(head);
-    for (const item of p.analysis.items) {
-      const row = el("div", "pitem");
-      const left = el("span", "");
-      left.append(document.createTextNode(item.name));
-      // The boards' "{n} g" — grams are the data; a zero reads as unread and drops.
-      if (item.grams > 0) left.append(el("span", "ig", gram(item.grams)));
-      row.append(left, el("span", "pk", item.kcal !== undefined ? n(item.kcal) : ""));
-      card.append(row);
-    }
-    const macsRow = el("div", "macs");
-    macsRow.style.marginTop = "10px";
-    for (const [chip, v] of [
-      ["protein", p.analysis.protein_g], ["carbs", p.analysis.carbs_g], ["fat", p.analysis.fat_g],
-    ] as const) {
-      const m = el("span", "mac");
-      m.append(kitEl(ico(chip)), document.createTextNode(gram(v)));
-      macsRow.append(m);
-    }
-    if (p.analysis.satfat_g !== undefined) {
-      const m = el("span", "mac");
-      m.style.color = "var(--muted)";
-      m.style.fontWeight = "500";
-      m.append(document.createTextNode(fill(L.macros.satFat.chip, { n: n(p.analysis.satfat_g) })));
-      macsRow.append(m);
-    }
-    card.append(macsRow, el("div", "hr"));
-    const vts = el("div", "vts");
-    for (const v of p.verdictLabels) vts.append(verdictDotEl(v.tone, v.label));
-    if (proposedAt !== null) vts.append(el("span", "t12", mealTime(proposedAt)));
-    card.append(vts);
-    const act = el("div", "pact");
-    for (const [verb, label, cls] of [
-      ["confirm", L.webLogIt, "cta p"], ["cancel", L.webProposalNo, "cta s"],
-    ] as const) {
-      const b = el("button", cls, label) as HTMLButtonElement;
-      b.type = "button";
-      b.addEventListener("click", () => turn(async () => {
-        let r: PendingResponse;
-        try {
-          r = await api<PendingResponse>(
-            `/meals/pending/${encodeURIComponent(p.pendingId)}/${verb}`, { method: "POST" });
-        } catch (err) {
-          // A session that is over is not a lost answer: it is the sign-in screen, which `turn`
-          // draws. NO ANSWER, AND PRESSING AGAIN IS SAFE: a repeated confirm is answered with the
-          // meal it already logged, a repeated cancel with a 410. So the card stays and says so.
-          if (err instanceof Unauthenticated) throw err;
-          if (refusalWords(err) === maybeLanded()) {
-            // A lost "No" needs no second press: nothing is logged without a confirm, so what was
-            // asked for holds whether or not it landed.
-            if (verb === "cancel") { setHeldProposal(null); proposedAt = null; card.remove(); return; }
-            throw new Said(COPY.logRetry);
-          }
-          if (!(err instanceof ApiError && err.status === 410)) throw err;
-          // 410: no longer held, and never will be again, so the card goes rather than offering a
-          // dead button. For "No" that is the outcome that was asked for, and it says nothing.
-          setHeldProposal(null);
-          proposedAt = null;
-          if (verb === "confirm") { card.remove(); throw err; }
-          return;
-        }
-        setHeldProposal(null);
-        proposedAt = null;
-        card.remove();
-        // A confirm got there first and its answer never came back: the meal stays logged.
-        if (verb === "cancel" && r.kind === "logged") return COPY.alreadyLogged;
-      }));
-      act.append(b);
-    }
-    card.append(act);
-    return card;
-  };
-
   // ── The composer (today only) ──────────────────────────────────────────────────────────
 
-  /** The in-diary composer — text only; a photo enters through "Upload a photo" (`#/log`, W5's). */
-  const composeRow = (): HTMLElement => {
-    const form = el("form", "tcompose") as HTMLFormElement;
-    const words = el("input", "box") as HTMLInputElement;
-    words.type = "text";
-    words.autocomplete = "off";
-    words.placeholder = L.webComposerPlaceholder;
-    words.setAttribute("aria-label", L.webComposerPlaceholder);
-    const send = el("button", "ib") as HTMLButtonElement;
-    send.type = "submit";
-    send.setAttribute("aria-label", COPY.send);
-    send.append(kitEl(ico("send")));
-    form.append(words, send);
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const text = words.value.trim();
-      if (text === "") return;
-      turn(async () => {
-        // A write always lands on TODAY — `capturedAt` is now — so the redraw shows where it
-        // landed, not a past day the strip was looking at.
-        viewing = today;
-        return await sendOrKeep(
-          { id: crypto.randomUUID(), userId: uid, kind: "text", text, photos: [], capturedAt: new Date().toISOString() },
-          // The proposal's card shows its message's own time — the one the tab sent.
-          { onResult: (r) => { if (r.kind === "proposed") proposedAt = new Date().toISOString(); } },
-        );
-      });
-    });
-    return form;
+  /** The in-diary composer — the boards' shared one (`composerRow`), text or photos. */
+  const comp = composerRow(L.webComposerPlaceholder);
+  const { picker, words, send, count: photoCount } = comp;
+  const arm = (): void => {
+    const picked = picker.files?.length ?? 0;
+    photoCount.textContent = picked > 0 ? count(COPY.photosCount, picked) : "";
+    photoCount.hidden = photoCount.textContent === "";
+    send.setAttribute("aria-label", picked > 0 ? COPY.sendPhoto : COPY.send);
   };
+  picker.addEventListener("change", arm);
+  comp.form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const files = [...(picker.files ?? [])];
+    const text = words.value.trim();
+    if (files.length === 0 && text === "") return;
+    // THE SERVER'S NUMBERS, off the profile — the same bounds the chat's composer checks.
+    if (files.length > 0) {
+      const { maxPhotosPerMeal, maxUploadBytes } = me.limits;
+      if (files.length > maxPhotosPerMeal) { tell(fill(COPY.photosMax, { n: `${maxPhotosPerMeal}` })); return; }
+      if (files.reduce((t, f) => t + f.size, 0) > maxUploadBytes) { tell(COPY.photoTooLarge); return; }
+    }
+    turn(async () => {
+      // A write always lands on TODAY — `capturedAt` is now — so the redraw shows where it
+      // landed, not a past day the strip was looking at.
+      viewing = today;
+      const saved = await sendOrKeep({
+        id: crypto.randomUUID(), userId: uid, capturedAt: new Date().toISOString(),
+        kind: files.length > 0 ? "photo" : "text", text: text === "" ? null : text,
+        photos: files,
+      });
+      picker.value = "";
+      words.value = "";
+      arm();
+      return saved;
+    });
+  });
+  arm();
 
   // ── The draw ──────────────────────────────────────────────────────────────────────────
 
@@ -435,11 +351,9 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     // lands. Same rules as the thread's: answered by the row it made, or by its clock.
     if (heldProposal() !== null && day !== null && day.meals.some((m) => m.id === heldProposal()!.pendingId)) {
       setHeldProposal(null);
-      proposedAt = null;
     }
     if (heldProposal() !== null && Date.parse(heldProposal()!.expiresAt) <= Date.now()) {
       setHeldProposal(null);
-      proposedAt = null;
     }
 
     const isToday = viewing === today;
@@ -461,7 +375,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       words.append(el("p", "", L.diaryFailed));
       const retry = el("button", "cta s") as HTMLButtonElement;
       retry.type = "button";
-      retry.append(kitEl(ico("retry")), document.createTextNode(` ${L.tryAgain}`));
+      retry.append(kitEl(ico("retry")), document.createTextNode(L.tryAgain));
       retry.addEventListener("click", () => { void draw(); });
       words.append(retry);
       say.append(spudAvatarEl("care"), words);
@@ -482,7 +396,18 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
       }
       left.push(card);
     }
-    if (heldProposal() !== null) left.push(proposalCard(heldProposal()!));
+    if (heldProposal() !== null) {
+      // The shell's own proposal card — confirm/cancel/410 is its one implementation.
+      const card = proposalCard(heldProposal()!, turn, {
+        lead: fill(L.webProposalLead, {
+          day: heldProposal()!.date === today ? L.todayWord : dateText(heldProposal()!.date),
+        }),
+        accept: L.webLogIt,
+        decline: L.webProposalNo,
+      });
+      card.classList.add("rise");
+      left.push(card);
+    }
 
     // ── The right column: the strip, the kcal card, the macro pages, the score, the actions ──
     const right: Element[] = [];
@@ -549,7 +474,7 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     // neither: its right column ends at the dash cards.
     if (isToday && day !== null) {
       if (!logging) right.push(ctaEl({ text: L.webUploadPhoto, kind: "p", icon: "upload", href: "#/log" }));
-      right.push(composeRow());
+      right.push(comp.form);
     }
 
     clear(wrap).append(h1, ...left, notice);
@@ -563,14 +488,17 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
     const row = mealRowEl(meal, {
       time: mealTime(meal.ts),
       ...(meal.confidence === "low" && !meal.corrected ? { note: L.roughEstimate } : {}),
-      href: `#/meal/${meal.id}`,
+      href: `#/meal/${encodeURIComponent(meal.id)}?d=${viewing}`,
     });
     // The photo is fetched behind the bearer — the route has no cookie path, so it arrives as a
-    // blob and the `<img>` gets a data URL: the CSP's `img-src 'self' data:` refuses `blob:`.
+    // blob. apiBlob answers an object URL the CSP's `img-src 'self' data:` refuses, so the same
+    // bytes are read once more into a data URL and the object URL freed (meal.ts's `photoUrl`).
     if ((meal.photos ?? 0) > 0) {
       const id = meal.id;
-      void apiBlob(`/meals/${encodeURIComponent(id)}/photos/0`).then(async (blob) => {
-        if (!row.isConnected) return;
+      void apiBlob(`/meals/${encodeURIComponent(id)}/photos/0`).then(async (objectUrl) => {
+        if (!row.isConnected) { URL.revokeObjectURL(objectUrl); return; }
+        const blob = await (await fetch(objectUrl)).blob();
+        URL.revokeObjectURL(objectUrl);
         const img = document.createElement("img");
         img.className = "ph";
         img.src = await new Promise<string>((ok, no) => {
@@ -636,10 +564,14 @@ async function diaryScreen(frame: Frame): Promise<HTMLElement> {
  * logged. "No meals this week" alone would offer a paying user back from a holiday one meal on us.
  */
 export async function homeScreen(frame: Frame): Promise<HTMLElement> {
-  const me = frame.me;
-  if (me?.onboarded === true && !me.entitlement.active && !me.limits.sampleUsed) {
-    const marked = await api<WeekResponse>(`${WEEK}?days=${me.limits.diaryWindowDays}`);
-    if (marked.days.length === 0) return firstMealScreen(me);
+  // The gate is the ONE predicate both surfaces share (`shell.firstMealDue`). The profile in the
+  // frame is the session's cached read — a meal logged this session flipped `hasLoggedMeal`
+  // without the cache knowing, so a cached "first" is re-verified on a fresh read before the
+  // free-meal flow shows; a stale one silently never did (the diary for somebody who HAS logged
+  // is the failure the gate exists to prevent).
+  if (firstMealDue(frame.me)) {
+    const fresh = await api<ProfileResponse>("/profile").catch(() => frame.me);
+    if (firstMealDue(fresh)) return firstMealScreen(fresh);
   }
   return diaryScreen(frame);
 }

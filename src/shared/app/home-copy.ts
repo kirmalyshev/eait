@@ -18,7 +18,7 @@
 // else. A figure that is not there yet — the diary-failed "—" — is the client's `—` fed through
 // the same template, not a separate string.
 
-import { t, type CountForms, type Localized } from "../lang.ts";
+import { t, type Localized } from "../lang.ts";
 import type { Lang } from "../types.ts";
 
 /** A macro with a target — the card carries left/over/ofTarget labels. */
@@ -112,21 +112,10 @@ export interface HomeCopy {
    */
   webPage: string;
   /**
-   * The health-score row and its modal (`today-page2`'s `.hsr`, `today-score`). These words are
-   * Home's own because the catalog table that owns them server-side (`scores-copy.ts`) is
-   * Lingui-backed and this bundle holds no catalog — the strings below are that table's own
-   * translations, kept word-for-word.
+   * The score modal's close (`today-score`). Its words are `SCORES_APP_COPY`'s — `title`,
+   * `outOf`, `breakdownTitle`, `breakdownLine`, `todayFromMeals` — which #151 left Lingui-free;
+   * only this one key is Home's own.
    */
-  webScoreLabel: string;
-  /** "{n}/10" — the score figure on the row and in the modal. */
-  webScoreOut: string;
-  /** The score modal's title — the day it describes. */
-  webScoreTitle: string;
-  /** Under the modal's title: what the day's number IS. */
-  webScoreLine: string;
-  /** Under the row's bar — "From today's {n} meals"; CLDR count forms. */
-  webScoreMeals: CountForms;
-  /** The score modal's close. */
   webDone: string;
 }
 
@@ -165,11 +154,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webLogIt: "Log it",
     webProposalNo: "No",
     webPage: "Page {n} of {total}",
-    webScoreLabel: "Health score",
-    webScoreOut: "{n}/10",
-    webScoreTitle: "Today's health score",
-    webScoreLine: "The mean of today's meals, weighted by their calories.",
-    webScoreMeals: { one: "From today's meal", other: "From today's {n} meals" },
     webDone: "Done",
   },
   fr: {
@@ -206,11 +190,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webLogIt: "Enregistrer",
     webProposalNo: "Non",
     webPage: "Page {n} sur {total}",
-    webScoreLabel: "Score santé",
-    webScoreOut: "{n}/10",
-    webScoreTitle: "Score santé d'aujourd'hui",
-    webScoreLine: "La moyenne des repas d'aujourd'hui, pondérée par leurs calories.",
-    webScoreMeals: { one: "Du repas d'aujourd'hui", other: "Des {n} repas d'aujourd'hui" },
     webDone: "Terminé",
   },
   de: {
@@ -247,11 +226,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webLogIt: "Eintragen",
     webProposalNo: "Nein",
     webPage: "Seite {n} von {total}",
-    webScoreLabel: "Gesundheitsscore",
-    webScoreOut: "{n}/10",
-    webScoreTitle: "Heutiger Gesundheitsscore",
-    webScoreLine: "Der Mittelwert der heutigen Mahlzeiten, nach Kalorien gewichtet.",
-    webScoreMeals: { one: "Aus der heutigen Mahlzeit", other: "Aus den heutigen {n} Mahlzeiten" },
     webDone: "Fertig",
   },
   it: {
@@ -288,11 +262,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webLogIt: "Registra",
     webProposalNo: "No",
     webPage: "Pagina {n} di {total}",
-    webScoreLabel: "Punteggio di salute",
-    webScoreOut: "{n}/10",
-    webScoreTitle: "Punteggio di salute di oggi",
-    webScoreLine: "La media dei pasti di oggi, ponderata per le loro calorie.",
-    webScoreMeals: { one: "Dal pasto di oggi", other: "Dai {n} pasti di oggi" },
     webDone: "Fatto",
   },
   es: {
@@ -329,11 +298,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webLogIt: "Registrar",
     webProposalNo: "No",
     webPage: "Página {n} de {total}",
-    webScoreLabel: "Puntuación de salud",
-    webScoreOut: "{n}/10",
-    webScoreTitle: "Puntuación de salud de hoy",
-    webScoreLine: "La media de las comidas de hoy, ponderada por sus calorías.",
-    webScoreMeals: { one: "De la comida de hoy", other: "De las {n} comidas de hoy" },
     webDone: "Listo",
   },
   vi: {
@@ -370,11 +334,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webLogIt: "Ghi lại",
     webProposalNo: "Không",
     webPage: "Trang {n} trên {total}",
-    webScoreLabel: "Điểm sức khỏe",
-    webScoreOut: "{n}/10",
-    webScoreTitle: "Điểm sức khỏe hôm nay",
-    webScoreLine: "Trung bình các bữa hôm nay, theo trọng số calo.",
-    webScoreMeals: { other: "Từ {n} bữa hôm nay" },
     webDone: "Xong",
   },
   id: {
@@ -411,11 +370,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webLogIt: "Catat",
     webProposalNo: "Tidak",
     webPage: "Halaman {n} dari {total}",
-    webScoreLabel: "Skor kesehatan",
-    webScoreOut: "{n}/10",
-    webScoreTitle: "Skor kesehatan hari ini",
-    webScoreLine: "Rata-rata santapan hari ini, dibobot menurut kalorinya.",
-    webScoreMeals: { other: "Dari {n} santapan hari ini" },
     webDone: "Selesai",
   },
   ru: {
@@ -452,16 +406,6 @@ export const HOME_COPY: Localized<HomeCopy> = {
     webLogIt: "Записать",
     webProposalNo: "Нет",
     webPage: "Страница {n} из {total}",
-    webScoreLabel: "Оценка здоровья",
-    webScoreOut: "{n}/10",
-    webScoreTitle: "Оценка здоровья за сегодня",
-    webScoreLine: "Среднее по сегодняшним приёмам пищи, взвешенное по калориям.",
-    webScoreMeals: {
-      one: "Из {n} сегодняшнего приёма пищи",
-      few: "Из {n} сегодняшних приёма пищи",
-      many: "Из {n} сегодняшних приёмов пищи",
-      other: "Из {n} сегодняшних приёмов пищи",
-    },
     webDone: "Готово",
   },
 };

@@ -35,6 +35,16 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.satfat"
+#~ msgstr "Las grasas saturadas salen altas en esta. Puntuado solo porque me lo pediste."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.firstVerdict.sodium"
+#~ msgstr "El sodio sale alto en esta. Puntuado solo porque me lo pediste."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "«{note}» — anotado, está en los números."
 
@@ -77,6 +87,16 @@ msgstr "{noun} — muy por encima"
 #: src/shared/verdicts.ts
 msgid "verdict.inline.bad"
 msgstr "{noun} — muy por encima"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.high"
+msgstr "{nutrient} está por encima en una comida: {eaten} de tus {target} {unit}."
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.veryHigh"
+msgstr "{nutrient} está muy por encima en una comida: {eaten} de tus {target} {unit}."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -182,6 +202,11 @@ msgstr "La primera está dentro. {kcal} kcal — {arithmetic}"
 #: src/shared/chat-copy.ts
 msgid "thread.coach.name"
 msgstr "Gabie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.capLine.easyTail"
+msgstr "Ve con calma con eso el resto del día."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
@@ -324,11 +349,6 @@ msgid "verdict.noun.ldl"
 msgstr "Grasas saturadas"
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.satfat"
-msgstr "Las grasas saturadas salen altas en esta. Puntuado solo porque me lo pediste."
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
 msgstr "Manda la foto de una comida, dime qué comiste, o hazle una pregunta a {coach}."
@@ -347,11 +367,6 @@ msgstr "sodio"
 #: src/shared/verdicts.ts
 msgid "verdict.noun.kidneys"
 msgstr "Sodio"
-
-#. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.firstVerdict.sodium"
-msgstr "El sodio sale alto en esta. Puntuado solo porque me lo pediste."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts

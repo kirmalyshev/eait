@@ -7,13 +7,8 @@
 
 import { describe, expect, test } from "bun:test";
 import {
-  cmToFtIn,
-  defaultUnits,
-  ftInToCm,
-  kgToLb,
-  lbToKg,
-  rulerLabels,
-  RULER_TICKS,
+  cmToFtIn, defaultUnits, ftInToCm, heightDisplayValue, heightText, heightToCm, kgToLb, lbToKg,
+  rulerLabels, RULER_TICKS, weightDisplayValue, weightToKg,
 } from "./units.ts";
 
 describe("cm ↔ ft/in", () => {
@@ -104,5 +99,32 @@ describe("the ruler tick sets", () => {
     // 07-weight.html draws 70 and 80 around the centred 74; the lb board draws 150/160/170.
     expect(rulerLabels(RULER_TICKS.weight.metric, 65, 85)).toEqual([70, 80]);
     expect(rulerLabels(RULER_TICKS.weight.imperial, 145, 175)).toEqual([150, 160, 170]);
+  });
+});
+
+describe("the wire — display value back to stored metric", () => {
+  test("height: metric is the identity, imperial counts whole inches", () => {
+    expect(heightDisplayValue(172, "metric")).toBe(172);
+    expect(heightDisplayValue(172, "imperial")).toBe(68); // 5′8″
+    expect(heightToCm("metric", 172)).toBe(172);
+    // 5′8″ is 172.7 cm — imperial granularity, the inch the user picked is stored honestly.
+    expect(heightToCm("imperial", 68)).toBe(173);
+  });
+
+  test("weight: kg stays, lb is the whole-pound display", () => {
+    expect(weightDisplayValue(74, "metric")).toBe(74);
+    expect(weightDisplayValue(74, "imperial")).toBe(163);
+    expect(weightToKg("metric", 74)).toBe(74);
+    expect(weightToKg("imperial", 163)).toBeCloseTo(73.9, 5);
+  });
+});
+
+describe("heightText — the copy-ready height", () => {
+  test("metric spells the unit in the reader's language", () => {
+    expect(heightText(172, "metric", "en")).toBe("172 cm");
+    expect(heightText(172, "metric", "ru")).toBe("172 см");
+  });
+  test("imperial is the ft-in join, digits in the language's format", () => {
+    expect(heightText(172, "imperial", "en")).toBe("5′8″");
   });
 });

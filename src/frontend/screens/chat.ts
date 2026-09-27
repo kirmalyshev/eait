@@ -1,21 +1,35 @@
-// Chat — the thread and its composer (`#/chat`), moved whole out of `main.ts` (#87). The register's
-// own look of it — Gabie's presence, the board's composer — is W7's; the turn machinery it shares
-// with Today stays in `shell.ts`.
+// Chat — Gabie's thread and the shared composer (`#/chat`, W7 #94).
+//
+// The boards are `product/design/pro/web/chat*.html` + `states-*.html`: a quiet column of lines —
+// mine right and tinted, the app's left — with Gabie's `.say` block carrying her name on her
+// FIRST line and her disc beside her NEWEST one; a meal as a card of name, kcal and verdict dots;
+// a proposal as `Logging to today — look right?` with `Log it`/`No`; a coach answer's macro bar
+// when the server sends `focus`; and the kept turns' photos dimmed under an "couldn't reach"
+// line that offers `Send again`. The turn machinery is `shell.ts`'s — this file is the drawing.
 
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
+import { mealCopyFor } from "../../shared/app/meal-copy.ts";
+import { STARTER_ICONS, chatScreenCopyFor, coachRowIcon, starterRows } from "../../shared/app/chat-copy.ts";
+import { countText, spellUnit, wholeNumbers, UNIT_KCAL, LANG_TAG } from "../../shared/lang.ts";
 import { outcomeUnknown } from "../../shared/results.ts";
+import type { IconName } from "../../shared/ui/icons.ts";
+import type { CoachFocus, MealRecord } from "@eait/shared";
 import type {
-  ChatHistoryResponse, DeleteLineResponse, EditLineLast, PendingMealsResponse, PhotoProgress,
+  ChatEntry, ChatHistoryResponse, DayResponse, DeleteLineResponse, EditLineLast,
+  AttachPhotosResponse, MessageResponse, PendingMealsResponse, PhotoLast, PhotoProgress, ProfileResponse,
 } from "@eait/shared/contract";
-import { ApiError, Unauthenticated, api, apiStream } from "../api.ts";
+import { ApiError, Unauthenticated, api, apiStream, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
+import { gabieAvatarEl, gabieNameEl, gramMacsEl, optionRowEl, ctaEl, verdictListEl } from "../kit.ts";
 import { outbox } from "../outbox.ts";
 import {
   COPY, MESSAGE, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
-  heldProposal, kept, keptNotice, lang, lastThreadEntries, mealLine, outstandingTurn,
-  proposalCard, profile, refusalWords, sendOrKeep, setHeldProposal, setLastThread, setRedraw,
-  spudFace, takeCarried, takeTurn, unclear,
+  heldProposal, kept, keptNotice, lang, lastThreadEntries, findMeal, mealLine, outstandingTurn,
+  MEAL_PHOTOS, proposalCard, profile, refusalWords, sendOrKeep, setHeldProposal, setLastThread,
+  setRedraw, takeCarried, takeTurn, timeFmt, unclear, names,
 } from "../shell.ts";
+
+const copy = () => chatScreenCopyFor(lang);
 
 export async function chatScreen(): Promise<HTMLElement> {
   // ONE TURN AT A TIME ACROSS SCREENS, not only within one: wait for the turn still out, so the
@@ -28,8 +42,17 @@ export async function chatScreen(): Promise<HTMLElement> {
   // Whose turns this browser is keeping (#708). Without a profile nothing is kept: a turn that
   // cannot be sent is worded as a lost answer, as it was.
   const uid = me?.profile.user_id ?? null;
-  const wrap = el("section", "");
-  const thread = el("div", "");
+  // The coach's name is the profile's own `coachName` (#149), never a Localized copy — the
+  // bundle holds no catalog to build one from. A profile that failed to load draws NO name.
+  const coachName = (): string | null => me?.coachName ?? null;
+  const wrap = el("section", "chat");
+  // `#/chat?focus=<mealId>` — the meal-edit entry W5's logged card and W6's "…" both take
+  // (`meal-edit.html`): the meal's own card leads, Gabie names what she read, and the composer
+  // corrects it — every send carries `focusMealId` so the turn is a correction, not a new meal.
+  const focusId = new URLSearchParams(location.hash.split("?")[1] ?? "").get("focus");
+  const focusMeal = focusId === null || me === null ? null
+    : (await findMeal(focusId, me.timezone).catch(() => null))?.meal ?? null;
+  const thread = el("div", "thread-holder");
   const notice = el("p", "notice");
   // Announced, not only shown: a refusal only the sighted can see is silence to everybody else.
   notice.setAttribute("role", "alert");
@@ -47,16 +70,22 @@ export async function chatScreen(): Promise<HTMLElement> {
   const progress = el("p", "muted");
   progress.hidden = true;
 
-  // THE CONTRACT TYPE, IMPORTED — never a structural type written here. An inline
-  // `{ messages: ... }` typechecked and was wrong in three ways at once: the key is `entries`, so
-  // it was `undefined` and the screen threw on every visit; the entries are OLDEST FIRST already
-  // (`contract.ts`, and `chat.ts` reverses them to make it so), so reversing them again showed the
-  // conversation backwards; and `ChatEntry` is a discriminated union whose `meal` arm carries no
-  // `text` at all. The root AGENTS.md rule this broke: the HTTP contract is code, both sides import
-  // it, and a second copy of a response shape is exactly what that forbids.
-  // THE LAST THREAD THE SERVER SENT, drawn again when it cannot be asked (#708): offline, what the
-  // page already showed stays, and the turns kept for later go under it. A session that is over is
-  // still the sign-in screen.
+  // The LIVE answer's extras — the suggestion rows and the macro bar — drawn under the line it
+  // wrote: the stored entry keeps only the words, so the answer's own result carries them until a
+  // newer turn retires them. Matched onto the newest assistant line of the same words.
+  let liveAnswer: { text: string; suggestions: string[]; focus: CoachFocus | null } | null = null;
+
+  // Object URLs this draw is showing — the stored photos arrive as bearer blobs. Revoked with the
+  // lines they sit on at the next draw, never at parse.
+  let urls: string[] = [];
+
+  // Which stored lines the rise has already played for — a redraw animates what is NEW, not the
+  // whole thread again (the boards play the column once, on arrival).
+  const seen = new Set<string>();
+  const rise = (key: string, i: number): string =>
+    seen.has(key) ? "" : (seen.add(key), ` rise dly-${Math.min(i, 13)}`);
+
+  // THE CONTRACT TYPE, IMPORTED — never a structural type written here.
   const draw = async (): Promise<void> => {
     // A failed read is still THROWN, after the drawing: a turn that wrote and could not re-read says
     // so (#529). Only what is drawn in the meantime changed.
@@ -68,41 +97,48 @@ export async function chatScreen(): Promise<HTMLElement> {
       unread = err;
     }
     const entries = lastThreadEntries();
-    // The boards' transcript (#52): a quiet column of bubbles — mine right and green, Spud's left
-    // and pale — and his face beside only his NEWEST turn, so a run of his lines keeps one presence.
-    let lastSpud = -1;
-    for (let i = entries.length - 1; i >= 0; i--) {
-      if (entries[i]!.role === "assistant") { lastSpud = i; break; }
-    }
+    const keptLines = uid === null ? [] : outbox.entries.filter((e) => e.userId === uid);
+    urls.forEach((u) => URL.revokeObjectURL(u));
+    urls = [];
+
+    // The proposal's clock is the server's own (#367): a confirm off the thread's meal list is
+    // done; past `expiresAt` the card stands without its offers, the timed-out line where they
+    // sat (`chat-expired`'s draw). An unreadable moment stays live — the analysis is billed.
+    const pending = heldProposal()?.pendingId;
+    if (pending !== undefined && entries.some((e) => e.kind === "meal" && e.mealId === pending)) setHeldProposal(null);
+    const held = heldProposal();
+    const heldTimedOut = held !== null && Date.parse(held.expiresAt) <= Date.now();
+
     const list = el("ul", "thread");
+    // Gabie's presence, the boards' rule: her name line above her FIRST line, her disc beside her
+    // NEWEST — a run of her lines keeps one face, and a kept turn's error line is a line of hers too.
+    const gabieLine = (e: ChatEntry): boolean => e.role === "assistant" && e.kind === "text" && e.speaker === "gabie";
+    const firstGabie = entries.findIndex(gabieLine);
+    const lastGabie = entries.findLastIndex(gabieLine);
+    // A kept turn's error block — and the focus sheet's opener say — are lines of hers too: when
+    // either stands, the LAST drawn one is where her disc lands.
+    const avatarAt = focusMeal !== null || keptLines.length > 0 ? -2 : lastGabie;
+
+    let idx = 0;
     for (const [i, entry] of entries.entries()) {
-      const li = el("li", entry.role === "user" ? "line mine" : "line theirs");
-      // One arm at a time. A meal card is a card, not a sentence, and a photo line may carry no words.
-      const text = entry.kind === "meal"
-        ? mealLine(entry.meal)
-        : entry.text ?? COPY.photo;
-      const bubble = el("p", "bub", text);
-      if (i === lastSpud) {
-        // The avatar aligns with the bubble, not the row: the line's words sit in their own column.
-        li.classList.add("buddy");
-        const av = el("span", "av");
-        av.append(spudFace("idle"));
-        const col = el("div", "col");
-        col.append(bubble);
-        li.append(av, col);
-      } else {
-        li.append(bubble);
-      }
-      // OWN LINES ONLY (#608): Edit on a photo line that still names a meal, Delete on any of them.
       if (entry.role === "user") {
-        // `lineIsMeal`'s rule: a confirmed proposal is stored under the proposal's id.
+        const li = el("li", `me${entry.kind === "photo" ? " pic" : ""}${rise(entry.id, idx++)}`);
+        if (entry.kind === "photo") {
+          const hero = el("div", "hero");
+          hero.append(el("div", "stamp", timeFmt(new Date(entry.ts))));
+          list.append(li);
+          li.prepend(hero);
+          if (entry.mealId !== null) photoInto(hero, entry.mealId);
+          if (entry.text !== null) li.append(el("p", "cap", entry.text));
+        } else {
+          li.append(entry.text, el("div", "ts", timeFmt(new Date(entry.ts))));
+        }
+        // OWN LINES ONLY (#608): Edit on a photo line that still names a meal, Delete on any of them.
+        const text = entry.text ?? COPY.photo;
         const isMeal = entry.kind === "photo"
           ? entry.mealId !== null
           : entry.pendingId !== null && entries.some((e) => e.kind === "meal" && e.mealId === entry.pendingId);
-        // A label VoiceOver can act on without reading the bubble first, truncated so a long line
-        // does not turn the button's own name into a paragraph.
         const named = text.length > 40 ? `${text.slice(0, 40)}…` : text;
-        // Small TEXT buttons under the bubble, named for the line they act on (`.act`, 44px up).
         const acts = el("div", "acts");
         if (isMeal && entry.kind === "photo") {
           const edit = el("button", "act", COPY.edit) as HTMLButtonElement;
@@ -128,43 +164,170 @@ export async function chatScreen(): Promise<HTMLElement> {
         });
         acts.append(del);
         li.append(acts);
-      }
-      list.append(li);
-    }
-    // KEPT FOR LATER, in the order they go, under everything the server has (#708). Waiting says so;
-    // held says what the server said, in the words a live refusal gets, and offers the two ways on.
-    const keptLines = uid === null ? [] : outbox.entries.filter((e) => e.userId === uid);
-    for (const e of keptLines) {
-      const li = el("li", "line mine");
-      li.append(el("p", "bub", e.kind === "photo" ? (e.text ? fill(COPY.photoWithCaption, { text: e.text }) : COPY.photo) : e.text ?? ""));
-      if (e.held === undefined) {
-        li.append(el("span", "note", COPY.waitingToSend));
+        list.append(li);
+      } else if (entry.kind === "meal") {
+        // The card a turn produced — name, kcal, the chips, and the day's verdict dots.
+        const li = el("li", `them${rise(entry.id, idx++)}`);
+        if (entry.meal !== null) li.append(mealCard(entry.meal));
+        else li.append(el("p", "t13 m", mealLine(null)));
+        li.append(el("div", "ts", timeFmt(new Date(entry.ts))));
+        list.append(li);
       } else {
-        // A turn the server may have run is worded as the doubt it is, never as "try again" beside a
-        // button that sends it again under a new id.
-        li.append(el("span", "note", outcomeUnknown(e.held.kind)
-          ? unclear()
-          : refusalWords(new ApiError(0, { error: e.held.kind, ...(e.held.scope ? { scope: e.held.scope } : {}) }, "held"))));
-        const acts = el("div", "acts");
-        const again = el("button", "act", COPY.sendAgain) as HTMLButtonElement;
-        again.addEventListener("click", () => turn(() => outbox.resend(e.id, uid!)));
-        const drop = el("button", "act", COPY.discard) as HTMLButtonElement;
-        // Discarding a held head lets whatever waited behind it go.
-        drop.addEventListener("click", () => turn(async () => { await outbox.discard(e.id); void flush(); }));
-        acts.append(again, drop);
-        li.append(acts);
+        // An assistant line: Gabie's `.say` when the speaker is hers, the app's plain line else
+        // (`states-offline`'s stored line draws neither her disc nor her name).
+        const li = el("li", `them${rise(entry.id, idx++)}`);
+        if (entry.speaker === "gabie") {
+          const live = liveAnswer !== null && i === lastGabie && entry.text === liveAnswer.text ? liveAnswer : null;
+          li.append(sayBlock(i === firstGabie, i === avatarAt, (col) => {
+            // The live answer's bar wraps the words in the boards' padded card; a line without a
+            // `focus` is the words alone.
+            if (live !== null && live.focus !== null) {
+              const card = el("div", "card");
+              card.append(focusBar(live.focus), el("p", "say-p", entry.text));
+              col.append(card);
+            } else {
+              col.append(el("p", "say-p", entry.text));
+            }
+          }));
+          li.append(el("div", "ts", timeFmt(new Date(entry.ts))));
+        } else {
+          li.append(el("p", "say-p", entry.text), el("div", "ts", timeFmt(new Date(entry.ts))));
+        }
+        list.append(li);
       }
+    }
+
+    // The proposal a live turn is holding — the card, under the newest line.
+    if (held !== null) {
+      const li = el("li", `them prop-li${rise(`prop:${held.pendingId}`, idx++)}`);
+      li.append(proposalCard(held, turn, {
+        lead: copy().proposalCheck, accept: copy().proposalAccept, decline: copy().proposalDecline,
+        ...(heldTimedOut ? { expired: copy().expired } : {}),
+      }));
       list.append(li);
     }
-    clear(thread).append(entries.length === 0 && keptLines.length === 0 ? el("p", "muted", COPY.noMessages) : list);
-    // LOGGED ALREADY: a confirm whose answer was lost can still have landed, and the meal then
-    // carries the proposal's id (`ChatEntry`, contract.ts), so the card in the thread is its answer.
-    const pending = heldProposal()?.pendingId;
-    if (pending !== undefined && entries.some((e) => e.kind === "meal" && e.mealId === pending)) setHeldProposal(null);
-    // No longer offered once the server has stopped holding it — `expiresAt` is sent for exactly this
-    // (#367). An unreadable moment stays live, as `proposalLive` rules: the analysis is already billed.
-    if (heldProposal() !== null && Date.parse(heldProposal()!.expiresAt) <= Date.now()) setHeldProposal(null);
-    if (heldProposal() !== null) thread.append(proposalCard(heldProposal()!, turn));
+
+    // The live answer's suggestion rows — the boards' option card, under the line they follow.
+    const lastEntry = entries.at(-1);
+    if (liveAnswer !== null && liveAnswer.suggestions.length > 0 &&
+        lastEntry !== undefined && lastEntry.kind === "text" && lastEntry.role === "assistant" &&
+        lastEntry.speaker === "gabie" && lastEntry.text === liveAnswer.text) {
+      const li = el("li", `them sug${rise("sug", idx++)}`);
+      li.append(optCard(liveAnswer.suggestions.map((s) => ({ icon: coachRowIcon(s, lang), text: s })), sendText));
+      list.append(li);
+    }
+
+    // KEPT FOR LATER, in the order they go, under everything the server has (#708): the photo or
+    // words dimmed, then Gabie's line — the reachability wording for a turn still out, the server's
+    // own refusal words for a held one, with Send again beside it.
+    for (const e of keptLines) {
+      // Held is the same dimmed bubble but marked — a waiting turn is pending, a held one has its
+      // refusal beside it, and a spec (or a reader) can tell the queue apart by the class.
+      const li = el("li", `me dim${e.held !== undefined ? " held" : ""}${e.kind === "photo" ? " pic" : ""}${rise(e.id, idx++)}`);
+      if (e.kind === "photo" && e.photos.length > 0) {
+        const hero = el("div", "hero");
+        const url = URL.createObjectURL(e.photos[0]!);
+        urls.push(url);
+        const img = el("img", "") as HTMLImageElement;
+        img.alt = "";
+        img.src = url;
+        hero.append(img, el("div", "stamp", timeFmt(new Date(e.capturedAt))));
+        li.append(hero);
+        if (e.text !== null) li.append(el("p", "cap", e.text));
+      } else {
+        li.append(e.text ?? "", el("div", "ts", timeFmt(new Date(e.capturedAt))));
+      }
+      list.append(li);
+      // A kept turn's error is Gabie's line: her name when no line of hers is above, her disc on
+      // the last one, per the same first/newest rule the stored lines follow.
+      const isLastKept = e === keptLines[keptLines.length - 1];
+      const say = el("li", `them${rise(`${e.id}:err`, idx++)}`);
+      say.append(sayBlock(firstGabie === -1 && e === keptLines[0], isLastKept, (col) => {
+        // A turn the server may still have run is worded as the doubt it is, never as "try again"
+        // beside a button that re-sends it.
+        col.append(el("p", "saytitle", e.held === undefined
+          ? copy().offlineTitle
+          : (outcomeUnknown(e.held.kind) ? unclear()
+            : refusalWords(new ApiError(0, { error: e.held.kind, ...(e.held.scope ? { scope: e.held.scope } : {}) }, "held")))));
+        if (e.held === undefined) col.append(el("p", "t13 m", copy().offlineBody));
+        const actsRow = el("div", "row");
+        actsRow.append(smallCta(copy().sendAgain, () =>
+          turn(async () => { if (e.held === undefined) { await flush(); } else { await outbox.resend(e.id, uid!); } })));
+        if (e.held !== undefined) {
+          const drop = el("button", "act", COPY.discard) as HTMLButtonElement;
+          drop.type = "button";
+          // Discarding a held head lets whatever waited behind it go.
+          drop.addEventListener("click", () => turn(async () => { await outbox.discard(e.id); void flush(); }));
+          actsRow.append(drop);
+        }
+        col.append(actsRow);
+      }));
+      list.append(say);
+    }
+
+    // The FIRST OPEN (`chat-empty`): Gabie's greeting and the three starters, only while the stored
+    // thread holds nothing — the greeting's say is a line of hers too, first AND newest then.
+    if (entries.length === 0 && keptLines.length === 0) {
+      const hi = el("li", `them${rise("greeting", idx++)}`);
+      hi.append(sayBlock(true, true, (col) => col.append(el("p", "d say-hi", copy().greeting))),
+        el("div", "ts", timeFmt(new Date())));
+      const card = el("li", `them opts${rise("starters", idx++)}`);
+      card.append(optCard(
+        starterRows(me?.profile.struggles ?? null, lang).map((s) => ({ icon: STARTER_ICONS[s.struggle], text: s.text })),
+        sendText,
+      ));
+      list.append(hi, card);
+    }
+
+    // The meal-edit head (`web/meal-edit.html`): the meal's card with its photo thumb, then her
+    // opener — the items and grams she read, and the ask. Live lines, like the greeting: the
+    // stored thread is untouched.
+    if (focusMeal !== null) {
+      const li = el("li", `them focus-meal${rise(`focus:${focusMeal.id}`, idx++)}`);
+      li.append(mealCard(focusMeal, true), el("div", "ts", timeFmt(new Date(focusMeal.ts))));
+      const say = el("li", `them${rise(`focus-say:${focusMeal.id}`, idx++)}`);
+      say.append(sayBlock(firstGabie === -1, true, (col) => {
+        // Her weakest guess, named as the board names it: the two biggest reads. The join word
+        // is CLDR's own conjunction for the language, not a literal.
+        const items = new Intl.ListFormat(LANG_TAG[lang], { type: "conjunction" }).format(
+          [...focusMeal.items].sort((a, b) => b.grams - a.grams).slice(0, 2)
+            .map((i) => fill(mealCopyFor(lang).itemAmount, {
+              amount: `${wholeNumbers(lang)(i.grams)} ${spellUnit(lang, "g")}`, item: i.name,
+            })));
+        col.append(el("p", "say-p", fill(mealCopyFor(lang).correctOpener, { items })));
+      }));
+      list.append(li, say);
+    }
+
+    // The whole column could not be read and nothing is held: the boards' centred failed state.
+    if (unread !== null && entries.length === 0 && keptLines.length === 0) {
+      const fail = el("div", "chatfail");
+      const say = el("div", "say");
+      const col = el("div", "");
+      const n = coachName();
+      if (n !== null) col.append(gabieNameEl(fill(mealCopyFor(lang).coachLine, { coach: n })));
+      col.append(el("p", "saytitle", copy().loadFailed));
+      const again = smallCta(copy().tryAgain, () => turn(async () => {}));
+      col.append(again);
+      say.append(gabieAvatarEl(), col);
+      fail.append(say);
+      clear(thread).append(fail);
+      throw unread;
+    }
+    clear(thread).append(list);
+    // The newest line is the bottom anchor — land on it on every draw, and again when a
+    // photo finishes arriving (a blob's decode can change scrollHeight after the draw).
+    const bottom = () => { list.scrollTop = list.scrollHeight; };
+    bottom();
+    requestAnimationFrame(bottom);
+    list.addEventListener("load", (ev) => {
+      if ((ev.target as HTMLElement).tagName === "IMG") bottom();
+    }, true);
+    // The composer's prompt is the empty thread's ask until a line is in it.
+    words.placeholder = focusMeal !== null ? mealCopyFor(lang).composeHint
+      : entries.length === 0 || coachName() === null ? copy().composerAsk
+      : fill(copy().composerThread, { coach: coachName()! });
+    words.setAttribute("aria-label", words.placeholder);
     if (unread !== null) throw unread;
   };
 
@@ -172,10 +335,141 @@ export async function chatScreen(): Promise<HTMLElement> {
   // screen hands it its own notice and redraw.
   const turn = (write: () => Promise<string | void>): void => takeTurn(wrap, tell, draw, uid, write);
 
-  // THE ONE COMPOSER (the boards' row, #52): the native file input hides behind the labelled
-  // "Add a photo", and the one field takes a meal, a question, or the words that go WITH a photo —
-  // Send sends whichever is attached. A photo's own form is gone, and with it the caption field.
-  const comp = composerRow(COPY.composerPlaceholder);
+  // ── The pieces ────────────────────────────────────────────────────────────────────────────
+
+  /** Gabie's say block: her name on the first of her lines, her disc beside the newest, a spacer
+      where neither is asked for so the words keep one column. `fill` appends the line's content. */
+  const sayBlock = (named: boolean, faced: boolean, body: (col: HTMLElement) => void): HTMLElement => {
+    const say = el("div", "say");
+    const gap = el("span", "saygap"); gap.setAttribute("aria-hidden", "true");
+    say.append(faced ? gabieAvatarEl() : gap);
+    const col = el("div", "");
+    const n = coachName();
+    if (named && n !== null) col.append(gabieNameEl(fill(mealCopyFor(lang).coachLine, { coach: n })));
+    body(col);
+    say.append(col);
+    return say;
+  };
+
+  /** A meal's thread card (`chat.html`): name, kcal at d22, the gram chips, the verdict dots.
+      `thumb` is the meal-edit sheet's form — its photo at 52px beside the name (`meal-edit.html`). */
+  const mealCard = (meal: MealRecord, thumb = false): HTMLElement => {
+    const card = el("div", "card");
+    const head = el("div", "row between");
+    head.append(el("b", "", names(meal.items)));
+    const num = el("span", "num");
+    num.append(el("b", "d d22", wholeNumbers(lang)(meal.kcal)), el("span", "m t12", ` ${UNIT_KCAL[lang]}`));
+    head.append(num);
+    // The focus sheet draws the meal's photo at 52px in a row beside the name-and-macs block;
+    // the dots run full-width under it (meal-edit.html).
+    const headWrap = thumb && (meal.photos ?? 0) > 0 ? el("div", "row frow") : null;
+    const col = headWrap !== null ? el("div", "fcol") : null;
+    if (headWrap !== null) {
+      const img = el("img", "f-thumb") as HTMLImageElement;
+      img.alt = "";
+      headWrap.append(img, col!);
+      card.append(headWrap);
+      void apiBlob(`/meals/${encodeURIComponent(meal.id)}/photos/0`).then((url) => {
+        if (!img.isConnected) { URL.revokeObjectURL(url); return; }
+        urls.push(url);
+        img.src = url;
+      }).catch(() => {});
+    } else {
+      card.append(head);
+    }
+    // The chips' figures come from the kit's `gramChips` — "34 g" spelled by the kit's own unit
+    // table, not a retyped template here.
+    const grams = gramMacsEl({ protein: meal.protein_g, carbs: meal.carbs_g, fat: meal.fat_g });
+    const macs = el("div", "pl-macs");
+    const estimate = meal.confidence === "low" && !meal.corrected;
+    if (estimate) {
+      const est = el("div", "row between");
+      est.append(grams, el("b", "t12 est", mealCopyFor(lang).roughEstimate));
+      macs.append(est);
+    } else {
+      macs.append(grams);
+    }
+    if (col !== null) col.append(head, macs); else card.append(macs);
+    // The dots' words are the payload's own `verdictLabels` — this bundle holds no catalog (#145).
+    const vs = verdictListEl((meal.verdictLabels ?? []).map((v) => ({ tone: v.tone, words: v.label })));
+    if (vs !== null) card.append(el("div", "hr"), vs);
+    return card;
+  };
+
+  /** The coach bar (`chat-coach`): the macro's chip and label, "54 of 109 g", the fill capped. */
+  const focusBar = (focus: CoachFocus): HTMLElement => {
+    const noun = copy().macroLabels[focus.nutrient];
+    const mb = el("div", "mb");
+    const head = el("div", "row between");
+    const name = el("span", "row mb-name");
+    name.append(el("i", `ico i-${focus.nutrient}`), noun);
+    // "{value} of {target} g", the eaten figure bold like the board's: split the TEMPLATE on its
+    // `{value}` placeholder so the bold sits inside the words rather than around them.
+    const [before, after] = copy().macroOfTarget.split("{value}");
+    const figure = el("span", "num mb-num");
+    figure.append(before ?? "", el("b", "", wholeNumbers(lang)(focus.eaten)),
+      fill(after ?? "", { target: wholeNumbers(lang)(focus.target) }));
+    head.append(name, figure);
+    const bar = el("div", "bar");
+    const fillEl = el("i", "grow");
+    fillEl.style.width = `${Math.min(100, focus.target > 0 ? (focus.eaten / focus.target) * 100 : 0)}%`;
+    bar.append(fillEl);
+    mb.append(head, bar);
+    return mb;
+  };
+
+  /** The option card — a `.card.flat` of `.opt` rows; a starter or a suggestion, tapped, is sent. */
+  const optCard = (rows: { icon: IconName; text: string }[], onPick: (text: string) => void): HTMLElement => {
+    const card = el("div", "card flat");
+    for (const r of rows) {
+      const opt = optionRowEl({ text: r.text, icon: r.icon, tag: "button", chevron: true }) as HTMLButtonElement;
+      opt.addEventListener("click", () => onPick(r.text));
+      card.append(opt);
+    }
+    return card;
+  };
+
+  const smallCta = (label: string, onTap: () => void): HTMLButtonElement => {
+    const b = ctaEl({ text: label, kind: "s", icon: "retry" }) as HTMLButtonElement;
+    b.classList.add("sm");
+    b.addEventListener("click", onTap);
+    return b;
+  };
+
+  /** A stored photo into its hero — bearer bytes as an object URL, never a token in a src. */
+  const photoInto = (hero: HTMLElement, mealId: string): void => {
+    void apiBlob(`/meals/${encodeURIComponent(mealId)}/photos/0`).then((url) => {
+      if (!hero.isConnected) { URL.revokeObjectURL(url); return; }
+      urls.push(url);
+      const img = el("img", "") as HTMLImageElement;
+      img.alt = "";
+      img.src = url;
+      hero.prepend(img);
+    }).catch(() => { /* a photo that won't read draws the hero's own paper */ });
+  };
+
+  /** A starter or a suggestion is just the words — the same send the composer performs. */
+  const sendText = (text: string): void => {
+    turn(async () => {
+      const saved = await sendOrKeep({
+        id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [],
+        capturedAt: new Date().toISOString(),
+        ...(focusMeal !== null ? { focusMealId: focusMeal.id } : {}),
+      }, { onResult: rememberLive });
+      return saved;
+    });
+  };
+
+  /** The live answer, remembered until the next turn — the chips and the bar need its extras. */
+  const rememberLive = (r: MessageResponse | PhotoLast): void => {
+    liveAnswer = r.kind === "answered"
+      ? { text: r.text, suggestions: r.suggestions ?? [], focus: r.focus ?? null }
+      : null;
+  };
+
+  // THE ONE COMPOSER (the boards' row): the camera round, the pill field, the send round.
+  const comp = composerRow(coachName() !== null
+    ? fill(copy().composerThread, { coach: coachName()! }) : copy().composerAsk);
   const { picker, words, send, count, cancel } = comp;
   /** The composer as the mode says: an edit shows what it has, asks for angles to ADD, and sends. */
   const arm = (): void => {
@@ -183,13 +477,13 @@ export async function chatScreen(): Promise<HTMLElement> {
     const picked = picker.files?.length ?? 0;
     count.textContent = editing !== null
       ? fill(COPY.photosOnMeal, { n: `${stored}` })
-      : picked > 0 ? `${picked} photo${picked === 1 ? "" : "s"}` : "";
+      : picked > 0 ? countText(lang)(COPY.photosCount, picked) : "";
     // Hidden rather than merely empty: an empty inline `<span>` still takes up its own gap in the
     // row, which showed as a stray space before Send.
     count.hidden = count.textContent === "";
     // Send's NAME says what this press does — words, or the photos that are attached — because
     // the arrow does not.
-    send.setAttribute("aria-label", editing === null && picked > 0 ? COPY.sendPhoto : COPY.send);
+    send.setAttribute("aria-label", editing === null && picked > 0 ? COPY.sendPhoto : shellCopyFor(lang).composerSend);
     cancel.hidden = editing === null;
   };
   picker.addEventListener("change", arm);
@@ -203,14 +497,12 @@ export async function chatScreen(): Promise<HTMLElement> {
     // and a person should hear "too many" before the upload rather than after it.
     if (me !== null && (editing !== null || files.length > 0)) {
       const { maxPhotosPerMeal, maxUploadBytes } = me.limits;
-      // `stored`, never `held`: the module-level `held` above is the text-turn's pending PROPOSAL,
-      // and shadowing its name here for an unrelated photo count is exactly the kind of collision
-      // that reads fine today and is a bug the day somebody needs both in the same block.
-      const stored = editing?.photos ?? 0;
+      const stored = editing !== null ? editing.photos : (focusMeal?.photos ?? 0);
       if (stored + files.length > maxPhotosPerMeal) { tell(fill(COPY.photosMax, { n: `${maxPhotosPerMeal}` })); return; }
       if (files.reduce((n, f) => n + f.size, 0) > maxUploadBytes) { tell(COPY.photoTooLarge); return; }
     }
     turn(async () => {
+      liveAnswer = null;
       // Several files are ANGLES OF ONE MEAL, `photo` fields like the app's.
       const form = new FormData();
       for (const f of files) form.append("photo", f);
@@ -227,11 +519,6 @@ export async function chatScreen(): Promise<HTMLElement> {
             progress.hidden = false;
           });
           if (r.kind === UNKNOWN) throw new Said(unclear());
-          // GONE OR UNEDITABLE: the composer drops out of edit mode before the throw, because
-          // `turn`'s catch only reports words — it never redraws — so a composer left armed here
-          // would go on offering COPY.send against an id the next PATCH answers `target-gone` again.
-          // `target-gone` also redraws NOW: the line it names has vanished from the thread the
-          // server would return, and `turn` only redraws on a write that returns rather than throws.
           if (r.kind === "target-gone") {
             editing = null;
             arm();
@@ -243,8 +530,6 @@ export async function chatScreen(): Promise<HTMLElement> {
             arm();
             throw new Said(COPY.messageNotEditable);
           }
-          // TOO-MANY keeps edit mode: the meal is still there, still being edited, and dropping an
-          // angle and pressing Send again is the whole recovery — there is nothing to reset.
           if (r.kind === "too-many") throw new Said(fill(COPY.photosMax, { n: `${r.limit}` }));
           if (r.kind !== "updated") throw new ApiError(200, { error: r.kind, ...("scope" in r ? { scope: r.scope } : {}) }, `edit: ${r.kind}`);
         } finally {
@@ -256,18 +541,29 @@ export async function chatScreen(): Promise<HTMLElement> {
         arm();
         return;
       }
+      if (files.length > 0 && focusMeal !== null) {
+        // ANGLES ON THE FOCUSED MEAL, not a new turn: the sheet's upload posts to the meal's own
+        // collection — the words in the box stay for the correction turn that reads them.
+        await api<AttachPhotosResponse>(MEAL_PHOTOS(focusMeal.id), { method: "POST", body: form });
+        picker.value = "";
+        arm();
+        return;
+      }
       if (files.length > 0) {
-        // Refused IN the stream, with the 200 already sent, is thrown by `sendTurn` as any other refusal.
         const saved = await sendOrKeep({
           id: crypto.randomUUID(), userId: uid ?? "", kind: "photo", text: text === "" ? null : text, photos: files,
           capturedAt: new Date().toISOString(),
-        });
+        }, { onResult: rememberLive });
         picker.value = "";
         words.value = "";
         arm();
         return saved;
       }
-      const saved = await sendOrKeep({ id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [], capturedAt: new Date().toISOString() });
+      const saved = await sendOrKeep({
+        id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [],
+        capturedAt: new Date().toISOString(),
+        ...(focusMeal !== null ? { focusMealId: focusMeal.id } : {}),
+      }, { onResult: rememberLive });
       words.value = "";
       return saved;
     });
@@ -287,16 +583,11 @@ export async function chatScreen(): Promise<HTMLElement> {
   setRedraw(async () => {
     if (!wrap.isConnected) return;
     await draw();
-    // Nothing of this account's left waiting: the promise the notice made is kept, so it goes.
-    // A kept turn's notice follows the queue, not the moment it was kept: a turn ahead that is held
-    // later means this one now waits on a decision, and nothing left waiting means it went.
     if (notice.textContent === kept() || notice.textContent === behind()) tell(keptNotice(uid));
   });
   // One h1 per page, and the boards draw no centred title on web — clipped, for the landmark.
   wrap.append(el("h1", "visually-hidden", shellCopyFor(lang).navChat), thread, notice, comp.form, progress);
   // What the turn that was out said, if it answered after its own screen was gone.
-  // A kept turn's notice carried from a screen that is gone is decided again now: minutes may have
-  // passed, and the turn may have gone meanwhile.
   const carried = takeCarried();
   if (carried !== null) tell(carried === kept() || carried === behind() ? keptNotice(uid) : carried);
   return wrap;

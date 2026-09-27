@@ -144,6 +144,21 @@ export const ONBOARDING_PLACES = [
 export type OnboardingPlace = OnboardingScreenId | OnboardingInterstitial;
 
 /**
+ * The progress dash's segments — the places between the welcome and the plan, in walk order
+ * (`onboarding/*` boards, fourteen `<i>` each).
+ *
+ * The welcome is before the count; `building` is the reveal, a screen of its own; `signup`,
+ * `country` and `health` sit past it. So the bar is `ONBOARDING_PLACES` minus those five, and
+ * `summary` — the plan — is the last segment lit.
+ */
+export const DASH_PLACES: readonly OnboardingPlace[] = ONBOARDING_PLACES.filter(
+  (p) => !["welcome", "building", "signup", "country", "health"].includes(p),
+);
+
+/** The dash position of a place, or -1 for a place that is not a segment (the welcome et al.). */
+export const dashIndex = (place: OnboardingPlace): number => DASH_PLACES.indexOf(place);
+
+/**
  * Which fields each group collects, in the order Spud asks them.
  *
  * This is the mapping that makes the flow safe to resume: the question to ask is the first one the
@@ -433,6 +448,18 @@ export function countryLabel(code: CountryCode, lang: Lang): string {
 }
 
 /**
+ * The flag a curated country draws (the 16-country board): the two regional indicators the code
+ * spells — computed, because fifteen flags in a table is fifteen things to keep. `other` is a
+ * sentinel, not a region: it gets no flag, and its caller draws the ellipsis instead. A code this
+ * list does not carry is still rendered — a raw region string can land on a profile — so the
+ * guard answers null rather than throwing.
+ */
+export function countryFlag(code: string): string | null {
+  if (!/^[a-z]{2}$/.test(code)) return null;
+  return String.fromCodePoint(...[...code].map((c) => 0x1f1e6 + c.charCodeAt(0) - 97));
+}
+
+/**
  * The options for the country question, in the order this reader should see them.
  *
  * SORTED BY THE NAME ON SCREEN, with `Intl.Collator`, because fifteen countries in code order is a
@@ -666,8 +693,17 @@ export const optionLabel = (id: OnboardingScreenId, value: string, lang: Lang): 
 export const PLAN_REVEAL = {
   durationMs: 3500,
   rowTicksMs: [500, 1000, 1600, 2100, 2700, 3300],
+  /** A row's own fade once its tick lands. */
+  rowFadeMs: 400,
   autoOpenDelayMs: 1000,
 } as const;
+
+/**
+ * The estimate chart's entrance marks (15-plan), as data like PLAN_REVEAL: the area rises behind
+ * the line that is already drawing, the end dot pops, the target chip follows — each a delay the
+ * page hands to the shared verbs via `--d`, never a number a renderer retypes.
+ */
+export const PLAN_CHART_TICKS_MS = { area: 600, endDot: 1100, targetChip: 1200 } as const;
 
 // ── The defaults ─────────────────────────────────────────────────────────────────────────────
 

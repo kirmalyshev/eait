@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { dayBudget, macroTone, mealIsGuessed } from "./budget.ts";
+import { dayBudget, kcalCardState, macroTone, mealIsGuessed} from "./budget.ts";
 
 const TODAY = "2026-09-16";
 const day = (
@@ -142,5 +142,42 @@ describe("dayBudget", () => {
       // Without this half the thread goes on saying "about" about grams the person typed.
       expect(mealIsGuessed({ confidence: "low", corrected: true })).toBe(false);
     });
+  });
+});
+
+describe("kcalCardState", () => {
+  // The W4 card's figure-and-label pair is ONE choice (#164's review): today toggles "left" to
+  // "eaten"; a past day shows what WAS eaten — nothing is "left" of a day that is over — except
+  // the overage on an over day and the plan an unlogged one had.
+  test("today under target: the remaining figure under 'left'", () => {
+    const b = dayBudget(day(1500), TODAY, "lose");
+    expect(kcalCardState(b, false)).toEqual({ figure: 500, label: "left", guessed: false });
+  });
+
+  test("the toggle: same budget, eaten's figure under 'eaten'", () => {
+    const b = dayBudget(day(1500), TODAY, "lose");
+    expect(kcalCardState(b, true)).toEqual({ figure: 1500, label: "eaten", guessed: false });
+  });
+
+  test("an over day toggles 'over' to 'eaten' — never the eaten figure under 'over' (#164)", () => {
+    const b = dayBudget(day(2500), TODAY, "lose");
+    expect(kcalCardState(b, false)).toEqual({ figure: 500, label: "over", guessed: false });
+    expect(kcalCardState(b, true)).toEqual({ figure: 2500, label: "eaten", guessed: false });
+  });
+
+  test("a past day under target is 'eaten' — a finished day has nothing left (#164)", () => {
+    const b = dayBudget(day(1500, { date: "2026-09-10" }), TODAY, "lose");
+    expect(b.state).toBe("under");
+    expect(kcalCardState(b, false)).toEqual({ figure: 1500, label: "eaten", guessed: false });
+  });
+
+  test("a past day with nothing on it shows the plan that day had", () => {
+    const b = dayBudget(day(0, { date: "2026-09-10", meals: 0 }), TODAY, "lose");
+    expect(kcalCardState(b, false)).toEqual({ figure: 2000, label: "left", guessed: false });
+  });
+
+  test("a guessed day carries the about-marker through (#47)", () => {
+    const b = dayBudget(day(1500, { guessed: true }), TODAY, "lose");
+    expect(kcalCardState(b, false).guessed).toBe(true);
   });
 });
