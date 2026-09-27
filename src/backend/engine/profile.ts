@@ -140,8 +140,18 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
     telegramBot: deps.config.telegramBotUsername || null,
     paywall: paywallOf(deps, profile.lang, userId),
     coachName: threadCopyFor(profile.lang).coach.name,
+    hasLoggedMeal: await hasLoggedMeal(deps, userId),
   };
 }
+
+/**
+ * "Has this account ever logged a meal", read the way the diary reads its window — `totalsSince`
+ * answers only days that have something, so a year of history deep enough to matter is still one
+ * scoped query. `1970` predates every meal that can exist; the date is a bound `totalsSince`
+ * needs, not a decision about history.
+ */
+const hasLoggedMeal = async (deps: EngineDeps, userId: string): Promise<boolean> =>
+  (await deps.store.totalsSince(userId, "1970-01-01")).length > 0;
 
 export type PatchOutcome =
   | { ok: true; view: ProfileResponse }
@@ -352,6 +362,7 @@ export async function patchProfile(
       telegramBot: deps.config.telegramBotUsername || null,
       paywall: paywallOf(deps, profile.lang, userId),
       coachName: threadCopyFor(profile.lang).coach.name,
+      hasLoggedMeal: await hasLoggedMeal(deps, userId),
     },
   };
 }

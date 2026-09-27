@@ -207,6 +207,14 @@ describe("onboarding", () => {
     const view = (await profileView(deps, userId))!;
     expect(view.coachName).toBe(threadCopyFor(view.profile.lang).coach.name);
   });
+
+  it("answers hasLoggedMeal over the whole diary, not the marking window (#92)", async () => {
+    const userId = await onboard();
+    expect((await profileView(deps, userId))!.hasLoggedMeal).toBe(false);
+    const res = await logPhotoMeal(deps, userId, photo());
+    if (!isMeal(res)) throw new Error("expected a meal");
+    expect((await profileView(deps, userId))!.hasLoggedMeal).toBe(true);
+  });
 });
 
 describe("photo logging", () => {

@@ -51,9 +51,9 @@ export interface LogCopy {
   /** `log-rough`: the third answer — "More like 250 g". */
   roughMore: string;
   /**
-   * `log-rough`: the sentence a grams answer SENDS as its correction turn — "Half that" and
-   * "More like {n} g" both speak the portion they mean ("The rice was about 75 g"), so the
-   * thread line and the model read the same words. `{item}` and `{grams}` are the question's.
+   * `log-rough`: the TEXT a grams answer sends — a correction is a turn with the meal in focus,
+   * not a PATCH, so "Half that" must be a sentence the person could have typed. `{item}` is the
+   * asked-about item's name, `{grams}` the number the chip promised.
    */
   roughSent: string;
   /** `log-logged`, `log-rough`: the card's edit door. */
@@ -73,14 +73,26 @@ export interface LogCopy {
   /** `states-unknown`: the notice's second line. */
   unknownNote: string;
   /**
-   * `log-logged`: the one-line explanation under a warn verdict. `{noun}` is
-   * `verdictNoun(dimension, lang)` ("Saturated fat"), `{amount}` the meal's figure, `{target}`
-   * the day's cap — the unit is the template's. The translations that cannot agree an adjective
-   * with a placeholder noun restructure around it ("For one meal, that is a lot: …").
+   * `log-logged`: the noun `{noun}` fills — saturated fat, the one dimension the detail line is
+   * written for. A copy-table entry rather than a `verdicts.ts` read, because that table is
+   * Lingui-backed and this one is what the browser bundle carries.
+   */
+  satfatNoun: string;
+  /**
+   * `log-logged`: the one-line explanation under a warn verdict. `{noun}` is `satfatNoun`
+   * ("Saturated fat"), `{amount}` the meal's figure, `{target}` the day's cap — the unit is the
+   * template's. The translations that cannot agree an adjective with a placeholder noun
+   * restructure around it ("For one meal, that is a lot: …").
    */
   verdictDetail: string;
   /** `log-logged`, `log-rough`: the day counter — "{eaten} of {plan} kcal". */
   dayEaten: string;
+  /**
+   * `log-logged`: the day counter's quiet half — the card bolds `{eaten}` alone and prints this
+   * beside it ("of 1,434 kcal"). A whole template, not `dayEaten` with `{eaten}` hollowed out:
+   * a placeholder filled with "" is a hole a translation cannot see.
+   */
+  dayOfPlan: string;
   /** `log-logged`, `log-rough`: its second half — "582 left"; the rough board joins them with " · ". */
   dayLeft: string;
 
@@ -163,7 +175,9 @@ export const LOG_COPY: Localized<LogCopy> = {
     unknownTitle: "That didn't finish cleanly.",
     unknownNote: "Kept, and re-sent on its own — sending again is safe.",
     verdictDetail: "{noun} is high for one meal: {amount} of your {target} g. Go easy on it for the rest of today.",
+    satfatNoun: "Saturated fat",
     dayEaten: "{eaten} of {plan} kcal",
+    dayOfPlan: "of {plan} kcal",
     dayLeft: "{left} left",
     web: {
       title: "A photo of the meal",
@@ -217,7 +231,9 @@ export const LOG_COPY: Localized<LogCopy> = {
     unknownTitle: "Ça ne s’est pas terminé proprement.",
     unknownNote: "Gardé, et renvoyé tout seul — le renvoyer est sans risque.",
     verdictDetail: "Pour un repas, c’est beaucoup : {noun} {amount} sur {target} g. Vas-y doucement pour le reste de la journée.",
+    satfatNoun: "Graisses saturées",
     dayEaten: "{eaten} sur {plan} kcal",
+    dayOfPlan: "sur {plan} kcal",
     dayLeft: "{left} restantes",
     web: {
       title: "Une photo du repas",
@@ -271,7 +287,9 @@ export const LOG_COPY: Localized<LogCopy> = {
     unknownTitle: "Das ist nicht sauber durchgegangen.",
     unknownNote: "Behalten und wird von selbst erneut gesendet — erneutes Senden ist sicher.",
     verdictDetail: "Für eine Mahlzeit ist das viel: {noun} {amount} von {target} g. Nimm es für den Rest des Tages lockerer.",
+    satfatNoun: "Gesättigte Fette",
     dayEaten: "{eaten} von {plan} kcal",
+    dayOfPlan: "von {plan} kcal",
     dayLeft: "{left} übrig",
     web: {
       title: "Ein Foto vom Essen",
@@ -325,7 +343,9 @@ export const LOG_COPY: Localized<LogCopy> = {
     unknownTitle: "Non si è concluso bene.",
     unknownNote: "Conservato e rispedito da solo — rispedire è sicuro.",
     verdictDetail: "Per un pasto è tanto: {noun} {amount} su {target} g. Vacci piano per il resto di oggi.",
+    satfatNoun: "Grassi saturi",
     dayEaten: "{eaten} di {plan} kcal",
+    dayOfPlan: "di {plan} kcal",
     dayLeft: "ne restano {left}",
     web: {
       title: "Una foto del pasto",
@@ -379,7 +399,9 @@ export const LOG_COPY: Localized<LogCopy> = {
     unknownTitle: "Eso no terminó bien.",
     unknownNote: "Se conserva y se reenvía solo — reenviarlo es seguro.",
     verdictDetail: "Para una comida es mucho: {noun} {amount} de {target} g. Ve con calma el resto del día.",
+    satfatNoun: "Grasas saturadas",
     dayEaten: "{eaten} de {plan} kcal",
+    dayOfPlan: "de {plan} kcal",
     dayLeft: "quedan {left}",
     web: {
       title: "Una foto de la comida",
@@ -433,7 +455,9 @@ export const LOG_COPY: Localized<LogCopy> = {
     unknownTitle: "Lần đó chưa hoàn tất trọn vẹn.",
     unknownNote: "Đã giữ lại và tự gửi lại — gửi lại vẫn an toàn.",
     verdictDetail: "{noun} cao cho một bữa: {amount} trong {target} g của bạn. Hãy nhẹ tay phần còn lại của hôm nay.",
+    satfatNoun: "Chất béo bão hoà",
     dayEaten: "{eaten} trên {plan} kcal",
+    dayOfPlan: "trên {plan} kcal",
     dayLeft: "còn {left}",
     web: {
       title: "Ảnh chụp bữa ăn",
@@ -487,7 +511,9 @@ export const LOG_COPY: Localized<LogCopy> = {
     unknownTitle: "Yang tadi tidak selesai dengan bersih.",
     unknownNote: "Disimpan, dan dikirim ulang sendiri — mengirim ulang aman.",
     verdictDetail: "{noun} tinggi untuk satu kali makan: {amount} dari {target} g milikmu. Ringankan sisa hari ini.",
+    satfatNoun: "Lemak jenuh",
     dayEaten: "{eaten} dari {plan} kcal",
+    dayOfPlan: "dari {plan} kcal",
     dayLeft: "sisa {left}",
     web: {
       title: "Foto makanannya",
@@ -541,7 +567,9 @@ export const LOG_COPY: Localized<LogCopy> = {
     unknownTitle: "Это не завершилось чисто.",
     unknownNote: "Сохранено и отправится само — повторная отправка безопасна.",
     verdictDetail: "Для одного приёма пищи это много: {noun} — {amount} из {target} г. Остаток дня — умереннее.",
+    satfatNoun: "Насыщенные жиры",
     dayEaten: "{eaten} из {plan} ккал",
+    dayOfPlan: "из {plan} ккал",
     dayLeft: "осталось {left}",
     web: {
       title: "Фото приёма пищи",

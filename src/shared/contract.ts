@@ -599,6 +599,15 @@ export interface ProfileResponse {
    * that predates the field sends none, and a client falls back to the copy's own name.
    */
   coachName: string;
+  /**
+   * Whether this account has ever logged a meal — any date, not just inside the diary window
+   * (#92 review). The first-meal surfaces (Home's free-meal flow, the log's first verdict) read
+   * it as the ONE "nothing logged yet" answer, so two clients can never disagree about which
+   * meal was first, and neither repeats the `/v1/diary/week` probe it replaced. The other
+   * conditions of that gate — `onboarded`, `entitlement`, `limits.sampleUsed` — are already on
+   * this response.
+   */
+  hasLoggedMeal: boolean;
 }
 
 /**
