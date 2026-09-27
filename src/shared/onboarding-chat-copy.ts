@@ -77,8 +77,17 @@ export interface ChatCopy {
     capMarker: string;
     floorMarker: string;
   };
-  /** The "whole app" beat after the goal — three beats and nothing to answer. */
-  how: { title: string; steps: [string, string, string] };
+  /**
+   * The "whole app" beat after the goal — three beats and nothing to answer. `meal` and
+   * `photoAlt` are the words inside the step cards' drawn figures: the demo dish's name and the
+   * viewfinder photo's alt text (the numbers are `HOW_DEMO`'s constants, fixed to the boards).
+   */
+  how: { title: string; steps: [string, string, string]; meal: string; photoAlt: string };
+  /**
+   * The unit word beside a wheel's or ruler's big numeral — "32 years". The symbol units (cm,
+   * kg, lb, ft, in) are `spellUnit`'s and stay symbols; only the words with no symbol live here.
+   */
+  units: { years: string };
   /**
    * The two-ways chart after the struggles pick: the FIRST picked struggle (list order) writes
    * the caption. `ontrackCaption` owns the choice; this holds the wording of each branch.
@@ -199,8 +208,11 @@ const EN: ChatCopy = {
   },
   how: {
     title: "Here's the whole app",
+    meal: "Salmon, rice, greens",
+    photoAlt: "A grain bowl in the viewfinder",
     steps: ["Photograph the plate", "Get an honest verdict", "See your progress"],
   },
+  units: { years: "years" },
   ontrack: {
     title: "Built to keep you on track",
     captions: {
@@ -307,8 +319,11 @@ const FR: ChatCopy = {
   },
   how: {
     title: "Voilà toute l'app",
+    meal: "Saumon, riz et légumes verts",
+    photoAlt: "Un bowl de céréales dans le viseur",
     steps: ["Photographie ton assiette", "Reçois un verdict honnête", "Suis ta progression"],
   },
+  units: { years: "ans" },
   ontrack: {
     title: "Fait pour te garder en route",
     captions: {
@@ -415,8 +430,11 @@ const DE: ChatCopy = {
   },
   how: {
     title: "Das ist die ganze App",
+    meal: "Lachs mit Reis und Gemüse",
+    photoAlt: "Eine Getreidebowl im Sucher",
     steps: ["Fotografier den Teller", "Bekomm ein ehrliches Urteil", "Sieh deinen Fortschritt"],
   },
+  units: { years: "Jahre" },
   ontrack: {
     title: "Gemacht, damit du dranbleibst",
     captions: {
@@ -523,8 +541,11 @@ const IT: ChatCopy = {
   },
   how: {
     title: "Ecco tutta l'app",
+    meal: "Salmone, riso e verdure",
+    photoAlt: "Una bowl di cereali nel mirino",
     steps: ["Fotografa il piatto", "Ricevi un verdetto onesto", "Guarda i tuoi progressi"],
   },
+  units: { years: "anni" },
   ontrack: {
     title: "Fatta per tenerti in carreggiata",
     captions: {
@@ -631,8 +652,11 @@ const ES: ChatCopy = {
   },
   how: {
     title: "Esa es toda la app",
+    meal: "Salmón con arroz y verduras",
+    photoAlt: "Un bowl de granos en el visor",
     steps: ["Fotografía el plato", "Recibe un veredicto honesto", "Ve tu progreso"],
   },
+  units: { years: "años" },
   ontrack: {
     title: "Hecha para que no te salgas",
     captions: {
@@ -739,8 +763,11 @@ const VI: ChatCopy = {
   },
   how: {
     title: "Đó là toàn bộ ứng dụng",
+    meal: "Cá hồi, cơm và rau",
+    photoAlt: "Một bát ngũ cốc trong khung ngắm",
     steps: ["Chụp món ăn", "Nhận đánh giá trung thực", "Xem tiến triển của bạn"],
   },
+  units: { years: "tuổi" },
   ontrack: {
     title: "Được làm ra để giữ bạn đi đúng hướng",
     captions: {
@@ -847,8 +874,11 @@ const ID: ChatCopy = {
   },
   how: {
     title: "Itulah seluruh aplikasinya",
+    meal: "Salmon, nasi, dan sayur",
+    photoAlt: "Mangkuk biji-bijian di jendela bidik",
     steps: ["Foto piringnya", "Dapatkan penilaian jujur", "Lihat progresmu"],
   },
+  units: { years: "tahun" },
   ontrack: {
     title: "Dibuat agar kamu tetap di jalur",
     captions: {
@@ -957,8 +987,11 @@ const RU: ChatCopy = {
   },
   how: {
     title: "Вот и вся программа",
+    meal: "Лосось, рис и зелень",
+    photoAlt: "Боул в видоискателе",
     steps: ["Сфотографируйте тарелку", "Получите честный вердикт", "Смотрите свой прогресс"],
   },
+  units: { years: "лет" },
   ontrack: {
     title: "Сделано, чтобы держать вас в ритме",
     captions: {
