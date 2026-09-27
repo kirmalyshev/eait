@@ -8,43 +8,45 @@ import { expect, logMeal, sessionToken, test } from "./fixtures.ts";
 
 test("the chat asks its one question, and the photo input lives behind a labelled button", async ({ inWebApp: page }) => {
   await page.goto("/#/chat");
-  await expect(page.getByPlaceholder("Tell Spud what you ate, or ask anything")).toBeVisible();
+  await expect(page.getByPlaceholder("What did you eat?")).toBeVisible();
   await expect(page.getByRole("button", { name: "Add a photo" })).toBeVisible();
-  // The native input is never shown — it is the labelled button that drives it.
-  const picker = page.locator('input[type="file"]');
-  const box = await picker.boundingBox();
+  // The native input is never shown — it is the labelled round button that drives it.
+  const box = await page.locator('input[type="file"]').boundingBox();
   expect(box).not.toBeNull();
   expect(box!.width).toBeLessThanOrEqual(1);
   expect(box!.height).toBeLessThanOrEqual(1);
 });
 
-test("Spud's face sits beside his newest turn only, and mine are right-side bubbles", async ({ inWebApp: page }) => {
-  const words = page.getByPlaceholder("Tell Spud what you ate, or ask anything");
+test("Gabie's disc sits beside her newest line only, and mine are right-side lines", async ({ inWebApp: page }) => {
+  const words = page.locator(".compose .box");
   await page.goto("/#/chat");
   await words.fill("how did my week go?");
   await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page.locator(".thread li")).toHaveCount(2);
+  await expect(page.locator(".thread li.them .say-p")).toHaveCount(1);
   await words.fill("and today?");
   await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page.locator(".thread li")).toHaveCount(4);
+  await expect(page.locator(".thread li.them .say-p")).toHaveCount(2);
 
-  // One avatar, on the LAST of his lines — not one per line.
-  await expect(page.locator(".thread li.buddy")).toHaveCount(1);
-  await expect(page.locator(".thread li.theirs").last()).toHaveClass(/buddy/);
-  await expect(page.locator(".thread li.buddy .av svg")).toHaveCount(1);
-  // Mine are bubbles aligned right; his are not full-width blocks.
-  const mine = page.locator(".thread li.mine .bub").first();
+  // One disc, on the LAST of her lines — the older one keeps her column's spacer in its place.
+  await expect(page.locator(".thread .gabie")).toHaveCount(1);
+  await expect(page.locator(".thread li.them:has(.say)").last().locator(".gabie")).toHaveCount(1);
+  await expect(page.locator(".thread .saygap")).toHaveCount(1);
+  // And her name above the FIRST of them — the boards' rule (design-pro, #94).
+  await expect(page.locator(".thread li.them .gname").first()).toHaveText("Gabie · nutritionist");
+  await expect(page.locator(".thread .gname")).toHaveCount(1);
+  // Mine are right-side lines in the accent tint, not full-width blocks.
+  const mine = page.locator(".thread li.me").first();
   await expect(mine).toBeVisible();
   const row = await mine.evaluate((n) => {
     const r = n.getBoundingClientRect();
-    return { right: r.right, colRight: n.closest("li")!.getBoundingClientRect().right };
+    return { right: r.right, colRight: n.closest("ul")!.getBoundingClientRect().right };
   });
-  expect(Math.abs(row.right - row.colRight)).toBeLessThan(2);
+  expect(Math.abs(row.right - row.colRight)).toBeLessThan(22);
 });
 
 test("a line's Delete is a small text button with a name and a 44px hit area", async ({ inWebApp: page }) => {
   await page.goto("/#/chat");
-  await page.getByPlaceholder("Tell Spud what you ate, or ask anything").fill("how did my week go?");
+  await page.locator(".compose .box").fill("how did my week go?");
   await page.getByRole("button", { name: "Send", exact: true }).click();
   const del = page.locator(".thread li .act", { hasText: "Delete" });
   await expect(del).toBeVisible();
@@ -55,20 +57,20 @@ test("a line's Delete is a small text button with a name and a 44px hit area", a
   expect(box!.height).toBeGreaterThanOrEqual(44);
 });
 
-test("Home · Chat · Profile hold ONE row at 390px, and the account's controls live in Profile", async ({ inWebApp: page }) => {
+test("Home · Progress · Chat · Profile hold ONE row at 390px, and the account's controls live in Profile", async ({ inWebApp: page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/#/chat");
-  // Three links, one row: same top edge for all of them, and nothing else in the row.
+  // Four links, one row: same top edge for all of them, and nothing else in the row.
   const nav = page.locator(".wnav");
   const tops: number[] = [];
-  for (const name of ["Home", "Chat", "Profile"]) {
+  for (const name of ["Home", "Progress", "Chat", "Profile"]) {
     const link = nav.getByRole("link", { name });
     await expect(link).toBeVisible();
     tops.push((await link.boundingBox())!.y);
   }
   expect(new Set(tops).size).toBe(1);
   await expect(nav.getByRole("button")).toHaveCount(0);
-  await expect(nav.getByRole("link")).toHaveCount(3);
+  await expect(nav.getByRole("link")).toHaveCount(4);
 
   // Profile carries the language picker and Sign out — and the language one, in Profile, is the
   // same PATCH /v1/profile the picker always used. The screen's h1 is visually hidden (the web

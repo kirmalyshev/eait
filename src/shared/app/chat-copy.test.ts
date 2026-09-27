@@ -6,7 +6,12 @@
 import { describe, expect, it } from "bun:test";
 import { lintCopy } from "../claims.ts";
 import { LANGS, type Lang } from "../types.ts";
-import { CHAT_SCREEN_COPY, chatScreenCopyFor, type ChatScreenCopy } from "./chat-copy.ts";
+import { STRUGGLES, type Struggle } from "../types.ts";
+import {
+  CHAT_SCREEN_COPY, chatScreenCopyFor, coachRowIcon, starterRows, STARTER_ICONS,
+  type ChatScreenCopy,
+} from "./chat-copy.ts";
+import { starterRowsFor } from "../chat.ts";
 
 const flatten = (node: unknown, at = "", out: Record<string, string> = {}): Record<string, string> => {
   if (typeof node === "string") { out[at] = node; return out; }
@@ -36,7 +41,7 @@ describe("CHAT_SCREEN_COPY", () => {
     const withPlaceholders: Record<string, string[]> = {
       composerThread: ["{coach}"],
       macroOfTarget: ["{value}", "{target}"],
-      gramsChip: ["{n}"],
+      mealLine: ["{name}", "{kcal}"],
       "phone.typing": ["{coach}"],
     };
     for (const lang of LANGS) {
@@ -66,7 +71,47 @@ describe("CHAT_SCREEN_COPY", () => {
     expect(en.unknownTitle).toBe("That didn't finish cleanly.");
     expect(en.analysisFailed).toBe("The analysis didn't come back.");
     expect(en.phone.notSent).toBe("Not sent — tap to put it back in the box");
-    expect(en.phone.expired).toBe("That one timed out. Describe it again and I'll re-read it.");
+    expect(en.expired).toBe("That one timed out. Describe it again and I'll re-read it.");
+  });
+
+  it("shows the catalog's own starter words — every language, every struggle set", () => {
+    // The bundle's table restates THREAD_COPY because it cannot reach Lingui (#145): the check
+    // that keeps it honest is the catalog's `starterRowsFor` producing the same rows, text for
+    // text, for every language and every subset an onboarding can set.
+    const sets: (readonly Struggle[] | null)[] = [
+      null,
+      STRUGGLES,
+      ["busy", "ideas"] as const,
+      ["support", "consistency", "habits"] as const,
+      ["ideas"] as const,
+    ];
+    for (const lang of LANGS) {
+      for (const set of sets) {
+        const expected = starterRowsFor(set, lang).map((r) => r.text);
+        const actual = starterRows(set, lang).map((r) => r.text);
+        expect(actual, `${lang} ${String(set)}`).toEqual(expected);
+        expect(starterRows(set, lang).map((r) => STARTER_ICONS[r.struggle]))
+          .toEqual(starterRowsFor(set, lang).map((r) => STARTER_ICONS[r.struggle]));
+      }
+    }
+  });
+
+  it("pairs each starter with its board icon, the struggles in the same order as startersFor", () => {
+    const rows = starterRowsFor(["busy", "ideas"], "en" as Lang);
+    expect(rows.map((r) => r.text)).toEqual([
+      "I'll just tell you what I ate", "What should I eat tonight?", "How's my week going?",
+    ]);
+    expect(rows.map((r) => STARTER_ICONS[r.struggle])).toEqual(["busy", "ideas", "consistency"]);
+  });
+
+  it("gives a coach row the starter's icon, a named macro's icon, or ideas", () => {
+    expect(coachRowIcon("How's my week going?", "en" as Lang)).toBe("consistency");
+    expect(coachRowIcon("Am I getting enough protein?", "en" as Lang)).toBe("protein");
+    expect(coachRowIcon("which meal had the most Fat?", "en" as Lang)).toBe("fat");
+    // Whole words only — "father" is not "fat", and an inflected form ("белка" ≠ "Белок") is not
+    // the label either; an unrecognised row reads `ideas`.
+    expect(coachRowIcon("what should I cook?", "en" as Lang)).toBe("ideas");
+    expect(coachRowIcon("Сколько БЕЛОК сегодня?", "ru" as Lang)).toBe("protein");
   });
 
   it("carries no claim the linter would refuse — every language", () => {

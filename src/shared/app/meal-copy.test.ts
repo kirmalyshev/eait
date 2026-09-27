@@ -12,7 +12,7 @@ import { MEAL_COPY, mealCopyFor } from "./meal-copy.ts";
 const KEYS = [
   "metaPhoto", "sheetWhen", "roughEstimate",
   "macroProtein", "macroCarbs", "macroFat",
-  "coachLine", "correctOpener", "composeHint",
+  "coachLine", "correctOpener", "itemAmount", "composeHint",
   "deleteTitle", "deleteBody", "deleteCta", "cancelCta",
   "webCorrect", "webLoggedPhoto",
   "phoneCorrect", "phoneDone", "phoneEdit",
@@ -43,6 +43,7 @@ describe("MEAL_COPY", () => {
       sheetWhen: ["{day}", "{time}"],
       coachLine: ["{coach}"],
       correctOpener: ["{items}"],
+      itemAmount: ["{amount}", "{item}"],
       phoneSheetMeal: ["{meal}", "{time}"],
       phoneWasAmount: ["{amount}"],
       changeItem: ["{item}", "{before}", "{after}", "{unit}"],

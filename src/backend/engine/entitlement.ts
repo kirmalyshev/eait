@@ -10,7 +10,7 @@
 // can grant itself an entitlement, and there must never be one: the app's copy of its own
 // subscription comes from the purchases SDK and is a rendering hint, not a credential.
 
-import { entitlementActive, entitlementLive, localDate, type Entitlement } from "@eait/shared";
+import { entitlementActive, entitlementLive, localDate, trialDay, type Entitlement } from "@eait/shared";
 import type { Config } from "../config.ts";
 import type { AdminUserRow, EntitlementPatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
@@ -111,7 +111,7 @@ export async function entitlementFor(deps: EngineDeps, userId: string): Promise<
   // a "Manage subscription" button opening a Customer Center with no subscription in it. The three
   // states `Entitlement` documents are the three the app is allowed to see.
   const active = entitlementLive(stored, now);
-  return {
+  const entitlement = {
     active,
     expiresAt: entitlementActive(stored?.expiresAt, now) ? stored?.expiresAt ?? null : null,
     // The trial is a property of the SUBSCRIPTION period, so it is only claimed while that period
@@ -122,6 +122,12 @@ export async function entitlementFor(deps: EngineDeps, userId: string): Promise<
     // Bought once and nothing live now: the app asks to RESUBSCRIBE. The record's existence is what
     // means "has bought something" (`entitlement_event_at`), so this is exact rather than a guess.
     lapsed: !!stored && !active,
+  };
+  return {
+    ...entitlement,
+    // The free week's "day n" the You surface's Subscription row prints (#97). Computed here off
+    // the same expiry the reminders count from, so the row and the day-5 notification agree.
+    trialDay: trialDay(entitlement, deps.config.timezone, now),
   };
 }
 

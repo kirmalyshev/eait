@@ -1288,6 +1288,79 @@
         ]
       }
     },
+    "/v1/meals/{id}/redate": {
+      "post": {
+        "operationId": "post_mealRedate",
+        "summary": "Move the meal back `dayOffset` days — the menu's 'Move to yesterday' as `1`. Unbilled; the same re-date the chat intent runs.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedateMealRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MealRedated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Target gone",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/v1/meals/pending": {
       "get": {
         "operationId": "get_pending",
@@ -3538,6 +3611,13 @@
           "lapsed": {
             "type": "boolean",
             "description": "Whether this account bought something once and nothing it bought keeps it in now — a subscription that ended, or a lifetime unlock that was refunded. The app asks it to RESUBSCRIBE rather than to subscribe, and nothing on the phone could tell the two apart without this: the server blanks `expiresAt` the moment a grant stops keeping somebody in.\n\nFalse for an account that never bought anything and for one entitled now. OPTIONAL because a server older than the field sends none, which the app reads as false: \"subscribe\" is the ask true of both people. `entitlementFor` always sends it."
+          },
+          "trialDay": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Which day of the free week today is — the \"5\" of \"free week · day 5\" the Subscription row shows — or null when the account is not on one. Computed server-side (`trialDay` below), so a client renders it and never counts days itself: two counters would drift apart.\n\nOPTIONAL for the reason `lapsed` is — a server older than the field sends none."
           }
         },
         "required": [
@@ -3833,6 +3913,10 @@
             "type": "number",
             "description": "Base 6 plus the parts, clamped to 1–10."
           },
+          "base": {
+            "type": "number",
+            "description": "The points every score starts from — the breakdown's \"Start\" row reads it, never recomputes it."
+          },
           "parts": {
             "type": "array",
             "items": {
@@ -3842,6 +3926,7 @@
         },
         "required": [
           "score",
+          "base",
           "parts"
         ],
         "additionalProperties": false
@@ -5492,9 +5577,21 @@
             ],
             "description": "The username of this server's Telegram bot, for a Connect Telegram link, or null.\n\nNULL WHILE THE CONNECTOR IS OFF — no token, `--demo`, a dead token, or Telegram not reached yet — and a client draws no link then. The link is `https://t.me/<this>?start=<code>`, with a code from  {@link  ROUTES.authPair }  minted at the moment of the tap: a code shown in advance would die on the screen in five minutes."
           },
+          "healthConnected": {
+            "type": "boolean",
+            "description": "Whether health sync is actually arriving: any `HealthDay` row stored in the last seven days, computed here so the You surface's \"connected\" is a fact and not a flag a client can set (#97). The phone backfills weight history on connect, so a fresh sync counts from day one."
+          },
           "paywall": {
             "$ref": "#/components/schemas/WebPaywall",
             "description": "The web paywall, computed from this server's `EAIT__BACKEND__WEB_*` block (#77).\n\nSENT, NEVER COMPILED, for the same reason `limits` is: the web app can be self-hosted, so the plans, prices and exit offer are the operator's variables, and this is how the bundle learns them — already formatted in the account's language and with `{userId}` already filled into every checkout link from this account's own id, because the RevenueCat webhook grants the purchase to `app_user_id` and nothing else.\n\nPlans and `exitOffer` are null where the operator configured no checkout. ALL NULL means the host sells nothing: no paywall surface at all, whatever `entitlement` and `limits` say about this account. A server that predates this field sends no `paywall` — a client reads that as absent too, exactly as it does `entitlement`."
+          },
+          "coachName": {
+            "type": "string",
+            "description": "The coach's name in the account's language — `THREAD_COPY`'s `coach.name` — sent here because the browser bundle cannot import the Lingui table that copy lives in (#92 review): Lingui words reach a client only server-sent. Surfaces fill their `{coach}` placeholders with it. A server that predates the field sends none, and a client falls back to the copy's own name."
+          },
+          "hasLoggedMeal": {
+            "type": "boolean",
+            "description": "Whether this account has ever logged a meal — any date, not just inside the diary window (#92 review). The first-meal surfaces (Home's free-meal flow, the log's first verdict) read it as the ONE \"nothing logged yet\" answer, so two clients can never disagree about which meal was first, and neither repeats the `/v1/diary/week` probe it replaced. The other conditions of that gate — `onboarded`, `entitlement`, `limits.sampleUsed` — are already on this response."
           }
         },
         "required": [
@@ -5508,7 +5605,10 @@
           "entitlement",
           "pairAddress",
           "telegramBot",
-          "paywall"
+          "healthConnected",
+          "paywall",
+          "coachName",
+          "hasLoggedMeal"
         ],
         "additionalProperties": false,
         "description": "Profile plus everything derived from it, so the app never recomputes targets locally."
@@ -5552,6 +5652,19 @@
         ],
         "additionalProperties": false,
         "description": "What a register or an unregister answers. `registered` is the state AFTER the call."
+      },
+      "RedateMealRequest": {
+        "type": "object",
+        "properties": {
+          "dayOffset": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dayOffset"
+        ],
+        "additionalProperties": false,
+        "description": "`POST /v1/meals/:id/redate` — \"Move to yesterday\", as an offset: `1` is yesterday, `0` a no-op, and the bound is the chat re-date's own (`MAX_DAY_OFFSET`), clamped in the engine rather than refused — a hand-edited client that sends 40 gets the same answer the model's misparse gets.\n\nA date changes ONLY this way: `EditMealRequest` has no date field, so the manual editor cannot reach it — the offset is resolved against the account's today on the server, never sent as a `YYYY-MM-DD` a client could aim anywhere on the calendar."
       },
       "Refusal": {
         "anyOf": [
@@ -6010,6 +6123,17 @@
             },
             "description": "Oldest first — chart order, `weightChart` reads the endpoints off the ends."
           },
+          "latest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeightEntry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The newest weigh-in in the WHOLE log, whatever `range` left of it — Progress's current figure and its none-in-range state (\"weights exist, just not in this window\") need a dated entry the filtered `weights` can no longer name. `null` when nothing was ever logged."
+          },
           "projection": {
             "anyOf": [
               {
@@ -6048,6 +6172,7 @@
         },
         "required": [
           "weights",
+          "latest",
           "projection",
           "bmi"
         ],

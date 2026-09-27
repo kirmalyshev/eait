@@ -11,12 +11,13 @@
 // fibre, sugar, salt — are here. `limit` on a part is a `medical` screen option id ("ldl",
 // "kidneys", "lowsugar"); its label is the onboarding content's, not duplicated here.
 
-import { numbers, t, type CountForms, type Localized } from "./lang.ts";
+import { bmiCopy, type BmiCopy } from "./app/bmi-copy.ts";
+import { t, type CountForms, type Localized } from "./lang.ts";
 import type { BmiRange, ScoreFactor } from "./scores.ts";
 import type { Lang } from "./types.ts";
 import { verdictNoun } from "./verdicts.ts";
 
-export interface ScoresCopy {
+export interface ScoresCopy extends BmiCopy {
   /** The card's title. */
   title: string;
   /** "{n}/10" — the score as a fraction, `{n}` already formatted. */
@@ -40,14 +41,8 @@ export interface ScoresCopy {
   breakdownTitle: string;
   /** Under the breakdown's title: what the day's number IS. */
   breakdownLine: string;
-  /** The BMI label — the acronym, spelled the way the language spells it. */
-  bmi: string;
-  /** The one line explaining BMI. */
-  bmiExplainer: string;
-  /** Range templates — `{n}` / `{low}`/`{high}` are the band's own bounds, localized by `numbers`. */
-  bmiBelow: string;
-  bmiBetween: string;
-  bmiAbove: string;
+  // The BMI card's five keys come in through `BmiCopy` — its table (`app/bmi-copy.ts`) is the
+  // Lingui-free copy the browser bundle is allowed to reach.
   /** The factor names nothing else owns — saturated fat reuses the verdict noun. */
   factors: Record<"protein" | "fibre" | "sugar" | "salt", string>;
 }
@@ -64,11 +59,7 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     todayFromMeals: { one: "From today's meal", other: "From today's {n} meals" },
     breakdownTitle: "Today's health score",
     breakdownLine: "The mean of today's meals, weighted by their calories.",
-    bmi: "BMI",
-    bmiExplainer: "Weight in kg divided by height in metres, squared.",
-    bmiBelow: "below {n}",
-    bmiBetween: "{low}–{high}",
-    bmiAbove: "{n} and above",
+    ...bmiCopy("en"),
     factors: { protein: "Protein", fibre: "Fibre", sugar: "Sugar", salt: "Salt" },
   },
   fr: {
@@ -82,11 +73,7 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     todayFromMeals: { one: "Du repas d'aujourd'hui", other: "Des {n} repas d'aujourd'hui" },
     breakdownTitle: "Score santé d'aujourd'hui",
     breakdownLine: "La moyenne des repas d'aujourd'hui, pondérée par leurs calories.",
-    bmi: "IMC",
-    bmiExplainer: "Poids en kg divisé par la taille en mètres, au carré.",
-    bmiBelow: "moins de {n}",
-    bmiBetween: "{low}–{high}",
-    bmiAbove: "{n} et plus",
+    ...bmiCopy("fr"),
     factors: { protein: "Protéines", fibre: "Fibres", sugar: "Sucres", salt: "Sel" },
   },
   de: {
@@ -100,11 +87,7 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     todayFromMeals: { one: "Aus der heutigen Mahlzeit", other: "Aus den heutigen {n} Mahlzeiten" },
     breakdownTitle: "Heutiger Gesundheitsscore",
     breakdownLine: "Der Mittelwert der heutigen Mahlzeiten, nach Kalorien gewichtet.",
-    bmi: "BMI",
-    bmiExplainer: "Gewicht in kg geteilt durch die Körpergröße in Metern zum Quadrat.",
-    bmiBelow: "unter {n}",
-    bmiBetween: "{low}–{high}",
-    bmiAbove: "{n} und mehr",
+    ...bmiCopy("de"),
     factors: { protein: "Protein", fibre: "Ballaststoffe", sugar: "Zucker", salt: "Salz" },
   },
   it: {
@@ -118,11 +101,7 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     todayFromMeals: { one: "Dal pasto di oggi", other: "Dai {n} pasti di oggi" },
     breakdownTitle: "Punteggio di salute di oggi",
     breakdownLine: "La media dei pasti di oggi, ponderata per le loro calorie.",
-    bmi: "IMC",
-    bmiExplainer: "Peso in kg diviso per l'altezza in metri, al quadrato.",
-    bmiBelow: "sotto {n}",
-    bmiBetween: "{low}–{high}",
-    bmiAbove: "{n} e oltre",
+    ...bmiCopy("it"),
     factors: { protein: "Proteine", fibre: "Fibre", sugar: "Zuccheri", salt: "Sale" },
   },
   es: {
@@ -136,11 +115,7 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     todayFromMeals: { one: "De la comida de hoy", other: "De las {n} comidas de hoy" },
     breakdownTitle: "Puntuación de salud de hoy",
     breakdownLine: "La media de las comidas de hoy, ponderada por sus calorías.",
-    bmi: "IMC",
-    bmiExplainer: "Peso en kg dividido por la altura en metros, al cuadrado.",
-    bmiBelow: "por debajo de {n}",
-    bmiBetween: "{low}–{high}",
-    bmiAbove: "{n} y más",
+    ...bmiCopy("es"),
     factors: { protein: "Proteínas", fibre: "Fibra", sugar: "Azúcar", salt: "Sal" },
   },
   vi: {
@@ -154,11 +129,7 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     todayFromMeals: { other: "Từ {n} bữa hôm nay" },
     breakdownTitle: "Điểm sức khỏe hôm nay",
     breakdownLine: "Trung bình các bữa hôm nay, theo trọng số calo.",
-    bmi: "BMI",
-    bmiExplainer: "Cân nặng tính bằng kg chia cho chiều cao tính bằng mét, bình phương.",
-    bmiBelow: "dưới {n}",
-    bmiBetween: "{low}–{high}",
-    bmiAbove: "từ {n} trở lên",
+    ...bmiCopy("vi"),
     factors: { protein: "Đạm", fibre: "Chất xơ", sugar: "Đường", salt: "Muối" },
   },
   id: {
@@ -172,11 +143,7 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     todayFromMeals: { other: "Dari {n} santapan hari ini" },
     breakdownTitle: "Skor kesehatan hari ini",
     breakdownLine: "Rata-rata santapan hari ini, dibobot menurut kalorinya.",
-    bmi: "IMT",
-    bmiExplainer: "Berat badan dalam kg dibagi tinggi badan dalam meter, dikuadratkan.",
-    bmiBelow: "di bawah {n}",
-    bmiBetween: "{low}–{high}",
-    bmiAbove: "{n} ke atas",
+    ...bmiCopy("id"),
     factors: { protein: "Protein", fibre: "Serat", sugar: "Gula", salt: "Garam" },
   },
   ru: {
@@ -195,11 +162,7 @@ export const SCORES_COPY: Localized<ScoresCopy> = {
     },
     breakdownTitle: "Оценка здоровья за сегодня",
     breakdownLine: "Среднее по сегодняшним приёмам пищи, взвешенное по калориям.",
-    bmi: "ИМТ",
-    bmiExplainer: "Вес в кг, делённый на рост в метрах в квадрате.",
-    bmiBelow: "ниже {n}",
-    bmiBetween: "{low}–{high}",
-    bmiAbove: "{n} и выше",
+    ...bmiCopy("ru"),
     factors: { protein: "Белок", fibre: "Клетчатка", sugar: "Сахар", salt: "Соль" },
   },
 };
@@ -217,15 +180,8 @@ export function scoreFactorLabel(factor: ScoreFactor, lang: Lang): string {
 }
 
 /**
- * A BMI range as its own numbers — "below 18.5", "18.5–24.9", "30 and above". The bounds are read
- * out of the range ID ITSELF, so the label and the boundary `bmiRange` tests can never disagree,
- * and `numbers(lang)` moves the decimal separator with the language.
+ * A BMI range as its own numbers — "below 18.5", "18.5–24.9", "30 and above". The implementation
+ * and the templates live in `app/bmi-copy.ts` — the Lingui-free copy — and are re-exported here so
+ * the score surface's one import keeps answering them.
  */
-export function bmiRangeLabel(range: BmiRange, lang: Lang): string {
-  const copy = t(lang)(SCORES_COPY);
-  const n = numbers(lang);
-  if (range.startsWith("below-")) return copy.bmiBelow.replace("{n}", n(Number(range.slice(6))));
-  if (range.endsWith("-plus")) return copy.bmiAbove.replace("{n}", n(Number(range.slice(0, -5))));
-  const [lo, hi] = range.split("-") as [string, string];
-  return copy.bmiBetween.replace("{low}", n(Number(lo))).replace("{high}", n(Number(hi)));
-}
+export { bmiRangeLabel } from "./app/bmi-copy.ts";
