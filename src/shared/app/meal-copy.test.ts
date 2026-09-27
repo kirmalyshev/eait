@@ -19,7 +19,8 @@ const KEYS = [
   "phoneMenuReread", "phoneMenuMoveYesterday",
   "phoneCorrectTitle", "phoneSheetMeal", "phoneWasAmount", "phoneThisMeal", "phoneSaveRecheck",
   "phoneGoneTitle", "phoneGoneBody", "phoneGoneBack",
-  "changeLine", "changeStillHighOne", "changeStillHighTwo",
+  "changeItem", "changeTotal", "changeWithItems",
+  "changeStillHighOne", "changeStillHighTwo", "changeStillHighAll",
   "changeToPlan", "changeToHigh", "changeToOver", "changeAllOnPlan",
 ] as const;
 
@@ -44,7 +45,9 @@ describe("MEAL_COPY", () => {
       correctOpener: ["{items}"],
       phoneSheetMeal: ["{meal}", "{time}"],
       phoneWasAmount: ["{amount}"],
-      changeLine: ["{item}", "{before}", "{after}", "{unit}", "{kcalBefore}", "{kcalAfter}", "{kcal}"],
+      changeItem: ["{item}", "{before}", "{after}", "{unit}"],
+      changeTotal: ["{kcalBefore}", "{kcalAfter}", "{kcal}"],
+      changeWithItems: ["{items}", "{total}"],
       changeStillHighOne: ["{dim}"],
       changeToPlan: ["{dim}"],
       changeToHigh: ["{dim}"],
@@ -81,9 +84,12 @@ describe("MEAL_COPY", () => {
     expect(en.deleteCta).toBe("Delete this meal");
     expect(en.phoneGoneTitle).toBe("Not on today’s diary");
     expect(en.phoneGoneBack).toBe("Back to today");
-    expect(en.changeLine).toBe("{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.");
+    expect(en.changeItem).toBe("{item} {before} → {after} {unit}");
+    expect(en.changeTotal).toBe("{kcalBefore} → {kcalAfter} {kcal}.");
+    expect(en.changeWithItems).toBe("{items}: {total}");
     expect(en.changeStillHighOne).toBe("{dim} still high for one meal.");
     expect(en.changeStillHighTwo).toBe("Both still high for one meal.");
+    expect(en.changeStillHighAll).toBe("All still high for one meal.");
     expect(en.changeToPlan).toBe("{dim} now on plan.");
     expect(en.changeToHigh).toBe("{dim} now high for one meal.");
     expect(en.changeToOver).toBe("{dim} now over the plan.");

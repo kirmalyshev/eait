@@ -13,8 +13,9 @@
 // `UNIT_KCAL`/`spellUnit`; and the diary rows drawn behind the detail are the Home surface's
 // component (W4). "A change, named" — the board's "Rice 150 → 200 g: 540 → 605 kcal. Both still
 // high for one meal." — IS here as the `change*` templates: the server composes it from them
-// (#119), filling `{dim}` from `verdicts.ts` in its sentence-start form; nothing writes it
-// freehand, and no client or engine changes the dimension's case itself (German nouns).
+// (#119), joining several `changeItem` parts with `Intl.ListFormat(lang, {type: "conjunction"})`
+// and filling `{dim}` from `verdicts.ts` in its sentence-start form; nothing writes it freehand,
+// and no client or engine changes the dimension's case itself (German nouns).
 
 import { t, type Localized } from "../lang.ts";
 import type { Lang } from "../types.ts";
@@ -94,18 +95,24 @@ export interface MealCopy {
   phoneGoneBack: string;
 
   /**
-   * "A change, named" (web + phone `meal-edited.html`): the clause naming the edit —
-   * "Rice 150 → 200 g: 540 → 605 kcal." `{unit}` is the amount's symbol (g, ml) and `{kcal}` is
-   * `UNIT_KCAL`. The server composes it (#119); nothing writes it freehand.
+   * "A change, named" (web + phone `meal-edited.html`), built from parts — only the server
+   * composes it (#119). `changeItem` is one changed item's clause — "Rice 150 → 200 g" — with
+   * `{unit}` the amount's symbol (g, ml); `changeTotal` is the meal's kcal before → after, once,
+   * with `{kcal}` as `UNIT_KCAL`; `changeWithItems` joins them — "{items}: {total}" — where
+   * `{items}` is the `changeItem` parts through `Intl.ListFormat`. A kcal-only edit is
+   * `changeTotal` alone.
    */
-  changeLine: string;
+  changeItem: string;
+  changeTotal: string;
+  changeWithItems: string;
   /**
    * The outcome tails — WHOLE sentences, one per dimension whose verdict changed and one for the
-   * high ones that stayed ("Both" when two), composed after `changeLine`. `{dim}` is the verdict
-   * dimension's name from `verdicts.ts`, already in sentence-start form.
+   * high ones that stayed (one / two / three). `{dim}` is the verdict dimension's name from
+   * `verdicts.ts`, already in sentence-start form.
    */
   changeStillHighOne: string;
   changeStillHighTwo: string;
+  changeStillHighAll: string;
   changeToPlan: string;
   changeToHigh: string;
   changeToOver: string;
@@ -142,9 +149,12 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Not on today’s diary",
     phoneGoneBody: "Deleted, or moved to another day.",
     phoneGoneBack: "Back to today",
-    changeLine: "{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.",
+    changeItem: "{item} {before} → {after} {unit}",
+    changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
+    changeWithItems: "{items}: {total}",
     changeStillHighOne: "{dim} still high for one meal.",
     changeStillHighTwo: "Both still high for one meal.",
+    changeStillHighAll: "All still high for one meal.",
     changeToPlan: "{dim} now on plan.",
     changeToHigh: "{dim} now high for one meal.",
     changeToOver: "{dim} now over the plan.",
@@ -179,9 +189,12 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Pas dans le journal d’aujourd’hui",
     phoneGoneBody: "Supprimé, ou déplacé à un autre jour.",
     phoneGoneBack: "Retour à aujourd’hui",
-    changeLine: "{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.",
+    changeItem: "{item} {before} → {after} {unit}",
+    changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
+    changeWithItems: "{items}: {total}",
     changeStillHighOne: "{dim} toujours au-dessus pour un repas.",
     changeStillHighTwo: "Les deux toujours au-dessus pour un repas.",
+    changeStillHighAll: "Tout est toujours au-dessus pour un repas.",
     changeToPlan: "{dim} maintenant dans le plan.",
     changeToHigh: "{dim} maintenant au-dessus pour un repas.",
     changeToOver: "{dim} maintenant au-dessus du plan.",
@@ -216,9 +229,12 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Nicht im heutigen Tagebuch",
     phoneGoneBody: "Gelöscht oder auf einen anderen Tag verschoben.",
     phoneGoneBack: "Zurück zu heute",
-    changeLine: "{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.",
+    changeItem: "{item} {before} → {after} {unit}",
+    changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
+    changeWithItems: "{items}: {total}",
     changeStillHighOne: "{dim} immer noch hoch für eine Mahlzeit.",
     changeStillHighTwo: "Beide immer noch hoch für eine Mahlzeit.",
+    changeStillHighAll: "Alles immer noch hoch für eine Mahlzeit.",
     changeToPlan: "{dim} jetzt im Plan.",
     changeToHigh: "{dim} jetzt hoch für eine Mahlzeit.",
     changeToOver: "{dim} jetzt über dem Plan.",
@@ -253,9 +269,12 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Non è nel diario di oggi",
     phoneGoneBody: "Eliminato, o spostato a un altro giorno.",
     phoneGoneBack: "Torna a oggi",
-    changeLine: "{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.",
+    changeItem: "{item} {before} → {after} {unit}",
+    changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
+    changeWithItems: "{items}: {total}",
     changeStillHighOne: "{dim} ancora sopra per un pasto.",
     changeStillHighTwo: "Entrambi ancora sopra per un pasto.",
+    changeStillHighAll: "Tutto ancora sopra per un pasto.",
     changeToPlan: "{dim} ora nel piano.",
     changeToHigh: "{dim} ora sopra per un pasto.",
     changeToOver: "{dim} ora sopra il piano.",
@@ -290,9 +309,12 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "No está en el diario de hoy",
     phoneGoneBody: "Eliminada, o movida a otro día.",
     phoneGoneBack: "Volver a hoy",
-    changeLine: "{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.",
+    changeItem: "{item} {before} → {after} {unit}",
+    changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
+    changeWithItems: "{items}: {total}",
     changeStillHighOne: "{dim} sigue por encima para una comida.",
     changeStillHighTwo: "Los dos siguen por encima para una comida.",
+    changeStillHighAll: "Todo sigue por encima para una comida.",
     changeToPlan: "{dim} ahora en el plan.",
     changeToHigh: "{dim} ahora por encima para una comida.",
     changeToOver: "{dim} ahora por encima del plan.",
@@ -327,9 +349,12 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Không có trong nhật ký hôm nay",
     phoneGoneBody: "Đã xoá, hoặc đã chuyển sang ngày khác.",
     phoneGoneBack: "Về hôm nay",
-    changeLine: "{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.",
+    changeItem: "{item} {before} → {after} {unit}",
+    changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
+    changeWithItems: "{items}: {total}",
     changeStillHighOne: "{dim} vẫn cao cho một bữa.",
     changeStillHighTwo: "Cả hai vẫn cao cho một bữa.",
+    changeStillHighAll: "Tất cả vẫn cao cho một bữa.",
     changeToPlan: "{dim} đã đúng kế hoạch.",
     changeToHigh: "{dim} giờ cao cho một bữa.",
     changeToOver: "{dim} giờ vượt kế hoạch.",
@@ -364,9 +389,12 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Tidak ada di catatan hari ini",
     phoneGoneBody: "Dihapus, atau dipindah ke hari lain.",
     phoneGoneBack: "Kembali ke hari ini",
-    changeLine: "{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.",
+    changeItem: "{item} {before} → {after} {unit}",
+    changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
+    changeWithItems: "{items}: {total}",
     changeStillHighOne: "{dim} masih tinggi untuk satu kali makan.",
     changeStillHighTwo: "Keduanya masih tinggi untuk satu kali makan.",
+    changeStillHighAll: "Semua masih tinggi untuk satu kali makan.",
     changeToPlan: "{dim} kini sesuai rencana.",
     changeToHigh: "{dim} kini tinggi untuk satu kali makan.",
     changeToOver: "{dim} kini melebihi rencana.",
@@ -401,9 +429,12 @@ export const MEAL_COPY: Localized<MealCopy> = {
     phoneGoneTitle: "Нет в дневнике за сегодня",
     phoneGoneBody: "Удалён или перенесён на другой день.",
     phoneGoneBack: "Назад к сегодня",
-    changeLine: "{item} {before} → {after} {unit}: {kcalBefore} → {kcalAfter} {kcal}.",
+    changeItem: "{item} {before} → {after} {unit}",
+    changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
+    changeWithItems: "{items}: {total}",
     changeStillHighOne: "{dim} всё ещё много для одного приёма пищи.",
     changeStillHighTwo: "Оба всё ещё много для одного приёма пищи.",
+    changeStillHighAll: "Всё по-прежнему много для одного приёма пищи.",
     changeToPlan: "{dim} теперь в норме.",
     changeToHigh: "{dim} теперь много для одного приёма пищи.",
     changeToOver: "{dim} теперь выше плана.",
