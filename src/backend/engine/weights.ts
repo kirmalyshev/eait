@@ -72,6 +72,9 @@ export async function weights(
   const value = bmi(log.at(-1)?.kg ?? profile.weight_kg, profile.height_cm);
   return {
     weights: log.filter((e) => e.date >= since),
+    // The newest weigh-in whatever the range cut — the card's current figure and its
+    // none-in-range state read this, the trend's endpoints read the filtered list.
+    latest: log.at(-1) ?? null,
     projection: planProjection(profile, outcome, log, zone),
     bmi: value === null ? null : { value, range: bmiRange(value) },
   };

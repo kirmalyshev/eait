@@ -41,7 +41,12 @@ describe("PROGRESS_COPY", () => {
       expect(copy!.goalEstimate, `${lang}.goalEstimate`).toContain("{month}");
       expect(copy!.weekPlan, `${lang}.weekPlan`).toContain("{plan}");
       expect(copy!.streakDays.other, `${lang}.streakDays`).toContain("{n}");
+      expect(copy!.weightLatestTail.metric, `${lang}.weightLatestTail`).toContain("{date}");
+      expect(copy!.weightLatestTail.imperial, `${lang}.weightLatestTail.imperial`).toContain("{date}");
+      expect(copy!.bmiFrom, `${lang}.bmiFrom`).toContain("{w}");
+      expect(copy!.bmiFrom, `${lang}.bmiFrom`).toContain("{h}");
       for (const r of WEIGHT_RANGES) expect(copy!.ranges[r], `${lang}.ranges.${r}`).toBeTruthy();
+      for (const r of WEIGHT_RANGES) expect(copy!.weightNone[r], `${lang}.weightNone.${r}`).toBeTruthy();
     }
   });
 
@@ -60,6 +65,15 @@ describe("PROGRESS_COPY", () => {
     expect(en.streakLabel).toBe("Streak");
     expect(countText("en")(en.streakDays, 4)).toBe("4 days");
     expect(en.phone.back).toBe("Back");
+    // design-pro's empty states (#95 comments): no log, one point, none in the selected range.
+    expect(en.weightEmpty).toBe("Log a weight to see your trend");
+    expect(en.weightOneMore).toBe("Log another weight to see your trend");
+    expect(en.weightNone["90D"]).toBe("No weights in the last 90 days");
+    expect(en.weightNowTail.metric).toBe("kg");
+    expect(en.weightLatestTail.metric).toBe("kg · {date}");
+    expect(en.bmiEmpty).toBe("Log a weight to see your BMI");
+    expect(en.bmiFrom).toBe("From {w} and {h}");
+    expect(en.goalEstimateFar).toBe("over two years · estimate");
   });
 
   it("reuses the words shared already — the shell's tab, health's label, the chart's name", () => {
