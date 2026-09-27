@@ -22,6 +22,8 @@ const BOARD_ICONS: IconName[] = [
   "balanced", "wholefood", "mediterranean", "flexitarian", "pescatarian", "vegetarian", "vegan",
   // Option rows: medical limits.
   "health", "none",
+  // The Health score and Home page 2 — the score's parts and its "why" affordance.
+  "fibre", "sugar", "help", "salt",
   // Apple Health.
   "sync",
   // Goal rows.

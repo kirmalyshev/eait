@@ -278,6 +278,7 @@ describe("deleteLine", () => {
 describe("the outbox (#708)", () => {
   const proposed = (pendingId: string): HandleTextResult => ({
     kind: "proposed", pendingId, date: TODAY, expiresAt: "2099-01-01T00:00:00.000Z",
+    verdictInline: "", verdictLabels: [],
     analysis: {
       isFood: true, items: [], kcal: 100, protein_g: 1, carbs_g: 1, fat_g: 1, satfat_g: 0, fiber_g: 0,
       sugar_g: 0, sodium_mg: 0, verdicts: {}, healthScore: null, confidence: "low", notes: "",

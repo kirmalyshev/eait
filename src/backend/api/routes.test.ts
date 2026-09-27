@@ -2044,16 +2044,18 @@ describe("the streamed photo route", () => {
     return handle(req);
   };
 
-  it("streams NDJSON when asked: glance, items, then the result as the last line", async () => {
+  it("streams NDJSON when asked: the reading line, glance, items — each carrying its words — then the result as the last line", async () => {
     const token = await session();
     const res = await streamed(token);
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe(NDJSON);
     const events = await ndjson(res);
-    expect(events[0]!.kind).toBe("glance");
+    // `reading` opens the stream — the client's pending line, already worded, never composed there.
+    expect(events[0]).toEqual({ kind: "reading", line: expect.any(String) });
     const last = events.at(-1) as MealLogged;
     expect(last.kind).toBe("logged");
     expect(events.filter((e) => e.kind === "item").length).toBe(last.analysis.items.length);
+    for (const e of events) if (e.kind === "item") expect(typeof e.line).toBe("string");
   });
 
   it("answers JSON, as before, without the accept header", async () => {

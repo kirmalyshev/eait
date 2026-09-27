@@ -35,3 +35,8 @@ test("the chat is empty for a new account, and the composer is there", async ({ 
   await expect(signedIn.getByRole("heading", { name: "Your chat" })).toBeVisible();
   await expect(signedIn.getByPlaceholder("What did you eat?")).toBeVisible();
 });
+
+// The walk's numbers are spoken in the units on screen — en-GB pins metric (98 kg,
+// not 98 lb), so the answers below are metric numbers and the floors hold.
+test.use({ locale: "en-GB" });
+

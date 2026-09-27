@@ -2632,6 +2632,10 @@
               "type": "string"
             },
             "description": "What the user might ask next, in their own words, as chips under the answer. Live turn only: the thread stores the sentence and never the chips, so a stored line carries none. Absent means draw nothing; the app never invents any."
+          },
+          "focus": {
+            "$ref": "#/components/schemas/CoachFocus",
+            "description": "The one macro the answer is about, with the day's numbers — see `CoachFocus`."
           }
         },
         "required": [
@@ -3141,6 +3145,37 @@
         "type": "string",
         "const": "gabie",
         "description": "Who said an assistant line. Absent is Spud, the host; `gabie` is Gabie, the nutritionist who answers in Chat (S9 — she was retired by #49 and restored by the redesign)."
+      },
+      "CoachFocus": {
+        "type": "object",
+        "properties": {
+          "nutrient": {
+            "$ref": "#/components/schemas/CoachNutrient"
+          },
+          "eaten": {
+            "type": "number"
+          },
+          "target": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "nutrient",
+          "eaten",
+          "target"
+        ],
+        "additionalProperties": false,
+        "description": "The macro bar on a coach answer (`chat-coach`): WHICH nutrient is the model's choice of subject — what the answer is about, not a verdict; the figures are the server's, read off the day's totals and the plan's targets at answer time, never taken from the reply. Absent means absent: an answer about no one macro carries none, and neither does the bar.\n\nLive turn only, like `suggestions`: the stored line keeps the sentence and the thread never re-draws the bar."
+      },
+      "CoachNutrient": {
+        "type": "string",
+        "enum": [
+          "protein",
+          "carbs",
+          "fat",
+          "kcal",
+          "satfat"
+        ]
       },
       "ConfirmMealResult": {
         "anyOf": [
@@ -4087,6 +4122,20 @@
           "question": {
             "$ref": "#/components/schemas/MealQuestion",
             "description": "The one thing Spud would ask about this plate, when there is one worth asking.\n\nABSENT is the normal case, and the surface must render nothing for it: the engine only asks about a low-confidence plate, past an account's first meal, when the account could afford the reply. The answer goes back through the ordinary text turn with this meal in focus, so the chips are a shortcut for typing rather than a route of their own."
+          },
+          "verdictLabels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VerdictLabel"
+            },
+            "description": "The verdict's words on the payload — the pills, `verdictPillLabel` per visible verdict in the account's language. The browser bundle carries no i18n catalog, so every verdict a card draws arrives already worded: a client renders these and composes nothing itself."
+          },
+          "verdictHeadline": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Spud's one-sentence verdict for the card — `verdictHeadline`; null when the verdicts say nothing."
           }
         },
         "required": [
@@ -4095,7 +4144,9 @@
           "analysis",
           "totals",
           "date",
-          "hint"
+          "hint",
+          "verdictLabels",
+          "verdictHeadline"
         ],
         "additionalProperties": false,
         "description": "A meal that reached the diary, with everything a card needs to render."
@@ -4120,6 +4171,16 @@
           "expiresAt": {
             "type": "string",
             "description": "ISO 8601. When this estimate stops being confirmable, SENT rather than compiled into both sides — the rule `PairCodeResponse.expiresAt` states, and the same reason: the TTL (`EAIT__BACKEND__PENDING_TTL_MINUTES`) is a limit the server enforces, and a client carrying its own copy of the number eventually disagrees with the one doing the refusing.\n\nA surface reads it to stop OFFERING a confirm it cannot honour (`proposalLive`, #367). It is a courtesy and never the guarantee: the row is swept on the next proposal and deleted lazily on read, and `POST /confirm` answers 410 either way."
+          },
+          "verdictInline": {
+            "type": "string",
+            "description": "The verdict words the proposal card draws — `verdictInlineText` joined (\"calories high · saturated fat high\", empty when all on plan) and `verdictPillLabel` per visible verdict — composed where the verdict was computed: the bundle that renders them holds no i18n catalog."
+          },
+          "verdictLabels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VerdictLabel"
+            }
           }
         },
         "required": [
@@ -4127,7 +4188,9 @@
           "pendingId",
           "analysis",
           "date",
-          "expiresAt"
+          "expiresAt",
+          "verdictInline",
+          "verdictLabels"
         ],
         "additionalProperties": false,
         "description": "A text meal awaiting confirmation. Nothing is in the diary yet."
@@ -4245,6 +4308,17 @@
           "photos": {
             "type": "number",
             "description": "How many photos are stored for it. Absent on rows from before photos existed, and in fixtures — read as 0."
+          },
+          "verdictInline": {
+            "type": "string",
+            "description": "The row's own verdict line — \"calories high · saturated fat high\", `verdictInlineText` in the account's language, joined server-side and empty when every verdict is on plan. Optional: the reads that serve a row (the diary day, the thread's meal arm) set it; a bare `MealRecord` built by hand has none."
+          },
+          "verdictLabels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VerdictLabel"
+            },
+            "description": "The pills' words — `verdictPillLabel` per visible verdict, in render order. Same rule: set by the reads, absent on a bare row."
           }
         },
         "required": [
@@ -4328,6 +4402,20 @@
               "reanalysis"
             ],
             "description": "How the change was made. `manual` = the user edited numbers; `nl` = they described the fix; `reanalysis` = the analyzer re-read the stored photo."
+          },
+          "verdictLabels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VerdictLabel"
+            },
+            "description": "The pills' words for the edited analysis — `verdictPillLabel` per visible verdict, localized. Never describes numbers that have since changed: computed at write."
+          },
+          "verdictHeadline": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Spud's one-sentence verdict after the edit — `verdictHeadline`; null when nothing to say."
           }
         },
         "required": [
@@ -4336,7 +4424,9 @@
           "analysis",
           "totals",
           "date",
-          "via"
+          "via",
+          "verdictLabels",
+          "verdictHeadline"
         ],
         "additionalProperties": false
       },
@@ -5036,6 +5126,23 @@
             "properties": {
               "kind": {
                 "type": "string",
+                "const": "reading"
+              },
+              "line": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "line"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
                 "const": "glance"
               },
               "text": {
@@ -5060,17 +5167,21 @@
               },
               "item": {
                 "$ref": "#/components/schemas/MealItem"
+              },
+              "line": {
+                "type": "string"
               }
             },
             "required": [
               "kind",
               "index",
-              "item"
+              "item",
+              "line"
             ],
             "additionalProperties": false
           }
         ],
-        "description": "The stream's progress lines: zero or one `glance`, zero or more `item`. Shared by the photo turn and an edit (#608)."
+        "description": "The stream's progress lines, each carrying its own words: `reading` fires first — \"Reading the plate…\" in the account's language, so the client prints rather than composes it — then zero or one `glance` (whose model-written text IS the line) and zero or more `item` events, each with the weighing line alongside the row. Shared by the photo turn and an edit (#608)."
       },
       "PhotoResponse": {
         "$ref": "#/components/schemas/LogPhotoResult"
@@ -5766,6 +5877,35 @@
           "warn",
           "bad"
         ]
+      },
+      "VerdictDimension": {
+        "type": "string",
+        "enum": [
+          "weight",
+          "ldl",
+          "kidneys"
+        ]
+      },
+      "VerdictLabel": {
+        "type": "object",
+        "properties": {
+          "dimension": {
+            "$ref": "#/components/schemas/VerdictDimension"
+          },
+          "tone": {
+            "$ref": "#/components/schemas/Verdict"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "dimension",
+          "tone",
+          "label"
+        ],
+        "additionalProperties": false,
+        "description": "One verdict's words, sent on the payload: the dimension, its tone, and the pill's label in the account's language. The browser bundle carries no i18n catalog (`deploy/Dockerfile.web` builds it with no `node_modules`), so a client renders this list and never composes it — a verdict's words beside its own numbers, computed where the verdict was."
       },
       "WebPaywall": {
         "type": "object",
