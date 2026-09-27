@@ -37,10 +37,13 @@ body { margin: 0; background: var(--bg); color: var(--ink);
    link fills the bar's height — the underline lands on its bottom edge, and the box is the tap
    target (#53). */
 .wnav { align-self: stretch; display: flex; gap: 22px; font-size: 14px; font-weight: 500; }
-.wnav a { position: relative; display: flex; align-items: center; justify-content: center;
+.wnav a { display: flex; align-items: center; justify-content: center;
   min-width: 44px; color: var(--muted); text-decoration: none; white-space: nowrap; }
 .wnav a.on { color: var(--ink); font-weight: 600; }
-.wnav a.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px;
+/* The label in its own span, stretched to the link's height: the underline it carries spans the
+   WORD, not the link's 44px box — the boards underline the label, and a box-wide rule overhangs it. */
+.wnav a .lbl { position: relative; align-self: stretch; display: flex; align-items: center; }
+.wnav a.on .lbl::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px;
   /* The boards' mark: the accent covers the header's bottom hairline and runs 1px below it
      (pro.css's a.on::after), so the active tab reads as a cut in the line, not a line above it. */
   background: var(--accent); }

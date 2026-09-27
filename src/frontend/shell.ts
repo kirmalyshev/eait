@@ -156,8 +156,11 @@ function chrome(route: string | null, right?: HTMLElement): HTMLElement {
   for (const tab of TABS) {
     if (!hasScreen(tab.hash)) continue;
     const on = tab.hash === activeTab(route);
-    const a = el("a", on ? "on" : "", SCOPY[tab.label]) as HTMLAnchorElement;
+    const a = el("a", on ? "on" : "") as HTMLAnchorElement;
     a.href = tab.hash;
+    // The label in its own span: the boards' underline covers the WORD's width — the link's box is
+    // the 44px tap target (#53), wider than the text it names.
+    a.append(el("span", "lbl", SCOPY[tab.label]));
     if (on) a.setAttribute("aria-current", "page");
     nav.append(a);
   }
@@ -167,8 +170,9 @@ function chrome(route: string | null, right?: HTMLElement): HTMLElement {
     //
     // ADVISORY. The server checks the role again on every request under /admin, so setting the flag
     // by hand in a console buys a menu entry with nothing behind it.
-    const a = el("a", "", COPY.navAdmin) as HTMLAnchorElement;
+    const a = el("a", "") as HTMLAnchorElement;
     a.href = "/admin";
+    a.append(el("span", "lbl", COPY.navAdmin));
     nav.append(a);
   }
   bar.append(nav, el("span", "sp"));
