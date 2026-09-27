@@ -9,7 +9,7 @@
 import { MAX_PROFILE_TEXT,
   DIETS, LANGS, MEDICAL_TAGS, PACES, RESTRICTION_TAGS, SEXES, STRUGGLES, UNITS,
   checkTargetWeight, explainTargets,
-  isAcceptableWeightKg, isDietTag, isMedicalTag, localDate, migrateActivityLevel, offerMath,
+  isAcceptableWeightKg, isDietTag, isMedicalTag, dateMinus, localDate, migrateActivityLevel, offerMath,
   paywallPrice, perMonth, threadCopyFor,
   type Lang, type Pace, type PatchProfileRequest, type Profile,
   type Limits, type ProfileRejected, type ProfileResponse, type WebPaywall,
@@ -127,6 +127,23 @@ function paywallOf(deps: EngineDeps, lang: Lang, userId: string): WebPaywall {
   };
 }
 
+/**
+ * How fresh a health sync has to be before "connected" is claimed on it (`ProfileResponse.healthConnected`,
+ * #97). A week, in the server's zone: the phone syncs on every launch, so a row older than that is
+ * a sync that stopped.
+ */
+const HEALTH_CONNECTED_DAYS = 7;
+
+/**
+ * Whether this account's health sync is live: a `HealthDay` row exists inside the window.
+ * Computed here rather than asked of the client, because a boolean the client could set for
+ * itself would be a claim, not a fact.
+ */
+async function healthConnected(deps: EngineDeps, userId: string): Promise<boolean> {
+  const since = dateMinus(localDate(deps.config.timezone), HEALTH_CONNECTED_DAYS - 1);
+  return (await deps.store.healthDaysSince(userId, since)).length > 0;
+}
+
 export async function profileView(deps: EngineDeps, userId: string): Promise<ProfileResponse | null> {
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
@@ -136,6 +153,7 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
     profile, targets, basis, onboarded: profile.onboarded_at !== null,
     isAdmin: await deps.store.roleOf(userId) === "admin",
     limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
+    healthConnected: await healthConnected(deps, userId),
     pairAddress: pairAddressOf(deps.config),
     telegramBot: deps.config.telegramBotUsername || null,
     paywall: paywallOf(deps, profile.lang, userId),
@@ -358,6 +376,7 @@ export async function patchProfile(
       profile, targets, basis, onboarded: profile.onboarded_at !== null,
       isAdmin: await deps.store.roleOf(userId) === "admin",
       limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
+      healthConnected: await healthConnected(deps, userId),
       pairAddress: pairAddressOf(deps.config),
       telegramBot: deps.config.telegramBotUsername || null,
       paywall: paywallOf(deps, profile.lang, userId),
