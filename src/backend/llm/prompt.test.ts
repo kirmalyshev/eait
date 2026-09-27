@@ -29,7 +29,7 @@ test("every text prompt asks for the per-item numbers the schema requires", () =
 // about identification, so the two have to be told apart in the text a model actually reads.
 
 const PROFILE = blankProfile("u", "en");
-const TARGETS = { kcal: 2000, protein_g: 120 };
+const TARGETS = { kcal: 2000, protein_g: 120, fat_g: 67, carbs_g: 229 };
 
 test("renders the correction-learned prior, to one decimal, as its own instruction", () => {
   const text = buildUserText(PROFILE, TARGETS, {
@@ -76,7 +76,7 @@ const PLATE = {
 };
 
 const QPROFILE = { lang: "en", restrictions: [] } as unknown as Profile;
-const QTARGETS: FoodTargets = { kcal: 2000, protein_g: 140 };
+const QTARGETS: FoodTargets = { kcal: 2000, protein_g: 140, fat_g: 67, carbs_g: 230 };
 
 test("the photo prompt is allowed one closed question, and never one about the eater", () => {
   expect(SYSTEM).toContain("Never ask about the user's body or goals.");
@@ -146,7 +146,7 @@ const BASIS = { bmr: 1400, tdee: 2100, requestedDeltaKcal: -500, appliedDeltaKca
 
 const coachInput = (over: Partial<Parameters<typeof buildCoachContext>[0]> = {}) => ({
   profile: { ...PROFILE, lang: "de" as const, goal: "lose" as const, restrictions: ["kidneys"], food_allergies: "peanuts" },
-  targets: { kcal: 1680, protein_g: 110, sodium_mg: 2000 },
+  targets: { kcal: 1680, protein_g: 110, fat_g: 56, carbs_g: 195, sodium_mg: 2000 },
   basis: BASIS,
   today: "2026-09-02", localTime: "19:10",
   todayMeals: [{ items: ["Rice", "Chicken"], kcal: 640, protein_g: 42 }],
@@ -239,12 +239,12 @@ test("the coach context carries the plan, the day with what is left, the week ag
 test("a declared restriction without a cap still reaches the coach, and the profile weight is dated", () => {
   const text = buildCoachContext(coachInput({
     profile: { ...PROFILE, restrictions: ["vegan", "lowsugar"], weight_kg: 93, weight_measured_at: "2026-01-15T09:00:00.000Z" },
-    targets: { kcal: 1680, protein_g: 110 },
+    targets: { kcal: 1680, protein_g: 110, fat_g: 56, carbs_g: 195 },
   }));
   expect(text).toContain("Declared restrictions: vegan, diabetes risk (low sugar).");
   expect(text).toContain("Scored against them: nothing beyond kcal and protein.");
   expect(text).toContain("last known weight 93 kg (measured 2026-01-15; the trend is in get_health)");
-  const bare = buildCoachContext(coachInput({ profile: { ...PROFILE, restrictions: [] }, targets: { kcal: 1680, protein_g: 110 } }));
+  const bare = buildCoachContext(coachInput({ profile: { ...PROFILE, restrictions: [] }, targets: { kcal: 1680, protein_g: 110, fat_g: 56, carbs_g: 195 } }));
   expect(bare).toContain("Declared restrictions: none.");
 });
 

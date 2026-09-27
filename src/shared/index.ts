@@ -34,11 +34,14 @@ export * from "./stream.ts";
 export * from "./typing.ts";
 export * from "./budget.ts";
 export * from "./outbox.ts";
+export * from "./paywall.ts";
 // THE DESIGN SYSTEM (#28). Exported from the barrel AND available as `@eait/shared/design`: the
 // subpath is for the two readers that must not pull the barrel in — `app.config.ts`, which runs
 // under Node inside Expo's config loader, and the app's own `palette.ts`, which imports nothing
 // that touches react-native.
 export * from "./design.ts";
+export * from "./ui/charts.ts";
+export * from "./ui/units.ts";
 // The icon set (#79). Same deal as the design tokens: in the barrel, and directly at
 // `@eait/shared/ui/icons` for a renderer that wants the data without the barrel.
 export * from "./ui/icons.ts";

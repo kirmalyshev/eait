@@ -7,10 +7,10 @@
 // simply be told no.
 
 import { MAX_PROFILE_TEXT,
-  ACTIVITY_LEVELS, LANGS, PACES, RESTRICTION_TAGS, checkTargetWeight, explainTargets,
-  isAcceptableWeightKg,
-  type ActivityLevel, type Lang, type Pace, type PatchProfileRequest, type Profile,
-  type Limits, type ProfileRejected, type ProfileResponse,
+  LANGS, PACES, RESTRICTION_TAGS, SEXES, checkTargetWeight, explainTargets,
+  isAcceptableWeightKg, migrateActivityLevel, offerMath, paywallPrice, perMonth,
+  type Lang, type Pace, type PatchProfileRequest, type Profile,
+  type Limits, type ProfileRejected, type ProfileResponse, type WebPaywall,
   ROUTES,
 } from "@eait/shared";
 import { MIN_AGE } from "@eait/shared";
@@ -88,6 +88,43 @@ function pairAddressOf(config: { publicWebUrl: string; publicApiUrl: string }): 
   return `${origin.replace(/^https?:\/\//, "").replace(/\/+$/, "")}${ROUTES.webStart}`;
 }
 
+/**
+ * The web paywall, computed per account (#77): the operator's `EAIT__BACKEND__WEB_*` block with
+ * every price formatted in the account's language and configured currency, the offer's discount
+ * derived by the shared `offerMath` (never a fixed percentage), and `{userId}` filled into every
+ * checkout link from THIS account — the one the credential resolved, so no client ever carries an
+ * id it was not issued.
+ *
+ * A plan with no configured checkout is null rather than half-offered, and an exit offer whose
+ * discount cannot stand — a regular price of nothing, or a saving under one percent — is no offer
+ * at all: the decline then goes straight to the app.
+ */
+function paywallOf(deps: EngineDeps, lang: Lang, userId: string): WebPaywall {
+  const w = deps.config.webPaywall;
+  const url = (template: string) => template.replaceAll("{userId}", encodeURIComponent(userId));
+  const price = (n: number) => paywallPrice(n, w.currency, lang);
+  const math = offerMath(w.exitOfferRegularPrice, w.exitOfferPrice);
+  return {
+    trialDays: w.trialDays,
+    yearly: w.yearlyCheckoutUrl === "" ? null : {
+      checkoutUrl: url(w.yearlyCheckoutUrl),
+      price: price(w.yearlyPrice),
+      pricePerMonth: price(perMonth(w.yearlyPrice)),
+    },
+    monthly: w.monthlyCheckoutUrl === "" ? null : {
+      checkoutUrl: url(w.monthlyCheckoutUrl),
+      price: price(w.monthlyPrice),
+    },
+    exitOffer: w.exitOfferCheckoutUrl === "" || math === null ? null : {
+      checkoutUrl: url(w.exitOfferCheckoutUrl),
+      price: price(w.exitOfferPrice),
+      regularPrice: price(w.exitOfferRegularPrice),
+      percentOff: math.percentOff,
+      perMonth: price(math.perMonth),
+    },
+  };
+}
+
 export async function profileView(deps: EngineDeps, userId: string): Promise<ProfileResponse | null> {
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
@@ -99,6 +136,7 @@ export async function profileView(deps: EngineDeps, userId: string): Promise<Pro
     limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
     pairAddress: pairAddressOf(deps.config),
     telegramBot: deps.config.telegramBotUsername || null,
+    paywall: paywallOf(deps, profile.lang, userId),
   };
 }
 
@@ -144,7 +182,7 @@ export async function patchProfile(
     patch.goal = req.goal;
   }
   if (req.sex !== undefined) {
-    if (req.sex !== null && !["female", "male"].includes(req.sex)) return reject("sex", "out-of-range");
+    if (req.sex !== null && !(SEXES as readonly string[]).includes(req.sex)) return reject("sex", "out-of-range");
     patch.sex = req.sex;
   }
   // Asked as an AGE; the server does the subtraction, with its own clock — see the contract's
@@ -199,10 +237,11 @@ export async function patchProfile(
     patch.target_weight_kg = req.target_weight_kg;
   }
   if (req.activity !== undefined) {
-    if (req.activity !== null && !(ACTIVITY_LEVELS as readonly string[]).includes(req.activity)) {
-      return reject("activity", "out-of-range");
-    }
-    patch.activity = req.activity as ActivityLevel | null;
+    // Stored values migrate with the enum (targets v2, decision 7): a build still speaking the
+    // five-level vocabulary lands migrated rather than refused. A word from no vocabulary still is.
+    const activity = req.activity === null ? null : migrateActivityLevel(req.activity);
+    if (req.activity !== null && activity === null) return reject("activity", "out-of-range");
+    patch.activity = activity;
   }
   if (req.pace !== undefined) {
     if (req.pace !== null && !(PACES as readonly string[]).includes(req.pace)) {
@@ -253,6 +292,7 @@ export async function patchProfile(
       limits: await limitsOf(deps, userId, entitlement.active), timezone: deps.config.timezone, entitlement,
       pairAddress: pairAddressOf(deps.config),
       telegramBot: deps.config.telegramBotUsername || null,
+      paywall: paywallOf(deps, profile.lang, userId),
     },
   };
 }

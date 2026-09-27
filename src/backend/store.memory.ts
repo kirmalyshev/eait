@@ -4,7 +4,7 @@
 // are enforced here exactly as they are in Postgres, so a test that proves "another user's meal id
 // resolves to null" is proving something about the engine rather than about a mock's mood.
 
-import { dateMinus, localDate, signsIn } from "@eait/shared";
+import { dateMinus, localDate, migrateActivityLevel, signsIn } from "@eait/shared";
 import type {
   DayTotals, HealthDay, Lang, MealRecord, NotificationCopySet, OnboardingContentSet, OnboardingEvent,
   Profile, Provider,
@@ -679,7 +679,12 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async getProfile(userId) {
       const p = users.get(userId);
-      return p ? clone(p) : null;
+      if (!p) return null;
+      // The same read-side migration `rowToProfile` applies in store.pg: an activity level in the
+      // five-level vocabulary — however it got here — answers in the three-level one.
+      const next = clone(p);
+      next.activity = migrateActivityLevel(next.activity);
+      return next;
     },
 
     async patchProfile(userId, patch: ProfilePatch) {

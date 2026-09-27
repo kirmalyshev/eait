@@ -24,6 +24,7 @@
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 
 import { lightVars } from "../../shared/palette.ts";
+import { fontFaces, motionCss } from "../../shared/design.ts";
 
 /** Where `bun run build` in this workspace puts the bundle. The only default; tests pass their own. */
 export const DEFAULT_BUNDLE_PATH = new URL("../dist/main.js", import.meta.url);
@@ -70,30 +71,25 @@ function shell(nonce: string): string {
    /start flow all draw from that one copy, and a fourth set of hexes here is a fourth thing to
    keep in step. Imported by RELATIVE path, like dayBudget and copy.ts (#608). */
 :root { ${lightVars}
-  /* The same pair /start declares (backend/web/page.ts): the system stack under the one display
-     face, so a fallback reads like a fallback and not like a second design. */
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
-  --display: "Space Grotesk", var(--sans);
+  /* The same pair /start declares (backend/web/page.ts): the register's one family under the
+     system stack, so a fallback reads like a fallback and not like a second design. */
+  --sans: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Helvetica, Arial, sans-serif;
+  --display: "Montserrat", var(--sans);
 }
 /* LIGHT, ALWAYS — the landing's rule, settled for this surface too (spud-web, #825): both surfaces
    are light and neither consults the OS, so there is no dark half of this stylesheet to keep in
    step. The tokens' dark block stays in shared/palette.ts for the app, not for this page. */
-/* THE ONE TYPEFACE is /start's own, from /start's own route: the backend serves the landing's file
-   at FONT_PATH (backend/web/page.ts), and the edge puts /start/* on this same origin — so
-   font-src 'self' is all the CSP needs and nothing is fetched from anyone else. */
-@font-face {
-  font-family: "Space Grotesk";
-  src: url("/start/assets/space-grotesk-latin.woff2") format("woff2");
-  font-weight: 300 700;
-  font-display: swap;
-}
+/* THE ONE TYPEFACE is /start's own, from /start's own route: the backend serves the files kept
+   once in shared/assets/fonts (backend/web/page.ts), and the edge puts /start/* on this same
+   origin — so font-src 'self' is all the CSP needs and nothing is fetched from anyone else. */
+${fontFaces("/start/assets/fonts")}
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--ink); color: var(--text);
+body { margin: 0; background: var(--bg); color: var(--ink);
   font: 15px/1.5 var(--display); }
 /* FOCUS IS VISIBLE (#53): a 2px ring in the text ink, offset 2px so it stands clear of the
    control's own border. --text on these grounds is far past the 3:1 a focus indicator needs —
    and on the accent surfaces, the offset puts the ring on the light around them. */
-:is(a, button, input, select, textarea):focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+:is(a, button, input, select, textarea):focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 /* NUMBERS IN THE ONE FACE, tabular so a column of them holds still. The third face is gone: the
    boards set figures in the main face and so does this page. The unit still sits OUTSIDE the span —
    its space is the face's own. */
@@ -109,8 +105,8 @@ body { margin: 0; background: var(--ink); color: var(--text);
 .wbar .mark svg { width: 30px; height: 24px; display: block; }
 .wnav { display: flex; gap: 6px; margin-left: auto; }
 .wcol { width: 100%; max-width: 38.75rem; margin: 0 auto; flex: 1; padding: 18px 20px 30px;
-  background: var(--panel); border-radius: 26px 26px 0 0;
-  box-shadow: 0 -1px 0 var(--line), 0 20px 50px -30px color-mix(in srgb, var(--text) 40%, transparent); }
+  background: var(--surface); border-radius: 26px 26px 0 0;
+  box-shadow: 0 -1px 0 var(--hair), 0 20px 50px -30px color-mix(in srgb, var(--ink) 40%, transparent); }
 .body { min-width: 0; }
 /* The centred title the boards draw above each screen's own column. */
 .top { text-align: center; padding: 6px 0 12px; }
@@ -130,7 +126,7 @@ h2 { font-size: 17px; }
 .floor { font-size: 12px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--care); }
 
 progress { display: block; width: 100%; height: 4px; margin: .5rem 0 .25rem; appearance: none; border: 0;
-  border-radius: 3px; overflow: hidden; background: var(--line-strong); }
+  border-radius: 3px; overflow: hidden; background: var(--line); }
 progress::-webkit-progress-bar { background: transparent; }
 progress::-webkit-progress-value { background: var(--accent); border-radius: 3px; }
 progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
@@ -139,17 +135,17 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 
 /* The boards' panel: a light surface one step up from the ground, with the hairline and the soft
    shadow /start's card already carries. */
-.card { padding: 1rem 1.1rem; background: var(--raised); border: 1px solid var(--line);
+.card { padding: 1rem 1.1rem; background: var(--surface); border: 1px solid var(--hair);
   border-radius: 18px; margin-bottom: 14px;
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 4%, transparent); }
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 4%, transparent); }
 /* THE DATE SWITCHER (#71): a white bar at the top of the day — the chevrons at the two ends, the
    day's name centred between them, and the ONE place the date is written. The relative day carries
    the date as a quiet sub-line; any other day's name is the date, so nothing prints twice. */
 .daybar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; padding: 6px 10px;
-  background: var(--raised); border: 1px solid var(--line); border-radius: 999px;
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 4%, transparent); }
+  background: var(--surface); border: 1px solid var(--hair); border-radius: 999px;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 4%, transparent); }
 .daybtn { flex: 0 0 44px; width: 44px; height: 44px; border: 0; border-radius: 50%; cursor: pointer;
-  background: none; color: var(--text); font: inherit; font-size: 20px;
+  background: none; color: var(--ink); font: inherit; font-size: 20px;
   display: inline-flex; align-items: center; justify-content: center; }
 .daylabel { flex: 1; min-width: 0; text-align: center; }
 .dayname { margin: 0; font-size: 15px; }
@@ -166,15 +162,15 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 .tab { color: var(--muted); text-decoration: none; padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; white-space: nowrap;
   /* A nav item is a tap target: the pill keeps its shape, the box grows to 44px (#53). */
   display: inline-flex; align-items: center; min-height: 44px; }
-.tab.on { color: var(--accent); background: var(--raised); }
+.tab.on { color: var(--accent); background: var(--surface); }
 /* You — the account's rows: label and control, a hairline between. */
-.you > * + * { border-top: 1px solid var(--line); }
+.you > * + * { border-top: 1px solid var(--hair); }
 .you .rowline { padding: 12px 2px; }
 .you .pick { font: inherit; font-size: 16px; font-weight: 700; padding: 10px 14px; border-radius: 999px; max-width: 62%;
   min-height: 44px;
-  border: 1px solid var(--line-strong); background: var(--raised); color: var(--text); }
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
 .you-act { display: flex; align-items: center; justify-content: space-between; width: 100%;
-  padding: 14px 2px; background: none; border: 0; font: inherit; font-weight: 700; color: var(--text);
+  padding: 14px 2px; background: none; border: 0; font: inherit; font-weight: 700; color: var(--ink);
   cursor: pointer; text-align: left; }
 .you-act::after { content: "›"; color: var(--muted); font-size: 18px; }
 .primary { display: inline-block; margin-top: .75rem; padding: 0 18px; height: 44px; line-height: 44px;
@@ -186,8 +182,8 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
    mechanism anywhere in the product. */
 .meals { width: 100%; border-collapse: collapse; }
 .meals th { text-align: left; font-size: 12px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase;
-  color: var(--dim); padding: 0 12px 10px; border-bottom: 1px solid var(--line-strong); }
-.meals td { padding: 11px 12px; border-bottom: 1px solid var(--line); }
+  color: var(--faint); padding: 0 12px 10px; border-bottom: 1px solid var(--line); }
+.meals td { padding: 11px 12px; border-bottom: 1px solid var(--hair); }
 .meals tr:last-child td { border-bottom: 0; }
 .meals .num { text-align: right; white-space: nowrap; }
 /* The guessed row, and the only colour in the list. */
@@ -203,13 +199,13 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 .thread { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
 .line { display: flex; flex-direction: column; align-items: flex-start; }
 .line .bub { margin: 0; padding: .55rem .9rem; width: fit-content; max-width: 86%; border-radius: 18px;
-  border-bottom-left-radius: 6px; background: var(--raised); border: 1px solid var(--line); }
+  border-bottom-left-radius: 6px; background: var(--surface); border: 1px solid var(--hair); }
 .line.mine { align-items: flex-end; }
 .line.mine .bub { background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
   border-bottom-left-radius: 18px; border-bottom-right-radius: 6px; max-width: 80%; }
 .line.buddy { flex-direction: row; gap: 10px; }
 .line .av { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%; overflow: hidden;
-  background: var(--raised); border: 1px solid var(--line);
+  background: var(--surface); border: 1px solid var(--hair);
   display: flex; align-items: center; justify-content: center; }
 .line .av svg { width: 30px; height: 30px; display: block; }
 .line.buddy .col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
@@ -221,21 +217,21 @@ progress::-moz-progress-bar { background: var(--accent); border-radius: 3px; }
 .notice { margin: 1rem 0 0; }
 /* THE ONE COMPOSER, on Chat and on Today alike: "Add a photo" in front of the native input, the
    field, the round send. It stays at the foot of the column while the thread scrolls under it. */
-.comp { margin-top: 14px; position: sticky; bottom: 0; background: var(--panel); padding: 10px 0 4px; }
+.comp { margin-top: 14px; position: sticky; bottom: 0; background: var(--surface); padding: 10px 0 4px; }
 .comp-row { display: flex; align-items: center; gap: 8px; }
 .comp .add { flex: 0 0 auto; min-height: 44px; padding: 0 16px; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--line-strong); background: var(--raised); color: var(--text);
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
   font: 700 13px var(--display); }
 .comp .fld { flex: 1 1 8rem; min-width: 0; font: inherit; font-size: 16px; padding: 11px 16px; border-radius: 999px;
   min-height: 44px;
-  border: 1px solid var(--line-strong); color: var(--text); background: var(--raised); }
+  border: 1px solid var(--line); color: var(--ink); background: var(--surface); }
 .comp .send { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer;
   background: var(--accent); color: var(--accent-ink); font: inherit; font-size: 18px; font-weight: 700;
   display: inline-flex; align-items: center; justify-content: center; }
 .comp-note { display: flex; align-items: center; gap: 6px; }
 .comp-note .count { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .card button { padding: 0 16px; min-height: 44px; border-radius: 999px; cursor: pointer; font: inherit;
-  font-weight: 700; color: var(--text); background: var(--raised); border: 1px solid var(--line);
+  font-weight: 700; color: var(--ink); background: var(--surface); border: 1px solid var(--hair);
   margin: .5rem .5rem 0 0; }
 .card button.primary { background: var(--accent); color: var(--accent-ink); }
 input:disabled, button:disabled { opacity: .5; cursor: default; }
@@ -252,27 +248,27 @@ input:disabled, button:disabled { opacity: .5; cursor: default; }
 .ask { font-size: 21px; line-height: 1.25; font-weight: 800; letter-spacing: -.02em; margin: 0; }
 .step { display: flex; flex-direction: column; }
 .step .card input[type="text"], .step .card select { display: block; width: 100%; box-sizing: border-box;
-  font: inherit; font-size: 16px; min-height: 44px; padding: .55rem .8rem; border-radius: 999px; color: var(--text); background: var(--raised);
-  border: 1px solid var(--line); margin: .4rem 0 0; }
+  font: inherit; font-size: 16px; min-height: 44px; padding: .55rem .8rem; border-radius: 999px; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--hair); margin: .4rem 0 0; }
 .step .card .lab + .lab { margin-top: .9rem; }
 .step-foot { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
 .cta { display: flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 18px;
   border: 0; border-radius: 999px; font: inherit; font-weight: 800; text-decoration: none; cursor: pointer; }
 .cta.p { background: var(--accent); color: var(--accent-ink); }
-.cta.s { background: var(--raised); color: var(--text); border: 1px solid var(--line); }
+.cta.s { background: var(--surface); color: var(--ink); border: 1px solid var(--hair); }
 .cta.g { background: none; color: var(--muted); min-height: 44px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);
   white-space: nowrap; }
 .drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-  min-height: 150px; border: 1.5px dashed var(--line-strong); border-radius: 16px; color: var(--muted);
+  min-height: 150px; border: 1.5px dashed var(--line); border-radius: 16px; color: var(--muted);
   cursor: pointer; text-align: center; padding: 16px; }
-.drop.over, .drop:focus-within { border-color: var(--accent); color: var(--text); }
+.drop.over, .drop:focus-within { border-color: var(--accent); color: var(--ink); }
 /* The input inside is clipped, so the ring goes on the zone — the visible thing focus lands in. */
-.drop:focus-within { outline: 2px solid var(--text); outline-offset: 2px; }
-.drop .drop-lead { font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
+.drop:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; }
+.drop .drop-lead { font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
 .drop small { color: var(--faint); }
 .stats { display: flex; gap: 10px; margin-top: 12px; }
-.stat-cell { flex: 1; background: var(--panel); border-radius: 12px; padding: 10px 12px; }
+.stat-cell { flex: 1; background: var(--surface); border-radius: 12px; padding: 10px 12px; }
 .stat-num { font-size: 18px; font-weight: 800; margin-top: 2px; }
 .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .pill { display: inline-flex; align-items: center; min-height: 30px; padding: 0 12px; border-radius: 999px;
@@ -285,7 +281,7 @@ input:disabled, button:disabled { opacity: .5; cursor: default; }
 .perk .tick { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
   border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 13px; flex: 0 0 22px; }
 .rowline { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
-.rowline + .rowline { border-top: 1px solid var(--line); }
+.rowline + .rowline { border-top: 1px solid var(--hair); }
 .rowline .when { font-weight: 700; }
 /* The plan rows are real radios — the input is native, so the keyboard works without a shim. */
 .plans { padding-top: 4px; padding-bottom: 4px; margin-bottom: 14px; }
@@ -294,6 +290,9 @@ input:disabled, button:disabled { opacity: .5; cursor: default; }
   accent-color: var(--accent); cursor: pointer; }
 .hint { color: var(--muted); font-size: 13px; text-align: center; margin: 2px 0 0; }
 @media (max-width: 760px) { .flow { max-width: none; } }
+/* The register's motion vocabulary, generated (#78): the six verbs, their keyframes, the stagger
+   property and the reduced-motion block — never a duration retyped into this file. */
+${motionCss()}
 </style>
 </head>
 <body>
@@ -431,7 +430,7 @@ export function createWebApp(options: WebAppOptions = {}) {
               `script-src 'nonce-${nonce}'`,
               `style-src 'nonce-${nonce}'`,
               "img-src 'self' data:",
-              // Space Grotesk comes off the backend's own /start/assets route — same origin here.
+              // Montserrat comes off the backend's own /start/assets route — same origin here.
               "font-src 'self'",
               "connect-src 'self'",
               "base-uri 'none'",

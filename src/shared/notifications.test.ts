@@ -191,7 +191,7 @@ describe("fillNotification", () => {
 });
 
 describe("eveningPrescription", () => {
-  const targets = { kcal: 2100, protein_g: 130 };
+  const targets = { kcal: 2100, protein_g: 130, fat_g: 70, carbs_g: 262 };
 
   it("names the protein gap when it is the biggest one", () => {
     const line = eveningPrescription({

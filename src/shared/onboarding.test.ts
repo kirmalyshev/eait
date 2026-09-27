@@ -13,7 +13,7 @@ import {
   suggestionFirst, LANGS, type CountryCode,
   type CountrySignals,
   REPORTABLE_FIELDS, SCREEN_FIELDS, disabledScreens,
-  screenForStep, usableContent, validateOnboardingContent,
+  onboardingContentFor, screenForStep, usableContent, validateOnboardingContent,
   type OnboardingContent, type Profile,
 } from "./index.ts";
 
@@ -31,7 +31,7 @@ function profile(over: Partial<Profile> = {}): Profile {
 /** A complete profile, one field short of done. */
 const ANSWERED = profile({
   goal: "lose", sex: "male", birth_year: 1990, height_cm: 183, weight_kg: 93,
-  target_weight_kg: 88, activity: "moderate", pace: "steady", country: "de",
+  target_weight_kg: 88, activity: "some", pace: "steady", country: "de",
 });
 
 const clone = (c: OnboardingContent): OnboardingContent => structuredClone(c);
@@ -101,6 +101,15 @@ describe("the shipped copy", () => {
       for (const [key, o] of Object.entries(screen.options)) {
         expect(o.label.trim(), `${screen.id}.${key}`).not.toBe("");
       }
+    }
+  });
+
+  it("offers 'other' as a sex, labelled in every shipped language", () => {
+    // A third enum value the chips cannot render is a dead option. `screenOptionValues` supplies
+    // the order; the content owes each a label, in all eight.
+    for (const lang of LANGS) {
+      const about = onboardingContentFor(lang).screens.find((s) => s.id === "about")!;
+      expect(about.options?.other?.label.trim(), `about.options.other (${lang})`).toBeTruthy();
     }
   });
 
@@ -209,10 +218,10 @@ describe("validation refuses what would break the app", () => {
   it("a missing option label — the blank tappable chip", () => {
     const errors = bad((c) => {
       const activity = c.screens.find((s) => s.id === "activity")!;
-      delete activity.options!.athlete;
+      delete activity.options!.many;
       return c;
     });
-    expect(errors.join(" ")).toContain("athlete");
+    expect(errors.join(" ")).toContain("many");
   });
 
   it("a bubble long enough to clip on a small phone", () => {
@@ -351,7 +360,7 @@ describe("validation allows what an admin is meant to do", () => {
 
   it("dropping an optional hint", () => {
     good((x) => {
-      delete x.screens.find((s) => s.id === "activity")!.options!.moderate!.hint;
+      delete x.screens.find((s) => s.id === "activity")!.options!.some!.hint;
       return x;
     });
   });

@@ -29,7 +29,7 @@ function profile(over: Partial<Profile> = {}): Profile {
     height_cm: 183,
     weight_kg: 90,
     target_weight_kg: 83,
-    activity: "moderate",
+    activity: "some",
     pace: "steady",
     country: "de",
     restrictions: [],
@@ -89,14 +89,29 @@ describe("projectGoal", () => {
     expect(p!.weeks).toBe(65);
   });
 
-  it("projects the post-floor rate the target actually carries — the #75 persona", async () => {
+  it("projects the design persona: 6 kg at the capped rate — 18 weeks, 0.3 kg a week", async () => {
     const { explainTargets } = await import("./targets.ts");
-    // Female, 1986, 160 cm, 58 → 52 kg, sedentary, push (the issue's own reproduction): the share
-    // cap produces −293 against a 1,463 TDEE, the floor leaves 1,200 — a real cut of 263 kcal/day,
-    // 0.239 kg/week. The pre-floor delta printed 23 weeks; the honest figure is 25.
+    // The issue's acceptance row: 32, 172 cm, 74 → 68 kg, 0–2 workouts, steady. The pace asks
+    // −550/day; the share cap applies −359 → 0.326 kg/week, and January 2027 is 18 weeks out.
+    const p = profile({
+      sex: "female", birth_year: 1994, height_cm: 172, weight_kg: 74,
+      target_weight_kg: 68, goal: "lose", activity: "few", pace: "steady",
+    });
+    const projection = projectGoal(p, explainTargets(p, new Date("2026-08-01T12:00:00Z")).basis);
+    expect(projection).not.toBeNull();
+    expect(projection!.kgPerWeek).toBeCloseTo(0.326, 3);
+    expect(projection!.weeks).toBe(18);
+  });
+
+  it("projects the post-floor rate the target actually carries — the floor persona", async () => {
+    const { explainTargets } = await import("./targets.ts");
+    // `10b-pace-floor`: female, 1986, 160 cm, 58 → 52 kg, 0–2 workouts, push (post-eait#76
+    // numbers): the share cap produces −293 against a 1,463 TDEE, the floor leaves 1,200 — a real
+    // cut of 263 kcal/day, 0.239 kg/week. The pre-floor delta printed 23 weeks; the honest figure
+    // is 25.
     const p = profile({
       sex: "female", birth_year: 1986, height_cm: 160, weight_kg: 58,
-      target_weight_kg: 52, activity: "sedentary", pace: "push",
+      target_weight_kg: 52, activity: "few", pace: "push",
     });
     const basis = explainTargets(p, new Date("2026-08-01T12:00:00Z")).basis;
     expect(basis.appliedDeltaKcal).toBe(basis.floorKcal - basis.tdee!);
@@ -172,7 +187,7 @@ describe("previewProjection", () => {
 
   it("projects a candidate pace through the full arithmetic before it is saved", async () => {
     const { previewProjection } = await import("./projection.ts");
-    // Male, 183 cm, 90 kg, moderate: a steady 550 kcal deficit clears both guards untouched.
+    // Male, 183 cm, 90 kg, 3–5 workouts: a steady 550 kcal deficit clears both guards untouched.
     const p = previewProjection(beforeTarget(), 83, "steady");
     expect(p).not.toBeNull();
     expect(p!.kgPerWeek).toBeCloseTo(0.5, 2);
@@ -181,10 +196,10 @@ describe("previewProjection", () => {
 
   it("slows the date when the guards bite, rather than echoing the requested pace", async () => {
     const { previewProjection } = await import("./projection.ts");
-    // Small sedentary female: "push" asks 825 kcal/day, the share cap allows ~20% of a ~1535
+    // Small, barely-active female: "push" asks 825 kcal/day, the share cap allows ~20% of a ~1,535
     // kcal TDEE. The preview must show the capped rate, not 0.75 kg/week.
     const p = previewProjection(
-      profile({ sex: "female", height_cm: 160, weight_kg: 62, activity: "sedentary",
+      profile({ sex: "female", height_cm: 160, weight_kg: 62, activity: "few",
         target_weight_kg: null, pace: null }),
       57, "push",
     );
@@ -194,7 +209,7 @@ describe("previewProjection", () => {
 
   it("is null while activity is unanswered, rather than assuming a multiplier", async () => {
     // An admin-reordered flow (or a stale server revision) can put the target screen before
-    // activity. `explainTargets` would default the multiplier to sedentary — a real target may do
+    // activity. `explainTargets` would default the multiplier to `few` — a real target may do
     // that, a PREVIEW may not: it would show a date derived from an answer nobody gave.
     const { previewProjection } = await import("./projection.ts");
     expect(previewProjection(profile({ activity: null, target_weight_kg: null, pace: null }),

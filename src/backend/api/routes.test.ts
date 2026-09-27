@@ -81,7 +81,7 @@ async function session(): Promise<string> {
   const { token } = await res.json() as { token: string };
   await patch(ROUTES.profile, {
     goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
-    target_weight_kg: 65, activity: "moderate", pace: "steady", country: "gb",
+    target_weight_kg: 65, activity: "some", pace: "steady", country: "gb",
     restrictions: [], complete_onboarding: true,
   }, token);
   return token;
@@ -203,6 +203,73 @@ describe("profile", () => {
     expect(view.onboarded).toBe(true);
     expect(view.basis.tdee).toBeGreaterThan(0);
     expect(view.targets.kcal).toBeGreaterThanOrEqual(1200);
+  });
+
+  // #77. The paywall is operator configuration the client is TOLD — computed and formatted
+  // server-side, so the browser calculates nothing and the bundle compiles no price.
+  describe("paywall", () => {
+    const SELLING: Config["webPaywall"] = {
+      yearlyCheckoutUrl: "https://pay.rev.cat/y/{userId}",
+      monthlyCheckoutUrl: "https://pay.rev.cat/m/{userId}",
+      yearlyPrice: 39.99,
+      monthlyPrice: 4.99,
+      trialDays: 7,
+      exitOfferCheckoutUrl: "https://pay.rev.cat/u/{userId}",
+      exitOfferPrice: 23.99,
+      exitOfferRegularPrice: 39.99,
+      currency: "EUR",
+    };
+
+    const viewFor = async (webPaywall: Config["webPaywall"], locale = "en-GB") => {
+      const s = memoryStore();
+      const h = createRouter(
+        { store: s, config: { ...CONFIG, webPaywall }, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() },
+        s, testVerifier);
+      const res = await h(new Request(url(ROUTES.authDevice), {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ deviceId: crypto.randomUUID() + crypto.randomUUID(), locale }),
+      }));
+      const { token } = await res.json() as { token: string };
+      return (await (await h(new Request(url(ROUTES.profile), {
+        headers: { authorization: `Bearer ${token}` },
+      }))).json() as ProfileResponse);
+    };
+
+    it("sends both plans and the exit offer, priced and named for THIS account", async () => {
+      const view = await viewFor(SELLING);
+      const userId = view.profile.user_id;
+      expect(view.paywall.trialDays).toBe(7);
+      // Every checkout already carries this account's id — `{userId}` is filled here, never by a
+      // client, because the webhook grants the purchase to app_user_id and nothing else.
+      expect(view.paywall.yearly).toEqual({
+        checkoutUrl: `https://pay.rev.cat/y/${userId}`,
+        price: "€39.99",
+        pricePerMonth: "€3.33",
+      });
+      expect(view.paywall.monthly).toEqual({
+        checkoutUrl: `https://pay.rev.cat/m/${userId}`,
+        price: "€4.99",
+      });
+      expect(view.paywall.exitOffer).toEqual({
+        checkoutUrl: `https://pay.rev.cat/u/${userId}`,
+        price: "€23.99",
+        regularPrice: "€39.99",
+        percentOff: 40,
+        perMonth: "€2.00",
+      });
+    });
+
+    it("formats the same prices in the account's own language", async () => {
+      const view = await viewFor(SELLING, "de-DE");
+      expect(view.paywall.yearly?.price).toBe("39,99 €");
+      expect(view.paywall.exitOffer?.perMonth).toBe("2,00 €");
+    });
+
+    it("sends an empty paywall — plans null, offer null — when the host sells nothing", async () => {
+      const view = await viewFor({ ...SELLING,
+        yearlyCheckoutUrl: "", monthlyCheckoutUrl: "", exitOfferCheckoutUrl: "" });
+      expect(view.paywall).toEqual({ trialDays: 7, yearly: null, monthly: null, exitOffer: null });
+    });
   });
 });
 
@@ -1625,7 +1692,7 @@ describe("rate limits", () => {
         headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
         body: JSON.stringify({
           goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
-          target_weight_kg: 65, activity: "moderate", pace: "steady", country: "gb",
+          target_weight_kg: 65, activity: "some", pace: "steady", country: "gb",
           restrictions: [], complete_onboarding: true,
         }),
       }));
@@ -1663,7 +1730,7 @@ describe("rate limits", () => {
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({
         goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
-        target_weight_kg: 65, activity: "moderate", pace: "steady", country: "gb",
+        target_weight_kg: 65, activity: "some", pace: "steady", country: "gb",
         restrictions: [], complete_onboarding: true,
       }),
     }));
@@ -1693,7 +1760,7 @@ describe("rate limits", () => {
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
       body: JSON.stringify({
         goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
-        target_weight_kg: 65, activity: "moderate", pace: "steady", country: "gb",
+        target_weight_kg: 65, activity: "some", pace: "steady", country: "gb",
         restrictions: [], complete_onboarding: true,
       }),
     }));
@@ -1977,7 +2044,7 @@ describe("the stream's keepalive", () => {
     const { token } = await res.json() as { token: string };
     await patch(ROUTES.profile, {
       goal: "lose", sex: "female", birth_year: 1990, height_cm: 165, weight_kg: 70,
-      target_weight_kg: 65, activity: "moderate", pace: "steady", country: "gb",
+      target_weight_kg: 65, activity: "some", pace: "steady", country: "gb",
       restrictions: [], complete_onboarding: true,
     }, token);
     const req = photoRequest(token);

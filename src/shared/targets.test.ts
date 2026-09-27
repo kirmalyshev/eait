@@ -12,7 +12,7 @@ function profile(over: Partial<Profile> = {}): Profile {
   return {
     user_id: "u1", lang: "en", goal: "maintain", sex: "female", birth_year: 1990,
     height_cm: 165, weight_kg: 70, weight_measured_at: null, target_weight_kg: 65,
-    activity: "sedentary", pace: "steady",
+    activity: "few", pace: "steady",
     country: "de", restrictions: [], medical_limitations: null, food_allergies: null,
     product_limitations: null, onboarded_at: "2026-01-01T00:00:00Z",
     ...over,
@@ -51,6 +51,15 @@ describe("basalMetabolicRate (Mifflin-St Jeor)", () => {
     expect(basalMetabolicRate(profile({ sex: "male", weight_kg: 80, height_cm: 180 }), TODAY)).toBe(1750);
   });
 
+  it("prices 'other' at the mean of the two published constants (−78)", () => {
+    // Mifflin-St Jeor publishes +5 and −161; "other" takes the mean (decision 6, the same call
+    // the incumbent makes). 10(74) + 6.25(172) − 5(32) = 1655 → 1660 / 1494 / 1577.
+    const base = { birth_year: 1994, height_cm: 172, weight_kg: 74 };
+    expect(basalMetabolicRate(profile({ ...base, sex: "male" }), TODAY)).toBe(1660);
+    expect(basalMetabolicRate(profile({ ...base, sex: "female" }), TODAY)).toBe(1494);
+    expect(basalMetabolicRate(profile({ ...base, sex: "other" }), TODAY)).toBe(1577);
+  });
+
   it("returns null when any input is missing, never a partial guess", () => {
     expect(basalMetabolicRate(profile({ sex: null }), TODAY)).toBeNull();
     expect(basalMetabolicRate(profile({ height_cm: null }), TODAY)).toBeNull();
@@ -69,7 +78,7 @@ describe("the calorie floor", () => {
   // collected one-star reviews citing Harvard; see the header of targets.ts.
   it("never returns below the female floor, however aggressive the inputs", () => {
     const p = profile({
-      sex: "female", goal: "lose", pace: "push", activity: "sedentary",
+      sex: "female", goal: "lose", pace: "push", activity: "few",
       height_cm: 150, weight_kg: 45, birth_year: 1960,
     });
     const { targets, basis } = explainTargets(p, TODAY);
@@ -79,10 +88,22 @@ describe("the calorie floor", () => {
 
   it("never returns below the male floor", () => {
     const p = profile({
-      sex: "male", goal: "lose", pace: "push", activity: "sedentary",
+      sex: "male", goal: "lose", pace: "push", activity: "few",
       height_cm: 160, weight_kg: 55, birth_year: 1955,
     });
     expect(explainTargets(p, TODAY).targets.kcal).toBeGreaterThanOrEqual(KCAL_FLOOR.male);
+  });
+
+  it("holds 'other' to the HIGHER floor, because guessing low is the harmful way", () => {
+    expect(KCAL_FLOOR.other).toBe(1500);
+    const p = profile({
+      sex: "other", goal: "lose", pace: "push", activity: "few",
+      height_cm: 150, weight_kg: 45, birth_year: 1960,
+    });
+    const { targets, basis } = explainTargets(p, TODAY);
+    expect(basis.floorKcal).toBe(1500);
+    expect(targets.kcal).toBeGreaterThanOrEqual(1500);
+    expect(basis.floorApplied).toBe(true);
   });
 
   it("uses the HIGHER floor when sex is unknown, because guessing low is the harmful way", () => {
@@ -91,7 +112,7 @@ describe("the calorie floor", () => {
   });
 
   it("reports floorApplied=false when the floor did not bind", () => {
-    const p = profile({ sex: "male", goal: "lose", weight_kg: 95, height_cm: 185, activity: "moderate" });
+    const p = profile({ sex: "male", goal: "lose", weight_kg: 95, height_cm: 185, activity: "some" });
     const { targets, basis } = explainTargets(p, TODAY);
     expect(basis.floorApplied).toBe(false);
     expect(targets.kcal).toBeGreaterThan(KCAL_FLOOR.male);
@@ -101,7 +122,7 @@ describe("the calorie floor", () => {
     // Order matters: flooring first and share-capping second would let the cap pull the number back
     // under the floor. Both guards fire for this user, and the floor must be the one that wins.
     const p = profile({
-      sex: "female", goal: "lose", pace: "push", activity: "sedentary",
+      sex: "female", goal: "lose", pace: "push", activity: "few",
       height_cm: 152, weight_kg: 48, birth_year: 1958,
     });
     const { targets, basis } = explainTargets(p, TODAY);
@@ -111,12 +132,12 @@ describe("the calorie floor", () => {
   });
 
   it("reports appliedDeltaKcal as the delta the FINAL target carries, floor included (#75)", () => {
-    // The issue's persona: female, 1986, 160 cm, 58 kg, sedentary, push. bmr 1219, tdee 1463;
+    // The issue's persona: female, 1986, 160 cm, 58 kg, 0–2 workouts, push. bmr 1219, tdee 1463;
     // push asks −825, the share cap allows −293, and the floor stops the target at 1,200 — a real
     // cut of 263 kcal/day. Every reader (the projection, the plan card, the coach prompt) treats
     // `appliedDeltaKcal` as the post-floor delta, so the basis must not keep the pre-floor −293.
     const p = profile({
-      sex: "female", goal: "lose", pace: "push", activity: "sedentary",
+      sex: "female", goal: "lose", pace: "push", activity: "few",
       height_cm: 160, weight_kg: 58, birth_year: 1986,
     });
     const { targets, basis } = explainTargets(p, TODAY);
@@ -129,7 +150,7 @@ describe("the calorie floor", () => {
 
 describe("the deficit share cap", () => {
   it("never subtracts more than 20% of maintenance", () => {
-    const p = profile({ sex: "male", goal: "lose", pace: "push", activity: "sedentary", weight_kg: 90, height_cm: 180 });
+    const p = profile({ sex: "male", goal: "lose", pace: "push", activity: "few", weight_kg: 90, height_cm: 180 });
     const { basis } = explainTargets(p, TODAY);
     expect(basis.tdee).not.toBeNull();
     expect(Math.abs(basis.appliedDeltaKcal)).toBeLessThanOrEqual(Math.round(basis.tdee! * 0.2));
@@ -142,7 +163,7 @@ describe("the deficit share cap", () => {
   });
 
   it("caps a surplus tighter than a deficit", () => {
-    const p = profile({ sex: "male", goal: "gain", pace: "push", activity: "sedentary", weight_kg: 70, height_cm: 178 });
+    const p = profile({ sex: "male", goal: "gain", pace: "push", activity: "few", weight_kg: 70, height_cm: 178 });
     const { basis } = explainTargets(p, TODAY);
     expect(basis.appliedDeltaKcal).toBeGreaterThan(0);
     expect(basis.appliedDeltaKcal).toBeLessThanOrEqual(Math.round(basis.tdee! * 0.15));
@@ -155,10 +176,82 @@ describe("the deficit share cap", () => {
   });
 
   it("moves faster on push than on easy", () => {
-    const base = { sex: "male", goal: "lose", weight_kg: 95, height_cm: 185, activity: "moderate" } as const;
+    const base = { sex: "male", goal: "lose", weight_kg: 95, height_cm: 185, activity: "some" } as const;
     const easy = explainTargets(profile({ ...base, pace: "easy" }), TODAY);
     const push = explainTargets(profile({ ...base, pace: "push" }), TODAY);
     expect(push.targets.kcal).toBeLessThan(easy.targets.kcal);
+  });
+});
+
+describe("the three activity levels (targets v2, decision 7)", () => {
+  it("prices 0–2 / 3–5 / 6+ workouts a week at 1.2 / 1.55 / 1.725", () => {
+    // The ids are the icon names. Against the design persona's 1,494 BMR: 1,793 / 2,316 / 2,577.
+    const base = { sex: "female" as const, birth_year: 1994, height_cm: 172, weight_kg: 74 };
+    expect(explainTargets(profile({ ...base, activity: "few" }), TODAY).basis.tdee).toBe(1793);
+    expect(explainTargets(profile({ ...base, activity: "some" }), TODAY).basis.tdee).toBe(2316);
+    expect(explainTargets(profile({ ...base, activity: "many" }), TODAY).basis.tdee).toBe(2577);
+  });
+
+  it("defaults an unanswered activity to the lowest factor", () => {
+    // The target is a promise; overshooting a lazy user is the harmful direction.
+    expect(explainTargets(profile({ activity: null }), TODAY).basis.tdee)
+      .toBe(explainTargets(profile({ activity: "few" }), TODAY).basis.tdee);
+  });
+});
+
+describe("the design persona (issue #81)", () => {
+  // 32, 172 cm, 74 → 68 kg, 0–2 workouts a week, steady — the row every board is drawn from.
+  const persona = () => profile({
+    sex: "female", birth_year: 1994, height_cm: 172, weight_kg: 74, target_weight_kg: 68,
+    goal: "lose", activity: "few", pace: "steady", restrictions: ["ldl"],
+  });
+
+  it("computes the plan the boards draw: rest 1,494 + days 299 − pace 359 → 1,434 kcal", () => {
+    const { targets, basis } = explainTargets(persona(), TODAY);
+    expect(basis.bmr).toBe(1494);
+    expect(basis.tdee).toBe(1793); // "your days" draw +299
+    expect(basis.requestedDeltaKcal).toBe(-550); // steady asks 0.5 kg/wk
+    expect(basis.appliedDeltaKcal).toBe(-359); // the 20 % share cap decides
+    expect(basis.shareCapApplied).toBe(true);
+    expect(basis.floorKcal).toBe(1200);
+    expect(basis.floorApplied).toBe(false);
+    expect(targets.kcal).toBe(1434);
+    expect(targets.protein_g).toBe(109); // anchored to the goal weight: 68 × 1.6
+    expect(targets.satfat_g).toBe(13); // declared
+    // The split the plan card draws (decision 3): fat 30 % of 1,434 → 430 kcal → 48 g; carbs take
+    // the rest — (1434 − 4·109 − 9·48) ÷ 4 = 141.5 → 142.
+    expect(targets.fat_g).toBe(48);
+    expect(targets.carbs_g).toBe(142);
+  });
+});
+
+describe("the carbs and fat targets (targets v2, decision 3)", () => {
+  it("splits the fallback band the same way — the macro math is explainTargets', not the path's", () => {
+    // maintain 2,100, 112 g protein (the fixture's 70 kg) → fat 70 g (630 kcal);
+    // carbs (2100 − 448 − 630) ÷ 4 = 255.5 → 256.
+    const t = explainTargets(profile({ sex: null, birth_year: null, height_cm: null }), TODAY).targets;
+    expect(t.kcal).toBe(2100);
+    expect(t.fat_g).toBe(70);
+    expect(t.carbs_g).toBe(256);
+  });
+
+  it("never answers a negative gram, whatever the protein asks", () => {
+    // The clamp is unreachable while protein caps at 180 g and kcal floors at 1,200 — pin it
+    // anyway: the day either bound moves, the remainder is what pays.
+    const t = explainTargets(profile({
+      goal: "lose", pace: "push", weight_kg: 200, target_weight_kg: 180,
+      height_cm: 200, sex: "female",
+    }), TODAY).targets;
+    expect(t.fat_g).toBeGreaterThanOrEqual(0);
+    expect(t.carbs_g).toBeGreaterThanOrEqual(0);
+  });
+
+  it("issues NO verdict on them — the targets are for the rings, not for judgement", () => {
+    // The plan draws carbs and fat; nothing scores a meal against them.
+    const t = targetsFor(profile());
+    const v = verdictsFromTargets({ kcal: t.kcal * 2, satfat_g: 99, sodium_mg: 9999 }, t);
+    expect(v).not.toHaveProperty("carbs");
+    expect(v).not.toHaveProperty("fat");
   });
 });
 
@@ -260,7 +353,7 @@ describe("visibleVerdicts", () => {
 });
 
 describe("verdictsFromTargets", () => {
-  const targets = { kcal: 2000, protein_g: 120, satfat_g: 13, sodium_mg: 2000 };
+  const targets = { kcal: 2000, protein_g: 120, fat_g: 67, carbs_g: 229, satfat_g: 13, sodium_mg: 2000 };
 
   it("judges by share of the day's allowance", () => {
     expect(verdictsFromTargets({ kcal: 500, satfat_g: 2, sodium_mg: 300 }, targets).weight).toBe("good");
@@ -269,7 +362,7 @@ describe("verdictsFromTargets", () => {
   });
 
   it("produces no medical verdict when the cap is absent", () => {
-    const out = verdictsFromTargets({ kcal: 500, satfat_g: 40, sodium_mg: 5000 }, { kcal: 2000, protein_g: 120 });
+    const out = verdictsFromTargets({ kcal: 500, satfat_g: 40, sodium_mg: 5000 }, { kcal: 2000, protein_g: 120, fat_g: 67, carbs_g: 229 });
     expect(out.ldl).toBeUndefined();
     expect(out.kidneys).toBeUndefined();
   });
