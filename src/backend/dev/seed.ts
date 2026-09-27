@@ -21,7 +21,7 @@
 // against `store.memory.ts` with no database running.
 
 import {
-  explainTargets, verdictsFromTargets, visibleVerdicts,
+  explainTargets, healthScore, verdictsFromTargets, visibleVerdicts,
   type Lang, type MealItem, type MealRecord,
 } from "@eait/shared";
 import {
@@ -605,6 +605,13 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
       for (const day of persona.board.days) {
         const date = dateMinus(today, day.back);
         for (const spec of day.meals) {
+          const verdicts = visibleVerdicts(
+            verdictsFromTargets(
+              { kcal: spec.kcal, satfat_g: spec.satfat_g, sodium_mg: spec.sodium_mg },
+              targets,
+            ),
+            profile.restrictions,
+          );
           const record: MealRecord = {
             id: crypto.randomUUID(),
             user_id: userId,
@@ -615,13 +622,8 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
             kcal: spec.kcal, protein_g: spec.protein_g, carbs_g: spec.carbs_g, fat_g: spec.fat_g,
             satfat_g: spec.satfat_g, fiber_g: spec.fiber_g, sugar_g: spec.sugar_g,
             sodium_mg: spec.sodium_mg,
-            verdicts: visibleVerdicts(
-              verdictsFromTargets(
-                { kcal: spec.kcal, satfat_g: spec.satfat_g, sodium_mg: spec.sodium_mg },
-                targets,
-              ),
-              profile.restrictions,
-            ),
+            verdicts,
+            healthScore: healthScore({ ...spec, verdicts }, profile.restrictions),
             confidence: spec.confidence,
             notes: "Seeded",
             corrected: false,
@@ -638,7 +640,7 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
             spec.via === "photo"
               ? { role: "user", kind: "photo", text: null }
               : { role: "user", kind: "text", text: spec.name },
-            { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
+            { role: "assistant", kind: "meal", mealId: record.id, event: "logged", speaker: "gabie" as const },
           ] });
           meals++;
         }
@@ -682,6 +684,7 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
         }));
 
         const analysis = { kcal, satfat_g, sodium_mg };
+        const verdicts = visibleVerdicts(verdictsFromTargets(analysis, targets), profile.restrictions);
         const record: MealRecord = {
           id: crypto.randomUUID(),
           user_id: userId,
@@ -694,7 +697,10 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
           items,
           kcal, protein_g, carbs_g, fat_g, satfat_g, fiber_g, sugar_g, sodium_mg,
           // Computed, never authored — the same chain `engine/meals.ts` runs after every write.
-          verdicts: visibleVerdicts(verdictsFromTargets(analysis, targets), profile.restrictions),
+          verdicts,
+          healthScore: healthScore(
+            { kcal, protein_g, satfat_g, fiber_g, sugar_g, sodium_mg, verdicts }, profile.restrictions,
+          ),
           confidence: "high",
           notes: `Seeded ${slot.name}`,
           corrected: false,
@@ -713,7 +719,7 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
         // thread's order.
         thread.push({ back, record, lines: [
           { role: "user", kind: "photo", text: null },
-          { role: "assistant", kind: "meal", mealId: record.id, event: "logged" },
+          { role: "assistant", kind: "meal", mealId: record.id, event: "logged", speaker: "gabie" as const },
         ] });
         meals++;
       }
@@ -728,7 +734,7 @@ export async function seedDevData(store: Store, opts: SeedOptions): Promise<Seed
         goal: profile.goal ?? "maintain", targets, via: "photo", verdicts: oldest.record.verdicts,
         meal: { kcal: oldest.record.kcal, confidence: oldest.record.confidence },
         eatenToday: { kcal: oldest.record.kcal, protein_g: oldest.record.protein_g },
-      }, lang).map((text) => ({ role: "assistant", kind: "text", text } as const)));
+      }, lang).map((text) => ({ role: "assistant", kind: "text", text, speaker: "gabie" } as const)));
     }
     for (const t of thread) await store.appendChat(userId, t.lines);
 

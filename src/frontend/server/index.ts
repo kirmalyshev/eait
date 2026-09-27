@@ -26,6 +26,7 @@
 import { lightVars } from "../../shared/palette.ts";
 import { fontFaces, motionCss } from "../../shared/design.ts";
 import { iconCss } from "../../shared/ui/icons.ts";
+import { kitCss } from "../../shared/ui/kit.ts";
 // The one `<style>` block is COMPOSED (#87): the shell's own styles in `../shell.css.ts`, then one
 // string per surface from `screens/<surface>.css.ts`, so a W-package owns its surface's CSS the way
 // it owns its screen. The generated parts stay interpolations — `lightVars`, `fontFaces`,
@@ -101,6 +102,8 @@ ${firstMealCss}
 /* The register's icon set, generated (#79): .ico plus an .i-<name> mask class per icon, the
    same file the boards render with — never a glyph retyped into this page. */
 ${iconCss()}
+/* The W1 component kit (#88): one generated string, the same one /start interpolates. */
+${kitCss()}
 ${motionCss()}
 </style>
 </head>

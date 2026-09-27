@@ -7,7 +7,6 @@ import { DEFAULT_SEED_PERSONA, SEED_PERSONAS, seedDeviceId, seedDevData } from "
 import { PROMPT_DEFAULTS, PROMPT_KEYS, loadPrompts } from "../llm/prompt.ts";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
-import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { days as daysRead, weights as weightsRead, profileView } from "../engine/index.ts";
 import type { EngineDeps } from "../engine/deps.ts";
@@ -173,7 +172,7 @@ describe("seedDevData", () => {
     const [anna] = await seedDevData(store, { timezone: TZ, only: ["anna"] });
     const deps: EngineDeps = {
       store, config: { ...configDefaults(), timezone: TZ } as Config,
-      llm: demoPorts(), mailer: fakeMailer(), push: fakePush(),
+      llm: demoPorts(), push: fakePush(),
     };
     const today = localDate(TZ);
     const back = (n: number) => dateMinus(today, n);
@@ -182,7 +181,7 @@ describe("seedDevData", () => {
     expect(range).not.toBeNull();
     expect(range!.streak).toBe(4);
     expect(range!.days.map((d) => d.kcal)).toEqual([1386, 1429, 1308, 1066]);
-    expect(range!.days[3]!.targetKcal).toBe(1434);
+    expect(range!.targetKcal).toBe(1434);
 
     const log = await weightsRead(deps, anna!.userId, "90D");
     // One row per day, oldest first, the typed onboarding value standing over the scale's.
@@ -196,12 +195,12 @@ describe("seedDevData", () => {
 
     const me = await profileView(deps, anna!.userId);
     expect(me!.targets.kcal).toBe(1434);
-    expect(me!.projection).not.toBeNull();
+    expect(log!.projection).not.toBeNull();
     // The bar reads 0.6 down, 5.4 to go: start at the typed 74, current at Health's 73.4.
-    expect(me!.projection!.startKg).toBe(74);
-    expect(me!.projection!.currentKg).toBe(73.4);
-    expect(me!.projection!.targetKg).toBe(68);
-    expect(me!.projection!.beyondHorizon).toBe(false);
+    expect(log!.projection!.startKg).toBe(74);
+    expect(log!.projection!.currentKg).toBe(73.4);
+    expect(log!.projection!.targetKg).toBe(68);
+    expect(log!.projection!.beyondHorizon).toBe(false);
   });
 
   test("the 'onboarded' persona is still there beside her — its name is an API (#84 review)", async () => {

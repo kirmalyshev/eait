@@ -37,6 +37,10 @@ export type Localized<T> = { en: T } & Partial<Record<Lang, T>>;
  */
 export const t = (lang: Lang) => <T>(entry: Localized<T>): T => entry[lang] ?? entry.en;
 
+// The type itself, re-exported so a `ui/` module — which may not reach `types.ts` — can still
+// name the language it formats in (ui.test.ts's allow-list is `./`, palette, design, lang).
+export type { Lang };
+
 /**
  * WHAT THE APP HAS WORDS FOR, which is not what the server accepts.
  *
@@ -201,16 +205,57 @@ export const monthYear = (lang: Lang, at: Date): string =>
   new Intl.DateTimeFormat(LANG_TAG[lang], { month: "long", year: "numeric", timeZone: "UTC" }).format(at);
 
 /**
+ * The seven single letters a week is captioned with — the Today strip and Progress's bars and
+ * streak dots all draw Monday first, as the boards do. CLDR's `narrow` weekday rather than a
+ * table: the last hand-written table of period names got three languages wrong at once, and 56
+ * initials is the same table again. The UTC noon anchor keeps the day fixed regardless of the
+ * reader's zone, as `dayLabel` does.
+ */
+export const weekdayLetters = (lang: Lang): string[] => {
+  const fmt = new Intl.DateTimeFormat(LANG_TAG[lang], { weekday: "narrow", timeZone: "UTC" });
+  // 2026-09-21 was a Monday, so `+ i` walks Monday → Sunday.
+  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(Date.UTC(2026, 8, 21 + i, 12))));
+};
+
+/**
+ * The forms one counted noun needs, keyed by CLDR plural category. `other` is required because
+ * every language has it and it is the fallback for a category the writer did not fill; the rest
+ * are only the ones the language's own grammar asks for (`vi` and `id` have just `other`, `ru`
+ * carries `one`/`few`/`many`). A WHOLE template per form — "{n} days", never a word stapled onto
+ * a number — so the sentence's word order is the translator's, as every template here is.
+ */
+export interface CountForms {
+  zero?: string;
+  one?: string;
+  two?: string;
+  few?: string;
+  many?: string;
+  other: string;
+}
+
+/**
+ * Which form a count takes. The category is `Intl.PluralRules`' — a RULE (Russian's 2–4 land on
+ * `few`, 5+ on `many`), and rules are code, not copy: the table beside this holds only wording.
+ * Whole numbers, because a count of days is exact and a tenth of a day is a weight's precision.
+ * Bound once per surface, like `t`.
+ */
+export const countText = (lang: Lang) => {
+  const rules = new Intl.PluralRules(LANG_TAG[lang]);
+  const whole = wholeNumbers(lang);
+  return (forms: CountForms, n: number): string =>
+    (forms[rules.select(n)] ?? forms.other).replace("{n}", whole(n));
+};
+
+/**
  * The language tags a browser asked for, BEST FIRST.
  *
  * SORTED ON `q`, not merely stripped of it. Browsers do send their list in descending order, but
  * RFC 9110 does not require it and an API client will not — and the failure is silent, because the
  * first tag is still a real language. `en;q=0.1, de;q=0.9` served the front door in English.
  *
- * Here rather than in `web/start.ts` because it was there, so `api/routes.ts` hand-rolled a weaker
- * one for the subscribe form — a header whose first entry carried a weight narrowed to English,
- * and that is the one outbound message whose language cannot be recovered from an account. Two
- * parsers for one header in one binary is exactly the drift `narrowLang` below was written to end.
+ * Here rather than in `web/start.ts` because it was there, while `api/routes.ts` hand-rolled a
+ * weaker one — a header whose first entry carried a weight narrowed to English. Two parsers for
+ * one header in one binary is exactly the drift `narrowLang` below was written to end.
  */
 export function acceptLanguageTags(header: string | null | undefined): string[] {
   return (header ?? "")
@@ -241,8 +286,8 @@ export function acceptLanguageTags(header: string | null | undefined): string[] 
  *
  * THE `;q=` IS STRIPPED HERE, not by the caller. An `Accept-Language` entry carries a weight —
  * `de;q=0.9` — and dropping only the region subtag left the whole tag unrecognised, so a browser
- * that ranked its languages got English. `/start` had its own parser that handled this and the
- * subscribe route did not, which is the three-parsers-in-two-workspaces situation this function
+ * that ranked its languages got English. `/start` had its own parser that handled this while other
+ * routes did not, which is the three-parsers-in-two-workspaces situation this function
  * was written to end, reappearing inside one binary. Anything after `;` is a parameter, never a
  * language, so it cannot belong to the caller.
  */

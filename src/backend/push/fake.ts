@@ -1,8 +1,8 @@
 // The push service the tests assert against.
 //
 // It records instead of sending, so a test can say "one message went to this device with these
-// words in it" rather than "the function returned without throwing" — the same role `mail/fake.ts`
-// plays for the confirmation email and `llm/demo.ts` for the analyzer.
+// words in it" rather than "the function returned without throwing" — the same role `llm/demo.ts`
+// plays for the analyzer.
 //
 // Not wired into any binary. `logPush` is what a process without an Expo credential gets.
 

@@ -26,7 +26,7 @@ import {
   type PairCodeResponse, type PendingMealsResponse,
   DIARY_RANGE_MAX_DAYS, isWeightRange, WEIGHT_RANGES, type DaysResponse, type WeightsResponse,
 } from "@eait/shared";
-import { acceptLang, narrowLang } from "@eait/shared";
+import { narrowLang } from "@eait/shared";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { isCalendarDate } from "@eait/shared";
 import type { Store } from "../store.ts";
@@ -39,7 +39,6 @@ import {
   attachPhotos,
   reanalyzeMeal,
 } from "../engine/index.ts";
-import { confirmSubscription, subscribe, unsubscribe } from "../engine/subscribe.ts";
 import { adminRoutes } from "./admin.ts";
 import { webProviders, type WebProvider, type WebSignInProvider } from "../auth/web-oauth.ts";
 import { isStartPath, startRoutes } from "../web/start.ts";
@@ -58,22 +57,6 @@ function refusal(r: { kind: string; scope?: string }): Response {
 
 /** Narrow a client-supplied locale to a supported language. One copy, in `@eait/shared`. */
 const toLang = narrowLang;
-
-/**
- * Where a browser goes after posting the subscribe form.
- *
- * 303 rather than 302, and it matters: 303 tells the browser to follow with GET. A 302 after a POST
- * is followed with GET by every browser in practice but is specified as "repeat the method", and
- * the observable difference is a page that re-submits the form when somebody reloads it.
- *
- * With no landing URL configured there is nowhere to send anyone, so the route answers with the
- * JSON body instead — which is what a `curl` wants and what a backend deployed without a landing
- * page has to do.
- */
-function landingRedirect(landingUrl: string, path: string, body: unknown, status = 200): Response {
-  if (landingUrl === "") return json(body, status);
-  return new Response(null, { status: 303, headers: { location: `${landingUrl}${path}` } });
-}
 
 /**
  * The part of Bun's server this file needs: the socket peer, for a request that arrived without an
@@ -226,10 +209,10 @@ export function createRouter(
   };
 
   /**
-   * This server's public origin, for the confirmation link.
+   * This server's public origin, for links that must not take a caller's word for their host.
    *
    * `publicApiUrl` when it is set, because a link built from a request header is a link whose
-   * hostname a client can influence — and this one goes into an email. Falling back to the request
+   * hostname a client can influence. Falling back to the request
    * is what keeps development, where nobody sets it, from needing a second variable: Caddy forwards
    * the original Host, and `X-Forwarded-Proto` is how the https gets back on a request that reached
    * this process over plain HTTP on the internal network.
@@ -244,7 +227,7 @@ export function createRouter(
   /**
    * The origin a PERSON is on, which is not the same question (#406).
    *
-   * `publicOrigin` above answers "where is this API", and it is what an emailed link is built from.
+   * `publicOrigin` above answers "where is this API".
    * This answers "where is the browser", and it is what an OAuth `redirect_uri` is built from —
    * because that is where the provider sends the person back to. The two were one value until
    * `app.eait.fit` existed, and flipping that one value would have moved the confirmation links
@@ -254,13 +237,6 @@ export function createRouter(
    * behaves exactly as it did before the split.
    */
   const webOrigin = (req: Request): string => deps.config.publicWebUrl || publicOrigin(req);
-
-  const subscribeDeps = (req: Request) => ({
-    store,
-    mailer: deps.mailer,
-    config: deps.config,
-    confirmUrlBase: publicOrigin(req),
-  });
 
   /** The ONLY path from a request to a userId. */
   async function resolveUserId(req: Request): Promise<string | null> {
@@ -395,109 +371,6 @@ export function createRouter(
       // token against, and verifying without one would accept any Apple developer's notifications.
       if (pathname === APPLE_NOTIFICATIONS_PATH) {
         return await appleNotifications(req, deps, verifier);
-      }
-
-      // ── The mailing list ──────────────────────────────────────────────────────────────────
-      //
-      // Unauthenticated, and handled before `resolveUserId` for the same reason the admin is: a
-      // subscriber is not a user, has no token, and must never need one — the whole point of the
-      // list is the people who have not signed up for anything yet.
-      //
-      // FORM-ENCODED, not JSON. The page that posts here carries no JavaScript at all, so a plain
-      // <form> is the only submit available, and a browser navigates to whatever comes back. Hence
-      // the redirects: a person who subscribed should land on a page that says so, on the site they
-      // were reading, not on a JSON body at an api. hostname.
-      if (req.method === "POST" && pathname === ROUTES.subscribe) {
-        // Refused BEFORE the body is read. The honeypot catches a bot that fills every field and
-        // `subscribeDailyCap` bounds the list as a whole; this bounds one address, which is what
-        // stops a single script spending the day's cap in a minute and leaving every real visitor
-        // told they subscribed when they did not.
-        const wait = limit(req, peer, "subscribe", deps.config.subscribeRateLimitPerHour, HOUR);
-        if (wait !== null) {
-          return landingRedirect(deps.config.landingUrl, "/try-later",
-            { error: "too many attempts from this address — try again shortly" }, 429);
-        }
-
-        const form = await req.formData().catch(() => null);
-        const field = (name: string) => {
-          const v = form?.get(name);
-          return typeof v === "string" ? v : "";
-        };
-        const result = await subscribe(
-          subscribeDeps(req),
-          {
-            email: field("email"), honeypot: field("company"), source: field("source") || "web",
-            // THE BROWSER'S HEADER, because a subscriber has no account to ask. This is the one
-            // outbound message whose recipient the server knows nothing else about — `store.ts`
-            // forbids joining a subscriber to a user — so the strongest evidence available is the
-            // `Accept-Language` of the browser that posted this form a second ago. The language is
-            // used for the confirmation mail and is NOT stored: `subscribers` holds an address, a
-            // token and a source, and a language column would be one more thing held about
-            // somebody who consented to exactly one message.
-            lang: acceptLang(req.headers.get("accept-language")),
-          },
-        );
-        // ── Where each outcome goes, and why it is not two branches ─────────────────────────
-        //
-        // A HONEYPOT hit is answered exactly like a success. That is the one case where lying is
-        // correct: a bot that can tell the two apart learns which field to leave alone.
-        //
-        // Everything else must tell the truth, and this used to be a single boolean that did not.
-        // Only `invalid` was routed anywhere but `/subscribed`, so a submission refused by the
-        // daily cap landed on a page saying "you are on the list" while the address was dropped —
-        // and since the cap is global and was reachable by anybody in about a minute, a script
-        // could turn every real visitor for the rest of the day into a silent loss.
-        //
-        // `capped` is logged rather than merely redirected: it is the only one of these the
-        // operator can do something about, and it is invisible from the outside by design.
-        if (!result.ok && result.reason === "capped") {
-          console.warn("[eait] subscribe refused: the daily list cap is spent");
-        }
-        //
-        // The success page is CHECK-YOUR-EMAIL, not "you are on the list". A pending row is not a
-        // subscription, and a page that says it is would be the same lie in a nicer font.
-        //
-        // `send-failed` shares `/try-later` with `capped`, because from the reader's side they are
-        // the same event: nothing was saved and it was not their fault. The pending row is left to
-        // be swept.
-        if (!result.ok && result.reason === "capped") {
-          console.warn("[eait] subscribe refused: the daily list cap is spent");
-        }
-        const path = !result.ok
-          ? (result.reason === "invalid" ? "/not-subscribed"
-            : result.reason === "capped" || result.reason === "send-failed" ? "/try-later"
-            : "/check-your-email")   // honeypot — indistinguishable from success, deliberately
-          : "/check-your-email";
-        const body = !result.ok && result.reason === "invalid"
-          ? { error: "that does not look like an email address" }
-          : !result.ok && result.reason === "capped"
-            ? { error: "the list is not taking more addresses today — try again shortly" }
-            : !result.ok && result.reason === "send-failed"
-              ? { error: "the confirmation could not be sent — try again shortly" }
-              : { ok: true };
-        // 429 for the cap (come back later, it is a rate) and 502 for a failed send (the provider
-        // did not answer, which is not the caller's rate and not their fault). Both land on the same
-        // page; only a JSON caller can tell them apart, and a JSON caller is the one that should.
-        const status = !result.ok
-          ? (result.reason === "capped" ? 429 : result.reason === "send-failed" ? 502 : 200)
-          : 200;
-        return landingRedirect(deps.config.landingUrl, path, body, status);
-      }
-
-      // The other half of double opt-in. A GET, because it is a link in an email and a link in an
-      // email is a GET — and it is safe to be one because the token grants exactly "put this one
-      // address on the list" and nothing else. A mail client that prefetches it confirms an address
-      // its owner asked to confirm, which is the outcome either way.
-      if (req.method === "GET" && pathname === ROUTES.subscribeConfirm) {
-        await confirmSubscription(subscribeDeps(req), url.searchParams.get("t") ?? "");
-        // The same page for a known token and an unknown one. Anything else is an oracle for which
-        // confirmation links are live, and it would mean somebody clicking twice gets an error.
-        return landingRedirect(deps.config.landingUrl, "/subscribed", { ok: true });
-      }
-
-      if (req.method === "GET" && pathname === ROUTES.unsubscribe) {
-        await unsubscribe(subscribeDeps(req), url.searchParams.get("t") ?? "");
-        return landingRedirect(deps.config.landingUrl, "/unsubscribed", { ok: true });
       }
 
       // ── The routes that mint a session ────────────────────────────────────────────────────

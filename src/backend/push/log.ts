@@ -1,7 +1,7 @@
 // The push service for a process with no Expo credential: print, do not send.
 //
-// The same role `mail/log.ts` plays for the confirmation email — it makes the whole nightly sweep
-// drivable by hand, in demo mode and in development, with no vendor account and no device.
+// It makes the whole nightly sweep drivable by hand, in demo mode and in development, with no
+// vendor account and no device.
 //
 // IT PRINTS NEITHER THE TOKEN NOR THE BODY. The token addresses somebody's phone and the body says
 // what they ate; a count and a title is what makes the flow readable. That the log is less useful

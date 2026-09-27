@@ -4,7 +4,7 @@
 // are enforced here exactly as they are in Postgres, so a test that proves "another user's meal id
 // resolves to null" is proving something about the engine rather than about a mock's mood.
 
-import { dateMinus, localDate, migrateActivityLevel, signsIn } from "@eait/shared";
+import { dateMinus, healthScore, localDate, migrateActivityLevel, signsIn } from "@eait/shared";
 import type {
   DayTotals, HealthDay, Lang, MealRecord, NotificationCopySet, OnboardingContentSet, OnboardingEvent,
   Profile, Provider,
@@ -143,6 +143,13 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // the same thing in a nullable column, so both implementations answer the same question.
   const tokens = new Map<string, { userId: string; lastUsedAt: number; ttlMs?: number }>();
   const meals = new Map<string, MealRecord>(); // mealId -> record
+  /**
+   * `healthScore` is computed at READ (#118), like the Postgres `toMeal`: from the meal's own
+   * numbers and stored verdicts plus the account's declared restrictions. Never trusted off the
+   * stored record — an `updateMeal` patch can move every number under it.
+   */
+  const scored = (m: MealRecord): MealRecord =>
+    ({ ...m, healthScore: healthScore(m, users.get(m.user_id)?.restrictions ?? []) });
   const photos = new Map<string, (StoredPhoto & { userId: string })[]>(); // mealId -> in position order
   const pendings = new Map<string, PendingMeal>(); // pendingId -> pending
   // Keyed by the HASH of the code, exactly as Postgres is — a demo store that held the code
@@ -178,15 +185,6 @@ export function memoryStore(opts: StoreOptions = {}): Store {
   // `${userId}\n${date}` -> the typed weigh-in. One row per day — `putWeight` upserts, the last
   // write of a day winning, which is `on conflict` on Postgres and a `set` here.
   const weights = new Map<string, { userId: string; date: string; kg: number }>();
-  // Keyed by address, which is what makes a repeat subscription an upsert here too.
-  const subscribers = new Map<string, {
-    token: string;
-    confirmToken: string;
-    /** Null until the address is confirmed. A pending row is not a subscriber. */
-    confirmedAt: number | null;
-    source: string;
-    createdAt: number;
-  }>();
   // `opts.seed` is how a test starts from a row an OLDER server wrote — see `StoreOptions`. Cast
   // rather than validated, because the whole point of those shapes is that no current type fits.
   let onboardingContent = (opts.seed?.onboardingContent ?? null) as OnboardingContentSet | null;
@@ -206,10 +204,6 @@ export function memoryStore(opts: StoreOptions = {}): Store {
     key, version: 1, text: PROMPT_DEFAULTS[key], source: "shipped" as const,
     updated_at: new Date(now()).toISOString(),
   }));
-
-  /** 256 bits of hex. Used for both subscriber capabilities: confirmation and withdrawal. */
-  const randomHex = (): string =>
-    [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("");
 
   /** Deep-copies on the way out so a caller mutating a returned object cannot edit the store. */
   const clone = <T>(v: T): T => structuredClone(v);
@@ -897,68 +891,6 @@ export function memoryStore(opts: StoreOptions = {}): Store {
       return aggregateFunnel([...onboardingEvents.values()].filter((e) => e.receivedAt >= since));
     },
 
-    // ── The mailing list ─────────────────────────────────────────────────────────────────────
-    //
-    // Same rules as the Postgres implementation, so a test proving "a repeat subscription returns
-    // the FIRST token" proves something about the engine rather than about a mock's mood.
-
-    async addSubscriber(email, source) {
-      const existing = subscribers.get(email);
-      if (existing) {
-        return {
-          // Null once confirmed — the caller's signal to send nothing at all. Re-submitting a
-          // pending address returns the SAME token, so the link already in somebody's inbox keeps
-          // working rather than being quietly replaced.
-          confirmToken: existing.confirmedAt === null ? existing.confirmToken : null,
-          unsubscribeToken: existing.token,
-          created: false,
-        };
-      }
-      const token = randomHex();
-      const confirmToken = randomHex();
-      subscribers.set(email, {
-        token, confirmToken, confirmedAt: null, source, createdAt: now(),
-      });
-      return { confirmToken, unsubscribeToken: token, created: true };
-    },
-
-    async confirmSubscriber(confirmToken) {
-      for (const row of subscribers.values()) {
-        if (row.confirmToken === confirmToken) {
-          // Idempotent: the first click sets the time, the second finds it already set and still
-          // reports success, exactly as unsubscribing twice does.
-          row.confirmedAt ??= now();
-          return true;
-        }
-      }
-      return false;
-    },
-
-    async removeSubscriber(token) {
-      for (const [email, row] of subscribers) {
-        if (row.token === token) { subscribers.delete(email); return true; }
-      }
-      return false;
-    },
-
-    async countSubscribersSince(sinceIso) {
-      // Pending rows count. A cap that only counted confirmed ones is a cap a bot never reaches.
-      const since = Date.parse(sinceIso);
-      return [...subscribers.values()].filter((r) => r.createdAt >= since).length;
-    },
-
-    async pruneUnconfirmedSubscribers(beforeIso) {
-      const before = Date.parse(beforeIso);
-      let removed = 0;
-      for (const [email, row] of subscribers) {
-        if (row.confirmedAt === null && row.createdAt < before) {
-          subscribers.delete(email);
-          removed++;
-        }
-      }
-      return removed;
-    },
-
     async insertMeal(record) {
       if (meals.has(record.id)) return false;
       // `?? null` so a meal nobody was asked a question about reads back the same shape it does out
@@ -969,14 +901,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async getMeals(userId, mealIds) {
       const want = new Set(mealIds);
-      return [...meals.values()].filter((m) => m.user_id === userId && want.has(m.id)).map(clone);
+      return [...meals.values()].filter((m) => m.user_id === userId && want.has(m.id)).map((m) => scored(clone(m)));
     },
 
     async getMeal(userId, mealId) {
       const m = meals.get(mealId);
       // The scoping rule, enforced here and not merely intended: a meal belonging to someone else
       // is indistinguishable from a meal that does not exist.
-      return m && m.user_id === userId ? clone(m) : null;
+      return m && m.user_id === userId ? scored(clone(m)) : null;
     },
 
     async deleteMeal(userId, mealId) {
@@ -995,14 +927,14 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         if (v !== undefined) (next as unknown as Record<string, unknown>)[k] = v;
       }
       meals.set(mealId, clone(next));
-      return clone(next);
+      return scored(clone(next));
     },
 
     async mealsForDate(userId, date) {
       return [...meals.values()]
         .filter((m) => m.user_id === userId && m.date === date)
         .sort((a, b) => a.ts.localeCompare(b.ts))
-        .map(clone);
+        .map((m) => scored(clone(m)));
     },
 
     async mealsSince(userId, from, to, limit) {
@@ -1010,7 +942,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
         .filter((m) => m.user_id === userId && m.date >= from && m.date <= to)
         .sort((a, b) => b.date.localeCompare(a.date) || b.ts.localeCompare(a.ts))
         .slice(0, Math.max(0, limit))
-        .map(clone);
+        .map((m) => scored(clone(m)));
     },
 
     async putPhotos(userId, mealId, input) {
@@ -1151,7 +1083,7 @@ export function memoryStore(opts: StoreOptions = {}): Store {
           event: line.kind === "meal" ? line.event : null,
           clientId: line.role === "user" && line.kind === "text" ? line.clientId ?? null : null,
           pendingId: line.role === "user" && line.kind === "text" ? line.pendingId ?? null : null,
-          speaker: line.role === "assistant" && line.kind === "text" ? line.speaker ?? null : null,
+          speaker: line.role === "assistant" ? line.speaker ?? null : null,
           intent: line.role === "user" && line.kind === "text" ? line.intent ?? null : null,
           model: line.role === "assistant" && line.kind === "text" ? line.model ?? null : null,
           analysisId: line.role === "user" ? line.analysisId ?? null : null,
@@ -1332,6 +1264,24 @@ export function memoryStore(opts: StoreOptions = {}): Store {
 
     async deleteUser(userId) {
       eraseUser(userId);
+    },
+
+    async pruneAbandonedAccounts(before) {
+      // Collect first, erase after: `eraseUser` deletes from `createdAt` under the iteration.
+      const gone: string[] = [];
+      for (const [userId, at] of createdAt) {
+        if (at >= before) continue;
+        // Any entitlement event disqualifies, live or lapsed — the purchase history is what a
+        // legacy anonymous account's next renewal would come back to.
+        if (entitlements.has(userId)) continue;
+        // `device` is the exception for the port's reason — it is the credential being swept.
+        if (identities.some((i) => i.userId === userId && i.provider !== "device")) continue;
+        if ([...meals.values()].some((m) => m.user_id === userId)) continue;
+        if ([...tokens.values()].some((t) => t.userId === userId && t.lastUsedAt >= before)) continue;
+        gone.push(userId);
+      }
+      for (const userId of gone) eraseUser(userId);
+      return gone.length;
     },
 
     async close() {},

@@ -17,7 +17,6 @@ import { demoPorts } from "../llm/demo.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
 import type { EngineDeps } from "../engine/index.ts";
-import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 import { remoteVerifier, type Verifier } from "../auth/verify.ts";
 import { createRouter } from "./routes.ts";
@@ -53,7 +52,7 @@ function mount(config: Config) {
     apple: { jwksUri, issuer: APPLE_ISS },
     google: { jwksUri, issuer: GOOGLE_ISS },
   });
-  const deps: EngineDeps = { store, config, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+  const deps: EngineDeps = { store, config, llm: demoPorts(), push: fakePush() };
   handle = createRouter(deps, store, verifier);
 }
 

@@ -43,6 +43,7 @@ import { numbers, spellUnit, wholeNumbers } from "./lang.ts";
 import { projectGoal, projectionMonth, previewProjection } from "./projection.ts";
 import { kgToLb, type UnitSystem } from "./ui/units.ts";
 import { chatCopyFor, type CardCopy } from "./onboarding-chat-copy.ts";
+import { threadCopyFor } from "./chat-copy.ts";
 import { ACTIVITY_LEVELS, PACES, SEXES, STRUGGLES } from "./types.ts";
 import type { Goal, Lang, Pace, Profile, Struggle, Units, Verdict, VerdictDimension } from "./types.ts";
 import {
@@ -695,7 +696,11 @@ export function weightDisplay(kg: number, units: Units | null, lang: Lang): stri
  */
 export function ontrackCaption(picked: readonly Struggle[] | null, lang: Lang): string | null {
   const first = STRUGGLES.find((s) => picked?.includes(s));
-  return first ? chatCopyFor(lang).ontrack.captions[first] : null;
+  // `{coach}` is the coach's name — the captions that promise Chat name her (S9), and the name
+  // is `threadCopyFor`'s one key so the confirmed per-language table lands in one place.
+  return first
+    ? fill(chatCopyFor(lang).ontrack.captions[first], { coach: threadCopyFor(lang).coach.name })
+    : null;
 }
 
 /**

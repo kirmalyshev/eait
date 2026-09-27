@@ -110,7 +110,7 @@ export type ChatAppend =
   /** No bytes, ever. `text` is the caption, if there was one; `mealId` the meal it logged, so the bubble can show it. */
   | { role: "user"; kind: "photo"; text: string | null; mealId?: string | null; analysisId?: string | null }
   | { role: "assistant"; kind: "text"; text: string; speaker?: ChatSpeaker | null; model?: string | null }
-  | { role: "assistant"; kind: "meal"; mealId: string; event: ChatEvent };
+  | { role: "assistant"; kind: "meal"; mealId: string; event: ChatEvent; speaker?: ChatSpeaker | null };
 
 /** A stored line. `seq` is the paging cursor: monotonic per STORE, never reused — so its gaps reflect every account's writes, and it is on the wire as an opaque cursor, not as a count. */
 export interface ChatMessage {
@@ -316,23 +316,6 @@ export interface StoreOptions {
    * one that changes when the driver does.
    */
   maxConnections?: number;
-}
-
-/** What `addSubscriber` found or created. */
-export interface SubscriberUpsert {
-  /**
-   * The capability that turns this pending row into a subscriber.
-   *
-   * NULL when the address is already confirmed. That is the signal not to send anything: a
-   * "you are already on the list" email is unsolicited mail to somebody who did not ask for it
-   * this time, and answering the form differently for a known address makes the endpoint an
-   * oracle for who is on the list.
-   */
-  confirmToken: string | null;
-  /** The capability that removes the address. Carried in every message the list ever sends. */
-  unsubscribeToken: string;
-  /** True when this call created the row. */
-  created: boolean;
 }
 
 /**
@@ -917,51 +900,6 @@ export interface Store {
    */
   adminMetrics(query: AdminMetricsQuery): Promise<AdminMetrics>;
 
-  // ── The mailing list ───────────────────────────────────────────────────────────────────────
-  //
-  // Not scoped by `userId`, and that is the one place in this interface where that is correct: a
-  // subscriber is not an account. Nothing joins these rows to `users`, so the app's "we never store
-  // an email address" stays true of the app, and leaving the list does not require having one.
-
-  /**
-   * Record an address as PENDING, or return what is already known about it.
-   *
-   * Idempotent on the address, which is the primary key. A second submission returns the tokens
-   * already issued rather than a second row — so a double-tapped button, or somebody subscribing
-   * twice a month apart, cannot produce two entries with two tokens of which only one unsubscribes
-   * them.
-   *
-   * A row here is NOT a subscriber. It becomes one when `confirmSubscriber` is called with the
-   * confirmation token, and until then it is an address somebody typed into a form, which is not
-   * the same thing as consent — see `engine/subscribe.ts`.
-   */
-  addSubscriber(email: string, source: string): Promise<SubscriberUpsert>;
-  /**
-   * Turn a pending row into a subscriber, by its confirmation token.
-   *
-   * Returns false for an unknown token. Idempotent for a known one: clicking the link twice says
-   * the same thing both times, exactly as unsubscribing does.
-   */
-  confirmSubscriber(confirmToken: string): Promise<boolean>;
-  /** Removes by unsubscribe token. False when unknown — already gone, or never valid. */
-  removeSubscriber(token: string): Promise<boolean>;
-  /**
-   * Rows added at or after `sinceIso`, CONFIRMED OR NOT.
-   *
-   * Counting only the confirmed ones would be a cap a bot walks straight through: submitting is
-   * what costs the server something — a row and an outbound email — and confirming is the part an
-   * abuser never does.
-   */
-  countSubscribersSince(sinceIso: string): Promise<number>;
-  /**
-   * Delete pending rows created before `beforeIso`. Returns how many went.
-   *
-   * The point is not tidiness. An address that was typed into a form and never confirmed is
-   * personal data held with no basis whatsoever — quite possibly somebody else's address, typed by
-   * a stranger — and the only defensible thing to do with it is to stop having it.
-   */
-  pruneUnconfirmedSubscribers(beforeIso: string): Promise<number>;
-
   // ── Meals ──────────────────────────────────────────────────────────────────────────────────
   /** False when a meal with this id already exists — a confirm racing itself; the first one won. */
   insertMeal(record: MealRecord): Promise<boolean>;
@@ -1225,6 +1163,32 @@ export interface Store {
    * not negotiable.
    */
   deleteUser(userId: string): Promise<void>;
+
+  /**
+   * Delete every account abandoned in the sense of #106 — no identity that reaches it, no meals,
+   * and nothing used since `before` (epoch ms) — and say how many went.
+   *
+   * "Identity" is every provider but `device`: the install's own anonymous credential is the class
+   * being swept, so it cannot be what keeps an account alive. Apple, Google and Telegram each
+   * count — a row at one of them is a way back in, or a transport somebody is still listening on
+   * even though `telegram` mints no session.
+   *
+   * The activity clock is `tokens.last_used_at`, the same `last_seen` the admin list shows: every
+   * authenticated call slides it, so an anonymous account still opening the app is alive under
+   * this test however empty of identities it is. An account holding no token at all is measured
+   * from `created_at` — being younger than the window is itself a reason to leave it.
+   *
+   * Meals are the veto. One logged meal and the account is never touched — the legacy anonymous
+   * phone accounts survive on this clause alone. So is any entitlement event, live or lapsed: a
+   * purchaser's account is what the next renewal re-attaches to, and the sweep would otherwise
+   * erase it between billings.
+   *
+   * UNSCOPED, like every sweep, and ONE statement: the conditions are evaluated inside the delete
+   * rather than by a read taken first, so nothing can interleave between "does this account
+   * qualify" and its row going — the strongest version of "one transaction per account", with
+   * every account's dependents going with it by the cascade `deleteUser` relies on.
+   */
+  pruneAbandonedAccounts(before: number): Promise<number>;
 
   close(): Promise<void>;
 }

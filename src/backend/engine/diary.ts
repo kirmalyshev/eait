@@ -2,8 +2,8 @@
 // Register P boards draw: Home's week strip, Progress's "This week" bars, and the streak.
 
 import {
-  dateMinus, DIARY_WINDOW_DAYS, explainTargets, localDate, localTime, windowStart, type DayResponse,
-  type DayTotals, type DiaryDay, type DaysResponse,
+  dateMinus, dayHealthScore, DIARY_WINDOW_DAYS, explainTargets, localDate, localTime, windowStart,
+  type DayResponse, type DayTotals, type DiaryDay, type DaysResponse,
 } from "@eait/shared";
 import type { EngineDeps } from "./deps.ts";
 import { sumTotals } from "./meals.ts";
@@ -39,7 +39,12 @@ export async function day(
     .map((m) => ({ m, at: localTime(deps.config.timezone, new Date(m.ts)) }))
     .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0))
     .map(({ m }) => m);
-  return { date: on, meals, totals: sumTotals(meals), targets: explainTargets(profile).targets };
+  return {
+    date: on, meals, totals: sumTotals(meals), targets: explainTargets(profile).targets,
+    // The day's score is the kcal-weighted mean of the meals' own — the store attached those on
+    // the read, so a meal nobody scored leaves this null rather than a six nobody earned.
+    healthScore: dayHealthScore(meals),
+  };
 }
 
 /**
@@ -58,8 +63,9 @@ export async function week(
 }
 
 /**
- * The range read (#84): every calendar day of `[from, to]` — logged days carrying their macro
- * sums, empty past days zeroed, future days null — and the account's logged-day streak.
+ * The range read (#84): every calendar day of `[from, to]` — logged days carrying their kcal,
+ * empty past days zeroed, future days null — the account's logged-day streak, and its calorie
+ * target sent once.
  *
  * Two reads of the same rows. The page fills `[from, to]` one row per day because the strip draws
  * a day whether or not it has meals; the streak walks the same list backwards from today (or from
@@ -96,11 +102,6 @@ export async function days(
       when: d === today ? "today" : future ? "future" : "past",
       logged: !future && row !== undefined,
       kcal: future ? null : row?.kcal ?? 0,
-      protein_g: future ? null : row?.protein_g ?? 0,
-      carbs_g: future ? null : row?.carbs_g ?? 0,
-      fat_g: future ? null : row?.fat_g ?? 0,
-      satfat_g: future ? null : row?.satfat_g ?? 0,
-      targetKcal,
     });
   }
 
@@ -113,5 +114,5 @@ export async function days(
     streak++;
   }
 
-  return { days: out, streak };
+  return { days: out, targetKcal, streak };
 }

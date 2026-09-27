@@ -9,7 +9,7 @@ import { scriptedLine } from "./chat.ts";
 import type { ChatEntry, ChatEvent } from "./contract.ts";
 import type { MascotMood } from "./onboarding.ts";
 import type { Queued } from "./outbox.ts";
-import type { ConfirmMealResult, HandleTextResult, RefusedTurn } from "./results.ts";
+import type { ChatSpeaker, ConfirmMealResult, HandleTextResult, RefusedTurn } from "./results.ts";
 import type { Lang, MealRecord } from "./types.ts";
 
 /**
@@ -41,8 +41,8 @@ export type ThreadEntry =
       queued?: { photos: string[]; held?: RefusedTurn };
     }
   | { id: string; role: "assistant"; result: ChatResult; stored?: boolean }
-  /** A card from the stored thread: the meal as it is NOW, or gone. */
-  | { id: string; role: "card"; event: ChatEvent; mealId: string | null; meal: MealRecord | null; stored: true }
+  /** A card from the stored thread: the meal as it is NOW, or gone. `speaker` as stored — engine cards are Gabie's (S9). */
+  | { id: string; role: "card"; event: ChatEvent; mealId: string | null; meal: MealRecord | null; stored: true; speaker?: ChatSpeaker | null }
   /**
    * A moment: the notice a turn earned, derived from the bubble it answers, gone with the next page.
    *
@@ -64,7 +64,7 @@ export function fromHistory(entries: ChatEntry[]): ThreadEntry[] {
         ? { id: e.id, role: "user", text: e.text, photo: true, stored: true, mealId: e.mealId }
         : { id: e.id, role: "user", text: e.text, stored: true, clientId: e.clientId, pendingId: e.pendingId };
     }
-    if (e.kind === "meal") return { id: e.id, role: "card", event: e.event, mealId: e.mealId, meal: e.meal, stored: true };
+    if (e.kind === "meal") return { id: e.id, role: "card", event: e.event, mealId: e.mealId, meal: e.meal, stored: true, speaker: e.speaker };
     return { id: e.id, role: "assistant", result: { kind: "answered", text: e.text, speaker: e.speaker }, stored: true };
   });
 }
@@ -365,13 +365,23 @@ export function hasLiveSuggestions(visible: ThreadEntry[]): boolean {
 }
 
 /**
- * Who a row belongs to: the user, or Spud. #49 (principal, 2026-09-26): Spud logs and answers. A
- * stored row from when Gabie answered carries `speaker: "gabie"` and belongs to Spud now, so a
- * thread does not split his turns where she used to speak.
+ * Who a row belongs to: the user, Gabie on her answers, and Spud on everything else he says or
+ * shows. Gabie returned as Chat's coach (S9, redesign): a stored row carrying `speaker: "gabie"`
+ * is hers, whether it was written before or after the #49 interval that read it as his.
  */
-export function speakerOf(entry: ThreadEntry): "user" | "spud" {
+export function speakerOf(entry: ThreadEntry): "user" | "spud" | "gabie" {
   if (entry.role === "user") return "user";
-  return "spud";
+  // The boards draw no Spud in Chat (S9, overseer): every assistant line the chat and meal-edit
+  // engines write is Gabie's — a live turn result before its round trip, a card, a moment. What
+  // STORED lines say is read off the speaker written with them: hers was written, and onboarding's
+  // asks and the app's scripted beats carry none, so an older account's onboarding conversation
+  // stays Spud's.
+  if (entry.role === "assistant")
+    return entry.stored
+      ? entry.result.kind === "answered" && entry.result.speaker === "gabie" ? "gabie" : "spud"
+      : "gabie";
+  if (entry.role === "card") return entry.speaker === "gabie" ? "gabie" : "spud";
+  return "gabie";
 }
 
 /**

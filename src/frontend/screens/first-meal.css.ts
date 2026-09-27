@@ -19,11 +19,8 @@ export const firstMealCss = `
   border: 1px solid var(--hair); margin: .4rem 0 0; }
 .step .card .lab + .lab { margin-top: .9rem; }
 .step-foot { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
-.cta { display: flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 18px;
-  border: 0; border-radius: 999px; font: inherit; font-weight: 800; text-decoration: none; cursor: pointer; }
-.cta.p { background: var(--accent); color: var(--accent-ink); }
-.cta.s { background: var(--surface); color: var(--ink); border: 1px solid var(--hair); }
-.cta.g { background: none; color: var(--muted); min-height: 44px; }
+/* The .cta on this screen is the kit's (#88) — kitCss() owns it; the local copy was the
+   pre-register one (pill radius, 800 weight). */
 .drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
   min-height: 150px; border: 1.5px dashed var(--line); border-radius: 16px; color: var(--muted);
   cursor: pointer; text-align: center; padding: 16px; }

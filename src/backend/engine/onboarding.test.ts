@@ -1,4 +1,3 @@
-import { fakeMailer } from "../mail/fake.ts";
 import { fakePush } from "../push/fake.ts";
 // The onboarding engine: content storage, event sanitising, and the funnel.
 //
@@ -31,7 +30,7 @@ let userId: string;
 
 beforeEach(async () => {
   store = memoryStore();
-  deps = { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+  deps = { store, config: CONFIG, llm: demoPorts(), push: fakePush() };
   userId = await store.createUser("en");
 });
 
@@ -314,7 +313,7 @@ describe("a row an older build left behind", () => {
     const legacy = structuredClone(DEFAULT_ONBOARDING_CONTENT);
     legacy.welcome.cta = "Onwards";
     const store = memoryStore({ seed: { onboardingContent: legacy } });
-    const deps = { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+    const deps = { store, config: CONFIG, llm: demoPorts(), push: fakePush() };
 
     const saved = await saveOnboardingContent(deps, contentWith("Los geht's"), "de");
     expect(saved.ok).toBe(true);
@@ -329,7 +328,7 @@ describe("a row an older build left behind", () => {
     const legacy = structuredClone(DEFAULT_ONBOARDING_CONTENT);
     legacy.welcome.cta = "Onwards";
     const store = memoryStore({ seed: { onboardingContent: JSON.stringify({ en: legacy }) } });
-    const deps = { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() };
+    const deps = { store, config: CONFIG, llm: demoPorts(), push: fakePush() };
 
     await saveOnboardingContent(deps, contentWith("Los geht's"), "de");
     expect((await onboardingContent(deps, "de")).welcome.cta).toBe("Los geht's");

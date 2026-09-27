@@ -176,9 +176,10 @@ export function demoPorts(): LlmPorts {
 
     if (input.focusMeal && /half|less|no |without|actually|instead|only|половин|без |wirklich/.test(text)) {
       const scale = /half|половин/.test(text) ? 0.5 : 0.8;
-      // `verdicts` is dropped deliberately: a real analyzer has none, and a fake that supplies
-      // one cannot fail the way the real one does. That difference hid a crash for a whole day.
-      const { verdicts: _drop, ...f } = input.focusMeal;
+      // `verdicts` and `healthScore` are dropped deliberately: a real analyzer has neither, and a
+      // fake that supplies them cannot fail the way the real one does. That difference hid a crash
+      // for a whole day.
+      const { verdicts: _drop, healthScore: _dropScore, ...f } = input.focusMeal;
       // Each item's NUMBERS move with its grams. Halving the portion and leaving the item's kcal
       // where it was produces a plate whose rows no longer add up to its totals — which is the exact
       // shape `prepareAnalysis` reconciles, so the fake would be manufacturing the defect and every

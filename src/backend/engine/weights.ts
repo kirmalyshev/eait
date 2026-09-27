@@ -11,7 +11,7 @@
 // plan — the projection a client derived would disagree with the plan the same screen shows).
 
 import {
-  dateMinusMonths, localDate, projectGoal, projectionMonth, windowStart,
+  bmi, bmiRange, dateMinusMonths, explainTargets, localDate, projectGoal, projectionMonth, windowStart,
   type PlanProjection, type Profile, type TargetOutcome, type WeightEntry, type WeightsResponse,
   type WeightRange,
 } from "@eait/shared";
@@ -63,12 +63,22 @@ export async function weights(
 ): Promise<WeightsResponse | null> {
   const profile = await deps.store.getProfile(userId);
   if (!profile) return null;
-  const since = rangeStart(range, localDate(deps.config.timezone));
-  return { weights: await mergedWeights(deps, userId, since) };
+  const zone = deps.config.timezone;
+  const since = rangeStart(range, localDate(zone));
+  const outcome = explainTargets(profile);
+  // The whole log, read once: the range slice is a filter on it, the projection's `currentKg` is
+  // its newest entry, and the BMI is that same newest weigh-in — three answers, one scan.
+  const log = await mergedWeights(deps, userId, rangeStart("all", ""));
+  const value = bmi(log.at(-1)?.kg ?? profile.weight_kg, profile.height_cm);
+  return {
+    weights: log.filter((e) => e.date >= since),
+    projection: planProjection(profile, outcome, log, zone),
+    bmi: value === null ? null : { value, range: bmiRange(value) },
+  };
 }
 
 /**
- * `ProfileResponse.projection` — the goal arc the Progress bar draws, or null where no honest one
+ * `WeightsResponse.projection` — the goal arc the Progress bar draws, or null where no honest one
  * exists.
  *
  * `currentKg` is the NEWEST weigh-in in the merged log — where she actually is — not the profile's
@@ -81,18 +91,18 @@ export async function weights(
  * rate it projects is the rate the displayed plan actually imposes — with only the current weight
  * substituted. The month's wording is the account's language, not the server's.
  */
-export async function planProjection(
-  deps: EngineDeps,
+function planProjection(
   profile: Profile,
   outcome: TargetOutcome,
-): Promise<PlanProjection | null> {
-  const log = await mergedWeights(deps, profile.user_id, rangeStart("all", ""));
+  log: WeightEntry[],
+  zone: string,
+): PlanProjection | null {
   const currentKg = log.length > 0 ? log[log.length - 1]!.kg : profile.weight_kg;
   if (currentKg === null) return null;
 
   const onboardedDate = profile.onboarded_at === null
     ? null
-    : localDate(deps.config.timezone, new Date(profile.onboarded_at));
+    : localDate(zone, new Date(profile.onboarded_at));
   const afterOnboarding = onboardedDate === null ? [] : log.filter((e) => e.date >= onboardedDate);
   const startKg = (afterOnboarding[0] ?? log[0])?.kg ?? currentKg;
 

@@ -28,7 +28,7 @@ import {
   promptById,
   renderableVerdicts, resolveCountry, ROUTES, screenForStep,
   screenOptions, screenOptionValues, suggestedTargetKg, suggestionFirst,
-  switchedLine, targetRange, targetSuggestionLine, TARGET_STEP_KG, weightToKg,
+  switchedLine, targetRange, targetSuggestionLine, TARGET_STEP_KG, threadCopyFor, weightToKg,
   LANGS_READY, acceptLang, acceptLanguageTags, numbers, signupCopyFor, verdictPillLabel,
   type ChatEntry, type ChatPrompt, type ChatPromptId, type Diet, type Goal, type Lang,
   type MedicalTag, type NumberField, type OnboardingContent, type PatchProfileRequest,
@@ -1523,7 +1523,9 @@ function threadLine(e: ChatEntry, lang: Lang): ChatLine {
       ? { kind: "user", text: e.text, photo: true }
       : { kind: "user", text: e.text };
   }
-  if (e.kind === "text") return { kind: "said", who: null, text: e.text };
+  if (e.kind === "text") {
+    return { kind: "said", who: e.speaker === "gabie" ? threadCopyFor(lang).coach.name : null, text: e.text };
+  }
   const meal = e.meal;
   if (!meal) return { kind: "card", card: null };
   return {

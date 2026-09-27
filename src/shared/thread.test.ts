@@ -11,7 +11,7 @@ import { fromHistory, hasLiveSuggestions, queuedEntries, keepsItsWords, landedLi
 
 const meal = (id: string, kcal: number, date = "2026-08-25"): MealRecord => ({
   id, user_id: "u", ts: "2026-08-25T12:00:00.000Z", date, isFood: true, items: [], kcal, protein_g: 0, carbs_g: 0, fat_g: 0,
-  satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, confidence: "high", notes: "", corrected: false, model: null,
+  satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, healthScore: null, confidence: "high", notes: "", corrected: false, model: null,
 });
 /** Far enough out that these fixtures are about what they are about, never about the clock (#367). */
 const LIVE = "2099-01-01T00:00:00.000Z";
@@ -20,7 +20,8 @@ const base = () => ({ id: `s${++seq}`, seq, ts: "2026-08-25T12:00:00.000Z" });
 const userLine = (text: string, o: { clientId?: string; pendingId?: string } = {}): ChatEntry =>
   ({ ...base(), role: "user", kind: "text", text, clientId: o.clientId ?? null, pendingId: o.pendingId ?? null });
 const said = (text: string, speaker: ChatSpeaker | null = null): ChatEntry => ({ ...base(), role: "assistant", kind: "text", text, speaker });
-const card = (m: MealRecord | null, mealId = m?.id ?? null): ChatEntry => ({ ...base(), role: "assistant", kind: "meal", event: "logged", mealId, meal: m });
+const card = (m: MealRecord | null, mealId = m?.id ?? null, speaker: ChatSpeaker | null = null): ChatEntry =>
+  ({ ...base(), role: "assistant", kind: "meal", event: "logged", mealId, meal: m, speaker });
 
 describe("reconcilePage", () => {
   it("supersedes a 'not sent' bubble by exactly the landed line carrying its id, never by its words", () => {
@@ -235,7 +236,7 @@ describe("oneCardPerMeal — #301", () => {
   // one, each correction another — and `chatHistory` resolves every one of them to the meal as it
   // is NOW, so two cards for one meal are the same numbers printed twice.
   const upd = (m: MealRecord | null, mealId = m?.id ?? null): ChatEntry =>
-    ({ ...base(), role: "assistant", kind: "meal", event: "updated", mealId, meal: m });
+    ({ ...base(), role: "assistant", kind: "meal", event: "updated", mealId, meal: m, speaker: null });
 
   it("keeps only the newest card for a meal, in the newest one's place", () => {
     const first = card(meal("m1", 300));
@@ -270,7 +271,7 @@ describe("oneCardPerMeal — #301", () => {
 
   it("treats a re-date as the meal's newest mention, gone meal included", () => {
     const logged = card(meal("m1", 300));
-    const moved: ChatEntry = { ...base(), role: "assistant", kind: "meal", event: "redated", mealId: "m1", meal: null };
+    const moved: ChatEntry = { ...base(), role: "assistant", kind: "meal", event: "redated", mealId: "m1", meal: null, speaker: null };
     expect(oneCardPerMeal(fromHistory([logged, moved])).map((e) => e.id)).toEqual([moved.id]);
   });
 });
@@ -343,18 +344,29 @@ const landed: ChatResult = {
 };
 
 describe("speakerOf", () => {
-  it("names the user, Gabie on her answers, and Spud on everything else he says or shows", () => {
+  it("names the user, Gabie on every line the chat engines produce, and Spud on onboarding's", () => {
     expect(speakerOf({ id: "u1", role: "user", text: "hi" })).toBe("user");
-    // #49: Spud only. A stored row from when Gabie answered belongs to Spud now, so a thread
-    // does not split his turns where she used to speak.
-    expect(speakerOf(spoke({ kind: "answered", text: "hi", speaker: "gabie" }))).toBe("spud");
-    // Absent or null is Spud, the host — the rule `ChatSpeaker` states.
-    expect(speakerOf(spoke({ kind: "answered", text: "hi" }))).toBe("spud");
-    expect(speakerOf(spoke({ kind: "answered", text: "hi", speaker: null }))).toBe("spud");
-    // A card, a refusal and a proposal are Spud showing something, never Gabie answering.
+    // S9 / overseer: the boards draw no Spud in Chat — every assistant line the chat and
+    // meal-edit engines write is hers, read back from the speaker stored at write time.
+    for (const result of [
+      { kind: "answered", text: "hi", speaker: "gabie" },
+      proposal, landed,
+      { kind: "expired" },
+      { kind: "not-food" },
+    ] as ChatResult[]) {
+      expect(speakerOf(spoke(result)), result.kind).toBe("gabie");
+    }
+    // A live answer before its round trip is hers the same way.
+    expect(speakerOf(spoke({ kind: "answered", text: "hi" }))).toBe("gabie");
+    // Stored history reads its own speaker: hers was written, Spud's was not — an onboarding ask
+    // or a line the app appended by id carries no speaker and stays his.
+    expect(speakerOf(fromHistory([said("hi", "gabie")])[0]!)).toBe("gabie");
+    expect(speakerOf(fromHistory([said("hi")])[0]!)).toBe("spud");
+    // A card the engine logged is hers; one stored before the column is history — Spud's.
+    expect(speakerOf(fromHistory([card(meal("m1", 300), null, "gabie")])[0]!)).toBe("gabie");
     expect(speakerOf(fromHistory([card(meal("m1", 300))])[0]!)).toBe("spud");
-    expect(speakerOf({ id: "e1", role: "error", kind: "offline" })).toBe("spud");
-    expect(speakerOf(spoke(proposal))).toBe("spud");
+    // A moment is chat-state, and the boards give it no face — hers.
+    expect(speakerOf({ id: "e1", role: "error", kind: "offline" })).toBe("gabie");
   });
 });
 
@@ -467,7 +479,7 @@ describe("proposalLive — #367", () => {
 // #608. A line the server deleted goes, and so does every card that answered it — a delete on a
 // photo line is a delete of the meal. A text line takes nothing with it.
 describe("line-removed", () => {
-  const meal = { id: "m1", user_id: "u", ts: "2026-09-11T10:00:00.000Z", date: "2026-09-11", isFood: true, items: [], kcal: 1, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, confidence: "high" as const, notes: "", corrected: false, model: "t" };
+  const meal = { id: "m1", user_id: "u", ts: "2026-09-11T10:00:00.000Z", date: "2026-09-11", isFood: true, items: [], kcal: 1, protein_g: 0, carbs_g: 0, fat_g: 0, satfat_g: 0, fiber_g: 0, sugar_g: 0, sodium_mg: 0, verdicts: {}, healthScore: null, confidence: "high" as const, notes: "", corrected: false, model: "t" };
   const entries: ThreadEntry[] = [
     { id: "p1", role: "user", text: null, photo: true, stored: true, mealId: "m1" },
     { id: "c1", role: "card", event: "logged", mealId: "m1", meal, stored: true },

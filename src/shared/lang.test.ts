@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { LANGS } from "./types.ts";
 import {
-  LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, genderedRussian, localizedGaps, monthYear, numbers,
+  LANGS_READY, LANG_LABEL, LANG_TAG, UNIT_KCAL, countText, genderedRussian, localizedGaps,
+  monthYear, numbers, weekdayLetters,
   acceptLang, acceptLanguageTags, narrowLang, spellUnit, t,
   type Localized,
 } from "./lang.ts";
@@ -87,6 +88,40 @@ describe("numbers and dates", () => {
     expect(monthYear("de", at)).toBe("November 2026");
     expect(monthYear("fr", at)).toBe("novembre 2026");
     expect(monthYear("vi", at)).toContain("2026");
+  });
+
+  it("names the week's seven letters, Monday first — the strip's and the Progress dots' captions", () => {
+    // CLDR's `narrow` weekday, the same source `monthYear` trusts: a table of letters here is
+    // the month-name table that file deleted — 56 hand-written initials with the wrong ones in
+    // three languages. Pinned per language so a CLDR move is a diff somebody reads.
+    expect(weekdayLetters("en")).toEqual(["M", "T", "W", "T", "F", "S", "S"]);
+    expect(weekdayLetters("de")).toEqual(["M", "D", "M", "D", "F", "S", "S"]);
+    expect(weekdayLetters("ru")).toEqual(["П", "В", "С", "Ч", "П", "С", "В"]);
+    for (const lang of LANGS) expect(weekdayLetters(lang)).toHaveLength(7);
+  });
+});
+
+describe("countText — one count, the form CLDR says its language wants", () => {
+  // "4 days" is the whole of English's plural system and three of Russian's four. A table that
+  // holds one template per language can write "{n} days" and cannot write "5 дней" — the form is
+  // picked by `Intl.PluralRules`, which is the rule and so lives here rather than in the copy.
+  const days = { one: "{n} day", other: "{n} days" };
+  const dni = { one: "{n} день", few: "{n} дня", many: "{n} дней", other: "{n} дня" };
+
+  it("fills the form the number's category names", () => {
+    expect(countText("en")(days, 1)).toBe("1 day");
+    expect(countText("en")(days, 4)).toBe("4 days");
+    expect(countText("ru")(dni, 1)).toBe("1 день");
+    expect(countText("ru")(dni, 4)).toBe("4 дня");
+    expect(countText("ru")(dni, 5)).toBe("5 дней");
+    // A language with one form asks for `other` alone, and 1 still lands on it.
+    expect(countText("vi")({ other: "{n} ngày" }, 1)).toBe("1 ngày");
+  });
+
+  it("never returns undefined — a missing category falls to `other`", () => {
+    // Russian's `many` covers 11–14 and every x5–x0; English has no `few` to give.
+    expect(countText("en")(days, 2)).toBe("2 days");
+    expect(countText("ru")({ one: "{n} день", other: "{n} дня" }, 11)).toBe("11 дня");
   });
 });
 

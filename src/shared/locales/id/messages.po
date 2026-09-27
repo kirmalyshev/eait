@@ -15,6 +15,26 @@ msgstr ""
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.2"
+#~ msgstr "Proteinku sudah cukup belum?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.0"
+#~ msgstr "Bagaimana mingguku?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.coachStarters.1"
+#~ msgstr "Malam ini sebaiknya makan apa?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+#~ msgid "thread.correction"
+#~ msgstr "Diperbarui — {kcal} kcal. {day}"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.noted"
 msgstr "“{note}” — dicatat, sudah masuk ke angkanya."
 
@@ -40,12 +60,22 @@ msgstr "{noun} — tinggi"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.inline.warn"
+msgstr "{noun} — tinggi"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.good"
 msgstr "{noun} — sesuai rencana"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
 msgid "verdict.bad"
+msgstr "{noun} — sangat tinggi"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.inline.bad"
 msgstr "{noun} — sangat tinggi"
 
 #. js-lingui-explicit-id
@@ -70,13 +100,18 @@ msgstr "Porsi besar dari harimu dalam satu makan."
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.2"
+msgid "thread.coachStarters.support"
 msgstr "Proteinku sudah cukup belum?"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.refusal.not-onboarded"
 msgstr "Jawab dulu pertanyaan rencananya di web."
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.weight"
+msgstr "kalori"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -97,16 +132,6 @@ msgstr "Karbohidrat"
 #: src/shared/chat-copy.ts
 msgid "stream.steps.3"
 msgstr "Membandingkan dengan rencanamu"
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ask"
-msgstr "Konfirmasi bahwa alamat ini milikmu:"
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.subject"
-msgstr "Konfirmasi emailmu untuk eait"
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -155,6 +180,11 @@ msgstr "Yang pertama masuk. {kcal} kcal — {arithmetic}"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
+msgid "thread.coach.name"
+msgstr "Gabie"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
 msgid "thread.scripted.onboarding-done"
 msgstr "Bagus — persiapannya selesai, dan hari pertama sudah dimulai. Satu hal lagi sebelum kamu pergi, dan ini satu-satunya kali aku memintanya."
 
@@ -170,18 +200,18 @@ msgstr "Jawaban jujur: aku tidak bisa membaca piring itu dengan jelas. Anggap {k
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.0"
+msgid "thread.coachStarters.consistency"
 msgstr "Bagaimana mingguku?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.busy"
+msgstr "Aku kasih tahu saja apa yang kumakan"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.fixHint"
 msgstr "Kalau ada yang meleset, bilang saja — \"nasinya setengah\", \"tanpa alpukat\" — atau ketuk kartunya dan ubah gramnya."
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.ignore"
-msgstr "Kalau bukan kamu, abaikan saja. Tidak ada yang terjadi, dan alamatnya dihapus dalam waktu seminggu."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -254,11 +284,6 @@ msgid "thread.firstVerdict.headline.onPlan"
 msgstr "Sesuai rencana."
 
 #. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.promise"
-msgstr "Satu pesan saat aplikasinya rilis, dengan tautan berhenti berlangganan sekali klik. Selain itu tidak pernah ada."
-
-#. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
 msgid "thread.scripted.notify-primer"
 msgstr "Satu hal lagi yang sebentar lagi ditanyakan iOS: notifikasi. Sehari satu dan tidak pernah lebih — baris pukul 20:30, plus dua pengingat sebelum minggu gratisnya habis kalau kamu sedang menjalaninya. Selain itu tidak pernah ada."
@@ -290,6 +315,11 @@ msgstr "Dipulihkan — kamu sudah masuk. Satu foto atau satu kalimat, dua-duanya
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
+msgid "verdict.noun.inline.ldl"
+msgstr "lemak jenuh"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
 msgid "verdict.noun.ldl"
 msgstr "Lemak jenuh"
 
@@ -301,12 +331,17 @@ msgstr "Lemak jenuh makanan ini tinggi. Dinilai hanya karena kamu memintanya."
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.connectedTail"
-msgstr "Kirim foto makanan, ceritakan apa yang kamu makan, atau tanya aku sesuatu."
+msgstr "Kirim foto makanan, ceritakan apa yang kamu makan, atau tanya {coach} sesuatu."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.signIn"
 msgstr "Masuk"
+
+#. js-lingui-explicit-id
+#: src/shared/verdicts.ts
+msgid "verdict.noun.inline.kidneys"
+msgstr "natrium"
 
 #. js-lingui-explicit-id
 #: src/shared/verdicts.ts
@@ -317,11 +352,6 @@ msgstr "Natrium"
 #: src/shared/chat-copy.ts
 msgid "thread.firstVerdict.sodium"
 msgstr "Natrium makanan ini tinggi. Dinilai hanya karena kamu memintanya."
-
-#. js-lingui-explicit-id
-#: src/backend/mail/port.ts
-msgid "mail.confirm.who"
-msgstr "Seseorang — kemungkinan besar kamu — minta dikabari saat aplikasi eait untuk iPhone rilis."
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
@@ -459,11 +489,6 @@ msgid "thread.firstVerdict.typed"
 msgstr "Diketik, bukan difoto — jadi porsinya tebakanku. Anggap {kcal} sebagai angka kasar; kalau kamu tahu gramnya, bilang saja dan aku perbaiki."
 
 #. js-lingui-explicit-id
-#: src/shared/chat-copy.ts
-msgid "thread.correction"
-msgstr "Diperbarui — {kcal} kcal. {day}"
-
-#. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
 msgid "tg.updated"
 msgstr "Diperbarui."
@@ -480,8 +505,13 @@ msgstr "Menimbang porsi…"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts
-msgid "thread.coachStarters.1"
+msgid "thread.coachStarters.ideas"
 msgstr "Malam ini sebaiknya makan apa?"
+
+#. js-lingui-explicit-id
+#: src/shared/chat-copy.ts
+msgid "thread.coachStarters.habits"
+msgstr "Ada alternatif lebih ringan untuk makan malam?"
 
 #. js-lingui-explicit-id
 #: src/shared/chat-copy.ts

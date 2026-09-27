@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { DEFAULT_NOTIFICATION_COPY, NOTIFICATION_COPY, NOTIFICATION_IDS, lintCopy } from "@eait/shared";
 import { configDefaults, type Config } from "../config.ts";
 import { demoPorts } from "../llm/demo.ts";
-import { fakeMailer } from "../mail/fake.ts";
 import { fakePush, type FakePush } from "../push/fake.ts";
 import { memoryStore } from "../store.memory.ts";
 import type { Store } from "../store.ts";
@@ -26,7 +25,7 @@ let deps: EngineDeps;
 beforeEach(() => {
   store = memoryStore();
   push = fakePush();
-  deps = { store, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push };
+  deps = { store, config: CONFIG, llm: demoPorts(), push };
 });
 
 /** A fully onboarded user. Returns the id. */
@@ -63,7 +62,7 @@ async function logMeal(userId: string, date: string, kcal: number, protein: numb
     id: crypto.randomUUID(), user_id: userId, ts: `${date}T12:00:00.000Z`, date,
     isFood: true, items: [{ name: "Rice", grams: 200 }], kcal, protein_g: protein,
     carbs_g: 50, fat_g: 10, satfat_g: 2, fiber_g: 3, sugar_g: 4, sodium_mg: 300,
-    verdicts: {}, confidence: "high", notes: "", corrected: false, model: "test",
+    verdicts: {}, healthScore: null, confidence: "high", notes: "", corrected: false, model: "test",
   });
 }
 

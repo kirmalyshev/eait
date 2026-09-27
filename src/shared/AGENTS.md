@@ -72,7 +72,7 @@ gets its meal names in that language.
 - **COPY IS MOVING INTO LINGUI CATALOGS (`src/shared/locales/*/messages.po`), TABLE BY TABLE.**
   A migrated string is `i18n._("<id>", values, { message: "<the English>" })` with a LITERAL id —
   `lingui extract` reads the source, so a computed id never reaches a translator and the only
-  symptom is an English word on a card. Migrated so far: `verdicts.ts`, `mail/port.ts`,
+  symptom is an English word on a card. Migrated so far: `verdicts.ts`,
   `telegram/copy.ts`, `chat-copy.ts` (`THREAD_COPY` and `STREAM_COPY`).
   - **The two ADMIN-EDITABLE tables do not move: `notifications.ts` and `onboarding-content.ts`.**
     `{eaten}` is this product's placeholder syntax and it is also ICU's, so running a template
@@ -229,9 +229,9 @@ gets its meal names in that language.
   either surface until it went — typecheck green, every unit test passing, three countries still
   on the page. A client that falls back to `prompt.options ?? []` renders an empty screen.
 
-  *Chat:* `threadCopyFor`, `scriptedLine`, `firstVerdictLines`, `runningLine`, `MEET_GABIE`,
-  `COACH_STARTERS`, `oneLiveProposal`, `verdictPillLabel`, `pendingLine` / `pendingSteps`.
-  NOT `correctionLine` — `engine/chat.ts` writes that server-side and it arrives as text.
+  *Chat:* `threadCopyFor` (incl. `coach.name` — Gabie), `scriptedLine`, `firstVerdictLines`,
+  `runningLine`, `startersFor`, `speakerOf`, `oneLiveProposal`, `verdictPillLabel`,
+  `pendingLine` / `pendingSteps`.
 
   *Health:* `healthLabel`, `correlationWords`, `trendPeriods`, `trendBuckets`, `trendSummary`,
   `compareSeriesLabels`, `formatHealthValue`. **This whole surface has zero non-test consumers in
