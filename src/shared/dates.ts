@@ -40,6 +40,22 @@ export function dateMinus(date: string, days: number): string {
   return shifted.toISOString().slice(0, 10);
 }
 
+/**
+ * Shift a stored `YYYY-MM-DD` back whole calendar MONTHS, keeping the day where the target month
+ * has one. `Date.UTC` alone would roll 31 March − 1 month over into 3 April, which is wrong —
+ * the answer is the month's last day, so the day clamps rather than rolls.
+ */
+export function dateMinusMonths(date: string, months: number): string {
+  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
+  const shifted = new Date(Date.UTC(y, m - 1 - months, 1));
+  const lastDay = new Date(Date.UTC(
+    shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, 0,
+  )).getUTCDate();
+  return new Date(Date.UTC(
+    shifted.getUTCFullYear(), shifted.getUTCMonth(), Math.min(d, lastDay),
+  )).toISOString().slice(0, 10);
+}
+
 /** The wall clock `zone` shows for an instant, re-read as if it were UTC. Its distance from the real instant is the zone's offset. */
 function wallClockAsUtc(zone: string, at: Date): number {
   const p: Record<string, string> = {};

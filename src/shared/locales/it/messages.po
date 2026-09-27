@@ -425,6 +425,11 @@ msgstr "Qui non c'è nessun pasto aperto da cambiare. Dimmi cosa hai mangiato e 
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.identity-required"
+msgstr "Questo account non è ancora collegato — accedi con Apple o Google sul web e poi invialo di nuovo."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
 msgstr "La quota gratuita di questo account è esaurita. Inizia la tua settimana gratis sul web per continuare."
 

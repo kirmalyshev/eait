@@ -23,6 +23,7 @@ a third implementation instead of the agreement between two.
 | `perf.ts` | `PERF_SCREENS` and every screen's budget. |
 | `entitlement.ts`, `chat.ts`, `thread.ts`, `projection.ts`, `claims.ts`, `notifications.ts` | same rule: one definition, two consumers. |
 | `outbox.ts` | the turns a client could not send (#708): the order, the holds, and what is retried under the same id. The phone and the browser persist it; this decides it. |
+| `palette.ts`, `design.ts`, `assets/fonts/` | the Register P design tokens (#78): both palettes and the macro tones, the type ramp, radii, spacing, the motion vocabulary and its generated CSS, and the one typeface's files. `fontFaces()`/`motionCss()` emit the CSS so no surface retypes a value. |
 
 Everything is exported through `index.ts` (`export *`), so a new export needs no wiring.
 

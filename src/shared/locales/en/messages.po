@@ -425,6 +425,11 @@ msgstr "There is no meal open here to change. Say what you ate and log it again.
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.identity-required"
+msgstr "This account is not signed in yet — sign in with Apple or Google on the web, then send it again."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
 msgstr "This account's free sample is used up. Start your free week on the web to carry on."
 

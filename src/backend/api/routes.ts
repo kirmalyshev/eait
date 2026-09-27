@@ -24,17 +24,18 @@ import {
   type HealthDaysRequest, type HealthDaysResponse, type HealthResponse, type LivenessResponse,
   HEALTH_RETENTION_DAYS, MAX_HEALTH_DAYS_PER_BATCH, isPushToken, isPushTokenRequest, type PushTokenResponse,
   type PairCodeResponse, type PendingMealsResponse,
+  DIARY_RANGE_MAX_DAYS, isWeightRange, WEIGHT_RANGES, type DaysResponse, type WeightsResponse,
 } from "@eait/shared";
 import { acceptLang, narrowLang } from "@eait/shared";
 import { AuthError, type Verifier } from "../auth/verify.ts";
 import { isCalendarDate } from "@eait/shared";
 import type { Store } from "../store.ts";
 import {
-  MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, deleteLine, deleteMealById, editLine,
+  MAX_WINDOW_DAYS, appendLines, cancelPendingMeal, chatHistory, confirmPendingMeal, day, days, deleteLine, deleteMealById, editLine,
   editMeal, handleText,
   healthTrend, identitiesFor, logPhotoMeal, mintPairingCode, onboardingContent, patchProfile, pendingMeals, profileView,
   unlinkIdentity,
-  recordHealthDays, recordOnboardingEvents, signInWithProvider, week, type EngineDeps,
+  recordHealthDays, recordOnboardingEvents, signInWithProvider, week, weights, type EngineDeps,
   attachPhotos,
   reanalyzeMeal,
 } from "../engine/index.ts";
@@ -366,9 +367,9 @@ export function createRouter(
           // `eait_public_web_url` and `eait_app_domain` move together, and that hostname is where
           // the web container is. One value rather than two that must agree.
           hasWebApp: deps.config.publicWebUrl !== "",
-          // The SAME per-address allowance the three sign-in routes below take, handed in rather
-          // than taken here: that module spends it on its OAuth callback only, and only after the
-          // gate that makes an unconfigured host answer 404 on every path under `/start`.
+          // The SAME per-address allowance the sign-in routes below take, handed in rather than
+          // taken here: that module spends it on the OAuth callback, on pairing-code redemption,
+          // and — under S8 — on the sessionless first answer that mints the session account.
           limitAuth: () => limit(req, peer, "auth", deps.config.authRateLimitPerHour, HOUR),
           // And the BILLED allowance, for the chat turns that surface takes. The same bucket the
           // message and photo routes below take, so a browser and a phone on one address share it.
@@ -533,12 +534,17 @@ export function createRouter(
       //
       // OPTIONALLY authenticated, and that is the whole feature: a bearer token here means "link
       // this identity to the account I am already using" rather than "create a new one", which is
-      // what lets someone try the app anonymously and keep the meals they logged.
+      // what lets someone onboard anonymously and keep the answers they gave.
       if (req.method === "POST" && (pathname === ROUTES.authApple || pathname === ROUTES.authGoogle)) {
         const provider = pathname === ROUTES.authApple ? "apple" : "google";
         const body = await req.json() as AuthProviderRequest;
         if (typeof body.idToken !== "string" || !body.idToken) {
           return json({ error: "idToken required" }, 400);
+        }
+        // The terms box is required (S8) — refused here, before `verify` spends a JWKS fetch, and
+        // 400 rather than an AuthError 401 so a client can tell "tick the box" from "bad token".
+        if (body.terms !== true) {
+          return json({ error: "terms-required" }, 400);
         }
         const current = await resolveUserId(req);
         try {
@@ -552,6 +558,7 @@ export function createRouter(
             // has a language — but one that signs in on a fresh install does, and an omitted
             // locale is `en` rather than a refusal.
             toLang(body.locale),
+            { terms: true, marketing: body.marketing === true },
           );
           return json(result satisfies AuthProviderResponse);
         } catch (e) {
@@ -962,6 +969,32 @@ export function createRouter(
         }
         const totals = await week(deps, userId, days);
         return totals ? json({ days: totals }) : json({ error: "not-onboarded" }, 403);
+      }
+
+      if (req.method === "GET" && pathname === ROUTES.days) {
+        // Both ends required and calendar-real: a missing or misspelt one answers as a wrong-but-
+        // plausible window otherwise, which is how a client comes to draw "nothing logged" over a
+        // typo. The span is calendar days — strings, not hours, so no zone question enters it.
+        const from = url.searchParams.get("from");
+        const to = url.searchParams.get("to");
+        if (from === null || to === null || !isCalendarDate(from) || !isCalendarDate(to)) {
+          return json({ error: "from and to must be YYYY-MM-DD" }, 400);
+        }
+        const spanDays = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1;
+        if (spanDays < 1 || spanDays > DIARY_RANGE_MAX_DAYS) {
+          return json({ error: `the range is at most ${DIARY_RANGE_MAX_DAYS} days` }, 400);
+        }
+        const out = await days(deps, userId, from, to);
+        return out ? json(out satisfies DaysResponse) : json({ error: "not-onboarded" }, 403);
+      }
+
+      if (req.method === "GET" && pathname === ROUTES.weights) {
+        const range = url.searchParams.get("range") ?? "90D";
+        if (!isWeightRange(range)) {
+          return json({ error: `range must be one of ${WEIGHT_RANGES.join(", ")}` }, 400);
+        }
+        const out = await weights(deps, userId, range);
+        return out ? json(out satisfies WeightsResponse) : json({ error: "not-onboarded" }, 403);
       }
 
       // ── Health ────────────────────────────────────────────────────────────────────────────

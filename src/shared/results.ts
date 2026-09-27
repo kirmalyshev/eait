@@ -41,6 +41,12 @@ export interface MealLogged {
  */
 export type Refusal =
   | { kind: "not-onboarded" }
+  /**
+   * The account has no Apple or Google identity — sign-up comes before the first meal, so a
+   * photo analysis, and the free one, are refused before anything is charged. The surface's
+   * answer is the sign-up screen, not an apology.
+   */
+  | { kind: "identity-required" }
   /** The model looked and there was no food. Not an error — an answer. */
   | { kind: "not-food" }
   /**

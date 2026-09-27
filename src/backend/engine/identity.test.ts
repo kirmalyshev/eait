@@ -26,6 +26,9 @@ const CONFIG: Config = {
 let store: Store;
 const depsFor = (s: Store): EngineDeps => ({ store: s, config: CONFIG, llm: demoPorts(), mailer: fakeMailer(), push: fakePush() });
 
+/** The ticked boxes a sign-up carries — the terms box is what the call cannot be made without. */
+const CONSENT = { terms: true, marketing: false };
+
 beforeEach(() => { store = memoryStore(); });
 
 const device = () => crypto.randomUUID() + crypto.randomUUID();
@@ -206,14 +209,14 @@ describe("the address the provider vouched for", () => {
 
   it("stores it on an account created by the sign-in itself", async () => {
     const deps = depsFor(store);
-    await signInWithProvider(deps, verifierFor("new@example.com"), "apple", "fresh", undefined, null, "en");
+    await signInWithProvider(deps, verifierFor("new@example.com"), "apple", "fresh", undefined, null, "en", CONSENT);
     expect(await emailOf("fresh")).toBe("new@example.com");
   });
 
   it("stores it when the identity is linked to the anonymous account already in hand", async () => {
     const deps = depsFor(store);
     const anon = (await store.upsertDeviceUser(device(), "en")).userId;
-    const out = await signInWithProvider(deps, verifierFor("link@example.com"), "apple", "linked", undefined, anon, "en");
+    const out = await signInWithProvider(deps, verifierFor("link@example.com"), "apple", "linked", undefined, anon, "en", CONSENT);
     expect(out.outcome).toBe("linked");
     expect(await emailOf("linked")).toBe("link@example.com");
   });
@@ -227,7 +230,7 @@ describe("the address the provider vouched for", () => {
     await store.addIdentity(real, "apple", "merger");
     const anon = (await store.upsertDeviceUser(device(), "en")).userId;
 
-    const out = await signInWithProvider(deps, verifierFor("merge@example.com"), "apple", "merger", undefined, anon, "en");
+    const out = await signInWithProvider(deps, verifierFor("merge@example.com"), "apple", "merger", undefined, anon, "en", CONSENT);
     expect(out.outcome).toBe("merged");
     expect(out.userId).toBe(real);
     expect(await emailOf("merger")).toBe("merge@example.com");
@@ -240,7 +243,7 @@ describe("the address the provider vouched for", () => {
     const real = await store.createUser("en");
     await store.addIdentity(real, "apple", "returning");
 
-    const out = await signInWithProvider(deps, verifierFor("back@example.com"), "apple", "returning", undefined, null, "en");
+    const out = await signInWithProvider(deps, verifierFor("back@example.com"), "apple", "returning", undefined, null, "en", CONSENT);
     expect(out.outcome).toBe("switched");
     expect(await emailOf("returning")).toBe("back@example.com");
   });
@@ -249,8 +252,8 @@ describe("the address the provider vouched for", () => {
     // Apple sends an address on the FIRST authorization only. Every sign-in after that looks like
     // this, and treating it as "the user has no address" would erase the one we were given.
     const deps = depsFor(store);
-    await signInWithProvider(deps, verifierFor("first@example.com"), "apple", "once", undefined, null, "en");
-    await signInWithProvider(deps, verifierFor(), "apple", "once", undefined, null, "en");
+    await signInWithProvider(deps, verifierFor("first@example.com"), "apple", "once", undefined, null, "en", CONSENT);
+    await signInWithProvider(deps, verifierFor(), "apple", "once", undefined, null, "en", CONSENT);
     expect(await emailOf("once")).toBe("first@example.com");
   });
 
@@ -265,7 +268,7 @@ describe("the address the provider vouched for", () => {
     const anon = (await store.upsertDeviceUser(device(), "en")).userId;
 
     const deps = depsFor(failsOnce(store, "setIdentityEmail"));
-    const out = await signInWithProvider(deps, verifierFor("kept@example.com"), "apple", "guarded", undefined, anon, "en");
+    const out = await signInWithProvider(deps, verifierFor("kept@example.com"), "apple", "guarded", undefined, anon, "en", CONSENT);
 
     expect(out.outcome).toBe("merged");
     expect(out.userId).toBe(real);
@@ -279,7 +282,7 @@ describe("the address the provider vouched for", () => {
 
   it("writes nothing when the provider sent no address at all", async () => {
     const deps = depsFor(store);
-    await signInWithProvider(deps, verifierFor(), "apple", "silent", undefined, null, "en");
+    await signInWithProvider(deps, verifierFor(), "apple", "silent", undefined, null, "en", CONSENT);
     expect(await emailOf("silent")).toBeNull();
   });
 });
@@ -304,7 +307,7 @@ describe("a transport is not a sign-in", () => {
     // The account the sign-in lands on already exists, which is the branch that merges.
     const real = await store.createUser("en");
     await store.addIdentity(real, "apple", "merge-me");
-    const out = await signInWithProvider(depsFor(store), verifier, "apple", "merge-me", undefined, anon, "en");
+    const out = await signInWithProvider(depsFor(store), verifier, "apple", "merge-me", undefined, anon, "en", CONSENT);
 
     expect(out.outcome).toBe("merged");
     expect(out.userId).toBe(real);
@@ -345,7 +348,7 @@ describe("the language an account is born in", () => {
     // rendering in English, with the picker that would fix it living behind the onboarding the
     // user cannot read.
     const deps = depsFor(store);
-    const out = await signInWithProvider(deps, verifier, "apple", "neu", undefined, null, "de");
+    const out = await signInWithProvider(deps, verifier, "apple", "neu", undefined, null, "de", CONSENT);
     expect(out.outcome).toBe("created");
     expect((await store.getProfile(out.userId))?.lang).toBe("de");
   });
@@ -356,7 +359,136 @@ describe("the language an account is born in", () => {
     const deps = depsFor(store);
     const mine = await store.createUser("ru");
     await store.addIdentity(mine, "apple", "back");
-    await signInWithProvider(deps, verifier, "apple", "back", undefined, null, "fr");
+    await signInWithProvider(deps, verifier, "apple", "back", undefined, null, "fr", CONSENT);
     expect((await store.getProfile(mine))?.lang).toBe("ru");
+  });
+});
+
+/**
+ * The ticked boxes, on the account the sign-in lands on (S8). `recordConsent` is where the proof
+ * goes, and the ticket's rule is that the SURVIVING account carries it — so every branch below
+ * asserts on who got the stamp, not only that one exists.
+ */
+describe("the consent the sign-up collected", () => {
+  const verifier: IdentityVerifier = {
+    async verify(provider, idToken) { return { provider, subject: idToken }; },
+  };
+
+  it("stamps the account a fresh sign-in creates", async () => {
+    const deps = depsFor(store);
+    const out = await signInWithProvider(
+      deps, verifier, "apple", "fresh-consent", undefined, null, "en",
+      { terms: true, marketing: true },
+    );
+    const consent = await store.consentOf(out.userId);
+    expect(consent?.termsAcceptedAt).not.toBeNull();
+    expect(consent?.marketingConsentAt).not.toBeNull();
+  });
+
+  it("stamps the session account when the identity attaches to it", async () => {
+    const deps = depsFor(store);
+    const anon = (await store.upsertDeviceUser(device(), "en")).userId;
+    const out = await signInWithProvider(
+      deps, verifier, "google", "attach-consent", undefined, anon, "en", CONSENT,
+    );
+    expect(out.outcome).toBe("linked");
+    const consent = await store.consentOf(anon);
+    expect(consent?.termsAcceptedAt).not.toBeNull();
+    expect(consent?.marketingConsentAt).toBeNull();
+  });
+
+  it("merges the session's answers field-by-field into a stale account that never onboarded", async () => {
+    // The overseer's call on #85: the existing account id is kept — RevenueCat's app user id,
+    // the entitlement, Health days, consent history, pairing all hang on it — but the session's
+    // answers are the person's CURRENT intent, so each answered field wins, while a field only
+    // the stale account answered is kept. Then the session account is discarded.
+    const deps = depsFor(store);
+    const real = await store.createUser("en");
+    await store.addIdentity(real, "apple", "stale-wins-id");
+    // The stale account's partial profile: its own sex answer, and a field the walk never asks.
+    await store.patchProfile(real, { sex: "male", food_allergies: "nuts" });
+
+    const anon = (await store.upsertDeviceUser(device(), "de")).userId;
+    // The session account answered the whole walk just now.
+    await store.patchProfile(anon, {
+      goal: "gain", sex: "female", birth_year: 1991, height_cm: 168, weight_kg: 70,
+      target_weight_kg: 75, activity: "some", pace: "steady", restrictions: [],
+      onboarded_at: new Date().toISOString(),
+    });
+
+    const out = await signInWithProvider(
+      deps, verifier, "apple", "stale-wins-id", undefined, anon, "en", CONSENT,
+    );
+    expect(out.outcome).toBe("merged");
+    expect(out.userId).toBe(real);
+
+    const merged = (await store.getProfile(real))!;
+    // Session wins where it answered — the goal, AND the sex the stale account had chosen.
+    expect(merged.goal).toBe("gain");
+    expect(merged.sex).toBe("female");
+    // Stale-only field survives; the walk's completion stamp came across with the answers.
+    // But `lang` is NOT a mergeable field — an existing account's language is its own setting and
+    // a sign-in never re-decides it, whichever direction the session leaned.
+    expect(merged.food_allergies).toBe("nuts");
+    expect(merged.lang).toBe("en");
+    expect(merged.onboarded_at).not.toBeNull();
+    // One account holds the identity, and the session's is gone.
+    expect(await store.getProfile(anon)).toBeNull();
+    expect(await store.userIdForIdentity("apple", "stale-wins-id")).toBe(real);
+    expect((await store.listIdentities(real)).map((i) => i.provider)).toEqual(["apple"]);
+  });
+
+  it("lets an ONBOARDED existing account keep its own answers wholesale (§F 8)", async () => {
+    const deps = depsFor(store);
+    const real = await store.createUser("en");
+    await store.addIdentity(real, "apple", "onboarded-wins");
+    await store.patchProfile(real, {
+      sex: "male", onboarded_at: new Date().toISOString(),
+    });
+    const anon = (await store.upsertDeviceUser(device(), "en")).userId;
+    await store.patchProfile(anon, {
+      sex: "female", goal: "gain", onboarded_at: new Date().toISOString(),
+    });
+
+    const out = await signInWithProvider(
+      deps, verifier, "apple", "onboarded-wins", undefined, anon, "en", CONSENT,
+    );
+    expect(out.outcome).toBe("merged");
+    expect(out.userId).toBe(real);
+    // The stale profile is untouched: the session's "gain"/"female" went with the dropped account.
+    const kept = (await store.getProfile(real))!;
+    expect(kept.sex).toBe("male");
+    expect(kept.goal).toBeNull();
+    expect(await store.getProfile(anon)).toBeNull();
+  });
+
+  it("stamps the SURVIVING account when an existing identity wins", async () => {
+    // The answers the session collected are dropped with the anonymous account — the consent is
+    // what the person just agreed to, and it belongs on the account they are now IN.
+    const deps = depsFor(store);
+    const real = await store.createUser("en");
+    await store.addIdentity(real, "apple", "winner-consent");
+    const anon = (await store.upsertDeviceUser(device(), "en")).userId;
+
+    const out = await signInWithProvider(
+      deps, verifier, "apple", "winner-consent", undefined, anon, "en",
+      { terms: true, marketing: true },
+    );
+    expect(out.outcome).toBe("merged");
+    expect(await store.consentOf(real)).toEqual({
+      termsAcceptedAt: expect.any(String),
+      marketingConsentAt: expect.any(String),
+    });
+  });
+
+  it("stamps a returning user's account too — the tick was made now", async () => {
+    const deps = depsFor(store);
+    const real = await store.createUser("en");
+    await store.addIdentity(real, "google", "returning-consent");
+    const out = await signInWithProvider(
+      deps, verifier, "google", "returning-consent", undefined, null, "en", CONSENT,
+    );
+    expect(out.outcome).toBe("switched");
+    expect((await store.consentOf(real))?.termsAcceptedAt).not.toBeNull();
   });
 });

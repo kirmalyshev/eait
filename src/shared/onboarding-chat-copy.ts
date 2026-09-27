@@ -124,6 +124,15 @@ export interface ChatCopy {
   stepper: { continue: string; less: string; more: string };
   /** The soft offer's title: `{kg}` the target, `{month}` CLDR's month and year. `offerHeadline`. */
   offerHeadline: string;
+  /**
+   * The plan headline over the progress graph (S6; board `15-plan`): `{n}` the amount to lose in
+   * the reader's units, `{month}` the month `projectGoal` lands on, year included. `planHeadline`.
+   * The unit word is part of the sentence and not a symbol beside it, so `metric` and `imperial`
+   * are two whole templates. This is the ONE field the claims gate exempts from `weight-promise`
+   * — `CLAIM_EXEMPTIONS` in `claims.ts` names it — and it is a promise the plan makes about a
+   * goal the user already stated, computed, never written by hand.
+   */
+  planGoal: { metric: string; imperial: string };
 }
 
 const EN: ChatCopy = {
@@ -233,6 +242,7 @@ const EN: ChatCopy = {
   firstMeal:  FIRST_MEAL_COPY.en,
   stepper:  { continue: "Continue", less: "Less", more: "More" },
   offerHeadline:  "Get to {kg} kg by {month}",
+  planGoal: { metric: "Goal: lose {n} kg by {month}", imperial: "Goal: lose {n} lbs by {month}" },
 };
 
 const FR: ChatCopy = {
@@ -340,6 +350,7 @@ const FR: ChatCopy = {
   firstMeal:  FIRST_MEAL_COPY.fr,
   stepper:  { continue: "Continuer", less: "Moins", more: "Plus" },
   offerHeadline:  "Atteindre {kg} kg d'ici {month}",
+  planGoal: { metric: "Objectif : perdre {n} kg d'ici {month}", imperial: "Objectif : perdre {n} lb d'ici {month}" },
 };
 
 const DE: ChatCopy = {
@@ -447,6 +458,7 @@ const DE: ChatCopy = {
   firstMeal:  FIRST_MEAL_COPY.de,
   stepper:  { continue: "Weiter", less: "Weniger", more: "Mehr" },
   offerHeadline:  "{kg} kg bis {month}",
+  planGoal: { metric: "Ziel: bis {month} {n} kg abnehmen", imperial: "Ziel: bis {month} {n} lb abnehmen" },
 };
 
 const IT: ChatCopy = {
@@ -554,6 +566,7 @@ const IT: ChatCopy = {
   firstMeal:  FIRST_MEAL_COPY.it,
   stepper:  { continue: "Continua", less: "Meno", more: "Più" },
   offerHeadline:  "Arrivare a {kg} kg entro {month}",
+  planGoal: { metric: "Obiettivo: perdere {n} kg entro {month}", imperial: "Obiettivo: perdere {n} lb entro {month}" },
 };
 
 const ES: ChatCopy = {
@@ -661,6 +674,7 @@ const ES: ChatCopy = {
   firstMeal:  FIRST_MEAL_COPY.es,
   stepper:  { continue: "Continuar", less: "Menos", more: "Más" },
   offerHeadline:  "Llegar a {kg} kg en {month}",
+  planGoal: { metric: "Objetivo: bajar {n} kg para {month}", imperial: "Objetivo: bajar {n} lb para {month}" },
 };
 
 const VI: ChatCopy = {
@@ -768,6 +782,7 @@ const VI: ChatCopy = {
   firstMeal:  FIRST_MEAL_COPY.vi,
   stepper:  { continue: "Tiếp tục", less: "Bớt", more: "Thêm" },
   offerHeadline:  "Đạt {kg} kg vào {month}",
+  planGoal: { metric: "Mục tiêu: giảm {n} kg vào {month}", imperial: "Mục tiêu: giảm {n} lb vào {month}" },
 };
 
 const ID: ChatCopy = {
@@ -875,6 +890,7 @@ const ID: ChatCopy = {
   firstMeal:  FIRST_MEAL_COPY.id,
   stepper:  { continue: "Lanjut", less: "Kurangi", more: "Tambah" },
   offerHeadline:  "Capai {kg} kg pada {month}",
+  planGoal: { metric: "Target: turun {n} kg pada {month}", imperial: "Target: turun {n} lb pada {month}" },
 };
 
 const RU: ChatCopy = {
@@ -984,6 +1000,12 @@ const RU: ChatCopy = {
   firstMeal:  FIRST_MEAL_COPY.ru,
   stepper:  { continue: "Продолжить", less: "Меньше", more: "Больше" },
   offerHeadline:  "Цель {kg} кг. Срок: {month}",
+  planGoal: {
+    metric: "Цель: минус {n} кг. Срок: {month}",
+    // The SYMBOL, as every other language writes it: the word "фунтов" is the genitive plural and
+    // reads wrong beside 1 or 2–4, which no amount of {n} fixes from inside the template.
+    imperial: "Цель: минус {n} lb. Срок: {month}",
+  },
 };
 
 export const CHAT_COPY: Localized<ChatCopy> = { en: EN, fr: FR, de: DE, it: IT, es: ES, vi: VI, id: ID, ru: RU };

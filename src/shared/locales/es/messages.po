@@ -425,6 +425,11 @@ msgstr "Aquí no hay ninguna comida abierta que cambiar. Dime qué comiste y reg
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.identity-required"
+msgstr "Esta cuenta aún no ha iniciado sesión — entra con Apple o Google en la web y envíalo otra vez."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
 msgstr "La cuota gratuita de esta cuenta se ha agotado. Empieza tu semana gratis en la web para seguir."
 

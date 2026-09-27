@@ -174,6 +174,24 @@ export function normalizeForMatch(text: string): string {
 }
 
 /**
+ * THE ONE EXEMPTION, published (S6; Kirill's decision, DIRECTION §"the plan as a graph").
+ *
+ * The plan graph draws "Goal: lose 6 kg by January 2027" — the user's own stated goal, restated
+ * with the plan's own `projectGoal` month. `weight-promise` cannot tell that from a marketing
+ * claim, and the sentence ships by name, so this map names the single field it may appear under:
+ * `CHAT_COPY.planGoal`, which `planHeadline` (`onboarding-chat.ts`) fills — and only that key.
+ * The same words under any other field name are still refused: the landing stays gated, the rest
+ * of `PAGE_COPY` stays gated, notifications and `WEB_COPY` stay gated.
+ *
+ * Keyed by a QUALIFIED name — `TABLE.key` — on purpose: a bare `planGoal` in some other table
+ * must not drift under an exemption written for this one, and every other rule still reads the
+ * exempted field (a "Goal: lose 6 kg, guaranteed" is still refused).
+ */
+export const CLAIM_EXEMPTIONS: Readonly<Record<string, readonly string[]>> = {
+  "CHAT_COPY.planGoal": ["weight-promise"],
+};
+
+/**
  * Returns every violation across every field. Never throws.
  *
  * `only` narrows the rule set BY NAME, and exists for one surface: the onboarding copy, whose own
@@ -190,7 +208,9 @@ export function lintCopy(
   const rules = only === undefined ? RULES : RULES.filter((r) => only.includes(r.name));
   for (const [field, rawText] of Object.entries(fields)) {
     const text = normalizeForMatch(rawText);
+    const exempt = CLAIM_EXEMPTIONS[field];
     for (const rule of rules) {
+      if (exempt !== undefined && exempt.includes(rule.name)) continue;
       // Fresh regex per scan: a /g regex carries lastIndex between calls.
       const re = new RegExp(rule.re.source, rule.re.flags);
       let match: RegExpExecArray | null;

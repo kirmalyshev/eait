@@ -192,6 +192,55 @@ function contract(name: string, make: () => Promise<Store>) {
       expect((await s.getProfile(userId)) as unknown as Record<string, unknown>).not.toHaveProperty("role");
     });
 
+    // ── Consent (S8) ───────────────────────────────────────────────────────────────────────
+    //
+    // Two columns on `users`, written ONLY by `recordConsent` — sign-up's `terms` tick and the
+    // optional marketing box. They are timestamps rather than booleans because "agreed" without a
+    // when is not an audit trail, and null is the only honest way to say "never asked".
+
+    it("starts with no consent and stamps what the tick said", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      // Null stamps rather than false ones — never asked, and nobody may read "did not agree"
+      // out of "was not asked yet".
+      expect(await s.consentOf(userId)).toEqual({ termsAcceptedAt: null, marketingConsentAt: null });
+
+      await s.recordConsent(userId, { terms: true, marketing: true });
+      const stamped = await s.consentOf(userId);
+      expect(stamped?.termsAcceptedAt).not.toBeNull();
+      expect(stamped?.marketingConsentAt).not.toBeNull();
+    });
+
+    it("treats an unticked box as 'no stamp', never as 'take it back'", async () => {
+      // The marketing box starts empty on every screen, so an unticked answer is the absence of a
+      // NEW consent, not a withdrawal of a stored one — a returning sign-in must not un-consent
+      // the person. (Overseer review on #105: this rule stands; the 05:48 line it replaced had
+      // unticked writing null.)
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.recordConsent(userId, { terms: true, marketing: true });
+      await s.recordConsent(userId, { terms: true, marketing: false });
+      const consent = await s.consentOf(userId);
+      expect(consent?.termsAcceptedAt).not.toBeNull();
+      expect(consent?.marketingConsentAt).not.toBeNull();
+    });
+
+    it("cannot be written through the profile, for the same reason the role cannot", async () => {
+      // Consent is audit data, not profile data: a PATCH on it would let a client consent itself.
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.patchProfile(userId, { terms_accepted_at: "2026-01-01" } as never);
+      expect(await s.consentOf(userId)).toEqual({ termsAcceptedAt: null, marketingConsentAt: null });
+    });
+
+    it("erases the stamps with the account", async () => {
+      const s = await open();
+      const { userId } = await s.upsertDeviceUser(device(), "en");
+      await s.recordConsent(userId, { terms: true, marketing: true });
+      await s.deleteUser(userId);
+      expect(await s.consentOf(userId)).toBeNull();
+    });
+
     // ── The admin's user list ──────────────────────────────────────────────────────────────
     //
     // #374, and it is the ONE READ IN THIS PORT THAT IS NOT SCOPED TO A USER. That makes it a
@@ -1357,6 +1406,75 @@ function contract(name: string, make: () => Promise<Store>) {
       const totals = await s.totalsSince(u, "2026-07-31");
       expect(totals).toHaveLength(1);
       expect(totals[0]!.kcal).toBe(300);
+    });
+
+    it("sums every macro the days read answers with, not only the two the old week view drew", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.insertMeal(meal(u, {
+        kcal: 100, protein_g: 10, carbs_g: 20, fat_g: 5, satfat_g: 2, date: "2026-08-01",
+      }));
+      await s.insertMeal(meal(u, {
+        kcal: 200, protein_g: 20, carbs_g: 30, fat_g: 6, satfat_g: 1, date: "2026-08-01",
+      }));
+      const totals = await s.totalsSince(u, "2026-08-01");
+      expect(totals).toHaveLength(1);
+      expect(totals[0]).toEqual({
+        date: "2026-08-01", kcal: 300, protein_g: 30, carbs_g: 50, fat_g: 11, satfat_g: 3,
+      });
+    });
+
+    // ── The manual weigh-in log (`weights`) ──────────────────────────────────────────────────
+    //
+    // What `PATCH /v1/profile`'s weight writes land in: one row per (user, day), the last write of
+    // a day winning. The engine merges these with `health_days.weight_kg`; these tests pin the
+    // table's own rules — scoping, the upsert, the merge's never-overwrite — so both stores prove
+    // them and neither needs a route to do it.
+
+    it("keeps one weight per day, the last write winning, scoped to the account", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      const other = (await s.upsertDeviceUser(device(), "en")).userId;
+
+      await s.putWeight(u, "2026-08-01", 80.5);
+      await s.putWeight(u, "2026-08-01", 80.1); // a same-day correction replaces, never appends
+      await s.putWeight(u, "2026-07-30", 81.0);
+      await s.putWeight(other, "2026-08-01", 60.0);
+
+      expect(await s.weightsSince(u, "2026-07-01")).toEqual([
+        { date: "2026-08-01", kg: 80.1 },
+        { date: "2026-07-30", kg: 81.0 },
+      ]);
+      expect(await s.weightsSince(u, "2026-08-01")).toEqual([{ date: "2026-08-01", kg: 80.1 }]);
+      expect(await s.weightsSince(other, "2026-07-01")).toEqual([{ date: "2026-08-01", kg: 60.0 }]);
+    });
+
+    it("moves a merge's weights into gaps only, never over a day the survivor already logged", async () => {
+      const s = await open();
+      const anon = (await s.upsertDeviceUser(device(), "en")).userId;
+      const real = (await s.upsertDeviceUser(device(), "en")).userId;
+
+      await s.putWeight(anon, "2026-08-01", 75.0); // a day the survivor has too
+      await s.putWeight(anon, "2026-08-02", 74.8); // a gap the survivor never weighed on
+      await s.putWeight(real, "2026-08-01", 74.2); // the deliberate entry — wins
+
+      await s.mergeUsers(anon, real);
+
+      // Same rule as health_days: filling a gap is a gift, overwriting a deliberate number is
+      // data loss. The anonymous account's weigh-in on a day the real account already has is the
+      // duplicate, not the truth.
+      expect(await s.weightsSince(real, "2026-07-01")).toEqual([
+        { date: "2026-08-02", kg: 74.8 },
+        { date: "2026-08-01", kg: 74.2 },
+      ]);
+    });
+
+    it("erases the weigh-in log with the account", async () => {
+      const s = await open();
+      const u = (await s.upsertDeviceUser(device(), "en")).userId;
+      await s.putWeight(u, "2026-08-01", 80.0);
+      await s.deleteUser(u);
+      expect(await s.weightsSince(u, "2020-01-01")).toEqual([]);
     });
 
     it("lists the meals in a window, newest first, bounded, and only this user's", async () => {

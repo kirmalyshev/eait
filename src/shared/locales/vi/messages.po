@@ -425,6 +425,11 @@ msgstr "Ở đây không có bữa nào đang mở để sửa. Kể mình nghe 
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.identity-required"
+msgstr "Tài khoản này chưa đăng nhập — đăng nhập bằng Apple hoặc Google trên web rồi gửi lại."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
 msgstr "Phần miễn phí của tài khoản này đã dùng hết. Bắt đầu tuần miễn phí trên web để tiếp tục."
 

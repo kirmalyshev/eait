@@ -132,6 +132,9 @@ async function linked(): Promise<{ userId: string; from: number }> {
     restrictions: [], complete_onboarding: true,
   });
   const from = nextId++;
+  // Telegram is a transport, not a way in — a real paired account carries a sign-in identity too,
+  // and since S8 only that kind is allowed an analysis at all.
+  await store.addIdentity(userId, "google", `tg-${userId.slice(0, 8)}`);
   await store.addIdentity(userId, "telegram", String(from));
   return { userId, from };
 }

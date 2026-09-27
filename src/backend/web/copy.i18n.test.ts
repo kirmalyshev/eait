@@ -31,10 +31,17 @@ describe("what /start says for itself, in eight languages", () => {
       for (const ph of ["{step}", "{total}"]) {
         expect(copy.progress, `${lang}.progress`).toContain(ph);
       }
+      // The consent label's two placeholders are the document names — a translation that drops one
+      // renders an agreement that names half of what it means.
+      for (const ph of ["{terms}", "{privacy}"]) {
+        expect(copy.termsLabel, `${lang}.termsLabel`).toContain(ph);
+      }
       for (const [k, v] of Object.entries(copy)) {
         for (const m of v.matchAll(/\{(\w+)\}/g)) {
-          expect(["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total", "weeks"], `${lang}.${k}`)
-          .toContain(m[1] ?? "");
+          expect(
+            ["provider", "kg", "protein", "floor", "kcal", "unit", "step", "total", "weeks", "terms", "privacy"],
+            `${lang}.${k}`,
+          ).toContain(m[1] ?? "");
         }
       }
     }
@@ -143,6 +150,9 @@ describe("the front door's two buttons", () => {
 });
 
 describe("the plan card's two figures", () => {
+  // The stylesheet legitimately contains the string "kcal" now — `--macro-kcal` is a token name
+  // (#78) — so the no-"kcal" assertions run on the page's CONTENT, not its CSS.
+  const content = (html: string) => html.replace(/<style>[\s\S]*?<\/style>/g, "");
   const view = {
     signedInWith: "apple" as const, beat: null, targetKg: null, byWhen: null, weeks: null,
     kcal: 1500, proteinG: 120,
@@ -163,7 +173,7 @@ describe("the plan card's two figures", () => {
       expect(pageCopyFor(lang).planFloorNumber, lang).toContain(UNIT_KCAL[lang]);
     }
     expect(plan({ ...view, lang: "ru" })).toContain("ккал</p>");
-    expect(plan({ ...view, lang: "ru" })).not.toContain("kcal");
+    expect(content(plan({ ...view, lang: "ru" }))).not.toContain("kcal");
   });
 
   it("writes a MEAL CARD's figures in the reader's language too, not only the plan's", () => {
@@ -176,7 +186,7 @@ describe("the plan card's two figures", () => {
       const html = chat({ lines: [{ kind: "card", card }], notice: null, proposal: null, lang });
       expect(html, lang).toContain(UNIT_KCAL[lang]);
     }
-    const ru = chat({ lines: [{ kind: "card", card }], notice: null, proposal: null, lang: "ru" });
+    const ru = content(chat({ lines: [{ kind: "card", card }], notice: null, proposal: null, lang: "ru" }));
     expect(ru).toContain("ккал");
     expect(ru).not.toContain("kcal");
     expect(ru).toContain("белка");

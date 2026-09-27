@@ -425,6 +425,11 @@ msgstr "Tidak ada makanan yang sedang terbuka di sini untuk diubah. Sebutkan apa
 
 #. js-lingui-explicit-id
 #: src/backend/telegram/copy.ts
+msgid "tg.refusal.identity-required"
+msgstr "Akun ini belum masuk — masuk dengan Apple atau Google di web, lalu kirim lagi."
+
+#. js-lingui-explicit-id
+#: src/backend/telegram/copy.ts
 msgid "tg.refusal.subscription-required"
 msgstr "Jatah gratis akun ini sudah habis. Mulai minggu gratismu di web untuk melanjutkan."
 

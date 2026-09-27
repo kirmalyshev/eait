@@ -163,7 +163,7 @@ describe("metricSeries and compareSeries", () => {
     day("2026-08-31", { active_kcal: 500, resting_kcal: 1700, steps: 9000, asleep_minutes: 420, exercise_minutes: 30, weight_kg: 90 }),
     day("2026-08-30", { active_kcal: 400, steps: null, asleep_minutes: null, exercise_minutes: 0, weight_kg: null }),
   ];
-  const intake = [{ date: "2026-08-31", kcal: 2100, protein_g: 120 }];
+  const intake = [{ date: "2026-08-31", kcal: 2100, protein_g: 120, carbs_g: 200, fat_g: 70, satfat_g: 10 }];
 
   test("metricSeries lifts one column out of the days, nulls kept", () => {
     expect(metricSeries(health, "weight_kg")).toEqual([

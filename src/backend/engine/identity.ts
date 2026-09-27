@@ -11,7 +11,8 @@
 
 import { PROVIDERS, signsIn } from "@eait/shared";
 import type { AuthProviderResponse, Lang, LinkOutcome, Provider } from "@eait/shared";
-import type { IdentityVerifier } from "../auth/verify.ts";
+import { AuthError, type IdentityVerifier } from "../auth/verify.ts";
+import type { ProfilePatch } from "../store.ts";
 import type { EngineDeps } from "./deps.ts";
 import { claimCode } from "./pairing.ts";
 
@@ -51,7 +52,14 @@ export async function signInWithProvider(
    * after the first screen, and a sign-in from a borrowed laptop is not a request to change it.
    */
   lang: Lang,
+  /**
+   * The sign-up screen's two boxes (S8). `terms` is required — a call without it is refused before
+   * the token is even verified, cheaply. Whichever account the person lands on carries the stamps:
+   * the terms date on every call, the marketing date only when its box was ticked.
+   */
+  consent: { terms: boolean; marketing: boolean },
 ): Promise<AuthProviderResponse> {
+  if (!consent.terms) throw new AuthError("terms-required");
   // Throws `AuthError` on anything wrong with the token. The route turns that into a 401 and logs
   // the reason; the reason never reaches the client, because it can echo the token.
   const verified = await verifier.verify(provider, idToken, nonce);
@@ -82,7 +90,30 @@ export async function signInWithProvider(
     userId = currentUserId;
     outcome = "already";
   } else if (await isAnonymous(deps, currentUserId)) {
-    // The only merge we perform: anonymous data moves into the real account.
+    // The only merge we perform: anonymous data moves into the real account. The account id is
+    // kept, not the session's — the RevenueCat app user id, entitlement, Health days, consent
+    // history and pairing all hang on the one the identity already names (overseer's call, #85).
+    //
+    // THE PROFILE IS THE EXCEPTION, and it is field by field. When the existing account never
+    // finished its own onboarding, the session's answers are the person's CURRENT intent — the
+    // questions they answered a minute ago — so each answered field overwrites, while a field
+    // only the stale account has stays. An ONBOARDED existing account wins wholesale instead
+    // (§F 8): its answers are complete and the session's are dropped.
+    const stale = await deps.store.getProfile(existing);
+    if (stale !== null && stale.onboarded_at === null) {
+      const answered = await deps.store.getProfile(currentUserId);
+      if (answered !== null) {
+        const patch: ProfilePatch = {};
+        for (const [k, v] of Object.entries(answered)) {
+          // `user_id` is not a field, `lang` is never re-decided by a sign-in (above), and null
+          // is "never answered", not an answer — the field only the stale account filled survives.
+          if (k !== "user_id" && k !== "lang" && v !== null) {
+            (patch as Record<string, unknown>)[k] = v;
+          }
+        }
+        await deps.store.patchProfile(existing, patch);
+      }
+    }
     mergedMeals = await deps.store.mergeUsers(currentUserId, existing);
     userId = existing;
     outcome = "merged";
@@ -111,6 +142,12 @@ export async function signInWithProvider(
   // permanently: it arrives in the FIRST authorization and in no later one. An address is worth
   // less than the account it belongs to, so a store failure is logged and the turn continues.
   await recordEmail(deps, userId, provider, verified, outcome);
+
+  // The consent stamps, on the account the person actually lands on — the surviving account when
+  // an existing one won, the session's own when the identity attached. Unlike the address this is
+  // NOT best-effort: it is the proof the tick happened, so a store failure fails the sign-in and a
+  // retry lands on `switched`/`already` and writes it there.
+  await deps.store.recordConsent(userId, consent);
 
   const token = await deps.store.issueToken(userId);
   const profile = await deps.store.getProfile(userId);
