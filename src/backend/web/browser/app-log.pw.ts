@@ -15,8 +15,11 @@ const FIXTURE = "src/backend/web/browser/fixture-meal.png";
 // (#92's review gate). `test-results/` is gitignored; the names carry the sha instead of the
 // files living in the tree.
 const SHA = execSync("git rev-parse --short HEAD").toString().trim();
-const shot = (page: Page, name: string) =>
-  page.screenshot({ path: `test-results/shots/w5-${SHA}-${name}.png`, fullPage: true });
+const shot = async (page: Page, name: string) => {
+  // The boards' rise delays end inside a second — a shot taken earlier catches a card mid-fade.
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: `test-results/shots/w5-${SHA}-${name}.png`, fullPage: true });
+};
 
 async function server<T>(page: Page, path: string): Promise<T> {
   const res = await page.request.get(`/api/v1${path}`, { headers: { authorization: `Bearer ${await sessionToken(page)}` } });
