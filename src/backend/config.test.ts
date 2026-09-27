@@ -35,6 +35,10 @@ const VARS = [
   "EAIT__BACKEND__PUSH_ENABLED", "EAIT__BACKEND__EXPO_PUSH_ACCESS_TOKEN", "EAIT__BACKEND__PUSH_TIMEOUT_MS",
   "EAIT__BACKEND__EVENING_LINE_TIME",
   "EAIT__BACKEND__GOOGLE_WEB_CLIENT_ID", "EAIT__BACKEND__GOOGLE_WEB_CLIENT_SECRET", "EAIT__BACKEND__WEB_CHECKOUT_URL",
+  "EAIT__BACKEND__WEB_CHECKOUT_YEARLY_URL", "EAIT__BACKEND__WEB_CHECKOUT_MONTHLY_URL",
+  "EAIT__BACKEND__WEB_PRICE_YEARLY", "EAIT__BACKEND__WEB_PRICE_MONTHLY", "EAIT__BACKEND__WEB_TRIAL_DAYS",
+  "EAIT__BACKEND__WEB_EXIT_OFFER_URL", "EAIT__BACKEND__WEB_EXIT_OFFER_PRICE",
+  "EAIT__BACKEND__WEB_EXIT_OFFER_REGULAR_PRICE", "EAIT__BACKEND__WEB_CURRENCY",
   "EAIT__BACKEND__APPLE_SERVICE_ID", "EAIT__BACKEND__APPLE_TEAM_ID", "EAIT__BACKEND__APPLE_KEY_ID",
   "EAIT__BACKEND__APPLE_PRIVATE_KEY",
   "EAIT__BACKEND__TELEGRAM_BOT_TOKEN",
@@ -285,8 +289,99 @@ describe("the web onboarding", () => {
   it("refuses a checkout link with no {userId} in it", () => {
     withRequired({ EAIT__BACKEND__WEB_CHECKOUT_URL: "https://pay.rev.cat/eait" });
     expect(() => loadConfig()).toThrow(/\{userId\}/);
-    withRequired({ EAIT__BACKEND__WEB_CHECKOUT_URL: "https://pay.rev.cat/eait/{userId}" });
-    expect(loadConfig().webCheckoutUrl).toBe("https://pay.rev.cat/eait/{userId}");
+  });
+
+  // The web paywall's plans and exit offer are the operator's (#77): a self-hosted instance may
+  // sell nothing at all, and "nothing" is every URL empty.
+  describe("the web paywall", () => {
+    const SELLS = {
+      EAIT__BACKEND__WEB_CHECKOUT_YEARLY_URL: "https://pay.rev.cat/y/{userId}",
+      EAIT__BACKEND__WEB_PRICE_YEARLY: "39.99",
+      EAIT__BACKEND__WEB_CURRENCY: "EUR",
+    };
+
+    it("sells nothing by default — no plans, no exit offer, no trial line", () => {
+      withRequired();
+      const w = loadConfig().webPaywall;
+      expect(w).toEqual({
+        yearlyCheckoutUrl: "", monthlyCheckoutUrl: "",
+        yearlyPrice: 0, monthlyPrice: 0, trialDays: 0,
+        exitOfferCheckoutUrl: "", exitOfferPrice: 0, exitOfferRegularPrice: 0,
+        currency: "",
+      });
+    });
+
+    it("reads both plans, the prices and the exit offer", () => {
+      withRequired({
+        ...SELLS,
+        EAIT__BACKEND__WEB_CHECKOUT_MONTHLY_URL: "https://pay.rev.cat/m/{userId}",
+        EAIT__BACKEND__WEB_PRICE_MONTHLY: "4.99",
+        EAIT__BACKEND__WEB_TRIAL_DAYS: "7",
+        EAIT__BACKEND__WEB_EXIT_OFFER_URL: "https://pay.rev.cat/u/{userId}",
+        EAIT__BACKEND__WEB_EXIT_OFFER_PRICE: "23.99",
+      });
+      expect(loadConfig().webPaywall).toEqual({
+        yearlyCheckoutUrl: "https://pay.rev.cat/y/{userId}",
+        monthlyCheckoutUrl: "https://pay.rev.cat/m/{userId}",
+        yearlyPrice: 39.99,
+        monthlyPrice: 4.99,
+        trialDays: 7,
+        exitOfferCheckoutUrl: "https://pay.rev.cat/u/{userId}",
+        exitOfferPrice: 23.99,
+        // The struck-through anchor defaults to the regular yearly price.
+        exitOfferRegularPrice: 39.99,
+        currency: "EUR",
+      });
+    });
+
+    it("lets the exit offer's anchor be set apart from the yearly price", () => {
+      withRequired({
+        ...SELLS,
+        EAIT__BACKEND__WEB_EXIT_OFFER_URL: "https://pay.rev.cat/u/{userId}",
+        EAIT__BACKEND__WEB_EXIT_OFFER_PRICE: "23.99",
+        EAIT__BACKEND__WEB_EXIT_OFFER_REGULAR_PRICE: "59.99",
+      });
+      expect(loadConfig().webPaywall.exitOfferRegularPrice).toBe(59.99);
+    });
+
+    it("refuses EVERY checkout template that cannot name the account, whichever plan it prices", () => {
+      for (const v of [
+        "EAIT__BACKEND__WEB_CHECKOUT_YEARLY_URL", "EAIT__BACKEND__WEB_CHECKOUT_MONTHLY_URL",
+        "EAIT__BACKEND__WEB_EXIT_OFFER_URL", "EAIT__BACKEND__WEB_CHECKOUT_URL",
+      ]) {
+        withRequired({ [v]: "https://pay.rev.cat/eait" });
+        expect(() => loadConfig()).toThrow(new RegExp(v));
+        clear();
+      }
+    });
+
+    it("refuses a checkout that cannot name its price, and a price that is not one", () => {
+      withRequired({ EAIT__BACKEND__WEB_CHECKOUT_YEARLY_URL: "https://pay.rev.cat/y/{userId}", EAIT__BACKEND__WEB_CURRENCY: "EUR" });
+      expect(() => loadConfig()).toThrow(/WEB_PRICE_YEARLY/);
+      withRequired({ ...SELLS, EAIT__BACKEND__WEB_PRICE_YEARLY: "cheap" });
+      expect(() => loadConfig()).toThrow(/WEB_PRICE_YEARLY/);
+    });
+
+    it("refuses to sell anything in a currency it cannot format", () => {
+      withRequired({ ...SELLS, EAIT__BACKEND__WEB_CURRENCY: "" });
+      expect(() => loadConfig()).toThrow(/WEB_CURRENCY/);
+      clear();
+      withRequired({ ...SELLS, EAIT__BACKEND__WEB_CURRENCY: "EURO" });
+      expect(() => loadConfig()).toThrow(/WEB_CURRENCY/);
+      // …but a host that sells nothing needs no currency at all.
+      clear();
+      withRequired({ EAIT__BACKEND__WEB_CURRENCY: "EURO" });
+      expect(() => loadConfig()).not.toThrow();
+    });
+
+    it("still honours the pre-plans variable as the yearly checkout, for one release", () => {
+      withRequired({ ...SELLS, EAIT__BACKEND__WEB_CHECKOUT_URL: "https://pay.rev.cat/old/{userId}" });
+      delete process.env.EAIT__BACKEND__WEB_CHECKOUT_YEARLY_URL;
+      expect(loadConfig().webPaywall.yearlyCheckoutUrl).toBe("https://pay.rev.cat/old/{userId}");
+      // The named key wins when a deploy sets both mid-upgrade.
+      withRequired({ ...SELLS, EAIT__BACKEND__WEB_CHECKOUT_URL: "https://pay.rev.cat/old/{userId}" });
+      expect(loadConfig().webPaywall.yearlyCheckoutUrl).toBe("https://pay.rev.cat/y/{userId}");
+    });
   });
 });
 

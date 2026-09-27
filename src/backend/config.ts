@@ -6,6 +6,30 @@ import { DEFAULT_SESSION_TTL_MS } from "./auth/tokens.ts";
 // An unknown or missing setting is a STARTUP ERROR, never a silent fallback. A bot that quietly
 // falls back to a different model answers differently and nothing in any log says why.
 
+/**
+ * The `EAIT__BACKEND__WEB_*` paywall block, parsed (#77). Checkout URLs are `{userId}` templates;
+ * prices are AMOUNTS in `currency`; anything empty or zero is not offered. This is the config
+ * shape — what the client is SENT is `WebPaywall` in `src/shared/paywall.ts`, computed and
+ * formatted per account by `engine/profile.ts`.
+ */
+export interface WebPaywallConfig {
+  /** Yearly plan checkout template; "" = the plan is not offered. */
+  yearlyCheckoutUrl: string;
+  /** Monthly plan checkout template; "" = the plan is not offered. */
+  monthlyCheckoutUrl: string;
+  yearlyPrice: number;
+  monthlyPrice: number;
+  /** Free days the plan's CTA may promise; 0 = no trial line. */
+  trialDays: number;
+  /** The declined-plans offer's checkout template; "" = a decline goes straight to the app. */
+  exitOfferCheckoutUrl: string;
+  exitOfferPrice: number;
+  /** The struck-through anchor; `yearlyPrice` when the operator sets none. */
+  exitOfferRegularPrice: number;
+  /** The ISO 4217 code every price is formatted in — "EUR". Empty only while nothing is sold. */
+  currency: string;
+}
+
 export interface Config {
   port: number;
   /** Loopback by default. A process that binds 0.0.0.0 because nobody said otherwise is how a
@@ -135,15 +159,22 @@ export interface Config {
   googleWebClientId: string;
   googleWebClientSecret: string;
   /**
-   * Where a finished web onboarding sends somebody to subscribe. Empty = the plan page offers
-   * nothing and the account stays on the free sample until it is opened in the app.
+   * The web paywall (#77): which plans a browser may buy, at what prices, on how long a trial, and
+   * the one exit offer — every field an `EAIT__BACKEND__WEB_*` variable, sent to the client
+   * computed and formatted in `ProfileResponse.paywall`. The bundle compiles none of it.
    *
-   * A TEMPLATE containing `{userId}` — a RevenueCat Web Billing paywall link, or anything else that
-   * ends in a delivery to `/v1/revenuecat/webhook`. The id has to be in it: the webhook is the only
-   * thing that can grant an entitlement, `app_user_id` is how it names the account, and it refuses
-   * an id this server never issued.
+   * Every URL is a TEMPLATE containing `{userId}` — a RevenueCat Web Billing link, or anything
+   * else that ends in a delivery to `/v1/revenuecat/webhook`. The id has to be in it: the webhook
+   * is the only thing that can grant an entitlement, `app_user_id` is how it names the account,
+   * and it refuses an id this server never issued. `loadConfig` refuses to boot on one without it.
+   *
+   * Prices are AMOUNTS in `currency` — numbers, never display strings; per-language formatting is
+   * `paywallPrice`'s, at send time. EVERY URL EMPTY means the host sells nothing:
+   * `/start/checkout` 404s, the soft offer passes straight through, and `paywall` tells every
+   * client there is no paywall surface. The free sample is still `freeAnalyses` regardless —
+   * nothing switches to "free" because a variable is missing.
    */
-  webCheckoutUrl: string;
+  webPaywall: WebPaywallConfig;
 
   /**
    * Sign in with Apple, in a browser (`docs/WEB_ONBOARDING.md`). ALL FOUR OR NONE — with any of
@@ -505,7 +536,17 @@ export function configDefaults(): Config {
     googleAudiences: [],
     googleWebClientId: "",
     googleWebClientSecret: "",
-    webCheckoutUrl: "",
+    webPaywall: {
+      yearlyCheckoutUrl: "",
+      monthlyCheckoutUrl: "",
+      yearlyPrice: 0,
+      monthlyPrice: 0,
+      trialDays: 0,
+      exitOfferCheckoutUrl: "",
+      exitOfferPrice: 0,
+      exitOfferRegularPrice: 0,
+      currency: "",
+    },
     appleServiceId: "",
     appleTeamId: "",
     appleKeyId: "",
@@ -667,7 +708,7 @@ export function loadConfig(): Config {
     appleTeamId: process.env.EAIT__BACKEND__APPLE_TEAM_ID ?? d.appleTeamId,
     appleKeyId: process.env.EAIT__BACKEND__APPLE_KEY_ID ?? d.appleKeyId,
     applePrivateKey: applePrivateKeyFromEnv(),
-    webCheckoutUrl: webCheckoutUrlFromEnv(),
+    webPaywall: webPaywallFromEnv(),
     revenueCatWebhookToken: revenueCatWebhookTokenFromEnv(),
     revenueCatEntitlementId:
       process.env.EAIT__BACKEND__REVENUECAT_ENTITLEMENT_ID ?? d.revenueCatEntitlementId,
@@ -886,7 +927,7 @@ export function demoConfig(): Config {
     appleTeamId: process.env.EAIT__BACKEND__APPLE_TEAM_ID ?? "",
     appleKeyId: process.env.EAIT__BACKEND__APPLE_KEY_ID ?? "",
     applePrivateKey: applePrivateKeyFromEnv(),
-    webCheckoutUrl: webCheckoutUrlFromEnv(),
+    webPaywall: webPaywallFromEnv(),
     // Same argument. The subscribe form's redirect is the one behaviour that cannot be checked
     // by reading the code — you have to POST the form and watch where the browser goes — and a
     // demo that always answered JSON would make that untestable outside production.
@@ -910,14 +951,77 @@ export function demoConfig(): Config {
 }
 
 /**
- * The web checkout link, validated at boot.
+ * The web paywall's env block, read and validated at boot (#77).
  *
- * REFUSED WITHOUT `{userId}` rather than accepted and silently useless. A paywall link with no
- * account id in it produces a RevenueCat delivery naming an anonymous customer, which
- * `api/revenuecat.ts` refuses outright — so the purchase succeeds, the money moves, and the
+ * EVERY URL IS REFUSED WITHOUT `{userId}` rather than accepted and silently useless. A checkout
+ * link with no account id in it produces a RevenueCat delivery naming an anonymous customer,
+ * which `api/revenuecat.ts` refuses outright — so the purchase succeeds, the money moves, and the
  * entitlement never lands anywhere. That failure is invisible from this end and expensive at the
  * other, which is exactly the kind that belongs in a startup check.
+ *
+ * `EAIT__BACKEND__WEB_CHECKOUT_URL` still answers for the yearly plan — the alias shipped before
+ * plans existed and is kept for one release so a deploy mid-upgrade loses no checkout. The named
+ * key wins when both are set.
+ *
+ * A CHECKOUT WITHOUT ITS PRICE IS REFUSED, and so is any sale without a currency: the boards draw
+ * a figure on every plan, so a link that cannot be priced is a paywall with a hole in it, and a
+ * number with no currency is one `Intl` cannot write down.
  */
+export function webPaywallFromEnv(): WebPaywallConfig {
+  // The reads are `process.env.NAME` literals at every call site — a name handed to a helper is
+  // one the deploy scan in `src/scripts/prod-env.test.ts` cannot see, and a variable the scan
+  // cannot see is one that ends up set nowhere.
+  const url = (name: string, raw: string | undefined): string => {
+    const v = raw ?? "";
+    if (v !== "" && !v.includes("{userId}")) {
+      throw new Error(`[eait] ${name} must contain {userId} — the webhook is the only thing that can grant the entitlement, and app_user_id is how it names the account`);
+    }
+    return v;
+  };
+  const price = (name: string, raw: string | undefined): number => {
+    if (raw === undefined || raw === "") return 0;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) {
+      throw new Error(`[eait] ${name} must be a positive amount — e.g. 39.99 — not "${raw}"`);
+    }
+    return n;
+  };
+  const yearlyPrice = price("EAIT__BACKEND__WEB_PRICE_YEARLY", process.env.EAIT__BACKEND__WEB_PRICE_YEARLY);
+  const w: WebPaywallConfig = {
+    yearlyCheckoutUrl:
+      url("EAIT__BACKEND__WEB_CHECKOUT_YEARLY_URL", process.env.EAIT__BACKEND__WEB_CHECKOUT_YEARLY_URL)
+      || url("EAIT__BACKEND__WEB_CHECKOUT_URL", process.env.EAIT__BACKEND__WEB_CHECKOUT_URL),
+    monthlyCheckoutUrl: url("EAIT__BACKEND__WEB_CHECKOUT_MONTHLY_URL", process.env.EAIT__BACKEND__WEB_CHECKOUT_MONTHLY_URL),
+    yearlyPrice,
+    monthlyPrice: price("EAIT__BACKEND__WEB_PRICE_MONTHLY", process.env.EAIT__BACKEND__WEB_PRICE_MONTHLY),
+    trialDays: int("EAIT__BACKEND__WEB_TRIAL_DAYS", 0),
+    exitOfferCheckoutUrl: url("EAIT__BACKEND__WEB_EXIT_OFFER_URL", process.env.EAIT__BACKEND__WEB_EXIT_OFFER_URL),
+    exitOfferPrice: price("EAIT__BACKEND__WEB_EXIT_OFFER_PRICE", process.env.EAIT__BACKEND__WEB_EXIT_OFFER_PRICE),
+    // The anchor the offer is struck against defaults to the regular yearly price: an operator
+    // who sets none still shows an honest strike-through.
+    exitOfferRegularPrice:
+      price("EAIT__BACKEND__WEB_EXIT_OFFER_REGULAR_PRICE", process.env.EAIT__BACKEND__WEB_EXIT_OFFER_REGULAR_PRICE) || yearlyPrice,
+    currency: (process.env.EAIT__BACKEND__WEB_CURRENCY ?? "").toUpperCase(),
+  };
+  if (w.yearlyCheckoutUrl !== "" && w.yearlyPrice <= 0) {
+    throw new Error("[eait] EAIT__BACKEND__WEB_CHECKOUT_YEARLY_URL is set but EAIT__BACKEND__WEB_PRICE_YEARLY is not a positive amount — a plan that cannot name its price is a paywall with a hole in it");
+  }
+  if (w.monthlyCheckoutUrl !== "" && w.monthlyPrice <= 0) {
+    throw new Error("[eait] EAIT__BACKEND__WEB_CHECKOUT_MONTHLY_URL is set but EAIT__BACKEND__WEB_PRICE_MONTHLY is not a positive amount");
+  }
+  if (w.exitOfferCheckoutUrl !== "" && (w.exitOfferPrice <= 0 || w.exitOfferRegularPrice <= 0)) {
+    throw new Error("[eait] EAIT__BACKEND__WEB_EXIT_OFFER_URL needs EAIT__BACKEND__WEB_EXIT_OFFER_PRICE and a regular price to strike through — its own, or EAIT__BACKEND__WEB_PRICE_YEARLY");
+  }
+  const sellsSomething = w.yearlyCheckoutUrl !== "" || w.monthlyCheckoutUrl !== "" || w.exitOfferCheckoutUrl !== "";
+  if (sellsSomething) {
+    try {
+      new Intl.NumberFormat("en", { style: "currency", currency: w.currency });
+    } catch {
+      throw new Error("[eait] EAIT__BACKEND__WEB_CURRENCY must be an ISO 4217 code — e.g. EUR — when the web paywall sells anything");
+    }
+  }
+  return w;
+}
 /**
  * The PKCS#8 guard words, ASSEMBLED rather than spelled out.
  *
@@ -953,15 +1057,6 @@ export function applePrivateKeyFromEnv(): string {
       "downloads, whole, BEGIN and END lines included (newlines may be written as \\n). " +
       "See docs/WEB_ONBOARDING.md",
     );
-  }
-  return raw;
-}
-
-export function webCheckoutUrlFromEnv(): string {
-  const raw = process.env.EAIT__BACKEND__WEB_CHECKOUT_URL ?? "";
-  if (raw === "") return "";
-  if (!raw.includes("{userId}")) {
-    throw new Error("EAIT__BACKEND__WEB_CHECKOUT_URL must contain {userId} — see docs/WEB_ONBOARDING.md");
   }
   return raw;
 }
