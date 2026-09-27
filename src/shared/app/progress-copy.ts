@@ -113,6 +113,11 @@ export interface ProgressCopy {
    * honest one, so the card names the distance, not a date.
    */
   goalEstimateFar: string;
+  /**
+   * The notice when the weights read fails — the web twin's `refusalWords` under the card. The
+   * drawn data stays; a reload never blanks it.
+   */
+  loadFailed: string;
   /** Phone only: the `.top` chevron's accessible name — the board draws the arrow, not a word. */
   phone: { back: string };
 }
@@ -146,6 +151,7 @@ const EN: ProgressCopy = {
   bmiFrom: "From {w} and {h}",
   bmiHelp: "How BMI is computed",
   goalEstimateFar: "over two years · estimate",
+  loadFailed: "Couldn't load your progress.",
   phone: { back: "Back" },
 };
 
@@ -178,6 +184,7 @@ const FR: ProgressCopy = {
   bmiFrom: "À partir de {w} et {h}",
   bmiHelp: "Comment l'IMC est calculé",
   goalEstimateFar: "plus de deux ans · estimation",
+  loadFailed: "Impossible de charger ta progression.",
   phone: { back: "Retour" },
 };
 
@@ -210,6 +217,7 @@ const DE: ProgressCopy = {
   bmiFrom: "Aus {w} und {h}",
   bmiHelp: "Wie der BMI berechnet wird",
   goalEstimateFar: "über zwei Jahre · Schätzung",
+  loadFailed: "Dein Fortschritt ließ sich nicht laden.",
   phone: { back: "Zurück" },
 };
 
@@ -242,6 +250,7 @@ const IT: ProgressCopy = {
   bmiFrom: "Da {w} e {h}",
   bmiHelp: "Come viene calcolato l'IMC",
   goalEstimateFar: "oltre due anni · stima",
+  loadFailed: "Impossibile caricare i tuoi progressi.",
   phone: { back: "Indietro" },
 };
 
@@ -274,6 +283,7 @@ const ES: ProgressCopy = {
   bmiFrom: "A partir de {w} y {h}",
   bmiHelp: "Cómo se calcula el IMC",
   goalEstimateFar: "más de dos años · estimación",
+  loadFailed: "No se pudo cargar tu progreso.",
   phone: { back: "Atrás" },
 };
 
@@ -307,6 +317,7 @@ const VI: ProgressCopy = {
   bmiFrom: "Từ {w} và {h}",
   bmiHelp: "Cách tính BMI",
   goalEstimateFar: "hơn hai năm · ước tính",
+  loadFailed: "Không tải được tiến trình của bạn.",
   phone: { back: "Quay lại" },
 };
 
@@ -340,6 +351,7 @@ const ID: ProgressCopy = {
   bmiFrom: "Dari {w} dan {h}",
   bmiHelp: "Cara menghitung IMT",
   goalEstimateFar: "lebih dari dua tahun · perkiraan",
+  loadFailed: "Progresmu tidak bisa dimuat.",
   phone: { back: "Kembali" },
 };
 
@@ -375,6 +387,7 @@ const RU: ProgressCopy = {
   bmiFrom: "Из {w} и {h}",
   bmiHelp: "Как считается ИМТ",
   goalEstimateFar: "больше двух лет · оценка",
+  loadFailed: "Не удалось загрузить твой прогресс.",
   phone: { back: "Назад" },
 };
 

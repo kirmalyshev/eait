@@ -399,6 +399,8 @@ export interface HealthScreenCopy {
     /** A metric's move against the rest of the window — "▼ 0.6%" — the arrow inside, always. */
     deltaUp: string;
     deltaDown: string;
+    /** The notice when the weigh-in read fails — the screen keeps what it had, says why. */
+    loadFailed: string;
     /**
      * Spud's line, eight whole sentences: a weigh-in trend read against the pace the plan was
      * built on. `Down`/`Up` by the direction the goal needs, ×3 for the observed rate COMPARED
@@ -502,6 +504,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       fromHealth: "From Apple Health, {when}",
       deltaUp: "▲ {n}",
       deltaDown: "▼ {n}",
+      loadFailed: "Couldn't load your weigh-ins.",
       lineDownSlow: "Down {kg} — slower than the {pace} pace you chose.",
       lineDownOnPace: "Down {kg} — on the {pace} pace you chose.",
       lineDownFast: "Down {kg} — faster than the {pace} pace you chose.",
@@ -588,6 +591,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       fromHealth: "Depuis Apple Health, {when}",
       deltaUp: "▲ {n}",
       deltaDown: "▼ {n}",
+      loadFailed: "Impossible de charger tes pesées.",
       lineDownSlow: "{kg} en moins — plus lentement que le rythme {pace} que tu as choisi.",
       lineDownOnPace: "{kg} en moins — au rythme {pace} que tu as choisi.",
       lineDownFast: "{kg} en moins — plus vite que le rythme {pace} que tu as choisi.",
@@ -674,6 +678,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       fromHealth: "Von Apple Health, {when}",
       deltaUp: "▲ {n}",
       deltaDown: "▼ {n}",
+      loadFailed: "Deine Wiegungen ließen sich nicht laden.",
       lineDownSlow: "{kg} weniger — langsamer als das {pace} Tempo, das du gewählt hast.",
       lineDownOnPace: "{kg} weniger — genau das {pace} Tempo, das du gewählt hast.",
       lineDownFast: "{kg} weniger — schneller als das {pace} Tempo, das du gewählt hast.",
@@ -760,6 +765,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       fromHealth: "Da Apple Health, {when}",
       deltaUp: "▲ {n}",
       deltaDown: "▼ {n}",
+      loadFailed: "Impossibile caricare le tue pesate.",
       lineDownSlow: "{kg} in meno — più piano del ritmo {pace} che hai scelto.",
       lineDownOnPace: "{kg} in meno — al ritmo {pace} che hai scelto.",
       lineDownFast: "{kg} in meno — più veloce del ritmo {pace} che hai scelto.",
@@ -846,6 +852,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       fromHealth: "Desde Apple Health, {when}",
       deltaUp: "▲ {n}",
       deltaDown: "▼ {n}",
+      loadFailed: "No se pudieron cargar tus pesajes.",
       lineDownSlow: "{kg} menos — más despacio que el ritmo {pace} que elegiste.",
       lineDownOnPace: "{kg} menos — al ritmo {pace} que elegiste.",
       lineDownFast: "{kg} menos — más rápido que el ritmo {pace} que elegiste.",
@@ -932,6 +939,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       fromHealth: "Từ Apple Health, {when}",
       deltaUp: "▲ {n}",
       deltaDown: "▼ {n}",
+      loadFailed: "Không tải được các lần cân của bạn.",
       lineDownSlow: "Giảm {kg} — chậm hơn nhịp {pace} bạn đã chọn.",
       lineDownOnPace: "Giảm {kg} — đúng nhịp {pace} bạn đã chọn.",
       lineDownFast: "Giảm {kg} — nhanh hơn nhịp {pace} bạn đã chọn.",
@@ -1018,6 +1026,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       fromHealth: "Dari Apple Health, {when}",
       deltaUp: "▲ {n}",
       deltaDown: "▼ {n}",
+      loadFailed: "Timbanganmu tidak bisa dimuat.",
       lineDownSlow: "Turun {kg} — lebih pelan dari ritme {pace} yang kamu pilih.",
       lineDownOnPace: "Turun {kg} — pas ritme {pace} yang kamu pilih.",
       lineDownFast: "Turun {kg} — lebih cepat dari ritme {pace} yang kamu pilih.",
@@ -1104,6 +1113,7 @@ export const HEALTH_SCREEN_COPY: Localized<HealthScreenCopy> = {
       fromHealth: "Из Apple Health, {when}",
       deltaUp: "▲ {n}",
       deltaDown: "▼ {n}",
+      loadFailed: "Не удалось загрузить твои взвешивания.",
       lineDownSlow: "Минус {kg} — медленнее, чем твой {pace} темп.",
       lineDownOnPace: "Минус {kg} — как раз твой {pace} темп.",
       lineDownFast: "Минус {kg} — быстрее, чем твой {pace} темп.",
