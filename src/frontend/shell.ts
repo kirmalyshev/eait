@@ -24,6 +24,7 @@
 // requires; the ones below are the runtime pieces this page needs, and a relative import of the
 // file they live in costs nothing the Dockerfile does not already pay for.
 import { shellCopyFor } from "../shared/app/shell-copy.ts";
+import { chatScreenCopyFor } from "../shared/app/chat-copy.ts";
 import { spudSvg, type MascotMood } from "../shared/mascot.ts";
 import { heldAhead, joinsQueue } from "../shared/outbox.ts";
 import { UNIT_KCAL, narrowLang, wholeNumbers } from "../shared/lang.ts";
@@ -34,8 +35,9 @@ import type {
   OUTCOME_UNKNOWN, PendingResponse, PhotoLast, ProfileResponse, ROUTES,
 } from "@eait/shared/contract";
 import { localDate, windowStart } from "../shared/dates.ts";
+import { routeBase } from "./route.ts";
 import { ApiError, Unauthenticated, api, signIn, signedIn } from "./api.ts";
-import { webCopyFor, type WebCopy } from "./copy.ts";
+import { fillCopy as fill, webCopyFor, type WebCopy } from "./copy.ts";
 import { noAnswer, outbox, sendTurn, type WebQueued } from "./outbox.ts";
 
 /**
@@ -141,11 +143,10 @@ const TABS: readonly { hash: string; label: "navHome" | "navProgress" | "navChat
  * The route's PATH — a hash may carry a query (`#/chat?focus=<meal>`, `#/meal/<id>?d=<day>`),
  * which belongs to the screen, never to which screen it is or which tab it marks.
  */
-export const routePath = (hash: string): string => hash.split("?")[0]!;
 
 /** Which tab a route is — `#/meal/…` is Home's, as its board draws. */
 const activeTab = (route: string): string => {
-  const path = routePath(route);
+  const path = routeBase(route);
   return path === "#/chat" || path === "#/you" || path === "#/progress" ? path : "#/";
 };
 
@@ -451,27 +452,26 @@ export function refusalWords(err: unknown): string {
 export const names = (items: readonly { name: string }[]): string =>
   items.slice(0, 2).map((i) => i.name).join(", ") || COPY.meal;
 
-/** The widest span `GET /v1/diary/days` answers — the contract's constant, typed so it cannot drift. */
-const DIARY_RANGE: typeof DIARY_RANGE_MAX_DAYS = 31;
-
 /**
- * The meal an id names, with the day it sits on. `#/meal/:id` may carry `?d=` — the day its row
- * lives on — or nothing, and then the id is looked up on today first and walked back over the
- * window's LOGGED days, newest first. A miss is one answer — `{ meal: null }` — for a deleted
- * meal, a moved one outside the window, and somebody else's alike: the server would never answer
- * the row either way, and neither does this.
+ * One meal by id, wherever the diary window holds it — today first, then the logged days behind
+ * it newest-first (#93's focus handoff; a meal is correctable for the whole window, not just
+ * today). `{day, meal: null}` is the answer when the id names nothing the caller may read.
+ *
+ * The range is the contract's own widest read — typed here, never the value: this bundle may not
+ * pull shared runtime code in.
  */
+const DIARY_RANGE: typeof DIARY_RANGE_MAX_DAYS = 31;
 export async function findMeal(
   mealId: string, zone: string, date?: string,
 ): Promise<{ day: DayResponse; meal: MealRecord | null }> {
-  const first = await api<DayResponse>(`${DAY}?date=${date ?? localDate(zone)}`);
+  const first = await api<DayResponse>(`/diary/day?date=${date ?? localDate(zone)}`);
   const hit = first.meals.find((m) => m.id === mealId);
   if (hit !== undefined || date !== undefined) return { day: first, meal: hit ?? null };
   const window = await api<DaysResponse>(
-    `${DAYS}?from=${windowStart(first.date, DIARY_RANGE)}&to=${first.date}`);
+    `/diary/days?from=${windowStart(first.date, DIARY_RANGE)}&to=${first.date}`);
   for (const d of [...window.days].reverse()) {
     if (!d.logged || d.date === first.date) continue;
-    const other = await api<DayResponse>(`${DAY}?date=${d.date}`);
+    const other = await api<DayResponse>(`/diary/day?date=${d.date}`);
     const m = other.meals.find((x) => x.id === mealId);
     if (m !== undefined) return { day: other, meal: m };
   }
@@ -483,7 +483,7 @@ export function mealLine(meal: MealRecord | null): string {
   // Null once the meal is deleted, and the id outlives it deliberately — so the thread says
   // something rather than rendering an empty bubble.
   if (meal === null) return COPY.mealGone;
-  return `${names(meal.items)} — ${kcal(meal.kcal)}`;
+  return fill(chatScreenCopyFor(lang).mealLine, { name: names(meal.items), kcal: kcal(meal.kcal) });
 }
 
 /** What a turn kept for later says, once, under the composer (#708). No cause: offline and an edge are both this. */
@@ -608,7 +608,7 @@ export function screen(hash: string, fn: ScreenFn): void {
 export const hasScreen = (hash: string): boolean => exactScreens.has(hash);
 
 const screenFor = (route: string, frame: Frame): Promise<HTMLElement> | HTMLElement => {
-  const path = routePath(route);
+  const path = routeBase(route);
   const fn = exactScreens.get(path)
     ?? prefixScreens.find(([prefix]) => path.startsWith(prefix))?.[1]
     ?? exactScreens.get("#/");
@@ -632,7 +632,7 @@ export async function render(): Promise<void> {
   // except the meal, whose board widens the main to the full `wmain` width and puts the pair's
   // columns inside it (`wmain.meal`, the one-column-at-1160 variant).
   const route = location.hash || "#/";
-  const wrap = el("div", `wmain ${routePath(route).startsWith("#/meal/") ? "meal" : "one"}`);
+  const wrap = el("div", `wmain ${routeBase(route).startsWith("#/meal/") ? "meal" : "one"}`);
   // The column's content is the page's MAIN landmark — a screen reader jumps straight to it.
   const body = el("main", "wcol");
   wrap.append(body);

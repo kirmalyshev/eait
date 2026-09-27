@@ -43,6 +43,11 @@ export interface ChatScreenCopy {
    */
   composerAsk: string;
   /**
+   * The meal named on ONE line — the focus sheet's caption and the thread's shrunken card alike:
+   * "{name} — {kcal}", `names()` and `kcal()` either side, never a literal join in code.
+   */
+  mealLine: string;
+  /**
    * The composer over a live thread (`chat.html`, `states-chat-failed.html`,
    * `states-offline.html`, `states-unknown.html` — web + phone). `{coach}` is the coach's name,
    * never a literal.
@@ -118,6 +123,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
   en: {
     greeting: "Tell me what you ate, or ask me anything.",
     composerAsk: "What did you eat?",
+    mealLine: "{name} — {kcal}",
     composerThread: "Tell {coach} what you ate, or ask",
     proposalCheck: "Logging to today — look right?",
     proposalAccept: "Log it",
@@ -147,6 +153,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
   fr: {
     greeting: "Raconte-moi ce que tu as mangé, ou demande-moi n'importe quoi.",
     composerAsk: "Qu'as-tu mangé ?",
+    mealLine: "{name} — {kcal}",
     composerThread: "Dis à {coach} ce que tu as mangé, ou demande",
     proposalCheck: "Je l'ajoute à aujourd'hui — ça te va ?",
     proposalAccept: "Enregistrer",
@@ -176,6 +183,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
   de: {
     greeting: "Sag mir, was du gegessen hast, oder frag mich, was du willst.",
     composerAsk: "Was hast du gegessen?",
+    mealLine: "{name} — {kcal}",
     composerThread: "Sag {coach}, was du gegessen hast, oder frag",
     proposalCheck: "Ich trage es für heute ein — passt das?",
     proposalAccept: "Eintragen",
@@ -205,6 +213,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
   it: {
     greeting: "Dimmi cosa hai mangiato, o chiedimi quello che vuoi.",
     composerAsk: "Cosa hai mangiato?",
+    mealLine: "{name} — {kcal}",
     composerThread: "Di' a {coach} cosa hai mangiato, o chiedi",
     proposalCheck: "Lo registro a oggi — va bene?",
     proposalAccept: "Registralo",
@@ -234,6 +243,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
   es: {
     greeting: "Cuéntame qué has comido, o pregúntame lo que sea.",
     composerAsk: "¿Qué has comido?",
+    mealLine: "{name} — {kcal}",
     composerThread: "Dile a {coach} qué has comido, o pregunta",
     proposalCheck: "Lo registro en hoy — ¿te parece bien?",
     proposalAccept: "Registrarla",
@@ -263,6 +273,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
   vi: {
     greeting: "Kể mình nghe bạn đã ăn gì, hoặc hỏi mình bất cứ điều gì.",
     composerAsk: "Bạn đã ăn gì?",
+    mealLine: "{name} — {kcal}",
     composerThread: "Kể {coach} nghe bạn đã ăn gì, hoặc hỏi",
     proposalCheck: "Ghi vào hôm nay — đúng chứ?",
     proposalAccept: "Ghi lại",
@@ -292,6 +303,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
   id: {
     greeting: "Beri tahu aku apa yang kamu makan, atau tanyakan apa saja.",
     composerAsk: "Apa yang kamu makan?",
+    mealLine: "{name} — {kcal}",
     composerThread: "Beri tahu {coach} apa yang kamu makan, atau tanya",
     proposalCheck: "Kucatat untuk hari ini — benar?",
     proposalAccept: "Catat",
@@ -321,6 +333,7 @@ export const CHAT_SCREEN_COPY: Localized<ChatScreenCopy> = {
   ru: {
     greeting: "Расскажи, что было на тарелке, или спроси о чём угодно.",
     composerAsk: "Что было на тарелке?",
+    mealLine: "{name} — {kcal}",
     composerThread: "Расскажи {coach}, что было на тарелке, или спроси",
     proposalCheck: "Записываю на сегодня — верно?",
     proposalAccept: "Записать",

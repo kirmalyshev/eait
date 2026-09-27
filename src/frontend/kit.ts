@@ -64,7 +64,7 @@ export const ingredientEl = (o: Parameters<typeof ingredientMarkup>[0]): Element
   kitEl(ingredientMarkup(o));
 
 export const photoHeroEl = (o: {
-  src: string; alt?: string; pad?: 14 | 18; stamp?: string; scan?: boolean;
+  src?: string; alt?: string; pad?: 14 | 18; stamp?: string; scan?: boolean;
   callouts?: readonly HeroCallout[];
 }): Element => kitEl(photoHeroMarkup(o));
 

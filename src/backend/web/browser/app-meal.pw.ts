@@ -68,22 +68,14 @@ test("the score row opens the breakdown, and Done closes it", async ({ inWebApp:
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
-test("Correct opens the conversation on this meal; the change line is the server's", async ({ inWebApp: page }) => {
+test("Correct opens the conversation on this meal — W7 renders the focus", async ({ inWebApp: page }) => {
   const { id } = await openMeal(page);
-  const before = (await day(page)).meals[0]!.kcal;
   await page.getByRole("link", { name: "Correct this meal" }).click();
+  // The seam is the navigation: the focused conversation — card, opener, the change line — is
+  // W7's surface (#157), and its spec asserts it.
   await expect(page).toHaveURL(new RegExp(`#\\/chat\\?focus=${id}`));
-  // Gabie's opener names what she read; the composer asks what was wrong.
-  await expect(page.getByText(/I read .* Tell me what I got wrong\./)).toBeVisible();
-  await page.getByPlaceholder("Say what was wrong").fill("actually only half that");
-  await page.getByRole("button", { name: "Send", exact: true }).click();
-  // The recomputed card and the server's "a change, named" line land in the thread.
-  await expect(page.locator("p.bub", { hasText: "→" }).first()).toBeVisible();
-  await expect(page.locator("p.bub", { hasText: "→" }).first()).toContainText(`${Math.round(before / 2)}`);
+  await expect(page.locator(".thread")).toBeVisible();
   await shot(page, "chat-focus");
-  // Back on the detail, the diary row and the card carry the new number.
-  await page.goto(`/#/meal/${id}`);
-  await expect(page.locator(".meal .kc").first()).toContainText(`${Math.round(before / 2)}`);
 });
 
 test("the menu: re-read recomputes in place, and delete asks first", async ({ inWebApp: page }) => {
@@ -122,11 +114,11 @@ test("the menu: re-read recomputes in place, and delete asks first", async ({ in
 test("Move to yesterday puts the meal on yesterday's diary", async ({ inWebApp: page }) => {
   const { id, date } = await openMeal(page);
   await page.locator(".mdetail .ib").last().click();
-  // "Move to yesterday" is a PATCH on the meal — unbilled, unworded, the row's `date` (#150).
-  const moved = page.waitForResponse((r) => r.url().endsWith(`/v1/meals/${id}`) && r.request().method() === "PATCH" && r.ok());
+  // "Move to yesterday" is the re-date route — unbilled, {dayOffset: 1}, the row moved (#150).
+  const moved = page.waitForResponse((r) => r.url().endsWith(`/v1/meals/${id}/redate`) && r.request().method() === "POST" && r.ok());
   await page.locator(".mpopup").getByText("Move to yesterday").click();
   const result = (await (await moved).json()) as { kind: string; date?: string };
-  expect(result.kind).toBe("updated");
+  expect(result.kind).toBe("redated");
   const yesterday = result.date!;
   expect(yesterday).not.toBe(date);
   // The detail follows the meal onto yesterday, and today's list no longer holds the row.

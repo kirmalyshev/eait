@@ -3,21 +3,18 @@
 // with Today stays in `shell.ts`.
 
 import { shellCopyFor } from "../../shared/app/shell-copy.ts";
-import { mealCopyFor } from "../../shared/app/meal-copy.ts";
-import { LANG_TAG, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import { outcomeUnknown } from "../../shared/results.ts";
 import type {
   ChatHistoryResponse, DeleteLineResponse, EditLineLast, PendingMealsResponse, PhotoProgress,
 } from "@eait/shared/contract";
 import { ApiError, Unauthenticated, api, apiStream } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
-import { gabieAvatarEl, gabieNameEl, verdictListEl } from "../kit.ts";
 import { outbox } from "../outbox.ts";
 import {
   COPY, MESSAGE, MESSAGES, PENDING, Said, UNKNOWN, behind, clear, composerRow, el, flush,
   heldProposal, kept, keptNotice, lang, lastThreadEntries, mealLine, outstandingTurn,
   proposalCard, profile, refusalWords, sendOrKeep, setHeldProposal, setLastThread, setRedraw,
-  findMeal, kcal, names, spudFace, takeCarried, takeTurn, unclear,
+  spudFace, takeCarried, takeTurn, unclear,
 } from "../shell.ts";
 
 export async function chatScreen(): Promise<HTMLElement> {
@@ -31,14 +28,6 @@ export async function chatScreen(): Promise<HTMLElement> {
   // Whose turns this browser is keeping (#708). Without a profile nothing is kept: a turn that
   // cannot be sent is worded as a lost answer, as it was.
   const uid = me?.profile.user_id ?? null;
-  // THE CORRECT FLOW (#93): `#/chat?focus=<mealId>` is the meal sheet's "Correct" — the card and
-  // Gabie's opener sit at the foot of the thread and every turn carries `focusMealId`, which is
-  // what makes a sentence a correction of that meal rather than a new proposal. A focus that
-  // resolves to nothing (deleted, moved out, somebody else's) is no focus: no card, no id sent.
-  const focusId = new URLSearchParams(location.hash.split("?")[1] ?? "").get("focus");
-  const focused = focusId === null || me === null ? null
-    : (await findMeal(focusId, me.timezone)).meal;
-  const mc = mealCopyFor(lang);
   const wrap = el("section", "");
   const thread = el("div", "");
   const notice = el("p", "notice");
@@ -167,34 +156,7 @@ export async function chatScreen(): Promise<HTMLElement> {
       }
       list.append(li);
     }
-    // The focus meal's card and Gabie's opener, at the foot — the context the next sentence
-    // corrects (#93). The opener is drawn here, never written: it is a prompt, not a turn.
-    if (focused !== null) {
-      const ctxLi = el("li", "line theirs");
-      const card = el("div", "card");
-      card.append(el("p", "", `${names(focused.items)} — ${kcal(focused.kcal)}`));
-      const verdicts = verdictListEl((focused.verdictLabels ?? []).map((v) => ({ tone: v.tone, words: v.label })));
-      if (verdicts !== null) card.append(verdicts);
-      ctxLi.append(card);
-      list.append(ctxLi);
-      const openLi = el("li", "line theirs buddy");
-      const av = el("span", "av");
-      av.append(gabieAvatarEl());
-      const col = el("div", "col");
-      // What she least stands by, named: the two biggest items, as the boards' opener does.
-      const n = wholeNumbers(lang);
-      const g = spellUnit(lang, "g");
-      const items = new Intl.ListFormat(LANG_TAG[lang], { type: "conjunction" }).format(
-        [...focused.items].sort((a, b) => b.grams - a.grams).slice(0, 2)
-          .map((i) => fill(mc.itemAmount, { amount: `${n(i.grams)} ${g}`, item: i.name })));
-      col.append(
-        gabieNameEl(fill(mc.coachLine, { coach: mc.coachName })),
-        el("p", "bub", fill(mc.correctOpener, { items })),
-      );
-      openLi.append(av, col);
-      list.append(openLi);
-    }
-    clear(thread).append(entries.length === 0 && keptLines.length === 0 && focused === null ? el("p", "muted", COPY.noMessages) : list);
+    clear(thread).append(entries.length === 0 && keptLines.length === 0 ? el("p", "muted", COPY.noMessages) : list);
     // LOGGED ALREADY: a confirm whose answer was lost can still have landed, and the meal then
     // carries the proposal's id (`ChatEntry`, contract.ts), so the card in the thread is its answer.
     const pending = heldProposal()?.pendingId;
@@ -213,7 +175,7 @@ export async function chatScreen(): Promise<HTMLElement> {
   // THE ONE COMPOSER (the boards' row, #52): the native file input hides behind the labelled
   // "Add a photo", and the one field takes a meal, a question, or the words that go WITH a photo —
   // Send sends whichever is attached. A photo's own form is gone, and with it the caption field.
-  const comp = composerRow(focused !== null ? mc.composeHint : COPY.composerPlaceholder);
+  const comp = composerRow(COPY.composerPlaceholder);
   const { picker, words, send, count, cancel } = comp;
   /** The composer as the mode says: an edit shows what it has, asks for angles to ADD, and sends. */
   const arm = (): void => {
@@ -305,12 +267,7 @@ export async function chatScreen(): Promise<HTMLElement> {
         arm();
         return saved;
       }
-      const saved = await sendOrKeep({
-        id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [],
-        capturedAt: new Date().toISOString(),
-        // A focused turn is a correction of that meal — `routeText` reads `focusMealId`.
-        ...(focused !== null ? { focusMealId: focused.id } : {}),
-      });
+      const saved = await sendOrKeep({ id: crypto.randomUUID(), userId: uid ?? "", kind: "text", text, photos: [], capturedAt: new Date().toISOString() });
       words.value = "";
       return saved;
     });

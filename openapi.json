@@ -3547,10 +3547,6 @@
       "EditMealRequest": {
         "type": "object",
         "properties": {
-          "date": {
-            "type": "string",
-            "description": "The day the meal belongs on, as `YYYY-MM-DD` — \"Move to yesterday\" is a PATCH, not a turn: no model is called, nothing is billed, and the meal's numbers pass through untouched. The engine still recomputes the verdicts, so a moved card never reads them off another day's row."
-          },
           "items": {
             "type": "array",
             "items": {

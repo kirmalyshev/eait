@@ -108,12 +108,6 @@ export interface MealCopy {
   itemAmount: string;
   /** The "…" menu button's accessible name — the glyph itself is silent. */
   menuButton: string;
-  /**
-   * The coach's name, for `{coach}` in `coachLine` — THREAD_COPY carries it for the phone, but the
-   * browser bundle reaches no catalog (#145), so the web's opener reads this one. Same word in
-   * every language — a name, not a translation.
-   */
-  coachName: string;
 
   /**
    * "A change, named" (web + phone `meal-edited.html`), built from parts — only the server
@@ -175,7 +169,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneBack: "Back to the diary",
     itemAmount: "{amount} of {item}",
     menuButton: "Meal actions",
-    coachName: "Gabie",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
     changeWithItems: "{items}: {total}",
@@ -221,7 +214,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneBack: "Retour au journal",
     itemAmount: "{amount} de {item}",
     menuButton: "Actions du repas",
-    coachName: "Gabie",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
     changeWithItems: "{items}: {total}",
@@ -267,7 +259,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneBack: "Zurück zum Tagebuch",
     itemAmount: "{amount} {item}",
     menuButton: "Aktionen zur Mahlzeit",
-    coachName: "Gabie",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
     changeWithItems: "{items}: {total}",
@@ -313,7 +304,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneBack: "Torna al diario",
     itemAmount: "{amount} di {item}",
     menuButton: "Azioni sul pasto",
-    coachName: "Gabie",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
     changeWithItems: "{items}: {total}",
@@ -359,7 +349,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneBack: "Volver al diario",
     itemAmount: "{amount} de {item}",
     menuButton: "Acciones de la comida",
-    coachName: "Gabie",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
     changeWithItems: "{items}: {total}",
@@ -405,7 +394,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneBack: "Về nhật ký",
     itemAmount: "{amount} {item}",
     menuButton: "Thao tác bữa ăn",
-    coachName: "Gabie",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
     changeWithItems: "{items}: {total}",
@@ -451,7 +439,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneBack: "Kembali ke catatan",
     itemAmount: "{amount} {item}",
     menuButton: "Aksi makanan",
-    coachName: "Gabie",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
     changeWithItems: "{items}: {total}",
@@ -497,7 +484,6 @@ export const MEAL_COPY: Localized<MealCopy> = {
     webGoneBack: "Назад к дневнику",
     itemAmount: "{item} — {amount}",
     menuButton: "Действия с приёмом пищи",
-    coachName: "Gabie",
     changeItem: "{item} {before} → {after} {unit}",
     changeTotal: "{kcalBefore} → {kcalAfter} {kcal}.",
     changeWithItems: "{items}: {total}",

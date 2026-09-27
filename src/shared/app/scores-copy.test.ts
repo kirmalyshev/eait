@@ -78,6 +78,25 @@ describe("score copy (#118)", () => {
     expect(say("id", 2)).toBe("Dari 2 santapan hari ini");
   });
 
+  test("the breakdown's new keys are present in every language (W6)", () => {
+    for (const lang of LANGS) {
+      const copy = scoresCopy(lang);
+      expect(copy.startRow.length, `${lang}.startRow`).toBeGreaterThan(0);
+      for (const [key, phs] of [
+        ["partPctOfKcal", ["{n}"]],
+        ["partGPer100Kcal", ["{n}"]],
+        ["partMgSodiumPer100Kcal", ["{n}"]],
+        ["partOfTargetG", ["{n}", "{target}"]],
+        ["partOfTargetMg", ["{n}", "{target}"]],
+      ] as const) {
+        for (const ph of phs) expect(copy[key], `${lang}.${key}`).toContain(ph);
+      }
+      for (const limit of ["ldl", "kidneys", "lowsugar"] as const) {
+        expect(copy.limits[limit].length, `${lang}.limits.${limit}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
   test("every factor has a name in every language", () => {
     for (const lang of LANGS) {
       for (const f of ["protein", "fibre", "satfat", "sugar", "salt"] as const) {

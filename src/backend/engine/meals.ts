@@ -355,22 +355,15 @@ export async function editMeal(
     sodium_mg: patch.sodium_mg ?? existing.sodium_mg,
   };
 
-  // `date` is the surface's move ("Move to yesterday"), and a move corrects nothing: `corrected`
-  // and the answered-question clear stay bound to a change of what the plate IS, so a body that
-  // only redates leaves the flag and the question exactly as they were.
-  const content = Object.keys(patch).some((k) => k !== "date");
   const updated = await deps.store.updateMeal(userId, mealId, {
     ...merged,
     verdicts: await gatedVerdicts(deps, userId, merged),
-    ...(content ? {
-      corrected: true,
-      // One question per meal, asked once. Cleared by the write that answers it — and by a manual
-      // edit too, which is the same write: once the user has changed the numbers themselves, the
-      // question is about a plate that no longer exists, and the next `GET /day` would offer the
-      // chips again over an answer already given.
-      question: null,
-    } : {}),
-    ...(patch.date !== undefined ? { date: patch.date } : {}),
+    corrected: true,
+    // One question per meal, asked once. Cleared by the write that answers it — and by a manual
+    // edit too, which is the same write: once the user has changed the numbers themselves, the
+    // question is about a plate that no longer exists, and the next `GET /day` would offer the
+    // chips again over an answer already given.
+    question: null,
   });
   // Not redundant with the read above: the row can vanish between the two (a concurrent account
   // delete). A correction that silently succeeded against nothing is worse than one that says so.

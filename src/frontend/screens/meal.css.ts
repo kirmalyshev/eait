@@ -41,9 +41,9 @@ export const mealCss = `
 .mi:disabled{opacity:.5;cursor:default}
 
 /* The overlays — the score breakdown at 36 % ink, the delete ask at 42 %, both boards' own dims. */
-.mscrim{position:fixed;inset:0;background:rgba(23,25,28,.36);display:flex;align-items:center;
+.mscrim{position:fixed;inset:0;background:color-mix(in srgb, var(--ink) 36%, transparent);display:flex;align-items:center;
   justify-content:center;z-index:50}
-.mscrim.hard{background:rgba(23,25,28,.42)}
+.mscrim.hard{background:color-mix(in srgb, var(--ink) 42%, transparent)}
 .mscore{width:440px;max-height:80vh;overflow:auto;padding:24px;margin:0;display:flex;
   flex-direction:column}
 .mscore .mnote{margin:6px 0 10px}
@@ -51,7 +51,7 @@ export const mealCss = `
 .mdel{width:380px;padding:24px;text-align:center;margin:0}
 .mdel p{margin:8px 0 18px}
 .mdel .mrow{gap:10px}
-.mdel .cta.danger{background:var(--bad);color:#fff;white-space:nowrap}
+.mdel .cta.danger{background:var(--bad);color:var(--accent-ink);white-space:nowrap}
 .mdel .cta.danger:hover{filter:none}
 
 /* The gone state — a deleted, moved or foreign meal id reads the same way. */

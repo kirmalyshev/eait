@@ -14,20 +14,20 @@
 // foreign id resolves to the gone state — the server scopes the read, so "another user's meal"
 // and "no meal" are the same answer and the same panel.
 
-import { dateMinus, isCalendarDate, localTime } from "../../shared/dates.ts";
+import { dateMinus, isCalendarDate, localDate, localTime } from "../../shared/dates.ts";
 import { LANG_TAG, numbers, spellUnit, wholeNumbers } from "../../shared/lang.ts";
 import { mealCopyFor } from "../../shared/app/meal-copy.ts";
 import { scoreFactorLabel, scoresCopy } from "../../shared/app/scores-copy.ts";
 import type { ScorePart } from "../../shared/scores.ts";
 import type { MealRecord } from "@eait/shared";
 import type { DayResponse } from "@eait/shared/contract";
-import type { MealUpdated } from "../../shared/results.ts";
+import type { MealRedated, MealUpdated } from "../../shared/results.ts";
 import { api, apiBlob } from "../api.ts";
 import { fillCopy as fill } from "../copy.ts";
 import { esc, ico } from "../../shared/ui/kit.ts";
 import type { IconName } from "../../shared/ui/icons.ts";
 import {
-  ingredientEl, kitEl, mcardEl, mealRowEl, scorePartEl, scoreRowEl, verdictListEl,
+  ingredientEl, kitEl, mcardEl, mealRowEl, photoHeroEl, scorePartEl, scoreRowEl, verdictListEl,
 } from "../kit.ts";
 import {
   COPY, MEAL, clear, el, findMeal, lang, names, profile, setRedraw, takeTurn,
@@ -53,9 +53,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
 
   // Relative day names for the meta line and header ("Today · 13:05"), the date in full for the
   // diary's own label — the boards write "Thursday 24 September" over the list.
-  const today = new Intl.DateTimeFormat("en-CA", {
-    timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit",
-  }).format(new Date());
+  const today = localDate(zone);
   const dayFmt = new Intl.DateTimeFormat(LANG_TAG[lang], {
     timeZone: "UTC", weekday: "long", day: "numeric", month: "long",
   });
@@ -136,7 +134,7 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     const head = kitEl(`<div class="row between"><b class="d d22">${esc(sc.title)}</b>` +
       `<b class="d d28 num">${esc(fill(sc.outOf, { n: n(hs.score) }))}</b></div>`);
     dlg.append(head, el("p", "t13 m mnote", sc.method));
-    dlg.append(scorePartEl({ name: sc.startRow, points: `${hs.base}` }));
+    dlg.append(scorePartEl({ name: sc.startRow, points: n(hs.base) }));
     const pts = (p: number): string => (p > 0 ? `+${n(p)}` : p < 0 ? `−${n(-p)}` : "0");
     const measure = (p: ScorePart): string => {
       if (p.density === null) return sc.notRead;
@@ -222,12 +220,12 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
       reread,
       item("calendar-back", mc.phoneMenuMoveYesterday, () =>
         turn(async () => {
-          // A move is a PATCH on the meal's date (#150), not a billed turn of words — the same
-          // user scoping an edit goes through, and the verdicts come back recomputed.
-          const out = await api<MealUpdated>(MEAL(meal.id), {
-            method: "PATCH",
+          // A move is the re-date route (#150), not a billed turn of words — the same scoping an
+          // edit goes through, and the offset resolves on the server's today, not a client's date.
+          const out = await api<MealRedated>(`${MEAL(meal.id)}/redate`, {
+            method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ date: dateMinus(today, 1) }),
+            body: JSON.stringify({ dayOffset: 1 }),
           });
           // The meal left this day: follow it there rather than draw the day without it.
           location.hash = `#/meal/${encodeURIComponent(meal.id)}?d=${out.date}`;
@@ -251,17 +249,15 @@ export async function mealScreen(frame: Frame): Promise<HTMLElement> {
     return box;
   };
 
-  /** The hero's photo — fetched through the bearer as a blob, or the tinted chat tile. */
+  /** The hero's photo — the kit's `photoHero`, its src landing late through the bearer. */
   const hero = (meal: MealRecord): HTMLElement => {
-    const box = el("div", "hero");
     if ((meal.photos ?? 0) === 0) {
-      box.classList.add("mnoimg");
+      const box = el("div", "hero mnoimg");
       box.append(kitEl(ico("chat")));
       return box;
     }
-    const img = el("img", "") as HTMLImageElement;
-    img.alt = names(meal.items);
-    box.append(img);
+    const box = photoHeroEl({ alt: names(meal.items) }) as HTMLElement;
+    const img = box.querySelector("img")!;
     void photoUrl(meal.id, 0).then((src) => {
       if (!box.isConnected) return;
       if (src === null) {

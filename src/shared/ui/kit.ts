@@ -260,7 +260,8 @@ export interface HeroCallout {
 }
 
 export const photoHero = (o: {
-  src: string;
+  /** The photo's URL — absent while a bearer-fetched photo is still arriving (src lands later). */
+  src?: string;
   alt?: string;
   /** The callout inset — 14 on the phone boards, 18 on the web's log pages. */
   pad?: 14 | 18;
@@ -272,7 +273,7 @@ export const photoHero = (o: {
     `<div class="co ${c.corner}${c.lift ? " lift" : ""}">${esc(c.text)}${c.value !== undefined ? ` <span>${esc(c.value)}</span>` : ""}</div>`
   ).join("");
   return `<div class="hero${o.pad === 18 ? " p18" : ""}">` +
-    `<img src="${esc(o.src)}" alt="${esc(o.alt ?? "")}">` +
+    `<img${o.src !== undefined ? ` src="${esc(o.src)}"` : ""} alt="${esc(o.alt ?? "")}">` +
     callouts +
     (o.stamp !== undefined ? `<div class="stamp">${esc(o.stamp)}</div>` : "") +
     (o.scan ? `<div class="scan"></div>` : "") +
