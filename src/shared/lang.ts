@@ -205,6 +205,48 @@ export const monthYear = (lang: Lang, at: Date): string =>
   new Intl.DateTimeFormat(LANG_TAG[lang], { month: "long", year: "numeric", timeZone: "UTC" }).format(at);
 
 /**
+ * The seven single letters a week is captioned with — the Today strip and Progress's bars and
+ * streak dots all draw Monday first, as the boards do. CLDR's `narrow` weekday rather than a
+ * table: the last hand-written table of period names got three languages wrong at once, and 56
+ * initials is the same table again. The UTC noon anchor keeps the day fixed regardless of the
+ * reader's zone, as `dayLabel` does.
+ */
+export const weekdayLetters = (lang: Lang): string[] => {
+  const fmt = new Intl.DateTimeFormat(LANG_TAG[lang], { weekday: "narrow", timeZone: "UTC" });
+  // 2026-09-21 was a Monday, so `+ i` walks Monday → Sunday.
+  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(Date.UTC(2026, 8, 21 + i, 12))));
+};
+
+/**
+ * The forms one counted noun needs, keyed by CLDR plural category. `other` is required because
+ * every language has it and it is the fallback for a category the writer did not fill; the rest
+ * are only the ones the language's own grammar asks for (`vi` and `id` have just `other`, `ru`
+ * carries `one`/`few`/`many`). A WHOLE template per form — "{n} days", never a word stapled onto
+ * a number — so the sentence's word order is the translator's, as every template here is.
+ */
+export interface CountForms {
+  zero?: string;
+  one?: string;
+  two?: string;
+  few?: string;
+  many?: string;
+  other: string;
+}
+
+/**
+ * Which form a count takes. The category is `Intl.PluralRules`' — a RULE (Russian's 2–4 land on
+ * `few`, 5+ on `many`), and rules are code, not copy: the table beside this holds only wording.
+ * Whole numbers, because a count of days is exact and a tenth of a day is a weight's precision.
+ * Bound once per surface, like `t`.
+ */
+export const countText = (lang: Lang) => {
+  const rules = new Intl.PluralRules(LANG_TAG[lang]);
+  const whole = wholeNumbers(lang);
+  return (forms: CountForms, n: number): string =>
+    (forms[rules.select(n)] ?? forms.other).replace("{n}", whole(n));
+};
+
+/**
  * The language tags a browser asked for, BEST FIRST.
  *
  * SORTED ON `q`, not merely stripped of it. Browsers do send their list in descending order, but
