@@ -154,9 +154,11 @@ export const macroCardState = (eaten: number, target: number | undefined): Macro
  * `label` is a copy slot the screen fills ("kcal left"/"kcal eaten"/"kcal over" and their detail
  * forms); `figure` is the number above it. The rules: today toggles `left` to `eaten`; an OVER
  * day's figure is the overage under "over" — and toggles to eaten under "eaten", never the eaten
- * figure under "over"; a PAST day under target is `eaten` — nothing is "left" of a day that is
- * over; and a past day with nothing on it shows the plan that day had, under "left" (the boards'
- * "0 of {n}" form). A guessed day carries the about-marker through for the figure's own mark (#47).
+ * figure under "over"; a PAST day reads like today's untoggled face — left or over against the
+ * plan that day had (#170's board: "{n} kcal over · {eaten} of {plan}"), the eaten figure lives
+ * only behind today's toggle; and a past day with nothing on it shows the plan that day had,
+ * under "left" (the boards' "0 of {n}" form). A guessed day carries the about-marker through for
+ * the figure's own mark (#47).
  */
 export interface KcalCardState {
   figure: number;
@@ -165,7 +167,7 @@ export interface KcalCardState {
 }
 
 export const kcalCardState = (budget: DayBudget, showEaten: boolean): KcalCardState => {
-  if (showEaten || budget.state === "under") {
+  if (showEaten) {
     return { figure: budget.eaten, label: "eaten", guessed: budget.guessed };
   }
   if (budget.state === "over") {
