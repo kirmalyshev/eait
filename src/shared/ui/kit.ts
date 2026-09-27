@@ -261,16 +261,24 @@ export const photoHero = (o: {
 // The gradient id is per-instance (`spudSeq`'s rule): two charts on one page may not share one.
 let chartSeq = 0;
 
+/** The estimate chart is a component, not a bare svg: the header row (its `.lab` plus the
+ * `.tagx` "eait analysis" mark) is part of what it renders — a chart cannot ship labelless.
+ * Single root so `kitEl` parses it whole. */
 export const estimateChartSvg = (
   direction: EstimateDirection,
-  labels: { aria: string; start: string; target: string; now: string; month: string },
+  labels: {
+    aria: string; start: string; target: string; now: string; month: string;
+    label: string; byEait: string;
+  },
 ): string => {
   const g = estimateChart(direction);
   const uid = `pgf-${++chartSeq}`;
   const stops = g.areaGradient.stops.map((s) =>
     `<stop offset="${s.offset}" stop-color="var(--accent)" stop-opacity="${s.opacity}"/>`
   ).join("");
-  return `<svg class="pgraph" viewBox="${g.viewBox}" width="100%" role="img" aria-label="${esc(labels.aria)}">` +
+  return `<div class="ec"><div class="row between"><span class="lab">${esc(labels.label)}</span>` +
+    `${tagx({ text: labels.byEait })}</div>` +
+    `<svg class="pgraph" viewBox="${g.viewBox}" width="100%" role="img" aria-label="${esc(labels.aria)}">` +
     `<defs><linearGradient id="${uid}" x1="0" y1="0" x2="0" y2="1">${stops}</linearGradient></defs>` +
     `<line x1="${g.baseline.x1}" y1="${g.baseline.y}" x2="${g.baseline.x2}" y2="${g.baseline.y}" stroke="var(--hair)"/>` +
     `<path class="area rise" d="${g.areaPath}" fill="url(#${uid})"/>` +
@@ -282,7 +290,7 @@ export const estimateChartSvg = (
     `<text x="${g.startLabel.x}" y="${g.startLabel.y}" fill="var(--ink)" font-weight="600">${esc(labels.start)}</text>` +
     `<text x="${g.nowLabel.x}" y="${g.nowLabel.y}">${esc(labels.now)}</text>` +
     `<text x="${g.monthLabel.x}" y="${g.monthLabel.y}" text-anchor="end" fill="var(--ink)" font-weight="600">${esc(labels.month)}</text>` +
-    `</svg>`;
+    `</svg></div>`;
 };
 
 export const twoWayChartSvg = (
@@ -368,6 +376,16 @@ export const gabieAvatar = (): string => `<span class="gabie" aria-hidden="true"
 
 /** Her name line above a `.say` turn's words — the caller composes the words, escaped here. */
 export const gabieName = (name: string): string => `<div class="gname">${esc(name)}</div>`;
+
+/**
+ * The attribution chip: the eait mark's face plus the localized label — the "eait analysis" tag
+ * on a chart — on a surface pill. The streak chip is the same pill with an icon instead of the
+ * face (`icon` + `aria`, and `.ic` padding the board draws), so surfaces share the one chip.
+ */
+export const tagx = (o: { text: string; mood?: MascotMood; icon?: IconName; aria?: string }): string =>
+  `<span class="tagx${o.icon !== undefined ? " ic" : ""}"${o.aria !== undefined ? ` aria-label="${esc(o.aria)}"` : ""}>` +
+  (o.icon !== undefined ? ico(o.icon) : `<span class="wm ${o.mood ?? "happy"}" aria-hidden="true"></span>`) +
+  `${esc(o.text)}</span>`;
 
 // ── Buttons and option rows ──────────────────────────────────────────────────────────────────
 //
@@ -467,8 +485,8 @@ export function kitCss(): string {
 .mcard{position:relative;background:var(--surface);border-radius:var(--r-card);padding:12px 12px 14px;
   display:flex;flex-direction:column;gap:4px;min-width:0;box-shadow:var(--shadow)}
 .mcard.ctr{align-items:center;text-align:center}
-.mcard>b{font-size:17px;font-weight:600}
-.mcard>small{font-size:12px;color:var(--muted)}
+.mcard b{font-size:20px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.mcard small{font-size:12px;font-weight:600;color:var(--muted)}
 .mcard>.mring{align-self:center}
 .mcard>.ico{width:34px;height:34px;margin-bottom:4px}
 .mcards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
@@ -497,7 +515,7 @@ export function kitCss(): string {
 .vs{display:flex;gap:14px;flex-wrap:wrap}
 
 /* The photo hero — image, corner callouts, the stamp; height is the surface's own. */
-.hero{position:relative;overflow:hidden;background:#DDD8CE;border-radius:var(--r-card)}
+.hero{position:relative;overflow:hidden;background:#DDD8CE}
 .hero img{width:100%;height:100%;object-fit:cover;display:block}
 .hero .co{--copad:14px;position:absolute;display:flex;align-items:center;gap:6px;
   background:rgba(255,255,255,.94);border-radius:8px;padding:6px 9px;font-size:12px;font-weight:600;
@@ -515,19 +533,37 @@ export function kitCss(): string {
 .hero .stamp{position:absolute;right:12px;bottom:12px;background:rgba(23,25,28,.72);color:#fff;
   font-size:12px;font-weight:600;padding:4px 8px;border-radius:6px}
 
+/* The shared bits the components reach for: a row, space-between, the small caps label, and the
+   estimate chart's own wrapper (header over graph, as the boards draw it). */
+.row{display:flex;align-items:center;gap:12px}
+.between{justify-content:space-between}
+.lab{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ec .row{margin-bottom:10px}
+
 /* The avatars. Each mood's --face is mascot.ts's own SVG as a data URL — the same drawing the
-   surfaces inline elsewhere, so a board and a bubble never carry two potatoes. */
+   surfaces inline elsewhere, so a board and a bubble never carry two potatoes. .wm is the 20px
+   wordmark size; .tagx shrinks it to 18 for the chip. */
 .spud{width:28px;height:28px;flex:0 0 28px;border-radius:50%;
   background:var(--accent-tint) var(--face) center/78% no-repeat}
 .spud.lg{width:36px;height:36px;flex-basis:36px}
+.wm{width:20px;height:20px;border-radius:50%;flex:0 0 auto;
+  background:var(--accent-tint) var(--face) center/78% no-repeat}
 ${(Object.keys(MOUTHS) as MascotMood[]).map((m) =>
-  `.spud.${m}{--face:url("data:image/svg+xml,${encodeURIComponent(spudSvg(m, `face-${m}`))}")}`
+  `.spud.${m},.wm.${m}{--face:url("data:image/svg+xml,${encodeURIComponent(spudSvg(m, `face-${m}`))}")}`
 ).join("\n")}
 .gabie{width:28px;height:28px;flex:0 0 28px;border-radius:50%;background:var(--accent);color:#fff;
   display:inline-flex;align-items:center;justify-content:center;font:700 13px/1 var(--sans)}
 .gabie::before{content:"G"}
 .say{display:flex;gap:10px;align-items:flex-start}
 .gname{font-size:12px;font-weight:600;color:var(--muted);margin:0 0 2px}
+
+/* The attribution chip — the eait face plus words; the streak chip is the same pill at .ic. */
+.tagx{display:inline-flex;align-items:center;gap:5px;background:var(--surface);border-radius:999px;
+  padding:3px 9px 3px 4px;font-size:12px;font-weight:600;color:var(--ink);
+  box-shadow:0 1px 3px rgba(23,25,28,.16);white-space:nowrap}
+.tagx .wm{width:18px;height:18px;flex-basis:18px}
+.tagx .ico{width:16px;height:16px}
+.tagx.ic{padding:4px 10px}
 
 /* The chart frame — overflow:visible so an end dot can sit on the edge. */
 .pgraph{display:block;overflow:visible;width:100%}

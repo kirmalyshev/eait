@@ -7,7 +7,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   cta, esc, estimateChartSvg, gabieAvatar, gabieName, gramMacs, kitCss, mac, macs, mcard,
-  mealRow, optionRow, photoHero, planCard, ring, spudAvatar, twoWayChartSvg, verdictDot,
+  mealRow, optionRow, photoHero, planCard, ring, spudAvatar, tagx, twoWayChartSvg, verdictDot,
   verdictList, weekBarsSvg, weekStrip, weightChartSvg,
 } from "./kit.ts";
 import { dayRing, estimateChart, ringDash, TWO_WAYS_CHART } from "./charts.ts";
@@ -217,12 +217,16 @@ describe("photoHero — the photo and its callouts", () => {
 });
 
 describe("the charts", () => {
-  test("estimateChartSvg draws the estimateChart geometry verbatim", () => {
+  test("estimateChartSvg renders its header row — a chart cannot ship labelless", () => {
     const g = estimateChart("lose");
     const m = estimateChartSvg("lose", {
       aria: "Weight trend to target", start: "74 kg", target: "Target 68 kg",
       now: "Now", month: "January 2027 · estimate",
+      label: "Estimated progress", byEait: "eait analysis",
     });
+    expect(m).toContain('<div class="row between"><span class="lab">Estimated progress</span>');
+    expect(m).toContain('<span class="tagx"><span class="wm happy"');
+    expect(m).toContain("eait analysis");
     expect(m).toContain('class="pgraph"');
     expect(m).toContain('role="img"');
     expect(m).toContain('aria-label="Weight trend to target"');
@@ -233,7 +237,7 @@ describe("the charts", () => {
   });
 
   test("each chart gets its own gradient id", () => {
-    const l = { aria: "a", start: "s", target: "t", now: "n", month: "m" };
+    const l = { aria: "a", start: "s", target: "t", now: "n", month: "m", label: "l", byEait: "b" };
     const a = estimateChartSvg("lose", l), b = estimateChartSvg("gain", l);
     const idA = /linearGradient id="([^"]+)"/.exec(a)![1]!;
     const idB = /linearGradient id="([^"]+)"/.exec(b)![1]!;
@@ -287,10 +291,25 @@ describe("avatars — Spud's mood disc and Gabie's letter", () => {
   test("every mood's --face is mascot.ts's own svg, data-urled once", () => {
     const css = kitCss();
     for (const mood of ["happy", "think", "care", "idle", "wave", "joy"]) {
-      expect(css).toContain(`.spud.${mood}{--face:url("data:image/svg+xml,`);
+      expect(css).toContain(`.spud.${mood},.wm.${mood}{--face:url("data:image/svg+xml,`);
     }
     expect(css).toContain('.spud{width:28px;height:28px');
     expect(css).toContain('.gabie::before{content:"G"}');
+  });
+});
+
+describe("tagx — the attribution chip", () => {
+  test("the eait mark plus words, on a surface pill", () => {
+    const m = tagx({ text: "eait analysis" });
+    expect(m).toContain('class="tagx"');
+    expect(m).toContain('class="wm happy"');
+    expect(m).toContain("eait analysis");
+  });
+  test("the streak chip is the same pill with an icon", () => {
+    const m = tagx({ text: "4", icon: "streak", aria: "4-day streak" });
+    expect(m).toContain('class="tagx ic"');
+    expect(m).toContain('aria-label="4-day streak"');
+    expect(m).toContain("i-streak");
   });
 });
 
@@ -357,7 +376,7 @@ describe("kitCss — the numbers the boards measure", () => {
   test("verdicts are a dot and words — there is no pill to find", () => {
     expect(css).toContain(".v::before");
     expect(rule(".v::before")).toContain("border-radius:50%");
-    expect(css).not.toContain("border-radius:999px");
+    expect(rule(".v")).not.toContain("border-radius"); // a verdict is never a pill; tagx's is its own
     expect(rule(".opt")).toContain("border-top:1px solid var(--hair)");
     expect(rule(".opt.sel .ck")).toContain("background:var(--accent)");
   });
@@ -371,5 +390,23 @@ describe("kitCss — the numbers the boards measure", () => {
   test("the Target chip's text stays white on ink — .pgraph text would mute it", () => {
     // A presentation attribute loses to a rule; the chip's label needs its own rule.
     expect(css).toContain(".pgraph .chip text{fill:#fff}");
+  });
+
+  test("the macro card's figures are the board's, and the hero carries no radius", () => {
+    expect(rule(".mcard b")).toContain("font-size:20px");
+    expect(rule(".mcard b")).toContain("font-weight:700");
+    expect(rule(".mcard b")).toContain("letter-spacing:-.02em");
+    expect(rule(".mcard small")).toContain("font-size:12px");
+    expect(rule(".mcard small")).toContain("font-weight:600");
+    expect(rule(".mcard small")).toContain("var(--muted)");
+    // The hero is a raw image block — its containers (the chat bubble, the meal card) round it.
+    expect(rule(".hero")).not.toContain("border-radius");
+    expect(rule(".hero")).toContain("overflow:hidden");
+  });
+
+  test("the tagx pill and its face", () => {
+    expect(css).toContain(".tagx{display:inline-flex;align-items:center;gap:5px");
+    expect(css).toContain("border-radius:999px");
+    expect(css).toContain(".tagx .wm{width:18px;height:18px");
   });
 });

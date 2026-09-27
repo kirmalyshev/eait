@@ -38,8 +38,11 @@ async function kitSheet(page: Page): Promise<void> {
     weekStrip(WEEK, "en"),
     mac("kcal", "540"),
     gramMacs({ protein: 34.4, carbs: 52, fat: 12 }, "en"),
-    mcard({ macro: "protein", value: "55 g", label: "Protein left", share: 0.4 }),
-    mcard({ macro: "carbs", value: "132 g", label: "Carbs" }),
+    `<div class="mcards">${[
+      mcard({ macro: "protein", value: "55 g", label: "Protein left", share: 0.4 }),
+      mcard({ macro: "carbs", value: "132 g", label: "Carbs" }),
+      mcard({ macro: "fat", value: "25 g", label: "Fat" }),
+    ].join("")}</div>`,
     mealRow({
       name: "Grilled salmon, rice, broccoli", time: "13:05", kcal: 540,
       grams: { protein: 34.4, carbs: 52, fat: 12 },
@@ -65,6 +68,7 @@ async function kitSheet(page: Page): Promise<void> {
     estimateChartSvg("lose", {
       aria: "Weight trend to target", start: "74 kg", target: "Target 68 kg",
       now: "Now", month: "January 2027 · estimate",
+      label: "Estimated progress", byEait: "eait analysis",
     }),
     twoWayChartSvg({ aria: "Weight over time, drawn two ways", without: "Without", now: "Now", later: "Later" }),
     weightChartSvg(
@@ -163,6 +167,22 @@ test("the kit's measurements are pro.css's", async ({ page }) => {
   await expect(page.locator(".pgraph .end")).toHaveAttribute("fill", "var(--accent)");
   await expect(page.locator(".pgraph .chip text")).toHaveCSS("fill", "rgb(255, 255, 255)");
   await expect(page.locator(".pgraph .chip rect")).toHaveCSS("fill", "rgb(23, 25, 28)");
+
+  // The macro card's figure and caption are the board's type scale; the cards sit on the
+  // three-column grid.
+  await expect(page.locator(".mcard b").first()).toHaveCSS("font-size", "20px");
+  await expect(page.locator(".mcard b").first()).toHaveCSS("font-weight", "700");
+  await expect(page.locator(".mcard small").first()).toHaveCSS("font-size", "12px");
+  await expect(page.locator(".mcards")).toHaveCSS("grid-template-columns", /^[\d.]+px [\d.]+px [\d.]+px$/);
+
+  // The estimate chart carries its own header: the label plus the "eait analysis" tag.
+  const head = page.locator(".ec .row.between");
+  await expect(head.locator(".lab")).toContainText("Estimated progress");
+  await expect(head.locator(".tagx")).toContainText("eait analysis");
+  await expect(head.locator(".tagx .wm.happy")).toHaveCSS("width", "18px");
+
+  // The hero is a raw block — its rounding is the container's, not the component's.
+  await expect(page.locator(".hero")).toHaveCSS("border-radius", "0px");
 
   // The avatars: Spud's 28 px disc draws its mood's face, Gabie's is the lettered accent one.
   await expect(page.locator(".spud.think")).toHaveCSS("width", "28px");
